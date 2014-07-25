@@ -42,5 +42,8 @@ viscBlockVars.o : viscBlockVars.cpp viscBlockVars.h vector3d.h tensor.h plot3d.h
 output.o : output.cpp output.h blockVars.h tensor.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h viscBlockVars.h
 	$(CC) $(CFLAGS) output.cpp
 
+matrix.o : matrix.cpp matrix.h
+	$(CC) $(CFLAGS) matrix.cpp
+
 clean:
 	rm *.o *~ $(CODENAME)
