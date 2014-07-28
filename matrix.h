@@ -11,12 +11,26 @@ using std::string;
 using std::ostream;
 
 class squareMatrix {
-  const int size;
+  int size;
   double *data;
 
  public:
   //constructor
-  squareMatrix( const int &a ): size(a) {data = new double[a];}
+  squareMatrix( const int &a ): size(a) {data = new double[a*a];}
+  squareMatrix() : size(0), data(NULL){}
+
+  //copy constructor
+  squareMatrix( const squareMatrix &cp);
+
+  //copy assignment operator
+  squareMatrix& operator= (squareMatrix other);
+  //squareMatrix& operator= (const squareMatrix &other);
+
+  //move constructor
+  squareMatrix(squareMatrix &&other) : squareMatrix() {
+    swap(*this,other);
+    other.data=NULL;
+  }
 
   //member functions
   double Data(const int &, const int &)const;
@@ -28,14 +42,24 @@ class squareMatrix {
   squareMatrix operator - (const squareMatrix&)const;
   squareMatrix operator * (const squareMatrix&)const;
 
+  squareMatrix operator + (const double&)const;
+  squareMatrix operator - (const double&)const;
+  squareMatrix operator * (const double&)const;
+  squareMatrix operator / (const double&)const;
+
   friend squareMatrix operator + (const double&, const squareMatrix&);
   friend squareMatrix operator - (const double&, const squareMatrix&);
   friend squareMatrix operator * (const double&, const squareMatrix&);
   friend squareMatrix operator / (const double&, const squareMatrix&);
   friend ostream & operator<< (ostream &os, const squareMatrix&);
 
+  friend void swap(squareMatrix &first, squareMatrix &second);
+
   //destructor
-  ~squareMatrix() {delete [] data;}
+  ~squareMatrix() {
+    delete [] data;
+    data = NULL;
+  }
 
 };
 

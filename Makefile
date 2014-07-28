@@ -45,5 +45,11 @@ output.o : output.cpp output.h blockVars.h tensor.h vector3d.h plot3d.h eos.h pr
 matrix.o : matrix.cpp matrix.h
 	$(CC) $(CFLAGS) matrix.cpp
 
+testMain.o : testMain.cpp matrix.h
+	$(CC) $(CFLAGS) testMain.cpp
+
+testMain : testMain.o matrix.o
+	$(CC) $(LFLAGS) testMain.o matrix.o
+
 clean:
 	rm *.o *~ $(CODENAME)
