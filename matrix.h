@@ -36,6 +36,11 @@ class squareMatrix {
   double Data(const int &, const int &)const;
   void SetData(const int &, const int &, const double&);
   int Size()const{return size;}
+  void SwapRows(const int &, const int &);
+  void Inverse();
+  int FindMaxInCol(const int &, const int &, const int &)const;
+  void RowMultiply(const int &, const int &, const double &);
+  void LinCombRow(const int &, const double &, const int &);
 
   //operator overloads
   squareMatrix operator + (const squareMatrix&)const;
