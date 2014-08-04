@@ -50,6 +50,7 @@ class primVars {
   inline double Energy(const idealGas&)const;
   inline double Enthalpy(const idealGas&)const;
   inline double Temperature(const idealGas&)const;
+  inline double SoS(const idealGas&)const;
 
   inline vector<double> ConsVars(const idealGas&)const;
 
@@ -102,6 +103,11 @@ vector3d<double> primVars::Velocity()const{
 //member function to calculate total enthalpy from conserved variables
 double primVars::Energy(const idealGas &eqnState)const{
   return eqnState.GetEnergy( eqnState.GetSpecEnergy(p, rho), (*this).Velocity().Mag() );
+}
+
+//member function to calculate speed of sound from primative varialbes
+double primVars::SoS(const idealGas &eqnState)const{
+  return sqrt(eqnState.Gamma() * p / rho);
 }
 
 //member function to calculate enthalpy from conserved variables and equation of state
