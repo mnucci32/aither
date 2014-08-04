@@ -45,6 +45,7 @@ class vector3d {
   T DotProd( const vector3d&)const;
   vector3d<T> CrossProd(const vector3d&)const;
   inline T Mag()const;
+  inline T MagSq()const;
   T SumElem()const;
   T Distance( const vector3d&)const;
 
@@ -148,9 +149,13 @@ vector3d<T> vector3d<T>::CrossProd(const vector3d &v2)const{
 //Function to calculate the magnitude of the vector
 template <class T>
 T vector3d<T>::Mag()const{
-
   return sqrt(x*x + y*y + z*z);
+}
 
+//Function to calculate the square of the magnitude of the vector
+template <class T>
+T vector3d<T>::MagSq()const{
+  return x*x + y*y + z*z;
 }
 
 //Function to sum the elements in the vector

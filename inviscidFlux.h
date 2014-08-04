@@ -9,6 +9,7 @@
 #include "input.h" //input
 #include "boundaryConditions.h" //boundaryConditions
 #include <iostream> //cout
+#include "matrix.h"
 
 using std::vector;
 using std::string;
@@ -61,6 +62,6 @@ inviscidFlux BoundaryFlux( const string&, const vector3d<double>&, const primVar
 //function to calculate Roe flux with entropy fix
 inviscidFlux RoeFlux( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double& );                  
 //function to calculate Roe flux with entropy fix for implicit methods
-inviscidFlux RoeFluxJacobian( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double& );                  
+void RoeFluxJacobian( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double&, squareMatrix&, squareMatrix& );                  
 
 #endif

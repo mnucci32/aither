@@ -344,3 +344,14 @@ ostream & operator<< (ostream &os, const squareMatrix &m){
   }
   return os;
 }
+
+
+//member function to zero the matrix
+void squareMatrix::Zero(){
+  for(int cc = 0; cc < size; cc++){
+    for(int rr = 0; rr < size; rr++){
+      (*this).SetData(rr,cc,0.0);
+    }
+  }
+
+}

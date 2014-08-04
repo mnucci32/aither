@@ -41,6 +41,7 @@ class squareMatrix {
   int FindMaxInCol(const int &, const int &, const int &)const;
   void RowMultiply(const int &, const int &, const double &);
   void LinCombRow(const int &, const double &, const int &);
+  void Zero();
 
   //operator overloads
   squareMatrix operator + (const squareMatrix&)const;
