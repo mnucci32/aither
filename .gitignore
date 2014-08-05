@@ -8,3 +8,6 @@
 gmon.out
 callgrind.out.*
 cachegrind.out.*
+
+#Ignore compiled executable
+main

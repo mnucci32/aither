@@ -33,7 +33,7 @@ void swap(squareMatrix &first, squareMatrix &second){
 double squareMatrix::Data( const int &r, const int &c )const{
 
   //test to see that row and column inputs are within bounds
-  if ( (r > ((*this).size)) || (c > ((*this).size)) ){
+  if ( (r >= ((*this).size)) || (c >= ((*this).size)) ){
     cerr << "ERROR: The requested data, does not lie within the matrix bounds. Check row and column inputs." << endl;
     exit(1);
   }
@@ -43,7 +43,7 @@ double squareMatrix::Data( const int &r, const int &c )const{
 //member function to set the data in the matrix
 void squareMatrix::SetData( const int &r, const int &c, const double &val ){
   //test to see that row and column inputs are within bounds
-  if ( (r > ((*this).size)) || (c > ((*this).size)) ){
+  if ( (r >= ((*this).size)) || (c >= ((*this).size)) ){
     cerr << "ERROR: Cannot assign data to given location because it does not lie within the matrix bounds. Check row and column inputs." << endl;
     exit(1);
   }
@@ -352,6 +352,72 @@ void squareMatrix::Zero(){
     for(int rr = 0; rr < size; rr++){
       (*this).SetData(rr,cc,0.0);
     }
+  }
+
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+//function definitions for matrixDiagonal class
+
+//copy constructor
+matrixDiagonal::matrixDiagonal( const matrixDiagonal &cp){
+  (*this).size = cp.Size();
+  (*this).data = new squareMatrix[cp.Size()];
+  copy(&cp.data[0], &cp.data[0] + cp.Size(), &(*this).data[0]);
+}
+
+//copy assignment operator
+matrixDiagonal& matrixDiagonal::operator= (matrixDiagonal other){
+  swap(*this, other);
+  return *this;
+}
+
+//friend function to allow for swap functionality
+void swap(matrixDiagonal &first, matrixDiagonal &second){
+  std::swap(first.size, second.size);
+  std::swap(first.data, second.data);
+}
+
+//member function to get the data from the matrix
+squareMatrix matrixDiagonal::Data( const int &ind)const{
+
+  //test to see that the index input is within bounds
+  if ( ind >= (*this).size ){
+    cerr << "ERROR: The requested data, does not lie within the matrix bounds. Check index input." << endl;
+    exit(1);
+  }
+  return data[ind];
+}
+
+//member function to set the data in the matrix
+void matrixDiagonal::SetData( const int &ind, const squareMatrix &val ){
+  //test to see that the index input is within bounds
+  if ( ind >= (*this).size ){
+    cerr << "ERROR: The requested data, does not lie within the matrix bounds. Check index input." << endl;
+    exit(1);
+  }
+  data[ind] = val;
+}
+
+//operation overload for << - allows use of cout, cerr, etc.
+ostream & operator<< (ostream &os, const matrixDiagonal &m){
+
+  int rr = 0;
+  for( rr = 0; rr < m.Size(); rr++ ){
+    cout << "In index " << rr << " matrix block is:" << endl;
+    cout << m.Data(rr) << endl;
+  }
+  return os;
+}
+
+
+//member function to zero the matrix
+void matrixDiagonal::Zero(){
+  squareMatrix mZero(5);
+  mZero.Zero();
+
+  for(int cc = 0; cc < size; cc++){
+    (*this).SetData(cc,mZero);
   }
 
 }

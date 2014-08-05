@@ -69,6 +69,48 @@ class squareMatrix {
 
 };
 
+//Class to store the implicit flux jacobians for the entire mesh. Only values on populated diagonals are stored.
+class matrixDiagonal {
+  int size;
+  squareMatrix *data;
+
+ public:
+  //constructor
+  matrixDiagonal( const int &a ): size(a) {data = new squareMatrix[a];}
+  matrixDiagonal() : size(0), data(NULL){}
+
+  //copy constructor
+  matrixDiagonal( const matrixDiagonal &cp);
+
+  //copy assignment operator
+  matrixDiagonal& operator= (matrixDiagonal other);
+
+  //move constructor
+  matrixDiagonal(matrixDiagonal &&other) : matrixDiagonal() {
+    swap(*this,other);
+    other.data=NULL;
+  }
+
+  //member functions
+  squareMatrix Data(const int &)const;
+  void SetData(const int &, const squareMatrix&);
+  int Size()const{return size;}
+  void Zero();
+
+  //operator overloads
+  friend ostream & operator<< (ostream &os, const matrixDiagonal&);
+
+  friend void swap(matrixDiagonal &first, matrixDiagonal &second);
+
+  //destructor
+  ~matrixDiagonal() {
+    delete [] data;
+    data = NULL;
+  }
+
+};
+
+
 //function declarations
 
 
