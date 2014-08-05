@@ -1,0 +1,10 @@
+#Ignore compiled object files
+*.o
+
+#Ignore temporary copy files
+*~
+
+#Ignore valgrind and gprof output
+gmon.out
+callgrind.out.*
+cachegrind.out.*
