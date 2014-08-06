@@ -123,7 +123,8 @@ class plot3dMesh {
   //member functions
   void AddP3dBlock(const plot3dBlock&); 
   void ReplaceBlock(int, const plot3dBlock&);
-  vector<plot3dBlock> Blocks() const {return blocks;}
+  plot3dBlock Blocks(const int &ii) const {return blocks[ii];}
+  int NumBlocks() const {return blocks.size();}
 
   //destructor
   ~plot3dMesh() {}

@@ -421,3 +421,20 @@ void matrixDiagonal::Zero(const int &s){
   }
 
 }
+
+
+//member function to delete the contents of the data structure and resize it
+void matrixDiagonal::CleanResizeZero(const int &s, const int &m){
+  squareMatrix mZero(m);
+  mZero.Zero();
+
+  delete [] (*this).data;
+  (*this).data = new squareMatrix[s];
+  (*this).size = s;
+
+  for(int cc = 0; cc < size; cc++){
+    (*this).SetData(cc,mZero);
+  }
+
+
+}

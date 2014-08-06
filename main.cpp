@@ -14,6 +14,7 @@
 #include "eos.h"
 #include "boundaryConditions.h"
 #include "output.h"
+#include "matrix.h"
 #include <fenv.h>
 #include <ctime>
 
@@ -39,6 +40,17 @@ int main( int argc, char *argv[] ) {
   //Parse input file
   input inputVars = ReadInput(inputFile);
 
+  //Determine number of equations
+  int numEqns = 0;
+  if ( (inputVars.EquationSet() == "euler") || (inputVars.EquationSet() == "navierStokes") ){
+    numEqns = 5;
+  }
+  else{
+    cerr << "ERROR: Equations set is not recognized. Cannot determine number of equations!" << endl;
+  }
+
+  cout << "Number of equations: " << numEqns << endl << endl;
+
   //Read grid
   plot3dMesh mesh = ReadP3dGrid(inputVars.GridName());
 
@@ -58,13 +70,13 @@ int main( int argc, char *argv[] ) {
   sutherland suth(inputVars.TRef());
 
   //initialize the whole mesh
-  vector<blockVars> stateBlocks( mesh.Blocks().size() );
-  vector<viscBlockVars> viscBlocks( mesh.Blocks().size() );
-  unsigned int ll = 0;
-  for ( ll = 0; ll < mesh.Blocks().size(); ll++) {
-    stateBlocks[ll] = blockVars(state, mesh.Blocks()[ll]);
+  vector<blockVars> stateBlocks( mesh.NumBlocks() );
+  vector<viscBlockVars> viscBlocks( mesh.NumBlocks() );
+  int ll = 0;
+  for ( ll = 0; ll < mesh.NumBlocks(); ll++) {
+    stateBlocks[ll] = blockVars(state, mesh.Blocks(ll));
     if (inputVars.EquationSet() == "navierStokes"){
-      viscBlocks[ll] = viscBlockVars(mesh.Blocks()[ll]);
+      viscBlocks[ll] = viscBlockVars(mesh.Blocks(ll));
     }
     else if (inputVars.EquationSet() == "euler"){
       //do nothing extra
@@ -81,12 +93,28 @@ int main( int argc, char *argv[] ) {
 
   cout << endl << "Solution Initialized" << endl;
 
-  unsigned int bb = 0;
+  //initialize implicit matrix
+  vector<matrixDiagonal> mainDiag( mesh.NumBlocks() );
+  vector<matrixDiagonal> offUpIDiag( mesh.NumBlocks() );
+  vector<matrixDiagonal> offLowIDiag( mesh.NumBlocks() );
+
+  for (ll = 0; ll < mesh.NumBlocks(); ll++){
+    int numElems = (mesh.Blocks(ll).NumI() - 1) * (mesh.Blocks(ll).NumJ() - 1) * (mesh.Blocks(ll).NumK() - 1);
+    mainDiag[ll].CleanResizeZero(numElems, 5);
+    offUpIDiag[ll].CleanResizeZero(numElems, 5);
+    offLowIDiag[ll].CleanResizeZero(numElems, 5);
+  }
+
+  if ( (inputVars.TimeIntegration() == "explicitEuler") || (inputVars.TimeIntegration() == "rk4") ){
+    mainDiag.clear();
+    offUpIDiag.clear();
+    offLowIDiag.clear();
+  } 
+
+
+  int bb = 0;
   unsigned int cc = 0;
   int nn = 0;
-
-  //HARD CODED
-  //int totalNumCells = 144;
 
   int locMaxB = 0;
 
@@ -101,7 +129,7 @@ int main( int argc, char *argv[] ) {
   for ( nn = 0; nn < inputVars.Iterations(); nn++ ){            //loop over time
 
 
-    for ( bb = 0; bb < mesh.Blocks().size(); bb++ ){             //loop over number of blocks
+    for ( bb = 0; bb < mesh.NumBlocks(); bb++ ){             //loop over number of blocks
 
       //calculate inviscid fluxes
       stateBlocks[bb].CalcInvFluxI(eos, inputVars, bb);
@@ -123,6 +151,10 @@ int main( int argc, char *argv[] ) {
       else{
       	stateBlocks[bb].CalcBlockResidDT(inputVars, aRef);
       }
+
+      //if implicit calculate flux jacobians and assembly matrix
+
+
 
       //update solution
       stateBlocks[bb].UpdateBlock(inputVars, eos, aRef, bb, residL2, residLinf, locMaxB);

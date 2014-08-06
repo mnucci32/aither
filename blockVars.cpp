@@ -288,14 +288,6 @@ void blockVars::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 	  faceStateUpper = (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax) ).FaceReconMUSCL( (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax, 2) ),
 	  													 (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ),rstr, kap, inp.Limiter(), up2faceU, upwindU, centralU );
 
-	  // cout << " face states lower and upper " << endl;
-	  // cout << faceStateLower;
-	  // cout << faceStateUpper;
-	  /////////////////////////////////////////////////////////////////////////////////////////////////
-	  // faceStateLower = (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ).FaceReconConst();
-	  // faceStateUpper = (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax) ).FaceReconConst();
-
-
 	  tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS);
 	  (*this).SetInvFluxI(tempFlux, loc);
 	  (*this).SetMaxWaveSpeedI(maxWS, loc);
@@ -305,22 +297,6 @@ void blockVars::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 	else if ( ii == imax-2 && kap != -2.0) {                 //upper face state reconstruction needs 1 ghost cell; set ghost cell equal to cell on boundary - works for inflow, outflow, slipwall
 	  bcName = bound.GetBCName(ii+1, jj, kk, "iu");          //get bc at ii = imax-1
 	  ghostState = (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax, 1) ).GetGhostState( bcName, (*this).FAreaI( GetNeighborUpI(ii, jj, kk, imax, jmax, 1) ), "iu", inp, eqnState );
-
-	  // cout << "at ii = " << imax-2 << " bcName is " << bcName << endl;
-	  // cout << "bc name " << bcName << endl;
-	  //  cout << "ghost state " << ghostState ;
-	  // cout << "ghost state vel " << ghostState.Vx() << ", " << ghostState.Vy() << ", " << ghostState.Vz() << endl;
-	   // cout << "boundary state " << (*this).State( GetCellFromFaceUpperI(ii,jj,kk,imax,jmax,1) ) ;
-	   // cout << "boundary area " << (*this).FAreaI()[ GetNeighborUpI(ii, jj, kk, imax, jmax, 1) ] << endl;
-
-	  // faceStateLower = (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ).FaceReconConst();
-	  // faceStateUpper = (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax) ).FaceReconConst();
-	      // cout << "i face area center " << (*this).FCenterI()[loc] << endl;
-	      // cout << "lower i cell center " << (*this).Center()[GetCellFromFaceLowerI(ii, jj, kk, imax, jmax)] << endl;
-	      // cout << "upper i cell center " << (*this).Center()[GetCellFromFaceUpperI(ii, jj, kk, imax, jmax)] << endl;
-	      // cout << "lower i cell center " << (*this).Center()[GetCellFromFaceLowerI(ii, jj, kk, imax, jmax, 2)] << endl;
-	      // //cout << "upper i cell center " << (*this).Center()[GetCellFromFaceUpperI(ii, jj, kk, imax, jmax, 2)] << endl;
-
 
 	  up2faceL = (*this).Center( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ).Distance( (*this).FCenterI(loc) );
 	  upwindL = (*this).Center( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ).Distance( (*this).Center( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax, 2) ) );
@@ -336,18 +312,11 @@ void blockVars::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 	  faceStateUpper = (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax) ).FaceReconMUSCL( ghostState,
 	  													 (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ),rstr, kap, inp.Limiter(), up2faceU, upwindU, centralU );
 
-	  /////////////////////////////////////////////////////////////////////////////////////////////////
-	  // faceStateLower = (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ).FaceReconConst();
-	  // faceStateUpper = (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax) ).FaceReconConst();
-
 
 	  tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS);
 	  (*this).SetInvFluxI(tempFlux, loc);
 	  (*this).SetMaxWaveSpeedI(maxWS, loc);
 
-	  // cout << "face state lower " << faceStateLower;
-	  // cout << "face state upper (w/ ghost) " << faceStateUpper;
-	  // cout << "flux " << tempFlux << endl;
 
 	}
 	else{
@@ -357,15 +326,6 @@ void blockVars::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 	    faceStateUpper = (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax) ).FaceReconConst();
 	  }
 	  else{
-	    // faceStateLower = (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ).FaceReconConst();
-	    // faceStateUpper = (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax) ).FaceReconConst();
-
-	      // cout << "i face area center " << (*this).FCenterI()[loc] << endl;
-	      // cout << "lower i cell center " << (*this).Center()[GetCellFromFaceLowerI(ii, jj, kk, imax, jmax)] << endl;
-	      // cout << "upper i cell center " << (*this).Center()[GetCellFromFaceUpperI(ii, jj, kk, imax, jmax)] << endl;
-	      // cout << "lower i cell center " << (*this).Center()[GetCellFromFaceLowerI(ii, jj, kk, imax, jmax, 2)] << endl;
-	      // cout << "upper i cell center " << (*this).Center()[GetCellFromFaceUpperI(ii, jj, kk, imax, jmax, 2)] << endl;
-
 
 	    up2faceL = (*this).Center( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ).Distance( (*this).FCenterI(loc) );
 	    upwindL = (*this).Center( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ).Distance( (*this).Center( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax, 2) ) );
@@ -381,9 +341,6 @@ void blockVars::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 	    faceStateUpper = (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax) ).FaceReconMUSCL( (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax, 2) ),
 	    													   (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ),rstr, kap, inp.Limiter(), up2faceU, upwindU, centralU );
 
-	  /////////////////////////////////////////////////////////////////////////////////////////////////
-	  // faceStateLower = (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ).FaceReconConst();
-	  // faceStateUpper = (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax) ).FaceReconConst();
 
 	  }
 	  tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS);
@@ -391,11 +348,6 @@ void blockVars::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 	  (*this).SetMaxWaveSpeedI(maxWS, loc);
 	}
 
-
-	// if ( ii == 0 && jj == 0 && kk ==39 ){
-	//   cout << "flux " << tempFlux << endl;
-	// }
-	//cout << "bc type " << bcName << endl;
       }
     }
   }
@@ -436,8 +388,6 @@ void blockVars::CalcInvFluxJ(const idealGas &eqnState, const input &inp, const i
       for ( ii = 0; ii < imax; ii++){      
 
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
-
-        //cout << "j flux face ijk " << ii << ", " << jj << ", " << kk << ", " << loc << endl;
 
 	//find out if at a block boundary
 	if ( jj == 0  ){                             //at j lower boundary
@@ -490,10 +440,6 @@ void blockVars::CalcInvFluxJ(const idealGas &eqnState, const input &inp, const i
 	  faceStateUpper = (*this).State( GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax) ).FaceReconMUSCL( (*this).State( GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax, 2) ),
 														 (*this).State( GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax) ),rstr, kap, inp.Limiter(), up2faceU, upwindU, centralU );
 
-	  //////////////////////////////////////////////////////////////////////////////////////////////////////
-	  //faceStateLower = (*this).State( GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax) ).FaceReconConst();
-	  //faceStateUpper = (*this).State( GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax) ).FaceReconConst();
-
 
 	  tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS);
 	  (*this).SetInvFluxJ(tempFlux, loc);
@@ -517,13 +463,6 @@ void blockVars::CalcInvFluxJ(const idealGas &eqnState, const input &inp, const i
 
 	  faceStateUpper = (*this).State( GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax) ).FaceReconMUSCL( ghostState,
 														 (*this).State( GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax) ),rstr, kap, inp.Limiter(), up2faceU, upwindU, centralU );
-
-	  //////////////////////////////////////////////////////////////////////////////////////////////////////////////
-	  //faceStateLower = (*this).State( GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax) ).FaceReconConst();
-	  //faceStateUpper = (*this).State( GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax) ).FaceReconConst();
-
-
-
 
 
 	  tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS);
@@ -557,7 +496,6 @@ void blockVars::CalcInvFluxJ(const idealGas &eqnState, const input &inp, const i
 	  (*this).SetMaxWaveSpeedJ(maxWS, loc);
 	}
 
-	//cout << "flux " << tempFlux << endl;
 
       }
     }
@@ -600,8 +538,6 @@ void blockVars::CalcInvFluxK(const idealGas &eqnState, const input &inp, const i
 
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
 
-        //cout << "k flux face ijk " << ii << ", " << jj << ", " << kk << ", " << loc << endl;
-
 	//find out if at a block boundary
 	if ( kk == 0  ){                             //at k lower boundary
 	  bcName = bound.GetBCName(ii, jj, kk, "kl");
@@ -620,7 +556,7 @@ void blockVars::CalcInvFluxK(const idealGas &eqnState, const input &inp, const i
 	  (*this).SetMaxWaveSpeedK(maxWS, loc);
 	}
 	else if ( kk == kmax-1 ){  //at k upper boundary
-	  //cout << "at ku boundary " << loc << ", " << ii << ", " << jj << ", " << kk << endl;
+
 	  bcName = bound.GetBCName(ii, jj, kk, "ku");
 
 	  if (kmax > 2 && kap != -2.0){
@@ -640,15 +576,6 @@ void blockVars::CalcInvFluxK(const idealGas &eqnState, const input &inp, const i
 	  bcName = bound.GetBCName(ii, jj, kk-1, "kl");           //get bc at kk=0
 	  ghostState = (*this).State( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax, 1) ).GetGhostState( bcName, (*this).FAreaK( GetNeighborLowK(ii, jj, kk, imax, jmax, 1) ), "kl", inp, eqnState );
 
-	      // cout << "k face area center " << (*this).FCenterK(loc) << endl;
-	      // cout << "lower k cell center " << (*this).Center( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ) << endl;
-	      // cout << "upper k cell center " << (*this).Center( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax) ) << endl;
-	      // //cout << "lower k cell center " << (*this).Center( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax, 2)] << endl;
-	      // cout << "upper k cell center " << (*this).Center( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax, 2)] << endl;
-
-	  // faceStateLower = (*this).State( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ).FaceReconConst();
-	  // faceStateUpper = (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax) ).FaceReconConst();
-
 	  up2faceL = (*this).Center( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ).Distance( (*this).FCenterK(loc) );
 	  upwindL = (*this).FCenterK(loc).Distance( (*this).FCenterK( GetNeighborLowK(ii, jj, kk, imax, jmax) ) );        //due to ghost cell set upwind distance equal to local cell length
 	  centralL = (*this).Center( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ).Distance( (*this).Center( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax) ) );
@@ -664,35 +591,15 @@ void blockVars::CalcInvFluxK(const idealGas &eqnState, const input &inp, const i
 	  													 (*this).State( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ),rstr, kap, inp.Limiter(), up2faceU, upwindU, centralU );
 
 
-	  //////////////////////////////////////////////////////////////////////////////////////////////////
-	  // faceStateLower = (*this).State( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ).FaceReconConst();
-	  // faceStateUpper = (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax) ).FaceReconConst();
-
-
 	  tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS);
 	  (*this).SetInvFluxK(tempFlux, loc);
 	  (*this).SetMaxWaveSpeedK(maxWS, loc);
-
-	  // cout << "at kk = 1 bcName is " << bcName << endl;
-	  // cout << "ghost state " << ghostState ;
 
 	}
 	else if ( kk == kmax-2 && kap != -2.0) {                 //upper face state reconstruction needs 1 ghost cell; set ghost cell equal to cell on boundary - works for inflow, outflow, slipwall
 	  bcName = bound.GetBCName(ii, jj, kk+1, "ku");          //get bc at kk=kmax-1
 	  ghostState = (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax, 1) ).GetGhostState( bcName, (*this).FAreaK( GetNeighborUpK(ii, jj, kk, imax, jmax, 1) ), "ku", inp, eqnState );
 
-
-	  // cout << "at kk = " << kmax-2 << " bcName is " << bcName << endl;
-	  // cout << "ghost state " << ghostState ;
-	  // cout << "area vec " << (*this).FAreaK()[ GetUpperFaceK(ii, jj, kk, imax, jmax, 1) ] << endl;
-	  // cout << "i, j, k, loc " << ii << ", " << jj << ", " << kk << ", " << loc << endl;
-	  // cout << "area index requested " << GetUpperFaceK(ii, jj, kk, imax, jmax, 1) << endl;
-	  // cout << "length of k face vector " << (*this).FAreaK().size() << endl;
-	  // cout << "boundary state " << (*this).State( GetCellFromFaceUpperK(ii,jj,kk,imax,jmax,1) ) ;
-	  // cout << "area is " << (*this).FAreaK()[ GetUpperFaceK(ii, jj, kk, imax, jmax, 1) ] / (*this).FAreaK()[ GetUpperFaceK(ii, jj, kk, imax, jmax, 1) ].Mag() << endl;
-
-	  // faceStateLower = (*this).State( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ).FaceReconConst();
-	  // faceStateUpper = (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax) ).FaceReconConst();
 
 	  up2faceL = (*this).Center( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ).Distance( (*this).FCenterK(loc) );
 	  upwindL = (*this).Center( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ).Distance( (*this).Center( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax, 2) ) );
@@ -708,11 +615,6 @@ void blockVars::CalcInvFluxK(const idealGas &eqnState, const input &inp, const i
 	  faceStateUpper = (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax) ).FaceReconMUSCL( ghostState,
 	  													 (*this).State( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ),rstr, kap, inp.Limiter(), up2faceU, upwindU, centralU );
 
-	  //////////////////////////////////////////////////////////////////////////////////////////////////
-	  // faceStateLower = (*this).State( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ).FaceReconConst();
-	  // faceStateUpper = (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax) ).FaceReconConst();
-
-
 	  tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS);
 	  (*this).SetInvFluxK(tempFlux, loc);
 	  (*this).SetMaxWaveSpeedK(maxWS, loc);
@@ -724,19 +626,6 @@ void blockVars::CalcInvFluxK(const idealGas &eqnState, const input &inp, const i
 	    faceStateUpper = (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax) ).FaceReconConst();
 	  }
 	  else{
-
-	  // faceStateLower = (*this).State( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ).FaceReconConst();
-	  // faceStateUpper = (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax) ).FaceReconConst();
-
-	    // if (ii == 1 && jj == 4 && kk ==10){
-	    //   cout << "at k face location " << ii << ", " << jj << ", " << kk << ", " << loc << endl;
-	      // cout << "k face area center " << (*this).FCenterK(loc) << endl;
-	      // cout << "lower k cell center " << (*this).Center( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ) << endl;
-	      // cout << "upper k cell center " << (*this).Center( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax) ) << endl;
-	      // cout << "lower k cell center " << (*this).Center( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax, 2)] << endl;
-	      // cout << "upper k cell center " << (*this).Center( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax, 2)] << endl;
-
-	    // }
 
 	    up2faceL = (*this).Center( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ).Distance( (*this).FCenterK(loc) );
 	    upwindL = (*this).Center( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ).Distance( (*this).Center( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax, 2) ) );
@@ -753,30 +642,12 @@ void blockVars::CalcInvFluxK(const idealGas &eqnState, const input &inp, const i
 	    faceStateUpper = (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax) ).FaceReconMUSCL( (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax, 2) ),
 	    													   (*this).State( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ),rstr, kap, inp.Limiter(), up2faceU, upwindU, centralU );
 
-	    ///////////////////////////////////////////////////////////////////////////////////////////////
-	    // faceStateLower = (*this).State( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ).FaceReconConst();
-	    // faceStateUpper = (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax) ).FaceReconConst();
-
 
 	  }
 	  tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS);
 	  (*this).SetInvFluxK(tempFlux, loc);
 	  (*this).SetMaxWaveSpeedK(maxWS, loc);
 	}
-
-
-	// if (loc > 134){
-	// cout << "inviscid flux" << endl;
-	// cout << tempFlux;
-	// cout << "lower state at cell loc" << GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) << endl;
-	// cout << faceStateLower;
-	// cout << "upper state at cell loc" << GetCellFromFaceUpperK(ii, jj, kk, imax, jmax) << endl;
-	// cout << faceStateUpper << endl;
-
-	// }
-	// if ( ii == 0 && jj == 0 && kk ==39 ){
-	//   cout << "flux " << tempFlux << endl;
-	// }
 
 
       }
@@ -822,10 +693,6 @@ void blockVars::CalcCellDt( const int &i, const int &j, const int &k, const doub
 
   (*this).SetDt(dt, loc);
 
-  //cout << "at cell " << loc << " local time step is " << dt << " and wave speed is " << avgWS << endl;
-
-  //cout << "at cell " << loc << " local time step is " << dt << " and volume is " << vol << " sum of wave speed x area is " << avgWS << endl;
-  //cout << "wave speeds " << wsIl << ", " << wsIu << ", " << wsJl << ", " << wsJu << ", " << wsKl << ", " << wsKu << endl << endl;
 }
 
 //this member function calculates the residual for an inviscid simulation
@@ -1130,6 +997,8 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 
           mainDiag.SetData(   upperI, mainDiag.Data(upperI)    - tempR * (*this).FAreaI(loc).Mag() );
 
+	  //(*this).SetMaxWaveSpeedI(maxWS, loc);
+
 	}
 	else if ( ii == imax-1 ){  //at i upper boundary
 	  bcName = bound.GetBCName(ii, jj, kk, "iu");
@@ -1145,6 +1014,8 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 
 	  offUpIDiag.SetData(lowerI, offUpIDiag.Data(lowerI) - tempL * (*this).FAreaI(loc).Mag() );
 
+	  //(*this).SetMaxWaveSpeedI(maxWS, loc);
+
 	}
 	else{
 	  faceStateLower = (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ).FaceReconConst();
@@ -1158,8 +1029,9 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
           mainDiag.SetData(  upperI, mainDiag.Data(upperI)   - tempR * (*this).FAreaI(loc).Mag() );
 	  offUpIDiag.SetData(lowerI, offUpIDiag.Data(lowerI) - tempL * (*this).FAreaI(loc).Mag() );
 
-	}
+	  //(*this).SetMaxWaveSpeedI(maxWS, loc);
 
+	}
 
       }
     }

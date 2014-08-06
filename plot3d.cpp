@@ -787,11 +787,11 @@ plot3dMesh ReadP3dGrid(string gridName) {
 //---------------------------------------------------------------------------------------------------------------//
 //plot 3d solution mesh constructor, member functions
 //constructor -- create a plot3d solution mesh from a passed plot3d mesh
-plot3dQMesh::plot3dQMesh(const plot3dMesh &mesh ):qblocks(mesh.Blocks().size()){
-  unsigned int ii = 0;
-  for (ii = 0; ii< mesh.Blocks().size(); ii++){
+plot3dQMesh::plot3dQMesh(const plot3dMesh &mesh ):qblocks(mesh.NumBlocks()){
+  int ii = 0;
+  for (ii = 0; ii< mesh.NumBlocks(); ii++){
     cout << "writing solution block " << ii << endl;
-    qblocks[ii] = plot3dQBlock(mesh.Blocks()[ii]);
+    qblocks[ii] = plot3dQBlock(mesh.Blocks(ii));
   }
 }
 
