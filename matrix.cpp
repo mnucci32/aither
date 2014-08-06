@@ -412,8 +412,8 @@ ostream & operator<< (ostream &os, const matrixDiagonal &m){
 
 
 //member function to zero the matrix
-void matrixDiagonal::Zero(){
-  squareMatrix mZero(5);
+void matrixDiagonal::Zero(const int &s){
+  squareMatrix mZero(s);
   mZero.Zero();
 
   for(int cc = 0; cc < size; cc++){

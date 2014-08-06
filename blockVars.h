@@ -9,6 +9,7 @@
 #include "primVars.h" //primVars
 #include "inviscidFlux.h" //inviscidFlux
 #include "input.h" //inputVars
+#include "matrix.h" //squareMatrix, matrixDiagonal
 #include <fstream>
 #include <iostream>
 
@@ -117,6 +118,12 @@ class blockVars {
   void RK4TimeAdvance(const primVars&, const idealGas&, const double&, const int&, const int&);
 
   //void TotalResidual( vector<double> &, vector<double> &, int &, const int & );
+
+  void CalcInvFluxJacI(const idealGas&, const input&, const int&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&)const;
+  void CalcInvFluxJacJ(const idealGas&, const input&, const int&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&)const;
+  void CalcInvFluxJacK(const idealGas&, const input&, const int&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&)const;
+
+
 
   //destructor
   ~blockVars() {}

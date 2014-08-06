@@ -95,7 +95,7 @@ class matrixDiagonal {
   squareMatrix Data(const int &)const;
   void SetData(const int &, const squareMatrix&);
   int Size()const{return size;}
-  void Zero();
+  void Zero(const int &);
 
   //operator overloads
   friend ostream & operator<< (ostream &os, const matrixDiagonal&);

@@ -231,14 +231,11 @@ void blockVars::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
 
-        //cout << "i flux face ijk " << ii << ", " << jj << ", " << kk << ", " << loc << endl;
-	//cout << "i face area " << (*this).FAreaI()[loc] << endl;
-
 	//find out if at a block boundary
 	if ( ii == 0  ){                             //at i lower boundary
 	  bcName = bound.GetBCName(ii, jj, kk, "il");
 
-	  if (imax > 2 && kap != -2.0){ //if more than 2 faces thick, and second order, use linear extrapolation to get bounday state
+	  if (imax > 2 && kap != -2.0){ //if more than 2 faces thick, and second order, use linear extrapolation to get boundary state
 	    up2faceU = (*this).Center( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax) ).Distance( (*this).FCenterI(loc) );
 	    upwindU = (*this).Center( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax) ).Distance( (*this).Center( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax, 2)) );
 
@@ -275,15 +272,6 @@ void blockVars::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 	                                                          //ghost state should use boundary adjacent cell and boundary normal
 	  bcName = bound.GetBCName(ii-1, jj, kk, "il");           //get bc at ii=0
 	  ghostState = (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax, 1) ).GetGhostState( bcName, (*this).FAreaI( GetNeighborLowI(ii, jj, kk, imax, jmax, 1) ), "il", inp, eqnState );
-
-	  // cout << "at ii = 1, bcName is " << bcName << endl;
-	  // cout << "ghost state " << ghostState ;
-	  // cout << "boundary state " << (*this).State( GetCellFromFaceLowerI(ii,jj,kk,imax,jmax,1) ) ;
-	      // cout << "i face area center " << (*this).FCenterI()[loc] << endl;
-	      // cout << "lower i cell center " << (*this).Center()[GetCellFromFaceLowerI(ii, jj, kk, imax, jmax)] << endl;
-	      // cout << "upper i cell center " << (*this).Center()[GetCellFromFaceUpperI(ii, jj, kk, imax, jmax)] << endl;
-	      // //cout << "lower i cell center " << (*this).Center()[GetCellFromFaceLowerI(ii, jj, kk, imax, jmax, 2)] << endl;
-	      // cout << "upper i cell center " << (*this).Center()[GetCellFromFaceUpperI(ii, jj, kk, imax, jmax, 2)] << endl;
 
 
 	  up2faceL = (*this).Center( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ).Distance( (*this).FCenterI(loc) );
@@ -1092,3 +1080,90 @@ void blockVars::RK4TimeAdvance( const primVars &currState, const idealGas &eqnSt
 
 // }
 
+//function to calculate the flux jacobians on the i-faces
+void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, const int &bb, matrixDiagonal &mainDiag, matrixDiagonal &offLowIDiag, matrixDiagonal &offUpIDiag)const{
+
+  int imax = (*this).NumI();
+  int jmax = (*this).NumJ() - 1;
+  int kmax = (*this).NumK() - 1;
+
+ const boundaryConditions bound = inp.BC()[bb];
+
+  int ii = 0;
+  int jj = 0;
+  int kk = 0;
+  int loc = 0;
+  int upperI = 0;
+  int lowerI = 0;
+
+  double maxWS = 0.0;
+
+  primVars faceStateLower, faceStateUpper, ghostState;
+
+  string bcName = "undefined";
+
+  squareMatrix tempL(mainDiag.Data(0).Size());
+  squareMatrix tempR(mainDiag.Data(0).Size());
+
+  for ( kk = 0; kk < kmax; kk++){   
+    for ( jj = 0; jj < jmax; jj++){    
+      for ( ii = 0; ii < imax; ii++){      
+
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
+	lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
+
+	tempL.Zero();
+	tempR.Zero();
+
+	//find out if at a block boundary
+	if ( ii == 0  ){                             //at i lower boundary
+	  bcName = bound.GetBCName(ii, jj, kk, "il");
+	  faceStateLower = (*this).State(upperI).GetGhostState( bcName, (*this).FAreaI(loc), "il", inp, eqnState).FaceReconConst(); //ghost state
+
+	  faceStateUpper = (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax) ).FaceReconConst();
+
+	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS, tempL, tempR);
+
+          // left flux jacobian is not needed at lower boundary
+	  offLowIDiag.SetData(lowerI, offLowIDiag.Data(lowerI) + tempR * (*this).FAreaI(loc).Mag() );
+
+          mainDiag.SetData(   upperI, mainDiag.Data(upperI)    - tempR * (*this).FAreaI(loc).Mag() );
+
+	}
+	else if ( ii == imax-1 ){  //at i upper boundary
+	  bcName = bound.GetBCName(ii, jj, kk, "iu");
+
+	  faceStateUpper = (*this).State(lowerI).GetGhostState( bcName, (*this).FAreaI(loc), "iu", inp, eqnState).FaceReconConst(); //ghost state
+
+	  faceStateLower = (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ).FaceReconConst();
+
+	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS, tempL, tempR);
+
+	  // right flux jacobian is not needed at upper boundary
+          mainDiag.SetData(  lowerI, mainDiag.Data(lowerI)   + tempL * (*this).FAreaI(loc).Mag() );
+
+	  offUpIDiag.SetData(lowerI, offUpIDiag.Data(lowerI) - tempL * (*this).FAreaI(loc).Mag() );
+
+	}
+	else{
+	  faceStateLower = (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ).FaceReconConst();
+	  faceStateUpper = (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax) ).FaceReconConst();
+
+	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS, tempL, tempR);
+
+          mainDiag.SetData(   lowerI, mainDiag.Data(lowerI)    + tempL * (*this).FAreaI(loc).Mag() );
+	  offLowIDiag.SetData(lowerI, offLowIDiag.Data(lowerI) + tempR * (*this).FAreaI(loc).Mag() );
+
+          mainDiag.SetData(  upperI, mainDiag.Data(upperI)   - tempR * (*this).FAreaI(loc).Mag() );
+	  offUpIDiag.SetData(lowerI, offUpIDiag.Data(lowerI) - tempL * (*this).FAreaI(loc).Mag() );
+
+	}
+
+
+      }
+    }
+  }
+
+
+}
