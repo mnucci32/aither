@@ -66,19 +66,8 @@ void squareMatrix::Inverse(){
 
   squareMatrix I((*this).size);
   int r = 0;
-  int c = 0;
 
-  //initialize identity matrix
-  for( r = 0; r < I.Size(); r++ ){
-    for( c = 0; c < I.Size(); c++ ){
-      if(r == c){
-	I.SetData(r,c,1.0);
-      }
-      else{
-	I.SetData(r,c,0.0);
-      }
-    }
-  }
+  I.Identity();
 
   int cPivot = 0;
   for( cPivot = 0, r = 0; r < size; r++, cPivot++ ){
@@ -351,6 +340,21 @@ void squareMatrix::Zero(){
   for(int cc = 0; cc < size; cc++){
     for(int rr = 0; rr < size; rr++){
       (*this).SetData(rr,cc,0.0);
+    }
+  }
+
+}
+
+//member function to set matrix to Identity
+void squareMatrix::Identity(){
+  for( int rr = 0; rr < (*this).Size(); rr++ ){
+    for (int cc = 0; cc < (*this).Size(); cc++ ){
+      if(rr == cc){
+	(*this).SetData(rr,cc,1.0);
+      }
+      else{
+	(*this).SetData(rr,cc,0.0);
+      }
     }
   }
 

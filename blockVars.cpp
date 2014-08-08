@@ -1045,6 +1045,201 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 
 }
 
+//function to calculate the flux jacobians on the j-faces
+void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, const int &bb, matrixDiagonal &mainDiag, matrixDiagonal &offLowJDiag, matrixDiagonal &offUpJDiag)const{
+
+  int imax = (*this).NumI() - 1;
+  int jmax = (*this).NumJ();
+  int kmax = (*this).NumK() - 1;
+
+  const boundaryConditions bound = inp.BC()[bb];
+
+  int ii = 0;
+  int jj = 0;
+  int kk = 0;
+  int loc = 0;
+  int upperJ = 0;
+  int lowerJ = 0;
+
+  double maxWS = 0.0;
+
+  primVars faceStateLower, faceStateUpper, ghostState;
+
+  string bcName = "undefined";
+
+  squareMatrix tempL(mainDiag.Data(0).Size());
+  squareMatrix tempR(mainDiag.Data(0).Size());
+
+  for ( kk = 0; kk < kmax; kk++){   
+    for ( jj = 0; jj < jmax; jj++){    
+      for ( ii = 0; ii < imax; ii++){      
+
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+
+	tempL.Zero();
+	tempR.Zero();
+
+	//find out if at a block boundary
+	if ( jj == 0  ){                             //at i lower boundary
+	  upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
+
+	  bcName = bound.GetBCName(ii, jj, kk, "jl");
+	  faceStateLower = (*this).State(upperJ).GetGhostState( bcName, (*this).FAreaJ(loc), "jl", inp, eqnState).FaceReconConst(); //ghost state
+
+	  faceStateUpper = (*this).State( GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax) ).FaceReconConst();
+
+	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS, tempL, tempR);
+
+          // left flux jacobian is not needed at lower boundary
+	  offLowJDiag.SetData(upperJ, offLowJDiag.Data(upperJ) + tempR * (*this).FAreaJ(loc).Mag() );
+
+          mainDiag.SetData(   upperJ, mainDiag.Data(upperJ)    - tempR * (*this).FAreaJ(loc).Mag() );
+
+	  //(*this).SetMaxWaveSpeedJ(maxWS, loc);
+
+	}
+	else if ( jj == jmax-1 ){  //at i upper boundary
+	  lowerJ = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
+
+	  bcName = bound.GetBCName(ii, jj, kk, "ju");
+
+	  faceStateUpper = (*this).State(lowerJ).GetGhostState( bcName, (*this).FAreaJ(loc), "ju", inp, eqnState).FaceReconConst(); //ghost state
+
+	  faceStateLower = (*this).State( GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax) ).FaceReconConst();
+
+	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS, tempL, tempR);
+
+	  // right flux jacobian is not needed at upper boundary
+          mainDiag.SetData(  lowerJ, mainDiag.Data(lowerJ)   + tempL * (*this).FAreaJ(loc).Mag() );
+
+	  offUpJDiag.SetData(lowerJ, offUpJDiag.Data(lowerJ) - tempL * (*this).FAreaJ(loc).Mag() );
+
+	  //(*this).SetMaxWaveSpeedJ(maxWS, loc);
+
+	}
+	else{
+	  lowerJ = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
+	  upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
+
+	  faceStateLower = (*this).State( GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax) ).FaceReconConst();
+	  faceStateUpper = (*this).State( GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax) ).FaceReconConst();
+
+	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS, tempL, tempR);
+
+          mainDiag.SetData(   lowerJ, mainDiag.Data(lowerJ)    + tempL * (*this).FAreaJ(loc).Mag() );
+	  offLowJDiag.SetData(lowerJ, offLowJDiag.Data(lowerJ) + tempR * (*this).FAreaJ(loc).Mag() );
+
+          mainDiag.SetData(  upperJ, mainDiag.Data(upperJ)   - tempR * (*this).FAreaJ(loc).Mag() );
+	  offUpJDiag.SetData(lowerJ, offUpJDiag.Data(lowerJ) - tempL * (*this).FAreaJ(loc).Mag() );
+
+	  //(*this).SetMaxWaveSpeedJ(maxWS, loc);
+
+	}
+
+      }
+    }
+  }
+
+
+}
+
+//function to calculate the flux jacobians on the k-faces
+void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, const int &bb, matrixDiagonal &mainDiag, matrixDiagonal &offLowKDiag, matrixDiagonal &offUpKDiag)const{
+
+  int imax = (*this).NumI() - 1;
+  int jmax = (*this).NumJ() - 1;
+  int kmax = (*this).NumK();
+
+  const boundaryConditions bound = inp.BC()[bb];
+
+  int ii = 0;
+  int jj = 0;
+  int kk = 0;
+  int loc = 0;
+  int upperK = 0;
+  int lowerK = 0;
+
+  double maxWS = 0.0;
+
+  primVars faceStateLower, faceStateUpper, ghostState;
+
+  string bcName = "undefined";
+
+  squareMatrix tempL(mainDiag.Data(0).Size());
+  squareMatrix tempR(mainDiag.Data(0).Size());
+
+  for ( kk = 0; kk < kmax; kk++){   
+    for ( jj = 0; jj < jmax; jj++){    
+      for ( ii = 0; ii < imax; ii++){      
+
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+
+	tempL.Zero();
+	tempR.Zero();
+
+	//find out if at a block boundary
+	if ( kk == 0  ){                             //at i lower boundary
+	  upperK = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
+
+	  bcName = bound.GetBCName(ii, jj, kk, "kl");
+	  faceStateLower = (*this).State(upperK).GetGhostState( bcName, (*this).FAreaK(loc), "kl", inp, eqnState).FaceReconConst(); //ghost state
+
+	  faceStateUpper = (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax) ).FaceReconConst();
+
+	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS, tempL, tempR);
+
+          // left flux jacobian is not needed at lower boundary
+	  offLowKDiag.SetData(upperK, offLowKDiag.Data(upperK) + tempR * (*this).FAreaK(loc).Mag() );
+
+          mainDiag.SetData(   upperK, mainDiag.Data(upperK)    - tempR * (*this).FAreaK(loc).Mag() );
+
+	  //(*this).SetMaxWaveSpeedK(maxWS, loc);
+
+	}
+	else if ( kk == kmax-1 ){  //at i upper boundary
+	  lowerK = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
+
+	  bcName = bound.GetBCName(ii, jj, kk, "ku");
+
+	  faceStateUpper = (*this).State(lowerK).GetGhostState( bcName, (*this).FAreaK(loc), "ku", inp, eqnState).FaceReconConst(); //ghost state
+
+	  faceStateLower = (*this).State( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ).FaceReconConst();
+
+	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS, tempL, tempR);
+
+	  // right flux jacobian is not needed at upper boundary
+          mainDiag.SetData(  lowerK, mainDiag.Data(lowerK)   + tempL * (*this).FAreaK(loc).Mag() );
+
+	  offUpKDiag.SetData(lowerK, offUpKDiag.Data(lowerK) - tempL * (*this).FAreaK(loc).Mag() );
+
+	  //(*this).SetMaxWaveSpeedK(maxWS, loc);
+
+	}
+	else{
+	  lowerK = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
+	  upperK = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
+
+	  faceStateLower = (*this).State( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ).FaceReconConst();
+	  faceStateUpper = (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax) ).FaceReconConst();
+
+	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS, tempL, tempR);
+
+          mainDiag.SetData(   lowerK, mainDiag.Data(lowerK)    + tempL * (*this).FAreaK(loc).Mag() );
+	  offLowKDiag.SetData(lowerK, offLowKDiag.Data(lowerK) + tempR * (*this).FAreaK(loc).Mag() );
+
+          mainDiag.SetData(  upperK, mainDiag.Data(upperK)   - tempR * (*this).FAreaK(loc).Mag() );
+	  offUpKDiag.SetData(lowerK, offUpKDiag.Data(lowerK) - tempL * (*this).FAreaK(loc).Mag() );
+
+	  //(*this).SetMaxWaveSpeedK(maxWS, loc);
+
+	}
+
+      }
+    }
+  }
+
+
+}
 
 //a member function to print out the matrix structure for the block
 void blockVars::PrintMatrixStructure(){
@@ -1070,6 +1265,31 @@ void blockVars::PrintMatrixStructure(){
       }
 
 
+    }
+  }
+
+}
+
+//a member function to add the cell volume divided by the cell time step to the main diagonal of the implicit matrix
+void blockVars::AddVolTime( matrixDiagonal &mainDiag) const {
+
+  int s = mainDiag.Data(0).Size();
+  squareMatrix I(s);
+  I.Identity();
+
+  int imax = (*this).NumI() - 1;
+  int jmax = (*this).NumJ() - 1;
+  int kmax = (*this).NumK() - 1;
+  int loc = 0;
+
+  for ( int ii = 0; ii < imax; ii++ ){
+    for ( int jj = 0; jj < jmax; jj++ ){
+      for ( int kk = 0; kk < kmax; kk++ ){
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	I = ((*this).Vol(loc) / (*this).Dt(loc)) * I;
+	mainDiag.SetData(loc, mainDiag.Data(loc) + I);
+	I.Identity();
+      }
     }
   }
 

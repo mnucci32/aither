@@ -97,18 +97,30 @@ int main( int argc, char *argv[] ) {
   vector<matrixDiagonal> mainDiag( mesh.NumBlocks() );
   vector<matrixDiagonal> offUpIDiag( mesh.NumBlocks() );
   vector<matrixDiagonal> offLowIDiag( mesh.NumBlocks() );
+  vector<matrixDiagonal> offUpJDiag( mesh.NumBlocks() );
+  vector<matrixDiagonal> offLowJDiag( mesh.NumBlocks() );
+  vector<matrixDiagonal> offUpKDiag( mesh.NumBlocks() );
+  vector<matrixDiagonal> offLowKDiag( mesh.NumBlocks() );
 
   for (ll = 0; ll < mesh.NumBlocks(); ll++){
     int numElems = (mesh.Blocks(ll).NumI() - 1) * (mesh.Blocks(ll).NumJ() - 1) * (mesh.Blocks(ll).NumK() - 1);
-    mainDiag[ll].CleanResizeZero(numElems, 5);
-    offUpIDiag[ll].CleanResizeZero(numElems, 5);
-    offLowIDiag[ll].CleanResizeZero(numElems, 5);
+    mainDiag[ll].CleanResizeZero(numElems, numEqns);
+    offUpIDiag[ll].CleanResizeZero(numElems, numEqns);
+    offLowIDiag[ll].CleanResizeZero(numElems, numEqns);
+    offUpJDiag[ll].CleanResizeZero(numElems, numEqns);
+    offLowJDiag[ll].CleanResizeZero(numElems, numEqns);
+    offUpKDiag[ll].CleanResizeZero(numElems, numEqns);
+    offLowKDiag[ll].CleanResizeZero(numElems, numEqns);
   }
 
   if ( (inputVars.TimeIntegration() == "explicitEuler") || (inputVars.TimeIntegration() == "rk4") ){
     mainDiag.clear();
     offUpIDiag.clear();
     offLowIDiag.clear();
+    offUpJDiag.clear();
+    offLowJDiag.clear();
+    offUpKDiag.clear();
+    offLowKDiag.clear();
   } 
 
 
@@ -118,9 +130,9 @@ int main( int argc, char *argv[] ) {
 
   int locMaxB = 0;
 
-  vector<double> residL2(5, 0.0);
-  vector<double> residL2First(5, 0.0);
-  vector<double> residLinf(5, 0.0);
+  vector<double> residL2(numEqns, 0.0);
+  vector<double> residL2First(numEqns, 0.0);
+  vector<double> residLinf(numEqns, 0.0);
 
 
   //Write out cell centers grid file
@@ -155,8 +167,14 @@ int main( int argc, char *argv[] ) {
       //if implicit calculate flux jacobians and assembly matrix
       if (inputVars.TimeIntegration() == "implicitEuler"){
 	stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag[bb], offLowIDiag[bb], offUpIDiag[bb]);
-	stateBlocks[bb].PrintMatrixStructure();
-	cout << endl;
+	stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag[bb], offLowJDiag[bb], offUpJDiag[bb]);
+	stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag[bb], offLowKDiag[bb], offUpKDiag[bb]);
+
+	//add volume divided by time step term to main diagonal
+	stateBlocks[bb].AddVolTime(mainDiag[bb]);
+
+	//calculate correction (du)
+
       }
 
 

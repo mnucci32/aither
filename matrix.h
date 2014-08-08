@@ -42,6 +42,7 @@ class squareMatrix {
   void RowMultiply(const int &, const int &, const double &);
   void LinCombRow(const int &, const double &, const int &);
   void Zero();
+  void Identity();
 
   //operator overloads
   squareMatrix operator + (const squareMatrix&)const;
