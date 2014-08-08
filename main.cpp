@@ -153,7 +153,11 @@ int main( int argc, char *argv[] ) {
       }
 
       //if implicit calculate flux jacobians and assembly matrix
-
+      if (inputVars.TimeIntegration() == "implicitEuler"){
+	stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag[bb], offLowIDiag[bb], offUpIDiag[bb]);
+	stateBlocks[bb].PrintMatrixStructure();
+	cout << endl;
+      }
 
 
       //update solution

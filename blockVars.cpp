@@ -954,7 +954,7 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
   int jmax = (*this).NumJ() - 1;
   int kmax = (*this).NumK() - 1;
 
- const boundaryConditions bound = inp.BC()[bb];
+  const boundaryConditions bound = inp.BC()[bb];
 
   int ii = 0;
   int jj = 0;
@@ -977,14 +977,14 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
       for ( ii = 0; ii < imax; ii++){      
 
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
-	upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
-	lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
 
 	tempL.Zero();
 	tempR.Zero();
 
 	//find out if at a block boundary
 	if ( ii == 0  ){                             //at i lower boundary
+	  upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
+
 	  bcName = bound.GetBCName(ii, jj, kk, "il");
 	  faceStateLower = (*this).State(upperI).GetGhostState( bcName, (*this).FAreaI(loc), "il", inp, eqnState).FaceReconConst(); //ghost state
 
@@ -993,7 +993,7 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS, tempL, tempR);
 
           // left flux jacobian is not needed at lower boundary
-	  offLowIDiag.SetData(lowerI, offLowIDiag.Data(lowerI) + tempR * (*this).FAreaI(loc).Mag() );
+	  offLowIDiag.SetData(upperI, offLowIDiag.Data(upperI) + tempR * (*this).FAreaI(loc).Mag() );
 
           mainDiag.SetData(   upperI, mainDiag.Data(upperI)    - tempR * (*this).FAreaI(loc).Mag() );
 
@@ -1001,6 +1001,8 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 
 	}
 	else if ( ii == imax-1 ){  //at i upper boundary
+	  lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
+
 	  bcName = bound.GetBCName(ii, jj, kk, "iu");
 
 	  faceStateUpper = (*this).State(lowerI).GetGhostState( bcName, (*this).FAreaI(loc), "iu", inp, eqnState).FaceReconConst(); //ghost state
@@ -1018,6 +1020,9 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 
 	}
 	else{
+	  lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
+	  upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
+
 	  faceStateLower = (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ).FaceReconConst();
 	  faceStateUpper = (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax) ).FaceReconConst();
 
@@ -1037,5 +1042,35 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
     }
   }
 
+
+}
+
+
+//a member function to print out the matrix structure for the block
+void blockVars::PrintMatrixStructure(){
+
+  int imax = (*this).NumI() - 1;
+  int jmax = (*this).NumJ() - 1;
+  int kmax = (*this).NumK() - 1;
+
+  int numCells = imax * jmax * kmax;
+
+  for ( int rr = 0; rr < numCells; rr++ ){
+    for ( int cc = 0; cc < numCells; cc++ ){
+
+      if( cc == (rr-1) || cc == rr || cc == (rr+1) || cc == (rr-imax) || cc == (rr+imax) || cc == (rr-imax*jmax) || cc == (rr+imax*jmax) ){
+	cout << "1, ";
+      }
+      else{
+	cout << "0, ";
+      }
+
+      if (cc == numCells - 1){
+	cout << endl;
+      }
+
+
+    }
+  }
 
 }

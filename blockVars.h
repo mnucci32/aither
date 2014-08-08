@@ -124,6 +124,8 @@ class blockVars {
   void CalcInvFluxJacK(const idealGas&, const input&, const int&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&)const;
 
 
+  void PrintMatrixStructure();
+
 
   //destructor
   ~blockVars() {}
