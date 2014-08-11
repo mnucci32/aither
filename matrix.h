@@ -114,6 +114,6 @@ class matrixDiagonal {
 
 
 //function declarations
-
+void SymGaussSeidel(const squareMatrix &, vector<double> &, const vector<double> &, const int &, const double &);
 
 #endif

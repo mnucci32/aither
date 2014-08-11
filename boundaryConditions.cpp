@@ -51,7 +51,7 @@ boundaryConditions::boundaryConditions( int i, int j, int k){
 }
 
 //operator overload for << - allows use of cout, cerr, etc.
-ostream & operator<< (ostream &os, boundaryConditions &bc){
+ostream & operator<< (ostream &os, const boundaryConditions &bc){
 
   os << "Number of I surfaces: " << bc.numSurfI << endl;
   os << "Number of J surfaces: " << bc.numSurfJ << endl;

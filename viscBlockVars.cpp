@@ -185,7 +185,7 @@ void viscBlockVars::CalcCellGrads(const blockVars &vars, const idealGas &eqnStat
   int jmax = (*this).NumJ() - 1;
   int kmax = (*this).NumK() - 1;
 
-  const boundaryConditions bound = inp.BC()[bb];
+  const boundaryConditions bound = inp.BC(bb);
 
   int ii = 0;
   int jj = 0;
@@ -358,7 +358,7 @@ void viscBlockVars::CalcViscFluxI(const blockVars &vars, const sutherland &suth,
   int jmax = (*this).NumJ() - 1;
   int kmax = (*this).NumK() - 1;
 
- const boundaryConditions bound = inp.BC()[bb];
+ const boundaryConditions bound = inp.BC(bb);
 
   int ii = 0;
   int jj = 0;
@@ -480,7 +480,7 @@ void viscBlockVars::CalcViscFluxJ(const blockVars &vars, const sutherland &suth,
   int jmax = (*this).NumJ();
   int kmax = (*this).NumK() - 1;
 
- const boundaryConditions bound = inp.BC()[bb];
+ const boundaryConditions bound = inp.BC(bb);
 
   int ii = 0;
   int jj = 0;
@@ -600,7 +600,7 @@ void viscBlockVars::CalcViscFluxK(const blockVars &vars, const sutherland &suth,
   int jmax = (*this).NumJ() - 1;
   int kmax = (*this).NumK();
 
- const boundaryConditions bound = inp.BC()[bb];
+ const boundaryConditions bound = inp.BC(bb);
 
   int ii = 0;
   int jj = 0;

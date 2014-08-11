@@ -16,7 +16,7 @@ using std::istream_iterator;
 
 //constructor for input class
 //initialize vector to have length of number of acceptable inputs to the code
-input::input(): vars(17){
+input::input(): vars(20){
   //default values for each variable
   gName = "";
   dt = -1.0;
@@ -38,6 +38,9 @@ input::input(): vars(17){
   outputFrequency = 1;
   equationSet = "euler";
   tRef = -1.0;
+  matrixSolver = "gaussSeidel";
+  matrixSweeps = 5;
+  matrixRelaxation = 1.0;  //default is Gauss-Seidel with no overrelaxation
 
   //keywords in the input file that the parser is looking for to define variables
   vars[0] = "gridName:";
@@ -56,8 +59,11 @@ input::input(): vars(17){
   vars[13] = "outputFrequency:";
   vars[14] = "equationSet:";
   vars[15] = "temperatureRef:";
+  vars[16] = "matrixSolver:";
+  vars[17] = "matrixSweeps:";
+  vars[18] = "matrixRelaxation:";
 
-  vars[16] = "boundaryConditions:";  //boundary conditions should be listed last
+  vars[19] = "boundaryConditions:";  //boundary conditions should be listed last
 }
 
 //member function to set vector holding boundary conditions for each block
@@ -122,7 +128,7 @@ input ReadInput(const string &inputName){
   }
 
   string line;
-  unsigned int ii = 0;
+  int ii = 0;
   vector3d<double> temp;
   int readingBCs = 0;
   int jj = 0;
@@ -144,47 +150,47 @@ input ReadInput(const string &inputName){
    
     //search to see if first token corresponds to any keywords
     if (tokens.size() >= 2) {
-      for( ii=0; ii < inputVars.Vars().size(); ii++){
+      for( ii=0; ii < inputVars.NumVars(); ii++){
 
-        if (tokens[0] == inputVars.Vars()[ii] || readingBCs > 0){
+        if (tokens[0] == inputVars.Vars(ii) || readingBCs > 0){
           if (ii==0 && readingBCs == 0){
             inputVars.SetGridName(tokens[1]);
-            cout << inputVars.Vars()[ii] << " " << inputVars.GridName() << endl;
+            cout << inputVars.Vars(ii) << " " << inputVars.GridName() << endl;
             continue;
           }
           else if (ii==1 && readingBCs == 0){
             inputVars.SetDt(atof(tokens[1].c_str()));                          //double variable (atof)
-            cout << inputVars.Vars()[ii] << " " << inputVars.Dt() << endl;
+            cout << inputVars.Vars(ii) << " " << inputVars.Dt() << endl;
             continue;
 	  }
           else if (ii==2 && readingBCs == 0){
             inputVars.SetIterations(atoi(tokens[1].c_str()));
-            cout << inputVars.Vars()[ii] << " " << inputVars.Iterations() << endl;
+            cout << inputVars.Vars(ii) << " " << inputVars.Iterations() << endl;
             continue;
 	  }
           else if (ii==3 && readingBCs == 0){
             inputVars.SetPRef(atof(tokens[1].c_str()));                       //double variable (atof)
-            cout << inputVars.Vars()[ii] << " " << inputVars.PRef() << endl;
+            cout << inputVars.Vars(ii) << " " << inputVars.PRef() << endl;
             continue;
 	  }
           else if (ii==4 && readingBCs == 0){
             inputVars.SetRRef(atof(tokens[1].c_str()));                       //double variable (atof)
-            cout << inputVars.Vars()[ii] << " " << inputVars.RRef() << endl;
+            cout << inputVars.Vars(ii) << " " << inputVars.RRef() << endl;
             continue;
 	  }
           else if (ii==5 && readingBCs == 0){
             inputVars.SetLRef(atof(tokens[1].c_str()));                       //double variable (atof)
-            cout << inputVars.Vars()[ii] << " " << inputVars.LRef() << endl;
+            cout << inputVars.Vars(ii) << " " << inputVars.LRef() << endl;
             continue;
 	  }
           else if (ii==6 && readingBCs == 0){
             inputVars.SetGamma(atof(tokens[1].c_str()));                      //double variable (atof)
-            cout << inputVars.Vars()[ii] << " " << inputVars.Gamma() << endl;
+            cout << inputVars.Vars(ii) << " " << inputVars.Gamma() << endl;
             continue;
 	  }
           else if (ii==7 && readingBCs == 0){
             inputVars.SetR(atof(tokens[1].c_str()));                         //double variable (atof)
-            cout << inputVars.Vars()[ii] << " " << inputVars.R() << endl;
+            cout << inputVars.Vars(ii) << " " << inputVars.R() << endl;
             continue;
 	  }
           else if (ii==8 && readingBCs == 0){
@@ -192,17 +198,17 @@ input ReadInput(const string &inputName){
             temp.SetY(atof(tokens[2].c_str()));
             temp.SetZ(atof(tokens[3].c_str()));
             inputVars.SetVelRef(temp);
-            cout << inputVars.Vars()[ii] << " " << inputVars.VelRef() << endl;
+            cout << inputVars.Vars(ii) << " " << inputVars.VelRef() << endl;
             continue;
 	  }
           else if (ii==9 && readingBCs == 0){
             inputVars.SetTimeIntegration(tokens[1]);
-            cout << inputVars.Vars()[ii] << " " << inputVars.TimeIntegration() << endl;
+            cout << inputVars.Vars(ii) << " " << inputVars.TimeIntegration() << endl;
             continue;
           }
           else if (ii==10 && readingBCs == 0){
             inputVars.SetCFL(atof(tokens[1].c_str()));                       //double variable (atof)
-            cout << inputVars.Vars()[ii] << " " << inputVars.CFL() << endl;
+            cout << inputVars.Vars(ii) << " " << inputVars.CFL() << endl;
             continue;
           }
           else if (ii==11 && readingBCs == 0){
@@ -228,7 +234,7 @@ input ReadInput(const string &inputName){
 	      inputVars.SetKappa(atof(tokens[1].c_str()));         //if string is not recognized, set kappa to number input
 	    }
 
-            cout << inputVars.Vars()[ii] << " " << tokens[1] << " kappa = " << inputVars.Kappa() << endl;
+            cout << inputVars.Vars(ii) << " " << tokens[1] << " kappa = " << inputVars.Kappa() << endl;
 	    if ( (inputVars.Kappa() < -1.0) || (inputVars.Kappa() > 1.0) ){
 	      cerr << "ERROR: Kappa value of " << inputVars.Kappa() << " is not valid! Choose a value between -1.0 and 1.0." << endl;
 	      exit(0);
@@ -237,25 +243,42 @@ input ReadInput(const string &inputName){
           }
           else if (ii==12 && readingBCs == 0){
             inputVars.SetLimiter(tokens[1]);
-            cout << inputVars.Vars()[ii] << " " << inputVars.Limiter() << endl;
+            cout << inputVars.Vars(ii) << " " << inputVars.Limiter() << endl;
             continue;
           }
           else if (ii==13 && readingBCs == 0){
             inputVars.SetOutputFrequency(atoi(tokens[1].c_str()));
-            cout << inputVars.Vars()[ii] << " " << inputVars.OutputFrequency() << endl;
+            cout << inputVars.Vars(ii) << " " << inputVars.OutputFrequency() << endl;
             continue;
 	  }
           else if (ii==14 && readingBCs == 0){
             inputVars.SetEquationSet(tokens[1]);
-            cout << inputVars.Vars()[ii] << " " << inputVars.EquationSet() << endl;
+            cout << inputVars.Vars(ii) << " " << inputVars.EquationSet() << endl;
             continue;
           }
           else if (ii==15 && readingBCs == 0){
             inputVars.SetTRef(atof(tokens[1].c_str()));                       //double variable (atof)
-            cout << inputVars.Vars()[ii] << " " << inputVars.TRef() << endl;
+            cout << inputVars.Vars(ii) << " " << inputVars.TRef() << endl;
             continue;
 	  }
-          else if (ii==inputVars.Vars().size()-1 || readingBCs > 0){
+          else if (ii==16 && readingBCs == 0){
+            inputVars.SetMatrixSolver(tokens[1]);
+            cout << inputVars.Vars(ii) << " " << inputVars.MatrixSolver() << endl;
+            continue;
+	  }
+          else if (ii==17 && readingBCs == 0){
+            inputVars.SetMatrixSweeps(atoi(tokens[1].c_str()));
+            cout << inputVars.Vars(ii) << " " << inputVars.MatrixSweeps() << endl;
+            continue;
+	  }
+          else if (ii==18 && readingBCs == 0){
+            inputVars.SetMatrixRelaxation(atof(tokens[1].c_str()));                       //double variable (atof)
+            cout << inputVars.Vars(ii) << " " << inputVars.MatrixRelaxation() << endl;
+            continue;
+	  }
+
+
+          else if (ii==inputVars.NumVars()-1 || readingBCs > 0){
 	    //read in boundary conditions and assign to boundaryConditions class
 	    if (readingBCs == 0) {  //variable read must be number of blocks
 	      numBCBlks = atoi(tokens[1].c_str());
@@ -294,10 +317,9 @@ input ReadInput(const string &inputName){
 
 	    if (kk == numBCBlks){
 	      inputVars.SetBC(tempBC);
-	      cout << inputVars.Vars()[inputVars.Vars().size()-1] << " " << inputVars.BC().size() << endl << endl;;
-	      unsigned int ll = 0;
-	      for ( ll = 0; ll < inputVars.BC().size(); ll++ ){
-		cout << inputVars.BC()[ll] << endl;
+	      cout << inputVars.Vars(inputVars.NumVars()-1) << " " << inputVars.NumBC() << endl << endl;;
+	      for ( int ll = 0; ll < inputVars.NumBC(); ll++ ){
+		cout << inputVars.BC(ll) << endl;
 	      }
 	    }
 

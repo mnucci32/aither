@@ -29,6 +29,9 @@ class input {
   int outputFrequency;                  //how often to output results
   string equationSet;                   //which set of equations to solver Euler/Navier-Stokes
   double tRef;                          //reference temperature
+  string matrixSolver;                  //matrix solver to solve Ax=b
+  int matrixSweeps;                     //number of sweeps for matrix solver
+  double matrixRelaxation;              //relaxation parameter for matrix solver
 
  public:
   //constructor
@@ -65,7 +68,8 @@ class input {
   vector3d<double> VelRef()const{return velRef;}
   void SetVelRef(const vector3d<double> &a){velRef = a;}
 
-  vector<boundaryConditions> BC()const{return bc;}
+  boundaryConditions BC(const int &ind)const{return bc[ind];}
+  int NumBC()const{return bc.size();}
   void SetBC(const vector<boundaryConditions> &a){bc = a;}
   void SetBCVec(const int &a);
 
@@ -87,7 +91,18 @@ class input {
   string EquationSet()const{return equationSet;}
   void SetEquationSet(const string &a){equationSet = a;}
 
-  vector<string> Vars()const{return vars;}
+  string MatrixSolver()const{return matrixSolver;}
+  void SetMatrixSolver(const string &a){matrixSolver = a;}
+
+  int MatrixSweeps()const{return matrixSweeps;}
+  void SetMatrixSweeps(const int &i){matrixSweeps = i;}
+
+  double MatrixRelaxation()const{return matrixRelaxation;}
+  void SetMatrixRelaxation(const double &a){matrixRelaxation = a;}
+
+  string Vars(const int &ind)const{return vars[ind];}
+
+  int NumVars()const{return vars.size();}
 
   //destructor
   ~input() {}

@@ -57,7 +57,7 @@ class boundaryConditions {
 
   void ResizeVecs( const int &a);
 
-  friend ostream & operator<< (ostream &os, boundaryConditions&);
+  friend ostream & operator<< (ostream &os, const boundaryConditions&);
 
   string GetBCName(const int, const int, const int, const string&)const;
 

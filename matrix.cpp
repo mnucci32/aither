@@ -442,3 +442,78 @@ void matrixDiagonal::CleanResizeZero(const int &s, const int &m){
 
 
 }
+
+
+//functions ------------------------------------------------------------------------------------------------
+//function to perform symmetric Gauss-Seidel relaxation to solver Ax=b
+//when relax = 1.0, symmetric Gauss-Seidel is achieved. Values >1 result in symmetric successive over relaxation (SSOR)
+//Values <1 result in under relaxation
+void SymGaussSeidel( const squareMatrix &A, vector<double> &x, const vector<double> &b, const int &sweeps, const double &relax ){
+
+  //initialize x to 0
+  for (unsigned int ii = 0; ii < x.size(); ii++ ){
+    x[ii] = 0.0;
+  }
+
+
+  for ( int kk = 0; kk < sweeps; kk++ ){
+    //forward sweep
+    for ( int ii = 0; ii < x.size(); ii++ ){
+      double newData = 0.0;
+      double oldData = 0.0;
+
+      if(ii == 0){
+	oldData = A.Data(ii, ii+1) * x[ii+1];
+      }
+      else if(ii == (x.size()-1)){
+	newData = A.Data(ii,ii-1) * x[ii-1];
+      }
+      else{
+	newData = A.Data(ii,ii-1) * x[ii-1];
+	oldData = A.Data(ii, ii+1) * x[ii+1];
+      }
+      x[ii] =  (1.0 - relax) * x[ii] + (relax / A.Data(ii,ii)) * (b[ii] - newData - oldData);
+    }
+
+    //backward sweep
+    for ( int ii = x.size()-1; ii >= 0; ii-- ){
+      double newData = 0.0;
+      double oldData = 0.0;
+
+      if(ii == 0){
+	newData = A.Data(ii, ii+1) * x[ii+1];
+      }
+      else if(ii == (x.size()-1)){
+	oldData = A.Data(ii,ii-1) * x[ii-1];
+      }
+      else{
+	oldData = A.Data(ii,ii-1) * x[ii-1];
+	newData = A.Data(ii, ii+1) * x[ii+1];
+      }
+      x[ii] = (1.0 - relax) * x[ii] + (relax / A.Data(ii,ii)) * (b[ii] - newData - oldData);
+    }
+
+    //calculate residual
+    double l2Resid = 0.0;
+    for (unsigned int ii = 0; ii < x.size(); ii++ ){
+
+      double resid = 0.0;
+
+      if(ii == 0){
+	resid = b[ii] - (A.Data(ii,ii) * x[ii] + A.Data(ii,ii+1) * x[ii+1]);
+      }
+      else if(ii == (x.size()-1)){
+	resid = b[ii] - (A.Data(ii,ii-1) * x[ii-1] + A.Data(ii,ii) * x[ii]);
+      }
+      else{
+	resid = b[ii] - (A.Data(ii,ii-1) * x[ii-1] + A.Data(ii,ii) * x[ii] + A.Data(ii,ii+1) * x[ii+1]);
+      }
+
+      l2Resid = l2Resid + resid * resid;
+    }
+    l2Resid = sqrt(l2Resid / x.size());
+    cout << "Residual: " << l2Resid << endl;
+
+
+  }
+}

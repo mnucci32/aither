@@ -204,7 +204,7 @@ void blockVars::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
   int jmax = (*this).NumJ() - 1;
   int kmax = (*this).NumK() - 1;
 
- const boundaryConditions bound = inp.BC()[bb];
+ const boundaryConditions bound = inp.BC(bb);
  const double kap = inp.Kappa();
 
   int ii = 0;
@@ -362,7 +362,7 @@ void blockVars::CalcInvFluxJ(const idealGas &eqnState, const input &inp, const i
   int jmax = (*this).NumJ();
   int kmax = (*this).NumK() - 1;
 
-  const boundaryConditions bound = inp.BC()[bb];
+  const boundaryConditions bound = inp.BC(bb);
   const double kap = inp.Kappa();
 
   int ii = 0;
@@ -511,7 +511,7 @@ void blockVars::CalcInvFluxK(const idealGas &eqnState, const input &inp, const i
   int jmax = (*this).NumJ() - 1;
   int kmax = (*this).NumK();
 
-  const boundaryConditions bound = inp.BC()[bb];
+  const boundaryConditions bound = inp.BC(bb);
   const double kap = inp.Kappa();
 
   int ii = 0;
@@ -954,7 +954,7 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
   int jmax = (*this).NumJ() - 1;
   int kmax = (*this).NumK() - 1;
 
-  const boundaryConditions bound = inp.BC()[bb];
+  const boundaryConditions bound = inp.BC(bb);
 
   int ii = 0;
   int jj = 0;
@@ -1052,7 +1052,7 @@ void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, cons
   int jmax = (*this).NumJ();
   int kmax = (*this).NumK() - 1;
 
-  const boundaryConditions bound = inp.BC()[bb];
+  const boundaryConditions bound = inp.BC(bb);
 
   int ii = 0;
   int jj = 0;
@@ -1150,7 +1150,7 @@ void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, cons
   int jmax = (*this).NumJ() - 1;
   int kmax = (*this).NumK();
 
-  const boundaryConditions bound = inp.BC()[bb];
+  const boundaryConditions bound = inp.BC(bb);
 
   int ii = 0;
   int jj = 0;
