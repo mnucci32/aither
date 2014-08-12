@@ -194,7 +194,7 @@ squareMatrix squareMatrix::operator - (const squareMatrix& s2)const{
 
   //check to see that matrix dimensions are the same
   if ( s1.size != s2.size ){
-    cerr << "ERROR: Cannot add matricies, dimensions do not agree." << endl;
+    cerr << "ERROR: Cannot subtract matricies, dimensions do not agree." << endl;
   }
 
   int cc = 0;
@@ -360,6 +360,28 @@ void squareMatrix::Identity(){
 
 }
 
+colMatrix squareMatrix::Multiply( const colMatrix &X )const{
+
+  //Test to see that column matrix can be multiplied with square matrix
+  if ( (*this).Size() != X.Size() ){
+    cerr << "ERROR: Column matrix cannot be multiplied with square matrix. Sizes do not agree!" << endl;
+    exit(1);
+  }
+
+  colMatrix B(X.Size());
+  B.Zero();
+
+  for (int rr = 0; rr < X.Size(); rr++ ){
+    double tempData = 0.0;
+    for ( int cc = 0; cc < X.Size(); cc++ ){
+      tempData += (*this).Data(rr,cc) * X.Data(cc);
+    }
+    B.SetData(rr, tempData);
+  }
+
+  return B;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 //function definitions for matrixDiagonal class
 
@@ -448,72 +470,243 @@ void matrixDiagonal::CleanResizeZero(const int &s, const int &m){
 //function to perform symmetric Gauss-Seidel relaxation to solver Ax=b
 //when relax = 1.0, symmetric Gauss-Seidel is achieved. Values >1 result in symmetric successive over relaxation (SSOR)
 //Values <1 result in under relaxation
-void SymGaussSeidel( const squareMatrix &A, vector<double> &x, const vector<double> &b, const int &sweeps, const double &relax ){
+void SymGaussSeidel( const squareMatrix &A, colMatrix &x, const colMatrix &b, const int &sweeps, const double &relax ){
 
   //initialize x to 0
-  for (unsigned int ii = 0; ii < x.size(); ii++ ){
-    x[ii] = 0.0;
-  }
-
+  x.Zero();
 
   for ( int kk = 0; kk < sweeps; kk++ ){
     //forward sweep
-    for ( int ii = 0; ii < x.size(); ii++ ){
+    for ( int ii = 0; ii < x.Size(); ii++ ){
       double newData = 0.0;
       double oldData = 0.0;
 
       if(ii == 0){
-	oldData = A.Data(ii, ii+1) * x[ii+1];
+	oldData = A.Data(ii, ii+1) * x.Data(ii+1);
       }
-      else if(ii == (x.size()-1)){
-	newData = A.Data(ii,ii-1) * x[ii-1];
+      else if(ii == (x.Size()-1)){
+	newData = A.Data(ii,ii-1) * x.Data(ii-1);
       }
       else{
-	newData = A.Data(ii,ii-1) * x[ii-1];
-	oldData = A.Data(ii, ii+1) * x[ii+1];
+	newData = A.Data(ii,ii-1) * x.Data(ii-1);
+	oldData = A.Data(ii, ii+1) * x.Data(ii+1);
       }
-      x[ii] =  (1.0 - relax) * x[ii] + (relax / A.Data(ii,ii)) * (b[ii] - newData - oldData);
+      x.SetData(ii, (1.0 - relax) * x.Data(ii) + (relax / A.Data(ii,ii)) * (b.Data(ii) - newData - oldData) );
     }
 
     //backward sweep
-    for ( int ii = x.size()-1; ii >= 0; ii-- ){
+    for ( int ii = x.Size()-1; ii >= 0; ii-- ){
       double newData = 0.0;
       double oldData = 0.0;
 
       if(ii == 0){
-	newData = A.Data(ii, ii+1) * x[ii+1];
+	newData = A.Data(ii, ii+1) * x.Data(ii+1);
       }
-      else if(ii == (x.size()-1)){
-	oldData = A.Data(ii,ii-1) * x[ii-1];
+      else if(ii == (x.Size()-1)){
+	oldData = A.Data(ii,ii-1) * x.Data(ii-1);
       }
       else{
-	oldData = A.Data(ii,ii-1) * x[ii-1];
-	newData = A.Data(ii, ii+1) * x[ii+1];
+	oldData = A.Data(ii,ii-1) * x.Data(ii-1);
+	newData = A.Data(ii, ii+1) * x.Data(ii+1);
       }
-      x[ii] = (1.0 - relax) * x[ii] + (relax / A.Data(ii,ii)) * (b[ii] - newData - oldData);
+      x.SetData(ii, (1.0 - relax) * x.Data(ii) + (relax / A.Data(ii,ii)) * (b.Data(ii) - newData - oldData) );
     }
 
     //calculate residual
     double l2Resid = 0.0;
-    for (unsigned int ii = 0; ii < x.size(); ii++ ){
+    for ( int ii = 0; ii < x.Size(); ii++ ){
 
       double resid = 0.0;
 
       if(ii == 0){
-	resid = b[ii] - (A.Data(ii,ii) * x[ii] + A.Data(ii,ii+1) * x[ii+1]);
+	resid = b.Data(ii) - (A.Data(ii,ii) * x.Data(ii) + A.Data(ii,ii+1) * x.Data(ii+1));
       }
-      else if(ii == (x.size()-1)){
-	resid = b[ii] - (A.Data(ii,ii-1) * x[ii-1] + A.Data(ii,ii) * x[ii]);
+      else if(ii == (x.Size()-1)){
+	resid = b.Data(ii) - (A.Data(ii,ii-1) * x.Data(ii-1) + A.Data(ii,ii) * x.Data(ii));
       }
       else{
-	resid = b[ii] - (A.Data(ii,ii-1) * x[ii-1] + A.Data(ii,ii) * x[ii] + A.Data(ii,ii+1) * x[ii+1]);
+	resid = b.Data(ii) - (A.Data(ii,ii-1) * x.Data(ii-1) + A.Data(ii,ii) * x.Data(ii) + A.Data(ii,ii+1) * x.Data(ii+1));
       }
 
       l2Resid = l2Resid + resid * resid;
     }
-    l2Resid = sqrt(l2Resid / x.size());
+    l2Resid = sqrt(l2Resid / x.Size());
     cout << "Residual: " << l2Resid << endl;
 
 
   }
 }
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+//functions for colMatrix class
+//
+//copy constructor
+colMatrix::colMatrix( const colMatrix &cp){
+  (*this).size = cp.Size();
+  (*this).data = new double[cp.Size()];
+  copy(&cp.data[0], &cp.data[0] + cp.Size(), &(*this).data[0]);
+}
+
+//copy assignment operator
+colMatrix& colMatrix::operator= (colMatrix other){
+  swap(*this, other);
+  return *this;
+}
+
+//friend function to allow for swap functionality
+void swap(colMatrix &first, colMatrix &second){
+  std::swap(first.size, second.size);
+  std::swap(first.data, second.data);
+}
+
+//member function to get the data from the matrix
+double colMatrix::Data( const int &r)const{
+
+  //test to see that row and column inputs are within bounds
+  if ( r >= (*this).size ){
+    cerr << "ERROR: The requested data, does not lie within the column matrix bounds. Check row input." << endl;
+    exit(1);
+  }
+  return data[r];
+}
+
+//member function to set the data in the matrix
+void colMatrix::SetData( const int &r, const double &val ){
+  //test to see that row and column inputs are within bounds
+  if ( r >= (*this).size ){
+    cerr << "ERROR: Cannot assign data to given location because it does not lie within the column matrix bounds. Check row input." << endl;
+    exit(1);
+  }
+  data[r] = val;
+}
+
+//operator overload for addition
+colMatrix colMatrix::operator + (const colMatrix& s2)const{
+  colMatrix s1 = *this;
+
+  //check to see that matrix dimensions are the same
+  if ( s1.size != s2.size ){
+    cerr << "ERROR: Cannot add column matricies, dimensions do not agree." << endl;
+  }
+
+  for( int rr = 0; rr < s2.Size(); rr++ ){
+    s1.SetData(rr, s1.Data(rr) + s2.Data(rr));
+  }
+  return s1;
+}
+
+//operator overload for addition with a scalar
+colMatrix colMatrix::operator + (const double &scalar)const{
+  colMatrix s1 = *this;
+
+  for( int rr = 0; rr < s1.Size(); rr++ ){
+    s1.SetData(rr, s1.Data(rr) + scalar);
+  }
+  return s1;
+}
+
+//operator overload for addition with a scalar
+colMatrix operator+ (const double &scalar, const colMatrix &s2){
+  colMatrix s1(s2.Size());
+
+  for( int rr = 0; rr < s2.Size(); rr++ ){
+    s1.SetData(rr, s2.Data(rr) + scalar);
+  }
+  return s1;
+}
+
+
+//operator overload for subtraction
+colMatrix colMatrix::operator - (const colMatrix& s2)const{
+  colMatrix s1 = *this;
+
+  //check to see that matrix dimensions are the same
+  if ( s1.size != s2.size ){
+    cerr << "ERROR: Cannot subtract column matricies, dimensions do not agree." << endl;
+  }
+
+  for( int rr = 0; rr < s2.Size(); rr++ ){
+    s1.SetData(rr, s1.Data(rr) - s2.Data(rr));
+  }
+  return s1;
+}
+
+//operator overload for subtraction with a scalar
+colMatrix colMatrix::operator - (const double &scalar)const{
+  colMatrix s1 = *this;
+
+  for( int rr = 0; rr < s1.Size(); rr++ ){
+    s1.SetData(rr, s1.Data(rr) - scalar);
+  }
+  return s1;
+}
+
+//operator overload for subtraction with a scalar
+colMatrix operator- (const double &scalar, const colMatrix &s2){
+  colMatrix s1(s2.Size());
+
+  for( int rr = 0; rr < s2.Size(); rr++ ){
+    s1.SetData(rr, scalar - s2.Data(rr));
+  }
+  return s1;
+}
+
+//operator overload for multiplication with a scalar
+colMatrix colMatrix::operator * (const double &scalar)const{
+  colMatrix s1 = *this;
+
+  for( int rr = 0; rr < s1.Size(); rr++ ){
+    s1.SetData(rr, s1.Data(rr) * scalar);
+  }
+  return s1;
+}
+
+//operator overload for multiplication with a scalar
+colMatrix operator* (const double &scalar, const colMatrix &s2){
+  colMatrix s1(s2.Size());
+
+  for( int rr = 0; rr < s2.Size(); rr++ ){
+    s1.SetData(rr, s2.Data(rr) * scalar);
+  }
+  return s1;
+}
+
+//operator overload for division with a scalar
+colMatrix colMatrix::operator / (const double &scalar)const{
+  colMatrix s1 = *this;
+
+  for( int rr = 0; rr < s1.Size(); rr++ ){
+    s1.SetData(rr, s1.Data(rr) / scalar);
+  }
+  return s1;
+}
+
+//operator overload for division with a scalar
+colMatrix operator/ (const double &scalar, const colMatrix &s2){
+  colMatrix s1(s2.Size());
+
+  for( int rr = 0; rr < s2.Size(); rr++ ){
+    s1.SetData(rr, scalar / s2.Data(rr));
+  }
+  return s1;
+}
+
+//operation overload for << - allows use of cout, cerr, etc.
+ostream & operator<< (ostream &os, const colMatrix &m){
+
+  for( int rr = 0; rr < m.Size(); rr++ ){
+    cout << m.Data(rr) << endl;
+  }
+
+  return os;
+}
+
+
+//member function to zero the matrix
+void colMatrix::Zero(){
+  for(int rr = 0; rr < size; rr++){
+    (*this).SetData(rr,0.0);
+  }
+}
+

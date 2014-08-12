@@ -10,6 +10,61 @@ using std::vector;
 using std::string;
 using std::ostream;
 
+//class to store a column matrix
+class colMatrix {
+  int size;
+  double *data;
+
+ public:
+  //constructor
+  colMatrix( const int &a ): size(a) {data = new double[a];}
+  colMatrix() : size(0), data(NULL){}
+
+  //copy constructor
+  colMatrix( const colMatrix &cp);
+
+  //copy assignment operator
+  colMatrix& operator= (colMatrix other);
+
+  //move constructor
+  colMatrix(colMatrix &&other) : colMatrix() {
+    swap(*this,other);
+    other.data=NULL;
+  }
+
+  //member functions
+  double Data(const int &)const;
+  void SetData(const int &, const double&);
+  int Size()const{return size;}
+  void Zero();
+
+  //operator overloads
+  colMatrix operator + (const colMatrix&)const;
+  colMatrix operator - (const colMatrix&)const;
+
+  colMatrix operator + (const double&)const;
+  colMatrix operator - (const double&)const;
+  colMatrix operator * (const double&)const;
+  colMatrix operator / (const double&)const;
+
+  friend colMatrix operator + (const double&, const colMatrix&);
+  friend colMatrix operator - (const double&, const colMatrix&);
+  friend colMatrix operator * (const double&, const colMatrix&);
+  friend colMatrix operator / (const double&, const colMatrix&);
+  friend ostream & operator<< (ostream &os, const colMatrix&);
+
+  friend void swap(colMatrix &first, colMatrix &second);
+
+  //destructor
+  ~colMatrix() {
+    delete [] data;
+    data = NULL;
+  }
+
+};
+
+
+//class to store a square matrix
 class squareMatrix {
   int size;
   double *data;
@@ -43,6 +98,7 @@ class squareMatrix {
   void LinCombRow(const int &, const double &, const int &);
   void Zero();
   void Identity();
+  colMatrix Multiply( const colMatrix & )const;
 
   //operator overloads
   squareMatrix operator + (const squareMatrix&)const;
@@ -114,6 +170,6 @@ class matrixDiagonal {
 
 
 //function declarations
-void SymGaussSeidel(const squareMatrix &, vector<double> &, const vector<double> &, const int &, const double &);
+void SymGaussSeidel(const squareMatrix &, colMatrix &, const colMatrix &, const int &, const double &);
 
 #endif
