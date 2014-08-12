@@ -715,7 +715,7 @@ void viscBlockVars::CalcViscFluxK(const blockVars &vars, const sutherland &suth,
 //this member function calculates the residual for a viscous simulation
 void viscBlockVars::CalcCellResidual(blockVars &vars, const int &ii, const int &jj, const int &kk, const int &imax, const int &jmax)const{
 
-  vector<double> resid(5);
+  colMatrix resid(5);
 
   int loc = GetLoc1D(ii, jj, kk, imax, jmax);
   int iLow = GetLowerFaceI(ii, jj, kk, imax, jmax); 
@@ -726,32 +726,32 @@ void viscBlockVars::CalcCellResidual(blockVars &vars, const int &ii, const int &
   int kUp  = GetUpperFaceK(ii, jj, kk, imax, jmax);
 
   //Area vector points nominally from lower index to upper index, so the upper index fluxes must be multiplied by -1 so vector points into cell and for conservation
-  resid[0] =        vars.InvFluxI(iLow).RhoVel()  * vars.FAreaI(iLow).Mag() +     vars.InvFluxJ(jLow).RhoVel()  * vars.FAreaJ(jLow).Mag() +     vars.InvFluxK(kLow).RhoVel()  * vars.FAreaK(kLow).Mag() 
-	     -1.0 * vars.InvFluxI(iUp).RhoVel()   * vars.FAreaI(iUp).Mag() -1.0 * vars.InvFluxJ(jUp).RhoVel()   * vars.FAreaJ(jUp).Mag() -1.0 * vars.InvFluxK(kUp).RhoVel()   * vars.FAreaK(kUp).Mag() ;
+  resid.SetData(0,        vars.InvFluxI(iLow).RhoVel()  * vars.FAreaI(iLow).Mag() +     vars.InvFluxJ(jLow).RhoVel()  * vars.FAreaJ(jLow).Mag() +     vars.InvFluxK(kLow).RhoVel()  * vars.FAreaK(kLow).Mag() 
+		-1.0 * vars.InvFluxI(iUp).RhoVel()   * vars.FAreaI(iUp).Mag() -1.0 * vars.InvFluxJ(jUp).RhoVel()   * vars.FAreaJ(jUp).Mag() -1.0 * vars.InvFluxK(kUp).RhoVel()   * vars.FAreaK(kUp).Mag() );
 
 
-  resid[1] =        (vars.InvFluxI(iLow).RhoVelU() + (*this).ViscFluxI(iLow).MomX()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelU() + (*this).ViscFluxJ(jLow).MomX()) * vars.FAreaJ(jLow).Mag() +
+  resid.SetData(1,        (vars.InvFluxI(iLow).RhoVelU() + (*this).ViscFluxI(iLow).MomX()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelU() + (*this).ViscFluxJ(jLow).MomX()) * vars.FAreaJ(jLow).Mag() +
                     (vars.InvFluxK(kLow).RhoVelU() + (*this).ViscFluxK(kLow).MomX()) * vars.FAreaK(kLow).Mag() 
              -1.0 * (vars.InvFluxI(iUp).RhoVelU()  + (*this).ViscFluxI(iUp).MomX())  * vars.FAreaI(iUp).Mag()  -1.0 * (vars.InvFluxJ(jUp).RhoVelU()  + (*this).ViscFluxJ(jUp).MomX())  * vars.FAreaJ(jUp).Mag()
-             -1.0 * (vars.InvFluxK(kUp).RhoVelU()  + (*this).ViscFluxK(kUp).MomX())  * vars.FAreaK(kUp).Mag() ;
+		-1.0 * (vars.InvFluxK(kUp).RhoVelU()  + (*this).ViscFluxK(kUp).MomX())  * vars.FAreaK(kUp).Mag() );
 
 
-  resid[2] =        (vars.InvFluxI(iLow).RhoVelV() + (*this).ViscFluxI(iLow).MomY()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelV() + (*this).ViscFluxJ(jLow).MomY()) * vars.FAreaJ(jLow).Mag() +
+  resid.SetData(2,        (vars.InvFluxI(iLow).RhoVelV() + (*this).ViscFluxI(iLow).MomY()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelV() + (*this).ViscFluxJ(jLow).MomY()) * vars.FAreaJ(jLow).Mag() +
                     (vars.InvFluxK(kLow).RhoVelV() + (*this).ViscFluxK(kLow).MomY()) * vars.FAreaK(kLow).Mag() 
              -1.0 * (vars.InvFluxI(iUp).RhoVelV()  + (*this).ViscFluxI(iUp).MomY())  * vars.FAreaI(iUp).Mag()  -1.0 * (vars.InvFluxJ(jUp).RhoVelV()  + (*this).ViscFluxJ(jUp).MomY())  * vars.FAreaJ(jUp).Mag()
-             -1.0 * (vars.InvFluxK(kUp).RhoVelV()  + (*this).ViscFluxK(kUp).MomY())  * vars.FAreaK(kUp).Mag() ;
+		-1.0 * (vars.InvFluxK(kUp).RhoVelV()  + (*this).ViscFluxK(kUp).MomY())  * vars.FAreaK(kUp).Mag() );
 
 
-  resid[3] =        (vars.InvFluxI(iLow).RhoVelW() + (*this).ViscFluxI(iLow).MomZ()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelW() + (*this).ViscFluxJ(jLow).MomZ()) * vars.FAreaJ(jLow).Mag() +
+  resid.SetData(3,        (vars.InvFluxI(iLow).RhoVelW() + (*this).ViscFluxI(iLow).MomZ()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelW() + (*this).ViscFluxJ(jLow).MomZ()) * vars.FAreaJ(jLow).Mag() +
                     (vars.InvFluxK(kLow).RhoVelW() + (*this).ViscFluxK(kLow).MomZ()) * vars.FAreaK(kLow).Mag() 
              -1.0 * (vars.InvFluxI(iUp).RhoVelW()  + (*this).ViscFluxI(iUp).MomZ())  * vars.FAreaI(iUp).Mag()  -1.0 * (vars.InvFluxJ(jUp).RhoVelW()  + (*this).ViscFluxJ(jUp).MomZ())  * vars.FAreaJ(jUp).Mag()
-             -1.0 * (vars.InvFluxK(kUp).RhoVelW()  + (*this).ViscFluxK(kUp).MomZ())  * vars.FAreaK(kUp).Mag() ;
+		-1.0 * (vars.InvFluxK(kUp).RhoVelW()  + (*this).ViscFluxK(kUp).MomZ())  * vars.FAreaK(kUp).Mag() );
 
 
-  resid[4] =        (vars.InvFluxI(iLow).RhoVelH() + (*this).ViscFluxI(iLow).Engy()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelH() + (*this).ViscFluxJ(jLow).Engy()) * vars.FAreaJ(jLow).Mag() +
+  resid.SetData(4,        (vars.InvFluxI(iLow).RhoVelH() + (*this).ViscFluxI(iLow).Engy()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelH() + (*this).ViscFluxJ(jLow).Engy()) * vars.FAreaJ(jLow).Mag() +
                     (vars.InvFluxK(kLow).RhoVelH() + (*this).ViscFluxK(kLow).Engy()) * vars.FAreaK(kLow).Mag() 
              -1.0 * (vars.InvFluxI(iUp).RhoVelH()  + (*this).ViscFluxI(iUp).Engy())  * vars.FAreaI(iUp).Mag()  -1.0 * (vars.InvFluxJ(jUp).RhoVelH()  + (*this).ViscFluxJ(jUp).Engy())  * vars.FAreaJ(jUp).Mag()
-             -1.0 * (vars.InvFluxK(kUp).RhoVelH()  + (*this).ViscFluxK(kUp).Engy())  * vars.FAreaK(kUp).Mag() ;
+		-1.0 * (vars.InvFluxK(kUp).RhoVelH()  + (*this).ViscFluxK(kUp).Engy())  * vars.FAreaK(kUp).Mag() );
 
   vars.SetResidual(resid, loc);
 

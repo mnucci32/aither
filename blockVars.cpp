@@ -30,8 +30,9 @@ blockVars::blockVars(){
   vector<vector3d<double> > vec2(lenCellCen);             //dummy vector variable lenght of number of cells
   vector<double> scalar(lenCellCen);                      //dummy scalar variable lenght of number of cells
   vector<double> vec3(length);
-  vector<double> singleResid(5,0.0);
-  vector<vector<double> > dummyResid(lenCellCen, singleResid);
+  colMatrix singleResid(5);
+  singleResid.Zero();
+  vector<colMatrix> dummyResid(lenCellCen, singleResid);
 
   state = dummyState;      
   invFluxI = dummyFlux;
@@ -67,8 +68,9 @@ blockVars::blockVars(const plot3dBlock &blk){
   vector<primVars> dummyState (lenCellCen);              //dummy state variable
   vector<inviscidFlux> dummyFlux (length);               //dummy flux variable
   vector<double> dummyTime (lenCellCen);                 //dummy time variable
-  vector<double> singleResid(5,0.0);
-  vector<vector<double> > dummyResid(lenCellCen, singleResid);
+  colMatrix singleResid(5);
+  singleResid.Zero();
+  vector<colMatrix> dummyResid(lenCellCen, singleResid);
 
 
   int lengthI = numI * (numJ-1) * (numK-1);
@@ -123,8 +125,9 @@ blockVars::blockVars( const double density, const double pressure, const vector3
   vector<double> vecJ(lengthJ,0.0);
   vector<double> vecK(lengthK,0.0);
 
-  vector<double> singleResid(5,0.0);
-  vector<vector<double> > dummyResid(lenCellCen, singleResid);
+  colMatrix singleResid(5);
+  singleResid.Zero();
+  vector<colMatrix> dummyResid(lenCellCen, singleResid);
 
   state = initState;      
   invFluxI = dummyFlux;
@@ -169,8 +172,9 @@ blockVars::blockVars( const primVars& inputState, const plot3dBlock &blk){
   vector<double> vecJ(lengthJ,0.0);
   vector<double> vecK(lengthK,0.0);
 
-  vector<double> singleResid(5,0.0);
-  vector<vector<double> > dummyResid(lenCellCen, singleResid);
+  colMatrix singleResid(5);
+  singleResid.Zero();
+  vector<colMatrix> dummyResid(lenCellCen, singleResid);
 
   state = initState;      
   invFluxI = dummyFlux;
@@ -698,7 +702,7 @@ void blockVars::CalcCellDt( const int &i, const int &j, const int &k, const doub
 //this member function calculates the residual for an inviscid simulation
 void blockVars::CalcCellResidual(const int &ii, const int &jj, const int &kk, const int &imax, const int &jmax){
 
-  vector<double> resid(5);
+  colMatrix resid(5);
 
   int loc = GetLoc1D(ii, jj, kk, imax, jmax);
   int iLow = GetLowerFaceI(ii, jj, kk, imax, jmax); 
@@ -709,16 +713,16 @@ void blockVars::CalcCellResidual(const int &ii, const int &jj, const int &kk, co
   int kUp  = GetUpperFaceK(ii, jj, kk, imax, jmax);
 
   //Area vector points nominally from lower index to upper index, so the upper index fluxes must be multiplied by -1 so vector points into cell and for conservation
-  resid[0] =        (*this).InvFluxI(iLow).RhoVel()  * (*this).FAreaI(iLow).Mag() +     (*this).InvFluxJ(jLow).RhoVel()  * (*this).FAreaJ(jLow).Mag() +     (*this).InvFluxK(kLow).RhoVel()  * (*this).FAreaK(kLow).Mag() 
-	     -1.0 * (*this).InvFluxI(iUp).RhoVel()   * (*this).FAreaI(iUp).Mag() -1.0 * (*this).InvFluxJ(jUp).RhoVel()   * (*this).FAreaJ(jUp).Mag() -1.0 * (*this).InvFluxK(kUp).RhoVel()   * (*this).FAreaK(kUp).Mag() ;
-  resid[1] =        (*this).InvFluxI(iLow).RhoVelU() * (*this).FAreaI(iLow).Mag() +     (*this).InvFluxJ(jLow).RhoVelU() * (*this).FAreaJ(jLow).Mag() +     (*this).InvFluxK(kLow).RhoVelU() * (*this).FAreaK(kLow).Mag() 
-	     -1.0 * (*this).InvFluxI(iUp).RhoVelU()  * (*this).FAreaI(iUp).Mag() -1.0 * (*this).InvFluxJ(jUp).RhoVelU()  * (*this).FAreaJ(jUp).Mag() -1.0 * (*this).InvFluxK(kUp).RhoVelU()  * (*this).FAreaK(kUp).Mag() ;
-  resid[2] =        (*this).InvFluxI(iLow).RhoVelV() * (*this).FAreaI(iLow).Mag() +     (*this).InvFluxJ(jLow).RhoVelV() * (*this).FAreaJ(jLow).Mag() +     (*this).InvFluxK(kLow).RhoVelV() * (*this).FAreaK(kLow).Mag() 
-	     -1.0 * (*this).InvFluxI(iUp).RhoVelV()  * (*this).FAreaI(iUp).Mag() -1.0 * (*this).InvFluxJ(jUp).RhoVelV()  * (*this).FAreaJ(jUp).Mag() -1.0 * (*this).InvFluxK(kUp).RhoVelV()  * (*this).FAreaK(kUp).Mag() ;
-  resid[3] =        (*this).InvFluxI(iLow).RhoVelW() * (*this).FAreaI(iLow).Mag() +     (*this).InvFluxJ(jLow).RhoVelW() * (*this).FAreaJ(jLow).Mag() +     (*this).InvFluxK(kLow).RhoVelW() * (*this).FAreaK(kLow).Mag() 
-	     -1.0 * (*this).InvFluxI(iUp).RhoVelW()  * (*this).FAreaI(iUp).Mag() -1.0 * (*this).InvFluxJ(jUp).RhoVelW()  * (*this).FAreaJ(jUp).Mag() -1.0 * (*this).InvFluxK(kUp).RhoVelW()  * (*this).FAreaK(kUp).Mag() ;
-  resid[4] =        (*this).InvFluxI(iLow).RhoVelH() * (*this).FAreaI(iLow).Mag() +     (*this).InvFluxJ(jLow).RhoVelH() * (*this).FAreaJ(jLow).Mag() +     (*this).InvFluxK(kLow).RhoVelH() * (*this).FAreaK(kLow).Mag() 
-	     -1.0 * (*this).InvFluxI(iUp).RhoVelH()  * (*this).FAreaI(iUp).Mag() -1.0 * (*this).InvFluxJ(jUp).RhoVelH()  * (*this).FAreaJ(jUp).Mag() -1.0 * (*this).InvFluxK(kUp).RhoVelH()  * (*this).FAreaK(kUp).Mag() ;
+  resid.SetData(0,        (*this).InvFluxI(iLow).RhoVel()  * (*this).FAreaI(iLow).Mag() +     (*this).InvFluxJ(jLow).RhoVel()  * (*this).FAreaJ(jLow).Mag() +     (*this).InvFluxK(kLow).RhoVel()  * (*this).FAreaK(kLow).Mag() 
+		-1.0 * (*this).InvFluxI(iUp).RhoVel()   * (*this).FAreaI(iUp).Mag() -1.0 * (*this).InvFluxJ(jUp).RhoVel()   * (*this).FAreaJ(jUp).Mag() -1.0 * (*this).InvFluxK(kUp).RhoVel()   * (*this).FAreaK(kUp).Mag() );
+  resid.SetData(1,        (*this).InvFluxI(iLow).RhoVelU() * (*this).FAreaI(iLow).Mag() +     (*this).InvFluxJ(jLow).RhoVelU() * (*this).FAreaJ(jLow).Mag() +     (*this).InvFluxK(kLow).RhoVelU() * (*this).FAreaK(kLow).Mag() 
+		-1.0 * (*this).InvFluxI(iUp).RhoVelU()  * (*this).FAreaI(iUp).Mag() -1.0 * (*this).InvFluxJ(jUp).RhoVelU()  * (*this).FAreaJ(jUp).Mag() -1.0 * (*this).InvFluxK(kUp).RhoVelU()  * (*this).FAreaK(kUp).Mag() );
+  resid.SetData(2,        (*this).InvFluxI(iLow).RhoVelV() * (*this).FAreaI(iLow).Mag() +     (*this).InvFluxJ(jLow).RhoVelV() * (*this).FAreaJ(jLow).Mag() +     (*this).InvFluxK(kLow).RhoVelV() * (*this).FAreaK(kLow).Mag() 
+		-1.0 * (*this).InvFluxI(iUp).RhoVelV()  * (*this).FAreaI(iUp).Mag() -1.0 * (*this).InvFluxJ(jUp).RhoVelV()  * (*this).FAreaJ(jUp).Mag() -1.0 * (*this).InvFluxK(kUp).RhoVelV()  * (*this).FAreaK(kUp).Mag() );
+  resid.SetData(3,        (*this).InvFluxI(iLow).RhoVelW() * (*this).FAreaI(iLow).Mag() +     (*this).InvFluxJ(jLow).RhoVelW() * (*this).FAreaJ(jLow).Mag() +     (*this).InvFluxK(kLow).RhoVelW() * (*this).FAreaK(kLow).Mag() 
+		-1.0 * (*this).InvFluxI(iUp).RhoVelW()  * (*this).FAreaI(iUp).Mag() -1.0 * (*this).InvFluxJ(jUp).RhoVelW()  * (*this).FAreaJ(jUp).Mag() -1.0 * (*this).InvFluxK(kUp).RhoVelW()  * (*this).FAreaK(kUp).Mag() );
+  resid.SetData(4,        (*this).InvFluxI(iLow).RhoVelH() * (*this).FAreaI(iLow).Mag() +     (*this).InvFluxJ(jLow).RhoVelH() * (*this).FAreaJ(jLow).Mag() +     (*this).InvFluxK(kLow).RhoVelH() * (*this).FAreaK(kLow).Mag() 
+		-1.0 * (*this).InvFluxI(iUp).RhoVelH()  * (*this).FAreaI(iUp).Mag() -1.0 * (*this).InvFluxJ(jUp).RhoVelH()  * (*this).FAreaJ(jUp).Mag() -1.0 * (*this).InvFluxK(kUp).RhoVelH()  * (*this).FAreaK(kUp).Mag() );
 
   (*this).SetResidual(resid, loc);
 
@@ -782,10 +786,10 @@ void blockVars::UpdateBlock(const input &inputVars, const idealGas &eos, const d
 	  (*this).ExplicitEulerTimeAdvance(eos, loc);
 
 	  for ( unsigned int ll = 0; ll < l2.size(); ll++ ){
-	    l2[ll] = l2[ll] + (*this).Residual(loc)[ll] * (*this).Residual(loc)[ll];
+	    l2[ll] = l2[ll] + (*this).Residual(loc,ll) * (*this).Residual(loc,ll);
 
-	    if ( (*this).Residual(loc)[ll] > linf[4] ){
-	      linf[4] = (*this).Residual(loc)[ll];
+	    if ( (*this).Residual(loc,ll) > linf[4] ){
+	      linf[4] = (*this).Residual(loc,ll);
 	      linf[3] = (double)ll+1;
 	      linf[2] = (double)kk;
 	      linf[1] = (double)jj;
@@ -821,10 +825,10 @@ void blockVars::UpdateBlock(const input &inputVars, const idealGas &eos, const d
 
 	    if (rr ==3){
 	      for ( unsigned int ll = 0; ll < l2.size(); ll++ ){
-		l2[ll] = l2[ll] + (*this).Residual(loc)[ll] * (*this).Residual(loc)[ll];
+		l2[ll] = l2[ll] + (*this).Residual(loc,ll) * (*this).Residual(loc,ll);
 
-		if ( (*this).Residual(loc)[ll] > linf[4] ){
-		  linf[4] = (*this).Residual(loc)[ll];
+		if ( (*this).Residual(loc,ll) > linf[4] ){
+		  linf[4] = (*this).Residual(loc,ll);
 		  linf[3] = (double)ll+1;
 		  linf[2] = (double)kk;
 		  linf[1] = (double)jj;
@@ -863,11 +867,11 @@ void blockVars::ExplicitEulerTimeAdvance(const idealGas &eqnState, const int &lo
   vector<double> consVars = (*this).State(loc).ConsVars(eqnState);
 
   //calculate updated conserved variables
-  consVars[0] = consVars[0] + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc)[0] ;
-  consVars[1] = consVars[1] + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc)[1] ;
-  consVars[2] = consVars[2] + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc)[2] ;
-  consVars[3] = consVars[3] + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc)[3] ;
-  consVars[4] = consVars[4] + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc)[4] ;
+  consVars[0] = consVars[0] + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,0) ;
+  consVars[1] = consVars[1] + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,1) ;
+  consVars[2] = consVars[2] + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,2) ;
+  consVars[3] = consVars[3] + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,3) ;
+  consVars[4] = consVars[4] + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,4) ;
 
   //calculate updated primative variables
   vector3d<double> vel(consVars[1]/consVars[0], consVars[2]/consVars[0], consVars[3]/consVars[0]);
@@ -890,11 +894,11 @@ void blockVars::RK4TimeAdvance( const primVars &currState, const idealGas &eqnSt
   vector<double> consVars = currState.ConsVars(eqnState);
 
   //calculate updated conserved variables
-  consVars[0] = consVars[0] + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc)[0] ;
-  consVars[1] = consVars[1] + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc)[1] ;
-  consVars[2] = consVars[2] + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc)[2] ;
-  consVars[3] = consVars[3] + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc)[3] ;
-  consVars[4] = consVars[4] + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc)[4] ;
+  consVars[0] = consVars[0] + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,0) ;
+  consVars[1] = consVars[1] + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,1) ;
+  consVars[2] = consVars[2] + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,2) ;
+  consVars[3] = consVars[3] + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,3) ;
+  consVars[4] = consVars[4] + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,4) ;
 
   //calculate updated primative variables
   vector3d<double> vel(consVars[1]/consVars[0], consVars[2]/consVars[0], consVars[3]/consVars[0]);

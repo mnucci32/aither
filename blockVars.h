@@ -46,7 +46,7 @@ class blockVars {
 
   vector<double> dt;                        //cell time step
 
-  vector<vector<double> > residual;         //cell residual
+  vector<colMatrix> residual;               //cell residual
 
  public:
   //constructors
@@ -102,8 +102,9 @@ class blockVars {
   void SetDt( const double &a, const int &ind){dt[ind] = a;}
   double Dt(const int &ind) const {return dt[ind];}
 
-  void SetResidual( const vector<double> &a, const int &ind){residual[ind] = a;}
-  vector<double> Residual(const int &ind) const {return residual[ind];}
+  void SetResidual( const colMatrix &a, const int &ind){residual[ind] = a;}
+  colMatrix Residual(const int &ind) const {return residual[ind];}
+  double Residual(const int &ind, const int &a) const {return residual[ind].Data(a);}
 
   void CalcCellDt(const int&, const int&, const int&, const double&);
   void CalcCellResidual(const int&, const int&, const int&, const int&, const int&);

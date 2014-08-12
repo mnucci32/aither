@@ -8,6 +8,7 @@
 #include "plot3d.h" //plot3d
 #include "viscousFlux.h" //viscousFlux
 #include "blockVars.h" //blockVars
+#include "matrix.h" //squareMatrix colMatrix
 #include "eos.h" //idealGas
 #include "input.h" //inputVars
 #include <fstream>
