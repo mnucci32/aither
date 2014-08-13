@@ -465,76 +465,165 @@ void matrixDiagonal::CleanResizeZero(const int &s, const int &m){
 
 }
 
+//member function to invert each matrix stored
+void matrixDiagonal::Inverse(){
+  for(int ii = 0; ii < (*this).Size(); ii++ ){
+    (*this).Data(ii).Inverse();
+  }
+}
 
 //functions ------------------------------------------------------------------------------------------------
 //function to perform symmetric Gauss-Seidel relaxation to solver Ax=b
 //when relax = 1.0, symmetric Gauss-Seidel is achieved. Values >1 result in symmetric successive over relaxation (SSOR)
 //Values <1 result in under relaxation
-void SymGaussSeidel( const squareMatrix &A, colMatrix &x, const colMatrix &b, const int &sweeps, const double &relax ){
+void SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const matrixDiagonal &Aiu, const matrixDiagonal &Ajl, const matrixDiagonal &Aju, const matrixDiagonal &Akl, const matrixDiagonal &Aku, vector<colMatrix> &x, const vector<colMatrix> &b, const int &sweeps, const double &relax, const int &imax, const int &jmax ){
+
+  //Aii --> block matrix of the main diagonal
+  //Ail --> block matrix of the lower i diagonal
+  //Aiu --> block matrix of the upper i diagonal
+  //Ajl --> block matrix of the lower j diagonal
+  //Aju --> block matrix of the upper j diagonal
+  //Akl --> block matrix of the lower k diagonal
+  //Aku --> block matrix of the upper k diagonal
+  //x   --> block vector of correction
+  //b   --> block vector of residuals
+  //sweeps --> number of symmetric sweeps to perform
+  //relax  --> relaxation parameter >1 is overrelaxation, <1 is underrelaxation
+  //imax   --> imax for block
+  //jmax   --> jmax for block
+
 
   //initialize x to 0
-  x.Zero();
+  for (unsigned int ll = 0; ll < x.size(); ll++ ){
+    x[ll].Zero();
+  }
+
+  //invert main diagonal
+  Aii.Inverse();
+
+  colMatrix newData(x[0].Size());
+  colMatrix oldData(x[0].Size());
 
   for ( int kk = 0; kk < sweeps; kk++ ){
     //forward sweep
-    for ( int ii = 0; ii < x.Size(); ii++ ){
-      double newData = 0.0;
-      double oldData = 0.0;
+    for ( int ii = 0; ii < (int)x.size(); ii++ ){
 
-      if(ii == 0){
-	oldData = A.Data(ii, ii+1) * x.Data(ii+1);
+      int il = ii-1;
+      int iu = ii+1;
+      int jl = ii-imax;
+      int ju = ii+imax;
+      int kl = ii-imax*jmax;
+      int ku = ii+imax*jmax;
+
+      newData.Zero();
+      oldData.Zero();
+
+      if ( il >=0 || il < (int)x.size() ){
+	oldData = oldData + Ail.Data(il).Multiply(x[il]);
       }
-      else if(ii == (x.Size()-1)){
-	newData = A.Data(ii,ii-1) * x.Data(ii-1);
+      if ( jl >=0 || jl < (int)x.size() ){
+	oldData = oldData + Ajl.Data(jl).Multiply(x[jl]);
       }
-      else{
-	newData = A.Data(ii,ii-1) * x.Data(ii-1);
-	oldData = A.Data(ii, ii+1) * x.Data(ii+1);
+      if ( kl >=0 || kl < (int)x.size() ){
+	oldData = oldData + Akl.Data(kl).Multiply(x[kl]);
       }
-      x.SetData(ii, (1.0 - relax) * x.Data(ii) + (relax / A.Data(ii,ii)) * (b.Data(ii) - newData - oldData) );
+
+      if ( iu >=0 || iu < (int)x.size() ){
+	newData = newData + Aiu.Data(iu).Multiply(x[iu]);
+      }
+      if ( ju >=0 || ju < (int)x.size() ){
+	newData = newData + Aju.Data(ju).Multiply(x[ju]);
+      }
+      if ( ku >=0 || ku < (int)x.size() ){
+	newData = newData + Aku.Data(ku).Multiply(x[ku]);
+      }
+
+      x[ii] = (1.0 - relax) * x[ii] + (relax * Aii.Data(ii)).Multiply(b[ii] - newData - oldData) ;
     }
 
     //backward sweep
-    for ( int ii = x.Size()-1; ii >= 0; ii-- ){
-      double newData = 0.0;
-      double oldData = 0.0;
+    for ( int ii = (int)x.size()-1; ii >= 0; ii-- ){
 
-      if(ii == 0){
-	newData = A.Data(ii, ii+1) * x.Data(ii+1);
+      int il = ii-1;
+      int iu = ii+1;
+      int jl = ii-imax;
+      int ju = ii+imax;
+      int kl = ii-imax*jmax;
+      int ku = ii+imax*jmax;
+
+      newData.Zero();
+      oldData.Zero();
+
+      if ( iu >=0 || iu < (int)x.size() ){
+	oldData = oldData + Aiu.Data(iu).Multiply(x[iu]);
       }
-      else if(ii == (x.Size()-1)){
-	oldData = A.Data(ii,ii-1) * x.Data(ii-1);
+      if ( ju >=0 || ju < (int)x.size() ){
+	oldData = oldData + Aju.Data(ju).Multiply(x[ju]);
       }
-      else{
-	oldData = A.Data(ii,ii-1) * x.Data(ii-1);
-	newData = A.Data(ii, ii+1) * x.Data(ii+1);
+      if ( ku >=0 || ku < (int)x.size() ){
+	oldData = oldData + Aku.Data(ku).Multiply(x[ku]);
       }
-      x.SetData(ii, (1.0 - relax) * x.Data(ii) + (relax / A.Data(ii,ii)) * (b.Data(ii) - newData - oldData) );
+
+      if ( il >=0 || il < (int)x.size() ){
+	newData = newData + Ail.Data(il).Multiply(x[il]);
+      }
+      if ( jl >=0 || jl < (int)x.size() ){
+	newData = newData + Ajl.Data(jl).Multiply(x[jl]);
+      }
+      if ( kl >=0 || kl < (int)x.size() ){
+	newData = newData + Akl.Data(kl).Multiply(x[kl]);
+      }
+
+      x[ii] = (1.0 - relax) * x[ii] + (relax * Aii.Data(ii)).Multiply(b[ii] - newData - oldData) ;
     }
 
     //calculate residual
-    double l2Resid = 0.0;
-    for ( int ii = 0; ii < x.Size(); ii++ ){
+    colMatrix l2Resid(x[0].Size());
+    l2Resid.Zero();
+    colMatrix resid(x[0].Size());
 
-      double resid = 0.0;
+    for ( int ii = 0; ii < (int)x.size(); ii++ ){
 
-      if(ii == 0){
-	resid = b.Data(ii) - (A.Data(ii,ii) * x.Data(ii) + A.Data(ii,ii+1) * x.Data(ii+1));
+      int il = ii-1;
+      int iu = ii+1;
+      int jl = ii-imax;
+      int ju = ii+imax;
+      int kl = ii-imax*jmax;
+      int ku = ii+imax*jmax;
+
+      resid = b[ii] - Aii.Data(ii).Multiply(x[ii]);
+
+      if ( il >=0 || il < (int)x.size() ){
+	resid = resid - Ail.Data(il).Multiply(x[il]);
       }
-      else if(ii == (x.Size()-1)){
-	resid = b.Data(ii) - (A.Data(ii,ii-1) * x.Data(ii-1) + A.Data(ii,ii) * x.Data(ii));
+
+      if ( iu >=0 || iu < (int)x.size() ){
+	resid = resid - Aiu.Data(iu).Multiply(x[iu]);
       }
-      else{
-	resid = b.Data(ii) - (A.Data(ii,ii-1) * x.Data(ii-1) + A.Data(ii,ii) * x.Data(ii) + A.Data(ii,ii+1) * x.Data(ii+1));
+
+      if ( jl >=0 || jl < (int)x.size() ){
+	resid = resid - Ajl.Data(jl).Multiply(x[jl]);
+      }
+
+      if ( ju >=0 || ju < (int)x.size() ){
+	resid = resid - Aju.Data(ju).Multiply(x[ju]);
+      }
+
+      if ( kl >=0 || kl < (int)x.size() ){
+	resid = resid - Akl.Data(kl).Multiply(x[kl]);
+      }
+
+      if ( ku >=0 || ku < (int)x.size() ){
+	resid = resid - Aku.Data(ku).Multiply(x[ku]);
       }
 
       l2Resid = l2Resid + resid * resid;
     }
-    l2Resid = sqrt(l2Resid / x.Size());
-    cout << "Residual: " << l2Resid << endl;
 
-
+    double res = sqrt(l2Resid.Sum() / ((double)x.size() * (double)x[0].Size()));
+    cout << "Residual: " << res << endl;
   }
+
 }
 
 
@@ -652,6 +741,21 @@ colMatrix operator- (const double &scalar, const colMatrix &s2){
   return s1;
 }
 
+//operator overload for elementwise multiplication
+colMatrix colMatrix::operator * (const colMatrix& s2)const{
+  colMatrix s1 = *this;
+
+  //check to see that matrix dimensions are the same
+  if ( s1.size != s2.size ){
+    cerr << "ERROR: Cannot elementwise multiply column matricies, dimensions do not agree." << endl;
+  }
+
+  for( int rr = 0; rr < s2.Size(); rr++ ){
+    s1.SetData(rr, s1.Data(rr) * s2.Data(rr));
+  }
+  return s1;
+}
+
 //operator overload for multiplication with a scalar
 colMatrix colMatrix::operator * (const double &scalar)const{
   colMatrix s1 = *this;
@@ -668,6 +772,21 @@ colMatrix operator* (const double &scalar, const colMatrix &s2){
 
   for( int rr = 0; rr < s2.Size(); rr++ ){
     s1.SetData(rr, s2.Data(rr) * scalar);
+  }
+  return s1;
+}
+
+//operator overload for elementwise division
+colMatrix colMatrix::operator / (const colMatrix& s2)const{
+  colMatrix s1 = *this;
+
+  //check to see that matrix dimensions are the same
+  if ( s1.size != s2.size ){
+    cerr << "ERROR: Cannot elementwise divide column matricies, dimensions do not agree." << endl;
+  }
+
+  for( int rr = 0; rr < s2.Size(); rr++ ){
+    s1.SetData(rr, s1.Data(rr) / s2.Data(rr));
   }
   return s1;
 }
@@ -710,3 +829,11 @@ void colMatrix::Zero(){
   }
 }
 
+//member function to sum column matrix
+double colMatrix::Sum(){
+  double sum = 0.0;
+  for( int ii = 0; ii < (*this).Size(); ii++ ){
+    sum += (*this).Data(ii);
+  }
+  return sum;
+}

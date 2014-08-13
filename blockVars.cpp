@@ -997,9 +997,13 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS, tempL, tempR);
 
           // left flux jacobian is not needed at lower boundary
-	  offLowIDiag.SetData(upperI, offLowIDiag.Data(upperI) + tempR * (*this).FAreaI(loc).Mag() );
+          mainDiag.SetData(  upperI, mainDiag.Data(upperI)   + tempR * (*this).FAreaI(loc).Mag() );
+	  offLowIDiag.SetData(upperI+1, offLowIDiag.Data(upperI+1) + tempR * (*this).FAreaI(loc).Mag() );
+	  // cout << "lower diagonal storing at index (from boundary) " << upperI+1 << endl;
 
-          mainDiag.SetData(   upperI, mainDiag.Data(upperI)    - tempR * (*this).FAreaI(loc).Mag() );
+	  // offUpIDiag.SetData(upperI, offUpIDiag.Data(upperI) + tempR * (*this).FAreaI(loc).Mag() );
+
+          // mainDiag.SetData(   upperI, mainDiag.Data(upperI)    - tempR * (*this).FAreaI(loc).Mag() );
 
 	  //(*this).SetMaxWaveSpeedI(maxWS, loc);
 
@@ -1016,9 +1020,13 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS, tempL, tempR);
 
 	  // right flux jacobian is not needed at upper boundary
-          mainDiag.SetData(  lowerI, mainDiag.Data(lowerI)   + tempL * (*this).FAreaI(loc).Mag() );
+          mainDiag.SetData(   lowerI, mainDiag.Data(lowerI)    - tempL * (*this).FAreaI(loc).Mag() );
+	  offUpIDiag.SetData(lowerI-1, offUpIDiag.Data(lowerI-1) - tempL * (*this).FAreaI(loc).Mag() );
+	  cout << "upper diagonal storing at index (from boundary) " << lowerI-1 << endl;
 
-	  offUpIDiag.SetData(lowerI, offUpIDiag.Data(lowerI) - tempL * (*this).FAreaI(loc).Mag() );
+          // mainDiag.SetData(  lowerI, mainDiag.Data(lowerI)   + tempL * (*this).FAreaI(loc).Mag() );
+
+	  // offLowIDiag.SetData(lowerI, offLowIDiag.Data(lowerI) - tempL * (*this).FAreaI(loc).Mag() );
 
 	  //(*this).SetMaxWaveSpeedI(maxWS, loc);
 
@@ -1032,11 +1040,25 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 
 	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS, tempL, tempR);
 
-          mainDiag.SetData(   lowerI, mainDiag.Data(lowerI)    + tempL * (*this).FAreaI(loc).Mag() );
-	  offLowIDiag.SetData(lowerI, offLowIDiag.Data(lowerI) + tempR * (*this).FAreaI(loc).Mag() );
+          mainDiag.SetData(   lowerI, mainDiag.Data(lowerI)    - tempL * (*this).FAreaI(loc).Mag() );
+	  offLowIDiag.SetData(upperI, offLowIDiag.Data(upperI) - tempL * (*this).FAreaI(loc).Mag() );
+	  if (lowerI-1 >= 0 && ii-1 > 0){
+	    offUpIDiag.SetData(lowerI-1, offUpIDiag.Data(lowerI-1) - tempL * (*this).FAreaI(loc).Mag() );
+	    cout << "upper diagonal storing at index " << lowerI-1 << endl;
+	  }
 
-          mainDiag.SetData(  upperI, mainDiag.Data(upperI)   - tempR * (*this).FAreaI(loc).Mag() );
-	  offUpIDiag.SetData(lowerI, offUpIDiag.Data(lowerI) - tempL * (*this).FAreaI(loc).Mag() );
+          mainDiag.SetData(  upperI, mainDiag.Data(upperI)   + tempR * (*this).FAreaI(loc).Mag() );
+	  if (upperI+1 < offLowIDiag.Size() && ii+1 < imax-1 ){
+	    offLowIDiag.SetData(upperI+1, offLowIDiag.Data(upperI+1) + tempR * (*this).FAreaI(loc).Mag() );
+	    // cout << "lower diagonal storing at index " << upperI+1 << endl;
+	  }
+	  offUpIDiag.SetData(lowerI, offUpIDiag.Data(lowerI) + tempR * (*this).FAreaI(loc).Mag() );
+
+
+	  // cout << "at " << lowerI << " add " << endl;
+	  // cout << tempL << endl;
+	  // cout << "at " << upperI << " subtract " << endl;
+	  // cout << tempL << endl;
 
 	  //(*this).SetMaxWaveSpeedI(maxWS, loc);
 
@@ -1045,7 +1067,6 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
       }
     }
   }
-
 
 }
 
@@ -1095,7 +1116,7 @@ void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, cons
 	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS, tempL, tempR);
 
           // left flux jacobian is not needed at lower boundary
-	  offLowJDiag.SetData(upperJ, offLowJDiag.Data(upperJ) + tempR * (*this).FAreaJ(loc).Mag() );
+	  offUpJDiag.SetData(upperJ, offUpJDiag.Data(upperJ) + tempR * (*this).FAreaJ(loc).Mag() );
 
           mainDiag.SetData(   upperJ, mainDiag.Data(upperJ)    - tempR * (*this).FAreaJ(loc).Mag() );
 
@@ -1116,7 +1137,7 @@ void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, cons
 	  // right flux jacobian is not needed at upper boundary
           mainDiag.SetData(  lowerJ, mainDiag.Data(lowerJ)   + tempL * (*this).FAreaJ(loc).Mag() );
 
-	  offUpJDiag.SetData(lowerJ, offUpJDiag.Data(lowerJ) - tempL * (*this).FAreaJ(loc).Mag() );
+	  offLowJDiag.SetData(lowerJ, offLowJDiag.Data(lowerJ) - tempL * (*this).FAreaJ(loc).Mag() );
 
 	  //(*this).SetMaxWaveSpeedJ(maxWS, loc);
 
@@ -1134,7 +1155,7 @@ void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, cons
 	  offLowJDiag.SetData(lowerJ, offLowJDiag.Data(lowerJ) + tempR * (*this).FAreaJ(loc).Mag() );
 
           mainDiag.SetData(  upperJ, mainDiag.Data(upperJ)   - tempR * (*this).FAreaJ(loc).Mag() );
-	  offUpJDiag.SetData(lowerJ, offUpJDiag.Data(lowerJ) - tempL * (*this).FAreaJ(loc).Mag() );
+	  offUpJDiag.SetData(upperJ, offUpJDiag.Data(upperJ) - tempL * (*this).FAreaJ(loc).Mag() );
 
 	  //(*this).SetMaxWaveSpeedJ(maxWS, loc);
 
@@ -1193,7 +1214,7 @@ void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, cons
 	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS, tempL, tempR);
 
           // left flux jacobian is not needed at lower boundary
-	  offLowKDiag.SetData(upperK, offLowKDiag.Data(upperK) + tempR * (*this).FAreaK(loc).Mag() );
+	  offUpKDiag.SetData(upperK, offUpKDiag.Data(upperK) + tempR * (*this).FAreaK(loc).Mag() );
 
           mainDiag.SetData(   upperK, mainDiag.Data(upperK)    - tempR * (*this).FAreaK(loc).Mag() );
 
@@ -1214,7 +1235,7 @@ void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, cons
 	  // right flux jacobian is not needed at upper boundary
           mainDiag.SetData(  lowerK, mainDiag.Data(lowerK)   + tempL * (*this).FAreaK(loc).Mag() );
 
-	  offUpKDiag.SetData(lowerK, offUpKDiag.Data(lowerK) - tempL * (*this).FAreaK(loc).Mag() );
+	  offLowKDiag.SetData(lowerK, offLowKDiag.Data(lowerK) - tempL * (*this).FAreaK(loc).Mag() );
 
 	  //(*this).SetMaxWaveSpeedK(maxWS, loc);
 
@@ -1232,7 +1253,7 @@ void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, cons
 	  offLowKDiag.SetData(lowerK, offLowKDiag.Data(lowerK) + tempR * (*this).FAreaK(loc).Mag() );
 
           mainDiag.SetData(  upperK, mainDiag.Data(upperK)   - tempR * (*this).FAreaK(loc).Mag() );
-	  offUpKDiag.SetData(lowerK, offUpKDiag.Data(lowerK) - tempL * (*this).FAreaK(loc).Mag() );
+	  offUpKDiag.SetData(upperK, offUpKDiag.Data(upperK) - tempL * (*this).FAreaK(loc).Mag() );
 
 	  //(*this).SetMaxWaveSpeedK(maxWS, loc);
 

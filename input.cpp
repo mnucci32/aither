@@ -38,9 +38,9 @@ input::input(): vars(20){
   outputFrequency = 1;
   equationSet = "euler";
   tRef = -1.0;
-  matrixSolver = "gaussSeidel";
+  matrixSolver = "symGaussSeidel";
   matrixSweeps = 5;
-  matrixRelaxation = 1.0;  //default is Gauss-Seidel with no overrelaxation
+  matrixRelaxation = 1.0;  //default is symmetric Gauss-Seidel with no overrelaxation
 
   //keywords in the input file that the parser is looking for to define variables
   vars[0] = "gridName:";

@@ -37,10 +37,13 @@ class colMatrix {
   void SetData(const int &, const double&);
   int Size()const{return size;}
   void Zero();
+  double Sum();
 
   //operator overloads
   colMatrix operator + (const colMatrix&)const;
   colMatrix operator - (const colMatrix&)const;
+  colMatrix operator * (const colMatrix&)const;
+  colMatrix operator / (const colMatrix&)const;
 
   colMatrix operator + (const double&)const;
   colMatrix operator - (const double&)const;
@@ -154,6 +157,7 @@ class matrixDiagonal {
   int Size()const{return size;}
   void Zero(const int &);
   void CleanResizeZero(const int &, const int &);
+  void Inverse();
 
   //operator overloads
   friend ostream & operator<< (ostream &os, const matrixDiagonal&);
@@ -170,6 +174,7 @@ class matrixDiagonal {
 
 
 //function declarations
-void SymGaussSeidel(const squareMatrix &, colMatrix &, const colMatrix &, const int &, const double &);
+void SymGaussSeidel( matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &,
+		     vector<colMatrix> &, const vector<colMatrix> &, const int &, const double &, const int &, const int &);
 
 #endif

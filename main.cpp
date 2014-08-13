@@ -173,6 +173,22 @@ int main( int argc, char *argv[] ) {
 	//add volume divided by time step term to main diagonal
 	stateBlocks[bb].AddVolTime(mainDiag[bb]);
 
+	//print out block matrix diagonals for debugging
+	cout << "Main Diagonal:" << endl;
+	cout << mainDiag[0] << endl;
+	cout << "I-Lower Diagonal:" << endl;
+	cout << offLowIDiag[0] << endl;
+	cout << "I-Upper Diagonal:" << endl;
+	cout << offUpIDiag[0] << endl;
+	// cout << "J-Lower Diagonal:" << endl;
+	// cout << offLowJDiag[0] << endl;
+	// cout << "J-Upper Diagonal:" << endl;
+	// cout << offUpJDiag[0] << endl;
+	// cout << "K-Lower Diagonal:" << endl;
+	// cout << offLowKDiag[0] << endl;
+	// cout << "K-Upper Diagonal:" << endl;
+	// cout << offUpKDiag[0] << endl;
+
 	//calculate correction (du)
 
       }
