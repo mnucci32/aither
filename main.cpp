@@ -93,35 +93,41 @@ int main( int argc, char *argv[] ) {
 
   cout << endl << "Solution Initialized" << endl;
 
-  //initialize implicit matrix
-  vector<matrixDiagonal> mainDiag( mesh.NumBlocks() );
-  vector<matrixDiagonal> offUpIDiag( mesh.NumBlocks() );
-  vector<matrixDiagonal> offLowIDiag( mesh.NumBlocks() );
-  vector<matrixDiagonal> offUpJDiag( mesh.NumBlocks() );
-  vector<matrixDiagonal> offLowJDiag( mesh.NumBlocks() );
-  vector<matrixDiagonal> offUpKDiag( mesh.NumBlocks() );
-  vector<matrixDiagonal> offLowKDiag( mesh.NumBlocks() );
+  // //initialize implicit matrix
+  // vector<matrixDiagonal> mainDiag( mesh.NumBlocks() );
+  // vector<matrixDiagonal> offUpIDiag( mesh.NumBlocks() );
+  // vector<matrixDiagonal> offLowIDiag( mesh.NumBlocks() );
+  // vector<matrixDiagonal> offUpJDiag( mesh.NumBlocks() );
+  // vector<matrixDiagonal> offLowJDiag( mesh.NumBlocks() );
+  // vector<matrixDiagonal> offUpKDiag( mesh.NumBlocks() );
+  // vector<matrixDiagonal> offLowKDiag( mesh.NumBlocks() );
 
-  for (ll = 0; ll < mesh.NumBlocks(); ll++){
-    int numElems = (mesh.Blocks(ll).NumI() - 1) * (mesh.Blocks(ll).NumJ() - 1) * (mesh.Blocks(ll).NumK() - 1);
-    mainDiag[ll].CleanResizeZero(numElems, numEqns);
-    offUpIDiag[ll].CleanResizeZero(numElems, numEqns);
-    offLowIDiag[ll].CleanResizeZero(numElems, numEqns);
-    offUpJDiag[ll].CleanResizeZero(numElems, numEqns);
-    offLowJDiag[ll].CleanResizeZero(numElems, numEqns);
-    offUpKDiag[ll].CleanResizeZero(numElems, numEqns);
-    offLowKDiag[ll].CleanResizeZero(numElems, numEqns);
-  }
+  matrixDiagonal mainDiag, offUpIDiag, offLowIDiag, offUpJDiag, offLowJDiag, offUpKDiag, offLowKDiag;
 
-  if ( (inputVars.TimeIntegration() == "explicitEuler") || (inputVars.TimeIntegration() == "rk4") ){
-    mainDiag.clear();
-    offUpIDiag.clear();
-    offLowIDiag.clear();
-    offUpJDiag.clear();
-    offLowJDiag.clear();
-    offUpKDiag.clear();
-    offLowKDiag.clear();
-  } 
+  // for (ll = 0; ll < mesh.NumBlocks(); ll++){
+  //   int numElems = (mesh.Blocks(ll).NumI() - 1) * (mesh.Blocks(ll).NumJ() - 1) * (mesh.Blocks(ll).NumK() - 1);
+  //   mainDiag[ll].CleanResizeZero(numElems, numEqns);
+  //   offUpIDiag[ll].CleanResizeZero(numElems, numEqns);
+  //   offLowIDiag[ll].CleanResizeZero(numElems, numEqns);
+  //   offUpJDiag[ll].CleanResizeZero(numElems, numEqns);
+  //   offLowJDiag[ll].CleanResizeZero(numElems, numEqns);
+  //   offUpKDiag[ll].CleanResizeZero(numElems, numEqns);
+  //   offLowKDiag[ll].CleanResizeZero(numElems, numEqns);
+  // }
+  colMatrix initial(numEqns);
+  initial.Zero();
+
+
+  // if ( (inputVars.TimeIntegration() == "explicitEuler") || (inputVars.TimeIntegration() == "rk4") ){
+  //   mainDiag.clear();
+  //   offUpIDiag.clear();
+  //   offLowIDiag.clear();
+  //   offUpJDiag.clear();
+  //   offLowJDiag.clear();
+  //   offUpKDiag.clear();
+  //   offLowKDiag.clear();
+  //   du.clear();
+  // } 
 
 
   int bb = 0;
@@ -142,6 +148,22 @@ int main( int argc, char *argv[] ) {
 
 
     for ( bb = 0; bb < mesh.NumBlocks(); bb++ ){             //loop over number of blocks
+
+
+      int numElems = (mesh.Blocks(ll).NumI() - 1) * (mesh.Blocks(ll).NumJ() - 1) * (mesh.Blocks(ll).NumK() - 1);
+
+      //initialize implicit matrix
+      if (inputVars.TimeIntegration() == "implicitEuler"){
+	mainDiag.CleanResizeZero(numElems, numEqns);
+	offUpIDiag.CleanResizeZero(numElems, numEqns);
+	offLowIDiag.CleanResizeZero(numElems, numEqns);
+	offUpJDiag.CleanResizeZero(numElems, numEqns);
+	offLowJDiag.CleanResizeZero(numElems, numEqns);
+	offUpKDiag.CleanResizeZero(numElems, numEqns);
+	offLowKDiag.CleanResizeZero(numElems, numEqns);
+      }
+      vector<colMatrix> du( numElems, initial );
+
 
       //calculate inviscid fluxes
       stateBlocks[bb].CalcInvFluxI(eos, inputVars, bb);
@@ -166,32 +188,35 @@ int main( int argc, char *argv[] ) {
 
       //if implicit calculate flux jacobians and assembly matrix
       if (inputVars.TimeIntegration() == "implicitEuler"){
-	stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag[bb], offLowIDiag[bb], offUpIDiag[bb]);
-	stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag[bb], offLowJDiag[bb], offUpJDiag[bb]);
-	stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag[bb], offLowKDiag[bb], offUpKDiag[bb]);
+	stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag, offLowIDiag, offUpIDiag);
+	stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag, offLowJDiag, offUpJDiag);
+	stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag, offLowKDiag, offUpKDiag);
 
 	//add volume divided by time step term to main diagonal
-	stateBlocks[bb].AddVolTime(mainDiag[bb]);
+	stateBlocks[bb].AddVolTime(mainDiag);
 
 	//print out block matrix diagonals for debugging
-	cout << "Main Diagonal:" << endl;
-	cout << mainDiag[0] << endl;
-	cout << "I-Lower Diagonal:" << endl;
-	cout << offLowIDiag[0] << endl;
-	cout << "I-Upper Diagonal:" << endl;
-	cout << offUpIDiag[0] << endl;
+	// cout << "Main Diagonal:" << endl;
+	// cout << mainDiag << endl;
+	// cout << "I-Lower Diagonal:" << endl;
+	// cout << offLowIDiag << endl;
+	// cout << "I-Upper Diagonal:" << endl;
+	// cout << offUpIDiag << endl;
 	// cout << "J-Lower Diagonal:" << endl;
-	// cout << offLowJDiag[0] << endl;
+	// cout << offLowJDiag << endl;
 	// cout << "J-Upper Diagonal:" << endl;
-	// cout << offUpJDiag[0] << endl;
+	// cout << offUpJDiag << endl;
 	// cout << "K-Lower Diagonal:" << endl;
-	// cout << offLowKDiag[0] << endl;
+	// cout << offLowKDiag << endl;
 	// cout << "K-Upper Diagonal:" << endl;
-	// cout << offUpKDiag[0] << endl;
+	// cout << offUpKDiag << endl;
 
 	//calculate correction (du)
+	SymGaussSeidel(mainDiag, offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag, du, stateBlocks[bb].Residual(), 
+		       inputVars.MatrixSweeps(), inputVars.MatrixRelaxation(), stateBlocks[bb].NumI()-1, stateBlocks[bb].NumJ()-1);
 
-      }
+
+      } //loop for implicit solver
 
 
       //update solution

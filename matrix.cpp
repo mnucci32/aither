@@ -89,7 +89,7 @@ void squareMatrix::Inverse(){
 
     //normalize row by pivot
     if((*this).Data(r,cPivot) == 0.0){
-      cerr << "ERROR: Singular matrix in Gauss-Jordan elimination!" << endl;
+      cerr << "ERROR: Singular matrix in Gauss-Jordan elimination! Matrix (mid inversion) is" << endl << *this << endl;
       exit(1);
     }
     double normFactor = 1.0/(*this).Data(r,cPivot);

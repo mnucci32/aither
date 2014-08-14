@@ -152,34 +152,41 @@ class plot3dQMesh {
 
 
 //function declarations
-plot3dMesh ReadP3dGrid(string gridName);
-vector3d<int> GetIJK(int, int, int, int);
+plot3dMesh ReadP3dGrid(const string &gridName);
+vector3d<int> GetIJK(const int &, const int &, const int &, const int &);
 
 //input cell coordinates, get face coordinates
-int GetUpperFaceI(int, int, int, int, int, int=1);
-int GetLowerFaceI(int, int, int, int, int, int=1);
-int GetUpperFaceJ(int, int, int, int, int, int=1);
-int GetLowerFaceJ(int, int, int, int, int, int=1);
-int GetUpperFaceK(int, int, int, int, int, int=1);
-int GetLowerFaceK(int, int, int, int, int, int=1);
+int GetUpperFaceI(const int &, const int &, const int &, const int &, const int &, int=1);
+int GetLowerFaceI(const int &, const int &, const int &, const int &, const int &, int=1);
+int GetUpperFaceJ(const int &, const int &, const int &, const int &, const int &, int=1);
+int GetLowerFaceJ(const int &, const int &, const int &, const int &, const int &, int=1);
+int GetUpperFaceK(const int &, const int &, const int &, const int &, const int &, int=1);
+int GetLowerFaceK(const int &, const int &, const int &, const int &, const int &, int=1);
 
 //input cell coordinates get neighbor cell coordinates
-int GetNeighborUpI(int, int, int, int, int, int=1);
-int GetNeighborLowI(int, int, int, int, int, int=1);
-int GetNeighborUpJ(int, int, int, int, int, int=1);
-int GetNeighborLowJ(int, int, int, int, int, int=1);
-int GetNeighborUpK(int, int, int, int, int, int=1);
-int GetNeighborLowK(int, int, int, int, int, int=1);
+int GetNeighborUpI(const int &, const int &, const int &, const int &, const int &, int=1);
+int GetNeighborLowI(const int &, const int &, const int &, const int &, const int &, int=1);
+int GetNeighborUpJ(const int &, const int &, const int &, const int &, const int &, int=1);
+int GetNeighborLowJ(const int &, const int &, const int &, const int &, const int &, int=1);
+int GetNeighborUpK(const int &, const int &, const int &, const int &, const int &, int=1);
+int GetNeighborLowK(const int &, const int &, const int &, const int &, const int &, int=1);
 
 //input face coordinates, get cell coordinates
-int GetCellFromFaceUpperI(int, int, int, int, int, int=1);
-int GetCellFromFaceLowerI(int, int, int, int, int, int=1);
-int GetCellFromFaceUpperJ(int, int, int, int, int, int=1);
-int GetCellFromFaceLowerJ(int, int, int, int, int, int=1);
-int GetCellFromFaceUpperK(int, int, int, int, int, int=1);
-int GetCellFromFaceLowerK(int, int, int, int, int, int=1);
+int GetCellFromFaceUpperI(const int &, const int &, const int &, const int &, const int &, int=1);
+int GetCellFromFaceLowerI(const int &, const int &, const int &, const int &, const int &, int=1);
+int GetCellFromFaceUpperJ(const int &, const int &, const int &, const int &, const int &, int=1);
+int GetCellFromFaceLowerJ(const int &, const int &, const int &, const int &, const int &, int=1);
+int GetCellFromFaceUpperK(const int &, const int &, const int &, const int &, const int &, int=1);
+int GetCellFromFaceLowerK(const int &, const int &, const int &, const int &, const int &, int=1);
 
 //get location inside of 1D array
-int GetLoc1D(int, int, int, int, int);
+int GetLoc1D(const int &, const int &, const int &, const int &, const int &);
+
+int GetMatrixDiagUpperFromMainI(const int &);
+int GetMatrixDiagLowerFromMainI(const int &);
+int GetMatrixDiagUpperFromMainJ(const int &, const int &);
+int GetMatrixDiagLowerFromMainJ(const int &, const int &);
+int GetMatrixDiagUpperFromMainK(const int &, const int &, const int &);
+int GetMatrixDiagLowerFromMainK(const int &, const int &, const int &);
 
 #endif

@@ -686,7 +686,7 @@ void plot3dMesh::ReplaceBlock(int index, const plot3dBlock &singleBlock) {
 
 //---------------------------------------------------------------------------------------------------------------//
 //function to read in a plot3d grid and assign it to a plot3dMesh data type
-plot3dMesh ReadP3dGrid(string gridName) {
+plot3dMesh ReadP3dGrid(const string &gridName) {
 
   //open binary plot3d grid file 
   ifstream fName;
@@ -868,7 +868,7 @@ void plot3dQMesh::WriteData() const {
 
 
 //function to take in imax, jmax, kmax, and vector index and return the i, j, k indices of that cell
-vector3d<int> GetIJK(int imax, int jmax, int kmax, int index){
+vector3d<int> GetIJK(const int &imax, const int &jmax, const int &kmax, const int &index){
 
   vector3d<int> ijk;
   int ii = 0;
@@ -900,129 +900,61 @@ vector3d<int> GetIJK(int imax, int jmax, int kmax, int index){
 //------------------------------------------------------------------------------------------------------------------
 //functions to take in i, j, k indexes of a cell and return the 1D index of the face belonging to that cell
 //function to take in i, j, k indexes of a cell and return the 1D index of the face in the upper i-direction
-int GetUpperFaceI(int i, int j, int k, int imax, int jmax, int num){
-
-  //imax, jmax are for cell values, so add 1 to imax to get face values for i
-  //int loc = i+1 + j*(imax+1) + k*(imax+1)*jmax; 
-
-  //int index = loc + (num - 1) ;
-
+int GetUpperFaceI(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   return i+1+(num-1) + j*(imax+1) + k*(imax+1)*jmax; 
 }
 //function to take in i, j, k indexes of a cell and return the 1D index of the face in the lower i-direction
-int GetLowerFaceI(int i, int j, int k, int imax, int jmax, int num){
-
-  //imax, jmax are for cell values, so add 1 to imax to get face values for i
-  //int loc = i+1 + j*(imax+1) + k*(imax+1)*jmax; 
-
-  //int index = loc - num ;
-
+int GetLowerFaceI(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   return i+1-num + j*(imax+1) + k*(imax+1)*jmax; 
 }
 //function to take in i, j, k indexes of a cell and return the 1D index of the face in the upper j-direction
-int GetUpperFaceJ(int i, int j, int k, int imax, int jmax, int num){
-
-  //imax, jmax are for cell values, so add 1 to jmax to get face values for j
-  //int loc = i + (j+1)*imax + k*imax*(jmax+1);
-
-  //int index = loc + imax * (num -1);
-
+int GetUpperFaceJ(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   return i + (j+1+(num-1))*imax + k*imax*(jmax+1);
 }
 //function to take in i, j, k indexes of a cell and return the 1D index of the face in the lower j-direction
-int GetLowerFaceJ(int i, int j, int k, int imax, int jmax, int num){
-
-  //imax, jmax are for cell values, so add 1 to jmax to get face values for j
-  //int loc = i + (j+1)*imax + k*imax*(jmax+1);
-
-  //int index = loc - imax * num ;
-
+int GetLowerFaceJ(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   return i + (j+1-num)*imax + k*imax*(jmax+1);
 }
 //function to take in i, j, k indexes of a cell and return the 1D index of the face in the upper k-direction
-int GetUpperFaceK(int i, int j, int k, int imax, int jmax, int num){
-
-  //int loc = i + j*imax + (k+1)*imax*jmax;
-
-  //int index = loc + imax * jmax * (num -1 );
-
+int GetUpperFaceK(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   return i + j*imax + (k+1+(num-1))*imax*jmax;
 }
 //function to take in i, j, k indexes of a cell and return the 1D index of the face in the lower k-direction
-int GetLowerFaceK(int i, int j, int k, int imax, int jmax, int num){
-
-  //int loc = i + j*imax + (k+1)*imax*jmax;
-
-  //int index = loc - imax * jmax * num ;
-
+int GetLowerFaceK(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   return i + j*imax + (k+1-num)*imax*jmax;
 }
 
 //-------------------------------------------------------------------------------------------------------------------
 //functions to take in i, j, k indexes of a cell/face and return the 1D index of the neighbor cell/face
 //function to take in i, j, k indexes of a cell/face and return the 1D index of the neighbor cell/face to the lower i face
-int GetNeighborLowI(int i, int j, int k, int imax, int jmax, int num){
-
-  //int loc = i + j*imax + k*imax*jmax;
-
-  //int index = loc-num;
-
+int GetNeighborLowI(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   return i-num + j*imax + k*imax*jmax;
 }
 //function to take in i, j, k indexes of a cell/face and return the 1D index of the neighbor cell/face to the upper i face
-int GetNeighborUpI(int i, int j, int k, int imax, int jmax, int num){
-
-  //int loc = i + j*imax + k*imax*jmax;
-
-  //int index = loc+num;
-
+int GetNeighborUpI(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   return i+num + j*imax + k*imax*jmax;
 }
 //function to take in i, j, k indexes of a cell/face and return the 1D index of the neighbor cell/face to the lower j face
-int GetNeighborLowJ(int i, int j, int k, int imax, int jmax, int num){
-
-  //int loc = i + j*imax + k*imax*jmax;
-
-  //int index = loc-imax*num;
-
+int GetNeighborLowJ(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   return i + (j-1)*imax + k*imax*jmax;
 }
 //function to take in i, j, k indexes of a cell/face and return the 1D index of the neighbor cell/face to the upper j face
-int GetNeighborUpJ(int i, int j, int k, int imax, int jmax, int num){
-
-  //int loc = i + j*imax + k*imax*jmax;
-
-  //int index = loc+imax*num;
-
+int GetNeighborUpJ(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   return i + (j+1)*imax + k*imax*jmax;
 }
 //function to take in i, j, k indexes of a cell/face and return the 1D index of the neighbor cell/face to the lower k face
-int GetNeighborLowK(int i, int j, int k, int imax, int jmax, int num){
-
-  //int loc = i + j*imax + k*imax*jmax;
-
-  //int index = loc-imax*jmax*num;
-
+int GetNeighborLowK(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   return i + j*imax + (k-num)*imax*jmax;
 }
 //function to take in i, j, k indexes of a cell/face and return the 1D index of the neighbor cell/face to the upper k face
-int GetNeighborUpK(int i, int j, int k, int imax, int jmax, int num){
-
-  //int loc = i + j*imax + k*imax*jmax;
-
-  //int index = loc+imax*jmax*num;
-
+int GetNeighborUpK(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   return i + j*imax + (k+num)*imax*jmax;;
 }
 
 //------------------------------------------------------------------------------------------------------------------------------
 //functions to take in i, j, k, imax, jmax of a face and return the 1D index of the neighbor cell
 //function to take in i, j, k indexes of a k-face and return the 1D index of the neighbor cell in the lower k direction
-int GetCellFromFaceLowerK(int i, int j, int k, int imax, int jmax, int num){
-
-  //int locCell = i + j*imax + (k-1)*imax*jmax;
-
-  //int index = locCell - imax*jmax * (num - 1);
+int GetCellFromFaceLowerK(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   if( (k-1-(num-1)) < 0 ){
     cerr << "ERROR: Tried to access cell outside of range!" << endl;
     cerr << "Tried to access cell " << i << ", " << j << ", " << k-1-(num-1) << endl;
@@ -1032,11 +964,7 @@ int GetCellFromFaceLowerK(int i, int j, int k, int imax, int jmax, int num){
   return i + j*imax + (k-1-(num-1))*imax*jmax;
 }
 //function to take in i, j, k indexes of a k-face and return the 1D index of the neighbor cell in the upper k direction
-int GetCellFromFaceUpperK(int i, int j, int k, int imax, int jmax, int num){
-
-  //int locCell = i + j*imax + (k-1)*imax*jmax;
-
-  //int index = locCell + imax*jmax * num ;
+int GetCellFromFaceUpperK(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   if( (k-1+num) < 0 ){
     cerr << "ERROR: Tried to access cell outside of range!" << endl;
     cerr << "Tried to access cell " << i << ", " << j << ", " << k-1+num << endl;
@@ -1046,29 +974,16 @@ int GetCellFromFaceUpperK(int i, int j, int k, int imax, int jmax, int num){
   return i + j*imax + (k-1+num)*imax*jmax;
 }
 //function to take in i, j, k indexes of a j-face and return the 1D index of the neighbor cell in the lower j direction
-int GetCellFromFaceLowerJ(int i, int j, int k, int imax, int jmax, int num){
-
-  //int locCell = i + (j-1)*imax + k*imax*(jmax-1);  //cell jmax is one less than j-face jmax
-
-  //int index = locCell - imax * (num -1);
-
+int GetCellFromFaceLowerJ(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   return i + (j-1-(num-1))*imax + k*imax*(jmax-1);
 }
 //function to take in i, j, k indexes of a j-face and return the 1D index of the neighbor cell in the upper j direction
-int GetCellFromFaceUpperJ(int i, int j, int k, int imax, int jmax, int num){
-
-  //int locCell = i + (j-1)*imax + k*imax*(jmax-1);
-
-  //int index = locCell + imax * num ;
-
+int GetCellFromFaceUpperJ(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   return i + (j-1+num)*imax + k*imax*(jmax-1);
 }
 //function to take in i, j, k indexes of a i-face and return the 1D index of the neighbor cell in the lower i direction
-int GetCellFromFaceLowerI(int i, int j, int k, int imax, int jmax, int num){
+int GetCellFromFaceLowerI(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
 
-  //int locCell = (i-1) + j*(imax-1) + k*(imax-1)*jmax;  //cell imax is one less than i-face imax
-
-  //int index = locCell - (num - 1);
   if( (i-1-(num-1)) < 0 || (i-1-(num-1)) > (imax-2) ){
     cerr << "ERROR: Tried to access cell outside of range!" << endl;
     cerr << "Tried to access cell " << i-1-(num-1) << ", " << j << ", " << k << endl;
@@ -1078,11 +993,7 @@ int GetCellFromFaceLowerI(int i, int j, int k, int imax, int jmax, int num){
   return (i-1-(num-1)) + j*(imax-1) + k*(imax-1)*jmax;
 }
 //function to take in i, j, k indexes of a i-face and return the 1D index of the neighbor cell in the upper i direction
-int GetCellFromFaceUpperI(int i, int j, int k, int imax, int jmax, int num){
-
-  //int locCell = (i-1) + j*(imax-1) + k*(imax-1)*jmax;  //cell imax is one less than i-face imax
-
-  //int index = locCell + num ;
+int GetCellFromFaceUpperI(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
 
   if( (i-1+num) < 0 || (i-1+num) > (imax-2) ){
     cerr << "ERROR: Tried to access cell outside of range!" << endl;
@@ -1095,6 +1006,31 @@ int GetCellFromFaceUpperI(int i, int j, int k, int imax, int jmax, int num){
 
 
 //function to take in i, j, k, imax, jmax and return corresponding location inside 1D array
-int GetLoc1D(int i, int j, int k, int imax, int jmax){
+int GetLoc1D(const int &i, const int &j, const int &k, const int &imax, const int &jmax){
   return i + j*imax + k*imax*jmax;
+}
+
+//function to take in i, j, k indexes of a i-face and return the 1D index of the upper i diagonal for the implicit matrix
+int GetMatrixDiagUpperFromMainI(const int &main){
+  return main - 1;
+}
+//function to take in i, j, k indexes of a i-face and return the 1D index of the lower i diagonal for the implicit matrix
+int GetMatrixDiagLowerFromMainI(const int &main){
+  return main + 1;
+}
+//function to take in i, j, k indexes of a j-face and return the 1D index of the upper j diagonal for the implicit matrix
+int GetMatrixDiagUpperFromMainJ(const int &main, const int &imax){
+  return main - imax;
+}
+//function to take in i, j, k indexes of a j-face and return the 1D index of the lower j diagonal for the implicit matrix
+int GetMatrixDiagLowerFromMainJ(const int &main, const int &imax){
+  return main + imax;
+}
+//function to take in i, j, k indexes of a k-face and return the 1D index of the upper k diagonal for the implicit matrix
+int GetMatrixDiagUpperFromMainK(const int &main, const int &imax, const int &jmax){
+  return main - imax*jmax;
+}
+//function to take in i, j, k indexes of a k-face and return the 1D index of the lower k diagonal for the implicit matrix
+int GetMatrixDiagLowerFromMainK(const int &main, const int &imax, const int &jmax){
+  return main + imax*jmax;
 }
