@@ -765,7 +765,7 @@ void blockVars::CalcBlockResidDT( const input &inputVars, const double &aRef){
 
 }
 
-void blockVars::UpdateBlock(const input &inputVars, const idealGas &eos, const double &aRef, const int &bb, vector<double> &l2, vector<double> &linf, int &locMaxB){
+void blockVars::UpdateBlock(const input &inputVars, const idealGas &eos, const double &aRef, const int &bb, const vector<colMatrix> &du, vector<double> &l2, vector<double> &linf, int &locMaxB){
 
   int imax = (*this).NumI()-1;
   int jmax = (*this).NumJ()-1;
@@ -776,14 +776,20 @@ void blockVars::UpdateBlock(const input &inputVars, const idealGas &eos, const d
   int kk = 0;
   int loc = 0;
 
-  if ( inputVars.TimeIntegration() == "explicitEuler" ){
+  if ( inputVars.TimeIntegration() == "explicitEuler" || inputVars.TimeIntegration() == "implicitEuler" ){
     for ( kk = 0; kk < kmax; kk++ ){          //loop over all cells
       for ( jj = 0; jj < jmax; jj++ ){          
 	for ( ii = 0; ii < imax; ii++ ){          
 
 	  loc = GetLoc1D(ii, jj, kk, imax, jmax);
 
-	  (*this).ExplicitEulerTimeAdvance(eos, loc);
+	  if (inputVars.TimeIntegration() == "explicitEuler"){
+	    (*this).ExplicitEulerTimeAdvance(eos, loc);
+	  }
+	  else if (inputVars.TimeIntegration() == "implicitEuler"){
+	    (*this).ImplicitEulerTimeAdvance(du[loc], eos, loc);
+	  }
+
 
 	  for ( unsigned int ll = 0; ll < l2.size(); ll++ ){
 	    l2[ll] = l2[ll] + (*this).Residual(loc,ll) * (*this).Residual(loc,ll);
@@ -885,6 +891,30 @@ void blockVars::ExplicitEulerTimeAdvance(const idealGas &eqnState, const int &lo
   (*this).SetState(tempState, loc);
 
 }
+
+//member function to advance the state vector to time n+1 using implicit Euler method
+void blockVars::ImplicitEulerTimeAdvance(const colMatrix &du, const idealGas &eqnState, const int &loc ){
+
+  vector<double> consVars = (*this).State(loc).ConsVars(eqnState);
+
+  //calculate updated conserved variables
+  for (int ii = 0; ii < du.Size(); ii++ ){
+    consVars[ii] += du.Data(ii);
+  }
+
+  //calculate updated primative variables
+  vector3d<double> vel(consVars[1]/consVars[0], consVars[2]/consVars[0], consVars[3]/consVars[0]);
+
+  primVars tempState (consVars[0],
+		      vel.X(),
+		      vel.Y(),
+		      vel.Z(),
+		      eqnState.GetPressFromEnergy( consVars[0], consVars[4]/consVars[0], vel.Mag() ) );
+
+  (*this).SetState(tempState, loc);
+
+}
+
 
 //member function to advance the state vector to time n+1 using 4th order Runge-Kutta method
 void blockVars::RK4TimeAdvance( const primVars &currState, const idealGas &eqnState, const double &dt, const int &loc, const int &rk ){

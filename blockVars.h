@@ -114,9 +114,10 @@ class blockVars {
   void CalcInvFluxJ(const idealGas&, const input&, const int&);
   void CalcInvFluxK(const idealGas&, const input&, const int&);
   void CalcBlockResidDT(const input&, const double&);
-  void UpdateBlock(const input&, const idealGas&, const double&, const int&, vector<double> &, vector<double> &, int &);
+  void UpdateBlock(const input&, const idealGas&, const double&, const int&, const vector<colMatrix> &, vector<double> &, vector<double> &, int &);
 
   void ExplicitEulerTimeAdvance(const idealGas&, const int&);
+  void ImplicitEulerTimeAdvance(const colMatrix&, const idealGas&, const int&);
   void RK4TimeAdvance(const primVars&, const idealGas&, const double&, const int&, const int&);
 
   //void TotalResidual( vector<double> &, vector<double> &, int &, const int & );

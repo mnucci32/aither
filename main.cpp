@@ -89,47 +89,13 @@ int main( int argc, char *argv[] ) {
 
   }
 
-
   //vector<blockVars> newStateBlocks = stateBlocks;
 
   cout << endl << "Solution Initialized" << endl;
 
-  // //initialize implicit matrix
-  // vector<matrixDiagonal> mainDiag( mesh.NumBlocks() );
-  // vector<matrixDiagonal> offUpIDiag( mesh.NumBlocks() );
-  // vector<matrixDiagonal> offLowIDiag( mesh.NumBlocks() );
-  // vector<matrixDiagonal> offUpJDiag( mesh.NumBlocks() );
-  // vector<matrixDiagonal> offLowJDiag( mesh.NumBlocks() );
-  // vector<matrixDiagonal> offUpKDiag( mesh.NumBlocks() );
-  // vector<matrixDiagonal> offLowKDiag( mesh.NumBlocks() );
-
   matrixDiagonal mainDiag, offUpIDiag, offLowIDiag, offUpJDiag, offLowJDiag, offUpKDiag, offLowKDiag;
-
-  // for (ll = 0; ll < mesh.NumBlocks(); ll++){
-  //   int numElems = (mesh.Blocks(ll).NumI() - 1) * (mesh.Blocks(ll).NumJ() - 1) * (mesh.Blocks(ll).NumK() - 1);
-  //   mainDiag[ll].CleanResizeZero(numElems, numEqns);
-  //   offUpIDiag[ll].CleanResizeZero(numElems, numEqns);
-  //   offLowIDiag[ll].CleanResizeZero(numElems, numEqns);
-  //   offUpJDiag[ll].CleanResizeZero(numElems, numEqns);
-  //   offLowJDiag[ll].CleanResizeZero(numElems, numEqns);
-  //   offUpKDiag[ll].CleanResizeZero(numElems, numEqns);
-  //   offLowKDiag[ll].CleanResizeZero(numElems, numEqns);
-  // }
   colMatrix initial(numEqns);
   initial.Zero();
-
-
-  // if ( (inputVars.TimeIntegration() == "explicitEuler") || (inputVars.TimeIntegration() == "rk4") ){
-  //   mainDiag.clear();
-  //   offUpIDiag.clear();
-  //   offLowIDiag.clear();
-  //   offUpJDiag.clear();
-  //   offLowJDiag.clear();
-  //   offUpKDiag.clear();
-  //   offLowKDiag.clear();
-  //   du.clear();
-  // } 
-
 
   int bb = 0;
   unsigned int cc = 0;
@@ -180,6 +146,7 @@ int main( int argc, char *argv[] ) {
       }
 
       //calculate residuals and cell time step
+      //THIS CAN/SHOULD BE COMBINED WITH THE FLUX CALCULATION
       if (inputVars.EquationSet() == "navierStokes"){
       	viscBlocks[bb].CalcBlockResidDT(stateBlocks[bb], inputVars, aRef);
       }
@@ -222,7 +189,8 @@ int main( int argc, char *argv[] ) {
 
 
       //update solution
-      stateBlocks[bb].UpdateBlock(inputVars, eos, aRef, bb, residL2, residLinf, locMaxB);
+      stateBlocks[bb].UpdateBlock(inputVars, eos, aRef, bb, du, residL2, residLinf, locMaxB);
+
 
       //get block residuals
       //stateBlocks[bb].TotalResidual(residL2, residLinf, locMaxB, bb);
