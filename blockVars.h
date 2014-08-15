@@ -103,7 +103,7 @@ class blockVars {
   double Dt(const int &ind) const {return dt[ind];}
 
   void SetResidual( const colMatrix &a, const int &ind){residual[ind] = a;}
-  vector<colMatrix> Residual() const {return residual;}
+  const vector<colMatrix> & Residual() const {return residual;}
   colMatrix Residual(const int &ind) const {return residual[ind];}
   double Residual(const int &ind, const int &a) const {return residual[ind].Data(a);}
 

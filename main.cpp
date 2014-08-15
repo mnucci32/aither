@@ -38,6 +38,7 @@ int main( int argc, char *argv[] ) {
   const double eps = 1.0e-20;
 
   //Parse input file
+  double totalCells = 0.0;
   input inputVars = ReadInput(inputFile);
 
   //Determine number of equations
@@ -52,7 +53,7 @@ int main( int argc, char *argv[] ) {
   cout << "Number of equations: " << numEqns << endl << endl;
 
   //Read grid
-  plot3dMesh mesh = ReadP3dGrid(inputVars.GridName());
+  plot3dMesh mesh = ReadP3dGrid(inputVars.GridName(), totalCells);
 
   //Initialize state vector with nondimensional variables
 
@@ -139,7 +140,7 @@ int main( int argc, char *argv[] ) {
   vector<double> residL2(numEqns, 0.0);
   vector<double> residL2First(numEqns, 0.0);
   vector<double> residLinf(numEqns, 0.0);
-
+  double matrixResid = 0.0;
 
   //Write out cell centers grid file
   WriteCellCenter(inputVars.GridName(),stateBlocks);
@@ -150,7 +151,7 @@ int main( int argc, char *argv[] ) {
     for ( bb = 0; bb < mesh.NumBlocks(); bb++ ){             //loop over number of blocks
 
 
-      int numElems = (mesh.Blocks(ll).NumI() - 1) * (mesh.Blocks(ll).NumJ() - 1) * (mesh.Blocks(ll).NumK() - 1);
+      int numElems = (mesh.Blocks(bb).NumI() - 1) * (mesh.Blocks(bb).NumJ() - 1) * (mesh.Blocks(bb).NumK() - 1);
 
       //initialize implicit matrix
       if (inputVars.TimeIntegration() == "implicitEuler"){
@@ -198,6 +199,7 @@ int main( int argc, char *argv[] ) {
 	//print out block matrix diagonals for debugging
 	// cout << "Main Diagonal:" << endl;
 	// cout << mainDiag << endl;
+	// cout << "main diagonal size " << mainDiag.Size() << endl;
 	// cout << "I-Lower Diagonal:" << endl;
 	// cout << offLowIDiag << endl;
 	// cout << "I-Upper Diagonal:" << endl;
@@ -212,8 +214,8 @@ int main( int argc, char *argv[] ) {
 	// cout << offUpKDiag << endl;
 
 	//calculate correction (du)
-	SymGaussSeidel(mainDiag, offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag, du, stateBlocks[bb].Residual(), 
-		       inputVars.MatrixSweeps(), inputVars.MatrixRelaxation(), stateBlocks[bb].NumI()-1, stateBlocks[bb].NumJ()-1);
+	matrixResid += SymGaussSeidel(mainDiag, offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag, du, stateBlocks[bb].Residual(), 
+		                      inputVars.MatrixSweeps(), inputVars.MatrixRelaxation(), stateBlocks[bb].NumI()-1, stateBlocks[bb].NumJ()-1);
 
 
       } //loop for implicit solver
@@ -240,24 +242,26 @@ int main( int argc, char *argv[] ) {
       residL2[cc] = (residL2[cc]+eps) / (residL2First[cc]+eps) ;
     }
 
+    matrixResid = sqrt(matrixResid/(totalCells * numEqns));
+
 
     //print out run information
     if (nn%100 == 0){  
       if (inputVars.Dt() > 0.0){
-	cout << "STEP     DT     RES-Mass     Res-Mom-X     Res-Mom-Y     Res-Mom-Z     Res-Energy    Max Res Eqn    Max Res Blk    Max Res I    Max Res J    Max Res K    Max Res" << endl;
+	cout << "STEP     DT     RES-Mass     Res-Mom-X     Res-Mom-Y     Res-Mom-Z     Res-Energy    Max Res Eqn    Max Res Blk    Max Res I    Max Res J    Max Res K    Max Res    Res-Matrix" << endl;
       }
       else if (inputVars.CFL() > 0.0){
-	cout << "STEP     CFL     RES-Mass     Res-Mom-X     Res-Mom-Y     Res-Mom-Z     Res-Energy   Max Res Eqn    Max Res Blk    Max Res I    Max Res J    Max Res K    Max Res" << endl;
+	cout << "STEP     CFL     RES-Mass     Res-Mom-X     Res-Mom-Y     Res-Mom-Z     Res-Energy   Max Res Eqn    Max Res Blk    Max Res I    Max Res J    Max Res K    Max Res    Res-Matrix" << endl;
       }
 
     }
     if (inputVars.Dt() > 0.0){
       cout << nn << "     " << inputVars.Dt() << "     " << residL2[0] <<  "     " << residL2[1] << "     " << residL2[2] << "     " << residL2[3] << "     " << residL2[4] << "     " 
-           << residLinf[3] << "     " << locMaxB << "     " << residLinf[0] <<"     " << residLinf[1] << "     " << residLinf[2] << "     " << residLinf[4] << endl;
+           << residLinf[3] << "     " << locMaxB << "     " << residLinf[0] <<"     " << residLinf[1] << "     " << residLinf[2] << "     " << residLinf[4] << "     " << matrixResid << endl;
     }
     else if (inputVars.CFL() > 0.0){
       cout << nn << "     " << inputVars.CFL() << "     " << residL2[0] <<  "     " << residL2[1] << "     " << residL2[2] << "     " << residL2[3] << "     " << residL2[4] << "     " 
-           << residLinf[3] << "     " << locMaxB << "     " << residLinf[0] <<"     " << residLinf[1] << "     " << residLinf[2] << "     " << residLinf[4] << endl;
+           << residLinf[3] << "     " << locMaxB << "     " << residLinf[0] <<"     " << residLinf[1] << "     " << residLinf[2] << "     " << residLinf[4] << "     " << matrixResid << endl;
     }
 
     //reset residuals
@@ -266,6 +270,7 @@ int main( int argc, char *argv[] ) {
       residLinf[cc] = 0.0;
     }
     locMaxB = 0;
+    matrixResid = 0.0;
 
     if ( (nn+1)  % inputVars.OutputFrequency() == 0 ){ //write out function file
       cout << "write out function file at iteration " << nn << endl;

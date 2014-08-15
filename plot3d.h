@@ -152,7 +152,7 @@ class plot3dQMesh {
 
 
 //function declarations
-plot3dMesh ReadP3dGrid(const string &gridName);
+plot3dMesh ReadP3dGrid(const string &gridName, double &numCells);
 vector3d<int> GetIJK(const int &, const int &, const int &, const int &);
 
 //input cell coordinates, get face coordinates

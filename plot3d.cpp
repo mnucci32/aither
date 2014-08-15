@@ -686,7 +686,7 @@ void plot3dMesh::ReplaceBlock(int index, const plot3dBlock &singleBlock) {
 
 //---------------------------------------------------------------------------------------------------------------//
 //function to read in a plot3d grid and assign it to a plot3dMesh data type
-plot3dMesh ReadP3dGrid(const string &gridName) {
+plot3dMesh ReadP3dGrid(const string &gridName, double &numCells) {
 
   //open binary plot3d grid file 
   ifstream fName;
@@ -711,6 +711,7 @@ plot3dMesh ReadP3dGrid(const string &gridName) {
   vector<int> vecI, vecJ, vecK;
   int tempInt = 0;
   int ii = 0;
+  numCells = 0;
   for ( ii=0; ii < numBlks; ii++){
   
     if (ii==0){
@@ -737,6 +738,10 @@ plot3dMesh ReadP3dGrid(const string &gridName) {
       vecK.push_back(tempInt);
       cout << "K-DIM: " << tempInt << endl;
     }
+
+    //calculate total number of cells
+    numCells += (vecI[ii] - 1) * (vecJ[ii] - 1) * (vecK[ii] - 1);
+
   }
   cout << endl;
 
@@ -776,6 +781,7 @@ plot3dMesh ReadP3dGrid(const string &gridName) {
   }
 
   cout << endl << "Grid file read" << endl;
+  cout << "Total number of cells is " << numCells << endl;
 
   //close plot3d grid file
   fName.close();

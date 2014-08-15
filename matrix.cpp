@@ -468,7 +468,9 @@ void matrixDiagonal::CleanResizeZero(const int &s, const int &m){
 //member function to invert each matrix stored
 void matrixDiagonal::Inverse(){
   for(int ii = 0; ii < (*this).Size(); ii++ ){
-    (*this).Data(ii).Inverse();
+    squareMatrix temp = (*this).Data(ii);
+    temp.Inverse();
+    (*this).SetData(ii,temp);
   }
 }
 
@@ -476,7 +478,7 @@ void matrixDiagonal::Inverse(){
 //function to perform symmetric Gauss-Seidel relaxation to solver Ax=b
 //when relax = 1.0, symmetric Gauss-Seidel is achieved. Values >1 result in symmetric successive over relaxation (SSOR)
 //Values <1 result in under relaxation
-void SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const matrixDiagonal &Aiu, const matrixDiagonal &Ajl, const matrixDiagonal &Aju, const matrixDiagonal &Akl, const matrixDiagonal &Aku, vector<colMatrix> &x, const vector<colMatrix> &b, const int &sweeps, const double &relax, const int &imax, const int &jmax ){
+double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const matrixDiagonal &Aiu, const matrixDiagonal &Ajl, const matrixDiagonal &Aju, const matrixDiagonal &Akl, const matrixDiagonal &Aku, vector<colMatrix> &x, const vector<colMatrix> &b, const int &sweeps, const double &relax, const int &imax, const int &jmax ){
 
   //Aii --> block matrix of the main diagonal
   //Ail --> block matrix of the lower i diagonal
@@ -499,10 +501,13 @@ void SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const matri
   }
 
   //invert main diagonal
-  Aii.Inverse();
+  matrixDiagonal AiiInv = Aii;
+  AiiInv.Inverse();
 
   colMatrix newData(x[0].Size());
   colMatrix oldData(x[0].Size());
+
+  colMatrix l2Resid(x[0].Size());
 
   for ( int kk = 0; kk < sweeps; kk++ ){
     //forward sweep
@@ -518,27 +523,27 @@ void SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const matri
       newData.Zero();
       oldData.Zero();
 
-      if ( il >=0 || il < (int)x.size() ){
-	oldData = oldData + Ail.Data(il).Multiply(x[il]);
+      if ( il >=0 && il < (int)x.size() ){
+	oldData = oldData + Ail.Data(ii).Multiply(x[il]);
       }
-      if ( jl >=0 || jl < (int)x.size() ){
-	oldData = oldData + Ajl.Data(jl).Multiply(x[jl]);
+      if ( jl >=0 && jl < (int)x.size() ){
+	oldData = oldData + Ajl.Data(ii).Multiply(x[jl]);
       }
-      if ( kl >=0 || kl < (int)x.size() ){
-	oldData = oldData + Akl.Data(kl).Multiply(x[kl]);
-      }
-
-      if ( iu >=0 || iu < (int)x.size() ){
-	newData = newData + Aiu.Data(iu).Multiply(x[iu]);
-      }
-      if ( ju >=0 || ju < (int)x.size() ){
-	newData = newData + Aju.Data(ju).Multiply(x[ju]);
-      }
-      if ( ku >=0 || ku < (int)x.size() ){
-	newData = newData + Aku.Data(ku).Multiply(x[ku]);
+      if ( kl >=0 && kl < (int)x.size() ){
+	oldData = oldData + Akl.Data(ii).Multiply(x[kl]);
       }
 
-      x[ii] = (1.0 - relax) * x[ii] + (relax * Aii.Data(ii)).Multiply(b[ii] - newData - oldData) ;
+      if ( iu >=0 && iu < (int)x.size() ){
+	newData = newData + Aiu.Data(ii).Multiply(x[iu]);
+      }
+      if ( ju >=0 && ju < (int)x.size() ){
+	newData = newData + Aju.Data(ii).Multiply(x[ju]);
+      }
+      if ( ku >=0 && ku < (int)x.size() ){
+	newData = newData + Aku.Data(ii).Multiply(x[ku]);
+      }
+
+      x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply(b[ii] - newData - oldData) ;
     }
 
     //backward sweep
@@ -554,31 +559,30 @@ void SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const matri
       newData.Zero();
       oldData.Zero();
 
-      if ( iu >=0 || iu < (int)x.size() ){
-	oldData = oldData + Aiu.Data(iu).Multiply(x[iu]);
+      if ( iu >=0 && iu < (int)x.size() ){
+	oldData = oldData + Aiu.Data(ii).Multiply(x[iu]);
       }
-      if ( ju >=0 || ju < (int)x.size() ){
-	oldData = oldData + Aju.Data(ju).Multiply(x[ju]);
+      if ( ju >=0 && ju < (int)x.size() ){
+	oldData = oldData + Aju.Data(ii).Multiply(x[ju]);
       }
-      if ( ku >=0 || ku < (int)x.size() ){
-	oldData = oldData + Aku.Data(ku).Multiply(x[ku]);
-      }
-
-      if ( il >=0 || il < (int)x.size() ){
-	newData = newData + Ail.Data(il).Multiply(x[il]);
-      }
-      if ( jl >=0 || jl < (int)x.size() ){
-	newData = newData + Ajl.Data(jl).Multiply(x[jl]);
-      }
-      if ( kl >=0 || kl < (int)x.size() ){
-	newData = newData + Akl.Data(kl).Multiply(x[kl]);
+      if ( ku >=0 && ku < (int)x.size() ){
+	oldData = oldData + Aku.Data(ii).Multiply(x[ku]);
       }
 
-      x[ii] = (1.0 - relax) * x[ii] + (relax * Aii.Data(ii)).Multiply(b[ii] - newData - oldData) ;
+      if ( il >=0 && il < (int)x.size() ){
+	newData = newData + Ail.Data(ii).Multiply(x[il]);
+      }
+      if ( jl >=0 && jl < (int)x.size() ){
+	newData = newData + Ajl.Data(ii).Multiply(x[jl]);
+      }
+      if ( kl >=0 && kl < (int)x.size() ){
+	newData = newData + Akl.Data(ii).Multiply(x[kl]);
+      }
+
+      x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply(b[ii] - newData - oldData) ;
     }
 
     //calculate residual
-    colMatrix l2Resid(x[0].Size());
     l2Resid.Zero();
     colMatrix resid(x[0].Size());
 
@@ -593,36 +597,37 @@ void SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const matri
 
       resid = b[ii] - Aii.Data(ii).Multiply(x[ii]);
 
-      if ( il >=0 || il < (int)x.size() ){
-	resid = resid - Ail.Data(il).Multiply(x[il]);
+      if ( il >=0 && il < (int)x.size() ){
+	resid = resid - Ail.Data(ii).Multiply(x[il]);
       }
 
-      if ( iu >=0 || iu < (int)x.size() ){
-	resid = resid - Aiu.Data(iu).Multiply(x[iu]);
+      if ( iu >=0 && iu < (int)x.size() ){
+	resid = resid - Aiu.Data(ii).Multiply(x[iu]);
       }
 
-      if ( jl >=0 || jl < (int)x.size() ){
-	resid = resid - Ajl.Data(jl).Multiply(x[jl]);
+      if ( jl >=0 && jl < (int)x.size() ){
+	resid = resid - Ajl.Data(ii).Multiply(x[jl]);
       }
 
-      if ( ju >=0 || ju < (int)x.size() ){
-	resid = resid - Aju.Data(ju).Multiply(x[ju]);
+      if ( ju >=0 && ju < (int)x.size() ){
+	resid = resid - Aju.Data(ii).Multiply(x[ju]);
       }
 
-      if ( kl >=0 || kl < (int)x.size() ){
-	resid = resid - Akl.Data(kl).Multiply(x[kl]);
+      if ( kl >=0 && kl < (int)x.size() ){
+	resid = resid - Akl.Data(ii).Multiply(x[kl]);
       }
 
-      if ( ku >=0 || ku < (int)x.size() ){
-	resid = resid - Aku.Data(ku).Multiply(x[ku]);
+      if ( ku >=0 && ku < (int)x.size() ){
+	resid = resid - Aku.Data(ii).Multiply(x[ku]);
       }
 
       l2Resid = l2Resid + resid * resid;
     }
 
-    double res = sqrt(l2Resid.Sum() / ((double)x.size() * (double)x[0].Size()));
-    cout << "Residual: " << res << endl;
-  }
+
+  } //loop for sweeps
+
+  return l2Resid.Sum();
 
 }
 
