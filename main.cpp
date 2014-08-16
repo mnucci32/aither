@@ -93,6 +93,12 @@ int main( int argc, char *argv[] ) {
 
   cout << endl << "Solution Initialized" << endl;
 
+  //determine if implict or explicit
+  int expImpFlag = 0;
+  if ( inputVars.TimeIntegration() == "implicitEuler" || inputVars.TimeIntegration() == "crankNicholson" || inputVars.TimeIntegration() == "gear" ){
+    expImpFlag = 1;
+  }
+
   matrixDiagonal mainDiag, offUpIDiag, offLowIDiag, offUpJDiag, offLowJDiag, offUpKDiag, offLowKDiag;
   colMatrix initial(numEqns);
   initial.Zero();
@@ -120,7 +126,7 @@ int main( int argc, char *argv[] ) {
       int numElems = (mesh.Blocks(bb).NumI() - 1) * (mesh.Blocks(bb).NumJ() - 1) * (mesh.Blocks(bb).NumK() - 1);
 
       //initialize implicit matrix
-      if (inputVars.TimeIntegration() == "implicitEuler"){
+      if (expImpFlag){
 	mainDiag.CleanResizeZero(numElems, numEqns);
 	offUpIDiag.CleanResizeZero(numElems, numEqns);
 	offLowIDiag.CleanResizeZero(numElems, numEqns);
@@ -155,13 +161,13 @@ int main( int argc, char *argv[] ) {
       }
 
       //if implicit calculate flux jacobians and assembly matrix
-      if (inputVars.TimeIntegration() == "implicitEuler"){
+      if (expImpFlag){
 	stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag, offLowIDiag, offUpIDiag);
 	stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag, offLowJDiag, offUpJDiag);
 	stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag, offLowKDiag, offUpKDiag);
 
 	//add volume divided by time step term to main diagonal
-	stateBlocks[bb].AddVolTime(mainDiag);
+	stateBlocks[bb].AddVolTime(mainDiag, inputVars.Theta(), inputVars.Zeta());
 
 	//print out block matrix diagonals for debugging
 	// cout << "Main Diagonal:" << endl;
@@ -182,14 +188,14 @@ int main( int argc, char *argv[] ) {
 
 	//calculate correction (du)
 	matrixResid += SymGaussSeidel(mainDiag, offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag, du, stateBlocks[bb].Residual(), 
-		                      inputVars.MatrixSweeps(), inputVars.MatrixRelaxation(), stateBlocks[bb].NumI()-1, stateBlocks[bb].NumJ()-1);
+		                      inputVars.MatrixSweeps(), inputVars.MatrixRelaxation(), inputVars.Theta(), stateBlocks[bb].NumI()-1, stateBlocks[bb].NumJ()-1);
 
 
       } //loop for implicit solver
 
 
       //update solution
-      stateBlocks[bb].UpdateBlock(inputVars, eos, aRef, bb, du, residL2, residLinf, locMaxB);
+      stateBlocks[bb].UpdateBlock(inputVars, expImpFlag, eos, aRef, bb, du, residL2, residLinf, locMaxB);
 
 
       //get block residuals

@@ -175,6 +175,6 @@ class matrixDiagonal {
 
 //function declarations
 double SymGaussSeidel( matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &,
-		     vector<colMatrix> &, const vector<colMatrix> &, const int &, const double &, const int &, const int &);
+		       vector<colMatrix> &, const vector<colMatrix> &, const int &, const double &, const double &, const int &, const int &);
 
 #endif

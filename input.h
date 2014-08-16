@@ -32,6 +32,8 @@ class input {
   string matrixSolver;                  //matrix solver to solve Ax=b
   int matrixSweeps;                     //number of sweeps for matrix solver
   double matrixRelaxation;              //relaxation parameter for matrix solver
+  double timeIntTheta;                  //beam and warming time integration parameter
+  double timeIntZeta;                   //beam and warming time integration parameter
 
  public:
   //constructor
@@ -99,6 +101,12 @@ class input {
 
   double MatrixRelaxation()const{return matrixRelaxation;}
   void SetMatrixRelaxation(const double &a){matrixRelaxation = a;}
+
+  double Theta()const{return timeIntTheta;}
+  void SetTheta(const double &a){timeIntTheta = a;}
+
+  double Zeta()const{return timeIntZeta;}
+  void SetZeta(const double &a){timeIntZeta = a;}
 
   string Vars(const int &ind)const{return vars[ind];}
 

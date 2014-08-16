@@ -478,7 +478,7 @@ void matrixDiagonal::Inverse(){
 //function to perform symmetric Gauss-Seidel relaxation to solver Ax=b
 //when relax = 1.0, symmetric Gauss-Seidel is achieved. Values >1 result in symmetric successive over relaxation (SSOR)
 //Values <1 result in under relaxation
-double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const matrixDiagonal &Aiu, const matrixDiagonal &Ajl, const matrixDiagonal &Aju, const matrixDiagonal &Akl, const matrixDiagonal &Aku, vector<colMatrix> &x, const vector<colMatrix> &b, const int &sweeps, const double &relax, const int &imax, const int &jmax ){
+double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const matrixDiagonal &Aiu, const matrixDiagonal &Ajl, const matrixDiagonal &Aju, const matrixDiagonal &Akl, const matrixDiagonal &Aku, vector<colMatrix> &x, const vector<colMatrix> &b, const int &sweeps, const double &relax, const double &theta, const int &imax, const int &jmax ){
 
   //Aii --> block matrix of the main diagonal
   //Ail --> block matrix of the lower i diagonal
@@ -543,7 +543,7 @@ double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const mat
 	newData = newData + Aku.Data(ii).Multiply(x[ku]);
       }
 
-      x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply(b[ii] - newData - oldData) ;
+      x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply( (b[ii] + b[ii] * (1.0 - theta)) - newData - oldData) ;
     }
 
     //backward sweep
@@ -579,7 +579,7 @@ double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const mat
 	newData = newData + Akl.Data(ii).Multiply(x[kl]);
       }
 
-      x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply(b[ii] - newData - oldData) ;
+      x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply( (b[ii] + b[ii] * (1.0 - theta)) - newData - oldData) ;
     }
 
     //calculate residual
@@ -595,7 +595,7 @@ double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const mat
       int kl = ii-imax*jmax;
       int ku = ii+imax*jmax;
 
-      resid = b[ii] - Aii.Data(ii).Multiply(x[ii]);
+      resid = b[ii] + b[ii] * (1.0 - theta) - Aii.Data(ii).Multiply(x[ii]);
 
       if ( il >=0 && il < (int)x.size() ){
 	resid = resid - Ail.Data(ii).Multiply(x[il]);

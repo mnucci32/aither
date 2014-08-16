@@ -765,7 +765,7 @@ void blockVars::CalcBlockResidDT( const input &inputVars, const double &aRef){
 
 }
 
-void blockVars::UpdateBlock(const input &inputVars, const idealGas &eos, const double &aRef, const int &bb, const vector<colMatrix> &du, vector<double> &l2, vector<double> &linf, int &locMaxB){
+void blockVars::UpdateBlock(const input &inputVars, const int &expImpFlag, const idealGas &eos, const double &aRef, const int &bb, const vector<colMatrix> &du, vector<double> &l2, vector<double> &linf, int &locMaxB){
 
   int imax = (*this).NumI()-1;
   int jmax = (*this).NumJ()-1;
@@ -776,7 +776,7 @@ void blockVars::UpdateBlock(const input &inputVars, const idealGas &eos, const d
   int kk = 0;
   int loc = 0;
 
-  if ( inputVars.TimeIntegration() == "explicitEuler" || inputVars.TimeIntegration() == "implicitEuler" ){
+  if ( inputVars.TimeIntegration() != "rk4" ){
     for ( kk = 0; kk < kmax; kk++ ){          //loop over all cells
       for ( jj = 0; jj < jmax; jj++ ){          
 	for ( ii = 0; ii < imax; ii++ ){          
@@ -786,8 +786,8 @@ void blockVars::UpdateBlock(const input &inputVars, const idealGas &eos, const d
 	  if (inputVars.TimeIntegration() == "explicitEuler"){
 	    (*this).ExplicitEulerTimeAdvance(eos, loc);
 	  }
-	  else if (inputVars.TimeIntegration() == "implicitEuler"){
-	    (*this).ImplicitEulerTimeAdvance(du[loc], eos, loc);
+	  else if (expImpFlag){
+	    (*this).ImplicitTimeAdvance(du[loc], eos, loc);
 	  }
 
 
@@ -892,8 +892,8 @@ void blockVars::ExplicitEulerTimeAdvance(const idealGas &eqnState, const int &lo
 
 }
 
-//member function to advance the state vector to time n+1 using implicit Euler method
-void blockVars::ImplicitEulerTimeAdvance(const colMatrix &du, const idealGas &eqnState, const int &loc ){
+//member function to advance the state vector to time n+1 (for implicit methods)
+void blockVars::ImplicitTimeAdvance(const colMatrix &du, const idealGas &eqnState, const int &loc ){
 
   vector<double> consVars = (*this).State(loc).ConsVars(eqnState);
 
@@ -1393,7 +1393,7 @@ void blockVars::PrintMatrixStructure(){
 }
 
 //a member function to add the cell volume divided by the cell time step to the main diagonal of the implicit matrix
-void blockVars::AddVolTime( matrixDiagonal &mainDiag) const {
+void blockVars::AddVolTime( matrixDiagonal &mainDiag, const double &theta, const double &zeta) const {
 
   int s = mainDiag.Data(0).Size();
   squareMatrix I(s);
@@ -1408,7 +1408,7 @@ void blockVars::AddVolTime( matrixDiagonal &mainDiag) const {
     for ( int jj = 0; jj < jmax; jj++ ){
       for ( int kk = 0; kk < kmax; kk++ ){
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
-	I = ((*this).Vol(loc) / (*this).Dt(loc)) * I;
+	I = ( ( ((*this).Vol(loc) * (1.0 + zeta)) / (*this).Dt(loc) ) - theta ) * I;
 	mainDiag.SetData(loc, mainDiag.Data(loc) + I);
 	I.Identity();
       }

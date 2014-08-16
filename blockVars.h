@@ -114,10 +114,10 @@ class blockVars {
   void CalcInvFluxJ(const idealGas&, const input&, const int&);
   void CalcInvFluxK(const idealGas&, const input&, const int&);
   void CalcBlockResidDT(const input&, const double&);
-  void UpdateBlock(const input&, const idealGas&, const double&, const int&, const vector<colMatrix> &, vector<double> &, vector<double> &, int &);
+  void UpdateBlock(const input&, const int&, const idealGas&, const double&, const int&, const vector<colMatrix> &, vector<double> &, vector<double> &, int &);
 
   void ExplicitEulerTimeAdvance(const idealGas&, const int&);
-  void ImplicitEulerTimeAdvance(const colMatrix&, const idealGas&, const int&);
+  void ImplicitTimeAdvance(const colMatrix&, const idealGas&, const int&);
   void RK4TimeAdvance(const primVars&, const idealGas&, const double&, const int&, const int&);
 
   //void TotalResidual( vector<double> &, vector<double> &, int &, const int & );
@@ -126,7 +126,7 @@ class blockVars {
   void CalcInvFluxJacJ(const idealGas&, const input&, const int&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&)const;
   void CalcInvFluxJacK(const idealGas&, const input&, const int&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&)const;
 
-  void AddVolTime(matrixDiagonal&)const;
+  void AddVolTime(matrixDiagonal&, const double &, const double &)const;
 
   void PrintMatrixStructure();
 

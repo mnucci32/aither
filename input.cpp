@@ -16,7 +16,7 @@ using std::istream_iterator;
 
 //constructor for input class
 //initialize vector to have length of number of acceptable inputs to the code
-input::input(): vars(20){
+input::input(): vars(22){
   //default values for each variable
   gName = "";
   dt = -1.0;
@@ -41,6 +41,8 @@ input::input(): vars(20){
   matrixSolver = "symGaussSeidel";
   matrixSweeps = 5;
   matrixRelaxation = 1.0;  //default is symmetric Gauss-Seidel with no overrelaxation
+  timeIntTheta = 1.0;      //default results in implicit euler
+  timeIntZeta = 0.0;       //default results in implicit euler
 
   //keywords in the input file that the parser is looking for to define variables
   vars[0] = "gridName:";
@@ -62,8 +64,10 @@ input::input(): vars(20){
   vars[16] = "matrixSolver:";
   vars[17] = "matrixSweeps:";
   vars[18] = "matrixRelaxation:";
+  vars[19] = "timeIntTheta:";
+  vars[20] = "timeIntZeta:";
 
-  vars[19] = "boundaryConditions:";  //boundary conditions should be listed last
+  vars[21] = "boundaryConditions:";  //boundary conditions should be listed last
 }
 
 //member function to set vector holding boundary conditions for each block
@@ -203,6 +207,19 @@ input ReadInput(const string &inputName){
 	  }
           else if (ii==9 && readingBCs == 0){
             inputVars.SetTimeIntegration(tokens[1]);
+	    if (inputVars.TimeIntegration() == "implicitEuler"){
+	      inputVars.SetTheta(1.0);
+	      inputVars.SetZeta(0.0);
+	    }
+	    else if (inputVars.TimeIntegration() == "crankNicholson"){
+	      inputVars.SetTheta(0.5);
+	      inputVars.SetZeta(0.0);
+	    }
+	    else if (inputVars.TimeIntegration() == "gear"){
+	      inputVars.SetTheta(1.0);
+	      inputVars.SetZeta(0.5);
+	    }
+
             cout << inputVars.Vars(ii) << " " << inputVars.TimeIntegration() << endl;
             continue;
           }
