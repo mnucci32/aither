@@ -171,6 +171,15 @@ inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGa
 //function to calculate pressure from conserved variables and equation of state
 void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGas &eqnState, const vector3d<double>& areaVec, double &maxWS, squareMatrix &dF_dUl, squareMatrix &dF_dUr){
 
+  //left --> primative variables from left side
+  //right --> primative variables from right side
+  //eqnStat --> ideal gas equation of state
+  //areaVec --> face area vector
+  //maxWS --> maximum wave speed
+  //dF_dUl --> dF/dUl, derivative of the Roe flux wrt the left state (conservative variables)
+  //dF_dUr --> dF/dUlr, derivative of the Roe flux wrt the right state (conservative variables)
+
+
   //check to see that output matricies are correct size
   if( (dF_dUl.Size() != 5) || (dF_dUr.Size() != 5)){
     cerr << "ERROR: Input matricies to RoeFLuxJacobian function are not the correct size!" << endl;
@@ -187,17 +196,21 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
   //Roe averaged face normal velocity
   vector3d<double> velR(uR,vR,wR);
 
-  vector3d<double> areaNorm = areaVec / areaVec.Mag();
+  vector3d<double> areaNorm = areaVec / areaVec.Mag();  //normalize area vector to unit vector
+
+  //dot product of velocities (Roe, left, right) with unit area vector
   double velRSum = velR.DotProd(areaNorm);
   double velLeftSum = left.Velocity().DotProd(areaNorm);
   double velRightSum = right.Velocity().DotProd(areaNorm);
 
+  //calculate differences: normal velocity, pressure, u-velocity, v-velocity, w-velocity
   double normVelDiff = right.Velocity().DotProd(areaNorm) - left.Velocity().DotProd(areaNorm);
   double pDiff = right.P() - left.P();
   double uDiff = right.U() - left.U();
   double vDiff = right.V() - left.V();
   double wDiff = right.W() - left.W();
 
+  //calculate wave strengths
   double waveStrength[4] = {(pDiff - rhoR * aR * normVelDiff) / (2.0 * aR * aR), 
 			    (right.Rho() - left.Rho()) - pDiff / (aR * aR), 
 			    (pDiff + rhoR * aR * normVelDiff) / (2.0 * aR * aR), 
@@ -210,6 +223,7 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
 			 fabs(velRSum)};
 
   //calculate entropy fix
+  //Harten JCP 1983
   double entropyFix = 0.1;                                                            // default setting for entropy fix to kick in
 
   if ( waveSpeed[0] < entropyFix ){
@@ -219,7 +233,7 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
     waveSpeed[2] = 0.5 * (waveSpeed[2] * waveSpeed[2] / entropyFix + entropyFix);
   }
 
-  maxWS = fabs(velRSum) + aR;
+  //maxWS = fabs(velRSum) + aR; //maxWS will be calculated in RHS (explicit)
 
   double lAcousticEigV[5] = {1.0, 
 			     uR - aR * areaNorm.X(), 
@@ -231,7 +245,7 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
 			   uR, 
 			   vR, 
 			   wR, 
-			   0.5 * ( uR * uR + vR * vR + wR * wR)};
+			   0.5 * velR.MagSq()};
 
   double rAcousticEigV[5] = {1.0, 
 			     uR + aR * areaNorm.X(), 
@@ -240,17 +254,20 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
 			     hR + aR * velRSum};
 
   double shearEigV[5] = {0.0, 
-			 (right.U() - left.U()) - normVelDiff * areaNorm.X(), 
-			 (right.V() - left.V()) - normVelDiff * areaNorm.Y(), 
-			 (right.W() - left.W()) - normVelDiff * areaNorm.Z(), 
-			 uR * (right.U() - left.U()) + vR * (right.V() - left.V()) + wR * (right.W() - left.W()) - velRSum * normVelDiff};
+			 uDiff - normVelDiff * areaNorm.X(), 
+			 vDiff - normVelDiff * areaNorm.Y(), 
+			 wDiff - normVelDiff * areaNorm.Z(), 
+			 uR * uDiff + vR * vDiff + wR * wDiff - velRSum * normVelDiff};
 
-  //begin jacobian calculation
+  //begin jacobian calculation ////////////////////////////////////////////////////////////////////////////////////////
 
   //derivative of Roe flux wrt left conservative variables
   dF_dUl.Zero();
 
-  //calculate flux derivatives
+  //Roe flux --> F = 0.5 * (F(Ul) + F(Ur)) - 0.5 * |lambda| * LdU * r
+  //take derivative of each term wrt to Ul and add to flux jacobian variable
+
+  //calculate flux derivatives --- d(0.5*F(Ul))/d(Ul)
   //column zero
   dF_dUl.SetData(0, 0, 0.0);
   dF_dUl.SetData(1, 0, 0.5 * (eqnState.Gamma() - 1.0) * left.Velocity().MagSq() * areaNorm.X() - left.U() * velLeftSum);
@@ -289,29 +306,31 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
   //multiply by factor 1/2
   dF_dUl = dF_dUl * 0.5;
 
+  double one_rl_r = 1.0 / (left.Rho() + rhoR);
+
   //calculate derivatives of Roe quantities
   //derivative of normal Roe velocity wrt left conservative variables
-  double dQr_dUl[5] = { -0.5 * (velLeftSum + velRSum) / (left.Rho() + rhoR),
-			areaNorm.X() / (left.Rho() + rhoR),
-			areaNorm.Y() / (left.Rho() + rhoR),
-			areaNorm.Z() / (left.Rho() + rhoR),
+  double dQr_dUl[5] = { -0.5 * (velLeftSum + velRSum) * one_rl_r,
+			areaNorm.X() * one_rl_r,
+			areaNorm.Y() * one_rl_r,
+			areaNorm.Z() * one_rl_r,
 			0.0};
 
   //derivative of absolute value of Roe velocity wrt left conservative variables
-  double dAbsQr_dUl[5] = { -0.5 * copysign(1.0,velRSum) * (velLeftSum + velRSum) / (left.Rho() + rhoR),
-			   copysign(1.0,velRSum) * areaNorm.X() / (left.Rho() + rhoR),
-			   copysign(1.0,velRSum) * areaNorm.Y() / (left.Rho() + rhoR),
-			   copysign(1.0,velRSum) * areaNorm.Z() / (left.Rho() + rhoR),
+  double dAbsQr_dUl[5] = { -0.5 * copysign(1.0,velRSum) * (velLeftSum + velRSum) * one_rl_r,
+			   copysign(1.0,velRSum) * areaNorm.X() * one_rl_r,
+			   copysign(1.0,velRSum) * areaNorm.Y() * one_rl_r,
+			   copysign(1.0,velRSum) * areaNorm.Z() * one_rl_r,
 			   0.0};
 
   //derivative of Roe speed of sound wrt left conservative variables
   double dA_dUl[5] = { ((0.5 * (eqnState.Gamma() - 1.0) / aR) * (0.5 * (velR.MagSq() + left.Velocity().DotProd(velR))) 
 		    + 0.5 * (left.Enthalpy(eqnState)- hR) - (left.SoS(eqnState) * left.SoS(eqnState)) / (eqnState.Gamma() - 1.0)
-		     + 0.5 * (eqnState.Gamma() - 2.0) * left.Velocity().MagSq()) / (left.Rho() + rhoR),
-		    (-0.5 * (eqnState.Gamma() - 1.0) * (uR + (eqnState.Gamma() - 1.0) * left.U()) / aR) / (left.Rho() + rhoR),
-		    (-0.5 * (eqnState.Gamma() - 1.0) * (vR + (eqnState.Gamma() - 1.0) * left.V()) / aR) / (left.Rho() + rhoR),
-		    (-0.5 * (eqnState.Gamma() - 1.0) * (wR + (eqnState.Gamma() - 1.0) * left.W()) / aR) / (left.Rho() + rhoR),
-		       (0.5 * eqnState.Gamma() * (eqnState.Gamma() - 1.0) / aR) / (left.Rho() + rhoR)};
+		     + 0.5 * (eqnState.Gamma() - 2.0) * left.Velocity().MagSq()) * one_rl_r,
+		    (-0.5 * (eqnState.Gamma() - 1.0) * (uR + (eqnState.Gamma() - 1.0) * left.U()) / aR) * one_rl_r,
+		    (-0.5 * (eqnState.Gamma() - 1.0) * (vR + (eqnState.Gamma() - 1.0) * left.V()) / aR) * one_rl_r,
+		    (-0.5 * (eqnState.Gamma() - 1.0) * (wR + (eqnState.Gamma() - 1.0) * left.W()) / aR) * one_rl_r,
+		       (0.5 * eqnState.Gamma() * (eqnState.Gamma() - 1.0) / aR) * one_rl_r};
 
   //derivative of Roe density wrt left conservative variables
   double dR_dUl[5] = { 0.5 * rhoR / left.Rho(),
@@ -321,33 +340,33 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
 		       0.0};
 
   //derivative of Roe u velocity wrt left conservative variables
-  double dU_dUl[5] = {-0.5 * (left.U() - uR) / (left.Rho() + rhoR),
-		      1.0 / (left.Rho() + rhoR),
+  double dU_dUl[5] = {-0.5 * (left.U() + uR) * one_rl_r,
+		      one_rl_r,
 		      0.0,
 		      0.0,
 		      0.0};
 
   //derivative of Roe v velocity wrt left conservative variables
-  double dV_dUl[5] = {-0.5 * (left.V() - vR) / (left.Rho() + rhoR),
+  double dV_dUl[5] = {-0.5 * (left.V() + vR) * one_rl_r,
 		      0.0,
-		      1.0 / (left.Rho() + rhoR),
+		      one_rl_r,
 		      0.0,
 		      0.0};
 
   //derivative of Roe w velocity wrt left conservative variables
-  double dW_dUl[5] = {-0.5 * (left.W() - wR) / (left.Rho() + rhoR),
+  double dW_dUl[5] = {-0.5 * (left.W() + wR) * one_rl_r,
 		      0.0,
 		      0.0,
-		      1.0 / (left.Rho() + rhoR),
+		      one_rl_r,
 		      0.0};
 
   //derivative of Roe enthalpy wrt left conservative variables
   double dH_dUl[5] = { (0.5 * (left.Enthalpy(eqnState) - hR) - left.SoS(eqnState) * left.SoS(eqnState) / (eqnState.Gamma() - 1.0) 
-			+ 0.5 * (eqnState.Gamma() - 2.0) * left.Velocity().MagSq()) / (left.Rho() + rhoR),
-		       (1.0 - eqnState.Gamma()) * left.U() / (left.Rho() + rhoR),
-		       (1.0 - eqnState.Gamma()) * left.V() / (left.Rho() + rhoR),
-		       (1.0 - eqnState.Gamma()) * left.W() / (left.Rho() + rhoR),
-		       eqnState.Gamma()};
+			+ 0.5 * (eqnState.Gamma() - 2.0) * left.Velocity().MagSq()) * one_rl_r,
+		       (1.0 - eqnState.Gamma()) * left.U() * one_rl_r,
+		       (1.0 - eqnState.Gamma()) * left.V() * one_rl_r,
+		       (1.0 - eqnState.Gamma()) * left.W() * one_rl_r,
+		       eqnState.Gamma() * one_rl_r };
 
   //derivatives of differences
   //derivative of density difference wrt left conservative variables
@@ -410,37 +429,22 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
       dWs1_dUl[kk] = waveSpeed[0] / entropyFix * dWs1_dUl[kk];
     }
   }
+
   //add to flux jacobian for first wave speed contribution
   for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,0, dF_dUl.Data(kk,0) - 0.5 * dWs1_dUl[0] * waveStrength[0] * lAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,1, dF_dUl.Data(kk,1) - 0.5 * dWs1_dUl[1] * waveStrength[0] * lAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,2, dF_dUl.Data(kk,2) - 0.5 * dWs1_dUl[2] * waveStrength[0] * lAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,3, dF_dUl.Data(kk,3) - 0.5 * dWs1_dUl[3] * waveStrength[0] * lAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,4, dF_dUl.Data(kk,4) - 0.5 * dWs1_dUl[4] * waveStrength[0] * lAcousticEigV[kk]);
   }
 
   //add to flux jacobian for second wave speed contribution
   for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,0, dF_dUl.Data(kk,0) - 0.5 * dAbsQr_dUl[0] * waveStrength[1] * entropyEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,1, dF_dUl.Data(kk,1) - 0.5 * dAbsQr_dUl[1] * waveStrength[1] * entropyEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,2, dF_dUl.Data(kk,2) - 0.5 * dAbsQr_dUl[2] * waveStrength[1] * entropyEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,3, dF_dUl.Data(kk,3) - 0.5 * dAbsQr_dUl[3] * waveStrength[1] * entropyEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,4, dF_dUl.Data(kk,4) - 0.5 * dAbsQr_dUl[4] * waveStrength[1] * entropyEigV[kk]);
   }
 
@@ -466,34 +470,18 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
   //add to flux jacobian for third wave speed contribution
   for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,0, dF_dUl.Data(kk,0) - 0.5 * dWs3_dUl[0] * waveStrength[2] * rAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,1, dF_dUl.Data(kk,1) - 0.5 * dWs3_dUl[1] * waveStrength[2] * rAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,2, dF_dUl.Data(kk,2) - 0.5 * dWs3_dUl[2] * waveStrength[2] * rAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,3, dF_dUl.Data(kk,3) - 0.5 * dWs3_dUl[3] * waveStrength[2] * rAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,4, dF_dUl.Data(kk,4) - 0.5 * dWs3_dUl[4] * waveStrength[2] * rAcousticEigV[kk]);
   }
 
   //add to flux jacobian for fourth wave speed contribution
   for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,0, dF_dUl.Data(kk,0) - 0.5 * dAbsQr_dUl[0] * waveStrength[3] * shearEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,1, dF_dUl.Data(kk,1) - 0.5 * dAbsQr_dUl[1] * waveStrength[3] * shearEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,2, dF_dUl.Data(kk,2) - 0.5 * dAbsQr_dUl[2] * waveStrength[3] * shearEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,3, dF_dUl.Data(kk,3) - 0.5 * dAbsQr_dUl[3] * waveStrength[3] * shearEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,4, dF_dUl.Data(kk,4) - 0.5 * dAbsQr_dUl[4] * waveStrength[3] * shearEigV[kk]);
   }
 
@@ -501,23 +489,15 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
   double dWst1_dUl[5];
   for(int kk = 0; kk < 5; kk ++){
     dWst1_dUl[kk] = 0.5 * (-2.0 * pDiff + rhoR * aR * normVelDiff) / pow(aR,3) * dA_dUl[kk] - 0.5 * normVelDiff / aR * dR_dUl[kk]
-      + 0.5 * dDeltP_dUl[kk] / (aR * aR) - 0.5 * rhoR * dDeltV_dUl[kk] / aR;
+      + 0.5 * dDeltP_dUl[kk] / (aR * aR) - 0.5 * rhoR * dDeltVmag_dUl[kk] / aR;
   }
 
   //add to flux jacobian for first wave strength contribution
   for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,0, dF_dUl.Data(kk,0) - 0.5 * waveSpeed[0] * dWst1_dUl[0] * lAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,1, dF_dUl.Data(kk,1) - 0.5 * waveSpeed[0] * dWst1_dUl[1] * lAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,2, dF_dUl.Data(kk,2) - 0.5 * waveSpeed[0] * dWst1_dUl[2] * lAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,3, dF_dUl.Data(kk,3) - 0.5 * waveSpeed[0] * dWst1_dUl[3] * lAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,4, dF_dUl.Data(kk,4) - 0.5 * waveSpeed[0] * dWst1_dUl[4] * lAcousticEigV[kk]);
   }
 
@@ -529,17 +509,9 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
   //add to flux jacobian for second wave strength contribution
   for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,0, dF_dUl.Data(kk,0) - 0.5 * waveSpeed[1] * dWst2_dUl[0] * entropyEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,1, dF_dUl.Data(kk,1) - 0.5 * waveSpeed[1] * dWst2_dUl[1] * entropyEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,2, dF_dUl.Data(kk,2) - 0.5 * waveSpeed[1] * dWst2_dUl[2] * entropyEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,3, dF_dUl.Data(kk,3) - 0.5 * waveSpeed[1] * dWst2_dUl[3] * entropyEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,4, dF_dUl.Data(kk,4) - 0.5 * waveSpeed[1] * dWst2_dUl[4] * entropyEigV[kk]);
   }
 
@@ -547,39 +519,23 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
   double dWst3_dUl[5];
   for(int kk = 0; kk < 5; kk ++){
     dWst3_dUl[kk] = 0.5 * (-2.0 * pDiff - rhoR * aR * normVelDiff) / pow(aR,3) * dA_dUl[kk] + 0.5 * normVelDiff / aR * dR_dUl[kk]
-      + 0.5 * dDeltP_dUl[kk] / (aR * aR) + 0.5 * rhoR * dDeltV_dUl[kk] / aR;
+      + 0.5 * dDeltP_dUl[kk] / (aR * aR) + 0.5 * rhoR * dDeltVmag_dUl[kk] / aR;
   }
   //add to flux jacobian for third wave strength contribution
   for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,0, dF_dUl.Data(kk,0) - 0.5 * waveSpeed[2] * dWst3_dUl[0] * rAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,1, dF_dUl.Data(kk,1) - 0.5 * waveSpeed[2] * dWst3_dUl[1] * rAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,2, dF_dUl.Data(kk,2) - 0.5 * waveSpeed[2] * dWst3_dUl[2] * rAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,3, dF_dUl.Data(kk,3) - 0.5 * waveSpeed[2] * dWst3_dUl[3] * rAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,4, dF_dUl.Data(kk,4) - 0.5 * waveSpeed[2] * dWst3_dUl[4] * rAcousticEigV[kk]);
   }
 
   //add to flux jacobian for fourth wave strength contribution
   for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,0, dF_dUl.Data(kk,0) - 0.5 * waveSpeed[3] * dR_dUl[0] * shearEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,1, dF_dUl.Data(kk,1) - 0.5 * waveSpeed[3] * dR_dUl[1] * shearEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,2, dF_dUl.Data(kk,2) - 0.5 * waveSpeed[3] * dR_dUl[2] * shearEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,3, dF_dUl.Data(kk,3) - 0.5 * waveSpeed[3] * dR_dUl[3] * shearEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUl.SetData(kk,4, dF_dUl.Data(kk,4) - 0.5 * waveSpeed[3] * dR_dUl[4] * shearEigV[kk]);
   }
 
@@ -618,7 +574,7 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
     dRAc_dUl.SetData(1, kk, dU_dUl[kk] + dA_dUl[kk] * areaNorm.X());
     dRAc_dUl.SetData(2, kk, dV_dUl[kk] + dA_dUl[kk] * areaNorm.Y());
     dRAc_dUl.SetData(3, kk, dW_dUl[kk] + dA_dUl[kk] * areaNorm.Z());
-    dRAc_dUl.SetData(4, kk, dH_dUl[kk] + dA_dUl[kk] * velRSum - dQr_dUl[kk] * aR);
+    dRAc_dUl.SetData(4, kk, dH_dUl[kk] + dA_dUl[kk] * velRSum + dQr_dUl[kk] * aR);
   }
 
   //add to flux jacobian term contribution from third eigenvalue
@@ -638,7 +594,7 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
   //add to flux jacobian term contribution from fourth eigenvalue
   dF_dUl = dF_dUl - 0.5 * waveSpeed[3] * waveStrength[3] * dSh_dUl;
 
-  //Compute derivative of flux wrt right conservative variables
+  //Compute derivative of flux wrt right conservative variables //////////////////////////////////////////////////////////////
   dF_dUr.Zero();
 
   //calculate flux derivatives
@@ -680,29 +636,31 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
   //multiply by factor 1/2
   dF_dUr = dF_dUr * 0.5;
 
+  double one_rr_r = 1.0 / (right.Rho() + rhoR);
+
   //calculate derivatives of Roe quantities
   //derivative of normal Roe velocity wrt right conservative variables
-  double dQr_dUr[5] = { -0.5 * (velRightSum + velRSum) / (right.Rho() + rhoR),
-			areaNorm.X() / (right.Rho() + rhoR),
-			areaNorm.Y() / (right.Rho() + rhoR),
-			areaNorm.Z() / (right.Rho() + rhoR),
+  double dQr_dUr[5] = { -0.5 * (velRightSum + velRSum) * one_rr_r,
+			areaNorm.X() * one_rr_r,
+			areaNorm.Y() * one_rr_r,
+			areaNorm.Z() * one_rr_r,
 			0.0};
 
   //derivative of absolute value of Roe velocity wrt right conservative variables
-  double dAbsQr_dUr[5] = { -0.5 * copysign(1.0,velRSum) * (velRightSum + velRSum) / (right.Rho() + rhoR),
-			   copysign(1.0,velRSum) * areaNorm.X() / (right.Rho() + rhoR),
-			   copysign(1.0,velRSum) * areaNorm.Y() / (right.Rho() + rhoR),
-			   copysign(1.0,velRSum) * areaNorm.Z() / (right.Rho() + rhoR),
+  double dAbsQr_dUr[5] = { -0.5 * copysign(1.0,velRSum) * (velRightSum + velRSum) * one_rr_r,
+			   copysign(1.0,velRSum) * areaNorm.X() * one_rr_r,
+			   copysign(1.0,velRSum) * areaNorm.Y() * one_rr_r,
+			   copysign(1.0,velRSum) * areaNorm.Z() * one_rr_r,
 			   0.0};
 
   //derivative of Roe speed of sound wrt right conservative variables
   double dA_dUr[5] = { ((0.5 * (eqnState.Gamma() - 1.0) / aR) * (0.5 * (velR.MagSq() + right.Velocity().DotProd(velR))) 
 		    + 0.5 * (right.Enthalpy(eqnState)- hR) - (right.SoS(eqnState) * right.SoS(eqnState)) / (eqnState.Gamma() - 1.0)
-		     + 0.5 * (eqnState.Gamma() - 2.0) * right.Velocity().MagSq()) / (right.Rho() + rhoR),
-		    (-0.5 * (eqnState.Gamma() - 1.0) * (uR + (eqnState.Gamma() - 1.0) * right.U()) / aR) / (right.Rho() + rhoR),
-		    (-0.5 * (eqnState.Gamma() - 1.0) * (vR + (eqnState.Gamma() - 1.0) * right.V()) / aR) / (right.Rho() + rhoR),
-		    (-0.5 * (eqnState.Gamma() - 1.0) * (wR + (eqnState.Gamma() - 1.0) * right.W()) / aR) / (right.Rho() + rhoR),
-		       (0.5 * eqnState.Gamma() * (eqnState.Gamma() - 1.0) / aR) / (right.Rho() + rhoR)};
+		    + 0.5 * (eqnState.Gamma() - 2.0) * right.Velocity().MagSq()) * one_rr_r,
+		    (-0.5 * (eqnState.Gamma() - 1.0) * (uR + (eqnState.Gamma() - 1.0) * right.U()) / aR) * one_rr_r,
+		    (-0.5 * (eqnState.Gamma() - 1.0) * (vR + (eqnState.Gamma() - 1.0) * right.V()) / aR) * one_rr_r,
+		    (-0.5 * (eqnState.Gamma() - 1.0) * (wR + (eqnState.Gamma() - 1.0) * right.W()) / aR) * one_rr_r,
+		       (0.5 * eqnState.Gamma() * (eqnState.Gamma() - 1.0) / aR) * one_rr_r};
 
   //derivative of Roe density wrt right conservative variables
   double dR_dUr[5] = { 0.5 * rhoR / right.Rho(),
@@ -712,75 +670,75 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
 		       0.0};
 
   //derivative of Roe u velocity wrt right conservative variables
-  double dU_dUr[5] = {-0.5 * (right.U() - uR) / (right.Rho() + rhoR),
-		      1.0 / (right.Rho() + rhoR),
+  double dU_dUr[5] = {-0.5 * (right.U() + uR) * one_rr_r,
+		      one_rr_r,
 		      0.0,
 		      0.0,
 		      0.0};
 
   //derivative of Roe v velocity wrt right conservative variables
-  double dV_dUr[5] = {-0.5 * (right.V() - vR) / (right.Rho() + rhoR),
+  double dV_dUr[5] = {-0.5 * (right.V() + vR) * one_rr_r,
 		      0.0,
-		      1.0 / (right.Rho() + rhoR),
+		      one_rr_r,
 		      0.0,
 		      0.0};
 
   //derivative of Roe w velocity wrt right conservative variables
-  double dW_dUr[5] = {-0.5 * (right.W() - wR) / (right.Rho() + rhoR),
+  double dW_dUr[5] = {-0.5 * (right.W() + wR) * one_rr_r,
 		      0.0,
 		      0.0,
-		      1.0 / (right.Rho() + rhoR),
+		      one_rr_r,
 		      0.0};
 
   //derivative of Roe enthalpy wrt right conservative variables
   double dH_dUr[5] = { (0.5 * (right.Enthalpy(eqnState) - hR) - right.SoS(eqnState) * right.SoS(eqnState) / (eqnState.Gamma() - 1.0) 
-			+ 0.5 * (eqnState.Gamma() - 2.0) * right.Velocity().MagSq()) / (right.Rho() + rhoR),
-		       (1.0 - eqnState.Gamma()) * right.U() / (right.Rho() + rhoR),
-		       (1.0 - eqnState.Gamma()) * right.V() / (right.Rho() + rhoR),
-		       (1.0 - eqnState.Gamma()) * right.W() / (right.Rho() + rhoR),
-		       eqnState.Gamma()};
+			+ 0.5 * (eqnState.Gamma() - 2.0) * right.Velocity().MagSq()) * one_rr_r,
+		       (1.0 - eqnState.Gamma()) * right.U() * one_rr_r,
+		       (1.0 - eqnState.Gamma()) * right.V() * one_rr_r,
+		       (1.0 - eqnState.Gamma()) * right.W() * one_rr_r,
+		       eqnState.Gamma() * one_rr_r};
 
   //derivatives of differences
   //derivative of density difference wrt right conservative variables
-  double dDeltR_dUr[5] = {-1.0,
+  double dDeltR_dUr[5] = {1.0,
 			  0.0,
 			  0.0,
 			  0.0,
 			  0.0};
 
   //derivative of pressure difference wrt right conservative variables
-  double dDeltP_dUr[5] = { -0.5 * (eqnState.Gamma() - 1.0) * right.Velocity().MagSq(),
-			   (eqnState.Gamma() - 1.0) * right.U(),
-			   (eqnState.Gamma() - 1.0) * right.V(),
-			   (eqnState.Gamma() - 1.0) * right.W(),
-			   -1.0 * (eqnState.Gamma() - 1.0)};
+  double dDeltP_dUr[5] = { 0.5 * (eqnState.Gamma() - 1.0) * right.Velocity().MagSq(),
+			   -1.0 * (eqnState.Gamma() - 1.0) * right.U(),
+			   -1.0 * (eqnState.Gamma() - 1.0) * right.V(),
+			   -1.0 * (eqnState.Gamma() - 1.0) * right.W(),
+			   (eqnState.Gamma() - 1.0)};
 
   //derivative of velocity magnitude difference wrt right conservative variables
-  double dDeltVmag_dUr[5] = { velRightSum / right.Rho(),
-			      -1.0 * areaNorm.X() / right.Rho(),
-			      -1.0 * areaNorm.Y() / right.Rho(),
-			      -1.0 * areaNorm.Z() / right.Rho(),
+  double dDeltVmag_dUr[5] = { -1.0 * velRightSum / right.Rho(),
+			      areaNorm.X() / right.Rho(),
+			      areaNorm.Y() / right.Rho(),
+			      areaNorm.Z() / right.Rho(),
 			      0.0};
 
   //derivative of u velocity difference wrt right conservative variables
-  double dDeltU_dUr[5] = { right.U() / right.Rho(),
-			   -1.0 / right.Rho(),
+  double dDeltU_dUr[5] = { -1.0 * right.U() / right.Rho(),
+			   1.0 / right.Rho(),
 			   0.0,
 			   0.0,
 			   0.0};
 
   //derivative of v velocity difference wrt right conservative variables
-  double dDeltV_dUr[5] = { right.V() / right.Rho(),
+  double dDeltV_dUr[5] = { -1.0 * right.V() / right.Rho(),
 			   0.0,
-			   -1.0 / right.Rho(),
+			   1.0 / right.Rho(),
 			   0.0,
 			   0.0};
 
   //derivative of w velocity difference wrt right conservative variables
-  double dDeltW_dUr[5] = { right.W() / right.Rho(),
+  double dDeltW_dUr[5] = { -1.0 * right.W() / right.Rho(),
 			   0.0,
 			   0.0,
-			   -1.0 / right.Rho(),
+			   1.0 / right.Rho(),
 			   0.0};
 
   //differentiate the absolute value of the wave speeds and add to flux jacobian variable
@@ -804,34 +762,18 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
   //add to flux jacobian for first wave speed contribution
   for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,0, dF_dUr.Data(kk,0) - 0.5 * dWs1_dUr[0] * waveStrength[0] * lAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,1, dF_dUr.Data(kk,1) - 0.5 * dWs1_dUr[1] * waveStrength[0] * lAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,2, dF_dUr.Data(kk,2) - 0.5 * dWs1_dUr[2] * waveStrength[0] * lAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,3, dF_dUr.Data(kk,3) - 0.5 * dWs1_dUr[3] * waveStrength[0] * lAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,4, dF_dUr.Data(kk,4) - 0.5 * dWs1_dUr[4] * waveStrength[0] * lAcousticEigV[kk]);
   }
 
   //add to flux jacobian for second wave speed contribution
   for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,0, dF_dUr.Data(kk,0) - 0.5 * dAbsQr_dUr[0] * waveStrength[1] * entropyEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,1, dF_dUr.Data(kk,1) - 0.5 * dAbsQr_dUr[1] * waveStrength[1] * entropyEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,2, dF_dUr.Data(kk,2) - 0.5 * dAbsQr_dUr[2] * waveStrength[1] * entropyEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,3, dF_dUr.Data(kk,3) - 0.5 * dAbsQr_dUr[3] * waveStrength[1] * entropyEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,4, dF_dUr.Data(kk,4) - 0.5 * dAbsQr_dUr[4] * waveStrength[1] * entropyEigV[kk]);
   }
 
@@ -857,34 +799,18 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
   //add to flux jacobian for third wave speed contribution
   for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,0, dF_dUr.Data(kk,0) - 0.5 * dWs3_dUr[0] * waveStrength[2] * rAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,1, dF_dUr.Data(kk,1) - 0.5 * dWs3_dUr[1] * waveStrength[2] * rAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,2, dF_dUr.Data(kk,2) - 0.5 * dWs3_dUr[2] * waveStrength[2] * rAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,3, dF_dUr.Data(kk,3) - 0.5 * dWs3_dUr[3] * waveStrength[2] * rAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,4, dF_dUr.Data(kk,4) - 0.5 * dWs3_dUr[4] * waveStrength[2] * rAcousticEigV[kk]);
   }
 
   //add to flux jacobian for fourth wave speed contribution
   for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,0, dF_dUr.Data(kk,0) - 0.5 * dAbsQr_dUr[0] * waveStrength[3] * shearEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,1, dF_dUr.Data(kk,1) - 0.5 * dAbsQr_dUr[1] * waveStrength[3] * shearEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,2, dF_dUr.Data(kk,2) - 0.5 * dAbsQr_dUr[2] * waveStrength[3] * shearEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,3, dF_dUr.Data(kk,3) - 0.5 * dAbsQr_dUr[3] * waveStrength[3] * shearEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,4, dF_dUr.Data(kk,4) - 0.5 * dAbsQr_dUr[4] * waveStrength[3] * shearEigV[kk]);
   }
 
@@ -892,23 +818,15 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
   double dWst1_dUr[5];
   for(int kk = 0; kk < 5; kk ++){
     dWst1_dUr[kk] = 0.5 * (-2.0 * pDiff + rhoR * aR * normVelDiff) / pow(aR,3) * dA_dUr[kk] - 0.5 * normVelDiff / aR * dR_dUr[kk]
-      + 0.5 * dDeltP_dUr[kk] / (aR * aR) - 0.5 * rhoR * dDeltV_dUr[kk] / aR;
+      + 0.5 * dDeltP_dUr[kk] / (aR * aR) - 0.5 * rhoR * dDeltVmag_dUr[kk] / aR;
   }
 
   //add to flux jacobian for first wave strength contribution
   for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,0, dF_dUr.Data(kk,0) - 0.5 * waveSpeed[0] * dWst1_dUr[0] * lAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,1, dF_dUr.Data(kk,1) - 0.5 * waveSpeed[0] * dWst1_dUr[1] * lAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,2, dF_dUr.Data(kk,2) - 0.5 * waveSpeed[0] * dWst1_dUr[2] * lAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,3, dF_dUr.Data(kk,3) - 0.5 * waveSpeed[0] * dWst1_dUr[3] * lAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,4, dF_dUr.Data(kk,4) - 0.5 * waveSpeed[0] * dWst1_dUr[4] * lAcousticEigV[kk]);
   }
 
@@ -920,17 +838,9 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
   //add to flux jacobian for second wave strength contribution
   for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,0, dF_dUr.Data(kk,0) - 0.5 * waveSpeed[1] * dWst2_dUr[0] * entropyEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,1, dF_dUr.Data(kk,1) - 0.5 * waveSpeed[1] * dWst2_dUr[1] * entropyEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,2, dF_dUr.Data(kk,2) - 0.5 * waveSpeed[1] * dWst2_dUr[2] * entropyEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,3, dF_dUr.Data(kk,3) - 0.5 * waveSpeed[1] * dWst2_dUr[3] * entropyEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,4, dF_dUr.Data(kk,4) - 0.5 * waveSpeed[1] * dWst2_dUr[4] * entropyEigV[kk]);
   }
 
@@ -938,39 +848,23 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
   double dWst3_dUr[5];
   for(int kk = 0; kk < 5; kk ++){
     dWst3_dUr[kk] = 0.5 * (-2.0 * pDiff - rhoR * aR * normVelDiff) / pow(aR,3) * dA_dUr[kk] + 0.5 * normVelDiff / aR * dR_dUr[kk]
-      + 0.5 * dDeltP_dUr[kk] / (aR * aR) + 0.5 * rhoR * dDeltV_dUr[kk] / aR;
+      + 0.5 * dDeltP_dUr[kk] / (aR * aR) + 0.5 * rhoR * dDeltVmag_dUr[kk] / aR;
   }
   //add to flux jacobian for third wave strength contribution
   for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,0, dF_dUr.Data(kk,0) - 0.5 * waveSpeed[2] * dWst3_dUr[0] * rAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,1, dF_dUr.Data(kk,1) - 0.5 * waveSpeed[2] * dWst3_dUr[1] * rAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,2, dF_dUr.Data(kk,2) - 0.5 * waveSpeed[2] * dWst3_dUr[2] * rAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,3, dF_dUr.Data(kk,3) - 0.5 * waveSpeed[2] * dWst3_dUr[3] * rAcousticEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,4, dF_dUr.Data(kk,4) - 0.5 * waveSpeed[2] * dWst3_dUr[4] * rAcousticEigV[kk]);
   }
 
   //add to flux jacobian for fourth wave strength contribution
   for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,0, dF_dUr.Data(kk,0) - 0.5 * waveSpeed[3] * dR_dUr[0] * shearEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,1, dF_dUr.Data(kk,1) - 0.5 * waveSpeed[3] * dR_dUr[1] * shearEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,2, dF_dUr.Data(kk,2) - 0.5 * waveSpeed[3] * dR_dUr[2] * shearEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,3, dF_dUr.Data(kk,3) - 0.5 * waveSpeed[3] * dR_dUr[3] * shearEigV[kk]);
-  }
-  for(int kk = 0; kk < 5; kk++){
     dF_dUr.SetData(kk,4, dF_dUr.Data(kk,4) - 0.5 * waveSpeed[3] * dR_dUr[4] * shearEigV[kk]);
   }
 
@@ -1008,7 +902,7 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
     dRAc_dUr.SetData(1, kk, dU_dUr[kk] + dA_dUr[kk] * areaNorm.X());
     dRAc_dUr.SetData(2, kk, dV_dUr[kk] + dA_dUr[kk] * areaNorm.Y());
     dRAc_dUr.SetData(3, kk, dW_dUr[kk] + dA_dUr[kk] * areaNorm.Z());
-    dRAc_dUr.SetData(4, kk, dH_dUr[kk] + dA_dUr[kk] * velRSum - dQr_dUr[kk] * aR);
+    dRAc_dUr.SetData(4, kk, dH_dUr[kk] + dA_dUr[kk] * velRSum + dQr_dUr[kk] * aR);
   }
 
   //add to flux jacobian term contribution from third eigenvalue
@@ -1027,8 +921,6 @@ void RoeFluxJacobian( const primVars &left, const primVars &right, const idealGa
 
   //add to flux jacobian term contribution from fourth eigenvalue
   dF_dUr = dF_dUr - 0.5 * waveSpeed[3] * waveStrength[3] * dSh_dUr;
-
-
 
 
 }
