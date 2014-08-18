@@ -94,9 +94,9 @@ int main( int argc, char *argv[] ) {
   cout << endl << "Solution Initialized" << endl;
 
   //determine if implict or explicit
-  int expImpFlag = 0;
+  int implicitFlag = 0;
   if ( inputVars.TimeIntegration() == "implicitEuler" || inputVars.TimeIntegration() == "crankNicholson" || inputVars.TimeIntegration() == "gear" ){
-    expImpFlag = 1;
+    implicitFlag = 1;
   }
 
   matrixDiagonal mainDiag, offUpIDiag, offLowIDiag, offUpJDiag, offLowJDiag, offUpKDiag, offLowKDiag;
@@ -106,6 +106,7 @@ int main( int argc, char *argv[] ) {
   int bb = 0;
   unsigned int cc = 0;
   int nn = 0;
+  int mm = 0;
 
   int locMaxB = 0;
 
@@ -119,132 +120,144 @@ int main( int argc, char *argv[] ) {
 
   for ( nn = 0; nn < inputVars.Iterations(); nn++ ){            //loop over time
 
+    //calculate cfl number
+    inputVars.CalcCFL(nn);
 
-    for ( bb = 0; bb < mesh.NumBlocks(); bb++ ){             //loop over number of blocks
+    for ( mm = 0; mm < inputVars.NonlinearIterations(); mm++ ){    //loop over nonlinear iterations
+
+      for ( bb = 0; bb < mesh.NumBlocks(); bb++ ){             //loop over number of blocks
 
 
-      int numElems = (mesh.Blocks(bb).NumI() - 1) * (mesh.Blocks(bb).NumJ() - 1) * (mesh.Blocks(bb).NumK() - 1);
+	int numElems = (mesh.Blocks(bb).NumI() - 1) * (mesh.Blocks(bb).NumJ() - 1) * (mesh.Blocks(bb).NumK() - 1);
 
-      //initialize implicit matrix
-      if (expImpFlag){
-	mainDiag.CleanResizeZero(numElems, numEqns);
-	offUpIDiag.CleanResizeZero(numElems, numEqns);
-	offLowIDiag.CleanResizeZero(numElems, numEqns);
-	offUpJDiag.CleanResizeZero(numElems, numEqns);
-	offLowJDiag.CleanResizeZero(numElems, numEqns);
-	offUpKDiag.CleanResizeZero(numElems, numEqns);
-	offLowKDiag.CleanResizeZero(numElems, numEqns);
+	//initialize implicit matrix
+	if (implicitFlag){
+	  mainDiag.CleanResizeZero(numElems, numEqns);
+	  offUpIDiag.CleanResizeZero(numElems, numEqns);
+	  offLowIDiag.CleanResizeZero(numElems, numEqns);
+	  offUpJDiag.CleanResizeZero(numElems, numEqns);
+	  offLowJDiag.CleanResizeZero(numElems, numEqns);
+	  offUpKDiag.CleanResizeZero(numElems, numEqns);
+	  offLowKDiag.CleanResizeZero(numElems, numEqns);
+	}
+	vector<colMatrix> du( numElems, initial );
+
+
+	//calculate inviscid fluxes
+	stateBlocks[bb].CalcInvFluxI(eos, inputVars, bb);
+	stateBlocks[bb].CalcInvFluxJ(eos, inputVars, bb);
+	stateBlocks[bb].CalcInvFluxK(eos, inputVars, bb);
+
+	//if viscous, calculate gradients and viscous fluxes
+	if (inputVars.EquationSet() == "navierStokes"){
+	  viscBlocks[bb].CalcCellGrads(stateBlocks[bb], eos, inputVars, bb);
+	  viscBlocks[bb].CalcViscFluxI(stateBlocks[bb], suth, eos, inputVars, bb);
+	  viscBlocks[bb].CalcViscFluxJ(stateBlocks[bb], suth, eos, inputVars, bb);
+	  viscBlocks[bb].CalcViscFluxK(stateBlocks[bb], suth, eos, inputVars, bb);
+	}
+
+	//calculate residuals and cell time step
+	//THIS CAN/SHOULD BE COMBINED WITH THE FLUX CALCULATION
+	if (inputVars.EquationSet() == "navierStokes"){
+	  viscBlocks[bb].CalcBlockResidDT(stateBlocks[bb], inputVars, aRef);
+	}
+	else{
+	  stateBlocks[bb].CalcBlockResidDT(inputVars, aRef);
+	}
+
+
+	//if implicit calculate flux jacobians and assembly matrix
+	if (implicitFlag){
+
+	  //store time-n solution
+	  vector<primVars> solTimeN = stateBlocks[bb].GetCopyState();
+
+	  stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag, offLowIDiag, offUpIDiag);
+	  stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag, offLowJDiag, offUpJDiag);
+	  stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag, offLowKDiag, offUpKDiag);
+
+	  //add volume divided by time step term to main diagonal
+	  stateBlocks[bb].AddVolTime(mainDiag, inputVars.Theta(), inputVars.Zeta());
+
+	  //print out block matrix diagonals for debugging
+	  // cout << "Main Diagonal:" << endl;
+	  // cout << mainDiag << endl;
+	  // cout << "main diagonal size " << mainDiag.Size() << endl;
+	  // cout << "I-Lower Diagonal:" << endl;
+	  // cout << offLowIDiag << endl;
+	  // cout << "I-Upper Diagonal:" << endl;
+	  // cout << offUpIDiag << endl;
+	  // cout << "J-Lower Diagonal:" << endl;
+	  // cout << offLowJDiag << endl;
+	  // cout << "J-Upper Diagonal:" << endl;
+	  // cout << offUpJDiag << endl;
+	  // cout << "K-Lower Diagonal:" << endl;
+	  // cout << offLowKDiag << endl;
+	  // cout << "K-Upper Diagonal:" << endl;
+	  // cout << offUpKDiag << endl;
+
+	  //calculate correction (du)
+	  matrixResid += SymGaussSeidel(mainDiag, offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag, du, stateBlocks[bb].Residual(), 
+					stateBlocks[bb].GetRefState(), solTimeN, inputVars.MatrixSweeps(), inputVars.MatrixRelaxation(), 
+					stateBlocks[bb].NumI()-1, stateBlocks[bb].NumJ()-1, eos );
+
+
+	} //code block for implicit solver
+
+
+	//update solution
+	stateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, bb, du, residL2, residLinf, locMaxB);
+
+
+	//get block residuals
+	//stateBlocks[bb].TotalResidual(residL2, residLinf, locMaxB, bb);
+
+      } //loop for blocks
+
+
+      //finish calculation of L2 norm of residual
+      for ( cc = 0; cc < residL2.size(); cc++ ){
+	residL2[cc] = sqrt(residL2[cc]);
+
+	if (nn == 0){
+	  residL2First[cc] = residL2[cc];
+	}
+
+	//normalize residuals
+	residL2[cc] = (residL2[cc]+eps) / (residL2First[cc]+eps) ;
       }
-      vector<colMatrix> du( numElems, initial );
+
+      matrixResid = sqrt(matrixResid/(totalCells * numEqns));
 
 
-      //calculate inviscid fluxes
-      stateBlocks[bb].CalcInvFluxI(eos, inputVars, bb);
-      stateBlocks[bb].CalcInvFluxJ(eos, inputVars, bb);
-      stateBlocks[bb].CalcInvFluxK(eos, inputVars, bb);
+      //print out run information
+      if (nn%100 == 0 && mm == 0){  
+	if (inputVars.Dt() > 0.0){
+	  cout << "STEP    NONLINEAR     DT     RES-Mass     Res-Mom-X     Res-Mom-Y     Res-Mom-Z     Res-Energy    Max Res Eqn    Max Res Blk    Max Res I    Max Res J    Max Res K    Max Res    Res-Matrix" << endl;
+	}
+	else if (inputVars.CFL() > 0.0){
+	  cout << "STEP    NONLINEAR     CFL     RES-Mass     Res-Mom-X     Res-Mom-Y     Res-Mom-Z     Res-Energy   Max Res Eqn    Max Res Blk    Max Res I    Max Res J    Max Res K    Max Res    Res-Matrix" << endl;
+	}
 
-      //if viscous, calculate gradients and viscous fluxes
-      if (inputVars.EquationSet() == "navierStokes"){
-	viscBlocks[bb].CalcCellGrads(stateBlocks[bb], eos, inputVars, bb);
-	viscBlocks[bb].CalcViscFluxI(stateBlocks[bb], suth, eos, inputVars, bb);
-	viscBlocks[bb].CalcViscFluxJ(stateBlocks[bb], suth, eos, inputVars, bb);
-	viscBlocks[bb].CalcViscFluxK(stateBlocks[bb], suth, eos, inputVars, bb);
       }
-
-      //calculate residuals and cell time step
-      //THIS CAN/SHOULD BE COMBINED WITH THE FLUX CALCULATION
-      if (inputVars.EquationSet() == "navierStokes"){
-      	viscBlocks[bb].CalcBlockResidDT(stateBlocks[bb], inputVars, aRef);
-      }
-      else{
-      	stateBlocks[bb].CalcBlockResidDT(inputVars, aRef);
-      }
-
-      //if implicit calculate flux jacobians and assembly matrix
-      if (expImpFlag){
-	stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag, offLowIDiag, offUpIDiag);
-	stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag, offLowJDiag, offUpJDiag);
-	stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag, offLowKDiag, offUpKDiag);
-
-	//add volume divided by time step term to main diagonal
-	stateBlocks[bb].AddVolTime(mainDiag, inputVars.Theta(), inputVars.Zeta());
-
-	//print out block matrix diagonals for debugging
-	// cout << "Main Diagonal:" << endl;
-	// cout << mainDiag << endl;
-	// cout << "main diagonal size " << mainDiag.Size() << endl;
-	// cout << "I-Lower Diagonal:" << endl;
-	// cout << offLowIDiag << endl;
-	// cout << "I-Upper Diagonal:" << endl;
-	// cout << offUpIDiag << endl;
-	// cout << "J-Lower Diagonal:" << endl;
-	// cout << offLowJDiag << endl;
-	// cout << "J-Upper Diagonal:" << endl;
-	// cout << offUpJDiag << endl;
-	// cout << "K-Lower Diagonal:" << endl;
-	// cout << offLowKDiag << endl;
-	// cout << "K-Upper Diagonal:" << endl;
-	// cout << offUpKDiag << endl;
-
-	//calculate correction (du)
-	matrixResid += SymGaussSeidel(mainDiag, offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag, du, stateBlocks[bb].Residual(), 
-		                      inputVars.MatrixSweeps(), inputVars.MatrixRelaxation(), inputVars.Theta(), stateBlocks[bb].NumI()-1, stateBlocks[bb].NumJ()-1);
-
-
-      } //loop for implicit solver
-
-
-      //update solution
-      stateBlocks[bb].UpdateBlock(inputVars, expImpFlag, eos, aRef, bb, du, residL2, residLinf, locMaxB);
-
-
-      //get block residuals
-      //stateBlocks[bb].TotalResidual(residL2, residLinf, locMaxB, bb);
-
-    } //loop for blocks
-
-
-    //finish calculation of L2 norm of residual
-    for ( cc = 0; cc < residL2.size(); cc++ ){
-      residL2[cc] = sqrt(residL2[cc]);
-
-      if (nn == 0){
-	residL2First[cc] = residL2[cc];
-      }
-
-      //normalize residuals
-      residL2[cc] = (residL2[cc]+eps) / (residL2First[cc]+eps) ;
-    }
-
-    matrixResid = sqrt(matrixResid/(totalCells * numEqns));
-
-
-    //print out run information
-    if (nn%100 == 0){  
       if (inputVars.Dt() > 0.0){
-	cout << "STEP     DT     RES-Mass     Res-Mom-X     Res-Mom-Y     Res-Mom-Z     Res-Energy    Max Res Eqn    Max Res Blk    Max Res I    Max Res J    Max Res K    Max Res    Res-Matrix" << endl;
+	cout << nn << "     " << mm << "     " << inputVars.Dt() << "     " << residL2[0] <<  "     " << residL2[1] << "     " << residL2[2] << "     " << residL2[3] << "     " << residL2[4] << "     " 
+	     << residLinf[3] << "     " << locMaxB << "     " << residLinf[0] <<"     " << residLinf[1] << "     " << residLinf[2] << "     " << residLinf[4] << "     " << matrixResid << endl;
       }
       else if (inputVars.CFL() > 0.0){
-	cout << "STEP     CFL     RES-Mass     Res-Mom-X     Res-Mom-Y     Res-Mom-Z     Res-Energy   Max Res Eqn    Max Res Blk    Max Res I    Max Res J    Max Res K    Max Res    Res-Matrix" << endl;
+	cout << nn << "     " << mm << "     " << inputVars.CFL() << "     " << residL2[0] <<  "     " << residL2[1] << "     " << residL2[2] << "     " << residL2[3] << "     " << residL2[4] << "     " 
+	     << residLinf[3] << "     " << locMaxB << "     " << residLinf[0] <<"     " << residLinf[1] << "     " << residLinf[2] << "     " << residLinf[4] << "     " << matrixResid << endl;
       }
 
-    }
-    if (inputVars.Dt() > 0.0){
-      cout << nn << "     " << inputVars.Dt() << "     " << residL2[0] <<  "     " << residL2[1] << "     " << residL2[2] << "     " << residL2[3] << "     " << residL2[4] << "     " 
-           << residLinf[3] << "     " << locMaxB << "     " << residLinf[0] <<"     " << residLinf[1] << "     " << residLinf[2] << "     " << residLinf[4] << "     " << matrixResid << endl;
-    }
-    else if (inputVars.CFL() > 0.0){
-      cout << nn << "     " << inputVars.CFL() << "     " << residL2[0] <<  "     " << residL2[1] << "     " << residL2[2] << "     " << residL2[3] << "     " << residL2[4] << "     " 
-           << residLinf[3] << "     " << locMaxB << "     " << residLinf[0] <<"     " << residLinf[1] << "     " << residLinf[2] << "     " << residLinf[4] << "     " << matrixResid << endl;
-    }
+      //reset residuals
+      for ( cc = 0; cc < residL2.size(); cc++ ){
+	residL2[cc] = 0.0;
+	residLinf[cc] = 0.0;
+      }
+      locMaxB = 0;
+      matrixResid = 0.0;
 
-    //reset residuals
-    for ( cc = 0; cc < residL2.size(); cc++ ){
-      residL2[cc] = 0.0;
-      residLinf[cc] = 0.0;
-    }
-    locMaxB = 0;
-    matrixResid = 0.0;
+    } //loop for nonlinear iterations
 
     if ( (nn+1)  % inputVars.OutputFrequency() == 0 ){ //write out function file
       cout << "write out function file at iteration " << nn << endl;

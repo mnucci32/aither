@@ -16,7 +16,7 @@ using std::istream_iterator;
 
 //constructor for input class
 //initialize vector to have length of number of acceptable inputs to the code
-input::input(): vars(22){
+input::input(): vars(26){
   //default values for each variable
   gName = "";
   dt = -1.0;
@@ -43,6 +43,10 @@ input::input(): vars(22){
   matrixRelaxation = 1.0;  //default is symmetric Gauss-Seidel with no overrelaxation
   timeIntTheta = 1.0;      //default results in implicit euler
   timeIntZeta = 0.0;       //default results in implicit euler
+  nonlinearIterations = 1;    //default is 1 (steady)
+  cflMax = 1.0;
+  cflStep = 0.0;
+  cflStart = 1.0;
 
   //keywords in the input file that the parser is looking for to define variables
   vars[0] = "gridName:";
@@ -66,8 +70,12 @@ input::input(): vars(22){
   vars[18] = "matrixRelaxation:";
   vars[19] = "timeIntTheta:";
   vars[20] = "timeIntZeta:";
+  vars[21] = "nonlinearIterations:";
+  vars[22] = "cflMax:";
+  vars[23] = "cflStep:";
+  vars[24] = "cflStart:";
 
-  vars[21] = "boundaryConditions:";  //boundary conditions should be listed last
+  vars[25] = "boundaryConditions:";  //boundary conditions should be listed last
 }
 
 //member function to set vector holding boundary conditions for each block
@@ -223,11 +231,6 @@ input ReadInput(const string &inputName){
             cout << inputVars.Vars(ii) << " " << inputVars.TimeIntegration() << endl;
             continue;
           }
-          else if (ii==10 && readingBCs == 0){
-            inputVars.SetCFL(atof(tokens[1].c_str()));                       //double variable (atof)
-            cout << inputVars.Vars(ii) << " " << inputVars.CFL() << endl;
-            continue;
-          }
           else if (ii==11 && readingBCs == 0){
 	    if (tokens[1] == "upwind"){
 	      inputVars.SetKappa(-1.0);
@@ -293,6 +296,26 @@ input ReadInput(const string &inputName){
             cout << inputVars.Vars(ii) << " " << inputVars.MatrixRelaxation() << endl;
             continue;
 	  }
+          else if (ii==21 && readingBCs == 0){
+            inputVars.SetNonlinearIterations(atoi(tokens[1].c_str()));
+            cout << inputVars.Vars(ii) << " " << inputVars.NonlinearIterations() << endl;
+            continue;
+	  }
+          else if (ii==22 && readingBCs == 0){
+            inputVars.SetCFLMax(atof(tokens[1].c_str()));                       //double variable (atof)
+            cout << inputVars.Vars(ii) << " " << inputVars.CFLMax() << endl;
+            continue;
+          }
+          else if (ii==23 && readingBCs == 0){
+            inputVars.SetCFLStep(atof(tokens[1].c_str()));                       //double variable (atof)
+            cout << inputVars.Vars(ii) << " " << inputVars.CFLStep() << endl;
+            continue;
+          }
+          else if (ii==24 && readingBCs == 0){
+            inputVars.SetCFLStart(atof(tokens[1].c_str()));                       //double variable (atof)
+            cout << inputVars.Vars(ii) << " " << inputVars.CFLStart() << endl;
+            continue;
+          }
 
 
           else if (ii==inputVars.NumVars()-1 || readingBCs > 0){
@@ -356,5 +379,21 @@ input ReadInput(const string &inputName){
   cout << "###########################################################################################################################" << endl << endl;
 
   return inputVars;
+
+}
+
+
+//member function to calculate the cfl value for the step from the starting, ending, and step values
+void input::CalcCFL(const int &i){
+
+  if ( i == 0 ){  //first time step
+    cfl = cflStart;
+  }
+  else if ( cflStart + i*cflStep > cflMax ){
+    cfl = cflMax;
+  }
+  else{
+    cfl = cflStart + i * cflStep;
+  }
 
 }

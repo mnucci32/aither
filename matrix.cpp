@@ -478,7 +478,7 @@ void matrixDiagonal::Inverse(){
 //function to perform symmetric Gauss-Seidel relaxation to solver Ax=b
 //when relax = 1.0, symmetric Gauss-Seidel is achieved. Values >1 result in symmetric successive over relaxation (SSOR)
 //Values <1 result in under relaxation
-double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const matrixDiagonal &Aiu, const matrixDiagonal &Ajl, const matrixDiagonal &Aju, const matrixDiagonal &Akl, const matrixDiagonal &Aku, vector<colMatrix> &x, const vector<colMatrix> &b, const int &sweeps, const double &relax, const double &theta, const int &imax, const int &jmax ){
+double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const matrixDiagonal &Aiu, const matrixDiagonal &Ajl, const matrixDiagonal &Aju, const matrixDiagonal &Akl, const matrixDiagonal &Aku, vector<colMatrix> &x, const vector<colMatrix> &b, const vector<primVars> &solTimeM, const vector<primVars> &solTimeN, const int &sweeps, const double &relax, const int &imax, const int &jmax, const idealGas &eqnState){
 
   //Aii --> block matrix of the main diagonal
   //Ail --> block matrix of the lower i diagonal
@@ -493,7 +493,6 @@ double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const mat
   //relax  --> relaxation parameter >1 is overrelaxation, <1 is underrelaxation
   //imax   --> imax for block
   //jmax   --> jmax for block
-
 
   //initialize x to 0
   for (unsigned int ll = 0; ll < x.size(); ll++ ){
@@ -543,7 +542,8 @@ double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const mat
 	newData = newData + Aku.Data(ii).Multiply(x[ku]);
       }
 
-      x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply( (b[ii] + b[ii] * (1.0 - theta)) - newData - oldData) ;
+      x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply( b[ii] + 
+	      solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - newData - oldData) ;
     }
 
     //backward sweep
@@ -579,7 +579,8 @@ double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const mat
 	newData = newData + Akl.Data(ii).Multiply(x[kl]);
       }
 
-      x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply( (b[ii] + b[ii] * (1.0 - theta)) - newData - oldData) ;
+      x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply( b[ii] +
+              solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - newData - oldData) ;
     }
 
     //calculate residual
@@ -595,7 +596,7 @@ double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const mat
       int kl = ii-imax*jmax;
       int ku = ii+imax*jmax;
 
-      resid = b[ii] + b[ii] * (1.0 - theta) - Aii.Data(ii).Multiply(x[ii]);
+      resid = b[ii] + solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - Aii.Data(ii).Multiply(x[ii]);
 
       if ( il >=0 && il < (int)x.size() ){
 	resid = resid - Ail.Data(ii).Multiply(x[il]);
@@ -690,6 +691,22 @@ colMatrix colMatrix::operator + (const colMatrix& s2)const{
   return s1;
 }
 
+//operator overload for addition
+colMatrix colMatrix::operator + (const vector<double>& v1)const{
+  colMatrix s1 = *this;
+
+  //check to see that matrix dimensions are the same
+  if ( s1.size != (int)v1.size() ){
+    cerr << "ERROR: Cannot add column matrix of size " << s1.size << " to vector class of size " << v1.size()<< ", dimensions do not agree." << endl;
+  }
+
+  for( int rr = 0; rr < s1.size; rr++ ){
+    s1.SetData(rr, s1.Data(rr) + v1[rr]);
+  }
+  return s1;
+}
+
+
 //operator overload for addition with a scalar
 colMatrix colMatrix::operator + (const double &scalar)const{
   colMatrix s1 = *this;
@@ -722,6 +739,21 @@ colMatrix colMatrix::operator - (const colMatrix& s2)const{
 
   for( int rr = 0; rr < s2.Size(); rr++ ){
     s1.SetData(rr, s1.Data(rr) - s2.Data(rr));
+  }
+  return s1;
+}
+
+//operator overload for addition
+colMatrix colMatrix::operator - (const vector<double>& v1)const{
+  colMatrix s1 = *this;
+
+  //check to see that matrix dimensions are the same
+  if ( s1.size != (int)v1.size() ){
+    cerr << "ERROR: Cannot subtract column matrix of size " << s1.size << " to vector class of size " << v1.size()<< ", dimensions do not agree." << endl;
+  }
+
+  for( int rr = 0; rr < s1.size; rr++ ){
+    s1.SetData(rr, s1.Data(rr) - v1[rr]);
   }
   return s1;
 }

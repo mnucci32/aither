@@ -5,6 +5,8 @@
 #include <string>  //string
 #include <math.h>       //sqrt
 #include <iostream>
+#include "primVars.h"
+#include "eos.h"
 
 using std::vector;
 using std::string;
@@ -44,6 +46,9 @@ class colMatrix {
   colMatrix operator - (const colMatrix&)const;
   colMatrix operator * (const colMatrix&)const;
   colMatrix operator / (const colMatrix&)const;
+
+  colMatrix operator + (const vector<double>&)const;
+  colMatrix operator - (const vector<double>&)const;
 
   colMatrix operator + (const double&)const;
   colMatrix operator - (const double&)const;
@@ -175,6 +180,6 @@ class matrixDiagonal {
 
 //function declarations
 double SymGaussSeidel( matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &,
-		       vector<colMatrix> &, const vector<colMatrix> &, const int &, const double &, const double &, const int &, const int &);
+		       vector<colMatrix> &, const vector<colMatrix> &, const vector<primVars> &, const vector<primVars> &, const int &, const double &, const int &, const int &, const idealGas &);
 
 #endif

@@ -34,6 +34,10 @@ class input {
   double matrixRelaxation;              //relaxation parameter for matrix solver
   double timeIntTheta;                  //beam and warming time integration parameter
   double timeIntZeta;                   //beam and warming time integration parameter
+  int nonlinearIterations;              //number of nonlinear iterations for time accurate scheme
+  double cflMax;                        //maximum cfl value
+  double cflStep;                       //cfl step size for ramp
+  double cflStart;                      //starting cfl number
 
  public:
   //constructor
@@ -80,6 +84,7 @@ class input {
 
   double CFL()const{return cfl;}
   void SetCFL(const double &a){cfl = a;}
+  void CalcCFL(const int &i);
 
   double Kappa()const{return kappa;}
   void SetKappa(const double &a){kappa = a;}
@@ -107,6 +112,18 @@ class input {
 
   double Zeta()const{return timeIntZeta;}
   void SetZeta(const double &a){timeIntZeta = a;}
+
+  int NonlinearIterations()const{return nonlinearIterations;}
+  void SetNonlinearIterations(const int &i){nonlinearIterations = i;}
+
+  double CFLMax()const{return cflMax;}
+  void SetCFLMax(const double &a){cflMax = a;}
+
+  double CFLStep()const{return cflStep;}
+  void SetCFLStep(const double &a){cflStep = a;}
+
+  double CFLStart()const{return cflStart;}
+  void SetCFLStart(const double &a){cflStart = a;}
 
   string Vars(const int &ind)const{return vars[ind];}
 

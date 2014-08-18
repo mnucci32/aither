@@ -67,6 +67,8 @@ class blockVars {
 
   void SetState( const primVars &a, const int &ind){state[ind] = a;}
   primVars State(const int &ind) const {return state[ind];}
+  vector<primVars> GetCopyState() const {return state;}
+  const vector<primVars> & GetRefState() const {return state;}
   void SetInvFluxI( const inviscidFlux &a, const int &ind){invFluxI[ind] = a;}
   inviscidFlux InvFluxI(const int &ind) const {return invFluxI[ind];}
   void SetInvFluxJ( const inviscidFlux &a, const int &ind){invFluxJ[ind] = a;}

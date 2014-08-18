@@ -3,8 +3,8 @@ CC = g++
 DEBUG = -ggdb -pg 
 OPTIM = -O3 -march=native
 CODENAME = main
-CFLAGS = -std=c++0x -Wall -c $(DEBUG)
-LFLAGS = -std=c++0x -Wall $(DEBUG) -o $(CODENAME)
+CFLAGS = -std=c++0x -Wall -c $(OPTIM)
+LFLAGS = -std=c++0x -Wall $(OPTIM) -o $(CODENAME)
 
 $(CODENAME) : $(OBJS)
 	$(CC) $(LFLAGS) $(OBJS)
@@ -42,7 +42,7 @@ viscBlockVars.o : viscBlockVars.cpp viscBlockVars.h vector3d.h tensor.h plot3d.h
 output.o : output.cpp output.h blockVars.h tensor.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h viscBlockVars.h
 	$(CC) $(CFLAGS) output.cpp
 
-matrix.o : matrix.cpp matrix.h
+matrix.o : matrix.cpp matrix.h primVars.h eos.h
 	$(CC) $(CFLAGS) matrix.cpp
 
 testMain.o : testMain.cpp matrix.h
