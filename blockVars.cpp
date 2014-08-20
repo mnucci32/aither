@@ -765,7 +765,7 @@ void blockVars::CalcBlockResidDT( const input &inputVars, const double &aRef){
 
 }
 
-void blockVars::UpdateBlock(const input &inputVars, const int &expImpFlag, const idealGas &eos, const double &aRef, const int &bb, const vector<colMatrix> &du, vector<double> &l2, vector<double> &linf, int &locMaxB){
+void blockVars::UpdateBlock(const input &inputVars, const int &impFlag, const idealGas &eos, const double &aRef, const int &bb, const vector<colMatrix> &du, vector<double> &l2, vector<double> &linf, int &locMaxB){
 
   int imax = (*this).NumI()-1;
   int jmax = (*this).NumJ()-1;
@@ -786,7 +786,7 @@ void blockVars::UpdateBlock(const input &inputVars, const int &expImpFlag, const
 	  if (inputVars.TimeIntegration() == "explicitEuler"){
 	    (*this).ExplicitEulerTimeAdvance(eos, loc);
 	  }
-	  else if (expImpFlag){
+	  else if (impFlag){
 	    (*this).ImplicitTimeAdvance(du[loc], eos, loc);
 	  }
 
@@ -1026,7 +1026,8 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 
 	  faceStateUpper = (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax) ).FaceReconConst();
 
-	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS, tempL, tempR);
+	  //RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS, tempL, tempR);
+	  tempR = BoundaryFluxJacobian(bcName, (*this).FAreaI(loc), faceStateUpper, eqnState, inp, "il");
 
           // left flux jacobian is not needed at lower boundary
           mainDiag.SetData(  upperI, mainDiag.Data(upperI)   + tempR * (*this).FAreaI(loc).Mag() );
@@ -1048,7 +1049,8 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 
 	  faceStateLower = (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ).FaceReconConst();
 
-	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS, tempL, tempR);
+	  //RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS, tempL, tempR);
+	  tempL = BoundaryFluxJacobian(bcName, (*this).FAreaI(loc), faceStateLower, eqnState, inp, "iu");
 
 	  // right flux jacobian is not needed at upper boundary
           mainDiag.SetData(   lowerI, mainDiag.Data(lowerI)    - tempL * (*this).FAreaI(loc).Mag() );
@@ -1147,7 +1149,8 @@ void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, cons
 
 	  faceStateUpper = (*this).State( GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax) ).FaceReconConst();
 
-	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS, tempL, tempR);
+	  //RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS, tempL, tempR);
+	  tempR = BoundaryFluxJacobian(bcName, (*this).FAreaJ(loc), faceStateUpper, eqnState, inp, "jl");
 
           // left flux jacobian is not needed at lower boundary
           mainDiag.SetData(  upperJ, mainDiag.Data(upperJ)   + tempR * (*this).FAreaJ(loc).Mag() );
@@ -1171,7 +1174,8 @@ void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, cons
 
 	  faceStateLower = (*this).State( GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax) ).FaceReconConst();
 
-	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS, tempL, tempR);
+	  //RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS, tempL, tempR);
+	  tempL = BoundaryFluxJacobian(bcName, (*this).FAreaJ(loc), faceStateLower, eqnState, inp, "ju");
 
 	  // right flux jacobian is not needed at upper boundary
           mainDiag.SetData(   lowerJ, mainDiag.Data(lowerJ)    - tempL * (*this).FAreaJ(loc).Mag() );
@@ -1279,7 +1283,8 @@ void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, cons
 
 	  faceStateUpper = (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax) ).FaceReconConst();
 
-	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS, tempL, tempR);
+	  //RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS, tempL, tempR);
+	  tempR = BoundaryFluxJacobian(bcName, (*this).FAreaK(loc), faceStateUpper, eqnState, inp, "kl");
 
           // left flux jacobian is not needed at lower boundary
           mainDiag.SetData(  upperK, mainDiag.Data(upperK)   + tempR * (*this).FAreaK(loc).Mag() );
@@ -1301,7 +1306,8 @@ void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, cons
 
 	  faceStateLower = (*this).State( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax) ).FaceReconConst();
 
-	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS, tempL, tempR);
+	  //RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS, tempL, tempR);
+	  tempL = BoundaryFluxJacobian(bcName, (*this).FAreaK(loc), faceStateLower, eqnState, inp, "ku");
 
 	  // right flux jacobian is not needed at upper boundary
           mainDiag.SetData(   lowerK, mainDiag.Data(lowerK)    - tempL * (*this).FAreaK(loc).Mag() );
@@ -1408,8 +1414,36 @@ void blockVars::AddVolTime( matrixDiagonal &mainDiag, const double &theta, const
     for ( int jj = 0; jj < jmax; jj++ ){
       for ( int kk = 0; kk < kmax; kk++ ){
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
-	I = ( ( ((*this).Vol(loc) * (1.0 + zeta)) / (*this).Dt(loc) ) - theta ) * I;
-	mainDiag.SetData(loc, mainDiag.Data(loc) + I);
+	//I = ( ( ((*this).Vol(loc) * (1.0 + zeta)) / (*this).Dt(loc) ) - theta ) * I ;
+	I = ( (*this).Vol(loc)/(*this).Dt(loc) ) * I ;
+	mainDiag.SetData(loc, I - mainDiag.Data(loc) );
+	I.Identity();
+      }
+    }
+  }
+
+}
+
+//a member function to add the cell volume divided by the cell time step to the off diagonals of the implicit matrix
+void blockVars::AddVolTimeOff( matrixDiagonal &offLowIDiag, matrixDiagonal &offUpIDiag, matrixDiagonal &offLowJDiag, matrixDiagonal &offUpJDiag,
+			       matrixDiagonal &offLowKDiag, matrixDiagonal &offUpKDiag) const {
+
+  int s = offLowIDiag.Data(0).Size();
+  squareMatrix I(s);
+  I.Identity();
+
+  int imax = (*this).NumI() - 1;
+  int jmax = (*this).NumJ() - 1;
+  int kmax = (*this).NumK() - 1;
+  int loc = 0;
+
+  for ( int ii = 0; ii < imax; ii++ ){
+    for ( int jj = 0; jj < jmax; jj++ ){
+      for ( int kk = 0; kk < kmax; kk++ ){
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	//I = ( ( ((*this).Vol(loc) * (1.0 + zeta)) / (*this).Dt(loc) ) - theta ) * I ;
+	I = ( (*this).Vol(loc)/(*this).Dt(loc) ) * I ;
+	offLowIDiag.SetData(loc, I - offLowIDiag.Data(loc) );
 	I.Identity();
       }
     }

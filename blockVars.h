@@ -129,6 +129,7 @@ class blockVars {
   void CalcInvFluxJacK(const idealGas&, const input&, const int&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&)const;
 
   void AddVolTime(matrixDiagonal&, const double &, const double &)const;
+  void AddVolTimeOff(matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&)const;
 
   void PrintMatrixStructure();
 

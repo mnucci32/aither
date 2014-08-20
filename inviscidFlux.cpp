@@ -1173,6 +1173,79 @@ inviscidFlux BoundaryFlux( const string &bcName, const vector3d<double>& areaVec
 
 }
 
+squareMatrix BoundaryFluxJacobian( const string &bcName, const vector3d<double>& areaVec, const primVars &state, const idealGas& eqnState, const input& inputVars, const string &surf){
+
+  squareMatrix fluxJacL(5);
+  squareMatrix fluxJacR(5);
+  squareMatrix fluxJac(5);
+
+  double maxWS = 0.0;
+
+  vector3d<double> normArea = areaVec / areaVec.Mag();
+
+  //Apply correct flux based on boundary condition to be applied 
+  if ( bcName == "subsonicInflow" || bcName == "subsonicOutflow" || bcName == "supersonicInflow" || bcName == "supersonicOutflow" || bcName == "characteristic"){
+
+    primVars ghostState1 = state.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
+    primVars lState, rState;
+
+    if (surf == "il" || surf == "jl" || surf == "kl"){
+      lState = ghostState1.FaceReconConst();
+      rState = state.FaceReconConst();
+      RoeFluxJacobian( lState, rState, eqnState, normArea, maxWS, fluxJacL, fluxJacR);
+      fluxJac = fluxJacR;
+    }
+    else {
+      rState = ghostState1.FaceReconConst();
+      lState = state.FaceReconConst();
+      RoeFluxJacobian( lState, rState, eqnState, normArea, maxWS, fluxJacL, fluxJacR);
+      fluxJac = fluxJacL;
+    }
+
+  }
+  else if ( bcName == "slipWall" || "viscousWall" ){
+
+      // primVars ghostState1 = state1.GetGhostState( "slipWall", normArea, surf, inputVars, eqnState );
+      // primVars lState, rState;
+
+      // if (surf == "il" || surf == "jl" || surf == "kl"){
+      // 	rState = state1.FaceReconConst();
+      // 	lState = ghostState1.FaceReconConst();
+      // }
+      // else {
+      // 	lState = state1.FaceReconConst();
+      // 	rState = ghostState1.FaceReconConst();
+      // }
+
+    fluxJac.Zero();
+    //2nd row
+    fluxJac.SetData(1, 0, 0.5 * (eqnState.Gamma() - 1.0) * state.Velocity().MagSq() * normArea.X() );
+    fluxJac.SetData(1, 1, -1.0 * (eqnState.Gamma() - 1.0) * state.U() * normArea.X() );
+    fluxJac.SetData(1, 2, -1.0 * (eqnState.Gamma() - 1.0) * state.V() * normArea.X() );
+    fluxJac.SetData(1, 3, -1.0 * (eqnState.Gamma() - 1.0) * state.W() * normArea.X() );
+    fluxJac.SetData(1, 4, (eqnState.Gamma() - 1.0) * normArea.X() );
+    //3rd row
+    fluxJac.SetData(2, 0, 0.5 * (eqnState.Gamma() - 1.0) * state.Velocity().MagSq() * normArea.Y() );
+    fluxJac.SetData(2, 1, -1.0 * (eqnState.Gamma() - 1.0) * state.U() * normArea.Y() );
+    fluxJac.SetData(2, 2, -1.0 * (eqnState.Gamma() - 1.0) * state.V() * normArea.Y() );
+    fluxJac.SetData(2, 3, -1.0 * (eqnState.Gamma() - 1.0) * state.W() * normArea.Y() );
+    fluxJac.SetData(2, 4, (eqnState.Gamma() - 1.0) * normArea.Y() );
+    //4th row
+    fluxJac.SetData(3, 0, 0.5 * (eqnState.Gamma() - 1.0) * state.Velocity().MagSq() * normArea.Z() );
+    fluxJac.SetData(3, 1, -1.0 * (eqnState.Gamma() - 1.0) * state.U() * normArea.Z() );
+    fluxJac.SetData(3, 2, -1.0 * (eqnState.Gamma() - 1.0) * state.V() * normArea.Z() );
+    fluxJac.SetData(3, 3, -1.0 * (eqnState.Gamma() - 1.0) * state.W() * normArea.Z() );
+    fluxJac.SetData(3, 4, (eqnState.Gamma() - 1.0) * normArea.Z() );
+
+  }
+  else{
+    cerr << "ERROR: Boundary condition " << bcName << " is not recognized!" << endl;
+  }
+
+  return fluxJac;
+
+}
+
 
 //non-member functions -----------------------------------------------------------------------------------------------------------//
 
