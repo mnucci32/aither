@@ -1016,27 +1016,115 @@ int GetLoc1D(const int &i, const int &j, const int &k, const int &imax, const in
   return i + j*imax + k*imax*jmax;
 }
 
-//function to take in i, j, k indexes of a i-face and return the 1D index of the upper i diagonal for the implicit matrix
+//function to take in the 1D index of a cell and return the 1D index of the upper i diagonal to place the flux jacobian for the implicit matrix
 int GetMatrixDiagUpperFromMainI(const int &main){
   return main - 1;
 }
-//function to take in i, j, k indexes of a i-face and return the 1D index of the lower i diagonal for the implicit matrix
+//function to take in the 1D index of a cell and return the 1D index of the lower i diagonal to place the flux jacobian for the implicit matrix
 int GetMatrixDiagLowerFromMainI(const int &main){
   return main + 1;
 }
-//function to take in i, j, k indexes of a j-face and return the 1D index of the upper j diagonal for the implicit matrix
+//function to take in the 1D index of a cell and return the 1D index of the upper j diagonal to place the flux jacobian for the implicit matrix
 int GetMatrixDiagUpperFromMainJ(const int &main, const int &imax){
   return main - imax;
 }
-//function to take in i, j, k indexes of a j-face and return the 1D index of the lower j diagonal for the implicit matrix
+//function to take in the 1D index of a cell and return the 1D index of the lower j diagonal to place the flux jacobian for the implicit matrix
 int GetMatrixDiagLowerFromMainJ(const int &main, const int &imax){
   return main + imax;
 }
-//function to take in i, j, k indexes of a k-face and return the 1D index of the upper k diagonal for the implicit matrix
+//function to take in the 1D index of a cell and return the 1D index of the upper k diagonal to place the flux jacobian for the implicit matrix
 int GetMatrixDiagUpperFromMainK(const int &main, const int &imax, const int &jmax){
   return main - imax*jmax;
 }
-//function to take in i, j, k indexes of a k-face and return the 1D index of the lower k diagonal for the implicit matrix
+//function to take in the 1D index of a cell and return the 1D index of the lower k diagonal to place the flux jacobian for the implicit matrix
 int GetMatrixDiagLowerFromMainK(const int &main, const int &imax, const int &jmax){
   return main + imax*jmax;
+}
+
+
+//function to take in 1D index of a cell and return the 1D index of the upper i diagonal (in the same equation row) for the implicit matrix
+int GetDiagPosUpperI(const int &main){
+  return main + 1;
+}
+//function to take in 1D index of a cell and return the 1D index of the lower i diagonal (in the same equation row) for the implicit matrix
+int GetDiagPosLowerI(const int &main){
+  return main - 1;
+}
+//function to take in 1D index of a cell and return the 1D index of the upper j diagonal (in the same equation row) for the implicit matrix
+int GetDiagPosUpperJ(const int &main, const int &imax){
+  return main + imax;
+}
+//function to take in 1D index of a cell and return the 1D index of the lower j diagonal (in the same equation row) for the implicit matrix
+int GetDiagPosLowerJ(const int &main, const int &imax){
+  return main - imax;
+}
+//function to take in 1D index of a cell and return the 1D index of the upper k diagonal (in the same equation row) for the implicit matrix
+int GetDiagPosUpperK(const int &main, const int &imax, const int &jmax){
+  return main + imax*jmax;
+}
+//function to take in 1D index of a cell and return the 1D index of the lower k diagonal (in the same equation row) for the implicit matrix
+int GetDiagPosLowerK(const int &main, const int &imax, const int &jmax){
+  return main - imax*jmax;
+}
+
+
+//function to take in j, j, k indexes of a cell and the diagonal label, and determine if the matrix should have data at the cell
+bool IsMatrixData(const int &i, const int &j, const int &k, const int &imax, const int &jmax, const int &kmax, const string &label){
+
+  bool isData;
+
+  if (label == "il"){
+    if (i == 0){
+      isData = false;  //at lower i boundary, there is no lower i diagonal
+    }
+    else{
+      isData = true;
+    }
+  }
+  else if (label == "iu"){
+    if (i == imax-1){
+      isData = false;  //at upper i boundary, there is no upper i diagonal
+    }
+    else{
+      isData = true;
+    }
+  }
+  else if (label == "jl"){
+    if (j == 0){
+      isData = false;  //at lower j boundary, there is no lower j diagonal
+    }
+    else{
+      isData = true;
+    }
+  }
+  else if (label == "ju"){
+    if (j == jmax-1){
+      isData = false;  //at upper j boundary, there is no upper j diagonal
+    }
+    else{
+      isData = true;
+    }
+  }
+  else if (label == "kl"){
+    if (k == 0){
+      isData = false;  //at lower k boundary, there is no lower k diagonal
+    }
+    else{
+      isData = true;
+    }
+  }
+  else if (label == "ku"){
+    if (k == kmax-1){
+      isData = false;  //at upper k boundary, there is no upper k diagonal
+    }
+    else{
+      isData = true;
+    }
+  }
+  else{
+    cerr << "ERROR: Cannot determine position in matrix because block surface " << label << " is not recognized!" << endl;
+    isData = false;
+    exit(0);
+  }
+  return isData;
 }

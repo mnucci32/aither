@@ -189,4 +189,14 @@ int GetMatrixDiagLowerFromMainJ(const int &, const int &);
 int GetMatrixDiagUpperFromMainK(const int &, const int &, const int &);
 int GetMatrixDiagLowerFromMainK(const int &, const int &, const int &);
 
+int GetDiagPosUpperI(const int &);
+int GetDiagPosLowerI(const int &);
+int GetDiagPosUpperJ(const int &, const int &);
+int GetDiagPosLowerJ(const int &, const int &);
+int GetDiagPosUpperK(const int &, const int &, const int &);
+int GetDiagPosLowerK(const int &, const int &, const int &);
+
+//find out if matrix should have data at the indicated cell
+bool IsMatrixData(const int&, const int&, const int&, const int&, const int&, const int&, const string&);
+
 #endif

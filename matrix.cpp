@@ -512,12 +512,12 @@ double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const mat
     //forward sweep
     for ( int ii = 0; ii < (int)x.size(); ii++ ){
 
-      int il = ii-1;
-      int iu = ii+1;
-      int jl = ii-imax;
-      int ju = ii+imax;
-      int kl = ii-imax*jmax;
-      int ku = ii+imax*jmax;
+      int il = GetDiagPosLowerI(ii);
+      int iu = GetDiagPosUpperI(ii);
+      int jl = GetDiagPosLowerJ(ii,imax);
+      int ju = GetDiagPosUpperJ(ii,imax);
+      int kl = GetDiagPosLowerK(ii,imax,jmax);
+      int ku = GetDiagPosUpperK(ii,imax,jmax);
 
       newData.Zero();
       oldData.Zero();
