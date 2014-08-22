@@ -1444,32 +1444,32 @@ void blockVars::AddVolTimeOff( matrixDiagonal &offLowIDiag, matrixDiagonal &offU
 
 	if( IsMatrixData(ii, jj, kk, imax, jmax, kmax, "il") ){
 	  I = ( (*this).Vol( GetDiagPosLowerI(loc) )/(*this).Dt( GetDiagPosLowerI(loc) ) ) * I ;
-	  offLowIDiag.SetData(loc, I - offLowIDiag.Data(loc) );
+	  offLowIDiag.SetData(loc, -1.0 * offLowIDiag.Data(loc) );
 	  I.Identity();
 	}
 	if( IsMatrixData(ii, jj, kk, imax, jmax, kmax, "iu") ){
 	  I = ( (*this).Vol( GetDiagPosUpperI(loc) )/(*this).Dt( GetDiagPosUpperI(loc) ) ) * I ;
-	  offUpIDiag.SetData(loc, I - offUpIDiag.Data(loc) );
+	  offUpIDiag.SetData(loc, -1.0 * offUpIDiag.Data(loc) );
 	  I.Identity();
 	}
 	if( IsMatrixData(ii, jj, kk, imax, jmax, kmax, "jl") ){
 	  I = ( (*this).Vol( GetDiagPosLowerJ(loc, imax) )/(*this).Dt( GetDiagPosLowerJ(loc, imax) ) ) * I ;
-	  offLowJDiag.SetData(loc, I - offLowJDiag.Data(loc) );
+	  offLowJDiag.SetData(loc, -1.0 * offLowJDiag.Data(loc) );
 	  I.Identity();
 	}
 	if( IsMatrixData(ii, jj, kk, imax, jmax, kmax, "ju") ){
 	  I = ( (*this).Vol( GetDiagPosUpperJ(loc, imax) )/(*this).Dt( GetDiagPosUpperJ(loc, imax) ) ) * I ;
-	  offUpJDiag.SetData(loc, I - offUpJDiag.Data(loc) );
+	  offUpJDiag.SetData(loc, -1.0 * offUpJDiag.Data(loc) );
 	  I.Identity();
 	}
 	if( IsMatrixData(ii, jj, kk, imax, jmax, kmax, "kl") ){
 	  I = ( (*this).Vol( GetDiagPosLowerK(loc, imax, jmax) )/(*this).Dt( GetDiagPosLowerK(loc, imax, jmax) ) ) * I ;
-	  offLowKDiag.SetData(loc, I - offLowKDiag.Data(loc) );
+	  offLowKDiag.SetData(loc, -1.0 * offLowKDiag.Data(loc) );
 	  I.Identity();
 	}
 	if( IsMatrixData(ii, jj, kk, imax, jmax, kmax, "ku") ){
 	  I = ( (*this).Vol( GetDiagPosUpperK(loc, imax, jmax) )/(*this).Dt( GetDiagPosUpperK(loc, imax, jmax) ) ) * I ;
-	  offUpKDiag.SetData(loc, I - offUpKDiag.Data(loc) );
+	  offUpKDiag.SetData(loc, -1.0 * offUpKDiag.Data(loc) );
 	  I.Identity();
 	}
 

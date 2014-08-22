@@ -179,7 +179,7 @@ int main( int argc, char *argv[] ) {
 	  //add volume divided by time step term to main diagonal
 	  stateBlocks[bb].AddVolTime(mainDiag, inputVars.Theta(), inputVars.Zeta());
 
-	  //stateBlocks[bb].AddVolTimeOff(offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag);
+	  stateBlocks[bb].AddVolTimeOff(offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag);
 
 	  //print out block matrix diagonals for debugging
 	  // cout << "Main Diagonal:" << endl;
