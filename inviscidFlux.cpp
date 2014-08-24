@@ -1205,18 +1205,6 @@ squareMatrix BoundaryFluxJacobian( const string &bcName, const vector3d<double>&
   }
   else if ( bcName == "slipWall" || "viscousWall" ){
 
-      // primVars ghostState1 = state1.GetGhostState( "slipWall", normArea, surf, inputVars, eqnState );
-      // primVars lState, rState;
-
-      // if (surf == "il" || surf == "jl" || surf == "kl"){
-      // 	rState = state1.FaceReconConst();
-      // 	lState = ghostState1.FaceReconConst();
-      // }
-      // else {
-      // 	lState = state1.FaceReconConst();
-      // 	rState = ghostState1.FaceReconConst();
-      // }
-
     fluxJac.Zero();
     //2nd row
     fluxJac.SetData(1, 0, 0.5 * (eqnState.Gamma() - 1.0) * state.Velocity().MagSq() * normArea.X() );

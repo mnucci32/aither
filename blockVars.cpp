@@ -1022,7 +1022,7 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 	  upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
 
 	  bcName = bound.GetBCName(ii, jj, kk, "il");
-	  faceStateLower = (*this).State(upperI).GetGhostState( bcName, (*this).FAreaI(loc), "il", inp, eqnState).FaceReconConst(); //ghost state
+	  //faceStateLower = (*this).State(upperI).GetGhostState( bcName, (*this).FAreaI(loc), "il", inp, eqnState).FaceReconConst(); //ghost state
 
 	  faceStateUpper = (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax) ).FaceReconConst();
 
@@ -1030,11 +1030,11 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 	  tempR = BoundaryFluxJacobian(bcName, (*this).FAreaI(loc), faceStateUpper, eqnState, inp, "il");
 
           // left flux jacobian is not needed at lower boundary
-          mainDiag.SetData(  upperI, mainDiag.Data(upperI)   + tempR * (*this).FAreaI(loc).Mag() );
+          mainDiag.SetData(  upperI, mainDiag.Data(upperI)   - tempR * (*this).FAreaI(loc).Mag() );
 
 	  if ( imax > 2){  //if only one cell thick, no off diagonals
 	    lowDiag = GetMatrixDiagLowerFromMainI(upperI);
-	    offLowIDiag.SetData(lowDiag, offLowIDiag.Data(lowDiag) + tempR * (*this).FAreaI(loc).Mag() );
+	    offLowIDiag.SetData(lowDiag, offLowIDiag.Data(lowDiag) - tempR * (*this).FAreaI(loc).Mag() );
 	  }
 
 	  //(*this).SetMaxWaveSpeedI(maxWS, loc);
@@ -1045,7 +1045,7 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 
 	  bcName = bound.GetBCName(ii, jj, kk, "iu");
 
-	  faceStateUpper = (*this).State(lowerI).GetGhostState( bcName, (*this).FAreaI(loc), "iu", inp, eqnState).FaceReconConst(); //ghost state
+	  //faceStateUpper = (*this).State(lowerI).GetGhostState( bcName, (*this).FAreaI(loc), "iu", inp, eqnState).FaceReconConst(); //ghost state
 
 	  faceStateLower = (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax) ).FaceReconConst();
 
@@ -1053,11 +1053,11 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 	  tempL = BoundaryFluxJacobian(bcName, (*this).FAreaI(loc), faceStateLower, eqnState, inp, "iu");
 
 	  // right flux jacobian is not needed at upper boundary
-          mainDiag.SetData(   lowerI, mainDiag.Data(lowerI)    - tempL * (*this).FAreaI(loc).Mag() );
+          mainDiag.SetData(   lowerI, mainDiag.Data(lowerI)    + tempL * (*this).FAreaI(loc).Mag() );
 
 	  if (imax > 2){ //if only one cell thick, no off diagonals
 	    upDiag = GetMatrixDiagUpperFromMainI(lowerI);
-	    offUpIDiag.SetData(upDiag, offUpIDiag.Data(upDiag) - tempL * (*this).FAreaI(loc).Mag() );
+	    offUpIDiag.SetData(upDiag, offUpIDiag.Data(upDiag) + tempL * (*this).FAreaI(loc).Mag() );
 	  }
 
 	  //(*this).SetMaxWaveSpeedI(maxWS, loc);
@@ -1073,26 +1073,26 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS, tempL, tempR);
 
 	  //left flux jacobian
-          mainDiag.SetData(   lowerI, mainDiag.Data(lowerI)    - tempL * (*this).FAreaI(loc).Mag() );
+          mainDiag.SetData(   lowerI, mainDiag.Data(lowerI)    + tempL * (*this).FAreaI(loc).Mag() );
 
 	  lowDiag = GetMatrixDiagLowerFromMainI(lowerI);
 	  upDiag = GetMatrixDiagUpperFromMainI(lowerI);
 
-	  offLowIDiag.SetData(lowDiag, offLowIDiag.Data(lowDiag) - tempL * (*this).FAreaI(loc).Mag() );
+	  offLowIDiag.SetData(lowDiag, offLowIDiag.Data(lowDiag) + tempL * (*this).FAreaI(loc).Mag() );
 	  if (upDiag >= 0 && ii-1 > 0){
-	    offUpIDiag.SetData(upDiag, offUpIDiag.Data(upDiag) - tempL * (*this).FAreaI(loc).Mag() );
+	    offUpIDiag.SetData(upDiag, offUpIDiag.Data(upDiag) + tempL * (*this).FAreaI(loc).Mag() );
 	  }
 
 	  //right flux jacobian
-          mainDiag.SetData(  upperI, mainDiag.Data(upperI)   + tempR * (*this).FAreaI(loc).Mag() );
+          mainDiag.SetData(  upperI, mainDiag.Data(upperI)   - tempR * (*this).FAreaI(loc).Mag() );
 
 	  lowDiag = GetMatrixDiagLowerFromMainI(upperI);
 	  upDiag = GetMatrixDiagUpperFromMainI(upperI);
 
 	  if (lowDiag < offLowIDiag.Size() && ii+1 < imax-1 ){
-	    offLowIDiag.SetData(lowDiag, offLowIDiag.Data(lowDiag) + tempR * (*this).FAreaI(loc).Mag() );
+	    offLowIDiag.SetData(lowDiag, offLowIDiag.Data(lowDiag) - tempR * (*this).FAreaI(loc).Mag() );
 	  }
-	  offUpIDiag.SetData(upDiag, offUpIDiag.Data(upDiag) + tempR * (*this).FAreaI(loc).Mag() );
+	  offUpIDiag.SetData(upDiag, offUpIDiag.Data(upDiag) - tempR * (*this).FAreaI(loc).Mag() );
 
 	  //(*this).SetMaxWaveSpeedI(maxWS, loc);
 
@@ -1153,11 +1153,11 @@ void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, cons
 	  tempR = BoundaryFluxJacobian(bcName, (*this).FAreaJ(loc), faceStateUpper, eqnState, inp, "jl");
 
           // left flux jacobian is not needed at lower boundary
-          mainDiag.SetData(  upperJ, mainDiag.Data(upperJ)   + tempR * (*this).FAreaJ(loc).Mag() );
+          mainDiag.SetData(  upperJ, mainDiag.Data(upperJ)   - tempR * (*this).FAreaJ(loc).Mag() );
 
 	  if (jmax > 2){  //if only one cell thick, no diagonals
 	    lowDiag = GetMatrixDiagLowerFromMainJ(upperJ, imax);
-	    offLowJDiag.SetData(lowDiag, offLowJDiag.Data(lowDiag) + tempR * (*this).FAreaJ(loc).Mag() );
+	    offLowJDiag.SetData(lowDiag, offLowJDiag.Data(lowDiag) - tempR * (*this).FAreaJ(loc).Mag() );
 	  }
 
 	  //cout << "lower diagonal storing at index (from boundary) " << lowDiag << endl;
@@ -1178,11 +1178,11 @@ void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, cons
 	  tempL = BoundaryFluxJacobian(bcName, (*this).FAreaJ(loc), faceStateLower, eqnState, inp, "ju");
 
 	  // right flux jacobian is not needed at upper boundary
-          mainDiag.SetData(   lowerJ, mainDiag.Data(lowerJ)    - tempL * (*this).FAreaJ(loc).Mag() );
+          mainDiag.SetData(   lowerJ, mainDiag.Data(lowerJ)    + tempL * (*this).FAreaJ(loc).Mag() );
 
 	  if (jmax > 2){ //if only one cell thick, no diagonals
 	    upDiag = GetMatrixDiagUpperFromMainJ(lowerJ, imax);
-	    offUpJDiag.SetData(upDiag, offUpJDiag.Data(upDiag) - tempL * (*this).FAreaJ(loc).Mag() );
+	    offUpJDiag.SetData(upDiag, offUpJDiag.Data(upDiag) + tempL * (*this).FAreaJ(loc).Mag() );
 	  }
 
 	  //cout << "upper diagonal storing at index (from boundary) " << upDiag << endl;
@@ -1200,32 +1200,32 @@ void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, cons
 	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS, tempL, tempR);
 
 	  //left flux jacobian
-          mainDiag.SetData(   lowerJ, mainDiag.Data(lowerJ)    - tempL * (*this).FAreaJ(loc).Mag() );
+          mainDiag.SetData(   lowerJ, mainDiag.Data(lowerJ)    + tempL * (*this).FAreaJ(loc).Mag() );
 
 	  lowDiag = GetMatrixDiagLowerFromMainJ(lowerJ, imax);
 	  upDiag = GetMatrixDiagUpperFromMainJ(lowerJ, imax);
 
-	  offLowJDiag.SetData(lowDiag, offLowJDiag.Data(lowDiag) - tempL * (*this).FAreaJ(loc).Mag() );
+	  offLowJDiag.SetData(lowDiag, offLowJDiag.Data(lowDiag) + tempL * (*this).FAreaJ(loc).Mag() );
 	  //cout << "lower diagonal storing at index " << lowDiag << endl;
 
 	  if (upDiag >= 0 && jj-1 > 0){
-	    offUpJDiag.SetData(upDiag, offUpJDiag.Data(upDiag) - tempL * (*this).FAreaJ(loc).Mag() );
+	    offUpJDiag.SetData(upDiag, offUpJDiag.Data(upDiag) + tempL * (*this).FAreaJ(loc).Mag() );
 	    //cout << "upper diagonal storing at index " << upDiag << endl;
 	  }
 
 	  //right flux jacobian
-          mainDiag.SetData(  upperJ, mainDiag.Data(upperJ)   + tempR * (*this).FAreaJ(loc).Mag() );
+          mainDiag.SetData(  upperJ, mainDiag.Data(upperJ)   - tempR * (*this).FAreaJ(loc).Mag() );
 
 	  lowDiag = GetMatrixDiagLowerFromMainJ(upperJ, imax);
 	  upDiag = GetMatrixDiagUpperFromMainJ(upperJ, imax);
 
 	  if (lowDiag < offLowJDiag.Size() && jj+1 < jmax-1 ){
-	    offLowJDiag.SetData(lowDiag, offLowJDiag.Data(lowDiag) + tempR * (*this).FAreaJ(loc).Mag() );
+	    offLowJDiag.SetData(lowDiag, offLowJDiag.Data(lowDiag) - tempR * (*this).FAreaJ(loc).Mag() );
 	    //cout << "lower diagonal storing at index " << lowDiag << endl;
 	  }
 
 	  //cout << "upper diagonal storing at index " << upDiag << endl;
-	  offUpJDiag.SetData(upDiag, offUpJDiag.Data(upDiag) + tempR * (*this).FAreaJ(loc).Mag() );
+	  offUpJDiag.SetData(upDiag, offUpJDiag.Data(upDiag) - tempR * (*this).FAreaJ(loc).Mag() );
 
 	  //(*this).SetMaxWaveSpeedJ(maxWS, loc);
 
@@ -1287,11 +1287,11 @@ void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, cons
 	  tempR = BoundaryFluxJacobian(bcName, (*this).FAreaK(loc), faceStateUpper, eqnState, inp, "kl");
 
           // left flux jacobian is not needed at lower boundary
-          mainDiag.SetData(  upperK, mainDiag.Data(upperK)   + tempR * (*this).FAreaK(loc).Mag() );
+          mainDiag.SetData(  upperK, mainDiag.Data(upperK)   - tempR * (*this).FAreaK(loc).Mag() );
 
 	  if (kmax > 2){ //if only one cell thick, no diagonals
 	    lowDiag = GetMatrixDiagLowerFromMainK(upperK, imax, jmax);
-	    offLowKDiag.SetData(lowDiag, offLowKDiag.Data(lowDiag) + tempR * (*this).FAreaK(loc).Mag() );
+	    offLowKDiag.SetData(lowDiag, offLowKDiag.Data(lowDiag) - tempR * (*this).FAreaK(loc).Mag() );
 	    // cout << "lower diagonal storing at index (from boundary) " << lowDiag << endl;
 	  }
 	  //(*this).SetMaxWaveSpeedK(maxWS, loc);
@@ -1310,11 +1310,11 @@ void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, cons
 	  tempL = BoundaryFluxJacobian(bcName, (*this).FAreaK(loc), faceStateLower, eqnState, inp, "ku");
 
 	  // right flux jacobian is not needed at upper boundary
-          mainDiag.SetData(   lowerK, mainDiag.Data(lowerK)    - tempL * (*this).FAreaK(loc).Mag() );
+          mainDiag.SetData(   lowerK, mainDiag.Data(lowerK)    + tempL * (*this).FAreaK(loc).Mag() );
 
 	  if (kmax > 2){ //if only one cell thick, no diagonals
 	    upDiag = GetMatrixDiagUpperFromMainK(lowerK, imax, jmax);
-	    offUpKDiag.SetData(upDiag, offUpKDiag.Data(upDiag) - tempL * (*this).FAreaK(loc).Mag() );
+	    offUpKDiag.SetData(upDiag, offUpKDiag.Data(upDiag) + tempL * (*this).FAreaK(loc).Mag() );
 	  }
 
 	  // cout << "upper diagonal storing at index (from boundary) " << upDiag << endl;
@@ -1331,32 +1331,32 @@ void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, cons
 	  RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS, tempL, tempR);
 
 	  //left flux jacobian
-          mainDiag.SetData(   lowerK, mainDiag.Data(lowerK)    - tempL * (*this).FAreaK(loc).Mag() );
+          mainDiag.SetData(   lowerK, mainDiag.Data(lowerK)    + tempL * (*this).FAreaK(loc).Mag() );
 
 	  lowDiag = GetMatrixDiagLowerFromMainK(lowerK, imax, jmax);
 	  upDiag = GetMatrixDiagUpperFromMainK(lowerK, imax, jmax);
 
-	  offLowKDiag.SetData(lowDiag, offLowKDiag.Data(lowDiag) - tempL * (*this).FAreaK(loc).Mag() );
+	  offLowKDiag.SetData(lowDiag, offLowKDiag.Data(lowDiag) + tempL * (*this).FAreaK(loc).Mag() );
 	  //cout << "lower diagonal storing at index " << lowDiag << endl;
 
 	  if (upDiag >= 0 && kk-1 > 0){
-	    offUpKDiag.SetData(upDiag, offUpKDiag.Data(upDiag) - tempL * (*this).FAreaK(loc).Mag() );
+	    offUpKDiag.SetData(upDiag, offUpKDiag.Data(upDiag) + tempL * (*this).FAreaK(loc).Mag() );
 	    //cout << "upper diagonal storing at index " << upDiag << endl;
 	  }
 
 	  //right flux jacobian
-          mainDiag.SetData(  upperK, mainDiag.Data(upperK)   + tempR * (*this).FAreaK(loc).Mag() );
+          mainDiag.SetData(  upperK, mainDiag.Data(upperK)   - tempR * (*this).FAreaK(loc).Mag() );
 
 	  lowDiag = GetMatrixDiagLowerFromMainK(upperK, imax, jmax);
 	  upDiag = GetMatrixDiagUpperFromMainK(upperK, imax, jmax);
 
 	  if (lowDiag < offLowKDiag.Size() && kk+1 < kmax-1 ){
-	    offLowKDiag.SetData(lowDiag, offLowKDiag.Data(lowDiag) + tempR * (*this).FAreaK(loc).Mag() );
+	    offLowKDiag.SetData(lowDiag, offLowKDiag.Data(lowDiag) - tempR * (*this).FAreaK(loc).Mag() );
 	    //cout << "lower diagonal storing at index " << lowDiag << endl;
 	  }
 
 	  //cout << "upper diagonal storing at index " << upDiag << endl;
-	  offUpKDiag.SetData(upDiag, offUpKDiag.Data(upDiag) + tempR * (*this).FAreaK(loc).Mag() );
+	  offUpKDiag.SetData(upDiag, offUpKDiag.Data(upDiag) - tempR * (*this).FAreaK(loc).Mag() );
 
 	  //(*this).SetMaxWaveSpeedK(maxWS, loc);
 
@@ -1416,7 +1416,7 @@ void blockVars::AddVolTime( matrixDiagonal &mainDiag, const double &theta, const
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
 	//I = ( ( ((*this).Vol(loc) * (1.0 + zeta)) / (*this).Dt(loc) ) - theta ) * I ;
 	I = ( (*this).Vol(loc)/(*this).Dt(loc) ) * I ;
-	mainDiag.SetData(loc, I - mainDiag.Data(loc) );
+	mainDiag.SetData(loc, I + mainDiag.Data(loc) );
 	I.Identity();
       }
     }

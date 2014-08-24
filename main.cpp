@@ -94,9 +94,9 @@ int main( int argc, char *argv[] ) {
   cout << endl << "Solution Initialized" << endl;
 
   //determine if implict or explicit
-  int implicitFlag = 0;
+  bool implicitFlag = false;
   if ( inputVars.TimeIntegration() == "implicitEuler" || inputVars.TimeIntegration() == "crankNicholson" || inputVars.TimeIntegration() == "gear" ){
-    implicitFlag = 1;
+    implicitFlag = true;
   }
 
   matrixDiagonal mainDiag, offUpIDiag, offLowIDiag, offUpJDiag, offLowJDiag, offUpKDiag, offLowKDiag;
@@ -179,7 +179,7 @@ int main( int argc, char *argv[] ) {
 	  //add volume divided by time step term to main diagonal
 	  stateBlocks[bb].AddVolTime(mainDiag, inputVars.Theta(), inputVars.Zeta());
 
-	  stateBlocks[bb].AddVolTimeOff(offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag);
+	  //stateBlocks[bb].AddVolTimeOff(offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag);
 
 	  //print out block matrix diagonals for debugging
 	  // cout << "Main Diagonal:" << endl;
