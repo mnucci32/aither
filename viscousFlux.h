@@ -7,6 +7,7 @@
 #include "tensor.h" //tensor
 #include "eos.h"  //idealGas
 #include "primVars.h" //primVars
+#include "matrix.h" //squareMatrix
 #include "input.h" //input
 #include "boundaryConditions.h" //boundaryConditions
 #include <iostream> //cout
@@ -40,7 +41,7 @@ class viscousFlux {
   double Engy() const {return engy;}
 
   void SetFlux( const tensor<double>&, const vector3d<double>&, const double&, const sutherland&, const idealGas&, const vector3d<double>&, const vector3d<double>& );
-
+  void CalcFluxJac( const tensor<double>&, const vector3d<double>&, const double&, const sutherland&, const idealGas&, const vector3d<double>&, const vector3d<double>&, squareMatrix&, squareMatrix&, const primVars&, const primVars& );
   viscousFlux operator * (const double&);
   viscousFlux operator / (const double&);
 

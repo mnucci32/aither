@@ -81,6 +81,7 @@ class viscBlockVars {
   void CalcViscFluxJ(const blockVars&, const sutherland&, const idealGas&, const input&, const int&);
   void CalcViscFluxK(const blockVars&, const sutherland&, const idealGas&, const input&, const int&);
 
+  void CalcViscFluxJacI(const blockVars&, const sutherland&, const idealGas&, const input&, const int&);
 
   void CalcCellResidual(blockVars&, const int&, const int&, const int&, const int&, const int&)const;
 
