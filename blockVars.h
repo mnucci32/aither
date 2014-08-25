@@ -131,6 +131,8 @@ class blockVars {
   void AddVolTime(matrixDiagonal&, const double &, const double &)const;
   void AddVolTimeOff(matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&)const;
 
+  void ConstructOffDiag(const matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&)const;
+
   void PrintMatrixStructure();
 
 

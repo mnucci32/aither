@@ -180,6 +180,7 @@ int main( int argc, char *argv[] ) {
 	  stateBlocks[bb].AddVolTime(mainDiag, inputVars.Theta(), inputVars.Zeta());
 
 	  //stateBlocks[bb].AddVolTimeOff(offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag);
+	  //stateBlocks[bb].ConstructOffDiag(mainDiag, offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag);
 
 	  //print out block matrix diagonals for debugging
 	  // cout << "Main Diagonal:" << endl;
