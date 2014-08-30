@@ -109,7 +109,7 @@ void WriteFun(const string &gridName, const vector<blockVars> &vars, const vecto
   outFile.write(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
 
   //write i, j, k, vars dimension for each block
-  int numVars = 18;            //number of variables to write out
+  int numVars = 23;            //number of variables to write out
   int ll = 0;
   int dumInt = 0;
   int jj = 0;
@@ -233,6 +233,31 @@ void WriteFun(const string &gridName, const vector<blockVars> &vars, const vecto
 	  dumVec[ii] = vVars[ll].VelGrad(ii).ZZ();
 	}
       }
+      else if (kk == 18) {                        //mass residual
+	for ( ii = 0; ii < blkLen; ii++){
+	  dumVec[ii] = vars[ll].Residual(ii,0);
+	}
+      }
+      else if (kk == 19) {                        //momentum-x residual
+	for ( ii = 0; ii < blkLen; ii++){
+	  dumVec[ii] = vars[ll].Residual(ii,1);
+	}
+      }
+      else if (kk == 20) {                        //momentum-y residual
+	for ( ii = 0; ii < blkLen; ii++){
+	  dumVec[ii] = vars[ll].Residual(ii,2);
+	}
+      }
+      else if (kk == 21) {                        //momentum-z residual
+	for ( ii = 0; ii < blkLen; ii++){
+	  dumVec[ii] = vars[ll].Residual(ii,3);
+	}
+      }
+      else if (kk == 22) {                        //energy residual
+	for ( ii = 0; ii < blkLen; ii++){
+	  dumVec[ii] = vars[ll].Residual(ii,4);
+	}
+      }
       else {
 	cerr << "ERROR: Variable to write to function file is not defined!" << endl;
         exit(0);
@@ -295,6 +320,21 @@ void WriteFun(const string &gridName, const vector<blockVars> &vars, const vecto
 	}
 	else if (kk == 17){                                 //dw/dz
 	  dumDouble = dumDouble * refSoS;
+	}
+	else if (kk == 18){                                 //residual is already nondimensional
+	  dumDouble = dumDouble ;                        
+	}
+	else if (kk == 19){                                 //residual is already nondimensional
+	  dumDouble = dumDouble ;                        
+	}
+	else if (kk == 20){                                 //residual is already nondimensional
+	  dumDouble = dumDouble ;                        
+	}
+	else if (kk == 21){                                 //residual is already nondimensional
+	  dumDouble = dumDouble ;                        
+	}
+	else if (kk == 22){                                 //residual is already nondimensional
+	  dumDouble = dumDouble ;                        
 	}
 	outFile.write(reinterpret_cast<char *>(&dumDouble), sizeof(dumDouble));
       }
@@ -372,6 +412,11 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
   resFile << writeName << " F 0016 du/dz" << endl;
   resFile << writeName << " F 0017 dv/dz" << endl;
   resFile << writeName << " F 0018 dw/dz" << endl;
+  resFile << writeName << " F 0019 massRes" << endl;
+  resFile << writeName << " F 0020 momxRes" << endl;
+  resFile << writeName << " F 0021 momyRes" << endl;
+  resFile << writeName << " F 0022 momzRes" << endl;
+  resFile << writeName << " F 0023 engyRes" << endl;
   resFile << writeName << " F 0002 0003 0004 velocity" << endl;
 
   //Close results file

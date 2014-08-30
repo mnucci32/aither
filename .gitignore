@@ -3,6 +3,7 @@
 
 #Ignore temporary copy files
 *~
+\#*
 
 #Ignore valgrind and gprof output
 gmon.out

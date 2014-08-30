@@ -63,5 +63,8 @@ inviscidFlux BoundaryFlux( const string&, const vector3d<double>&, const primVar
 inviscidFlux RoeFlux( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double& );                  
 //function to calculate Roe flux with entropy fix for implicit methods
 void RoeFluxJacobian( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double&, squareMatrix&, squareMatrix& );                  
-squareMatrix BoundaryFluxJacobian( const string&, const vector3d<double>&, const primVars&, const idealGas&, const input&, const string&);
+void ApproxRoeFluxJacobian( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double&, squareMatrix&, squareMatrix& );                  
+void LaxFriedrichsFluxJacobian( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double&, squareMatrix&, squareMatrix& );                  
+
+squareMatrix BoundaryFluxJacobian( const string&, const vector3d<double>&, const primVars&, const idealGas&, const input&, const string&, const string&);
 #endif

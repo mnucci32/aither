@@ -142,7 +142,6 @@ int main( int argc, char *argv[] ) {
 	}
 	vector<colMatrix> du( numElems, initial );
 
-
 	//calculate inviscid fluxes
 	stateBlocks[bb].CalcInvFluxI(eos, inputVars, bb);
 	stateBlocks[bb].CalcInvFluxJ(eos, inputVars, bb);
@@ -172,9 +171,12 @@ int main( int argc, char *argv[] ) {
 	  //store time-n solution
 	  vector<primVars> solTimeN = stateBlocks[bb].GetCopyState();
 
-	  stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag, offLowIDiag, offUpIDiag);
-	  stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag, offLowJDiag, offUpJDiag);
-	  stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag, offLowKDiag, offUpKDiag);
+	  stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag, offLowIDiag, offUpIDiag, inputVars.InvFluxJac());
+	  stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag, offLowJDiag, offUpJDiag, inputVars.InvFluxJac());
+	  stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag, offLowKDiag, offUpKDiag, inputVars.InvFluxJac());
+
+	  // cout << "Main Diagonal:" << endl;
+	  // cout << mainDiag.Data(1) << endl;
 
 	  //add volume divided by time step term to main diagonal
 	  stateBlocks[bb].AddVolTime(mainDiag, inputVars.Theta(), inputVars.Zeta());
@@ -184,6 +186,7 @@ int main( int argc, char *argv[] ) {
 
 	  //print out block matrix diagonals for debugging
 	  // cout << "Main Diagonal:" << endl;
+	  // cout << mainDiag.Data(1) << endl;
 	  // cout << mainDiag << endl;
 	  // cout << "main diagonal size " << mainDiag.Size() << endl;
 	  // cout << "I-Lower Diagonal:" << endl;

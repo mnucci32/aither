@@ -38,6 +38,7 @@ class input {
   double cflMax;                        //maximum cfl value
   double cflStep;                       //cfl step size for ramp
   double cflStart;                      //starting cfl number
+  string invFluxJac;                    //inviscid flux jacobian
 
  public:
   //constructor
@@ -124,6 +125,9 @@ class input {
 
   double CFLStart()const{return cflStart;}
   void SetCFLStart(const double &a){cflStart = a;}
+
+  string InvFluxJac()const{return invFluxJac;}
+  void SetInvFluxJac(const string &a){invFluxJac = a;}
 
   string Vars(const int &ind)const{return vars[ind];}
 

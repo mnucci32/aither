@@ -542,19 +542,22 @@ double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const mat
 	newData = newData + Aku.Data(ii).Multiply(x[ku]);
       }
 
-      x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply( b[ii] + 
-	      solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - newData - oldData) ;
+      x[ii] = AiiInv.Data(ii).Multiply( b[ii] - newData - oldData) ;
+
+      // x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply( b[ii] + 
+      // 	      solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - newData - oldData) ;
+
     }
 
     //backward sweep
     for ( int ii = (int)x.size()-1; ii >= 0; ii-- ){
 
-      int il = ii-1;
-      int iu = ii+1;
-      int jl = ii-imax;
-      int ju = ii+imax;
-      int kl = ii-imax*jmax;
-      int ku = ii+imax*jmax;
+      int il = GetDiagPosLowerI(ii);
+      int iu = GetDiagPosUpperI(ii);
+      int jl = GetDiagPosLowerJ(ii,imax);
+      int ju = GetDiagPosUpperJ(ii,imax);
+      int kl = GetDiagPosLowerK(ii,imax,jmax);
+      int ku = GetDiagPosUpperK(ii,imax,jmax);
 
       newData.Zero();
       oldData.Zero();
@@ -579,8 +582,11 @@ double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const mat
 	newData = newData + Akl.Data(ii).Multiply(x[kl]);
       }
 
-      x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply( b[ii] +
-              solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - newData - oldData) ;
+      x[ii] = AiiInv.Data(ii).Multiply( b[ii] - newData - oldData) ;
+
+      // x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply( b[ii] +
+      //         solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - newData - oldData) ;
+
     }
 
     //calculate residual
@@ -596,7 +602,9 @@ double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const mat
       int kl = ii-imax*jmax;
       int ku = ii+imax*jmax;
 
-      resid = b[ii] + solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - Aii.Data(ii).Multiply(x[ii]);
+      resid = b[ii] - Aii.Data(ii).Multiply(x[ii]);
+
+      //resid = b[ii] + solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - Aii.Data(ii).Multiply(x[ii]);
 
       if ( il >=0 && il < (int)x.size() ){
 	resid = resid - Ail.Data(ii).Multiply(x[il]);

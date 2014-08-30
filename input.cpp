@@ -16,7 +16,7 @@ using std::istream_iterator;
 
 //constructor for input class
 //initialize vector to have length of number of acceptable inputs to the code
-input::input(): vars(26){
+input::input(): vars(27){
   //default values for each variable
   gName = "";
   dt = -1.0;
@@ -47,6 +47,7 @@ input::input(): vars(26){
   cflMax = 1.0;
   cflStep = 0.0;
   cflStart = 1.0;
+  invFluxJac = "approximateRoe";  //default is approximate roe flux
 
   //keywords in the input file that the parser is looking for to define variables
   vars[0] = "gridName:";
@@ -74,8 +75,9 @@ input::input(): vars(26){
   vars[22] = "cflMax:";
   vars[23] = "cflStep:";
   vars[24] = "cflStart:";
+  vars[25] = "inviscidFluxJacobian:";
 
-  vars[25] = "boundaryConditions:";  //boundary conditions should be listed last
+  vars[26] = "boundaryConditions:";  //boundary conditions should be listed last
 }
 
 //member function to set vector holding boundary conditions for each block
@@ -316,6 +318,10 @@ input ReadInput(const string &inputName){
             cout << inputVars.Vars(ii) << " " << inputVars.CFLStart() << endl;
             continue;
           }
+          else if (ii==25 && readingBCs == 0){
+            inputVars.SetInvFluxJac(tokens[1]);
+	    cout << inputVars.Vars(ii) << " " << inputVars.InvFluxJac() << endl;
+	  }
 
 
           else if (ii==inputVars.NumVars()-1 || readingBCs > 0){
