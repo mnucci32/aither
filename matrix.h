@@ -40,6 +40,7 @@ class colMatrix {
   int Size()const{return size;}
   void Zero();
   double Sum();
+  void CleanResizeZero(const int &);
 
   //operator overloads
   colMatrix operator + (const colMatrix&)const;
@@ -179,7 +180,7 @@ class matrixDiagonal {
 
 
 //function declarations
-double SymGaussSeidel( matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &,
+double SymGaussSeidel( const colMatrix &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &,
 		       vector<colMatrix> &, const vector<colMatrix> &, const vector<primVars> &, const vector<primVars> &, const int &, const double &, const int &, const int &, const idealGas &);
 
 #endif

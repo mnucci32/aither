@@ -478,7 +478,7 @@ void matrixDiagonal::Inverse(){
 //function to perform symmetric Gauss-Seidel relaxation to solver Ax=b
 //when relax = 1.0, symmetric Gauss-Seidel is achieved. Values >1 result in symmetric successive over relaxation (SSOR)
 //Values <1 result in under relaxation
-double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const matrixDiagonal &Aiu, const matrixDiagonal &Ajl, const matrixDiagonal &Aju, const matrixDiagonal &Akl, const matrixDiagonal &Aku, vector<colMatrix> &x, const vector<colMatrix> &b, const vector<primVars> &solTimeM, const vector<primVars> &solTimeN, const int &sweeps, const double &relax, const int &imax, const int &jmax, const idealGas &eqnState){
+double SymGaussSeidel( const colMatrix &Aii, const matrixDiagonal &Ail, const matrixDiagonal &Aiu, const matrixDiagonal &Ajl, const matrixDiagonal &Aju, const matrixDiagonal &Akl, const matrixDiagonal &Aku, vector<colMatrix> &x, const vector<colMatrix> &b, const vector<primVars> &solTimeM, const vector<primVars> &solTimeN, const int &sweeps, const double &relax, const int &imax, const int &jmax, const idealGas &eqnState){
 
   //Aii --> block matrix of the main diagonal
   //Ail --> block matrix of the lower i diagonal
@@ -500,8 +500,10 @@ double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const mat
   }
 
   //invert main diagonal
-  matrixDiagonal AiiInv = Aii;
-  AiiInv.Inverse();
+  // matrixDiagonal AiiInv = Aii;
+  // AiiInv.Inverse();
+  squareMatrix AiiInv(x[0].Size());
+
 
   colMatrix newData(x[0].Size());
   colMatrix oldData(x[0].Size());
@@ -511,6 +513,8 @@ double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const mat
   for ( int kk = 0; kk < sweeps; kk++ ){
     //forward sweep
     for ( int ii = 0; ii < (int)x.size(); ii++ ){
+
+      AiiInv.Identity();
 
       int il = GetDiagPosLowerI(ii);
       int iu = GetDiagPosUpperI(ii);
@@ -542,7 +546,8 @@ double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const mat
 	newData = newData + Aku.Data(ii).Multiply(x[ku]);
       }
 
-      x[ii] = AiiInv.Data(ii).Multiply( b[ii] - newData - oldData) ;
+      AiiInv = AiiInv / Aii.Data(ii);
+      x[ii] = AiiInv.Multiply( b[ii] - newData - oldData) ;
 
       // x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply( b[ii] + 
       // 	      solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - newData - oldData) ;
@@ -551,6 +556,8 @@ double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const mat
 
     //backward sweep
     for ( int ii = (int)x.size()-1; ii >= 0; ii-- ){
+
+      AiiInv.Identity();
 
       int il = GetDiagPosLowerI(ii);
       int iu = GetDiagPosUpperI(ii);
@@ -582,7 +589,8 @@ double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const mat
 	newData = newData + Akl.Data(ii).Multiply(x[kl]);
       }
 
-      x[ii] = AiiInv.Data(ii).Multiply( b[ii] - newData - oldData) ;
+      AiiInv = AiiInv / Aii.Data(ii);
+      x[ii] = AiiInv.Multiply( b[ii] - newData - oldData) ;
 
       // x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply( b[ii] +
       //         solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - newData - oldData) ;
@@ -602,7 +610,7 @@ double SymGaussSeidel( matrixDiagonal &Aii, const matrixDiagonal &Ail, const mat
       int kl = ii-imax*jmax;
       int ku = ii+imax*jmax;
 
-      resid = b[ii] - Aii.Data(ii).Multiply(x[ii]);
+      resid = b[ii] - Aii.Data(ii) * x[ii];
 
       //resid = b[ii] + solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - Aii.Data(ii).Multiply(x[ii]);
 
@@ -881,4 +889,18 @@ double colMatrix::Sum(){
     sum += (*this).Data(ii);
   }
   return sum;
+}
+
+//member function to delete the contents of the data structure and resize it
+void colMatrix::CleanResizeZero(const int &s){
+
+  delete [] (*this).data;
+  (*this).data = new double[s];
+  (*this).size = s;
+
+  for(int cc = 0; cc < size; cc++){
+    (*this).SetData(cc,0.0);
+  }
+
+
 }

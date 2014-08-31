@@ -1178,7 +1178,7 @@ void ApproxRoeFluxJacobian( const primVars &left, const primVars &right, const i
 
 
 //function to calculate Lax-Friedrichs flux jacobians
-void LaxFriedrichsFluxJacobian( const primVars &left, const primVars &right, const idealGas &eqnState, const vector3d<double>& areaVec, double &maxWS, squareMatrix &dF_dUl, squareMatrix &dF_dUr){
+void LaxFriedrichsFluxJacobian( const primVars &left, const primVars &right, const idealGas &eqnState, const vector3d<double>& areaVec, double &specRadL, double &specRadR, squareMatrix &dF_dUl, squareMatrix &dF_dUr){
 
   //left --> primative variables from left side
   //right --> primative variables from right side
@@ -1201,8 +1201,8 @@ void LaxFriedrichsFluxJacobian( const primVars &left, const primVars &right, con
   double velRightNorm = right.Velocity().DotProd(areaNorm);
 
   //calculate spectral radii
-  double specRadL = fabs(velLeftNorm) + left.SoS(eqnState);
-  double specRadR = fabs(velRightNorm) + right.SoS(eqnState);
+  specRadL = fabs(velLeftNorm) + left.SoS(eqnState);
+  specRadR = fabs(velRightNorm) + right.SoS(eqnState);
 
   //form spectral radii identity matrices
   squareMatrix dissLeft(5);
@@ -1558,13 +1558,14 @@ inviscidFlux BoundaryFlux( const string &bcName, const vector3d<double>& areaVec
 
 }
 
-squareMatrix BoundaryFluxJacobian( const string &bcName, const vector3d<double>& areaVec, const primVars &state, const idealGas& eqnState, const input& inputVars, const string &surf, const string &fluxJacType){
+squareMatrix BoundaryFluxJacobian( const string &bcName, const vector3d<double>& areaVec, const primVars &state, const idealGas& eqnState, const input& inputVars, const string &surf, const string &fluxJacType, double &maxWS){
 
   squareMatrix fluxJacL(5);
   squareMatrix fluxJacR(5);
   squareMatrix fluxJac(5);
 
-  double maxWS = 0.0;
+  double maxWSL = 0.0;
+  double maxWSR = 0.0;
 
   vector3d<double> normArea = areaVec / areaVec.Mag();
 
@@ -1585,7 +1586,8 @@ squareMatrix BoundaryFluxJacobian( const string &bcName, const vector3d<double>&
 	RoeFluxJacobian( lState, rState, eqnState, normArea, maxWS, fluxJacL, fluxJacR);
       }
       else if ( fluxJacType == "laxFriedrichs" ){
-	LaxFriedrichsFluxJacobian( lState, rState, eqnState, normArea, maxWS, fluxJacL, fluxJacR);
+	LaxFriedrichsFluxJacobian( lState, rState, eqnState, normArea, maxWSL, maxWSR, fluxJacL, fluxJacR);
+	maxWS = maxWSR;
       }
       else{
 	cerr << "ERROR: Inviscid flux jacobian type " << fluxJacType << " is not recognized!" << endl;
@@ -1605,7 +1607,8 @@ squareMatrix BoundaryFluxJacobian( const string &bcName, const vector3d<double>&
 	RoeFluxJacobian( lState, rState, eqnState, normArea, maxWS, fluxJacL, fluxJacR);
       }
       else if ( fluxJacType == "laxFriedrichs" ){
-	LaxFriedrichsFluxJacobian( lState, rState, eqnState, normArea, maxWS, fluxJacL, fluxJacR);
+	LaxFriedrichsFluxJacobian( lState, rState, eqnState, normArea, maxWSL, maxWSR, fluxJacL, fluxJacR);
+	maxWS = maxWSL;
       }
       else{
 	cerr << "ERROR: Inviscid flux jacobian type " << fluxJacType << " is not recognized!" << endl;
@@ -1639,6 +1642,9 @@ squareMatrix BoundaryFluxJacobian( const string &bcName, const vector3d<double>&
     fluxJac.SetData(3, 2, -1.0 * (eqnState.Gamma() - 1.0) * state.V() * normArea.Z() );
     fluxJac.SetData(3, 3, -1.0 * (eqnState.Gamma() - 1.0) * state.W() * normArea.Z() );
     fluxJac.SetData(3, 4, (eqnState.Gamma() - 1.0) * normArea.Z() );
+
+    maxWS = 0.0;
+    maxWS = state.SoS(eqnState);
 
   }
   else{

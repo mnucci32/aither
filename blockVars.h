@@ -124,11 +124,11 @@ class blockVars {
 
   //void TotalResidual( vector<double> &, vector<double> &, int &, const int & );
 
-  void CalcInvFluxJacI(const idealGas&, const input&, const int&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, const string&)const;
-  void CalcInvFluxJacJ(const idealGas&, const input&, const int&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, const string&)const;
-  void CalcInvFluxJacK(const idealGas&, const input&, const int&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, const string&)const;
+  void CalcInvFluxJacI(const idealGas&, const input&, const int&, colMatrix&, matrixDiagonal&, matrixDiagonal&, const string&)const;
+  void CalcInvFluxJacJ(const idealGas&, const input&, const int&, colMatrix&, matrixDiagonal&, matrixDiagonal&, const string&)const;
+  void CalcInvFluxJacK(const idealGas&, const input&, const int&, colMatrix&, matrixDiagonal&, matrixDiagonal&, const string&)const;
 
-  void AddVolTime(matrixDiagonal&, const double &, const double &)const;
+  void AddVolTime(colMatrix&, const double &, const double &)const;
   void AddVolTimeOff(matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&)const;
 
   void ConstructOffDiag(const matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&, matrixDiagonal&)const;

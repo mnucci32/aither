@@ -99,7 +99,8 @@ int main( int argc, char *argv[] ) {
     implicitFlag = true;
   }
 
-  matrixDiagonal mainDiag, offUpIDiag, offLowIDiag, offUpJDiag, offLowJDiag, offUpKDiag, offLowKDiag;
+  matrixDiagonal offUpIDiag, offLowIDiag, offUpJDiag, offLowJDiag, offUpKDiag, offLowKDiag;
+  colMatrix mainDiag;
   colMatrix initial(numEqns);
   initial.Zero();
 
@@ -132,7 +133,7 @@ int main( int argc, char *argv[] ) {
 
 	//initialize implicit matrix
 	if (implicitFlag){
-	  mainDiag.CleanResizeZero(numElems, numEqns);
+	  mainDiag.CleanResizeZero(numElems);
 	  offUpIDiag.CleanResizeZero(numElems, numEqns);
 	  offLowIDiag.CleanResizeZero(numElems, numEqns);
 	  offUpJDiag.CleanResizeZero(numElems, numEqns);
