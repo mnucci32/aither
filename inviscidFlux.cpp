@@ -950,7 +950,7 @@ void ApproxRoeFluxJacobian( const primVars &left, const primVars &right, const i
   double vR = (left.V() + denRatio * right.V()) / (1.0 + denRatio);  //Roe averaged v-velocity
   double wR = (left.W() + denRatio * right.W()) / (1.0 + denRatio);  //Roe averaged w-velocity
   double hR = (left.Enthalpy(eqnState) + denRatio * right.Enthalpy(eqnState)) / (1.0 + denRatio);  //Roe averaged total enthalpy
-  //double aR = sqrt( (eqnState.Gamma() - 1.0) * (hR - 0.5 * (uR*uR + vR*vR + wR*wR)) );  //Roe averaged speed of sound
+  double aR = sqrt( (eqnState.Gamma() - 1.0) * (hR - 0.5 * (uR*uR + vR*vR + wR*wR)) );  //Roe averaged speed of sound
   //Roe averaged face normal velocity
   vector3d<double> velR(uR,vR,wR);
 
@@ -961,45 +961,134 @@ void ApproxRoeFluxJacobian( const primVars &left, const primVars &right, const i
   double velLeftNorm = left.Velocity().DotProd(areaNorm);
   double velRightNorm = right.Velocity().DotProd(areaNorm);
 
-  //calculate Roe jacobian matrix
+  //calculate diagonal eigenvalue matrix |lambda|
+  squareMatrix lambda(5);
+  lambda.Zero();
+  lambda.SetData(0, 0, fabs(velRNorm - aR) );
+  lambda.SetData(1, 1, fabs(velRNorm) );
+  lambda.SetData(2, 2, fabs(velRNorm + aR) );
+  lambda.SetData(3, 3, fabs(velRNorm) );
+  lambda.SetData(4, 4, fabs(velRNorm) );
+
+  //calculate Roe jacobian matrix A
+  //contribution due to normal velocity eigenvalues
   squareMatrix A(5);
-  A.Zero();
 
   //column zero
-  A.SetData(0, 0, 0.0);
-  A.SetData(1, 0, fabs( 0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() * areaNorm.X() - uR * velRNorm ) );
-  A.SetData(2, 0, fabs( 0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() * areaNorm.Y() - vR * velRNorm ) );
-  A.SetData(3, 0, fabs( 0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() * areaNorm.Z() - wR * velRNorm ) );
-  A.SetData(4, 0, fabs( (0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() - hR) * velRNorm ) ); 
-		       
+  A.SetData(0, 0, 1.0 - 0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) );
+  A.SetData(1, 0, -(1.0 + 0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR)) * uR + velRNorm * areaNorm.X() );
+  A.SetData(2, 0, -(1.0 + 0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR)) * vR + velRNorm * areaNorm.Y() );
+  A.SetData(3, 0, -(1.0 + 0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR)) * wR + velRNorm * areaNorm.Z() );
+  A.SetData(4, 0, velRNorm * velRNorm - 0.5 * velR.MagSq() * (1.0 + 0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR)) ); 
+
   //column one
-  A.SetData(1, 0, fabs( areaNorm.X() ) );
-  A.SetData(1, 1, fabs( uR * areaNorm.X() - (eqnState.Gamma() - 1.0) * uR * areaNorm.X() + velRNorm) );
-  A.SetData(1, 2, fabs( vR * areaNorm.X() - (eqnState.Gamma() - 1.0) * uR * areaNorm.Y() ) );
-  A.SetData(1, 3, fabs( wR * areaNorm.X() - (eqnState.Gamma() - 1.0) * uR * areaNorm.Z() ) );
-  A.SetData(1, 4, fabs( hR * areaNorm.X() - (eqnState.Gamma() - 1.0) * uR * velRNorm) );
+  A.SetData(0, 1, (eqnState.Gamma() - 1.0) / (aR * aR) * uR );
+  A.SetData(1, 1, (eqnState.Gamma() - 1.0) / (aR * aR) * uR * uR + 1.0 - areaNorm.X() * areaNorm.X() );
+  A.SetData(2, 1, (eqnState.Gamma() - 1.0) / (aR * aR) * vR * uR       - areaNorm.Y() * areaNorm.X() );
+  A.SetData(3, 1, (eqnState.Gamma() - 1.0) / (aR * aR) * wR * uR       - areaNorm.Z() * areaNorm.X() );
+  A.SetData(4, 1, (1.0 + 0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR)) * uR - velRNorm * areaNorm.X() );
 
   //column two
-  A.SetData(2, 0, fabs( areaNorm.Y() ) );
-  A.SetData(2, 1, fabs( uR * areaNorm.Y() - (eqnState.Gamma() - 1.0) * vR * areaNorm.X() ) );
-  A.SetData(2, 2, fabs( vR * areaNorm.Y() - (eqnState.Gamma() - 1.0) * vR * areaNorm.Y() + velRNorm) );
-  A.SetData(2, 3, fabs( wR * areaNorm.Y() - (eqnState.Gamma() - 1.0) * vR * areaNorm.Z() ) );
-  A.SetData(2, 4, fabs( hR * areaNorm.Y() - (eqnState.Gamma() - 1.0) * vR * velRNorm) );
+  A.SetData(0, 2, (eqnState.Gamma() - 1.0) / (aR * aR) * vR );
+  A.SetData(1, 2, (eqnState.Gamma() - 1.0) / (aR * aR) * uR * vR       - areaNorm.X() * areaNorm.Y() );
+  A.SetData(2, 2, (eqnState.Gamma() - 1.0) / (aR * aR) * vR * vR + 1.0 - areaNorm.Y() * areaNorm.Y() );
+  A.SetData(3, 2, (eqnState.Gamma() - 1.0) / (aR * aR) * wR * vR       - areaNorm.Z() * areaNorm.Y() );
+  A.SetData(4, 2, (1.0 + 0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR)) * vR - velRNorm * areaNorm.Y() );
 
   //column three
-  A.SetData(3, 0, fabs( areaNorm.Z() ) );
-  A.SetData(3, 1, fabs( uR * areaNorm.Z() - (eqnState.Gamma() - 1.0) * wR * areaNorm.X() ) );
-  A.SetData(3, 2, fabs( vR * areaNorm.Z() - (eqnState.Gamma() - 1.0) * wR * areaNorm.Y() ) );
-  A.SetData(3, 3, fabs( wR * areaNorm.Z() - (eqnState.Gamma() - 1.0) * wR * areaNorm.Z() + velRNorm) );
-  A.SetData(3, 4, fabs( hR * areaNorm.Z() - (eqnState.Gamma() - 1.0) * wR * velRNorm) );
+  A.SetData(0, 3, (eqnState.Gamma() - 1.0) / (aR * aR) * wR );
+  A.SetData(1, 3, (eqnState.Gamma() - 1.0) / (aR * aR) * uR * wR       - areaNorm.X() * areaNorm.Z() );
+  A.SetData(2, 3, (eqnState.Gamma() - 1.0) / (aR * aR) * vR * wR       - areaNorm.Y() * areaNorm.Z() );
+  A.SetData(3, 3, (eqnState.Gamma() - 1.0) / (aR * aR) * wR * wR + 1.0 - areaNorm.Z() * areaNorm.Z() );
+  A.SetData(4, 3, (1.0 + 0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR)) * wR - velRNorm * areaNorm.Z() );
 
   //column four
-  A.SetData(4, 0, 0.0);
-  A.SetData(4, 1, fabs( (eqnState.Gamma() - 1.0) * areaNorm.X() ) );
-  A.SetData(4, 2, fabs( (eqnState.Gamma() - 1.0) * areaNorm.Y() ) );
-  A.SetData(4, 3, fabs( (eqnState.Gamma() - 1.0) * areaNorm.Z() ) );
-  A.SetData(4, 4, fabs( eqnState.Gamma() * velRNorm ) );
+  A.SetData(0, 4, -(eqnState.Gamma() - 1.0) / (aR * aR) );
+  A.SetData(1, 4, -(eqnState.Gamma() - 1.0) / (aR * aR) * uR );
+  A.SetData(2, 4, -(eqnState.Gamma() - 1.0) / (aR * aR) * vR );
+  A.SetData(3, 4, -(eqnState.Gamma() - 1.0) / (aR * aR) * wR );
+  A.SetData(4, 4, -(eqnState.Gamma() - 1.0) / (aR * aR) * velR.MagSq() / (aR * aR) );
 
+  A = fabs(velRNorm) * A;
+
+  //contribution due to u - c wave
+  squareMatrix temp(5);
+
+  //column zero
+  temp.SetData(0, 0, 0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) + 0.5 * velRNorm / aR );
+  temp.SetData(1, 0, (uR - aR * areaNorm.X()) * (0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) + 0.5 * velRNorm / aR) );
+  temp.SetData(2, 0, (vR - aR * areaNorm.Y()) * (0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) + 0.5 * velRNorm / aR) );
+  temp.SetData(3, 0, (wR - aR * areaNorm.Z()) * (0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) + 0.5 * velRNorm / aR) );
+  temp.SetData(4, 0, (hR - velRNorm * aR * areaNorm.X()) * (0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) + 0.5 * velRNorm / aR) );
+
+  //column one
+  temp.SetData(0, 1, -(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR - areaNorm.X() / (2.0 * aR ) );
+  temp.SetData(1, 1,  (uR - aR * areaNorm.X()) * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR - areaNorm.X() / (2.0 * aR)) );
+  temp.SetData(2, 1,  (vR - aR * areaNorm.Y()) * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR - areaNorm.X() / (2.0 * aR)) );
+  temp.SetData(3, 1,  (wR - aR * areaNorm.Z()) * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR - areaNorm.X() / (2.0 * aR)) );
+  temp.SetData(4, 1,  (hR - aR * velRNorm)     * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR - areaNorm.X() / (2.0 * aR)) );
+
+  //column two
+  temp.SetData(0, 2, -(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR - areaNorm.Y() / (2.0 * aR ) );
+  temp.SetData(1, 2,  (uR - aR * areaNorm.X()) * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR - areaNorm.Y() / (2.0 * aR)) );
+  temp.SetData(2, 2,  (vR - aR * areaNorm.Y()) * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR - areaNorm.Y() / (2.0 * aR)) );
+  temp.SetData(3, 2,  (wR - aR * areaNorm.Z()) * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR - areaNorm.Y() / (2.0 * aR)) );
+  temp.SetData(4, 2,  (hR - aR * velRNorm)     * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR - areaNorm.Y() / (2.0 * aR)) );
+
+  //column three
+  temp.SetData(0, 3, -(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR - areaNorm.Z() / (2.0 * aR ) );
+  temp.SetData(1, 3,  (uR - aR * areaNorm.X()) * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR - areaNorm.Z() / (2.0 * aR)) );
+  temp.SetData(2, 3,  (vR - aR * areaNorm.Y()) * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR - areaNorm.Z() / (2.0 * aR)) );
+  temp.SetData(3, 3,  (wR - aR * areaNorm.Z()) * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR - areaNorm.Z() / (2.0 * aR)) );
+  temp.SetData(4, 3,  (hR - aR * velRNorm)     * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR - areaNorm.Z() / (2.0 * aR)) );
+
+  //column four
+  temp.SetData(0, 4, (eqnState.Gamma() - 1.0) / (2.0 * aR * aR) );
+  temp.SetData(1, 4, (uR - aR * areaNorm.X()) * (eqnState.Gamma() - 1.0) / (2.0 * aR * aR) );
+  temp.SetData(2, 4, (vR - aR * areaNorm.Y()) * (eqnState.Gamma() - 1.0) / (2.0 * aR * aR) );
+  temp.SetData(3, 4, (wR - aR * areaNorm.Z()) * (eqnState.Gamma() - 1.0) / (2.0 * aR * aR) );
+  temp.SetData(4, 4, (hR - aR * velRNorm)     * (eqnState.Gamma() - 1.0) / (2.0 * aR * aR) );
+
+  A = A + (fabs(velRNorm - aR) * temp);
+
+  //contribution due to u + c wave
+
+  //column zero
+  temp.SetData(0, 0, 0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) - 0.5 * velRNorm / aR );
+  temp.SetData(1, 0, (uR + aR * areaNorm.X()) * (0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) - 0.5 * velRNorm / aR) );
+  temp.SetData(2, 0, (vR + aR * areaNorm.Y()) * (0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) - 0.5 * velRNorm / aR) );
+  temp.SetData(3, 0, (wR + aR * areaNorm.Z()) * (0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) - 0.5 * velRNorm / aR) );
+  temp.SetData(4, 0, (hR + velRNorm * aR * areaNorm.X()) * (0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) - 0.5 * velRNorm / aR) );
+
+  //column one
+  temp.SetData(0, 1, -(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR + areaNorm.X() / (2.0 * aR ) );
+  temp.SetData(1, 1,  (uR + aR * areaNorm.X()) * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR + areaNorm.X() / (2.0 * aR)) );
+  temp.SetData(2, 1,  (vR + aR * areaNorm.Y()) * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR + areaNorm.X() / (2.0 * aR)) );
+  temp.SetData(3, 1,  (wR + aR * areaNorm.Z()) * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR + areaNorm.X() / (2.0 * aR)) );
+  temp.SetData(4, 1,  (hR + aR * velRNorm)     * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR + areaNorm.X() / (2.0 * aR)) );
+
+  //column two
+  temp.SetData(0, 2, -(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR + areaNorm.Y() / (2.0 * aR ) );
+  temp.SetData(1, 2,  (uR + aR * areaNorm.X()) * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR + areaNorm.Y() / (2.0 * aR)) );
+  temp.SetData(2, 2,  (vR + aR * areaNorm.Y()) * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR + areaNorm.Y() / (2.0 * aR)) );
+  temp.SetData(3, 2,  (wR + aR * areaNorm.Z()) * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR + areaNorm.Y() / (2.0 * aR)) );
+  temp.SetData(4, 2,  (hR + aR * velRNorm)     * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR + areaNorm.Y() / (2.0 * aR)) );
+
+  //column three
+  temp.SetData(0, 3, -(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR + areaNorm.Z() / (2.0 * aR ) );
+  temp.SetData(1, 3,  (uR + aR * areaNorm.X()) * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR + areaNorm.Z() / (2.0 * aR)) );
+  temp.SetData(2, 3,  (vR + aR * areaNorm.Y()) * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR + areaNorm.Z() / (2.0 * aR)) );
+  temp.SetData(3, 3,  (wR + aR * areaNorm.Z()) * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR + areaNorm.Z() / (2.0 * aR)) );
+  temp.SetData(4, 3,  (hR + aR * velRNorm)     * (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR + areaNorm.Z() / (2.0 * aR)) );
+
+  //column four
+  temp.SetData(0, 4, (eqnState.Gamma() - 1.0) / (2.0 * aR * aR) );
+  temp.SetData(1, 4, (uR + aR * areaNorm.X()) * (eqnState.Gamma() - 1.0) / (2.0 * aR * aR) );
+  temp.SetData(2, 4, (vR + aR * areaNorm.Y()) * (eqnState.Gamma() - 1.0) / (2.0 * aR * aR) );
+  temp.SetData(3, 4, (wR + aR * areaNorm.Z()) * (eqnState.Gamma() - 1.0) / (2.0 * aR * aR) );
+  temp.SetData(4, 4, (hR + aR * velRNorm)     * (eqnState.Gamma() - 1.0) / (2.0 * aR * aR) );
+
+  A = A + (fabs(velRNorm + aR) * temp);
 
   //begin jacobian calculation ////////////////////////////////////////////////////////////////////////////////////////
 
