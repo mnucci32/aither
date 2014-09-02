@@ -177,7 +177,7 @@ int main( int argc, char *argv[] ) {
 	  stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag, offLowKDiag, offUpKDiag, inputVars.InvFluxJac());
 
 	  // cout << "Main Diagonal:" << endl;
-	  // cout << mainDiag.Data(1) << endl;
+	  // cout << mainDiag << endl;
 
 	  //add volume divided by time step term to main diagonal
 	  stateBlocks[bb].AddVolTime(mainDiag, inputVars.Theta(), inputVars.Zeta());

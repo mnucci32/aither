@@ -502,7 +502,8 @@ double SymGaussSeidel( const colMatrix &Aii, const matrixDiagonal &Ail, const ma
   //invert main diagonal
   // matrixDiagonal AiiInv = Aii;
   // AiiInv.Inverse();
-  squareMatrix AiiInv(x[0].Size());
+  // squareMatrix AiiInv(x[0].Size());
+  double AiiInv = 0.0;
 
 
   colMatrix newData(x[0].Size());
@@ -513,8 +514,6 @@ double SymGaussSeidel( const colMatrix &Aii, const matrixDiagonal &Ail, const ma
   for ( int kk = 0; kk < sweeps; kk++ ){
     //forward sweep
     for ( int ii = 0; ii < (int)x.size(); ii++ ){
-
-      AiiInv.Identity();
 
       int il = GetDiagPosLowerI(ii);
       int iu = GetDiagPosUpperI(ii);
@@ -546,8 +545,34 @@ double SymGaussSeidel( const colMatrix &Aii, const matrixDiagonal &Ail, const ma
 	newData = newData + Aku.Data(ii).Multiply(x[ku]);
       }
 
-      AiiInv = AiiInv / Aii.Data(ii);
-      x[ii] = AiiInv.Multiply( b[ii] - newData - oldData) ;
+      AiiInv = 1.0 / Aii.Data(ii);
+      x[ii] = AiiInv * ( b[ii] - newData - oldData) ;
+
+      // if (ii==1){
+
+      // 	cout << "Ail: " << endl;
+      // 	cout << Ail.Data(ii) << endl;
+      // 	cout << "Aiu: " << endl;
+      // 	cout << Aiu.Data(ii) << endl;
+      // 	cout << "Ajl: " << endl;
+      // 	cout << Ajl.Data(ii) << endl;
+      // 	cout << "Aju: " << endl;
+      // 	cout << Aju.Data(ii) << endl;
+      // 	cout << "Akl: " << endl;
+      // 	cout << Akl.Data(ii) << endl;
+      // 	cout << "Aku: " << endl;
+      // 	cout << Aku.Data(ii) << endl;
+
+      // 	cout << "AiiInv " << AiiInv << endl;
+      // 	cout << "b: " << endl;
+      // 	cout << b[ii] << endl;
+      // 	cout << "x: " << endl;
+      // 	cout << x[ii] << endl;
+
+
+      // }
+
+
 
       // x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply( b[ii] + 
       // 	      solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - newData - oldData) ;
@@ -556,8 +581,6 @@ double SymGaussSeidel( const colMatrix &Aii, const matrixDiagonal &Ail, const ma
 
     //backward sweep
     for ( int ii = (int)x.size()-1; ii >= 0; ii-- ){
-
-      AiiInv.Identity();
 
       int il = GetDiagPosLowerI(ii);
       int iu = GetDiagPosUpperI(ii);
@@ -589,12 +612,13 @@ double SymGaussSeidel( const colMatrix &Aii, const matrixDiagonal &Ail, const ma
 	newData = newData + Akl.Data(ii).Multiply(x[kl]);
       }
 
-      AiiInv = AiiInv / Aii.Data(ii);
-      x[ii] = AiiInv.Multiply( b[ii] - newData - oldData) ;
+      AiiInv = 1.0 / Aii.Data(ii);
+      x[ii] = AiiInv * ( b[ii] - newData - oldData) ;
 
       // x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply( b[ii] +
       //         solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - newData - oldData) ;
 
+      // cout << "correction " << x[ii];
     }
 
     //calculate residual
