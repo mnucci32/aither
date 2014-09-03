@@ -478,7 +478,7 @@ void matrixDiagonal::Inverse(){
 //function to perform symmetric Gauss-Seidel relaxation to solver Ax=b
 //when relax = 1.0, symmetric Gauss-Seidel is achieved. Values >1 result in symmetric successive over relaxation (SSOR)
 //Values <1 result in under relaxation
-double LUSGS( const colMatrix &Aii, const matrixDiagonal &Ail, const matrixDiagonal &Aiu, const matrixDiagonal &Ajl, const matrixDiagonal &Aju, const matrixDiagonal &Akl, const matrixDiagonal &Aku, vector<colMatrix> &x, const vector<colMatrix> &b, const vector<primVars> &solTimeM, const vector<primVars> &solTimeN, const int &sweeps, const double &relax, const int &imax, const int &jmax, const idealGas &eqnState){
+double LUSGS( const colMatrix &Aii, const matrixDiagonal &Ail, const matrixDiagonal &Aiu, const matrixDiagonal &Ajl, const matrixDiagonal &Aju, const matrixDiagonal &Akl, const matrixDiagonal &Aku, vector<colMatrix> &x, const vector<colMatrix> &b, const vector<primVars> &solTimeM, const vector<primVars> &solTimeN, const vector<primVars> &solTimeNm1, const int &sweeps, const double &relax, const int &imax, const int &jmax, const idealGas &eqnState, const double &theta){
 
   //Aii --> block matrix of the main diagonal
   //Ail --> block matrix of the lower i diagonal
@@ -510,6 +510,8 @@ double LUSGS( const colMatrix &Aii, const matrixDiagonal &Ail, const matrixDiago
   colMatrix oldData(x[0].Size());
 
   colMatrix l2Resid(x[0].Size());
+
+  double thetaInv = 1.0 / theta;
 
   for ( int kk = 0; kk < sweeps; kk++ ){
     //forward sweep
@@ -549,7 +551,7 @@ double LUSGS( const colMatrix &Aii, const matrixDiagonal &Ail, const matrixDiago
       // x[ii] = AiiInv * ( b[ii] - newData - oldData) ;
 
 
-      x[ii] = (1.0 - relax) * x[ii] + relax * AiiInv * ( b[ii] + 
+      x[ii] = (1.0 - relax) * x[ii] + relax * AiiInv * ( thetaInv * b[ii] + 
       	      solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - newData - oldData) ;
 
     }
@@ -590,7 +592,7 @@ double LUSGS( const colMatrix &Aii, const matrixDiagonal &Ail, const matrixDiago
       AiiInv = 1.0 / Aii.Data(ii);
       // x[ii] = AiiInv * ( b[ii] - newData - oldData) ;
 
-      x[ii] = (1.0 - relax) * x[ii] + relax * AiiInv * ( b[ii] +
+      x[ii] = (1.0 - relax) * x[ii] + relax * AiiInv * ( thetaInv * b[ii] +
               solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - newData - oldData) ;
 
     }
@@ -610,7 +612,7 @@ double LUSGS( const colMatrix &Aii, const matrixDiagonal &Ail, const matrixDiago
 
       // resid = b[ii] - Aii.Data(ii) * x[ii];
 
-      resid = b[ii] + solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - Aii.Data(ii) * x[ii];
+      resid = thetaInv * b[ii] + solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - Aii.Data(ii) * x[ii];
 
       if ( il >=0 && il < (int)x.size() ){
 	resid = resid - Ail.Data(ii).Multiply(x[il]);

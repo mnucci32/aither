@@ -225,7 +225,7 @@ input ReadInput(const string &inputName){
 	      inputVars.SetTheta(0.5);
 	      inputVars.SetZeta(0.0);
 	    }
-	    else if (inputVars.TimeIntegration() == "gear"){
+	    else if (inputVars.TimeIntegration() == "bdf2"){
 	      inputVars.SetTheta(1.0);
 	      inputVars.SetZeta(0.5);
 	    }

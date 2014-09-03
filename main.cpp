@@ -104,6 +104,9 @@ int main( int argc, char *argv[] ) {
   colMatrix initial(numEqns);
   initial.Zero();
 
+  vector<primVars> solTimeN;
+  vector<primVars> solDeltaNm1;
+
   int bb = 0;
   unsigned int cc = 0;
   int nn = 0;
@@ -170,7 +173,15 @@ int main( int argc, char *argv[] ) {
 	if (implicitFlag){
 
 	  //store time-n solution
-	  vector<primVars> solTimeN = stateBlocks[bb].GetCopyState();
+	  if (mm == 0){
+	    solTimeN = stateBlocks[bb].GetCopyState();
+
+	    if (nn == 0 && inputVars.TimeIntegration() == "bdf2" ){
+	      stateBlocks[bb].DeltaNMinusOne(solDeltaNm1, solTimeN, inputVars.Theta(), inputVars.Zeta());
+	    }
+
+	  }
+
 
 	  stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag, offLowIDiag, offUpIDiag, inputVars.InvFluxJac());
 	  stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag, offLowJDiag, offUpJDiag, inputVars.InvFluxJac());
@@ -182,31 +193,10 @@ int main( int argc, char *argv[] ) {
 	  //add volume divided by time step term to main diagonal
 	  stateBlocks[bb].AddVolTime(mainDiag, inputVars.Theta(), inputVars.Zeta());
 
-	  //stateBlocks[bb].AddVolTimeOff(offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag);
-	  //stateBlocks[bb].ConstructOffDiag(mainDiag, offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag);
-
-	  //print out block matrix diagonals for debugging
-	  // cout << "Main Diagonal:" << endl;
-	  // cout << mainDiag.Data(1) << endl;
-	  // cout << mainDiag << endl;
-	  // cout << "main diagonal size " << mainDiag.Size() << endl;
-	  // cout << "I-Lower Diagonal:" << endl;
-	  // cout << offLowIDiag << endl;
-	  // cout << "I-Upper Diagonal:" << endl;
-	  // cout << offUpIDiag << endl;
-	  // cout << "J-Lower Diagonal:" << endl;
-	  // cout << offLowJDiag << endl;
-	  // cout << "J-Upper Diagonal:" << endl;
-	  // cout << offUpJDiag << endl;
-	  // cout << "K-Lower Diagonal:" << endl;
-	  // cout << offLowKDiag << endl;
-	  // cout << "K-Upper Diagonal:" << endl;
-	  // cout << offUpKDiag << endl;
-
 	  //calculate correction (du)
 	  matrixResid += LUSGS(mainDiag, offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag, du, stateBlocks[bb].Residual(), 
-					stateBlocks[bb].GetRefState(), solTimeN, inputVars.MatrixSweeps(), inputVars.MatrixRelaxation(), 
-					stateBlocks[bb].NumI()-1, stateBlocks[bb].NumJ()-1, eos );
+			       stateBlocks[bb].GetRefState(), solTimeN, solDeltaNm1, inputVars.MatrixSweeps(), inputVars.MatrixRelaxation(), 
+   			       stateBlocks[bb].NumI()-1, stateBlocks[bb].NumJ()-1, eos, inputVars.Theta() );
 
 
 	} //code block for implicit solver
@@ -214,6 +204,12 @@ int main( int argc, char *argv[] ) {
 
 	//update solution
 	stateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, bb, du, residL2, residLinf, locMaxB);
+
+	//if implicit, assign time n to time n-1
+	if (implicitFlag && inputVars.TimeIntegration() == "bdf2"){
+	  stateBlocks[bb].DeltaNMinusOne(solDeltaNm1, solTimeN, inputVars.Theta(), inputVars.Zeta());
+	}
+
 
 
 	//get block residuals

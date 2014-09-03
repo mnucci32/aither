@@ -1510,11 +1510,33 @@ void blockVars::AddVolTime( colMatrix &mainDiag, const double &theta, const doub
       for ( int kk = 0; kk < kmax; kk++ ){
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
 	//I = ( ( ((*this).Vol(loc) * (1.0 + zeta)) / (*this).Dt(loc) ) - theta ) * I ;
-	double I = ( (*this).Vol(loc)/(*this).Dt(loc) ) ;
+	// double I = (*this).Vol(loc)/(*this).Dt(loc) ;
+	double I = ( (*this).Vol(loc) * (1.0 + zeta) ) / ( (*this).Dt(loc) * theta ) ;
 	mainDiag.SetData(loc, I + mainDiag.Data(loc) );
       }
     }
   }
 
 }
+
+//member function to calculate the delta n-1 term for the implicit bdf2 solver
+void blockVars::DeltaNMinusOne(vector<primVars> &solDeltaNm1, const vector<primVars> &solTimeN, const double &theta, const double &zeta){
+
+  int imax = (*this).NumI() - 1;
+  int jmax = (*this).NumJ() - 1;
+  int kmax = (*this).NumK() - 1;
+  int loc = 0;
+
+  for ( int ii = 0; ii < imax; ii++ ){
+    for ( int jj = 0; jj < jmax; jj++ ){
+      for ( int kk = 0; kk < kmax; kk++ ){
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	double coeff = ( (*this).Vol(loc) * zeta ) / ( (*this).Dt(loc) * theta ) ;
+	solDeltaNm1[loc] = coeff * ( (*this).State(loc) - solTimeN[loc] );
+      }
+    }
+  }
+
+}
+
 

@@ -130,6 +130,8 @@ class blockVars {
 
   void AddVolTime(colMatrix&, const double &, const double &)const;
 
+  void DeltaNMinusOne( vector<primVars> &, const vector<primVars> &, const double &, const double &);
+
   //destructor
   ~blockVars() {}
 
