@@ -180,7 +180,7 @@ class matrixDiagonal {
 
 
 //function declarations
-double SymGaussSeidel( const colMatrix &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &,
+double LUSGS( const colMatrix &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &,
 		       vector<colMatrix> &, const vector<colMatrix> &, const vector<primVars> &, const vector<primVars> &, const int &, const double &, const int &, const int &, const idealGas &);
 
 #endif

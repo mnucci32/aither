@@ -38,8 +38,8 @@ input::input(): vars(27){
   outputFrequency = 1;
   equationSet = "euler";
   tRef = -1.0;
-  matrixSolver = "symGaussSeidel";
-  matrixSweeps = 5;
+  matrixSolver = "lusgs";
+  matrixSweeps = 1;
   matrixRelaxation = 1.0;  //default is symmetric Gauss-Seidel with no overrelaxation
   timeIntTheta = 1.0;      //default results in implicit euler
   timeIntZeta = 0.0;       //default results in implicit euler
@@ -47,7 +47,7 @@ input::input(): vars(27){
   cflMax = 1.0;
   cflStep = 0.0;
   cflStart = 1.0;
-  invFluxJac = "approximateRoe";  //default is approximate roe flux
+  invFluxJac = "laxFriedrichs";  //default is approximate roe flux
 
   //keywords in the input file that the parser is looking for to define variables
   vars[0] = "gridName:";

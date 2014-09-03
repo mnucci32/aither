@@ -204,7 +204,7 @@ int main( int argc, char *argv[] ) {
 	  // cout << offUpKDiag << endl;
 
 	  //calculate correction (du)
-	  matrixResid += SymGaussSeidel(mainDiag, offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag, du, stateBlocks[bb].Residual(), 
+	  matrixResid += LUSGS(mainDiag, offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag, du, stateBlocks[bb].Residual(), 
 					stateBlocks[bb].GetRefState(), solTimeN, inputVars.MatrixSweeps(), inputVars.MatrixRelaxation(), 
 					stateBlocks[bb].NumI()-1, stateBlocks[bb].NumJ()-1, eos );
 

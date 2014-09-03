@@ -478,7 +478,7 @@ void matrixDiagonal::Inverse(){
 //function to perform symmetric Gauss-Seidel relaxation to solver Ax=b
 //when relax = 1.0, symmetric Gauss-Seidel is achieved. Values >1 result in symmetric successive over relaxation (SSOR)
 //Values <1 result in under relaxation
-double SymGaussSeidel( const colMatrix &Aii, const matrixDiagonal &Ail, const matrixDiagonal &Aiu, const matrixDiagonal &Ajl, const matrixDiagonal &Aju, const matrixDiagonal &Akl, const matrixDiagonal &Aku, vector<colMatrix> &x, const vector<colMatrix> &b, const vector<primVars> &solTimeM, const vector<primVars> &solTimeN, const int &sweeps, const double &relax, const int &imax, const int &jmax, const idealGas &eqnState){
+double LUSGS( const colMatrix &Aii, const matrixDiagonal &Ail, const matrixDiagonal &Aiu, const matrixDiagonal &Ajl, const matrixDiagonal &Aju, const matrixDiagonal &Akl, const matrixDiagonal &Aku, vector<colMatrix> &x, const vector<colMatrix> &b, const vector<primVars> &solTimeM, const vector<primVars> &solTimeN, const int &sweeps, const double &relax, const int &imax, const int &jmax, const idealGas &eqnState){
 
   //Aii --> block matrix of the main diagonal
   //Ail --> block matrix of the lower i diagonal
@@ -546,36 +546,11 @@ double SymGaussSeidel( const colMatrix &Aii, const matrixDiagonal &Ail, const ma
       }
 
       AiiInv = 1.0 / Aii.Data(ii);
-      x[ii] = AiiInv * ( b[ii] - newData - oldData) ;
-
-      // if (ii==1){
-
-      // 	cout << "Ail: " << endl;
-      // 	cout << Ail.Data(ii) << endl;
-      // 	cout << "Aiu: " << endl;
-      // 	cout << Aiu.Data(ii) << endl;
-      // 	cout << "Ajl: " << endl;
-      // 	cout << Ajl.Data(ii) << endl;
-      // 	cout << "Aju: " << endl;
-      // 	cout << Aju.Data(ii) << endl;
-      // 	cout << "Akl: " << endl;
-      // 	cout << Akl.Data(ii) << endl;
-      // 	cout << "Aku: " << endl;
-      // 	cout << Aku.Data(ii) << endl;
-
-      // 	cout << "AiiInv " << AiiInv << endl;
-      // 	cout << "b: " << endl;
-      // 	cout << b[ii] << endl;
-      // 	cout << "x: " << endl;
-      // 	cout << x[ii] << endl;
+      // x[ii] = AiiInv * ( b[ii] - newData - oldData) ;
 
 
-      // }
-
-
-
-      // x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply( b[ii] + 
-      // 	      solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - newData - oldData) ;
+      x[ii] = (1.0 - relax) * x[ii] + relax * AiiInv * ( b[ii] + 
+      	      solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - newData - oldData) ;
 
     }
 
@@ -613,12 +588,11 @@ double SymGaussSeidel( const colMatrix &Aii, const matrixDiagonal &Ail, const ma
       }
 
       AiiInv = 1.0 / Aii.Data(ii);
-      x[ii] = AiiInv * ( b[ii] - newData - oldData) ;
+      // x[ii] = AiiInv * ( b[ii] - newData - oldData) ;
 
-      // x[ii] = (1.0 - relax) * x[ii] + (relax * AiiInv.Data(ii)).Multiply( b[ii] +
-      //         solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - newData - oldData) ;
+      x[ii] = (1.0 - relax) * x[ii] + relax * AiiInv * ( b[ii] +
+              solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - newData - oldData) ;
 
-      // cout << "correction " << x[ii];
     }
 
     //calculate residual
@@ -634,9 +608,9 @@ double SymGaussSeidel( const colMatrix &Aii, const matrixDiagonal &Ail, const ma
       int kl = ii-imax*jmax;
       int ku = ii+imax*jmax;
 
-      resid = b[ii] - Aii.Data(ii) * x[ii];
+      // resid = b[ii] - Aii.Data(ii) * x[ii];
 
-      //resid = b[ii] + solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - Aii.Data(ii).Multiply(x[ii]);
+      resid = b[ii] + solTimeM[ii].ConsVars(eqnState) - solTimeN[ii].ConsVars(eqnState) - Aii.Data(ii) * x[ii];
 
       if ( il >=0 && il < (int)x.size() ){
 	resid = resid - Ail.Data(ii).Multiply(x[il]);
