@@ -7,6 +7,7 @@
 #include "plot3d.h" //vector3d
 #include "input.h" //inputVars
 #include "eos.h"  // idealGas
+#include "matrix.h" //colMatrix
 #include "boundaryConditions.h" //boundaryConditions
 #include <fstream>
 #include <iostream>
@@ -52,7 +53,7 @@ class primVars {
   inline double Temperature(const idealGas&)const;
   inline double SoS(const idealGas&)const;
 
-  inline vector<double> ConsVars(const idealGas&)const;
+  inline colMatrix ConsVars(const idealGas&)const;
 
   //operator overloads for addition and subtraction of states
   primVars operator + (const primVars&)const;
@@ -116,13 +117,13 @@ double primVars::Enthalpy(const idealGas &eqnState)const{
 }
 
 //member function to calculate conserved variables from primative variables
-vector<double> primVars::ConsVars(const idealGas &eqnState)const{
-  vector<double> cv (5);
-  cv[0] = rho;
-  cv[1] = rho * u;
-  cv[2] = rho * v;
-  cv[3] = rho * w;
-  cv[4] = rho * (*this).Energy(eqnState);
+colMatrix primVars::ConsVars(const idealGas &eqnState)const{
+  colMatrix cv(5);
+  cv.SetData(0, rho);
+  cv.SetData(1, rho * u);
+  cv.SetData(2, rho * v);
+  cv.SetData(3, rho * w);
+  cv.SetData(4, rho * (*this).Energy(eqnState));
   return cv;
 }
 
