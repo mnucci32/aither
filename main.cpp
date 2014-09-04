@@ -95,7 +95,7 @@ int main( int argc, char *argv[] ) {
 
   //determine if implict or explicit
   bool implicitFlag = false;
-  if ( inputVars.TimeIntegration() == "implicitEuler" || inputVars.TimeIntegration() == "crankNicholson" || inputVars.TimeIntegration() == "gear" ){
+  if ( inputVars.TimeIntegration() == "implicitEuler" || inputVars.TimeIntegration() == "crankNicholson" || inputVars.TimeIntegration() == "bdf2" ){
     implicitFlag = true;
   }
 
@@ -104,8 +104,8 @@ int main( int argc, char *argv[] ) {
   colMatrix initial(numEqns);
   initial.Zero();
 
-  vector<primVars> solTimeN;
-  vector<primVars> solDeltaNm1;
+  vector<vector<colMatrix> > solTimeN(mesh.NumBlocks());
+  vector<vector<colMatrix> > solDeltaNm1(mesh.NumBlocks());
 
   int bb = 0;
   unsigned int cc = 0;
@@ -174,14 +174,19 @@ int main( int argc, char *argv[] ) {
 
 	  //store time-n solution
 	  if (mm == 0){
-	    solTimeN = stateBlocks[bb].GetCopyState();
+	    solTimeN[bb] = stateBlocks[bb].GetCopyConsVars(eos);
 
-	    if (nn == 0 && inputVars.TimeIntegration() == "bdf2" ){
-	      stateBlocks[bb].DeltaNMinusOne(solDeltaNm1, solTimeN, inputVars.Theta(), inputVars.Zeta());
+	    if (nn == 0){
+	      solDeltaNm1[bb].resize(solTimeN[bb].size());
+	      stateBlocks[bb].DeltaNMinusOne(solDeltaNm1[bb], solTimeN[bb], eos, inputVars.Theta(), inputVars.Zeta());
+	      cout << "n-1 intialized" << endl;
+	      // for (unsigned int dd = 0; dd < solDeltaNm1[0].size(); dd++){
+	      // 	cout << solDeltaNm1[0][dd] << endl;
+	      // }
+
 	    }
 
 	  }
-
 
 	  stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag, offLowIDiag, offUpIDiag, inputVars.InvFluxJac());
 	  stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag, offLowJDiag, offUpJDiag, inputVars.InvFluxJac());
@@ -193,10 +198,13 @@ int main( int argc, char *argv[] ) {
 	  //add volume divided by time step term to main diagonal
 	  stateBlocks[bb].AddVolTime(mainDiag, inputVars.Theta(), inputVars.Zeta());
 
+	  //add volume divided by time step term time m - time n term
+	  vector<colMatrix> solTimeMmN = stateBlocks[bb].AddVolTime(stateBlocks[bb].GetCopyConsVars(eos), solTimeN[bb], inputVars.Theta(), inputVars.Zeta());
+
 	  //calculate correction (du)
 	  matrixResid += LUSGS(mainDiag, offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag, du, stateBlocks[bb].Residual(), 
-			       stateBlocks[bb].GetRefState(), solTimeN, solDeltaNm1, inputVars.MatrixSweeps(), inputVars.MatrixRelaxation(), 
-   			       stateBlocks[bb].NumI()-1, stateBlocks[bb].NumJ()-1, eos, inputVars.Theta() );
+			       solTimeMmN, solDeltaNm1[bb], inputVars.MatrixSweeps(), inputVars.MatrixRelaxation(), stateBlocks[bb].NumI()-1,
+			       stateBlocks[bb].NumJ()-1, inputVars.Theta() );
 
 
 	} //code block for implicit solver
@@ -205,9 +213,9 @@ int main( int argc, char *argv[] ) {
 	//update solution
 	stateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, bb, du, residL2, residLinf, locMaxB);
 
-	//if implicit, assign time n to time n-1
-	if (implicitFlag && inputVars.TimeIntegration() == "bdf2"){
-	  stateBlocks[bb].DeltaNMinusOne(solDeltaNm1, solTimeN, inputVars.Theta(), inputVars.Zeta());
+	//if implicit, assign time n to time n-1 at end of nonlinear iterations
+	if (implicitFlag && inputVars.TimeIntegration() == "bdf2" && mm == inputVars.NonlinearIterations()-1 ){
+	  stateBlocks[bb].DeltaNMinusOne(solDeltaNm1[bb], solTimeN[bb], eos, inputVars.Theta(), inputVars.Zeta());
 	}
 
 
@@ -222,7 +230,7 @@ int main( int argc, char *argv[] ) {
       for ( cc = 0; cc < residL2.size(); cc++ ){
 	residL2[cc] = sqrt(residL2[cc]);
 
-	if (nn == 0){
+	if (nn == 0 && mm == 0){
 	  residL2First[cc] = residL2[cc];
 	}
 

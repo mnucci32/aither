@@ -5,8 +5,7 @@
 #include <string>  //string
 #include <math.h>       //sqrt
 #include <iostream>
-#include "primVars.h"
-#include "eos.h"
+#include "plot3d.h" //matrix location functions
 
 using std::vector;
 using std::string;
@@ -181,6 +180,8 @@ class matrixDiagonal {
 
 //function declarations
 double LUSGS( const colMatrix &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &,
-	      vector<colMatrix> &, const vector<colMatrix> &, const vector<primVars> &, const vector<primVars> &, const vector<primVars> &, const int &, const double &, const int &, const int &, const idealGas &, const double&);
+	      vector<colMatrix> &, const vector<colMatrix> &, const vector<colMatrix> &, const vector<colMatrix> &, const int &, const double &, const int &, const int &, const double&);
+
+
 
 #endif

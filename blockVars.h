@@ -68,6 +68,7 @@ class blockVars {
   void SetState( const primVars &a, const int &ind){state[ind] = a;}
   primVars State(const int &ind) const {return state[ind];}
   vector<primVars> GetCopyState() const {return state;}
+  vector<colMatrix> GetCopyConsVars(const idealGas &) const; 
   const vector<primVars> & GetRefState() const {return state;}
   void SetInvFluxI( const inviscidFlux &a, const int &ind){invFluxI[ind] = a;}
   inviscidFlux InvFluxI(const int &ind) const {return invFluxI[ind];}
@@ -129,8 +130,9 @@ class blockVars {
   void CalcInvFluxJacK(const idealGas&, const input&, const int&, colMatrix&, matrixDiagonal&, matrixDiagonal&, const string&)const;
 
   void AddVolTime(colMatrix&, const double &, const double &)const;
+  vector<colMatrix> AddVolTime(const vector<colMatrix>&, const vector<colMatrix>&, const double &, const double &)const;
 
-  void DeltaNMinusOne( vector<primVars> &, const vector<primVars> &, const double &, const double &);
+  void DeltaNMinusOne( vector<colMatrix> &, const vector<colMatrix> &, const idealGas &, const double &, const double &);
 
   //destructor
   ~blockVars() {}

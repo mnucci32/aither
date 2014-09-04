@@ -870,23 +870,23 @@ void blockVars::UpdateBlock(const input &inputVars, const int &impFlag, const id
 //member function to advance the state vector to time n+1 using explicit Euler method
 void blockVars::ExplicitEulerTimeAdvance(const idealGas &eqnState, const int &loc ){
 
-  vector<double> consVars = (*this).State(loc).ConsVars(eqnState);
+  colMatrix consVars = (*this).State(loc).ConsVars(eqnState);
 
   //calculate updated conserved variables
-  consVars[0] = consVars[0] + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,0) ;
-  consVars[1] = consVars[1] + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,1) ;
-  consVars[2] = consVars[2] + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,2) ;
-  consVars[3] = consVars[3] + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,3) ;
-  consVars[4] = consVars[4] + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,4) ;
+  consVars.SetData(0, consVars.Data(0) + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,0) );
+  consVars.SetData(1, consVars.Data(1) + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,1) );
+  consVars.SetData(2, consVars.Data(2) + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,2) );
+  consVars.SetData(3, consVars.Data(3) + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,3) );
+  consVars.SetData(4, consVars.Data(4) + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,4) );
 
   //calculate updated primative variables
-  vector3d<double> vel(consVars[1]/consVars[0], consVars[2]/consVars[0], consVars[3]/consVars[0]);
+  vector3d<double> vel(consVars.Data(1)/consVars.Data(0), consVars.Data(2)/consVars.Data(0), consVars.Data(3)/consVars.Data(0));
 
-  primVars tempState (consVars[0],
+  primVars tempState (consVars.Data(0),
 		      vel.X(),
 		      vel.Y(),
 		      vel.Z(),
-		      eqnState.GetPressFromEnergy( consVars[0], consVars[4]/consVars[0], vel.Mag() ) );
+		      eqnState.GetPressFromEnergy( consVars.Data(0), consVars.Data(4)/consVars.Data(0), vel.Mag() ) );
 
   (*this).SetState(tempState, loc);
 
@@ -895,24 +895,24 @@ void blockVars::ExplicitEulerTimeAdvance(const idealGas &eqnState, const int &lo
 //member function to advance the state vector to time n+1 (for implicit methods)
 void blockVars::ImplicitTimeAdvance(const colMatrix &du, const idealGas &eqnState, const int &loc ){
 
-  vector<double> consVars = (*this).State(loc).ConsVars(eqnState);
+  colMatrix consVars = (*this).State(loc).ConsVars(eqnState);
 
   //calculate updated conserved variables
   for (int ii = 0; ii < du.Size(); ii++ ){
-    consVars[ii] += du.Data(ii);
+    consVars.SetData(ii, consVars.Data(ii) + du.Data(ii) );
   }
 
   // cout << "correction: " << endl;
   // cout << du << endl;
 
   //calculate updated primative variables
-  vector3d<double> vel(consVars[1]/consVars[0], consVars[2]/consVars[0], consVars[3]/consVars[0]);
+  vector3d<double> vel(consVars.Data(1)/consVars.Data(0), consVars.Data(2)/consVars.Data(0), consVars.Data(3)/consVars.Data(0));
 
-  primVars tempState (consVars[0],
+  primVars tempState (consVars.Data(0),
 		      vel.X(),
 		      vel.Y(),
 		      vel.Z(),
-		      eqnState.GetPressFromEnergy( consVars[0], consVars[4]/consVars[0], vel.Mag() ) );
+		      eqnState.GetPressFromEnergy( consVars.Data(0), consVars.Data(4)/consVars.Data(0), vel.Mag() ) );
 
   //check for positivity
   if (tempState.Rho() < 0.0 || tempState.P() < 0.0){
@@ -920,7 +920,7 @@ void blockVars::ImplicitTimeAdvance(const colMatrix &du, const idealGas &eqnStat
     cerr << "Updated Primative variables:" << endl << tempState << endl;
     cerr << "Original Primative variables:" << endl << (*this).State(loc) << endl;
     cerr << "Correction:" << endl << du << endl;
-    cerr << "Updated Conserved variables: " << consVars[0] << ", " << consVars[1] << ", " << consVars[2] << ", " << consVars[3] << ", " << consVars[4] << endl;
+    cerr << "Updated Conserved variables: " << consVars << endl;
     exit(1);
   }
 
@@ -934,65 +934,26 @@ void blockVars::RK4TimeAdvance( const primVars &currState, const idealGas &eqnSt
 
   double alpha[4] = {0.25, 1.0/3.0, 0.5, 1.0};
 
-  vector<double> consVars = currState.ConsVars(eqnState);
+  colMatrix consVars = currState.ConsVars(eqnState);
 
   //calculate updated conserved variables
-  consVars[0] = consVars[0] + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,0) ;
-  consVars[1] = consVars[1] + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,1) ;
-  consVars[2] = consVars[2] + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,2) ;
-  consVars[3] = consVars[3] + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,3) ;
-  consVars[4] = consVars[4] + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,4) ;
+  consVars.SetData(0, consVars.Data(0) + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,0) );
+  consVars.SetData(1, consVars.Data(1) + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,1) );
+  consVars.SetData(2, consVars.Data(2) + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,2) );
+  consVars.SetData(3, consVars.Data(3) + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,3) );
+  consVars.SetData(4, consVars.Data(4) + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,4) );
 
   //calculate updated primative variables
-  vector3d<double> vel(consVars[1]/consVars[0], consVars[2]/consVars[0], consVars[3]/consVars[0]);
+  vector3d<double> vel(consVars.Data(1)/consVars.Data(0), consVars.Data(2)/consVars.Data(0), consVars.Data(3)/consVars.Data(0));
 
-  primVars tempState (consVars[0],
+  primVars tempState (consVars.Data(0),
 		      vel.X(),
 		      vel.Y(),
 		      vel.Z(),
-		      eqnState.GetPressFromEnergy( consVars[0], consVars[4]/consVars[0], vel.Mag() ) );
+		      eqnState.GetPressFromEnergy( consVars.Data(0), consVars.Data(4)/consVars.Data(0), vel.Mag() ) );
 
   (*this).SetState(tempState, loc);
 }
-
-// void blockVars::TotalResidual( vector<double> &l2, vector<double> &linf, int &locMaxB, const int &bb){
-
-//   int imax = (*this).NumI()-1;
-//   int jmax = (*this).NumJ()-1;
-//   int kmax = (*this).NumK()-1;
-
-//   int ii = 0;
-//   int jj = 0;
-//   int kk = 0;
-//   int loc = 0;
-
-//   unsigned int ll = 0;
-
-//   for ( ii = 0; ii < imax; ii++ ){
-//     for ( jj = 0; jj < jmax; jj++ ){
-//       for ( kk = 0; kk < kmax; kk++ ){
-
-// 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
-
-// 	for ( ll = 0; ll < l2.size(); ll++ ){
-// 	  l2[ll] = l2[ll] + (*this).Residual(loc)[ll] * (*this).Residual(loc)[ll];
-
-// 	  if ( (*this).Residual(loc)[ll] > linf[4] ){
-// 	    linf[4] = (*this).Residual(loc)[ll];
-// 	    linf[3] = (double)ll+1;
-// 	    linf[2] = (double)kk;
-// 	    linf[1] = (double)jj;
-// 	    linf[0] = (double)ii;
-// 	    locMaxB = bb;
-
-// 	  }
-
-// 	}
-//       }
-//     }
-//   }
-
-// }
 
 //function to calculate the flux jacobians on the i-faces
 void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, const int &bb, colMatrix &mainDiag, matrixDiagonal &offLowIDiag, matrixDiagonal &offUpIDiag, const string &fluxJacType)const{
@@ -1519,8 +1480,31 @@ void blockVars::AddVolTime( colMatrix &mainDiag, const double &theta, const doub
 
 }
 
+//a member function to add the cell volume divided by the cell time step to the time m - time n term
+vector<colMatrix> blockVars::AddVolTime(const vector<colMatrix> &m, const vector<colMatrix> &n, const double &theta, const double &zeta) const {
+
+  int imax = (*this).NumI() - 1;
+  int jmax = (*this).NumJ() - 1;
+  int kmax = (*this).NumK() - 1;
+  int loc = 0;
+
+  vector<colMatrix> mMinusN = m;
+
+  for ( int ii = 0; ii < imax; ii++ ){
+    for ( int jj = 0; jj < jmax; jj++ ){
+      for ( int kk = 0; kk < kmax; kk++ ){
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	double I = ( (*this).Vol(loc) * (1.0 + zeta) ) / ( (*this).Dt(loc) * theta ) ;
+	mMinusN[loc] = I * (m[loc] - n[loc]);
+      }
+    }
+  }
+  return mMinusN;
+}
+
+
 //member function to calculate the delta n-1 term for the implicit bdf2 solver
-void blockVars::DeltaNMinusOne(vector<primVars> &solDeltaNm1, const vector<primVars> &solTimeN, const double &theta, const double &zeta){
+void blockVars::DeltaNMinusOne(vector<colMatrix> &solDeltaNm1, const vector<colMatrix> &solTimeN, const idealGas &eqnState, const double &theta, const double &zeta){
 
   int imax = (*this).NumI() - 1;
   int jmax = (*this).NumJ() - 1;
@@ -1532,7 +1516,7 @@ void blockVars::DeltaNMinusOne(vector<primVars> &solDeltaNm1, const vector<primV
       for ( int kk = 0; kk < kmax; kk++ ){
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
 	double coeff = ( (*this).Vol(loc) * zeta ) / ( (*this).Dt(loc) * theta ) ;
-	solDeltaNm1[loc] = coeff * ( (*this).State(loc) - solTimeN[loc] );
+	solDeltaNm1[loc] = coeff * ( (*this).State(loc).ConsVars(eqnState) - solTimeN[loc] );
       }
     }
   }
@@ -1540,3 +1524,26 @@ void blockVars::DeltaNMinusOne(vector<primVars> &solDeltaNm1, const vector<primV
 }
 
 
+//member function to return a copy of the conserved variables
+vector<colMatrix> blockVars::GetCopyConsVars(const idealGas &eqnState) const {
+
+  int imax = (*this).NumI() - 1;
+  int jmax = (*this).NumJ() - 1;
+  int kmax = (*this).NumK() - 1;
+  int loc = 0;
+
+  vector<colMatrix> consVars(imax*jmax*kmax);
+
+  for ( int ii = 0; ii < imax; ii++ ){
+    for ( int jj = 0; jj < jmax; jj++ ){
+      for ( int kk = 0; kk < kmax; kk++ ){
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	colMatrix temp = (*this).State(loc).ConsVars(eqnState);
+	consVars[loc] = temp;
+      }
+    }
+  }
+
+  return consVars;
+
+}
