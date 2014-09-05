@@ -161,6 +161,18 @@ void blockVars::AddToResidual(const inviscidFlux &flux, const int &ii){
   (*this).SetResidual( (*this).Residual(ii) + temp, ii); 
 }
 
+//member function to store the viscous flux class in the place for the residual
+void blockVars::AddToResidual(const viscousFlux &flux, const int &ii){
+  colMatrix temp(5);
+  temp.SetData(0, 0.0);
+  temp.SetData(1, flux.MomX());
+  temp.SetData(2, flux.MomY());
+  temp.SetData(3, flux.MomZ());
+  temp.SetData(4, flux.Engy());
+
+  (*this).SetResidual( (*this).Residual(ii) + temp, ii); 
+}
+
 //---------------------------------------------------------------------------------------------------------------//
 //function declarations
 //function to calculate the fluxes on the i-faces
@@ -201,7 +213,7 @@ void blockVars::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 	if ( ii == 0  ){                             //at i lower boundary ---------------------------------------------------------------------------------------------------------------
 	  bcName = bound.GetBCName(ii, jj, kk, "il");
 
-	  double upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
+	  int upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
 
 	  if (imax > 2 && kap != -2.0){ //if more than 2 faces thick, and second order, use linear extrapolation to get boundary state
 	    up2faceU = (*this).Center( upperI ).Distance( (*this).FCenterI(loc) );
@@ -220,7 +232,7 @@ void blockVars::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 	else if ( ii == imax-1 ){  //at i upper boundary -------------------------------------------------------------------------------------------------------------------------------------
 	  bcName = bound.GetBCName(ii, jj, kk, "iu");
 
-	  double lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
+	  int lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
 
 	  if (imax > 2 && kap != -2.0){
 	    up2faceL = (*this).Center( lowerI ).Distance( (*this).FCenterI(loc) );
@@ -242,14 +254,14 @@ void blockVars::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 	                                                          //ghost state should use boundary adjacent cell and boundary normal
 	  bcName = bound.GetBCName(ii-1, jj, kk, "il");           //get bc at ii=0
 
-	  double lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
-	  double upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
+	  int lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
+	  int upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
 
 	  ghostState = (*this).State( lowerI ).GetGhostState( bcName, (*this).FAreaI( GetNeighborLowI(ii, jj, kk, imax, jmax, 1) ), "il", inp, eqnState );
 
 	  up2faceL = (*this).Center( lowerI ).Distance( (*this).FCenterI(loc) );
 	  upwindL = (*this).FCenterI(loc).Distance( (*this).FCenterI( GetNeighborLowI(ii, jj, kk, imax, jmax) ) );        //due to ghost cell set upwind distance equal to local cell length
-	  centralL = (*this).Center( lowerI ).Distance( (*this).Center( lowerI ) );
+	  centralL = (*this).Center( lowerI ).Distance( (*this).Center( upperI ) );
 
 	  faceStateLower = (*this).State( lowerI ).FaceReconMUSCL( ghostState, (*this).State( lowerI ),lstr, kap, inp.Limiter(), up2faceL, upwindL, centralL );
 
@@ -274,8 +286,8 @@ void blockVars::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 	else if ( ii == imax-2 && kap != -2.0) {                 //upper face state reconstruction needs 1 ghost cell; set ghost cell equal to cell on boundary - works for inflow, outflow, slipwall
 	  bcName = bound.GetBCName(ii+1, jj, kk, "iu");          //get bc at ii = imax-1
 
-	  double lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
-	  double upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
+	  int lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
+	  int upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
 
 	  ghostState = (*this).State( upperI ).GetGhostState( bcName, (*this).FAreaI( GetNeighborUpI(ii, jj, kk, imax, jmax, 1) ), "iu", inp, eqnState );
 
@@ -305,8 +317,8 @@ void blockVars::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 	else{  //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 	  //calculate 2 reconstructed face states for lower i face
 
-	  double lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
-	  double upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
+	  int lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
+	  int upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
 
 	  if (kap == -2.0){  //if value is still default, use constant reconstruction
 	    faceStateLower = (*this).State( lowerI ).FaceReconConst();
@@ -386,7 +398,7 @@ void blockVars::CalcInvFluxJ(const idealGas &eqnState, const input &inp, const i
 	if ( jj == 0  ){                             //at j lower boundary --------------------------------------------------------------------------------------------------------------
 	  bcName = bound.GetBCName(ii, jj, kk, "jl");
 
-	  double upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
+	  int upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
 
 	  if (jmax > 2 && kap != -2.0){
 	    up2faceU = (*this).Center( upperJ ).Distance( (*this).FCenterJ(loc) );
@@ -407,7 +419,7 @@ void blockVars::CalcInvFluxJ(const idealGas &eqnState, const input &inp, const i
 	else if ( jj == jmax-1 ){  //at j upper boundary ---------------------------------------------------------------------------------------------------------------------------------
 	  bcName = bound.GetBCName(ii, jj, kk, "ju");
 
-	  double lowerJ = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
+	  int lowerJ = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
 
 	  if (jmax > 2 && kap != -2.0){
 	    up2faceL = (*this).Center( lowerJ ).Distance( (*this).FCenterJ(loc) );
@@ -429,8 +441,8 @@ void blockVars::CalcInvFluxJ(const idealGas &eqnState, const input &inp, const i
 	else if ( jj == 1 && kap != -2.0){                        //lower face state reconstruction needs 1 ghost cell; set ghost cell equal to cell on boundary - works for inflow, outflow, slipwall
 	  bcName = bound.GetBCName(ii, jj-1, kk, "jl");           //get bc at jj=0
 
-	  double lowerJ = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
-	  double upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
+	  int lowerJ = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
+	  int upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
 
 	  ghostState = (*this).State( lowerJ ).GetGhostState( bcName, (*this).FAreaJ( GetNeighborLowJ(ii, jj, kk, imax, jmax, 1) ), "jl", inp, eqnState );
 
@@ -461,8 +473,8 @@ void blockVars::CalcInvFluxJ(const idealGas &eqnState, const input &inp, const i
 	else if ( jj == jmax-2 && kap != -2.0) {                 //upper face state reconstruction needs 1 ghost cell; set ghost cell equal to cell on boundary - works for inflow, outflow, slipwall
 	  bcName = bound.GetBCName(ii, jj+1, kk, "ju");          //get bc at jj=jmax-1
 
-	  double lowerJ = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
-	  double upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
+	  int lowerJ = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
+	  int upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
 
 	  ghostState = (*this).State( upperJ ).GetGhostState( bcName, (*this).FAreaJ( GetNeighborUpJ(ii, jj, kk, imax, jmax, 1) ), "ju", inp, eqnState );
 
@@ -492,8 +504,8 @@ void blockVars::CalcInvFluxJ(const idealGas &eqnState, const input &inp, const i
 	else{ // -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 	  //calculate 2 reconstructed face states for lower j face
 
-	  double lowerJ = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
-	  double upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
+	  int lowerJ = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
+	  int upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
 
 	  if ( kap == -2.0 ){                         //if value is still default, use constant reconstruction
 	    faceStateLower = (*this).State( lowerJ ).FaceReconConst();
@@ -573,7 +585,7 @@ void blockVars::CalcInvFluxK(const idealGas &eqnState, const input &inp, const i
 	if ( kk == 0  ){                             //at k lower boundary -------------------------------------------------------------------------------------------------------------------
 	  bcName = bound.GetBCName(ii, jj, kk, "kl");
 
-	  double upperK = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
+	  int upperK = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
 
 	  if (kmax > 2 && kap != -2.0){
 	    up2faceU = (*this).Center( upperK ).Distance( (*this).FCenterK(loc) );
@@ -594,7 +606,7 @@ void blockVars::CalcInvFluxK(const idealGas &eqnState, const input &inp, const i
 	else if ( kk == kmax-1 ){  //at k upper boundary --------------------------------------------------------------------------------------------------------------------------------------
 	  bcName = bound.GetBCName(ii, jj, kk, "ku");
 
-	  double lowerK = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
+	  int lowerK = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
 
 	  if (kmax > 2 && kap != -2.0){
 	    up2faceL = (*this).Center( lowerK ).Distance( (*this).FCenterK(loc) );
@@ -616,8 +628,8 @@ void blockVars::CalcInvFluxK(const idealGas &eqnState, const input &inp, const i
 	else if ( kk == 1 && kap != -2.0){                        //lower face state reconstruction needs 1 ghost cell; set ghost cell equal to cell on boundary - works for inflow, outflow, slipwall
 	  bcName = bound.GetBCName(ii, jj, kk-1, "kl");           //get bc at kk=0
 
-	  double lowerK = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
-	  double upperK = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
+	  int lowerK = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
+	  int upperK = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
 
 	  ghostState = (*this).State( upperK ).GetGhostState( bcName, (*this).FAreaK( GetNeighborLowK(ii, jj, kk, imax, jmax, 1) ), "kl", inp, eqnState );
 
@@ -649,8 +661,8 @@ void blockVars::CalcInvFluxK(const idealGas &eqnState, const input &inp, const i
 	else if ( kk == kmax-2 && kap != -2.0) {                 //upper face state reconstruction needs 1 ghost cell; set ghost cell equal to cell on boundary - works for inflow, outflow, slipwall
 	  bcName = bound.GetBCName(ii, jj, kk+1, "ku");          //get bc at kk=kmax-1
 
-	  double lowerK = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
-	  double upperK = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
+	  int lowerK = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
+	  int upperK = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
 
 	  ghostState = (*this).State( upperK ).GetGhostState( bcName, (*this).FAreaK( GetNeighborUpK(ii, jj, kk, imax, jmax, 1) ), "ku", inp, eqnState );
 
@@ -679,8 +691,8 @@ void blockVars::CalcInvFluxK(const idealGas &eqnState, const input &inp, const i
 	}
 	else{ // -------------------------------------------------------------------------------------------------------------------------------------------------------------------
 	  //calculate 2 reconstructed face states for lower k face
-	  double lowerK = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
-	  double upperK = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
+	  int lowerK = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
+	  int upperK = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
 
 	  if ( kap == -2.0 ){                         //if value is still default, use constant reconstruction
 	    faceStateLower = (*this).State( lowerK ).FaceReconConst();
@@ -911,11 +923,11 @@ void blockVars::ExplicitEulerTimeAdvance(const idealGas &eqnState, const int &lo
   colMatrix consVars = (*this).State(loc).ConsVars(eqnState);
 
   //calculate updated conserved variables
-  consVars.SetData(0, consVars.Data(0) + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,0) );
-  consVars.SetData(1, consVars.Data(1) + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,1) );
-  consVars.SetData(2, consVars.Data(2) + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,2) );
-  consVars.SetData(3, consVars.Data(3) + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,3) );
-  consVars.SetData(4, consVars.Data(4) + (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,4) );
+  consVars.SetData(0, consVars.Data(0) - (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,0) );
+  consVars.SetData(1, consVars.Data(1) - (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,1) );
+  consVars.SetData(2, consVars.Data(2) - (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,2) );
+  consVars.SetData(3, consVars.Data(3) - (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,3) );
+  consVars.SetData(4, consVars.Data(4) - (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,4) );
 
   //calculate updated primative variables
   vector3d<double> vel(consVars.Data(1)/consVars.Data(0), consVars.Data(2)/consVars.Data(0), consVars.Data(3)/consVars.Data(0));
@@ -975,11 +987,11 @@ void blockVars::RK4TimeAdvance( const primVars &currState, const idealGas &eqnSt
   colMatrix consVars = currState.ConsVars(eqnState);
 
   //calculate updated conserved variables
-  consVars.SetData(0, consVars.Data(0) + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,0) );
-  consVars.SetData(1, consVars.Data(1) + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,1) );
-  consVars.SetData(2, consVars.Data(2) + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,2) );
-  consVars.SetData(3, consVars.Data(3) + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,3) );
-  consVars.SetData(4, consVars.Data(4) + dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,4) );
+  consVars.SetData(0, consVars.Data(0) - dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,0) );
+  consVars.SetData(1, consVars.Data(1) - dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,1) );
+  consVars.SetData(2, consVars.Data(2) - dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,2) );
+  consVars.SetData(3, consVars.Data(3) - dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,3) );
+  consVars.SetData(4, consVars.Data(4) - dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,4) );
 
   //calculate updated primative variables
   vector3d<double> vel(consVars.Data(1)/consVars.Data(0), consVars.Data(2)/consVars.Data(0), consVars.Data(3)/consVars.Data(0));
@@ -992,6 +1004,35 @@ void blockVars::RK4TimeAdvance( const primVars &currState, const idealGas &eqnSt
 
   (*this).SetState(tempState, loc);
 }
+
+void blockVars::ResetResidWS( ){
+
+  colMatrix initial( (*this).Residual(0).Size() );
+  initial.Zero();
+
+  int imax = (*this).NumI() - 1;
+  int jmax = (*this).NumJ() - 1;
+  int kmax = (*this).NumK() - 1;
+  int loc = 0;
+
+  for ( int ii = 0; ii < imax; ii++ ){
+    for ( int jj = 0; jj < jmax; jj++ ){
+      for ( int kk = 0; kk < kmax; kk++ ){
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+
+	//reset residual
+	(*this).SetResidual( initial, loc ) ;
+	
+	//reset wave speed
+	(*this).SetAvgWaveSpeed( 0.0, loc ) ;
+
+      }
+    }
+  }
+
+
+}
+
 
 //function to calculate the flux jacobians on the i-faces
 void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, const int &bb, colMatrix &mainDiag, matrixDiagonal &offLowIDiag, matrixDiagonal &offUpIDiag, const string &fluxJacType)const{

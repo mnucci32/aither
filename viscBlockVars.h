@@ -28,13 +28,9 @@ class viscBlockVars {
   int numJ;
   int numK;
 
-  vector<viscousFlux> viscFluxI;            //viscous flux on i-faces
-  vector<viscousFlux> viscFluxJ;            //viscous flux on j-faces
-  vector<viscousFlux> viscFluxK;            //viscous flux on k-faces
-
   vector<tensor<double> > velGrad;          //velocity gradient on i-faces
-
   vector<vector3d<double> > tempGrad;       //temperature gradient on i-faces
+  vector<double> avgViscSpeed;              //average max wave speed for viscous terms
 
  public:
   //constructors
@@ -50,13 +46,6 @@ class viscBlockVars {
   int NumJ() const {return numJ;}
   void SetK( const int &a){numK = a;}
   int NumK() const {return numK;}
-
-  void SetViscFluxI( const viscousFlux &a, const int &ind){viscFluxI[ind] = a;}
-  viscousFlux ViscFluxI(const int &ind) const {return viscFluxI[ind];}
-  void SetViscFluxJ( const viscousFlux &a, const int &ind){viscFluxJ[ind] = a;}
-  viscousFlux ViscFluxJ(const int &ind) const {return viscFluxJ[ind];}
-  void SetViscFluxK( const viscousFlux &a, const int &ind){viscFluxK[ind] = a;}
-  viscousFlux ViscFluxK(const int &ind) const {return viscFluxK[ind];}
 
   void SetVelGrad( const tensor<double> &a, const int &ind){velGrad[ind] = a;}
   tensor<double> VelGrad(const int &ind) const {return velGrad[ind];}
@@ -77,15 +66,15 @@ class viscBlockVars {
 
   void CalcCellGrads(const blockVars&, const idealGas&, const input&, const int&);
 
-  void CalcViscFluxI(const blockVars&, const sutherland&, const idealGas&, const input&, const int&);
-  void CalcViscFluxJ(const blockVars&, const sutherland&, const idealGas&, const input&, const int&);
-  void CalcViscFluxK(const blockVars&, const sutherland&, const idealGas&, const input&, const int&);
+  void CalcViscFluxI(blockVars&, const sutherland&, const idealGas&, const input&, const int&);
+  void CalcViscFluxJ(blockVars&, const sutherland&, const idealGas&, const input&, const int&);
+  void CalcViscFluxK(blockVars&, const sutherland&, const idealGas&, const input&, const int&);
 
   void CalcViscFluxJacI(const blockVars&, const sutherland&, const idealGas&, const input&, const int&);
 
-  void CalcCellResidual(blockVars&, const int&, const int&, const int&, const int&, const int&)const;
+  //void CalcCellResidual(blockVars&, const int&, const int&, const int&, const int&, const int&)const;
 
-  void CalcBlockResidDT(blockVars&, const input&, const double&);
+  void CalcBlockTimeStep(blockVars&, const input&, const double&);
 
   //destructor
   ~viscBlockVars() {}

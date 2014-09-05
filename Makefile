@@ -21,7 +21,7 @@ input.o : input.cpp input.h boundaryConditions.h
 primVars.o : primVars.cpp primVars.h vector3d.h eos.h inviscidFlux.h boundaryConditions.h input.h
 	$(CC) $(CFLAGS) primVars.cpp
 
-blockVars.o : blockVars.cpp blockVars.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h matrix.h
+blockVars.o : blockVars.cpp blockVars.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h matrix.h viscousFlux.h
 	$(CC) $(CFLAGS) blockVars.cpp
 
 inviscidFlux.o : inviscidFlux.cpp vector3d.h eos.h primVars.h inviscidFlux.h boundaryConditions.h input.h
@@ -45,11 +45,11 @@ output.o : output.cpp output.h blockVars.h tensor.h vector3d.h plot3d.h eos.h pr
 matrix.o : matrix.cpp matrix.h plot3d.h
 	$(CC) $(CFLAGS) matrix.cpp
 
-testMain.o : testMain.cpp matrix.h
+testMain.o : testMain.cpp
 	$(CC) $(CFLAGS) testMain.cpp
 
-testMain : testMain.o matrix.o
-	$(CC) $(LFLAGS) testMain.o matrix.o
+testMain : testMain.o
+	$(CC) $(LFLAGS) testMain.o
 
 clean:
 	rm *.o *~ $(CODENAME)

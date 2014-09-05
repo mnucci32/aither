@@ -24,25 +24,14 @@ viscBlockVars::viscBlockVars(){
   numK = 2;
 
   int lenCell = (numI-1)*(numJ-1)*(numK-1);
-  int lenFaceI = numI*(numJ-1)*(numK-1);  
-  int lenFaceJ = (numI-1)*numJ*(numK-1);  
-  int lenFaceK = (numI-1)*(numJ-1)*numK;  
-
-  vector<viscousFlux> vFluxI (lenFaceI);              //dummy viscous flux vector for i-faces
-  vector<viscousFlux> vFluxJ (lenFaceJ);              //dummy viscous flux vector for j-faces
-  vector<viscousFlux> vFluxK (lenFaceK);              //dummy viscous flux vector for k-faces
 
   vector<tensor<double> > vGrad (lenCell);              //dummy velocity gradient tensor for cell centers
-
+  vector<double> speed(lenCell);
   vector<vector3d<double> > tGrad (lenCell);              //dummy temperature gradient vector3d for cell centers
 
-  viscFluxI = vFluxI;
-  viscFluxJ = vFluxJ;
-  viscFluxK = vFluxK;
-
   velGrad = vGrad;
-
   tempGrad = tGrad;
+  avgViscSpeed = speed;
 
 }
 //constructor -- initialize state vector with dummy variables
@@ -53,25 +42,14 @@ viscBlockVars::viscBlockVars(const plot3dBlock &blk){
   length = numI * numJ * numK;
 
   int lenCell = (numI-1)*(numJ-1)*(numK-1);
-  int lenFaceI = numI*(numJ-1)*(numK-1);  
-  int lenFaceJ = (numI-1)*numJ*(numK-1);  
-  int lenFaceK = (numI-1)*(numJ-1)*numK;  
-
-  vector<viscousFlux> vFluxI (lenFaceI);              //dummy viscous flux vector for i-faces
-  vector<viscousFlux> vFluxJ (lenFaceJ);              //dummy viscous flux vector for j-faces
-  vector<viscousFlux> vFluxK (lenFaceK);              //dummy viscous flux vector for k-faces
 
   vector<tensor<double> > vGrad (lenCell);              //dummy velocity gradient tensor for cell centers
-
+  vector<double> speed(lenCell);
   vector<vector3d<double> > tGrad (lenCell);              //dummy temperature gradient vector3d for cell centers
 
-  viscFluxI = vFluxI;
-  viscFluxJ = vFluxJ;
-  viscFluxK = vFluxK;
-
   velGrad = vGrad;
-
   tempGrad = tGrad;
+  avgViscSpeed = speed;
 
 }
 
@@ -352,7 +330,7 @@ void viscBlockVars::CalcCellGrads(const blockVars &vars, const idealGas &eqnStat
 }
 
 //member function to calculate viscous fluxes on i-faces
-void viscBlockVars::CalcViscFluxI(const blockVars &vars, const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb){
+void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb){
 
   int imax = (*this).NumI();
   int jmax = (*this).NumJ() - 1;
@@ -392,7 +370,7 @@ void viscBlockVars::CalcViscFluxI(const blockVars &vars, const sutherland &suth,
 
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
 
-	if (ii == 0){
+	if (ii == 0){ //-----------------------------------------------------------------------------------------------------------------------------------------
 
 	  iUp  = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
 
@@ -414,11 +392,12 @@ void viscBlockVars::CalcViscFluxI(const blockVars &vars, const sutherland &suth,
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaI(loc) );
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
-	  (*this).SetViscFluxI(tempViscFlux, loc);
 
+	  //at lower boundary normal points into cell, so need to subtract from residual
+	  vars.AddToResidual(-1.0 * tempViscFlux * vars.FAreaI(loc).Mag(), iUp);
 
 	}
-	else if (ii == imax-1){
+	else if (ii == imax-1){ //---------------------------------------------------------------------------------------------------------------------------------------
 
 	  iLow  = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
 
@@ -440,10 +419,12 @@ void viscBlockVars::CalcViscFluxI(const blockVars &vars, const sutherland &suth,
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaI(loc) );
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
-	  (*this).SetViscFluxI(tempViscFlux, loc);
+
+	  //at upper boundary normal points out of cell, so need to add to residual
+	  vars.AddToResidual(tempViscFlux * vars.FAreaI(loc).Mag(), iLow);
 
 	}
-	else{
+	else{ //------------------------------------------------------------------------------------------------------------------------------------------------
 
 	  iLow  = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
 	  iUp  = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
@@ -460,7 +441,10 @@ void viscBlockVars::CalcViscFluxI(const blockVars &vars, const sutherland &suth,
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaI(loc) );
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
-	  (*this).SetViscFluxI(tempViscFlux, loc);
+
+	  //area vector points from left to right, so add to left cell, subtract from right cell
+	  vars.AddToResidual( tempViscFlux * vars.FAreaI(loc).Mag(), iLow);
+	  vars.AddToResidual( -1.0 * tempViscFlux * vars.FAreaI(loc).Mag(), iUp);
 
 	}
 
@@ -474,7 +458,7 @@ void viscBlockVars::CalcViscFluxI(const blockVars &vars, const sutherland &suth,
 
 
 //member function to calculate viscous fluxes on j-faces
-void viscBlockVars::CalcViscFluxJ(const blockVars &vars, const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb){
+void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb){
 
   int imax = (*this).NumI() - 1;
   int jmax = (*this).NumJ();
@@ -513,7 +497,7 @@ void viscBlockVars::CalcViscFluxJ(const blockVars &vars, const sutherland &suth,
 
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
 
-	if (jj == 0){
+	if (jj == 0){ //-------------------------------------------------------------------------------------------------------------------------------------
 
 	  jUp  = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
 
@@ -535,11 +519,12 @@ void viscBlockVars::CalcViscFluxJ(const blockVars &vars, const sutherland &suth,
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaJ(loc) );
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
-	  (*this).SetViscFluxJ(tempViscFlux, loc);
 
+	  //at lower boundary normal points into cell, so need to subtract from residual
+	  vars.AddToResidual(-1.0 * tempViscFlux * vars.FAreaJ(loc).Mag(), jUp);
 
 	}
-	else if (jj == jmax-1){
+	else if (jj == jmax-1){ //--------------------------------------------------------------------------------------------------------------------------------
 
 	  jLow  = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
 
@@ -561,10 +546,12 @@ void viscBlockVars::CalcViscFluxJ(const blockVars &vars, const sutherland &suth,
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaJ(loc) );
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
-	  (*this).SetViscFluxJ(tempViscFlux, loc);
+
+	  //at upper boundary normal points out of cell, so need to add to residual
+	  vars.AddToResidual(tempViscFlux * vars.FAreaJ(loc).Mag(), jLow);
 
 	}
-	else{
+	else{ //-----------------------------------------------------------------------------------------------------------------------------------------------
 
 	  jLow  = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
 	  jUp  = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
@@ -581,7 +568,10 @@ void viscBlockVars::CalcViscFluxJ(const blockVars &vars, const sutherland &suth,
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaJ(loc) );
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
-	  (*this).SetViscFluxJ(tempViscFlux, loc);
+
+	  //area vector points from left to right, so add to left cell, subtract from right cell
+	  vars.AddToResidual( tempViscFlux * vars.FAreaJ(loc).Mag(), jLow);
+	  vars.AddToResidual( -1.0 * tempViscFlux * vars.FAreaJ(loc).Mag(), jUp);
 
 	}
 
@@ -594,7 +584,7 @@ void viscBlockVars::CalcViscFluxJ(const blockVars &vars, const sutherland &suth,
 
 
 //member function to calculate viscous fluxes on j-faces
-void viscBlockVars::CalcViscFluxK(const blockVars &vars, const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb){
+void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb){
 
   int imax = (*this).NumI() - 1;
   int jmax = (*this).NumJ() - 1;
@@ -633,7 +623,7 @@ void viscBlockVars::CalcViscFluxK(const blockVars &vars, const sutherland &suth,
 
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
 
-	if (kk == 0){
+	if (kk == 0){ //-----------------------------------------------------------------------------------------------------------------------------------
 
 	  kUp  = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
 
@@ -655,11 +645,12 @@ void viscBlockVars::CalcViscFluxK(const blockVars &vars, const sutherland &suth,
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaK(loc) );
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
-	  (*this).SetViscFluxK(tempViscFlux, loc);
 
+	  //at lower boundary normal points into cell, so need to subtract from residual
+	  vars.AddToResidual(-1.0 * tempViscFlux * vars.FAreaK(loc).Mag(), kUp);
 
 	}
-	else if (kk == kmax-1){
+	else if (kk == kmax-1){ //----------------------------------------------------------------------------------------------------------------------------
 
 	  kLow  = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
 
@@ -681,10 +672,12 @@ void viscBlockVars::CalcViscFluxK(const blockVars &vars, const sutherland &suth,
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaK(loc) );
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
-	  (*this).SetViscFluxK(tempViscFlux, loc);
+
+	  //at upper boundary normal points out of cell, so need to add to residual
+	  vars.AddToResidual(tempViscFlux * vars.FAreaK(loc).Mag(), kLow);
 
 	}
-	else{
+	else{ //-----------------------------------------------------------------------------------------------------------------------------------------------------
 
 	  kLow  = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
 	  kUp  = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
@@ -701,7 +694,10 @@ void viscBlockVars::CalcViscFluxK(const blockVars &vars, const sutherland &suth,
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaK(loc) );
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
-	  (*this).SetViscFluxK(tempViscFlux, loc);
+
+	  //area vector points from left to right, so add to left cell, subtract from right cell
+	  vars.AddToResidual( tempViscFlux * vars.FAreaK(loc).Mag(), kLow);
+	  vars.AddToResidual( -1.0 * tempViscFlux * vars.FAreaK(loc).Mag(), kUp);
 
 	}
 
@@ -775,7 +771,6 @@ void viscBlockVars::CalcViscFluxJacI(const blockVars &vars, const sutherland &su
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaI(loc) );
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
-	  (*this).SetViscFluxI(tempViscFlux, loc);
 
 
 	}
@@ -801,7 +796,7 @@ void viscBlockVars::CalcViscFluxJacI(const blockVars &vars, const sutherland &su
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaI(loc) );
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
-	  (*this).SetViscFluxI(tempViscFlux, loc);
+
 
 	}
 	else{
@@ -821,7 +816,7 @@ void viscBlockVars::CalcViscFluxJacI(const blockVars &vars, const sutherland &su
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaI(loc) );
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
-	  (*this).SetViscFluxI(tempViscFlux, loc);
+
 
 	}
 
@@ -834,52 +829,52 @@ void viscBlockVars::CalcViscFluxJacI(const blockVars &vars, const sutherland &su
 
 
 //this member function calculates the residual for a viscous simulation
-void viscBlockVars::CalcCellResidual(blockVars &vars, const int &ii, const int &jj, const int &kk, const int &imax, const int &jmax)const{
+// void viscBlockVars::CalcCellResidual(blockVars &vars, const int &ii, const int &jj, const int &kk, const int &imax, const int &jmax)const{
 
-  colMatrix resid(5);
+//   colMatrix resid(5);
 
-  int loc = GetLoc1D(ii, jj, kk, imax, jmax);
-  int iLow = GetLowerFaceI(ii, jj, kk, imax, jmax); 
-  int iUp  = GetUpperFaceI(ii, jj, kk, imax, jmax);
-  int jLow = GetLowerFaceJ(ii, jj, kk, imax, jmax);
-  int jUp  = GetUpperFaceJ(ii, jj, kk, imax, jmax);
-  int kLow = GetLowerFaceK(ii, jj, kk, imax, jmax);
-  int kUp  = GetUpperFaceK(ii, jj, kk, imax, jmax);
+//   int loc = GetLoc1D(ii, jj, kk, imax, jmax);
+//   int iLow = GetLowerFaceI(ii, jj, kk, imax, jmax); 
+//   int iUp  = GetUpperFaceI(ii, jj, kk, imax, jmax);
+//   int jLow = GetLowerFaceJ(ii, jj, kk, imax, jmax);
+//   int jUp  = GetUpperFaceJ(ii, jj, kk, imax, jmax);
+//   int kLow = GetLowerFaceK(ii, jj, kk, imax, jmax);
+//   int kUp  = GetUpperFaceK(ii, jj, kk, imax, jmax);
 
-  //Area vector points nominally from lower index to upper index, so the upper index fluxes must be multiplied by -1 so vector points into cell and for conservation
-  resid.SetData(0,        vars.InvFluxI(iLow).RhoVel()  * vars.FAreaI(iLow).Mag() +     vars.InvFluxJ(jLow).RhoVel()  * vars.FAreaJ(jLow).Mag() +     vars.InvFluxK(kLow).RhoVel()  * vars.FAreaK(kLow).Mag() 
-		-1.0 * vars.InvFluxI(iUp).RhoVel()   * vars.FAreaI(iUp).Mag() -1.0 * vars.InvFluxJ(jUp).RhoVel()   * vars.FAreaJ(jUp).Mag() -1.0 * vars.InvFluxK(kUp).RhoVel()   * vars.FAreaK(kUp).Mag() );
-
-
-  resid.SetData(1,        (vars.InvFluxI(iLow).RhoVelU() + (*this).ViscFluxI(iLow).MomX()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelU() + (*this).ViscFluxJ(jLow).MomX()) * vars.FAreaJ(jLow).Mag() +
-                    (vars.InvFluxK(kLow).RhoVelU() + (*this).ViscFluxK(kLow).MomX()) * vars.FAreaK(kLow).Mag() 
-             -1.0 * (vars.InvFluxI(iUp).RhoVelU()  + (*this).ViscFluxI(iUp).MomX())  * vars.FAreaI(iUp).Mag()  -1.0 * (vars.InvFluxJ(jUp).RhoVelU()  + (*this).ViscFluxJ(jUp).MomX())  * vars.FAreaJ(jUp).Mag()
-		-1.0 * (vars.InvFluxK(kUp).RhoVelU()  + (*this).ViscFluxK(kUp).MomX())  * vars.FAreaK(kUp).Mag() );
+//   //Area vector points nominally from lower index to upper index, so the upper index fluxes must be multiplied by -1 so vector points into cell and for conservation
+//   resid.SetData(0,        vars.InvFluxI(iLow).RhoVel()  * vars.FAreaI(iLow).Mag() +     vars.InvFluxJ(jLow).RhoVel()  * vars.FAreaJ(jLow).Mag() +     vars.InvFluxK(kLow).RhoVel()  * vars.FAreaK(kLow).Mag() 
+// 		-1.0 * vars.InvFluxI(iUp).RhoVel()   * vars.FAreaI(iUp).Mag() -1.0 * vars.InvFluxJ(jUp).RhoVel()   * vars.FAreaJ(jUp).Mag() -1.0 * vars.InvFluxK(kUp).RhoVel()   * vars.FAreaK(kUp).Mag() );
 
 
-  resid.SetData(2,        (vars.InvFluxI(iLow).RhoVelV() + (*this).ViscFluxI(iLow).MomY()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelV() + (*this).ViscFluxJ(jLow).MomY()) * vars.FAreaJ(jLow).Mag() +
-                    (vars.InvFluxK(kLow).RhoVelV() + (*this).ViscFluxK(kLow).MomY()) * vars.FAreaK(kLow).Mag() 
-             -1.0 * (vars.InvFluxI(iUp).RhoVelV()  + (*this).ViscFluxI(iUp).MomY())  * vars.FAreaI(iUp).Mag()  -1.0 * (vars.InvFluxJ(jUp).RhoVelV()  + (*this).ViscFluxJ(jUp).MomY())  * vars.FAreaJ(jUp).Mag()
-		-1.0 * (vars.InvFluxK(kUp).RhoVelV()  + (*this).ViscFluxK(kUp).MomY())  * vars.FAreaK(kUp).Mag() );
+//   resid.SetData(1,        (vars.InvFluxI(iLow).RhoVelU() + (*this).ViscFluxI(iLow).MomX()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelU() + (*this).ViscFluxJ(jLow).MomX()) * vars.FAreaJ(jLow).Mag() +
+//                     (vars.InvFluxK(kLow).RhoVelU() + (*this).ViscFluxK(kLow).MomX()) * vars.FAreaK(kLow).Mag() 
+//              -1.0 * (vars.InvFluxI(iUp).RhoVelU()  + (*this).ViscFluxI(iUp).MomX())  * vars.FAreaI(iUp).Mag()  -1.0 * (vars.InvFluxJ(jUp).RhoVelU()  + (*this).ViscFluxJ(jUp).MomX())  * vars.FAreaJ(jUp).Mag()
+// 		-1.0 * (vars.InvFluxK(kUp).RhoVelU()  + (*this).ViscFluxK(kUp).MomX())  * vars.FAreaK(kUp).Mag() );
 
 
-  resid.SetData(3,        (vars.InvFluxI(iLow).RhoVelW() + (*this).ViscFluxI(iLow).MomZ()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelW() + (*this).ViscFluxJ(jLow).MomZ()) * vars.FAreaJ(jLow).Mag() +
-                    (vars.InvFluxK(kLow).RhoVelW() + (*this).ViscFluxK(kLow).MomZ()) * vars.FAreaK(kLow).Mag() 
-             -1.0 * (vars.InvFluxI(iUp).RhoVelW()  + (*this).ViscFluxI(iUp).MomZ())  * vars.FAreaI(iUp).Mag()  -1.0 * (vars.InvFluxJ(jUp).RhoVelW()  + (*this).ViscFluxJ(jUp).MomZ())  * vars.FAreaJ(jUp).Mag()
-		-1.0 * (vars.InvFluxK(kUp).RhoVelW()  + (*this).ViscFluxK(kUp).MomZ())  * vars.FAreaK(kUp).Mag() );
+//   resid.SetData(2,        (vars.InvFluxI(iLow).RhoVelV() + (*this).ViscFluxI(iLow).MomY()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelV() + (*this).ViscFluxJ(jLow).MomY()) * vars.FAreaJ(jLow).Mag() +
+//                     (vars.InvFluxK(kLow).RhoVelV() + (*this).ViscFluxK(kLow).MomY()) * vars.FAreaK(kLow).Mag() 
+//              -1.0 * (vars.InvFluxI(iUp).RhoVelV()  + (*this).ViscFluxI(iUp).MomY())  * vars.FAreaI(iUp).Mag()  -1.0 * (vars.InvFluxJ(jUp).RhoVelV()  + (*this).ViscFluxJ(jUp).MomY())  * vars.FAreaJ(jUp).Mag()
+// 		-1.0 * (vars.InvFluxK(kUp).RhoVelV()  + (*this).ViscFluxK(kUp).MomY())  * vars.FAreaK(kUp).Mag() );
 
 
-  resid.SetData(4,        (vars.InvFluxI(iLow).RhoVelH() + (*this).ViscFluxI(iLow).Engy()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelH() + (*this).ViscFluxJ(jLow).Engy()) * vars.FAreaJ(jLow).Mag() +
-                    (vars.InvFluxK(kLow).RhoVelH() + (*this).ViscFluxK(kLow).Engy()) * vars.FAreaK(kLow).Mag() 
-             -1.0 * (vars.InvFluxI(iUp).RhoVelH()  + (*this).ViscFluxI(iUp).Engy())  * vars.FAreaI(iUp).Mag()  -1.0 * (vars.InvFluxJ(jUp).RhoVelH()  + (*this).ViscFluxJ(jUp).Engy())  * vars.FAreaJ(jUp).Mag()
-		-1.0 * (vars.InvFluxK(kUp).RhoVelH()  + (*this).ViscFluxK(kUp).Engy())  * vars.FAreaK(kUp).Mag() );
-
-  vars.SetResidual(resid, loc);
-
-}
+//   resid.SetData(3,        (vars.InvFluxI(iLow).RhoVelW() + (*this).ViscFluxI(iLow).MomZ()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelW() + (*this).ViscFluxJ(jLow).MomZ()) * vars.FAreaJ(jLow).Mag() +
+//                     (vars.InvFluxK(kLow).RhoVelW() + (*this).ViscFluxK(kLow).MomZ()) * vars.FAreaK(kLow).Mag() 
+//              -1.0 * (vars.InvFluxI(iUp).RhoVelW()  + (*this).ViscFluxI(iUp).MomZ())  * vars.FAreaI(iUp).Mag()  -1.0 * (vars.InvFluxJ(jUp).RhoVelW()  + (*this).ViscFluxJ(jUp).MomZ())  * vars.FAreaJ(jUp).Mag()
+// 		-1.0 * (vars.InvFluxK(kUp).RhoVelW()  + (*this).ViscFluxK(kUp).MomZ())  * vars.FAreaK(kUp).Mag() );
 
 
-void viscBlockVars::CalcBlockResidDT( blockVars &vars, const input &inputVars, const double &aRef){
+//   resid.SetData(4,        (vars.InvFluxI(iLow).RhoVelH() + (*this).ViscFluxI(iLow).Engy()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelH() + (*this).ViscFluxJ(jLow).Engy()) * vars.FAreaJ(jLow).Mag() +
+//                     (vars.InvFluxK(kLow).RhoVelH() + (*this).ViscFluxK(kLow).Engy()) * vars.FAreaK(kLow).Mag() 
+//              -1.0 * (vars.InvFluxI(iUp).RhoVelH()  + (*this).ViscFluxI(iUp).Engy())  * vars.FAreaI(iUp).Mag()  -1.0 * (vars.InvFluxJ(jUp).RhoVelH()  + (*this).ViscFluxJ(jUp).Engy())  * vars.FAreaJ(jUp).Mag()
+// 		-1.0 * (vars.InvFluxK(kUp).RhoVelH()  + (*this).ViscFluxK(kUp).Engy())  * vars.FAreaK(kUp).Mag() );
+
+//   vars.SetResidual(resid, loc);
+
+// }
+
+
+void viscBlockVars::CalcBlockTimeStep( blockVars &vars, const input &inputVars, const double &aRef){
 
   int imax = vars.NumI()-1;
   int jmax = vars.NumJ()-1;
@@ -896,7 +891,9 @@ void viscBlockVars::CalcBlockResidDT( blockVars &vars, const input &inputVars, c
 
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
 
-	(*this).CalcCellResidual(vars, ii, jj, kk, imax, jmax);
+	//(*this).CalcCellResidual(vars, ii, jj, kk, imax, jmax);
+
+	//add in code to calculate viscous time step and then use the minimum
 
 	if (inputVars.Dt() > 0.0){   //dt specified, use global time stepping
 	  vars.SetDt(inputVars.Dt() * aRef, loc);

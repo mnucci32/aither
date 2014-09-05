@@ -159,13 +159,12 @@ int main( int argc, char *argv[] ) {
 	  viscBlocks[bb].CalcViscFluxK(stateBlocks[bb], suth, eos, inputVars, bb);
 	}
 
-	//calculate residuals and cell time step
-	//THIS CAN/SHOULD BE COMBINED WITH THE FLUX CALCULATION
+	//calculate cell time step
 	if (inputVars.EquationSet() == "navierStokes"){
-	  viscBlocks[bb].CalcBlockResidDT(stateBlocks[bb], inputVars, aRef);
+	  viscBlocks[bb].CalcBlockTimeStep(stateBlocks[bb], inputVars, aRef);
 	}
 	else{
-	  stateBlocks[bb].CalcBlockResidDT(inputVars, aRef);
+	  stateBlocks[bb].CalcBlockTimeStep(inputVars, aRef);
 	}
 
 
@@ -218,10 +217,9 @@ int main( int argc, char *argv[] ) {
 	  stateBlocks[bb].DeltaNMinusOne(solDeltaNm1[bb], solTimeN[bb], eos, inputVars.Theta(), inputVars.Zeta());
 	}
 
+	//zero residuals and wave speed
+	stateBlocks[bb].ResetResidWS();
 
-
-	//get block residuals
-	//stateBlocks[bb].TotalResidual(residL2, residLinf, locMaxB, bb);
 
       } //loop for blocks
 

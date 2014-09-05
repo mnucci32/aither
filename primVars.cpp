@@ -124,7 +124,7 @@ primVars primVars::FaceReconMUSCL( const primVars &primUW2, const primVars &prim
   primVars r;
   primVars limiter;
   primVars invLimiter;
-  double eps = 1.0e-20;
+  double eps = 1.0e-25;
 
   primVars primUW1 = *this;
 

@@ -8,6 +8,7 @@
 #include "eos.h"
 #include "primVars.h" //primVars
 #include "inviscidFlux.h" //inviscidFlux
+#include "viscousFlux.h" //viscousFlux
 #include "input.h" //inputVars
 #include "matrix.h" //squareMatrix, matrixDiagonal
 #include <fstream>
@@ -92,6 +93,7 @@ class blockVars {
 
   void SetResidual( const colMatrix &a, const int &ind){residual[ind] = a;}
   void AddToResidual( const inviscidFlux &, const int &);
+  void AddToResidual( const viscousFlux &, const int &);
 
   const vector<colMatrix> & Residual() const {return residual;}
   colMatrix Residual(const int &ind) const {return residual[ind];}
@@ -115,6 +117,8 @@ class blockVars {
   void CalcInvFluxJacI(const idealGas&, const input&, const int&, colMatrix&, matrixDiagonal&, matrixDiagonal&, const string&)const;
   void CalcInvFluxJacJ(const idealGas&, const input&, const int&, colMatrix&, matrixDiagonal&, matrixDiagonal&, const string&)const;
   void CalcInvFluxJacK(const idealGas&, const input&, const int&, colMatrix&, matrixDiagonal&, matrixDiagonal&, const string&)const;
+
+  void ResetResidWS();
 
   void AddVolTime(colMatrix&, const double &, const double &)const;
   vector<colMatrix> AddVolTime(const vector<colMatrix>&, const vector<colMatrix>&, const double &, const double &)const;
