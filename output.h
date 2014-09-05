@@ -1,6 +1,11 @@
 #ifndef OUTPUTHEADERDEF             //only if the macro OUTPUTHEADERDEF is not defined execute these lines of code
 #define OUTPUTHEADERDEF             //define the macro
 
+/* This header contains the function declarations for file output.
+
+It contains function headers to write out the grid at the cell centers in Plot3D format, as well as the Plot3D function files.
+It also writes out a master file in Ensight format to name the Plot3D functions.  */
+
 #include <vector>  //vector
 #include <string>  //string
 #include "vector3d.h" //vector3d

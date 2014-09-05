@@ -45,7 +45,8 @@ void WriteCellCenter(const string &gridName, const vector<blockVars > &vars) {
   vector3d<double> dumVec;
   double dumDouble=0.0;
 
-  for ( ll=0; ll < numBlks; ll++ ){
+  for ( ll=0; ll < numBlks; ll++ ){ //loop over all blocks
+    //subtract 1 from max values because blockVars maxes are in terms of nodes, not cells
     dumInt = vars[ll].NumI()-1;
     outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
     dumInt = vars[ll].NumJ()-1;
@@ -55,19 +56,18 @@ void WriteCellCenter(const string &gridName, const vector<blockVars > &vars) {
   }
 
   //write out x, y, z coordinates of cell centers
-  for ( ll = 0; ll < numBlks; ll++ ){
+  for ( ll = 0; ll < numBlks; ll++ ){  //loop over all blocks
     int maxi = vars[ll].NumI()-1;
     int maxj = vars[ll].NumJ()-1;
     int maxk = vars[ll].NumK()-1;
     int blkLen = maxi * maxj * maxk;
 
+    for ( kk = 0; kk < 3; kk++ ){  //loop over dimensions (3)
+      for ( jj = 0; jj < blkLen; jj++ ){ //loop over length of block
 
+	dumVec = vars[ll].Center(jj);  //at a given cell, get the cell center coordinates
 
-    for ( kk = 0; kk < 3; kk++ ){
-      for ( jj = 0; jj < blkLen; jj++ ){
-
-	dumVec = vars[ll].Center(jj);
-
+	//for a given block, first write out all x coordinates, then all y coordinates, then all z coordinates
 	if (kk == 0 ) {
 	  dumDouble = dumVec.X();
 	}
@@ -77,6 +77,7 @@ void WriteCellCenter(const string &gridName, const vector<blockVars > &vars) {
 	else {
 	  dumDouble = dumVec.Z();
 	}
+	//write to file
 	outFile.write(reinterpret_cast<char *>(&dumDouble), sizeof(dumDouble));
       }
     }
@@ -119,7 +120,8 @@ void WriteFun(const string &gridName, const vector<blockVars> &vars, const vecto
   vector3d<double> vel;
   double dumDouble=0.0;
 
-  for ( ll=0; ll < numBlks; ll++ ){
+  for ( ll=0; ll < numBlks; ll++ ){ //loop over all blocks and write out imax, jmax, kmax, numVars
+    //subtract 1 from maxes because blockVars maxes are in terms of nodes, not cells
     dumInt = vars[ll].NumI()-1;
     outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
     dumInt = vars[ll].NumJ()-1;
@@ -131,17 +133,15 @@ void WriteFun(const string &gridName, const vector<blockVars> &vars, const vecto
   }
 
   //write out variables
-  for ( ll = 0; ll < numBlks; ll++ ){
+  for ( ll = 0; ll < numBlks; ll++ ){ //loop over all blocks
     int maxi = vars[ll].NumI()-1;
     int maxj = vars[ll].NumJ()-1;
     int maxk = vars[ll].NumK()-1;
     int blkLen = maxi * maxj * maxk;
-    // vector<double> Vx(blkLen);
-    // vector<double> Vy(blkLen);
-    // vector<double> Vz(blkLen);
     vector<double> dumVec(blkLen);
 
-    for ( kk = 0; kk < numVars; kk++ ){
+    for ( kk = 0; kk < numVars; kk++ ){ //loop over the number of variables to write out
+      //store nondimensional variable in dumVec for a given block in order. i.e. var1 var2 var3 etc
       if (kk == 0) {
 	for ( ii = 0; ii < blkLen; ii++){         //density
 	  dumVec[ii] = vars[ll].State(ii).Rho();
@@ -263,7 +263,7 @@ void WriteFun(const string &gridName, const vector<blockVars> &vars, const vecto
         exit(0);
       }
 
-      for ( jj = 0; jj < blkLen; jj++ ){                              //write out dimensional variables
+      for ( jj = 0; jj < blkLen; jj++ ){                              //write out dimensional variables -- loop over block length
 
         dumDouble = dumVec[jj];
 
