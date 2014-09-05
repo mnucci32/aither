@@ -1,6 +1,15 @@
 #ifndef EOSHEADERDEF             //only if the macro EOSHEADERDEF is not defined execute these lines of code
 #define EOSHEADERDEF             //define the macro
 
+/* This header file contains the idealGas and sutherland classes. 
+
+The ideal gas class stores the ratio of specific heats (gamma),
+and the gas constant R. It contains several member functions to calculate state variables using the equation of state
+P = rho * (gamma - 1) * specificEnergy for the euler equations and P = rho * R * temperature for the Navier-Stokes equations.
+
+The sutherland class stores a reference temperature and viscosity, as well as the sutherland coefficients. It is used for calculating
+a temperature dependent viscosity for the Navier-Stokes equations. */
+
 #include <vector>  //vector
 #include <string>  //string
 #include <math.h>       //sqrt
