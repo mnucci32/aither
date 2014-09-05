@@ -1,6 +1,12 @@
 #ifndef PRIMVARSHEADERDEF             //only if the macro PRIMVARSHEADERDEF is not defined execute these lines of code
 #define PRIMVARSHEADERDEF             //define the macro
 
+/* This header contains the primVars class.
+
+The primVars class stores the primative variables for the Euler and Navier-Stokes equations [rho, u, v, w, P]. It contains several member functions
+to manipulate these primative varibles. It also contains member functions to extrapolate the primative variables from the cell center to the cell
+face using constant and MUSCL reconstruction. It is has a member function to supply a ghost state given a boundary condition and boundary cell.  */
+
 #include <vector>  //vector
 #include <string>  //string
 #include "vector3d.h" //vector3d

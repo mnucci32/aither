@@ -161,17 +161,9 @@ primVars primVars::FaceReconMUSCL( const primVars &primUW2, const primVars &prim
 
   //CHANGED last term from (primUW1 - primUW2)
   if (side == "left" || "right"){
-    //faceState = primUW1 + 0.25 * ( (1.0 - kappa) * limiter + (1.0 + kappa) * r * invLimiter) * (primDW1 - primUW1);
-    //faceState = primUW1 + 0.25 * ( (1.0 - kappa) * invLimiter * (primUW1 - primUW2) + (1.0 + kappa) * limiter * (primDW1 - primUW1) );
-    //faceState = primUW1 + 0.25 * (primUW1 - primUW2) * ( (1.0 - kappa) * limiter + (1.0 + kappa) * r * invLimiter );
-    //faceState = primUW1 + 0.5 * (primUW1 - primUW2) * limiter ;
     facePrim = primUW1 + 0.25 * (primUW1 - primUW2) * ( (1.0 - kappa) * limiter + (1.0 + kappa) * r * invLimiter );
   }
   // else if (side == "right"){
-  //   //faceState = primUW1 + 0.25 * ( (1.0 + kappa) * limiter + (1.0 - kappa) * r * invLimiter) * (primDW1 - primUW1);
-  //   //faceState = primUW1 - 0.25 * ( (1.0 + kappa) * invLimiter * (primUW1 - primUW2) + (1.0 - kappa) * limiter * (primDW1 - primUW1) );
-  //   //faceState = primUW1 - 0.25 * (primUW2 - primUW1) * ( (1.0 + kappa) * r * invLimiter + (1.0 - kappa) * limiter );
-  //   //faceState = primUW1 - 0.25 * (1.0 - kappa) * (primUW2 - primUW1) ;
   //   faceState = primUW1 - 0.5 * (primUW2 - primUW1) * limiter ;
   // }
   else {
@@ -275,7 +267,7 @@ primVars primVars::LimiterNone()const{
 //member function to return the state of the appropriate ghost cell
 primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &areaVec, const string &surf, const input &inputVars, const idealGas &eqnState )const{
 
-  primVars ghostState = *this;
+  primVars ghostState = *this;  //set ghost state equal to boundary state to start
 
   vector3d<double> normArea;
 
@@ -283,7 +275,7 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
     normArea = areaVec / areaVec.Mag();
   }
   else if (surf == "iu" || surf == "ju" || surf == "ku"){
-    normArea = -1.0 * (areaVec / areaVec.Mag()); //at upper surface normal should point into domain
+    normArea = -1.0 * (areaVec / areaVec.Mag()); //at upper surface normal should point into domain for ghost cell calculation
   }
 
 
@@ -293,6 +285,7 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
     vector3d<double> stateVel = (*this).Velocity();
     normVelCellCenter = stateVel.DotProd(normArea);
 
+    //for a slip wall the velocity of the boundary cell center is reflected across the boundary face to get the velocity at the ghost cell center
     vector3d<double> ghostVel (stateVel.X() - 2.0 * normArea.X() * normVelCellCenter,
 			       stateVel.Y() - 2.0 * normArea.Y() * normVelCellCenter,
 			       stateVel.Z() - 2.0 * normArea.Z() * normVelCellCenter);
@@ -301,15 +294,13 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
     ghostState.SetV(ghostVel.Y());
     ghostState.SetW(ghostVel.Z());
 
-    // if (surf == "iu"){
-    //   cout << "norm vel cc " << normVelCellCenter  << endl;
-    //   cout << "boundary vel " << stateVel << ", " << stateVel.Mag() << endl;
-    //   cout << "ghost vel " << ghostVel << ", " << ghostVel.Mag() << endl;
-    //   cout << "norm area " << normArea << endl;
-    // }
+    //numerical BCs for rho and pressure, same as boundary state
+
   }
   else if (bcType == "viscousWall"){             //for viscous wall velocity at face should be 0.0, density and pressure stay equal to the boundary cell
     vector3d<double> stateVel = (*this).Velocity();
+
+    //ghost cell velocity at cell center is set to opposite of velocity at boundary cell center so that velocity at face will be zero
     vector3d<double> ghostVel (-1.0 * stateVel.X(),
 			       -1.0 * stateVel.Y(),
 			       -1.0 * stateVel.Z() );
@@ -318,18 +309,19 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
     ghostState.SetV(ghostVel.Y());
     ghostState.SetW(ghostVel.Z());
 
+    //numerical BCs for rho and pressure, same as boundary state
 
   }
   else if (bcType == "subsonicInflow"){     //set velocity and density to freestream values
     double sos = eqnState.GetSoS( inputVars.PRef(), inputVars.RRef() );
-    vector3d<double> ghostVel = inputVars.VelRef() / sos;
+    vector3d<double> ghostVel = inputVars.VelRef() / sos;   //nondimensionalize velocity
 
     ghostState.SetRho(1.0);
     ghostState.SetU(ghostVel.X());
     ghostState.SetV(ghostVel.Y());
     ghostState.SetW(ghostVel.Z());
 
-    //numerical bc for pressure
+    //numerical bc for pressure, same as boundary state
 
   }
   else if (bcType == "subsonicOutflow"){     //set pressure to freestream value
@@ -398,10 +390,6 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
 	double rhoBound = pow((SoSBound * SoSBound)/(eqnState.Gamma() * entropyBound) , 1.0/(eqnState.Gamma()-1.0));
 	double pressBound = rhoBound * SoSBound * SoSBound / eqnState.Gamma();
 
-	// cout << "inflow boundary norm vel " << velB*normArea << endl;
-	// cout << "inflow norm vel " << freeVel << endl;
-	// cout << "inflow tangent vel " << freeVelTan << endl;
-
 	ghostState.SetRho(rhoBound);
 	ghostState.SetU( (velB * normArea.X() + freeVelTan.X()) );
 	ghostState.SetV( (velB * normArea.Y() + freeVelTan.Y()) );
@@ -447,14 +435,12 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
 
   }
   else if (bcType == "supersonicOutflow"){
-    //do nothing and return boundary state
+    //do nothing and return boundary state -- numerical BCs for all
   }
   else {
     cerr << "ghost state for BC type " << bcType << " is not supported!" << endl;
     exit(0);
   }
-
-  // cout << "surface type " << surf << " bc type " << bcType << " ghost state: " << ghostState << endl;
 
   return ghostState;
 
