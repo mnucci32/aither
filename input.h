@@ -39,6 +39,7 @@ class input {
   double cflStep;                       //cfl step size for ramp
   double cflStart;                      //starting cfl number
   string invFluxJac;                    //inviscid flux jacobian
+  double dualTimeCFL;                   //cfl number for dual time
 
  public:
   //constructor
@@ -128,6 +129,9 @@ class input {
 
   string InvFluxJac()const{return invFluxJac;}
   void SetInvFluxJac(const string &a){invFluxJac = a;}
+
+  double DualTimeCFL()const{return dualTimeCFL;}
+  void SetDualTimeCFL(const double &a){dualTimeCFL = a;}
 
   string Vars(const int &ind)const{return vars[ind];}
 
