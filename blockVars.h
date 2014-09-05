@@ -27,9 +27,6 @@ class blockVars {
   int numJ;
   int numK;
   vector<primVars> state;            //conserved variables at cell center
-  vector<inviscidFlux> invFluxI;            //inviscid flux on i-faces
-  vector<inviscidFlux> invFluxJ;            //inviscid flux on j-faces
-  vector<inviscidFlux> invFluxK;            //inviscid flux on k-faces
 
   vector<double> vol ;                      //cell volume
   vector<vector3d<double> > center;        //coordinates of cell center
@@ -40,9 +37,7 @@ class blockVars {
   vector<vector3d<double> > fCenterJ;        //coordinates of j-face centers
   vector<vector3d<double> > fCenterK;        //coordinates of k-face centers
 
-  vector<double> maxWaveSpeedI;             //maximum wave speed normal to i-faces
-  vector<double> maxWaveSpeedJ;             //maximum wave speed normal to i-faces
-  vector<double> maxWaveSpeedK;             //maximum wave speed normal to i-faces
+  vector<double> avgWaveSpeed;             //maximum wave speed normal to i-faces
 
   vector<double> dt;                        //cell time step
 
@@ -70,12 +65,6 @@ class blockVars {
   vector<primVars> GetCopyState() const {return state;}
   vector<colMatrix> GetCopyConsVars(const idealGas &) const; 
   const vector<primVars> & GetRefState() const {return state;}
-  void SetInvFluxI( const inviscidFlux &a, const int &ind){invFluxI[ind] = a;}
-  inviscidFlux InvFluxI(const int &ind) const {return invFluxI[ind];}
-  void SetInvFluxJ( const inviscidFlux &a, const int &ind){invFluxJ[ind] = a;}
-  inviscidFlux InvFluxJ(const int &ind) const {return invFluxJ[ind];}
-  void SetInvFluxK( const inviscidFlux &a, const int &ind){invFluxK[ind] = a;}
-  inviscidFlux InvFluxK(const int &ind) const {return invFluxK[ind];}
 
   void SetVol( const double &a, const int &ind){vol[ind] = a;}
   double Vol(const int &ind) const {return vol[ind];}
@@ -95,28 +84,26 @@ class blockVars {
   void SetFCenterK( const vector<vector3d<double> > &a){fCenterK = a;}
   vector3d<double> FCenterK(const int &ind) const {return fCenterK[ind];}
 
-  void SetMaxWaveSpeedI( const double &a, const int &ind){maxWaveSpeedI[ind] = a;}
-  double MaxWaveSpeedI(const int &ind) const {return maxWaveSpeedI[ind];}
-  void SetMaxWaveSpeedJ( const double &a, const int &ind){maxWaveSpeedJ[ind] = a;}
-  double MaxWaveSpeedJ(const int &ind) const {return maxWaveSpeedJ[ind];}
-  void SetMaxWaveSpeedK( const double &a, const int &ind){maxWaveSpeedK[ind] = a;}
-  double MaxWaveSpeedK(const int &ind) const {return maxWaveSpeedK[ind];}
+  void SetAvgWaveSpeed( const double &a, const int &ind){avgWaveSpeed[ind] = a;}
+  double AvgWaveSpeed(const int &ind) const {return avgWaveSpeed[ind];}
 
   void SetDt( const double &a, const int &ind){dt[ind] = a;}
   double Dt(const int &ind) const {return dt[ind];}
 
   void SetResidual( const colMatrix &a, const int &ind){residual[ind] = a;}
+  void AddToResidual( const inviscidFlux &, const int &);
+
   const vector<colMatrix> & Residual() const {return residual;}
   colMatrix Residual(const int &ind) const {return residual[ind];}
   double Residual(const int &ind, const int &a) const {return residual[ind].Data(a);}
 
   void CalcCellDt(const int&, const int&, const int&, const double&);
-  void CalcCellResidual(const int&, const int&, const int&, const int&, const int&);
+  //void CalcCellResidual(const int&, const int&, const int&, const int&, const int&);
 
   void CalcInvFluxI(const idealGas&, const input&, const int&);
   void CalcInvFluxJ(const idealGas&, const input&, const int&);
   void CalcInvFluxK(const idealGas&, const input&, const int&);
-  void CalcBlockResidDT(const input&, const double&);
+  void CalcBlockTimeStep(const input&, const double&);
   void UpdateBlock(const input&, const int&, const idealGas&, const double&, const int&, const vector<colMatrix> &, vector<double> &, vector<double> &, int &);
 
   void ExplicitEulerTimeAdvance(const idealGas&, const int&);
