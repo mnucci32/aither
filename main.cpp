@@ -106,6 +106,7 @@ int main( int argc, char *argv[] ) {
 
   vector<vector<colMatrix> > solTimeN(mesh.NumBlocks());
   vector<vector<colMatrix> > solDeltaNm1(mesh.NumBlocks());
+  vector<vector<colMatrix> > du(mesh.NumBlocks());
 
   int bb = 0;
   unsigned int cc = 0;
@@ -143,8 +144,14 @@ int main( int argc, char *argv[] ) {
 	  offLowJDiag.CleanResizeZero(numElems, numEqns);
 	  offUpKDiag.CleanResizeZero(numElems, numEqns);
 	  offLowKDiag.CleanResizeZero(numElems, numEqns);
+
+	  //reserve space for correction du
+	  //only need to do this if it is first iteration
+	  if (nn == 0){
+	    du[bb].resize(numElems,initial);
+	  }
+
 	}
-	vector<colMatrix> du( numElems, initial );
 
 	//calculate inviscid fluxes
 	stateBlocks[bb].CalcInvFluxI(eos, inputVars, bb);
@@ -191,9 +198,6 @@ int main( int argc, char *argv[] ) {
 	  stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag, offLowJDiag, offUpJDiag, inputVars.InvFluxJac());
 	  stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag, offLowKDiag, offUpKDiag, inputVars.InvFluxJac());
 
-	  // cout << "Main Diagonal:" << endl;
-	  // cout << mainDiag << endl;
-
 	  //add volume divided by time step term to main diagonal
 	  stateBlocks[bb].AddVolTime(mainDiag, inputVars.Theta(), inputVars.Zeta());
 
@@ -201,25 +205,30 @@ int main( int argc, char *argv[] ) {
 	  vector<colMatrix> solTimeMmN = stateBlocks[bb].AddVolTime(stateBlocks[bb].GetCopyConsVars(eos), solTimeN[bb], inputVars.Theta(), inputVars.Zeta());
 
 	  //calculate correction (du)
-	  matrixResid += LUSGS(mainDiag, offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag, du, stateBlocks[bb].Residual(), 
+	  matrixResid += LUSGS(mainDiag, offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag, du[bb], stateBlocks[bb].Residual(), 
 			       solTimeMmN, solDeltaNm1[bb], inputVars.MatrixSweeps(), inputVars.MatrixRelaxation(), stateBlocks[bb].NumI()-1,
 			       stateBlocks[bb].NumJ()-1, inputVars.Theta() );
 
 
 	} //code block for implicit solver
 
+      } //loop for blocks
+
+      //after update for all blocks has been calculated and stored, update all blocks
+      //blocks cannot be updated within block loop because ghost cells for connection boundaries are determined from adjacent blocks
+      //this would result in the ghost cell being at time n+1 when it should be at time n
+      for ( int cc = 0; cc < mesh.NumBlocks(); cc++ ){             //loop over number of blocks
 
 	//update solution
-	stateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, bb, du, residL2, residLinf, locMaxB);
+	stateBlocks[cc].UpdateBlock(inputVars, implicitFlag, eos, aRef, cc, du[cc], residL2, residLinf, locMaxB);
 
 	//if implicit, assign time n to time n-1 at end of nonlinear iterations
 	if (implicitFlag && inputVars.TimeIntegration() == "bdf2" && mm == inputVars.NonlinearIterations()-1 ){
-	  stateBlocks[bb].DeltaNMinusOne(solDeltaNm1[bb], solTimeN[bb], eos, inputVars.Theta(), inputVars.Zeta());
+	  stateBlocks[cc].DeltaNMinusOne(solDeltaNm1[cc], solTimeN[cc], eos, inputVars.Theta(), inputVars.Zeta());
 	}
 
 	//zero residuals and wave speed
-	stateBlocks[bb].ResetResidWS();
-
+	stateBlocks[cc].ResetResidWS();
 
       } //loop for blocks
 
