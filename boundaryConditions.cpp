@@ -89,31 +89,17 @@ string boundaryConditions::GetBCName(const int i, const int j, const int k, cons
   int iEnd = 0;
   int nn = 0;
 
-  if (surf == "il"){ //lower i-surface
+  if (surf == "il" || surf == "iu"){ //i-surfaces search between 0 and number of i-surfaces
     iStart = 0;
     iEnd = (*this).NumSurfI();
   }
-  else if (surf == "iu"){ //upper i-surface
-    iStart = 0;
-    iEnd = (*this).NumSurfI();
-  }
-  else if (surf == "jl"){ //lower j-surface
+  else if (surf == "jl" || surf == "ju"){ //j-surfaces search between end of i-surfaces and end of j-surfaces
     iStart = (*this).NumSurfI();
     iEnd = iStart + (*this).NumSurfJ();
   }
-  else if (surf == "ju"){ //upper j-surface
-    iStart = (*this).NumSurfI();
-    iEnd = iStart + (*this).NumSurfJ();
-    //j = j+1;
-  }
-  else if (surf == "kl"){ //lower k-surface
+  else if (surf == "kl" || surf == "ku"){ //k-surfaces search between end of j-surfaces and end of k-surfaces
     iStart = (*this).NumSurfI() + (*this).NumSurfJ();
     iEnd = iStart + (*this).NumSurfK();
-  }
-  else if (surf == "ku"){ //upper k-surface
-    iStart = (*this).NumSurfI() + (*this).NumSurfJ();
-    iEnd = iStart + (*this).NumSurfK();
-    //k = k+1;
   }
   else {
     cerr << "ERROR: Surface type " << surf << " is not recognized!" << endl;
@@ -122,7 +108,8 @@ string boundaryConditions::GetBCName(const int i, const int j, const int k, cons
   //Determine which boundary condition should be applied
   for ( nn = iStart; nn < iEnd; nn++ ){
 
-    //Bounary mins and maxes start at 1 instead of 0, so 1 is subtracted
+    //Boundary mins and maxes start at 1 instead of 0, so 1 is subtracted
+    //determine which boundary given i, j, k coordinates apply to
     if ( (i >= (*this).GetIMin(nn)-1 && i <= (*this).GetIMax(nn)-1 && j >= (*this).GetJMin(nn)-1 && j <= (*this).GetJMax(nn)-1
 	  && k >= (*this).GetKMin(nn)-1 && k <= (*this).GetKMax(nn)-1) ){
       bcName = (*this).GetBCTypes(nn);

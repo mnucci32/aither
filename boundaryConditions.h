@@ -1,6 +1,10 @@
 #ifndef BOUNDARYCONDITIONSHEADERDEF             //only if the macro BOUNDARYCONDITIONSHEADERDEF is not defined execute these lines of code
 #define BOUNDARYCONDITIONSHEADERDEF             //define the macro
 
+/* This header contains the class boundaryConditions.
+
+This class stores the information needed to specify the boundary conditions for one block. */
+
 #include <vector>  //vector
 #include <string>  //string
 #include <iostream> //ostream
