@@ -120,7 +120,7 @@ class blockVars {
 
   void ResetResidWS();
 
-  void AddVolTime(colMatrix&, const double &, const double &)const;
+  void AddVolTime(colMatrix&, const double &, const double &, const double &)const;
   vector<colMatrix> AddVolTime(const vector<colMatrix>&, const vector<colMatrix>&, const double &, const double &)const;
 
   void DeltaNMinusOne( vector<colMatrix> &, const vector<colMatrix> &, const idealGas &, const double &, const double &);

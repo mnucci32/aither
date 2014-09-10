@@ -48,7 +48,7 @@ input::input(): vars(28){
   cflStep = 0.0;
   cflStart = 1.0;
   invFluxJac = "laxFriedrichs";  //default is approximate roe flux
-  dualTimeCFL = 1000.0;          //default value of 1000
+  dualTimeCFL = -1.0;          //default value of -1; negative value means dual time stepping is not used
 
   //keywords in the input file that the parser is looking for to define variables
   vars[0] = "gridName:";

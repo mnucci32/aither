@@ -199,7 +199,7 @@ int main( int argc, char *argv[] ) {
 	  stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag, offLowKDiag, offUpKDiag, inputVars.InvFluxJac());
 
 	  //add volume divided by time step term to main diagonal
-	  stateBlocks[bb].AddVolTime(mainDiag, inputVars.Theta(), inputVars.Zeta());
+	  stateBlocks[bb].AddVolTime(mainDiag, inputVars.Theta(), inputVars.Zeta(), inputVars.DualTimeCFL());
 
 	  //add volume divided by time step term time m - time n term
 	  vector<colMatrix> solTimeMmN = stateBlocks[bb].AddVolTime(stateBlocks[bb].GetCopyConsVars(eos), solTimeN[bb], inputVars.Theta(), inputVars.Zeta());

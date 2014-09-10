@@ -1538,7 +1538,7 @@ void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, cons
 }
 
 //a member function to add the cell volume divided by the cell time step to the main diagonal of the implicit matrix
-void blockVars::AddVolTime( colMatrix &mainDiag, const double &theta, const double &zeta) const {
+void blockVars::AddVolTime( colMatrix &mainDiag, const double &theta, const double &zeta, const double &dualCFL) const {
 
   int imax = (*this).NumI() - 1;
   int jmax = (*this).NumJ() - 1;
@@ -1549,9 +1549,11 @@ void blockVars::AddVolTime( colMatrix &mainDiag, const double &theta, const doub
     for ( int jj = 0; jj < jmax; jj++ ){
       for ( int kk = 0; kk < kmax; kk++ ){
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
-	//I = ( ( ((*this).Vol(loc) * (1.0 + zeta)) / (*this).Dt(loc) ) - theta ) * I ;
-	// double I = (*this).Vol(loc)/(*this).Dt(loc) ;
 	double I = ( (*this).Vol(loc) * (1.0 + zeta) ) / ( (*this).Dt(loc) * theta ) ;
+	if (dualCFL > 0.0 ) { //use dual time stepping
+	  double tau = (*this).AvgWaveSpeed(loc) / dualCFL; // equal to volume / tau
+	  I = tau + I;
+	}
 	mainDiag.SetData(loc, I + mainDiag.Data(loc) );
       }
     }
