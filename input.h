@@ -40,6 +40,7 @@ class input {
   double cflStart;                      //starting cfl number
   string invFluxJac;                    //inviscid flux jacobian
   double dualTimeCFL;                   //cfl number for dual time
+  string inviscidFlux;                  //scheme for inviscid flux calculation
 
  public:
   //constructor
@@ -132,6 +133,9 @@ class input {
 
   double DualTimeCFL()const{return dualTimeCFL;}
   void SetDualTimeCFL(const double &a){dualTimeCFL = a;}
+
+  string InviscidFlux()const{return inviscidFlux;}
+  void SetInviscidFlux(const string &a){inviscidFlux = a;}
 
   string Vars(const int &ind)const{return vars[ind];}
 

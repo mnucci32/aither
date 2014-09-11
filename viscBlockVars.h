@@ -30,7 +30,6 @@ class viscBlockVars {
 
   vector<tensor<double> > velGrad;          //velocity gradient on i-faces
   vector<vector3d<double> > tempGrad;       //temperature gradient on i-faces
-  vector<double> avgViscSpeed;              //average max wave speed for viscous terms
 
  public:
   //constructors

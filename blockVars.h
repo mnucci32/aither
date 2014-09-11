@@ -100,7 +100,6 @@ class blockVars {
   double Residual(const int &ind, const int &a) const {return residual[ind].Data(a);}
 
   void CalcCellDt(const int&, const int&, const int&, const double&);
-  //void CalcCellResidual(const int&, const int&, const int&, const int&, const int&);
 
   void CalcInvFluxI(const idealGas&, const input&, const int&);
   void CalcInvFluxJ(const idealGas&, const input&, const int&);

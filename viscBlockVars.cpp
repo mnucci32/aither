@@ -26,12 +26,10 @@ viscBlockVars::viscBlockVars(){
   int lenCell = (numI-1)*(numJ-1)*(numK-1);
 
   vector<tensor<double> > vGrad (lenCell);              //dummy velocity gradient tensor for cell centers
-  vector<double> speed(lenCell);
   vector<vector3d<double> > tGrad (lenCell);              //dummy temperature gradient vector3d for cell centers
 
   velGrad = vGrad;
   tempGrad = tGrad;
-  avgViscSpeed = speed;
 
 }
 //constructor -- initialize state vector with dummy variables
@@ -44,12 +42,10 @@ viscBlockVars::viscBlockVars(const plot3dBlock &blk){
   int lenCell = (numI-1)*(numJ-1)*(numK-1);
 
   vector<tensor<double> > vGrad (lenCell);              //dummy velocity gradient tensor for cell centers
-  vector<double> speed(lenCell);
   vector<vector3d<double> > tGrad (lenCell);              //dummy temperature gradient vector3d for cell centers
 
   velGrad = vGrad;
   tempGrad = tGrad;
-  avgViscSpeed = speed;
 
 }
 
@@ -344,6 +340,7 @@ void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const
   int loc = 0;
   int iLow = 0;
   int iUp = 0;
+  int iFaceUp = 0;
 
   string lstr = "left";
   string rstr = "right";
@@ -353,12 +350,24 @@ void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const
   primVars ghostState;
   vector3d<double> ghostDistance;
 
+  double viscConstant;
+  if (inp.Kappa() == -2.0 && inp.InviscidFlux() == "roe"){  //first order upwind
+    viscConstant = 2.0;
+  }
+  else if (inp.Kappa() == -1.0 && inp.InviscidFlux() == "roe"){ //second order upwind
+    viscConstant = 1.0;
+  }
+  else{
+    viscConstant = 4.0;
+  }
+
   viscousFlux tempViscFlux;
 
   tensor<double> velGrad;
   vector3d<double> tGrad;
   vector3d<double> vel;
   double mu = 0.0;
+  double maxViscSpeed = 0.0;
 
   double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
   double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
@@ -373,6 +382,7 @@ void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const
 	if (ii == 0){ //-----------------------------------------------------------------------------------------------------------------------------------------
 
 	  iUp  = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
+	  iFaceUp  = GetNeighborUpI(ii, jj, kk, imax, jmax);
 
 	  //find boundary type and get ghost state
 	  bcName = bound.GetBCName(ii, jj, kk, "il");
@@ -395,6 +405,12 @@ void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const
 
 	  //at lower boundary normal points into cell, so need to subtract from residual
 	  vars.AddToResidual(-1.0 * tempViscFlux * vars.FAreaI(loc).Mag(), iUp);
+
+	  //accumulate wave speed contribution
+	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
+	  maxViscSpeed = max(4.0/(3.0 * vars.State(iUp).Rho()), eqnState.Gamma()/vars.State(iUp).Rho()) * (mu/eqnState.GetPrandtl()) * 
+	    pow(0.5 * (vars.FAreaI(loc).Mag() + vars.FAreaI(iFaceUp).Mag()), 2.0) / vars.Vol(iUp) ;
+	  vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(iUp) + viscConstant * maxViscSpeed, iUp); 
 
 	}
 	else if (ii == imax-1){ //---------------------------------------------------------------------------------------------------------------------------------------
@@ -422,12 +438,14 @@ void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const
 
 	  //at upper boundary normal points out of cell, so need to add to residual
 	  vars.AddToResidual(tempViscFlux * vars.FAreaI(loc).Mag(), iLow);
+	  //no wave speed calculation, this is only done at the lower face of the cell
 
 	}
 	else{ //------------------------------------------------------------------------------------------------------------------------------------------------
 
 	  iLow  = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
 	  iUp  = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
+	  iFaceUp  = GetNeighborUpI(ii, jj, kk, imax, jmax);
 
 	  //Get velocity gradient at face
 	  velGrad = (*this).FaceReconCentral( (*this).VelGrad(iLow), (*this).VelGrad(iUp), vars.Center(iLow), vars.Center(iUp), vars.FCenterI(loc) );
@@ -445,6 +463,13 @@ void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const
 	  //area vector points from left to right, so add to left cell, subtract from right cell
 	  vars.AddToResidual( tempViscFlux * vars.FAreaI(loc).Mag(), iLow);
 	  vars.AddToResidual( -1.0 * tempViscFlux * vars.FAreaI(loc).Mag(), iUp);
+
+	  //accumulate wave speed contribution
+	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
+	  maxViscSpeed = max(4.0/(3.0 * vars.State(iUp).Rho()), eqnState.Gamma()/vars.State(iUp).Rho()) * (mu/eqnState.GetPrandtl()) * 
+	    pow(0.5 * (vars.FAreaI(loc).Mag() + vars.FAreaI(iFaceUp).Mag()), 2.0) / vars.Vol(iUp) ;
+	  vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(iUp) + viscConstant * maxViscSpeed, iUp); 
+
 
 	}
 
@@ -472,6 +497,7 @@ void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const
   int loc = 0;
   int jLow = 0;
   int jUp = 0;
+  int jFaceUp = 0;
 
   string lstr = "left";
   string rstr = "right";
@@ -482,10 +508,22 @@ void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const
 
   viscousFlux tempViscFlux;
 
+  double viscConstant;
+  if (inp.Kappa() == -2.0 && inp.InviscidFlux() == "roe"){  //first order upwind
+    viscConstant = 2.0;
+  }
+  else if (inp.Kappa() == -1.0 && inp.InviscidFlux() == "roe"){ //second order upwind
+    viscConstant = 1.0;
+  }
+  else{
+    viscConstant = 4.0;
+  }
+
   tensor<double> velGrad;
   vector3d<double> tGrad;
   vector3d<double> vel;
   double mu = 0.0;
+  double maxViscSpeed = 0.0;
 
   double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
   double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
@@ -500,6 +538,7 @@ void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const
 	if (jj == 0){ //-------------------------------------------------------------------------------------------------------------------------------------
 
 	  jUp  = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
+	  jFaceUp  = GetNeighborUpJ(ii, jj, kk, imax, jmax);
 
 	  //find boundary type and get ghost state
 	  bcName = bound.GetBCName(ii, jj, kk, "jl");
@@ -522,6 +561,12 @@ void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const
 
 	  //at lower boundary normal points into cell, so need to subtract from residual
 	  vars.AddToResidual(-1.0 * tempViscFlux * vars.FAreaJ(loc).Mag(), jUp);
+
+	  //accumulate wave speed contribution
+	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
+	  maxViscSpeed = max(4.0/(3.0 * vars.State(jUp).Rho()), eqnState.Gamma()/vars.State(jUp).Rho()) * (mu/eqnState.GetPrandtl()) * 
+	    pow(0.5 * (vars.FAreaJ(loc).Mag() + vars.FAreaJ(jFaceUp).Mag()), 2.0) / vars.Vol(jUp) ;
+	  vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(jUp) + viscConstant * maxViscSpeed, jUp); 
 
 	}
 	else if (jj == jmax-1){ //--------------------------------------------------------------------------------------------------------------------------------
@@ -550,11 +595,14 @@ void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const
 	  //at upper boundary normal points out of cell, so need to add to residual
 	  vars.AddToResidual(tempViscFlux * vars.FAreaJ(loc).Mag(), jLow);
 
+	  //no wave speed calculation, this is only done at the lower face of the cell
+
 	}
 	else{ //-----------------------------------------------------------------------------------------------------------------------------------------------
 
 	  jLow  = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
 	  jUp  = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
+	  jFaceUp  = GetNeighborUpJ(ii, jj, kk, imax, jmax);
 
 	  //Get velocity gradient at face
 	  velGrad = (*this).FaceReconCentral( (*this).VelGrad(jLow), (*this).VelGrad(jUp), vars.Center(jLow), vars.Center(jUp), vars.FCenterJ(loc) );
@@ -572,6 +620,12 @@ void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const
 	  //area vector points from left to right, so add to left cell, subtract from right cell
 	  vars.AddToResidual( tempViscFlux * vars.FAreaJ(loc).Mag(), jLow);
 	  vars.AddToResidual( -1.0 * tempViscFlux * vars.FAreaJ(loc).Mag(), jUp);
+
+	  //accumulate wave speed contribution
+	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
+	  maxViscSpeed = max(4.0/(3.0 * vars.State(jUp).Rho()), eqnState.Gamma()/vars.State(jUp).Rho()) * (mu/eqnState.GetPrandtl()) * 
+	    pow(0.5 * (vars.FAreaJ(loc).Mag() + vars.FAreaJ(jFaceUp).Mag()), 2.0) / vars.Vol(jUp) ;
+	  vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(jUp) + viscConstant * maxViscSpeed, jUp); 
 
 	}
 
@@ -598,6 +652,7 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
   int loc = 0;
   int kLow = 0;
   int kUp = 0;
+  int kFaceUp = 0;
 
   string lstr = "left";
   string rstr = "right";
@@ -608,10 +663,22 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
 
   viscousFlux tempViscFlux;
 
+  double viscConstant;
+  if (inp.Kappa() == -2.0 && inp.InviscidFlux() == "roe"){  //first order upwind
+    viscConstant = 2.0;
+  }
+  else if (inp.Kappa() == -1.0 && inp.InviscidFlux() == "roe"){ //second order upwind
+    viscConstant = 1.0;
+  }
+  else{
+    viscConstant = 4.0;
+  }
+
   tensor<double> velGrad;
   vector3d<double> tGrad;
   vector3d<double> vel;
   double mu = 0.0;
+  double maxViscSpeed = 0.0;
 
   double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
   double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
@@ -626,6 +693,7 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
 	if (kk == 0){ //-----------------------------------------------------------------------------------------------------------------------------------
 
 	  kUp  = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
+	  kFaceUp  = GetNeighborUpK(ii, jj, kk, imax, jmax);
 
 	  //find boundary type and get ghost state
 	  bcName = bound.GetBCName(ii, jj, kk, "kl");
@@ -648,6 +716,12 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
 
 	  //at lower boundary normal points into cell, so need to subtract from residual
 	  vars.AddToResidual(-1.0 * tempViscFlux * vars.FAreaK(loc).Mag(), kUp);
+
+	  //accumulate wave speed contribution
+	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
+	  maxViscSpeed = max(4.0/(3.0 * vars.State(kUp).Rho()), eqnState.Gamma()/vars.State(kUp).Rho()) * (mu/eqnState.GetPrandtl()) * 
+	    pow(0.5 * (vars.FAreaK(loc).Mag() + vars.FAreaK(kFaceUp).Mag()), 2.0) / vars.Vol(kUp) ;
+	  vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(kUp) + viscConstant * maxViscSpeed, kUp); 
 
 	}
 	else if (kk == kmax-1){ //----------------------------------------------------------------------------------------------------------------------------
@@ -676,11 +750,14 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
 	  //at upper boundary normal points out of cell, so need to add to residual
 	  vars.AddToResidual(tempViscFlux * vars.FAreaK(loc).Mag(), kLow);
 
+	  //no wave speed calculation, this is only done at the lower face of the cell
+
 	}
 	else{ //-----------------------------------------------------------------------------------------------------------------------------------------------------
 
 	  kLow  = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
 	  kUp  = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
+	  kFaceUp  = GetNeighborUpK(ii, jj, kk, imax, jmax);
 
 	  //Get velocity gradient at face
 	  velGrad = (*this).FaceReconCentral( (*this).VelGrad(kLow), (*this).VelGrad(kUp), vars.Center(kLow), vars.Center(kUp), vars.FCenterK(loc) );
@@ -698,6 +775,12 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
 	  //area vector points from left to right, so add to left cell, subtract from right cell
 	  vars.AddToResidual( tempViscFlux * vars.FAreaK(loc).Mag(), kLow);
 	  vars.AddToResidual( -1.0 * tempViscFlux * vars.FAreaK(loc).Mag(), kUp);
+
+	  //accumulate wave speed contribution
+	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
+	  maxViscSpeed = max(4.0/(3.0 * vars.State(kUp).Rho()), eqnState.Gamma()/vars.State(kUp).Rho()) * (mu/eqnState.GetPrandtl()) * 
+	    pow(0.5 * (vars.FAreaK(loc).Mag() + vars.FAreaK(kFaceUp).Mag()), 2.0) / vars.Vol(kUp) ;
+	  vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(kUp) + viscConstant * maxViscSpeed, kUp); 
 
 	}
 
@@ -828,52 +911,6 @@ void viscBlockVars::CalcViscFluxJacI(const blockVars &vars, const sutherland &su
 }
 
 
-//this member function calculates the residual for a viscous simulation
-// void viscBlockVars::CalcCellResidual(blockVars &vars, const int &ii, const int &jj, const int &kk, const int &imax, const int &jmax)const{
-
-//   colMatrix resid(5);
-
-//   int loc = GetLoc1D(ii, jj, kk, imax, jmax);
-//   int iLow = GetLowerFaceI(ii, jj, kk, imax, jmax); 
-//   int iUp  = GetUpperFaceI(ii, jj, kk, imax, jmax);
-//   int jLow = GetLowerFaceJ(ii, jj, kk, imax, jmax);
-//   int jUp  = GetUpperFaceJ(ii, jj, kk, imax, jmax);
-//   int kLow = GetLowerFaceK(ii, jj, kk, imax, jmax);
-//   int kUp  = GetUpperFaceK(ii, jj, kk, imax, jmax);
-
-//   //Area vector points nominally from lower index to upper index, so the upper index fluxes must be multiplied by -1 so vector points into cell and for conservation
-//   resid.SetData(0,        vars.InvFluxI(iLow).RhoVel()  * vars.FAreaI(iLow).Mag() +     vars.InvFluxJ(jLow).RhoVel()  * vars.FAreaJ(jLow).Mag() +     vars.InvFluxK(kLow).RhoVel()  * vars.FAreaK(kLow).Mag() 
-// 		-1.0 * vars.InvFluxI(iUp).RhoVel()   * vars.FAreaI(iUp).Mag() -1.0 * vars.InvFluxJ(jUp).RhoVel()   * vars.FAreaJ(jUp).Mag() -1.0 * vars.InvFluxK(kUp).RhoVel()   * vars.FAreaK(kUp).Mag() );
-
-
-//   resid.SetData(1,        (vars.InvFluxI(iLow).RhoVelU() + (*this).ViscFluxI(iLow).MomX()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelU() + (*this).ViscFluxJ(jLow).MomX()) * vars.FAreaJ(jLow).Mag() +
-//                     (vars.InvFluxK(kLow).RhoVelU() + (*this).ViscFluxK(kLow).MomX()) * vars.FAreaK(kLow).Mag() 
-//              -1.0 * (vars.InvFluxI(iUp).RhoVelU()  + (*this).ViscFluxI(iUp).MomX())  * vars.FAreaI(iUp).Mag()  -1.0 * (vars.InvFluxJ(jUp).RhoVelU()  + (*this).ViscFluxJ(jUp).MomX())  * vars.FAreaJ(jUp).Mag()
-// 		-1.0 * (vars.InvFluxK(kUp).RhoVelU()  + (*this).ViscFluxK(kUp).MomX())  * vars.FAreaK(kUp).Mag() );
-
-
-//   resid.SetData(2,        (vars.InvFluxI(iLow).RhoVelV() + (*this).ViscFluxI(iLow).MomY()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelV() + (*this).ViscFluxJ(jLow).MomY()) * vars.FAreaJ(jLow).Mag() +
-//                     (vars.InvFluxK(kLow).RhoVelV() + (*this).ViscFluxK(kLow).MomY()) * vars.FAreaK(kLow).Mag() 
-//              -1.0 * (vars.InvFluxI(iUp).RhoVelV()  + (*this).ViscFluxI(iUp).MomY())  * vars.FAreaI(iUp).Mag()  -1.0 * (vars.InvFluxJ(jUp).RhoVelV()  + (*this).ViscFluxJ(jUp).MomY())  * vars.FAreaJ(jUp).Mag()
-// 		-1.0 * (vars.InvFluxK(kUp).RhoVelV()  + (*this).ViscFluxK(kUp).MomY())  * vars.FAreaK(kUp).Mag() );
-
-
-//   resid.SetData(3,        (vars.InvFluxI(iLow).RhoVelW() + (*this).ViscFluxI(iLow).MomZ()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelW() + (*this).ViscFluxJ(jLow).MomZ()) * vars.FAreaJ(jLow).Mag() +
-//                     (vars.InvFluxK(kLow).RhoVelW() + (*this).ViscFluxK(kLow).MomZ()) * vars.FAreaK(kLow).Mag() 
-//              -1.0 * (vars.InvFluxI(iUp).RhoVelW()  + (*this).ViscFluxI(iUp).MomZ())  * vars.FAreaI(iUp).Mag()  -1.0 * (vars.InvFluxJ(jUp).RhoVelW()  + (*this).ViscFluxJ(jUp).MomZ())  * vars.FAreaJ(jUp).Mag()
-// 		-1.0 * (vars.InvFluxK(kUp).RhoVelW()  + (*this).ViscFluxK(kUp).MomZ())  * vars.FAreaK(kUp).Mag() );
-
-
-//   resid.SetData(4,        (vars.InvFluxI(iLow).RhoVelH() + (*this).ViscFluxI(iLow).Engy()) * vars.FAreaI(iLow).Mag() +      (vars.InvFluxJ(jLow).RhoVelH() + (*this).ViscFluxJ(jLow).Engy()) * vars.FAreaJ(jLow).Mag() +
-//                     (vars.InvFluxK(kLow).RhoVelH() + (*this).ViscFluxK(kLow).Engy()) * vars.FAreaK(kLow).Mag() 
-//              -1.0 * (vars.InvFluxI(iUp).RhoVelH()  + (*this).ViscFluxI(iUp).Engy())  * vars.FAreaI(iUp).Mag()  -1.0 * (vars.InvFluxJ(jUp).RhoVelH()  + (*this).ViscFluxJ(jUp).Engy())  * vars.FAreaJ(jUp).Mag()
-// 		-1.0 * (vars.InvFluxK(kUp).RhoVelH()  + (*this).ViscFluxK(kUp).Engy())  * vars.FAreaK(kUp).Mag() );
-
-//   vars.SetResidual(resid, loc);
-
-// }
-
-
 void viscBlockVars::CalcBlockTimeStep( blockVars &vars, const input &inputVars, const double &aRef){
 
   int imax = vars.NumI()-1;
@@ -890,10 +927,6 @@ void viscBlockVars::CalcBlockTimeStep( blockVars &vars, const input &inputVars, 
       for ( ii = 0; ii < imax; ii++ ){          
 
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
-
-	//(*this).CalcCellResidual(vars, ii, jj, kk, imax, jmax);
-
-	//add in code to calculate viscous time step and then use the minimum
 
 	if (inputVars.Dt() > 0.0){   //dt specified, use global time stepping
 	  vars.SetDt(inputVars.Dt() * aRef, loc);
