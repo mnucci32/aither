@@ -1,5 +1,8 @@
 ABOUT THE CODE
-This code is for a 3D Navier-Stokes computational fluid dynamics solver. It is a cell centered, structured solver, using block structured grids in Plot3D format. It will use explicit and implicit time integration methods. It uses MUSCL extrapolation to reconstruct the conserved variables from the cell centers to the cell faces. The code uses the Roe flux difference splitting scheme for the inviscid fluxes. It is second order accurate in both space and time.
+This code is for a 3D Navier-Stokes computational fluid dynamics solver. It is a cell centered, structured solver, using block structured grids in Plot3D format. It uses explicit and implicit time integration methods. It uses MUSCL extrapolation to reconstruct the conserved variables from the cell centers to the cell faces. The code uses the Roe flux difference splitting scheme for the inviscid fluxes, and a central scheme for the viscous fluxes. It is second order accurate in both space and time.
+
+CURRENT STATUS
+The code is 2nd order accurate in space and time using the explicit solver. Available explicit time integration methods are forward euler (1st order) and a minimum storage four stage Runge-Kutta method (2nd order). The implicit solver (LU-SGS) is implemented for the euler equations, but not currently available for the Navier-Stokes equations. Dual time stepping is implemented for time accuracy in the implicit solver. Available implicit time integrations methods come from the Beam and Warming family of methods and are the implicit euler (1st order), Crank-Nicholson (2nd order), and BDF2 (2nd order) methods.
 
 FILES AND CLASSES
 blockVars - A class to store the state vector (primatives), inviscid fluxes, cell volume, face areas, time step, and residual for a plot3D block of cells.
@@ -18,3 +21,6 @@ viscFlux - A class to store the viscous flux vector for a cell. Contains functio
 
 HOW TO COMPILE
 Assuming you have g++, just type 'make'.
+
+HOW TO RUN
+main inputFile.inp >outputFile.out 2>errorFile.err
