@@ -404,7 +404,8 @@ void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
 
 	  //at lower boundary normal points into cell, so need to subtract from residual
-	  vars.AddToResidual(-1.0 * tempViscFlux * vars.FAreaI(loc).Mag(), iUp);
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is positive
+	  vars.AddToResidual(tempViscFlux * vars.FAreaI(loc).Mag(), iUp);
 
 	  //accumulate wave speed contribution
 	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
@@ -437,7 +438,8 @@ void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
 
 	  //at upper boundary normal points out of cell, so need to add to residual
-	  vars.AddToResidual(tempViscFlux * vars.FAreaI(loc).Mag(), iLow);
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is negative
+	  vars.AddToResidual(-1.0 * tempViscFlux * vars.FAreaI(loc).Mag(), iLow);
 	  //no wave speed calculation, this is only done at the lower face of the cell
 
 	}
@@ -461,8 +463,9 @@ void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
 
 	  //area vector points from left to right, so add to left cell, subtract from right cell
-	  vars.AddToResidual( tempViscFlux * vars.FAreaI(loc).Mag(), iLow);
-	  vars.AddToResidual( -1.0 * tempViscFlux * vars.FAreaI(loc).Mag(), iUp);
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
+	  vars.AddToResidual(-1.0 * tempViscFlux * vars.FAreaI(loc).Mag(), iLow);
+	  vars.AddToResidual(tempViscFlux * vars.FAreaI(loc).Mag(), iUp);
 
 	  //accumulate wave speed contribution
 	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
@@ -560,7 +563,8 @@ void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
 
 	  //at lower boundary normal points into cell, so need to subtract from residual
-	  vars.AddToResidual(-1.0 * tempViscFlux * vars.FAreaJ(loc).Mag(), jUp);
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is positive
+	  vars.AddToResidual(tempViscFlux * vars.FAreaJ(loc).Mag(), jUp);
 
 	  //accumulate wave speed contribution
 	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
@@ -593,7 +597,8 @@ void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
 
 	  //at upper boundary normal points out of cell, so need to add to residual
-	  vars.AddToResidual(tempViscFlux * vars.FAreaJ(loc).Mag(), jLow);
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is negative
+	  vars.AddToResidual(-1.0 * tempViscFlux * vars.FAreaJ(loc).Mag(), jLow);
 
 	  //no wave speed calculation, this is only done at the lower face of the cell
 
@@ -618,8 +623,9 @@ void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
 
 	  //area vector points from left to right, so add to left cell, subtract from right cell
-	  vars.AddToResidual( tempViscFlux * vars.FAreaJ(loc).Mag(), jLow);
-	  vars.AddToResidual( -1.0 * tempViscFlux * vars.FAreaJ(loc).Mag(), jUp);
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
+	  vars.AddToResidual(-1.0 * tempViscFlux * vars.FAreaJ(loc).Mag(), jLow);
+	  vars.AddToResidual(tempViscFlux * vars.FAreaJ(loc).Mag(), jUp);
 
 	  //accumulate wave speed contribution
 	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
@@ -715,7 +721,8 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
 
 	  //at lower boundary normal points into cell, so need to subtract from residual
-	  vars.AddToResidual(-1.0 * tempViscFlux * vars.FAreaK(loc).Mag(), kUp);
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is positive
+	  vars.AddToResidual(tempViscFlux * vars.FAreaK(loc).Mag(), kUp);
 
 	  //accumulate wave speed contribution
 	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
@@ -748,7 +755,8 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
 
 	  //at upper boundary normal points out of cell, so need to add to residual
-	  vars.AddToResidual(tempViscFlux * vars.FAreaK(loc).Mag(), kLow);
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is negative
+	  vars.AddToResidual(-1.0 * tempViscFlux * vars.FAreaK(loc).Mag(), kLow);
 
 	  //no wave speed calculation, this is only done at the lower face of the cell
 
@@ -773,8 +781,9 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
 	  tempViscFlux = (mRef/Re) * tempViscFlux;
 
 	  //area vector points from left to right, so add to left cell, subtract from right cell
-	  vars.AddToResidual( tempViscFlux * vars.FAreaK(loc).Mag(), kLow);
-	  vars.AddToResidual( -1.0 * tempViscFlux * vars.FAreaK(loc).Mag(), kUp);
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
+	  vars.AddToResidual(-1.0 * tempViscFlux * vars.FAreaK(loc).Mag(), kLow);
+	  vars.AddToResidual(tempViscFlux * vars.FAreaK(loc).Mag(), kUp);
 
 	  //accumulate wave speed contribution
 	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
