@@ -39,6 +39,7 @@ class idealGas {
   double GetPrandtl()const{return (4.0*gamma)/(9.0*gamma-5.0);}
 
   double GetTemperature(const double &pressure, const double &rho)const;
+  double GetConductivity(const double &mu)const{return (gamma*gasConst*mu)/( (*this).GetPrandtl()*(gamma-1.0) );}
 
   //destructor
   ~idealGas() {}
