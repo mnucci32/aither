@@ -75,19 +75,21 @@ void viscBlockVars::CalcVelGradGG(const vector3d<double> &vil, const vector3d<do
   //loc is the 1D location where the velocity gradient should be stored
 
   tensor<double> temp;
+  double invVol = 1.0/vol;
 
   //define velocity gradient tensor
-  temp.SetXX( 1.0/vol * (vil.X()*ail.X() - viu.X()*aiu.X() + vjl.X()*ajl.X() - vju.X()*aju.X() + vkl.X()*akl.X() - vku.X()*aku.X()) );
-  temp.SetXY( 1.0/vol * (vil.Y()*ail.X() - viu.Y()*aiu.X() + vjl.Y()*ajl.X() - vju.Y()*aju.X() + vkl.Y()*akl.X() - vku.Y()*aku.X()) );
-  temp.SetXZ( 1.0/vol * (vil.Z()*ail.X() - viu.Z()*aiu.X() + vjl.Z()*ajl.X() - vju.Z()*aju.X() + vkl.Z()*akl.X() - vku.Z()*aku.X()) );
+  //convention is for area vector to point out of cell, so lower values are negative, upper are positive
+  temp.SetXX( invVol * (viu.X()*aiu.X() - vil.X()*ail.X() + vju.X()*aju.X() - vjl.X()*ajl.X() + vku.X()*aku.X() - vkl.X()*akl.X()) );
+  temp.SetYX( invVol * (viu.Y()*aiu.X() - vil.Y()*ail.X() + vju.Y()*aju.X() - vjl.Y()*ajl.X() + vku.Y()*aku.X() - vkl.Y()*akl.X()) );
+  temp.SetZX( invVol * (viu.Z()*aiu.X() - vil.Z()*ail.X() + vju.Z()*aju.X() - vjl.Z()*ajl.X() + vku.Z()*aku.X() - vkl.Z()*akl.X()) );
 
-  temp.SetYX( 1.0/vol * (vil.X()*ail.Y() - viu.X()*aiu.Y() + vjl.X()*ajl.Y() - vju.X()*aju.Y() + vkl.X()*akl.Y() - vku.X()*aku.Y()) );
-  temp.SetYY( 1.0/vol * (vil.Y()*ail.Y() - viu.Y()*aiu.Y() + vjl.Y()*ajl.Y() - vju.Y()*aju.Y() + vkl.Y()*akl.Y() - vku.Y()*aku.Y()) );
-  temp.SetYZ( 1.0/vol * (vil.Z()*ail.Y() - viu.Z()*aiu.Y() + vjl.Z()*ajl.Y() - vju.Z()*aju.Y() + vkl.Z()*akl.Y() - vku.Z()*aku.Y()) );
+  temp.SetXY( invVol * (viu.X()*aiu.Y() - vil.X()*ail.Y() + vju.X()*aju.Y() - vjl.X()*ajl.Y() + vku.X()*aku.Y() - vkl.X()*akl.Y()) );
+  temp.SetYY( invVol * (viu.Y()*aiu.Y() - vil.Y()*ail.Y() + vju.Y()*aju.Y() - vjl.Y()*ajl.Y() + vku.Y()*aku.Y() - vkl.Y()*akl.Y()) );
+  temp.SetZY( invVol * (viu.Z()*aiu.Y() - vil.Z()*ail.Y() + vju.Z()*aju.Y() - vjl.Z()*ajl.Y() + vku.Z()*aku.Y() - vkl.Z()*akl.Y()) );
 
-  temp.SetZX( 1.0/vol * (vil.X()*ail.Z() - viu.X()*aiu.Z() + vjl.X()*ajl.Z() - vju.X()*aju.Z() + vkl.X()*akl.Z() - vku.X()*aku.Z()) );
-  temp.SetZY( 1.0/vol * (vil.Y()*ail.Z() - viu.Y()*aiu.Z() + vjl.Y()*ajl.Z() - vju.Y()*aju.Z() + vkl.Y()*akl.Z() - vku.Y()*aku.Z()) );
-  temp.SetZZ( 1.0/vol * (vil.Z()*ail.Z() - viu.Z()*aiu.Z() + vjl.Z()*ajl.Z() - vju.Z()*aju.Z() + vkl.Z()*akl.Z() - vku.Z()*aku.Z()) );
+  temp.SetXZ( invVol * (viu.X()*aiu.Z() - vil.X()*ail.Z() + vju.X()*aju.Z() - vjl.X()*ajl.Z() + vku.X()*aku.Z() - vkl.X()*akl.Z()) );
+  temp.SetYZ( invVol * (viu.Y()*aiu.Z() - vil.Y()*ail.Z() + vju.Y()*aju.Z() - vjl.Y()*ajl.Z() + vku.Y()*aku.Z() - vkl.Y()*akl.Z()) );
+  temp.SetZZ( invVol * (viu.Z()*aiu.Z() - vil.Z()*ail.Z() + vju.Z()*aju.Z() - vjl.Z()*ajl.Z() + vku.Z()*aku.Z() - vkl.Z()*akl.Z()) );
 
   temp = -1.0 * temp;
 
@@ -118,11 +120,13 @@ void viscBlockVars::CalcTempGradGG(const double &til, const double &tiu, const d
   //loc is the 1D location where the temperature gradient should be stored
 
   vector3d<double> temp;
+  double invVol = 1.0/vol;
 
   //define temperature gradient vector
-  temp.SetX( 1.0/vol * (til*ail.X() - tiu*aiu.X() + tjl*ajl.X() - tju*aju.X() + tkl*akl.X() - tku*aku.X()) );
-  temp.SetY( 1.0/vol * (til*ail.Y() - tiu*aiu.Y() + tjl*ajl.Y() - tju*aju.Y() + tkl*akl.Y() - tku*aku.Y()) );
-  temp.SetZ( 1.0/vol * (til*ail.Z() - tiu*aiu.Z() + tjl*ajl.Z() - tju*aju.Z() + tkl*akl.Z() - tku*aku.Z()) );
+  //convention is for area vector to point out of cell, so lower values are negative, upper are positive
+  temp.SetX( invVol * (tiu*aiu.X() - til*ail.X() + tju*aju.X() - tjl*ajl.X() + tku*aku.X() - tkl*akl.X()) );
+  temp.SetY( invVol * (tiu*aiu.Y() - til*ail.Y() + tju*aju.Y() - tjl*ajl.Y() + tku*aku.Y() - tkl*akl.Y()) );
+  temp.SetZ( invVol * (tiu*aiu.Z() - til*ail.Z() + tju*aju.Z() - tjl*ajl.Z() + tku*aku.Z() - tkl*akl.Z()) );
 
   temp = -1.0 * temp;
 
@@ -340,7 +344,7 @@ void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const
   int loc = 0;
   int iLow = 0;
   int iUp = 0;
-  int iFaceUp = 0;
+  //int iFaceUp = 0;
 
   string lstr = "left";
   string rstr = "right";
@@ -367,6 +371,7 @@ void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const
   vector3d<double> tGrad;
   vector3d<double> vel;
   double mu = 0.0;
+  double rho = 0.0;
   double maxViscSpeed = 0.0;
 
   double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
@@ -382,7 +387,7 @@ void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const
 	if (ii == 0){ //-----------------------------------------------------------------------------------------------------------------------------------------
 
 	  iUp  = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
-	  iFaceUp  = GetNeighborUpI(ii, jj, kk, imax, jmax);
+	  //iFaceUp  = GetNeighborUpI(ii, jj, kk, imax, jmax);
 
 	  //find boundary type and get ghost state
 	  bcName = bound.GetBCName(ii, jj, kk, "il");
@@ -398,6 +403,8 @@ void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const
 	  tGrad = (*this).TempGrad(iUp);
 	  //Get viscosity at face
 	  mu = (*this).FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity(vars.State(iUp).Temperature(eqnState)), ghostDistance, vars.Center(iUp), vars.FCenterI(loc) );
+	  //Get density at face
+	  rho = (*this).FaceReconCentral( ghostState.Rho(), vars.State(iUp).Rho(), ghostDistance, vars.Center(iUp), vars.FCenterI(loc) );
 
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaI(loc) );
@@ -409,8 +416,9 @@ void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const
 
 	  //accumulate wave speed contribution
 	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
-	  maxViscSpeed = max(4.0/(3.0 * vars.State(iUp).Rho()), eqnState.Gamma()/vars.State(iUp).Rho()) * (mu/eqnState.GetPrandtl()) * 
-	    pow(0.5 * (vars.FAreaI(loc).Mag() + vars.FAreaI(iFaceUp).Mag()), 2.0) / vars.Vol(iUp) ;
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaI(loc).Mag(), vars.Vol(iUp), mRef/Re);
+	  // maxViscSpeed = max(4.0/(3.0 * vars.State(iUp).Rho()), eqnState.Gamma()/vars.State(iUp).Rho()) * (mu/eqnState.GetPrandtl()) * 
+	  //   pow(0.5 * (vars.FAreaI(loc).Mag() + vars.FAreaI(iFaceUp).Mag()), 2.0) / vars.Vol(iUp) ;
 	  vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(iUp) + viscConstant * maxViscSpeed, iUp); 
 
 	}
@@ -432,6 +440,8 @@ void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const
 	  tGrad = (*this).TempGrad(iLow);
 	  //Get viscosity at face
 	  mu = (*this).FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity(vars.State(iLow).Temperature(eqnState)), ghostDistance, vars.Center(iLow), vars.FCenterI(loc) );
+	  //Get density at face
+	  rho = (*this).FaceReconCentral( ghostState.Rho(), vars.State(iLow).Rho(), ghostDistance, vars.Center(iLow), vars.FCenterI(loc) );
 
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaI(loc) );
@@ -440,14 +450,19 @@ void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const
 	  //at upper boundary normal points out of cell, so need to add to residual
 	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is negative
 	  vars.AddToResidual(-1.0 * tempViscFlux * vars.FAreaI(loc).Mag(), iLow);
+
 	  //no wave speed calculation, this is only done at the lower face of the cell
+	  //accumulate wave speed contribution
+	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaI(loc).Mag(), vars.Vol(iLow), mRef/Re);
+	  vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(iLow) + viscConstant * maxViscSpeed, iLow); 
 
 	}
 	else{ //------------------------------------------------------------------------------------------------------------------------------------------------
 
 	  iLow  = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
 	  iUp  = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
-	  iFaceUp  = GetNeighborUpI(ii, jj, kk, imax, jmax);
+	  //iFaceUp  = GetNeighborUpI(ii, jj, kk, imax, jmax);
 
 	  //Get velocity gradient at face
 	  velGrad = (*this).FaceReconCentral( (*this).VelGrad(iLow), (*this).VelGrad(iUp), vars.Center(iLow), vars.Center(iUp), vars.FCenterI(loc) );
@@ -457,6 +472,8 @@ void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const
 	  tGrad = (*this).FaceReconCentral( (*this).TempGrad(iLow), (*this).TempGrad(iUp), vars.Center(iLow), vars.Center(iUp), vars.FCenterI(loc) );
 	  //Get viscosity at face
 	  mu = (*this).FaceReconCentral( suth.GetViscosity( vars.State(iLow).Temperature(eqnState) ), suth.GetViscosity( vars.State(iUp).Temperature(eqnState) ), vars.Center(iLow), vars.Center(iUp), vars.FCenterI(loc) );
+	  //Get density at face
+	  rho = (*this).FaceReconCentral( vars.State(iLow).Rho(), vars.State(iUp).Rho(), vars.Center(iLow), vars.Center(iUp), vars.FCenterI(loc) );
 
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaI(loc) );
@@ -469,9 +486,15 @@ void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const
 
 	  //accumulate wave speed contribution
 	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
-	  maxViscSpeed = max(4.0/(3.0 * vars.State(iUp).Rho()), eqnState.Gamma()/vars.State(iUp).Rho()) * (mu/eqnState.GetPrandtl()) * 
-	    pow(0.5 * (vars.FAreaI(loc).Mag() + vars.FAreaI(iFaceUp).Mag()), 2.0) / vars.Vol(iUp) ;
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaI(loc).Mag(), vars.Vol(iLow), mRef/Re);
+	  vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(iLow) + viscConstant * maxViscSpeed, iLow); 
+
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaI(loc).Mag(), vars.Vol(iUp), mRef/Re);
 	  vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(iUp) + viscConstant * maxViscSpeed, iUp); 
+
+	  // maxViscSpeed = max(4.0/(3.0 * vars.State(iUp).Rho()), eqnState.Gamma()/vars.State(iUp).Rho()) * (mu/eqnState.GetPrandtl()) * 
+	  //   pow(0.5 * (vars.FAreaI(loc).Mag() + vars.FAreaI(iFaceUp).Mag()), 2.0) / vars.Vol(iUp) ;
+	  // vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(iUp) + viscConstant * maxViscSpeed, iUp); 
 
 
 	}
@@ -500,7 +523,7 @@ void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const
   int loc = 0;
   int jLow = 0;
   int jUp = 0;
-  int jFaceUp = 0;
+  //int jFaceUp = 0;
 
   string lstr = "left";
   string rstr = "right";
@@ -526,6 +549,7 @@ void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const
   vector3d<double> tGrad;
   vector3d<double> vel;
   double mu = 0.0;
+  double rho = 0.0;
   double maxViscSpeed = 0.0;
 
   double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
@@ -541,7 +565,7 @@ void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const
 	if (jj == 0){ //-------------------------------------------------------------------------------------------------------------------------------------
 
 	  jUp  = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
-	  jFaceUp  = GetNeighborUpJ(ii, jj, kk, imax, jmax);
+	  //jFaceUp  = GetNeighborUpJ(ii, jj, kk, imax, jmax);
 
 	  //find boundary type and get ghost state
 	  bcName = bound.GetBCName(ii, jj, kk, "jl");
@@ -557,6 +581,8 @@ void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const
 	  tGrad = (*this).TempGrad(jUp);
 	  //Get viscosity at face
 	  mu = (*this).FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity(vars.State(jUp).Temperature(eqnState)), ghostDistance, vars.Center(jUp), vars.FCenterJ(loc) );
+	  //Get density at face
+	  rho = (*this).FaceReconCentral( ghostState.Rho(), vars.State(jUp).Rho(), ghostDistance, vars.Center(jUp), vars.FCenterJ(loc) );
 
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaJ(loc) );
@@ -568,9 +594,12 @@ void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const
 
 	  //accumulate wave speed contribution
 	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
-	  maxViscSpeed = max(4.0/(3.0 * vars.State(jUp).Rho()), eqnState.Gamma()/vars.State(jUp).Rho()) * (mu/eqnState.GetPrandtl()) * 
-	    pow(0.5 * (vars.FAreaJ(loc).Mag() + vars.FAreaJ(jFaceUp).Mag()), 2.0) / vars.Vol(jUp) ;
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaJ(loc).Mag(), vars.Vol(jUp), mRef/Re);
 	  vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(jUp) + viscConstant * maxViscSpeed, jUp); 
+
+	  // maxViscSpeed = max(4.0/(3.0 * vars.State(jUp).Rho()), eqnState.Gamma()/vars.State(jUp).Rho()) * (mu/eqnState.GetPrandtl()) * 
+	  //   pow(0.5 * (vars.FAreaJ(loc).Mag() + vars.FAreaJ(jFaceUp).Mag()), 2.0) / vars.Vol(jUp) ;
+	  // vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(jUp) + viscConstant * maxViscSpeed, jUp); 
 
 	}
 	else if (jj == jmax-1){ //--------------------------------------------------------------------------------------------------------------------------------
@@ -591,6 +620,8 @@ void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const
 	  tGrad = (*this).TempGrad(jLow);
 	  //Get viscosity at face
 	  mu = (*this).FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity(vars.State(jLow).Temperature(eqnState)), ghostDistance, vars.Center(jLow), vars.FCenterJ(loc) );
+	  //Get density at face
+	  rho = (*this).FaceReconCentral( ghostState.Rho(), vars.State(jLow).Rho(), ghostDistance, vars.Center(jLow), vars.FCenterJ(loc) );
 
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaJ(loc) );
@@ -601,13 +632,15 @@ void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const
 	  vars.AddToResidual(-1.0 * tempViscFlux * vars.FAreaJ(loc).Mag(), jLow);
 
 	  //no wave speed calculation, this is only done at the lower face of the cell
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaJ(loc).Mag(), vars.Vol(jLow), mRef/Re);
+	  vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(jLow) + viscConstant * maxViscSpeed, jLow); 
 
 	}
 	else{ //-----------------------------------------------------------------------------------------------------------------------------------------------
 
 	  jLow  = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
 	  jUp  = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
-	  jFaceUp  = GetNeighborUpJ(ii, jj, kk, imax, jmax);
+	  //jFaceUp  = GetNeighborUpJ(ii, jj, kk, imax, jmax);
 
 	  //Get velocity gradient at face
 	  velGrad = (*this).FaceReconCentral( (*this).VelGrad(jLow), (*this).VelGrad(jUp), vars.Center(jLow), vars.Center(jUp), vars.FCenterJ(loc) );
@@ -617,6 +650,8 @@ void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const
 	  tGrad = (*this).FaceReconCentral( (*this).TempGrad(jLow), (*this).TempGrad(jUp), vars.Center(jLow), vars.Center(jUp), vars.FCenterJ(loc) );
 	  //Get viscosity at face
 	  mu = (*this).FaceReconCentral( suth.GetViscosity( vars.State(jLow).Temperature(eqnState) ), suth.GetViscosity( vars.State(jUp).Temperature(eqnState) ), vars.Center(jLow), vars.Center(jUp), vars.FCenterJ(loc) );
+	  //Get density at face
+	  rho = (*this).FaceReconCentral( vars.State(jLow).Rho(), vars.State(jUp).Rho(), vars.Center(jLow), vars.Center(jUp), vars.FCenterJ(loc) );
 
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaJ(loc) );
@@ -629,9 +664,16 @@ void viscBlockVars::CalcViscFluxJ(blockVars &vars, const sutherland &suth, const
 
 	  //accumulate wave speed contribution
 	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
-	  maxViscSpeed = max(4.0/(3.0 * vars.State(jUp).Rho()), eqnState.Gamma()/vars.State(jUp).Rho()) * (mu/eqnState.GetPrandtl()) * 
-	    pow(0.5 * (vars.FAreaJ(loc).Mag() + vars.FAreaJ(jFaceUp).Mag()), 2.0) / vars.Vol(jUp) ;
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaJ(loc).Mag(), vars.Vol(jLow), mRef/Re);
+	  vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(jLow) + viscConstant * maxViscSpeed, jLow); 
+
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaJ(loc).Mag(), vars.Vol(jUp), mRef/Re);
 	  vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(jUp) + viscConstant * maxViscSpeed, jUp); 
+
+
+	  // maxViscSpeed = max(4.0/(3.0 * vars.State(jUp).Rho()), eqnState.Gamma()/vars.State(jUp).Rho()) * (mu/eqnState.GetPrandtl()) * 
+	  //   pow(0.5 * (vars.FAreaJ(loc).Mag() + vars.FAreaJ(jFaceUp).Mag()), 2.0) / vars.Vol(jUp) ;
+	  // vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(jUp) + viscConstant * maxViscSpeed, jUp); 
 
 	}
 
@@ -658,7 +700,7 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
   int loc = 0;
   int kLow = 0;
   int kUp = 0;
-  int kFaceUp = 0;
+  //int kFaceUp = 0;
 
   string lstr = "left";
   string rstr = "right";
@@ -684,6 +726,7 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
   vector3d<double> tGrad;
   vector3d<double> vel;
   double mu = 0.0;
+  double rho = 0.0;
   double maxViscSpeed = 0.0;
 
   double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
@@ -699,7 +742,7 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
 	if (kk == 0){ //-----------------------------------------------------------------------------------------------------------------------------------
 
 	  kUp  = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
-	  kFaceUp  = GetNeighborUpK(ii, jj, kk, imax, jmax);
+	  //kFaceUp  = GetNeighborUpK(ii, jj, kk, imax, jmax);
 
 	  //find boundary type and get ghost state
 	  bcName = bound.GetBCName(ii, jj, kk, "kl");
@@ -715,6 +758,8 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
 	  tGrad = (*this).TempGrad(kUp);
 	  //Get viscosity at face
 	  mu = (*this).FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity(vars.State(kUp).Temperature(eqnState)), ghostDistance, vars.Center(kUp), vars.FCenterK(loc) );
+	  //Get density at face
+	  rho = (*this).FaceReconCentral( ghostState.Rho(), vars.State(kUp).Rho(), ghostDistance, vars.Center(kUp), vars.FCenterK(loc) );
 
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaK(loc) );
@@ -726,9 +771,12 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
 
 	  //accumulate wave speed contribution
 	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
-	  maxViscSpeed = max(4.0/(3.0 * vars.State(kUp).Rho()), eqnState.Gamma()/vars.State(kUp).Rho()) * (mu/eqnState.GetPrandtl()) * 
-	    pow(0.5 * (vars.FAreaK(loc).Mag() + vars.FAreaK(kFaceUp).Mag()), 2.0) / vars.Vol(kUp) ;
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaK(loc).Mag(), vars.Vol(kUp), mRef/Re);
 	  vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(kUp) + viscConstant * maxViscSpeed, kUp); 
+
+	  // maxViscSpeed = max(4.0/(3.0 * vars.State(kUp).Rho()), eqnState.Gamma()/vars.State(kUp).Rho()) * (mu/eqnState.GetPrandtl()) * 
+	  //   pow(0.5 * (vars.FAreaK(loc).Mag() + vars.FAreaK(kFaceUp).Mag()), 2.0) / vars.Vol(kUp) ;
+	  // vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(kUp) + viscConstant * maxViscSpeed, kUp); 
 
 	}
 	else if (kk == kmax-1){ //----------------------------------------------------------------------------------------------------------------------------
@@ -749,6 +797,8 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
 	  tGrad = (*this).TempGrad(kLow);
 	  //Get viscosity at face
 	  mu = (*this).FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity(vars.State(kLow).Temperature(eqnState)), ghostDistance, vars.Center(kLow), vars.FCenterK(loc) );
+	  //Get density at face
+	  rho = (*this).FaceReconCentral( ghostState.Rho(), vars.State(kLow).Rho(), ghostDistance, vars.Center(kLow), vars.FCenterK(loc) );
 
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaK(loc) );
@@ -759,13 +809,15 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
 	  vars.AddToResidual(-1.0 * tempViscFlux * vars.FAreaK(loc).Mag(), kLow);
 
 	  //no wave speed calculation, this is only done at the lower face of the cell
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaK(loc).Mag(), vars.Vol(kLow), mRef/Re);
+	  vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(kLow) + viscConstant * maxViscSpeed, kLow); 
 
 	}
 	else{ //-----------------------------------------------------------------------------------------------------------------------------------------------------
 
 	  kLow  = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
 	  kUp  = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
-	  kFaceUp  = GetNeighborUpK(ii, jj, kk, imax, jmax);
+	  //kFaceUp  = GetNeighborUpK(ii, jj, kk, imax, jmax);
 
 	  //Get velocity gradient at face
 	  velGrad = (*this).FaceReconCentral( (*this).VelGrad(kLow), (*this).VelGrad(kUp), vars.Center(kLow), vars.Center(kUp), vars.FCenterK(loc) );
@@ -775,6 +827,8 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
 	  tGrad = (*this).FaceReconCentral( (*this).TempGrad(kLow), (*this).TempGrad(kUp), vars.Center(kLow), vars.Center(kUp), vars.FCenterK(loc) );
 	  //Get viscosity at face
 	  mu = (*this).FaceReconCentral( suth.GetViscosity( vars.State(kLow).Temperature(eqnState) ), suth.GetViscosity( vars.State(kUp).Temperature(eqnState) ), vars.Center(kLow), vars.Center(kUp), vars.FCenterK(loc) );
+	  //Get density at face
+	  rho = (*this).FaceReconCentral( vars.State(kLow).Rho(), vars.State(kUp).Rho(), vars.Center(kLow), vars.Center(kUp), vars.FCenterK(loc) );
 
 	  //calculate viscous flux
 	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaK(loc) );
@@ -787,9 +841,16 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
 
 	  //accumulate wave speed contribution
 	  //this is done on a cell basis; when at the lower face, value for cell will be calculated
-	  maxViscSpeed = max(4.0/(3.0 * vars.State(kUp).Rho()), eqnState.Gamma()/vars.State(kUp).Rho()) * (mu/eqnState.GetPrandtl()) * 
-	    pow(0.5 * (vars.FAreaK(loc).Mag() + vars.FAreaK(kFaceUp).Mag()), 2.0) / vars.Vol(kUp) ;
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaK(loc).Mag(), vars.Vol(kLow), mRef/Re);
+	  vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(kLow) + viscConstant * maxViscSpeed, kLow); 
+
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaK(loc).Mag(), vars.Vol(kUp), mRef/Re);
 	  vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(kUp) + viscConstant * maxViscSpeed, kUp); 
+
+
+	  // maxViscSpeed = max(4.0/(3.0 * vars.State(kUp).Rho()), eqnState.Gamma()/vars.State(kUp).Rho()) * (mu/eqnState.GetPrandtl()) * 
+	  //   pow(0.5 * (vars.FAreaK(loc).Mag() + vars.FAreaK(kFaceUp).Mag()), 2.0) / vars.Vol(kUp) ;
+	  // vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(kUp) + viscConstant * maxViscSpeed, kUp); 
 
 	}
 
@@ -954,5 +1015,19 @@ void viscBlockVars::CalcBlockTimeStep( blockVars &vars, const input &inputVars, 
 
 }
 
+
 //---------------------------------------------------------------------------------------------------------------//
 //function declarations
+
+//function to calculate the spectral radius on a cell face for the viscous fluxes
+double ViscFaceSpectralRadius(const double &rho, const idealGas &eqnState, const double &mu, const double &fMag, const double &vol, const double &scale){
+
+  //rho is density at face
+  //eqnState is equation of state, used to get prandtl number
+  //mu is viscosity at face
+  //fMag is face area (magnitude)
+  //vol is cell volume
+  //scale is mach/Re where Re is a reference value
+
+  return max(4.0/3.0, eqnState.Gamma()) * mu / (rho * eqnState.GetPrandtl() * vol) * fMag * fMag * scale ;
+}

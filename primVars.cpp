@@ -278,7 +278,6 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
     normArea = -1.0 * (areaVec / areaVec.Mag()); //at upper surface normal should point into domain for ghost cell calculation
   }
 
-
   double normVelCellCenter = 0;
 
   if (bcType == "slipWall"){             //for slip wall state should be reflected across boundary face, density and pressure stay equal to the boundary cell

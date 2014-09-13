@@ -89,8 +89,6 @@ int main( int argc, char *argv[] ) {
 
   }
 
-  //vector<blockVars> newStateBlocks = stateBlocks;
-
   cout << endl << "Solution Initialized" << endl;
 
   //determine if implict or explicit
@@ -132,7 +130,6 @@ int main( int argc, char *argv[] ) {
 
       for ( bb = 0; bb < mesh.NumBlocks(); bb++ ){             //loop over number of blocks
 
-
 	int numElems = (mesh.Blocks(bb).NumI() - 1) * (mesh.Blocks(bb).NumJ() - 1) * (mesh.Blocks(bb).NumK() - 1);
 
 	//initialize implicit matrix
@@ -151,7 +148,7 @@ int main( int argc, char *argv[] ) {
 	    du[bb].resize(numElems,initial);
 	  }
 
-	}
+	} //end of implicit conditional
 
 	//calculate inviscid fluxes
 	stateBlocks[bb].CalcInvFluxI(eos, inputVars, bb);
@@ -181,17 +178,10 @@ int main( int argc, char *argv[] ) {
 	  //store time-n solution
 	  if (mm == 0){
 	    solTimeN[bb] = stateBlocks[bb].GetCopyConsVars(eos);
-
 	    if (nn == 0){
 	      solDeltaNm1[bb].resize(solTimeN[bb].size());
 	      stateBlocks[bb].DeltaNMinusOne(solDeltaNm1[bb], solTimeN[bb], eos, inputVars.Theta(), inputVars.Zeta());
-	      cout << "n-1 intialized" << endl;
-	      // for (unsigned int dd = 0; dd < solDeltaNm1[0].size(); dd++){
-	      // 	cout << solDeltaNm1[0][dd] << endl;
-	      // }
-
 	    }
-
 	  }
 
 	  stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag, offLowIDiag, offUpIDiag, inputVars.InvFluxJac());
@@ -210,7 +200,7 @@ int main( int argc, char *argv[] ) {
 			       stateBlocks[bb].NumJ()-1, inputVars.Theta() );
 
 
-	} //code block for implicit solver
+	} //conditional for implicit solver
 
       } //loop for blocks
 
@@ -239,6 +229,7 @@ int main( int argc, char *argv[] ) {
 
 	if (nn == 0 && mm == 0){
 	  residL2First[cc] = residL2[cc];
+	  cout << residL2[cc] << endl;
 	}
 
 	//normalize residuals
