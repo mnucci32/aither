@@ -71,9 +71,9 @@ class viscBlockVars {
 
   void CalcViscFluxJacI(const blockVars&, const sutherland&, const idealGas&, const input&, const int&);
 
-  //void CalcCellResidual(blockVars&, const int&, const int&, const int&, const int&, const int&)const;
-
   void CalcBlockTimeStep(blockVars&, const input&, const double&);
+
+
 
   //destructor
   ~viscBlockVars() {}
@@ -81,6 +81,6 @@ class viscBlockVars {
 };
 
 //function definitions
-
+double ViscFaceSpectralRadius(const double&, const idealGas&, const double&, const double&, const double&, const double&);
 
 #endif

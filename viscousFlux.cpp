@@ -21,18 +21,38 @@ viscousFlux::viscousFlux( const tensor<double> &velGrad, const vector3d<double> 
 
   double lambda = suth.GetLambda(mu);
 
-  tensor<double> sumVelGrad = velGrad + velGrad.Transpose();
+  //tensor<double> sumVelGrad = velGrad + velGrad.Transpose();
   double velGradTrace = velGrad.Trace();
 
-  tensor<double> tau = mu * sumVelGrad + lambda * velGradTrace ;
-  vector3d<double> tauX(tau.XX(), tau.XY(), tau.XZ());
-  vector3d<double> tauY(tau.YX(), tau.YY(), tau.YZ());
-  vector3d<double> tauZ(tau.ZX(), tau.ZY(), tau.ZZ());
+  vector3d<double> tau = lambda * velGradTrace * normArea + mu * (velGrad.MatMult(normArea) + velGrad.Transpose().MatMult(normArea));
 
-  momX = -1.0 * tauX.DotProd(normArea);     
-  momY = -1.0 * tauY.DotProd(normArea);     
-  momZ = -1.0 * tauZ.DotProd(normArea);     
-  engy = -1.0 * (tauX.DotProd(normArea) * vel.X() + tauY.DotProd(normArea) * vel.Y() + tauZ.DotProd(normArea) * vel.Z()) - (mu/((eqnState.Gamma() - 1.0) * eqnState.GetPrandtl() )) * tGrad.DotProd(normArea);
+  //tensor<double> tau = mu * sumVelGrad + lambda * velGradTrace ;
+  // tensor<double> tau;
+  // tau.SetXX(2.0 * mu * velGrad.XX() + lambda * velGradTrace);
+  // tau.SetYY(2.0 * mu * velGrad.YY() + lambda * velGradTrace);
+  // tau.SetZZ(2.0 * mu * velGrad.ZZ() + lambda * velGradTrace);
+
+  // tau.SetXY(mu * ( velGrad.XY() + velGrad.YX() ));
+  // tau.SetYX(mu * ( velGrad.XY() + velGrad.YX() )); //symmetric tensor
+  // tau.SetXZ(mu * ( velGrad.XZ() + velGrad.ZX() ));
+  // tau.SetZX(mu * ( velGrad.XZ() + velGrad.ZX() )); //symmetric tensor
+  // tau.SetYZ(mu * ( velGrad.YZ() + velGrad.ZY() ));
+  // tau.SetZY(mu * ( velGrad.YZ() + velGrad.ZY() )); //symmetric tensor
+
+  // vector3d<double> tauX(tau.XX(), tau.XY(), tau.XZ());
+  // vector3d<double> tauY(tau.YX(), tau.YY(), tau.YZ());
+  // vector3d<double> tauZ(tau.ZX(), tau.ZY(), tau.ZZ());
+
+  // momX = tauX.DotProd(normArea);     
+  // momY = tauY.DotProd(normArea);     
+  // momZ = tauZ.DotProd(normArea);     
+  // engy = (tauX.DotProd(normArea) * vel.X() + tauY.DotProd(normArea) * vel.Y() + tauZ.DotProd(normArea) * vel.Z()) + eqnState.GetConductivity(mu) * tGrad.DotProd(normArea);
+
+
+  momX = tau.X();
+  momY = tau.Y();
+  momZ = tau.Z();
+  engy = tau.DotProd(vel) + eqnState.GetConductivity(mu) * tGrad.DotProd(normArea);
 
 }
 
