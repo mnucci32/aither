@@ -1021,7 +1021,7 @@ void CalcViscFluxJacJ(const blockVars &vars, const sutherland &suth, const ideal
 	  jUp  = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
 
 	  //find boundary type and get ghost state
-	  bcName = bound.GetBCName(ii, jj, kk, "il");
+	  bcName = bound.GetBCName(ii, jj, kk, "jl");
 
 	  ghostState = vars.State(jUp).GetGhostState( bcName, vars.FAreaJ(loc), "il", inp, eqnState );
 
@@ -1046,7 +1046,7 @@ void CalcViscFluxJacJ(const blockVars &vars, const sutherland &suth, const ideal
 	  jLow  = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
 
 	  //find boundary type and get ghost state
-	  bcName = bound.GetBCName(ii, jj, kk, "iu");
+	  bcName = bound.GetBCName(ii, jj, kk, "ju");
 
 	  ghostState = vars.State(jLow).GetGhostState( bcName, vars.FAreaJ(loc), "iu", inp, eqnState );
 
@@ -1141,7 +1141,7 @@ void CalcViscFluxJacK(const blockVars &vars, const sutherland &suth, const ideal
 	  kUp  = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
 
 	  //find boundary type and get ghost state
-	  bcName = bound.GetBCName(ii, jj, kk, "il");
+	  bcName = bound.GetBCName(ii, jj, kk, "kl");
 
 	  ghostState = vars.State(kUp).GetGhostState( bcName, vars.FAreaK(loc), "il", inp, eqnState );
 
@@ -1162,7 +1162,7 @@ void CalcViscFluxJacK(const blockVars &vars, const sutherland &suth, const ideal
 	  kLow  = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
 
 	  //find boundary type and get ghost state
-	  bcName = bound.GetBCName(ii, jj, kk, "iu");
+	  bcName = bound.GetBCName(ii, jj, kk, "ku");
 
 	  ghostState = vars.State(kLow).GetGhostState( bcName, vars.FAreaK(loc), "iu", inp, eqnState );
 

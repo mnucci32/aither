@@ -188,6 +188,13 @@ int main( int argc, char *argv[] ) {
 	  stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag, offLowJDiag, offUpJDiag, inputVars.InvFluxJac());
 	  stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag, offLowKDiag, offUpKDiag, inputVars.InvFluxJac());
 
+
+	  if (inputVars.EquationSet() == "navierStokes" ){
+	    CalcViscFluxJacI(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag, offLowIDiag, offUpIDiag);
+	    CalcViscFluxJacJ(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag, offLowJDiag, offUpJDiag);
+	    CalcViscFluxJacK(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag, offLowKDiag, offUpKDiag);
+	  }
+
 	  //add volume divided by time step term to main diagonal
 	  stateBlocks[bb].AddVolTime(mainDiag, inputVars.Theta(), inputVars.Zeta(), inputVars.DualTimeCFL());
 
