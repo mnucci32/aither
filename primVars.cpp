@@ -438,6 +438,7 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
   }
   else {
     cerr << "ghost state for BC type " << bcType << " is not supported!" << endl;
+    cerr << "surface is " << surf << endl;
     exit(0);
   }
 
