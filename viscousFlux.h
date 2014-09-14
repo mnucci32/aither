@@ -41,7 +41,7 @@ class viscousFlux {
   double Engy() const {return engy;}
 
   void SetFlux( const tensor<double>&, const vector3d<double>&, const double&, const sutherland&, const idealGas&, const vector3d<double>&, const vector3d<double>& );
-  void CalcFluxJac( const tensor<double>&, const vector3d<double>&, const double&, const sutherland&, const idealGas&, const vector3d<double>&, const vector3d<double>&, squareMatrix&, squareMatrix&, const primVars&, const primVars& );
+
   viscousFlux operator * (const double&);
   viscousFlux operator / (const double&);
 
@@ -55,6 +55,6 @@ class viscousFlux {
 };
 
 //function definitions
-
+squareMatrix CalcTSLFluxJac( const double&, const idealGas&, const double &, const vector3d<double>&, const primVars&, const primVars& );
 
 #endif

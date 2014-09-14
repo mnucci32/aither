@@ -127,114 +127,83 @@ void viscousFlux::SetFlux( const tensor<double> &velGrad, const vector3d<double>
 
 }
 
-//member function to calculate the viscous flux jacobian
-void viscousFlux::CalcFluxJac( const tensor<double> &velGrad, const vector3d<double> &vel, const double &mu, const sutherland &suth, const idealGas &eqnState, const vector3d<double> &tGrad, const vector3d<double> &areaVec, squareMatrix &dF_dUl, squareMatrix &dF_dUr, const primVars &left, const primVars &right){
+//function to calculate the viscous flux jacobian using the thin shear layer approximation
+squareMatrix CalcTSLFluxJac(const double &mu, const idealGas &eqnState, const double & vol, const vector3d<double> &areaVec, const primVars &left, const primVars &right){
 
-  //check to see that input matricies are the correct size
-  if ( dF_dUl.Size() != 5 || dF_dUr.Size() != 5 ){
-    cerr << "ERROR: The matrices for the viscous flux jacobian are not the correct size!" << endl;
-    exit(0);
-  }
+  primVars diff = (right - left) ;
+  double d1_rho = 1.0/right.Rho() - 1.0/left.Rho() ;
 
-  //assemble dW_dUl -- derivative of primative variables at left side with respect to conserved variables at left side
-  squareMatrix dW_dUl(dF_dUl.Size());
-  //first row
-  dW_dUl.SetData(0, 0, 1.0);
-  dW_dUl.SetData(0, 1, 0.0);
-  dW_dUl.SetData(0, 2, 0.0);
-  dW_dUl.SetData(0, 3, 0.0);
-  dW_dUl.SetData(0, 4, 0.0);
-  //second row
-  dW_dUl.SetData(1, 0, -1.0 * left.U() / left.Rho());
-  dW_dUl.SetData(1, 1, 1.0 / left.Rho() );
-  dW_dUl.SetData(1, 2, 0.0);
-  dW_dUl.SetData(1, 3, 0.0);
-  dW_dUl.SetData(1, 4, 0.0);
-  //third row
-  dW_dUl.SetData(2, 0, -1.0 * left.V() / left.Rho());
-  dW_dUl.SetData(2, 1, 0.0);
-  dW_dUl.SetData(2, 2, 1.0 / left.Rho() );
-  dW_dUl.SetData(2, 3, 0.0);
-  dW_dUl.SetData(2, 4, 0.0);
-  //fourth row
-  dW_dUl.SetData(3, 0, -1.0 * left.W() / left.Rho());
-  dW_dUl.SetData(3, 1, 0.0);
-  dW_dUl.SetData(3, 2, 0.0);
-  dW_dUl.SetData(3, 3, 1.0 / left.Rho() );
-  dW_dUl.SetData(3, 4, 0.0);
-  //fifth row
-  dW_dUl.SetData(4, 0, 0.5 * (eqnState.Gamma() - 1.0) * left.Velocity().MagSq() );
-  dW_dUl.SetData(4, 1, -1.0 * (eqnState.Gamma() - 1.0) * left.U() );
-  dW_dUl.SetData(4, 2, -1.0 * (eqnState.Gamma() - 1.0) * left.V());
-  dW_dUl.SetData(4, 3, -1.0 * (eqnState.Gamma() - 1.0) * left.W() );
-  dW_dUl.SetData(4, 4, eqnState.Gamma() - 1.0 );
+  double du_rho = (right.U()/right.Rho() - left.U()/left.Rho() ) ;
+  double dv_rho = (right.V()/right.Rho() - left.V()/left.Rho() ) ;
+  double dw_rho = (right.W()/right.Rho() - left.W()/left.Rho() ) ;
 
-  //calculate dF_dWl -- derivative of flux at face with respect to primative variables at left side
-  squareMatrix dF_dWl(dF_dUl.Size());
-  //first row
-  dF_dWl.SetData(0, 0, 0.0);
-  dF_dWl.SetData(0, 1, 0.0);
-  dF_dWl.SetData(0, 2, 0.0);
-  dF_dWl.SetData(0, 3, 0.0);
-  dF_dWl.SetData(0, 4, 0.0);
+  double duu_rho = (right.U()*right.U()/right.Rho() - left.U()*left.U()/left.Rho() ) ;
+  double dvv_rho = (right.V()*right.V()/right.Rho() - left.V()*left.V()/left.Rho() ) ;
+  double dww_rho = (right.W()*right.W()/right.Rho() - left.W()*left.V()/left.Rho() ) ;
 
+  double duv_rho = (right.U()*right.V()/right.Rho() - left.U()*left.V()/left.Rho() ) ;
+  double duw_rho = (right.U()*right.W()/right.Rho() - left.U()*left.W()/left.Rho() ) ;
+  double dvw_rho = (right.V()*right.W()/right.Rho() - left.V()*left.W()/left.Rho() ) ;
 
+  double dE_rho = ( eqnState.GetEnergy( eqnState.GetSpecEnergy(right.P(), right.Rho() ), right.Velocity().Mag() )/ right.Rho() - eqnState.GetEnergy( eqnState.GetSpecEnergy(left.P(), left.Rho() ), left.Velocity().Mag() )/ left.Rho()) ;
 
+  //calculate coefficients
+  double a1 = (4.0/3.0) * areaVec.DotProd(areaVec);
+  double a2 = (1.0/3.0) * areaVec.X() * areaVec.Y();
+  double a3 = (1.0/3.0) * areaVec.X() * areaVec.Z();
+  double a5 = (1.0/3.0) * areaVec.Y() * areaVec.Z();
 
-  //assemble dW_dUr -- derivative of primative variables at right side with respect to conservative variables at right side
-  squareMatrix dW_dUr(dF_dUr.Size());
-  //first row
-  dW_dUr.SetData(0, 0, 1.0);
-  dW_dUr.SetData(0, 1, 0.0);
-  dW_dUr.SetData(0, 2, 0.0);
-  dW_dUr.SetData(0, 3, 0.0);
-  dW_dUr.SetData(0, 4, 0.0);
-  //second row
-  dW_dUr.SetData(1, 0, -1.0 * right.U() / right.Rho());
-  dW_dUr.SetData(1, 1, 1.0 / right.Rho() );
-  dW_dUr.SetData(1, 2, 0.0);
-  dW_dUr.SetData(1, 3, 0.0);
-  dW_dUr.SetData(1, 4, 0.0);
-  //third row
-  dW_dUr.SetData(2, 0, -1.0 * right.V() / right.Rho());
-  dW_dUr.SetData(2, 1, 0.0);
-  dW_dUr.SetData(2, 2, 1.0 / right.Rho() );
-  dW_dUr.SetData(2, 3, 0.0);
-  dW_dUr.SetData(2, 4, 0.0);
-  //fourth row
-  dW_dUr.SetData(3, 0, -1.0 * right.W() / right.Rho());
-  dW_dUr.SetData(3, 1, 0.0);
-  dW_dUr.SetData(3, 2, 0.0);
-  dW_dUr.SetData(3, 3, 1.0 / right.Rho() );
-  dW_dUr.SetData(3, 4, 0.0);
-  //fifth row
-  dW_dUr.SetData(4, 0, 0.5 * (eqnState.Gamma() - 1.0) * right.Velocity().MagSq() );
-  dW_dUr.SetData(4, 1, -1.0 * (eqnState.Gamma() - 1.0) * right.U() );
-  dW_dUr.SetData(4, 2, -1.0 * (eqnState.Gamma() - 1.0) * right.V());
-  dW_dUr.SetData(4, 3, -1.0 * (eqnState.Gamma() - 1.0) * right.W() );
-  dW_dUr.SetData(4, 4, eqnState.Gamma() - 1.0 );
+  double a4 = areaVec.X() * areaVec.X() + (4.0/3.0) * areaVec.Y() * areaVec.Y() + areaVec.Z() * areaVec.Z();
+  double a6 = areaVec.X() * areaVec.X() + areaVec.Y() * areaVec.Y() + (4.0/3.0) * areaVec.Z() * areaVec.Z();
+  double a7 = eqnState.Gamma()/eqnState.GetPrandtl() * areaVec.DotProd(areaVec);
 
+  double b21 = -a1 * du_rho -a2 * dv_rho -a3 * dw_rho;
+  double b31 = -a2 * du_rho -a4 * dv_rho -a5 * dw_rho;
+  double b41 = -a3 * du_rho -a5 * dv_rho -a6 * dw_rho;
 
+  double b51 = a7 * (duu_rho * dvv_rho * dww_rho - dE_rho) -a1 * duu_rho -a4 * dvv_rho -a6 * dww_rho - 2.0 * a2 * duv_rho - 2.0 * a3 * duw_rho - 2.0 * a5 * dvw_rho;
 
+  double b52 = -a7 * du_rho - b21;
+  double b53 = -a7 * dv_rho - b31;
+  double b54 = -a7 * dw_rho - b41;
 
+  //calculate viscous flux jacobian
+  squareMatrix vFluxJac(5);
 
+  //column 0
+  vFluxJac.SetData(0, 0, 0.0);
+  vFluxJac.SetData(1, 0, b21);
+  vFluxJac.SetData(2, 0, b31);
+  vFluxJac.SetData(3, 0, b41);
+  vFluxJac.SetData(4, 0, b51);
 
+  //column 1
+  vFluxJac.SetData(0, 1, 0.0);
+  vFluxJac.SetData(1, 1, a1 * d1_rho);
+  vFluxJac.SetData(2, 1, a2 * d1_rho);
+  vFluxJac.SetData(3, 1, a3 * d1_rho);
+  vFluxJac.SetData(4, 1, b52);
 
-  vector3d<double> normArea = areaVec / areaVec.Mag();
+  //column 2
+  vFluxJac.SetData(0, 2, 0.0);
+  vFluxJac.SetData(1, 2, a2 * d1_rho);
+  vFluxJac.SetData(2, 2, a4 * d1_rho);
+  vFluxJac.SetData(3, 2, a5 * d1_rho);
+  vFluxJac.SetData(4, 2, b53);
 
-  double lambda = suth.GetLambda(mu);
+  //column 3
+  vFluxJac.SetData(0, 1, 0.0);
+  vFluxJac.SetData(1, 1, a3 * d1_rho);
+  vFluxJac.SetData(2, 1, a5 * d1_rho);
+  vFluxJac.SetData(3, 1, a6 * d1_rho);
+  vFluxJac.SetData(4, 1, b54);
 
-  tensor<double> sumVelGrad = velGrad + velGrad.Transpose();
-  double velGradTrace = velGrad.Trace();
+  //column 4
+  vFluxJac.SetData(0, 1, 0.0);
+  vFluxJac.SetData(1, 1, 0.0);
+  vFluxJac.SetData(2, 1, 0.0);
+  vFluxJac.SetData(3, 1, 0.0);
+  vFluxJac.SetData(4, 1, a7 * d1_rho);
 
-  tensor<double> tau = mu * sumVelGrad + lambda * velGradTrace ;
-  vector3d<double> tauX(tau.XX(), tau.XY(), tau.XZ());
-  vector3d<double> tauY(tau.YX(), tau.YY(), tau.YZ());
-  vector3d<double> tauZ(tau.ZX(), tau.ZY(), tau.ZZ());
-
-  momX = -1.0 * tauX.DotProd(normArea);     
-  momY = -1.0 * tauY.DotProd(normArea);     
-  momZ = -1.0 * tauZ.DotProd(normArea);     
-  engy = -1.0 * (tauX.DotProd(normArea) * vel.X() + tauY.DotProd(normArea) * vel.Y() + tauZ.DotProd(normArea) * vel.Z()) - (mu/((eqnState.Gamma() - 1.0) * eqnState.GetPrandtl() )) * tGrad.DotProd(normArea);
-
+  return (mu/vol) * vFluxJac;
 }
