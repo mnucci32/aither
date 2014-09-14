@@ -861,12 +861,12 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
 
 }
 
-//member function to calculate viscous flux jacobian on i-faces
-void viscBlockVars::CalcViscFluxJacI(const blockVars &vars, const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb){
+//function to calculate viscous flux jacobian on i-faces
+void CalcViscFluxJacI(const blockVars &vars, const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb, colMatrix &mainDiag, matrixDiagonal &offLowIDiag, matrixDiagonal &offUpIDiag){
 
-  int imax = (*this).NumI();
-  int jmax = (*this).NumJ() - 1;
-  int kmax = (*this).NumK() - 1;
+  int imax = vars.NumI();
+  int jmax = vars.NumJ() - 1;
+  int kmax = vars.NumK() - 1;
 
  const boundaryConditions bound = inp.BC(bb);
 
@@ -877,20 +877,15 @@ void viscBlockVars::CalcViscFluxJacI(const blockVars &vars, const sutherland &su
   int iLow = 0;
   int iUp = 0;
 
-  string lstr = "left";
-  string rstr = "right";
-
   string bcName = "undefined";
 
   primVars ghostState;
-  vector3d<double> ghostDistance;
 
-  viscousFlux tempViscFlux;
+  squareMatrix tempViscFluxJac(5);
 
-  tensor<double> velGrad;
-  vector3d<double> tGrad;
-  vector3d<double> vel;
   double mu = 0.0;
+  double rho = 0.0;
+  double maxViscSpeed = 0.0;
 
   double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
   double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
@@ -902,7 +897,7 @@ void viscBlockVars::CalcViscFluxJacI(const blockVars &vars, const sutherland &su
 
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
 
-	if (ii == 0){
+	if (ii == 0){ //-----------------------------------------------------------------------------------------------------------------------------------------
 
 	  iUp  = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
 
@@ -910,24 +905,24 @@ void viscBlockVars::CalcViscFluxJacI(const blockVars &vars, const sutherland &su
 	  bcName = bound.GetBCName(ii, jj, kk, "il");
 
 	  ghostState = vars.State(iUp).GetGhostState( bcName, vars.FAreaI(loc), "il", inp, eqnState );
-	  ghostDistance = 2.0 * ( vars.FCenterI(loc) - vars.Center(iUp) ) + vars.Center(iUp);
 
-	  //Get velocity gradient at face
-	  velGrad = (*this).VelGrad(iUp);
-	  //Get velocity at face
-	  vel = (*this).FaceReconCentral( ghostState.Velocity(), vars.State(iUp).Velocity(), ghostDistance, vars.Center(iUp), vars.FCenterI(loc) );
-	  //Get temperature gradient at face
-	  tGrad = (*this).TempGrad(iUp);
 	  //Get viscosity at face
-	  mu = (*this).FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity(vars.State(iUp).Temperature(eqnState)), ghostDistance, vars.Center(iUp), vars.FCenterI(loc) );
+	  mu = 0.5 * ( suth.GetViscosity(ghostState.Temperature(eqnState)) + suth.GetViscosity(vars.State(iUp).Temperature(eqnState)) );
+	  //Get density at face
+	  rho = 0.5 * ( ghostState.Rho() + vars.State(iUp).Rho() );
 
-	  //calculate viscous flux
-	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaI(loc) );
-	  tempViscFlux = (mRef/Re) * tempViscFlux;
+	  //calculate viscous flux jacobian
+	  // tempViscFluxJac = CalcTSLFluxJac(mu, eqnState, vars.Vol(iUp), vars.FAreaI(loc), ghostState, vars.State(iUp)) ;
+	  // tempViscFluxJac = (mRef/Re) * tempViscFluxJac;
 
+	  //accumulate wave speed contribution
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaI(loc).Mag(), vars.Vol(iUp), mRef/Re);
+
+	  //boundaries only contribute to main diagonal -- area magnitude contribution is already incorporated into maxViscSpeed
+	  mainDiag.SetData(iUp, mainDiag.Data(iUp) + 0.5 * maxViscSpeed);
 
 	}
-	else if (ii == imax-1){
+	else if (ii == imax-1){ //---------------------------------------------------------------------------------------------------------------------------------------
 
 	  iLow  = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
 
@@ -935,41 +930,46 @@ void viscBlockVars::CalcViscFluxJacI(const blockVars &vars, const sutherland &su
 	  bcName = bound.GetBCName(ii, jj, kk, "iu");
 
 	  ghostState = vars.State(iLow).GetGhostState( bcName, vars.FAreaI(loc), "iu", inp, eqnState );
-	  ghostDistance = 2.0 * ( vars.FCenterI(loc) - vars.Center(iLow) ) + vars.Center(iLow);
 
-	  //Get velocity gradient at face
-	  velGrad = (*this).VelGrad(iLow);
-	  //Get velocity at face
-	  vel = (*this).FaceReconCentral( ghostState.Velocity(), vars.State(iLow).Velocity(), ghostDistance, vars.Center(iLow), vars.FCenterI(loc) );
-	  //Get temperature gradient at face
-	  tGrad = (*this).TempGrad(iLow);
 	  //Get viscosity at face
-	  mu = (*this).FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity(vars.State(iLow).Temperature(eqnState)), ghostDistance, vars.Center(iLow), vars.FCenterI(loc) );
+	  mu = 0.5 * ( suth.GetViscosity(ghostState.Temperature(eqnState)) + suth.GetViscosity(vars.State(iLow).Temperature(eqnState)) );
+	  //Get density at face
+	  rho = 0.5 * ( ghostState.Rho() + vars.State(iLow).Rho() );
 
-	  //calculate viscous flux
-	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaI(loc) );
-	  tempViscFlux = (mRef/Re) * tempViscFlux;
+	  //accumulate wave speed contribution
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaI(loc).Mag(), vars.Vol(iLow), mRef/Re);
 
+	  //boundaries only contribute to main diagonal -- area magnitude contribution is already incorporated into maxViscSpeed
+	  mainDiag.SetData(iLow, mainDiag.Data(iLow) + 0.5 * maxViscSpeed);
 
 	}
-	else{
+	else{ //------------------------------------------------------------------------------------------------------------------------------------------------
 
 	  iLow  = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
 	  iUp  = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
 
-	  //Get velocity gradient at face
-	  velGrad = (*this).FaceReconCentral( (*this).VelGrad(iLow), (*this).VelGrad(iUp), vars.Center(iLow), vars.Center(iUp), vars.FCenterI(loc) );
-	  //Get velocity at face
-	  vel = (*this).FaceReconCentral( vars.State(iLow).Velocity(), vars.State(iUp).Velocity(), vars.Center(iLow), vars.Center(iUp), vars.FCenterI(loc) );
-	  //Get temperature gradient at face
-	  tGrad = (*this).FaceReconCentral( (*this).TempGrad(iLow), (*this).TempGrad(iUp), vars.Center(iLow), vars.Center(iUp), vars.FCenterI(loc) );
 	  //Get viscosity at face
-	  mu = (*this).FaceReconCentral( suth.GetViscosity( vars.State(iLow).Temperature(eqnState) ), suth.GetViscosity( vars.State(iUp).Temperature(eqnState) ), vars.Center(iLow), vars.Center(iUp), vars.FCenterI(loc) );
+	  mu = 0.5 * ( suth.GetViscosity( vars.State(iLow).Temperature(eqnState) ) + suth.GetViscosity( vars.State(iUp).Temperature(eqnState) ) );
+	  //Get density at face
+	  rho = 0.5 * ( vars.State(iLow).Rho() + vars.State(iUp).Rho() );
 
-	  //calculate viscous flux
-	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, vars.FAreaI(loc) );
-	  tempViscFlux = (mRef/Re) * tempViscFlux;
+	  //calculate viscous flux jacobian
+	  double vol = 0.5 * (vars.Vol(iUp) + vars.Vol(iLow));
+	  tempViscFluxJac = CalcTSLFluxJac( mu, eqnState, vol, vars.FAreaI(loc), vars.State(iLow), vars.State(iUp) );
+	  tempViscFluxJac = (mRef/Re) * tempViscFluxJac;
 
+	  //convective flux jacobians are subtracted from lower off diagonal and added to upper off diagonal
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
+	  //area magnitude contribution is already incorporated into flux jacobian
+	  offLowIDiag.SetData( iUp, offLowIDiag.Data(iUp) + tempViscFluxJac);
+	  offUpIDiag.SetData( iLow, offLowIDiag.Data(iLow) - tempViscFluxJac);
+
+	  //accumulate wave speed contribution -- area magnitude contribution is already incorporated into maxViscSpeed
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaI(loc).Mag(), vars.Vol(iLow), mRef/Re);
+	  mainDiag.SetData(iLow, mainDiag.Data(iLow) + 0.5 * maxViscSpeed);
+
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaI(loc).Mag(), vars.Vol(iUp), mRef/Re);
+	  mainDiag.SetData(iUp, mainDiag.Data(iUp) + 0.5 * maxViscSpeed);
 
 	}
 
@@ -980,6 +980,240 @@ void viscBlockVars::CalcViscFluxJacI(const blockVars &vars, const sutherland &su
 
 }
 
+//function to calculate viscous flux jacobian on j-faces
+void CalcViscFluxJacJ(const blockVars &vars, const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb, colMatrix &mainDiag, matrixDiagonal &offLowJDiag, matrixDiagonal &offUpJDiag){
+
+  int imax = vars.NumI() - 1;
+  int jmax = vars.NumJ();
+  int kmax = vars.NumK() - 1;
+
+ const boundaryConditions bound = inp.BC(bb);
+
+  int ii = 0;
+  int jj = 0;
+  int kk = 0;
+  int loc = 0;
+  int jLow = 0;
+  int jUp = 0;
+
+  string bcName = "undefined";
+
+  primVars ghostState;
+
+  squareMatrix tempViscFluxJac(5);
+
+  double mu = 0.0;
+  double rho = 0.0;
+  double maxViscSpeed = 0.0;
+
+  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
+  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
+  double mRef = inp.VelRef().Mag() / aRef;
+
+  for ( kk = 0; kk < kmax; kk++){   
+    for ( jj = 0; jj < jmax; jj++){    
+      for ( ii = 0; ii < imax; ii++){      
+
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+
+	if (jj == 0){ //-----------------------------------------------------------------------------------------------------------------------------------------
+
+	  jUp  = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
+
+	  //find boundary type and get ghost state
+	  bcName = bound.GetBCName(ii, jj, kk, "il");
+
+	  ghostState = vars.State(jUp).GetGhostState( bcName, vars.FAreaJ(loc), "il", inp, eqnState );
+
+	  //Get viscosity at face
+	  mu = 0.5 * ( suth.GetViscosity(ghostState.Temperature(eqnState)) + suth.GetViscosity(vars.State(jUp).Temperature(eqnState)) );
+	  //Get density at face
+	  rho = 0.5 * ( ghostState.Rho() + vars.State(jUp).Rho() );
+
+	  //calculate viscous flux jacobian
+	  // tempViscFluxJac = CalcTSLFluxJac(mu, eqnState, vars.Vol(jUp), vars.FAreaJ(loc), ghostState, vars.State(jUp)) ;
+	  // tempViscFluxJac = (mRef/Re) * tempViscFluxJac;
+
+	  //accumulate wave speed contribution
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaJ(loc).Mag(), vars.Vol(jUp), mRef/Re);
+
+	  //boundaries only contribute to main diagonal -- area magnitude contribution is already incorporated into maxViscSpeed
+	  mainDiag.SetData(jUp, mainDiag.Data(jUp) + 0.5 * maxViscSpeed);
+
+	}
+	else if (jj == jmax-1){ //---------------------------------------------------------------------------------------------------------------------------------------
+
+	  jLow  = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
+
+	  //find boundary type and get ghost state
+	  bcName = bound.GetBCName(ii, jj, kk, "iu");
+
+	  ghostState = vars.State(jLow).GetGhostState( bcName, vars.FAreaJ(loc), "iu", inp, eqnState );
+
+	  //Get viscosity at face
+	  mu = 0.5 * ( suth.GetViscosity(ghostState.Temperature(eqnState)) + suth.GetViscosity(vars.State(jLow).Temperature(eqnState)) );
+	  //Get density at face
+	  rho = 0.5 * ( ghostState.Rho() + vars.State(jLow).Rho() );
+
+	  //accumulate wave speed contribution
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaJ(loc).Mag(), vars.Vol(jLow), mRef/Re);
+
+	  //boundaries only contribute to main diagonal -- area magnitude contribution is already incorporated into maxViscSpeed
+	  mainDiag.SetData(jLow, mainDiag.Data(jLow) + 0.5 * maxViscSpeed);
+
+	}
+	else{ //------------------------------------------------------------------------------------------------------------------------------------------------
+
+	  jLow  = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
+	  jUp  = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
+
+	  //Get viscosity at face
+	  mu = 0.5 * ( suth.GetViscosity( vars.State(jLow).Temperature(eqnState) ) + suth.GetViscosity( vars.State(jUp).Temperature(eqnState) ) );
+	  //Get density at face
+	  rho = 0.5 * ( vars.State(jLow).Rho() + vars.State(jUp).Rho() );
+
+	  //calculate viscous flux jacobian
+	  double vol = 0.5 * (vars.Vol(jUp) + vars.Vol(jLow));
+	  tempViscFluxJac = CalcTSLFluxJac( mu, eqnState, vol, vars.FAreaJ(loc), vars.State(jLow), vars.State(jUp) );
+	  tempViscFluxJac = (mRef/Re) * tempViscFluxJac;
+
+	  //convective flux jacobians are subtracted from lower off diagonal and added to upper off diagonal
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
+	  //area magnitude contribution is already incorporated into flux jacobian
+	  offLowJDiag.SetData( jUp, offLowJDiag.Data(jUp) + tempViscFluxJac);
+	  offUpJDiag.SetData( jLow, offLowJDiag.Data(jLow) - tempViscFluxJac);
+
+	  //accumulate wave speed contribution -- area magnitude contribution is already incorporated into maxViscSpeed
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaJ(loc).Mag(), vars.Vol(jLow), mRef/Re);
+	  mainDiag.SetData(jLow, mainDiag.Data(jLow) + 0.5 * maxViscSpeed);
+
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaJ(loc).Mag(), vars.Vol(jUp), mRef/Re);
+	  mainDiag.SetData(jUp, mainDiag.Data(jUp) + 0.5 * maxViscSpeed);
+
+	}
+
+      }
+    }
+  }
+
+
+}
+
+
+//function to calculate viscous flux jacobian on k-faces
+void CalcViscFluxJacK(const blockVars &vars, const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb, colMatrix &mainDiag, matrixDiagonal &offLowKDiag, matrixDiagonal &offUpKDiag){
+
+  int imax = vars.NumI() - 1;
+  int jmax = vars.NumJ() - 1;
+  int kmax = vars.NumK();
+
+ const boundaryConditions bound = inp.BC(bb);
+
+  int ii = 0;
+  int jj = 0;
+  int kk = 0;
+  int loc = 0;
+  int kLow = 0;
+  int kUp = 0;
+
+  string bcName = "undefined";
+
+  primVars ghostState;
+
+  squareMatrix tempViscFluxJac(5);
+
+  double mu = 0.0;
+  double rho = 0.0;
+  double maxViscSpeed = 0.0;
+
+  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
+  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
+  double mRef = inp.VelRef().Mag() / aRef;
+
+  for ( kk = 0; kk < kmax; kk++){   
+    for ( jj = 0; jj < jmax; jj++){    
+      for ( ii = 0; ii < imax; ii++){      
+
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+
+	if (kk == 0){ //-----------------------------------------------------------------------------------------------------------------------------------------
+
+	  kUp  = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
+
+	  //find boundary type and get ghost state
+	  bcName = bound.GetBCName(ii, jj, kk, "il");
+
+	  ghostState = vars.State(kUp).GetGhostState( bcName, vars.FAreaK(loc), "il", inp, eqnState );
+
+	  //Get viscosity at face
+	  mu = 0.5 * ( suth.GetViscosity(ghostState.Temperature(eqnState)) + suth.GetViscosity(vars.State(kUp).Temperature(eqnState)) );
+	  //Get density at face
+	  rho = 0.5 * ( ghostState.Rho() + vars.State(kUp).Rho() );
+
+	  //accumulate wave speed contribution
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaK(loc).Mag(), vars.Vol(kUp), mRef/Re);
+
+	  //boundaries only contribute to main diagonal -- area magnitude contribution is already incorporated into maxViscSpeed
+	  mainDiag.SetData(kUp, mainDiag.Data(kUp) + 0.5 * maxViscSpeed);
+
+	}
+	else if (kk == kmax-1){ //---------------------------------------------------------------------------------------------------------------------------------------
+
+	  kLow  = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
+
+	  //find boundary type and get ghost state
+	  bcName = bound.GetBCName(ii, jj, kk, "iu");
+
+	  ghostState = vars.State(kLow).GetGhostState( bcName, vars.FAreaK(loc), "iu", inp, eqnState );
+
+	  //Get viscosity at face
+	  mu = 0.5 * ( suth.GetViscosity(ghostState.Temperature(eqnState)) + suth.GetViscosity(vars.State(kLow).Temperature(eqnState)) );
+	  //Get density at face
+	  rho = 0.5 * ( ghostState.Rho() + vars.State(kLow).Rho() );
+
+	  //accumulate wave speed contribution
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaK(loc).Mag(), vars.Vol(kLow), mRef/Re);
+
+	  //boundaries only contribute to main diagonal -- area magnitude contribution is already incorporated into maxViscSpeed
+	  mainDiag.SetData(kLow, mainDiag.Data(kLow) + 0.5 * maxViscSpeed);
+
+	}
+	else{ //------------------------------------------------------------------------------------------------------------------------------------------------
+
+	  kLow  = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
+	  kUp  = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
+
+	  //Get viscosity at face
+	  mu = 0.5 * ( suth.GetViscosity( vars.State(kLow).Temperature(eqnState) ) + suth.GetViscosity( vars.State(kUp).Temperature(eqnState) ) );
+	  //Get density at face
+	  rho = 0.5 * ( vars.State(kLow).Rho() + vars.State(kUp).Rho() );
+
+	  //calculate viscous flux jacobian
+	  double vol = 0.5 * (vars.Vol(kUp) + vars.Vol(kLow));
+	  tempViscFluxJac = CalcTSLFluxJac( mu, eqnState, vol, vars.FAreaK(loc), vars.State(kLow), vars.State(kUp) );
+	  tempViscFluxJac = (mRef/Re) * tempViscFluxJac;
+
+	  //convective flux jacobians are subtracted from lower off diagonal and added to upper off diagonal
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
+	  //area magnitude contribution is already incorporated into flux jacobian
+	  offLowKDiag.SetData( kUp, offLowKDiag.Data(kUp) + tempViscFluxJac);
+	  offUpKDiag.SetData( kLow, offLowKDiag.Data(kLow) - tempViscFluxJac);
+
+	  //accumulate wave speed contribution -- area magnitude contribution is already incorporated into maxViscSpeed
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaK(loc).Mag(), vars.Vol(kLow), mRef/Re);
+	  mainDiag.SetData(kLow, mainDiag.Data(kLow) + 0.5 * maxViscSpeed);
+
+	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaK(loc).Mag(), vars.Vol(kUp), mRef/Re);
+	  mainDiag.SetData(kUp, mainDiag.Data(kUp) + 0.5 * maxViscSpeed);
+
+	}
+
+      }
+    }
+  }
+
+
+}
 
 void viscBlockVars::CalcBlockTimeStep( blockVars &vars, const input &inputVars, const double &aRef){
 

@@ -69,11 +69,7 @@ class viscBlockVars {
   void CalcViscFluxJ(blockVars&, const sutherland&, const idealGas&, const input&, const int&);
   void CalcViscFluxK(blockVars&, const sutherland&, const idealGas&, const input&, const int&);
 
-  void CalcViscFluxJacI(const blockVars&, const sutherland&, const idealGas&, const input&, const int&);
-
   void CalcBlockTimeStep(blockVars&, const input&, const double&);
-
-
 
   //destructor
   ~viscBlockVars() {}
@@ -82,5 +78,8 @@ class viscBlockVars {
 
 //function definitions
 double ViscFaceSpectralRadius(const double&, const idealGas&, const double&, const double&, const double&, const double&);
+void CalcViscFluxJacI(const blockVars&, const sutherland&, const idealGas&, const input&, const int&, colMatrix&, matrixDiagonal&, matrixDiagonal&);
+void CalcViscFluxJacJ(const blockVars&, const sutherland&, const idealGas&, const input&, const int&, colMatrix&, matrixDiagonal&, matrixDiagonal&);
+void CalcViscFluxJacK(const blockVars&, const sutherland&, const idealGas&, const input&, const int&, colMatrix&, matrixDiagonal&, matrixDiagonal&);
 
 #endif

@@ -1084,19 +1084,6 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
           // left flux jacobian is not needed at lower boundary (originally - maxWS)
           mainDiag.SetData(  upperI, mainDiag.Data(upperI)   + 0.5 * maxWS * (*this).FAreaI(loc).Mag() );
 
-	  // if ( imax > 2){  //if only one cell thick, no off diagonals
-	  //   lowDiag = GetMatrixDiagLowerFromMainI(upperI);
-	  //   offLowIDiag.SetData(lowDiag, offLowIDiag.Data(lowDiag) + tempR * (*this).FAreaI(loc).Mag() );
-	  // }
-
-	  // if (upperI == 1){
-	  //   cout << "I-flux-jacobian at cell 1, boundary " << bcName << ": " << endl;
-	  //   cout << -1.0 * tempR * (*this).FAreaI(loc).Mag() << endl;
-	  // }
-
-
-	  //(*this).SetMaxWaveSpeedI(maxWS, loc);
-
 	}
 	else if ( ii == imax-1 ){  //at i upper boundary
 	  lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
@@ -1111,19 +1098,6 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 
 	  // right flux jacobian is not needed at upper boundary
           mainDiag.SetData(   lowerI, mainDiag.Data(lowerI)    + 0.5 * maxWS * (*this).FAreaI(loc).Mag() );
-
-	  // if (imax > 2){ //if only one cell thick, no off diagonals
-	  //   upDiag = GetMatrixDiagUpperFromMainI(lowerI);
-	  //   offUpIDiag.SetData(upDiag, offUpIDiag.Data(upDiag) - tempL * (*this).FAreaI(loc).Mag() );
-	  // }
-
-	  // if (lowerI == 1){
-	  //   cout << "I-flux-jacobian at cell 1, boundary " << bcName << ": " << endl;
-	  //   cout << tempL * (*this).FAreaI(loc).Mag() << endl;
-	  // }
-
-
-	  //(*this).SetMaxWaveSpeedI(maxWS, loc);
 
 	}
 	else{
@@ -1150,45 +1124,12 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 	  //left flux jacobian
           mainDiag.SetData(   lowerI, mainDiag.Data(lowerI)    + 0.5 * maxWSL * (*this).FAreaI(loc).Mag() );
 
-	  //lowDiag = GetMatrixDiagLowerFromMainI(lowerI);
-	  //upDiag = GetMatrixDiagUpperFromMainI(lowerI);
-
 	  offLowIDiag.SetData(upperI, -1.0 * tempL * (*this).FAreaI(loc).Mag() );
-	  // if (upDiag >= 0 && ii-1 > 0){
-	  //   offUpIDiag.SetData(upDiag, offUpIDiag.Data(upDiag) - tempL * (*this).FAreaI(loc).Mag() );
-	  // }
 
 	  //right flux jacobian (originally - maxWSR)
           mainDiag.SetData(  upperI, mainDiag.Data(upperI)   + 0.5 * maxWSR * (*this).FAreaI(loc).Mag() );
 
-	  //lowDiag = GetMatrixDiagLowerFromMainI(upperI);
-	  //upDiag = GetMatrixDiagUpperFromMainI(upperI);
-
-	  // if (lowDiag < offLowIDiag.Size() && ii+1 < imax-1 ){
-	  //   offLowIDiag.SetData(lowDiag, offLowIDiag.Data(lowDiag) + tempR * (*this).FAreaI(loc).Mag() );
-	  // }
 	  offUpIDiag.SetData(lowerI, tempR * (*this).FAreaI(loc).Mag() );
-
-
-	  // if (upperI == 1){
-	  //   cout << "I-flux-jacobian at cell 1 from face " << loc << ": " << endl;
-	  //   cout << -1.0 * tempR * (*this).FAreaI(loc).Mag() << endl;
-	  //   cout << "face state upperI:" << endl;
-	  //   cout << faceStateUpper << endl;
-	  //   cout << "face state lowerI:" << endl;
-	  //   cout << faceStateLower << endl;
-	  // }
-	  // if (lowerI == 1){
-	  //   cout << "I-flux-jacobian at cell 1 from face " << loc << ": " << endl;
-	  //   cout << tempL * (*this).FAreaI(loc).Mag() << endl;
-	  //   cout << "face state upperI:" << endl;
-	  //   cout << faceStateUpper << endl;
-	  //   cout << "face state lowerI:" << endl;
-	  //   cout << faceStateLower << endl;
-	  // }
-
-
-	  //(*this).SetMaxWaveSpeedI(maxWS, loc);
 
 	}
 
