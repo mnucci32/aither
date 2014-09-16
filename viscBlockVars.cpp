@@ -911,10 +911,6 @@ void CalcViscFluxJacI(const blockVars &vars, const sutherland &suth, const ideal
 	  //Get density at face
 	  rho = 0.5 * ( ghostState.Rho() + vars.State(iUp).Rho() );
 
-	  //calculate viscous flux jacobian
-	  // tempViscFluxJac = CalcTSLFluxJac(mu, eqnState, vars.Vol(iUp), vars.FAreaI(loc), ghostState, vars.State(iUp)) ;
-	  // tempViscFluxJac = (mRef/Re) * tempViscFluxJac;
-
 	  //accumulate wave speed contribution
 	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaI(loc).Mag(), vars.Vol(iUp), mRef/Re);
 
@@ -1029,10 +1025,6 @@ void CalcViscFluxJacJ(const blockVars &vars, const sutherland &suth, const ideal
 	  mu = 0.5 * ( suth.GetViscosity(ghostState.Temperature(eqnState)) + suth.GetViscosity(vars.State(jUp).Temperature(eqnState)) );
 	  //Get density at face
 	  rho = 0.5 * ( ghostState.Rho() + vars.State(jUp).Rho() );
-
-	  //calculate viscous flux jacobian
-	  // tempViscFluxJac = CalcTSLFluxJac(mu, eqnState, vars.Vol(jUp), vars.FAreaJ(loc), ghostState, vars.State(jUp)) ;
-	  // tempViscFluxJac = (mRef/Re) * tempViscFluxJac;
 
 	  //accumulate wave speed contribution
 	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaJ(loc).Mag(), vars.Vol(jUp), mRef/Re);
@@ -1261,7 +1253,7 @@ double ViscFaceSpectralRadius(const double &rho, const idealGas &eqnState, const
   //mu is viscosity at face
   //fMag is face area (magnitude)
   //vol is cell volume
-  //scale is mach/Re where Re is a reference value
+  //scale is mach/Re where Re and mach are reference values
 
   return max(4.0/3.0, eqnState.Gamma()) * mu / (rho * eqnState.GetPrandtl() * vol) * fMag * fMag * scale ;
 }
