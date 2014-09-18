@@ -951,7 +951,8 @@ void CalcViscFluxJacI(const blockVars &vars, const sutherland &suth, const ideal
 
 	  //calculate viscous flux jacobian
 	  double vol = 0.5 * (vars.Vol(iUp) + vars.Vol(iLow));
-	  tempViscFluxJac = CalcTSLFluxJac( mu, eqnState, vol, vars.FAreaI(loc), vars.State(iLow), vars.State(iUp) );
+	  double centerDist = vars.Center( iLow ).Distance( vars.Center( iUp ) );
+	  tempViscFluxJac = CalcTSLFluxJac( mu, eqnState, vol, vars.FAreaI(loc), vars.State(iLow), vars.State(iUp), centerDist );
 	  tempViscFluxJac = (mRef/Re) * tempViscFluxJac;
 
 	  //convective flux jacobians are subtracted from lower off diagonal and added to upper off diagonal
@@ -1066,7 +1067,8 @@ void CalcViscFluxJacJ(const blockVars &vars, const sutherland &suth, const ideal
 
 	  //calculate viscous flux jacobian
 	  double vol = 0.5 * (vars.Vol(jUp) + vars.Vol(jLow));
-	  tempViscFluxJac = CalcTSLFluxJac( mu, eqnState, vol, vars.FAreaJ(loc), vars.State(jLow), vars.State(jUp) );
+	  double centerDist = vars.Center( jLow ).Distance( vars.Center( jUp ) );
+	  tempViscFluxJac = CalcTSLFluxJac( mu, eqnState, vol, vars.FAreaJ(loc), vars.State(jLow), vars.State(jUp), centerDist );
 	  tempViscFluxJac = (mRef/Re) * tempViscFluxJac;
 
 	  //convective flux jacobians are subtracted from lower off diagonal and added to upper off diagonal
@@ -1182,7 +1184,8 @@ void CalcViscFluxJacK(const blockVars &vars, const sutherland &suth, const ideal
 
 	  //calculate viscous flux jacobian
 	  double vol = 0.5 * (vars.Vol(kUp) + vars.Vol(kLow));
-	  tempViscFluxJac = CalcTSLFluxJac( mu, eqnState, vol, vars.FAreaK(loc), vars.State(kLow), vars.State(kUp) );
+	  double centerDist = vars.Center( kLow ).Distance( vars.Center( kUp ) );
+	  tempViscFluxJac = CalcTSLFluxJac( mu, eqnState, vol, vars.FAreaK(loc), vars.State(kLow), vars.State(kUp), centerDist );
 	  tempViscFluxJac = (mRef/Re) * tempViscFluxJac;
 
 	  //convective flux jacobians are subtracted from lower off diagonal and added to upper off diagonal

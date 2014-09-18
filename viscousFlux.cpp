@@ -129,24 +129,23 @@ void viscousFlux::SetFlux( const tensor<double> &velGrad, const vector3d<double>
 
 //function to calculate the viscous flux jacobian using the thin shear layer approximation
 //viscosity and conductivity are assumed to be locally constant
-squareMatrix CalcTSLFluxJac(const double &mu, const idealGas &eqnState, const double & vol, const vector3d<double> &areaVec, const primVars &left, const primVars &right){
+squareMatrix CalcTSLFluxJac(const double &mu, const idealGas &eqnState, const double & vol, const vector3d<double> &areaVec, const primVars &left, const primVars &right, const double &dist){
 
-  primVars diff = (right - left) ;
-  double d1_rho = 1.0/right.Rho() - 1.0/left.Rho() ;
+  double d1_rho = ( 1.0/right.Rho() - 1.0/left.Rho() ) / dist;
 
-  double du_rho = (right.U()/right.Rho() - left.U()/left.Rho() ) ;
-  double dv_rho = (right.V()/right.Rho() - left.V()/left.Rho() ) ;
-  double dw_rho = (right.W()/right.Rho() - left.W()/left.Rho() ) ;
+  double du_rho = ( right.U()/right.Rho() - left.U()/left.Rho() ) / dist;
+  double dv_rho = ( right.V()/right.Rho() - left.V()/left.Rho() ) / dist;
+  double dw_rho = ( right.W()/right.Rho() - left.W()/left.Rho() ) / dist;
 
-  double duu_rho = (right.U()*right.U()/right.Rho() - left.U()*left.U()/left.Rho() ) ;
-  double dvv_rho = (right.V()*right.V()/right.Rho() - left.V()*left.V()/left.Rho() ) ;
-  double dww_rho = (right.W()*right.W()/right.Rho() - left.W()*left.W()/left.Rho() ) ;
+  double duu_rho = ( right.U()*right.U()/right.Rho() - left.U()*left.U()/left.Rho() ) / dist;
+  double dvv_rho = ( right.V()*right.V()/right.Rho() - left.V()*left.V()/left.Rho() ) / dist;
+  double dww_rho = ( right.W()*right.W()/right.Rho() - left.W()*left.W()/left.Rho() ) / dist;
 
-  double duv_rho = (right.U()*right.V()/right.Rho() - left.U()*left.V()/left.Rho() ) ;
-  double duw_rho = (right.U()*right.W()/right.Rho() - left.U()*left.W()/left.Rho() ) ;
-  double dvw_rho = (right.V()*right.W()/right.Rho() - left.V()*left.W()/left.Rho() ) ;
+  double duv_rho = ( right.U()*right.V()/right.Rho() - left.U()*left.V()/left.Rho() ) / dist;
+  double duw_rho = ( right.U()*right.W()/right.Rho() - left.U()*left.W()/left.Rho() ) / dist;
+  double dvw_rho = ( right.V()*right.W()/right.Rho() - left.V()*left.W()/left.Rho() ) / dist;
 
-  double dE_rho = ( eqnState.GetEnergy( eqnState.GetSpecEnergy(right.P(), right.Rho() ), right.Velocity().Mag() )/ right.Rho() - eqnState.GetEnergy( eqnState.GetSpecEnergy(left.P(), left.Rho() ), left.Velocity().Mag() )/ left.Rho()) ;
+  double dE_rho = ( eqnState.GetEnergy( eqnState.GetSpecEnergy(right.P(), right.Rho() ), right.Velocity().Mag() )/ right.Rho() - eqnState.GetEnergy( eqnState.GetSpecEnergy(left.P(), left.Rho() ), left.Velocity().Mag() )/ left.Rho() ) / dist ;
 
   //calculate coefficients
   double a2 = (1.0/3.0) * areaVec.X() * areaVec.Y();

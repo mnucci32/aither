@@ -55,6 +55,6 @@ class viscousFlux {
 };
 
 //function definitions
-squareMatrix CalcTSLFluxJac( const double&, const idealGas&, const double &, const vector3d<double>&, const primVars&, const primVars& );
+squareMatrix CalcTSLFluxJac( const double&, const idealGas&, const double &, const vector3d<double>&, const primVars&, const primVars&, const double&);
 
 #endif
