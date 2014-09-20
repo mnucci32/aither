@@ -82,4 +82,6 @@ void CalcViscFluxJacI(const blockVars&, const sutherland&, const idealGas&, cons
 void CalcViscFluxJacJ(const blockVars&, const sutherland&, const idealGas&, const input&, const int&, colMatrix&, matrixDiagonal&, matrixDiagonal&);
 void CalcViscFluxJacK(const blockVars&, const sutherland&, const idealGas&, const input&, const int&, colMatrix&, matrixDiagonal&, matrixDiagonal&);
 
+
+
 #endif

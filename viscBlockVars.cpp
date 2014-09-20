@@ -881,8 +881,6 @@ void CalcViscFluxJacI(const blockVars &vars, const sutherland &suth, const ideal
 
   primVars ghostState;
 
-  squareMatrix tempViscFluxJac(5);
-
   double mu = 0.0;
   double rho = 0.0;
   double maxViscSpeed = 0.0;
@@ -950,16 +948,19 @@ void CalcViscFluxJacI(const blockVars &vars, const sutherland &suth, const ideal
 	  rho = 0.5 * ( vars.State(iLow).Rho() + vars.State(iUp).Rho() );
 
 	  //calculate viscous flux jacobian
-	  double vol = 0.5 * (vars.Vol(iUp) + vars.Vol(iLow));
+	  //double vol = 0.5 * (vars.Vol(iUp) + vars.Vol(iLow));
+	  squareMatrix tempViscFluxJacL(5);
+	  squareMatrix tempViscFluxJacR(5);
 	  double centerDist = vars.Center( iLow ).Distance( vars.Center( iUp ) );
-	  tempViscFluxJac = CalcTSLFluxJac( mu, eqnState, vol, vars.FAreaI(loc), vars.State(iLow), vars.State(iUp), centerDist );
-	  tempViscFluxJac = (mRef/Re) * tempViscFluxJac;
+	  CalcTSLFluxJac( mu, eqnState, vars.FAreaI(loc), vars.State(iLow), vars.State(iUp), centerDist, tempViscFluxJacL, tempViscFluxJacR, suth );
+	  tempViscFluxJacL = (mRef/Re) * tempViscFluxJacL;
+	  tempViscFluxJacR = (mRef/Re) * tempViscFluxJacR;
 
 	  //convective flux jacobians are subtracted from lower off diagonal and added to upper off diagonal
 	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
 	  //area magnitude contribution is already incorporated into flux jacobian
-	  offLowIDiag.SetData( iUp, offLowIDiag.Data(iUp) + tempViscFluxJac);
-	  offUpIDiag.SetData( iLow, offLowIDiag.Data(iLow) - tempViscFluxJac);
+	  offLowIDiag.SetData( iUp, offLowIDiag.Data(iUp) + tempViscFluxJacL * vars.FAreaI(loc).Mag());
+	  offUpIDiag.SetData( iLow, offLowIDiag.Data(iLow) - tempViscFluxJacR * vars.FAreaI(loc).Mag());
 
 	  //accumulate wave speed contribution -- area magnitude contribution is already incorporated into maxViscSpeed
 	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaI(loc).Mag(), vars.Vol(iLow), mRef/Re);
@@ -996,8 +997,6 @@ void CalcViscFluxJacJ(const blockVars &vars, const sutherland &suth, const ideal
   string bcName = "undefined";
 
   primVars ghostState;
-
-  squareMatrix tempViscFluxJac(5);
 
   double mu = 0.0;
   double rho = 0.0;
@@ -1066,16 +1065,19 @@ void CalcViscFluxJacJ(const blockVars &vars, const sutherland &suth, const ideal
 	  rho = 0.5 * ( vars.State(jLow).Rho() + vars.State(jUp).Rho() );
 
 	  //calculate viscous flux jacobian
-	  double vol = 0.5 * (vars.Vol(jUp) + vars.Vol(jLow));
+	  //double vol = 0.5 * (vars.Vol(jUp) + vars.Vol(jLow));
+	  squareMatrix tempViscFluxJacL(5);
+	  squareMatrix tempViscFluxJacR(5);
 	  double centerDist = vars.Center( jLow ).Distance( vars.Center( jUp ) );
-	  tempViscFluxJac = CalcTSLFluxJac( mu, eqnState, vol, vars.FAreaJ(loc), vars.State(jLow), vars.State(jUp), centerDist );
-	  tempViscFluxJac = (mRef/Re) * tempViscFluxJac;
+	  CalcTSLFluxJac( mu, eqnState, vars.FAreaJ(loc), vars.State(jLow), vars.State(jUp), centerDist, tempViscFluxJacL, tempViscFluxJacR, suth );
+	  tempViscFluxJacL = (mRef/Re) * tempViscFluxJacL;
+	  tempViscFluxJacR = (mRef/Re) * tempViscFluxJacR;
 
 	  //convective flux jacobians are subtracted from lower off diagonal and added to upper off diagonal
 	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
 	  //area magnitude contribution is already incorporated into flux jacobian
-	  offLowJDiag.SetData( jUp, offLowJDiag.Data(jUp) + tempViscFluxJac);
-	  offUpJDiag.SetData( jLow, offLowJDiag.Data(jLow) - tempViscFluxJac);
+	  offLowJDiag.SetData( jUp, offLowJDiag.Data(jUp) + tempViscFluxJacL * vars.FAreaJ(loc).Mag());
+	  offUpJDiag.SetData( jLow, offLowJDiag.Data(jLow) - tempViscFluxJacR * vars.FAreaJ(loc).Mag());
 
 	  //accumulate wave speed contribution -- area magnitude contribution is already incorporated into maxViscSpeed
 	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaJ(loc).Mag(), vars.Vol(jLow), mRef/Re);
@@ -1113,8 +1115,6 @@ void CalcViscFluxJacK(const blockVars &vars, const sutherland &suth, const ideal
   string bcName = "undefined";
 
   primVars ghostState;
-
-  squareMatrix tempViscFluxJac(5);
 
   double mu = 0.0;
   double rho = 0.0;
@@ -1183,16 +1183,19 @@ void CalcViscFluxJacK(const blockVars &vars, const sutherland &suth, const ideal
 	  rho = 0.5 * ( vars.State(kLow).Rho() + vars.State(kUp).Rho() );
 
 	  //calculate viscous flux jacobian
-	  double vol = 0.5 * (vars.Vol(kUp) + vars.Vol(kLow));
+	  //double vol = 0.5 * (vars.Vol(kUp) + vars.Vol(kLow));
+	  squareMatrix tempViscFluxJacL(5);
+	  squareMatrix tempViscFluxJacR(5);
 	  double centerDist = vars.Center( kLow ).Distance( vars.Center( kUp ) );
-	  tempViscFluxJac = CalcTSLFluxJac( mu, eqnState, vol, vars.FAreaK(loc), vars.State(kLow), vars.State(kUp), centerDist );
-	  tempViscFluxJac = (mRef/Re) * tempViscFluxJac;
+	  CalcTSLFluxJac( mu, eqnState, vars.FAreaK(loc), vars.State(kLow), vars.State(kUp), centerDist, tempViscFluxJacL, tempViscFluxJacR, suth );
+	  tempViscFluxJacL = (mRef/Re) * tempViscFluxJacL;
+	  tempViscFluxJacR = (mRef/Re) * tempViscFluxJacR;
 
 	  //convective flux jacobians are subtracted from lower off diagonal and added to upper off diagonal
 	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
 	  //area magnitude contribution is already incorporated into flux jacobian
-	  offLowKDiag.SetData( kUp, offLowKDiag.Data(kUp) + tempViscFluxJac);
-	  offUpKDiag.SetData( kLow, offLowKDiag.Data(kLow) - tempViscFluxJac);
+	  offLowKDiag.SetData( kUp, offLowKDiag.Data(kUp) + tempViscFluxJacL * vars.FAreaK(loc).Mag());
+	  offUpKDiag.SetData( kLow, offLowKDiag.Data(kLow) - tempViscFluxJacR * vars.FAreaK(loc).Mag());
 
 	  //accumulate wave speed contribution -- area magnitude contribution is already incorporated into maxViscSpeed
 	  maxViscSpeed = ViscFaceSpectralRadius(rho, eqnState, mu, vars.FAreaK(loc).Mag(), vars.Vol(kLow), mRef/Re);
@@ -1260,3 +1263,5 @@ double ViscFaceSpectralRadius(const double &rho, const idealGas &eqnState, const
 
   return max(4.0/3.0, eqnState.Gamma()) * mu / (rho * eqnState.GetPrandtl() * vol) * fMag * fMag * scale ;
 }
+
+
