@@ -23,7 +23,7 @@ class tensor {
   tensor( T a, T b, T c, T d, T e, T f, T g, T h, T i) : xx(a), xy(b), xz(c), yx(d), yy(e), yz(f), zx(g), zy(h), zz(i) {}
   tensor() : xx(0), xy(0), xz(0), yx(0), yy(0), yz(0), zx(0), zy(0), zz(0) {}
   tensor(T i) : xx(i), xy(0), xz(0), yx(0), yy(i), yz(0), zx(0), zy(0), zz(i) {} 
-  tensor(vector3d<T> v1, vector3d<T> v2, vector3d<T> v3) : xx(v1.X()), yx(v1.Y()), zx(v1.Z()), xy(v2.X()), yy(v2.Y()), zy(v2.Z()), xz(v3.X()), yz(v3.Y()), zz(v3.Z()){}
+  tensor(vector3d<T> v1, vector3d<T> v2, vector3d<T> v3) : xx(v1.X()), xy(v1.Y()), xz(v1.Z()), yx(v2.X()), yy(v2.Y()), yz(v2.Z()), zx(v3.X()), zy(v3.Y()), zz(v3.Z()){}
 
   //member functions
   //operator overloads
@@ -70,26 +70,10 @@ class tensor {
 
 };
 
-//constructor to place 3 vector3ds in a tensor
-/* template <class T> */
-/* tensor<T>::tensor(vector3d<T> v1, vector3d<T> v2, vector3d<T> v3){ */
-/*   xx = v1.X(); */
-/*   yx = v1.Y(); */
-/*   zx = v1.Z(); */
-
-/*   xy = v2.X(); */
-/*   yy = v2.Y(); */
-/*   zy = v2.Z(); */
-
-/*   xz = v3.X(); */
-/*   yz = v3.Y(); */
-/*   zz = v3.Z(); */
-/* } */
-
 //operator overload for addition - element wise addition
 template <class T>
 tensor<T> tensor<T>::operator+ (const tensor &v2)const{
-  tensor<T> temp = *this;
+  tensor<T> temp = (*this);
   temp.xx += v2.xx;
   temp.xy += v2.xy;
   temp.xz += v2.xz;
@@ -129,17 +113,17 @@ template <class T>
 tensor<T> tensor<T>::operator* (const tensor &v2)const{
   tensor<T> temp;
 
-  temp.xx = (*this).xx * v2.xx + (*this).yx * v2.xy + (*this).zx * v2.xz;
-  temp.xy = (*this).xy * v2.xx + (*this).yy * v2.xy + (*this).zy * v2.xz;
-  temp.xz = (*this).xz * v2.xx + (*this).yz * v2.xy + (*this).zz * v2.xz;
+  temp.xx = (*this).xx * v2.xx + (*this).xy * v2.yx + (*this).xz * v2.zx;
+  temp.xy = (*this).xx * v2.xy + (*this).xy * v2.yy + (*this).xz * v2.zy;
+  temp.xz = (*this).xx * v2.xz + (*this).xy * v2.yz + (*this).xz * v2.zz;
 
-  temp.yx = (*this).xx * v2.yx + (*this).yx * v2.yy + (*this).zx * v2.yz;
-  temp.yy = (*this).xy * v2.yx + (*this).yy * v2.yy + (*this).zy * v2.yz;
-  temp.yz = (*this).xz * v2.yx + (*this).yz * v2.yy + (*this).zz * v2.yz;
+  temp.yx = (*this).yx * v2.xx + (*this).yy * v2.yx + (*this).yz * v2.zx;
+  temp.yy = (*this).yx * v2.xy + (*this).yy * v2.yy + (*this).yz * v2.zy;
+  temp.yz = (*this).yx * v2.xz + (*this).yy * v2.yz + (*this).yz * v2.zz;
 
-  temp.zx = (*this).xx * v2.zx + (*this).yx * v2.zy + (*this).zx * v2.zz;
-  temp.zy = (*this).xy * v2.zx + (*this).yy * v2.zy + (*this).zy * v2.zz;
-  temp.zz = (*this).xz * v2.zx + (*this).yz * v2.zy + (*this).zz * v2.zz;
+  temp.zx = (*this).zx * v2.xx + (*this).zy * v2.yx + (*this).zx * v2.zx;
+  temp.zy = (*this).zx * v2.xy + (*this).zy * v2.yy + (*this).zx * v2.zy;
+  temp.zz = (*this).zx * v2.xz + (*this).zy * v2.yz + (*this).zx * v2.zz;
 
   return temp;
 }
@@ -226,9 +210,9 @@ tensor<TT> operator/ (const TT &scalar, const tensor<TT> &v1){
 //operator overload for << - allows use of cout, cerr, etc.
 template <class TT>
 ostream & operator<< (ostream &os, const tensor<TT> &v1){
-  os << v1.xx << ", " << v1.yx << ", " << v1.zx << endl;
-  os << v1.xy << ", " << v1.yy << ", " << v1.zy << endl;
-  os << v1.xz << ", " << v1.yz << ", " << v1.zz << endl;
+  os << v1.xx << ", " << v1.xy << ", " << v1.xz << endl;
+  os << v1.yx << ", " << v1.yy << ", " << v1.yz << endl;
+  os << v1.zx << ", " << v1.zy << ", " << v1.zz << endl;
   return os;
 }
 
@@ -260,9 +244,9 @@ vector3d<T> tensor<T>::MatMult(const vector3d<T> &vec)const{
 
   vector3d<T> temp;
 
-  temp.SetX( (*this).xx * vec.X() + (*this).yx * vec.Y() + (*this).zx * vec.Z() );
-  temp.SetY( (*this).xy * vec.X() + (*this).yy * vec.Y() + (*this).zy * vec.Z() );
-  temp.SetZ( (*this).xz * vec.X() + (*this).yz * vec.Y() + (*this).zz * vec.Z() );
+  temp.SetX( (*this).xx * vec.X() + (*this).xy * vec.Y() + (*this).xz * vec.Z() );
+  temp.SetY( (*this).yx * vec.X() + (*this).yy * vec.Y() + (*this).yz * vec.Z() );
+  temp.SetZ( (*this).zx * vec.X() + (*this).zy * vec.Y() + (*this).zz * vec.Z() );
 
   return temp;
 
