@@ -8,46 +8,14 @@ using std::vector;
 using std::string;
 using std::max;
 
-//constructors
-// viscousFlux::viscousFlux(){
-//   momX = 0.0;     
-//   momY = 0.0;     
-//   momZ = 0.0;
-//   engy = 0.0;     
-// }
 //constructor -- initialize flux from velocity gradient
 viscousFlux::viscousFlux( const tensor<double> &velGrad, const vector3d<double> &vel, const double &mu, const sutherland &suth, const idealGas &eqnState, const vector3d<double> &tGrad, const vector3d<double> &areaVec){
   vector3d<double> normArea = areaVec / areaVec.Mag();
 
   double lambda = suth.GetLambda(mu);
 
-  //tensor<double> sumVelGrad = velGrad + velGrad.Transpose();
   double velGradTrace = velGrad.Trace();
-
   vector3d<double> tau = lambda * velGradTrace * normArea + mu * (velGrad.MatMult(normArea) + velGrad.Transpose().MatMult(normArea));
-
-  //tensor<double> tau = mu * sumVelGrad + lambda * velGradTrace ;
-  // tensor<double> tau;
-  // tau.SetXX(2.0 * mu * velGrad.XX() + lambda * velGradTrace);
-  // tau.SetYY(2.0 * mu * velGrad.YY() + lambda * velGradTrace);
-  // tau.SetZZ(2.0 * mu * velGrad.ZZ() + lambda * velGradTrace);
-
-  // tau.SetXY(mu * ( velGrad.XY() + velGrad.YX() ));
-  // tau.SetYX(mu * ( velGrad.XY() + velGrad.YX() )); //symmetric tensor
-  // tau.SetXZ(mu * ( velGrad.XZ() + velGrad.ZX() ));
-  // tau.SetZX(mu * ( velGrad.XZ() + velGrad.ZX() )); //symmetric tensor
-  // tau.SetYZ(mu * ( velGrad.YZ() + velGrad.ZY() ));
-  // tau.SetZY(mu * ( velGrad.YZ() + velGrad.ZY() )); //symmetric tensor
-
-  // vector3d<double> tauX(tau.XX(), tau.XY(), tau.XZ());
-  // vector3d<double> tauY(tau.YX(), tau.YY(), tau.YZ());
-  // vector3d<double> tauZ(tau.ZX(), tau.ZY(), tau.ZZ());
-
-  // momX = tauX.DotProd(normArea);     
-  // momY = tauY.DotProd(normArea);     
-  // momZ = tauZ.DotProd(normArea);     
-  // engy = (tauX.DotProd(normArea) * vel.X() + tauY.DotProd(normArea) * vel.Y() + tauZ.DotProd(normArea) * vel.Z()) + eqnState.GetConductivity(mu) * tGrad.DotProd(normArea);
-
 
   momX = tau.X();
   momY = tau.Y();
@@ -112,18 +80,13 @@ void viscousFlux::SetFlux( const tensor<double> &velGrad, const vector3d<double>
 
   double lambda = suth.GetLambda(mu);
 
-  tensor<double> sumVelGrad = velGrad + velGrad.Transpose();
   double velGradTrace = velGrad.Trace();
+  vector3d<double> tau = lambda * velGradTrace * normArea + mu * (velGrad.MatMult(normArea) + velGrad.Transpose().MatMult(normArea));
 
-  tensor<double> tau = mu * sumVelGrad + lambda * velGradTrace ;
-  vector3d<double> tauX(tau.XX(), tau.XY(), tau.XZ());
-  vector3d<double> tauY(tau.YX(), tau.YY(), tau.YZ());
-  vector3d<double> tauZ(tau.ZX(), tau.ZY(), tau.ZZ());
-
-  momX = -1.0 * tauX.DotProd(normArea);     
-  momY = -1.0 * tauY.DotProd(normArea);     
-  momZ = -1.0 * tauZ.DotProd(normArea);     
-  engy = -1.0 * (tauX.DotProd(normArea) * vel.X() + tauY.DotProd(normArea) * vel.Y() + tauZ.DotProd(normArea) * vel.Z()) - (mu/((eqnState.Gamma() - 1.0) * eqnState.GetPrandtl() )) * tGrad.DotProd(normArea);
+  momX = tau.X();
+  momY = tau.Y();
+  momZ = tau.Z();
+  engy = tau.DotProd(vel) + eqnState.GetConductivity(mu) * tGrad.DotProd(normArea);
 
 }
 
@@ -244,15 +207,15 @@ void CalcTSLFluxJac(const double &mu, const idealGas &eqnState, const vector3d<d
   double etaY = (1.0/3.0) * normArea.X() * normArea.Z();
   double etaZ = (1.0/3.0) * normArea.X() * normArea.Y();
 
-  double piX = vel.X() * thetaX + vel.Y() * etaZ + vel.Z() * etaY;
-  double piY = vel.X() * etaZ + vel.Y() * thetaY + vel.Z() * etaX;
-  double piZ = vel.X() * etaY + vel.Y() * etaX + vel.Z() * thetaZ;
+  double piX = vel.X() * thetaX + vel.Y() * etaZ   + vel.Z() * etaY;
+  double piY = vel.X() * etaZ   + vel.Y() * thetaY + vel.Z() * etaX;
+  double piZ = vel.X() * etaY   + vel.Y() * etaX   + vel.Z() * thetaZ;
 
   double phiRhoL = -1.0 * eqnState.GetConductivity(mu) * left.Temperature(eqnState) / (mu * left.Rho());
   double phiRhoR = -1.0 * eqnState.GetConductivity(mu) * right.Temperature(eqnState) / (mu * right.Rho());
 
-  double phiPressL = -1.0 * eqnState.GetConductivity(mu) / (mu * left.Rho());
-  double phiPressR = -1.0 * eqnState.GetConductivity(mu) / (mu * right.Rho());
+  double phiPressL = eqnState.GetConductivity(mu) / (mu * left.Rho());
+  double phiPressR = eqnState.GetConductivity(mu) / (mu * right.Rho());
 
   //calculate matrix - derivative of left primative vars wrt left conservative vars
   squareMatrix dWl_dUl(5);
@@ -354,7 +317,7 @@ void CalcTSLFluxJac(const double &mu, const idealGas &eqnState, const vector3d<d
   dFv_dUr.SetData(1,0, 0.0);
   dFv_dUr.SetData(2,0, 0.0);
   dFv_dUr.SetData(3,0, 0.0);
-  dFv_dUr.SetData(4,0, -1.0 * phiRhoR * theta);
+  dFv_dUr.SetData(4,0, phiRhoR * theta);
 
   //column 1
   dFv_dUr.SetData(0,1, 0.0);
@@ -382,11 +345,14 @@ void CalcTSLFluxJac(const double &mu, const idealGas &eqnState, const vector3d<d
   dFv_dUr.SetData(1,4, 0.0);
   dFv_dUr.SetData(2,4, 0.0);
   dFv_dUr.SetData(3,4, 0.0);
-  dFv_dUr.SetData(4,4, -1.0 * phiPressR * theta);
+  dFv_dUr.SetData(4,4, phiPressR * theta);
 
   dFv_dUr = (mu/dist) * dFv_dUr;
 
   //multiply by dW_dU to get flux jacobian derivative wrt conservative variables
+  //cout << "dFv_dUl" << endl << dFv_dUl << endl;
+  //cout << "dFv_dUr" << endl << dFv_dUr << endl;
+
   dFv_dUl = dFv_dUl * dWl_dUl;
   dFv_dUr = dFv_dUr * dWr_dUr;
 
@@ -407,15 +373,15 @@ tensor<double> CalcVelGradTSL(const primVars &left, const primVars &right, const
 
   //populate velocity gradient tensor
   velGrad.SetXX( velDeriv.X() * normArea.X() );
-  velGrad.SetXY( velDeriv.X() * normArea.Y() );
-  velGrad.SetXZ( velDeriv.X() * normArea.Z() );
+  velGrad.SetXY( velDeriv.Y() * normArea.X() );
+  velGrad.SetXZ( velDeriv.Z() * normArea.X() );
 
-  velGrad.SetYX( velDeriv.Y() * normArea.X() );
+  velGrad.SetYX( velDeriv.X() * normArea.Y() );
   velGrad.SetYY( velDeriv.Y() * normArea.Y() );
-  velGrad.SetYZ( velDeriv.Y() * normArea.Z() );
+  velGrad.SetYZ( velDeriv.Z() * normArea.Y() );
 
-  velGrad.SetZX( velDeriv.Z() * normArea.X() );
-  velGrad.SetZY( velDeriv.Z() * normArea.Y() );
+  velGrad.SetZX( velDeriv.X() * normArea.Z() );
+  velGrad.SetZY( velDeriv.Y() * normArea.Z() );
   velGrad.SetZZ( velDeriv.Z() * normArea.Z() );
 
   return velGrad;
