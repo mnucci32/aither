@@ -356,6 +356,15 @@ void CalcTSLFluxJac(const double &mu, const idealGas &eqnState, const vector3d<d
   dFv_dUl = dFv_dUl * dWl_dUl;
   dFv_dUr = dFv_dUr * dWr_dUr;
 
+  primVars faceState = 0.5 * (left + right);
+  dFv_dUl.Identity();
+  dFv_dUr.Identity();
+  double specRad = mu * eqnState.Gamma() / (eqnState.GetPrandtl() * faceState.Rho() * dist) ;
+
+
+  dFv_dUl = -1.0 * specRad * dFv_dUl;
+  dFv_dUr = specRad * dFv_dUr;
+
 }
 
 

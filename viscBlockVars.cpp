@@ -1283,9 +1283,10 @@ double ViscFaceSpectralRadiusTSL(const double &rho, const idealGas &eqnState, co
 
   //cout << (fMag *fMag/ dist) * max( (4.0 * mu) / (3.0 * rho) , eqnState.Gamma() * mu / eqnState.GetPrandtl() ) << endl;
 
-  return max( (4.0 * mu) / (3.0 * rho * dist) , eqnState.Gamma() * mu / (eqnState.GetPrandtl() * rho * dist) );
+  //return max( (4.0 * mu) / (3.0 * rho * dist) , eqnState.Gamma() * mu / (eqnState.GetPrandtl() * rho * dist) );
 
-  //return max( (4.0 * mu) / (3.0 * rho) , eqnState.Gamma() * mu / eqnState.GetPrandtl() );
+  //return fMag * mu / (eqnState.GetPrandtl() * rho * dist) * max(4.0/3.0, eqnState.Gamma());
+  return eqnState.Gamma() * mu / (eqnState.GetPrandtl() * rho * dist);
 }
 
 
