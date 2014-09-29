@@ -199,4 +199,7 @@ int GetDiagPosLowerK(const int &, const int &, const int &);
 //find out if matrix should have data at the indicated cell
 bool IsMatrixData(const int&, const int&, const int&, const int&, const int&, const int&, const string&);
 
+//function to reorder block by hyperplanes
+vector<int> HyperplaneReorder(const int &, const int &, const int &);
+
 #endif

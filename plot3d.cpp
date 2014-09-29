@@ -1128,3 +1128,28 @@ bool IsMatrixData(const int &i, const int &j, const int &k, const int &imax, con
   }
   return isData;
 }
+
+//function to reorder the block by hyperplanes
+vector<int> HyperplaneReorder( const int &imax, const int &jmax, const int &kmax){
+
+  int numPlanes = imax + jmax + kmax - 2;
+  vector<int> reorder(imax*jmax*kmax,0);
+
+  int loc = 0;
+  int count = 0;
+  for ( int pp = 0; pp < numPlanes; pp++ ){
+    for ( int kk = 0; kk < kmax; kk++ ){
+      for ( int jj = 0; jj < jmax; jj++ ){
+	for ( int ii = 0; ii < imax; ii++ ){
+	  if ( ii+jj+kk == pp){
+	    loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	    reorder[count] = loc;
+	    count++;
+	  }
+	}
+      }
+    }
+  }
+
+  return reorder;
+}

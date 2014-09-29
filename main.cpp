@@ -35,7 +35,7 @@ int main( int argc, char *argv[] ) {
 
   const string inputFile = argv[1];  //name of input file is the second argument (the executable being the first)
 
-  const double eps = 1.0e-20;
+  const double eps = 1.0e-30;
 
   //Parse input file
   double totalCells = 0.0;
@@ -200,6 +200,8 @@ int main( int argc, char *argv[] ) {
 
 	  //add volume divided by time step term time m - time n term
 	  vector<colMatrix> solTimeMmN = stateBlocks[bb].AddVolTime(stateBlocks[bb].GetCopyConsVars(eos), solTimeN[bb], inputVars.Theta(), inputVars.Zeta());
+	  //reorder block for lusgs
+	  vector<int> reorder = HyperplaneReorder(stateBlocks[bb].NumI()-1, stateBlocks[bb].NumJ()-1, stateBlocks[bb].NumK()-1);
 
 	  //calculate correction (du)
 	  matrixResid += LUSGS(mainDiag, offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag, du[bb], stateBlocks[bb].Residual(), 
