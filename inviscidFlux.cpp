@@ -21,6 +21,34 @@ inviscidFlux::inviscidFlux( const primVars &state, const idealGas &eqnState, con
   rhoVelH = state.Rho() * vel.DotProd(normArea) * state.Enthalpy(eqnState);
 }
 
+//constructor -- initialize flux from state vector using conservative variables
+inviscidFlux::inviscidFlux( const colMatrix &cons, const idealGas &eqnState, const vector3d<double>& areaVec){
+
+  //check to see that colMatrix is correct size
+  if (cons.Size() != 5){
+    cerr << "ERROR: Error in inviscidFlux::inviscidFlux. Column matrix of conservative variables is not the correct size!" << endl;
+    exit(0);
+  }
+
+  primVars state;
+  state.SetRho(cons.Data(0));
+  state.SetU(cons.Data(1)/cons.Data(0));
+  state.SetV(cons.Data(2)/cons.Data(0));
+  state.SetW(cons.Data(3)/cons.Data(0));
+  double energy = cons.Data(4)/cons.Data(0);
+  double vMag = sqrt( state.U() * state.U() + state.V() * state.V() + state.W() * state.W() );
+  state.SetP(eqnState.GetPressFromEnergy(state.Rho(), energy, vMag));
+
+  vector3d<double> normArea = areaVec / areaVec.Mag();
+  vector3d<double> vel = state.Velocity();
+
+  rhoVel  = state.Rho() * vel.DotProd(normArea);      
+  rhoVelU = state.Rho() * vel.DotProd(normArea) * vel.X() + state.P() * normArea.X();     
+  rhoVelV = state.Rho() * vel.DotProd(normArea) * vel.Y() + state.P() * normArea.Y();     
+  rhoVelW = state.Rho() * vel.DotProd(normArea) * vel.Z() + state.P() * normArea.Z();     
+  rhoVelH = state.Rho() * vel.DotProd(normArea) * state.Enthalpy(eqnState);
+}
+
 
 //function to calculate pressure from conserved variables and equation of state
 inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGas &eqnState, const vector3d<double>& areaVec, double &maxWS){
@@ -1677,6 +1705,29 @@ inviscidFlux operator* (const double &scalar, const inviscidFlux &flux){
   return temp;
 }
 
+//operator overload for addition
+inviscidFlux inviscidFlux::operator + (const inviscidFlux& invf2)const{
+  inviscidFlux invf1 = *this;
+  invf1.rhoVel += invf2.rhoVel;
+  invf1.rhoVelU += invf2.rhoVelU;
+  invf1.rhoVelV += invf2.rhoVelV;
+  invf1.rhoVelW += invf2.rhoVelW;
+  invf1.rhoVelH += invf2.rhoVelH;
+  return invf1;
+}
+
+//operator overload for subtraction
+inviscidFlux inviscidFlux::operator - (const inviscidFlux& invf2)const{
+  inviscidFlux invf1 = *this;
+  invf1.rhoVel -= invf2.rhoVel;
+  invf1.rhoVelU -= invf2.rhoVelU;
+  invf1.rhoVelV -= invf2.rhoVelV;
+  invf1.rhoVelW -= invf2.rhoVelW;
+  invf1.rhoVelH -= invf2.rhoVelH;
+  return invf1;
+}
+
+
 //member function for scalar division
 inviscidFlux  inviscidFlux::operator / (const double &scalar){
   inviscidFlux temp = *this;
@@ -1696,5 +1747,17 @@ inviscidFlux operator/ (const double &scalar, const inviscidFlux &flux){
   temp.SetRhoVelV(scalar / flux.RhoVelV());
   temp.SetRhoVelW(scalar / flux.RhoVelW());
   temp.SetRhoVelH(scalar / flux.RhoVelH());
+  return temp;
+}
+
+
+//convert the inviscid flux to a column matrix
+colMatrix inviscidFlux::ConvertToColMatrix()const{
+  colMatrix temp(5);
+  temp.SetData(0, (*this).RhoVel());
+  temp.SetData(1, (*this).RhoVelU());
+  temp.SetData(2, (*this).RhoVelV());
+  temp.SetData(3, (*this).RhoVelW());
+  temp.SetData(4, (*this).RhoVelH());
   return temp;
 }

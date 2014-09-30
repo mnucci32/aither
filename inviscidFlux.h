@@ -29,6 +29,7 @@ class inviscidFlux {
   //constructors
   inviscidFlux() : rhoVel(0.0), rhoVelU(0.0), rhoVelV(0.0), rhoVelW(0.0), rhoVelH(0.0) {}
   inviscidFlux( const primVars&, const idealGas&, const vector3d<double>& );
+  inviscidFlux( const colMatrix&, const idealGas&, const vector3d<double>& );
 
   //member functions
   void SetRhoVel( const double &a){rhoVel = a;}
@@ -45,9 +46,14 @@ class inviscidFlux {
   inviscidFlux operator * (const double&);
   inviscidFlux operator / (const double&);
 
+  inviscidFlux operator + (const inviscidFlux&)const;
+  inviscidFlux operator - (const inviscidFlux&)const;
+
   friend ostream & operator<< (ostream &os, inviscidFlux&);
   friend inviscidFlux operator * (const double&, const inviscidFlux&);
   friend inviscidFlux operator / (const double&, const inviscidFlux&);
+
+  colMatrix ConvertToColMatrix()const;
 
   //destructor
   ~inviscidFlux() {}
