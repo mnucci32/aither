@@ -179,8 +179,6 @@ class matrixDiagonal {
 
 
 //function declarations
-double LUSGS( const colMatrix &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &, const matrixDiagonal &,
-	      vector<colMatrix> &, const vector<colMatrix> &, const vector<colMatrix> &, const vector<colMatrix> &, const int &, const double &, const int &, const int &, const double&);
 
 
 

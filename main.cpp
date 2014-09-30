@@ -97,7 +97,7 @@ int main( int argc, char *argv[] ) {
     implicitFlag = true;
   }
 
-  matrixDiagonal offUpIDiag, offLowIDiag, offUpJDiag, offLowJDiag, offUpKDiag, offLowKDiag;
+  //matrixDiagonal offUpIDiag, offLowIDiag, offUpJDiag, offLowJDiag, offUpKDiag, offLowKDiag;
   colMatrix mainDiag;
   colMatrix initial(numEqns);
   initial.Zero();
@@ -135,12 +135,12 @@ int main( int argc, char *argv[] ) {
 	//initialize implicit matrix
 	if (implicitFlag){
 	  mainDiag.CleanResizeZero(numElems);
-	  offUpIDiag.CleanResizeZero(numElems, numEqns);
-	  offLowIDiag.CleanResizeZero(numElems, numEqns);
-	  offUpJDiag.CleanResizeZero(numElems, numEqns);
-	  offLowJDiag.CleanResizeZero(numElems, numEqns);
-	  offUpKDiag.CleanResizeZero(numElems, numEqns);
-	  offLowKDiag.CleanResizeZero(numElems, numEqns);
+	  // offUpIDiag.CleanResizeZero(numElems, numEqns);
+	  // offLowIDiag.CleanResizeZero(numElems, numEqns);
+	  // offUpJDiag.CleanResizeZero(numElems, numEqns);
+	  // offLowJDiag.CleanResizeZero(numElems, numEqns);
+	  // offUpKDiag.CleanResizeZero(numElems, numEqns);
+	  // offLowKDiag.CleanResizeZero(numElems, numEqns);
 
 	  //reserve space for correction du
 	  //only need to do this if it is first iteration
@@ -184,15 +184,15 @@ int main( int argc, char *argv[] ) {
 	    }
 	  }
 
-	  stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag, offLowIDiag, offUpIDiag, inputVars.InvFluxJac());
-	  stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag, offLowJDiag, offUpJDiag, inputVars.InvFluxJac());
-	  stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag, offLowKDiag, offUpKDiag, inputVars.InvFluxJac());
+	  stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag, inputVars.InvFluxJac());
+	  stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag, inputVars.InvFluxJac());
+	  stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag, inputVars.InvFluxJac());
 
 
 	  if (inputVars.EquationSet() == "navierStokes" ){
-	    CalcViscFluxJacI(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag, offLowIDiag, offUpIDiag);
-	    CalcViscFluxJacJ(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag, offLowJDiag, offUpJDiag);
-	    CalcViscFluxJacK(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag, offLowKDiag, offUpKDiag);
+	    // CalcViscFluxJacI(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag);
+	    // CalcViscFluxJacJ(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag);
+	    // CalcViscFluxJacK(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag);
 	  }
 
 	  //add volume divided by time step term to main diagonal
@@ -201,12 +201,11 @@ int main( int argc, char *argv[] ) {
 	  //add volume divided by time step term time m - time n term
 	  vector<colMatrix> solTimeMmN = stateBlocks[bb].AddVolTime(stateBlocks[bb].GetCopyConsVars(eos), solTimeN[bb], inputVars.Theta(), inputVars.Zeta());
 	  //reorder block for lusgs
-	  vector<int> reorder = HyperplaneReorder(stateBlocks[bb].NumI()-1, stateBlocks[bb].NumJ()-1, stateBlocks[bb].NumK()-1);
+	  vector<vector3d<int> > reorder = HyperplaneReorder(stateBlocks[bb].NumI()-1, stateBlocks[bb].NumJ()-1, stateBlocks[bb].NumK()-1);
 
 	  //calculate correction (du)
-	  matrixResid += LUSGS(mainDiag, offLowIDiag, offUpIDiag, offLowJDiag, offUpJDiag, offLowKDiag, offUpKDiag, du[bb], stateBlocks[bb].Residual(), 
-			       solTimeMmN, solDeltaNm1[bb], inputVars.MatrixSweeps(), inputVars.MatrixRelaxation(), stateBlocks[bb].NumI()-1,
-			       stateBlocks[bb].NumJ()-1, inputVars.Theta() );
+	  matrixResid += stateBlocks[bb].LUSGS(mainDiag, reorder, du[bb], solTimeMmN, solDeltaNm1[bb], inputVars.MatrixSweeps(), 
+					       inputVars.MatrixRelaxation(), inputVars.Theta(), eos );
 
 
 	} //conditional for implicit solver

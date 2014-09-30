@@ -113,9 +113,9 @@ class blockVars {
 
   //void TotalResidual( vector<double> &, vector<double> &, int &, const int & );
 
-  void CalcInvFluxJacI(const idealGas&, const input&, const int&, colMatrix&, matrixDiagonal&, matrixDiagonal&, const string&)const;
-  void CalcInvFluxJacJ(const idealGas&, const input&, const int&, colMatrix&, matrixDiagonal&, matrixDiagonal&, const string&)const;
-  void CalcInvFluxJacK(const idealGas&, const input&, const int&, colMatrix&, matrixDiagonal&, matrixDiagonal&, const string&)const;
+  void CalcInvFluxJacI(const idealGas&, const input&, const int&, colMatrix&, const string&)const;
+  void CalcInvFluxJacJ(const idealGas&, const input&, const int&, colMatrix&, const string&)const;
+  void CalcInvFluxJacK(const idealGas&, const input&, const int&, colMatrix&, const string&)const;
 
   void ResetResidWS();
 
@@ -123,6 +123,11 @@ class blockVars {
   vector<colMatrix> AddVolTime(const vector<colMatrix>&, const vector<colMatrix>&, const double &, const double &)const;
 
   void DeltaNMinusOne( vector<colMatrix> &, const vector<colMatrix> &, const idealGas &, const double &, const double &);
+
+  double LUSGS( const colMatrix &, const vector<vector3d<int> > &, vector<colMatrix> &, const vector<colMatrix> &, const vector<colMatrix> &, 
+		const int &, const double &, const double&, const idealGas&)const;
+
+  double ConvSpecRad( const vector3d<double> &, const primVars&, const idealGas&)const;
 
   //destructor
   ~blockVars() {}
