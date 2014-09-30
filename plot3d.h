@@ -200,6 +200,6 @@ int GetDiagPosLowerK(const int &, const int &, const int &);
 bool IsMatrixData(const int&, const int&, const int&, const int&, const int&, const int&, const string&);
 
 //function to reorder block by hyperplanes
-vector<int> HyperplaneReorder(const int &, const int &, const int &);
+vector<vector3d<int> > HyperplaneReorder(const int &, const int &, const int &);
 
 #endif
