@@ -135,12 +135,6 @@ int main( int argc, char *argv[] ) {
 	//initialize implicit matrix
 	if (implicitFlag){
 	  mainDiag.CleanResizeZero(numElems);
-	  // offUpIDiag.CleanResizeZero(numElems, numEqns);
-	  // offLowIDiag.CleanResizeZero(numElems, numEqns);
-	  // offUpJDiag.CleanResizeZero(numElems, numEqns);
-	  // offLowJDiag.CleanResizeZero(numElems, numEqns);
-	  // offUpKDiag.CleanResizeZero(numElems, numEqns);
-	  // offLowKDiag.CleanResizeZero(numElems, numEqns);
 
 	  //reserve space for correction du
 	  //only need to do this if it is first iteration
@@ -237,7 +231,6 @@ int main( int argc, char *argv[] ) {
 
 	if (nn == 0 && mm == 0){
 	  residL2First[cc] = residL2[cc];
-	  cout << residL2[cc] << endl;
 	}
 
 	//normalize residuals

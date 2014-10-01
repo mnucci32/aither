@@ -1500,23 +1500,22 @@ double blockVars::LUSGS( const colMatrix &Aii, const vector<vector3d<int> > &reo
   }
 
   //invert main diagonal
-  // matrixDiagonal AiiInv = Aii;
-  // AiiInv.Inverse();
-  // squareMatrix AiiInv(x[0].Size());
   double AiiInv = 0.0;
 
-  colMatrix newData(x[0].Size());
-  colMatrix oldData(x[0].Size());
-
   colMatrix l2Resid(x[0].Size());
+  l2Resid.Zero();
 
   double thetaInv = 1.0 / theta;
 
-  squareMatrix I(5);
+  squareMatrix I(x[0].Size());
   I.Identity();
   
   for ( int kk = 0; kk < sweeps; kk++ ){
     //forward sweep
+    colMatrix initial(x[0].Size());
+    vector<colMatrix> U(x.size(),initial);
+    vector<colMatrix> L(x.size(),initial);
+
     for ( int ii = 0; ii < (int)x.size(); ii++ ){
 
       int loc = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
@@ -1525,11 +1524,9 @@ double blockVars::LUSGS( const colMatrix &Aii, const vector<vector3d<int> > &reo
       int jlFace = GetLowerFaceJ(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
       int klFace = GetLowerFaceK(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
 
-      int il = GetDiagPosLowerI(loc);
-      int jl = GetDiagPosLowerJ(loc,imax);
-      int kl = GetDiagPosLowerK(loc,imax,jmax);
-
-      oldData.Zero();
+      int il = GetNeighborLowI(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+      int jl = GetNeighborLowJ(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+      int kl = GetNeighborLowK(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
 
       //calculate offdiagonal * update on the fly
       //only need values at offdiagonal cell 
@@ -1537,130 +1534,98 @@ double blockVars::LUSGS( const colMatrix &Aii, const vector<vector3d<int> > &reo
       if ( il >=0 && il < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
 	double convSpecRad = (*this).ConvSpecRad( (*this).FAreaI(ilFace), (*this).State(il), eqnState);
-	//at given face location, call function to calculate convective flux
-	inviscidFlux iFluxOld((*this).State(il), eqnState, (*this).FAreaI(ilFace));
-	//at given face location, call function to calculate updated convective flux (using updated conserved vars)
-	colMatrix updatedConsVars = (*this).State(il).ConsVars(eqnState) + x[il];
-	inviscidFlux iFluxNew(updatedConsVars, eqnState, (*this).FAreaI(ilFace));
+	//at given face location, call function to calculate convective flux change
+	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(il), eqnState, (*this).FAreaI(ilFace), x[il]);
 
-	oldData = oldData + (iFluxNew.ConvertToColMatrix() - iFluxOld.ConvertToColMatrix()) * (*this).FAreaI(ilFace).Mag() + (convSpecRad * I).Multiply(x[il]);
+	L[loc] = L[loc] + 0.5 * (*this).FAreaI(ilFace).Mag() * ( fluxChange + convSpecRad * I.Multiply(x[il]) );
     }
       if ( jl >=0 && jl < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
 	double convSpecRad = (*this).ConvSpecRad( (*this).FAreaJ(jlFace), (*this).State(jl), eqnState);
-	//at given face location, call function to calculate convective flux
-	inviscidFlux iFluxOld((*this).State(jl), eqnState, (*this).FAreaJ(jlFace));
-	//at given face location, call function to calculate updated convective flux (using updated conserved vars)
-	colMatrix updatedConsVars = (*this).State(jl).ConsVars(eqnState) + x[jl];
-	inviscidFlux iFluxNew(updatedConsVars, eqnState, (*this).FAreaJ(jlFace));
+	//at given face location, call function to calculate convective flux change
+	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(jl), eqnState, (*this).FAreaJ(jlFace), x[jl]);
 
-	oldData = oldData + (iFluxNew.ConvertToColMatrix() - iFluxOld.ConvertToColMatrix()) * (*this).FAreaJ(jlFace).Mag() + (convSpecRad * I).Multiply(x[jl]);
+	L[loc] = L[loc] + 0.5 * (*this).FAreaJ(jlFace).Mag() * ( fluxChange + convSpecRad * I.Multiply(x[jl]) );
       }
       if ( kl >=0 && kl < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
 	double convSpecRad = (*this).ConvSpecRad( (*this).FAreaK(klFace), (*this).State(kl), eqnState);
-	//at given face location, call function to calculate convective flux
-	inviscidFlux iFluxOld((*this).State(kl), eqnState, (*this).FAreaK(klFace));
-	//at given face location, call function to calculate updated convective flux (using updated conserved vars)
-	colMatrix updatedConsVars = (*this).State(kl).ConsVars(eqnState) + x[kl];
-	inviscidFlux iFluxNew(updatedConsVars, eqnState, (*this).FAreaK(klFace));
+	//at given face location, call function to calculate convective flux change
+	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(kl), eqnState, (*this).FAreaK(klFace), x[kl]);
 
-	oldData = oldData + (iFluxNew.ConvertToColMatrix() - iFluxOld.ConvertToColMatrix()) * (*this).FAreaK(klFace).Mag() + (convSpecRad * I).Multiply(x[kl]);
+	L[loc] = L[loc] + 0.5 * (*this).FAreaK(klFace).Mag() * ( fluxChange + convSpecRad * I.Multiply(x[kl]) );
       }
 
       AiiInv = 1.0 / Aii.Data(loc);
 
-      x[loc] = (1.0 - relax) * x[loc] + relax * AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] +
-      	      solTimeMmN[loc] - oldData) ;
+      x[loc] = AiiInv * ( -1.0 * (*this).Residual(loc) + L[loc]) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
+
+      // x[loc] = (1.0 - relax) * x[loc] + relax * AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] +
+      // 							   solTimeMmN[loc] + L[loc]) ; //normal at lower boundaries needs to be reversed, so add i
 
     }
 
-    // //backward sweep
-    // for ( int ii = (int)x.size()-1; ii >= 0; ii-- ){
+    //backward sweep
+    for ( int ii = (int)x.size()-1; ii >= 0; ii-- ){
 
-    //   int loc = reorder[ii];
+      int loc = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
 
-    //   int il = GetDiagPosLowerI(loc);
-    //   int iu = GetDiagPosUpperI(loc);
-    //   int jl = GetDiagPosLowerJ(loc,imax);
-    //   int ju = GetDiagPosUpperJ(loc,imax);
-    //   int kl = GetDiagPosLowerK(loc,imax,jmax);
-    //   int ku = GetDiagPosUpperK(loc,imax,jmax);
+      int iuFace = GetLowerFaceI(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+      int juFace = GetLowerFaceJ(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+      int kuFace = GetLowerFaceK(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
 
-    //   newData.Zero();
-    //   oldData.Zero();
+      int iu = GetNeighborUpI(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+      int ju = GetNeighborUpJ(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+      int ku = GetNeighborUpK(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
 
-    //   if ( iu >=0 && iu < (int)x.size() ){
-    // 	oldData = oldData + Aiu.Data(loc).Multiply(x[iu]);
-    //   }
-    //   if ( ju >=0 && ju < (int)x.size() ){
-    // 	oldData = oldData + Aju.Data(loc).Multiply(x[ju]);
-    //   }
-    //   if ( ku >=0 && ku < (int)x.size() ){
-    // 	oldData = oldData + Aku.Data(loc).Multiply(x[ku]);
-    //   }
+      if ( iu >=0 && iu < (int)x.size() ){
+	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
+	double convSpecRad = (*this).ConvSpecRad( (*this).FAreaI(iuFace), (*this).State(iu), eqnState);
+	//at given face location, call function to calculate convective flux change
+	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(iu), eqnState, (*this).FAreaI(iuFace), x[iu]);
 
-    //   if ( il >=0 && il < (int)x.size() ){
-    // 	newData = newData + Ail.Data(loc).Multiply(x[il]);
-    //   }
-    //   if ( jl >=0 && jl < (int)x.size() ){
-    // 	newData = newData + Ajl.Data(loc).Multiply(x[jl]);
-    //   }
-    //   if ( kl >=0 && kl < (int)x.size() ){
-    // 	newData = newData + Akl.Data(loc).Multiply(x[kl]);
-    //   }
+	U[loc] = U[loc] + 0.5 * (*this).FAreaI(iuFace).Mag() * ( fluxChange - convSpecRad * I.Multiply(x[iu]) );
+      }
+      if ( ju >=0 && ju < (int)x.size() ){
+	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
+	double convSpecRad = (*this).ConvSpecRad( (*this).FAreaJ(juFace), (*this).State(ju), eqnState);
+	//at given face location, call function to calculate convective flux change
+	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(ju), eqnState, (*this).FAreaJ(juFace), x[ju]);
 
-    //   AiiInv = 1.0 / Aii.Data(loc);
+	U[loc] = U[loc] + 0.5 * (*this).FAreaJ(juFace).Mag() * ( fluxChange - convSpecRad * I.Multiply(x[ju]) );
+      }
+      if ( ku >=0 && ku < (int)x.size() ){
+	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
+	double convSpecRad = (*this).ConvSpecRad( (*this).FAreaK(kuFace), (*this).State(ku), eqnState);
+	//at given face location, call function to calculate convective flux change
+	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(ku), eqnState, (*this).FAreaK(kuFace), x[ku]);
 
-    //   x[loc] = (1.0 - relax) * x[loc] + relax * AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] +
-    //           solTimeMmN[loc] - newData - oldData) ;
+	U[loc] = U[loc] + 0.5 * (*this).FAreaK(kuFace).Mag() * ( fluxChange - convSpecRad * I.Multiply(x[ku]) );
+      }
 
-    // }
+      AiiInv = 1.0 / Aii.Data(loc);
 
-  //   //calculate residual
-  //   l2Resid.Zero();
-  //   colMatrix resid(x[0].Size());
+      x[loc] = x[loc] - AiiInv * U[loc] ;
 
-  //   for ( int ii = 0; ii < (int)x.size(); ii++ ){
+      // x[loc] = (1.0 - relax) * x[loc] + relax * AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] +
+      //         solTimeMmN[loc] - U[loc]) ;
 
-  //     int loc = reorder[ii];
 
-  //     int il = GetDiagPosLowerI(loc);
-  //     int iu = GetDiagPosUpperI(loc);
-  //     int jl = GetDiagPosLowerJ(loc,imax);
-  //     int ju = GetDiagPosUpperJ(loc,imax);
-  //     int kl = GetDiagPosLowerK(loc,imax,jmax);
-  //     int ku = GetDiagPosUpperK(loc,imax,jmax);
+    }
 
-  //     resid = -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] + solTimeMmN[loc] - Aii.Data(loc) * x[loc];
 
-  //     if ( il >=0 && il < (int)x.size() ){
-  // 	resid = resid - Ail.Data(loc).Multiply(x[il]);
-  //     }
+    //calculate residual
+    colMatrix resid(x[0].Size());
 
-  //     if ( iu >=0 && iu < (int)x.size() ){
-  // 	resid = resid - Aiu.Data(loc).Multiply(x[iu]);
-  //     }
+    for ( int ii = 0; ii < (int)x.size(); ii++ ){
 
-  //     if ( jl >=0 && jl < (int)x.size() ){
-  // 	resid = resid - Ajl.Data(loc).Multiply(x[jl]);
-  //     }
-
-  //     if ( ju >=0 && ju < (int)x.size() ){
-  // 	resid = resid - Aju.Data(loc).Multiply(x[ju]);
-  //     }
-
-  //     if ( kl >=0 && kl < (int)x.size() ){
-  // 	resid = resid - Akl.Data(loc).Multiply(x[kl]);
-  //     }
-
-  //     if ( ku >=0 && ku < (int)x.size() ){
-  // 	resid = resid - Aku.Data(loc).Multiply(x[ku]);
-  //     }
-
-  //     l2Resid = l2Resid + resid * resid;
-  //   }
-
+      int loc = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+      
+      //normal at lower boundaries needs to be reversed, so add instead of subtract L
+      resid = -1.0 * (*this).Residual(loc) - Aii.Data(loc) * x[loc] + L[loc] - U[loc];
+      //resid = -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] + solTimeMmN[loc] - Aii.Data(loc) * x[loc] + L[loc] - U[loc];
+      l2Resid = l2Resid + resid * resid;
+    }
 
   } //loop for sweeps
 
