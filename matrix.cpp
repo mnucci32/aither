@@ -146,7 +146,7 @@ squareMatrix squareMatrix::operator + (const squareMatrix& s2)const{
 
   //check to see that matrix dimensions are the same
   if ( s1.size != s2.size ){
-    cerr << "ERROR: Cannot add matricies, dimensions do not agree." << endl;
+    cerr << "ERROR: Cannot add matrices, dimensions do not agree." << endl;
   }
 
   int cc = 0;
@@ -194,7 +194,7 @@ squareMatrix squareMatrix::operator - (const squareMatrix& s2)const{
 
   //check to see that matrix dimensions are the same
   if ( s1.size != s2.size ){
-    cerr << "ERROR: Cannot subtract matricies, dimensions do not agree." << endl;
+    cerr << "ERROR: Cannot subtract matrices, dimensions do not agree." << endl;
   }
 
   int cc = 0;
@@ -241,7 +241,7 @@ squareMatrix squareMatrix::operator * (const squareMatrix& s2)const{
 
   //check to see that matrix dimensions are the same
   if ( s1.size != s2.size ){
-    cerr << "ERROR: Cannot multiply matricies, dimensions do not agree." << endl;
+    cerr << "ERROR: Cannot multiply matrices, dimensions do not agree." << endl;
   }
 
   int cc = 0;
@@ -525,7 +525,8 @@ colMatrix colMatrix::operator + (const colMatrix& s2)const{
 
   //check to see that matrix dimensions are the same
   if ( s1.size != s2.size ){
-    cerr << "ERROR: Cannot add column matricies, dimensions do not agree." << endl;
+    cerr << "ERROR: Cannot add column matrices, dimensions do not agree." << endl;
+    cerr << "Dimensions are " << s1.size << " and " << s2.size << endl;
   }
 
   for( int rr = 0; rr < s2.Size(); rr++ ){
@@ -577,7 +578,7 @@ colMatrix colMatrix::operator - (const colMatrix& s2)const{
 
   //check to see that matrix dimensions are the same
   if ( s1.size != s2.size ){
-    cerr << "ERROR: Cannot subtract column matricies, dimensions do not agree." << endl;
+    cerr << "ERROR: Cannot subtract column matrices, dimensions do not agree." << endl;
   }
 
   for( int rr = 0; rr < s2.Size(); rr++ ){
@@ -627,7 +628,7 @@ colMatrix colMatrix::operator * (const colMatrix& s2)const{
 
   //check to see that matrix dimensions are the same
   if ( s1.size != s2.size ){
-    cerr << "ERROR: Cannot elementwise multiply column matricies, dimensions do not agree." << endl;
+    cerr << "ERROR: Cannot elementwise multiply column matrices, dimensions do not agree." << endl;
   }
 
   for( int rr = 0; rr < s2.Size(); rr++ ){
@@ -662,7 +663,7 @@ colMatrix colMatrix::operator / (const colMatrix& s2)const{
 
   //check to see that matrix dimensions are the same
   if ( s1.size != s2.size ){
-    cerr << "ERROR: Cannot elementwise divide column matricies, dimensions do not agree." << endl;
+    cerr << "ERROR: Cannot elementwise divide column matrices, dimensions do not agree." << endl;
   }
 
   for( int rr = 0; rr < s2.Size(); rr++ ){
