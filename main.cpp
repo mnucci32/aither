@@ -231,6 +231,7 @@ int main( int argc, char *argv[] ) {
 
 	if (nn == 0 && mm == 0){
 	  residL2First[cc] = residL2[cc];
+	  cout << residL2[cc] << endl;
 	}
 
 	//normalize residuals

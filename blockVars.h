@@ -127,7 +127,7 @@ class blockVars {
   double LUSGS( const colMatrix &, const vector<vector3d<int> > &, vector<colMatrix> &, const vector<colMatrix> &, const vector<colMatrix> &, 
 		const int &, const double &, const double&, const idealGas&)const;
 
-  double ConvSpecRad( const vector3d<double> &, const primVars&, const idealGas&)const;
+
 
   //destructor
   ~blockVars() {}
