@@ -60,6 +60,7 @@ class primVars {
   inline double SoS(const idealGas&)const;
 
   inline colMatrix ConsVars(const idealGas&)const;
+  primVars UpdateWithConsVars(const idealGas&, const colMatrix&)const;
 
   //operator overloads for addition and subtraction of states
   primVars operator + (const primVars&)const;

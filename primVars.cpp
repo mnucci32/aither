@@ -445,3 +445,27 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
   return ghostState;
 
 }
+
+//member function to take in a colMatrix of updates to the conservative variables, and update the primative variables with it.
+primVars primVars::UpdateWithConsVars(const idealGas &eqnState, const colMatrix &du)const{
+
+  //check to see that update is of proper size
+  if ( du.Size() != 5 ){
+    cerr << "ERROR: Error in primVars::UpdateWithConsVars. The colMatrix containing the update is not of proper size!" << endl;
+    exit(0);
+  }
+
+  //convert primative to conservative and update
+  colMatrix consUpdate = (*this).ConsVars(eqnState) + du;
+
+  //convert back to primative variables
+  primVars primUpdate;
+  primUpdate.SetRho( consUpdate.Data(0) );
+  primUpdate.SetU( consUpdate.Data(1) / consUpdate.Data(0) );
+  primUpdate.SetV( consUpdate.Data(2) / consUpdate.Data(0) );
+  primUpdate.SetW( consUpdate.Data(3) / consUpdate.Data(0) );
+  double energy = consUpdate.Data(4) / consUpdate.Data(0);
+  primUpdate.SetP( eqnState.GetPressFromEnergy( primUpdate.Rho(), energy, primUpdate.Velocity().Mag() ) );
+
+  return primUpdate;
+}
