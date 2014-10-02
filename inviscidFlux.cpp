@@ -1224,12 +1224,19 @@ void LaxFriedrichsFluxJacobian( const primVars &left, const primVars &right, con
   vector3d<double> areaNorm = areaVec / areaVec.Mag();  //normalize area vector to unit vector
 
   //dot product of velocities with unit area vector
+  vector3d<double> avgVel = 0.5 * (left.Velocity() + right.Velocity());
+  double avgVelNorm = avgVel.DotProd(areaNorm);
+  double avgSoS = 0.5 * (left.SoS(eqnState) + right.SoS(eqnState));
+
   double velLeftNorm = left.Velocity().DotProd(areaNorm);
   double velRightNorm = right.Velocity().DotProd(areaNorm);
 
   //calculate spectral radii
-  specRadL = fabs(velLeftNorm)  + left.SoS(eqnState);
-  specRadR = fabs(velRightNorm) + right.SoS(eqnState);
+  //specRadL = fabs(velLeftNorm)  + left.SoS(eqnState);
+  //specRadR = fabs(velRightNorm) + right.SoS(eqnState);
+
+  specRadL = fabs(avgVelNorm) + avgSoS;
+  specRadR = fabs(avgVelNorm) + avgSoS;
 
   //form spectral radii identity matrices
   squareMatrix dissLeft(5);
@@ -1762,13 +1769,60 @@ colMatrix inviscidFlux::ConvertToColMatrix()const{
 }
 
 //function to take in the primative variables, equation of state, face area vector, and conservative variable update and calculate the change in the convective flux
-colMatrix ConvectiveFluxUpdate( const primVars &state, const idealGas &eqnState, const vector3d<double> &fArea, const colMatrix &du){
+colMatrix ConvectiveFluxUpdate( const primVars &left, const primVars &right, const idealGas &eqnState, const vector3d<double> &fArea, const colMatrix &du, const string &update){
 
-  inviscidFlux oldFlux(state, eqnState, fArea);
-  colMatrix updatedConsVars = state.ConsVars(eqnState) + du;
-  inviscidFlux newFlux(updatedConsVars, eqnState, fArea);
+  double maxWS = 0.0;
+  inviscidFlux oldFlux = LaxFriedrichsFlux(left, right, eqnState, fArea, maxWS);
 
-  inviscidFlux dFlux = newFlux - oldFlux;
-
+  inviscidFlux dFlux;
+  if (update == "left"){
+    primVars lUpdate = left.UpdateWithConsVars(eqnState, du);
+    inviscidFlux newFlux = LaxFriedrichsFlux(lUpdate, right, eqnState, fArea, maxWS);
+    dFlux = newFlux - oldFlux;
+  }
+  else if (update == "right"){
+    primVars rUpdate = right.UpdateWithConsVars(eqnState, du);
+    inviscidFlux newFlux = LaxFriedrichsFlux(left, rUpdate, eqnState, fArea, maxWS);
+    dFlux = newFlux - oldFlux;
+  }
+  else{
+    cerr << "ERROR: Error in ConvectiveFluxUpdate. Cannot determine which state to update, side " << update << " is not recognized!" << endl;
+  }
+    
   return dFlux.ConvertToColMatrix();
+}
+
+
+inviscidFlux LaxFriedrichsFlux( const primVars &left, const primVars &right, const idealGas &eqnState, const vector3d<double> &fArea, double &maxWS ){
+
+  inviscidFlux lFlux(left, eqnState, fArea);
+  inviscidFlux rFlux(right, eqnState, fArea);
+
+  maxWS = ConvSpecRad(fArea, left, right, eqnState);
+
+  colMatrix lCons = left.ConsVars(eqnState);
+  colMatrix rCons = right.ConsVars(eqnState);
+
+  inviscidFlux lfFlux;
+  lfFlux.SetRhoVel(  0.5 * (rFlux.RhoVel()  + lFlux.RhoVel()  - maxWS * (rCons.Data(0) - lCons.Data(0)) ) );
+  lfFlux.SetRhoVelU( 0.5 * (rFlux.RhoVelU() + lFlux.RhoVelU() - maxWS * (rCons.Data(1) - lCons.Data(1)) ) );
+  lfFlux.SetRhoVelV( 0.5 * (rFlux.RhoVelV() + lFlux.RhoVelV() - maxWS * (rCons.Data(2) - lCons.Data(2)) ) );
+  lfFlux.SetRhoVelW( 0.5 * (rFlux.RhoVelW() + lFlux.RhoVelW() - maxWS * (rCons.Data(3) - lCons.Data(3)) ) );
+  lfFlux.SetRhoVelH( 0.5 * (rFlux.RhoVelH() + lFlux.RhoVelH() - maxWS * (rCons.Data(4) - lCons.Data(4)) ) );
+
+  return lfFlux;
+
+}
+
+//member function to take in an integer and string defining the face location, and the primative variables at a cell and calculate
+//the convective spectral radius
+double ConvSpecRad(const vector3d<double> &fArea, const primVars &left, const primVars &right, const idealGas &eqnState){
+
+  primVars state = 0.5 * (left + right);
+  vector3d<double> normArea = fArea / fArea.Mag();
+  double a = state.SoS(eqnState);
+  double u = state.Velocity().DotProd(normArea);
+
+  return fabs(u) + a;
+
 }
