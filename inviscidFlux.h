@@ -32,6 +32,8 @@ class inviscidFlux {
   inviscidFlux( const colMatrix&, const idealGas&, const vector3d<double>& );
 
   //member functions
+  void SetFlux( const primVars&, const idealGas&, const vector3d<double>&);
+
   void SetRhoVel( const double &a){rhoVel = a;}
   double RhoVel() const {return rhoVel;}
   void SetRhoVelU( const double &a){rhoVelU = a;}
@@ -75,7 +77,7 @@ void LaxFriedrichsFluxJacobian( const primVars&, const primVars&, const idealGas
 
 squareMatrix BoundaryFluxJacobian( const string&, const vector3d<double>&, const primVars&, const idealGas&, const input&, const string&, const string&, double&);
 
-colMatrix ConvectiveFluxUpdate( const primVars&, const primVars&, const idealGas &, const vector3d<double> &, const colMatrix&, const string&);
+colMatrix ConvectiveFluxUpdate( const primVars&, const idealGas &, const vector3d<double> &, const colMatrix&);
 double ConvSpecRad( const vector3d<double> &, const primVars&, const primVars&, const idealGas&);
 
 #endif

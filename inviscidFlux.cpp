@@ -48,6 +48,17 @@ inviscidFlux::inviscidFlux( const colMatrix &cons, const idealGas &eqnState, con
   rhoVelH = state.Rho() * vel.DotProd(normArea) * state.Enthalpy(eqnState);
 }
 
+void inviscidFlux::SetFlux( const primVars &state, const idealGas &eqnState, const vector3d<double>& areaVec){
+  vector3d<double> normArea = areaVec / areaVec.Mag();
+  vector3d<double> vel = state.Velocity();
+
+  rhoVel  = state.Rho() * vel.DotProd(normArea);      
+  rhoVelU = state.Rho() * vel.DotProd(normArea) * vel.X() + state.P() * normArea.X();     
+  rhoVelV = state.Rho() * vel.DotProd(normArea) * vel.Y() + state.P() * normArea.Y();     
+  rhoVelW = state.Rho() * vel.DotProd(normArea) * vel.Z() + state.P() * normArea.Z();     
+  rhoVelH = state.Rho() * vel.DotProd(normArea) * state.Enthalpy(eqnState);
+}
+
 
 //function to calculate pressure from conserved variables and equation of state
 inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGas &eqnState, const vector3d<double>& areaVec, double &maxWS){
@@ -1769,25 +1780,14 @@ colMatrix inviscidFlux::ConvertToColMatrix()const{
 }
 
 //function to take in the primative variables, equation of state, face area vector, and conservative variable update and calculate the change in the convective flux
-colMatrix ConvectiveFluxUpdate( const primVars &left, const primVars &right, const idealGas &eqnState, const vector3d<double> &fArea, const colMatrix &du, const string &update){
+colMatrix ConvectiveFluxUpdate( const primVars &state, const idealGas &eqnState, const vector3d<double> &fArea, const colMatrix &du){
 
-  double maxWS = 0.0;
-  inviscidFlux oldFlux = LaxFriedrichsFlux(left, right, eqnState, fArea, maxWS);
+  inviscidFlux oldFlux(state, eqnState, fArea);
 
-  inviscidFlux dFlux;
-  if (update == "left"){
-    primVars lUpdate = left.UpdateWithConsVars(eqnState, du);
-    inviscidFlux newFlux = LaxFriedrichsFlux(lUpdate, right, eqnState, fArea, maxWS);
-    dFlux = newFlux - oldFlux;
-  }
-  else if (update == "right"){
-    primVars rUpdate = right.UpdateWithConsVars(eqnState, du);
-    inviscidFlux newFlux = LaxFriedrichsFlux(left, rUpdate, eqnState, fArea, maxWS);
-    dFlux = newFlux - oldFlux;
-  }
-  else{
-    cerr << "ERROR: Error in ConvectiveFluxUpdate. Cannot determine which state to update, side " << update << " is not recognized!" << endl;
-  }
+  primVars stateUpdate = state.UpdateWithConsVars(eqnState, du);
+  inviscidFlux newFlux(stateUpdate, eqnState, fArea);
+
+  inviscidFlux dFlux = newFlux - oldFlux;
     
   return dFlux.ConvertToColMatrix();
 }
