@@ -41,6 +41,7 @@ class input {
   string invFluxJac;                    //inviscid flux jacobian
   double dualTimeCFL;                   //cfl number for dual time
   string inviscidFlux;                  //scheme for inviscid flux calculation
+  vector<double> stagInletProps;        //vector of stagnation inlet properties
 
  public:
   //constructor
@@ -136,6 +137,20 @@ class input {
 
   string InviscidFlux()const{return inviscidFlux;}
   void SetInviscidFlux(const string &a){inviscidFlux = a;}
+
+  int StagInletTag()const{return (int)stagInletProps[0];}
+  void SetStagInletTag(const int &a){stagInletProps[0] = (double)a;}
+  double StagInletP0()const{return stagInletProps[1];}
+  void SetStagInletP0(const double &a){stagInletProps[1] = a;}
+  double StagInletT0()const{return stagInletProps[2];}
+  void SetStagInletT0(const double &a){stagInletProps[2] = a;}
+  double StagInletDx()const{return stagInletProps[3];}
+  void SetStagInletDx(const double &a){stagInletProps[3] = a;}
+  double StagInletDy()const{return stagInletProps[4];}
+  void SetStagInletDy(const double &a){stagInletProps[4] = a;}
+  double StagInletDz()const{return stagInletProps[5];}
+  void SetStagInletDz(const double &a){stagInletProps[5] = a;}
+
 
   string Vars(const int &ind)const{return vars[ind];}
 
