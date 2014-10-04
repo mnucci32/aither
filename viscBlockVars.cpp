@@ -854,7 +854,7 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
 }
 
 //function to calculate viscous flux jacobian on i-faces
-void CalcViscFluxJacI(const blockVars &vars, const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb, colMatrix &mainDiag, matrixDiagonal &offLowIDiag, matrixDiagonal &offUpIDiag){
+void CalcViscFluxJacI(const blockVars &vars, const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb, colMatrix &mainDiag){
 
   int imax = vars.NumI();
   int jmax = vars.NumJ() - 1;
@@ -955,8 +955,8 @@ void CalcViscFluxJacI(const blockVars &vars, const sutherland &suth, const ideal
 	  //convective flux jacobians are subtracted from lower off diagonal and added to upper off diagonal
 	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
 	  //area magnitude contribution is already incorporated into flux jacobian
-	  offLowIDiag.SetData( iUp, offLowIDiag.Data(iUp) + tempViscFluxJacL * vars.FAreaI(loc).Mag());
-	  offUpIDiag.SetData( iLow, offLowIDiag.Data(iLow) - tempViscFluxJacR * vars.FAreaI(loc).Mag());
+	  // offLowIDiag.SetData( iUp, offLowIDiag.Data(iUp) + tempViscFluxJacL * vars.FAreaI(loc).Mag());
+	  // offUpIDiag.SetData( iLow, offLowIDiag.Data(iLow) - tempViscFluxJacR * vars.FAreaI(loc).Mag());
 
 	  //accumulate wave speed contribution -- area magnitude contribution is already incorporated into maxViscSpeed
 	  maxViscSpeed = ViscFaceSpectralRadiusTSL(rho, eqnState, mu, vars.FAreaI(loc).Mag(), centerDist);
@@ -975,7 +975,7 @@ void CalcViscFluxJacI(const blockVars &vars, const sutherland &suth, const ideal
 }
 
 //function to calculate viscous flux jacobian on j-faces
-void CalcViscFluxJacJ(const blockVars &vars, const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb, colMatrix &mainDiag, matrixDiagonal &offLowJDiag, matrixDiagonal &offUpJDiag){
+void CalcViscFluxJacJ(const blockVars &vars, const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb, colMatrix &mainDiag){
 
   int imax = vars.NumI() - 1;
   int jmax = vars.NumJ();
@@ -1076,8 +1076,8 @@ void CalcViscFluxJacJ(const blockVars &vars, const sutherland &suth, const ideal
 	  //convective flux jacobians are subtracted from lower off diagonal and added to upper off diagonal
 	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
 	  //area magnitude contribution is already incorporated into flux jacobian
-	  offLowJDiag.SetData( jUp, offLowJDiag.Data(jUp) + tempViscFluxJacL * vars.FAreaJ(loc).Mag());
-	  offUpJDiag.SetData( jLow, offLowJDiag.Data(jLow) - tempViscFluxJacR * vars.FAreaJ(loc).Mag());
+	  // offLowJDiag.SetData( jUp, offLowJDiag.Data(jUp) + tempViscFluxJacL * vars.FAreaJ(loc).Mag());
+	  // offUpJDiag.SetData( jLow, offLowJDiag.Data(jLow) - tempViscFluxJacR * vars.FAreaJ(loc).Mag());
 
 	  //accumulate wave speed contribution -- area magnitude contribution is already incorporated into maxViscSpeed
 	  maxViscSpeed = ViscFaceSpectralRadiusTSL(rho, eqnState, mu, vars.FAreaJ(loc).Mag(), centerDist);
@@ -1097,7 +1097,7 @@ void CalcViscFluxJacJ(const blockVars &vars, const sutherland &suth, const ideal
 
 
 //function to calculate viscous flux jacobian on k-faces
-void CalcViscFluxJacK(const blockVars &vars, const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb, colMatrix &mainDiag, matrixDiagonal &offLowKDiag, matrixDiagonal &offUpKDiag){
+void CalcViscFluxJacK(const blockVars &vars, const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb, colMatrix &mainDiag){
 
   int imax = vars.NumI() - 1;
   int jmax = vars.NumJ() - 1;
@@ -1198,8 +1198,8 @@ void CalcViscFluxJacK(const blockVars &vars, const sutherland &suth, const ideal
 	  //convective flux jacobians are subtracted from lower off diagonal and added to upper off diagonal
 	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
 	  //area magnitude contribution is already incorporated into flux jacobian
-	  offLowKDiag.SetData( kUp, offLowKDiag.Data(kUp) + tempViscFluxJacL * vars.FAreaK(loc).Mag());
-	  offUpKDiag.SetData( kLow, offLowKDiag.Data(kLow) - tempViscFluxJacR * vars.FAreaK(loc).Mag());
+	  // offLowKDiag.SetData( kUp, offLowKDiag.Data(kUp) + tempViscFluxJacL * vars.FAreaK(loc).Mag());
+	  // offUpKDiag.SetData( kLow, offLowKDiag.Data(kLow) - tempViscFluxJacR * vars.FAreaK(loc).Mag());
 
 	  //accumulate wave speed contribution -- area magnitude contribution is already incorporated into maxViscSpeed
 	  maxViscSpeed = ViscFaceSpectralRadiusTSL(rho, eqnState, mu, vars.FAreaK(loc).Mag(), centerDist);

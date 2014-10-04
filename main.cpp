@@ -183,9 +183,9 @@ int main( int argc, char *argv[] ) {
 
 
 	  if (inputVars.EquationSet() == "navierStokes" ){
-	    // CalcViscFluxJacI(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag);
-	    // CalcViscFluxJacJ(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag);
-	    // CalcViscFluxJacK(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag);
+	    CalcViscFluxJacI(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag);
+	    CalcViscFluxJacJ(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag);
+	    CalcViscFluxJacK(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag);
 	  }
 
 	  //add volume divided by time step term to main diagonal
@@ -197,8 +197,7 @@ int main( int argc, char *argv[] ) {
 	  vector<vector3d<int> > reorder = HyperplaneReorder(stateBlocks[bb].NumI()-1, stateBlocks[bb].NumJ()-1, stateBlocks[bb].NumK()-1);
 
 	  //calculate correction (du)
-	  matrixResid += stateBlocks[bb].LUSGS(mainDiag, reorder, du[bb], solTimeMmN, solDeltaNm1[bb], inputVars.MatrixSweeps(), 
-					       inputVars.MatrixRelaxation(), inputVars.Theta(), eos );
+	  matrixResid += stateBlocks[bb].LUSGS(mainDiag, reorder, du[bb], solTimeMmN, solDeltaNm1[bb], eos, inputVars, suth );
 
 
 	} //conditional for implicit solver

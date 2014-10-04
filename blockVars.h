@@ -124,8 +124,7 @@ class blockVars {
 
   void DeltaNMinusOne( vector<colMatrix> &, const vector<colMatrix> &, const idealGas &, const double &, const double &);
 
-  double LUSGS( const colMatrix &, const vector<vector3d<int> > &, vector<colMatrix> &, const vector<colMatrix> &, const vector<colMatrix> &, 
-		const int &, const double &, const double&, const idealGas&)const;
+  double LUSGS( const colMatrix &, const vector<vector3d<int> > &, vector<colMatrix> &, const vector<colMatrix> &, const vector<colMatrix> &, const idealGas&, const input&, const sutherland&)const;
 
 
 
@@ -135,6 +134,6 @@ class blockVars {
 };
 
 //function definitions
-
+double ViscFaceSpecRadTSL(const primVars&, const idealGas&, const sutherland&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&);
 
 #endif

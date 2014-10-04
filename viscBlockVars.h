@@ -80,9 +80,10 @@ class viscBlockVars {
 double ViscCellSpectralRadius(const double&, const idealGas&, const double&, const double&, const double&);
 double ViscFaceSpectralRadiusTSL(const double&, const idealGas&, const double&, const double&, const double&);
 
-void CalcViscFluxJacI(const blockVars&, const sutherland&, const idealGas&, const input&, const int&, colMatrix&, matrixDiagonal&, matrixDiagonal&);
-void CalcViscFluxJacJ(const blockVars&, const sutherland&, const idealGas&, const input&, const int&, colMatrix&, matrixDiagonal&, matrixDiagonal&);
-void CalcViscFluxJacK(const blockVars&, const sutherland&, const idealGas&, const input&, const int&, colMatrix&, matrixDiagonal&, matrixDiagonal&);
+
+void CalcViscFluxJacI(const blockVars&, const sutherland&, const idealGas&, const input&, const int&, colMatrix&);
+void CalcViscFluxJacJ(const blockVars&, const sutherland&, const idealGas&, const input&, const int&, colMatrix&);
+void CalcViscFluxJacK(const blockVars&, const sutherland&, const idealGas&, const input&, const int&, colMatrix&);
 
 
 
