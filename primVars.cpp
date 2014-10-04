@@ -272,10 +272,10 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
   vector3d<double> normArea;
 
   if (surf == "il" || surf == "jl" || surf == "kl"){
-    normArea = areaVec / areaVec.Mag();
+    normArea = -1.0 * areaVec / areaVec.Mag(); //at lower surface normal should point out of domain for ghost cell calculation
   }
   else if (surf == "iu" || surf == "ju" || surf == "ku"){
-    normArea = -1.0 * (areaVec / areaVec.Mag()); //at upper surface normal should point into domain for ghost cell calculation
+    normArea = (areaVec / areaVec.Mag()); 
   }
 
   double normVelCellCenter = 0;
@@ -330,95 +330,91 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
 
   }
   else if (bcType == "characteristic"){
-      //calculate ui, u0, ci, co, mi
-      vector3d<double> freeVel = inputVars.VelRef();
-      double freeSoS = eqnState.GetSoS(inputVars.PRef(), inputVars.RRef());
-      freeVel = freeVel / freeSoS;
-      freeSoS = freeSoS / freeSoS;
+    //calculate ui, u0, ci, co, mi
+    //freestream variables
+    double freeSoS = eqnState.GetSoS(inputVars.PRef(), inputVars.RRef());
+    vector3d<double> freeVel = inputVars.VelRef() / freeSoS;
 
-      primVars freeState(1.0, 1.0/eqnState.Gamma(), freeVel);
-      double rhoFree = freeState.Rho();
-      double velFreeNorm = freeVel.DotProd(normArea); 
-      double SoSFree = 1.0;
+    primVars freeState(1.0, 1.0/eqnState.Gamma(), freeVel);
+    double velFreeNorm = freeVel.DotProd(normArea); 
+    //double SoSFree = 1.0;
 
-      vector3d<double> freeVelTan;                                  //freestream tangent velocity
-      freeVelTan.SetX(freeVel.X() - normArea.X()*velFreeNorm);
-      freeVelTan.SetY(freeVel.Y() - normArea.Y()*velFreeNorm);
-      freeVelTan.SetZ(freeVel.Z() - normArea.Z()*velFreeNorm);
+    vector3d<double> freeVelTan = freeVel - normArea * velFreeNorm;            //freestream tangent velocity
 
-      vector3d<double> velInt = (*this).Velocity();
-      double velIntNorm;
+    //internal variables
+    double velIntNorm = (*this).Velocity().DotProd(normArea); 
+    double SoSInt = eqnState.GetSoS((*this).P(), (*this).Rho());
+    vector3d<double> velIntTan = (*this).Velocity() - normArea * velIntNorm;    //internal tangent velocity
+    double machInt = fabs(velIntNorm)/SoSInt;
 
-      velIntNorm = velInt.DotProd(normArea); 
-      
-      double rhoInt = (*this).Rho();
-      double SoSInt = eqnState.GetSoS((*this).P(), rhoInt);
+    //double riemannInvarPlus, riemannInvarMinus;
 
-      vector3d<double> velIntTan;                                  //internal tangent velocity
-      velIntTan.SetX(velInt.X() - normArea.X()*velIntNorm);
-      velIntTan.SetY(velInt.Y() - normArea.Y()*velIntNorm);
-      velIntTan.SetZ(velInt.Z() - normArea.Z()*velIntNorm);
+    if ( machInt >= 1.0 && velIntNorm < 0.0 ){ //supersonic inflow
+      //characteristics all go into the domain, so use freestream values for both riemann invariants
+      ghostState = freeState;
+    }
+    else if ( machInt >= 1.0 && velIntNorm > 0.0 ){ //supersonic outflow
+      //characteristics all leave the domain, so use interior values for both riemann invariants
+      ghostState = (*this);
+    }
+    else if ( machInt < 1.0 && velIntNorm < 0.0 ){ //subsonic inflow
 
-      double machInt = fabs(velIntNorm)/SoSInt;
+      //characteristics go in both directions, use interior values for plus characteristic and freestream values for minus characteristic
+      double rhoSoSInt = (*this).Rho() * SoSInt;
+      vector3d<double> velDiff = freeState.Velocity() - (*this).Velocity();
+      ghostState.SetP(0.5 * (freeState.P() + (*this).P() - rhoSoSInt * normArea.DotProd(velDiff)) );
+      ghostState.SetRho(freeState.Rho() + (ghostState.P() - freeState.P()) / (SoSInt * SoSInt) );
+      ghostState.SetU(freeState.U() - normArea.X() * (freeState.P() - ghostState.P()) / rhoSoSInt);
+      ghostState.SetV(freeState.V() - normArea.Y() * (freeState.P() - ghostState.P()) / rhoSoSInt);
+      ghostState.SetW(freeState.W() - normArea.Z() * (freeState.P() - ghostState.P()) / rhoSoSInt);
 
-      double riemannInvarPlus, riemannInvarMinus;
 
-      if ( machInt >= 1.0 && velIntNorm > 0.0 ){ //supersonic inflow
+      // riemannInvarMinus = velIntNorm - (2.0 * SoSInt)/(eqnState.Gamma() - 1.0);
+      // riemannInvarPlus = velFreeNorm + (2.0 * SoSFree)/(eqnState.Gamma() - 1.0);
+      // double velB = 0.5 * (riemannInvarPlus + riemannInvarMinus); //this is the normal velocity at the boundary
+      // double SoSBound = 0.25 * (eqnState.Gamma() - 1.0) * (riemannInvarPlus - riemannInvarMinus);
 
-	//characteristics all go into the domain, so use freestream values for both riemann invariants
-	riemannInvarPlus = velFreeNorm + (2.0 * SoSFree)/(eqnState.Gamma() - 1.0);
-	riemannInvarMinus = velFreeNorm - (2.0 * SoSFree)/(eqnState.Gamma() - 1.0);
-	ghostState = freeState;
-      }
-      else if ( machInt >= 1.0 && velIntNorm < 0.0 ){ //supersonic outflow
+      // double entropyBound = (SoSFree * SoSFree)/(eqnState.Gamma() * pow(freeState.Rho() , eqnState.Gamma()-1.0));
+      // double rhoBound = pow((SoSBound * SoSBound)/(eqnState.Gamma() * entropyBound) , 1.0/(eqnState.Gamma()-1.0));
+      // double pressBound = rhoBound * SoSBound * SoSBound / eqnState.Gamma();
 
-	//characteristics all leave the domain, so use interior values for both riemann invariants
-	riemannInvarPlus = velIntNorm + (2.0 * SoSInt)/(eqnState.Gamma() - 1.0);
-	riemannInvarMinus = velIntNorm - (2.0 * SoSInt)/(eqnState.Gamma() - 1.0);
-	ghostState = (*this);
-      }
-      else if ( machInt < 1.0 && velIntNorm > 0.0 ){ //subsonic inflow
+      // ghostState.SetRho(rhoBound);
+      // ghostState.SetU( (velB * normArea.X() + freeVelTan.X()) );
+      // ghostState.SetV( (velB * normArea.Y() + freeVelTan.Y()) );
+      // ghostState.SetW( (velB * normArea.Z() + freeVelTan.Z()) );
+      // ghostState.SetP(pressBound);
 
-	//characteristics go in both directions, use interior values for plus characteristic and freestream values for minus characteristic
-	riemannInvarMinus = velIntNorm - (2.0 * SoSInt)/(eqnState.Gamma() - 1.0);
-	riemannInvarPlus = velFreeNorm + (2.0 * SoSFree)/(eqnState.Gamma() - 1.0);
-	double velB = 0.5 * (riemannInvarPlus + riemannInvarMinus); //this is the normal velocity at the boundary
-	double SoSBound = 0.25 * (eqnState.Gamma() - 1.0) * (riemannInvarPlus - riemannInvarMinus);
+    }
+    else if ( machInt < 1.0 && velIntNorm > 0.0 ){ //subsonic outflow
 
-	double entropyBound = (SoSFree * SoSFree)/(eqnState.Gamma() * pow(rhoFree , eqnState.Gamma()-1.0));
-	double rhoBound = pow((SoSBound * SoSBound)/(eqnState.Gamma() * entropyBound) , 1.0/(eqnState.Gamma()-1.0));
-	double pressBound = rhoBound * SoSBound * SoSBound / eqnState.Gamma();
+      //characteristics go in both directions, use interior values for plus characteristic and freestream values for minus characteristic
+      double rhoSoSInt = (*this).Rho() * SoSInt;
+      ghostState.SetP(freeState.P());
+      ghostState.SetRho( (*this).Rho() + ( ghostState.P() - (*this).P() ) / (SoSInt * SoSInt)   );
+      ghostState.SetU(   (*this).U() + normArea.X() * ( (*this).P() - ghostState.P() ) / rhoSoSInt);
+      ghostState.SetV(   (*this).V() + normArea.Y() * ( (*this).P() - ghostState.P() ) / rhoSoSInt);
+      ghostState.SetW(   (*this).W() + normArea.Z() * ( (*this).P() - ghostState.P() ) / rhoSoSInt);
 
-	ghostState.SetRho(rhoBound);
-	ghostState.SetU( (velB * normArea.X() + freeVelTan.X()) );
-	ghostState.SetV( (velB * normArea.Y() + freeVelTan.Y()) );
-	ghostState.SetW( (velB * normArea.Z() + freeVelTan.Z()) );
-	ghostState.SetP(pressBound);
+      // riemannInvarMinus = velIntNorm - (2.0 * SoSInt)/(eqnState.Gamma() - 1.0);
+      // riemannInvarPlus = -1.0 * fabs(velFreeNorm) + (2.0 * SoSFree)/(eqnState.Gamma() - 1.0);
+      // double velB = 0.5 * (riemannInvarPlus + riemannInvarMinus);
+      // double SoSBound = 0.25 * (eqnState.Gamma() - 1.0) * (riemannInvarPlus - riemannInvarMinus);
 
-      }
-      else if ( machInt < 1.0 && velIntNorm < 0.0 ){ //subsonic outflow
+      // double entropyBound = (SoSInt * SoSInt)/(eqnState.Gamma() * pow((*this).Rho() , eqnState.Gamma()-1.0));
+      // double rhoBound = pow((SoSBound * SoSBound)/(eqnState.Gamma() * entropyBound) , 1.0/(eqnState.Gamma()-1.0));
+      // double pressBound = rhoBound * SoSBound * SoSBound / eqnState.Gamma();
 
-	//characteristics go in both directions, use interior values for plus characteristic and freestream values for minus characteristic
-	riemannInvarMinus = velIntNorm - (2.0 * SoSInt)/(eqnState.Gamma() - 1.0);
-	riemannInvarPlus = -1.0 * fabs(velFreeNorm) + (2.0 * SoSFree)/(eqnState.Gamma() - 1.0);
-	double velB = 0.5 * (riemannInvarPlus + riemannInvarMinus);
-	double SoSBound = 0.25 * (eqnState.Gamma() - 1.0) * (riemannInvarPlus - riemannInvarMinus);
+      // ghostState.SetRho(rhoBound);
+      // ghostState.SetU( (velB * normArea.X() + velIntTan.X()) );
+      // ghostState.SetV( (velB * normArea.Y() + velIntTan.Y()) );
+      // ghostState.SetW( (velB * normArea.Z() + velIntTan.Z()) );
+      // ghostState.SetP(pressBound);
 
-	double entropyBound = (SoSInt * SoSInt)/(eqnState.Gamma() * pow(rhoInt , eqnState.Gamma()-1.0));
-	double rhoBound = pow((SoSBound * SoSBound)/(eqnState.Gamma() * entropyBound) , 1.0/(eqnState.Gamma()-1.0));
-	double pressBound = rhoBound * SoSBound * SoSBound / eqnState.Gamma();
-
-	ghostState.SetRho(rhoBound);
-	ghostState.SetU( (velB * normArea.X() + velIntTan.X()) );
-	ghostState.SetV( (velB * normArea.Y() + velIntTan.Y()) );
-	ghostState.SetW( (velB * normArea.Z() + velIntTan.Z()) );
-	ghostState.SetP(pressBound);
-
-      }
-      else {
-	cerr << "ERROR: flow condition for characteristic BC is not recognized!" << endl;
-	exit(0);
-      }
+    }
+    else {
+      cerr << "ERROR: flow condition for characteristic BC is not recognized!" << endl;
+      exit(0);
+    }
 
   }
   else if (bcType == "supersonicInflow"){
@@ -435,6 +431,43 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
   }
   else if (bcType == "supersonicOutflow"){
     //do nothing and return boundary state -- numerical BCs for all
+  }
+  else if (bcType == "stagnationInlet"){
+    double g = eqnState.Gamma() - 1.0;
+    //calculate outgoing riemann invarient
+    double rNeg = (*this).Velocity().DotProd(normArea) - 2.0 * (*this).SoS(eqnState) / g;
+
+    //calculate SoS on boundary
+    double cosTheta = -1.0 * (*this).Velocity().DotProd(normArea) / (*this).Velocity().Mag();
+    double stagSoSsq = pow((*this).SoS(eqnState),2.0) + 0.5 * g * (*this).Velocity().MagSq();
+
+    double sosB = -1.0 * rNeg * g / (g * cosTheta * cosTheta + 2.0) * (1.0 + cosTheta * sqrt( (g * cosTheta * cosTheta + 2.0) * stagSoSsq / 
+											      (g * rNeg * rNeg) - 0.5 * g  ) );
+    double tb = inputVars.StagInletT0() / inputVars.TRef() * (sosB * sosB / (stagSoSsq * stagSoSsq));
+    double aRef = eqnState.GetSoS(inputVars.PRef(),inputVars.RRef());
+    double pb = inputVars.StagInletP0() / (inputVars.RRef() * aRef * aRef) * pow(sosB * sosB / (stagSoSsq * stagSoSsq), 
+										 eqnState.Gamma()/g);
+    double vbMag = sqrt(2.0 / g * (inputVars.StagInletT0() / inputVars.TRef() - tb));
+
+    ghostState.SetRho(eqnState.GetDensityTP(tb,pb));
+    ghostState.SetU(vbMag * inputVars.StagInletDx());
+    ghostState.SetV(vbMag * inputVars.StagInletDy());
+    ghostState.SetW(vbMag * inputVars.StagInletDz());
+    ghostState.SetP(pb);
+
+  }
+  else if (bcType == "pressureOutlet"){
+    double aRef = eqnState.GetSoS(inputVars.PRef(),inputVars.RRef());
+    double pb = inputVars.PressureOutletP() / (inputVars.RRef() * aRef * aRef);
+
+    double SoSInt = (*this).SoS(eqnState);
+    double rhoSoSInt = (*this).Rho() * SoSInt;
+    ghostState.SetP(pb);
+    ghostState.SetRho( (*this).Rho() + ( ghostState.P() - (*this).P() ) / (SoSInt * SoSInt)   );
+    ghostState.SetU(   (*this).U() + normArea.X() * ( (*this).P() - ghostState.P() ) / rhoSoSInt);
+    ghostState.SetV(   (*this).V() + normArea.Y() * ( (*this).P() - ghostState.P() ) / rhoSoSInt);
+    ghostState.SetW(   (*this).W() + normArea.Z() * ( (*this).P() - ghostState.P() ) / rhoSoSInt);
+
   }
   else {
     cerr << "ghost state for BC type " << bcType << " is not supported!" << endl;

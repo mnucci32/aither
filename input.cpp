@@ -16,8 +16,9 @@ using std::istream_iterator;
 
 //constructor for input class
 //initialize vector to have length of number of acceptable inputs to the code
-input::input(): vars(30){
+input::input(): vars(31){
   vector<double> stagProps(6,0.0);
+  vector<double> pOutlet(2,0.0);
 
   //default values for each variable
   gName = "";
@@ -53,6 +54,7 @@ input::input(): vars(30){
   dualTimeCFL = -1.0;          //default value of -1; negative value means dual time stepping is not used
   inviscidFlux = "roe";        //default value is roe flux
   stagInletProps = stagProps;
+  pressureOutlet = pOutlet;
 
   //keywords in the input file that the parser is looking for to define variables
   vars[0] = "gridName:";
@@ -83,9 +85,10 @@ input::input(): vars(30){
   vars[25] = "inviscidFluxJacobian:";
   vars[26] = "dualTimeCFL:";
   vars[27] = "inviscidFlux:";
-  vars[28] = "stagnationInletProperties:";
+  vars[28] = "stagnationInlet:";
+  vars[29] = "pressureOutlet:";
 
-  vars[29] = "boundaryConditions:";  //boundary conditions should be listed last
+  vars[30] = "boundaryConditions:";  //boundary conditions should be listed last
 }
 
 //member function to set vector holding boundary conditions for each block
@@ -349,6 +352,11 @@ input ReadInput(const string &inputName){
 	    cout << inputVars.Vars(ii) << " " << inputVars.StagInletTag() << " " << inputVars.StagInletP0() <<
 	      " " << inputVars.StagInletT0() << " " << inputVars.StagInletDx() << " " << inputVars.StagInletDy() <<
 	      " " << inputVars.StagInletDz() << endl;
+	  }
+          else if (ii==29 && readingBCs == 0){
+            inputVars.SetPressureOutletTag(atoi(tokens[1].c_str()));
+            inputVars.SetPressureOutletP(atof(tokens[2].c_str()));
+	    cout << inputVars.Vars(ii) << " " << inputVars.PressureOutletTag() << " " << inputVars.PressureOutletP() << endl;
 	  }
 
 

@@ -42,6 +42,7 @@ class input {
   double dualTimeCFL;                   //cfl number for dual time
   string inviscidFlux;                  //scheme for inviscid flux calculation
   vector<double> stagInletProps;        //vector of stagnation inlet properties
+  vector<double> pressureOutlet;        //vector of pressure outlet properties
 
  public:
   //constructor
@@ -150,6 +151,11 @@ class input {
   void SetStagInletDy(const double &a){stagInletProps[4] = a;}
   double StagInletDz()const{return stagInletProps[5];}
   void SetStagInletDz(const double &a){stagInletProps[5] = a;}
+
+  int PressureOutletTag()const{return (int)pressureOutlet[0];}
+  void SetPressureOutletTag(const int &a){pressureOutlet[0] = (double)a;}
+  double PressureOutletP()const{return pressureOutlet[1];}
+  void SetPressureOutletP(const double &a){pressureOutlet[1] = a;}
 
 
   string Vars(const int &ind)const{return vars[ind];}
