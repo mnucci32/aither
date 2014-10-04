@@ -1798,7 +1798,7 @@ inviscidFlux LaxFriedrichsFlux( const primVars &left, const primVars &right, con
   inviscidFlux lFlux(left, eqnState, fArea);
   inviscidFlux rFlux(right, eqnState, fArea);
 
-  maxWS = ConvSpecRad(fArea, left, right, eqnState);
+  maxWS = ConvSpecRad(fArea, 0.5 * (left + right), eqnState);
 
   colMatrix lCons = left.ConsVars(eqnState);
   colMatrix rCons = right.ConsVars(eqnState);
@@ -1816,9 +1816,8 @@ inviscidFlux LaxFriedrichsFlux( const primVars &left, const primVars &right, con
 
 //member function to take in an integer and string defining the face location, and the primative variables at a cell and calculate
 //the convective spectral radius
-double ConvSpecRad(const vector3d<double> &fArea, const primVars &left, const primVars &right, const idealGas &eqnState){
+double ConvSpecRad(const vector3d<double> &fArea, const primVars &state, const idealGas &eqnState){
 
-  primVars state = 0.5 * (left + right);
   vector3d<double> normArea = fArea / fArea.Mag();
   double a = state.SoS(eqnState);
   double u = state.Velocity().DotProd(normArea);

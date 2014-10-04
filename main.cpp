@@ -97,7 +97,6 @@ int main( int argc, char *argv[] ) {
     implicitFlag = true;
   }
 
-  //matrixDiagonal offUpIDiag, offLowIDiag, offUpJDiag, offLowJDiag, offUpKDiag, offLowKDiag;
   colMatrix mainDiag;
   colMatrix initial(numEqns);
   initial.Zero();

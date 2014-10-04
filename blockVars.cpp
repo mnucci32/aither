@@ -1506,13 +1506,14 @@ double blockVars::LUSGS( const colMatrix &Aii, const vector<vector3d<int> > &reo
 
   squareMatrix I(x[0].Size());
   I.Identity();
-  
+
+  colMatrix initial(x[0].Size());
+  initial.Zero();
+  vector<colMatrix> U(x.size(),initial);
+  vector<colMatrix> L(x.size(),initial);
+
   for ( int kk = 0; kk < sweeps; kk++ ){
     //forward sweep
-    colMatrix initial(x[0].Size());
-    initial.Zero();
-    vector<colMatrix> U(x.size(),initial);
-    vector<colMatrix> L(x.size(),initial);
 
     for ( int ii = 0; ii < (int)x.size(); ii++ ){
 
@@ -1531,27 +1532,27 @@ double blockVars::LUSGS( const colMatrix &Aii, const vector<vector3d<int> > &reo
 
       if ( il >=0 && il < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	double convSpecRad = ConvSpecRad( (*this).FAreaI(ilFace), (*this).State(il), (*this).State(loc), eqnState);
+	double convSpecRad = ConvSpecRad( (*this).FAreaI(ilFace), (*this).State(il), eqnState);
 	//at given face location, call function to calculate convective flux change
 	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(il), eqnState, (*this).FAreaI(ilFace), x[il]);
 
-	L[loc] = L[loc] + 0.5 * (*this).FAreaI(ilFace).Mag() * ( fluxChange + convSpecRad * I.Multiply(x[il]) );
+	L[loc] = L[loc] + 0.5 * (*this).FAreaI(ilFace).Mag() * ( fluxChange + relax * convSpecRad * I.Multiply(x[il]) );
     }
       if ( jl >=0 && jl < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	double convSpecRad = ConvSpecRad( (*this).FAreaJ(jlFace), (*this).State(jl), (*this).State(loc), eqnState);
+	double convSpecRad = ConvSpecRad( (*this).FAreaJ(jlFace), (*this).State(jl), eqnState);
 	//at given face location, call function to calculate convective flux change
 	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(jl), eqnState, (*this).FAreaJ(jlFace), x[jl]);
 
-	L[loc] = L[loc] + 0.5 * (*this).FAreaJ(jlFace).Mag() * ( fluxChange + convSpecRad * I.Multiply(x[jl]) );
+	L[loc] = L[loc] + 0.5 * (*this).FAreaJ(jlFace).Mag() * ( fluxChange + relax * convSpecRad * I.Multiply(x[jl]) );
       }
       if ( kl >=0 && kl < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	double convSpecRad = ConvSpecRad( (*this).FAreaK(klFace), (*this).State(kl), (*this).State(loc), eqnState);
+	double convSpecRad = ConvSpecRad( (*this).FAreaK(klFace), (*this).State(kl), eqnState);
 	//at given face location, call function to calculate convective flux change
 	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(kl), eqnState, (*this).FAreaK(klFace), x[kl]);
 
-	L[loc] = L[loc] + 0.5 * (*this).FAreaK(klFace).Mag() * ( fluxChange + convSpecRad * I.Multiply(x[kl]) );
+	L[loc] = L[loc] + 0.5 * (*this).FAreaK(klFace).Mag() * ( fluxChange + relax * convSpecRad * I.Multiply(x[kl]) );
       }
 
       AiiInv = 1.0 / Aii.Data(loc);
@@ -1578,27 +1579,27 @@ double blockVars::LUSGS( const colMatrix &Aii, const vector<vector3d<int> > &reo
 
       if ( iu >=0 && iu < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	double convSpecRad = ConvSpecRad( (*this).FAreaI(iuFace), (*this).State(loc), (*this).State(iu), eqnState);
+	double convSpecRad = ConvSpecRad( (*this).FAreaI(iuFace), (*this).State(iu), eqnState);
 	//at given face location, call function to calculate convective flux change
 	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(iu), eqnState, (*this).FAreaI(iuFace), x[iu]);
 
-	U[loc] = U[loc] + 0.5 * (*this).FAreaI(iuFace).Mag() * ( fluxChange - convSpecRad * I.Multiply(x[iu]) );
+	U[loc] = U[loc] + 0.5 * (*this).FAreaI(iuFace).Mag() * ( fluxChange - relax * convSpecRad * I.Multiply(x[iu]) );
       }
       if ( ju >=0 && ju < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	double convSpecRad = ConvSpecRad( (*this).FAreaJ(juFace), (*this).State(loc), (*this).State(ju), eqnState);
+	double convSpecRad = ConvSpecRad( (*this).FAreaJ(juFace), (*this).State(ju), eqnState);
 	//at given face location, call function to calculate convective flux change
 	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(ju), eqnState, (*this).FAreaJ(juFace), x[ju]);
 
-	U[loc] = U[loc] + 0.5 * (*this).FAreaJ(juFace).Mag() * ( fluxChange - convSpecRad * I.Multiply(x[ju]) );
+	U[loc] = U[loc] + 0.5 * (*this).FAreaJ(juFace).Mag() * ( fluxChange - relax * convSpecRad * I.Multiply(x[ju]) );
       }
       if ( ku >=0 && ku < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	double convSpecRad = ConvSpecRad( (*this).FAreaK(kuFace), (*this).State(loc), (*this).State(ku), eqnState);
+	double convSpecRad = ConvSpecRad( (*this).FAreaK(kuFace), (*this).State(ku), eqnState);
 	//at given face location, call function to calculate convective flux change
 	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(ku), eqnState, (*this).FAreaK(kuFace), x[ku]);
 
-	U[loc] = U[loc] + 0.5 * (*this).FAreaK(kuFace).Mag() * ( fluxChange - convSpecRad * I.Multiply(x[ku]) );
+	U[loc] = U[loc] + 0.5 * (*this).FAreaK(kuFace).Mag() * ( fluxChange - relax * convSpecRad * I.Multiply(x[ku]) );
       }
 
       AiiInv = 1.0 / Aii.Data(loc);

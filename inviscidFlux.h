@@ -78,6 +78,6 @@ void LaxFriedrichsFluxJacobian( const primVars&, const primVars&, const idealGas
 squareMatrix BoundaryFluxJacobian( const string&, const vector3d<double>&, const primVars&, const idealGas&, const input&, const string&, const string&, double&);
 
 colMatrix ConvectiveFluxUpdate( const primVars&, const idealGas &, const vector3d<double> &, const colMatrix&);
-double ConvSpecRad( const vector3d<double> &, const primVars&, const primVars&, const idealGas&);
+double ConvSpecRad( const vector3d<double> &, const primVars&, const idealGas&);
 
 #endif
