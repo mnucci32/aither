@@ -1581,7 +1581,7 @@ double blockVars::LUSGS( const colMatrix &Aii, const vector<vector3d<int> > &reo
 
       AiiInv = 1.0 / Aii.Data(loc);
 
-      x[loc] = AiiInv * ( -1.0 * (*this).Residual(loc) + L[loc]) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
+      x[loc] = AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] + solTimeMmN[loc] + L[loc]) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
 
       // x[loc] = (1.0 - inp.MatrixRelaxation()) * x[loc] + inp.MatrixRelaxation() * AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] +
       // 							   solTimeMmN[loc] + L[loc]) ; //normal at lower boundaries needs to be reversed, so add i
@@ -1677,7 +1677,7 @@ double blockVars::LUSGS( const colMatrix &Aii, const vector<vector3d<int> > &reo
       int loc = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
       
       //normal at lower boundaries needs to be reversed, so add instead of subtract L
-      resid = -1.0 * (*this).Residual(loc) - Aii.Data(loc) * x[loc] + L[loc] - U[loc];
+      resid = -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] + solTimeMmN[loc] - Aii.Data(loc) * x[loc] + L[loc] - U[loc];
       //resid = -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] + solTimeMmN[loc] - Aii.Data(loc) * x[loc] + L[loc] - U[loc];
       l2Resid = l2Resid + resid * resid;
     }
