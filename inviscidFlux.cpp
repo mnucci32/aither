@@ -1828,8 +1828,7 @@ inviscidFlux LaxFriedrichsFlux( const primVars &left, const primVars &right, con
 
 }
 
-//member function to take in an integer and string defining the face location, and the primative variables at a cell and calculate
-//the convective spectral radius
+//function to return the convective spectral radius given a face state, equation of state, and area vector
 double ConvSpecRad(const vector3d<double> &fArea, const primVars &state, const idealGas &eqnState){
 
   vector3d<double> normArea = fArea / fArea.Mag();
