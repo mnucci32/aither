@@ -443,10 +443,9 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
 
     double sosB = -1.0 * rNeg * g / (g * cosTheta * cosTheta + 2.0) * (1.0 + cosTheta * sqrt( (g * cosTheta * cosTheta + 2.0) * stagSoSsq / 
 											      (g * rNeg * rNeg) - 0.5 * g  ) );
-    double tb = inputVars.StagInletT0() / inputVars.TRef() * (sosB * sosB / (stagSoSsq * stagSoSsq));
+    double tb = inputVars.StagInletT0() / inputVars.TRef() * (sosB * sosB / stagSoSsq);
     double aRef = eqnState.GetSoS(inputVars.PRef(),inputVars.RRef());
-    double pb = inputVars.StagInletP0() / (inputVars.RRef() * aRef * aRef) * pow(sosB * sosB / (stagSoSsq * stagSoSsq), 
-										 eqnState.Gamma()/g);
+    double pb = inputVars.StagInletP0() / (inputVars.RRef() * aRef * aRef) * pow(sosB * sosB / stagSoSsq, eqnState.Gamma()/g);
     double vbMag = sqrt(2.0 / g * (inputVars.StagInletT0() / inputVars.TRef() - tb));
 
     ghostState.SetRho(eqnState.GetDensityTP(tb,pb));
