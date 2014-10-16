@@ -1533,56 +1533,53 @@ double blockVars::LUSGS( const colMatrix &Aii, const vector<vector3d<int> > &reo
       if ( il >=0 && il < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
 	double specRad = 0.5 * ConvSpecRad( (*this).FAreaI(ilFace), (*this).State(il), eqnState);
+	double vSpecRad = 0.0;
 
 	if (inp.EquationSet() != "euler"){ //viscous
 	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
 	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	  double mRef = inp.VelRef().Mag() / aRef;
-	  double vSpecRad = ViscFaceSpecRadTSL( (*this).State(il), eqnState, suth, (*this).Center(il), (*this).Center(loc), (*this).FAreaI(ilFace));
-	  vSpecRad = (mRef/Re) * vSpecRad;
-	  specRad += vSpecRad;
+	  vSpecRad = (mRef/Re) * 0.5 * ViscFaceSpecRadTSL( (*this).State(il), eqnState, suth, (*this).Center(il), (*this).Center(loc), (*this).FAreaI(ilFace));
 	}
 
 	//at given face location, call function to calculate convective flux change
 	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(il), eqnState, (*this).FAreaI(ilFace), x[il]);
 
-	L[loc] = L[loc] + 0.5 * (*this).FAreaI(ilFace).Mag() * ( fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[il]) );
+	L[loc] = L[loc] + 0.5 * (*this).FAreaI(ilFace).Mag() * ( fluxChange + (inp.MatrixRelaxation() * specRad + 1.0 * vSpecRad) * I.Multiply(x[il]) );
     }
       if ( jl >=0 && jl < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
 	double specRad = 0.5 * ConvSpecRad( (*this).FAreaJ(jlFace), (*this).State(jl), eqnState);
+	double vSpecRad = 0.0;
 
 	if (inp.EquationSet() != "euler"){ //viscous
 	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
 	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	  double mRef = inp.VelRef().Mag() / aRef;
-	  double vSpecRad = ViscFaceSpecRadTSL( (*this).State(jl), eqnState, suth, (*this).Center(jl), (*this).Center(loc), (*this).FAreaJ(jlFace));
-	  vSpecRad = (mRef/Re) * vSpecRad;
-	  specRad += vSpecRad;
+	  vSpecRad = (mRef/Re) * 0.5 * ViscFaceSpecRadTSL( (*this).State(jl), eqnState, suth, (*this).Center(jl), (*this).Center(loc), (*this).FAreaJ(jlFace));
 	}
 
 	//at given face location, call function to calculate convective flux change
 	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(jl), eqnState, (*this).FAreaJ(jlFace), x[jl]);
 
-	L[loc] = L[loc] + 0.5 * (*this).FAreaJ(jlFace).Mag() * ( fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[jl]) );
+	L[loc] = L[loc] + 0.5 * (*this).FAreaJ(jlFace).Mag() * ( fluxChange + (inp.MatrixRelaxation() * specRad + 1.0 * vSpecRad) * I.Multiply(x[jl]) );
       }
       if ( kl >=0 && kl < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
 	double specRad = 0.5 * ConvSpecRad( (*this).FAreaK(klFace), (*this).State(kl), eqnState);
+	double vSpecRad = 0.0;
 
 	if (inp.EquationSet() != "euler"){ //viscous
 	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
 	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	  double mRef = inp.VelRef().Mag() / aRef;
-	  double vSpecRad = ViscFaceSpecRadTSL( (*this).State(kl), eqnState, suth, (*this).Center(kl), (*this).Center(loc), (*this).FAreaK(klFace));
-	  vSpecRad = (mRef/Re) * vSpecRad;
-	  specRad += vSpecRad;
+	  vSpecRad = (mRef/Re) * 0.5 * ViscFaceSpecRadTSL( (*this).State(kl), eqnState, suth, (*this).Center(kl), (*this).Center(loc), (*this).FAreaK(klFace));
 	}
 
 	//at given face location, call function to calculate convective flux change
 	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(kl), eqnState, (*this).FAreaK(klFace), x[kl]);
 
-	L[loc] = L[loc] + 0.5 * (*this).FAreaK(klFace).Mag() * ( fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[kl]) );
+	L[loc] = L[loc] + 0.5 * (*this).FAreaK(klFace).Mag() * ( fluxChange + (inp.MatrixRelaxation() * specRad + 1.0 * vSpecRad) * I.Multiply(x[kl]) );
       }
 
       AiiInv = 1.0 / (Aii.Data(loc) * inp.MatrixRelaxation());
@@ -1610,56 +1607,53 @@ double blockVars::LUSGS( const colMatrix &Aii, const vector<vector3d<int> > &reo
       if ( iu >=0 && iu < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
 	double specRad = 0.5 * ConvSpecRad( (*this).FAreaI(iuFace), (*this).State(iu), eqnState);
+	double vSpecRad = 0.0;
 
 	if (inp.EquationSet() != "euler"){ //viscous
 	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
 	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	  double mRef = inp.VelRef().Mag() / aRef;
-	  double vSpecRad = ViscFaceSpecRadTSL( (*this).State(iu), eqnState, suth, (*this).Center(loc), (*this).Center(iu), (*this).FAreaI(iuFace));
-	  vSpecRad = (mRef/Re) * vSpecRad;
-	  specRad += vSpecRad;
+	  vSpecRad = (mRef/Re) * 0.5 * ViscFaceSpecRadTSL( (*this).State(iu), eqnState, suth, (*this).Center(loc), (*this).Center(iu), (*this).FAreaI(iuFace));
 	}
 
 	//at given face location, call function to calculate convective flux change
 	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(iu), eqnState, (*this).FAreaI(iuFace), x[iu]);
 
-	U[loc] = U[loc] + 0.5 * (*this).FAreaI(iuFace).Mag() * ( fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[iu]) );
+	U[loc] = U[loc] + 0.5 * (*this).FAreaI(iuFace).Mag() * ( fluxChange - (inp.MatrixRelaxation() * specRad + 1.0 * vSpecRad) * I.Multiply(x[iu]) );
       }
       if ( ju >=0 && ju < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
 	double specRad = 0.5 * ConvSpecRad( (*this).FAreaJ(juFace), (*this).State(ju), eqnState);
+	double vSpecRad = 0.0;
 
 	if (inp.EquationSet() != "euler"){ //viscous
 	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
 	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	  double mRef = inp.VelRef().Mag() / aRef;
-	  double vSpecRad = ViscFaceSpecRadTSL( (*this).State(ju), eqnState, suth, (*this).Center(loc), (*this).Center(ju), (*this).FAreaJ(juFace));
-	  vSpecRad = (mRef/Re) * vSpecRad;
-	  specRad += vSpecRad;
+	  vSpecRad = (mRef/Re) * 0.5 * ViscFaceSpecRadTSL( (*this).State(ju), eqnState, suth, (*this).Center(loc), (*this).Center(ju), (*this).FAreaJ(juFace));
 	}
 
 	//at given face location, call function to calculate convective flux change
 	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(ju), eqnState, (*this).FAreaJ(juFace), x[ju]);
 
-	U[loc] = U[loc] + 0.5 * (*this).FAreaJ(juFace).Mag() * ( fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[ju]) );
+	U[loc] = U[loc] + 0.5 * (*this).FAreaJ(juFace).Mag() * ( fluxChange - (inp.MatrixRelaxation() * specRad + 1.0 * vSpecRad) * I.Multiply(x[ju]) );
       }
       if ( ku >=0 && ku < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
 	double specRad = 0.5 * ConvSpecRad( (*this).FAreaK(kuFace), (*this).State(ku), eqnState);
+	double vSpecRad = 0.0;
 
 	if (inp.EquationSet() != "euler"){ //viscous
 	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
 	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	  double mRef = inp.VelRef().Mag() / aRef;
-	  double vSpecRad = ViscFaceSpecRadTSL( (*this).State(ku), eqnState, suth, (*this).Center(loc), (*this).Center(ku), (*this).FAreaK(kuFace));
-	  vSpecRad = (mRef/Re) * vSpecRad;
-	  specRad += vSpecRad;
+	  vSpecRad = (mRef/Re) * 0.5 * ViscFaceSpecRadTSL( (*this).State(ku), eqnState, suth, (*this).Center(loc), (*this).Center(ku), (*this).FAreaK(kuFace));
 	}
 
 	//at given face location, call function to calculate convective flux change
 	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(ku), eqnState, (*this).FAreaK(kuFace), x[ku]);
 
-	U[loc] = U[loc] + 0.5 * (*this).FAreaK(kuFace).Mag() * ( fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[ku]) );
+	U[loc] = U[loc] + 0.5 * (*this).FAreaK(kuFace).Mag() * ( fluxChange - (inp.MatrixRelaxation() * specRad + 1.0 * vSpecRad) * I.Multiply(x[ku]) );
       }
 
       AiiInv = 1.0 / (Aii.Data(loc) * inp.MatrixRelaxation());

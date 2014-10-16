@@ -78,7 +78,7 @@ class viscBlockVars {
 
 //function definitions
 double ViscCellSpectralRadius(const double&, const idealGas&, const double&, const double&, const double&);
-double ViscFaceSpectralRadiusTSL(const double&, const idealGas&, const double&, const double&, const double&);
+double ViscFaceSpectralRadiusTSL(const double&, const idealGas&, const double&, const vector3d<double>&, const vector3d<double>&);
 
 
 void CalcViscFluxJacI(const blockVars&, const sutherland&, const idealGas&, const input&, const int&, colMatrix&);
