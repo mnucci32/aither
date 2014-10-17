@@ -1064,13 +1064,10 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 	  upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
 
 	  bcName = bound.GetBCName(ii, jj, kk, "il");
-	  //faceStateLower = (*this).State(upperI).GetGhostState( bcName, (*this).FAreaI(loc), "il", inp, eqnState).FaceReconConst(); //ghost state
-
 	  faceStateUpper = (*this).State( upperI ).FaceReconConst();
 
 	  maxWS = BoundaryInvSpecRad(bcName, (*this).FAreaI(loc), faceStateUpper, eqnState, "il", inp);
 
-          // left flux jacobian is not needed at lower boundary (originally - maxWS)
           mainDiag.SetData(  upperI, mainDiag.Data(upperI)   + 0.5 * maxWS * (*this).FAreaI(loc).Mag() );
 
 	}
@@ -1078,14 +1075,10 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 	  lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
 
 	  bcName = bound.GetBCName(ii, jj, kk, "iu");
-
-	  //faceStateUpper = (*this).State(lowerI).GetGhostState( bcName, (*this).FAreaI(loc), "iu", inp, eqnState).FaceReconConst(); //ghost state
-
 	  faceStateLower = (*this).State( lowerI ).FaceReconConst();
 
 	  maxWS = BoundaryInvSpecRad(bcName, (*this).FAreaI(loc), faceStateLower, eqnState, "iu", inp);
 
-	  // right flux jacobian is not needed at upper boundary
           mainDiag.SetData(   lowerI, mainDiag.Data(lowerI)    + 0.5 * maxWS * (*this).FAreaI(loc).Mag() );
 
 	}
@@ -1131,8 +1124,6 @@ void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, cons
   int loc = 0;
   int upperJ = 0;
   int lowerJ = 0;
-  // int upDiag = 0;
-  // int lowDiag = 0;
 
   double maxWS = 0.0;
 
@@ -1151,13 +1142,10 @@ void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, cons
 	  upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
 
 	  bcName = bound.GetBCName(ii, jj, kk, "jl");
-	  //faceStateLower = (*this).State(upperJ).GetGhostState( bcName, (*this).FAreaJ(loc), "jl", inp, eqnState).FaceReconConst(); //ghost state
-
 	  faceStateUpper = (*this).State( upperJ ).FaceReconConst();
 
 	  maxWS = BoundaryInvSpecRad(bcName, (*this).FAreaJ(loc), faceStateUpper, eqnState, "jl", inp);
 
-          // left flux jacobian is not needed at lower boundary (originally - maxWS)
           mainDiag.SetData(  upperJ, mainDiag.Data(upperJ)   + 0.5 * maxWS * (*this).FAreaJ(loc).Mag() );
 
 	}
@@ -1165,14 +1153,10 @@ void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, cons
 	  lowerJ = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
 
 	  bcName = bound.GetBCName(ii, jj, kk, "ju");
-
-	  //faceStateUpper = (*this).State(lowerJ).GetGhostState( bcName, (*this).FAreaJ(loc), "ju", inp, eqnState).FaceReconConst(); //ghost state
-
 	  faceStateLower = (*this).State( lowerJ ).FaceReconConst();
 
 	  maxWS = BoundaryInvSpecRad(bcName, (*this).FAreaJ(loc), faceStateLower, eqnState, "ju", inp);
 
-	  // right flux jacobian is not needed at upper boundary
           mainDiag.SetData(   lowerJ, mainDiag.Data(lowerJ)    + 0.5 * maxWS * (*this).FAreaJ(loc).Mag() );
 
 	}
@@ -1219,8 +1203,6 @@ void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, cons
   int loc = 0;
   int upperK = 0;
   int lowerK = 0;
-  // int upDiag = 0;
-  // int lowDiag = 0;
 
   double maxWS = 0.0;
 
@@ -1239,13 +1221,10 @@ void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, cons
 	  upperK = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
 
 	  bcName = bound.GetBCName(ii, jj, kk, "kl");
-	  //faceStateLower = (*this).State(upperK).GetGhostState( bcName, (*this).FAreaK(loc), "kl", inp, eqnState).FaceReconConst(); //ghost state
-
 	  faceStateUpper = (*this).State( upperK ).FaceReconConst();
 
 	  maxWS = BoundaryInvSpecRad(bcName, (*this).FAreaK(loc), faceStateUpper, eqnState, "kl", inp);
 
-          // left flux jacobian is not needed at lower boundary (originally - maxWS)
           mainDiag.SetData(  upperK, mainDiag.Data(upperK)   + 0.5 * maxWS * (*this).FAreaK(loc).Mag() );
 
 	}
@@ -1254,13 +1233,9 @@ void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, cons
 
 	  bcName = bound.GetBCName(ii, jj, kk, "ku");
 
-	  //faceStateUpper = (*this).State(lowerK).GetGhostState( bcName, (*this).FAreaK(loc), "ku", inp, eqnState).FaceReconConst(); //ghost state
-
 	  faceStateLower = (*this).State( lowerK ).FaceReconConst();
-
 	  maxWS = BoundaryInvSpecRad(bcName, (*this).FAreaK(loc), faceStateLower, eqnState, "ku", inp);
 
-	  // right flux jacobian is not needed at upper boundary
           mainDiag.SetData(   lowerK, mainDiag.Data(lowerK)    + 0.5 * maxWS * (*this).FAreaK(loc).Mag() );
 
 	}
@@ -1492,8 +1467,8 @@ double blockVars::LUSGS( const colMatrix &Aii, const vector<vector3d<int> > &reo
 
       AiiInv = 1.0 / (Aii.Data(loc) * inp.MatrixRelaxation());
 
-      //x[loc] = AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] + solTimeMmN[loc] + L[loc]) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
-      x[loc] = AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + L[loc]) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
+      x[loc] = AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] + solTimeMmN[loc] + L[loc]) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
+      //x[loc] = AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + L[loc]) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
 
       // x[loc] = (1.0 - inp.MatrixRelaxation()) * x[loc] + inp.MatrixRelaxation() * AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] +
       // 							   solTimeMmN[loc] + L[loc]) ; //normal at lower boundaries needs to be reversed, so add i
@@ -1505,9 +1480,9 @@ double blockVars::LUSGS( const colMatrix &Aii, const vector<vector3d<int> > &reo
 
       int loc = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
 
-      int iuFace = GetLowerFaceI(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
-      int juFace = GetLowerFaceJ(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
-      int kuFace = GetLowerFaceK(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+      int iuFace = GetUpperFaceI(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+      int juFace = GetUpperFaceJ(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+      int kuFace = GetUpperFaceK(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
 
       int iu = GetNeighborUpI(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
       int ju = GetNeighborUpJ(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
