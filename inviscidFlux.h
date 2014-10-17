@@ -75,9 +75,9 @@ void RoeFluxJacobian( const primVars&, const primVars&, const idealGas&, const v
 void ApproxRoeFluxJacobian( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double&, squareMatrix&, squareMatrix& );                  
 void LaxFriedrichsFluxJacobian( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double&, double&, squareMatrix&, squareMatrix& );                  
 
-squareMatrix BoundaryFluxJacobian( const string&, const vector3d<double>&, const primVars&, const idealGas&, const input&, const string&, const string&, double&);
+double BoundaryInvSpecRad( const string&, const vector3d<double>&, const primVars&, const idealGas&, const string&, const input&);
 
 colMatrix ConvectiveFluxUpdate( const primVars&, const idealGas &, const vector3d<double> &, const colMatrix&);
-double ConvSpecRad( const vector3d<double> &, const primVars&, const idealGas&);
+double ConvSpecRad( const vector3d<double> &, const primVars&, const primVars&, const idealGas&);
 
 #endif

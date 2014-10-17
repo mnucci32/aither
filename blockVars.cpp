@@ -1032,7 +1032,7 @@ void blockVars::ResetResidWS( ){
 
 
 //function to calculate the flux jacobians on the i-faces
-void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, const int &bb, colMatrix &mainDiag, const string &fluxJacType)const{
+void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, const int &bb, colMatrix &mainDiag)const{
 
   int imax = (*this).NumI();
   int jmax = (*this).NumJ() - 1;
@@ -1048,24 +1048,16 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
   int lowerI = 0;
 
   double maxWS = 0.0;
-  double maxWSL = 0.0;
-  double maxWSR = 0.0;
 
   primVars faceStateLower, faceStateUpper, ghostState;
 
   string bcName = "undefined";
-
-  squareMatrix tempL(5);
-  squareMatrix tempR(5);
 
   for ( kk = 0; kk < kmax; kk++){   
     for ( jj = 0; jj < jmax; jj++){    
       for ( ii = 0; ii < imax; ii++){      
 
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
-
-	tempL.Zero();
-	tempR.Zero();
 
 	//find out if at a block boundary
 	if ( ii == 0  ){                             //at i lower boundary
@@ -1076,7 +1068,7 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 
 	  faceStateUpper = (*this).State( upperI ).FaceReconConst();
 
-	  tempR = BoundaryFluxJacobian(bcName, (*this).FAreaI(loc), faceStateUpper, eqnState, inp, "il", fluxJacType, maxWS);
+	  maxWS = BoundaryInvSpecRad(bcName, (*this).FAreaI(loc), faceStateUpper, eqnState, "il", inp);
 
           // left flux jacobian is not needed at lower boundary (originally - maxWS)
           mainDiag.SetData(  upperI, mainDiag.Data(upperI)   + 0.5 * maxWS * (*this).FAreaI(loc).Mag() );
@@ -1091,7 +1083,7 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 
 	  faceStateLower = (*this).State( lowerI ).FaceReconConst();
 
-	  tempL = BoundaryFluxJacobian(bcName, (*this).FAreaI(loc), faceStateLower, eqnState, inp, "iu", fluxJacType, maxWS);
+	  maxWS = BoundaryInvSpecRad(bcName, (*this).FAreaI(loc), faceStateLower, eqnState, "iu", inp);
 
 	  // right flux jacobian is not needed at upper boundary
           mainDiag.SetData(   lowerI, mainDiag.Data(lowerI)    + 0.5 * maxWS * (*this).FAreaI(loc).Mag() );
@@ -1104,27 +1096,15 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 	  faceStateLower = (*this).State( lowerI ).FaceReconConst();
 	  faceStateUpper = (*this).State( upperI ).FaceReconConst();
 
-	  if ( fluxJacType == "approximateRoe" ){
-	    ApproxRoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS, tempL, tempR);
-	  }
-	  else if ( fluxJacType == "exactRoe" ){
-	    RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS, tempL, tempR);
-	  }
-	  else if ( fluxJacType == "laxFriedrichs" ){
-	    LaxFriedrichsFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWSL, maxWSR, tempL, tempR);
-	  }
-	  else{
-	    cerr << "ERROR: Inviscid flux jacobian type " << fluxJacType << " is not recognized!" << endl;
-	    exit(1);
-	  }
+	  maxWS = ConvSpecRad((*this).FAreaI(loc), faceStateLower, faceStateUpper, eqnState);
 
 	  //left flux jacobian
-          mainDiag.SetData(   lowerI, mainDiag.Data(lowerI)    + 0.5 * maxWSL * (*this).FAreaI(loc).Mag() );
+          mainDiag.SetData(   lowerI, mainDiag.Data(lowerI)    + 0.5 * maxWS * (*this).FAreaI(loc).Mag() );
 
 	  //offLowIDiag.SetData(upperI, -1.0 * tempL * (*this).FAreaI(loc).Mag() );
 
 	  //right flux jacobian (originally - maxWSR)
-          mainDiag.SetData(  upperI, mainDiag.Data(upperI)   + 0.5 * maxWSR * (*this).FAreaI(loc).Mag() );
+          mainDiag.SetData(  upperI, mainDiag.Data(upperI)   + 0.5 * maxWS * (*this).FAreaI(loc).Mag() );
 
 	  //offUpIDiag.SetData(lowerI, tempR * (*this).FAreaI(loc).Mag() );
 
@@ -1137,7 +1117,7 @@ void blockVars::CalcInvFluxJacI(const idealGas &eqnState, const input &inp, cons
 }
 
 //function to calculate the flux jacobians on the j-faces
-void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, const int &bb, colMatrix &mainDiag, const string &fluxJacType)const{
+void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, const int &bb, colMatrix &mainDiag)const{
 
   int imax = (*this).NumI() - 1;
   int jmax = (*this).NumJ();
@@ -1155,15 +1135,10 @@ void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, cons
   // int lowDiag = 0;
 
   double maxWS = 0.0;
-  double maxWSL = 0.0;
-  double maxWSR = 0.0;
 
   primVars faceStateLower, faceStateUpper, ghostState;
 
   string bcName = "undefined";
-
-  squareMatrix tempL(5);
-  squareMatrix tempR(5);
 
   for ( kk = 0; kk < kmax; kk++){   
     for ( jj = 0; jj < jmax; jj++){    
@@ -1171,37 +1146,19 @@ void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, cons
 
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
 
-	tempL.Zero();
-	tempR.Zero();
-
 	//find out if at a block boundary
 	if ( jj == 0  ){                             //at j lower boundary
 	  upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
 
 	  bcName = bound.GetBCName(ii, jj, kk, "jl");
-	  faceStateLower = (*this).State(upperJ).GetGhostState( bcName, (*this).FAreaJ(loc), "jl", inp, eqnState).FaceReconConst(); //ghost state
+	  //faceStateLower = (*this).State(upperJ).GetGhostState( bcName, (*this).FAreaJ(loc), "jl", inp, eqnState).FaceReconConst(); //ghost state
 
 	  faceStateUpper = (*this).State( upperJ ).FaceReconConst();
 
-	  tempR = BoundaryFluxJacobian(bcName, (*this).FAreaJ(loc), faceStateUpper, eqnState, inp, "jl", fluxJacType, maxWS);
+	  maxWS = BoundaryInvSpecRad(bcName, (*this).FAreaJ(loc), faceStateUpper, eqnState, "jl", inp);
 
           // left flux jacobian is not needed at lower boundary (originally - maxWS)
           mainDiag.SetData(  upperJ, mainDiag.Data(upperJ)   + 0.5 * maxWS * (*this).FAreaJ(loc).Mag() );
-
-	  // if (jmax > 2){  //if only one cell thick, no diagonals
-	  //   lowDiag = GetMatrixDiagLowerFromMainJ(upperJ, imax);
-	  //   offLowJDiag.SetData(lowDiag, offLowJDiag.Data(lowDiag) + tempR * (*this).FAreaJ(loc).Mag() );
-	  // }
-
-	  //cout << "lower diagonal storing at index (from boundary) " << lowDiag << endl;
-
-	  // if (upperJ == 1){
-	  //   cout << "J-flux-jacobian at cell 1, from face " << loc << " boundary " << bcName << ": " << endl;
-	  //   cout << -1.0 * tempR * (*this).FAreaJ(loc).Mag() << endl;
-	  // }
-
-
-	  //(*this).SetMaxWaveSpeedJ(maxWS, loc);
 
 	}
 	else if ( jj == jmax-1 ){  //at i upper boundary
@@ -1209,29 +1166,14 @@ void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, cons
 
 	  bcName = bound.GetBCName(ii, jj, kk, "ju");
 
-	  faceStateUpper = (*this).State(lowerJ).GetGhostState( bcName, (*this).FAreaJ(loc), "ju", inp, eqnState).FaceReconConst(); //ghost state
+	  //faceStateUpper = (*this).State(lowerJ).GetGhostState( bcName, (*this).FAreaJ(loc), "ju", inp, eqnState).FaceReconConst(); //ghost state
 
 	  faceStateLower = (*this).State( lowerJ ).FaceReconConst();
 
-	  tempL = BoundaryFluxJacobian(bcName, (*this).FAreaJ(loc), faceStateLower, eqnState, inp, "ju", fluxJacType, maxWS);
+	  maxWS = BoundaryInvSpecRad(bcName, (*this).FAreaJ(loc), faceStateLower, eqnState, "ju", inp);
 
 	  // right flux jacobian is not needed at upper boundary
           mainDiag.SetData(   lowerJ, mainDiag.Data(lowerJ)    + 0.5 * maxWS * (*this).FAreaJ(loc).Mag() );
-
-	  // if (jmax > 2){ //if only one cell thick, no diagonals
-	  //   upDiag = GetMatrixDiagUpperFromMainJ(lowerJ, imax);
-	  //   offUpJDiag.SetData(upDiag, offUpJDiag.Data(upDiag) - tempL * (*this).FAreaJ(loc).Mag() );
-	  // }
-
-	  // if (lowerJ == 1){
-	  //   cout << "J-flux-jacobian at cell 1, from face " << loc << " boundary " << bcName << ": " << endl;
-	  //   cout << tempL * (*this).FAreaJ(loc).Mag() << endl;
-	  // }
-
-
-	  //cout << "upper diagonal storing at index (from boundary) " << upDiag << endl;
-
-	  //(*this).SetMaxWaveSpeedJ(maxWS, loc);
 
 	}
 	else{
@@ -1241,28 +1183,15 @@ void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, cons
 	  faceStateLower = (*this).State( lowerJ ).FaceReconConst();
 	  faceStateUpper = (*this).State( upperJ ).FaceReconConst();
 
-	  if ( fluxJacType == "approximateRoe" ){
-	    ApproxRoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS, tempL, tempR);
-	  }
-	  else if ( fluxJacType == "exactRoe" ){
-	    RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS, tempL, tempR);
-	  }
-	  else if ( fluxJacType == "laxFriedrichs" ){
-	    LaxFriedrichsFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWSL, maxWSR, tempL, tempR);
-	  }
-	  else{
-	    cerr << "ERROR: Inviscid flux jacobian type " << fluxJacType << " is not recognized!" << endl;
-	    exit(1);
-	  }
+	  maxWS = ConvSpecRad((*this).FAreaJ(loc), faceStateLower, faceStateUpper, eqnState);
 
 	  //left flux jacobian
-          mainDiag.SetData(   lowerJ, mainDiag.Data(lowerJ)    + 0.5 * maxWSL * (*this).FAreaJ(loc).Mag() );
-
+          mainDiag.SetData(   lowerJ, mainDiag.Data(lowerJ)    + 0.5 * maxWS * (*this).FAreaJ(loc).Mag() );
 
 	  //offLowJDiag.SetData(upperJ, -1.0 * tempL * (*this).FAreaJ(loc).Mag() );
 
 	  //right flux jacobian (originally - maxWSR)
-          mainDiag.SetData(  upperJ, mainDiag.Data(upperJ)   + 0.5 * maxWSR * (*this).FAreaJ(loc).Mag() );
+          mainDiag.SetData(  upperJ, mainDiag.Data(upperJ)   + 0.5 * maxWS * (*this).FAreaJ(loc).Mag() );
 
 	  //offUpJDiag.SetData(lowerJ, tempR * (*this).FAreaJ(loc).Mag() );
 
@@ -1276,7 +1205,7 @@ void blockVars::CalcInvFluxJacJ(const idealGas &eqnState, const input &inp, cons
 }
 
 //function to calculate the flux jacobians on the k-faces
-void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, const int &bb, colMatrix &mainDiag, const string &fluxJacType)const{
+void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, const int &bb, colMatrix &mainDiag)const{
 
   int imax = (*this).NumI() - 1;
   int jmax = (*this).NumJ() - 1;
@@ -1294,15 +1223,10 @@ void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, cons
   // int lowDiag = 0;
 
   double maxWS = 0.0;
-  double maxWSL = 0.0;
-  double maxWSR = 0.0;
 
   primVars faceStateLower, faceStateUpper, ghostState;
 
   string bcName = "undefined";
-
-  squareMatrix tempL(5);
-  squareMatrix tempR(5);
 
   for ( kk = 0; kk < kmax; kk++){   
     for ( jj = 0; jj < jmax; jj++){    
@@ -1310,19 +1234,16 @@ void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, cons
 
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
 
-	tempL.Zero();
-	tempR.Zero();
-
 	//find out if at a block boundary
 	if ( kk == 0  ){                             //at k lower boundary
 	  upperK = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
 
 	  bcName = bound.GetBCName(ii, jj, kk, "kl");
-	  faceStateLower = (*this).State(upperK).GetGhostState( bcName, (*this).FAreaK(loc), "kl", inp, eqnState).FaceReconConst(); //ghost state
+	  //faceStateLower = (*this).State(upperK).GetGhostState( bcName, (*this).FAreaK(loc), "kl", inp, eqnState).FaceReconConst(); //ghost state
 
 	  faceStateUpper = (*this).State( upperK ).FaceReconConst();
 
-	  tempR = BoundaryFluxJacobian(bcName, (*this).FAreaK(loc), faceStateUpper, eqnState, inp, "kl", fluxJacType, maxWS);
+	  maxWS = BoundaryInvSpecRad(bcName, (*this).FAreaK(loc), faceStateUpper, eqnState, "kl", inp);
 
           // left flux jacobian is not needed at lower boundary (originally - maxWS)
           mainDiag.SetData(  upperK, mainDiag.Data(upperK)   + 0.5 * maxWS * (*this).FAreaK(loc).Mag() );
@@ -1333,11 +1254,11 @@ void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, cons
 
 	  bcName = bound.GetBCName(ii, jj, kk, "ku");
 
-	  faceStateUpper = (*this).State(lowerK).GetGhostState( bcName, (*this).FAreaK(loc), "ku", inp, eqnState).FaceReconConst(); //ghost state
+	  //faceStateUpper = (*this).State(lowerK).GetGhostState( bcName, (*this).FAreaK(loc), "ku", inp, eqnState).FaceReconConst(); //ghost state
 
 	  faceStateLower = (*this).State( lowerK ).FaceReconConst();
 
-	  tempL = BoundaryFluxJacobian(bcName, (*this).FAreaK(loc), faceStateLower, eqnState, inp, "ku", fluxJacType, maxWS);
+	  maxWS = BoundaryInvSpecRad(bcName, (*this).FAreaK(loc), faceStateLower, eqnState, "ku", inp);
 
 	  // right flux jacobian is not needed at upper boundary
           mainDiag.SetData(   lowerK, mainDiag.Data(lowerK)    + 0.5 * maxWS * (*this).FAreaK(loc).Mag() );
@@ -1350,28 +1271,15 @@ void blockVars::CalcInvFluxJacK(const idealGas &eqnState, const input &inp, cons
 	  faceStateLower = (*this).State( lowerK ).FaceReconConst();
 	  faceStateUpper = (*this).State( upperK ).FaceReconConst();
 
-
-	  if ( fluxJacType == "approximateRoe" ){
-	    ApproxRoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS, tempL, tempR);
-	  }
-	  else if ( fluxJacType == "exactRoe" ){
-	    RoeFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS, tempL, tempR);
-	  }
-	  else if ( fluxJacType == "laxFriedrichs" ){
-	    LaxFriedrichsFluxJacobian(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWSL, maxWSR, tempL, tempR);
-	  }
-	  else{
-	    cerr << "ERROR: Inviscid flux jacobian type " << fluxJacType << " is not recognized!" << endl;
-	    exit(1);
-	  }
+	  maxWS = ConvSpecRad((*this).FAreaK(loc), faceStateLower, faceStateUpper, eqnState);
 
 	  //left flux jacobian
-          mainDiag.SetData(   lowerK, mainDiag.Data(lowerK)    + 0.5 * maxWSL * (*this).FAreaK(loc).Mag() );
+          mainDiag.SetData(   lowerK, mainDiag.Data(lowerK)    + 0.5 * maxWS * (*this).FAreaK(loc).Mag() );
 
 	  //offLowKDiag.SetData(upperK, -1.0 * tempL * (*this).FAreaK(loc).Mag() );
 
 	  //right flux jacobian (originally - maxWSR)
-          mainDiag.SetData(  upperK, mainDiag.Data(upperK)   + 0.5 * maxWSR * (*this).FAreaK(loc).Mag() );
+          mainDiag.SetData(  upperK, mainDiag.Data(upperK)   + 0.5 * maxWS * (*this).FAreaK(loc).Mag() );
 
 	  //offUpKDiag.SetData(lowerK, tempR * (*this).FAreaK(loc).Mag() );
 
@@ -1532,59 +1440,60 @@ double blockVars::LUSGS( const colMatrix &Aii, const vector<vector3d<int> > &reo
 
       if ( il >=0 && il < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	double specRad = 0.5 * ConvSpecRad( (*this).FAreaI(ilFace), (*this).State(il), eqnState);
-	double vSpecRad = 0.0;
+	double specRad = ConvSpecRad( (*this).FAreaI(ilFace), (*this).State(il), (*this).State(loc), eqnState);
 
 	if (inp.EquationSet() != "euler"){ //viscous
 	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
 	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	  double mRef = inp.VelRef().Mag() / aRef;
-	  vSpecRad = (mRef/Re) * 0.5 * ViscFaceSpecRadTSL( (*this).State(il), eqnState, suth, (*this).Center(il), (*this).Center(loc), (*this).FAreaI(ilFace));
+	  double vSpecRad = (mRef/Re) * ViscFaceSpecRadTSL( (*this).State(il), eqnState, suth, (*this).Center(il), (*this).Center(loc), (*this).FAreaI(ilFace));
+	  specRad += vSpecRad;
 	}
 
 	//at given face location, call function to calculate convective flux change
 	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(il), eqnState, (*this).FAreaI(ilFace), x[il]);
 
-	L[loc] = L[loc] + 0.5 * (*this).FAreaI(ilFace).Mag() * ( fluxChange + (inp.MatrixRelaxation() * specRad + 1.0 * vSpecRad) * I.Multiply(x[il]) );
+	L[loc] = L[loc] + 0.5 * (*this).FAreaI(ilFace).Mag() * ( fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[il]) );
     }
       if ( jl >=0 && jl < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	double specRad = 0.5 * ConvSpecRad( (*this).FAreaJ(jlFace), (*this).State(jl), eqnState);
-	double vSpecRad = 0.0;
+	double specRad = ConvSpecRad( (*this).FAreaJ(jlFace), (*this).State(jl), (*this).State(loc), eqnState);
 
 	if (inp.EquationSet() != "euler"){ //viscous
 	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
 	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	  double mRef = inp.VelRef().Mag() / aRef;
-	  vSpecRad = (mRef/Re) * 0.5 * ViscFaceSpecRadTSL( (*this).State(jl), eqnState, suth, (*this).Center(jl), (*this).Center(loc), (*this).FAreaJ(jlFace));
+	  double vSpecRad = (mRef/Re) * ViscFaceSpecRadTSL( (*this).State(jl), eqnState, suth, (*this).Center(jl), (*this).Center(loc), (*this).FAreaJ(jlFace));
+	  specRad += vSpecRad;
 	}
 
 	//at given face location, call function to calculate convective flux change
 	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(jl), eqnState, (*this).FAreaJ(jlFace), x[jl]);
 
-	L[loc] = L[loc] + 0.5 * (*this).FAreaJ(jlFace).Mag() * ( fluxChange + (inp.MatrixRelaxation() * specRad + 1.0 * vSpecRad) * I.Multiply(x[jl]) );
+	L[loc] = L[loc] + 0.5 * (*this).FAreaJ(jlFace).Mag() * ( fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[jl]) );
       }
       if ( kl >=0 && kl < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	double specRad = 0.5 * ConvSpecRad( (*this).FAreaK(klFace), (*this).State(kl), eqnState);
-	double vSpecRad = 0.0;
+	double specRad = ConvSpecRad( (*this).FAreaK(klFace), (*this).State(kl), (*this).State(loc), eqnState);
 
 	if (inp.EquationSet() != "euler"){ //viscous
 	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
 	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	  double mRef = inp.VelRef().Mag() / aRef;
-	  vSpecRad = (mRef/Re) * 0.5 * ViscFaceSpecRadTSL( (*this).State(kl), eqnState, suth, (*this).Center(kl), (*this).Center(loc), (*this).FAreaK(klFace));
+	  double vSpecRad = (mRef/Re) * ViscFaceSpecRadTSL( (*this).State(kl), eqnState, suth, (*this).Center(kl), (*this).Center(loc), (*this).FAreaK(klFace));
+	  specRad += vSpecRad;
 	}
 
 	//at given face location, call function to calculate convective flux change
 	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(kl), eqnState, (*this).FAreaK(klFace), x[kl]);
 
-	L[loc] = L[loc] + 0.5 * (*this).FAreaK(klFace).Mag() * ( fluxChange + (inp.MatrixRelaxation() * specRad + 1.0 * vSpecRad) * I.Multiply(x[kl]) );
+	L[loc] = L[loc] + 0.5 * (*this).FAreaK(klFace).Mag() * ( fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[kl]) );
       }
 
       AiiInv = 1.0 / (Aii.Data(loc) * inp.MatrixRelaxation());
 
-      x[loc] = AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] + solTimeMmN[loc] + L[loc]) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
+      //x[loc] = AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] + solTimeMmN[loc] + L[loc]) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
+      x[loc] = AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + L[loc]) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
 
       // x[loc] = (1.0 - inp.MatrixRelaxation()) * x[loc] + inp.MatrixRelaxation() * AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] +
       // 							   solTimeMmN[loc] + L[loc]) ; //normal at lower boundaries needs to be reversed, so add i
@@ -1606,54 +1515,54 @@ double blockVars::LUSGS( const colMatrix &Aii, const vector<vector3d<int> > &reo
 
       if ( iu >=0 && iu < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	double specRad = 0.5 * ConvSpecRad( (*this).FAreaI(iuFace), (*this).State(iu), eqnState);
-	double vSpecRad = 0.0;
+	double specRad = ConvSpecRad( (*this).FAreaI(iuFace), (*this).State(loc), (*this).State(iu), eqnState);
 
 	if (inp.EquationSet() != "euler"){ //viscous
 	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
 	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	  double mRef = inp.VelRef().Mag() / aRef;
-	  vSpecRad = (mRef/Re) * 0.5 * ViscFaceSpecRadTSL( (*this).State(iu), eqnState, suth, (*this).Center(loc), (*this).Center(iu), (*this).FAreaI(iuFace));
+	  double vSpecRad = (mRef/Re) * ViscFaceSpecRadTSL( (*this).State(iu), eqnState, suth, (*this).Center(loc), (*this).Center(iu), (*this).FAreaI(iuFace));
+	  specRad += vSpecRad;
 	}
 
 	//at given face location, call function to calculate convective flux change
 	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(iu), eqnState, (*this).FAreaI(iuFace), x[iu]);
 
-	U[loc] = U[loc] + 0.5 * (*this).FAreaI(iuFace).Mag() * ( fluxChange - (inp.MatrixRelaxation() * specRad + 1.0 * vSpecRad) * I.Multiply(x[iu]) );
+	U[loc] = U[loc] + 0.5 * (*this).FAreaI(iuFace).Mag() * ( fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[iu]) );
       }
       if ( ju >=0 && ju < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	double specRad = 0.5 * ConvSpecRad( (*this).FAreaJ(juFace), (*this).State(ju), eqnState);
-	double vSpecRad = 0.0;
+	double specRad = ConvSpecRad( (*this).FAreaJ(juFace), (*this).State(loc), (*this).State(ju), eqnState);
 
 	if (inp.EquationSet() != "euler"){ //viscous
 	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
 	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	  double mRef = inp.VelRef().Mag() / aRef;
-	  vSpecRad = (mRef/Re) * 0.5 * ViscFaceSpecRadTSL( (*this).State(ju), eqnState, suth, (*this).Center(loc), (*this).Center(ju), (*this).FAreaJ(juFace));
+	  double vSpecRad = (mRef/Re) * ViscFaceSpecRadTSL( (*this).State(ju), eqnState, suth, (*this).Center(loc), (*this).Center(ju), (*this).FAreaJ(juFace));
+	  specRad += vSpecRad;
 	}
 
 	//at given face location, call function to calculate convective flux change
 	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(ju), eqnState, (*this).FAreaJ(juFace), x[ju]);
 
-	U[loc] = U[loc] + 0.5 * (*this).FAreaJ(juFace).Mag() * ( fluxChange - (inp.MatrixRelaxation() * specRad + 1.0 * vSpecRad) * I.Multiply(x[ju]) );
+	U[loc] = U[loc] + 0.5 * (*this).FAreaJ(juFace).Mag() * ( fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[ju]) );
       }
       if ( ku >=0 && ku < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	double specRad = 0.5 * ConvSpecRad( (*this).FAreaK(kuFace), (*this).State(ku), eqnState);
-	double vSpecRad = 0.0;
+	double specRad = ConvSpecRad( (*this).FAreaK(kuFace), (*this).State(loc), (*this).State(ku), eqnState);
 
 	if (inp.EquationSet() != "euler"){ //viscous
 	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
 	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	  double mRef = inp.VelRef().Mag() / aRef;
-	  vSpecRad = (mRef/Re) * 0.5 * ViscFaceSpecRadTSL( (*this).State(ku), eqnState, suth, (*this).Center(loc), (*this).Center(ku), (*this).FAreaK(kuFace));
+	  double vSpecRad = (mRef/Re) * ViscFaceSpecRadTSL( (*this).State(ku), eqnState, suth, (*this).Center(loc), (*this).Center(ku), (*this).FAreaK(kuFace));
+	  specRad += vSpecRad;
 	}
 
 	//at given face location, call function to calculate convective flux change
 	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(ku), eqnState, (*this).FAreaK(kuFace), x[ku]);
 
-	U[loc] = U[loc] + 0.5 * (*this).FAreaK(kuFace).Mag() * ( fluxChange - (inp.MatrixRelaxation() * specRad + 1.0 * vSpecRad) * I.Multiply(x[ku]) );
+	U[loc] = U[loc] + 0.5 * (*this).FAreaK(kuFace).Mag() * ( fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[ku]) );
       }
 
       AiiInv = 1.0 / (Aii.Data(loc) * inp.MatrixRelaxation());
@@ -1665,15 +1574,6 @@ double blockVars::LUSGS( const colMatrix &Aii, const vector<vector3d<int> > &reo
 
 
     }
-
-    // for (unsigned int ll = 0; ll < x.size(); ll++ ){
-    //   int loc = GetLoc1D(reorder[ll].X(), reorder[ll].Y(), reorder[ll].Z(), imax, jmax);
-    //   cout << "loc: " << loc << ", " << reorder[ll].X() << ", " << reorder[ll].Y() << ", " << reorder[ll].Z() << endl;
-    //   cout << "x: " << endl << x[loc] << endl;
-    //   // cout << "L: " << endl << L[loc] << endl;
-    //   // cout << "U: " << endl << U[loc] << endl;
-    // }
-
 
     //calculate residual
     colMatrix resid(x[0].Size());

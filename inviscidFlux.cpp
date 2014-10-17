@@ -1235,9 +1235,7 @@ void LaxFriedrichsFluxJacobian( const primVars &left, const primVars &right, con
   vector3d<double> areaNorm = areaVec / areaVec.Mag();  //normalize area vector to unit vector
 
   //dot product of velocities with unit area vector
-  vector3d<double> avgVel = 0.5 * (left.Velocity() + right.Velocity());
-  double avgVelNorm = avgVel.DotProd(areaNorm);
-  double avgSoS = 0.5 * (left.SoS(eqnState) + right.SoS(eqnState));
+  double maxWS = ConvSpecRad(areaNorm, left, right, eqnState);
 
   double velLeftNorm = left.Velocity().DotProd(areaNorm);
   double velRightNorm = right.Velocity().DotProd(areaNorm);
@@ -1246,8 +1244,8 @@ void LaxFriedrichsFluxJacobian( const primVars &left, const primVars &right, con
   //specRadL = fabs(velLeftNorm)  + left.SoS(eqnState);
   //specRadR = fabs(velRightNorm) + right.SoS(eqnState);
 
-  specRadL = fabs(avgVelNorm) + avgSoS;
-  specRadR = fabs(avgVelNorm) + avgSoS;
+  specRadL = maxWS;
+  specRadR = maxWS;
 
   //form spectral radii identity matrices
   squareMatrix dissLeft(5);
@@ -1606,14 +1604,9 @@ inviscidFlux BoundaryFlux( const string &bcName, const vector3d<double>& areaVec
 
 }
 
-squareMatrix BoundaryFluxJacobian( const string &bcName, const vector3d<double>& areaVec, const primVars &state, const idealGas& eqnState, const input& inputVars, const string &surf, const string &fluxJacType, double &maxWS){
+double BoundaryInvSpecRad( const string &bcName, const vector3d<double>& areaVec, const primVars &state, const idealGas& eqnState, const string &surf, const input &inputVars){
 
-  squareMatrix fluxJacL(5);
-  squareMatrix fluxJacR(5);
-  squareMatrix fluxJac(5);
-
-  double maxWSL = 0.0;
-  double maxWSR = 0.0;
+  double maxWS = 0.0;
 
   vector3d<double> normArea = areaVec / areaVec.Mag();
 
@@ -1621,77 +1614,11 @@ squareMatrix BoundaryFluxJacobian( const string &bcName, const vector3d<double>&
   if ( bcName == "subsonicInflow" || bcName == "subsonicOutflow" || bcName == "supersonicInflow" || bcName == "supersonicOutflow" || bcName == "characteristic"){
 
     primVars ghostState1 = state.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
-    primVars lState, rState;
-
-    if (surf == "il" || surf == "jl" || surf == "kl"){
-      lState = ghostState1.FaceReconConst();
-      rState = state.FaceReconConst();
-
-      if ( fluxJacType == "approximateRoe" ){
-	ApproxRoeFluxJacobian( lState, rState, eqnState, normArea, maxWS, fluxJacL, fluxJacR);
-      }
-      else if ( fluxJacType == "exactRoe" ){
-	RoeFluxJacobian( lState, rState, eqnState, normArea, maxWS, fluxJacL, fluxJacR);
-      }
-      else if ( fluxJacType == "laxFriedrichs" ){
-	LaxFriedrichsFluxJacobian( lState, rState, eqnState, normArea, maxWSL, maxWSR, fluxJacL, fluxJacR);
-	maxWS = maxWSR;
-      }
-      else{
-	cerr << "ERROR: Inviscid flux jacobian type " << fluxJacType << " is not recognized!" << endl;
-	exit(1);
-      }
-
-      fluxJac = fluxJacR;
-    }
-    else {
-      rState = ghostState1.FaceReconConst();
-      lState = state.FaceReconConst();
-
-      if ( fluxJacType == "approximateRoe" ){
-	ApproxRoeFluxJacobian( lState, rState, eqnState, normArea, maxWS, fluxJacL, fluxJacR);
-      }
-      else if ( fluxJacType == "exactRoe" ){
-	RoeFluxJacobian( lState, rState, eqnState, normArea, maxWS, fluxJacL, fluxJacR);
-      }
-      else if ( fluxJacType == "laxFriedrichs" ){
-	LaxFriedrichsFluxJacobian( lState, rState, eqnState, normArea, maxWSL, maxWSR, fluxJacL, fluxJacR);
-	maxWS = maxWSL;
-      }
-      else{
-	cerr << "ERROR: Inviscid flux jacobian type " << fluxJacType << " is not recognized!" << endl;
-	exit(1);
-      }
-
-      fluxJac = fluxJacL;
-    }
+    maxWS = ConvSpecRad(normArea, state, ghostState1, eqnState);
 
   }
   else if ( bcName == "slipWall" || "viscousWall" ){
 
-    primVars lState, rState;
-
-    fluxJac.Zero();
-    //2nd row
-    fluxJac.SetData(1, 0, 0.5 * (eqnState.Gamma() - 1.0) * state.Velocity().MagSq() * normArea.X() );
-    fluxJac.SetData(1, 1, -1.0 * (eqnState.Gamma() - 1.0) * state.U() * normArea.X() );
-    fluxJac.SetData(1, 2, -1.0 * (eqnState.Gamma() - 1.0) * state.V() * normArea.X() );
-    fluxJac.SetData(1, 3, -1.0 * (eqnState.Gamma() - 1.0) * state.W() * normArea.X() );
-    fluxJac.SetData(1, 4, (eqnState.Gamma() - 1.0) * normArea.X() );
-    //3rd row
-    fluxJac.SetData(2, 0, 0.5 * (eqnState.Gamma() - 1.0) * state.Velocity().MagSq() * normArea.Y() );
-    fluxJac.SetData(2, 1, -1.0 * (eqnState.Gamma() - 1.0) * state.U() * normArea.Y() );
-    fluxJac.SetData(2, 2, -1.0 * (eqnState.Gamma() - 1.0) * state.V() * normArea.Y() );
-    fluxJac.SetData(2, 3, -1.0 * (eqnState.Gamma() - 1.0) * state.W() * normArea.Y() );
-    fluxJac.SetData(2, 4, (eqnState.Gamma() - 1.0) * normArea.Y() );
-    //4th row
-    fluxJac.SetData(3, 0, 0.5 * (eqnState.Gamma() - 1.0) * state.Velocity().MagSq() * normArea.Z() );
-    fluxJac.SetData(3, 1, -1.0 * (eqnState.Gamma() - 1.0) * state.U() * normArea.Z() );
-    fluxJac.SetData(3, 2, -1.0 * (eqnState.Gamma() - 1.0) * state.V() * normArea.Z() );
-    fluxJac.SetData(3, 3, -1.0 * (eqnState.Gamma() - 1.0) * state.W() * normArea.Z() );
-    fluxJac.SetData(3, 4, (eqnState.Gamma() - 1.0) * normArea.Z() );
-
-    maxWS = 0.0;
     maxWS = state.SoS(eqnState);
 
   }
@@ -1699,7 +1626,7 @@ squareMatrix BoundaryFluxJacobian( const string &bcName, const vector3d<double>&
     cerr << "ERROR: Boundary condition " << bcName << " is not recognized!" << endl;
   }
 
-  return fluxJac;
+  return maxWS;
 
 }
 
@@ -1812,7 +1739,7 @@ inviscidFlux LaxFriedrichsFlux( const primVars &left, const primVars &right, con
   inviscidFlux lFlux(left, eqnState, fArea);
   inviscidFlux rFlux(right, eqnState, fArea);
 
-  maxWS = ConvSpecRad(fArea, 0.5 * (left + right), eqnState);
+  maxWS = ConvSpecRad(fArea, left, right, eqnState);
 
   colMatrix lCons = left.ConsVars(eqnState);
   colMatrix rCons = right.ConsVars(eqnState);
@@ -1829,12 +1756,16 @@ inviscidFlux LaxFriedrichsFlux( const primVars &left, const primVars &right, con
 }
 
 //function to return the convective spectral radius given a face state, equation of state, and area vector
-double ConvSpecRad(const vector3d<double> &fArea, const primVars &state, const idealGas &eqnState){
+double ConvSpecRad(const vector3d<double> &fArea, const primVars &state1, const primVars &state2, const idealGas &eqnState){
 
   vector3d<double> normArea = fArea / fArea.Mag();
-  double a = state.SoS(eqnState);
-  double u = state.Velocity().DotProd(normArea);
 
-  return fabs(u) + a;
+  double a1 = state1.SoS(eqnState);
+  double u1 = state1.Velocity().DotProd(normArea);
+
+  double a2 = state2.SoS(eqnState);
+  double u2 = state2.Velocity().DotProd(normArea);
+
+  return max(fabs(u1) + a1, fabs(u2) + a2);
 
 }

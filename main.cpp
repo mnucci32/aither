@@ -177,9 +177,9 @@ int main( int argc, char *argv[] ) {
 	    }
 	  }
 
-	  stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag, inputVars.InvFluxJac());
-	  stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag, inputVars.InvFluxJac());
-	  stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag, inputVars.InvFluxJac());
+	  stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag);
+	  stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag);
+	  stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag);
 
 
 	  if (inputVars.EquationSet() == "navierStokes" ){
