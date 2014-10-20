@@ -263,7 +263,7 @@ void blockVars::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 	  upwindL = (*this).FCenterI(loc).Distance( (*this).FCenterI( GetNeighborLowI(ii, jj, kk, imax, jmax) ) );        //due to ghost cell set upwind distance equal to local cell length
 	  centralL = (*this).Center( lowerI ).Distance( (*this).Center( upperI ) );
 
-	  faceStateLower = (*this).State( lowerI ).FaceReconMUSCL( ghostState, (*this).State( lowerI ),lstr, kap, inp.Limiter(), up2faceL, upwindL, centralL );
+	  faceStateLower = (*this).State( lowerI ).FaceReconMUSCL( ghostState, (*this).State( upperI ),lstr, kap, inp.Limiter(), up2faceL, upwindL, centralL );
 
 	  up2faceU = (*this).Center( upperI ).Distance( (*this).FCenterI(loc) );
 	  upwindU = (*this).Center( upperI ).Distance( (*this).Center( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax, 2) ) );
@@ -646,7 +646,6 @@ void blockVars::CalcInvFluxK(const idealGas &eqnState, const input &inp, const i
 	  faceStateUpper = (*this).State( upperK ).FaceReconMUSCL( (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax, 2) ),
 								   (*this).State( lowerK ),rstr, kap, inp.Limiter(), up2faceU, upwindU, centralU );
 
-
 	  tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS);
 
 	  //area vector points from left to right, so add to left cell, subtract from right cell
@@ -749,34 +748,6 @@ void blockVars::CalcCellDt( const int &i, const int &j, const int &k, const doub
 
 }
 
-//this member function calculates the residual for an inviscid simulation
-// void blockVars::CalcCellResidual(const int &ii, const int &jj, const int &kk, const int &imax, const int &jmax){
-
-//   colMatrix resid(5);
-
-//   int loc = GetLoc1D(ii, jj, kk, imax, jmax);
-//   int iLow = GetLowerFaceI(ii, jj, kk, imax, jmax); 
-//   int iUp  = GetUpperFaceI(ii, jj, kk, imax, jmax);
-//   int jLow = GetLowerFaceJ(ii, jj, kk, imax, jmax);
-//   int jUp  = GetUpperFaceJ(ii, jj, kk, imax, jmax);
-//   int kLow = GetLowerFaceK(ii, jj, kk, imax, jmax);
-//   int kUp  = GetUpperFaceK(ii, jj, kk, imax, jmax);
-
-//   //Area vector points nominally from lower index to upper index, so the upper index fluxes must be multiplied by -1 so vector points into cell and for conservation
-//   resid.SetData(0,        (*this).InvFluxI(iLow).RhoVel()  * (*this).FAreaI(iLow).Mag() +     (*this).InvFluxJ(jLow).RhoVel()  * (*this).FAreaJ(jLow).Mag() +     (*this).InvFluxK(kLow).RhoVel()  * (*this).FAreaK(kLow).Mag() 
-// 		-1.0 * (*this).InvFluxI(iUp).RhoVel()   * (*this).FAreaI(iUp).Mag() -1.0 * (*this).InvFluxJ(jUp).RhoVel()   * (*this).FAreaJ(jUp).Mag() -1.0 * (*this).InvFluxK(kUp).RhoVel()   * (*this).FAreaK(kUp).Mag() );
-//   resid.SetData(1,        (*this).InvFluxI(iLow).RhoVelU() * (*this).FAreaI(iLow).Mag() +     (*this).InvFluxJ(jLow).RhoVelU() * (*this).FAreaJ(jLow).Mag() +     (*this).InvFluxK(kLow).RhoVelU() * (*this).FAreaK(kLow).Mag() 
-// 		-1.0 * (*this).InvFluxI(iUp).RhoVelU()  * (*this).FAreaI(iUp).Mag() -1.0 * (*this).InvFluxJ(jUp).RhoVelU()  * (*this).FAreaJ(jUp).Mag() -1.0 * (*this).InvFluxK(kUp).RhoVelU()  * (*this).FAreaK(kUp).Mag() );
-//   resid.SetData(2,        (*this).InvFluxI(iLow).RhoVelV() * (*this).FAreaI(iLow).Mag() +     (*this).InvFluxJ(jLow).RhoVelV() * (*this).FAreaJ(jLow).Mag() +     (*this).InvFluxK(kLow).RhoVelV() * (*this).FAreaK(kLow).Mag() 
-// 		-1.0 * (*this).InvFluxI(iUp).RhoVelV()  * (*this).FAreaI(iUp).Mag() -1.0 * (*this).InvFluxJ(jUp).RhoVelV()  * (*this).FAreaJ(jUp).Mag() -1.0 * (*this).InvFluxK(kUp).RhoVelV()  * (*this).FAreaK(kUp).Mag() );
-//   resid.SetData(3,        (*this).InvFluxI(iLow).RhoVelW() * (*this).FAreaI(iLow).Mag() +     (*this).InvFluxJ(jLow).RhoVelW() * (*this).FAreaJ(jLow).Mag() +     (*this).InvFluxK(kLow).RhoVelW() * (*this).FAreaK(kLow).Mag() 
-// 		-1.0 * (*this).InvFluxI(iUp).RhoVelW()  * (*this).FAreaI(iUp).Mag() -1.0 * (*this).InvFluxJ(jUp).RhoVelW()  * (*this).FAreaJ(jUp).Mag() -1.0 * (*this).InvFluxK(kUp).RhoVelW()  * (*this).FAreaK(kUp).Mag() );
-//   resid.SetData(4,        (*this).InvFluxI(iLow).RhoVelH() * (*this).FAreaI(iLow).Mag() +     (*this).InvFluxJ(jLow).RhoVelH() * (*this).FAreaJ(jLow).Mag() +     (*this).InvFluxK(kLow).RhoVelH() * (*this).FAreaK(kLow).Mag() 
-// 		-1.0 * (*this).InvFluxI(iUp).RhoVelH()  * (*this).FAreaI(iUp).Mag() -1.0 * (*this).InvFluxJ(jUp).RhoVelH()  * (*this).FAreaJ(jUp).Mag() -1.0 * (*this).InvFluxK(kUp).RhoVelH()  * (*this).FAreaK(kUp).Mag() );
-
-//   (*this).SetResidual(resid, loc);
-
-// }
 
 
 void blockVars::CalcBlockTimeStep( const input &inputVars, const double &aRef){
