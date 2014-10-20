@@ -605,7 +605,7 @@ inviscidFlux BoundaryFlux( const string &bcName, const vector3d<double>& areaVec
   }
 
   //Apply correct flux based on boundary condition to be applied 
-  if ( bcName == "subsonicInflow" || bcName == "subsonicOutflow" || bcName == "supersonicInflow" || bcName == "supersonicOutflow"){
+  if ( bcName == "subsonicInflow" ){
 
     if (inputVars.Kappa() == -2.0 ){ //first order
       primVars ghostState1 = state.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
@@ -640,6 +640,114 @@ inviscidFlux BoundaryFlux( const string &bcName, const vector3d<double>& areaVec
 
     }
 
+
+  }
+  else if ( bcName == "subsonicOutflow" ){
+
+    if (inputVars.Kappa() == -2.0 ){ //first order
+      primVars ghostState1 = state.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
+      primVars lState, rState;
+
+      if (surf == "il" || surf == "jl" || surf == "kl"){
+	rState = state.FaceReconConst();
+	lState = ghostState1.FaceReconConst();
+      }
+      else {
+	lState = state.FaceReconConst();
+	rState = ghostState1.FaceReconConst();
+      }
+
+      flux = RoeFlux( lState, rState, eqnState, normArea, maxWS);
+    }
+    else{ //second order
+      primVars ghostState1 = state.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
+      primVars ghostState2 = ghostState1;
+      primVars lState, rState;
+
+      if (surf == "il" || surf == "jl" || surf == "kl"){
+	rState = state1.FaceReconMUSCL( state2, ghostState1, "right", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+	lState = ghostState1.FaceReconMUSCL( ghostState2, state1, "left", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+      }
+      else {
+	lState = state1.FaceReconMUSCL( state2, ghostState1, "left", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+	rState = ghostState1.FaceReconMUSCL( ghostState2, state1, "right", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+      }
+
+      flux = RoeFlux( lState, rState, eqnState, normArea, maxWS); 
+
+    }
+
+  }
+  else if ( bcName == "supersonicInflow" ){
+
+    if (inputVars.Kappa() == -2.0 ){ //first order
+      primVars ghostState1 = state.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
+      primVars lState, rState;
+
+      if (surf == "il" || surf == "jl" || surf == "kl"){
+	lState = ghostState1.FaceReconConst();
+	rState = state.FaceReconConst();
+      }
+      else {
+	rState = ghostState1.FaceReconConst();
+	lState = state.FaceReconConst();
+      }
+
+      flux = RoeFlux( lState, rState, eqnState, normArea, maxWS);
+    }
+    else{ //second order
+      primVars ghostState1 = state.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
+      primVars ghostState2 = ghostState1;
+      primVars lState, rState;
+
+      if (surf == "il" || surf == "jl" || surf == "kl"){
+	lState = ghostState1.FaceReconMUSCL( ghostState2, state1, "left", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+	rState = state1.FaceReconMUSCL( state2, ghostState1, "right", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+      }
+      else {
+	rState = ghostState1.FaceReconMUSCL( ghostState2, state1, "right", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+	lState = state1.FaceReconMUSCL( state2, ghostState1, "left", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+      }
+
+      flux = RoeFlux( lState, rState, eqnState, normArea, maxWS);
+
+    }
+
+  }
+  else if ( bcName == "supersonicOutflow" ){
+
+    if (inputVars.Kappa() == -2.0 ){ //first order
+      primVars ghostState1 = state.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
+      primVars lState, rState;
+
+      if (surf == "il" || surf == "jl" || surf == "kl"){
+	rState = state.FaceReconConst();
+	lState = ghostState1.FaceReconConst();
+      }
+      else {
+	lState = state.FaceReconConst();
+	rState = ghostState1.FaceReconConst();
+      }
+
+      flux = RoeFlux( lState, rState, eqnState, normArea, maxWS);
+    }
+    else{ //second order
+      primVars ghostState1 = state.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
+      primVars ghostState2 = ghostState1;
+      primVars lState, rState;
+
+      if (surf == "il" || surf == "jl" || surf == "kl"){
+	rState = state1.FaceReconMUSCL( state2, ghostState1, "right", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+	lState = ghostState1.FaceReconMUSCL( ghostState2, state1, "left", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+      }
+      else {
+	lState = state1.FaceReconMUSCL( state2, ghostState1, "left", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+	rState = ghostState1.FaceReconMUSCL( ghostState2, state1, "right", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+      }
+
+      flux = RoeFlux( lState, rState, eqnState, normArea, maxWS); 
+
+    }
 
   }
   else if ( (bcName == "slipWall") || (bcName == "viscousWall") ){
@@ -678,11 +786,56 @@ inviscidFlux BoundaryFlux( const string &bcName, const vector3d<double>& areaVec
     }
 
   }
-  else if ( bcName == "characteristic" || bcName == "pressureOutlet" || bcName == "stagnationInlet"){
+  else if ( bcName == "characteristic" ){
+
+    //changed to always be true --------------------------------------------------------------------------------------------
+    //if (inputVars.Kappa() == -2.0 ){ //first order
+    primVars ghostState1 = state1.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
+    // primVars lState, rState;
+
+    // if (surf == "il" || surf == "jl" || surf == "kl"){
+    // 	rState = state1.FaceReconConst();
+    // 	lState = ghostState1.FaceReconConst();
+    // }
+    // else {
+    // 	lState = state1.FaceReconConst();
+    // 	rState = ghostState1.FaceReconConst();
+    // }
+
+    //flux = RoeFlux( lState, rState, eqnState, normArea, maxWS);
+    flux.SetFlux(ghostState1, eqnState, normArea);
+    maxWS = fabs(ghostState1.Velocity().DotProd(normArea)) + ghostState1.SoS(eqnState);
+
+    //}
+    // else{ //second order
+    //   primVars ghostState1 = state1.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
+    //   primVars ghostState2 = state2.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
+    //   primVars lState, rState;
+
+    //   if (surf == "il" || surf == "jl" || surf == "kl"){
+    // 	rState = state1.FaceReconMUSCL( state2, ghostState1, "right", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+    // 	lState = ghostState1.FaceReconMUSCL( ghostState2, state1, "left", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+    //   }
+    //   else {
+    // 	lState = state1.FaceReconMUSCL( state2, ghostState1, "left", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+    // 	rState = ghostState1.FaceReconMUSCL( ghostState2, state1, "right", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+    //   }
+
+    //   flux = RoeFlux( lState, rState, eqnState, normArea, maxWS);
+
+    // }
+
+  }
+  else if ( bcName == "stagnationInlet"){
     primVars ghostState1 = state1.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
     flux.SetFlux(ghostState1, eqnState, normArea);
     maxWS = fabs(ghostState1.Velocity().DotProd(normArea)) + ghostState1.SoS(eqnState);
-  }
+  }  
+  else if ( bcName == "pressureOutlet"){
+    primVars ghostState1 = state1.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
+    flux.SetFlux(ghostState1, eqnState, normArea);
+    maxWS = fabs(ghostState1.Velocity().DotProd(normArea)) + ghostState1.SoS(eqnState);
+  }  
 
   else{
     cerr << "ERROR: Boundary condition " << bcName << " is not recognized!" << endl;
