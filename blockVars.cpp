@@ -257,7 +257,7 @@ void blockVars::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 	  int lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
 	  int upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
 
-	  ghostState = (*this).State( lowerI ).GetGhostState( bcName, (*this).FAreaI( GetNeighborLowI(ii, jj, kk, imax, jmax, 1) ), "il", inp, eqnState );
+	  ghostState = (*this).State( lowerI ).GetGhostState( bcName, (*this).FAreaI( GetNeighborLowI(ii, jj, kk, imax, jmax, 1) ), "il", inp, eqnState);
 
 	  up2faceL = (*this).Center( lowerI ).Distance( (*this).FCenterI(loc) );
 	  upwindL = (*this).FCenterI(loc).Distance( (*this).FCenterI( GetNeighborLowI(ii, jj, kk, imax, jmax) ) );        //due to ghost cell set upwind distance equal to local cell length
@@ -1363,12 +1363,15 @@ double blockVars::LUSGS( const colMatrix &Aii, const vector<vector3d<int> > &reo
 
   colMatrix initial(x[0].Size());
   initial.Zero();
-  vector<colMatrix> U(x.size(),initial);
-  vector<colMatrix> L(x.size(),initial);
 
   for ( int kk = 0; kk < inp.MatrixSweeps(); kk++ ){
-    //forward sweep
 
+    vector<colMatrix> U(x.size(),initial);
+    vector<colMatrix> L(x.size(),initial);
+
+    vector<colMatrix> Uold(x.size(),initial);
+
+    //forward sweep
     for ( int ii = 0; ii < (int)x.size(); ii++ ){
 
       int loc = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
@@ -1438,13 +1441,13 @@ double blockVars::LUSGS( const colMatrix &Aii, const vector<vector3d<int> > &reo
 
       AiiInv = 1.0 / (Aii.Data(loc) * inp.MatrixRelaxation());
 
-      x[loc] = AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] + solTimeMmN[loc] + L[loc]) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
-      //x[loc] = AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + L[loc]) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
+      x[loc] = AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] + solTimeMmN[loc] + L[loc] - U[loc]) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
+
 
       // x[loc] = (1.0 - inp.MatrixRelaxation()) * x[loc] + inp.MatrixRelaxation() * AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] +
       // 							   solTimeMmN[loc] + L[loc]) ; //normal at lower boundaries needs to be reversed, so add i
 
-    }
+    } //end forward sweep
 
     //backward sweep
     for ( int ii = (int)x.size()-1; ii >= 0; ii-- ){
@@ -1513,13 +1516,15 @@ double blockVars::LUSGS( const colMatrix &Aii, const vector<vector3d<int> > &reo
 
       AiiInv = 1.0 / (Aii.Data(loc) * inp.MatrixRelaxation());
 
-      x[loc] = x[loc] - AiiInv * U[loc] ;
+      x[loc] = x[loc] + AiiInv * ( Uold[loc] - U[loc] );
 
       // x[loc] = (1.0 - inp.MatrixRelaxation()) * x[loc] + inp.MatrixRelaxation() * AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] +
       //         solTimeMmN[loc] - U[loc]) ;
 
 
-    }
+    } //end backward sweep
+
+    Uold = U;
 
     //calculate residual
     colMatrix resid(x[0].Size());
