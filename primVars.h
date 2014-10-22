@@ -68,6 +68,11 @@ class primVars {
   primVars operator * (const primVars&)const;
   primVars operator / (const primVars&)const;
 
+  primVars operator + (const double&);
+  primVars operator - (const double&);
+  primVars operator * (const double&);
+  primVars operator / (const double&);
+
   friend primVars operator + (const double&, const primVars&);
   friend primVars operator - (const double&, const primVars&);
   friend primVars operator * (const double&, const primVars&);
@@ -88,7 +93,7 @@ class primVars {
   primVars LimiterNone()const;
 
   //member function to return the state of the appropriate ghost cell
-  primVars GetGhostState( const string&, const vector3d<double>&, const string&, const input&, const idealGas&)const;
+  primVars GetGhostState( const string&, const vector3d<double>&, const string&, const input&, const idealGas&, const int=1)const;
 
   //destructor
   ~primVars() {}

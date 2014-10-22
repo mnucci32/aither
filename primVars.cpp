@@ -76,6 +76,50 @@ primVars primVars::operator * (const primVars& prim2)const{
   return prim1;
 }
 
+//member function for scalar multiplication
+primVars  primVars::operator * (const double &scalar){
+  primVars temp = *this;
+  temp.rho *= scalar;
+  temp.u *= scalar;
+  temp.v *= scalar;
+  temp.w *= scalar;
+  temp.p *= scalar;
+  return temp;
+}
+
+//member function for scalar addition
+primVars  primVars::operator + (const double &scalar){
+  primVars temp = *this;
+  temp.rho += scalar;
+  temp.u += scalar;
+  temp.v += scalar;
+  temp.w += scalar;
+  temp.p += scalar;
+  return temp;
+}
+
+//member function for scalar subtraction
+primVars  primVars::operator - (const double &scalar){
+  primVars temp = *this;
+  temp.rho -= scalar;
+  temp.u -= scalar;
+  temp.v -= scalar;
+  temp.w -= scalar;
+  temp.p -= scalar;
+  return temp;
+}
+
+//member function for scalar division
+primVars  primVars::operator / (const double &scalar){
+  primVars temp = *this;
+  temp.rho /= scalar;
+  temp.u /= scalar;
+  temp.v /= scalar;
+  temp.w /= scalar;
+  temp.p /= scalar;
+  return temp;
+}
+
 //operator overload for multiplication with a scalar
 primVars operator* (const double &scalar, const primVars &prim2){
   primVars prim1( prim2.rho * scalar,
@@ -111,7 +155,7 @@ primVars operator/ (const double &scalar, const primVars &prim2){
 
 //member function to calculate reconstruction of primative variables from cell center to cell face
 //this function uses muscle extrapolation resulting in higher order accuracy
-primVars primVars::FaceReconMUSCL( const primVars &primUW2, const primVars &primDW1, const string &side, const double &kappa, const string &lim, double upwind2face, double upwind, double central)const{
+primVars primVars::FaceReconMUSCL( const primVars &primUW2, const primVars &primDW1, const string &side, const double &kappa, const string &lim, double uw, double uw2, double dw)const{
 
   //primUW2 is the upwind cell furthest from the face at which the primative is being reconstructed. If the primative is being reconstructed from the left it would be at p-1
   //primUW1 is the upwind cell nearest to the face at which the primative is being reconstructed. If the primative is being reconstructed from the left it would be at p
@@ -119,6 +163,9 @@ primVars primVars::FaceReconMUSCL( const primVars &primUW2, const primVars &prim
   //primDW1 is the downwind cell. If the primative is being reconstructed from the left it would be at p+1
   //side is a string the says whether the reconstruction is from the left or right
   //kappa is the parameter that determines which scheme is implemented
+  //uw is length of upwind cell
+  //uw2 is length of furthest upwind cell
+  //dw is length of downwind cell
 
   primVars facePrim;
   primVars r;
@@ -128,14 +175,24 @@ primVars primVars::FaceReconMUSCL( const primVars &primUW2, const primVars &prim
 
   primVars primUW1 = *this;
 
-  primVars num = (1.0 / central) * (eps + (primDW1 - primUW1));
-  primVars denom = (1.0 / upwind) * (eps + (primUW1 - primUW2));
+  double dPlus = (uw + dw) / (2.0 * uw);
+  double dMinus = (uw + uw2) / (2.0 * uw);
 
-  if (side == "left" || "right"){
-    r =  num / denom;  //divided differences to base ratio on; eps must be listed to left of primVars
+  // if (dPlus < 0.6 || dPlus > 1.4){
+  //   cout << "dPlus: " << dPlus << endl;
+  //   cout << "uw, uw2, dw: " << uw << ", " << uw2 << ", " << dw << endl;
+  // }
+  // if (dMinus < 0.6 || dMinus > 1.4){
+  //   cout << "dMinus: " << dMinus << endl;
+  //   cout << "uw, uw2, dw: " << uw << ", " << uw2 << ", " << dw << endl;
+  // }
+
+
+  if (side == "left" || true){
+    r =  (eps + (primDW1 - primUW1) / dPlus) / (eps + (primUW1 - primUW2) / dMinus);  //divided differences to base ratio on; eps must be listed to left of primVars
   }
   // else if (side == "right"){
-  //   r =  (eps + (primUW1 - primDW1)) / (eps + (primUW2 - primUW1)) ;  //divided differences to base ratio on; eps must be listed to left of primVars
+  //   r = (eps + (primUW1 - primDW1)) / (eps + (primUW2 - primUW1)) ;
   // }
   else{
     cerr << "ERROR: Face reconstruction from side " << side << " is not recognized!" << endl;
@@ -157,14 +214,14 @@ primVars primVars::FaceReconMUSCL( const primVars &primUW2, const primVars &prim
     cerr << "ERROR: Limiter " << lim << " is not recognized!" << endl;
   }
 
-
-
   //CHANGED last term from (primUW1 - primUW2)
-  if (side == "left" || "right"){
-    facePrim = primUW1 + 0.25 * (primUW1 - primUW2) * ( (1.0 - kappa) * limiter + (1.0 + kappa) * r * invLimiter );
+  if (side == "left" || true){
+    //facePrim = primUW1 + 0.25 * (primUW1 - primUW2) * ( (1.0 - kappa) * limiter + (1.0 + kappa) * r * invLimiter );
+    facePrim = primUW1 + ( limiter / (2.0 * (dPlus + dMinus) ) ) * ( (dPlus  - kappa * limiter) * (primUW1 - primUW2) / dMinus + 
+								     (dMinus + kappa * limiter) * (primDW1 - primUW1) / dPlus );
   }
   // else if (side == "right"){
-  //   faceState = primUW1 - 0.5 * (primUW2 - primUW1) * limiter ;
+  //   facePrim = primUW1 - 0.25 * (primUW2 - primUW1) * ( (1.0 - kappa) * limiter + (1.0 + kappa) * r * invLimiter );
   // }
   else {
     cerr << "ERROR: Face reconstruction from side " << side << " is not recognized!" << endl;
@@ -265,9 +322,15 @@ primVars primVars::LimiterNone()const{
 }
 
 //member function to return the state of the appropriate ghost cell
-primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &areaVec, const string &surf, const input &inputVars, const idealGas &eqnState )const{
+primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &areaVec, const string &surf, const input &inputVars, const idealGas &eqnState, const int layer )const{
 
-  primVars ghostState = *this;  //set ghost state equal to boundary state to start
+  primVars ghostState = (*this);  //set ghost state equal to boundary state to start
+
+  //check to see that ghost layer corresponds to allowable number
+  if ( !(layer == 1 || layer == 2) ){
+    cerr << "ERROR: Error in primVars::GetGhostState. Requesting ghost state at a ghost layer " << layer << ". Please choose either 1 or 2" << endl;
+    exit(0);
+  }
 
   vector3d<double> normArea;
 
@@ -275,7 +338,7 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
     normArea = -1.0 * areaVec / areaVec.Mag(); //at lower surface normal should point out of domain for ghost cell calculation
   }
   else if (surf == "iu" || surf == "ju" || surf == "ku"){
-    normArea = (areaVec / areaVec.Mag()); 
+    normArea = areaVec / areaVec.Mag(); 
   }
 
   double normVelCellCenter = 0;
@@ -322,38 +385,42 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
 
     //numerical bc for pressure, same as boundary state
 
+    if (layer == 2){ //extrapolate to get ghost state at 2nd layer
+      ghostState = 2.0 * ghostState - (*this);
+    }
+
   }
   else if (bcType == "subsonicOutflow"){     //set pressure to freestream value
     ghostState.SetP( 1.0 / eqnState.Gamma() );
 
     //numerical bcs for density, velocity -- equal to boundary cell
 
+    if (layer == 2){ //extrapolate to get ghost state at 2nd layer
+      ghostState = 2.0 * ghostState - (*this);
+    }
+
   }
   else if (bcType == "characteristic"){
-    //calculate ui, u0, ci, co, mi
     //freestream variables
     double freeSoS = eqnState.GetSoS(inputVars.PRef(), inputVars.RRef());
     vector3d<double> freeVel = inputVars.VelRef() / freeSoS;
-
     primVars freeState(1.0, 1.0/eqnState.Gamma(), freeVel);
-    double velFreeNorm = freeVel.DotProd(normArea); 
-    //double SoSFree = 1.0;
+    //double velFreeNorm = freeVel.DotProd(normArea); 
 
-    vector3d<double> freeVelTan = freeVel - normArea * velFreeNorm;            //freestream tangent velocity
+    //vector3d<double> freeVelTan = freeVel - normArea * velFreeNorm;            //freestream tangent velocity
 
     //internal variables
     double velIntNorm = (*this).Velocity().DotProd(normArea); 
     double SoSInt = eqnState.GetSoS((*this).P(), (*this).Rho());
-    vector3d<double> velIntTan = (*this).Velocity() - normArea * velIntNorm;    //internal tangent velocity
+    //vector3d<double> velIntTan = (*this).Velocity() - normArea * velIntNorm;    //internal tangent velocity
     double machInt = fabs(velIntNorm)/SoSInt;
-
-    //double riemannInvarPlus, riemannInvarMinus;
 
     if ( machInt >= 1.0 && velIntNorm < 0.0 ){ //supersonic inflow
       //characteristics all go into the domain, so use freestream values for both riemann invariants
       ghostState = freeState;
+
     }
-    else if ( machInt >= 1.0 && velIntNorm > 0.0 ){ //supersonic outflow
+    else if ( machInt >= 1.0 && velIntNorm >= 0.0 ){ //supersonic outflow
       //characteristics all leave the domain, so use interior values for both riemann invariants
       ghostState = (*this);
     }
@@ -368,24 +435,8 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
       ghostState.SetV(freeState.V() - normArea.Y() * (freeState.P() - ghostState.P()) / rhoSoSInt);
       ghostState.SetW(freeState.W() - normArea.Z() * (freeState.P() - ghostState.P()) / rhoSoSInt);
 
-
-      // riemannInvarMinus = velIntNorm - (2.0 * SoSInt)/(eqnState.Gamma() - 1.0);
-      // riemannInvarPlus = velFreeNorm + (2.0 * SoSFree)/(eqnState.Gamma() - 1.0);
-      // double velB = 0.5 * (riemannInvarPlus + riemannInvarMinus); //this is the normal velocity at the boundary
-      // double SoSBound = 0.25 * (eqnState.Gamma() - 1.0) * (riemannInvarPlus - riemannInvarMinus);
-
-      // double entropyBound = (SoSFree * SoSFree)/(eqnState.Gamma() * pow(freeState.Rho() , eqnState.Gamma()-1.0));
-      // double rhoBound = pow((SoSBound * SoSBound)/(eqnState.Gamma() * entropyBound) , 1.0/(eqnState.Gamma()-1.0));
-      // double pressBound = rhoBound * SoSBound * SoSBound / eqnState.Gamma();
-
-      // ghostState.SetRho(rhoBound);
-      // ghostState.SetU( (velB * normArea.X() + freeVelTan.X()) );
-      // ghostState.SetV( (velB * normArea.Y() + freeVelTan.Y()) );
-      // ghostState.SetW( (velB * normArea.Z() + freeVelTan.Z()) );
-      // ghostState.SetP(pressBound);
-
     }
-    else if ( machInt < 1.0 && velIntNorm > 0.0 ){ //subsonic outflow
+    else if ( machInt < 1.0 && velIntNorm >= 0.0 ){ //subsonic outflow
 
       //characteristics go in both directions, use interior values for plus characteristic and freestream values for minus characteristic
       double rhoSoSInt = (*this).Rho() * SoSInt;
@@ -395,25 +446,14 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
       ghostState.SetV(   (*this).V() + normArea.Y() * ( (*this).P() - ghostState.P() ) / rhoSoSInt);
       ghostState.SetW(   (*this).W() + normArea.Z() * ( (*this).P() - ghostState.P() ) / rhoSoSInt);
 
-      // riemannInvarMinus = velIntNorm - (2.0 * SoSInt)/(eqnState.Gamma() - 1.0);
-      // riemannInvarPlus = -1.0 * fabs(velFreeNorm) + (2.0 * SoSFree)/(eqnState.Gamma() - 1.0);
-      // double velB = 0.5 * (riemannInvarPlus + riemannInvarMinus);
-      // double SoSBound = 0.25 * (eqnState.Gamma() - 1.0) * (riemannInvarPlus - riemannInvarMinus);
-
-      // double entropyBound = (SoSInt * SoSInt)/(eqnState.Gamma() * pow((*this).Rho() , eqnState.Gamma()-1.0));
-      // double rhoBound = pow((SoSBound * SoSBound)/(eqnState.Gamma() * entropyBound) , 1.0/(eqnState.Gamma()-1.0));
-      // double pressBound = rhoBound * SoSBound * SoSBound / eqnState.Gamma();
-
-      // ghostState.SetRho(rhoBound);
-      // ghostState.SetU( (velB * normArea.X() + velIntTan.X()) );
-      // ghostState.SetV( (velB * normArea.Y() + velIntTan.Y()) );
-      // ghostState.SetW( (velB * normArea.Z() + velIntTan.Z()) );
-      // ghostState.SetP(pressBound);
-
     }
     else {
       cerr << "ERROR: flow condition for characteristic BC is not recognized!" << endl;
       exit(0);
+    }
+
+    if (layer == 2){ //extrapolate to get ghost state at 2nd layer
+      ghostState = 2.0 * ghostState - (*this);
     }
 
   }
@@ -428,9 +468,17 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
     ghostState.SetW(vel.Z());
     ghostState.SetP(1.0 / eqnState.Gamma());
 
+    if (layer == 2){ //extrapolate to get ghost state at 2nd layer
+      ghostState = 2.0 * ghostState - (*this);
+    }
+
   }
   else if (bcType == "supersonicOutflow"){
     //do nothing and return boundary state -- numerical BCs for all
+    if (layer == 2){ //extrapolate to get ghost state at 2nd layer
+      ghostState = 2.0 * ghostState - (*this);
+    }
+
   }
   else if (bcType == "stagnationInlet"){
     double g = eqnState.Gamma() - 1.0;
@@ -454,6 +502,10 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
     ghostState.SetW(vbMag * inputVars.StagInletDz());
     ghostState.SetP(pb);
 
+    if (layer == 2){ //extrapolate to get ghost state at 2nd layer
+      ghostState = 2.0 * ghostState - (*this);
+    }
+
   }
   else if (bcType == "pressureOutlet"){
     double aRef = eqnState.GetSoS(inputVars.PRef(),inputVars.RRef());
@@ -466,6 +518,10 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
     ghostState.SetU(   (*this).U() + normArea.X() * ( (*this).P() - ghostState.P() ) / rhoSoSInt);
     ghostState.SetV(   (*this).V() + normArea.Y() * ( (*this).P() - ghostState.P() ) / rhoSoSInt);
     ghostState.SetW(   (*this).W() + normArea.Z() * ( (*this).P() - ghostState.P() ) / rhoSoSInt);
+
+    if (layer == 2){ //extrapolate to get ghost state at 2nd layer
+      ghostState = 2.0 * ghostState - (*this);
+    }
 
   }
   else {
