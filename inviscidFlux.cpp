@@ -584,7 +584,7 @@ void LaxFriedrichsFluxJacobian( const primVars &left, const primVars &right, con
 
 
 //member function to return flux on boundaries
-inviscidFlux BoundaryFlux( const string &bcName, const vector3d<double>& areaVec, const primVars &state1, const primVars &state2, const idealGas& eqnState, const input& inputVars, const string &surf, double &maxWS, const double up2face, const double upwind ){
+inviscidFlux BoundaryFlux( const string &bcName, const vector3d<double>& areaVec, const primVars &state1, const primVars &state2, const idealGas& eqnState, const input& inputVars, const string &surf, double &maxWS, const double upwind, const double upwind2 ){
 
   inviscidFlux flux;
 
@@ -608,7 +608,7 @@ inviscidFlux BoundaryFlux( const string &bcName, const vector3d<double>& areaVec
   if ( bcName == "subsonicInflow" || bcName == "subsonicOutflow" || bcName == "supersonicInflow" || bcName == "supersonicOutflow" ||
        bcName == "characteristic" || bcName == "stagnationInlet" || bcName == "pressureOutlet"){
 
-    if (inputVars.Kappa() == -2.0 ){ //first order
+    if (inputVars.Kappa() == -2.0){ //first order
       primVars ghostState1 = state.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
       primVars lState, rState;
 
@@ -625,16 +625,20 @@ inviscidFlux BoundaryFlux( const string &bcName, const vector3d<double>& areaVec
     }
     else{ //second order
       primVars ghostState1 = state.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
-      primVars ghostState2 = ghostState1;
+      primVars ghostState2 = state.GetGhostState( bcName, normArea, surf, inputVars, eqnState, 2 );
       primVars lState, rState;
 
       if (surf == "il" || surf == "jl" || surf == "kl"){
-	lState = ghostState1.FaceReconMUSCL( ghostState2, state1, "left", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
-	rState = state1.FaceReconMUSCL( state2, ghostState1, "right", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+	//upwind cells are ghost cells, same distance as boundary cell
+	lState = ghostState1.FaceReconMUSCL( ghostState2, state1, "left", inputVars.Kappa(), inputVars.Limiter(), upwind, upwind, upwind ); 
+	//downwind cell is ghost cell, same distance as boundary cell
+	rState = state1.FaceReconMUSCL( state2, ghostState1, "right", inputVars.Kappa(), inputVars.Limiter(), upwind, upwind2, upwind ); 
       }
       else {
-	rState = ghostState1.FaceReconMUSCL( ghostState2, state1, "right", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
-	lState = state1.FaceReconMUSCL( state2, ghostState1, "left", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+	//upwind cells are ghost cells, same distance as boundary cell
+	rState = ghostState1.FaceReconMUSCL( ghostState2, state1, "right", inputVars.Kappa(), inputVars.Limiter(), upwind, upwind, upwind );
+	//downwind cell is ghost cell, same distance as boundary cell
+	lState = state1.FaceReconMUSCL( state2, ghostState1, "left", inputVars.Kappa(), inputVars.Limiter(), upwind, upwind2, upwind );
       }
 
       flux = RoeFlux( lState, rState, eqnState, normArea, maxWS);
@@ -666,12 +670,17 @@ inviscidFlux BoundaryFlux( const string &bcName, const vector3d<double>& areaVec
       primVars lState, rState;
 
       if (surf == "il" || surf == "jl" || surf == "kl"){
-	rState = state1.FaceReconMUSCL( state2, ghostState1, "right", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
-	lState = ghostState1.FaceReconMUSCL( ghostState2, state1, "left", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+	//upwind cells are ghost cells, same distance as boundary cell
+	lState = ghostState1.FaceReconMUSCL( ghostState2, state1, "left", inputVars.Kappa(), inputVars.Limiter(), upwind, upwind, upwind );
+	//downwind cell is ghost cell, same distance as boundary cell
+	rState = state1.FaceReconMUSCL( state2, ghostState1, "right", inputVars.Kappa(), inputVars.Limiter(), upwind, upwind2, upwind );
       }
       else {
-	lState = state1.FaceReconMUSCL( state2, ghostState1, "left", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
-	rState = ghostState1.FaceReconMUSCL( ghostState2, state1, "right", inputVars.Kappa(), inputVars.Limiter(), up2face, upwind, up2face*2.0 );
+	//upwind cells are ghost cells, same distance as boundary cell
+	rState = ghostState1.FaceReconMUSCL( ghostState2, state1, "right", inputVars.Kappa(), inputVars.Limiter(), upwind, upwind, upwind );
+	//downwind cell is ghost cell, same distance as boundary cell
+	lState = state1.FaceReconMUSCL( state2, ghostState1, "left", inputVars.Kappa(), inputVars.Limiter(), upwind, upwind2, upwind );
+
       }
 
       flux = RoeFlux( lState, rState, eqnState, normArea, maxWS);
@@ -852,3 +861,4 @@ double ConvSpecRad(const vector3d<double> &fArea, const primVars &state1, const 
   return max(fabs(u1) + a1, fabs(u2) + a2);
 
 }
+

@@ -63,9 +63,6 @@ class inviscidFlux {
 };
 
 //function definitions
-//function to update the state variables given the flux and area vector magnitude at each face
-/* vector<double> CalculateResidual(inviscidFlux const &, inviscidFlux const&, inviscidFlux const&, inviscidFlux const &, inviscidFlux const&, inviscidFlux const&,                  */
-/*         	                 double const&, double const&, double const&, double const&, double const&, double const& ); */
 inviscidFlux BoundaryFlux( const string&, const vector3d<double>&, const primVars&, const primVars&, const idealGas&, const input&, const string&, double&, const double=0.5, const double=1.0 );
 //function to calculate Roe flux with entropy fix
 inviscidFlux RoeFlux( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double& );                  
@@ -78,5 +75,6 @@ double BoundaryInvSpecRad( const string&, const vector3d<double>&, const primVar
 
 colMatrix ConvectiveFluxUpdate( const primVars&, const idealGas &, const vector3d<double> &, const colMatrix&);
 double ConvSpecRad( const vector3d<double> &, const primVars&, const primVars&, const idealGas&);
+
 
 #endif
