@@ -63,11 +63,11 @@ class viscBlockVars {
   template<class T>
   T FaceReconCentral(const T&, const T&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&)const;
 
-  void CalcCellGrads(const blockVars&, const idealGas&, const input&, const int&);
+  void CalcCellGrads(blockVars&, const idealGas&, const sutherland&, const input&, const int&);
 
-  void CalcViscFluxI(blockVars&, const sutherland&, const idealGas&, const input&, const int&);
-  void CalcViscFluxJ(blockVars&, const sutherland&, const idealGas&, const input&, const int&);
-  void CalcViscFluxK(blockVars&, const sutherland&, const idealGas&, const input&, const int&);
+  /* void CalcViscFluxI(blockVars&, const sutherland&, const idealGas&, const input&, const int&); */
+  /* void CalcViscFluxJ(blockVars&, const sutherland&, const idealGas&, const input&, const int&); */
+  /* void CalcViscFluxK(blockVars&, const sutherland&, const idealGas&, const input&, const int&); */
 
   void CalcBlockTimeStep(blockVars&, const input&, const double&);
 
@@ -77,7 +77,7 @@ class viscBlockVars {
 };
 
 //function definitions
-double ViscCellSpectralRadius(const double&, const idealGas&, const double&, const double&, const double&);
+double ViscCellSpectralRadius(const vector3d<double>&, const vector3d<double>&, const primVars&, const idealGas&, const sutherland&, const double&);
 double ViscFaceSpectralRadiusTSL(const double&, const idealGas&, const double&, const vector3d<double>&, const vector3d<double>&);
 
 
