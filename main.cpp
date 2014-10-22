@@ -97,7 +97,6 @@ int main( int argc, char *argv[] ) {
     implicitFlag = true;
   }
 
-  colMatrix mainDiag;
   colMatrix initial(numEqns);
   initial.Zero();
 
@@ -133,7 +132,6 @@ int main( int argc, char *argv[] ) {
 
 	//initialize implicit matrix
 	if (implicitFlag){
-	  mainDiag.CleanResizeZero(numElems);
 
 	  //reserve space for correction du
 	  //only need to do this if it is first iteration
@@ -150,7 +148,7 @@ int main( int argc, char *argv[] ) {
 
 	//if viscous, calculate gradients and viscous fluxes
 	if (inputVars.EquationSet() == "navierStokes"){
-	  viscBlocks[bb].CalcCellGrads(stateBlocks[bb], eos, inputVars, bb);
+	  viscBlocks[bb].CalcCellGrads(stateBlocks[bb], eos, suth, inputVars, bb);
 	  viscBlocks[bb].CalcViscFluxI(stateBlocks[bb], suth, eos, inputVars, bb);
 	  viscBlocks[bb].CalcViscFluxJ(stateBlocks[bb], suth, eos, inputVars, bb);
 	  viscBlocks[bb].CalcViscFluxK(stateBlocks[bb], suth, eos, inputVars, bb);
@@ -177,27 +175,28 @@ int main( int argc, char *argv[] ) {
 	    }
 	  }
 
-	  stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag);
-	  stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag);
-	  stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag);
+	  // stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag);
+	  // stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag);
+	  // stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag);
 
 
-	  if (inputVars.EquationSet() == "navierStokes" ){
-	    CalcViscFluxJacI(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag);
-	    CalcViscFluxJacJ(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag);
-	    CalcViscFluxJacK(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag);
-	  }
+	  // if (inputVars.EquationSet() == "navierStokes" ){
+	  //   CalcViscFluxJacI(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag);
+	  //   CalcViscFluxJacJ(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag);
+	  //   CalcViscFluxJacK(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag);
+	  // }
 
 	  //add volume divided by time step term to main diagonal
-	  stateBlocks[bb].AddVolTime(mainDiag, inputVars.Theta(), inputVars.Zeta(), inputVars.DualTimeCFL());
+	  //stateBlocks[bb].AddVolTime(mainDiag, inputVars.Theta(), inputVars.Zeta(), inputVars.DualTimeCFL());
 
 	  //add volume divided by time step term time m - time n term
 	  vector<colMatrix> solTimeMmN = stateBlocks[bb].AddVolTime(stateBlocks[bb].GetCopyConsVars(eos), solTimeN[bb], inputVars.Theta(), inputVars.Zeta());
+
 	  //reorder block for lusgs
 	  vector<vector3d<int> > reorder = HyperplaneReorder(stateBlocks[bb].NumI()-1, stateBlocks[bb].NumJ()-1, stateBlocks[bb].NumK()-1);
 
 	  //calculate correction (du)
-	  matrixResid += stateBlocks[bb].LUSGS(mainDiag, reorder, du[bb], solTimeMmN, solDeltaNm1[bb], eos, inputVars, suth );
+	  matrixResid += stateBlocks[bb].LUSGS(reorder, du[bb], solTimeMmN, solDeltaNm1[bb], eos, inputVars, suth );
 
 
 	} //conditional for implicit solver

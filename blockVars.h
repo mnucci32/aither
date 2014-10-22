@@ -113,9 +113,9 @@ class blockVars {
 
   //void TotalResidual( vector<double> &, vector<double> &, int &, const int & );
 
-  void CalcInvFluxJacI(const idealGas&, const input&, const int&, colMatrix&)const;
-  void CalcInvFluxJacJ(const idealGas&, const input&, const int&, colMatrix&)const;
-  void CalcInvFluxJacK(const idealGas&, const input&, const int&, colMatrix&)const;
+  /* void CalcInvFluxJacI(const idealGas&, const input&, const int&, colMatrix&)const; */
+  /* void CalcInvFluxJacJ(const idealGas&, const input&, const int&, colMatrix&)const; */
+  /* void CalcInvFluxJacK(const idealGas&, const input&, const int&, colMatrix&)const; */
 
   void ResetResidWS();
 
@@ -124,7 +124,7 @@ class blockVars {
 
   void DeltaNMinusOne( vector<colMatrix> &, const vector<colMatrix> &, const idealGas &, const double &, const double &);
 
-  double LUSGS( const colMatrix &, const vector<vector3d<int> > &, vector<colMatrix> &, const vector<colMatrix> &, const vector<colMatrix> &, const idealGas&, const input&, const sutherland&)const;
+  double LUSGS( const vector<vector3d<int> > &, vector<colMatrix> &, const vector<colMatrix> &, const vector<colMatrix> &, const idealGas&, const input&, const sutherland&)const;
 
 
 
@@ -135,5 +135,7 @@ class blockVars {
 
 //function definitions
 double ViscFaceSpecRadTSL(const primVars&, const idealGas&, const sutherland&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&);
+double CellSpectralRadius(const vector3d<double> &, const vector3d<double> &, const primVars&, const idealGas&);
+double ViscCellSpectralRadius(const vector3d<double>&, const vector3d<double>&, const primVars&, const idealGas&, const sutherland&, const double&);
 
 #endif
