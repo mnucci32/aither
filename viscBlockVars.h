@@ -65,9 +65,9 @@ class viscBlockVars {
 
   void CalcCellGrads(blockVars&, const idealGas&, const sutherland&, const input&, const int&);
 
-  /* void CalcViscFluxI(blockVars&, const sutherland&, const idealGas&, const input&, const int&); */
-  /* void CalcViscFluxJ(blockVars&, const sutherland&, const idealGas&, const input&, const int&); */
-  /* void CalcViscFluxK(blockVars&, const sutherland&, const idealGas&, const input&, const int&); */
+  void CalcViscFluxI(blockVars&, const sutherland&, const idealGas&, const input&, const int&);
+  void CalcViscFluxJ(blockVars&, const sutherland&, const idealGas&, const input&, const int&);
+  void CalcViscFluxK(blockVars&, const sutherland&, const idealGas&, const input&, const int&);
 
   void CalcBlockTimeStep(blockVars&, const input&, const double&);
 
@@ -77,13 +77,13 @@ class viscBlockVars {
 };
 
 //function definitions
-double ViscCellSpectralRadius(const vector3d<double>&, const vector3d<double>&, const primVars&, const idealGas&, const sutherland&, const double&);
+
 double ViscFaceSpectralRadiusTSL(const double&, const idealGas&, const double&, const vector3d<double>&, const vector3d<double>&);
 
 
-void CalcViscFluxJacI(const blockVars&, const sutherland&, const idealGas&, const input&, const int&, colMatrix&);
-void CalcViscFluxJacJ(const blockVars&, const sutherland&, const idealGas&, const input&, const int&, colMatrix&);
-void CalcViscFluxJacK(const blockVars&, const sutherland&, const idealGas&, const input&, const int&, colMatrix&);
+/* void CalcViscFluxJacI(const blockVars&, const sutherland&, const idealGas&, const input&, const int&, colMatrix&); */
+/* void CalcViscFluxJacJ(const blockVars&, const sutherland&, const idealGas&, const input&, const int&, colMatrix&); */
+/* void CalcViscFluxJacK(const blockVars&, const sutherland&, const idealGas&, const input&, const int&, colMatrix&); */
 
 
 
