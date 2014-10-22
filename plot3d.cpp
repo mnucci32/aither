@@ -942,11 +942,11 @@ int GetNeighborUpI(const int &i, const int &j, const int &k, const int &imax, co
 }
 //function to take in i, j, k indexes of a cell/face and return the 1D index of the neighbor cell/face to the lower j face
 int GetNeighborLowJ(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
-  return i + (j-1)*imax + k*imax*jmax;
+  return i + (j-num)*imax + k*imax*jmax;
 }
 //function to take in i, j, k indexes of a cell/face and return the 1D index of the neighbor cell/face to the upper j face
 int GetNeighborUpJ(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
-  return i + (j+1)*imax + k*imax*jmax;
+  return i + (j+num)*imax + k*imax*jmax;
 }
 //function to take in i, j, k indexes of a cell/face and return the 1D index of the neighbor cell/face to the lower k face
 int GetNeighborLowK(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
