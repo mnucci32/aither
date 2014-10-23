@@ -1523,7 +1523,7 @@ double blockVars::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
 
       AiiInv = 1.0 / ( ((*this).AvgWaveSpeed(loc) + diagTimeVol ) * inp.MatrixRelaxation() );
 
-      x[loc] = AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] + solTimeMmN[loc] + L[loc] - U[loc]) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
+      x[loc] = AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] + solTimeMmN[loc] + L[loc] ) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
 
 
       // x[loc] = (1.0 - inp.MatrixRelaxation()) * x[loc] + inp.MatrixRelaxation() * AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] +
@@ -1614,7 +1614,7 @@ double blockVars::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
 
       AiiInv = 1.0 / ( ((*this).AvgWaveSpeed(loc) + diagTimeVol ) * inp.MatrixRelaxation() );
 
-      x[loc] = x[loc] - AiiInv * ( U[loc] );
+      x[loc] = x[loc] - AiiInv * U[loc];
 
       // x[loc] = (1.0 - inp.MatrixRelaxation()) * x[loc] + inp.MatrixRelaxation() * AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] +
       //         solTimeMmN[loc] - U[loc]) ;
