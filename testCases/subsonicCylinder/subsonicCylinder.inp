@@ -1,0 +1,43 @@
+#This is the input file
+#
+gridName: subsonicCylinder
+#
+#solver parameters
+equationSet: euler
+timeIntegration: implicitEuler
+cflStart: 1000.0
+cflStep: 1.0
+cflMax: 1000.0
+faceReconstruction: thirdOrder
+limiter: none
+iterations: 5000
+outputFrequency: 1000
+#
+stagnationInlet: 1 102010.0 288.58 1.0 0.0 0.0
+pressureOutlet: 2 101300.0
+#
+#reference conditions
+pressureRef: 101300.0
+densityRef: 1.2256
+temperatureRef: 288.0
+velocity: 34.017, 0.0, 0.0
+#
+matrixSolver: lusgs
+matrixRelaxation: 1.0
+#
+#---------------------------------------------------------------------------#
+#Boundary Conditions
+# bc imin imax jmin jmax kmin kmax tag
+boundaryConditions: 1
+#Block   1  -- Indices: 33 2 41
+3 2 2
+#i_surfaces
+   slipWall          1     1     1     2     1    41    3
+   pressureOutlet    33    33     1     2    21    41    1
+   stagnationInlet   33    33     1     2     1    21    2
+#j_surfaces
+   slipWall          1    33     1     1     1    41    3
+   slipWall          1    33     2     2     1    41    3
+#k_surfaces
+   slipWall          1    33     1     2     1     1    3
+   slipWall          1    33     1     2    41    41    3
