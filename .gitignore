@@ -12,3 +12,9 @@ cachegrind.out.*
 
 #Ignore compiled executable
 main
+
+#Ignore results files
+*.fun
+*.res
+*.out
+*_center.xyz

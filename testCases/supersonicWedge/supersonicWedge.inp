@@ -1,0 +1,39 @@
+#This is the input file
+#
+gridName: supersonicWedge
+#
+#solver parameters
+equationSet: euler
+timeIntegration: explicitEuler
+cflStart: 0.4
+cflStep: 0.1
+cflMax: 0.4
+faceReconstruction: thirdOrder
+limiter: vanAlbada
+iterations: 5000
+outputFrequency: 1000
+#
+#reference conditions
+pressureRef: 101300.0
+densityRef: 1.2256
+temperatureRef: 288.0
+velocity: 852.4, 0.0, 0.0
+#
+matrixSolver: lusgs
+matrixRelaxation: 1.0
+#
+#---------------------------------------------------------------------------#
+#Boundary Conditions
+# bc imin imax jmin jmax kmin kmax tag
+boundaryConditions: 1
+#Block   1  -- Indices: 21 33 2
+2 2 2
+#i_surfaces
+   slipWall           1     1     1    33     1     2     0
+   slipWall           21     21     1    33     1     2     0
+#j_surfaces
+   supersonicInflow   1     21     1     1     1     2     0
+   supersonicOutflow  1     21    33    33     1     2     0
+#k_surfaces
+   slipWall           1     21     1    33     1     1     0
+   slipWall           1     21     1    33     2     2     0
