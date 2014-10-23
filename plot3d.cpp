@@ -40,6 +40,7 @@ plot3dBlock::plot3dBlock(){
 const vector<double> plot3dBlock::Volume() const {
 
   int len = (numi-1)*(numj-1)*(numk-1);  //number of cells in the block
+
   vector<double> vol(len,0);             //initially assign a volume of 0
 
   //each hex cell is broken up into 3 pyramids and the volume of each pyramid is calculated

@@ -837,8 +837,6 @@ void blockVars::CalcBlockTimeStep( const input &inputVars, const double &aRef){
 
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
 
-	//(*this).CalcCellResidual(ii, jj, kk, imax, jmax);
-
 	if (inputVars.Dt() > 0.0){   //dt specified, use global time stepping
 	  (*this).SetDt(inputVars.Dt() * aRef, loc);
 	}
@@ -1439,8 +1437,6 @@ double blockVars::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
     vector<colMatrix> U(x.size(),initial);
     vector<colMatrix> L(x.size(),initial);
 
-    vector<colMatrix> Uold(x.size(),initial);
-
     //forward sweep
     for ( int ii = 0; ii < (int)x.size(); ii++ ){
 
@@ -1618,7 +1614,7 @@ double blockVars::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
 
       AiiInv = 1.0 / ( ((*this).AvgWaveSpeed(loc) + diagTimeVol ) * inp.MatrixRelaxation() );
 
-      x[loc] = x[loc] + AiiInv * ( Uold[loc] - U[loc] );
+      x[loc] = x[loc] - AiiInv * ( U[loc] );
 
       // x[loc] = (1.0 - inp.MatrixRelaxation()) * x[loc] + inp.MatrixRelaxation() * AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] +
       //         solTimeMmN[loc] - U[loc]) ;
@@ -1626,7 +1622,6 @@ double blockVars::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
 
     } //end backward sweep
 
-    Uold = U;
 
     //calculate residual
     colMatrix resid(x[0].Size());

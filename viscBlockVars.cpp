@@ -1152,13 +1152,6 @@ double ViscFaceSpectralRadiusTSL(const double &rho, const idealGas &eqnState, co
 
   vector3d<double> normArea = fArea / fArea.Mag();
 
-  //return max(4.0/3.0, eqnState.Gamma() / eqnState.GetPrandtl()) * (mu * fMag * fMag) / (rho * dist) ;
-  //return fMag * max( (4.0 * mu)/3.0, eqnState.Gamma() * mu / eqnState.GetPrandtl() ) / rho;
-  //return 2.0 * fMag * fMag / ( rho * dist);
-  //return max( (4.0 * mu) / (3.0 * rho * dist) , eqnState.Gamma() * mu / (eqnState.GetPrandtl() * rho * dist) );
-  //return fMag * mu / (eqnState.GetPrandtl() * rho * dist) * max(4.0/3.0, eqnState.Gamma());
-  //return eqnState.Gamma() * mu / (eqnState.GetPrandtl() * rho * dist);
-
   return 2.0 * mu / (rho * fabs(normArea.DotProd(dist)) ) ;
 }
 
