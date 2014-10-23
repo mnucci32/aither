@@ -206,18 +206,18 @@ int main( int argc, char *argv[] ) {
       //after update for all blocks has been calculated and stored, update all blocks
       //blocks cannot be updated within block loop because ghost cells for connection boundaries are determined from adjacent blocks
       //this would result in the ghost cell being at time n+1 when it should be at time n
-      for ( int cc = 0; cc < mesh.NumBlocks(); cc++ ){             //loop over number of blocks
+      for ( int dd = 0; dd < mesh.NumBlocks(); dd++ ){             //loop over number of blocks
 
 	//update solution
-	stateBlocks[cc].UpdateBlock(inputVars, implicitFlag, eos, aRef, cc, du[cc], residL2, residLinf, locMaxB);
+	stateBlocks[dd].UpdateBlock(inputVars, implicitFlag, eos, aRef, dd, du[dd], residL2, residLinf, locMaxB);
 
 	//if implicit, assign time n to time n-1 at end of nonlinear iterations
 	if (implicitFlag && inputVars.TimeIntegration() == "bdf2" && mm == inputVars.NonlinearIterations()-1 ){
-	  stateBlocks[cc].DeltaNMinusOne(solDeltaNm1[cc], solTimeN[cc], eos, inputVars.Theta(), inputVars.Zeta());
+	  stateBlocks[dd].DeltaNMinusOne(solDeltaNm1[dd], solTimeN[dd], eos, inputVars.Theta(), inputVars.Zeta());
 	}
 
 	//zero residuals and wave speed
-	stateBlocks[cc].ResetResidWS();
+	stateBlocks[dd].ResetResidWS();
 
       } //loop for blocks
 
