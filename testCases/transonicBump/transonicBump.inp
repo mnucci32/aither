@@ -1,0 +1,40 @@
+#This is the input file
+#
+gridName: transonicBump
+#
+#solver parameters
+equationSet: euler
+timeIntegration: implicitEuler
+cflStart: 1000.0
+cflStep: 100.0
+cflMax: 10000.0
+faceReconstruction: upwind
+limiter: vanAlbada
+iterations: 2000
+outputFrequency: 500
+#
+#reference conditions
+pressureRef: 101300.0
+densityRef: 1.2256
+temperatureRef: 288.0
+velocity: 238.0, 0.0, 0.0
+#
+matrixSolver: lusgs
+matrixRelaxation: 1.0
+#---------------------------------------------------------------------------#
+#Boundary Conditions
+# bc imin imax jmin jmax kmin kmax tag
+boundaryConditions: 1
+#Block   1  -- Indices: 61 33 2
+2 4 2
+#i_surfaces
+   characteristic     1     1     1    33     1     2     1
+   characteristic    61    61     1    33     1     2     2
+#j_surfaces
+   slipWall           1    21     1     1     1     2     0
+   slipWall          21    41     1     1     1     2     0
+   slipWall          41    61     1     1     1     2     0
+   slipWall           1    61    33    33     1     2     0
+#k_surfaces
+   slipWall           1    61     1    33     1     1     0
+   slipWall           1    61     1    33     2     2     0
