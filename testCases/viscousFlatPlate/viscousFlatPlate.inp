@@ -1,0 +1,41 @@
+#This is the input file
+#
+gridName: viscousFlatPlate
+#
+#solver parameters
+equationSet: navierStokes
+timeIntegration: implicitEuler
+cflStart: 10000.0
+cflStep: 1.0
+cflMax: 10000.0
+faceReconstruction: thirdOrder
+limiter: none
+iterations: 25000
+outputFrequency: 1000
+#
+#reference conditions
+pressureRef: 101300.0
+densityRef: 1.2256
+temperatureRef: 288.0
+velocity: 68.0, 0.0, 0.0
+#
+matrixSolver: lusgs
+matrixRelaxation: 1.0
+#
+#---------------------------------------------------------------------------#
+#Boundary Conditions
+# bc imin imax jmin jmax kmin kmax tag
+boundaryConditions: 1
+#Block   1  -- Indices: 65 65 2
+2 2 2
+#i_surfaces -------------------------------------------
+#subsonicInflow      1     1     1    65     1     2    0
+#subsonicOutflow    65    65     1    65     1     2    0
+characteristic      1     1     1    65     1     2    0
+characteristic     65    65     1    65     1     2    0
+#j_surfaces -------------------------------------------
+viscousWall         1    65     1     1     1     2    0
+characteristic      1    65    65    65     1     2    0
+#k_surfaces -------------------------------------------
+slipWall            1    65     1    65     1     1    0
+slipWall            1    65     1    65     2     2    0
