@@ -134,7 +134,7 @@ class blockVars {
 };
 
 //function definitions
-double ViscFaceSpecRadTSL(const primVars&, const idealGas&, const sutherland&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&);
+//double ViscFaceSpecRadTSL(const primVars&, const idealGas&, const sutherland&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&);
 double CellSpectralRadius(const vector3d<double> &, const vector3d<double> &, const primVars&, const idealGas&);
 double ViscCellSpectralRadius(const vector3d<double>&, const vector3d<double>&, const primVars&, const idealGas&, const sutherland&, const double&);
 

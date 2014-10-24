@@ -1651,15 +1651,15 @@ double blockVars::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
 }
 
 
-//function to calculate the spectral radius on a cell face for the viscous fluxes using the thin shear layer approximation
-double ViscFaceSpecRadTSL(const primVars &state, const idealGas &eqnState, const sutherland &suth, const vector3d<double> &centerL, const vector3d<double> &centerR, const vector3d<double> &fArea){
+// //function to calculate the spectral radius on a cell face for the viscous fluxes using the thin shear layer approximation
+// double ViscFaceSpecRadTSL(const primVars &state, const idealGas &eqnState, const sutherland &suth, const vector3d<double> &centerL, const vector3d<double> &centerR, const vector3d<double> &fArea){
 
-  vector3d<double> normArea = fArea / fArea.Mag();
-  vector3d<double> dist = centerR - centerL;
-  double mu = suth.GetViscosity(state.Temperature(eqnState));
+//   vector3d<double> normArea = fArea / fArea.Mag();
+//   vector3d<double> dist = centerR - centerL;
+//   double mu = suth.GetViscosity(state.Temperature(eqnState));
 
-  return 2.0 * mu / (state.Rho() * fabs(normArea.DotProd(dist)) ) ;
-}
+//   return 2.0 * mu / (state.Rho() * fabs(normArea.DotProd(dist)) ) ;
+// }
 
 //function to return the inviscid spectral radius given a cell state, equation of state, and 2 face area vectors
 double CellSpectralRadius(const vector3d<double> &fAreaL, const vector3d<double> &fAreaR, const primVars &state, const idealGas &eqnState){
