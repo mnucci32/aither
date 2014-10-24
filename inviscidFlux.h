@@ -66,15 +66,15 @@ class inviscidFlux {
 inviscidFlux BoundaryFlux( const string&, const vector3d<double>&, const primVars&, const primVars&, const idealGas&, const input&, const string&, double&, const double=0.5, const double=1.0 );
 //function to calculate Roe flux with entropy fix
 inviscidFlux RoeFlux( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double& );                  
-inviscidFlux LaxFriedrichsFlux( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double& );                  
+//inviscidFlux LaxFriedrichsFlux( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double& );                  
 //function to calculate Roe flux with entropy fix for implicit methods
 void ApproxRoeFluxJacobian( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double&, squareMatrix&, squareMatrix& );                  
-void LaxFriedrichsFluxJacobian( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double&, double&, squareMatrix&, squareMatrix& );                  
+//void LaxFriedrichsFluxJacobian( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double&, double&, squareMatrix&, squareMatrix& );                  
 
-double BoundaryInvSpecRad( const string&, const vector3d<double>&, const primVars&, const idealGas&, const string&, const input&);
+//double BoundaryInvSpecRad( const string&, const vector3d<double>&, const primVars&, const idealGas&, const string&, const input&);
 
 colMatrix ConvectiveFluxUpdate( const primVars&, const idealGas &, const vector3d<double> &, const colMatrix&);
-double ConvSpecRad( const vector3d<double> &, const primVars&, const primVars&, const idealGas&);
+//double ConvSpecRad( const vector3d<double> &, const primVars&, const primVars&, const idealGas&);
 
 
 #endif
