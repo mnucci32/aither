@@ -155,12 +155,12 @@ int main( int argc, char *argv[] ) {
 	}
 
 	//calculate cell time step
-	if (inputVars.EquationSet() == "navierStokes"){
-	  viscBlocks[bb].CalcBlockTimeStep(stateBlocks[bb], inputVars, aRef);
-	}
-	else{
+	// if (inputVars.EquationSet() == "navierStokes"){
+	//   viscBlocks[bb].CalcBlockTimeStep(stateBlocks[bb], inputVars, aRef);
+	// }
+	// else{
 	  stateBlocks[bb].CalcBlockTimeStep(inputVars, aRef);
-	}
+	// }
 
 
 	//if implicit calculate flux jacobians and assembly matrix

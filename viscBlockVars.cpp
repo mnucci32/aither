@@ -1103,57 +1103,57 @@ void viscBlockVars::CalcViscFluxK(blockVars &vars, const sutherland &suth, const
 
 // }
 
-void viscBlockVars::CalcBlockTimeStep( blockVars &vars, const input &inputVars, const double &aRef){
+// void viscBlockVars::CalcBlockTimeStep( blockVars &vars, const input &inputVars, const double &aRef){
 
-  int imax = vars.NumI()-1;
-  int jmax = vars.NumJ()-1;
-  int kmax = vars.NumK()-1;
+//   int imax = vars.NumI()-1;
+//   int jmax = vars.NumJ()-1;
+//   int kmax = vars.NumK()-1;
 
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-  int loc = 0;
+//   int ii = 0;
+//   int jj = 0;
+//   int kk = 0;
+//   int loc = 0;
 
-  for ( kk = 0; kk < kmax; kk++ ){          //loop over all cells
-    for ( jj = 0; jj < jmax; jj++ ){          
-      for ( ii = 0; ii < imax; ii++ ){          
+//   for ( kk = 0; kk < kmax; kk++ ){          //loop over all cells
+//     for ( jj = 0; jj < jmax; jj++ ){          
+//       for ( ii = 0; ii < imax; ii++ ){          
 
-	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+// 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
 
-	if (inputVars.Dt() > 0.0){   //dt specified, use global time stepping
-	  vars.SetDt(inputVars.Dt() * aRef, loc);
-	}
-	else if (inputVars.CFL() > 0.0){ //cfl specified, use local time stepping
-	  vars.CalcCellDt(ii, jj, kk, inputVars.CFL());
-	}
-	else{
-	  cerr << "ERROR: Neither dt or cfl was specified!" << endl;
-	  exit(0);
-	}
+// 	if (inputVars.Dt() > 0.0){   //dt specified, use global time stepping
+// 	  vars.SetDt(inputVars.Dt() * aRef, loc);
+// 	}
+// 	else if (inputVars.CFL() > 0.0){ //cfl specified, use local time stepping
+// 	  vars.CalcCellDt(ii, jj, kk, inputVars.CFL());
+// 	}
+// 	else{
+// 	  cerr << "ERROR: Neither dt or cfl was specified!" << endl;
+// 	  exit(0);
+// 	}
 
-      }
-    }
-  }
+//       }
+//     }
+//   }
 
-}
+// }
 
 
 //---------------------------------------------------------------------------------------------------------------//
 //function declarations
 
-//function to calculate the spectral radius on a cell face for the viscous fluxes using the thin shear layer approximation
-double ViscFaceSpectralRadiusTSL(const double &rho, const idealGas &eqnState, const double &mu, const vector3d<double> &fArea, const vector3d<double> &dist){
+// //function to calculate the spectral radius on a cell face for the viscous fluxes using the thin shear layer approximation
+// double ViscFaceSpectralRadiusTSL(const double &rho, const idealGas &eqnState, const double &mu, const vector3d<double> &fArea, const vector3d<double> &dist){
 
-  //rho is density at cell center
-  //mu is viscoisty at cell center
-  //eqnState is equation of state, used to get prandtl number
-  //fMag is average face area (magnitude)
-  //dist is the distance from cell center to cell center of the cells bounding the face
+//   //rho is density at cell center
+//   //mu is viscoisty at cell center
+//   //eqnState is equation of state, used to get prandtl number
+//   //fMag is average face area (magnitude)
+//   //dist is the distance from cell center to cell center of the cells bounding the face
 
-  vector3d<double> normArea = fArea / fArea.Mag();
+//   vector3d<double> normArea = fArea / fArea.Mag();
 
-  return 2.0 * mu / (rho * fabs(normArea.DotProd(dist)) ) ;
-}
+//   return 2.0 * mu / (rho * fabs(normArea.DotProd(dist)) ) ;
+// }
 
 
 
