@@ -53,23 +53,13 @@ viscBlockVars::viscBlockVars(const plot3dBlock &blk){
 //member functions
 
 //member function to calculate the velocity gradient at the cell center
-void viscBlockVars::CalcVelGradGG(const vector3d<double> &vil, const vector3d<double> &viu, const vector3d<double> &vjl, const vector3d<double> &vju, const vector3d<double> &vkl, const vector3d<double> &vku,
-			          const vector3d<double> &ail, const vector3d<double> &aiu, const vector3d<double> &ajl, const vector3d<double> &aju, const vector3d<double> &akl, const vector3d<double> &aku,
-				  const double &vol, const int &loc){
+void viscBlockVars::CalcVelGradGG(const vector3d<double> &vl, const vector3d<double> &vu, const vector3d<double> &al, const vector3d<double> &au, const double &vol, const int &loc){
 
-  //vil is the velocity vector at the lower i face of the cell at which the velocity gradient is being calculated
-  //viu is the velocity vector at the upper i face of the cell at which the velocity gradient is being calculated
-  //vjl is the velocity vector at the lower j face of the cell at which the velocity gradient is being calculated
-  //vju is the velocity vector at the upper j face of the cell at which the velocity gradient is being calculated
-  //vkl is the velocity vector at the lower k face of the cell at which the velocity gradient is being calculated
-  //vku is the velocity vector at the upper k face of the cell at which the velocity gradient is being calculated
+  //vl is the velocity vector at the lower face of the cell at which the velocity gradient is being calculated
+  //vu is the velocity vector at the upper face of the cell at which the velocity gradient is being calculated
 
-  //ail is the area vector at the lower i face of the cell at which the velocity gradient is being calculated
-  //aiu is the area vector at the upper i face of the cell at which the velocity gradient is being calculated
-  //ajl is the area vector at the lower j face of the cell at which the velocity gradient is being calculated
-  //aju is the area vector at the upper j face of the cell at which the velocity gradient is being calculated
-  //akl is the area vector at the lower k face of the cell at which the velocity gradient is being calculated
-  //aku is the area vector at the upper k face of the cell at which the velocity gradient is being calculated
+  //ail is the area vector at the lower face of the cell at which the velocity gradient is being calculated
+  //aiu is the area vector at the upper face of the cell at which the velocity gradient is being calculated
 
   //vol is the cell volume
   //loc is the 1D location where the velocity gradient should be stored
@@ -79,40 +69,30 @@ void viscBlockVars::CalcVelGradGG(const vector3d<double> &vil, const vector3d<do
 
   //define velocity gradient tensor
   //convention is for area vector to point out of cell, so lower values are negative, upper are positive
-  temp.SetXX( invVol * (viu.X()*aiu.X() - vil.X()*ail.X() + vju.X()*aju.X() - vjl.X()*ajl.X() + vku.X()*aku.X() - vkl.X()*akl.X()) );
-  temp.SetXY( invVol * (viu.Y()*aiu.X() - vil.Y()*ail.X() + vju.Y()*aju.X() - vjl.Y()*ajl.X() + vku.Y()*aku.X() - vkl.Y()*akl.X()) );
-  temp.SetXZ( invVol * (viu.Z()*aiu.X() - vil.Z()*ail.X() + vju.Z()*aju.X() - vjl.Z()*ajl.X() + vku.Z()*aku.X() - vkl.Z()*akl.X()) );
+  temp.SetXX( invVol * (vu.X()*au.X() - vl.X()*al.X() ) );
+  temp.SetXY( invVol * (vu.Y()*au.X() - vl.Y()*al.X() ) );
+  temp.SetXZ( invVol * (vu.Z()*au.X() - vl.Z()*al.X() ) );
 
-  temp.SetYX( invVol * (viu.X()*aiu.Y() - vil.X()*ail.Y() + vju.X()*aju.Y() - vjl.X()*ajl.Y() + vku.X()*aku.Y() - vkl.X()*akl.Y()) );
-  temp.SetYY( invVol * (viu.Y()*aiu.Y() - vil.Y()*ail.Y() + vju.Y()*aju.Y() - vjl.Y()*ajl.Y() + vku.Y()*aku.Y() - vkl.Y()*akl.Y()) );
-  temp.SetYZ( invVol * (viu.Z()*aiu.Y() - vil.Z()*ail.Y() + vju.Z()*aju.Y() - vjl.Z()*ajl.Y() + vku.Z()*aku.Y() - vkl.Z()*akl.Y()) );
+  temp.SetYX( invVol * (vu.X()*au.Y() - vl.X()*al.Y() ) );
+  temp.SetYY( invVol * (vu.Y()*au.Y() - vl.Y()*al.Y() ) );
+  temp.SetYZ( invVol * (vu.Z()*au.Y() - vl.Z()*al.Y() ) );
 
-  temp.SetZX( invVol * (viu.X()*aiu.Z() - vil.X()*ail.Z() + vju.X()*aju.Z() - vjl.X()*ajl.Z() + vku.X()*aku.Z() - vkl.X()*akl.Z()) );
-  temp.SetYY( invVol * (viu.Y()*aiu.Z() - vil.Y()*ail.Z() + vju.Y()*aju.Z() - vjl.Y()*ajl.Z() + vku.Y()*aku.Z() - vkl.Y()*akl.Z()) );
-  temp.SetZZ( invVol * (viu.Z()*aiu.Z() - vil.Z()*ail.Z() + vju.Z()*aju.Z() - vjl.Z()*ajl.Z() + vku.Z()*aku.Z() - vkl.Z()*akl.Z()) );
+  temp.SetZX( invVol * (vu.X()*au.Z() - vl.X()*al.Z() ) );
+  temp.SetYY( invVol * (vu.Y()*au.Z() - vl.Y()*al.Z() ) );
+  temp.SetZZ( invVol * (vu.Z()*au.Z() - vl.Z()*al.Z() ) );
 
-  (*this).SetVelGrad(temp, loc);
+  (*this).SetVelGrad( (*this).VelGrad(loc) + temp, loc);
 
 }
 
 //member function to calculate the temperature gradient at the cell center
-void viscBlockVars::CalcTempGradGG(const double &til, const double &tiu, const double &tjl, const double &tju, const double &tkl, const double &tku,
-				 const vector3d<double> &ail, const vector3d<double> &aiu, const vector3d<double> &ajl, const vector3d<double> &aju, const vector3d<double> &akl, const vector3d<double> &aku,
-				 const double &vol, const int &loc){
+void viscBlockVars::CalcTempGradGG(const double &tl, const double &tu, const vector3d<double> &al, const vector3d<double> &au, const double &vol, const int &loc){
 
-  //til is the temperature at the lower i face of the cell at which the temperature gradient is being calculated
-  //tiu is the temperature at the upper i face of the cell at which the temperature gradient is being calculated
-  //tjl is the temperature at the lower j face of the cell at which the temperature gradient is being calculated
-  //tju is the temperature at the upper j face of the cell at which the temperature gradient is being calculated
-  //tkl is the temperature at the lower k face of the cell at which the temperature gradient is being calculated
-  //tku is the temperature at the upper k face of the cell at which the temperature gradient is being calculated
-
-  //ail is the area vector at the lower i face of the cell at which the temperature gradient is being calculated
-  //aiu is the area vector at the upper i face of the cell at which the temperature gradient is being calculated
-  //ajl is the area vector at the lower j face of the cell at which the temperature gradient is being calculated
-  //aju is the area vector at the upper j face of the cell at which the temperature gradient is being calculated
-  //akl is the area vector at the lower k face of the cell at which the temperature gradient is being calculated
-  //aku is the area vector at the upper k face of the cell at which the temperature gradient is being calculated
+  //tl is the temperature at the lower face of the cell at which the temperature gradient is being calculated
+  //tu is the temperature at the upper face of the cell at which the temperature gradient is being calculated
+  
+  //al is the area vector at the lower face of the cell at which the temperature gradient is being calculated
+  //au is the area vector at the upper face of the cell at which the temperature gradient is being calculated
 
   //vol is the cell volume
   //loc is the 1D location where the temperature gradient should be stored
@@ -122,11 +102,11 @@ void viscBlockVars::CalcTempGradGG(const double &til, const double &tiu, const d
 
   //define temperature gradient vector
   //convention is for area vector to point out of cell, so lower values are negative, upper are positive
-  temp.SetX( invVol * (tiu*aiu.X() - til*ail.X() + tju*aju.X() - tjl*ajl.X() + tku*aku.X() - tkl*akl.X()) );
-  temp.SetY( invVol * (tiu*aiu.Y() - til*ail.Y() + tju*aju.Y() - tjl*ajl.Y() + tku*aku.Y() - tkl*akl.Y()) );
-  temp.SetZ( invVol * (tiu*aiu.Z() - til*ail.Z() + tju*aju.Z() - tjl*ajl.Z() + tku*aku.Z() - tkl*akl.Z()) );
+  temp.SetX( invVol * (tu*au.X() - tl*al.X() ) );
+  temp.SetY( invVol * (tu*au.Y() - tl*al.Y() ) );
+  temp.SetZ( invVol * (tu*au.Z() - tl*al.Z() ) );
 
-  (*this).SetTempGrad(temp, loc);
+  (*this).SetTempGrad( (*this).TempGrad(loc) + temp, loc);
 
 }
 
@@ -151,9 +131,40 @@ T viscBlockVars::FaceReconCentral(const T &velU, const T &velD, const vector3d<d
 
 }
 
+//member function to initialize gradients
+void viscBlockVars::InitializeGrads(blockVars &vars){
+
+  int imax = (*this).NumI() - 1;
+  int jmax = (*this).NumJ() - 1;
+  int kmax = (*this).NumK() - 1;
+
+  int ii = 0;
+  int jj = 0;
+  int kk = 0;
+
+  int loc = 0;
+
+  vector3d<double> initialVector(0.0, 0.0, 0.0);
+  tensor<double> initialTensor(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+
+  for ( kk = 0; kk < kmax; kk++){   
+    for ( jj = 0; jj < jmax; jj++){    
+      for ( ii = 0; ii < imax; ii++){      
+
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+
+	(*this).SetVelGrad( initialTensor, loc);
+	(*this).SetTempGrad( initialVector, loc);
+
+      }
+    }
+  }
+
+}
+
 
 //member function to calculate gradients at centers
-void viscBlockVars::CalcCellGrads(blockVars &vars, const idealGas &eqnState, const sutherland &suth, const input &inp, const int &bb){
+void viscBlockVars::CalcCellGradsI(blockVars &vars, const idealGas &eqnState, const sutherland &suth, const input &inp, const int &bb){
 
   int imax = (*this).NumI() - 1;
   int jmax = (*this).NumJ() - 1;
@@ -168,29 +179,17 @@ void viscBlockVars::CalcCellGrads(blockVars &vars, const idealGas &eqnState, con
   int loc = 0;
   int iLow = 0;
   int iUp = 0;
-  int jLow = 0;
-  int jUp = 0;
-  int kLow = 0;
-  int kUp = 0;
 
   int ifLow = 0;
   int ifUp = 0;
-  int jfLow = 0;
-  int jfUp = 0;
-  int kfLow = 0;
-  int kfUp = 0;
 
   string bcName = "undefined";
 
   double viscConstant = 1.0;
 
-  vector3d<double> vil, viu, vjl, vju, vkl, vku;
-  double til = 0.0;
-  double tiu = 0.0;
-  double tjl = 0.0;
-  double tju = 0.0;
-  double tkl = 0.0;
-  double tku = 0.0;
+  vector3d<double> vl, vu;
+  double tl = 0.0;
+  double tu = 0.0;
 
   double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
   double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
@@ -206,17 +205,9 @@ void viscBlockVars::CalcCellGrads(blockVars &vars, const idealGas &eqnState, con
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
 	iLow = GetNeighborLowI(ii, jj, kk, imax, jmax); 
 	iUp  = GetNeighborUpI(ii, jj, kk, imax, jmax);
-	jLow = GetNeighborLowJ(ii, jj, kk, imax, jmax);
-	jUp  = GetNeighborUpJ(ii, jj, kk, imax, jmax);
-	kLow = GetNeighborLowK(ii, jj, kk, imax, jmax);
-	kUp  = GetNeighborUpK(ii, jj, kk, imax, jmax);
 
 	ifLow = GetLowerFaceI(ii, jj, kk, imax, jmax); 
 	ifUp  = GetUpperFaceI(ii, jj, kk, imax, jmax);
-	jfLow = GetLowerFaceJ(ii, jj, kk, imax, jmax);
-	jfUp  = GetUpperFaceJ(ii, jj, kk, imax, jmax);
-	kfLow = GetLowerFaceK(ii, jj, kk, imax, jmax);
-	kfUp  = GetUpperFaceK(ii, jj, kk, imax, jmax);
 
 	//test if on i lower boundary
 	if (ii == 0){
@@ -226,13 +217,13 @@ void viscBlockVars::CalcCellGrads(blockVars &vars, const idealGas &eqnState, con
 	  ghostState = vars.State(loc).GetGhostState( bcName, vars.FAreaI(ifLow), "il", inp, eqnState );
 	  ghostDistance = 2.0 * ( vars.FCenterI(ifLow) - vars.Center(loc) ) + vars.Center(loc);
 
-	  vil = (*this).FaceReconCentral( ghostState.Velocity(), vars.State(loc).Velocity(), ghostDistance, vars.Center(loc), vars.FCenterI(ifLow) );
-	  til = (*this).FaceReconCentral( ghostState.Temperature(eqnState), vars.State(loc).Temperature(eqnState), ghostDistance, vars.Center(loc), vars.FCenterI(ifLow) );
+	  vl = (*this).FaceReconCentral( ghostState.Velocity(), vars.State(loc).Velocity(), ghostDistance, vars.Center(loc), vars.FCenterI(ifLow) );
+	  tl = (*this).FaceReconCentral( ghostState.Temperature(eqnState), vars.State(loc).Temperature(eqnState), ghostDistance, vars.Center(loc), vars.FCenterI(ifLow) );
 
 	}
 	else{
-	  vil = (*this).FaceReconCentral( vars.State(iLow).Velocity(), vars.State(loc).Velocity(), vars.Center(iLow), vars.Center(loc), vars.FCenterI(ifLow) );
-	  til = (*this).FaceReconCentral( vars.State(iLow).Temperature(eqnState), vars.State(loc).Temperature(eqnState), vars.Center(iLow), vars.Center(loc), vars.FCenterI(ifLow) );
+	  vl = (*this).FaceReconCentral( vars.State(iLow).Velocity(), vars.State(loc).Velocity(), vars.Center(iLow), vars.Center(loc), vars.FCenterI(ifLow) );
+	  tl = (*this).FaceReconCentral( vars.State(iLow).Temperature(eqnState), vars.State(loc).Temperature(eqnState), vars.Center(iLow), vars.Center(loc), vars.FCenterI(ifLow) );
 	}
 
 	//test if on i upper boundary
@@ -242,29 +233,91 @@ void viscBlockVars::CalcCellGrads(blockVars &vars, const idealGas &eqnState, con
 	  ghostState = vars.State(loc).GetGhostState( bcName, vars.FAreaI(ifUp), "iu", inp, eqnState );
 	  ghostDistance = 2.0 * ( vars.FCenterI(ifUp) - vars.Center(loc) ) + vars.Center(loc);
 
-	  viu = (*this).FaceReconCentral( ghostState.Velocity(), vars.State(loc).Velocity(), ghostDistance, vars.Center(loc), vars.FCenterI(ifUp) );
-	  tiu = (*this).FaceReconCentral( ghostState.Temperature(eqnState), vars.State(loc).Temperature(eqnState), ghostDistance, vars.Center(loc), vars.FCenterI(ifUp) );
+	  vu = (*this).FaceReconCentral( ghostState.Velocity(), vars.State(loc).Velocity(), ghostDistance, vars.Center(loc), vars.FCenterI(ifUp) );
+	  tu = (*this).FaceReconCentral( ghostState.Temperature(eqnState), vars.State(loc).Temperature(eqnState), ghostDistance, vars.Center(loc), vars.FCenterI(ifUp) );
 
 	}
 	else{
-	  viu = (*this).FaceReconCentral( vars.State(iUp).Velocity(),  vars.State(loc).Velocity(), vars.Center(iUp),  vars.Center(loc), vars.FCenterI(ifUp)  );
-	  tiu = (*this).FaceReconCentral( vars.State(iUp).Temperature(eqnState),  vars.State(loc).Temperature(eqnState), vars.Center(iUp),  vars.Center(loc), vars.FCenterI(ifUp)  );
+	  vu = (*this).FaceReconCentral( vars.State(iUp).Velocity(),  vars.State(loc).Velocity(), vars.Center(iUp),  vars.Center(loc), vars.FCenterI(ifUp)  );
+	  tu = (*this).FaceReconCentral( vars.State(iUp).Temperature(eqnState),  vars.State(loc).Temperature(eqnState), vars.Center(iUp),  vars.Center(loc), vars.FCenterI(ifUp)  );
 	}
+
+
+	//calculate gradients for cell
+	CalcVelGradGG(vl, vu, vars.FAreaI(ifLow), vars.FAreaI(ifUp), vars.Vol(loc), loc);
+	CalcTempGradGG(tl, tu, vars.FAreaI(ifLow), vars.FAreaI(ifUp), vars.Vol(loc), loc);
+
+	//calculate cell viscous spectral radius
+	double maxViscSpeed = ViscCellSpectralRadius(vars.FAreaI(ifLow), vars.FAreaI(ifUp), vars.State(loc), eqnState, suth, vars.Vol(loc));
+	vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(loc) + viscConstant * (mRef/Re) * maxViscSpeed, loc); 
+
+      }
+    }
+  }
+
+}
+
+//member function to calculate gradients at centers
+void viscBlockVars::CalcCellGradsJ(blockVars &vars, const idealGas &eqnState, const sutherland &suth, const input &inp, const int &bb){
+
+  int imax = (*this).NumI() - 1;
+  int jmax = (*this).NumJ() - 1;
+  int kmax = (*this).NumK() - 1;
+
+  const boundaryConditions bound = inp.BC(bb);
+
+  int ii = 0;
+  int jj = 0;
+  int kk = 0;
+
+  int loc = 0;
+  int jLow = 0;
+  int jUp = 0;
+
+  int jfLow = 0;
+  int jfUp = 0;
+
+  string bcName = "undefined";
+
+  double viscConstant = 1.0;
+
+  vector3d<double> vl, vu;
+  double tl = 0.0;
+  double tu = 0.0;
+
+  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
+  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
+  double mRef = inp.VelRef().Mag() / aRef;
+
+  primVars ghostState;
+  vector3d<double> ghostDistance;
+
+  for ( kk = 0; kk < kmax; kk++){   
+    for ( jj = 0; jj < jmax; jj++){    
+      for ( ii = 0; ii < imax; ii++){      
+
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	jLow = GetNeighborLowJ(ii, jj, kk, imax, jmax); 
+	jUp  = GetNeighborUpJ(ii, jj, kk, imax, jmax);
+
+	jfLow = GetLowerFaceJ(ii, jj, kk, imax, jmax); 
+	jfUp  = GetUpperFaceJ(ii, jj, kk, imax, jmax);
 
 	//test if on j lower boundary
 	if (jj == 0){
+	  //find boundary type and get ghost state
 	  bcName = bound.GetBCName(ii, jj, kk, "jl");
 
 	  ghostState = vars.State(loc).GetGhostState( bcName, vars.FAreaJ(jfLow), "jl", inp, eqnState );
 	  ghostDistance = 2.0 * ( vars.FCenterJ(jfLow) - vars.Center(loc) ) + vars.Center(loc);
 
-	  vjl = (*this).FaceReconCentral( ghostState.Velocity(), vars.State(loc).Velocity(), ghostDistance, vars.Center(loc), vars.FCenterJ(jfLow) );
-	  tjl = (*this).FaceReconCentral( ghostState.Temperature(eqnState), vars.State(loc).Temperature(eqnState), ghostDistance, vars.Center(loc), vars.FCenterJ(jfLow) );
+	  vl = (*this).FaceReconCentral( ghostState.Velocity(), vars.State(loc).Velocity(), ghostDistance, vars.Center(loc), vars.FCenterJ(jfLow) );
+	  tl = (*this).FaceReconCentral( ghostState.Temperature(eqnState), vars.State(loc).Temperature(eqnState), ghostDistance, vars.Center(loc), vars.FCenterJ(jfLow) );
 
 	}
 	else{
-	  vjl = (*this).FaceReconCentral( vars.State(jLow).Velocity(), vars.State(loc).Velocity(), vars.Center(jLow), vars.Center(loc), vars.FCenterJ(jfLow)  );
-	  tjl = (*this).FaceReconCentral( vars.State(jLow).Temperature(eqnState), vars.State(loc).Temperature(eqnState), vars.Center(jLow), vars.Center(loc), vars.FCenterJ(jfLow)  );
+	  vl = (*this).FaceReconCentral( vars.State(jLow).Velocity(), vars.State(loc).Velocity(), vars.Center(jLow), vars.Center(loc), vars.FCenterJ(jfLow) );
+	  tl = (*this).FaceReconCentral( vars.State(jLow).Temperature(eqnState), vars.State(loc).Temperature(eqnState), vars.Center(jLow), vars.Center(loc), vars.FCenterJ(jfLow) );
 	}
 
 	//test if on j upper boundary
@@ -274,29 +327,91 @@ void viscBlockVars::CalcCellGrads(blockVars &vars, const idealGas &eqnState, con
 	  ghostState = vars.State(loc).GetGhostState( bcName, vars.FAreaJ(jfUp), "ju", inp, eqnState );
 	  ghostDistance = 2.0 * ( vars.FCenterJ(jfUp) - vars.Center(loc) ) + vars.Center(loc);
 
-	  vju = (*this).FaceReconCentral( ghostState.Velocity(), vars.State(loc).Velocity(), ghostDistance, vars.Center(loc), vars.FCenterJ(jfUp) );
-	  tju = (*this).FaceReconCentral( ghostState.Temperature(eqnState), vars.State(loc).Temperature(eqnState), ghostDistance, vars.Center(loc), vars.FCenterJ(jfUp) );
+	  vu = (*this).FaceReconCentral( ghostState.Velocity(), vars.State(loc).Velocity(), ghostDistance, vars.Center(loc), vars.FCenterJ(jfUp) );
+	  tu = (*this).FaceReconCentral( ghostState.Temperature(eqnState), vars.State(loc).Temperature(eqnState), ghostDistance, vars.Center(loc), vars.FCenterJ(jfUp) );
 
 	}
 	else{
-	  vju = (*this).FaceReconCentral( vars.State(jUp).Velocity(),  vars.State(loc).Velocity(), vars.Center(jUp),  vars.Center(loc), vars.FCenterJ(jfUp)  );
-	  tju = (*this).FaceReconCentral( vars.State(jUp).Temperature(eqnState),  vars.State(loc).Temperature(eqnState), vars.Center(jUp),  vars.Center(loc), vars.FCenterJ(jfUp)  );
+	  vu = (*this).FaceReconCentral( vars.State(jUp).Velocity(),  vars.State(loc).Velocity(), vars.Center(jUp),  vars.Center(loc), vars.FCenterJ(jfUp)  );
+	  tu = (*this).FaceReconCentral( vars.State(jUp).Temperature(eqnState),  vars.State(loc).Temperature(eqnState), vars.Center(jUp),  vars.Center(loc), vars.FCenterJ(jfUp)  );
 	}
 
-	//test if on k lower boundary
-	if(kk == 0){
+
+	//calculate gradients for cell
+	CalcVelGradGG(vl, vu, vars.FAreaJ(jfLow), vars.FAreaJ(jfUp), vars.Vol(loc), loc);
+	CalcTempGradGG(tl, tu, vars.FAreaJ(jfLow), vars.FAreaJ(jfUp), vars.Vol(loc), loc);
+
+	//calculate cell viscous spectral radius
+	double maxViscSpeed = ViscCellSpectralRadius(vars.FAreaJ(jfLow), vars.FAreaJ(jfUp), vars.State(loc), eqnState, suth, vars.Vol(loc));
+	vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(loc) + viscConstant * (mRef/Re) * maxViscSpeed, loc); 
+
+      }
+    }
+  }
+
+}
+
+//member function to calculate gradients at centers
+void viscBlockVars::CalcCellGradsK(blockVars &vars, const idealGas &eqnState, const sutherland &suth, const input &inp, const int &bb){
+
+  int imax = (*this).NumI() - 1;
+  int jmax = (*this).NumJ() - 1;
+  int kmax = (*this).NumK() - 1;
+
+  const boundaryConditions bound = inp.BC(bb);
+
+  int ii = 0;
+  int jj = 0;
+  int kk = 0;
+
+  int loc = 0;
+  int kLow = 0;
+  int kUp = 0;
+
+  int kfLow = 0;
+  int kfUp = 0;
+
+  string bcName = "undefined";
+
+  double viscConstant = 1.0;
+
+  vector3d<double> vl, vu;
+  double tl = 0.0;
+  double tu = 0.0;
+
+  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
+  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
+  double mRef = inp.VelRef().Mag() / aRef;
+
+  primVars ghostState;
+  vector3d<double> ghostDistance;
+
+  for ( kk = 0; kk < kmax; kk++){   
+    for ( jj = 0; jj < jmax; jj++){    
+      for ( ii = 0; ii < imax; ii++){      
+
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	kLow = GetNeighborLowK(ii, jj, kk, imax, jmax); 
+	kUp  = GetNeighborUpK(ii, jj, kk, imax, jmax);
+
+	kfLow = GetLowerFaceK(ii, jj, kk, imax, jmax); 
+	kfUp  = GetUpperFaceK(ii, jj, kk, imax, jmax);
+
+	//test if on j lower boundary
+	if (kk == 0){
+	  //find boundary type and get ghost state
 	  bcName = bound.GetBCName(ii, jj, kk, "kl");
 
 	  ghostState = vars.State(loc).GetGhostState( bcName, vars.FAreaK(kfLow), "kl", inp, eqnState );
 	  ghostDistance = 2.0 * ( vars.FCenterK(kfLow) - vars.Center(loc) ) + vars.Center(loc);
 
-	  vkl = (*this).FaceReconCentral( ghostState.Velocity(), vars.State(loc).Velocity(), ghostDistance, vars.Center(loc), vars.FCenterK(kfLow) );
-	  tkl = (*this).FaceReconCentral( ghostState.Temperature(eqnState), vars.State(loc).Temperature(eqnState), ghostDistance, vars.Center(loc), vars.FCenterK(kfLow) );
+	  vl = (*this).FaceReconCentral( ghostState.Velocity(), vars.State(loc).Velocity(), ghostDistance, vars.Center(loc), vars.FCenterK(kfLow) );
+	  tl = (*this).FaceReconCentral( ghostState.Temperature(eqnState), vars.State(loc).Temperature(eqnState), ghostDistance, vars.Center(loc), vars.FCenterK(kfLow) );
 
 	}
 	else{
-	  vkl = (*this).FaceReconCentral( vars.State(kLow).Velocity(), vars.State(loc).Velocity(), vars.Center(kLow), vars.Center(loc), vars.FCenterK(kfLow)  );
-	  tkl = (*this).FaceReconCentral( vars.State(kLow).Temperature(eqnState), vars.State(loc).Temperature(eqnState), vars.Center(kLow), vars.Center(loc), vars.FCenterK(kfLow)  );
+	  vl = (*this).FaceReconCentral( vars.State(kLow).Velocity(), vars.State(loc).Velocity(), vars.Center(kLow), vars.Center(loc), vars.FCenterK(kfLow) );
+	  tl = (*this).FaceReconCentral( vars.State(kLow).Temperature(eqnState), vars.State(loc).Temperature(eqnState), vars.Center(kLow), vars.Center(loc), vars.FCenterK(kfLow) );
 	}
 
 	//test if on k upper boundary
@@ -306,23 +421,22 @@ void viscBlockVars::CalcCellGrads(blockVars &vars, const idealGas &eqnState, con
 	  ghostState = vars.State(loc).GetGhostState( bcName, vars.FAreaK(kfUp), "ku", inp, eqnState );
 	  ghostDistance = 2.0 * ( vars.FCenterK(kfUp) - vars.Center(loc) ) + vars.Center(loc);
 
-	  vku = (*this).FaceReconCentral( ghostState.Velocity(), vars.State(loc).Velocity(), ghostDistance, vars.Center(loc), vars.FCenterK(kfUp) );
-	  tku = (*this).FaceReconCentral( ghostState.Temperature(eqnState), vars.State(loc).Temperature(eqnState), ghostDistance, vars.Center(loc), vars.FCenterK(kfUp) );
+	  vu = (*this).FaceReconCentral( ghostState.Velocity(), vars.State(loc).Velocity(), ghostDistance, vars.Center(loc), vars.FCenterK(kfUp) );
+	  tu = (*this).FaceReconCentral( ghostState.Temperature(eqnState), vars.State(loc).Temperature(eqnState), ghostDistance, vars.Center(loc), vars.FCenterK(kfUp) );
 
 	}
 	else{
-	  vku = (*this).FaceReconCentral( vars.State(kUp).Velocity(),  vars.State(loc).Velocity(), vars.Center(kUp),  vars.Center(loc), vars.FCenterK(kfUp)  );
-	  tku = (*this).FaceReconCentral( vars.State(kUp).Temperature(eqnState),  vars.State(loc).Temperature(eqnState), vars.Center(kUp),  vars.Center(loc), vars.FCenterK(kfUp)  );
+	  vu = (*this).FaceReconCentral( vars.State(kUp).Velocity(),  vars.State(loc).Velocity(), vars.Center(kUp),  vars.Center(loc), vars.FCenterK(kfUp)  );
+	  tu = (*this).FaceReconCentral( vars.State(kUp).Temperature(eqnState),  vars.State(loc).Temperature(eqnState), vars.Center(kUp),  vars.Center(loc), vars.FCenterK(kfUp)  );
 	}
 
+
 	//calculate gradients for cell
-	CalcVelGradGG(vil, viu, vjl, vju, vkl, vku, vars.FAreaI(ifLow), vars.FAreaI(ifUp), vars.FAreaJ(jfLow), vars.FAreaJ(jfUp), vars.FAreaK(kfLow), vars.FAreaK(kfUp), vars.Vol(loc), loc);
-	CalcTempGradGG(til, tiu, tjl, tju, tkl, tku, vars.FAreaI(ifLow), vars.FAreaI(ifUp), vars.FAreaJ(jfLow), vars.FAreaJ(jfUp), vars.FAreaK(kfLow), vars.FAreaK(kfUp), vars.Vol(loc), loc);
+	CalcVelGradGG(vl, vu, vars.FAreaK(kfLow), vars.FAreaK(kfUp), vars.Vol(loc), loc);
+	CalcTempGradGG(tl, tu, vars.FAreaK(kfLow), vars.FAreaK(kfUp), vars.Vol(loc), loc);
 
 	//calculate cell viscous spectral radius
-	double maxViscSpeed = ViscCellSpectralRadius(vars.FAreaI(ifLow), vars.FAreaI(ifUp), vars.State(loc), eqnState, suth, vars.Vol(loc));
-	maxViscSpeed += ViscCellSpectralRadius(vars.FAreaJ(jfLow), vars.FAreaJ(jfUp), vars.State(loc), eqnState, suth, vars.Vol(loc));
-	maxViscSpeed += ViscCellSpectralRadius(vars.FAreaK(kfLow), vars.FAreaK(kfUp), vars.State(loc), eqnState, suth, vars.Vol(loc));
+	double maxViscSpeed = ViscCellSpectralRadius(vars.FAreaK(kfLow), vars.FAreaK(kfUp), vars.State(loc), eqnState, suth, vars.Vol(loc));
 	vars.SetAvgWaveSpeed( vars.AvgWaveSpeed(loc) + viscConstant * (mRef/Re) * maxViscSpeed, loc); 
 
       }
@@ -330,6 +444,7 @@ void viscBlockVars::CalcCellGrads(blockVars &vars, const idealGas &eqnState, con
   }
 
 }
+
 
 //member function to calculate viscous fluxes on i-faces
 void viscBlockVars::CalcViscFluxI(blockVars &vars, const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb){

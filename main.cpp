@@ -148,7 +148,12 @@ int main( int argc, char *argv[] ) {
 
 	//if viscous, calculate gradients and viscous fluxes
 	if (inputVars.EquationSet() == "navierStokes"){
-	  viscBlocks[bb].CalcCellGrads(stateBlocks[bb], eos, suth, inputVars, bb);
+	  viscBlocks[bb].InitializeGrads(stateBlocks[bb]);
+
+	  viscBlocks[bb].CalcCellGradsI(stateBlocks[bb], eos, suth, inputVars, bb);
+	  viscBlocks[bb].CalcCellGradsJ(stateBlocks[bb], eos, suth, inputVars, bb);
+	  viscBlocks[bb].CalcCellGradsK(stateBlocks[bb], eos, suth, inputVars, bb);
+
 	  viscBlocks[bb].CalcViscFluxI(stateBlocks[bb], suth, eos, inputVars, bb);
 	  viscBlocks[bb].CalcViscFluxJ(stateBlocks[bb], suth, eos, inputVars, bb);
 	  viscBlocks[bb].CalcViscFluxK(stateBlocks[bb], suth, eos, inputVars, bb);

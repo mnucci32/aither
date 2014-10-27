@@ -52,18 +52,18 @@ class viscBlockVars {
   void SetTempGrad( const vector3d<double> &a, const int &ind){tempGrad[ind] = a;}
   vector3d<double> TempGrad(const int &ind) const {return tempGrad[ind];}
 
-  void CalcVelGradGG(const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, 
-		     const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&,
-		     const double&, const int&);
+  void CalcVelGradGG(const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const double&, const int&);
 
-  void CalcTempGradGG(const double&, const double&, const double&, const double&, const double&, const double&, 
-		      const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&,
-		      const double&, const int&);
+  void CalcTempGradGG(const double&, const double&, const vector3d<double>&, const vector3d<double>&, const double&, const int&);
 
   template<class T>
   T FaceReconCentral(const T&, const T&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&)const;
 
-  void CalcCellGrads(blockVars&, const idealGas&, const sutherland&, const input&, const int&);
+  void InitializeGrads(blockVars&);
+
+  void CalcCellGradsI(blockVars&, const idealGas&, const sutherland&, const input&, const int&);
+  void CalcCellGradsJ(blockVars&, const idealGas&, const sutherland&, const input&, const int&);
+  void CalcCellGradsK(blockVars&, const idealGas&, const sutherland&, const input&, const int&);
 
   void CalcViscFluxI(blockVars&, const sutherland&, const idealGas&, const input&, const int&);
   void CalcViscFluxJ(blockVars&, const sutherland&, const idealGas&, const input&, const int&);
