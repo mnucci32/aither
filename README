@@ -6,8 +6,8 @@ The code is 2nd order accurate in space and time using the explicit solver. Avai
 
 TO DO LIST
 - Add interblock boundary condition so that multiple blocks can be used in the simulation.
-- Add RANS terms with turbulence model.
 - Parallelize.
+- Add RANS terms with turbulence model.
 
 FILES AND CLASSES
 blockVars - A class to store the state vector (primatives), inviscid fluxes, cell volume, face areas, time step, and residual for a plot3D block of cells.
