@@ -1306,29 +1306,29 @@ void blockVars::ResetResidWS( ){
 
 // }
 
-//a member function to add the cell volume divided by the cell time step to the main diagonal of the implicit matrix
-void blockVars::AddVolTime( colMatrix &mainDiag, const double &theta, const double &zeta, const double &dualCFL) const {
+// //a member function to add the cell volume divided by the cell time step to the main diagonal of the implicit matrix
+// void blockVars::AddVolTime( colMatrix &mainDiag, const double &theta, const double &zeta, const double &dualCFL) const {
 
-  int imax = (*this).NumI() - 1;
-  int jmax = (*this).NumJ() - 1;
-  int kmax = (*this).NumK() - 1;
-  int loc = 0;
+//   int imax = (*this).NumI() - 1;
+//   int jmax = (*this).NumJ() - 1;
+//   int kmax = (*this).NumK() - 1;
+//   int loc = 0;
 
-  for ( int ii = 0; ii < imax; ii++ ){
-    for ( int jj = 0; jj < jmax; jj++ ){
-      for ( int kk = 0; kk < kmax; kk++ ){
-	loc = GetLoc1D(ii, jj, kk, imax, jmax);
-	double I = ( (*this).Vol(loc) * (1.0 + zeta) ) / ( (*this).Dt(loc) * theta ) ;
-	if (dualCFL > 0.0 ) { //use dual time stepping
-	  double tau = (*this).AvgWaveSpeed(loc) / dualCFL; // equal to volume / tau
-	  I = tau + I;
-	}
-	mainDiag.SetData(loc, I + mainDiag.Data(loc) );
-      }
-    }
-  }
+//   for ( int ii = 0; ii < imax; ii++ ){
+//     for ( int jj = 0; jj < jmax; jj++ ){
+//       for ( int kk = 0; kk < kmax; kk++ ){
+// 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+// 	double I = ( (*this).Vol(loc) * (1.0 + zeta) ) / ( (*this).Dt(loc) * theta ) ;
+// 	if (dualCFL > 0.0 ) { //use dual time stepping
+// 	  double tau = (*this).AvgWaveSpeed(loc) / dualCFL; // equal to volume / tau
+// 	  I = tau + I;
+// 	}
+// 	mainDiag.SetData(loc, I + mainDiag.Data(loc) );
+//       }
+//     }
+//   }
 
-}
+// }
 
 //a member function to add the cell volume divided by the cell time step to the time m - time n term
 vector<colMatrix> blockVars::AddVolTime(const vector<colMatrix> &m, const vector<colMatrix> &n, const double &theta, const double &zeta) const {
@@ -1523,7 +1523,7 @@ double blockVars::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
 
       AiiInv = 1.0 / ( ((*this).AvgWaveSpeed(loc) + diagTimeVol ) * inp.MatrixRelaxation() );
 
-      x[loc] = AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] + solTimeMmN[loc] + L[loc] ) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
+      x[loc] = AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) - solDeltaNm1[loc] - solTimeMmN[loc] + L[loc] ) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
 
 
       // x[loc] = (1.0 - inp.MatrixRelaxation()) * x[loc] + inp.MatrixRelaxation() * AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] +
