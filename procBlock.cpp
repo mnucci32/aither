@@ -1542,3 +1542,784 @@ vector<T> PadWithGhosts( const vector<T> &var, const int &numGhosts, const int &
 
   return padBlk;
 }
+
+
+//member function to initialize gradients
+void procBlock::InitializeGrads(){
+
+  int imax = (*this).NumI() - 1;
+  int jmax = (*this).NumJ() - 1;
+  int kmax = (*this).NumK() - 1;
+
+  int ii = 0;
+  int jj = 0;
+  int kk = 0;
+
+  int loc = 0;
+
+  vector3d<double> initialVector(0.0, 0.0, 0.0);
+  tensor<double> initialTensor(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
+
+  for ( kk = 0; kk < kmax; kk++){   
+    for ( jj = 0; jj < jmax; jj++){    
+      for ( ii = 0; ii < imax; ii++){      
+
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+
+	(*this).SetVelGrad( initialTensor, loc);
+	(*this).SetTempGrad( initialVector, loc);
+
+      }
+    }
+  }
+
+}
+
+
+//member function to calculate the velocity gradient at the cell center
+void procBlock::CalcVelGradGG(const vector3d<double> &vl, const vector3d<double> &vu, const vector3d<double> &al, const vector3d<double> &au, const double &vol, const int &loc){
+
+  //vl is the velocity vector at the lower face of the cell at which the velocity gradient is being calculated
+  //vu is the velocity vector at the upper face of the cell at which the velocity gradient is being calculated
+
+  //ail is the area vector at the lower face of the cell at which the velocity gradient is being calculated
+  //aiu is the area vector at the upper face of the cell at which the velocity gradient is being calculated
+
+  //vol is the cell volume
+  //loc is the 1D location where the velocity gradient should be stored
+
+  tensor<double> temp;
+  double invVol = 1.0/vol;
+
+  //define velocity gradient tensor
+  //convention is for area vector to point out of cell, so lower values are negative, upper are positive
+  temp.SetXX( invVol * (vu.X()*au.X() - vl.X()*al.X() ) );
+  temp.SetXY( invVol * (vu.Y()*au.X() - vl.Y()*al.X() ) );
+  temp.SetXZ( invVol * (vu.Z()*au.X() - vl.Z()*al.X() ) );
+
+  temp.SetYX( invVol * (vu.X()*au.Y() - vl.X()*al.Y() ) );
+  temp.SetYY( invVol * (vu.Y()*au.Y() - vl.Y()*al.Y() ) );
+  temp.SetYZ( invVol * (vu.Z()*au.Y() - vl.Z()*al.Y() ) );
+
+  temp.SetZX( invVol * (vu.X()*au.Z() - vl.X()*al.Z() ) );
+  temp.SetYY( invVol * (vu.Y()*au.Z() - vl.Y()*al.Z() ) );
+  temp.SetZZ( invVol * (vu.Z()*au.Z() - vl.Z()*al.Z() ) );
+
+  (*this).SetVelGrad( (*this).VelGrad(loc) + temp, loc);
+
+}
+
+//member function to calculate the temperature gradient at the cell center
+void procBlock::CalcTempGradGG(const double &tl, const double &tu, const vector3d<double> &al, const vector3d<double> &au, const double &vol, const int &loc){
+
+  //tl is the temperature at the lower face of the cell at which the temperature gradient is being calculated
+  //tu is the temperature at the upper face of the cell at which the temperature gradient is being calculated
+  
+  //al is the area vector at the lower face of the cell at which the temperature gradient is being calculated
+  //au is the area vector at the upper face of the cell at which the temperature gradient is being calculated
+
+  //vol is the cell volume
+  //loc is the 1D location where the temperature gradient should be stored
+
+  vector3d<double> temp;
+  double invVol = 1.0/vol;
+
+  //define temperature gradient vector
+  //convention is for area vector to point out of cell, so lower values are negative, upper are positive
+  temp.SetX( invVol * (tu*au.X() - tl*al.X() ) );
+  temp.SetY( invVol * (tu*au.Y() - tl*al.Y() ) );
+  temp.SetZ( invVol * (tu*au.Z() - tl*al.Z() ) );
+
+  (*this).SetTempGrad( (*this).TempGrad(loc) + temp, loc);
+
+}
+
+//member function to calculate gradients at centers
+void procBlock::CalcCellGradsI(const idealGas &eqnState, const sutherland &suth, const input &inp, const int &bb){
+
+  int imax = (*this).NumI() - 1;
+  int jmax = (*this).NumJ() - 1;
+  int kmax = (*this).NumK() - 1;
+
+  const boundaryConditions bound = inp.BC(bb);
+
+  int ii = 0;
+  int jj = 0;
+  int kk = 0;
+
+  int loc = 0;
+  int iLow = 0;
+  int iUp = 0;
+
+  int ifLow = 0;
+  int ifUp = 0;
+
+  string bcName = "undefined";
+
+  double viscConstant = 1.0;
+
+  vector3d<double> vl, vu;
+  double tl = 0.0;
+  double tu = 0.0;
+
+  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
+  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
+  double mRef = inp.VelRef().Mag() / aRef;
+
+  primVars ghostState;
+  vector3d<double> ghostDistance;
+
+  for ( kk = 0; kk < kmax; kk++){   
+    for ( jj = 0; jj < jmax; jj++){    
+      for ( ii = 0; ii < imax; ii++){      
+
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	iLow = GetNeighborLowI(ii, jj, kk, imax, jmax); 
+	iUp  = GetNeighborUpI(ii, jj, kk, imax, jmax);
+
+	ifLow = GetLowerFaceI(ii, jj, kk, imax, jmax); 
+	ifUp  = GetUpperFaceI(ii, jj, kk, imax, jmax);
+
+	//test if on i lower boundary
+	if (ii == 0){
+	  //find boundary type and get ghost state
+	  bcName = bound.GetBCName(ii, jj, kk, "il");
+
+	  ghostState = (*this).State(loc).GetGhostState( bcName, (*this).FAreaI(ifLow), "il", inp, eqnState );
+	  ghostDistance = 2.0 * ( (*this).FCenterI(ifLow) - (*this).Center(loc) ) + (*this).Center(loc);
+
+	  vl = FaceReconCentral( ghostState.Velocity(), (*this).State(loc).Velocity(), ghostDistance, (*this).Center(loc), (*this).FCenterI(ifLow) );
+	  tl = FaceReconCentral( ghostState.Temperature(eqnState), (*this).State(loc).Temperature(eqnState), ghostDistance, (*this).Center(loc), (*this).FCenterI(ifLow) );
+
+	}
+	else{
+	  vl = FaceReconCentral( (*this).State(iLow).Velocity(), (*this).State(loc).Velocity(), (*this).Center(iLow), (*this).Center(loc), (*this).FCenterI(ifLow) );
+	  tl = FaceReconCentral( (*this).State(iLow).Temperature(eqnState), (*this).State(loc).Temperature(eqnState), (*this).Center(iLow), (*this).Center(loc), (*this).FCenterI(ifLow) );
+	}
+
+	//test if on i upper boundary
+	if (ii == imax-1){
+	  bcName = bound.GetBCName(ii+1, jj, kk, "iu");
+
+	  ghostState = (*this).State(loc).GetGhostState( bcName, (*this).FAreaI(ifUp), "iu", inp, eqnState );
+	  ghostDistance = 2.0 * ( (*this).FCenterI(ifUp) - (*this).Center(loc) ) + (*this).Center(loc);
+
+	  vu = FaceReconCentral( ghostState.Velocity(), (*this).State(loc).Velocity(), ghostDistance, (*this).Center(loc), (*this).FCenterI(ifUp) );
+	  tu = FaceReconCentral( ghostState.Temperature(eqnState), (*this).State(loc).Temperature(eqnState), ghostDistance, (*this).Center(loc), (*this).FCenterI(ifUp) );
+
+	}
+	else{
+	  vu = FaceReconCentral( (*this).State(iUp).Velocity(),  (*this).State(loc).Velocity(), (*this).Center(iUp),  (*this).Center(loc), (*this).FCenterI(ifUp)  );
+	  tu = FaceReconCentral( (*this).State(iUp).Temperature(eqnState),  (*this).State(loc).Temperature(eqnState), (*this).Center(iUp),  (*this).Center(loc), (*this).FCenterI(ifUp)  );
+	}
+
+
+	//calculate gradients for cell
+	CalcVelGradGG(vl, vu, (*this).FAreaI(ifLow), (*this).FAreaI(ifUp), (*this).Vol(loc), loc);
+	CalcTempGradGG(tl, tu, (*this).FAreaI(ifLow), (*this).FAreaI(ifUp), (*this).Vol(loc), loc);
+
+	//calculate cell viscous spectral radius
+	double maxViscSpeed = ViscCellSpectralRadius((*this).FAreaI(ifLow), (*this).FAreaI(ifUp), (*this).State(loc), eqnState, suth, (*this).Vol(loc));
+	(*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(loc) + viscConstant * (mRef/Re) * maxViscSpeed, loc); 
+
+      }
+    }
+  }
+
+}
+
+//member function to calculate gradients at centers
+void procBlock::CalcCellGradsJ(const idealGas &eqnState, const sutherland &suth, const input &inp, const int &bb){
+
+  int imax = (*this).NumI() - 1;
+  int jmax = (*this).NumJ() - 1;
+  int kmax = (*this).NumK() - 1;
+
+  const boundaryConditions bound = inp.BC(bb);
+
+  int ii = 0;
+  int jj = 0;
+  int kk = 0;
+
+  int loc = 0;
+  int jLow = 0;
+  int jUp = 0;
+
+  int jfLow = 0;
+  int jfUp = 0;
+
+  string bcName = "undefined";
+
+  double viscConstant = 1.0;
+
+  vector3d<double> vl, vu;
+  double tl = 0.0;
+  double tu = 0.0;
+
+  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
+  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
+  double mRef = inp.VelRef().Mag() / aRef;
+
+  primVars ghostState;
+  vector3d<double> ghostDistance;
+
+  for ( kk = 0; kk < kmax; kk++){   
+    for ( jj = 0; jj < jmax; jj++){    
+      for ( ii = 0; ii < imax; ii++){      
+
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	jLow = GetNeighborLowJ(ii, jj, kk, imax, jmax); 
+	jUp  = GetNeighborUpJ(ii, jj, kk, imax, jmax);
+
+	jfLow = GetLowerFaceJ(ii, jj, kk, imax, jmax); 
+	jfUp  = GetUpperFaceJ(ii, jj, kk, imax, jmax);
+
+	//test if on j lower boundary
+	if (jj == 0){
+	  //find boundary type and get ghost state
+	  bcName = bound.GetBCName(ii, jj, kk, "jl");
+
+	  ghostState = (*this).State(loc).GetGhostState( bcName, (*this).FAreaJ(jfLow), "jl", inp, eqnState );
+	  ghostDistance = 2.0 * ( (*this).FCenterJ(jfLow) - (*this).Center(loc) ) + (*this).Center(loc);
+
+	  vl = FaceReconCentral( ghostState.Velocity(), (*this).State(loc).Velocity(), ghostDistance, (*this).Center(loc), (*this).FCenterJ(jfLow) );
+	  tl = FaceReconCentral( ghostState.Temperature(eqnState), (*this).State(loc).Temperature(eqnState), ghostDistance, (*this).Center(loc), (*this).FCenterJ(jfLow) );
+
+	}
+	else{
+	  vl = FaceReconCentral( (*this).State(jLow).Velocity(), (*this).State(loc).Velocity(), (*this).Center(jLow), (*this).Center(loc), (*this).FCenterJ(jfLow) );
+	  tl = FaceReconCentral( (*this).State(jLow).Temperature(eqnState), (*this).State(loc).Temperature(eqnState), (*this).Center(jLow), (*this).Center(loc), (*this).FCenterJ(jfLow) );
+	}
+
+	//test if on j upper boundary
+	if (jj == jmax-1){
+	  bcName = bound.GetBCName(ii, jj+1, kk, "ju");
+
+	  ghostState = (*this).State(loc).GetGhostState( bcName, (*this).FAreaJ(jfUp), "ju", inp, eqnState );
+	  ghostDistance = 2.0 * ( (*this).FCenterJ(jfUp) - (*this).Center(loc) ) + (*this).Center(loc);
+
+	  vu = FaceReconCentral( ghostState.Velocity(), (*this).State(loc).Velocity(), ghostDistance, (*this).Center(loc), (*this).FCenterJ(jfUp) );
+	  tu = FaceReconCentral( ghostState.Temperature(eqnState), (*this).State(loc).Temperature(eqnState), ghostDistance, (*this).Center(loc), (*this).FCenterJ(jfUp) );
+
+	}
+	else{
+	  vu = FaceReconCentral( (*this).State(jUp).Velocity(),  (*this).State(loc).Velocity(), (*this).Center(jUp),  (*this).Center(loc), (*this).FCenterJ(jfUp)  );
+	  tu = FaceReconCentral( (*this).State(jUp).Temperature(eqnState),  (*this).State(loc).Temperature(eqnState), (*this).Center(jUp),  (*this).Center(loc), (*this).FCenterJ(jfUp)  );
+	}
+
+
+	//calculate gradients for cell
+	CalcVelGradGG(vl, vu, (*this).FAreaJ(jfLow), (*this).FAreaJ(jfUp), (*this).Vol(loc), loc);
+	CalcTempGradGG(tl, tu, (*this).FAreaJ(jfLow), (*this).FAreaJ(jfUp), (*this).Vol(loc), loc);
+
+	//calculate cell viscous spectral radius
+	double maxViscSpeed = ViscCellSpectralRadius((*this).FAreaJ(jfLow), (*this).FAreaJ(jfUp), (*this).State(loc), eqnState, suth, (*this).Vol(loc));
+	(*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(loc) + viscConstant * (mRef/Re) * maxViscSpeed, loc); 
+
+      }
+    }
+  }
+
+}
+
+//member function to calculate gradients at centers
+void procBlock::CalcCellGradsK(const idealGas &eqnState, const sutherland &suth, const input &inp, const int &bb){
+
+  int imax = (*this).NumI() - 1;
+  int jmax = (*this).NumJ() - 1;
+  int kmax = (*this).NumK() - 1;
+
+  const boundaryConditions bound = inp.BC(bb);
+
+  int ii = 0;
+  int jj = 0;
+  int kk = 0;
+
+  int loc = 0;
+  int kLow = 0;
+  int kUp = 0;
+
+  int kfLow = 0;
+  int kfUp = 0;
+
+  string bcName = "undefined";
+
+  double viscConstant = 1.0;
+
+  vector3d<double> vl, vu;
+  double tl = 0.0;
+  double tu = 0.0;
+
+  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
+  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
+  double mRef = inp.VelRef().Mag() / aRef;
+
+  primVars ghostState;
+  vector3d<double> ghostDistance;
+
+  for ( kk = 0; kk < kmax; kk++){   
+    for ( jj = 0; jj < jmax; jj++){    
+      for ( ii = 0; ii < imax; ii++){      
+
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	kLow = GetNeighborLowK(ii, jj, kk, imax, jmax); 
+	kUp  = GetNeighborUpK(ii, jj, kk, imax, jmax);
+
+	kfLow = GetLowerFaceK(ii, jj, kk, imax, jmax); 
+	kfUp  = GetUpperFaceK(ii, jj, kk, imax, jmax);
+
+	//test if on j lower boundary
+	if (kk == 0){
+	  //find boundary type and get ghost state
+	  bcName = bound.GetBCName(ii, jj, kk, "kl");
+
+	  ghostState = (*this).State(loc).GetGhostState( bcName, (*this).FAreaK(kfLow), "kl", inp, eqnState );
+	  ghostDistance = 2.0 * ( (*this).FCenterK(kfLow) - (*this).Center(loc) ) + (*this).Center(loc);
+
+	  vl = FaceReconCentral( ghostState.Velocity(), (*this).State(loc).Velocity(), ghostDistance, (*this).Center(loc), (*this).FCenterK(kfLow) );
+	  tl = FaceReconCentral( ghostState.Temperature(eqnState), (*this).State(loc).Temperature(eqnState), ghostDistance, (*this).Center(loc), (*this).FCenterK(kfLow) );
+
+	}
+	else{
+	  vl = FaceReconCentral( (*this).State(kLow).Velocity(), (*this).State(loc).Velocity(), (*this).Center(kLow), (*this).Center(loc), (*this).FCenterK(kfLow) );
+	  tl = FaceReconCentral( (*this).State(kLow).Temperature(eqnState), (*this).State(loc).Temperature(eqnState), (*this).Center(kLow), (*this).Center(loc), (*this).FCenterK(kfLow) );
+	}
+
+	//test if on k upper boundary
+	if (kk == kmax-1){
+	  bcName = bound.GetBCName(ii, jj, kk+1, "ku");
+
+	  ghostState = (*this).State(loc).GetGhostState( bcName, (*this).FAreaK(kfUp), "ku", inp, eqnState );
+	  ghostDistance = 2.0 * ( (*this).FCenterK(kfUp) - (*this).Center(loc) ) + (*this).Center(loc);
+
+	  vu = FaceReconCentral( ghostState.Velocity(), (*this).State(loc).Velocity(), ghostDistance, (*this).Center(loc), (*this).FCenterK(kfUp) );
+	  tu = FaceReconCentral( ghostState.Temperature(eqnState), (*this).State(loc).Temperature(eqnState), ghostDistance, (*this).Center(loc), (*this).FCenterK(kfUp) );
+
+	}
+	else{
+	  vu = FaceReconCentral( (*this).State(kUp).Velocity(),  (*this).State(loc).Velocity(), (*this).Center(kUp),  (*this).Center(loc), (*this).FCenterK(kfUp)  );
+	  tu = FaceReconCentral( (*this).State(kUp).Temperature(eqnState),  (*this).State(loc).Temperature(eqnState), (*this).Center(kUp),  (*this).Center(loc), (*this).FCenterK(kfUp)  );
+	}
+
+
+	//calculate gradients for cell
+	CalcVelGradGG(vl, vu, (*this).FAreaK(kfLow), (*this).FAreaK(kfUp), (*this).Vol(loc), loc);
+	CalcTempGradGG(tl, tu, (*this).FAreaK(kfLow), (*this).FAreaK(kfUp), (*this).Vol(loc), loc);
+
+	//calculate cell viscous spectral radius
+	double maxViscSpeed = ViscCellSpectralRadius((*this).FAreaK(kfLow), (*this).FAreaK(kfUp), (*this).State(loc), eqnState, suth, (*this).Vol(loc));
+	(*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(loc) + viscConstant * (mRef/Re) * maxViscSpeed, loc); 
+
+      }
+    }
+  }
+
+}
+
+//member function to calculate viscous fluxes on i-faces
+void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb){
+
+  int imax = (*this).NumI();
+  int jmax = (*this).NumJ() - 1;
+  int kmax = (*this).NumK() - 1;
+
+ const boundaryConditions bound = inp.BC(bb);
+
+  int ii = 0;
+  int jj = 0;
+  int kk = 0;
+  int loc = 0;
+  int iLow = 0;
+  int iUp = 0;
+
+  string lstr = "left";
+  string rstr = "right";
+
+  string bcName = "undefined";
+
+  primVars ghostState;
+  vector3d<double> ghostDistance;
+
+  viscousFlux tempViscFlux;
+
+  tensor<double> velGrad;
+  vector3d<double> tGrad;
+  vector3d<double> vel;
+  double mu = 0.0;
+
+  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
+  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
+  double mRef = inp.VelRef().Mag() / aRef;
+
+  for ( kk = 0; kk < kmax; kk++){   
+    for ( jj = 0; jj < jmax; jj++){    
+      for ( ii = 0; ii < imax; ii++){      
+
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+
+	if (ii == 0){ //-----------------------------------------------------------------------------------------------------------------------------------------
+
+	  iUp  = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
+
+	  //find boundary type and get ghost state
+	  bcName = bound.GetBCName(ii, jj, kk, "il");
+
+	  ghostState = (*this).State(iUp).GetGhostState( bcName, (*this).FAreaI(loc), "il", inp, eqnState );
+	  ghostDistance = 2.0 * ( (*this).FCenterI(loc) - (*this).Center(iUp) ) + (*this).Center(iUp);
+
+	  //Get velocity gradient at face
+	  velGrad = (*this).VelGrad(iUp);
+	  //Get velocity at face
+	  vel = FaceReconCentral( ghostState.Velocity(), (*this).State(iUp).Velocity(), ghostDistance, (*this).Center(iUp), (*this).FCenterI(loc) );
+	  //Get temperature gradient at face
+	  tGrad = (*this).TempGrad(iUp);
+	  //Get viscosity at face
+	  mu = FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity((*this).State(iUp).Temperature(eqnState)), ghostDistance, (*this).Center(iUp), (*this).FCenterI(loc) );
+	  mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
+
+	  //Get density at face
+	  //rho = FaceReconCentral( ghostState.Rho(), (*this).State(iUp).Rho(), ghostDistance, (*this).Center(iUp), (*this).FCenterI(loc) );
+
+	  //calculate viscous flux
+	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaI(loc) );
+
+	  //at lower boundary normal points into cell, so need to subtract from residual
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is positive
+	  (*this).AddToResidual(tempViscFlux * (*this).FAreaI(loc).Mag(), iUp);
+
+	}
+	else if (ii == imax-1){ //---------------------------------------------------------------------------------------------------------------------------------------
+
+	  iLow  = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
+
+	  //find boundary type and get ghost state
+	  bcName = bound.GetBCName(ii, jj, kk, "iu");
+
+	  ghostState = (*this).State(iLow).GetGhostState( bcName, (*this).FAreaI(loc), "iu", inp, eqnState );
+	  ghostDistance = 2.0 * ( (*this).FCenterI(loc) - (*this).Center(iLow) ) + (*this).Center(iLow);
+
+	  //Get velocity gradient at face
+	  velGrad = (*this).VelGrad(iLow);
+	  //Get velocity at face
+	  vel = FaceReconCentral( ghostState.Velocity(), (*this).State(iLow).Velocity(), ghostDistance, (*this).Center(iLow), (*this).FCenterI(loc) );
+	  //Get temperature gradient at face
+	  tGrad = (*this).TempGrad(iLow);
+	  //Get viscosity at face
+	  mu = FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity((*this).State(iLow).Temperature(eqnState)), ghostDistance, (*this).Center(iLow), (*this).FCenterI(loc) );
+	  mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
+
+	  //Get density at face
+	  //rho = FaceReconCentral( ghostState.Rho(), (*this).State(iLow).Rho(), ghostDistance, (*this).Center(iLow), (*this).FCenterI(loc) );
+
+	  //calculate viscous flux
+	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaI(loc) );
+
+	  //at upper boundary normal points out of cell, so need to add to residual
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is negative
+	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaI(loc).Mag(), iLow);
+
+	}
+	else{ //------------------------------------------------------------------------------------------------------------------------------------------------
+
+	  iLow  = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
+	  iUp  = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
+
+	  //Get velocity gradient at face
+	  velGrad = FaceReconCentral( (*this).VelGrad(iLow), (*this).VelGrad(iUp), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
+	  //Get velocity at face
+	  vel = FaceReconCentral( (*this).State(iLow).Velocity(), (*this).State(iUp).Velocity(), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
+	  //Get temperature gradient at face
+	  tGrad = FaceReconCentral( (*this).TempGrad(iLow), (*this).TempGrad(iUp), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
+	  //Get viscosity at face
+	  mu = FaceReconCentral( suth.GetViscosity( (*this).State(iLow).Temperature(eqnState) ), suth.GetViscosity( (*this).State(iUp).Temperature(eqnState) ), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
+	  mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
+	  //Get density at face
+	  //rho = FaceReconCentral( (*this).State(iLow).Rho(), (*this).State(iUp).Rho(), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
+
+	  //calculate viscous flux
+	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaI(loc) );
+
+	  //area vector points from left to right, so add to left cell, subtract from right cell
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
+	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaI(loc).Mag(), iLow);
+	  (*this).AddToResidual(tempViscFlux * (*this).FAreaI(loc).Mag(), iUp);
+
+	}
+
+      }
+    }
+  }
+
+
+}
+
+
+
+//member function to calculate viscous fluxes on j-faces
+void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb){
+
+  int imax = (*this).NumI() - 1;
+  int jmax = (*this).NumJ();
+  int kmax = (*this).NumK() - 1;
+
+ const boundaryConditions bound = inp.BC(bb);
+
+  int ii = 0;
+  int jj = 0;
+  int kk = 0;
+  int loc = 0;
+  int jLow = 0;
+  int jUp = 0;
+
+  string lstr = "left";
+  string rstr = "right";
+
+  string bcName = "undefined";
+  primVars ghostState;
+  vector3d<double> ghostDistance;
+
+  viscousFlux tempViscFlux;
+
+  tensor<double> velGrad;
+  vector3d<double> tGrad;
+  vector3d<double> vel;
+  double mu = 0.0;
+
+  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
+  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
+  double mRef = inp.VelRef().Mag() / aRef;
+
+  for ( kk = 0; kk < kmax; kk++){   
+    for ( jj = 0; jj < jmax; jj++){    
+      for ( ii = 0; ii < imax; ii++){      
+
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+
+	if (jj == 0){ //-------------------------------------------------------------------------------------------------------------------------------------
+
+	  jUp  = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
+
+	  //find boundary type and get ghost state
+	  bcName = bound.GetBCName(ii, jj, kk, "jl");
+
+	  ghostState = (*this).State(jUp).GetGhostState( bcName, (*this).FAreaJ(loc), "jl", inp, eqnState );
+	  ghostDistance = 2.0 * ( (*this).FCenterJ(loc) - (*this).Center(jUp) ) + (*this).Center(jUp);
+
+	  //Get velocity gradient at face
+	  velGrad = (*this).VelGrad(jUp);
+	  //Get velocity at face
+	  vel = FaceReconCentral( ghostState.Velocity(), (*this).State(jUp).Velocity(), ghostDistance, (*this).Center(jUp), (*this).FCenterJ(loc) );
+	  //Get temperature gradient at face
+	  tGrad = (*this).TempGrad(jUp);
+	  //Get viscosity at face
+	  mu = FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity((*this).State(jUp).Temperature(eqnState)), ghostDistance, (*this).Center(jUp), (*this).FCenterJ(loc) );
+	  mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
+	  //Get density at face
+	  //rho = FaceReconCentral( ghostState.Rho(), (*this).State(jUp).Rho(), ghostDistance, (*this).Center(jUp), (*this).FCenterJ(loc) );
+
+	  //calculate viscous flux
+	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaJ(loc) );
+
+	  //at lower boundary normal points into cell, so need to subtract from residual
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is positive
+	  (*this).AddToResidual(tempViscFlux * (*this).FAreaJ(loc).Mag(), jUp);
+
+	}
+	else if (jj == jmax-1){ //--------------------------------------------------------------------------------------------------------------------------------
+
+	  jLow  = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
+
+	  //find boundary type and get ghost state
+	  bcName = bound.GetBCName(ii, jj, kk, "ju");
+
+	  ghostState = (*this).State(jLow).GetGhostState( bcName, (*this).FAreaJ(loc), "ju", inp, eqnState );
+	  ghostDistance = 2.0 * ( (*this).FCenterJ(loc) - (*this).Center(jLow) ) + (*this).Center(jLow);
+
+	  //Get velocity gradient at face
+	  velGrad = (*this).VelGrad(jLow);
+	  //Get velocity at face
+	  vel = FaceReconCentral( ghostState.Velocity(), (*this).State(jLow).Velocity(), ghostDistance, (*this).Center(jLow), (*this).FCenterJ(loc) );
+	  //Get temperature gradient at face
+	  tGrad = (*this).TempGrad(jLow);
+	  //Get viscosity at face
+	  mu = FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity((*this).State(jLow).Temperature(eqnState)), ghostDistance, (*this).Center(jLow), (*this).FCenterJ(loc) );
+	  mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
+	  //Get density at face
+	  //rho = FaceReconCentral( ghostState.Rho(), (*this).State(jLow).Rho(), ghostDistance, (*this).Center(jLow), (*this).FCenterJ(loc) );
+
+	  //calculate viscous flux
+	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaJ(loc) );
+
+	  //at upper boundary normal points out of cell, so need to add to residual
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is negative
+	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaJ(loc).Mag(), jLow);
+
+	}
+	else{ //-----------------------------------------------------------------------------------------------------------------------------------------------
+
+	  jLow  = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
+	  jUp  = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
+
+	  //Get velocity gradient at face
+	  velGrad = FaceReconCentral( (*this).VelGrad(jLow), (*this).VelGrad(jUp), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
+	  //Get velocity at face
+	  vel = FaceReconCentral( (*this).State(jLow).Velocity(), (*this).State(jUp).Velocity(), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
+	  //Get temperature gradient at face
+	  tGrad = FaceReconCentral( (*this).TempGrad(jLow), (*this).TempGrad(jUp), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
+	  //Get viscosity at face
+	  mu = FaceReconCentral( suth.GetViscosity( (*this).State(jLow).Temperature(eqnState) ), suth.GetViscosity( (*this).State(jUp).Temperature(eqnState) ), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
+	  mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
+	  //Get density at face
+	  //rho = FaceReconCentral( (*this).State(jLow).Rho(), (*this).State(jUp).Rho(), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
+
+	  //calculate viscous flux
+	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaJ(loc) );
+
+	  //area vector points from left to right, so add to left cell, subtract from right cell
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
+	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaJ(loc).Mag(), jLow);
+	  (*this).AddToResidual(tempViscFlux * (*this).FAreaJ(loc).Mag(), jUp);
+
+	}
+
+      }
+    }
+  }
+
+
+}
+
+
+//member function to calculate viscous fluxes on j-faces
+void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb){
+
+  int imax = (*this).NumI() - 1;
+  int jmax = (*this).NumJ() - 1;
+  int kmax = (*this).NumK();
+
+ const boundaryConditions bound = inp.BC(bb);
+
+  int ii = 0;
+  int jj = 0;
+  int kk = 0;
+  int loc = 0;
+  int kLow = 0;
+  int kUp = 0;
+
+  string lstr = "left";
+  string rstr = "right";
+
+  string bcName = "undefined";
+  primVars ghostState;
+  vector3d<double> ghostDistance;
+
+  viscousFlux tempViscFlux;
+
+  tensor<double> velGrad;
+  vector3d<double> tGrad;
+  vector3d<double> vel;
+  double mu = 0.0;
+
+  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
+  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
+  double mRef = inp.VelRef().Mag() / aRef;
+
+  for ( kk = 0; kk < kmax; kk++){   
+    for ( jj = 0; jj < jmax; jj++){    
+      for ( ii = 0; ii < imax; ii++){      
+
+	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+
+	if (kk == 0){ //-----------------------------------------------------------------------------------------------------------------------------------
+
+	  kUp  = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
+
+	  //find boundary type and get ghost state
+	  bcName = bound.GetBCName(ii, jj, kk, "kl");
+
+	  ghostState = (*this).State(kUp).GetGhostState( bcName, (*this).FAreaK(loc), "kl", inp, eqnState );
+	  ghostDistance = 2.0 * ( (*this).FCenterK(loc) - (*this).Center(kUp) ) + (*this).Center(kUp);
+
+	  //Get velocity gradient at face
+	  velGrad = (*this).VelGrad(kUp);
+	  //Get velocity at face
+	  vel = FaceReconCentral( ghostState.Velocity(), (*this).State(kUp).Velocity(), ghostDistance, (*this).Center(kUp), (*this).FCenterK(loc) );
+	  //Get temperature gradient at face
+	  tGrad = (*this).TempGrad(kUp);
+	  //Get viscosity at face
+	  mu = FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity((*this).State(kUp).Temperature(eqnState)), ghostDistance, (*this).Center(kUp), (*this).FCenterK(loc) );
+	  mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
+	  //Get density at face
+	  //rho = FaceReconCentral( ghostState.Rho(), (*this).State(kUp).Rho(), ghostDistance, (*this).Center(kUp), (*this).FCenterK(loc) );
+
+	  //calculate viscous flux
+	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaK(loc) );
+
+	  //at lower boundary normal points into cell, so need to subtract from residual
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is positive
+	  (*this).AddToResidual(tempViscFlux * (*this).FAreaK(loc).Mag(), kUp);
+
+	}
+	else if (kk == kmax-1){ //----------------------------------------------------------------------------------------------------------------------------
+
+	  kLow  = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
+
+	  //find boundary type and get ghost state
+	  bcName = bound.GetBCName(ii, jj, kk, "ku");
+
+	  ghostState = (*this).State(kLow).GetGhostState( bcName, (*this).FAreaK(loc), "ku", inp, eqnState );
+	  ghostDistance = 2.0 * ( (*this).FCenterK(loc) - (*this).Center(kLow) ) + (*this).Center(kLow);
+
+	  //Get velocity gradient at face
+	  velGrad = (*this).VelGrad(kLow);
+	  //Get velocity at face
+	  vel = FaceReconCentral( ghostState.Velocity(), (*this).State(kLow).Velocity(), ghostDistance, (*this).Center(kLow), (*this).FCenterK(loc) );
+	  //Get temperature gradient at face
+	  tGrad = (*this).TempGrad(kLow);
+	  //Get viscosity at face
+	  mu = FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity((*this).State(kLow).Temperature(eqnState)), ghostDistance, (*this).Center(kLow), (*this).FCenterK(loc) );
+	  mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
+	  //Get density at face
+	  //rho = FaceReconCentral( ghostState.Rho(), (*this).State(kLow).Rho(), ghostDistance, (*this).Center(kLow), (*this).FCenterK(loc) );
+
+	  //calculate viscous flux
+	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaK(loc) );
+
+	  //at upper boundary normal points out of cell, so need to add to residual
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is negative
+	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaK(loc).Mag(), kLow);
+
+	}
+	else{ //-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+	  kLow  = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
+	  kUp  = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
+
+	  //Get velocity gradient at face
+	  velGrad = FaceReconCentral( (*this).VelGrad(kLow), (*this).VelGrad(kUp), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
+	  //Get velocity at face
+	  vel = FaceReconCentral( (*this).State(kLow).Velocity(), (*this).State(kUp).Velocity(), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
+	  //Get temperature gradient at face
+	  tGrad = FaceReconCentral( (*this).TempGrad(kLow), (*this).TempGrad(kUp), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
+	  //Get viscosity at face
+	  mu = FaceReconCentral( suth.GetViscosity( (*this).State(kLow).Temperature(eqnState) ), suth.GetViscosity( (*this).State(kUp).Temperature(eqnState) ), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
+	  mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
+	  //Get density at face
+	  //rho = FaceReconCentral( (*this).State(kLow).Rho(), (*this).State(kUp).Rho(), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
+
+	  //calculate viscous flux
+	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaK(loc) );
+
+	  //area vector points from left to right, so add to left cell, subtract from right cell
+	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
+	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaK(loc).Mag(), kLow);
+	  (*this).AddToResidual(tempViscFlux * (*this).FAreaK(loc).Mag(), kUp);
+
+	}
+
+      }
+    }
+  }
+
+
+}
