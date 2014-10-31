@@ -24,6 +24,9 @@ primVars.o : primVars.cpp primVars.h vector3d.h eos.h inviscidFlux.h boundaryCon
 blockVars.o : blockVars.cpp blockVars.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h matrix.h viscousFlux.h
 	$(CC) $(CFLAGS) blockVars.cpp
 
+procBlock.o : procBlock.cpp procBlock.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h matrix.h viscousFlux.h
+	$(CC) $(CFLAGS) procBlock.cpp
+
 inviscidFlux.o : inviscidFlux.cpp vector3d.h eos.h primVars.h inviscidFlux.h boundaryConditions.h input.h
 	$(CC) $(CFLAGS) inviscidFlux.cpp
 
