@@ -257,9 +257,9 @@ void procBlock::AddToResidual(const viscousFlux &flux, const int &ii){
 //function to calculate the fluxes on the i-faces
 void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp, const int &bb){
 
-  int imax = (*this).NumI();
-  int jmax = (*this).NumJ() - 1;
-  int kmax = (*this).NumK() - 1;
+  int imax = (*this).NumI() + 1;
+  int jmax = (*this).NumJ();
+  int kmax = (*this).NumK();
 
  const boundaryConditions bound = inp.BC(bb);
  const double kap = inp.Kappa();
@@ -279,116 +279,25 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 
   string bcName = "undefined";
 
-  for ( kk = 0; kk < kmax; kk++){   
-    for ( jj = 0; jj < jmax; jj++){    
-      for ( ii = 0; ii < imax; ii++){      
+  for ( kk = 0 + (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
+    for ( jj = 0 + (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
+      for ( ii = 0 + (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
 
 	loc = GetLoc1D(ii, jj, kk, imax, jmax);
 
-	//find out if at a block boundary
-	if ( ii == 0  ){                             //at i lower boundary ---------------------------------------------------------------------------------------------------------------
-	  bcName = bound.GetBCName(ii, jj, kk, "il");
+	//calculate 2 reconstructed face states for lower i face
+	int lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
+	int upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
+	int upFaceI = GetNeighborUpI(ii, jj, kk, imax, jmax);
+	int upFace2I = GetNeighborUpI(ii, jj, kk, imax, jmax, 2);
+	int lowFaceI = GetNeighborLowI(ii, jj, kk, imax, jmax);
+	int lowFace2I = GetNeighborLowI(ii, jj, kk, imax, jmax, 2);
 
-	  int upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
-	  int upFaceI = GetNeighborUpI(ii, jj, kk, imax, jmax);
-
-	  if (imax > 2 && kap != -2.0){ //if more than 2 faces thick, and second order, use linear extrapolation to get boundary state
-
-	    int upFace2I = GetNeighborUpI(ii, jj, kk, imax, jmax, 2);
-
-	    upwind2U =  (*this).FCenterI( upFaceI ).Distance( (*this).FCenterI( upFace2I ) );
-	    upwindU =   (*this).FCenterI( loc     ).Distance( (*this).FCenterI( upFaceI ) );
-
-	    tempFlux = BoundaryFlux( bcName, (*this).FAreaI(loc), (*this).State( upperI ), (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax, 2) ), 
-				     eqnState, inp, "il", maxWS, upwindU, upwind2U );
-
-	  }
-	  else{  //if not more than 2 faces thick, use cell adjacent to boundary
-	    tempFlux = BoundaryFlux( bcName, (*this).FAreaI(loc), (*this).State( upperI ), (*this).State( upperI ), eqnState, inp, "il", maxWS );
-	  }
-
-	  //at lower boundary normal points into cell, so need to subtract from residual
-	  (*this).AddToResidual( -1.0 * tempFlux * (*this).FAreaI(loc).Mag(), upperI);
-
-	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
-	  maxWS = CellSpectralRadius( (*this).FAreaI(loc), (*this).FAreaI(upFaceI), (*this).State(upperI), eqnState );
-	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperI) + maxWS, upperI);
+	if (kap == -2.0){  //if value is still default, use constant reconstruction
+	  faceStateLower = (*this).State( lowerI ).FaceReconConst();
+	  faceStateUpper = (*this).State( upperI ).FaceReconConst();
 	}
-	else if ( ii == imax-1 ){  //at i upper boundary -------------------------------------------------------------------------------------------------------------------------------------
-	  bcName = bound.GetBCName(ii, jj, kk, "iu");
-
-	  int lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
-
-	  if (imax > 2 && kap != -2.0){
-
-	    int lowFaceI = GetNeighborLowI(ii, jj, kk, imax, jmax);
-	    int lowFace2I = GetNeighborLowI(ii, jj, kk, imax, jmax, 2);
-
-	    upwind2L =  (*this).FCenterI( lowFaceI ).Distance( (*this).FCenterI( lowFace2I ) );
-	    upwindL =   (*this).FCenterI( loc      ).Distance( (*this).FCenterI( lowFaceI ) );
-
-	    tempFlux = BoundaryFlux( bcName, (*this).FAreaI(loc), (*this).State( lowerI ), (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax, 2) ), 
-				     eqnState, inp, "iu", maxWS, upwindL, upwind2L );
-	  }
-	  else{
-	    tempFlux = BoundaryFlux( bcName, (*this).FAreaI(loc), (*this).State( lowerI ), (*this).State( lowerI ), eqnState, inp, "iu", maxWS );
-	  }
-
-	  //at upper boundary normal points out of cell, so need to add to residual
-	  (*this).AddToResidual( tempFlux * (*this).FAreaI(loc).Mag(), lowerI);
-
-	  //no wave speed calculation for upper faces
-
-	}
-	//----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-	else if ( ii == 1 && kap != -2.0){                        //lower face state reconstruction needs 1 ghost cell; set ghost cell equal to cell on boundary - works for inflow, outflow
-                                                                  //for slipwall need to mirror values
-	                                                          //ghost state should use boundary adjacent cell and boundary normal
-	  bcName = bound.GetBCName(ii-1, jj, kk, "il");           //get bc at ii=0
-
-	  int lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
-	  int upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
-	  int upFaceI = GetNeighborUpI(ii, jj, kk, imax, jmax);
-	  int upFace2I = GetNeighborUpI(ii, jj, kk, imax, jmax, 2);
-	  int lowFaceI = GetNeighborLowI(ii, jj, kk, imax, jmax);
-
-	  ghostState = (*this).State( lowerI ).GetGhostState( bcName, (*this).FAreaI( GetNeighborLowI(ii, jj, kk, imax, jmax, 1) ), "il", inp, eqnState);
-
-	  upwindL =   (*this).FCenterI( loc      ).Distance( (*this).FCenterI( lowFaceI ) );
-	  upwind2L =  upwindL; //due to ghost cell set upwind2 distance equal to upwind distance
-	  downwindL = (*this).FCenterI( loc      ).Distance( (*this).FCenterI( upFaceI ) );
-
-	  faceStateLower = (*this).State( lowerI ).FaceReconMUSCL( ghostState, (*this).State( upperI ),"left", kap, inp.Limiter(), upwindL, upwind2L, downwindL );
-
-	  upwind2U =  (*this).FCenterI( upFaceI ).Distance( (*this).FCenterI( upFace2I ) );
-	  upwindU =   (*this).FCenterI( loc     ).Distance( (*this).FCenterI( upFaceI ) );
-	  downwindU = (*this).FCenterI( loc     ).Distance( (*this).FCenterI( lowFaceI ) );
-
-	  faceStateUpper = (*this).State( upperI ).FaceReconMUSCL( (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax, 2) ), (*this).State( lowerI ),
-								   "right", kap, inp.Limiter(), upwindU, upwind2U, downwindU );
-
-	  tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS);
-
-	  //area vector points from left to right, so add to left cell, subtract from right cell
-	  (*this).AddToResidual( tempFlux * (*this).FAreaI(loc).Mag(), lowerI);
-	  (*this).AddToResidual( -1.0 * tempFlux * (*this).FAreaI(loc).Mag(), upperI);
-
-	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
-	  maxWS = CellSpectralRadius( (*this).FAreaI(loc), (*this).FAreaI(upFaceI), (*this).State(upperI), eqnState );
-	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperI) + maxWS, upperI);
-
-	}
-	//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-	else if ( ii == imax-2 && kap != -2.0) {                 //upper face state reconstruction needs 1 ghost cell; set ghost cell equal to cell on boundary - works for inflow, outflow, slipwall
-	  bcName = bound.GetBCName(ii+1, jj, kk, "iu");          //get bc at ii = imax-1
-
-	  int lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
-	  int upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
-	  int upFaceI = GetNeighborUpI(ii, jj, kk, imax, jmax);
-	  int lowFaceI = GetNeighborLowI(ii, jj, kk, imax, jmax);
-	  int lowFace2I = GetNeighborLowI(ii, jj, kk, imax, jmax, 2);
-
-	  ghostState = (*this).State( upperI ).GetGhostState( bcName, (*this).FAreaI( GetNeighborUpI(ii, jj, kk, imax, jmax, 1) ), "iu", inp, eqnState );
+	else{
 
 	  upwind2L =  (*this).FCenterI( lowFaceI ).Distance( (*this).FCenterI( lowFace2I ) );
 	  upwindL =   (*this).FCenterI( loc      ).Distance( (*this).FCenterI( lowFaceI ) );
@@ -397,66 +306,25 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 	  faceStateLower = (*this).State( lowerI ).FaceReconMUSCL( (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax, 2) ),
 								   (*this).State( upperI ),"left", kap, inp.Limiter(), upwindL, upwind2L, downwindL );
 
+	  upwind2U =  (*this).FCenterI( upFaceI ).Distance( (*this).FCenterI( upFace2I ) );
 	  upwindU =   (*this).FCenterI( loc     ).Distance( (*this).FCenterI( upFaceI ) );
-	  upwind2U =  upwindU; //due to ghost cell set upwind2 distance equal to upwind distance
 	  downwindU = (*this).FCenterI( loc     ).Distance( (*this).FCenterI( lowFaceI ) );
 
-	  faceStateUpper = (*this).State( upperI ).FaceReconMUSCL( ghostState, (*this).State( lowerI ),"right", kap, inp.Limiter(), upwindU, upwind2U, downwindU );
-	  
-	  tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS);
-
-	  //area vector points from left to right, so add to left cell, subtract from right cell
-	  (*this).AddToResidual( tempFlux * (*this).FAreaI(loc).Mag(), lowerI);
-	  (*this).AddToResidual( -1.0 * tempFlux * (*this).FAreaI(loc).Mag(), upperI);
-
-	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
-	  maxWS = CellSpectralRadius( (*this).FAreaI(loc), (*this).FAreaI(upFaceI), (*this).State(upperI), eqnState );
-	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperI) + maxWS, upperI);
+	  faceStateUpper = (*this).State( upperI ).FaceReconMUSCL( (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax, 2) ),
+								   (*this).State( lowerI ),"right", kap, inp.Limiter(), upwindU, upwind2U, downwindU );
 
 	}
-	else{  //-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-	  //calculate 2 reconstructed face states for lower i face
 
-	  int lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
-	  int upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
-	  int upFaceI = GetNeighborUpI(ii, jj, kk, imax, jmax);
-	  int upFace2I = GetNeighborUpI(ii, jj, kk, imax, jmax, 2);
-	  int lowFaceI = GetNeighborLowI(ii, jj, kk, imax, jmax);
-	  int lowFace2I = GetNeighborLowI(ii, jj, kk, imax, jmax, 2);
+	tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS);
 
-	  if (kap == -2.0){  //if value is still default, use constant reconstruction
-	    faceStateLower = (*this).State( lowerI ).FaceReconConst();
-	    faceStateUpper = (*this).State( upperI ).FaceReconConst();
-	  }
-	  else{
+	//area vector points from left to right, so add to left cell, subtract from right cell
+	(*this).AddToResidual( tempFlux * (*this).FAreaI(loc).Mag(), lowerI);
+	(*this).AddToResidual( -1.0 * tempFlux * (*this).FAreaI(loc).Mag(), upperI);
 
-	    upwind2L =  (*this).FCenterI( lowFaceI ).Distance( (*this).FCenterI( lowFace2I ) );
-	    upwindL =   (*this).FCenterI( loc      ).Distance( (*this).FCenterI( lowFaceI ) );
-	    downwindL = (*this).FCenterI( loc      ).Distance( (*this).FCenterI( upFaceI ) );
+	//calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
+	maxWS = CellSpectralRadius( (*this).FAreaI(loc), (*this).FAreaI(upFaceI), (*this).State(upperI), eqnState );
+	(*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperI) + maxWS, upperI);
 
-	    faceStateLower = (*this).State( lowerI ).FaceReconMUSCL( (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax, 2) ),
-								     (*this).State( upperI ),"left", kap, inp.Limiter(), upwindL, upwind2L, downwindL );
-
-	    upwind2U =  (*this).FCenterI( upFaceI ).Distance( (*this).FCenterI( upFace2I ) );
-	    upwindU =   (*this).FCenterI( loc     ).Distance( (*this).FCenterI( upFaceI ) );
-	    downwindU = (*this).FCenterI( loc     ).Distance( (*this).FCenterI( lowFaceI ) );
-
-	    faceStateUpper = (*this).State( upperI ).FaceReconMUSCL( (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax, 2) ),
-								     (*this).State( lowerI ),"right", kap, inp.Limiter(), upwindU, upwind2U, downwindU );
-
-	  }
-
-	  tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS);
-
-	  //area vector points from left to right, so add to left cell, subtract from right cell
-	  (*this).AddToResidual( tempFlux * (*this).FAreaI(loc).Mag(), lowerI);
-	  (*this).AddToResidual( -1.0 * tempFlux * (*this).FAreaI(loc).Mag(), upperI);
-
-	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
-	  maxWS = CellSpectralRadius( (*this).FAreaI(loc), (*this).FAreaI(upFaceI), (*this).State(upperI), eqnState );
-	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperI) + maxWS, upperI);
-
-	}
 
       }
     }
