@@ -127,16 +127,16 @@ class procBlock {
 
   void CalcCellDt(const int&, const int&, const int&, const double&);
 
-  void CalcInvFluxI(const idealGas&, const input&, const int&);
-  void CalcInvFluxJ(const idealGas&, const input&, const int&);
-  void CalcInvFluxK(const idealGas&, const input&, const int&);
+  void CalcInvFluxI(const idealGas&, const input&);
+  void CalcInvFluxJ(const idealGas&, const input&);
+  void CalcInvFluxK(const idealGas&, const input&);
 
   void CalcBlockTimeStep(const input&, const double&);
   void UpdateBlock(const input&, const int&, const idealGas&, const double&, const int&, const vector<colMatrix> &, vector<double> &, vector<double> &, int &);
 
-  void ExplicitEulerTimeAdvance(const idealGas&, const int&);
+  void ExplicitEulerTimeAdvance(const idealGas&, const int&, const int&);
   void ImplicitTimeAdvance(const colMatrix&, const idealGas&, const int&);
-  void RK4TimeAdvance(const primVars&, const idealGas&, const double&, const int&, const int&);
+  void RK4TimeAdvance(const primVars&, const idealGas&, const double&, const int&, const int&, const int&);
 
   void ResetResidWS();
 
@@ -155,13 +155,13 @@ class procBlock {
 
   void InitializeGrads();
 
-  void CalcCellGradsI(const idealGas&, const sutherland&, const input&, const int&);
-  void CalcCellGradsJ(const idealGas&, const sutherland&, const input&, const int&);
-  void CalcCellGradsK(const idealGas&, const sutherland&, const input&, const int&);
+  void CalcCellGradsI(const idealGas&, const sutherland&, const input&);
+  void CalcCellGradsJ(const idealGas&, const sutherland&, const input&);
+  void CalcCellGradsK(const idealGas&, const sutherland&, const input&);
 
-  void CalcViscFluxI(const sutherland&, const idealGas&, const input&, const int&);
-  void CalcViscFluxJ(const sutherland&, const idealGas&, const input&, const int&);
-  void CalcViscFluxK(const sutherland&, const idealGas&, const input&, const int&);
+  void CalcViscFluxI(const sutherland&, const idealGas&, const input&);
+  void CalcViscFluxJ(const sutherland&, const idealGas&, const input&);
+  void CalcViscFluxK(const sutherland&, const idealGas&, const input&);
 
   //destructor
   ~procBlock() {}

@@ -255,45 +255,38 @@ void procBlock::AddToResidual(const viscousFlux &flux, const int &ii){
 //---------------------------------------------------------------------------------------------------------------//
 //function declarations
 //function to calculate the fluxes on the i-faces
-void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp, const int &bb){
+void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
 
   int imax = (*this).NumI() + 1;
   int jmax = (*this).NumJ();
   int kmax = (*this).NumK();
 
- const boundaryConditions bound = inp.BC(bb);
- const double kap = inp.Kappa();
-
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-  int loc = 0;
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts() + 1;
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
   double maxWS = 0.0;
-
   double upwindL, upwind2L, downwindL, upwindU, upwind2U, downwindU;
 
   primVars faceStateLower, faceStateUpper, ghostState;
-
   inviscidFlux tempFlux;
 
-  string bcName = "undefined";
+  //loop over all physical cells
+  for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
+    for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
+      for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
 
-  for ( kk = 0 + (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
-    for ( jj = 0 + (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
-      for ( ii = 0 + (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
+	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
+	int lowerING = GetCellFromFaceLowerI(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
+	int upperING = GetCellFromFaceUpperI(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 
-	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	int lowerI = GetCellFromFaceLowerI(ii, jj, kk, imaxG, jmaxG);
+	int upperI = GetCellFromFaceUpperI(ii, jj, kk, imaxG, jmaxG);
+	int upFaceI = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG);
+	int upFace2I = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG, 2);
+	int lowFaceI = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG);
+	int lowFace2I = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG, 2);
 
-	//calculate 2 reconstructed face states for lower i face
-	int lowerI = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
-	int upperI = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
-	int upFaceI = GetNeighborUpI(ii, jj, kk, imax, jmax);
-	int upFace2I = GetNeighborUpI(ii, jj, kk, imax, jmax, 2);
-	int lowFaceI = GetNeighborLowI(ii, jj, kk, imax, jmax);
-	int lowFace2I = GetNeighborLowI(ii, jj, kk, imax, jmax, 2);
-
-	if (kap == -2.0){  //if value is still default, use constant reconstruction
+	if (inp.Kappa() == -2.0){  //if value is still default, use constant reconstruction
 	  faceStateLower = (*this).State( lowerI ).FaceReconConst();
 	  faceStateUpper = (*this).State( upperI ).FaceReconConst();
 	}
@@ -304,26 +297,26 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 	  downwindL = (*this).FCenterI( loc      ).Distance( (*this).FCenterI( upFaceI ) );
 
 	  faceStateLower = (*this).State( lowerI ).FaceReconMUSCL( (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax, 2) ),
-								   (*this).State( upperI ),"left", kap, inp.Limiter(), upwindL, upwind2L, downwindL );
+								   (*this).State( upperI ),"left", inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL );
 
 	  upwind2U =  (*this).FCenterI( upFaceI ).Distance( (*this).FCenterI( upFace2I ) );
 	  upwindU =   (*this).FCenterI( loc     ).Distance( (*this).FCenterI( upFaceI ) );
 	  downwindU = (*this).FCenterI( loc     ).Distance( (*this).FCenterI( lowFaceI ) );
 
 	  faceStateUpper = (*this).State( upperI ).FaceReconMUSCL( (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax, 2) ),
-								   (*this).State( lowerI ),"right", kap, inp.Limiter(), upwindU, upwind2U, downwindU );
+								   (*this).State( lowerI ),"right", inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU );
 
 	}
 
 	tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS);
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
-	(*this).AddToResidual( tempFlux * (*this).FAreaI(loc).Mag(), lowerI);
-	(*this).AddToResidual( -1.0 * tempFlux * (*this).FAreaI(loc).Mag(), upperI);
+	(*this).AddToResidual( tempFlux * (*this).FAreaI(loc).Mag(), lowerING);
+	(*this).AddToResidual( -1.0 * tempFlux * (*this).FAreaI(loc).Mag(), upperING);
 
 	//calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
 	maxWS = CellSpectralRadius( (*this).FAreaI(loc), (*this).FAreaI(upFaceI), (*this).State(upperI), eqnState );
-	(*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperI) + maxWS, upperI);
+	(*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperING) + maxWS, upperING);
 
 
       }
@@ -334,207 +327,67 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp, const i
 }
 
 //function to calculate the fluxes on the j-faces
-void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp, const int &bb){
+void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp){
 
-  int imax = (*this).NumI() - 1;
-  int jmax = (*this).NumJ();
-  int kmax = (*this).NumK() - 1;
+  int imax = (*this).NumI();
+  int jmax = (*this).NumJ() + 1;
+  int kmax = (*this).NumK();
 
-  const boundaryConditions bound = inp.BC(bb);
-  const double kap = inp.Kappa();
-
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-  int loc = 0;
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts() + 1;
 
   double maxWS = 0.0;
-
   double upwindL, upwind2L, downwindL, upwindU, upwind2U, downwindU;
 
   primVars faceStateLower, faceStateUpper, ghostState;
-
   inviscidFlux tempFlux;
 
-  string bcName = "undefined";
+  //loop over all physical cells
+  for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
+    for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
+      for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
 
-  for ( kk = 0; kk < kmax; kk++){   
-    for ( jj = 0; jj < jmax; jj++){    
-      for ( ii = 0; ii < imax; ii++){      
+	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
+	int lowerJNG = GetCellFromFaceLowerJ(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
+	int upperJNG = GetCellFromFaceUpperJ(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 
-	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	int lowerJ = GetCellFromFaceLowerJ(ii, jj, kk, imaxG, jmaxG);
+	int upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imaxG, jmaxG);
+	int upFaceJ = GetNeighborUpJ(ii, jj, kk, imaxG, jmaxG);
+	int upFace2J = GetNeighborUpJ(ii, jj, kk, imaxG, jmaxG, 2);
+	int lowFaceJ = GetNeighborLowJ(ii, jj, kk, imaxG, jmaxG);
+	int lowFace2J = GetNeighborLowJ(ii, jj, kk, imaxG, jmaxG, 2);
 
-	//find out if at a block boundary
-	if ( jj == 0  ){                             //at j lower boundary --------------------------------------------------------------------------------------------------------------
-	  bcName = bound.GetBCName(ii, jj, kk, "jl");
-
-	  int upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
-	  int upFaceJ = GetNeighborUpJ(ii, jj, kk, imax, jmax);
-
-	  if (jmax > 2 && kap != -2.0){
-
-	    int upFace2J = GetNeighborUpJ(ii, jj, kk, imax, jmax, 2);
-
-	    upwind2U =  (*this).FCenterJ( upFaceJ ).Distance( (*this).FCenterJ( upFace2J ) );
-	    upwindU =   (*this).FCenterJ( loc     ).Distance( (*this).FCenterJ( upFaceJ ) );
-
-	    tempFlux = BoundaryFlux( bcName, (*this).FAreaJ(loc), (*this).State( upperJ ), 
-				     (*this).State( GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax, 2) ), eqnState, inp, "jl", maxWS, upwindU, upwind2U );
-
-	  }
-	  else {
-	    tempFlux = BoundaryFlux( bcName, (*this).FAreaJ(loc), (*this).State( upperJ ), (*this).State( upperJ ), eqnState, inp, "jl", maxWS );
-	  }
-
-	  //at lower boundary normal points into cell, so need to subtract from residual
-	  (*this).AddToResidual( -1.0 * tempFlux * (*this).FAreaJ(loc).Mag(), upperJ);
-
-	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
-	  maxWS = CellSpectralRadius( (*this).FAreaJ(loc), (*this).FAreaJ(upFaceJ), (*this).State(upperJ), eqnState );
-	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperJ) + maxWS, upperJ);
-
+	if ( inp.Kappa() == -2.0 ){                         //if value is still default, use constant reconstruction
+	  faceStateLower = (*this).State( lowerJ ).FaceReconConst();
+	  faceStateUpper = (*this).State( upperJ ).FaceReconConst();
 	}
-	else if ( jj == jmax-1 ){  //at j upper boundary ---------------------------------------------------------------------------------------------------------------------------------
-	  bcName = bound.GetBCName(ii, jj, kk, "ju");
-
-	  int lowerJ = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
-
-	  if (jmax > 2 && kap != -2.0){
-
-	    int lowFaceJ = GetNeighborLowJ(ii, jj, kk, imax, jmax);
-	    int lowFace2J = GetNeighborLowJ(ii, jj, kk, imax, jmax, 2);
-
-	    upwind2L =  (*this).FCenterJ( lowFaceJ ).Distance( (*this).FCenterJ( lowFace2J ) );
-	    upwindL =   (*this).FCenterJ( loc      ).Distance( (*this).FCenterJ( lowFaceJ ) );
-
-	    tempFlux = BoundaryFlux( bcName, (*this).FAreaJ(loc), (*this).State( lowerJ ), 
-				     (*this).State( GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax, 2) ), eqnState, inp, "ju", maxWS, upwindL, upwind2L );
-	  }
-	  else{
-	    tempFlux = BoundaryFlux( bcName, (*this).FAreaJ(loc), (*this).State( lowerJ ), (*this).State( lowerJ ), eqnState, inp, "ju", maxWS );
-	  }
-
-	  //at upper boundary normal points out of cell, so need to add to residual
-	  (*this).AddToResidual( tempFlux * (*this).FAreaJ(loc).Mag(), lowerJ);
-
-	  //no wave speed calculation for upper faces
-
-	}
-	//--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-	else if ( jj == 1 && kap != -2.0){                        //lower face state reconstruction needs 1 ghost cell; set ghost cell equal to cell on boundary - works for inflow, outflow, slipwall
-	  bcName = bound.GetBCName(ii, jj-1, kk, "jl");           //get bc at jj=0
-
-	  int upFace2J = GetNeighborUpJ(ii, jj, kk, imax, jmax, 2);
-	  int lowFaceJ = GetNeighborLowJ(ii, jj, kk, imax, jmax);
-	  int lowerJ = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
-	  int upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
-	  int upFaceJ = GetNeighborUpJ(ii, jj, kk, imax, jmax);
-
-	  ghostState = (*this).State( lowerJ ).GetGhostState( bcName, (*this).FAreaJ( GetNeighborLowJ(ii, jj, kk, imax, jmax, 1) ), "jl", inp, eqnState );
-
-	  upwindL =   (*this).FCenterJ( loc      ).Distance( (*this).FCenterJ( lowFaceJ ) );
-	  upwind2L =  upwindL; //due to ghost cell set upwind2 distance equal to upwind distance
-	  downwindL = (*this).FCenterJ( loc      ).Distance( (*this).FCenterJ( upFaceJ ) );
-
-	  faceStateLower = (*this).State( lowerJ ).FaceReconMUSCL( ghostState, (*this).State( upperJ ),"left", kap, inp.Limiter(), upwindL, upwind2L, downwindL );
-
-	  upwind2U =  (*this).FCenterJ( upFaceJ ).Distance( (*this).FCenterJ( upFace2J ) );
-	  upwindU =   (*this).FCenterJ( loc     ).Distance( (*this).FCenterJ( upFaceJ ) );
-	  downwindU = (*this).FCenterJ( loc     ).Distance( (*this).FCenterJ( lowFaceJ ) );
-
-	  faceStateUpper = (*this).State( upperJ ).FaceReconMUSCL( (*this).State( GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax, 2) ),
-								   (*this).State( lowerJ ),"right", kap, inp.Limiter(), upwindU, upwind2U, downwindU );
-
-	  tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS);
-
-	  //area vector points from left to right, so add to left cell, subtract from right cell
-	  (*this).AddToResidual( tempFlux * (*this).FAreaJ(loc).Mag(), lowerJ);
-	  (*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaJ(loc).Mag(), upperJ);
-
-	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
-	  maxWS = CellSpectralRadius( (*this).FAreaJ(loc), (*this).FAreaJ(upFaceJ), (*this).State(upperJ), eqnState );
-	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperJ) + maxWS, upperJ);
-
-	}
-	// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-	else if ( jj == jmax-2 && kap != -2.0) {                 //upper face state reconstruction needs 1 ghost cell; set ghost cell equal to cell on boundary - works for inflow, outflow, slipwall
-	  bcName = bound.GetBCName(ii, jj+1, kk, "ju");          //get bc at jj=jmax-1
-
-	  int lowerJ = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
-	  int upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
-	  int upFaceJ = GetNeighborUpJ(ii, jj, kk, imax, jmax);
-	  int lowFaceJ = GetNeighborLowJ(ii, jj, kk, imax, jmax);
-	  int lowFace2J = GetNeighborLowJ(ii, jj, kk, imax, jmax, 2);
-
-	  ghostState = (*this).State( upperJ ).GetGhostState( bcName, (*this).FAreaJ( GetNeighborUpJ(ii, jj, kk, imax, jmax, 1) ), "ju", inp, eqnState );
+	else{
 
 	  upwind2L =  (*this).FCenterJ( lowFaceJ ).Distance( (*this).FCenterJ( lowFace2J ) );
 	  upwindL =   (*this).FCenterJ( loc      ).Distance( (*this).FCenterJ( lowFaceJ ) );
 	  downwindL = (*this).FCenterJ( loc      ).Distance( (*this).FCenterJ( upFaceJ ) );
 
 	  faceStateLower = (*this).State( lowerJ ).FaceReconMUSCL( (*this).State( GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax, 2) ),
-								   (*this).State( upperJ ),"left", kap, inp.Limiter(), upwindL, upwind2L, downwindL );
+								   (*this).State( upperJ ),"left", inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL );
 
+	  upwind2U =  (*this).FCenterJ( upFaceJ ).Distance( (*this).FCenterJ( upFace2J ) );
 	  upwindU =   (*this).FCenterJ( loc     ).Distance( (*this).FCenterJ( upFaceJ ) );
-	  upwind2U =  upwindU; //due to ghost cell set upwind2 distance equal to upwind distance
-	  downwindU = (*this).FCenterJ( loc     ).Distance( (*this).FCenterJ( lowFaceJ) );
+	  downwindU = (*this).FCenterJ( loc     ).Distance( (*this).FCenterJ( lowFaceJ ) );
 
-	  faceStateUpper = (*this).State( upperJ ).FaceReconMUSCL( ghostState, (*this).State( lowerJ ),"right", kap, inp.Limiter(), upwindU, upwind2U, downwindU );
-
-	  tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS);
-
-	  //area vector points from left to right, so add to left cell, subtract from right cell
-	  (*this).AddToResidual( tempFlux * (*this).FAreaJ(loc).Mag(), lowerJ);
-	  (*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaJ(loc).Mag(), upperJ);
-
-	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
-	  maxWS = CellSpectralRadius( (*this).FAreaJ(loc), (*this).FAreaJ(upFaceJ), (*this).State(upperJ), eqnState );
-	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperJ) + maxWS, upperJ);
-
-	}
-	else{ // -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-	  //calculate 2 reconstructed face states for lower j face
-
-	  int lowerJ = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
-	  int upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
-	  int upFaceJ = GetNeighborUpJ(ii, jj, kk, imax, jmax);
-	  int upFace2J = GetNeighborUpJ(ii, jj, kk, imax, jmax, 2);
-	  int lowFaceJ = GetNeighborLowJ(ii, jj, kk, imax, jmax);
-	  int lowFace2J = GetNeighborLowJ(ii, jj, kk, imax, jmax, 2);
-
-	  if ( kap == -2.0 ){                         //if value is still default, use constant reconstruction
-	    faceStateLower = (*this).State( lowerJ ).FaceReconConst();
-	    faceStateUpper = (*this).State( upperJ ).FaceReconConst();
-	  }
-	  else{
-
-	    upwind2L =  (*this).FCenterJ( lowFaceJ ).Distance( (*this).FCenterJ( lowFace2J ) );
-	    upwindL =   (*this).FCenterJ( loc      ).Distance( (*this).FCenterJ( lowFaceJ ) );
-	    downwindL = (*this).FCenterJ( loc      ).Distance( (*this).FCenterJ( upFaceJ ) );
-
-	    faceStateLower = (*this).State( lowerJ ).FaceReconMUSCL( (*this).State( GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax, 2) ),
-								     (*this).State( upperJ ),"left", kap, inp.Limiter(), upwindL, upwind2L, downwindL );
-
-	    upwind2U =  (*this).FCenterJ( upFaceJ ).Distance( (*this).FCenterJ( upFace2J ) );
-	    upwindU =   (*this).FCenterJ( loc     ).Distance( (*this).FCenterJ( upFaceJ ) );
-	    downwindU = (*this).FCenterJ( loc     ).Distance( (*this).FCenterJ( lowFaceJ ) );
-
-	    faceStateUpper = (*this).State( upperJ ).FaceReconMUSCL( (*this).State( GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax, 2) ),
-								     (*this).State( lowerJ ),"right", kap, inp.Limiter(), upwindU, upwind2U, downwindU );
-	  }
-
-	  tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS);
-
-	  //area vector points from left to right, so add to left cell, subtract from right cell
-	  (*this).AddToResidual( tempFlux * (*this).FAreaJ(loc).Mag(), lowerJ);
-	  (*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaJ(loc).Mag(), upperJ);
-
-	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
-	  maxWS = CellSpectralRadius( (*this).FAreaJ(loc), (*this).FAreaJ(upFaceJ), (*this).State(upperJ), eqnState );
-	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperJ) + maxWS, upperJ);
-
+	  faceStateUpper = (*this).State( upperJ ).FaceReconMUSCL( (*this).State( GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax, 2) ),
+								   (*this).State( lowerJ ),"right", inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU );
 	}
 
+	tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS);
+
+	//area vector points from left to right, so add to left cell, subtract from right cell
+	(*this).AddToResidual( tempFlux * (*this).FAreaJ(loc).Mag(), lowerJNG);
+	(*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaJ(loc).Mag(), upperJNG);
+
+	//calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
+	maxWS = CellSpectralRadius( (*this).FAreaJ(loc), (*this).FAreaJ(upFaceJ), (*this).State(upperJ), eqnState );
+	(*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperJNG) + maxWS, upperJNG);
 
       }
     }
@@ -544,205 +397,67 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp, const i
 }
 
 //function to calculate the fluxes on the k-faces
-void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp, const int &bb){
+void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp){
 
-  int imax = (*this).NumI() - 1;
-  int jmax = (*this).NumJ() - 1;
-  int kmax = (*this).NumK();
+  int imax = (*this).NumI();
+  int jmax = (*this).NumJ();
+  int kmax = (*this).NumK() + 1;
 
-  const boundaryConditions bound = inp.BC(bb);
-  const double kap = inp.Kappa();
-
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-  int loc = 0;
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
   double maxWS = 0.0;
-
   double upwindL, upwind2L, downwindL, upwindU, upwind2U, downwindU;
 
   primVars faceStateLower, faceStateUpper, ghostState;
-
   inviscidFlux tempFlux;
 
-  string bcName = "undefined";
+  for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
+    for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
+      for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
 
-  for ( kk = 0; kk < kmax; kk++){   
-    for ( jj = 0; jj < jmax; jj++){    
-      for ( ii = 0; ii < imax; ii++){      
+	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
+	int lowerKNG = GetCellFromFaceLowerK(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
+	int upperKNG = GetCellFromFaceUpperK(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 
-	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	int lowerK = GetCellFromFaceLowerK(ii, jj, kk, imaxG, jmaxG);
+	int upperK = GetCellFromFaceUpperK(ii, jj, kk, imaxG, jmaxG);
+	int upFaceK = GetNeighborUpK(ii, jj, kk, imaxG, jmaxG);
+	int upFace2K = GetNeighborUpK(ii, jj, kk, imaxG, jmaxG, 2);
+	int lowFaceK = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG);
+	int lowFace2K = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG, 2);
 
-	//find out if at a block boundary
-	if ( kk == 0  ){                             //at k lower boundary -------------------------------------------------------------------------------------------------------------------
-	  bcName = bound.GetBCName(ii, jj, kk, "kl");
-
-	  int upperK = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
-	  int upFaceK = GetNeighborUpK(ii, jj, kk, imax, jmax);
-
-	  if (kmax > 2 && kap != -2.0){
-
-	    int upFace2K = GetNeighborUpK(ii, jj, kk, imax, jmax, 2);
-
-	    upwind2U =  (*this).FCenterK( upFaceK ).Distance( (*this).FCenterK( upFace2K ) );
-	    upwindU =   (*this).FCenterK( loc     ).Distance( (*this).FCenterK( upFaceK ) );
-
-	    tempFlux = BoundaryFlux( bcName, (*this).FAreaK(loc), (*this).State( upperK ), 
-				     (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax, 2) ), eqnState, inp, "kl", maxWS, upwindU, upwind2U );
-	  }
-	  else{
-	    tempFlux = BoundaryFlux( bcName, (*this).FAreaK(loc), (*this).State( upperK ), (*this).State( upperK ), eqnState, inp, "kl", maxWS );
-	  }
-
-	  //at lower boundary normal points into cell, so need to subtract from residual
-	  (*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaK(loc).Mag(), upperK);
-
-	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
-	  maxWS = CellSpectralRadius( (*this).FAreaK(loc), (*this).FAreaK(upFaceK), (*this).State(upperK), eqnState );
-	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperK) + maxWS, upperK);
-
+	if ( inp.Kappa() == -2.0 ){                         //if value is still default, use constant reconstruction
+	  faceStateLower = (*this).State( lowerK ).FaceReconConst();
+	  faceStateUpper = (*this).State( upperK ).FaceReconConst();
 	}
-	else if ( kk == kmax-1 ){  //at k upper boundary --------------------------------------------------------------------------------------------------------------------------------------
-	  bcName = bound.GetBCName(ii, jj, kk, "ku");
-
-	  int lowerK = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
-
-	  if (kmax > 2 && kap != -2.0){
-	    int lowFaceK = GetNeighborLowK(ii, jj, kk, imax, jmax);
-	    int lowFace2K = GetNeighborLowK(ii, jj, kk, imax, jmax, 2);
-
-	    upwind2L =  (*this).FCenterK( lowFaceK ).Distance( (*this).FCenterK( lowFace2K ) );
-	    upwindL =   (*this).FCenterK( loc      ).Distance( (*this).FCenterK( lowFaceK ) );
-
-	    tempFlux = BoundaryFlux( bcName, (*this).FAreaK(loc), (*this).State( lowerK ), 
-				     (*this).State( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax, 2) ), eqnState, inp, "ku", maxWS, upwindL, upwind2L );
-	  }
-	  else{
-	    tempFlux = BoundaryFlux( bcName, (*this).FAreaK(loc), (*this).State( lowerK ), (*this).State( lowerK ), eqnState, inp, "ku", maxWS );
-	  }
-
-	  //at upper boundary normal points out of cell, so need to add to residual
-	  (*this).AddToResidual( tempFlux * (*this).FAreaK(loc).Mag(), lowerK);
-
-	  //no wave speed calculation for upper faces
-
-	}
-	// ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-	else if ( kk == 1 && kap != -2.0){                        //lower face state reconstruction needs 1 ghost cell; set ghost cell equal to cell on boundary - works for inflow, outflow, slipwall
-	  bcName = bound.GetBCName(ii, jj, kk-1, "kl");           //get bc at kk=0
-
-	  int lowerK = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
-	  int upperK = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
-	  int upFaceK = GetNeighborUpK(ii, jj, kk, imax, jmax);
-	  int upFace2K = GetNeighborUpK(ii, jj, kk, imax, jmax, 2);
-	  int lowFaceK = GetNeighborLowK(ii, jj, kk, imax, jmax);
-
-	  ghostState = (*this).State( upperK ).GetGhostState( bcName, (*this).FAreaK( GetNeighborLowK(ii, jj, kk, imax, jmax, 1) ), "kl", inp, eqnState );
-
-	  upwindL =   (*this).FCenterK( loc      ).Distance( (*this).FCenterK( lowFaceK ) );
-	  upwind2L =  upwindL; //due to ghost cell set upwind2 distance equal to upwind distance
-	  downwindL = (*this).FCenterK( loc      ).Distance( (*this).FCenterK( upFaceK ) );
-
-	  faceStateLower = (*this).State( lowerK ).FaceReconMUSCL( ghostState, (*this).State( upperK ),"left", kap, inp.Limiter(), upwindL, upwind2L, downwindL );
-
-	  upwind2U =  (*this).FCenterK( upFaceK ).Distance( (*this).FCenterK( upFace2K ) );
-	  upwindU =   (*this).FCenterK( loc     ).Distance( (*this).FCenterK( upFaceK ) );
-	  downwindU = (*this).FCenterK( loc     ).Distance( (*this).FCenterK( lowFaceK ) );
-
-	  faceStateUpper = (*this).State( upperK ).FaceReconMUSCL( (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax, 2) ),
-								   (*this).State( lowerK ),"right", kap, inp.Limiter(), upwindU, upwind2U, downwindU );
-
-	  tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS);
-
-	  //area vector points from left to right, so add to left cell, subtract from right cell
-	  (*this).AddToResidual( tempFlux * (*this).FAreaK(loc).Mag(), lowerK);
-	  (*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaK(loc).Mag(), upperK);
-
-	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
-	  maxWS = CellSpectralRadius( (*this).FAreaK(loc), (*this).FAreaK(upFaceK), (*this).State(upperK), eqnState );
-	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperK) + maxWS, upperK);
-
-	}
-	// --------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-	else if ( kk == kmax-2 && kap != -2.0) {                 //upper face state reconstruction needs 1 ghost cell; set ghost cell equal to cell on boundary - works for inflow, outflow, slipwall
-	  bcName = bound.GetBCName(ii, jj, kk+1, "ku");          //get bc at kk=kmax-1
-
-	  int lowerK = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
-	  int upperK = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
-	  int upFaceK = GetNeighborUpK(ii, jj, kk, imax, jmax);
-	  int lowFaceK = GetNeighborLowK(ii, jj, kk, imax, jmax);
-	  int lowFace2K = GetNeighborLowK(ii, jj, kk, imax, jmax, 2);
-
-	  ghostState = (*this).State( upperK ).GetGhostState( bcName, (*this).FAreaK( GetNeighborUpK(ii, jj, kk, imax, jmax, 1) ), "ku", inp, eqnState );
+	else{
 
 	  upwind2L =  (*this).FCenterK( lowFaceK ).Distance( (*this).FCenterK( lowFace2K ) );
 	  upwindL =   (*this).FCenterK( loc      ).Distance( (*this).FCenterK( lowFaceK ) );
 	  downwindL = (*this).FCenterK( loc      ).Distance( (*this).FCenterK( upFaceK ) );
 
 	  faceStateLower = (*this).State( lowerK ).FaceReconMUSCL( (*this).State( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax, 2) ),
-								   (*this).State( upperK ),"left", kap, inp.Limiter(), upwindL, upwind2L, downwindL );
+								   (*this).State( upperK ),"left", inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL );
 
+	  upwind2U =  (*this).FCenterK( upFaceK ).Distance( (*this).FCenterK( upFace2K ) );
 	  upwindU =   (*this).FCenterK( loc     ).Distance( (*this).FCenterK( upFaceK ) );
-	  upwind2U =  upwindU; //due to ghost cell set upwind2 distance equal to upwind distance
-	  downwindU = (*this).FCenterK( loc     ).Distance( (*this).FCenterK( lowFaceK) );
+	  downwindU = (*this).FCenterK( loc     ).Distance( (*this).FCenterK( lowFaceK ) );
 
-	  faceStateUpper = (*this).State( upperK ).FaceReconMUSCL( ghostState, (*this).State( lowerK ),"right", kap, inp.Limiter(), upwindU, upwind2U, downwindU );
-
-	  tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS);
-
-	  //area vector points from left to right, so add to left cell, subtract from right cell
-	  (*this).AddToResidual( tempFlux * (*this).FAreaK(loc).Mag(), lowerK);
-	  (*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaK(loc).Mag(), upperK);
-
-	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
-	  maxWS = CellSpectralRadius( (*this).FAreaK(loc), (*this).FAreaK(upFaceK), (*this).State(upperK), eqnState );
-	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperK) + maxWS, upperK);
-
-	}
-	else{ // -------------------------------------------------------------------------------------------------------------------------------------------------------------------
-	  //calculate 2 reconstructed face states for lower k face
-	  int lowerK = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
-	  int upperK = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
-	  int upFaceK = GetNeighborUpK(ii, jj, kk, imax, jmax);
-	  int upFace2K = GetNeighborUpK(ii, jj, kk, imax, jmax, 2);
-	  int lowFaceK = GetNeighborLowK(ii, jj, kk, imax, jmax);
-	  int lowFace2K = GetNeighborLowK(ii, jj, kk, imax, jmax, 2);
-
-	  if ( kap == -2.0 ){                         //if value is still default, use constant reconstruction
-	    faceStateLower = (*this).State( lowerK ).FaceReconConst();
-	    faceStateUpper = (*this).State( upperK ).FaceReconConst();
-	  }
-	  else{
-
-	    upwind2L =  (*this).FCenterK( lowFaceK ).Distance( (*this).FCenterK( lowFace2K ) );
-	    upwindL =   (*this).FCenterK( loc      ).Distance( (*this).FCenterK( lowFaceK ) );
-	    downwindL = (*this).FCenterK( loc      ).Distance( (*this).FCenterK( upFaceK ) );
-
-	    faceStateLower = (*this).State( lowerK ).FaceReconMUSCL( (*this).State( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax, 2) ),
-								     (*this).State( upperK ),"left", kap, inp.Limiter(), upwindL, upwind2L, downwindL );
-
-	    upwind2U =  (*this).FCenterK( upFaceK ).Distance( (*this).FCenterK( upFace2K ) );
-	    upwindU =   (*this).FCenterK( loc     ).Distance( (*this).FCenterK( upFaceK ) );
-	    downwindU = (*this).FCenterK( loc     ).Distance( (*this).FCenterK( lowFaceK ) );
-
-	    faceStateUpper = (*this).State( upperK ).FaceReconMUSCL( (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax, 2) ),
-								     (*this).State( lowerK ),"right", kap, inp.Limiter(), upwindU, upwind2U, downwindU );
-
-	  }
-
-	  tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS);
-
-	  //area vector points from left to right, so add to left cell, subtract from right cell
-	  (*this).AddToResidual( tempFlux * (*this).FAreaK(loc).Mag(), lowerK);
-	  (*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaK(loc).Mag(), upperK);
-
-	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
-	  maxWS = CellSpectralRadius( (*this).FAreaK(loc), (*this).FAreaK(upFaceK), (*this).State(upperK), eqnState );
-	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperK) + maxWS, upperK);
+	  faceStateUpper = (*this).State( upperK ).FaceReconMUSCL( (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax, 2) ),
+								   (*this).State( lowerK ),"right", inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU );
 
 	}
 
+	tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS);
+
+	//area vector points from left to right, so add to left cell, subtract from right cell
+	(*this).AddToResidual( tempFlux * (*this).FAreaK(loc).Mag(), lowerKNG);
+	(*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaK(loc).Mag(), upperKNG);
+
+	//calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
+	maxWS = CellSpectralRadius( (*this).FAreaK(loc), (*this).FAreaK(upFaceK), (*this).State(upperK), eqnState );
+	(*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperKNG) + maxWS, upperKNG);
 
       }
     }
@@ -754,10 +469,7 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp, const i
 //member function to calculate the local time step. (i,j,k) are cell indices
 void procBlock::CalcCellDt( const int &i, const int &j, const int &k, const double &cfl){
 
-  int imax = (*this).NumI()-1;
-  int jmax = (*this).NumJ()-1;
-  int loc = GetLoc1D(i, j, k, imax, jmax);
-
+  int loc = GetLoc1D(i, j, k, (*this).NumI(), (*this).NumJ());
   double dt = cfl * ((*this).Vol(loc) / (*this).AvgWaveSpeed(loc)) ; //use nondimensional time
 
   (*this).SetDt(dt, loc);
@@ -765,23 +477,18 @@ void procBlock::CalcCellDt( const int &i, const int &j, const int &k, const doub
 }
 
 
-
 void procBlock::CalcBlockTimeStep( const input &inputVars, const double &aRef){
 
-  int imax = (*this).NumI()-1;
-  int jmax = (*this).NumJ()-1;
-  int kmax = (*this).NumK()-1;
+  int imax = (*this).NumI();
+  int jmax = (*this).NumJ();
+  int kmax = (*this).NumK();
 
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-  int loc = 0;
+  //loop over all physical cells - no ghost cells for dt variable
+  for ( int kk = 0; kk < kmax; kk++ ){          
+    for ( int jj = 0; jj < jmax; jj++ ){          
+      for ( int ii = 0; ii < imax; ii++ ){          
 
-  for ( kk = 0; kk < kmax; kk++ ){          //loop over all cells
-    for ( jj = 0; jj < jmax; jj++ ){          
-      for ( ii = 0; ii < imax; ii++ ){          
-
-	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	int loc = GetLoc1D(ii, jj, kk, imax, jmax);
 
 	if (inputVars.Dt() > 0.0){   //dt specified, use global time stepping
 	  (*this).SetDt(inputVars.Dt() * aRef, loc);
@@ -802,27 +509,26 @@ void procBlock::CalcBlockTimeStep( const input &inputVars, const double &aRef){
 
 void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const idealGas &eos, const double &aRef, const int &bb, const vector<colMatrix> &du, vector<double> &l2, vector<double> &linf, int &locMaxB){
 
-  int imax = (*this).NumI()-1;
-  int jmax = (*this).NumJ()-1;
-  int kmax = (*this).NumK()-1;
+  int imax = (*this).NumI();
+  int jmax = (*this).NumJ();
+  int kmax = (*this).NumK();
 
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-  int loc = 0;
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
   if ( inputVars.TimeIntegration() != "rk4" ){
-    for ( kk = 0; kk < kmax; kk++ ){          //loop over all cells
-      for ( jj = 0; jj < jmax; jj++ ){          
-	for ( ii = 0; ii < imax; ii++ ){          
+    for ( int kk = 0; kk < kmax; kk++ ){          //loop over all physical cells
+      for ( int jj = 0; jj < jmax; jj++ ){          
+	for ( int ii = 0; ii < imax; ii++ ){          
 
-	  loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	  int loc =  GetLoc1D(ii, jj, kk, imax, jmax);
+	  int locG = GetLoc1D(ii + (*this).NumGhosts(), jj + (*this).NumGhosts(), kk + (*this).NumGhosts(), imaxG, jmaxG);
 
 	  if (inputVars.TimeIntegration() == "explicitEuler"){
-	    (*this).ExplicitEulerTimeAdvance(eos, loc);
+	    (*this).ExplicitEulerTimeAdvance(eos, locG, loc);
 	  }
 	  else if (impFlag){
-	    (*this).ImplicitTimeAdvance(du[loc], eos, loc);
+	    (*this).ImplicitTimeAdvance(du[loc], eos, locG);
 	  }
 
 
@@ -845,24 +551,25 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const id
     }
   }
   else if ( inputVars.TimeIntegration() == "rk4" ){
-    int rr = 0;
+
     vector<primVars> stateN(imax*jmax*kmax);
     vector<double> dtN(imax*jmax*kmax);
 
-    for ( rr = 0; rr < 4; rr ++ ){
-      for ( kk = 0; kk < kmax; kk++ ){          //loop over all cells
-	for ( jj = 0; jj < jmax; jj++ ){          
-	  for ( ii = 0; ii < imax; ii++ ){          
+    for ( int rr = 0; rr < 4; rr ++ ){
+      for ( int kk = 0; kk < kmax; kk++ ){          //loop over all physical cells
+	for ( int jj = 0; jj < jmax; jj++ ){          
+	  for ( int ii = 0; ii < imax; ii++ ){          
 
-	    loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	    int loc =  GetLoc1D(ii, jj, kk, imax, jmax);
+	    int locG = GetLoc1D(ii + (*this).NumGhosts(), jj + (*this).NumGhosts(), kk + (*this).NumGhosts(), imaxG, jmaxG);
 
 	    //save state and local time step at time n
 	    if (rr == 0){
-	      stateN[loc] = (*this).State(loc);
+	      stateN[locG] = (*this).State(locG);
 	      dtN[loc] = (*this).Dt(loc);
 	    }
 
-	    (*this).RK4TimeAdvance(stateN[loc], eos, dtN[loc], loc, rr);
+	    (*this).RK4TimeAdvance(stateN[locG], eos, dtN[loc], locG, loc, rr);
 
 	    if (rr ==3){
 	      for ( unsigned int ll = 0; ll < l2.size(); ll++ ){
@@ -884,9 +591,9 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const id
       }
       //for multistage RK4 method, calculate fluxes and residuals again
       if (rr < 3){ //no need to calculate fluxes after final RK interation
-	(*this).CalcInvFluxI(eos, inputVars, bb);
-	(*this).CalcInvFluxJ(eos, inputVars, bb);
-	(*this).CalcInvFluxK(eos, inputVars, bb);
+	(*this).CalcInvFluxI(eos, inputVars);
+	(*this).CalcInvFluxJ(eos, inputVars);
+	(*this).CalcInvFluxK(eos, inputVars);
 	(*this).CalcBlockTimeStep(inputVars, aRef);
       }
 
@@ -903,16 +610,16 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const id
 
 
 //member function to advance the state vector to time n+1 using explicit Euler method
-void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState, const int &loc ){
+void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState, const int &locG, const int &loc ){
 
-  colMatrix consVars = (*this).State(loc).ConsVars(eqnState);
+  colMatrix consVars = (*this).State(locG).ConsVars(eqnState);
 
   //calculate updated conserved variables
-  consVars.SetData(0, consVars.Data(0) - (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,0) );
-  consVars.SetData(1, consVars.Data(1) - (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,1) );
-  consVars.SetData(2, consVars.Data(2) - (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,2) );
-  consVars.SetData(3, consVars.Data(3) - (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,3) );
-  consVars.SetData(4, consVars.Data(4) - (*this).Dt(loc) / (*this).Vol(loc) * (*this).Residual(loc,4) );
+  consVars.SetData(0, consVars.Data(0) - (*this).Dt(loc) / (*this).Vol(locG) * (*this).Residual(loc,0) );
+  consVars.SetData(1, consVars.Data(1) - (*this).Dt(loc) / (*this).Vol(locG) * (*this).Residual(loc,1) );
+  consVars.SetData(2, consVars.Data(2) - (*this).Dt(loc) / (*this).Vol(locG) * (*this).Residual(loc,2) );
+  consVars.SetData(3, consVars.Data(3) - (*this).Dt(loc) / (*this).Vol(locG) * (*this).Residual(loc,3) );
+  consVars.SetData(4, consVars.Data(4) - (*this).Dt(loc) / (*this).Vol(locG) * (*this).Residual(loc,4) );
 
   //calculate updated primative variables
   vector3d<double> vel(consVars.Data(1)/consVars.Data(0), consVars.Data(2)/consVars.Data(0), consVars.Data(3)/consVars.Data(0));
@@ -923,7 +630,7 @@ void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState, const int &lo
 		      vel.Z(),
 		      eqnState.GetPressFromEnergy( consVars.Data(0), consVars.Data(4)/consVars.Data(0), vel.Mag() ) );
 
-  (*this).SetState(tempState, loc);
+  (*this).SetState(tempState, locG);
 
 }
 
@@ -946,18 +653,18 @@ void procBlock::ImplicitTimeAdvance(const colMatrix &du, const idealGas &eqnStat
 
 
 //member function to advance the state vector to time n+1 using 4th order Runge-Kutta method
-void procBlock::RK4TimeAdvance( const primVars &currState, const idealGas &eqnState, const double &dt, const int &loc, const int &rk ){
+void procBlock::RK4TimeAdvance( const primVars &currState, const idealGas &eqnState, const double &dt, const int &locG, const int &loc, const int &rk ){
 
   double alpha[4] = {0.25, 1.0/3.0, 0.5, 1.0};
 
   colMatrix consVars = currState.ConsVars(eqnState);
 
   //calculate updated conserved variables
-  consVars.SetData(0, consVars.Data(0) - dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,0) );
-  consVars.SetData(1, consVars.Data(1) - dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,1) );
-  consVars.SetData(2, consVars.Data(2) - dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,2) );
-  consVars.SetData(3, consVars.Data(3) - dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,3) );
-  consVars.SetData(4, consVars.Data(4) - dt / (*this).Vol(loc) * alpha[rk] * (*this).Residual(loc,4) );
+  consVars.SetData(0, consVars.Data(0) - dt / (*this).Vol(locG) * alpha[rk] * (*this).Residual(loc,0) );
+  consVars.SetData(1, consVars.Data(1) - dt / (*this).Vol(locG) * alpha[rk] * (*this).Residual(loc,1) );
+  consVars.SetData(2, consVars.Data(2) - dt / (*this).Vol(locG) * alpha[rk] * (*this).Residual(loc,2) );
+  consVars.SetData(3, consVars.Data(3) - dt / (*this).Vol(locG) * alpha[rk] * (*this).Residual(loc,3) );
+  consVars.SetData(4, consVars.Data(4) - dt / (*this).Vol(locG) * alpha[rk] * (*this).Residual(loc,4) );
 
   //calculate updated primative variables
   vector3d<double> vel(consVars.Data(1)/consVars.Data(0), consVars.Data(2)/consVars.Data(0), consVars.Data(3)/consVars.Data(0));
@@ -968,7 +675,7 @@ void procBlock::RK4TimeAdvance( const primVars &currState, const idealGas &eqnSt
 		      vel.Z(),
 		      eqnState.GetPressFromEnergy( consVars.Data(0), consVars.Data(4)/consVars.Data(0), vel.Mag() ) );
 
-  (*this).SetState(tempState, loc);
+  (*this).SetState(tempState, locG);
 }
 
 void procBlock::ResetResidWS( ){
@@ -976,15 +683,16 @@ void procBlock::ResetResidWS( ){
   colMatrix initial( (*this).Residual(0).Size() );
   initial.Zero();
 
-  int imax = (*this).NumI() - 1;
-  int jmax = (*this).NumJ() - 1;
-  int kmax = (*this).NumK() - 1;
-  int loc = 0;
+  int imax = (*this).NumI();
+  int jmax = (*this).NumJ();
+  int kmax = (*this).NumK();
 
+  //loop over all physical cells - no ghost cells in residual variable
   for ( int ii = 0; ii < imax; ii++ ){
     for ( int jj = 0; jj < jmax; jj++ ){
       for ( int kk = 0; kk < kmax; kk++ ){
-	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+
+	int loc = GetLoc1D(ii, jj, kk, imax, jmax);
 
 	//reset residual
 	(*this).SetResidual( initial, loc ) ;
@@ -999,21 +707,27 @@ void procBlock::ResetResidWS( ){
 
 }
 
+
 //a member function to add the cell volume divided by the cell time step to the time m - time n term
 vector<colMatrix> procBlock::AddVolTime(const vector<colMatrix> &m, const vector<colMatrix> &n, const double &theta, const double &zeta) const {
 
-  int imax = (*this).NumI() - 1;
-  int jmax = (*this).NumJ() - 1;
-  int kmax = (*this).NumK() - 1;
-  int loc = 0;
+  int imax = (*this).NumI();
+  int jmax = (*this).NumJ();
+  int kmax = (*this).NumK();
 
-  vector<colMatrix> mMinusN = m;
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
+
+  vector<colMatrix> mMinusN(m.size());
 
   for ( int ii = 0; ii < imax; ii++ ){
     for ( int jj = 0; jj < jmax; jj++ ){
       for ( int kk = 0; kk < kmax; kk++ ){
-	loc = GetLoc1D(ii, jj, kk, imax, jmax);
-	double I = ( (*this).Vol(loc) * (1.0 + zeta) ) / ( (*this).Dt(loc) * theta ) ;
+
+	int loc =  GetLoc1D(ii, jj, kk, imax, jmax);
+	int locG = GetLoc1D(ii + (*this).NumGhosts(), jj + (*this).NumGhosts(), kk + (*this).NumGhosts(), imaxG, jmaxG);
+
+	double I = ( (*this).Vol(locG) * (1.0 + zeta) ) / ( (*this).Dt(loc) * theta ) ;
 	mMinusN[loc] = I * (m[loc] - n[loc]);
       }
     }
@@ -1025,16 +739,21 @@ vector<colMatrix> procBlock::AddVolTime(const vector<colMatrix> &m, const vector
 //member function to calculate the delta n-1 term for the implicit bdf2 solver
 void procBlock::DeltaNMinusOne(vector<colMatrix> &solDeltaNm1, const vector<colMatrix> &solTimeN, const idealGas &eqnState, const double &theta, const double &zeta){
 
-  int imax = (*this).NumI() - 1;
-  int jmax = (*this).NumJ() - 1;
-  int kmax = (*this).NumK() - 1;
-  int loc = 0;
+  int imax = (*this).NumI();
+  int jmax = (*this).NumJ();
+  int kmax = (*this).NumK();
+
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
   for ( int ii = 0; ii < imax; ii++ ){
     for ( int jj = 0; jj < jmax; jj++ ){
       for ( int kk = 0; kk < kmax; kk++ ){
-	loc = GetLoc1D(ii, jj, kk, imax, jmax);
-	double coeff = ( (*this).Vol(loc) * zeta ) / ( (*this).Dt(loc) * theta ) ;
+
+	int loc =  GetLoc1D(ii, jj, kk, imax, jmax);
+	int locG = GetLoc1D(ii + (*this).NumGhosts(), jj + (*this).NumGhosts(), kk + (*this).NumGhosts(), imaxG, jmaxG);
+
+	double coeff = ( (*this).Vol(locG) * zeta ) / ( (*this).Dt(loc) * theta ) ;
 	solDeltaNm1[loc] = coeff * ( (*this).State(loc).ConsVars(eqnState) - solTimeN[loc] );
       }
     }
@@ -1046,17 +765,16 @@ void procBlock::DeltaNMinusOne(vector<colMatrix> &solDeltaNm1, const vector<colM
 //member function to return a copy of the conserved variables
 vector<colMatrix> procBlock::GetCopyConsVars(const idealGas &eqnState) const {
 
-  int imax = (*this).NumI() - 1;
-  int jmax = (*this).NumJ() - 1;
-  int kmax = (*this).NumK() - 1;
-  int loc = 0;
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
+  int kmaxG = (*this).NumK() + 2 * (*this).NumGhosts();
 
-  vector<colMatrix> consVars(imax*jmax*kmax);
+  vector<colMatrix> consVars(imaxG * jmaxG * kmaxG);
 
-  for ( int ii = 0; ii < imax; ii++ ){
-    for ( int jj = 0; jj < jmax; jj++ ){
-      for ( int kk = 0; kk < kmax; kk++ ){
-	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+  for ( int ii = 0; ii < imaxG; ii++ ){
+    for ( int jj = 0; jj < jmaxG; jj++ ){
+      for ( int kk = 0; kk < kmaxG; kk++ ){
+	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
 	colMatrix temp = (*this).State(loc).ConsVars(eqnState);
 	consVars[loc] = temp;
       }
@@ -1079,15 +797,18 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
   //relax  --> relaxation parameter >1 is overrelaxation, <1 is underrelaxation
 
 
-  int imax = (*this).NumI()-1;
-  int jmax = (*this).NumJ()-1;
+  int imax = (*this).NumI();
+  int jmax = (*this).NumJ();
 
-  //initialize x to 0
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
+
+
+  //initialize correction (x) to 0
   for (unsigned int ll = 0; ll < x.size(); ll++ ){
     x[ll].Zero();
   }
 
-  //invert main diagonal
   double AiiInv = 0.0;
 
   colMatrix l2Resid(x[0].Size());
@@ -1106,85 +827,88 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
     vector<colMatrix> U(x.size(),initial);
     vector<colMatrix> L(x.size(),initial);
 
-    //forward sweep
+    //forward sweep over all physical cells
     for ( int ii = 0; ii < (int)x.size(); ii++ ){
 
+      //indicies for variables without ghost cells
       int loc = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
-
-      int ilFace = GetLowerFaceI(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
-      int jlFace = GetLowerFaceJ(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
-      int klFace = GetLowerFaceK(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
-
-      int ilFace2 = GetLowerFaceI(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax, 2);
-      int jlFace2 = GetLowerFaceJ(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax, 2);
-      int klFace2 = GetLowerFaceK(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax, 2);
 
       int il = GetNeighborLowI(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
       int jl = GetNeighborLowJ(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
       int kl = GetNeighborLowK(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
 
-      //calculate offdiagonal * update on the fly
-      //only need values at offdiagonal cell 
+      //indicies for variables with ghost cells
+      int locG = GetLoc1D(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+
+      int ilFaceG = GetLowerFaceI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+      int jlFaceG = GetLowerFaceJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+      int klFaceG = GetLowerFaceK(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+
+      int ilFace2G = GetLowerFaceI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG, 2);
+      int jlFace2G = GetLowerFaceJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG, 2);
+      int klFace2G = GetLowerFaceK(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG, 2);
+
+      int ilG = GetNeighborLowI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+      int jlG = GetNeighborLowJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+      int klG = GetNeighborLowK(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+
 
       if ( il >=0 && il < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	//double specRad = ConvSpecRad( (*this).FAreaI(ilFace), (*this).State(il), (*this).State(loc), eqnState);
-	double specRad = CellSpectralRadius( (*this).FAreaI(ilFace2), (*this).FAreaI(ilFace), (*this).State(il).UpdateWithConsVars(eqnState, x[il]), eqnState);
+	double specRad = CellSpectralRadius( (*this).FAreaI(ilFace2G), (*this).FAreaI(ilFaceG), (*this).State(ilG).UpdateWithConsVars(eqnState, x[il]), eqnState);
 
 	if (inp.EquationSet() != "euler"){ //viscous
 	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
 	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	  double mRef = inp.VelRef().Mag() / aRef;
-	  // double vSpecRad = (mRef/Re) * ViscFaceSpecRadTSL( (*this).State(il), eqnState, suth, (*this).Center(il), (*this).Center(loc), (*this).FAreaI(ilFace));
-	  double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaI(ilFace2), (*this).FAreaI(ilFace), (*this).State(il).UpdateWithConsVars(eqnState, x[il]), eqnState, suth, (*this).Vol(il) );
+	  double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaI(ilFace2G), (*this).FAreaI(ilFaceG), 
+								(*this).State(ilG).UpdateWithConsVars(eqnState, x[il]), eqnState, suth, (*this).Vol(ilG) );
 	  specRad += vSpecRad;
 	}
 
 	//at given face location, call function to calculate convective flux change
-	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(il), eqnState, (*this).FAreaI(ilFace), x[il]);
+	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(ilG), eqnState, (*this).FAreaI(ilFaceG), x[il]);
 
-	L[loc] = L[loc] + 0.5 * ( (*this).FAreaI(ilFace).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[il]) );
+	L[loc] = L[loc] + 0.5 * ( (*this).FAreaI(ilFaceG).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[il]) );
     }
       if ( jl >=0 && jl < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	//double specRad = ConvSpecRad( (*this).FAreaJ(jlFace), (*this).State(jl), (*this).State(loc), eqnState);
-	double specRad = CellSpectralRadius( (*this).FAreaJ(jlFace2), (*this).FAreaJ(jlFace), (*this).State(jl).UpdateWithConsVars(eqnState, x[jl]), eqnState);
+	double specRad = CellSpectralRadius( (*this).FAreaJ(jlFace2G), (*this).FAreaJ(jlFaceG), (*this).State(jlG).UpdateWithConsVars(eqnState, x[jl]), eqnState);
 
 	if (inp.EquationSet() != "euler"){ //viscous
 	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
 	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	  double mRef = inp.VelRef().Mag() / aRef;
-	  //double vSpecRad = (mRef/Re) * ViscFaceSpecRadTSL( (*this).State(jl), eqnState, suth, (*this).Center(jl), (*this).Center(loc), (*this).FAreaJ(jlFace));
-	  double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaJ(jlFace2), (*this).FAreaJ(jlFace), (*this).State(jl).UpdateWithConsVars(eqnState, x[jl]), eqnState, suth, (*this).Vol(jl) );
+	  double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaJ(jlFace2G), (*this).FAreaJ(jlFaceG), 
+								(*this).State(jlG).UpdateWithConsVars(eqnState, x[jl]), eqnState, suth, (*this).Vol(jlG) );
 	  specRad += vSpecRad;
 	}
 
 	//at given face location, call function to calculate convective flux change
-	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(jl), eqnState, (*this).FAreaJ(jlFace), x[jl]);
+	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(jlG), eqnState, (*this).FAreaJ(jlFaceG), x[jl]);
 
-	L[loc] = L[loc] + 0.5 * ( (*this).FAreaJ(jlFace).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[jl]) );
+	L[loc] = L[loc] + 0.5 * ( (*this).FAreaJ(jlFaceG).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[jl]) );
       }
       if ( kl >=0 && kl < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	//double specRad = ConvSpecRad( (*this).FAreaK(klFace), (*this).State(kl), (*this).State(loc), eqnState);
-	double specRad = CellSpectralRadius( (*this).FAreaK(klFace2), (*this).FAreaK(klFace), (*this).State(kl).UpdateWithConsVars(eqnState, x[kl]), eqnState);
+	double specRad = CellSpectralRadius( (*this).FAreaK(klFace2G), (*this).FAreaK(klFaceG), (*this).State(klG).UpdateWithConsVars(eqnState, x[kl]), eqnState);
 
 	if (inp.EquationSet() != "euler"){ //viscous
 	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
 	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	  double mRef = inp.VelRef().Mag() / aRef;
-	  //double vSpecRad = (mRef/Re) * ViscFaceSpecRadTSL( (*this).State(kl), eqnState, suth, (*this).Center(kl), (*this).Center(loc), (*this).FAreaK(klFace));
-	  double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaK(klFace2), (*this).FAreaK(klFace), (*this).State(kl).UpdateWithConsVars(eqnState, x[kl]), eqnState, suth, (*this).Vol(kl) );
+	  double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaK(klFace2G), (*this).FAreaK(klFaceG), 
+								(*this).State(klG).UpdateWithConsVars(eqnState, x[kl]), eqnState, suth, (*this).Vol(klG) );
 	  specRad += vSpecRad;
 	}
 
 	//at given face location, call function to calculate convective flux change
-	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(kl), eqnState, (*this).FAreaK(klFace), x[kl]);
+	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(klG), eqnState, (*this).FAreaK(klFaceG), x[kl]);
 
-	L[loc] = L[loc] + 0.5 * ( (*this).FAreaK(klFace).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[kl]) );
+	L[loc] = L[loc] + 0.5 * ( (*this).FAreaK(klFaceG).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[kl]) );
       }
 
-      double diagTimeVol = ( (*this).Vol(loc) * (1.0 + inp.Zeta()) ) / ( (*this).Dt(loc) * inp.Theta() );
+      double diagTimeVol = ( (*this).Vol(locG) * (1.0 + inp.Zeta()) ) / ( (*this).Dt(loc) * inp.Theta() );
       if (inp.DualTimeCFL() > 0.0 ) { //use dual time stepping
 	double tau = (*this).AvgWaveSpeed(loc) / inp.DualTimeCFL(); // equal to volume / tau
 	diagTimeVol += tau;
@@ -1194,88 +918,89 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
 
       x[loc] = AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) - solDeltaNm1[loc] - solTimeMmN[loc] + L[loc] ) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
 
-
-      // x[loc] = (1.0 - inp.MatrixRelaxation()) * x[loc] + inp.MatrixRelaxation() * AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] +
-      // 							   solTimeMmN[loc] + L[loc]) ; //normal at lower boundaries needs to be reversed, so add i
-
     } //end forward sweep
 
-    //backward sweep
+    //backward sweep over all physical cells
     for ( int ii = (int)x.size()-1; ii >= 0; ii-- ){
 
+      //indicies for variables without ghost cells
       int loc = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
-
-      int iuFace = GetUpperFaceI(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
-      int juFace = GetUpperFaceJ(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
-      int kuFace = GetUpperFaceK(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
-
-      int iuFace2 = GetUpperFaceI(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax, 2);
-      int juFace2 = GetUpperFaceJ(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax, 2);
-      int kuFace2 = GetUpperFaceK(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax, 2);
 
       int iu = GetNeighborUpI(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
       int ju = GetNeighborUpJ(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
       int ku = GetNeighborUpK(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
 
+      //indicies for variables with ghost cells
+      int locG = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imaxG, jmaxG);
+
+      int iuFaceG = GetUpperFaceI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+      int juFaceG = GetUpperFaceJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+      int kuFaceG = GetUpperFaceK(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+
+      int iuFace2G = GetUpperFaceI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG, 2);
+      int juFace2G = GetUpperFaceJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG, 2);
+      int kuFace2G = GetUpperFaceK(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG, 2);
+
+      int iuG = GetNeighborUpI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+      int juG = GetNeighborUpJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+      int kuG = GetNeighborUpK(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+
       if ( iu >=0 && iu < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	//double specRad = ConvSpecRad( (*this).FAreaI(iuFace), (*this).State(loc), (*this).State(iu), eqnState);
-	double specRad = CellSpectralRadius( (*this).FAreaI(iuFace2), (*this).FAreaI(iuFace), (*this).State(iu).UpdateWithConsVars(eqnState, x[iu]), eqnState);
+	double specRad = CellSpectralRadius( (*this).FAreaI(iuFace2G), (*this).FAreaI(iuFaceG), (*this).State(iuG).UpdateWithConsVars(eqnState, x[iu]), eqnState);
 
 	if (inp.EquationSet() != "euler"){ //viscous
 	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
 	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	  double mRef = inp.VelRef().Mag() / aRef;
-	  //double vSpecRad = (mRef/Re) * ViscFaceSpecRadTSL( (*this).State(iu), eqnState, suth, (*this).Center(loc), (*this).Center(iu), (*this).FAreaI(iuFace));
-	  double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaI(iuFace2), (*this).FAreaI(iuFace), (*this).State(iu).UpdateWithConsVars(eqnState, x[iu]), eqnState, suth, (*this).Vol(iu) );
+	  double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaI(iuFace2G), (*this).FAreaI(iuFaceG), 
+								(*this).State(iuG).UpdateWithConsVars(eqnState, x[iu]), eqnState, suth, (*this).Vol(iuG) );
 	  specRad += vSpecRad;
 	}
 
 	//at given face location, call function to calculate convective flux change
-	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(iu), eqnState, (*this).FAreaI(iuFace), x[iu]);
+	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(iuG), eqnState, (*this).FAreaI(iuFaceG), x[iu]);
 
-	U[loc] = U[loc] + 0.5 * ( (*this).FAreaI(iuFace).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[iu]) );
+	U[loc] = U[loc] + 0.5 * ( (*this).FAreaI(iuFaceG).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[iu]) );
       }
       if ( ju >=0 && ju < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	//double specRad = ConvSpecRad( (*this).FAreaJ(juFace), (*this).State(loc), (*this).State(ju), eqnState);
-	double specRad = CellSpectralRadius( (*this).FAreaJ(juFace2), (*this).FAreaJ(juFace), (*this).State(ju).UpdateWithConsVars(eqnState, x[ju]), eqnState);
+	double specRad = CellSpectralRadius( (*this).FAreaJ(juFace2G), (*this).FAreaJ(juFaceG), (*this).State(juG).UpdateWithConsVars(eqnState, x[ju]), eqnState);
 
 	if (inp.EquationSet() != "euler"){ //viscous
 	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
 	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	  double mRef = inp.VelRef().Mag() / aRef;
-	  //double vSpecRad = (mRef/Re) * ViscFaceSpecRadTSL( (*this).State(ju), eqnState, suth, (*this).Center(loc), (*this).Center(ju), (*this).FAreaJ(juFace));
-	  double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaJ(juFace2), (*this).FAreaJ(juFace), (*this).State(ju).UpdateWithConsVars(eqnState, x[ju]), eqnState, suth, (*this).Vol(ju) );
+	  double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaJ(juFace2G), (*this).FAreaJ(juFaceG), 
+								(*this).State(juG).UpdateWithConsVars(eqnState, x[ju]), eqnState, suth, (*this).Vol(juG) );
 	  specRad += vSpecRad;
 	}
 
 	//at given face location, call function to calculate convective flux change
-	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(ju), eqnState, (*this).FAreaJ(juFace), x[ju]);
+	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(juG), eqnState, (*this).FAreaJ(juFaceG), x[ju]);
 
-	U[loc] = U[loc] + 0.5 * ( (*this).FAreaJ(juFace).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[ju]) );
+	U[loc] = U[loc] + 0.5 * ( (*this).FAreaJ(juFaceG).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[ju]) );
       }
       if ( ku >=0 && ku < (int)x.size() ){
 	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	//double specRad = ConvSpecRad( (*this).FAreaK(kuFace), (*this).State(loc), (*this).State(ku), eqnState);
-	double specRad = CellSpectralRadius( (*this).FAreaK(kuFace2), (*this).FAreaK(kuFace), (*this).State(ku).UpdateWithConsVars(eqnState, x[ku]), eqnState);
+	double specRad = CellSpectralRadius( (*this).FAreaK(kuFace2G), (*this).FAreaK(kuFaceG), (*this).State(kuG).UpdateWithConsVars(eqnState, x[ku]), eqnState);
 
 	if (inp.EquationSet() != "euler"){ //viscous
 	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
 	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	  double mRef = inp.VelRef().Mag() / aRef;
-	  //double vSpecRad = (mRef/Re) * ViscFaceSpecRadTSL( (*this).State(ku), eqnState, suth, (*this).Center(loc), (*this).Center(ku), (*this).FAreaK(kuFace));
-	  double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaK(kuFace2), (*this).FAreaK(kuFace), (*this).State(ku).UpdateWithConsVars(eqnState, x[ku]), eqnState, suth, (*this).Vol(ku) );
+	  double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaK(kuFace2G), (*this).FAreaK(kuFaceG), 
+								(*this).State(kuG).UpdateWithConsVars(eqnState, x[ku]), eqnState, suth, (*this).Vol(kuG) );
 	  specRad += vSpecRad;
 	}
 
 	//at given face location, call function to calculate convective flux change
-	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(ku), eqnState, (*this).FAreaK(kuFace), x[ku]);
+	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(kuG), eqnState, (*this).FAreaK(kuFaceG), x[ku]);
 
-	U[loc] = U[loc] + 0.5 * ( (*this).FAreaK(kuFace).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[ku]) );
+	U[loc] = U[loc] + 0.5 * ( (*this).FAreaK(kuFaceG).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[ku]) );
       }
 
-      double diagTimeVol = ( (*this).Vol(loc) * (1.0 + inp.Zeta()) ) / ( (*this).Dt(loc) * inp.Theta() );
+      double diagTimeVol = ( (*this).Vol(locG) * (1.0 + inp.Zeta()) ) / ( (*this).Dt(loc) * inp.Theta() );
       if (inp.DualTimeCFL() > 0.0 ) { //use dual time stepping
 	double tau = (*this).AvgWaveSpeed(loc) / inp.DualTimeCFL(); // equal to volume / tau
 	diagTimeVol += tau;
@@ -1284,10 +1009,6 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
       AiiInv = 1.0 / ( ((*this).AvgWaveSpeed(loc) + diagTimeVol ) * inp.MatrixRelaxation() );
 
       x[loc] = x[loc] - AiiInv * U[loc];
-
-      // x[loc] = (1.0 - inp.MatrixRelaxation()) * x[loc] + inp.MatrixRelaxation() * AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] +
-      //         solTimeMmN[loc] - U[loc]) ;
-
 
     } //end backward sweep
 
@@ -1298,8 +1019,9 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
     for ( int ii = 0; ii < (int)x.size(); ii++ ){
 
       int loc = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+      int locG = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imaxG, jmaxG);
 
-      double diagTimeVol = ( (*this).Vol(loc) * (1.0 + inp.Zeta()) ) / ( (*this).Dt(loc) * inp.Theta() );
+      double diagTimeVol = ( (*this).Vol(locG) * (1.0 + inp.Zeta()) ) / ( (*this).Dt(loc) * inp.Theta() );
       if (inp.DualTimeCFL() > 0.0 ) { //use dual time stepping
 	double tau = (*this).AvgWaveSpeed(loc) / inp.DualTimeCFL(); // equal to volume / tau
 	diagTimeVol += tau;
@@ -1309,7 +1031,6 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
       
       //normal at lower boundaries needs to be reversed, so add instead of subtract L
       resid = -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] + solTimeMmN[loc] - Aii * x[loc] + L[loc] - U[loc];
-      //resid = -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] + solTimeMmN[loc] - Aii.Data(loc) * x[loc] + L[loc] - U[loc];
       l2Resid = l2Resid + resid * resid;
     }
 
@@ -1377,7 +1098,7 @@ vector<T> PadWithGhosts( const vector<T> &var, const int &numGhosts, const int &
 
   vector<T> padBlk(newSize);
 
-  T ghostVal;
+  //T ghostVal;
 
   int newLoc = 0;
   int loc = 0;
@@ -1389,13 +1110,13 @@ vector<T> PadWithGhosts( const vector<T> &var, const int &numGhosts, const int &
 	newLoc = GetLoc1D(ii, jj, kk, newI, newJ);
 
 	if ( ii < 2 || ii >= (numI + numGhosts) ) { //i ghost value
-	  padBlk[newLoc] = ghostVal;
+	  //padBlk[newLoc] = ghostVal;
 	}
 	else if ( jj < 2 || jj >= (numJ + numGhosts) ) { //j ghost value
-	  padBlk[newLoc] = ghostVal;
+	  //padBlk[newLoc] = ghostVal;
 	}
 	else if ( kk < 2 || kk >= (numK + numGhosts) ) { //k ghost value
-	  padBlk[newLoc] = ghostVal;
+	  //padBlk[newLoc] = ghostVal;
 	}
 	else{ //physical cells
 
@@ -1415,24 +1136,19 @@ vector<T> PadWithGhosts( const vector<T> &var, const int &numGhosts, const int &
 //member function to initialize gradients
 void procBlock::InitializeGrads(){
 
-  int imax = (*this).NumI() - 1;
-  int jmax = (*this).NumJ() - 1;
-  int kmax = (*this).NumK() - 1;
-
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-
-  int loc = 0;
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
+  int kmaxG = (*this).NumK() + 2 * (*this).NumGhosts();
 
   vector3d<double> initialVector(0.0, 0.0, 0.0);
   tensor<double> initialTensor(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0);
 
-  for ( kk = 0; kk < kmax; kk++){   
-    for ( jj = 0; jj < jmax; jj++){    
-      for ( ii = 0; ii < imax; ii++){      
+  //loop over all cells including ghosts
+  for ( int kk = 0; kk < kmaxG; kk++){   
+    for ( int jj = 0; jj < jmaxG; jj++){    
+      for ( int ii = 0; ii < imaxG; ii++){      
 
-	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
 
 	(*this).SetVelGrad( initialTensor, loc);
 	(*this).SetTempGrad( initialVector, loc);
@@ -1503,84 +1219,39 @@ void procBlock::CalcTempGradGG(const double &tl, const double &tu, const vector3
 }
 
 //member function to calculate gradients at centers
-void procBlock::CalcCellGradsI(const idealGas &eqnState, const sutherland &suth, const input &inp, const int &bb){
+void procBlock::CalcCellGradsI(const idealGas &eqnState, const sutherland &suth, const input &inp){
 
-  int imax = (*this).NumI() - 1;
-  int jmax = (*this).NumJ() - 1;
-  int kmax = (*this).NumK() - 1;
+  int imax = (*this).NumI();
+  int jmax = (*this).NumJ();
+  int kmax = (*this).NumK();
 
-  const boundaryConditions bound = inp.BC(bb);
-
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-
-  int loc = 0;
-  int iLow = 0;
-  int iUp = 0;
-
-  int ifLow = 0;
-  int ifUp = 0;
-
-  string bcName = "undefined";
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
   double viscConstant = 1.0;
-
-  vector3d<double> vl, vu;
-  double tl = 0.0;
-  double tu = 0.0;
 
   double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
   double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
   double mRef = inp.VelRef().Mag() / aRef;
 
-  primVars ghostState;
-  vector3d<double> ghostDistance;
+  //loop over all physical cells and first layer of ghost cells
+  for ( int kk = 1; kk < kmax + 1; kk++){   
+    for ( int jj = 1; jj < jmax + 1; jj++){    
+      for ( int ii = 1; ii < imax + 1; ii++){      
 
-  for ( kk = 0; kk < kmax; kk++){   
-    for ( jj = 0; jj < jmax; jj++){    
-      for ( ii = 0; ii < imax; ii++){      
+	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
+	int locNG = GetLoc1D(ii-1, jj-1, kk-1, imax, jmax);
 
-	loc = GetLoc1D(ii, jj, kk, imax, jmax);
-	iLow = GetNeighborLowI(ii, jj, kk, imax, jmax); 
-	iUp  = GetNeighborUpI(ii, jj, kk, imax, jmax);
+	int iLow = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG); 
+	int iUp  = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG);
+	int ifLow = GetLowerFaceI(ii, jj, kk, imaxG, jmaxG); 
+	int ifUp  = GetUpperFaceI(ii, jj, kk, imaxG, jmaxG);
 
-	ifLow = GetLowerFaceI(ii, jj, kk, imax, jmax); 
-	ifUp  = GetUpperFaceI(ii, jj, kk, imax, jmax);
+	vector3d<double> vl = FaceReconCentral( (*this).State(iLow).Velocity(), (*this).State(loc).Velocity(), (*this).Center(iLow), (*this).Center(loc), (*this).FCenterI(ifLow) );
+	double tl = FaceReconCentral( (*this).State(iLow).Temperature(eqnState), (*this).State(loc).Temperature(eqnState), (*this).Center(iLow), (*this).Center(loc), (*this).FCenterI(ifLow) );
 
-	//test if on i lower boundary
-	if (ii == 0){
-	  //find boundary type and get ghost state
-	  bcName = bound.GetBCName(ii, jj, kk, "il");
-
-	  ghostState = (*this).State(loc).GetGhostState( bcName, (*this).FAreaI(ifLow), "il", inp, eqnState );
-	  ghostDistance = 2.0 * ( (*this).FCenterI(ifLow) - (*this).Center(loc) ) + (*this).Center(loc);
-
-	  vl = FaceReconCentral( ghostState.Velocity(), (*this).State(loc).Velocity(), ghostDistance, (*this).Center(loc), (*this).FCenterI(ifLow) );
-	  tl = FaceReconCentral( ghostState.Temperature(eqnState), (*this).State(loc).Temperature(eqnState), ghostDistance, (*this).Center(loc), (*this).FCenterI(ifLow) );
-
-	}
-	else{
-	  vl = FaceReconCentral( (*this).State(iLow).Velocity(), (*this).State(loc).Velocity(), (*this).Center(iLow), (*this).Center(loc), (*this).FCenterI(ifLow) );
-	  tl = FaceReconCentral( (*this).State(iLow).Temperature(eqnState), (*this).State(loc).Temperature(eqnState), (*this).Center(iLow), (*this).Center(loc), (*this).FCenterI(ifLow) );
-	}
-
-	//test if on i upper boundary
-	if (ii == imax-1){
-	  bcName = bound.GetBCName(ii+1, jj, kk, "iu");
-
-	  ghostState = (*this).State(loc).GetGhostState( bcName, (*this).FAreaI(ifUp), "iu", inp, eqnState );
-	  ghostDistance = 2.0 * ( (*this).FCenterI(ifUp) - (*this).Center(loc) ) + (*this).Center(loc);
-
-	  vu = FaceReconCentral( ghostState.Velocity(), (*this).State(loc).Velocity(), ghostDistance, (*this).Center(loc), (*this).FCenterI(ifUp) );
-	  tu = FaceReconCentral( ghostState.Temperature(eqnState), (*this).State(loc).Temperature(eqnState), ghostDistance, (*this).Center(loc), (*this).FCenterI(ifUp) );
-
-	}
-	else{
-	  vu = FaceReconCentral( (*this).State(iUp).Velocity(),  (*this).State(loc).Velocity(), (*this).Center(iUp),  (*this).Center(loc), (*this).FCenterI(ifUp)  );
-	  tu = FaceReconCentral( (*this).State(iUp).Temperature(eqnState),  (*this).State(loc).Temperature(eqnState), (*this).Center(iUp),  (*this).Center(loc), (*this).FCenterI(ifUp)  );
-	}
-
+	vector3d<double> vu = FaceReconCentral( (*this).State(iUp).Velocity(),  (*this).State(loc).Velocity(), (*this).Center(iUp),  (*this).Center(loc), (*this).FCenterI(ifUp)  );
+	double tu = FaceReconCentral( (*this).State(iUp).Temperature(eqnState),  (*this).State(loc).Temperature(eqnState), (*this).Center(iUp),  (*this).Center(loc), (*this).FCenterI(ifUp)  );
 
 	//calculate gradients for cell
 	CalcVelGradGG(vl, vu, (*this).FAreaI(ifLow), (*this).FAreaI(ifUp), (*this).Vol(loc), loc);
@@ -1588,7 +1259,7 @@ void procBlock::CalcCellGradsI(const idealGas &eqnState, const sutherland &suth,
 
 	//calculate cell viscous spectral radius
 	double maxViscSpeed = ViscCellSpectralRadius((*this).FAreaI(ifLow), (*this).FAreaI(ifUp), (*this).State(loc), eqnState, suth, (*this).Vol(loc));
-	(*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(loc) + viscConstant * (mRef/Re) * maxViscSpeed, loc); 
+	(*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(locNG) + viscConstant * (mRef/Re) * maxViscSpeed, locNG); 
 
       }
     }
@@ -1597,84 +1268,39 @@ void procBlock::CalcCellGradsI(const idealGas &eqnState, const sutherland &suth,
 }
 
 //member function to calculate gradients at centers
-void procBlock::CalcCellGradsJ(const idealGas &eqnState, const sutherland &suth, const input &inp, const int &bb){
+void procBlock::CalcCellGradsJ(const idealGas &eqnState, const sutherland &suth, const input &inp){
 
-  int imax = (*this).NumI() - 1;
-  int jmax = (*this).NumJ() - 1;
-  int kmax = (*this).NumK() - 1;
+  int imax = (*this).NumI();
+  int jmax = (*this).NumJ();
+  int kmax = (*this).NumK();
 
-  const boundaryConditions bound = inp.BC(bb);
-
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-
-  int loc = 0;
-  int jLow = 0;
-  int jUp = 0;
-
-  int jfLow = 0;
-  int jfUp = 0;
-
-  string bcName = "undefined";
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
   double viscConstant = 1.0;
-
-  vector3d<double> vl, vu;
-  double tl = 0.0;
-  double tu = 0.0;
 
   double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
   double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
   double mRef = inp.VelRef().Mag() / aRef;
 
-  primVars ghostState;
-  vector3d<double> ghostDistance;
+  //loop over all physical cells and first layer of ghost cells
+  for ( int kk = 1; kk < kmax + 1; kk++){   
+    for ( int jj = 1; jj < jmax + 1; jj++){    
+      for ( int ii = 1; ii < imax + 1; ii++){      
 
-  for ( kk = 0; kk < kmax; kk++){   
-    for ( jj = 0; jj < jmax; jj++){    
-      for ( ii = 0; ii < imax; ii++){      
+	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
+	int locNG = GetLoc1D(ii-1, jj-1, kk-1, imax, jmax);
 
-	loc = GetLoc1D(ii, jj, kk, imax, jmax);
-	jLow = GetNeighborLowJ(ii, jj, kk, imax, jmax); 
-	jUp  = GetNeighborUpJ(ii, jj, kk, imax, jmax);
+	int jLow = GetNeighborLowJ(ii, jj, kk, imaxG, jmaxG); 
+	int jUp  = GetNeighborUpJ(ii, jj, kk, imaxG, jmaxG);
+	int jfLow = GetLowerFaceJ(ii, jj, kk, imaxG, jmaxG); 
+	int jfUp  = GetUpperFaceJ(ii, jj, kk, imaxG, jmaxG);
 
-	jfLow = GetLowerFaceJ(ii, jj, kk, imax, jmax); 
-	jfUp  = GetUpperFaceJ(ii, jj, kk, imax, jmax);
+	vector3d<double> vl = FaceReconCentral( (*this).State(jLow).Velocity(), (*this).State(loc).Velocity(), (*this).Center(jLow), (*this).Center(loc), (*this).FCenterJ(jfLow) );
+	double tl = FaceReconCentral( (*this).State(jLow).Temperature(eqnState), (*this).State(loc).Temperature(eqnState), (*this).Center(jLow), (*this).Center(loc), (*this).FCenterJ(jfLow) );
 
-	//test if on j lower boundary
-	if (jj == 0){
-	  //find boundary type and get ghost state
-	  bcName = bound.GetBCName(ii, jj, kk, "jl");
-
-	  ghostState = (*this).State(loc).GetGhostState( bcName, (*this).FAreaJ(jfLow), "jl", inp, eqnState );
-	  ghostDistance = 2.0 * ( (*this).FCenterJ(jfLow) - (*this).Center(loc) ) + (*this).Center(loc);
-
-	  vl = FaceReconCentral( ghostState.Velocity(), (*this).State(loc).Velocity(), ghostDistance, (*this).Center(loc), (*this).FCenterJ(jfLow) );
-	  tl = FaceReconCentral( ghostState.Temperature(eqnState), (*this).State(loc).Temperature(eqnState), ghostDistance, (*this).Center(loc), (*this).FCenterJ(jfLow) );
-
-	}
-	else{
-	  vl = FaceReconCentral( (*this).State(jLow).Velocity(), (*this).State(loc).Velocity(), (*this).Center(jLow), (*this).Center(loc), (*this).FCenterJ(jfLow) );
-	  tl = FaceReconCentral( (*this).State(jLow).Temperature(eqnState), (*this).State(loc).Temperature(eqnState), (*this).Center(jLow), (*this).Center(loc), (*this).FCenterJ(jfLow) );
-	}
-
-	//test if on j upper boundary
-	if (jj == jmax-1){
-	  bcName = bound.GetBCName(ii, jj+1, kk, "ju");
-
-	  ghostState = (*this).State(loc).GetGhostState( bcName, (*this).FAreaJ(jfUp), "ju", inp, eqnState );
-	  ghostDistance = 2.0 * ( (*this).FCenterJ(jfUp) - (*this).Center(loc) ) + (*this).Center(loc);
-
-	  vu = FaceReconCentral( ghostState.Velocity(), (*this).State(loc).Velocity(), ghostDistance, (*this).Center(loc), (*this).FCenterJ(jfUp) );
-	  tu = FaceReconCentral( ghostState.Temperature(eqnState), (*this).State(loc).Temperature(eqnState), ghostDistance, (*this).Center(loc), (*this).FCenterJ(jfUp) );
-
-	}
-	else{
-	  vu = FaceReconCentral( (*this).State(jUp).Velocity(),  (*this).State(loc).Velocity(), (*this).Center(jUp),  (*this).Center(loc), (*this).FCenterJ(jfUp)  );
-	  tu = FaceReconCentral( (*this).State(jUp).Temperature(eqnState),  (*this).State(loc).Temperature(eqnState), (*this).Center(jUp),  (*this).Center(loc), (*this).FCenterJ(jfUp)  );
-	}
-
+	vector3d<double> vu = FaceReconCentral( (*this).State(jUp).Velocity(),  (*this).State(loc).Velocity(), (*this).Center(jUp),  (*this).Center(loc), (*this).FCenterJ(jfUp)  );
+	double tu = FaceReconCentral( (*this).State(jUp).Temperature(eqnState),  (*this).State(loc).Temperature(eqnState), (*this).Center(jUp),  (*this).Center(loc), (*this).FCenterJ(jfUp)  );
 
 	//calculate gradients for cell
 	CalcVelGradGG(vl, vu, (*this).FAreaJ(jfLow), (*this).FAreaJ(jfUp), (*this).Vol(loc), loc);
@@ -1682,7 +1308,7 @@ void procBlock::CalcCellGradsJ(const idealGas &eqnState, const sutherland &suth,
 
 	//calculate cell viscous spectral radius
 	double maxViscSpeed = ViscCellSpectralRadius((*this).FAreaJ(jfLow), (*this).FAreaJ(jfUp), (*this).State(loc), eqnState, suth, (*this).Vol(loc));
-	(*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(loc) + viscConstant * (mRef/Re) * maxViscSpeed, loc); 
+	(*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(locNG) + viscConstant * (mRef/Re) * maxViscSpeed, locNG); 
 
       }
     }
@@ -1691,84 +1317,39 @@ void procBlock::CalcCellGradsJ(const idealGas &eqnState, const sutherland &suth,
 }
 
 //member function to calculate gradients at centers
-void procBlock::CalcCellGradsK(const idealGas &eqnState, const sutherland &suth, const input &inp, const int &bb){
+void procBlock::CalcCellGradsK(const idealGas &eqnState, const sutherland &suth, const input &inp){
 
-  int imax = (*this).NumI() - 1;
-  int jmax = (*this).NumJ() - 1;
-  int kmax = (*this).NumK() - 1;
+  int imax = (*this).NumI();
+  int jmax = (*this).NumJ();
+  int kmax = (*this).NumK();
 
-  const boundaryConditions bound = inp.BC(bb);
-
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-
-  int loc = 0;
-  int kLow = 0;
-  int kUp = 0;
-
-  int kfLow = 0;
-  int kfUp = 0;
-
-  string bcName = "undefined";
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
   double viscConstant = 1.0;
-
-  vector3d<double> vl, vu;
-  double tl = 0.0;
-  double tu = 0.0;
 
   double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
   double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
   double mRef = inp.VelRef().Mag() / aRef;
 
-  primVars ghostState;
-  vector3d<double> ghostDistance;
+  //loop over all physical cells and first layer of ghost cells
+  for ( int kk = 1; kk < kmax + 1; kk++){   
+    for ( int jj = 1; jj < jmax + 1; jj++){    
+      for ( int ii = 1; ii < imax + 1; ii++){      
 
-  for ( kk = 0; kk < kmax; kk++){   
-    for ( jj = 0; jj < jmax; jj++){    
-      for ( ii = 0; ii < imax; ii++){      
+	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
+	int locNG = GetLoc1D(ii-1, jj-1, kk-1, imax, jmax);
 
-	loc = GetLoc1D(ii, jj, kk, imax, jmax);
-	kLow = GetNeighborLowK(ii, jj, kk, imax, jmax); 
-	kUp  = GetNeighborUpK(ii, jj, kk, imax, jmax);
+	int kLow = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG); 
+	int kUp  = GetNeighborUpK(ii, jj, kk, imaxG, jmaxG);
+	int kfLow = GetLowerFaceK(ii, jj, kk, imaxG, jmaxG); 
+	int kfUp  = GetUpperFaceK(ii, jj, kk, imaxG, jmaxG);
 
-	kfLow = GetLowerFaceK(ii, jj, kk, imax, jmax); 
-	kfUp  = GetUpperFaceK(ii, jj, kk, imax, jmax);
+	vector3d<double> vl = FaceReconCentral( (*this).State(kLow).Velocity(), (*this).State(loc).Velocity(), (*this).Center(kLow), (*this).Center(loc), (*this).FCenterK(kfLow) );
+	double tl = FaceReconCentral( (*this).State(kLow).Temperature(eqnState), (*this).State(loc).Temperature(eqnState), (*this).Center(kLow), (*this).Center(loc), (*this).FCenterK(kfLow) );
 
-	//test if on j lower boundary
-	if (kk == 0){
-	  //find boundary type and get ghost state
-	  bcName = bound.GetBCName(ii, jj, kk, "kl");
-
-	  ghostState = (*this).State(loc).GetGhostState( bcName, (*this).FAreaK(kfLow), "kl", inp, eqnState );
-	  ghostDistance = 2.0 * ( (*this).FCenterK(kfLow) - (*this).Center(loc) ) + (*this).Center(loc);
-
-	  vl = FaceReconCentral( ghostState.Velocity(), (*this).State(loc).Velocity(), ghostDistance, (*this).Center(loc), (*this).FCenterK(kfLow) );
-	  tl = FaceReconCentral( ghostState.Temperature(eqnState), (*this).State(loc).Temperature(eqnState), ghostDistance, (*this).Center(loc), (*this).FCenterK(kfLow) );
-
-	}
-	else{
-	  vl = FaceReconCentral( (*this).State(kLow).Velocity(), (*this).State(loc).Velocity(), (*this).Center(kLow), (*this).Center(loc), (*this).FCenterK(kfLow) );
-	  tl = FaceReconCentral( (*this).State(kLow).Temperature(eqnState), (*this).State(loc).Temperature(eqnState), (*this).Center(kLow), (*this).Center(loc), (*this).FCenterK(kfLow) );
-	}
-
-	//test if on k upper boundary
-	if (kk == kmax-1){
-	  bcName = bound.GetBCName(ii, jj, kk+1, "ku");
-
-	  ghostState = (*this).State(loc).GetGhostState( bcName, (*this).FAreaK(kfUp), "ku", inp, eqnState );
-	  ghostDistance = 2.0 * ( (*this).FCenterK(kfUp) - (*this).Center(loc) ) + (*this).Center(loc);
-
-	  vu = FaceReconCentral( ghostState.Velocity(), (*this).State(loc).Velocity(), ghostDistance, (*this).Center(loc), (*this).FCenterK(kfUp) );
-	  tu = FaceReconCentral( ghostState.Temperature(eqnState), (*this).State(loc).Temperature(eqnState), ghostDistance, (*this).Center(loc), (*this).FCenterK(kfUp) );
-
-	}
-	else{
-	  vu = FaceReconCentral( (*this).State(kUp).Velocity(),  (*this).State(loc).Velocity(), (*this).Center(kUp),  (*this).Center(loc), (*this).FCenterK(kfUp)  );
-	  tu = FaceReconCentral( (*this).State(kUp).Temperature(eqnState),  (*this).State(loc).Temperature(eqnState), (*this).Center(kUp),  (*this).Center(loc), (*this).FCenterK(kfUp)  );
-	}
-
+	vector3d<double> vu = FaceReconCentral( (*this).State(kUp).Velocity(),  (*this).State(loc).Velocity(), (*this).Center(kUp),  (*this).Center(loc), (*this).FCenterK(kfUp)  );
+	double tu = FaceReconCentral( (*this).State(kUp).Temperature(eqnState),  (*this).State(loc).Temperature(eqnState), (*this).Center(kUp),  (*this).Center(loc), (*this).FCenterK(kfUp)  );
 
 	//calculate gradients for cell
 	CalcVelGradGG(vl, vu, (*this).FAreaK(kfLow), (*this).FAreaK(kfUp), (*this).Vol(loc), loc);
@@ -1776,7 +1357,7 @@ void procBlock::CalcCellGradsK(const idealGas &eqnState, const sutherland &suth,
 
 	//calculate cell viscous spectral radius
 	double maxViscSpeed = ViscCellSpectralRadius((*this).FAreaK(kfLow), (*this).FAreaK(kfUp), (*this).State(loc), eqnState, suth, (*this).Vol(loc));
-	(*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(loc) + viscConstant * (mRef/Re) * maxViscSpeed, loc); 
+	(*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(locNG) + viscConstant * (mRef/Re) * maxViscSpeed, locNG); 
 
       }
     }
@@ -1785,405 +1366,157 @@ void procBlock::CalcCellGradsK(const idealGas &eqnState, const sutherland &suth,
 }
 
 //member function to calculate viscous fluxes on i-faces
-void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb){
+void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, const input &inp){
 
-  int imax = (*this).NumI();
-  int jmax = (*this).NumJ() - 1;
-  int kmax = (*this).NumK() - 1;
-
- const boundaryConditions bound = inp.BC(bb);
-
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-  int loc = 0;
-  int iLow = 0;
-  int iUp = 0;
-
-  string lstr = "left";
-  string rstr = "right";
-
-  string bcName = "undefined";
-
-  primVars ghostState;
-  vector3d<double> ghostDistance;
-
-  viscousFlux tempViscFlux;
-
-  tensor<double> velGrad;
-  vector3d<double> tGrad;
-  vector3d<double> vel;
-  double mu = 0.0;
-
-  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
-  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
-  double mRef = inp.VelRef().Mag() / aRef;
-
-  for ( kk = 0; kk < kmax; kk++){   
-    for ( jj = 0; jj < jmax; jj++){    
-      for ( ii = 0; ii < imax; ii++){      
-
-	loc = GetLoc1D(ii, jj, kk, imax, jmax);
-
-	if (ii == 0){ //-----------------------------------------------------------------------------------------------------------------------------------------
-
-	  iUp  = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
-
-	  //find boundary type and get ghost state
-	  bcName = bound.GetBCName(ii, jj, kk, "il");
-
-	  ghostState = (*this).State(iUp).GetGhostState( bcName, (*this).FAreaI(loc), "il", inp, eqnState );
-	  ghostDistance = 2.0 * ( (*this).FCenterI(loc) - (*this).Center(iUp) ) + (*this).Center(iUp);
-
-	  //Get velocity gradient at face
-	  velGrad = (*this).VelGrad(iUp);
-	  //Get velocity at face
-	  vel = FaceReconCentral( ghostState.Velocity(), (*this).State(iUp).Velocity(), ghostDistance, (*this).Center(iUp), (*this).FCenterI(loc) );
-	  //Get temperature gradient at face
-	  tGrad = (*this).TempGrad(iUp);
-	  //Get viscosity at face
-	  mu = FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity((*this).State(iUp).Temperature(eqnState)), ghostDistance, (*this).Center(iUp), (*this).FCenterI(loc) );
-	  mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
-
-	  //Get density at face
-	  //rho = FaceReconCentral( ghostState.Rho(), (*this).State(iUp).Rho(), ghostDistance, (*this).Center(iUp), (*this).FCenterI(loc) );
-
-	  //calculate viscous flux
-	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaI(loc) );
-
-	  //at lower boundary normal points into cell, so need to subtract from residual
-	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is positive
-	  (*this).AddToResidual(tempViscFlux * (*this).FAreaI(loc).Mag(), iUp);
-
-	}
-	else if (ii == imax-1){ //---------------------------------------------------------------------------------------------------------------------------------------
-
-	  iLow  = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
-
-	  //find boundary type and get ghost state
-	  bcName = bound.GetBCName(ii, jj, kk, "iu");
-
-	  ghostState = (*this).State(iLow).GetGhostState( bcName, (*this).FAreaI(loc), "iu", inp, eqnState );
-	  ghostDistance = 2.0 * ( (*this).FCenterI(loc) - (*this).Center(iLow) ) + (*this).Center(iLow);
-
-	  //Get velocity gradient at face
-	  velGrad = (*this).VelGrad(iLow);
-	  //Get velocity at face
-	  vel = FaceReconCentral( ghostState.Velocity(), (*this).State(iLow).Velocity(), ghostDistance, (*this).Center(iLow), (*this).FCenterI(loc) );
-	  //Get temperature gradient at face
-	  tGrad = (*this).TempGrad(iLow);
-	  //Get viscosity at face
-	  mu = FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity((*this).State(iLow).Temperature(eqnState)), ghostDistance, (*this).Center(iLow), (*this).FCenterI(loc) );
-	  mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
-
-	  //Get density at face
-	  //rho = FaceReconCentral( ghostState.Rho(), (*this).State(iLow).Rho(), ghostDistance, (*this).Center(iLow), (*this).FCenterI(loc) );
-
-	  //calculate viscous flux
-	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaI(loc) );
-
-	  //at upper boundary normal points out of cell, so need to add to residual
-	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is negative
-	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaI(loc).Mag(), iLow);
-
-	}
-	else{ //------------------------------------------------------------------------------------------------------------------------------------------------
-
-	  iLow  = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
-	  iUp  = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
-
-	  //Get velocity gradient at face
-	  velGrad = FaceReconCentral( (*this).VelGrad(iLow), (*this).VelGrad(iUp), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
-	  //Get velocity at face
-	  vel = FaceReconCentral( (*this).State(iLow).Velocity(), (*this).State(iUp).Velocity(), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
-	  //Get temperature gradient at face
-	  tGrad = FaceReconCentral( (*this).TempGrad(iLow), (*this).TempGrad(iUp), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
-	  //Get viscosity at face
-	  mu = FaceReconCentral( suth.GetViscosity( (*this).State(iLow).Temperature(eqnState) ), suth.GetViscosity( (*this).State(iUp).Temperature(eqnState) ), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
-	  mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
-	  //Get density at face
-	  //rho = FaceReconCentral( (*this).State(iLow).Rho(), (*this).State(iUp).Rho(), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
-
-	  //calculate viscous flux
-	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaI(loc) );
-
-	  //area vector points from left to right, so add to left cell, subtract from right cell
-	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
-	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaI(loc).Mag(), iLow);
-	  (*this).AddToResidual(tempViscFlux * (*this).FAreaI(loc).Mag(), iUp);
-
-	}
-
-      }
-    }
-  }
-
-
-}
-
-
-
-//member function to calculate viscous fluxes on j-faces
-void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb){
-
-  int imax = (*this).NumI() - 1;
+  int imax = (*this).NumI() + 1;
   int jmax = (*this).NumJ();
-  int kmax = (*this).NumK() - 1;
-
- const boundaryConditions bound = inp.BC(bb);
-
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-  int loc = 0;
-  int jLow = 0;
-  int jUp = 0;
-
-  string lstr = "left";
-  string rstr = "right";
-
-  string bcName = "undefined";
-  primVars ghostState;
-  vector3d<double> ghostDistance;
-
-  viscousFlux tempViscFlux;
-
-  tensor<double> velGrad;
-  vector3d<double> tGrad;
-  vector3d<double> vel;
-  double mu = 0.0;
-
-  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
-  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
-  double mRef = inp.VelRef().Mag() / aRef;
-
-  for ( kk = 0; kk < kmax; kk++){   
-    for ( jj = 0; jj < jmax; jj++){    
-      for ( ii = 0; ii < imax; ii++){      
-
-	loc = GetLoc1D(ii, jj, kk, imax, jmax);
-
-	if (jj == 0){ //-------------------------------------------------------------------------------------------------------------------------------------
-
-	  jUp  = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
-
-	  //find boundary type and get ghost state
-	  bcName = bound.GetBCName(ii, jj, kk, "jl");
-
-	  ghostState = (*this).State(jUp).GetGhostState( bcName, (*this).FAreaJ(loc), "jl", inp, eqnState );
-	  ghostDistance = 2.0 * ( (*this).FCenterJ(loc) - (*this).Center(jUp) ) + (*this).Center(jUp);
-
-	  //Get velocity gradient at face
-	  velGrad = (*this).VelGrad(jUp);
-	  //Get velocity at face
-	  vel = FaceReconCentral( ghostState.Velocity(), (*this).State(jUp).Velocity(), ghostDistance, (*this).Center(jUp), (*this).FCenterJ(loc) );
-	  //Get temperature gradient at face
-	  tGrad = (*this).TempGrad(jUp);
-	  //Get viscosity at face
-	  mu = FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity((*this).State(jUp).Temperature(eqnState)), ghostDistance, (*this).Center(jUp), (*this).FCenterJ(loc) );
-	  mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
-	  //Get density at face
-	  //rho = FaceReconCentral( ghostState.Rho(), (*this).State(jUp).Rho(), ghostDistance, (*this).Center(jUp), (*this).FCenterJ(loc) );
-
-	  //calculate viscous flux
-	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaJ(loc) );
-
-	  //at lower boundary normal points into cell, so need to subtract from residual
-	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is positive
-	  (*this).AddToResidual(tempViscFlux * (*this).FAreaJ(loc).Mag(), jUp);
-
-	}
-	else if (jj == jmax-1){ //--------------------------------------------------------------------------------------------------------------------------------
-
-	  jLow  = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
-
-	  //find boundary type and get ghost state
-	  bcName = bound.GetBCName(ii, jj, kk, "ju");
-
-	  ghostState = (*this).State(jLow).GetGhostState( bcName, (*this).FAreaJ(loc), "ju", inp, eqnState );
-	  ghostDistance = 2.0 * ( (*this).FCenterJ(loc) - (*this).Center(jLow) ) + (*this).Center(jLow);
-
-	  //Get velocity gradient at face
-	  velGrad = (*this).VelGrad(jLow);
-	  //Get velocity at face
-	  vel = FaceReconCentral( ghostState.Velocity(), (*this).State(jLow).Velocity(), ghostDistance, (*this).Center(jLow), (*this).FCenterJ(loc) );
-	  //Get temperature gradient at face
-	  tGrad = (*this).TempGrad(jLow);
-	  //Get viscosity at face
-	  mu = FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity((*this).State(jLow).Temperature(eqnState)), ghostDistance, (*this).Center(jLow), (*this).FCenterJ(loc) );
-	  mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
-	  //Get density at face
-	  //rho = FaceReconCentral( ghostState.Rho(), (*this).State(jLow).Rho(), ghostDistance, (*this).Center(jLow), (*this).FCenterJ(loc) );
-
-	  //calculate viscous flux
-	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaJ(loc) );
-
-	  //at upper boundary normal points out of cell, so need to add to residual
-	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is negative
-	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaJ(loc).Mag(), jLow);
-
-	}
-	else{ //-----------------------------------------------------------------------------------------------------------------------------------------------
-
-	  jLow  = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
-	  jUp  = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
-
-	  //Get velocity gradient at face
-	  velGrad = FaceReconCentral( (*this).VelGrad(jLow), (*this).VelGrad(jUp), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
-	  //Get velocity at face
-	  vel = FaceReconCentral( (*this).State(jLow).Velocity(), (*this).State(jUp).Velocity(), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
-	  //Get temperature gradient at face
-	  tGrad = FaceReconCentral( (*this).TempGrad(jLow), (*this).TempGrad(jUp), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
-	  //Get viscosity at face
-	  mu = FaceReconCentral( suth.GetViscosity( (*this).State(jLow).Temperature(eqnState) ), suth.GetViscosity( (*this).State(jUp).Temperature(eqnState) ), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
-	  mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
-	  //Get density at face
-	  //rho = FaceReconCentral( (*this).State(jLow).Rho(), (*this).State(jUp).Rho(), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
-
-	  //calculate viscous flux
-	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaJ(loc) );
-
-	  //area vector points from left to right, so add to left cell, subtract from right cell
-	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
-	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaJ(loc).Mag(), jLow);
-	  (*this).AddToResidual(tempViscFlux * (*this).FAreaJ(loc).Mag(), jUp);
-
-	}
-
-      }
-    }
-  }
-
-
-}
-
-
-//member function to calculate viscous fluxes on j-faces
-void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, const input &inp, const int &bb){
-
-  int imax = (*this).NumI() - 1;
-  int jmax = (*this).NumJ() - 1;
   int kmax = (*this).NumK();
 
- const boundaryConditions bound = inp.BC(bb);
-
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-  int loc = 0;
-  int kLow = 0;
-  int kUp = 0;
-
-  string lstr = "left";
-  string rstr = "right";
-
-  string bcName = "undefined";
-  primVars ghostState;
-  vector3d<double> ghostDistance;
-
-  viscousFlux tempViscFlux;
-
-  tensor<double> velGrad;
-  vector3d<double> tGrad;
-  vector3d<double> vel;
-  double mu = 0.0;
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts() + 1;
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
   double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
   double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
   double mRef = inp.VelRef().Mag() / aRef;
 
-  for ( kk = 0; kk < kmax; kk++){   
-    for ( jj = 0; jj < jmax; jj++){    
-      for ( ii = 0; ii < imax; ii++){      
+  //loop over all physical cells
+  for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
+    for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
+      for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
 
-	loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
 
-	if (kk == 0){ //-----------------------------------------------------------------------------------------------------------------------------------
+	int iLow  = GetCellFromFaceLowerI(ii, jj, kk, imaxG, jmaxG);
+	int iUp  = GetCellFromFaceUpperI(ii, jj, kk, imaxG, jmaxG);
 
-	  kUp  = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
+	int iLowNG  = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
+	int iUpNG  = GetCellFromFaceUpperI(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 
-	  //find boundary type and get ghost state
-	  bcName = bound.GetBCName(ii, jj, kk, "kl");
+	//Get velocity gradient at face
+	tensor<double> velGrad = FaceReconCentral( (*this).VelGrad(iLow), (*this).VelGrad(iUp), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
+	//Get velocity at face
+	vector3d<double> vel = FaceReconCentral( (*this).State(iLow).Velocity(), (*this).State(iUp).Velocity(), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
+	//Get temperature gradient at face
+	vector3d<double> tGrad = FaceReconCentral( (*this).TempGrad(iLow), (*this).TempGrad(iUp), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
+	//Get viscosity at face
+	double mu = FaceReconCentral( suth.GetViscosity( (*this).State(iLow).Temperature(eqnState) ), 
+				      suth.GetViscosity( (*this).State(iUp).Temperature(eqnState) ), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
+	mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
 
-	  ghostState = (*this).State(kUp).GetGhostState( bcName, (*this).FAreaK(loc), "kl", inp, eqnState );
-	  ghostDistance = 2.0 * ( (*this).FCenterK(loc) - (*this).Center(kUp) ) + (*this).Center(kUp);
+	//calculate viscous flux
+	viscousFlux tempViscFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaI(loc) );
 
-	  //Get velocity gradient at face
-	  velGrad = (*this).VelGrad(kUp);
-	  //Get velocity at face
-	  vel = FaceReconCentral( ghostState.Velocity(), (*this).State(kUp).Velocity(), ghostDistance, (*this).Center(kUp), (*this).FCenterK(loc) );
-	  //Get temperature gradient at face
-	  tGrad = (*this).TempGrad(kUp);
-	  //Get viscosity at face
-	  mu = FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity((*this).State(kUp).Temperature(eqnState)), ghostDistance, (*this).Center(kUp), (*this).FCenterK(loc) );
-	  mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
-	  //Get density at face
-	  //rho = FaceReconCentral( ghostState.Rho(), (*this).State(kUp).Rho(), ghostDistance, (*this).Center(kUp), (*this).FCenterK(loc) );
+	//area vector points from left to right, so add to left cell, subtract from right cell
+	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
+	(*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaI(loc).Mag(), iLowNG);
+	(*this).AddToResidual(tempViscFlux * (*this).FAreaI(loc).Mag(), iUpNG);
 
-	  //calculate viscous flux
-	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaK(loc) );
+      }
+    }
+  }
 
-	  //at lower boundary normal points into cell, so need to subtract from residual
-	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is positive
-	  (*this).AddToResidual(tempViscFlux * (*this).FAreaK(loc).Mag(), kUp);
 
-	}
-	else if (kk == kmax-1){ //----------------------------------------------------------------------------------------------------------------------------
+}
 
-	  kLow  = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
 
-	  //find boundary type and get ghost state
-	  bcName = bound.GetBCName(ii, jj, kk, "ku");
 
-	  ghostState = (*this).State(kLow).GetGhostState( bcName, (*this).FAreaK(loc), "ku", inp, eqnState );
-	  ghostDistance = 2.0 * ( (*this).FCenterK(loc) - (*this).Center(kLow) ) + (*this).Center(kLow);
+//member function to calculate viscous fluxes on j-faces
+void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, const input &inp){
 
-	  //Get velocity gradient at face
-	  velGrad = (*this).VelGrad(kLow);
-	  //Get velocity at face
-	  vel = FaceReconCentral( ghostState.Velocity(), (*this).State(kLow).Velocity(), ghostDistance, (*this).Center(kLow), (*this).FCenterK(loc) );
-	  //Get temperature gradient at face
-	  tGrad = (*this).TempGrad(kLow);
-	  //Get viscosity at face
-	  mu = FaceReconCentral( suth.GetViscosity(ghostState.Temperature(eqnState)), suth.GetViscosity((*this).State(kLow).Temperature(eqnState)), ghostDistance, (*this).Center(kLow), (*this).FCenterK(loc) );
-	  mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
-	  //Get density at face
-	  //rho = FaceReconCentral( ghostState.Rho(), (*this).State(kLow).Rho(), ghostDistance, (*this).Center(kLow), (*this).FCenterK(loc) );
+  int imax = (*this).NumI();
+  int jmax = (*this).NumJ() + 1;
+  int kmax = (*this).NumK();
 
-	  //calculate viscous flux
-	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaK(loc) );
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts() + 1;
 
-	  //at upper boundary normal points out of cell, so need to add to residual
-	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is negative
-	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaK(loc).Mag(), kLow);
+  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
+  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
+  double mRef = inp.VelRef().Mag() / aRef;
 
-	}
-	else{ //-----------------------------------------------------------------------------------------------------------------------------------------------------
+  for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
+    for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
+      for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
 
-	  kLow  = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
-	  kUp  = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
+	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
 
-	  //Get velocity gradient at face
-	  velGrad = FaceReconCentral( (*this).VelGrad(kLow), (*this).VelGrad(kUp), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
-	  //Get velocity at face
-	  vel = FaceReconCentral( (*this).State(kLow).Velocity(), (*this).State(kUp).Velocity(), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
-	  //Get temperature gradient at face
-	  tGrad = FaceReconCentral( (*this).TempGrad(kLow), (*this).TempGrad(kUp), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
-	  //Get viscosity at face
-	  mu = FaceReconCentral( suth.GetViscosity( (*this).State(kLow).Temperature(eqnState) ), suth.GetViscosity( (*this).State(kUp).Temperature(eqnState) ), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
-	  mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
-	  //Get density at face
-	  //rho = FaceReconCentral( (*this).State(kLow).Rho(), (*this).State(kUp).Rho(), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
+	int jLow  = GetCellFromFaceLowerJ(ii, jj, kk, imaxG, jmaxG);
+	int jUp  = GetCellFromFaceUpperJ(ii, jj, kk, imaxG, jmaxG);
 
-	  //calculate viscous flux
-	  tempViscFlux.SetFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaK(loc) );
+	int jLowNG  = GetCellFromFaceLowerJ(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
+	int jUpNG  = GetCellFromFaceUpperJ(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 
-	  //area vector points from left to right, so add to left cell, subtract from right cell
-	  //but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
-	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaK(loc).Mag(), kLow);
-	  (*this).AddToResidual(tempViscFlux * (*this).FAreaK(loc).Mag(), kUp);
+	//Get velocity gradient at face
+	tensor<double> velGrad = FaceReconCentral( (*this).VelGrad(jLow), (*this).VelGrad(jUp), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
+	//Get velocity at face
+	vector3d<double> vel = FaceReconCentral( (*this).State(jLow).Velocity(), (*this).State(jUp).Velocity(), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
+	//Get temperature gradient at face
+	vector3d<double> tGrad = FaceReconCentral( (*this).TempGrad(jLow), (*this).TempGrad(jUp), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
+	//Get viscosity at face
+	double mu = FaceReconCentral( suth.GetViscosity( (*this).State(jLow).Temperature(eqnState) ), 
+				      suth.GetViscosity( (*this).State(jUp).Temperature(eqnState) ), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
+	mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
 
-	}
+	//calculate viscous flux
+	viscousFlux tempViscFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaJ(loc) );
+
+	//area vector points from left to right, so add to left cell, subtract from right cell
+	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
+	(*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaJ(loc).Mag(), jLowNG);
+	(*this).AddToResidual(tempViscFlux * (*this).FAreaJ(loc).Mag(), jUpNG);
+
+      }
+    }
+  }
+
+
+}
+
+
+//member function to calculate viscous fluxes on j-faces
+void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, const input &inp){
+
+  int imax = (*this).NumI();
+  int jmax = (*this).NumJ();
+  int kmax = (*this).NumK() + 1;
+
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
+
+  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
+  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
+  double mRef = inp.VelRef().Mag() / aRef;
+
+  for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
+    for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
+      for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
+
+	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
+
+	int kLow  = GetCellFromFaceLowerK(ii, jj, kk, imaxG, jmaxG);
+	int kUp  = GetCellFromFaceUpperK(ii, jj, kk, imaxG, jmaxG);
+
+	int kLowNG  = GetCellFromFaceLowerK(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
+	int kUpNG  = GetCellFromFaceUpperK(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
+
+	//Get velocity gradient at face
+	tensor<double> velGrad = FaceReconCentral( (*this).VelGrad(kLow), (*this).VelGrad(kUp), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
+	//Get velocity at face
+	vector3d<double> vel = FaceReconCentral( (*this).State(kLow).Velocity(), (*this).State(kUp).Velocity(), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
+	//Get temperature gradient at face
+	vector3d<double> tGrad = FaceReconCentral( (*this).TempGrad(kLow), (*this).TempGrad(kUp), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
+	//Get viscosity at face
+	double mu = FaceReconCentral( suth.GetViscosity( (*this).State(kLow).Temperature(eqnState) ), 
+				      suth.GetViscosity( (*this).State(kUp).Temperature(eqnState) ), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
+	mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
+
+	//calculate viscous flux
+	viscousFlux tempViscFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaK(loc) );
+
+	//area vector points from left to right, so add to left cell, subtract from right cell
+	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
+	(*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaK(loc).Mag(), kLowNG);
+	(*this).AddToResidual(tempViscFlux * (*this).FAreaK(loc).Mag(), kUpNG);
 
       }
     }
