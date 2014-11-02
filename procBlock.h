@@ -49,6 +49,7 @@ class procBlock {
   int numJ;
   int numK;
   int numGhosts;
+  int parBlock;
   int parBlockStartI;
   int parBlockEndI;
   int parBlockStartJ;
@@ -74,6 +75,8 @@ class procBlock {
   int NumK() const {return numK;}
   void SetNumGhosts( const int &a){numGhosts = a;}
   int NumGhosts() const {return numGhosts;}
+  void SetParentBlock( const int &a){parBlock = a;}
+  int ParentBlock() const {return parBlock;}
   void SetParentBlockStartI( const int &a){parBlockStartI = a;}
   int ParentBlockStartI() const {return parBlockStartI;}
   void SetParentBlockEndI( const int &a){parBlockEndI = a;}
@@ -95,20 +98,20 @@ class procBlock {
 
   void SetVol( const double &a, const int &ind){vol[ind] = a;}
   double Vol(const int &ind) const {return vol[ind];}
-  void SetCenter( const vector<vector3d<double> > &a){center = a;}
+  void SetCenter( const vector3d<double> &a, const int &ind){center[ind] = a;}
   vector3d<double> Center(const int &ind) const {return center[ind];}
 
-  void SetFAreaI( const vector<vector3d<double> > &a){fAreaI = a;}
+  void SetFAreaI( const vector3d<double> &a, const int &ind){fAreaI[ind] = a;}
   vector3d<double> FAreaI(const int &ind) const {return fAreaI[ind];}
-  void SetFAreaJ( const vector<vector3d<double> > &a){fAreaJ = a;}
+  void SetFAreaJ( const vector3d<double> &a, const int &ind){fAreaJ[ind] = a;}
   vector3d<double> FAreaJ(const int &ind) const {return fAreaJ[ind];}
-  void SetFAreaK( const vector<vector3d<double> > &a){fAreaK = a;}
+  void SetFAreaK( const vector3d<double> &a, const int &ind){fAreaK[ind] = a;}
   vector3d<double> FAreaK(const int &ind) const {return fAreaK[ind];}
-  void SetFCenterI( const vector<vector3d<double> > &a){fCenterI = a;}
+  void SetFCenterI( const vector3d<double> &a, const int &ind){fCenterI[ind] = a;}
   vector3d<double> FCenterI(const int &ind) const {return fCenterI[ind];}
-  void SetFCenterJ( const vector<vector3d<double> > &a){fCenterJ = a;}
+  void SetFCenterJ( const vector3d<double> &a, const int &ind){fCenterJ[ind] = a;}
   vector3d<double> FCenterJ(const int &ind) const {return fCenterJ[ind];}
-  void SetFCenterK( const vector<vector3d<double> > &a){fCenterK = a;}
+  void SetFCenterK( const vector3d<double> &a, const int &ind){fCenterK[ind] = a;}
   vector3d<double> FCenterK(const int &ind) const {return fCenterK[ind];}
 
   void SetAvgWaveSpeed( const double &a, const int &ind){avgWaveSpeed[ind] = a;}
@@ -162,6 +165,8 @@ class procBlock {
   void CalcViscFluxI(const sutherland&, const idealGas&, const input&);
   void CalcViscFluxJ(const sutherland&, const idealGas&, const input&);
   void CalcViscFluxK(const sutherland&, const idealGas&, const input&);
+
+  void AssignGhostCellsGeom();
 
   //destructor
   ~procBlock() {}

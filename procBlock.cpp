@@ -24,6 +24,7 @@ procBlock::procBlock(){
   numJ = 1;
   numK = 1;
   numGhosts = 0;
+  parBlock = 0;
   parBlockStartI = 0;
   parBlockEndI = 0;
   parBlockStartJ = 0;
@@ -69,6 +70,7 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numG, const string &eqnS
   numK = blk.NumK()-1;
   numCells = numI * numJ * numK;
   numGhosts = numG;
+  parBlock = 0;
   parBlockStartI = 0;
   parBlockEndI = numI;
   parBlockStartJ = 0;
@@ -124,6 +126,7 @@ procBlock::procBlock( const double density, const double pressure, const vector3
   numK = blk.NumK()-1;
   numCells = numI * numJ * numK;
   numGhosts = numG;
+  parBlock = 0;
   parBlockStartI = 0;
   parBlockEndI = numI;
   parBlockStartJ = 0;
@@ -180,6 +183,7 @@ procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const 
   numK = blk.NumK()-1;
   numCells = numI * numJ * numK;
   numGhosts = numG;
+  parBlock = 0;
   parBlockStartI = 0;
   parBlockEndI = numI;
   parBlockStartJ = 0;
@@ -1522,5 +1526,212 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
     }
   }
 
+
+}
+
+//member function to assign geometric quantities such as volume, face area, etc to ghost cells
+void procBlock::AssignGhostCellsGeom(){
+
+  int imax = (*this).NumI();
+  int jmax = (*this).NumJ();
+  int kmax = (*this).NumK();
+
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
+
+  //loop over physical I faces
+  for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++ ){
+    for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++ ){
+
+      int cellLowG1 = GetLoc1D(1, jj, kk, imaxG, jmaxG);
+      int cellLowG2 = GetLoc1D(0, jj, kk, imaxG, jmaxG);
+      int lFaceG1 = GetLowerFaceI(1, jj, kk, imaxG, jmaxG); 
+      int lFaceG2 = GetLowerFaceI(0, jj, kk, imaxG, jmaxG);
+
+      int cellLowIn1 = GetLoc1D((*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+      int cellLowIn2 = GetLoc1D((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
+      int lFaceIn1 = GetUpperFaceI((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+      int lFaceIn2 = GetUpperFaceI((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
+      int lFaceB = GetLowerFaceI((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+
+      int cellUpG1 = GetLoc1D(imax, jj, kk, imaxG, jmaxG);
+      int cellUpG2 = GetLoc1D(imax+1, jj, kk, imaxG, jmaxG);
+      int uFaceG1 = GetUpperFaceI(imax, jj, kk, imaxG, jmaxG); 
+      int uFaceG2 = GetUpperFaceI(imax+1, jj, kk, imaxG, jmaxG);
+
+      int cellUpIn1 = GetLoc1D(imax-1, jj, kk, imaxG, jmaxG);
+      int cellUpIn2 = GetLoc1D(imax-2, jj, kk, imaxG, jmaxG);
+      int uFaceIn1 = GetLowerFaceI(imax-1, jj, kk, imaxG, jmaxG); 
+      int uFaceIn2 = GetLowerFaceI(imax-2, jj, kk, imaxG, jmaxG);
+      int uFaceB = GetUpperFaceI(imax-1, jj, kk, imaxG, jmaxG); 
+
+      //mirror volume values from adjacent cells
+      (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
+      (*this).SetVol( (*this).Vol(cellLowIn2), cellLowG2);
+
+      (*this).SetVol( (*this).Vol(cellUpIn1), cellUpG1);
+      (*this).SetVol( (*this).Vol(cellUpIn2), cellUpG2);
+
+      //mirror face area values from adjacent cells
+      (*this).SetFAreaI( (*this).FAreaI(lFaceIn1), lFaceG1);
+      (*this).SetFAreaI( (*this).FAreaI(lFaceIn2), lFaceG2);
+
+      (*this).SetFAreaI( (*this).FAreaI(uFaceIn1), uFaceG1);
+      (*this).SetFAreaI( (*this).FAreaI(uFaceIn2), uFaceG2);
+
+      //cell centroid is moved interior cell width in the boundary normal direction
+      vector3d<double> dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1);
+      (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
+      dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2);
+      (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
+
+      dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1);
+      (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
+      dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2);
+      (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+
+      //face center is moved interior cell width in the boundary normal direction
+      dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1);
+      (*this).SetFCenterI( (*this).FCenterI(lFaceB) + dist2Move, lFaceG1);
+      dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2);
+      (*this).SetFCenterI( (*this).FCenterI(lFaceB) + dist2Move, lFaceG2);
+
+      dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1);
+      (*this).SetFCenterI( (*this).FCenterI(uFaceB) + dist2Move, uFaceG1);
+      dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2);
+      (*this).SetFCenterI( (*this).FCenterI(uFaceB) + dist2Move, uFaceG2);
+
+    }
+  }
+
+  //loop over physical J faces
+  for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++ ){
+    for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++ ){
+
+      int cellLowG1 = GetLoc1D(ii, 1, kk, imaxG, jmaxG);
+      int cellLowG2 = GetLoc1D(ii, 0, kk, imaxG, jmaxG);
+      int lFaceG1 = GetLowerFaceJ(ii, 1, kk, imaxG, jmaxG); 
+      int lFaceG2 = GetLowerFaceJ(ii, 0, kk, imaxG, jmaxG);
+
+      int cellLowIn1 = GetLoc1D(ii, (*this).NumGhosts(), kk, imaxG, jmaxG);
+      int cellLowIn2 = GetLoc1D(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
+      int lFaceIn1 = GetUpperFaceJ(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
+      int lFaceIn2 = GetUpperFaceJ(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
+      int lFaceB = GetLowerFaceJ(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
+
+      int cellUpG1 = GetLoc1D(ii, jmax, kk, imaxG, jmaxG);
+      int cellUpG2 = GetLoc1D(ii, jmax+1, kk, imaxG, jmaxG);
+      int uFaceG1 = GetUpperFaceJ(ii, jmax, kk, imaxG, jmaxG); 
+      int uFaceG2 = GetUpperFaceJ(ii, jmax+1, kk, imaxG, jmaxG);
+
+      int cellUpIn1 = GetLoc1D(ii, jmax-1, kk, imaxG, jmaxG);
+      int cellUpIn2 = GetLoc1D(ii, jmax-2, kk, imaxG, jmaxG);
+      int uFaceIn1 = GetLowerFaceJ(ii, jmax-1, kk, imaxG, jmaxG); 
+      int uFaceIn2 = GetLowerFaceJ(ii, jmax-2, kk, imaxG, jmaxG);
+      int uFaceB = GetUpperFaceJ(ii, jmax-1, kk, imaxG, jmaxG); 
+
+      //mirror volume values from adjacent cells
+      (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
+      (*this).SetVol( (*this).Vol(cellLowIn2), cellLowG2);
+
+      (*this).SetVol( (*this).Vol(cellUpIn1), cellUpG1);
+      (*this).SetVol( (*this).Vol(cellUpIn2), cellUpG2);
+
+      //mirror face area values from adjacent cells
+      (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1), lFaceG1);
+      (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn2), lFaceG2);
+
+      (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1), uFaceG1);
+      (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn2), uFaceG2);
+
+      //cell centroid is moved interior cell width in the boundary normal direction
+      vector3d<double> dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1);
+      (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
+      dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2);
+      (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
+
+      dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1);
+      (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
+      dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2);
+      (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+
+      //face center is moved interior cell width in the boundary normal direction
+      dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1);
+      (*this).SetFCenterJ( (*this).FCenterJ(lFaceB) + dist2Move, lFaceG1);
+      dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2);
+      (*this).SetFCenterJ( (*this).FCenterJ(lFaceB) + dist2Move, lFaceG2);
+
+      dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1);
+      (*this).SetFCenterJ( (*this).FCenterJ(uFaceB) + dist2Move, uFaceG1);
+      dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2);
+      (*this).SetFCenterJ( (*this).FCenterJ(uFaceB) + dist2Move, uFaceG2);
+
+    }
+  }
+
+  //loop over physical K faces
+  for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++ ){
+    for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++ ){
+
+      int cellLowG1 = GetLoc1D(ii, jj, 1, imaxG, jmaxG);
+      int cellLowG2 = GetLoc1D(ii, jj, 0, imaxG, jmaxG);
+      int lFaceG1 = GetLowerFaceK(ii, jj, 1, imaxG, jmaxG); 
+      int lFaceG2 = GetLowerFaceK(ii, jj, 0, imaxG, jmaxG);
+
+      int cellLowIn1 = GetLoc1D(ii, jj, (*this).NumGhosts(), imaxG, jmaxG);
+      int cellLowIn2 = GetLoc1D(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
+      int lFaceIn1 = GetUpperFaceK(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
+      int lFaceIn2 = GetUpperFaceK(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
+      int lFaceB = GetLowerFaceK(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
+
+      int cellUpG1 = GetLoc1D(ii, jj, kmax, imaxG, jmaxG);
+      int cellUpG2 = GetLoc1D(ii, jj, kmax+1, imaxG, jmaxG);
+      int uFaceG1 = GetUpperFaceK(ii, jj, kmax, imaxG, jmaxG); 
+      int uFaceG2 = GetUpperFaceK(ii, jj, kmax+1, imaxG, jmaxG);
+
+      int cellUpIn1 = GetLoc1D(ii, jj, kmax-1, imaxG, jmaxG);
+      int cellUpIn2 = GetLoc1D(ii, jj, kmax-2, imaxG, jmaxG);
+      int uFaceIn1 = GetLowerFaceK(ii, jj, kmax-1, imaxG, jmaxG); 
+      int uFaceIn2 = GetLowerFaceK(ii, jj, kmax-2, imaxG, jmaxG);
+      int uFaceB = GetUpperFaceK(ii, jj, kmax-1, imaxG, jmaxG); 
+
+      //mirror volume values from adjacent cells
+      (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
+      (*this).SetVol( (*this).Vol(cellLowIn2), cellLowG2);
+
+      (*this).SetVol( (*this).Vol(cellUpIn1), cellUpG1);
+      (*this).SetVol( (*this).Vol(cellUpIn2), cellUpG2);
+
+      //mirror face area values from adjacent cells
+      (*this).SetFAreaK( (*this).FAreaK(lFaceIn1), lFaceG1);
+      (*this).SetFAreaK( (*this).FAreaK(lFaceIn2), lFaceG2);
+
+      (*this).SetFAreaK( (*this).FAreaK(uFaceIn1), uFaceG1);
+      (*this).SetFAreaK( (*this).FAreaK(uFaceIn2), uFaceG2);
+
+      //cell centroid is moved interior cell width in the boundary normal direction
+      vector3d<double> dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1);
+      (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
+      dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2);
+      (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
+
+      dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1);
+      (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
+      dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2);
+      (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+
+      //face center is moved interior cell width in the boundary normal direction
+      dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1);
+      (*this).SetFCenterK( (*this).FCenterK(lFaceB) + dist2Move, lFaceG1);
+      dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2);
+      (*this).SetFCenterK( (*this).FCenterK(lFaceB) + dist2Move, lFaceG2);
+
+      dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1);
+      (*this).SetFCenterK( (*this).FCenterK(uFaceB) + dist2Move, uFaceG1);
+      dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2);
+      (*this).SetFCenterK( (*this).FCenterK(uFaceB) + dist2Move, uFaceG2);
+
+    }
+  }
 
 }
