@@ -1567,39 +1567,65 @@ void procBlock::AssignGhostCellsGeom(){
 
       //mirror volume values from adjacent cells
       (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
-      (*this).SetVol( (*this).Vol(cellLowIn2), cellLowG2);
-
       (*this).SetVol( (*this).Vol(cellUpIn1), cellUpG1);
-      (*this).SetVol( (*this).Vol(cellUpIn2), cellUpG2);
+      if (imax < 2){ //one cell thick - use once cell for both ghost cells
+	(*this).SetVol( (*this).Vol(cellLowIn1), cellLowG2);
+	(*this).SetVol( (*this).Vol(cellUpIn1), cellUpG2);
+      }
+      else{
+	(*this).SetVol( (*this).Vol(cellLowIn2), cellLowG2);
+	(*this).SetVol( (*this).Vol(cellUpIn2), cellUpG2);
+      }
 
       //mirror face area values from adjacent cells
       (*this).SetFAreaI( (*this).FAreaI(lFaceIn1), lFaceG1);
-      (*this).SetFAreaI( (*this).FAreaI(lFaceIn2), lFaceG2);
-
       (*this).SetFAreaI( (*this).FAreaI(uFaceIn1), uFaceG1);
-      (*this).SetFAreaI( (*this).FAreaI(uFaceIn2), uFaceG2);
+      if (imax < 2){ //one cell thick - use once cell for both ghost cells
+	(*this).SetFAreaI( (*this).FAreaI(lFaceIn1), lFaceG2);
+	(*this).SetFAreaI( (*this).FAreaI(uFaceIn1), uFaceG2);
+      }
+      else{
+	(*this).SetFAreaI( (*this).FAreaI(lFaceIn2), lFaceG2);
+	(*this).SetFAreaI( (*this).FAreaI(uFaceIn2), uFaceG2);
+      }
 
       //cell centroid is moved interior cell width in the boundary normal direction
       vector3d<double> dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1);
       (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
-      dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2);
-      (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
-
       dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1);
       (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
-      dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2);
-      (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+
+      if (imax < 2){ //one cell thick - use once cell for both ghost cells
+	dist2Move = 2.0 * ((*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1));
+	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
+	dist2Move = 2.0 * ((*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1));
+	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+      }
+      else{
+	dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2);
+	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
+	dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2);
+	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+      }
 
       //face center is moved interior cell width in the boundary normal direction
       dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1);
       (*this).SetFCenterI( (*this).FCenterI(lFaceB) + dist2Move, lFaceG1);
-      dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2);
-      (*this).SetFCenterI( (*this).FCenterI(lFaceB) + dist2Move, lFaceG2);
-
       dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1);
       (*this).SetFCenterI( (*this).FCenterI(uFaceB) + dist2Move, uFaceG1);
-      dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2);
-      (*this).SetFCenterI( (*this).FCenterI(uFaceB) + dist2Move, uFaceG2);
+
+      if (imax < 2){ //one cell thick - use once cell for both ghost cells
+	dist2Move = 2.0 * ((*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1));
+	(*this).SetFCenterI( (*this).FCenterI(lFaceB) + dist2Move, lFaceG2);
+	dist2Move = 2.0 * ((*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1));
+	(*this).SetFCenterI( (*this).FCenterI(uFaceB) + dist2Move, uFaceG2);
+      }
+      else{
+	dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2);
+	(*this).SetFCenterI( (*this).FCenterI(lFaceB) + dist2Move, lFaceG2);
+	dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2);
+	(*this).SetFCenterI( (*this).FCenterI(uFaceB) + dist2Move, uFaceG2);
+      }
 
     }
   }
@@ -1632,39 +1658,65 @@ void procBlock::AssignGhostCellsGeom(){
 
       //mirror volume values from adjacent cells
       (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
-      (*this).SetVol( (*this).Vol(cellLowIn2), cellLowG2);
-
       (*this).SetVol( (*this).Vol(cellUpIn1), cellUpG1);
-      (*this).SetVol( (*this).Vol(cellUpIn2), cellUpG2);
+      if (jmax < 2){ //one cell thick - use once cell for both ghost cells
+	(*this).SetVol( (*this).Vol(cellLowIn1), cellLowG2);
+	(*this).SetVol( (*this).Vol(cellUpIn1), cellUpG2);
+      }
+      else{
+	(*this).SetVol( (*this).Vol(cellLowIn2), cellLowG2);
+	(*this).SetVol( (*this).Vol(cellUpIn2), cellUpG2);
+      }
 
       //mirror face area values from adjacent cells
       (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1), lFaceG1);
-      (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn2), lFaceG2);
-
       (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1), uFaceG1);
-      (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn2), uFaceG2);
+      if (jmax < 2){ //one cell thick - use once cell for both ghost cells
+	(*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1), lFaceG2);
+	(*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1), uFaceG2);
+      }
+      else{
+	(*this).SetFAreaJ( (*this).FAreaJ(lFaceIn2), lFaceG2);
+	(*this).SetFAreaJ( (*this).FAreaJ(uFaceIn2), uFaceG2);
+      }
 
       //cell centroid is moved interior cell width in the boundary normal direction
       vector3d<double> dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1);
       (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
-      dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2);
-      (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
-
       dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1);
       (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
-      dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2);
-      (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+
+      if (jmax < 2){ //one cell thick - use once cell for both ghost cells
+	dist2Move = 2.0 * ((*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1));
+	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
+	dist2Move = 2.0 * ((*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1));
+	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+      }
+      else{
+	dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2);
+	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
+	dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2);
+	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+      }
 
       //face center is moved interior cell width in the boundary normal direction
       dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1);
       (*this).SetFCenterJ( (*this).FCenterJ(lFaceB) + dist2Move, lFaceG1);
-      dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2);
-      (*this).SetFCenterJ( (*this).FCenterJ(lFaceB) + dist2Move, lFaceG2);
-
       dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1);
       (*this).SetFCenterJ( (*this).FCenterJ(uFaceB) + dist2Move, uFaceG1);
-      dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2);
-      (*this).SetFCenterJ( (*this).FCenterJ(uFaceB) + dist2Move, uFaceG2);
+
+      if (jmax < 2){ //one cell thick - use once cell for both ghost cells
+	dist2Move = 2.0 * ((*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1));
+	(*this).SetFCenterJ( (*this).FCenterJ(lFaceB) + dist2Move, lFaceG2);
+	dist2Move = 2.0 * ((*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1));
+	(*this).SetFCenterJ( (*this).FCenterJ(uFaceB) + dist2Move, uFaceG2);
+      }
+      else{
+	dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2);
+	(*this).SetFCenterJ( (*this).FCenterJ(lFaceB) + dist2Move, lFaceG2);
+	dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2);
+	(*this).SetFCenterJ( (*this).FCenterJ(uFaceB) + dist2Move, uFaceG2);
+      }
 
     }
   }
@@ -1697,39 +1749,65 @@ void procBlock::AssignGhostCellsGeom(){
 
       //mirror volume values from adjacent cells
       (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
-      (*this).SetVol( (*this).Vol(cellLowIn2), cellLowG2);
-
       (*this).SetVol( (*this).Vol(cellUpIn1), cellUpG1);
-      (*this).SetVol( (*this).Vol(cellUpIn2), cellUpG2);
+      if (kmax < 2){ //one cell thick - use once cell for both ghost cells
+	(*this).SetVol( (*this).Vol(cellLowIn1), cellLowG2);
+	(*this).SetVol( (*this).Vol(cellUpIn1), cellUpG2);
+      }
+      else{
+	(*this).SetVol( (*this).Vol(cellLowIn2), cellLowG2);
+	(*this).SetVol( (*this).Vol(cellUpIn2), cellUpG2);
+      }
 
       //mirror face area values from adjacent cells
       (*this).SetFAreaK( (*this).FAreaK(lFaceIn1), lFaceG1);
-      (*this).SetFAreaK( (*this).FAreaK(lFaceIn2), lFaceG2);
-
       (*this).SetFAreaK( (*this).FAreaK(uFaceIn1), uFaceG1);
-      (*this).SetFAreaK( (*this).FAreaK(uFaceIn2), uFaceG2);
+      if (kmax < 2){ //one cell thick - use once cell for both ghost cells
+	(*this).SetFAreaK( (*this).FAreaK(lFaceIn1), lFaceG2);
+	(*this).SetFAreaK( (*this).FAreaK(uFaceIn1), uFaceG2);
+      }
+      else{
+	(*this).SetFAreaK( (*this).FAreaK(lFaceIn2), lFaceG2);
+	(*this).SetFAreaK( (*this).FAreaK(uFaceIn2), uFaceG2);
+      }
 
       //cell centroid is moved interior cell width in the boundary normal direction
       vector3d<double> dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1);
       (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
-      dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2);
-      (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
-
       dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1);
       (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
-      dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2);
-      (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+
+      if (kmax < 2){ //one cell thick - use once cell for both ghost cells
+	dist2Move = 2.0 * ((*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1));
+	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
+	dist2Move = 2.0 * ((*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1));
+	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+      }
+      else{
+	dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2);
+	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
+	dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2);
+	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+      }
 
       //face center is moved interior cell width in the boundary normal direction
       dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1);
       (*this).SetFCenterK( (*this).FCenterK(lFaceB) + dist2Move, lFaceG1);
-      dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2);
-      (*this).SetFCenterK( (*this).FCenterK(lFaceB) + dist2Move, lFaceG2);
-
       dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1);
       (*this).SetFCenterK( (*this).FCenterK(uFaceB) + dist2Move, uFaceG1);
-      dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2);
-      (*this).SetFCenterK( (*this).FCenterK(uFaceB) + dist2Move, uFaceG2);
+
+      if (kmax < 2){ //one cell thick - use once cell for both ghost cells
+	dist2Move = 2.0 * ((*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1));
+	(*this).SetFCenterK( (*this).FCenterK(lFaceB) + dist2Move, lFaceG2);
+	dist2Move = 2.0 * ((*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1));
+	(*this).SetFCenterK( (*this).FCenterK(uFaceB) + dist2Move, uFaceG2);
+      }
+      else{
+	dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2);
+	(*this).SetFCenterK( (*this).FCenterK(lFaceB) + dist2Move, lFaceG2);
+	dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2);
+	(*this).SetFCenterK( (*this).FCenterK(uFaceB) + dist2Move, uFaceG2);
+      }
 
     }
   }
