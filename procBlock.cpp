@@ -1968,3 +1968,149 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
   }
 
 }
+
+
+//member function to assign ghost cells for the viscous flow calculation
+//this function assumes AssignInviscidGhostCells has been run first as it only overwrites the ghost cells associated with
+//the viscousWall boundary condition
+void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
+
+  const boundaryConditions bound = inp.BC( (*this).ParentBlock() );
+
+  int imax = (*this).NumI();
+  int jmax = (*this).NumJ();
+  int kmax = (*this).NumK();
+
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
+
+  //loop over physical I faces
+  for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++ ){
+    for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++ ){
+
+      int cellLowG1 = GetLoc1D(1, jj, kk, imaxG, jmaxG);
+      int cellLowG2 = GetLoc1D(0, jj, kk, imaxG, jmaxG);
+
+      int cellLowIn1 = GetLoc1D((*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+      int cellLowIn2 = GetLoc1D((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
+      int lFaceB = GetLowerFaceI((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+
+      int cellUpG1 = GetLoc1D(imax, jj, kk, imaxG, jmaxG);
+      int cellUpG2 = GetLoc1D(imax+1, jj, kk, imaxG, jmaxG);
+
+      int cellUpIn1 = GetLoc1D(imax-1, jj, kk, imaxG, jmaxG);
+      int cellUpIn2 = GetLoc1D(imax-2, jj, kk, imaxG, jmaxG);
+      int uFaceB = GetUpperFaceI(imax-1, jj, kk, imaxG, jmaxG); 
+
+      string bcNameL = bound.GetBCName(0, jj, kk, "il");
+      if (bcNameL == "viscousWall"){
+	(*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1), cellLowG1);
+	if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	  (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1), cellLowG2);
+	}
+	else{
+	  (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1), cellLowG2);
+	}
+      }
+
+      string bcNameU = bound.GetBCName(imax, jj, kk, "iu");
+      if (bcNameU == "viscousWall"){
+	(*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1), cellUpG1);
+	if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	  (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1), cellUpG2);
+	}
+	else{
+	  (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1), cellUpG2);
+	}
+      }
+
+    }
+  }
+
+  //loop over physical J faces
+  for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++ ){
+    for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++ ){
+
+      int cellLowG1 = GetLoc1D(ii, 1, kk, imaxG, jmaxG);
+      int cellLowG2 = GetLoc1D(ii, 0, kk, imaxG, jmaxG);
+
+      int cellLowIn1 = GetLoc1D(ii, (*this).NumGhosts(), kk, imaxG, jmaxG);
+      int cellLowIn2 = GetLoc1D(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
+      int lFaceB = GetLowerFaceJ(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
+
+      int cellUpG1 = GetLoc1D(ii, jmax, kk, imaxG, jmaxG);
+      int cellUpG2 = GetLoc1D(ii, jmax+1, kk, imaxG, jmaxG);
+
+      int cellUpIn1 = GetLoc1D(ii, jmax-1, kk, imaxG, jmaxG);
+      int cellUpIn2 = GetLoc1D(ii, jmax-2, kk, imaxG, jmaxG);
+      int uFaceB = GetUpperFaceJ(ii, jmax-1, kk, imaxG, jmaxG); 
+
+      string bcNameL = bound.GetBCName(ii, 0, kk, "jl");
+      if (bcNameL == "viscousWall"){
+	(*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG1);
+	if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	  (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG2);
+	}
+	else{
+	  (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG2);
+	}
+      }
+
+      string bcNameU = bound.GetBCName(ii, jmax, kk, "ju");
+      if (bcNameU == "viscousWall"){
+	(*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1), cellUpG1);
+	if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	  (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1), cellUpG2);
+	}
+	else{
+	  (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1), cellUpG2);
+	}
+      }
+
+    }
+  }
+
+  //loop over physical K faces
+  for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++ ){
+    for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++ ){
+
+      int cellLowG1 = GetLoc1D(ii, jj, 1, imaxG, jmaxG);
+      int cellLowG2 = GetLoc1D(ii, jj, 0, imaxG, jmaxG);
+
+      int cellLowIn1 = GetLoc1D(ii, jj, (*this).NumGhosts(), imaxG, jmaxG);
+      int cellLowIn2 = GetLoc1D(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
+      int lFaceB = GetLowerFaceK(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
+
+      int cellUpG1 = GetLoc1D(ii, jj, kmax, imaxG, jmaxG);
+      int cellUpG2 = GetLoc1D(ii, jj, kmax+1, imaxG, jmaxG);
+
+      int cellUpIn1 = GetLoc1D(ii, jj, kmax-1, imaxG, jmaxG);
+      int cellUpIn2 = GetLoc1D(ii, jj, kmax-2, imaxG, jmaxG);
+      int uFaceB = GetUpperFaceK(ii, jj, kmax-1, imaxG, jmaxG); 
+
+      string bcNameL = bound.GetBCName(ii, jj, 0, "kl");
+      if (bcNameL == "viscousWall"){
+	(*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1), cellLowG1);
+	if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	  (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1), cellLowG2);
+	}
+	else{
+	  (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1), cellLowG2);
+	}
+      }
+
+      string bcNameU = bound.GetBCName(ii, jj, kmax, "ku");
+      if (bcNameU == "viscousWall"){
+	(*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG1);
+	if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	  (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG2);
+	}
+	else{
+	  (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG2);
+	}
+      }
+
+    }
+  }
+
+}

@@ -169,6 +169,7 @@ class procBlock {
   void AssignGhostCellsGeom();
 
   void AssignInviscidGhostCells(const input&, const idealGas&);
+  void AssignViscousGhostCells(const input&, const idealGas&);
 
   //destructor
   ~procBlock() {}
