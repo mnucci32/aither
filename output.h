@@ -13,8 +13,7 @@ It also writes out a master file in Ensight format to name the Plot3D functions.
 #include "plot3d.h" //plot3d
 #include "eos.h"
 #include "primVars.h" //primVars
-#include "blockVars.h" //blockVars
-#include "viscBlockVars.h" //viscBlockVars
+#include "procBlock.h" //procBlock
 #include "inviscidFlux.h" //inviscidFlux
 #include "input.h" //inputVars
 #include <fstream>
@@ -30,8 +29,8 @@ using std::cerr;
 
 
 //function definitions
-void WriteCellCenter(const string&, const vector<blockVars> &);
-void WriteFun(const string&, const vector<blockVars> &, const vector<viscBlockVars> &, const idealGas&, const double&, const double&, const double&, const double&);
+void WriteCellCenter(const string&, const vector<procBlock> &);
+void WriteFun(const string&, const vector<procBlock> &, const idealGas&, const double&, const double&, const double&, const double&);
 void WriteRes(const string&, const int&, const int&);
 
 

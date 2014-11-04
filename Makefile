@@ -1,4 +1,4 @@
-OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o inviscidFlux.o blockVars.o viscousFlux.o viscBlockVars.o output.o matrix.o
+OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o inviscidFlux.o procBlock.o viscousFlux.o output.o matrix.o
 CC = g++
 DEBUG = -ggdb -pg 
 OPTIM = -O3 -march=native
@@ -12,7 +12,7 @@ $(CODENAME) : $(OBJS)
 plot3d.o : plot3d.cpp plot3d.h vector3d.h
 	$(CC) $(CFLAGS) plot3d.cpp
 
-main.o : main.cpp plot3d.h vector3d.h input.h blockVars.h eos.h primVars.h boundaryConditions.h inviscidFlux.h tensor.h viscousFlux.h viscBlockVars.h output.h matrix.h
+main.o : main.cpp plot3d.h vector3d.h input.h procBlock.h eos.h primVars.h boundaryConditions.h inviscidFlux.h tensor.h viscousFlux.h viscBlockVars.h output.h matrix.h
 	$(CC) $(CFLAGS) main.cpp
 
 input.o : input.cpp input.h boundaryConditions.h
@@ -20,9 +20,6 @@ input.o : input.cpp input.h boundaryConditions.h
 
 primVars.o : primVars.cpp primVars.h vector3d.h eos.h inviscidFlux.h boundaryConditions.h input.h
 	$(CC) $(CFLAGS) primVars.cpp
-
-blockVars.o : blockVars.cpp blockVars.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h matrix.h viscousFlux.h
-	$(CC) $(CFLAGS) blockVars.cpp
 
 procBlock.o : procBlock.cpp procBlock.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h matrix.h viscousFlux.h
 	$(CC) $(CFLAGS) procBlock.cpp
@@ -39,10 +36,7 @@ eos.o : eos.cpp eos.h vector3d.h
 viscousFlux.o : viscousFlux.cpp vector3d.h tensor.h eos.h primVars.h viscousFlux.h boundaryConditions.h input.h
 	$(CC) $(CFLAGS) viscousFlux.cpp
 
-viscBlockVars.o : viscBlockVars.cpp viscBlockVars.h vector3d.h tensor.h plot3d.h eos.h input.h viscousFlux.h blockVars.h primVars.h
-	$(CC) $(CFLAGS) viscBlockVars.cpp
-
-output.o : output.cpp output.h blockVars.h tensor.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h viscBlockVars.h
+output.o : output.cpp output.h procBlock.h tensor.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h viscBlockVars.h
 	$(CC) $(CFLAGS) output.cpp
 
 matrix.o : matrix.cpp matrix.h plot3d.h

@@ -18,7 +18,7 @@ using std::max;
 //---------------------------------------------------------------------------------------------------------------//
 //function declarations
 //function to write out cell centers of grid in plot3d format
-void WriteCellCenter(const string &gridName, const vector<blockVars > &vars) {
+void WriteCellCenter(const string &gridName, const vector<procBlock > &vars) {
 
   //open binary plot3d grid file 
   ofstream outFile;
@@ -38,48 +38,54 @@ void WriteCellCenter(const string &gridName, const vector<blockVars > &vars) {
   outFile.write(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
 
   //write i, j, k dimension for each block
-  int ll = 0;
   int dumInt = 0;
-  int jj = 0;
-  int kk = 0;
   vector3d<double> dumVec;
   double dumDouble=0.0;
 
-  for ( ll=0; ll < numBlks; ll++ ){ //loop over all blocks
-    //subtract 1 from max values because blockVars maxes are in terms of nodes, not cells
-    dumInt = vars[ll].NumI()-1;
+  for ( int ll=0; ll < numBlks; ll++ ){ //loop over all blocks
+    //subtract 1 from max values because procBlock maxes are in terms of nodes, not cells
+    dumInt = vars[ll].NumI();
     outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-    dumInt = vars[ll].NumJ()-1;
+    dumInt = vars[ll].NumJ();
     outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-    dumInt = vars[ll].NumK()-1;
+    dumInt = vars[ll].NumK();
     outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
   }
 
   //write out x, y, z coordinates of cell centers
-  for ( ll = 0; ll < numBlks; ll++ ){  //loop over all blocks
-    int maxi = vars[ll].NumI()-1;
-    int maxj = vars[ll].NumJ()-1;
-    int maxk = vars[ll].NumK()-1;
-    int blkLen = maxi * maxj * maxk;
+  for ( int ll = 0; ll < numBlks; ll++ ){  //loop over all blocks
+    int maxi = vars[ll].NumI();
+    int maxj = vars[ll].NumJ();
+    int maxk = vars[ll].NumK();
+    int maxiG = vars[ll].NumI() + 2 * vars[ll].NumGhosts();
+    int maxjG = vars[ll].NumJ() + 2 * vars[ll].NumGhosts();
 
-    for ( kk = 0; kk < 3; kk++ ){  //loop over dimensions (3)
-      for ( jj = 0; jj < blkLen; jj++ ){ //loop over length of block
+    for ( int nn = 0; nn < 3; nn++ ){  //loop over dimensions (3)
 
-	dumVec = vars[ll].Center(jj);  //at a given cell, get the cell center coordinates
+      for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	  for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){ 
 
-	//for a given block, first write out all x coordinates, then all y coordinates, then all z coordinates
-	if (kk == 0 ) {
-	  dumDouble = dumVec.X();
+	    int loc = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	    dumVec = vars[ll].Center(loc);  //at a given cell, get the cell center coordinates
+
+	    //for a given block, first write out all x coordinates, then all y coordinates, then all z coordinates
+	    if (nn == 0 ) {
+	      dumDouble = dumVec.X();
+	    }
+	    else if (nn == 1){
+	      dumDouble = dumVec.Y();
+	    }
+	    else {
+	      dumDouble = dumVec.Z();
+	    }
+	    //write to file
+	    outFile.write(reinterpret_cast<char *>(&dumDouble), sizeof(dumDouble));
+
+	  }
 	}
-	else if (kk == 1){
-	  dumDouble = dumVec.Y();
-	}
-	else {
-	  dumDouble = dumVec.Z();
-	}
-	//write to file
-	outFile.write(reinterpret_cast<char *>(&dumDouble), sizeof(dumDouble));
       }
+
     }
   }
 
@@ -90,7 +96,7 @@ void WriteCellCenter(const string &gridName, const vector<blockVars > &vars) {
 
 //---------------------------------------------------------------------------------------------------------------//
 //function to write out variables in function file format
-void WriteFun(const string &gridName, const vector<blockVars> &vars, const vector<viscBlockVars> &vVars, const idealGas &eqnState, const double &solTime, const double &refRho, const double &refSoS, const double &refT) {
+void WriteFun(const string &gridName, const vector<procBlock> &vars, const idealGas &eqnState, const double &solTime, const double &refRho, const double &refSoS, const double &refT) {
 
   //open binary plot3d function file 
   ofstream outFile;
@@ -111,150 +117,249 @@ void WriteFun(const string &gridName, const vector<blockVars> &vars, const vecto
 
   //write i, j, k, vars dimension for each block
   int numVars = 23;            //number of variables to write out
-  int ll = 0;
   int dumInt = 0;
-  int jj = 0;
-  int kk = 0;
-  int ii = 0;
 
   vector3d<double> vel;
   double dumDouble=0.0;
 
-  for ( ll=0; ll < numBlks; ll++ ){ //loop over all blocks and write out imax, jmax, kmax, numVars
-    //subtract 1 from maxes because blockVars maxes are in terms of nodes, not cells
-    dumInt = vars[ll].NumI()-1;
+  for ( int ll=0; ll < numBlks; ll++ ){ //loop over all blocks and write out imax, jmax, kmax, numVars
+    dumInt = vars[ll].NumI();
     outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-    dumInt = vars[ll].NumJ()-1;
+    dumInt = vars[ll].NumJ();
     outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-    dumInt = vars[ll].NumK()-1;
+    dumInt = vars[ll].NumK();
     outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
 
     outFile.write(reinterpret_cast<char *>(&numVars), sizeof(numVars));
   }
 
   //write out variables
-  for ( ll = 0; ll < numBlks; ll++ ){ //loop over all blocks
-    int maxi = vars[ll].NumI()-1;
-    int maxj = vars[ll].NumJ()-1;
-    int maxk = vars[ll].NumK()-1;
-    int blkLen = maxi * maxj * maxk;
+  for ( int ll = 0; ll < numBlks; ll++ ){ //loop over all blocks
+    int maxi = vars[ll].NumI();
+    int maxj = vars[ll].NumJ();
+    int maxk = vars[ll].NumK();
+    int blkLen = vars[ll].NumCells();
     vector<double> dumVec(blkLen);
+    int maxiG = vars[ll].NumI() + 2 * vars[ll].NumGhosts();
+    int maxjG = vars[ll].NumJ() + 2 * vars[ll].NumGhosts();
 
-    for ( kk = 0; kk < numVars; kk++ ){ //loop over the number of variables to write out
+    for ( int vv = 0; vv < numVars; vv++ ){ //loop over the number of variables to write out
       //store nondimensional variable in dumVec for a given block in order. i.e. var1 var2 var3 etc
-      if (kk == 0) {
-	for ( ii = 0; ii < blkLen; ii++){         //density
-	  dumVec[ii] = vars[ll].State(ii).Rho();
+      if (vv == 0) {   //density
+	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){ 
+	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      dumVec[loc] = vars[ll].State(locG).Rho(); 
+	    }
+	  }
 	}
       }
-      else if (kk == 1) {
-	for ( ii = 0; ii < blkLen; ii++){         //vel-x
-	  dumVec[ii] = vars[ll].State(ii).U();
+      else if (vv == 1) {  //vel-x
+	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      dumVec[loc] = vars[ll].State(locG).U();  
+	    }
+	  }
 	}
       }
-      else if (kk == 2) {
-	for ( ii = 0; ii < blkLen; ii++){         //vel-y
-	  dumVec[ii] = vars[ll].State(ii).V();
+      else if (vv == 2) {  //vel-y
+	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      dumVec[loc] = vars[ll].State(locG).V();
+	    }
+	  }
 	}
       }
-      else if (kk == 3) {                         //vel-z
-	for ( ii = 0; ii < blkLen; ii++){
-	  dumVec[ii] = vars[ll].State(ii).W();
+      else if (vv == 3) {   //vel-z
+	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      dumVec[loc] = vars[ll].State(locG).W(); 
+	    }
+	  }
 	}
       }
-      else if (kk == 4) {                        //pressure
-	for ( ii = 0; ii < blkLen; ii++){
-	  dumVec[ii] = vars[ll].State(ii).P();
+      else if (vv == 4) {                        //pressure
+	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      dumVec[loc] = vars[ll].State(locG).P();
+	    }
+	  }
 	}
       }
-      else if (kk == 5) {                      //mach
-	for ( ii = 0; ii < blkLen; ii++){
-	  vel = vars[ll].State(ii).Velocity();
-	  dumVec[ii] = vel.Mag() / eqnState.GetSoS( vars[ll].State(ii).P(), vars[ll].State(ii).Rho() );
+      else if (vv == 5) {                      //mach
+	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      vel = vars[ll].State(locG).Velocity();
+	      dumVec[loc] = vel.Mag() / eqnState.GetSoS( vars[ll].State(locG).P(), vars[ll].State(locG).Rho() );
+	    }
+	  }
 	}
       }
-      else if (kk == 6) {                     //speed of sound
-	for ( ii = 0; ii < blkLen; ii++){
-	  dumVec[ii] = eqnState.GetSoS( vars[ll].State(ii).P(), vars[ll].State(ii).Rho() );
+      else if (vv == 6) {                     //speed of sound
+	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      dumVec[loc] = eqnState.GetSoS( vars[ll].State(locG).P(), vars[ll].State(locG).Rho() );
+	    }
+	  }
 	}
       }
-      else if (kk == 7) {                         
-	for ( ii = 0; ii < blkLen; ii++){
-	  dumVec[ii] = vars[ll].Dt(ii);    //time step
+      else if (vv == 7) {                    //time step - no ghost cells
+	for ( int ii = 0; ii < blkLen; ii++){
+	  dumVec[ii] = vars[ll].Dt(ii);  
 	}
       }
-      else if (kk == 8) {                         
-	for ( ii = 0; ii < blkLen; ii++){
-	  dumVec[ii] = vars[ll].State(ii).Temperature(eqnState);    //temperature
+      else if (vv == 8) {                     //temperature
+	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      dumVec[loc] = vars[ll].State(locG).Temperature(eqnState);   
+	    }
+	  }
 	}
       }
-      else if (kk == 9) {
-	for ( ii = 0; ii < blkLen; ii++){       //du/dx
-	  dumVec[ii] = vVars[ll].VelGrad(ii).XX();
+      else if (vv == 9) {    // du/dx
+	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      dumVec[loc] = vars[ll].VelGrad(locG).XX();
+	    }
+	  }
 	}
       }
-      else if (kk == 10) {
-	for ( ii = 0; ii < blkLen; ii++){       //dv/dx
-	  dumVec[ii] = vVars[ll].VelGrad(ii).XY();
+      else if (vv == 10) {  // dv/dx
+	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      dumVec[loc] = vars[ll].VelGrad(locG).XY();
+	    }
+	  }
 	}
       }
-      else if (kk == 11) {
-	for ( ii = 0; ii < blkLen; ii++){       //dw/dx
-	  dumVec[ii] = vVars[ll].VelGrad(ii).XZ();
+      else if (vv == 11) {  // dw/dx
+	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      dumVec[loc] = vars[ll].VelGrad(locG).XZ();
+	    }
+	  }
 	}
       }
-      else if (kk == 12) {
-	for ( ii = 0; ii < blkLen; ii++){       //du/dy
-	  dumVec[ii] = vVars[ll].VelGrad(ii).YX();
+      else if (vv == 12) {   // du/dy
+	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      dumVec[loc] = vars[ll].VelGrad(locG).YX();
+	    }
+	  }
 	}
       }
-      else if (kk == 13) {
-	for ( ii = 0; ii < blkLen; ii++){       //dv/dy
-	  dumVec[ii] = vVars[ll].VelGrad(ii).YY();
+      else if (vv == 13) {  // dv/dy
+	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      dumVec[loc] = vars[ll].VelGrad(locG).YY();
+	    }
+	  }
 	}
       }
-      else if (kk == 14) {
-	for ( ii = 0; ii < blkLen; ii++){       //dw/dy
-	  dumVec[ii] = vVars[ll].VelGrad(ii).YZ();
+      else if (vv == 14) {   // dw/dy
+	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      dumVec[loc] = vars[ll].VelGrad(locG).YZ();
+	    }
+	  }
 	}
       }
-      else if (kk == 15) {
-	for ( ii = 0; ii < blkLen; ii++){       //du/dz
-	  dumVec[ii] = vVars[ll].VelGrad(ii).ZX();
+      else if (vv == 15) {   // du/dz
+	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      dumVec[loc] = vars[ll].VelGrad(locG).ZX();
+	    }
+	  }
 	}
       }
-      else if (kk == 16) {
-	for ( ii = 0; ii < blkLen; ii++){       //dv/dz
-	  dumVec[ii] = vVars[ll].VelGrad(ii).ZY();
+      else if (vv == 16) {   // dv/dz
+	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      dumVec[loc] = vars[ll].VelGrad(locG).ZY();
+	    }
+	  }
 	}
       }
-      else if (kk == 17) {
-	for ( ii = 0; ii < blkLen; ii++){       //dw/dz
-	  dumVec[ii] = vVars[ll].VelGrad(ii).ZZ();
+      else if (vv == 17) {  // dw/dz
+	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      dumVec[loc] = vars[ll].VelGrad(locG).ZZ();
+	    }
+	  }
 	}
       }
-      else if (kk == 18) {                        //mass residual
-	for ( ii = 0; ii < blkLen; ii++){
+      else if (vv == 18) {                        //mass residual - no ghost cells
+	for ( int ii = 0; ii < blkLen; ii++){
 	  dumVec[ii] = vars[ll].Residual(ii,0);
 	}
       }
-      else if (kk == 19) {                        //momentum-x residual
-	for ( ii = 0; ii < blkLen; ii++){
+      else if (vv == 19) {                        //momentum-x residual - no ghost cells
+	for ( int ii = 0; ii < blkLen; ii++){
 	  dumVec[ii] = vars[ll].Residual(ii,1);
 	}
       }
-      else if (kk == 20) {                        //momentum-y residual
-	for ( ii = 0; ii < blkLen; ii++){
+      else if (vv == 20) {                        //momentum-y residual - no ghost cells
+	for ( int ii = 0; ii < blkLen; ii++){
 	  dumVec[ii] = vars[ll].Residual(ii,2);
 	}
       }
-      else if (kk == 21) {                        //momentum-z residual
-	for ( ii = 0; ii < blkLen; ii++){
+      else if (vv == 21) {                        //momentum-z residual - no ghost cells
+	for ( int ii = 0; ii < blkLen; ii++){
 	  dumVec[ii] = vars[ll].Residual(ii,3);
 	}
       }
-      else if (kk == 22) {                        //energy residual
-	for ( ii = 0; ii < blkLen; ii++){
+      else if (vv == 22) {                        //energy residual - no ghost cells
+	for ( int ii = 0; ii < blkLen; ii++){
 	  dumVec[ii] = vars[ll].Residual(ii,4);
 	}
       }
@@ -263,77 +368,77 @@ void WriteFun(const string &gridName, const vector<blockVars> &vars, const vecto
         exit(0);
       }
 
-      for ( jj = 0; jj < blkLen; jj++ ){                              //write out dimensional variables -- loop over block length
+      for ( int nn = 0; nn < blkLen; nn++ ){                              //write out dimensional variables -- loop over block length
 
-        dumDouble = dumVec[jj];
+        dumDouble = dumVec[nn];
 
-	if (kk == 0){                                        //density
+	if (vv == 0){                                        //density
 	  dumDouble = dumDouble * refRho;
 	}
-	else if (kk == 1){                                  //velocity x
+	else if (vv == 1){                                  //velocity x
 	  dumDouble = dumDouble * refSoS;
 	}
-	else if (kk == 2){                                 //velocity y
+	else if (vv == 2){                                 //velocity y
 	  dumDouble = dumDouble * refSoS;
 	}
-	else if (kk == 3){                                 //velocity z
+	else if (vv == 3){                                 //velocity z
 	  dumDouble = dumDouble * refSoS;
 	}
-	else if (kk == 4){                                 // pressure
+	else if (vv == 4){                                 // pressure
 	  dumDouble = dumDouble * refRho * refSoS * refSoS ; 
 	}
-	else if (kk == 5){                                 //mach is already nondimensional
+	else if (vv == 5){                                 //mach is already nondimensional
 	  dumDouble = dumDouble ;                        
 	}
-	else if (kk == 6){                                 // speed of sound
+	else if (vv == 6){                                 // speed of sound
 	  dumDouble = dumDouble * refSoS ; 
 	}
-	else if (kk == 7){                                 //time step
+	else if (vv == 7){                                 //time step
 	  dumDouble = dumDouble / refSoS;                        
 	}
-	else if (kk == 8){                                 //temperature
+	else if (vv == 8){                                 //temperature
 	  dumDouble = dumDouble * refT;                        
 	}
-	else if (kk == 9){                                  //du/dx
+	else if (vv == 9){                                  //du/dx
 	  dumDouble = dumDouble * refSoS;
 	}
-	else if (kk == 10){                                 //dv/dx
+	else if (vv == 10){                                 //dv/dx
 	  dumDouble = dumDouble * refSoS;
 	}
-	else if (kk == 11){                                 //dw/dx
+	else if (vv == 11){                                 //dw/dx
 	  dumDouble = dumDouble * refSoS;
 	}
-	else if (kk == 12){                                  //du/dy
+	else if (vv == 12){                                  //du/dy
 	  dumDouble = dumDouble * refSoS;
 	}
-	else if (kk == 13){                                 //dv/dy
+	else if (vv == 13){                                 //dv/dy
 	  dumDouble = dumDouble * refSoS;
 	}
-	else if (kk == 14){                                 //dw/dy
+	else if (vv == 14){                                 //dw/dy
 	  dumDouble = dumDouble * refSoS;
 	}
-	else if (kk == 15){                                  //du/dz
+	else if (vv == 15){                                  //du/dz
 	  dumDouble = dumDouble * refSoS;
 	}
-	else if (kk == 16){                                 //dv/dz
+	else if (vv == 16){                                 //dv/dz
 	  dumDouble = dumDouble * refSoS;
 	}
-	else if (kk == 17){                                 //dw/dz
+	else if (vv == 17){                                 //dw/dz
 	  dumDouble = dumDouble * refSoS;
 	}
-	else if (kk == 18){                                 //residual is already nondimensional
+	else if (vv == 18){                                 //residual is already nondimensional
 	  dumDouble = dumDouble ;                        
 	}
-	else if (kk == 19){                                 //residual is already nondimensional
+	else if (vv == 19){                                 //residual is already nondimensional
 	  dumDouble = dumDouble ;                        
 	}
-	else if (kk == 20){                                 //residual is already nondimensional
+	else if (vv == 20){                                 //residual is already nondimensional
 	  dumDouble = dumDouble ;                        
 	}
-	else if (kk == 21){                                 //residual is already nondimensional
+	else if (vv == 21){                                 //residual is already nondimensional
 	  dumDouble = dumDouble ;                        
 	}
-	else if (kk == 22){                                 //residual is already nondimensional
+	else if (vv == 22){                                 //residual is already nondimensional
 	  dumDouble = dumDouble ;                        
 	}
 	outFile.write(reinterpret_cast<char *>(&dumDouble), sizeof(dumDouble));

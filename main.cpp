@@ -6,10 +6,9 @@
 #include <vector>        //stl vector
 #include <algorithm>     //max_element
 #include <numeric>       //accumulate
-#include "blockVars.h"
+#include "procBlock.h"
 #include "inviscidFlux.h"
 #include "viscousFlux.h"
-#include "viscBlockVars.h"
 #include "primVars.h"
 #include "eos.h"
 #include "boundaryConditions.h"
@@ -70,23 +69,13 @@ int main( int argc, char *argv[] ) {
   //initialize sutherland's law for viscosity
   sutherland suth(inputVars.TRef());
 
-  //initialize the whole mesh
-  vector<blockVars> stateBlocks( mesh.NumBlocks() );
-  vector<viscBlockVars> viscBlocks( mesh.NumBlocks() );
-  int ll = 0;
-  for ( ll = 0; ll < mesh.NumBlocks(); ll++) {
-    stateBlocks[ll] = blockVars(state, mesh.Blocks(ll));
-    if (inputVars.EquationSet() == "navierStokes"){
-      viscBlocks[ll] = viscBlockVars(mesh.Blocks(ll));
-    }
-    else if (inputVars.EquationSet() == "euler"){
-      //do nothing extra
-    }
-    else{
-      cerr << "ERROR: Equation set " << inputVars.EquationSet() << " is not recognized!" << endl;
-      exit(0);
-    }
+  //determine number of ghost cells
+  int numGhost = 2;
 
+  //initialize the whole mesh
+  vector<procBlock> stateBlocks( mesh.NumBlocks() );
+  for ( int ll = 0; ll < mesh.NumBlocks(); ll++) {
+    stateBlocks[ll] = procBlock(state, mesh.Blocks(ll), ll, numGhost, inputVars.EquationSet());
   }
 
   cout << endl << "Solution Initialized" << endl;
@@ -128,7 +117,7 @@ int main( int argc, char *argv[] ) {
 
       for ( bb = 0; bb < mesh.NumBlocks(); bb++ ){             //loop over number of blocks
 
-	int numElems = (mesh.Blocks(bb).NumI() - 1) * (mesh.Blocks(bb).NumJ() - 1) * (mesh.Blocks(bb).NumK() - 1);
+	int numElems = stateBlocks[bb].NumI() * stateBlocks[bb].NumJ() * stateBlocks[bb].NumK();
 
 	//initialize implicit matrix
 	if (implicitFlag){
@@ -142,31 +131,24 @@ int main( int argc, char *argv[] ) {
 	} //end of implicit conditional
 
 	//calculate inviscid fluxes
-	stateBlocks[bb].CalcInvFluxI(eos, inputVars, bb);
-	stateBlocks[bb].CalcInvFluxJ(eos, inputVars, bb);
-	stateBlocks[bb].CalcInvFluxK(eos, inputVars, bb);
+	stateBlocks[bb].CalcInvFluxI(eos, inputVars);
+	stateBlocks[bb].CalcInvFluxJ(eos, inputVars);
+	stateBlocks[bb].CalcInvFluxK(eos, inputVars);
 
 	//if viscous, calculate gradients and viscous fluxes
 	if (inputVars.EquationSet() == "navierStokes"){
-	  viscBlocks[bb].InitializeGrads(stateBlocks[bb]);
+	  stateBlocks[bb].InitializeGrads();
 
-	  viscBlocks[bb].CalcCellGradsI(stateBlocks[bb], eos, suth, inputVars, bb);
-	  viscBlocks[bb].CalcCellGradsJ(stateBlocks[bb], eos, suth, inputVars, bb);
-	  viscBlocks[bb].CalcCellGradsK(stateBlocks[bb], eos, suth, inputVars, bb);
+	  stateBlocks[bb].CalcCellGradsI(eos, suth, inputVars);
+	  stateBlocks[bb].CalcCellGradsJ(eos, suth, inputVars);
+	  stateBlocks[bb].CalcCellGradsK(eos, suth, inputVars);
 
-	  viscBlocks[bb].CalcViscFluxI(stateBlocks[bb], suth, eos, inputVars, bb);
-	  viscBlocks[bb].CalcViscFluxJ(stateBlocks[bb], suth, eos, inputVars, bb);
-	  viscBlocks[bb].CalcViscFluxK(stateBlocks[bb], suth, eos, inputVars, bb);
+	  stateBlocks[bb].CalcViscFluxI(suth, eos, inputVars);
+	  stateBlocks[bb].CalcViscFluxJ(suth, eos, inputVars);
+	  stateBlocks[bb].CalcViscFluxK(suth, eos, inputVars);
 	}
 
-	//calculate cell time step
-	// if (inputVars.EquationSet() == "navierStokes"){
-	//   viscBlocks[bb].CalcBlockTimeStep(stateBlocks[bb], inputVars, aRef);
-	// }
-	// else{
-	  stateBlocks[bb].CalcBlockTimeStep(inputVars, aRef);
-	// }
-
+	stateBlocks[bb].CalcBlockTimeStep(inputVars, aRef);
 
 	//if implicit calculate flux jacobians and assembly matrix
 	if (implicitFlag){
@@ -180,25 +162,11 @@ int main( int argc, char *argv[] ) {
 	    }
 	  }
 
-	  // stateBlocks[bb].CalcInvFluxJacI( eos, inputVars, bb, mainDiag);
-	  // stateBlocks[bb].CalcInvFluxJacJ( eos, inputVars, bb, mainDiag);
-	  // stateBlocks[bb].CalcInvFluxJacK( eos, inputVars, bb, mainDiag);
-
-
-	  // if (inputVars.EquationSet() == "navierStokes" ){
-	  //   CalcViscFluxJacI(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag);
-	  //   CalcViscFluxJacJ(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag);
-	  //   CalcViscFluxJacK(stateBlocks[bb], suth, eos, inputVars, bb, mainDiag);
-	  // }
-
-	  //add volume divided by time step term to main diagonal
-	  //stateBlocks[bb].AddVolTime(mainDiag, inputVars.Theta(), inputVars.Zeta(), inputVars.DualTimeCFL());
-
 	  //add volume divided by time step term time m - time n term
 	  vector<colMatrix> solTimeMmN = stateBlocks[bb].AddVolTime(stateBlocks[bb].GetCopyConsVars(eos), solTimeN[bb], inputVars.Theta(), inputVars.Zeta());
 
 	  //reorder block for lusgs
-	  vector<vector3d<int> > reorder = HyperplaneReorder(stateBlocks[bb].NumI()-1, stateBlocks[bb].NumJ()-1, stateBlocks[bb].NumK()-1);
+	  vector<vector3d<int> > reorder = HyperplaneReorder(stateBlocks[bb].NumI(), stateBlocks[bb].NumJ(), stateBlocks[bb].NumK());
 
 	  //calculate correction (du)
 	  matrixResid += stateBlocks[bb].LUSGS(reorder, du[bb], solTimeMmN, solDeltaNm1[bb], eos, inputVars, suth );
@@ -275,7 +243,7 @@ int main( int argc, char *argv[] ) {
     if ( (nn+1)  % inputVars.OutputFrequency() == 0 ){ //write out function file
       cout << "write out function file at iteration " << nn << endl;
       //Write out function file
-      WriteFun(inputVars.GridName(),stateBlocks, viscBlocks, eos, (double) (nn+1), inputVars.RRef(), aRef, inputVars.TRef());
+      WriteFun(inputVars.GridName(),stateBlocks, eos, (double) (nn+1), inputVars.RRef(), aRef, inputVars.TRef());
       WriteRes(inputVars.GridName(), (nn+1), inputVars.OutputFrequency());
     }
 
