@@ -94,6 +94,80 @@ void WriteCellCenter(const string &gridName, const vector<procBlock > &vars) {
 
 }
 
+//function to write out cell centers of grid with ghost cells in plot3d format
+void WriteCellCenterGhost(const string &gridName, const vector<procBlock > &vars) {
+
+  //open binary plot3d grid file 
+  ofstream outFile;
+  string fEnd = "_center_ghost";
+  string fPostfix = ".xyz";
+  string writeName = gridName + fEnd + fPostfix;
+  outFile.open(writeName.c_str(), ios::out | ios::binary);
+
+  //check to see if file opened correctly
+  if (outFile.fail()) {
+    cerr << "ERROR: Grid file " << writeName << " did not open correctly!!!" << endl;
+    exit(0);
+  }
+
+  //write number of blocks to file
+  int numBlks = vars.size();
+  outFile.write(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
+
+  //write i, j, k dimension for each block
+  int dumInt = 0;
+  vector3d<double> dumVec;
+  double dumDouble=0.0;
+
+  for ( int ll=0; ll < numBlks; ll++ ){ //loop over all blocks
+    dumInt = vars[ll].NumI() + 2 * vars[ll].NumGhosts();
+    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
+    dumInt = vars[ll].NumJ() + 2 * vars[ll].NumGhosts();
+    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
+    dumInt = vars[ll].NumK() + 2 * vars[ll].NumGhosts();
+    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
+  }
+
+  //write out x, y, z coordinates of cell centers
+  for ( int ll = 0; ll < numBlks; ll++ ){  //loop over all blocks
+    int maxiG = vars[ll].NumI() + 2 * vars[ll].NumGhosts();
+    int maxjG = vars[ll].NumJ() + 2 * vars[ll].NumGhosts();
+    int maxkG = vars[ll].NumJ() + 2 * vars[ll].NumGhosts();
+
+    for ( int nn = 0; nn < 3; nn++ ){  //loop over dimensions (3)
+
+      for ( int kk = 0; kk < maxkG; kk++ ){
+	for ( int jj = 0; jj < maxjG; jj++ ){
+	  for ( int ii = 0; ii < maxiG; ii++){ 
+
+	    int loc = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	    dumVec = vars[ll].Center(loc);  //at a given cell, get the cell center coordinates
+
+	    //for a given block, first write out all x coordinates, then all y coordinates, then all z coordinates
+	    if (nn == 0 ) {
+	      dumDouble = dumVec.X();
+	    }
+	    else if (nn == 1){
+	      dumDouble = dumVec.Y();
+	    }
+	    else {
+	      dumDouble = dumVec.Z();
+	    }
+	    //write to file
+	    outFile.write(reinterpret_cast<char *>(&dumDouble), sizeof(dumDouble));
+
+	  }
+	}
+      }
+
+    }
+  }
+
+  //close plot3d grid file
+  outFile.close();
+
+}
+
 //---------------------------------------------------------------------------------------------------------------//
 //function to write out variables in function file format
 void WriteFun(const string &gridName, const vector<procBlock> &vars, const idealGas &eqnState, const double &solTime, const double &refRho, const double &refSoS, const double &refT) {
