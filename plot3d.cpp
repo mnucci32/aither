@@ -962,22 +962,10 @@ int GetNeighborUpK(const int &i, const int &j, const int &k, const int &imax, co
 //functions to take in i, j, k, imax, jmax of a face and return the 1D index of the neighbor cell
 //function to take in i, j, k indexes of a k-face and return the 1D index of the neighbor cell in the lower k direction
 int GetCellFromFaceLowerK(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
-  if( (k-1-(num-1)) < 0 ){
-    cerr << "ERROR: Tried to access cell outside of range!" << endl;
-    cerr << "Tried to access cell " << i << ", " << j << ", " << k-1-(num-1) << endl;
-    exit(0);
-  }
-
   return i + j*imax + (k-1-(num-1))*imax*jmax;
 }
 //function to take in i, j, k indexes of a k-face and return the 1D index of the neighbor cell in the upper k direction
 int GetCellFromFaceUpperK(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
-  if( (k-1+num) < 0 ){
-    cerr << "ERROR: Tried to access cell outside of range!" << endl;
-    cerr << "Tried to access cell " << i << ", " << j << ", " << k-1+num << endl;
-    exit(0);
-  }
-
   return i + j*imax + (k-1+num)*imax*jmax;
 }
 //function to take in i, j, k indexes of a j-face and return the 1D index of the neighbor cell in the lower j direction
@@ -990,24 +978,10 @@ int GetCellFromFaceUpperJ(const int &i, const int &j, const int &k, const int &i
 }
 //function to take in i, j, k indexes of a i-face and return the 1D index of the neighbor cell in the lower i direction
 int GetCellFromFaceLowerI(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
-
-  if( (i-1-(num-1)) < 0 || (i-1-(num-1)) > (imax-2) ){
-    cerr << "ERROR: Tried to access cell outside of range!" << endl;
-    cerr << "Tried to access cell " << i-1-(num-1) << ", " << j << ", " << k << endl;
-    exit(0);
-  }
-
   return (i-1-(num-1)) + j*(imax-1) + k*(imax-1)*jmax;
 }
 //function to take in i, j, k indexes of a i-face and return the 1D index of the neighbor cell in the upper i direction
 int GetCellFromFaceUpperI(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
-
-  if( (i-1+num) < 0 || (i-1+num) > (imax-2) ){
-    cerr << "ERROR: Tried to access cell outside of range!" << endl;
-    cerr << "Tried to access cell " << i-1+num << ", " << j << ", " << k << endl;
-    exit(0);
-  }
-
   return (i-1+num) + j*(imax-1) + k*(imax-1)*jmax;
 }
 
