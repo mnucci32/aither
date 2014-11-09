@@ -313,14 +313,11 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
 	inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS);
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
-	if ( lowerING >= 0 ){
+	if ( ii > (*this).NumGhosts() ){
 	  (*this).AddToResidual( tempFlux * (*this).FAreaI(loc).Mag(), lowerING);
 	}
-	if ( upperING < (*this).NumCells() ){
-	  (*this).AddToResidual( -1.0 * tempFlux * (*this).FAreaI(loc).Mag(), upperING);
-	}
-
 	if ( ii < imax - 1 + (*this).NumGhosts() ){
+	  (*this).AddToResidual( -1.0 * tempFlux * (*this).FAreaI(loc).Mag(), upperING);
 	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
 	  maxWS = CellSpectralRadius( (*this).FAreaI(loc), (*this).FAreaI(upFaceI), (*this).State(upperI), eqnState );
 	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperING) + maxWS, upperING);
@@ -329,7 +326,6 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
       }
     }
   }
-
 
 }
 
@@ -387,14 +383,11 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp){
 	inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS);
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
-	if ( lowerJNG >= 0 ){
+	if ( jj > (*this).NumGhosts() ){
 	  (*this).AddToResidual( tempFlux * (*this).FAreaJ(loc).Mag(), lowerJNG);
 	}
-	if ( upperJNG < (*this).NumCells() ){
-	  (*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaJ(loc).Mag(), upperJNG);
-	}
-
 	if ( jj < jmax - 1 + (*this).NumGhosts() ){
+	  (*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaJ(loc).Mag(), upperJNG);
 	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
 	  maxWS = CellSpectralRadius( (*this).FAreaJ(loc), (*this).FAreaJ(upFaceJ), (*this).State(upperJ), eqnState );
 	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperJNG) + maxWS, upperJNG);
@@ -403,7 +396,6 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp){
       }
     }
   }
-
 
 }
 
@@ -461,14 +453,11 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp){
 	inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS);
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
-	if ( lowerKNG >= 0 ){
+	if ( kk > (*this).NumGhosts() ){
 	  (*this).AddToResidual( tempFlux * (*this).FAreaK(loc).Mag(), lowerKNG);
 	}
-	if ( upperKNG < (*this).NumCells() ){
-	  (*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaK(loc).Mag(), upperKNG);
-	}
-
 	if ( kk < kmax - 1 + (*this).NumGhosts() ){
+	  (*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaK(loc).Mag(), upperKNG);
 	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
 	  maxWS = CellSpectralRadius( (*this).FAreaK(loc), (*this).FAreaK(upFaceK), (*this).State(upperK), eqnState );
 	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperKNG) + maxWS, upperKNG);
@@ -478,14 +467,15 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp){
     }
   }
 
-
 }
 
 //member function to calculate the local time step. (i,j,k) are cell indices
 void procBlock::CalcCellDt( const int &i, const int &j, const int &k, const double &cfl){
 
   int loc = GetLoc1D(i, j, k, (*this).NumI(), (*this).NumJ());
-  double dt = cfl * ((*this).Vol(loc) / (*this).AvgWaveSpeed(loc)) ; //use nondimensional time
+  int locG = GetLoc1D(i + (*this).NumGhosts(), j + (*this).NumGhosts(), k + (*this).NumGhosts()
+		      , (*this).NumI() + 2 * (*this).NumGhosts(), (*this).NumJ() + 2 * (*this).NumGhosts());
+  double dt = cfl * ((*this).Vol(locG) / (*this).AvgWaveSpeed(loc)) ; //use nondimensional time
 
   (*this).SetDt(dt, loc);
 
