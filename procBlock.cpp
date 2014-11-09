@@ -709,9 +709,7 @@ void procBlock::ResetResidWS( ){
     }
   }
 
-
 }
-
 
 //a member function to add the cell volume divided by the cell time step to the time m - time n term
 vector<colMatrix> procBlock::AddVolTime(const vector<colMatrix> &m, const vector<colMatrix> &n, const double &theta, const double &zeta) const {
@@ -1221,13 +1219,13 @@ void procBlock::CalcCellGradsI(const idealGas &eqnState, const sutherland &suth,
   double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
   double mRef = inp.VelRef().Mag() / aRef;
 
-  //loop over all physical cells and first layer of ghost cells
-  for ( int kk = 1; kk < kmax + 1; kk++){   
-    for ( int jj = 1; jj < jmax + 1; jj++){    
-      for ( int ii = 1; ii < imax + 1; ii++){      
+  //loop over all physical cells
+  for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
+    for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
+      for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
 
 	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
-	int locNG = GetLoc1D(ii-1, jj-1, kk-1, imax, jmax);
+	int locNG = GetLoc1D(ii-(*this).NumGhosts(), jj-(*this).NumGhosts(), kk-(*this).NumGhosts(), imax, jmax);
 
 	int iLow = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG); 
 	int iUp  = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG);
@@ -1270,13 +1268,13 @@ void procBlock::CalcCellGradsJ(const idealGas &eqnState, const sutherland &suth,
   double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
   double mRef = inp.VelRef().Mag() / aRef;
 
-  //loop over all physical cells and first layer of ghost cells
-  for ( int kk = 1; kk < kmax + 1; kk++){   
-    for ( int jj = 1; jj < jmax + 1; jj++){    
-      for ( int ii = 1; ii < imax + 1; ii++){      
+  //loop over all physical cells
+  for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
+    for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
+      for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
 
 	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
-	int locNG = GetLoc1D(ii-1, jj-1, kk-1, imax, jmax);
+	int locNG = GetLoc1D(ii-(*this).NumGhosts(), jj-(*this).NumGhosts(), kk-(*this).NumGhosts(), imax, jmax);
 
 	int jLow = GetNeighborLowJ(ii, jj, kk, imaxG, jmaxG); 
 	int jUp  = GetNeighborUpJ(ii, jj, kk, imaxG, jmaxG);
@@ -1319,13 +1317,13 @@ void procBlock::CalcCellGradsK(const idealGas &eqnState, const sutherland &suth,
   double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
   double mRef = inp.VelRef().Mag() / aRef;
 
-  //loop over all physical cells and first layer of ghost cells
-  for ( int kk = 1; kk < kmax + 1; kk++){   
-    for ( int jj = 1; jj < jmax + 1; jj++){    
-      for ( int ii = 1; ii < imax + 1; ii++){      
+  //loop over all physical cells
+  for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
+    for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
+      for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
 
 	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
-	int locNG = GetLoc1D(ii-1, jj-1, kk-1, imax, jmax);
+	int locNG = GetLoc1D(ii-(*this).NumGhosts(), jj-(*this).NumGhosts(), kk-(*this).NumGhosts(), imax, jmax);
 
 	int kLow = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG); 
 	int kUp  = GetNeighborUpK(ii, jj, kk, imaxG, jmaxG);
@@ -1376,7 +1374,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 	int iLow  = GetCellFromFaceLowerI(ii, jj, kk, imaxG, jmaxG);
 	int iUp  = GetCellFromFaceUpperI(ii, jj, kk, imaxG, jmaxG);
 
-	int iLowNG  = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
+	int iLowNG  = GetCellFromFaceLowerI(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 	int iUpNG  = GetCellFromFaceUpperI(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 
 	//Get velocity gradient at face
@@ -1395,8 +1393,12 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
 	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
-	(*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaI(loc).Mag(), iLowNG);
-	(*this).AddToResidual(tempViscFlux * (*this).FAreaI(loc).Mag(), iUpNG);
+	if ( ii > (*this).NumGhosts() ){
+	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaI(loc).Mag(), iLowNG);
+	}
+	if ( ii < imax -1 + (*this).NumGhosts() ){
+	  (*this).AddToResidual(tempViscFlux * (*this).FAreaI(loc).Mag(), iUpNG);
+	}
 
       }
     }
@@ -1449,8 +1451,12 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
 	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
-	(*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaJ(loc).Mag(), jLowNG);
-	(*this).AddToResidual(tempViscFlux * (*this).FAreaJ(loc).Mag(), jUpNG);
+	if ( jj < (*this).NumGhosts() ){
+	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaJ(loc).Mag(), jLowNG);
+	}
+	if ( jj < jmax -1 + (*this).NumGhosts() ){
+	  (*this).AddToResidual(tempViscFlux * (*this).FAreaJ(loc).Mag(), jUpNG);
+	}
 
       }
     }
@@ -1502,8 +1508,12 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
 	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
-	(*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaK(loc).Mag(), kLowNG);
-	(*this).AddToResidual(tempViscFlux * (*this).FAreaK(loc).Mag(), kUpNG);
+	if ( kk > (*this).NumGhosts() ){
+	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaK(loc).Mag(), kLowNG);
+	}
+	if ( kk < kmax -1 + (*this).NumGhosts() ){
+	  (*this).AddToResidual(tempViscFlux * (*this).FAreaK(loc).Mag(), kUpNG);
+	}
 
       }
     }
@@ -2095,6 +2105,89 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
 	  (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG2);
 	}
       }
+
+    }
+  }
+
+}
+
+
+//member function to assign ghost cells for the viscous flow calculation
+//assigns velocity gradient and temperature gradient to first layer of ghost cells
+void procBlock::AssignViscousGradGhostCells(const input &inp){
+
+  const boundaryConditions bound = inp.BC( (*this).ParentBlock() );
+
+  int imax = (*this).NumI();
+  int jmax = (*this).NumJ();
+  int kmax = (*this).NumK();
+
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
+  int kmaxG = (*this).NumK() + 2 * (*this).NumGhosts();
+
+  //loop over physical I faces
+  for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++ ){
+    for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++ ){
+
+      int cellLowG1 = GetLoc1D(1, jj, kk, imaxG, jmaxG);
+      int cellLowIn1 = GetLoc1D((*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+
+      int cellUpG1 = GetLoc1D(imaxG-2, jj, kk, imaxG, jmaxG);
+      int cellUpIn1 = GetLoc1D(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+
+      string bcNameL = bound.GetBCName(0, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "il");
+      string bcNameU = bound.GetBCName(imax, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "iu");
+
+      (*this).SetVelGrad( (*this).VelGrad(cellLowIn1), cellLowG1);
+      (*this).SetVelGrad( (*this).VelGrad(cellUpIn1), cellUpG1);
+
+      (*this).SetTempGrad( (*this).TempGrad(cellLowIn1), cellLowG1);
+      (*this).SetTempGrad( (*this).TempGrad(cellUpIn1), cellUpG1);
+
+    }
+  }
+
+  //loop over physical J faces
+  for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++ ){
+    for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++ ){
+
+      int cellLowG1 = GetLoc1D(ii, 1, kk, imaxG, jmaxG);
+      int cellLowIn1 = GetLoc1D(ii, (*this).NumGhosts(), kk, imaxG, jmaxG);
+
+      int cellUpG1 = GetLoc1D(ii, jmaxG-2, kk, imaxG, jmaxG);
+      int cellUpIn1 = GetLoc1D(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG);
+
+      string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), 0, kk - (*this).NumGhosts(), "jl");
+      string bcNameU = bound.GetBCName(ii - (*this).NumGhosts(), jmax, kk - (*this).NumGhosts(), "ju");
+
+      (*this).SetVelGrad( (*this).VelGrad(cellLowIn1), cellLowG1);
+      (*this).SetVelGrad( (*this).VelGrad(cellUpIn1), cellUpG1);
+
+      (*this).SetTempGrad( (*this).TempGrad(cellLowIn1), cellLowG1);
+      (*this).SetTempGrad( (*this).TempGrad(cellUpIn1), cellUpG1);
+
+    }
+  }
+
+  //loop over physical K faces
+  for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++ ){
+    for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++ ){
+
+      int cellLowG1 = GetLoc1D(ii, jj, 1, imaxG, jmaxG);
+      int cellLowIn1 = GetLoc1D(ii, jj, (*this).NumGhosts(), imaxG, jmaxG);
+
+      int cellUpG1 = GetLoc1D(ii, jj, kmaxG-2, imaxG, jmaxG);
+      int cellUpIn1 = GetLoc1D(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG);
+
+      string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), 0, "kl");
+      string bcNameU = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kmax, "ku");
+
+      (*this).SetVelGrad( (*this).VelGrad(cellLowIn1), cellLowG1);
+      (*this).SetVelGrad( (*this).VelGrad(cellUpIn1), cellUpG1);
+
+      (*this).SetTempGrad( (*this).TempGrad(cellLowIn1), cellLowG1);
+      (*this).SetTempGrad( (*this).TempGrad(cellUpIn1), cellUpG1);
 
     }
   }

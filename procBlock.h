@@ -170,6 +170,7 @@ class procBlock {
 
   void AssignInviscidGhostCells(const input&, const idealGas&);
   void AssignViscousGhostCells(const input&, const idealGas&);
+  void AssignViscousGradGhostCells(const input&);
 
   //destructor
   ~procBlock() {}

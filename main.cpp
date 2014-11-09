@@ -105,6 +105,8 @@ int main( int argc, char *argv[] ) {
   //Write out cell centers grid file
   WriteCellCenter(inputVars.GridName(),stateBlocks);
   //WriteCellCenterGhost(inputVars.GridName(),stateBlocks);
+  WriteFun(inputVars.GridName(),stateBlocks, eos, 0, inputVars.RRef(), aRef, inputVars.TRef());
+  WriteRes(inputVars.GridName(), 0, inputVars.OutputFrequency());
 
   for ( int nn = 0; nn < inputVars.Iterations(); nn++ ){            //loop over time
 
@@ -132,13 +134,9 @@ int main( int argc, char *argv[] ) {
 	stateBlocks[bb].AssignInviscidGhostCells(inputVars, eos);
 
 	//calculate inviscid fluxes
-	cout << "i-flux" << endl;
 	stateBlocks[bb].CalcInvFluxI(eos, inputVars);
-	cout << "j-flux" << endl;
 	stateBlocks[bb].CalcInvFluxJ(eos, inputVars);
-	cout << "k-flux" << endl;
 	stateBlocks[bb].CalcInvFluxK(eos, inputVars);
-	cout << "fluxes done" << endl;
 
 	//if viscous, calculate gradients and viscous fluxes
 	if (inputVars.EquationSet() == "navierStokes"){
@@ -151,6 +149,8 @@ int main( int argc, char *argv[] ) {
 	  stateBlocks[bb].CalcCellGradsI(eos, suth, inputVars);
 	  stateBlocks[bb].CalcCellGradsJ(eos, suth, inputVars);
 	  stateBlocks[bb].CalcCellGradsK(eos, suth, inputVars);
+
+	  stateBlocks[bb].AssignViscousGradGhostCells(inputVars);
 
 	  stateBlocks[bb].CalcViscFluxI(suth, eos, inputVars);
 	  stateBlocks[bb].CalcViscFluxJ(suth, eos, inputVars);
