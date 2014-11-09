@@ -334,12 +334,12 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
 
   vector3d<double> normArea;
 
-  if (surf == "il" || surf == "jl" || surf == "kl"){
-    normArea = -1.0 * areaVec / areaVec.Mag(); //at lower surface normal should point out of domain for ghost cell calculation
-  }
-  else if (surf == "iu" || surf == "ju" || surf == "ku"){
+  // if (surf == "il" || surf == "jl" || surf == "kl"){
+  //   normArea = -1.0 * areaVec / areaVec.Mag(); //at lower surface normal should point out of domain for ghost cell calculation
+  // }
+  // else if (surf == "iu" || surf == "ju" || surf == "ku"){
     normArea = areaVec / areaVec.Mag(); 
-  }
+  // }
 
   double normVelCellCenter = 0;
 
@@ -468,9 +468,10 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
     ghostState.SetW(vel.Z());
     ghostState.SetP(1.0 / eqnState.Gamma());
 
-    if (layer == 2){ //extrapolate to get ghost state at 2nd layer
-      ghostState = 2.0 * ghostState - (*this);
-    }
+    //no matter the layer, return the same ghost state
+    // if (layer == 2){ //extrapolate to get ghost state at 2nd layer
+    //   ghostState = 2.0 * ghostState - (*this);
+    // }
 
   }
   else if (bcType == "supersonicOutflow"){
