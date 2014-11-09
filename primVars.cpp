@@ -334,12 +334,12 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
 
   vector3d<double> normArea;
 
-  // if (surf == "il" || surf == "jl" || surf == "kl"){
-  //   normArea = -1.0 * areaVec / areaVec.Mag(); //at lower surface normal should point out of domain for ghost cell calculation
-  // }
-  // else if (surf == "iu" || surf == "ju" || surf == "ku"){
+  if (surf == "il" || surf == "jl" || surf == "kl"){
+    normArea = -1.0 * areaVec / areaVec.Mag(); //at lower surface normal should point out of domain for ghost cell calculation
+  }
+  else if (surf == "iu" || surf == "ju" || surf == "ku"){
     normArea = areaVec / areaVec.Mag(); 
-  // }
+  }
 
   double normVelCellCenter = 0;
 
