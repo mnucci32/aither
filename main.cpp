@@ -51,11 +51,13 @@ int main( int argc, char *argv[] ) {
 
   cout << "Number of equations: " << numEqns << endl << endl;
 
+  //determine number of ghost cells
+  int numGhost = 2;
+
   //Read grid
   plot3dMesh mesh = ReadP3dGrid(inputVars.GridName(), totalCells);
 
   //Initialize state vector with nondimensional variables
-
   //get reference speed of sound
   idealGas eos(inputVars.Gamma(),inputVars.R());                          //create an equation of state
   double aRef = eos.GetSoS(inputVars.PRef(),inputVars.RRef());
@@ -69,13 +71,11 @@ int main( int argc, char *argv[] ) {
   //initialize sutherland's law for viscosity
   sutherland suth(inputVars.TRef());
 
-  //determine number of ghost cells
-  int numGhost = 2;
-
-  //initialize the whole mesh
+  //initialize the whole mesh with one state and assign ghost cells geometry
   vector<procBlock> stateBlocks( mesh.NumBlocks() );
   for ( int ll = 0; ll < mesh.NumBlocks(); ll++) {
     stateBlocks[ll] = procBlock(state, mesh.Blocks(ll), ll, numGhost, inputVars.EquationSet());
+    stateBlocks[ll].AssignGhostCellsGeom();
   }
 
   cout << endl << "Solution Initialized" << endl;
@@ -86,36 +86,34 @@ int main( int argc, char *argv[] ) {
     implicitFlag = true;
   }
 
+  //column matrix of zeros
   colMatrix initial(numEqns);
   initial.Zero();
 
+  //preallocate vectors for old solution and solution correction
   vector<vector<colMatrix> > solTimeN(mesh.NumBlocks());
   vector<vector<colMatrix> > solDeltaNm1(mesh.NumBlocks());
   vector<vector<colMatrix> > du(mesh.NumBlocks());
 
-  int bb = 0;
-  unsigned int cc = 0;
-  int nn = 0;
-  int mm = 0;
 
   int locMaxB = 0;
-
-  vector<double> residL2(numEqns, 0.0);
-  vector<double> residL2First(numEqns, 0.0);
-  vector<double> residLinf(numEqns, 0.0);
+  colMatrix residL2 = initial;
+  colMatrix residL2First = initial;
+  colMatrix residLinf = initial;
   double matrixResid = 0.0;
 
   //Write out cell centers grid file
   WriteCellCenter(inputVars.GridName(),stateBlocks);
+  //WriteCellCenterGhost(inputVars.GridName(),stateBlocks);
 
-  for ( nn = 0; nn < inputVars.Iterations(); nn++ ){            //loop over time
+  for ( int nn = 0; nn < inputVars.Iterations(); nn++ ){            //loop over time
 
     //calculate cfl number
     inputVars.CalcCFL(nn);
 
-    for ( mm = 0; mm < inputVars.NonlinearIterations(); mm++ ){    //loop over nonlinear iterations
+    for ( int mm = 0; mm < inputVars.NonlinearIterations(); mm++ ){    //loop over nonlinear iterations
 
-      for ( bb = 0; bb < mesh.NumBlocks(); bb++ ){             //loop over number of blocks
+      for ( int bb = 0; bb < mesh.NumBlocks(); bb++ ){             //loop over number of blocks
 
 	int numElems = stateBlocks[bb].NumI() * stateBlocks[bb].NumJ() * stateBlocks[bb].NumK();
 
@@ -130,13 +128,24 @@ int main( int argc, char *argv[] ) {
 
 	} //end of implicit conditional
 
+	//determine ghost cell values for inviscid fluxes
+	stateBlocks[bb].AssignInviscidGhostCells(inputVars, eos);
+
 	//calculate inviscid fluxes
+	cout << "i-flux" << endl;
 	stateBlocks[bb].CalcInvFluxI(eos, inputVars);
+	cout << "j-flux" << endl;
 	stateBlocks[bb].CalcInvFluxJ(eos, inputVars);
+	cout << "k-flux" << endl;
 	stateBlocks[bb].CalcInvFluxK(eos, inputVars);
+	cout << "fluxes done" << endl;
 
 	//if viscous, calculate gradients and viscous fluxes
 	if (inputVars.EquationSet() == "navierStokes"){
+
+	  //determine ghost cell values for viscous fluxes
+	  stateBlocks[bb].AssignViscousGhostCells(inputVars, eos);
+
 	  stateBlocks[bb].InitializeGrads();
 
 	  stateBlocks[bb].CalcCellGradsI(eos, suth, inputVars);
@@ -150,7 +159,7 @@ int main( int argc, char *argv[] ) {
 
 	stateBlocks[bb].CalcBlockTimeStep(inputVars, aRef);
 
-	//if implicit calculate flux jacobians and assembly matrix
+	//if implicit get old solution, reorder block, and use linear solver
 	if (implicitFlag){
 
 	  //store time-n solution
@@ -196,16 +205,15 @@ int main( int argc, char *argv[] ) {
 
 
       //finish calculation of L2 norm of residual
-      for ( cc = 0; cc < residL2.size(); cc++ ){
-	residL2[cc] = sqrt(residL2[cc]);
+      for ( int cc = 0; cc < residL2.Size(); cc++ ){
+	residL2.SetData(cc, sqrt(residL2.Data(cc)) );
 
 	if (nn == 0 && mm == 0){
-	  residL2First[cc] = residL2[cc];
-	  cout << residL2[cc] << endl;
+	  residL2First.SetData(cc, residL2.Data(cc) );
 	}
 
 	//normalize residuals
-	residL2[cc] = (residL2[cc]+eps) / (residL2First[cc]+eps) ;
+	residL2.SetData(cc, (residL2.Data(cc)+eps) / (residL2First.Data(cc)+eps) );
       }
 
       matrixResid = sqrt(matrixResid/(totalCells * numEqns));
@@ -222,19 +230,17 @@ int main( int argc, char *argv[] ) {
 
       }
       if (inputVars.Dt() > 0.0){
-	cout << nn << "     " << mm << "     " << inputVars.Dt() << "     " << residL2[0] <<  "     " << residL2[1] << "     " << residL2[2] << "     " << residL2[3] << "     " << residL2[4] << "     " 
-	     << residLinf[3] << "     " << locMaxB << "     " << residLinf[0] <<"     " << residLinf[1] << "     " << residLinf[2] << "     " << residLinf[4] << "     " << matrixResid << endl;
+	cout << nn << "     " << mm << "     " << inputVars.Dt() << "     " << residL2.Data(0) <<  "     " << residL2.Data(1) << "     " << residL2.Data(2) << "     " << residL2.Data(3) << "     " << residL2.Data(4) << "     " 
+	     << residLinf.Data(3) << "     " << locMaxB << "     " << residLinf.Data(0) <<"     " << residLinf.Data(1) << "     " << residLinf.Data(2) << "     " << residLinf.Data(4) << "     " << matrixResid << endl;
       }
       else if (inputVars.CFL() > 0.0){
-	cout << nn << "     " << mm << "     " << inputVars.CFL() << "     " << residL2[0] <<  "     " << residL2[1] << "     " << residL2[2] << "     " << residL2[3] << "     " << residL2[4] << "     " 
-	     << residLinf[3] << "     " << locMaxB << "     " << residLinf[0] <<"     " << residLinf[1] << "     " << residLinf[2] << "     " << residLinf[4] << "     " << matrixResid << endl;
+	cout << nn << "     " << mm << "     " << inputVars.CFL() << "     " << residL2.Data(0) <<  "     " << residL2.Data(1) << "     " << residL2.Data(2) << "     " << residL2.Data(3) << "     " << residL2.Data(4) << "     " 
+	     << residLinf.Data(3) << "     " << locMaxB << "     " << residLinf.Data(0) <<"     " << residLinf.Data(1) << "     " << residLinf.Data(2) << "     " << residLinf.Data(4) << "     " << matrixResid << endl;
       }
 
       //reset residuals
-      for ( cc = 0; cc < residL2.size(); cc++ ){
-	residL2[cc] = 0.0;
-	residLinf[cc] = 0.0;
-      }
+      residL2 = initial;
+      residLinf = initial;
       locMaxB = 0;
       matrixResid = 0.0;
 

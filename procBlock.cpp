@@ -269,10 +269,7 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
   double maxWS = 0.0;
-  double upwindL, upwind2L, downwindL, upwindU, upwind2U, downwindU;
-
-  primVars faceStateLower, faceStateUpper, ghostState;
-  inviscidFlux tempFlux;
+  primVars faceStateLower,faceStateUpper;
 
   //loop over all physical cells
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
@@ -282,9 +279,10 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
 	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
 	int lowerING = GetCellFromFaceLowerI(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 	int upperING = GetCellFromFaceUpperI(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
-
 	int lowerI = GetCellFromFaceLowerI(ii, jj, kk, imaxG, jmaxG);
 	int upperI = GetCellFromFaceUpperI(ii, jj, kk, imaxG, jmaxG);
+	int lower2I = GetCellFromFaceLowerI(ii, jj, kk, imaxG, jmaxG, 2);
+	int upper2I = GetCellFromFaceUpperI(ii, jj, kk, imaxG, jmaxG, 2);
 	int upFaceI = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG);
 	int upFace2I = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG, 2);
 	int lowFaceI = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG);
@@ -296,32 +294,37 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
 	}
 	else{
 
-	  upwind2L =  (*this).FCenterI( lowFaceI ).Distance( (*this).FCenterI( lowFace2I ) );
-	  upwindL =   (*this).FCenterI( loc      ).Distance( (*this).FCenterI( lowFaceI ) );
-	  downwindL = (*this).FCenterI( loc      ).Distance( (*this).FCenterI( upFaceI ) );
+	  double upwind2L =  (*this).FCenterI( lowFaceI ).Distance( (*this).FCenterI( lowFace2I ) );
+	  double upwindL =   (*this).FCenterI( loc      ).Distance( (*this).FCenterI( lowFaceI ) );
+	  double downwindL = (*this).FCenterI( loc      ).Distance( (*this).FCenterI( upFaceI ) );
 
-	  faceStateLower = (*this).State( lowerI ).FaceReconMUSCL( (*this).State( GetCellFromFaceLowerI(ii, jj, kk, imax, jmax, 2) ),
-								   (*this).State( upperI ),"left", inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL );
+	  faceStateLower = (*this).State( lowerI ).FaceReconMUSCL( (*this).State( lower2I ), (*this).State( upperI ),
+								   "left", inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL );
 
-	  upwind2U =  (*this).FCenterI( upFaceI ).Distance( (*this).FCenterI( upFace2I ) );
-	  upwindU =   (*this).FCenterI( loc     ).Distance( (*this).FCenterI( upFaceI ) );
-	  downwindU = (*this).FCenterI( loc     ).Distance( (*this).FCenterI( lowFaceI ) );
+	  double upwind2U =  (*this).FCenterI( upFaceI ).Distance( (*this).FCenterI( upFace2I ) );
+	  double upwindU =   (*this).FCenterI( loc     ).Distance( (*this).FCenterI( upFaceI ) );
+	  double downwindU = (*this).FCenterI( loc     ).Distance( (*this).FCenterI( lowFaceI ) );
 
-	  faceStateUpper = (*this).State( upperI ).FaceReconMUSCL( (*this).State( GetCellFromFaceUpperI(ii, jj, kk, imax, jmax, 2) ),
-								   (*this).State( lowerI ),"right", inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU );
+	  faceStateUpper = (*this).State( upperI ).FaceReconMUSCL( (*this).State( upper2I ), (*this).State( lowerI ),
+								   "right", inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU );
 
 	}
 
-	tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS);
+	inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS);
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
-	(*this).AddToResidual( tempFlux * (*this).FAreaI(loc).Mag(), lowerING);
-	(*this).AddToResidual( -1.0 * tempFlux * (*this).FAreaI(loc).Mag(), upperING);
+	if ( lowerING >= 0 ){
+	  (*this).AddToResidual( tempFlux * (*this).FAreaI(loc).Mag(), lowerING);
+	}
+	if ( upperING < (*this).NumCells() ){
+	  (*this).AddToResidual( -1.0 * tempFlux * (*this).FAreaI(loc).Mag(), upperING);
+	}
 
-	//calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
-	maxWS = CellSpectralRadius( (*this).FAreaI(loc), (*this).FAreaI(upFaceI), (*this).State(upperI), eqnState );
-	(*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperING) + maxWS, upperING);
-
+	if ( ii < imax - 1 + (*this).NumGhosts() ){
+	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
+	  maxWS = CellSpectralRadius( (*this).FAreaI(loc), (*this).FAreaI(upFaceI), (*this).State(upperI), eqnState );
+	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperING) + maxWS, upperING);
+	}
 
       }
     }
@@ -341,10 +344,7 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp){
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts() + 1;
 
   double maxWS = 0.0;
-  double upwindL, upwind2L, downwindL, upwindU, upwind2U, downwindU;
-
-  primVars faceStateLower, faceStateUpper, ghostState;
-  inviscidFlux tempFlux;
+  primVars faceStateLower, faceStateUpper;
 
   //loop over all physical cells
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
@@ -354,9 +354,10 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp){
 	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
 	int lowerJNG = GetCellFromFaceLowerJ(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 	int upperJNG = GetCellFromFaceUpperJ(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
-
 	int lowerJ = GetCellFromFaceLowerJ(ii, jj, kk, imaxG, jmaxG);
 	int upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imaxG, jmaxG);
+	int lower2J = GetCellFromFaceLowerJ(ii, jj, kk, imaxG, jmaxG, 2);
+	int upper2J = GetCellFromFaceUpperJ(ii, jj, kk, imaxG, jmaxG, 2);
 	int upFaceJ = GetNeighborUpJ(ii, jj, kk, imaxG, jmaxG);
 	int upFace2J = GetNeighborUpJ(ii, jj, kk, imaxG, jmaxG, 2);
 	int lowFaceJ = GetNeighborLowJ(ii, jj, kk, imaxG, jmaxG);
@@ -368,30 +369,36 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp){
 	}
 	else{
 
-	  upwind2L =  (*this).FCenterJ( lowFaceJ ).Distance( (*this).FCenterJ( lowFace2J ) );
-	  upwindL =   (*this).FCenterJ( loc      ).Distance( (*this).FCenterJ( lowFaceJ ) );
-	  downwindL = (*this).FCenterJ( loc      ).Distance( (*this).FCenterJ( upFaceJ ) );
+	  double upwind2L =  (*this).FCenterJ( lowFaceJ ).Distance( (*this).FCenterJ( lowFace2J ) );
+	  double upwindL =   (*this).FCenterJ( loc      ).Distance( (*this).FCenterJ( lowFaceJ ) );
+	  double downwindL = (*this).FCenterJ( loc      ).Distance( (*this).FCenterJ( upFaceJ ) );
 
-	  faceStateLower = (*this).State( lowerJ ).FaceReconMUSCL( (*this).State( GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax, 2) ),
+	  faceStateLower = (*this).State( lowerJ ).FaceReconMUSCL( (*this).State( lower2J ),
 								   (*this).State( upperJ ),"left", inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL );
 
-	  upwind2U =  (*this).FCenterJ( upFaceJ ).Distance( (*this).FCenterJ( upFace2J ) );
-	  upwindU =   (*this).FCenterJ( loc     ).Distance( (*this).FCenterJ( upFaceJ ) );
-	  downwindU = (*this).FCenterJ( loc     ).Distance( (*this).FCenterJ( lowFaceJ ) );
+	  double upwind2U =  (*this).FCenterJ( upFaceJ ).Distance( (*this).FCenterJ( upFace2J ) );
+	  double upwindU =   (*this).FCenterJ( loc     ).Distance( (*this).FCenterJ( upFaceJ ) );
+	  double downwindU = (*this).FCenterJ( loc     ).Distance( (*this).FCenterJ( lowFaceJ ) );
 
-	  faceStateUpper = (*this).State( upperJ ).FaceReconMUSCL( (*this).State( GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax, 2) ),
+	  faceStateUpper = (*this).State( upperJ ).FaceReconMUSCL( (*this).State( upper2J ),
 								   (*this).State( lowerJ ),"right", inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU );
 	}
 
-	tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS);
+	inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS);
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
-	(*this).AddToResidual( tempFlux * (*this).FAreaJ(loc).Mag(), lowerJNG);
-	(*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaJ(loc).Mag(), upperJNG);
+	if ( lowerJNG >= 0 ){
+	  (*this).AddToResidual( tempFlux * (*this).FAreaJ(loc).Mag(), lowerJNG);
+	}
+	if ( upperJNG < (*this).NumCells() ){
+	  (*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaJ(loc).Mag(), upperJNG);
+	}
 
-	//calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
-	maxWS = CellSpectralRadius( (*this).FAreaJ(loc), (*this).FAreaJ(upFaceJ), (*this).State(upperJ), eqnState );
-	(*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperJNG) + maxWS, upperJNG);
+	if ( jj < jmax - 1 + (*this).NumGhosts() ){
+	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
+	  maxWS = CellSpectralRadius( (*this).FAreaJ(loc), (*this).FAreaJ(upFaceJ), (*this).State(upperJ), eqnState );
+	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperJNG) + maxWS, upperJNG);
+	}
 
       }
     }
@@ -411,10 +418,7 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp){
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
   double maxWS = 0.0;
-  double upwindL, upwind2L, downwindL, upwindU, upwind2U, downwindU;
-
-  primVars faceStateLower, faceStateUpper, ghostState;
-  inviscidFlux tempFlux;
+  primVars faceStateLower, faceStateUpper;
 
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
     for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
@@ -423,8 +427,9 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp){
 	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
 	int lowerKNG = GetCellFromFaceLowerK(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 	int upperKNG = GetCellFromFaceUpperK(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
-
 	int lowerK = GetCellFromFaceLowerK(ii, jj, kk, imaxG, jmaxG);
+	int upper2K = GetCellFromFaceUpperK(ii, jj, kk, imaxG, jmaxG, 2);
+	int lower2K = GetCellFromFaceLowerK(ii, jj, kk, imaxG, jmaxG, 2);
 	int upperK = GetCellFromFaceUpperK(ii, jj, kk, imaxG, jmaxG);
 	int upFaceK = GetNeighborUpK(ii, jj, kk, imaxG, jmaxG);
 	int upFace2K = GetNeighborUpK(ii, jj, kk, imaxG, jmaxG, 2);
@@ -437,31 +442,37 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp){
 	}
 	else{
 
-	  upwind2L =  (*this).FCenterK( lowFaceK ).Distance( (*this).FCenterK( lowFace2K ) );
-	  upwindL =   (*this).FCenterK( loc      ).Distance( (*this).FCenterK( lowFaceK ) );
-	  downwindL = (*this).FCenterK( loc      ).Distance( (*this).FCenterK( upFaceK ) );
+	  double upwind2L =  (*this).FCenterK( lowFaceK ).Distance( (*this).FCenterK( lowFace2K ) );
+	  double upwindL =   (*this).FCenterK( loc      ).Distance( (*this).FCenterK( lowFaceK ) );
+	  double downwindL = (*this).FCenterK( loc      ).Distance( (*this).FCenterK( upFaceK ) );
 
-	  faceStateLower = (*this).State( lowerK ).FaceReconMUSCL( (*this).State( GetCellFromFaceLowerK(ii, jj, kk, imax, jmax, 2) ),
-								   (*this).State( upperK ),"left", inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL );
+	  faceStateLower = (*this).State( lowerK ).FaceReconMUSCL( (*this).State( lower2K ), (*this).State( upperK ),
+								   "left", inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL );
 
-	  upwind2U =  (*this).FCenterK( upFaceK ).Distance( (*this).FCenterK( upFace2K ) );
-	  upwindU =   (*this).FCenterK( loc     ).Distance( (*this).FCenterK( upFaceK ) );
-	  downwindU = (*this).FCenterK( loc     ).Distance( (*this).FCenterK( lowFaceK ) );
+	  double upwind2U =  (*this).FCenterK( upFaceK ).Distance( (*this).FCenterK( upFace2K ) );
+	  double upwindU =   (*this).FCenterK( loc     ).Distance( (*this).FCenterK( upFaceK ) );
+	  double downwindU = (*this).FCenterK( loc     ).Distance( (*this).FCenterK( lowFaceK ) );
 
-	  faceStateUpper = (*this).State( upperK ).FaceReconMUSCL( (*this).State( GetCellFromFaceUpperK(ii, jj, kk, imax, jmax, 2) ),
-								   (*this).State( lowerK ),"right", inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU );
+	  faceStateUpper = (*this).State( upperK ).FaceReconMUSCL( (*this).State( upper2K ), (*this).State( lowerK ),
+								   "right", inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU );
 
 	}
 
-	tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS);
+	inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS);
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
-	(*this).AddToResidual( tempFlux * (*this).FAreaK(loc).Mag(), lowerKNG);
-	(*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaK(loc).Mag(), upperKNG);
+	if ( lowerKNG >= 0 ){
+	  (*this).AddToResidual( tempFlux * (*this).FAreaK(loc).Mag(), lowerKNG);
+	}
+	if ( upperKNG < (*this).NumCells() ){
+	  (*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaK(loc).Mag(), upperKNG);
+	}
 
-	//calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
-	maxWS = CellSpectralRadius( (*this).FAreaK(loc), (*this).FAreaK(upFaceK), (*this).State(upperK), eqnState );
-	(*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperKNG) + maxWS, upperKNG);
+	if ( kk < kmax - 1 + (*this).NumGhosts() ){
+	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
+	  maxWS = CellSpectralRadius( (*this).FAreaK(loc), (*this).FAreaK(upFaceK), (*this).State(upperK), eqnState );
+	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperKNG) + maxWS, upperKNG);
+	}
 
       }
     }
@@ -511,7 +522,7 @@ void procBlock::CalcBlockTimeStep( const input &inputVars, const double &aRef){
 
 }
 
-void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const idealGas &eos, const double &aRef, const int &bb, const vector<colMatrix> &du, vector<double> &l2, vector<double> &linf, int &locMaxB){
+void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const idealGas &eos, const double &aRef, const int &bb, const vector<colMatrix> &du, colMatrix &l2, colMatrix &linf, int &locMaxB){
 
   int imax = (*this).NumI();
   int jmax = (*this).NumJ();
@@ -536,15 +547,15 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const id
 	  }
 
 
-	  for ( unsigned int ll = 0; ll < l2.size(); ll++ ){
-	    l2[ll] = l2[ll] + (*this).Residual(loc,ll) * (*this).Residual(loc,ll);
+	  l2 = l2 + (*this).Residual(loc) * (*this).Residual(loc);
+	  for ( int ll = 0; ll < l2.Size(); ll++ ){
 
-	    if ( (*this).Residual(loc,ll) > linf[4] ){
-	      linf[4] = (*this).Residual(loc,ll);
-	      linf[3] = (double)ll+1;
-	      linf[2] = (double)kk;
-	      linf[1] = (double)jj;
-	      linf[0] = (double)ii;
+	    if ( (*this).Residual(loc,ll) > linf.Data(4) ){
+	      linf.SetData(4, (*this).Residual(loc,ll) );
+	      linf.SetData(3, (double)ll+1 );
+	      linf.SetData(2, (double)kk );
+	      linf.SetData(1, (double)jj );
+	      linf.SetData(0, (double)ii );
 	      locMaxB = bb;
 	    }
 	  }
@@ -576,15 +587,15 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const id
 	    (*this).RK4TimeAdvance(stateN[locG], eos, dtN[loc], locG, loc, rr);
 
 	    if (rr ==3){
-	      for ( unsigned int ll = 0; ll < l2.size(); ll++ ){
-		l2[ll] = l2[ll] + (*this).Residual(loc,ll) * (*this).Residual(loc,ll);
-
-		if ( (*this).Residual(loc,ll) > linf[4] ){
-		  linf[4] = (*this).Residual(loc,ll);
-		  linf[3] = (double)ll+1;
-		  linf[2] = (double)kk;
-		  linf[1] = (double)jj;
-		  linf[0] = (double)ii;
+	      l2 = l2 + (*this).Residual(loc) * (*this).Residual(loc);
+	      for ( int ll = 0; ll < l2.Size(); ll++ ){
+	
+		if ( (*this).Residual(loc,ll) > linf.Data(4) ){
+		  linf.SetData(4, (*this).Residual(loc,ll) );
+		  linf.SetData(3, (double)ll+1 );
+		  linf.SetData(2, (double)kk );
+		  linf.SetData(1, (double)jj );
+		  linf.SetData(0, (double)ii );
 		  locMaxB = bb;
 		}
 	      }
@@ -1102,32 +1113,14 @@ vector<T> PadWithGhosts( const vector<T> &var, const int &numGhosts, const int &
 
   vector<T> padBlk(newSize);
 
-  //T ghostVal;
+  //loop over physical cells
+  for ( int kk = numGhosts; kk < numK + numGhosts; kk++ ){
+    for ( int jj = numGhosts; jj < numJ + numGhosts; jj++ ){
+      for ( int ii = numGhosts; ii < numI + numGhosts; ii++ ){
 
-  int newLoc = 0;
-  int loc = 0;
-
-  for ( int kk = 0; kk < newK; kk++ ){
-    for ( int jj = 0; jj < newJ; jj++ ){
-      for ( int ii = 0; ii < newI; ii++ ){
-
-	newLoc = GetLoc1D(ii, jj, kk, newI, newJ);
-
-	if ( ii < 2 || ii >= (numI + numGhosts) ) { //i ghost value
-	  //padBlk[newLoc] = ghostVal;
-	}
-	else if ( jj < 2 || jj >= (numJ + numGhosts) ) { //j ghost value
-	  //padBlk[newLoc] = ghostVal;
-	}
-	else if ( kk < 2 || kk >= (numK + numGhosts) ) { //k ghost value
-	  //padBlk[newLoc] = ghostVal;
-	}
-	else{ //physical cells
-
-	  loc = GetLoc1D(ii-numGhosts, jj-numGhosts, kk-numGhosts, numI, numJ);
-	  padBlk[newLoc] = var[loc];
-
-	}
+	int newLoc = GetLoc1D(ii, jj, kk, newI, newJ);
+	int loc = GetLoc1D(ii-numGhosts, jj-numGhosts, kk-numGhosts, numI, numJ);
+	padBlk[newLoc] = var[loc];
 
       }
     }
@@ -1538,6 +1531,7 @@ void procBlock::AssignGhostCellsGeom(){
 
   int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
+  int kmaxG = (*this).NumK() + 2 * (*this).NumGhosts();
 
   //loop over physical I faces
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++ ){
@@ -1554,21 +1548,21 @@ void procBlock::AssignGhostCellsGeom(){
       int lFaceIn2 = GetUpperFaceI((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
       int lFaceB = GetLowerFaceI((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
 
-      int cellUpG1 = GetLoc1D(imax, jj, kk, imaxG, jmaxG);
-      int cellUpG2 = GetLoc1D(imax+1, jj, kk, imaxG, jmaxG);
-      int uFaceG1 = GetUpperFaceI(imax, jj, kk, imaxG, jmaxG); 
-      int uFaceG2 = GetUpperFaceI(imax+1, jj, kk, imaxG, jmaxG);
+      int cellUpG1 = GetLoc1D(imaxG-2, jj, kk, imaxG, jmaxG);
+      int cellUpG2 = GetLoc1D(imaxG-1, jj, kk, imaxG, jmaxG);
+      int uFaceG1 = GetUpperFaceI(imaxG-2, jj, kk, imaxG, jmaxG); 
+      int uFaceG2 = GetUpperFaceI(imaxG-1, jj, kk, imaxG, jmaxG);
 
-      int cellUpIn1 = GetLoc1D(imax-1, jj, kk, imaxG, jmaxG);
-      int cellUpIn2 = GetLoc1D(imax-2, jj, kk, imaxG, jmaxG);
-      int uFaceIn1 = GetLowerFaceI(imax-1, jj, kk, imaxG, jmaxG); 
-      int uFaceIn2 = GetLowerFaceI(imax-2, jj, kk, imaxG, jmaxG);
-      int uFaceB = GetUpperFaceI(imax-1, jj, kk, imaxG, jmaxG); 
+      int cellUpIn1 = GetLoc1D(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+      int cellUpIn2 = GetLoc1D(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+      int uFaceIn1 = GetLowerFaceI(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+      int uFaceIn2 = GetLowerFaceI(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+      int uFaceB = GetUpperFaceI(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
 
       //mirror volume values from adjacent cells
       (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
       (*this).SetVol( (*this).Vol(cellUpIn1), cellUpG1);
-      if (imax < 2){ //one cell thick - use once cell for both ghost cells
+      if (imax < 2){ //one cell thick - use one cell for both ghost cells
 	(*this).SetVol( (*this).Vol(cellLowIn1), cellLowG2);
 	(*this).SetVol( (*this).Vol(cellUpIn1), cellUpG2);
       }
@@ -1580,7 +1574,7 @@ void procBlock::AssignGhostCellsGeom(){
       //mirror face area values from adjacent cells
       (*this).SetFAreaI( (*this).FAreaI(lFaceIn1), lFaceG1);
       (*this).SetFAreaI( (*this).FAreaI(uFaceIn1), uFaceG1);
-      if (imax < 2){ //one cell thick - use once cell for both ghost cells
+      if (imax < 2){ //one cell thick - use one cell for both ghost cells
 	(*this).SetFAreaI( (*this).FAreaI(lFaceIn1), lFaceG2);
 	(*this).SetFAreaI( (*this).FAreaI(uFaceIn1), uFaceG2);
       }
@@ -1595,11 +1589,11 @@ void procBlock::AssignGhostCellsGeom(){
       dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1);
       (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
 
-      if (imax < 2){ //one cell thick - use once cell for both ghost cells
+      if (imax < 2){ //one cell thick - use one cell for both ghost cells
 	dist2Move = 2.0 * ((*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1));
-	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
+	(*this).SetCenter( (*this).Center(cellLowG1) + dist2Move, cellLowG2);
 	dist2Move = 2.0 * ((*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1));
-	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+	(*this).SetCenter( (*this).Center(cellUpG1) + dist2Move, cellUpG2);
       }
       else{
 	dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2);
@@ -1614,11 +1608,11 @@ void procBlock::AssignGhostCellsGeom(){
       dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1);
       (*this).SetFCenterI( (*this).FCenterI(uFaceB) + dist2Move, uFaceG1);
 
-      if (imax < 2){ //one cell thick - use once cell for both ghost cells
+      if (imax < 2){ //one cell thick - use one cell for both ghost cells
 	dist2Move = 2.0 * ((*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1));
-	(*this).SetFCenterI( (*this).FCenterI(lFaceB) + dist2Move, lFaceG2);
+	(*this).SetFCenterI( (*this).FCenterI(lFaceG1) + dist2Move, lFaceG2);
 	dist2Move = 2.0 * ((*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1));
-	(*this).SetFCenterI( (*this).FCenterI(uFaceB) + dist2Move, uFaceG2);
+	(*this).SetFCenterI( (*this).FCenterI(uFaceG1) + dist2Move, uFaceG2);
       }
       else{
 	dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2);
@@ -1645,21 +1639,21 @@ void procBlock::AssignGhostCellsGeom(){
       int lFaceIn2 = GetUpperFaceJ(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
       int lFaceB = GetLowerFaceJ(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
 
-      int cellUpG1 = GetLoc1D(ii, jmax, kk, imaxG, jmaxG);
-      int cellUpG2 = GetLoc1D(ii, jmax+1, kk, imaxG, jmaxG);
-      int uFaceG1 = GetUpperFaceJ(ii, jmax, kk, imaxG, jmaxG); 
-      int uFaceG2 = GetUpperFaceJ(ii, jmax+1, kk, imaxG, jmaxG);
+      int cellUpG1 = GetLoc1D(ii, jmaxG-2, kk, imaxG, jmaxG);
+      int cellUpG2 = GetLoc1D(ii, jmaxG-1, kk, imaxG, jmaxG);
+      int uFaceG1 = GetUpperFaceJ(ii, jmaxG-2, kk, imaxG, jmaxG); 
+      int uFaceG2 = GetUpperFaceJ(ii, jmaxG-1, kk, imaxG, jmaxG);
 
-      int cellUpIn1 = GetLoc1D(ii, jmax-1, kk, imaxG, jmaxG);
-      int cellUpIn2 = GetLoc1D(ii, jmax-2, kk, imaxG, jmaxG);
-      int uFaceIn1 = GetLowerFaceJ(ii, jmax-1, kk, imaxG, jmaxG); 
-      int uFaceIn2 = GetLowerFaceJ(ii, jmax-2, kk, imaxG, jmaxG);
-      int uFaceB = GetUpperFaceJ(ii, jmax-1, kk, imaxG, jmaxG); 
+      int cellUpIn1 = GetLoc1D(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG);
+      int cellUpIn2 = GetLoc1D(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG);
+      int uFaceIn1 = GetLowerFaceJ(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
+      int uFaceIn2 = GetLowerFaceJ(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG);
+      int uFaceB = GetUpperFaceJ(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
 
       //mirror volume values from adjacent cells
       (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
       (*this).SetVol( (*this).Vol(cellUpIn1), cellUpG1);
-      if (jmax < 2){ //one cell thick - use once cell for both ghost cells
+      if (jmax < 2){ //one cell thick - use one cell for both ghost cells
 	(*this).SetVol( (*this).Vol(cellLowIn1), cellLowG2);
 	(*this).SetVol( (*this).Vol(cellUpIn1), cellUpG2);
       }
@@ -1671,7 +1665,7 @@ void procBlock::AssignGhostCellsGeom(){
       //mirror face area values from adjacent cells
       (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1), lFaceG1);
       (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1), uFaceG1);
-      if (jmax < 2){ //one cell thick - use once cell for both ghost cells
+      if (jmax < 2){ //one cell thick - use one cell for both ghost cells
 	(*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1), lFaceG2);
 	(*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1), uFaceG2);
       }
@@ -1686,11 +1680,11 @@ void procBlock::AssignGhostCellsGeom(){
       dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1);
       (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
 
-      if (jmax < 2){ //one cell thick - use once cell for both ghost cells
+      if (jmax < 2){ //one cell thick - use one cell for both ghost cells
 	dist2Move = 2.0 * ((*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1));
-	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
+	(*this).SetCenter( (*this).Center(cellLowG1) + dist2Move, cellLowG2);
 	dist2Move = 2.0 * ((*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1));
-	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+	(*this).SetCenter( (*this).Center(cellUpG1) + dist2Move, cellUpG2);
       }
       else{
 	dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2);
@@ -1705,11 +1699,11 @@ void procBlock::AssignGhostCellsGeom(){
       dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1);
       (*this).SetFCenterJ( (*this).FCenterJ(uFaceB) + dist2Move, uFaceG1);
 
-      if (jmax < 2){ //one cell thick - use once cell for both ghost cells
+      if (jmax < 2){ //one cell thick - use one cell for both ghost cells
 	dist2Move = 2.0 * ((*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1));
-	(*this).SetFCenterJ( (*this).FCenterJ(lFaceB) + dist2Move, lFaceG2);
+	(*this).SetFCenterJ( (*this).FCenterJ(lFaceG1) + dist2Move, lFaceG2);
 	dist2Move = 2.0 * ((*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1));
-	(*this).SetFCenterJ( (*this).FCenterJ(uFaceB) + dist2Move, uFaceG2);
+	(*this).SetFCenterJ( (*this).FCenterJ(uFaceG1) + dist2Move, uFaceG2);
       }
       else{
 	dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2);
@@ -1736,21 +1730,21 @@ void procBlock::AssignGhostCellsGeom(){
       int lFaceIn2 = GetUpperFaceK(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
       int lFaceB = GetLowerFaceK(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
 
-      int cellUpG1 = GetLoc1D(ii, jj, kmax, imaxG, jmaxG);
-      int cellUpG2 = GetLoc1D(ii, jj, kmax+1, imaxG, jmaxG);
-      int uFaceG1 = GetUpperFaceK(ii, jj, kmax, imaxG, jmaxG); 
-      int uFaceG2 = GetUpperFaceK(ii, jj, kmax+1, imaxG, jmaxG);
+      int cellUpG1 = GetLoc1D(ii, jj, kmaxG-2, imaxG, jmaxG);
+      int cellUpG2 = GetLoc1D(ii, jj, kmaxG-1, imaxG, jmaxG);
+      int uFaceG1 = GetUpperFaceK(ii, jj, kmaxG-2, imaxG, jmaxG); 
+      int uFaceG2 = GetUpperFaceK(ii, jj, kmaxG-1, imaxG, jmaxG);
 
-      int cellUpIn1 = GetLoc1D(ii, jj, kmax-1, imaxG, jmaxG);
-      int cellUpIn2 = GetLoc1D(ii, jj, kmax-2, imaxG, jmaxG);
-      int uFaceIn1 = GetLowerFaceK(ii, jj, kmax-1, imaxG, jmaxG); 
-      int uFaceIn2 = GetLowerFaceK(ii, jj, kmax-2, imaxG, jmaxG);
-      int uFaceB = GetUpperFaceK(ii, jj, kmax-1, imaxG, jmaxG); 
+      int cellUpIn1 = GetLoc1D(ii, jj, kmax - 1 - (*this).NumGhosts(), imaxG, jmaxG);
+      int cellUpIn2 = GetLoc1D(ii, jj, kmax - 2 - (*this).NumGhosts(), imaxG, jmaxG);
+      int uFaceIn1 = GetLowerFaceK(ii, jj, kmax - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+      int uFaceIn2 = GetLowerFaceK(ii, jj, kmax - 2 - (*this).NumGhosts(), imaxG, jmaxG);
+      int uFaceB = GetUpperFaceK(ii, jj, kmax - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
 
       //mirror volume values from adjacent cells
       (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
       (*this).SetVol( (*this).Vol(cellUpIn1), cellUpG1);
-      if (kmax < 2){ //one cell thick - use once cell for both ghost cells
+      if (kmax < 2){ //one cell thick - use one cell for both ghost cells
 	(*this).SetVol( (*this).Vol(cellLowIn1), cellLowG2);
 	(*this).SetVol( (*this).Vol(cellUpIn1), cellUpG2);
       }
@@ -1762,7 +1756,7 @@ void procBlock::AssignGhostCellsGeom(){
       //mirror face area values from adjacent cells
       (*this).SetFAreaK( (*this).FAreaK(lFaceIn1), lFaceG1);
       (*this).SetFAreaK( (*this).FAreaK(uFaceIn1), uFaceG1);
-      if (kmax < 2){ //one cell thick - use once cell for both ghost cells
+      if (kmax < 2){ //one cell thick - use one cell for both ghost cells
 	(*this).SetFAreaK( (*this).FAreaK(lFaceIn1), lFaceG2);
 	(*this).SetFAreaK( (*this).FAreaK(uFaceIn1), uFaceG2);
       }
@@ -1777,11 +1771,11 @@ void procBlock::AssignGhostCellsGeom(){
       dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1);
       (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
 
-      if (kmax < 2){ //one cell thick - use once cell for both ghost cells
+      if (kmax < 2){ //one cell thick - use one cell for both ghost cells
 	dist2Move = 2.0 * ((*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1));
-	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
+	(*this).SetCenter( (*this).Center(cellLowG1) + dist2Move, cellLowG2);
 	dist2Move = 2.0 * ((*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1));
-	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+	(*this).SetCenter( (*this).Center(cellUpG1) + dist2Move, cellUpG2);
       }
       else{
 	dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2);
@@ -1796,11 +1790,11 @@ void procBlock::AssignGhostCellsGeom(){
       dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1);
       (*this).SetFCenterK( (*this).FCenterK(uFaceB) + dist2Move, uFaceG1);
 
-      if (kmax < 2){ //one cell thick - use once cell for both ghost cells
+      if (kmax < 2){ //one cell thick - use one cell for both ghost cells
 	dist2Move = 2.0 * ((*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1));
-	(*this).SetFCenterK( (*this).FCenterK(lFaceB) + dist2Move, lFaceG2);
+	(*this).SetFCenterK( (*this).FCenterK(lFaceG1) + dist2Move, lFaceG2);
 	dist2Move = 2.0 * ((*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1));
-	(*this).SetFCenterK( (*this).FCenterK(uFaceB) + dist2Move, uFaceG2);
+	(*this).SetFCenterK( (*this).FCenterK(uFaceG1) + dist2Move, uFaceG2);
       }
       else{
 	dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2);
@@ -1825,6 +1819,7 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
 
   int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
+  int kmaxG = (*this).NumK() + 2 * (*this).NumGhosts();
 
   //loop over physical I faces
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++ ){
@@ -1837,22 +1832,22 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
       int cellLowIn2 = GetLoc1D((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
       int lFaceB = GetLowerFaceI((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
 
-      int cellUpG1 = GetLoc1D(imax, jj, kk, imaxG, jmaxG);
-      int cellUpG2 = GetLoc1D(imax+1, jj, kk, imaxG, jmaxG);
+      int cellUpG1 = GetLoc1D(imaxG-2, jj, kk, imaxG, jmaxG);
+      int cellUpG2 = GetLoc1D(imaxG-1, jj, kk, imaxG, jmaxG);
 
-      int cellUpIn1 = GetLoc1D(imax-1, jj, kk, imaxG, jmaxG);
-      int cellUpIn2 = GetLoc1D(imax-2, jj, kk, imaxG, jmaxG);
-      int uFaceB = GetUpperFaceI(imax-1, jj, kk, imaxG, jmaxG); 
+      int cellUpIn1 = GetLoc1D(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+      int cellUpIn2 = GetLoc1D(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+      int uFaceB = GetUpperFaceI(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
 
-      string bcNameL = bound.GetBCName(0, jj, kk, "il");
-      string bcNameU = bound.GetBCName(imax, jj, kk, "iu");
+      string bcNameL = bound.GetBCName(0, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "il");
+      string bcNameU = bound.GetBCName(imax, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "iu");
 
       (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1), cellLowG1);
       (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1), cellUpG1);
 
-      if (imax < 2){ //one cell thick - use once cell for both ghost cells
-	(*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1), cellLowG2);
-	(*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1), cellUpG2);
+      if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	(*this).SetState( (*this).State(cellLowG1), cellLowG2);
+	(*this).SetState( (*this).State(cellUpG1), cellUpG2);
       }
       else{
 	if (bcNameL == "slipWall"){ //if slipWall, reflect second interior state over boundary face
@@ -1884,22 +1879,22 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
       int cellLowIn2 = GetLoc1D(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
       int lFaceB = GetLowerFaceJ(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
 
-      int cellUpG1 = GetLoc1D(ii, jmax, kk, imaxG, jmaxG);
-      int cellUpG2 = GetLoc1D(ii, jmax+1, kk, imaxG, jmaxG);
+      int cellUpG1 = GetLoc1D(ii, jmaxG-2, kk, imaxG, jmaxG);
+      int cellUpG2 = GetLoc1D(ii, jmaxG-1, kk, imaxG, jmaxG);
 
-      int cellUpIn1 = GetLoc1D(ii, jmax-1, kk, imaxG, jmaxG);
-      int cellUpIn2 = GetLoc1D(ii, jmax-2, kk, imaxG, jmaxG);
-      int uFaceB = GetUpperFaceJ(ii, jmax-1, kk, imaxG, jmaxG); 
+      int cellUpIn1 = GetLoc1D(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG);
+      int cellUpIn2 = GetLoc1D(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG);
+      int uFaceB = GetUpperFaceJ(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
 
-      string bcNameL = bound.GetBCName(ii, 0, kk, "jl");
-      string bcNameU = bound.GetBCName(ii, jmax, kk, "ju");
+      string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), 0, kk - (*this).NumGhosts(), "jl");
+      string bcNameU = bound.GetBCName(ii - (*this).NumGhosts(), jmax, kk - (*this).NumGhosts(), "ju");
 
       (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG1);
       (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1), cellUpG1);
 
       if (jmax < 2){ //one cell thick - use once cell for both ghost cells
-	(*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG2);
-	(*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1), cellUpG2);
+	(*this).SetState( (*this).State(cellLowG1), cellLowG2);
+	(*this).SetState( (*this).State(cellUpG1), cellUpG2);
       }
       else{
 	if (bcNameL == "slipWall"){ //if slipWall, reflect second interior state over boundary face
@@ -1931,22 +1926,22 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
       int cellLowIn2 = GetLoc1D(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
       int lFaceB = GetLowerFaceK(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
 
-      int cellUpG1 = GetLoc1D(ii, jj, kmax, imaxG, jmaxG);
-      int cellUpG2 = GetLoc1D(ii, jj, kmax+1, imaxG, jmaxG);
+      int cellUpG1 = GetLoc1D(ii, jj, kmaxG-2, imaxG, jmaxG);
+      int cellUpG2 = GetLoc1D(ii, jj, kmaxG-1, imaxG, jmaxG);
 
-      int cellUpIn1 = GetLoc1D(ii, jj, kmax-1, imaxG, jmaxG);
-      int cellUpIn2 = GetLoc1D(ii, jj, kmax-2, imaxG, jmaxG);
-      int uFaceB = GetUpperFaceK(ii, jj, kmax-1, imaxG, jmaxG); 
+      int cellUpIn1 = GetLoc1D(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG);
+      int cellUpIn2 = GetLoc1D(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
+      int uFaceB = GetUpperFaceK(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
 
-      string bcNameL = bound.GetBCName(ii, jj, 0, "kl");
-      string bcNameU = bound.GetBCName(ii, jj, kmax, "ku");
+      string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), 0, "kl");
+      string bcNameU = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kmax, "ku");
 
       (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1), cellLowG1);
       (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG1);
 
-      if (jmax < 2){ //one cell thick - use once cell for both ghost cells
-	(*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1), cellLowG2);
-	(*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG2);
+      if (kmax < 2){ //one cell thick - use once cell for both ghost cells
+	(*this).SetState( (*this).State(cellLowG1), cellLowG2);
+	(*this).SetState( (*this).State(cellUpG1), cellUpG2);
       }
       else{
 	if (bcNameL == "slipWall"){ //if slipWall, reflect second interior state over boundary face
@@ -1983,6 +1978,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
 
   int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
+  int kmaxG = (*this).NumK() + 2 * (*this).NumGhosts();
 
   //loop over physical I faces
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++ ){
@@ -1995,29 +1991,29 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
       int cellLowIn2 = GetLoc1D((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
       int lFaceB = GetLowerFaceI((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
 
-      int cellUpG1 = GetLoc1D(imax, jj, kk, imaxG, jmaxG);
-      int cellUpG2 = GetLoc1D(imax+1, jj, kk, imaxG, jmaxG);
+      int cellUpG1 = GetLoc1D(imaxG-2, jj, kk, imaxG, jmaxG);
+      int cellUpG2 = GetLoc1D(imaxG-1, jj, kk, imaxG, jmaxG);
 
-      int cellUpIn1 = GetLoc1D(imax-1, jj, kk, imaxG, jmaxG);
-      int cellUpIn2 = GetLoc1D(imax-2, jj, kk, imaxG, jmaxG);
-      int uFaceB = GetUpperFaceI(imax-1, jj, kk, imaxG, jmaxG); 
+      int cellUpIn1 = GetLoc1D(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+      int cellUpIn2 = GetLoc1D(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+      int uFaceB = GetUpperFaceI(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
 
-      string bcNameL = bound.GetBCName(0, jj, kk, "il");
+      string bcNameL = bound.GetBCName(0, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "il");
       if (bcNameL == "viscousWall"){
 	(*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1), cellLowG1);
 	if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1), cellLowG2);
+	  (*this).SetState( (*this).State(cellLowG1), cellLowG2);
 	}
 	else{
 	  (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1), cellLowG2);
 	}
       }
 
-      string bcNameU = bound.GetBCName(imax, jj, kk, "iu");
+      string bcNameU = bound.GetBCName(imax, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "iu");
       if (bcNameU == "viscousWall"){
 	(*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1), cellUpG1);
 	if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1), cellUpG2);
+	  (*this).SetState( (*this).State(cellUpG1), cellUpG2);
 	}
 	else{
 	  (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1), cellUpG2);
@@ -2038,29 +2034,29 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
       int cellLowIn2 = GetLoc1D(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
       int lFaceB = GetLowerFaceJ(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
 
-      int cellUpG1 = GetLoc1D(ii, jmax, kk, imaxG, jmaxG);
-      int cellUpG2 = GetLoc1D(ii, jmax+1, kk, imaxG, jmaxG);
+      int cellUpG1 = GetLoc1D(ii, jmaxG-2, kk, imaxG, jmaxG);
+      int cellUpG2 = GetLoc1D(ii, jmaxG-1, kk, imaxG, jmaxG);
 
-      int cellUpIn1 = GetLoc1D(ii, jmax-1, kk, imaxG, jmaxG);
-      int cellUpIn2 = GetLoc1D(ii, jmax-2, kk, imaxG, jmaxG);
-      int uFaceB = GetUpperFaceJ(ii, jmax-1, kk, imaxG, jmaxG); 
+      int cellUpIn1 = GetLoc1D(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG);
+      int cellUpIn2 = GetLoc1D(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG);
+      int uFaceB = GetUpperFaceJ(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
 
-      string bcNameL = bound.GetBCName(ii, 0, kk, "jl");
+      string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), 0, kk - (*this).NumGhosts(), "jl");
       if (bcNameL == "viscousWall"){
 	(*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG1);
-	if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG2);
+	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
+	  (*this).SetState( (*this).State(cellLowG1), cellLowG2);
 	}
 	else{
 	  (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG2);
 	}
       }
 
-      string bcNameU = bound.GetBCName(ii, jmax, kk, "ju");
+      string bcNameU = bound.GetBCName(ii - (*this).NumGhosts(), jmax, kk - (*this).NumGhosts(), "ju");
       if (bcNameU == "viscousWall"){
 	(*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1), cellUpG1);
-	if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1), cellUpG2);
+	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
+	  (*this).SetState( (*this).State(cellUpG1), cellUpG2);
 	}
 	else{
 	  (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1), cellUpG2);
@@ -2081,29 +2077,29 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
       int cellLowIn2 = GetLoc1D(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
       int lFaceB = GetLowerFaceK(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
 
-      int cellUpG1 = GetLoc1D(ii, jj, kmax, imaxG, jmaxG);
-      int cellUpG2 = GetLoc1D(ii, jj, kmax+1, imaxG, jmaxG);
+      int cellUpG1 = GetLoc1D(ii, jj, kmaxG-2, imaxG, jmaxG);
+      int cellUpG2 = GetLoc1D(ii, jj, kmaxG-1, imaxG, jmaxG);
 
-      int cellUpIn1 = GetLoc1D(ii, jj, kmax-1, imaxG, jmaxG);
-      int cellUpIn2 = GetLoc1D(ii, jj, kmax-2, imaxG, jmaxG);
-      int uFaceB = GetUpperFaceK(ii, jj, kmax-1, imaxG, jmaxG); 
+      int cellUpIn1 = GetLoc1D(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG);
+      int cellUpIn2 = GetLoc1D(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
+      int uFaceB = GetUpperFaceK(ii, jj, kmax - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
 
-      string bcNameL = bound.GetBCName(ii, jj, 0, "kl");
+      string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), 0, "kl");
       if (bcNameL == "viscousWall"){
 	(*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1), cellLowG1);
-	if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1), cellLowG2);
+	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
+	  (*this).SetState( (*this).State(cellLowG1), cellLowG2);
 	}
 	else{
 	  (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1), cellLowG2);
 	}
       }
 
-      string bcNameU = bound.GetBCName(ii, jj, kmax, "ku");
+      string bcNameU = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kmax, "ku");
       if (bcNameU == "viscousWall"){
 	(*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG1);
-	if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG2);
+	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
+	  (*this).SetState( (*this).State(cellUpG1), cellUpG2);
 	}
 	else{
 	  (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG2);
