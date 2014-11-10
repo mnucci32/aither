@@ -148,7 +148,6 @@ procBlock::procBlock( const double density, const double pressure, const vector3
   }
 
   primVars singleState(density, pressure, vel);
-  vector<primVars> dummyState (numCells, singleState);              //dummy state variable
   vector<double> dummyScalar (numCells);                 //dummy time variable
   colMatrix singleResid(numVars);
   singleResid.Zero();
@@ -156,7 +155,7 @@ procBlock::procBlock( const double density, const double pressure, const vector3
   vector<tensor<double> > tens(viscCells);             //dummy tensor variable length of number of cells
   vector<vector3d<double> > vec(viscCells);             //dummy vector variable lenght of number of cells
 
-  state = PadWithGhosts( dummyState, numGhosts, numI, numJ, numK );      
+  state = PadStateWithGhosts( singleState, numGhosts, numI, numJ, numK );      
 
   vol = PadWithGhosts( blk.Volume(), numGhosts, numI, numJ, numK );
   center = PadWithGhosts( blk.Centroid(), numGhosts, numI, numJ, numK );
@@ -204,7 +203,6 @@ procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const 
     viscCells = numCells;
   }
 
-  vector<primVars> dummyState (numCells, inputState);              //dummy state variable
   vector<double> dummyScalar (numCells);                 //dummy time variable
   colMatrix singleResid(numVars);
   singleResid.Zero();
@@ -212,7 +210,7 @@ procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const 
   vector<tensor<double> > tens(viscCells);             //dummy tensor variable length of number of cells
   vector<vector3d<double> > vec(viscCells);             //dummy vector variable lenght of number of cells
 
-  state = PadWithGhosts( dummyState, numGhosts, numI, numJ, numK );      
+  state = PadStateWithGhosts( inputState, numGhosts, numI, numJ, numK );      
 
   vol = PadWithGhosts( blk.Volume(), numGhosts, numI, numJ, numK );
   center = PadWithGhosts( blk.Centroid(), numGhosts, numI, numJ, numK );
@@ -774,12 +772,12 @@ vector<colMatrix> procBlock::GetCopyConsVars(const idealGas &eqnState) const {
 
   vector<colMatrix> consVars(imaxG * jmaxG * kmaxG);
 
+  //loop over all cells - physical and ghost
   for ( int ii = 0; ii < imaxG; ii++ ){
     for ( int jj = 0; jj < jmaxG; jj++ ){
       for ( int kk = 0; kk < kmaxG; kk++ ){
 	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
-	colMatrix temp = (*this).State(loc).ConsVars(eqnState);
-	consVars[loc] = temp;
+	consVars[loc] = (*this).State(loc).ConsVars(eqnState);
       }
     }
   }
@@ -934,7 +932,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
       int ku = GetNeighborUpK(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
 
       //indicies for variables with ghost cells
-      int locG = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imaxG, jmaxG);
+      int locG = GetLoc1D(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
 
       int iuFaceG = GetUpperFaceI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
       int juFaceG = GetUpperFaceJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
@@ -1022,7 +1020,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
     for ( int ii = 0; ii < (int)x.size(); ii++ ){
 
       int loc = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
-      int locG = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imaxG, jmaxG);
+      int locG = GetLoc1D(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
 
       double diagTimeVol = ( (*this).Vol(locG) * (1.0 + inp.Zeta()) ) / ( (*this).Dt(loc) * inp.Theta() );
       if (inp.DualTimeCFL() > 0.0 ) { //use dual time stepping
@@ -1113,6 +1111,21 @@ vector<T> PadWithGhosts( const vector<T> &var, const int &numGhosts, const int &
       }
     }
   }
+
+  return padBlk;
+}
+
+//function to initialize all cells including ghost cells to a initial state
+//needed until function to determine ghost corner cells is written
+vector<primVars> PadStateWithGhosts( const primVars &state, const int &numGhosts, const int &numI, const int &numJ, const int &numK ){
+
+  int newI = numI + (numGhosts * 2);
+  int newJ = numJ + (numGhosts * 2);
+  int newK = numK + (numGhosts * 2);
+
+  int newSize = newI * newJ * newK;
+
+  vector<primVars> padBlk(newSize,state);
 
   return padBlk;
 }
@@ -1842,6 +1855,14 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
       string bcNameL = bound.GetBCName(0, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "il");
       string bcNameU = bound.GetBCName(imax, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "iu");
 
+      //inviscid fluxes require different bc than viscous fluxes - treat all walls as the same
+      if ( bcNameL == "viscousWall" ){
+	bcNameL = "slipWall";
+      }
+      if ( bcNameU == "viscousWall" ){
+	bcNameU = "slipWall";
+      }
+
       (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1), cellLowG1);
       (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1), cellUpG1);
 
@@ -1889,6 +1910,14 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
       string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), 0, kk - (*this).NumGhosts(), "jl");
       string bcNameU = bound.GetBCName(ii - (*this).NumGhosts(), jmax, kk - (*this).NumGhosts(), "ju");
 
+      //inviscid fluxes require different bc than viscous fluxes - treat all walls as the same
+      if ( bcNameL == "viscousWall" ){
+	bcNameL = "slipWall";
+      }
+      if ( bcNameU == "viscousWall" ){
+	bcNameU = "slipWall";
+      }
+
       (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG1);
       (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1), cellUpG1);
 
@@ -1935,6 +1964,14 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
 
       string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), 0, "kl");
       string bcNameU = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kmax, "ku");
+
+      //inviscid fluxes require different bc than viscous fluxes - treat all walls as the same
+      if ( bcNameL == "viscousWall" ){
+	bcNameL = "slipWall";
+      }
+      if ( bcNameU == "viscousWall" ){
+	bcNameU = "slipWall";
+      }
 
       (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1), cellLowG1);
       (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG1);
@@ -2142,8 +2179,9 @@ void procBlock::AssignViscousGradGhostCells(const input &inp){
       (*this).SetVelGrad( (*this).VelGrad(cellLowIn1), cellLowG1);
       (*this).SetVelGrad( (*this).VelGrad(cellUpIn1), cellUpG1);
 
-      (*this).SetTempGrad( (*this).TempGrad(cellLowIn1), cellLowG1);
-      (*this).SetTempGrad( (*this).TempGrad(cellUpIn1), cellUpG1);
+      //assumes adiabatic wall so ghost cell gradient is opposite of interior cell resulting in zero gradient at boundary
+      (*this).SetTempGrad( -1.0 * (*this).TempGrad(cellLowIn1), cellLowG1);
+      (*this).SetTempGrad( -1.0 * (*this).TempGrad(cellUpIn1), cellUpG1);
 
     }
   }
@@ -2164,8 +2202,9 @@ void procBlock::AssignViscousGradGhostCells(const input &inp){
       (*this).SetVelGrad( (*this).VelGrad(cellLowIn1), cellLowG1);
       (*this).SetVelGrad( (*this).VelGrad(cellUpIn1), cellUpG1);
 
-      (*this).SetTempGrad( (*this).TempGrad(cellLowIn1), cellLowG1);
-      (*this).SetTempGrad( (*this).TempGrad(cellUpIn1), cellUpG1);
+      //assumes adiabatic wall so ghost cell gradient is opposite of interior cell resulting in zero gradient at boundary
+      (*this).SetTempGrad( -1.0 * (*this).TempGrad(cellLowIn1), cellLowG1);
+      (*this).SetTempGrad( -1.0 * (*this).TempGrad(cellUpIn1), cellUpG1);
 
     }
   }
@@ -2186,8 +2225,9 @@ void procBlock::AssignViscousGradGhostCells(const input &inp){
       (*this).SetVelGrad( (*this).VelGrad(cellLowIn1), cellLowG1);
       (*this).SetVelGrad( (*this).VelGrad(cellUpIn1), cellUpG1);
 
-      (*this).SetTempGrad( (*this).TempGrad(cellLowIn1), cellLowG1);
-      (*this).SetTempGrad( (*this).TempGrad(cellUpIn1), cellUpG1);
+      //assumes adiabatic wall so ghost cell gradient is opposite of interior cell resulting in zero gradient at boundary
+      (*this).SetTempGrad( -1.0 * (*this).TempGrad(cellLowIn1), cellLowG1);
+      (*this).SetTempGrad( -1.0 * (*this).TempGrad(cellUpIn1), cellUpG1);
 
     }
   }

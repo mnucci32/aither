@@ -187,4 +187,6 @@ T FaceReconCentral(const T&, const T&, const vector3d<double>&, const vector3d<d
 template<class T>
 vector<T> PadWithGhosts(const vector<T>&, const int&, const int&, const int&, const int&);
 
+vector<primVars> PadStateWithGhosts(const primVars&, const int&, const int&, const int&, const int&);
+
 #endif

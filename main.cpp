@@ -117,15 +117,13 @@ int main( int argc, char *argv[] ) {
 
       for ( int bb = 0; bb < mesh.NumBlocks(); bb++ ){             //loop over number of blocks
 
-	int numElems = stateBlocks[bb].NumI() * stateBlocks[bb].NumJ() * stateBlocks[bb].NumK();
-
 	//initialize implicit matrix
 	if (implicitFlag){
 
 	  //reserve space for correction du
 	  //only need to do this if it is first iteration
 	  if (nn == 0){
-	    du[bb].resize(numElems,initial);
+	    du[bb].resize(stateBlocks[bb].NumCells(), initial);
 	  }
 
 	} //end of implicit conditional
@@ -179,7 +177,6 @@ int main( int argc, char *argv[] ) {
 
 	  //calculate correction (du)
 	  matrixResid += stateBlocks[bb].LUSGS(reorder, du[bb], solTimeMmN, solDeltaNm1[bb], eos, inputVars, suth );
-
 
 	} //conditional for implicit solver
 
