@@ -60,7 +60,7 @@ class procBlock {
  public:
   //constructors
   procBlock();
-  procBlock( const plot3dBlock& , const int&, const int&, const string&);
+  procBlock( const plot3dBlock& , const int&, const int&, const string& );
   procBlock( const double, const double, const vector3d<double>, const plot3dBlock&, const int&, const int&, const string& );
   procBlock( const primVars&, const plot3dBlock&, const int &, const int&, const string& );
 
@@ -167,6 +167,7 @@ class procBlock {
   void CalcViscFluxK(const sutherland&, const idealGas&, const input&);
 
   void AssignGhostCellsGeom();
+  void AssignGhostCellsGeomEdge(const input&);
 
   void AssignInviscidGhostCells(const input&, const idealGas&);
   void AssignViscousGhostCells(const input&, const idealGas&);
