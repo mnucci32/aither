@@ -170,6 +170,8 @@ class procBlock {
   void AssignGhostCellsGeomEdge();
 
   void AssignInviscidGhostCells(const input&, const idealGas&);
+  void AssignInviscidGhostCellsEdge(const input&, const idealGas&);
+
   void AssignViscousGhostCells(const input&, const idealGas&);
   void AssignViscousGradGhostCells(const input&);
 
