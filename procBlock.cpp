@@ -2402,7 +2402,7 @@ void procBlock::AssignGhostCellsGeomEdge(){
   int jmaxG = jmax + 2 * (*this).NumGhosts();
   int kmaxG = kmax + 2 * (*this).NumGhosts();
 
-  vector3d<double> fciOld(0,0,0);
+  vector3d<double> fcOld(0,0,0);
 
   //loop over edges at lower and upper j sides of block - this will include 4 edges that run in the i-direction
   //edges at the jl/kl, jl/ku, ju/kl, ju/ku sides will be accounted for in this loop
@@ -2627,8 +2627,8 @@ void procBlock::AssignGhostCellsGeomEdge(){
       (*this).SetFCenterJ( (*this).FCenterJ(gf_je_k2_jl) + 2.0 * dist2MoveJ, gfe_j2_k2_jl);
       (*this).SetFCenterK( (*this).FCenterK(gf_je_k2_kl) + 2.0 * dist2MoveJ, gfe_j2_k2_kl);
 
-      vector3d<double> dist2MoveI = (*this).FCenterI(gfe_j1_k1_il) - fciOld;
-      fciOld = (*this).FCenterI(gfe_j1_k1_il);
+      vector3d<double> dist2MoveI = (*this).FCenterI(gfe_j1_k1_il) - fcOld;
+      fcOld = (*this).FCenterI(gfe_j1_k1_il);
       //this is only done at the end of the i loop
       if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper face areas too
 
@@ -2646,6 +2646,502 @@ void procBlock::AssignGhostCellsGeomEdge(){
 	(*this).SetFCenterI( (*this).FCenterI(gfe_j1_k2_il) + dist2MoveI, gfe_j1_k2_iu);
 	(*this).SetFCenterI( (*this).FCenterI(gfe_j2_k1_il) + dist2MoveI, gfe_j2_k1_iu);
 	(*this).SetFCenterI( (*this).FCenterI(gfe_j2_k2_il) + dist2MoveI, gfe_j2_k2_iu);
+
+      }
+
+    }
+  }
+
+  //loop over edges at lower and upper i sides of block - this will include 4 edges that run in the j-direction
+  //edges at the il/kl, il/ku, iu/kl, iu/ku sides will be accounted for in this loop
+  for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++ ){
+
+    for ( int cc = 0; cc < 4; cc++ ){
+
+      int i1,k1,i2,k2,ie,ke;
+
+      int gfe_i1_k1_il, gfe_i1_k1_kl;
+      int gfe_i1_k2_il, gfe_i1_k2_kl;
+      int gfe_i2_k1_il, gfe_i2_k1_kl;
+      int gfe_i2_k2_il, gfe_i2_k2_kl;
+
+      int gf_i1_ke_il, gf_i1_ke_kl;
+      int gf_i2_ke_il, gf_i2_ke_kl;
+      int gf_ie_k1_il;
+      int gf_ie_k2_il, gf_ie_k2_kl;
+
+      if ( cc == 0 ){ //at il/kl edge - ghost cells are in the lower direction of both j and k, so use GetLowerFace for both
+	i2 = 0;
+	i1 = 1;
+	ie = (*this).NumGhosts();
+
+	k2 = 0;
+	k1 = 1;
+	ke = (*this).NumGhosts();
+
+	gfe_i1_k1_il = GetLowerFaceI(i1, jj, k1, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of k line of cells
+	gfe_i1_k1_kl = GetLowerFaceK(i1, jj, k1, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of k line of cells
+
+	gfe_i1_k2_il = GetLowerFaceI(i1, jj, k2, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of k line of cells
+	gfe_i1_k2_kl = GetLowerFaceK(i1, jj, k2, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of k line of cells
+
+	gfe_i2_k1_il = GetLowerFaceI(i2, jj, k1, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of k line of cells
+	gfe_i2_k1_kl = GetLowerFaceK(i2, jj, k1, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of k line of cells
+
+	gfe_i2_k2_il = GetLowerFaceI(i2, jj, k2, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of k line of cells
+	gfe_i2_k2_kl = GetLowerFaceK(i2, jj, k2, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of k line of cells
+
+	gf_i1_ke_il = GetLowerFaceI(i1, jj, ke, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at k-lower end, first layer of ghost cells
+	gf_i1_ke_kl = GetLowerFaceK(i1, jj, ke, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at k-lower end, first layer of ghost cells
+
+	gf_i2_ke_il = GetLowerFaceI(i2, jj, ke, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at k-lower end, second layer of ghost cells
+	gf_i2_ke_kl = GetLowerFaceK(i2, jj, ke, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at k-lower end, second layer of ghost cells
+
+	gf_ie_k1_il = GetLowerFaceI(ie, jj, k1, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at i-lower end, first layer of ghost cells
+	//gf_ie_k1_kl = GetLowerFaceK(ie, jj, k1, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at i-lower end, first layer of ghost cells
+
+	gf_ie_k2_il = GetLowerFaceI(ie, jj, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at i-lower end, second layer of ghost cells
+	gf_ie_k2_kl = GetLowerFaceK(ie, jj, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at i-lower end, second layer of ghost cells
+      }
+      else if ( cc == 1 ){ //at il/ku edge - ghost cells are in the lower direction of j and upper direction of k, so use GetLowerFace for J
+	i2 = 0;
+	i1 = 1;
+	ie = (*this).NumGhosts();
+
+	k2 = kmaxG - 1;
+	k1 = kmaxG - 2;
+	ke = kmax - 1;
+
+	gfe_i1_k1_il = GetLowerFaceI(i1, jj, k1, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of k line of cells
+	gfe_i1_k1_kl = GetUpperFaceK(i1, jj, k1, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of k line of cells
+
+	gfe_i1_k2_il = GetLowerFaceI(i1, jj, k2, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of k line of cells
+	gfe_i1_k2_kl = GetUpperFaceK(i1, jj, k2, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of k line of cells
+
+	gfe_i2_k1_il = GetLowerFaceI(i2, jj, k1, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of k line of cells
+	gfe_i2_k1_kl = GetUpperFaceK(i2, jj, k1, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of k line of cells
+
+	gfe_i2_k2_il = GetLowerFaceI(i2, jj, k2, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of k line of cells
+	gfe_i2_k2_kl = GetUpperFaceK(i2, jj, k2, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of k line of cells
+
+	gf_i1_ke_il = GetLowerFaceI(i1, jj, ke, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at k-lower end, first layer of ghost cells
+	gf_i1_ke_kl = GetUpperFaceK(i1, jj, ke, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at k-lower end, first layer of ghost cells
+
+	gf_i2_ke_il = GetLowerFaceI(i2, jj, ke, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at k-lower end, second layer of ghost cells
+	gf_i2_ke_kl = GetUpperFaceK(i2, jj, ke, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at k-lower end, second layer of ghost cells
+
+	gf_ie_k1_il = GetLowerFaceI(ie, jj, k1, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at i-lower end, first layer of ghost cells
+	//gf_ie_k1_kl = GetUpperFaceK(ie, jj, k1, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at i-lower end, first layer of ghost cells
+
+	gf_ie_k2_il = GetLowerFaceI(ie, jj, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at i-lower end, second layer of ghost cells
+	gf_ie_k2_kl = GetUpperFaceK(ie, jj, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at i-lower end, second layer of ghost cells
+      }
+      else if ( cc == 2 ){ //at ju/kl edge - ghost cells are in the lower direction of k, and upper direction of j so use GetLowerFace for k
+	i2 = imaxG - 1;
+	i1 = imaxG - 2;
+	ie = imax - 1;
+
+	k2 = 0;
+	k1 = 1;
+	ke = (*this).NumGhosts();
+
+	gfe_i1_k1_il = GetUpperFaceI(i1, jj, k1, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of k line of cells
+	gfe_i1_k1_kl = GetLowerFaceK(i1, jj, k1, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of k line of cells
+
+	gfe_i1_k2_il = GetUpperFaceI(i1, jj, k2, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of k line of cells
+	gfe_i1_k2_kl = GetLowerFaceK(i1, jj, k2, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of k line of cells
+
+	gfe_i2_k1_il = GetUpperFaceI(i2, jj, k1, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of k line of cells
+	gfe_i2_k1_kl = GetLowerFaceK(i2, jj, k1, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of k line of cells
+
+	gfe_i2_k2_il = GetUpperFaceI(i2, jj, k2, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of k line of cells
+	gfe_i2_k2_kl = GetLowerFaceK(i2, jj, k2, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of k line of cells
+
+	gf_i1_ke_il = GetUpperFaceI(i1, jj, ke, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at k-lower end, first layer of ghost cells
+	gf_i1_ke_kl = GetLowerFaceK(i1, jj, ke, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at k-lower end, first layer of ghost cells
+
+	gf_i2_ke_il = GetUpperFaceI(i2, jj, ke, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at k-lower end, second layer of ghost cells
+	gf_i2_ke_kl = GetLowerFaceK(i2, jj, ke, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at k-lower end, second layer of ghost cells
+
+	gf_ie_k1_il = GetUpperFaceI(ie, jj, k1, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at i-lower end, first layer of ghost cells
+	//gf_ie_k1_kl = GetLowerFaceK(ie, jj, k1, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at i-lower end, first layer of ghost cells
+
+	gf_ie_k2_il = GetUpperFaceI(ie, jj, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at i-lower end, second layer of ghost cells
+	gf_ie_k2_kl = GetLowerFaceK(ie, jj, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at i-lower end, second layer of ghost cells
+      }
+      else if ( cc == 3 ){ //at ju/ku edge - ghost cells are in the upper direction of both j and k, use GetUpperFace for both
+	i2 = imaxG - 1;
+	i1 = imaxG - 2;
+	ie = imax - 1;
+
+	k2 = kmaxG - 1;
+	k1 = kmaxG - 2;
+	ke = kmax - 1;
+
+	gfe_i1_k1_il = GetUpperFaceI(i1, jj, k1, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of k line of cells
+	gfe_i1_k1_kl = GetUpperFaceK(i1, jj, k1, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of k line of cells
+
+	gfe_i1_k2_il = GetUpperFaceI(i1, jj, k2, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of k line of cells
+	gfe_i1_k2_kl = GetUpperFaceK(i1, jj, k2, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of k line of cells
+
+	gfe_i2_k1_il = GetUpperFaceI(i2, jj, k1, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of k line of cells
+	gfe_i2_k1_kl = GetUpperFaceK(i2, jj, k1, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of k line of cells
+
+	gfe_i2_k2_il = GetUpperFaceI(i2, jj, k2, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of k line of cells
+	gfe_i2_k2_kl = GetUpperFaceK(i2, jj, k2, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of k line of cells
+
+	gf_i1_ke_il = GetUpperFaceI(i1, jj, ke, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at k-lower end, first layer of ghost cells
+	gf_i1_ke_kl = GetUpperFaceK(i1, jj, ke, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at k-lower end, first layer of ghost cells
+
+	gf_i2_ke_il = GetUpperFaceI(i2, jj, ke, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at k-lower end, second layer of ghost cells
+	gf_i2_ke_kl = GetUpperFaceK(i2, jj, ke, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at k-lower end, second layer of ghost cells
+
+	gf_ie_k1_il = GetUpperFaceI(ie, jj, k1, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at i-lower end, first layer of ghost cells
+	//gf_ie_k1_kl = GetUpperFaceK(ie, jj, k1, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at i-lower end, first layer of ghost cells
+
+	gf_ie_k2_il = GetUpperFaceI(ie, jj, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at i-lower end, second layer of ghost cells
+	gf_ie_k2_kl = GetUpperFaceK(ie, jj, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at i-lower end, second layer of ghost cells
+      }
+
+      int gce_i1_k1 = GetLoc1D(i1, jj, k1, imaxG, jmaxG);      //ghost cell on edge, on first layer of i line of cells, on first layer of k line of cells
+      int gfe_i1_k1_jl = GetLowerFaceJ(i1, jj, k1, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of k line of cells
+
+      int gce_i1_k2 = GetLoc1D(i1, jj, k2, imaxG, jmaxG);         //ghost cell on edge, on first layer of i line of cells, on second layer of k line of cells
+      int gfe_i1_k2_jl = GetLowerFaceJ(i1, jj, k2, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of k line of cells
+
+      int gce_i2_k1 = GetLoc1D(i2, jj, k1, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on first layer of k line of cells
+      int gfe_i2_k1_jl = GetLowerFaceJ(i2, jj, k1, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of k line of cells
+
+      int gce_i2_k2 = GetLoc1D(i2, jj, k2, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on second layer of k line of cells
+      int gfe_i2_k2_jl = GetLowerFaceJ(i2, jj, k2, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of k line of cells
+
+      int gc_i1_ke = GetLoc1D(i1, jj, ke, imaxG, jmaxG);       //ghost cell, on i-lower line of cells, at k-lower end, first layer of ghost cells
+      int gf_i1_ke_jl = GetLowerFaceJ(i1, jj, ke, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at k-lower end, first layer of ghost cells
+
+      int gc_i2_ke = GetLoc1D(i2, jj, ke, imaxG, jmaxG);       //ghost cell, on i-lower line of cells, at k-lower end, second layer of ghost cells
+      int gf_i2_ke_jl = GetLowerFaceJ(i2, jj, ke, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at k-lower end, second layer of ghost cells
+
+      int gc_ie_k1 = GetLoc1D(ie, jj, k1, imaxG, jmaxG);       //ghost cell, on k-lower line of cells, at i-lower end, first layer of ghost cells
+      int gf_ie_k1_jl = GetLowerFaceJ(ie, jj, k1, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at i-lower end, first layer of ghost cells
+
+      int gc_ie_k2 = GetLoc1D(ie, jj, k2, imaxG, jmaxG);       //ghost cell, on k-lower line of cells, at i-lower end, second layer of ghost cells
+      int gf_ie_k2_jl = GetLowerFaceJ(ie, jj, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at i-lower end, second layer of ghost cells
+
+      //volume
+      (*this).SetVol( 0.5 * ( (*this).Vol(gc_i1_ke) + (*this).Vol(gc_ie_k1) ) ,gce_i1_k1);
+      (*this).SetVol( (*this).Vol(gc_i2_ke) ,gce_i2_k1);
+      (*this).SetVol( (*this).Vol(gc_ie_k2) ,gce_i1_k2);
+      (*this).SetVol( 0.5 * ( (*this).Vol(gc_i2_ke) + (*this).Vol(gc_ie_k2) ) ,gce_i2_k2);
+
+      //face areas
+      (*this).SetFAreaJ( 0.5 * ( (*this).FAreaJ(gf_ie_k1_jl) + (*this).FAreaJ(gf_i1_ke_jl) ), gfe_i1_k1_jl);
+      (*this).SetFAreaI( (*this).FAreaI(gf_ie_k1_il), gfe_i1_k1_il);
+      (*this).SetFAreaK( (*this).FAreaK(gf_i1_ke_kl), gfe_i1_k1_kl);
+
+      (*this).SetFAreaJ( (*this).FAreaJ(gf_ie_k2_jl), gfe_i1_k2_jl);
+      (*this).SetFAreaI( (*this).FAreaI(gf_ie_k2_il), gfe_i1_k2_il);
+      (*this).SetFAreaK( (*this).FAreaK(gf_i1_ke_kl), gfe_i1_k2_kl);
+
+      (*this).SetFAreaJ( (*this).FAreaJ(gf_i2_ke_jl), gfe_i2_k1_jl);
+      (*this).SetFAreaI( (*this).FAreaI(gf_ie_k1_il), gfe_i2_k1_il);
+      (*this).SetFAreaK( (*this).FAreaK(gf_i2_ke_kl), gfe_i2_k1_kl);
+
+      (*this).SetFAreaJ( 0.5 * ( (*this).FAreaJ(gf_i2_ke_jl) + (*this).FAreaJ(gf_ie_k2_jl) ), gfe_i2_k2_jl);
+      (*this).SetFAreaI( (*this).FAreaI(gf_ie_k2_il), gfe_i2_k2_il);
+      (*this).SetFAreaK( (*this).FAreaK(gf_i2_ke_kl), gfe_i2_k2_kl);
+
+      //centroids
+      vector3d<double> dist2MoveK = (*this).FCenterK(gfe_i1_k1_kl) - (*this).FCenterK(gf_i1_ke_kl);
+      vector3d<double> dist2MoveI = (*this).FCenterI(gfe_i1_k2_il) - (*this).FCenterI(gf_ie_k2_il);
+      (*this).SetCenter( (*this).Center(gc_i1_ke) + dist2MoveK, gce_i1_k1);
+      (*this).SetCenter( (*this).Center(gc_i2_ke) + dist2MoveK, gce_i2_k1);
+      (*this).SetCenter( (*this).Center(gc_ie_k2) + dist2MoveI, gce_i1_k2);
+      (*this).SetCenter( (*this).Center(gc_ie_k2) + 2.0 * dist2MoveI, gce_i2_k2);
+
+      //face centers
+      (*this).SetFCenterI( (*this).FCenterI(gf_i1_ke_il) + dist2MoveK, gfe_i1_k1_il);
+      (*this).SetFCenterJ( (*this).FCenterJ(gf_i1_ke_jl) + dist2MoveK, gfe_i1_k1_jl);
+      (*this).SetFCenterK( (*this).FCenterK(gf_i1_ke_kl) + dist2MoveK, gfe_i1_k1_kl);
+
+      (*this).SetFCenterI( (*this).FCenterI(gf_i2_ke_il) + dist2MoveK, gfe_i2_k1_il);
+      (*this).SetFCenterJ( (*this).FCenterJ(gf_i2_ke_jl) + dist2MoveK, gfe_i2_k1_jl);
+      (*this).SetFCenterK( (*this).FCenterK(gf_i2_ke_kl) + dist2MoveK, gfe_i2_k1_kl);
+
+      (*this).SetFCenterI( (*this).FCenterI(gf_ie_k2_il) + dist2MoveI, gfe_i1_k2_il);
+      (*this).SetFCenterJ( (*this).FCenterJ(gf_ie_k2_jl) + dist2MoveI, gfe_i1_k2_jl);
+      (*this).SetFCenterK( (*this).FCenterK(gf_ie_k2_kl) + dist2MoveI, gfe_i1_k2_kl);
+
+      (*this).SetFCenterI( (*this).FCenterI(gf_ie_k2_il) + 2.0 * dist2MoveI, gfe_i2_k2_il);
+      (*this).SetFCenterJ( (*this).FCenterJ(gf_ie_k2_jl) + 2.0 * dist2MoveI, gfe_i2_k2_jl);
+      (*this).SetFCenterK( (*this).FCenterK(gf_ie_k2_kl) + 2.0 * dist2MoveI, gfe_i2_k2_kl);
+
+      vector3d<double> dist2MoveJ = (*this).FCenterJ(gfe_i1_k1_jl) - fcOld;
+      fcOld = (*this).FCenterJ(gfe_i1_k1_jl);
+      //this is only done at the end of the j loop
+      if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper face areas too
+
+	int gfe_i1_k1_ju = GetUpperFaceJ(i1, jj, k1, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of k line of cells
+	int gfe_i1_k2_ju = GetUpperFaceJ(i1, jj, k2, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of k line of cells
+	int gfe_i2_k1_ju = GetUpperFaceJ(i2, jj, k1, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of k line of cells
+	int gfe_i2_k2_ju = GetUpperFaceJ(i2, jj, k2, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of k line of cells
+
+	(*this).SetFAreaJ( (*this).FAreaJ(gfe_i1_k1_jl), gfe_i1_k1_ju);
+	(*this).SetFAreaJ( (*this).FAreaJ(gfe_i1_k2_jl), gfe_i1_k2_ju);
+	(*this).SetFAreaJ( (*this).FAreaJ(gfe_i2_k1_jl), gfe_i2_k1_ju);
+	(*this).SetFAreaJ( (*this).FAreaJ(gfe_i2_k2_jl), gfe_i2_k2_ju);
+
+	(*this).SetFCenterJ( (*this).FCenterJ(gfe_i1_k1_jl) + dist2MoveJ, gfe_i1_k1_ju);
+	(*this).SetFCenterJ( (*this).FCenterJ(gfe_i1_k2_jl) + dist2MoveJ, gfe_i1_k2_ju);
+	(*this).SetFCenterJ( (*this).FCenterJ(gfe_i2_k1_jl) + dist2MoveJ, gfe_i2_k1_ju);
+	(*this).SetFCenterJ( (*this).FCenterJ(gfe_i2_k2_jl) + dist2MoveJ, gfe_i2_k2_ju);
+
+      }
+
+    }
+  }
+
+  //loop over edges at lower and upper i sides of block - this will include 4 edges that run in the j-direction
+  //edges at the il/jl, il/ju, iu/jl, iu/ju sides will be accounted for in this loop
+  for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++ ){
+
+    for ( int cc = 0; cc < 4; cc++ ){
+
+      int i1,j1,i2,j2,ie,je;
+
+      int gfe_i1_j1_il, gfe_i1_j1_jl;
+      int gfe_i1_j2_il, gfe_i1_j2_jl;
+      int gfe_i2_j1_il, gfe_i2_j1_jl;
+      int gfe_i2_j2_il, gfe_i2_j2_jl;
+
+      int gf_i1_je_il, gf_i1_je_jl;
+      int gf_i2_je_il, gf_i2_je_jl;
+      int gf_ie_j1_il;
+      int gf_ie_j2_il, gf_ie_j2_jl;
+
+      if ( cc == 0 ){ //at il/jl edge - ghost cells are in the lower direction of both j and k, so use GetLowerFace for both
+	i2 = 0;
+	i1 = 1;
+	ie = (*this).NumGhosts();
+
+	j2 = 0;
+	j1 = 1;
+	je = (*this).NumGhosts();
+
+	gfe_i1_j1_il = GetLowerFaceI(i1, j1, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of j line of cells
+	gfe_i1_j1_jl = GetLowerFaceJ(i1, j1, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of j line of cells
+
+	gfe_i1_j2_il = GetLowerFaceI(i1, j2, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of j line of cells
+	gfe_i1_j2_jl = GetLowerFaceJ(i1, j2, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of j line of cells
+
+	gfe_i2_j1_il = GetLowerFaceI(i2, j1, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of j line of cells
+	gfe_i2_j1_jl = GetLowerFaceJ(i2, j1, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of j line of cells
+
+	gfe_i2_j2_il = GetLowerFaceI(i2, j2, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of j line of cells
+	gfe_i2_j2_jl = GetLowerFaceJ(i2, j2, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of j line of cells
+
+	gf_i1_je_il = GetLowerFaceI(i1, je, kk, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at j-lower end, first layer of ghost cells
+	gf_i1_je_jl = GetLowerFaceJ(i1, je, kk, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at j-lower end, first layer of ghost cells
+
+	gf_i2_je_il = GetLowerFaceI(i2, je, kk, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at j-lower end, second layer of ghost cells
+	gf_i2_je_jl = GetLowerFaceJ(i2, je, kk, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at j-lower end, second layer of ghost cells
+
+	gf_ie_j1_il = GetLowerFaceI(ie, j1, kk, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at i-lower end, first layer of ghost cells
+	//gf_ie_j1_jl = GetLowerFaceJ(ie, j1, kk, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at i-lower end, first layer of ghost cells
+
+	gf_ie_j2_il = GetLowerFaceI(ie, j2, kk, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at i-lower end, second layer of ghost cells
+	gf_ie_j2_jl = GetLowerFaceJ(ie, j2, kk, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at i-lower end, second layer of ghost cells
+      }
+      else if ( cc == 1 ){ //at il/ju edge - ghost cells are in the lower direction of j and upper direction of k, so use GetLowerFace for J
+	i2 = 0;
+	i1 = 1;
+	ie = (*this).NumGhosts();
+
+	j2 = jmaxG - 1;
+	j1 = jmaxG - 2;
+	je = jmax - 1;
+
+	gfe_i1_j1_il = GetLowerFaceI(i1, j1, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of j line of cells
+	gfe_i1_j1_jl = GetUpperFaceJ(i1, j1, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of j line of cells
+
+	gfe_i1_j2_il = GetLowerFaceI(i1, j2, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of j line of cells
+	gfe_i1_j2_jl = GetUpperFaceJ(i1, j2, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of j line of cells
+
+	gfe_i2_j1_il = GetLowerFaceI(i2, j1, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of j line of cells
+	gfe_i2_j1_jl = GetUpperFaceJ(i2, j1, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of j line of cells
+
+	gfe_i2_j2_il = GetLowerFaceI(i2, j2, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of j line of cells
+	gfe_i2_j2_jl = GetUpperFaceJ(i2, j2, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of j line of cells
+
+	gf_i1_je_il = GetLowerFaceI(i1, je, kk, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at j-lower end, first layer of ghost cells
+	gf_i1_je_jl = GetUpperFaceJ(i1, je, kk, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at j-lower end, first layer of ghost cells
+
+	gf_i2_je_il = GetLowerFaceI(i2, je, kk, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at j-lower end, second layer of ghost cells
+	gf_i2_je_jl = GetUpperFaceJ(i2, je, kk, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at j-lower end, second layer of ghost cells
+
+	gf_ie_j1_il = GetLowerFaceI(ie, j1, kk, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at i-lower end, first layer of ghost cells
+	//gf_ie_j1_jl = GetUpperFaceJ(ie, j1, kk, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at i-lower end, first layer of ghost cells
+
+	gf_ie_j2_il = GetLowerFaceI(ie, j2, kk, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at i-lower end, second layer of ghost cells
+	gf_ie_j2_jl = GetUpperFaceJ(ie, j2, kk, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at i-lower end, second layer of ghost cells
+      }
+      else if ( cc == 2 ){ //at ju/jl edge - ghost cells are in the lower direction of k, and upper direction of j so use GetLowerFace for k
+	i2 = imaxG - 1;
+	i1 = imaxG - 2;
+	ie = imax - 1;
+
+	j2 = 0;
+	j1 = 1;
+	je = (*this).NumGhosts();
+
+	gfe_i1_j1_il = GetUpperFaceI(i1, j1, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of j line of cells
+	gfe_i1_j1_jl = GetLowerFaceJ(i1, j1, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of j line of cells
+
+	gfe_i1_j2_il = GetUpperFaceI(i1, j2, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of j line of cells
+	gfe_i1_j2_jl = GetLowerFaceJ(i1, j2, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of j line of cells
+
+	gfe_i2_j1_il = GetUpperFaceI(i2, j1, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of j line of cells
+	gfe_i2_j1_jl = GetLowerFaceJ(i2, j1, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of j line of cells
+
+	gfe_i2_j2_il = GetUpperFaceI(i2, j2, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of j line of cells
+	gfe_i2_j2_jl = GetLowerFaceJ(i2, j2, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of j line of cells
+
+	gf_i1_je_il = GetUpperFaceI(i1, je, kk, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at j-lower end, first layer of ghost cells
+	gf_i1_je_jl = GetLowerFaceJ(i1, je, kk, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at j-lower end, first layer of ghost cells
+
+	gf_i2_je_il = GetUpperFaceI(i2, je, kk, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at j-lower end, second layer of ghost cells
+	gf_i2_je_jl = GetLowerFaceJ(i2, je, kk, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at j-lower end, second layer of ghost cells
+
+	gf_ie_j1_il = GetUpperFaceI(ie, j1, kk, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at i-lower end, first layer of ghost cells
+	//gf_ie_j1_jl = GetLowerFaceJ(ie, j1, kk, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at i-lower end, first layer of ghost cells
+
+	gf_ie_j2_il = GetUpperFaceI(ie, j2, kk, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at i-lower end, second layer of ghost cells
+	gf_ie_j2_jl = GetLowerFaceJ(ie, j2, kk, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at i-lower end, second layer of ghost cells
+      }
+      else if ( cc == 3 ){ //at ju/ju edge - ghost cells are in the upper direction of both j and k, use GetUpperFace for both
+	i2 = imaxG - 1;
+	i1 = imaxG - 2;
+	ie = imax - 1;
+
+	j2 = jmaxG - 1;
+	j1 = jmaxG - 2;
+	je = jmax - 1;
+
+	gfe_i1_j1_il = GetUpperFaceI(i1, j1, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of j line of cells
+	gfe_i1_j1_jl = GetUpperFaceJ(i1, j1, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of j line of cells
+
+	gfe_i1_j2_il = GetUpperFaceI(i1, j2, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of j line of cells
+	gfe_i1_j2_jl = GetUpperFaceJ(i1, j2, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of j line of cells
+
+	gfe_i2_j1_il = GetUpperFaceI(i2, j1, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of j line of cells
+	gfe_i2_j1_jl = GetUpperFaceJ(i2, j1, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of j line of cells
+
+	gfe_i2_j2_il = GetUpperFaceI(i2, j2, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of j line of cells
+	gfe_i2_j2_jl = GetUpperFaceJ(i2, j2, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of j line of cells
+
+	gf_i1_je_il = GetUpperFaceI(i1, je, kk, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at j-lower end, first layer of ghost cells
+	gf_i1_je_jl = GetUpperFaceJ(i1, je, kk, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at j-lower end, first layer of ghost cells
+
+	gf_i2_je_il = GetUpperFaceI(i2, je, kk, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at j-lower end, second layer of ghost cells
+	gf_i2_je_jl = GetUpperFaceJ(i2, je, kk, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at j-lower end, second layer of ghost cells
+
+	gf_ie_j1_il = GetUpperFaceI(ie, j1, kk, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at i-lower end, first layer of ghost cells
+	//gf_ie_j1_jl = GetUpperFaceJ(ie, j1, kk, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at i-lower end, first layer of ghost cells
+
+	gf_ie_j2_il = GetUpperFaceI(ie, j2, kk, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at i-lower end, second layer of ghost cells
+	gf_ie_j2_jl = GetUpperFaceJ(ie, j2, kk, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at i-lower end, second layer of ghost cells
+      }
+
+      int gce_i1_j1 = GetLoc1D(i1, j1, kk, imaxG, jmaxG);      //ghost cell on edge, on first layer of i line of cells, on first layer of j line of cells
+      int gfe_i1_j1_kl = GetLowerFaceK(i1, j1, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of j line of cells
+
+      int gce_i1_j2 = GetLoc1D(i1, j2, kk, imaxG, jmaxG);         //ghost cell on edge, on first layer of i line of cells, on second layer of j line of cells
+      int gfe_i1_j2_kl = GetLowerFaceK(i1, j2, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of j line of cells
+
+      int gce_i2_j1 = GetLoc1D(i2, j1, kk, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on first layer of j line of cells
+      int gfe_i2_j1_kl = GetLowerFaceK(i2, j1, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of j line of cells
+
+      int gce_i2_j2 = GetLoc1D(i2, j2, kk, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on second layer of j line of cells
+      int gfe_i2_j2_kl = GetLowerFaceK(i2, j2, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of j line of cells
+
+      int gc_i1_je = GetLoc1D(i1, je, kk, imaxG, jmaxG);       //ghost cell, on i-lower line of cells, at j-lower end, first layer of ghost cells
+      int gf_i1_je_kl = GetLowerFaceK(i1, je, kk, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at j-lower end, first layer of ghost cells
+
+      int gc_i2_je = GetLoc1D(i2, je, kk, imaxG, jmaxG);       //ghost cell, on i-lower line of cells, at j-lower end, second layer of ghost cells
+      int gf_i2_je_kl = GetLowerFaceK(i2, je, kk, imaxG, jmaxG);  //ghost face, on i-lower line of cells, at j-lower end, second layer of ghost cells
+
+      int gc_ie_j1 = GetLoc1D(ie, j1, kk, imaxG, jmaxG);       //ghost cell, on j-lower line of cells, at i-lower end, first layer of ghost cells
+      int gf_ie_j1_kl = GetLowerFaceK(ie, j1, kk, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at i-lower end, first layer of ghost cells
+
+      int gc_ie_j2 = GetLoc1D(ie, j2, kk, imaxG, jmaxG);       //ghost cell, on j-lower line of cells, at i-lower end, second layer of ghost cells
+      int gf_ie_j2_kl = GetLowerFaceK(ie, j2, kk, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at i-lower end, second layer of ghost cells
+
+      //volume
+      (*this).SetVol( 0.5 * ( (*this).Vol(gc_i1_je) + (*this).Vol(gc_ie_j1) ) ,gce_i1_j1);
+      (*this).SetVol( (*this).Vol(gc_i2_je) ,gce_i2_j1);
+      (*this).SetVol( (*this).Vol(gc_ie_j2) ,gce_i1_j2);
+      (*this).SetVol( 0.5 * ( (*this).Vol(gc_i2_je) + (*this).Vol(gc_ie_j2) ) ,gce_i2_j2);
+
+      //face areas
+      (*this).SetFAreaK( 0.5 * ( (*this).FAreaK(gf_ie_j1_kl) + (*this).FAreaK(gf_i1_je_kl) ), gfe_i1_j1_kl);
+      (*this).SetFAreaI( (*this).FAreaI(gf_ie_j1_il), gfe_i1_j1_il);
+      (*this).SetFAreaJ( (*this).FAreaJ(gf_i1_je_jl), gfe_i1_j1_jl);
+
+      (*this).SetFAreaK( (*this).FAreaK(gf_ie_j2_kl), gfe_i1_j2_kl);
+      (*this).SetFAreaI( (*this).FAreaI(gf_ie_j2_il), gfe_i1_j2_il);
+      (*this).SetFAreaJ( (*this).FAreaJ(gf_i1_je_jl), gfe_i1_j2_jl);
+
+      (*this).SetFAreaK( (*this).FAreaK(gf_i2_je_kl), gfe_i2_j1_kl);
+      (*this).SetFAreaI( (*this).FAreaI(gf_ie_j1_il), gfe_i2_j1_il);
+      (*this).SetFAreaJ( (*this).FAreaJ(gf_i2_je_jl), gfe_i2_j1_jl);
+
+      (*this).SetFAreaK( 0.5 * ( (*this).FAreaK(gf_i2_je_kl) + (*this).FAreaJ(gf_ie_j2_kl) ), gfe_i2_j2_kl);
+      (*this).SetFAreaI( (*this).FAreaI(gf_ie_j2_il), gfe_i2_j2_il);
+      (*this).SetFAreaJ( (*this).FAreaJ(gf_i2_je_jl), gfe_i2_j2_jl);
+
+      //centroids
+      vector3d<double> dist2MoveJ = (*this).FCenterJ(gfe_i1_j1_jl) - (*this).FCenterJ(gf_i1_je_jl);
+      vector3d<double> dist2MoveI = (*this).FCenterI(gfe_i1_j2_il) - (*this).FCenterI(gf_ie_j2_il);
+      (*this).SetCenter( (*this).Center(gc_i1_je) + dist2MoveJ, gce_i1_j1);
+      (*this).SetCenter( (*this).Center(gc_i2_je) + dist2MoveJ, gce_i2_j1);
+      (*this).SetCenter( (*this).Center(gc_ie_j2) + dist2MoveI, gce_i1_j2);
+      (*this).SetCenter( (*this).Center(gc_ie_j2) + 2.0 * dist2MoveI, gce_i2_j2);
+
+      //face centers
+      (*this).SetFCenterI( (*this).FCenterI(gf_i1_je_il) + dist2MoveJ, gfe_i1_j1_il);
+      (*this).SetFCenterJ( (*this).FCenterJ(gf_i1_je_jl) + dist2MoveJ, gfe_i1_j1_jl);
+      (*this).SetFCenterK( (*this).FCenterK(gf_i1_je_kl) + dist2MoveJ, gfe_i1_j1_kl);
+
+      (*this).SetFCenterI( (*this).FCenterI(gf_i2_je_il) + dist2MoveJ, gfe_i2_j1_il);
+      (*this).SetFCenterJ( (*this).FCenterJ(gf_i2_je_jl) + dist2MoveJ, gfe_i2_j1_jl);
+      (*this).SetFCenterK( (*this).FCenterK(gf_i2_je_kl) + dist2MoveJ, gfe_i2_j1_kl);
+
+      (*this).SetFCenterI( (*this).FCenterI(gf_ie_j2_il) + dist2MoveI, gfe_i1_j2_il);
+      (*this).SetFCenterJ( (*this).FCenterJ(gf_ie_j2_jl) + dist2MoveI, gfe_i1_j2_jl);
+      (*this).SetFCenterK( (*this).FCenterK(gf_ie_j2_kl) + dist2MoveI, gfe_i1_j2_kl);
+
+      (*this).SetFCenterI( (*this).FCenterI(gf_ie_j2_il) + 2.0 * dist2MoveI, gfe_i2_j2_il);
+      (*this).SetFCenterJ( (*this).FCenterJ(gf_ie_j2_jl) + 2.0 * dist2MoveI, gfe_i2_j2_jl);
+      (*this).SetFCenterK( (*this).FCenterK(gf_ie_j2_kl) + 2.0 * dist2MoveI, gfe_i2_j2_kl);
+
+      vector3d<double> dist2MoveK = (*this).FCenterK(gfe_i1_j1_kl) - fcOld;
+      fcOld = (*this).FCenterK(gfe_i1_j1_kl);
+      //this is only done at the end of the k loop
+      if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of k-line of cells assign cell upper face areas too
+
+	int gfe_i1_j1_ku = GetUpperFaceK(i1, j1, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of j line of cells
+	int gfe_i1_j2_ku = GetUpperFaceK(i1, j2, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of j line of cells
+	int gfe_i2_j1_ku = GetUpperFaceK(i2, j1, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of j line of cells
+	int gfe_i2_j2_ku = GetUpperFaceK(i2, j2, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of j line of cells
+
+	(*this).SetFAreaK( (*this).FAreaK(gfe_i1_j1_kl), gfe_i1_j1_ku);
+	(*this).SetFAreaK( (*this).FAreaK(gfe_i1_j2_kl), gfe_i1_j2_ku);
+	(*this).SetFAreaK( (*this).FAreaK(gfe_i2_j1_kl), gfe_i2_j1_ku);
+	(*this).SetFAreaK( (*this).FAreaK(gfe_i2_j2_kl), gfe_i2_j2_ku);
+
+	(*this).SetFCenterK( (*this).FCenterK(gfe_i1_j1_kl) + dist2MoveK, gfe_i1_j1_ku);
+	(*this).SetFCenterK( (*this).FCenterK(gfe_i1_j2_kl) + dist2MoveK, gfe_i1_j2_ku);
+	(*this).SetFCenterK( (*this).FCenterK(gfe_i2_j1_kl) + dist2MoveK, gfe_i2_j1_ku);
+	(*this).SetFCenterK( (*this).FCenterK(gfe_i2_j2_kl) + dist2MoveK, gfe_i2_j2_ku);
 
       }
 
