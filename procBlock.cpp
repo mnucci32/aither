@@ -1672,7 +1672,7 @@ void procBlock::AssignGhostCellsGeom(){
 
       }
 
-      if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper face areas too
+      if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of k-line of cells assign cell upper face areas too
 
 	int lFaceG1_ku = GetUpperFaceK(1, jj, kk, imaxG, jmaxG); 
 	int lFaceG2_ku = GetUpperFaceK(0, jj, kk, imaxG, jmaxG);
@@ -2150,17 +2150,17 @@ void procBlock::AssignGhostCellsGeom(){
       int uFaceG2_jl = GetLowerFaceJ(ii, jj, kmaxG-1, imaxG, jmaxG);
       int uFaceG2_ku = GetUpperFaceK(ii, jj, kmaxG-1, imaxG, jmaxG);
 
-      int cellUpIn1 = GetLoc1D(ii, jj, kmax - 1 - (*this).NumGhosts(), imaxG, jmaxG);
-      int uFaceIn1_il = GetLowerFaceI(ii, jj, kmax - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
-      int uFaceIn1_jl = GetLowerFaceJ(ii, jj, kmax - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
-      int uFaceIn1_kl = GetLowerFaceK(ii, jj, kmax - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+      int cellUpIn1 = GetLoc1D(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG);
+      int uFaceIn1_il = GetLowerFaceI(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+      int uFaceIn1_jl = GetLowerFaceJ(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+      int uFaceIn1_kl = GetLowerFaceK(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
 
-      int cellUpIn2 = GetLoc1D(ii, jj, kmax - 2 - (*this).NumGhosts(), imaxG, jmaxG);
-      int uFaceIn2_il = GetLowerFaceI(ii, jj, kmax - 2 - (*this).NumGhosts(), imaxG, jmaxG);
-      int uFaceIn2_jl = GetLowerFaceJ(ii, jj, kmax - 2 - (*this).NumGhosts(), imaxG, jmaxG);
-      int uFaceIn2_kl = GetLowerFaceK(ii, jj, kmax - 2 - (*this).NumGhosts(), imaxG, jmaxG);
+      int cellUpIn2 = GetLoc1D(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
+      int uFaceIn2_il = GetLowerFaceI(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
+      int uFaceIn2_jl = GetLowerFaceJ(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
+      int uFaceIn2_kl = GetLowerFaceK(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
 
-      int uFaceB = GetUpperFaceK(ii, jj, kmax - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+      int uFaceB = GetUpperFaceK(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
 
       //mirror volume values from adjacent cells
       (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
@@ -2213,8 +2213,8 @@ void procBlock::AssignGhostCellsGeom(){
 	int uFaceG1_iu = GetUpperFaceI(ii, jj, kmaxG-2, imaxG, jmaxG); 
 	int uFaceG2_iu = GetUpperFaceI(ii, jj, kmaxG-1, imaxG, jmaxG);
 
-	int uFaceIn1_iu = GetUpperFaceI(ii, jj, kmax - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
-	int uFaceIn2_iu = GetUpperFaceI(ii, jj, kmax - 2 - (*this).NumGhosts(), imaxG, jmaxG);
+	int uFaceIn1_iu = GetUpperFaceI(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+	int uFaceIn2_iu = GetUpperFaceI(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
 
 	//mirror face area values from adjacent cells
 	(*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG1_iu);
@@ -2245,8 +2245,8 @@ void procBlock::AssignGhostCellsGeom(){
 	int uFaceG1_ju = GetUpperFaceJ(ii, jj, kmaxG-2, imaxG, jmaxG); 
 	int uFaceG2_ju = GetUpperFaceJ(ii, jj, kmaxG-1, imaxG, jmaxG);
 
-	int uFaceIn1_ju = GetUpperFaceJ(ii, jj, kmax - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
-	int uFaceIn2_ju = GetUpperFaceJ(ii, jj, kmax - 2 - (*this).NumGhosts(), imaxG, jmaxG);
+	int uFaceIn1_ju = GetUpperFaceJ(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+	int uFaceIn2_ju = GetUpperFaceJ(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
 
 	//mirror face area values from adjacent cells
 	(*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG1_ju);
@@ -2268,6 +2268,11 @@ void procBlock::AssignGhostCellsGeom(){
 
       //cell centroid is moved interior cell width in the boundary normal direction
       vector3d<double> dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
+      cout << "ii, jj " << ii << ", " << jj << ", " << dist2Move << endl;
+      cout << "boundary face " << (*this).FCenterK(lFaceB) << endl;
+      cout << "upper face " << (*this).FCenterK(lFaceIn1_ku) << endl;
+
+
       (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
       dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
       (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
@@ -2329,7 +2334,7 @@ void procBlock::AssignGhostCellsGeom(){
 	int uFaceG1_iu = GetUpperFaceI(ii, jj, kmaxG-2, imaxG, jmaxG); 
 	int uFaceG2_iu = GetUpperFaceI(ii, jj, kmaxG-1, imaxG, jmaxG);
 
-	int uFaceIn1_iu = GetUpperFaceI(ii, jj, kmax - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+	int uFaceIn1_iu = GetUpperFaceI(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
 
 	//face center is moved interior cell width in the boundary normal direction
 	dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
@@ -2365,7 +2370,7 @@ void procBlock::AssignGhostCellsGeom(){
 	int uFaceG1_ju = GetUpperFaceJ(ii, jj, kmaxG-2, imaxG, jmaxG); 
 	int uFaceG2_ju = GetUpperFaceJ(ii, jj, kmaxG-1, imaxG, jmaxG);
 
-	int uFaceIn1_ju = GetUpperFaceJ(ii, jj, kmax - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+	int uFaceIn1_ju = GetUpperFaceJ(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
 
 	//face center is moved interior cell width in the boundary normal direction
 	dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
@@ -2396,6 +2401,16 @@ void procBlock::AssignGhostCellsGeom(){
 
   //fill ghost cell edge lines with geometric values
   (*this).AssignGhostCellsGeomEdge();
+
+  for ( int kk = 0; kk < kmaxG; kk++ ){
+    for ( int jj = 0; jj < jmaxG; jj++ ){
+      for ( int ii = 0; ii < imaxG; ii++ ){
+	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
+	cout << ii << ", " << jj << ", " << kk << ", " << (*this).Vol(loc) << ", " << (*this).Center(loc) << endl; 
+      }
+      cout << endl;
+    }
+  }
 
 }
 
@@ -2525,7 +2540,6 @@ void procBlock::AssignGhostCellsGeomEdge(){
 	gf_j2_ke_kl = GetLowerFaceK(ii, j2, ke, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at k-lower end, second layer of ghost cells
 
 	gf_je_k1_jl = GetUpperFaceJ(ii, je, k1, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at j-lower end, first layer of ghost cells
-	//gf_je_k1_kl = GetLowerFaceK(ii, je, k1, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at j-lower end, first layer of ghost cells
 
 	gf_je_k2_jl = GetUpperFaceJ(ii, je, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at j-lower end, second layer of ghost cells
 	gf_je_k2_kl = GetLowerFaceK(ii, je, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at j-lower end, second layer of ghost cells
@@ -2558,7 +2572,6 @@ void procBlock::AssignGhostCellsGeomEdge(){
 	gf_j2_ke_kl = GetUpperFaceK(ii, j2, ke, imaxG, jmaxG);  //ghost face, on j-lower line of cells, at k-lower end, second layer of ghost cells
 
 	gf_je_k1_jl = GetUpperFaceJ(ii, je, k1, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at j-lower end, first layer of ghost cells
-	//gf_je_k1_kl = GetUpperFaceK(ii, je, k1, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at j-lower end, first layer of ghost cells
 
 	gf_je_k2_jl = GetUpperFaceJ(ii, je, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at j-lower end, second layer of ghost cells
 	gf_je_k2_kl = GetUpperFaceK(ii, je, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at j-lower end, second layer of ghost cells
