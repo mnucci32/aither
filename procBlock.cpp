@@ -148,6 +148,7 @@ procBlock::procBlock( const double density, const double pressure, const vector3
   }
 
   primVars singleState(density, pressure, vel);
+  vector<primVars> dummyState (numCells,singleState);              //dummy state variable
   vector<double> dummyScalar (numCells);                 //dummy time variable
   colMatrix singleResid(numVars);
   singleResid.Zero();
@@ -155,7 +156,7 @@ procBlock::procBlock( const double density, const double pressure, const vector3
   vector<tensor<double> > tens(viscCells);             //dummy tensor variable length of number of cells
   vector<vector3d<double> > vec(viscCells);             //dummy vector variable lenght of number of cells
 
-  state = PadStateWithGhosts( singleState, numGhosts, numI, numJ, numK );      
+  state = PadWithGhosts( dummyState, numGhosts, numI, numJ, numK );      
 
   vol = PadWithGhosts( blk.Volume(), numGhosts, numI, numJ, numK );
   center = PadWithGhosts( blk.Centroid(), numGhosts, numI, numJ, numK );
@@ -204,6 +205,7 @@ procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const 
   }
 
   vector<double> dummyScalar (numCells);                 //dummy time variable
+
   colMatrix singleResid(numVars);
   singleResid.Zero();
   vector<colMatrix> dummyResid(numCells, singleResid);
@@ -1115,9 +1117,8 @@ vector<T> PadWithGhosts( const vector<T> &var, const int &numGhosts, const int &
   return padBlk;
 }
 
-//function to initialize all cells including ghost cells to a initial state
-//needed until function to determine ghost corner cells is written
-vector<primVars> PadStateWithGhosts( const primVars &state, const int &numGhosts, const int &numI, const int &numJ, const int &numK ){
+//function to pad a vector with a specified number of ghost cells
+vector<primVars> PadStateWithGhosts( const primVars &var, const int &numGhosts, const int &numI, const int &numJ, const int &numK ){
 
   int newI = numI + (numGhosts * 2);
   int newJ = numJ + (numGhosts * 2);
@@ -1125,7 +1126,7 @@ vector<primVars> PadStateWithGhosts( const primVars &state, const int &numGhosts
 
   int newSize = newI * newJ * newK;
 
-  vector<primVars> padBlk(newSize,state);
+  vector<primVars> padBlk(newSize,var);
 
   return padBlk;
 }
@@ -2397,15 +2398,6 @@ void procBlock::AssignGhostCellsGeom(){
   //fill ghost cell edge lines with geometric values
   (*this).AssignGhostCellsGeomEdge();
 
-  for ( int kk = 0; kk < kmaxG; kk++ ){
-    for ( int jj = 0; jj < jmaxG; jj++ ){
-      for ( int ii = 0; ii < imaxG; ii++ ){
-	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
-	cout << ii << ", " << jj << ", " << kk << ", " << (*this).Vol(loc) << ", " << (*this).Center(loc) << endl; 
-      }
-      cout << endl;
-    }
-  }
 
 }
 
@@ -2420,8 +2412,6 @@ void procBlock::AssignGhostCellsGeomEdge(){
   int imaxG = imax + 2 * (*this).NumGhosts();
   int jmaxG = jmax + 2 * (*this).NumGhosts();
   int kmaxG = kmax + 2 * (*this).NumGhosts();
-
-  vector3d<double> fcOld(0,0,0);
 
   //loop over edges at lower and upper j sides of block - this will include 4 edges that run in the i-direction
   //edges at the jl/kl, jl/ku, ju/kl, ju/ku sides will be accounted for in this loop
@@ -2438,8 +2428,8 @@ void procBlock::AssignGhostCellsGeomEdge(){
 
       int gf_j1_ke_jl, gf_j1_ke_kl, gf_j1_ke_ku;
       int gf_j2_ke_jl, gf_j2_ke_kl;
-      int gf_je_k1_jl,gf_je_k1_ju;
-      int gf_je_k2_jl,gf_je_k2_kl;
+      int gf_je_k1_jl, gf_je_k1_ju;
+      int gf_je_k2_jl, gf_je_k2_kl;
 
       if ( cc == 0 ){ //at jl/kl edge - ghost cells are in the lower direction of both j and k, so use GetLowerFace for both
 	j2 = 0;
@@ -2473,7 +2463,7 @@ void procBlock::AssignGhostCellsGeomEdge(){
 	gf_je_k1_ju = GetUpperFaceJ(ii, je, k1, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at j-lower end, first layer of ghost cells
 
 	gf_je_k2_jl = GetLowerFaceJ(ii, je, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at j-lower end, second layer of ghost cells
-	gf_je_k2_kl = GetUpperFaceK(ii, je, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at j-lower end, second layer of ghost cells
+	gf_je_k2_kl = GetLowerFaceK(ii, je, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at j-lower end, second layer of ghost cells
       }
       else if ( cc == 1 ){ //at jl/ku edge - ghost cells are in the lower direction of j and upper direction of k, so use GetLowerFace for J
 	j2 = 0;
@@ -2575,7 +2565,7 @@ void procBlock::AssignGhostCellsGeomEdge(){
 	gf_je_k1_ju = GetLowerFaceJ(ii, je, k1, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at j-lower end, first layer of ghost cells
 
 	gf_je_k2_jl = GetUpperFaceJ(ii, je, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at j-lower end, second layer of ghost cells
-	gf_je_k2_kl = GetLowerFaceK(ii, je, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at j-lower end, second layer of ghost cells
+	gf_je_k2_kl = GetUpperFaceK(ii, je, k2, imaxG, jmaxG);  //ghost face, on k-lower line of cells, at j-lower end, second layer of ghost cells
       }
 
       int gce_j1_k1 = GetLoc1D(ii, j1, k1, imaxG, jmaxG);      //ghost cell on edge, on first layer of j line of cells, on first layer of k line of cells
@@ -2650,10 +2640,11 @@ void procBlock::AssignGhostCellsGeomEdge(){
       (*this).SetFCenterJ( (*this).FCenterJ(gf_je_k2_jl) + 2.0 * dist2MoveJ, gfe_j2_k2_jl);
       (*this).SetFCenterK( (*this).FCenterK(gf_je_k2_kl) + 2.0 * dist2MoveJ, gfe_j2_k2_kl);
 
-      vector3d<double> dist2MoveI = (*this).FCenterI(gfe_j1_k1_il) - fcOld;
-      fcOld = (*this).FCenterI(gfe_j1_k1_il);
       //this is only done at the end of the i loop
       if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper face areas too
+
+	int gfe_j1_k1_2il = GetLowerFaceI(ii - 1, j1, k1, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on first layer of k line of cells
+	vector3d<double> dist2MoveI = (*this).FCenterI(gfe_j1_k1_il) - (*this).FCenterI(gfe_j1_k1_2il);
 
 	int gfe_j1_k1_iu = GetUpperFaceI(ii, j1, k1, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on first layer of k line of cells
 	int gfe_j1_k2_iu = GetUpperFaceI(ii, j1, k2, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on second layer of k line of cells
@@ -2902,10 +2893,11 @@ void procBlock::AssignGhostCellsGeomEdge(){
       (*this).SetFCenterJ( (*this).FCenterJ(gf_ie_k2_jl) + 2.0 * dist2MoveI, gfe_i2_k2_jl);
       (*this).SetFCenterK( (*this).FCenterK(gf_ie_k2_kl) + 2.0 * dist2MoveI, gfe_i2_k2_kl);
 
-      vector3d<double> dist2MoveJ = (*this).FCenterJ(gfe_i1_k1_jl) - fcOld;
-      fcOld = (*this).FCenterJ(gfe_i1_k1_jl);
       //this is only done at the end of the j loop
       if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper face areas too
+
+	int gfe_i1_k1_2jl = GetLowerFaceJ(i1, jj - 1, k1, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on first layer of k line of cells
+	vector3d<double> dist2MoveJ = (*this).FCenterJ(gfe_i1_k1_jl) - (*this).FCenterJ(gfe_i1_k1_2jl);
 
 	int gfe_i1_k1_ju = GetUpperFaceJ(i1, jj, k1, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of k line of cells
 	int gfe_i1_k2_ju = GetUpperFaceJ(i1, jj, k2, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of k line of cells
@@ -3154,10 +3146,11 @@ void procBlock::AssignGhostCellsGeomEdge(){
       (*this).SetFCenterJ( (*this).FCenterJ(gf_ie_j2_jl) + 2.0 * dist2MoveI, gfe_i2_j2_jl);
       (*this).SetFCenterK( (*this).FCenterK(gf_ie_j2_kl) + 2.0 * dist2MoveI, gfe_i2_j2_kl);
 
-      vector3d<double> dist2MoveK = (*this).FCenterK(gfe_i1_j1_kl) - fcOld;
-      fcOld = (*this).FCenterK(gfe_i1_j1_kl);
       //this is only done at the end of the k loop
       if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of k-line of cells assign cell upper face areas too
+
+	int gfe_i1_j1_2kl = GetLowerFaceK(i1, j1, kk - 1, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on first layer of k line of cells
+	vector3d<double> dist2MoveK = (*this).FCenterK(gfe_i1_j1_kl) - (*this).FCenterK(gfe_i1_j1_2kl);
 
 	int gfe_i1_j1_ku = GetUpperFaceK(i1, j1, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of j line of cells
 	int gfe_i1_j2_ku = GetUpperFaceK(i1, j2, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of j line of cells
