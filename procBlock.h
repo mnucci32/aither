@@ -175,6 +175,9 @@ class procBlock {
   void AssignViscousGhostCells(const input&, const idealGas&);
   void AssignViscousGhostCellsEdge(const input&, const idealGas&);
 
+  bool AtCorner(const int&, const int&, const int&)const;
+  bool AtEdge(const int&, const int&, const int&)const;
+
   //destructor
   ~procBlock() {}
 
