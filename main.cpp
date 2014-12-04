@@ -144,14 +144,9 @@ int main( int argc, char *argv[] ) {
 
 	  stateBlocks[bb].InitializeGrads();
 
-	  cout << "calc grads" << endl;
-
 	  stateBlocks[bb].CalcCellGradsI(eos, suth, inputVars);
-	  cout << "calc grads i" << endl;
 	  stateBlocks[bb].CalcCellGradsJ(eos, suth, inputVars);
-	  cout << "calc grads j" << endl;
 	  stateBlocks[bb].CalcCellGradsK(eos, suth, inputVars);
-	  cout << "calc grads k" << endl;
 
 	  stateBlocks[bb].CalcViscFluxI(suth, eos, inputVars);
 	  stateBlocks[bb].CalcViscFluxJ(suth, eos, inputVars);

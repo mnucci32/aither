@@ -1316,6 +1316,24 @@ void procBlock::CalcCellGradsJ(const idealGas &eqnState, const sutherland &suth,
 	  vector3d<double> vu = FaceReconCentral( (*this).State(jUp).Velocity(),  (*this).State(loc).Velocity(), (*this).Center(jUp),  (*this).Center(loc), (*this).FCenterJ(jfUp)  );
 	  double tu = FaceReconCentral( (*this).State(jUp).Temperature(eqnState),  (*this).State(loc).Temperature(eqnState), (*this).Center(jUp),  (*this).Center(loc), (*this).FCenterJ(jfUp)  );
 
+	  // if ( jj == 1 && ii == 32 && kk == 2){
+	  //   cout << "At viscous ghost cell " << ii << ", " << jj << ", " << kk << ", " << (*this).Center(loc) << endl;
+	  //   cout << "j-upper " << (*this).Center(jUp) << endl;
+	  //   cout << "j-lower " << (*this).Center(jLow) << endl;
+	  //   cout << "i-upper " << (*this).Center(GetLoc1D(33, 1, 2, imaxG, jmaxG)) << endl;
+	  //   cout << "i-lower " << (*this).Center(GetLoc1D(31, 1, 2, imaxG, jmaxG)) << endl;
+	  //   cout << "k-upper " << (*this).Center(GetLoc1D(32, 1, 3, imaxG, jmaxG)) << endl;
+	  //   cout << "k-lower " << (*this).Center(GetLoc1D(32, 1, 1, imaxG, jmaxG)) << endl;
+
+	  //   cout << "At interior cell 32, 2, 2 " << (*this).Center(GetLoc1D(32, 2, 2, imaxG, jmaxG)) << endl;
+	  //   cout << "j-upper " << (*this).Center(GetLoc1D(32, 3, 2, imaxG, jmaxG)) << endl;
+	  //   cout << "j-lower " << (*this).Center(GetLoc1D(32, 1, 2, imaxG, jmaxG)) << endl;
+	  //   cout << "i-upper " << (*this).Center(GetLoc1D(33, 2, 2, imaxG, jmaxG)) << endl;
+	  //   cout << "i-lower " << (*this).Center(GetLoc1D(31, 2, 2, imaxG, jmaxG)) << endl;
+	  //   cout << "k-upper " << (*this).Center(GetLoc1D(32, 2, 3, imaxG, jmaxG)) << endl;
+	  //   cout << "k-lower " << (*this).Center(GetLoc1D(32, 2, 1, imaxG, jmaxG)) << endl;
+	  // }
+
 	  //calculate gradients for cell
 	  CalcVelGradGG(vl, vu, (*this).FAreaJ(jfLow), (*this).FAreaJ(jfUp), (*this).Vol(loc), loc);
 	  CalcTempGradGG(tl, tu, (*this).FAreaJ(jfLow), (*this).FAreaJ(jfUp), (*this).Vol(loc), loc);
@@ -1464,6 +1482,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
   double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
   double mRef = inp.VelRef().Mag() / aRef;
 
+  //loop over physical cells
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
     for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
       for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
@@ -1488,8 +1507,8 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 	mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
 
 
-	// if (jj == (*this).NumGhosts() ){
-	//   cout << "vel gradient at wall: " << velGrad << endl;
+	// if (jj == (*this).NumGhosts() && ii == 32 && kk == 2){
+	//   cout << "vel gradient at interior cell: " << (*this).VelGrad(jUp) << endl;
 	//   cout << "vel gradient at ghost cell: " << (*this).VelGrad(jLow) << endl;
 	// }
 
@@ -2421,6 +2440,19 @@ void procBlock::AssignGhostCellsGeom(){
 
   //fill ghost cell edge lines with geometric values
   (*this).AssignGhostCellsGeomEdge();
+
+  // cout << "geom ghost cells" << endl;
+  // for( int kk = 0; kk < kmaxG; kk++ ){
+  //   for( int jj = 0; jj < jmaxG; jj++ ){
+  //     for( int ii = 0; ii < imaxG; ii++ ){
+
+  // 	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
+  // 	cout << ii << ", " << jj << ", " << kk << ", " << (*this).Vol(loc) << endl;
+
+  //     }
+  //     cout << endl;
+  //   }
+  // }
 
 
 }
