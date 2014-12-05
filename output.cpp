@@ -190,7 +190,7 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars, const ideal
   outFile.write(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
 
   //write i, j, k, vars dimension for each block
-  int numVars = 23;            //number of variables to write out
+  int numVars = 9;            //number of variables to write out
   int dumInt = 0;
 
   vector3d<double> vel;
@@ -313,130 +313,6 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars, const ideal
 	  }
 	}
       }
-      else if (vv == 9) {    // du/dx
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
-	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	      dumVec[loc] = vars[ll].VelGrad(locG).XX();
-	    }
-	  }
-	}
-      }
-      else if (vv == 10) {  // dv/dx
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
-	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	      dumVec[loc] = vars[ll].VelGrad(locG).XY();
-	    }
-	  }
-	}
-      }
-      else if (vv == 11) {  // dw/dx
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
-	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	      dumVec[loc] = vars[ll].VelGrad(locG).XZ();
-	    }
-	  }
-	}
-      }
-      else if (vv == 12) {   // du/dy
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
-	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	      dumVec[loc] = vars[ll].VelGrad(locG).YX();
-	    }
-	  }
-	}
-      }
-      else if (vv == 13) {  // dv/dy
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
-	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	      dumVec[loc] = vars[ll].VelGrad(locG).YY();
-	    }
-	  }
-	}
-      }
-      else if (vv == 14) {   // dw/dy
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
-	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	      dumVec[loc] = vars[ll].VelGrad(locG).YZ();
-	    }
-	  }
-	}
-      }
-      else if (vv == 15) {   // du/dz
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
-	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	      dumVec[loc] = vars[ll].VelGrad(locG).ZX();
-	    }
-	  }
-	}
-      }
-      else if (vv == 16) {   // dv/dz
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
-	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	      dumVec[loc] = vars[ll].VelGrad(locG).ZY();
-	    }
-	  }
-	}
-      }
-      else if (vv == 17) {  // dw/dz
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
-	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	      dumVec[loc] = vars[ll].VelGrad(locG).ZZ();
-	    }
-	  }
-	}
-      }
-      else if (vv == 18) {                        //mass residual - no ghost cells
-	for ( int ii = 0; ii < blkLen; ii++){
-	  dumVec[ii] = vars[ll].Residual(ii,0);
-	}
-      }
-      else if (vv == 19) {                        //momentum-x residual - no ghost cells
-	for ( int ii = 0; ii < blkLen; ii++){
-	  dumVec[ii] = vars[ll].Residual(ii,1);
-	}
-      }
-      else if (vv == 20) {                        //momentum-y residual - no ghost cells
-	for ( int ii = 0; ii < blkLen; ii++){
-	  dumVec[ii] = vars[ll].Residual(ii,2);
-	}
-      }
-      else if (vv == 21) {                        //momentum-z residual - no ghost cells
-	for ( int ii = 0; ii < blkLen; ii++){
-	  dumVec[ii] = vars[ll].Residual(ii,3);
-	}
-      }
-      else if (vv == 22) {                        //energy residual - no ghost cells
-	for ( int ii = 0; ii < blkLen; ii++){
-	  dumVec[ii] = vars[ll].Residual(ii,4);
-	}
-      }
       else {
 	cerr << "ERROR: Variable to write to function file is not defined!" << endl;
         exit(0);
@@ -473,48 +349,6 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars, const ideal
 	else if (vv == 8){                                 //temperature
 	  dumDouble = dumDouble * refT;                        
 	}
-	else if (vv == 9){                                  //du/dx
-	  dumDouble = dumDouble * refSoS;
-	}
-	else if (vv == 10){                                 //dv/dx
-	  dumDouble = dumDouble * refSoS;
-	}
-	else if (vv == 11){                                 //dw/dx
-	  dumDouble = dumDouble * refSoS;
-	}
-	else if (vv == 12){                                  //du/dy
-	  dumDouble = dumDouble * refSoS;
-	}
-	else if (vv == 13){                                 //dv/dy
-	  dumDouble = dumDouble * refSoS;
-	}
-	else if (vv == 14){                                 //dw/dy
-	  dumDouble = dumDouble * refSoS;
-	}
-	else if (vv == 15){                                  //du/dz
-	  dumDouble = dumDouble * refSoS;
-	}
-	else if (vv == 16){                                 //dv/dz
-	  dumDouble = dumDouble * refSoS;
-	}
-	else if (vv == 17){                                 //dw/dz
-	  dumDouble = dumDouble * refSoS;
-	}
-	else if (vv == 18){                                 //residual is already nondimensional
-	  dumDouble = dumDouble ;                        
-	}
-	else if (vv == 19){                                 //residual is already nondimensional
-	  dumDouble = dumDouble ;                        
-	}
-	else if (vv == 20){                                 //residual is already nondimensional
-	  dumDouble = dumDouble ;                        
-	}
-	else if (vv == 21){                                 //residual is already nondimensional
-	  dumDouble = dumDouble ;                        
-	}
-	else if (vv == 22){                                 //residual is already nondimensional
-	  dumDouble = dumDouble ;                        
-	}
 	outFile.write(reinterpret_cast<char *>(&dumDouble), sizeof(dumDouble));
       }
     }
@@ -546,7 +380,7 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
   }
 
   //write number of scalars and number of vectors
-  int numScalar = 18;
+  int numScalar = 9;
   int numVector = 1;
   resFile << numScalar << "     " << numVector << "     " << 0 << endl;
 
@@ -582,20 +416,6 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
   resFile << writeName << " F 0007 sos" << endl;
   resFile << writeName << " F 0008 dt" << endl;
   resFile << writeName << " F 0009 temperature" << endl;
-  resFile << writeName << " F 0010 du/dx" << endl;
-  resFile << writeName << " F 0011 dv/dx" << endl;
-  resFile << writeName << " F 0012 dw/dx" << endl;
-  resFile << writeName << " F 0013 du/dy" << endl;
-  resFile << writeName << " F 0014 dv/dy" << endl;
-  resFile << writeName << " F 0015 dw/dy" << endl;
-  resFile << writeName << " F 0016 du/dz" << endl;
-  resFile << writeName << " F 0017 dv/dz" << endl;
-  resFile << writeName << " F 0018 dw/dz" << endl;
-  resFile << writeName << " F 0019 massRes" << endl;
-  resFile << writeName << " F 0020 momxRes" << endl;
-  resFile << writeName << " F 0021 momyRes" << endl;
-  resFile << writeName << " F 0022 momzRes" << endl;
-  resFile << writeName << " F 0023 engyRes" << endl;
   resFile << writeName << " F 0002 0003 0004 velocity" << endl;
 
   //Close results file

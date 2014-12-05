@@ -40,9 +40,6 @@ class procBlock {
   vector<double> avgWaveSpeed;             //maximum wave speed normal to i-faces
   vector<double> dt;                        //cell time step
 
-  vector<tensor<double> > velGrad;          //velocity gradient on i-faces
-  vector<vector3d<double> > tempGrad;       //temperature gradient on i-faces
-
   int numCells;
   int numVars;
   int numI;
@@ -148,19 +145,21 @@ class procBlock {
 
   double LUSGS( const vector<vector3d<int> > &, vector<colMatrix> &, const vector<colMatrix> &, const vector<colMatrix> &, const idealGas&, const input&, const sutherland&)const;
 
-  void SetVelGrad( const tensor<double> &a, const int &ind){velGrad[ind] = a;}
-  tensor<double> VelGrad(const int &ind) const {return velGrad[ind];}
-  void SetTempGrad( const vector3d<double> &a, const int &ind){tempGrad[ind] = a;}
-  vector3d<double> TempGrad(const int &ind) const {return tempGrad[ind];}
+  /* void SetVelGrad( const tensor<double> &a, const int &ind){velGrad[ind] = a;} */
+  /* tensor<double> VelGrad(const int &ind) const {return velGrad[ind];} */
+  /* void SetTempGrad( const vector3d<double> &a, const int &ind){tempGrad[ind] = a;} */
+  /* vector3d<double> TempGrad(const int &ind) const {return tempGrad[ind];} */
 
-  void CalcVelGradGG(const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const double&, const int&);
-  void CalcTempGradGG(const double&, const double&, const vector3d<double>&, const vector3d<double>&, const double&, const int&);
+  tensor<double> CalcVelGradGG(const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&,
+			       const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&,
+			       const vector3d<double>&, const vector3d<double>&, const double&);
 
-  void InitializeGrads();
+  vector3d<double> CalcTempGradGG(const double&, const double&, const double&, const double&, const double&, const double&, const vector3d<double>&, const vector3d<double>&,
+				  const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const double&);
 
-  void CalcCellGradsI(const idealGas&, const sutherland&, const input&);
-  void CalcCellGradsJ(const idealGas&, const sutherland&, const input&);
-  void CalcCellGradsK(const idealGas&, const sutherland&, const input&);
+  /* void CalcCellGradsI(const idealGas&, const sutherland&, const input&); */
+  /* void CalcCellGradsJ(const idealGas&, const sutherland&, const input&); */
+  /* void CalcCellGradsK(const idealGas&, const sutherland&, const input&); */
 
   void CalcViscFluxI(const sutherland&, const idealGas&, const input&);
   void CalcViscFluxJ(const sutherland&, const idealGas&, const input&);

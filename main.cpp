@@ -142,11 +142,11 @@ int main( int argc, char *argv[] ) {
 	  //determine ghost cell values for viscous fluxes
 	  stateBlocks[bb].AssignViscousGhostCells(inputVars, eos);
 
-	  stateBlocks[bb].InitializeGrads();
+	  //stateBlocks[bb].InitializeGrads();
 
-	  stateBlocks[bb].CalcCellGradsI(eos, suth, inputVars);
-	  stateBlocks[bb].CalcCellGradsJ(eos, suth, inputVars);
-	  stateBlocks[bb].CalcCellGradsK(eos, suth, inputVars);
+	  //stateBlocks[bb].CalcCellGradsI(eos, suth, inputVars);
+	  //stateBlocks[bb].CalcCellGradsJ(eos, suth, inputVars);
+	  //stateBlocks[bb].CalcCellGradsK(eos, suth, inputVars);
 
 	  stateBlocks[bb].CalcViscFluxI(suth, eos, inputVars);
 	  stateBlocks[bb].CalcViscFluxJ(suth, eos, inputVars);
