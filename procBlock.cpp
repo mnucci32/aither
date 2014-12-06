@@ -1387,20 +1387,74 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
     for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
       for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
 
+	//face indices
 	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
 
+	int fUpi = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG);
+	int fLowi = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG);
+
+	int fUpjUpi = GetNeighborUpJ(ii, jj, kk, imaxG - 1, jmaxG);
+	int fUpjLowi = GetNeighborUpJ(ii - 1, jj, kk, imaxG - 1, jmaxG);
+	int fLowjUpi = GetNeighborLowJ(ii, jj, kk, imaxG - 1, jmaxG);
+	int fLowjLowi = GetNeighborLowJ(ii - 1, jj, kk, imaxG - 1, jmaxG);
+
+	int fUpkUpi = GetNeighborUpK(ii, jj, kk, imaxG - 1, jmaxG);
+	int fUpkLowi = GetNeighborUpK(ii - 1, jj, kk, imaxG - 1, jmaxG);
+	int fLowkUpi = GetNeighborLowK(ii, jj, kk, imaxG - 1, jmaxG);
+	int fLowkLowi = GetNeighborLowK(ii - 1, jj, kk, imaxG - 1, jmaxG);
+
+	//cell indices
 	int iLow  = GetCellFromFaceLowerI(ii, jj, kk, imaxG, jmaxG);
 	int iUp  = GetCellFromFaceUpperI(ii, jj, kk, imaxG, jmaxG);
 
+	int jUpiUp = GetNeighborUpJ(ii, jj, kk, imaxG - 1, jmaxG);
+	int jUpiLow = GetNeighborUpJ(ii - 1, jj, kk, imaxG - 1, jmaxG);
+	int jLowiUp = GetNeighborLowJ(ii, jj, kk, imaxG - 1, jmaxG);
+	int jLowiLow = GetNeighborLowJ(ii - 1, jj, kk, imaxG - 1, jmaxG);
+
+	int kUpiUp = GetNeighborUpK(ii, jj, kk, imaxG - 1, jmaxG);
+	int kUpiLow = GetNeighborUpK(ii - 1, jj, kk, imaxG - 1, jmaxG);
+	int kLowiUp = GetNeighborLowK(ii, jj, kk, imaxG - 1, jmaxG);
+	int kLowiLow = GetNeighborLowK(ii - 1, jj, kk, imaxG - 1, jmaxG);
+
+	//no ghost cell indices
 	int iLowNG  = GetCellFromFaceLowerI(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 	int iUpNG  = GetCellFromFaceUpperI(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 
+	vector3d<double> vju = 0.25 * ( (*this).State(iLow).Velocity() + (*this).State(iUp).Velocity() + (*this).State(jUpiUp).Velocity() + (*this).State(jUpiLow).Velocity() );
+	vector3d<double> vjl = 0.25 * ( (*this).State(iLow).Velocity() + (*this).State(iUp).Velocity() + (*this).State(jLowiUp).Velocity() + (*this).State(jLowiLow).Velocity() );
+
+	vector3d<double> vku = 0.25 * ( (*this).State(iLow).Velocity() + (*this).State(iUp).Velocity() + (*this).State(kUpiUp).Velocity() + (*this).State(kUpiLow).Velocity() );
+	vector3d<double> vkl = 0.25 * ( (*this).State(iLow).Velocity() + (*this).State(iUp).Velocity() + (*this).State(kLowiUp).Velocity() + (*this).State(kLowiLow).Velocity() );
+
+	vector3d<double> aiu = 0.5 * ( (*this).FAreaI(loc) + (*this).FAreaI(fUpi) );
+	vector3d<double> ail = 0.5 * ( (*this).FAreaI(loc) + (*this).FAreaI(fLowi) );
+
+	vector3d<double> aju = 0.5 * ( (*this).FAreaJ(fUpjUpi) + (*this).FAreaJ(fUpjLowi) );
+	vector3d<double> ajl = 0.5 * ( (*this).FAreaJ(fLowjUpi) + (*this).FAreaJ(fLowjLowi) );
+
+	vector3d<double> aku = 0.5 * ( (*this).FAreaK(fUpkUpi) + (*this).FAreaK(fUpkLowi) );
+	vector3d<double> akl = 0.5 * ( (*this).FAreaK(fLowkUpi) + (*this).FAreaK(fLowkLowi) );
+
+	double vol = 0.5 * ( (*this).Vol(iLow) + (*this).Vol(iUp) );
+
 	//Get velocity gradient at face
-	tensor<double> velGrad = FaceReconCentral( (*this).VelGrad(iLow), (*this).VelGrad(iUp), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
+	tensor<double> velGrad = CalcVelGradGG( (*this).State(iLow).Velocity(), (*this).State(iUp).Velocity(), vjl, vju, vkl, vku, ail, aiu, ajl, aju, akl, aku, vol);
 	//Get velocity at face
 	vector3d<double> vel = FaceReconCentral( (*this).State(iLow).Velocity(), (*this).State(iUp).Velocity(), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
+
+	double tju = 0.25 * ( (*this).State(iLow).Temperature(eqnState) + (*this).State(iUp).Temperature(eqnState) + (*this).State(jUpiUp).Temperature(eqnState) +
+			      (*this).State(jUpiLow).Temperature(eqnState) );
+	double tjl = 0.25 * ( (*this).State(iLow).Temperature(eqnState) + (*this).State(iUp).Temperature(eqnState) + (*this).State(jLowiUp).Temperature(eqnState) +
+			      (*this).State(jLowiLow).Temperature(eqnState) );
+
+	double tku = 0.25 * ( (*this).State(iLow).Temperature(eqnState) + (*this).State(iUp).Temperature(eqnState) + (*this).State(kUpiUp).Temperature(eqnState) +
+			      (*this).State(kUpiLow).Temperature(eqnState) );
+	double tkl = 0.25 * ( (*this).State(iLow).Temperature(eqnState) + (*this).State(iUp).Temperature(eqnState) + (*this).State(kLowiUp).Temperature(eqnState) +
+			      (*this).State(kLowiLow).Temperature(eqnState) );
+
 	//Get temperature gradient at face
-	vector3d<double> tGrad = FaceReconCentral( (*this).TempGrad(iLow), (*this).TempGrad(iUp), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
+	vector3d<double> tGrad = CalcTempGradGG( (*this).State(iLow).Temperature(eqnState), (*this).State(iUp).Temperature(eqnState), tjl, tju, tkl, tku, ail, aiu, ajl, aju, akl, aku, vol);
 	//Get viscosity at face
 	double mu = FaceReconCentral( suth.GetViscosity( (*this).State(iLow).Temperature(eqnState) ), 
 				      suth.GetViscosity( (*this).State(iUp).Temperature(eqnState) ), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
@@ -1446,20 +1500,74 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
     for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
       for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
 
+	//face indices
 	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
 
+	int fUpj = GetNeighborUpJ(ii, jj, kk, imaxG, jmaxG);
+	int fLowj = GetNeighborLowJ(ii, jj, kk, imaxG, jmaxG);
+
+	int fUpiUpj = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG - 1);
+	int fUpiLowj = GetNeighborUpI(ii, jj - 1, kk, imaxG, jmaxG - 1);
+	int fLowiUpj = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG - 1);
+	int fLowiLowj = GetNeighborLowI(ii, jj - 1, kk, imaxG, jmaxG - 1);
+
+	int fUpkUpj = GetNeighborUpK(ii, jj, kk, imaxG, jmaxG - 1);
+	int fUpkLowj = GetNeighborUpK(ii, jj - 1, kk, imaxG, jmaxG - 1);
+	int fLowkUpj = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG - 1);
+	int fLowkLowj = GetNeighborLowK(ii, jj - 1, kk, imaxG, jmaxG - 1);
+
+	//cell indices
 	int jLow  = GetCellFromFaceLowerJ(ii, jj, kk, imaxG, jmaxG);
 	int jUp  = GetCellFromFaceUpperJ(ii, jj, kk, imaxG, jmaxG);
 
+	int iUpjUp = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG - 1);
+	int iUpjLow = GetNeighborUpI(ii, jj - 1, kk, imaxG, jmaxG - 1);
+	int iLowjUp = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG - 1);
+	int iLowjLow = GetNeighborLowI(ii, jj - 1, kk, imaxG, jmaxG - 1);
+
+	int kUpjUp = GetNeighborUpK(ii, jj, kk, imaxG, jmaxG - 1);
+	int kUpjLow = GetNeighborUpK(ii, jj - 1, kk, imaxG, jmaxG - 1);
+	int kLowjUp = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG - 1);
+	int kLowjLow = GetNeighborLowK(ii, jj - 1, kk, imaxG, jmaxG - 1);
+
+	//no ghost cell indices
 	int jLowNG  = GetCellFromFaceLowerJ(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 	int jUpNG  = GetCellFromFaceUpperJ(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 
+	vector3d<double> viu = 0.25 * ( (*this).State(jLow).Velocity() + (*this).State(jUp).Velocity() + (*this).State(iUpjUp).Velocity() + (*this).State(iUpjLow).Velocity() );
+	vector3d<double> vil = 0.25 * ( (*this).State(jLow).Velocity() + (*this).State(jUp).Velocity() + (*this).State(iLowjUp).Velocity() + (*this).State(iLowjLow).Velocity() );
+
+	vector3d<double> vku = 0.25 * ( (*this).State(jLow).Velocity() + (*this).State(jUp).Velocity() + (*this).State(kUpjUp).Velocity() + (*this).State(kUpjLow).Velocity() );
+	vector3d<double> vkl = 0.25 * ( (*this).State(jLow).Velocity() + (*this).State(jUp).Velocity() + (*this).State(kLowjUp).Velocity() + (*this).State(kLowjLow).Velocity() );
+
+	vector3d<double> aju = 0.5 * ( (*this).FAreaJ(loc) + (*this).FAreaJ(fUpj) );
+	vector3d<double> ajl = 0.5 * ( (*this).FAreaJ(loc) + (*this).FAreaJ(fLowj) );
+
+	vector3d<double> aiu = 0.5 * ( (*this).FAreaI(fUpiUpj) + (*this).FAreaI(fUpiLowj) );
+	vector3d<double> ail = 0.5 * ( (*this).FAreaI(fLowiUpj) + (*this).FAreaI(fLowiLowj) );
+
+	vector3d<double> aku = 0.5 * ( (*this).FAreaK(fUpkUpj) + (*this).FAreaK(fUpkLowj) );
+	vector3d<double> akl = 0.5 * ( (*this).FAreaK(fLowkUpj) + (*this).FAreaK(fLowkLowj) );
+
+	double vol = 0.5 * ( (*this).Vol(jLow) + (*this).Vol(jUp) );
+
 	//Get velocity gradient at face
-	tensor<double> velGrad = FaceReconCentral( (*this).VelGrad(jLow), (*this).VelGrad(jUp), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
+	tensor<double> velGrad = CalcVelGradGG( vil, viu, (*this).State(jLow).Velocity(), (*this).State(jUp).Velocity(), vkl, vku, ail, aiu, ajl, aju, akl, aku, vol);
 	//Get velocity at face
 	vector3d<double> vel = FaceReconCentral( (*this).State(jLow).Velocity(), (*this).State(jUp).Velocity(), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
+
+	double tiu = 0.25 * ( (*this).State(jLow).Temperature(eqnState) + (*this).State(jUp).Temperature(eqnState) + (*this).State(iUpjUp).Temperature(eqnState) +
+			      (*this).State(iUpjLow).Temperature(eqnState) );
+	double til = 0.25 * ( (*this).State(jLow).Temperature(eqnState) + (*this).State(jUp).Temperature(eqnState) + (*this).State(iLowjUp).Temperature(eqnState) +
+			      (*this).State(iLowjLow).Temperature(eqnState) );
+
+	double tku = 0.25 * ( (*this).State(jLow).Temperature(eqnState) + (*this).State(jUp).Temperature(eqnState) + (*this).State(kUpjUp).Temperature(eqnState) +
+			      (*this).State(kUpjLow).Temperature(eqnState) );
+	double tkl = 0.25 * ( (*this).State(jLow).Temperature(eqnState) + (*this).State(jUp).Temperature(eqnState) + (*this).State(kLowjUp).Temperature(eqnState) +
+			      (*this).State(kLowjLow).Temperature(eqnState) );
+
 	//Get temperature gradient at face
-	vector3d<double> tGrad = FaceReconCentral( (*this).TempGrad(jLow), (*this).TempGrad(jUp), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
+	vector3d<double> tGrad = CalcTempGradGG( til, tiu, (*this).State(jLow).Temperature(eqnState), (*this).State(jUp).Temperature(eqnState), tkl, tku, ail, aiu, ajl, aju, akl, aku, vol);
 	//Get viscosity at face
 	double mu = FaceReconCentral( suth.GetViscosity( (*this).State(jLow).Temperature(eqnState) ), 
 				      suth.GetViscosity( (*this).State(jUp).Temperature(eqnState) ), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
@@ -1509,20 +1617,74 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
     for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
       for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
 
+	//face indices
 	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
 
+	int fUpk = GetNeighborUpK(ii, jj, kk, imaxG, jmaxG);
+	int fLowk = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG);
+
+	int fUpiUpk = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG);
+	int fUpiLowk = GetNeighborUpI(ii, jj, kk - 1, imaxG, jmaxG);
+	int fLowiUpk = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG);
+	int fLowiLowk = GetNeighborLowI(ii, jj, kk - 1, imaxG, jmaxG);
+
+	int fUpjUpk = GetNeighborUpJ(ii, jj, kk, imaxG, jmaxG);
+	int fUpjLowk = GetNeighborUpJ(ii, jj, kk - 1, imaxG, jmaxG);
+	int fLowjUpk = GetNeighborLowJ(ii, jj, kk, imaxG, jmaxG);
+	int fLowjLowk = GetNeighborLowJ(ii, jj, kk - 1, imaxG, jmaxG);
+
+	//cell indices
 	int kLow  = GetCellFromFaceLowerK(ii, jj, kk, imaxG, jmaxG);
 	int kUp  = GetCellFromFaceUpperK(ii, jj, kk, imaxG, jmaxG);
 
+	int iUpkUp = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG);
+	int iUpkLow = GetNeighborUpI(ii, jj, kk - 1, imaxG, jmaxG);
+	int iLowkUp = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG);
+	int iLowkLow = GetNeighborLowI(ii, jj, kk - 1, imaxG, jmaxG);
+
+	int jUpkUp = GetNeighborUpK(ii, jj, kk, imaxG, jmaxG);
+	int jUpkLow = GetNeighborUpK(ii, jj, kk - 1, imaxG, jmaxG);
+	int jLowkUp = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG);
+	int jLowkLow = GetNeighborLowK(ii, jj, kk - 1, imaxG, jmaxG);
+
+	//no ghost indices
 	int kLowNG  = GetCellFromFaceLowerK(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 	int kUpNG  = GetCellFromFaceUpperK(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 
+	vector3d<double> viu = 0.25 * ( (*this).State(kLow).Velocity() + (*this).State(kUp).Velocity() + (*this).State(iUpkUp).Velocity() + (*this).State(iUpkLow).Velocity() );
+	vector3d<double> vil = 0.25 * ( (*this).State(kLow).Velocity() + (*this).State(kUp).Velocity() + (*this).State(iLowkUp).Velocity() + (*this).State(iLowkLow).Velocity() );
+
+	vector3d<double> vju = 0.25 * ( (*this).State(kLow).Velocity() + (*this).State(kUp).Velocity() + (*this).State(jUpkUp).Velocity() + (*this).State(jUpkLow).Velocity() );
+	vector3d<double> vjl = 0.25 * ( (*this).State(kLow).Velocity() + (*this).State(kUp).Velocity() + (*this).State(jLowkUp).Velocity() + (*this).State(jLowkLow).Velocity() );
+
+	vector3d<double> aku = 0.5 * ( (*this).FAreaK(loc) + (*this).FAreaK(fUpk) );
+	vector3d<double> akl = 0.5 * ( (*this).FAreaK(loc) + (*this).FAreaK(fLowk) );
+
+	vector3d<double> aiu = 0.5 * ( (*this).FAreaI(fUpiUpk) + (*this).FAreaI(fUpiLowk) );
+	vector3d<double> ail = 0.5 * ( (*this).FAreaI(fLowiUpk) + (*this).FAreaI(fLowiLowk) );
+
+	vector3d<double> aju = 0.5 * ( (*this).FAreaJ(fUpjUpk) + (*this).FAreaJ(fUpjLowk) );
+	vector3d<double> ajl = 0.5 * ( (*this).FAreaJ(fLowjUpk) + (*this).FAreaJ(fLowjLowk) );
+
+	double vol = 0.5 * ( (*this).Vol(kLow) + (*this).Vol(kUp) );
+
 	//Get velocity gradient at face
-	tensor<double> velGrad = FaceReconCentral( (*this).VelGrad(kLow), (*this).VelGrad(kUp), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
+	tensor<double> velGrad = CalcVelGradGG( vil, viu, vjl, vju, (*this).State(kLow).Velocity(), (*this).State(kUp).Velocity(), ail, aiu, ajl, aju, akl, aku, vol);
 	//Get velocity at face
 	vector3d<double> vel = FaceReconCentral( (*this).State(kLow).Velocity(), (*this).State(kUp).Velocity(), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
 	//Get temperature gradient at face
-	vector3d<double> tGrad = FaceReconCentral( (*this).TempGrad(kLow), (*this).TempGrad(kUp), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
+
+	double tiu = 0.25 * ( (*this).State(kLow).Temperature(eqnState) + (*this).State(kUp).Temperature(eqnState) + (*this).State(iUpkUp).Temperature(eqnState) +
+			      (*this).State(iUpkLow).Temperature(eqnState) );
+	double til = 0.25 * ( (*this).State(kLow).Temperature(eqnState) + (*this).State(kUp).Temperature(eqnState) + (*this).State(iLowkUp).Temperature(eqnState) +
+			      (*this).State(iLowkLow).Temperature(eqnState) );
+
+	double tju = 0.25 * ( (*this).State(kLow).Temperature(eqnState) + (*this).State(kUp).Temperature(eqnState) + (*this).State(jUpkUp).Temperature(eqnState) +
+			      (*this).State(jUpkLow).Temperature(eqnState) );
+	double tjl = 0.25 * ( (*this).State(kLow).Temperature(eqnState) + (*this).State(kUp).Temperature(eqnState) + (*this).State(jLowkUp).Temperature(eqnState) +
+			      (*this).State(jLowkLow).Temperature(eqnState) );
+
+	vector3d<double> tGrad = CalcTempGradGG( til, tiu, tjl, tju, (*this).State(kLow).Temperature(eqnState), (*this).State(kUp).Temperature(eqnState), ail, aiu, ajl, aju, akl, aku, vol);
 	//Get viscosity at face
 	double mu = FaceReconCentral( suth.GetViscosity( (*this).State(kLow).Temperature(eqnState) ), 
 				      suth.GetViscosity( (*this).State(kUp).Temperature(eqnState) ), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
