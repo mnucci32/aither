@@ -1206,15 +1206,15 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 	int fUpi = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG);
 	int fLowi = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG);
 
-	int fUpjUpi = GetNeighborUpJ(ii, jj, kk, imaxG - 1, jmaxG);
-	int fUpjLowi = GetNeighborUpJ(ii - 1, jj, kk, imaxG - 1, jmaxG);
-	int fLowjUpi = GetNeighborLowJ(ii, jj, kk, imaxG - 1, jmaxG);
-	int fLowjLowi = GetNeighborLowJ(ii - 1, jj, kk, imaxG - 1, jmaxG);
+	int fUpjUpi = GetUpperFaceJ(ii, jj, kk, imaxG - 1, jmaxG);
+	int fUpjLowi = GetUpperFaceJ(ii - 1, jj, kk, imaxG - 1, jmaxG);
+	int fLowjUpi = GetLowerFaceJ(ii, jj, kk, imaxG - 1, jmaxG);
+	int fLowjLowi = GetLowerFaceJ(ii - 1, jj, kk, imaxG - 1, jmaxG);
 
-	int fUpkUpi = GetNeighborUpK(ii, jj, kk, imaxG - 1, jmaxG);
-	int fUpkLowi = GetNeighborUpK(ii - 1, jj, kk, imaxG - 1, jmaxG);
-	int fLowkUpi = GetNeighborLowK(ii, jj, kk, imaxG - 1, jmaxG);
-	int fLowkLowi = GetNeighborLowK(ii - 1, jj, kk, imaxG - 1, jmaxG);
+	int fUpkUpi = GetUpperFaceK(ii, jj, kk, imaxG - 1, jmaxG);
+	int fUpkLowi = GetUpperFaceK(ii - 1, jj, kk, imaxG - 1, jmaxG);
+	int fLowkUpi = GetLowerFaceK(ii, jj, kk, imaxG - 1, jmaxG);
+	int fLowkLowi = GetLowerFaceK(ii - 1, jj, kk, imaxG - 1, jmaxG);
 
 	//cell indices
 	int iLow  = GetCellFromFaceLowerI(ii, jj, kk, imaxG, jmaxG);
@@ -1319,15 +1319,15 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 	int fUpj = GetNeighborUpJ(ii, jj, kk, imaxG, jmaxG);
 	int fLowj = GetNeighborLowJ(ii, jj, kk, imaxG, jmaxG);
 
-	int fUpiUpj = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG - 1);
-	int fUpiLowj = GetNeighborUpI(ii, jj - 1, kk, imaxG, jmaxG - 1);
-	int fLowiUpj = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG - 1);
-	int fLowiLowj = GetNeighborLowI(ii, jj - 1, kk, imaxG, jmaxG - 1);
+	int fUpiUpj = GetUpperFaceI(ii, jj, kk, imaxG, jmaxG - 1);
+	int fUpiLowj = GetUpperFaceI(ii, jj - 1, kk, imaxG, jmaxG - 1);
+	int fLowiUpj = GetLowerFaceI(ii, jj, kk, imaxG, jmaxG - 1);
+	int fLowiLowj = GetLowerFaceI(ii, jj - 1, kk, imaxG, jmaxG - 1);
 
-	int fUpkUpj = GetNeighborUpK(ii, jj, kk, imaxG, jmaxG - 1);
-	int fUpkLowj = GetNeighborUpK(ii, jj - 1, kk, imaxG, jmaxG - 1);
-	int fLowkUpj = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG - 1);
-	int fLowkLowj = GetNeighborLowK(ii, jj - 1, kk, imaxG, jmaxG - 1);
+	int fUpkUpj = GetUpperFaceK(ii, jj, kk, imaxG, jmaxG - 1);
+	int fUpkLowj = GetUpperFaceK(ii, jj - 1, kk, imaxG, jmaxG - 1);
+	int fLowkUpj = GetLowerFaceK(ii, jj, kk, imaxG, jmaxG - 1);
+	int fLowkLowj = GetLowerFaceK(ii, jj - 1, kk, imaxG, jmaxG - 1);
 
 	//cell indices
 	int jLow  = GetCellFromFaceLowerJ(ii, jj, kk, imaxG, jmaxG);
@@ -1388,8 +1388,8 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 
 
 	// if (jj == (*this).NumGhosts() && ii == 32 && kk == 2){
-	//   cout << "vel gradient at interior cell: " << (*this).VelGrad(jUp) << endl;
-	//   cout << "vel gradient at ghost cell: " << (*this).VelGrad(jLow) << endl;
+	//   cout << "vel gradient at boundary face: " << velGrad << endl;
+	//   cout << "temp gradient at boundary face: " << tGrad << endl;
 	// }
 
 	//calculate viscous flux
@@ -1436,15 +1436,15 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
 	int fUpk = GetNeighborUpK(ii, jj, kk, imaxG, jmaxG);
 	int fLowk = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG);
 
-	int fUpiUpk = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG);
-	int fUpiLowk = GetNeighborUpI(ii, jj, kk - 1, imaxG, jmaxG);
-	int fLowiUpk = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG);
-	int fLowiLowk = GetNeighborLowI(ii, jj, kk - 1, imaxG, jmaxG);
+	int fUpiUpk = GetUpperFaceI(ii, jj, kk, imaxG, jmaxG);
+	int fUpiLowk = GetUpperFaceI(ii, jj, kk - 1, imaxG, jmaxG);
+	int fLowiUpk = GetLowerFaceI(ii, jj, kk, imaxG, jmaxG);
+	int fLowiLowk = GetLowerFaceI(ii, jj, kk - 1, imaxG, jmaxG);
 
-	int fUpjUpk = GetNeighborUpJ(ii, jj, kk, imaxG, jmaxG);
-	int fUpjLowk = GetNeighborUpJ(ii, jj, kk - 1, imaxG, jmaxG);
-	int fLowjUpk = GetNeighborLowJ(ii, jj, kk, imaxG, jmaxG);
-	int fLowjLowk = GetNeighborLowJ(ii, jj, kk - 1, imaxG, jmaxG);
+	int fUpjUpk = GetUpperFaceJ(ii, jj, kk, imaxG, jmaxG);
+	int fUpjLowk = GetUpperFaceJ(ii, jj, kk - 1, imaxG, jmaxG);
+	int fLowjUpk = GetLowerFaceJ(ii, jj, kk, imaxG, jmaxG);
+	int fLowjLowk = GetLowerFaceJ(ii, jj, kk - 1, imaxG, jmaxG);
 
 	//cell indices
 	int kLow  = GetCellFromFaceLowerK(ii, jj, kk, imaxG, jmaxG);
