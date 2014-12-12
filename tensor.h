@@ -21,8 +21,8 @@ class tensor {
 
   //constructor
   tensor( T a, T b, T c, T d, T e, T f, T g, T h, T i) : xx(a), xy(b), xz(c), yx(d), yy(e), yz(f), zx(g), zy(h), zz(i) {}
-  tensor() : xx(0), xy(0), xz(0), yx(0), yy(0), yz(0), zx(0), zy(0), zz(0) {}
-  tensor(T i) : xx(i), xy(0), xz(0), yx(0), yy(i), yz(0), zx(0), zy(0), zz(i) {} 
+  tensor() : xx(0.0), xy(0.0), xz(0.0), yx(0.0), yy(0.0), yz(0.0), zx(0.0), zy(0.0), zz(0.0) {}
+  tensor(T i) : xx(i), xy(0.0), xz(0.0), yx(0.0), yy(i), yz(0.0), zx(0.0), zy(0.0), zz(i) {} 
   tensor(vector3d<T> v1, vector3d<T> v2, vector3d<T> v3) : xx(v1.X()), xy(v1.Y()), xz(v1.Z()), yx(v2.X()), yy(v2.Y()), yz(v2.Z()), zx(v3.X()), zy(v3.Y()), zz(v3.Z()){}
 
   //member functions
@@ -63,6 +63,7 @@ class tensor {
   tensor<T> Transpose()const;
   vector3d<T> MatMult(const vector3d<T>&)const;
   tensor<T> Identity()const;
+  tensor<T> Zero()const;
 
 
   //destructor
@@ -272,6 +273,15 @@ tensor<T> tensor<T>::Identity()const{
   temp.zy = zero;
   temp.zz = one;
 
+  return temp;
+
+}
+
+//Function to return a tensor with all zero entries
+template <class T>
+tensor<T> tensor<T>::Zero()const{
+
+  tensor<T> temp;
   return temp;
 
 }
