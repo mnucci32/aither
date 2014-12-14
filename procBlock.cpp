@@ -1139,7 +1139,7 @@ tensor<double> procBlock::CalcVelGradGG(const vector3d<double> &vil, const vecto
   temp.SetYZ( invVol * ( viu.Z()*aiu.Y() - vil.Z()*ail.Y() + vju.Z()*aju.Y() - vjl.Z()*ajl.Y() + vku.Z()*aku.Y() - vkl.Z()*akl.Y() ) );
 
   temp.SetZX( invVol * ( viu.X()*aiu.Z() - vil.X()*ail.Z() + vju.X()*aju.Z() - vjl.X()*ajl.Z() + vku.X()*aku.Z() - vkl.X()*akl.Z() ) );
-  temp.SetYY( invVol * ( viu.Y()*aiu.Z() - vil.Y()*ail.Z() + vju.Y()*aju.Z() - vjl.Y()*ajl.Z() + vku.Y()*aku.Z() - vkl.Y()*akl.Z() ) );
+  temp.SetZY( invVol * ( viu.Y()*aiu.Z() - vil.Y()*ail.Z() + vju.Y()*aju.Z() - vjl.Y()*ajl.Z() + vku.Y()*aku.Z() - vkl.Y()*akl.Z() ) );
   temp.SetZZ( invVol * ( viu.Z()*aiu.Z() - vil.Z()*ail.Z() + vju.Z()*aju.Z() - vjl.Z()*ajl.Z() + vku.Z()*aku.Z() - vkl.Z()*akl.Z() ) );
 
   return temp;
@@ -1276,6 +1276,13 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 	//calculate viscous flux
 	viscousFlux tempViscFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaI(loc) );
 
+	// if ( ii == 32 && jj == 2 && kk == 2){
+	//   cout << "velocity at j faces: " << vjl << ", " << vju << endl;
+	//   cout << "vflux on i face: " << tempViscFlux << endl;
+
+	// }
+
+
 	//area vector points from left to right, so add to left cell, subtract from right cell
 	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
 	if ( ii > (*this).NumGhosts() ){
@@ -1366,6 +1373,12 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 
 	//Get velocity gradient at face
 	tensor<double> velGrad = CalcVelGradGG( vil, viu, (*this).State(jLow).Velocity(), (*this).State(jUp).Velocity(), vkl, vku, ail, aiu, ajl, aju, akl, aku, vol);
+
+	// if ( jj == 2 ){
+	//   vector3d<double> z(0.0, 0.0, 0.0);
+	//   velGrad = CalcVelGradGG( vil, viu, z, (*this).State(jUp).Velocity(), vkl, vku, ail, aiu, ajl, aju, akl, aku, vol);
+	//   }
+
 	//Get velocity at face
 	vector3d<double> vel = FaceReconCentral( (*this).State(jLow).Velocity(), (*this).State(jUp).Velocity(), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
 
@@ -1388,6 +1401,25 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 
 
 	// if (jj == (*this).NumGhosts() && ii == 32 && kk == 2){
+	//   cout << "vel i lower: " << vil << endl;
+	//   cout << "vel i upper: " << viu << endl;
+	//   cout << "vel j lower: " << (*this).State(jLow).Velocity() << endl;
+	//   cout << "vel j upper: " << (*this).State(jUp).Velocity() << endl;
+	//   cout << "vel k lower: " << vkl << endl;
+	//   cout << "vel k upper: " << vku << endl;
+	//   cout << "face vel: " << vel << endl;
+	//   cout << "area i lower: " << ail << endl;
+	//   cout << "area i upper: " << aiu << endl;
+	//   cout << "area j lower: " << ajl << endl;
+	//   cout << "area j upper: " << aju << endl;
+	//   cout << "area k lower: " << akl << endl;
+	//   cout << "area k upper: " << aku << endl;
+	//   cout << "inverse vol: " << 1.0/vol << endl;
+
+	//   cout << 1.0/vol * ( viu * aiu.Y() - vil * ail.Y() )<< endl;
+	//   cout << 1.0/vol * ( (*this).State(jUp).Velocity() * aju.Y() - (*this).State(jLow).Velocity() * ajl.Y() )<< endl;
+	//   cout << 1.0/vol * ( vku * aku.Y() - vkl * akl.Y() )<< endl;
+
 	//   cout << "vel gradient at boundary face: " << velGrad << endl;
 	//   cout << "temp gradient at boundary face: " << tGrad << endl;
 	// }
@@ -3255,10 +3287,10 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
 
       //inviscid fluxes require different bc than viscous fluxes - treat all walls as the same
       if ( bcNameL == "viscousWall" ){
-	bcNameL = "slipWall";
+      	bcNameL = "slipWall";
       }
       if ( bcNameU == "viscousWall" ){
-	bcNameU = "slipWall";
+      	bcNameU = "slipWall";
       }
 
       (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG1);
