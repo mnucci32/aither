@@ -1295,13 +1295,11 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 	  vector3d<double> viu = (*this).State(iUp).Velocity();
 	  vector3d<double> vil = (*this).State(iLow).Velocity();
 
-	  cout << 1.0/vol * ( viu * aiu.X() - vil * ail.X() )<< endl;
-	  cout << 1.0/vol * ( vju * aju.X() - vjl * ajl.X() )<< endl;
-	  cout << 1.0/vol * ( vku * aku.X() - vkl * akl.X() )<< endl;
+	  cout << "Portion of du/dx, dv/dx, dw/dx: " << 1.0/vol * ( viu * aiu.X() - vil * ail.X() )<< endl;
+	  cout << "Portion of du/dx, dv/dx, dw/dx: " << 1.0/vol * ( vju * aju.X() - vjl * ajl.X() )<< endl;
+	  cout << "Portion of du/dx, dv/dx, dw/dx: " << 1.0/vol * ( vku * aku.X() - vkl * akl.X() )<< endl;
 
-	  cout << 1.0/vol * ( viu.X()*aiu.X() - vil.X()*ail.X() ) << endl;
-	  cout << 1.0/vol * ( vju.X()*aju.X() - vjl.X()*ajl.X() ) << endl;
-
+	  cout << "Individual components of du/dx: " << endl;
 	  cout << 1.0/vol * ( viu.X()*aiu.X() ) << ", " << 1.0/vol * (-vil.X()*ail.X()) << ", " << 1.0/vol * ( vju.X()*aju.X()) << ", " 
 	       << 1.0/vol *(-vjl.X()*ajl.X()) << ", " << 1.0/vol * ( vku.X()*aku.X()) << ", " << 1.0/vol * (-vkl.X()*akl.X() ) << endl;
 
@@ -4193,11 +4191,13 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
   //   for( int jj = 0; jj < jmaxG; jj++ ){
   //     for( int ii = 0; ii < imaxG; ii++ ){
 
-  // 	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
-  // 	cout << ii << ", " << jj << ", " << kk << ", " << (*this).State(loc) ;
+  // 	if ( (ii == 1 || ii ==2) && (jj == 1 || jj ==2) && kk == 2){
+  // 	  int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
+  // 	  cout << ii << ", " << jj << ", " << kk << ", " << (*this).State(loc) ;
+  // 	}
 
   //     }
-  //     cout << endl;
+  //     //cout << endl;
   //   }
   // }
 
