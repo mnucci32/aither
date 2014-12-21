@@ -1276,36 +1276,36 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 	//calculate viscous flux
 	viscousFlux tempViscFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaI(loc) );
 
-	if (jj == (*this).NumGhosts() && ii == 32 && kk == 2){
-	  cout << "vel i lower: " << (*this).State(iLow).Velocity() << endl;
-	  cout << "vel i upper: " << (*this).State(iUp).Velocity() << endl;
-	  cout << "vel j lower: " << vjl << endl;
-	  cout << "vel j upper: " << vju << endl;
-	  cout << "vel k lower: " << vkl << endl;
-	  cout << "vel k upper: " << vku << endl;
-	  cout << "face vel: " << vel << endl;
-	  cout << "area i lower: " << ail << endl;
-	  cout << "area i upper: " << aiu << endl;
-	  cout << "area j lower: " << ajl << endl;
-	  cout << "area j upper: " << aju << endl;
-	  cout << "area k lower: " << akl << endl;
-	  cout << "area k upper: " << aku << endl;
-	  cout << "inverse vol: " << 1.0/vol << endl;
+	// if (jj == (*this).NumGhosts() && ii == 32 && kk == 2){
+	//   cout << "vel i lower: " << (*this).State(iLow).Velocity() << endl;
+	//   cout << "vel i upper: " << (*this).State(iUp).Velocity() << endl;
+	//   cout << "vel j lower: " << vjl << endl;
+	//   cout << "vel j upper: " << vju << endl;
+	//   cout << "vel k lower: " << vkl << endl;
+	//   cout << "vel k upper: " << vku << endl;
+	//   cout << "face vel: " << vel << endl;
+	//   cout << "area i lower: " << ail << endl;
+	//   cout << "area i upper: " << aiu << endl;
+	//   cout << "area j lower: " << ajl << endl;
+	//   cout << "area j upper: " << aju << endl;
+	//   cout << "area k lower: " << akl << endl;
+	//   cout << "area k upper: " << aku << endl;
+	//   cout << "inverse vol: " << 1.0/vol << endl;
 
-	  vector3d<double> viu = (*this).State(iUp).Velocity();
-	  vector3d<double> vil = (*this).State(iLow).Velocity();
+	//   vector3d<double> viu = (*this).State(iUp).Velocity();
+	//   vector3d<double> vil = (*this).State(iLow).Velocity();
 
-	  cout << "Portion of du/dx, dv/dx, dw/dx: " << 1.0/vol * ( viu * aiu.X() - vil * ail.X() )<< endl;
-	  cout << "Portion of du/dx, dv/dx, dw/dx: " << 1.0/vol * ( vju * aju.X() - vjl * ajl.X() )<< endl;
-	  cout << "Portion of du/dx, dv/dx, dw/dx: " << 1.0/vol * ( vku * aku.X() - vkl * akl.X() )<< endl;
+	//   cout << "Portion of du/dx, dv/dx, dw/dx: " << 1.0/vol * ( viu * aiu.X() - vil * ail.X() )<< endl;
+	//   cout << "Portion of du/dx, dv/dx, dw/dx: " << 1.0/vol * ( vju * aju.X() - vjl * ajl.X() )<< endl;
+	//   cout << "Portion of du/dx, dv/dx, dw/dx: " << 1.0/vol * ( vku * aku.X() - vkl * akl.X() )<< endl;
 
-	  cout << "Individual components of du/dx: " << endl;
-	  cout << 1.0/vol * ( viu.X()*aiu.X() ) << ", " << 1.0/vol * (-vil.X()*ail.X()) << ", " << 1.0/vol * ( vju.X()*aju.X()) << ", " 
-	       << 1.0/vol *(-vjl.X()*ajl.X()) << ", " << 1.0/vol * ( vku.X()*aku.X()) << ", " << 1.0/vol * (-vkl.X()*akl.X() ) << endl;
+	//   cout << "Individual components of du/dx: " << endl;
+	//   cout << 1.0/vol * ( viu.X()*aiu.X() ) << ", " << 1.0/vol * (-vil.X()*ail.X()) << ", " << 1.0/vol * ( vju.X()*aju.X()) << ", " 
+	//        << 1.0/vol *(-vjl.X()*ajl.X()) << ", " << 1.0/vol * ( vku.X()*aku.X()) << ", " << 1.0/vol * (-vkl.X()*akl.X() ) << endl;
 
-	  cout << "vel gradient at boundary face: " << velGrad << endl;
-	  cout << "temp gradient at boundary face: " << tGrad << endl;
-	}
+	//   cout << "vel gradient at boundary face: " << velGrad << endl;
+	//   cout << "temp gradient at boundary face: " << tGrad << endl;
+	// }
 
 	// if ( ii == 32 && jj == 2 && kk == 2){
 	//   cout << "velocity at j faces: " << vjl << ", " << vju << endl;
@@ -1460,7 +1460,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
 	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
-	if ( jj < (*this).NumGhosts() ){
+	if ( jj > (*this).NumGhosts() ){
 	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaJ(loc).Mag(), jLowNG);
 	}
 	if ( jj < jmax -1 + (*this).NumGhosts() ){
