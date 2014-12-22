@@ -34,7 +34,7 @@ int main( int argc, char *argv[] ) {
 
   const string inputFile = argv[1];  //name of input file is the second argument (the executable being the first)
 
-  const double eps = 1.0e-30;
+  //const double eps = 1.0e-30;
 
   //Parse input file
   double totalCells = 0.0;
@@ -203,35 +203,18 @@ int main( int argc, char *argv[] ) {
       for ( int cc = 0; cc < residL2.Size(); cc++ ){
 	residL2.SetData(cc, sqrt(residL2.Data(cc)) );
 
-	if (nn == 0 && mm == 0){
-	  residL2First.SetData(cc, residL2.Data(cc) );
-	}
+	// if (nn == 0 && mm == 0){
+	//   residL2First.SetData(cc, residL2.Data(cc) );
+	// }
 
 	//normalize residuals
-	residL2.SetData(cc, (residL2.Data(cc)+eps) / (residL2First.Data(cc)+eps) );
+	//residL2.SetData(cc, (residL2.Data(cc)+eps) / (residL2First.Data(cc)+eps) );
       }
 
       matrixResid = sqrt(matrixResid/(totalCells * numEqns));
 
-
       //print out run information
-      if (nn%100 == 0 && mm == 0){  
-	if (inputVars.Dt() > 0.0){
-	  cout << "STEP    NONLINEAR     DT     RES-Mass     Res-Mom-X     Res-Mom-Y     Res-Mom-Z     Res-Energy    Max Res Eqn    Max Res Blk    Max Res I    Max Res J    Max Res K    Max Res    Res-Matrix" << endl;
-	}
-	else if (inputVars.CFL() > 0.0){
-	  cout << "STEP    NONLINEAR     CFL     RES-Mass     Res-Mom-X     Res-Mom-Y     Res-Mom-Z     Res-Energy   Max Res Eqn    Max Res Blk    Max Res I    Max Res J    Max Res K    Max Res    Res-Matrix" << endl;
-	}
-
-      }
-      if (inputVars.Dt() > 0.0){
-	cout << nn << "     " << mm << "     " << inputVars.Dt() << "     " << residL2.Data(0) <<  "     " << residL2.Data(1) << "     " << residL2.Data(2) << "     " << residL2.Data(3) << "     " << residL2.Data(4) << "     " 
-	     << residLinf.Data(3) << "     " << locMaxB << "     " << residLinf.Data(0) <<"     " << residLinf.Data(1) << "     " << residLinf.Data(2) << "     " << residLinf.Data(4) << "     " << matrixResid << endl;
-      }
-      else if (inputVars.CFL() > 0.0){
-	cout << nn << "     " << mm << "     " << inputVars.CFL() << "     " << residL2.Data(0) <<  "     " << residL2.Data(1) << "     " << residL2.Data(2) << "     " << residL2.Data(3) << "     " << residL2.Data(4) << "     " 
-	     << residLinf.Data(3) << "     " << locMaxB << "     " << residLinf.Data(0) <<"     " << residLinf.Data(1) << "     " << residLinf.Data(2) << "     " << residLinf.Data(4) << "     " << matrixResid << endl;
-      }
+      WriteResiduals(inputVars, residL2First, residL2, residLinf, matrixResid, locMaxB, nn, mm);
 
       //reset residuals
       residL2 = initial;

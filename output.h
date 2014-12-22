@@ -34,5 +34,6 @@ void WriteCellCenterGhost(const string&, const vector<procBlock> &);
 void WriteFun(const string&, const vector<procBlock> &, const idealGas&, const double&, const double&, const double&, const double&);
 void WriteRes(const string&, const int&, const int&);
 
+void WriteResiduals(const input&, colMatrix&, colMatrix&, const colMatrix&, const double&, const int&, const int&, const int&);
 
 #endif

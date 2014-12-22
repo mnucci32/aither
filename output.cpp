@@ -423,3 +423,51 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
 
 }
 
+//function to write out residual information
+void WriteResiduals(const input &inp, colMatrix &residL2First, colMatrix &residL2, const colMatrix &residLinf, 
+		    const double &matrixResid, const int &locMaxB, const int &nn, const int &mm){
+
+  double eps = 1.0e-30;
+
+  //determine normalization
+  if (nn == 0 && mm == 0){ //if at first iteration, normalize by itself
+    residL2First = residL2;
+  }
+  else if ( (nn < 5) && mm == 0 ){ //if within first 5 iterations reset normalization
+    for ( int cc; cc < residL2.Size(); cc++ ){
+      if ( residL2.Data(cc) > residL2First.Data(cc) ){
+	residL2First.SetData(cc, residL2.Data(cc));
+      }
+    }
+  }
+
+  //normalize residuals
+  residL2 = (residL2 + eps) / (residL2First + eps);
+
+
+  if (nn%100 == 0 && mm == 0){  
+    if (inp.Dt() > 0.0){
+      cout << "STEP    NONLINEAR     DT     RES-Mass     Res-Mom-X     Res-Mom-Y     Res-Mom-Z     Res-Energy    Max Res Eqn  " << 
+	"Max Res Blk    Max Res I    Max Res J    Max Res K    Max Res    Res-Matrix" << endl;
+    }
+    else if (inp.CFL() > 0.0){
+      cout << "STEP    NONLINEAR     CFL     RES-Mass     Res-Mom-X     Res-Mom-Y     Res-Mom-Z     Res-Energy   Max Res Eqn  " << 
+	"Max Res Blk    Max Res I    Max Res J    Max Res K    Max Res    Res-Matrix" << endl;
+    }
+
+  }
+  if (inp.Dt() > 0.0){
+    cout << nn << "     " << mm << "     " << inp.Dt() << "     " << residL2.Data(0) <<  "     " << residL2.Data(1) << "     " 
+	 << residL2.Data(2) << "     " << residL2.Data(3) << "     " << residL2.Data(4) << "     " << residLinf.Data(3) << "     " << 
+      locMaxB << "     " << residLinf.Data(0) <<"     " << residLinf.Data(1) << "     " << residLinf.Data(2) << "     " << residLinf.Data(4) 
+	 << "     " << matrixResid << endl;
+  }
+  else if (inp.CFL() > 0.0){
+    cout << nn << "     " << mm << "     " << inp.CFL() << "     " << residL2.Data(0) <<  "     " << residL2.Data(1) << "     " 
+	 << residL2.Data(2) << "     " << residL2.Data(3) << "     " << residL2.Data(4) << "     "  << residLinf.Data(3) << "     " << 
+      locMaxB << "     " << residLinf.Data(0) <<"     " << residLinf.Data(1) << "     " << residLinf.Data(2) << "     " << residLinf.Data(4) 
+	 << "     " << matrixResid << endl;
+  }
+
+
+}
