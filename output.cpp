@@ -434,7 +434,7 @@ void WriteResiduals(const input &inp, colMatrix &residL2First, colMatrix &residL
     residL2First = residL2;
   }
   else if ( (nn < 5) && mm == 0 ){ //if within first 5 iterations reset normalization
-    for ( int cc; cc < residL2.Size(); cc++ ){
+    for ( int cc = 0; cc < residL2.Size(); cc++ ){
       if ( residL2.Data(cc) > residL2First.Data(cc) ){
 	residL2First.SetData(cc, residL2.Data(cc));
       }
