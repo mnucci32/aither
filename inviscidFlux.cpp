@@ -31,7 +31,7 @@ areax, areay, areaz -- area components
 inviscidFlux::inviscidFlux( const primVars &state, const idealGas &eqnState, const vector3d<double>& areaVec){
   // state -- primative variables
   // eqnState -- equation of state
-  // areaVec -- area vector
+  // areaVec -- area vector of face
 
   vector3d<double> normArea = areaVec / areaVec.Mag(); //normalize area vector
   vector3d<double> vel = state.Velocity();
@@ -48,7 +48,7 @@ inviscidFlux::inviscidFlux( const primVars &state, const idealGas &eqnState, con
 inviscidFlux::inviscidFlux( const colMatrix &cons, const idealGas &eqnState, const vector3d<double>& areaVec){
   //cons -- colMatrix of conserved variables
   //eqnState -- equation of state
-  //areaVec -- area vector
+  //areaVec -- area vector of face
 
   //check to see that colMatrix is correct size
   if (cons.Size() != 5){
@@ -75,8 +75,13 @@ inviscidFlux::inviscidFlux( const colMatrix &cons, const idealGas &eqnState, con
   rhoVelH = state.Rho() * vel.DotProd(normArea) * state.Enthalpy(eqnState);
 }
 
+//member function to set the inviscid flux given a state of primative variables, an equation of state, and a face area vector
 void inviscidFlux::SetFlux( const primVars &state, const idealGas &eqnState, const vector3d<double>& areaVec){
-  vector3d<double> normArea = areaVec / areaVec.Mag();
+  //state -- state to use in flux calculation (primative variables)
+  //eqnStat -- equation of state
+  //areaVec -- area vector of face
+
+  vector3d<double> normArea = areaVec / areaVec.Mag(); //normalize area vector
   vector3d<double> vel = state.Velocity();
 
   rhoVel  = state.Rho() * vel.DotProd(normArea);      
@@ -85,7 +90,6 @@ void inviscidFlux::SetFlux( const primVars &state, const idealGas &eqnState, con
   rhoVelW = state.Rho() * vel.DotProd(normArea) * vel.Z() + state.P() * normArea.Z();     
   rhoVelH = state.Rho() * vel.DotProd(normArea) * state.Enthalpy(eqnState);
 }
-
 
 /* Function to calculate inviscid flux using Roe's approximate Riemann solver. The function takes in the primative varibles constructed
 from the left and right states, an equation of state, a face area vector, and outputs the inviscid flux as well as the maximum wave speed.
@@ -108,10 +112,22 @@ F represents the calculated Roe flux at the given face. Fl is the inviscid flux 
 flux calculated from the reconstructed state Ur. D is the dissipation term which is calculated using the Roe averaged state, as well as the 
 eigen values and eigen vectors resulting from the Roe linearization.
 
-D = V * L * dU
+D = A * (Ur - Ul) = T * L * T^-1 * (Ur - Ul) = T * L * (Cr - Cl)
+
+A is the linearized Roe matrix. It is equal to the convective flux jacobian (dF/dU) calculated with the Roe averaged state. The linearization 
+essentially states that the flux jacobian (which is the change in flux over change in state) mulitplied by the change in state is equal to the
+change in flux. The change in flux is then added to the average of the physical right and left fluxes (central difference). The Roe matrix, A,
+can be diagonalized where T and T^-1 are the right and left eigenvectors respectively and L is the eigenvalues. T^-1 multiplied by the change in
+state results in the change in characteristic wave amplitude (Cr - Cl), or wave strength. In its final form (right most) T represents the 
+characteristic waves, L represents the wave speeds, and (Cr - Cl) represents the wave strength across the face.
 
 */
 inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGas &eqnState, const vector3d<double>& areaVec, double &maxWS){
+  //left -- primative variables from left
+  //right -- primative variables from right
+  //eqnState -- equation of state
+  //areaVec -- area vector of face
+  //maxWS -- maximum wave speed at face
 
   //compute Rho averaged quantities
   double denRatio = sqrt(right.Rho()/left.Rho());
@@ -124,19 +140,19 @@ inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGa
   //Roe averaged face normal velocity
   vector3d<double> velR(uR,vR,wR);
 
-  vector3d<double> areaNorm = areaVec / areaVec.Mag(); //normalize area vectore
+  vector3d<double> areaNorm = areaVec / areaVec.Mag(); //normalize area vector
   double velRSum = velR.DotProd(areaNorm);  //Roe velocity dotted with normalized area vector
 
   //normal velocity difference between left and right states
   double normVelDiff = right.Velocity().DotProd(areaNorm) - left.Velocity().DotProd(areaNorm);
 
-  //calculate wave strengths
+  //calculate wave strengths (Cr - Cl)
   double waveStrength[4] = {((right.P() - left.P()) - rhoR * aR * normVelDiff) / (2.0 * aR * aR), 
 			    (right.Rho() - left.Rho()) - (right.P() - left.P()) / (aR * aR), 
 			    ((right.P() - left.P()) + rhoR * aR * normVelDiff) / (2.0 * aR * aR), 
 			    rhoR};
 
-  //calculate absolute value of wave speeds
+  //calculate absolute value of wave speeds (L)
   double waveSpeed[4] = {fabs(velRSum - aR),              //left moving acoustic wave speed
 			 fabs(velRSum),                   //entropy wave speed
 			 fabs(velRSum + aR),              //right moving acoustic wave speed
@@ -154,6 +170,7 @@ inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGa
 
   maxWS = fabs(velRSum) + aR; //calculate maximum wave speed
 
+  //calculate right eigenvectors (T)
   //calculate eigenvector due to left acoustic wave
   double lAcousticEigV[5] = {1.0, 
 			     uR - aR * areaNorm.X(), 
@@ -207,7 +224,7 @@ inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGa
 
 }
 
-//function to calculate exact Roe flux jacobians
+//function to calculate approximate Roe flux jacobians -- NOT USED in LUSGS method
 void ApproxRoeFluxJacobian( const primVars &left, const primVars &right, const idealGas &eqnState, const vector3d<double>& areaVec, double &maxWS, squareMatrix &dF_dUl, squareMatrix &dF_dUr){
 
   //left --> primative variables from left side
@@ -726,7 +743,7 @@ void ApproxRoeFluxJacobian( const primVars &left, const primVars &right, const i
 //operator overload for << - allows use of cout, cerr, etc.
 ostream & operator<< (ostream &os, inviscidFlux &flux){
 
-  os << flux.rhoVel << "   " << flux.rhoVelU << "   " << flux.rhoVelV << "   " << flux.rhoVelW << "   " << flux.rhoVelH << endl;
+  os << flux.rhoVel << ", " << flux.rhoVelU << ", " << flux.rhoVelV << ", " << flux.rhoVelW << ", " << flux.rhoVelH << endl;
 
   return os;
 }
@@ -813,11 +830,16 @@ colMatrix inviscidFlux::ConvertToColMatrix()const{
 //function to take in the primative variables, equation of state, face area vector, and conservative variable update and calculate the change in the convective flux
 colMatrix ConvectiveFluxUpdate( const primVars &state, const idealGas &eqnState, const vector3d<double> &fArea, const colMatrix &du){
 
+  //get inviscid flux of old state
   inviscidFlux oldFlux(state, eqnState, fArea);
 
+  //get updated state in primative variables
   primVars stateUpdate = state.UpdateWithConsVars(eqnState, du);
+
+  //get updated inviscid flux
   inviscidFlux newFlux(stateUpdate, eqnState, fArea);
 
+  //calculate difference in flux
   inviscidFlux dFlux = newFlux - oldFlux;
     
   return dFlux.ConvertToColMatrix();
