@@ -10,8 +10,30 @@ using std::max;
 using std::copysign;
 
 //constructor -- initialize flux from state vector
+//flux is a 3D flux in the normal direction of the given face
+/*
+
+F = [rho * vel (dot) area
+     rho * vel (dot) area * velx + P * areax
+     rho * vel (dot) area * vely + P * areay
+     rho * vel (dot) area * velz + P * areaz
+     rho * vel (dot) area * H]
+
+rho -- density
+vel -- velocity vector (3D)
+area -- area vector (3D)
+P -- pressure
+H -- enthalpy
+velx, vely, velz -- velocity components
+areax, areay, areaz -- area components
+
+*/
 inviscidFlux::inviscidFlux( const primVars &state, const idealGas &eqnState, const vector3d<double>& areaVec){
-  vector3d<double> normArea = areaVec / areaVec.Mag();
+  // state -- primative variables
+  // eqnState -- equation of state
+  // areaVec -- area vector
+
+  vector3d<double> normArea = areaVec / areaVec.Mag(); //normalize area vector
   vector3d<double> vel = state.Velocity();
 
   rhoVel  = state.Rho() * vel.DotProd(normArea);      
@@ -22,7 +44,11 @@ inviscidFlux::inviscidFlux( const primVars &state, const idealGas &eqnState, con
 }
 
 //constructor -- initialize flux from state vector using conservative variables
+//flux is a 3D flux in the normal direction of the given face
 inviscidFlux::inviscidFlux( const colMatrix &cons, const idealGas &eqnState, const vector3d<double>& areaVec){
+  //cons -- colMatrix of conserved variables
+  //eqnState -- equation of state
+  //areaVec -- area vector
 
   //check to see that colMatrix is correct size
   if (cons.Size() != 5){
@@ -30,6 +56,7 @@ inviscidFlux::inviscidFlux( const colMatrix &cons, const idealGas &eqnState, con
     exit(0);
   }
 
+  //convert conserved variables to primative variables
   primVars state;
   state.SetRho(cons.Data(0));
   state.SetU(cons.Data(1)/cons.Data(0));
@@ -38,7 +65,7 @@ inviscidFlux::inviscidFlux( const colMatrix &cons, const idealGas &eqnState, con
   double energy = cons.Data(4)/cons.Data(0);
   state.SetP(eqnState.GetPressFromEnergy(state.Rho(), energy, state.Velocity().Mag() ));
 
-  vector3d<double> normArea = areaVec / areaVec.Mag();
+  vector3d<double> normArea = areaVec / areaVec.Mag(); //normalize area vector
   vector3d<double> vel = state.Velocity();
 
   rhoVel  = state.Rho() * vel.DotProd(normArea);      
@@ -62,6 +89,7 @@ void inviscidFlux::SetFlux( const primVars &state, const idealGas &eqnState, con
 
 /* Function to calculate inviscid flux using Roe's approximate Riemann solver. The function takes in the primative varibles constructed
 from the left and right states, an equation of state, a face area vector, and outputs the inviscid flux as well as the maximum wave speed.
+The function uses Harten's entropy fix to correct wave speeds near 0 and near sonic.
 __________________________________________
 |         |       Ul|Ur        |         |
 |         |         |          |         |
@@ -78,7 +106,9 @@ F = 1/2 * (Fl + Fr - D)
 
 F represents the calculated Roe flux at the given face. Fl is the inviscid flux calculated from the reconstructed state Ul. Fr is the inviscid
 flux calculated from the reconstructed state Ur. D is the dissipation term which is calculated using the Roe averaged state, as well as the 
-eigen values and eigen vectors resulting from the Roe linearization
+eigen values and eigen vectors resulting from the Roe linearization.
+
+D = V * L * dU
 
 */
 inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGas &eqnState, const vector3d<double>& areaVec, double &maxWS){
@@ -94,42 +124,25 @@ inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGa
   //Roe averaged face normal velocity
   vector3d<double> velR(uR,vR,wR);
 
-  //cout << "Roe velocity " << velR << endl;
+  vector3d<double> areaNorm = areaVec / areaVec.Mag(); //normalize area vectore
+  double velRSum = velR.DotProd(areaNorm);  //Roe velocity dotted with normalized area vector
 
-  vector3d<double> areaNorm = areaVec / areaVec.Mag();
-  double velRSum = velR.DotProd(areaNorm);
-
-  //calculate wave strengths
-  // double denDiff = right.Rho() - left.Rho();
-  // double pressDiff = right.Pressure(eqnState) - left.Pressure(eqnState);
-
+  //normal velocity difference between left and right states
   double normVelDiff = right.Velocity().DotProd(areaNorm) - left.Velocity().DotProd(areaNorm);
 
-  //vector<double> waveStrength(4);
+  //calculate wave strengths
   double waveStrength[4] = {((right.P() - left.P()) - rhoR * aR * normVelDiff) / (2.0 * aR * aR), 
 			    (right.Rho() - left.Rho()) - (right.P() - left.P()) / (aR * aR), 
 			    ((right.P() - left.P()) + rhoR * aR * normVelDiff) / (2.0 * aR * aR), 
 			    rhoR};
 
-  // waveStrength[0] = (pressDiff - rhoR * aR * normVelDiff) / (2.0 * aR * aR);       //left moving acoustic wave strength
-  // waveStrength[1] = denDiff - pressDiff / (aR * aR);                         //entropy wave strength
-  // waveStrength[2] = (pressDiff + rhoR * aR * normVelDiff) / (2.0 * aR * aR);        //right moving acoustic wave strength
-  // waveStrength[3] = rhoR;                                                    // shear waves get combined into one factor
-
-
   //calculate absolute value of wave speeds
-  //vector<double> waveSpeed(4);
-  double waveSpeed[4] = {fabs(velRSum - aR), 
-			 fabs(velRSum), 
-			 fabs(velRSum + aR), 
-			 fabs(velRSum)};
+  double waveSpeed[4] = {fabs(velRSum - aR),              //left moving acoustic wave speed
+			 fabs(velRSum),                   //entropy wave speed
+			 fabs(velRSum + aR),              //right moving acoustic wave speed
+			 fabs(velRSum)};                  //shear wave speed
 
-  // waveSpeed[0] = fabs(velRSum - aR);                                          //left moving acoustic wave speed
-  // waveSpeed[1] = fabs(velRSum);                                               //entropy wave speed
-  // waveSpeed[2] = fabs(velRSum + aR);                                          //right moving acoustic wave speed
-  // waveSpeed[3] = fabs(velRSum);                                               //shear wave speed
-
-  //calculate entropy fix
+  //calculate entropy fix (Harten) and adjust wave speeds if necessary
   double entropyFix = 0.1;                                                            // default setting for entropy fix to kick in
 
   if ( waveSpeed[0] < entropyFix ){
@@ -139,56 +152,30 @@ inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGa
     waveSpeed[2] = 0.5 * (waveSpeed[2] * waveSpeed[2] / entropyFix + entropyFix);
   }
 
-  maxWS = fabs(velRSum) + aR;
+  maxWS = fabs(velRSum) + aR; //calculate maximum wave speed
 
-  //calculate eigenvectors
-  // vector<double> lAcousticEigV(5);
-  // lAcousticEigV[0] = 1.0;
-  // lAcousticEigV[1] = uR - aR * areaNorm.X();
-  // lAcousticEigV[2] = vR - aR * areaNorm.Y();
-  // lAcousticEigV[3] = wR - aR * areaNorm.Z();
-  // lAcousticEigV[4] = hR - aR * velRSum;
-
+  //calculate eigenvector due to left acoustic wave
   double lAcousticEigV[5] = {1.0, 
 			     uR - aR * areaNorm.X(), 
 			     vR - aR * areaNorm.Y(), 
 			     wR - aR * areaNorm.Z(), 
 			     hR - aR * velRSum};
 
-  // vector<double> entropyEigV(5);
-  // entropyEigV[0] = 1.0;
-  // entropyEigV[1] = uR;
-  // entropyEigV[2] = vR;
-  // entropyEigV[3] = wR;
-  // entropyEigV[4] = 0.5 * ( uR * uR + vR * vR + wR * wR);
-
+  //calculate eigenvector due to entropy wave
   double entropyEigV[5] = {1.0, 
 			   uR, 
 			   vR, 
 			   wR, 
 			   0.5 * ( uR * uR + vR * vR + wR * wR)};
 
-  // vector<double> rAcousticEigV(5);
-  // rAcousticEigV[0] = 1.0;
-  // rAcousticEigV[1] = uR + aR * areaNorm.X();
-  // rAcousticEigV[2] = vR + aR * areaNorm.Y();
-  // rAcousticEigV[3] = wR + aR * areaNorm.Z();
-  // rAcousticEigV[4] = hR + aR * velRSum;
-
+  //calculate eigenvector due to right acoustic wave
   double rAcousticEigV[5] = {1.0, 
 			     uR + aR * areaNorm.X(), 
 			     vR + aR * areaNorm.Y(), 
 			     wR + aR * areaNorm.Z(), 
 			     hR + aR * velRSum};
 
-  // vector<double> shearEigV(5);
-  // shearEigV[0] = 0.0;
-  // shearEigV[1] = (right.Vx() - left.Vx()) - normVelDiff * areaNorm.X();
-  // shearEigV[2] = (right.Vy() - left.Vy()) - normVelDiff * areaNorm.Y();
-  // shearEigV[3] = (right.Vz() - left.Vz()) - normVelDiff * areaNorm.Z();
-  // shearEigV[4] = uR * (right.Vx() - left.Vx()) + vR * (right.Vy() - left.Vy()) + 
-  //                wR * (right.Vz() - left.Vz()) - velRSum * normVelDiff;
-
+  //calculate eigenvector due to shear wave
   double shearEigV[5] = {0.0, 
 			 (right.U() - left.U()) - normVelDiff * areaNorm.X(), 
 			 (right.V() - left.V()) - normVelDiff * areaNorm.Y(), 
@@ -196,25 +183,19 @@ inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGa
 			 uR * (right.U() - left.U()) + vR * (right.V() - left.V()) + wR * (right.W() - left.W()) - velRSum * normVelDiff};
 
   //calculate dissipation term ( eigenvector * wave speed * wave strength)
-  //vector<double> dissipation(5,0.0);
-
   double dissipation[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
-  unsigned int ii = 0;
-  for ( ii=0; ii < 5; ii++ ) {                                    
+  for ( int ii=0; ii < 5; ii++ ) {                                    
     dissipation[ii] = waveSpeed[0] * waveStrength[0] * lAcousticEigV[ii]   //contribution from left acoustic wave
                     + waveSpeed[1] * waveStrength[1] * entropyEigV[ii]     //contribution from entropy wave
                     + waveSpeed[2] * waveStrength[2] * rAcousticEigV[ii]   //contribution from right acoustic wave
                     + waveSpeed[3] * waveStrength[3] * shearEigV[ii];      //contribution from shear wave
   }
 
-
-  //cout << "Roe Dissipation term " << dissipation[0] << ", " << dissipation[1] << ", " << dissipation[2] << ", " << dissipation[3] << ", " << dissipation[4] << endl;
-
   //calculate left/right physical flux
   inviscidFlux leftFlux(left, eqnState, areaNorm);
   inviscidFlux rightFlux(right, eqnState, areaNorm);
 
-  //calculate numerical flux
+  //calculate numerical Roe flux
   inviscidFlux flux;
   flux.SetRhoVel(  0.5 * (leftFlux.RhoVel()  + rightFlux.RhoVel()  - dissipation[0]) );
   flux.SetRhoVelU( 0.5 * (leftFlux.RhoVelU() + rightFlux.RhoVelU() - dissipation[1]) );
