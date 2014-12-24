@@ -7,6 +7,7 @@ using std::endl;
 using std::cerr;
 
 //member functions for idealGas class
+//these functions calculate values using the ideal gas equation of state P = rho * R * T (for Navier-Stokes) or P = (g-1) * rho * e (for Euler)
 double idealGas::GetPressure(const double &rho, const double &specEn)const{
   return (gamma-1.0) * rho * specEn;
 }
