@@ -265,14 +265,14 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
 	  double downwindL = (*this).FCenterI( loc      ).Distance( (*this).FCenterI( upFaceI ) );
 
 	  faceStateLower = (*this).State( lowerI ).FaceReconMUSCL( (*this).State( lower2I ), (*this).State( upperI ),
-								   "left", inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL );
+								   inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL );
 
 	  double upwind2U =  (*this).FCenterI( upFaceI ).Distance( (*this).FCenterI( upFace2I ) );
 	  double upwindU =   (*this).FCenterI( loc     ).Distance( (*this).FCenterI( upFaceI ) );
 	  double downwindU = (*this).FCenterI( loc     ).Distance( (*this).FCenterI( lowFaceI ) );
 
 	  faceStateUpper = (*this).State( upperI ).FaceReconMUSCL( (*this).State( upper2I ), (*this).State( lowerI ),
-								   "right", inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU );
+								   inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU );
 
 	}
 
@@ -336,14 +336,14 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp){
 	  double downwindL = (*this).FCenterJ( loc      ).Distance( (*this).FCenterJ( upFaceJ ) );
 
 	  faceStateLower = (*this).State( lowerJ ).FaceReconMUSCL( (*this).State( lower2J ),
-								   (*this).State( upperJ ),"left", inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL );
+								   (*this).State( upperJ ), inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL );
 
 	  double upwind2U =  (*this).FCenterJ( upFaceJ ).Distance( (*this).FCenterJ( upFace2J ) );
 	  double upwindU =   (*this).FCenterJ( loc     ).Distance( (*this).FCenterJ( upFaceJ ) );
 	  double downwindU = (*this).FCenterJ( loc     ).Distance( (*this).FCenterJ( lowFaceJ ) );
 
 	  faceStateUpper = (*this).State( upperJ ).FaceReconMUSCL( (*this).State( upper2J ),
-								   (*this).State( lowerJ ),"right", inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU );
+								   (*this).State( lowerJ ), inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU );
 	}
 
 	inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS);
@@ -405,14 +405,14 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp){
 	  double downwindL = (*this).FCenterK( loc      ).Distance( (*this).FCenterK( upFaceK ) );
 
 	  faceStateLower = (*this).State( lowerK ).FaceReconMUSCL( (*this).State( lower2K ), (*this).State( upperK ),
-								   "left", inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL );
+								   inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL );
 
 	  double upwind2U =  (*this).FCenterK( upFaceK ).Distance( (*this).FCenterK( upFace2K ) );
 	  double upwindU =   (*this).FCenterK( loc     ).Distance( (*this).FCenterK( upFaceK ) );
 	  double downwindU = (*this).FCenterK( loc     ).Distance( (*this).FCenterK( lowFaceK ) );
 
 	  faceStateUpper = (*this).State( upperK ).FaceReconMUSCL( (*this).State( upper2K ), (*this).State( lowerK ),
-								   "right", inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU );
+								   inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU );
 
 	}
 
