@@ -9,12 +9,40 @@ using std::string;
 using std::max;
 
 //constructor -- initialize flux from velocity gradient
-viscousFlux::viscousFlux( const tensor<double> &velGrad, const vector3d<double> &vel, const double &mu, const sutherland &suth, const idealGas &eqnState, const vector3d<double> &tGrad, const vector3d<double> &areaVec){
-  vector3d<double> normArea = areaVec / areaVec.Mag();
+/*
+Viscous flux normal to face:
+F = [ 0,
+      taux,
+      tauy,
+      tauz,
+      tau (dot) vel + K * tGrad (dot) area ]
 
-  double lambda = suth.GetLambda(mu);
+In the above equation tau is the wall shear stress. Taux, tauy, and tauz are the rows of the wall shear stress tensor i.e. 
+taux = tauxx + tauxy + tauxz. K is the thermal conductivity, tGrad is the temperature gradient, and area is the normalized
+face area.
 
-  double velGradTrace = velGrad.Trace();
+Wall shear stress:
+tau = lambda * velGradTrace * area + mu * ( velGrad * area + velGrad' * area)
+
+In the above equation lambda is the bulk viscosity, velGradTrace is the trace of the velocity gradient, area is the normalized
+face area, mu is the dynamic viscosity, and velGrad is the velocity gradient tensor.
+*/
+viscousFlux::viscousFlux( const tensor<double> &velGrad, const vector3d<double> &vel, const double &mu, const sutherland &suth, 
+			  const idealGas &eqnState, const vector3d<double> &tGrad, const vector3d<double> &areaVec){
+  // velGrad -- velocity gradient tensor
+  // vel -- velocity vector
+  // mu -- dynamic viscosity
+  // suth -- method to get viscosity as a function of temperature (Sutherland's law)
+  // eqnState -- equation of state
+  // tGrad -- temperature gradient
+  // areaVec -- area vector of face
+
+  vector3d<double> normArea = areaVec / areaVec.Mag(); //normalize face area
+
+  double lambda = suth.GetLambda(mu); // get bulk viscosity (Stoke's hypothesis)
+
+  double velGradTrace = velGrad.Trace(); //trace of velocity gradient
+  //wall shear stress
   vector3d<double> tau = lambda * velGradTrace * normArea + mu * (velGrad.MatMult(normArea) + velGrad.Transpose().MatMult(normArea));
 
   momX = tau.X();
@@ -27,9 +55,7 @@ viscousFlux::viscousFlux( const tensor<double> &velGrad, const vector3d<double> 
 //non-member functions -----------------------------------------------------------------------------------------------------------//
 //operator overload for << - allows use of cout, cerr, etc.
 ostream & operator<< (ostream &os, viscousFlux &flux){
-
-  os << "0.0   " << flux.momX << "   " << flux.momY << "   " << flux.momZ << "   " << flux.engy << endl;
-
+  os << "0.0, " << flux.momX << ", " << flux.momY << ", " << flux.momZ << ", " << flux.engy << endl;
   return os;
 }
 
@@ -75,26 +101,46 @@ viscousFlux operator/ (const double &scalar, const viscousFlux &flux){
 
 
 //member function to set the viscous flux
-void viscousFlux::SetFlux( const tensor<double> &velGrad, const vector3d<double> &vel, const double &mu, const sutherland &suth, const idealGas &eqnState, const vector3d<double> &tGrad, const vector3d<double> &areaVec){
-  vector3d<double> normArea = areaVec / areaVec.Mag();
+void viscousFlux::SetFlux( const tensor<double> &velGrad, const vector3d<double> &vel, const double &mu, const sutherland &suth, 
+			   const idealGas &eqnState, const vector3d<double> &tGrad, const vector3d<double> &areaVec){
+  // velGrad -- velocity gradient tensor
+  // vel -- velocity vector
+  // mu -- dynamic viscosity
+  // suth -- method to get viscosity as a function of temperature (Sutherland's law)
+  // eqnState -- equation of state
+  // tGrad -- temperature gradient
+  // areaVec -- area vector of face
 
-  double lambda = suth.GetLambda(mu);
+  vector3d<double> normArea = areaVec / areaVec.Mag(); //normalize face area
 
-  double velGradTrace = velGrad.Trace();
+  double lambda = suth.GetLambda(mu); //get bulk viscosity (Stoke's hypothesis)
+
+  double velGradTrace = velGrad.Trace(); //get trace of velocity tensor
+  //calculate wall shear stress
   vector3d<double> tau = lambda * velGradTrace * normArea + mu * (velGrad.MatMult(normArea) + velGrad.Transpose().MatMult(normArea));
 
   momX = tau.X();
   momY = tau.Y();
   momZ = tau.Z();
   engy = tau.DotProd(vel) + eqnState.GetConductivity(mu) * tGrad.DotProd(normArea);
-
 }
 
-void CalcTSLFluxJac(const double &mu, const idealGas &eqnState, const vector3d<double> &areaVec, const primVars &left, const primVars &right, const double &dist, squareMatrix &dFv_dUl, squareMatrix &dFv_dUr, const sutherland &suth){
+//function to calculate the thin shear layer flux jacobian -- NOT USED in LUSGS formulation
+void CalcTSLFluxJac(const double &mu, const idealGas &eqnState, const vector3d<double> &areaVec, const primVars &left, const primVars &right, 
+		    const double &dist, squareMatrix &dFv_dUl, squareMatrix &dFv_dUr, const sutherland &suth){
+  // mu -- dynamic viscosity
+  // eqnState -- equation of state
+  // areaVec -- area vector of face
+  // left -- left state (primative)
+  // right -- right state (primative)
+  // dist -- distance from centroid of left cell to centroid of right cell
+  // dFv_dUl -- flux jacobian of viscous flux with respect to left state
+  // dFV_dUr -- flux jacobian of viscous flux with respect to right state
+  // suth -- method to get viscosity as a function of temperature
 
   //check to make sure square matrices are of correct size
   if (dFv_dUl.Size() != 5 || dFv_dUr.Size() != 5){
-    cerr << "ERROR: Error in thin shear layer viscous jacobian calculation. The input jacobian matrices are not of the correct size!" << endl;
+    cerr << "ERROR: Error in viscousFlux.cpp:CalcTSLFluxJac. Problem with thin shear layer viscous jacobian calculation. The input jacobian matrices are not of the correct size!" << endl;
     exit(0);
   }
 
@@ -114,7 +160,7 @@ void CalcTSLFluxJac(const double &mu, const idealGas &eqnState, const vector3d<d
   double velGradTrace = velGradTSL.Trace();
   vector3d<double> tau = lambda * velGradTrace * normArea + mu * (velGradTSL.MatMult(normArea) + velGradTSL.Transpose().MatMult(normArea));
 
-  //calculate coefficients
+  //calculate coefficients (from Blazek)
   double theta = normArea.MagSq();
   double thetaX = (4.0/3.0) * normArea.X() * normArea.X() + normArea.Y() * normArea.Y() + normArea.Z() * normArea.Z();
   double thetaY = normArea.X() * normArea.X() + (4.0/3.0) * normArea.Y() * normArea.Y() + normArea.Z() * normArea.Z();
@@ -160,7 +206,7 @@ void CalcTSLFluxJac(const double &mu, const idealGas &eqnState, const vector3d<d
   //column 4
   dWl_dUl.SetData(4,4, eqnState.Gamma() - 1.0);
 
-
+  //------------------------------------------------------------------------------------------------------------
   //calculate matrix - derivative of right primative vars wrt right conservative vars
   squareMatrix dWr_dUr(5);
   dWr_dUr.Zero();
@@ -187,9 +233,8 @@ void CalcTSLFluxJac(const double &mu, const idealGas &eqnState, const vector3d<d
   //column 4
   dWr_dUr.SetData(4,4, eqnState.Gamma() - 1.0);
 
-
+  //--------------------------------------------------------------------------------------------------------------
   //calculate matrix - derivative of viscous flux wrt left primative vars
-
   //column 0
   dFv_dUl.SetData(0,0, 0.0);
   dFv_dUl.SetData(1,0, 0.0);
@@ -227,8 +272,8 @@ void CalcTSLFluxJac(const double &mu, const idealGas &eqnState, const vector3d<d
 
   dFv_dUl = -1.0 * (mu/dist) * dFv_dUl;
 
+  //--------------------------------------------------------------------------------------------------------
   //calculate matrix - derivative of viscous flux wrt right primative vars
-
   //column 0
   dFv_dUr.SetData(0,0, 0.0);
   dFv_dUr.SetData(1,0, 0.0);
@@ -267,18 +312,16 @@ void CalcTSLFluxJac(const double &mu, const idealGas &eqnState, const vector3d<d
   dFv_dUr = (mu/dist) * dFv_dUr;
 
   //multiply by dW_dU to get flux jacobian derivative wrt conservative variables
-  //cout << "dFv_dUl" << endl << dFv_dUl << endl;
-  //cout << "dFv_dUr" << endl << dFv_dUr << endl;
-
   dFv_dUl = dFv_dUl * dWl_dUl;
   dFv_dUr = dFv_dUr * dWr_dUr;
 
+  //calculate spectral radius
   primVars faceState = 0.5 * (left + right);
   dFv_dUl.Identity();
   dFv_dUr.Identity();
   double specRad = mu * eqnState.Gamma() / (eqnState.GetPrandtl() * faceState.Rho() * dist) ;
 
-
+  //add or subtract spectral radius to flux jacobian
   dFv_dUl = -1.0 * specRad * dFv_dUl;
   dFv_dUr = specRad * dFv_dUr;
 
@@ -286,7 +329,12 @@ void CalcTSLFluxJac(const double &mu, const idealGas &eqnState, const vector3d<d
 
 
 //function to calculate the velocity gradients at a cell face using the Thin Shear Layer approximation
+//NOT USED in LUSGS formulation
 tensor<double> CalcVelGradTSL(const primVars &left, const primVars &right, const vector3d<double> &areaVec, const double &dist){
+  // left -- left state (primative)
+  // right -- right state (primative)
+  // areaVec -- area vector of face
+  // dist -- distance between centroid of left cell and right cell
 
   //normalize area vector
   vector3d<double> normArea = areaVec / areaVec.Mag();
