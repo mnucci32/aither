@@ -444,8 +444,8 @@ void WriteResiduals(const input &inp, colMatrix &residL2First, colMatrix &residL
   //normalize residuals
   residL2 = (residL2 + eps) / (residL2First + eps);
 
-
-  if (nn%100 == 0 && mm == 0){  
+  //write out column headers every 100 iterations
+  if (nn%100 == 0 && mm == 0){ 
     if (inp.Dt() > 0.0){
       cout << "STEP    NONLINEAR     DT     RES-Mass     Res-Mom-X     Res-Mom-Y     Res-Mom-Z     Res-Energy    Max Res Eqn  " << 
 	"Max Res Blk    Max Res I    Max Res J    Max Res K    Max Res    Res-Matrix" << endl;
