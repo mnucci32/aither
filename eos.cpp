@@ -56,6 +56,6 @@ double sutherland::GetViscosity(const double &t)const{
 }
 
 double sutherland::GetLambda(const double &m)const{
-  //calculate lambda
+  //calculate lambda (2nd coeff of viscosity) 
   return bulkVisc - (2.0/3.0) * m;
 }

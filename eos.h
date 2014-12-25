@@ -60,6 +60,8 @@ class sutherland {
 
  public:
   //constructors
+  //Stoke's hypothesis -- bulk viscosity = 0
+  //Sutherland's Law -- mu = muref * (C1 * Tref^1.5) / (T + S)
  sutherland() : cOne(1.458e-6), S(110.4), tRef(288.15), muRef(cOne * pow(tRef,1.5)/(tRef+S)), bulkVisc(0.0) {}
  sutherland(const double a, const double b, const double c) : cOne(a), S(b), tRef(c), muRef(cOne * pow(tRef,1.5)/(tRef+S)), bulkVisc(0.0) {}
   sutherland(const double t) : cOne(1.458e-6), S(110.4), tRef(t), muRef(cOne * pow(tRef,1.5)/(tRef+S)), bulkVisc(0.0) {}

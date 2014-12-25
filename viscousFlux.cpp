@@ -39,7 +39,7 @@ viscousFlux::viscousFlux( const tensor<double> &velGrad, const vector3d<double> 
 
   vector3d<double> normArea = areaVec / areaVec.Mag(); //normalize face area
 
-  double lambda = suth.GetLambda(mu); // get bulk viscosity (Stoke's hypothesis)
+  double lambda = suth.GetLambda(mu); //get 2nd coefficient of viscosity assuming bulk viscosity is 0 (Stoke's hypothesis)
 
   double velGradTrace = velGrad.Trace(); //trace of velocity gradient
   //wall shear stress
@@ -113,7 +113,7 @@ void viscousFlux::SetFlux( const tensor<double> &velGrad, const vector3d<double>
 
   vector3d<double> normArea = areaVec / areaVec.Mag(); //normalize face area
 
-  double lambda = suth.GetLambda(mu); //get bulk viscosity (Stoke's hypothesis)
+  double lambda = suth.GetLambda(mu); //get 2nd coefficient of viscosity assuming bulk viscosity is 0 (Stoke's hypothesis)
 
   double velGradTrace = velGrad.Trace(); //get trace of velocity tensor
   //calculate wall shear stress
