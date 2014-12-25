@@ -121,21 +121,21 @@ string trim(const string &s, const string &whitespace = " \t"){
 void PrintTime(){
 
   time_t rawtime;
-  struct tm * timeinfo;
+  struct tm *timeinfo;
 
   time(&rawtime);
   timeinfo = localtime(&rawtime);
 
-  int bufLen = 100;
+  int bufLen = 100; //hard coded max buffer length
   char buffer [bufLen];
   strftime(buffer, bufLen, "%c", timeinfo);
   cout << buffer << endl;
-
 }
 
 //function to read the input file and return the data as a member of the input class
 //read the input file
 input ReadInput(const string &inputName){
+  // inputName -- name of input file
 
   cout << "###########################################################################################################################" << endl;
   PrintTime();
@@ -145,15 +145,15 @@ input ReadInput(const string &inputName){
 
   input inputVars;
 
+  //open input file
   ifstream inFile;
   inFile.open(inputName.c_str(), ios::in);
-
   if (inFile.fail()) {
-    cerr << "ERROR: Input file " << inputName << " did not open correctly!!!" << endl;
+    cerr << "ERROR: Error in input.cpp:ReadInput(). Input file " << inputName << " did not open correctly!!!" << endl;
+    exit(0);
   }
 
   string line;
-  int ii = 0;
   vector3d<double> temp;
   int readingBCs = 0;
   int jj = 0;
@@ -162,11 +162,9 @@ input ReadInput(const string &inputName){
   int numBCBlks = 0;
   vector<boundaryConditions> tempBC(1);
 
-  while(getline(inFile,line)){
+  while(getline(inFile,line)){   //while there are still lines in the input file, execute loop
 
-    line = trim(line);  //remove leading and trailing whitespace
-
-    if (line[0] == '#') continue;  //skip line if first non-whitespace character is comment character #
+    line = trim(line);  //remove leading and trailing whitespace and ignore comments
 
     //split line into words
     istringstream buf(line);
@@ -174,10 +172,13 @@ input ReadInput(const string &inputName){
     vector<string> tokens(beg,end);
    
     //search to see if first token corresponds to any keywords
-    if (tokens.size() >= 2) {
-      for( ii=0; ii < inputVars.NumVars(); ii++){
+    if (tokens.size() >= 2) { //line must contain at least 2 tokens (keyword and value)
 
-        if (tokens[0] == inputVars.Vars(ii) || readingBCs > 0){
+      for( int ii=0; ii < inputVars.NumVars(); ii++){ //loop over all input variables and see if they match keywords
+
+        if (tokens[0] == inputVars.Vars(ii) || readingBCs > 0){ //if first token matches a keyword or reading boundary conditions
+	  
+	  //if not yet reading BCs (readingBCs == 0), set variable in input class to corresponding value and print assignment to std out
           if (ii==0 && readingBCs == 0){
             inputVars.SetGridName(tokens[1]);
             cout << inputVars.Vars(ii) << " " << inputVars.GridName() << endl;
@@ -269,7 +270,8 @@ input ReadInput(const string &inputName){
 
             cout << inputVars.Vars(ii) << " " << tokens[1] << " kappa = " << inputVars.Kappa() << endl;
 	    if ( (inputVars.Kappa() < -1.0) || (inputVars.Kappa() > 1.0) ){
-	      cerr << "ERROR: Kappa value of " << inputVars.Kappa() << " is not valid! Choose a value between -1.0 and 1.0." << endl;
+	      cerr << "ERROR: Error in input.cpp:ReadInput(). Kappa value of " << inputVars.Kappa() 
+		   << " is not valid! Choose a value between -1.0 and 1.0." << endl;
 	      exit(0);
 	    }
             continue;
@@ -359,12 +361,12 @@ input ReadInput(const string &inputName){
 	    cout << inputVars.Vars(ii) << " " << inputVars.PressureOutletTag() << " " << inputVars.PressureOutletP() << endl;
 	  }
 
-
+	  //reading BCs -------------------------------------------------------------------------------------------------------
           else if (ii==inputVars.NumVars()-1 || readingBCs > 0){
 	    //read in boundary conditions and assign to boundaryConditions class
-	    if (readingBCs == 0) {  //variable read must be number of blocks
+	    if (readingBCs == 0) {  //variable read must be number of blocks if first line of BCs
 	      numBCBlks = atoi(tokens[1].c_str());
-	      tempBC.resize(numBCBlks);
+	      tempBC.resize(numBCBlks); //resize vector holding BCs to correct number of blocks
 	      readingBCs++;
 	    }	    
 	    else if (readingBCs > 0 && readingBCs <= numBCBlks){ //variables must be number of i, j, k surfaces for each block
@@ -431,7 +433,7 @@ void input::CalcCFL(const int &i){
   if ( i == 0 ){  //first time step
     cfl = cflStart;
   }
-  else if ( cflStart + i*cflStep > cflMax ){
+  else if ( cflStart + i*cflStep > cflMax ){ //if calculated value is higher than max, set to max
     cfl = cflMax;
   }
   else{
