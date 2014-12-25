@@ -96,25 +96,25 @@ void input::SetBCVec(const int &a){
   bc.resize(a);
 }
 
-
 //function to trim leading and trailing whitespace from a string, and also remove data after a comment
 string trim(const string &s, const string &whitespace = " \t"){
 
   const string comment = "#";                                  //# is comment character for input file
-  const unsigned int sBegin = s.find_first_not_of(whitespace);          //find index of first non whitespace character
 
-  if (sBegin == string::npos){
+  if (s.empty()){
     return ""; //string is empty
   }
+  else{
+    const unsigned int sBegin = s.find_first_not_of(whitespace);          //find index of first non whitespace character
+    const int sEnd = s.find_last_not_of(whitespace);            //find index of last non whitespace character
+    const int sRange = sEnd - sBegin +1;                        //range to trim string to
+    string temp = s.substr(sBegin,sRange);
 
-  const int sEnd = s.find_last_not_of(whitespace);            //find index of last non whitespace character
-  const int sRange = sEnd - sBegin +1;                        //range to trim string to
-  string temp = s.substr(sBegin,sRange);
+    const int tempComment = temp.find(comment);                 //find index of first comment character
+    const int tempRange = tempComment - 0;                      //find range of string to return
 
-  const int tempComment = temp.find(comment);                 //find index of first comment character
-  const int tempRange = tempComment - 0;                      //find range of string to return
-
-  return temp.substr(0,tempRange);
+    return temp.substr(0,tempRange);
+  }
 }
 
 //function to print the time
