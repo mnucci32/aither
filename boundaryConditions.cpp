@@ -57,8 +57,7 @@ ostream & operator<< (ostream &os, const boundaryConditions &bc){
   os << "Number of J surfaces: " << bc.numSurfJ << endl;
   os << "Number of K surfaces: " << bc.numSurfK << endl;
 
-  unsigned int ii = 0; 
-  for ( ii = 0; ii < bc.bcTypes.size(); ii++ ){
+  for ( unsigned int ii = 0; ii < bc.bcTypes.size(); ii++ ){
     os << bc.bcTypes[ii] << "   " << bc.iMin[ii] << "   " << bc.iMax[ii] << "   " << bc.jMin[ii] << "   " << bc.jMax[ii] << "   "
        << bc.kMin[ii] << "   " << bc.kMax[ii] << "   " << bc.tag[ii] << endl;
 
@@ -87,7 +86,6 @@ string boundaryConditions::GetBCName(const int i, const int j, const int k, cons
   string bcName;
   int iStart = 0;
   int iEnd = 0;
-  int nn = 0;
 
   if (surf == "il" || surf == "iu"){ //i-surfaces search between 0 and number of i-surfaces
     iStart = 0;
@@ -106,7 +104,7 @@ string boundaryConditions::GetBCName(const int i, const int j, const int k, cons
   }
 
   //Determine which boundary condition should be applied
-  for ( nn = iStart; nn < iEnd; nn++ ){
+  for ( int nn = iStart; nn < iEnd; nn++ ){
 
     //Boundary mins and maxes start at 1 instead of 0, so 1 is subtracted
     //determine which boundary given i, j, k coordinates apply to
