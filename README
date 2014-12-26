@@ -10,7 +10,7 @@ TO DO LIST
 - Add RANS terms with turbulence model.
 
 FILES AND CLASSES
-blockVars - A class to store the state vector (primatives), inviscid fluxes, cell volume, face areas, time step, and residual for a plot3D block of cells.
+procBlock - A class to store the state vector (primatives), cell volume, face areas, time step, and residual for a plot3D processor block of cells.
 boundaryConditions - A class to store the data for the boundary conditions on each block.
 eos - A class to impliment the perfect gas equation of state and sutherland's law for viscosity.
 input - A class to read in the input file and store the necessary data.
@@ -21,7 +21,6 @@ matrix - A class to store the matrix elements of the Jacobian matrix for the imp
 output - Functions to write out the solution in plot3D function file format.
 primVars - A class to store the primative variables at a cell center.
 vector3d - A templated class to store vectors in 3D space.
-viscBlockVars - A class to store the viscous fluxes for a plot3D block of cells.
 viscFlux - A class to store the viscous flux vector for a cell. Contains functions to calculate the flux.
 
 HOW TO COMPILE
