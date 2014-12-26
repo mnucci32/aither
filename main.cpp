@@ -26,15 +26,14 @@ using std::clock;
 
 int main( int argc, char *argv[] ) {
 
+  //start clock to time simulation
   clock_t start;
   double duration;
   start = clock();
 
-  feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
+  feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW); //enable exceptions so code won't run with NANs
 
   const string inputFile = argv[1];  //name of input file is the second argument (the executable being the first)
-
-  //const double eps = 1.0e-30;
 
   //Parse input file
   double totalCells = 0.0;
@@ -91,20 +90,22 @@ int main( int argc, char *argv[] ) {
   initial.Zero();
 
   //preallocate vectors for old solution and solution correction
+  //outermost vector for blocks, inner vector for cell is blocks, colMatrix for variables in cell
   vector<vector<colMatrix> > solTimeN(mesh.NumBlocks());
   vector<vector<colMatrix> > solDeltaNm1(mesh.NumBlocks());
   vector<vector<colMatrix> > du(mesh.NumBlocks());
 
-
-  int locMaxB = 0;
-  colMatrix residL2 = initial;
-  colMatrix residL2First = initial;
-  colMatrix residLinf = initial;
-  double matrixResid = 0.0;
+  //initialize residual variables
+  int locMaxB = 0; //block with max residual
+  colMatrix residL2 = initial; //l2 norm residuals
+  colMatrix residL2First = initial; //l2 norm residuals to normalize by
+  colMatrix residLinf = initial; //linf residuals
+  double matrixResid = 0.0; //matrix inversion residual (only for implicit runs)
 
   //Write out cell centers grid file
   WriteCellCenter(inputVars.GridName(),stateBlocks);
   //WriteCellCenterGhost(inputVars.GridName(),stateBlocks);
+  //Write out initial results
   WriteFun(inputVars.GridName(),stateBlocks, eos, 0, inputVars.RRef(), aRef, inputVars.TRef());
   WriteRes(inputVars.GridName(), 0, inputVars.OutputFrequency());
 
@@ -136,41 +137,37 @@ int main( int argc, char *argv[] ) {
 	stateBlocks[bb].CalcInvFluxJ(eos, inputVars);
 	stateBlocks[bb].CalcInvFluxK(eos, inputVars);
 
-	//if viscous, calculate gradients and viscous fluxes
+	//if viscous change ghost cells and calculate viscous fluxes
 	if (inputVars.EquationSet() == "navierStokes"){
 
 	  //determine ghost cell values for viscous fluxes
 	  stateBlocks[bb].AssignViscousGhostCells(inputVars, eos);
 
-	  //stateBlocks[bb].InitializeGrads();
-
-	  //stateBlocks[bb].CalcCellGradsI(eos, suth, inputVars);
-	  //stateBlocks[bb].CalcCellGradsJ(eos, suth, inputVars);
-	  //stateBlocks[bb].CalcCellGradsK(eos, suth, inputVars);
-
+	  //calculate viscous fluxes
 	  stateBlocks[bb].CalcViscFluxI(suth, eos, inputVars);
 	  stateBlocks[bb].CalcViscFluxJ(suth, eos, inputVars);
 	  stateBlocks[bb].CalcViscFluxK(suth, eos, inputVars);
 	}
 
+	//calculate the time step to use in the simulation (either user specified or derived from CFL)
 	stateBlocks[bb].CalcBlockTimeStep(inputVars, aRef);
 
 	//if implicit get old solution, reorder block, and use linear solver
 	if (implicitFlag){
 
 	  //store time-n solution
-	  if (mm == 0){
+	  if (mm == 0){ //first nonlinear iteration, save solution
 	    solTimeN[bb] = stateBlocks[bb].GetCopyConsVars(eos);
-	    if (nn == 0){
+	    if (nn == 0){ //at first iteration, resize vector for old solution and calculate solution at time n=-1
 	      solDeltaNm1[bb].resize(solTimeN[bb].size());
 	      stateBlocks[bb].DeltaNMinusOne(solDeltaNm1[bb], solTimeN[bb], eos, inputVars.Theta(), inputVars.Zeta());
 	    }
 	  }
 
-	  //add volume divided by time step term time m - time n term
+	  //add volume divided by time step term to time m minus time n values
 	  vector<colMatrix> solTimeMmN = stateBlocks[bb].AddVolTime(stateBlocks[bb].GetCopyConsVars(eos), solTimeN[bb], inputVars.Theta(), inputVars.Zeta());
 
-	  //reorder block for lusgs
+	  //reorder block (by hyperplanes) for lusgs
 	  vector<vector3d<int> > reorder = HyperplaneReorder(stateBlocks[bb].NumI(), stateBlocks[bb].NumJ(), stateBlocks[bb].NumK());
 
 	  //calculate correction (du)
@@ -202,15 +199,8 @@ int main( int argc, char *argv[] ) {
       //finish calculation of L2 norm of residual
       for ( int cc = 0; cc < residL2.Size(); cc++ ){
 	residL2.SetData(cc, sqrt(residL2.Data(cc)) );
-
-	// if (nn == 0 && mm == 0){
-	//   residL2First.SetData(cc, residL2.Data(cc) );
-	// }
-
-	//normalize residuals
-	//residL2.SetData(cc, (residL2.Data(cc)+eps) / (residL2First.Data(cc)+eps) );
       }
-
+      //finish calculation of matrix residual
       matrixResid = sqrt(matrixResid/(totalCells * numEqns));
 
       //print out run information
@@ -225,7 +215,7 @@ int main( int argc, char *argv[] ) {
     } //loop for nonlinear iterations
 
     if ( (nn+1)  % inputVars.OutputFrequency() == 0 ){ //write out function file
-      cout << "write out function file at iteration " << nn << endl;
+      cout << "writing out function file at iteration " << nn << endl;
       //Write out function file
       WriteFun(inputVars.GridName(),stateBlocks, eos, (double) (nn+1), inputVars.RRef(), aRef, inputVars.TRef());
       WriteRes(inputVars.GridName(), (nn+1), inputVars.OutputFrequency());
