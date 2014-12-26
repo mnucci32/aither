@@ -156,11 +156,12 @@ input ReadInput(const string &inputName){
   string line;
   vector3d<double> temp;
   int readingBCs = 0;
-  int jj = 0;
-  int kk = 0;
+  int blk = 0;
   int surfCounter = 0;
   int numBCBlks = 0;
   vector<boundaryConditions> tempBC(1);
+  int lEnd = 0;
+  int numSurf = 0;
 
   while(getline(inFile,line)){   //while there are still lines in the input file, execute loop
 
@@ -368,38 +369,43 @@ input ReadInput(const string &inputName){
 	      numBCBlks = atoi(tokens[1].c_str());
 	      tempBC.resize(numBCBlks); //resize vector holding BCs to correct number of blocks
 	      readingBCs++;
+	      lEnd++;
 	    }	    
-	    else if (readingBCs > 0 && readingBCs <= numBCBlks){ //variables must be number of i, j, k surfaces for each block
-	      tempBC[jj].SetNumSurfI(atoi(tokens[0].c_str()));
-	      tempBC[jj].SetNumSurfJ(atoi(tokens[1].c_str()));
-	      tempBC[jj].SetNumSurfK(atoi(tokens[2].c_str()));
+	    else if (readingBCs == lEnd){ //variables must be number of i, j, k surfaces for each block 
+	      //set number of i, j, k surfaces
+	      tempBC[blk].SetNumSurfI(atoi(tokens[0].c_str()));
+	      tempBC[blk].SetNumSurfJ(atoi(tokens[1].c_str()));
+	      tempBC[blk].SetNumSurfK(atoi(tokens[2].c_str()));
 
-	      tempBC[jj].ResizeVecs(atoi(tokens[0].c_str()) + atoi(tokens[1].c_str()) + atoi(tokens[2].c_str()));
-	      jj++;
+	      //set total number of surfaces
+	      numSurf = atoi(tokens[0].c_str()) + atoi(tokens[1].c_str()) + atoi(tokens[2].c_str());
+	      tempBC[blk].ResizeVecs(numSurf);
+
+	      lEnd += (numSurf + 1); //set new target for when block data is finished
 	      readingBCs++;
-	    }
-	    else {  //assign block variables
-	      int numSurf = tempBC[kk].NumSurfI() + tempBC[kk].NumSurfJ() + tempBC[kk].NumSurfK(); 
 
-	      tempBC[kk].SetBCTypes(tokens[0], surfCounter);
-	      tempBC[kk].SetIMin(atoi(tokens[1].c_str()), surfCounter);
-	      tempBC[kk].SetIMax(atoi(tokens[2].c_str()), surfCounter);
-	      tempBC[kk].SetJMin(atoi(tokens[3].c_str()), surfCounter);
-	      tempBC[kk].SetJMax(atoi(tokens[4].c_str()), surfCounter);
-	      tempBC[kk].SetKMin(atoi(tokens[5].c_str()), surfCounter);
-	      tempBC[kk].SetKMax(atoi(tokens[6].c_str()), surfCounter);
-	      tempBC[kk].SetTag(atoi(tokens[7].c_str()), surfCounter);
+	    }
+	    else {  //assign BC block variables
+	      tempBC[blk].SetBCTypes(tokens[0], surfCounter);
+	      tempBC[blk].SetIMin(atoi(tokens[1].c_str()), surfCounter);
+	      tempBC[blk].SetIMax(atoi(tokens[2].c_str()), surfCounter);
+	      tempBC[blk].SetJMin(atoi(tokens[3].c_str()), surfCounter);
+	      tempBC[blk].SetJMax(atoi(tokens[4].c_str()), surfCounter);
+	      tempBC[blk].SetKMin(atoi(tokens[5].c_str()), surfCounter);
+	      tempBC[blk].SetKMax(atoi(tokens[6].c_str()), surfCounter);
+	      tempBC[blk].SetTag(atoi(tokens[7].c_str()), surfCounter);
 
 	      surfCounter++;
-	      if (surfCounter == numSurf){
-		kk++;
+	      if (surfCounter == numSurf){ //at end of block data, increment block index, reset surface counter
+		blk++;
 		surfCounter = 0;
 	      }
 
 	      readingBCs++;
 	    }
 
-	    if (kk == numBCBlks){
+	    //if block counter reaches number of blocks, BCs are finished (b/c counter starts at 0), so assign BCs and write them out
+	    if (blk == numBCBlks){ 
 	      inputVars.SetBC(tempBC);
 	      cout << inputVars.Vars(inputVars.NumVars()-1) << " " << inputVars.NumBC() << endl << endl;;
 	      for ( int ll = 0; ll < inputVars.NumBC(); ll++ ){
@@ -413,7 +419,7 @@ input ReadInput(const string &inputName){
 	}
       }
     }
-    else{
+    else{ //if there aren't 2 or more tokens just skip line
       continue;
     }
   }
