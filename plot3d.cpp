@@ -37,6 +37,16 @@ plot3dBlock::plot3dBlock(){
 }
 
 //plot3dBlock member function that calcualtes the volume of each cell
+/*
+All cells are assumed to be hexahedra. The 8 points that make up each hexahedron are used to 
+split the cell into 3 pyramids. The area of each pyramid is then calculated and the volume of the 
+3 pyramids are summed to get the volume of the hexahedra. This method is outlined in Hirsch.
+
+Vp = Havg * (D1 (cross) D2))
+
+The equation above shows how the volume of a pyramid (Vp) is calculated. Havg is the average distance from 
+the four base points to the top of the pyramid. D1 and D2 are the diagonal distances of the four base points.
+*/
 const vector<double> plot3dBlock::Volume() const {
 
   int len = (numi-1)*(numj-1)*(numk-1);  //number of cells in the block
@@ -47,11 +57,6 @@ const vector<double> plot3dBlock::Volume() const {
   double pyramid1 = 0;
   double pyramid2 = 0;
   double pyramid3 = 0;
-
-  //iteration counters
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
 
   //vectors of coordinates of the 8 points that make up each hex cell
   vector3d<double> botStarAft(0,0,0);
@@ -69,43 +74,50 @@ const vector<double> plot3dBlock::Volume() const {
   vector3d<double> xbd(0,0,0);           //vector along diagonal of base
 
   int index = 0;                         //cell index counter
-  int loc = 0;                           //location within vector of nodal coordinates
 
-  for ( kk = 0; kk < numk-1; kk++){
-    for ( jj = 0; jj < numj-1; jj++){
-      for ( ii = 0; ii < numi-1; ii++){
+  for ( int kk = 0; kk < numk-1; kk++){
+    for ( int jj = 0; jj < numj-1; jj++){
+      for ( int ii = 0; ii < numi-1; ii++){
 
         //assign coordinates to 8 points that make up the cell being analyzed
-        loc = ii + jj*numi + kk*numi*numj;
+        int loc = GetLoc1D(ii, jj, kk, numi, numj); 
 
+	//baseline location
         botStarAft.SetX(x[loc]);
         botStarAft.SetY(y[loc]);
         botStarAft.SetZ(z[loc]);
 
+	//up 1 in the i-direction
         botStarFore.SetX(x[loc+1]);
         botStarFore.SetY(y[loc+1]);
         botStarFore.SetZ(z[loc+1]);
 
+	//up 1 in the j-direction
         botPortAft.SetX(x[loc+numi]);
         botPortAft.SetY(y[loc+numi]);
         botPortAft.SetZ(z[loc+numi]);
 
+	//up 1 in the i and j directions
         botPortFore.SetX(x[loc+numi+1]);
         botPortFore.SetY(y[loc+numi+1]);
         botPortFore.SetZ(z[loc+numi+1]);
               
+	//up 1 in the k direction
         topStarAft.SetX(x[loc+numi*numj]);
         topStarAft.SetY(y[loc+numi*numj]);
         topStarAft.SetZ(z[loc+numi*numj]);
 
+	//up 1 in the i and k directions
         topStarFore.SetX(x[loc+numi*numj+1]);
         topStarFore.SetY(y[loc+numi*numj+1]);
         topStarFore.SetZ(z[loc+numi*numj+1]);
 
+	//up 1 in the j and k directions
         topPortAft.SetX(x[loc+numi+numi*numj]);
         topPortAft.SetY(y[loc+numi+numi*numj]);
         topPortAft.SetZ(z[loc+numi+numi*numj]);
 
+	//up 1 in the i, j, and k directions
         topPortFore.SetX(x[loc+numi+numi*numj+1]);
         topPortFore.SetY(y[loc+numi+numi*numj+1]);
         topPortFore.SetZ(z[loc+numi+numi*numj+1]);
@@ -146,16 +158,11 @@ const vector<double> plot3dBlock::Volume() const {
 }
 
 //plot3dBlock member function that calcualtes the centroid of each cell
+//the centroid of the hexahedron is the average of the 8 points that define it
 const vector<vector3d<double> > plot3dBlock::Centroid() const {
 
   int len = (numi-1)*(numj-1)*(numk-1);                 //number of cells in the block
   vector<vector3d<double> > centroid(len);             //preallocate centroid vector
-  vector3d<double> curCentroid(0,0,0);
-
-  //iteration counters
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
 
   //vectors of coordinates of the 8 points that make up each hex cell
   vector3d<double> botStarAft(0,0,0);
@@ -168,53 +175,57 @@ const vector<vector3d<double> > plot3dBlock::Centroid() const {
   vector3d<double> topPortAft(0,0,0);
 
   int index = 0;                         //cell index counter
-  int loc = 0;                           //location within vector of nodal coordinates
 
-  for ( kk = 0; kk < numk-1; kk++){
-    for ( jj = 0; jj < numj-1; jj++){
-      for ( ii = 0; ii < numi-1; ii++){
+  for ( int kk = 0; kk < numk-1; kk++){
+    for ( int jj = 0; jj < numj-1; jj++){
+      for ( int ii = 0; ii < numi-1; ii++){
 
         //assign coordinates to 8 points that make up the cell being analyzed
-        loc = ii + jj*numi + kk*numi*numj;
+        int loc = GetLoc1D(ii, jj, kk, numi, numj); 
 
+	//baseline location
         botStarAft.SetX(x[loc]);
         botStarAft.SetY(y[loc]);
         botStarAft.SetZ(z[loc]);
 
+	//up 1 in the i direction
         botStarFore.SetX(x[loc+1]);
         botStarFore.SetY(y[loc+1]);
         botStarFore.SetZ(z[loc+1]);
 
+	//up 1 in the j direction
         botPortAft.SetX(x[loc+numi]);
         botPortAft.SetY(y[loc+numi]);
         botPortAft.SetZ(z[loc+numi]);
 
+	//up 1 in the i and j directions
         botPortFore.SetX(x[loc+numi+1]);
         botPortFore.SetY(y[loc+numi+1]);
         botPortFore.SetZ(z[loc+numi+1]);
               
+	//up 1 in the k direction
         topStarAft.SetX(x[loc+numi*numj]);
         topStarAft.SetY(y[loc+numi*numj]);
         topStarAft.SetZ(z[loc+numi*numj]);
 
+	//up 1 in the i and k directions
         topStarFore.SetX(x[loc+numi*numj+1]);
         topStarFore.SetY(y[loc+numi*numj+1]);
         topStarFore.SetZ(z[loc+numi*numj+1]);
 
+	//up 1 in the j and k directions
         topPortAft.SetX(x[loc+numi+numi*numj]);
         topPortAft.SetY(y[loc+numi+numi*numj]);
         topPortAft.SetZ(z[loc+numi+numi*numj]);
 
+	//up 1 in the i, j, and k directions
         topPortFore.SetX(x[loc+numi+numi*numj+1]);
         topPortFore.SetY(y[loc+numi+numi*numj+1]);
         topPortFore.SetZ(z[loc+numi+numi*numj+1]);
 
 	//Calculate the centroid of the cell
-        curCentroid = (1.0/8.0) * (botStarAft + botStarFore + botPortAft + botPortFore + topStarAft + topStarFore + topPortAft + topPortFore);
-        centroid[index] = curCentroid;
-
-        index++;
-
+        centroid[index] = 0.125 * (botStarAft + botStarFore + botPortAft + botPortFore + topStarAft + topStarFore + topPortAft + topPortFore);
+	index++;
       }
     }
   }
@@ -223,71 +234,76 @@ const vector<vector3d<double> > plot3dBlock::Centroid() const {
 }
 
 //plot3dBlock member function that calcualtes the area of each face normal to the i-direction
+//the area is calculated as half the cross product of the diagonal vectors of the 4-sided face
+/*
+
+  A---------------B
+  |               |
+  |               |
+  |               |
+  |               |
+  C---------------D
+
+A = 0.5 * rAD (cross) rCB
+
+In the equation above rAD is the vector from D to A and rCD is the vector from B to C. The normal vector
+points in the direction of increasing i.
+
+*/
 const vector<vector3d<double> > plot3dBlock::FaceAreaI() const {
 
   int len = numi * (numj - 1) * (numk - 1);         //number of i-faces in the block
   vector<vector3d<double> > fArea(len);             //initially assign an area of 0
 
-  //iteration counters
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-
-  //vectors of coordinates of the 8 points that make up each hex cell
+  //vectors of coordinates of the 4 points that make up each face
   vector3d<double> botStarAft(0,0,0);
   vector3d<double> botPortAft(0,0,0);
   vector3d<double> topStarAft(0,0,0);
   vector3d<double> topPortAft(0,0,0);
 
-  vector3d<double> tempArea(0,0,0);
-
-  //vectors of the components that go into calculating the volume of each pyramid
-  vector3d<double> xac(0,0,0);           //vector from opposite corners of base
-  vector3d<double> xbd(0,0,0);           //vector from opposite corners of base
-
   int index = 0;                         //cell index counter
-  int loc = 0;                           //location within vector of nodal coordinates
 
-  for ( kk = 0; kk < numk-1; kk++){
-    for ( jj = 0; jj < numj-1; jj++){
-      for ( ii = 0; ii < numi; ii++){
+  for ( int kk = 0; kk < numk-1; kk++){
+    for ( int jj = 0; jj < numj-1; jj++){
+      for ( int ii = 0; ii < numi; ii++){
 
-        //assign coordinates to 8 points that make up the cell being analyzed
-        loc = ii + jj*numi + kk*numi*numj;
+        //assign coordinates to 4 points that make up the face being analyzed
+        int loc = GetLoc1D(ii, jj, kk, numi, numj); 
 
+	//baseline location
         botStarAft.SetX(x[loc]);
         botStarAft.SetY(y[loc]);
         botStarAft.SetZ(z[loc]);
 
+	//up 1 in j direction
         botPortAft.SetX(x[loc+numi]);
         botPortAft.SetY(y[loc+numi]);
         botPortAft.SetZ(z[loc+numi]);
               
+	//up 1 in k direction
         topStarAft.SetX(x[loc+numi*numj]);
         topStarAft.SetY(y[loc+numi*numj]);
         topStarAft.SetZ(z[loc+numi*numj]);
 
+	//up 1 in j and k directions
         topPortAft.SetX(x[loc+numi+numi*numj]);
         topPortAft.SetY(y[loc+numi+numi*numj]);
         topPortAft.SetZ(z[loc+numi+numi*numj]);
 
         //Calculate area for face by taking 1/2 of the cross product between opposite diagonals
-        xac = topPortAft - botStarAft;
-        xbd = botPortAft - topStarAft;
+        vector3d<double> xac = topPortAft - botStarAft; //vector from opposite corners of face
+        vector3d<double> xbd = botPortAft - topStarAft; //vector from opposite corners of face
 
-        tempArea = 0.5 * xbd.CrossProd(xac);     //area vector is calculated so that normal points nominally in direction of increasing i-coordinate
-        fArea[index].SetX(tempArea.X());
-        fArea[index].SetY(tempArea.Y());
-        fArea[index].SetZ(tempArea.Z());
+        fArea[index] = 0.5 * xbd.CrossProd(xac);     //area vector is calculated so that normal points nominally in direction of increasing i-coordinate
 
         if (fArea[index].Mag() <= 0){
           cerr << "ERROR: Negative face area in PLOT3D block at index " << index << "!!!" << endl;
           cerr << "Face area = " << fArea[index].Mag() << endl;
           cerr << "i-dim = " << ii+1 << ", j-dim = " << jj+1 << ", k-dim = " << kk+1 << endl;
           cerr << "Vectors to opposite diagonals are : " << xac << " and " << xbd << endl;
-          exit(1);
+          exit(0);
 	}
-        index++;
+	index++;
 
       }
     }
@@ -297,53 +313,50 @@ const vector<vector3d<double> > plot3dBlock::FaceAreaI() const {
 }
 
 //plot3dBlock member function that calcualtes the center of each face normal to the i-direction
+//the face center is calculated as the average of the 4 points that comprise it
 const vector<vector3d<double> > plot3dBlock::FaceCenterI() const {
 
   int len = numi * (numj - 1) * (numk - 1);         //number of i-faces in the block
   vector<vector3d<double> > fCenter(len);             //initially assign an area of 0
 
-  //iteration counters
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-
-  //vectors of coordinates of the 8 points that make up each hex cell
+  //vectors of coordinates of the 4 points that make up each face
   vector3d<double> botStarAft(0,0,0);
   vector3d<double> botPortAft(0,0,0);
   vector3d<double> topStarAft(0,0,0);
   vector3d<double> topPortAft(0,0,0);
 
   int index = 0;                         //cell index counter
-  int loc = 0;                           //location within vector of nodal coordinates
 
-  for ( kk = 0; kk < numk-1; kk++){
-    for ( jj = 0; jj < numj-1; jj++){
-      for ( ii = 0; ii < numi; ii++){
+  for ( int kk = 0; kk < numk-1; kk++){
+    for ( int jj = 0; jj < numj-1; jj++){
+      for ( int ii = 0; ii < numi; ii++){
 
-        //assign coordinates to 8 points that make up the cell being analyzed
-        loc = ii + jj*numi + kk*numi*numj;
+        //assign coordinates to 4 points that make up the face being analyzed
+        int loc = GetLoc1D(ii, jj, kk, numi, numj); 
 
+	//baseline location
         botStarAft.SetX(x[loc]);
         botStarAft.SetY(y[loc]);
         botStarAft.SetZ(z[loc]);
 
+	//up 1 in j direction
         botPortAft.SetX(x[loc+numi]);
         botPortAft.SetY(y[loc+numi]);
         botPortAft.SetZ(z[loc+numi]);
               
+	//up 1 in k direction
         topStarAft.SetX(x[loc+numi*numj]);
         topStarAft.SetY(y[loc+numi*numj]);
         topStarAft.SetZ(z[loc+numi*numj]);
 
+	//up 1 in j and k directions
         topPortAft.SetX(x[loc+numi+numi*numj]);
         topPortAft.SetY(y[loc+numi+numi*numj]);
         topPortAft.SetZ(z[loc+numi+numi*numj]);
 
         //Calculate face center by averaging four points that make up the face
-        fCenter[index] = (1.0/4.0) * (botStarAft + botPortAft + topStarAft + topPortAft);
-
-        index++;
-
+        fCenter[index] = 0.25 * (botStarAft + botPortAft + topStarAft + topPortAft);
+	index++;
       }
     }
   }
@@ -352,72 +365,76 @@ const vector<vector3d<double> > plot3dBlock::FaceCenterI() const {
 }
 
 //plot3dBlock member function that calcualtes the area of each face normal to the j-direction
+//the area is calculated as half the cross product of the diagonal vectors of the 4-sided face
+/*
+
+  A---------------B
+  |               |
+  |               |
+  |               |
+  |               |
+  C---------------D
+
+A = 0.5 * rAD (cross) rCB
+
+In the equation above rAD is the vector from D to A and rCD is the vector from B to C. The normal
+points in the direction of increasing j.
+
+*/
 const vector<vector3d<double> > plot3dBlock::FaceAreaJ() const {
 
   int len = (numi -1) * numj * (numk - 1);         //number of i-faces in the block
   vector<vector3d<double> > fArea(len);             //initially assign an area of 0
 
-  //iteration counters
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-
-  //vectors of coordinates of the 8 points that make up each hex cell
+  //vectors of coordinates of the 4 points that make up each face
   vector3d<double> botStarAft(0,0,0);
   vector3d<double> botPortAft(0,0,0);
   vector3d<double> topStarAft(0,0,0);
   vector3d<double> topPortAft(0,0,0);
 
-  vector3d<double> tempArea(0,0,0);
-
-  //vectors of the components that go into calculating the volume of each pyramid
-  vector3d<double> xac(0,0,0);           //vector from opposite corners of base
-  vector3d<double> xbd(0,0,0);           //vector from opposite corners of base
-
   int index = 0;                         //cell index counter
-  int loc = 0;                           //location within vector of nodal coordinates
 
-  for ( kk = 0; kk < numk-1; kk++){
-    for ( jj = 0; jj < numj; jj++){
-      for ( ii = 0; ii < numi-1; ii++){
+  for ( int kk = 0; kk < numk-1; kk++){
+    for ( int jj = 0; jj < numj; jj++){
+      for ( int ii = 0; ii < numi-1; ii++){
 
-        //assign coordinates to 8 points that make up the cell being analyzed
-        loc = ii + jj*numi + kk*numi*numj;
+        //assign coordinates to 4 points that make up the face being analyzed
+        int loc = GetLoc1D(ii, jj, kk, numi, numj); 
 
+	//up 1 in i direction
         botStarAft.SetX(x[loc+1]);
         botStarAft.SetY(y[loc+1]);
         botStarAft.SetZ(z[loc+1]);
 
+	//baseline location
         botPortAft.SetX(x[loc]);
         botPortAft.SetY(y[loc]);
         botPortAft.SetZ(z[loc]);
               
+	//up 1 in i and k directions
         topStarAft.SetX(x[loc+numi*numj+1]);
         topStarAft.SetY(y[loc+numi*numj+1]);
         topStarAft.SetZ(z[loc+numi*numj+1]);
 
+	//up 1 in k direction
         topPortAft.SetX(x[loc+numi*numj]);
         topPortAft.SetY(y[loc+numi*numj]);
         topPortAft.SetZ(z[loc+numi*numj]);
 
         //Calculate area for face by taking 1/2 of the cross product between opposite diagonals
-        xac = topPortAft - botStarAft;
-        xbd = botPortAft - topStarAft;
+        vector3d<double> xac = topPortAft - botStarAft; //vector from opposite corners of face
+        vector3d<double> xbd = botPortAft - topStarAft; //vector from opposite corners of face
 
-        tempArea = 0.5 * xbd.CrossProd(xac);       //area vector is calculated so that normal nominally points in direction of increasing j-coordinate
-        fArea[index].SetX(tempArea.X());
-        fArea[index].SetY(tempArea.Y());
-        fArea[index].SetZ(tempArea.Z());
+        fArea[index] = 0.5 * xbd.CrossProd(xac);       //area vector is calculated so that normal nominally points in direction of increasing j-coordinate
 
         if (fArea[index].Mag() <= 0){
           cerr << "ERROR: Negative face area in PLOT3D block at index " << index << "!!!" << endl;
           cerr << "Face area = " << fArea[index].Mag() << endl;
           cerr << "i-dim = " << ii+1 << ", j-dim = " << jj+1 << ", k-dim = " << kk+1 << endl;
           cerr << "Vectors to opposite diagonals are : " << xac << " and " << xbd << endl;
-          exit(1);
+          exit(0);
 	}
-        index++;
-
+	index++;
       }
     }
   }
@@ -426,52 +443,50 @@ const vector<vector3d<double> > plot3dBlock::FaceAreaJ() const {
 }
 
 //plot3dBlock member function that calcualtes the area of each face normal to the j-direction
+//the face center is calculated as the average of the 4 points that comprise it
 const vector<vector3d<double> > plot3dBlock::FaceCenterJ() const {
 
   int len = (numi -1) * numj * (numk - 1);         //number of i-faces in the block
   vector<vector3d<double> > fCenter(len);             //initially assign an area of 0
 
-  //iteration counters
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-
-  //vectors of coordinates of the 8 points that make up each hex cell
+  //vectors of coordinates of the 4 points that make up each face
   vector3d<double> botStarAft(0,0,0);
   vector3d<double> botPortAft(0,0,0);
   vector3d<double> topStarAft(0,0,0);
   vector3d<double> topPortAft(0,0,0);
 
   int index = 0;                         //cell index counter
-  int loc = 0;                           //location within vector of nodal coordinates
 
-  for ( kk = 0; kk < numk-1; kk++){
-    for ( jj = 0; jj < numj; jj++){
-      for ( ii = 0; ii < numi-1; ii++){
+  for ( int kk = 0; kk < numk-1; kk++){
+    for ( int jj = 0; jj < numj; jj++){
+      for ( int ii = 0; ii < numi-1; ii++){
 
-        //assign coordinates to 8 points that make up the cell being analyzed
-        loc = ii + jj*numi + kk*numi*numj;
+        //assign coordinates to 4 points that make up the face being analyzed
+        int loc = GetLoc1D(ii, jj, kk, numi, numj); 
 
+	//up 1 in i direction
         botStarAft.SetX(x[loc+1]);
         botStarAft.SetY(y[loc+1]);
         botStarAft.SetZ(z[loc+1]);
 
+	//baseline location
         botPortAft.SetX(x[loc]);
         botPortAft.SetY(y[loc]);
         botPortAft.SetZ(z[loc]);
               
+	//up 1 in i and k directions
         topStarAft.SetX(x[loc+numi*numj+1]);
         topStarAft.SetY(y[loc+numi*numj+1]);
         topStarAft.SetZ(z[loc+numi*numj+1]);
 
+	//up 1 in k direction
         topPortAft.SetX(x[loc+numi*numj]);
         topPortAft.SetY(y[loc+numi*numj]);
         topPortAft.SetZ(z[loc+numi*numj]);
 
         //Calculate face center by averaging the four points that make up the face
-	fCenter[index] = (1.0/4.0) * (botStarAft + botPortAft + topStarAft + topPortAft);
-        index++;
-
+	fCenter[index] = 0.25 * (botStarAft + botPortAft + topStarAft + topPortAft);
+	index++;
       }
     }
   }
@@ -480,72 +495,76 @@ const vector<vector3d<double> > plot3dBlock::FaceCenterJ() const {
 }
 
 //plot3dBlock member function that calcualtes the area of each face normal to the k-direction
+//the area is calculated as half the cross product of the diagonal vectors of the 4-sided face
+/*
+
+  A---------------B
+  |               |
+  |               |
+  |               |
+  |               |
+  C---------------D
+
+A = 0.5 * rAD (cross) rCB
+
+In the equation above rAD is the vector from D to A and rCD is the vector from B to C. The normal vector
+points in the direction of increasing k.
+
+*/
 const vector<vector3d<double> > plot3dBlock::FaceAreaK() const {
 
   int len = (numi - 1) * (numj - 1) * numk;         //number of i-faces in the block
   vector<vector3d<double> > fArea(len);             //initially assign an area of 0
 
-  //iteration counters
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-
-  //vectors of coordinates of the 8 points that make up each hex cell
+  //vectors of coordinates of the 4 points that make up each face
   vector3d<double> botStarAft(0,0,0);
   vector3d<double> botPortAft(0,0,0);
   vector3d<double> topStarAft(0,0,0);
   vector3d<double> topPortAft(0,0,0);
 
-  vector3d<double> tempArea(0,0,0);
-
-  //vectors of the components that go into calculating the volume of each pyramid
-  vector3d<double> xac(0,0,0);           //vector from opposite corners of base
-  vector3d<double> xbd(0,0,0);           //vector from opposite corners of base
-
   int index = 0;                         //cell index counter
-  int loc = 0;                           //location within vector of nodal coordinates
 
-  for ( kk = 0; kk < numk; kk++){
-    for ( jj = 0; jj < numj-1; jj++){
-      for ( ii = 0; ii < numi-1; ii++){
+  for ( int kk = 0; kk < numk; kk++){
+    for ( int jj = 0; jj < numj-1; jj++){
+      for ( int ii = 0; ii < numi-1; ii++){
 
-        //assign coordinates to 8 points that make up the cell being analyzed
-        loc = ii + jj*numi + kk*numi*numj;
+        //assign coordinates to 4 points that make up the face being analyzed
+        int loc = GetLoc1D(ii, jj, kk, numi, numj); 
 
+	//baseline location
         botStarAft.SetX(x[loc]);
         botStarAft.SetY(y[loc]);
         botStarAft.SetZ(z[loc]);
 
+	//up 1 in j direction
         botPortAft.SetX(x[loc+numi]);
         botPortAft.SetY(y[loc+numi]);
         botPortAft.SetZ(z[loc+numi]);
               
+	//up 1 in i direction
         topStarAft.SetX(x[loc+1]);
         topStarAft.SetY(y[loc+1]);
         topStarAft.SetZ(z[loc+1]);
 
+	//up 1 in i and j directions
         topPortAft.SetX(x[loc+numi+1]);
         topPortAft.SetY(y[loc+numi+1]);
         topPortAft.SetZ(z[loc+numi+1]);
 
         //Calculate area for face by taking 1/2 of the cross product between opposite diagonals
-        xac = topPortAft - botStarAft;
-        xbd = botPortAft - topStarAft;
+        vector3d<double> xac = topPortAft - botStarAft; //vector from opposite corners of face
+        vector3d<double> xbd = botPortAft - topStarAft; //vector from opposite corners of face
 
-        tempArea = 0.5 * xac.CrossProd(xbd);   //area vector is calculated so that normal nominally points in direction of increasing k-coordinate
-        fArea[index].SetX(tempArea.X());
-        fArea[index].SetY(tempArea.Y());
-        fArea[index].SetZ(tempArea.Z());
+        fArea[index] = 0.5 * xac.CrossProd(xbd);   //area vector is calculated so that normal nominally points in direction of increasing k-coordinate
 
         if (fArea[index].Mag() <= 0){
           cerr << "ERROR: Negative face area in PLOT3D block at index " << index << "!!!" << endl;
           cerr << "Face area = " << fArea[index].Mag() << endl;
           cerr << "i-dim = " << ii+1 << ", j-dim = " << jj+1 << ", k-dim = " << kk+1 << endl;
           cerr << "Vectors to opposite diagonals are : " << xac << " and " << xbd << endl;
-          exit(1);
+          exit(0);
 	}
-        index++;
-
+	index++;
       }
     }
   }
@@ -554,15 +573,11 @@ const vector<vector3d<double> > plot3dBlock::FaceAreaK() const {
 }
 
 //plot3dBlock member function that calcualtes the area of each face normal to the k-direction
+//the face center is calculated as the average of the 4 points that comprise it
 const vector<vector3d<double> > plot3dBlock::FaceCenterK() const {
 
   int len = (numi - 1) * (numj - 1) * numk;         //number of i-faces in the block
   vector<vector3d<double> > fCenter(len);             //initially assign an area of 0
-
-  //iteration counters
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
 
   //vectors of coordinates of the 8 points that make up each hex cell
   vector3d<double> botStarAft(0,0,0);
@@ -571,35 +586,37 @@ const vector<vector3d<double> > plot3dBlock::FaceCenterK() const {
   vector3d<double> topPortAft(0,0,0);
 
   int index = 0;                         //cell index counter
-  int loc = 0;                           //location within vector of nodal coordinates
 
-  for ( kk = 0; kk < numk; kk++){
-    for ( jj = 0; jj < numj-1; jj++){
-      for ( ii = 0; ii < numi-1; ii++){
+  for ( int kk = 0; kk < numk; kk++){
+    for ( int jj = 0; jj < numj-1; jj++){
+      for ( int ii = 0; ii < numi-1; ii++){
 
         //assign coordinates to 8 points that make up the cell being analyzed
-        loc = ii + jj*numi + kk*numi*numj;
+        int loc = GetLoc1D(ii, jj, kk, numi, numj); 
 
+	//baseline location
         botStarAft.SetX(x[loc]);
         botStarAft.SetY(y[loc]);
         botStarAft.SetZ(z[loc]);
 
+	//up 1 in j direction
         botPortAft.SetX(x[loc+numi]);
         botPortAft.SetY(y[loc+numi]);
         botPortAft.SetZ(z[loc+numi]);
               
+	//up 1 in i direction
         topStarAft.SetX(x[loc+1]);
         topStarAft.SetY(y[loc+1]);
         topStarAft.SetZ(z[loc+1]);
 
+	//up 1 in i and j directions
         topPortAft.SetX(x[loc+numi+1]);
         topPortAft.SetY(y[loc+numi+1]);
         topPortAft.SetZ(z[loc+numi+1]);
 
         //Calculate face center by averaging four points that make up cell face
-        fCenter[index] = (1.0/4.0) * (botStarAft + botPortAft + topStarAft + topPortAft);
-        index++;
-
+        fCenter[index] = 0.25 * (botStarAft + botPortAft + topStarAft + topPortAft);
+	index++;
       }
     }
   }
