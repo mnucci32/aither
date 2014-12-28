@@ -15,12 +15,12 @@ using std::string;
 //Class for an individual plot3d block
 class plot3dBlock {
   //by default everything above the public: declaration is private
-  int numi;              //number of points in i-direction
-  int numj;              //number of points in j-direction
-  int numk;              //number of points in k-direction
   vector<double> x;      //vector of x-coordinates
   vector<double> y;      //vector of y-coordinates
   vector<double> z;      //vector of z-coordinates
+  int numi;              //number of points in i-direction
+  int numj;              //number of points in j-direction
+  int numk;              //number of points in k-direction
 
  public:
    //constructor -- create a plot3d block by passing the above quantities
