@@ -54,7 +54,7 @@ int main( int argc, char *argv[] ) {
   int numGhost = 2;
 
   //Read grid
-  plot3dMesh mesh = ReadP3dGrid(inputVars.GridName(), totalCells);
+  vector<plot3dBlock> mesh = ReadP3dGrid(inputVars.GridName(), totalCells);
 
   //Initialize state vector with nondimensional variables
   //get reference speed of sound
@@ -71,9 +71,9 @@ int main( int argc, char *argv[] ) {
   sutherland suth(inputVars.TRef());
 
   //initialize the whole mesh with one state and assign ghost cells geometry
-  vector<procBlock> stateBlocks( mesh.NumBlocks() );
-  for ( int ll = 0; ll < mesh.NumBlocks(); ll++) {
-    stateBlocks[ll] = procBlock(state, mesh.Blocks(ll), ll, numGhost, inputVars.EquationSet());
+  vector<procBlock> stateBlocks( mesh.size() );
+  for ( int ll = 0; ll < (int)mesh.size(); ll++) {
+    stateBlocks[ll] = procBlock(state, mesh[ll], ll, numGhost, inputVars.EquationSet());
     stateBlocks[ll].AssignGhostCellsGeom();
   }
 
@@ -91,9 +91,9 @@ int main( int argc, char *argv[] ) {
 
   //preallocate vectors for old solution and solution correction
   //outermost vector for blocks, inner vector for cell is blocks, colMatrix for variables in cell
-  vector<vector<colMatrix> > solTimeN(mesh.NumBlocks());
-  vector<vector<colMatrix> > solDeltaNm1(mesh.NumBlocks());
-  vector<vector<colMatrix> > du(mesh.NumBlocks());
+  vector<vector<colMatrix> > solTimeN(mesh.size());
+  vector<vector<colMatrix> > solDeltaNm1(mesh.size());
+  vector<vector<colMatrix> > du(mesh.size());
 
   //initialize residual variables
   int locMaxB = 0; //block with max residual
@@ -116,7 +116,7 @@ int main( int argc, char *argv[] ) {
 
     for ( int mm = 0; mm < inputVars.NonlinearIterations(); mm++ ){    //loop over nonlinear iterations
 
-      for ( int bb = 0; bb < mesh.NumBlocks(); bb++ ){             //loop over number of blocks
+      for ( int bb = 0; bb < (int)mesh.size(); bb++ ){             //loop over number of blocks
 
 	//initialize implicit matrix
 	if (implicitFlag){
@@ -180,7 +180,7 @@ int main( int argc, char *argv[] ) {
       //after update for all blocks has been calculated and stored, update all blocks
       //blocks cannot be updated within block loop because ghost cells for connection boundaries are determined from adjacent blocks
       //this would result in the ghost cell being at time n+1 when it should be at time n
-      for ( int dd = 0; dd < mesh.NumBlocks(); dd++ ){             //loop over number of blocks
+      for ( int dd = 0; dd < (int)mesh.size(); dd++ ){             //loop over number of blocks
 
 	//update solution
 	stateBlocks[dd].UpdateBlock(inputVars, implicitFlag, eos, aRef, dd, du[dd], residL2, residLinf, locMaxB);

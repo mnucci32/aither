@@ -625,86 +625,8 @@ const vector<vector3d<double> > plot3dBlock::FaceCenterK() const {
 }
 
 //---------------------------------------------------------------------------------------------------------------//
-//plot 3d solution block constructor
-//constructor -- create a plot3d solution block when passed a plot3dblock
-plot3dQBlock::plot3dQBlock(const  plot3dBlock &singleBlock ):q1(singleBlock.NumI()*singleBlock.NumJ()*singleBlock.NumK()),
-                                                             q2(singleBlock.NumI()*singleBlock.NumJ()*singleBlock.NumK()),
-                                                             q3(singleBlock.NumI()*singleBlock.NumJ()*singleBlock.NumK()),
-                                                             q4(singleBlock.NumI()*singleBlock.NumJ()*singleBlock.NumK()),
-                                                             q5(singleBlock.NumI()*singleBlock.NumJ()*singleBlock.NumK()){
-             
-  numi = singleBlock.NumI();
-  numj = singleBlock.NumJ();
-  numk = singleBlock.NumK();
-  mach = 0.0;
-  alpha = 0.0;
-  Re = 0.0;
-  ti = 0.0;
-  int ii = 0;
-  int length = singleBlock.NumI()*singleBlock.NumJ()*singleBlock.NumK();
-  for(ii = 0; ii < length; ii++){
-    q1[ii] = 1.0;
-    q2[ii] = 2.0;
-    q3[ii] = 3.0;
-    q4[ii] = 4.0;
-    q5[ii] = 5.0;
-  }
-}
-
-//constructor for plot3dQBlock with no arguments
-plot3dQBlock::plot3dQBlock( ) {
-  numi = 1;
-  numj = 1;
-  numk = 1;
-  mach = 0.0;
-  alpha = 0.0;
-  Re = 0.0;
-  ti = 0.0;
-
-  vector<double> cons1(1,0);
-  vector<double> cons2(1,0);
-  vector<double> cons3(1,0);
-  vector<double> cons4(1,0);
-  vector<double> cons5(1,0);
-
-  q1 = cons1;
-  q2 = cons2;
-  q3 = cons3;
-  q4 = cons4;
-  q5 = cons5;
-}
-
-//---------------------------------------------------------------------------------------------------------------//
-//plot 3d mesh constructor, member functions
-//constructor -- assign the passed single plot3dBlock into the first position in the plot3dMesh
-plot3dMesh::plot3dMesh(const plot3dBlock &singleBlock ){
-  blocks.assign(1,singleBlock);
-}
-//constructor with no arguements
-plot3dMesh::plot3dMesh(){
-  plot3dBlock singleBlock;
-  blocks.assign(1,singleBlock);
-}
-//constructor with arugument for number of blocks
-plot3dMesh::plot3dMesh(int num){
-  plot3dBlock singleBlock;
-  blocks.assign(num,singleBlock);
-}
-
-//plot3dMesh member function that adds a single plot3d block to the end of the plot3dMesh
-void plot3dMesh::AddP3dBlock(const plot3dBlock &singleBlock) {
-  return blocks.push_back(singleBlock);
-}
-
-//plot3dMesh member function that replaces a single plot3d block with the block that is passed
-void plot3dMesh::ReplaceBlock(int index, const plot3dBlock &singleBlock) {
-  blocks[index]=singleBlock;
-  return;
-}
-
-//---------------------------------------------------------------------------------------------------------------//
 //function to read in a plot3d grid and assign it to a plot3dMesh data type
-plot3dMesh ReadP3dGrid(const string &gridName, double &numCells) {
+vector<plot3dBlock> ReadP3dGrid(const string &gridName, double &numCells) {
 
   //open binary plot3d grid file 
   ifstream fName;
@@ -714,7 +636,7 @@ plot3dMesh ReadP3dGrid(const string &gridName, double &numCells) {
 
   //check to see if file opened correctly
   if (fName.fail()) {
-    cerr << "ERROR: Grid file " << readName << " did not open correctly!!!" << endl;
+    cerr << "ERROR: Error in plot3d.cpp:ReadP3dGrid(). Grid file " << readName << " did not open correctly!!!" << endl;
     exit(0);
   }
 
@@ -726,76 +648,61 @@ plot3dMesh ReadP3dGrid(const string &gridName, double &numCells) {
 
   //read the number of i, j, k coordinates in each plot3d block
   cout << "Size of each block is..." << endl;
-  vector<int> vecI, vecJ, vecK;
+  vector<int> vecI(numBlks,0);
+  vector<int> vecJ(numBlks,0);
+  vector<int> vecK(numBlks,0);
   int tempInt = 0;
-  int ii = 0;
   numCells = 0;
-  for ( ii=0; ii < numBlks; ii++){
-  
-    if (ii==0){
-      cout << "Block Number: " << ii << "     ";
-      fName.read(reinterpret_cast<char *>(&tempInt), sizeof(tempInt));
-      vecI.assign(1,tempInt);
-      cout << "I-DIM: " << tempInt << "     ";
-      fName.read(reinterpret_cast<char *>(&tempInt), sizeof(tempInt));
-      vecJ.assign(1,tempInt);
-      cout << "J-DIM: " << tempInt << "     ";
-      fName.read(reinterpret_cast<char *>(&tempInt), sizeof(tempInt));
-      vecK.assign(1,tempInt);
-      cout << "K-DIM: " << tempInt << endl;
-    }
-    else {    
-      cout << "Block Number: " << ii << "     ";
-      fName.read(reinterpret_cast<char *>(&tempInt), sizeof(tempInt));
-      vecI.push_back(tempInt);
-      cout << "I-DIM: " << tempInt << "     ";
-      fName.read(reinterpret_cast<char *>(&tempInt), sizeof(tempInt));
-      vecJ.push_back(tempInt);
-      cout << "J-DIM: " << tempInt << "     ";
-      fName.read(reinterpret_cast<char *>(&tempInt), sizeof(tempInt));
-      vecK.push_back(tempInt);
-      cout << "K-DIM: " << tempInt << endl;
-    }
 
-    //calculate total number of cells
+  //loop over all blocks and fill i, j, k vectors with block sizes
+  for ( int ii=0; ii < numBlks; ii++){
+  
+    cout << "Block Number: " << ii << "     ";
+    fName.read(reinterpret_cast<char *>(&tempInt), sizeof(tempInt));
+    vecI[ii] = tempInt;
+    cout << "I-DIM: " << tempInt << "     ";
+    fName.read(reinterpret_cast<char *>(&tempInt), sizeof(tempInt));
+    vecJ[ii] = tempInt;
+    cout << "J-DIM: " << tempInt << "     ";
+    fName.read(reinterpret_cast<char *>(&tempInt), sizeof(tempInt));
+    vecK[ii] = tempInt;
+    cout << "K-DIM: " << tempInt << endl;
+
+    //calculate total number of cells (subtract 1 because number of cells is 1 less than number of points)
     numCells += (vecI[ii] - 1) * (vecJ[ii] - 1) * (vecK[ii] - 1);
 
   }
   cout << endl;
 
-  //read each block and add it to the plot3dMesh
+  //read each block and add it to the vector of plot3dBlocks
   double tempDouble=0;
-  vector<double> tempX, tempY, tempZ;
-  plot3dMesh mesh(numBlks);
+  vector<plot3dBlock> mesh(numBlks);
 
-  for ( ii=0; ii < numBlks; ii++){
+  for ( int ii=0; ii < numBlks; ii++){
   
     int size = vecI[ii]*vecJ[ii]*vecK[ii];
-    tempX.assign(size,0);
-    tempY.assign(size,0);
-    tempZ.assign(size,0);
+    vector<double> tempX(size,0.0);
+    vector<double> tempY(size,0.0);
+    vector<double> tempZ(size,0.0);
 
-    int jj = 0;
-
-    for (jj=0; jj < size; jj++){
+    for (int jj=0; jj < size; jj++){
       fName.read(reinterpret_cast<char *>(&tempDouble), sizeof(tempDouble));
       tempX[jj] = tempDouble;
     }
-    for (jj=0; jj < size; jj++){
+    for (int jj=0; jj < size; jj++){
       fName.read(reinterpret_cast<char *>(&tempDouble), sizeof(tempDouble));
       tempY[jj] = tempDouble;
     }
-    for (jj=0; jj < size; jj++){
+    for (int jj=0; jj < size; jj++){
       fName.read(reinterpret_cast<char *>(&tempDouble), sizeof(tempDouble));
       tempZ[jj] = tempDouble;
     }
 
+    //create single plot3dBlock and assign it appropriate location in vector
     plot3dBlock singleBlock(vecI[ii],vecJ[ii],vecK[ii],tempX,tempY,tempZ);
-
-    mesh.ReplaceBlock(ii,singleBlock);
+    mesh[ii] = singleBlock;
 
     cout << "Block " << ii << " read" << endl;
-
   }
 
   cout << endl << "Grid file read" << endl;
@@ -807,108 +714,23 @@ plot3dMesh ReadP3dGrid(const string &gridName, double &numCells) {
   return mesh;
 }
 
-
-//---------------------------------------------------------------------------------------------------------------//
-//plot 3d solution mesh constructor, member functions
-//constructor -- create a plot3d solution mesh from a passed plot3d mesh
-plot3dQMesh::plot3dQMesh(const plot3dMesh &mesh ):qblocks(mesh.NumBlocks()){
-  int ii = 0;
-  for (ii = 0; ii< mesh.NumBlocks(); ii++){
-    cout << "writing solution block " << ii << endl;
-    qblocks[ii] = plot3dQBlock(mesh.Blocks(ii));
-  }
-}
-
-//member function to write data to a file
-void plot3dQMesh::WriteData() const {
-
-  string solName = "sol.q";
-
-  ofstream outFile;
-  outFile.precision(16);
-  outFile.open(solName.c_str(), ios::out | ios::binary);
-
-  //write number of blocks to file
-  int numBlks = (*this).QBlocks().size();
-  outFile.write(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
-
-  //write i, j, k dimension for each block
-  int ll = 0;
-  int dumInt = 0;
-  for ( ll=0; ll < numBlks; ll++ ){
-    dumInt = (*this).QBlocks()[ll].NumI();
-    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-    dumInt = (*this).QBlocks()[ll].NumJ();
-    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-    dumInt = (*this).QBlocks()[ll].NumK();
-    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-  }
-
-
-  int q = 0;
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-  double mach = 0.0;
-  double alpha = 0.0;
-  double Re = 0.0;
-  double ti = 0.0;
-  int maxi = 0;
-  int maxj = 0;
-  int maxk = 0;
-  double dumDouble = 0.0;
-
-
-  for ( ll=0; ll < numBlks; ll++ ){
-      mach = (*this).QBlocks()[ll].Mach();
-      alpha = (*this).QBlocks()[ll].Alpha();
-      Re = (*this).QBlocks()[ll].Reynolds();
-      ti = (*this).QBlocks()[ll].Ti();
-
-      outFile.write(reinterpret_cast<char *>(&mach), sizeof(mach));
-      outFile.write(reinterpret_cast<char *>(&alpha), sizeof(alpha));
-      outFile.write(reinterpret_cast<char *>(&Re), sizeof(Re));
-      outFile.write(reinterpret_cast<char *>(&ti), sizeof(ti));
-
-      maxi = (*this).QBlocks()[ll].NumI();
-      maxj = (*this).QBlocks()[ll].NumJ();
-      maxk = (*this).QBlocks()[ll].NumK();
-  for ( q=0; q < 5; q++ ) {  
-    for ( kk=0; kk < maxk; kk++ ){
-        for ( jj = 0; jj < maxj; jj++ ){
-          for ( ii = 0; ii < maxi; ii++ ){
-            //write out q-data
-            dumDouble = q + 1.0;
-            outFile.write(reinterpret_cast<char *>(&dumDouble), sizeof(dumDouble));
-          }
-        }
-      }
-    }
-  }
-
-  outFile.close();
-
-}
-
-
 //function to take in imax, jmax, kmax, and vector index and return the i, j, k indices of that cell
 vector3d<int> GetIJK(const int &imax, const int &jmax, const int &kmax, const int &index){
 
   vector3d<int> ijk;
-  int ii = 0;
-  int jj = 0;
-  int kk = 0;
-  int loc = 0;
-  int breakFlag = 0;
-  for ( kk = 0; kk < kmax; kk++ ){
-    for ( jj = 0; jj < jmax; jj++ ){
-      for ( ii = 0; ii < imax; ii++ ){
-	loc = ii + jj*imax + kk*imax*jmax;
+  bool breakFlag = false;
+
+  //Loop over all possible i, j, k combinations. When calculated index matches given index, i, j, k location
+  //is found. Once found, break out of loops and return
+  for ( int kk = 0; kk < kmax; kk++ ){
+    for ( int jj = 0; jj < jmax; jj++ ){
+      for ( int ii = 0; ii < imax; ii++ ){
+        int loc = GetLoc1D(ii, jj, kk, imax, jmax); 
 	if ( loc == index ){
 	  ijk.SetX(ii);
 	  ijk.SetY(jj);
 	  ijk.SetZ(kk);
-	  breakFlag = 1;
+	  breakFlag = true;
 	  break;
 	}
       }
@@ -917,12 +739,28 @@ vector3d<int> GetIJK(const int &imax, const int &jmax, const int &kmax, const in
     if (breakFlag) break;
   }
 
-
   return ijk;
 }
 
 //------------------------------------------------------------------------------------------------------------------
 //functions to take in i, j, k indexes of a cell and return the 1D index of the face belonging to that cell
+/*
+    _________________________________________
+    |         |         |          |         |
+    |         |         |          |         |
+    |   Ui-1  |   Ui    |   Ui+1   |   Ui+2  |  
+    |         |         |          |         |
+    |         |         |          |         |
+    |_________|_________|__________|_________|
+  Ui-1       Ui       Ui+1       Ui+2      Ui+3            
+
+If the given i, j, k indices correspond to the location of cell Ui, the GetUpper functions will return the index of
+the face at face location Ui+1 and the GetLower functions will return the index of the face at face location Ui.
+
+The default is the return the index of the adjacent face, but this can be changed by supplying the last argument (num) to
+the function.
+
+*/
 //function to take in i, j, k indexes of a cell and return the 1D index of the face in the upper i-direction
 int GetUpperFaceI(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   return i+1+(num-1) + j*(imax+1) + k*(imax+1)*jmax; 
@@ -950,6 +788,26 @@ int GetLowerFaceK(const int &i, const int &j, const int &k, const int &imax, con
 
 //-------------------------------------------------------------------------------------------------------------------
 //functions to take in i, j, k indexes of a cell/face and return the 1D index of the neighbor cell/face
+/*
+    _________________________________________
+    |         |         |          |         |
+    |         |         |          |         |
+    |   Ui-1  |   Ui    |   Ui+1   |   Ui+2  |  
+    |         |         |          |         |
+    |         |         |          |         |
+    |_________|_________|__________|_________|
+  Ui-1       Ui       Ui+1       Ui+2      Ui+3            
+
+If the given i, j, k indices correspond to the location of cell Ui, the GetUpper functions will return the index of
+the cell at location Ui+1 and the GetLower functions will return the index of the cell at location Ui-1.
+
+If the given i, j, k indices correspond to the location of face Ui, the GetUpper functions will return the index of
+the face at location Ui+1 and the GetLower functions will return the index of the face at location Ui-1.
+
+The default is to return the index of the adjacent neighbor, but this can be changed by supplying the last argument (num) to
+the function.
+
+*/
 //function to take in i, j, k indexes of a cell/face and return the 1D index of the neighbor cell/face to the lower i face
 int GetNeighborLowI(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   return i-num + j*imax + k*imax*jmax;
@@ -977,6 +835,23 @@ int GetNeighborUpK(const int &i, const int &j, const int &k, const int &imax, co
 
 //------------------------------------------------------------------------------------------------------------------------------
 //functions to take in i, j, k, imax, jmax of a face and return the 1D index of the neighbor cell
+/*
+    _________________________________________
+    |         |         |          |         |
+    |         |         |          |         |
+    |   Ui-1  |   Ui    |   Ui+1   |   Ui+2  |  
+    |         |         |          |         |
+    |         |         |          |         |
+    |_________|_________|__________|_________|
+  Ui-1       Ui       Ui+1       Ui+2      Ui+3            
+
+If the given i, j, k indices correspond to the location of face Ui, the GetUpper functions will return the index of
+the cell at location Ui and the GetLower functions will return the index of the cell at location Ui-1.
+
+The default is to return the index of the adjacent cell, but this can be changed by supplying the last argument (num) to
+the function.
+
+*/
 //function to take in i, j, k indexes of a k-face and return the 1D index of the neighbor cell in the lower k direction
 int GetCellFromFaceLowerK(const int &i, const int &j, const int &k, const int &imax, const int &jmax, int num){
   return i + j*imax + (k-1-(num-1))*imax*jmax;
@@ -1002,65 +877,13 @@ int GetCellFromFaceUpperI(const int &i, const int &j, const int &k, const int &i
   return (i-1+num) + j*(imax-1) + k*(imax-1)*jmax;
 }
 
-
 //function to take in i, j, k, imax, jmax and return corresponding location inside 1D array
 int GetLoc1D(const int &i, const int &j, const int &k, const int &imax, const int &jmax){
   return i + j*imax + k*imax*jmax;
 }
 
-//function to take in the 1D index of a cell and return the 1D index of the upper i diagonal to place the flux jacobian for the implicit matrix
-int GetMatrixDiagUpperFromMainI(const int &main){
-  return main - 1;
-}
-//function to take in the 1D index of a cell and return the 1D index of the lower i diagonal to place the flux jacobian for the implicit matrix
-int GetMatrixDiagLowerFromMainI(const int &main){
-  return main + 1;
-}
-//function to take in the 1D index of a cell and return the 1D index of the upper j diagonal to place the flux jacobian for the implicit matrix
-int GetMatrixDiagUpperFromMainJ(const int &main, const int &imax){
-  return main - imax;
-}
-//function to take in the 1D index of a cell and return the 1D index of the lower j diagonal to place the flux jacobian for the implicit matrix
-int GetMatrixDiagLowerFromMainJ(const int &main, const int &imax){
-  return main + imax;
-}
-//function to take in the 1D index of a cell and return the 1D index of the upper k diagonal to place the flux jacobian for the implicit matrix
-int GetMatrixDiagUpperFromMainK(const int &main, const int &imax, const int &jmax){
-  return main - imax*jmax;
-}
-//function to take in the 1D index of a cell and return the 1D index of the lower k diagonal to place the flux jacobian for the implicit matrix
-int GetMatrixDiagLowerFromMainK(const int &main, const int &imax, const int &jmax){
-  return main + imax*jmax;
-}
-
-
-//function to take in 1D index of a cell and return the 1D index of the upper i diagonal (in the same equation row) for the implicit matrix
-int GetDiagPosUpperI(const int &main){
-  return main + 1;
-}
-//function to take in 1D index of a cell and return the 1D index of the lower i diagonal (in the same equation row) for the implicit matrix
-int GetDiagPosLowerI(const int &main){
-  return main - 1;
-}
-//function to take in 1D index of a cell and return the 1D index of the upper j diagonal (in the same equation row) for the implicit matrix
-int GetDiagPosUpperJ(const int &main, const int &imax){
-  return main + imax;
-}
-//function to take in 1D index of a cell and return the 1D index of the lower j diagonal (in the same equation row) for the implicit matrix
-int GetDiagPosLowerJ(const int &main, const int &imax){
-  return main - imax;
-}
-//function to take in 1D index of a cell and return the 1D index of the upper k diagonal (in the same equation row) for the implicit matrix
-int GetDiagPosUpperK(const int &main, const int &imax, const int &jmax){
-  return main + imax*jmax;
-}
-//function to take in 1D index of a cell and return the 1D index of the lower k diagonal (in the same equation row) for the implicit matrix
-int GetDiagPosLowerK(const int &main, const int &imax, const int &jmax){
-  return main - imax*jmax;
-}
-
-
 //function to take in j, j, k indexes of a cell and the diagonal label, and determine if the matrix should have data at the cell
+//NOT currently USED, but useful for debugging
 bool IsMatrixData(const int &i, const int &j, const int &k, const int &imax, const int &jmax, const int &kmax, const string &label){
 
   bool isData;
@@ -1122,9 +945,12 @@ bool IsMatrixData(const int &i, const int &j, const int &k, const int &imax, con
 }
 
 //function to reorder the block by hyperplanes
+/*A hyperplane is a plane of i+j+k=constant within an individual block. The LUSGS solver must sweep along these hyperplanes to avoid
+calculating a flux jacobian. Ex. The solver must visit all points on hyperplane 1 before visiting any points on hyperplane 2.
+*/
 vector<vector3d<int> > HyperplaneReorder( const int &imax, const int &jmax, const int &kmax){
 
-  int numPlanes = imax + jmax + kmax - 2;
+  int numPlanes = imax + jmax + kmax - 2; //total number of hyperplanes in a given block
   vector<vector3d<int> > reorder(imax*jmax*kmax);
 
   int count = 0;
@@ -1132,7 +958,7 @@ vector<vector3d<int> > HyperplaneReorder( const int &imax, const int &jmax, cons
     for ( int kk = 0; kk < kmax; kk++ ){
       for ( int jj = 0; jj < jmax; jj++ ){
 	for ( int ii = 0; ii < imax; ii++ ){
-	  if ( ii+jj+kk == pp){
+	  if ( ii+jj+kk == pp){ //if sum of ii, jj, and kk equals pp than point is on hyperplane pp
 	    vector3d<int> loc(ii,jj,kk);
 	    reorder[count] = loc;
 	    count++;
