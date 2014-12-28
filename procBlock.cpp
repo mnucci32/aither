@@ -16,7 +16,7 @@ using std::to_string;
 using std::max;
 using std::min;
 
-//constructors
+//constructors for procBlock class
 procBlock::procBlock(){
   numCells = 1;
   numVars = 5;
@@ -61,12 +61,18 @@ procBlock::procBlock(){
 }
 //constructor -- initialize state vector with dummy variables
 procBlock::procBlock(const plot3dBlock &blk, const int& numBlk, const int &numG, const string &eqnSet){
-  numI = blk.NumI()-1;
+  // blk -- plot3d block of which this procBlock is a subset of
+  // numBlk -- the block number of blk (the parent block)
+  // numG -- number of ghost cells
+  // eqnSet -- which equation set is being solved
+
+  numI = blk.NumI()-1; //i, j, k dimensions are cell-based so subtract 1
   numJ = blk.NumJ()-1;
   numK = blk.NumK()-1;
   numCells = numI * numJ * numK;
   numGhosts = numG;
   parBlock = numBlk;
+  //parent block start/end are face/node based (subtract 1 from blk.Num b/c start at 0)
   parBlockStartI = 0;
   parBlockEndI = numI;
   parBlockStartJ = 0;
@@ -88,6 +94,7 @@ procBlock::procBlock(const plot3dBlock &blk, const int& numBlk, const int &numG,
   singleResid.Zero();
   vector<colMatrix> dummyResid(numCells, singleResid);
 
+  //pad stored variable vectors with ghost cells
   state = PadWithGhosts( dummyState, numGhosts, numI, numJ, numK );      
 
   vol = PadWithGhosts( blk.Volume(), numGhosts, numI, numJ, numK );
@@ -107,12 +114,21 @@ procBlock::procBlock(const plot3dBlock &blk, const int& numBlk, const int &numG,
 
 //constructor -- assign passed variables to initialize state vector
 procBlock::procBlock( const double density, const double pressure, const vector3d<double> vel, const plot3dBlock &blk, const int &numBlk, const int &numG, const string &eqnSet){
+  // density -- density to initialize block with
+  // pressure -- pressure to initialize block with
+  // vel -- velocity to initialize block with
+  // blk -- plot3d block of which this procBlock is a subset of
+  // numBlk -- the block number of blk (the parent block)
+  // numG -- number of ghost cells
+  // eqnSet -- which equation set is being solved
+
   numI = blk.NumI()-1;
   numJ = blk.NumJ()-1;
   numK = blk.NumK()-1;
   numCells = numI * numJ * numK;
   numGhosts = numG;
   parBlock = numBlk;
+  //parent block start/end are face/node based (subtract 1 from blk.Num b/c start at 0)
   parBlockStartI = 0;
   parBlockEndI = numI;
   parBlockStartJ = 0;
@@ -135,6 +151,7 @@ procBlock::procBlock( const double density, const double pressure, const vector3
   singleResid.Zero();
   vector<colMatrix> dummyResid(numCells, singleResid);
 
+  //pad stored variable vectors with ghost cells
   state = PadWithGhosts( dummyState, numGhosts, numI, numJ, numK );      
 
   vol = PadWithGhosts( blk.Volume(), numGhosts, numI, numJ, numK );
@@ -149,17 +166,23 @@ procBlock::procBlock( const double density, const double pressure, const vector3
   avgWaveSpeed = dummyScalar;
   dt = dummyScalar;
   residual = dummyResid;
-
 }
 
 //constructor -- assign passed state to initialize state vector
 procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const int &numBlk, const int &numG, const string &eqnSet){
+  // inputState -- state to initialize block with (primative)
+  // blk -- plot3d block of which this procBlock is a subset of
+  // numBlk -- the block number of blk (the parent block)
+  // numG -- number of ghost cells
+  // eqnSet -- which equation set is being solved
+
   numI = blk.NumI()-1;
   numJ = blk.NumJ()-1;
   numK = blk.NumK()-1;
   numCells = numI * numJ * numK;
   numGhosts = numG;
   parBlock = numBlk;
+  //parent block start/end are face/node based (subtract 1 from blk.Num b/c start at 0)
   parBlockStartI = 0;
   parBlockEndI = numI;
   parBlockStartJ = 0;
@@ -181,6 +204,7 @@ procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const 
   singleResid.Zero();
   vector<colMatrix> dummyResid(numCells, singleResid);
 
+  //pad stored variable vectors with ghost cells
   state = PadWithGhosts( dummyState, numGhosts, numI, numJ, numK );      
 
   vol = PadWithGhosts( blk.Volume(), numGhosts, numI, numJ, numK );
@@ -195,11 +219,13 @@ procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const 
   avgWaveSpeed = dummyScalar;
   dt = dummyScalar;
   residual = dummyResid;
-
 }
 
-//member function to store the inviscid flux class in the place for the residual
+//member function to add a member of the inviscid flux class to the residual
 void procBlock::AddToResidual(const inviscidFlux &flux, const int &ii){
+  // flux -- inviscid flux to add to residual
+  // ii -- location of residual to add to
+
   colMatrix temp(5);
   temp.SetData(0, flux.RhoVel());
   temp.SetData(1, flux.RhoVelU());
@@ -210,8 +236,11 @@ void procBlock::AddToResidual(const inviscidFlux &flux, const int &ii){
   (*this).SetResidual( (*this).Residual(ii) + temp, ii); 
 }
 
-//member function to store the viscous flux class in the place for the residual
+//member function to add a member of the viscous flux class to the residual
 void procBlock::AddToResidual(const viscousFlux &flux, const int &ii){
+  // flux -- inviscid flux to add to residual
+  // ii -- location of residual to add to
+
   colMatrix temp(5);
   temp.SetData(0, 0.0);
   temp.SetData(1, flux.MomX());
@@ -224,42 +253,76 @@ void procBlock::AddToResidual(const viscousFlux &flux, const int &ii){
 
 //---------------------------------------------------------------------------------------------------------------//
 //function declarations
-//function to calculate the fluxes on the i-faces
-void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
 
-  int imax = (*this).NumI() + 1;
+/* Function to calculate the inviscid fluxes on the i-faces. All phyiscal (non-ghost) i-faces are looped over. The
+left and right states are calculated, and then the flux at the face is calculated. The flux at the face contributes
+to the residual of the cells to the left and right of the face. This contribution from the flux is added to the 
+residuals and the wave speed is accumulated as well.
+
+  ___________________________
+  |            |            |
+  |            |            |
+  |   Ui       -->   Ui+1   |
+  |            |            |
+  |____________|____________|
+Ui-1/2       Ui+1/2       Ui+3/2
+
+Using the above diagram, the flux is calculated at face Ui+1/2. Since the area vector at the face always points from
+lower indices to higher indices it points from Ui to Ui+1. For the residual calculation the convention is for the area
+vector to point out of the cell. Therefore it is in the correct position for the residual at Ui, but the sign needs to 
+be flipped when adding the contribution of the flux to the residual at Ui+1. 
+
+The spectral radius in the i-direction is also calculated. Since this is done on a cell basis instead of a face bases, it
+is only calculated for the upper cell (Ui+1 in this case). The spectral radius is added to the average wave speed variable
+and is eventually used in the time step calculation if the time step isn't explicitly specified.
+*/
+void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
+  // eqnState -- equation of state
+  // inp -- all input variables
+
+  //max dimensions for vectors without ghost cells
+  int imax = (*this).NumI() + 1; //calculating fluxes on i-faces so one more face in i-direction
   int jmax = (*this).NumJ();
   int kmax = (*this).NumK();
 
-  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts() + 1;
+  //max dimensions for vectors with ghost cells
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts() + 1; //calculating fluxes on i-faces so one more face in i-direction
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
   double maxWS = 0.0;
   primVars faceStateLower,faceStateUpper;
 
-  //loop over all physical cells
+  //loop over all physical faces
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
     for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
       for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
 
-	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
-	int lowerING = GetCellFromFaceLowerI(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
+	//location of current face (with ghost cells included)
+	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG); 
+
+	//location of lower and upper i-faces (without ghost cells included)
+	int lowerING = GetCellFromFaceLowerI(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax); 
 	int upperING = GetCellFromFaceUpperI(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
+
+	//location of cells in the lower and upper i-direction from current face (with ghost cells included)
 	int lowerI = GetCellFromFaceLowerI(ii, jj, kk, imaxG, jmaxG);
 	int upperI = GetCellFromFaceUpperI(ii, jj, kk, imaxG, jmaxG);
 	int lower2I = GetCellFromFaceLowerI(ii, jj, kk, imaxG, jmaxG, 2);
 	int upper2I = GetCellFromFaceUpperI(ii, jj, kk, imaxG, jmaxG, 2);
+
+	//location of facess in the lower and upper i-direction from current face (with ghost cells included)
 	int upFaceI = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG);
 	int upFace2I = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG, 2);
 	int lowFaceI = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG);
 	int lowFace2I = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG, 2);
 
-	if (inp.Kappa() == -2.0){  //if value is still default, use constant reconstruction
+	if (inp.Kappa() == -2.0){  //if value is still default, use constant reconstruction (first order)
 	  faceStateLower = (*this).State( lowerI ).FaceReconConst();
 	  faceStateUpper = (*this).State( upperI ).FaceReconConst();
 	}
-	else{
+	else{ //second order accuracy -- use MUSCL extrapolation
 
+	  //length of second upwind, first upwind, and downwind cells in i-direction
 	  double upwind2L =  (*this).FCenterI( lowFaceI ).Distance( (*this).FCenterI( lowFace2I ) );
 	  double upwindL =   (*this).FCenterI( loc      ).Distance( (*this).FCenterI( lowFaceI ) );
 	  double downwindL = (*this).FCenterI( loc      ).Distance( (*this).FCenterI( upFaceI ) );
@@ -267,6 +330,7 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
 	  faceStateLower = (*this).State( lowerI ).FaceReconMUSCL( (*this).State( lower2I ), (*this).State( upperI ),
 								   inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL );
 
+	  //length of second upwind, first upwind, and downwind cells in i-direction
 	  double upwind2U =  (*this).FCenterI( upFaceI ).Distance( (*this).FCenterI( upFace2I ) );
 	  double upwindU =   (*this).FCenterI( loc     ).Distance( (*this).FCenterI( upFaceI ) );
 	  double downwindU = (*this).FCenterI( loc     ).Distance( (*this).FCenterI( lowFaceI ) );
@@ -276,15 +340,17 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
 
 	}
 
+	//calculate Roe flux at face
 	inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS);
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
-	if ( ii > (*this).NumGhosts() ){
+	if ( ii > (*this).NumGhosts() ){ //at left boundary there is no left cell to add to
 	  (*this).AddToResidual( tempFlux * (*this).FAreaI(loc).Mag(), lowerING);
 	}
-	if ( ii < imax - 1 + (*this).NumGhosts() ){
+	if ( ii < imax - 1 + (*this).NumGhosts() ){ //at right boundary there is no right cell to add to
 	  (*this).AddToResidual( -1.0 * tempFlux * (*this).FAreaI(loc).Mag(), upperING);
-	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
+
+	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the upper faces
 	  maxWS = CellSpectralRadius( (*this).FAreaI(loc), (*this).FAreaI(upFaceI), (*this).State(upperI), eqnState );
 	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperING) + maxWS, upperING);
 	}
@@ -295,42 +361,75 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
 
 }
 
-//function to calculate the fluxes on the j-faces
-void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp){
+/* Function to calculate the inviscid fluxes on the j-faces. All phyiscal (non-ghost) j-faces are looped over. The
+left and right states are calculated, and then the flux at the face is calculated. The flux at the face contributes
+to the residual of the cells to the left and right of the face. This contribution from the flux is added to the 
+residuals and the wave speed is accumulated as well.
 
+  ___________________________
+  |            |            |
+  |            |            |
+  |   Uj       -->   Uj+1   |
+  |            |            |
+  |____________|____________|
+Uj-1/2       Uj+1/2       Uj+3/2
+
+Using the above diagram, the flux is calculated at face Uj+1/2. Since the area vector at the face always points from
+lower indices to higher indices it points from Uj to Uj+1. For the residual calculation the convention is for the area
+vector to point out of the cell. Therefore it is in the correct position for the residual at Uj, but the sign needs to 
+be flipped when adding the contribution of the flux to the residual at Uj+1. 
+
+The spectral radius in the j-direction is also calculated. Since this is done on a cell basis instead of a face bases, it
+is only calculated for the upper cell (Uj+1 in this case). The spectral radius is added to the average wave speed variable
+and is eventually used in the time step calculation if the time step isn't explicitly specified.
+*/
+void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp){
+  // eqnState -- equation of state
+  // inp -- all input variables
+
+  //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
-  int jmax = (*this).NumJ() + 1;
+  int jmax = (*this).NumJ() + 1; //calculating fluxes on i-faces so one more face in j-direction
   int kmax = (*this).NumK();
 
+  //max dimensions for vectors with ghost cells
   int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
-  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts() + 1;
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts() + 1; //calculating fluxes on i-faces so one more face in j-direction
 
   double maxWS = 0.0;
   primVars faceStateLower, faceStateUpper;
 
-  //loop over all physical cells
+  //loop over all physical faces
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
     for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
       for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
 
+	//location of current face (with ghost cells included)
 	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
+
+	//location of lower and upper j-faces (without ghost cells included)
 	int lowerJNG = GetCellFromFaceLowerJ(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 	int upperJNG = GetCellFromFaceUpperJ(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
+
+	//location of cells in the lower and upper j-direction from current face (with ghost cells included)
 	int lowerJ = GetCellFromFaceLowerJ(ii, jj, kk, imaxG, jmaxG);
 	int upperJ = GetCellFromFaceUpperJ(ii, jj, kk, imaxG, jmaxG);
 	int lower2J = GetCellFromFaceLowerJ(ii, jj, kk, imaxG, jmaxG, 2);
 	int upper2J = GetCellFromFaceUpperJ(ii, jj, kk, imaxG, jmaxG, 2);
+
+	//location of facess in the lower and upper j-direction from current face (with ghost cells included)
 	int upFaceJ = GetNeighborUpJ(ii, jj, kk, imaxG, jmaxG);
 	int upFace2J = GetNeighborUpJ(ii, jj, kk, imaxG, jmaxG, 2);
 	int lowFaceJ = GetNeighborLowJ(ii, jj, kk, imaxG, jmaxG);
 	int lowFace2J = GetNeighborLowJ(ii, jj, kk, imaxG, jmaxG, 2);
 
-	if ( inp.Kappa() == -2.0 ){                         //if value is still default, use constant reconstruction
+	if ( inp.Kappa() == -2.0 ){ //if value is still default, use constant reconstruction (first order)
 	  faceStateLower = (*this).State( lowerJ ).FaceReconConst();
 	  faceStateUpper = (*this).State( upperJ ).FaceReconConst();
 	}
-	else{
+	else{ //second order accuracy -- use MUSCL extrapolation
 
+	  //length of second upwind, first upwind, and downwind cells in j-direction
 	  double upwind2L =  (*this).FCenterJ( lowFaceJ ).Distance( (*this).FCenterJ( lowFace2J ) );
 	  double upwindL =   (*this).FCenterJ( loc      ).Distance( (*this).FCenterJ( lowFaceJ ) );
 	  double downwindL = (*this).FCenterJ( loc      ).Distance( (*this).FCenterJ( upFaceJ ) );
@@ -338,6 +437,7 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp){
 	  faceStateLower = (*this).State( lowerJ ).FaceReconMUSCL( (*this).State( lower2J ),
 								   (*this).State( upperJ ), inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL );
 
+	  //length of second upwind, first upwind, and downwind cells in j-direction
 	  double upwind2U =  (*this).FCenterJ( upFaceJ ).Distance( (*this).FCenterJ( upFace2J ) );
 	  double upwindU =   (*this).FCenterJ( loc     ).Distance( (*this).FCenterJ( upFaceJ ) );
 	  double downwindU = (*this).FCenterJ( loc     ).Distance( (*this).FCenterJ( lowFaceJ ) );
@@ -346,15 +446,17 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp){
 								   (*this).State( lowerJ ), inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU );
 	}
 
+	//calculate Roe flux at face
 	inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS);
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
-	if ( jj > (*this).NumGhosts() ){
+	if ( jj > (*this).NumGhosts() ){ //at left boundary no left cell to add to
 	  (*this).AddToResidual( tempFlux * (*this).FAreaJ(loc).Mag(), lowerJNG);
 	}
-	if ( jj < jmax - 1 + (*this).NumGhosts() ){
+	if ( jj < jmax - 1 + (*this).NumGhosts() ){ //at right boundary no right cell to add to
 	  (*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaJ(loc).Mag(), upperJNG);
-	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
+
+	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the upper faces
 	  maxWS = CellSpectralRadius( (*this).FAreaJ(loc), (*this).FAreaJ(upFaceJ), (*this).State(upperJ), eqnState );
 	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperJNG) + maxWS, upperJNG);
 	}
@@ -365,13 +467,38 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp){
 
 }
 
-//function to calculate the fluxes on the k-faces
-void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp){
+/* Function to calculate the inviscid fluxes on the k-faces. All phyiscal (non-ghost) k-faces are looped over. The
+left and right states are calculated, and then the flux at the face is calculated. The flux at the face contributes
+to the residual of the cells to the left and right of the face. This contribution from the flux is added to the 
+residuals and the wave speed is accumulated as well.
 
+  ___________________________
+  |            |            |
+  |            |            |
+  |   Uk       -->   Uk+1   |
+  |            |            |
+  |____________|____________|
+Uk-1/2       Uk+1/2       Uk+3/2
+
+Using the above diagram, the flux is calculated at face Uk+1/2. Since the area vector at the face always points from
+lower indices to higher indices it points from Uk to Uk+1. For the residual calculation the convention is for the area
+vector to point out of the cell. Therefore it is in the correct position for the residual at Uk, but the sign needs to 
+be flipped when adding the contribution of the flux to the residual at Uk+1. 
+
+The spectral radius in the k-direction is also calculated. Since this is done on a cell basis instead of a face bases, it
+is only calculated for the upper cell (Uk+1 in this case). The spectral radius is added to the average wave speed variable
+and is eventually used in the time step calculation if the time step isn't explicitly specified.
+*/
+void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp){
+  // eqnState -- equation of state
+  // inp -- all input variables
+
+  //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
   int jmax = (*this).NumJ();
-  int kmax = (*this).NumK() + 1;
+  int kmax = (*this).NumK() + 1; //calculating fluxes on i-faces so one more face in k-direction
 
+  //max dimensions for vectors without ghost cells
   int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
@@ -382,24 +509,32 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp){
     for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
       for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
 
+	//location of current face (with ghost cells included)
 	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
+
+	//location of lower and upper k-faces (without ghost cells included)
 	int lowerKNG = GetCellFromFaceLowerK(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 	int upperKNG = GetCellFromFaceUpperK(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
+
+	//location of cells in the lower and upper k-direction from current face (with ghost cells included)
 	int lowerK = GetCellFromFaceLowerK(ii, jj, kk, imaxG, jmaxG);
 	int upper2K = GetCellFromFaceUpperK(ii, jj, kk, imaxG, jmaxG, 2);
 	int lower2K = GetCellFromFaceLowerK(ii, jj, kk, imaxG, jmaxG, 2);
 	int upperK = GetCellFromFaceUpperK(ii, jj, kk, imaxG, jmaxG);
+
+	//location of faces in the lower and upper k-direction from current face (with ghost cells included)
 	int upFaceK = GetNeighborUpK(ii, jj, kk, imaxG, jmaxG);
 	int upFace2K = GetNeighborUpK(ii, jj, kk, imaxG, jmaxG, 2);
 	int lowFaceK = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG);
 	int lowFace2K = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG, 2);
 
-	if ( inp.Kappa() == -2.0 ){                         //if value is still default, use constant reconstruction
+	if ( inp.Kappa() == -2.0 ){  //if value is still default, use constant reconstruction (first order)
 	  faceStateLower = (*this).State( lowerK ).FaceReconConst();
 	  faceStateUpper = (*this).State( upperK ).FaceReconConst();
 	}
-	else{
+	else{ //second order accuracy -- use MUSCL extrapolation
 
+	  //length of second upwind, first upwind, and downwind cells in j-direction
 	  double upwind2L =  (*this).FCenterK( lowFaceK ).Distance( (*this).FCenterK( lowFace2K ) );
 	  double upwindL =   (*this).FCenterK( loc      ).Distance( (*this).FCenterK( lowFaceK ) );
 	  double downwindL = (*this).FCenterK( loc      ).Distance( (*this).FCenterK( upFaceK ) );
@@ -407,6 +542,7 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp){
 	  faceStateLower = (*this).State( lowerK ).FaceReconMUSCL( (*this).State( lower2K ), (*this).State( upperK ),
 								   inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL );
 
+	  //length of second upwind, first upwind, and downwind cells in j-direction
 	  double upwind2U =  (*this).FCenterK( upFaceK ).Distance( (*this).FCenterK( upFace2K ) );
 	  double upwindU =   (*this).FCenterK( loc     ).Distance( (*this).FCenterK( upFaceK ) );
 	  double downwindU = (*this).FCenterK( loc     ).Distance( (*this).FCenterK( lowFaceK ) );
@@ -416,15 +552,17 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp){
 
 	}
 
+	//calculate Roe flux at face
 	inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaK(loc), maxWS);
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
-	if ( kk > (*this).NumGhosts() ){
+	if ( kk > (*this).NumGhosts() ){ //at left boundary no left cell to add to
 	  (*this).AddToResidual( tempFlux * (*this).FAreaK(loc).Mag(), lowerKNG);
 	}
-	if ( kk < kmax - 1 + (*this).NumGhosts() ){
+	if ( kk < kmax - 1 + (*this).NumGhosts() ){ //at right boundary no right cell to add to
 	  (*this).AddToResidual(-1.0 * tempFlux * (*this).FAreaK(loc).Mag(), upperKNG);
-	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the lower faces
+
+	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the upper faces
 	  maxWS = CellSpectralRadius( (*this).FAreaK(loc), (*this).FAreaK(upFaceK), (*this).State(upperK), eqnState );
 	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperKNG) + maxWS, upperKNG);
 	}
@@ -435,10 +573,24 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp){
 
 }
 
-//member function to calculate the local time step. (i,j,k) are cell indices
-void procBlock::CalcCellDt( const int &i, const int &j, const int &k, const double &cfl){
+/* Member function to calculate the local time step. (i,j,k) are cell indices. The following equation is used:
 
+dt = CFL * V / (Lci + Lcj + Lck + C * (Lvi + Lvj + Lvk)) (Blazek 6.18)
+
+In the above equation dt is the time step, CFL is the CFL number, V is the cell volume, Lci, Lcj, Lck are the 
+convective (inviscid) spectral radii in the i, j, and k directions, C is a constant (typical value b/w 1 and 4), and 
+Lvi, Lvj, Lvk are the viscous spectral radii. This function is only used when the time step isn't explicitly defined
+by the user.
+*/
+void procBlock::CalcCellDt( const int &i, const int &j, const int &k, const double &cfl){
+  // i -- i index of cell
+  // j -- j index of cell
+  // k -- k index of cell
+  // cfl -- cfl number
+
+  //location without ghost cells
   int loc = GetLoc1D(i, j, k, (*this).NumI(), (*this).NumJ());
+  //location with ghost cells
   int locG = GetLoc1D(i + (*this).NumGhosts(), j + (*this).NumGhosts(), k + (*this).NumGhosts()
 		      , (*this).NumI() + 2 * (*this).NumGhosts(), (*this).NumJ() + 2 * (*this).NumGhosts());
   double dt = cfl * ((*this).Vol(locG) / (*this).AvgWaveSpeed(loc)) ; //use nondimensional time
@@ -447,9 +599,15 @@ void procBlock::CalcCellDt( const int &i, const int &j, const int &k, const doub
 
 }
 
-
+/* Member function to calculate the time step for all cells in the procBlock. If the time step is user specified
+assign that time step (after nondimensionalization) to dt variable. If time step is to be determined using CFL
+number, call function to do so.
+*/
 void procBlock::CalcBlockTimeStep( const input &inputVars, const double &aRef){
+  // inputVars -- all input variables
+  // aRef -- reference speed of sound (used for time non dimensionalization)
 
+  //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
   int jmax = (*this).NumJ();
   int kmax = (*this).NumK();
@@ -459,7 +617,7 @@ void procBlock::CalcBlockTimeStep( const input &inputVars, const double &aRef){
     for ( int jj = 0; jj < jmax; jj++ ){          
       for ( int ii = 0; ii < imax; ii++ ){          
 
-	int loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	int loc = GetLoc1D(ii, jj, kk, imax, jmax); //current cell location
 
 	if (inputVars.Dt() > 0.0){   //dt specified, use global time stepping
 	  (*this).SetDt(inputVars.Dt() * aRef, loc);
@@ -478,59 +636,76 @@ void procBlock::CalcBlockTimeStep( const input &inputVars, const double &aRef){
 
 }
 
-void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const idealGas &eos, const double &aRef, const int &bb, const vector<colMatrix> &du, colMatrix &l2, colMatrix &linf, int &locMaxB){
+/* Member function to update the procBlock to advance to a new time step. For explicit methods it calls the appropriate
+explicit method to update. For implicit methods it uses the correction du and calls the implicit updater.
+*/
+void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const idealGas &eos, const double &aRef, 
+			    const vector<colMatrix> &du, colMatrix &l2, colMatrix &linf, int &locMaxB){
+  // inputVars -- all input variables
+  // impFlag -- flag to determine if simulation is to be solved via explicit or implicit time stepping
+  // eos -- equation of state
+  // aRef -- reference speed of sound (for nondimensionalization)
+  // bb
+  // du -- updates to conservative variables (only used in implicit solver)
+  // l2 -- l-2 norm of residual
+  // linf -- l-infinity norm of residual
+  // locMaxB -- location of max residual (which block)
 
+  //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
   int jmax = (*this).NumJ();
   int kmax = (*this).NumK();
 
+  //max dimensions for vectors with ghost cells
   int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
-  if ( inputVars.TimeIntegration() != "rk4" ){
+  if ( inputVars.TimeIntegration() != "rk4" ){ //if not runge-kutta 4 step method for time integration
     for ( int kk = 0; kk < kmax; kk++ ){          //loop over all physical cells
       for ( int jj = 0; jj < jmax; jj++ ){          
 	for ( int ii = 0; ii < imax; ii++ ){          
 
+	  //location with and without ghost cells
 	  int loc =  GetLoc1D(ii, jj, kk, imax, jmax);
 	  int locG = GetLoc1D(ii + (*this).NumGhosts(), jj + (*this).NumGhosts(), kk + (*this).NumGhosts(), imaxG, jmaxG);
 
-	  if (inputVars.TimeIntegration() == "explicitEuler"){
+	  if (inputVars.TimeIntegration() == "explicitEuler"){ //explicit euler time integration
 	    (*this).ExplicitEulerTimeAdvance(eos, locG, loc);
 	  }
-	  else if (impFlag){
+	  else if (impFlag){ //if implicit use update (du)
 	    (*this).ImplicitTimeAdvance(du[loc], eos, locG);
 	  }
 
-
+	  //accumulate l2 norm of residual
 	  l2 = l2 + (*this).Residual(loc) * (*this).Residual(loc);
-	  for ( int ll = 0; ll < l2.Size(); ll++ ){
 
+	  //if any residual is larger than previous residual, a new linf residual is found
+	  for ( int ll = 0; ll < l2.Size(); ll++ ){
 	    if ( (*this).Residual(loc,ll) > linf.Data(4) ){
-	      linf.SetData(4, (*this).Residual(loc,ll) );
-	      linf.SetData(3, (double)ll+1 );
-	      linf.SetData(2, (double)kk );
-	      linf.SetData(1, (double)jj );
-	      linf.SetData(0, (double)ii );
-	      locMaxB = bb;
+	      linf.SetData(4, (*this).Residual(loc,ll) ); //store linf residual
+	      linf.SetData(3, (double)ll+1 ); //store equation number
+	      linf.SetData(2, (double)kk ); //store k index
+	      linf.SetData(1, (double)jj ); //store j index
+	      linf.SetData(0, (double)ii ); //store i index
+	      locMaxB = (*this).ParentBlock(); //store block location
 	    }
 	  }
-
 
 	}
       }
     }
   }
-  else if ( inputVars.TimeIntegration() == "rk4" ){
+  else if ( inputVars.TimeIntegration() == "rk4" ){ //using min storage rk4 method
 
     vector<primVars> stateN(imax*jmax*kmax);
     vector<double> dtN(imax*jmax*kmax);
 
-    for ( int rr = 0; rr < 4; rr ++ ){
+    for ( int rr = 0; rr < 4; rr ++ ){ //loop over rk stages
       for ( int kk = 0; kk < kmax; kk++ ){          //loop over all physical cells
 	for ( int jj = 0; jj < jmax; jj++ ){          
 	  for ( int ii = 0; ii < imax; ii++ ){          
 
+	    //location with and without ghost cells
 	    int loc =  GetLoc1D(ii, jj, kk, imax, jmax);
 	    int locG = GetLoc1D(ii + (*this).NumGhosts(), jj + (*this).NumGhosts(), kk + (*this).NumGhosts(), imaxG, jmaxG);
 
@@ -540,19 +715,22 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const id
 	      dtN[loc] = (*this).Dt(loc);
 	    }
 
+	    //advance 1 RK stage
 	    (*this).RK4TimeAdvance(stateN[locG], eos, dtN[loc], locG, loc, rr);
 
-	    if (rr ==3){
+	    if (rr ==3){ //at last stage
+
+	      //accumulate l2 norm of residual
 	      l2 = l2 + (*this).Residual(loc) * (*this).Residual(loc);
+
 	      for ( int ll = 0; ll < l2.Size(); ll++ ){
-	
 		if ( (*this).Residual(loc,ll) > linf.Data(4) ){
-		  linf.SetData(4, (*this).Residual(loc,ll) );
-		  linf.SetData(3, (double)ll+1 );
-		  linf.SetData(2, (double)kk );
-		  linf.SetData(1, (double)jj );
-		  linf.SetData(0, (double)ii );
-		  locMaxB = bb;
+		  linf.SetData(4, (*this).Residual(loc,ll) ); //store linf residual
+		  linf.SetData(3, (double)ll+1 ); //store equation number
+		  linf.SetData(2, (double)kk );  //store k index
+		  linf.SetData(1, (double)jj );  //store j index
+		  linf.SetData(0, (double)ii );  //store i index
+		  locMaxB = (*this).ParentBlock();  //store block index
 		}
 	      }
 	    }
@@ -568,17 +746,12 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const id
 	(*this).CalcBlockTimeStep(inputVars, aRef);
       }
 
-
     }
   }
   else {
     cerr << "ERROR: Time integration scheme " << inputVars.TimeIntegration() << " is not recognized!" << endl;
   }
-
-
-
 }
-
 
 //member function to advance the state vector to time n+1 using explicit Euler method
 void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState, const int &locG, const int &loc ){

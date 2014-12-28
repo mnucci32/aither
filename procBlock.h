@@ -40,19 +40,19 @@ class procBlock {
   vector<double> avgWaveSpeed;             //maximum wave speed normal to i-faces
   vector<double> dt;                        //cell time step
 
-  int numCells;
-  int numVars;
-  int numI;
-  int numJ;
-  int numK;
-  int numGhosts;
-  int parBlock;
-  int parBlockStartI;
-  int parBlockEndI;
-  int parBlockStartJ;
-  int parBlockEndJ;
-  int parBlockStartK;
-  int parBlockEndK;
+  int numCells;                            //number of cells in block
+  int numVars;                             //number of variables stored at cell
+  int numI;                                //i-dimension of block (cells)
+  int numJ;                                //j-dimension of block (cells)
+  int numK;                                //k-dimension of block (cells)
+  int numGhosts;                           //number of layers of ghost cells surrounding block
+  int parBlock;                            //parent block number
+  int parBlockStartI;                      //parent block starting index for i
+  int parBlockEndI;                        //parent block ending index for i
+  int parBlockStartJ;                      //parent block starting index for j
+  int parBlockEndJ;                        //parent block ending index for j
+  int parBlockStartK;                      //parent block starting index for k
+  int parBlockEndK;                        //parent block ending index for k
 
  public:
   //constructors
@@ -132,7 +132,7 @@ class procBlock {
   void CalcInvFluxK(const idealGas&, const input&);
 
   void CalcBlockTimeStep(const input&, const double&);
-  void UpdateBlock(const input&, const int&, const idealGas&, const double&, const int&, const vector<colMatrix> &, colMatrix &, colMatrix &, int &);
+  void UpdateBlock(const input&, const int&, const idealGas&, const double&, const vector<colMatrix> &, colMatrix &, colMatrix &, int &);
 
   void ExplicitEulerTimeAdvance(const idealGas&, const int&, const int&);
   void ImplicitTimeAdvance(const colMatrix&, const idealGas&, const int&);
@@ -143,12 +143,9 @@ class procBlock {
   vector<colMatrix> AddVolTime(const vector<colMatrix>&, const vector<colMatrix>&, const double &, const double &)const;
   void DeltaNMinusOne( vector<colMatrix> &, const vector<colMatrix> &, const idealGas &, const double &, const double &);
 
-  double LUSGS( const vector<vector3d<int> > &, vector<colMatrix> &, const vector<colMatrix> &, const vector<colMatrix> &, const idealGas&, const input&, const sutherland&)const;
+  double LUSGS( const vector<vector3d<int> > &, vector<colMatrix> &, const vector<colMatrix> &, const vector<colMatrix> &, 
+		const idealGas&, const input&, const sutherland&)const;
 
-  /* void SetVelGrad( const tensor<double> &a, const int &ind){velGrad[ind] = a;} */
-  /* tensor<double> VelGrad(const int &ind) const {return velGrad[ind];} */
-  /* void SetTempGrad( const vector3d<double> &a, const int &ind){tempGrad[ind] = a;} */
-  /* vector3d<double> TempGrad(const int &ind) const {return tempGrad[ind];} */
 
   tensor<double> CalcVelGradGG(const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&,
 			       const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&,
@@ -156,10 +153,6 @@ class procBlock {
 
   vector3d<double> CalcTempGradGG(const double&, const double&, const double&, const double&, const double&, const double&, const vector3d<double>&, const vector3d<double>&,
 				  const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const double&);
-
-  /* void CalcCellGradsI(const idealGas&, const sutherland&, const input&); */
-  /* void CalcCellGradsJ(const idealGas&, const sutherland&, const input&); */
-  /* void CalcCellGradsK(const idealGas&, const sutherland&, const input&); */
 
   void CalcViscFluxI(const sutherland&, const idealGas&, const input&);
   void CalcViscFluxJ(const sutherland&, const idealGas&, const input&);

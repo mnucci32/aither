@@ -183,7 +183,7 @@ int main( int argc, char *argv[] ) {
       for ( int dd = 0; dd < (int)mesh.size(); dd++ ){             //loop over number of blocks
 
 	//update solution
-	stateBlocks[dd].UpdateBlock(inputVars, implicitFlag, eos, aRef, dd, du[dd], residL2, residLinf, locMaxB);
+	stateBlocks[dd].UpdateBlock(inputVars, implicitFlag, eos, aRef, du[dd], residL2, residLinf, locMaxB);
 
 	//if implicit, assign time n to time n-1 at end of nonlinear iterations
 	if (implicitFlag && inputVars.TimeIntegration() == "bdf2" && mm == inputVars.NonlinearIterations()-1 ){
