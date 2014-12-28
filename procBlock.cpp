@@ -753,17 +753,22 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const id
   }
 }
 
-//member function to advance the state vector to time n+1 using explicit Euler method
+/* Member function to advance the state vector to time n+1 using explicit Euler method. The following equation is used:
+
+ Un+1 = Un - dt/V * R
+
+Un is the conserved variables at time n, Un+1 is the conserved variables at time n+1, dt is the cell's time step, V is
+the cell's volume, and R is the cell's residual.
+ */
 void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState, const int &locG, const int &loc ){
+  // eqnState -- equation of state
+  // locG -- location of cell (including ghost cells)
+  // loc -- location of cell (withod ghost cells)
 
+  //Get conserved variables for current state (time n)
   colMatrix consVars = (*this).State(locG).ConsVars(eqnState);
-
   //calculate updated conserved variables
-  consVars.SetData(0, consVars.Data(0) - (*this).Dt(loc) / (*this).Vol(locG) * (*this).Residual(loc,0) );
-  consVars.SetData(1, consVars.Data(1) - (*this).Dt(loc) / (*this).Vol(locG) * (*this).Residual(loc,1) );
-  consVars.SetData(2, consVars.Data(2) - (*this).Dt(loc) / (*this).Vol(locG) * (*this).Residual(loc,2) );
-  consVars.SetData(3, consVars.Data(3) - (*this).Dt(loc) / (*this).Vol(locG) * (*this).Residual(loc,3) );
-  consVars.SetData(4, consVars.Data(4) - (*this).Dt(loc) / (*this).Vol(locG) * (*this).Residual(loc,4) );
+  consVars = consVars - (*this).Dt(loc) / (*this).Vol(locG) * (*this).Residual(loc);
 
   //calculate updated primative variables
   vector3d<double> vel(consVars.Data(1)/consVars.Data(0), consVars.Data(2)/consVars.Data(0), consVars.Data(3)/consVars.Data(0));
@@ -774,13 +779,17 @@ void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState, const int &lo
 		      vel.Z(),
 		      eqnState.GetPressFromEnergy( consVars.Data(0), consVars.Data(4)/consVars.Data(0), vel.Mag() ) );
 
+  //update state
   (*this).SetState(tempState, locG);
-
 }
 
 //member function to advance the state vector to time n+1 (for implicit methods)
 void procBlock::ImplicitTimeAdvance(const colMatrix &du, const idealGas &eqnState, const int &loc ){
+  // du -- update for a specific cell (to move from time n to n+1)
+  // eqnState -- equation of state
+  // loc -- location of cell
 
+  //calculate update state (primative variables)
   primVars tempState = (*this).State(loc).UpdateWithConsVars(eqnState, du);
 
   //check for positivity
@@ -791,24 +800,30 @@ void procBlock::ImplicitTimeAdvance(const colMatrix &du, const idealGas &eqnStat
     exit(0);
   }
 
+  //assign updated state
   (*this).SetState(tempState, loc);
-
 }
 
+/*member function to advance the state vector to time n+1 using 4th order (minimum storage) Runge-Kutta method (2nd order accurate)
 
-//member function to advance the state vector to time n+1 using 4th order Runge-Kutta method
+ Un+1 = Un - dt/V * alpha * R
+
+Un is the conserved variables at time n, Un+1 is the conserved variables at time n+1, dt is the cell's time step, V is
+the cell's volume, alpha is the runge-kutta coefficient, and R is the cell's residual.
+ */
 void procBlock::RK4TimeAdvance( const primVars &currState, const idealGas &eqnState, const double &dt, const int &locG, const int &loc, const int &rk ){
+  // currState -- current state (including steps within RK4) (primative)
+  // eqnState -- equation of state
+  // dt -- time step for cell
+  // locG -- location of cell including ghost cells
+  // loc -- location of cell without ghost cells
+  // rk -- runge-kutta step number
 
+  //runge-kutta step coefficients (low storage 4 step)
   double alpha[4] = {0.25, 1.0/3.0, 0.5, 1.0};
 
-  colMatrix consVars = currState.ConsVars(eqnState);
-
-  //calculate updated conserved variables
-  consVars.SetData(0, consVars.Data(0) - dt / (*this).Vol(locG) * alpha[rk] * (*this).Residual(loc,0) );
-  consVars.SetData(1, consVars.Data(1) - dt / (*this).Vol(locG) * alpha[rk] * (*this).Residual(loc,1) );
-  consVars.SetData(2, consVars.Data(2) - dt / (*this).Vol(locG) * alpha[rk] * (*this).Residual(loc,2) );
-  consVars.SetData(3, consVars.Data(3) - dt / (*this).Vol(locG) * alpha[rk] * (*this).Residual(loc,3) );
-  consVars.SetData(4, consVars.Data(4) - dt / (*this).Vol(locG) * alpha[rk] * (*this).Residual(loc,4) );
+  //update conserved variables
+  colMatrix consVars = currState.ConsVars(eqnState) - (*this).Dt(loc) / (*this).Vol(locG) * alpha[rk] * (*this).Residual(loc);
 
   //calculate updated primative variables
   vector3d<double> vel(consVars.Data(1)/consVars.Data(0), consVars.Data(2)/consVars.Data(0), consVars.Data(3)/consVars.Data(0));
@@ -819,14 +834,19 @@ void procBlock::RK4TimeAdvance( const primVars &currState, const idealGas &eqnSt
 		      vel.Z(),
 		      eqnState.GetPressFromEnergy( consVars.Data(0), consVars.Data(4)/consVars.Data(0), vel.Mag() ) );
 
+  //assign updated state
   (*this).SetState(tempState, locG);
 }
 
+//member function to reset the residual and wave speed back to zero after an iteration. This is done because the residual and wave
+//speed are accumulated over many function calls.
 void procBlock::ResetResidWS( ){
 
+  //create an instance of colMatrix of the correct size and initialize it to 0.
   colMatrix initial( (*this).Residual(0).Size() );
   initial.Zero();
 
+  //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
   int jmax = (*this).NumJ();
   int kmax = (*this).NumK();
@@ -836,7 +856,7 @@ void procBlock::ResetResidWS( ){
     for ( int jj = 0; jj < jmax; jj++ ){
       for ( int kk = 0; kk < kmax; kk++ ){
 
-	int loc = GetLoc1D(ii, jj, kk, imax, jmax);
+	int loc = GetLoc1D(ii, jj, kk, imax, jmax); //current cell location
 
 	//reset residual
 	(*this).SetResidual( initial, loc ) ;
@@ -850,22 +870,31 @@ void procBlock::ResetResidWS( ){
 
 }
 
-//a member function to add the cell volume divided by the cell time step to the time m - time n term
+//a member function to add the cell volume divided by the cell time step to the time m minus time n term
+//LOOK INTO THIS -- I * (m-n) or I + (m-n) ?  Add explaination for why this is done...
 vector<colMatrix> procBlock::AddVolTime(const vector<colMatrix> &m, const vector<colMatrix> &n, const double &theta, const double &zeta) const {
+  // m -- solution for block at time m
+  // n -- solution for block at time n
+  // theta -- Beam & Warming coefficient theta for time integration
+  // zeta -- Beam & Warming coefficient zeta for time integration
 
+  //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
   int jmax = (*this).NumJ();
   int kmax = (*this).NumK();
 
+  //max dimensions for vectors with ghost cells
   int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
-  vector<colMatrix> mMinusN(m.size());
+  vector<colMatrix> mMinusN(m.size()); //initialize a vector to hold the returned values
 
+  //loop over all physical cells
   for ( int ii = 0; ii < imax; ii++ ){
     for ( int jj = 0; jj < jmax; jj++ ){
       for ( int kk = 0; kk < kmax; kk++ ){
 
+	//get location of current cell with and without ghost cells
 	int loc =  GetLoc1D(ii, jj, kk, imax, jmax);
 	int locG = GetLoc1D(ii + (*this).NumGhosts(), jj + (*this).NumGhosts(), kk + (*this).NumGhosts(), imaxG, jmaxG);
 
@@ -877,14 +906,21 @@ vector<colMatrix> procBlock::AddVolTime(const vector<colMatrix> &m, const vector
   return mMinusN;
 }
 
-
 //member function to calculate the delta n-1 term for the implicit bdf2 solver
+//LOOK INTO THIS -- add explaination
 void procBlock::DeltaNMinusOne(vector<colMatrix> &solDeltaNm1, const vector<colMatrix> &solTimeN, const idealGas &eqnState, const double &theta, const double &zeta){
+  // solDeltaNm1 -- The solution at time n minus the solution at time n-1. (Un - Un-1)
+  // solTimeN -- The solution at time n
+  // eqnState -- equation of state
+  // theta -- Beam & Warming coefficient theta for time integration
+  // zeta -- Beam & Warming coefficient zeta for time integration
 
+  //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
   int jmax = (*this).NumJ();
   int kmax = (*this).NumK();
 
+  //max dimensions for vectors with ghost cells
   int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
@@ -893,6 +929,7 @@ void procBlock::DeltaNMinusOne(vector<colMatrix> &solDeltaNm1, const vector<colM
     for ( int jj = 0; jj < jmax; jj++ ){
       for ( int kk = 0; kk < kmax; kk++ ){
 
+	//get location of current cell with and without ghost cells
 	int loc =  GetLoc1D(ii, jj, kk, imax, jmax);
 	int locG = GetLoc1D(ii + (*this).NumGhosts(), jj + (*this).NumGhosts(), kk + (*this).NumGhosts(), imaxG, jmaxG);
 
@@ -904,49 +941,59 @@ void procBlock::DeltaNMinusOne(vector<colMatrix> &solDeltaNm1, const vector<colM
 
 }
 
-
-//member function to return a copy of the conserved variables
+//Member function to return a copy of the conserved variables. This is useful for "saving" the solution at a specific time.
+//It is used in the implicit solver.
 vector<colMatrix> procBlock::GetCopyConsVars(const idealGas &eqnState) const {
 
+  //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
   int jmax = (*this).NumJ();
   int kmax = (*this).NumK();
 
+  //max dimensions for vectors with ghost cells
   int imaxG = imax + 2 * (*this).NumGhosts();
   int jmaxG = jmax + 2 * (*this).NumGhosts();
 
-  vector<colMatrix> consVars(imax * jmax * kmax);
+  vector<colMatrix> consVars(imax * jmax * kmax); //initialize vector to proper size
 
   //loop over physical cells
   for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++ ){
     for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++ ){
       for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++ ){
+
+	//get location of current cell with and without ghost cells
 	int locG = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
 	int loc = GetLoc1D(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
+
+	//convert state to conservative variables
 	consVars[loc] = (*this).State(locG).ConsVars(eqnState);
       }
     }
   }
 
   return consVars;
-
 }
-
 
 //function to perform symmetric Gauss-Seidel relaxation to solver Ax=b
 //when relax = 1.0, symmetric Gauss-Seidel is achieved. Values >1 result in symmetric successive over relaxation (SSOR)
 //Values <1 result in under relaxation
-double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix> &x, const vector<colMatrix> &solTimeMmN, const vector<colMatrix> &solDeltaNm1, const idealGas &eqnState, const input &inp, const sutherland &suth)const{
+//LOOK INTO THIS -- add explanation
+double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix> &x, const vector<colMatrix> &solTimeMmN, 
+			 const vector<colMatrix> &solDeltaNm1, const idealGas &eqnState, const input &inp, const sutherland &suth)const{
 
-  //Aii --> block matrix of the main diagonal
-  //x   --> block vector of correction
-  //sweeps --> number of symmetric sweeps to perform
-  //relax  --> relaxation parameter >1 is overrelaxation, <1 is underrelaxation
+  // reorder -- order of cells to visit (this should be ordered in hyperplanes)
+  // x -- solution at time n
+  // solTimeMmn -- solution at time m minus n
+  // solDeltaNm1 -- solution at time n minus solution at time n-1 
+  // eqnState -- equation of state
+  // inp -- all input variables
+  // suth -- method to get temperature varying viscosity (Sutherland's law)
 
-
+  //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
   int jmax = (*this).NumJ();
 
+  //max dimensions for vectors with ghost cells
   int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
@@ -1187,50 +1234,73 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
 
 }
 
+/*Function to return the inviscid spectral radius for one direction (i, j, or k) given a cell state, equation of state, and 2 face area vectors
 
-//function to return the inviscid spectral radius given a cell state, equation of state, and 2 face area vectors
+L = 0.5 * (A1 + A2) * (|Vn| + SoS)
+
+In the above equation L is the spectral radius in either the i, j, or k direction. A1 and A2 are the two face areas in that direction. Vn is the
+cell velocity normal to that direction. SoS is the speed of sound at the cell
+ */
 double CellSpectralRadius(const vector3d<double> &fAreaL, const vector3d<double> &fAreaR, const primVars &state, const idealGas &eqnState){
+  // fAreaL -- face area of lower face in either i, j, or k direction
+  // fAreaR -- face area of upper face in either i, j, or k direction
+  // state -- state at cell center (primative)
+  // eqnState -- equation of state
 
+  //normalize face areas
   vector3d<double> normAreaL = fAreaL / fAreaL.Mag();
   vector3d<double> normAreaR = fAreaR / fAreaR.Mag();
 
-  vector3d<double> normAvg = 0.5 * (normAreaL + normAreaR);
-  double fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
+  vector3d<double> normAvg = 0.5 * (normAreaL + normAreaR); //average normal direction
+  double fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag()); //average area magnitude
 
+  //return spectral radius
   return ( fabs(state.Velocity().DotProd(normAvg)) + state.SoS(eqnState) ) * fMag;
-
 }
 
-//function to calculate the spectral radius at a cell center for the viscous fluxes
-double ViscCellSpectralRadius(const vector3d<double> &fAreaL, const vector3d<double> &fAreaR, const primVars &state, const idealGas &eqnState, const sutherland &suth, const double &vol){
+/*Function to calculate the viscous spectral radius for one direction (i, j, or k).
 
-  double fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
+L = max(4/(3*rho), g/rho) * mu/Pr * A^2 / V
+
+In the above equation L is the viscous spectral radius for a given direction (i, j, or k). Rho is the density
+at the cell center. G is gamma, mu is viscosity, and Pr is the Prandtl number (all at the cell center). A is the
+average face area of the given direction (i, j, k), and V is the cell volume. This implementation comes from Blazek.
+ */
+double ViscCellSpectralRadius(const vector3d<double> &fAreaL, const vector3d<double> &fAreaR, const primVars &state, const idealGas &eqnState, const sutherland &suth, const double &vol){
+  // fAreaL -- face area of lower face in either i, j, or k direction
+  // fAreaR -- face area of upper face in either i, j, or k direction
+  // state -- state at cell center (primative)
+  // eqnState -- equation of state
+  // suth -- method to the temperature varying visosity and Prandtl number (Sutherland's law)
+  // vol -- cell volume
+
+  double fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag()); //average area magnitude
   double maxTerm = max(4.0 / (3.0 * state.Rho()), eqnState.Gamma() / state.Rho()) ;
-  double mu = suth.GetViscosity(state.Temperature(eqnState));
+  double mu = suth.GetViscosity(state.Temperature(eqnState)); //viscosity at cell center
   double viscTerm = mu / eqnState.GetPrandtl();
 
+  //return viscous spectral radius
   return maxTerm * viscTerm * fMag * fMag / vol ;
 }
 
-//member function to calculate the velocity gradient on the face using central differences
+//member function to reconstruct cell variables to the face using central differences
 template <class T>
 T FaceReconCentral(const T &velU, const T &velD, const vector3d<double> &pU, const vector3d<double> &pD, const vector3d<double> &pF){
-
-  //velU is the velocity at the cell center of the upwind cell
-  //velD is the velocity at the cell center of the downwind cell
-  //pU is the position of the cell center of the upwind cell
-  //pD is the position of the cell center of the downwind cell
-  //pF is the position of the face center of the face on which the reconstruction is happening
+  // velU -- velocity at the cell center of the upwind cell
+  // velD -- velocity at the cell center of the downwind cell
+  // pU -- position of the cell center of the upwind cell
+  // pD -- position of the cell center of the downwind cell
+  // pF -- position of the face center of the face on which the reconstruction is happening
 
   T temp;
 
   double cen2cen = pU.Distance(pD);  //distance from cell center to cell center
   double up2face = pU.Distance(pF);  //distance from upwind cell center to cell face
 
+  //reconstruct with central difference
   temp = velD * (up2face/cen2cen) + velU * (1.0 - (up2face/cen2cen));
 
   return temp;
-
 }
 
 //function to pad a vector with a specified number of ghost cells
