@@ -146,14 +146,6 @@ class procBlock {
   double LUSGS( const vector<vector3d<int> > &, vector<colMatrix> &, const vector<colMatrix> &, const vector<colMatrix> &, 
 		const idealGas&, const input&, const sutherland&)const;
 
-
-  tensor<double> CalcVelGradGG(const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&,
-			       const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&,
-			       const vector3d<double>&, const vector3d<double>&, const double&);
-
-  vector3d<double> CalcTempGradGG(const double&, const double&, const double&, const double&, const double&, const double&, const vector3d<double>&, const vector3d<double>&,
-				  const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const double&);
-
   void CalcViscFluxI(const sutherland&, const idealGas&, const input&);
   void CalcViscFluxJ(const sutherland&, const idealGas&, const input&);
   void CalcViscFluxK(const sutherland&, const idealGas&, const input&);
@@ -185,6 +177,11 @@ T FaceReconCentral(const T&, const T&, const vector3d<double>&, const vector3d<d
 template<class T>
 vector<T> PadWithGhosts(const vector<T>&, const int&, const int&, const int&, const int&);
 
-vector<primVars> PadStateWithGhosts(const primVars&, const int&, const int&, const int&, const int&);
+tensor<double> CalcVelGradGG(const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&,
+			     const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&,
+			     const vector3d<double>&, const vector3d<double>&, const double&);
+
+vector3d<double> CalcTempGradGG(const double&, const double&, const double&, const double&, const double&, const double&, const vector3d<double>&, const vector3d<double>&,
+				const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const double&);
 
 #endif

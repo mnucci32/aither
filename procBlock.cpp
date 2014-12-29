@@ -1303,27 +1303,55 @@ T FaceReconCentral(const T &velU, const T &velD, const vector3d<double> &pU, con
   return temp;
 }
 
-//function to pad a vector with a specified number of ghost cells
+/* Function to pad a vector with a specified number of ghost cells
+           ___ ___ ___ ___ ___ ___ ___ ___
+          | E | E | G | G | G | G | E | E |
+          |___|___|___|___|___|___|___|___|
+          | E | E | G | G | G | G | E | E |
+          |___|___|___|___|___|___|___|___|
+          | G | G | X | X | X | X | G | G |
+          |___|___|___|___|___|___|___|___|
+          | G | G | X | X | X | X | G | G |
+          |___|___|___|___|___|___|___|___|
+          | E | E | G | G | G | G | E | E |
+          |___|___|___|___|___|___|___|___|
+          | E | E | G | G | G | G | E | E |
+          |___|___|___|___|___|___|___|___|
+
+In the above diagram, the cells marked with an "X" represent physical cells. The entire diagram represents the block (in 2D)
+padded with 2 layers of ghost cells. The cells marked with "G" are regualar ghost cells. The cells marked with "E" are ghost
+cells located along one of the 12 edges that form a plot3d block. In 3D there are also "corner" cells located at the 8 corners
+that form the plot3d block. These cells are not used though. There is a place in the vector for them to make accessing the padded
+vector of cells the same as for a plot3d block without ghost cells.
+*/
 template<class T>
 vector<T> PadWithGhosts( const vector<T> &var, const int &numGhosts, const int &numI, const int &numJ, const int &numK ){
+  // var -- vector of variables to pad (no ghost cells included)
+  // numGhosts -- number of layers of ghost cells to pad var with
+  // numI -- i dimension without ghost cells
+  // numJ -- j dimension without ghost cells
+  // numK -- k dimension withough ghost cells
 
+  //max dimension for variables with ghost cells
   int newI = numI + (numGhosts * 2);
   int newJ = numJ + (numGhosts * 2);
   int newK = numK + (numGhosts * 2);
 
-  int newSize = newI * newJ * newK;
+  int newSize = newI * newJ * newK; //size of vector with padded ghost cells
 
-  vector<T> padBlk(newSize);
+  vector<T> padBlk(newSize); //initialize vector
 
   //loop over physical cells
   for ( int kk = numGhosts; kk < numK + numGhosts; kk++ ){
     for ( int jj = numGhosts; jj < numJ + numGhosts; jj++ ){
       for ( int ii = numGhosts; ii < numI + numGhosts; ii++ ){
 
+	//calcualte location with and with ghost cells
 	int newLoc = GetLoc1D(ii, jj, kk, newI, newJ);
 	int loc = GetLoc1D(ii-numGhosts, jj-numGhosts, kk-numGhosts, numI, numJ);
-	padBlk[newLoc] = var[loc];
 
+	//assign the given vector of variables to the correct location within the padded vector
+	padBlk[newLoc] = var[loc]; 
       }
     }
   }
@@ -1331,42 +1359,35 @@ vector<T> PadWithGhosts( const vector<T> &var, const int &numGhosts, const int &
   return padBlk;
 }
 
-//function to pad a vector with a specified number of ghost cells
-vector<primVars> PadStateWithGhosts( const primVars &var, const int &numGhosts, const int &numI, const int &numJ, const int &numK ){
+/* Function to calculate the velocity gradient at the cell center using the Green-Gauss method
 
-  int newI = numI + (numGhosts * 2);
-  int newJ = numJ + (numGhosts * 2);
-  int newK = numK + (numGhosts * 2);
+dU/dxj = (Sum)    U * Aij  / V        (j=1,2,3)
+       i=1,nfaces
 
-  int newSize = newI * newJ * newK;
-
-  vector<primVars> padBlk(newSize,var);
-
-  return padBlk;
-}
-
-//member function to calculate the velocity gradient at the cell center
-tensor<double> procBlock::CalcVelGradGG(const vector3d<double> &vil, const vector3d<double> &viu, const vector3d<double> &vjl, const vector3d<double> &vju, 
+The above equation shows how the gradient of a scalar is calculated using the Green-Gauss method. U is a scalar.
+Aij is the area at face i (component j). V is the volume of the control volume. X is the cartesian direction with
+j indicating the component. The convention is for the area vectors to point out of the control volume.
+ */
+tensor<double> CalcVelGradGG(const vector3d<double> &vil, const vector3d<double> &viu, const vector3d<double> &vjl, const vector3d<double> &vju, 
 					const vector3d<double> &vkl, const vector3d<double> &vku, const vector3d<double> &ail, const vector3d<double> &aiu,
 					const vector3d<double> &ajl, const vector3d<double> &aju, const vector3d<double> &akl, const vector3d<double> &aku,
 					const double &vol){
 
-  //vil is the velocity vector at the i-lower face of the cell at which the velocity gradient is being calculated
-  //viu is the velocity vector at the i-upper face of the cell at which the velocity gradient is being calculated
-  //vjl is the velocity vector at the j-lower face of the cell at which the velocity gradient is being calculated
-  //vju is the velocity vector at the j-upper face of the cell at which the velocity gradient is being calculated
-  //vkl is the velocity vector at the k-lower face of the cell at which the velocity gradient is being calculated
-  //vku is the velocity vector at the k-upper face of the cell at which the velocity gradient is being calculated
+  //vil -- velocity vector at the i-lower face of the cell at which the velocity gradient is being calculated
+  //viu -- velocity vector at the i-upper face of the cell at which the velocity gradient is being calculated
+  //vjl -- velocity vector at the j-lower face of the cell at which the velocity gradient is being calculated
+  //vju -- velocity vector at the j-upper face of the cell at which the velocity gradient is being calculated
+  //vkl -- velocity vector at the k-lower face of the cell at which the velocity gradient is being calculated
+  //vku -- velocity vector at the k-upper face of the cell at which the velocity gradient is being calculated
 
-  //ail is the area vector at the lower i-face of the cell at which the velocity gradient is being calculated
-  //aiu is the area vector at the upper i-face of the cell at which the velocity gradient is being calculated
-  //ajl is the area vector at the lower j-face of the cell at which the velocity gradient is being calculated
-  //aju is the area vector at the upper j-face of the cell at which the velocity gradient is being calculated
-  //akl is the area vector at the lower k-face of the cell at which the velocity gradient is being calculated
-  //aku is the area vector at the upper k-face of the cell at which the velocity gradient is being calculated
+  //ail -- area vector at the lower i-face of the cell at which the velocity gradient is being calculated
+  //aiu -- area vector at the upper i-face of the cell at which the velocity gradient is being calculated
+  //ajl -- area vector at the lower j-face of the cell at which the velocity gradient is being calculated
+  //aju -- area vector at the upper j-face of the cell at which the velocity gradient is being calculated
+  //akl -- area vector at the lower k-face of the cell at which the velocity gradient is being calculated
+  //aku -- area vector at the upper k-face of the cell at which the velocity gradient is being calculated
 
-  //vol is the cell volume
-  //loc is the 1D location where the velocity gradient should be stored
+  //vol -- cell volume
 
   tensor<double> temp;
   double invVol = 1.0/vol;
@@ -1386,30 +1407,36 @@ tensor<double> procBlock::CalcVelGradGG(const vector3d<double> &vil, const vecto
   temp.SetZZ( invVol * ( viu.Z()*aiu.Z() - vil.Z()*ail.Z() + vju.Z()*aju.Z() - vjl.Z()*ajl.Z() + vku.Z()*aku.Z() - vkl.Z()*akl.Z() ) );
 
   return temp;
-
 }
 
-//member function to calculate the temperature gradient at the cell center
-vector3d<double> procBlock::CalcTempGradGG(const double &til, const double &tiu, const double &tjl, const double &tju, const double &tkl, const double &tku,
+/* Function to calculate the temperature gradient at the cell center using the Green-Gauss method
+
+dU/dxj = (Sum)    U * Aij  / V        (j=1,2,3)
+       i=1,nfaces
+
+The above equation shows how the gradient of a scalar is calculated using the Green-Gauss method. U is a scalar.
+Aij is the area at face i (component j). V is the volume of the control volume. X is the cartesian direction with
+j indicating the component. The convention is for the area vectors to point out of the control volume.
+ */
+vector3d<double> CalcTempGradGG(const double &til, const double &tiu, const double &tjl, const double &tju, const double &tkl, const double &tku,
 					   const vector3d<double> &ail, const vector3d<double> &aiu, const vector3d<double> &ajl, const vector3d<double> &aju,
 					   const vector3d<double> &akl, const vector3d<double> &aku, const double &vol){
 
-  //til is the temperature at the lower face of the cell at which the temperature gradient is being calculated
-  //tiu is the temperature at the upper face of the cell at which the temperature gradient is being calculated
-  //tjl is the temperature at the lower face of the cell at which the temperature gradient is being calculated
-  //tju is the temperature at the upper face of the cell at which the temperature gradient is being calculated
-  //tkl is the temperature at the lower face of the cell at which the temperature gradient is being calculated
-  //tku is the temperature at the upper face of the cell at which the temperature gradient is being calculated
+  //til -- temperature at the lower face of the cell at which the temperature gradient is being calculated
+  //tiu -- temperature at the upper face of the cell at which the temperature gradient is being calculated
+  //tjl -- temperature at the lower face of the cell at which the temperature gradient is being calculated
+  //tju -- temperature at the upper face of the cell at which the temperature gradient is being calculated
+  //tkl -- temperature at the lower face of the cell at which the temperature gradient is being calculated
+  //tku -- temperature at the upper face of the cell at which the temperature gradient is being calculated
   
-  //ail is the area vector at the lower face of the cell at which the temperature gradient is being calculated
-  //aiu is the area vector at the upper face of the cell at which the temperature gradient is being calculated
-  //ajl is the area vector at the lower face of the cell at which the temperature gradient is being calculated
-  //aju is the area vector at the upper face of the cell at which the temperature gradient is being calculated
-  //akl is the area vector at the lower face of the cell at which the temperature gradient is being calculated
-  //aku is the area vector at the upper face of the cell at which the temperature gradient is being calculated
+  //ail -- area vector at the lower face of the cell at which the temperature gradient is being calculated
+  //aiu -- area vector at the upper face of the cell at which the temperature gradient is being calculated
+  //ajl -- area vector at the lower face of the cell at which the temperature gradient is being calculated
+  //aju -- area vector at the upper face of the cell at which the temperature gradient is being calculated
+  //akl -- area vector at the lower face of the cell at which the temperature gradient is being calculated
+  //aku -- area vector at the upper face of the cell at which the temperature gradient is being calculated
 
-  //vol is the cell volume
-  //loc is the 1D location where the temperature gradient should be stored
+  //vol -- cell volume
 
   vector3d<double> temp;
   double invVol = 1.0/vol;
@@ -1421,68 +1448,115 @@ vector3d<double> procBlock::CalcTempGradGG(const double &til, const double &tiu,
   temp.SetZ( invVol * ( tiu*aiu.Z() - til*ail.Z() + tju*aju.Z() - tjl*ajl.Z() + tku*aku.Z() - tkl*akl.Z() ) );
 
   return temp;
-
 }
 
-//member function to calculate viscous fluxes on i-faces
-void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, const input &inp){
 
-  int imax = (*this).NumI() + 1;
+/* Function to calculate the viscous fluxes on the i-faces. All phyiscal (non-ghost) i-faces are looped over. The
+left and right states are calculated, and then the flux at the face is calculated. The flux at the face contributes
+to the residual of the cells to the left and right of the face. This contribution from the flux is added to the 
+residuals and the wave speed is accumulated as well.
+
+  ___________________________
+  |            |            |
+  |            |            |
+  |   Ui       -->   Ui+1   |
+  |            |            |
+  |____________|____________|
+Ui-1/2       Ui+1/2       Ui+3/2
+
+Using the above diagram, the flux is calculated at face Ui+1/2. Since the area vector at the face always points from
+lower indices to higher indices it points from Ui to Ui+1. For the residual calculation the convention is for the area
+vector to point out of the cell. Therefore it is in the correct position for the residual at Ui, but the sign needs to 
+be flipped when adding the contribution of the flux to the residual at Ui+1. 
+
+The spectral radius in the i-direction is also calculated. Since this is done on a cell basis instead of a face bases, it
+is only calculated for the upper cell (Ui+1 in this case). The spectral radius is added to the average wave speed variable
+and is eventually used in the time step calculation if the time step isn't explicitly specified.
+
+LOOK INTO THIS -- add explaination for gradient calculation -- test viscous spectral radius calculation
+*/
+void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, const input &inp){
+  // suth -- method to get viscosity as a function of temperature (Sutherland's law)
+  // eqnState -- equation of state
+  // inp -- all input variables
+
+  //max dimensions for vectors without ghost cells
+  int imax = (*this).NumI() + 1; //calculating fluxes on i-faces so one more face in i-direction
   int jmax = (*this).NumJ();
   int kmax = (*this).NumK();
 
-  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts() + 1;
+  //max dimensions for vectors without ghost cells
+  int imaxG = (*this).NumI() + 2 * (*this).NumGhosts() + 1; //calculating fluxes on i-faces so one more face in i-direction
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
+  //calculate reference Reynolds number and Mach number for nondimensionalization
   double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
   double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
   double mRef = inp.VelRef().Mag() / aRef;
 
-  //loop over all physical cells
+  //coefficient for viscous spectral radii
+  double vCoeff = 1.0;
+
+  //loop over all physical faces
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
     for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
       for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
 
-	//face indices
+	//location of current face (with ghost cells included)
 	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
 
+	//location of faces in the upper and lower i-direction (with ghost cells included)
 	int fUpi = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG);
 	int fLowi = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG);
 
+	//location of j-faces in the upper and lower direction belonging to the cells in the upper 
+	//and lower i-direction of the current face (with ghost cells included) - these are used in the 
+	//gradient calculation to construct the alternate control volume
 	int fUpjUpi = GetUpperFaceJ(ii, jj, kk, imaxG - 1, jmaxG);
 	int fUpjLowi = GetUpperFaceJ(ii - 1, jj, kk, imaxG - 1, jmaxG);
 	int fLowjUpi = GetLowerFaceJ(ii, jj, kk, imaxG - 1, jmaxG);
 	int fLowjLowi = GetLowerFaceJ(ii - 1, jj, kk, imaxG - 1, jmaxG);
 
+	//location of k-faces in the upper and lower direction belonging to the cells in the upper 
+	//and lower i-direction of the current face (with ghost cells included) - these are used in the 
+	//gradient calculation to construct the alternate control volume
 	int fUpkUpi = GetUpperFaceK(ii, jj, kk, imaxG - 1, jmaxG);
 	int fUpkLowi = GetUpperFaceK(ii - 1, jj, kk, imaxG - 1, jmaxG);
 	int fLowkUpi = GetLowerFaceK(ii, jj, kk, imaxG - 1, jmaxG);
 	int fLowkLowi = GetLowerFaceK(ii - 1, jj, kk, imaxG - 1, jmaxG);
 
-	//cell indices
+	//location of cells in the upper and lower i-direction with respect to baseline face (with ghost cells included)
 	int iLow  = GetCellFromFaceLowerI(ii, jj, kk, imaxG, jmaxG);
 	int iUp  = GetCellFromFaceUpperI(ii, jj, kk, imaxG, jmaxG);
 
+	//location of cells in the upper and lower j-direction and the upper 
+	//and lower i-direction of the current face (with ghost cells included) - these are used in the 
+	//gradient calculation to construct the alternate control volume
 	int jUpiUp = GetNeighborUpJ(ii, jj, kk, imaxG - 1, jmaxG);
 	int jUpiLow = GetNeighborUpJ(ii - 1, jj, kk, imaxG - 1, jmaxG);
 	int jLowiUp = GetNeighborLowJ(ii, jj, kk, imaxG - 1, jmaxG);
 	int jLowiLow = GetNeighborLowJ(ii - 1, jj, kk, imaxG - 1, jmaxG);
 
+	//location of cells in the upper and lower k-direction and the upper 
+	//and lower i-direction of the current face (with ghost cells included) - these are used in the 
+	//gradient calculation to construct the alternate control volume
 	int kUpiUp = GetNeighborUpK(ii, jj, kk, imaxG - 1, jmaxG);
 	int kUpiLow = GetNeighborUpK(ii - 1, jj, kk, imaxG - 1, jmaxG);
 	int kLowiUp = GetNeighborLowK(ii, jj, kk, imaxG - 1, jmaxG);
 	int kLowiLow = GetNeighborLowK(ii - 1, jj, kk, imaxG - 1, jmaxG);
 
-	//no ghost cell indices
+	//location of cells in the upper and lower i-direction with respect to baseline face (without ghost cells included)
 	int iLowNG  = GetCellFromFaceLowerI(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 	int iUpNG  = GetCellFromFaceUpperI(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 
+	//calculate average velocity on j and k faces of alternate control volume
 	vector3d<double> vju = 0.25 * ( (*this).State(iLow).Velocity() + (*this).State(iUp).Velocity() + (*this).State(jUpiUp).Velocity() + (*this).State(jUpiLow).Velocity() );
 	vector3d<double> vjl = 0.25 * ( (*this).State(iLow).Velocity() + (*this).State(iUp).Velocity() + (*this).State(jLowiUp).Velocity() + (*this).State(jLowiLow).Velocity() );
 
 	vector3d<double> vku = 0.25 * ( (*this).State(iLow).Velocity() + (*this).State(iUp).Velocity() + (*this).State(kUpiUp).Velocity() + (*this).State(kUpiLow).Velocity() );
 	vector3d<double> vkl = 0.25 * ( (*this).State(iLow).Velocity() + (*this).State(iUp).Velocity() + (*this).State(kLowiUp).Velocity() + (*this).State(kLowiLow).Velocity() );
 
+	//calculate areas of faces in alternate control volume
 	vector3d<double> aiu = 0.5 * ( (*this).FAreaI(loc) + (*this).FAreaI(fUpi) );
 	vector3d<double> ail = 0.5 * ( (*this).FAreaI(loc) + (*this).FAreaI(fLowi) );
 
@@ -1492,6 +1566,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 	vector3d<double> aku = 0.5 * ( (*this).FAreaK(fUpkUpi) + (*this).FAreaK(fUpkLowi) );
 	vector3d<double> akl = 0.5 * ( (*this).FAreaK(fLowkUpi) + (*this).FAreaK(fLowkLowi) );
 
+	//calculate volume of alternate control volume
 	double vol = 0.5 * ( (*this).Vol(iLow) + (*this).Vol(iUp) );
 
 	//Get velocity gradient at face
@@ -1499,6 +1574,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 	//Get velocity at face
 	vector3d<double> vel = FaceReconCentral( (*this).State(iLow).Velocity(), (*this).State(iUp).Velocity(), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
 
+	//calculate average temperature on j and k faces of alternate control volume
 	double tju = 0.25 * ( (*this).State(iLow).Temperature(eqnState) + (*this).State(iUp).Temperature(eqnState) + (*this).State(jUpiUp).Temperature(eqnState) +
 			      (*this).State(jUpiLow).Temperature(eqnState) );
 	double tjl = 0.25 * ( (*this).State(iLow).Temperature(eqnState) + (*this).State(iUp).Temperature(eqnState) + (*this).State(jLowiUp).Temperature(eqnState) +
@@ -1519,61 +1595,25 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 	//calculate viscous flux
 	viscousFlux tempViscFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaI(loc) );
 
-	// if (jj == (*this).NumGhosts() && ii == 32 && kk == 2){
-	//   cout << "vel i lower: " << (*this).State(iLow).Velocity() << endl;
-	//   cout << "vel i upper: " << (*this).State(iUp).Velocity() << endl;
-	//   cout << "vel j lower: " << vjl << endl;
-	//   cout << "vel j upper: " << vju << endl;
-	//   cout << "vel k lower: " << vkl << endl;
-	//   cout << "vel k upper: " << vku << endl;
-	//   cout << "face vel: " << vel << endl;
-	//   cout << "area i lower: " << ail << endl;
-	//   cout << "area i upper: " << aiu << endl;
-	//   cout << "area j lower: " << ajl << endl;
-	//   cout << "area j upper: " << aju << endl;
-	//   cout << "area k lower: " << akl << endl;
-	//   cout << "area k upper: " << aku << endl;
-	//   cout << "inverse vol: " << 1.0/vol << endl;
-
-	//   vector3d<double> viu = (*this).State(iUp).Velocity();
-	//   vector3d<double> vil = (*this).State(iLow).Velocity();
-
-	//   cout << "Portion of du/dx, dv/dx, dw/dx: " << 1.0/vol * ( viu * aiu.X() - vil * ail.X() )<< endl;
-	//   cout << "Portion of du/dx, dv/dx, dw/dx: " << 1.0/vol * ( vju * aju.X() - vjl * ajl.X() )<< endl;
-	//   cout << "Portion of du/dx, dv/dx, dw/dx: " << 1.0/vol * ( vku * aku.X() - vkl * akl.X() )<< endl;
-
-	//   cout << "Individual components of du/dx: " << endl;
-	//   cout << 1.0/vol * ( viu.X()*aiu.X() ) << ", " << 1.0/vol * (-vil.X()*ail.X()) << ", " << 1.0/vol * ( vju.X()*aju.X()) << ", " 
-	//        << 1.0/vol *(-vjl.X()*ajl.X()) << ", " << 1.0/vol * ( vku.X()*aku.X()) << ", " << 1.0/vol * (-vkl.X()*akl.X() ) << endl;
-
-	//   cout << "vel gradient at boundary face: " << velGrad << endl;
-	//   cout << "temp gradient at boundary face: " << tGrad << endl;
-	// }
-
-	// if ( ii == 32 && jj == 2 && kk == 2){
-	//   cout << "velocity at j faces: " << vjl << ", " << vju << endl;
-	//   cout << "vflux on i face: " << tempViscFlux << endl;
-
-	// }
-
-
 	//area vector points from left to right, so add to left cell, subtract from right cell
 	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
-	if ( ii > (*this).NumGhosts() ){
+	if ( ii > (*this).NumGhosts() ){ //at left boundary there is no left cell to add to
 	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaI(loc).Mag(), iLowNG);
 	}
-	if ( ii < imax -1 + (*this).NumGhosts() ){
+	if ( ii < imax -1 + (*this).NumGhosts() ){ //at right boundary there is no right cell to add to
 	  (*this).AddToResidual(tempViscFlux * (*this).FAreaI(loc).Mag(), iUpNG);
+
+	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the upper faces
+	  double maxWS = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaI(loc), (*this).FAreaI(fUpi), (*this).State(iUp), eqnState, suth, (*this).Vol(iUp) );
+	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(iUpNG) + vCoeff * maxWS, iUpNG);
+
 	}
 
       }
     }
   }
 
-
 }
-
-
 
 //member function to calculate viscous fluxes on j-faces
 void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, const input &inp){
@@ -1588,6 +1628,9 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
   double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
   double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
   double mRef = inp.VelRef().Mag() / aRef;
+
+  //coefficient for viscous spectral radii
+  double vCoeff = 1.0;
 
   //loop over physical cells
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
@@ -1648,11 +1691,6 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 	//Get velocity gradient at face
 	tensor<double> velGrad = CalcVelGradGG( vil, viu, (*this).State(jLow).Velocity(), (*this).State(jUp).Velocity(), vkl, vku, ail, aiu, ajl, aju, akl, aku, vol);
 
-	// if ( jj == 2 ){
-	//   vector3d<double> z(0.0, 0.0, 0.0);
-	//   velGrad = CalcVelGradGG( vil, viu, z, (*this).State(jUp).Velocity(), vkl, vku, ail, aiu, ajl, aju, akl, aku, vol);
-	//   }
-
 	//Get velocity at face
 	vector3d<double> vel = FaceReconCentral( (*this).State(jLow).Velocity(), (*this).State(jUp).Velocity(), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
 
@@ -1673,31 +1711,6 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 				      suth.GetViscosity( (*this).State(jUp).Temperature(eqnState) ), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
 	mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
 
-
-	// if (jj == (*this).NumGhosts() && ii == 32 && kk == 2){
-	//   cout << "vel i lower: " << vil << endl;
-	//   cout << "vel i upper: " << viu << endl;
-	//   cout << "vel j lower: " << (*this).State(jLow).Velocity() << endl;
-	//   cout << "vel j upper: " << (*this).State(jUp).Velocity() << endl;
-	//   cout << "vel k lower: " << vkl << endl;
-	//   cout << "vel k upper: " << vku << endl;
-	//   cout << "face vel: " << vel << endl;
-	//   cout << "area i lower: " << ail << endl;
-	//   cout << "area i upper: " << aiu << endl;
-	//   cout << "area j lower: " << ajl << endl;
-	//   cout << "area j upper: " << aju << endl;
-	//   cout << "area k lower: " << akl << endl;
-	//   cout << "area k upper: " << aku << endl;
-	//   cout << "inverse vol: " << 1.0/vol << endl;
-
-	//   // cout << 1.0/vol * ( viu * aiu.Y() - vil * ail.Y() )<< endl;
-	//   // cout << 1.0/vol * ( (*this).State(jUp).Velocity() * aju.Y() - (*this).State(jLow).Velocity() * ajl.Y() )<< endl;
-	//   // cout << 1.0/vol * ( vku * aku.Y() - vkl * akl.Y() )<< endl;
-
-	//   cout << "vel gradient at boundary face: " << velGrad << endl;
-	//   cout << "temp gradient at boundary face: " << tGrad << endl;
-	// }
-
 	//calculate viscous flux
 	viscousFlux tempViscFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaJ(loc) );
 
@@ -1708,6 +1721,11 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 	}
 	if ( jj < jmax -1 + (*this).NumGhosts() ){
 	  (*this).AddToResidual(tempViscFlux * (*this).FAreaJ(loc).Mag(), jUpNG);
+
+	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the upper faces
+	  double maxWS = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaJ(loc), (*this).FAreaJ(fUpj), (*this).State(jUp), eqnState, suth, (*this).Vol(jUp) );
+	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(jUpNG) + vCoeff * maxWS, jUpNG);
+
 	}
 
       }
@@ -1716,7 +1734,6 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 
 
 }
-
 
 //member function to calculate viscous fluxes on j-faces
 void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, const input &inp){
@@ -1731,6 +1748,9 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
   double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
   double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
   double mRef = inp.VelRef().Mag() / aRef;
+
+  //coefficient for viscous spectral radii
+  double vCoeff = 1.0;
 
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
     for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
@@ -1819,12 +1839,15 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
 	}
 	if ( kk < kmax -1 + (*this).NumGhosts() ){
 	  (*this).AddToResidual(tempViscFlux * (*this).FAreaK(loc).Mag(), kUpNG);
+
+	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the upper faces
+	  double maxWS = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaK(loc), (*this).FAreaK(fUpk), (*this).State(kUp), eqnState, suth, (*this).Vol(kUp) );
+	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(kUpNG) + vCoeff * maxWS, kUpNG);
 	}
 
       }
     }
   }
-
 
 }
 
