@@ -1485,7 +1485,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
   int jmax = (*this).NumJ();
   int kmax = (*this).NumK();
 
-  //max dimensions for vectors without ghost cells
+  //max dimensions for vectors with ghost cells
   int imaxG = (*this).NumI() + 2 * (*this).NumGhosts() + 1; //calculating fluxes on i-faces so one more face in i-direction
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
@@ -1617,14 +1617,20 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 
 //member function to calculate viscous fluxes on j-faces
 void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, const input &inp){
+  // suth -- method to get viscosity as a function of temperature (Sutherland's law)
+  // eqnState -- equation of state
+  // inp -- all input variables
 
+  //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
-  int jmax = (*this).NumJ() + 1;
+  int jmax = (*this).NumJ() + 1; //calculating fluxes on j-faces so one more face in j-direction
   int kmax = (*this).NumK();
 
+  //max dimensions for vectors with ghost cells
   int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
-  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts() + 1;
+  int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts() + 1; //calculating fluxes on j-faces so one more face in j-direction
 
+  //calculate reference Reynolds number and Mach number for nondimensionalization
   double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
   double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
   double mRef = inp.VelRef().Mag() / aRef;
@@ -1632,51 +1638,66 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
   //coefficient for viscous spectral radii
   double vCoeff = 1.0;
 
-  //loop over physical cells
+  //loop over physical faces
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
     for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
       for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
 
-	//face indices
+	//location of current face (with ghost cells included)
 	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
 
+	//location of faces in the upper and lower j-direction (with ghost cells included)
 	int fUpj = GetNeighborUpJ(ii, jj, kk, imaxG, jmaxG);
 	int fLowj = GetNeighborLowJ(ii, jj, kk, imaxG, jmaxG);
 
+	//location of i-faces in the upper and lower direction belonging to the cells in the upper 
+	//and lower j-direction of the current face (with ghost cells included) - these are used in the 
+	//gradient calculation to construct the alternate control volume
 	int fUpiUpj = GetUpperFaceI(ii, jj, kk, imaxG, jmaxG - 1);
 	int fUpiLowj = GetUpperFaceI(ii, jj - 1, kk, imaxG, jmaxG - 1);
 	int fLowiUpj = GetLowerFaceI(ii, jj, kk, imaxG, jmaxG - 1);
 	int fLowiLowj = GetLowerFaceI(ii, jj - 1, kk, imaxG, jmaxG - 1);
 
+	//location of k-faces in the upper and lower direction belonging to the cells in the upper 
+	//and lower j-direction of the current face (with ghost cells included) - these are used in the 
+	//gradient calculation to construct the alternate control volume
 	int fUpkUpj = GetUpperFaceK(ii, jj, kk, imaxG, jmaxG - 1);
 	int fUpkLowj = GetUpperFaceK(ii, jj - 1, kk, imaxG, jmaxG - 1);
 	int fLowkUpj = GetLowerFaceK(ii, jj, kk, imaxG, jmaxG - 1);
 	int fLowkLowj = GetLowerFaceK(ii, jj - 1, kk, imaxG, jmaxG - 1);
 
-	//cell indices
+	//location of cells in the upper and lower j-direction with respect to baseline face (with ghost cells included)
 	int jLow  = GetCellFromFaceLowerJ(ii, jj, kk, imaxG, jmaxG);
 	int jUp  = GetCellFromFaceUpperJ(ii, jj, kk, imaxG, jmaxG);
 
+	//location of cells in the upper and lower i-direction and the upper 
+	//and lower j-direction of the current face (with ghost cells included) - these are used in the 
+	//gradient calculation to construct the alternate control volume
 	int iUpjUp = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG - 1);
 	int iUpjLow = GetNeighborUpI(ii, jj - 1, kk, imaxG, jmaxG - 1);
 	int iLowjUp = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG - 1);
 	int iLowjLow = GetNeighborLowI(ii, jj - 1, kk, imaxG, jmaxG - 1);
 
+	//location of cells in the upper and lower k-direction and the upper 
+	//and lower j-direction of the current face (with ghost cells included) - these are used in the 
+	//gradient calculation to construct the alternate control volume
 	int kUpjUp = GetNeighborUpK(ii, jj, kk, imaxG, jmaxG - 1);
 	int kUpjLow = GetNeighborUpK(ii, jj - 1, kk, imaxG, jmaxG - 1);
 	int kLowjUp = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG - 1);
 	int kLowjLow = GetNeighborLowK(ii, jj - 1, kk, imaxG, jmaxG - 1);
 
-	//no ghost cell indices
+	//location of cells in the upper and lower j-direction with respect to baseline face (without ghost cells included)
 	int jLowNG  = GetCellFromFaceLowerJ(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 	int jUpNG  = GetCellFromFaceUpperJ(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 
+	//calculate average velocity on i and k faces of alternate control volume
 	vector3d<double> viu = 0.25 * ( (*this).State(jLow).Velocity() + (*this).State(jUp).Velocity() + (*this).State(iUpjUp).Velocity() + (*this).State(iUpjLow).Velocity() );
 	vector3d<double> vil = 0.25 * ( (*this).State(jLow).Velocity() + (*this).State(jUp).Velocity() + (*this).State(iLowjUp).Velocity() + (*this).State(iLowjLow).Velocity() );
 
 	vector3d<double> vku = 0.25 * ( (*this).State(jLow).Velocity() + (*this).State(jUp).Velocity() + (*this).State(kUpjUp).Velocity() + (*this).State(kUpjLow).Velocity() );
 	vector3d<double> vkl = 0.25 * ( (*this).State(jLow).Velocity() + (*this).State(jUp).Velocity() + (*this).State(kLowjUp).Velocity() + (*this).State(kLowjLow).Velocity() );
 
+	//calculate areas of faces in alternate control volume
 	vector3d<double> aju = 0.5 * ( (*this).FAreaJ(loc) + (*this).FAreaJ(fUpj) );
 	vector3d<double> ajl = 0.5 * ( (*this).FAreaJ(loc) + (*this).FAreaJ(fLowj) );
 
@@ -1686,14 +1707,15 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 	vector3d<double> aku = 0.5 * ( (*this).FAreaK(fUpkUpj) + (*this).FAreaK(fUpkLowj) );
 	vector3d<double> akl = 0.5 * ( (*this).FAreaK(fLowkUpj) + (*this).FAreaK(fLowkLowj) );
 
+	//calculate volume of alternate control volume
 	double vol = 0.5 * ( (*this).Vol(jLow) + (*this).Vol(jUp) );
 
 	//Get velocity gradient at face
 	tensor<double> velGrad = CalcVelGradGG( vil, viu, (*this).State(jLow).Velocity(), (*this).State(jUp).Velocity(), vkl, vku, ail, aiu, ajl, aju, akl, aku, vol);
-
 	//Get velocity at face
 	vector3d<double> vel = FaceReconCentral( (*this).State(jLow).Velocity(), (*this).State(jUp).Velocity(), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
 
+	//calculate average temperature on i and k faces of alternate control volume
 	double tiu = 0.25 * ( (*this).State(jLow).Temperature(eqnState) + (*this).State(jUp).Temperature(eqnState) + (*this).State(iUpjUp).Temperature(eqnState) +
 			      (*this).State(iUpjLow).Temperature(eqnState) );
 	double til = 0.25 * ( (*this).State(jLow).Temperature(eqnState) + (*this).State(jUp).Temperature(eqnState) + (*this).State(iLowjUp).Temperature(eqnState) +
@@ -1716,10 +1738,10 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
 	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
-	if ( jj > (*this).NumGhosts() ){
+	if ( jj > (*this).NumGhosts() ){ //at left boundary there is no left cell to add to
 	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaJ(loc).Mag(), jLowNG);
 	}
-	if ( jj < jmax -1 + (*this).NumGhosts() ){
+	if ( jj < jmax -1 + (*this).NumGhosts() ){ //at right boundary there is no right cell to add to
 	  (*this).AddToResidual(tempViscFlux * (*this).FAreaJ(loc).Mag(), jUpNG);
 
 	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the upper faces
@@ -1737,14 +1759,20 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 
 //member function to calculate viscous fluxes on j-faces
 void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, const input &inp){
+  // suth -- method to get viscosity as a function of temperature (Sutherland's law)
+  // eqnState -- equation of state
+  // inp -- all input variables
 
+  //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
   int jmax = (*this).NumJ();
-  int kmax = (*this).NumK() + 1;
+  int kmax = (*this).NumK() + 1; //calculating fluxes on k-faces so one more face in k-direction
 
+  //max dimensions for vectors with ghost cells
   int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
+  //calculate reference Reynolds number and Mach number for nondimensionalization
   double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
   double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
   double mRef = inp.VelRef().Mag() / aRef;
@@ -1752,50 +1780,66 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
   //coefficient for viscous spectral radii
   double vCoeff = 1.0;
 
+  //loop over physical faces
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
     for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
       for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++){      
 
-	//face indices
+	//location of current face (with ghost cells included)
 	int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
 
+	//location of faces in the upper and lower k-direction (with ghost cells included)
 	int fUpk = GetNeighborUpK(ii, jj, kk, imaxG, jmaxG);
 	int fLowk = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG);
 
+	//location of i-faces in the upper and lower direction belonging to the cells in the upper 
+	//and lower k-direction of the current face (with ghost cells included) - these are used in the 
+	//gradient calculation to construct the alternate control volume
 	int fUpiUpk = GetUpperFaceI(ii, jj, kk, imaxG, jmaxG);
 	int fUpiLowk = GetUpperFaceI(ii, jj, kk - 1, imaxG, jmaxG);
 	int fLowiUpk = GetLowerFaceI(ii, jj, kk, imaxG, jmaxG);
 	int fLowiLowk = GetLowerFaceI(ii, jj, kk - 1, imaxG, jmaxG);
 
+	//location of j-faces in the upper and lower direction belonging to the cells in the upper 
+	//and lower k-direction of the current face (with ghost cells included) - these are used in the 
+	//gradient calculation to construct the alternate control volume
 	int fUpjUpk = GetUpperFaceJ(ii, jj, kk, imaxG, jmaxG);
 	int fUpjLowk = GetUpperFaceJ(ii, jj, kk - 1, imaxG, jmaxG);
 	int fLowjUpk = GetLowerFaceJ(ii, jj, kk, imaxG, jmaxG);
 	int fLowjLowk = GetLowerFaceJ(ii, jj, kk - 1, imaxG, jmaxG);
 
-	//cell indices
+	//location of cells in the upper and lower k-direction with respect to baseline face (with ghost cells included)
 	int kLow  = GetCellFromFaceLowerK(ii, jj, kk, imaxG, jmaxG);
 	int kUp  = GetCellFromFaceUpperK(ii, jj, kk, imaxG, jmaxG);
 
+	//location of cells in the upper and lower k-direction and the upper 
+	//and lower i-direction of the current face (with ghost cells included) - these are used in the 
+	//gradient calculation to construct the alternate control volume
 	int iUpkUp = GetNeighborUpI(ii, jj, kk, imaxG, jmaxG);
 	int iUpkLow = GetNeighborUpI(ii, jj, kk - 1, imaxG, jmaxG);
 	int iLowkUp = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG);
 	int iLowkLow = GetNeighborLowI(ii, jj, kk - 1, imaxG, jmaxG);
 
+	//location of cells in the upper and lower k-direction and the upper 
+	//and lower j-direction of the current face (with ghost cells included) - these are used in the 
+	//gradient calculation to construct the alternate control volume
 	int jUpkUp = GetNeighborUpK(ii, jj, kk, imaxG, jmaxG);
 	int jUpkLow = GetNeighborUpK(ii, jj, kk - 1, imaxG, jmaxG);
 	int jLowkUp = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG);
 	int jLowkLow = GetNeighborLowK(ii, jj, kk - 1, imaxG, jmaxG);
 
-	//no ghost indices
+	//location of cells in the upper and lower k-direction with respect to baseline face (without ghost cells included)
 	int kLowNG  = GetCellFromFaceLowerK(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 	int kUpNG  = GetCellFromFaceUpperK(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), imax, jmax);
 
+	//calculate average velocity on i and j faces of alternate control volume
 	vector3d<double> viu = 0.25 * ( (*this).State(kLow).Velocity() + (*this).State(kUp).Velocity() + (*this).State(iUpkUp).Velocity() + (*this).State(iUpkLow).Velocity() );
 	vector3d<double> vil = 0.25 * ( (*this).State(kLow).Velocity() + (*this).State(kUp).Velocity() + (*this).State(iLowkUp).Velocity() + (*this).State(iLowkLow).Velocity() );
 
 	vector3d<double> vju = 0.25 * ( (*this).State(kLow).Velocity() + (*this).State(kUp).Velocity() + (*this).State(jUpkUp).Velocity() + (*this).State(jUpkLow).Velocity() );
 	vector3d<double> vjl = 0.25 * ( (*this).State(kLow).Velocity() + (*this).State(kUp).Velocity() + (*this).State(jLowkUp).Velocity() + (*this).State(jLowkLow).Velocity() );
 
+	//calculate areas of faces in alternate control volume
 	vector3d<double> aku = 0.5 * ( (*this).FAreaK(loc) + (*this).FAreaK(fUpk) );
 	vector3d<double> akl = 0.5 * ( (*this).FAreaK(loc) + (*this).FAreaK(fLowk) );
 
@@ -1805,14 +1849,15 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
 	vector3d<double> aju = 0.5 * ( (*this).FAreaJ(fUpjUpk) + (*this).FAreaJ(fUpjLowk) );
 	vector3d<double> ajl = 0.5 * ( (*this).FAreaJ(fLowjUpk) + (*this).FAreaJ(fLowjLowk) );
 
+	//calculate volume of alternate control volume
 	double vol = 0.5 * ( (*this).Vol(kLow) + (*this).Vol(kUp) );
 
 	//Get velocity gradient at face
 	tensor<double> velGrad = CalcVelGradGG( vil, viu, vjl, vju, (*this).State(kLow).Velocity(), (*this).State(kUp).Velocity(), ail, aiu, ajl, aju, akl, aku, vol);
 	//Get velocity at face
 	vector3d<double> vel = FaceReconCentral( (*this).State(kLow).Velocity(), (*this).State(kUp).Velocity(), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
-	//Get temperature gradient at face
 
+	//calculate average temperature on i and j faces of alternate control volume
 	double tiu = 0.25 * ( (*this).State(kLow).Temperature(eqnState) + (*this).State(kUp).Temperature(eqnState) + (*this).State(iUpkUp).Temperature(eqnState) +
 			      (*this).State(iUpkLow).Temperature(eqnState) );
 	double til = 0.25 * ( (*this).State(kLow).Temperature(eqnState) + (*this).State(kUp).Temperature(eqnState) + (*this).State(iLowkUp).Temperature(eqnState) +
@@ -1823,6 +1868,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
 	double tjl = 0.25 * ( (*this).State(kLow).Temperature(eqnState) + (*this).State(kUp).Temperature(eqnState) + (*this).State(jLowkUp).Temperature(eqnState) +
 			      (*this).State(jLowkLow).Temperature(eqnState) );
 
+	//Get temperature gradient at face
 	vector3d<double> tGrad = CalcTempGradGG( til, tiu, tjl, tju, (*this).State(kLow).Temperature(eqnState), (*this).State(kUp).Temperature(eqnState), ail, aiu, ajl, aju, akl, aku, vol);
 	//Get viscosity at face
 	double mu = FaceReconCentral( suth.GetViscosity( (*this).State(kLow).Temperature(eqnState) ), 
@@ -1834,10 +1880,10 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
 	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
-	if ( kk > (*this).NumGhosts() ){
+	if ( kk > (*this).NumGhosts() ){ //at left boundary there is no left cell to add to
 	  (*this).AddToResidual(-1.0 * tempViscFlux * (*this).FAreaK(loc).Mag(), kLowNG);
 	}
-	if ( kk < kmax -1 + (*this).NumGhosts() ){
+	if ( kk < kmax -1 + (*this).NumGhosts() ){ //at right boundary there is no right cell to add to
 	  (*this).AddToResidual(tempViscFlux * (*this).FAreaK(loc).Mag(), kUpNG);
 
 	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the upper faces
