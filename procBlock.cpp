@@ -870,8 +870,25 @@ void procBlock::ResetResidWS( ){
 
 }
 
-//a member function to add the cell volume divided by the cell time step to the time m minus time n term
-//LOOK INTO THIS -- I * (m-n) or I + (m-n) ?  Add explaination for why this is done...
+/* Member function to add the cell volume divided by the cell time step to the main diagonal of the time m minus time n term.
+
+dU/dt = V/t * [ ((1 + zeta) * FD - zeta * BD) / ((1 + theta) * FD )] * Un = -Rn
+
+The above equation shows the governing equations written in the Beam & Warming format for time integration. U is the vector of conserved variables
+where n represents the time step. Theta and zeta are Beam & Warming parameters, t is the time step, V is the cell volume, and R is the residual. 
+FD and BD are the forward and backward difference operators respectively. These opererators operate in the time domain. For example FD(U) = 
+Un+1 - Un and BD(U) = Un - Un-1. Solving the above equation for FD(Qn) we get the following:
+
+FD(Un) = (-t * Rn - t * theta * FD(Rn) + zeta * V * FD(Un-1)) / ((1 + zeta) * V)
+
+FD(Rn) requires us to know the residual at time n+1, but this is unknown. To bypass this difficulty we linearize the residual using a Taylor series
+expansion about time n. Rn+1 = Rn + J*FD(Un) where J is the flux jacobian dR/dU. Rearranging the above equation we get the following:
+
+[J + (1+zeta)*V/(t*theta)] * FD(Un) = -Rn/theta + zeta*V/(t*theta) * FD(Un-1)
+
+The above equation shows that the time m minus time n term (FD(Un)) requires a (1+zeta)V/(t*theta) term multiplied by it. That is the purpose of this
+function.
+*/
 vector<colMatrix> procBlock::AddVolTime(const vector<colMatrix> &m, const vector<colMatrix> &n, const double &theta, const double &zeta) const {
   // m -- solution for block at time m
   // n -- solution for block at time n
@@ -906,10 +923,27 @@ vector<colMatrix> procBlock::AddVolTime(const vector<colMatrix> &m, const vector
   return mMinusN;
 }
 
-//member function to calculate the delta n-1 term for the implicit bdf2 solver
-//LOOK INTO THIS -- add explaination
+/* Member function to calculate the delta n-1 term for the implicit bdf2 solver.
+
+dU/dt = V/t * [ ((1 + zeta) * FD - zeta * BD) / ((1 + theta) * FD )] * Un = -Rn
+
+The above equation shows the governing equations written in the Beam & Warming format for time integration. U is the vector of conserved variables
+where n represents the time step. Theta and zeta are Beam & Warming parameters, t is the time step, V is the cell volume, and R is the residual. 
+FD and BD are the forward and backward difference operators respectively. These opererators operate in the time domain. For example FD(U) = 
+Un+1 - Un and BD(U) = Un - Un-1. Solving the above equation for FD(Qn) we get the following:
+
+FD(Un) = (-t * Rn - t * theta * FD(Rn) + zeta * V * FD(Un-1)) / ((1 + zeta) * V)
+
+FD(Rn) requires us to know the residual at time n+1, but this is unknown. To bypass this difficulty we linearize the residual using a Taylor series
+expansion about time n. Rn+1 = Rn + J*FD(Un) where J is the flux jacobian dR/dU. Rearranging the above equation we get the following:
+
+[J + (1+zeta)*V/(t*theta)] * FD(Un) = -Rn/theta + zeta*V/(t*theta) * FD(Un-1)
+
+The above equation shows that the time n minus time n-1 term (FD(Un-1)) requires a zeta*V/(t*theta) term multiplied by it. That is the purpose of this
+function.
+*/
 void procBlock::DeltaNMinusOne(vector<colMatrix> &solDeltaNm1, const vector<colMatrix> &solTimeN, const idealGas &eqnState, const double &theta, const double &zeta){
-  // solDeltaNm1 -- The solution at time n minus the solution at time n-1. (Un - Un-1)
+  // solDeltaNm1 -- The solution at time n minus the solution at time n-1. (Un - Un-1) (output)
   // solTimeN -- The solution at time n
   // eqnState -- equation of state
   // theta -- Beam & Warming coefficient theta for time integration
@@ -974,13 +1008,85 @@ vector<colMatrix> procBlock::GetCopyConsVars(const idealGas &eqnState) const {
   return consVars;
 }
 
-//function to perform symmetric Gauss-Seidel relaxation to solver Ax=b
-//when relax = 1.0, symmetric Gauss-Seidel is achieved. Values >1 result in symmetric successive over relaxation (SSOR)
-//Values <1 result in under relaxation
-//LOOK INTO THIS -- add explanation
+/* Member function to calculate update to solution implicitly using Lower-Upper Symmetric Gauss Seidel (LUSGS) method.
+
+Un+1 = Un - t/V * Rn+1
+
+The above equation shows a simple first order implicit method to calculate the solution at the next time step (n+1). The equation shows
+that this method requires the residual (R) at time n+1 which is unknown. In the equation, t is the time step, and V is the volume. Since
+the residual at n+1 in unknown, it must be linearized about time n as shown below.
+
+Rn+1 = Rn + dRn/dUn * FD(Un)
+
+In the above equation FD is the forward difference operator in time (FD(Un) = Un+1 - Un). The derivative of the residual term can be further
+simplified as below.
+
+Rn = (sum over all faces) Fni
+
+In the above equation n refers to the time level and i refers to the face index. The summation over all faces operator will now be abbreviated
+as (SF). Substituting the second and third equations into the first and rearranging we get the following.
+
+[d(SF)Fni/dUnj + V/t] * FD(Un) = -Rn
+
+In the above equation the index j refers to all of the cells in the stencil going into the calculation of the flux at face i. The above equation
+can be simplified to A*x=b. The matrix A is an MxM block matrix where M is the number of cells in the block. Each block is an LxL block where L
+is the number of equations being solved for. The sparsity of A depends on the stencil used in flux calculation. In 3D for a first order simulation
+the matrix A is block pentadiagonal. For a second order approximation it would have 13 diagonals. This increases the storage requirements so in 
+practice a first order approximation is used. The order of accuracy is determined by the residual calculation. The accuracy of the matrix A helps
+with convergence. A poorer approximation will eventually get the correct answer with enough iteration (defect correction). Fully implicit methods
+calculate and store the flux jacobians needed to populate the matrix A. The LUSGS method does not do this and instead calculates an approximate 
+flux jacobian "on-the-fly" so there is no need for storage. Because an approximate flux jacobian is being used, there is no need for a highly 
+accurate linear solver. Therefore the Symmetric Gauss-Seidel (SGS) method is a good candidate, and only one iteration is needed. This approximate 
+flux jacobian along with the SGS linear solver form the basics of the LUSGS method (Jameson & Yoon). The LUSGS method begins by factoring the 
+matrix A as shown below.
+
+A = (D + L) * D^-1 * (D + U)
+
+In the above equation D is the diagonal of A, L is the lower triangular portion of A, and U is the upper triangular portion of A. This allows the 
+equation A*x=b to be solved in one SGS sweep as shown below.
+
+Forward sweep:  (D + L) * FD(Un*) = -Rn
+Backward sweep: (D + U) * FD(Un) = D * FD(Un*)
+
+Another key component of the LUSGS scheme is to sweep along hyperplanes. Hyperplanes are planes of i+j+k=constant within a plot3d block. The
+diagram below shows a 2D example of a block reordered to sweep along hyperplanes
+
+           ____ ____ ____ ____ ____ ____ ____ ____
+          | 20 | 26 | 32 | 37 | 41 | 44 | 46 | 47 |
+          |____|____|____|____|____|____|____|____|
+          | 14 | 19 | 25 | 31 | 36 | 40 | 43 | 45 |
+          |____|____|____|____|____|____|____|____|
+          | 9  | 13 | 18 | 24 | 30 | 35 | 39 | 42 |
+   A=     |____|____|____|____|____|____|____|____|
+          | 5  | 8  | 12 | 17 | 23 | 29 | 34 | 38 |
+          |____|____|____|____|____|____|____|____|
+          | 2  | 4  | 7  | 11 | 16 | 22 | 28 | 33 |
+          |____|____|____|____|____|____|____|____|
+          | 0  | 1  | 3  | 6  | 10 | 15 | 21 | 27 |
+          |____|____|____|____|____|____|____|____|
+
+This is advantageous because on the forward sweep the lower matrix L can be calculated with data from time n+1 because all of the cells contributing
+to L would already have been updated. The same is true with the upper matrix U for the backward sweep. This removes the need for any storage of the 
+matrix. For a given location (say A12) the matrix L would be constructed of A8 and A7, and the matrix U would be constructed of A18 and A17. This 
+requires the product of the flux jacobian multiplied with the update (FD(Un)) to be calculated at these locations. For the LUSGS method the flux 
+jacobians are approximated as follows:
+
+A * S = 0.5 * (Ac * S + K * I)
+
+A is the flux jacobian, S is the face area, Ac is the convective flux jacobian (dF/dU), K is the spectral radius multiplied by a factor, and I is
+the identity matrix. The addition of the spectrial radius improves diagonal dominance which improves stability at the cost of convergence. When the 
+factor multiplied by K is 1, the method is SGS, when it is < 1, it is successive overrelaxation. Reducing the factor improves convergence but hurts
+stability. The product of the approximate flux jacobian with the update is calculated as shown below.
+
+A * S * FD(Unj) = 0.5 * (Ac * FD(Unj) * S + K * I * FD(Unj)) = 0.5 * ( dFi/dUnj * FD(Unj) * S + K * I * FD(Unj)) = 0.5 * (dFi * S + K * I * FD(Unj))
+
+The above equation shows that all that is needed to calculate the RHS of A*x=b is the update of the convective flux, and the update to the convervative
+variabes (FD(Unj)) which is known due to sweeping along hyperplanes.
+
+For viscous simulations, the viscous contribution to the spectral radius K is used, and everything else remains the same.
+ */
 double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix> &x, const vector<colMatrix> &solTimeMmN, 
 			 const vector<colMatrix> &solDeltaNm1, const idealGas &eqnState, const input &inp, const sutherland &suth)const{
-
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // x -- solution at time n
   // solTimeMmn -- solution at time m minus n
@@ -1003,232 +1109,263 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
     x[ll].Zero();
   }
 
-  double AiiInv = 0.0;
-
-  colMatrix l2Resid(x[0].Size());
-  l2Resid.Zero();
+  //initialize inverse to diagonal block. For LUSGS block inversion is replaced by scalar division
+  double AiiInv = 0.0; 
 
   double thetaInv = 1.0 / inp.Theta();
 
   squareMatrix I(x[0].Size());
   I.Identity();
 
+  //initialize column matrix to zero
   colMatrix initial(x[0].Size());
   initial.Zero();
 
-  for ( int kk = 0; kk < inp.MatrixSweeps(); kk++ ){
+  //initialize L and U matrices
+  vector<colMatrix> U(x.size(),initial);
+  vector<colMatrix> L(x.size(),initial);
 
-    vector<colMatrix> U(x.size(),initial);
-    vector<colMatrix> L(x.size(),initial);
+  //------------------------------------------------------------------------------------------------------------------------------------------------------
+  //forward sweep over all physical cells
+  for ( int ii = 0; ii < (int)x.size(); ii++ ){
 
-    //forward sweep over all physical cells
-    for ( int ii = 0; ii < (int)x.size(); ii++ ){
+    //indicies for variables without ghost cells
+    //location of cell on diagonal
+    int loc = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
 
-      //indicies for variables without ghost cells
-      int loc = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+    //location of cells on the lower i, j, k sides of diagonal cell 
+    int il = GetNeighborLowI(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+    int jl = GetNeighborLowJ(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+    int kl = GetNeighborLowK(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
 
-      int il = GetNeighborLowI(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
-      int jl = GetNeighborLowJ(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
-      int kl = GetNeighborLowK(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+    //indicies for variables with ghost cells
+    //location of cell on diagonal
+    int locG = GetLoc1D(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
 
-      //indicies for variables with ghost cells
-      int locG = GetLoc1D(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+    //location of faces of the diagonal cell that touch cells making up row of L matrix
+    int ilFaceG = GetLowerFaceI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+    int jlFaceG = GetLowerFaceJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+    int klFaceG = GetLowerFaceK(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
 
-      int ilFaceG = GetLowerFaceI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
-      int jlFaceG = GetLowerFaceJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
-      int klFaceG = GetLowerFaceK(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+    //location of faces of cells making up row of L matrix (used in spectral radius calculation)
+    int ilFace2G = GetLowerFaceI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG, 2);
+    int jlFace2G = GetLowerFaceJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG, 2);
+    int klFace2G = GetLowerFaceK(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG, 2);
 
-      int ilFace2G = GetLowerFaceI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG, 2);
-      int jlFace2G = GetLowerFaceJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG, 2);
-      int klFace2G = GetLowerFaceK(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG, 2);
+    //location of cells making up row of L matrix
+    int ilG = GetNeighborLowI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+    int jlG = GetNeighborLowJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+    int klG = GetNeighborLowK(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
 
-      int ilG = GetNeighborLowI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
-      int jlG = GetNeighborLowJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
-      int klG = GetNeighborLowK(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+    //if i lower diagonal cell is in physical location there is a contribution from it
+    if ( il >=0 && il < (int)x.size() ){
+      //at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
+      double specRad = CellSpectralRadius( (*this).FAreaI(ilFace2G), (*this).FAreaI(ilFaceG), (*this).State(ilG).UpdateWithConsVars(eqnState, x[il]), eqnState);
 
+      if (inp.EquationSet() != "euler"){ //if viscous add viscous contribution to spectral radius
+	double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
+	double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
+	double mRef = inp.VelRef().Mag() / aRef;
+	double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaI(ilFace2G), (*this).FAreaI(ilFaceG), 
+							      (*this).State(ilG).UpdateWithConsVars(eqnState, x[il]), eqnState, suth, (*this).Vol(ilG) );
+	specRad += vSpecRad;
+      }
 
-      if ( il >=0 && il < (int)x.size() ){
-	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	double specRad = CellSpectralRadius( (*this).FAreaI(ilFace2G), (*this).FAreaI(ilFaceG), (*this).State(ilG).UpdateWithConsVars(eqnState, x[il]), eqnState);
+      //at given face location, call function to calculate convective flux change
+      colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(ilG), eqnState, (*this).FAreaI(ilFaceG), x[il]);
 
-	if (inp.EquationSet() != "euler"){ //viscous
-	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
-	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
-	  double mRef = inp.VelRef().Mag() / aRef;
-	  double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaI(ilFace2G), (*this).FAreaI(ilFaceG), 
-								(*this).State(ilG).UpdateWithConsVars(eqnState, x[il]), eqnState, suth, (*this).Vol(ilG) );
-	  specRad += vSpecRad;
-	}
-
-	//at given face location, call function to calculate convective flux change
-	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(ilG), eqnState, (*this).FAreaI(ilFaceG), x[il]);
-
-	L[loc] = L[loc] + 0.5 * ( (*this).FAreaI(ilFaceG).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[il]) );
+      //update L matrix
+      L[loc] = L[loc] + 0.5 * ( (*this).FAreaI(ilFaceG).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[il]) );
     }
-      if ( jl >=0 && jl < (int)x.size() ){
-	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	double specRad = CellSpectralRadius( (*this).FAreaJ(jlFace2G), (*this).FAreaJ(jlFaceG), (*this).State(jlG).UpdateWithConsVars(eqnState, x[jl]), eqnState);
+    //if j lower diagonal cell is in physical location there is a contribution from it
+    if ( jl >=0 && jl < (int)x.size() ){
+      //at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
+      double specRad = CellSpectralRadius( (*this).FAreaJ(jlFace2G), (*this).FAreaJ(jlFaceG), (*this).State(jlG).UpdateWithConsVars(eqnState, x[jl]), eqnState);
 
-	if (inp.EquationSet() != "euler"){ //viscous
-	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
-	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
-	  double mRef = inp.VelRef().Mag() / aRef;
-	  double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaJ(jlFace2G), (*this).FAreaJ(jlFaceG), 
-								(*this).State(jlG).UpdateWithConsVars(eqnState, x[jl]), eqnState, suth, (*this).Vol(jlG) );
-	  specRad += vSpecRad;
-	}
-
-	//at given face location, call function to calculate convective flux change
-	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(jlG), eqnState, (*this).FAreaJ(jlFaceG), x[jl]);
-
-	L[loc] = L[loc] + 0.5 * ( (*this).FAreaJ(jlFaceG).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[jl]) );
-      }
-      if ( kl >=0 && kl < (int)x.size() ){
-	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	double specRad = CellSpectralRadius( (*this).FAreaK(klFace2G), (*this).FAreaK(klFaceG), (*this).State(klG).UpdateWithConsVars(eqnState, x[kl]), eqnState);
-
-	if (inp.EquationSet() != "euler"){ //viscous
-	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
-	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
-	  double mRef = inp.VelRef().Mag() / aRef;
-	  double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaK(klFace2G), (*this).FAreaK(klFaceG), 
-								(*this).State(klG).UpdateWithConsVars(eqnState, x[kl]), eqnState, suth, (*this).Vol(klG) );
-	  specRad += vSpecRad;
-	}
-
-	//at given face location, call function to calculate convective flux change
-	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(klG), eqnState, (*this).FAreaK(klFaceG), x[kl]);
-
-	L[loc] = L[loc] + 0.5 * ( (*this).FAreaK(klFaceG).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[kl]) );
+      if (inp.EquationSet() != "euler"){ //if viscous add viscous contribution to spectral radius
+	double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
+	double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
+	double mRef = inp.VelRef().Mag() / aRef;
+	double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaJ(jlFace2G), (*this).FAreaJ(jlFaceG), 
+							      (*this).State(jlG).UpdateWithConsVars(eqnState, x[jl]), eqnState, suth, (*this).Vol(jlG) );
+	specRad += vSpecRad;
       }
 
-      double diagTimeVol = ( (*this).Vol(locG) * (1.0 + inp.Zeta()) ) / ( (*this).Dt(loc) * inp.Theta() );
-      if (inp.DualTimeCFL() > 0.0 ) { //use dual time stepping
-	double tau = (*this).AvgWaveSpeed(loc) / inp.DualTimeCFL(); // equal to volume / tau
-	diagTimeVol += tau;
+      //at given face location, call function to calculate convective flux change
+      colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(jlG), eqnState, (*this).FAreaJ(jlFaceG), x[jl]);
+
+      //update L matrix
+      L[loc] = L[loc] + 0.5 * ( (*this).FAreaJ(jlFaceG).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[jl]) );
+    }
+    //if k lower diagonal cell is in physical location there is a contribution from it
+    if ( kl >=0 && kl < (int)x.size() ){
+      //at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
+      double specRad = CellSpectralRadius( (*this).FAreaK(klFace2G), (*this).FAreaK(klFaceG), (*this).State(klG).UpdateWithConsVars(eqnState, x[kl]), eqnState);
+
+      if (inp.EquationSet() != "euler"){ //if viscous add viscous contribution to spectral radius
+	double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
+	double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
+	double mRef = inp.VelRef().Mag() / aRef;
+	double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaK(klFace2G), (*this).FAreaK(klFaceG), 
+							      (*this).State(klG).UpdateWithConsVars(eqnState, x[kl]), eqnState, suth, (*this).Vol(klG) );
+	specRad += vSpecRad;
       }
 
-      AiiInv = 1.0 / ( ((*this).AvgWaveSpeed(loc) + diagTimeVol ) * inp.MatrixRelaxation() );
+      //at given face location, call function to calculate convective flux change
+      colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(klG), eqnState, (*this).FAreaK(klFaceG), x[kl]);
 
-      x[loc] = AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) - solDeltaNm1[loc] - solTimeMmN[loc] + L[loc] ) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
+      //update L matrix
+      L[loc] = L[loc] + 0.5 * ( (*this).FAreaK(klFaceG).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[kl]) );
+    }
 
-    } //end forward sweep
+    //add dual time stepping contribution to main diagonal
+    double diagTimeVol = ( (*this).Vol(locG) * (1.0 + inp.Zeta()) ) / ( (*this).Dt(loc) * inp.Theta() );
+    if (inp.DualTimeCFL() > 0.0 ) { //use dual time stepping
+      double tau = (*this).AvgWaveSpeed(loc) / inp.DualTimeCFL(); // equal to volume / tau
+      diagTimeVol += tau;
+    }
 
-    //backward sweep over all physical cells
-    for ( int ii = (int)x.size()-1; ii >= 0; ii-- ){
+    AiiInv = 1.0 / ( ((*this).AvgWaveSpeed(loc) + diagTimeVol ) * inp.MatrixRelaxation() );
 
-      //indicies for variables without ghost cells
-      int loc = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+    //calculate intermediate update
+    x[loc] = AiiInv * ( -1.0 * thetaInv * (*this).Residual(loc) - solDeltaNm1[loc] - solTimeMmN[loc] + L[loc] ) ; //normal at lower boundaries needs to be reversed, so add instead of subtract L
 
-      int iu = GetNeighborUpI(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
-      int ju = GetNeighborUpJ(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
-      int ku = GetNeighborUpK(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+  } //end forward sweep
 
-      //indicies for variables with ghost cells
-      int locG = GetLoc1D(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+  //------------------------------------------------------------------------------------------------------------------------------------------------------
+  //backward sweep over all physical cells
+  for ( int ii = (int)x.size()-1; ii >= 0; ii-- ){
 
-      int iuFaceG = GetUpperFaceI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
-      int juFaceG = GetUpperFaceJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
-      int kuFaceG = GetUpperFaceK(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+    //indicies for variables without ghost cells
+    //location of cell on diagonal
+    int loc = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
 
-      int iuFace2G = GetUpperFaceI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG, 2);
-      int juFace2G = GetUpperFaceJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG, 2);
-      int kuFace2G = GetUpperFaceK(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG, 2);
+    //location of cells on the upper i, j, k sides of diagonal cell 
+    int iu = GetNeighborUpI(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+    int ju = GetNeighborUpJ(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+    int ku = GetNeighborUpK(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
 
-      int iuG = GetNeighborUpI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
-      int juG = GetNeighborUpJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
-      int kuG = GetNeighborUpK(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+    //indicies for variables with ghost cells
+    //location of cell on diagonal
+    int locG = GetLoc1D(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
 
-      if ( iu >=0 && iu < (int)x.size() ){
-	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	double specRad = CellSpectralRadius( (*this).FAreaI(iuFace2G), (*this).FAreaI(iuFaceG), (*this).State(iuG).UpdateWithConsVars(eqnState, x[iu]), eqnState);
+    //location of faces of the diagonal cell that touch cells making up row of U matrix
+    int iuFaceG = GetUpperFaceI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+    int juFaceG = GetUpperFaceJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+    int kuFaceG = GetUpperFaceK(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
 
-	if (inp.EquationSet() != "euler"){ //viscous
-	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
-	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
-	  double mRef = inp.VelRef().Mag() / aRef;
-	  double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaI(iuFace2G), (*this).FAreaI(iuFaceG), 
-								(*this).State(iuG).UpdateWithConsVars(eqnState, x[iu]), eqnState, suth, (*this).Vol(iuG) );
-	  specRad += vSpecRad;
-	}
+    //location of faces of cells making up row of U matrix (used in spectral radius calculation)
+    int iuFace2G = GetUpperFaceI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG, 2);
+    int juFace2G = GetUpperFaceJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG, 2);
+    int kuFace2G = GetUpperFaceK(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG, 2);
 
-	//at given face location, call function to calculate convective flux change
-	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(iuG), eqnState, (*this).FAreaI(iuFaceG), x[iu]);
+    //location of cells making up row of U matrix
+    int iuG = GetNeighborUpI(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+    int juG = GetNeighborUpJ(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+    int kuG = GetNeighborUpK(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
 
-	U[loc] = U[loc] + 0.5 * ( (*this).FAreaI(iuFaceG).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[iu]) );
-      }
-      if ( ju >=0 && ju < (int)x.size() ){
-	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	double specRad = CellSpectralRadius( (*this).FAreaJ(juFace2G), (*this).FAreaJ(juFaceG), (*this).State(juG).UpdateWithConsVars(eqnState, x[ju]), eqnState);
+    //if i upper diagonal cell is in physical location there is a contribution from it
+    if ( iu >=0 && iu < (int)x.size() ){
+      //at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
+      double specRad = CellSpectralRadius( (*this).FAreaI(iuFace2G), (*this).FAreaI(iuFaceG), (*this).State(iuG).UpdateWithConsVars(eqnState, x[iu]), eqnState);
 
-	if (inp.EquationSet() != "euler"){ //viscous
-	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
-	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
-	  double mRef = inp.VelRef().Mag() / aRef;
-	  double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaJ(juFace2G), (*this).FAreaJ(juFaceG), 
-								(*this).State(juG).UpdateWithConsVars(eqnState, x[ju]), eqnState, suth, (*this).Vol(juG) );
-	  specRad += vSpecRad;
-	}
-
-	//at given face location, call function to calculate convective flux change
-	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(juG), eqnState, (*this).FAreaJ(juFaceG), x[ju]);
-
-	U[loc] = U[loc] + 0.5 * ( (*this).FAreaJ(juFaceG).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[ju]) );
-      }
-      if ( ku >=0 && ku < (int)x.size() ){
-	//at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
-	double specRad = CellSpectralRadius( (*this).FAreaK(kuFace2G), (*this).FAreaK(kuFaceG), (*this).State(kuG).UpdateWithConsVars(eqnState, x[ku]), eqnState);
-
-	if (inp.EquationSet() != "euler"){ //viscous
-	  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
-	  double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
-	  double mRef = inp.VelRef().Mag() / aRef;
-	  double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaK(kuFace2G), (*this).FAreaK(kuFaceG), 
-								(*this).State(kuG).UpdateWithConsVars(eqnState, x[ku]), eqnState, suth, (*this).Vol(kuG) );
-	  specRad += vSpecRad;
-	}
-
-	//at given face location, call function to calculate convective flux change
-	colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(kuG), eqnState, (*this).FAreaK(kuFaceG), x[ku]);
-
-	U[loc] = U[loc] + 0.5 * ( (*this).FAreaK(kuFaceG).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[ku]) );
+      if (inp.EquationSet() != "euler"){ //viscous
+	double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
+	double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
+	double mRef = inp.VelRef().Mag() / aRef;
+	double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaI(iuFace2G), (*this).FAreaI(iuFaceG), 
+							      (*this).State(iuG).UpdateWithConsVars(eqnState, x[iu]), eqnState, suth, (*this).Vol(iuG) );
+	specRad += vSpecRad;
       }
 
-      double diagTimeVol = ( (*this).Vol(locG) * (1.0 + inp.Zeta()) ) / ( (*this).Dt(loc) * inp.Theta() );
-      if (inp.DualTimeCFL() > 0.0 ) { //use dual time stepping
-	double tau = (*this).AvgWaveSpeed(loc) / inp.DualTimeCFL(); // equal to volume / tau
-	diagTimeVol += tau;
+      //at given face location, call function to calculate convective flux change
+      colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(iuG), eqnState, (*this).FAreaI(iuFaceG), x[iu]);
+
+      //update U matrix
+      U[loc] = U[loc] + 0.5 * ( (*this).FAreaI(iuFaceG).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[iu]) );
+    }
+    //if j upper diagonal cell is in physical location there is a contribution from it
+    if ( ju >=0 && ju < (int)x.size() ){
+      //at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
+      double specRad = CellSpectralRadius( (*this).FAreaJ(juFace2G), (*this).FAreaJ(juFaceG), (*this).State(juG).UpdateWithConsVars(eqnState, x[ju]), eqnState);
+
+      if (inp.EquationSet() != "euler"){ //viscous
+	double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
+	double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
+	double mRef = inp.VelRef().Mag() / aRef;
+	double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaJ(juFace2G), (*this).FAreaJ(juFaceG), 
+							      (*this).State(juG).UpdateWithConsVars(eqnState, x[ju]), eqnState, suth, (*this).Vol(juG) );
+	specRad += vSpecRad;
       }
 
-      AiiInv = 1.0 / ( ((*this).AvgWaveSpeed(loc) + diagTimeVol ) * inp.MatrixRelaxation() );
+      //at given face location, call function to calculate convective flux change
+      colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(juG), eqnState, (*this).FAreaJ(juFaceG), x[ju]);
 
-      x[loc] = x[loc] - AiiInv * U[loc];
+      //update U matrix
+      U[loc] = U[loc] + 0.5 * ( (*this).FAreaJ(juFaceG).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[ju]) );
+    }
+    //if k upper diagonal cell is in physical location there is a contribution from it
+    if ( ku >=0 && ku < (int)x.size() ){
+      //at given face location, call function to calculate spectral radius, since values are constant throughout cell, cell center values are used
+      double specRad = CellSpectralRadius( (*this).FAreaK(kuFace2G), (*this).FAreaK(kuFaceG), (*this).State(kuG).UpdateWithConsVars(eqnState, x[ku]), eqnState);
 
-    } //end backward sweep
-
-
-    //calculate residual
-    colMatrix resid(x[0].Size());
-
-    for ( int ii = 0; ii < (int)x.size(); ii++ ){
-
-      int loc = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
-      int locG = GetLoc1D(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
-
-      double diagTimeVol = ( (*this).Vol(locG) * (1.0 + inp.Zeta()) ) / ( (*this).Dt(loc) * inp.Theta() );
-      if (inp.DualTimeCFL() > 0.0 ) { //use dual time stepping
-	double tau = (*this).AvgWaveSpeed(loc) / inp.DualTimeCFL(); // equal to volume / tau
-	diagTimeVol += tau;
+      if (inp.EquationSet() != "euler"){ //viscous
+	double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
+	double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
+	double mRef = inp.VelRef().Mag() / aRef;
+	double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaK(kuFace2G), (*this).FAreaK(kuFaceG), 
+							      (*this).State(kuG).UpdateWithConsVars(eqnState, x[ku]), eqnState, suth, (*this).Vol(kuG) );
+	specRad += vSpecRad;
       }
 
-      double Aii = ((*this).AvgWaveSpeed(loc) + diagTimeVol ) * inp.MatrixRelaxation() ;
+      //at given face location, call function to calculate convective flux change
+      colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(kuG), eqnState, (*this).FAreaK(kuFaceG), x[ku]);
+
+      //update U matrix
+      U[loc] = U[loc] + 0.5 * ( (*this).FAreaK(kuFaceG).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[ku]) );
+    }
+
+    //add dual time stepping contribution to main diagonal
+    double diagTimeVol = ( (*this).Vol(locG) * (1.0 + inp.Zeta()) ) / ( (*this).Dt(loc) * inp.Theta() );
+    if (inp.DualTimeCFL() > 0.0 ) { //use dual time stepping
+      double tau = (*this).AvgWaveSpeed(loc) / inp.DualTimeCFL(); // equal to volume / tau
+      diagTimeVol += tau;
+    }
+
+    AiiInv = 1.0 / ( ((*this).AvgWaveSpeed(loc) + diagTimeVol ) * inp.MatrixRelaxation() );
+
+    //calculate update
+    x[loc] = x[loc] - AiiInv * U[loc];
+
+  } //end backward sweep
+
+  //------------------------------------------------------------------------------------------------------------------------------------------------------
+  //calculate residual
+  //initialize LUSGS residual vector
+  colMatrix l2Resid(x[0].Size());
+  l2Resid.Zero();
+
+  colMatrix resid(x[0].Size());
+
+  for ( int ii = 0; ii < (int)x.size(); ii++ ){
+
+    //location of diagonal cell with and without ghost cells
+    int loc = GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
+    int locG = GetLoc1D(reorder[ii].X() + (*this).NumGhosts(), reorder[ii].Y() + (*this).NumGhosts(), reorder[ii].Z() + (*this).NumGhosts(), imaxG, jmaxG);
+
+    //calclate dual time stepping contribution
+    double diagTimeVol = ( (*this).Vol(locG) * (1.0 + inp.Zeta()) ) / ( (*this).Dt(loc) * inp.Theta() );
+    if (inp.DualTimeCFL() > 0.0 ) { //use dual time stepping
+      double tau = (*this).AvgWaveSpeed(loc) / inp.DualTimeCFL(); // equal to volume / tau
+      diagTimeVol += tau;
+    }
+
+    double Aii = ((*this).AvgWaveSpeed(loc) + diagTimeVol ) * inp.MatrixRelaxation() ;
       
-      //normal at lower boundaries needs to be reversed, so add instead of subtract L
-      resid = -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] + solTimeMmN[loc] - Aii * x[loc] + L[loc] - U[loc];
-      l2Resid = l2Resid + resid * resid;
-    }
-
-  } //loop for sweeps
+    //normal at lower boundaries needs to be reversed, so add instead of subtract L
+    resid = -1.0 * thetaInv * (*this).Residual(loc) + solDeltaNm1[loc] + solTimeMmN[loc] - Aii * x[loc] + L[loc] - U[loc];
+    l2Resid = l2Resid + resid * resid;
+  }
 
   return l2Resid.Sum();
 
