@@ -409,6 +409,7 @@ input ReadInput(const string &inputName){
 	      inputVars.SetBC(tempBC);
 	      cout << inputVars.Vars(inputVars.NumVars()-1) << " " << inputVars.NumBC() << endl << endl;;
 	      for ( int ll = 0; ll < inputVars.NumBC(); ll++ ){
+		cout << "Block: " << ll << endl;
 		cout << inputVars.BC(ll) << endl;
 	      }
 	    }

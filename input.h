@@ -80,6 +80,7 @@ class input {
   void SetVelRef(const vector3d<double> &a){velRef = a;}
 
   boundaryConditions BC(const int &ind)const{return bc[ind];}
+  vector<boundaryConditions> AllBC()const{return bc;}
   int NumBC()const{return bc.size();}
   void SetBC(const vector<boundaryConditions> &a){bc = a;}
   void SetBCVec(const int &a);
