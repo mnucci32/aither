@@ -42,6 +42,9 @@ class plot3dBlock {
    vector<double> const X(){return x;}
    vector<double> const Y(){return y;}
    vector<double> const Z(){return z;}
+   double XLoc(const int &a)const{return x[a];}
+   double YLoc(const int &a)const{return y[a];}
+   double ZLoc(const int &a)const{return z[a];}
    void SetI(const int & dim){numi = dim;}
    void SetJ(const int & dim){numj = dim;}
    void SetK(const int & dim){numk = dim;}
