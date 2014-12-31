@@ -56,6 +56,9 @@ int main( int argc, char *argv[] ) {
   //Read grid
   vector<plot3dBlock> mesh = ReadP3dGrid(inputVars.GridName(), totalCells);
 
+  //Get interblock BCs
+  vector<interblock> connections = GetInterblockBCs( inputVars.AllBC(), mesh );
+
   //Initialize state vector with nondimensional variables
   //get reference speed of sound
   idealGas eos(inputVars.Gamma(),inputVars.R());                          //create an equation of state
