@@ -27,7 +27,7 @@ procBlock.o : procBlock.cpp procBlock.h vector3d.h plot3d.h eos.h primVars.h inv
 inviscidFlux.o : inviscidFlux.cpp vector3d.h eos.h primVars.h inviscidFlux.h boundaryConditions.h input.h
 	$(CC) $(CFLAGS) inviscidFlux.cpp
 
-boundaryConditions.o : boundaryConditions.cpp boundaryConditions.h
+boundaryConditions.o : boundaryConditions.cpp boundaryConditions.h plot3d.h vector3d.h
 	$(CC) $(CFLAGS) boundaryConditions.cpp
 
 eos.o : eos.cpp eos.h vector3d.h

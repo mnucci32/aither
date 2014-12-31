@@ -27,6 +27,7 @@ class vector3d {
   vector3d<T> operator - (const vector3d&)const;
   vector3d<T> operator * (const T&)const;
   vector3d<T> operator / (const T&)const;
+  bool operator == (const vector3d&)const;
   template <class TT>
   friend vector3d<TT> operator * (const TT&, const vector3d<TT>&);
   template <class TT>
@@ -131,6 +132,16 @@ T vector3d<T>::DotProd( const vector3d &v2)const{
 
 }
 
+//operator overload for comparison 
+template <class T>
+bool vector3d<T>::operator== (const vector3d &v2)const{
+  bool test = false;
+  vector3d<T> temp = *this;
+  if ( temp.x == v2.x && temp.y == v2.y && temp.z == v2.z ){
+    test = true;
+  }
+  return test;
+}
 
 //Function to calculate the cross product of two vectors
 template <class T>
