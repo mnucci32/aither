@@ -58,6 +58,7 @@ int main( int argc, char *argv[] ) {
 
   //Get interblock BCs
   vector<interblock> connections = GetInterblockBCs( inputVars.AllBC(), mesh );
+  exit(0);
 
   //Initialize state vector with nondimensional variables
   //get reference speed of sound
