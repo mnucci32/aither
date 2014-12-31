@@ -146,8 +146,12 @@ ostream & operator<< (ostream &os, const interblock &bc){
   return os;
 }
 
+//function to take in two patches and fill an interblock. The orientation is left at the default value 0.
 void interblock::SetInterblock(const patch &p1, const patch &p2){
+  // p1 -- patch 1
+  // p2 -- patch 2
 
+  //fill interblock
   (*this).SetBlockFirst(p1.Block());
   (*this).SetBlockSecond(p2.Block());
 
@@ -163,29 +167,27 @@ void interblock::SetInterblock(const patch &p1, const patch &p2){
   (*this).SetDir2StartFirst(p1.Dir2Start());
   (*this).SetDir2StartSecond(p2.Dir2Start());
 
-  orientation = 0;
+  orientation = 0; //default value (real values 1-6)
 }
 
-
 /* Function to go through the boundary conditions and pair the interblock BCs together and determine their orientation.
-
 */
 vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const vector<plot3dBlock> &grid ){
+  // bc -- vector of boundaryConditions for all blocks
+  // grid -- vector of plot3Dblocks for entire computational mesh
 
-  cout << "In GetInterblockBCs()" << endl;
-
-  vector<vector<int> > isolatedInterblocks;
-
+  //isolate only the interblock BCs and their associated data from all of the BCs
+  vector<vector<int> > isolatedInterblocks; //outer vector for each interblock BC, inner vector for information about interblock
   for ( unsigned int ii = 0; ii < bc.size(); ii++ ){ //loop over all blocks
-    int numSurf = bc[ii].NumSurfI() + bc[ii].NumSurfJ() + bc[ii].NumSurfK();
+    int numSurf = bc[ii].NumSurfI() + bc[ii].NumSurfJ() + bc[ii].NumSurfK(); //number of surfaces in block
 
     for ( int jj = 0; jj < numSurf; jj++ ){ //loop over number of surfaces in block
 
-      if ( bc[ii].GetBCTypes(jj) == "interblock" ){
-	vector<int> temp (10,0);
+      if ( bc[ii].GetBCTypes(jj) == "interblock" ){ //if boundary condition is interblock, store data
+	vector<int> temp (10,0); 
 	temp[0] = ii;                                  //block number of bc
 	
-	//boundary number of bc
+	//boundary number of bc (1-6)
 	if ( jj < bc[ii].NumSurfI() ){ //i-surface
 	  if ( bc[ii].GetIMin(jj) == 1) { //lower surface
 	    temp[1] = 1;
@@ -212,6 +214,7 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
 	}
 
 	//1 subtracted from indices because vectors start at 0.
+	//these are grid point indices
 	temp[2] = bc[ii].GetIMin(jj) - 1;              //i min of bc patch
 	temp[3] = bc[ii].GetIMax(jj) - 1;              //i max of bc patch
 	temp[4] = bc[ii].GetJMin(jj) - 1;              //j min of bc patch
@@ -219,6 +222,7 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
 	temp[6] = bc[ii].GetKMin(jj) - 1;              //k min of bc patch
 	temp[7] = bc[ii].GetKMax(jj) - 1;              //k max of bc patch
 
+	//determine block/boundary that interblock BC is supposed to match to
 	int tag = bc[ii].GetTag(jj);
 	int bound = -1;
 	int blk = -1;
@@ -251,44 +255,40 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
 	       << tag << " from block " << ii << " at boundary " << jj << "." << endl;
 	}
 
-	temp[8] = bound;                                  //boundary of pair
-	temp[9] = blk;                                    //block of pair
+	temp[8] = bound;                                  //boundary of match
+	temp[9] = blk;                                    //block of match
 
-	isolatedInterblocks.push_back(temp);
+	isolatedInterblocks.push_back(temp); //add data to end of vector
 
       }
 
     }
   }
 
-  for (unsigned int ii = 0; ii < isolatedInterblocks.size(); ii++ ){
-    for ( unsigned int jj = 0; jj < isolatedInterblocks[0].size(); jj++ ){
-      cout << isolatedInterblocks[ii][jj] << ", ";
-    }
-    cout << endl;
-  }
-
   //intialize vector of interblocks to return
+  //size is halved because each interblock pairs with another
   vector<interblock> connections(isolatedInterblocks.size()/2);
 
   //loop over isolated interblocks
+  //ii counts by two because after a pair is found, that data is swapped to ii+1. This allows the next search to avoid the matched pair
   for ( unsigned int ii = 0; ii < isolatedInterblocks.size(); ii+=2 ){
-    for ( unsigned int jj = ii+1; jj < isolatedInterblocks.size(); jj++ ){
+    for ( unsigned int jj = ii+1; jj < isolatedInterblocks.size(); jj++ ){ //loop over possible matches
 
       if ( isolatedInterblocks[ii][9] == isolatedInterblocks[jj][0] ) { //blocks between interblock BCs match
 	if ( isolatedInterblocks[ii][8] == isolatedInterblocks[jj][1] ) { //boundary surfaces between interblock BCs match
+
 	  //get current patch
 	  patch cPatch(isolatedInterblocks[ii][1], isolatedInterblocks[ii][0], isolatedInterblocks[ii][2], isolatedInterblocks[ii][3], isolatedInterblocks[ii][4],
 		       isolatedInterblocks[ii][5], isolatedInterblocks[ii][6], isolatedInterblocks[ii][7], grid[isolatedInterblocks[ii][0]]);
 
-	  //get new patch
+	  //get new patch (possible match)
 	  patch nPatch(isolatedInterblocks[jj][1], isolatedInterblocks[jj][0], isolatedInterblocks[jj][2], isolatedInterblocks[jj][3], isolatedInterblocks[jj][4],
 		       isolatedInterblocks[jj][5], isolatedInterblocks[jj][6], isolatedInterblocks[jj][7], grid[isolatedInterblocks[jj][0]]);
 
 	  //test for match
 	  interblock match;
 	  if ( TestPatchMatch(cPatch, nPatch, match) ){ //match found
-	    connections[ii/2] = match;
+	    connections[ii/2] = match; //store interblock pair
 	    swap(isolatedInterblocks[jj], isolatedInterblocks[ii+1]); //swap matched interblock BC to top portion of vector so it is not searched again
 	  }
 
@@ -297,21 +297,89 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
     }
   }
 
-  for (unsigned int ii = 0; ii < connections.size(); ii++ ){
-    cout << "Interblock " << ii << endl;
-    cout << connections[ii] << endl;
-  }
-
-
-  exit(0);
+  // for (unsigned int ii = 0; ii < connections.size(); ii++ ){
+  //   cout << "Interblock " << ii << endl;
+  //   cout << connections[ii] << endl;
+  // }
 
   return connections;
 }
 
-/* Function to take in the origin of the patch to be matched, as well as the origin locations of the possible match and determine if there
-is a match.
+/* Function to take in two patches and return if they are matched. If there is a match it uses the patches to modify the given
+interblock to contain the information on this match.
+
+Each patch is on a constant i, j, or k surface and is a 4 sided rectangle. The match is tested for by determining if the vertexes
+on one patch, match up with the vertexes on the other patch. Only 3 vertexes need to match, so only 3 are tested for. If there is a
+match the patches can be oriented in 8 different ways with respect to each other. The orientation is stored in the interblock that
+is modified.
+
+                         Patch 1                             Patch 2                   Description
+                     __________________                 __________________         
+                    |C1             C12|	       |C1             C12|
+                    |                  |	       |                  |
+Orientation 1:      |                  |	       |                  |           Same orientation
+                  D1|O               C2|	     D1|O               C2|
+                   ^|__________________|	      ^|__________________|
+                   | -->D2              	      | -->D2              
+                     __________________                 __________________         
+                    |C1             C12|	       |C2             C12|
+                    |                  |	       |                  |
+Orientation 2:      |                  |	       |                  |           D1/D2 swapped
+                  D1|O               C2|	     D2|O               C1|
+                   ^|__________________|	      ^|__________________|
+                   | -->D2              	      | -->D1              
+                     __________________                 __________________         
+                    |C1             C12|	       |O               C2|
+                    |                  |	       |                  |
+Orientation 3:      |                  |	       |                  |           D1 reversed
+                  D1|O               C2|	    -D1|C1             C12|
+                   ^|__________________|	      ^|__________________|
+                   | -->D2              	      | -->D2              
+                     __________________                 __________________         
+                    |C1             C12|	       |C12             C2|
+                    |                  |	       |                  |
+Orientation 4:      |                  |	       |                  |           D1/D2 swapped, D1 reversed
+                  D1|O               C2|	     D2|C1               O|
+                   ^|__________________|	      ^|__________________|
+                   | -->D2              	      | D1<--                
+                     __________________                 __________________         
+                    |C1             C12|	       |O               C1|
+                    |                  |	       |                  |
+Orientation 5:      |                  |	       |                  |           D1/D2 swapped, D2 reversed
+                  D1|O               C2|	    -D2|C2             C12|
+                   ^|__________________|	      ^|__________________|
+                   | -->D2              	      | -->D1              
+                     __________________                 __________________         
+                    |C1             C12|	       |C12             C1|
+                    |                  |	       |                  |
+Orientation 6:      |                  |	       |                  |           D2 reversed
+                  D1|O               C2|	     D1|C2               O|
+                   ^|__________________|	      ^|__________________|
+                   | -->D2              	      | D2<--              
+                     __________________                 __________________         
+                    |C1             C12|	       |C1               O|
+                    |                  |	       |                  |
+Orientation 7:      |                  |	       |                  |           D1/D2 swapped, D1/D2 reversed
+                  D1|O               C2|	    -D2|C12             C2|
+                   ^|__________________|	      ^|__________________|
+                   | -->D2              	      | D1<--               
+                     __________________                 __________________         
+                    |C1             C12|	       |C2               O|
+                    |                  |	       |                  |
+Orientation 8:      |                  |	       |                  |           D1/D2 reversed
+                  D1|O               C2|	    -D1|C12             C1|
+                   ^|__________________|	      ^|__________________|
+                   | -->D2              	      | D2<--              
+
+The above diagrams show how patch to would have to be moved to match up with patch 1. D1 and D2 are the local patch directions. They are
+cyclic, so on a constant i-patch, D1 is j, and D2 is k. On a constant j-patch, D1 is k, and D2 is i, etc. O is the origin which is always 
+at the minimim of D1 and D2 on the patch. C1 is the corner where D1 is at a max, and D2 is zero. C2 is the corner where D2 is at a max, and
+D1 is zero. C12 is the corner where both D1 and D2 are at a max.
 */
 bool TestPatchMatch( const patch &p1, const patch &p2, interblock &inter ){
+  // p1 -- first patch
+  // p2 -- second patch
+  // iter -- interblock to fill if there is a match
 
   bool match = false; //initialize match to false
 
@@ -592,7 +660,5 @@ patch::patch( const int &bound, const int &b, const int &d1s, const int &d1e, co
     cerr << "Choose an integer between 1-6." << endl;
     exit(0);
   }
-
-
 
 }
