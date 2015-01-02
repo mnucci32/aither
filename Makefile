@@ -12,7 +12,7 @@ $(CODENAME) : $(OBJS)
 plot3d.o : plot3d.cpp plot3d.h vector3d.h
 	$(CC) $(CFLAGS) plot3d.cpp
 
-main.o : main.cpp plot3d.h vector3d.h input.h procBlock.h eos.h primVars.h boundaryConditions.h inviscidFlux.h tensor.h viscousFlux.h viscBlockVars.h output.h matrix.h
+main.o : main.cpp plot3d.h vector3d.h input.h procBlock.h eos.h primVars.h boundaryConditions.h inviscidFlux.h tensor.h viscousFlux.h output.h matrix.h
 	$(CC) $(CFLAGS) main.cpp
 
 input.o : input.cpp input.h boundaryConditions.h
@@ -36,7 +36,7 @@ eos.o : eos.cpp eos.h vector3d.h
 viscousFlux.o : viscousFlux.cpp vector3d.h tensor.h eos.h primVars.h viscousFlux.h boundaryConditions.h input.h
 	$(CC) $(CFLAGS) viscousFlux.cpp
 
-output.o : output.cpp output.h procBlock.h tensor.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h viscBlockVars.h
+output.o : output.cpp output.h procBlock.h tensor.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h
 	$(CC) $(CFLAGS) output.cpp
 
 matrix.o : matrix.cpp matrix.h plot3d.h
