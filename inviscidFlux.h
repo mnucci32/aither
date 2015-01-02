@@ -7,7 +7,7 @@
 #include "eos.h"  //idealGas
 #include "primVars.h" //primVars
 #include "input.h" //input
-#include "boundaryConditions.h" //boundaryConditions
+//#include "boundaryConditions.h" //boundaryConditions
 #include <iostream> //cout
 #include "matrix.h"
 
@@ -63,7 +63,7 @@ class inviscidFlux {
 };
 
 //function definitions
-inviscidFlux BoundaryFlux( const string&, const vector3d<double>&, const primVars&, const primVars&, const idealGas&, const input&, const string&, double&, const double=0.5, const double=1.0 );
+//inviscidFlux BoundaryFlux( const string&, const vector3d<double>&, const primVars&, const primVars&, const idealGas&, const input&, const string&, double&, const double=0.5, const double=1.0 );
 //function to calculate Roe flux with entropy fix
 inviscidFlux RoeFlux( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double& );                  
 //inviscidFlux LaxFriedrichsFlux( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double& );                  

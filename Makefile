@@ -21,10 +21,10 @@ input.o : input.cpp input.h boundaryConditions.h
 primVars.o : primVars.cpp primVars.h vector3d.h eos.h inviscidFlux.h boundaryConditions.h input.h
 	$(CC) $(CFLAGS) primVars.cpp
 
-procBlock.o : procBlock.cpp procBlock.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h matrix.h viscousFlux.h
+procBlock.o : procBlock.cpp procBlock.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h matrix.h viscousFlux.h boundaryConditions.h
 	$(CC) $(CFLAGS) procBlock.cpp
 
-inviscidFlux.o : inviscidFlux.cpp vector3d.h eos.h primVars.h inviscidFlux.h boundaryConditions.h input.h
+inviscidFlux.o : inviscidFlux.cpp vector3d.h eos.h primVars.h inviscidFlux.h input.h
 	$(CC) $(CFLAGS) inviscidFlux.cpp
 
 boundaryConditions.o : boundaryConditions.cpp boundaryConditions.h plot3d.h vector3d.h
@@ -33,7 +33,7 @@ boundaryConditions.o : boundaryConditions.cpp boundaryConditions.h plot3d.h vect
 eos.o : eos.cpp eos.h vector3d.h
 	$(CC) $(CFLAGS) eos.cpp
 
-viscousFlux.o : viscousFlux.cpp vector3d.h tensor.h eos.h primVars.h viscousFlux.h boundaryConditions.h input.h
+viscousFlux.o : viscousFlux.cpp vector3d.h tensor.h eos.h primVars.h viscousFlux.h input.h
 	$(CC) $(CFLAGS) viscousFlux.cpp
 
 output.o : output.cpp output.h procBlock.h tensor.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h

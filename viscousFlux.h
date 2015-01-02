@@ -9,7 +9,7 @@
 #include "primVars.h" //primVars
 #include "matrix.h" //squareMatrix
 #include "input.h" //input
-#include "boundaryConditions.h" //boundaryConditions
+//#include "boundaryConditions.h" //boundaryConditions
 #include <iostream> //cout
 
 using std::vector;
