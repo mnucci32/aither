@@ -51,7 +51,8 @@ const vector<double> plot3dBlock::Volume() const {
 
   int len = (numi-1)*(numj-1)*(numk-1);  //number of cells in the block
 
-  vector<double> vol(len,0);             //initially assign a volume of 0
+  vector<double> vol;             //declare vector and reserve necessary space
+  vol.reserve(len);
 
   //each hex cell is broken up into 3 pyramids and the volume of each pyramid is calculated
   double pyramid1 = 0;
@@ -162,7 +163,8 @@ const vector<double> plot3dBlock::Volume() const {
 const vector<vector3d<double> > plot3dBlock::Centroid() const {
 
   int len = (numi-1)*(numj-1)*(numk-1);                 //number of cells in the block
-  vector<vector3d<double> > centroid(len);             //preallocate centroid vector
+  vector<vector3d<double> > centroid;                   //declare and preallocate centroid vector
+  centroid.reserve(len);
 
   //vectors of coordinates of the 8 points that make up each hex cell
   vector3d<double> botStarAft(0,0,0);
@@ -253,7 +255,8 @@ points in the direction of increasing i.
 const vector<vector3d<double> > plot3dBlock::FaceAreaI() const {
 
   int len = numi * (numj - 1) * (numk - 1);         //number of i-faces in the block
-  vector<vector3d<double> > fArea(len);             //initially assign an area of 0
+  vector<vector3d<double> > fArea;                  //declare and reserve space for vector
+  fArea.reserve(len);
 
   //vectors of coordinates of the 4 points that make up each face
   vector3d<double> botStarAft(0,0,0);
@@ -317,7 +320,8 @@ const vector<vector3d<double> > plot3dBlock::FaceAreaI() const {
 const vector<vector3d<double> > plot3dBlock::FaceCenterI() const {
 
   int len = numi * (numj - 1) * (numk - 1);         //number of i-faces in the block
-  vector<vector3d<double> > fCenter(len);             //initially assign an area of 0
+  vector<vector3d<double> > fCenter;                //declare and reserve space for vector
+  fCenter.reserve(len);
 
   //vectors of coordinates of the 4 points that make up each face
   vector3d<double> botStarAft(0,0,0);
@@ -384,7 +388,8 @@ points in the direction of increasing j.
 const vector<vector3d<double> > plot3dBlock::FaceAreaJ() const {
 
   int len = (numi -1) * numj * (numk - 1);         //number of i-faces in the block
-  vector<vector3d<double> > fArea(len);             //initially assign an area of 0
+  vector<vector3d<double> > fArea;                 //declare and reserve space for vector
+  fArea.reserve(len);
 
   //vectors of coordinates of the 4 points that make up each face
   vector3d<double> botStarAft(0,0,0);
@@ -447,7 +452,8 @@ const vector<vector3d<double> > plot3dBlock::FaceAreaJ() const {
 const vector<vector3d<double> > plot3dBlock::FaceCenterJ() const {
 
   int len = (numi -1) * numj * (numk - 1);         //number of i-faces in the block
-  vector<vector3d<double> > fCenter(len);             //initially assign an area of 0
+  vector<vector3d<double> > fCenter;               //declare and reserve space for vector
+  fCenter.reserve(len);
 
   //vectors of coordinates of the 4 points that make up each face
   vector3d<double> botStarAft(0,0,0);
@@ -514,7 +520,8 @@ points in the direction of increasing k.
 const vector<vector3d<double> > plot3dBlock::FaceAreaK() const {
 
   int len = (numi - 1) * (numj - 1) * numk;         //number of i-faces in the block
-  vector<vector3d<double> > fArea(len);             //initially assign an area of 0
+  vector<vector3d<double> > fArea;                  //declare and reserve space for vector
+  fArea.reserve(len);
 
   //vectors of coordinates of the 4 points that make up each face
   vector3d<double> botStarAft(0,0,0);
@@ -577,7 +584,8 @@ const vector<vector3d<double> > plot3dBlock::FaceAreaK() const {
 const vector<vector3d<double> > plot3dBlock::FaceCenterK() const {
 
   int len = (numi - 1) * (numj - 1) * numk;         //number of i-faces in the block
-  vector<vector3d<double> > fCenter(len);             //initially assign an area of 0
+  vector<vector3d<double> > fCenter;                //declare and reserve space for vector
+  fCenter.reserve(len);
 
   //vectors of coordinates of the 8 points that make up each hex cell
   vector3d<double> botStarAft(0,0,0);
@@ -676,7 +684,8 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, double &numCells) {
 
   //read each block and add it to the vector of plot3dBlocks
   double tempDouble=0;
-  vector<plot3dBlock> mesh(numBlks);
+  vector<plot3dBlock> mesh;
+  mesh.reserve(numBlks);
 
   for ( int ii=0; ii < numBlks; ii++){
   
@@ -951,7 +960,8 @@ calculating a flux jacobian. Ex. The solver must visit all points on hyperplane 
 vector<vector3d<int> > HyperplaneReorder( const int &imax, const int &jmax, const int &kmax){
 
   int numPlanes = imax + jmax + kmax - 2; //total number of hyperplanes in a given block
-  vector<vector3d<int> > reorder(imax*jmax*kmax);
+  vector<vector3d<int> > reorder;
+  reorder.reserve(imax*jmax*kmax);
 
   int count = 0;
   for ( int pp = 0; pp < numPlanes; pp++ ){

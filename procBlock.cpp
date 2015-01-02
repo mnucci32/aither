@@ -1476,7 +1476,8 @@ vector<T> PadWithGhosts( const vector<T> &var, const int &numGhosts, const int &
 
   int newSize = newI * newJ * newK; //size of vector with padded ghost cells
 
-  vector<T> padBlk(newSize); //initialize vector
+  vector<T> padBlk;        //initialize vector and reserve necessary space
+  padBlk.reserve(newSize);
 
   //loop over physical cells
   for ( int kk = numGhosts; kk < numK + numGhosts; kk++ ){
