@@ -135,6 +135,7 @@ class interblock {
   pair<int, int> d1End;       //paired first direction end numbers for surface
   pair<int, int> d2Start;     //paired second direction start numbers for surface
   pair<int, int> d2End;       //paired second direction end numbers for surface
+  pair<int, int> constSurf;   //index of direction 3
   int orientation;            //defines how patches are oriented relative to one another (1-8)
 
  public:
@@ -186,6 +187,13 @@ class interblock {
   void SetDir2End( const pair<int,int> &a){d2End = a;}
   pair<int,int> Dir2End()const{return d2End;}
 
+  void SetConstSurfaceFirst( const int &a){constSurf.first = a;}
+  int ConstSurfaceFirst()const{return constSurf.first;}
+  void SetConstSurfaceSecond( const int &a){constSurf.second = a;}
+  int ConstSurfaceSecond()const{return constSurf.second;}
+  void SetConstSurface( const pair<int,int> &a){constSurf = a;}
+  pair<int,int> ConstSurface()const{return constSurf;}
+
   void SetOrientation( const int &a){orientation = a;}
   int Orientation()const{return orientation;}
 
@@ -200,5 +208,6 @@ class interblock {
 //function declarations
 vector<interblock> GetInterblockBCs( const vector<boundaryConditions>&, const vector<plot3dBlock>& );
 bool TestPatchMatch(const patch&, const patch&, interblock&);
+
 
 #endif

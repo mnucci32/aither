@@ -167,6 +167,9 @@ void interblock::SetInterblock(const patch &p1, const patch &p2){
   (*this).SetDir2StartFirst(p1.Dir2Start());
   (*this).SetDir2StartSecond(p2.Dir2Start());
 
+  (*this).SetConstSurfaceFirst(p1.ConstSurface());
+  (*this).SetConstSurfaceSecond(p2.ConstSurface());
+
   orientation = 0; //default value (real values 1-6)
 }
 
@@ -662,3 +665,4 @@ patch::patch( const int &bound, const int &b, const int &d1s, const int &d1e, co
   }
 
 }
+
