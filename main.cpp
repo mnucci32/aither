@@ -58,7 +58,6 @@ int main( int argc, char *argv[] ) {
 
   //Get interblock BCs
   vector<interblock> connections = GetInterblockBCs( inputVars.AllBC(), mesh );
-  exit(0);
 
   //Initialize state vector with nondimensional variables
   //get reference speed of sound
@@ -80,6 +79,12 @@ int main( int argc, char *argv[] ) {
     stateBlocks[ll] = procBlock(state, mesh[ll], ll, numGhost, inputVars.EquationSet());
     stateBlocks[ll].AssignGhostCellsGeom();
   }
+
+  //Populate interblock boundaries with correct geometry
+  // for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
+  //   SwapGhostGeom( connections[ii], stateBlocks[connections[ii].BlockFirst()], stateBlocks[connections[ii].BlockSecond()]);
+  // }
+  exit(0);
 
   cout << endl << "Solution Initialized" << endl;
 

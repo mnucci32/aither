@@ -4,6 +4,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <algorithm> //swap
 
 using std::cout;
 using std::endl;
@@ -15,6 +16,7 @@ using std::ofstream;
 using std::to_string;
 using std::max;
 using std::min;
+using std::swap;
 
 //constructors for procBlock class
 procBlock::procBlock(){
@@ -6004,4 +6006,447 @@ bool procBlock::AtEdge(const int& ii, const int& jj, const int& kk)const{
   }
 
   return atEdge;
+}
+
+
+/* Function to swap ghost cell geometry between two blocks at an interblock boundary
+
+*/
+void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
+
+  //loop over patch on block 1
+  int len = (inter.Dir1EndFirst() - inter.Dir1StartFirst()) * (inter.Dir1EndSecond() - inter.Dir1StartSecond());
+  for ( int ii = 0; ii < len; ii++ ){
+
+    //Get locations for each block
+    vector<int> locs1 = GetPatchGhostLoc(ii, inter, true,  blk1.NumI() + 2.0 * blk1.NumGhosts(), blk1.NumJ() + 2.0 * blk1.NumGhosts(), blk1.NumGhosts());
+    vector<int> locs2 = GetPatchGhostLoc(ii, inter, false, blk2.NumI() + 2.0 * blk2.NumGhosts(), blk2.NumJ() + 2.0 * blk2.NumGhosts(), blk2.NumGhosts());
+
+    //swap data
+    for ( int jj = 0; jj < blk1.NumGhosts(); jj++ ){
+
+      //swap cell data
+      double dummy = blk1.Vol(locs1[jj]);
+      blk1.SetVol(blk2.Vol(locs2[jj]), locs1[jj] );
+      blk2.SetVol(dummy, locs2[jj] );
+
+      vector3d<double> dumVec = blk1.Center(locs1[jj]);
+      blk1.SetCenter(blk2.Center(locs2[jj]), locs1[jj] );
+      blk2.SetCenter(dumVec, locs2[jj] );
+
+
+      //swap face data
+
+    }
+
+  }
+
+
+
+  //swap data for first and second layers
+
+
+}
+/* Function to return a vector of location indicies for ghost cells at an interblock boundary
+*/
+vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const bool &pairID, const int &imax, const int &jmax, const int &numGhosts ){
+  // ind -- number of patch ghost cell
+  // inter -- interblock boundary condition
+  // pairID -- returning index for first or second column
+  // imax -- i dimension of block
+  // jmax -- j dimension of block
+
+  vector<int> loc;
+  loc.reserve(numGhosts);
+
+  if (pairID) { //working on first in pair
+
+    if ( inter.BoundaryFirst() == 1 ){ //i-patch lower
+      //get direction 1 length
+      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst();
+      int add1 = ind % l1;
+      int add2 = ind / l1;
+      int jj = inter.Dir1StartFirst() + numGhosts + add1; //direction 1 is j
+      int kk = inter.Dir2StartFirst() + numGhosts + add2; //direction 2 is k
+      for ( int nn = 1; nn <= numGhosts; nn++ ){
+	int ii = inter.ConstSurfaceFirst() + numGhosts - nn; //subtract nn to get to ghost cells
+	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      }
+    }
+    else if ( inter.BoundaryFirst() == 2 ) { //i-patch upper
+      //get direction 1 length
+      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst();
+      int add1 = ind % l1;
+      int add2 = ind / l1;
+      int jj = inter.Dir1StartFirst() + numGhosts + add1; //direction 1 is j
+      int kk = inter.Dir2StartFirst() + numGhosts + add2; //direction 2 is k
+      for ( int nn = 1; nn <= numGhosts; nn++ ){
+	int ii = inter.ConstSurfaceFirst() + numGhosts + nn - 1; //add nn to get to ghost cells, subtract 1 to get cell index (instead of face)
+	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      }
+    }
+    else if ( inter.BoundaryFirst() == 3 ){ //j-patch lower
+      //get direction 1 length
+      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst();
+      int add1 = ind % l1;
+      int add2 = ind / l1;
+      int ii = inter.Dir2StartFirst() + numGhosts + add1; //direction 2 is i
+      int kk = inter.Dir1StartFirst() + numGhosts + add2; //direction 1 is k
+      for ( int nn = 1; nn <= numGhosts; nn++ ){
+	int jj = inter.ConstSurfaceFirst() + numGhosts - nn; //subtract nn to get to ghost cells
+	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      }
+    }
+    else if ( inter.BoundaryFirst() == 4 ){ //j-patch upper
+      //get direction 1 length
+      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst();
+      int add1 = ind % l1;
+      int add2 = ind / l1;
+      int ii = inter.Dir2StartFirst() + numGhosts + add1; //direction 2 is i
+      int kk = inter.Dir1StartFirst() + numGhosts + add2; //direction 1 is k
+      for ( int nn = 1; nn <= numGhosts; nn++ ){
+	int jj = inter.ConstSurfaceFirst() + numGhosts + nn - 1; //add nn to get to ghost cells, subtract 1 to get cell index (instead of face)
+	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      }
+    }
+    else if ( inter.BoundaryFirst() == 5 ){ //k-patch lower
+      //get direction 1 length
+      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst();
+      int add1 = ind % l1;
+      int add2 = ind / l1;
+      int ii = inter.Dir1StartFirst() + numGhosts + add1; //direction 1 is i
+      int jj = inter.Dir2StartFirst() + numGhosts + add2; //direction 2 is j
+      for ( int nn = 1; nn <= numGhosts; nn++ ){
+	int kk = inter.ConstSurfaceFirst() + numGhosts - nn; //add nn to get to ghost cells
+	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      }
+    }
+    else{ //k-patch upper
+      //get direction 1 length
+      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst();
+      int add1 = ind % l1;
+      int add2 = ind / l1;
+      int ii = inter.Dir1StartFirst() + numGhosts + add1; //direction 1 is i
+      int jj = inter.Dir2StartFirst() + numGhosts + add2; //direction 2 is j
+      for ( int nn = 1; nn <= numGhosts; nn++ ){
+	int kk = inter.ConstSurfaceFirst() + numGhosts + nn - 1; //add nn to get to ghost cells, subtract 1 to get cell index (instead of face)
+	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      }
+    }
+  }
+  //--------------------------------------------------------------------------------------------------------------------------------------------
+  //need to use orientation for second in pair
+  else{ //working on second in pair
+
+    //-------------------------------------------------------------------------------------------------------
+    if ( inter.BoundarySecond() == 1 ){ //i-patch lower
+
+      int jj, kk;
+      if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
+	//get direction 1 length (actually direction 2)
+	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond();
+	int add1 = ind % l1;
+	int add2 = ind / l1;
+
+	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
+	  jj = inter.Dir2EndSecond() + numGhosts - add2; //direction 1 is j (but 1&2 are swapped)
+	}
+	else{
+	  jj = inter.Dir2StartSecond() + numGhosts + add2; //direction 1 is j (but 1&2 are swapped)
+	}
+
+	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
+	  kk = inter.Dir1EndSecond() + numGhosts - add1; //direction 2 is k (but 1&2 are swapped)
+	}
+	else{
+	  kk = inter.Dir1StartSecond() + numGhosts + add1; //direction 2 is k (but 1&2 are swapped)
+	}
+      }
+      else{ //no direction swap
+	//get direction 1 length 
+	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond();
+	int add1 = ind % l1;
+	int add2 = ind / l1;
+
+	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 1
+	  jj = inter.Dir1EndSecond() + numGhosts - add1; //direction 1 is j
+	}
+	else{
+	  jj = inter.Dir1StartSecond() + numGhosts + add1; //direction 1 is j
+	}
+
+	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 2
+	  kk = inter.Dir2EndSecond() + numGhosts - add2; //direction 2 is k
+	}
+	else{
+	  kk = inter.Dir2StartSecond() + numGhosts + add2; //direction 2 is k
+	}
+      }
+
+      //calculate index for all ghost layers
+      for ( int nn = 1; nn <= numGhosts; nn++ ){
+	int ii = inter.ConstSurfaceSecond() + numGhosts - nn; //subtract nn to get to ghost cells
+	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      }
+    }
+    //-------------------------------------------------------------------------------------------------------
+    else if ( inter.BoundarySecond() == 2 ){ //i-patch upper
+
+      int jj, kk;
+      if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
+	//get direction 1 length (actually direction 2)
+	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond();
+	int add2 = ind % l1;
+	int add1 = ind / l1;
+
+	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
+	  jj = inter.Dir2EndSecond() + numGhosts - add2; //direction 1 is j (but 1&2 are swapped)
+	}
+	else{
+	  jj = inter.Dir2StartSecond() + numGhosts + add2; //direction 1 is j (but 1&2 are swapped)
+	}
+
+	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
+	  kk = inter.Dir1EndSecond() + numGhosts - add1; //direction 2 is k (but 1&2 are swapped)
+	}
+	else{
+	  kk = inter.Dir1StartSecond() + numGhosts + add1; //direction 2 is k (but 1&2 are swapped)
+	}
+      }
+      else{ //no direction swap
+	//get direction 1 length 
+	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond();
+	int add1 = ind % l1;
+	int add2 = ind / l1;
+
+	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 1
+	  jj = inter.Dir1EndSecond() + numGhosts - add1; //direction 1 is j
+	}
+	else{
+	  jj = inter.Dir1StartSecond() + numGhosts + add1; //direction 1 is j
+	}
+
+	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 2
+	  kk = inter.Dir2EndSecond() + numGhosts - add2; //direction 2 is k
+	}
+	else{
+	  kk = inter.Dir2StartSecond() + numGhosts + add2; //direction 2 is k
+	}
+      }
+
+      //calculate index for all ghost layers
+      for ( int nn = 1; nn <= numGhosts; nn++ ){
+	int ii = inter.ConstSurfaceSecond() + numGhosts + nn - 1; //add nn to get to ghost cells, subtract 1 to get cell index (instead of face)
+	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      }
+    }
+    //-------------------------------------------------------------------------------------------------------
+    else if ( inter.BoundarySecond() == 3 ){ //j-patch lower
+
+      int ii, kk;
+      if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
+	//get direction 1 length (actually direction 2)
+	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond();
+	int add2 = ind % l1;
+	int add1 = ind / l1;
+
+	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 2
+	  kk = inter.Dir2EndSecond() + numGhosts - add2; //direction 1 is k (but 1&2 are swapped)
+	}
+	else{
+	  kk = inter.Dir2StartSecond() + numGhosts + add2; //direction 1 is k (but 1&2 are swapped)
+	}
+
+	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 1
+	  ii = inter.Dir1EndSecond() + numGhosts - add1; //direction 2 is i (but 1&2 are swapped)
+	}
+	else{
+	  ii = inter.Dir1StartSecond() + numGhosts + add1; //direction 2 is i (but 1&2 are swapped)
+	}
+      }
+      else{ //no direction swap
+	//get direction 1 length 
+	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond();
+	int add1 = ind % l1;
+	int add2 = ind / l1;
+
+	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 1
+	  kk = inter.Dir1EndSecond() + numGhosts - add1; //direction 1 is k
+	}
+	else{
+	  kk = inter.Dir1StartSecond() + numGhosts + add1; //direction 1 is k
+	}
+
+	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 2
+	  ii = inter.Dir2EndSecond() + numGhosts - add2; //direction 2 is i
+	}
+	else{
+	  ii = inter.Dir2StartSecond() + numGhosts + add2; //direction 2 is i
+	}
+      }
+
+      //calculate index for all ghost layers
+      for ( int nn = 1; nn <= numGhosts; nn++ ){
+	int jj = inter.ConstSurfaceSecond() + numGhosts - nn; //subtract nn to get to ghost cells
+	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      }
+    }
+    //-------------------------------------------------------------------------------------------------------
+    else if ( inter.BoundarySecond() == 4 ){ //j-patch upper
+
+      int ii, kk;
+      if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
+	//get direction 1 length (actually direction 2)
+	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond();
+	int add2 = ind % l1;
+	int add1 = ind / l1;
+
+	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 2
+	  kk = inter.Dir2EndSecond() + numGhosts - add2; //direction 1 is k (but 1&2 are swapped)
+	}
+	else{
+	  kk = inter.Dir2StartSecond() + numGhosts + add2; //direction 1 is k (but 1&2 are swapped)
+	}
+
+	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 1
+	  ii = inter.Dir1EndSecond() + numGhosts - add1; //direction 2 is i (but 1&2 are swapped)
+	}
+	else{
+	  ii = inter.Dir1StartSecond() + numGhosts + add1; //direction 2 is i (but 1&2 are swapped)
+	}
+      }
+      else{ //no direction swap
+	//get direction 1 length 
+	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond();
+	int add1 = ind % l1;
+	int add2 = ind / l1;
+
+	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 1
+	  kk = inter.Dir1EndSecond() + numGhosts - add2; //direction 1 is k
+	}
+	else{
+	  kk = inter.Dir1StartSecond() + numGhosts + add2; //direction 1 is k
+	}
+
+	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 2
+	  ii = inter.Dir2EndSecond() + numGhosts - add1; //direction 2 is i
+	}
+	else{
+	  ii = inter.Dir2StartSecond() + numGhosts + add1; //direction 2 is i
+	}
+      }
+
+      //calculate index for all ghost layers
+      for ( int nn = 1; nn <= numGhosts; nn++ ){
+	int jj = inter.ConstSurfaceSecond() + numGhosts + nn - 1; //add nn to get to ghost cells, subtract 1 to get cell index (instead of face)
+	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      }
+    }
+    //-------------------------------------------------------------------------------------------------------
+    else if ( inter.BoundarySecond() == 5 ){ //k-patch lower
+
+      int ii, jj;
+      if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
+	//get direction 1 length (actually direction 2)
+	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond();
+	int add2 = ind % l1;
+	int add1 = ind / l1;
+
+	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 2
+	  ii = inter.Dir2EndSecond() + numGhosts - add2; //direction 1 is i (but 1&2 are swapped)
+	}
+	else{
+	  ii = inter.Dir2StartSecond() + numGhosts + add2; //direction 1 is i (but 1&2 are swapped)
+	}
+
+	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 1
+	  jj = inter.Dir1EndSecond() + numGhosts - add1; //direction 2 is j (but 1&2 are swapped)
+	}
+	else{
+	  jj = inter.Dir1StartSecond() + numGhosts + add1; //direction 2 is j (but 1&2 are swapped)
+	}
+      }
+      else{ //no direction swap
+	//get direction 1 length 
+	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond();
+	int add1 = ind % l1;
+	int add2 = ind / l1;
+
+	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 1
+	  ii = inter.Dir1EndSecond() + numGhosts - add1; //direction 1 is i
+	}
+	else{
+	  ii = inter.Dir1StartSecond() + numGhosts + add1; //direction 1 is i
+	}
+
+	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 2
+	  jj = inter.Dir2EndSecond() + numGhosts - add2; //direction 2 is j
+	}
+	else{
+	  jj = inter.Dir2StartSecond() + numGhosts + add2; //direction 2 is j
+	}
+      }
+
+      //calculate index for all ghost layers
+      for ( int nn = 1; nn <= numGhosts; nn++ ){
+	int kk = inter.ConstSurfaceSecond() + numGhosts - nn; //subtract nn to get to ghost cells
+	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      }
+    }
+    //-------------------------------------------------------------------------------------------------------
+    else { //k-patch upper
+
+      int ii, jj;
+      if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
+	//get direction 1 length (actually direction 2)
+	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond();
+	int add2 = ind % l1;
+	int add1 = ind / l1;
+
+	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 2
+	  ii = inter.Dir2EndSecond() + numGhosts - add2; //direction 1 is i (but 1&2 are swapped)
+	}
+	else{
+	  ii = inter.Dir2StartSecond() + numGhosts + add2; //direction 1 is i (but 1&2 are swapped)
+	}
+
+	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 1
+	  jj = inter.Dir1EndSecond() + numGhosts - add1; //direction 2 is j (but 1&2 are swapped)
+	}
+	else{
+	  jj = inter.Dir1StartSecond() + numGhosts + add1; //direction 2 is j (but 1&2 are swapped)
+	}
+      }
+      else{ //no direction swap
+	//get direction 1 length 
+	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond();
+	int add1 = ind % l1;
+	int add2 = ind / l1;
+
+	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 1
+	  ii = inter.Dir1EndSecond() + numGhosts - add1; //direction 1 is i
+	}
+	else{
+	  ii = inter.Dir1StartSecond() + numGhosts + add1; //direction 1 is i
+	}
+
+	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 2
+	  jj = inter.Dir2EndSecond() + numGhosts - add2; //direction 2 is j
+	}
+	else{
+	  jj = inter.Dir2StartSecond() + numGhosts + add2; //direction 2 is j
+	}
+      }
+
+      //calculate index for all ghost layers
+      for ( int nn = 1; nn <= numGhosts; nn++ ){
+	int kk = inter.ConstSurfaceSecond() + numGhosts + nn - 1; //add nn to get to ghost cells, subtract 1 to get cell index (instead of face)
+	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      }
+    }
+
+  }
+
+
+  return loc;
 }
