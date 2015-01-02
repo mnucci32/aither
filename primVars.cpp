@@ -582,6 +582,13 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
     }
 
   }
+  //interblock boundary condition ---------------------------------------------------------------------------------------------------------------
+  //this boundary condition is appropriate for point matched interfaces between physical blocks or processor blocks
+  else if (bcType == "interblock"){
+    //do nothing -- assign interior state to ghost state (already done)
+    //for second layer of ghost cells interior state should be 2nd interior cell
+
+  }
   else {
     cerr << "ERROR: Error in primVars::GetGhostState ghost state for BC type " << bcType << " is not supported!" << endl;
     cerr << "surface is " << surf << endl;
