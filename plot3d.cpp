@@ -142,7 +142,8 @@ const vector<double> plot3dBlock::Volume() const {
         xbd = botPortFore - topPortAft;
         pyramid3 = 1.0/6.0 * xp.DotProd(xac.CrossProd(xbd));
 
-        vol[index] = pyramid1 + pyramid2 + pyramid3;
+        //vol[index] = pyramid1 + pyramid2 + pyramid3;
+        vol.push_back( pyramid1 + pyramid2 + pyramid3 );
 
         if (vol[index] == 0){
           cerr << "ERROR: Negative volume in PLOT3D block at index " << index << "!!!" << endl;
@@ -176,7 +177,7 @@ const vector<vector3d<double> > plot3dBlock::Centroid() const {
   vector3d<double> topPortFore(0,0,0);
   vector3d<double> topPortAft(0,0,0);
 
-  int index = 0;                         //cell index counter
+  //int index = 0;                         //cell index counter
 
   for ( int kk = 0; kk < numk-1; kk++){
     for ( int jj = 0; jj < numj-1; jj++){
@@ -226,8 +227,9 @@ const vector<vector3d<double> > plot3dBlock::Centroid() const {
         topPortFore.SetZ(z[loc+numi+numi*numj+1]);
 
 	//Calculate the centroid of the cell
-        centroid[index] = 0.125 * (botStarAft + botStarFore + botPortAft + botPortFore + topStarAft + topStarFore + topPortAft + topPortFore);
-	index++;
+        //centroid[index] = 0.125 * (botStarAft + botStarFore + botPortAft + botPortFore + topStarAft + topStarFore + topPortAft + topPortFore);
+        centroid.push_back( 0.125 * (botStarAft + botStarFore + botPortAft + botPortFore + topStarAft + topStarFore + topPortAft + topPortFore) );
+	//index++;
       }
     }
   }
@@ -297,12 +299,13 @@ const vector<vector3d<double> > plot3dBlock::FaceAreaI() const {
         vector3d<double> xac = topPortAft - botStarAft; //vector from opposite corners of face
         vector3d<double> xbd = botPortAft - topStarAft; //vector from opposite corners of face
 
-        fArea[index] = 0.5 * xbd.CrossProd(xac);     //area vector is calculated so that normal points nominally in direction of increasing i-coordinate
+        //fArea[index] = 0.5 * xbd.CrossProd(xac);     //area vector is calculated so that normal points nominally in direction of increasing i-coordinate
+	fArea.push_back( 0.5 * xbd.CrossProd(xac) );     //area vector is calculated so that normal points nominally in direction of increasing i-coordinate
 
         if (fArea[index].Mag() <= 0){
           cerr << "ERROR: Negative face area in PLOT3D block at index " << index << "!!!" << endl;
           cerr << "Face area = " << fArea[index].Mag() << endl;
-          cerr << "i-dim = " << ii+1 << ", j-dim = " << jj+1 << ", k-dim = " << kk+1 << endl;
+          cerr << "i-dim = " << ii << ", j-dim = " << jj << ", k-dim = " << kk << endl;
           cerr << "Vectors to opposite diagonals are : " << xac << " and " << xbd << endl;
           exit(0);
 	}
@@ -329,7 +332,7 @@ const vector<vector3d<double> > plot3dBlock::FaceCenterI() const {
   vector3d<double> topStarAft(0,0,0);
   vector3d<double> topPortAft(0,0,0);
 
-  int index = 0;                         //cell index counter
+  //int index = 0;                         //cell index counter
 
   for ( int kk = 0; kk < numk-1; kk++){
     for ( int jj = 0; jj < numj-1; jj++){
@@ -359,8 +362,9 @@ const vector<vector3d<double> > plot3dBlock::FaceCenterI() const {
         topPortAft.SetZ(z[loc+numi+numi*numj]);
 
         //Calculate face center by averaging four points that make up the face
-        fCenter[index] = 0.25 * (botStarAft + botPortAft + topStarAft + topPortAft);
-	index++;
+        //fCenter[index] = 0.25 * (botStarAft + botPortAft + topStarAft + topPortAft);
+        fCenter.push_back( 0.25 * (botStarAft + botPortAft + topStarAft + topPortAft) );
+	//index++;
       }
     }
   }
@@ -430,7 +434,8 @@ const vector<vector3d<double> > plot3dBlock::FaceAreaJ() const {
         vector3d<double> xac = topPortAft - botStarAft; //vector from opposite corners of face
         vector3d<double> xbd = botPortAft - topStarAft; //vector from opposite corners of face
 
-        fArea[index] = 0.5 * xbd.CrossProd(xac);       //area vector is calculated so that normal nominally points in direction of increasing j-coordinate
+        //fArea[index] = 0.5 * xbd.CrossProd(xac);       //area vector is calculated so that normal nominally points in direction of increasing j-coordinate
+        fArea.push_back( 0.5 * xbd.CrossProd(xac) );       //area vector is calculated so that normal nominally points in direction of increasing j-coordinate
 
         if (fArea[index].Mag() <= 0){
           cerr << "ERROR: Negative face area in PLOT3D block at index " << index << "!!!" << endl;
@@ -461,7 +466,7 @@ const vector<vector3d<double> > plot3dBlock::FaceCenterJ() const {
   vector3d<double> topStarAft(0,0,0);
   vector3d<double> topPortAft(0,0,0);
 
-  int index = 0;                         //cell index counter
+  //int index = 0;                         //cell index counter
 
   for ( int kk = 0; kk < numk-1; kk++){
     for ( int jj = 0; jj < numj; jj++){
@@ -491,8 +496,9 @@ const vector<vector3d<double> > plot3dBlock::FaceCenterJ() const {
         topPortAft.SetZ(z[loc+numi*numj]);
 
         //Calculate face center by averaging the four points that make up the face
-	fCenter[index] = 0.25 * (botStarAft + botPortAft + topStarAft + topPortAft);
-	index++;
+	//fCenter[index] = 0.25 * (botStarAft + botPortAft + topStarAft + topPortAft);
+	fCenter.push_back( 0.25 * (botStarAft + botPortAft + topStarAft + topPortAft) );
+	//index++;
       }
     }
   }
@@ -562,7 +568,8 @@ const vector<vector3d<double> > plot3dBlock::FaceAreaK() const {
         vector3d<double> xac = topPortAft - botStarAft; //vector from opposite corners of face
         vector3d<double> xbd = botPortAft - topStarAft; //vector from opposite corners of face
 
-        fArea[index] = 0.5 * xac.CrossProd(xbd);   //area vector is calculated so that normal nominally points in direction of increasing k-coordinate
+        //fArea[index] = 0.5 * xac.CrossProd(xbd);   //area vector is calculated so that normal nominally points in direction of increasing k-coordinate
+        fArea.push_back( 0.5 * xac.CrossProd(xbd) );   //area vector is calculated so that normal nominally points in direction of increasing k-coordinate
 
         if (fArea[index].Mag() <= 0){
           cerr << "ERROR: Negative face area in PLOT3D block at index " << index << "!!!" << endl;
@@ -593,7 +600,7 @@ const vector<vector3d<double> > plot3dBlock::FaceCenterK() const {
   vector3d<double> topStarAft(0,0,0);
   vector3d<double> topPortAft(0,0,0);
 
-  int index = 0;                         //cell index counter
+  //int index = 0;                         //cell index counter
 
   for ( int kk = 0; kk < numk; kk++){
     for ( int jj = 0; jj < numj-1; jj++){
@@ -623,8 +630,9 @@ const vector<vector3d<double> > plot3dBlock::FaceCenterK() const {
         topPortAft.SetZ(z[loc+numi+1]);
 
         //Calculate face center by averaging four points that make up cell face
-        fCenter[index] = 0.25 * (botStarAft + botPortAft + topStarAft + topPortAft);
-	index++;
+        //fCenter[index] = 0.25 * (botStarAft + botPortAft + topStarAft + topPortAft);
+        fCenter.push_back( 0.25 * (botStarAft + botPortAft + topStarAft + topPortAft) );
+	//index++;
       }
     }
   }
@@ -709,7 +717,7 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, double &numCells) {
 
     //create single plot3dBlock and assign it appropriate location in vector
     plot3dBlock singleBlock(vecI[ii],vecJ[ii],vecK[ii],tempX,tempY,tempZ);
-    mesh[ii] = singleBlock;
+    mesh.push_back(singleBlock);
 
     cout << "Block " << ii << " read" << endl;
   }
