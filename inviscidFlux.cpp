@@ -225,8 +225,8 @@ inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGa
 }
 
 //function to calculate approximate Roe flux jacobians -- NOT USED in LUSGS method
-void ApproxRoeFluxJacobian( const primVars &left, const primVars &right, const idealGas &eqnState, const vector3d<double>& areaVec, double &maxWS, squareMatrix &dF_dUl, squareMatrix &dF_dUr){
-
+void ApproxRoeFluxJacobian( const primVars &left, const primVars &right, const idealGas &eqnState, const vector3d<double>& areaVec, 
+			    double &maxWS, squareMatrix &dF_dUl, squareMatrix &dF_dUr){
   //left --> primative variables from left side
   //right --> primative variables from right side
   //eqnStat --> ideal gas equation of state
@@ -475,7 +475,8 @@ void ApproxRoeFluxJacobian( const primVars &left, const primVars &right, const i
 }
 
 // //function to calculate Lax-Friedrichs flux jacobians
-// void LaxFriedrichsFluxJacobian( const primVars &left, const primVars &right, const idealGas &eqnState, const vector3d<double>& areaVec, double &specRadL, double &specRadR, squareMatrix &dF_dUl, squareMatrix &dF_dUr){
+// void LaxFriedrichsFluxJacobian( const primVars &left, const primVars &right, const idealGas &eqnState, const vector3d<double>& areaVec, 
+//double &specRadL, double &specRadR, squareMatrix &dF_dUl, squareMatrix &dF_dUr){
 
 //   //left --> primative variables from left side
 //   //right --> primative variables from right side
@@ -596,147 +597,6 @@ void ApproxRoeFluxJacobian( const primVars &left, const primVars &right, const i
 
 
 // }
-
-
-//member function to return flux on boundaries
-// inviscidFlux BoundaryFlux( const string &bcName, const vector3d<double>& areaVec, const primVars &state1, const primVars &state2, const idealGas& eqnState, const input& inputVars, const string &surf, double &maxWS, const double upwind, const double upwind2 ){
-
-//   inviscidFlux flux;
-
-//   // vector3d<double> vel;
-//   //vector3d<double> velFace;
-
-//   vector3d<double> normArea = areaVec / areaVec.Mag();
-
-//   primVars state;
-
-//   if (bcName == "slipWall" || bcName == "viscousWall"){
-//     //state = (2.0 * state1) - state2;
-//     state = state1;
-//   }
-//   else{
-//     state = state1;
-//     //state = (2.0 * state1) - state2;
-//   }
-
-//   //Apply correct flux based on boundary condition to be applied 
-//   if ( bcName == "subsonicInflow" || bcName == "subsonicOutflow" || bcName == "supersonicInflow" || bcName == "supersonicOutflow" ||
-//        bcName == "characteristic" || bcName == "stagnationInlet" || bcName == "pressureOutlet"){
-
-//     if (inputVars.Kappa() == -2.0){ //first order
-//       primVars ghostState1 = state.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
-//       primVars lState, rState;
-
-//       if (surf == "il" || surf == "jl" || surf == "kl"){
-// 	lState = ghostState1.FaceReconConst();
-// 	rState = state.FaceReconConst();
-//       }
-//       else {
-// 	rState = ghostState1.FaceReconConst();
-// 	lState = state.FaceReconConst();
-//       }
-
-//       flux = RoeFlux( lState, rState, eqnState, normArea, maxWS);
-//     }
-//     else{ //second order
-//       primVars ghostState1 = state.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
-//       primVars ghostState2 = state.GetGhostState( bcName, normArea, surf, inputVars, eqnState, 2 );
-//       primVars lState, rState;
-
-//       if (surf == "il" || surf == "jl" || surf == "kl"){
-// 	//upwind cells are ghost cells, same distance as boundary cell
-// 	lState = ghostState1.FaceReconMUSCL( ghostState2, state1, "left", inputVars.Kappa(), inputVars.Limiter(), upwind, upwind, upwind ); 
-// 	//downwind cell is ghost cell, same distance as boundary cell
-// 	rState = state1.FaceReconMUSCL( state2, ghostState1, "right", inputVars.Kappa(), inputVars.Limiter(), upwind, upwind2, upwind ); 
-//       }
-//       else {
-// 	//upwind cells are ghost cells, same distance as boundary cell
-// 	rState = ghostState1.FaceReconMUSCL( ghostState2, state1, "right", inputVars.Kappa(), inputVars.Limiter(), upwind, upwind, upwind );
-// 	//downwind cell is ghost cell, same distance as boundary cell
-// 	lState = state1.FaceReconMUSCL( state2, ghostState1, "left", inputVars.Kappa(), inputVars.Limiter(), upwind, upwind2, upwind );
-//       }
-
-//       flux = RoeFlux( lState, rState, eqnState, normArea, maxWS);
-
-//     }
-
-
-//   }
-//   else if ( (bcName == "slipWall") || (bcName == "viscousWall") ){
-
-//     if (inputVars.Kappa() == -2.0 ){ //first order
-//       primVars ghostState1 = state1.GetGhostState( "slipWall", normArea, surf, inputVars, eqnState );
-//       primVars lState, rState;
-
-//       if (surf == "il" || surf == "jl" || surf == "kl"){
-// 	rState = state1.FaceReconConst();
-// 	lState = ghostState1.FaceReconConst();
-//       }
-//       else {
-// 	lState = state1.FaceReconConst();
-// 	rState = ghostState1.FaceReconConst();
-//       }
-
-//       flux = RoeFlux( lState, rState, eqnState, normArea, maxWS);
-//     }
-//     else{ //second order
-//       primVars ghostState1 = state1.GetGhostState( "slipWall", normArea, surf, inputVars, eqnState );
-//       primVars ghostState2 = state2.GetGhostState( "slipWall", normArea, surf, inputVars, eqnState );
-//       primVars lState, rState;
-
-//       if (surf == "il" || surf == "jl" || surf == "kl"){
-// 	//upwind cells are ghost cells, same distance as boundary cell
-// 	lState = ghostState1.FaceReconMUSCL( ghostState2, state1, "left", inputVars.Kappa(), inputVars.Limiter(), upwind, upwind, upwind );
-// 	//downwind cell is ghost cell, same distance as boundary cell
-// 	rState = state1.FaceReconMUSCL( state2, ghostState1, "right", inputVars.Kappa(), inputVars.Limiter(), upwind, upwind2, upwind );
-//       }
-//       else {
-// 	//upwind cells are ghost cells, same distance as boundary cell
-// 	rState = ghostState1.FaceReconMUSCL( ghostState2, state1, "right", inputVars.Kappa(), inputVars.Limiter(), upwind, upwind, upwind );
-// 	//downwind cell is ghost cell, same distance as boundary cell
-// 	lState = state1.FaceReconMUSCL( state2, ghostState1, "left", inputVars.Kappa(), inputVars.Limiter(), upwind, upwind2, upwind );
-
-//       }
-
-//       flux = RoeFlux( lState, rState, eqnState, normArea, maxWS);
-
-//     }
-
-//   }
-//   else{
-//     cerr << "ERROR: Boundary condition " << bcName << " is not recognized!" << endl;
-//   }
-
-//   return flux;
-
-// }
-
-// double BoundaryInvSpecRad( const string &bcName, const vector3d<double>& areaVec, const primVars &state, const idealGas& eqnState, const string &surf, const input &inputVars){
-
-//   double maxWS = 0.0;
-
-//   vector3d<double> normArea = areaVec / areaVec.Mag();
-
-//   //Apply correct flux based on boundary condition to be applied 
-//   if ( bcName == "subsonicInflow" || bcName == "subsonicOutflow" || bcName == "supersonicInflow" || bcName == "supersonicOutflow" || bcName == "characteristic"){
-
-//     primVars ghostState1 = state.GetGhostState( bcName, normArea, surf, inputVars, eqnState );
-//     maxWS = ConvSpecRad(normArea, state, ghostState1, eqnState);
-
-//   }
-//   else if ( bcName == "slipWall" || "viscousWall" ){
-
-//     maxWS = state.SoS(eqnState);
-
-//   }
-//   else{
-//     cerr << "ERROR: Boundary condition " << bcName << " is not recognized!" << endl;
-//   }
-
-//   return maxWS;
-
-// }
-
 
 //non-member functions -----------------------------------------------------------------------------------------------------------//
 
