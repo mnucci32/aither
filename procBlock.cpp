@@ -4,7 +4,6 @@
 #include <vector>
 #include <string>
 #include <cmath>
-#include <algorithm> //swap
 
 using std::cout;
 using std::endl;
@@ -16,7 +15,6 @@ using std::ofstream;
 using std::to_string;
 using std::max;
 using std::min;
-using std::swap;
 
 //constructors for procBlock class
 procBlock::procBlock(){
@@ -1478,8 +1476,7 @@ vector<T> PadWithGhosts( const vector<T> &var, const int &numGhosts, const int &
 
   int newSize = newI * newJ * newK; //size of vector with padded ghost cells
 
-  vector<T> padBlk;        //initialize vector and reserve necessary space
-  padBlk.reserve(newSize);
+  vector<T> padBlk(newSize);        //initialize vector
 
   //loop over physical cells
   for ( int kk = numGhosts; kk < numK + numGhosts; kk++ ){
@@ -3205,7 +3202,7 @@ void procBlock::AssignGhostCellsGeom(){
   }
 
   //fill ghost cell edge lines with geometric values
-  (*this).AssignGhostCellsGeomEdge();
+  //(*this).AssignGhostCellsGeomEdge();
 
 }
  
@@ -4230,14 +4227,14 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
 	(*this).SetState( (*this).State(cellUpG1), cellUpG2);
       }
       else{
-	if (bcNameL == "slipWall"){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
+	if (bcNameL == "slipWall" || bcNameL == "interblock"){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
 	  (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1), cellLowG2);
 	}
 	else{
 	  (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 2), cellLowG2);
 	}
 
-	if (bcNameU == "slipWall"){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
+	if (bcNameU == "slipWall" || bcNameU == "interblock"){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
 	  (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1), cellUpG2);
 	}
 	else{
@@ -4297,14 +4294,14 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
 	(*this).SetState( (*this).State(cellUpG1), cellUpG2);
       }
       else{
-	if (bcNameL == "slipWall"){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
+	if (bcNameL == "slipWall" || bcNameL == "interblock"){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
 	  (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG2);
 	}
 	else{
 	  (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 2), cellLowG2);
 	}
 
-	if (bcNameU == "slipWall"){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
+	if (bcNameU == "slipWall" || bcNameU == "interblock"){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
 	  (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1), cellUpG2);
 	}
 	else{
@@ -4364,14 +4361,14 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
 	(*this).SetState( (*this).State(cellUpG1), cellUpG2);
       }
       else{
-	if (bcNameL == "slipWall"){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
+	if (bcNameL == "slipWall" || bcNameL == "interblock"){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
 	  (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1), cellLowG2);
 	}
 	else{
 	  (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 2), cellLowG2);
 	}
 
-	if (bcNameU == "slipWall"){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
+	if (bcNameU == "slipWall" || bcNameU == "interblock"){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
 	  (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG2);
 	}
 	else{
@@ -4383,7 +4380,7 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
   }
 
   //assign values to edge ghost cells
-  (*this).AssignInviscidGhostCellsEdge(inp, eos);
+  //(*this).AssignInviscidGhostCellsEdge(inp, eos);
 
 }
 
@@ -6015,38 +6012,384 @@ bool procBlock::AtEdge(const int& ii, const int& jj, const int& kk)const{
 void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 
   //loop over patch on block 1
-  int len = (inter.Dir1EndFirst() - inter.Dir1StartFirst()) * (inter.Dir1EndSecond() - inter.Dir1StartSecond());
+  int len = (inter.Dir1EndFirst() - inter.Dir1StartFirst()) * (inter.Dir2EndFirst() - inter.Dir2StartFirst());
   for ( int ii = 0; ii < len; ii++ ){
 
     //Get locations for each block
-    vector<int> locs1 = GetPatchGhostLoc(ii, inter, true,  blk1.NumI() + 2.0 * blk1.NumGhosts(), blk1.NumJ() + 2.0 * blk1.NumGhosts(), blk1.NumGhosts());
-    vector<int> locs2 = GetPatchGhostLoc(ii, inter, false, blk2.NumI() + 2.0 * blk2.NumGhosts(), blk2.NumJ() + 2.0 * blk2.NumGhosts(), blk2.NumGhosts());
+    vector<int> locs1 = GetPatchGhostLoc(ii, inter, true,  blk1.NumI() + 2.0 * blk1.NumGhosts(), blk1.NumJ() + 2.0 * blk1.NumGhosts(), blk1.NumGhosts() );
+    vector<int> locs2 = GetPatchGhostLoc(ii, inter, false, blk2.NumI() + 2.0 * blk2.NumGhosts(), blk2.NumJ() + 2.0 * blk2.NumGhosts(), blk2.NumGhosts() );
+
 
     //swap data
     for ( int jj = 0; jj < blk1.NumGhosts(); jj++ ){
 
       //swap cell data
-      double dummy = blk1.Vol(locs1[jj]);
-      blk1.SetVol(blk2.Vol(locs2[jj]), locs1[jj] );
-      blk2.SetVol(dummy, locs2[jj] );
+      double dummy = blk1.Vol(locs1[jj*7]);
+      blk1.SetVol(blk2.Vol(locs2[jj*7]), locs1[jj*7] );
+      blk2.SetVol(dummy, locs2[jj*7] );
 
-      vector3d<double> dumVec = blk1.Center(locs1[jj]);
-      blk1.SetCenter(blk2.Center(locs2[jj]), locs1[jj] );
-      blk2.SetCenter(dumVec, locs2[jj] );
-
+      vector3d<double> dumVec = blk1.Center(locs1[jj*7]);
+      blk1.SetCenter(blk2.Center(locs2[jj*7]), locs1[jj*7] );
+      blk2.SetCenter(dumVec, locs2[jj*7] );
 
       //swap face data
+      if ( (inter.BoundaryFirst() <= 2 && inter.BoundarySecond() <= 2) ||
+	   (inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4) ||
+	   (inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6) ){ //both patches the same, i to i, j to j, k to k
+	double aFac = 1.0;
+	if ( inter.BoundaryFirst() == inter.BoundarySecond() ){ //lower/lower or upper/upper
+	  aFac = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	}
+
+	dumVec = blk1.FCenterI(locs1[jj*7+1]); //i-lower face
+	blk1.SetFCenterI(blk2.FCenterI(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFCenterI(dumVec, locs2[jj*7+1] );
+	dumVec = blk1.FAreaI(locs1[jj*7+1]); //i-lower face 
+	blk1.SetFAreaI(aFac * blk2.FAreaI(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+1] );
+
+	dumVec = blk1.FCenterI(locs1[jj*7+2]); //i-upper face
+	blk1.SetFCenterI(blk2.FCenterI(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFCenterI(dumVec, locs2[jj*7+2] );
+	dumVec = blk1.FAreaI(locs1[jj*7+2]); //i-upper face 
+	blk1.SetFAreaI(aFac * blk2.FAreaI(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+2] );
+
+	dumVec = blk1.FCenterJ(locs1[jj*7+3]); //j-lower face
+	blk1.SetFCenterJ(blk2.FCenterJ(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFCenterJ(dumVec, locs2[jj*7+3] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+3]); //j-lower face 
+	blk1.SetFAreaJ(aFac * blk2.FAreaJ(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+3] );
+
+	dumVec = blk1.FCenterJ(locs1[jj*7+4]); //j-upper face
+	blk1.SetFCenterJ(blk2.FCenterJ(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFCenterJ(dumVec, locs2[jj*7+4] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+4]); //j-upper face 
+	blk1.SetFAreaJ(aFac * blk2.FAreaJ(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+4] );
+
+	dumVec = blk1.FCenterK(locs1[jj*7+5]); //k-lower face
+	blk1.SetFCenterK(blk2.FCenterK(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+5] );
+	dumVec = blk1.FAreaK(locs1[jj*7+5]); //k-lower face 
+	blk1.SetFAreaK(aFac * blk2.FAreaK(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+5] );
+
+	dumVec = blk1.FCenterK(locs1[jj*7+6]); //k-upper face
+	blk1.SetFCenterK(blk2.FCenterK(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+6] );
+	dumVec = blk1.FAreaK(locs1[jj*7+6]); //k-upper face 
+	blk1.SetFAreaK(aFac * blk2.FAreaK(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+6] );
+
+      }
+      else if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4){ //patches are i/j  - i to j, j to k, k to i
+	double aFac = 1.0;
+	if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
+	  aFac = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	}
+
+	dumVec = blk1.FCenterI(locs1[jj*7+1]); //i-lower face
+	blk1.SetFCenterI(blk2.FCenterJ(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFCenterJ(dumVec, locs2[jj*7+1] );
+	dumVec = blk1.FAreaI(locs1[jj*7+1]); //i-lower face 
+	blk1.SetFAreaI(aFac * blk2.FAreaJ(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+1] );
+
+	dumVec = blk1.FCenterI(locs1[jj*7+2]); //i-upper face
+	blk1.SetFCenterI(blk2.FCenterJ(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFCenterJ(dumVec, locs2[jj*7+2] );
+	dumVec = blk1.FAreaI(locs1[jj*7+2]); //i-upper face 
+	blk1.SetFAreaI(aFac * blk2.FAreaJ(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+2] );
+
+	dumVec = blk1.FCenterJ(locs1[jj*7+3]); //j-lower face
+	blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+3] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+3]); //j-lower face 
+	blk1.SetFAreaJ(aFac * blk2.FAreaK(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+3] );
+
+	dumVec = blk1.FCenterJ(locs1[jj*7+4]); //j-upper face
+	blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+4] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+4]); //j-upper face 
+	blk1.SetFAreaJ(aFac * blk2.FAreaK(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+4] );
+
+	dumVec = blk1.FCenterK(locs1[jj*7+5]); //k-lower face
+	blk1.SetFCenterK(blk2.FCenterI(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFCenterI(dumVec, locs2[jj*7+5] );
+	dumVec = blk1.FAreaK(locs1[jj*7+5]); //k-lower face 
+	blk1.SetFAreaK(aFac * blk2.FAreaI(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+5] );
+
+	dumVec = blk1.FCenterK(locs1[jj*7+6]); //k-upper face
+	blk1.SetFCenterK(blk2.FCenterI(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFCenterI(dumVec, locs2[jj*7+6] );
+	dumVec = blk1.FAreaK(locs1[jj*7+6]); //k-upper face 
+	blk1.SetFAreaK(aFac * blk2.FAreaI(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+6] );
+
+      }
+      else if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6){ //patches are i/k  - i to k, j to i, k to j
+	double aFac = 1.0;
+	if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
+	  aFac = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	}
+
+	dumVec = blk1.FCenterI(locs1[jj*7+1]); //i-lower face
+	blk1.SetFCenterI(blk2.FCenterK(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+1] );
+	dumVec = blk1.FAreaI(locs1[jj*7+1]); //i-lower face 
+	blk1.SetFAreaI(aFac * blk2.FAreaK(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+1] );
+
+	dumVec = blk1.FCenterI(locs1[jj*7+2]); //i-upper face
+	blk1.SetFCenterI(blk2.FCenterK(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+2] );
+	dumVec = blk1.FAreaI(locs1[jj*7+2]); //i-upper face 
+	blk1.SetFAreaI(aFac * blk2.FAreaK(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+2] );
+
+	dumVec = blk1.FCenterJ(locs1[jj*7+3]); //j-lower face
+	blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+3] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+3]); //j-lower face 
+	blk1.SetFAreaJ(aFac * blk2.FAreaK(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+3] );
+
+	dumVec = blk1.FCenterJ(locs1[jj*7+4]); //j-upper face
+	blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+4] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+4]); //j-upper face 
+	blk1.SetFAreaJ(aFac * blk2.FAreaK(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+4] );
+
+	dumVec = blk1.FCenterK(locs1[jj*7+5]); //k-lower face
+	blk1.SetFCenterK(blk2.FCenterJ(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFCenterJ(dumVec, locs2[jj*7+5] );
+	dumVec = blk1.FAreaK(locs1[jj*7+5]); //k-lower face 
+	blk1.SetFAreaK(aFac * blk2.FAreaJ(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+5] );
+
+	dumVec = blk1.FCenterK(locs1[jj*7+6]); //k-upper face
+	blk1.SetFCenterK(blk2.FCenterJ(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFCenterJ(dumVec, locs2[jj*7+6] );
+	dumVec = blk1.FAreaK(locs1[jj*7+6]); //k-upper face 
+	blk1.SetFAreaK(aFac * blk2.FAreaJ(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+6] );
+
+      }
+      else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() <= 2 ){ //patches are j/i, j to i, k to j, i to k
+	double aFac = 1.0;
+	if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
+	  aFac = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	}
+
+	dumVec = blk1.FCenterJ(locs1[jj*7+1]); //dir3-lower face
+	blk1.SetFCenterJ(blk2.FCenterI(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFCenterI(dumVec, locs2[jj*7+1] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+1]); //dir3-lower face 
+	blk1.SetFAreaJ(aFac * blk2.FAreaI(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+1] );
+
+	dumVec = blk1.FCenterJ(locs1[jj*7+2]); //dir3-upper face
+	blk1.SetFCenterJ(blk2.FCenterI(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFCenterI(dumVec, locs2[jj*7+2] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+2]); //dir3-upper face 
+	blk1.SetFAreaJ(aFac * blk2.FAreaI(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+2] );
+
+	dumVec = blk1.FCenterK(locs1[jj*7+3]); //dir1-lower face
+	blk1.SetFCenterK(blk2.FCenterJ(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFCenterJ(dumVec, locs2[jj*7+3] );
+	dumVec = blk1.FAreaK(locs1[jj*7+3]); //dir1-lower face 
+	blk1.SetFAreaK(aFac * blk2.FAreaJ(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+3] );
+
+	dumVec = blk1.FCenterK(locs1[jj*7+4]); //dir1-upper face
+	blk1.SetFCenterK(blk2.FCenterJ(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFCenterJ(dumVec, locs2[jj*7+4] );
+	dumVec = blk1.FAreaK(locs1[jj*7+4]); //dir1-upper face 
+	blk1.SetFAreaK(aFac * blk2.FAreaJ(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+4] );
+
+	dumVec = blk1.FCenterI(locs1[jj*7+5]); //dir2-lower face
+	blk1.SetFCenterI(blk2.FCenterK(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+5] );
+	dumVec = blk1.FAreaI(locs1[jj*7+5]); //dir2-lower face 
+	blk1.SetFAreaI(aFac * blk2.FAreaK(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+5] );
+
+	dumVec = blk1.FCenterI(locs1[jj*7+6]); //dir2-upper face
+	blk1.SetFCenterI(blk2.FCenterK(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+6] );
+	dumVec = blk1.FAreaI(locs1[jj*7+6]); //dir2-upper face 
+	blk1.SetFAreaI(aFac * blk2.FAreaK(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+6] );
+
+      }
+      else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6 ){ //patches are j/k, j to k, k to i, i to j
+	double aFac = 1.0;
+	if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
+	  aFac = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	}
+
+	dumVec = blk1.FCenterJ(locs1[jj*7+1]); //dir3-lower face
+	blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+1] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+1]); //dir3-lower face 
+	blk1.SetFAreaJ(aFac * blk2.FAreaK(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+1] );
+
+	dumVec = blk1.FCenterJ(locs1[jj*7+2]); //dir3-upper face
+	blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+2] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+2]); //dir3-upper face 
+	blk1.SetFAreaJ(aFac * blk2.FAreaK(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+2] );
+
+	dumVec = blk1.FCenterK(locs1[jj*7+3]); //dir1-lower face
+	blk1.SetFCenterK(blk2.FCenterI(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFCenterI(dumVec, locs2[jj*7+3] );
+	dumVec = blk1.FAreaK(locs1[jj*7+3]); //dir1-lower face 
+	blk1.SetFAreaK(aFac * blk2.FAreaI(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+3] );
+
+	dumVec = blk1.FCenterK(locs1[jj*7+4]); //dir1-upper face
+	blk1.SetFCenterK(blk2.FCenterI(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFCenterI(dumVec, locs2[jj*7+4] );
+	dumVec = blk1.FAreaK(locs1[jj*7+4]); //dir1-upper face 
+	blk1.SetFAreaK(aFac * blk2.FAreaI(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+4] );
+
+	dumVec = blk1.FCenterI(locs1[jj*7+5]); //dir2-lower face
+	blk1.SetFCenterI(blk2.FCenterK(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+5] );
+	dumVec = blk1.FAreaI(locs1[jj*7+5]); //dir2-lower face 
+	blk1.SetFAreaI(aFac * blk2.FAreaK(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+5] );
+
+	dumVec = blk1.FCenterI(locs1[jj*7+6]); //dir2-upper face
+	blk1.SetFCenterI(blk2.FCenterJ(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFCenterJ(dumVec, locs2[jj*7+6] );
+	dumVec = blk1.FAreaI(locs1[jj*7+6]); //dir2-upper face 
+	blk1.SetFAreaI(aFac * blk2.FAreaJ(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+6] );
+
+      }
+      else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() <= 2 ){ //patches are k/i, k to i, i to j, j to k
+	double aFac = 1.0;
+	if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
+	  aFac = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	}
+
+	dumVec = blk1.FCenterK(locs1[jj*7+1]); //dir3-lower face
+	blk1.SetFCenterK(blk2.FCenterI(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFCenterI(dumVec, locs2[jj*7+1] );
+	dumVec = blk1.FAreaK(locs1[jj*7+1]); //dir3-lower face 
+	blk1.SetFAreaK(aFac * blk2.FAreaI(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+1] );
+
+	dumVec = blk1.FCenterK(locs1[jj*7+2]); //dir3-upper face
+	blk1.SetFCenterK(blk2.FCenterI(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFCenterI(dumVec, locs2[jj*7+2] );
+	dumVec = blk1.FAreaK(locs1[jj*7+2]); //dir3-upper face 
+	blk1.SetFAreaK(aFac * blk2.FAreaI(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+2] );
+
+	dumVec = blk1.FCenterI(locs1[jj*7+3]); //dir1-lower face
+	blk1.SetFCenterI(blk2.FCenterJ(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFCenterJ(dumVec, locs2[jj*7+3] );
+	dumVec = blk1.FAreaI(locs1[jj*7+3]); //dir1-lower face 
+	blk1.SetFAreaI(aFac * blk2.FAreaJ(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+3] );
+
+	dumVec = blk1.FCenterI(locs1[jj*7+4]); //dir1-upper face
+	blk1.SetFCenterI(blk2.FCenterJ(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFCenterJ(dumVec, locs2[jj*7+4] );
+	dumVec = blk1.FAreaI(locs1[jj*7+4]); //dir1-upper face 
+	blk1.SetFAreaI(aFac * blk2.FAreaJ(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+4] );
+
+	dumVec = blk1.FCenterJ(locs1[jj*7+5]); //dir2-lower face
+	blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+5] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+5]); //dir2-lower face 
+	blk1.SetFAreaJ(aFac * blk2.FAreaK(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+5] );
+
+	dumVec = blk1.FCenterJ(locs1[jj*7+6]); //dir2-upper face
+	blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+6] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+6]); //dir2-upper face 
+	blk1.SetFAreaJ(aFac * blk2.FAreaK(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+6] );
+
+      }
+      else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() <= 2 ){ //patches are k/j, k to j, i to k, j to i
+	double aFac = 1.0;
+	if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
+	  aFac = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	}
+
+	dumVec = blk1.FCenterK(locs1[jj*7+1]); //dir3-lower face
+	blk1.SetFCenterK(blk2.FCenterJ(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFCenterJ(dumVec, locs2[jj*7+1] );
+	dumVec = blk1.FAreaK(locs1[jj*7+1]); //dir3-lower face 
+	blk1.SetFAreaK(aFac * blk2.FAreaJ(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+1] );
+
+	dumVec = blk1.FCenterK(locs1[jj*7+2]); //dir3-upper face
+	blk1.SetFCenterK(blk2.FCenterJ(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFCenterJ(dumVec, locs2[jj*7+2] );
+	dumVec = blk1.FAreaK(locs1[jj*7+2]); //dir3-upper face 
+	blk1.SetFAreaK(aFac * blk2.FAreaJ(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+2] );
+
+	dumVec = blk1.FCenterI(locs1[jj*7+3]); //dir1-lower face
+	blk1.SetFCenterI(blk2.FCenterK(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+3] );
+	dumVec = blk1.FAreaI(locs1[jj*7+3]); //dir1-lower face 
+	blk1.SetFAreaI(aFac * blk2.FAreaK(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+3] );
+
+	dumVec = blk1.FCenterI(locs1[jj*7+4]); //dir1-upper face
+	blk1.SetFCenterI(blk2.FCenterK(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+4] );
+	dumVec = blk1.FAreaI(locs1[jj*7+4]); //dir1-upper face 
+	blk1.SetFAreaI(aFac * blk2.FAreaK(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+4] );
+
+	dumVec = blk1.FCenterJ(locs1[jj*7+5]); //dir2-lower face
+	blk1.SetFCenterJ(blk2.FCenterI(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFCenterI(dumVec, locs2[jj*7+5] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+5]); //dir2-lower face 
+	blk1.SetFAreaJ(aFac * blk2.FAreaI(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+5] );
+
+	dumVec = blk1.FCenterJ(locs1[jj*7+6]); //dir2-upper face
+	blk1.SetFCenterJ(blk2.FCenterI(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFCenterI(dumVec, locs2[jj*7+6] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+6]); //dir2-upper face 
+	blk1.SetFAreaJ(aFac * blk2.FAreaI(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+6] );
+
+      }
+      else{
+	cerr << "ERROR: Error in procBlock:SwapGhostGeom(). Unable to swap face quantities because behavior for interface with boundary pair "
+	     << inter.BoundaryFirst() << ", " << inter.BoundarySecond() << " is not defined." << endl;
+	exit(0);
+      }
 
     }
 
   }
 
-
-
-  //swap data for first and second layers
-
-
 }
+
 /* Function to return a vector of location indicies for ghost cells at an interblock boundary
 */
 vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const bool &pairID, const int &imax, const int &jmax, const int &numGhosts ){
@@ -6055,82 +6398,119 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
   // pairID -- returning index for first or second column
   // imax -- i dimension of block
   // jmax -- j dimension of block
+  // numGhosts -- number of layers of ghost cells
 
   vector<int> loc;
-  loc.reserve(numGhosts);
+  loc.reserve(numGhosts * 7);
 
   if (pairID) { //working on first in pair
 
     if ( inter.BoundaryFirst() == 1 ){ //i-patch lower
       //get direction 1 length
-      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst();
+      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst() ;
       int add1 = ind % l1;
       int add2 = ind / l1;
       int jj = inter.Dir1StartFirst() + numGhosts + add1; //direction 1 is j
       int kk = inter.Dir2StartFirst() + numGhosts + add2; //direction 2 is k
-      for ( int nn = 1; nn <= numGhosts; nn++ ){
-	int ii = inter.ConstSurfaceFirst() + numGhosts - nn; //subtract nn to get to ghost cells
-	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      for ( int nn = 0; nn < numGhosts; nn++ ){
+	int ii = inter.ConstSurfaceFirst() + numGhosts - nn ; //subtract nn to get to ghost cells
+	loc[nn] = GetLoc1D(ii, jj, kk, imax, jmax); //cell
+	loc[nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
+	loc[nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
+	loc[nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
+	loc[nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
+	loc[nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
+	loc[nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
       }
     }
     else if ( inter.BoundaryFirst() == 2 ) { //i-patch upper
       //get direction 1 length
-      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst();
+      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst() ;
       int add1 = ind % l1;
       int add2 = ind / l1;
       int jj = inter.Dir1StartFirst() + numGhosts + add1; //direction 1 is j
       int kk = inter.Dir2StartFirst() + numGhosts + add2; //direction 2 is k
-      for ( int nn = 1; nn <= numGhosts; nn++ ){
-	int ii = inter.ConstSurfaceFirst() + numGhosts + nn - 1; //add nn to get to ghost cells, subtract 1 to get cell index (instead of face)
-	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      for ( int nn = 0; nn < numGhosts; nn++ ){
+	int ii = inter.ConstSurfaceFirst() + numGhosts + nn - 1 ; //add nn to get to ghost cells, subtract 1 to get cell index (instead of face)
+	loc[nn] = GetLoc1D(ii, jj, kk, imax, jmax); //cell
+	loc[nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
+	loc[nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
+	loc[nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
+	loc[nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
+	loc[nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
+	loc[nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
       }
     }
     else if ( inter.BoundaryFirst() == 3 ){ //j-patch lower
       //get direction 1 length
-      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst();
+      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst() ;
       int add1 = ind % l1;
       int add2 = ind / l1;
       int ii = inter.Dir2StartFirst() + numGhosts + add1; //direction 2 is i
       int kk = inter.Dir1StartFirst() + numGhosts + add2; //direction 1 is k
-      for ( int nn = 1; nn <= numGhosts; nn++ ){
-	int jj = inter.ConstSurfaceFirst() + numGhosts - nn; //subtract nn to get to ghost cells
-	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      for ( int nn = 0; nn < numGhosts; nn++ ){
+	int jj = inter.ConstSurfaceFirst() + numGhosts - nn ; //subtract nn to get to ghost cells
+	loc[nn] = GetLoc1D(ii, jj, kk, imax, jmax);
+	loc[nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
+	loc[nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
+	loc[nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
+	loc[nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
+	loc[nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
+	loc[nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
       }
     }
     else if ( inter.BoundaryFirst() == 4 ){ //j-patch upper
       //get direction 1 length
-      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst();
+      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst() ;
       int add1 = ind % l1;
       int add2 = ind / l1;
       int ii = inter.Dir2StartFirst() + numGhosts + add1; //direction 2 is i
       int kk = inter.Dir1StartFirst() + numGhosts + add2; //direction 1 is k
-      for ( int nn = 1; nn <= numGhosts; nn++ ){
-	int jj = inter.ConstSurfaceFirst() + numGhosts + nn - 1; //add nn to get to ghost cells, subtract 1 to get cell index (instead of face)
-	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      for ( int nn = 0; nn < numGhosts; nn++ ){
+	int jj = inter.ConstSurfaceFirst() + numGhosts + nn - 1 ; //add nn to get to ghost cells, subtract 1 to get cell index (instead of face)
+	loc[nn] = GetLoc1D(ii, jj, kk, imax, jmax);
+	loc[nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
+	loc[nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
+	loc[nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
+	loc[nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
+	loc[nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
+	loc[nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
       }
     }
     else if ( inter.BoundaryFirst() == 5 ){ //k-patch lower
       //get direction 1 length
-      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst();
+      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst() ;
       int add1 = ind % l1;
       int add2 = ind / l1;
       int ii = inter.Dir1StartFirst() + numGhosts + add1; //direction 1 is i
       int jj = inter.Dir2StartFirst() + numGhosts + add2; //direction 2 is j
-      for ( int nn = 1; nn <= numGhosts; nn++ ){
-	int kk = inter.ConstSurfaceFirst() + numGhosts - nn; //add nn to get to ghost cells
-	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      for ( int nn = 0; nn < numGhosts; nn++ ){
+	int kk = inter.ConstSurfaceFirst() + numGhosts - nn ; //add nn to get to ghost cells
+	loc[nn] = GetLoc1D(ii, jj, kk, imax, jmax);
+	loc[nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
+	loc[nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
+	loc[nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
+	loc[nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
+	loc[nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
+	loc[nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
       }
     }
     else{ //k-patch upper
       //get direction 1 length
-      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst();
+      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst() ;
       int add1 = ind % l1;
       int add2 = ind / l1;
       int ii = inter.Dir1StartFirst() + numGhosts + add1; //direction 1 is i
       int jj = inter.Dir2StartFirst() + numGhosts + add2; //direction 2 is j
-      for ( int nn = 1; nn <= numGhosts; nn++ ){
-	int kk = inter.ConstSurfaceFirst() + numGhosts + nn - 1; //add nn to get to ghost cells, subtract 1 to get cell index (instead of face)
-	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      for ( int nn = 0; nn < numGhosts; nn++ ){
+	int kk = inter.ConstSurfaceFirst() + numGhosts + nn - 1 ; //add nn to get to ghost cells, subtract 1 to get cell index (instead of face)
+	loc[nn] = GetLoc1D(ii, jj, kk, imax, jmax);
+	loc[nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
+	loc[nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
+	loc[nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
+	loc[nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
+	loc[nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
+	loc[nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
       }
     }
   }
@@ -6144,7 +6524,7 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       int jj, kk;
       if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
 	//get direction 1 length (actually direction 2)
-	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond();
+	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond() ;
 	int add1 = ind % l1;
 	int add2 = ind / l1;
 
@@ -6164,7 +6544,7 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       }
       else{ //no direction swap
 	//get direction 1 length 
-	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond();
+	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond() ;
 	int add1 = ind % l1;
 	int add2 = ind / l1;
 
@@ -6184,9 +6564,15 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       }
 
       //calculate index for all ghost layers
-      for ( int nn = 1; nn <= numGhosts; nn++ ){
-	int ii = inter.ConstSurfaceSecond() + numGhosts - nn; //subtract nn to get to ghost cells
-	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      for ( int nn = 0; nn < numGhosts; nn++ ){
+	int ii = inter.ConstSurfaceSecond() + numGhosts - nn ; //subtract nn to get to ghost cells
+	loc[nn] = GetLoc1D(ii, jj, kk, imax, jmax);
+	loc[nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
+	loc[nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
+	loc[nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
+	loc[nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
+	loc[nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
+	loc[nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
       }
     }
     //-------------------------------------------------------------------------------------------------------
@@ -6195,7 +6581,7 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       int jj, kk;
       if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
 	//get direction 1 length (actually direction 2)
-	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond();
+	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond() ;
 	int add2 = ind % l1;
 	int add1 = ind / l1;
 
@@ -6215,7 +6601,7 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       }
       else{ //no direction swap
 	//get direction 1 length 
-	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond();
+	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond() ;
 	int add1 = ind % l1;
 	int add2 = ind / l1;
 
@@ -6235,9 +6621,15 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       }
 
       //calculate index for all ghost layers
-      for ( int nn = 1; nn <= numGhosts; nn++ ){
-	int ii = inter.ConstSurfaceSecond() + numGhosts + nn - 1; //add nn to get to ghost cells, subtract 1 to get cell index (instead of face)
-	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      for ( int nn = 0; nn < numGhosts; nn++ ){
+	int ii = inter.ConstSurfaceSecond() + numGhosts + nn - 1 ; //add nn to get to ghost cells, subtract 1 to get cell index (instead of face)
+	loc[nn] = GetLoc1D(ii, jj, kk, imax, jmax);
+	loc[nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
+	loc[nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
+	loc[nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
+	loc[nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
+	loc[nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
+	loc[nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
       }
     }
     //-------------------------------------------------------------------------------------------------------
@@ -6246,7 +6638,7 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       int ii, kk;
       if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
 	//get direction 1 length (actually direction 2)
-	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond();
+	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond() ;
 	int add2 = ind % l1;
 	int add1 = ind / l1;
 
@@ -6266,7 +6658,7 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       }
       else{ //no direction swap
 	//get direction 1 length 
-	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond();
+	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond() ;
 	int add1 = ind % l1;
 	int add2 = ind / l1;
 
@@ -6286,9 +6678,15 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       }
 
       //calculate index for all ghost layers
-      for ( int nn = 1; nn <= numGhosts; nn++ ){
-	int jj = inter.ConstSurfaceSecond() + numGhosts - nn; //subtract nn to get to ghost cells
-	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      for ( int nn = 0; nn < numGhosts; nn++ ){
+	int jj = inter.ConstSurfaceSecond() + numGhosts - nn ; //subtract nn to get to ghost cells
+	loc[nn] = GetLoc1D(ii, jj, kk, imax, jmax);
+	loc[nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
+	loc[nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
+	loc[nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
+	loc[nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
+	loc[nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
+	loc[nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
       }
     }
     //-------------------------------------------------------------------------------------------------------
@@ -6297,7 +6695,7 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       int ii, kk;
       if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
 	//get direction 1 length (actually direction 2)
-	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond();
+	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond() ;
 	int add2 = ind % l1;
 	int add1 = ind / l1;
 
@@ -6317,7 +6715,7 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       }
       else{ //no direction swap
 	//get direction 1 length 
-	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond();
+	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond() ;
 	int add1 = ind % l1;
 	int add2 = ind / l1;
 
@@ -6337,9 +6735,15 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       }
 
       //calculate index for all ghost layers
-      for ( int nn = 1; nn <= numGhosts; nn++ ){
-	int jj = inter.ConstSurfaceSecond() + numGhosts + nn - 1; //add nn to get to ghost cells, subtract 1 to get cell index (instead of face)
-	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      for ( int nn = 0; nn < numGhosts; nn++ ){
+	int jj = inter.ConstSurfaceSecond() + numGhosts + nn - 1 ; //add nn to get to ghost cells, subtract 1 to get cell index (instead of face)
+	loc[nn] = GetLoc1D(ii, jj, kk, imax, jmax);
+	loc[nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
+	loc[nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
+	loc[nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
+	loc[nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
+	loc[nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
+	loc[nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
       }
     }
     //-------------------------------------------------------------------------------------------------------
@@ -6348,7 +6752,7 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       int ii, jj;
       if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
 	//get direction 1 length (actually direction 2)
-	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond();
+	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond() ;
 	int add2 = ind % l1;
 	int add1 = ind / l1;
 
@@ -6368,7 +6772,7 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       }
       else{ //no direction swap
 	//get direction 1 length 
-	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond();
+	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond() ;
 	int add1 = ind % l1;
 	int add2 = ind / l1;
 
@@ -6388,9 +6792,15 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       }
 
       //calculate index for all ghost layers
-      for ( int nn = 1; nn <= numGhosts; nn++ ){
-	int kk = inter.ConstSurfaceSecond() + numGhosts - nn; //subtract nn to get to ghost cells
-	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      for ( int nn = 0; nn < numGhosts; nn++ ){
+	int kk = inter.ConstSurfaceSecond() + numGhosts - nn ; //subtract nn to get to ghost cells
+	loc[nn] = GetLoc1D(ii, jj, kk, imax, jmax);
+	loc[nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
+	loc[nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
+	loc[nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
+	loc[nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
+	loc[nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
+	loc[nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
       }
     }
     //-------------------------------------------------------------------------------------------------------
@@ -6399,7 +6809,7 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       int ii, jj;
       if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
 	//get direction 1 length (actually direction 2)
-	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond();
+	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond() ;
 	int add2 = ind % l1;
 	int add1 = ind / l1;
 
@@ -6419,7 +6829,7 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       }
       else{ //no direction swap
 	//get direction 1 length 
-	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond();
+	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond() ;
 	int add1 = ind % l1;
 	int add2 = ind / l1;
 
@@ -6439,9 +6849,15 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       }
 
       //calculate index for all ghost layers
-      for ( int nn = 1; nn <= numGhosts; nn++ ){
-	int kk = inter.ConstSurfaceSecond() + numGhosts + nn - 1; //add nn to get to ghost cells, subtract 1 to get cell index (instead of face)
-	loc[nn-1] = GetLoc1D(ii, jj, kk, imax, jmax);
+      for ( int nn = 0; nn < numGhosts; nn++ ){
+	int kk = inter.ConstSurfaceSecond() + numGhosts + nn - 1 ; //add nn to get to ghost cells, subtract 1 to get cell index (instead of face)
+	loc[nn] = GetLoc1D(ii, jj, kk, imax, jmax);
+	loc[nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
+	loc[nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
+	loc[nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
+	loc[nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
+	loc[nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
+	loc[nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
       }
     }
 
@@ -6449,4 +6865,48 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
 
 
   return loc;
+}
+
+void GetBoundaryConditions(vector<procBlock> &states, const input &inp, const idealGas &eos, const vector<interblock> &connections){
+
+  //loop over all blocks
+  for ( unsigned int ii = 0; ii < states.size(); ii++ ){
+    states[ii].AssignInviscidGhostCells(inp, eos);
+  }
+
+  for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
+    SwapGhostStates( connections[ii], states[connections[ii].BlockFirst()], states[connections[ii].BlockSecond()]);
+  }
+  //Get ghost cell edge data
+  for ( unsigned int ii = 0; ii < states.size(); ii++) {
+    states[ii].AssignInviscidGhostCellsEdge(inp, eos);
+  }
+
+}
+
+/* Function to swap ghost cell geometry between two blocks at an interblock boundary
+
+*/
+void SwapGhostStates( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
+
+  //loop over patch on block 1
+  int len = (inter.Dir1EndFirst() - inter.Dir1StartFirst()) * (inter.Dir2EndFirst() - inter.Dir2StartFirst());
+  for ( int ii = 0; ii < len; ii++ ){
+
+    //Get locations for each block
+    vector<int> locs1 = GetPatchGhostLoc(ii, inter, true,  blk1.NumI() + 2.0 * blk1.NumGhosts(), blk1.NumJ() + 2.0 * blk1.NumGhosts(), blk1.NumGhosts() );
+    vector<int> locs2 = GetPatchGhostLoc(ii, inter, false, blk2.NumI() + 2.0 * blk2.NumGhosts(), blk2.NumJ() + 2.0 * blk2.NumGhosts(), blk2.NumGhosts() );
+
+
+    //swap data
+    for ( int jj = 0; jj < blk1.NumGhosts(); jj++ ){
+
+      //swap cell data
+      primVars dummy = blk1.State(locs1[jj*7]);
+      blk1.SetState(blk2.State(locs2[jj*7]), locs1[jj*7] );
+      blk2.SetState(dummy, locs2[jj*7] );
+
+    }
+
+  }
 }

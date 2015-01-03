@@ -81,10 +81,13 @@ int main( int argc, char *argv[] ) {
   }
 
   //Populate interblock boundaries with correct geometry
-  // for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
-  //   SwapGhostGeom( connections[ii], stateBlocks[connections[ii].BlockFirst()], stateBlocks[connections[ii].BlockSecond()]);
-  // }
-  exit(0);
+  for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
+    SwapGhostGeom( connections[ii], stateBlocks[connections[ii].BlockFirst()], stateBlocks[connections[ii].BlockSecond()]);
+  }
+  //Get ghost cell edge data
+  for ( int ll = 0; ll < (int)mesh.size(); ll++) {
+    stateBlocks[ll].AssignGhostCellsGeomEdge();
+  }
 
   cout << endl << "Solution Initialized" << endl;
 
@@ -125,6 +128,9 @@ int main( int argc, char *argv[] ) {
 
     for ( int mm = 0; mm < inputVars.NonlinearIterations(); mm++ ){    //loop over nonlinear iterations
 
+      //Get boundary conditions
+      GetBoundaryConditions(stateBlocks, inputVars, eos, connections);
+
       for ( int bb = 0; bb < (int)mesh.size(); bb++ ){             //loop over number of blocks
 
 	//initialize implicit matrix
@@ -137,9 +143,6 @@ int main( int argc, char *argv[] ) {
 	  }
 
 	} //end of implicit conditional
-
-	//determine ghost cell values for inviscid fluxes
-	stateBlocks[bb].AssignInviscidGhostCells(inputVars, eos);
 
 	//calculate inviscid fluxes
 	stateBlocks[bb].CalcInvFluxI(eos, inputVars);
