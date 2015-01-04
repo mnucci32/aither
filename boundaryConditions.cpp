@@ -167,6 +167,9 @@ void interblock::SetInterblock(const patch &p1, const patch &p2){
   (*this).SetDir2StartFirst(p1.Dir2Start());
   (*this).SetDir2StartSecond(p2.Dir2Start());
 
+  (*this).SetDir2EndFirst(p1.Dir2End());
+  (*this).SetDir2EndSecond(p2.Dir2End());
+
   (*this).SetConstSurfaceFirst(p1.ConstSurface());
   (*this).SetConstSurfaceSecond(p2.ConstSurface());
 
