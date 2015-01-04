@@ -78,6 +78,7 @@ int main( int argc, char *argv[] ) {
   for ( int ll = 0; ll < (int)mesh.size(); ll++) {
     stateBlocks[ll] = procBlock(state, mesh[ll], ll, numGhost, inputVars.EquationSet());
     stateBlocks[ll].AssignGhostCellsGeom();
+    stateBlocks[ll].AssignGhostCellsGeomEdge();
   }
 
   //Populate interblock boundaries with correct geometry
