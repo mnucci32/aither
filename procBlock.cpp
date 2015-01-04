@@ -6033,349 +6033,517 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
       blk2.SetCenter(dumVec, locs2[jj*7] );
 
       //swap face data
-      if ( (inter.BoundaryFirst() <= 2 && inter.BoundarySecond() <= 2) ||
-	   (inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4) ||
-	   (inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6) ){ //both patches the same, i to i, j to j, k to k
-	double aFac = 1.0;
+      if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() <= 2 ){ //both patches i, i to i, j to j, k to k
+	double aFac3 = 1.0;
 	if ( inter.BoundaryFirst() == inter.BoundarySecond() ){ //lower/lower or upper/upper
-	  aFac = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	  aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	}
+	double aFac1 = 1.0;
+	double aFac2 = 1.0;
+	if ( inter.Orientation() == 3 || inter.Orientation() == 4 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir1 is reversed
+	  aFac1 = -1.0;
+	}
+	if ( inter.Orientation() == 5 || inter.Orientation() == 6 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir2 is reversed
+	  aFac2 = -1.0;
 	}
 
-	dumVec = blk1.FCenterI(locs1[jj*7+1]); //i-lower face
+	dumVec = blk1.FCenterI(locs1[jj*7+1]); //dir3-lower face
 	blk1.SetFCenterI(blk2.FCenterI(locs2[jj*7+1]), locs1[jj*7+1] );
 	blk2.SetFCenterI(dumVec, locs2[jj*7+1] );
-	dumVec = blk1.FAreaI(locs1[jj*7+1]); //i-lower face 
-	blk1.SetFAreaI(aFac * blk2.FAreaI(locs2[jj*7+1]), locs1[jj*7+1] );
-	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+1] );
+	dumVec = blk1.FAreaI(locs1[jj*7+1]); //dir3-lower face 
+	blk1.SetFAreaI(aFac3 * blk2.FAreaI(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFAreaI(aFac3 * dumVec, locs2[jj*7+1] );
 
-	dumVec = blk1.FCenterI(locs1[jj*7+2]); //i-upper face
+	dumVec = blk1.FCenterI(locs1[jj*7+2]); //dir3-upper face
 	blk1.SetFCenterI(blk2.FCenterI(locs2[jj*7+2]), locs1[jj*7+2] );
 	blk2.SetFCenterI(dumVec, locs2[jj*7+2] );
-	dumVec = blk1.FAreaI(locs1[jj*7+2]); //i-upper face 
-	blk1.SetFAreaI(aFac * blk2.FAreaI(locs2[jj*7+2]), locs1[jj*7+2] );
-	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+2] );
+	dumVec = blk1.FAreaI(locs1[jj*7+2]); //dir3-upper face 
+	blk1.SetFAreaI(aFac3 * blk2.FAreaI(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFAreaI(aFac3 * dumVec, locs2[jj*7+2] );
 
-	dumVec = blk1.FCenterJ(locs1[jj*7+3]); //j-lower face
+	dumVec = blk1.FCenterJ(locs1[jj*7+3]); //dir1-lower face
 	blk1.SetFCenterJ(blk2.FCenterJ(locs2[jj*7+3]), locs1[jj*7+3] );
 	blk2.SetFCenterJ(dumVec, locs2[jj*7+3] );
-	dumVec = blk1.FAreaJ(locs1[jj*7+3]); //j-lower face 
-	blk1.SetFAreaJ(aFac * blk2.FAreaJ(locs2[jj*7+3]), locs1[jj*7+3] );
-	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+3] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+3]); //dir1-lower face 
+	blk1.SetFAreaJ(aFac1 * blk2.FAreaJ(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFAreaJ(aFac1 * dumVec, locs2[jj*7+3] );
 
-	dumVec = blk1.FCenterJ(locs1[jj*7+4]); //j-upper face
+	dumVec = blk1.FCenterJ(locs1[jj*7+4]); //dir1-upper face
 	blk1.SetFCenterJ(blk2.FCenterJ(locs2[jj*7+4]), locs1[jj*7+4] );
 	blk2.SetFCenterJ(dumVec, locs2[jj*7+4] );
-	dumVec = blk1.FAreaJ(locs1[jj*7+4]); //j-upper face 
-	blk1.SetFAreaJ(aFac * blk2.FAreaJ(locs2[jj*7+4]), locs1[jj*7+4] );
-	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+4] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+4]); //dir1-upper face 
+	blk1.SetFAreaJ(aFac1 * blk2.FAreaJ(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFAreaJ(aFac1 * dumVec, locs2[jj*7+4] );
 
-	dumVec = blk1.FCenterK(locs1[jj*7+5]); //k-lower face
+	dumVec = blk1.FCenterK(locs1[jj*7+5]); //dir2-lower face
 	blk1.SetFCenterK(blk2.FCenterK(locs2[jj*7+5]), locs1[jj*7+5] );
 	blk2.SetFCenterK(dumVec, locs2[jj*7+5] );
-	dumVec = blk1.FAreaK(locs1[jj*7+5]); //k-lower face 
-	blk1.SetFAreaK(aFac * blk2.FAreaK(locs2[jj*7+5]), locs1[jj*7+5] );
-	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+5] );
+	dumVec = blk1.FAreaK(locs1[jj*7+5]); //dir2-lower face 
+	blk1.SetFAreaK(aFac2 * blk2.FAreaK(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFAreaK(aFac2 * dumVec, locs2[jj*7+5] );
 
-	dumVec = blk1.FCenterK(locs1[jj*7+6]); //k-upper face
+	dumVec = blk1.FCenterK(locs1[jj*7+6]); //dir2-upper face
 	blk1.SetFCenterK(blk2.FCenterK(locs2[jj*7+6]), locs1[jj*7+6] );
 	blk2.SetFCenterK(dumVec, locs2[jj*7+6] );
-	dumVec = blk1.FAreaK(locs1[jj*7+6]); //k-upper face 
-	blk1.SetFAreaK(aFac * blk2.FAreaK(locs2[jj*7+6]), locs1[jj*7+6] );
-	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+6] );
+	dumVec = blk1.FAreaK(locs1[jj*7+6]); //dir2-upper face 
+	blk1.SetFAreaK(aFac2 * blk2.FAreaK(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFAreaK(aFac2 * dumVec, locs2[jj*7+6] );
+
+      }
+      else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4 ){ //both patches j, j to j, k to k, i to i
+	double aFac3 = 1.0;
+	if ( inter.BoundaryFirst() == inter.BoundarySecond() ){ //lower/lower or upper/upper
+	  aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	}
+	double aFac1 = 1.0;
+	double aFac2 = 1.0;
+	if ( inter.Orientation() == 3 || inter.Orientation() == 4 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir1 is reversed
+	  aFac1 = -1.0;
+	}
+	if ( inter.Orientation() == 5 || inter.Orientation() == 6 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir2 is reversed
+	  aFac2 = -1.0;
+	}
+
+	dumVec = blk1.FCenterJ(locs1[jj*7+1]); //dir3-lower face
+	blk1.SetFCenterJ(blk2.FCenterJ(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFCenterJ(dumVec, locs2[jj*7+1] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+1]); //dir3-lower face 
+	blk1.SetFAreaJ(aFac3 * blk2.FAreaJ(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFAreaJ(aFac3 * dumVec, locs2[jj*7+1] );
+
+	dumVec = blk1.FCenterJ(locs1[jj*7+2]); //dir3-upper face
+	blk1.SetFCenterJ(blk2.FCenterJ(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFCenterJ(dumVec, locs2[jj*7+2] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+2]); //dir3-upper face 
+	blk1.SetFAreaJ(aFac3 * blk2.FAreaJ(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFAreaJ(aFac3 * dumVec, locs2[jj*7+2] );
+
+	dumVec = blk1.FCenterK(locs1[jj*7+3]); //dir1-lower face
+	blk1.SetFCenterK(blk2.FCenterK(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+3] );
+	dumVec = blk1.FAreaK(locs1[jj*7+3]); //dir1-lower face 
+	blk1.SetFAreaK(aFac1 * blk2.FAreaK(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFAreaK(aFac1 * dumVec, locs2[jj*7+3] );
+
+	dumVec = blk1.FCenterK(locs1[jj*7+4]); //dir1-upper face
+	blk1.SetFCenterK(blk2.FCenterK(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+4] );
+	dumVec = blk1.FAreaK(locs1[jj*7+4]); //dir1-upper face 
+	blk1.SetFAreaK(aFac1 * blk2.FAreaK(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFAreaK(aFac1 * dumVec, locs2[jj*7+4] );
+
+	dumVec = blk1.FCenterI(locs1[jj*7+5]); //dir2-lower face
+	blk1.SetFCenterI(blk2.FCenterI(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFCenterI(dumVec, locs2[jj*7+5] );
+	dumVec = blk1.FAreaI(locs1[jj*7+5]); //dir2-lower face 
+	blk1.SetFAreaI(aFac2 * blk2.FAreaI(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFAreaI(aFac2 * dumVec, locs2[jj*7+5] );
+
+	dumVec = blk1.FCenterI(locs1[jj*7+6]); //dir2-upper face
+	blk1.SetFCenterI(blk2.FCenterI(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFCenterI(dumVec, locs2[jj*7+6] );
+	dumVec = blk1.FAreaI(locs1[jj*7+6]); //dir2-upper face 
+	blk1.SetFAreaI(aFac2 * blk2.FAreaI(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFAreaI(aFac2 * dumVec, locs2[jj*7+6] );
+
+      }
+      else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6 ){ //both patches k, k to k, i to i, j to j
+	double aFac3 = 1.0;
+	if ( inter.BoundaryFirst() == inter.BoundarySecond() ){ //lower/lower or upper/upper
+	  aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	}
+	double aFac1 = 1.0;
+	double aFac2 = 1.0;
+	if ( inter.Orientation() == 3 || inter.Orientation() == 4 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir1 is reversed
+	  aFac1 = -1.0;
+	}
+	if ( inter.Orientation() == 5 || inter.Orientation() == 6 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir2 is reversed
+	  aFac2 = -1.0;
+	}
+
+	dumVec = blk1.FCenterK(locs1[jj*7+1]); //dir3-lower face
+	blk1.SetFCenterK(blk2.FCenterK(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+1] );
+	dumVec = blk1.FAreaK(locs1[jj*7+1]); //dir3-lower face 
+	blk1.SetFAreaK(aFac3 * blk2.FAreaK(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFAreaK(aFac3 * dumVec, locs2[jj*7+1] );
+
+	dumVec = blk1.FCenterK(locs1[jj*7+2]); //dir3-upper face
+	blk1.SetFCenterK(blk2.FCenterK(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFCenterK(dumVec, locs2[jj*7+2] );
+	dumVec = blk1.FAreaK(locs1[jj*7+2]); //dir3-upper face 
+	blk1.SetFAreaK(aFac3 * blk2.FAreaK(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFAreaK(aFac3 * dumVec, locs2[jj*7+2] );
+
+	dumVec = blk1.FCenterI(locs1[jj*7+3]); //dir1-lower face
+	blk1.SetFCenterI(blk2.FCenterI(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFCenterI(dumVec, locs2[jj*7+3] );
+	dumVec = blk1.FAreaI(locs1[jj*7+3]); //dir1-lower face 
+	blk1.SetFAreaI(aFac1 * blk2.FAreaI(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFAreaI(aFac1 * dumVec, locs2[jj*7+3] );
+
+	dumVec = blk1.FCenterI(locs1[jj*7+4]); //dir1-upper face
+	blk1.SetFCenterI(blk2.FCenterI(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFCenterI(dumVec, locs2[jj*7+4] );
+	dumVec = blk1.FAreaI(locs1[jj*7+4]); //dir1-upper face 
+	blk1.SetFAreaI(aFac1 * blk2.FAreaI(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFAreaI(aFac1 * dumVec, locs2[jj*7+4] );
+
+	dumVec = blk1.FCenterJ(locs1[jj*7+5]); //dir2-lower face
+	blk1.SetFCenterJ(blk2.FCenterJ(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFCenterJ(dumVec, locs2[jj*7+5] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+5]); //dir2-lower face 
+	blk1.SetFAreaJ(aFac2 * blk2.FAreaJ(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFAreaJ(aFac2 * dumVec, locs2[jj*7+5] );
+
+	dumVec = blk1.FCenterJ(locs1[jj*7+6]); //dir2-upper face
+	blk1.SetFCenterJ(blk2.FCenterJ(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFCenterJ(dumVec, locs2[jj*7+6] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+6]); //dir2-upper face 
+	blk1.SetFAreaJ(aFac2 * blk2.FAreaJ(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFAreaJ(aFac2 * dumVec, locs2[jj*7+6] );
 
       }
       else if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4){ //patches are i/j  - i to j, j to k, k to i
-	double aFac = 1.0;
+	double aFac3 = 1.0;
 	if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
-	  aFac = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	  aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	}
+	double aFac1 = 1.0;
+	double aFac2 = 1.0;
+	if ( inter.Orientation() == 3 || inter.Orientation() == 4 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir1 is reversed
+	  aFac1 = -1.0;
+	}
+	if ( inter.Orientation() == 5 || inter.Orientation() == 6 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir2 is reversed
+	  aFac2 = -1.0;
 	}
 
-	dumVec = blk1.FCenterI(locs1[jj*7+1]); //i-lower face
+	dumVec = blk1.FCenterI(locs1[jj*7+1]); //dir3-lower face
 	blk1.SetFCenterI(blk2.FCenterJ(locs2[jj*7+1]), locs1[jj*7+1] );
 	blk2.SetFCenterJ(dumVec, locs2[jj*7+1] );
-	dumVec = blk1.FAreaI(locs1[jj*7+1]); //i-lower face 
-	blk1.SetFAreaI(aFac * blk2.FAreaJ(locs2[jj*7+1]), locs1[jj*7+1] );
-	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+1] );
+	dumVec = blk1.FAreaI(locs1[jj*7+1]); //dir3-lower face 
+	blk1.SetFAreaI(aFac3 * blk2.FAreaJ(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFAreaJ(aFac3 * dumVec, locs2[jj*7+1] );
 
-	dumVec = blk1.FCenterI(locs1[jj*7+2]); //i-upper face
+	dumVec = blk1.FCenterI(locs1[jj*7+2]); //dir3-upper face
 	blk1.SetFCenterI(blk2.FCenterJ(locs2[jj*7+2]), locs1[jj*7+2] );
 	blk2.SetFCenterJ(dumVec, locs2[jj*7+2] );
-	dumVec = blk1.FAreaI(locs1[jj*7+2]); //i-upper face 
-	blk1.SetFAreaI(aFac * blk2.FAreaJ(locs2[jj*7+2]), locs1[jj*7+2] );
-	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+2] );
+	dumVec = blk1.FAreaI(locs1[jj*7+2]); //dir3-upper face 
+	blk1.SetFAreaI(aFac3 * blk2.FAreaJ(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFAreaJ(aFac3 * dumVec, locs2[jj*7+2] );
 
-	dumVec = blk1.FCenterJ(locs1[jj*7+3]); //j-lower face
+	dumVec = blk1.FCenterJ(locs1[jj*7+3]); //dir1-lower face
 	blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+3]), locs1[jj*7+3] );
 	blk2.SetFCenterK(dumVec, locs2[jj*7+3] );
-	dumVec = blk1.FAreaJ(locs1[jj*7+3]); //j-lower face 
-	blk1.SetFAreaJ(aFac * blk2.FAreaK(locs2[jj*7+3]), locs1[jj*7+3] );
-	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+3] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+3]); //dir1-lower face 
+	blk1.SetFAreaJ(aFac1 * blk2.FAreaK(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFAreaK(aFac1 * dumVec, locs2[jj*7+3] );
 
-	dumVec = blk1.FCenterJ(locs1[jj*7+4]); //j-upper face
+	dumVec = blk1.FCenterJ(locs1[jj*7+4]); //dir1-upper face
 	blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+4]), locs1[jj*7+4] );
 	blk2.SetFCenterK(dumVec, locs2[jj*7+4] );
-	dumVec = blk1.FAreaJ(locs1[jj*7+4]); //j-upper face 
-	blk1.SetFAreaJ(aFac * blk2.FAreaK(locs2[jj*7+4]), locs1[jj*7+4] );
-	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+4] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+4]); //dir1-upper face 
+	blk1.SetFAreaJ(aFac1 * blk2.FAreaK(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFAreaK(aFac1 * dumVec, locs2[jj*7+4] );
 
-	dumVec = blk1.FCenterK(locs1[jj*7+5]); //k-lower face
+	dumVec = blk1.FCenterK(locs1[jj*7+5]); //dir2-lower face
 	blk1.SetFCenterK(blk2.FCenterI(locs2[jj*7+5]), locs1[jj*7+5] );
 	blk2.SetFCenterI(dumVec, locs2[jj*7+5] );
-	dumVec = blk1.FAreaK(locs1[jj*7+5]); //k-lower face 
-	blk1.SetFAreaK(aFac * blk2.FAreaI(locs2[jj*7+5]), locs1[jj*7+5] );
-	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+5] );
+	dumVec = blk1.FAreaK(locs1[jj*7+5]); //dir2-lower face 
+	blk1.SetFAreaK(aFac2 * blk2.FAreaI(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFAreaI(aFac2 * dumVec, locs2[jj*7+5] );
 
-	dumVec = blk1.FCenterK(locs1[jj*7+6]); //k-upper face
+	dumVec = blk1.FCenterK(locs1[jj*7+6]); //dir2-upper face
 	blk1.SetFCenterK(blk2.FCenterI(locs2[jj*7+6]), locs1[jj*7+6] );
 	blk2.SetFCenterI(dumVec, locs2[jj*7+6] );
-	dumVec = blk1.FAreaK(locs1[jj*7+6]); //k-upper face 
-	blk1.SetFAreaK(aFac * blk2.FAreaI(locs2[jj*7+6]), locs1[jj*7+6] );
-	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+6] );
+	dumVec = blk1.FAreaK(locs1[jj*7+6]); //dir2-upper face 
+	blk1.SetFAreaK(aFac2 * blk2.FAreaI(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFAreaI(aFac2 * dumVec, locs2[jj*7+6] );
 
       }
       else if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6){ //patches are i/k  - i to k, j to i, k to j
-	double aFac = 1.0;
+	double aFac3 = 1.0;
 	if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
-	  aFac = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	  aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	}
+	double aFac1 = 1.0;
+	double aFac2 = 1.0;
+	if ( inter.Orientation() == 3 || inter.Orientation() == 4 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir1 is reversed
+	  aFac1 = -1.0;
+	}
+	if ( inter.Orientation() == 5 || inter.Orientation() == 6 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir2 is reversed
+	  aFac2 = -1.0;
 	}
 
-	dumVec = blk1.FCenterI(locs1[jj*7+1]); //i-lower face
+	dumVec = blk1.FCenterI(locs1[jj*7+1]); //dir3-lower face
 	blk1.SetFCenterI(blk2.FCenterK(locs2[jj*7+1]), locs1[jj*7+1] );
 	blk2.SetFCenterK(dumVec, locs2[jj*7+1] );
-	dumVec = blk1.FAreaI(locs1[jj*7+1]); //i-lower face 
-	blk1.SetFAreaI(aFac * blk2.FAreaK(locs2[jj*7+1]), locs1[jj*7+1] );
-	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+1] );
+	dumVec = blk1.FAreaI(locs1[jj*7+1]); //dir3-lower face 
+	blk1.SetFAreaI(aFac3 * blk2.FAreaK(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFAreaK(aFac3 * dumVec, locs2[jj*7+1] );
 
-	dumVec = blk1.FCenterI(locs1[jj*7+2]); //i-upper face
+	dumVec = blk1.FCenterI(locs1[jj*7+2]); //dir3-upper face
 	blk1.SetFCenterI(blk2.FCenterK(locs2[jj*7+2]), locs1[jj*7+2] );
 	blk2.SetFCenterK(dumVec, locs2[jj*7+2] );
-	dumVec = blk1.FAreaI(locs1[jj*7+2]); //i-upper face 
-	blk1.SetFAreaI(aFac * blk2.FAreaK(locs2[jj*7+2]), locs1[jj*7+2] );
-	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+2] );
+	dumVec = blk1.FAreaI(locs1[jj*7+2]); //dir3-upper face 
+	blk1.SetFAreaI(aFac3 * blk2.FAreaK(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFAreaK(aFac3 * dumVec, locs2[jj*7+2] );
 
-	dumVec = blk1.FCenterJ(locs1[jj*7+3]); //j-lower face
+	dumVec = blk1.FCenterJ(locs1[jj*7+3]); //dir1-lower face
 	blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+3]), locs1[jj*7+3] );
 	blk2.SetFCenterK(dumVec, locs2[jj*7+3] );
-	dumVec = blk1.FAreaJ(locs1[jj*7+3]); //j-lower face 
-	blk1.SetFAreaJ(aFac * blk2.FAreaK(locs2[jj*7+3]), locs1[jj*7+3] );
-	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+3] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+3]); //dir1-lower face 
+	blk1.SetFAreaJ(aFac1 * blk2.FAreaK(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFAreaK(aFac1 * dumVec, locs2[jj*7+3] );
 
-	dumVec = blk1.FCenterJ(locs1[jj*7+4]); //j-upper face
+	dumVec = blk1.FCenterJ(locs1[jj*7+4]); //dir1-upper face
 	blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+4]), locs1[jj*7+4] );
 	blk2.SetFCenterK(dumVec, locs2[jj*7+4] );
-	dumVec = blk1.FAreaJ(locs1[jj*7+4]); //j-upper face 
-	blk1.SetFAreaJ(aFac * blk2.FAreaK(locs2[jj*7+4]), locs1[jj*7+4] );
-	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+4] );
+	dumVec = blk1.FAreaJ(locs1[jj*7+4]); //dir1-upper face 
+	blk1.SetFAreaJ(aFac1 * blk2.FAreaK(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFAreaK(aFac1 * dumVec, locs2[jj*7+4] );
 
-	dumVec = blk1.FCenterK(locs1[jj*7+5]); //k-lower face
+	dumVec = blk1.FCenterK(locs1[jj*7+5]); //dir2-lower face
 	blk1.SetFCenterK(blk2.FCenterJ(locs2[jj*7+5]), locs1[jj*7+5] );
 	blk2.SetFCenterJ(dumVec, locs2[jj*7+5] );
-	dumVec = blk1.FAreaK(locs1[jj*7+5]); //k-lower face 
-	blk1.SetFAreaK(aFac * blk2.FAreaJ(locs2[jj*7+5]), locs1[jj*7+5] );
-	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+5] );
+	dumVec = blk1.FAreaK(locs1[jj*7+5]); //dir2-lower face 
+	blk1.SetFAreaK(aFac2 * blk2.FAreaJ(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFAreaJ(aFac2 * dumVec, locs2[jj*7+5] );
 
-	dumVec = blk1.FCenterK(locs1[jj*7+6]); //k-upper face
+	dumVec = blk1.FCenterK(locs1[jj*7+6]); //dir2-upper face
 	blk1.SetFCenterK(blk2.FCenterJ(locs2[jj*7+6]), locs1[jj*7+6] );
 	blk2.SetFCenterJ(dumVec, locs2[jj*7+6] );
-	dumVec = blk1.FAreaK(locs1[jj*7+6]); //k-upper face 
-	blk1.SetFAreaK(aFac * blk2.FAreaJ(locs2[jj*7+6]), locs1[jj*7+6] );
-	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+6] );
+	dumVec = blk1.FAreaK(locs1[jj*7+6]); //dir2-upper face 
+	blk1.SetFAreaK(aFac2 * blk2.FAreaJ(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFAreaJ(aFac2 * dumVec, locs2[jj*7+6] );
 
       }
       else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() <= 2 ){ //patches are j/i, j to i, k to j, i to k
-	double aFac = 1.0;
+	double aFac3 = 1.0;
 	if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
-	  aFac = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	  aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	}
+	double aFac1 = 1.0;
+	double aFac2 = 1.0;
+	if ( inter.Orientation() == 3 || inter.Orientation() == 4 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir1 is reversed
+	  aFac1 = -1.0;
+	}
+	if ( inter.Orientation() == 5 || inter.Orientation() == 6 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir2 is reversed
+	  aFac2 = -1.0;
 	}
 
 	dumVec = blk1.FCenterJ(locs1[jj*7+1]); //dir3-lower face
 	blk1.SetFCenterJ(blk2.FCenterI(locs2[jj*7+1]), locs1[jj*7+1] );
 	blk2.SetFCenterI(dumVec, locs2[jj*7+1] );
 	dumVec = blk1.FAreaJ(locs1[jj*7+1]); //dir3-lower face 
-	blk1.SetFAreaJ(aFac * blk2.FAreaI(locs2[jj*7+1]), locs1[jj*7+1] );
-	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+1] );
+	blk1.SetFAreaJ(aFac3 * blk2.FAreaI(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFAreaI(aFac3 * dumVec, locs2[jj*7+1] );
 
 	dumVec = blk1.FCenterJ(locs1[jj*7+2]); //dir3-upper face
 	blk1.SetFCenterJ(blk2.FCenterI(locs2[jj*7+2]), locs1[jj*7+2] );
 	blk2.SetFCenterI(dumVec, locs2[jj*7+2] );
 	dumVec = blk1.FAreaJ(locs1[jj*7+2]); //dir3-upper face 
-	blk1.SetFAreaJ(aFac * blk2.FAreaI(locs2[jj*7+2]), locs1[jj*7+2] );
-	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+2] );
+	blk1.SetFAreaJ(aFac3 * blk2.FAreaI(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFAreaI(aFac3 * dumVec, locs2[jj*7+2] );
 
 	dumVec = blk1.FCenterK(locs1[jj*7+3]); //dir1-lower face
 	blk1.SetFCenterK(blk2.FCenterJ(locs2[jj*7+3]), locs1[jj*7+3] );
 	blk2.SetFCenterJ(dumVec, locs2[jj*7+3] );
 	dumVec = blk1.FAreaK(locs1[jj*7+3]); //dir1-lower face 
-	blk1.SetFAreaK(aFac * blk2.FAreaJ(locs2[jj*7+3]), locs1[jj*7+3] );
-	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+3] );
+	blk1.SetFAreaK(aFac1 * blk2.FAreaJ(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFAreaJ(aFac1 * dumVec, locs2[jj*7+3] );
 
 	dumVec = blk1.FCenterK(locs1[jj*7+4]); //dir1-upper face
 	blk1.SetFCenterK(blk2.FCenterJ(locs2[jj*7+4]), locs1[jj*7+4] );
 	blk2.SetFCenterJ(dumVec, locs2[jj*7+4] );
 	dumVec = blk1.FAreaK(locs1[jj*7+4]); //dir1-upper face 
-	blk1.SetFAreaK(aFac * blk2.FAreaJ(locs2[jj*7+4]), locs1[jj*7+4] );
-	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+4] );
+	blk1.SetFAreaK(aFac1 * blk2.FAreaJ(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFAreaJ(aFac1 * dumVec, locs2[jj*7+4] );
 
 	dumVec = blk1.FCenterI(locs1[jj*7+5]); //dir2-lower face
 	blk1.SetFCenterI(blk2.FCenterK(locs2[jj*7+5]), locs1[jj*7+5] );
 	blk2.SetFCenterK(dumVec, locs2[jj*7+5] );
 	dumVec = blk1.FAreaI(locs1[jj*7+5]); //dir2-lower face 
-	blk1.SetFAreaI(aFac * blk2.FAreaK(locs2[jj*7+5]), locs1[jj*7+5] );
-	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+5] );
+	blk1.SetFAreaI(aFac2 * blk2.FAreaK(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFAreaK(aFac2 * dumVec, locs2[jj*7+5] );
 
 	dumVec = blk1.FCenterI(locs1[jj*7+6]); //dir2-upper face
 	blk1.SetFCenterI(blk2.FCenterK(locs2[jj*7+6]), locs1[jj*7+6] );
 	blk2.SetFCenterK(dumVec, locs2[jj*7+6] );
 	dumVec = blk1.FAreaI(locs1[jj*7+6]); //dir2-upper face 
-	blk1.SetFAreaI(aFac * blk2.FAreaK(locs2[jj*7+6]), locs1[jj*7+6] );
-	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+6] );
+	blk1.SetFAreaI(aFac2 * blk2.FAreaK(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFAreaK(aFac2 * dumVec, locs2[jj*7+6] );
 
       }
       else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6 ){ //patches are j/k, j to k, k to i, i to j
-	double aFac = 1.0;
+	double aFac3 = 1.0;
 	if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
-	  aFac = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	  aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	}
+	double aFac1 = 1.0;
+	double aFac2 = 1.0;
+	if ( inter.Orientation() == 3 || inter.Orientation() == 4 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir1 is reversed
+	  aFac1 = -1.0;
+	}
+	if ( inter.Orientation() == 5 || inter.Orientation() == 6 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir2 is reversed
+	  aFac2 = -1.0;
 	}
 
 	dumVec = blk1.FCenterJ(locs1[jj*7+1]); //dir3-lower face
 	blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+1]), locs1[jj*7+1] );
 	blk2.SetFCenterK(dumVec, locs2[jj*7+1] );
 	dumVec = blk1.FAreaJ(locs1[jj*7+1]); //dir3-lower face 
-	blk1.SetFAreaJ(aFac * blk2.FAreaK(locs2[jj*7+1]), locs1[jj*7+1] );
-	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+1] );
+	blk1.SetFAreaJ(aFac3 * blk2.FAreaK(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFAreaK(aFac3 * dumVec, locs2[jj*7+1] );
 
 	dumVec = blk1.FCenterJ(locs1[jj*7+2]); //dir3-upper face
 	blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+2]), locs1[jj*7+2] );
 	blk2.SetFCenterK(dumVec, locs2[jj*7+2] );
 	dumVec = blk1.FAreaJ(locs1[jj*7+2]); //dir3-upper face 
-	blk1.SetFAreaJ(aFac * blk2.FAreaK(locs2[jj*7+2]), locs1[jj*7+2] );
-	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+2] );
+	blk1.SetFAreaJ(aFac3 * blk2.FAreaK(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFAreaK(aFac3 * dumVec, locs2[jj*7+2] );
 
 	dumVec = blk1.FCenterK(locs1[jj*7+3]); //dir1-lower face
 	blk1.SetFCenterK(blk2.FCenterI(locs2[jj*7+3]), locs1[jj*7+3] );
 	blk2.SetFCenterI(dumVec, locs2[jj*7+3] );
 	dumVec = blk1.FAreaK(locs1[jj*7+3]); //dir1-lower face 
-	blk1.SetFAreaK(aFac * blk2.FAreaI(locs2[jj*7+3]), locs1[jj*7+3] );
-	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+3] );
+	blk1.SetFAreaK(aFac1 * blk2.FAreaI(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFAreaI(aFac1 * dumVec, locs2[jj*7+3] );
 
 	dumVec = blk1.FCenterK(locs1[jj*7+4]); //dir1-upper face
 	blk1.SetFCenterK(blk2.FCenterI(locs2[jj*7+4]), locs1[jj*7+4] );
 	blk2.SetFCenterI(dumVec, locs2[jj*7+4] );
 	dumVec = blk1.FAreaK(locs1[jj*7+4]); //dir1-upper face 
-	blk1.SetFAreaK(aFac * blk2.FAreaI(locs2[jj*7+4]), locs1[jj*7+4] );
-	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+4] );
+	blk1.SetFAreaK(aFac1 * blk2.FAreaI(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFAreaI(aFac1 * dumVec, locs2[jj*7+4] );
 
 	dumVec = blk1.FCenterI(locs1[jj*7+5]); //dir2-lower face
 	blk1.SetFCenterI(blk2.FCenterK(locs2[jj*7+5]), locs1[jj*7+5] );
 	blk2.SetFCenterK(dumVec, locs2[jj*7+5] );
 	dumVec = blk1.FAreaI(locs1[jj*7+5]); //dir2-lower face 
-	blk1.SetFAreaI(aFac * blk2.FAreaK(locs2[jj*7+5]), locs1[jj*7+5] );
-	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+5] );
+	blk1.SetFAreaI(aFac2 * blk2.FAreaK(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFAreaK(aFac2 * dumVec, locs2[jj*7+5] );
 
 	dumVec = blk1.FCenterI(locs1[jj*7+6]); //dir2-upper face
 	blk1.SetFCenterI(blk2.FCenterJ(locs2[jj*7+6]), locs1[jj*7+6] );
 	blk2.SetFCenterJ(dumVec, locs2[jj*7+6] );
 	dumVec = blk1.FAreaI(locs1[jj*7+6]); //dir2-upper face 
-	blk1.SetFAreaI(aFac * blk2.FAreaJ(locs2[jj*7+6]), locs1[jj*7+6] );
-	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+6] );
+	blk1.SetFAreaI(aFac2 * blk2.FAreaJ(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFAreaJ(aFac2 * dumVec, locs2[jj*7+6] );
 
       }
       else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() <= 2 ){ //patches are k/i, k to i, i to j, j to k
-	double aFac = 1.0;
+	double aFac3 = 1.0;
 	if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
-	  aFac = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	  aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	}
+	double aFac1 = 1.0;
+	double aFac2 = 1.0;
+	if ( inter.Orientation() == 3 || inter.Orientation() == 4 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir1 is reversed
+	  aFac1 = -1.0;
+	}
+	if ( inter.Orientation() == 5 || inter.Orientation() == 6 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir2 is reversed
+	  aFac2 = -1.0;
 	}
 
 	dumVec = blk1.FCenterK(locs1[jj*7+1]); //dir3-lower face
 	blk1.SetFCenterK(blk2.FCenterI(locs2[jj*7+1]), locs1[jj*7+1] );
 	blk2.SetFCenterI(dumVec, locs2[jj*7+1] );
 	dumVec = blk1.FAreaK(locs1[jj*7+1]); //dir3-lower face 
-	blk1.SetFAreaK(aFac * blk2.FAreaI(locs2[jj*7+1]), locs1[jj*7+1] );
-	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+1] );
+	blk1.SetFAreaK(aFac3 * blk2.FAreaI(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFAreaI(aFac3 * dumVec, locs2[jj*7+1] );
 
 	dumVec = blk1.FCenterK(locs1[jj*7+2]); //dir3-upper face
 	blk1.SetFCenterK(blk2.FCenterI(locs2[jj*7+2]), locs1[jj*7+2] );
 	blk2.SetFCenterI(dumVec, locs2[jj*7+2] );
 	dumVec = blk1.FAreaK(locs1[jj*7+2]); //dir3-upper face 
-	blk1.SetFAreaK(aFac * blk2.FAreaI(locs2[jj*7+2]), locs1[jj*7+2] );
-	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+2] );
+	blk1.SetFAreaK(aFac3 * blk2.FAreaI(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFAreaI(aFac3 * dumVec, locs2[jj*7+2] );
 
 	dumVec = blk1.FCenterI(locs1[jj*7+3]); //dir1-lower face
 	blk1.SetFCenterI(blk2.FCenterJ(locs2[jj*7+3]), locs1[jj*7+3] );
 	blk2.SetFCenterJ(dumVec, locs2[jj*7+3] );
 	dumVec = blk1.FAreaI(locs1[jj*7+3]); //dir1-lower face 
-	blk1.SetFAreaI(aFac * blk2.FAreaJ(locs2[jj*7+3]), locs1[jj*7+3] );
-	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+3] );
+	blk1.SetFAreaI(aFac1 * blk2.FAreaJ(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFAreaJ(aFac1 * dumVec, locs2[jj*7+3] );
 
 	dumVec = blk1.FCenterI(locs1[jj*7+4]); //dir1-upper face
 	blk1.SetFCenterI(blk2.FCenterJ(locs2[jj*7+4]), locs1[jj*7+4] );
 	blk2.SetFCenterJ(dumVec, locs2[jj*7+4] );
 	dumVec = blk1.FAreaI(locs1[jj*7+4]); //dir1-upper face 
-	blk1.SetFAreaI(aFac * blk2.FAreaJ(locs2[jj*7+4]), locs1[jj*7+4] );
-	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+4] );
+	blk1.SetFAreaI(aFac1 * blk2.FAreaJ(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFAreaJ(aFac1 * dumVec, locs2[jj*7+4] );
 
 	dumVec = blk1.FCenterJ(locs1[jj*7+5]); //dir2-lower face
 	blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+5]), locs1[jj*7+5] );
 	blk2.SetFCenterK(dumVec, locs2[jj*7+5] );
 	dumVec = blk1.FAreaJ(locs1[jj*7+5]); //dir2-lower face 
-	blk1.SetFAreaJ(aFac * blk2.FAreaK(locs2[jj*7+5]), locs1[jj*7+5] );
-	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+5] );
+	blk1.SetFAreaJ(aFac2 * blk2.FAreaK(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFAreaK(aFac2 * dumVec, locs2[jj*7+5] );
 
 	dumVec = blk1.FCenterJ(locs1[jj*7+6]); //dir2-upper face
 	blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+6]), locs1[jj*7+6] );
 	blk2.SetFCenterK(dumVec, locs2[jj*7+6] );
 	dumVec = blk1.FAreaJ(locs1[jj*7+6]); //dir2-upper face 
-	blk1.SetFAreaJ(aFac * blk2.FAreaK(locs2[jj*7+6]), locs1[jj*7+6] );
-	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+6] );
+	blk1.SetFAreaJ(aFac2 * blk2.FAreaK(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFAreaK(aFac2 * dumVec, locs2[jj*7+6] );
 
       }
       else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() <= 2 ){ //patches are k/j, k to j, i to k, j to i
-	double aFac = 1.0;
+	double aFac3 = 1.0;
 	if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
-	  aFac = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	  aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
+	}
+	double aFac1 = 1.0;
+	double aFac2 = 1.0;
+	if ( inter.Orientation() == 3 || inter.Orientation() == 4 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir1 is reversed
+	  aFac1 = -1.0;
+	}
+	if ( inter.Orientation() == 5 || inter.Orientation() == 6 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir2 is reversed
+	  aFac2 = -1.0;
 	}
 
 	dumVec = blk1.FCenterK(locs1[jj*7+1]); //dir3-lower face
 	blk1.SetFCenterK(blk2.FCenterJ(locs2[jj*7+1]), locs1[jj*7+1] );
 	blk2.SetFCenterJ(dumVec, locs2[jj*7+1] );
 	dumVec = blk1.FAreaK(locs1[jj*7+1]); //dir3-lower face 
-	blk1.SetFAreaK(aFac * blk2.FAreaJ(locs2[jj*7+1]), locs1[jj*7+1] );
-	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+1] );
+	blk1.SetFAreaK(aFac3 * blk2.FAreaJ(locs2[jj*7+1]), locs1[jj*7+1] );
+	blk2.SetFAreaJ(aFac3 * dumVec, locs2[jj*7+1] );
 
 	dumVec = blk1.FCenterK(locs1[jj*7+2]); //dir3-upper face
 	blk1.SetFCenterK(blk2.FCenterJ(locs2[jj*7+2]), locs1[jj*7+2] );
 	blk2.SetFCenterJ(dumVec, locs2[jj*7+2] );
 	dumVec = blk1.FAreaK(locs1[jj*7+2]); //dir3-upper face 
-	blk1.SetFAreaK(aFac * blk2.FAreaJ(locs2[jj*7+2]), locs1[jj*7+2] );
-	blk2.SetFAreaJ(aFac * dumVec, locs2[jj*7+2] );
+	blk1.SetFAreaK(aFac3 * blk2.FAreaJ(locs2[jj*7+2]), locs1[jj*7+2] );
+	blk2.SetFAreaJ(aFac3 * dumVec, locs2[jj*7+2] );
 
 	dumVec = blk1.FCenterI(locs1[jj*7+3]); //dir1-lower face
 	blk1.SetFCenterI(blk2.FCenterK(locs2[jj*7+3]), locs1[jj*7+3] );
 	blk2.SetFCenterK(dumVec, locs2[jj*7+3] );
 	dumVec = blk1.FAreaI(locs1[jj*7+3]); //dir1-lower face 
-	blk1.SetFAreaI(aFac * blk2.FAreaK(locs2[jj*7+3]), locs1[jj*7+3] );
-	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+3] );
+	blk1.SetFAreaI(aFac1 * blk2.FAreaK(locs2[jj*7+3]), locs1[jj*7+3] );
+	blk2.SetFAreaK(aFac1 * dumVec, locs2[jj*7+3] );
 
 	dumVec = blk1.FCenterI(locs1[jj*7+4]); //dir1-upper face
 	blk1.SetFCenterI(blk2.FCenterK(locs2[jj*7+4]), locs1[jj*7+4] );
 	blk2.SetFCenterK(dumVec, locs2[jj*7+4] );
 	dumVec = blk1.FAreaI(locs1[jj*7+4]); //dir1-upper face 
-	blk1.SetFAreaI(aFac * blk2.FAreaK(locs2[jj*7+4]), locs1[jj*7+4] );
-	blk2.SetFAreaK(aFac * dumVec, locs2[jj*7+4] );
+	blk1.SetFAreaI(aFac1 * blk2.FAreaK(locs2[jj*7+4]), locs1[jj*7+4] );
+	blk2.SetFAreaK(aFac1 * dumVec, locs2[jj*7+4] );
 
 	dumVec = blk1.FCenterJ(locs1[jj*7+5]); //dir2-lower face
 	blk1.SetFCenterJ(blk2.FCenterI(locs2[jj*7+5]), locs1[jj*7+5] );
 	blk2.SetFCenterI(dumVec, locs2[jj*7+5] );
 	dumVec = blk1.FAreaJ(locs1[jj*7+5]); //dir2-lower face 
-	blk1.SetFAreaJ(aFac * blk2.FAreaI(locs2[jj*7+5]), locs1[jj*7+5] );
-	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+5] );
+	blk1.SetFAreaJ(aFac2 * blk2.FAreaI(locs2[jj*7+5]), locs1[jj*7+5] );
+	blk2.SetFAreaI(aFac2 * dumVec, locs2[jj*7+5] );
 
 	dumVec = blk1.FCenterJ(locs1[jj*7+6]); //dir2-upper face
 	blk1.SetFCenterJ(blk2.FCenterI(locs2[jj*7+6]), locs1[jj*7+6] );
 	blk2.SetFCenterI(dumVec, locs2[jj*7+6] );
 	dumVec = blk1.FAreaJ(locs1[jj*7+6]); //dir2-upper face 
-	blk1.SetFAreaJ(aFac * blk2.FAreaI(locs2[jj*7+6]), locs1[jj*7+6] );
-	blk2.SetFAreaI(aFac * dumVec, locs2[jj*7+6] );
+	blk1.SetFAreaJ(aFac2 * blk2.FAreaI(locs2[jj*7+6]), locs1[jj*7+6] );
+	blk2.SetFAreaI(aFac2 * dumVec, locs2[jj*7+6] );
 
       }
       else{
