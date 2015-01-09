@@ -6095,44 +6095,44 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 
       len++;
 
-      cout << "At index: " << len << endl;
-      cout << "First patch indices: " << endl;
-      cout << "Volumes: " << blk1.Vol(locs1[0]) << ", " << blk1.Vol(locs1[7]) << endl;
-      cout << "Max cell: " << (blk1.NumI()+4) * (blk1.NumJ()+4) * (blk1.NumK()+4) << ", Max i-face: " << (blk1.NumI()+5) * (blk1.NumJ()+4) * (blk1.NumK()+4) 
-	   << ", Max j-face: " << (blk1.NumI()+4) * (blk1.NumJ()+5) * (blk1.NumK()+4) << ", Max k-face: " << (blk1.NumI()+4) * (blk1.NumJ()+4) * (blk1.NumK()+5) << endl; 
-      for ( int ll = 0; ll < 14; ll++ ){
-      	cout << locs1[ll] << ", ";
-      }
-      cout << endl;
-      cout << "Second patch indices: " << endl;
-      cout << "Volumes: " << blk2.Vol(locs1[0]) << ", " << blk2.Vol(locs1[7]) << endl;
-      cout << "Max cell: " << (blk2.NumI()+4) * (blk2.NumJ()+4) * (blk2.NumK()+4) << ", Max i-face: " << (blk2.NumI()+5) * (blk2.NumJ()+4) * (blk2.NumK()+4) 
-	   << ", Max j-face: " << (blk2.NumI()+4) * (blk2.NumJ()+5) * (blk2.NumK()+4) << ", Max k-face: " << (blk2.NumI()+4) * (blk2.NumJ()+4) * (blk2.NumK()+5) << endl; 
-      for ( int ll = 0; ll < 14; ll++ ){
-      	cout << locs2[ll] << ", ";
-      }
-      cout << endl;
-      cout << "At first patch: " << endl;
-      for ( int ll = 0; ll < 2; ll++ ){
-        cout << "i-lower area: " << blk1.FAreaI(locs1[7*ll+1]) << endl;
-        cout << "i-upper area: " << blk1.FAreaI(locs1[7*ll+2]) << endl;
-        cout << "j-lower area: " << blk1.FAreaJ(locs1[7*ll+3]) << endl;
-        cout << "j-upper area: " << blk1.FAreaJ(locs1[7*ll+4]) << endl;
-        cout << "k-lower area: " << blk1.FAreaK(locs1[7*ll+5]) << endl;
-        cout << "k-upper area: " << blk1.FAreaK(locs1[7*ll+6]) << endl;
-      }
-      cout << endl;
-      cout << "At second patch: " << endl;
-      for ( int ll = 0; ll < 2; ll++ ){
-	cout << locs2[7*ll+1] << endl;
-        cout << "i-lower area: " << blk2.FAreaI(locs2[7*ll+1]) << endl;
-        cout << "i-upper area: " << blk2.FAreaI(locs2[7*ll+2]) << endl;
-        cout << "j-lower area: " << blk2.FAreaJ(locs2[7*ll+3]) << endl;
-        cout << "j-upper area: " << blk2.FAreaJ(locs2[7*ll+4]) << endl;
-        cout << "k-lower area: " << blk2.FAreaK(locs2[7*ll+5]) << endl;
-        cout << "k-upper area: " << blk2.FAreaK(locs2[7*ll+6]) << endl;
-      }
-      cout << endl;
+      // cout << "At index: " << len << endl;
+      // cout << "First patch indices: " << endl;
+      // cout << "Volumes: " << blk1.Vol(locs1[0]) << ", " << blk1.Vol(locs1[7]) << endl;
+      // cout << "Max cell: " << (blk1.NumI()+4) * (blk1.NumJ()+4) * (blk1.NumK()+4) << ", Max i-face: " << (blk1.NumI()+5) * (blk1.NumJ()+4) * (blk1.NumK()+4) 
+      // 	   << ", Max j-face: " << (blk1.NumI()+4) * (blk1.NumJ()+5) * (blk1.NumK()+4) << ", Max k-face: " << (blk1.NumI()+4) * (blk1.NumJ()+4) * (blk1.NumK()+5) << endl; 
+      // for ( int ll = 0; ll < 14; ll++ ){
+      // 	cout << locs1[ll] << ", ";
+      // }
+      // cout << endl;
+      // cout << "Second patch indices: " << endl;
+      // cout << "Volumes: " << blk2.Vol(locs1[0]) << ", " << blk2.Vol(locs1[7]) << endl;
+      // cout << "Max cell: " << (blk2.NumI()+4) * (blk2.NumJ()+4) * (blk2.NumK()+4) << ", Max i-face: " << (blk2.NumI()+5) * (blk2.NumJ()+4) * (blk2.NumK()+4) 
+      // 	   << ", Max j-face: " << (blk2.NumI()+4) * (blk2.NumJ()+5) * (blk2.NumK()+4) << ", Max k-face: " << (blk2.NumI()+4) * (blk2.NumJ()+4) * (blk2.NumK()+5) << endl; 
+      // for ( int ll = 0; ll < 14; ll++ ){
+      // 	cout << locs2[ll] << ", ";
+      // }
+      // cout << endl;
+      // cout << "At first patch: " << endl;
+      // for ( int ll = 0; ll < 2; ll++ ){
+      //   cout << "i-lower area: " << blk1.FAreaI(locs1[7*ll+1]) << endl;
+      //   cout << "i-upper area: " << blk1.FAreaI(locs1[7*ll+2]) << endl;
+      //   cout << "j-lower area: " << blk1.FAreaJ(locs1[7*ll+3]) << endl;
+      //   cout << "j-upper area: " << blk1.FAreaJ(locs1[7*ll+4]) << endl;
+      //   cout << "k-lower area: " << blk1.FAreaK(locs1[7*ll+5]) << endl;
+      //   cout << "k-upper area: " << blk1.FAreaK(locs1[7*ll+6]) << endl;
+      // }
+      // cout << endl;
+      // cout << "At second patch: " << endl;
+      // for ( int ll = 0; ll < 2; ll++ ){
+      // 	cout << locs2[7*ll+1] << endl;
+      //   cout << "i-lower area: " << blk2.FAreaI(locs2[7*ll+1]) << endl;
+      //   cout << "i-upper area: " << blk2.FAreaI(locs2[7*ll+2]) << endl;
+      //   cout << "j-lower area: " << blk2.FAreaJ(locs2[7*ll+3]) << endl;
+      //   cout << "j-upper area: " << blk2.FAreaJ(locs2[7*ll+4]) << endl;
+      //   cout << "k-lower area: " << blk2.FAreaK(locs2[7*ll+5]) << endl;
+      //   cout << "k-upper area: " << blk2.FAreaK(locs2[7*ll+6]) << endl;
+      // }
+      // cout << endl;
 
 
       //swap data
@@ -6849,7 +6849,7 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       int jj = inter.Dir1StartFirst() + numGhosts + add1; //direction 1 is j
       int kk = inter.Dir2StartFirst() + numGhosts + add2; //direction 2 is k
       for ( int nn = 0; nn < numGhosts; nn++ ){
-	int ii = inter.ConstSurfaceFirst() + numGhosts - nn - 1 ; //subtract nn to get to ghost cells, (cell index instead of face)
+	int ii = inter.ConstSurfaceFirst() + numGhosts - nn - 1 ; //subtract nn-1 to get to ghost cells, (cell index instead of face)
 	loc[7*nn] = GetLoc1D(ii, jj, kk, imax, jmax); //cell
 	loc[7*nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
 	loc[7*nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
@@ -6882,10 +6882,10 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst() ;
       int add1 = ind % l1;
       int add2 = ind / l1;
-      int ii = inter.Dir2StartFirst() + numGhosts + add1; //direction 2 is i
-      int kk = inter.Dir1StartFirst() + numGhosts + add2; //direction 1 is k
+      int kk = inter.Dir1StartFirst() + numGhosts + add1; //direction 1 is k
+      int ii = inter.Dir2StartFirst() + numGhosts + add2; //direction 2 is i
       for ( int nn = 0; nn < numGhosts; nn++ ){
-	int jj = inter.ConstSurfaceFirst() + numGhosts - nn - 1 ; //subtract nn to get to ghost cells, (cell index instead of face)
+	int jj = inter.ConstSurfaceFirst() + numGhosts - nn - 1 ; //subtract nn-1 to get to ghost cells, (cell index instead of face)
 	loc[7*nn] = GetLoc1D(ii, jj, kk, imax, jmax);
 	loc[7*nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
 	loc[7*nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
@@ -6900,8 +6900,8 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst() ;
       int add1 = ind % l1;
       int add2 = ind / l1;
-      int ii = inter.Dir2StartFirst() + numGhosts + add1; //direction 2 is i
-      int kk = inter.Dir1StartFirst() + numGhosts + add2; //direction 1 is k
+      int kk = inter.Dir1StartFirst() + numGhosts + add1; //direction 1 is k
+      int ii = inter.Dir2StartFirst() + numGhosts + add2; //direction 2 is i
       for ( int nn = 0; nn < numGhosts; nn++ ){
 	int jj = inter.ConstSurfaceFirst() + numGhosts + nn; //add nn to get to ghost cells 
 	loc[7*nn] = GetLoc1D(ii, jj, kk, imax, jmax);
@@ -6965,77 +6965,14 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
 	int add2 = ind / l1;
 
 	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
-	  jj = inter.Dir2EndSecond() + numGhosts - add2; //direction 1 is j (but 1&2 are swapped)
-	}
-	else{
-	  jj = inter.Dir2StartSecond() + numGhosts + add2; //direction 1 is j (but 1&2 are swapped)
-	}
-
-	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
-	  kk = inter.Dir1EndSecond() + numGhosts - add1; //direction 2 is k (but 1&2 are swapped)
-	}
-	else{
-	  kk = inter.Dir1StartSecond() + numGhosts + add1; //direction 2 is k (but 1&2 are swapped)
-	}
-      }
-      else{ //no direction swap
-	//get direction 1 length 
-	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond() ;
-	int add1 = ind % l1;
-	int add2 = ind / l1;
-
-	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 1
-	  jj = inter.Dir1EndSecond() + numGhosts - add1; //direction 1 is j
-	}
-	else{
-	  jj = inter.Dir1StartSecond() + numGhosts + add1; //direction 1 is j
-	}
-
-	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 2
-	  kk = inter.Dir2EndSecond() + numGhosts - add2; //direction 2 is k
-	}
-	else{
-	  kk = inter.Dir2StartSecond() + numGhosts + add2; //direction 2 is k
-	}
-      }
-
-      //calculate index for all ghost layers
-      for ( int nn = 0; nn < numGhosts; nn++ ){
-	int ii = inter.ConstSurfaceSecond() + numGhosts - nn - 1 ; //subtract nn to get to ghost cells, (cell index instead of face)
-	loc[7*nn] = GetLoc1D(ii, jj, kk, imax, jmax);
-	loc[7*nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
-	loc[7*nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
-	loc[7*nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
-	loc[7*nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
-	loc[7*nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
-	loc[7*nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
-      }
-    }
-    //-------------------------------------------------------------------------------------------------------
-    else if ( inter.BoundarySecond() == 2 ){ //i-patch upper
-
-      cout << "i-patch upper" << endl;
-
-      int jj, kk;
-      if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
-	//get direction 1 length (actually direction 2)
-	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond() ;
-	int add1 = ind % l1;
-	int add2 = ind / l1;
-
-	cout << "swap 1/2" << endl;
-
-	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
-	  kk = inter.Dir2EndSecond() + numGhosts - add1; //direction 1 is j (but 1&2 are swapped)
+	  kk = inter.Dir2EndSecond() - 1 + numGhosts - add1; //direction 1 is j (but 1&2 are swapped); subtract 1 from End to get to cell index
 	}
 	else{
 	  kk = inter.Dir2StartSecond() + numGhosts + add1; //direction 1 is j (but 1&2 are swapped)
-	  cout << "keep dir2 the same" << endl;
 	}
 
 	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
-	  jj = inter.Dir1EndSecond() + numGhosts - add2; //direction 2 is k (but 1&2 are swapped)
-	  cout << "reverse dir1" << endl;
+	  jj = inter.Dir1EndSecond() - 1 + numGhosts - add2; //direction 2 is k (but 1&2 are swapped); subtract 1 from End to get to cell index
 	}
 	else{
 	  jj = inter.Dir1StartSecond() + numGhosts + add2; //direction 2 is k (but 1&2 are swapped)
@@ -7048,14 +6985,71 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
 	int add2 = ind / l1;
 
 	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 1
-	  jj = inter.Dir1EndSecond() + numGhosts - add1; //direction 1 is j
+	  jj = inter.Dir1EndSecond() - 1 + numGhosts - add1; //direction 1 is j; subtract 1 from End to get to cell index
 	}
 	else{
 	  jj = inter.Dir1StartSecond() + numGhosts + add1; //direction 1 is j
 	}
 
 	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 2
-	  kk = inter.Dir2EndSecond() + numGhosts - add2; //direction 2 is k
+	  kk = inter.Dir2EndSecond() - 1 + numGhosts - add2; //direction 2 is k; subtract 1 from End to get to cell index
+	}
+	else{
+	  kk = inter.Dir2StartSecond() + numGhosts + add2; //direction 2 is k
+	}
+      }
+
+      //calculate index for all ghost layers
+      for ( int nn = 0; nn < numGhosts; nn++ ){
+	int ii = inter.ConstSurfaceSecond() + numGhosts - nn - 1 ; //subtract nn-1 to get to ghost cells, (cell index instead of face)
+	loc[7*nn] = GetLoc1D(ii, jj, kk, imax, jmax);
+	loc[7*nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
+	loc[7*nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
+	loc[7*nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
+	loc[7*nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
+	loc[7*nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
+	loc[7*nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
+      }
+    }
+    //-------------------------------------------------------------------------------------------------------
+    else if ( inter.BoundarySecond() == 2 ){ //i-patch upper
+
+      int jj, kk;
+      if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
+	//get direction 1 length (actually direction 2)
+	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond() ;
+	int add1 = ind % l1;
+	int add2 = ind / l1;
+
+	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
+	  kk = inter.Dir2EndSecond() - 1 + numGhosts - add1; //direction 1 is j (but 1&2 are swapped); subtract 1 from End to get to cell index
+	}
+	else{
+	  kk = inter.Dir2StartSecond() + numGhosts + add1; //direction 1 is j (but 1&2 are swapped)
+	}
+
+	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
+	  jj = inter.Dir1EndSecond() - 1 + numGhosts - add2; //direction 2 is k (but 1&2 are swapped); subtract 1 from End to get to cell index
+	}
+	else{
+	  jj = inter.Dir1StartSecond() + numGhosts + add2; //direction 2 is k (but 1&2 are swapped)
+	}
+      }
+      else{ //no direction swap
+	//get direction 1 length 
+	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond() ;
+	int add1 = ind % l1;
+	int add2 = ind / l1;
+
+	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 1
+	  jj = inter.Dir1EndSecond() - 1 + numGhosts - add1; //direction 1 is j; subtract 1 from End to get to cell index
+	}
+	else{
+	  jj = inter.Dir1StartSecond() + numGhosts + add1; //direction 1 is j
+	}
+
+	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 2
+	  kk = inter.Dir2EndSecond() - 1 + numGhosts - add2; //direction 2 is k; subtract 1 from End to get to cell index
 	}
 	else{
 	  kk = inter.Dir2StartSecond() + numGhosts + add2; //direction 2 is k
@@ -7065,7 +7059,6 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
       //calculate index for all ghost layers
       for ( int nn = 0; nn < numGhosts; nn++ ){
 	int ii = inter.ConstSurfaceSecond() + numGhosts + nn ; //add nn to get to ghost cells
-	cout << "index: " << nn << ": " << ii << ", " << jj << ", " << kk << ", " << GetLoc1D(ii, jj, kk, imax, jmax) << endl;
 	loc[7*nn] = GetLoc1D(ii, jj, kk, imax, jmax);
 	loc[7*nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
 	loc[7*nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
@@ -7086,17 +7079,17 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
 	int add2 = ind / l1;
 
 	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 2
-	  kk = inter.Dir2EndSecond() + numGhosts - add2; //direction 1 is k (but 1&2 are swapped)
+	  ii = inter.Dir2EndSecond() - 1 + numGhosts - add1; //direction 1 is k (but 1&2 are swapped); subtract 1 from End to get to cell index
 	}
 	else{
-	  kk = inter.Dir2StartSecond() + numGhosts + add2; //direction 1 is k (but 1&2 are swapped)
+	  ii = inter.Dir2StartSecond() + numGhosts + add1; //direction 1 is k (but 1&2 are swapped)
 	}
 
 	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 1
-	  ii = inter.Dir1EndSecond() + numGhosts - add1; //direction 2 is i (but 1&2 are swapped)
+	  kk = inter.Dir1EndSecond() - 1 + numGhosts - add2; //direction 2 is i (but 1&2 are swapped); subtract 1 from End to get to cell index
 	}
 	else{
-	  ii = inter.Dir1StartSecond() + numGhosts + add1; //direction 2 is i (but 1&2 are swapped)
+	  kk = inter.Dir1StartSecond() + numGhosts + add2; //direction 2 is i (but 1&2 are swapped)
 	}
       }
       else{ //no direction swap
@@ -7106,14 +7099,14 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
 	int add2 = ind / l1;
 
 	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 1
-	  kk = inter.Dir1EndSecond() + numGhosts - add1; //direction 1 is k
+	  kk = inter.Dir1EndSecond() - 1 + numGhosts - add1; //direction 1 is k; subtract 1 from End to get to cell index
 	}
 	else{
 	  kk = inter.Dir1StartSecond() + numGhosts + add1; //direction 1 is k
 	}
 
 	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 2
-	  ii = inter.Dir2EndSecond() + numGhosts - add2; //direction 2 is i
+	  ii = inter.Dir2EndSecond() - 1 + numGhosts - add2; //direction 2 is i; subtract 1 from End to get to cell index
 	}
 	else{
 	  ii = inter.Dir2StartSecond() + numGhosts + add2; //direction 2 is i
@@ -7143,17 +7136,17 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
 	int add2 = ind / l1;
 
 	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 2
-	  kk = inter.Dir2EndSecond() + numGhosts - add2; //direction 1 is k (but 1&2 are swapped)
+	  ii = inter.Dir2EndSecond() - 1 + numGhosts - add1; //direction 1 is k (but 1&2 are swapped); subtract 1 from End to get to cell index
 	}
 	else{
-	  kk = inter.Dir2StartSecond() + numGhosts + add2; //direction 1 is k (but 1&2 are swapped)
+	  ii = inter.Dir2StartSecond() + numGhosts + add1; //direction 1 is k (but 1&2 are swapped)
 	}
 
 	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 1
-	  ii = inter.Dir1EndSecond() + numGhosts - add1; //direction 2 is i (but 1&2 are swapped)
+	  kk = inter.Dir1EndSecond() - 1 + numGhosts - add2; //direction 2 is i (but 1&2 are swapped); subtract 1 from End to get to cell index
 	}
 	else{
-	  ii = inter.Dir1StartSecond() + numGhosts + add1; //direction 2 is i (but 1&2 are swapped)
+	  kk = inter.Dir1StartSecond() + numGhosts + add2; //direction 2 is i (but 1&2 are swapped)
 	}
       }
       else{ //no direction swap
@@ -7163,17 +7156,17 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
 	int add2 = ind / l1;
 
 	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 1
-	  kk = inter.Dir1EndSecond() + numGhosts - add2; //direction 1 is k
+	  kk = inter.Dir1EndSecond() - 1 + numGhosts - add1; //direction 1 is k; subtract 1 from End to get to cell index
 	}
 	else{
-	  kk = inter.Dir1StartSecond() + numGhosts + add2; //direction 1 is k
+	  kk = inter.Dir1StartSecond() + numGhosts + add1; //direction 1 is k
 	}
 
 	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 2
-	  ii = inter.Dir2EndSecond() + numGhosts - add1; //direction 2 is i
+	  ii = inter.Dir2EndSecond() - 1 + numGhosts - add2; //direction 2 is i; subtract 1 from End to get to cell index
 	}
 	else{
-	  ii = inter.Dir2StartSecond() + numGhosts + add1; //direction 2 is i
+	  ii = inter.Dir2StartSecond() + numGhosts + add2; //direction 2 is i
 	}
       }
 
@@ -7200,17 +7193,17 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
 	int add2 = ind / l1;
 
 	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 2
-	  ii = inter.Dir2EndSecond() + numGhosts - add2; //direction 1 is i (but 1&2 are swapped)
+	  jj = inter.Dir2EndSecond() - 1 + numGhosts - add1; //direction 1 is i (but 1&2 are swapped); subtract 1 from End to get to cell index
 	}
 	else{
-	  ii = inter.Dir2StartSecond() + numGhosts + add2; //direction 1 is i (but 1&2 are swapped)
+	  jj = inter.Dir2StartSecond() + numGhosts + add1; //direction 1 is i (but 1&2 are swapped)
 	}
 
 	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 1
-	  jj = inter.Dir1EndSecond() + numGhosts - add1; //direction 2 is j (but 1&2 are swapped)
+	  ii = inter.Dir1EndSecond() - 1 + numGhosts - add2; //direction 2 is j (but 1&2 are swapped); subtract 1 from End to get to cell index
 	}
 	else{
-	  jj = inter.Dir1StartSecond() + numGhosts + add1; //direction 2 is j (but 1&2 are swapped)
+	  ii = inter.Dir1StartSecond() + numGhosts + add2; //direction 2 is j (but 1&2 are swapped)
 	}
       }
       else{ //no direction swap
@@ -7220,14 +7213,14 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
 	int add2 = ind / l1;
 
 	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 1
-	  ii = inter.Dir1EndSecond() + numGhosts - add1; //direction 1 is i
+	  ii = inter.Dir1EndSecond() - 1 + numGhosts - add1; //direction 1 is i; subtract 1 from End to get to cell index
 	}
 	else{
 	  ii = inter.Dir1StartSecond() + numGhosts + add1; //direction 1 is i
 	}
 
 	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 2
-	  jj = inter.Dir2EndSecond() + numGhosts - add2; //direction 2 is j
+	  jj = inter.Dir2EndSecond() - 1 + numGhosts - add2; //direction 2 is j; subtract 1 from End to get to cell index
 	}
 	else{
 	  jj = inter.Dir2StartSecond() + numGhosts + add2; //direction 2 is j
@@ -7257,17 +7250,17 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
 	int add2 = ind / l1;
 
 	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 2
-	  ii = inter.Dir2EndSecond() + numGhosts - add2; //direction 1 is i (but 1&2 are swapped)
+	  jj = inter.Dir2EndSecond() - 1 + numGhosts - add1; //direction 1 is i (but 1&2 are swapped); subtract 1 from End to get to cell index
 	}
 	else{
-	  ii = inter.Dir2StartSecond() + numGhosts + add2; //direction 1 is i (but 1&2 are swapped)
+	  jj = inter.Dir2StartSecond() + numGhosts + add1; //direction 1 is i (but 1&2 are swapped)
 	}
 
 	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 1
-	  jj = inter.Dir1EndSecond() + numGhosts - add1; //direction 2 is j (but 1&2 are swapped)
+	  ii = inter.Dir1EndSecond() - 1 + numGhosts - add2; //direction 2 is j (but 1&2 are swapped); subtract 1 from End to get to cell index
 	}
 	else{
-	  jj = inter.Dir1StartSecond() + numGhosts + add1; //direction 2 is j (but 1&2 are swapped)
+	  ii = inter.Dir1StartSecond() + numGhosts + add2; //direction 2 is j (but 1&2 are swapped)
 	}
       }
       else{ //no direction swap
@@ -7277,14 +7270,14 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
 	int add2 = ind / l1;
 
 	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 1
-	  ii = inter.Dir1EndSecond() + numGhosts - add1; //direction 1 is i
+	  ii = inter.Dir1EndSecond() - 1 + numGhosts - add1; //direction 1 is i; subtract 1 from End to get to cell index
 	}
 	else{
 	  ii = inter.Dir1StartSecond() + numGhosts + add1; //direction 1 is i
 	}
 
 	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 2
-	  jj = inter.Dir2EndSecond() + numGhosts - add2; //direction 2 is j
+	  jj = inter.Dir2EndSecond() - 1 + numGhosts - add2; //direction 2 is j; subtract 1 from End to get to cell index
 	}
 	else{
 	  jj = inter.Dir2StartSecond() + numGhosts + add2; //direction 2 is j
@@ -7333,23 +7326,26 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp, const id
 void SwapGhostStates( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 
   //loop over patch on block 1
-  int len = (inter.Dir1EndFirst() - inter.Dir1StartFirst()) * (inter.Dir2EndFirst() - inter.Dir2StartFirst());
-  for ( int ii = 0; ii < len; ii++ ){
+  int len =  0;
+  for ( int dd2 = 0; dd2 < (inter.Dir2EndFirst() - inter.Dir2StartFirst()); dd2++ ){
+    for ( int dd1 = 0; dd1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst()); dd1++ ){
 
-    //Get locations for each block
-    vector<int> locs1 = GetPatchGhostLoc(ii, inter, true,  blk1.NumI() + 2.0 * blk1.NumGhosts(), blk1.NumJ() + 2.0 * blk1.NumGhosts(), blk1.NumGhosts() );
-    vector<int> locs2 = GetPatchGhostLoc(ii, inter, false, blk2.NumI() + 2.0 * blk2.NumGhosts(), blk2.NumJ() + 2.0 * blk2.NumGhosts(), blk2.NumGhosts() );
+      //Get locations for each block
+      vector<int> locs1 = GetPatchGhostLoc(len, inter, true,  blk1.NumI() + 2.0 * blk1.NumGhosts(), blk1.NumJ() + 2.0 * blk1.NumGhosts(), blk1.NumGhosts() );
+      vector<int> locs2 = GetPatchGhostLoc(len, inter, false, blk2.NumI() + 2.0 * blk2.NumGhosts(), blk2.NumJ() + 2.0 * blk2.NumGhosts(), blk2.NumGhosts() );
 
+      len++;
 
-    //swap data
-    for ( int jj = 0; jj < blk1.NumGhosts(); jj++ ){
+      //swap data
+      for ( int jj = 0; jj < blk1.NumGhosts(); jj++ ){
 
-      //swap cell data
-      primVars dummy = blk1.State(locs1[jj*7]);
-      blk1.SetState(blk2.State(locs2[jj*7]), locs1[jj*7] );
-      blk2.SetState(dummy, locs2[jj*7] );
+	//swap cell data
+	primVars dummy = blk1.State(locs1[jj*7]);
+	blk1.SetState(blk2.State(locs2[jj*7]), locs1[jj*7] );
+	blk2.SetState(dummy, locs2[jj*7] );
 
+      }
     }
-
   }
+
 }

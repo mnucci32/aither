@@ -82,9 +82,15 @@ int main( int argc, char *argv[] ) {
   }
 
   //Populate interblock boundaries with correct geometry
+  cout << "Total number of connections is " << connections.size() << endl;
   for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
+    cout << "Connection: " << ii << " " << connections[ii] << endl;
+  }
+  for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
+    // cout << "Swap for connection: " << ii << endl;
     SwapGhostGeom( connections[ii], stateBlocks[connections[ii].BlockFirst()], stateBlocks[connections[ii].BlockSecond()]);
   }
+
   //Get ghost cell edge data
   for ( int ll = 0; ll < (int)mesh.size(); ll++) {
     stateBlocks[ll].AssignGhostCellsGeomEdge();
@@ -178,7 +184,8 @@ int main( int argc, char *argv[] ) {
 	  }
 
 	  //add volume divided by time step term to time m minus time n values
-	  vector<colMatrix> solTimeMmN = stateBlocks[bb].AddVolTime(stateBlocks[bb].GetCopyConsVars(eos), solTimeN[bb], inputVars.Theta(), inputVars.Zeta());
+	  vector<colMatrix> solTimeMmN = stateBlocks[bb].AddVolTime(stateBlocks[bb].GetCopyConsVars(eos), solTimeN[bb], 
+								    inputVars.Theta(), inputVars.Zeta());
 
 	  //reorder block (by hyperplanes) for lusgs
 	  vector<vector3d<int> > reorder = HyperplaneReorder(stateBlocks[bb].NumI(), stateBlocks[bb].NumJ(), stateBlocks[bb].NumK());
@@ -197,6 +204,7 @@ int main( int argc, char *argv[] ) {
 
 	//update solution
 	stateBlocks[dd].UpdateBlock(inputVars, implicitFlag, eos, aRef, du[dd], residL2, residLinf, locMaxB);
+	//cout << "Updated Block " << dd << endl; //can now update block within original block loop as BCs are exchanged at before loop
 
 	//if implicit, assign time n to time n-1 at end of nonlinear iterations
 	if (implicitFlag && inputVars.TimeIntegration() == "bdf2" && mm == inputVars.NonlinearIterations()-1 ){
