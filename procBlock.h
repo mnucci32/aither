@@ -151,7 +151,7 @@ class procBlock {
   void CalcViscFluxJ(const sutherland&, const idealGas&, const input&);
   void CalcViscFluxK(const sutherland&, const idealGas&, const input&);
 
-  void AssignGhostCellsGeom();
+  void AssignGhostCellsGeom(const input&);
   void AssignGhostCellsGeomEdge();
 
   void AssignInviscidGhostCells(const input&, const idealGas&);

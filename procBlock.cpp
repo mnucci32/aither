@@ -316,26 +316,14 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
 	int lowFaceI = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG);
 	int lowFace2I = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG, 2);
 
-
-	//for debugging
-	// cout << "At i, j, k: " << ii << ", " << jj << ", " << kk << endl;
-	// cout << "i face area: " << (*this).FAreaI(loc) << endl;
-	// cout << "i upper face area: " << (*this).FAreaI(upFaceI) << endl;
-	// cout << "i lower face area: " << (*this).FAreaI(lowFaceI) << endl;
-	// cout << "upper state: " << (*this).State(upperI) << endl;
-	// cout << "lower state: " << (*this).State(lowerI) << endl;
-	// if ( kk == 2 ){
-	//   cout << "At i, j, k: " << ii << ", " << jj << ", " << kk << endl;
-	//   // cout << "Interior state: " << (*this).State(upperK) << endl;
-	//   // cout << "Ghost state: " << (*this).State(lowerK) << endl;
-	//   cout << "Boundary i face area: " << (*this).FAreaI(loc) << endl;
-	//   cout << "Ghost1 i face area: " << (*this).FAreaI(lowFaceI) << endl;
-
-
-	//   cout << "Boundary i face center: " << (*this).FCenterI(loc) << endl;
-	//   cout << "Ghost1 i face center: " << (*this).FCenterI(lowFaceI) << endl;
+	//debugging
+	// if ( ii == 2 ){
+	//   cout << " At " << ii << ", " << jj << ", " << kk << endl;
+	//   cout << "Interior center: " << (*this).Center(upperI) << endl;
+	//   cout << "Ghost center: " << (*this).Center(lowerI) << endl;
 
 	// }
+
 
 
 	if (inp.Kappa() == -2.0){  //if value is still default, use constant reconstruction (first order)
@@ -549,57 +537,6 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp){
 	int upFace2K = GetNeighborUpK(ii, jj, kk, imaxG, jmaxG, 2);
 	int lowFaceK = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG);
 	int lowFace2K = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG, 2);
-
-
-	//for debugging
-	// cout << "At i, j, k: " << ii << ", " << jj << ", " << kk << endl;
-	// cout << "k face area: " << (*this).FAreaK(loc) << endl;
-	// cout << "k upper face area: " << (*this).FAreaK(upFaceK) << endl;
-	// cout << "k lower face area: " << (*this).FAreaK(lowFaceK) << endl;
-	// cout << "upper state: " << (*this).State(upperK) << endl;
-	// cout << "lower state: " << (*this).State(lowerK) << endl;
-	// if ( kk == 2 ){
-	//   cout << "At i, j, k: " << ii << ", " << jj << ", " << kk << endl;
-	//   // cout << "Interior state: " << (*this).State(upperK) << endl;
-	//   // cout << "Ghost state: " << (*this).State(lowerK) << endl;
-	//   cout << "Boundary k face area: " << (*this).FAreaK(loc) << endl;
-	//   cout << "Ghost1 k face area: " << (*this).FAreaK(lowFaceK) << endl;
-	//   cout << "Ghost2 k face area: " << (*this).FAreaK(lowFace2K) << endl;
-
-	//   cout << "Boundary k face center: " << (*this).FCenterK(loc) << endl;
-	//   cout << "Ghost1 k face center: " << (*this).FCenterK(lowFaceK) << endl;
-	//   cout << "Ghost2 k face center: " << (*this).FCenterK(lowFace2K) << endl;
-	//   int ll = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
-	//   cout << "interior cell center: " << (*this).Center(ll) << endl;
-	//   cout << "interior cell center: " << (*this).Center(upperK) << endl;
-	//   cout << "ll, upperK " << ll << ", " << upperK << endl;
-	//   int inI = GetLowerFaceI(ii, jj, kk, imaxG, jmaxG);
-	//   int inJ = GetLowerFaceJ(ii, jj, kk, imaxG, jmaxG);
-	//   int ghI = GetLowerFaceI(ii, jj, kk-1, imaxG, jmaxG);
-	//   int ghJ = GetLowerFaceJ(ii, jj, kk-1, imaxG, jmaxG);
-	//   cout << "Boundary i face area: " << (*this).FAreaI(inI) << endl;
-	//   cout << "Ghost1 i face area: " << (*this).FAreaI(ghI) << endl;
-	//   cout << "Boundary i face center: " << (*this).FCenterI(inI) << endl;
-	//   cout << "Ghost1 i face center: " << (*this).FCenterI(ghI) << endl;
-
-	//   cout << "Boundary j face area: " << (*this).FAreaJ(inJ) << endl;
-	//   cout << "Ghost1 j face area: " << (*this).FAreaJ(ghJ) << endl;
-	//   cout << "Boundary j face center: " << (*this).FCenterJ(inJ) << endl;
-	//   cout << "Ghost1 j face center: " << (*this).FCenterJ(ghJ) << endl;
-
-	//   cout << endl;
-	// }
-	// if ( kk == 2+kmax-1 ){
-	//   cout << "At i, j, k: " << ii << ", " << jj << ", " << kk << endl;
-	//   // cout << "Interior state: " << (*this).State(lowerK) << endl;
-	//   // cout << "Ghost state: " << (*this).State(upperK) << endl;
-	//   cout << "Boundary k face area: " << (*this).FAreaK(loc) << endl;
-	//   cout << "Ghost1 k face area: " << (*this).FAreaK(upFaceK) << endl;
-	//   cout << "Ghost2 k face area: " << (*this).FAreaK(upFace2K) << endl;
-	//   cout << endl;
-	// }
-
-
 
 	if ( inp.Kappa() == -2.0 ){  //if value is still default, use constant reconstruction (first order)
 	  faceStateLower = (*this).State( lowerK ).FaceReconConst();
@@ -1810,6 +1747,27 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 	//calculate volume of alternate control volume
 	double vol = 0.5 * ( (*this).Vol(iLow) + (*this).Vol(iUp) );
 
+
+	//visc debug
+	// cout << "At " << ii << ", " << jj << ", " << kk << ", " << loc << endl;
+	// cout << "interior state: " << (*this).State(iUp);
+	// cout << "ghost state: " << (*this).State(iLow) << endl;
+
+	// cout << "boundary area: " << (*this).FAreaI(loc) << endl;
+	// cout << "interior area: " << (*this).FAreaI(fUpi) << endl;
+	// cout << "ghost area: " << (*this).FAreaI(fLowi) << endl;
+
+	// cout << "interior center: " << (*this).Center(iUp) << endl;
+	// cout << "ghost center: " << (*this).Center(iLow) << endl;;
+
+
+
+
+
+
+
+
+
 	//Get velocity gradient at face
 	tensor<double> velGrad = CalcVelGradGG( (*this).State(iLow).Velocity(), (*this).State(iUp).Velocity(), vjl, vju, vkl, vku, ail, aiu, ajl, aju, akl, aku, vol);
 	//Get velocity at face
@@ -2267,7 +2225,11 @@ regular ghost cells and "edge" ghost cells. "Corner" cells are left with no valu
 In the above diagram where X represents the physical cells, cells marked G (regular ghost cells) and E ("edge" ghost cells) are assigned geometric
 values. G1 represents the first layer of ghost cells and G2 represents the second layer.
 */
-void procBlock::AssignGhostCellsGeom(){
+void procBlock::AssignGhostCellsGeom(const input &inp){
+  // inp -- all input variables
+
+  //get boundary conditions for block
+  const boundaryConditions bound = inp.BC( (*this).ParentBlock() );
 
   //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
@@ -2345,6 +2307,10 @@ void procBlock::AssignGhostCellsGeom(){
 
       //location of upper i-boundary face
       int uFaceB = GetUpperFaceI(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+
+      //name of boundary conditions at lower and upper boundaries
+      string bcNameL = bound.GetBCName(0, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "il");
+      string bcNameU = bound.GetBCName(imax, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "iu");
 
       //Assign volume ------------------------------------------------------------------------------------------
       //mirror volume values from adjacent cells across i-boundary
@@ -2466,37 +2432,80 @@ void procBlock::AssignGhostCellsGeom(){
       //Assign cell centroid --------------------------------------------------------------------------------------------------------------------
       //cell centroid is moved interior cell width in the boundary normal direction
       //first layer of ghost cells
-      vector3d<double> dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
-      (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
-      dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il);
-      (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
+      vector3d<double> dist2Move(0.0, 0.0, 0.0);
+      if (bcNameL != "interblock"){
+	dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
+	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
+      }
+      else{ //for interblock bc use interior cell values
+	(*this).SetCenter( (*this).Center(cellLowIn1), cellLowG1);
+      }
+      if (bcNameU != "interblock"){
+	dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il);
+	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
+      }
+      else{ //for interblock bc use interior cell values
+	(*this).SetCenter( (*this).Center(cellUpIn1), cellUpG1);
+      }
 
       //second layer of ghost cells
       if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	dist2Move = 2.0 * ((*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu));
-	(*this).SetCenter( (*this).Center(cellLowG1) + dist2Move, cellLowG2);
-	dist2Move = 2.0 * ((*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il));
-	(*this).SetCenter( (*this).Center(cellUpG1) + dist2Move, cellUpG2);
+	if ( bcNameL != "interblock" && bcNameU != "interblock" ){ //neither boundary is interblock
+	  dist2Move = 2.0 * ((*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu));
+	  (*this).SetCenter( (*this).Center(cellLowG1) + dist2Move, cellLowG2);
+	  dist2Move = 2.0 * ((*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il));
+	  (*this).SetCenter( (*this).Center(cellUpG1) + dist2Move, cellUpG2);
+	}
+	else{
+	  cerr << "ERROR: Error in procBlock.cpp:AssignGhostCellsGeom. An interblock boundary is not supported when the thickness "
+	       << "of the block in the normal direction of the boundary is 1 cell!" << endl;
+	  exit(0);
+	}
       }
       else{
-	dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2_iu);
-	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
-	dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2_il);
-	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+	if (bcNameL != "interblock"){
+	  dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2_iu);
+	  (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetCenter( (*this).Center(cellLowIn2), cellLowG2);
+	}
+	if (bcNameU != "interblock"){
+	  dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2_il);
+	  (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetCenter( (*this).Center(cellUpIn2), cellUpG2);
+	}
+
       }
 
       //Assign face centers --------------------------------------------------------------------------------------------------------------------
       //face center is moved interior cell width in the boundary normal direction
       //first layer of ghost cells
-      dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
-      (*this).SetFCenterI( (*this).FCenterI(lFaceB) + dist2Move, lFaceG1_il);
-      (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl) + dist2Move, lFaceG1_jl);
-      (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl) + dist2Move, lFaceG1_kl);
+      if (bcNameL != "interblock"){
+	dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
+	(*this).SetFCenterI( (*this).FCenterI(lFaceB) + dist2Move, lFaceG1_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl) + dist2Move, lFaceG1_jl);
+	(*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl) + dist2Move, lFaceG1_kl);
+      }
+      else{ //for interblock bc use interior cell values
+	(*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu), lFaceG1_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl), lFaceG1_jl);
+	(*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl), lFaceG1_kl);
+      }
 
-      dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il);
-      (*this).SetFCenterI( (*this).FCenterI(uFaceB) + dist2Move, uFaceG1_iu);
-      (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl) + dist2Move, uFaceG1_jl);
-      (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl) + dist2Move, uFaceG1_kl);
+      if (bcNameU != "interblock"){
+	dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il);
+	(*this).SetFCenterI( (*this).FCenterI(uFaceB) + dist2Move, uFaceG1_iu);
+	(*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl) + dist2Move, uFaceG1_jl);
+	(*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl) + dist2Move, uFaceG1_kl);
+      }
+      else{ //for interblock bc use interior cell values
+	(*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il), uFaceG1_iu);
+	(*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl), uFaceG1_jl);
+	(*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl), uFaceG1_kl);
+      }
 
       //second layer of ghost cells
       if (imax < 2){ //one cell thick - use one cell for both ghost cells
@@ -2509,19 +2518,31 @@ void procBlock::AssignGhostCellsGeom(){
 	(*this).SetFCenterI( (*this).FCenterI(uFaceG1_iu) + dist2Move, uFaceG2_iu);
 	(*this).SetFCenterJ( (*this).FCenterJ(uFaceG1_jl) + dist2Move, uFaceG2_jl);
 	(*this).SetFCenterK( (*this).FCenterK(uFaceG1_kl) + dist2Move, uFaceG2_kl);
-
       }
       else{
-	dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2_iu);
-	(*this).SetFCenterI( (*this).FCenterI(lFaceB) + dist2Move, lFaceG2_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl) + dist2Move, lFaceG2_jl);
-	(*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl) + dist2Move, lFaceG2_kl);
+	if (bcNameL != "interblock"){
+	  dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2_iu);
+	  (*this).SetFCenterI( (*this).FCenterI(lFaceB) + dist2Move, lFaceG2_il);
+	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl) + dist2Move, lFaceG2_jl);
+	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl) + dist2Move, lFaceG2_kl);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn2_iu), lFaceG2_il);
+	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn2_jl), lFaceG2_jl);
+	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn2_kl), lFaceG2_kl);
+	}
 
-	dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2_il);
-	(*this).SetFCenterI( (*this).FCenterI(uFaceB) + dist2Move, uFaceG2_iu);
-	(*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl) + dist2Move, uFaceG2_jl);
-	(*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl) + dist2Move, uFaceG2_kl);
-
+	if (bcNameU != "interblock"){
+	  dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2_il);
+	  (*this).SetFCenterI( (*this).FCenterI(uFaceB) + dist2Move, uFaceG2_iu);
+	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl) + dist2Move, uFaceG2_jl);
+	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl) + dist2Move, uFaceG2_kl);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn2_il), uFaceG2_iu);
+	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn2_jl), uFaceG2_jl);
+	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn2_kl), uFaceG2_kl);
+	}
       }
 
       if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper face areas too
@@ -2532,6 +2553,7 @@ void procBlock::AssignGhostCellsGeom(){
 
 	//location of upper j-face for interior cell at lower i-boundary
 	int lFaceIn1_ju = GetUpperFaceJ((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+	int lFaceIn2_ju = GetUpperFaceJ((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG); 
 
 	//location of upper j-face for ghost cells at lower i-boundary
 	int uFaceG1_ju = GetUpperFaceJ(imaxG-2, jj, kk, imaxG, jmaxG); 
@@ -2539,14 +2561,24 @@ void procBlock::AssignGhostCellsGeom(){
 
 	//location of upper j-face for interior cell at upper i-boundary
 	int uFaceIn1_ju = GetUpperFaceJ(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+	int uFaceIn2_ju = GetUpperFaceJ(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
 
 	//face center is moved interior cell width in the boundary normal direction
 	//first layer of ghost cells
-	dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
-	(*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG1_ju);
-
-	dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju) + dist2Move, uFaceG1_ju);
+	if (bcNameL != "interblock"){
+	  dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
+	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG1_ju);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju), lFaceG1_ju);
+	}
+	if (bcNameU != "interblock"){
+	  dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il);
+	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju) + dist2Move, uFaceG1_ju);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju), uFaceG1_ju);
+	}
 
 	//second layer of ghost cells
 	if (imax < 2){ //one cell thick - use one cell for both ghost cells
@@ -2558,11 +2590,22 @@ void procBlock::AssignGhostCellsGeom(){
 
 	}
 	else{
-	  dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2_iu);
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG2_ju);
 
-	  dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2_il);
-	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju) + dist2Move, uFaceG2_ju);
+	  if (bcNameL != "interblock"){
+	    dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2_iu);
+	    (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG2_ju);
+	  }
+	  else{ //for interblock bc use interior cell values
+	    (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn2_ju), lFaceG2_ju);
+	  }
+	  if (bcNameU != "interblock"){
+	    dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2_il);
+	    (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju) + dist2Move, uFaceG2_ju);
+	  }
+	  else{ //for interblock bc use interior cell values
+	    (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn2_ju), uFaceG2_ju);
+	  }
+
 	}
 
       }
@@ -2575,6 +2618,7 @@ void procBlock::AssignGhostCellsGeom(){
 
 	//location of upper k-face for interior cells at lower i-boundary
 	int lFaceIn1_ku = GetUpperFaceK((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+	int lFaceIn2_ku = GetUpperFaceK((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG); 
 
 	//location of upper j-face for ghost cells at upper i-boundary
 	int uFaceG1_ku = GetUpperFaceK(imaxG-2, jj, kk, imaxG, jmaxG); 
@@ -2582,14 +2626,24 @@ void procBlock::AssignGhostCellsGeom(){
 
 	//location of upper j-face for interior cells at upper i-boundary
 	int uFaceIn1_ku = GetUpperFaceK(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+	int uFaceIn2_ku = GetUpperFaceK(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
 
 	//face center is moved interior cell width in the boundary normal direction
 	//first layer of ghost cells
-	dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
-	(*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG1_ku);
-
-	dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il);
-	(*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku) + dist2Move, uFaceG1_ku);
+	if (bcNameL != "interblock"){
+	  dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
+	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG1_ku);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku), lFaceG1_ku);
+	}
+	if (bcNameU != "interblock"){
+	  dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il);
+	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku) + dist2Move, uFaceG1_ku);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku), uFaceG1_ku);
+	}
 
 	//second layer of ghost cells
 	if (imax < 2){ //one cell thick - use one cell for both ghost cells
@@ -2601,11 +2655,21 @@ void procBlock::AssignGhostCellsGeom(){
 
 	}
 	else{
-	  dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2_iu);
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG2_ku);
+	  if (bcNameL != "interblock"){
+	    dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2_iu);
+	    (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG2_ku);
+	  }
+	  else{ //for interblock bc use interior cell values
+	    (*this).SetFCenterK( (*this).FCenterK(lFaceIn2_ku), lFaceG2_ku);
+	  }
+	  if (bcNameU != "interblock"){
+	    dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2_il);
+	    (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku) + dist2Move, uFaceG2_ku);
+	  }
+	  else{ //for interblock bc use interior cell values
+	    (*this).SetFCenterK( (*this).FCenterK(uFaceIn2_ku), uFaceG2_ku);
+	  }
 
-	  dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2_il);
-	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku) + dist2Move, uFaceG2_ku);
 	}
 
       }
@@ -2679,6 +2743,10 @@ void procBlock::AssignGhostCellsGeom(){
 
       //location of upper j-boundary face
       int uFaceB = GetUpperFaceJ(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
+
+      //name of boundary conditions at lower and upper boundaries
+      string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), 0, kk - (*this).NumGhosts(), "jl");
+      string bcNameU = bound.GetBCName(ii - (*this).NumGhosts(), jmax, kk - (*this).NumGhosts(), "ju");
 
       //Assign volume ------------------------------------------------------------------------------------------
       //mirror volume values from adjacent cells across j-boundary
@@ -2801,37 +2869,80 @@ void procBlock::AssignGhostCellsGeom(){
       //Assign cell centroid --------------------------------------------------------------------------------------------------------------------
       //cell centroid is moved interior cell width in the boundary normal direction
       //first layer of ghost cells
-      vector3d<double> dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
-      (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
-      dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl);
-      (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
+      vector3d<double> dist2Move(0.0, 0.0, 0.0);
+      if (bcNameL != "interblock"){
+	dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
+	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
+      }
+      else{ //for interblock bc use interior cell values
+	(*this).SetCenter( (*this).Center(cellLowIn1), cellLowG1);
+      }
+      if (bcNameU != "interblock"){
+	dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl);
+	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
+      }
+      else{ //for interblock bc use interior cell values
+	(*this).SetCenter( (*this).Center(cellUpIn1), cellUpG1);
+      }
 
       //second layer of ghost cells
       if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	dist2Move = 2.0 * ((*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju));
-	(*this).SetCenter( (*this).Center(cellLowG1) + dist2Move, cellLowG2);
-	dist2Move = 2.0 * ((*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl));
-	(*this).SetCenter( (*this).Center(cellUpG1) + dist2Move, cellUpG2);
+	if ( bcNameL != "interblock" && bcNameU != "interblock" ){ //neither boundary is interblock
+	  dist2Move = 2.0 * ((*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju));
+	  (*this).SetCenter( (*this).Center(cellLowG1) + dist2Move, cellLowG2);
+	  dist2Move = 2.0 * ((*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl));
+	  (*this).SetCenter( (*this).Center(cellUpG1) + dist2Move, cellUpG2);
+	}
+	else{
+	  cerr << "ERROR: Error in procBlock.cpp:AssignGhostCellsGeom. An interblock boundary is not supported when the thickness "
+	       << "of the block in the normal direction of the boundary is 1 cell!" << endl;
+	  exit(0);
+	}
       }
       else{
-	dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2_ju);
-	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
-	dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2_jl);
-	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+	if (bcNameL != "interblock"){
+	  dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2_ju);
+	  (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetCenter( (*this).Center(cellLowIn2), cellLowG2);
+	}
+	if (bcNameU != "interblock"){
+	  dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2_jl);
+	  (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetCenter( (*this).Center(cellUpIn2), cellUpG2);
+	}
+
       }
 
       //Assign face centers --------------------------------------------------------------------------------------------------------------------
       //face center is moved interior cell width in the boundary normal direction
       //first layer of ghost cells
-      dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
-      (*this).SetFCenterJ( (*this).FCenterJ(lFaceB) + dist2Move, lFaceG1_jl);
-      (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il) + dist2Move, lFaceG1_il);
-      (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl) + dist2Move, lFaceG1_kl);
+      if (bcNameL != "interblock"){
+	dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
+	(*this).SetFCenterJ( (*this).FCenterJ(lFaceB) + dist2Move, lFaceG1_jl);
+	(*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il) + dist2Move, lFaceG1_il);
+	(*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl) + dist2Move, lFaceG1_kl);
+      }
+      else{ //for interblock bc use interior cell values
+	(*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju), lFaceG1_jl);
+	(*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il), lFaceG1_il);
+	(*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl), lFaceG1_kl);
+      }
 
-      dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl);
-      (*this).SetFCenterJ( (*this).FCenterJ(uFaceB) + dist2Move, uFaceG1_ju);
-      (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il) + dist2Move, uFaceG1_il);
-      (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl) + dist2Move, uFaceG1_kl);
+      if (bcNameU != "interblock"){
+	dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl);
+	(*this).SetFCenterJ( (*this).FCenterJ(uFaceB) + dist2Move, uFaceG1_ju);
+	(*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il) + dist2Move, uFaceG1_il);
+	(*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl) + dist2Move, uFaceG1_kl);
+      }
+      else{ //for interblock bc use interior cell values
+	(*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl), uFaceG1_ju);
+	(*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il), uFaceG1_il);
+	(*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl), uFaceG1_kl);
+      }
 
       //second layer of ghost cells
       if (jmax < 2){ //one cell thick - use one cell for both ghost cells
@@ -2846,15 +2957,29 @@ void procBlock::AssignGhostCellsGeom(){
 	(*this).SetFCenterK( (*this).FCenterK(uFaceG1_kl) + dist2Move, uFaceG2_kl);
       }
       else{
-	dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2_ju);
-	(*this).SetFCenterJ( (*this).FCenterJ(lFaceB) + dist2Move, lFaceG2_jl);
-	(*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il) + dist2Move, lFaceG2_il);
-	(*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl) + dist2Move, lFaceG2_kl);
+	if (bcNameL != "interblock"){
+	  dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2_ju);
+	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceB) + dist2Move, lFaceG2_jl);
+	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il) + dist2Move, lFaceG2_il);
+	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl) + dist2Move, lFaceG2_kl);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn2_ju), lFaceG2_jl);
+	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn2_il), lFaceG2_il);
+	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn2_kl), lFaceG2_kl);
+	}
 
-	dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2_jl);
-	(*this).SetFCenterJ( (*this).FCenterJ(uFaceB) + dist2Move, uFaceG2_ju);
-	(*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il) + dist2Move, uFaceG2_il);
-	(*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl) + dist2Move, uFaceG2_kl);
+	if (bcNameU != "interblock"){
+	  dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2_jl);
+	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceB) + dist2Move, uFaceG2_ju);
+	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il) + dist2Move, uFaceG2_il);
+	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl) + dist2Move, uFaceG2_kl);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn2_jl), uFaceG2_ju);
+	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn2_il), uFaceG2_il);
+	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn2_kl), uFaceG2_kl);
+	}
       }
 
       if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
@@ -2865,6 +2990,7 @@ void procBlock::AssignGhostCellsGeom(){
 
 	//location of upper i-face for interior cells at lower j-boundary
 	int lFaceIn1_iu = GetUpperFaceI(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
+	int lFaceIn2_iu = GetUpperFaceI(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG); 
 
 	//location of upper i-face for ghost cells at upper j-boundary
 	int uFaceG1_iu = GetUpperFaceI(ii, jmaxG-2, kk, imaxG, jmaxG); 
@@ -2872,14 +2998,24 @@ void procBlock::AssignGhostCellsGeom(){
 
 	//location of upper i-face for interior cells at upper j-boundary
 	int uFaceIn1_iu = GetUpperFaceI(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
+	int uFaceIn2_iu = GetUpperFaceI(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
 
 	//face center is moved interior cell width in the boundary normal direction
 	//first layer of ghost cells
-	dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
-	(*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG1_iu);
-
-	dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl);
-	(*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu) + dist2Move, uFaceG1_iu);
+	if (bcNameL != "interblock"){
+	  dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
+	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG1_iu);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu), lFaceG1_iu);
+	}
+	if (bcNameU != "interblock"){
+	  dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl);
+	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu) + dist2Move, uFaceG1_iu);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu), uFaceG1_iu);
+	}
 
 	//second layer of ghost cells
 	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
@@ -2890,11 +3026,22 @@ void procBlock::AssignGhostCellsGeom(){
 	  (*this).SetFCenterI( (*this).FCenterI(uFaceG1_iu) + dist2Move, uFaceG2_iu);
 	}
 	else{
-	  dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2_ju);
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG2_iu);
 
-	  dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2_jl);
-	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu) + dist2Move, uFaceG2_iu);
+	  if (bcNameL != "interblock"){
+	    dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2_ju);
+	    (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG2_iu);
+	  }
+	  else{ //for interblock bc use interior cell values
+	    (*this).SetFCenterI( (*this).FCenterI(lFaceIn2_iu), lFaceG2_iu);
+	  }
+	  if (bcNameU != "interblock"){
+	    dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2_jl);
+	    (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu) + dist2Move, uFaceG2_iu);
+	  }
+	  else{ //for interblock bc use interior cell values
+	    (*this).SetFCenterI( (*this).FCenterI(uFaceIn2_iu), uFaceG2_iu);
+	  }
+
 	}
 
       }
@@ -2907,6 +3054,7 @@ void procBlock::AssignGhostCellsGeom(){
 
 	//location of upper k-face for interior cells at lower j-boundary
 	int lFaceIn1_ku = GetUpperFaceK(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
+	int lFaceIn2_ku = GetUpperFaceK(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG); 
 
 	//location of upper k-face for ghost cells at upper j-boundary
 	int uFaceG1_ku = GetUpperFaceK(ii, jmaxG-2, kk, imaxG, jmaxG); 
@@ -2914,14 +3062,24 @@ void procBlock::AssignGhostCellsGeom(){
 
 	//location of upper k-face for interior cells at upper j-boundary
 	int uFaceIn1_ku = GetUpperFaceK(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
+	int uFaceIn2_ku = GetUpperFaceK(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
 
 	//face center is moved interior cell width in the boundary normal direction
 	//first layer of ghost cells
-	dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
-	(*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG1_ku);
-
-	dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl);
-	(*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku) + dist2Move, uFaceG1_ku);
+	if (bcNameL != "interblock"){
+	  dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
+	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG1_ku);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku), lFaceG1_ku);
+	}
+	if (bcNameU != "interblock"){
+	  dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl);
+	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku) + dist2Move, uFaceG1_ku);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku), uFaceG1_ku);
+	}
 
 	//second layer of ghost cells
 	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
@@ -2932,11 +3090,21 @@ void procBlock::AssignGhostCellsGeom(){
 	  (*this).SetFCenterK( (*this).FCenterK(uFaceG1_ku) + dist2Move, uFaceG2_ku);
 	}
 	else{
-	  dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2_ju);
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG2_ku);
+	  if (bcNameL != "interblock"){
+	    dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2_ju);
+	    (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG2_ku);
+	  }
+	  else{ //for interblock bc use interior cell values
+	    (*this).SetFCenterK( (*this).FCenterK(lFaceIn2_ku), lFaceG2_ku);
+	  }
+	  if (bcNameU != "interblock"){
+	    dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2_jl);
+	    (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku) + dist2Move, uFaceG2_ku);
+	  }
+	  else{ //for interblock bc use interior cell values
+	    (*this).SetFCenterK( (*this).FCenterK(uFaceIn2_ku), uFaceG2_ku);
+	  }
 
-	  dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2_jl);
-	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku) + dist2Move, uFaceG2_ku);
 	}
 
       }
@@ -3010,6 +3178,10 @@ void procBlock::AssignGhostCellsGeom(){
 
       //location of upper k-boundary face
       int uFaceB = GetUpperFaceK(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+
+      //name of boundary conditions at lower and upper boundaries
+      string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), 0, "kl");
+      string bcNameU = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kmax, "ku");
 
       //Assign volume ------------------------------------------------------------------------------------------
       //mirror volume values from adjacent cells across k-boundary
@@ -3131,37 +3303,80 @@ void procBlock::AssignGhostCellsGeom(){
       //Assign cell centroid --------------------------------------------------------------------------------------------------------------------
       //cell centroid is moved interior cell width in the boundary normal direction
       //first layer of ghost cells
-      vector3d<double> dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
-      (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
-      dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
-      (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
+      vector3d<double> dist2Move(0.0, 0.0, 0.0);
+      if (bcNameL != "interblock"){
+	dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
+	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
+      }
+      else{ //for interblock bc use interior cell values
+	(*this).SetCenter( (*this).Center(cellLowIn1), cellLowG1);
+      }
+      if (bcNameU != "interblock"){
+	dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
+	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
+      }
+      else{ //for interblock bc use interior cell values
+	(*this).SetCenter( (*this).Center(cellUpIn1), cellUpG1);
+      }
 
       //second layer of ghost cells
       if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	dist2Move = 2.0 * ((*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku));
-	(*this).SetCenter( (*this).Center(cellLowG1) + dist2Move, cellLowG2);
-	dist2Move = 2.0 * ((*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl));
-	(*this).SetCenter( (*this).Center(cellUpG1) + dist2Move, cellUpG2);
+	if ( bcNameL != "interblock" && bcNameU != "interblock" ){ //neither boundary is interblock
+	  dist2Move = 2.0 * ((*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku));
+	  (*this).SetCenter( (*this).Center(cellLowG1) + dist2Move, cellLowG2);
+	  dist2Move = 2.0 * ((*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl));
+	  (*this).SetCenter( (*this).Center(cellUpG1) + dist2Move, cellUpG2);
+	}
+	else{
+	  cerr << "ERROR: Error in procBlock.cpp:AssignGhostCellsGeom. An interblock boundary is not supported when the thickness "
+	       << "of the block in the normal direction of the boundary is 1 cell!" << endl;
+	  exit(0);
+	}
       }
       else{
-	dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2_ku);
-	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
-	dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2_kl);
-	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+	if (bcNameL != "interblock"){
+	  dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2_ku);
+	  (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetCenter( (*this).Center(cellLowIn2), cellLowG2);
+	}
+	if (bcNameU != "interblock"){
+	  dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2_kl);
+	  (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetCenter( (*this).Center(cellUpIn2), cellUpG2);
+	}
+
       }
 
       //Assign face centers --------------------------------------------------------------------------------------------------------------------
       //face center is moved interior cell width in the boundary normal direction
       //first layer of ghost cells
-      dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
-      (*this).SetFCenterK( (*this).FCenterK(lFaceB) + dist2Move, lFaceG1_kl);
-      (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il) + dist2Move, lFaceG1_il);
-      (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl) + dist2Move, lFaceG1_jl);
+      if (bcNameL != "interblock"){
+	dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
+	(*this).SetFCenterK( (*this).FCenterK(lFaceB) + dist2Move, lFaceG1_kl);
+	(*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il) + dist2Move, lFaceG1_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl) + dist2Move, lFaceG1_jl);
+      }
+      else{ //for interblock bc use interior cell values
+	(*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku), lFaceG1_kl);
+	(*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il), lFaceG1_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl), lFaceG1_jl);
+      }
 
-      dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
-      (*this).SetFCenterK( (*this).FCenterK(uFaceB) + dist2Move, uFaceG1_ku);
-      (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il) + dist2Move, uFaceG1_il);
-      (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl) + dist2Move, uFaceG1_jl);
+      if (bcNameU != "interblock"){
+	dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
+	(*this).SetFCenterK( (*this).FCenterK(uFaceB) + dist2Move, uFaceG1_ku);
+	(*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il) + dist2Move, uFaceG1_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl) + dist2Move, uFaceG1_jl);
+      }
+      else{ //for interblock bc use interior cell values
+	(*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl), uFaceG1_ku);
+	(*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il), uFaceG1_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl), uFaceG1_jl);
+      }
 
       //second layer of ghost cells
       if (kmax < 2){ //one cell thick - use one cell for both ghost cells
@@ -3176,15 +3391,30 @@ void procBlock::AssignGhostCellsGeom(){
 	(*this).SetFCenterJ( (*this).FCenterJ(uFaceG1_jl) + dist2Move, uFaceG2_jl);
       }
       else{
-	dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2_ku);
-	(*this).SetFCenterK( (*this).FCenterK(lFaceB) + dist2Move, lFaceG2_kl);
-	(*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il) + dist2Move, lFaceG2_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl) + dist2Move, lFaceG2_jl);
+	if (bcNameL != "interblock"){
+	  dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2_ku);
+	  (*this).SetFCenterK( (*this).FCenterK(lFaceB) + dist2Move, lFaceG2_kl);
+	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il) + dist2Move, lFaceG2_il);
+	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl) + dist2Move, lFaceG2_jl);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn2_ku), lFaceG2_kl);
+	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn2_il), lFaceG2_il);
+	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn2_jl), lFaceG2_jl);
+	}
 
-	dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2_kl);
-	(*this).SetFCenterK( (*this).FCenterK(uFaceB) + dist2Move, uFaceG2_ku);
-	(*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il) + dist2Move, uFaceG2_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl) + dist2Move, uFaceG2_jl);
+	if (bcNameU != "interblock"){
+	  dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2_kl);
+	  (*this).SetFCenterK( (*this).FCenterK(uFaceB) + dist2Move, uFaceG2_ku);
+	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il) + dist2Move, uFaceG2_il);
+	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl) + dist2Move, uFaceG2_jl);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn2_kl), uFaceG2_ku);
+	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn2_il), uFaceG2_il);
+	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn2_jl), uFaceG2_jl);
+	}
+
       }
 
       if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
@@ -3195,6 +3425,7 @@ void procBlock::AssignGhostCellsGeom(){
 
 	//location of upper i-face for interior cells at lower k-boundary
 	int lFaceIn1_iu = GetUpperFaceI(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
+	int lFaceIn2_iu = GetUpperFaceI(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG); 
 
 	//location of upper i-face for ghost cells at upper k-boundary
 	int uFaceG1_iu = GetUpperFaceI(ii, jj, kmaxG-2, imaxG, jmaxG); 
@@ -3202,14 +3433,24 @@ void procBlock::AssignGhostCellsGeom(){
 
 	//location of upper i-face for interior cells at upper k-boundary
 	int uFaceIn1_iu = GetUpperFaceI(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+	int uFaceIn2_iu = GetUpperFaceI(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG); 
 
 	//face center is moved interior cell width in the boundary normal direction
 	//first layer of ghost cells
-	dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
-	(*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG1_iu);
-
-	dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
-	(*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu) + dist2Move, uFaceG1_iu);
+	if (bcNameL != "interblock"){
+	  dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
+	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG1_iu);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu), lFaceG1_iu);
+	}
+	if (bcNameU != "interblock"){
+	  dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
+	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu) + dist2Move, uFaceG1_iu);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu), uFaceG1_iu);
+	}
 
 	//second layer of ghost cells
 	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
@@ -3220,11 +3461,22 @@ void procBlock::AssignGhostCellsGeom(){
 	  (*this).SetFCenterI( (*this).FCenterI(uFaceG1_iu) + dist2Move, uFaceG2_iu);
 	}
 	else{
-	  dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2_ku);
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG2_iu);
 
-	  dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2_kl);
-	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu) + dist2Move, uFaceG2_iu);
+	  if (bcNameL != "interblock"){
+	    dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2_ku);
+	    (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG2_iu);
+	  }
+	  else{ //for interblock bc use interior cell values
+	    (*this).SetFCenterI( (*this).FCenterI(lFaceIn2_iu), lFaceG2_iu);
+	  }
+	  if (bcNameU != "interblock"){
+	    dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2_kl);
+	    (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu) + dist2Move, uFaceG2_iu);
+	  }
+	  else{ //for interblock bc use interior cell values
+	    (*this).SetFCenterI( (*this).FCenterI(uFaceIn2_iu), uFaceG2_iu);
+	  }
+
 	}
 
       }
@@ -3237,6 +3489,7 @@ void procBlock::AssignGhostCellsGeom(){
 
 	//location of upper j-face for interior cells at lower k-boundary
 	int lFaceIn1_ju = GetUpperFaceJ(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
+	int lFaceIn2_ju = GetUpperFaceJ(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG); 
 
 	//location of upper j-face for ghost cells at upper k-boundary
 	int uFaceG1_ju = GetUpperFaceJ(ii, jj, kmaxG-2, imaxG, jmaxG); 
@@ -3244,14 +3497,24 @@ void procBlock::AssignGhostCellsGeom(){
 
 	//location of upper j-face for interior cells at upper k-boundary
 	int uFaceIn1_ju = GetUpperFaceJ(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+	int uFaceIn2_ju = GetUpperFaceJ(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG); 
 
 	//face center is moved interior cell width in the boundary normal direction
 	//first layer of ghost cells
-	dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
-	(*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG1_ju);
-
-	dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
-	(*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju) + dist2Move, uFaceG1_ju);
+	if (bcNameL != "interblock"){
+	  dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
+	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG1_ju);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju), lFaceG1_ju);
+	}
+	if (bcNameU != "interblock"){
+	  dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
+	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju) + dist2Move, uFaceG1_ju);
+	}
+	else{ //for interblock bc use interior cell values
+	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju), uFaceG1_ju);
+	}
 
 	//second layer of ghost cells
 	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
@@ -3262,11 +3525,21 @@ void procBlock::AssignGhostCellsGeom(){
 	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceG1_ju) + dist2Move, uFaceG2_ju);
 	}
 	else{
-	  dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2_ku);
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG2_ju);
+	  if (bcNameL != "interblock"){
+	    dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2_ku);
+	    (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG2_ju);
+	  }
+	  else{ //for interblock bc use interior cell values
+	    (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn2_ju), lFaceG2_ju);
+	  }
+	  if (bcNameU != "interblock"){
+	    dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2_kl);
+	    (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju) + dist2Move, uFaceG2_ju);
+	  }
+	  else{ //for interblock bc use interior cell values
+	    (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn2_ju), uFaceG2_ju);
+	  }
 
-	  dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2_kl);
-	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju) + dist2Move, uFaceG2_ju);
 	}
 
       }
@@ -7078,14 +7351,14 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
 	int add1 = ind % l1;
 	int add2 = ind / l1;
 
-	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 2
+	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
 	  ii = inter.Dir2EndSecond() - 1 + numGhosts - add1; //direction 1 is k (but 1&2 are swapped); subtract 1 from End to get to cell index
 	}
 	else{
 	  ii = inter.Dir2StartSecond() + numGhosts + add1; //direction 1 is k (but 1&2 are swapped)
 	}
 
-	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 1
+	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
 	  kk = inter.Dir1EndSecond() - 1 + numGhosts - add2; //direction 2 is i (but 1&2 are swapped); subtract 1 from End to get to cell index
 	}
 	else{
@@ -7135,14 +7408,14 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
 	int add1 = ind % l1;
 	int add2 = ind / l1;
 
-	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 2
+	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
 	  ii = inter.Dir2EndSecond() - 1 + numGhosts - add1; //direction 1 is k (but 1&2 are swapped); subtract 1 from End to get to cell index
 	}
 	else{
 	  ii = inter.Dir2StartSecond() + numGhosts + add1; //direction 1 is k (but 1&2 are swapped)
 	}
 
-	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 1
+	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
 	  kk = inter.Dir1EndSecond() - 1 + numGhosts - add2; //direction 2 is i (but 1&2 are swapped); subtract 1 from End to get to cell index
 	}
 	else{
@@ -7192,14 +7465,14 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
 	int add1 = ind % l1;
 	int add2 = ind / l1;
 
-	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 2
+	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
 	  jj = inter.Dir2EndSecond() - 1 + numGhosts - add1; //direction 1 is i (but 1&2 are swapped); subtract 1 from End to get to cell index
 	}
 	else{
 	  jj = inter.Dir2StartSecond() + numGhosts + add1; //direction 1 is i (but 1&2 are swapped)
 	}
 
-	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 1
+	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
 	  ii = inter.Dir1EndSecond() - 1 + numGhosts - add2; //direction 2 is j (but 1&2 are swapped); subtract 1 from End to get to cell index
 	}
 	else{
@@ -7249,14 +7522,14 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
 	int add1 = ind % l1;
 	int add2 = ind / l1;
 
-	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 2
+	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
 	  jj = inter.Dir2EndSecond() - 1 + numGhosts - add1; //direction 1 is i (but 1&2 are swapped); subtract 1 from End to get to cell index
 	}
 	else{
 	  jj = inter.Dir2StartSecond() + numGhosts + add1; //direction 1 is i (but 1&2 are swapped)
 	}
 
-	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 1
+	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
 	  ii = inter.Dir1EndSecond() - 1 + numGhosts - add2; //direction 2 is j (but 1&2 are swapped); subtract 1 from End to get to cell index
 	}
 	else{
@@ -7309,7 +7582,7 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp, const id
   for ( unsigned int ii = 0; ii < states.size(); ii++ ){
     states[ii].AssignInviscidGhostCells(inp, eos);
   }
-
+  //loop over connections
   for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
     SwapGhostStates( connections[ii], states[connections[ii].BlockFirst()], states[connections[ii].BlockSecond()]);
   }

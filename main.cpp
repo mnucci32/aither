@@ -77,17 +77,16 @@ int main( int argc, char *argv[] ) {
   vector<procBlock> stateBlocks( mesh.size() );
   for ( int ll = 0; ll < (int)mesh.size(); ll++) {
     stateBlocks[ll] = procBlock(state, mesh[ll], ll, numGhost, inputVars.EquationSet());
-    stateBlocks[ll].AssignGhostCellsGeom();
+    stateBlocks[ll].AssignGhostCellsGeom(inputVars);
     stateBlocks[ll].AssignGhostCellsGeomEdge();
   }
 
   //Populate interblock boundaries with correct geometry
-  cout << "Total number of connections is " << connections.size() << endl;
+  // cout << "Total number of connections is " << connections.size() << endl;
+  // for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
+  //   cout << "Connection: " << ii << " " << connections[ii] << endl;
+  // }
   for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
-    cout << "Connection: " << ii << " " << connections[ii] << endl;
-  }
-  for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
-    // cout << "Swap for connection: " << ii << endl;
     SwapGhostGeom( connections[ii], stateBlocks[connections[ii].BlockFirst()], stateBlocks[connections[ii].BlockSecond()]);
   }
 
@@ -195,26 +194,26 @@ int main( int argc, char *argv[] ) {
 
 	} //conditional for implicit solver
 
+	//update solution
+	stateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, du[bb], residL2, residLinf, locMaxB);
+	//cout << "Updated Block " << dd << endl; //can now update block within original block loop as BCs are exchanged at before loop
+
+	//if implicit, assign time n to time n-1 at end of nonlinear iterations
+	if (implicitFlag && inputVars.TimeIntegration() == "bdf2" && mm == inputVars.NonlinearIterations()-1 ){
+	  stateBlocks[bb].DeltaNMinusOne(solDeltaNm1[bb], solTimeN[bb], eos, inputVars.Theta(), inputVars.Zeta());
+	}
+
+	//zero residuals and wave speed
+	stateBlocks[bb].ResetResidWS();
+
       } //loop for blocks
 
       //after update for all blocks has been calculated and stored, update all blocks
       //blocks cannot be updated within block loop because ghost cells for connection boundaries are determined from adjacent blocks
       //this would result in the ghost cell being at time n+1 when it should be at time n
-      for ( int dd = 0; dd < (int)mesh.size(); dd++ ){             //loop over number of blocks
+      // for ( int dd = 0; dd < (int)mesh.size(); dd++ ){             //loop over number of blocks
 
-	//update solution
-	stateBlocks[dd].UpdateBlock(inputVars, implicitFlag, eos, aRef, du[dd], residL2, residLinf, locMaxB);
-	//cout << "Updated Block " << dd << endl; //can now update block within original block loop as BCs are exchanged at before loop
-
-	//if implicit, assign time n to time n-1 at end of nonlinear iterations
-	if (implicitFlag && inputVars.TimeIntegration() == "bdf2" && mm == inputVars.NonlinearIterations()-1 ){
-	  stateBlocks[dd].DeltaNMinusOne(solDeltaNm1[dd], solTimeN[dd], eos, inputVars.Theta(), inputVars.Zeta());
-	}
-
-	//zero residuals and wave speed
-	stateBlocks[dd].ResetResidWS();
-
-      } //loop for blocks
+      // } //loop for blocks
 
 
       //finish calculation of L2 norm of residual
