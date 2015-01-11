@@ -5,7 +5,6 @@ CURRENT STATUS
 The code is 2nd order accurate in space and time using the explicit solver. Available explicit time integration methods are forward euler (1st order) and a minimum storage four stage Runge-Kutta method (2nd order). The implicit solver (LU-SGS) is implemented for implicit time integration. Dual time stepping is implemented for time accuracy in the implicit solver. Available implicit time integrations methods come from the Beam and Warming family of methods and are the implicit euler (1st order), Crank-Nicholson (2nd order), and BDF2 (2nd order) methods. The code has been thoroughly commented
 
 TO DO LIST
-- Add interblock boundary condition so that multiple blocks can be used in the simulation.
 - Parallelize.
 - Add RANS terms with turbulence model.
 
