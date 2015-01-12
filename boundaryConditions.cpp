@@ -271,6 +271,7 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
     }
   }
 
+  //----------------------------------------------------------------------------------------------------
   //intialize vector of interblocks to return
   //size is halved because each interblock pairs with another
   vector<interblock> connections(isolatedInterblocks.size()/2);
@@ -302,11 +303,6 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
       }
     }
   }
-
-  // for (unsigned int ii = 0; ii < connections.size(); ii++ ){
-  //   cout << "Interblock " << ii << endl;
-  //   cout << connections[ii] << endl;
-  // }
 
   return connections;
 }
@@ -377,7 +373,7 @@ Orientation 8:      |                  |	       |                  |           D
                    ^|__________________|	      ^|__________________|
                    | -->D2              	      | D2<--              
 
-The above diagrams show how patch to would have to be moved to match up with patch 1. D1 and D2 are the local patch directions. They are
+The above diagrams show how patch 2 would have to be moved to match up with patch 1. D1 and D2 are the local patch directions. They are
 cyclic, so on a constant i-patch, D1 is j, and D2 is k. On a constant j-patch, D1 is k, and D2 is i, etc. O is the origin which is always 
 at the minimim of D1 and D2 on the patch. C1 is the corner where D1 is at a max, and D2 is zero. C2 is the corner where D2 is at a max, and
 D1 is zero. C12 is the corner where both D1 and D2 are at a max.
@@ -546,6 +542,13 @@ patch::patch(){
 //constructor with arguements passed
 patch::patch( const int &bound, const int &b, const int &d1s, const int &d1e, const int &d2s, const int &d2e, const int &d3s, 
 	      const int &d3e, const plot3dBlock &blk){
+  // bound -- boundary number which patch is on (1-6)
+  // b -- parent block number
+  // d1s -- direction 1 starting index
+  // d1e -- direction 1 ending index
+  // d2s -- direction 2 starting index
+  // d2e -- direction 2 ending index
+  // d3s -- direction 3 surface index (constant surface that patch is on)
 
   boundary = bound;
   block = b;

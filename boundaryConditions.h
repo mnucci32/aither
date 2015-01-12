@@ -17,6 +17,7 @@ using std::cout;
 using std::endl;
 using std::pair;
 
+// a class to store the necessary information for the boundary conditions of a block
 class boundaryConditions {
   vector<string> bcTypes;                 //vector of boundary condition names for each surface
   vector<int> iMin;                       //vector of min i coordinate defining surface
@@ -71,7 +72,8 @@ class boundaryConditions {
 
 };
 
-/* A class to store the necessary information for the boundary condition patches. 
+/* A class to store the necessary information for the boundary condition patches. A patch is a 2D surface on a block boundary that
+is assigned the same boundary condition.
 */
 class patch {
 
@@ -80,7 +82,7 @@ class patch {
   vector3d<double> corner2;             //coordinates of direction 1 zero, direction 2 max
   vector3d<double> corner12;            //coordinates of direction 1/2 max
   int boundary;                         //boundary number (1-6)
-  int block;                            //block number
+  int block;                            //parent block number
   int d1Start;                          //direction 1 start index
   int d1End;                            //direction 1 end index
   int d2Start;                          //direction 2 start index
