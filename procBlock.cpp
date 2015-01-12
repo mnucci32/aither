@@ -6352,76 +6352,64 @@ bool procBlock::AtEdge(const int& ii, const int& jj, const int& kk)const{
 }
 
 
-/* Function to swap ghost cell geometry between two blocks at an interblock boundary
+/* Function to swap ghost cell geometry between two blocks at an interblock boundary. During the initial ghost cell geometry calculation the geometry from the first
+interior cell is reflected to the first ghost cell, and the geometry from the second interior cell is reflected to the second ghost cell. During the interblock swap,
+the first ghost cells are swapped, and the second ghost cells are swapped. 
 
+         Interior Cells       Ghost Cells                Ghost Cells       Interior Cells
+         ________ ________|_________ _________        _________ _________|_________ _________
+     Ui-3/2    Ui-1/2     |      Ui-1/2    Ui-3/2  Uj+3/2    Uj+1/2      |      Uj+1/2     Uj+3/2
+        |        |        |         |         |       |        |         |         |         |
+        | Ui-1   |  Ui    |   Ui    |  Ui-1   |       |  Uj+1  |   Uj    |  Uj     |  Uj+1   |
+        |        |        |         |         |       |        |         |         |         |
+        |________|________|_________|_________|       |________|_________|_________|_________|
+                          |                                              |
+
+The above diagram shows how the interior cell geometry is mapped to the ghost cells during the ghost cell geometry calculation routine. In the swapping of ghost cells
+at the interblock boundary, the first layer of ghost cells are swapped with each other, and the second layer of ghost cells are swapped with each other. In the above 
+diagram this means that the ghost cells with Ui and Uj are swapped, and those with Ui-1 and Uj+1 are swapped. The same procedure is used with the face quantities. 
+However, at an upper/lower interblock interface (i.e. where an "upper" surface meets a "lower" surface), an upper face from one block will be stored as a lower face in 
+the block that it is swapped to, and vice versa. This ensures that the ghost cells at the interblock boundary exactly match their partner block as if there were no
+separation in the grid.
+
+Only 3 faces at each ghost cell need to be swapped (i.e. the lower face for Ui is the upper face for Ui-1), but in this routine all 6 faces are swapped. There would 
+need to be extra logic added to determine which 3 faces to swap. This would add some cpu time to the calculation, offsetting the benefit of swapping 3 instead of 6 
+faces. In addition, this routine is only run once at the beginning of the simulation, so the time savings if any, would be minimal. For this reason the extra logic is
+not added.
 */
 void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
+  // inter -- interblock boundary information
+  // blk1 -- first block involved in interblock boundary
+  // blk2 -- second block involved in interblock boundary
 
   //loop over patch on block 1
   int len =  0;
-  for ( int dd2 = 0; dd2 < (inter.Dir2EndFirst() - inter.Dir2StartFirst()); dd2++ ){
-    for ( int dd1 = 0; dd1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst()); dd1++ ){
+  for ( int dd2 = 0; dd2 < (inter.Dir2EndFirst() - inter.Dir2StartFirst()); dd2++ ){ //loop over direction 1
+    for ( int dd1 = 0; dd1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst()); dd1++ ){ //loop over direction 2
 
       //Get locations for each block
       vector<int> locs1 = GetPatchGhostLoc(len, inter, true,  blk1.NumI() + 2.0 * blk1.NumGhosts(), blk1.NumJ() + 2.0 * blk1.NumGhosts(), blk1.NumGhosts() );
       vector<int> locs2 = GetPatchGhostLoc(len, inter, false, blk2.NumI() + 2.0 * blk2.NumGhosts(), blk2.NumJ() + 2.0 * blk2.NumGhosts(), blk2.NumGhosts() );
 
-      len++;
+      len++; //increment cell counter within patch
 
-      // cout << "At index: " << len << endl;
-      // cout << "First patch indices: " << endl;
-      // cout << "Volumes: " << blk1.Vol(locs1[0]) << ", " << blk1.Vol(locs1[7]) << endl;
-      // cout << "Max cell: " << (blk1.NumI()+4) * (blk1.NumJ()+4) * (blk1.NumK()+4) << ", Max i-face: " << (blk1.NumI()+5) * (blk1.NumJ()+4) * (blk1.NumK()+4) 
-      // 	   << ", Max j-face: " << (blk1.NumI()+4) * (blk1.NumJ()+5) * (blk1.NumK()+4) << ", Max k-face: " << (blk1.NumI()+4) * (blk1.NumJ()+4) * (blk1.NumK()+5) << endl; 
-      // for ( int ll = 0; ll < 14; ll++ ){
-      // 	cout << locs1[ll] << ", ";
-      // }
-      // cout << endl;
-      // cout << "Second patch indices: " << endl;
-      // cout << "Volumes: " << blk2.Vol(locs1[0]) << ", " << blk2.Vol(locs1[7]) << endl;
-      // cout << "Max cell: " << (blk2.NumI()+4) * (blk2.NumJ()+4) * (blk2.NumK()+4) << ", Max i-face: " << (blk2.NumI()+5) * (blk2.NumJ()+4) * (blk2.NumK()+4) 
-      // 	   << ", Max j-face: " << (blk2.NumI()+4) * (blk2.NumJ()+5) * (blk2.NumK()+4) << ", Max k-face: " << (blk2.NumI()+4) * (blk2.NumJ()+4) * (blk2.NumK()+5) << endl; 
-      // for ( int ll = 0; ll < 14; ll++ ){
-      // 	cout << locs2[ll] << ", ";
-      // }
-      // cout << endl;
-      // cout << "At first patch: " << endl;
-      // for ( int ll = 0; ll < 2; ll++ ){
-      //   cout << "i-lower area: " << blk1.FAreaI(locs1[7*ll+1]) << endl;
-      //   cout << "i-upper area: " << blk1.FAreaI(locs1[7*ll+2]) << endl;
-      //   cout << "j-lower area: " << blk1.FAreaJ(locs1[7*ll+3]) << endl;
-      //   cout << "j-upper area: " << blk1.FAreaJ(locs1[7*ll+4]) << endl;
-      //   cout << "k-lower area: " << blk1.FAreaK(locs1[7*ll+5]) << endl;
-      //   cout << "k-upper area: " << blk1.FAreaK(locs1[7*ll+6]) << endl;
-      // }
-      // cout << endl;
-      // cout << "At second patch: " << endl;
-      // for ( int ll = 0; ll < 2; ll++ ){
-      // 	cout << locs2[7*ll+1] << endl;
-      //   cout << "i-lower area: " << blk2.FAreaI(locs2[7*ll+1]) << endl;
-      //   cout << "i-upper area: " << blk2.FAreaI(locs2[7*ll+2]) << endl;
-      //   cout << "j-lower area: " << blk2.FAreaJ(locs2[7*ll+3]) << endl;
-      //   cout << "j-upper area: " << blk2.FAreaJ(locs2[7*ll+4]) << endl;
-      //   cout << "k-lower area: " << blk2.FAreaK(locs2[7*ll+5]) << endl;
-      //   cout << "k-upper area: " << blk2.FAreaK(locs2[7*ll+6]) << endl;
-      // }
-      // cout << endl;
+      //swap data at current cell counter index for all ghost cells at that index
+      for ( int jj = 0; jj < blk1.NumGhosts(); jj++ ){ //loop over ghost cells
 
-
-      //swap data
-      for ( int jj = 0; jj < blk1.NumGhosts(); jj++ ){
-
-	//swap cell data
+	//swap cell data -------------------------------------------
+	//swap volumes
 	double dummy = blk1.Vol(locs1[jj*7]);
 	blk1.SetVol(blk2.Vol(locs2[jj*7]), locs1[jj*7] );
 	blk2.SetVol(dummy, locs2[jj*7] );
 
+	//swap cell centers
 	vector3d<double> dumVec = blk1.Center(locs1[jj*7]);
 	blk1.SetCenter(blk2.Center(locs2[jj*7]), locs1[jj*7] );
 	blk2.SetCenter(dumVec, locs2[jj*7] );
 
-	//swap face data
+	//swap face data ---------------------------------------------
 	if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() <= 2 ){ //both patches i, i to i, j to j, k to k
+	  //determine if area direction needs to be reversed
 	  double aFac3 = 1.0;
 	  if ( inter.BoundaryFirst() == inter.BoundarySecond() ){ //lower/lower or upper/upper
 	    aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
@@ -6435,6 +6423,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    aFac2 = -1.0;
 	  }
 
+	  //swap data for direction 3
 	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ){ //lower/lower or upper/upper
 	    dumVec = blk1.FCenterI(locs1[jj*7+1]); //dir3-lower face
 	    blk1.SetFCenterI(blk2.FCenterI(locs2[jj*7+1]), locs1[jj*7+1] );
@@ -6450,7 +6439,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    blk1.SetFAreaI(aFac3 * blk2.FAreaI(locs2[jj*7+2]), locs1[jj*7+2] );
 	    blk2.SetFAreaI(aFac3 * dumVec, locs2[jj*7+2] );
 	  }
-	  else{ //lower/upper or upper/lower
+	  else{ //lower/upper or upper/lower -- swap upper and lower faces
 	    dumVec = blk1.FCenterI(locs1[jj*7+1]); //dir3-lower face
 	    blk1.SetFCenterI(blk2.FCenterI(locs2[jj*7+2]), locs1[jj*7+1] );
 	    blk2.SetFCenterI(dumVec, locs2[jj*7+2] ); //dir3-upper face 
@@ -6466,6 +6455,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    blk2.SetFAreaI(aFac3 * dumVec, locs2[jj*7+1] );
 	  }
 
+	  //swap data for direction 1
 	  dumVec = blk1.FCenterJ(locs1[jj*7+3]); //dir1-lower face
 	  blk1.SetFCenterJ(blk2.FCenterJ(locs2[jj*7+3]), locs1[jj*7+3] );
 	  blk2.SetFCenterJ(dumVec, locs2[jj*7+3] );
@@ -6480,6 +6470,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	  blk1.SetFAreaJ(aFac1 * blk2.FAreaJ(locs2[jj*7+4]), locs1[jj*7+4] );
 	  blk2.SetFAreaJ(aFac1 * dumVec, locs2[jj*7+4] );
 
+	  //swap data for direction 2
 	  dumVec = blk1.FCenterK(locs1[jj*7+5]); //dir2-lower face
 	  blk1.SetFCenterK(blk2.FCenterK(locs2[jj*7+5]), locs1[jj*7+5] );
 	  blk2.SetFCenterK(dumVec, locs2[jj*7+5] );
@@ -6496,6 +6487,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 
 	}
 	else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4 ){ //both patches j, j to j, k to k, i to i
+	  //determine if area direction needs to be reversed
 	  double aFac3 = 1.0;
 	  if ( inter.BoundaryFirst() == inter.BoundarySecond() ){ //lower/lower or upper/upper
 	    aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
@@ -6509,6 +6501,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    aFac2 = -1.0;
 	  }
 
+	  //swap data for direction 3
 	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ){ //lower/lower or upper/upper
 	    dumVec = blk1.FCenterJ(locs1[jj*7+3]); //dir3-lower face
 	    blk1.SetFCenterJ(blk2.FCenterJ(locs2[jj*7+3]), locs1[jj*7+3] );
@@ -6524,7 +6517,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    blk1.SetFAreaJ(aFac3 * blk2.FAreaJ(locs2[jj*7+4]), locs1[jj*7+4] );
 	    blk2.SetFAreaJ(aFac3 * dumVec, locs2[jj*7+4] );
 	  }
-	  else{ //lower/upper or upper/lower
+	  else{ //lower/upper or upper/lower -- swap upper and lower faces
 	    dumVec = blk1.FCenterJ(locs1[jj*7+3]); //dir3-lower face
 	    blk1.SetFCenterJ(blk2.FCenterJ(locs2[jj*7+4]), locs1[jj*7+3] );
 	    blk2.SetFCenterJ(dumVec, locs2[jj*7+4] ); //dir3-upper face 
@@ -6540,6 +6533,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    blk2.SetFAreaJ(aFac3 * dumVec, locs2[jj*7+3] );
 	  }
 
+	  //swap data for direction 1
 	  dumVec = blk1.FCenterK(locs1[jj*7+5]); //dir1-lower face
 	  blk1.SetFCenterK(blk2.FCenterK(locs2[jj*7+5]), locs1[jj*7+5] );
 	  blk2.SetFCenterK(dumVec, locs2[jj*7+5] );
@@ -6554,6 +6548,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	  blk1.SetFAreaK(aFac1 * blk2.FAreaK(locs2[jj*7+6]), locs1[jj*7+6] );
 	  blk2.SetFAreaK(aFac1 * dumVec, locs2[jj*7+6] );
 
+	  //swap data for direction 2
 	  dumVec = blk1.FCenterI(locs1[jj*7+1]); //dir2-lower face
 	  blk1.SetFCenterI(blk2.FCenterI(locs2[jj*7+1]), locs1[jj*7+1] );
 	  blk2.SetFCenterI(dumVec, locs2[jj*7+1] );
@@ -6570,6 +6565,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 
 	}
 	else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6 ){ //both patches k, k to k, i to i, j to j
+	  //determine if area direction needs to be reversed
 	  double aFac3 = 1.0;
 	  if ( inter.BoundaryFirst() == inter.BoundarySecond() ){ //lower/lower or upper/upper
 	    aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
@@ -6583,6 +6579,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    aFac2 = -1.0;
 	  }
 
+	  //swap data for direction 3
 	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ){ //lower/lower or upper/upper
 	    dumVec = blk1.FCenterK(locs1[jj*7+5]); //dir3-lower face
 	    blk1.SetFCenterK(blk2.FCenterK(locs2[jj*7+5]), locs1[jj*7+5] );
@@ -6598,7 +6595,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    blk1.SetFAreaK(aFac3 * blk2.FAreaK(locs2[jj*7+6]), locs1[jj*7+6] );
 	    blk2.SetFAreaK(aFac3 * dumVec, locs2[jj*7+6] );
 	  }
-	  else{ //lower/upper or upper/lower
+	  else{ //lower/upper or upper/lower -- swap upper and lower faces
 	    dumVec = blk1.FCenterK(locs1[jj*7+5]); //dir3-lower face
 	    blk1.SetFCenterK(blk2.FCenterK(locs2[jj*7+6]), locs1[jj*7+5] );
 	    blk2.SetFCenterK(dumVec, locs2[jj*7+6] ); //dir3-upper face 
@@ -6614,6 +6611,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    blk2.SetFAreaK(aFac3 * dumVec, locs2[jj*7+5] );
 	  }
 
+	  //swap data for direction 1
 	  dumVec = blk1.FCenterI(locs1[jj*7+1]); //dir1-lower face
 	  blk1.SetFCenterI(blk2.FCenterI(locs2[jj*7+1]), locs1[jj*7+1] );
 	  blk2.SetFCenterI(dumVec, locs2[jj*7+1] );
@@ -6628,6 +6626,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	  blk1.SetFAreaI(aFac1 * blk2.FAreaI(locs2[jj*7+2]), locs1[jj*7+2] );
 	  blk2.SetFAreaI(aFac1 * dumVec, locs2[jj*7+2] );
 
+	  //swap data for direction 2
 	  dumVec = blk1.FCenterJ(locs1[jj*7+3]); //dir2-lower face
 	  blk1.SetFCenterJ(blk2.FCenterJ(locs2[jj*7+3]), locs1[jj*7+3] );
 	  blk2.SetFCenterJ(dumVec, locs2[jj*7+3] );
@@ -6644,6 +6643,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 
 	}
 	else if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4){ //patches are i/j  - i to j, j to k, k to i
+	  //determine if area direction needs to be reversed
 	  double aFac3 = 1.0;
 	  if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
 	    aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
@@ -6657,6 +6657,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    aFac2 = -1.0;
 	  }
 
+	  //swap data for direction 3
 	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ){ //lower/lower or upper/upper
 	    dumVec = blk1.FCenterI(locs1[jj*7+1]); //dir3-lower face
 	    blk1.SetFCenterI(blk2.FCenterJ(locs2[jj*7+3]), locs1[jj*7+1] );
@@ -6672,7 +6673,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    blk1.SetFAreaI(aFac3 * blk2.FAreaJ(locs2[jj*7+4]), locs1[jj*7+2] );
 	    blk2.SetFAreaJ(aFac3 * dumVec, locs2[jj*7+4] );
 	  }
-	  else{ //lower/upper or upper/lower
+	  else{ //lower/upper or upper/lower -- swap upper and lower faces
 	    dumVec = blk1.FCenterI(locs1[jj*7+1]); //dir3-lower face
 	    blk1.SetFCenterI(blk2.FCenterJ(locs2[jj*7+4]), locs1[jj*7+1] );
 	    blk2.SetFCenterJ(dumVec, locs2[jj*7+4] ); //dir3-upper face 
@@ -6688,6 +6689,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    blk2.SetFAreaJ(aFac3 * dumVec, locs2[jj*7+3] );
 	  }
 
+	  //swap data for direction 1
 	  dumVec = blk1.FCenterJ(locs1[jj*7+3]); //dir1-lower face
 	  blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+5]), locs1[jj*7+3] );
 	  blk2.SetFCenterK(dumVec, locs2[jj*7+5] );
@@ -6702,6 +6704,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	  blk1.SetFAreaJ(aFac1 * blk2.FAreaK(locs2[jj*7+6]), locs1[jj*7+4] );
 	  blk2.SetFAreaK(aFac1 * dumVec, locs2[jj*7+6] );
 
+	  //swap data for direction 2
 	  dumVec = blk1.FCenterK(locs1[jj*7+5]); //dir2-lower face
 	  blk1.SetFCenterK(blk2.FCenterI(locs2[jj*7+1]), locs1[jj*7+5] );
 	  blk2.SetFCenterI(dumVec, locs2[jj*7+1] );
@@ -6718,6 +6721,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 
 	}
 	else if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6){ //patches are i/k  - i to k, j to i, k to j
+	  //determine if area direction needs to be reversed
 	  double aFac3 = 1.0;
 	  if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
 	    aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
@@ -6731,6 +6735,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    aFac2 = -1.0;
 	  }
 
+	  //swap data for direction 3
 	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ){ //lower/lower or upper/upper
 	    dumVec = blk1.FCenterI(locs1[jj*7+1]); //dir3-lower face
 	    blk1.SetFCenterI(blk2.FCenterK(locs2[jj*7+5]), locs1[jj*7+1] );
@@ -6746,7 +6751,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    blk1.SetFAreaI(aFac3 * blk2.FAreaK(locs2[jj*7+6]), locs1[jj*7+2] );
 	    blk2.SetFAreaK(aFac3 * dumVec, locs2[jj*7+6] );
 	  }
-	  else{ //lower/upper or upper/lower
+	  else{ //lower/upper or upper/lower -- swap upper and lower faces
 	    dumVec = blk1.FCenterI(locs1[jj*7+1]); //dir3-lower face
 	    blk1.SetFCenterI(blk2.FCenterK(locs2[jj*7+6]), locs1[jj*7+1] );
 	    blk2.SetFCenterK(dumVec, locs2[jj*7+6] ); //dir3-upper face 
@@ -6762,6 +6767,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    blk2.SetFAreaK(aFac3 * dumVec, locs2[jj*7+5] );
 	  }
 
+	  //swap data for direction 1
 	  dumVec = blk1.FCenterJ(locs1[jj*7+3]); //dir1-lower face
 	  blk1.SetFCenterJ(blk2.FCenterI(locs2[jj*7+1]), locs1[jj*7+3] );
 	  blk2.SetFCenterI(dumVec, locs2[jj*7+1] );
@@ -6776,6 +6782,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	  blk1.SetFAreaJ(aFac1 * blk2.FAreaI(locs2[jj*7+2]), locs1[jj*7+4] );
 	  blk2.SetFAreaI(aFac1 * dumVec, locs2[jj*7+2] );
 
+	  //swap data for direction 2
 	  dumVec = blk1.FCenterK(locs1[jj*7+5]); //dir2-lower face
 	  blk1.SetFCenterK(blk2.FCenterJ(locs2[jj*7+3]), locs1[jj*7+5] );
 	  blk2.SetFCenterJ(dumVec, locs2[jj*7+3] );
@@ -6792,6 +6799,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 
 	}
 	else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() <= 2 ){ //patches are j/i, j to i, k to j, i to k
+	  //determine if area direction needs to be reversed
 	  double aFac3 = 1.0;
 	  if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
 	    aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
@@ -6805,6 +6813,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    aFac2 = -1.0;
 	  }
 
+	  //swap data for direction 3
 	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ){ //lower/lower or upper/upper
 	    dumVec = blk1.FCenterJ(locs1[jj*7+3]); //dir3-lower face
 	    blk1.SetFCenterJ(blk2.FCenterI(locs2[jj*7+1]), locs1[jj*7+3] );
@@ -6820,7 +6829,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    blk1.SetFAreaJ(aFac3 * blk2.FAreaI(locs2[jj*7+2]), locs1[jj*7+4] );
 	    blk2.SetFAreaI(aFac3 * dumVec, locs2[jj*7+2] );
 	  }
-	  else{ //lower/upper or upper/lower
+	  else{ //lower/upper or upper/lower -- swap upper and lower faces
 	    dumVec = blk1.FCenterJ(locs1[jj*7+3]); //dir3-lower face
 	    blk1.SetFCenterJ(blk2.FCenterI(locs2[jj*7+2]), locs1[jj*7+3] );
 	    blk2.SetFCenterI(dumVec, locs2[jj*7+2] ); //dir3-upper face 
@@ -6836,6 +6845,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    blk2.SetFAreaI(aFac3 * dumVec, locs2[jj*7+1] );
 	  }
 
+	  //swap data for direction 1
 	  dumVec = blk1.FCenterK(locs1[jj*7+5]); //dir1-lower face
 	  blk1.SetFCenterK(blk2.FCenterJ(locs2[jj*7+3]), locs1[jj*7+5] );
 	  blk2.SetFCenterJ(dumVec, locs2[jj*7+3] );
@@ -6850,6 +6860,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	  blk1.SetFAreaK(aFac1 * blk2.FAreaJ(locs2[jj*7+4]), locs1[jj*7+6] );
 	  blk2.SetFAreaJ(aFac1 * dumVec, locs2[jj*7+4] );
 
+	  //swap data for direction 2
 	  dumVec = blk1.FCenterI(locs1[jj*7+1]); //dir2-lower face
 	  blk1.SetFCenterI(blk2.FCenterK(locs2[jj*7+5]), locs1[jj*7+1] );
 	  blk2.SetFCenterK(dumVec, locs2[jj*7+5] );
@@ -6866,6 +6877,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 
 	}
 	else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6 ){ //patches are j/k, j to k, k to i, i to j
+	  //determine if area direction needs to be reversed
 	  double aFac3 = 1.0;
 	  if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
 	    aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
@@ -6879,6 +6891,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    aFac2 = -1.0;
 	  }
 
+	  //swap data for direction 3
 	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ){ //lower/lower or upper/upper
 	    dumVec = blk1.FCenterJ(locs1[jj*7+3]); //dir3-lower face
 	    blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+5]), locs1[jj*7+3] );
@@ -6894,7 +6907,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    blk1.SetFAreaJ(aFac3 * blk2.FAreaK(locs2[jj*7+6]), locs1[jj*7+4] );
 	    blk2.SetFAreaK(aFac3 * dumVec, locs2[jj*7+6] );
 	  }
-	  else{ //lower/upper or upper/lower
+	  else{ //lower/upper or upper/lower -- swap upper and lower faces
 	    dumVec = blk1.FCenterJ(locs1[jj*7+3]); //dir3-lower face
 	    blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+6]), locs1[jj*7+3] );
 	    blk2.SetFCenterK(dumVec, locs2[jj*7+6] ); //dir3-upper face 
@@ -6910,6 +6923,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    blk2.SetFAreaK(aFac3 * dumVec, locs2[jj*7+5] );
 	  }
 
+	  //swap data for direction 1
 	  dumVec = blk1.FCenterK(locs1[jj*7+5]); //dir1-lower face
 	  blk1.SetFCenterK(blk2.FCenterI(locs2[jj*7+1]), locs1[jj*7+5] );
 	  blk2.SetFCenterI(dumVec, locs2[jj*7+1] );
@@ -6924,6 +6938,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	  blk1.SetFAreaK(aFac1 * blk2.FAreaI(locs2[jj*7+2]), locs1[jj*7+6] );
 	  blk2.SetFAreaI(aFac1 * dumVec, locs2[jj*7+2] );
 
+	  //swap data for direction 2
 	  dumVec = blk1.FCenterI(locs1[jj*7+1]); //dir2-lower face
 	  blk1.SetFCenterI(blk2.FCenterJ(locs2[jj*7+3]), locs1[jj*7+1] );
 	  blk2.SetFCenterJ(dumVec, locs2[jj*7+3] );
@@ -6940,6 +6955,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 
 	}
 	else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() <= 2 ){ //patches are k/i, k to i, i to j, j to k
+	  //determine if area direction needs to be reversed
 	  double aFac3 = 1.0;
 	  if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
 	    aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
@@ -6953,6 +6969,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    aFac2 = -1.0;
 	  }
 
+	  //swap data for direction 3
 	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ){ //lower/lower or upper/upper
 	    dumVec = blk1.FCenterK(locs1[jj*7+5]); //dir3-lower face
 	    blk1.SetFCenterK(blk2.FCenterI(locs2[jj*7+1]), locs1[jj*7+5] );
@@ -6968,7 +6985,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    blk1.SetFAreaK(aFac3 * blk2.FAreaI(locs2[jj*7+2]), locs1[jj*7+6] );
 	    blk2.SetFAreaI(aFac3 * dumVec, locs2[jj*7+2] );
 	  }
-	  else{ //lower/upper or upper/lower
+	  else{ //lower/upper or upper/lower -- swap upper and lower faces
 	    dumVec = blk1.FCenterK(locs1[jj*7+5]); //dir3-lower face
 	    blk1.SetFCenterK(blk2.FCenterI(locs2[jj*7+2]), locs1[jj*7+5] );
 	    blk2.SetFCenterI(dumVec, locs2[jj*7+2] ); //dir3-upper face 
@@ -6984,6 +7001,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    blk2.SetFAreaI(aFac3 * dumVec, locs2[jj*7+1] );
 	  }
 
+	  //swap data for direction 1
 	  dumVec = blk1.FCenterI(locs1[jj*7+1]); //dir1-lower face
 	  blk1.SetFCenterI(blk2.FCenterJ(locs2[jj*7+3]), locs1[jj*7+1] );
 	  blk2.SetFCenterJ(dumVec, locs2[jj*7+3] );
@@ -6998,6 +7016,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	  blk1.SetFAreaI(aFac1 * blk2.FAreaJ(locs2[jj*7+4]), locs1[jj*7+2] );
 	  blk2.SetFAreaJ(aFac1 * dumVec, locs2[jj*7+4] );
 
+	  //swap data for direction 2
 	  dumVec = blk1.FCenterJ(locs1[jj*7+3]); //dir2-lower face
 	  blk1.SetFCenterJ(blk2.FCenterK(locs2[jj*7+5]), locs1[jj*7+3] );
 	  blk2.SetFCenterK(dumVec, locs2[jj*7+5] );
@@ -7014,6 +7033,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 
 	}
 	else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() <= 2 ){ //patches are k/j, k to j, i to k, j to i
+	  //determine if area direction needs to be reversed
 	  double aFac3 = 1.0;
 	  if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
 	    aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
@@ -7027,6 +7047,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    aFac2 = -1.0;
 	  }
 
+	  //swap data for direction 3
 	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ){ //lower/lower or upper/upper
 	    dumVec = blk1.FCenterK(locs1[jj*7+5]); //dir3-lower face
 	    blk1.SetFCenterK(blk2.FCenterJ(locs2[jj*7+3]), locs1[jj*7+5] );
@@ -7042,7 +7063,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    blk1.SetFAreaK(aFac3 * blk2.FAreaJ(locs2[jj*7+4]), locs1[jj*7+6] );
 	    blk2.SetFAreaJ(aFac3 * dumVec, locs2[jj*7+4] );
 	  }
-	  else{ //lower/upper or upper/lower
+	  else{ //lower/upper or upper/lower -- swap upper and lower faces
 	    dumVec = blk1.FCenterK(locs1[jj*7+5]); //dir3-lower face
 	    blk1.SetFCenterK(blk2.FCenterJ(locs2[jj*7+4]), locs1[jj*7+5] );
 	    blk2.SetFCenterJ(dumVec, locs2[jj*7+4] ); //dir3-upper face 
@@ -7058,6 +7079,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	    blk2.SetFAreaJ(aFac3 * dumVec, locs2[jj*7+3] );
 	  }
 
+	  //swap data for direction 1
 	  dumVec = blk1.FCenterI(locs1[jj*7+1]); //dir1-lower face
 	  blk1.SetFCenterI(blk2.FCenterK(locs2[jj*7+5]), locs1[jj*7+1] );
 	  blk2.SetFCenterK(dumVec, locs2[jj*7+5] );
@@ -7072,6 +7094,7 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 	  blk1.SetFAreaI(aFac1 * blk2.FAreaK(locs2[jj*7+6]), locs1[jj*7+2] );
 	  blk2.SetFAreaK(aFac1 * dumVec, locs2[jj*7+6] );
 
+	  //swap data for direction 2
 	  dumVec = blk1.FCenterJ(locs1[jj*7+3]); //dir2-lower face
 	  blk1.SetFCenterJ(blk2.FCenterI(locs2[jj*7+1]), locs1[jj*7+3] );
 	  blk2.SetFCenterI(dumVec, locs2[jj*7+1] );
@@ -7099,20 +7122,27 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
   }
 }
 
-/* Function to return a vector of location indicies for ghost cells at an interblock boundary
+/* Function to return a vector of location indicies for ghost cells at an interblock boundary. The vector is formatted as shown below:
+
+  vector = [ cellIndex lowerFaceI upperFaceI lowerFaceJ upperFaceJ lowerFaceK upperFaceK ...]
+
+The vector will contain 7 entries for each layer of ghost cells. Those entries marked "cell" are cell indices, and those marked "face" are face indices. 
+Those marked with an "I" are corresponding to a location in the I-face vector (likewise with "J" and "K").
 */
 vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const bool &pairID, const int &imax, const int &jmax, const int &numGhosts ){
   // ind -- number of patch ghost cell
   // inter -- interblock boundary condition
-  // pairID -- returning index for first or second column
+  // pairID -- returning index for first or second block in interblock match
   // imax -- i dimension of block
   // jmax -- j dimension of block
   // numGhosts -- number of layers of ghost cells
 
+  //preallocate vector to return
   vector<int> loc;
   loc.reserve(numGhosts * 7);
 
-  if (pairID) { //working on first in pair
+  if (pairID) { //working on first in pair -----------------------------------------------------------------------------------------------
+    //first patch in pair is calculated using orientation 1
 
     if ( inter.BoundaryFirst() == 1 ){ //i-patch lower
       //get direction 1 length
@@ -7576,43 +7606,65 @@ vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const boo
   return loc;
 }
 
+/* Function to populate ghost cells with proper cell states for inviscid flow calculation. This function operates on the entire grid and uses interblock
+boundaries to pass the correct data between grid blocks.
+*/
 void GetBoundaryConditions(vector<procBlock> &states, const input &inp, const idealGas &eos, const vector<interblock> &connections){
+  // states -- vector of all procBlocks in the solution domain
+  // inp -- all input variables
+  // eos -- equation of state
+  // connections -- vector of interblock connections
 
-  //loop over all blocks
+  //loop over all blocks and assign inviscid ghost cells
   for ( unsigned int ii = 0; ii < states.size(); ii++ ){
     states[ii].AssignInviscidGhostCells(inp, eos);
   }
-  //loop over connections
+  //loop over connections and swap ghost cells where needed
   for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
     SwapGhostStates( connections[ii], states[connections[ii].BlockFirst()], states[connections[ii].BlockSecond()]);
   }
-  //Get ghost cell edge data
+  //loop over all blocks and get ghost cell edge data
   for ( unsigned int ii = 0; ii < states.size(); ii++) {
     states[ii].AssignInviscidGhostCellsEdge(inp, eos);
   }
 
 }
 
-/* Function to swap ghost cell geometry between two blocks at an interblock boundary
+/* Function to swap ghost cell geometry between two blocks at an interblock boundary. During the initial ghost cell inviscid boundary condition calculation the state
+from the first interior cell is reflected to the first ghost cell, and the state from the second interior cell is reflected to the second ghost cell. During the 
+interblock swap, the first ghost cells are swapped, and the second ghost cells are swapped. 
 
+         Interior Cells       Ghost Cells                Ghost Cells       Interior Cells
+         ________ ________|_________ _________        _________ _________|_________ _________
+        |        |        |         |         |       |        |         |         |         |
+        |        |        |         |         |       |        |         |         |         |
+        | Ui-1   |  Ui    |   Ui    |  Ui-1   |       |  Uj+1  |   Uj    |  Uj     |  Uj+1   |
+        |        |        |         |         |       |        |         |         |         |
+        |________|________|_________|_________|       |________|_________|_________|_________|
+                          |                                              |
+
+In the diagram above Ui is swapped with Uj, and Ui-1 is swaped with Uj+1.
 */
 void SwapGhostStates( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
+  // inter -- information on interblock match
+  // blk1 -- first block of the interblock match
+  // blk2 -- second block of the interblock match
 
   //loop over patch on block 1
   int len =  0;
-  for ( int dd2 = 0; dd2 < (inter.Dir2EndFirst() - inter.Dir2StartFirst()); dd2++ ){
-    for ( int dd1 = 0; dd1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst()); dd1++ ){
+  for ( int dd2 = 0; dd2 < (inter.Dir2EndFirst() - inter.Dir2StartFirst()); dd2++ ){ //loop over direction 2
+    for ( int dd1 = 0; dd1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst()); dd1++ ){ //loop over direction 1
 
       //Get locations for each block
       vector<int> locs1 = GetPatchGhostLoc(len, inter, true,  blk1.NumI() + 2.0 * blk1.NumGhosts(), blk1.NumJ() + 2.0 * blk1.NumGhosts(), blk1.NumGhosts() );
       vector<int> locs2 = GetPatchGhostLoc(len, inter, false, blk2.NumI() + 2.0 * blk2.NumGhosts(), blk2.NumJ() + 2.0 * blk2.NumGhosts(), blk2.NumGhosts() );
 
-      len++;
+      len++; //increment cell counter on patch
 
-      //swap data
-      for ( int jj = 0; jj < blk1.NumGhosts(); jj++ ){
+      //swap data for all ghost cells at current cell counter index
+      for ( int jj = 0; jj < blk1.NumGhosts(); jj++ ){ //loop over number of ghost cells
 
-	//swap cell data
+	//swap cell state data
 	primVars dummy = blk1.State(locs1[jj*7]);
 	blk1.SetState(blk2.State(locs2[jj*7]), locs1[jj*7] );
 	blk2.SetState(dummy, locs2[jj*7] );
