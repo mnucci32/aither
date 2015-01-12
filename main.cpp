@@ -73,29 +73,24 @@ int main( int argc, char *argv[] ) {
   //initialize sutherland's law for viscosity
   sutherland suth(inputVars.TRef());
 
-  //initialize the whole mesh with one state and assign ghost cells geometry
+  //initialize the whole mesh with one state and assign ghost cells geometry ------------------
   vector<procBlock> stateBlocks( mesh.size() );
   for ( int ll = 0; ll < (int)mesh.size(); ll++) {
     stateBlocks[ll] = procBlock(state, mesh[ll], ll, numGhost, inputVars.EquationSet());
     stateBlocks[ll].AssignGhostCellsGeom(inputVars);
     stateBlocks[ll].AssignGhostCellsGeomEdge();
   }
-
-  //Populate interblock boundaries with correct geometry
-  // cout << "Total number of connections is " << connections.size() << endl;
-  // for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
-  //   cout << "Connection: " << ii << " " << connections[ii] << endl;
-  // }
+  //swap geometry for interblock BCs
   for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
     SwapGhostGeom( connections[ii], stateBlocks[connections[ii].BlockFirst()], stateBlocks[connections[ii].BlockSecond()]);
   }
-
   //Get ghost cell edge data
   for ( int ll = 0; ll < (int)mesh.size(); ll++) {
     stateBlocks[ll].AssignGhostCellsGeomEdge();
   }
-
+ 
   cout << endl << "Solution Initialized" << endl;
+  //----------------------------------------------------------------------------------------------
 
   //determine if implict or explicit
   bool implicitFlag = false;
@@ -107,11 +102,10 @@ int main( int argc, char *argv[] ) {
   colMatrix initial(numEqns);
   initial.Zero();
 
-  //preallocate vectors for old solution and solution correction
+  //preallocate vectors for old solution
   //outermost vector for blocks, inner vector for cell is blocks, colMatrix for variables in cell
   vector<vector<colMatrix> > solTimeN(mesh.size());
   vector<vector<colMatrix> > solDeltaNm1(mesh.size());
-  vector<vector<colMatrix> > du(mesh.size());
 
   //initialize residual variables
   int locMaxB = 0; //block with max residual
@@ -134,21 +128,10 @@ int main( int argc, char *argv[] ) {
 
     for ( int mm = 0; mm < inputVars.NonlinearIterations(); mm++ ){    //loop over nonlinear iterations
 
-      //Get boundary conditions
+      //Get boundary conditions for all blocks
       GetBoundaryConditions(stateBlocks, inputVars, eos, connections);
 
       for ( int bb = 0; bb < (int)mesh.size(); bb++ ){             //loop over number of blocks
-
-	//initialize implicit matrix
-	if (implicitFlag){
-
-	  //reserve space for correction du
-	  //only need to do this if it is first iteration
-	  if (nn == 0){
-	    du[bb].resize(stateBlocks[bb].NumCells(), initial);
-	  }
-
-	} //end of implicit conditional
 
 	//calculate inviscid fluxes
 	stateBlocks[bb].CalcInvFluxI(eos, inputVars);
@@ -189,32 +172,32 @@ int main( int argc, char *argv[] ) {
 	  //reorder block (by hyperplanes) for lusgs
 	  vector<vector3d<int> > reorder = HyperplaneReorder(stateBlocks[bb].NumI(), stateBlocks[bb].NumJ(), stateBlocks[bb].NumK());
 
+	  //reserve space for correction du
+	  vector<colMatrix> du(stateBlocks[bb].NumCells(),initial);
+
 	  //calculate correction (du)
-	  matrixResid += stateBlocks[bb].LUSGS(reorder, du[bb], solTimeMmN, solDeltaNm1[bb], eos, inputVars, suth );
+	  matrixResid += stateBlocks[bb].LUSGS(reorder, du, solTimeMmN, solDeltaNm1[bb], eos, inputVars, suth );
+
+	  //update solution
+	  stateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, du, residL2, residLinf, locMaxB);
+
+	  //assign time n to time n-1 at end of nonlinear iterations
+	  if (inputVars.TimeIntegration() == "bdf2" && mm == inputVars.NonlinearIterations()-1 ){
+	    stateBlocks[bb].DeltaNMinusOne(solDeltaNm1[bb], solTimeN[bb], eos, inputVars.Theta(), inputVars.Zeta());
+	  }
 
 	} //conditional for implicit solver
 
-	//update solution
-	stateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, du[bb], residL2, residLinf, locMaxB);
-	//cout << "Updated Block " << dd << endl; //can now update block within original block loop as BCs are exchanged at before loop
-
-	//if implicit, assign time n to time n-1 at end of nonlinear iterations
-	if (implicitFlag && inputVars.TimeIntegration() == "bdf2" && mm == inputVars.NonlinearIterations()-1 ){
-	  stateBlocks[bb].DeltaNMinusOne(solDeltaNm1[bb], solTimeN[bb], eos, inputVars.Theta(), inputVars.Zeta());
+	else{ //explicit
+	  //update solution
+	  vector<colMatrix> dummyCorrection(1); //not used in explicit update
+	  stateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, dummyCorrection, residL2, residLinf, locMaxB);
 	}
 
 	//zero residuals and wave speed
 	stateBlocks[bb].ResetResidWS();
 
-      } //loop for blocks
-
-      //after update for all blocks has been calculated and stored, update all blocks
-      //blocks cannot be updated within block loop because ghost cells for connection boundaries are determined from adjacent blocks
-      //this would result in the ghost cell being at time n+1 when it should be at time n
-      // for ( int dd = 0; dd < (int)mesh.size(); dd++ ){             //loop over number of blocks
-
-      // } //loop for blocks
-
+      } //loop for blocks --------------------------------------------------------------------------------------------------
 
       //finish calculation of L2 norm of residual
       for ( int cc = 0; cc < residL2.Size(); cc++ ){
@@ -232,7 +215,7 @@ int main( int argc, char *argv[] ) {
       locMaxB = 0;
       matrixResid = 0.0;
 
-    } //loop for nonlinear iterations
+    } //loop for nonlinear iterations --------------------------------------------------------------------------------------
 
     if ( (nn+1)  % inputVars.OutputFrequency() == 0 ){ //write out function file
       cout << "writing out function file at iteration " << nn << endl;
@@ -242,7 +225,7 @@ int main( int argc, char *argv[] ) {
     }
 
 
-  } //loop for time
+  } //loop for time ---------------------------------------------------------------------------------------------------------
 
 
   cout << endl;

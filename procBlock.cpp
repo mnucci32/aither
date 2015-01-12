@@ -1098,7 +1098,7 @@ For viscous simulations, the viscous contribution to the spectral radius K is us
 double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix> &x, const vector<colMatrix> &solTimeMmN, 
 			 const vector<colMatrix> &solDeltaNm1, const idealGas &eqnState, const input &inp, const sutherland &suth)const{
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
-  // x -- solution at time n
+  // x -- correction - added to solution at time n to get to time n+1 (assumed to be zero to start)
   // solTimeMmn -- solution at time m minus n
   // solDeltaNm1 -- solution at time n minus solution at time n-1 
   // eqnState -- equation of state
@@ -1114,10 +1114,10 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
 
-  //initialize correction (x) to 0
-  for (unsigned int ll = 0; ll < x.size(); ll++ ){
-    x[ll].Zero();
-  }
+  //initialize correction (x) to 0 -- assumed to be 0 already
+  // for (unsigned int ll = 0; ll < x.size(); ll++ ){
+  //   x[ll].Zero();
+  // }
 
   //initialize inverse to diagonal block. For LUSGS block inversion is replaced by scalar division
   double AiiInv = 0.0; 
