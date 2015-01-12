@@ -23,7 +23,7 @@ vector3d - A templated class to store vectors in 3D space.
 viscFlux - A class to store the viscous flux vector for a cell. Contains functions to calculate the flux.
 
 HOW TO COMPILE
-Assuming you have g++ c++0x support, just type 'make'.
+Assuming you have g++ (or equivalent) with c++0x support, just type 'make'.
 
 HOW TO RUN
 main inputFile.inp >outputFile.out 2>errorFile.err
