@@ -6,7 +6,8 @@
 #include "vector3d.h" //vector3d
 #include "tensor.h" //tensor
 #include "plot3d.h" //plot3d
-#include "eos.h"
+#include "geomSlice.h" //geomSlice
+#include "eos.h" //idealGas
 #include "primVars.h" //primVars
 #include "inviscidFlux.h" //inviscidFlux
 #include "viscousFlux.h" //viscousFlux
@@ -162,6 +163,8 @@ class procBlock {
 
   bool AtCorner(const int&, const int&, const int&)const;
   bool AtEdge(const int&, const int&, const int&)const;
+
+  geomSlice GetGeomSlice(const int&, const int&, const int&, const int&, const int&, const int&)const;
 
   //destructor
   ~procBlock() {}

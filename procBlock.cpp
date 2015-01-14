@@ -7674,3 +7674,90 @@ void SwapGhostStates( const interblock &inter, procBlock &blk1, procBlock &blk2 
   }
 
 }
+
+/* Member function to get a slice (portion) of the geometry of a procBlock
+*/
+geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, const int &je, const int &ks, const int &ke ) const {
+  // is -- starting i-cell index for slice
+  // ie -- ending i-cell index for slice
+  // js -- starting j-cell index for slice
+  // je -- ending j-cell index for slice
+  // ks -- starting k-cell index for slice
+  // ke -- ending k-cell index for slice
+
+  int sizeI = is - ie + 1;
+  int sizeJ = js - je + 1;
+  int sizeK = ks - ke + 1;
+
+  geomSlice slice(sizeI, sizeJ, sizeK, (*this).ParentBlock(), is, ie+1, js, je+1, ks, ke+1 );
+
+  int imaxPar = (*this).NumI() + 2.0 * (*this).NumGhosts();
+  int jmaxPar = (*this).NumJ() + 2.0 * (*this).NumGhosts();
+
+  //loop over all cells in slice and populate
+  for ( int kk = 0; kk < sizeK; kk++ ){
+    for ( int jj = 0; jj < sizeJ; jj++ ){
+      for ( int ii = 0; ii < sizeI; ii++ ){
+
+	//cell locations
+	int locPar = GetLoc1D(is+ii, js+jj, ks+kk, imaxPar, jmaxPar);
+	int loc = GetLoc1D(is, js, ks, sizeI, sizeJ);
+
+	//lower i-face locations
+	int lowIPar = GetLowerFaceI(is+ii, js+jj, ks+kk, imaxPar, jmaxPar);
+	int lowI = GetLowerFaceI(is, js, ks, sizeI, sizeJ);
+
+	//lower j-face locations
+	int lowJPar = GetLowerFaceJ(is+ii, js+jj, ks+kk, imaxPar, jmaxPar);
+	int lowJ = GetLowerFaceJ(is, js, ks, sizeI, sizeJ);
+
+	//lower k-face locations
+	int lowKPar = GetLowerFaceK(is+ii, js+jj, ks+kk, imaxPar, jmaxPar);
+	int lowK = GetLowerFaceK(is, js, ks, sizeI, sizeJ);
+
+	//assign cell variables
+	slice.SetVol( (*this).Vol(locPar), loc );
+	slice.SetCenter( (*this).Center(locPar), loc );
+
+	//assign i-face variables
+	slice.SetFAreaI( (*this).FAreaI(lowIPar), lowI );
+	slice.SetFCenterI( (*this).FCenterI(lowIPar), lowI );
+
+	if ( ii == sizeI - 1 ){ //at end of i-line assign upper face values too
+	  int upIPar = GetUpperFaceI(is+ii, js+jj, ks+kk, imaxPar, jmaxPar);
+	  int upI = GetUpperFaceI(is, js, ks, sizeI, sizeJ);
+
+	  slice.SetFAreaI( (*this).FAreaI(upIPar), upI );
+	  slice.SetFCenterI( (*this).FCenterI(locPar), upI );
+	}
+
+	//assign j-face variables
+	slice.SetFAreaJ( (*this).FAreaJ(lowJPar), lowJ );
+	slice.SetFCenterJ( (*this).FCenterJ(lowJPar), lowJ );
+
+	if ( jj == sizeJ - 1 ){ //at end of j-line assign upper face values too
+	  int upJPar = GetUpperFaceJ(is+ii, js+jj, ks+kk, imaxPar, jmaxPar);
+	  int upJ = GetUpperFaceJ(is, js, ks, sizeI, sizeJ);
+
+	  slice.SetFAreaJ( (*this).FAreaJ(upJPar), upJ );
+	  slice.SetFCenterJ( (*this).FCenterJ(locPar), upJ );
+	}
+
+	//assign k-face variables
+	slice.SetFAreaK( (*this).FAreaK(lowKPar), lowK );
+	slice.SetFCenterK( (*this).FCenterK(lowKPar), lowK );
+
+	if ( kk == sizeK - 1 ){ //at end of k-line assign upper face values too
+	  int upKPar = GetUpperFaceK(is+ii, js+jj, ks+kk, imaxPar, jmaxPar);
+	  int upK = GetUpperFaceK(is, js, ks, sizeI, sizeJ);
+
+	  slice.SetFAreaK( (*this).FAreaK(upKPar), upK );
+	  slice.SetFCenterK( (*this).FCenterK(locPar), upK );
+	}
+
+      }
+    }
+  }
+
+  return slice;
+}

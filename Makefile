@@ -1,4 +1,4 @@
-OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o inviscidFlux.o procBlock.o viscousFlux.o output.o matrix.o
+OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o inviscidFlux.o procBlock.o viscousFlux.o output.o matrix.o geomSlice.o
 CC = g++
 DEBUG = -ggdb -pg 
 OPTIM = -O3 -march=native
@@ -21,7 +21,7 @@ input.o : input.cpp input.h boundaryConditions.h
 primVars.o : primVars.cpp primVars.h vector3d.h eos.h inviscidFlux.h boundaryConditions.h input.h
 	$(CC) $(CFLAGS) primVars.cpp
 
-procBlock.o : procBlock.cpp procBlock.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h matrix.h viscousFlux.h boundaryConditions.h
+procBlock.o : procBlock.cpp procBlock.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h matrix.h viscousFlux.h boundaryConditions.h geomSlice.h
 	$(CC) $(CFLAGS) procBlock.cpp
 
 inviscidFlux.o : inviscidFlux.cpp vector3d.h eos.h primVars.h inviscidFlux.h input.h
@@ -41,6 +41,9 @@ output.o : output.cpp output.h procBlock.h tensor.h vector3d.h plot3d.h eos.h pr
 
 matrix.o : matrix.cpp matrix.h plot3d.h
 	$(CC) $(CFLAGS) matrix.cpp
+
+geomSlice.o : geomSlice.cpp geomSlice.h vector3d.h 
+	$(CC) $(CFLAGS) geomSlice.cpp
 
 testMain.o : testMain.cpp
 	$(CC) $(CFLAGS) testMain.cpp
