@@ -165,6 +165,7 @@ class procBlock {
   bool AtEdge(const int&, const int&, const int&)const;
 
   geomSlice GetGeomSlice(const int&, const int&, const int&, const int&, const int&, const int&)const;
+  void PutGeomSlice(const geomSlice&, const patch&, const patch&, const int&);
 
   //destructor
   ~procBlock() {}
@@ -190,6 +191,7 @@ vector3d<double> CalcTempGradGG(const double&, const double&, const double&, con
 
 
 vector<int> GetPatchGhostLoc( const int&, const interblock&, const bool&, const int&, const int&, const int& );
+vector<int> GetSwapLoc( const int&, const int&, const int&, const interblock&, const bool&, const int& );
 void SwapGhostGeom(const interblock&, procBlock&, procBlock&);
 void SwapGhostStates(const interblock&, procBlock&, procBlock&);
 
