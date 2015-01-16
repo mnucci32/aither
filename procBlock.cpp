@@ -8063,6 +8063,44 @@ geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, c
   return slice;
 }
 
+/* Member function to get a slice (portion) of the states of a procBlock
+*/
+stateSlice procBlock::GetStateSlice(const int &is, const int &ie, const int &js, const int &je, const int &ks, const int &ke ) const {
+  // is -- starting i-cell index for slice
+  // ie -- ending i-cell index for slice
+  // js -- starting j-cell index for slice
+  // je -- ending j-cell index for slice
+  // ks -- starting k-cell index for slice
+  // ke -- ending k-cell index for slice
+
+  int sizeI = is - ie + 1;
+  int sizeJ = js - je + 1;
+  int sizeK = ks - ke + 1;
+
+  stateSlice states(sizeI, sizeJ, sizeK, (*this).ParentBlock(), is, ie+1, js, je+1, ks, ke+1 );
+
+  int imaxPar = (*this).NumI() + 2.0 * (*this).NumGhosts();
+  int jmaxPar = (*this).NumJ() + 2.0 * (*this).NumGhosts();
+
+  //loop over all cells in slice and populate
+  for ( int kk = 0; kk < sizeK; kk++ ){
+    for ( int jj = 0; jj < sizeJ; jj++ ){
+      for ( int ii = 0; ii < sizeI; ii++ ){
+
+	//cell locations
+	int locPar = GetLoc1D(is+ii, js+jj, ks+kk, imaxPar, jmaxPar);
+	int loc = GetLoc1D(is, js, ks, sizeI, sizeJ);
+
+	//assign cell variables
+	states.SetState( (*this).State(locPar), loc);
+
+      }
+    }
+  }
+
+  return states;
+}
+
 /* Member function to overwrite a section of a procBlocks geometry with a geomSlice
 */
 void procBlock::PutGeomSlice( const geomSlice &slice, const patch &blkPatch, const patch &slcPatch, const int &d3){
@@ -8515,6 +8553,54 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const patch &blkPatch, con
 	       << inter.BoundaryFirst() << ", " << inter.BoundarySecond() << " is not defined." << endl;
 	  exit(0);
 	}
+
+      }
+    }
+  }
+
+}
+
+/* Member function to overwrite a section of a procBlocks geometry with a geomSlice
+*/
+void procBlock::PutStateSlice( const stateSlice &slice, const patch &blkPatch, const patch &slcPatch, const int &d3){
+  // slice -- geomSlice to insert int procBlock
+  // blkPatch -- patch on procBlock to insert to
+  // slcPatch -- patch on geomSlice to insert to
+  // d3 -- distance of direction normal to patch to insert
+
+  //check that number of cells to insert matches
+  int blkCell = (blkPatch.Dir1Start() - blkPatch.Dir1End()) * (blkPatch.Dir2Start() - blkPatch.Dir2End()) * d3;
+  int blkSlice = slice.NumI() * slice.NumJ() * slice.NumK();
+  if ( blkCell != blkSlice ){
+    cerr << "ERROR: Error in procBlock::PutStateSlice(). Number of cells being inserted does not match designated space to insert to." << endl;
+    exit(0);
+  }
+
+  //get orientation
+  interblock inter;
+  inter.SetInterblock(blkPatch, slcPatch);
+
+  int imaxB = (*this).NumI() + 2.0 * (*this).NumGhosts();
+  int jmaxB = (*this).NumJ() + 2.0 * (*this).NumGhosts();
+
+  int imaxS = slice.NumI();
+  int jmaxS = slice.NumJ();
+
+  //loop over cells to insert
+  for ( int l3 = 0; l3 < d3; l3++ ){
+    for ( int l2 = 0; l2 < (blkPatch.Dir2Start() - blkPatch.Dir2End()); l2++ ){
+      for ( int l1 = 0; l1 < (blkPatch.Dir1Start() - blkPatch.Dir1End()); l1++ ){
+
+	vector<int> indB = GetSwapLoc(l1, l2, l3, inter, true, (*this).NumGhosts());
+	vector<int> indS = GetSwapLoc(l1, l2, l3, inter, false, (*this).NumGhosts());
+
+	//get cell locations
+	int locB = GetLoc1D(indB[0], indB[1], indB[2], imaxB, jmaxB);
+	int locS = GetLoc1D(indS[0], indS[1], indS[2], imaxS, jmaxS);
+
+	//swap cell data
+	(*this).SetState( slice.State(locS), locB);
+
 
       }
     }

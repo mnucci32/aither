@@ -167,6 +167,9 @@ class procBlock {
   geomSlice GetGeomSlice(const int&, const int&, const int&, const int&, const int&, const int&)const;
   void PutGeomSlice(const geomSlice&, const patch&, const patch&, const int&);
 
+  stateSlice GetStateSlice(const int&, const int&, const int&, const int&, const int&, const int&)const;
+  void PutStateSlice(const stateSlice&, const patch&, const patch&, const int&);
+
   //destructor
   ~procBlock() {}
 
