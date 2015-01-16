@@ -95,3 +95,56 @@ geomSlice::geomSlice( const int &li, const int &lj, const int &lk, const int &pb
 
 }
 
+//constructors for stateSlice class
+stateSlice::stateSlice(){
+  numCells = 1;
+  numI = 1;
+  numJ = 1;
+  numK = 1;
+  parBlock = 0;
+  parBlockStartI = 0;
+  parBlockEndI = 0;
+  parBlockStartJ = 0;
+  parBlockEndJ = 0;
+  parBlockStartK = 0;
+  parBlockEndK = 0;
+
+  vector<primVars> prims(numCells);                          //dummy primVars variable length of number of cells
+
+  state = prims;
+
+}
+//constructor -- initialize state vector with dummy variables
+stateSlice::stateSlice( const int &li, const int &lj, const int &lk, const int &pblk, const int &pStartI, const int &pEndI, 
+		      const int &pStartJ, const int &pEndJ, const int &pStartK, const int &pEndK ){
+  // li -- size of direction i
+  // lj -- size of direction j
+  // lk -- size of direction k
+  // pblk -- parent block that slice is coming from
+  // pStartI -- starting i-index from parent block (face)
+  // pEndI -- ending i-index from parent block (face)
+  // pStartJ -- starting j-index from parent block (face)
+  // pEndJ -- ending j-index from parent block (face)
+  // pStartK -- starting k-index from parent block (face)
+  // pEndK -- ending k-index from parent block (face)
+
+  numI = li;
+  numJ = lj;
+  numK = lk;
+
+  numCells = li * lj * lk;
+
+  parBlock = pblk;
+  parBlockStartI = pStartI;
+  parBlockEndI = pEndI;
+  parBlockStartJ = pStartJ;
+  parBlockEndJ = pEndJ;
+  parBlockStartK = pStartK;
+  parBlockEndK = pEndK;
+
+  vector<primVars> prims(numCells);                                //dummy primVars variable length of number of cells
+
+  state = prims;
+
+}
+

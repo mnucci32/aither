@@ -4,6 +4,7 @@
 #include <vector>  //vector
 #include <string>  //string
 #include "vector3d.h" //vector3d
+#include "primVars.h" //primVars
 #include <fstream>
 #include <iostream>
 
@@ -92,6 +93,62 @@ class geomSlice {
   ~geomSlice() {}
 
 };
+
+class stateSlice {
+
+  vector<primVars> state ;                     //cell volume
+
+  int numCells;                            //number of cells in block
+  int numI;                                //i-dimension of block (cells)
+  int numJ;                                //j-dimension of block (cells)
+  int numK;                                //k-dimension of block (cells)
+  int parBlock;                            //parent block number
+  int parBlockStartI;                      //parent block starting index for i
+  int parBlockEndI;                        //parent block ending index for i
+  int parBlockStartJ;                      //parent block starting index for j
+  int parBlockEndJ;                        //parent block ending index for j
+  int parBlockStartK;                      //parent block starting index for k
+  int parBlockEndK;                        //parent block ending index for k
+
+ public:
+  //constructors
+  stateSlice();
+  stateSlice( const int&, const int&, const int&, const int&, const int&, const int&, const int&, const int&,
+	     const int&, const int& );
+
+  //member functions
+  void SetNumCells( const int &a){numCells = a;}
+  int NumCells() const {return numCells;}
+  void SetI( const int &a){numI = a;}
+  int NumI() const {return numI;}
+  void SetJ( const int &a){numJ = a;}
+  int NumJ() const {return numJ;}
+  void SetK( const int &a){numK = a;}
+  int NumK() const {return numK;}
+
+  void SetParentBlock( const int &a){parBlock = a;}
+  int ParentBlock() const {return parBlock;}
+  void SetParentBlockStartI( const int &a){parBlockStartI = a;}
+  int ParentBlockStartI() const {return parBlockStartI;}
+  void SetParentBlockEndI( const int &a){parBlockEndI = a;}
+  int ParentBlockEndI() const {return parBlockEndI;}
+  void SetParentBlockStartJ( const int &a){parBlockStartJ = a;}
+  int ParentBlockStartJ() const {return parBlockStartJ;}
+  void SetParentBlockEndJ( const int &a){parBlockEndJ = a;}
+  int ParentBlockEndJ() const {return parBlockEndJ;}
+  void SetParentBlockStartK( const int &a){parBlockStartK = a;}
+  int ParentBlockStartK() const {return parBlockStartK;}
+  void SetParentBlockEndK( const int &a){parBlockEndK = a;}
+  int ParentBlockEndK() const {return parBlockEndK;}
+
+  void SetState( const primVars &a, const int &ind){state[ind] = a;}
+  primVars State(const int &ind) const {return state[ind];}
+
+  //destructor
+  ~stateSlice() {}
+
+};
+
 
 //function definitions
 
