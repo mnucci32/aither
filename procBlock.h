@@ -42,6 +42,8 @@ class procBlock {
   vector<double> avgWaveSpeed;             //maximum wave speed normal to i-faces
   vector<double> dt;                        //cell time step
 
+  boundaryConditions bc;                   //boundary conditions for block
+
   int numCells;                            //number of cells in block
   int numVars;                             //number of variables stored at cell
   int numI;                                //i-dimension of block (cells)
@@ -60,8 +62,8 @@ class procBlock {
   //constructors
   procBlock();
   procBlock( const plot3dBlock& , const int&, const int&, const string& );
-  procBlock( const double, const double, const vector3d<double>, const plot3dBlock&, const int&, const int&, const string& );
-  procBlock( const primVars&, const plot3dBlock&, const int &, const int&, const string& );
+  procBlock( const double, const double, const vector3d<double>, const plot3dBlock&, const int&, const int&, const string&, const boundaryConditions& );
+  procBlock( const primVars&, const plot3dBlock&, const int &, const int&, const string&, const boundaryConditions& );
 
   //member functions
   void SetNumCells( const int &a){numCells = a;}
@@ -88,6 +90,9 @@ class procBlock {
   int ParentBlockStartK() const {return parBlockStartK;}
   void SetParentBlockEndK( const int &a){parBlockEndK = a;}
   int ParentBlockEndK() const {return parBlockEndK;}
+
+  void SetBCs( const boundaryConditions &a ){bc = a;}
+  boundaryConditions BC() const {return bc;}
 
   void SetState( const primVars &a, const int &ind){state[ind] = a;}
   primVars State(const int &ind) const {return state[ind];}

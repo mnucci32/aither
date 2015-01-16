@@ -76,7 +76,7 @@ int main( int argc, char *argv[] ) {
   //initialize the whole mesh with one state and assign ghost cells geometry ------------------
   vector<procBlock> stateBlocks( mesh.size() );
   for ( int ll = 0; ll < (int)mesh.size(); ll++) {
-    stateBlocks[ll] = procBlock(state, mesh[ll], ll, numGhost, inputVars.EquationSet());
+    stateBlocks[ll] = procBlock(state, mesh[ll], ll, numGhost, inputVars.EquationSet(), inputVars.BC(ll));
     stateBlocks[ll].AssignGhostCellsGeom(inputVars);
     stateBlocks[ll].AssignGhostCellsGeomEdge();
   }

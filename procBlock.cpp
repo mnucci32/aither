@@ -113,7 +113,8 @@ procBlock::procBlock(const plot3dBlock &blk, const int& numBlk, const int &numG,
 }
 
 //constructor -- assign passed variables to initialize state vector
-procBlock::procBlock( const double density, const double pressure, const vector3d<double> vel, const plot3dBlock &blk, const int &numBlk, const int &numG, const string &eqnSet){
+procBlock::procBlock( const double density, const double pressure, const vector3d<double> vel, const plot3dBlock &blk, const int &numBlk, const int &numG, const string &eqnSet,
+		      const boundaryConditions &bound){
   // density -- density to initialize block with
   // pressure -- pressure to initialize block with
   // vel -- velocity to initialize block with
@@ -121,6 +122,7 @@ procBlock::procBlock( const double density, const double pressure, const vector3
   // numBlk -- the block number of blk (the parent block)
   // numG -- number of ghost cells
   // eqnSet -- which equation set is being solved
+  // bound -- boundary conditions for block
 
   numI = blk.NumI()-1;
   numJ = blk.NumJ()-1;
@@ -135,6 +137,8 @@ procBlock::procBlock( const double density, const double pressure, const vector3
   parBlockEndJ = numJ;
   parBlockStartK = 0;
   parBlockEndK = numK;
+
+  bc = bound;
 
   if (eqnSet == "euler" || eqnSet == "navierStokes"){
     numVars = 5;
@@ -169,12 +173,13 @@ procBlock::procBlock( const double density, const double pressure, const vector3
 }
 
 //constructor -- assign passed state to initialize state vector
-procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const int &numBlk, const int &numG, const string &eqnSet){
+procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const int &numBlk, const int &numG, const string &eqnSet, const boundaryConditions& bound){
   // inputState -- state to initialize block with (primative)
   // blk -- plot3d block of which this procBlock is a subset of
   // numBlk -- the block number of blk (the parent block)
   // numG -- number of ghost cells
   // eqnSet -- which equation set is being solved
+  // bound -- boundary conditions for block
 
   numI = blk.NumI()-1;
   numJ = blk.NumJ()-1;
@@ -182,6 +187,7 @@ procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const 
   numCells = numI * numJ * numK;
   numGhosts = numG;
   parBlock = numBlk;
+
   //parent block start/end are face/node based (subtract 1 from blk.Num b/c start at 0)
   parBlockStartI = 0;
   parBlockEndI = numI;
@@ -189,6 +195,8 @@ procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const 
   parBlockEndJ = numJ;
   parBlockStartK = 0;
   parBlockEndK = numK;
+
+  bc = bound;
 
   if (eqnSet == "euler" || eqnSet == "navierStokes"){
     numVars = 5;
