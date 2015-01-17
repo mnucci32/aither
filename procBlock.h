@@ -170,10 +170,10 @@ class procBlock {
   bool AtEdge(const int&, const int&, const int&)const;
 
   geomSlice GetGeomSlice(const int&, const int&, const int&, const int&, const int&, const int&)const;
-  void PutGeomSlice(const geomSlice&, const patch&, const patch&, const int&);
+  void PutGeomSlice(const geomSlice&, const interblock&, const int&);
 
   stateSlice GetStateSlice(const int&, const int&, const int&, const int&, const int&, const int&)const;
-  void PutStateSlice(const stateSlice&, const patch&, const patch&, const int&);
+  void PutStateSlice(const stateSlice&, const interblock&, const int&);
 
   //destructor
   ~procBlock() {}
