@@ -176,6 +176,39 @@ void interblock::SetInterblock(const patch &p1, const patch &p2){
   orientation = 0; //default value (real values 1-6)
 }
 
+//function to swap the order of an interblock so the 2nd entry in the pair will be the first, and vice versa
+void interblock::SwapOrder(){
+
+  int temp = (*this).BlockFirst();
+  (*this).SetBlockFirst( (*this).BlockSecond() );
+  (*this).SetBlockSecond(temp);
+
+  temp = (*this).BoundaryFirst();
+  (*this).SetBoundaryFirst( (*this).BoundarySecond() );
+  (*this).SetBoundarySecond(temp);
+
+  temp = (*this).Dir1StartFirst();
+  (*this).SetDir1StartFirst( (*this).Dir1StartSecond() );
+  (*this).SetDir1StartSecond(temp);
+
+  temp = (*this).Dir1EndFirst();
+  (*this).SetDir1EndFirst( (*this).Dir1EndSecond() );
+  (*this).SetDir1EndSecond(temp);
+
+  temp = (*this).Dir2StartFirst();
+  (*this).SetDir2StartFirst( (*this).Dir2StartSecond() );
+  (*this).SetDir2StartSecond(temp);
+
+  temp = (*this).Dir2EndFirst();
+  (*this).SetDir2EndFirst( (*this).Dir2EndSecond() );
+  (*this).SetDir2EndSecond(temp);
+
+  temp = (*this).ConstSurfaceFirst();
+  (*this).SetConstSurfaceFirst( (*this).ConstSurfaceSecond() );
+  (*this).SetConstSurfaceSecond(temp);
+
+}
+
 /* Function to go through the boundary conditions and pair the interblock BCs together and determine their orientation.
 */
 vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const vector<plot3dBlock> &grid ){

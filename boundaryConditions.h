@@ -199,6 +199,8 @@ class interblock {
   void SetOrientation( const int &a){orientation = a;}
   int Orientation()const{return orientation;}
 
+  void SwapOrder();
+
   friend ostream & operator<< (ostream &os, const interblock&);
 
   //destructor
