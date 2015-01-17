@@ -158,7 +158,7 @@ class procBlock {
   void CalcViscFluxK(const sutherland&, const idealGas&, const input&);
 
   void AssignGhostCellsGeom(const input&);
-  void AssignGhostCellsGeomEdge();
+  void AssignGhostCellsGeomEdge(const input&);
 
   void AssignInviscidGhostCells(const input&, const idealGas&);
   void AssignInviscidGhostCellsEdge(const input&, const idealGas&);
@@ -198,7 +198,6 @@ vector3d<double> CalcTempGradGG(const double&, const double&, const double&, con
 				const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const double&);
 
 
-vector<int> GetPatchGhostLoc( const int&, const interblock&, const bool&, const int&, const int&, const int& );
 vector<int> GetSwapLoc( const int&, const int&, const int&, const interblock&, const bool&, const int& );
 void SwapGhostGeom(const interblock&, procBlock&, procBlock&);
 void SwapGhostStates(const interblock&, procBlock&, procBlock&);

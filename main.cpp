@@ -78,7 +78,7 @@ int main( int argc, char *argv[] ) {
   for ( int ll = 0; ll < (int)mesh.size(); ll++) {
     stateBlocks[ll] = procBlock(state, mesh[ll], ll, numGhost, inputVars.EquationSet(), inputVars.BC(ll));
     stateBlocks[ll].AssignGhostCellsGeom(inputVars);
-    stateBlocks[ll].AssignGhostCellsGeomEdge();
+    stateBlocks[ll].AssignGhostCellsGeomEdge(inputVars);
   }
   //swap geometry for interblock BCs
   for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
@@ -86,7 +86,7 @@ int main( int argc, char *argv[] ) {
   }
   //Get ghost cell edge data
   for ( int ll = 0; ll < (int)mesh.size(); ll++) {
-    stateBlocks[ll].AssignGhostCellsGeomEdge();
+    stateBlocks[ll].AssignGhostCellsGeomEdge(inputVars);
   }
  
   cout << endl << "Solution Initialized" << endl;

@@ -2254,428 +2254,420 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++ ){
     for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++ ){
 
-      //location of first ghost cell at lower i-boundary
-      int cellLowG1 = GetLoc1D(1, jj, kk, imaxG, jmaxG);
-      //location of lower i, j, k faces of first ghost cell at lower i-boundary
-      int lFaceG1_il = GetLowerFaceI(1, jj, kk, imaxG, jmaxG); 
-      int lFaceG1_jl = GetLowerFaceJ(1, jj, kk, imaxG, jmaxG); 
-      int lFaceG1_kl = GetLowerFaceK(1, jj, kk, imaxG, jmaxG); 
-
-      //location of second ghost cell at lower i-boundary
-      int cellLowG2 = GetLoc1D(0, jj, kk, imaxG, jmaxG);
-      //location of lower i, j, k faces of first ghost cell at lower i-boundary
-      int lFaceG2_il = GetLowerFaceI(0, jj, kk, imaxG, jmaxG);
-      int lFaceG2_jl = GetLowerFaceJ(0, jj, kk, imaxG, jmaxG);
-      int lFaceG2_kl = GetLowerFaceK(0, jj, kk, imaxG, jmaxG);
-
-      //location of first interior cell at lower i-boundary
-      int cellLowIn1 = GetLoc1D((*this).NumGhosts(), jj, kk, imaxG, jmaxG);
-      //location of upper i and lower j, k faces of first interior cell at lower i-boundary
-      int lFaceIn1_iu = GetUpperFaceI((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-      int lFaceIn1_jl = GetLowerFaceJ((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-      int lFaceIn1_kl = GetLowerFaceK((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-
-      //location of second interior cell at lower i-boundary
-      int cellLowIn2 = GetLoc1D((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
-      //location of upper i and lower j, k faces of second interior cell at lower i-boundary
-      int lFaceIn2_iu = GetUpperFaceI((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
-      int lFaceIn2_jl = GetLowerFaceJ((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
-      int lFaceIn2_kl = GetLowerFaceK((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
-
-      //location of lower i-boundary face
-      int lFaceB = GetLowerFaceI((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-
-      //location of first ghost cell at upper i-boundary
-      int cellUpG1 = GetLoc1D(imaxG-2, jj, kk, imaxG, jmaxG);
-      //location of upper i and lower j, k faces of first ghost cell at upper i-boundary
-      int uFaceG1_iu = GetUpperFaceI(imaxG-2, jj, kk, imaxG, jmaxG); 
-      int uFaceG1_jl = GetLowerFaceJ(imaxG-2, jj, kk, imaxG, jmaxG); 
-      int uFaceG1_kl = GetLowerFaceK(imaxG-2, jj, kk, imaxG, jmaxG); 
-
-      //location of second ghost cell at upper i-boundary
-      int cellUpG2 = GetLoc1D(imaxG-1, jj, kk, imaxG, jmaxG);
-      //location of upper i and lower j, k faces of second ghost cell at upper i-boundary
-      int uFaceG2_iu = GetUpperFaceI(imaxG-1, jj, kk, imaxG, jmaxG);
-      int uFaceG2_jl = GetLowerFaceJ(imaxG-1, jj, kk, imaxG, jmaxG);
-      int uFaceG2_kl = GetLowerFaceK(imaxG-1, jj, kk, imaxG, jmaxG);
-
-      //location of first interior cell at upper i-boundary
-      int cellUpIn1 = GetLoc1D(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
-      //location of lower i, j, k faces of first interior cell at upper i-boundary
-      int uFaceIn1_il = GetLowerFaceI(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-      int uFaceIn1_jl = GetLowerFaceJ(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-      int uFaceIn1_kl = GetLowerFaceK(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-
-      //location of second interior cell at upper i-boundary
-      int cellUpIn2 = GetLoc1D(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
-      //location of lower i, j, k faces of second interior cell at upper i-boundary
-      int uFaceIn2_il = GetLowerFaceI(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
-      int uFaceIn2_jl = GetLowerFaceJ(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
-      int uFaceIn2_kl = GetLowerFaceK(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
-
-      //location of upper i-boundary face
-      int uFaceB = GetUpperFaceI(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-
       //name of boundary conditions at lower and upper boundaries
       string bcNameL = bound.GetBCName(0, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "il");
       string bcNameU = bound.GetBCName(imax, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "iu");
 
-      //Assign volume ------------------------------------------------------------------------------------------
-      //mirror volume values from adjacent cells across i-boundary
-      //first layer of ghost cells
-      (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
-      (*this).SetVol( (*this).Vol(cellUpIn1), cellUpG1);
-
-      //second layer of ghost cells
-      if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	(*this).SetVol( (*this).Vol(cellLowIn1), cellLowG2);
-	(*this).SetVol( (*this).Vol(cellUpIn1), cellUpG2);
-      }
-      else{
-	(*this).SetVol( (*this).Vol(cellLowIn2), cellLowG2);
-	(*this).SetVol( (*this).Vol(cellUpIn2), cellUpG2);
+      if ( bcNameL == "interblock" && bcNameU == "interblock" && imax < 2 ){
+	cerr << "ERROR: Error in procBlock::AssignGhostCellsGeom(). Cannot have interblock BCs surrounding a block that is 1 cell thick!" << endl;
+	exit(0);
       }
 
-      //Assign face areas ----------------------------------------------------------------------------------------
-      //mirror face area values from adjacent cells across i-boundary
-      //first layer of ghost cells
-      (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG1_il);
-      (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_jl), lFaceG1_jl);
-      (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_kl), lFaceG1_kl);
+      //lower surface ----------------------------------------------------------
+      if ( bcNameL != "interblock" ) { //only supply geometry values for non interblock BCs, for interblock, do nothing
 
-      (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_il), uFaceG1_iu);
-      (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_jl), uFaceG1_jl);
-      (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_kl), uFaceG1_kl);
+	//location of first ghost cell at lower i-boundary
+	int cellLowG1 = GetLoc1D(1, jj, kk, imaxG, jmaxG);
+	//location of lower i, j, k faces of first ghost cell at lower i-boundary
+	int lFaceG1_il = GetLowerFaceI(1, jj, kk, imaxG, jmaxG); 
+	int lFaceG1_jl = GetLowerFaceJ(1, jj, kk, imaxG, jmaxG); 
+	int lFaceG1_kl = GetLowerFaceK(1, jj, kk, imaxG, jmaxG); 
 
-      //second layer of ghost cells
-      if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	(*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG2_il);
-	(*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_jl), lFaceG2_jl);
-	(*this).SetFAreaK( (*this).FAreaK(lFaceIn1_kl), lFaceG2_kl);
+	//location of second ghost cell at lower i-boundary
+	int cellLowG2 = GetLoc1D(0, jj, kk, imaxG, jmaxG);
+	//location of lower i, j, k faces of first ghost cell at lower i-boundary
+	int lFaceG2_il = GetLowerFaceI(0, jj, kk, imaxG, jmaxG);
+	int lFaceG2_jl = GetLowerFaceJ(0, jj, kk, imaxG, jmaxG);
+	int lFaceG2_kl = GetLowerFaceK(0, jj, kk, imaxG, jmaxG);
 
-	(*this).SetFAreaI( (*this).FAreaI(uFaceIn1_il), uFaceG2_iu);
-	(*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_jl), uFaceG2_jl);
-	(*this).SetFAreaK( (*this).FAreaK(uFaceIn1_kl), uFaceG2_kl);
-      }
-      else{
-	(*this).SetFAreaI( (*this).FAreaI(lFaceIn2_iu), lFaceG2_il);
-	(*this).SetFAreaJ( (*this).FAreaJ(lFaceIn2_jl), lFaceG2_jl);
-	(*this).SetFAreaK( (*this).FAreaK(lFaceIn2_kl), lFaceG2_kl);
+	//location of first interior cell at lower i-boundary
+	int cellLowIn1 = GetLoc1D((*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+	//location of upper i and lower j, k faces of first interior cell at lower i-boundary
+	int lFaceIn1_iu = GetUpperFaceI((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+	int lFaceIn1_jl = GetLowerFaceJ((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+	int lFaceIn1_kl = GetLowerFaceK((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
 
-	(*this).SetFAreaI( (*this).FAreaI(uFaceIn2_il), uFaceG2_iu);
-	(*this).SetFAreaJ( (*this).FAreaJ(uFaceIn2_jl), uFaceG2_jl);
-	(*this).SetFAreaK( (*this).FAreaK(uFaceIn2_kl), uFaceG2_kl);
-      }
+	//location of second interior cell at lower i-boundary
+	int cellLowIn2 = GetLoc1D((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
+	//location of upper i and lower j, k faces of second interior cell at lower i-boundary
+	int lFaceIn2_iu = GetUpperFaceI((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
+	int lFaceIn2_jl = GetLowerFaceJ((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
+	int lFaceIn2_kl = GetLowerFaceK((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
 
-      if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper j-face areas too
+	//location of lower i-boundary face
+	int lFaceB = GetLowerFaceI((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
 
-	//location of upper j-face for ghost cells at lower i-boundary
-	int lFaceG1_ju = GetUpperFaceJ(1, jj, kk, imaxG, jmaxG); 
-	int lFaceG2_ju = GetUpperFaceJ(0, jj, kk, imaxG, jmaxG);
-
-	//location of upper j-face for interior cells at lower i-boundary
-	int lFaceIn1_ju = GetUpperFaceJ((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-	int lFaceIn2_ju = GetUpperFaceJ((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
-
-	//location of upper j-face for ghost cells at upper i-boundary
-	int uFaceG1_ju = GetUpperFaceJ(imaxG-2, jj, kk, imaxG, jmaxG); 
-	int uFaceG2_ju = GetUpperFaceJ(imaxG-1, jj, kk, imaxG, jmaxG);
-
-	//location of upper j-face for interior cells at upper i-boundary
-	int uFaceIn1_ju = GetUpperFaceJ(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-	int uFaceIn2_ju = GetUpperFaceJ(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
-
-	//mirror face area values from adjacent cells
+	//Assign volume ------------------------------------------------------------------------------------------
+	//mirror volume values from adjacent cells across i-boundary
 	//first layer of ghost cells
-	(*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG1_ju);
-	(*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_ju), uFaceG1_ju);
+	(*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
 
 	//second layer of ghost cells
 	if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG2_ju);
-	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_ju), uFaceG2_ju);
+	  (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG2);
 	}
 	else{
-	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn2_ju), lFaceG2_ju);
-	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn2_ju), uFaceG2_ju);
+	  (*this).SetVol( (*this).Vol(cellLowIn2), cellLowG2);
 	}
 
-      }
-
-      if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of k-line of cells assign cell upper k-face areas too
-
-	//location of upper k-face for ghost cells at lower i-boundary
-	int lFaceG1_ku = GetUpperFaceK(1, jj, kk, imaxG, jmaxG); 
-	int lFaceG2_ku = GetUpperFaceK(0, jj, kk, imaxG, jmaxG);
-
-	//location of upper k-face for interior cells at lower i-boundary
-	int lFaceIn1_ku = GetUpperFaceK((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-	int lFaceIn2_ku = GetUpperFaceK((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
-
-	//location of upper k-face for ghost cells at upper i-boundary
-	int uFaceG1_ku = GetUpperFaceK(imaxG-2, jj, kk, imaxG, jmaxG); 
-	int uFaceG2_ku = GetUpperFaceK(imaxG-1, jj, kk, imaxG, jmaxG);
-
-	//location of upper k-face for interior cells at upper i-boundary
-	int uFaceIn1_ku = GetUpperFaceK(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-	int uFaceIn2_ku = GetUpperFaceK(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
-
-	//mirror face area values from adjacent cells
+	//Assign face areas ----------------------------------------------------------------------------------------
+	//mirror face area values from adjacent cells across i-boundary
 	//first layer of ghost cells
-	(*this).SetFAreaK( (*this).FAreaK(lFaceIn1_ku), lFaceG1_ku);
-	(*this).SetFAreaK( (*this).FAreaK(uFaceIn1_ku), uFaceG1_ku);
+	(*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG1_il);
+	(*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_jl), lFaceG1_jl);
+	(*this).SetFAreaK( (*this).FAreaK(lFaceIn1_kl), lFaceG1_kl);
 
 	//second layer of ghost cells
 	if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_ku), lFaceG2_ku);
-	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_ku), uFaceG2_ku);
+	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG2_il);
+	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_jl), lFaceG2_jl);
+	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_kl), lFaceG2_kl);
 	}
 	else{
-	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn2_ku), lFaceG2_ku);
-	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn2_ku), uFaceG2_ku);
+	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn2_iu), lFaceG2_il);
+	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn2_jl), lFaceG2_jl);
+	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn2_kl), lFaceG2_kl);
 	}
 
-      }
+	if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper j-face areas too
 
-      //Assign cell centroid --------------------------------------------------------------------------------------------------------------------
-      //cell centroid is moved interior cell width in the boundary normal direction
-      //first layer of ghost cells
-      vector3d<double> dist2Move(0.0, 0.0, 0.0);
-      if (bcNameL != "interblock"){
-	dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
+	  //location of upper j-face for ghost cells at lower i-boundary
+	  int lFaceG1_ju = GetUpperFaceJ(1, jj, kk, imaxG, jmaxG); 
+	  int lFaceG2_ju = GetUpperFaceJ(0, jj, kk, imaxG, jmaxG);
+
+	  //location of upper j-face for interior cells at lower i-boundary
+	  int lFaceIn1_ju = GetUpperFaceJ((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+	  int lFaceIn2_ju = GetUpperFaceJ((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
+
+	  //mirror face area values from adjacent cells
+	  //first layer of ghost cells
+	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG1_ju);
+
+	  //second layer of ghost cells
+	  if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	    (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG2_ju);
+	  }
+	  else{
+	    (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn2_ju), lFaceG2_ju);
+	  }
+
+	}
+
+	if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of k-line of cells assign cell upper k-face areas too
+
+	  //location of upper k-face for ghost cells at lower i-boundary
+	  int lFaceG1_ku = GetUpperFaceK(1, jj, kk, imaxG, jmaxG); 
+	  int lFaceG2_ku = GetUpperFaceK(0, jj, kk, imaxG, jmaxG);
+
+	  //location of upper k-face for interior cells at lower i-boundary
+	  int lFaceIn1_ku = GetUpperFaceK((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+	  int lFaceIn2_ku = GetUpperFaceK((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
+
+	  //mirror face area values from adjacent cells
+	  //first layer of ghost cells
+	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_ku), lFaceG1_ku);
+
+	  //second layer of ghost cells
+	  if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	    (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_ku), lFaceG2_ku);
+	  }
+	  else{
+	    (*this).SetFAreaK( (*this).FAreaK(lFaceIn2_ku), lFaceG2_ku);
+	  }
+
+	}
+
+	//Assign cell centroid --------------------------------------------------------------------------------------------------------------------
+	//cell centroid is moved interior cell width in the boundary normal direction
+	//first layer of ghost cells
+	vector3d<double> dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
 	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
-      }
-      else{ //for interblock bc use interior cell values
-	(*this).SetCenter( (*this).Center(cellLowIn1), cellLowG1);
-      }
-      if (bcNameU != "interblock"){
-	dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il);
-	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
-      }
-      else{ //for interblock bc use interior cell values
-	(*this).SetCenter( (*this).Center(cellUpIn1), cellUpG1);
-      }
 
-      //second layer of ghost cells
-      if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	if ( bcNameL != "interblock" && bcNameU != "interblock" ){ //neither boundary is interblock
+	//second layer of ghost cells
+	if (imax < 2){ //one cell thick - use one cell for both ghost cells
 	  dist2Move = 2.0 * ((*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu));
 	  (*this).SetCenter( (*this).Center(cellLowG1) + dist2Move, cellLowG2);
-	  dist2Move = 2.0 * ((*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il));
-	  (*this).SetCenter( (*this).Center(cellUpG1) + dist2Move, cellUpG2);
 	}
 	else{
-	  cerr << "ERROR: Error in procBlock.cpp:AssignGhostCellsGeom. An interblock boundary is not supported when the thickness "
-	       << "of the block in the normal direction of the boundary is 1 cell!" << endl;
-	  exit(0);
-	}
-      }
-      else{
-	if (bcNameL != "interblock"){
 	  dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2_iu);
 	  (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
 	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetCenter( (*this).Center(cellLowIn2), cellLowG2);
-	}
-	if (bcNameU != "interblock"){
-	  dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2_il);
-	  (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
-	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetCenter( (*this).Center(cellUpIn2), cellUpG2);
-	}
 
-      }
-
-      //Assign face centers --------------------------------------------------------------------------------------------------------------------
-      //face center is moved interior cell width in the boundary normal direction
-      //first layer of ghost cells
-      if (bcNameL != "interblock"){
+	//Assign face centers --------------------------------------------------------------------------------------------------------------------
+	//face center is moved interior cell width in the boundary normal direction
+	//first layer of ghost cells
 	dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
 	(*this).SetFCenterI( (*this).FCenterI(lFaceB) + dist2Move, lFaceG1_il);
 	(*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl) + dist2Move, lFaceG1_jl);
 	(*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl) + dist2Move, lFaceG1_kl);
-      }
-      else{ //for interblock bc use interior cell values
-	(*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu), lFaceG1_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl), lFaceG1_jl);
-	(*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl), lFaceG1_kl);
-      }
 
-      if (bcNameU != "interblock"){
-	dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il);
-	(*this).SetFCenterI( (*this).FCenterI(uFaceB) + dist2Move, uFaceG1_iu);
-	(*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl) + dist2Move, uFaceG1_jl);
-	(*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl) + dist2Move, uFaceG1_kl);
-      }
-      else{ //for interblock bc use interior cell values
-	(*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il), uFaceG1_iu);
-	(*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl), uFaceG1_jl);
-	(*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl), uFaceG1_kl);
-      }
-
-      //second layer of ghost cells
-      if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	dist2Move = 2.0 * ((*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu));
-	(*this).SetFCenterI( (*this).FCenterI(lFaceG1_il) + dist2Move, lFaceG2_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(lFaceG1_jl) + dist2Move, lFaceG2_jl);
-	(*this).SetFCenterK( (*this).FCenterK(lFaceG1_kl) + dist2Move, lFaceG2_kl);
-
-	dist2Move = 2.0 * ((*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il));
-	(*this).SetFCenterI( (*this).FCenterI(uFaceG1_iu) + dist2Move, uFaceG2_iu);
-	(*this).SetFCenterJ( (*this).FCenterJ(uFaceG1_jl) + dist2Move, uFaceG2_jl);
-	(*this).SetFCenterK( (*this).FCenterK(uFaceG1_kl) + dist2Move, uFaceG2_kl);
-      }
-      else{
-	if (bcNameL != "interblock"){
+	//second layer of ghost cells
+	if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	  dist2Move = 2.0 * ((*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu));
+	  (*this).SetFCenterI( (*this).FCenterI(lFaceG1_il) + dist2Move, lFaceG2_il);
+	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceG1_jl) + dist2Move, lFaceG2_jl);
+	  (*this).SetFCenterK( (*this).FCenterK(lFaceG1_kl) + dist2Move, lFaceG2_kl);
+	}
+	else{
 	  dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2_iu);
 	  (*this).SetFCenterI( (*this).FCenterI(lFaceB) + dist2Move, lFaceG2_il);
 	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl) + dist2Move, lFaceG2_jl);
 	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl) + dist2Move, lFaceG2_kl);
 	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn2_iu), lFaceG2_il);
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn2_jl), lFaceG2_jl);
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn2_kl), lFaceG2_kl);
+
+	if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper face areas too
+
+	  //location of upper j-face for ghost cells at lower i-boundary
+	  int lFaceG1_ju = GetUpperFaceJ(1, jj, kk, imaxG, jmaxG); 
+	  int lFaceG2_ju = GetUpperFaceJ(0, jj, kk, imaxG, jmaxG);
+
+	  //location of upper j-face for interior cell at lower i-boundary
+	  int lFaceIn1_ju = GetUpperFaceJ((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+
+	  //face center is moved interior cell width in the boundary normal direction
+	  //first layer of ghost cells
+	  dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
+	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG1_ju);
+
+	  //second layer of ghost cells
+	  if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	    dist2Move = 2.0 * ((*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu));
+	    (*this).SetFCenterJ( (*this).FCenterJ(lFaceG1_ju) + dist2Move, lFaceG2_ju);
+	  }
+	  else{
+	    dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2_iu);
+	    (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG2_ju);
+	  }
+
 	}
 
-	if (bcNameU != "interblock"){
+	if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of k-line of cells assign cell upper face areas too
+
+	  //location of upper k-face for ghost cells at lower i-boundary
+	  int lFaceG1_ku = GetUpperFaceK(1, jj, kk, imaxG, jmaxG); 
+	  int lFaceG2_ku = GetUpperFaceK(0, jj, kk, imaxG, jmaxG);
+
+	  //location of upper k-face for interior cells at lower i-boundary
+	  int lFaceIn1_ku = GetUpperFaceK((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+
+	  //face center is moved interior cell width in the boundary normal direction
+	  //first layer of ghost cells
+	  dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
+	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG1_ku);
+
+	  //second layer of ghost cells
+	  if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	    dist2Move = 2.0 * ((*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu));
+	    (*this).SetFCenterK( (*this).FCenterK(lFaceG1_ku) + dist2Move, lFaceG2_ku);
+	  }
+	  else{
+	    dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2_iu);
+	    (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG2_ku);
+	  }
+
+	}
+      }
+
+      //upper surface ----------------------------------------------------
+      if ( bcNameU != "interblock" ) { //only supply geometry values for non interblock BCs, for interblock, do nothing
+
+	//location of first ghost cell at upper i-boundary
+	int cellUpG1 = GetLoc1D(imaxG-2, jj, kk, imaxG, jmaxG);
+	//location of upper i and lower j, k faces of first ghost cell at upper i-boundary
+	int uFaceG1_iu = GetUpperFaceI(imaxG-2, jj, kk, imaxG, jmaxG); 
+	int uFaceG1_jl = GetLowerFaceJ(imaxG-2, jj, kk, imaxG, jmaxG); 
+	int uFaceG1_kl = GetLowerFaceK(imaxG-2, jj, kk, imaxG, jmaxG); 
+
+	//location of second ghost cell at upper i-boundary
+	int cellUpG2 = GetLoc1D(imaxG-1, jj, kk, imaxG, jmaxG);
+	//location of upper i and lower j, k faces of second ghost cell at upper i-boundary
+	int uFaceG2_iu = GetUpperFaceI(imaxG-1, jj, kk, imaxG, jmaxG);
+	int uFaceG2_jl = GetLowerFaceJ(imaxG-1, jj, kk, imaxG, jmaxG);
+	int uFaceG2_kl = GetLowerFaceK(imaxG-1, jj, kk, imaxG, jmaxG);
+
+	//location of first interior cell at upper i-boundary
+	int cellUpIn1 = GetLoc1D(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+	//location of lower i, j, k faces of first interior cell at upper i-boundary
+	int uFaceIn1_il = GetLowerFaceI(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+	int uFaceIn1_jl = GetLowerFaceJ(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+	int uFaceIn1_kl = GetLowerFaceK(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+
+	//location of second interior cell at upper i-boundary
+	int cellUpIn2 = GetLoc1D(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+	//location of lower i, j, k faces of second interior cell at upper i-boundary
+	int uFaceIn2_il = GetLowerFaceI(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+	int uFaceIn2_jl = GetLowerFaceJ(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+	int uFaceIn2_kl = GetLowerFaceK(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+
+	//location of upper i-boundary face
+	int uFaceB = GetUpperFaceI(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+
+	//Assign volume ------------------------------------------------------------------------------------------
+	//mirror volume values from adjacent cells across i-boundary
+	//first layer of ghost cells
+	(*this).SetVol( (*this).Vol(cellUpIn1), cellUpG1);
+
+	//second layer of ghost cells
+	if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	  (*this).SetVol( (*this).Vol(cellUpIn1), cellUpG2);
+	}
+	else{
+	  (*this).SetVol( (*this).Vol(cellUpIn2), cellUpG2);
+	}
+
+	//Assign face areas ----------------------------------------------------------------------------------------
+	//mirror face area values from adjacent cells across i-boundary
+	//first layer of ghost cells
+	(*this).SetFAreaI( (*this).FAreaI(uFaceIn1_il), uFaceG1_iu);
+	(*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_jl), uFaceG1_jl);
+	(*this).SetFAreaK( (*this).FAreaK(uFaceIn1_kl), uFaceG1_kl);
+
+	//second layer of ghost cells
+	if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_il), uFaceG2_iu);
+	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_jl), uFaceG2_jl);
+	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_kl), uFaceG2_kl);
+	}
+	else{
+	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn2_il), uFaceG2_iu);
+	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn2_jl), uFaceG2_jl);
+	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn2_kl), uFaceG2_kl);
+	}
+
+	if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper j-face areas too
+
+	  //location of upper j-face for ghost cells at upper i-boundary
+	  int uFaceG1_ju = GetUpperFaceJ(imaxG-2, jj, kk, imaxG, jmaxG); 
+	  int uFaceG2_ju = GetUpperFaceJ(imaxG-1, jj, kk, imaxG, jmaxG);
+
+	  //location of upper j-face for interior cells at upper i-boundary
+	  int uFaceIn1_ju = GetUpperFaceJ(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+	  int uFaceIn2_ju = GetUpperFaceJ(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+
+	  //mirror face area values from adjacent cells
+	  //first layer of ghost cells
+	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_ju), uFaceG1_ju);
+
+	  //second layer of ghost cells
+	  if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	    (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_ju), uFaceG2_ju);
+	  }
+	  else{
+	    (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn2_ju), uFaceG2_ju);
+	  }
+
+	}
+
+	if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of k-line of cells assign cell upper k-face areas too
+
+	  //location of upper k-face for ghost cells at upper i-boundary
+	  int uFaceG1_ku = GetUpperFaceK(imaxG-2, jj, kk, imaxG, jmaxG); 
+	  int uFaceG2_ku = GetUpperFaceK(imaxG-1, jj, kk, imaxG, jmaxG);
+
+	  //location of upper k-face for interior cells at upper i-boundary
+	  int uFaceIn1_ku = GetUpperFaceK(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+	  int uFaceIn2_ku = GetUpperFaceK(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+
+	  //mirror face area values from adjacent cells
+	  //first layer of ghost cells
+	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_ku), uFaceG1_ku);
+
+	  //second layer of ghost cells
+	  if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	    (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_ku), uFaceG2_ku);
+	  }
+	  else{
+	    (*this).SetFAreaK( (*this).FAreaK(uFaceIn2_ku), uFaceG2_ku);
+	  }
+
+	}
+
+	//Assign cell centroid --------------------------------------------------------------------------------------------------------------------
+	//cell centroid is moved interior cell width in the boundary normal direction
+	//first layer of ghost cells
+	vector3d<double> dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il);
+	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
+
+	//second layer of ghost cells
+	if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	  dist2Move = 2.0 * ((*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il));
+	  (*this).SetCenter( (*this).Center(cellUpG1) + dist2Move, cellUpG2);
+	}
+	else{
+	  dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2_il);
+	  (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+	}
+
+	//Assign face centers --------------------------------------------------------------------------------------------------------------------
+	//face center is moved interior cell width in the boundary normal direction
+	//first layer of ghost cells
+	dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il);
+	(*this).SetFCenterI( (*this).FCenterI(uFaceB) + dist2Move, uFaceG1_iu);
+	(*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl) + dist2Move, uFaceG1_jl);
+	(*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl) + dist2Move, uFaceG1_kl);
+
+	//second layer of ghost cells
+	if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	  dist2Move = 2.0 * ((*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il));
+	  (*this).SetFCenterI( (*this).FCenterI(uFaceG1_iu) + dist2Move, uFaceG2_iu);
+	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceG1_jl) + dist2Move, uFaceG2_jl);
+	  (*this).SetFCenterK( (*this).FCenterK(uFaceG1_kl) + dist2Move, uFaceG2_kl);
+	}
+	else{
 	  dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2_il);
 	  (*this).SetFCenterI( (*this).FCenterI(uFaceB) + dist2Move, uFaceG2_iu);
 	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl) + dist2Move, uFaceG2_jl);
 	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl) + dist2Move, uFaceG2_kl);
 	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn2_il), uFaceG2_iu);
-	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn2_jl), uFaceG2_jl);
-	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn2_kl), uFaceG2_kl);
-	}
-      }
 
-      if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper face areas too
+	if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper face areas too
 
-	//location of upper j-face for ghost cells at lower i-boundary
-	int lFaceG1_ju = GetUpperFaceJ(1, jj, kk, imaxG, jmaxG); 
-	int lFaceG2_ju = GetUpperFaceJ(0, jj, kk, imaxG, jmaxG);
+	  //location of upper j-face for ghost cells at lower i-boundary
+	  int uFaceG1_ju = GetUpperFaceJ(imaxG-2, jj, kk, imaxG, jmaxG); 
+	  int uFaceG2_ju = GetUpperFaceJ(imaxG-1, jj, kk, imaxG, jmaxG);
 
-	//location of upper j-face for interior cell at lower i-boundary
-	int lFaceIn1_ju = GetUpperFaceJ((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-	int lFaceIn2_ju = GetUpperFaceJ((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG); 
+	  //location of upper j-face for interior cell at upper i-boundary
+	  int uFaceIn1_ju = GetUpperFaceJ(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
 
-	//location of upper j-face for ghost cells at lower i-boundary
-	int uFaceG1_ju = GetUpperFaceJ(imaxG-2, jj, kk, imaxG, jmaxG); 
-	int uFaceG2_ju = GetUpperFaceJ(imaxG-1, jj, kk, imaxG, jmaxG);
-
-	//location of upper j-face for interior cell at upper i-boundary
-	int uFaceIn1_ju = GetUpperFaceJ(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-	int uFaceIn2_ju = GetUpperFaceJ(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-
-	//face center is moved interior cell width in the boundary normal direction
-	//first layer of ghost cells
-	if (bcNameL != "interblock"){
-	  dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG1_ju);
-	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju), lFaceG1_ju);
-	}
-	if (bcNameU != "interblock"){
+	  //face center is moved interior cell width in the boundary normal direction
+	  //first layer of ghost cells
 	  dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il);
 	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju) + dist2Move, uFaceG1_ju);
-	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju), uFaceG1_ju);
-	}
 
-	//second layer of ghost cells
-	if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	  dist2Move = 2.0 * ((*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu));
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceG1_ju) + dist2Move, lFaceG2_ju);
-
-	  dist2Move = 2.0 * ((*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il));
-	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceG1_ju) + dist2Move, uFaceG2_ju);
-
-	}
-	else{
-
-	  if (bcNameL != "interblock"){
-	    dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2_iu);
-	    (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG2_ju);
+	  //second layer of ghost cells
+	  if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	    dist2Move = 2.0 * ((*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il));
+	    (*this).SetFCenterJ( (*this).FCenterJ(uFaceG1_ju) + dist2Move, uFaceG2_ju);
 	  }
-	  else{ //for interblock bc use interior cell values
-	    (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn2_ju), lFaceG2_ju);
-	  }
-	  if (bcNameU != "interblock"){
+	  else{
 	    dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2_il);
 	    (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju) + dist2Move, uFaceG2_ju);
 	  }
-	  else{ //for interblock bc use interior cell values
-	    (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn2_ju), uFaceG2_ju);
-	  }
 
 	}
 
-      }
+	if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of k-line of cells assign cell upper face areas too
 
-      if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of k-line of cells assign cell upper face areas too
+	  //location of upper j-face for ghost cells at upper i-boundary
+	  int uFaceG1_ku = GetUpperFaceK(imaxG-2, jj, kk, imaxG, jmaxG); 
+	  int uFaceG2_ku = GetUpperFaceK(imaxG-1, jj, kk, imaxG, jmaxG);
 
-	//location of upper k-face for ghost cells at lower i-boundary
-	int lFaceG1_ku = GetUpperFaceK(1, jj, kk, imaxG, jmaxG); 
-	int lFaceG2_ku = GetUpperFaceK(0, jj, kk, imaxG, jmaxG);
+	  //location of upper j-face for interior cells at upper i-boundary
+	  int uFaceIn1_ku = GetUpperFaceK(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
 
-	//location of upper k-face for interior cells at lower i-boundary
-	int lFaceIn1_ku = GetUpperFaceK((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-	int lFaceIn2_ku = GetUpperFaceK((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG); 
-
-	//location of upper j-face for ghost cells at upper i-boundary
-	int uFaceG1_ku = GetUpperFaceK(imaxG-2, jj, kk, imaxG, jmaxG); 
-	int uFaceG2_ku = GetUpperFaceK(imaxG-1, jj, kk, imaxG, jmaxG);
-
-	//location of upper j-face for interior cells at upper i-boundary
-	int uFaceIn1_ku = GetUpperFaceK(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-	int uFaceIn2_ku = GetUpperFaceK(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-
-	//face center is moved interior cell width in the boundary normal direction
-	//first layer of ghost cells
-	if (bcNameL != "interblock"){
-	  dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG1_ku);
-	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku), lFaceG1_ku);
-	}
-	if (bcNameU != "interblock"){
+	  //face center is moved interior cell width in the boundary normal direction
+	  //first layer of ghost cells
 	  dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il);
 	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku) + dist2Move, uFaceG1_ku);
-	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku), uFaceG1_ku);
-	}
 
-	//second layer of ghost cells
-	if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	  dist2Move = 2.0 * ((*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu));
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceG1_ku) + dist2Move, lFaceG2_ku);
-
-	  dist2Move = 2.0 * ((*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il));
-	  (*this).SetFCenterK( (*this).FCenterK(uFaceG1_ku) + dist2Move, uFaceG2_ku);
-
-	}
-	else{
-	  if (bcNameL != "interblock"){
-	    dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2_iu);
-	    (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG2_ku);
+	  //second layer of ghost cells
+	  if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	    dist2Move = 2.0 * ((*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il));
+	    (*this).SetFCenterK( (*this).FCenterK(uFaceG1_ku) + dist2Move, uFaceG2_ku);
 	  }
-	  else{ //for interblock bc use interior cell values
-	    (*this).SetFCenterK( (*this).FCenterK(lFaceIn2_ku), lFaceG2_ku);
-	  }
-	  if (bcNameU != "interblock"){
+	  else{
 	    dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2_il);
 	    (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku) + dist2Move, uFaceG2_ku);
-	  }
-	  else{ //for interblock bc use interior cell values
-	    (*this).SetFCenterK( (*this).FCenterK(uFaceIn2_ku), uFaceG2_ku);
 	  }
 
 	}
@@ -2690,431 +2682,423 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++ ){
     for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++ ){
 
-      //location of first ghost cell at lower j-boundary
-      int cellLowG1 = GetLoc1D(ii, 1, kk, imaxG, jmaxG);
-      //location of lower i, j, k faces of first ghost cell at lower j-boundary
-      int lFaceG1_il = GetLowerFaceI(ii, 1, kk, imaxG, jmaxG); 
-      int lFaceG1_jl = GetLowerFaceJ(ii, 1, kk, imaxG, jmaxG); 
-      int lFaceG1_kl = GetLowerFaceK(ii, 1, kk, imaxG, jmaxG); 
-
-      //location of second ghost cell at lower i-boundary
-      int cellLowG2 = GetLoc1D(ii, 0, kk, imaxG, jmaxG);
-      //location of lower i, j, k faces of first ghost cell at lower j-boundary
-      int lFaceG2_il = GetLowerFaceI(ii, 0, kk, imaxG, jmaxG);
-      int lFaceG2_jl = GetLowerFaceJ(ii, 0, kk, imaxG, jmaxG);
-      int lFaceG2_kl = GetLowerFaceK(ii, 0, kk, imaxG, jmaxG);
-
-      //location of first interior cell at lower i-boundary
-      int cellLowIn1 = GetLoc1D(ii, (*this).NumGhosts(), kk, imaxG, jmaxG);
-      //location of upper j and lower i, k faces of first interior cell at lower j-boundary
-      int lFaceIn1_il = GetLowerFaceI(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
-      int lFaceIn1_ju = GetUpperFaceJ(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
-      int lFaceIn1_kl = GetLowerFaceK(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
-
-      //location of second interior cell at lower i-boundary
-      int cellLowIn2 = GetLoc1D(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
-      //location of upper j and lower i, k faces of second interior cell at lower j-boundary
-      int lFaceIn2_il = GetLowerFaceI(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
-      int lFaceIn2_ju = GetUpperFaceJ(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
-      int lFaceIn2_kl = GetLowerFaceK(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
-
-      //location of lower j-boundary face
-      int lFaceB = GetLowerFaceJ(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
-
-      //location of first ghost cell at upper j-boundary
-      int cellUpG1 = GetLoc1D(ii, jmaxG-2, kk, imaxG, jmaxG);
-      //location of upper j and lower i, k faces of first ghost cell at lower j-boundary
-      int uFaceG1_il = GetLowerFaceI(ii, jmaxG-2, kk, imaxG, jmaxG); 
-      int uFaceG1_ju = GetUpperFaceJ(ii, jmaxG-2, kk, imaxG, jmaxG); 
-      int uFaceG1_kl = GetLowerFaceK(ii, jmaxG-2, kk, imaxG, jmaxG); 
-
-      //location of second ghost cell at upper j-boundary
-      int cellUpG2 = GetLoc1D(ii, jmaxG-1, kk, imaxG, jmaxG);
-      //location of upper j and lower i, k faces of second ghost cell at lower j-boundary
-      int uFaceG2_il = GetLowerFaceI(ii, jmaxG-1, kk, imaxG, jmaxG);
-      int uFaceG2_ju = GetUpperFaceJ(ii, jmaxG-1, kk, imaxG, jmaxG);
-      int uFaceG2_kl = GetLowerFaceK(ii, jmaxG-1, kk, imaxG, jmaxG);
-
-      //location of first interior cell at upper j-boundary
-      int cellUpIn1 = GetLoc1D(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG);
-      //location of lower i, j, k faces of first interior cell at lower j-boundary
-      int uFaceIn1_il = GetLowerFaceI(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
-      int uFaceIn1_jl = GetLowerFaceJ(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
-      int uFaceIn1_kl = GetLowerFaceK(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
-
-      //location of second interior cell at upper j-boundary
-      int cellUpIn2 = GetLoc1D(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG);
-      //location of lower i, j, k faces of second interior cell at lower j-boundary
-      int uFaceIn2_il = GetLowerFaceI(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG);
-      int uFaceIn2_jl = GetLowerFaceJ(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG);
-      int uFaceIn2_kl = GetLowerFaceK(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG);
-
-      //location of upper j-boundary face
-      int uFaceB = GetUpperFaceJ(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
-
       //name of boundary conditions at lower and upper boundaries
       string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), 0, kk - (*this).NumGhosts(), "jl");
       string bcNameU = bound.GetBCName(ii - (*this).NumGhosts(), jmax, kk - (*this).NumGhosts(), "ju");
 
-      //Assign volume ------------------------------------------------------------------------------------------
-      //mirror volume values from adjacent cells across j-boundary
-      //first layer of ghost cells
-      (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
-      (*this).SetVol( (*this).Vol(cellUpIn1), cellUpG1);
-
-      //second layer of ghost cells
-      if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	(*this).SetVol( (*this).Vol(cellLowIn1), cellLowG2);
-	(*this).SetVol( (*this).Vol(cellUpIn1), cellUpG2);
-      }
-      else{
-	(*this).SetVol( (*this).Vol(cellLowIn2), cellLowG2);
-	(*this).SetVol( (*this).Vol(cellUpIn2), cellUpG2);
+      if ( bcNameL == "interblock" && bcNameU == "interblock" && jmax < 2 ){
+	cerr << "ERROR: Error in procBlock::AssignGhostCellsGeom(). Cannot have interblock BCs surrounding a block that is 1 cell thick!" << endl;
+	exit(0);
       }
 
-      //Assign face areas ----------------------------------------------------------------------------------------
-      //mirror face area values from adjacent cells across j-boundary
-      //first layer of ghost cells
-      (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG1_jl);
-      (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_il), lFaceG1_il);
-      (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_kl), lFaceG1_kl);
+      //lower surface ----------------------------------------------------------
+      if ( bcNameL != "interblock" ) { //only supply geometry values for non interblock BCs, for interblock, do nothing
 
-      (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_jl), uFaceG1_ju);
-      (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_il), uFaceG1_il);
-      (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_kl), uFaceG1_kl);
+	//location of first ghost cell at lower j-boundary
+	int cellLowG1 = GetLoc1D(ii, 1, kk, imaxG, jmaxG);
+	//location of lower i, j, k faces of first ghost cell at lower j-boundary
+	int lFaceG1_il = GetLowerFaceI(ii, 1, kk, imaxG, jmaxG); 
+	int lFaceG1_jl = GetLowerFaceJ(ii, 1, kk, imaxG, jmaxG); 
+	int lFaceG1_kl = GetLowerFaceK(ii, 1, kk, imaxG, jmaxG); 
 
-      //second layer of ghost cells
-      if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	(*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG2_jl);
-	(*this).SetFAreaI( (*this).FAreaI(lFaceIn1_il), lFaceG2_il);
-	(*this).SetFAreaK( (*this).FAreaK(lFaceIn1_kl), lFaceG2_kl);
+	//location of second ghost cell at lower i-boundary
+	int cellLowG2 = GetLoc1D(ii, 0, kk, imaxG, jmaxG);
+	//location of lower i, j, k faces of first ghost cell at lower j-boundary
+	int lFaceG2_il = GetLowerFaceI(ii, 0, kk, imaxG, jmaxG);
+	int lFaceG2_jl = GetLowerFaceJ(ii, 0, kk, imaxG, jmaxG);
+	int lFaceG2_kl = GetLowerFaceK(ii, 0, kk, imaxG, jmaxG);
 
-	(*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_jl), uFaceG2_ju);
-	(*this).SetFAreaI( (*this).FAreaI(uFaceIn1_il), uFaceG2_il);
-	(*this).SetFAreaK( (*this).FAreaK(uFaceIn1_kl), uFaceG2_kl);
+	//location of first interior cell at lower i-boundary
+	int cellLowIn1 = GetLoc1D(ii, (*this).NumGhosts(), kk, imaxG, jmaxG);
+	//location of upper j and lower i, k faces of first interior cell at lower j-boundary
+	int lFaceIn1_il = GetLowerFaceI(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
+	int lFaceIn1_ju = GetUpperFaceJ(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
+	int lFaceIn1_kl = GetLowerFaceK(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
 
-      }
-      else{
-	(*this).SetFAreaJ( (*this).FAreaJ(lFaceIn2_ju), lFaceG2_jl);
-	(*this).SetFAreaI( (*this).FAreaI(lFaceIn2_il), lFaceG2_il);
-	(*this).SetFAreaK( (*this).FAreaK(lFaceIn2_kl), lFaceG2_kl);
+	//location of second interior cell at lower i-boundary
+	int cellLowIn2 = GetLoc1D(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
+	//location of upper j and lower i, k faces of second interior cell at lower j-boundary
+	int lFaceIn2_il = GetLowerFaceI(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
+	int lFaceIn2_ju = GetUpperFaceJ(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
+	int lFaceIn2_kl = GetLowerFaceK(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
 
-	(*this).SetFAreaJ( (*this).FAreaJ(uFaceIn2_jl), uFaceG2_ju);
-	(*this).SetFAreaI( (*this).FAreaI(uFaceIn2_il), uFaceG2_il);
-	(*this).SetFAreaK( (*this).FAreaK(uFaceIn2_kl), uFaceG2_kl);
-      }
+	//location of lower j-boundary face
+	int lFaceB = GetLowerFaceJ(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
 
-      if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
-
-	//location of upper i-face for ghost cells at lower j-boundary
-	int lFaceG1_iu = GetUpperFaceI(ii, 1, kk, imaxG, jmaxG); 
-	int lFaceG2_iu = GetUpperFaceI(ii, 0, kk, imaxG, jmaxG);
-
-	//location of upper i-face for interior cells at lower j-boundary
-	int lFaceIn1_iu = GetUpperFaceI(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
-	int lFaceIn2_iu = GetUpperFaceI(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
-
-	//location of upper i-face for ghost cells at upper j-boundary
-	int uFaceG1_iu = GetUpperFaceI(ii, jmaxG-2, kk, imaxG, jmaxG); 
-	int uFaceG2_iu = GetUpperFaceI(ii, jmaxG-1, kk, imaxG, jmaxG);
-
-	//location of upper i-face for interior cells at upper j-boundary
-	int uFaceIn1_iu = GetUpperFaceI(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
-	int uFaceIn2_iu = GetUpperFaceI(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG);
-
-	//mirror face area values from adjacent cells
+	//Assign volume ------------------------------------------------------------------------------------------
+	//mirror volume values from adjacent cells across j-boundary
 	//first layer of ghost cells
-	(*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG1_iu);
-	(*this).SetFAreaI( (*this).FAreaI(uFaceIn1_iu), uFaceG1_iu);
+	(*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
 
 	//second layer of ghost cells
 	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG2_iu);
-	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_iu), uFaceG2_iu);
+	  (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG2);
 	}
 	else{
-	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn2_iu), lFaceG2_iu);
-	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn2_iu), uFaceG2_iu);
+	  (*this).SetVol( (*this).Vol(cellLowIn2), cellLowG2);
 	}
 
-      }
-
-      if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of k-line of cells assign cell upper k-face areas too
-
-	//location of upper k-face for ghost cells at lower j-boundary
-	int lFaceG1_ku = GetUpperFaceK(ii, 1, kk, imaxG, jmaxG); 
-	int lFaceG2_ku = GetUpperFaceK(ii, 0, kk, imaxG, jmaxG);
-
-	//location of upper k-face for interior cells at upper j-boundary
-	int lFaceIn1_ku = GetUpperFaceK(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
-	int lFaceIn2_ku = GetUpperFaceK(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
-
-	//location of upper k-face for ghost cells at upper j-boundary
-	int uFaceG1_ku = GetUpperFaceK(ii, jmaxG-2, kk, imaxG, jmaxG); 
-	int uFaceG2_ku = GetUpperFaceK(ii, jmaxG-1, kk, imaxG, jmaxG);
-
-	//location of upper k-face for interior cells at upper j-boundary
-	int uFaceIn1_ku = GetUpperFaceK(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
-	int uFaceIn2_ku = GetUpperFaceK(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG);
-
-	//mirror face area values from adjacent cells
+	//Assign face areas ----------------------------------------------------------------------------------------
+	//mirror face area values from adjacent cells across j-boundary
 	//first layer of ghost cells
-	(*this).SetFAreaK( (*this).FAreaK(lFaceIn1_ku), lFaceG1_ku);
-	(*this).SetFAreaK( (*this).FAreaK(uFaceIn1_ku), uFaceG1_ku);
+	(*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG1_jl);
+	(*this).SetFAreaI( (*this).FAreaI(lFaceIn1_il), lFaceG1_il);
+	(*this).SetFAreaK( (*this).FAreaK(lFaceIn1_kl), lFaceG1_kl);
 
 	//second layer of ghost cells
 	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_ku), lFaceG2_ku);
-	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_ku), uFaceG2_ku);
+	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG2_jl);
+	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_il), lFaceG2_il);
+	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_kl), lFaceG2_kl);
 	}
 	else{
-	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn2_ku), lFaceG2_ku);
-	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn2_ku), uFaceG2_ku);
+	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn2_ju), lFaceG2_jl);
+	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn2_il), lFaceG2_il);
+	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn2_kl), lFaceG2_kl);
 	}
 
-      }
+	if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
 
-      //Assign cell centroid --------------------------------------------------------------------------------------------------------------------
-      //cell centroid is moved interior cell width in the boundary normal direction
-      //first layer of ghost cells
-      vector3d<double> dist2Move(0.0, 0.0, 0.0);
-      if (bcNameL != "interblock"){
-	dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
+	  //location of upper i-face for ghost cells at lower j-boundary
+	  int lFaceG1_iu = GetUpperFaceI(ii, 1, kk, imaxG, jmaxG); 
+	  int lFaceG2_iu = GetUpperFaceI(ii, 0, kk, imaxG, jmaxG);
+
+	  //location of upper i-face for interior cells at lower j-boundary
+	  int lFaceIn1_iu = GetUpperFaceI(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
+	  int lFaceIn2_iu = GetUpperFaceI(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
+
+	  //mirror face area values from adjacent cells
+	  //first layer of ghost cells
+	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG1_iu);
+
+	  //second layer of ghost cells
+	  if (jmax < 2){ //one cell thick - use one cell for both ghost cells
+	    (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG2_iu);
+	  }
+	  else{
+	    (*this).SetFAreaI( (*this).FAreaI(lFaceIn2_iu), lFaceG2_iu);
+	  }
+
+	}
+
+	if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of k-line of cells assign cell upper k-face areas too
+
+	  //location of upper k-face for ghost cells at lower j-boundary
+	  int lFaceG1_ku = GetUpperFaceK(ii, 1, kk, imaxG, jmaxG); 
+	  int lFaceG2_ku = GetUpperFaceK(ii, 0, kk, imaxG, jmaxG);
+
+	  //location of upper k-face for interior cells at upper j-boundary
+	  int lFaceIn1_ku = GetUpperFaceK(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
+	  int lFaceIn2_ku = GetUpperFaceK(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
+
+	  //mirror face area values from adjacent cells
+	  //first layer of ghost cells
+	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_ku), lFaceG1_ku);
+
+	  //second layer of ghost cells
+	  if (jmax < 2){ //one cell thick - use one cell for both ghost cells
+	    (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_ku), lFaceG2_ku);
+	  }
+	  else{
+	    (*this).SetFAreaK( (*this).FAreaK(lFaceIn2_ku), lFaceG2_ku);
+	  }
+
+	}
+
+	//Assign cell centroid --------------------------------------------------------------------------------------------------------------------
+	//cell centroid is moved interior cell width in the boundary normal direction
+	//first layer of ghost cells
+	vector3d<double> dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
 	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
-      }
-      else{ //for interblock bc use interior cell values
-	(*this).SetCenter( (*this).Center(cellLowIn1), cellLowG1);
-      }
-      if (bcNameU != "interblock"){
-	dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl);
-	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
-      }
-      else{ //for interblock bc use interior cell values
-	(*this).SetCenter( (*this).Center(cellUpIn1), cellUpG1);
-      }
 
-      //second layer of ghost cells
-      if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	if ( bcNameL != "interblock" && bcNameU != "interblock" ){ //neither boundary is interblock
+	//second layer of ghost cells
+	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
 	  dist2Move = 2.0 * ((*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju));
 	  (*this).SetCenter( (*this).Center(cellLowG1) + dist2Move, cellLowG2);
-	  dist2Move = 2.0 * ((*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl));
-	  (*this).SetCenter( (*this).Center(cellUpG1) + dist2Move, cellUpG2);
 	}
 	else{
-	  cerr << "ERROR: Error in procBlock.cpp:AssignGhostCellsGeom. An interblock boundary is not supported when the thickness "
-	       << "of the block in the normal direction of the boundary is 1 cell!" << endl;
-	  exit(0);
-	}
-      }
-      else{
-	if (bcNameL != "interblock"){
 	  dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2_ju);
 	  (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
 	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetCenter( (*this).Center(cellLowIn2), cellLowG2);
-	}
-	if (bcNameU != "interblock"){
-	  dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2_jl);
-	  (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
-	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetCenter( (*this).Center(cellUpIn2), cellUpG2);
-	}
 
-      }
-
-      //Assign face centers --------------------------------------------------------------------------------------------------------------------
-      //face center is moved interior cell width in the boundary normal direction
-      //first layer of ghost cells
-      if (bcNameL != "interblock"){
+	//Assign face centers --------------------------------------------------------------------------------------------------------------------
+	//face center is moved interior cell width in the boundary normal direction
+	//first layer of ghost cells
 	dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
 	(*this).SetFCenterJ( (*this).FCenterJ(lFaceB) + dist2Move, lFaceG1_jl);
 	(*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il) + dist2Move, lFaceG1_il);
 	(*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl) + dist2Move, lFaceG1_kl);
-      }
-      else{ //for interblock bc use interior cell values
-	(*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju), lFaceG1_jl);
-	(*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il), lFaceG1_il);
-	(*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl), lFaceG1_kl);
-      }
 
-      if (bcNameU != "interblock"){
-	dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl);
-	(*this).SetFCenterJ( (*this).FCenterJ(uFaceB) + dist2Move, uFaceG1_ju);
-	(*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il) + dist2Move, uFaceG1_il);
-	(*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl) + dist2Move, uFaceG1_kl);
-      }
-      else{ //for interblock bc use interior cell values
-	(*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl), uFaceG1_ju);
-	(*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il), uFaceG1_il);
-	(*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl), uFaceG1_kl);
-      }
-
-      //second layer of ghost cells
-      if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	dist2Move = 2.0 * ((*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju));
-	(*this).SetFCenterJ( (*this).FCenterJ(lFaceG1_jl) + dist2Move, lFaceG2_jl);
-	(*this).SetFCenterI( (*this).FCenterI(lFaceG1_il) + dist2Move, lFaceG2_il);
-	(*this).SetFCenterK( (*this).FCenterK(lFaceG1_kl) + dist2Move, lFaceG2_kl);
-
-	dist2Move = 2.0 * ((*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl));
-	(*this).SetFCenterJ( (*this).FCenterJ(uFaceG1_ju) + dist2Move, uFaceG2_ju);
-	(*this).SetFCenterI( (*this).FCenterI(uFaceG1_il) + dist2Move, uFaceG2_il);
-	(*this).SetFCenterK( (*this).FCenterK(uFaceG1_kl) + dist2Move, uFaceG2_kl);
-      }
-      else{
-	if (bcNameL != "interblock"){
+	//second layer of ghost cells
+	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
+	  dist2Move = 2.0 * ((*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju));
+	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceG1_jl) + dist2Move, lFaceG2_jl);
+	  (*this).SetFCenterI( (*this).FCenterI(lFaceG1_il) + dist2Move, lFaceG2_il);
+	  (*this).SetFCenterK( (*this).FCenterK(lFaceG1_kl) + dist2Move, lFaceG2_kl);
+	}
+	else{
 	  dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2_ju);
 	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceB) + dist2Move, lFaceG2_jl);
 	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il) + dist2Move, lFaceG2_il);
 	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl) + dist2Move, lFaceG2_kl);
 	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn2_ju), lFaceG2_jl);
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn2_il), lFaceG2_il);
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn2_kl), lFaceG2_kl);
+
+	if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
+
+	  //location of upper i-face for ghost cells at lower j-boundary
+	  int lFaceG1_iu = GetUpperFaceI(ii, 1, kk, imaxG, jmaxG); 
+	  int lFaceG2_iu = GetUpperFaceI(ii, 0, kk, imaxG, jmaxG);
+
+	  //location of upper i-face for interior cells at lower j-boundary
+	  int lFaceIn1_iu = GetUpperFaceI(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
+
+	  //face center is moved interior cell width in the boundary normal direction
+	  //first layer of ghost cells
+	  dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
+	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG1_iu);
+
+	  //second layer of ghost cells
+	  if (jmax < 2){ //one cell thick - use one cell for both ghost cells
+	    dist2Move = 2.0 * ((*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju));
+	    (*this).SetFCenterI( (*this).FCenterI(lFaceG1_iu) + dist2Move, lFaceG2_iu);
+	  }
+	  else{
+	    dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2_ju);
+	    (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG2_iu);
+	  }
+
 	}
 
-	if (bcNameU != "interblock"){
+	if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of k-line of cells assign cell upper k-face areas too
+
+	  //location of upper k-face for ghost cells at lower j-boundary
+	  int lFaceG1_ku = GetUpperFaceK(ii, 1, kk, imaxG, jmaxG); 
+	  int lFaceG2_ku = GetUpperFaceK(ii, 0, kk, imaxG, jmaxG);
+
+	  //location of upper k-face for interior cells at lower j-boundary
+	  int lFaceIn1_ku = GetUpperFaceK(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
+
+	  //face center is moved interior cell width in the boundary normal direction
+	  //first layer of ghost cells
+	  dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
+	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG1_ku);
+
+	  //second layer of ghost cells
+	  if (jmax < 2){ //one cell thick - use one cell for both ghost cells
+	    dist2Move = 2.0 * ((*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju));
+	    (*this).SetFCenterK( (*this).FCenterK(lFaceG1_ku) + dist2Move, lFaceG2_ku);
+	  }
+	  else{
+	    dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2_ju);
+	    (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG2_ku);
+	  }
+
+	}
+      }
+
+      //upper surface ----------------------------------------------------
+      if ( bcNameU != "interblock" ) { //only supply geometry values for non interblock BCs, for interblock, do nothing
+
+	//location of first ghost cell at upper j-boundary
+	int cellUpG1 = GetLoc1D(ii, jmaxG-2, kk, imaxG, jmaxG);
+	//location of upper j and lower i, k faces of first ghost cell at lower j-boundary
+	int uFaceG1_il = GetLowerFaceI(ii, jmaxG-2, kk, imaxG, jmaxG); 
+	int uFaceG1_ju = GetUpperFaceJ(ii, jmaxG-2, kk, imaxG, jmaxG); 
+	int uFaceG1_kl = GetLowerFaceK(ii, jmaxG-2, kk, imaxG, jmaxG); 
+
+	//location of second ghost cell at upper j-boundary
+	int cellUpG2 = GetLoc1D(ii, jmaxG-1, kk, imaxG, jmaxG);
+	//location of upper j and lower i, k faces of second ghost cell at lower j-boundary
+	int uFaceG2_il = GetLowerFaceI(ii, jmaxG-1, kk, imaxG, jmaxG);
+	int uFaceG2_ju = GetUpperFaceJ(ii, jmaxG-1, kk, imaxG, jmaxG);
+	int uFaceG2_kl = GetLowerFaceK(ii, jmaxG-1, kk, imaxG, jmaxG);
+
+	//location of first interior cell at upper j-boundary
+	int cellUpIn1 = GetLoc1D(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG);
+	//location of lower i, j, k faces of first interior cell at lower j-boundary
+	int uFaceIn1_il = GetLowerFaceI(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
+	int uFaceIn1_jl = GetLowerFaceJ(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
+	int uFaceIn1_kl = GetLowerFaceK(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
+
+	//location of second interior cell at upper j-boundary
+	int cellUpIn2 = GetLoc1D(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG);
+	//location of lower i, j, k faces of second interior cell at lower j-boundary
+	int uFaceIn2_il = GetLowerFaceI(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG);
+	int uFaceIn2_jl = GetLowerFaceJ(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG);
+	int uFaceIn2_kl = GetLowerFaceK(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG);
+
+	//location of upper j-boundary face
+	int uFaceB = GetUpperFaceJ(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
+
+	//Assign volume ------------------------------------------------------------------------------------------
+	//mirror volume values from adjacent cells across j-boundary
+	//first layer of ghost cells
+	(*this).SetVol( (*this).Vol(cellUpIn1), cellUpG1);
+
+	//second layer of ghost cells
+	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
+	  (*this).SetVol( (*this).Vol(cellUpIn1), cellUpG2);
+	}
+	else{
+	  (*this).SetVol( (*this).Vol(cellUpIn2), cellUpG2);
+	}
+
+	//Assign face areas ----------------------------------------------------------------------------------------
+	//mirror face area values from adjacent cells across j-boundary
+	//first layer of ghost cells
+	(*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_jl), uFaceG1_ju);
+	(*this).SetFAreaI( (*this).FAreaI(uFaceIn1_il), uFaceG1_il);
+	(*this).SetFAreaK( (*this).FAreaK(uFaceIn1_kl), uFaceG1_kl);
+
+	//second layer of ghost cells
+	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
+	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_jl), uFaceG2_ju);
+	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_il), uFaceG2_il);
+	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_kl), uFaceG2_kl);
+	}
+	else{
+	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn2_jl), uFaceG2_ju);
+	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn2_il), uFaceG2_il);
+	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn2_kl), uFaceG2_kl);
+	}
+
+	if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
+
+	  //location of upper i-face for ghost cells at upper j-boundary
+	  int uFaceG1_iu = GetUpperFaceI(ii, jmaxG-2, kk, imaxG, jmaxG); 
+	  int uFaceG2_iu = GetUpperFaceI(ii, jmaxG-1, kk, imaxG, jmaxG);
+
+	  //location of upper i-face for interior cells at upper j-boundary
+	  int uFaceIn1_iu = GetUpperFaceI(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
+	  int uFaceIn2_iu = GetUpperFaceI(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
+
+	  //mirror face area values from adjacent cells
+	  //first layer of ghost cells
+	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_iu), uFaceG1_iu);
+
+	  //second layer of ghost cells
+	  if (jmax < 2){ //one cell thick - use one cell for both ghost cells
+	    (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_iu), uFaceG2_iu);
+	  }
+	  else{
+	    (*this).SetFAreaI( (*this).FAreaI(uFaceIn2_iu), uFaceG2_iu);
+	  }
+
+	}
+
+	if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of k-line of cells assign cell upper k-face areas too
+
+	  //location of upper k-face for ghost cells at upper j-boundary
+	  int uFaceG1_ku = GetUpperFaceK(ii, jmaxG-2, kk, imaxG, jmaxG); 
+	  int uFaceG2_ku = GetUpperFaceK(ii, jmaxG-1, kk, imaxG, jmaxG);
+
+	  //location of upper k-face for interior cells at upper j-boundary
+	  int uFaceIn1_ku = GetUpperFaceK(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
+	  int uFaceIn2_ku = GetUpperFaceK(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
+
+	  //mirror face area values from adjacent cells
+	  //first layer of ghost cells
+	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_ku), uFaceG1_ku);
+
+	  //second layer of ghost cells
+	  if (jmax < 2){ //one cell thick - use one cell for both ghost cells
+	    (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_ku), uFaceG2_ku);
+	  }
+	  else{
+	    (*this).SetFAreaK( (*this).FAreaK(uFaceIn2_ku), uFaceG2_ku);
+	  }
+
+	}
+
+	//Assign cell centroid --------------------------------------------------------------------------------------------------------------------
+	//cell centroid is moved interior cell width in the boundary normal direction
+	//first layer of ghost cells
+	vector3d<double> dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl);
+	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
+
+	//second layer of ghost cells
+	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
+	  dist2Move = 2.0 * ((*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl));
+	  (*this).SetCenter( (*this).Center(cellUpG1) + dist2Move, cellUpG2);
+	}
+	else{
+	  dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2_jl);
+	  (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+	}
+
+	//Assign face centers --------------------------------------------------------------------------------------------------------------------
+	//face center is moved interior cell width in the boundary normal direction
+	//first layer of ghost cells
+	dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl);
+	(*this).SetFCenterJ( (*this).FCenterJ(uFaceB) + dist2Move, uFaceG1_ju);
+	(*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il) + dist2Move, uFaceG1_il);
+	(*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl) + dist2Move, uFaceG1_kl);
+
+	//second layer of ghost cells
+	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
+	  dist2Move = 2.0 * ((*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl));
+	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceG1_ju) + dist2Move, uFaceG2_ju);
+	  (*this).SetFCenterI( (*this).FCenterI(uFaceG1_il) + dist2Move, uFaceG2_il);
+	  (*this).SetFCenterK( (*this).FCenterK(uFaceG1_kl) + dist2Move, uFaceG2_kl);
+	}
+	else{
 	  dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2_jl);
 	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceB) + dist2Move, uFaceG2_ju);
 	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il) + dist2Move, uFaceG2_il);
 	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl) + dist2Move, uFaceG2_kl);
 	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn2_jl), uFaceG2_ju);
-	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn2_il), uFaceG2_il);
-	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn2_kl), uFaceG2_kl);
-	}
-      }
 
-      if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
+	if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
 
-	//location of upper i-face for ghost cells at lower j-boundary
-	int lFaceG1_iu = GetUpperFaceI(ii, 1, kk, imaxG, jmaxG); 
-	int lFaceG2_iu = GetUpperFaceI(ii, 0, kk, imaxG, jmaxG);
+	  //location of upper i-face for ghost cells at upper j-boundary
+	  int uFaceG1_iu = GetUpperFaceI(ii, jmaxG-2, kk, imaxG, jmaxG); 
+	  int uFaceG2_iu = GetUpperFaceI(ii, jmaxG-1, kk, imaxG, jmaxG);
 
-	//location of upper i-face for interior cells at lower j-boundary
-	int lFaceIn1_iu = GetUpperFaceI(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
-	int lFaceIn2_iu = GetUpperFaceI(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG); 
+	  //location of upper i-face for interior cells at upper j-boundary
+	  int uFaceIn1_iu = GetUpperFaceI(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
 
-	//location of upper i-face for ghost cells at upper j-boundary
-	int uFaceG1_iu = GetUpperFaceI(ii, jmaxG-2, kk, imaxG, jmaxG); 
-	int uFaceG2_iu = GetUpperFaceI(ii, jmaxG-1, kk, imaxG, jmaxG);
-
-	//location of upper i-face for interior cells at upper j-boundary
-	int uFaceIn1_iu = GetUpperFaceI(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
-	int uFaceIn2_iu = GetUpperFaceI(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
-
-	//face center is moved interior cell width in the boundary normal direction
-	//first layer of ghost cells
-	if (bcNameL != "interblock"){
-	  dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG1_iu);
-	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu), lFaceG1_iu);
-	}
-	if (bcNameU != "interblock"){
+	  //face center is moved interior cell width in the boundary normal direction
+	  //first layer of ghost cells
 	  dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl);
 	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu) + dist2Move, uFaceG1_iu);
-	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu), uFaceG1_iu);
-	}
 
-	//second layer of ghost cells
-	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	  dist2Move = 2.0 * ((*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju));
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceG1_iu) + dist2Move, lFaceG2_iu);
-
-	  dist2Move = 2.0 * ((*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl));
-	  (*this).SetFCenterI( (*this).FCenterI(uFaceG1_iu) + dist2Move, uFaceG2_iu);
-	}
-	else{
-
-	  if (bcNameL != "interblock"){
-	    dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2_ju);
-	    (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG2_iu);
+	  //second layer of ghost cells
+	  if (jmax < 2){ //one cell thick - use one cell for both ghost cells
+	    dist2Move = 2.0 * ((*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl));
+	    (*this).SetFCenterI( (*this).FCenterI(uFaceG1_iu) + dist2Move, uFaceG2_iu);
 	  }
-	  else{ //for interblock bc use interior cell values
-	    (*this).SetFCenterI( (*this).FCenterI(lFaceIn2_iu), lFaceG2_iu);
-	  }
-	  if (bcNameU != "interblock"){
+	  else{
 	    dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2_jl);
 	    (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu) + dist2Move, uFaceG2_iu);
 	  }
-	  else{ //for interblock bc use interior cell values
-	    (*this).SetFCenterI( (*this).FCenterI(uFaceIn2_iu), uFaceG2_iu);
-	  }
 
 	}
 
-      }
+	if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of k-line of cells assign cell upper k-face areas too
 
-      if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of k-line of cells assign cell upper k-face areas too
+	  //location of upper k-face for ghost cells at upper j-boundary
+	  int uFaceG1_ku = GetUpperFaceK(ii, jmaxG-2, kk, imaxG, jmaxG); 
+	  int uFaceG2_ku = GetUpperFaceK(ii, jmaxG-1, kk, imaxG, jmaxG);
 
-	//location of upper k-face for ghost cells at lower j-boundary
-	int lFaceG1_ku = GetUpperFaceK(ii, 1, kk, imaxG, jmaxG); 
-	int lFaceG2_ku = GetUpperFaceK(ii, 0, kk, imaxG, jmaxG);
+	  //location of upper k-face for interior cells at upper j-boundary
+	  int uFaceIn1_ku = GetUpperFaceK(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
 
-	//location of upper k-face for interior cells at lower j-boundary
-	int lFaceIn1_ku = GetUpperFaceK(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
-	int lFaceIn2_ku = GetUpperFaceK(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG); 
-
-	//location of upper k-face for ghost cells at upper j-boundary
-	int uFaceG1_ku = GetUpperFaceK(ii, jmaxG-2, kk, imaxG, jmaxG); 
-	int uFaceG2_ku = GetUpperFaceK(ii, jmaxG-1, kk, imaxG, jmaxG);
-
-	//location of upper k-face for interior cells at upper j-boundary
-	int uFaceIn1_ku = GetUpperFaceK(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
-	int uFaceIn2_ku = GetUpperFaceK(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
-
-	//face center is moved interior cell width in the boundary normal direction
-	//first layer of ghost cells
-	if (bcNameL != "interblock"){
-	  dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG1_ku);
-	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku), lFaceG1_ku);
-	}
-	if (bcNameU != "interblock"){
+	  //face center is moved interior cell width in the boundary normal direction
+	  //first layer of ghost cells
 	  dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl);
 	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku) + dist2Move, uFaceG1_ku);
-	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku), uFaceG1_ku);
-	}
 
-	//second layer of ghost cells
-	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	  dist2Move = 2.0 * ((*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju));
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceG1_ku) + dist2Move, lFaceG2_ku);
-
-	  dist2Move = 2.0 * ((*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl));
-	  (*this).SetFCenterK( (*this).FCenterK(uFaceG1_ku) + dist2Move, uFaceG2_ku);
-	}
-	else{
-	  if (bcNameL != "interblock"){
-	    dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2_ju);
-	    (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG2_ku);
+	  //second layer of ghost cells
+	  if (jmax < 2){ //one cell thick - use one cell for both ghost cells
+	    dist2Move = 2.0 * ((*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl));
+	    (*this).SetFCenterK( (*this).FCenterK(uFaceG1_ku) + dist2Move, uFaceG2_ku);
 	  }
-	  else{ //for interblock bc use interior cell values
-	    (*this).SetFCenterK( (*this).FCenterK(lFaceIn2_ku), lFaceG2_ku);
-	  }
-	  if (bcNameU != "interblock"){
+	  else{
 	    dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2_jl);
 	    (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku) + dist2Move, uFaceG2_ku);
 	  }
-	  else{ //for interblock bc use interior cell values
-	    (*this).SetFCenterK( (*this).FCenterK(uFaceIn2_ku), uFaceG2_ku);
-	  }
 
 	}
-
       }
 
     }
@@ -3125,427 +3109,421 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
   for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++ ){
     for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++ ){
 
-      //location of first ghost cell at lower k-boundary
-      int cellLowG1 = GetLoc1D(ii, jj, 1, imaxG, jmaxG);
-      //location of lower i, j, k faces of first ghost cell at lower k-boundary
-      int lFaceG1_il = GetLowerFaceI(ii, jj, 1, imaxG, jmaxG); 
-      int lFaceG1_jl = GetLowerFaceJ(ii, jj, 1, imaxG, jmaxG); 
-      int lFaceG1_kl = GetLowerFaceK(ii, jj, 1, imaxG, jmaxG); 
-
-      //location of second ghost cell at lower k-boundary
-      int cellLowG2 = GetLoc1D(ii, jj, 0, imaxG, jmaxG);
-      //location of lower i, j, k faces of second ghost cell at lower k-boundary
-      int lFaceG2_il = GetLowerFaceI(ii, jj, 0, imaxG, jmaxG);
-      int lFaceG2_jl = GetLowerFaceJ(ii, jj, 0, imaxG, jmaxG);
-      int lFaceG2_kl = GetLowerFaceK(ii, jj, 0, imaxG, jmaxG);
-
-      //location of first interior cell at lower k-boundary
-      int cellLowIn1 = GetLoc1D(ii, jj, (*this).NumGhosts(), imaxG, jmaxG);
-      //location of upper k and lower i, j faces of first interior cell at lower k-boundary
-      int lFaceIn1_il = GetLowerFaceI(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
-      int lFaceIn1_jl = GetLowerFaceJ(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
-      int lFaceIn1_ku = GetUpperFaceK(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
-
-      //location of second interior cell at lower k-boundary
-      int cellLowIn2 = GetLoc1D(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
-      //location of upper k and lower i, j faces of second interior cell at lower k-boundary
-      int lFaceIn2_il = GetLowerFaceI(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
-      int lFaceIn2_jl = GetLowerFaceJ(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
-      int lFaceIn2_ku = GetUpperFaceK(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
-
-      //location of lower k-boundary face
-      int lFaceB = GetLowerFaceK(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
-
-      //location of first ghost cell at upper k-boundary
-      int cellUpG1 = GetLoc1D(ii, jj, kmaxG-2, imaxG, jmaxG);
-      //location of upper k and lower i, j faces of first ghost cell at lower k-boundary
-      int uFaceG1_il = GetLowerFaceI(ii, jj, kmaxG-2, imaxG, jmaxG); 
-      int uFaceG1_jl = GetLowerFaceJ(ii, jj, kmaxG-2, imaxG, jmaxG); 
-      int uFaceG1_ku = GetUpperFaceK(ii, jj, kmaxG-2, imaxG, jmaxG); 
-
-      //location of second ghost cell at upper k-boundary
-      int cellUpG2 = GetLoc1D(ii, jj, kmaxG-1, imaxG, jmaxG);
-      //location of upper k and lower i, j faces of second ghost cell at lower k-boundary
-      int uFaceG2_il = GetLowerFaceI(ii, jj, kmaxG-1, imaxG, jmaxG);
-      int uFaceG2_jl = GetLowerFaceJ(ii, jj, kmaxG-1, imaxG, jmaxG);
-      int uFaceG2_ku = GetUpperFaceK(ii, jj, kmaxG-1, imaxG, jmaxG);
-
-      //location of first interior cell at upper k-boundary
-      int cellUpIn1 = GetLoc1D(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG);
-      //location of lower i, j, k faces of first interior cell at lower k-boundary
-      int uFaceIn1_il = GetLowerFaceI(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
-      int uFaceIn1_jl = GetLowerFaceJ(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
-      int uFaceIn1_kl = GetLowerFaceK(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
-
-      //location of second interior cell at upper k-boundary
-      int cellUpIn2 = GetLoc1D(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
-      //location of lower i, j, k faces of second interior cell at lower k-boundary
-      int uFaceIn2_il = GetLowerFaceI(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
-      int uFaceIn2_jl = GetLowerFaceJ(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
-      int uFaceIn2_kl = GetLowerFaceK(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
-
-      //location of upper k-boundary face
-      int uFaceB = GetUpperFaceK(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
-
       //name of boundary conditions at lower and upper boundaries
       string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), 0, "kl");
       string bcNameU = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kmax, "ku");
 
-      //Assign volume ------------------------------------------------------------------------------------------
-      //mirror volume values from adjacent cells across k-boundary
-      //first layer of ghost cells
-      (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
-      (*this).SetVol( (*this).Vol(cellUpIn1), cellUpG1);
-
-      //second layer of ghost cells
-      if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	(*this).SetVol( (*this).Vol(cellLowIn1), cellLowG2);
-	(*this).SetVol( (*this).Vol(cellUpIn1), cellUpG2);
-      }
-      else{
-	(*this).SetVol( (*this).Vol(cellLowIn2), cellLowG2);
-	(*this).SetVol( (*this).Vol(cellUpIn2), cellUpG2);
+      if ( bcNameL == "interblock" && bcNameU == "interblock" && kmax < 2 ){
+	cerr << "ERROR: Error in procBlock::AssignGhostCellsGeom(). Cannot have interblock BCs surrounding a block that is 1 cell thick!" << endl;
+	exit(0);
       }
 
-      //Assign face areas ----------------------------------------------------------------------------------------
-      //mirror face area values from adjacent cells across k-boundary
-      //first layer of ghost cells
-      (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_ku), lFaceG1_kl);
-      (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_il), lFaceG1_il);
-      (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_jl), lFaceG1_jl);
+      //lower surface ----------------------------------------------------------
+      if ( bcNameL != "interblock" ) { //only supply geometry values for non interblock BCs, for interblock, do nothing
 
-      (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_kl), uFaceG1_ku);
-      (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_il), uFaceG1_il);
-      (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_jl), uFaceG1_jl);
+	//location of first ghost cell at lower k-boundary
+	int cellLowG1 = GetLoc1D(ii, jj, 1, imaxG, jmaxG);
+	//location of lower i, j, k faces of first ghost cell at lower k-boundary
+	int lFaceG1_il = GetLowerFaceI(ii, jj, 1, imaxG, jmaxG); 
+	int lFaceG1_jl = GetLowerFaceJ(ii, jj, 1, imaxG, jmaxG); 
+	int lFaceG1_kl = GetLowerFaceK(ii, jj, 1, imaxG, jmaxG); 
 
-      //second layer of ghost cells
-      if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	(*this).SetFAreaK( (*this).FAreaK(lFaceIn1_ku), lFaceG2_kl);
-	(*this).SetFAreaI( (*this).FAreaI(lFaceIn1_il), lFaceG2_il);
-	(*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_jl), lFaceG2_jl);
+	//location of second ghost cell at lower k-boundary
+	int cellLowG2 = GetLoc1D(ii, jj, 0, imaxG, jmaxG);
+	//location of lower i, j, k faces of second ghost cell at lower k-boundary
+	int lFaceG2_il = GetLowerFaceI(ii, jj, 0, imaxG, jmaxG);
+	int lFaceG2_jl = GetLowerFaceJ(ii, jj, 0, imaxG, jmaxG);
+	int lFaceG2_kl = GetLowerFaceK(ii, jj, 0, imaxG, jmaxG);
 
-	(*this).SetFAreaK( (*this).FAreaK(uFaceIn1_kl), uFaceG2_ku);
-	(*this).SetFAreaI( (*this).FAreaI(uFaceIn1_il), uFaceG2_il);
-	(*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_jl), uFaceG2_jl);
-      }
-      else{
-	(*this).SetFAreaK( (*this).FAreaK(lFaceIn2_ku), lFaceG2_kl);
-	(*this).SetFAreaI( (*this).FAreaI(lFaceIn2_il), lFaceG2_il);
-	(*this).SetFAreaJ( (*this).FAreaJ(lFaceIn2_jl), lFaceG2_jl);
+	//location of first interior cell at lower k-boundary
+	int cellLowIn1 = GetLoc1D(ii, jj, (*this).NumGhosts(), imaxG, jmaxG);
+	//location of upper k and lower i, j faces of first interior cell at lower k-boundary
+	int lFaceIn1_il = GetLowerFaceI(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
+	int lFaceIn1_jl = GetLowerFaceJ(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
+	int lFaceIn1_ku = GetUpperFaceK(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
 
-	(*this).SetFAreaK( (*this).FAreaK(uFaceIn2_kl), uFaceG2_ku);
-	(*this).SetFAreaI( (*this).FAreaI(uFaceIn2_il), uFaceG2_il);
-	(*this).SetFAreaJ( (*this).FAreaJ(uFaceIn2_jl), uFaceG2_jl);
-      }
+	//location of second interior cell at lower k-boundary
+	int cellLowIn2 = GetLoc1D(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
+	//location of upper k and lower i, j faces of second interior cell at lower k-boundary
+	int lFaceIn2_il = GetLowerFaceI(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
+	int lFaceIn2_jl = GetLowerFaceJ(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
+	int lFaceIn2_ku = GetUpperFaceK(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
 
-      if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
+	//location of lower k-boundary face
+	int lFaceB = GetLowerFaceK(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
 
-	//location of upper i-face for ghost cells at lower k-boundary
-	int lFaceG1_iu = GetUpperFaceI(ii, jj, 1, imaxG, jmaxG); 
-	int lFaceG2_iu = GetUpperFaceI(ii, jj, 0, imaxG, jmaxG);
-
-	//location of upper i-face for interior cells at lower k-boundary
-	int lFaceIn1_iu = GetUpperFaceI(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
-	int lFaceIn2_iu = GetUpperFaceI(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
-
-	//location of upper i-face for ghost cells at upper k-boundary
-	int uFaceG1_iu = GetUpperFaceI(ii, jj, kmaxG-2, imaxG, jmaxG); 
-	int uFaceG2_iu = GetUpperFaceI(ii, jj, kmaxG-1, imaxG, jmaxG);
-
-	//location of upper i-face for interior cells at upper k-boundary
-	int uFaceIn1_iu = GetUpperFaceI(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
-	int uFaceIn2_iu = GetUpperFaceI(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
-
-	//mirror face area values from adjacent cells
+	//Assign volume ------------------------------------------------------------------------------------------
+	//mirror volume values from adjacent cells across k-boundary
 	//first layer of ghost cells
-	(*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG1_iu);
-	(*this).SetFAreaI( (*this).FAreaI(uFaceIn1_iu), uFaceG1_iu);
+	(*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
 
 	//second layer of ghost cells
 	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG2_iu);
-	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_iu), uFaceG2_iu);
+	  (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG2);
 	}
 	else{
-	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn2_iu), lFaceG2_iu);
-	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn2_iu), uFaceG2_iu);
+	  (*this).SetVol( (*this).Vol(cellLowIn2), cellLowG2);
 	}
 
-      }
-
-      if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper j-face areas too
-
-	//location of upper j-face for ghost cells at lower k-boundary
-	int lFaceG1_ju = GetUpperFaceJ(ii, jj, 1, imaxG, jmaxG); 
-	int lFaceG2_ju = GetUpperFaceJ(ii, jj, 0, imaxG, jmaxG);
-
-	//location of upper j-face for interior cells at lower k-boundary
-	int lFaceIn1_ju = GetUpperFaceJ(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
-	int lFaceIn2_ju = GetUpperFaceJ(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
-
-	//location of upper j-face for ghost cells at upper k-boundary
-	int uFaceG1_ju = GetUpperFaceJ(ii, jj, kmaxG-2, imaxG, jmaxG); 
-	int uFaceG2_ju = GetUpperFaceJ(ii, jj, kmaxG-1, imaxG, jmaxG);
-
-	//location of upper j-face for interior cells at upper k-boundary
-	int uFaceIn1_ju = GetUpperFaceJ(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
-	int uFaceIn2_ju = GetUpperFaceJ(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
-
-	//mirror face area values from adjacent cells
+	//Assign face areas ----------------------------------------------------------------------------------------
+	//mirror face area values from adjacent cells across k-boundary
 	//first layer of ghost cells
-	(*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG1_ju);
-	(*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_ju), uFaceG1_ju);
+	(*this).SetFAreaK( (*this).FAreaK(lFaceIn1_ku), lFaceG1_kl);
+	(*this).SetFAreaI( (*this).FAreaI(lFaceIn1_il), lFaceG1_il);
+	(*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_jl), lFaceG1_jl);
 
 	//second layer of ghost cells
 	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG2_ju);
-	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_ju), uFaceG2_ju);
+	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_ku), lFaceG2_kl);
+	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_il), lFaceG2_il);
+	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_jl), lFaceG2_jl);
 	}
 	else{
-	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn2_ju), lFaceG2_ju);
-	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn2_ju), uFaceG2_ju);
+	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn2_ku), lFaceG2_kl);
+	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn2_il), lFaceG2_il);
+	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn2_jl), lFaceG2_jl);
 	}
 
-      }
+	if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
 
-      //Assign cell centroid --------------------------------------------------------------------------------------------------------------------
-      //cell centroid is moved interior cell width in the boundary normal direction
-      //first layer of ghost cells
-      vector3d<double> dist2Move(0.0, 0.0, 0.0);
-      if (bcNameL != "interblock"){
-	dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
+	  //location of upper i-face for ghost cells at lower k-boundary
+	  int lFaceG1_iu = GetUpperFaceI(ii, jj, 1, imaxG, jmaxG); 
+	  int lFaceG2_iu = GetUpperFaceI(ii, jj, 0, imaxG, jmaxG);
+
+	  //location of upper i-face for interior cells at lower k-boundary
+	  int lFaceIn1_iu = GetUpperFaceI(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
+	  int lFaceIn2_iu = GetUpperFaceI(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
+
+	  //mirror face area values from adjacent cells
+	  //first layer of ghost cells
+	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG1_iu);
+
+	  //second layer of ghost cells
+	  if (kmax < 2){ //one cell thick - use one cell for both ghost cells
+	    (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG2_iu);
+	  }
+	  else{
+	    (*this).SetFAreaI( (*this).FAreaI(lFaceIn2_iu), lFaceG2_iu);
+	  }
+
+	}
+
+	if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper j-face areas too
+
+	  //location of upper j-face for ghost cells at lower k-boundary
+	  int lFaceG1_ju = GetUpperFaceJ(ii, jj, 1, imaxG, jmaxG); 
+	  int lFaceG2_ju = GetUpperFaceJ(ii, jj, 0, imaxG, jmaxG);
+
+	  //location of upper j-face for interior cells at lower k-boundary
+	  int lFaceIn1_ju = GetUpperFaceJ(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
+	  int lFaceIn2_ju = GetUpperFaceJ(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
+
+	  //mirror face area values from adjacent cells
+	  //first layer of ghost cells
+	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG1_ju);
+
+	  //second layer of ghost cells
+	  if (kmax < 2){ //one cell thick - use one cell for both ghost cells
+	    (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG2_ju);
+	  }
+	  else{
+	    (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn2_ju), lFaceG2_ju);
+	  }
+
+	}
+
+	//Assign cell centroid --------------------------------------------------------------------------------------------------------------------
+	//cell centroid is moved interior cell width in the boundary normal direction
+	//first layer of ghost cells
+	vector3d<double> dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
 	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
-      }
-      else{ //for interblock bc use interior cell values
-	(*this).SetCenter( (*this).Center(cellLowIn1), cellLowG1);
-      }
-      if (bcNameU != "interblock"){
-	dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
-	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
-      }
-      else{ //for interblock bc use interior cell values
-	(*this).SetCenter( (*this).Center(cellUpIn1), cellUpG1);
-      }
 
-      //second layer of ghost cells
-      if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	if ( bcNameL != "interblock" && bcNameU != "interblock" ){ //neither boundary is interblock
+	//second layer of ghost cells
+	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
 	  dist2Move = 2.0 * ((*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku));
 	  (*this).SetCenter( (*this).Center(cellLowG1) + dist2Move, cellLowG2);
-	  dist2Move = 2.0 * ((*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl));
-	  (*this).SetCenter( (*this).Center(cellUpG1) + dist2Move, cellUpG2);
 	}
 	else{
-	  cerr << "ERROR: Error in procBlock.cpp:AssignGhostCellsGeom. An interblock boundary is not supported when the thickness "
-	       << "of the block in the normal direction of the boundary is 1 cell!" << endl;
-	  exit(0);
-	}
-      }
-      else{
-	if (bcNameL != "interblock"){
 	  dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2_ku);
 	  (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
 	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetCenter( (*this).Center(cellLowIn2), cellLowG2);
-	}
-	if (bcNameU != "interblock"){
-	  dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2_kl);
-	  (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
-	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetCenter( (*this).Center(cellUpIn2), cellUpG2);
-	}
 
-      }
-
-      //Assign face centers --------------------------------------------------------------------------------------------------------------------
-      //face center is moved interior cell width in the boundary normal direction
-      //first layer of ghost cells
-      if (bcNameL != "interblock"){
+	//Assign face centers --------------------------------------------------------------------------------------------------------------------
+	//face center is moved interior cell width in the boundary normal direction
+	//first layer of ghost cells
 	dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
 	(*this).SetFCenterK( (*this).FCenterK(lFaceB) + dist2Move, lFaceG1_kl);
 	(*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il) + dist2Move, lFaceG1_il);
 	(*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl) + dist2Move, lFaceG1_jl);
-      }
-      else{ //for interblock bc use interior cell values
-	(*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku), lFaceG1_kl);
-	(*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il), lFaceG1_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl), lFaceG1_jl);
-      }
 
-      if (bcNameU != "interblock"){
-	dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
-	(*this).SetFCenterK( (*this).FCenterK(uFaceB) + dist2Move, uFaceG1_ku);
-	(*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il) + dist2Move, uFaceG1_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl) + dist2Move, uFaceG1_jl);
-      }
-      else{ //for interblock bc use interior cell values
-	(*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl), uFaceG1_ku);
-	(*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il), uFaceG1_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl), uFaceG1_jl);
-      }
-
-      //second layer of ghost cells
-      if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	dist2Move = 2.0 * ((*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku));
-	(*this).SetFCenterK( (*this).FCenterK(lFaceG1_kl) + dist2Move, lFaceG2_kl);
-	(*this).SetFCenterI( (*this).FCenterI(lFaceG1_il) + dist2Move, lFaceG2_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(lFaceG1_jl) + dist2Move, lFaceG2_jl);
-
-	dist2Move = 2.0 * ((*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl));
-	(*this).SetFCenterK( (*this).FCenterK(uFaceG1_ku) + dist2Move, uFaceG2_ku);
-	(*this).SetFCenterI( (*this).FCenterI(uFaceG1_il) + dist2Move, uFaceG2_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(uFaceG1_jl) + dist2Move, uFaceG2_jl);
-      }
-      else{
-	if (bcNameL != "interblock"){
+	//second layer of ghost cells
+	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
+	  dist2Move = 2.0 * ((*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku));
+	  (*this).SetFCenterK( (*this).FCenterK(lFaceG1_kl) + dist2Move, lFaceG2_kl);
+	  (*this).SetFCenterI( (*this).FCenterI(lFaceG1_il) + dist2Move, lFaceG2_il);
+	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceG1_jl) + dist2Move, lFaceG2_jl);
+	}
+	else{
 	  dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2_ku);
 	  (*this).SetFCenterK( (*this).FCenterK(lFaceB) + dist2Move, lFaceG2_kl);
 	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il) + dist2Move, lFaceG2_il);
 	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl) + dist2Move, lFaceG2_jl);
 	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn2_ku), lFaceG2_kl);
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn2_il), lFaceG2_il);
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn2_jl), lFaceG2_jl);
+
+	if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
+
+	  //location of upper i-face for ghost cells at lower k-boundary
+	  int lFaceG1_iu = GetUpperFaceI(ii, jj, 1, imaxG, jmaxG); 
+	  int lFaceG2_iu = GetUpperFaceI(ii, jj, 0, imaxG, jmaxG);
+
+	  //location of upper i-face for interior cells at lower k-boundary
+	  int lFaceIn1_iu = GetUpperFaceI(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
+
+	  //face center is moved interior cell width in the boundary normal direction
+	  //first layer of ghost cells
+	  dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
+	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG1_iu);
+
+	  //second layer of ghost cells
+	  if (kmax < 2){ //one cell thick - use one cell for both ghost cells
+	    dist2Move = 2.0 * ((*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku));
+	    (*this).SetFCenterI( (*this).FCenterI(lFaceG1_iu) + dist2Move, lFaceG2_iu);
+	  }
+	  else{
+	    dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2_ku);
+	    (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG2_iu);
+	  }
+
 	}
 
-	if (bcNameU != "interblock"){
+	if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper j-face areas too
+
+	  //location of upper j-face for ghost cells at lower k-boundary
+	  int lFaceG1_ju = GetUpperFaceJ(ii, jj, 1, imaxG, jmaxG); 
+	  int lFaceG2_ju = GetUpperFaceJ(ii, jj, 0, imaxG, jmaxG);
+
+	  //location of upper j-face for interior cells at lower k-boundary
+	  int lFaceIn1_ju = GetUpperFaceJ(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
+
+	  //face center is moved interior cell width in the boundary normal direction
+	  //first layer of ghost cells
+	  dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
+	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG1_ju);
+
+	  //second layer of ghost cells
+	  if (kmax < 2){ //one cell thick - use one cell for both ghost cells
+	    dist2Move = 2.0 * ((*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku));
+	    (*this).SetFCenterJ( (*this).FCenterJ(lFaceG1_ju) + dist2Move, lFaceG2_ju);
+	  }
+	  else{
+	    dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2_ku);
+	    (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG2_ju);
+	  }
+
+	}
+
+      }
+
+      //upper surface -----------------------------------------------------------------
+      if ( bcNameL != "interblock" ) { //only supply geometry values for non interblock BCs, for interblock, do nothing
+
+	//location of first ghost cell at upper k-boundary
+	int cellUpG1 = GetLoc1D(ii, jj, kmaxG-2, imaxG, jmaxG);
+	//location of upper k and lower i, j faces of first ghost cell at lower k-boundary
+	int uFaceG1_il = GetLowerFaceI(ii, jj, kmaxG-2, imaxG, jmaxG); 
+	int uFaceG1_jl = GetLowerFaceJ(ii, jj, kmaxG-2, imaxG, jmaxG); 
+	int uFaceG1_ku = GetUpperFaceK(ii, jj, kmaxG-2, imaxG, jmaxG); 
+
+	//location of second ghost cell at upper k-boundary
+	int cellUpG2 = GetLoc1D(ii, jj, kmaxG-1, imaxG, jmaxG);
+	//location of upper k and lower i, j faces of second ghost cell at lower k-boundary
+	int uFaceG2_il = GetLowerFaceI(ii, jj, kmaxG-1, imaxG, jmaxG);
+	int uFaceG2_jl = GetLowerFaceJ(ii, jj, kmaxG-1, imaxG, jmaxG);
+	int uFaceG2_ku = GetUpperFaceK(ii, jj, kmaxG-1, imaxG, jmaxG);
+
+	//location of first interior cell at upper k-boundary
+	int cellUpIn1 = GetLoc1D(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG);
+	//location of lower i, j, k faces of first interior cell at lower k-boundary
+	int uFaceIn1_il = GetLowerFaceI(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+	int uFaceIn1_jl = GetLowerFaceJ(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+	int uFaceIn1_kl = GetLowerFaceK(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+
+	//location of second interior cell at upper k-boundary
+	int cellUpIn2 = GetLoc1D(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
+	//location of lower i, j, k faces of second interior cell at lower k-boundary
+	int uFaceIn2_il = GetLowerFaceI(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
+	int uFaceIn2_jl = GetLowerFaceJ(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
+	int uFaceIn2_kl = GetLowerFaceK(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
+
+	//location of upper k-boundary face
+	int uFaceB = GetUpperFaceK(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+
+	//Assign volume ------------------------------------------------------------------------------------------
+	//mirror volume values from adjacent cells across k-boundary
+	//first layer of ghost cells
+	(*this).SetVol( (*this).Vol(cellUpIn1), cellUpG1);
+
+	//second layer of ghost cells
+	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
+	  (*this).SetVol( (*this).Vol(cellUpIn1), cellUpG2);
+	}
+	else{
+	  (*this).SetVol( (*this).Vol(cellUpIn2), cellUpG2);
+	}
+
+	//Assign face areas ----------------------------------------------------------------------------------------
+	//mirror face area values from adjacent cells across k-boundary
+	//first layer of ghost cells
+	(*this).SetFAreaK( (*this).FAreaK(uFaceIn1_kl), uFaceG1_ku);
+	(*this).SetFAreaI( (*this).FAreaI(uFaceIn1_il), uFaceG1_il);
+	(*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_jl), uFaceG1_jl);
+
+	//second layer of ghost cells
+	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
+	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_kl), uFaceG2_ku);
+	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_il), uFaceG2_il);
+	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_jl), uFaceG2_jl);
+	}
+	else{
+	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn2_kl), uFaceG2_ku);
+	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn2_il), uFaceG2_il);
+	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn2_jl), uFaceG2_jl);
+	}
+
+	if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
+
+	  //location of upper i-face for ghost cells at upper k-boundary
+	  int uFaceG1_iu = GetUpperFaceI(ii, jj, kmaxG-2, imaxG, jmaxG); 
+	  int uFaceG2_iu = GetUpperFaceI(ii, jj, kmaxG-1, imaxG, jmaxG);
+
+	  //location of upper i-face for interior cells at upper k-boundary
+	  int uFaceIn1_iu = GetUpperFaceI(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+	  int uFaceIn2_iu = GetUpperFaceI(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
+
+	  //mirror face area values from adjacent cells
+	  //first layer of ghost cells
+	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_iu), uFaceG1_iu);
+
+	  //second layer of ghost cells
+	  if (kmax < 2){ //one cell thick - use one cell for both ghost cells
+	    (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_iu), uFaceG2_iu);
+	  }
+	  else{
+	    (*this).SetFAreaI( (*this).FAreaI(uFaceIn2_iu), uFaceG2_iu);
+	  }
+
+	}
+
+	if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper j-face areas too
+
+	  //location of upper j-face for ghost cells at upper k-boundary
+	  int uFaceG1_ju = GetUpperFaceJ(ii, jj, kmaxG-2, imaxG, jmaxG); 
+	  int uFaceG2_ju = GetUpperFaceJ(ii, jj, kmaxG-1, imaxG, jmaxG);
+
+	  //location of upper j-face for interior cells at upper k-boundary
+	  int uFaceIn1_ju = GetUpperFaceJ(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+	  int uFaceIn2_ju = GetUpperFaceJ(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
+
+	  //mirror face area values from adjacent cells
+	  //first layer of ghost cells
+	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_ju), uFaceG1_ju);
+
+	  //second layer of ghost cells
+	  if (kmax < 2){ //one cell thick - use one cell for both ghost cells
+	    (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_ju), uFaceG2_ju);
+	  }
+	  else{
+	    (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn2_ju), uFaceG2_ju);
+	  }
+
+	}
+
+	//Assign cell centroid --------------------------------------------------------------------------------------------------------------------
+	//cell centroid is moved interior cell width in the boundary normal direction
+	//first layer of ghost cells
+	vector3d<double> dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
+	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
+
+	//second layer of ghost cells
+	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
+	  dist2Move = 2.0 * ((*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl));
+	  (*this).SetCenter( (*this).Center(cellUpG1) + dist2Move, cellUpG2);
+	}
+	else{
+	  dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2_kl);
+	  (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+	}
+
+	//Assign face centers --------------------------------------------------------------------------------------------------------------------
+	//face center is moved interior cell width in the boundary normal direction
+	//first layer of ghost cells
+	dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
+	(*this).SetFCenterK( (*this).FCenterK(uFaceB) + dist2Move, uFaceG1_ku);
+	(*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il) + dist2Move, uFaceG1_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl) + dist2Move, uFaceG1_jl);
+
+	//second layer of ghost cells
+	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
+	  dist2Move = 2.0 * ((*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl));
+	  (*this).SetFCenterK( (*this).FCenterK(uFaceG1_ku) + dist2Move, uFaceG2_ku);
+	  (*this).SetFCenterI( (*this).FCenterI(uFaceG1_il) + dist2Move, uFaceG2_il);
+	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceG1_jl) + dist2Move, uFaceG2_jl);
+	}
+	else{
 	  dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2_kl);
 	  (*this).SetFCenterK( (*this).FCenterK(uFaceB) + dist2Move, uFaceG2_ku);
 	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il) + dist2Move, uFaceG2_il);
 	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl) + dist2Move, uFaceG2_jl);
 	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn2_kl), uFaceG2_ku);
-	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn2_il), uFaceG2_il);
-	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn2_jl), uFaceG2_jl);
-	}
 
-      }
+	if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
 
-      if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
+	  //location of upper i-face for ghost cells at upper k-boundary
+	  int uFaceG1_iu = GetUpperFaceI(ii, jj, kmaxG-2, imaxG, jmaxG); 
+	  int uFaceG2_iu = GetUpperFaceI(ii, jj, kmaxG-1, imaxG, jmaxG);
 
-	//location of upper i-face for ghost cells at lower k-boundary
-	int lFaceG1_iu = GetUpperFaceI(ii, jj, 1, imaxG, jmaxG); 
-	int lFaceG2_iu = GetUpperFaceI(ii, jj, 0, imaxG, jmaxG);
+	  //location of upper i-face for interior cells at upper k-boundary
+	  int uFaceIn1_iu = GetUpperFaceI(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
 
-	//location of upper i-face for interior cells at lower k-boundary
-	int lFaceIn1_iu = GetUpperFaceI(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
-	int lFaceIn2_iu = GetUpperFaceI(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG); 
-
-	//location of upper i-face for ghost cells at upper k-boundary
-	int uFaceG1_iu = GetUpperFaceI(ii, jj, kmaxG-2, imaxG, jmaxG); 
-	int uFaceG2_iu = GetUpperFaceI(ii, jj, kmaxG-1, imaxG, jmaxG);
-
-	//location of upper i-face for interior cells at upper k-boundary
-	int uFaceIn1_iu = GetUpperFaceI(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
-	int uFaceIn2_iu = GetUpperFaceI(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG); 
-
-	//face center is moved interior cell width in the boundary normal direction
-	//first layer of ghost cells
-	if (bcNameL != "interblock"){
-	  dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG1_iu);
-	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu), lFaceG1_iu);
-	}
-	if (bcNameU != "interblock"){
+	  //face center is moved interior cell width in the boundary normal direction
+	  //first layer of ghost cells
 	  dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
 	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu) + dist2Move, uFaceG1_iu);
-	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu), uFaceG1_iu);
-	}
 
-	//second layer of ghost cells
-	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	  dist2Move = 2.0 * ((*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku));
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceG1_iu) + dist2Move, lFaceG2_iu);
-
-	  dist2Move = 2.0 * ((*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl));
-	  (*this).SetFCenterI( (*this).FCenterI(uFaceG1_iu) + dist2Move, uFaceG2_iu);
-	}
-	else{
-
-	  if (bcNameL != "interblock"){
-	    dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2_ku);
-	    (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG2_iu);
+	  //second layer of ghost cells
+	  if (kmax < 2){ //one cell thick - use one cell for both ghost cells
+	    dist2Move = 2.0 * ((*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl));
+	    (*this).SetFCenterI( (*this).FCenterI(uFaceG1_iu) + dist2Move, uFaceG2_iu);
 	  }
-	  else{ //for interblock bc use interior cell values
-	    (*this).SetFCenterI( (*this).FCenterI(lFaceIn2_iu), lFaceG2_iu);
-	  }
-	  if (bcNameU != "interblock"){
+	  else{
 	    dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2_kl);
 	    (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu) + dist2Move, uFaceG2_iu);
 	  }
-	  else{ //for interblock bc use interior cell values
-	    (*this).SetFCenterI( (*this).FCenterI(uFaceIn2_iu), uFaceG2_iu);
-	  }
 
 	}
 
-      }
+	if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper j-face areas too
 
-      if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper j-face areas too
+	  //location of upper j-face for ghost cells at upper k-boundary
+	  int uFaceG1_ju = GetUpperFaceJ(ii, jj, kmaxG-2, imaxG, jmaxG); 
+	  int uFaceG2_ju = GetUpperFaceJ(ii, jj, kmaxG-1, imaxG, jmaxG);
 
-	//location of upper j-face for ghost cells at lower k-boundary
-	int lFaceG1_ju = GetUpperFaceJ(ii, jj, 1, imaxG, jmaxG); 
-	int lFaceG2_ju = GetUpperFaceJ(ii, jj, 0, imaxG, jmaxG);
+	  //location of upper j-face for interior cells at upper k-boundary
+	  int uFaceIn1_ju = GetUpperFaceJ(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
 
-	//location of upper j-face for interior cells at lower k-boundary
-	int lFaceIn1_ju = GetUpperFaceJ(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
-	int lFaceIn2_ju = GetUpperFaceJ(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG); 
-
-	//location of upper j-face for ghost cells at upper k-boundary
-	int uFaceG1_ju = GetUpperFaceJ(ii, jj, kmaxG-2, imaxG, jmaxG); 
-	int uFaceG2_ju = GetUpperFaceJ(ii, jj, kmaxG-1, imaxG, jmaxG);
-
-	//location of upper j-face for interior cells at upper k-boundary
-	int uFaceIn1_ju = GetUpperFaceJ(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
-	int uFaceIn2_ju = GetUpperFaceJ(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG); 
-
-	//face center is moved interior cell width in the boundary normal direction
-	//first layer of ghost cells
-	if (bcNameL != "interblock"){
-	  dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG1_ju);
-	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju), lFaceG1_ju);
-	}
-	if (bcNameU != "interblock"){
+	  //face center is moved interior cell width in the boundary normal direction
+	  //first layer of ghost cells
 	  dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
 	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju) + dist2Move, uFaceG1_ju);
-	}
-	else{ //for interblock bc use interior cell values
-	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju), uFaceG1_ju);
-	}
 
-	//second layer of ghost cells
-	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	  dist2Move = 2.0 * ((*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku));
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceG1_ju) + dist2Move, lFaceG2_ju);
-
-	  dist2Move = 2.0 * ((*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl));
-	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceG1_ju) + dist2Move, uFaceG2_ju);
-	}
-	else{
-	  if (bcNameL != "interblock"){
-	    dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2_ku);
-	    (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG2_ju);
+	  //second layer of ghost cells
+	  if (kmax < 2){ //one cell thick - use one cell for both ghost cells
+	    dist2Move = 2.0 * ((*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl));
+	    (*this).SetFCenterJ( (*this).FCenterJ(uFaceG1_ju) + dist2Move, uFaceG2_ju);
 	  }
-	  else{ //for interblock bc use interior cell values
-	    (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn2_ju), lFaceG2_ju);
-	  }
-	  if (bcNameU != "interblock"){
+	  else{
 	    dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2_kl);
 	    (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju) + dist2Move, uFaceG2_ju);
-	  }
-	  else{ //for interblock bc use interior cell values
-	    (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn2_ju), uFaceG2_ju);
 	  }
 
 	}
@@ -3556,7 +3534,7 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
   }
 
   //fill ghost cell edge lines with geometric values
-  //(*this).AssignGhostCellsGeomEdge();
+  //(*this).AssignGhostCellsGeomEdge(inp);
 
 }
  
@@ -3585,7 +3563,10 @@ axes on the side of the diagram indicate the coordinates of the edge ghost cells
 The values at edge cell 1,1 are the average of the values at the two ghost cells it touches at level "e". The values at edge cells 1,2 and 2,1 are identical to 
 the values of the ghost cells they tough at level "e". The values at edge cell 2,2 are the average of the values at the two (1,2 & 2,1) edge ghost cells it touches.
 */
-void procBlock::AssignGhostCellsGeomEdge(){
+void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
+
+  //get boundary conditions for block
+  const boundaryConditions bound = inp.BC( (*this).ParentBlock() );
 
   //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
@@ -3615,6 +3596,8 @@ void procBlock::AssignGhostCellsGeomEdge(){
       int gf_j2_ke_jl, gf_j2_ke_kl;
       int gf_je_k1_jl, gf_je_k1_ju;
       int gf_je_k2_jl, gf_je_k2_kl;
+
+      string bc_J, bc_K, surfJ, surfK;
 
       if ( cc == 0 ){ //at jl/kl edge - ghost cells are in the lower direction of both j and k, so use GetLowerFace for both
 	j2 = 0;
@@ -3659,6 +3642,14 @@ void procBlock::AssignGhostCellsGeomEdge(){
 	//ghost face, on non-edge layer of j line of cells, on second layer of k line of cells
 	gf_je_k2_jl = GetLowerFaceJ(ii, je, k2, imaxG, jmaxG); 
 	gf_je_k2_kl = GetLowerFaceK(ii, je, k2, imaxG, jmaxG); 
+
+	surfJ = "jl";
+	surfK = "kl";
+
+	//boundary conditions at corner
+	bc_J = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfJ);
+	bc_K = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+
       }
       else if ( cc == 1 ){ //at jl/ku edge - ghost cells are in the lower direction of j and upper direction of k, so use GetLowerFace for J
 	j2 = 0;
@@ -3703,6 +3694,14 @@ void procBlock::AssignGhostCellsGeomEdge(){
 	//ghost face, on non-edge layer of j line of cells, on second layer of k line of cells
 	gf_je_k2_jl = GetLowerFaceJ(ii, je, k2, imaxG, jmaxG); 
 	gf_je_k2_kl = GetUpperFaceK(ii, je, k2, imaxG, jmaxG); 
+
+	surfJ = "jl";
+	surfK = "ku";
+
+	//boundary conditions at corner
+	bc_J = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfJ);
+	bc_K = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
+
       }
       else if ( cc == 2 ){ //at ju/kl edge - ghost cells are in the lower direction of k, and upper direction of j so use GetLowerFace for k
 	j2 = jmaxG - 1;
@@ -3747,6 +3746,14 @@ void procBlock::AssignGhostCellsGeomEdge(){
 	//ghost face, on non-edge layer of j line of cells, on second layer of k line of cells
 	gf_je_k2_jl = GetUpperFaceJ(ii, je, k2, imaxG, jmaxG);  
 	gf_je_k2_kl = GetLowerFaceK(ii, je, k2, imaxG, jmaxG);  
+
+	surfJ = "ju";
+	surfK = "kl";
+
+	//boundary conditions at corner
+	bc_J = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, ke - (*this).NumGhosts(),surfJ);
+	bc_K = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+
       }
       else if ( cc == 3 ){ //at ju/ku edge - ghost cells are in the upper direction of both j and k, use GetUpperFace for both
 	j2 = jmaxG - 1;
@@ -3791,108 +3798,120 @@ void procBlock::AssignGhostCellsGeomEdge(){
 	//ghost face, on non-edge layer of j line of cells, on second layer of k line of cells
 	gf_je_k2_jl = GetUpperFaceJ(ii, je, k2, imaxG, jmaxG);  
 	gf_je_k2_kl = GetUpperFaceK(ii, je, k2, imaxG, jmaxG);  
-      }
 
-      //cell indices and remaining face indices
-      int gce_j1_k1 = GetLoc1D(ii, j1, k1, imaxG, jmaxG);      //ghost cell on edge, on first layer of j line of cells, on first layer of k line of cells
-      int gfe_j1_k1_il = GetLowerFaceI(ii, j1, k1, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on first layer of k line of cells
+	surfJ = "ju";
+	surfK = "ku";
 
-      int gce_j1_k2 = GetLoc1D(ii, j1, k2, imaxG, jmaxG);         //ghost cell on edge, on first layer of j line of cells, on second layer of k line of cells
-      int gfe_j1_k2_il = GetLowerFaceI(ii, j1, k2, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on second layer of k line of cells
-
-      int gce_j2_k1 = GetLoc1D(ii, j2, k1, imaxG, jmaxG);         //ghost cell on edge, on second layer of j line of cells, on first layer of k line of cells
-      int gfe_j2_k1_il = GetLowerFaceI(ii, j2, k1, imaxG, jmaxG); //ghost face on edge, on second layer of j line of cells, on first layer of k line of cells
-
-      int gce_j2_k2 = GetLoc1D(ii, j2, k2, imaxG, jmaxG);         //ghost cell on edge, on second layer of j line of cells, on second layer of k line of cells
-      int gfe_j2_k2_il = GetLowerFaceI(ii, j2, k2, imaxG, jmaxG); //ghost face on edge, on second layer of j line of cells, on second layer of k line of cells
-
-      int gc_j1_ke = GetLoc1D(ii, j1, ke, imaxG, jmaxG);          //ghost cell, on first layer of j line of cells, on non-edge layer of k line of cells
-      int gf_j1_ke_il = GetLowerFaceI(ii, j1, ke, imaxG, jmaxG);  //ghost face, on first layer of j line of cells, on non-edge layer of k line of cells
-
-      int gc_j2_ke = GetLoc1D(ii, j2, ke, imaxG, jmaxG);          //ghost cell, on second layer of j line of cells, on non-edge layer of k line of cells
-      int gf_j2_ke_il = GetLowerFaceI(ii, j2, ke, imaxG, jmaxG);  //ghost face, on second layer of j line of cells, on non-edge layer of k line of cells
-
-      int gc_je_k1 = GetLoc1D(ii, je, k1, imaxG, jmaxG);          //ghost cell, on non-edge layer of j line of cells, on first layer of k line of cells
-      int gf_je_k1_il = GetLowerFaceI(ii, je, k1, imaxG, jmaxG);  //ghost face, on non-edge layer of j line of cells, on first layer of k line of cells
-
-      int gc_je_k2 = GetLoc1D(ii, je, k2, imaxG, jmaxG);          //ghost cell, on non-edge layer of j line of cells, on second layer of k line of cells
-      int gf_je_k2_il = GetLowerFaceI(ii, je, k2, imaxG, jmaxG);  //ghost face, on non-edge layer of j line of cells, on second layer of k line of cells
-
-      //volume -----------------------------------------------------------------------------------------------------------------------------------
-      (*this).SetVol( 0.5 * ( (*this).Vol(gc_j1_ke) + (*this).Vol(gc_je_k1) ) ,gce_j1_k1);
-      (*this).SetVol( (*this).Vol(gc_j2_ke) ,gce_j2_k1);
-      (*this).SetVol( (*this).Vol(gc_je_k2) ,gce_j1_k2);
-      (*this).SetVol( 0.5 * ( (*this).Vol(gc_j2_ke) + (*this).Vol(gc_je_k2) ) ,gce_j2_k2);
-
-      //face areas --------------------------------------------------------------------------------------------------------------------------------
-      (*this).SetFAreaI( 0.5 * ( (*this).FAreaI(gf_je_k1_il) + (*this).FAreaI(gf_j1_ke_il) ), gfe_j1_k1_il);
-      (*this).SetFAreaJ( (*this).FAreaJ(gf_je_k1_jl), gfe_j1_k1_jl);
-      (*this).SetFAreaK( (*this).FAreaK(gf_j1_ke_kl), gfe_j1_k1_kl);
-
-      (*this).SetFAreaI( (*this).FAreaI(gf_je_k2_il), gfe_j1_k2_il);
-      (*this).SetFAreaJ( (*this).FAreaJ(gf_je_k2_jl), gfe_j1_k2_jl);
-      (*this).SetFAreaK( (*this).FAreaK(gf_j1_ke_kl), gfe_j1_k2_kl);
-
-      (*this).SetFAreaI( (*this).FAreaI(gf_j2_ke_il), gfe_j2_k1_il);
-      (*this).SetFAreaJ( (*this).FAreaJ(gf_je_k1_jl), gfe_j2_k1_jl);
-      (*this).SetFAreaK( (*this).FAreaK(gf_j2_ke_kl), gfe_j2_k1_kl);
-
-      (*this).SetFAreaI( 0.5 * ( (*this).FAreaI(gf_j2_ke_il) + (*this).FAreaI(gf_je_k2_il) ), gfe_j2_k2_il);
-      (*this).SetFAreaJ( (*this).FAreaJ(gf_je_k2_jl), gfe_j2_k2_jl);
-      (*this).SetFAreaK( (*this).FAreaK(gf_j2_ke_kl), gfe_j2_k2_kl);
-
-      //centroids -------------------------------------------------------------------------------------------------------------------------------------
-      //edge centroid is moved distance of cell width normal to face dividing regular and edge ghost cells
-      vector3d<double> dist2MoveK = (*this).FCenterK(gf_j1_ke_kl) - (*this).FCenterK(gf_j1_ke_ku) ;
-      vector3d<double> dist2MoveJ = (*this).FCenterJ(gf_je_k1_jl) - (*this).FCenterJ(gf_je_k1_ju) ;
-      (*this).SetCenter( (*this).Center(gc_j1_ke) + dist2MoveK, gce_j1_k1);
-      (*this).SetCenter( (*this).Center(gc_j2_ke) + dist2MoveK, gce_j2_k1);
-      (*this).SetCenter( (*this).Center(gc_je_k2) + dist2MoveJ, gce_j1_k2);
-      (*this).SetCenter( (*this).Center(gc_je_k2) + 2.0 * dist2MoveJ, gce_j2_k2);
-
-      //face centers -----------------------------------------------------------------------------------------------------------------------------------
-      //edge face centers are moved distance of cell width normal to face dividing regular and edge ghost cells
-      (*this).SetFCenterI( (*this).FCenterI(gf_j1_ke_il) + dist2MoveK, gfe_j1_k1_il);
-      (*this).SetFCenterJ( (*this).FCenterJ(gf_j1_ke_jl) + dist2MoveK, gfe_j1_k1_jl);
-      (*this).SetFCenterK( (*this).FCenterK(gf_j1_ke_kl) + dist2MoveK, gfe_j1_k1_kl);
-
-      (*this).SetFCenterI( (*this).FCenterI(gf_j2_ke_il) + dist2MoveK, gfe_j2_k1_il);
-      (*this).SetFCenterJ( (*this).FCenterJ(gf_j2_ke_jl) + dist2MoveK, gfe_j2_k1_jl);
-      (*this).SetFCenterK( (*this).FCenterK(gf_j2_ke_kl) + dist2MoveK, gfe_j2_k1_kl);
-
-      (*this).SetFCenterI( (*this).FCenterI(gf_je_k2_il) + dist2MoveJ, gfe_j1_k2_il);
-      (*this).SetFCenterJ( (*this).FCenterJ(gf_je_k2_jl) + dist2MoveJ, gfe_j1_k2_jl);
-      (*this).SetFCenterK( (*this).FCenterK(gf_je_k2_kl) + dist2MoveJ, gfe_j1_k2_kl);
-
-      (*this).SetFCenterI( (*this).FCenterI(gf_je_k2_il) + 2.0 * dist2MoveJ, gfe_j2_k2_il);
-      (*this).SetFCenterJ( (*this).FCenterJ(gf_je_k2_jl) + 2.0 * dist2MoveJ, gfe_j2_k2_jl);
-      (*this).SetFCenterK( (*this).FCenterK(gf_je_k2_kl) + 2.0 * dist2MoveJ, gfe_j2_k2_kl);
-
-      //this is only done at the end of the i loop
-      if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper face areas too
-
-	int gfe_j1_k1_2il = GetLowerFaceI(ii - 1, j1, k1, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on first layer of k line of cells
-	vector3d<double> dist2MoveI = (*this).FCenterI(gfe_j1_k1_il) - (*this).FCenterI(gfe_j1_k1_2il); // i-width of cell adjacent to edge
-
-	int gfe_j1_k1_iu = GetUpperFaceI(ii, j1, k1, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on first layer of k line of cells
-	int gfe_j1_k2_iu = GetUpperFaceI(ii, j1, k2, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on second layer of k line of cells
-	int gfe_j2_k1_iu = GetUpperFaceI(ii, j2, k1, imaxG, jmaxG); //ghost face on edge, on second layer of j line of cells, on first layer of k line of cells
-	int gfe_j2_k2_iu = GetUpperFaceI(ii, j2, k2, imaxG, jmaxG); //ghost face on edge, on second layer of j line of cells, on second layer of k line of cells
-
-	//face areas
-	(*this).SetFAreaI( (*this).FAreaI(gfe_j1_k1_il), gfe_j1_k1_iu);
-	(*this).SetFAreaI( (*this).FAreaI(gfe_j1_k2_il), gfe_j1_k2_iu);
-	(*this).SetFAreaI( (*this).FAreaI(gfe_j2_k1_il), gfe_j2_k1_iu);
-	(*this).SetFAreaI( (*this).FAreaI(gfe_j2_k2_il), gfe_j2_k2_iu);
-
-	//face centers
-	(*this).SetFCenterI( (*this).FCenterI(gfe_j1_k1_il) + dist2MoveI, gfe_j1_k1_iu);
-	(*this).SetFCenterI( (*this).FCenterI(gfe_j1_k2_il) + dist2MoveI, gfe_j1_k2_iu);
-	(*this).SetFCenterI( (*this).FCenterI(gfe_j2_k1_il) + dist2MoveI, gfe_j2_k1_iu);
-	(*this).SetFCenterI( (*this).FCenterI(gfe_j2_k2_il) + dist2MoveI, gfe_j2_k2_iu);
+	//boundary conditions at corner
+	bc_J = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, ke - (*this).NumGhosts(), surfJ);
+	bc_K = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
 
       }
 
+      //if both corner boundaries aren't interblocks, get edge cells; if bouth boundaries are interblocks, edge cells come from ghost cell exchange
+      if ( bc_J != "interblock" && bc_K != "interblock" ){ 
+
+	//cell indices and remaining face indices
+	int gce_j1_k1 = GetLoc1D(ii, j1, k1, imaxG, jmaxG);      //ghost cell on edge, on first layer of j line of cells, on first layer of k line of cells
+	int gfe_j1_k1_il = GetLowerFaceI(ii, j1, k1, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on first layer of k line of cells
+
+	int gce_j1_k2 = GetLoc1D(ii, j1, k2, imaxG, jmaxG);         //ghost cell on edge, on first layer of j line of cells, on second layer of k line of cells
+	int gfe_j1_k2_il = GetLowerFaceI(ii, j1, k2, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on second layer of k line of cells
+
+	int gce_j2_k1 = GetLoc1D(ii, j2, k1, imaxG, jmaxG);         //ghost cell on edge, on second layer of j line of cells, on first layer of k line of cells
+	int gfe_j2_k1_il = GetLowerFaceI(ii, j2, k1, imaxG, jmaxG); //ghost face on edge, on second layer of j line of cells, on first layer of k line of cells
+
+	int gce_j2_k2 = GetLoc1D(ii, j2, k2, imaxG, jmaxG);         //ghost cell on edge, on second layer of j line of cells, on second layer of k line of cells
+	int gfe_j2_k2_il = GetLowerFaceI(ii, j2, k2, imaxG, jmaxG); //ghost face on edge, on second layer of j line of cells, on second layer of k line of cells
+
+	int gc_j1_ke = GetLoc1D(ii, j1, ke, imaxG, jmaxG);          //ghost cell, on first layer of j line of cells, on non-edge layer of k line of cells
+	int gf_j1_ke_il = GetLowerFaceI(ii, j1, ke, imaxG, jmaxG);  //ghost face, on first layer of j line of cells, on non-edge layer of k line of cells
+
+	int gc_j2_ke = GetLoc1D(ii, j2, ke, imaxG, jmaxG);          //ghost cell, on second layer of j line of cells, on non-edge layer of k line of cells
+	int gf_j2_ke_il = GetLowerFaceI(ii, j2, ke, imaxG, jmaxG);  //ghost face, on second layer of j line of cells, on non-edge layer of k line of cells
+
+	int gc_je_k1 = GetLoc1D(ii, je, k1, imaxG, jmaxG);          //ghost cell, on non-edge layer of j line of cells, on first layer of k line of cells
+	int gf_je_k1_il = GetLowerFaceI(ii, je, k1, imaxG, jmaxG);  //ghost face, on non-edge layer of j line of cells, on first layer of k line of cells
+
+	int gc_je_k2 = GetLoc1D(ii, je, k2, imaxG, jmaxG);          //ghost cell, on non-edge layer of j line of cells, on second layer of k line of cells
+	int gf_je_k2_il = GetLowerFaceI(ii, je, k2, imaxG, jmaxG);  //ghost face, on non-edge layer of j line of cells, on second layer of k line of cells
+
+	//volume -----------------------------------------------------------------------------------------------------------------------------------
+	(*this).SetVol( 0.5 * ( (*this).Vol(gc_j1_ke) + (*this).Vol(gc_je_k1) ) ,gce_j1_k1);
+	(*this).SetVol( (*this).Vol(gc_j2_ke) ,gce_j2_k1);
+	(*this).SetVol( (*this).Vol(gc_je_k2) ,gce_j1_k2);
+	(*this).SetVol( 0.5 * ( (*this).Vol(gc_j2_ke) + (*this).Vol(gc_je_k2) ) ,gce_j2_k2);
+
+	//face areas --------------------------------------------------------------------------------------------------------------------------------
+	(*this).SetFAreaI( 0.5 * ( (*this).FAreaI(gf_je_k1_il) + (*this).FAreaI(gf_j1_ke_il) ), gfe_j1_k1_il);
+	(*this).SetFAreaJ( (*this).FAreaJ(gf_je_k1_jl), gfe_j1_k1_jl);
+	(*this).SetFAreaK( (*this).FAreaK(gf_j1_ke_kl), gfe_j1_k1_kl);
+
+	(*this).SetFAreaI( (*this).FAreaI(gf_je_k2_il), gfe_j1_k2_il);
+	(*this).SetFAreaJ( (*this).FAreaJ(gf_je_k2_jl), gfe_j1_k2_jl);
+	(*this).SetFAreaK( (*this).FAreaK(gf_j1_ke_kl), gfe_j1_k2_kl);
+
+	(*this).SetFAreaI( (*this).FAreaI(gf_j2_ke_il), gfe_j2_k1_il);
+	(*this).SetFAreaJ( (*this).FAreaJ(gf_je_k1_jl), gfe_j2_k1_jl);
+	(*this).SetFAreaK( (*this).FAreaK(gf_j2_ke_kl), gfe_j2_k1_kl);
+
+	(*this).SetFAreaI( 0.5 * ( (*this).FAreaI(gf_j2_ke_il) + (*this).FAreaI(gf_je_k2_il) ), gfe_j2_k2_il);
+	(*this).SetFAreaJ( (*this).FAreaJ(gf_je_k2_jl), gfe_j2_k2_jl);
+	(*this).SetFAreaK( (*this).FAreaK(gf_j2_ke_kl), gfe_j2_k2_kl);
+
+	//centroids -------------------------------------------------------------------------------------------------------------------------------------
+	//edge centroid is moved distance of cell width normal to face dividing regular and edge ghost cells
+	vector3d<double> dist2MoveK = (*this).FCenterK(gf_j1_ke_kl) - (*this).FCenterK(gf_j1_ke_ku) ;
+	vector3d<double> dist2MoveJ = (*this).FCenterJ(gf_je_k1_jl) - (*this).FCenterJ(gf_je_k1_ju) ;
+	(*this).SetCenter( (*this).Center(gc_j1_ke) + dist2MoveK, gce_j1_k1);
+	(*this).SetCenter( (*this).Center(gc_j2_ke) + dist2MoveK, gce_j2_k1);
+	(*this).SetCenter( (*this).Center(gc_je_k2) + dist2MoveJ, gce_j1_k2);
+	(*this).SetCenter( (*this).Center(gc_je_k2) + 2.0 * dist2MoveJ, gce_j2_k2);
+
+	//face centers -----------------------------------------------------------------------------------------------------------------------------------
+	//edge face centers are moved distance of cell width normal to face dividing regular and edge ghost cells
+	(*this).SetFCenterI( (*this).FCenterI(gf_j1_ke_il) + dist2MoveK, gfe_j1_k1_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(gf_j1_ke_jl) + dist2MoveK, gfe_j1_k1_jl);
+	(*this).SetFCenterK( (*this).FCenterK(gf_j1_ke_kl) + dist2MoveK, gfe_j1_k1_kl);
+
+	(*this).SetFCenterI( (*this).FCenterI(gf_j2_ke_il) + dist2MoveK, gfe_j2_k1_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(gf_j2_ke_jl) + dist2MoveK, gfe_j2_k1_jl);
+	(*this).SetFCenterK( (*this).FCenterK(gf_j2_ke_kl) + dist2MoveK, gfe_j2_k1_kl);
+
+	(*this).SetFCenterI( (*this).FCenterI(gf_je_k2_il) + dist2MoveJ, gfe_j1_k2_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(gf_je_k2_jl) + dist2MoveJ, gfe_j1_k2_jl);
+	(*this).SetFCenterK( (*this).FCenterK(gf_je_k2_kl) + dist2MoveJ, gfe_j1_k2_kl);
+
+	(*this).SetFCenterI( (*this).FCenterI(gf_je_k2_il) + 2.0 * dist2MoveJ, gfe_j2_k2_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(gf_je_k2_jl) + 2.0 * dist2MoveJ, gfe_j2_k2_jl);
+	(*this).SetFCenterK( (*this).FCenterK(gf_je_k2_kl) + 2.0 * dist2MoveJ, gfe_j2_k2_kl);
+
+	//this is only done at the end of the i loop
+	if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper face areas too
+
+	  int gfe_j1_k1_2il = GetLowerFaceI(ii - 1, j1, k1, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on first layer of k line of cells
+	  vector3d<double> dist2MoveI = (*this).FCenterI(gfe_j1_k1_il) - (*this).FCenterI(gfe_j1_k1_2il); // i-width of cell adjacent to edge
+
+	  int gfe_j1_k1_iu = GetUpperFaceI(ii, j1, k1, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on first layer of k line of cells
+	  int gfe_j1_k2_iu = GetUpperFaceI(ii, j1, k2, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on second layer of k line of cells
+	  int gfe_j2_k1_iu = GetUpperFaceI(ii, j2, k1, imaxG, jmaxG); //ghost face on edge, on second layer of j line of cells, on first layer of k line of cells
+	  int gfe_j2_k2_iu = GetUpperFaceI(ii, j2, k2, imaxG, jmaxG); //ghost face on edge, on second layer of j line of cells, on second layer of k line of cells
+
+	  //face areas
+	  (*this).SetFAreaI( (*this).FAreaI(gfe_j1_k1_il), gfe_j1_k1_iu);
+	  (*this).SetFAreaI( (*this).FAreaI(gfe_j1_k2_il), gfe_j1_k2_iu);
+	  (*this).SetFAreaI( (*this).FAreaI(gfe_j2_k1_il), gfe_j2_k1_iu);
+	  (*this).SetFAreaI( (*this).FAreaI(gfe_j2_k2_il), gfe_j2_k2_iu);
+
+	  //face centers
+	  (*this).SetFCenterI( (*this).FCenterI(gfe_j1_k1_il) + dist2MoveI, gfe_j1_k1_iu);
+	  (*this).SetFCenterI( (*this).FCenterI(gfe_j1_k2_il) + dist2MoveI, gfe_j1_k2_iu);
+	  (*this).SetFCenterI( (*this).FCenterI(gfe_j2_k1_il) + dist2MoveI, gfe_j2_k1_iu);
+	  (*this).SetFCenterI( (*this).FCenterI(gfe_j2_k2_il) + dist2MoveI, gfe_j2_k2_iu);
+
+	}
+
+      }
     }
   }
 
@@ -3914,6 +3933,8 @@ void procBlock::AssignGhostCellsGeomEdge(){
       int gf_i2_ke_il, gf_i2_ke_kl;
       int gf_ie_k1_il, gf_ie_k1_iu;
       int gf_ie_k2_il, gf_ie_k2_kl;
+
+      string bc_I, bc_K, surfI, surfK;
 
       if ( cc == 0 ){ //at il/kl edge - ghost cells are in the lower direction of both i and k, so use GetLowerFace for both
 	i2 = 0;
@@ -3958,6 +3979,14 @@ void procBlock::AssignGhostCellsGeomEdge(){
 	//ghost face, on non-edge layer of i line of cells, on second layer of k line of cells
 	gf_ie_k2_il = GetLowerFaceI(ie, jj, k2, imaxG, jmaxG);  
 	gf_ie_k2_kl = GetLowerFaceK(ie, jj, k2, imaxG, jmaxG);  
+
+	surfI = "il";
+	surfK = "kl";
+
+	//boundary conditions at corner
+	bc_I = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_K = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+
       }
       else if ( cc == 1 ){ //at il/ku edge - ghost cells are in the lower direction of i and upper direction of k, so use GetLowerFace for J
 	i2 = 0;
@@ -4002,6 +4031,14 @@ void procBlock::AssignGhostCellsGeomEdge(){
 	//ghost face, on non-edge layer of i line of cells, on second layer of k line of cells
 	gf_ie_k2_il = GetLowerFaceI(ie, jj, k2, imaxG, jmaxG); 
 	gf_ie_k2_kl = GetUpperFaceK(ie, jj, k2, imaxG, jmaxG); 
+
+	surfI = "il";
+	surfK = "ku";
+
+	//boundary conditions at corner
+	bc_I = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_K = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
+
       }
       else if ( cc == 2 ){ //at iu/kl edge - ghost cells are in the lower direction of k, and upper direction of i so use GetLowerFace for k
 	i2 = imaxG - 1;
@@ -4046,6 +4083,14 @@ void procBlock::AssignGhostCellsGeomEdge(){
 	//ghost face, on non-edge layer of i line of cells, on second layer of k line of cells
 	gf_ie_k2_il = GetUpperFaceI(ie, jj, k2, imaxG, jmaxG);  
 	gf_ie_k2_kl = GetLowerFaceK(ie, jj, k2, imaxG, jmaxG);  
+
+	surfI = "iu";
+	surfK = "kl";
+
+	//boundary conditions at corner
+	bc_I = bound.GetBCName(ie - (*this).NumGhosts() + 1, jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_K = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+
       }
       else if ( cc == 3 ){ //at iu/ku edge - ghost cells are in the upper direction of both i and k, use GetUpperFace for both
 	i2 = imaxG - 1;
@@ -4090,108 +4135,120 @@ void procBlock::AssignGhostCellsGeomEdge(){
 	//ghost face, on non-edge layer of i line of cells, on second layer of k line of cells
 	gf_ie_k2_il = GetUpperFaceI(ie, jj, k2, imaxG, jmaxG);  
 	gf_ie_k2_kl = GetUpperFaceK(ie, jj, k2, imaxG, jmaxG);  
-      }
 
-      //cell indices and remaining face indices
-      int gce_i1_k1 = GetLoc1D(i1, jj, k1, imaxG, jmaxG);      //ghost cell on edge, on first layer of i line of cells, on first layer of k line of cells
-      int gfe_i1_k1_jl = GetLowerFaceJ(i1, jj, k1, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of k line of cells
+	surfI = "iu";
+	surfK = "ku";
 
-      int gce_i1_k2 = GetLoc1D(i1, jj, k2, imaxG, jmaxG);         //ghost cell on edge, on first layer of i line of cells, on second layer of k line of cells
-      int gfe_i1_k2_jl = GetLowerFaceJ(i1, jj, k2, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of k line of cells
-
-      int gce_i2_k1 = GetLoc1D(i2, jj, k1, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on first layer of k line of cells
-      int gfe_i2_k1_jl = GetLowerFaceJ(i2, jj, k1, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of k line of cells
-
-      int gce_i2_k2 = GetLoc1D(i2, jj, k2, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on second layer of k line of cells
-      int gfe_i2_k2_jl = GetLowerFaceJ(i2, jj, k2, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of k line of cells
-
-      int gc_i1_ke = GetLoc1D(i1, jj, ke, imaxG, jmaxG);          //ghost cell, on first layer of i line of cells, on non-edge layer of k line of cells
-      int gf_i1_ke_jl = GetLowerFaceJ(i1, jj, ke, imaxG, jmaxG);  //ghost face, on first layer of i line of cells, on non-edge layer of k line of cells
-
-      int gc_i2_ke = GetLoc1D(i2, jj, ke, imaxG, jmaxG);          //ghost cell, on second layer of i line of cells, on non-edge layer of k line of cells
-      int gf_i2_ke_jl = GetLowerFaceJ(i2, jj, ke, imaxG, jmaxG);  //ghost face, on second layer of i line of cells, on non-edge layer of k line of cells
-
-      int gc_ie_k1 = GetLoc1D(ie, jj, k1, imaxG, jmaxG);          //ghost cell, on non-edge layer of i line of cells, on first layer of k line of cells
-      int gf_ie_k1_jl = GetLowerFaceJ(ie, jj, k1, imaxG, jmaxG);  //ghost face, on non-edge layer of i line of cells, on first layer of k line of cells
-
-      int gc_ie_k2 = GetLoc1D(ie, jj, k2, imaxG, jmaxG);          //ghost cell, on non-edge layer of i line of cells, on second layer of k line of cells
-      int gf_ie_k2_jl = GetLowerFaceJ(ie, jj, k2, imaxG, jmaxG);  //ghost face, on non-edge layer of i line of cells, on second layer of k line of cells
-
-      //volume ----------------------------------------------------------------------------------------------------------------------------------------------
-      (*this).SetVol( 0.5 * ( (*this).Vol(gc_i1_ke) + (*this).Vol(gc_ie_k1) ) ,gce_i1_k1);
-      (*this).SetVol( (*this).Vol(gc_i2_ke) ,gce_i2_k1);
-      (*this).SetVol( (*this).Vol(gc_ie_k2) ,gce_i1_k2);
-      (*this).SetVol( 0.5 * ( (*this).Vol(gc_i2_ke) + (*this).Vol(gc_ie_k2) ) ,gce_i2_k2);
-
-      //face areas ------------------------------------------------------------------------------------------------------------------------------------------
-      (*this).SetFAreaJ( 0.5 * ( (*this).FAreaJ(gf_ie_k1_jl) + (*this).FAreaJ(gf_i1_ke_jl) ), gfe_i1_k1_jl);
-      (*this).SetFAreaI( (*this).FAreaI(gf_ie_k1_il), gfe_i1_k1_il);
-      (*this).SetFAreaK( (*this).FAreaK(gf_i1_ke_kl), gfe_i1_k1_kl);
-
-      (*this).SetFAreaJ( (*this).FAreaJ(gf_ie_k2_jl), gfe_i1_k2_jl);
-      (*this).SetFAreaI( (*this).FAreaI(gf_ie_k2_il), gfe_i1_k2_il);
-      (*this).SetFAreaK( (*this).FAreaK(gf_i1_ke_kl), gfe_i1_k2_kl);
-
-      (*this).SetFAreaJ( (*this).FAreaJ(gf_i2_ke_jl), gfe_i2_k1_jl);
-      (*this).SetFAreaI( (*this).FAreaI(gf_ie_k1_il), gfe_i2_k1_il);
-      (*this).SetFAreaK( (*this).FAreaK(gf_i2_ke_kl), gfe_i2_k1_kl);
-
-      (*this).SetFAreaJ( 0.5 * ( (*this).FAreaJ(gf_i2_ke_jl) + (*this).FAreaJ(gf_ie_k2_jl) ), gfe_i2_k2_jl);
-      (*this).SetFAreaI( (*this).FAreaI(gf_ie_k2_il), gfe_i2_k2_il);
-      (*this).SetFAreaK( (*this).FAreaK(gf_i2_ke_kl), gfe_i2_k2_kl);
-
-      //centroids --------------------------------------------------------------------------------------------------------------------------------------------
-      //edge centroid is moved distance of cell width normal to face dividing regular and edge ghost cells
-      vector3d<double> dist2MoveK = (*this).FCenterK(gf_i1_ke_kl) - (*this).FCenterK(gf_i1_ke_ku);
-      vector3d<double> dist2MoveI = (*this).FCenterI(gf_ie_k1_il) - (*this).FCenterI(gf_ie_k1_iu);
-      (*this).SetCenter( (*this).Center(gc_i1_ke) + dist2MoveK, gce_i1_k1);
-      (*this).SetCenter( (*this).Center(gc_i2_ke) + dist2MoveK, gce_i2_k1);
-      (*this).SetCenter( (*this).Center(gc_ie_k2) + dist2MoveI, gce_i1_k2);
-      (*this).SetCenter( (*this).Center(gc_ie_k2) + 2.0 * dist2MoveI, gce_i2_k2);
-
-      //face centers ------------------------------------------------------------------------------------------------------------------------------------------
-      //edge face centers are moved distance of cell width normal to face dividing regular and edge ghost cells
-      (*this).SetFCenterI( (*this).FCenterI(gf_i1_ke_il) + dist2MoveK, gfe_i1_k1_il);
-      (*this).SetFCenterJ( (*this).FCenterJ(gf_i1_ke_jl) + dist2MoveK, gfe_i1_k1_jl);
-      (*this).SetFCenterK( (*this).FCenterK(gf_i1_ke_kl) + dist2MoveK, gfe_i1_k1_kl);
-
-      (*this).SetFCenterI( (*this).FCenterI(gf_i2_ke_il) + dist2MoveK, gfe_i2_k1_il);
-      (*this).SetFCenterJ( (*this).FCenterJ(gf_i2_ke_jl) + dist2MoveK, gfe_i2_k1_jl);
-      (*this).SetFCenterK( (*this).FCenterK(gf_i2_ke_kl) + dist2MoveK, gfe_i2_k1_kl);
-
-      (*this).SetFCenterI( (*this).FCenterI(gf_ie_k2_il) + dist2MoveI, gfe_i1_k2_il);
-      (*this).SetFCenterJ( (*this).FCenterJ(gf_ie_k2_jl) + dist2MoveI, gfe_i1_k2_jl);
-      (*this).SetFCenterK( (*this).FCenterK(gf_ie_k2_kl) + dist2MoveI, gfe_i1_k2_kl);
-
-      (*this).SetFCenterI( (*this).FCenterI(gf_ie_k2_il) + 2.0 * dist2MoveI, gfe_i2_k2_il);
-      (*this).SetFCenterJ( (*this).FCenterJ(gf_ie_k2_jl) + 2.0 * dist2MoveI, gfe_i2_k2_jl);
-      (*this).SetFCenterK( (*this).FCenterK(gf_ie_k2_kl) + 2.0 * dist2MoveI, gfe_i2_k2_kl);
-
-      //this is only done at the end of the j loop
-      if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper face areas too
-
-	int gfe_i1_k1_2jl = GetLowerFaceJ(i1, jj - 1, k1, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on first layer of k line of cells
-	vector3d<double> dist2MoveJ = (*this).FCenterJ(gfe_i1_k1_jl) - (*this).FCenterJ(gfe_i1_k1_2jl); //j-width of adjacent cell
-
-	int gfe_i1_k1_ju = GetUpperFaceJ(i1, jj, k1, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of k line of cells
-	int gfe_i1_k2_ju = GetUpperFaceJ(i1, jj, k2, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of k line of cells
-	int gfe_i2_k1_ju = GetUpperFaceJ(i2, jj, k1, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of k line of cells
-	int gfe_i2_k2_ju = GetUpperFaceJ(i2, jj, k2, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of k line of cells
-
-	//face areas
-	(*this).SetFAreaJ( (*this).FAreaJ(gfe_i1_k1_jl), gfe_i1_k1_ju);
-	(*this).SetFAreaJ( (*this).FAreaJ(gfe_i1_k2_jl), gfe_i1_k2_ju);
-	(*this).SetFAreaJ( (*this).FAreaJ(gfe_i2_k1_jl), gfe_i2_k1_ju);
-	(*this).SetFAreaJ( (*this).FAreaJ(gfe_i2_k2_jl), gfe_i2_k2_ju);
-
-	//face centers
-	(*this).SetFCenterJ( (*this).FCenterJ(gfe_i1_k1_jl) + dist2MoveJ, gfe_i1_k1_ju);
-	(*this).SetFCenterJ( (*this).FCenterJ(gfe_i1_k2_jl) + dist2MoveJ, gfe_i1_k2_ju);
-	(*this).SetFCenterJ( (*this).FCenterJ(gfe_i2_k1_jl) + dist2MoveJ, gfe_i2_k1_ju);
-	(*this).SetFCenterJ( (*this).FCenterJ(gfe_i2_k2_jl) + dist2MoveJ, gfe_i2_k2_ju);
+	//boundary conditioins at corner
+	bc_I = bound.GetBCName(ie - (*this).NumGhosts() + 1, jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_K = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
 
       }
 
+      //if both corner boundaries aren't interblocks, get edge cells; if bouth boundaries are interblocks, edge cells come from ghost cell exchange
+      if ( bc_I != "interblock" && bc_K != "interblock" ){ 
+
+	//cell indices and remaining face indices
+	int gce_i1_k1 = GetLoc1D(i1, jj, k1, imaxG, jmaxG);      //ghost cell on edge, on first layer of i line of cells, on first layer of k line of cells
+	int gfe_i1_k1_jl = GetLowerFaceJ(i1, jj, k1, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of k line of cells
+
+	int gce_i1_k2 = GetLoc1D(i1, jj, k2, imaxG, jmaxG);         //ghost cell on edge, on first layer of i line of cells, on second layer of k line of cells
+	int gfe_i1_k2_jl = GetLowerFaceJ(i1, jj, k2, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of k line of cells
+
+	int gce_i2_k1 = GetLoc1D(i2, jj, k1, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on first layer of k line of cells
+	int gfe_i2_k1_jl = GetLowerFaceJ(i2, jj, k1, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of k line of cells
+
+	int gce_i2_k2 = GetLoc1D(i2, jj, k2, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on second layer of k line of cells
+	int gfe_i2_k2_jl = GetLowerFaceJ(i2, jj, k2, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of k line of cells
+
+	int gc_i1_ke = GetLoc1D(i1, jj, ke, imaxG, jmaxG);          //ghost cell, on first layer of i line of cells, on non-edge layer of k line of cells
+	int gf_i1_ke_jl = GetLowerFaceJ(i1, jj, ke, imaxG, jmaxG);  //ghost face, on first layer of i line of cells, on non-edge layer of k line of cells
+
+	int gc_i2_ke = GetLoc1D(i2, jj, ke, imaxG, jmaxG);          //ghost cell, on second layer of i line of cells, on non-edge layer of k line of cells
+	int gf_i2_ke_jl = GetLowerFaceJ(i2, jj, ke, imaxG, jmaxG);  //ghost face, on second layer of i line of cells, on non-edge layer of k line of cells
+
+	int gc_ie_k1 = GetLoc1D(ie, jj, k1, imaxG, jmaxG);          //ghost cell, on non-edge layer of i line of cells, on first layer of k line of cells
+	int gf_ie_k1_jl = GetLowerFaceJ(ie, jj, k1, imaxG, jmaxG);  //ghost face, on non-edge layer of i line of cells, on first layer of k line of cells
+
+	int gc_ie_k2 = GetLoc1D(ie, jj, k2, imaxG, jmaxG);          //ghost cell, on non-edge layer of i line of cells, on second layer of k line of cells
+	int gf_ie_k2_jl = GetLowerFaceJ(ie, jj, k2, imaxG, jmaxG);  //ghost face, on non-edge layer of i line of cells, on second layer of k line of cells
+
+	//volume ----------------------------------------------------------------------------------------------------------------------------------------------
+	(*this).SetVol( 0.5 * ( (*this).Vol(gc_i1_ke) + (*this).Vol(gc_ie_k1) ) ,gce_i1_k1);
+	(*this).SetVol( (*this).Vol(gc_i2_ke) ,gce_i2_k1);
+	(*this).SetVol( (*this).Vol(gc_ie_k2) ,gce_i1_k2);
+	(*this).SetVol( 0.5 * ( (*this).Vol(gc_i2_ke) + (*this).Vol(gc_ie_k2) ) ,gce_i2_k2);
+
+	//face areas ------------------------------------------------------------------------------------------------------------------------------------------
+	(*this).SetFAreaJ( 0.5 * ( (*this).FAreaJ(gf_ie_k1_jl) + (*this).FAreaJ(gf_i1_ke_jl) ), gfe_i1_k1_jl);
+	(*this).SetFAreaI( (*this).FAreaI(gf_ie_k1_il), gfe_i1_k1_il);
+	(*this).SetFAreaK( (*this).FAreaK(gf_i1_ke_kl), gfe_i1_k1_kl);
+
+	(*this).SetFAreaJ( (*this).FAreaJ(gf_ie_k2_jl), gfe_i1_k2_jl);
+	(*this).SetFAreaI( (*this).FAreaI(gf_ie_k2_il), gfe_i1_k2_il);
+	(*this).SetFAreaK( (*this).FAreaK(gf_i1_ke_kl), gfe_i1_k2_kl);
+
+	(*this).SetFAreaJ( (*this).FAreaJ(gf_i2_ke_jl), gfe_i2_k1_jl);
+	(*this).SetFAreaI( (*this).FAreaI(gf_ie_k1_il), gfe_i2_k1_il);
+	(*this).SetFAreaK( (*this).FAreaK(gf_i2_ke_kl), gfe_i2_k1_kl);
+
+	(*this).SetFAreaJ( 0.5 * ( (*this).FAreaJ(gf_i2_ke_jl) + (*this).FAreaJ(gf_ie_k2_jl) ), gfe_i2_k2_jl);
+	(*this).SetFAreaI( (*this).FAreaI(gf_ie_k2_il), gfe_i2_k2_il);
+	(*this).SetFAreaK( (*this).FAreaK(gf_i2_ke_kl), gfe_i2_k2_kl);
+
+	//centroids --------------------------------------------------------------------------------------------------------------------------------------------
+	//edge centroid is moved distance of cell width normal to face dividing regular and edge ghost cells
+	vector3d<double> dist2MoveK = (*this).FCenterK(gf_i1_ke_kl) - (*this).FCenterK(gf_i1_ke_ku);
+	vector3d<double> dist2MoveI = (*this).FCenterI(gf_ie_k1_il) - (*this).FCenterI(gf_ie_k1_iu);
+	(*this).SetCenter( (*this).Center(gc_i1_ke) + dist2MoveK, gce_i1_k1);
+	(*this).SetCenter( (*this).Center(gc_i2_ke) + dist2MoveK, gce_i2_k1);
+	(*this).SetCenter( (*this).Center(gc_ie_k2) + dist2MoveI, gce_i1_k2);
+	(*this).SetCenter( (*this).Center(gc_ie_k2) + 2.0 * dist2MoveI, gce_i2_k2);
+
+	//face centers ------------------------------------------------------------------------------------------------------------------------------------------
+	//edge face centers are moved distance of cell width normal to face dividing regular and edge ghost cells
+	(*this).SetFCenterI( (*this).FCenterI(gf_i1_ke_il) + dist2MoveK, gfe_i1_k1_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(gf_i1_ke_jl) + dist2MoveK, gfe_i1_k1_jl);
+	(*this).SetFCenterK( (*this).FCenterK(gf_i1_ke_kl) + dist2MoveK, gfe_i1_k1_kl);
+
+	(*this).SetFCenterI( (*this).FCenterI(gf_i2_ke_il) + dist2MoveK, gfe_i2_k1_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(gf_i2_ke_jl) + dist2MoveK, gfe_i2_k1_jl);
+	(*this).SetFCenterK( (*this).FCenterK(gf_i2_ke_kl) + dist2MoveK, gfe_i2_k1_kl);
+
+	(*this).SetFCenterI( (*this).FCenterI(gf_ie_k2_il) + dist2MoveI, gfe_i1_k2_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(gf_ie_k2_jl) + dist2MoveI, gfe_i1_k2_jl);
+	(*this).SetFCenterK( (*this).FCenterK(gf_ie_k2_kl) + dist2MoveI, gfe_i1_k2_kl);
+
+	(*this).SetFCenterI( (*this).FCenterI(gf_ie_k2_il) + 2.0 * dist2MoveI, gfe_i2_k2_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(gf_ie_k2_jl) + 2.0 * dist2MoveI, gfe_i2_k2_jl);
+	(*this).SetFCenterK( (*this).FCenterK(gf_ie_k2_kl) + 2.0 * dist2MoveI, gfe_i2_k2_kl);
+
+	//this is only done at the end of the j loop
+	if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper face areas too
+
+	  int gfe_i1_k1_2jl = GetLowerFaceJ(i1, jj - 1, k1, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on first layer of k line of cells
+	  vector3d<double> dist2MoveJ = (*this).FCenterJ(gfe_i1_k1_jl) - (*this).FCenterJ(gfe_i1_k1_2jl); //j-width of adjacent cell
+
+	  int gfe_i1_k1_ju = GetUpperFaceJ(i1, jj, k1, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of k line of cells
+	  int gfe_i1_k2_ju = GetUpperFaceJ(i1, jj, k2, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of k line of cells
+	  int gfe_i2_k1_ju = GetUpperFaceJ(i2, jj, k1, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of k line of cells
+	  int gfe_i2_k2_ju = GetUpperFaceJ(i2, jj, k2, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of k line of cells
+
+	  //face areas
+	  (*this).SetFAreaJ( (*this).FAreaJ(gfe_i1_k1_jl), gfe_i1_k1_ju);
+	  (*this).SetFAreaJ( (*this).FAreaJ(gfe_i1_k2_jl), gfe_i1_k2_ju);
+	  (*this).SetFAreaJ( (*this).FAreaJ(gfe_i2_k1_jl), gfe_i2_k1_ju);
+	  (*this).SetFAreaJ( (*this).FAreaJ(gfe_i2_k2_jl), gfe_i2_k2_ju);
+
+	  //face centers
+	  (*this).SetFCenterJ( (*this).FCenterJ(gfe_i1_k1_jl) + dist2MoveJ, gfe_i1_k1_ju);
+	  (*this).SetFCenterJ( (*this).FCenterJ(gfe_i1_k2_jl) + dist2MoveJ, gfe_i1_k2_ju);
+	  (*this).SetFCenterJ( (*this).FCenterJ(gfe_i2_k1_jl) + dist2MoveJ, gfe_i2_k1_ju);
+	  (*this).SetFCenterJ( (*this).FCenterJ(gfe_i2_k2_jl) + dist2MoveJ, gfe_i2_k2_ju);
+
+	}
+
+      }
     }
   }
 
@@ -4213,6 +4270,8 @@ void procBlock::AssignGhostCellsGeomEdge(){
       int gf_i2_je_il, gf_i2_je_jl;
       int gf_ie_j1_il, gf_ie_j1_iu;
       int gf_ie_j2_il, gf_ie_j2_jl;
+
+      string bc_I, bc_J, surfI, surfJ;
 
       if ( cc == 0 ){ //at il/jl edge - ghost cells are in the lower direction of both i and j, so use GetLowerFace for both
 	i2 = 0;
@@ -4257,6 +4316,14 @@ void procBlock::AssignGhostCellsGeomEdge(){
 	//ghost face, on non-edge layer of i line of cells, on second layer of j line of cells
 	gf_ie_j2_il = GetLowerFaceI(ie, j2, kk, imaxG, jmaxG);  
 	gf_ie_j2_jl = GetLowerFaceJ(ie, j2, kk, imaxG, jmaxG);  
+
+	surfI = "il";
+	surfJ = "jl";
+
+	//boundary conditions at corner
+	bc_I = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_J = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfJ);
+
       }
       else if ( cc == 1 ){ //at il/ju edge - ghost cells are in the lower direction of i and upper direction of j, so use GetLowerFace for I
 	i2 = 0;
@@ -4301,6 +4368,14 @@ void procBlock::AssignGhostCellsGeomEdge(){
 	//ghost face, on non-edge layer of i line of cells, on second layer of j line of cells
 	gf_ie_j2_il = GetLowerFaceI(ie, j2, kk, imaxG, jmaxG);  
 	gf_ie_j2_jl = GetUpperFaceJ(ie, j2, kk, imaxG, jmaxG);  
+
+	surfI = "il";
+	surfJ = "ju";
+
+	//boundary conditions at corner
+	bc_I = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_J = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, kk - (*this).NumGhosts(), surfJ);
+
       }
       else if ( cc == 2 ){ //at iu/jl edge - ghost cells are in the upper direction of i, and lower direction of j so use GetLowerFace for J
 	i2 = imaxG - 1;
@@ -4345,6 +4420,14 @@ void procBlock::AssignGhostCellsGeomEdge(){
 	//ghost face, on non-edge layer of i line of cells, on second layer of j line of cells
 	gf_ie_j2_il = GetUpperFaceI(ie, j2, kk, imaxG, jmaxG); 
 	gf_ie_j2_jl = GetLowerFaceJ(ie, j2, kk, imaxG, jmaxG); 
+
+	surfI = "iu";
+	surfJ = "jl";
+
+	//boundary conditions at corner
+	bc_I = bound.GetBCName(ie - (*this).NumGhosts() + 1, je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_J = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfJ);
+
       }
       else if ( cc == 3 ){ //at iu/ju edge - ghost cells are in the upper direction of both i and j, use GetUpperFace for both
 	i2 = imaxG - 1;
@@ -4389,106 +4472,118 @@ void procBlock::AssignGhostCellsGeomEdge(){
 	//ghost face, on non-edge layer of i line of cells, on second layer of j line of cells
 	gf_ie_j2_il = GetUpperFaceI(ie, j2, kk, imaxG, jmaxG);  
 	gf_ie_j2_jl = GetUpperFaceJ(ie, j2, kk, imaxG, jmaxG);  
+
+	surfI = "iu";
+	surfJ = "ju";
+
+	//boundary conditions at corner
+	bc_I = bound.GetBCName(ie - (*this).NumGhosts() + 1, je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_J = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, kk - (*this).NumGhosts(), surfJ);
+
       }
 
-      //ghost cell and remaining face indices
-      int gce_i1_j1 = GetLoc1D(i1, j1, kk, imaxG, jmaxG);      //ghost cell on edge, on first layer of i line of cells, on first layer of j line of cells
-      int gfe_i1_j1_kl = GetLowerFaceK(i1, j1, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of j line of cells
+      //if both corner boundaries aren't interblocks, get edge cells; if bouth boundaries are interblocks, edge cells come from ghost cell exchange
+      if ( bc_I != "interblock" && bc_J != "interblock" ){ 
 
-      int gce_i1_j2 = GetLoc1D(i1, j2, kk, imaxG, jmaxG);         //ghost cell on edge, on first layer of i line of cells, on second layer of j line of cells
-      int gfe_i1_j2_kl = GetLowerFaceK(i1, j2, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of j line of cells
+	//ghost cell and remaining face indices
+	int gce_i1_j1 = GetLoc1D(i1, j1, kk, imaxG, jmaxG);      //ghost cell on edge, on first layer of i line of cells, on first layer of j line of cells
+	int gfe_i1_j1_kl = GetLowerFaceK(i1, j1, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of j line of cells
 
-      int gce_i2_j1 = GetLoc1D(i2, j1, kk, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on first layer of j line of cells
-      int gfe_i2_j1_kl = GetLowerFaceK(i2, j1, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of j line of cells
+	int gce_i1_j2 = GetLoc1D(i1, j2, kk, imaxG, jmaxG);         //ghost cell on edge, on first layer of i line of cells, on second layer of j line of cells
+	int gfe_i1_j2_kl = GetLowerFaceK(i1, j2, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of j line of cells
 
-      int gce_i2_j2 = GetLoc1D(i2, j2, kk, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on second layer of j line of cells
-      int gfe_i2_j2_kl = GetLowerFaceK(i2, j2, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of j line of cells
+	int gce_i2_j1 = GetLoc1D(i2, j1, kk, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on first layer of j line of cells
+	int gfe_i2_j1_kl = GetLowerFaceK(i2, j1, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of j line of cells
 
-      int gc_i1_je = GetLoc1D(i1, je, kk, imaxG, jmaxG);          //ghost cell, on first layer of i line of cells, on non-edge layer of j line of cells
-      int gf_i1_je_kl = GetLowerFaceK(i1, je, kk, imaxG, jmaxG);  //ghost face, on first layer of i line of cells, on non-edge layer of j line of cells
+	int gce_i2_j2 = GetLoc1D(i2, j2, kk, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on second layer of j line of cells
+	int gfe_i2_j2_kl = GetLowerFaceK(i2, j2, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of j line of cells
 
-      int gc_i2_je = GetLoc1D(i2, je, kk, imaxG, jmaxG);          //ghost cell, on second layer of i line of cells, on non-edge layer of j line of cells
-      int gf_i2_je_kl = GetLowerFaceK(i2, je, kk, imaxG, jmaxG);  //ghost face, on second layer of i line of cells, on non-edge layer of j line of cells
+	int gc_i1_je = GetLoc1D(i1, je, kk, imaxG, jmaxG);          //ghost cell, on first layer of i line of cells, on non-edge layer of j line of cells
+	int gf_i1_je_kl = GetLowerFaceK(i1, je, kk, imaxG, jmaxG);  //ghost face, on first layer of i line of cells, on non-edge layer of j line of cells
 
-      int gc_ie_j1 = GetLoc1D(ie, j1, kk, imaxG, jmaxG);          //ghost cell, on non-edge layer of i line of cells, on first layer of j line of cells
-      int gf_ie_j1_kl = GetLowerFaceK(ie, j1, kk, imaxG, jmaxG);  //ghost face, on non-edge layer of i line of cells, on first layer of j line of cells
+	int gc_i2_je = GetLoc1D(i2, je, kk, imaxG, jmaxG);          //ghost cell, on second layer of i line of cells, on non-edge layer of j line of cells
+	int gf_i2_je_kl = GetLowerFaceK(i2, je, kk, imaxG, jmaxG);  //ghost face, on second layer of i line of cells, on non-edge layer of j line of cells
 
-      int gc_ie_j2 = GetLoc1D(ie, j2, kk, imaxG, jmaxG);          //ghost cell, on non-edge layer of i line of cells, on second layer of j line of cells
-      int gf_ie_j2_kl = GetLowerFaceK(ie, j2, kk, imaxG, jmaxG);  //ghost face, on non-edge layer of i line of cells, on second layer of j line of cells
+	int gc_ie_j1 = GetLoc1D(ie, j1, kk, imaxG, jmaxG);          //ghost cell, on non-edge layer of i line of cells, on first layer of j line of cells
+	int gf_ie_j1_kl = GetLowerFaceK(ie, j1, kk, imaxG, jmaxG);  //ghost face, on non-edge layer of i line of cells, on first layer of j line of cells
 
-      //volume -----------------------------------------------------------------------------------------------------------------------------------------------
-      (*this).SetVol( 0.5 * ( (*this).Vol(gc_i1_je) + (*this).Vol(gc_ie_j1) ) ,gce_i1_j1);
-      (*this).SetVol( (*this).Vol(gc_i2_je) ,gce_i2_j1);
-      (*this).SetVol( (*this).Vol(gc_ie_j2) ,gce_i1_j2);
-      (*this).SetVol( 0.5 * ( (*this).Vol(gc_i2_je) + (*this).Vol(gc_ie_j2) ) ,gce_i2_j2);
+	int gc_ie_j2 = GetLoc1D(ie, j2, kk, imaxG, jmaxG);          //ghost cell, on non-edge layer of i line of cells, on second layer of j line of cells
+	int gf_ie_j2_kl = GetLowerFaceK(ie, j2, kk, imaxG, jmaxG);  //ghost face, on non-edge layer of i line of cells, on second layer of j line of cells
 
-      //face areas -------------------------------------------------------------------------------------------------------------------------------------------
-      (*this).SetFAreaK( 0.5 * ( (*this).FAreaK(gf_ie_j1_kl) + (*this).FAreaK(gf_i1_je_kl) ), gfe_i1_j1_kl);
-      (*this).SetFAreaI( (*this).FAreaI(gf_ie_j1_il), gfe_i1_j1_il);
-      (*this).SetFAreaJ( (*this).FAreaJ(gf_i1_je_jl), gfe_i1_j1_jl);
+	//volume -----------------------------------------------------------------------------------------------------------------------------------------------
+	(*this).SetVol( 0.5 * ( (*this).Vol(gc_i1_je) + (*this).Vol(gc_ie_j1) ) ,gce_i1_j1);
+	(*this).SetVol( (*this).Vol(gc_i2_je) ,gce_i2_j1);
+	(*this).SetVol( (*this).Vol(gc_ie_j2) ,gce_i1_j2);
+	(*this).SetVol( 0.5 * ( (*this).Vol(gc_i2_je) + (*this).Vol(gc_ie_j2) ) ,gce_i2_j2);
 
-      (*this).SetFAreaK( (*this).FAreaK(gf_ie_j2_kl), gfe_i1_j2_kl);
-      (*this).SetFAreaI( (*this).FAreaI(gf_ie_j2_il), gfe_i1_j2_il);
-      (*this).SetFAreaJ( (*this).FAreaJ(gf_i1_je_jl), gfe_i1_j2_jl);
+	//face areas -------------------------------------------------------------------------------------------------------------------------------------------
+	(*this).SetFAreaK( 0.5 * ( (*this).FAreaK(gf_ie_j1_kl) + (*this).FAreaK(gf_i1_je_kl) ), gfe_i1_j1_kl);
+	(*this).SetFAreaI( (*this).FAreaI(gf_ie_j1_il), gfe_i1_j1_il);
+	(*this).SetFAreaJ( (*this).FAreaJ(gf_i1_je_jl), gfe_i1_j1_jl);
 
-      (*this).SetFAreaK( (*this).FAreaK(gf_i2_je_kl), gfe_i2_j1_kl);
-      (*this).SetFAreaI( (*this).FAreaI(gf_ie_j1_il), gfe_i2_j1_il);
-      (*this).SetFAreaJ( (*this).FAreaJ(gf_i2_je_jl), gfe_i2_j1_jl);
+	(*this).SetFAreaK( (*this).FAreaK(gf_ie_j2_kl), gfe_i1_j2_kl);
+	(*this).SetFAreaI( (*this).FAreaI(gf_ie_j2_il), gfe_i1_j2_il);
+	(*this).SetFAreaJ( (*this).FAreaJ(gf_i1_je_jl), gfe_i1_j2_jl);
 
-      (*this).SetFAreaK( 0.5 * ( (*this).FAreaK(gf_i2_je_kl) + (*this).FAreaJ(gf_ie_j2_kl) ), gfe_i2_j2_kl);
-      (*this).SetFAreaI( (*this).FAreaI(gf_ie_j2_il), gfe_i2_j2_il);
-      (*this).SetFAreaJ( (*this).FAreaJ(gf_i2_je_jl), gfe_i2_j2_jl);
+	(*this).SetFAreaK( (*this).FAreaK(gf_i2_je_kl), gfe_i2_j1_kl);
+	(*this).SetFAreaI( (*this).FAreaI(gf_ie_j1_il), gfe_i2_j1_il);
+	(*this).SetFAreaJ( (*this).FAreaJ(gf_i2_je_jl), gfe_i2_j1_jl);
 
-      //centroids ---------------------------------------------------------------------------------------------------------------------------------------------
-      //edge centroid is moved distance of cell width normal to face dividing regular and edge ghost cells
-      vector3d<double> dist2MoveJ = (*this).FCenterJ(gf_i1_je_jl) - (*this).FCenterJ(gf_i1_je_ju);
-      vector3d<double> dist2MoveI = (*this).FCenterI(gf_ie_j1_il) - (*this).FCenterI(gf_ie_j1_iu);
-      (*this).SetCenter( (*this).Center(gc_i1_je) + dist2MoveJ, gce_i1_j1);
-      (*this).SetCenter( (*this).Center(gc_i2_je) + dist2MoveJ, gce_i2_j1);
-      (*this).SetCenter( (*this).Center(gc_ie_j2) + dist2MoveI, gce_i1_j2);
-      (*this).SetCenter( (*this).Center(gc_ie_j2) + 2.0 * dist2MoveI, gce_i2_j2);
+	(*this).SetFAreaK( 0.5 * ( (*this).FAreaK(gf_i2_je_kl) + (*this).FAreaJ(gf_ie_j2_kl) ), gfe_i2_j2_kl);
+	(*this).SetFAreaI( (*this).FAreaI(gf_ie_j2_il), gfe_i2_j2_il);
+	(*this).SetFAreaJ( (*this).FAreaJ(gf_i2_je_jl), gfe_i2_j2_jl);
 
-      //face centers ------------------------------------------------------------------------------------------------------------------------------------------
-      //edge face centers are moved distance of cell width normal to face dividing regular and edge ghost cells
-      (*this).SetFCenterI( (*this).FCenterI(gf_i1_je_il) + dist2MoveJ, gfe_i1_j1_il);
-      (*this).SetFCenterJ( (*this).FCenterJ(gf_i1_je_jl) + dist2MoveJ, gfe_i1_j1_jl);
-      (*this).SetFCenterK( (*this).FCenterK(gf_i1_je_kl) + dist2MoveJ, gfe_i1_j1_kl);
+	//centroids ---------------------------------------------------------------------------------------------------------------------------------------------
+	//edge centroid is moved distance of cell width normal to face dividing regular and edge ghost cells
+	vector3d<double> dist2MoveJ = (*this).FCenterJ(gf_i1_je_jl) - (*this).FCenterJ(gf_i1_je_ju);
+	vector3d<double> dist2MoveI = (*this).FCenterI(gf_ie_j1_il) - (*this).FCenterI(gf_ie_j1_iu);
+	(*this).SetCenter( (*this).Center(gc_i1_je) + dist2MoveJ, gce_i1_j1);
+	(*this).SetCenter( (*this).Center(gc_i2_je) + dist2MoveJ, gce_i2_j1);
+	(*this).SetCenter( (*this).Center(gc_ie_j2) + dist2MoveI, gce_i1_j2);
+	(*this).SetCenter( (*this).Center(gc_ie_j2) + 2.0 * dist2MoveI, gce_i2_j2);
 
-      (*this).SetFCenterI( (*this).FCenterI(gf_i2_je_il) + dist2MoveJ, gfe_i2_j1_il);
-      (*this).SetFCenterJ( (*this).FCenterJ(gf_i2_je_jl) + dist2MoveJ, gfe_i2_j1_jl);
-      (*this).SetFCenterK( (*this).FCenterK(gf_i2_je_kl) + dist2MoveJ, gfe_i2_j1_kl);
+	//face centers ------------------------------------------------------------------------------------------------------------------------------------------
+	//edge face centers are moved distance of cell width normal to face dividing regular and edge ghost cells
+	(*this).SetFCenterI( (*this).FCenterI(gf_i1_je_il) + dist2MoveJ, gfe_i1_j1_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(gf_i1_je_jl) + dist2MoveJ, gfe_i1_j1_jl);
+	(*this).SetFCenterK( (*this).FCenterK(gf_i1_je_kl) + dist2MoveJ, gfe_i1_j1_kl);
 
-      (*this).SetFCenterI( (*this).FCenterI(gf_ie_j2_il) + dist2MoveI, gfe_i1_j2_il);
-      (*this).SetFCenterJ( (*this).FCenterJ(gf_ie_j2_jl) + dist2MoveI, gfe_i1_j2_jl);
-      (*this).SetFCenterK( (*this).FCenterK(gf_ie_j2_kl) + dist2MoveI, gfe_i1_j2_kl);
+	(*this).SetFCenterI( (*this).FCenterI(gf_i2_je_il) + dist2MoveJ, gfe_i2_j1_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(gf_i2_je_jl) + dist2MoveJ, gfe_i2_j1_jl);
+	(*this).SetFCenterK( (*this).FCenterK(gf_i2_je_kl) + dist2MoveJ, gfe_i2_j1_kl);
 
-      (*this).SetFCenterI( (*this).FCenterI(gf_ie_j2_il) + 2.0 * dist2MoveI, gfe_i2_j2_il);
-      (*this).SetFCenterJ( (*this).FCenterJ(gf_ie_j2_jl) + 2.0 * dist2MoveI, gfe_i2_j2_jl);
-      (*this).SetFCenterK( (*this).FCenterK(gf_ie_j2_kl) + 2.0 * dist2MoveI, gfe_i2_j2_kl);
+	(*this).SetFCenterI( (*this).FCenterI(gf_ie_j2_il) + dist2MoveI, gfe_i1_j2_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(gf_ie_j2_jl) + dist2MoveI, gfe_i1_j2_jl);
+	(*this).SetFCenterK( (*this).FCenterK(gf_ie_j2_kl) + dist2MoveI, gfe_i1_j2_kl);
 
-      //this is only done at the end of the k loop
-      if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of k-line of cells assign cell upper face areas too
+	(*this).SetFCenterI( (*this).FCenterI(gf_ie_j2_il) + 2.0 * dist2MoveI, gfe_i2_j2_il);
+	(*this).SetFCenterJ( (*this).FCenterJ(gf_ie_j2_jl) + 2.0 * dist2MoveI, gfe_i2_j2_jl);
+	(*this).SetFCenterK( (*this).FCenterK(gf_ie_j2_kl) + 2.0 * dist2MoveI, gfe_i2_j2_kl);
 
-	int gfe_i1_j1_2kl = GetLowerFaceK(i1, j1, kk - 1, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on first layer of k line of cells
-	vector3d<double> dist2MoveK = (*this).FCenterK(gfe_i1_j1_kl) - (*this).FCenterK(gfe_i1_j1_2kl); //k-width of adjacent cell
+	//this is only done at the end of the k loop
+	if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of k-line of cells assign cell upper face areas too
 
-	int gfe_i1_j1_ku = GetUpperFaceK(i1, j1, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of j line of cells
-	int gfe_i1_j2_ku = GetUpperFaceK(i1, j2, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of j line of cells
-	int gfe_i2_j1_ku = GetUpperFaceK(i2, j1, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of j line of cells
-	int gfe_i2_j2_ku = GetUpperFaceK(i2, j2, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of j line of cells
+	  int gfe_i1_j1_2kl = GetLowerFaceK(i1, j1, kk - 1, imaxG, jmaxG); //ghost face on edge, on first layer of j line of cells, on first layer of k line of cells
+	  vector3d<double> dist2MoveK = (*this).FCenterK(gfe_i1_j1_kl) - (*this).FCenterK(gfe_i1_j1_2kl); //k-width of adjacent cell
 
-	//face areas
-	(*this).SetFAreaK( (*this).FAreaK(gfe_i1_j1_kl), gfe_i1_j1_ku);
-	(*this).SetFAreaK( (*this).FAreaK(gfe_i1_j2_kl), gfe_i1_j2_ku);
-	(*this).SetFAreaK( (*this).FAreaK(gfe_i2_j1_kl), gfe_i2_j1_ku);
-	(*this).SetFAreaK( (*this).FAreaK(gfe_i2_j2_kl), gfe_i2_j2_ku);
+	  int gfe_i1_j1_ku = GetUpperFaceK(i1, j1, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on first layer of j line of cells
+	  int gfe_i1_j2_ku = GetUpperFaceK(i1, j2, kk, imaxG, jmaxG); //ghost face on edge, on first layer of i line of cells, on second layer of j line of cells
+	  int gfe_i2_j1_ku = GetUpperFaceK(i2, j1, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on first layer of j line of cells
+	  int gfe_i2_j2_ku = GetUpperFaceK(i2, j2, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of j line of cells
 
-	//face centers
-	(*this).SetFCenterK( (*this).FCenterK(gfe_i1_j1_kl) + dist2MoveK, gfe_i1_j1_ku);
-	(*this).SetFCenterK( (*this).FCenterK(gfe_i1_j2_kl) + dist2MoveK, gfe_i1_j2_ku);
-	(*this).SetFCenterK( (*this).FCenterK(gfe_i2_j1_kl) + dist2MoveK, gfe_i2_j1_ku);
-	(*this).SetFCenterK( (*this).FCenterK(gfe_i2_j2_kl) + dist2MoveK, gfe_i2_j2_ku);
+	  //face areas
+	  (*this).SetFAreaK( (*this).FAreaK(gfe_i1_j1_kl), gfe_i1_j1_ku);
+	  (*this).SetFAreaK( (*this).FAreaK(gfe_i1_j2_kl), gfe_i1_j2_ku);
+	  (*this).SetFAreaK( (*this).FAreaK(gfe_i2_j1_kl), gfe_i2_j1_ku);
+	  (*this).SetFAreaK( (*this).FAreaK(gfe_i2_j2_kl), gfe_i2_j2_ku);
 
+	  //face centers
+	  (*this).SetFCenterK( (*this).FCenterK(gfe_i1_j1_kl) + dist2MoveK, gfe_i1_j1_ku);
+	  (*this).SetFCenterK( (*this).FCenterK(gfe_i1_j2_kl) + dist2MoveK, gfe_i1_j2_ku);
+	  (*this).SetFCenterK( (*this).FCenterK(gfe_i2_j1_kl) + dist2MoveK, gfe_i2_j1_ku);
+	  (*this).SetFCenterK( (*this).FCenterK(gfe_i2_j2_kl) + dist2MoveK, gfe_i2_j2_ku);
+
+	}
       }
 
     }
@@ -4497,11 +4592,11 @@ void procBlock::AssignGhostCellsGeomEdge(){
 }
 
 /* Member function to assign values for ghost cells for the inviscid flux calculation. This function assigns values for
-regular ghost cells and "edge" ghost cells. "Corner" cells are left with no value as they are not used.
-           ____ ____ ____ ____ ____ ____ ____ ____
-          | E  | E  | G2 | G2 | G2 | G2 | E  | E  |
-          |____|____|____|____|____|____|____|____|
-          | E  | E  | G1 | G1 | G1 | G1 | E  | E  |
+   regular ghost cells and "edge" ghost cells. "Corner" cells are left with no value as they are not used.
+   ____ ____ ____ ____ ____ ____ ____ ____
+   | E  | E  | G2 | G2 | G2 | G2 | E  | E  |
+   |____|____|____|____|____|____|____|____|
+   | E  | E  | G1 | G1 | G1 | G1 | E  | E  |
           |____|____|____|____|____|____|____|____|
           | G2 | G1 | X  | X  | X  | X  | G1 | G2 |
           |____|____|____|____|____|____|____|____|
@@ -4537,28 +4632,6 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++ ){
     for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++ ){
 
-      //location of ghost cells at lower i-boundary
-      int cellLowG1 = GetLoc1D(1, jj, kk, imaxG, jmaxG);
-      int cellLowG2 = GetLoc1D(0, jj, kk, imaxG, jmaxG);
-
-      //location of interior cells at lower i-boundary
-      int cellLowIn1 = GetLoc1D((*this).NumGhosts(), jj, kk, imaxG, jmaxG);
-      int cellLowIn2 = GetLoc1D((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
-
-      //location of lower i-boundary face
-      int lFaceB = GetLowerFaceI((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-
-      //location of ghost cells at upper i-boundary
-      int cellUpG1 = GetLoc1D(imaxG-2, jj, kk, imaxG, jmaxG);
-      int cellUpG2 = GetLoc1D(imaxG-1, jj, kk, imaxG, jmaxG);
-
-      //location of interior cells at upper i-boundary
-      int cellUpIn1 = GetLoc1D(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
-      int cellUpIn2 = GetLoc1D(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
-
-      //location of upper i-boundary face
-      int uFaceB = GetUpperFaceI(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
-
       //name of boundary conditions at lower and upper boundaries
       string bcNameL = bound.GetBCName(0, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "il");
       string bcNameU = bound.GetBCName(imax, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "iu");
@@ -4571,29 +4644,68 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
 	bcNameU = "slipWall";
       }
 
-      //first layer of ghost cells
-      (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1), cellLowG1);
-      (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1), cellUpG1);
+      //lower surface ----------------------------------------------------------
+      if ( bcNameL != "interblock" ) { //only supply state values for non interblock BCs, for interblock, do nothing
 
-      //second layer of ghost cells
-      if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	(*this).SetState( (*this).State(cellLowG1), cellLowG2);
-	(*this).SetState( (*this).State(cellUpG1), cellUpG2);
+	//location of ghost cells at lower i-boundary
+	int cellLowG1 = GetLoc1D(1, jj, kk, imaxG, jmaxG);
+	int cellLowG2 = GetLoc1D(0, jj, kk, imaxG, jmaxG);
+
+	//location of interior cells at lower i-boundary
+	int cellLowIn1 = GetLoc1D((*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+	int cellLowIn2 = GetLoc1D((*this).NumGhosts() + 1, jj, kk, imaxG, jmaxG);
+
+	//location of lower i-boundary face
+	int lFaceB = GetLowerFaceI((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+
+	//first layer of ghost cells
+	(*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1), cellLowG1);
+
+	//second layer of ghost cells
+	if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	  (*this).SetState( (*this).State(cellLowG1), cellLowG2);
+	}
+	else{
+	  if (bcNameL == "slipWall" ){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
+	    (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1), cellLowG2);
+	  }
+	  else{
+	    (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 2), cellLowG2);
+	  }
+	}
+
       }
-      else{
-	if (bcNameL == "slipWall" || bcNameL == "interblock"){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
-	  (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1), cellLowG2);
+
+      //upper surface -------------------------------------------------------------------------
+      if ( bcNameU != "interblock" ) { //only supply state values for non interblock BCs, for interblock, do nothing
+
+	//location of ghost cells at upper i-boundary
+	int cellUpG1 = GetLoc1D(imaxG-2, jj, kk, imaxG, jmaxG);
+	int cellUpG2 = GetLoc1D(imaxG-1, jj, kk, imaxG, jmaxG);
+
+	//location of interior cells at upper i-boundary
+	int cellUpIn1 = GetLoc1D(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+	int cellUpIn2 = GetLoc1D(imaxG - 2 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG);
+
+	//location of upper i-boundary face
+	int uFaceB = GetUpperFaceI(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
+
+	//first layer of ghost cells
+	(*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1), cellUpG1);
+
+	//second layer of ghost cells
+	if (imax < 2){ //one cell thick - use one cell for both ghost cells
+	  (*this).SetState( (*this).State(cellUpG1), cellUpG2);
 	}
 	else{
-	  (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 2), cellLowG2);
+	  if (bcNameU == "slipWall" ){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
+	    (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1), cellUpG2);
+	  }
+	  else{
+	    (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 2), cellUpG2);
+	  }
 	}
 
-	if (bcNameU == "slipWall" || bcNameU == "interblock"){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
-	  (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1), cellUpG2);
-	}
-	else{
-	  (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 2), cellUpG2);
-	}
       }
 
     }
@@ -4603,28 +4715,6 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
   //loop over physical J faces and assign values for regular ghost cells -----------------------------------------------------------------------
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++ ){
     for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++ ){
-
-      //location of ghost cells at lower j-boundary
-      int cellLowG1 = GetLoc1D(ii, 1, kk, imaxG, jmaxG);
-      int cellLowG2 = GetLoc1D(ii, 0, kk, imaxG, jmaxG);
-
-      //location of interior cells at lower j-boundary
-      int cellLowIn1 = GetLoc1D(ii, (*this).NumGhosts(), kk, imaxG, jmaxG);
-      int cellLowIn2 = GetLoc1D(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
-
-      //location of lower j-boundary face
-      int lFaceB = GetLowerFaceJ(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
-
-      //location of ghost cells at upper j-boundary
-      int cellUpG1 = GetLoc1D(ii, jmaxG-2, kk, imaxG, jmaxG);
-      int cellUpG2 = GetLoc1D(ii, jmaxG-1, kk, imaxG, jmaxG);
-
-      //location of interior cells at upper j-boundary
-      int cellUpIn1 = GetLoc1D(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG);
-      int cellUpIn2 = GetLoc1D(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG);
-
-      //location of upper j-boundary face
-      int uFaceB = GetUpperFaceJ(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
 
       //name of boundary conditions at lower and upper boundaries
       string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), 0, kk - (*this).NumGhosts(), "jl");
@@ -4638,29 +4728,68 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
       	bcNameU = "slipWall";
       }
 
-      //first layer of ghost cells
-      (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG1);
-      (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1), cellUpG1);
+      //lower surface ----------------------------------------------------------
+      if ( bcNameL != "interblock" ) { //only supply state values for non interblock BCs, for interblock, do nothing
 
-      //second layer of ghost cells
-      if (jmax < 2){ //one cell thick - use once cell for both ghost cells
-	(*this).SetState( (*this).State(cellLowG1), cellLowG2);
-	(*this).SetState( (*this).State(cellUpG1), cellUpG2);
+	//location of ghost cells at lower j-boundary
+	int cellLowG1 = GetLoc1D(ii, 1, kk, imaxG, jmaxG);
+	int cellLowG2 = GetLoc1D(ii, 0, kk, imaxG, jmaxG);
+
+	//location of interior cells at lower j-boundary
+	int cellLowIn1 = GetLoc1D(ii, (*this).NumGhosts(), kk, imaxG, jmaxG);
+	int cellLowIn2 = GetLoc1D(ii, (*this).NumGhosts() + 1, kk, imaxG, jmaxG);
+
+	//location of lower j-boundary face
+	int lFaceB = GetLowerFaceJ(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
+
+	//first layer of ghost cells
+	(*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG1);
+
+	//second layer of ghost cells
+	if (jmax < 2){ //one cell thick - use once cell for both ghost cells
+	  (*this).SetState( (*this).State(cellLowG1), cellLowG2);
+	}
+	else{
+	  if (bcNameL == "slipWall" ){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
+	    (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG2);
+	  }
+	  else{
+	    (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 2), cellLowG2);
+	  }
+	}
+
       }
-      else{
-	if (bcNameL == "slipWall" || bcNameL == "interblock"){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
-	  (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG2);
+
+      //upper surface ----------------------------------------------------------
+      if ( bcNameU != "interblock" ) { //only supply state values for non interblock BCs, for interblock, do nothing
+
+	//location of ghost cells at upper j-boundary
+	int cellUpG1 = GetLoc1D(ii, jmaxG-2, kk, imaxG, jmaxG);
+	int cellUpG2 = GetLoc1D(ii, jmaxG-1, kk, imaxG, jmaxG);
+
+	//location of interior cells at upper j-boundary
+	int cellUpIn1 = GetLoc1D(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG);
+	int cellUpIn2 = GetLoc1D(ii, jmaxG - 2 - (*this).NumGhosts(), kk, imaxG, jmaxG);
+
+	//location of upper j-boundary face
+	int uFaceB = GetUpperFaceJ(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
+
+	//first layer of ghost cells
+	(*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1), cellUpG1);
+
+	//second layer of ghost cells
+	if (jmax < 2){ //one cell thick - use once cell for both ghost cells
+	  (*this).SetState( (*this).State(cellUpG1), cellUpG2);
 	}
 	else{
-	  (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 2), cellLowG2);
+	  if (bcNameU == "slipWall" ){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
+	    (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1), cellUpG2);
+	  }
+	  else{
+	    (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 2), cellUpG2);
+	  }
 	}
 
-	if (bcNameU == "slipWall" || bcNameU == "interblock"){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
-	  (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1), cellUpG2);
-	}
-	else{
-	  (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 2), cellUpG2);
-	}
       }
 
     }
@@ -4670,28 +4799,6 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
   //loop over physical K faces and assign values for regular ghost cells -----------------------------------------------------------------------
   for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++ ){
     for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++ ){
-
-      //location of ghost cells at lower k-boundary
-      int cellLowG1 = GetLoc1D(ii, jj, 1, imaxG, jmaxG);
-      int cellLowG2 = GetLoc1D(ii, jj, 0, imaxG, jmaxG);
-
-      //location of interior cells at lower k-boundary
-      int cellLowIn1 = GetLoc1D(ii, jj, (*this).NumGhosts(), imaxG, jmaxG);
-      int cellLowIn2 = GetLoc1D(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
-
-      //location of lower k-boundary face
-      int lFaceB = GetLowerFaceK(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
-
-      //location of ghost cells at upper k-boundary
-      int cellUpG1 = GetLoc1D(ii, jj, kmaxG-2, imaxG, jmaxG);
-      int cellUpG2 = GetLoc1D(ii, jj, kmaxG-1, imaxG, jmaxG);
-
-      //location of interior cells at upper k-boundary
-      int cellUpIn1 = GetLoc1D(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG);
-      int cellUpIn2 = GetLoc1D(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
-
-      //location of upper k-boundary face
-      int uFaceB = GetUpperFaceK(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
 
       //name of boundary conditions at lower and upper boundaries
       string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), 0, "kl");
@@ -4705,29 +4812,68 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
 	bcNameU = "slipWall";
       }
 
-      //first layer of ghost cells
-      (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1), cellLowG1);
-      (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG1);
+      //lower surface ----------------------------------------------------------
+      if ( bcNameL != "interblock" ) { //only supply state values for non interblock BCs, for interblock, do nothing
 
-      //second layer of ghost cells
-      if (kmax < 2){ //one cell thick - use once cell for both ghost cells
-	(*this).SetState( (*this).State(cellLowG1), cellLowG2);
-	(*this).SetState( (*this).State(cellUpG1), cellUpG2);
+	//location of ghost cells at lower k-boundary
+	int cellLowG1 = GetLoc1D(ii, jj, 1, imaxG, jmaxG);
+	int cellLowG2 = GetLoc1D(ii, jj, 0, imaxG, jmaxG);
+
+	//location of interior cells at lower k-boundary
+	int cellLowIn1 = GetLoc1D(ii, jj, (*this).NumGhosts(), imaxG, jmaxG);
+	int cellLowIn2 = GetLoc1D(ii, jj, (*this).NumGhosts() + 1, imaxG, jmaxG);
+
+	//location of lower k-boundary face
+	int lFaceB = GetLowerFaceK(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
+
+	//first layer of ghost cells
+	(*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1), cellLowG1);
+
+	//second layer of ghost cells
+	if (kmax < 2){ //one cell thick - use once cell for both ghost cells
+	  (*this).SetState( (*this).State(cellLowG1), cellLowG2);
+	}
+	else{
+	  if (bcNameL == "slipWall" ){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
+	    (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1), cellLowG2);
+	  }
+	  else{
+	    (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 2), cellLowG2);
+	  }
+	}
+
       }
-      else{
-	if (bcNameL == "slipWall" || bcNameL == "interblock"){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
-	  (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1), cellLowG2);
+
+      //upper surface ----------------------------------------------------------
+      if ( bcNameU != "interblock" ) { //only supply state values for non interblock BCs, for interblock, do nothing
+
+	//location of ghost cells at upper k-boundary
+	int cellUpG1 = GetLoc1D(ii, jj, kmaxG-2, imaxG, jmaxG);
+	int cellUpG2 = GetLoc1D(ii, jj, kmaxG-1, imaxG, jmaxG);
+
+	//location of interior cells at upper k-boundary
+	int cellUpIn1 = GetLoc1D(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG);
+	int cellUpIn2 = GetLoc1D(ii, jj, kmaxG - 2 - (*this).NumGhosts(), imaxG, jmaxG);
+
+	//location of upper k-boundary face
+	int uFaceB = GetUpperFaceK(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
+
+	//first layer of ghost cells
+	(*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG1);
+
+	//second layer of ghost cells
+	if (kmax < 2){ //one cell thick - use once cell for both ghost cells
+	  (*this).SetState( (*this).State(cellUpG1), cellUpG2);
 	}
 	else{
-	  (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 2), cellLowG2);
+	  if (bcNameU == "slipWall" ){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
+	    (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG2);
+	  }
+	  else{
+	    (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 2), cellUpG2);
+	  }
 	}
 
-	if (bcNameU == "slipWall" || bcNameU == "interblock"){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
-	  (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG2);
-	}
-	else{
-	  (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 2), cellUpG2);
-	}
       }
 
     }
@@ -4796,7 +4942,7 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
       int gf_je_k1_jl;
       int gf_je_k2_jl;
 
-      string bc_jl,bc_kl;
+      string bc_J,bc_K;
       string surfJ,surfK;
 
       if ( cc == 0 ){ //at jl/kl edge - ghost cells are in the lower direction of both j and k, so use GetLowerFace for both
@@ -4832,8 +4978,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_je_k2_jl = GetLowerFaceJ(ii, je, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_jl = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfJ);
-	bc_kl = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+	bc_J = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfJ);
+	bc_K = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
 
       }
       else if ( cc == 1 ){ //at jl/ku edge - ghost cells are in the lower direction of j and upper direction of k, so use GetLowerFace for J
@@ -4869,8 +5015,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_je_k2_jl = GetLowerFaceJ(ii, je, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_jl = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfJ);
-	bc_kl = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
+	bc_J = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfJ);
+	bc_K = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
 
       }
       else if ( cc == 2 ){ //at ju/kl edge - ghost cells are in the lower direction of k, and upper direction of j so use GetLowerFace for k
@@ -4906,8 +5052,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_je_k2_jl = GetUpperFaceJ(ii, je, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_jl = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, ke - (*this).NumGhosts(),surfJ);
-	bc_kl = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+	bc_J = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, ke - (*this).NumGhosts(),surfJ);
+	bc_K = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
 
       }
       else if ( cc == 3 ){ //at ju/ku edge - ghost cells are in the upper direction of both j and k, use GetUpperFace for both
@@ -4943,52 +5089,56 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_je_k2_jl = GetUpperFaceJ(ii, je, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_jl = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, ke - (*this).NumGhosts(), surfJ);
-	bc_kl = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
+	bc_J = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, ke - (*this).NumGhosts(), surfJ);
+	bc_K = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
 
       }
 
-      //location of ghost cells
-      int gce_j1_k1 = GetLoc1D(ii, j1, k1, imaxG, jmaxG);      //ghost cell on edge, on first layer of j line of cells, on first layer of k line of cells
-      int gce_j1_k2 = GetLoc1D(ii, j1, k2, imaxG, jmaxG);         //ghost cell on edge, on first layer of j line of cells, on second layer of k line of cells
-      int gce_j2_k1 = GetLoc1D(ii, j2, k1, imaxG, jmaxG);         //ghost cell on edge, on second layer of j line of cells, on first layer of k line of cells
-      int gce_j2_k2 = GetLoc1D(ii, j2, k2, imaxG, jmaxG);         //ghost cell on edge, on second layer of j line of cells, on second layer of k line of cells
+      //if both corner boundaries aren't interblocks, get edge cells; if bouth boundaries are interblocks, edge cells come from ghost cell exchange
+      if ( bc_J != "interblock" && bc_K != "interblock" ){ 
 
-      int gc_j1_ke = GetLoc1D(ii, j1, ke, imaxG, jmaxG);       //ghost cell, on first layer of j line of cells, on non-edge layer of k line of cells
-      int gc_j2_ke = GetLoc1D(ii, j2, ke, imaxG, jmaxG);       //ghost cell, on second layer of j line of cells, on non-edge layer of k line of cells
-      int gc_je_k1 = GetLoc1D(ii, je, k1, imaxG, jmaxG);       //ghost cell, on non-edge layer of j line of cells, on first layer of k line of cells
-      int gc_je_k2 = GetLoc1D(ii, je, k2, imaxG, jmaxG);       //ghost cell, on non-edge layer of j line of cells, on second layer of k line of cells
+	int gce_j1_k1 = GetLoc1D(ii, j1, k1, imaxG, jmaxG);      //ghost cell on edge, on first layer of j line of cells, on first layer of k line of cells
+	int gce_j1_k2 = GetLoc1D(ii, j1, k2, imaxG, jmaxG);         //ghost cell on edge, on first layer of j line of cells, on second layer of k line of cells
+	int gce_j2_k1 = GetLoc1D(ii, j2, k1, imaxG, jmaxG);         //ghost cell on edge, on second layer of j line of cells, on first layer of k line of cells
+	int gce_j2_k2 = GetLoc1D(ii, j2, k2, imaxG, jmaxG);         //ghost cell on edge, on second layer of j line of cells, on second layer of k line of cells
 
-      int gc_j1_ke2 = GetLoc1D(ii, j1, ke2, imaxG, jmaxG);     //ghost cell, on first layer of j line of cells, on second non-edge layer of k line of cells 
-      int gc_j2_ke2 = GetLoc1D(ii, j2, ke2, imaxG, jmaxG);     //ghost cell, on second layer of j line of cells, on second non-edge layer of k line of cells  
-      int gc_je2_k1 = GetLoc1D(ii, je2, k1, imaxG, jmaxG);     //ghost cell, on second non-edge layer of j line of cells, on first layer of k line of cells   
-      int gc_je2_k2 = GetLoc1D(ii, je2, k2, imaxG, jmaxG);     //ghost cell, on second non-edge layer of j line of cells, on second layer of k line of cells  
+	int gc_j1_ke = GetLoc1D(ii, j1, ke, imaxG, jmaxG);       //ghost cell, on first layer of j line of cells, on non-edge layer of k line of cells
+	int gc_j2_ke = GetLoc1D(ii, j2, ke, imaxG, jmaxG);       //ghost cell, on second layer of j line of cells, on non-edge layer of k line of cells
+	int gc_je_k1 = GetLoc1D(ii, je, k1, imaxG, jmaxG);       //ghost cell, on non-edge layer of j line of cells, on first layer of k line of cells
+	int gc_je_k2 = GetLoc1D(ii, je, k2, imaxG, jmaxG);       //ghost cell, on non-edge layer of j line of cells, on second layer of k line of cells
 
-      //inviscid fluxes require different bc than viscous fluxes - treat all walls as the same
-      if ( bc_jl == "viscousWall" ){
-	bc_jl = "slipWall";
-      }
-      if ( bc_kl == "viscousWall" ){
-	bc_kl = "slipWall";
-      }
+	int gc_j1_ke2 = GetLoc1D(ii, j1, ke2, imaxG, jmaxG);     //ghost cell, on first layer of j line of cells, on second non-edge layer of k line of cells 
+	int gc_j2_ke2 = GetLoc1D(ii, j2, ke2, imaxG, jmaxG);     //ghost cell, on second layer of j line of cells, on second non-edge layer of k line of cells  
+	int gc_je2_k1 = GetLoc1D(ii, je2, k1, imaxG, jmaxG);     //ghost cell, on second non-edge layer of j line of cells, on first layer of k line of cells   
+	int gc_je2_k2 = GetLoc1D(ii, je2, k2, imaxG, jmaxG);     //ghost cell, on second non-edge layer of j line of cells, on second layer of k line of cells  
 
-      if ( bc_jl == "slipWall" && !(bc_kl == "slipWall") ){  //j surface is a wall, but k surface is not - extend wall bc
-	(*this).SetState( (*this).State(gc_je_k1).GetGhostState(bc_jl, (*this).FAreaJ(gf_je_k1_jl), surfJ, inp, eos, 1) ,gce_j1_k1);
-	(*this).SetState( (*this).State(gc_je_k2).GetGhostState(bc_jl, (*this).FAreaJ(gf_je_k2_jl), surfJ, inp, eos, 1) ,gce_j1_k2);
-	(*this).SetState( (*this).State(gc_je2_k1).GetGhostState(bc_jl, (*this).FAreaJ(gf_je_k1_jl), surfJ, inp, eos, 1) ,gce_j2_k1);
-	(*this).SetState( (*this).State(gc_je2_k2).GetGhostState(bc_jl, (*this).FAreaJ(gf_je_k2_jl), surfJ, inp, eos, 1) ,gce_j2_k2);
-      }
-      else if ( !(bc_jl == "slipWall") && bc_kl == "slipWall" ){  //k surface is a wall, but j surface is not - extend wall bc
-	(*this).SetState( (*this).State(gc_j1_ke).GetGhostState(bc_kl, (*this).FAreaK(gf_j1_ke_kl), surfK, inp, eos, 1) ,gce_j1_k1);
-	(*this).SetState( (*this).State(gc_j2_ke).GetGhostState(bc_kl, (*this).FAreaK(gf_j2_ke_kl), surfK, inp, eos, 1) ,gce_j2_k1);
-	(*this).SetState( (*this).State(gc_j1_ke2).GetGhostState(bc_kl, (*this).FAreaK(gf_j1_ke_kl), surfK, inp, eos, 1) ,gce_j1_k2);
-	(*this).SetState( (*this).State(gc_j2_ke2).GetGhostState(bc_kl, (*this).FAreaK(gf_j2_ke_kl), surfK, inp, eos, 1) ,gce_j2_k2);
-      }
-      else{ // both surfaces are walls or neither are walls - proceed as normal
-	(*this).SetState( 0.5 * ( (*this).State(gc_j1_ke) + (*this).State(gc_je_k1) ) ,gce_j1_k1);
-	(*this).SetState( (*this).State(gc_j2_ke) ,gce_j2_k1);
-	(*this).SetState( (*this).State(gc_je_k2) ,gce_j1_k2);
-	(*this).SetState( 0.5 * ( (*this).State(gc_j2_ke) + (*this).State(gc_je_k2) ) ,gce_j2_k2);
+	//inviscid fluxes require different bc than viscous fluxes - treat all walls as the same
+	if ( bc_J == "viscousWall" ){
+	  bc_J = "slipWall";
+	}
+	if ( bc_K == "viscousWall" ){
+	  bc_K = "slipWall";
+	}
+
+	if ( bc_J == "slipWall" && !(bc_K == "slipWall") ){  //j surface is a wall, but k surface is not - extend wall bc
+	  (*this).SetState( (*this).State(gc_je_k1).GetGhostState(bc_J, (*this).FAreaJ(gf_je_k1_jl), surfJ, inp, eos, 1) ,gce_j1_k1);
+	  (*this).SetState( (*this).State(gc_je_k2).GetGhostState(bc_J, (*this).FAreaJ(gf_je_k2_jl), surfJ, inp, eos, 1) ,gce_j1_k2);
+	  (*this).SetState( (*this).State(gc_je2_k1).GetGhostState(bc_J, (*this).FAreaJ(gf_je_k1_jl), surfJ, inp, eos, 1) ,gce_j2_k1);
+	  (*this).SetState( (*this).State(gc_je2_k2).GetGhostState(bc_J, (*this).FAreaJ(gf_je_k2_jl), surfJ, inp, eos, 1) ,gce_j2_k2);
+	}
+	else if ( !(bc_J == "slipWall") && bc_K == "slipWall" ){  //k surface is a wall, but j surface is not - extend wall bc
+	  (*this).SetState( (*this).State(gc_j1_ke).GetGhostState(bc_K, (*this).FAreaK(gf_j1_ke_kl), surfK, inp, eos, 1) ,gce_j1_k1);
+	  (*this).SetState( (*this).State(gc_j2_ke).GetGhostState(bc_K, (*this).FAreaK(gf_j2_ke_kl), surfK, inp, eos, 1) ,gce_j2_k1);
+	  (*this).SetState( (*this).State(gc_j1_ke2).GetGhostState(bc_K, (*this).FAreaK(gf_j1_ke_kl), surfK, inp, eos, 1) ,gce_j1_k2);
+	  (*this).SetState( (*this).State(gc_j2_ke2).GetGhostState(bc_K, (*this).FAreaK(gf_j2_ke_kl), surfK, inp, eos, 1) ,gce_j2_k2);
+	}
+	else{ // both surfaces are walls or neither are walls - proceed as normal
+	  (*this).SetState( 0.5 * ( (*this).State(gc_j1_ke) + (*this).State(gc_je_k1) ) ,gce_j1_k1);
+	  (*this).SetState( (*this).State(gc_j2_ke) ,gce_j2_k1);
+	  (*this).SetState( (*this).State(gc_je_k2) ,gce_j1_k2);
+	  (*this).SetState( 0.5 * ( (*this).State(gc_j2_ke) + (*this).State(gc_je_k2) ) ,gce_j2_k2);
+	}
+
       }
 
     }
@@ -5008,7 +5158,7 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
       int gf_ie_k1_il;
       int gf_ie_k2_il;
 
-      string bc_il,bc_kl;
+      string bc_I,bc_K;
       string surfI,surfK;
 
       if ( cc == 0 ){ //at il/kl edge - ghost cells are in the lower direction of both i and k, so use GetLowerFace for both
@@ -5044,8 +5194,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_ie_k2_il = GetLowerFaceI(ie, jj, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_il = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
-	bc_kl = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+	bc_I = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_K = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
 
       }
       else if ( cc == 1 ){ //at il/ku edge - ghost cells are in the lower direction of i and upper direction of k, so use GetLowerFace for I
@@ -5081,8 +5231,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_ie_k2_il = GetLowerFaceI(ie, jj, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_il = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
-	bc_kl = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
+	bc_I = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_K = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
 
       }
       else if ( cc == 2 ){ //at iu/kl edge - ghost cells are in the lower direction of k, and upper direction of i so use GetLowerFace for k
@@ -5118,8 +5268,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_ie_k2_il = GetUpperFaceI(ie, jj, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_il = bound.GetBCName(ie - (*this).NumGhosts() + 1, jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
-	bc_kl = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+	bc_I = bound.GetBCName(ie - (*this).NumGhosts() + 1, jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_K = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
 
       }
       else if ( cc == 3 ){ //at iu/ku edge - ghost cells are in the upper direction of both j and k, use GetUpperFace for both
@@ -5155,57 +5305,61 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_ie_k2_il = GetUpperFaceI(ie, jj, k2, imaxG, jmaxG);  
 
 	//boundary conditioins at corner
-	bc_il = bound.GetBCName(ie - (*this).NumGhosts() + 1, jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
-	bc_kl = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
+	bc_I = bound.GetBCName(ie - (*this).NumGhosts() + 1, jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_K = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
 
       }
 
-      //location of ghost cells
-      int gce_i1_k1 = GetLoc1D(i1, jj, k1, imaxG, jmaxG);      //ghost cell on edge, on first layer of i line of cells, on first layer of k line of cells
-      int gce_i1_k2 = GetLoc1D(i1, jj, k2, imaxG, jmaxG);         //ghost cell on edge, on first layer of i line of cells, on second layer of k line of cells
-      int gce_i2_k1 = GetLoc1D(i2, jj, k1, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on first layer of k line of cells
-      int gce_i2_k2 = GetLoc1D(i2, jj, k2, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on second layer of k line of cells
+      //if both corner boundaries aren't interblocks, get edge cells; if bouth boundaries are interblocks, edge cells come from ghost cell exchange
+      if ( bc_I != "interblock" && bc_K != "interblock" ){ 
 
-      int gc_i1_ke = GetLoc1D(i1, jj, ke, imaxG, jmaxG);       //ghost cell, on first layer of i line of cells, on non-edge layer of k line of cells          
-      int gc_i2_ke = GetLoc1D(i2, jj, ke, imaxG, jmaxG);       //ghost cell, on second layer of i line of cells, on non-edge layer of k line of cells         
-      int gc_ie_k1 = GetLoc1D(ie, jj, k1, imaxG, jmaxG);       //ghost cell, on non-edge layer of i line of cells, on first layer of k line of cells          
-      int gc_ie_k2 = GetLoc1D(ie, jj, k2, imaxG, jmaxG);       //ghost cell, on non-edge layer of i line of cells, on second layer of k line of cells         
+	//location of ghost cells
+	int gce_i1_k1 = GetLoc1D(i1, jj, k1, imaxG, jmaxG);      //ghost cell on edge, on first layer of i line of cells, on first layer of k line of cells
+	int gce_i1_k2 = GetLoc1D(i1, jj, k2, imaxG, jmaxG);         //ghost cell on edge, on first layer of i line of cells, on second layer of k line of cells
+	int gce_i2_k1 = GetLoc1D(i2, jj, k1, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on first layer of k line of cells
+	int gce_i2_k2 = GetLoc1D(i2, jj, k2, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on second layer of k line of cells
+
+	int gc_i1_ke = GetLoc1D(i1, jj, ke, imaxG, jmaxG);       //ghost cell, on first layer of i line of cells, on non-edge layer of k line of cells          
+	int gc_i2_ke = GetLoc1D(i2, jj, ke, imaxG, jmaxG);       //ghost cell, on second layer of i line of cells, on non-edge layer of k line of cells         
+	int gc_ie_k1 = GetLoc1D(ie, jj, k1, imaxG, jmaxG);       //ghost cell, on non-edge layer of i line of cells, on first layer of k line of cells          
+	int gc_ie_k2 = GetLoc1D(ie, jj, k2, imaxG, jmaxG);       //ghost cell, on non-edge layer of i line of cells, on second layer of k line of cells         
 							                                                                                                      
-      int gc_i1_ke2 = GetLoc1D(i1, jj, ke2, imaxG, jmaxG);     //ghost cell, on first layer of i line of cells, on second non-edge layer of k line of cells   
-      int gc_i2_ke2 = GetLoc1D(i2, jj, ke2, imaxG, jmaxG);     //ghost cell, on second layer of i line of cells, on second non-edge layer of k line of cells  
-      int gc_ie2_k1 = GetLoc1D(ie2, jj, k1, imaxG, jmaxG);     //ghost cell, on second non-edge layer of i line of cells, on first layer of k line of cells   
-      int gc_ie2_k2 = GetLoc1D(ie2, jj, k2, imaxG, jmaxG);     //ghost cell, on second non-edge layer of i line of cells, on second layer of k line of cells  
+	int gc_i1_ke2 = GetLoc1D(i1, jj, ke2, imaxG, jmaxG);     //ghost cell, on first layer of i line of cells, on second non-edge layer of k line of cells   
+	int gc_i2_ke2 = GetLoc1D(i2, jj, ke2, imaxG, jmaxG);     //ghost cell, on second layer of i line of cells, on second non-edge layer of k line of cells  
+	int gc_ie2_k1 = GetLoc1D(ie2, jj, k1, imaxG, jmaxG);     //ghost cell, on second non-edge layer of i line of cells, on first layer of k line of cells   
+	int gc_ie2_k2 = GetLoc1D(ie2, jj, k2, imaxG, jmaxG);     //ghost cell, on second non-edge layer of i line of cells, on second layer of k line of cells  
 
-      //inviscid fluxes require different bc than viscous fluxes - treat all walls as the same
-      if ( bc_il == "viscousWall" ){
-	bc_il = "slipWall";
-      }
-      if ( bc_kl == "viscousWall" ){
-	bc_kl = "slipWall";
-      }
+	//inviscid fluxes require different bc than viscous fluxes - treat all walls as the same
+	if ( bc_I == "viscousWall" ){
+	  bc_I = "slipWall";
+	}
+	if ( bc_K == "viscousWall" ){
+	  bc_K = "slipWall";
+	}
 
-      if ( bc_il == "slipWall" && !(bc_kl == "slipWall") ){  //i surface is a wall, but k surface is not - extend wall bc
-	(*this).SetState( (*this).State(gc_ie_k1).GetGhostState(bc_il, (*this).FAreaI(gf_ie_k1_il), surfI, inp, eos, 1) ,gce_i1_k1);
-	(*this).SetState( (*this).State(gc_ie_k2).GetGhostState(bc_il, (*this).FAreaI(gf_ie_k2_il), surfI, inp, eos, 1) ,gce_i1_k2);
-	(*this).SetState( (*this).State(gc_ie2_k1).GetGhostState(bc_il, (*this).FAreaI(gf_ie_k1_il), surfI, inp, eos, 1) ,gce_i2_k1);
-	(*this).SetState( (*this).State(gc_ie2_k2).GetGhostState(bc_il, (*this).FAreaI(gf_ie_k2_il), surfI, inp, eos, 1) ,gce_i2_k2);
-      }
-      else if ( !(bc_il == "slipWall") && bc_kl == "slipWall" ){  //k surface is a wall, but i surface is not - extend wall bc
-	(*this).SetState( (*this).State(gc_i1_ke).GetGhostState(bc_kl, (*this).FAreaK(gf_i1_ke_kl), surfK, inp, eos, 1) ,gce_i1_k1);
-	(*this).SetState( (*this).State(gc_i2_ke).GetGhostState(bc_kl, (*this).FAreaK(gf_i2_ke_kl), surfK, inp, eos, 1) ,gce_i2_k1);
-	(*this).SetState( (*this).State(gc_i1_ke2).GetGhostState(bc_kl, (*this).FAreaK(gf_i1_ke_kl), surfK, inp, eos, 1) ,gce_i1_k2);
-	(*this).SetState( (*this).State(gc_i2_ke2).GetGhostState(bc_kl, (*this).FAreaK(gf_i2_ke_kl), surfK, inp, eos, 1) ,gce_i2_k2);
+	if ( bc_I == "slipWall" && !(bc_K == "slipWall") ){  //i surface is a wall, but k surface is not - extend wall bc
+	  (*this).SetState( (*this).State(gc_ie_k1).GetGhostState(bc_I, (*this).FAreaI(gf_ie_k1_il), surfI, inp, eos, 1) ,gce_i1_k1);
+	  (*this).SetState( (*this).State(gc_ie_k2).GetGhostState(bc_I, (*this).FAreaI(gf_ie_k2_il), surfI, inp, eos, 1) ,gce_i1_k2);
+	  (*this).SetState( (*this).State(gc_ie2_k1).GetGhostState(bc_I, (*this).FAreaI(gf_ie_k1_il), surfI, inp, eos, 1) ,gce_i2_k1);
+	  (*this).SetState( (*this).State(gc_ie2_k2).GetGhostState(bc_I, (*this).FAreaI(gf_ie_k2_il), surfI, inp, eos, 1) ,gce_i2_k2);
+	}
+	else if ( !(bc_I == "slipWall") && bc_K == "slipWall" ){  //k surface is a wall, but i surface is not - extend wall bc
+	  (*this).SetState( (*this).State(gc_i1_ke).GetGhostState(bc_K, (*this).FAreaK(gf_i1_ke_kl), surfK, inp, eos, 1) ,gce_i1_k1);
+	  (*this).SetState( (*this).State(gc_i2_ke).GetGhostState(bc_K, (*this).FAreaK(gf_i2_ke_kl), surfK, inp, eos, 1) ,gce_i2_k1);
+	  (*this).SetState( (*this).State(gc_i1_ke2).GetGhostState(bc_K, (*this).FAreaK(gf_i1_ke_kl), surfK, inp, eos, 1) ,gce_i1_k2);
+	  (*this).SetState( (*this).State(gc_i2_ke2).GetGhostState(bc_K, (*this).FAreaK(gf_i2_ke_kl), surfK, inp, eos, 1) ,gce_i2_k2);
 
-      }
-      else{ // both surfaces are walls or neither are walls - proceed as normal
-	(*this).SetState( 0.5 * ( (*this).State(gc_i1_ke) + (*this).State(gc_ie_k1) ) ,gce_i1_k1);
-	(*this).SetState( (*this).State(gc_i2_ke) ,gce_i2_k1);
-	(*this).SetState( (*this).State(gc_ie_k2) ,gce_i1_k2);
-	(*this).SetState( 0.5 * ( (*this).State(gc_i2_ke) + (*this).State(gc_ie_k2) ) ,gce_i2_k2);
+	}
+	else{ // both surfaces are walls or neither are walls - proceed as normal
+	  (*this).SetState( 0.5 * ( (*this).State(gc_i1_ke) + (*this).State(gc_ie_k1) ) ,gce_i1_k1);
+	  (*this).SetState( (*this).State(gc_i2_ke) ,gce_i2_k1);
+	  (*this).SetState( (*this).State(gc_ie_k2) ,gce_i1_k2);
+	  (*this).SetState( 0.5 * ( (*this).State(gc_i2_ke) + (*this).State(gc_ie_k2) ) ,gce_i2_k2);
+	}
+
       }
 
     }
-
   }
 
   //--------------------------------------------------------------------------------------------------------------------------------------------
@@ -5222,7 +5376,7 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
       int gf_ie_j1_il;
       int gf_ie_j2_il;
 
-      string bc_il,bc_jl;
+      string bc_I,bc_J;
       string surfI,surfJ;
 
       if ( cc == 0 ){ //at il/jl edge - ghost cells are in the lower direction of both i and j, so use GetLowerFace for both
@@ -5258,8 +5412,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_ie_j2_il = GetLowerFaceI(ie, j2, kk, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_il = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
-	bc_jl = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfJ);
+	bc_I = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_J = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfJ);
 
       }
       else if ( cc == 1 ){ //at il/ju edge - ghost cells are in the lower direction of i and upper direction of j, so use GetLowerFace for I
@@ -5294,8 +5448,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_ie_j2_il = GetLowerFaceI(ie, j2, kk, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_il = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
-	bc_jl = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, kk - (*this).NumGhosts(), surfJ);
+	bc_I = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_J = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, kk - (*this).NumGhosts(), surfJ);
 
       }
       else if ( cc == 2 ){ //at iu/jl edge - ghost cells are in the lower direction of j, and upper direction of i so use GetLowerFace for j
@@ -5331,8 +5485,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_ie_j2_il = GetUpperFaceI(ie, j2, kk, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_il = bound.GetBCName(ie - (*this).NumGhosts() + 1, je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
-	bc_jl = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfJ);
+	bc_I = bound.GetBCName(ie - (*this).NumGhosts() + 1, je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_J = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfJ);
 
       }
       else if ( cc == 3 ){ //at iu/ju edge - ghost cells are in the upper direction of both i and j, use GetUpperFace for both
@@ -5368,58 +5522,61 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_ie_j2_il = GetUpperFaceI(ie, j2, kk, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_il = bound.GetBCName(ie - (*this).NumGhosts() + 1, je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
-	bc_jl = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, kk - (*this).NumGhosts(), surfJ);
+	bc_I = bound.GetBCName(ie - (*this).NumGhosts() + 1, je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_J = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, kk - (*this).NumGhosts(), surfJ);
 
       }
 
-      //location of ghost cells
-      int gce_i1_j1 = GetLoc1D(i1, j1, kk, imaxG, jmaxG);      //ghost cell on edge, on first layer of i line of cells, on first layer of k line of cells
-      int gce_i1_j2 = GetLoc1D(i1, j2, kk, imaxG, jmaxG);         //ghost cell on edge, on first layer of i line of cells, on second layer of k line of cells
-      int gce_i2_j1 = GetLoc1D(i2, j1, kk, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on first layer of k line of cells
-      int gce_i2_j2 = GetLoc1D(i2, j2, kk, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on second layer of k line of cells
+      //if both corner boundaries aren't interblocks, get edge cells; if bouth boundaries are interblocks, edge cells come from ghost cell exchange
+      if ( bc_I != "interblock" && bc_J != "interblock" ){ 
 
-      int gc_i1_je = GetLoc1D(i1, je, kk, imaxG, jmaxG);       //ghost cell, on first layer of i line of cells, on non-edge layer of j line of cells          
-      int gc_i2_je = GetLoc1D(i2, je, kk, imaxG, jmaxG);       //ghost cell, on second layer of i line of cells, on non-edge layer of j line of cells         
-      int gc_ie_j1 = GetLoc1D(ie, j1, kk, imaxG, jmaxG);       //ghost cell, on non-edge layer of i line of cells, on first layer of j line of cells          
-      int gc_ie_j2 = GetLoc1D(ie, j2, kk, imaxG, jmaxG);       //ghost cell, on non-edge layer of i line of cells, on second layer of j line of cells         
+	//location of ghost cells
+	int gce_i1_j1 = GetLoc1D(i1, j1, kk, imaxG, jmaxG);      //ghost cell on edge, on first layer of i line of cells, on first layer of k line of cells
+	int gce_i1_j2 = GetLoc1D(i1, j2, kk, imaxG, jmaxG);         //ghost cell on edge, on first layer of i line of cells, on second layer of k line of cells
+	int gce_i2_j1 = GetLoc1D(i2, j1, kk, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on first layer of k line of cells
+	int gce_i2_j2 = GetLoc1D(i2, j2, kk, imaxG, jmaxG);         //ghost cell on edge, on second layer of i line of cells, on second layer of k line of cells
+
+	int gc_i1_je = GetLoc1D(i1, je, kk, imaxG, jmaxG);       //ghost cell, on first layer of i line of cells, on non-edge layer of j line of cells          
+	int gc_i2_je = GetLoc1D(i2, je, kk, imaxG, jmaxG);       //ghost cell, on second layer of i line of cells, on non-edge layer of j line of cells         
+	int gc_ie_j1 = GetLoc1D(ie, j1, kk, imaxG, jmaxG);       //ghost cell, on non-edge layer of i line of cells, on first layer of j line of cells          
+	int gc_ie_j2 = GetLoc1D(ie, j2, kk, imaxG, jmaxG);       //ghost cell, on non-edge layer of i line of cells, on second layer of j line of cells         
 							                                                                                                      
-      int gc_i1_je2 = GetLoc1D(i1, je2, kk, imaxG, jmaxG);     //ghost cell, on first layer of i line of cells, on second non-edge layer of j line of cells   
-      int gc_i2_je2 = GetLoc1D(i2, je2, kk, imaxG, jmaxG);     //ghost cell, on second layer of i line of cells, on second non-edge layer of j line of cells  
-      int gc_ie2_j1 = GetLoc1D(ie2, j1, kk, imaxG, jmaxG);     //ghost cell, on second non-edge layer of i line of cells, on first layer of j line of cells   
-      int gc_ie2_j2 = GetLoc1D(ie2, j2, kk, imaxG, jmaxG);     //ghost cell, on second non-edge layer of i line of cells, on second layer of j line of cells  
+	int gc_i1_je2 = GetLoc1D(i1, je2, kk, imaxG, jmaxG);     //ghost cell, on first layer of i line of cells, on second non-edge layer of j line of cells   
+	int gc_i2_je2 = GetLoc1D(i2, je2, kk, imaxG, jmaxG);     //ghost cell, on second layer of i line of cells, on second non-edge layer of j line of cells  
+	int gc_ie2_j1 = GetLoc1D(ie2, j1, kk, imaxG, jmaxG);     //ghost cell, on second non-edge layer of i line of cells, on first layer of j line of cells   
+	int gc_ie2_j2 = GetLoc1D(ie2, j2, kk, imaxG, jmaxG);     //ghost cell, on second non-edge layer of i line of cells, on second layer of j line of cells  
 
-      //inviscid fluxes require different bc than viscous fluxes - treat all walls as the same
-      if ( bc_il == "viscousWall" ){
-	bc_il = "slipWall";
-      }
-      if ( bc_jl == "viscousWall" ){
-	bc_jl = "slipWall";
-      }
+	//inviscid fluxes require different bc than viscous fluxes - treat all walls as the same
+	if ( bc_I == "viscousWall" ){
+	  bc_I = "slipWall";
+	}
+	if ( bc_J == "viscousWall" ){
+	  bc_J = "slipWall";
+	}
 
-      if ( bc_il == "slipWall" && !(bc_jl == "slipWall") ){  //i surface is a wall, but k surface is not - extend wall bc
-	(*this).SetState( (*this).State(gc_ie_j1).GetGhostState(bc_il, (*this).FAreaI(gf_ie_j1_il), surfI, inp, eos, 1) ,gce_i1_j1);
-	(*this).SetState( (*this).State(gc_ie_j2).GetGhostState(bc_il, (*this).FAreaI(gf_ie_j2_il), surfI, inp, eos, 1) ,gce_i1_j2);
-	(*this).SetState( (*this).State(gc_ie2_j1).GetGhostState(bc_il, (*this).FAreaI(gf_ie_j1_il), surfI, inp, eos, 1) ,gce_i2_j1);
-	(*this).SetState( (*this).State(gc_ie2_j2).GetGhostState(bc_il, (*this).FAreaI(gf_ie_j2_il), surfI, inp, eos, 1) ,gce_i2_j2);
-      }
-      else if ( !(bc_il == "slipWall") && bc_jl == "slipWall" ){  //k surface is a wall, but i surface is not - extend wall bc
-	(*this).SetState( (*this).State(gc_i1_je).GetGhostState(bc_jl, (*this).FAreaJ(gf_i1_je_jl), surfJ, inp, eos, 1) ,gce_i1_j1);
-	(*this).SetState( (*this).State(gc_i2_je).GetGhostState(bc_jl, (*this).FAreaJ(gf_i2_je_jl), surfJ, inp, eos, 1) ,gce_i2_j1);
-	(*this).SetState( (*this).State(gc_i1_je2).GetGhostState(bc_jl, (*this).FAreaJ(gf_i1_je_jl), surfJ, inp, eos, 1) ,gce_i1_j2);
-	(*this).SetState( (*this).State(gc_i2_je2).GetGhostState(bc_jl, (*this).FAreaJ(gf_i2_je_jl), surfJ, inp, eos, 1) ,gce_i2_j2);
-      }
-      else{ // both surfaces are walls or neither are walls - proceed as normal
-	(*this).SetState( 0.5 * ( (*this).State(gc_i1_je) + (*this).State(gc_ie_j1) ) ,gce_i1_j1);
-	(*this).SetState( (*this).State(gc_i2_je) ,gce_i2_j1);
-	(*this).SetState( (*this).State(gc_ie_j2) ,gce_i1_j2);
-	(*this).SetState( 0.5 * ( (*this).State(gc_i2_je) + (*this).State(gc_ie_j2) ) ,gce_i2_j2);
-      }
+	if ( bc_I == "slipWall" && !(bc_J == "slipWall") ){  //i surface is a wall, but k surface is not - extend wall bc
+	  (*this).SetState( (*this).State(gc_ie_j1).GetGhostState(bc_I, (*this).FAreaI(gf_ie_j1_il), surfI, inp, eos, 1) ,gce_i1_j1);
+	  (*this).SetState( (*this).State(gc_ie_j2).GetGhostState(bc_I, (*this).FAreaI(gf_ie_j2_il), surfI, inp, eos, 1) ,gce_i1_j2);
+	  (*this).SetState( (*this).State(gc_ie2_j1).GetGhostState(bc_I, (*this).FAreaI(gf_ie_j1_il), surfI, inp, eos, 1) ,gce_i2_j1);
+	  (*this).SetState( (*this).State(gc_ie2_j2).GetGhostState(bc_I, (*this).FAreaI(gf_ie_j2_il), surfI, inp, eos, 1) ,gce_i2_j2);
+	}
+	else if ( !(bc_I == "slipWall") && bc_J == "slipWall" ){  //k surface is a wall, but i surface is not - extend wall bc
+	  (*this).SetState( (*this).State(gc_i1_je).GetGhostState(bc_J, (*this).FAreaJ(gf_i1_je_jl), surfJ, inp, eos, 1) ,gce_i1_j1);
+	  (*this).SetState( (*this).State(gc_i2_je).GetGhostState(bc_J, (*this).FAreaJ(gf_i2_je_jl), surfJ, inp, eos, 1) ,gce_i2_j1);
+	  (*this).SetState( (*this).State(gc_i1_je2).GetGhostState(bc_J, (*this).FAreaJ(gf_i1_je_jl), surfJ, inp, eos, 1) ,gce_i1_j2);
+	  (*this).SetState( (*this).State(gc_i2_je2).GetGhostState(bc_J, (*this).FAreaJ(gf_i2_je_jl), surfJ, inp, eos, 1) ,gce_i2_j2);
+	}
+	else{ // both surfaces are walls or neither are walls - proceed as normal
+	  (*this).SetState( 0.5 * ( (*this).State(gc_i1_je) + (*this).State(gc_ie_j1) ) ,gce_i1_j1);
+	  (*this).SetState( (*this).State(gc_i2_je) ,gce_i2_j1);
+	  (*this).SetState( (*this).State(gc_ie_j2) ,gce_i1_j2);
+	  (*this).SetState( 0.5 * ( (*this).State(gc_i2_je) + (*this).State(gc_ie_j2) ) ,gce_i2_j2);
+	}
 
+      }
     }
 
   }
-
 }
 
 /* Member function to assign ghost cells for the viscous flow calculation. This function assumes AssignInviscidGhostCells has been run first as
@@ -6485,489 +6642,6 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
   blk1.PutGeomSlice(slice2, inter2, blk2.NumGhosts());
   blk2.PutGeomSlice(slice1, inter1, blk1.NumGhosts());
 
-}
-
-/* Function to return a vector of location indicies for ghost cells at an interblock boundary. The vector is formatted as shown below:
-
-  vector = [ cellIndex lowerFaceI upperFaceI lowerFaceJ upperFaceJ lowerFaceK upperFaceK ...]
-
-The vector will contain 7 entries for each layer of ghost cells. Those entries marked "cell" are cell indices, and those marked "face" are face indices. 
-Those marked with an "I" are corresponding to a location in the I-face vector (likewise with "J" and "K").
-*/
-vector<int> GetPatchGhostLoc( const int &ind, const interblock &inter, const bool &pairID, const int &imax, const int &jmax, const int &numGhosts ){
-  // ind -- number of patch ghost cell
-  // inter -- interblock boundary condition
-  // pairID -- returning index for first or second block in interblock match
-  // imax -- i dimension of block
-  // jmax -- j dimension of block
-  // numGhosts -- number of layers of ghost cells
-
-  //preallocate vector to return
-  vector<int> loc;
-  loc.reserve(numGhosts * 7);
-
-  if (pairID) { //working on first in pair -----------------------------------------------------------------------------------------------
-    //first patch in pair is calculated using orientation 1
-
-    if ( inter.BoundaryFirst() == 1 ){ //i-patch lower
-      //get direction 1 length
-      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst() ;
-      int add1 = ind % l1;
-      int add2 = ind / l1;
-      int jj = inter.Dir1StartFirst() + numGhosts + add1; //direction 1 is j
-      int kk = inter.Dir2StartFirst() + numGhosts + add2; //direction 2 is k
-      for ( int nn = 0; nn < numGhosts; nn++ ){
-	int ii = inter.ConstSurfaceFirst() + numGhosts - nn - 1 ; //subtract nn-1 to get to ghost cells, (cell index instead of face)
-	loc[7*nn] = GetLoc1D(ii, jj, kk, imax, jmax); //cell
-	loc[7*nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
-	loc[7*nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
-	loc[7*nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
-	loc[7*nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
-	loc[7*nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
-	loc[7*nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
-      }
-    }
-    else if ( inter.BoundaryFirst() == 2 ) { //i-patch upper
-      //get direction 1 length
-      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst() ;
-      int add1 = ind % l1;
-      int add2 = ind / l1;
-      int jj = inter.Dir1StartFirst() + numGhosts + add1; //direction 1 is j
-      int kk = inter.Dir2StartFirst() + numGhosts + add2; //direction 2 is k
-      for ( int nn = 0; nn < numGhosts; nn++ ){
-	int ii = inter.ConstSurfaceFirst() + numGhosts + nn ; //add nn to get to ghost cells
-	loc[7*nn] = GetLoc1D(ii, jj, kk, imax, jmax); //cell
-	loc[7*nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
-	loc[7*nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
-	loc[7*nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
-	loc[7*nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
-	loc[7*nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
-	loc[7*nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
-      }
-    }
-    else if ( inter.BoundaryFirst() == 3 ){ //j-patch lower
-      //get direction 1 length
-      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst() ;
-      int add1 = ind % l1;
-      int add2 = ind / l1;
-      int kk = inter.Dir1StartFirst() + numGhosts + add1; //direction 1 is k
-      int ii = inter.Dir2StartFirst() + numGhosts + add2; //direction 2 is i
-      for ( int nn = 0; nn < numGhosts; nn++ ){
-	int jj = inter.ConstSurfaceFirst() + numGhosts - nn - 1 ; //subtract nn-1 to get to ghost cells, (cell index instead of face)
-	loc[7*nn] = GetLoc1D(ii, jj, kk, imax, jmax);
-	loc[7*nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
-	loc[7*nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
-	loc[7*nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
-	loc[7*nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
-	loc[7*nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
-	loc[7*nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
-      }
-    }
-    else if ( inter.BoundaryFirst() == 4 ){ //j-patch upper
-      //get direction 1 length
-      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst() ;
-      int add1 = ind % l1;
-      int add2 = ind / l1;
-      int kk = inter.Dir1StartFirst() + numGhosts + add1; //direction 1 is k
-      int ii = inter.Dir2StartFirst() + numGhosts + add2; //direction 2 is i
-      for ( int nn = 0; nn < numGhosts; nn++ ){
-	int jj = inter.ConstSurfaceFirst() + numGhosts + nn; //add nn to get to ghost cells 
-	loc[7*nn] = GetLoc1D(ii, jj, kk, imax, jmax);
-	loc[7*nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
-	loc[7*nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
-	loc[7*nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
-	loc[7*nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
-	loc[7*nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
-	loc[7*nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
-      }
-    }
-    else if ( inter.BoundaryFirst() == 5 ){ //k-patch lower
-      //get direction 1 length
-      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst() ;
-      int add1 = ind % l1;
-      int add2 = ind / l1;
-      int ii = inter.Dir1StartFirst() + numGhosts + add1; //direction 1 is i
-      int jj = inter.Dir2StartFirst() + numGhosts + add2; //direction 2 is j
-      for ( int nn = 0; nn < numGhosts; nn++ ){
-	int kk = inter.ConstSurfaceFirst() + numGhosts - nn - 1; //subtract nn-1 to get to ghost cells, (cell index instead of face)
-	loc[7*nn] = GetLoc1D(ii, jj, kk, imax, jmax);
-	loc[7*nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
-	loc[7*nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
-	loc[7*nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
-	loc[7*nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
-	loc[7*nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
-	loc[7*nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
-      }
-    }
-    else{ //k-patch upper
-      //get direction 1 length
-      int l1 = inter.Dir1EndFirst() - inter.Dir1StartFirst() ;
-      int add1 = ind % l1;
-      int add2 = ind / l1;
-      int ii = inter.Dir1StartFirst() + numGhosts + add1; //direction 1 is i
-      int jj = inter.Dir2StartFirst() + numGhosts + add2; //direction 2 is j
-      for ( int nn = 0; nn < numGhosts; nn++ ){
-	int kk = inter.ConstSurfaceFirst() + numGhosts + nn; //add nn to get to ghost cells
-	loc[7*nn] = GetLoc1D(ii, jj, kk, imax, jmax);
-	loc[7*nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
-	loc[7*nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
-	loc[7*nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
-	loc[7*nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
-	loc[7*nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
-	loc[7*nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
-      }
-    }
-  }
-  //--------------------------------------------------------------------------------------------------------------------------------------------
-  //need to use orientation for second in pair
-  else{ //working on second in pair
-
-    //-------------------------------------------------------------------------------------------------------
-    if ( inter.BoundarySecond() == 1 ){ //i-patch lower
-
-      int jj, kk;
-      if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
-	//get direction 1 length (actually direction 2)
-	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond() ;
-	int add1 = ind % l1;
-	int add2 = ind / l1;
-
-	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
-	  kk = inter.Dir2EndSecond() - 1 + numGhosts - add1; //direction 1 is j (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  kk = inter.Dir2StartSecond() + numGhosts + add1; //direction 1 is j (but 1&2 are swapped)
-	}
-
-	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
-	  jj = inter.Dir1EndSecond() - 1 + numGhosts - add2; //direction 2 is k (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  jj = inter.Dir1StartSecond() + numGhosts + add2; //direction 2 is k (but 1&2 are swapped)
-	}
-      }
-      else{ //no direction swap
-	//get direction 1 length 
-	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond() ;
-	int add1 = ind % l1;
-	int add2 = ind / l1;
-
-	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 1
-	  jj = inter.Dir1EndSecond() - 1 + numGhosts - add1; //direction 1 is j; subtract 1 from End to get to cell index
-	}
-	else{
-	  jj = inter.Dir1StartSecond() + numGhosts + add1; //direction 1 is j
-	}
-
-	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 2
-	  kk = inter.Dir2EndSecond() - 1 + numGhosts - add2; //direction 2 is k; subtract 1 from End to get to cell index
-	}
-	else{
-	  kk = inter.Dir2StartSecond() + numGhosts + add2; //direction 2 is k
-	}
-      }
-
-      //calculate index for all ghost layers
-      for ( int nn = 0; nn < numGhosts; nn++ ){
-	int ii = inter.ConstSurfaceSecond() + numGhosts - nn - 1 ; //subtract nn-1 to get to ghost cells, (cell index instead of face)
-	loc[7*nn] = GetLoc1D(ii, jj, kk, imax, jmax);
-	loc[7*nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
-	loc[7*nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
-	loc[7*nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
-	loc[7*nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
-	loc[7*nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
-	loc[7*nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
-      }
-    }
-    //-------------------------------------------------------------------------------------------------------
-    else if ( inter.BoundarySecond() == 2 ){ //i-patch upper
-
-      int jj, kk;
-      if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
-	//get direction 1 length (actually direction 2)
-	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond() ;
-	int add1 = ind % l1;
-	int add2 = ind / l1;
-
-	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
-	  kk = inter.Dir2EndSecond() - 1 + numGhosts - add1; //direction 1 is j (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  kk = inter.Dir2StartSecond() + numGhosts + add1; //direction 1 is j (but 1&2 are swapped)
-	}
-
-	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
-	  jj = inter.Dir1EndSecond() - 1 + numGhosts - add2; //direction 2 is k (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  jj = inter.Dir1StartSecond() + numGhosts + add2; //direction 2 is k (but 1&2 are swapped)
-	}
-      }
-      else{ //no direction swap
-	//get direction 1 length 
-	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond() ;
-	int add1 = ind % l1;
-	int add2 = ind / l1;
-
-	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 1
-	  jj = inter.Dir1EndSecond() - 1 + numGhosts - add1; //direction 1 is j; subtract 1 from End to get to cell index
-	}
-	else{
-	  jj = inter.Dir1StartSecond() + numGhosts + add1; //direction 1 is j
-	}
-
-	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 2
-	  kk = inter.Dir2EndSecond() - 1 + numGhosts - add2; //direction 2 is k; subtract 1 from End to get to cell index
-	}
-	else{
-	  kk = inter.Dir2StartSecond() + numGhosts + add2; //direction 2 is k
-	}
-      }
-
-      //calculate index for all ghost layers
-      for ( int nn = 0; nn < numGhosts; nn++ ){
-	int ii = inter.ConstSurfaceSecond() + numGhosts + nn ; //add nn to get to ghost cells
-	loc[7*nn] = GetLoc1D(ii, jj, kk, imax, jmax);
-	loc[7*nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
-	loc[7*nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
-	loc[7*nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
-	loc[7*nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
-	loc[7*nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
-	loc[7*nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
-      }
-    }
-    //-------------------------------------------------------------------------------------------------------
-    else if ( inter.BoundarySecond() == 3 ){ //j-patch lower
-
-      int ii, kk;
-      if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
-	//get direction 1 length (actually direction 2)
-	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond() ;
-	int add1 = ind % l1;
-	int add2 = ind / l1;
-
-	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
-	  ii = inter.Dir2EndSecond() - 1 + numGhosts - add1; //direction 1 is k (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  ii = inter.Dir2StartSecond() + numGhosts + add1; //direction 1 is k (but 1&2 are swapped)
-	}
-
-	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
-	  kk = inter.Dir1EndSecond() - 1 + numGhosts - add2; //direction 2 is i (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  kk = inter.Dir1StartSecond() + numGhosts + add2; //direction 2 is i (but 1&2 are swapped)
-	}
-      }
-      else{ //no direction swap
-	//get direction 1 length 
-	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond() ;
-	int add1 = ind % l1;
-	int add2 = ind / l1;
-
-	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 1
-	  kk = inter.Dir1EndSecond() - 1 + numGhosts - add1; //direction 1 is k; subtract 1 from End to get to cell index
-	}
-	else{
-	  kk = inter.Dir1StartSecond() + numGhosts + add1; //direction 1 is k
-	}
-
-	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 2
-	  ii = inter.Dir2EndSecond() - 1 + numGhosts - add2; //direction 2 is i; subtract 1 from End to get to cell index
-	}
-	else{
-	  ii = inter.Dir2StartSecond() + numGhosts + add2; //direction 2 is i
-	}
-      }
-
-      //calculate index for all ghost layers
-      for ( int nn = 0; nn < numGhosts; nn++ ){
-	int jj = inter.ConstSurfaceSecond() + numGhosts - nn - 1 ; //subtract nn to get to ghost cells, (cell index instead of face)
-	loc[7*nn] = GetLoc1D(ii, jj, kk, imax, jmax);
-	loc[7*nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
-	loc[7*nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
-	loc[7*nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
-	loc[7*nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
-	loc[7*nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
-	loc[7*nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
-      }
-    }
-    //-------------------------------------------------------------------------------------------------------
-    else if ( inter.BoundarySecond() == 4 ){ //j-patch upper
-
-      int ii, kk;
-      if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
-	//get direction 1 length (actually direction 2)
-	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond() ;
-	int add1 = ind % l1;
-	int add2 = ind / l1;
-
-	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
-	  ii = inter.Dir2EndSecond() - 1 + numGhosts - add1; //direction 1 is k (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  ii = inter.Dir2StartSecond() + numGhosts + add1; //direction 1 is k (but 1&2 are swapped)
-	}
-
-	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
-	  kk = inter.Dir1EndSecond() - 1 + numGhosts - add2; //direction 2 is i (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  kk = inter.Dir1StartSecond() + numGhosts + add2; //direction 2 is i (but 1&2 are swapped)
-	}
-      }
-      else{ //no direction swap
-	//get direction 1 length 
-	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond() ;
-	int add1 = ind % l1;
-	int add2 = ind / l1;
-
-	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 1
-	  kk = inter.Dir1EndSecond() - 1 + numGhosts - add1; //direction 1 is k; subtract 1 from End to get to cell index
-	}
-	else{
-	  kk = inter.Dir1StartSecond() + numGhosts + add1; //direction 1 is k
-	}
-
-	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 2
-	  ii = inter.Dir2EndSecond() - 1 + numGhosts - add2; //direction 2 is i; subtract 1 from End to get to cell index
-	}
-	else{
-	  ii = inter.Dir2StartSecond() + numGhosts + add2; //direction 2 is i
-	}
-      }
-
-      //calculate index for all ghost layers
-      for ( int nn = 0; nn < numGhosts; nn++ ){
-	int jj = inter.ConstSurfaceSecond() + numGhosts + nn ; //add nn to get to ghost cells
-	loc[7*nn] = GetLoc1D(ii, jj, kk, imax, jmax);
-	loc[7*nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
-	loc[7*nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
-	loc[7*nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
-	loc[7*nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
-	loc[7*nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
-	loc[7*nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
-      }
-    }
-    //-------------------------------------------------------------------------------------------------------
-    else if ( inter.BoundarySecond() == 5 ){ //k-patch lower
-
-      int ii, jj;
-      if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
-	//get direction 1 length (actually direction 2)
-	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond() ;
-	int add1 = ind % l1;
-	int add2 = ind / l1;
-
-	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
-	  jj = inter.Dir2EndSecond() - 1 + numGhosts - add1; //direction 1 is i (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  jj = inter.Dir2StartSecond() + numGhosts + add1; //direction 1 is i (but 1&2 are swapped)
-	}
-
-	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
-	  ii = inter.Dir1EndSecond() - 1 + numGhosts - add2; //direction 2 is j (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  ii = inter.Dir1StartSecond() + numGhosts + add2; //direction 2 is j (but 1&2 are swapped)
-	}
-      }
-      else{ //no direction swap
-	//get direction 1 length 
-	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond() ;
-	int add1 = ind % l1;
-	int add2 = ind / l1;
-
-	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 1
-	  ii = inter.Dir1EndSecond() - 1 + numGhosts - add1; //direction 1 is i; subtract 1 from End to get to cell index
-	}
-	else{
-	  ii = inter.Dir1StartSecond() + numGhosts + add1; //direction 1 is i
-	}
-
-	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 2
-	  jj = inter.Dir2EndSecond() - 1 + numGhosts - add2; //direction 2 is j; subtract 1 from End to get to cell index
-	}
-	else{
-	  jj = inter.Dir2StartSecond() + numGhosts + add2; //direction 2 is j
-	}
-      }
-
-      //calculate index for all ghost layers
-      for ( int nn = 0; nn < numGhosts; nn++ ){
-	int kk = inter.ConstSurfaceSecond() + numGhosts - nn - 1 ; //subtract nn to get to ghost cells, (cell index instead of face)
-	loc[7*nn] = GetLoc1D(ii, jj, kk, imax, jmax);
-	loc[7*nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
-	loc[7*nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
-	loc[7*nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
-	loc[7*nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
-	loc[7*nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
-	loc[7*nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
-      }
-    }
-    //-------------------------------------------------------------------------------------------------------
-    else { //k-patch upper
-
-      int ii, jj;
-      if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
-	//get direction 1 length (actually direction 2)
-	int l1 = inter.Dir2EndSecond() - inter.Dir2StartSecond() ;
-	int add1 = ind % l1;
-	int add2 = ind / l1;
-
-	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
-	  jj = inter.Dir2EndSecond() - 1 + numGhosts - add1; //direction 1 is i (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  jj = inter.Dir2StartSecond() + numGhosts + add1; //direction 1 is i (but 1&2 are swapped)
-	}
-
-	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
-	  ii = inter.Dir1EndSecond() - 1 + numGhosts - add2; //direction 2 is j (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  ii = inter.Dir1StartSecond() + numGhosts + add2; //direction 2 is j (but 1&2 are swapped)
-	}
-      }
-      else{ //no direction swap
-	//get direction 1 length 
-	int l1 = inter.Dir1EndSecond() - inter.Dir1StartSecond() ;
-	int add1 = ind % l1;
-	int add2 = ind / l1;
-
-	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 1
-	  ii = inter.Dir1EndSecond() - 1 + numGhosts - add1; //direction 1 is i; subtract 1 from End to get to cell index
-	}
-	else{
-	  ii = inter.Dir1StartSecond() + numGhosts + add1; //direction 1 is i
-	}
-
-	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 2
-	  jj = inter.Dir2EndSecond() - 1 + numGhosts - add2; //direction 2 is j; subtract 1 from End to get to cell index
-	}
-	else{
-	  jj = inter.Dir2StartSecond() + numGhosts + add2; //direction 2 is j
-	}
-      }
-
-      //calculate index for all ghost layers
-      for ( int nn = 0; nn < numGhosts; nn++ ){
-	int kk = inter.ConstSurfaceSecond() + numGhosts + nn ; //add nn to get to ghost cells
-	loc[7*nn] = GetLoc1D(ii, jj, kk, imax, jmax);
-	loc[7*nn+1] = GetLowerFaceI(ii, jj, kk, imax, jmax); //lower-i face
-	loc[7*nn+2] = GetUpperFaceI(ii, jj, kk, imax, jmax); //upper-i face
-	loc[7*nn+3] = GetLowerFaceJ(ii, jj, kk, imax, jmax); //lower-j face
-	loc[7*nn+4] = GetUpperFaceJ(ii, jj, kk, imax, jmax); //upper-j face
-	loc[7*nn+5] = GetLowerFaceK(ii, jj, kk, imax, jmax); //lower-k face
-	loc[7*nn+6] = GetUpperFaceK(ii, jj, kk, imax, jmax); //upper-k face
-      }
-    }
-
-  }
-
-  return loc;
 }
 
 /* Function to return a vector of location indicies for ghost cells at an interblock boundary. The vector is formatted as shown below:
