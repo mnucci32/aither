@@ -82,7 +82,7 @@ int main( int argc, char *argv[] ) {
   }
   //swap geometry for interblock BCs
   for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
-    SwapGhostGeom( connections[ii], stateBlocks[connections[ii].BlockFirst()], stateBlocks[connections[ii].BlockSecond()]);
+    SwapSlice( connections[ii], stateBlocks[connections[ii].BlockFirst()], stateBlocks[connections[ii].BlockSecond()], true);
   }
   //Get ghost cell edge data
   for ( int ll = 0; ll < (int)mesh.size(); ll++) {

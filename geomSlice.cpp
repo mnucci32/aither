@@ -47,9 +47,9 @@ geomSlice::geomSlice(){
 //constructor -- initialize state vector with dummy variables
 geomSlice::geomSlice( const int &li, const int &lj, const int &lk, const int &pblk, const int &pStartI, const int &pEndI, 
 		      const int &pStartJ, const int &pEndJ, const int &pStartK, const int &pEndK ){
-  // li -- size of direction i
-  // lj -- size of direction j
-  // lk -- size of direction k
+  // li -- size of direction i (cell)
+  // lj -- size of direction j (cell)
+  // lk -- size of direction k (cell)
   // pblk -- parent block that slice is coming from
   // pStartI -- starting i-index from parent block (face)
   // pEndI -- ending i-index from parent block (face)
