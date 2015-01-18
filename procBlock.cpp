@@ -6542,105 +6542,141 @@ need to be extra logic added to determine which 3 faces to swap. This would add 
 faces. In addition, this routine is only run once at the beginning of the simulation, so the time savings if any, would be minimal. For this reason the extra logic is
 not added.
 */
-void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
+void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const bool& geom ){
   // inter -- interblock boundary information
   // blk1 -- first block involved in interblock boundary
   // blk2 -- second block involved in interblock boundary
+  // geom -- boolean to determine whether to swap geometry or states
 
   int is1, ie1, js1, je1, ks1, ke1;
   if ( inter.BoundaryFirst() == 1 || inter.BoundaryFirst() == 2 ){ //direction 3 is i
-    is1 = inter.ConstSurfaceFirst() - 1 + blk1.NumGhosts();
-    ie1 = is1;
+    //extend min/maxes to cover ghost cells
+    is1 = inter.ConstSurfaceSecond();
+    ie1 = is1 + blk1.NumGhosts() - 1;
     //direction 1 is j
-    js1 = inter.Dir1StartFirst() + blk1.NumGhosts();
-    je1 = inter.Dir1EndFirst() - 1 + blk1.NumGhosts();
+    js1 = inter.Dir1StartSecond();
+    je1 = inter.Dir1EndSecond() - 1 + 2 * blk1.NumGhosts();
     //direction 2 is k
-    ks1 = inter.Dir2StartFirst() + blk1.NumGhosts();
-    ke1 = inter.Dir2EndFirst() - 1 + blk1.NumGhosts();
+    ks1 = inter.Dir2StartSecond();
+    ke1 = inter.Dir2EndSecond() - 1 + 2 * blk1.NumGhosts();
   }
   else if ( inter.BoundaryFirst() == 3 || inter.BoundaryFirst() == 4 ){ //direction 3 is j
-    js1 = inter.ConstSurfaceFirst() - 1 + blk1.NumGhosts();
-    je1 = is1;
+    //extend min/maxes to cover ghost cells
+    js1 = inter.ConstSurfaceSecond();
+    je1 = js1 + blk1.NumGhosts() - 1;
     //direction 1 is k
-    ks1 = inter.Dir1StartFirst() + blk1.NumGhosts();
-    ke1 = inter.Dir1EndFirst() - 1 + blk1.NumGhosts();
+    ks1 = inter.Dir1StartSecond();
+    ke1 = inter.Dir1EndSecond() - 1 + 2 * blk1.NumGhosts();
     //direction 2 is i
-    is1 = inter.Dir2StartFirst() + blk1.NumGhosts();
-    ie1 = inter.Dir2EndFirst() - 1 + blk1.NumGhosts();
+    is1 = inter.Dir2StartSecond();
+    ie1 = inter.Dir2EndSecond() - 1 + 2 * blk1.NumGhosts();
   }
   else if ( inter.BoundaryFirst() == 5 || inter.BoundaryFirst() == 6 ){ //direction 3 is k
-    ks1 = inter.ConstSurfaceFirst() - 1 + blk1.NumGhosts();
-    ke1 = is1;
-    //direction 1 is k
-    is1 = inter.Dir1StartFirst() + blk1.NumGhosts();
-    ie1 = inter.Dir1EndFirst() - 1 + blk1.NumGhosts();
-    //direction 2 is i
-    js1 = inter.Dir2StartFirst() + blk1.NumGhosts();
-    je1 = inter.Dir2EndFirst() - 1 + blk1.NumGhosts();
+    //extend min/maxes to cover ghost cells
+    ks1 = inter.ConstSurfaceSecond();
+    ke1 = ks1 + blk1.NumGhosts() - 1;
+    //direction 1 is i
+    is1 = inter.Dir1StartSecond();
+    ie1 = inter.Dir1EndSecond() - 1 + 2 * blk1.NumGhosts();
+    //direction 2 is j
+    js1 = inter.Dir2StartSecond();
+    je1 = inter.Dir2EndSecond() - 1 + 2 * blk1.NumGhosts();
   }
   else{
-    cerr << "ERROR: Error in procBlock::SwapGhostGeom(). Surface boundary " << inter.BoundaryFirst() << " is not recognized!" << endl;
+    cerr << "ERROR: Error in procBlock::SwapSlice(). Surface boundary " << inter.BoundaryFirst() << " is not recognized!" << endl;
   }
 
   int is2, ie2, js2, je2, ks2, ke2;
   if ( inter.BoundarySecond() == 1 || inter.BoundarySecond() == 2 ){ //direction 3 is i
-    is2 = inter.ConstSurfaceSecond() - 1 + blk2.NumGhosts();
-    ie2 = is2;
+    //extend min/maxes to cover ghost cells
+    is2 = inter.ConstSurfaceSecond();
+    ie2 = is2 + blk2.NumGhosts() - 1;
     //direction 1 is j
-    js2 = inter.Dir1StartSecond() + blk2.NumGhosts();
-    je2 = inter.Dir1EndSecond() - 1 + blk2.NumGhosts();
+    js2 = inter.Dir1StartSecond();
+    je2 = inter.Dir1EndSecond() - 1 + 2 * blk2.NumGhosts();
     //direction 2 is k
-    ks2 = inter.Dir2StartSecond() + blk2.NumGhosts();
-    ke2 = inter.Dir2EndSecond() - 1 + blk2.NumGhosts();
+    ks2 = inter.Dir2StartSecond();
+    ke2 = inter.Dir2EndSecond() - 1 + 2 * blk2.NumGhosts();
   }
   else if ( inter.BoundarySecond() == 3 || inter.BoundarySecond() == 4 ){ //direction 3 is j
-    js2 = inter.ConstSurfaceSecond() - 1 + blk2.NumGhosts();
-    je2 = is2;
+    //extend min/maxes to cover ghost cells
+    js2 = inter.ConstSurfaceSecond();
+    je2 = js2 + blk2.NumGhosts() - 1;
     //direction 1 is k
-    ks2 = inter.Dir1StartSecond() + blk2.NumGhosts();
-    ke2 = inter.Dir1EndSecond() - 1 + blk2.NumGhosts();
+    ks2 = inter.Dir1StartSecond();
+    ke2 = inter.Dir1EndSecond() - 1 + 2 * blk2.NumGhosts();
     //direction 2 is i
-    is2 = inter.Dir2StartSecond() + blk2.NumGhosts();
-    ie2 = inter.Dir2EndSecond() - 1 + blk2.NumGhosts();
+    is2 = inter.Dir2StartSecond();
+    ie2 = inter.Dir2EndSecond() - 1 + 2 * blk2.NumGhosts();
   }
   else if ( inter.BoundarySecond() == 5 || inter.BoundarySecond() == 6 ){ //direction 3 is k
-    ks2 = inter.ConstSurfaceSecond() - 1 + blk2.NumGhosts();
-    ke2 = is2;
-    //direction 1 is k
-    is2 = inter.Dir1StartSecond() + blk2.NumGhosts();
-    ie2 = inter.Dir1EndSecond() - 1 + blk2.NumGhosts();
-    //direction 2 is i
-    js2 = inter.Dir2StartSecond() + blk2.NumGhosts();
-    je2 = inter.Dir2EndSecond() - 1 + blk2.NumGhosts();
+    //extend min/maxes to cover ghost cells
+    ks2 = inter.ConstSurfaceSecond();
+    ke2 = ks2 + blk2.NumGhosts() - 1;
+    //direction 1 is i
+    is2 = inter.Dir1StartSecond();
+    ie2 = inter.Dir1EndSecond() - 1 + 2 * blk2.NumGhosts();
+    //direction 2 is j
+    js2 = inter.Dir2StartSecond();
+    je2 = inter.Dir2EndSecond() - 1 + 2 * blk2.NumGhosts();
   }
   else{
-    cerr << "ERROR: Error in procBlock::SwapGhostGeom(). Surface boundary " << inter.BoundarySecond() << " is not recognized!" << endl;
+    cerr << "ERROR: Error in procBlock::SwapSlice(). Surface boundary " << inter.BoundarySecond() << " is not recognized!" << endl;
   }
 
-  //get geomSlices to swap
-  geomSlice slice1 = blk1.GetGeomSlice(is1, ie1, js1, je1, ks1, ke1);
-  geomSlice slice2 = blk2.GetGeomSlice(is2, ie2, js2, je2, ks2, ke2);
+  geomSlice geom1, geom2;
+  stateSlice state1, state2;
+  if (geom){ //get geomSlices to swap
+    geom1 = blk1.GetGeomSlice(is1, ie1, js1, je1, ks1, ke1);
+    geom2 = blk2.GetGeomSlice(is2, ie2, js2, je2, ks2, ke2);
+  }
+  else{   //get stateSlices to swap
+    state1 = blk1.GetStateSlice(is1, ie1, js1, je1, ks1, ke1);
+    state2 = blk2.GetStateSlice(is2, ie2, js2, je2, ks2, ke2);
+  }
 
-  //edit interblock to work with geomSlice
+  //change interblocks to work with slice
   interblock inter1 = inter;
   interblock inter2 = inter;
 
-  inter1.SetConstSurfaceFirst(0);
-  inter1.SetDir1EndFirst( inter1.Dir1EndFirst() - inter1.Dir1StartFirst());
+  if ( inter1.BoundaryFirst() % 2 == 0 ){ //upper surface
+    inter1.SetConstSurfaceFirst(0);
+  }
+  else{ //lower surface
+    inter1.SetConstSurfaceFirst(blk1.NumGhosts());
+  }
+  inter1.SetConstSurfaceSecond( inter1.ConstSurfaceSecond() + blk1.NumGhosts() );
+  inter1.SetDir1EndFirst( inter1.Dir1EndFirst() - inter1.Dir1StartFirst() + 2 * blk1.NumGhosts());
+  inter1.SetDir1EndSecond( inter1.Dir1EndSecond() + 2 * blk1.NumGhosts());
   inter1.SetDir1StartFirst(0);
-  inter1.SetDir2EndFirst( inter1.Dir2EndFirst() - inter1.Dir2StartFirst());
+  inter1.SetDir2EndFirst( inter1.Dir2EndFirst() - inter1.Dir2StartFirst() + 2 * blk1.NumGhosts());
+  inter1.SetDir2EndSecond( inter1.Dir2EndSecond() + 2 * blk1.NumGhosts());
   inter1.SetDir2StartFirst(0);
   inter1.SwapOrder(); //have block be first entry, slice second
 
-  inter2.SetConstSurfaceSecond(0);
-  inter2.SetDir1EndSecond( inter2.Dir1EndSecond() - inter2.Dir1StartSecond());
+  if ( inter2.BoundarySecond() % 2 == 0 ){ //upper surface
+    inter2.SetConstSurfaceSecond(0);
+  }
+  else{ //lower surface
+    inter2.SetConstSurfaceSecond(blk2.NumGhosts());
+  }
+  inter2.SetConstSurfaceFirst( inter2.ConstSurfaceFirst() + blk2.NumGhosts() );
+  inter2.SetDir1EndSecond( inter2.Dir1EndSecond() - inter2.Dir1StartSecond() + 2 * blk2.NumGhosts());
+  inter2.SetDir1EndFirst( inter2.Dir1EndFirst() + 2 * blk2.NumGhosts());
   inter2.SetDir1StartSecond(0);
-  inter2.SetDir2EndSecond( inter2.Dir2EndSecond() - inter2.Dir2StartSecond());
+  inter2.SetDir2EndSecond( inter2.Dir2EndSecond() - inter2.Dir2StartSecond() + 2 * blk2.NumGhosts());
+  inter2.SetDir2EndFirst( inter2.Dir2EndFirst() + 2 * blk2.NumGhosts());
   inter2.SetDir2StartSecond(0);
 
-  //put geomSlices in proper blocks
-  blk1.PutGeomSlice(slice2, inter2, blk2.NumGhosts());
-  blk2.PutGeomSlice(slice1, inter1, blk1.NumGhosts());
+  //put slices in proper blocks
+  if (geom){ //put geomSlices in procBlock
+    blk1.PutGeomSlice(geom2, inter2, blk2.NumGhosts());
+    blk2.PutGeomSlice(geom1, inter1, blk1.NumGhosts());
+  }
+  else{ //put stateSlices in procBlock
+    blk1.PutStateSlice(state2, inter2, blk2.NumGhosts());
+    blk2.PutStateSlice(state1, inter1, blk1.NumGhosts());
+  }
 
 }
 
@@ -6648,10 +6684,10 @@ void SwapGhostGeom( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
 
   vector = [i j k]
 
-The vector will contain 7 entries for each layer of ghost cells. Those entries marked "cell" are cell indices, and those marked "face" are face indices. 
+The vector will contain 3 entries for each layer of ghost cells. Those entries marked "cell" are cell indices, and those marked "face" are face indices. 
 Those marked with an "I" are corresponding to a location in the I-face vector (likewise with "J" and "K").
 */
-vector<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const interblock &inter, const bool &pairID, const int &numGhosts ){
+vector<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const interblock &inter, const bool &pairID, int numGhosts ){
   // l1 -- index of direction 1 within slice to insert
   // l2 -- index of direction 2 within slice to insert
   // l3 -- index of direction 3 within slice to insert
@@ -6681,7 +6717,7 @@ vector<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const inter
       //get direction 1 length
       loc[2] = inter.Dir1StartFirst() + numGhosts + l1; //direction 1 is k
       loc[0] = inter.Dir2StartFirst() + numGhosts + l2; //direction 2 is i
-      loc[1] = inter.ConstSurfaceFirst() + numGhosts - l3 - 1 ; //subtract l3-1 to get to ghost cells, (cell index instead of face)
+      loc[1] = inter.ConstSurfaceFirst() + numGhosts - l3 - 1; //subtract l3-1 to get to ghost cells, (cell index instead of face)
     }
     else if ( inter.BoundaryFirst() == 4 ){ //j-patch upper
       //get direction 1 length
@@ -6961,129 +6997,12 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp, const id
   }
   //loop over connections and swap ghost cells where needed
   for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
-    SwapGhostStates( connections[ii], states[connections[ii].BlockFirst()], states[connections[ii].BlockSecond()]);
+    SwapSlice( connections[ii], states[connections[ii].BlockFirst()], states[connections[ii].BlockSecond()], false);
   }
   //loop over all blocks and get ghost cell edge data
   for ( unsigned int ii = 0; ii < states.size(); ii++) {
     states[ii].AssignInviscidGhostCellsEdge(inp, eos);
   }
-
-}
-
-/* Function to swap ghost cell geometry between two blocks at an interblock boundary. During the initial ghost cell inviscid boundary condition calculation the state
-from the first interior cell is reflected to the first ghost cell, and the state from the second interior cell is reflected to the second ghost cell. During the 
-interblock swap, the first ghost cells are swapped, and the second ghost cells are swapped. 
-
-         Interior Cells       Ghost Cells                Ghost Cells       Interior Cells
-         ________ ________|_________ _________        _________ _________|_________ _________
-        |        |        |         |         |       |        |         |         |         |
-        |        |        |         |         |       |        |         |         |         |
-        | Ui-1   |  Ui    |   Ui    |  Ui-1   |       |  Uj+1  |   Uj    |  Uj     |  Uj+1   |
-        |        |        |         |         |       |        |         |         |         |
-        |________|________|_________|_________|       |________|_________|_________|_________|
-                          |                                              |
-
-In the diagram above Ui is swapped with Uj, and Ui-1 is swaped with Uj+1.
-*/
-void SwapGhostStates( const interblock &inter, procBlock &blk1, procBlock &blk2 ){
-  // inter -- information on interblock match
-  // blk1 -- first block of the interblock match
-  // blk2 -- second block of the interblock match
-
-  int is1, ie1, js1, je1, ks1, ke1;
-  if ( inter.BoundaryFirst() == 1 || inter.BoundaryFirst() == 2 ){ //direction 3 is i
-    is1 = inter.ConstSurfaceFirst() - 1 + blk1.NumGhosts();
-    ie1 = is1;
-    //direction 1 is j
-    js1 = inter.Dir1StartFirst() + blk1.NumGhosts();
-    je1 = inter.Dir1EndFirst() - 1 + blk1.NumGhosts();
-    //direction 2 is k
-    ks1 = inter.Dir2StartFirst() + blk1.NumGhosts();
-    ke1 = inter.Dir2EndFirst() - 1 + blk1.NumGhosts();
-  }
-  else if ( inter.BoundaryFirst() == 3 || inter.BoundaryFirst() == 4 ){ //direction 3 is j
-    js1 = inter.ConstSurfaceFirst() - 1 + blk1.NumGhosts();
-    je1 = is1;
-    //direction 1 is k
-    ks1 = inter.Dir1StartFirst() + blk1.NumGhosts();
-    ke1 = inter.Dir1EndFirst() - 1 + blk1.NumGhosts();
-    //direction 2 is i
-    is1 = inter.Dir2StartFirst() + blk1.NumGhosts();
-    ie1 = inter.Dir2EndFirst() - 1 + blk1.NumGhosts();
-  }
-  else if ( inter.BoundaryFirst() == 5 || inter.BoundaryFirst() == 6 ){ //direction 3 is k
-    ks1 = inter.ConstSurfaceFirst() - 1 + blk1.NumGhosts();
-    ke1 = is1;
-    //direction 1 is k
-    is1 = inter.Dir1StartFirst() + blk1.NumGhosts();
-    ie1 = inter.Dir1EndFirst() - 1 + blk1.NumGhosts();
-    //direction 2 is i
-    js1 = inter.Dir2StartFirst() + blk1.NumGhosts();
-    je1 = inter.Dir2EndFirst() - 1 + blk1.NumGhosts();
-  }
-  else{
-    cerr << "ERROR: Error in procBlock::SwapGhostStates(). Surface boundary " << inter.BoundaryFirst() << " is not recognized!" << endl;
-  }
-
-  int is2, ie2, js2, je2, ks2, ke2;
-  if ( inter.BoundarySecond() == 1 || inter.BoundarySecond() == 2 ){ //direction 3 is i
-    is2 = inter.ConstSurfaceSecond() - 1 + blk2.NumGhosts();
-    ie2 = is2;
-    //direction 1 is j
-    js2 = inter.Dir1StartSecond() + blk2.NumGhosts();
-    je2 = inter.Dir1EndSecond() - 1 + blk2.NumGhosts();
-    //direction 2 is k
-    ks2 = inter.Dir2StartSecond() + blk2.NumGhosts();
-    ke2 = inter.Dir2EndSecond() - 1 + blk2.NumGhosts();
-  }
-  else if ( inter.BoundarySecond() == 3 || inter.BoundarySecond() == 4 ){ //direction 3 is j
-    js2 = inter.ConstSurfaceSecond() - 1 + blk2.NumGhosts();
-    je2 = is2;
-    //direction 1 is k
-    ks2 = inter.Dir1StartSecond() + blk2.NumGhosts();
-    ke2 = inter.Dir1EndSecond() - 1 + blk2.NumGhosts();
-    //direction 2 is i
-    is2 = inter.Dir2StartSecond() + blk2.NumGhosts();
-    ie2 = inter.Dir2EndSecond() - 1 + blk2.NumGhosts();
-  }
-  else if ( inter.BoundarySecond() == 5 || inter.BoundarySecond() == 6 ){ //direction 3 is k
-    ks2 = inter.ConstSurfaceSecond() - 1 + blk2.NumGhosts();
-    ke2 = is2;
-    //direction 1 is k
-    is2 = inter.Dir1StartSecond() + blk2.NumGhosts();
-    ie2 = inter.Dir1EndSecond() - 1 + blk2.NumGhosts();
-    //direction 2 is i
-    js2 = inter.Dir2StartSecond() + blk2.NumGhosts();
-    je2 = inter.Dir2EndSecond() - 1 + blk2.NumGhosts();
-  }
-  else{
-    cerr << "ERROR: Error in procBlock::SwapGhostGeom(). Surface boundary " << inter.BoundarySecond() << " is not recognized!" << endl;
-  }
-
-  //get stateSlices to swap
-  stateSlice slice1 = blk1.GetStateSlice(is1, ie1, js1, je1, ks1, ke1);
-  stateSlice slice2 = blk2.GetStateSlice(is2, ie2, js2, je2, ks2, ke2);
-
-  //edit interblock to work with stateSlice
-  interblock inter1 = inter;
-  interblock inter2 = inter;
-
-  inter1.SetConstSurfaceFirst(0);
-  inter1.SetDir1EndFirst( inter1.Dir1EndFirst() - inter1.Dir1StartFirst());
-  inter1.SetDir1StartFirst(0);
-  inter1.SetDir2EndFirst( inter1.Dir2EndFirst() - inter1.Dir2StartFirst());
-  inter1.SetDir2StartFirst(0);
-  inter1.SwapOrder(); //have block be first entry, slice second
-
-  inter2.SetConstSurfaceSecond(0);
-  inter2.SetDir1EndSecond( inter2.Dir1EndSecond() - inter2.Dir1StartSecond());
-  inter2.SetDir1StartSecond(0);
-  inter2.SetDir2EndSecond( inter2.Dir2EndSecond() - inter2.Dir2StartSecond());
-  inter2.SetDir2StartSecond(0);
-
-  //put stateSlices in proper blocks
-  blk1.PutStateSlice(slice2, inter2, blk2.NumGhosts());
-  blk2.PutStateSlice(slice1, inter1, blk1.NumGhosts());
 
 }
 
@@ -7097,9 +7016,9 @@ geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, c
   // ks -- starting k-cell index for slice
   // ke -- ending k-cell index for slice
 
-  int sizeI = is - ie + 1;
-  int sizeJ = js - je + 1;
-  int sizeK = ks - ke + 1;
+  int sizeI = ie - is + 1;
+  int sizeJ = je - js + 1;
+  int sizeK = ke - ks + 1;
 
   geomSlice slice(sizeI, sizeJ, sizeK, (*this).ParentBlock(), is, ie+1, js, je+1, ks, ke+1 );
 
@@ -7184,9 +7103,9 @@ stateSlice procBlock::GetStateSlice(const int &is, const int &ie, const int &js,
   // ks -- starting k-cell index for slice
   // ke -- ending k-cell index for slice
 
-  int sizeI = is - ie + 1;
-  int sizeJ = js - je + 1;
-  int sizeK = ks - ke + 1;
+  int sizeI = ie - is + 1;
+  int sizeJ = je - js + 1;
+  int sizeK = ke - ks + 1;
 
   stateSlice states(sizeI, sizeJ, sizeK, (*this).ParentBlock(), is, ie+1, js, je+1, ks, ke+1 );
 
@@ -7220,9 +7139,12 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
   // d3 -- distance of direction normal to patch to insert
 
   //check that number of cells to insert matches
-  int blkCell = (inter.Dir1StartFirst() - inter.Dir1EndFirst()) * (inter.Dir2StartFirst() - inter.Dir2EndFirst()) * d3;
+  int blkCell = (inter.Dir1EndFirst() - inter.Dir1StartFirst()) * (inter.Dir2EndFirst() - inter.Dir2StartFirst()) * d3;
   if ( blkCell != slice.NumCells() ){
     cerr << "ERROR: Error in procBlock::PutGeomSlice(). Number of cells being inserted does not match designated space to insert to." << endl;
+    cerr << "Direction 1, 2, 3 of procBlock: " << inter.Dir1EndFirst() - inter.Dir1StartFirst() << ", " << inter.Dir2EndFirst() - inter.Dir2StartFirst()
+	 << ", " << d3 << endl;
+    cerr << "Direction I, J, K of geomSlice: " << slice.NumI() << ", " << slice.NumJ() << ", " << slice.NumK() << endl;
     exit(0);
   }
 
@@ -7248,11 +7170,11 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 
   //loop over cells to insert
   for ( int l3 = 0; l3 < d3; l3++ ){
-    for ( int l2 = 0; l2 < (inter.Dir2StartFirst() - inter.Dir2EndFirst()); l2++ ){
-      for ( int l1 = 0; l1 < (inter.Dir1StartFirst() - inter.Dir1EndFirst()); l1++ ){
+    for ( int l2 = 0; l2 < (inter.Dir2EndFirst() - inter.Dir2StartFirst()); l2++ ){
+      for ( int l1 = 0; l1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst()); l1++ ){
 
-	vector<int> indB = GetSwapLoc(l1, l2, l3, inter, true, (*this).NumGhosts());
-	vector<int> indS = GetSwapLoc(l1, l2, l3, inter, false, (*this).NumGhosts());
+	vector<int> indB = GetSwapLoc(l1, l2, l3, inter, true);
+	vector<int> indS = GetSwapLoc(l1, l2, l3, inter, false);
 
 	//get cell locations
 	int locB = GetLoc1D(indB[0], indB[1], indB[2], imaxB, jmaxB);
@@ -7310,7 +7232,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  (*this).SetFCenterJ( slice.FCenterJ(JlowS), JlowB );
 	  (*this).SetFAreaJ( aFac1 * slice.FAreaJ(JlowS), JlowB );
 
-	  if ( l1 == (inter.Dir1StartFirst() - inter.Dir1EndFirst() - 1) ){//at end of direction 1 line
+	  if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
 	    (*this).SetFCenterJ( slice.FCenterJ(JupS), JupB );
 	    (*this).SetFAreaJ( aFac1 * slice.FAreaJ(JupS), JupB );
 	  }
@@ -7319,7 +7241,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  (*this).SetFCenterK( slice.FCenterK(KlowS), KlowB );
 	  (*this).SetFAreaK( aFac2 * slice.FAreaK(KlowS), KlowB );
 
-	  if ( l2 == (inter.Dir2StartFirst() - inter.Dir2EndFirst() - 1) ){//at end of direction 2 line
+	  if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
 	    (*this).SetFCenterK( slice.FCenterK(KupS), KupB );
 	    (*this).SetFAreaK( aFac2 * slice.FAreaK(KupS), KupB );
 	  }
@@ -7351,7 +7273,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  (*this).SetFCenterK( slice.FCenterK(KlowS), KlowB );
 	  (*this).SetFAreaK( aFac1 * slice.FAreaK(KlowS), KlowB );
 
-	  if ( l1 == (inter.Dir1StartFirst() - inter.Dir1EndFirst() - 1) ){//at end of direction 1 line
+	  if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
 	    (*this).SetFCenterK( slice.FCenterK(KupS), KupB );
 	    (*this).SetFAreaK( aFac1 * slice.FAreaK(KupS), KupB );
 	  }
@@ -7360,7 +7282,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  (*this).SetFCenterI( slice.FCenterI(IlowS), IlowB );
 	  (*this).SetFAreaI( aFac2 * slice.FAreaI(IlowS), IlowB );
 
-	  if ( l2 == (inter.Dir2StartFirst() - inter.Dir2EndFirst() - 1) ){//at end of direction 2 line
+	  if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
 	    (*this).SetFCenterI( slice.FCenterI(IupS), IupB );
 	    (*this).SetFAreaI( aFac2 * slice.FAreaI(IupS), IupB );
 	  }
@@ -7392,7 +7314,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  (*this).SetFCenterI( slice.FCenterI(IlowS), IlowB );
 	  (*this).SetFAreaI( aFac1 * slice.FAreaI(IlowS), IlowB );
 
-	  if ( l1 == (inter.Dir1StartFirst() - inter.Dir1EndFirst() - 1) ){//at end of direction 1 line
+	  if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
 	    (*this).SetFCenterI( slice.FCenterI(IupS), IupB );
 	    (*this).SetFAreaI( aFac1 * slice.FAreaI(IupS), IupB );
 	  }
@@ -7401,7 +7323,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  (*this).SetFCenterJ( slice.FCenterJ(JlowS), JlowB );
 	  (*this).SetFAreaJ( aFac2 * slice.FAreaJ(JlowS), JlowB );
 
-	  if ( l2 == (inter.Dir2StartFirst() - inter.Dir2EndFirst() - 1) ){//at end of direction 2 line
+	  if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
 	    (*this).SetFCenterJ( slice.FCenterJ(JupS), JupB );
 	    (*this).SetFAreaJ( aFac2 * slice.FAreaJ(JupS), JupB );
 	  }
@@ -7433,7 +7355,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  (*this).SetFCenterJ( slice.FCenterK(KlowS), JlowB );
 	  (*this).SetFAreaJ( aFac1 * slice.FAreaK(KlowS), JlowB );
 
-	  if ( l1 == (inter.Dir1StartFirst() - inter.Dir1EndFirst() - 1) ){//at end of direction 1 line
+	  if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
 	    (*this).SetFCenterJ( slice.FCenterK(KupS), JupB );
 	    (*this).SetFAreaJ( aFac1 * slice.FAreaK(KupS), JupB );
 	  }
@@ -7442,7 +7364,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  (*this).SetFCenterK( slice.FCenterI(IlowS), KlowB );
 	  (*this).SetFAreaK( aFac2 * slice.FAreaI(IlowS), KlowB );
 
-	  if ( l2 == (inter.Dir2StartFirst() - inter.Dir2EndFirst() - 1) ){//at end of direction 2 line
+	  if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
 	    (*this).SetFCenterK( slice.FCenterI(IupS), KupB );
 	    (*this).SetFAreaK( aFac2 * slice.FAreaI(IupS), KupB );
 	  }
@@ -7474,7 +7396,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  (*this).SetFCenterJ( slice.FCenterI(IlowS), JlowB );
 	  (*this).SetFAreaJ( aFac1 * slice.FAreaI(IlowS), JlowB );
 
-	  if ( l1 == (inter.Dir1StartFirst() - inter.Dir1EndFirst() - 1) ){//at end of direction 1 line
+	  if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
 	    (*this).SetFCenterJ( slice.FCenterI(IupS), JupB );
 	    (*this).SetFAreaJ( aFac1 * slice.FAreaI(IupS), JupB );
 	  }
@@ -7483,7 +7405,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  (*this).SetFCenterK( slice.FCenterJ(JlowS), KlowB );
 	  (*this).SetFAreaK( aFac2 * slice.FAreaJ(JlowS), KlowB );
 
-	  if ( l2 == (inter.Dir2StartFirst() - inter.Dir2EndFirst() - 1) ){//at end of direction 2 line
+	  if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
 	    (*this).SetFCenterK( slice.FCenterJ(JupS), KupB );
 	    (*this).SetFAreaK( aFac2 * slice.FAreaJ(JupS), KupB );
 	  }
@@ -7515,7 +7437,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  (*this).SetFCenterK( slice.FCenterJ(JlowS), KlowB );
 	  (*this).SetFAreaK( aFac1 * slice.FAreaJ(JlowS), KlowB );
 
-	  if ( l1 == (inter.Dir1StartFirst() - inter.Dir1EndFirst() - 1) ){//at end of direction 1 line
+	  if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
 	    (*this).SetFCenterK( slice.FCenterJ(JupS), KupB );
 	    (*this).SetFAreaK( aFac1 * slice.FAreaJ(JupS), KupB );
 	  }
@@ -7524,7 +7446,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  (*this).SetFCenterI( slice.FCenterK(KlowS), IlowB );
 	  (*this).SetFAreaI( aFac2 * slice.FAreaK(KlowS), IlowB );
 
-	  if ( l2 == (inter.Dir2StartFirst() - inter.Dir2EndFirst() - 1) ){//at end of direction 2 line
+	  if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
 	    (*this).SetFCenterI( slice.FCenterK(KupS), IupB );
 	    (*this).SetFAreaI( aFac2 * slice.FAreaK(KupS), IupB );
 	  }
@@ -7556,7 +7478,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  (*this).SetFCenterK( slice.FCenterI(IlowS), KlowB );
 	  (*this).SetFAreaK( aFac1 * slice.FAreaI(IlowS), KlowB );
 
-	  if ( l1 == (inter.Dir1StartFirst() - inter.Dir1EndFirst() - 1) ){//at end of direction 1 line
+	  if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
 	    (*this).SetFCenterK( slice.FCenterI(IupS), KupB );
 	    (*this).SetFAreaK( aFac1 * slice.FAreaI(IupS), KupB );
 	  }
@@ -7565,7 +7487,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  (*this).SetFCenterI( slice.FCenterJ(JlowS), IlowB );
 	  (*this).SetFAreaI( aFac2 * slice.FAreaJ(JlowS), IlowB );
 
-	  if ( l2 == (inter.Dir2StartFirst() - inter.Dir2EndFirst() - 1) ){//at end of direction 2 line
+	  if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
 	    (*this).SetFCenterI( slice.FCenterJ(JupS), IupB );
 	    (*this).SetFAreaI( aFac2 * slice.FAreaJ(JupS), IupB );
 	  }
@@ -7597,7 +7519,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  (*this).SetFCenterI( slice.FCenterJ(JlowS), IlowB );
 	  (*this).SetFAreaI( aFac1 * slice.FAreaJ(JlowS), IlowB );
 
-	  if ( l1 == (inter.Dir1StartFirst() - inter.Dir1EndFirst() - 1) ){//at end of direction 1 line
+	  if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
 	    (*this).SetFCenterI( slice.FCenterJ(JupS), IupB );
 	    (*this).SetFAreaI( aFac1 * slice.FAreaJ(JupS), IupB );
 	  }
@@ -7606,7 +7528,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  (*this).SetFCenterJ( slice.FCenterK(KlowS), JlowB );
 	  (*this).SetFAreaJ( aFac2 * slice.FAreaK(KlowS), JlowB );
 
-	  if ( l2 == (inter.Dir2StartFirst() - inter.Dir2EndFirst() - 1) ){//at end of direction 2 line
+	  if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
 	    (*this).SetFCenterJ( slice.FCenterK(KupS), JupB );
 	    (*this).SetFAreaJ( aFac2 * slice.FAreaK(KupS), JupB );
 	  }
@@ -7638,7 +7560,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  (*this).SetFCenterI( slice.FCenterK(KlowS), IlowB );
 	  (*this).SetFAreaI( aFac1 * slice.FAreaK(KlowS), IlowB );
 
-	  if ( l1 == (inter.Dir1StartFirst() - inter.Dir1EndFirst() - 1) ){//at end of direction 1 line
+	  if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
 	    (*this).SetFCenterI( slice.FCenterK(KupS), IupB );
 	    (*this).SetFAreaI( aFac1 * slice.FAreaK(KupS), IupB );
 	  }
@@ -7647,7 +7569,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  (*this).SetFCenterJ( slice.FCenterI(IlowS), JlowB );
 	  (*this).SetFAreaJ( aFac2 * slice.FAreaI(IlowS), JlowB );
 
-	  if ( l2 == (inter.Dir2StartFirst() - inter.Dir2EndFirst() - 1) ){//at end of direction 2 line
+	  if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
 	    (*this).SetFCenterJ( slice.FCenterI(IupS), JupB );
 	    (*this).SetFAreaJ( aFac2 * slice.FAreaI(IupS), JupB );
 	  }
@@ -7673,9 +7595,12 @@ void procBlock::PutStateSlice( const stateSlice &slice, const interblock &inter,
   // d3 -- distance of direction normal to patch to insert
 
   //check that number of cells to insert matches
-  int blkCell = (inter.Dir1StartFirst() - inter.Dir1EndFirst()) * (inter.Dir2StartFirst() - inter.Dir2EndFirst()) * d3;
+  int blkCell = (inter.Dir1EndFirst() - inter.Dir1StartFirst()) * (inter.Dir2EndFirst() - inter.Dir2StartFirst()) * d3;
   if ( blkCell != slice.NumCells() ){
     cerr << "ERROR: Error in procBlock::PutStateSlice(). Number of cells being inserted does not match designated space to insert to." << endl;
+    cerr << "Direction 1, 2, 3 of procBlock: " << inter.Dir1EndFirst() - inter.Dir1StartFirst() << ", " << inter.Dir2EndFirst() - inter.Dir2StartFirst()
+	 << ", " << d3 << endl;
+    cerr << "Direction I, J, K of geomSlice: " << slice.NumI() << ", " << slice.NumJ() << ", " << slice.NumK() << endl;
     exit(0);
   }
 
@@ -7687,8 +7612,8 @@ void procBlock::PutStateSlice( const stateSlice &slice, const interblock &inter,
 
   //loop over cells to insert
   for ( int l3 = 0; l3 < d3; l3++ ){
-    for ( int l2 = 0; l2 < (inter.Dir2StartFirst() - inter.Dir2EndFirst()); l2++ ){
-      for ( int l1 = 0; l1 < (inter.Dir1StartFirst() - inter.Dir1EndFirst()); l1++ ){
+    for ( int l2 = 0; l2 < (inter.Dir2EndFirst() - inter.Dir2StartFirst()); l2++ ){
+      for ( int l1 = 0; l1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst()); l1++ ){
 
 	vector<int> indB = GetSwapLoc(l1, l2, l3, inter, true, (*this).NumGhosts());
 	vector<int> indS = GetSwapLoc(l1, l2, l3, inter, false, (*this).NumGhosts());

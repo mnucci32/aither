@@ -198,9 +198,8 @@ vector3d<double> CalcTempGradGG(const double&, const double&, const double&, con
 				const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const double&);
 
 
-vector<int> GetSwapLoc( const int&, const int&, const int&, const interblock&, const bool&, const int& );
-void SwapGhostGeom(const interblock&, procBlock&, procBlock&);
-void SwapGhostStates(const interblock&, procBlock&, procBlock&);
+vector<int> GetSwapLoc( const int&, const int&, const int&, const interblock&, const bool&, int=0 );
+void SwapSlice(const interblock&, procBlock&, procBlock&, const bool&);
 
 void GetBoundaryConditions(vector<procBlock>&, const input&, const idealGas&, const vector<interblock>&);
 
