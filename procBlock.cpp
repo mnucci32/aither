@@ -6548,48 +6548,62 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
   // blk2 -- second block involved in interblock boundary
   // geom -- boolean to determine whether to swap geometry or states
 
-  int is1, ie1, js1, je1, ks1, ke1;
+  int is1, ie1, js1, je1, ks1, ke1, upLowFac;
+  if ( inter.BoundaryFirst() % 2 == 0 ){ //upper face
+    upLowFac = 0;
+  }
+  else{ //lower face
+    upLowFac = blk1.NumGhosts();
+  }
+
   if ( inter.BoundaryFirst() == 1 || inter.BoundaryFirst() == 2 ){ //direction 3 is i
     //extend min/maxes to cover ghost cells
-    is1 = inter.ConstSurfaceSecond();
+    is1 = inter.ConstSurfaceFirst() + upLowFac;
     ie1 = is1 + blk1.NumGhosts() - 1;
     //direction 1 is j
-    js1 = inter.Dir1StartSecond();
-    je1 = inter.Dir1EndSecond() - 1 + 2 * blk1.NumGhosts();
+    js1 = inter.Dir1StartFirst();
+    je1 = inter.Dir1EndFirst() - 1 + 2 * blk1.NumGhosts();
     //direction 2 is k
-    ks1 = inter.Dir2StartSecond();
-    ke1 = inter.Dir2EndSecond() - 1 + 2 * blk1.NumGhosts();
+    ks1 = inter.Dir2StartFirst();
+    ke1 = inter.Dir2EndFirst() - 1 + 2 * blk1.NumGhosts();
   }
   else if ( inter.BoundaryFirst() == 3 || inter.BoundaryFirst() == 4 ){ //direction 3 is j
     //extend min/maxes to cover ghost cells
-    js1 = inter.ConstSurfaceSecond();
+    js1 = inter.ConstSurfaceFirst() + upLowFac;
     je1 = js1 + blk1.NumGhosts() - 1;
     //direction 1 is k
-    ks1 = inter.Dir1StartSecond();
-    ke1 = inter.Dir1EndSecond() - 1 + 2 * blk1.NumGhosts();
+    ks1 = inter.Dir1StartFirst();
+    ke1 = inter.Dir1EndFirst() - 1 + 2 * blk1.NumGhosts();
     //direction 2 is i
-    is1 = inter.Dir2StartSecond();
-    ie1 = inter.Dir2EndSecond() - 1 + 2 * blk1.NumGhosts();
+    is1 = inter.Dir2StartFirst();
+    ie1 = inter.Dir2EndFirst() - 1 + 2 * blk1.NumGhosts();
   }
   else if ( inter.BoundaryFirst() == 5 || inter.BoundaryFirst() == 6 ){ //direction 3 is k
     //extend min/maxes to cover ghost cells
-    ks1 = inter.ConstSurfaceSecond();
+    ks1 = inter.ConstSurfaceFirst() + upLowFac;
     ke1 = ks1 + blk1.NumGhosts() - 1;
     //direction 1 is i
-    is1 = inter.Dir1StartSecond();
-    ie1 = inter.Dir1EndSecond() - 1 + 2 * blk1.NumGhosts();
+    is1 = inter.Dir1StartFirst();
+    ie1 = inter.Dir1EndFirst() - 1 + 2 * blk1.NumGhosts();
     //direction 2 is j
-    js1 = inter.Dir2StartSecond();
-    je1 = inter.Dir2EndSecond() - 1 + 2 * blk1.NumGhosts();
+    js1 = inter.Dir2StartFirst();
+    je1 = inter.Dir2EndFirst() - 1 + 2 * blk1.NumGhosts();
   }
   else{
     cerr << "ERROR: Error in procBlock::SwapSlice(). Surface boundary " << inter.BoundaryFirst() << " is not recognized!" << endl;
   }
 
   int is2, ie2, js2, je2, ks2, ke2;
+  if ( inter.BoundarySecond() % 2 == 0 ){ //upper face
+    upLowFac = 0;
+  }
+  else{ //lower face
+    upLowFac = blk1.NumGhosts();
+  }
+
   if ( inter.BoundarySecond() == 1 || inter.BoundarySecond() == 2 ){ //direction 3 is i
     //extend min/maxes to cover ghost cells
-    is2 = inter.ConstSurfaceSecond();
+    is2 = inter.ConstSurfaceSecond() + upLowFac;
     ie2 = is2 + blk2.NumGhosts() - 1;
     //direction 1 is j
     js2 = inter.Dir1StartSecond();
@@ -6600,7 +6614,7 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
   }
   else if ( inter.BoundarySecond() == 3 || inter.BoundarySecond() == 4 ){ //direction 3 is j
     //extend min/maxes to cover ghost cells
-    js2 = inter.ConstSurfaceSecond();
+    js2 = inter.ConstSurfaceSecond() + upLowFac;
     je2 = js2 + blk2.NumGhosts() - 1;
     //direction 1 is k
     ks2 = inter.Dir1StartSecond();
@@ -6611,7 +6625,7 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
   }
   else if ( inter.BoundarySecond() == 5 || inter.BoundarySecond() == 6 ){ //direction 3 is k
     //extend min/maxes to cover ghost cells
-    ks2 = inter.ConstSurfaceSecond();
+    ks2 = inter.ConstSurfaceSecond() + upLowFac;
     ke2 = ks2 + blk2.NumGhosts() - 1;
     //direction 1 is i
     is2 = inter.Dir1StartSecond();
@@ -6623,6 +6637,9 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
   else{
     cerr << "ERROR: Error in procBlock::SwapSlice(). Surface boundary " << inter.BoundarySecond() << " is not recognized!" << endl;
   }
+
+  cout << "slice indices 1: " << is1 << ", " << ie1 << ", " << js1 << ", " << je1 << ", " << ks1 << ", " << ke1 << endl;
+  cout << "slice indices 2: " << is2 << ", " << ie2 << ", " << js2 << ", " << je2 << ", " << ks2 << ", " << ke2 << endl;
 
   geomSlice geom1, geom2;
   stateSlice state1, state2;
@@ -6667,6 +6684,9 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
   inter2.SetDir2EndSecond( inter2.Dir2EndSecond() - inter2.Dir2StartSecond() + 2 * blk2.NumGhosts());
   inter2.SetDir2EndFirst( inter2.Dir2EndFirst() + 2 * blk2.NumGhosts());
   inter2.SetDir2StartSecond(0);
+
+  cout << "inter1: " << inter1 << endl;
+  cout << "inter2: " << inter2 << endl;
 
   //put slices in proper blocks
   if (geom){ //put geomSlices in procBlock
@@ -7032,19 +7052,19 @@ geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, c
 
 	//cell locations
 	int locPar = GetLoc1D(is+ii, js+jj, ks+kk, imaxPar, jmaxPar);
-	int loc = GetLoc1D(is, js, ks, sizeI, sizeJ);
+	int loc = GetLoc1D(ii, jj, kk, sizeI, sizeJ);
 
 	//lower i-face locations
 	int lowIPar = GetLowerFaceI(is+ii, js+jj, ks+kk, imaxPar, jmaxPar);
-	int lowI = GetLowerFaceI(is, js, ks, sizeI, sizeJ);
+	int lowI = GetLowerFaceI(ii, jj, kk, sizeI, sizeJ);
 
 	//lower j-face locations
 	int lowJPar = GetLowerFaceJ(is+ii, js+jj, ks+kk, imaxPar, jmaxPar);
-	int lowJ = GetLowerFaceJ(is, js, ks, sizeI, sizeJ);
+	int lowJ = GetLowerFaceJ(ii, jj, kk, sizeI, sizeJ);
 
 	//lower k-face locations
 	int lowKPar = GetLowerFaceK(is+ii, js+jj, ks+kk, imaxPar, jmaxPar);
-	int lowK = GetLowerFaceK(is, js, ks, sizeI, sizeJ);
+	int lowK = GetLowerFaceK(ii, jj, kk, sizeI, sizeJ);
 
 	//assign cell variables
 	slice.SetVol( (*this).Vol(locPar), loc );
@@ -7056,7 +7076,7 @@ geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, c
 
 	if ( ii == sizeI - 1 ){ //at end of i-line assign upper face values too
 	  int upIPar = GetUpperFaceI(is+ii, js+jj, ks+kk, imaxPar, jmaxPar);
-	  int upI = GetUpperFaceI(is, js, ks, sizeI, sizeJ);
+	  int upI = GetUpperFaceI(ii, jj, kk, sizeI, sizeJ);
 
 	  slice.SetFAreaI( (*this).FAreaI(upIPar), upI );
 	  slice.SetFCenterI( (*this).FCenterI(locPar), upI );
@@ -7068,7 +7088,7 @@ geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, c
 
 	if ( jj == sizeJ - 1 ){ //at end of j-line assign upper face values too
 	  int upJPar = GetUpperFaceJ(is+ii, js+jj, ks+kk, imaxPar, jmaxPar);
-	  int upJ = GetUpperFaceJ(is, js, ks, sizeI, sizeJ);
+	  int upJ = GetUpperFaceJ(ii, jj, kk, sizeI, sizeJ);
 
 	  slice.SetFAreaJ( (*this).FAreaJ(upJPar), upJ );
 	  slice.SetFCenterJ( (*this).FCenterJ(locPar), upJ );
@@ -7080,7 +7100,7 @@ geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, c
 
 	if ( kk == sizeK - 1 ){ //at end of k-line assign upper face values too
 	  int upKPar = GetUpperFaceK(is+ii, js+jj, ks+kk, imaxPar, jmaxPar);
-	  int upK = GetUpperFaceK(is, js, ks, sizeI, sizeJ);
+	  int upK = GetUpperFaceK(ii, jj, kk, sizeI, sizeJ);
 
 	  slice.SetFAreaK( (*this).FAreaK(upKPar), upK );
 	  slice.SetFCenterK( (*this).FCenterK(locPar), upK );
@@ -7119,7 +7139,7 @@ stateSlice procBlock::GetStateSlice(const int &is, const int &ie, const int &js,
 
 	//cell locations
 	int locPar = GetLoc1D(is+ii, js+jj, ks+kk, imaxPar, jmaxPar);
-	int loc = GetLoc1D(is, js, ks, sizeI, sizeJ);
+	int loc = GetLoc1D(ii, jj, kk, sizeI, sizeJ);
 
 	//assign cell variables
 	states.SetState( (*this).State(locPar), loc);
@@ -7309,6 +7329,15 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	      (*this).SetFAreaK( aFac3 * slice.FAreaK(KlowS) , KupB);
 	    }
 	  }
+
+
+	  cout << "At block i, j, k: " << indB[0] << ", " << indB[1] << ", " << indB[2] << endl;
+	  cout << "Face center K lower: " << (*this).FCenterK(KlowB) << endl;
+	  cout << "Face center K upper: " << (*this).FCenterK(KupB) << endl;
+
+
+
+
 
 	  //swap face data for direction 1
 	  (*this).SetFCenterI( slice.FCenterI(IlowS), IlowB );
@@ -7615,8 +7644,8 @@ void procBlock::PutStateSlice( const stateSlice &slice, const interblock &inter,
     for ( int l2 = 0; l2 < (inter.Dir2EndFirst() - inter.Dir2StartFirst()); l2++ ){
       for ( int l1 = 0; l1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst()); l1++ ){
 
-	vector<int> indB = GetSwapLoc(l1, l2, l3, inter, true, (*this).NumGhosts());
-	vector<int> indS = GetSwapLoc(l1, l2, l3, inter, false, (*this).NumGhosts());
+	vector<int> indB = GetSwapLoc(l1, l2, l3, inter, true);
+	vector<int> indS = GetSwapLoc(l1, l2, l3, inter, false);
 
 	//get cell locations
 	int locB = GetLoc1D(indB[0], indB[1], indB[2], imaxB, jmaxB);
