@@ -169,10 +169,10 @@ class procBlock {
   bool AtCorner(const int&, const int&, const int&)const;
   bool AtEdge(const int&, const int&, const int&)const;
 
-  geomSlice GetGeomSlice(const int&, const int&, const int&, const int&, const int&, const int&)const;
+  geomSlice GetGeomSlice(const int&, const int&, const int&, const int&, const int&, const int&, const bool&, const bool&, const bool&)const;
   void PutGeomSlice(const geomSlice&, const interblock&, const int&);
 
-  stateSlice GetStateSlice(const int&, const int&, const int&, const int&, const int&, const int&)const;
+  stateSlice GetStateSlice(const int&, const int&, const int&, const int&, const int&, const int&, const bool&, const bool&, const bool&)const;
   void PutStateSlice(const stateSlice&, const interblock&, const int&);
 
   //destructor
