@@ -6586,13 +6586,9 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
   bool jRev2 = false;
   bool kRev2 = false;
 
-  int is1, ie1, js1, je1, ks1, ke1, upLowFac;
-  if ( inter.BoundaryFirst() % 2 == 0 ){ //upper face
-    upLowFac = 0;
-  }
-  else{ //lower face
-    upLowFac = blk1.NumGhosts();
-  }
+  int is1, ie1, js1, je1, ks1, ke1;
+
+  int upLowFac = ( inter.BoundaryFirst() % 2 == 0 ) ? 0 : blk1.NumGhosts();
 
   if ( inter.BoundaryFirst() == 1 || inter.BoundaryFirst() == 2 ){ //direction 3 is i
     //extend min/maxes to cover ghost cells
@@ -6641,12 +6637,8 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
   }
 
   int is2, ie2, js2, je2, ks2, ke2;
-  if ( inter.BoundarySecond() % 2 == 0 ){ //upper face
-    upLowFac = 0;
-  }
-  else{ //lower face
-    upLowFac = blk1.NumGhosts();
-  }
+
+  upLowFac = ( inter.BoundarySecond() % 2 == 0 ) ? 0 : blk2.NumGhosts();
 
   if ( inter.BoundarySecond() == 1 || inter.BoundarySecond() == 2 ){ //direction 3 is i
     //extend min/maxes to cover ghost cells
@@ -6694,16 +6686,6 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
     cerr << "ERROR: Error in procBlock::SwapSlice(). Surface boundary " << inter.BoundarySecond() << " is not recognized!" << endl;
   }
 
-  // cout << "slice indices 1: " << is1 << ", " << ie1 << ", " << js1 << ", " << je1 << ", " << ks1 << ", " << ke1 << endl;
-  // cout << "slice indices 2: " << is2 << ", " << ie2 << ", " << js2 << ", " << je2 << ", " << ks2 << ", " << ke2 << endl;
-  //CHANGED kRev2
-  // kRev2 = false;
-  // kRev1 = true;
-
-  // cout << "flip factors 1: " << iRev1 << ", " << jRev1 << ", " << kRev1 << endl;
-  // cout << "flip factors 2: " << iRev2 << ", " << jRev2 << ", " << kRev2 << endl;
-
-
   geomSlice geom1, geom2;
   stateSlice state1, state2;
   if (geom){ //get geomSlices to swap
@@ -6719,12 +6701,7 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
   interblock inter1 = inter;
   interblock inter2 = inter;
 
-  // if ( inter1.BoundaryFirst() % 2 == 0 ){ //upper surface
-    inter1.SetConstSurfaceFirst(0);
-  // }
-  // else{ //lower surface
-  //   inter1.SetConstSurfaceFirst(blk1.NumGhosts());
-  // }
+  inter1.SetConstSurfaceFirst(0);
   inter1.SetConstSurfaceSecond( inter1.ConstSurfaceSecond() + blk1.NumGhosts() );
   inter1.SetDir1EndFirst( inter1.Dir1EndFirst() - inter1.Dir1StartFirst() + 2 * blk1.NumGhosts());
   inter1.SetDir1EndSecond( inter1.Dir1EndSecond() + 2 * blk1.NumGhosts());
@@ -6734,12 +6711,7 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
   inter1.SetDir2StartFirst(0);
   inter1.SwapOrder(); //have block be first entry, slice second
 
-  // if ( inter2.BoundarySecond() % 2 == 0 ){ //upper surface
-    inter2.SetConstSurfaceSecond(0);
-  // }
-  // else{ //lower surface
-  //   inter2.SetConstSurfaceSecond(blk2.NumGhosts());
-  // }
+  inter2.SetConstSurfaceSecond(0);
   inter2.SetConstSurfaceFirst( inter2.ConstSurfaceFirst() + blk2.NumGhosts() );
   inter2.SetDir1EndSecond( inter2.Dir1EndSecond() - inter2.Dir1StartSecond() + 2 * blk2.NumGhosts());
   inter2.SetDir1EndFirst( inter2.Dir1EndFirst() + 2 * blk2.NumGhosts());
@@ -6747,10 +6719,6 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
   inter2.SetDir2EndSecond( inter2.Dir2EndSecond() - inter2.Dir2StartSecond() + 2 * blk2.NumGhosts());
   inter2.SetDir2EndFirst( inter2.Dir2EndFirst() + 2 * blk2.NumGhosts());
   inter2.SetDir2StartSecond(0);
-
-  // cout << "inter: " << inter << endl;
-  // cout << "inter1: " << inter1 << endl;
-  // cout << "inter2: " << inter2 << endl;
 
   //put slices in proper blocks
   if (geom){ //put geomSlices in procBlock
@@ -6863,7 +6831,7 @@ vector<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const inter
       }
 
       //calculate index for all ghost layers
-      loc[0] = inter.ConstSurfaceSecond() + numGhosts - l3 - 1 ; //subtract l3-1 to get to ghost cells, (cell index instead of face)
+      loc[0] = inter.ConstSurfaceSecond() + numGhosts + l3 ; //add l3 to get to ghost cells
     }
     //-------------------------------------------------------------------------------------------------------
     else if ( inter.BoundarySecond() == 2 ){ //i-patch upper
@@ -6941,7 +6909,7 @@ vector<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const inter
       }
 
       //calculate index for all ghost layers
-      loc[1] = inter.ConstSurfaceSecond() + numGhosts - l3 - 1 ; //subtract l3 to get to ghost cells, (cell index instead of face)
+      loc[1] = inter.ConstSurfaceSecond() + numGhosts + l3 ; //add l3 to get to ghost cells
     }
     //-------------------------------------------------------------------------------------------------------
     else if ( inter.BoundarySecond() == 4 ){ //j-patch upper
@@ -7019,7 +6987,7 @@ vector<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const inter
       }
 
       //calculate index for all ghost layers
-      loc[2] = inter.ConstSurfaceSecond() + numGhosts + l3 ; //subtract l3 to get to ghost cells, (cell index instead of face) ///CHANGED HERE -l3-1 to +l3
+      loc[2] = inter.ConstSurfaceSecond() + numGhosts + l3 ; //add l3 to get to ghost cells
     }
     //-------------------------------------------------------------------------------------------------------
     else { //k-patch upper
@@ -7118,24 +7086,14 @@ geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, c
     for ( int jj = 0; jj < sizeJ; jj++ ){
       for ( int ii = 0; ii < sizeI; ii++ ){
 
-	int k = kk;
-	double kFac = 1.0;
-	if (revK){ //reverse k direction
-	  k = sizeK - 1 - kk;
-	  kFac = -1.0;
-	}
-	int j = jj;
-	double jFac = 1.0;
-	if (revJ){ //reverse j direction
-	  j = sizeJ - 1 - jj;
-	  jFac = -1.0;
-	}
-	int i = ii;
-	double iFac = 1.0;
-	if (revI){ //reverse i direction
-	  i = sizeI - 1 - ii;
-	  iFac = -1.0;
-	}
+	int k = revK ? sizeK - 1 - kk : kk;
+	double kFac = revK ? -1.0 : 1.0;
+
+	int j = revJ ? sizeJ - 1 - jj : jj;
+	double jFac = revJ ? -1.0 : 1.0;
+
+	int i = revI ? sizeI - 1 - ii : ii;
+	double iFac = revI ? -1.0 : 1.0;
 
 	//cell locations
 	int locPar = GetLoc1D(is+i, js+j, ks+k, imaxPar, jmaxPar);
@@ -7171,12 +7129,12 @@ geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, c
 
 	//assign i-face variables
 	if ( revI ){
-	  slice.SetFAreaI( iFac * (*this).FAreaI(upIPar), upI );
-	  slice.SetFCenterI( (*this).FCenterI(upIPar), upI );
+	  slice.SetFAreaI( iFac * (*this).FAreaI(upIPar), lowI );
+	  slice.SetFCenterI( (*this).FCenterI(upIPar), lowI );
 
-	  if ( i == sizeI - 1 ){ //at end of i-line assign upper face values too
-	    slice.SetFAreaI( iFac * (*this).FAreaI(lowIPar), lowI );
-	    slice.SetFCenterI( (*this).FCenterI(locPar), lowI );
+	  if ( i == 0 ){ //at end of i-line assign upper face values too
+	    slice.SetFAreaI( iFac * (*this).FAreaI(lowIPar), upI );
+	    slice.SetFCenterI( (*this).FCenterI(locPar), upI );
 	  }
 	}
 	else{
@@ -7191,12 +7149,12 @@ geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, c
 
 	//assign j-face variables
 	if ( revJ ){
-	  slice.SetFAreaJ( jFac * (*this).FAreaJ(upJPar), upJ );
-	  slice.SetFCenterJ( (*this).FCenterJ(upJPar), upJ );
+	  slice.SetFAreaJ( jFac * (*this).FAreaJ(upJPar), lowJ );
+	  slice.SetFCenterJ( (*this).FCenterJ(upJPar), lowJ );
 
-	  if ( j == sizeJ - 1 ){ //at end of j-line assign upper face values too
-	    slice.SetFAreaJ( jFac * (*this).FAreaJ(lowJPar), lowJ );
-	    slice.SetFCenterJ( (*this).FCenterJ(lowJPar), lowJ );
+	  if ( j == 0 ){ //at end of j-line assign upper face values too
+	    slice.SetFAreaJ( jFac * (*this).FAreaJ(lowJPar), upJ );
+	    slice.SetFCenterJ( (*this).FCenterJ(lowJPar), upJ );
 	  }
 	}
 	else{
@@ -7211,10 +7169,10 @@ geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, c
 
 	//assign k-face variables
 	if ( revK ){
-	  slice.SetFAreaK( kFac * (*this).FAreaK(upKPar), lowK ); //CHANGED swapped lowK/upK
+	  slice.SetFAreaK( kFac * (*this).FAreaK(upKPar), lowK ); 
 	  slice.SetFCenterK( (*this).FCenterK(upKPar), lowK );
 
-	  if ( k == 0 ){ //at end of k-line assign upper face values too //CHANGED from sizeK-1
+	  if ( k == 0 ){ //at end of k-line assign upper face values too
 	    slice.SetFAreaK( kFac * (*this).FAreaK(lowKPar), upK );
 	    slice.SetFCenterK( (*this).FCenterK(lowKPar), upK );
 	  }
@@ -7312,18 +7270,9 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
   int jmaxS = slice.NumJ();
 
   //determine if area direction needs to be reversed
-  double aFac3 = 1.0;
-  if ( (inter.BoundaryFirst() % 2) == (inter.BoundarySecond() % 2) ){ //lower/lower or upper/upper
-    aFac3 = -1.0; //at lower/lower or upper/upper interfaces reverse area direction
-  }
-  double aFac1 = 1.0;
-  double aFac2 = 1.0;
-  if ( inter.Orientation() == 3 || inter.Orientation() == 4 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir1 is reversed
-    aFac1 = -1.0;
-  }
-  if ( inter.Orientation() == 5 || inter.Orientation() == 6 || inter.Orientation() == 7 || inter.Orientation() == 8 ){ //dir2 is reversed
-    aFac2 = -1.0;
-  }
+  double aFac3 = ( inter.BoundaryFirst() % 2 == 0 ) ? 1.0 : -1.0 ;
+  double aFac1 = ( inter.Orientation() == 3 || inter.Orientation() == 4 || inter.Orientation() == 7 || inter.Orientation() == 8 ) ? -1.0 : 1.0 ;
+  double aFac2 = ( inter.Orientation() == 5 || inter.Orientation() == 6 || inter.Orientation() == 7 || inter.Orientation() == 8 ) ? -1.0 : 1.0 ;
 
   //loop over cells to insert
   for ( int l3 = 0; l3 < d3; l3++ ){
@@ -7362,19 +7311,12 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	(*this).SetVol( slice.Vol(locS), locB);
 	(*this).SetCenter( slice.Center(locS), locB);
 
-
-	// cout << "Block Indices: " << indB[0] << ", " << indB[1] << ", " << indB[2] << endl;
-	// cout << "Slice Indices: " << indS[0] << ", " << indS[1] << ", " << indS[2] << endl;
-	// cout << "Ghost Center: " << (*this).Center(locB) << endl;
-	// cout << "Interior Center: " << (*this).Center(GetLoc1D(indB[0], indB[1], indB[2]-1, imaxB, jmaxB)) << endl;
-	// cout << "Interior Center: " << (*this).Center(GetLoc1D(indB[0], indB[1], indB[2]+1, imaxB, jmaxB)) << endl;
-
-
+	//----------------------------------------------------------------------------------------------------------------------------------------
 	//swap face data
 	if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() <= 2 ){ //both patches i, i to i, j to j, k to k
 
 	  //swap face data for direction 3
-	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ){ //lower/lower or upper/upper
+	  if ( inter.BoundaryFirst() % 2 == 0 ){ //inserting into upper
 	    (*this).SetFCenterI( slice.FCenterI(IlowS) , IlowB);
 	    (*this).SetFAreaI( aFac3 * slice.FAreaI(IlowS) , IlowB);
 
@@ -7383,7 +7325,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	      (*this).SetFAreaI( aFac3 * slice.FAreaI(IupS) , IupB);
 	    }
 	  }
-	  else{ //lower/upper or upper/lower -- swap upper and lower faces
+	  else{ //inserting into lower -- swap upper and lower faces
 	    (*this).SetFCenterI( slice.FCenterI(IupS) , IlowB);
 	    (*this).SetFAreaI( aFac3 * slice.FAreaI(IupS) , IlowB);
 
@@ -7412,10 +7354,11 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  }
 
 	}
+	//----------------------------------------------------------------------------------------------------------------------------------------
 	else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4 ){ //both patches j, j to j, k to k, i to i
 
 	  //swap face data for direction 3
-	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ){ //lower/lower or upper/upper
+	  if ( inter.BoundaryFirst() % 2 == 0 ){ //inserting into upper
 	    (*this).SetFCenterJ( slice.FCenterJ(JlowS) , JlowB);
 	    (*this).SetFAreaJ( aFac3 * slice.FAreaJ(JlowS) , JlowB);
 
@@ -7424,7 +7367,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	      (*this).SetFAreaJ( aFac3 * slice.FAreaJ(JupS) , JupB);
 	    }
 	  }
-	  else{ //lower/upper or upper/lower -- swap upper and lower faces
+	  else{ //inserting into lower -- swap upper and lower faces
 	    (*this).SetFCenterJ( slice.FCenterJ(JupS) , JlowB);
 	    (*this).SetFAreaJ( aFac3 * slice.FAreaJ(JupS) , JlowB);
 
@@ -7453,11 +7396,11 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  }
 
 	}
+	//----------------------------------------------------------------------------------------------------------------------------------------
 	else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6 ){ //both patches k, k to k, i to i, j to j
-	  //CHANGED aFac3
-	  //aFac3 = 1.0;
+
 	  //swap face data for direction 3
-	  if ( inter.BoundaryFirst() % 2 == 0 ){ //lower/lower or upper/upper ---------CHANGED TO == 1 HERE!!! -  (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0
+	  if ( inter.BoundaryFirst() % 2 == 0 ){ //inserting into upper
 	    (*this).SetFCenterK( slice.FCenterK(KlowS) , KlowB);
 	    (*this).SetFAreaK( aFac3 * slice.FAreaK(KlowS) , KlowB);
 
@@ -7466,9 +7409,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	      (*this).SetFAreaK( aFac3 * slice.FAreaK(KupS) , KupB);
 	    }
 	  }
-	  else{ //lower/upper or upper/lower -- swap upper and lower faces
-	    aFac3 = -1.0; //CHANGED
-
+	  else{ //inserting into lower -- swap upper and lower faces 
 	    (*this).SetFCenterK( slice.FCenterK(KupS) , KlowB);
 	    (*this).SetFAreaK( aFac3 * slice.FAreaK(KupS) , KlowB);
 
@@ -7497,10 +7438,11 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  }
 
 	}
+	//----------------------------------------------------------------------------------------------------------------------------------------
 	else if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4){ //patches are i/j  - i to j, j to k, k to i
 
 	  //swap face data for direction 3
-	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ){ //lower/lower or upper/upper
+	  if ( inter.BoundaryFirst() % 2 == 0 ){ //inserting into upper
 	    (*this).SetFCenterI( slice.FCenterJ(JlowS) , IlowB);
 	    (*this).SetFAreaI( aFac3 * slice.FAreaJ(JlowS) , IlowB);
 
@@ -7509,7 +7451,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	      (*this).SetFAreaI( aFac3 * slice.FAreaJ(JupS) , IupB);
 	    }
 	  }
-	  else{ //lower/upper or upper/lower -- swap upper and lower faces
+	  else{ //inserting into lower -- swap upper and lower faces
 	    (*this).SetFCenterI( slice.FCenterJ(JupS) , IlowB);
 	    (*this).SetFAreaI( aFac3 * slice.FAreaJ(JupS) , IlowB);
 
@@ -7538,10 +7480,11 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  }
 
 	}
+	//----------------------------------------------------------------------------------------------------------------------------------------
 	else if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6){ //patches are i/k  - i to k, j to i, k to j
 
 	  //swap face data for direction 3
-	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ){ //lower/lower or upper/upper
+	  if ( inter.BoundaryFirst() % 2 == 0 ){ //inserting into upper
 	    (*this).SetFCenterI( slice.FCenterK(KlowS) , IlowB);
 	    (*this).SetFAreaI( aFac3 * slice.FAreaK(KlowS) , IlowB);
 
@@ -7550,7 +7493,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	      (*this).SetFAreaI( aFac3 * slice.FAreaK(KupS) , IupB);
 	    }
 	  }
-	  else{ //lower/upper or upper/lower -- swap upper and lower faces
+	  else{ //inserting into lower -- swap upper and lower faces
 	    (*this).SetFCenterI( slice.FCenterK(KupS) , IlowB);
 	    (*this).SetFAreaI( aFac3 * slice.FAreaK(KupS) , IlowB);
 
@@ -7579,10 +7522,11 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  }
 
 	}
+	//----------------------------------------------------------------------------------------------------------------------------------------
 	else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() <= 2 ){ //patches are j/i, j to i, k to j, i to k
 
 	  //swap face data for direction 3
-	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ){ //lower/lower or upper/upper
+	  if ( inter.BoundaryFirst() % 2 == 0 ){ //inserting into upper
 	    (*this).SetFCenterJ( slice.FCenterI(IlowS) , JlowB);
 	    (*this).SetFAreaJ( aFac3 * slice.FAreaI(IlowS) , JlowB);
 
@@ -7591,7 +7535,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	      (*this).SetFAreaJ( aFac3 * slice.FAreaI(IupS) , JupB);
 	    }
 	  }
-	  else{ //lower/upper or upper/lower -- swap upper and lower faces
+	  else{ //inserting into lower -- swap upper and lower faces
 	    (*this).SetFCenterJ( slice.FCenterI(IupS) , JlowB);
 	    (*this).SetFAreaJ( aFac3 * slice.FAreaI(IupS) , JlowB);
 
@@ -7620,10 +7564,11 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  }
 
 	}
+	//----------------------------------------------------------------------------------------------------------------------------------------
 	else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6 ){ //patches are j/k, j to k, k to i, i to j
 
 	  //swap face data for direction 3
-	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ){ //lower/lower or upper/upper
+	  if ( inter.BoundaryFirst() % 2 == 0 ){ //inserting into upper
 	    (*this).SetFCenterJ( slice.FCenterK(KlowS) , JlowB);
 	    (*this).SetFAreaJ( aFac3 * slice.FAreaK(KlowS) , JlowB);
 
@@ -7632,7 +7577,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	      (*this).SetFAreaJ( aFac3 * slice.FAreaJ(JupS) , JupB);
 	    }
 	  }
-	  else{ //lower/upper or upper/lower -- swap upper and lower faces
+	  else{ //inserting into lower -- swap upper and lower faces
 	    (*this).SetFCenterJ( slice.FCenterK(KupS) , JlowB);
 	    (*this).SetFAreaJ( aFac3 * slice.FAreaK(KupS) , JlowB);
 
@@ -7661,10 +7606,11 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  }
 
 	}
+	//----------------------------------------------------------------------------------------------------------------------------------------
 	else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() <= 2 ){ //patches are k/i, k to i, i to j, j to k
 
 	  //swap face data for direction 3
-	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ){ //lower/lower or upper/upper
+	  if ( inter.BoundaryFirst() % 2 == 0 ){ //inserting into upper
 	    (*this).SetFCenterK( slice.FCenterI(IlowS) , KlowB);
 	    (*this).SetFAreaK( aFac3 * slice.FAreaI(IlowS) , KlowB);
 
@@ -7673,7 +7619,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	      (*this).SetFAreaK( aFac3 * slice.FAreaI(IupS) , KupB);
 	    }
 	  }
-	  else{ //lower/upper or upper/lower -- swap upper and lower faces
+	  else{ //inserting into lower -- swap upper and lower faces
 	    (*this).SetFCenterK( slice.FCenterI(IupS) , KlowB);
 	    (*this).SetFAreaK( aFac3 * slice.FAreaI(IupS) , KlowB);
 
@@ -7702,10 +7648,11 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  }
 
 	}
+	//----------------------------------------------------------------------------------------------------------------------------------------
 	else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() <= 2 ){ //patches are k/j, k to j, i to k, j to i
 
 	  //swap face data for direction 3
-	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ){ //lower/lower or upper/upper
+	  if ( inter.BoundaryFirst() % 2 == 0 ){ //inserting into upper
 	    (*this).SetFCenterK( slice.FCenterJ(JlowS) , KlowB);
 	    (*this).SetFAreaK( aFac3 * slice.FAreaJ(JlowS) , KlowB);
 
@@ -7714,7 +7661,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	      (*this).SetFAreaK( aFac3 * slice.FAreaJ(JupS) , KupB);
 	    }
 	  }
-	  else{ //lower/upper or upper/lower -- swap upper and lower faces
+	  else{ //inserting into lower -- swap upper and lower faces
 	    (*this).SetFCenterK( slice.FCenterJ(JupS) , KlowB);
 	    (*this).SetFAreaK( aFac3 * slice.FAreaJ(JupS) , KlowB);
 
@@ -7743,6 +7690,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	  }
 
 	}
+	//----------------------------------------------------------------------------------------------------------------------------------------
 	else{
 	  cerr << "ERROR: Error in procBlock::PutGeomSlice(). Unable to swap face quantities because behavior for interface with boundary pair "
 	       << inter.BoundaryFirst() << ", " << inter.BoundarySecond() << " is not defined." << endl;
