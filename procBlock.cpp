@@ -349,17 +349,17 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
 	}
 
 	//debug
-	if ( (kk == 20) && (jj == 2) && (ii == imax-1+2) ){
-	  cout << "At i, j, k: " << ii << ", " << jj << ", " << kk << endl;
-	  cout << "Center: " << (*this).Center(lowerI) << endl;
-	  cout << "FaceAreaI: " << (*this).FAreaI(loc) << endl;
-	  cout << "FaceAreaI Interior: " << (*this).FAreaI(lowFaceI) << endl;
-	  cout << "FaceAreaI Interior2: " << (*this).FAreaI(lowFace2I) << endl;
-	  cout << "FaceAreaI Ghost: " << (*this).FAreaI(upFaceI) << endl;
-	  cout << "FaceAreaI Ghost2: " << (*this).FAreaI(upFace2I) << endl;
-	  // cout << "State Interior: " << (*this).State(upperI);
-	  // cout << "State Ghost: " << (*this).State(lowerI);
-	}
+	// if ( (kk == 20) && (jj == 2) && (ii == imax-1+2) ){
+	//   cout << "At i, j, k: " << ii << ", " << jj << ", " << kk << endl;
+	//   cout << "Center: " << (*this).Center(lowerI) << endl;
+	//   cout << "FaceAreaI: " << (*this).FAreaI(loc) << endl;
+	//   cout << "FaceAreaI Interior: " << (*this).FAreaI(lowFaceI) << endl;
+	//   cout << "FaceAreaI Interior2: " << (*this).FAreaI(lowFace2I) << endl;
+	//   cout << "FaceAreaI Ghost: " << (*this).FAreaI(upFaceI) << endl;
+	//   cout << "FaceAreaI Ghost2: " << (*this).FAreaI(upFace2I) << endl;
+	//   // cout << "State Interior: " << (*this).State(upperI);
+	//   // cout << "State Ghost: " << (*this).State(lowerI);
+	// }
 
 
 
@@ -576,27 +576,27 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp){
 	}
 
 	//debug
-	if ( (kk == 2) && (jj == 2) && (ii == imax-1) ){
-	  cout << "At i, j, k: " << ii << ", " << jj << ", " << kk << endl;
-	  cout << "Center: " << (*this).Center(upperK) << endl;
-	  cout << "FaceCenterK: " << (*this).FCenterK(loc) << endl;
-	  cout << "FaceCenterK Interior: " << (*this).FCenterK(upFaceK) << endl;
-	  cout << "FaceCenterK Interior2: " << (*this).FCenterK(upFace2K) << endl;
-	  cout << "FaceCenterK Ghost: " << (*this).FCenterK(lowFaceK) << endl;
-	  cout << "FaceCenterK Ghost2: " << (*this).FCenterK(lowFace2K) << endl;
-	  // cout << "State Interior: " << (*this).State(upperK);
-	  // cout << "State Ghost: " << (*this).State(lowerK);
-	}
-	else if ( (kk == (2 + kmax-1)) && (jj == 2) && (ii == imax-1) ){
-	  cout << "At i, j, k: " << ii << ", " << jj << ", " << kk << endl;
-	  cout << "Center: " << (*this).Center(lowerK) << endl;
-	  cout << "FaceCenterK: " << (*this).FCenterK(loc) << endl;
-	  cout << "FaceCenterK Interior: " << (*this).FCenterK(lowFaceK) << endl;
-	  cout << "FaceCenterK Interior2: " << (*this).FCenterK(lowFace2K) << endl;
-	  cout << "FaceCenterK Ghost: " << (*this).FCenterK(upFaceK) << endl;
-	  cout << "FaceCenterK Ghost2: " << (*this).FCenterK(upFace2K) << endl;
+	// if ( (kk == 2) && (jj == 2) && (ii == imax-1) ){
+	//   cout << "At i, j, k: " << ii << ", " << jj << ", " << kk << endl;
+	//   cout << "Center: " << (*this).Center(upperK) << endl;
+	//   cout << "FaceCenterK: " << (*this).FCenterK(loc) << endl;
+	//   cout << "FaceCenterK Interior: " << (*this).FCenterK(upFaceK) << endl;
+	//   cout << "FaceCenterK Interior2: " << (*this).FCenterK(upFace2K) << endl;
+	//   cout << "FaceCenterK Ghost: " << (*this).FCenterK(lowFaceK) << endl;
+	//   cout << "FaceCenterK Ghost2: " << (*this).FCenterK(lowFace2K) << endl;
+	//   // cout << "State Interior: " << (*this).State(upperK);
+	//   // cout << "State Ghost: " << (*this).State(lowerK);
+	// }
+	// else if ( (kk == (2 + kmax-1)) && (jj == 2) && (ii == imax-1) ){
+	//   cout << "At i, j, k: " << ii << ", " << jj << ", " << kk << endl;
+	//   cout << "Center: " << (*this).Center(lowerK) << endl;
+	//   cout << "FaceCenterK: " << (*this).FCenterK(loc) << endl;
+	//   cout << "FaceCenterK Interior: " << (*this).FCenterK(lowFaceK) << endl;
+	//   cout << "FaceCenterK Interior2: " << (*this).FCenterK(lowFace2K) << endl;
+	//   cout << "FaceCenterK Ghost: " << (*this).FCenterK(upFaceK) << endl;
+	//   cout << "FaceCenterK Ghost2: " << (*this).FCenterK(upFace2K) << endl;
 
-	}
+	// }
 
 
 
