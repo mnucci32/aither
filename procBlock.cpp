@@ -349,7 +349,7 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
 	}
 
 	//debug
-	// if ( (kk == 20) && (jj == 2) && (ii == imax-1+2) ){
+	// if ( (kk == 2) && (jj == 2) && (ii == 2) ){
 	//   cout << "At i, j, k: " << ii << ", " << jj << ", " << kk << endl;
 	//   cout << "Center: " << (*this).Center(lowerI) << endl;
 	//   cout << "FaceAreaI: " << (*this).FAreaI(loc) << endl;
@@ -357,8 +357,8 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
 	//   cout << "FaceAreaI Interior2: " << (*this).FAreaI(lowFace2I) << endl;
 	//   cout << "FaceAreaI Ghost: " << (*this).FAreaI(upFaceI) << endl;
 	//   cout << "FaceAreaI Ghost2: " << (*this).FAreaI(upFace2I) << endl;
-	//   // cout << "State Interior: " << (*this).State(upperI);
-	//   // cout << "State Ghost: " << (*this).State(lowerI);
+	//   cout << "State Interior: " << (*this).State(upperI);
+	//   cout << "State Ghost: " << (*this).State(lowerI);
 	// }
 
 
@@ -468,6 +468,25 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp){
 	  faceStateUpper = (*this).State( upperJ ).FaceReconMUSCL( (*this).State( upper2J ),
 								   (*this).State( lowerJ ), inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU );
 	}
+
+
+
+	//debug
+	if ( (kk == 2) && (jj == jmax + 2 - 1) && (ii == 2) ){
+	  cout << "At i, j, k: " << ii << ", " << jj << ", " << kk << endl;
+	  cout << "Center: " << (*this).Center(lowerJ) << endl;
+	  cout << "FaceCenterJ: " << (*this).FCenterJ(loc) << endl;
+	  cout << "FaceCenterJ Interior: " << (*this).FCenterJ(lowFaceJ) << endl;
+	  cout << "FaceCenterJ Interior2: " << (*this).FCenterJ(lowFace2J) << endl;
+	  cout << "FaceCenterJ Ghost: " << (*this).FCenterJ(upFaceJ) << endl;
+	  cout << "FaceCenterJ Ghost2: " << (*this).FCenterJ(upFace2J) << endl;
+	  cout << "State Interior: " << (*this).State(upperJ);
+	  cout << "State Ghost: " << (*this).State(lowerJ);
+	}
+
+
+
+
 
 	//calculate Roe flux at face
 	inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaJ(loc), maxWS);
@@ -1787,9 +1806,10 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 
 
 	//visc debug
+	// cout << "Block number: " << (*this).ParentBlock() << endl;
 	// cout << "At " << ii << ", " << jj << ", " << kk << ", " << loc << endl;
 	// cout << "interior state: " << (*this).State(iUp);
-	// cout << "ghost state: " << (*this).State(iLow) << endl;
+	// cout << "ghost state: " << (*this).State(iLow);
 
 	// cout << "boundary area: " << (*this).FAreaI(loc) << endl;
 	// cout << "interior area: " << (*this).FAreaI(fUpi) << endl;
@@ -1798,8 +1818,43 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 	// cout << "interior center: " << (*this).Center(iUp) << endl;
 	// cout << "ghost center: " << (*this).Center(iLow) << endl;;
 
+	// cout << "Auxiliary geometry:" << endl;
+	// cout << "Volume: " << vol << endl;
+	// cout << "I-lower area: " << ail << endl;
+	// cout << "I-upper area: " << aiu << endl;
+	// cout << "J-lower area: " << ajl << endl;
+	// cout << "J-upper area: " << aju << endl;
+	// cout << "K-lower area: " << akl << endl;
+	// cout << "K-upper area: " << aku << endl;
 
+	// cout << "J Areas:" << endl;
+	// cout << "j up i up area: " << (*this).FAreaJ(fUpjUpi) << endl;
+	// cout << "j up i low area: " << (*this).FAreaJ(fUpjLowi) << endl;
+	// cout << ii-1 << ", " << jj << ", " << kk << endl;
+	// cout << "j low i up area: " << (*this).FAreaJ(fLowjUpi) << endl;
+	// cout << "j low i low area: " << (*this).FAreaJ(fLowjLowi) << endl;
 
+	// cout << "K Areas:" << endl;
+	// cout << "k up i up area: " << (*this).FAreaK(fUpkUpi) << endl;
+	// cout << "k up i low area: " << (*this).FAreaK(fUpkLowi) << endl;
+	// cout << "k low i up area: " << (*this).FAreaK(fLowkUpi) << endl;
+	// cout << "k low i low area: " << (*this).FAreaK(fLowkLowi) << endl;
+
+	// cout << "Auxiliary states:" << endl;
+	// cout << "j Up i Up:" << (*this).State(jUpiUp) ;
+	// cout << "j Up i Low:" << (*this).State(jUpiLow) ;
+	// cout << "j Low i Up:" << (*this).State(jLowiUp) ;
+	// cout << "j Low i Low:" << (*this).State(jLowiLow) ;
+
+	// //DEBUG
+	// for ( int aa = 0; aa < (*this).NumK()+4; aa++ ){
+	//   for ( int bb = 0; bb < (*this).NumJ()+1+4; bb++ ){
+	//     for ( int cc = 0; cc < 2; cc++ ){
+	//       int loc = GetLoc1D(cc, bb, aa, (*this).NumJ()+1+4, (*this).NumK()+4);
+	//       cout << "At " << cc << ", " << bb << ", " << aa << ": " << (*this).FAreaJ(loc) << endl;
+	//     }
+	//   }
+	// }
 
 
 
@@ -6686,6 +6741,16 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
     cerr << "ERROR: Error in procBlock::SwapSlice(). Surface boundary " << inter.BoundarySecond() << " is not recognized!" << endl;
   }
 
+
+  //DEBUG
+  iRev1 = false;
+  jRev1 = false;
+  kRev1 = false;
+  iRev2 = false;
+  jRev2 = false;
+  kRev2 = false;
+
+
   geomSlice geom1, geom2;
   stateSlice state1, state2;
   if (geom){ //get geomSlices to swap
@@ -6701,8 +6766,9 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
   interblock inter1 = inter;
   interblock inter2 = inter;
 
+  int blkStart = (inter1.BoundarySecond() % 2 == 0) ? inter1.ConstSurfaceSecond() + blk1.NumGhosts() : 0;
   inter1.SetConstSurfaceFirst(0);
-  inter1.SetConstSurfaceSecond( inter1.ConstSurfaceSecond() + blk1.NumGhosts() );
+  inter1.SetConstSurfaceSecond( blkStart );
   inter1.SetDir1EndFirst( inter1.Dir1EndFirst() - inter1.Dir1StartFirst() + 2 * blk1.NumGhosts());
   inter1.SetDir1EndSecond( inter1.Dir1EndSecond() + 2 * blk1.NumGhosts());
   inter1.SetDir1StartFirst(0);
@@ -6711,14 +6777,40 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
   inter1.SetDir2StartFirst(0);
   inter1.SwapOrder(); //have block be first entry, slice second
 
+  blkStart = (inter2.BoundaryFirst() % 2 == 0) ? inter2.ConstSurfaceFirst() + blk2.NumGhosts() : 0;
   inter2.SetConstSurfaceSecond(0);
-  inter2.SetConstSurfaceFirst( inter2.ConstSurfaceFirst() + blk2.NumGhosts() );
+  inter2.SetConstSurfaceFirst( blkStart );
   inter2.SetDir1EndSecond( inter2.Dir1EndSecond() - inter2.Dir1StartSecond() + 2 * blk2.NumGhosts());
   inter2.SetDir1EndFirst( inter2.Dir1EndFirst() + 2 * blk2.NumGhosts());
   inter2.SetDir1StartSecond(0);
   inter2.SetDir2EndSecond( inter2.Dir2EndSecond() - inter2.Dir2StartSecond() + 2 * blk2.NumGhosts());
   inter2.SetDir2EndFirst( inter2.Dir2EndFirst() + 2 * blk2.NumGhosts());
   inter2.SetDir2StartSecond(0);
+
+  //DEBUG
+  // if ( inter.Orientation() == 5 ){
+    // cout << "Slice 1: " << is1 << ", " << ie1 << ", " << js1 << ", " << je1 << ", " << ks1 << ", " << ke1 << endl;
+    // cout << "Slice 2: " << is2 << ", " << ie2 << ", " << js2 << ", " << je2 << ", " << ks2 << ", " << ke2 << endl;
+    // cout << "slice 1 bool: " << iRev1 << ", " << ", " << jRev1 << ", " << kRev1 << endl;
+    // cout << "slice 2 bool: " << iRev2 << ", " << ", " << jRev2 << ", " << kRev2 << endl;
+    // cout << "slice 1 j-face area: " << endl;
+    // for ( int cc = 0; cc < geom1.NumI() * (geom1.NumJ()+1) * geom1.NumK(); cc++ ){
+    //   cout << geom1.FAreaJ(cc) << endl;
+    // }
+
+    // cout << "slice 2 i-face area: " << endl;
+    // for ( int cc = 0; cc < (geom2.NumI()+1) * geom2.NumJ() * geom2.NumK(); cc++ ){
+    //   cout << geom2.FAreaI(cc) << endl;
+    // }
+
+    // cout << "inter: " << inter << endl;
+    // cout << "inter1: " << inter1 << endl;
+    // cout << "inter2: " << inter2 << endl;
+
+  // }
+
+
+
 
   //put slices in proper blocks
   if (geom){ //put geomSlices in procBlock
@@ -6729,6 +6821,19 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
     blk1.PutStateSlice(state2, inter2, blk2.NumGhosts());
     blk2.PutStateSlice(state1, inter1, blk1.NumGhosts());
   }
+
+
+  //DEBUG
+  // for ( int aa = 0; aa < blk2.NumK()+4; aa++ ){
+  //   for ( int bb = 0; bb < blk2.NumJ()+1+4; bb++ ){
+  //     for ( int cc = 0; cc < 2; cc++ ){
+  // 	int loc = GetLoc1D(cc, bb, aa, blk2.NumJ()+1+4, blk2.NumK()+4);
+  // 	cout << "At " << cc << ", " << bb << ", " << aa << ": " << blk2.FAreaJ(loc) << endl;
+  //     }
+  //   }
+  // }
+
+
 
 }
 
@@ -6750,14 +6855,19 @@ vector<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const inter
   //preallocate vector to return
   vector<int> loc(3);
 
+  //if inserting into lower, flip direction 3
+  bool flip3 = ( inter.BoundarySecond() % 2 == 1 ) ? true : false ;
+  flip3 = false; //HARD CODED DEBUG
+  int d3 = 2 - 1; //HARD CODED
+
   if (pairID) { //working on first in pair -----------------------------------------------------------------------------------------------
     //first patch in pair is calculated using orientation 1
-
+    //CHANGED all -l3 -1 to +l3
     if ( inter.BoundaryFirst() == 1 ){ //i-patch lower
       //get direction 1 length
       loc[1] = inter.Dir1StartFirst() + numGhosts + l1; //direction 1 is j
       loc[2] = inter.Dir2StartFirst() + numGhosts + l2; //direction 2 is k
-      loc[0] = inter.ConstSurfaceFirst() + numGhosts - l3 - 1 ; //subtract l3-1 to get to ghost cells, (cell index instead of face)
+      loc[0] = inter.ConstSurfaceFirst() + numGhosts + l3 ; //subtract l3-1 to get to ghost cells, (cell index instead of face)
     }
     else if ( inter.BoundaryFirst() == 2 ) { //i-patch upper
       //get direction 1 length
@@ -6769,7 +6879,7 @@ vector<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const inter
       //get direction 1 length
       loc[2] = inter.Dir1StartFirst() + numGhosts + l1; //direction 1 is k
       loc[0] = inter.Dir2StartFirst() + numGhosts + l2; //direction 2 is i
-      loc[1] = inter.ConstSurfaceFirst() + numGhosts - l3 - 1; //subtract l3-1 to get to ghost cells, (cell index instead of face)
+      loc[1] = inter.ConstSurfaceFirst() + numGhosts + l3 ; //subtract l3-1 to get to ghost cells, (cell index instead of face)
     }
     else if ( inter.BoundaryFirst() == 4 ){ //j-patch upper
       //get direction 1 length
@@ -6781,7 +6891,7 @@ vector<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const inter
       //get direction 1 length
       loc[0] = inter.Dir1StartFirst() + numGhosts + l1; //direction 1 is i
       loc[1] = inter.Dir2StartFirst() + numGhosts + l2; //direction 2 is j
-      loc[2] = inter.ConstSurfaceFirst() + numGhosts - l3 - 1; //subtract l3-1 to get to ghost cells, (cell index instead of face) 
+      loc[2] = inter.ConstSurfaceFirst() + numGhosts + l3 ; //subtract l3-1 to get to ghost cells, (cell index instead of face) 
     }
     else{ //k-patch upper
       //get direction 1 length
@@ -6795,240 +6905,82 @@ vector<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const inter
   else{ //working on second in pair
 
     //-------------------------------------------------------------------------------------------------------
-    if ( inter.BoundarySecond() == 1 ){ //i-patch lower
-
+    if ( inter.BoundarySecond() == 1 || inter.BoundarySecond() == 2){ //i-patch
+      //CHANGED -- swapped l2/l1 for swapped cases
       if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
+	//direction 1 is j (swapped) -- if true direction reversed -- subtract 1 from End to get to cell index
+	loc[2] = ( inter.Orientation() == 5 || inter.Orientation() == 7 ) ? inter.Dir2EndSecond() - 1 + numGhosts - l1 : inter.Dir2StartSecond() + numGhosts + l1 ;
 
-	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
-	  loc[2] = inter.Dir2EndSecond() - 1 + numGhosts - l2; //direction 1 is j (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[2] = inter.Dir2StartSecond() + numGhosts + l2; //direction 1 is j (but 1&2 are swapped)
+	//DEBUG
+	if (loc[2] < 0){
+	  cerr << "ERROR: Giving negative indice!" << endl;
+	  cerr << "inter: " << inter << endl;
+	  cerr << "l1, l2, l3: " << l1 << ", " << l2 << ", " << l3 << endl;
 	}
 
-	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
-	  loc[1] = inter.Dir1EndSecond() - 1 + numGhosts - l1; //direction 2 is k (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[1] = inter.Dir1StartSecond() + numGhosts + l1; //direction 2 is k (but 1&2 are swapped)
-	}
+
+	//direction 2 is k (swapped) -- if true direction reversed -- subtract 1 from End to get to cell index
+	loc[1] = ( inter.Orientation() == 4 || inter.Orientation() == 7 ) ? inter.Dir1EndSecond() - 1 + numGhosts - l2 : inter.Dir1StartSecond() + numGhosts + l2 ;
       }
       else{ //no direction swap
+	//direction 1 is j -- if true direction reversed -- subtract 1 from End to get to cell index
+	loc[1] = ( inter.Orientation() == 6 || inter.Orientation() == 8 ) ? inter.Dir1EndSecond() - 1 + numGhosts - l1 : inter.Dir1StartSecond() + numGhosts + l1 ;
 
-	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 1
-	  loc[1] = inter.Dir1EndSecond() - 1 + numGhosts - l1; //direction 1 is j; subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[1] = inter.Dir1StartSecond() + numGhosts + l1; //direction 1 is j
-	}
-
-	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 2
-	  loc[2] = inter.Dir2EndSecond() - 1 + numGhosts - l2; //direction 2 is k; subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[2] = inter.Dir2StartSecond() + numGhosts + l2; //direction 2 is k
-	}
+	//direction 1 is k -- if true direction reversed -- subtract 1 from End to get to cell index
+	loc[2] = ( inter.Orientation() == 3 || inter.Orientation() == 8 ) ? inter.Dir2EndSecond() - 1 + numGhosts - l2 : inter.Dir2StartSecond() + numGhosts + l2 ;
       }
 
       //calculate index for all ghost layers
-      loc[0] = inter.ConstSurfaceSecond() + numGhosts + l3 ; //add l3 to get to ghost cells
+      loc[0] = flip3 ? d3 - l3 : inter.ConstSurfaceSecond() + numGhosts + l3 ; //add l3 to get to ghost cells
     }
     //-------------------------------------------------------------------------------------------------------
-    else if ( inter.BoundarySecond() == 2 ){ //i-patch upper
+    else if ( inter.BoundarySecond() == 3 || inter.BoundarySecond() == 4 ){ //j-patch
 
       if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
+	//direction 1 is k (swapped) -- if true direction reversed -- subtract 1 from End to get to cell index
+	loc[0] = ( inter.Orientation() == 5 || inter.Orientation() == 7 ) ? inter.Dir2EndSecond() - 1 + numGhosts - l1 : inter.Dir2StartSecond() + numGhosts + l1 ;
 
-	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
-	  loc[2] = inter.Dir2EndSecond() - 1 + numGhosts - l2; //direction 1 is j (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[2] = inter.Dir2StartSecond() + numGhosts + l2; //direction 1 is j (but 1&2 are swapped)
-	}
-
-	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
-	  loc[1] = inter.Dir1EndSecond() - 1 + numGhosts - l1; //direction 2 is k (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[1] = inter.Dir1StartSecond() + numGhosts + l1; //direction 2 is k (but 1&2 are swapped)
-	}
+	//direction 2 is i (swapped) -- if true direction reversed -- subtract 1 from End to get to cell index
+	loc[2] = ( inter.Orientation() == 4 || inter.Orientation() == 7 ) ? inter.Dir1EndSecond() - 1 + numGhosts - l2 : inter.Dir1StartSecond() + numGhosts + l2 ;
       }
       else{ //no direction swap
+	//direction 1 is k -- if true direction reversed -- subtract 1 from End to get to cell index
+	loc[2] = ( inter.Orientation() == 3 || inter.Orientation() == 8 ) ? inter.Dir1EndSecond() - 1 + numGhosts - l1 : inter.Dir1StartSecond() + numGhosts + l1 ;
 
-	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 1
-	  loc[1] = inter.Dir1EndSecond() - 1 + numGhosts - l1; //direction 1 is j; subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[1] = inter.Dir1StartSecond() + numGhosts + l1; //direction 1 is j
-	}
-
-	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 2
-	  loc[2] = inter.Dir2EndSecond() - 1 + numGhosts - l2; //direction 2 is k; subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[2] = inter.Dir2StartSecond() + numGhosts + l2; //direction 2 is k
-	}
+	//direction 2 is i -- if true direction reversed -- subtract 1 from End to get to cell index
+	loc[0] = ( inter.Orientation() == 6 || inter.Orientation() == 8 ) ? inter.Dir2EndSecond() - 1 + numGhosts - l2 : inter.Dir2StartSecond() + numGhosts + l2 ;
       }
 
       //calculate index for all ghost layers
-      loc[0] = inter.ConstSurfaceSecond() + numGhosts + l3 ; //add l3 to get to ghost cells
+      loc[1] = flip3 ? d3 - l3 : inter.ConstSurfaceSecond() + numGhosts + l3 ; //add l3 to get to ghost cells
     }
     //-------------------------------------------------------------------------------------------------------
-    else if ( inter.BoundarySecond() == 3 ){ //j-patch lower
+    else if ( inter.BoundarySecond() == 5 || inter.BoundarySecond() == 6 ){ //k-patch
 
       if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
+	//direction 1 is i (swapped) -- if true direction reversed -- subtract 1 from End to get to cell index
+	loc[1] = ( inter.Orientation() == 5 || inter.Orientation() == 7 ) ? inter.Dir2EndSecond() - 1 + numGhosts - l1 : inter.Dir2StartSecond() + numGhosts + l1 ;
 
-	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
-	  loc[0] = inter.Dir2EndSecond() - 1 + numGhosts - l2; //direction 1 is k (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[0] = inter.Dir2StartSecond() + numGhosts + l2; //direction 1 is k (but 1&2 are swapped)
-	}
-
-	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
-	  loc[2] = inter.Dir1EndSecond() - 1 + numGhosts - l1; //direction 2 is i (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[2] = inter.Dir1StartSecond() + numGhosts + l1; //direction 2 is i (but 1&2 are swapped)
-	}
+	//direction 2 is j (swapped) -- if true direction reversed -- subtract 1 from End to get to cell index
+	loc[0] = ( inter.Orientation() == 4 || inter.Orientation() == 7 ) ? inter.Dir1EndSecond() - 1 + numGhosts - l2 : inter.Dir1StartSecond() + numGhosts + l2 ;
       }
       else{ //no direction swap
+	//direction 1 is i -- if true direction reversed -- subtract 1 from End to get to cell index
+	loc[0] = ( inter.Orientation() == 3 || inter.Orientation() == 8 ) ? inter.Dir1EndSecond() - 1 + numGhosts - l1 : inter.Dir1StartSecond() + numGhosts + l1 ;
 
-	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 1
-	  loc[2] = inter.Dir1EndSecond() - 1 + numGhosts - l1; //direction 1 is k; subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[2] = inter.Dir1StartSecond() + numGhosts + l1; //direction 1 is k
-	}
-
-	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 2
-	  loc[0] = inter.Dir2EndSecond() - 1 + numGhosts - l2; //direction 2 is i; subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[0] = inter.Dir2StartSecond() + numGhosts + l2; //direction 2 is i
-	}
+	//direction 2 is j -- if true direction reversed -- subtract 1 from End to get to cell index
+	loc[1] = ( inter.Orientation() == 6 || inter.Orientation() == 8 ) ? inter.Dir2EndSecond() - 1 + numGhosts - l2 : inter.Dir2StartSecond() + numGhosts + l2 ;
       }
 
       //calculate index for all ghost layers
-      loc[1] = inter.ConstSurfaceSecond() + numGhosts + l3 ; //add l3 to get to ghost cells
+      loc[2] = flip3 ? d3 - l3 : inter.ConstSurfaceSecond() + numGhosts + l3 ; //add l3 to get to ghost cells
     }
     //-------------------------------------------------------------------------------------------------------
-    else if ( inter.BoundarySecond() == 4 ){ //j-patch upper
-
-      if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
-
-	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
-	  loc[0] = inter.Dir2EndSecond() - 1 + numGhosts - l2; //direction 1 is k (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[0] = inter.Dir2StartSecond() + numGhosts + l2; //direction 1 is k (but 1&2 are swapped)
-	}
-
-	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
-	  loc[2] = inter.Dir1EndSecond() - 1 + numGhosts - l1; //direction 2 is i (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[2] = inter.Dir1StartSecond() + numGhosts + l1; //direction 2 is i (but 1&2 are swapped)
-	}
-      }
-      else{ //no direction swap
-
-	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 1
-	  loc[2] = inter.Dir1EndSecond() - 1 + numGhosts - l1; //direction 1 is k; subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[2] = inter.Dir1StartSecond() + numGhosts + l1; //direction 1 is k
-	}
-
-	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 2
-	  loc[0] = inter.Dir2EndSecond() - 1 + numGhosts - l2; //direction 2 is i; subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[0] = inter.Dir2StartSecond() + numGhosts + l2; //direction 2 is i
-	}
-      }
-
-      //calculate index for all ghost layers
-      loc[1] = inter.ConstSurfaceSecond() + numGhosts + l3 ; //add l3 to get to ghost cells
+    else{
+      cerr << "ERROR: Error in procBlock.cpp:GetSwapLoc(). Boundary surface of " << inter.BoundarySecond() << " is not recognized!" << endl;
+      cerr << "Valid numbers are between 1 and 6." << endl;
+      exit(0);
     }
-    //-------------------------------------------------------------------------------------------------------
-    else if ( inter.BoundarySecond() == 5 ){ //k-patch lower
-
-      if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
-
-	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
-	  loc[1] = inter.Dir2EndSecond() - 1 + numGhosts - l2; //direction 1 is i (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[1] = inter.Dir2StartSecond() + numGhosts + l2; //direction 1 is i (but 1&2 are swapped)
-	}
-
-	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
-	  loc[0] = inter.Dir1EndSecond() - 1 + numGhosts - l1; //direction 2 is j (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[0] = inter.Dir1StartSecond() + numGhosts + l1; //direction 2 is j (but 1&2 are swapped)
-	}
-      }
-      else{ //no direction swap
-
-	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 1
-	  loc[0] = inter.Dir1EndSecond() - 1 + numGhosts - l1; //direction 1 is i; subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[0] = inter.Dir1StartSecond() + numGhosts + l1; //direction 1 is i
-	}
-
-	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 2
-	  loc[1] = inter.Dir2EndSecond() - 1 + numGhosts - l2; //direction 2 is j; subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[1] = inter.Dir2StartSecond() + numGhosts + l2; //direction 2 is j
-	}
-      }
-
-      //calculate index for all ghost layers
-      loc[2] = inter.ConstSurfaceSecond() + numGhosts + l3 ; //add l3 to get to ghost cells
-    }
-    //-------------------------------------------------------------------------------------------------------
-    else { //k-patch upper
-
-      if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
-
-	if ( inter.Orientation() == 5 || inter.Orientation() == 7 ){ //reverse dir 2
-	  loc[1] = inter.Dir2EndSecond() - 1 + numGhosts - l2; //direction 1 is i (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[1] = inter.Dir2StartSecond() + numGhosts + l2; //direction 1 is i (but 1&2 are swapped)
-	}
-
-	if ( inter.Orientation() == 4 || inter.Orientation() == 7 ){ //reverse dir 1
-	  loc[0] = inter.Dir1EndSecond() - 1 + numGhosts - l1; //direction 2 is j (but 1&2 are swapped); subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[0] = inter.Dir1StartSecond() + numGhosts + l1; //direction 2 is j (but 1&2 are swapped)
-	}
-      }
-      else{ //no direction swap
-
-	if ( inter.Orientation() == 3 || inter.Orientation() == 8 ){ //reverse dir 1
-	  loc[0] = inter.Dir1EndSecond() - 1 + numGhosts - l1; //direction 1 is i; subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[0] = inter.Dir1StartSecond() + numGhosts + l1; //direction 1 is i
-	}
-
-	if ( inter.Orientation() == 6 || inter.Orientation() == 8 ){ //reverse dir 2
-	  loc[1] = inter.Dir2EndSecond() - 1 + numGhosts - l2; //direction 2 is j; subtract 1 from End to get to cell index
-	}
-	else{
-	  loc[1] = inter.Dir2StartSecond() + numGhosts + l2; //direction 2 is j
-	}
-      }
-
-      //calculate index for all ghost layers
-      loc[2] = inter.ConstSurfaceSecond() + numGhosts + l3 ; //add l3 to get to ghost cells
-    }
-
   }
 
   return loc;
@@ -7132,7 +7084,7 @@ geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, c
 	  slice.SetFAreaI( iFac * (*this).FAreaI(upIPar), lowI );
 	  slice.SetFCenterI( (*this).FCenterI(upIPar), lowI );
 
-	  if ( i == 0 ){ //at end of i-line assign upper face values too
+	  if ( ii == sizeI - 1 ){ //at end of i-line assign upper face values too
 	    slice.SetFAreaI( iFac * (*this).FAreaI(lowIPar), upI );
 	    slice.SetFCenterI( (*this).FCenterI(locPar), upI );
 	  }
@@ -7141,7 +7093,7 @@ geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, c
 	  slice.SetFAreaI( iFac * (*this).FAreaI(lowIPar), lowI );
 	  slice.SetFCenterI( (*this).FCenterI(lowIPar), lowI );
 
-	  if ( i == sizeI - 1 ){ //at end of i-line assign upper face values too
+	  if ( ii == sizeI - 1 ){ //at end of i-line assign upper face values too
 	    slice.SetFAreaI( iFac * (*this).FAreaI(upIPar), upI );
 	    slice.SetFCenterI( (*this).FCenterI(upIPar), upI );
 	  }
@@ -7152,7 +7104,7 @@ geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, c
 	  slice.SetFAreaJ( jFac * (*this).FAreaJ(upJPar), lowJ );
 	  slice.SetFCenterJ( (*this).FCenterJ(upJPar), lowJ );
 
-	  if ( j == 0 ){ //at end of j-line assign upper face values too
+	  if ( jj == sizeJ - 1 ){ //at end of j-line assign upper face values too
 	    slice.SetFAreaJ( jFac * (*this).FAreaJ(lowJPar), upJ );
 	    slice.SetFCenterJ( (*this).FCenterJ(lowJPar), upJ );
 	  }
@@ -7161,7 +7113,7 @@ geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, c
 	  slice.SetFAreaJ( jFac * (*this).FAreaJ(lowJPar), lowJ );
 	  slice.SetFCenterJ( (*this).FCenterJ(lowJPar), lowJ );
 
-	  if ( j == sizeJ - 1 ){ //at end of j-line assign upper face values too
+	  if ( jj == sizeJ - 1 ){ //at end of j-line assign upper face values too
 	    slice.SetFAreaJ( jFac * (*this).FAreaJ(upJPar), upJ );
 	    slice.SetFCenterJ( (*this).FCenterJ(upJPar), upJ );
 	  }
@@ -7172,7 +7124,7 @@ geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, c
 	  slice.SetFAreaK( kFac * (*this).FAreaK(upKPar), lowK ); 
 	  slice.SetFCenterK( (*this).FCenterK(upKPar), lowK );
 
-	  if ( k == 0 ){ //at end of k-line assign upper face values too
+	  if ( kk == sizeK - 1 ){ //at end of k-line assign upper face values too
 	    slice.SetFAreaK( kFac * (*this).FAreaK(lowKPar), upK );
 	    slice.SetFCenterK( (*this).FCenterK(lowKPar), upK );
 	  }
@@ -7181,7 +7133,7 @@ geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, c
 	  slice.SetFAreaK( kFac * (*this).FAreaK(lowKPar), lowK );
 	  slice.SetFCenterK( (*this).FCenterK(lowKPar), lowK );
 
-	  if ( k == sizeK - 1 ){ //at end of k-line assign upper face values too
+	  if ( kk == sizeK - 1 ){ //at end of k-line assign upper face values too
 	    slice.SetFAreaK( kFac * (*this).FAreaK(upKPar), upK );
 	    slice.SetFCenterK( (*this).FCenterK(upKPar), upK );
 	  }
@@ -7219,18 +7171,9 @@ stateSlice procBlock::GetStateSlice(const int &is, const int &ie, const int &js,
     for ( int jj = 0; jj < sizeJ; jj++ ){
       for ( int ii = 0; ii < sizeI; ii++ ){
 
-	int k = kk;
-	if (revK){ //reverse k direction
-	  k = sizeK - 1 - kk;
-	}
-	int j = jj;
-	if (revJ){ //reverse j direction
-	  j = sizeJ - 1 - jj;
-	}
-	int i = ii;
-	if (revI){ //reverse i direction
-	  i = sizeI - 1 - ii;
-	}
+	int k = revK ? sizeK - 1 - kk : kk;
+	int j = revJ ? sizeJ - 1 - jj : jj;
+	int i = revI ? sizeI - 1 - ii : ii;
 
 	//cell locations
 	int locPar = GetLoc1D(is+i, js+j, ks+k, imaxPar, jmaxPar);
@@ -7270,9 +7213,14 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
   int jmaxS = slice.NumJ();
 
   //determine if area direction needs to be reversed
-  double aFac3 = ( inter.BoundaryFirst() % 2 == 0 ) ? 1.0 : -1.0 ;
+  double aFac3 = ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ) ? -1.0 : 1.0 ;
   double aFac1 = ( inter.Orientation() == 3 || inter.Orientation() == 4 || inter.Orientation() == 7 || inter.Orientation() == 8 ) ? -1.0 : 1.0 ;
   double aFac2 = ( inter.Orientation() == 5 || inter.Orientation() == 6 || inter.Orientation() == 7 || inter.Orientation() == 8 ) ? -1.0 : 1.0 ;
+
+  //DEBUG
+  cout << "At block " << (*this).ParentBlock() << endl;
+  cout << "swapping interblock: " << inter << endl;
+
 
   //loop over cells to insert
   for ( int l3 = 0; l3 < d3; l3++ ){
@@ -7281,6 +7229,13 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 
 	vector<int> indB = GetSwapLoc(l1, l2, l3, inter, true);
 	vector<int> indS = GetSwapLoc(l1, l2, l3, inter, false);
+
+	//DEBUG PUT GEOM
+	// if ((*this).ParentBlock() == 2 && inter.BoundaryFirst() == 3){
+	//   cout << "Direction indices: " << l1 << ", " << l2 << ", " << l3 << endl;
+	//   cout << "Block indices: " << indB[0] << ", " << indB[1] << ", " << indB[2] << endl;
+	//   cout << "Slice indices: " << indS[0] << ", " << indS[1] << ", " << indS[2] << endl;
+	// }
 
 	//get cell locations
 	int locB = GetLoc1D(indB[0], indB[1], indB[2], imaxB, jmaxB);
@@ -7314,9 +7269,9 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	//----------------------------------------------------------------------------------------------------------------------------------------
 	//swap face data
 	if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() <= 2 ){ //both patches i, i to i, j to j, k to k
-
+	  //CHANGED -- both constant surfaces are at lower direction 2, so don't need if/else -- changed 2 == 1 to 2 < 100
 	  //swap face data for direction 3
-	  if ( inter.BoundaryFirst() % 2 == 0 ){ //inserting into upper
+	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 < 100 ){ //inserting into upper //CHANGED
 	    (*this).SetFCenterI( slice.FCenterI(IlowS) , IlowB);
 	    (*this).SetFAreaI( aFac3 * slice.FAreaI(IlowS) , IlowB);
 
@@ -7358,7 +7313,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4 ){ //both patches j, j to j, k to k, i to i
 
 	  //swap face data for direction 3
-	  if ( inter.BoundaryFirst() % 2 == 0 ){ //inserting into upper
+	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 < 100 ){ //inserting into upper
 	    (*this).SetFCenterJ( slice.FCenterJ(JlowS) , JlowB);
 	    (*this).SetFAreaJ( aFac3 * slice.FAreaJ(JlowS) , JlowB);
 
@@ -7400,7 +7355,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6 ){ //both patches k, k to k, i to i, j to j
 
 	  //swap face data for direction 3
-	  if ( inter.BoundaryFirst() % 2 == 0 ){ //inserting into upper
+	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 < 100 ){ //inserting into upper
 	    (*this).SetFCenterK( slice.FCenterK(KlowS) , KlowB);
 	    (*this).SetFAreaK( aFac3 * slice.FAreaK(KlowS) , KlowB);
 
@@ -7440,9 +7395,9 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	}
 	//----------------------------------------------------------------------------------------------------------------------------------------
 	else if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4){ //patches are i/j  - i to j, j to k, k to i
-
+	  //CHANGED
 	  //swap face data for direction 3
-	  if ( inter.BoundaryFirst() % 2 == 0 ){ //inserting into upper
+	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 < 100 ){ //inserting into upper
 	    (*this).SetFCenterI( slice.FCenterJ(JlowS) , IlowB);
 	    (*this).SetFAreaI( aFac3 * slice.FAreaJ(JlowS) , IlowB);
 
@@ -7460,23 +7415,45 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	      (*this).SetFAreaI( aFac3 * slice.FAreaJ(JlowS) , IupB);
 	    }
 	  }
-
+	  //CHANGED--------------------------------------------------------
 	  //swap face data for direction 1
-	  (*this).SetFCenterJ( slice.FCenterK(KlowS), JlowB );
-	  (*this).SetFAreaJ( aFac1 * slice.FAreaK(KlowS), JlowB );
+	  if ( aFac1 == 1.0 ){
+	    (*this).SetFCenterJ( slice.FCenterK(KlowS), JlowB );
+	    (*this).SetFAreaJ( aFac1 * slice.FAreaK(KlowS), JlowB );
 
-	  if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	    (*this).SetFCenterJ( slice.FCenterK(KupS), JupB );
-	    (*this).SetFAreaJ( aFac1 * slice.FAreaK(KupS), JupB );
+	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+	      (*this).SetFCenterJ( slice.FCenterK(KupS), JupB );
+	      (*this).SetFAreaJ( aFac1 * slice.FAreaK(KupS), JupB );
+	    }
+	  }
+	  else{
+	    (*this).SetFCenterJ( slice.FCenterK(KupS), JlowB );
+	    (*this).SetFAreaJ( aFac1 * slice.FAreaK(KupS), JlowB );
+
+	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+	      (*this).SetFCenterJ( slice.FCenterK(KlowS), JupB );
+	      (*this).SetFAreaJ( aFac1 * slice.FAreaK(KlowS), JupB );
+	    }
 	  }
 
 	  //swap face data for direction 2
-	  (*this).SetFCenterK( slice.FCenterI(IlowS), KlowB );
-	  (*this).SetFAreaK( aFac2 * slice.FAreaI(IlowS), KlowB );
+	  if ( aFac2 == 2 ){
+	    (*this).SetFCenterK( slice.FCenterI(IlowS), KlowB );
+	    (*this).SetFAreaK( aFac2 * slice.FAreaI(IlowS), KlowB );
 
-	  if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	    (*this).SetFCenterK( slice.FCenterI(IupS), KupB );
-	    (*this).SetFAreaK( aFac2 * slice.FAreaI(IupS), KupB );
+	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+	      (*this).SetFCenterK( slice.FCenterI(IupS), KupB );
+	      (*this).SetFAreaK( aFac2 * slice.FAreaI(IupS), KupB );
+	    }
+	  }
+	  else{
+	    (*this).SetFCenterK( slice.FCenterI(IupS), KlowB );
+	    (*this).SetFAreaK( aFac2 * slice.FAreaI(IupS), KlowB );
+
+	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+	      (*this).SetFCenterK( slice.FCenterI(IlowS), KupB );
+	      (*this).SetFAreaK( aFac2 * slice.FAreaI(IlowS), KupB );
+	    }
 	  }
 
 	}
@@ -7484,7 +7461,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	else if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6){ //patches are i/k  - i to k, j to i, k to j
 
 	  //swap face data for direction 3
-	  if ( inter.BoundaryFirst() % 2 == 0 ){ //inserting into upper
+	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 < 100 ){ //inserting into upper
 	    (*this).SetFCenterI( slice.FCenterK(KlowS) , IlowB);
 	    (*this).SetFAreaI( aFac3 * slice.FAreaK(KlowS) , IlowB);
 
@@ -7524,9 +7501,9 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	}
 	//----------------------------------------------------------------------------------------------------------------------------------------
 	else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() <= 2 ){ //patches are j/i, j to i, k to j, i to k
-
+	  //CHANGED
 	  //swap face data for direction 3
-	  if ( inter.BoundaryFirst() % 2 == 0 ){ //inserting into upper
+	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 < 100 ){ //inserting into upper
 	    (*this).SetFCenterJ( slice.FCenterI(IlowS) , JlowB);
 	    (*this).SetFAreaJ( aFac3 * slice.FAreaI(IlowS) , JlowB);
 
@@ -7544,23 +7521,45 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	      (*this).SetFAreaJ( aFac3 * slice.FAreaI(IlowS) , JupB);
 	    }
 	  }
-
+	  //CHANGED--------------------------------------------------
 	  //swap face data for direction 1
-	  (*this).SetFCenterK( slice.FCenterJ(JlowS), KlowB );
-	  (*this).SetFAreaK( aFac1 * slice.FAreaJ(JlowS), KlowB );
+	  if ( aFac1 == 1.0 ){
+	    (*this).SetFCenterK( slice.FCenterJ(JlowS), KlowB );
+	    (*this).SetFAreaK( aFac1 * slice.FAreaJ(JlowS), KlowB );
 
-	  if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	    (*this).SetFCenterK( slice.FCenterJ(JupS), KupB );
-	    (*this).SetFAreaK( aFac1 * slice.FAreaJ(JupS), KupB );
+	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+	      (*this).SetFCenterK( slice.FCenterJ(JupS), KupB );
+	      (*this).SetFAreaK( aFac1 * slice.FAreaJ(JupS), KupB );
+	    }
+	  }
+	  else{
+	    (*this).SetFCenterK( slice.FCenterJ(JupS), KlowB );
+	    (*this).SetFAreaK( aFac1 * slice.FAreaJ(JupS), KlowB );
+
+	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+	      (*this).SetFCenterK( slice.FCenterJ(JlowS), KupB );
+	      (*this).SetFAreaK( aFac1 * slice.FAreaJ(JlowS), KupB );
+	    }
 	  }
 
 	  //swap face data for direction 2
-	  (*this).SetFCenterI( slice.FCenterK(KlowS), IlowB );
-	  (*this).SetFAreaI( aFac2 * slice.FAreaK(KlowS), IlowB );
+	  if ( aFac2 == 1.0 ){
+	    (*this).SetFCenterI( slice.FCenterK(KlowS), IlowB );
+	    (*this).SetFAreaI( aFac2 * slice.FAreaK(KlowS), IlowB );
 
-	  if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	    (*this).SetFCenterI( slice.FCenterK(KupS), IupB );
-	    (*this).SetFAreaI( aFac2 * slice.FAreaK(KupS), IupB );
+	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+	      (*this).SetFCenterI( slice.FCenterK(KupS), IupB );
+	      (*this).SetFAreaI( aFac2 * slice.FAreaK(KupS), IupB );
+	    }
+	  }
+	  else{
+	    (*this).SetFCenterI( slice.FCenterK(KupS), IlowB );
+	    (*this).SetFAreaI( aFac2 * slice.FAreaK(KupS), IlowB );
+
+	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+	      (*this).SetFCenterI( slice.FCenterK(KlowS), IupB );
+	      (*this).SetFAreaI( aFac2 * slice.FAreaK(KlowS), IupB );
+	    }
 	  }
 
 	}
@@ -7568,7 +7567,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6 ){ //patches are j/k, j to k, k to i, i to j
 
 	  //swap face data for direction 3
-	  if ( inter.BoundaryFirst() % 2 == 0 ){ //inserting into upper
+	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 < 100 ){ //inserting into upper
 	    (*this).SetFCenterJ( slice.FCenterK(KlowS) , JlowB);
 	    (*this).SetFAreaJ( aFac3 * slice.FAreaK(KlowS) , JlowB);
 
@@ -7610,7 +7609,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() <= 2 ){ //patches are k/i, k to i, i to j, j to k
 
 	  //swap face data for direction 3
-	  if ( inter.BoundaryFirst() % 2 == 0 ){ //inserting into upper
+	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 < 100 ){ //inserting into upper
 	    (*this).SetFCenterK( slice.FCenterI(IlowS) , KlowB);
 	    (*this).SetFAreaK( aFac3 * slice.FAreaI(IlowS) , KlowB);
 
@@ -7652,7 +7651,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() <= 2 ){ //patches are k/j, k to j, i to k, j to i
 
 	  //swap face data for direction 3
-	  if ( inter.BoundaryFirst() % 2 == 0 ){ //inserting into upper
+	  if ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 < 100 ){ //inserting into upper
 	    (*this).SetFCenterK( slice.FCenterJ(JlowS) , KlowB);
 	    (*this).SetFAreaK( aFac3 * slice.FAreaJ(JlowS) , KlowB);
 
