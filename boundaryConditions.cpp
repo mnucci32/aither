@@ -208,6 +208,13 @@ void interblock::SwapOrder(){
   (*this).SetConstSurfaceFirst( (*this).ConstSurfaceSecond() );
   (*this).SetConstSurfaceSecond(temp);
 
+  //if orientation is 4 or 5, needs to be swapped because direction 1/2 are swapped and only one direction is reversed
+  if ((*this).Orientation() == 4){
+    (*this).SetOrientation(5);
+  }
+  else if ((*this).Orientation() == 5){
+    (*this).SetOrientation(4);
+  }
 }
 
 /* Function to go through the boundary conditions and pair the interblock BCs together and determine their orientation.
