@@ -348,21 +348,6 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
 
 	}
 
-	//debug
-	// if ( (kk == 2) && (jj == 2) && (ii == 2) ){
-	//   cout << "At i, j, k: " << ii << ", " << jj << ", " << kk << endl;
-	//   cout << "Center: " << (*this).Center(lowerI) << endl;
-	//   cout << "FaceAreaI: " << (*this).FAreaI(loc) << endl;
-	//   cout << "FaceAreaI Interior: " << (*this).FAreaI(lowFaceI) << endl;
-	//   cout << "FaceAreaI Interior2: " << (*this).FAreaI(lowFace2I) << endl;
-	//   cout << "FaceAreaI Ghost: " << (*this).FAreaI(upFaceI) << endl;
-	//   cout << "FaceAreaI Ghost2: " << (*this).FAreaI(upFace2I) << endl;
-	//   cout << "State Interior: " << (*this).State(upperI);
-	//   cout << "State Ghost: " << (*this).State(lowerI);
-	// }
-
-
-
 	//calculate Roe flux at face
 	inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper, eqnState, (*this).FAreaI(loc), maxWS);
 
@@ -472,17 +457,17 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp){
 
 
 	//debug
-	if ( (kk == 2) && (jj == jmax + 2 - 1) && (ii == 2) ){
-	  cout << "At i, j, k: " << ii << ", " << jj << ", " << kk << endl;
-	  cout << "Center: " << (*this).Center(lowerJ) << endl;
-	  cout << "FaceCenterJ: " << (*this).FCenterJ(loc) << endl;
-	  cout << "FaceCenterJ Interior: " << (*this).FCenterJ(lowFaceJ) << endl;
-	  cout << "FaceCenterJ Interior2: " << (*this).FCenterJ(lowFace2J) << endl;
-	  cout << "FaceCenterJ Ghost: " << (*this).FCenterJ(upFaceJ) << endl;
-	  cout << "FaceCenterJ Ghost2: " << (*this).FCenterJ(upFace2J) << endl;
-	  cout << "State Interior: " << (*this).State(upperJ);
-	  cout << "State Ghost: " << (*this).State(lowerJ);
-	}
+	// if ( (kk == 2) && (jj == jmax + 2 - 1) && (ii == 2) ){
+	//   cout << "At i, j, k: " << ii << ", " << jj << ", " << kk << endl;
+	//   cout << "Center: " << (*this).Center(lowerJ) << endl;
+	//   cout << "FaceCenterJ: " << (*this).FCenterJ(loc) << endl;
+	//   cout << "FaceCenterJ Interior: " << (*this).FCenterJ(lowFaceJ) << endl;
+	//   cout << "FaceCenterJ Interior2: " << (*this).FCenterJ(lowFace2J) << endl;
+	//   cout << "FaceCenterJ Ghost: " << (*this).FCenterJ(upFaceJ) << endl;
+	//   cout << "FaceCenterJ Ghost2: " << (*this).FCenterJ(upFace2J) << endl;
+	//   cout << "State Interior: " << (*this).State(upperJ);
+	//   cout << "State Ghost: " << (*this).State(lowerJ);
+	// }
 
 
 
@@ -6911,14 +6896,6 @@ vector<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const inter
 	//direction 1 is j (swapped) -- if true direction reversed -- subtract 1 from End to get to cell index
 	loc[2] = ( inter.Orientation() == 5 || inter.Orientation() == 7 ) ? inter.Dir2EndSecond() - 1 + numGhosts - l1 : inter.Dir2StartSecond() + numGhosts + l1 ;
 
-	//DEBUG
-	if (loc[2] < 0){
-	  cerr << "ERROR: Giving negative indice!" << endl;
-	  cerr << "inter: " << inter << endl;
-	  cerr << "l1, l2, l3: " << l1 << ", " << l2 << ", " << l3 << endl;
-	}
-
-
 	//direction 2 is k (swapped) -- if true direction reversed -- subtract 1 from End to get to cell index
 	loc[1] = ( inter.Orientation() == 4 || inter.Orientation() == 7 ) ? inter.Dir1EndSecond() - 1 + numGhosts - l2 : inter.Dir1StartSecond() + numGhosts + l2 ;
       }
@@ -7218,8 +7195,8 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
   double aFac2 = ( inter.Orientation() == 5 || inter.Orientation() == 6 || inter.Orientation() == 7 || inter.Orientation() == 8 ) ? -1.0 : 1.0 ;
 
   //DEBUG
-  cout << "At block " << (*this).ParentBlock() << endl;
-  cout << "swapping interblock: " << inter << endl;
+  // cout << "At block " << (*this).ParentBlock() << endl;
+  // cout << "swapping interblock: " << inter << endl;
 
 
   //loop over cells to insert
@@ -7231,7 +7208,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	vector<int> indS = GetSwapLoc(l1, l2, l3, inter, false);
 
 	//DEBUG PUT GEOM
-	// if ((*this).ParentBlock() == 2 && inter.BoundaryFirst() == 3){
+	// if ((*this).ParentBlock() == 2 && inter.BoundaryFirst() == 4){
 	//   cout << "Direction indices: " << l1 << ", " << l2 << ", " << l3 << endl;
 	//   cout << "Block indices: " << indB[0] << ", " << indB[1] << ", " << indB[2] << endl;
 	//   cout << "Slice indices: " << indS[0] << ", " << indS[1] << ", " << indS[2] << endl;

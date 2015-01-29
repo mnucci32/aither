@@ -80,15 +80,17 @@ int main( int argc, char *argv[] ) {
     stateBlocks[ll].AssignGhostCellsGeom(inputVars);
     stateBlocks[ll].AssignGhostCellsGeomEdge(inputVars);
   }
+
   //swap geometry for interblock BCs
   for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
+    cout << "Swap Geometry for connection: " << connections[ii] << endl;
     SwapSlice( connections[ii], stateBlocks[connections[ii].BlockFirst()], stateBlocks[connections[ii].BlockSecond()], true);
   }
   //Get ghost cell edge data
   for ( int ll = 0; ll < (int)mesh.size(); ll++) {
     stateBlocks[ll].AssignGhostCellsGeomEdge(inputVars);
   }
- 
+
   cout << endl << "Solution Initialized" << endl;
   //----------------------------------------------------------------------------------------------
 
