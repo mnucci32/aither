@@ -36,11 +36,11 @@ inviscidFlux::inviscidFlux( const primVars &state, const idealGas &eqnState, con
   vector3d<double> normArea = areaVec / areaVec.Mag(); //normalize area vector
   vector3d<double> vel = state.Velocity();
 
-  rhoVel  = state.Rho() * vel.DotProd(normArea);      
-  rhoVelU = state.Rho() * vel.DotProd(normArea) * vel.X() + state.P() * normArea.X();     
-  rhoVelV = state.Rho() * vel.DotProd(normArea) * vel.Y() + state.P() * normArea.Y();     
-  rhoVelW = state.Rho() * vel.DotProd(normArea) * vel.Z() + state.P() * normArea.Z();     
-  rhoVelH = state.Rho() * vel.DotProd(normArea) * state.Enthalpy(eqnState);
+  data[0]  = state.Rho() * vel.DotProd(normArea);      
+  data[1] = state.Rho() * vel.DotProd(normArea) * vel.X() + state.P() * normArea.X();     
+  data[2] = state.Rho() * vel.DotProd(normArea) * vel.Y() + state.P() * normArea.Y();     
+  data[3] = state.Rho() * vel.DotProd(normArea) * vel.Z() + state.P() * normArea.Z();     
+  data[4] = state.Rho() * vel.DotProd(normArea) * state.Enthalpy(eqnState);
 }
 
 //constructor -- initialize flux from state vector using conservative variables
@@ -68,11 +68,11 @@ inviscidFlux::inviscidFlux( const colMatrix &cons, const idealGas &eqnState, con
   vector3d<double> normArea = areaVec / areaVec.Mag(); //normalize area vector
   vector3d<double> vel = state.Velocity();
 
-  rhoVel  = state.Rho() * vel.DotProd(normArea);      
-  rhoVelU = state.Rho() * vel.DotProd(normArea) * vel.X() + state.P() * normArea.X();     
-  rhoVelV = state.Rho() * vel.DotProd(normArea) * vel.Y() + state.P() * normArea.Y();     
-  rhoVelW = state.Rho() * vel.DotProd(normArea) * vel.Z() + state.P() * normArea.Z();     
-  rhoVelH = state.Rho() * vel.DotProd(normArea) * state.Enthalpy(eqnState);
+  data[0]  = state.Rho() * vel.DotProd(normArea);      
+  data[1] = state.Rho() * vel.DotProd(normArea) * vel.X() + state.P() * normArea.X();     
+  data[2] = state.Rho() * vel.DotProd(normArea) * vel.Y() + state.P() * normArea.Y();     
+  data[3] = state.Rho() * vel.DotProd(normArea) * vel.Z() + state.P() * normArea.Z();     
+  data[4] = state.Rho() * vel.DotProd(normArea) * state.Enthalpy(eqnState);
 }
 
 //member function to set the inviscid flux given a state of primative variables, an equation of state, and a face area vector
@@ -84,11 +84,11 @@ void inviscidFlux::SetFlux( const primVars &state, const idealGas &eqnState, con
   vector3d<double> normArea = areaVec / areaVec.Mag(); //normalize area vector
   vector3d<double> vel = state.Velocity();
 
-  rhoVel  = state.Rho() * vel.DotProd(normArea);      
-  rhoVelU = state.Rho() * vel.DotProd(normArea) * vel.X() + state.P() * normArea.X();     
-  rhoVelV = state.Rho() * vel.DotProd(normArea) * vel.Y() + state.P() * normArea.Y();     
-  rhoVelW = state.Rho() * vel.DotProd(normArea) * vel.Z() + state.P() * normArea.Z();     
-  rhoVelH = state.Rho() * vel.DotProd(normArea) * state.Enthalpy(eqnState);
+  data[0]  = state.Rho() * vel.DotProd(normArea);      
+  data[1] = state.Rho() * vel.DotProd(normArea) * vel.X() + state.P() * normArea.X();     
+  data[2] = state.Rho() * vel.DotProd(normArea) * vel.Y() + state.P() * normArea.Y();     
+  data[3] = state.Rho() * vel.DotProd(normArea) * vel.Z() + state.P() * normArea.Z();     
+  data[4] = state.Rho() * vel.DotProd(normArea) * state.Enthalpy(eqnState);
 }
 
 /* Function to calculate inviscid flux using Roe's approximate Riemann solver. The function takes in the primative varibles constructed
@@ -603,7 +603,7 @@ void ApproxRoeFluxJacobian( const primVars &left, const primVars &right, const i
 //operator overload for << - allows use of cout, cerr, etc.
 ostream & operator<< (ostream &os, inviscidFlux &flux){
 
-  os << flux.rhoVel << ", " << flux.rhoVelU << ", " << flux.rhoVelV << ", " << flux.rhoVelW << ", " << flux.rhoVelH << endl;
+  os << flux.data[0] << ", " << flux.data[1] << ", " << flux.data[2] << ", " << flux.data[3] << ", " << flux.data[4] << endl;
 
   return os;
 }
@@ -611,11 +611,11 @@ ostream & operator<< (ostream &os, inviscidFlux &flux){
 //member function for scalar multiplication
 inviscidFlux  inviscidFlux::operator * (const double &scalar){
   inviscidFlux temp = *this;
-  temp.rhoVel *= scalar;
-  temp.rhoVelU *= scalar;
-  temp.rhoVelV *= scalar;
-  temp.rhoVelW *= scalar;
-  temp.rhoVelH *= scalar;
+  temp.data[0] *= scalar;
+  temp.data[1] *= scalar;
+  temp.data[2] *= scalar;
+  temp.data[3] *= scalar;
+  temp.data[4] *= scalar;
   return temp;
 }
 
@@ -633,22 +633,22 @@ inviscidFlux operator* (const double &scalar, const inviscidFlux &flux){
 //operator overload for addition
 inviscidFlux inviscidFlux::operator + (const inviscidFlux& invf2)const{
   inviscidFlux invf1 = *this;
-  invf1.rhoVel += invf2.rhoVel;
-  invf1.rhoVelU += invf2.rhoVelU;
-  invf1.rhoVelV += invf2.rhoVelV;
-  invf1.rhoVelW += invf2.rhoVelW;
-  invf1.rhoVelH += invf2.rhoVelH;
+  invf1.data[0] += invf2.data[0];
+  invf1.data[1] += invf2.data[1];
+  invf1.data[2] += invf2.data[2];
+  invf1.data[3] += invf2.data[3];
+  invf1.data[4] += invf2.data[4];
   return invf1;
 }
 
 //operator overload for subtraction
 inviscidFlux inviscidFlux::operator - (const inviscidFlux& invf2)const{
   inviscidFlux invf1 = *this;
-  invf1.rhoVel -= invf2.rhoVel;
-  invf1.rhoVelU -= invf2.rhoVelU;
-  invf1.rhoVelV -= invf2.rhoVelV;
-  invf1.rhoVelW -= invf2.rhoVelW;
-  invf1.rhoVelH -= invf2.rhoVelH;
+  invf1.data[0] -= invf2.data[0];
+  invf1.data[1] -= invf2.data[1];
+  invf1.data[2] -= invf2.data[2];
+  invf1.data[3] -= invf2.data[3];
+  invf1.data[4] -= invf2.data[4];
   return invf1;
 }
 
@@ -656,11 +656,11 @@ inviscidFlux inviscidFlux::operator - (const inviscidFlux& invf2)const{
 //member function for scalar division
 inviscidFlux  inviscidFlux::operator / (const double &scalar){
   inviscidFlux temp = *this;
-  temp.rhoVel /= scalar;
-  temp.rhoVelU /= scalar;
-  temp.rhoVelV /= scalar;
-  temp.rhoVelW /= scalar;
-  temp.rhoVelH /= scalar;
+  temp.data[0] /= scalar;
+  temp.data[1] /= scalar;
+  temp.data[2] /= scalar;
+  temp.data[3] /= scalar;
+  temp.data[4] /= scalar;
   return temp;
 }
 

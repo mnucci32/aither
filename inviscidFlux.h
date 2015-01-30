@@ -19,31 +19,32 @@ using std::cerr;
 using std::ostream;
 
 class inviscidFlux {
-  double rhoVel;            //rho dot velocity vector
-  double rhoVelU;           //rho dot velocity vector * u-velocity + pressure * i-dir-vector
-  double rhoVelV;           //rho dot velocity vector * v-velocity + pressure * j-dir-vector
-  double rhoVelW;           //rho dot velocity vector * w-velocity + pressure * k-dir-vector
-  double rhoVelH;           //rho dot velocity vector * enthalpy
+  double data[5];
+  /* double rhoVel;            //rho dot velocity vector */
+  /* double rhoVelU;           //rho dot velocity vector * u-velocity + pressure * i-dir-vector */
+  /* double rhoVelV;           //rho dot velocity vector * v-velocity + pressure * j-dir-vector */
+  /* double rhoVelW;           //rho dot velocity vector * w-velocity + pressure * k-dir-vector */
+  /* double rhoVelH;           //rho dot velocity vector * enthalpy */
 
  public:
   //constructors
-  inviscidFlux() : rhoVel(0.0), rhoVelU(0.0), rhoVelV(0.0), rhoVelW(0.0), rhoVelH(0.0) {}
+  inviscidFlux() : data{0.0, 0.0, 0.0, 0.0, 0.0} {}
   inviscidFlux( const primVars&, const idealGas&, const vector3d<double>& );
   inviscidFlux( const colMatrix&, const idealGas&, const vector3d<double>& );
 
   //member functions
   void SetFlux( const primVars&, const idealGas&, const vector3d<double>&);
 
-  void SetRhoVel( const double &a){rhoVel = a;}
-  double RhoVel() const {return rhoVel;}
-  void SetRhoVelU( const double &a){rhoVelU = a;}
-  double RhoVelU() const {return rhoVelU;}
-  void SetRhoVelV( const double &a){rhoVelV = a;}
-  double RhoVelV() const {return rhoVelV;}
-  void SetRhoVelW( const double &a){rhoVelW = a;}
-  double RhoVelW() const {return rhoVelW;}
-  void SetRhoVelH( const double &a){rhoVelH = a;}
-  double RhoVelH() const {return rhoVelH;}
+  void SetRhoVel( const double &a){data[0] = a;}
+  double RhoVel() const {return data[0];}
+  void SetRhoVelU( const double &a){data[1] = a;}
+  double RhoVelU() const {return data[1];}
+  void SetRhoVelV( const double &a){data[2] = a;}
+  double RhoVelV() const {return data[2];}
+  void SetRhoVelW( const double &a){data[3] = a;}
+  double RhoVelW() const {return data[3];}
+  void SetRhoVelH( const double &a){data[4] = a;}
+  double RhoVelH() const {return data[4];}
 
   inviscidFlux operator * (const double&);
   inviscidFlux operator / (const double&);
