@@ -16,14 +16,15 @@ using std::endl;
 //Templated class for a 2D tensor holding 9 elements
 template<class T>
 class tensor {
-  T xx,xy,xz,yx,yy,yz,zx,zy,zz;
+  T data[9];
+  //T xx,xy,xz,yx,yy,yz,zx,zy,zz;
  public:
 
   //constructor
-  tensor( T a, T b, T c, T d, T e, T f, T g, T h, T i) : xx(a), xy(b), xz(c), yx(d), yy(e), yz(f), zx(g), zy(h), zz(i) {}
-  tensor() : xx(0.0), xy(0.0), xz(0.0), yx(0.0), yy(0.0), yz(0.0), zx(0.0), zy(0.0), zz(0.0) {}
-  tensor(T i) : xx(i), xy(0.0), xz(0.0), yx(0.0), yy(i), yz(0.0), zx(0.0), zy(0.0), zz(i) {} 
-  tensor(vector3d<T> v1, vector3d<T> v2, vector3d<T> v3) : xx(v1.X()), xy(v1.Y()), xz(v1.Z()), yx(v2.X()), yy(v2.Y()), yz(v2.Z()), zx(v3.X()), zy(v3.Y()), zz(v3.Z()){}
+ tensor( T a, T b, T c, T d, T e, T f, T g, T h, T i) : data{a,b,c,d,e,f,g,h,i} {}
+ tensor() : data{0,0,0,0,0,0,0,0,0} {}
+ tensor(T i) : data{i,0,0,0,i,0,0,0,i} {} 
+ tensor(vector3d<T> v1, vector3d<T> v2, vector3d<T> v3) : data{v1.X(),v1.Y(),v1.Z(),v2.X(),v2.Y(),v2.Z(),v3.X(),v3.Y(),v3.Z()} {}
 
   //member functions
   //operator overloads
@@ -39,27 +40,27 @@ class tensor {
   template <class TT>
   friend ostream & operator<< (ostream &os, const tensor<TT>&);
   //assignment of data members
-  void SetXX(const T& val){xx = val;}
-  void SetXY(const T& val){xy = val;}
-  void SetXZ(const T& val){xz = val;}
-  void SetYX(const T& val){yx = val;}
-  void SetYY(const T& val){yy = val;}
-  void SetYZ(const T& val){yz = val;}
-  void SetZX(const T& val){zx = val;}
-  void SetZY(const T& val){zy = val;}
-  void SetZZ(const T& val){zz = val;}
+  void SetXX(const T& val){data[0] = val;}
+  void SetXY(const T& val){data[1] = val;}
+  void SetXZ(const T& val){data[2] = val;}
+  void SetYX(const T& val){data[3] = val;}
+  void SetYY(const T& val){data[4] = val;}
+  void SetYZ(const T& val){data[5] = val;}
+  void SetZX(const T& val){data[6] = val;}
+  void SetZY(const T& val){data[7] = val;}
+  void SetZZ(const T& val){data[8] = val;}
   //access of data members
-  T XX()const{return xx;}
-  T XY()const{return xy;}
-  T XZ()const{return xz;}
-  T YX()const{return yx;}
-  T YY()const{return yy;}
-  T YZ()const{return yz;}
-  T ZX()const{return zx;}
-  T ZY()const{return zy;}
-  T ZZ()const{return zz;}
+  T XX()const{return data[0];}
+  T XY()const{return data[1];}
+  T XZ()const{return data[2];}
+  T YX()const{return data[3];}
+  T YY()const{return data[4];}
+  T YZ()const{return data[5];}
+  T ZX()const{return data[6];}
+  T ZY()const{return data[7];}
+  T ZZ()const{return data[8];}
   //math functions
-  T Trace()const{return xx+yy+zz;}
+  T Trace()const{return data[0]+data[4]+data[8];}
   tensor<T> Transpose()const;
   vector3d<T> MatMult(const vector3d<T>&)const;
   tensor<T> Identity()const;
@@ -75,17 +76,17 @@ class tensor {
 template <class T>
 tensor<T> tensor<T>::operator+ (const tensor &v2)const{
   tensor<T> temp = (*this);
-  temp.xx += v2.xx;
-  temp.xy += v2.xy;
-  temp.xz += v2.xz;
+  temp.data[0] += v2.data[0];
+  temp.data[1] += v2.data[1];
+  temp.data[2] += v2.data[2];
 
-  temp.yx += v2.yx;
-  temp.yy += v2.yy;
-  temp.yz += v2.yz;
+  temp.data[3] += v2.data[3];
+  temp.data[4] += v2.data[4];
+  temp.data[5] += v2.data[5];
 
-  temp.zx += v2.zx;
-  temp.zy += v2.zy;
-  temp.zz += v2.zz;
+  temp.data[6] += v2.data[6];
+  temp.data[7] += v2.data[7];
+  temp.data[8] += v2.data[8];
 
   return temp;
 }
@@ -94,17 +95,17 @@ tensor<T> tensor<T>::operator+ (const tensor &v2)const{
 template <class T>
 tensor<T> tensor<T>::operator- (const tensor &v2)const{
   tensor<T> temp = *this;
-  temp.xx -= v2.xx;
-  temp.xy -= v2.xy;
-  temp.xz -= v2.xz;
+  temp.data[0] -= v2.data[0];
+  temp.data[1] -= v2.data[1];
+  temp.data[2] -= v2.data[2];
 
-  temp.yx -= v2.yx;
-  temp.yy -= v2.yy;
-  temp.yz -= v2.yz;
+  temp.data[3] -= v2.data[3];
+  temp.data[4] -= v2.data[4];
+  temp.data[5] -= v2.data[5];
 
-  temp.zx -= v2.zx;
-  temp.zy -= v2.zy;
-  temp.zz -= v2.zz;
+  temp.data[6] -= v2.data[6];
+  temp.data[7] -= v2.data[7];
+  temp.data[8] -= v2.data[8];
 
   return temp;
 }
@@ -114,17 +115,17 @@ template <class T>
 tensor<T> tensor<T>::operator* (const tensor &v2)const{
   tensor<T> temp;
 
-  temp.xx = (*this).xx * v2.xx + (*this).xy * v2.yx + (*this).xz * v2.zx;
-  temp.xy = (*this).xx * v2.xy + (*this).xy * v2.yy + (*this).xz * v2.zy;
-  temp.xz = (*this).xx * v2.xz + (*this).xy * v2.yz + (*this).xz * v2.zz;
+  temp.data[0] = (*this).data[0] * v2.data[0] + (*this).data[1] * v2.data[3] + (*this).data[2] * v2.data[6];
+  temp.data[1] = (*this).data[0] * v2.data[1] + (*this).data[1] * v2.data[4] + (*this).data[2] * v2.data[7];
+  temp.data[2] = (*this).data[0] * v2.data[2] + (*this).data[1] * v2.data[5] + (*this).data[2] * v2.data[8];
 
-  temp.yx = (*this).yx * v2.xx + (*this).yy * v2.yx + (*this).yz * v2.zx;
-  temp.yy = (*this).yx * v2.xy + (*this).yy * v2.yy + (*this).yz * v2.zy;
-  temp.yz = (*this).yx * v2.xz + (*this).yy * v2.yz + (*this).yz * v2.zz;
+  temp.data[3] = (*this).data[3] * v2.data[0] + (*this).data[4] * v2.data[3] + (*this).data[5] * v2.data[6];
+  temp.data[4] = (*this).data[3] * v2.data[1] + (*this).data[4] * v2.data[4] + (*this).data[5] * v2.data[7];
+  temp.data[5] = (*this).data[3] * v2.data[2] + (*this).data[4] * v2.data[5] + (*this).data[5] * v2.data[8];
 
-  temp.zx = (*this).zx * v2.xx + (*this).zy * v2.yx + (*this).zx * v2.zx;
-  temp.zy = (*this).zx * v2.xy + (*this).zy * v2.yy + (*this).zx * v2.zy;
-  temp.zz = (*this).zx * v2.xz + (*this).zy * v2.yz + (*this).zx * v2.zz;
+  temp.data[6] = (*this).data[6] * v2.data[0] + (*this).data[7] * v2.data[3] + (*this).data[6] * v2.data[6];
+  temp.data[7] = (*this).data[6] * v2.data[1] + (*this).data[7] * v2.data[4] + (*this).data[6] * v2.data[7];
+  temp.data[8] = (*this).data[6] * v2.data[2] + (*this).data[7] * v2.data[5] + (*this).data[6] * v2.data[8];
 
   return temp;
 }
@@ -134,17 +135,17 @@ tensor<T> tensor<T>::operator* (const tensor &v2)const{
 template <class T>
 tensor<T> tensor<T>::operator* (const T &scalar)const{
   tensor<T> temp = *this;
-  temp.xx *= scalar;
-  temp.xy *= scalar;
-  temp.xz *= scalar;
+  temp.data[0] *= scalar;
+  temp.data[1] *= scalar;
+  temp.data[2] *= scalar;
 
-  temp.yx *= scalar;
-  temp.yy *= scalar;
-  temp.yz *= scalar;
+  temp.data[3] *= scalar;
+  temp.data[4] *= scalar;
+  temp.data[5] *= scalar;
 
-  temp.zx *= scalar;
-  temp.zy *= scalar;
-  temp.zz *= scalar;
+  temp.data[6] *= scalar;
+  temp.data[7] *= scalar;
+  temp.data[8] *= scalar;
 
   return temp;
 }
@@ -154,17 +155,17 @@ tensor<T> tensor<T>::operator* (const T &scalar)const{
 template <class TT>
 tensor<TT> operator* (const TT &scalar, const tensor<TT> &v1){
   tensor<TT> temp;
-  temp.xx = v1.xx * scalar;
-  temp.xy = v1.xy * scalar;
-  temp.xz = v1.xz * scalar;
+  temp.data[0] = v1.data[0] * scalar;
+  temp.data[1] = v1.data[1] * scalar;
+  temp.data[2] = v1.data[2] * scalar;
 
-  temp.yx = v1.yx * scalar;
-  temp.yy = v1.yy * scalar;
-  temp.yz = v1.yz * scalar;
+  temp.data[3] = v1.data[3] * scalar;
+  temp.data[4] = v1.data[4] * scalar;
+  temp.data[5] = v1.data[5] * scalar;
 
-  temp.zx = v1.zx * scalar;
-  temp.zy = v1.zy * scalar;
-  temp.zz = v1.zz * scalar;
+  temp.data[6] = v1.data[6] * scalar;
+  temp.data[7] = v1.data[7] * scalar;
+  temp.data[8] = v1.data[8] * scalar;
 
   return temp;
 }
@@ -173,17 +174,17 @@ tensor<TT> operator* (const TT &scalar, const tensor<TT> &v1){
 template <class T>
 tensor<T> tensor<T>::operator/ (const T &scalar)const{
   tensor<T> temp = *this;
-  temp.xx /= scalar;
-  temp.xy /= scalar;
-  temp.xz /= scalar;
+  temp.data[0] /= scalar;
+  temp.data[1] /= scalar;
+  temp.data[2] /= scalar;
 
-  temp.yx /= scalar;
-  temp.yy /= scalar;
-  temp.yz /= scalar;
+  temp.data[3] /= scalar;
+  temp.data[4] /= scalar;
+  temp.data[5] /= scalar;
 
-  temp.zx /= scalar;
-  temp.zy /= scalar;
-  temp.zz /= scalar;
+  temp.data[6] /= scalar;
+  temp.data[7] /= scalar;
+  temp.data[8] /= scalar;
 
   return temp;
 }
@@ -193,17 +194,17 @@ tensor<T> tensor<T>::operator/ (const T &scalar)const{
 template <class TT>
 tensor<TT> operator/ (const TT &scalar, const tensor<TT> &v1){
   tensor<TT> temp;
-  temp.xx = scalar/v1.xx;
-  temp.xy = scalar/v1.xy;
-  temp.xz = scalar/v1.xz;
+  temp.data[0] = scalar/v1.data[0];
+  temp.data[1] = scalar/v1.data[1];
+  temp.data[2] = scalar/v1.data[2];
 
-  temp.yx = scalar/v1.yx;
-  temp.yy = scalar/v1.yy;
-  temp.yz = scalar/v1.yz;
+  temp.data[3] = scalar/v1.data[3];
+  temp.data[4] = scalar/v1.data[4];
+  temp.data[5] = scalar/v1.data[5];
 
-  temp.zx = scalar/v1.zx;
-  temp.zy = scalar/v1.zy;
-  temp.zz = scalar/v1.zz;
+  temp.data[6] = scalar/v1.data[6];
+  temp.data[7] = scalar/v1.data[7];
+  temp.data[8] = scalar/v1.data[8];
 
   return temp;
 }
@@ -211,9 +212,9 @@ tensor<TT> operator/ (const TT &scalar, const tensor<TT> &v1){
 //operator overload for << - allows use of cout, cerr, etc.
 template <class TT>
 ostream & operator<< (ostream &os, const tensor<TT> &v1){
-  os << v1.xx << ", " << v1.xy << ", " << v1.xz << endl;
-  os << v1.yx << ", " << v1.yy << ", " << v1.yz << endl;
-  os << v1.zx << ", " << v1.zy << ", " << v1.zz << endl;
+  os << v1.data[0] << ", " << v1.data[1] << ", " << v1.data[2] << endl;
+  os << v1.data[3] << ", " << v1.data[4] << ", " << v1.data[5] << endl;
+  os << v1.data[6] << ", " << v1.data[7] << ", " << v1.data[8] << endl;
   return os;
 }
 
@@ -223,17 +224,17 @@ tensor<T> tensor<T>::Transpose()const{
 
   tensor<T> temp;
 
-  temp.xx = (*this).xx;
-  temp.xy = (*this).yx;
-  temp.xz = (*this).zx;
+  temp.data[0] = (*this).data[0];
+  temp.data[1] = (*this).data[3];
+  temp.data[2] = (*this).data[6];
 
-  temp.yx = (*this).xy;
-  temp.yy = (*this).yy;
-  temp.yz = (*this).zy;
+  temp.data[3] = (*this).data[1];
+  temp.data[4] = (*this).data[4];
+  temp.data[5] = (*this).data[7];
 
-  temp.zx = (*this).xz;
-  temp.zy = (*this).yz;
-  temp.zz = (*this).zz;
+  temp.data[6] = (*this).data[2];
+  temp.data[7] = (*this).data[5];
+  temp.data[8] = (*this).data[8];
 
   return temp;
 
@@ -245,9 +246,9 @@ vector3d<T> tensor<T>::MatMult(const vector3d<T> &vec)const{
 
   vector3d<T> temp;
 
-  temp.SetX( (*this).xx * vec.X() + (*this).xy * vec.Y() + (*this).xz * vec.Z() );
-  temp.SetY( (*this).yx * vec.X() + (*this).yy * vec.Y() + (*this).yz * vec.Z() );
-  temp.SetZ( (*this).zx * vec.X() + (*this).zy * vec.Y() + (*this).zz * vec.Z() );
+  temp.SetX( (*this).data[0] * vec.X() + (*this).data[1] * vec.Y() + (*this).data[2] * vec.Z() );
+  temp.SetY( (*this).data[3] * vec.X() + (*this).data[4] * vec.Y() + (*this).data[5] * vec.Z() );
+  temp.SetZ( (*this).data[6] * vec.X() + (*this).data[7] * vec.Y() + (*this).data[8] * vec.Z() );
 
   return temp;
 
@@ -261,17 +262,17 @@ tensor<T> tensor<T>::Identity()const{
   T one = 1;
   T zero = 0;
 
-  temp.xx = one;
-  temp.xy = zero;
-  temp.xz = zero;
+  temp.data[0] = one;
+  temp.data[1] = zero;
+  temp.data[2] = zero;
 
-  temp.yx = zero;
-  temp.yy = one;
-  temp.yz = zero;
+  temp.data[3] = zero;
+  temp.data[4] = one;
+  temp.data[5] = zero;
 
-  temp.zx = zero;
-  temp.zy = zero;
-  temp.zz = one;
+  temp.data[6] = zero;
+  temp.data[7] = zero;
+  temp.data[8] = one;
 
   return temp;
 
