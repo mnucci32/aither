@@ -14,12 +14,12 @@ using std::ostream;
 //Templated class for a vector holding 3 entries
 template<class T>
 class vector3d {
-  T x,y,z;
+  T data[3];
  public:
 
   //constructor
-  vector3d( T a, T b, T c) : x(a), y(b), z(c) {}
-  vector3d() : x(0), y(0), z(0) {}
+ vector3d( T a, T b, T c) : data{a, b, c} {}
+ vector3d() : data{0, 0, 0} {}
 
   //member functions
   //operator overloads
@@ -35,13 +35,13 @@ class vector3d {
   template <class TT>
   friend ostream & operator<< (ostream &os, const vector3d<TT>&);
   //assignment of data members
-  void SetX(const T& val){x = val;}
-  void SetY(const T& val){y = val;}
-  void SetZ(const T& val){z = val;}
+  void SetX(const T& val){data[0] = val;}
+  void SetY(const T& val){data[1] = val;}
+  void SetZ(const T& val){data[2] = val;}
   //access of data members
-  T X()const{return x;}
-  T Y()const{return y;}
-  T Z()const{return z;}
+  T X()const{return data[0];}
+  T Y()const{return data[1];}
+  T Z()const{return data[2];}
   //math functions
   T DotProd( const vector3d&)const;
   vector3d<T> CrossProd(const vector3d&)const;
@@ -59,9 +59,9 @@ class vector3d {
 template <class T>
 vector3d<T> vector3d<T>::operator+ (const vector3d &v2)const{
   vector3d<T> temp = *this;
-  temp.x += v2.x;
-  temp.y += v2.y;
-  temp.z += v2.z;
+  temp.data[0] += v2.data[0];
+  temp.data[1] += v2.data[1];
+  temp.data[2] += v2.data[2];
   return temp;
 }
 
@@ -69,9 +69,9 @@ vector3d<T> vector3d<T>::operator+ (const vector3d &v2)const{
 template <class T>
 vector3d<T> vector3d<T>::operator- (const vector3d &v2)const{
   vector3d<T> temp = *this;
-  temp.x -= v2.x;
-  temp.y -= v2.y;
-  temp.z -= v2.z;
+  temp.data[0] -= v2.data[0];
+  temp.data[1] -= v2.data[1];
+  temp.data[2] -= v2.data[2];
   return temp;
 }
 
@@ -79,9 +79,9 @@ vector3d<T> vector3d<T>::operator- (const vector3d &v2)const{
 template <class T>
 vector3d<T> vector3d<T>::operator* (const T &scalar)const{
   vector3d<T> temp = *this;
-  temp.x *= scalar;
-  temp.y *= scalar;
-  temp.z *= scalar;
+  temp.data[0] *= scalar;
+  temp.data[1] *= scalar;
+  temp.data[2] *= scalar;
   return temp;
 }
 
@@ -90,9 +90,9 @@ vector3d<T> vector3d<T>::operator* (const T &scalar)const{
 template <class TT>
 vector3d<TT> operator* (const TT &scalar, const vector3d<TT> &v1){
   vector3d<TT> temp;
-  temp.x = v1.x * scalar;
-  temp.y = v1.y * scalar;
-  temp.z = v1.z * scalar;
+  temp.data[0] = v1.data[0] * scalar;
+  temp.data[1] = v1.data[1] * scalar;
+  temp.data[2] = v1.data[2] * scalar;
   return temp;
 }
 
@@ -100,9 +100,9 @@ vector3d<TT> operator* (const TT &scalar, const vector3d<TT> &v1){
 template <class T>
 vector3d<T> vector3d<T>::operator/ (const T &scalar)const{
   vector3d<T> temp = *this;
-  temp.x /= scalar;
-  temp.y /= scalar;
-  temp.z /= scalar;
+  temp.data[0] /= scalar;
+  temp.data[1] /= scalar;
+  temp.data[2] /= scalar;
   return temp;
 }
 
@@ -111,16 +111,16 @@ vector3d<T> vector3d<T>::operator/ (const T &scalar)const{
 template <class TT>
 vector3d<TT> operator/ (const TT &scalar, const vector3d<TT> &v1){
   vector3d<TT> temp;
-  temp.x = scalar/v1.x;
-  temp.y = scalar/v1.y;
-  temp.z = scalar/v1.z;
+  temp.data[0] = scalar/v1.data[0];
+  temp.data[1] = scalar/v1.data[1];
+  temp.data[2] = scalar/v1.data[2];
   return temp;
 }
 
 //operator overload for << - allows use of cout, cerr, etc.
 template <class TT>
 ostream & operator<< (ostream &os, const vector3d<TT> &v1){
-  os << v1.x << ", " << v1.y << ", " << v1.z;
+  os << v1.data[0] << ", " << v1.data[1] << ", " << v1.data[2];
   return os;
 }
 
@@ -128,7 +128,7 @@ ostream & operator<< (ostream &os, const vector3d<TT> &v1){
 template <class T>
 T vector3d<T>::DotProd( const vector3d &v2)const{
 
-  return x*v2.x + y*v2.y + z*v2.z;
+  return data[0]*v2.data[0] + data[1]*v2.data[1] + data[2]*v2.data[2];
 
 }
 
@@ -137,7 +137,7 @@ template <class T>
 bool vector3d<T>::operator== (const vector3d &v2)const{
   bool test = false;
   vector3d<T> temp = *this;
-  if ( temp.x == v2.x && temp.y == v2.y && temp.z == v2.z ){
+  if ( temp.data[0] == v2.data[0] && temp.data[1] == v2.data[1] && temp.data[2] == v2.data[2] ){
     test = true;
   }
   return test;
@@ -149,9 +149,9 @@ vector3d<T> vector3d<T>::CrossProd(const vector3d &v2)const{
 
   vector3d<T> crossProd;
 
-  crossProd.x = y*v2.z-z*v2.y;
-  crossProd.y = -1.0*(x*v2.z-z*v2.x);
-  crossProd.z = x*v2.y-y*v2.x;
+  crossProd.data[0] = data[1]*v2.data[2]-data[2]*v2.data[1];
+  crossProd.data[1] = -1.0*(data[0]*v2.data[2]-data[2]*v2.data[0]);
+  crossProd.data[2] = data[0]*v2.data[1]-data[1]*v2.data[0];
 
   return crossProd;
 
@@ -160,20 +160,20 @@ vector3d<T> vector3d<T>::CrossProd(const vector3d &v2)const{
 //Function to calculate the magnitude of the vector
 template <class T>
 T vector3d<T>::Mag()const{
-  return sqrt(x*x + y*y + z*z);
+  return sqrt(data[0]*data[0] + data[1]*data[1] + data[2]*data[2]);
 }
 
 //Function to calculate the square of the magnitude of the vector
 template <class T>
 T vector3d<T>::MagSq()const{
-  return x*x + y*y + z*z;
+  return data[0]*data[0] + data[1]*data[1] + data[2]*data[2];
 }
 
 //Function to sum the elements in the vector
 template <class T>
 T vector3d<T>::SumElem()const{
 
-  return x + y + z;
+  return data[0] + data[1] + data[2];
 
 }
 
@@ -181,7 +181,7 @@ T vector3d<T>::SumElem()const{
 template <class T>
 T vector3d<T>::Distance( const vector3d &v2)const{
 
-  return sqrt( pow(x-v2.x , 2) + pow(y-v2.y , 2) + pow(z-v2.z , 2) );
+  return sqrt( pow(data[0]-v2.data[0] , 2) + pow(data[1]-v2.data[1] , 2) + pow(data[2]-v2.data[2] , 2) );
 
 }
 
