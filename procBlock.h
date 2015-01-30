@@ -169,10 +169,10 @@ class procBlock {
   bool AtCorner(const int&, const int&, const int&)const;
   bool AtEdge(const int&, const int&, const int&)const;
 
-  geomSlice GetGeomSlice(const int&, const int&, const int&, const int&, const int&, const int&, const bool&, const bool&, const bool&)const;
+  geomSlice GetGeomSlice(const int&, const int&, const int&, const int&, const int&, const int&, const bool=false, const bool=false, const bool=false)const;
   void PutGeomSlice(const geomSlice&, const interblock&, const int&);
 
-  stateSlice GetStateSlice(const int&, const int&, const int&, const int&, const int&, const int&, const bool&, const bool&, const bool&)const;
+  stateSlice GetStateSlice(const int&, const int&, const int&, const int&, const int&, const int&, const bool=false, const bool=false, const bool=false)const;
   void PutStateSlice(const stateSlice&, const interblock&, const int&);
 
   //destructor
@@ -198,7 +198,7 @@ vector3d<double> CalcTempGradGG(const double&, const double&, const double&, con
 				const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const double&);
 
 
-vector<int> GetSwapLoc( const int&, const int&, const int&, const interblock&, const bool&, int=0 );
+vector<int> GetSwapLoc( const int&, const int&, const int&, const interblock&, const bool&);
 void SwapSlice(const interblock&, procBlock&, procBlock&, const bool&);
 
 void GetBoundaryConditions(vector<procBlock>&, const input&, const idealGas&, const vector<interblock>&);
