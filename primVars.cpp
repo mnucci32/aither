@@ -17,135 +17,135 @@ using std::min;
 
 //operator overload for << - allows use of cout, cerr, etc.
 ostream & operator<< (ostream &os, const primVars &prim){
-  os << prim.rho << ", " << prim.u << ", " << prim.v << ", " << prim.w << ", " << prim.p << endl;
+  os << prim.data[0] << ", " << prim.data[1] << ", " << prim.data[2] << ", " << prim.data[3] << ", " << prim.data[4] << endl;
   return os;
 }
 
 //operator overload for addition
 primVars primVars::operator + (const primVars& prim2)const{
   primVars prim1 = *this;
-  prim1.rho += prim2.rho;
-  prim1.u += prim2.u;
-  prim1.v += prim2.v;
-  prim1.w += prim2.w;
-  prim1.p += prim2.p;
+  prim1.data[0] += prim2.data[0];
+  prim1.data[1] += prim2.data[1];
+  prim1.data[2] += prim2.data[2];
+  prim1.data[3] += prim2.data[3];
+  prim1.data[4] += prim2.data[4];
   return prim1;
 }
 
 //operator overload for addition with a scalar
 primVars operator+ (const double &scalar, const primVars &prim2){
-  primVars prim1( prim2.rho + scalar,
-		  prim2.u + scalar,
-		  prim2.v + scalar,
-		  prim2.w + scalar,
-		  prim2.p + scalar);
+  primVars prim1( prim2.data[0] + scalar,
+		  prim2.data[1] + scalar,
+		  prim2.data[2] + scalar,
+		  prim2.data[3] + scalar,
+		  prim2.data[4] + scalar);
   return prim1;
 }
 
 //operator overload for subtraction
 primVars primVars::operator - (const primVars& prim2)const{
   primVars prim1 = *this;
-  prim1.rho -= prim2.rho;
-  prim1.u -= prim2.u;
-  prim1.v -= prim2.v;
-  prim1.w -= prim2.w;
-  prim1.p -= prim2.p;
+  prim1.data[0] -= prim2.data[0];
+  prim1.data[1] -= prim2.data[1];
+  prim1.data[2] -= prim2.data[2];
+  prim1.data[3] -= prim2.data[3];
+  prim1.data[4] -= prim2.data[4];
   return prim1;
 }
 
 //operator overload for subtraction with a scalar
 primVars operator- (const double &scalar, const primVars &prim2){
-  primVars prim1( scalar - prim2.rho,
-		  scalar - prim2.u,
-		  scalar - prim2.v,
-		  scalar - prim2.w,
-		  scalar - prim2.p );
+  primVars prim1( scalar - prim2.data[0],
+		  scalar - prim2.data[1],
+		  scalar - prim2.data[2],
+		  scalar - prim2.data[3],
+		  scalar - prim2.data[4] );
   return prim1;
 }
 
 //operator overload for elementwise multiplication
 primVars primVars::operator * (const primVars& prim2)const{
   primVars prim1 = *this;
-  prim1.rho *= prim2.rho;
-  prim1.u *= prim2.u;
-  prim1.v *= prim2.v;
-  prim1.w *= prim2.w;
-  prim1.p *= prim2.p;
+  prim1.data[0] *= prim2.data[0];
+  prim1.data[1] *= prim2.data[1];
+  prim1.data[2] *= prim2.data[2];
+  prim1.data[3] *= prim2.data[3];
+  prim1.data[4] *= prim2.data[4];
   return prim1;
 }
 
 //member function for scalar multiplication
 primVars  primVars::operator * (const double &scalar){
   primVars temp = *this;
-  temp.rho *= scalar;
-  temp.u *= scalar;
-  temp.v *= scalar;
-  temp.w *= scalar;
-  temp.p *= scalar;
+  temp.data[0] *= scalar;
+  temp.data[1] *= scalar;
+  temp.data[2] *= scalar;
+  temp.data[3] *= scalar;
+  temp.data[4] *= scalar;
   return temp;
 }
 
 //member function for scalar addition
 primVars  primVars::operator + (const double &scalar){
   primVars temp = *this;
-  temp.rho += scalar;
-  temp.u += scalar;
-  temp.v += scalar;
-  temp.w += scalar;
-  temp.p += scalar;
+  temp.data[0] += scalar;
+  temp.data[1] += scalar;
+  temp.data[2] += scalar;
+  temp.data[3] += scalar;
+  temp.data[4] += scalar;
   return temp;
 }
 
 //member function for scalar subtraction
 primVars  primVars::operator - (const double &scalar){
   primVars temp = *this;
-  temp.rho -= scalar;
-  temp.u -= scalar;
-  temp.v -= scalar;
-  temp.w -= scalar;
-  temp.p -= scalar;
+  temp.data[0] -= scalar;
+  temp.data[1] -= scalar;
+  temp.data[2] -= scalar;
+  temp.data[3] -= scalar;
+  temp.data[4] -= scalar;
   return temp;
 }
 
 //member function for scalar division
 primVars  primVars::operator / (const double &scalar){
   primVars temp = *this;
-  temp.rho /= scalar;
-  temp.u /= scalar;
-  temp.v /= scalar;
-  temp.w /= scalar;
-  temp.p /= scalar;
+  temp.data[0] /= scalar;
+  temp.data[1] /= scalar;
+  temp.data[2] /= scalar;
+  temp.data[3] /= scalar;
+  temp.data[4] /= scalar;
   return temp;
 }
 
 //operator overload for multiplication with a scalar
 primVars operator* (const double &scalar, const primVars &prim2){
-  primVars prim1( prim2.rho * scalar,
-		  prim2.u * scalar,
-		  prim2.v * scalar,
-		  prim2.w * scalar,
-		  prim2.p * scalar);
+  primVars prim1( prim2.data[0] * scalar,
+		  prim2.data[1] * scalar,
+		  prim2.data[2] * scalar,
+		  prim2.data[3] * scalar,
+		  prim2.data[4] * scalar);
   return prim1;
 }
 
 //operator overload for elementwise division
 primVars primVars::operator / (const primVars& prim2)const{
   primVars prim1 = *this;
-  prim1.rho /= prim2.rho;
-  prim1.u /= prim2.u;
-  prim1.v /= prim2.v;
-  prim1.w /= prim2.w;
-  prim1.p /= prim2.p;
+  prim1.data[0] /= prim2.data[0];
+  prim1.data[1] /= prim2.data[1];
+  prim1.data[2] /= prim2.data[2];
+  prim1.data[3] /= prim2.data[3];
+  prim1.data[4] /= prim2.data[4];
   return prim1;
 }
 
 //operator overload for division with a scalar
 primVars operator/ (const double &scalar, const primVars &prim2){
-  primVars prim1( scalar / prim2.rho,
-		  scalar / prim2.u,
-		  scalar / prim2.v,
-		  scalar / prim2.w,
-		  scalar / prim2.p);
+  primVars prim1( scalar / prim2.data[0],
+		  scalar / prim2.data[1],
+		  scalar / prim2.data[2],
+		  scalar / prim2.data[3],
+		  scalar / prim2.data[4]);
   return prim1;
 }
 

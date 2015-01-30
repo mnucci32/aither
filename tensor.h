@@ -17,7 +17,6 @@ using std::endl;
 template<class T>
 class tensor {
   T data[9];
-  //T xx,xy,xz,yx,yy,yz,zx,zy,zz;
  public:
 
   //constructor

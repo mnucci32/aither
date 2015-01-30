@@ -28,29 +28,25 @@ using std::cerr;
 using std::ostream;
 
 class primVars {
-  double rho;            //primative variables at cell center
-  double u;
-  double v;
-  double w;
-  double p;
+  double data[5];        //primative variables at cell center
 
  public:
   //constructors
-  primVars() : rho(0.0), u(0.0), v(0.0), w(0.0), p(0.0) {}
-  primVars( double r, double p, vector3d<double> v) : rho(r), u(v.X()), v(v.Y()), w(v.Z()), p(p) {}
-  primVars( double a, double b, double c, double d, double e) : rho(a), u(b), v(c), w(d), p(e) {}
+ primVars() : data{0.0, 0.0, 0.0, 0.0, 0.0} {}
+ primVars( double r, double p, vector3d<double> v) : data{r, v.X(), v.Y(), v.Z(), p} {}
+ primVars( double a, double b, double c, double d, double e) : data{a, b, c, d, e} {}
 
   //member functions
-  void SetRho( const double &a){rho = a;}
-  double Rho()const{return rho;}
-  void SetU( const double &a){u = a;}
-  double U()const{return u;}
-  void SetV( const double &a){v = a;}
-  double V()const{return v;}
-  void SetW( const double &a){w = a;}
-  double W()const{return w;}
-  void SetP( const double &a){p = a;}
-  double P()const{return p;}
+  void SetRho( const double &a){data[0] = a;}
+  double Rho()const{return data[0];}
+  void SetU( const double &a){data[1] = a;}
+  double U()const{return data[1];}
+  void SetV( const double &a){data[2] = a;}
+  double V()const{return data[2];}
+  void SetW( const double &a){data[3] = a;}
+  double W()const{return data[3];}
+  void SetP( const double &a){data[4] = a;}
+  double P()const{return data[4];}
 
   inline vector3d<double> Velocity()const;
 
@@ -104,38 +100,38 @@ class primVars {
 
 //member function to calculate temperature from conserved variables and equation of state
 double primVars::Temperature(const idealGas &eqnState)const{
-  return eqnState.GetTemperature(p, rho);
+  return eqnState.GetTemperature(data[4], data[0]);
 }
 
 //member function to calculate velocity from conserved variables
 vector3d<double> primVars::Velocity()const{
-  vector3d<double> vel(u, v, w);
+  vector3d<double> vel(data[1], data[2], data[3]);
   return vel;
 }
 
 //member function to calculate total enthalpy from conserved variables
 double primVars::Energy(const idealGas &eqnState)const{
-  return eqnState.GetEnergy( eqnState.GetSpecEnergy(p, rho), (*this).Velocity().Mag() );
+  return eqnState.GetEnergy( eqnState.GetSpecEnergy(data[4], data[0]), (*this).Velocity().Mag() );
 }
 
 //member function to calculate speed of sound from primative varialbes
 double primVars::SoS(const idealGas &eqnState)const{
-  return sqrt(eqnState.Gamma() * p / rho);
+  return sqrt(eqnState.Gamma() * data[4] / data[0]);
 }
 
 //member function to calculate enthalpy from conserved variables and equation of state
 double primVars::Enthalpy(const idealGas &eqnState)const{
-  return eqnState.GetEnthalpy((*this).Energy(eqnState), p, rho);
+  return eqnState.GetEnthalpy((*this).Energy(eqnState), data[4], data[0]);
 }
 
 //member function to calculate conserved variables from primative variables
 colMatrix primVars::ConsVars(const idealGas &eqnState)const{
   colMatrix cv(5);
-  cv.SetData(0, rho);
-  cv.SetData(1, rho * u);
-  cv.SetData(2, rho * v);
-  cv.SetData(3, rho * w);
-  cv.SetData(4, rho * (*this).Energy(eqnState));
+  cv.SetData(0, data[0]);
+  cv.SetData(1, data[0] * data[1]);
+  cv.SetData(2, data[0] * data[2]);
+  cv.SetData(3, data[0] * data[3]);
+  cv.SetData(4, data[0] * (*this).Energy(eqnState));
   return cv;
 }
 
