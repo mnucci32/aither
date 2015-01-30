@@ -19,12 +19,11 @@ using std::cerr;
 using std::ostream;
 
 class inviscidFlux {
-  double data[5];
-  /* double rhoVel;            //rho dot velocity vector */
-  /* double rhoVelU;           //rho dot velocity vector * u-velocity + pressure * i-dir-vector */
-  /* double rhoVelV;           //rho dot velocity vector * v-velocity + pressure * j-dir-vector */
-  /* double rhoVelW;           //rho dot velocity vector * w-velocity + pressure * k-dir-vector */
-  /* double rhoVelH;           //rho dot velocity vector * enthalpy */
+  double data[5];                 //rho dot velocity vector
+                                  //rho dot velocity vector * u-velocity + pressure * i-dir-vector
+                                  //rho dot velocity vector * v-velocity + pressure * j-dir-vector
+                                  //rho dot velocity vector * w-velocity + pressure * k-dir-vector
+                                  //rho dot velocity vector * enthalpy
 
  public:
   //constructors

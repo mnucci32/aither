@@ -45,27 +45,27 @@ viscousFlux::viscousFlux( const tensor<double> &velGrad, const vector3d<double> 
   //wall shear stress
   vector3d<double> tau = lambda * velGradTrace * normArea + mu * (velGrad.MatMult(normArea) + velGrad.Transpose().MatMult(normArea));
 
-  momX = tau.X();
-  momY = tau.Y();
-  momZ = tau.Z();
-  engy = tau.DotProd(vel) + eqnState.GetConductivity(mu) * tGrad.DotProd(normArea);
+  data[0] = tau.X();
+  data[1] = tau.Y();
+  data[2] = tau.Z();
+  data[3] = tau.DotProd(vel) + eqnState.GetConductivity(mu) * tGrad.DotProd(normArea);
 
 }
 
 //non-member functions -----------------------------------------------------------------------------------------------------------//
 //operator overload for << - allows use of cout, cerr, etc.
 ostream & operator<< (ostream &os, viscousFlux &flux){
-  os << "0.0, " << flux.momX << ", " << flux.momY << ", " << flux.momZ << ", " << flux.engy << endl;
+  os << "0.0, " << flux.data[0] << ", " << flux.data[1] << ", " << flux.data[2] << ", " << flux.data[3] << endl;
   return os;
 }
 
 //member function for scalar multiplication
 viscousFlux  viscousFlux::operator * (const double &scalar){
   viscousFlux temp = *this;
-  temp.momX *= scalar;
-  temp.momY *= scalar;
-  temp.momZ *= scalar;
-  temp.engy *= scalar;
+  temp.data[0] *= scalar;
+  temp.data[1] *= scalar;
+  temp.data[2] *= scalar;
+  temp.data[3] *= scalar;
   return temp;
 }
 
@@ -82,10 +82,10 @@ viscousFlux operator* (const double &scalar, const viscousFlux &flux){
 //member function for scalar division
 viscousFlux  viscousFlux::operator / (const double &scalar){
   viscousFlux temp = *this;
-  temp.momX /= scalar;
-  temp.momY /= scalar;
-  temp.momZ /= scalar;
-  temp.engy /= scalar;
+  temp.data[0] /= scalar;
+  temp.data[1] /= scalar;
+  temp.data[2] /= scalar;
+  temp.data[3] /= scalar;
   return temp;
 }
 
@@ -119,10 +119,10 @@ void viscousFlux::SetFlux( const tensor<double> &velGrad, const vector3d<double>
   //calculate wall shear stress
   vector3d<double> tau = lambda * velGradTrace * normArea + mu * (velGrad.MatMult(normArea) + velGrad.Transpose().MatMult(normArea));
 
-  momX = tau.X();
-  momY = tau.Y();
-  momZ = tau.Z();
-  engy = tau.DotProd(vel) + eqnState.GetConductivity(mu) * tGrad.DotProd(normArea);
+  data[0] = tau.X();
+  data[1] = tau.Y();
+  data[2] = tau.Z();
+  data[3] = tau.DotProd(vel) + eqnState.GetConductivity(mu) * tGrad.DotProd(normArea);
 }
 
 //function to calculate the thin shear layer flux jacobian -- NOT USED in LUSGS formulation

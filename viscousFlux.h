@@ -9,7 +9,6 @@
 #include "primVars.h" //primVars
 #include "matrix.h" //squareMatrix
 #include "input.h" //input
-//#include "boundaryConditions.h" //boundaryConditions
 #include <iostream> //cout
 
 using std::vector;
@@ -20,25 +19,25 @@ using std::cerr;
 using std::ostream;
 
 class viscousFlux {
-  double momX;           //viscous flux for x-momentum equation
-  double momY;           //viscous flux for y-momentum equation
-  double momZ;           //viscous flux for z-momentum equation
-  double engy;           //viscous flux for energy equation
+  double data[4];           //viscous flux for x-momentum equation
+                            //viscous flux for y-momentum equation
+                            //viscous flux for z-momentum equation
+                            //viscous flux for energy equation
 
  public:
   //constructors
-  viscousFlux() : momX(0.0), momY(0.0), momZ(0.0), engy(0.0) {}
+  viscousFlux() : data{0.0, 0.0, 0.0, 0.0} {}
   viscousFlux( const tensor<double>&, const vector3d<double>&, const double&, const sutherland&, const idealGas&, const vector3d<double>&, const vector3d<double>& );
 
   //member functions
-  void SetMomX( const double &a){momX = a;}
-  double MomX() const {return momX;}
-  void SetMomY( const double &a){momY = a;}
-  double MomY() const {return momY;}
-  void SetMomZ( const double &a){momZ = a;}
-  double MomZ() const {return momZ;}
-  void SetEngy( const double &a){engy = a;}
-  double Engy() const {return engy;}
+  void SetMomX( const double &a){data[0] = a;}
+  double MomX() const {return data[0];}
+  void SetMomY( const double &a){data[1] = a;}
+  double MomY() const {return data[1];}
+  void SetMomZ( const double &a){data[2] = a;}
+  double MomZ() const {return data[2];}
+  void SetEngy( const double &a){data[3] = a;}
+  double Engy() const {return data[3];}
 
   void SetFlux( const tensor<double>&, const vector3d<double>&, const double&, const sutherland&, const idealGas&, const vector3d<double>&, const vector3d<double>& );
 
