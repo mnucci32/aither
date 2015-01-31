@@ -1111,19 +1111,10 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
   int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
-
-  //initialize correction (x) to 0 -- assumed to be 0 already
-  // for (unsigned int ll = 0; ll < x.size(); ll++ ){
-  //   x[ll].Zero();
-  // }
-
   //initialize inverse to diagonal block. For LUSGS block inversion is replaced by scalar division
   double AiiInv = 0.0; 
 
   double thetaInv = 1.0 / inp.Theta();
-
-  squareMatrix I(x[0].Size());
-  I.Identity();
 
   //initialize column matrix to zero
   colMatrix initial(x[0].Size());
@@ -1183,7 +1174,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
       colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(ilG), eqnState, (*this).FAreaI(ilFaceG), x[il]);
 
       //update L matrix
-      L[loc] = L[loc] + 0.5 * ( (*this).FAreaI(ilFaceG).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[il]) );
+      L[loc] = L[loc] + 0.5 * ( (*this).FAreaI(ilFaceG).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * x[il] );
     }
     //if j lower diagonal cell is in physical location there is a contribution from it
     if ( jl >=0 && jl < (int)x.size() ){
@@ -1203,7 +1194,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
       colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(jlG), eqnState, (*this).FAreaJ(jlFaceG), x[jl]);
 
       //update L matrix
-      L[loc] = L[loc] + 0.5 * ( (*this).FAreaJ(jlFaceG).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[jl]) );
+      L[loc] = L[loc] + 0.5 * ( (*this).FAreaJ(jlFaceG).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * x[jl] );
     }
     //if k lower diagonal cell is in physical location there is a contribution from it
     if ( kl >=0 && kl < (int)x.size() ){
@@ -1223,7 +1214,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
       colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(klG), eqnState, (*this).FAreaK(klFaceG), x[kl]);
 
       //update L matrix
-      L[loc] = L[loc] + 0.5 * ( (*this).FAreaK(klFaceG).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * I.Multiply(x[kl]) );
+      L[loc] = L[loc] + 0.5 * ( (*this).FAreaK(klFaceG).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * x[kl] );
     }
 
     //add dual time stepping contribution to main diagonal
@@ -1290,7 +1281,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
       colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(iuG), eqnState, (*this).FAreaI(iuFaceG), x[iu]);
 
       //update U matrix
-      U[loc] = U[loc] + 0.5 * ( (*this).FAreaI(iuFaceG).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[iu]) );
+      U[loc] = U[loc] + 0.5 * ( (*this).FAreaI(iuFaceG).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * x[iu] );
     }
     //if j upper diagonal cell is in physical location there is a contribution from it
     if ( ju >=0 && ju < (int)x.size() ){
@@ -1310,7 +1301,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
       colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(juG), eqnState, (*this).FAreaJ(juFaceG), x[ju]);
 
       //update U matrix
-      U[loc] = U[loc] + 0.5 * ( (*this).FAreaJ(juFaceG).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[ju]) );
+      U[loc] = U[loc] + 0.5 * ( (*this).FAreaJ(juFaceG).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * x[ju] );
     }
     //if k upper diagonal cell is in physical location there is a contribution from it
     if ( ku >=0 && ku < (int)x.size() ){
@@ -1330,7 +1321,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
       colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(kuG), eqnState, (*this).FAreaK(kuFaceG), x[ku]);
 
       //update U matrix
-      U[loc] = U[loc] + 0.5 * ( (*this).FAreaK(kuFaceG).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * I.Multiply(x[ku]) );
+      U[loc] = U[loc] + 0.5 * ( (*this).FAreaK(kuFaceG).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * x[ku] );
     }
 
     //add dual time stepping contribution to main diagonal
