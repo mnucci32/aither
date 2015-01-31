@@ -2,9 +2,10 @@ OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o inviscidFlu
 CC = g++
 DEBUG = -ggdb -pg 
 OPTIM = -O3 -march=native
+PROF = -O3 -march=native -pg
 CODENAME = main
-CFLAGS = -std=c++0x -Wall -c $(OPTIM)
-LFLAGS = -std=c++0x -Wall $(OPTIM) -o $(CODENAME)
+CFLAGS = -std=c++11 -Wall -c $(OPTIM)
+LFLAGS = -std=c++11 -Wall $(OPTIM) -o $(CODENAME)
 
 $(CODENAME) : $(OBJS)
 	$(CC) $(LFLAGS) $(OBJS)
