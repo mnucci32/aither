@@ -147,6 +147,9 @@ input ReadInput(const string &inputName){
 
   input inputVars;
 
+  //debug
+  cout << "allocated inputVars" << endl;
+
   //open input file
   ifstream inFile;
   inFile.open(inputName.c_str(), ios::in);
@@ -166,6 +169,10 @@ input ReadInput(const string &inputName){
   int numSurf = 0;
 
   while(getline(inFile,line)){   //while there are still lines in the input file, execute loop
+
+    //debug
+    cout << "at line: " << line << endl;
+
 
     line = trim(line);  //remove leading and trailing whitespace and ignore comments
 

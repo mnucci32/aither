@@ -1,3 +1,4 @@
+#include "mpi.h"         //for parallelism
 #include <iostream>      //cout, cerr, endl
 #include "plot3d.h"
 #include "vector3d.h"
@@ -25,6 +26,30 @@ using std::clock_t;
 using std::clock;
 
 int main( int argc, char *argv[] ) {
+
+  //initialize MPI and make calls to get number of processors and rank of each processor
+  int numProcs, rank, mpiError;
+  MPI_Init(&argc,&argv);
+  MPI_Comm_size(MPI_COMM_WORLD, &numProcs);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+  //get MPI version
+  int version, subversion;
+  mpiError = MPI_Get_version(&version, &subversion);
+  if (rank == 0 ){
+    cout << "Using MPI Version " << version << "." << subversion << endl;
+  }
+
+  cout << "Hello from processor " << rank << " of " << numProcs << "!" << endl;
+
+
+  if (rank == 0 ){
+
+    cout << "allocating input" << endl;
+    input dumInp;
+    cout << "input allocated" << endl;
+
+
 
   //start clock to time simulation
   clock_t start;
@@ -235,6 +260,10 @@ int main( int argc, char *argv[] ) {
 
   duration = (clock() - start)/(double) CLOCKS_PER_SEC;
   cout << "Total Time: " << duration << " seconds" << endl;
+
+  }
+
+  mpiError = MPI_Finalize();
 
   return 0;
 }
