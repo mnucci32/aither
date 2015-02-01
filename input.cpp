@@ -16,7 +16,7 @@ using std::istream_iterator;
 
 //constructor for input class
 //initialize vector to have length of number of acceptable inputs to the code
-input::input(): vars(31){
+input::input(): vars(32){
   vector<double> stagProps(6,0.0);
   vector<double> pOutlet(2,0.0);
 
@@ -147,9 +147,6 @@ input ReadInput(const string &inputName){
 
   input inputVars;
 
-  //debug
-  cout << "allocated inputVars" << endl;
-
   //open input file
   ifstream inFile;
   inFile.open(inputName.c_str(), ios::in);
@@ -169,10 +166,6 @@ input ReadInput(const string &inputName){
   int numSurf = 0;
 
   while(getline(inFile,line)){   //while there are still lines in the input file, execute loop
-
-    //debug
-    cout << "at line: " << line << endl;
-
 
     line = trim(line);  //remove leading and trailing whitespace and ignore comments
 

@@ -45,9 +45,6 @@ int main( int argc, char *argv[] ) {
 
   if (rank == 0 ){
 
-    cout << "allocating input" << endl;
-    input dumInp;
-    cout << "input allocated" << endl;
 
 
 
