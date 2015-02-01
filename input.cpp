@@ -55,6 +55,7 @@ input::input(): vars(31){
   inviscidFlux = "roe";        //default value is roe flux
   stagInletProps = stagProps;
   pressureOutlet = pOutlet;
+  decompMethod = "manual";     //default is manual decomposition
 
   //keywords in the input file that the parser is looking for to define variables
   vars[0] = "gridName:";
@@ -87,8 +88,9 @@ input::input(): vars(31){
   vars[27] = "inviscidFlux:";
   vars[28] = "stagnationInlet:";
   vars[29] = "pressureOutlet:";
+  vars[30] = "decompositionMethod:";
 
-  vars[30] = "boundaryConditions:";  //boundary conditions should be listed last
+  vars[31] = "boundaryConditions:";  //boundary conditions should be listed last
 }
 
 //member function to set vector holding boundary conditions for each block
@@ -361,6 +363,11 @@ input ReadInput(const string &inputName){
             inputVars.SetPressureOutletP(atof(tokens[2].c_str()));
 	    cout << inputVars.Vars(ii) << " " << inputVars.PressureOutletTag() << " " << inputVars.PressureOutletP() << endl;
 	  }
+          else if (ii==30 && readingBCs == 0){
+            inputVars.SetDecompMethod(tokens[1]);
+            cout << inputVars.Vars(ii) << " " << inputVars.DecompMethod() << endl;
+            continue;
+          }
 
 	  //reading BCs -------------------------------------------------------------------------------------------------------
           else if (ii==inputVars.NumVars()-1 || readingBCs > 0){

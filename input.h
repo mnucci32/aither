@@ -43,6 +43,7 @@ class input {
   string inviscidFlux;                  //scheme for inviscid flux calculation
   vector<double> stagInletProps;        //vector of stagnation inlet properties
   vector<double> pressureOutlet;        //vector of pressure outlet properties
+  string decompMethod;                  //method of decomposition for parallel problems
 
  public:
   //constructor
@@ -158,6 +159,8 @@ class input {
   double PressureOutletP()const{return pressureOutlet[1];}
   void SetPressureOutletP(const double &a){pressureOutlet[1] = a;}
 
+  string DecompMethod()const{return decompMethod;}
+  void SetDecompMethod(const string &name){decompMethod = name;}
 
   string Vars(const int &ind)const{return vars[ind];}
 
