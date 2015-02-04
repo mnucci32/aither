@@ -1,4 +1,4 @@
-OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o inviscidFlux.o procBlock.o viscousFlux.o output.o matrix.o geomSlice.o
+OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o inviscidFlux.o procBlock.o viscousFlux.o output.o matrix.o geomSlice.o parallel.o
 CC = mpic++
 DEBUG = -ggdb -pg 
 OPTIM = -O3 -march=native
@@ -13,7 +13,7 @@ $(CODENAME) : $(OBJS)
 plot3d.o : plot3d.cpp plot3d.h vector3d.h
 	$(CC) $(CFLAGS) plot3d.cpp
 
-main.o : main.cpp plot3d.h vector3d.h input.h procBlock.h eos.h primVars.h boundaryConditions.h inviscidFlux.h tensor.h viscousFlux.h output.h matrix.h
+main.o : main.cpp plot3d.h vector3d.h input.h procBlock.h eos.h primVars.h boundaryConditions.h inviscidFlux.h tensor.h viscousFlux.h output.h matrix.h parallel.h
 	$(CC) $(CFLAGS) main.cpp
 
 input.o : input.cpp input.h boundaryConditions.h
@@ -39,6 +39,9 @@ viscousFlux.o : viscousFlux.cpp vector3d.h tensor.h eos.h primVars.h viscousFlux
 
 output.o : output.cpp output.h procBlock.h tensor.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h
 	$(CC) $(CFLAGS) output.cpp
+
+parallel.o : parallel.cpp parallel.h geomSlice.h primVars.h procBlock.h vector3d.h plot3d.h
+	$(CC) $(CFLAGS) parallel.cpp
 
 matrix.o : matrix.cpp matrix.h plot3d.h
 	$(CC) $(CFLAGS) matrix.cpp

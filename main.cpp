@@ -15,6 +15,7 @@
 #include "boundaryConditions.h"
 #include "output.h"
 #include "matrix.h"
+#include "parallel.h"
 #include <fenv.h>
 #include <ctime>
 
@@ -44,9 +45,6 @@ int main( int argc, char *argv[] ) {
 
 
   if (rank == 0 ){
-
-
-
 
   //start clock to time simulation
   clock_t start;
@@ -104,13 +102,19 @@ int main( int argc, char *argv[] ) {
 
   //swap geometry for interblock BCs
   for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
-    cout << "Swap Geometry for connection: " << connections[ii] << endl;
+    //cout << "Swap Geometry for connection: " << connections[ii] << endl;
     SwapSlice( connections[ii], stateBlocks[connections[ii].BlockFirst()], stateBlocks[connections[ii].BlockSecond()], true);
   }
   //Get ghost cell edge data
   for ( int ll = 0; ll < (int)mesh.size(); ll++) {
     stateBlocks[ll].AssignGhostCellsGeomEdge(inputVars);
   }
+
+
+  //decompose grid
+  ManualDecomposition(stateBlocks, numProcs);
+
+
 
   cout << endl << "Solution Initialized" << endl;
   //----------------------------------------------------------------------------------------------
