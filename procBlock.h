@@ -57,6 +57,7 @@ class procBlock {
   int parBlockEndJ;                        //parent block ending index for j
   int parBlockStartK;                      //parent block starting index for k
   int parBlockEndK;                        //parent block ending index for k
+  int rank;                                //processor rank
 
  public:
   //constructors
@@ -90,6 +91,8 @@ class procBlock {
   int ParentBlockStartK() const {return parBlockStartK;}
   void SetParentBlockEndK( const int &a){parBlockEndK = a;}
   int ParentBlockEndK() const {return parBlockEndK;}
+  void SetRank( const int &a){rank = a;}
+  int Rank() const {return rank;}
 
   void SetBCs( const boundaryConditions &a ){bc = a;}
   boundaryConditions BC() const {return bc;}
