@@ -131,6 +131,7 @@ pair is patch on a boundary that is point matched.
 */
 class interblock {
 
+  pair<int, int> rank;        //processor location of boundaries
   pair<int, int> block;       //paired block numbers
   pair<int, int> boundary;    //paired boundary numbers
   pair<int, int> d1Start;     //paired first direction start numbers for surface
@@ -146,6 +147,13 @@ class interblock {
 
   //member functions
   void SetInterblock(const patch&, const patch&);
+
+  void SetRankFirst( const int &a){rank.first = a;}
+  int RankFirst()const{return rank.first;}
+  void SetRankSecond( const int &a){rank.second = a;}
+  int RankSecond()const{return rank.second;}
+  void SetRank( const pair<int,int> &a){rank = a;}
+  pair<int,int> Rank()const{return rank;}
 
   void SetBlockFirst( const int &a){block.first = a;}
   int BlockFirst()const{return block.first;}

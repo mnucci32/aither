@@ -123,6 +123,7 @@ string boundaryConditions::GetBCName(const int i, const int j, const int k, cons
 interblock::interblock(){
   //initialize all variables to zero
   pair<int,int> zero(0,0);
+  rank = zero;
   block = zero;
   boundary = zero;
   d1Start = zero;
@@ -135,6 +136,7 @@ interblock::interblock(){
 //operator overload for << - allows use of cout, cerr, etc.
 ostream & operator<< (ostream &os, const interblock &bc){
 
+  os << "Ranks: " << bc.RankFirst() << ", " << bc.RankSecond() << endl;
   os << "Blocks: " << bc.BlockFirst() << ", " << bc.BlockSecond() << endl;
   os << "Boundaries: " << bc.BoundaryFirst() << ", " << bc.BoundarySecond() << endl;
   os << "Direction 1 Starts: " << bc.Dir1StartFirst() << ", " << bc.Dir1StartSecond() << endl;
@@ -153,6 +155,9 @@ void interblock::SetInterblock(const patch &p1, const patch &p2){
   // p2 -- patch 2
 
   //fill interblock
+  (*this).SetRankFirst(0); //default value is 0
+  (*this).SetRankSecond(0);
+
   (*this).SetBlockFirst(p1.Block());
   (*this).SetBlockSecond(p2.Block());
 
@@ -180,7 +185,11 @@ void interblock::SetInterblock(const patch &p1, const patch &p2){
 //function to swap the order of an interblock so the 2nd entry in the pair will be the first, and vice versa
 void interblock::SwapOrder(){
 
-  int temp = (*this).BlockFirst();
+  int temp = (*this).RankFirst();
+  (*this).SetRankFirst( (*this).RankSecond() );
+  (*this).SetRankSecond(temp);
+
+  temp = (*this).BlockFirst();
   (*this).SetBlockFirst( (*this).BlockSecond() );
   (*this).SetBlockSecond(temp);
 
