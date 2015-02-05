@@ -46,20 +46,43 @@ class boundaryConditions {
 
   void SetBCTypes( const string &str, const int &a){bcTypes[a] = str;}
   string GetBCTypes( const int &a)const{return bcTypes[a];}
+  void SetBCTypesVec( const vector<string> &vec){bcTypes = vec;}
+  vector<string> GetBCTypesVec()const{return bcTypes;}
+
   void SetIMin( const int &i, const int &a){iMin[a] = i;}
   int GetIMin( const int &a)const{return iMin[a];}
+  void SetIMinVec( const vector<int> &vec){iMin = vec;}
+  vector<int> GetIMinVec()const{return iMin;}
+
   void SetJMin( const int &j, const int &a){jMin[a] = j;}
   int GetJMin( const int &a)const{return jMin[a];}
+  void SetJMinVec( const vector<int> &vec){jMin = vec;}
+  vector<int> GetJMinVec()const{return jMin;}
+
   void SetKMin( const int &k, const int &a){kMin[a] = k;}
   int GetKMin( const int &a)const{return kMin[a];}
+  void SetKMinVec( const vector<int> &vec){kMin = vec;}
+  vector<int> GetKMinVec()const{return kMin;}
+
   void SetIMax( const int &i, const int &a){iMax[a] = i;}
   int GetIMax( const int &a)const{return iMax[a];}
+  void SetIMaxVec( const vector<int> &vec){iMax = vec;}
+  vector<int> GetIMaxVec()const{return iMax;}
+
   void SetJMax( const int &j, const int &a){jMax[a] = j;}
   int GetJMax( const int &a)const{return jMax[a];}
+  void SetJMaxVec( const vector<int> &vec){jMax = vec;}
+  vector<int> GetJMaxVec()const{return jMax;}
+
   void SetKMax( const int &k, const int &a){kMax[a] = k;}
   int GetKMax( const int &a)const{return kMax[a];}
+  void SetKMaxVec( const vector<int> &vec){kMax = vec;}
+  vector<int> GetKMaxVec()const{return kMax;}
+
   void SetTag( const int &t, const int &a){tag[a] = t;}
   int GetTag( const int &a)const{return tag[a];}
+  void SetTagVec( const vector<int> &vec){tag = vec;}
+  vector<int> GetTagVec()const{return tag;}
 
   void ResizeVecs( const int &a);
 
