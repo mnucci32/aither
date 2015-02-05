@@ -69,6 +69,8 @@ class procBlock {
   //member functions
   void SetNumCells( const int &a){numCells = a;}
   int NumCells() const {return numCells;}
+  void SetNumVars( const int &a){numVars = a;}
+  int NumVars() const {return numVars;}
   void SetI( const int &a){numI = a;}
   int NumI() const {return numI;}
   void SetJ( const int &a){numJ = a;}
@@ -99,27 +101,50 @@ class procBlock {
 
   void SetState( const primVars &a, const int &ind){state[ind] = a;}
   primVars State(const int &ind) const {return state[ind];}
-  vector<primVars> GetCopyState() const {return state;}
+  vector<primVars> StateVec() const {return state;}
+  void SetStateVec( const vector<primVars> &vec ){state = vec;}
   vector<colMatrix> GetCopyConsVars(const idealGas &) const; 
   const vector<primVars> & GetRefState() const {return state;}
 
   void SetVol( const double &a, const int &ind){vol[ind] = a;}
   double Vol(const int &ind) const {return vol[ind];}
+  vector<double> VolVec() const {return vol;}
+  void SetVolVec( const vector<double> &vec ){vol = vec;}
+
   void SetCenter( const vector3d<double> &a, const int &ind){center[ind] = a;}
   vector3d<double> Center(const int &ind) const {return center[ind];}
+  vector<vector3d<double> > CenterVec() const {return center;}
+  void SetCenterVec( const vector<vector3d<double> > &vec ){center = vec;}
 
   void SetFAreaI( const vector3d<double> &a, const int &ind){fAreaI[ind] = a;}
   vector3d<double> FAreaI(const int &ind) const {return fAreaI[ind];}
+  vector<vector3d<double> > FAreaIVec() const {return fAreaI;}
+  void SetFAreaIVec( const vector<vector3d<double> > &vec ){fAreaI = vec;}
+
   void SetFAreaJ( const vector3d<double> &a, const int &ind){fAreaJ[ind] = a;}
   vector3d<double> FAreaJ(const int &ind) const {return fAreaJ[ind];}
+  vector<vector3d<double> > FAreaJVec() const {return fAreaJ;}
+  void SetFAreaJVec( const vector<vector3d<double> > &vec ){fAreaJ = vec;}
+
   void SetFAreaK( const vector3d<double> &a, const int &ind){fAreaK[ind] = a;}
   vector3d<double> FAreaK(const int &ind) const {return fAreaK[ind];}
+  vector<vector3d<double> > FAreaKVec() const {return fAreaK;}
+  void SetFAreaKVec( const vector<vector3d<double> > &vec ){fAreaK = vec;}
+
   void SetFCenterI( const vector3d<double> &a, const int &ind){fCenterI[ind] = a;}
   vector3d<double> FCenterI(const int &ind) const {return fCenterI[ind];}
+  vector<vector3d<double> > FCenterIVec() const {return fCenterI;}
+  void SetFCenterIVec( const vector<vector3d<double> > &vec ){fCenterI = vec;}
+
   void SetFCenterJ( const vector3d<double> &a, const int &ind){fCenterJ[ind] = a;}
   vector3d<double> FCenterJ(const int &ind) const {return fCenterJ[ind];}
+  vector<vector3d<double> > FCenterJVec() const {return fCenterJ;}
+  void SetFCenterJVec( const vector<vector3d<double> > &vec ){fCenterJ = vec;}
+
   void SetFCenterK( const vector3d<double> &a, const int &ind){fCenterK[ind] = a;}
   vector3d<double> FCenterK(const int &ind) const {return fCenterK[ind];}
+  vector<vector3d<double> > FCenterKVec() const {return fCenterK;}
+  void SetFCenterKVec( const vector<vector3d<double> > &vec ){fCenterK = vec;}
 
   void SetAvgWaveSpeed( const double &a, const int &ind){avgWaveSpeed[ind] = a;}
   double AvgWaveSpeed(const int &ind) const {return avgWaveSpeed[ind];}

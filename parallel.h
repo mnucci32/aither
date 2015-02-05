@@ -23,8 +23,13 @@ using std::cout;
 using std::endl;
 using std::cerr;
 
+#define ROOT 0
 
 //function definitions
 void ManualDecomposition(vector<procBlock>&, const int&);
+
+void SetDataTypesMPI(const int&, MPI_Datatype&, MPI_Datatype&, MPI_Datatype&);
+
+vector<procBlock> SendProcBlocks( const vector<procBlock>&, const int&, const MPI_Datatype&, const MPI_Datatype&, const MPI_Datatype& );
 
 #endif

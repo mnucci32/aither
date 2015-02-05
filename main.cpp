@@ -37,14 +37,11 @@ int main( int argc, char *argv[] ) {
   //get MPI version
   int version, subversion;
   mpiError = MPI_Get_version(&version, &subversion);
-  if (rank == 0 ){
+  if (rank == ROOT ){
     cout << "Using MPI Version " << version << "." << subversion << endl;
   }
 
   cout << "Hello from processor " << rank << " of " << numProcs << "!" << endl;
-
-
-  if (rank == 0 ){
 
   //start clock to time simulation
   clock_t start;
@@ -53,22 +50,58 @@ int main( int argc, char *argv[] ) {
 
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW); //enable exceptions so code won't run with NANs
 
-  const string inputFile = argv[1];  //name of input file is the second argument (the executable being the first)
 
-  //Parse input file
-  double totalCells = 0.0;
-  input inputVars = ReadInput(inputFile);
-
-  //Determine number of equations
   int numEqns = 0;
-  if ( (inputVars.EquationSet() == "euler") || (inputVars.EquationSet() == "navierStokes") ){
-    numEqns = 5;
-  }
-  else{
-    cerr << "ERROR: Equations set is not recognized. Cannot determine number of equations!" << endl;
+  double totalCells = 0.0;
+  input inputVars;
+  vector3d<double> test; //debug
+  vector<double> dummy(5); //debug
+  if (rank == ROOT ){
+
+
+    const string inputFile = argv[1];  //name of input file is the second argument (the executable being the first)
+
+    //Parse input file
+    inputVars = ReadInput(inputFile);
+
+    //Determine number of equations
+
+    if ( (inputVars.EquationSet() == "euler") || (inputVars.EquationSet() == "navierStokes") ){
+      numEqns = 5;
+    }
+    else{
+      cerr << "ERROR: Equations set is not recognized. Cannot determine number of equations!" << endl;
+    }
+
+    cout << "Number of equations: " << numEqns << endl << endl;
+  
+    //debug
+    test.SetX(5.5);
+    test.SetY(1.2);
+    test.SetZ(-8.3);
+    dummy[0] = 1.1;
+    dummy[1] = 2.2;
+    dummy[2] = 3.3;
+    dummy[3] = 4.4;
+    dummy[4] = 5.5;
   }
 
-  cout << "Number of equations: " << numEqns << endl << endl;
+  //set MPI datatypes
+  MPI_Datatype MPI_vec3d, MPI_cellData, MPI_procBlockInts;
+  SetDataTypesMPI(numEqns, MPI_vec3d, MPI_cellData, MPI_procBlockInts);
+
+  //debug
+  cout << "I am processor " << rank << " and my vector is: " << test << endl;
+  MPI_Bcast(&test, 1, MPI_vec3d, 0, MPI_COMM_WORLD);
+  cout << "I am processor " << rank << " and my vector, after Bcast is: " << test << endl;
+
+  MPI_Bcast(&dummy[0], 5, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+  cout << "I am processor " << rank << " and my std::vector, after Bcast is: " << dummy[0] << ", " << dummy[1] << ", " << dummy[2] << ", " << dummy[3] << ", " << dummy[4] << endl;
+
+  if (rank == ROOT ){
+
+
+
 
   //determine number of ghost cells
   int numGhost = 2;
@@ -110,13 +143,16 @@ int main( int argc, char *argv[] ) {
     stateBlocks[ll].AssignGhostCellsGeomEdge(inputVars);
   }
 
+  cout << endl << "Solution Initialized" << endl;
+  //----------------------------------------------------------------------------------------------
 
   //decompose grid
   ManualDecomposition(stateBlocks, numProcs);
 
+  //send procBlocks to appropriate processor
 
 
-  cout << endl << "Solution Initialized" << endl;
+
   //----------------------------------------------------------------------------------------------
 
   //determine if implict or explicit
