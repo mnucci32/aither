@@ -24,6 +24,7 @@ class idealGas {
 
  public:
   //constructor
+  idealGas() : gamma(1.4), gasConst(287.058) {}
   idealGas( const double a, const double b ) : gamma(a), gasConst(b) {}
 
   //member functions
@@ -63,8 +64,8 @@ class sutherland {
   //Stoke's hypothesis -- bulk viscosity = 0
   //Sutherland's Law -- mu = muref * (C1 * Tref^1.5) / (T + S)
  sutherland() : cOne(1.458e-6), S(110.4), tRef(288.15), muRef(cOne * pow(tRef,1.5)/(tRef+S)), bulkVisc(0.0) {}
- sutherland(const double a, const double b, const double c) : cOne(a), S(b), tRef(c), muRef(cOne * pow(tRef,1.5)/(tRef+S)), bulkVisc(0.0) {}
-  sutherland(const double t) : cOne(1.458e-6), S(110.4), tRef(t), muRef(cOne * pow(tRef,1.5)/(tRef+S)), bulkVisc(0.0) {}
+ sutherland(const double a, const double b, const double c) : cOne(a), S(b), tRef(c), muRef(cOne * pow(c,1.5)/(c+S)), bulkVisc(0.0) {}
+  sutherland(const double t) : cOne(1.458e-6), S(110.4), tRef(t), muRef(cOne * pow(t,1.5)/(t+S)), bulkVisc(0.0) {}
 
   //member functions
   double GetViscosity(const double &)const;
@@ -73,6 +74,11 @@ class sutherland {
   double ConstS()const{return S;}
   double TRef()const{return tRef;}
   double MuRef()const{return muRef;}
+
+  void InitializeTRef(const double t){
+    tRef = t;
+    muRef = cOne * pow(t,1.5)/(t+S);
+  }
 };
 
 #endif
