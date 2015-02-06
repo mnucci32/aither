@@ -48,6 +48,8 @@ class primVars {
   void SetP( const double &a){data[4] = a;}
   double P()const{return data[4];}
 
+  void NondimensionalInitialize(const idealGas &, const vector3d<double>&);
+
   inline vector3d<double> Velocity()const;
 
   inline double Energy(const idealGas&)const;

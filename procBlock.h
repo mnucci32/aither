@@ -65,6 +65,7 @@ class procBlock {
   procBlock( const plot3dBlock& , const int&, const int&, const string& );
   procBlock( const double, const double, const vector3d<double>, const plot3dBlock&, const int&, const int&, const string&, const boundaryConditions& );
   procBlock( const primVars&, const plot3dBlock&, const int &, const int&, const string&, const boundaryConditions& );
+  procBlock( const int&, const int&, const int&, const int& );
 
   //member functions
   void SetNumCells( const int &a){numCells = a;}

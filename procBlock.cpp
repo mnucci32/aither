@@ -59,6 +59,9 @@ procBlock::procBlock(){
   avgWaveSpeed = scalar;
   dt = scalar;
 
+  boundaryConditions bound;
+  bc = bound;
+
 }
 //constructor -- initialize state vector with dummy variables
 procBlock::procBlock(const plot3dBlock &blk, const int& numBlk, const int &numG, const string &eqnSet){
@@ -111,6 +114,9 @@ procBlock::procBlock(const plot3dBlock &blk, const int& numBlk, const int &numG,
   avgWaveSpeed = dummyScalar;
   dt = dummyScalar;
   residual = dummyResid;
+
+  boundaryConditions bound;
+  bc = bound;
 
 }
 
@@ -227,6 +233,62 @@ procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const 
   fCenterI = PadWithGhosts( blk.FaceCenterI(), numGhosts, numI+1, numJ, numK );
   fCenterJ = PadWithGhosts( blk.FaceCenterJ(), numGhosts, numI, numJ+1, numK );
   fCenterK = PadWithGhosts( blk.FaceCenterK(), numGhosts, numI, numJ, numK+1 );
+
+  avgWaveSpeed = dummyScalar;
+  dt = dummyScalar;
+  residual = dummyResid;
+}
+
+//constructor -- allocate space for procBlock
+procBlock::procBlock( const int &ni, const int &nj, const int &nk, const int &numG ){
+  // ni -- i-dimension (cell)
+  // nj -- j-dimension (cell)
+  // nk -- k-dimension (cell)
+  // numG -- number of ghost cell layers
+
+  numI = ni;
+  numJ = nj;
+  numK = nk;
+  numCells = numI * numJ * numK;
+  numGhosts = numG;
+  parBlock = 0;
+
+  //parent block start/end are face/node based
+  parBlockStartI = 0;
+  parBlockEndI = numI+1;
+  parBlockStartJ = 0;
+  parBlockEndJ = numJ+1;
+  parBlockStartK = 0;
+  parBlockEndK = numK+1;
+  rank = 0;
+
+  boundaryConditions bound;
+  bc = bound;
+
+  numVars = 0;
+  primVars inputState;
+
+  vector<double> dummyScalar (numCells);                                //dummy scalar variable
+  vector<vector3d<double> > dummyVectorCell (numCells);                 //dummy vector3d cell variable
+  vector<vector3d<double> > dummyVectorFaceI ((numI+1) * numJ * numK);  //dummy vector3d i-face variable
+  vector<vector3d<double> > dummyVectorFaceJ (numI * (numJ+1) * numK);  //dummy vector3d j-face variable
+  vector<vector3d<double> > dummyVectorFaceK (numI * numJ * (numK+1));  //dummy vector3d k-face variable
+  vector<primVars> dummyState (numCells,inputState);                    //dummy state variable
+  colMatrix singleResid(numVars);
+  singleResid.Zero();
+  vector<colMatrix> dummyResid(numCells, singleResid);
+
+  //pad stored variable vectors with ghost cells
+  state = PadWithGhosts( dummyState, numGhosts, numI, numJ, numK );      
+
+  vol = PadWithGhosts( dummyScalar, numGhosts, numI, numJ, numK );
+  center = PadWithGhosts( dummyVectorCell, numGhosts, numI, numJ, numK );
+  fAreaI = PadWithGhosts( dummyVectorFaceI, numGhosts, numI+1, numJ, numK );
+  fAreaJ = PadWithGhosts( dummyVectorFaceJ, numGhosts, numI, numJ+1, numK );
+  fAreaK = PadWithGhosts( dummyVectorFaceK, numGhosts, numI, numJ, numK+1 );
+  fCenterI = PadWithGhosts( dummyVectorFaceI, numGhosts, numI+1, numJ, numK );
+  fCenterJ = PadWithGhosts( dummyVectorFaceJ, numGhosts, numI, numJ+1, numK );
+  fCenterK = PadWithGhosts( dummyVectorFaceK, numGhosts, numI, numJ, numK+1 );
 
   avgWaveSpeed = dummyScalar;
   dt = dummyScalar;

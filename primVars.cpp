@@ -15,6 +15,15 @@ using std::ofstream;
 using std::max;
 using std::min;
 
+//member function to initialize a state with nondimensional values
+void primVars::NondimensionalInitialize(const idealGas &eos, const vector3d<double> &vel){
+  data[0] = 1.0;
+  data[1] = vel.X();
+  data[2] = vel.Y();
+  data[3] = vel.Z();
+  data[4] = 1.0/eos.Gamma();
+}
+
 //operator overload for << - allows use of cout, cerr, etc.
 ostream & operator<< (ostream &os, const primVars &prim){
   os << prim.data[0] << ", " << prim.data[1] << ", " << prim.data[2] << ", " << prim.data[3] << ", " << prim.data[4] << endl;
