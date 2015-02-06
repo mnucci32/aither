@@ -6,6 +6,8 @@
 #include <time.h>       //strftime
 #include "input.h"
 
+#define ROOT 0
+
 using std::cout;
 using std::endl;
 using std::ifstream;
@@ -136,14 +138,17 @@ void PrintTime(){
 
 //function to read the input file and return the data as a member of the input class
 //read the input file
-input ReadInput(const string &inputName){
+input ReadInput(const string &inputName, const int &rank){
   // inputName -- name of input file
+  // rank -- rank of processor
 
-  cout << "###########################################################################################################################" << endl;
-  PrintTime();
-  cout << endl;
-  cout << "Parsing input file " << inputName << endl << endl;
-  cout << "Solver Inputs" << endl;
+  if (rank == ROOT){
+    cout << "###########################################################################################################################" << endl;
+    PrintTime();
+    cout << endl;
+    cout << "Parsing input file " << inputName << endl << endl;
+    cout << "Solver Inputs" << endl;
+  }
 
   input inputVars;
 
@@ -184,42 +189,42 @@ input ReadInput(const string &inputName){
 	  //if not yet reading BCs (readingBCs == 0), set variable in input class to corresponding value and print assignment to std out
           if (ii==0 && readingBCs == 0){
             inputVars.SetGridName(tokens[1]);
-            cout << inputVars.Vars(ii) << " " << inputVars.GridName() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.GridName() << endl;}
             continue;
           }
           else if (ii==1 && readingBCs == 0){
             inputVars.SetDt(atof(tokens[1].c_str()));                          //double variable (atof)
-            cout << inputVars.Vars(ii) << " " << inputVars.Dt() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.Dt() << endl;}
             continue;
 	  }
           else if (ii==2 && readingBCs == 0){
             inputVars.SetIterations(atoi(tokens[1].c_str()));
-            cout << inputVars.Vars(ii) << " " << inputVars.Iterations() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.Iterations() << endl;}
             continue;
 	  }
           else if (ii==3 && readingBCs == 0){
             inputVars.SetPRef(atof(tokens[1].c_str()));                       //double variable (atof)
-            cout << inputVars.Vars(ii) << " " << inputVars.PRef() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.PRef() << endl;}
             continue;
 	  }
           else if (ii==4 && readingBCs == 0){
             inputVars.SetRRef(atof(tokens[1].c_str()));                       //double variable (atof)
-            cout << inputVars.Vars(ii) << " " << inputVars.RRef() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.RRef() << endl;}
             continue;
 	  }
           else if (ii==5 && readingBCs == 0){
             inputVars.SetLRef(atof(tokens[1].c_str()));                       //double variable (atof)
-            cout << inputVars.Vars(ii) << " " << inputVars.LRef() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.LRef() << endl;}
             continue;
 	  }
           else if (ii==6 && readingBCs == 0){
             inputVars.SetGamma(atof(tokens[1].c_str()));                      //double variable (atof)
-            cout << inputVars.Vars(ii) << " " << inputVars.Gamma() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.Gamma() << endl;}
             continue;
 	  }
           else if (ii==7 && readingBCs == 0){
             inputVars.SetR(atof(tokens[1].c_str()));                         //double variable (atof)
-            cout << inputVars.Vars(ii) << " " << inputVars.R() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.R() << endl;}
             continue;
 	  }
           else if (ii==8 && readingBCs == 0){
@@ -227,7 +232,7 @@ input ReadInput(const string &inputName){
             temp.SetY(atof(tokens[2].c_str()));
             temp.SetZ(atof(tokens[3].c_str()));
             inputVars.SetVelRef(temp);
-            cout << inputVars.Vars(ii) << " " << inputVars.VelRef() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.VelRef() << endl;}
             continue;
 	  }
           else if (ii==9 && readingBCs == 0){
@@ -245,7 +250,7 @@ input ReadInput(const string &inputName){
 	      inputVars.SetZeta(0.5);
 	    }
 
-            cout << inputVars.Vars(ii) << " " << inputVars.TimeIntegration() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.TimeIntegration() << endl;}
             continue;
           }
           else if (ii==11 && readingBCs == 0){
@@ -271,7 +276,7 @@ input ReadInput(const string &inputName){
 	      inputVars.SetKappa(atof(tokens[1].c_str()));         //if string is not recognized, set kappa to number input
 	    }
 
-            cout << inputVars.Vars(ii) << " " << tokens[1] << " kappa = " << inputVars.Kappa() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << tokens[1] << " kappa = " << inputVars.Kappa() << endl;}
 	    if ( (inputVars.Kappa() < -1.0) || (inputVars.Kappa() > 1.0) ){
 	      cerr << "ERROR: Error in input.cpp:ReadInput(). Kappa value of " << inputVars.Kappa() 
 		   << " is not valid! Choose a value between -1.0 and 1.0." << endl;
@@ -281,71 +286,71 @@ input ReadInput(const string &inputName){
           }
           else if (ii==12 && readingBCs == 0){
             inputVars.SetLimiter(tokens[1]);
-            cout << inputVars.Vars(ii) << " " << inputVars.Limiter() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.Limiter() << endl;}
             continue;
           }
           else if (ii==13 && readingBCs == 0){
             inputVars.SetOutputFrequency(atoi(tokens[1].c_str()));
-            cout << inputVars.Vars(ii) << " " << inputVars.OutputFrequency() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.OutputFrequency() << endl;}
             continue;
 	  }
           else if (ii==14 && readingBCs == 0){
             inputVars.SetEquationSet(tokens[1]);
-            cout << inputVars.Vars(ii) << " " << inputVars.EquationSet() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.EquationSet() << endl;}
             continue;
           }
           else if (ii==15 && readingBCs == 0){
             inputVars.SetTRef(atof(tokens[1].c_str()));                       //double variable (atof)
-            cout << inputVars.Vars(ii) << " " << inputVars.TRef() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.TRef() << endl;}
             continue;
 	  }
           else if (ii==16 && readingBCs == 0){
             inputVars.SetMatrixSolver(tokens[1]);
-            cout << inputVars.Vars(ii) << " " << inputVars.MatrixSolver() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.MatrixSolver() << endl;}
             continue;
 	  }
           else if (ii==17 && readingBCs == 0){
             inputVars.SetMatrixSweeps(atoi(tokens[1].c_str()));
-            cout << inputVars.Vars(ii) << " " << inputVars.MatrixSweeps() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.MatrixSweeps() << endl;}
             continue;
 	  }
           else if (ii==18 && readingBCs == 0){
             inputVars.SetMatrixRelaxation(atof(tokens[1].c_str()));                       //double variable (atof)
-            cout << inputVars.Vars(ii) << " " << inputVars.MatrixRelaxation() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.MatrixRelaxation() << endl;}
             continue;
 	  }
           else if (ii==21 && readingBCs == 0){
             inputVars.SetNonlinearIterations(atoi(tokens[1].c_str()));
-            cout << inputVars.Vars(ii) << " " << inputVars.NonlinearIterations() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.NonlinearIterations() << endl;}
             continue;
 	  }
           else if (ii==22 && readingBCs == 0){
             inputVars.SetCFLMax(atof(tokens[1].c_str()));                       //double variable (atof)
-            cout << inputVars.Vars(ii) << " " << inputVars.CFLMax() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.CFLMax() << endl;}
             continue;
           }
           else if (ii==23 && readingBCs == 0){
             inputVars.SetCFLStep(atof(tokens[1].c_str()));                       //double variable (atof)
-            cout << inputVars.Vars(ii) << " " << inputVars.CFLStep() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.CFLStep() << endl;}
             continue;
           }
           else if (ii==24 && readingBCs == 0){
             inputVars.SetCFLStart(atof(tokens[1].c_str()));                       //double variable (atof)
-            cout << inputVars.Vars(ii) << " " << inputVars.CFLStart() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.CFLStart() << endl;}
             continue;
           }
           else if (ii==25 && readingBCs == 0){
             inputVars.SetInvFluxJac(tokens[1]);
-	    cout << inputVars.Vars(ii) << " " << inputVars.InvFluxJac() << endl;
+	    if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.InvFluxJac() << endl;}
 	  }
           else if (ii==26 && readingBCs == 0){
             inputVars.SetDualTimeCFL(atof(tokens[1].c_str()));                       //double variable (atof)
-            cout << inputVars.Vars(ii) << " " << inputVars.DualTimeCFL() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.DualTimeCFL() << endl;}
             continue;
           }
           else if (ii==27 && readingBCs == 0){
             inputVars.SetInviscidFlux(tokens[1]);
-	    cout << inputVars.Vars(ii) << " " << inputVars.InviscidFlux() << endl;
+	    if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.InviscidFlux() << endl;}
 	  }
           else if (ii==28 && readingBCs == 0){
             inputVars.SetStagInletTag(atoi(tokens[1].c_str()));
@@ -354,18 +359,18 @@ input ReadInput(const string &inputName){
             inputVars.SetStagInletDx(atof(tokens[4].c_str()));
             inputVars.SetStagInletDy(atof(tokens[5].c_str()));
             inputVars.SetStagInletDz(atof(tokens[6].c_str()));
-	    cout << inputVars.Vars(ii) << " " << inputVars.StagInletTag() << " " << inputVars.StagInletP0() <<
-	      " " << inputVars.StagInletT0() << " " << inputVars.StagInletDx() << " " << inputVars.StagInletDy() <<
-	      " " << inputVars.StagInletDz() << endl;
+	    if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.StagInletTag() << " " << inputVars.StagInletP0() <<
+		" " << inputVars.StagInletT0() << " " << inputVars.StagInletDx() << " " << inputVars.StagInletDy() <<
+		" " << inputVars.StagInletDz() << endl;}
 	  }
           else if (ii==29 && readingBCs == 0){
             inputVars.SetPressureOutletTag(atoi(tokens[1].c_str()));
             inputVars.SetPressureOutletP(atof(tokens[2].c_str()));
-	    cout << inputVars.Vars(ii) << " " << inputVars.PressureOutletTag() << " " << inputVars.PressureOutletP() << endl;
+	    if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.PressureOutletTag() << " " << inputVars.PressureOutletP() << endl;}
 	  }
           else if (ii==30 && readingBCs == 0){
             inputVars.SetDecompMethod(tokens[1]);
-            cout << inputVars.Vars(ii) << " " << inputVars.DecompMethod() << endl;
+            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.DecompMethod() << endl;}
             continue;
           }
 
@@ -414,10 +419,12 @@ input ReadInput(const string &inputName){
 	    //if block counter reaches number of blocks, BCs are finished (b/c counter starts at 0), so assign BCs and write them out
 	    if (blk == numBCBlks){ 
 	      inputVars.SetBC(tempBC);
-	      cout << inputVars.Vars(inputVars.NumVars()-1) << " " << inputVars.NumBC() << endl << endl;;
-	      for ( int ll = 0; ll < inputVars.NumBC(); ll++ ){
-		cout << "Block: " << ll << endl;
-		cout << inputVars.BC(ll) << endl;
+	      if (rank == ROOT) {
+		cout << inputVars.Vars(inputVars.NumVars()-1) << " " << inputVars.NumBC() << endl << endl;
+		for ( int ll = 0; ll < inputVars.NumBC(); ll++ ){
+		  cout << "Block: " << ll << endl;
+		  cout << inputVars.BC(ll) << endl;
+		}
 	      }
 	    }
 
@@ -432,9 +439,11 @@ input ReadInput(const string &inputName){
     }
   }
 
-  cout << endl;
-  cout << "Input file parse complete" << endl;
-  cout << "###########################################################################################################################" << endl << endl;
+  if (rank == ROOT) {
+    cout << endl;
+    cout << "Input file parse complete" << endl;
+    cout << "###########################################################################################################################" << endl << endl;
+  }
 
   return inputVars;
 

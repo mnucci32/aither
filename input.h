@@ -172,7 +172,7 @@ class input {
 };
 
 //function declarations
-input ReadInput(const string &inputName);
+input ReadInput(const string &inputName, const int &rank);
 void PrintTime();
 
 
