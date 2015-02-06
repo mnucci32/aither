@@ -26,10 +26,11 @@ using std::cerr;
 #define ROOT 0
 
 //function definitions
-void ManualDecomposition(vector<procBlock>&, const int&);
+vector<int> ManualDecomposition(vector<procBlock>&, const int&);
+void SendNumProcBlocks(const vector<int>&, const int&, int&);
 
 void SetDataTypesMPI(const int&, MPI_Datatype&, MPI_Datatype&, MPI_Datatype&);
 
-vector<procBlock> SendProcBlocks( const vector<procBlock>&, const int&, const MPI_Datatype&, const MPI_Datatype&, const MPI_Datatype& );
+vector<procBlock> SendProcBlocks( const vector<procBlock>&, const int&, const int&, const MPI_Datatype&, const MPI_Datatype&, const MPI_Datatype& );
 
 #endif

@@ -2,7 +2,7 @@
 
 /* Function to return processor list for manual decomposition. Manual decomposition assumes that each block will reside on it's own processor.
 */
-void ManualDecomposition(vector<procBlock> &grid, const int &numProc){
+vector<int> ManualDecomposition(vector<procBlock> &grid, const int &numProc){
   // grid -- vector of procBlocks (no need to split procBlocks or combine them with manual decomposition)
   // numProc -- number of processors in run
 
@@ -14,13 +14,20 @@ void ManualDecomposition(vector<procBlock> &grid, const int &numProc){
 
   cout << "Using manual grid decomposition." << endl;
 
+  vector<int> loadBal(numProc,1); //vector containing number of procBlocks for each processor
+
   //assign processor rank for each procBlock
   for ( int ii = 0; ii < numProc; ii++ ){
     grid[ii].SetRank(ii);
   }
 
+  return loadBal;
 }
 
+//function to send each processor the number of procBlocks that it should contain
+void SendNumProcBlocks(const vector<int> &loadBal, const int &rank, int &numProcBlock){
+  MPI_Scatter(&loadBal[0], 1, MPI_INT, &numProcBlock, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+}
 
 void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData, MPI_Datatype &MPI_procBlockInts){
 
@@ -40,15 +47,26 @@ void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &M
 
 
 //function to send procBlocks to their appropriate processor
-vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &rank, const MPI_Datatype &MPI_procBlockInts, const MPI_Datatype &MPI_cellData, const MPI_Datatype &MPI_vec3d ){
+vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &rank, const int &numProcBlock, const MPI_Datatype &MPI_procBlockInts, 
+				  const MPI_Datatype &MPI_cellData, const MPI_Datatype &MPI_vec3d ){
 
-  //PROBLEM -- function is passed blocks, but blocks is only available on root!!!
+  vector<procBlock> localBlocks;
+  localBlocks.reserve(numProcBlock);
 
+  int bufSizeInt = 0;
+  int tempSize = 0;
+  MPI_Pack_size(14, MPI_INT, MPI_COMM_WORLD, &tempSize);
+  bufSizeInt += tempSize;
 
-  for ( unsigned int ii = 0; ii < blocks.size(); ii++ ){
-    int numRank = 0;
-    if ( blocks[ii].Rank() != ROOT ){ //send/receive data
-      if ( rank == ROOT ){ //send data
+  char *bufInt = new char[bufSizeInt];
+
+  if ( rank == ROOT ){ // may have to pack and send data
+    for ( unsigned int ii = 0; ii < blocks.size(); ii++ ){
+
+      if (blocks[ii].Rank() == ROOT ){ //no need to send data because it is already on ROOT processor
+	localBlocks.push_back(blocks[ii]);
+      }
+      else{ //send data
 	int tempS[14];
 	tempS[0]  = blocks[ii].NumCells();
 	tempS[1]  = blocks[ii].NumVars();
@@ -65,67 +83,257 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
 	tempS[12]  = blocks[ii].ParentBlockEndK();
 	tempS[13]  = blocks[ii].Rank();
 
-	MPI_Request request;
-	MPI_Isend(&tempS, 1, MPI_procBlockInts, blocks[ii].Rank(), 1, MPI_COMM_WORLD, &request); //send integers
-
-	vector<double> doubleVecS = blocks[ii].VolVec();
-	MPI_Isend(&doubleVecS, doubleVecS.size(), MPI_DOUBLE, blocks[ii].Rank(), 2, MPI_COMM_WORLD, &request); //send volumes
+	MPI_Send(&tempS[0], 14, MPI_INT, blocks[ii].Rank(), 1, MPI_COMM_WORLD);
 
 	vector<primVars> primVecS = blocks[ii].StateVec(); 
-	MPI_Isend(&primVecS, primVecS.size(), MPI_cellData, blocks[ii].Rank(), 3, MPI_COMM_WORLD, &request); //send states
+	vector<vector3d<double> > centerVecS = blocks[ii].CenterVec(); 
+	vector<vector3d<double> > fAreaIVecS = blocks[ii].FAreaIVec(); 
+	vector<vector3d<double> > fAreaJVecS = blocks[ii].FAreaJVec(); 
+	vector<vector3d<double> > fAreaKVecS = blocks[ii].FAreaKVec(); 
+	vector<vector3d<double> > fCenterIVecS = blocks[ii].FCenterIVec(); 
+	vector<vector3d<double> > fCenterJVecS = blocks[ii].FCenterJVec(); 
+	vector<vector3d<double> > fCenterKVecS = blocks[ii].FCenterKVec(); 
+	vector<double> volVecS = blocks[ii].VolVec(); 
 
-	vector<vector3d<double> > vec3dVecS = blocks[ii].CenterVec(); 
-	MPI_Isend(&vec3dVecS, vec3dVecS.size(), MPI_vec3d, blocks[ii].Rank(), 4, MPI_COMM_WORLD, &request); //send cell centers
+	int bufSizeData = 0;
+	MPI_Pack_size(primVecS.size(), MPI_cellData, MPI_COMM_WORLD, &tempSize); //add size for states
+	bufSizeData += tempSize;
+	MPI_Pack_size(centerVecS.size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for cell centers
+	bufSizeData += tempSize;
+	MPI_Pack_size(fAreaIVecS.size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for face area I
+	bufSizeData += tempSize;
+	MPI_Pack_size(fAreaJVecS.size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for face area J
+	bufSizeData += tempSize;
+	MPI_Pack_size(fAreaKVecS.size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for face area K
+	bufSizeData += tempSize;
+	MPI_Pack_size(fCenterIVecS.size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for face center I
+	bufSizeData += tempSize;
+	MPI_Pack_size(fCenterJVecS.size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for face center J
+	bufSizeData += tempSize;
+	MPI_Pack_size(fCenterKVecS.size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for face center K
+	bufSizeData += tempSize;
+	MPI_Pack_size(volVecS.size(), MPI_DOUBLE, MPI_COMM_WORLD, &tempSize); //add size for volumes
+	bufSizeData += tempSize;
 
-	vec3dVecS = blocks[ii].FAreaIVec(); 
-	MPI_Isend(&vec3dVecS, vec3dVecS.size(), MPI_vec3d, blocks[ii].Rank(), 5, MPI_COMM_WORLD, &request); //send face area Is
+	char *bufData = new char[bufSizeData];
 
-	vec3dVecS = blocks[ii].FAreaJVec(); 
-	MPI_Isend(&vec3dVecS, vec3dVecS.size(), MPI_vec3d, blocks[ii].Rank(), 6, MPI_COMM_WORLD, &request); //send face area Js
+	int position = 0;
+	MPI_Pack(&primVecS[0], primVecS.size(), MPI_cellData, bufData, bufSizeData, &position, MPI_COMM_WORLD);
+	MPI_Pack(&centerVecS[0], centerVecS.size(), MPI_vec3d, bufData, bufSizeData, &position, MPI_COMM_WORLD);
+	MPI_Pack(&fAreaIVecS[0], fAreaIVecS.size(), MPI_vec3d, bufData, bufSizeData, &position, MPI_COMM_WORLD);
+	MPI_Pack(&fAreaJVecS[0], fAreaJVecS.size(), MPI_vec3d, bufData, bufSizeData, &position, MPI_COMM_WORLD);
+	MPI_Pack(&fAreaKVecS[0], fAreaKVecS.size(), MPI_vec3d, bufData, bufSizeData, &position, MPI_COMM_WORLD);
+	MPI_Pack(&fCenterIVecS[0], fCenterIVecS.size(), MPI_vec3d, bufData, bufSizeData, &position, MPI_COMM_WORLD);
+	MPI_Pack(&fCenterJVecS[0], fCenterJVecS.size(), MPI_vec3d, bufData, bufSizeData, &position, MPI_COMM_WORLD);
+	MPI_Pack(&fCenterKVecS[0], fCenterKVecS.size(), MPI_vec3d, bufData, bufSizeData, &position, MPI_COMM_WORLD);
+	MPI_Pack(&volVecS[0], volVecS.size(), MPI_DOUBLE, bufData, bufSizeData, &position, MPI_COMM_WORLD);
 
-	vec3dVecS = blocks[ii].FAreaKVec(); 
-	MPI_Isend(&vec3dVecS, vec3dVecS.size(), MPI_vec3d, blocks[ii].Rank(), 7, MPI_COMM_WORLD, &request); //send face area Ks
+	MPI_Send(bufData, bufSizeData, MPI_PACKED, blocks[ii].Rank(), 2, MPI_COMM_WORLD);
 
-	vec3dVecS = blocks[ii].FCenterIVec(); 
-	MPI_Isend(&vec3dVecS, vec3dVecS.size(), MPI_vec3d, blocks[ii].Rank(), 8, MPI_COMM_WORLD, &request); //send face center Is
+	delete [] bufData;
 
-	vec3dVecS = blocks[ii].FCenterJVec(); 
-	MPI_Isend(&vec3dVecS, vec3dVecS.size(), MPI_vec3d, blocks[ii].Rank(), 9, MPI_COMM_WORLD, &request); //send face center Js
-
-	vec3dVecS = blocks[ii].FCenterKVec(); 
-	MPI_Isend(&vec3dVecS, vec3dVecS.size(), MPI_vec3d, blocks[ii].Rank(), 10, MPI_COMM_WORLD, &request); //send face center Ks
-
-	//send boundary conditions
 	boundaryConditions bound = blocks[ii].BC();
-	vector<int> intVecS = bound.GetIMinVec();
-	MPI_Isend(&intVecS, intVecS.size(), MPI_INT, blocks[ii].Rank(), 11, MPI_COMM_WORLD, &request); //send i-min coordinates
-	intVecS = bound.GetIMaxVec();
-	MPI_Isend(&intVecS, intVecS.size(), MPI_INT, blocks[ii].Rank(), 12, MPI_COMM_WORLD, &request); //send i-max coordinates
-	intVecS = bound.GetJMinVec();
-	MPI_Isend(&intVecS, intVecS.size(), MPI_INT, blocks[ii].Rank(), 13, MPI_COMM_WORLD, &request); //send j-min coordinates
-	intVecS = bound.GetJMaxVec();
-	MPI_Isend(&intVecS, intVecS.size(), MPI_INT, blocks[ii].Rank(), 14, MPI_COMM_WORLD, &request); //send j-max coordinates
-	intVecS = bound.GetKMinVec();
-	MPI_Isend(&intVecS, intVecS.size(), MPI_INT, blocks[ii].Rank(), 15, MPI_COMM_WORLD, &request); //send k-min coordinates
-	intVecS = bound.GetKMaxVec();
-	MPI_Isend(&intVecS, intVecS.size(), MPI_INT, blocks[ii].Rank(), 16, MPI_COMM_WORLD, &request); //send k-max coordinates
-	intVecS = bound.GetTagVec();
-	MPI_Isend(&intVecS, intVecS.size(), MPI_INT, blocks[ii].Rank(), 17, MPI_COMM_WORLD, &request); //send tags
-	int dims[3] = {bound.NumSurfI(), bound.NumSurfJ(), bound.NumSurfK()};
-	MPI_Isend(&dims, 3, MPI_INT, blocks[ii].Rank(), 1, MPI_COMM_WORLD, &request); //send number of surfaces
-	vector<string> strVecS = bound.GetBCTypesVec();
-	MPI_Isend(strVecS[0].c_str(), strVecS.size(), MPI_CHAR, blocks[ii].Rank(), 18, MPI_COMM_WORLD, &request); //send bc types
-      }
-      else{ //receive data
-	int tempR[14];
-	MPI_Status status;
-	MPI_Recv(&tempR, 1, MPI_procBlockInts, ROOT, 1, MPI_COMM_WORLD, &status); //receive integers
+
+	int bufSizeBC = 0;
+	int stringSize = 0;
+	MPI_Pack_size(bound.NumSurfI() * bound.NumSurfJ() * bound.NumSurfK() * 7, MPI_INT, MPI_COMM_WORLD, &tempSize); //add size for states
+	bufSizeBC += tempSize;
+	// for ( int jj = 0; jj < (bound.NumSurfI() * bound.NumSurfJ() * bound.NumSurfK()); jj++ ){
+	//   MPI_Pack_size(bound.GetBCTypes(jj).size(), MPI_CHAR, MPI_COMM_WORLD, &tempSize); //add size for states
+	//   stringSize += tempSize;
+	// }
+	//bufSizeBC += stringSize;
+
+
+	int surfs [4] = {bound.NumSurfI(), bound.NumSurfJ(), bound.NumSurfK(), bufSizeBC};
+
+	MPI_Send(&surfs[0], 4, MPI_INT, blocks[ii].Rank(), 3, MPI_COMM_WORLD);
+
+
+	char *bufBC = new char[bufSizeBC];
+
+	cout << "new buffer size is " << bufSizeBC << ", sending to processor " << blocks[ii].Rank() << endl;
+
+	vector<string> names = bound.GetBCTypesVec();
+	vector<int> iMin = bound.GetIMinVec();
+	vector<int> iMax = bound.GetIMaxVec();
+	vector<int> jMin = bound.GetJMinVec();
+	vector<int> jMax = bound.GetJMaxVec();
+	vector<int> kMin = bound.GetKMinVec();
+	vector<int> kMax = bound.GetKMaxVec();
+	vector<int> tags = bound.GetTagVec();
+
+
+	position = 0;
+	MPI_Pack(&iMin[0], iMin.size(), MPI_INT, bufBC, bufSizeBC, &position, MPI_COMM_WORLD);
+	MPI_Pack(&iMax[0], iMax.size(), MPI_INT, bufBC, bufSizeBC, &position, MPI_COMM_WORLD);
+	MPI_Pack(&jMin[0], jMin.size(), MPI_INT, bufBC, bufSizeBC, &position, MPI_COMM_WORLD);
+	MPI_Pack(&jMax[0], jMax.size(), MPI_INT, bufBC, bufSizeBC, &position, MPI_COMM_WORLD);
+	MPI_Pack(&kMin[0], kMin.size(), MPI_INT, bufBC, bufSizeBC, &position, MPI_COMM_WORLD);
+	MPI_Pack(&kMax[0], kMax.size(), MPI_INT, bufBC, bufSizeBC, &position, MPI_COMM_WORLD);
+	MPI_Pack(&tags[0], tags.size(), MPI_INT, bufBC, bufSizeBC, &position, MPI_COMM_WORLD);
+	// for ( int jj = 0; jj < (bound.NumSurfI() * bound.NumSurfJ() * bound.NumSurfK()); jj++ ){
+	//   MPI_Pack(names[0].c_str(), names[0].size(), MPI_CHAR, bufBC, bufSizeBC, &position, MPI_COMM_WORLD);
+	// }
+
+	MPI_Send(bufBC, bufSizeBC, MPI_PACKED, blocks[ii].Rank(), 4, MPI_COMM_WORLD);
+
+	delete[] bufBC;
+
+	cout << "pack/send complete" << endl;
 
       }
+    }
+
+  }
+  
+
+  if (rank != ROOT) { // receive and unpack data
+    for ( int ii = 0; ii < numProcBlock; ii++ ){
+
+      MPI_Status status;
+      int tempR[14];
+      MPI_Recv(&tempR[0], 14, MPI_INT, ROOT, 1, MPI_COMM_WORLD, &status);
+
+      procBlock tempBlock(tempR[2], tempR[3], tempR[4], tempR[5]);
+      tempBlock.SetParentBlock(tempR[6]);
+      tempBlock.SetParentBlockStartI(tempR[7]);
+      tempBlock.SetParentBlockEndI(tempR[8]);
+      tempBlock.SetParentBlockStartJ(tempR[9]);
+      tempBlock.SetParentBlockEndJ(tempR[10]);
+      tempBlock.SetParentBlockStartK(tempR[11]);
+      tempBlock.SetParentBlockEndK(tempR[12]);
+      tempBlock.SetRank(rank);
+
+      int numCells = (tempR[2] + 2 * tempR[5]) * (tempR[3] + 2 * tempR[5]) * (tempR[4] + 2 * tempR[5]);
+      int numFaceI = (tempR[2] + 2 * tempR[5] + 1) * (tempR[3] + 2 * tempR[5]) * (tempR[4] + 2 * tempR[5]);
+      int numFaceJ = (tempR[2] + 2 * tempR[5]) * (tempR[3] + 2 * tempR[5] + 1) * (tempR[4] + 2 * tempR[5]);
+      int numFaceK = (tempR[2] + 2 * tempR[5]) * (tempR[3] + 2 * tempR[5]) * (tempR[4] + 2 * tempR[5] + 1);
+
+      int bufSizeData = 0;
+      MPI_Pack_size(numCells, MPI_cellData, MPI_COMM_WORLD, &tempSize); //add size for states
+      vector<primVars> primVecR(numCells);
+      bufSizeData += tempSize;
+      MPI_Pack_size(numCells, MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for cell centers
+      vector<vector3d<double> > centerVecR(numCells);
+      bufSizeData += tempSize;
+      MPI_Pack_size(numFaceI, MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for face area I
+      vector<vector3d<double> > fAreaIVecR(numCells);
+      bufSizeData += tempSize;
+      MPI_Pack_size(numFaceJ, MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for face area J
+      vector<vector3d<double> > fAreaJVecR(numCells);
+      bufSizeData += tempSize;
+      MPI_Pack_size(numFaceK, MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for face area K
+      vector<vector3d<double> > fAreaKVecR(numCells);
+      bufSizeData += tempSize;
+      MPI_Pack_size(numFaceI, MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for face center I
+      vector<vector3d<double> > fCenterIVecR(numCells);
+      bufSizeData += tempSize;
+      MPI_Pack_size(numFaceJ, MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for face center J
+      vector<vector3d<double> > fCenterJVecR(numCells);
+      bufSizeData += tempSize;
+      MPI_Pack_size(numFaceK, MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for face center K
+      vector<vector3d<double> > fCenterKVecR(numCells);
+      bufSizeData += tempSize;
+      MPI_Pack_size(numCells, MPI_DOUBLE, MPI_COMM_WORLD, &tempSize); //add size for volumes
+      vector<double> volVecR(numCells);
+      bufSizeData += tempSize;
+
+      char *bufData = new char[bufSizeData];
+
+      cout << "processor " << rank << " has a buffer of size " << bufSizeData << endl;
+
+      MPI_Recv(bufData, bufSizeData, MPI_PACKED, ROOT, 2, MPI_COMM_WORLD, &status);
+
+
+
+      int position = 0;
+      MPI_Unpack(bufData, bufSizeData, &position, &primVecR[0], primVecR.size(), MPI_cellData, MPI_COMM_WORLD); //unpack states
+      MPI_Unpack(bufData, bufSizeData, &position, &centerVecR[0], centerVecR.size(), MPI_vec3d, MPI_COMM_WORLD); //unpack cell centers
+      MPI_Unpack(bufData, bufSizeData, &position, &fAreaIVecR[0], fAreaIVecR.size(), MPI_vec3d, MPI_COMM_WORLD); //unpack face area I
+      MPI_Unpack(bufData, bufSizeData, &position, &fAreaJVecR[0], fAreaJVecR.size(), MPI_vec3d, MPI_COMM_WORLD); //unpack face area J
+      MPI_Unpack(bufData, bufSizeData, &position, &fAreaKVecR[0], fAreaKVecR.size(), MPI_vec3d, MPI_COMM_WORLD); //unpack face area K
+      MPI_Unpack(bufData, bufSizeData, &position, &fCenterIVecR[0], fCenterIVecR.size(), MPI_vec3d, MPI_COMM_WORLD); //unpack face center I
+      MPI_Unpack(bufData, bufSizeData, &position, &fCenterJVecR[0], fCenterJVecR.size(), MPI_vec3d, MPI_COMM_WORLD); //unpack face center J
+      MPI_Unpack(bufData, bufSizeData, &position, &fCenterKVecR[0], fCenterKVecR.size(), MPI_vec3d, MPI_COMM_WORLD); //unpack face center K
+      MPI_Unpack(bufData, bufSizeData, &position, &volVecR[0], volVecR.size(), MPI_DOUBLE, MPI_COMM_WORLD); //unpack volumes
+
+      delete [] bufData;
+
+      tempBlock.SetStateVec(primVecR); //assign states
+      tempBlock.SetCenterVec(centerVecR); //assign cell centers
+      tempBlock.SetFAreaIVec(fAreaIVecR); //assign face area I
+      tempBlock.SetFAreaJVec(fAreaJVecR); //assign face area J
+      tempBlock.SetFAreaKVec(fAreaKVecR); //assign face area K
+      tempBlock.SetFCenterIVec(fCenterIVecR); //assign face center I
+      tempBlock.SetFCenterJVec(fCenterJVecR); //assign face center J
+      tempBlock.SetFCenterKVec(fCenterKVecR); //assign face center K
+      tempBlock.SetVolVec(volVecR); //assign volumes
+
+      cout << "receiving bc surfs and buffer size" << endl;
+      int surfs[4];
+      MPI_Recv(&surfs[0], 4, MPI_INT, ROOT, 3, MPI_COMM_WORLD, &status);
+
+      cout << "got buffer size of " << surfs[3] << endl;
+
+      boundaryConditions bound(surfs[0], surfs[1], surfs[2]);
+      vector<int> iMin(surfs[0] * surfs[1] * surfs[2]);
+      vector<int> iMax(surfs[0] * surfs[1] * surfs[2]);
+      vector<int> jMin(surfs[0] * surfs[1] * surfs[2]);
+      vector<int> jMax(surfs[0] * surfs[1] * surfs[2]);
+      vector<int> kMin(surfs[0] * surfs[1] * surfs[2]);
+      vector<int> kMax(surfs[0] * surfs[1] * surfs[2]);
+      vector<int> tags(surfs[0] * surfs[1] * surfs[2]);
+      vector<string> names(surfs[0] * surfs[1] * surfs[2]);
+
+      char *bufBC = new char[surfs[3]];
+
+      MPI_Recv(&bufBC[0], surfs[3], MPI_PACKED, ROOT, 4, MPI_COMM_WORLD, &status);
+
+      cout << "processor " << rank << " has received its buffer of size " << bufSizeData << endl;
+
+      position = 0;
+      MPI_Unpack(bufBC, surfs[3], &position, &iMin[0], iMin.size(), MPI_INT, MPI_COMM_WORLD); //unpack i min coordinates
+      MPI_Unpack(bufBC, surfs[3], &position, &iMax[0], iMax.size(), MPI_INT, MPI_COMM_WORLD); //unpack i max coordinates
+      MPI_Unpack(bufBC, surfs[3], &position, &jMin[0], jMin.size(), MPI_INT, MPI_COMM_WORLD); //unpack j min coordinates
+      MPI_Unpack(bufBC, surfs[3], &position, &jMax[0], jMax.size(), MPI_INT, MPI_COMM_WORLD); //unpack j max coordinates
+      MPI_Unpack(bufBC, surfs[3], &position, &kMin[0], kMin.size(), MPI_INT, MPI_COMM_WORLD); //unpack k min coordinates
+      MPI_Unpack(bufBC, surfs[3], &position, &kMax[0], kMax.size(), MPI_INT, MPI_COMM_WORLD); //unpack k max coordinates
+      MPI_Unpack(bufBC, surfs[3], &position, &tags[0], tags.size(), MPI_INT, MPI_COMM_WORLD); //unpack tags
+
+
+      delete [] bufBC;
+
+      localBlocks.push_back(tempBlock);
 
     }
   }
 
 
+
+  // 	//send boundary conditions
+  // 	boundaryConditions bound = blocks[ii].BC();
+  // 	vector<int> intVecS = bound.GetIMinVec();
+  // 	MPI_Isend(&intVecS, intVecS.size(), MPI_INT, blocks[ii].Rank(), 11, MPI_COMM_WORLD, &request); //send i-min coordinates
+  // 	intVecS = bound.GetIMaxVec();
+  // 	MPI_Isend(&intVecS, intVecS.size(), MPI_INT, blocks[ii].Rank(), 12, MPI_COMM_WORLD, &request); //send i-max coordinates
+  // 	intVecS = bound.GetJMinVec();
+  // 	MPI_Isend(&intVecS, intVecS.size(), MPI_INT, blocks[ii].Rank(), 13, MPI_COMM_WORLD, &request); //send j-min coordinates
+  // 	intVecS = bound.GetJMaxVec();
+  // 	MPI_Isend(&intVecS, intVecS.size(), MPI_INT, blocks[ii].Rank(), 14, MPI_COMM_WORLD, &request); //send j-max coordinates
+  // 	intVecS = bound.GetKMinVec();
+  // 	MPI_Isend(&intVecS, intVecS.size(), MPI_INT, blocks[ii].Rank(), 15, MPI_COMM_WORLD, &request); //send k-min coordinates
+  // 	intVecS = bound.GetKMaxVec();
+  // 	MPI_Isend(&intVecS, intVecS.size(), MPI_INT, blocks[ii].Rank(), 16, MPI_COMM_WORLD, &request); //send k-max coordinates
+  // 	intVecS = bound.GetTagVec();
+  // 	MPI_Isend(&intVecS, intVecS.size(), MPI_INT, blocks[ii].Rank(), 17, MPI_COMM_WORLD, &request); //send tags
+  // 	int dims[3] = {bound.NumSurfI(), bound.NumSurfJ(), bound.NumSurfK()};
+  // 	MPI_Isend(&dims, 3, MPI_INT, blocks[ii].Rank(), 1, MPI_COMM_WORLD, &request); //send number of surfaces
+  // 	vector<string> strVecS = bound.GetBCTypesVec();
+  // 	MPI_Isend(strVecS[0].c_str(), strVecS.size(), MPI_CHAR, blocks[ii].Rank(), 18, MPI_COMM_WORLD, &request); //send bc types
+
+  delete [] bufInt;
+
+  return localBlocks;
 
 }

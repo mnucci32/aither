@@ -1,4 +1,3 @@
-#include "mpi.h"         //for parallelism
 #include <iostream>      //cout, cerr, endl
 #include "plot3d.h"
 #include "vector3d.h"
@@ -50,71 +49,33 @@ int main( int argc, char *argv[] ) {
 
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW); //enable exceptions so code won't run with NANs
 
-
-  int numEqns = 0;
   double totalCells = 0.0;
   input inputVars;
-  vector3d<double> test; //debug
-  vector<double> dummy(5); //debug
-  if (rank == ROOT ){
+  vector<int> loadBal;
+  int numProcBlock = 0;
 
+  string inputFile = argv[1];  //name of input file is the second argument (the executable being the first)
 
-    const string inputFile = argv[1];  //name of input file is the second argument (the executable being the first)
+  //Parse input file
+  inputVars = ReadInput(inputFile, rank);
 
-    //Parse input file
-    inputVars = ReadInput(inputFile);
-
-    //Determine number of equations
-
-    if ( (inputVars.EquationSet() == "euler") || (inputVars.EquationSet() == "navierStokes") ){
-      numEqns = 5;
-    }
-    else{
-      cerr << "ERROR: Equations set is not recognized. Cannot determine number of equations!" << endl;
-    }
-
-    cout << "Number of equations: " << numEqns << endl << endl;
-  
-    //debug
-    test.SetX(5.5);
-    test.SetY(1.2);
-    test.SetZ(-8.3);
-    dummy[0] = 1.1;
-    dummy[1] = 2.2;
-    dummy[2] = 3.3;
-    dummy[3] = 4.4;
-    dummy[4] = 5.5;
+  //Determine number of equations
+  int numEqns = 0;
+  if ( (inputVars.EquationSet() == "euler") || (inputVars.EquationSet() == "navierStokes") ){
+    numEqns = 5;
   }
-
-  //set MPI datatypes
-  MPI_Datatype MPI_vec3d, MPI_cellData, MPI_procBlockInts;
-  SetDataTypesMPI(numEqns, MPI_vec3d, MPI_cellData, MPI_procBlockInts);
-
-  //debug
-  cout << "I am processor " << rank << " and my vector is: " << test << endl;
-  MPI_Bcast(&test, 1, MPI_vec3d, 0, MPI_COMM_WORLD);
-  cout << "I am processor " << rank << " and my vector, after Bcast is: " << test << endl;
-
-  MPI_Bcast(&dummy[0], 5, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-  cout << "I am processor " << rank << " and my std::vector, after Bcast is: " << dummy[0] << ", " << dummy[1] << ", " << dummy[2] << ", " << dummy[3] << ", " << dummy[4] << endl;
-
-  if (rank == ROOT ){
-
-
-
+  else{
+    cerr << "ERROR: Equations set is not recognized. Cannot determine number of equations!" << endl;
+  }
 
   //determine number of ghost cells
   int numGhost = 2;
 
-  //Read grid
-  vector<plot3dBlock> mesh = ReadP3dGrid(inputVars.GridName(), totalCells);
-
-  //Get interblock BCs
-  vector<interblock> connections = GetInterblockBCs( inputVars.AllBC(), mesh );
+  //get equation of state
+  idealGas eos(inputVars.Gamma(),inputVars.R());
 
   //Initialize state vector with nondimensional variables
   //get reference speed of sound
-  idealGas eos(inputVars.Gamma(),inputVars.R());                          //create an equation of state
   double aRef = eos.GetSoS(inputVars.PRef(),inputVars.RRef());
 
   //get a reference velocity
@@ -126,30 +87,57 @@ int main( int argc, char *argv[] ) {
   //initialize sutherland's law for viscosity
   sutherland suth(inputVars.TRef());
 
-  //initialize the whole mesh with one state and assign ghost cells geometry ------------------
-  vector<procBlock> stateBlocks( mesh.size() );
-  for ( int ll = 0; ll < (int)mesh.size(); ll++) {
-    stateBlocks[ll] = procBlock(state, mesh[ll], ll, numGhost, inputVars.EquationSet(), inputVars.BC(ll));
-    stateBlocks[ll].AssignGhostCellsGeom(inputVars);
+  //set MPI datatypes
+  MPI_Datatype MPI_vec3d, MPI_cellData, MPI_procBlockInts;
+  SetDataTypesMPI(numEqns, MPI_vec3d, MPI_cellData, MPI_procBlockInts);
+
+  vector<plot3dBlock> mesh;
+  vector<interblock> connections;
+  vector<procBlock> stateBlocks;
+
+  if (rank == ROOT ){
+
+    cout << "Number of equations: " << numEqns << endl << endl;
+
+    //Read grid
+    mesh = ReadP3dGrid(inputVars.GridName(), totalCells);
+
+    //Get interblock BCs
+    connections = GetInterblockBCs( inputVars.AllBC(), mesh );
+
+    //initialize the whole mesh with one state and assign ghost cells geometry ------------------
+    stateBlocks.resize( mesh.size() );
+    for ( int ll = 0; ll < (int)mesh.size(); ll++) {
+      stateBlocks[ll] = procBlock(state, mesh[ll], ll, numGhost, inputVars.EquationSet(), inputVars.BC(ll));
+      stateBlocks[ll].AssignGhostCellsGeom(inputVars);
+    }
+
+    //swap geometry for interblock BCs
+    for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
+      //cout << "Swap Geometry for connection: " << connections[ii] << endl;
+      SwapSlice( connections[ii], stateBlocks[connections[ii].BlockFirst()], stateBlocks[connections[ii].BlockSecond()], true);
+    }
+    //Get ghost cell edge data
+    for ( int ll = 0; ll < (int)mesh.size(); ll++) {
+      stateBlocks[ll].AssignGhostCellsGeomEdge(inputVars);
+    }
+
+    cout << endl << "Solution Initialized" << endl;
+    //----------------------------------------------------------------------------------------------
+
+    //decompose grid
+    loadBal = ManualDecomposition(stateBlocks, numProcs);
   }
 
-  //swap geometry for interblock BCs
-  for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
-    //cout << "Swap Geometry for connection: " << connections[ii] << endl;
-    SwapSlice( connections[ii], stateBlocks[connections[ii].BlockFirst()], stateBlocks[connections[ii].BlockSecond()], true);
-  }
-  //Get ghost cell edge data
-  for ( int ll = 0; ll < (int)mesh.size(); ll++) {
-    stateBlocks[ll].AssignGhostCellsGeomEdge(inputVars);
-  }
-
-  cout << endl << "Solution Initialized" << endl;
-  //----------------------------------------------------------------------------------------------
-
-  //decompose grid
-  ManualDecomposition(stateBlocks, numProcs);
+  //send number of procBlocks to all processors
+  SendNumProcBlocks( loadBal, rank, numProcBlock);
+  cout << "I am processor " << rank << " and I need: " << numProcBlock << " procBlocks." << endl;
 
   //send procBlocks to appropriate processor
+  vector<procBlock> localStateBlocks = SendProcBlocks(stateBlocks, rank, numProcBlock, MPI_procBlockInts, MPI_cellData, MPI_vec3d);
+
+  if ( rank == ROOT) {
+
 
 
 
