@@ -28,14 +28,14 @@ using std::clock;
 int main( int argc, char *argv[] ) {
 
   //initialize MPI and make calls to get number of processors and rank of each processor
-  int numProcs, rank, mpiError;
+  int numProcs, rank;
   MPI_Init(&argc,&argv);
   MPI_Comm_size(MPI_COMM_WORLD, &numProcs);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   //get MPI version
   int version, subversion;
-  mpiError = MPI_Get_version(&version, &subversion);
+  MPI_Get_version(&version, &subversion);
   if (rank == ROOT ){
     cout << "Using MPI Version " << version << "." << subversion << endl;
   }
@@ -114,7 +114,7 @@ int main( int argc, char *argv[] ) {
 
     //swap geometry for interblock BCs
     for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
-      //cout << "Swap Geometry for connection: " << connections[ii] << endl;
+      cout << "Swap Geometry for connection: " << connections[ii] << endl;
       SwapSlice( connections[ii], stateBlocks[connections[ii].BlockFirst()], stateBlocks[connections[ii].BlockSecond()], true);
     }
     //Get ghost cell edge data
@@ -131,10 +131,9 @@ int main( int argc, char *argv[] ) {
 
   //send number of procBlocks to all processors
   SendNumProcBlocks( loadBal, rank, numProcBlock);
-  cout << "I am processor " << rank << " and I need: " << numProcBlock << " procBlocks." << endl;
 
   //send procBlocks to appropriate processor
-  vector<procBlock> localStateBlocks = SendProcBlocks(stateBlocks, rank, numProcBlock, MPI_procBlockInts, MPI_cellData, MPI_vec3d);
+  vector<procBlock> localStateBlocks = SendProcBlocks(stateBlocks, rank, numProcBlock, MPI_cellData, MPI_vec3d);
 
   if ( rank == ROOT) {
 
@@ -288,7 +287,7 @@ int main( int argc, char *argv[] ) {
 
   }
 
-  mpiError = MPI_Finalize();
+  MPI_Finalize();
 
   return 0;
 }
