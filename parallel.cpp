@@ -53,13 +53,6 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
   vector<procBlock> localBlocks;
   localBlocks.reserve(numProcBlock);
 
-  // int bufSizeInt = 0;
-  // int tempSize = 0;
-  // MPI_Pack_size(14, MPI_INT, MPI_COMM_WORLD, &tempSize);
-  // bufSizeInt += tempSize;
-
-  // char *bufInt = new char[bufSizeInt];
-
   if ( rank == ROOT ){ // may have to pack and send data
     for ( unsigned int ii = 0; ii < blocks.size(); ii++ ){
 
@@ -136,20 +129,22 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
 	boundaryConditions bound = blocks[ii].BC();
 
 	int bufSizeBC = 0;
-	int stringSize = 0;
-	MPI_Pack_size(bound.NumSurfI() * bound.NumSurfJ() * bound.NumSurfK() * 7, MPI_INT, MPI_COMM_WORLD, &tempSize); //add size for states
+	MPI_Pack_size( (bound.NumSurfI() + bound.NumSurfJ() + bound.NumSurfK()) * 8, MPI_INT, MPI_COMM_WORLD, &tempSize); //add size for states
 	bufSizeBC += tempSize;
-	// for ( int jj = 0; jj < (bound.NumSurfI() * bound.NumSurfJ() * bound.NumSurfK()); jj++ ){
-	int jj = 0;
 
-	//DEBUG
-	//PLAN FORWARD -- need to allocate a separate vector for bcType string sizes and pack that ahead of the strings themselves. Then pack strings one by one, and unpack using the sent lengths.
+	//string lengths
+	vector<int> strLengthS(bound.NumSurfI() + bound.NumSurfJ() + bound.NumSurfK() );
+	for ( unsigned int jj = 0; jj < strLengthS.size(); jj++ ){
+	  strLengthS[jj] = bound.GetBCTypes(jj).size();
+	  cout << "string length is: " << strLengthS[jj] << endl;
+	}
 
-
-	cout << "string size for " << bound.GetBCTypes(jj) << " is " << bound.GetBCTypes(jj).size() << endl;
+	int stringSize = 0;
+	for ( int jj = 0; jj < (bound.NumSurfI() + bound.NumSurfJ() + bound.NumSurfK()); jj++ ){
 	  MPI_Pack_size(bound.GetBCTypes(jj).size(), MPI_CHAR, MPI_COMM_WORLD, &tempSize); //add size for states
 	  stringSize += tempSize;
-	// }
+	}
+	cout << "raw buffer size " << bufSizeBC << ", string size " << stringSize << endl;
 	bufSizeBC += stringSize;
 
 
@@ -178,10 +173,11 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
 	MPI_Pack(&kMin[0], kMin.size(), MPI_INT, bufBC, bufSizeBC, &position, MPI_COMM_WORLD);
 	MPI_Pack(&kMax[0], kMax.size(), MPI_INT, bufBC, bufSizeBC, &position, MPI_COMM_WORLD);
 	MPI_Pack(&tags[0], tags.size(), MPI_INT, bufBC, bufSizeBC, &position, MPI_COMM_WORLD);
-	// for ( int jj = 0; jj < (bound.NumSurfI() * bound.NumSurfJ() * bound.NumSurfK()); jj++ ){
-	  MPI_Pack(names[0].c_str(), names[0].size(), MPI_CHAR, bufBC, bufSizeBC, &position, MPI_COMM_WORLD);
-	  cout << "sent char is " << names[0].c_str() << endl;
-	// }
+	MPI_Pack(&strLengthS[0], strLengthS.size(), MPI_INT, bufBC, bufSizeBC, &position, MPI_COMM_WORLD);
+	for ( int jj = 0; jj < (bound.NumSurfI() + bound.NumSurfJ() + bound.NumSurfK()); jj++ ){
+	  MPI_Pack(names[jj].c_str(), names[jj].size(), MPI_CHAR, bufBC, bufSizeBC, &position, MPI_COMM_WORLD);
+	  cout << "sent char is " << names[jj].c_str() << ", size of " << strLengthS[jj] << endl;
+	}
 
 	MPI_Send(bufBC, bufSizeBC, MPI_PACKED, blocks[ii].Rank(), 4, MPI_COMM_WORLD);
 
@@ -253,8 +249,6 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
 
       MPI_Recv(bufData, bufSizeData, MPI_PACKED, ROOT, 2, MPI_COMM_WORLD, &status);
 
-
-
       int position = 0;
       MPI_Unpack(bufData, bufSizeData, &position, &primVecR[0], primVecR.size(), MPI_cellData, MPI_COMM_WORLD); //unpack states
       MPI_Unpack(bufData, bufSizeData, &position, &centerVecR[0], centerVecR.size(), MPI_vec3d, MPI_COMM_WORLD); //unpack cell centers
@@ -289,6 +283,7 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
       vector<int> kMin(surfs[0] + surfs[1] + surfs[2]);
       vector<int> kMax(surfs[0] + surfs[1] + surfs[2]);
       vector<int> tags(surfs[0] + surfs[1] + surfs[2]);
+      vector<int> strLength(surfs[0] + surfs[1] + surfs[2]);
       vector<string> names(surfs[0] + surfs[1] + surfs[2]);
 
       char *bufBC = new char[surfs[3]]{};
@@ -296,8 +291,6 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
       MPI_Recv(&bufBC[0], surfs[3], MPI_PACKED, ROOT, 4, MPI_COMM_WORLD, &status);
 
       cout << "processor " << rank << " has received its buffer of size " << surfs[3] << endl;
-
-      char nameBuf[100]{};
 
       position = 0;
       MPI_Unpack(bufBC, surfs[3], &position, &iMin[0], iMin.size(), MPI_INT, MPI_COMM_WORLD); //unpack i min coordinates
@@ -307,10 +300,17 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
       MPI_Unpack(bufBC, surfs[3], &position, &kMin[0], kMin.size(), MPI_INT, MPI_COMM_WORLD); //unpack k min coordinates
       MPI_Unpack(bufBC, surfs[3], &position, &kMax[0], kMax.size(), MPI_INT, MPI_COMM_WORLD); //unpack k max coordinates
       MPI_Unpack(bufBC, surfs[3], &position, &tags[0], tags.size(), MPI_INT, MPI_COMM_WORLD); //unpack tags
-      cout << "unpacking string at position " << position << " of " << surfs[3] << endl;
-      MPI_Unpack(bufBC, surfs[3], &position, &nameBuf[0], surfs[3]-position, MPI_CHAR, MPI_COMM_WORLD); //unpack bc types
-      //string bcName(nameBuf);
-      cout << "I am processor " << rank << ". I received boundary condition " << nameBuf << endl;
+      MPI_Unpack(bufBC, surfs[3], &position, &strLength[0], strLength.size(), MPI_INT, MPI_COMM_WORLD); //unpack string sizes
+      for ( unsigned int jj = 0; jj < strLength.size(); jj++ ){
+	char nameBuf[100]{};
+      	cout << "unpacking string at position " << position << " of " << surfs[3] << endl;
+      	cout << iMin[jj] << ", " << iMax[jj] << ", " << jMin[jj] << ", " << jMax[jj] << ", " << kMin[jj] << ", " << kMax[jj] << ", " << tags[jj] << ", " << strLength[jj] << endl;
+      	MPI_Unpack(bufBC, surfs[3], &position, &nameBuf[0], strLength[jj], MPI_CHAR, MPI_COMM_WORLD); //unpack bc types
+      	string bcName(nameBuf);
+      	names[jj] = bcName;
+      	cout << "I am processor " << rank << ". I received boundary condition " << nameBuf << endl;
+      }
+
 
       delete [] bufBC;
 
