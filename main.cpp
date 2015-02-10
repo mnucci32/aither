@@ -114,7 +114,6 @@ int main( int argc, char *argv[] ) {
 
     //swap geometry for interblock BCs
     for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
-      cout << "Swap Geometry for connection: " << connections[ii] << endl;
       SwapSlice( connections[ii], stateBlocks[connections[ii].BlockFirst()], stateBlocks[connections[ii].BlockSecond()], true);
     }
     //Get ghost cell edge data
@@ -126,7 +125,8 @@ int main( int argc, char *argv[] ) {
     //----------------------------------------------------------------------------------------------
 
     //decompose grid
-    loadBal = ManualDecomposition(stateBlocks, numProcs);
+    loadBal = ManualDecomposition(stateBlocks, numProcs, connections);
+
   }
 
   //send number of procBlocks to all processors
@@ -134,6 +134,9 @@ int main( int argc, char *argv[] ) {
 
   //send procBlocks to appropriate processor
   vector<procBlock> localStateBlocks = SendProcBlocks(stateBlocks, rank, numProcBlock, MPI_cellData, MPI_vec3d);
+
+  //send connections to all processors
+
 
   if ( rank == ROOT) {
 

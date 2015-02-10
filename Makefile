@@ -40,7 +40,7 @@ viscousFlux.o : viscousFlux.cpp vector3d.h tensor.h eos.h primVars.h viscousFlux
 output.o : output.cpp output.h procBlock.h tensor.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h
 	$(CC) $(CFLAGS) output.cpp
 
-parallel.o : parallel.cpp parallel.h geomSlice.h primVars.h procBlock.h vector3d.h plot3d.h
+parallel.o : parallel.cpp parallel.h geomSlice.h primVars.h procBlock.h vector3d.h plot3d.h boundaryConditions.h
 	$(CC) $(CFLAGS) parallel.cpp
 
 matrix.o : matrix.cpp matrix.h plot3d.h

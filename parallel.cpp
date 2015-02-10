@@ -2,7 +2,7 @@
 
 /* Function to return processor list for manual decomposition. Manual decomposition assumes that each block will reside on it's own processor.
 */
-vector<int> ManualDecomposition(vector<procBlock> &grid, const int &numProc){
+vector<int> ManualDecomposition(vector<procBlock> &grid, const int &numProc, vector<interblock> &connections){
   // grid -- vector of procBlocks (no need to split procBlocks or combine them with manual decomposition)
   // numProc -- number of processors in run
 
@@ -19,6 +19,12 @@ vector<int> ManualDecomposition(vector<procBlock> &grid, const int &numProc){
   //assign processor rank for each procBlock
   for ( int ii = 0; ii < numProc; ii++ ){
     grid[ii].SetRank(ii);
+  }
+
+  //adjust interblocks to have appropriate rank
+  for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
+    connections[ii].SetRankFirst(grid[connections[ii].BlockFirst()].Rank());
+    connections[ii].SetRankSecond(grid[connections[ii].BlockSecond()].Rank());
   }
 
   return loadBal;

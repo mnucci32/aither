@@ -13,6 +13,7 @@ It also writes out a master file in Ensight format to name the Plot3D functions.
 #include "plot3d.h" //plot3d
 #include "primVars.h" //primVars
 #include "procBlock.h" //procBlock
+#include "boundaryConditions.h" //interblock
 #include "geomSlice.h" //geomSlice, stateSlice
 #include <iostream>
 
@@ -26,7 +27,7 @@ using std::cerr;
 #define ROOT 0
 
 //function definitions
-vector<int> ManualDecomposition(vector<procBlock>&, const int&);
+vector<int> ManualDecomposition(vector<procBlock>&, const int&, vector<interblock>&);
 void SendNumProcBlocks(const vector<int>&, const int&, int&);
 
 void SetDataTypesMPI(const int&, MPI_Datatype&, MPI_Datatype&, MPI_Datatype&);
