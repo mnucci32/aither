@@ -155,7 +155,8 @@ class interblock {
 
  public:
   int rank [2];             //processor location of boundaries
-  int block [2];            //block numbers
+  int block [2];            //block numbers (global)
+  int localBlock [2];       //local (on processor) block numbers
   int boundary [2];         //boundary numbers
   int d1Start [2];          //first direction start numbers for surface
   int d1End [2];            //first direction end numbers for surface
@@ -179,6 +180,11 @@ class interblock {
   int BlockFirst()const{return block[0];}
   void SetBlockSecond( const int &a){block[1] = a;}
   int BlockSecond()const{return block[1];}
+
+  void SetLocalBlockFirst( const int &a){localBlock[0] = a;}
+  int LocalBlockFirst()const{return localBlock[0];}
+  void SetLocalBlockSecond( const int &a){localBlock[1] = a;}
+  int LocalBlockSecond()const{return localBlock[1];}
 
   void SetBoundaryFirst( const int &a){boundary[0] = a;}
   int BoundaryFirst()const{return boundary[0];}

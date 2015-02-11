@@ -124,6 +124,7 @@ ostream & operator<< (ostream &os, const interblock &bc){
 
   os << "Ranks: " << bc.RankFirst() << ", " << bc.RankSecond() << endl;
   os << "Blocks: " << bc.BlockFirst() << ", " << bc.BlockSecond() << endl;
+  os << "Local Blocks: " << bc.LocalBlockFirst() << ", " << bc.LocalBlockSecond() << endl;
   os << "Boundaries: " << bc.BoundaryFirst() << ", " << bc.BoundarySecond() << endl;
   os << "Direction 1 Starts: " << bc.Dir1StartFirst() << ", " << bc.Dir1StartSecond() << endl;
   os << "Direction 1 Ends: " << bc.Dir1EndFirst() << ", " << bc.Dir1EndSecond() << endl;
@@ -146,6 +147,9 @@ void interblock::SetInterblock(const patch &p1, const patch &p2){
 
   (*this).SetBlockFirst(p1.Block());
   (*this).SetBlockSecond(p2.Block());
+
+  (*this).SetLocalBlockFirst(0); //default value is 0
+  (*this).SetLocalBlockSecond(0);
 
   (*this).SetBoundaryFirst(p1.Boundary());
   (*this).SetBoundarySecond(p2.Boundary());
@@ -178,6 +182,10 @@ void interblock::SwapOrder(){
   temp = (*this).BlockFirst();
   (*this).SetBlockFirst( (*this).BlockSecond() );
   (*this).SetBlockSecond(temp);
+
+  temp = (*this).LocalBlockFirst();
+  (*this).SetLocalBlockFirst( (*this).LocalBlockSecond() );
+  (*this).SetLocalBlockSecond(temp);
 
   temp = (*this).BoundaryFirst();
   (*this).SetBoundaryFirst( (*this).BoundarySecond() );
