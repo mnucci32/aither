@@ -35,12 +35,26 @@ void SendNumProcBlocks(const vector<int> &loadBal, const int &rank, int &numProc
   MPI_Scatter(&loadBal[0], 1, MPI_INT, &numProcBlock, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
 }
 
+//function to send each processor the vector of interblocks it needs to compute its boundary conditions
+void SendConnections(vector<interblock> &connections, const MPI_Datatype &MPI_interblock) {
+
+  //first determine the number of interblocks and send that to all processors
+  int numCon = connections.size();
+  MPI_Bcast(&numCon, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+
+  connections.resize(numCon); //allocate space to receive the interblocks
+
+  //broadcast all interblocks to all processors
+  MPI_Bcast(&connections[0], connections.size(), MPI_interblock, ROOT, MPI_COMM_WORLD);
+}
+
 /* Function to set custom MPI datatypes to allow for easier data transmission */
-void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData, MPI_Datatype &MPI_procBlockInts){
+void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData, MPI_Datatype &MPI_procBlockInts, MPI_Datatype &MPI_interblock ){
   // numEqn -- number of equations being solved
   // MPI_vec3d -- output MPI_Datatype for a vector3d<double>
   // MPI_cellData -- output MPI_Datatype for primVars or colMatrix
   // MPI_procBlockInts -- output MPI_Datatype for 14 INTs (14 INTs in procBlock class)
+  // MPI_interblock -- output MPI_Datatype to send interblock class
 
   //create vector3d<double> MPI datatype
   MPI_Type_contiguous(3, MPI_DOUBLE, &MPI_vec3d);
@@ -53,6 +67,38 @@ void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &M
   //create MPI datatype for all the integers in the procBlock class
   MPI_Type_contiguous(14, MPI_INT, &MPI_procBlockInts);
   MPI_Type_commit(&MPI_procBlockInts);
+
+  //create MPI datatype for interblock class
+  int counts[9] = {2,2,2,2,2,2,2,2,1}; //number of entries per field
+  MPI_Datatype types[9] = {MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT}; //field types
+  MPI_Aint disp[9], lowerBound, extent;
+  interblock inter; //dummy interblock to get layout of class
+  //get addresses of each field
+  MPI_Get_address(&inter.rank[0], &disp[0]);
+  MPI_Get_address(&inter.block[0], &disp[1]);
+  MPI_Get_address(&inter.boundary[0], &disp[2]);
+  MPI_Get_address(&inter.d1Start[0], &disp[3]);
+  MPI_Get_address(&inter.d1End[0], &disp[4]);
+  MPI_Get_address(&inter.d2Start[0], &disp[5]);
+  MPI_Get_address(&inter.d2End[0], &disp[6]);
+  MPI_Get_address(&inter.constSurf[0], &disp[7]);
+  MPI_Get_address(&inter.orientation, &disp[8]);
+  //make addresses relative to first field
+  for ( int ii = 8; ii >= 0; ii-- ){
+    disp[ii] -= disp[0];
+  }
+  MPI_Type_create_struct(9, counts, disp, types, &MPI_interblock);
+
+  //check that datatype has the correct extent, if it doesn't change the extent
+  //this is necessary to portably send an array of this type
+  MPI_Type_get_extent(MPI_interblock, &lowerBound, &extent);
+  if ( extent != sizeof(inter) ){
+    MPI_Datatype temp = MPI_interblock;
+    MPI_Type_create_resized(temp, 0, sizeof(inter), &MPI_interblock);
+    MPI_Type_free(&temp);
+  }
+
+  MPI_Type_commit(&MPI_interblock);
 
 }
 

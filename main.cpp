@@ -88,8 +88,8 @@ int main( int argc, char *argv[] ) {
   sutherland suth(inputVars.TRef());
 
   //set MPI datatypes
-  MPI_Datatype MPI_vec3d, MPI_cellData, MPI_procBlockInts;
-  SetDataTypesMPI(numEqns, MPI_vec3d, MPI_cellData, MPI_procBlockInts);
+  MPI_Datatype MPI_vec3d, MPI_cellData, MPI_procBlockInts, MPI_interblock;
+  SetDataTypesMPI(numEqns, MPI_vec3d, MPI_cellData, MPI_procBlockInts, MPI_interblock);
 
   vector<plot3dBlock> mesh;
   vector<interblock> connections;
@@ -136,6 +136,9 @@ int main( int argc, char *argv[] ) {
   vector<procBlock> localStateBlocks = SendProcBlocks(stateBlocks, rank, numProcBlock, MPI_cellData, MPI_vec3d);
 
   //send connections to all processors
+  SendConnections( connections, MPI_interblock );
+
+
 
 
   if ( rank == ROOT) {
