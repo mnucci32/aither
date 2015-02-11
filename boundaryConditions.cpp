@@ -119,20 +119,6 @@ string boundaryConditions::GetBCName(const int i, const int j, const int k, cons
 
 }
 
-//constructor when passed no arguements
-interblock::interblock(){
-  //initialize all variables to zero
-  pair<int,int> zero(0,0);
-  rank = zero;
-  block = zero;
-  boundary = zero;
-  d1Start = zero;
-  d1End = zero;
-  d2Start = zero;
-  d2End = zero;
-  orientation = 0;
-}
-
 //operator overload for << - allows use of cout, cerr, etc.
 ostream & operator<< (ostream &os, const interblock &bc){
 

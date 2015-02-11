@@ -15,7 +15,6 @@ using std::vector;
 using std::string;
 using std::cout;
 using std::endl;
-using std::pair;
 
 // a class to store the necessary information for the boundary conditions of a block
 class boundaryConditions {
@@ -154,78 +153,62 @@ pair is patch on a boundary that is point matched.
 */
 class interblock {
 
-  pair<int, int> rank;        //processor location of boundaries
-  pair<int, int> block;       //paired block numbers
-  pair<int, int> boundary;    //paired boundary numbers
-  pair<int, int> d1Start;     //paired first direction start numbers for surface
-  pair<int, int> d1End;       //paired first direction end numbers for surface
-  pair<int, int> d2Start;     //paired second direction start numbers for surface
-  pair<int, int> d2End;       //paired second direction end numbers for surface
-  pair<int, int> constSurf;   //index of direction 3
-  int orientation;            //defines how patches are oriented relative to one another (1-8)
-
  public:
+  int rank [2];             //processor location of boundaries
+  int block [2];            //block numbers
+  int boundary [2];         //boundary numbers
+  int d1Start [2];          //first direction start numbers for surface
+  int d1End [2];            //first direction end numbers for surface
+  int d2Start [2];          //second direction start numbers for surface
+  int d2End [2];            //second direction end numbers for surface
+  int constSurf [2];        //index of direction 3
+  int orientation;          //defines how patches are oriented relative to one another (1-8)
+
   //constructor
-  interblock();
+ interblock() : rank{0,0}, block{0,0}, boundary{0,0}, d1Start{0,0}, d1End{0,0}, d2Start{0,0}, d2End{0,0}, constSurf{0,0}, orientation(0) {};
 
   //member functions
   void SetInterblock(const patch&, const patch&);
 
-  void SetRankFirst( const int &a){rank.first = a;}
-  int RankFirst()const{return rank.first;}
-  void SetRankSecond( const int &a){rank.second = a;}
-  int RankSecond()const{return rank.second;}
-  void SetRank( const pair<int,int> &a){rank = a;}
-  pair<int,int> Rank()const{return rank;}
+  void SetRankFirst( const int &a){rank[0] = a;}
+  int RankFirst()const{return rank[0];}
+  void SetRankSecond( const int &a){rank[1] = a;}
+  int RankSecond()const{return rank[1];}
 
-  void SetBlockFirst( const int &a){block.first = a;}
-  int BlockFirst()const{return block.first;}
-  void SetBlockSecond( const int &a){block.second = a;}
-  int BlockSecond()const{return block.second;}
-  void SetBlock( const pair<int,int> &a){block = a;}
-  pair<int,int> Block()const{return block;}
+  void SetBlockFirst( const int &a){block[0] = a;}
+  int BlockFirst()const{return block[0];}
+  void SetBlockSecond( const int &a){block[1] = a;}
+  int BlockSecond()const{return block[1];}
 
-  void SetBoundaryFirst( const int &a){boundary.first = a;}
-  int BoundaryFirst()const{return boundary.first;}
-  void SetBoundarySecond( const int &a){boundary.second = a;}
-  int BoundarySecond()const{return boundary.second;}
-  void SetBoundary( const pair<int,int> &a){boundary = a;}
-  pair<int,int> Boundary()const{return boundary;}
+  void SetBoundaryFirst( const int &a){boundary[0] = a;}
+  int BoundaryFirst()const{return boundary[0];}
+  void SetBoundarySecond( const int &a){boundary[1] = a;}
+  int BoundarySecond()const{return boundary[1];}
 
-  void SetDir1StartFirst( const int &a){d1Start.first = a;}
-  int Dir1StartFirst()const{return d1Start.first;}
-  void SetDir1StartSecond( const int &a){d1Start.second = a;}
-  int Dir1StartSecond()const{return d1Start.second;}
-  void SetDir1Start( const pair<int,int> &a){d1Start = a;}
-  pair<int,int> Dir1Start()const{return d1Start;}
+  void SetDir1StartFirst( const int &a){d1Start[0] = a;}
+  int Dir1StartFirst()const{return d1Start[0];}
+  void SetDir1StartSecond( const int &a){d1Start[1] = a;}
+  int Dir1StartSecond()const{return d1Start[1];}
 
-  void SetDir1EndFirst( const int &a){d1End.first = a;}
-  int Dir1EndFirst()const{return d1End.first;}
-  void SetDir1EndSecond( const int &a){d1End.second = a;}
-  int Dir1EndSecond()const{return d1End.second;}
-  void SetDir1End( const pair<int,int> &a){d1End = a;}
-  pair<int,int> Dir1End()const{return d1End;}
+  void SetDir1EndFirst( const int &a){d1End[0] = a;}
+  int Dir1EndFirst()const{return d1End[0];}
+  void SetDir1EndSecond( const int &a){d1End[1] = a;}
+  int Dir1EndSecond()const{return d1End[1];}
 
-  void SetDir2StartFirst( const int &a){d2Start.first = a;}
-  int Dir2StartFirst()const{return d2Start.first;}
-  void SetDir2StartSecond( const int &a){d2Start.second = a;}
-  int Dir2StartSecond()const{return d2Start.second;}
-  void SetDir2Start( const pair<int,int> &a){d2Start = a;}
-  pair<int,int> Dir2Start()const{return d2Start;}
+  void SetDir2StartFirst( const int &a){d2Start[0] = a;}
+  int Dir2StartFirst()const{return d2Start[0];}
+  void SetDir2StartSecond( const int &a){d2Start[1] = a;}
+  int Dir2StartSecond()const{return d2Start[1];}
 
-  void SetDir2EndFirst( const int &a){d2End.first = a;}
-  int Dir2EndFirst()const{return d2End.first;}
-  void SetDir2EndSecond( const int &a){d2End.second = a;}
-  int Dir2EndSecond()const{return d2End.second;}
-  void SetDir2End( const pair<int,int> &a){d2End = a;}
-  pair<int,int> Dir2End()const{return d2End;}
+  void SetDir2EndFirst( const int &a){d2End[0] = a;}
+  int Dir2EndFirst()const{return d2End[0];}
+  void SetDir2EndSecond( const int &a){d2End[1] = a;}
+  int Dir2EndSecond()const{return d2End[1];}
 
-  void SetConstSurfaceFirst( const int &a){constSurf.first = a;}
-  int ConstSurfaceFirst()const{return constSurf.first;}
-  void SetConstSurfaceSecond( const int &a){constSurf.second = a;}
-  int ConstSurfaceSecond()const{return constSurf.second;}
-  void SetConstSurface( const pair<int,int> &a){constSurf = a;}
-  pair<int,int> ConstSurface()const{return constSurf;}
+  void SetConstSurfaceFirst( const int &a){constSurf[0] = a;}
+  int ConstSurfaceFirst()const{return constSurf[0];}
+  void SetConstSurfaceSecond( const int &a){constSurf[1] = a;}
+  int ConstSurfaceSecond()const{return constSurf[1];}
 
   void SetOrientation( const int &a){orientation = a;}
   int Orientation()const{return orientation;}
