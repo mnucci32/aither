@@ -14,6 +14,7 @@
 #include "input.h" //inputVars
 #include "matrix.h" //squareMatrix, matrixDiagonal
 #include "boundaryConditions.h" //interblock, patch
+#include "mpi.h" //parallelism
 #include <fstream>
 #include <iostream>
 
@@ -204,6 +205,8 @@ class procBlock {
   stateSlice GetStateSlice(const int&, const int&, const int&, const int&, const int&, const int&, const bool=false, const bool=false, const bool=false)const;
   void PutStateSlice(const stateSlice&, const interblock&, const int&);
 
+  void SwapSliceMPI(const interblock&, const int& );
+
   //destructor
   ~procBlock() {}
 
@@ -230,6 +233,7 @@ vector3d<double> CalcTempGradGG(const double&, const double&, const double&, con
 vector<int> GetSwapLoc( const int&, const int&, const int&, const interblock&, const bool&);
 void SwapSlice(const interblock&, procBlock&, procBlock&, const bool&);
 
-void GetBoundaryConditions(vector<procBlock>&, const input&, const idealGas&, const vector<interblock>&);
+
+void GetBoundaryConditions(vector<procBlock>&, const input&, const idealGas&, const vector<interblock>&, const int &rank, const MPI_Datatype &MPI_cellData);
 
 #endif

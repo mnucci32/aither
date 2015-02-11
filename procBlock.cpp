@@ -6710,6 +6710,15 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
 
 }
 
+/* Function to swap slice using MPI
+*/
+void procBlock::SwapSliceMPI( const interblock &inter, const int &rank ){
+
+}
+
+
+
+
 /* Function to return a vector of location indicies for ghost cells at an interblock boundary. The vector is formatted as shown below:
 
   vector = [i j k]
@@ -6834,7 +6843,7 @@ vector<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const inter
 /* Function to populate ghost cells with proper cell states for inviscid flow calculation. This function operates on the entire grid and uses interblock
 boundaries to pass the correct data between grid blocks.
 */
-void GetBoundaryConditions(vector<procBlock> &states, const input &inp, const idealGas &eos, const vector<interblock> &connections){
+void GetBoundaryConditions(vector<procBlock> &states, const input &inp, const idealGas &eos, const vector<interblock> &connections, const int &rank, const MPI_Datatype &MPI_cellData){
   // states -- vector of all procBlocks in the solution domain
   // inp -- all input variables
   // eos -- equation of state
@@ -6844,10 +6853,30 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp, const id
   for ( unsigned int ii = 0; ii < states.size(); ii++ ){
     states[ii].AssignInviscidGhostCells(inp, eos);
   }
+
   //loop over connections and swap ghost cells where needed
   for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
-    SwapSlice( connections[ii], states[connections[ii].BlockFirst()], states[connections[ii].BlockSecond()], false);
+    if ( connections[ii].RankFirst() == rank && connections[ii].RankSecond() == rank ) { //both sides of interblock are on same processor, swap w/o mpi
+      SwapSlice( connections[ii], states[connections[ii].BlockFirst()], states[connections[ii].BlockSecond()], false);
+    }
+    else if ( connections[ii].RankFirst() == rank ){ //rank matches rank of one side of interblock, swap over mpi
+      cout << "Doing MPI swap for connection: " << connections[ii] << endl;
+      states[connections[ii].LocalBlockFirst()].SwapSliceMPI( connections[ii], rank ); //PROBLEM .BlockFirst() doesn't equal the local position of the block in the states[] vector!!!
+
+
+    }
+    else if ( connections[ii].RankSecond() == rank ) { //rank matches rank of one side of interblock, swap over mpi
+      cout << "Doing MPI swap for connection: " << connections[ii] << endl;
+      states[connections[ii].LocalBlockSecond()].SwapSliceMPI( connections[ii], rank );
+
+
+
+
+    }
+    //if rank doesn't match either side of interblock, then do nothing and move on to the next interblock
   }
+
+
   //loop over all blocks and get ghost cell edge data
   for ( unsigned int ii = 0; ii < states.size(); ii++) {
     states[ii].AssignInviscidGhostCellsEdge(inp, eos);

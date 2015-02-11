@@ -69,25 +69,26 @@ void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &M
   MPI_Type_commit(&MPI_procBlockInts);
 
   //create MPI datatype for interblock class
-  int counts[9] = {2,2,2,2,2,2,2,2,1}; //number of entries per field
-  MPI_Datatype types[9] = {MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT}; //field types
-  MPI_Aint disp[9], lowerBound, extent;
+  int counts[10] = {2,2,2,2,2,2,2,2,2,1}; //number of entries per field
+  MPI_Datatype types[10] = {MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT}; //field types
+  MPI_Aint disp[10], lowerBound, extent;
   interblock inter; //dummy interblock to get layout of class
   //get addresses of each field
-  MPI_Get_address(&inter.rank[0], &disp[0]);
-  MPI_Get_address(&inter.block[0], &disp[1]);
-  MPI_Get_address(&inter.boundary[0], &disp[2]);
-  MPI_Get_address(&inter.d1Start[0], &disp[3]);
-  MPI_Get_address(&inter.d1End[0], &disp[4]);
-  MPI_Get_address(&inter.d2Start[0], &disp[5]);
-  MPI_Get_address(&inter.d2End[0], &disp[6]);
-  MPI_Get_address(&inter.constSurf[0], &disp[7]);
-  MPI_Get_address(&inter.orientation, &disp[8]);
+  MPI_Get_address(&inter.rank[0],       &disp[0]);
+  MPI_Get_address(&inter.block[0],      &disp[1]);
+  MPI_Get_address(&inter.localBlock[0], &disp[2]);
+  MPI_Get_address(&inter.boundary[0],   &disp[3]);
+  MPI_Get_address(&inter.d1Start[0],    &disp[4]);
+  MPI_Get_address(&inter.d1End[0],      &disp[5]);
+  MPI_Get_address(&inter.d2Start[0],    &disp[6]);
+  MPI_Get_address(&inter.d2End[0],      &disp[7]);
+  MPI_Get_address(&inter.constSurf[0],  &disp[8]);
+  MPI_Get_address(&inter.orientation,   &disp[9]);
   //make addresses relative to first field
-  for ( int ii = 8; ii >= 0; ii-- ){
+  for ( int ii = 9; ii >= 0; ii-- ){
     disp[ii] -= disp[0];
   }
-  MPI_Type_create_struct(9, counts, disp, types, &MPI_interblock);
+  MPI_Type_create_struct(10, counts, disp, types, &MPI_interblock);
 
   //check that datatype has the correct extent, if it doesn't change the extent
   //this is necessary to portably send an array of this type
