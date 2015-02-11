@@ -138,13 +138,7 @@ int main( int argc, char *argv[] ) {
   //send connections to all processors
   SendConnections( connections, MPI_interblock );
 
-
-
-
-  if ( rank == ROOT) {
-
-
-
+  cout << "connections sent, size of " << connections.size() << endl;
 
   //----------------------------------------------------------------------------------------------
 
@@ -170,12 +164,14 @@ int main( int argc, char *argv[] ) {
   colMatrix residLinf = initial; //linf residuals
   double matrixResid = 0.0; //matrix inversion residual (only for implicit runs)
 
-  //Write out cell centers grid file
-  WriteCellCenter(inputVars.GridName(),stateBlocks);
-  //WriteCellCenterGhost(inputVars.GridName(),stateBlocks);
-  //Write out initial results
-  WriteFun(inputVars.GridName(),stateBlocks, eos, 0, inputVars.RRef(), aRef, inputVars.TRef());
-  WriteRes(inputVars.GridName(), 0, inputVars.OutputFrequency());
+  if ( rank == ROOT) {
+    //Write out cell centers grid file
+    WriteCellCenter(inputVars.GridName(),stateBlocks);
+    //WriteCellCenterGhost(inputVars.GridName(),stateBlocks);
+    //Write out initial results
+    WriteFun(inputVars.GridName(),stateBlocks, eos, 0, inputVars.RRef(), aRef, inputVars.TRef());
+    WriteRes(inputVars.GridName(), 0, inputVars.OutputFrequency());
+  }
 
   for ( int nn = 0; nn < inputVars.Iterations(); nn++ ){            //loop over time
 
@@ -184,62 +180,65 @@ int main( int argc, char *argv[] ) {
 
     for ( int mm = 0; mm < inputVars.NonlinearIterations(); mm++ ){    //loop over nonlinear iterations
 
+      cout << "getting boundary conditions" << endl;
       //Get boundary conditions for all blocks
-      GetBoundaryConditions(stateBlocks, inputVars, eos, connections);
+      GetBoundaryConditions(localStateBlocks, inputVars, eos, connections, rank, MPI_cellData);
 
-      for ( int bb = 0; bb < (int)mesh.size(); bb++ ){             //loop over number of blocks
+      for ( int bb = 0; bb < (int)localStateBlocks.size(); bb++ ){             //loop over number of blocks
+
+	cout << "getting inviscid fluxes" << endl;
 
 	//calculate inviscid fluxes
-	stateBlocks[bb].CalcInvFluxI(eos, inputVars);
-	stateBlocks[bb].CalcInvFluxJ(eos, inputVars);
-	stateBlocks[bb].CalcInvFluxK(eos, inputVars);
+	localStateBlocks[bb].CalcInvFluxI(eos, inputVars);
+	localStateBlocks[bb].CalcInvFluxJ(eos, inputVars);
+	localStateBlocks[bb].CalcInvFluxK(eos, inputVars);
 
 	//if viscous change ghost cells and calculate viscous fluxes
 	if (inputVars.EquationSet() == "navierStokes"){
 
 	  //determine ghost cell values for viscous fluxes
-	  stateBlocks[bb].AssignViscousGhostCells(inputVars, eos);
+	  localStateBlocks[bb].AssignViscousGhostCells(inputVars, eos);
 
 	  //calculate viscous fluxes
-	  stateBlocks[bb].CalcViscFluxI(suth, eos, inputVars);
-	  stateBlocks[bb].CalcViscFluxJ(suth, eos, inputVars);
-	  stateBlocks[bb].CalcViscFluxK(suth, eos, inputVars);
+	  localStateBlocks[bb].CalcViscFluxI(suth, eos, inputVars);
+	  localStateBlocks[bb].CalcViscFluxJ(suth, eos, inputVars);
+	  localStateBlocks[bb].CalcViscFluxK(suth, eos, inputVars);
 	}
 
 	//calculate the time step to use in the simulation (either user specified or derived from CFL)
-	stateBlocks[bb].CalcBlockTimeStep(inputVars, aRef);
+	localStateBlocks[bb].CalcBlockTimeStep(inputVars, aRef);
 
 	//if implicit get old solution, reorder block, and use linear solver
 	if (implicitFlag){
 
 	  //store time-n solution
 	  if (mm == 0){ //first nonlinear iteration, save solution
-	    solTimeN[bb] = stateBlocks[bb].GetCopyConsVars(eos);
+	    solTimeN[bb] = localStateBlocks[bb].GetCopyConsVars(eos);
 	    if (nn == 0){ //at first iteration, resize vector for old solution and calculate solution at time n=-1
 	      solDeltaNm1[bb].resize(solTimeN[bb].size());
-	      stateBlocks[bb].DeltaNMinusOne(solDeltaNm1[bb], solTimeN[bb], eos, inputVars.Theta(), inputVars.Zeta());
+	      localStateBlocks[bb].DeltaNMinusOne(solDeltaNm1[bb], solTimeN[bb], eos, inputVars.Theta(), inputVars.Zeta());
 	    }
 	  }
 
 	  //add volume divided by time step term to time m minus time n values
-	  vector<colMatrix> solTimeMmN = stateBlocks[bb].AddVolTime(stateBlocks[bb].GetCopyConsVars(eos), solTimeN[bb], 
+	  vector<colMatrix> solTimeMmN = localStateBlocks[bb].AddVolTime(localStateBlocks[bb].GetCopyConsVars(eos), solTimeN[bb], 
 								    inputVars.Theta(), inputVars.Zeta());
 
 	  //reorder block (by hyperplanes) for lusgs
-	  vector<vector3d<int> > reorder = HyperplaneReorder(stateBlocks[bb].NumI(), stateBlocks[bb].NumJ(), stateBlocks[bb].NumK());
+	  vector<vector3d<int> > reorder = HyperplaneReorder(localStateBlocks[bb].NumI(), localStateBlocks[bb].NumJ(), localStateBlocks[bb].NumK());
 
 	  //reserve space for correction du
-	  vector<colMatrix> du(stateBlocks[bb].NumCells(),initial);
+	  vector<colMatrix> du(localStateBlocks[bb].NumCells(),initial);
 
 	  //calculate correction (du)
-	  matrixResid += stateBlocks[bb].LUSGS(reorder, du, solTimeMmN, solDeltaNm1[bb], eos, inputVars, suth );
+	  matrixResid += localStateBlocks[bb].LUSGS(reorder, du, solTimeMmN, solDeltaNm1[bb], eos, inputVars, suth );
 
 	  //update solution
-	  stateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, du, residL2, residLinf, locMaxB);
+	  localStateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, du, residL2, residLinf, locMaxB);
 
 	  //assign time n to time n-1 at end of nonlinear iterations
 	  if (inputVars.TimeIntegration() == "bdf2" && mm == inputVars.NonlinearIterations()-1 ){
-	    stateBlocks[bb].DeltaNMinusOne(solDeltaNm1[bb], solTimeN[bb], eos, inputVars.Theta(), inputVars.Zeta());
+	    localStateBlocks[bb].DeltaNMinusOne(solDeltaNm1[bb], solTimeN[bb], eos, inputVars.Theta(), inputVars.Zeta());
 	  }
 
 	} //conditional for implicit solver
@@ -247,11 +246,11 @@ int main( int argc, char *argv[] ) {
 	else{ //explicit
 	  //update solution
 	  vector<colMatrix> dummyCorrection(1); //not used in explicit update
-	  stateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, dummyCorrection, residL2, residLinf, locMaxB);
+	  localStateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, dummyCorrection, residL2, residLinf, locMaxB);
 	}
 
 	//zero residuals and wave speed
-	stateBlocks[bb].ResetResidWS();
+	localStateBlocks[bb].ResetResidWS();
 
       } //loop for blocks --------------------------------------------------------------------------------------------------
 
@@ -290,8 +289,6 @@ int main( int argc, char *argv[] ) {
 
   duration = (clock() - start)/(double) CLOCKS_PER_SEC;
   cout << "Total Time: " << duration << " seconds" << endl;
-
-  }
 
   MPI_Finalize();
 
