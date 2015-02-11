@@ -96,6 +96,7 @@ class geomSlice {
 
 class stateSlice {
 
+ public:
   vector<primVars> state ;                     //cell volume
 
   int numCells;                            //number of cells in block
@@ -110,7 +111,6 @@ class stateSlice {
   int parBlockStartK;                      //parent block starting index for k
   int parBlockEndK;                        //parent block ending index for k
 
- public:
   //constructors
   stateSlice();
   stateSlice( const int&, const int&, const int&, const int&, const int&, const int&, const int&, const int&,
