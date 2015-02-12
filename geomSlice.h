@@ -97,7 +97,7 @@ class geomSlice {
 class stateSlice {
 
  public:
-  vector<primVars> state ;                     //cell volume
+  vector<primVars> state ;                     //cell states
 
   int numCells;                            //number of cells in block
   int numI;                                //i-dimension of block (cells)

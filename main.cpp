@@ -87,10 +87,6 @@ int main( int argc, char *argv[] ) {
   //initialize sutherland's law for viscosity
   sutherland suth(inputVars.TRef());
 
-  //set MPI datatypes
-  MPI_Datatype MPI_vec3d, MPI_cellData, MPI_procBlockInts, MPI_interblock;
-  SetDataTypesMPI(numEqns, MPI_vec3d, MPI_cellData, MPI_procBlockInts, MPI_interblock);
-
   vector<plot3dBlock> mesh;
   vector<interblock> connections;
   vector<procBlock> stateBlocks;
@@ -129,6 +125,10 @@ int main( int argc, char *argv[] ) {
 
   }
 
+  //set MPI datatypes
+  MPI_Datatype MPI_vec3d, MPI_cellData, MPI_procBlockInts, MPI_interblock;
+  SetDataTypesMPI(numEqns, MPI_vec3d, MPI_cellData, MPI_procBlockInts, MPI_interblock );
+
   //send number of procBlocks to all processors
   SendNumProcBlocks( loadBal, rank, numProcBlock);
 
@@ -137,8 +137,6 @@ int main( int argc, char *argv[] ) {
 
   //send connections to all processors
   SendConnections( connections, MPI_interblock );
-
-  cout << "connections sent, size of " << connections.size() << endl;
 
   //----------------------------------------------------------------------------------------------
 
@@ -154,8 +152,8 @@ int main( int argc, char *argv[] ) {
 
   //preallocate vectors for old solution
   //outermost vector for blocks, inner vector for cell is blocks, colMatrix for variables in cell
-  vector<vector<colMatrix> > solTimeN(mesh.size());
-  vector<vector<colMatrix> > solDeltaNm1(mesh.size());
+  vector<vector<colMatrix> > solTimeN(numProcBlock);
+  vector<vector<colMatrix> > solDeltaNm1(numProcBlock);
 
   //initialize residual variables
   int locMaxB = 0; //block with max residual
@@ -180,13 +178,10 @@ int main( int argc, char *argv[] ) {
 
     for ( int mm = 0; mm < inputVars.NonlinearIterations(); mm++ ){    //loop over nonlinear iterations
 
-      cout << "getting boundary conditions" << endl;
       //Get boundary conditions for all blocks
       GetBoundaryConditions(localStateBlocks, inputVars, eos, connections, rank, MPI_cellData);
 
       for ( int bb = 0; bb < (int)localStateBlocks.size(); bb++ ){             //loop over number of blocks
-
-	cout << "getting inviscid fluxes" << endl;
 
 	//calculate inviscid fluxes
 	localStateBlocks[bb].CalcInvFluxI(eos, inputVars);
@@ -254,15 +249,17 @@ int main( int argc, char *argv[] ) {
 
       } //loop for blocks --------------------------------------------------------------------------------------------------
 
-      //finish calculation of L2 norm of residual
-      for ( int cc = 0; cc < residL2.Size(); cc++ ){
-	residL2.SetData(cc, sqrt(residL2.Data(cc)) );
-      }
-      //finish calculation of matrix residual
-      matrixResid = sqrt(matrixResid/(totalCells * numEqns));
+      if ( rank == ROOT ){
+	//finish calculation of L2 norm of residual
+	for ( int cc = 0; cc < residL2.Size(); cc++ ){
+	  residL2.SetData(cc, sqrt(residL2.Data(cc)) );
+	}
+	//finish calculation of matrix residual
+	matrixResid = sqrt(matrixResid/(totalCells * numEqns));
 
-      //print out run information
-      WriteResiduals(inputVars, residL2First, residL2, residLinf, matrixResid, locMaxB, nn, mm);
+	//print out run information
+	WriteResiduals(inputVars, residL2First, residL2, residLinf, matrixResid, locMaxB, nn, mm);
+      }
 
       //reset residuals
       residL2 = initial;
@@ -272,23 +269,26 @@ int main( int argc, char *argv[] ) {
 
     } //loop for nonlinear iterations --------------------------------------------------------------------------------------
 
-    if ( (nn+1)  % inputVars.OutputFrequency() == 0 ){ //write out function file
-      cout << "writing out function file at iteration " << nn << endl;
-      //Write out function file
-      WriteFun(inputVars.GridName(),stateBlocks, eos, (double) (nn+1), inputVars.RRef(), aRef, inputVars.TRef());
-      WriteRes(inputVars.GridName(), (nn+1), inputVars.OutputFrequency());
+    if ( rank == ROOT ){
+      if ( (nn+1)  % inputVars.OutputFrequency() == 0 ){ //write out function file
+	cout << "writing out function file at iteration " << nn << endl;
+	//Write out function file
+	WriteFun(inputVars.GridName(),stateBlocks, eos, (double) (nn+1), inputVars.RRef(), aRef, inputVars.TRef());
+	WriteRes(inputVars.GridName(), (nn+1), inputVars.OutputFrequency());
+      }
     }
-
 
   } //loop for time ---------------------------------------------------------------------------------------------------------
 
 
-  cout << endl;
-  cout << "Program Complete" << endl;
-  PrintTime();
+  if ( rank == ROOT ){
+    cout << endl;
+    cout << "Program Complete" << endl;
+    PrintTime();
 
-  duration = (clock() - start)/(double) CLOCKS_PER_SEC;
-  cout << "Total Time: " << duration << " seconds" << endl;
+    duration = (clock() - start)/(double) CLOCKS_PER_SEC;
+    cout << "Total Time: " << duration << " seconds" << endl;
+  }
 
   MPI_Finalize();
 
