@@ -275,7 +275,7 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
       MPI_Unpack(recvBuffer, bufRecvData, &position, &tempR[0], 14, MPI_INT, MPI_COMM_WORLD); //unpack ints
 
       //put procBlock INTs into new procBlock
-      procBlock tempBlock(tempR[2], tempR[3], tempR[4], tempR[5]); //allocate procBlock for appropriate size (ni, nj, nk, nghosts)
+      procBlock tempBlock(tempR[2], tempR[3], tempR[4], tempR[5], tempR[1]); //allocate procBlock for appropriate size (ni, nj, nk, nghosts, nEqn)
       tempBlock.SetParentBlock(tempR[6]);
       tempBlock.SetParentBlockStartI(tempR[7]);
       tempBlock.SetParentBlockEndI(tempR[8]);

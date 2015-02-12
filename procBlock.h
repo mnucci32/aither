@@ -66,7 +66,7 @@ class procBlock {
   procBlock( const plot3dBlock& , const int&, const int&, const string& );
   procBlock( const double, const double, const vector3d<double>, const plot3dBlock&, const int&, const int&, const string&, const boundaryConditions& );
   procBlock( const primVars&, const plot3dBlock&, const int &, const int&, const string&, const boundaryConditions& );
-  procBlock( const int&, const int&, const int&, const int& );
+  procBlock( const int&, const int&, const int&, const int&, const int& );
 
   //member functions
   void SetNumCells( const int &a){numCells = a;}
@@ -205,7 +205,7 @@ class procBlock {
   stateSlice GetStateSlice(const int&, const int&, const int&, const int&, const int&, const int&, const bool=false, const bool=false, const bool=false)const;
   void PutStateSlice(const stateSlice&, const interblock&, const int&);
 
-  void SwapSliceMPI(const interblock&, const int& );
+  void SwapSliceMPI(const interblock&, const int&, const MPI_Datatype& );
 
   //destructor
   ~procBlock() {}
