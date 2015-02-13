@@ -126,8 +126,8 @@ int main( int argc, char *argv[] ) {
   }
 
   //set MPI datatypes
-  MPI_Datatype MPI_vec3d, MPI_cellData, MPI_procBlockInts, MPI_interblock;
-  SetDataTypesMPI(numEqns, MPI_vec3d, MPI_cellData, MPI_procBlockInts, MPI_interblock );
+  MPI_Datatype MPI_vec3d, MPI_cellData, MPI_procBlockInts, MPI_interblock, MPI_DOUBLE_5INT;
+  SetDataTypesMPI(numEqns, MPI_vec3d, MPI_cellData, MPI_procBlockInts, MPI_interblock, MPI_DOUBLE_5INT );
 
   //send number of procBlocks to all processors
   SendNumProcBlocks( loadBal, rank, numProcBlock);
@@ -137,6 +137,10 @@ int main( int argc, char *argv[] ) {
 
   //send connections to all processors
   SendConnections( connections, MPI_interblock );
+
+  //create operation
+  MPI_Op MPI_MAX_LINF;
+  MPI_Op_create( (MPI_User_function *) maxLinf, true, &MPI_MAX_LINF);
 
   //----------------------------------------------------------------------------------------------
 
@@ -156,10 +160,9 @@ int main( int argc, char *argv[] ) {
   vector<vector<colMatrix> > solDeltaNm1(numProcBlock);
 
   //initialize residual variables
-  int locMaxB = 0; //block with max residual
   colMatrix residL2 = initial; //l2 norm residuals
   colMatrix residL2First = initial; //l2 norm residuals to normalize by
-  colMatrix residLinf = initial; //linf residuals
+  resid residLinf; //linf residuals
   double matrixResid = 0.0; //matrix inversion residual (only for implicit runs)
 
   if ( rank == ROOT) {
@@ -229,7 +232,7 @@ int main( int argc, char *argv[] ) {
 	  matrixResid += localStateBlocks[bb].LUSGS(reorder, du, solTimeMmN, solDeltaNm1[bb], eos, inputVars, suth );
 
 	  //update solution
-	  localStateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, du, residL2, residLinf, locMaxB);
+	  localStateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, du, residL2, residLinf );
 
 	  //assign time n to time n-1 at end of nonlinear iterations
 	  if (inputVars.TimeIntegration() == "bdf2" && mm == inputVars.NonlinearIterations()-1 ){
@@ -241,7 +244,7 @@ int main( int argc, char *argv[] ) {
 	else{ //explicit
 	  //update solution
 	  vector<colMatrix> dummyCorrection(1); //not used in explicit update
-	  localStateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, dummyCorrection, residL2, residLinf, locMaxB);
+	  localStateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, dummyCorrection, residL2, residLinf );
 	}
 
 	//zero residuals and wave speed
@@ -249,7 +252,27 @@ int main( int argc, char *argv[] ) {
 
       } //loop for blocks --------------------------------------------------------------------------------------------------
 
+
+      //Get residuals from all processors
       if ( rank == ROOT ){
+      	MPI_Reduce(MPI_IN_PLACE, &residL2.data[0], numEqns, MPI_DOUBLE, MPI_SUM, ROOT, MPI_COMM_WORLD);
+      	MPI_Reduce(MPI_IN_PLACE, &matrixResid, 1, MPI_DOUBLE, MPI_SUM, ROOT, MPI_COMM_WORLD);
+
+	MPI_Reduce(MPI_IN_PLACE, &residLinf, 1, MPI_DOUBLE_5INT, MPI_MAX_LINF, ROOT, MPI_COMM_WORLD);
+      }
+      else{
+	MPI_Reduce(&residL2.data[0], &residL2.data[0], numEqns, MPI_DOUBLE, MPI_SUM, ROOT, MPI_COMM_WORLD);
+	MPI_Reduce(&matrixResid, &matrixResid, 1, MPI_DOUBLE, MPI_SUM, ROOT, MPI_COMM_WORLD);
+
+	MPI_Reduce(&residLinf, &residLinf, 1, MPI_DOUBLE_5INT, MPI_MAX_LINF, ROOT, MPI_COMM_WORLD);
+      }
+
+
+      if ( rank == ROOT ){
+	// cout << "max lInf: " << residLinf.Linf() << endl;
+	// cout << "block: " << residLinf.Block() << endl;
+	//cout << "max lInf resid comes from block " << residLinf.Block() << endl;
+
 	//finish calculation of L2 norm of residual
 	for ( int cc = 0; cc < residL2.Size(); cc++ ){
 	  residL2.SetData(cc, sqrt(residL2.Data(cc)) );
@@ -258,13 +281,12 @@ int main( int argc, char *argv[] ) {
 	matrixResid = sqrt(matrixResid/(totalCells * numEqns));
 
 	//print out run information
-	WriteResiduals(inputVars, residL2First, residL2, residLinf, matrixResid, locMaxB, nn, mm);
+	WriteResiduals(inputVars, residL2First, residL2, residLinf, matrixResid, nn, mm);
       }
 
       //reset residuals
       residL2 = initial;
-      residLinf = initial;
-      locMaxB = 0;
+      residLinf.Zero();
       matrixResid = 0.0;
 
     } //loop for nonlinear iterations --------------------------------------------------------------------------------------
