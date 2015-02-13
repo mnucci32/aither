@@ -424,8 +424,8 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
 }
 
 //function to write out residual information
-void WriteResiduals(const input &inp, colMatrix &residL2First, colMatrix &residL2, const colMatrix &residLinf, 
-		    const double &matrixResid, const int &locMaxB, const int &nn, const int &mm){
+void WriteResiduals(const input &inp, colMatrix &residL2First, colMatrix &residL2, const resid &residLinf, 
+		    const double &matrixResid, const int &nn, const int &mm){
 
   double eps = 1.0e-30;
 
@@ -458,14 +458,14 @@ void WriteResiduals(const input &inp, colMatrix &residL2First, colMatrix &residL
   }
   if (inp.Dt() > 0.0){
     cout << nn << "     " << mm << "     " << inp.Dt() << "     " << residL2.Data(0) <<  "     " << residL2.Data(1) << "     " 
-	 << residL2.Data(2) << "     " << residL2.Data(3) << "     " << residL2.Data(4) << "     " << residLinf.Data(3) << "     " << 
-      locMaxB << "     " << residLinf.Data(0) <<"     " << residLinf.Data(1) << "     " << residLinf.Data(2) << "     " << residLinf.Data(4) 
+	 << residL2.Data(2) << "     " << residL2.Data(3) << "     " << residL2.Data(4) << "     " << residLinf.Eqn() << "     " << 
+      residLinf.Block() << "     " << residLinf.ILoc() <<"     " << residLinf.JLoc() << "     " << residLinf.KLoc() << "     " << residLinf.Linf() 
 	 << "     " << matrixResid << endl;
   }
   else if (inp.CFL() > 0.0){
     cout << nn << "     " << mm << "     " << inp.CFL() << "     " << residL2.Data(0) <<  "     " << residL2.Data(1) << "     " 
-	 << residL2.Data(2) << "     " << residL2.Data(3) << "     " << residL2.Data(4) << "     "  << residLinf.Data(3) << "     " << 
-      locMaxB << "     " << residLinf.Data(0) <<"     " << residLinf.Data(1) << "     " << residLinf.Data(2) << "     " << residLinf.Data(4) 
+	 << residL2.Data(2) << "     " << residL2.Data(3) << "     " << residL2.Data(4) << "     "  << residLinf.Eqn() << "     " << 
+      residLinf.Block() << "     " << residLinf.ILoc() <<"     " << residLinf.JLoc() << "     " << residLinf.KLoc() << "     " << residLinf.Linf() 
 	 << "     " << matrixResid << endl;
   }
 
