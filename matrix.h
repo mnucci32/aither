@@ -14,9 +14,9 @@ using std::ostream;
 //class to store a column matrix
 class colMatrix {
   int size;
+ public:
   double *data;
 
- public:
   //constructor
   colMatrix( const int &a ): size(a) {data = new double[a];}
   colMatrix() : size(0), data(NULL){}
@@ -174,6 +174,47 @@ class matrixDiagonal {
     delete [] data;
     data = NULL;
   }
+
+};
+
+class resid {
+ public:
+  double linf;
+  int blk;
+  int i;
+  int j;
+  int k;
+  int eqn;
+
+  //constructor
+ resid() : linf(0.0), blk(0), i(0), j(0), k(0), eqn(0) {}
+ resid( const double &a, const int &b, const int &c, const int &d, const int &e, const int &f) : linf(a), blk(b), i(c), j(d), k(e), eqn(f) {}
+
+  //member functions
+  void SetLinf( const double &a){linf = a;}
+  double Linf()const{return linf;}
+  void SetBlock( const int &a){blk = a;}
+  int Block()const{return blk;}
+  void SetILoc( const int &a){i = a;}
+  int ILoc()const{return i;}
+  void SetJLoc( const int &a){j = a;}
+  int JLoc()const{return j;}
+  void SetKLoc( const int &a){k = a;}
+  int KLoc()const{return k;}
+  void SetEqn( const int &a){eqn = a;}
+  int Eqn()const{return eqn;}
+
+  void Zero(){
+    linf = 0.0;
+    blk = 0;
+    i = 0;
+    j = 0;
+    k = 0;
+    eqn = 0;
+  }
+
+  //destructor
+  ~resid() {}
 
 };
 
