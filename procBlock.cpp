@@ -715,7 +715,7 @@ void procBlock::CalcBlockTimeStep( const input &inputVars, const double &aRef){
 explicit method to update. For implicit methods it uses the correction du and calls the implicit updater.
 */
 void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const idealGas &eos, const double &aRef, 
-			    const vector<colMatrix> &du, colMatrix &l2, colMatrix &linf, int &locMaxB){
+			    const vector<colMatrix> &du, colMatrix &l2, resid &linf){
   // inputVars -- all input variables
   // impFlag -- flag to determine if simulation is to be solved via explicit or implicit time stepping
   // eos -- equation of state
@@ -724,7 +724,6 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const id
   // du -- updates to conservative variables (only used in implicit solver)
   // l2 -- l-2 norm of residual
   // linf -- l-infinity norm of residual
-  // locMaxB -- location of max residual (which block)
 
   //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
@@ -756,13 +755,13 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const id
 
 	  //if any residual is larger than previous residual, a new linf residual is found
 	  for ( int ll = 0; ll < l2.Size(); ll++ ){
-	    if ( (*this).Residual(loc,ll) > linf.Data(4) ){
-	      linf.SetData(4, (*this).Residual(loc,ll) ); //store linf residual
-	      linf.SetData(3, (double)ll+1 ); //store equation number
-	      linf.SetData(2, (double)kk ); //store k index
-	      linf.SetData(1, (double)jj ); //store j index
-	      linf.SetData(0, (double)ii ); //store i index
-	      locMaxB = (*this).ParentBlock(); //store block location
+	    if ( (*this).Residual(loc,ll) > linf.Linf() ){
+	      linf.SetLinf( (*this).Residual(loc,ll) ); //store linf residual
+	      linf.SetBlock( (*this).ParentBlock() ); //store block location
+	      linf.SetILoc( ii ); //store i index
+	      linf.SetJLoc( jj ); //store j index
+	      linf.SetKLoc( kk ); //store k index
+	      linf.SetEqn( ll+1 ); //store equation number
 	    }
 	  }
 
@@ -799,13 +798,13 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const id
 	      l2 = l2 + (*this).Residual(loc) * (*this).Residual(loc);
 
 	      for ( int ll = 0; ll < l2.Size(); ll++ ){
-		if ( (*this).Residual(loc,ll) > linf.Data(4) ){
-		  linf.SetData(4, (*this).Residual(loc,ll) ); //store linf residual
-		  linf.SetData(3, (double)ll+1 ); //store equation number
-		  linf.SetData(2, (double)kk );  //store k index
-		  linf.SetData(1, (double)jj );  //store j index
-		  linf.SetData(0, (double)ii );  //store i index
-		  locMaxB = (*this).ParentBlock();  //store block index
+		if ( (*this).Residual(loc,ll) > linf.Linf() ){
+		  linf.SetLinf( (*this).Residual(loc,ll) ); //store linf residual
+		  linf.SetBlock( (*this).ParentBlock() ); //store block location
+		  linf.SetILoc( ii ); //store i index
+		  linf.SetJLoc( jj ); //store j index
+		  linf.SetKLoc( kk ); //store k index
+		  linf.SetEqn( ll+1 ); //store equation number
 		}
 	      }
 	    }

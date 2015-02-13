@@ -169,7 +169,7 @@ class procBlock {
   void CalcInvFluxK(const idealGas&, const input&);
 
   void CalcBlockTimeStep(const input&, const double&);
-  void UpdateBlock(const input&, const int&, const idealGas&, const double&, const vector<colMatrix> &, colMatrix &, colMatrix &, int &);
+  void UpdateBlock(const input&, const int&, const idealGas&, const double&, const vector<colMatrix> &, colMatrix &, resid &);
 
   void ExplicitEulerTimeAdvance(const idealGas&, const int&, const int&);
   void ImplicitTimeAdvance(const colMatrix&, const idealGas&, const int&);
