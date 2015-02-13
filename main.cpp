@@ -269,10 +269,6 @@ int main( int argc, char *argv[] ) {
 
 
       if ( rank == ROOT ){
-	// cout << "max lInf: " << residLinf.Linf() << endl;
-	// cout << "block: " << residLinf.Block() << endl;
-	//cout << "max lInf resid comes from block " << residLinf.Block() << endl;
-
 	//finish calculation of L2 norm of residual
 	for ( int cc = 0; cc < residL2.Size(); cc++ ){
 	  residL2.SetData(cc, sqrt(residL2.Data(cc)) );
@@ -291,8 +287,13 @@ int main( int argc, char *argv[] ) {
 
     } //loop for nonlinear iterations --------------------------------------------------------------------------------------
 
-    if ( rank == ROOT ){
-      if ( (nn+1)  % inputVars.OutputFrequency() == 0 ){ //write out function file
+
+    if ( (nn+1)  % inputVars.OutputFrequency() == 0 ){ //write out function file
+
+      //send/recv solutions
+      GetProcBlocks( stateBlocks, localStateBlocks, rank, MPI_cellData );
+
+      if ( rank == ROOT ){
 	cout << "writing out function file at iteration " << nn << endl;
 	//Write out function file
 	WriteFun(inputVars.GridName(),stateBlocks, eos, (double) (nn+1), inputVars.RRef(), aRef, inputVars.TRef());

@@ -150,9 +150,13 @@ class procBlock {
 
   void SetAvgWaveSpeed( const double &a, const int &ind){avgWaveSpeed[ind] = a;}
   double AvgWaveSpeed(const int &ind) const {return avgWaveSpeed[ind];}
+  vector<double> AvgWaveSpeedVec() const {return avgWaveSpeed;}
+  void SetAvgWaveSpeedVec( const vector<double> &vec ){avgWaveSpeed = vec;}
 
   void SetDt( const double &a, const int &ind){dt[ind] = a;}
   double Dt(const int &ind) const {return dt[ind];}
+  vector<double> DtVec() const {return dt;}
+  void SetDtVec( const vector<double> &vec ){dt = vec;}
 
   void SetResidual( const colMatrix &a, const int &ind){residual[ind] = a;}
   void AddToResidual( const inviscidFlux &, const int &);
@@ -161,6 +165,8 @@ class procBlock {
   const vector<colMatrix> & Residual() const {return residual;}
   colMatrix Residual(const int &ind) const {return residual[ind];}
   double Residual(const int &ind, const int &a) const {return residual[ind].Data(a);}
+  vector<colMatrix> ResidualVec() const {return residual;}
+  void SetResidualVec( const vector<colMatrix> &vec ){residual = vec;}
 
   void CalcCellDt(const int&, const int&, const int&, const double&);
 

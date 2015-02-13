@@ -408,6 +408,116 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
 }
 
 
+/* Function to send procBlocks to the root processor. In this function, the non-ROOT processors pack the procBlocks and send them to the ROOT processor. 
+The ROOT processor receives and unpacks the data from the non-ROOT processors.
+*/
+void GetProcBlocks( vector<procBlock> &blocks, const vector<procBlock> &localBlocks, const int &rank, const MPI_Datatype &MPI_cellData ){
+
+  // blocks -- full vector of all procBlocks. This is only used on ROOT processor, all other processors just need a dummy variable to call the function
+  // localBlocks -- procBlocks local to each processor. These are sent to ROOT
+  // rank -- processor rank. Used to determine if process should send or receive
+  // MPI_cellData -- MPI_Datatype used for primVars and colMatrix transmission
+
+  //------------------------------------------------------------------------------------------------------------------------------------------------
+  //                                                                ROOT
+  //------------------------------------------------------------------------------------------------------------------------------------------------
+  if ( rank == ROOT ){ // may have to pack and send data
+    for ( unsigned int ii = 0; ii < blocks.size(); ii++ ){ //loop over ALL blocks
+
+      if (blocks[ii].Rank() == ROOT ){ //no need to recv data because it is already on ROOT processor
+	//assign local state block to global state block in order of local state vector
+	int locNum = 0;
+	blocks[ii] = localBlocks[locNum];
+	locNum++;
+      }
+      else{ //recv data from sending processors
+
+	MPI_Status status; //allocate MPI_Status structure
+
+	//probe message to get correct data size
+	int bufRecvData = 0;
+	MPI_Probe(blocks[ii].Rank(), 1, MPI_COMM_WORLD, &status);
+	MPI_Get_count(&status, MPI_CHAR, &bufRecvData); //use MPI_CHAR because sending buffer was allocated with chars
+
+	char *recvBuffer = new char[bufRecvData]; //allocate buffer of correct size
+
+	//receive message from non-ROOT
+	MPI_Recv(recvBuffer, bufRecvData, MPI_PACKED, blocks[ii].Rank(), 1, MPI_COMM_WORLD, &status);
+
+	int numCells = (blocks[ii].NumI() + 2 * blocks[ii].NumGhosts()) * (blocks[ii].NumJ() + 2 * blocks[ii].NumGhosts()) * (blocks[ii].NumK() + 2 * blocks[ii].NumGhosts());
+	int numCellsNG = blocks[ii].NumI() * blocks[ii].NumJ() * blocks[ii].NumK();
+
+	//allocate vector data to appropriate size
+	vector<primVars> primVecR(numCells);
+	colMatrix initial(blocks[ii].NumVars());
+	vector<colMatrix> residR(numCellsNG, initial);
+	vector<double> dtR(numCellsNG);
+	vector<double> waveR(numCellsNG);
+
+	//unpack vector data into allocated vectors
+	int position = 0;
+	MPI_Unpack(recvBuffer, bufRecvData, &position, &primVecR[0], primVecR.size(), MPI_cellData, MPI_COMM_WORLD); //unpack states
+	//MPI_Unpack(recvBuffer, bufRecvData, &position, &residR[0], residR.size(), MPI_cellData, MPI_COMM_WORLD); //unpack residuals
+	MPI_Unpack(recvBuffer, bufRecvData, &position, &dtR[0], dtR.size(), MPI_DOUBLE, MPI_COMM_WORLD); //unpack time steps
+	MPI_Unpack(recvBuffer, bufRecvData, &position, &waveR[0], waveR.size(), MPI_DOUBLE, MPI_COMM_WORLD); //unpack average wave speeds
+
+	//assign unpacked vector data to procBlock
+	blocks[ii].SetStateVec(primVecR); //assign states
+	//blocks[ii].SetResidualVec(residR); //assign residuals
+	blocks[ii].SetDtVec(dtR); //assign time steps
+	blocks[ii].SetAvgWaveSpeedVec(waveR); //assign average wave speeds
+
+	delete [] recvBuffer; //deallocate receiving buffer
+
+      }
+    }
+
+  }
+  
+  //------------------------------------------------------------------------------------------------------------------------------------------------
+  //                                                                NON - ROOT
+  //------------------------------------------------------------------------------------------------------------------------------------------------
+  if (rank != ROOT) { // receive and unpack data
+    for ( unsigned int ii = 0; ii < localBlocks.size(); ii++ ){
+
+      //get copy of vector data that needs to be sent (private class data cannot be packed/sent)
+      vector<primVars> primVecS = localBlocks[ii].StateVec(); 
+      vector<colMatrix> residS = localBlocks[ii].ResidualVec();
+      vector<double> dtS = localBlocks[ii].DtVec();
+      vector<double> waveS = localBlocks[ii].AvgWaveSpeedVec();
+
+      //determine size of buffer to send
+      int sendBufSize = 0;
+      int tempSize = 0;
+      MPI_Pack_size(primVecS.size(), MPI_cellData, MPI_COMM_WORLD, &tempSize); //add size for states
+      sendBufSize += tempSize;
+      MPI_Pack_size(residS.size(), MPI_cellData, MPI_COMM_WORLD, &tempSize); //add size for residuals
+      sendBufSize += tempSize;
+      MPI_Pack_size(dtS.size(), MPI_DOUBLE, MPI_COMM_WORLD, &tempSize); //add size for time steps
+      sendBufSize += tempSize;
+      MPI_Pack_size(waveS.size(), MPI_DOUBLE, MPI_COMM_WORLD, &tempSize); //add size for average wave speed
+      sendBufSize += tempSize;
+
+      char *sendBuffer = new char[sendBufSize]; //allocate buffer to pack data into
+
+      //pack data to send into buffer
+      int position = 0;
+      //int and vector data
+      MPI_Pack(&primVecS[0], primVecS.size(), MPI_cellData, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+      //MPI_Pack(&residS[0], residS.size(), MPI_cellData, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+      MPI_Pack(&dtS[0], dtS.size(), MPI_DOUBLE, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+      MPI_Pack(&waveS[0], waveS.size(), MPI_DOUBLE, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+
+      //send buffer to appropriate processor
+      MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, ROOT, 1, MPI_COMM_WORLD);
+
+      delete [] sendBuffer; //deallocate buffer
+
+    }
+  }
+
+}
+
 void maxLinf( resid *in, resid *inout, int *len, MPI_Datatype *MPI_DOUBLE_5INT){
 
   resid resLinf;
