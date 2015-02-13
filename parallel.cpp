@@ -49,12 +49,14 @@ void SendConnections(vector<interblock> &connections, const MPI_Datatype &MPI_in
 }
 
 /* Function to set custom MPI datatypes to allow for easier data transmission */
-void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData, MPI_Datatype &MPI_procBlockInts, MPI_Datatype &MPI_interblock ){
+void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData, MPI_Datatype &MPI_procBlockInts, MPI_Datatype &MPI_interblock,
+		     MPI_Datatype & MPI_DOUBLE_5INT ){
   // numEqn -- number of equations being solved
   // MPI_vec3d -- output MPI_Datatype for a vector3d<double>
   // MPI_cellData -- output MPI_Datatype for primVars or colMatrix
   // MPI_procBlockInts -- output MPI_Datatype for 14 INTs (14 INTs in procBlock class)
   // MPI_interblock -- output MPI_Datatype to send interblock class
+  // MPI_DOUBLE_5INT -- output MPI_Datatype for a double followed by 5 ints
 
   //create vector3d<double> MPI datatype
   MPI_Type_contiguous(3, MPI_DOUBLE, &MPI_vec3d);
@@ -67,6 +69,33 @@ void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &M
   //create MPI datatype for all the integers in the procBlock class
   MPI_Type_contiguous(14, MPI_INT, &MPI_procBlockInts);
   MPI_Type_commit(&MPI_procBlockInts);
+
+
+  //create MPI datatype for a double followed by 5 ints
+  int fieldCounts[2] = {1,5}; //number of entries per field
+  MPI_Datatype fieldTypes[2] = {MPI_DOUBLE, MPI_INT}; //field types
+  MPI_Aint displacement[2], lBound, ext;
+  resid res; //dummy resid to get layout of class
+  //get addresses of each field
+  MPI_Get_address(&res.linf,  &displacement[0]);
+  MPI_Get_address(&res.blk,   &displacement[1]);
+  //make addresses relative to first field
+  for ( int ii = 1; ii >= 0; ii-- ){
+    displacement[ii] -= displacement[0];
+  }
+  MPI_Type_create_struct(2, fieldCounts, displacement, fieldTypes, &MPI_DOUBLE_5INT);
+
+  //check that datatype has the correct extent, if it doesn't change the extent
+  //this is necessary to portably send an array of this type
+  MPI_Type_get_extent(MPI_DOUBLE_5INT, &lBound, &ext);
+  if ( ext != sizeof(res) ){
+    MPI_Datatype temp = MPI_DOUBLE_5INT;
+    MPI_Type_create_resized(temp, 0, sizeof(res), &MPI_DOUBLE_5INT);
+    MPI_Type_free(&temp);
+  }
+
+  MPI_Type_commit(&MPI_DOUBLE_5INT);
+
 
   //create MPI datatype for interblock class
   int counts[10] = {2,2,2,2,2,2,2,2,2,1}; //number of entries per field
@@ -375,5 +404,25 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
   }
 
   return localBlocks;
+
+}
+
+
+void maxLinf( resid *in, resid *inout, int *len, MPI_Datatype *MPI_DOUBLE_5INT){
+
+  resid resLinf;
+
+  for ( int ii = 0; ii < *len; ii++ ){
+
+    if ( in->linf >= inout->linf ){
+      resLinf = *in;
+    }
+    else{
+      resLinf = *inout;
+    }
+
+    in++;
+    inout++;
+  }
 
 }
