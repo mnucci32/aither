@@ -59,6 +59,7 @@ class procBlock {
   int parBlockStartK;                      //parent block starting index for k
   int parBlockEndK;                        //parent block ending index for k
   int rank;                                //processor rank
+  int globalPos;                           //global position of procBlock in decomposed vector of procBlocks
 
  public:
   //constructors
@@ -97,6 +98,8 @@ class procBlock {
   int ParentBlockEndK() const {return parBlockEndK;}
   void SetRank( const int &a){rank = a;}
   int Rank() const {return rank;}
+  void SetGlobalPos( const int &a){globalPos = a;}
+  int GlobalPos() const {return globalPos;}
 
   void SetBCs( const boundaryConditions &a ){bc = a;}
   boundaryConditions BC() const {return bc;}

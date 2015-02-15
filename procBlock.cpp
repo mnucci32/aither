@@ -32,6 +32,7 @@ procBlock::procBlock(){
   parBlockStartK = 0;
   parBlockEndK = 0;
   rank = 0;
+  globalPos = 0;
 
   int numFaces = (numI+1)*(numJ)*(numK);  
 
@@ -84,6 +85,7 @@ procBlock::procBlock(const plot3dBlock &blk, const int& numBlk, const int &numG,
   parBlockStartK = 0;
   parBlockEndK = numK;
   rank = 0;
+  globalPos = 0;
 
   if (eqnSet == "euler" || eqnSet == "navierStokes"){
     numVars = 5;
@@ -146,6 +148,7 @@ procBlock::procBlock( const double density, const double pressure, const vector3
   parBlockStartK = 0;
   parBlockEndK = numK;
   rank = 0;
+  globalPos = 0;
 
   bc = bound;
 
@@ -205,6 +208,7 @@ procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const 
   parBlockStartK = 0;
   parBlockEndK = numK;
   rank = 0;
+  globalPos = 0;
 
   bc = bound;
 
@@ -262,6 +266,7 @@ procBlock::procBlock( const int &ni, const int &nj, const int &nk, const int &nu
   parBlockStartK = 0;
   parBlockEndK = numK+1;
   rank = 0;
+  globalPos = 0;
 
   boundaryConditions bound;
   bc = bound;
