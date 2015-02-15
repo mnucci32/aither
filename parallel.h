@@ -27,7 +27,7 @@ using std::cerr;
 #define ROOT 0
 
 //function definitions
-vector<int> ManualDecomposition(vector<procBlock>&, const int&, vector<interblock>&);
+vector<int> ManualDecomposition(vector<procBlock>&, const int&, vector<interblock>&, const int& );
 void SendNumProcBlocks(const vector<int>&, const int&, int&);
 void SendConnections(vector<interblock>&, const MPI_Datatype& );
 

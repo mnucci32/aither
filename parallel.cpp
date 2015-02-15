@@ -2,7 +2,7 @@
 
 /* Function to return processor list for manual decomposition. Manual decomposition assumes that each block will reside on it's own processor.
 */
-vector<int> ManualDecomposition(vector<procBlock> &grid, const int &numProc, vector<interblock> &connections){
+vector<int> ManualDecomposition(vector<procBlock> &grid, const int &numProc, vector<interblock> &connections, const int &totalCells ){
   // grid -- vector of procBlocks (no need to split procBlocks or combine them with manual decomposition)
   // numProc -- number of processors in run
 
@@ -14,12 +14,25 @@ vector<int> ManualDecomposition(vector<procBlock> &grid, const int &numProc, vec
 
   cout << "Using manual grid decomposition." << endl;
 
-  vector<int> loadBal(numProc,1); //vector containing number of procBlocks for each processor
+  double idealLoad = (double)totalCells / (double)numProc;
+  int maxLoad = 0;
+
+  //vector containing number of procBlocks for each processor
+  //in manual decomp, each proc gets 1 block
+  vector<int> loadBal(numProc, 1);
 
   //assign processor rank for each procBlock
   for ( int ii = 0; ii < numProc; ii++ ){
     grid[ii].SetRank(ii);
   }
+
+  //assign global position for each procBlock
+  for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
+    grid[ii].SetGlobalPos(ii);
+    maxLoad = std::max(maxLoad, grid[ii].NumCells());
+  }
+
+  cout << "Ratio of most loaded processor to average processor is : " << (double)maxLoad / idealLoad << endl;
 
   //adjust interblocks to have appropriate rank
   for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
@@ -67,7 +80,7 @@ void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &M
   MPI_Type_commit(&MPI_cellData);
 
   //create MPI datatype for all the integers in the procBlock class
-  MPI_Type_contiguous(14, MPI_INT, &MPI_procBlockInts);
+  MPI_Type_contiguous(15, MPI_INT, &MPI_procBlockInts);
   MPI_Type_commit(&MPI_procBlockInts);
 
 
@@ -160,7 +173,7 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
       else{ //send data to receiving processors
 
 	//copy INTs from procBlock so that they can be packed/sent (private class data cannot be packed/sent)
-	int tempS[14];
+	int tempS[15];
 	tempS[0]  = blocks[ii].NumCells();
 	tempS[1]  = blocks[ii].NumVars();
 	tempS[2]  = blocks[ii].NumI();
@@ -175,6 +188,7 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
 	tempS[11] = blocks[ii].ParentBlockStartK();
 	tempS[12]  = blocks[ii].ParentBlockEndK();
 	tempS[13]  = blocks[ii].Rank();
+	tempS[14]  = blocks[ii].GlobalPos();
 
 	//get copy of vector data that needs to be sent (private class data cannot be packed/sent)
 	vector<primVars> primVecS = blocks[ii].StateVec(); 
@@ -208,7 +222,7 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
 	//determine size of buffer to send
 	int sendBufSize = 0;
 	int tempSize = 0;
-	MPI_Pack_size(14, MPI_INT, MPI_COMM_WORLD, &tempSize); //add size for ints in class procBlock
+	MPI_Pack_size(15, MPI_INT, MPI_COMM_WORLD, &tempSize); //add size for ints in class procBlock
 	sendBufSize += tempSize;
 	MPI_Pack_size(primVecS.size(), MPI_cellData, MPI_COMM_WORLD, &tempSize); //add size for states
 	sendBufSize += tempSize;
@@ -245,7 +259,7 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
 	//pack data to send into buffer
 	int position = 0;
 	//int and vector data
-	MPI_Pack(&tempS[0], 14, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+	MPI_Pack(&tempS[0], 15, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
 	MPI_Pack(&primVecS[0], primVecS.size(), MPI_cellData, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
 	MPI_Pack(&centerVecS[0], centerVecS.size(), MPI_vec3d, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
 	MPI_Pack(&fAreaIVecS[0], fAreaIVecS.size(), MPI_vec3d, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
@@ -287,7 +301,7 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
     for ( int ii = 0; ii < numProcBlock; ii++ ){
 
       MPI_Status status; //allocate MPI_Status structure
-      int tempR[14]; //allocate space to receive procBlock INTs
+      int tempR[15]; //allocate space to receive procBlock INTs
 
       //probe message to get correct data size
       int bufRecvData = 0;
@@ -301,7 +315,7 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
 
       //unpack procBlock INTs
       int position = 0;
-      MPI_Unpack(recvBuffer, bufRecvData, &position, &tempR[0], 14, MPI_INT, MPI_COMM_WORLD); //unpack ints
+      MPI_Unpack(recvBuffer, bufRecvData, &position, &tempR[0], 15, MPI_INT, MPI_COMM_WORLD); //unpack ints
 
       //put procBlock INTs into new procBlock
       procBlock tempBlock(tempR[2], tempR[3], tempR[4], tempR[5], tempR[1]); //allocate procBlock for appropriate size (ni, nj, nk, nghosts, nEqn)
@@ -313,6 +327,7 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
       tempBlock.SetParentBlockStartK(tempR[11]);
       tempBlock.SetParentBlockEndK(tempR[12]);
       tempBlock.SetRank(rank);
+      tempBlock.SetGlobalPos(tempR[14]);
 
       int numCells = (tempR[2] + 2 * tempR[5]) * (tempR[3] + 2 * tempR[5]) * (tempR[4] + 2 * tempR[5]);
       int numFaceI = (tempR[2] + 2 * tempR[5] + 1) * (tempR[3] + 2 * tempR[5]) * (tempR[4] + 2 * tempR[5]);
@@ -436,13 +451,13 @@ void GetProcBlocks( vector<procBlock> &blocks, const vector<procBlock> &localBlo
 
 	//probe message to get correct data size
 	int bufRecvData = 0;
-	MPI_Probe(blocks[ii].Rank(), 1, MPI_COMM_WORLD, &status);
+	MPI_Probe(blocks[ii].Rank(), blocks[ii].GlobalPos(), MPI_COMM_WORLD, &status);
 	MPI_Get_count(&status, MPI_CHAR, &bufRecvData); //use MPI_CHAR because sending buffer was allocated with chars
 
 	char *recvBuffer = new char[bufRecvData]; //allocate buffer of correct size
 
 	//receive message from non-ROOT
-	MPI_Recv(recvBuffer, bufRecvData, MPI_PACKED, blocks[ii].Rank(), 1, MPI_COMM_WORLD, &status);
+	MPI_Recv(recvBuffer, bufRecvData, MPI_PACKED, blocks[ii].Rank(), blocks[ii].GlobalPos(), MPI_COMM_WORLD, &status);
 
 	int numCells = (blocks[ii].NumI() + 2 * blocks[ii].NumGhosts()) * (blocks[ii].NumJ() + 2 * blocks[ii].NumGhosts()) * (blocks[ii].NumK() + 2 * blocks[ii].NumGhosts());
 	int numCellsNG = blocks[ii].NumI() * blocks[ii].NumJ() * blocks[ii].NumK();
@@ -509,7 +524,7 @@ void GetProcBlocks( vector<procBlock> &blocks, const vector<procBlock> &localBlo
       MPI_Pack(&waveS[0], waveS.size(), MPI_DOUBLE, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
 
       //send buffer to appropriate processor
-      MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, ROOT, 1, MPI_COMM_WORLD);
+      MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, ROOT, localBlocks[ii].GlobalPos(), MPI_COMM_WORLD);
 
       delete [] sendBuffer; //deallocate buffer
 
