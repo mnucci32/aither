@@ -732,3 +732,189 @@ void colMatrix::CleanResizeZero(const int &s){
 
 
 }
+
+
+///////////////////////////////////////////////////////////////////////////////////////////////////////////
+//functions for genArray class
+//
+//constructors
+genArray::genArray(const double &a){
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    data[ii] = a;
+  }
+}
+
+//member function to get the data from the matrix
+double genArray::Data( const int &r)const{
+  return data[r];
+}
+
+//member function to set the data in the matrix
+void genArray::SetData( const int &r, const double &val ){
+  data[r] = val;
+}
+
+//operator overload for addition
+genArray genArray::operator + (const genArray& s2)const{
+  genArray s1 = *this;
+  for( int rr = 0; rr < NUMVARS; rr++ ){
+    s1.data[rr] = s1.data[rr] + s2.data[rr];
+  }
+  return s1;
+}
+
+//operator overload for addition
+genArray genArray::operator + (const vector<double>& v1)const{
+  //check to see that vector is appropriate size
+  if ( v1.size() != NUMVARS ){
+    cerr << "ERROR: Cannot add vector and genArray because vector not appropriate size! Vector is of size " << v1.size() << endl;
+    exit(0);
+  }
+
+  genArray s1 = *this;
+  for( int rr = 0; rr < NUMVARS; rr++ ){
+    s1.data[rr] = s1.data[rr] + v1[rr];
+  }
+  return s1;
+}
+
+//operator overload for addition with a scalar
+genArray genArray::operator + (const double &scalar)const{
+  genArray s1 = *this;
+
+  for( int rr = 0; rr < NUMVARS; rr++ ){
+    s1.data[rr] = s1.data[rr] + scalar;
+  }
+  return s1;
+}
+
+//operator overload for addition with a scalar
+genArray operator+ (const double &scalar, const genArray &s2){
+  genArray s1;
+  for( int rr = 0; rr < NUMVARS; rr++ ){
+    s1.data[rr] = scalar + s2.data[rr];
+  }
+  return s1;
+}
+
+//operator overload for subtraction
+genArray genArray::operator - (const genArray& s2)const{
+  genArray s1 = *this;
+  for( int rr = 0; rr < NUMVARS; rr++ ){
+    s1.data[rr] = s1.data[rr] - s2.data[rr];
+  }
+  return s1;
+}
+
+//operator overload for addition
+genArray genArray::operator - (const vector<double>& v1)const{
+  //check to see that vector is appropriate size
+  if ( v1.size() != NUMVARS ){
+    cerr << "ERROR: Cannot subtract vector and genArray because vector not appropriate size! Vector is of size " << v1.size() << endl;
+    exit(0);
+  }
+
+  genArray s1 = *this;
+  for( int rr = 0; rr < NUMVARS; rr++ ){
+    s1.data[rr] = s1.data[rr] - v1[rr];
+  }
+  return s1;
+}
+
+//operator overload for subtraction with a scalar
+genArray genArray::operator - (const double &scalar)const{
+  genArray s1 = *this;
+  for( int rr = 0; rr < NUMVARS; rr++ ){
+    s1.data[rr] = s1.data[rr] - scalar;
+  }
+  return s1;
+}
+
+//operator overload for subtraction with a scalar
+genArray operator- (const double &scalar, const genArray &s2){
+  genArray s1;
+  for( int rr = 0; rr < NUMVARS; rr++ ){
+    s1.data[rr] = scalar - s2.data[rr];
+  }
+  return s1;
+}
+
+//operator overload for elementwise multiplication
+genArray genArray::operator * (const genArray& s2)const{
+  genArray s1 = *this;
+  for( int rr = 0; rr < NUMVARS; rr++ ){
+    s1.data[rr] = s1.data[rr] * s2.data[rr];
+  }
+  return s1;
+}
+
+//operator overload for multiplication with a scalar
+genArray genArray::operator * (const double &scalar)const{
+  genArray s1 = *this;
+  for( int rr = 0; rr < NUMVARS; rr++ ){
+    s1.data[rr] = s1.data[rr] * scalar;
+  }
+  return s1;
+}
+
+//operator overload for multiplication with a scalar
+genArray operator* (const double &scalar, const genArray &s2){
+  genArray s1;
+  for( int rr = 0; rr < NUMVARS; rr++ ){
+    s1.data[rr] = s2.data[rr] * scalar;
+  }
+  return s1;
+}
+
+//operator overload for elementwise division
+genArray genArray::operator / (const genArray& s2)const{
+  genArray s1 = *this;
+  for( int rr = 0; rr < NUMVARS; rr++ ){
+    s1.data[rr] = s1.data[rr] / s2.data[rr];
+  }
+  return s1;
+}
+
+//operator overload for division with a scalar
+genArray genArray::operator / (const double &scalar)const{
+  genArray s1 = *this;
+  for( int rr = 0; rr < NUMVARS; rr++ ){
+    s1.data[rr] = s1.data[rr] / scalar;
+  }
+  return s1;
+}
+
+//operator overload for division with a scalar
+genArray operator/ (const double &scalar, const genArray &s2){
+  genArray s1;
+  for( int rr = 0; rr < NUMVARS; rr++ ){
+    s1.data[rr] = scalar / s2.data[rr];
+  }
+  return s1;
+}
+
+//operation overload for << - allows use of cout, cerr, etc.
+ostream & operator<< (ostream &os, const genArray &m){
+  for( int rr = 0; rr < NUMVARS; rr++ ){
+    cout << m.data[rr] << endl;
+  }
+  return os;
+}
+
+
+//member function to zero the matrix
+void genArray::Zero(){
+  for(int rr = 0; rr < NUMVARS; rr++){
+    (*this).data[rr] = 0.0;
+  }
+}
+
+//member function to sum column matrix
+double genArray::Sum(){
+  double sum = 0.0;
+  for( int ii = 0; ii < NUMVARS; ii++ ){
+    sum += (*this).data[ii];
+  }
+  return sum;
+}
+

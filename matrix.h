@@ -7,6 +7,8 @@
 #include <iostream>
 #include "plot3d.h" //matrix location functions
 
+#define NUMVARS 5
+
 using std::vector;
 using std::string;
 using std::ostream;
@@ -17,6 +19,7 @@ class colMatrix {
  public:
   double *data;
 
+  //public:
   //constructor
   colMatrix( const int &a ): size(a) {data = new double[a];}
   colMatrix() : size(0), data(NULL){}
@@ -71,6 +74,46 @@ class colMatrix {
 
 };
 
+/*class to store an array of a fixed size equal to the number of variables being solved for. This is useful because a vector of these will be
+contiguous in memory. */
+class genArray {
+ public:
+  double data[NUMVARS];
+
+  //constructor
+  genArray(){}
+  genArray(const double& );
+
+  //member functions
+  double Data(const int &)const;
+  void SetData(const int &, const double&);
+  void Zero();
+  double Sum();
+
+  //operator overloads
+  genArray operator + (const genArray&)const;
+  genArray operator - (const genArray&)const;
+  genArray operator * (const genArray&)const;
+  genArray operator / (const genArray&)const;
+
+  genArray operator + (const vector<double>&)const;
+  genArray operator - (const vector<double>&)const;
+
+  genArray operator + (const double&)const;
+  genArray operator - (const double&)const;
+  genArray operator * (const double&)const;
+  genArray operator / (const double&)const;
+
+  friend genArray operator + (const double&, const genArray&);
+  friend genArray operator - (const double&, const genArray&);
+  friend genArray operator * (const double&, const genArray&);
+  friend genArray operator / (const double&, const genArray&);
+  friend ostream & operator<< (ostream &os, const genArray&);
+
+  //destructor
+  ~genArray() {}
+
+};
 
 //class to store a square matrix
 class squareMatrix {
