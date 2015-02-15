@@ -85,8 +85,6 @@ class genArray {
   genArray(const double& );
 
   //member functions
-  double Data(const int &)const;
-  void SetData(const int &, const double&);
   void Zero();
   double Sum();
 
@@ -103,6 +101,9 @@ class genArray {
   genArray operator - (const double&)const;
   genArray operator * (const double&)const;
   genArray operator / (const double&)const;
+
+  double operator[] (const int &r)const{return data[r];}
+  double& operator[] (const int &r){return data[r];}
 
   friend genArray operator + (const double&, const genArray&);
   friend genArray operator - (const double&, const genArray&);
