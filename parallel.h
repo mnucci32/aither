@@ -38,4 +38,5 @@ void GetProcBlocks( vector<procBlock>&, const vector<procBlock>&, const int&, co
 
 void maxLinf( resid*, resid*, int*, MPI_Datatype* );
 
+void BroadcastString( string &str );
 #endif

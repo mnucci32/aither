@@ -56,6 +56,9 @@ int main( int argc, char *argv[] ) {
 
   string inputFile = argv[1];  //name of input file is the second argument (the executable being the first)
 
+  //broadcast input file name to all names for portability
+  BroadcastString(inputFile);
+
   //Parse input file
   inputVars = ReadInput(inputFile, rank);
 

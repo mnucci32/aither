@@ -518,6 +518,25 @@ void GetProcBlocks( vector<procBlock> &blocks, const vector<procBlock> &localBlo
 
 }
 
+/*function to broadcast a string from ROOT to all processors. This is needed because it is not garunteed in the MPI standard that the commmand
+line arguments will be on any processor but ROOT.  */
+void BroadcastString( string &str ){
+
+  int strSize = str.size();
+  char *buf = new char[strSize];
+  strcpy(buf, str.c_str());
+
+  MPI_Bcast(&strSize, 1, MPI_INT, ROOT, MPI_COMM_WORLD);  //broadcast string size
+  MPI_Bcast(&buf[0], strSize, MPI_CHAR, ROOT, MPI_COMM_WORLD);  //broadcast string as char
+
+  //create new string and assign to old string
+  string newStr(buf, strSize);
+  str = newStr;
+
+  delete [] buf;
+
+}
+
 void maxLinf( resid *in, resid *inout, int *len, MPI_Datatype *MPI_DOUBLE_5INT){
 
   resid resLinf;
