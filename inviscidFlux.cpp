@@ -45,24 +45,18 @@ inviscidFlux::inviscidFlux( const primVars &state, const idealGas &eqnState, con
 
 //constructor -- initialize flux from state vector using conservative variables
 //flux is a 3D flux in the normal direction of the given face
-inviscidFlux::inviscidFlux( const colMatrix &cons, const idealGas &eqnState, const vector3d<double>& areaVec){
-  //cons -- colMatrix of conserved variables
+inviscidFlux::inviscidFlux( const genArray &cons, const idealGas &eqnState, const vector3d<double>& areaVec){
+  //cons -- genArray of conserved variables
   //eqnState -- equation of state
   //areaVec -- area vector of face
 
-  //check to see that colMatrix is correct size
-  if (cons.Size() != 5){
-    cerr << "ERROR: Error in inviscidFlux::inviscidFlux. Column matrix of conservative variables is not the correct size!" << endl;
-    exit(0);
-  }
-
   //convert conserved variables to primative variables
   primVars state;
-  state.SetRho(cons.Data(0));
-  state.SetU(cons.Data(1)/cons.Data(0));
-  state.SetV(cons.Data(2)/cons.Data(0));
-  state.SetW(cons.Data(3)/cons.Data(0));
-  double energy = cons.Data(4)/cons.Data(0);
+  state.SetRho(cons[0]);
+  state.SetU(cons[1]/cons[0]);
+  state.SetV(cons[2]/cons[0]);
+  state.SetW(cons[3]/cons[0]);
+  double energy = cons[4]/cons[0];
   state.SetP(eqnState.GetPressFromEnergy(state.Rho(), energy, state.Velocity().Mag() ));
 
   vector3d<double> normArea = areaVec / areaVec.Mag(); //normalize area vector
@@ -677,18 +671,18 @@ inviscidFlux operator/ (const double &scalar, const inviscidFlux &flux){
 
 
 //convert the inviscid flux to a column matrix
-colMatrix inviscidFlux::ConvertToColMatrix()const{
-  colMatrix temp(5);
-  temp.SetData(0, (*this).RhoVel());
-  temp.SetData(1, (*this).RhoVelU());
-  temp.SetData(2, (*this).RhoVelV());
-  temp.SetData(3, (*this).RhoVelW());
-  temp.SetData(4, (*this).RhoVelH());
+genArray inviscidFlux::ConvertToGenArray()const{
+  genArray temp(0.0);
+  temp[0] = (*this).RhoVel();
+  temp[1] = (*this).RhoVelU();
+  temp[2] = (*this).RhoVelV();
+  temp[3] = (*this).RhoVelW();
+  temp[4] = (*this).RhoVelH();
   return temp;
 }
 
 //function to take in the primative variables, equation of state, face area vector, and conservative variable update and calculate the change in the convective flux
-colMatrix ConvectiveFluxUpdate( const primVars &state, const idealGas &eqnState, const vector3d<double> &fArea, const colMatrix &du){
+genArray ConvectiveFluxUpdate( const primVars &state, const idealGas &eqnState, const vector3d<double> &fArea, const genArray &du){
 
   //get inviscid flux of old state
   inviscidFlux oldFlux(state, eqnState, fArea);
@@ -702,7 +696,7 @@ colMatrix ConvectiveFluxUpdate( const primVars &state, const idealGas &eqnState,
   //calculate difference in flux
   inviscidFlux dFlux = newFlux - oldFlux;
     
-  return dFlux.ConvertToColMatrix();
+  return dFlux.ConvertToGenArray();
 }
 
 

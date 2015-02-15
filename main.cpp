@@ -154,17 +154,16 @@ int main( int argc, char *argv[] ) {
   }
 
   //column matrix of zeros
-  colMatrix initial(numEqns);
-  initial.Zero();
+  genArray initial(0.0);
 
   //preallocate vectors for old solution
-  //outermost vector for blocks, inner vector for cell is blocks, colMatrix for variables in cell
-  vector<vector<colMatrix> > solTimeN(numProcBlock);
-  vector<vector<colMatrix> > solDeltaNm1(numProcBlock);
+  //outermost vector for blocks, inner vector for cell is blocks, genArray for variables in cell
+  vector<vector<genArray> > solTimeN(numProcBlock);
+  vector<vector<genArray> > solDeltaNm1(numProcBlock);
 
   //initialize residual variables
-  colMatrix residL2 = initial; //l2 norm residuals
-  colMatrix residL2First = initial; //l2 norm residuals to normalize by
+  genArray residL2(0.0); //l2 norm residuals
+  genArray residL2First(0.0); //l2 norm residuals to normalize by
   resid residLinf; //linf residuals
   double matrixResid = 0.0; //matrix inversion residual (only for implicit runs)
 
@@ -222,14 +221,14 @@ int main( int argc, char *argv[] ) {
 	  }
 
 	  //add volume divided by time step term to time m minus time n values
-	  vector<colMatrix> solTimeMmN = localStateBlocks[bb].AddVolTime(localStateBlocks[bb].GetCopyConsVars(eos), solTimeN[bb], 
+	  vector<genArray> solTimeMmN = localStateBlocks[bb].AddVolTime(localStateBlocks[bb].GetCopyConsVars(eos), solTimeN[bb], 
 								    inputVars.Theta(), inputVars.Zeta());
 
 	  //reorder block (by hyperplanes) for lusgs
 	  vector<vector3d<int> > reorder = HyperplaneReorder(localStateBlocks[bb].NumI(), localStateBlocks[bb].NumJ(), localStateBlocks[bb].NumK());
 
 	  //reserve space for correction du
-	  vector<colMatrix> du(localStateBlocks[bb].NumCells(),initial);
+	  vector<genArray> du(localStateBlocks[bb].NumCells(),initial);
 
 	  //calculate correction (du)
 	  matrixResid += localStateBlocks[bb].LUSGS(reorder, du, solTimeMmN, solDeltaNm1[bb], eos, inputVars, suth );
@@ -246,7 +245,7 @@ int main( int argc, char *argv[] ) {
 
 	else{ //explicit
 	  //update solution
-	  vector<colMatrix> dummyCorrection(1); //not used in explicit update
+	  vector<genArray> dummyCorrection(1); //not used in explicit update
 	  localStateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, dummyCorrection, residL2, residLinf );
 	}
 
@@ -273,8 +272,8 @@ int main( int argc, char *argv[] ) {
 
       if ( rank == ROOT ){
 	//finish calculation of L2 norm of residual
-	for ( int cc = 0; cc < residL2.Size(); cc++ ){
-	  residL2.SetData(cc, sqrt(residL2.Data(cc)) );
+	for ( int cc = 0; cc < numEqns; cc++ ){
+	  residL2[cc] = sqrt(residL2[cc]);
 	}
 	//finish calculation of matrix residual
 	matrixResid = sqrt(matrixResid/(totalCells * numEqns));
@@ -284,7 +283,7 @@ int main( int argc, char *argv[] ) {
       }
 
       //reset residuals
-      residL2 = initial;
+      residL2.Zero();
       residLinf.Zero();
       matrixResid = 0.0;
 

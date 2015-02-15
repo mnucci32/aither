@@ -7,7 +7,6 @@
 #include "eos.h"  //idealGas
 #include "primVars.h" //primVars
 #include "input.h" //input
-//#include "boundaryConditions.h" //boundaryConditions
 #include <iostream> //cout
 #include "matrix.h"
 
@@ -19,7 +18,7 @@ using std::cerr;
 using std::ostream;
 
 class inviscidFlux {
-  double data[5];                 //rho dot velocity vector
+  double data[NUMVARS];           //rho dot velocity vector
                                   //rho dot velocity vector * u-velocity + pressure * i-dir-vector
                                   //rho dot velocity vector * v-velocity + pressure * j-dir-vector
                                   //rho dot velocity vector * w-velocity + pressure * k-dir-vector
@@ -29,7 +28,7 @@ class inviscidFlux {
   //constructors
   inviscidFlux() : data{0.0, 0.0, 0.0, 0.0, 0.0} {}
   inviscidFlux( const primVars&, const idealGas&, const vector3d<double>& );
-  inviscidFlux( const colMatrix&, const idealGas&, const vector3d<double>& );
+  inviscidFlux( const genArray&, const idealGas&, const vector3d<double>& );
 
   //member functions
   void SetFlux( const primVars&, const idealGas&, const vector3d<double>&);
@@ -55,7 +54,7 @@ class inviscidFlux {
   friend inviscidFlux operator * (const double&, const inviscidFlux&);
   friend inviscidFlux operator / (const double&, const inviscidFlux&);
 
-  colMatrix ConvertToColMatrix()const;
+  genArray ConvertToGenArray()const;
 
   //destructor
   ~inviscidFlux() {}
@@ -63,18 +62,13 @@ class inviscidFlux {
 };
 
 //function definitions
-//inviscidFlux BoundaryFlux( const string&, const vector3d<double>&, const primVars&, const primVars&, const idealGas&, const input&, const string&, double&, const double=0.5, const double=1.0 );
 //function to calculate Roe flux with entropy fix
 inviscidFlux RoeFlux( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double& );                  
-//inviscidFlux LaxFriedrichsFlux( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double& );                  
+
 //function to calculate Roe flux with entropy fix for implicit methods
 void ApproxRoeFluxJacobian( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double&, squareMatrix&, squareMatrix& );                  
-//void LaxFriedrichsFluxJacobian( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double&, double&, squareMatrix&, squareMatrix& );                  
 
-//double BoundaryInvSpecRad( const string&, const vector3d<double>&, const primVars&, const idealGas&, const string&, const input&);
-
-colMatrix ConvectiveFluxUpdate( const primVars&, const idealGas &, const vector3d<double> &, const colMatrix&);
-//double ConvSpecRad( const vector3d<double> &, const primVars&, const primVars&, const idealGas&);
+genArray ConvectiveFluxUpdate( const primVars&, const idealGas &, const vector3d<double> &, const genArray&);
 
 
 #endif

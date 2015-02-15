@@ -13,7 +13,7 @@ face using constant and MUSCL reconstruction. It is has a member function to sup
 #include "plot3d.h" //vector3d
 #include "input.h" //inputVars
 #include "eos.h"  // idealGas
-#include "matrix.h" //colMatrix
+#include "matrix.h" //genArray
 #include "boundaryConditions.h" //boundaryConditions
 #include <fstream>
 #include <iostream>
@@ -28,7 +28,7 @@ using std::cerr;
 using std::ostream;
 
 class primVars {
-  double data[5];        //primative variables at cell center
+  double data[NUMVARS];        //primative variables at cell center
 
  public:
   //constructors
@@ -57,8 +57,8 @@ class primVars {
   inline double Temperature(const idealGas&)const;
   inline double SoS(const idealGas&)const;
 
-  inline colMatrix ConsVars(const idealGas&)const;
-  primVars UpdateWithConsVars(const idealGas&, const colMatrix&)const;
+  inline genArray ConsVars(const idealGas&)const;
+  primVars UpdateWithConsVars(const idealGas&, const genArray&)const;
 
   //operator overloads for addition and subtraction of states
   primVars operator + (const primVars&)const;
@@ -127,13 +127,13 @@ double primVars::Enthalpy(const idealGas &eqnState)const{
 }
 
 //member function to calculate conserved variables from primative variables
-colMatrix primVars::ConsVars(const idealGas &eqnState)const{
-  colMatrix cv(5);
-  cv.SetData(0, data[0]);
-  cv.SetData(1, data[0] * data[1]);
-  cv.SetData(2, data[0] * data[2]);
-  cv.SetData(3, data[0] * data[3]);
-  cv.SetData(4, data[0] * (*this).Energy(eqnState));
+genArray primVars::ConsVars(const idealGas &eqnState)const{
+  genArray cv(0.0);
+  cv[0] = data[0];
+  cv[1] = data[0] * data[1];
+  cv[2] = data[0] * data[2];
+  cv[3] = data[0] * data[3];
+  cv[4] = data[0] * (*this).Energy(eqnState);
   return cv;
 }
 

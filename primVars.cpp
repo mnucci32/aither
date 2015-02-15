@@ -608,28 +608,22 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
 
 }
 
-//member function to take in a colMatrix of updates to the conservative variables, and update the primative variables with it.
+//member function to take in a genArray of updates to the conservative variables, and update the primative variables with it.
 //this is used in the implicit solver
-primVars primVars::UpdateWithConsVars(const idealGas &eqnState, const colMatrix &du)const{
+primVars primVars::UpdateWithConsVars(const idealGas &eqnState, const genArray &du)const{
   // eqnState -- equation of state
-  // du -- colMatrix of updates to conservative variables
-
-  //check to see that update is of proper size
-  if ( du.Size() != 5 ){
-    cerr << "ERROR: Error in primVars::UpdateWithConsVars. The colMatrix containing the update is not of proper size!" << endl;
-    exit(0);
-  }
+  // du -- updates to conservative variables
 
   //convert primative to conservative and update
-  colMatrix consUpdate = (*this).ConsVars(eqnState) + du;
+  genArray consUpdate = (*this).ConsVars(eqnState) + du;
 
   //convert back to primative variables
   primVars primUpdate;
-  primUpdate.SetRho( consUpdate.Data(0) );
-  primUpdate.SetU( consUpdate.Data(1) / consUpdate.Data(0) );
-  primUpdate.SetV( consUpdate.Data(2) / consUpdate.Data(0) );
-  primUpdate.SetW( consUpdate.Data(3) / consUpdate.Data(0) );
-  double energy = consUpdate.Data(4) / consUpdate.Data(0);
+  primUpdate.SetRho( consUpdate[0] );
+  primUpdate.SetU( consUpdate[1] / consUpdate[0] );
+  primUpdate.SetV( consUpdate[2] / consUpdate[0] );
+  primUpdate.SetW( consUpdate[3] / consUpdate[0] );
+  double energy = consUpdate[4] / consUpdate[0];
   primUpdate.SetP( eqnState.GetPressFromEnergy( primUpdate.Rho(), energy, primUpdate.Velocity().Mag() ) );
 
   return primUpdate;

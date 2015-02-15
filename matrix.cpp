@@ -744,21 +744,17 @@ genArray::genArray(const double &a){
   }
 }
 
-//member function to get the data from the matrix
-double genArray::Data( const int &r)const{
-  return data[r];
-}
-
-//member function to set the data in the matrix
-void genArray::SetData( const int &r, const double &val ){
-  data[r] = val;
+genArray::genArray(){
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    data[ii] = 0.0;
+  }
 }
 
 //operator overload for addition
 genArray genArray::operator + (const genArray& s2)const{
   genArray s1 = *this;
   for( int rr = 0; rr < NUMVARS; rr++ ){
-    s1.data[rr] = s1.data[rr] + s2.data[rr];
+    s1[rr] += s2[rr];
   }
   return s1;
 }
@@ -773,7 +769,7 @@ genArray genArray::operator + (const vector<double>& v1)const{
 
   genArray s1 = *this;
   for( int rr = 0; rr < NUMVARS; rr++ ){
-    s1.data[rr] = s1.data[rr] + v1[rr];
+    s1[rr] += v1[rr];
   }
   return s1;
 }
@@ -783,7 +779,7 @@ genArray genArray::operator + (const double &scalar)const{
   genArray s1 = *this;
 
   for( int rr = 0; rr < NUMVARS; rr++ ){
-    s1.data[rr] = s1.data[rr] + scalar;
+    s1[rr] += scalar;
   }
   return s1;
 }
@@ -792,7 +788,7 @@ genArray genArray::operator + (const double &scalar)const{
 genArray operator+ (const double &scalar, const genArray &s2){
   genArray s1;
   for( int rr = 0; rr < NUMVARS; rr++ ){
-    s1.data[rr] = scalar + s2.data[rr];
+    s1[rr] = scalar + s2[rr];
   }
   return s1;
 }
@@ -801,7 +797,7 @@ genArray operator+ (const double &scalar, const genArray &s2){
 genArray genArray::operator - (const genArray& s2)const{
   genArray s1 = *this;
   for( int rr = 0; rr < NUMVARS; rr++ ){
-    s1.data[rr] = s1.data[rr] - s2.data[rr];
+    s1[rr] -= s2[rr];
   }
   return s1;
 }
@@ -816,7 +812,7 @@ genArray genArray::operator - (const vector<double>& v1)const{
 
   genArray s1 = *this;
   for( int rr = 0; rr < NUMVARS; rr++ ){
-    s1.data[rr] = s1.data[rr] - v1[rr];
+    s1[rr] -= v1[rr];
   }
   return s1;
 }
@@ -825,7 +821,7 @@ genArray genArray::operator - (const vector<double>& v1)const{
 genArray genArray::operator - (const double &scalar)const{
   genArray s1 = *this;
   for( int rr = 0; rr < NUMVARS; rr++ ){
-    s1.data[rr] = s1.data[rr] - scalar;
+    s1[rr] -= scalar;
   }
   return s1;
 }
@@ -834,7 +830,7 @@ genArray genArray::operator - (const double &scalar)const{
 genArray operator- (const double &scalar, const genArray &s2){
   genArray s1;
   for( int rr = 0; rr < NUMVARS; rr++ ){
-    s1.data[rr] = scalar - s2.data[rr];
+    s1[rr] = scalar - s2[rr];
   }
   return s1;
 }
@@ -843,7 +839,7 @@ genArray operator- (const double &scalar, const genArray &s2){
 genArray genArray::operator * (const genArray& s2)const{
   genArray s1 = *this;
   for( int rr = 0; rr < NUMVARS; rr++ ){
-    s1.data[rr] = s1.data[rr] * s2.data[rr];
+    s1[rr] *= s2[rr];
   }
   return s1;
 }
@@ -852,7 +848,7 @@ genArray genArray::operator * (const genArray& s2)const{
 genArray genArray::operator * (const double &scalar)const{
   genArray s1 = *this;
   for( int rr = 0; rr < NUMVARS; rr++ ){
-    s1.data[rr] = s1.data[rr] * scalar;
+    s1[rr] *= scalar;
   }
   return s1;
 }
@@ -861,7 +857,7 @@ genArray genArray::operator * (const double &scalar)const{
 genArray operator* (const double &scalar, const genArray &s2){
   genArray s1;
   for( int rr = 0; rr < NUMVARS; rr++ ){
-    s1.data[rr] = s2.data[rr] * scalar;
+    s1[rr] = s2[rr] * scalar;
   }
   return s1;
 }
@@ -870,7 +866,7 @@ genArray operator* (const double &scalar, const genArray &s2){
 genArray genArray::operator / (const genArray& s2)const{
   genArray s1 = *this;
   for( int rr = 0; rr < NUMVARS; rr++ ){
-    s1.data[rr] = s1.data[rr] / s2.data[rr];
+    s1[rr] /= s2[rr];
   }
   return s1;
 }
@@ -879,7 +875,7 @@ genArray genArray::operator / (const genArray& s2)const{
 genArray genArray::operator / (const double &scalar)const{
   genArray s1 = *this;
   for( int rr = 0; rr < NUMVARS; rr++ ){
-    s1.data[rr] = s1.data[rr] / scalar;
+    s1[rr] /= scalar;
   }
   return s1;
 }
@@ -888,7 +884,7 @@ genArray genArray::operator / (const double &scalar)const{
 genArray operator/ (const double &scalar, const genArray &s2){
   genArray s1;
   for( int rr = 0; rr < NUMVARS; rr++ ){
-    s1.data[rr] = scalar / s2.data[rr];
+    s1[rr] = scalar / s2[rr];
   }
   return s1;
 }
@@ -896,7 +892,7 @@ genArray operator/ (const double &scalar, const genArray &s2){
 //operation overload for << - allows use of cout, cerr, etc.
 ostream & operator<< (ostream &os, const genArray &m){
   for( int rr = 0; rr < NUMVARS; rr++ ){
-    cout << m.data[rr] << endl;
+    cout << m[rr] << endl;
   }
   return os;
 }
@@ -905,7 +901,7 @@ ostream & operator<< (ostream &os, const genArray &m){
 //member function to zero the matrix
 void genArray::Zero(){
   for(int rr = 0; rr < NUMVARS; rr++){
-    (*this).data[rr] = 0.0;
+    (*this)[rr] = 0.0;
   }
 }
 
@@ -913,7 +909,7 @@ void genArray::Zero(){
 double genArray::Sum(){
   double sum = 0.0;
   for( int ii = 0; ii < NUMVARS; ii++ ){
-    sum += (*this).data[ii];
+    sum += (*this)[ii];
   }
   return sum;
 }

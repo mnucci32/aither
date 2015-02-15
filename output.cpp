@@ -424,7 +424,7 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
 }
 
 //function to write out residual information
-void WriteResiduals(const input &inp, colMatrix &residL2First, colMatrix &residL2, const resid &residLinf, 
+void WriteResiduals(const input &inp, genArray &residL2First, genArray &residL2, const resid &residLinf, 
 		    const double &matrixResid, const int &nn, const int &mm){
 
   double eps = 1.0e-30;
@@ -434,9 +434,9 @@ void WriteResiduals(const input &inp, colMatrix &residL2First, colMatrix &residL
     residL2First = residL2;
   }
   else if ( (nn < 5) && mm == 0 ){ //if within first 5 iterations reset normalization
-    for ( int cc = 0; cc < residL2.Size(); cc++ ){
-      if ( residL2.Data(cc) > residL2First.Data(cc) ){
-	residL2First.SetData(cc, residL2.Data(cc));
+    for ( int cc = 0; cc < NUMVARS; cc++ ){
+      if ( residL2[cc] > residL2First[cc] ){
+	residL2First[cc] = residL2[cc];
       }
     }
   }
@@ -457,14 +457,14 @@ void WriteResiduals(const input &inp, colMatrix &residL2First, colMatrix &residL
 
   }
   if (inp.Dt() > 0.0){
-    cout << nn << "     " << mm << "     " << inp.Dt() << "     " << residL2.Data(0) <<  "     " << residL2.Data(1) << "     " 
-	 << residL2.Data(2) << "     " << residL2.Data(3) << "     " << residL2.Data(4) << "     " << residLinf.Eqn() << "     " << 
+    cout << nn << "     " << mm << "     " << inp.Dt() << "     " << residL2[0] <<  "     " << residL2[1] << "     " 
+	 << residL2[2] << "     " << residL2[3] << "     " << residL2[4] << "     " << residLinf.Eqn() << "     " << 
       residLinf.Block() << "     " << residLinf.ILoc() <<"     " << residLinf.JLoc() << "     " << residLinf.KLoc() << "     " << residLinf.Linf() 
 	 << "     " << matrixResid << endl;
   }
   else if (inp.CFL() > 0.0){
-    cout << nn << "     " << mm << "     " << inp.CFL() << "     " << residL2.Data(0) <<  "     " << residL2.Data(1) << "     " 
-	 << residL2.Data(2) << "     " << residL2.Data(3) << "     " << residL2.Data(4) << "     "  << residLinf.Eqn() << "     " << 
+    cout << nn << "     " << mm << "     " << inp.CFL() << "     " << residL2[0] <<  "     " << residL2[1] << "     " 
+	 << residL2[2] << "     " << residL2[3] << "     " << residL2[4] << "     "  << residLinf.Eqn() << "     " << 
       residLinf.Block() << "     " << residLinf.ILoc() <<"     " << residLinf.JLoc() << "     " << residLinf.KLoc() << "     " << residLinf.Linf() 
 	 << "     " << matrixResid << endl;
   }

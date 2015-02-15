@@ -66,7 +66,7 @@ void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &M
 		     MPI_Datatype & MPI_DOUBLE_5INT ){
   // numEqn -- number of equations being solved
   // MPI_vec3d -- output MPI_Datatype for a vector3d<double>
-  // MPI_cellData -- output MPI_Datatype for primVars or colMatrix
+  // MPI_cellData -- output MPI_Datatype for primVars or genArray
   // MPI_procBlockInts -- output MPI_Datatype for 14 INTs (14 INTs in procBlock class)
   // MPI_interblock -- output MPI_Datatype to send interblock class
   // MPI_DOUBLE_5INT -- output MPI_Datatype for a double followed by 5 ints
@@ -75,7 +75,7 @@ void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &M
   MPI_Type_contiguous(3, MPI_DOUBLE, &MPI_vec3d);
   MPI_Type_commit(&MPI_vec3d);
 
-  //create MPI datatype for states (primVars), residuals (colMatrix), etc
+  //create MPI datatype for states (primVars), residuals (genArray), etc
   MPI_Type_contiguous(numEqn, MPI_DOUBLE, &MPI_cellData);
   MPI_Type_commit(&MPI_cellData);
 
@@ -155,7 +155,7 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
   // blocks -- full vector of all procBlocks. This is only used on ROOT processor, all other processors just need a dummy variable to call the function
   // rank -- processor rank. Used to determine if process should send or receive
   // numProcBlock -- number of procBlocks that the processor should have. (All processors may give different values).
-  // MPI_cellData -- MPI_Datatype used for primVars and colMatrix transmission
+  // MPI_cellData -- MPI_Datatype used for primVars and genArray transmission
   // MPI_vec3d -- MPI_Datatype used for vector3d<double>  transmission
 
   vector<procBlock> localBlocks; //vector of procBlocks for each processor
@@ -318,7 +318,7 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
       MPI_Unpack(recvBuffer, bufRecvData, &position, &tempR[0], 15, MPI_INT, MPI_COMM_WORLD); //unpack ints
 
       //put procBlock INTs into new procBlock
-      procBlock tempBlock(tempR[2], tempR[3], tempR[4], tempR[5], tempR[1]); //allocate procBlock for appropriate size (ni, nj, nk, nghosts, nEqn)
+      procBlock tempBlock(tempR[2], tempR[3], tempR[4], tempR[5]); //allocate procBlock for appropriate size (ni, nj, nk, nghosts, nEqn)
       tempBlock.SetParentBlock(tempR[6]);
       tempBlock.SetParentBlockStartI(tempR[7]);
       tempBlock.SetParentBlockEndI(tempR[8]);
@@ -431,7 +431,7 @@ void GetProcBlocks( vector<procBlock> &blocks, const vector<procBlock> &localBlo
   // blocks -- full vector of all procBlocks. This is only used on ROOT processor, all other processors just need a dummy variable to call the function
   // localBlocks -- procBlocks local to each processor. These are sent to ROOT
   // rank -- processor rank. Used to determine if process should send or receive
-  // MPI_cellData -- MPI_Datatype used for primVars and colMatrix transmission
+  // MPI_cellData -- MPI_Datatype used for primVars and genArray transmission
 
   //------------------------------------------------------------------------------------------------------------------------------------------------
   //                                                                ROOT
@@ -464,8 +464,8 @@ void GetProcBlocks( vector<procBlock> &blocks, const vector<procBlock> &localBlo
 
 	//allocate vector data to appropriate size
 	vector<primVars> primVecR(numCells);
-	colMatrix initial(blocks[ii].NumVars());
-	vector<colMatrix> residR(numCellsNG, initial);
+	genArray initial(0.0);
+	vector<genArray> residR(numCellsNG, initial);
 	vector<double> dtR(numCellsNG);
 	vector<double> waveR(numCellsNG);
 
@@ -497,7 +497,7 @@ void GetProcBlocks( vector<procBlock> &blocks, const vector<procBlock> &localBlo
 
       //get copy of vector data that needs to be sent (private class data cannot be packed/sent)
       vector<primVars> primVecS = localBlocks[ii].StateVec(); 
-      vector<colMatrix> residS = localBlocks[ii].ResidualVec();
+      vector<genArray> residS = localBlocks[ii].ResidualVec();
       vector<double> dtS = localBlocks[ii].DtVec();
       vector<double> waveS = localBlocks[ii].AvgWaveSpeedVec();
 

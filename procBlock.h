@@ -37,7 +37,7 @@ class procBlock {
   vector<vector3d<double> > fCenterJ;        //coordinates of j-face centers
   vector<vector3d<double> > fCenterK;        //coordinates of k-face centers
 
-  vector<colMatrix> residual;               //cell residual
+  vector<genArray> residual;                 //cell residual
 
   vector<double> vol ;                      //cell volume
   vector<double> avgWaveSpeed;             //maximum wave speed normal to i-faces
@@ -67,7 +67,7 @@ class procBlock {
   procBlock( const plot3dBlock& , const int&, const int&, const string& );
   procBlock( const double, const double, const vector3d<double>, const plot3dBlock&, const int&, const int&, const string&, const boundaryConditions& );
   procBlock( const primVars&, const plot3dBlock&, const int &, const int&, const string&, const boundaryConditions& );
-  procBlock( const int&, const int&, const int&, const int&, const int& );
+  procBlock( const int&, const int&, const int&, const int& );
 
   //member functions
   void SetNumCells( const int &a){numCells = a;}
@@ -108,7 +108,7 @@ class procBlock {
   primVars State(const int &ind) const {return state[ind];}
   vector<primVars> StateVec() const {return state;}
   void SetStateVec( const vector<primVars> &vec ){state = vec;}
-  vector<colMatrix> GetCopyConsVars(const idealGas &) const; 
+  vector<genArray> GetCopyConsVars(const idealGas &) const; 
   const vector<primVars> & GetRefState() const {return state;}
 
   void SetVol( const double &a, const int &ind){vol[ind] = a;}
@@ -161,15 +161,15 @@ class procBlock {
   vector<double> DtVec() const {return dt;}
   void SetDtVec( const vector<double> &vec ){dt = vec;}
 
-  void SetResidual( const colMatrix &a, const int &ind){residual[ind] = a;}
+  void SetResidual( const genArray &a, const int &ind){residual[ind] = a;}
   void AddToResidual( const inviscidFlux &, const int &);
   void AddToResidual( const viscousFlux &, const int &);
 
-  const vector<colMatrix> & Residual() const {return residual;}
-  colMatrix Residual(const int &ind) const {return residual[ind];}
-  double Residual(const int &ind, const int &a) const {return residual[ind].Data(a);}
-  vector<colMatrix> ResidualVec() const {return residual;}
-  void SetResidualVec( const vector<colMatrix> &vec ){residual = vec;}
+  const vector<genArray> & Residual() const {return residual;}
+  genArray Residual(const int &ind) const {return residual[ind];}
+  double Residual(const int &ind, const int &a) const {return residual[ind][a];}
+  vector<genArray> ResidualVec() const {return residual;}
+  void SetResidualVec( const vector<genArray> &vec ){residual = vec;}
 
   void CalcCellDt(const int&, const int&, const int&, const double&);
 
@@ -178,18 +178,18 @@ class procBlock {
   void CalcInvFluxK(const idealGas&, const input&);
 
   void CalcBlockTimeStep(const input&, const double&);
-  void UpdateBlock(const input&, const int&, const idealGas&, const double&, const vector<colMatrix> &, colMatrix &, resid &);
+  void UpdateBlock(const input&, const int&, const idealGas&, const double&, const vector<genArray> &, genArray &, resid &);
 
   void ExplicitEulerTimeAdvance(const idealGas&, const int&, const int&);
-  void ImplicitTimeAdvance(const colMatrix&, const idealGas&, const int&);
+  void ImplicitTimeAdvance(const genArray&, const idealGas&, const int&);
   void RK4TimeAdvance(const primVars&, const idealGas&, const double&, const int&, const int&, const int&);
 
   void ResetResidWS();
 
-  vector<colMatrix> AddVolTime(const vector<colMatrix>&, const vector<colMatrix>&, const double &, const double &)const;
-  void DeltaNMinusOne( vector<colMatrix> &, const vector<colMatrix> &, const idealGas &, const double &, const double &);
+  vector<genArray> AddVolTime(const vector<genArray>&, const vector<genArray>&, const double &, const double &)const;
+  void DeltaNMinusOne( vector<genArray> &, const vector<genArray> &, const idealGas &, const double &, const double &);
 
-  double LUSGS( const vector<vector3d<int> > &, vector<colMatrix> &, const vector<colMatrix> &, const vector<colMatrix> &, 
+  double LUSGS( const vector<vector3d<int> > &, vector<genArray> &, const vector<genArray> &, const vector<genArray> &, 
 		const idealGas&, const input&, const sutherland&)const;
 
   void CalcViscFluxI(const sutherland&, const idealGas&, const input&);

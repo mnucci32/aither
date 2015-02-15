@@ -19,7 +19,7 @@ using std::cerr;
 using std::ostream;
 
 class viscousFlux {
-  double data[4];           //viscous flux for x-momentum equation
+  double data[NUMVARS-1];   //viscous flux for x-momentum equation
                             //viscous flux for y-momentum equation
                             //viscous flux for z-momentum equation
                             //viscous flux for energy equation

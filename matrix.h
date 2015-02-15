@@ -81,7 +81,7 @@ class genArray {
   double data[NUMVARS];
 
   //constructor
-  genArray(){}
+  genArray();
   genArray(const double& );
 
   //member functions

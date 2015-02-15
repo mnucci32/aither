@@ -19,7 +19,7 @@ using std::min;
 //constructors for procBlock class
 procBlock::procBlock(){
   numCells = 1;
-  numVars = 5;
+  numVars = NUMVARS;
   numI = 1;
   numJ = 1;
   numK = 1;
@@ -40,9 +40,8 @@ procBlock::procBlock(){
   vector<vector3d<double> > vec1(numFaces);                 //dummy vector variable length of number of faces
   vector<vector3d<double> > vec2(numCells);             //dummy vector variable lenght of number of cells
   vector<double> scalar(numCells);                      //dummy scalar variable lenght of number of cells
-  colMatrix singleResid(numVars);
-  singleResid.Zero();
-  vector<colMatrix> dummyResid(numCells, singleResid);
+  genArray singleResid(0.0);
+  vector<genArray> dummyResid(numCells, singleResid);
 
   state = dummyState;      
 
@@ -87,19 +86,12 @@ procBlock::procBlock(const plot3dBlock &blk, const int& numBlk, const int &numG,
   rank = 0;
   globalPos = 0;
 
-  if (eqnSet == "euler" || eqnSet == "navierStokes"){
-    numVars = 5;
-  }
-  else{
-    cerr << "ERROR: Error in procBlock::procBlock constructor. Equation set " << eqnSet << " is not recognized!" << endl;
-    exit(0);
-  }
+  numVars = NUMVARS;
 
   vector<primVars> dummyState (numCells);              //dummy state variable
   vector<double> dummyScalar (numCells);                 //dummy time variable
-  colMatrix singleResid(numVars);
-  singleResid.Zero();
-  vector<colMatrix> dummyResid(numCells, singleResid);
+  genArray singleResid(0.0);
+  vector<genArray> dummyResid(numCells, singleResid);
 
   //pad stored variable vectors with ghost cells
   state = PadWithGhosts( dummyState, numGhosts, numI, numJ, numK );      
@@ -152,20 +144,13 @@ procBlock::procBlock( const double density, const double pressure, const vector3
 
   bc = bound;
 
-  if (eqnSet == "euler" || eqnSet == "navierStokes"){
-    numVars = 5;
-  }
-  else{
-    cerr << "ERROR: Error in procBlock::procBlock constructor. Equation set " << eqnSet << " is not recognized!" << endl;
-    exit(0);
-  }
+  numVars = NUMVARS;
 
   primVars singleState(density, pressure, vel);
   vector<primVars> dummyState (numCells,singleState);              //dummy state variable
   vector<double> dummyScalar (numCells);                 //dummy time variable
-  colMatrix singleResid(numVars);
-  singleResid.Zero();
-  vector<colMatrix> dummyResid(numCells, singleResid);
+  genArray singleResid(0.0);
+  vector<genArray> dummyResid(numCells, singleResid);
 
   //pad stored variable vectors with ghost cells
   state = PadWithGhosts( dummyState, numGhosts, numI, numJ, numK );      
@@ -212,19 +197,12 @@ procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const 
 
   bc = bound;
 
-  if (eqnSet == "euler" || eqnSet == "navierStokes"){
-    numVars = 5;
-  }
-  else{
-    cerr << "ERROR: Error in procBlock::procBlock constructor. Equation set " << eqnSet << " is not recognized!" << endl;
-    exit(0);
-  }
+  numVars = NUMVARS;
 
   vector<double> dummyScalar (numCells);                 //dummy time variable
   vector<primVars> dummyState (numCells,inputState);              //dummy state variable
-  colMatrix singleResid(numVars);
-  singleResid.Zero();
-  vector<colMatrix> dummyResid(numCells, singleResid);
+  genArray singleResid(0.0);
+  vector<genArray> dummyResid(numCells, singleResid);
 
   //pad stored variable vectors with ghost cells
   state = PadWithGhosts( dummyState, numGhosts, numI, numJ, numK );      
@@ -244,12 +222,11 @@ procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const 
 }
 
 //constructor -- allocate space for procBlock
-procBlock::procBlock( const int &ni, const int &nj, const int &nk, const int &numG, const int &numEqn ){
+procBlock::procBlock( const int &ni, const int &nj, const int &nk, const int &numG ){
   // ni -- i-dimension (cell)
   // nj -- j-dimension (cell)
   // nk -- k-dimension (cell)
   // numG -- number of ghost cell layers
-  // numEqn -- number of equations
 
   numI = ni;
   numJ = nj;
@@ -271,7 +248,7 @@ procBlock::procBlock( const int &ni, const int &nj, const int &nk, const int &nu
   boundaryConditions bound;
   bc = bound;
 
-  numVars = numEqn;
+  numVars = NUMVARS;
   primVars inputState;
 
   vector<double> dummyScalar (numCells);                                //dummy scalar variable
@@ -280,9 +257,8 @@ procBlock::procBlock( const int &ni, const int &nj, const int &nk, const int &nu
   vector<vector3d<double> > dummyVectorFaceJ (numI * (numJ+1) * numK);  //dummy vector3d j-face variable
   vector<vector3d<double> > dummyVectorFaceK (numI * numJ * (numK+1));  //dummy vector3d k-face variable
   vector<primVars> dummyState (numCells,inputState);                    //dummy state variable
-  colMatrix singleResid(numVars);
-  singleResid.Zero();
-  vector<colMatrix> dummyResid(numCells, singleResid);
+  genArray singleResid(0.0);
+  vector<genArray> dummyResid(numCells, singleResid);
 
   //pad stored variable vectors with ghost cells
   state = PadWithGhosts( dummyState, numGhosts, numI, numJ, numK );      
@@ -306,12 +282,12 @@ void procBlock::AddToResidual(const inviscidFlux &flux, const int &ii){
   // flux -- inviscid flux to add to residual
   // ii -- location of residual to add to
 
-  colMatrix temp(5);
-  temp.SetData(0, flux.RhoVel());
-  temp.SetData(1, flux.RhoVelU());
-  temp.SetData(2, flux.RhoVelV());
-  temp.SetData(3, flux.RhoVelW());
-  temp.SetData(4, flux.RhoVelH());
+  genArray temp(0.0);
+  temp[0] = flux.RhoVel();
+  temp[1] = flux.RhoVelU();
+  temp[2] = flux.RhoVelV();
+  temp[3] = flux.RhoVelW();
+  temp[4] = flux.RhoVelH();
 
   (*this).SetResidual( (*this).Residual(ii) + temp, ii); 
 }
@@ -321,12 +297,12 @@ void procBlock::AddToResidual(const viscousFlux &flux, const int &ii){
   // flux -- inviscid flux to add to residual
   // ii -- location of residual to add to
 
-  colMatrix temp(5);
-  temp.SetData(0, 0.0);
-  temp.SetData(1, flux.MomX());
-  temp.SetData(2, flux.MomY());
-  temp.SetData(3, flux.MomZ());
-  temp.SetData(4, flux.Engy());
+  genArray temp(0.0);
+  temp[0] = 0.0;
+  temp[1] = flux.MomX();
+  temp[2] = flux.MomY();
+  temp[3] = flux.MomZ();
+  temp[4] = flux.Engy();
 
   (*this).SetResidual( (*this).Residual(ii) + temp, ii); 
 }
@@ -720,7 +696,7 @@ void procBlock::CalcBlockTimeStep( const input &inputVars, const double &aRef){
 explicit method to update. For implicit methods it uses the correction du and calls the implicit updater.
 */
 void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const idealGas &eos, const double &aRef, 
-			    const vector<colMatrix> &du, colMatrix &l2, resid &linf){
+			    const vector<genArray> &du, genArray &l2, resid &linf){
   // inputVars -- all input variables
   // impFlag -- flag to determine if simulation is to be solved via explicit or implicit time stepping
   // eos -- equation of state
@@ -759,7 +735,7 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const id
 	  l2 = l2 + (*this).Residual(loc) * (*this).Residual(loc);
 
 	  //if any residual is larger than previous residual, a new linf residual is found
-	  for ( int ll = 0; ll < l2.Size(); ll++ ){
+	  for ( int ll = 0; ll < NUMVARS; ll++ ){
 	    if ( (*this).Residual(loc,ll) > linf.Linf() ){
 	      linf.SetLinf( (*this).Residual(loc,ll) ); //store linf residual
 	      linf.SetBlock( (*this).ParentBlock() ); //store block location
@@ -802,7 +778,7 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const id
 	      //accumulate l2 norm of residual
 	      l2 = l2 + (*this).Residual(loc) * (*this).Residual(loc);
 
-	      for ( int ll = 0; ll < l2.Size(); ll++ ){
+	      for ( int ll = 0; ll < NUMVARS; ll++ ){
 		if ( (*this).Residual(loc,ll) > linf.Linf() ){
 		  linf.SetLinf( (*this).Residual(loc,ll) ); //store linf residual
 		  linf.SetBlock( (*this).ParentBlock() ); //store block location
@@ -845,25 +821,25 @@ void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState, const int &lo
   // loc -- location of cell (withod ghost cells)
 
   //Get conserved variables for current state (time n)
-  colMatrix consVars = (*this).State(locG).ConsVars(eqnState);
+  genArray consVars = (*this).State(locG).ConsVars(eqnState);
   //calculate updated conserved variables
   consVars = consVars - (*this).Dt(loc) / (*this).Vol(locG) * (*this).Residual(loc);
 
   //calculate updated primative variables
-  vector3d<double> vel(consVars.Data(1)/consVars.Data(0), consVars.Data(2)/consVars.Data(0), consVars.Data(3)/consVars.Data(0));
+  vector3d<double> vel(consVars[1]/consVars[0], consVars[2]/consVars[0], consVars[3]/consVars[0]);
 
-  primVars tempState (consVars.Data(0),
+  primVars tempState (consVars[0],
 		      vel.X(),
 		      vel.Y(),
 		      vel.Z(),
-		      eqnState.GetPressFromEnergy( consVars.Data(0), consVars.Data(4)/consVars.Data(0), vel.Mag() ) );
+		      eqnState.GetPressFromEnergy( consVars[0], consVars[4]/consVars[0], vel.Mag() ) );
 
   //update state
   (*this).SetState(tempState, locG);
 }
 
 //member function to advance the state vector to time n+1 (for implicit methods)
-void procBlock::ImplicitTimeAdvance(const colMatrix &du, const idealGas &eqnState, const int &loc ){
+void procBlock::ImplicitTimeAdvance(const genArray &du, const idealGas &eqnState, const int &loc ){
   // du -- update for a specific cell (to move from time n to n+1)
   // eqnState -- equation of state
   // loc -- location of cell
@@ -902,16 +878,16 @@ void procBlock::RK4TimeAdvance( const primVars &currState, const idealGas &eqnSt
   double alpha[4] = {0.25, 1.0/3.0, 0.5, 1.0};
 
   //update conserved variables
-  colMatrix consVars = currState.ConsVars(eqnState) - (*this).Dt(loc) / (*this).Vol(locG) * alpha[rk] * (*this).Residual(loc);
+  genArray consVars = currState.ConsVars(eqnState) - (*this).Dt(loc) / (*this).Vol(locG) * alpha[rk] * (*this).Residual(loc);
 
   //calculate updated primative variables
-  vector3d<double> vel(consVars.Data(1)/consVars.Data(0), consVars.Data(2)/consVars.Data(0), consVars.Data(3)/consVars.Data(0));
+  vector3d<double> vel(consVars[1]/consVars[0], consVars[2]/consVars[0], consVars[3]/consVars[0]);
 
-  primVars tempState (consVars.Data(0),
+  primVars tempState (consVars[0],
 		      vel.X(),
 		      vel.Y(),
 		      vel.Z(),
-		      eqnState.GetPressFromEnergy( consVars.Data(0), consVars.Data(4)/consVars.Data(0), vel.Mag() ) );
+		      eqnState.GetPressFromEnergy( consVars[0], consVars[4]/consVars[0], vel.Mag() ) );
 
   //assign updated state
   (*this).SetState(tempState, locG);
@@ -921,9 +897,8 @@ void procBlock::RK4TimeAdvance( const primVars &currState, const idealGas &eqnSt
 //speed are accumulated over many function calls.
 void procBlock::ResetResidWS( ){
 
-  //create an instance of colMatrix of the correct size and initialize it to 0.
-  colMatrix initial( (*this).Residual(0).Size() );
-  initial.Zero();
+  //create an instance of genArray and initialize it to 0.
+  genArray initial(0.0);
 
   //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
@@ -968,7 +943,7 @@ expansion about time n. Rn+1 = Rn + J*FD(Un) where J is the flux jacobian dR/dU.
 The above equation shows that the time m minus time n term (FD(Un)) requires a (1+zeta)V/(t*theta) term multiplied by it. That is the purpose of this
 function.
 */
-vector<colMatrix> procBlock::AddVolTime(const vector<colMatrix> &m, const vector<colMatrix> &n, const double &theta, const double &zeta) const {
+vector<genArray> procBlock::AddVolTime(const vector<genArray> &m, const vector<genArray> &n, const double &theta, const double &zeta) const {
   // m -- solution for block at time m
   // n -- solution for block at time n
   // theta -- Beam & Warming coefficient theta for time integration
@@ -983,7 +958,7 @@ vector<colMatrix> procBlock::AddVolTime(const vector<colMatrix> &m, const vector
   int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
-  vector<colMatrix> mMinusN(m.size()); //initialize a vector to hold the returned values
+  vector<genArray> mMinusN(m.size()); //initialize a vector to hold the returned values
 
   //loop over all physical cells
   for ( int ii = 0; ii < imax; ii++ ){
@@ -1021,7 +996,7 @@ expansion about time n. Rn+1 = Rn + J*FD(Un) where J is the flux jacobian dR/dU.
 The above equation shows that the time n minus time n-1 term (FD(Un-1)) requires a zeta*V/(t*theta) term multiplied by it. That is the purpose of this
 function.
 */
-void procBlock::DeltaNMinusOne(vector<colMatrix> &solDeltaNm1, const vector<colMatrix> &solTimeN, const idealGas &eqnState, const double &theta, const double &zeta){
+void procBlock::DeltaNMinusOne(vector<genArray> &solDeltaNm1, const vector<genArray> &solTimeN, const idealGas &eqnState, const double &theta, const double &zeta){
   // solDeltaNm1 -- The solution at time n minus the solution at time n-1. (Un - Un-1) (output)
   // solTimeN -- The solution at time n
   // eqnState -- equation of state
@@ -1056,7 +1031,7 @@ void procBlock::DeltaNMinusOne(vector<colMatrix> &solDeltaNm1, const vector<colM
 
 //Member function to return a copy of the conserved variables. This is useful for "saving" the solution at a specific time.
 //It is used in the implicit solver.
-vector<colMatrix> procBlock::GetCopyConsVars(const idealGas &eqnState) const {
+vector<genArray> procBlock::GetCopyConsVars(const idealGas &eqnState) const {
 
   //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
@@ -1067,7 +1042,7 @@ vector<colMatrix> procBlock::GetCopyConsVars(const idealGas &eqnState) const {
   int imaxG = imax + 2 * (*this).NumGhosts();
   int jmaxG = jmax + 2 * (*this).NumGhosts();
 
-  vector<colMatrix> consVars(imax * jmax * kmax); //initialize vector to proper size
+  vector<genArray> consVars(imax * jmax * kmax); //initialize vector to proper size
 
   //loop over physical cells
   for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++ ){
@@ -1164,8 +1139,8 @@ variabes (FD(Unj)) which is known due to sweeping along hyperplanes.
 
 For viscous simulations, the viscous contribution to the spectral radius K is used, and everything else remains the same.
  */
-double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix> &x, const vector<colMatrix> &solTimeMmN, 
-			 const vector<colMatrix> &solDeltaNm1, const idealGas &eqnState, const input &inp, const sutherland &suth)const{
+double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<genArray> &x, const vector<genArray> &solTimeMmN, 
+			 const vector<genArray> &solDeltaNm1, const idealGas &eqnState, const input &inp, const sutherland &suth)const{
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // x -- correction - added to solution at time n to get to time n+1 (assumed to be zero to start)
   // solTimeMmn -- solution at time m minus n
@@ -1187,13 +1162,12 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
 
   double thetaInv = 1.0 / inp.Theta();
 
-  //initialize column matrix to zero
-  colMatrix initial(x[0].Size());
-  initial.Zero();
+  //initialize genArray to zero
+  genArray initial(0.0);
 
   //initialize L and U matrices
-  vector<colMatrix> U(x.size(),initial);
-  vector<colMatrix> L(x.size(),initial);
+  vector<genArray> U(x.size(),initial);
+  vector<genArray> L(x.size(),initial);
 
   //------------------------------------------------------------------------------------------------------------------------------------------------------
   //forward sweep over all physical cells
@@ -1242,7 +1216,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
       }
 
       //at given face location, call function to calculate convective flux change
-      colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(ilG), eqnState, (*this).FAreaI(ilFaceG), x[il]);
+      genArray fluxChange = ConvectiveFluxUpdate( (*this).State(ilG), eqnState, (*this).FAreaI(ilFaceG), x[il]);
 
       //update L matrix
       L[loc] = L[loc] + 0.5 * ( (*this).FAreaI(ilFaceG).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * x[il] );
@@ -1262,7 +1236,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
       }
 
       //at given face location, call function to calculate convective flux change
-      colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(jlG), eqnState, (*this).FAreaJ(jlFaceG), x[jl]);
+      genArray fluxChange = ConvectiveFluxUpdate( (*this).State(jlG), eqnState, (*this).FAreaJ(jlFaceG), x[jl]);
 
       //update L matrix
       L[loc] = L[loc] + 0.5 * ( (*this).FAreaJ(jlFaceG).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * x[jl] );
@@ -1282,7 +1256,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
       }
 
       //at given face location, call function to calculate convective flux change
-      colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(klG), eqnState, (*this).FAreaK(klFaceG), x[kl]);
+      genArray fluxChange = ConvectiveFluxUpdate( (*this).State(klG), eqnState, (*this).FAreaK(klFaceG), x[kl]);
 
       //update L matrix
       L[loc] = L[loc] + 0.5 * ( (*this).FAreaK(klFaceG).Mag() * fluxChange + inp.MatrixRelaxation() * specRad * x[kl] );
@@ -1349,7 +1323,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
       }
 
       //at given face location, call function to calculate convective flux change
-      colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(iuG), eqnState, (*this).FAreaI(iuFaceG), x[iu]);
+      genArray fluxChange = ConvectiveFluxUpdate( (*this).State(iuG), eqnState, (*this).FAreaI(iuFaceG), x[iu]);
 
       //update U matrix
       U[loc] = U[loc] + 0.5 * ( (*this).FAreaI(iuFaceG).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * x[iu] );
@@ -1369,7 +1343,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
       }
 
       //at given face location, call function to calculate convective flux change
-      colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(juG), eqnState, (*this).FAreaJ(juFaceG), x[ju]);
+      genArray fluxChange = ConvectiveFluxUpdate( (*this).State(juG), eqnState, (*this).FAreaJ(juFaceG), x[ju]);
 
       //update U matrix
       U[loc] = U[loc] + 0.5 * ( (*this).FAreaJ(juFaceG).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * x[ju] );
@@ -1389,7 +1363,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
       }
 
       //at given face location, call function to calculate convective flux change
-      colMatrix fluxChange = ConvectiveFluxUpdate( (*this).State(kuG), eqnState, (*this).FAreaK(kuFaceG), x[ku]);
+      genArray fluxChange = ConvectiveFluxUpdate( (*this).State(kuG), eqnState, (*this).FAreaK(kuFaceG), x[ku]);
 
       //update U matrix
       U[loc] = U[loc] + 0.5 * ( (*this).FAreaK(kuFaceG).Mag() * fluxChange - inp.MatrixRelaxation() * specRad * x[ku] );
@@ -1412,10 +1386,9 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<colMatrix
   //------------------------------------------------------------------------------------------------------------------------------------------------------
   //calculate residual
   //initialize LUSGS residual vector
-  colMatrix l2Resid(x[0].Size());
-  l2Resid.Zero();
+  genArray l2Resid(0.0);
 
-  colMatrix resid(x[0].Size());
+  genArray resid(0.0);
 
   for ( int ii = 0; ii < (int)x.size(); ii++ ){
 
