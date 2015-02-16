@@ -72,10 +72,10 @@ viscousFlux  viscousFlux::operator * (const double &scalar){
 //friend function to allow multiplication from either direction
 viscousFlux operator* (const double &scalar, const viscousFlux &flux){
   viscousFlux temp;
-  temp.SetMomX(flux.MomX() * scalar);
-  temp.SetMomY(flux.MomY() * scalar);
-  temp.SetMomZ(flux.MomZ() * scalar);
-  temp.SetEngy(flux.Engy() * scalar);
+  temp.data[0] = flux.MomX() * scalar;
+  temp.data[1] = flux.MomY() * scalar;
+  temp.data[2] = flux.MomZ() * scalar;
+  temp.data[3] = flux.Engy() * scalar;
   return temp;
 }
 
@@ -92,37 +92,11 @@ viscousFlux  viscousFlux::operator / (const double &scalar){
 //friend function to allow division from either direction
 viscousFlux operator/ (const double &scalar, const viscousFlux &flux){
   viscousFlux temp;
-  temp.SetMomX(scalar / flux.MomX());
-  temp.SetMomY(scalar / flux.MomY());
-  temp.SetMomZ(scalar / flux.MomZ());
-  temp.SetEngy(scalar / flux.Engy());
+  temp.data[0] = scalar / flux.MomX();
+  temp.data[0] = scalar / flux.MomY();
+  temp.data[0] = scalar / flux.MomZ();
+  temp.data[0] = scalar / flux.Engy();
   return temp;
-}
-
-
-//member function to set the viscous flux
-void viscousFlux::SetFlux( const tensor<double> &velGrad, const vector3d<double> &vel, const double &mu, const sutherland &suth, 
-			   const idealGas &eqnState, const vector3d<double> &tGrad, const vector3d<double> &areaVec){
-  // velGrad -- velocity gradient tensor
-  // vel -- velocity vector
-  // mu -- dynamic viscosity
-  // suth -- method to get viscosity as a function of temperature (Sutherland's law)
-  // eqnState -- equation of state
-  // tGrad -- temperature gradient
-  // areaVec -- area vector of face
-
-  vector3d<double> normArea = areaVec / areaVec.Mag(); //normalize face area
-
-  double lambda = suth.GetLambda(mu); //get 2nd coefficient of viscosity assuming bulk viscosity is 0 (Stoke's hypothesis)
-
-  double velGradTrace = velGrad.Trace(); //get trace of velocity tensor
-  //calculate wall shear stress
-  vector3d<double> tau = lambda * velGradTrace * normArea + mu * (velGrad.MatMult(normArea) + velGrad.Transpose().MatMult(normArea));
-
-  data[0] = tau.X();
-  data[1] = tau.Y();
-  data[2] = tau.Z();
-  data[3] = tau.DotProd(vel) + eqnState.GetConductivity(mu) * tGrad.DotProd(normArea);
 }
 
 //function to calculate the thin shear layer flux jacobian -- NOT USED in LUSGS formulation

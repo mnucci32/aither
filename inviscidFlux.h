@@ -31,18 +31,13 @@ class inviscidFlux {
   inviscidFlux( const genArray&, const idealGas&, const vector3d<double>& );
 
   //member functions
-  void SetFlux( const primVars&, const idealGas&, const vector3d<double>&);
-
-  void SetRhoVel( const double &a){data[0] = a;}
   double RhoVel() const {return data[0];}
-  void SetRhoVelU( const double &a){data[1] = a;}
   double RhoVelU() const {return data[1];}
-  void SetRhoVelV( const double &a){data[2] = a;}
   double RhoVelV() const {return data[2];}
-  void SetRhoVelW( const double &a){data[3] = a;}
   double RhoVelW() const {return data[3];}
-  void SetRhoVelH( const double &a){data[4] = a;}
   double RhoVelH() const {return data[4];}
+
+  void RoeFlux( const inviscidFlux&, const double(&) [NUMVARS] );
 
   inviscidFlux operator * (const double&);
   inviscidFlux operator / (const double&);

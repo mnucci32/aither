@@ -30,16 +30,10 @@ class viscousFlux {
   viscousFlux( const tensor<double>&, const vector3d<double>&, const double&, const sutherland&, const idealGas&, const vector3d<double>&, const vector3d<double>& );
 
   //member functions
-  void SetMomX( const double &a){data[0] = a;}
   double MomX() const {return data[0];}
-  void SetMomY( const double &a){data[1] = a;}
   double MomY() const {return data[1];}
-  void SetMomZ( const double &a){data[2] = a;}
   double MomZ() const {return data[2];}
-  void SetEngy( const double &a){data[3] = a;}
   double Engy() const {return data[3];}
-
-  void SetFlux( const tensor<double>&, const vector3d<double>&, const double&, const sutherland&, const idealGas&, const vector3d<double>&, const vector3d<double>& );
 
   viscousFlux operator * (const double&);
   viscousFlux operator / (const double&);
