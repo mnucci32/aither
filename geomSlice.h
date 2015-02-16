@@ -7,6 +7,7 @@
 #include "primVars.h" //primVars
 #include <fstream>
 #include <iostream>
+#include "mpi.h" //parallelism
 
 using std::vector;
 using std::string;
@@ -95,8 +96,6 @@ class geomSlice {
 };
 
 class stateSlice {
-
- public:
   vector<primVars> state ;                     //cell states
 
   int numCells;                            //number of cells in block
@@ -111,6 +110,7 @@ class stateSlice {
   int parBlockStartK;                      //parent block starting index for k
   int parBlockEndK;                        //parent block ending index for k
 
+ public:
   //constructors
   stateSlice();
   stateSlice( const int&, const int&, const int&, const int&, const int&, const int&, const int&, const int&,
@@ -143,6 +143,8 @@ class stateSlice {
 
   void SetState( const primVars &a, const int &ind){state[ind] = a;}
   primVars State(const int &ind) const {return state[ind];}
+
+  void PackSwapUnpackMPI( const interblock&, const MPI_Datatype&, const int& );
 
   //destructor
   ~stateSlice() {}

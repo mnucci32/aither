@@ -148,3 +148,61 @@ stateSlice::stateSlice( const int &li, const int &lj, const int &lk, const int &
 
 }
 
+
+void stateSlice::PackSwapUnpackMPI( const interblock &inter, const MPI_Datatype &MPI_cellData, const int &rank ) {
+
+
+  //swap with mpi_send_recv_replace
+  //pack data into buffer, but first get size
+  int bufSize = 0;
+  int tempSize = 0;
+  MPI_Pack_size((*this).NumCells(), MPI_cellData, MPI_COMM_WORLD, &tempSize); //add size for states
+  bufSize += tempSize;
+  MPI_Pack_size(11, MPI_INT, MPI_COMM_WORLD, &tempSize); //add size for ints in class stateSlice
+  bufSize += tempSize;
+
+  char *buffer = new char[bufSize]; //allocate buffer to pack data into
+
+  //pack data into buffer
+  int position = 0;
+  MPI_Pack(&(*this).state[0], (*this).NumCells(), MPI_cellData, buffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).numCells, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).numI, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).numJ, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).numK, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).parBlock, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).parBlockStartI, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).parBlockEndI, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).parBlockStartJ, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).parBlockEndJ, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).parBlockStartK, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).parBlockEndK, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
+
+  MPI_Status status;
+  if ( rank == inter.RankFirst() ){ //send/recv with second entry in interblock
+    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankSecond(), 1, inter.RankSecond(), 1, MPI_COMM_WORLD, &status);
+  }
+  else{ //send/recv with first entry in interblock
+    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankFirst(), 1, inter.RankFirst(), 1, MPI_COMM_WORLD, &status);
+  }
+
+  //put slice back into procBlock
+  position = 0;
+  MPI_Unpack(buffer, bufSize, &position, &(*this).state[0], (*this).NumCells(), MPI_cellData, MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &(*this).numCells, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &(*this).numI, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &(*this).numJ, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &(*this).numK, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &(*this).parBlock, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &(*this).parBlockStartI, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &(*this).parBlockEndI, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &(*this).parBlockStartJ, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &(*this).parBlockEndJ, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &(*this).parBlockStartK, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &(*this).parBlockEndK, 1, MPI_INT, MPI_COMM_WORLD);
+
+  delete [] buffer;
+
+
+
+}

@@ -6791,56 +6791,8 @@ void procBlock::SwapSliceMPI( const interblock &inter, const int &rank, const MP
   //get local state slice to swap
   stateSlice state = (*this).GetStateSlice(is, ie, js, je, ks, ke);
 
-  //swap with mpi_send_recv_replace
-  //pack data into buffer, but first get size
-  int bufSize = 0;
-  int tempSize = 0;
-  MPI_Pack_size(state.NumCells(), MPI_cellData, MPI_COMM_WORLD, &tempSize); //add size for states
-  bufSize += tempSize;
-  MPI_Pack_size(11, MPI_INT, MPI_COMM_WORLD, &tempSize); //add size for ints in class stateSlice
-  bufSize += tempSize;
-
-  char *buffer = new char[bufSize]; //allocate buffer to pack data into
-
-  //pack data into buffer
-  int position = 0;
-  MPI_Pack(&state.state[0], state.NumCells(), MPI_cellData, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&state.numCells, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&state.numI, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&state.numJ, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&state.numK, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&state.parBlock, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&state.parBlockStartI, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&state.parBlockEndI, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&state.parBlockStartJ, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&state.parBlockEndJ, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&state.parBlockStartK, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&state.parBlockEndK, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-
-  MPI_Status status;
-  if ( rank == inter.RankFirst() ){ //send/recv with second entry in interblock
-    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankSecond(), 1, inter.RankSecond(), 1, MPI_COMM_WORLD, &status);
-  }
-  else{ //send/recv with first entry in interblock
-    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankFirst(), 1, inter.RankFirst(), 1, MPI_COMM_WORLD, &status);
-  }
-
-  //put slice back into procBlock
-  position = 0;
-  MPI_Unpack(buffer, bufSize, &position, &state.state[0], state.NumCells(), MPI_cellData, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &state.numCells, 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &state.numI, 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &state.numJ, 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &state.numK, 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &state.parBlock, 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &state.parBlockStartI, 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &state.parBlockEndI, 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &state.parBlockStartJ, 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &state.parBlockEndJ, 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &state.parBlockStartK, 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &state.parBlockEndK, 1, MPI_INT, MPI_COMM_WORLD);
-
-  delete [] buffer;
+  //swap state slices with partner block
+  state.PackSwapUnpackMPI(inter, MPI_cellData, rank);
 
   //change interblocks to work with slice and ghosts
   interblock interAdj = inter;
@@ -7028,7 +6980,6 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp, const id
     }
     //if rank doesn't match either side of interblock, then do nothing and move on to the next interblock
   }
-
   //loop over all blocks and get ghost cell edge data
   for ( unsigned int ii = 0; ii < states.size(); ii++) {
     states[ii].AssignInviscidGhostCellsEdge(inp, eos);
