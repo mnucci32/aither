@@ -16,10 +16,9 @@ using std::ostream;
 //class to store a column matrix
 class colMatrix {
   int size;
- public:
   double *data;
 
-  //public:
+ public:
   //constructor
   colMatrix( const int &a ): size(a) {data = new double[a];}
   colMatrix() : size(0), data(NULL){}
