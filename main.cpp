@@ -143,7 +143,7 @@ int main( int argc, char *argv[] ) {
 
   //create operation
   MPI_Op MPI_MAX_LINF;
-  MPI_Op_create( (MPI_User_function *) maxLinf, true, &MPI_MAX_LINF);
+  MPI_Op_create( (MPI_User_function *) MaxLinf, true, &MPI_MAX_LINF);
 
   //----------------------------------------------------------------------------------------------
 

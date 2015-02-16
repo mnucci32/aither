@@ -1,10 +1,13 @@
 #include "parallel.h"
 
 /* Function to return processor list for manual decomposition. Manual decomposition assumes that each block will reside on it's own processor.
+The processor list tells how many procBlocks a processor will have.
 */
 vector<int> ManualDecomposition(vector<procBlock> &grid, const int &numProc, vector<interblock> &connections, const int &totalCells ){
   // grid -- vector of procBlocks (no need to split procBlocks or combine them with manual decomposition)
   // numProc -- number of processors in run
+  // connections -- vector of interblocks, these are updated to have the correct rank after decomposition
+  // totalCells -- total number of cells in the grid; used for load balancing metrics
 
   if ( (int)grid.size() != numProc ){
     cerr << "ERROR: Error in parallel.cpp:ManualDecomposition(). Manual decomposition assumes that the number of processors used is equal to the " <<
@@ -12,9 +15,10 @@ vector<int> ManualDecomposition(vector<procBlock> &grid, const int &numProc, vec
     exit(0);
   }
 
+  cout << "--------------------------------------------------------------------------------" << endl;
   cout << "Using manual grid decomposition." << endl;
 
-  double idealLoad = (double)totalCells / (double)numProc;
+  double idealLoad = (double)totalCells / (double)numProc; //average number of cells per processor
   int maxLoad = 0;
 
   //vector containing number of procBlocks for each processor
@@ -33,6 +37,7 @@ vector<int> ManualDecomposition(vector<procBlock> &grid, const int &numProc, vec
   }
 
   cout << "Ratio of most loaded processor to average processor is : " << (double)maxLoad / idealLoad << endl;
+  cout << "--------------------------------------------------------------------------------" << endl << endl;;
 
   //adjust interblocks to have appropriate rank
   for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
@@ -147,7 +152,8 @@ void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &M
 
 /* Function to send procBlocks to their appropriate processor. This function is called after the decomposition has been run. The procBlock data all 
 resides on the ROOT processor. In this function, the ROOT processor packs the procBlocks and sends them to the appropriate processor. All the non-ROOT
-processors receive and unpack the data from ROOT.
+processors receive and unpack the data from ROOT. This is used to send the geometric block data from ROOT to all the processors at the beginning of the
+simulation.
 */
 vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &rank, const int &numProcBlock, 
 				  const MPI_Datatype &MPI_cellData, const MPI_Datatype &MPI_vec3d ){
@@ -297,7 +303,7 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
   //------------------------------------------------------------------------------------------------------------------------------------------------
   //                                                                NON - ROOT
   //------------------------------------------------------------------------------------------------------------------------------------------------
-  if (rank != ROOT) { // receive and unpack data
+  else { // receive and unpack data (non-root)
     for ( int ii = 0; ii < numProcBlock; ii++ ){
 
       MPI_Status status; //allocate MPI_Status structure
@@ -318,7 +324,7 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
       MPI_Unpack(recvBuffer, bufRecvData, &position, &tempR[0], 15, MPI_INT, MPI_COMM_WORLD); //unpack ints
 
       //put procBlock INTs into new procBlock
-      procBlock tempBlock(tempR[2], tempR[3], tempR[4], tempR[5]); //allocate procBlock for appropriate size (ni, nj, nk, nghosts, nEqn)
+      procBlock tempBlock(tempR[2], tempR[3], tempR[4], tempR[5]); //allocate procBlock for appropriate size (ni, nj, nk, nghosts)
       tempBlock.SetParentBlock(tempR[6]);
       tempBlock.SetParentBlockStartI(tempR[7]);
       tempBlock.SetParentBlockEndI(tempR[8]);
@@ -424,7 +430,7 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
 
 
 /* Function to send procBlocks to the root processor. In this function, the non-ROOT processors pack the procBlocks and send them to the ROOT processor. 
-The ROOT processor receives and unpacks the data from the non-ROOT processors.
+The ROOT processor receives and unpacks the data from the non-ROOT processors. This is used to get all the data on the ROOT processor to write out results.
 */
 void GetProcBlocks( vector<procBlock> &blocks, const vector<procBlock> &localBlocks, const int &rank, const MPI_Datatype &MPI_cellData ){
 
@@ -436,12 +442,13 @@ void GetProcBlocks( vector<procBlock> &blocks, const vector<procBlock> &localBlo
   //------------------------------------------------------------------------------------------------------------------------------------------------
   //                                                                ROOT
   //------------------------------------------------------------------------------------------------------------------------------------------------
-  if ( rank == ROOT ){ // may have to pack and send data
+  if ( rank == ROOT ){ // may have to recv and unpack data
+    int locNum = 0;
+
     for ( unsigned int ii = 0; ii < blocks.size(); ii++ ){ //loop over ALL blocks
 
       if (blocks[ii].Rank() == ROOT ){ //no need to recv data because it is already on ROOT processor
 	//assign local state block to global state block in order of local state vector
-	int locNum = 0;
 	blocks[ii] = localBlocks[locNum];
 	locNum++;
       }
@@ -451,7 +458,7 @@ void GetProcBlocks( vector<procBlock> &blocks, const vector<procBlock> &localBlo
 
 	//probe message to get correct data size
 	int bufRecvData = 0;
-	MPI_Probe(blocks[ii].Rank(), blocks[ii].GlobalPos(), MPI_COMM_WORLD, &status);
+	MPI_Probe(blocks[ii].Rank(), blocks[ii].GlobalPos(), MPI_COMM_WORLD, &status); //global position used as tag because each block has a unique one
 	MPI_Get_count(&status, MPI_CHAR, &bufRecvData); //use MPI_CHAR because sending buffer was allocated with chars
 
 	char *recvBuffer = new char[bufRecvData]; //allocate buffer of correct size
@@ -459,6 +466,7 @@ void GetProcBlocks( vector<procBlock> &blocks, const vector<procBlock> &localBlo
 	//receive message from non-ROOT
 	MPI_Recv(recvBuffer, bufRecvData, MPI_PACKED, blocks[ii].Rank(), blocks[ii].GlobalPos(), MPI_COMM_WORLD, &status);
 
+	//calculate number of cells with and without ghost cells
 	int numCells = (blocks[ii].NumI() + 2 * blocks[ii].NumGhosts()) * (blocks[ii].NumJ() + 2 * blocks[ii].NumGhosts()) * (blocks[ii].NumK() + 2 * blocks[ii].NumGhosts());
 	int numCellsNG = blocks[ii].NumI() * blocks[ii].NumJ() * blocks[ii].NumK();
 
@@ -472,13 +480,13 @@ void GetProcBlocks( vector<procBlock> &blocks, const vector<procBlock> &localBlo
 	//unpack vector data into allocated vectors
 	int position = 0;
 	MPI_Unpack(recvBuffer, bufRecvData, &position, &primVecR[0], primVecR.size(), MPI_cellData, MPI_COMM_WORLD); //unpack states
-	//MPI_Unpack(recvBuffer, bufRecvData, &position, &residR[0], residR.size(), MPI_cellData, MPI_COMM_WORLD); //unpack residuals
+	MPI_Unpack(recvBuffer, bufRecvData, &position, &residR[0], residR.size(), MPI_cellData, MPI_COMM_WORLD); //unpack residuals
 	MPI_Unpack(recvBuffer, bufRecvData, &position, &dtR[0], dtR.size(), MPI_DOUBLE, MPI_COMM_WORLD); //unpack time steps
 	MPI_Unpack(recvBuffer, bufRecvData, &position, &waveR[0], waveR.size(), MPI_DOUBLE, MPI_COMM_WORLD); //unpack average wave speeds
 
 	//assign unpacked vector data to procBlock
 	blocks[ii].SetStateVec(primVecR); //assign states
-	//blocks[ii].SetResidualVec(residR); //assign residuals
+	blocks[ii].SetResidualVec(residR); //assign residuals
 	blocks[ii].SetDtVec(dtR); //assign time steps
 	blocks[ii].SetAvgWaveSpeedVec(waveR); //assign average wave speeds
 
@@ -492,7 +500,7 @@ void GetProcBlocks( vector<procBlock> &blocks, const vector<procBlock> &localBlo
   //------------------------------------------------------------------------------------------------------------------------------------------------
   //                                                                NON - ROOT
   //------------------------------------------------------------------------------------------------------------------------------------------------
-  if (rank != ROOT) { // receive and unpack data
+  else { // pack and send data (non-root)
     for ( unsigned int ii = 0; ii < localBlocks.size(); ii++ ){
 
       //get copy of vector data that needs to be sent (private class data cannot be packed/sent)
@@ -517,9 +525,8 @@ void GetProcBlocks( vector<procBlock> &blocks, const vector<procBlock> &localBlo
 
       //pack data to send into buffer
       int position = 0;
-      //int and vector data
       MPI_Pack(&primVecS[0], primVecS.size(), MPI_cellData, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-      //MPI_Pack(&residS[0], residS.size(), MPI_cellData, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+      MPI_Pack(&residS[0], residS.size(), MPI_cellData, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
       MPI_Pack(&dtS[0], dtS.size(), MPI_DOUBLE, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
       MPI_Pack(&waveS[0], waveS.size(), MPI_DOUBLE, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
 
@@ -536,10 +543,11 @@ void GetProcBlocks( vector<procBlock> &blocks, const vector<procBlock> &localBlo
 /*function to broadcast a string from ROOT to all processors. This is needed because it is not garunteed in the MPI standard that the commmand
 line arguments will be on any processor but ROOT.  */
 void BroadcastString( string &str ){
+  // str -- string to broadcast to all processors
 
-  int strSize = str.size();
-  char *buf = new char[strSize];
-  strcpy(buf, str.c_str());
+  int strSize = str.size();  //get size of string
+  char *buf = new char[strSize]; //allcate a char buffer of string size
+  strcpy(buf, str.c_str()); //copy string into buffer
 
   MPI_Bcast(&strSize, 1, MPI_INT, ROOT, MPI_COMM_WORLD);  //broadcast string size
   MPI_Bcast(&buf[0], strSize, MPI_CHAR, ROOT, MPI_COMM_WORLD);  //broadcast string as char
@@ -548,23 +556,32 @@ void BroadcastString( string &str ){
   string newStr(buf, strSize);
   str = newStr;
 
-  delete [] buf;
-
+  delete [] buf; //deallocate buffer
 }
 
-void maxLinf( resid *in, resid *inout, int *len, MPI_Datatype *MPI_DOUBLE_5INT){
+/* Function to calculate the maximum of two resid instances and allow access to all the data in the resid instance. This is used to create an operation
+for MPI_Reduce.
+*/
+void MaxLinf( resid *in, resid *inout, int *len, MPI_Datatype *MPI_DOUBLE_5INT){
+  // *in -- pointer to all input residuals (from all procs)
+  // *inout -- pointer to input and output residuals. The answer is stored here
+  // *len -- pointer to array size of *in and *inout
+  // *MPI_DOUBLE_5INT -- pointer to MPI_Datatype of double followed by 5 Ints, which represents the resid class
 
-  resid resLinf;
+  resid resLinf; //intialize a resid
 
-  for ( int ii = 0; ii < *len; ii++ ){
+  for ( int ii = 0; ii < *len; ii++ ){ //loop over array of resids
 
-    if ( in->linf >= inout->linf ){
+    if ( in->linf >= inout->linf ){ //if linf from input is greater than or equal to linf from output, then new max has been found
       resLinf = *in;
     }
-    else{
+    else{ //no new max
       resLinf = *inout;
     }
 
+    *inout = resLinf; //assign max to output
+
+    //increment to next entry in array
     in++;
     inout++;
   }

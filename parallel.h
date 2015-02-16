@@ -1,10 +1,7 @@
 #ifndef PARALLELHEADERDEF             //only if the macro PARALLELHEADERDEF is not defined execute these lines of code
 #define PARALLELHEADERDEF             //define the macro
 
-/* This header contains the function declarations for file output.
-
-It contains function headers to write out the grid at the cell centers in Plot3D format, as well as the Plot3D function files.
-It also writes out a master file in Ensight format to name the Plot3D functions.  */
+/* This header contains the function declarations for many of the parallel functions in the code */
 
 #include "mpi.h" //parallelism
 #include <vector>  //vector
@@ -36,7 +33,7 @@ void SetDataTypesMPI(const int&, MPI_Datatype&, MPI_Datatype&, MPI_Datatype&, MP
 vector<procBlock> SendProcBlocks( const vector<procBlock>&, const int&, const int&, const MPI_Datatype&, const MPI_Datatype& );
 void GetProcBlocks( vector<procBlock>&, const vector<procBlock>&, const int&, const MPI_Datatype& );
 
-void maxLinf( resid*, resid*, int*, MPI_Datatype* );
+void MaxLinf( resid*, resid*, int*, MPI_Datatype* );
 
 void BroadcastString( string &str );
 #endif
