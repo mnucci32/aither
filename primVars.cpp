@@ -15,13 +15,32 @@ using std::ofstream;
 using std::max;
 using std::min;
 
+//constructor
+primVars::primVars( const genArray &a, const bool &prim, const idealGas &eqnState ){
+
+  if (prim){ //genArray is primative variables
+    for ( int ii = 0; ii < NUMVARS; ii++ ){
+      data[ii] = a[ii];
+    }
+  }
+  else{ //genArray is conserved variables
+    data[0] = a[0];
+    data[1] = a[1]/a[0];
+    data[2] = a[2]/a[0];
+    data[3] = a[3]/a[0];
+    double energy = a[4]/a[0];
+    data[4] = eqnState.GetPressFromEnergy(data[0], energy, (*this).Velocity().Mag() );
+  }
+
+}
+
 //member function to initialize a state with nondimensional values
 void primVars::NondimensionalInitialize(const idealGas &eos, const vector3d<double> &vel){
   data[0] = 1.0;
-  data[1] = vel.X();
-  data[2] = vel.Y();
-  data[3] = vel.Z();
   data[4] = 1.0/eos.Gamma();
+  data[1] = vel.X() / eos.GetSoS(data[4], data[0]);
+  data[2] = vel.Y() / eos.GetSoS(data[4], data[0]);
+  data[3] = vel.Z() / eos.GetSoS(data[4], data[0]);
 }
 
 //operator overload for << - allows use of cout, cerr, etc.
@@ -267,61 +286,61 @@ primVars primVars::LimiterMinmod( const primVars &upwind, const primVars &downwi
 
   //calculate minmod limiter
   if (upwind.Rho() > 0.0 ){
-    sign.SetRho(1.0);
+    sign.data[0] = 1.0;
   }
   else if (upwind.Rho() < 0.0 ){
-    sign.SetRho(-1.);
+    sign.data[0] = -1.0;
   }
   else{
-    sign.SetRho(0.0);
+    sign.data[0] = 0.0;
   }
 
   if (upwind.U() > 0.0 ){
-    sign.SetU(1.0);
+    sign.data[1] = 1.0;
   }
   else if (upwind.U() < 0.0 ){
-    sign.SetU(-1.);
+    sign.data[1] = -1.0;
   }
   else{
-    sign.SetU(0.0);
+    sign.data[1] = 0.0;
   }
 
   if (upwind.V() > 0.0 ){
-    sign.SetV(1.0);
+    sign.data[2] = 1.0;
   }
   else if (upwind.V() < 0.0 ){
-    sign.SetV(-1.);
+    sign.data[2] = -1.0;
   }
   else{
-    sign.SetV(0.0);
+    sign.data[2] = 0.0;
   }
 
   if (upwind.W() > 0.0 ){
-    sign.SetW(1.0);
+    sign.data[3] = 1.0;
   }
   else if (upwind.W() < 0.0 ){
-    sign.SetW(-1.);
+    sign.data[3] = -1.0;
   }
   else{
-    sign.SetW(0.0);
+    sign.data[3] = 0.0;
   }
 
   if (upwind.P() > 0.0 ){
-    sign.SetP(1.0);
+    sign.data[4] = 1.0;
   }
   else if (upwind.P() < 0.0 ){
-    sign.SetP(-1.);
+    sign.data[4] = -1.0;
   }
   else{
-    sign.SetP(0.0);
+    sign.data[4] = 0.0;
   }
 
 
-  limiter.SetRho( sign.Rho() * max(0.0, min( fabs(upwind.Rho()), sign.Rho()*downwind.Rho()*beta ) ) );
-  limiter.SetU( sign.U() * max(0.0, min( fabs(upwind.U()), sign.U()*downwind.U()*beta ) ) );
-  limiter.SetV( sign.V() * max(0.0, min( fabs(upwind.V()), sign.V()*downwind.V()*beta ) ) );
-  limiter.SetW( sign.W() * max(0.0, min( fabs(upwind.W()), sign.W()*downwind.W()*beta ) ) );
-  limiter.SetP( sign.P() * max(0.0, min( fabs(upwind.P()), sign.P()*downwind.P()*beta ) ) );
+  limiter.data[0] = sign.Rho() * max(0.0, min( fabs(upwind.Rho()), sign.Rho()*downwind.Rho()*beta ) );
+  limiter.data[1] = sign.U() * max(0.0, min( fabs(upwind.U()), sign.U()*downwind.U()*beta ) );
+  limiter.data[2] = sign.V() * max(0.0, min( fabs(upwind.V()), sign.V()*downwind.V()*beta ) );
+  limiter.data[3] = sign.W() * max(0.0, min( fabs(upwind.W()), sign.W()*downwind.W()*beta ) );
+  limiter.data[4] = sign.P() * max(0.0, min( fabs(upwind.P()), sign.P()*downwind.P()*beta ) );
 
   return limiter;
 }
@@ -330,26 +349,20 @@ primVars primVars::LimiterMinmod( const primVars &upwind, const primVars &downwi
 primVars primVars::LimiterVanAlbada( const primVars &r)const{
   //r -- ratio of divided differences
 
-  primVars limiter;
-  limiter = (r + r*r)/(1 + r*r);
+  primVars limiter = (r + r*r)/(1 + r*r);
   //if value is negative, return zero
-  limiter.SetRho( max(0.0, limiter.Rho()) );
-  limiter.SetU( max(0.0, limiter.U()) );
-  limiter.SetV( max(0.0, limiter.V()) );
-  limiter.SetW( max(0.0, limiter.W()) );
-  limiter.SetP( max(0.0, limiter.P()) );
+  limiter.data[0] = max(0.0, limiter.Rho());
+  limiter.data[1] = max(0.0, limiter.U());
+  limiter.data[2] = max(0.0, limiter.V());
+  limiter.data[3] = max(0.0, limiter.W());
+  limiter.data[4] = max(0.0, limiter.P());
   return limiter;
 }
 
 //member function to return no limiter
 primVars primVars::LimiterNone()const{
   //for no limiter return all 1s
-  primVars limiter;
-  limiter.SetRho(1.0);
-  limiter.SetU(1.0);
-  limiter.SetV(1.0);
-  limiter.SetW(1.0);
-  limiter.SetP(1.0);
+  primVars limiter(1.0, 1.0, 1.0, 1.0, 1.0);
   return limiter;
 }
 
@@ -413,9 +426,9 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
 			       stateVel.Y() - 2.0 * normArea.Y() * normVelCellCenter,
 			       stateVel.Z() - 2.0 * normArea.Z() * normVelCellCenter);
 
-    ghostState.SetU(ghostVel.X());
-    ghostState.SetV(ghostVel.Y());
-    ghostState.SetW(ghostVel.Z());
+    ghostState.data[1] = ghostVel.X();
+    ghostState.data[2] = ghostVel.Y();
+    ghostState.data[3] = ghostVel.Z();
 
     //numerical BCs for rho and pressure, same as boundary state
 
@@ -430,9 +443,9 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
 			       -1.0 * stateVel.Y(),
 			       -1.0 * stateVel.Z() );
 
-    ghostState.SetU(ghostVel.X());
-    ghostState.SetV(ghostVel.Y());
-    ghostState.SetW(ghostVel.Z());
+    ghostState.data[1] = ghostVel.X();
+    ghostState.data[2] = ghostVel.Y();
+    ghostState.data[3] = ghostVel.Z();
 
     //numerical BCs for rho and pressure, same as boundary state
 
@@ -444,10 +457,10 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
     double sos = eqnState.GetSoS( inputVars.PRef(), inputVars.RRef() );
     vector3d<double> ghostVel = inputVars.VelRef() / sos;   //nondimensionalize velocity
 
-    ghostState.SetRho(1.0);
-    ghostState.SetU(ghostVel.X());
-    ghostState.SetV(ghostVel.Y());
-    ghostState.SetW(ghostVel.Z());
+    ghostState.data[0] = 1.0;
+    ghostState.data[1] = ghostVel.X();
+    ghostState.data[2] = ghostVel.Y();
+    ghostState.data[3] = ghostVel.Z();
 
     //numerical bc for pressure, same as boundary state
 
@@ -460,7 +473,7 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
   //this boundary condition enforces pressure as a freestream input (constant) and extrapolates density and velocity from the interior state
   //this is a primative implementation, pressureOutlet or characteristic are better options
   else if (bcType == "subsonicOutflow"){     //set pressure to freestream value
-    ghostState.SetP( 1.0 / eqnState.Gamma() );
+    ghostState.data[4] = 1.0 / eqnState.Gamma();
 
     //numerical bcs for density, velocity -- equal to boundary cell
 
@@ -496,22 +509,22 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
       //characteristics go in both directions, use interior values for plus characteristic and freestream values for minus characteristic
       double rhoSoSInt = (*this).Rho() * SoSInt;
       vector3d<double> velDiff = freeState.Velocity() - (*this).Velocity();
-      ghostState.SetP(0.5 * (freeState.P() + (*this).P() - rhoSoSInt * normArea.DotProd(velDiff)) ); //plus characteristic
+      ghostState.data[4] = 0.5 * (freeState.P() + (*this).P() - rhoSoSInt * normArea.DotProd(velDiff)); //plus characteristic
       //minus characteristic
-      ghostState.SetRho(freeState.Rho() + (ghostState.P() - freeState.P()) / (SoSInt * SoSInt) );
-      ghostState.SetU(freeState.U() - normArea.X() * (freeState.P() - ghostState.P()) / rhoSoSInt);
-      ghostState.SetV(freeState.V() - normArea.Y() * (freeState.P() - ghostState.P()) / rhoSoSInt);
-      ghostState.SetW(freeState.W() - normArea.Z() * (freeState.P() - ghostState.P()) / rhoSoSInt);
+      ghostState.data[0] = freeState.Rho() + (ghostState.P() - freeState.P()) / (SoSInt * SoSInt);
+      ghostState.data[1] = freeState.U() - normArea.X() * (freeState.P() - ghostState.P()) / rhoSoSInt;
+      ghostState.data[2] = freeState.V() - normArea.Y() * (freeState.P() - ghostState.P()) / rhoSoSInt;
+      ghostState.data[3] = freeState.W() - normArea.Z() * (freeState.P() - ghostState.P()) / rhoSoSInt;
     }
     else if ( machInt < 1.0 && velIntNorm >= 0.0 ){ //subsonic outflow ----------------------------------------------------------
       //characteristics go in both directions, use interior values for plus characteristic and freestream values for minus characteristic
       double rhoSoSInt = (*this).Rho() * SoSInt;
-      ghostState.SetP(freeState.P()); //minus characteristic
+      ghostState.data[4] = freeState.P(); //minus characteristic
       //plus characteristic
-      ghostState.SetRho( (*this).Rho() + ( ghostState.P() - (*this).P() ) / (SoSInt * SoSInt)   );
-      ghostState.SetU(   (*this).U() + normArea.X() * ( (*this).P() - ghostState.P() ) / rhoSoSInt);
-      ghostState.SetV(   (*this).V() + normArea.Y() * ( (*this).P() - ghostState.P() ) / rhoSoSInt);
-      ghostState.SetW(   (*this).W() + normArea.Z() * ( (*this).P() - ghostState.P() ) / rhoSoSInt);
+      ghostState.data[0] = (*this).Rho() + ( ghostState.P() - (*this).P() ) / (SoSInt * SoSInt);
+      ghostState.data[1] = (*this).U() + normArea.X() * ( (*this).P() - ghostState.P() ) / rhoSoSInt;
+      ghostState.data[2] = (*this).V() + normArea.Y() * ( (*this).P() - ghostState.P() ) / rhoSoSInt;
+      ghostState.data[3] = (*this).W() + normArea.Z() * ( (*this).P() - ghostState.P() ) / rhoSoSInt;
     }
     else {
       cerr << "ERROR: flow condition for characteristic BC is not recognized!" << endl;
@@ -529,11 +542,11 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
     //physical boundary conditions - fix everything
     double sos = eqnState.GetSoS(inputVars.PRef(),inputVars.RRef());
     vector3d<double> vel = inputVars.VelRef() / sos;                       //nondimensional velocity
-    ghostState.SetRho(1.0); //nondimensional density
-    ghostState.SetU(vel.X());
-    ghostState.SetV(vel.Y());
-    ghostState.SetW(vel.Z());
-    ghostState.SetP(1.0 / eqnState.Gamma()); //nondimensional pressure
+    ghostState.data[0] = 1.0; //nondimensional density
+    ghostState.data[1] = vel.X();
+    ghostState.data[2] = vel.Y();
+    ghostState.data[3] = vel.Z();
+    ghostState.data[4] = 1.0 / eqnState.Gamma(); //nondimensional pressure
   }
   //supersonic outflow boundary condition ------------------------------------------------------------------------------------------------------------
   //this boundary condition enforces the entire state as extrapolated from the interior (zeroth order extrapolation)
@@ -561,11 +574,11 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
     double pb = inputVars.StagInletP0() / (inputVars.RRef() * aRef * aRef) * pow(sosB * sosB / stagSoSsq, eqnState.Gamma()/g);
     double vbMag = sqrt(2.0 / g * (inputVars.StagInletT0() / inputVars.TRef() - tb));
 
-    ghostState.SetRho(eqnState.GetDensityTP(tb,pb));
-    ghostState.SetU(vbMag * inputVars.StagInletDx());
-    ghostState.SetV(vbMag * inputVars.StagInletDy());
-    ghostState.SetW(vbMag * inputVars.StagInletDz());
-    ghostState.SetP(pb);
+    ghostState.data[0] = eqnState.GetDensityTP(tb,pb);
+    ghostState.data[1] = vbMag * inputVars.StagInletDx();
+    ghostState.data[2] = vbMag * inputVars.StagInletDy();
+    ghostState.data[3] = vbMag * inputVars.StagInletDz();
+    ghostState.data[4] = pb;
 
     if (layer == 2){ //extrapolate to get ghost state at 2nd layer
       ghostState = 2.0 * ghostState - (*this);
@@ -580,11 +593,11 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
 
     double SoSInt = (*this).SoS(eqnState);
     double rhoSoSInt = (*this).Rho() * SoSInt;
-    ghostState.SetP(pb);
-    ghostState.SetRho( (*this).Rho() + ( ghostState.P() - (*this).P() ) / (SoSInt * SoSInt)   );
-    ghostState.SetU(   (*this).U() + normArea.X() * ( (*this).P() - ghostState.P() ) / rhoSoSInt);
-    ghostState.SetV(   (*this).V() + normArea.Y() * ( (*this).P() - ghostState.P() ) / rhoSoSInt);
-    ghostState.SetW(   (*this).W() + normArea.Z() * ( (*this).P() - ghostState.P() ) / rhoSoSInt);
+    ghostState.data[4] = pb;
+    ghostState.data[0] = (*this).Rho() + ( ghostState.P() - (*this).P() ) / (SoSInt * SoSInt);
+    ghostState.data[1] = (*this).U() + normArea.X() * ( (*this).P() - ghostState.P() ) / rhoSoSInt;
+    ghostState.data[2] =  (*this).V() + normArea.Y() * ( (*this).P() - ghostState.P() ) / rhoSoSInt;
+    ghostState.data[3] =  (*this).W() + normArea.Z() * ( (*this).P() - ghostState.P() ) / rhoSoSInt;
 
     if (layer == 2){ //extrapolate to get ghost state at 2nd layer
       ghostState = 2.0 * ghostState - (*this);
@@ -618,13 +631,7 @@ primVars primVars::UpdateWithConsVars(const idealGas &eqnState, const genArray &
   genArray consUpdate = (*this).ConsVars(eqnState) + du;
 
   //convert back to primative variables
-  primVars primUpdate;
-  primUpdate.SetRho( consUpdate[0] );
-  primUpdate.SetU( consUpdate[1] / consUpdate[0] );
-  primUpdate.SetV( consUpdate[2] / consUpdate[0] );
-  primUpdate.SetW( consUpdate[3] / consUpdate[0] );
-  double energy = consUpdate[4] / consUpdate[0];
-  primUpdate.SetP( eqnState.GetPressFromEnergy( primUpdate.Rho(), energy, primUpdate.Velocity().Mag() ) );
+  primVars primUpdate(consUpdate, false, eqnState);
 
   return primUpdate;
 }

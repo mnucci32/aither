@@ -33,19 +33,15 @@ class primVars {
  public:
   //constructors
  primVars() : data{0.0, 0.0, 0.0, 0.0, 0.0} {}
- primVars( double r, double p, vector3d<double> v) : data{r, v.X(), v.Y(), v.Z(), p} {}
- primVars( double a, double b, double c, double d, double e) : data{a, b, c, d, e} {}
+ primVars( const double &r, const double &p, const vector3d<double> &v) : data{r, v.X(), v.Y(), v.Z(), p} {}
+ primVars( const double &a, const double &b, const double &c, const double &d, const double &e) : data{a, b, c, d, e} {}
+ primVars( const genArray&, const bool&, const idealGas& );
 
   //member functions
-  void SetRho( const double &a){data[0] = a;}
   double Rho()const{return data[0];}
-  void SetU( const double &a){data[1] = a;}
   double U()const{return data[1];}
-  void SetV( const double &a){data[2] = a;}
   double V()const{return data[2];}
-  void SetW( const double &a){data[3] = a;}
   double W()const{return data[3];}
-  void SetP( const double &a){data[4] = a;}
   double P()const{return data[4];}
 
   void NondimensionalInitialize(const idealGas &, const vector3d<double>&);

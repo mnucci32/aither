@@ -826,13 +826,7 @@ void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState, const int &lo
   consVars = consVars - (*this).Dt(loc) / (*this).Vol(locG) * (*this).Residual(loc);
 
   //calculate updated primative variables
-  vector3d<double> vel(consVars[1]/consVars[0], consVars[2]/consVars[0], consVars[3]/consVars[0]);
-
-  primVars tempState (consVars[0],
-		      vel.X(),
-		      vel.Y(),
-		      vel.Z(),
-		      eqnState.GetPressFromEnergy( consVars[0], consVars[4]/consVars[0], vel.Mag() ) );
+  primVars tempState(consVars, false, eqnState);
 
   //update state
   (*this).SetState(tempState, locG);
@@ -881,13 +875,7 @@ void procBlock::RK4TimeAdvance( const primVars &currState, const idealGas &eqnSt
   genArray consVars = currState.ConsVars(eqnState) - (*this).Dt(loc) / (*this).Vol(locG) * alpha[rk] * (*this).Residual(loc);
 
   //calculate updated primative variables
-  vector3d<double> vel(consVars[1]/consVars[0], consVars[2]/consVars[0], consVars[3]/consVars[0]);
-
-  primVars tempState (consVars[0],
-		      vel.X(),
-		      vel.Y(),
-		      vel.Z(),
-		      eqnState.GetPressFromEnergy( consVars[0], consVars[4]/consVars[0], vel.Mag() ) );
+  primVars tempState(consVars, false, eqnState);
 
   //assign updated state
   (*this).SetState(tempState, locG);

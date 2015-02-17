@@ -51,13 +51,7 @@ inviscidFlux::inviscidFlux( const genArray &cons, const idealGas &eqnState, cons
   //areaVec -- area vector of face
 
   //convert conserved variables to primative variables
-  primVars state;
-  state.SetRho(cons[0]);
-  state.SetU(cons[1]/cons[0]);
-  state.SetV(cons[2]/cons[0]);
-  state.SetW(cons[3]/cons[0]);
-  double energy = cons[4]/cons[0];
-  state.SetP(eqnState.GetPressFromEnergy(state.Rho(), energy, state.Velocity().Mag() ));
+  primVars state(cons, false, eqnState);
 
   vector3d<double> normArea = areaVec / areaVec.Mag(); //normalize area vector
   vector3d<double> vel = state.Velocity();
@@ -689,41 +683,3 @@ genArray ConvectiveFluxUpdate( const primVars &state, const idealGas &eqnState, 
     
   return dFlux.ConvertToGenArray();
 }
-
-
-// inviscidFlux LaxFriedrichsFlux( const primVars &left, const primVars &right, const idealGas &eqnState, const vector3d<double> &fArea, double &maxWS ){
-
-//   inviscidFlux lFlux(left, eqnState, fArea);
-//   inviscidFlux rFlux(right, eqnState, fArea);
-
-//   maxWS = ConvSpecRad(fArea, left, right, eqnState);
-
-//   colMatrix lCons = left.ConsVars(eqnState);
-//   colMatrix rCons = right.ConsVars(eqnState);
-
-//   inviscidFlux lfFlux;
-//   lfFlux.SetRhoVel(  0.5 * (rFlux.RhoVel()  + lFlux.RhoVel()  - maxWS * (rCons.Data(0) - lCons.Data(0)) ) );
-//   lfFlux.SetRhoVelU( 0.5 * (rFlux.RhoVelU() + lFlux.RhoVelU() - maxWS * (rCons.Data(1) - lCons.Data(1)) ) );
-//   lfFlux.SetRhoVelV( 0.5 * (rFlux.RhoVelV() + lFlux.RhoVelV() - maxWS * (rCons.Data(2) - lCons.Data(2)) ) );
-//   lfFlux.SetRhoVelW( 0.5 * (rFlux.RhoVelW() + lFlux.RhoVelW() - maxWS * (rCons.Data(3) - lCons.Data(3)) ) );
-//   lfFlux.SetRhoVelH( 0.5 * (rFlux.RhoVelH() + lFlux.RhoVelH() - maxWS * (rCons.Data(4) - lCons.Data(4)) ) );
-
-//   return lfFlux;
-
-// }
-
-// //function to return the convective spectral radius given a face state, equation of state, and area vector
-// double ConvSpecRad(const vector3d<double> &fArea, const primVars &state1, const primVars &state2, const idealGas &eqnState){
-
-//   vector3d<double> normArea = fArea / fArea.Mag();
-
-//   double a1 = state1.SoS(eqnState);
-//   double u1 = state1.Velocity().DotProd(normArea);
-
-//   double a2 = state2.SoS(eqnState);
-//   double u2 = state2.Velocity().DotProd(normArea);
-
-//   return max(fabs(u1) + a1, fabs(u2) + a2);
-
-// }
-
