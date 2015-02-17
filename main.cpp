@@ -60,7 +60,7 @@ int main( int argc, char *argv[] ) {
   BroadcastString(inputFile);
 
   //Parse input file
-  inputVars = ReadInput(inputFile, rank);
+  inputVars.ReadInput(inputFile, rank);
 
   //Determine number of equations
   int numEqns = 0;

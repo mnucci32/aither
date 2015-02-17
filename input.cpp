@@ -19,8 +19,6 @@ using std::istream_iterator;
 //constructor for input class
 //initialize vector to have length of number of acceptable inputs to the code
 input::input(): vars(32){
-  vector<double> stagProps(6,0.0);
-  vector<double> pOutlet(2,0.0);
 
   //default values for each variable
   gName = "";
@@ -55,8 +53,14 @@ input::input(): vars(32){
   invFluxJac = "laxFriedrichs";  //default is approximate roe flux
   dualTimeCFL = -1.0;          //default value of -1; negative value means dual time stepping is not used
   inviscidFlux = "roe";        //default value is roe flux
-  stagInletProps = stagProps;
-  pressureOutlet = pOutlet;
+  stagInletProps[0] = 0.0;
+  stagInletProps[1] = 0.0;
+  stagInletProps[2] = 0.0;
+  stagInletProps[3] = 0.0;
+  stagInletProps[4] = 0.0;
+  stagInletProps[5] = 0.0;
+  pressureOutlet[0] = 0.0;
+  pressureOutlet[1] = 0.0;
   decompMethod = "manual";     //default is manual decomposition
 
   //keywords in the input file that the parser is looking for to define variables
@@ -138,7 +142,7 @@ void PrintTime(){
 
 //function to read the input file and return the data as a member of the input class
 //read the input file
-input ReadInput(const string &inputName, const int &rank){
+void input::ReadInput(const string &inputName, const int &rank){
   // inputName -- name of input file
   // rank -- rank of processor
 
@@ -150,13 +154,11 @@ input ReadInput(const string &inputName, const int &rank){
     cout << "Solver Inputs" << endl;
   }
 
-  input inputVars;
-
   //open input file
   ifstream inFile;
   inFile.open(inputName.c_str(), ios::in);
   if (inFile.fail()) {
-    cerr << "ERROR: Error in input.cpp:ReadInput(). Input file " << inputName << " did not open correctly!!!" << endl;
+    cerr << "ERROR: Error in input::ReadInput(). Input file " << inputName << " did not open correctly!!!" << endl;
     exit(0);
   }
 
@@ -182,200 +184,200 @@ input ReadInput(const string &inputName, const int &rank){
     //search to see if first token corresponds to any keywords
     if (tokens.size() >= 2) { //line must contain at least 2 tokens (keyword and value)
 
-      for( int ii=0; ii < inputVars.NumVars(); ii++){ //loop over all input variables and see if they match keywords
+      for( int ii=0; ii < (*this).NumVars(); ii++){ //loop over all input variables and see if they match keywords
 
-        if (tokens[0] == inputVars.Vars(ii) || readingBCs > 0){ //if first token matches a keyword or reading boundary conditions
+        if (tokens[0] == (*this).Vars(ii) || readingBCs > 0){ //if first token matches a keyword or reading boundary conditions
 	  
 	  //if not yet reading BCs (readingBCs == 0), set variable in input class to corresponding value and print assignment to std out
           if (ii==0 && readingBCs == 0){
-            inputVars.SetGridName(tokens[1]);
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.GridName() << endl;}
+            (*this).gName = tokens[1];
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).GridName() << endl;}
             continue;
           }
           else if (ii==1 && readingBCs == 0){
-            inputVars.SetDt(atof(tokens[1].c_str()));                          //double variable (atof)
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.Dt() << endl;}
+            (*this).dt = atof(tokens[1].c_str());                          //double variable (atof)
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).Dt() << endl;}
             continue;
 	  }
           else if (ii==2 && readingBCs == 0){
-            inputVars.SetIterations(atoi(tokens[1].c_str()));
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.Iterations() << endl;}
+            (*this).iterations = atoi(tokens[1].c_str());
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).Iterations() << endl;}
             continue;
 	  }
           else if (ii==3 && readingBCs == 0){
-            inputVars.SetPRef(atof(tokens[1].c_str()));                       //double variable (atof)
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.PRef() << endl;}
+            (*this).pRef = atof(tokens[1].c_str());                       //double variable (atof)
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).PRef() << endl;}
             continue;
 	  }
           else if (ii==4 && readingBCs == 0){
-            inputVars.SetRRef(atof(tokens[1].c_str()));                       //double variable (atof)
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.RRef() << endl;}
+            (*this).rRef = atof(tokens[1].c_str());                       //double variable (atof)
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).RRef() << endl;}
             continue;
 	  }
           else if (ii==5 && readingBCs == 0){
-            inputVars.SetLRef(atof(tokens[1].c_str()));                       //double variable (atof)
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.LRef() << endl;}
+            (*this).lRef = atof(tokens[1].c_str());                       //double variable (atof)
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).LRef() << endl;}
             continue;
 	  }
           else if (ii==6 && readingBCs == 0){
-            inputVars.SetGamma(atof(tokens[1].c_str()));                      //double variable (atof)
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.Gamma() << endl;}
+            (*this).gamma = atof(tokens[1].c_str());                      //double variable (atof)
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).Gamma() << endl;}
             continue;
 	  }
           else if (ii==7 && readingBCs == 0){
-            inputVars.SetR(atof(tokens[1].c_str()));                         //double variable (atof)
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.R() << endl;}
+            (*this).gasConst = atof(tokens[1].c_str());                         //double variable (atof)
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).R() << endl;}
             continue;
 	  }
           else if (ii==8 && readingBCs == 0){
             temp.SetX(atof(tokens[1].c_str()));                              //double variable (atof)
             temp.SetY(atof(tokens[2].c_str()));
             temp.SetZ(atof(tokens[3].c_str()));
-            inputVars.SetVelRef(temp);
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.VelRef() << endl;}
+            (*this).velRef = temp;
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).VelRef() << endl;}
             continue;
 	  }
           else if (ii==9 && readingBCs == 0){
-            inputVars.SetTimeIntegration(tokens[1]);
-	    if (inputVars.TimeIntegration() == "implicitEuler"){
-	      inputVars.SetTheta(1.0);
-	      inputVars.SetZeta(0.0);
+            (*this).timeIntegration = tokens[1];
+	    if ((*this).TimeIntegration() == "implicitEuler"){
+	      (*this).timeIntTheta = 1.0;
+	      (*this).timeIntZeta = 0.0;
 	    }
-	    else if (inputVars.TimeIntegration() == "crankNicholson"){
-	      inputVars.SetTheta(0.5);
-	      inputVars.SetZeta(0.0);
+	    else if ((*this).TimeIntegration() == "crankNicholson"){
+	      (*this).timeIntTheta = 0.5;
+	      (*this).timeIntZeta = 0.0;
 	    }
-	    else if (inputVars.TimeIntegration() == "bdf2"){
-	      inputVars.SetTheta(1.0);
-	      inputVars.SetZeta(0.5);
+	    else if ((*this).TimeIntegration() == "bdf2"){
+	      (*this).timeIntTheta = 1.0;
+	      (*this).timeIntZeta = 0.5;
 	    }
 
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.TimeIntegration() << endl;}
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).TimeIntegration() << endl;}
             continue;
           }
           else if (ii==11 && readingBCs == 0){
 	    if (tokens[1] == "upwind"){
-	      inputVars.SetKappa(-1.0);
+	      (*this).kappa = -1.0;
 	    }
 	    else if (tokens[1] == "fromm"){
-	      inputVars.SetKappa(0.0);
+	      (*this).kappa = 0.0;
 	    }
 	    else if (tokens[1] == "quick"){
-	      inputVars.SetKappa(0.5);
+	      (*this).kappa = 0.5;
 	    }
 	    else if (tokens[1] == "central"){
-	      inputVars.SetKappa(1.0);
+	      (*this).kappa = 1.0;
 	    }
 	    else if (tokens[1] == "thirdOrder"){
-	      inputVars.SetKappa(1.0/3.0);
+	      (*this).kappa = 1.0/3.0;
 	    }
 	    else if (tokens[1] == "constant"){
-	      inputVars.SetKappa(-2.0);
+	      (*this).kappa = -2.0;
 	    }
 	    else{
-	      inputVars.SetKappa(atof(tokens[1].c_str()));         //if string is not recognized, set kappa to number input
+	      (*this).kappa = atof(tokens[1].c_str());         //if string is not recognized, set kappa to number input
 	    }
 
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << tokens[1] << " kappa = " << inputVars.Kappa() << endl;}
-	    if ( (inputVars.Kappa() < -1.0) || (inputVars.Kappa() > 1.0) ){
-	      cerr << "ERROR: Error in input.cpp:ReadInput(). Kappa value of " << inputVars.Kappa() 
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << tokens[1] << " kappa = " << (*this).Kappa() << endl;}
+	    if ( ((*this).Kappa() < -1.0) || ((*this).Kappa() > 1.0) ){
+	      cerr << "ERROR: Error in input::ReadInput(). Kappa value of " << (*this).Kappa() 
 		   << " is not valid! Choose a value between -1.0 and 1.0." << endl;
 	      exit(0);
 	    }
             continue;
           }
           else if (ii==12 && readingBCs == 0){
-            inputVars.SetLimiter(tokens[1]);
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.Limiter() << endl;}
+            (*this).limiter = tokens[1];
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).Limiter() << endl;}
             continue;
           }
           else if (ii==13 && readingBCs == 0){
-            inputVars.SetOutputFrequency(atoi(tokens[1].c_str()));
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.OutputFrequency() << endl;}
+            (*this).outputFrequency = atoi(tokens[1].c_str());
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).OutputFrequency() << endl;}
             continue;
 	  }
           else if (ii==14 && readingBCs == 0){
-            inputVars.SetEquationSet(tokens[1]);
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.EquationSet() << endl;}
+            (*this).equationSet = tokens[1];
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).EquationSet() << endl;}
             continue;
           }
           else if (ii==15 && readingBCs == 0){
-            inputVars.SetTRef(atof(tokens[1].c_str()));                       //double variable (atof)
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.TRef() << endl;}
+            (*this).tRef = atof(tokens[1].c_str());                       //double variable (atof)
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).TRef() << endl;}
             continue;
 	  }
           else if (ii==16 && readingBCs == 0){
-            inputVars.SetMatrixSolver(tokens[1]);
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.MatrixSolver() << endl;}
+            (*this).matrixSolver = tokens[1];
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).MatrixSolver() << endl;}
             continue;
 	  }
           else if (ii==17 && readingBCs == 0){
-            inputVars.SetMatrixSweeps(atoi(tokens[1].c_str()));
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.MatrixSweeps() << endl;}
+            (*this).matrixSweeps = atoi(tokens[1].c_str());
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).MatrixSweeps() << endl;}
             continue;
 	  }
           else if (ii==18 && readingBCs == 0){
-            inputVars.SetMatrixRelaxation(atof(tokens[1].c_str()));                       //double variable (atof)
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.MatrixRelaxation() << endl;}
+            (*this).matrixRelaxation = atof(tokens[1].c_str());                       //double variable (atof)
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).MatrixRelaxation() << endl;}
             continue;
 	  }
           else if (ii==21 && readingBCs == 0){
-            inputVars.SetNonlinearIterations(atoi(tokens[1].c_str()));
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.NonlinearIterations() << endl;}
+            (*this).nonlinearIterations = atoi(tokens[1].c_str());
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).NonlinearIterations() << endl;}
             continue;
 	  }
           else if (ii==22 && readingBCs == 0){
-            inputVars.SetCFLMax(atof(tokens[1].c_str()));                       //double variable (atof)
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.CFLMax() << endl;}
+            (*this).cflMax = atof(tokens[1].c_str());                       //double variable (atof)
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).CFLMax() << endl;}
             continue;
           }
           else if (ii==23 && readingBCs == 0){
-            inputVars.SetCFLStep(atof(tokens[1].c_str()));                       //double variable (atof)
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.CFLStep() << endl;}
+            (*this).cflStep = atof(tokens[1].c_str());                       //double variable (atof)
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).CFLStep() << endl;}
             continue;
           }
           else if (ii==24 && readingBCs == 0){
-            inputVars.SetCFLStart(atof(tokens[1].c_str()));                       //double variable (atof)
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.CFLStart() << endl;}
+            (*this).cflStart = atof(tokens[1].c_str());                       //double variable (atof)
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).CFLStart() << endl;}
             continue;
           }
           else if (ii==25 && readingBCs == 0){
-            inputVars.SetInvFluxJac(tokens[1]);
-	    if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.InvFluxJac() << endl;}
+            (*this).invFluxJac = tokens[1];
+	    if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).InvFluxJac() << endl;}
 	  }
           else if (ii==26 && readingBCs == 0){
-            inputVars.SetDualTimeCFL(atof(tokens[1].c_str()));                       //double variable (atof)
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.DualTimeCFL() << endl;}
+            (*this).dualTimeCFL = atof(tokens[1].c_str());                       //double variable (atof)
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).DualTimeCFL() << endl;}
             continue;
           }
           else if (ii==27 && readingBCs == 0){
-            inputVars.SetInviscidFlux(tokens[1]);
-	    if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.InviscidFlux() << endl;}
+            (*this).inviscidFlux = tokens[1];
+	    if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).InviscidFlux() << endl;}
 	  }
           else if (ii==28 && readingBCs == 0){
-            inputVars.SetStagInletTag(atoi(tokens[1].c_str()));
-            inputVars.SetStagInletP0(atof(tokens[2].c_str()));
-            inputVars.SetStagInletT0(atof(tokens[3].c_str()));
-            inputVars.SetStagInletDx(atof(tokens[4].c_str()));
-            inputVars.SetStagInletDy(atof(tokens[5].c_str()));
-            inputVars.SetStagInletDz(atof(tokens[6].c_str()));
-	    if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.StagInletTag() << " " << inputVars.StagInletP0() <<
-		" " << inputVars.StagInletT0() << " " << inputVars.StagInletDx() << " " << inputVars.StagInletDy() <<
-		" " << inputVars.StagInletDz() << endl;}
+            (*this).stagInletProps[0] = atoi(tokens[1].c_str());    //tag
+            (*this).stagInletProps[1] = atof(tokens[2].c_str());    //stag pressure
+            (*this).stagInletProps[2] = atof(tokens[3].c_str());    //stag temp
+            (*this).stagInletProps[3] = atof(tokens[4].c_str());    //dir-x
+            (*this).stagInletProps[4] = atof(tokens[5].c_str());    //dir-y
+            (*this).stagInletProps[5] = atof(tokens[6].c_str());    //dir-z
+	    if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).StagInletTag() << " " << (*this).StagInletP0() <<
+		" " << (*this).StagInletT0() << " " << (*this).StagInletDx() << " " << (*this).StagInletDy() <<
+		" " << (*this).StagInletDz() << endl;}
 	  }
           else if (ii==29 && readingBCs == 0){
-            inputVars.SetPressureOutletTag(atoi(tokens[1].c_str()));
-            inputVars.SetPressureOutletP(atof(tokens[2].c_str()));
-	    if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.PressureOutletTag() << " " << inputVars.PressureOutletP() << endl;}
+            (*this).pressureOutlet[0] = atoi(tokens[1].c_str());  //tag
+            (*this).pressureOutlet[1] = atof(tokens[2].c_str());  //outlet pressure
+	    if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).PressureOutletTag() << " " << (*this).PressureOutletP() << endl;}
 	  }
           else if (ii==30 && readingBCs == 0){
-            inputVars.SetDecompMethod(tokens[1]);
-            if (rank == ROOT) {cout << inputVars.Vars(ii) << " " << inputVars.DecompMethod() << endl;}
+            (*this).decompMethod = tokens[1];
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).DecompMethod() << endl;}
             continue;
           }
 
 	  //reading BCs -------------------------------------------------------------------------------------------------------
-          else if (ii==inputVars.NumVars()-1 || readingBCs > 0){
+          else if (ii==(*this).NumVars()-1 || readingBCs > 0){
 	    //read in boundary conditions and assign to boundaryConditions class
 	    if (readingBCs == 0) {  //variable read must be number of blocks if first line of BCs
 	      numBCBlks = atoi(tokens[1].c_str());
@@ -418,12 +420,12 @@ input ReadInput(const string &inputName, const int &rank){
 
 	    //if block counter reaches number of blocks, BCs are finished (b/c counter starts at 0), so assign BCs and write them out
 	    if (blk == numBCBlks){ 
-	      inputVars.SetBC(tempBC);
+	      (*this).bc = tempBC;
 	      if (rank == ROOT) {
-		cout << inputVars.Vars(inputVars.NumVars()-1) << " " << inputVars.NumBC() << endl << endl;
-		for ( int ll = 0; ll < inputVars.NumBC(); ll++ ){
+		cout << (*this).Vars((*this).NumVars()-1) << " " << (*this).NumBC() << endl << endl;
+		for ( int ll = 0; ll < (*this).NumBC(); ll++ ){
 		  cout << "Block: " << ll << endl;
-		  cout << inputVars.BC(ll) << endl;
+		  cout << (*this).BC(ll) << endl;
 		}
 	      }
 	    }
@@ -444,8 +446,6 @@ input ReadInput(const string &inputName, const int &rank){
     cout << "Input file parse complete" << endl;
     cout << "###########################################################################################################################" << endl << endl;
   }
-
-  return inputVars;
 
 }
 
