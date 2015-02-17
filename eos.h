@@ -21,7 +21,6 @@ class idealGas {
   const double gamma;
   const double gasConst;
 
-
  public:
   //constructor
   idealGas() : gamma(1.4), gasConst(287.058) {}
@@ -74,11 +73,6 @@ class sutherland {
   double ConstS()const{return S;}
   double TRef()const{return tRef;}
   double MuRef()const{return muRef;}
-
-  void InitializeTRef(const double t){
-    tRef = t;
-    muRef = cOne * pow(t,1.5)/(t+S);
-  }
 };
 
 #endif
