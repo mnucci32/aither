@@ -121,28 +121,17 @@ class patch {
   patch(const int&, const int&, const int&, const int&, const int&, const int&, const int&, const int&, const plot3dBlock&);
 
   //member functions
-  void SetOrigin( const vector3d<double> &a){origin = a;}
   vector3d<double> Origin()const{return origin;}
-  void SetCorner1( const vector3d<double> &a){corner1 = a;}
   vector3d<double> Corner1()const{return corner1;}
-  void SetCorner2( const vector3d<double> &a){corner2 = a;}
   vector3d<double> Corner2()const{return corner2;}
-  void SetCorner12( const vector3d<double> &a){corner12 = a;}
   vector3d<double> Corner12()const{return corner12;}
 
-  void SetBoundary( const int &a){boundary = a;}
   int Boundary()const{return boundary;}
-  void SetBlock( const int &a){block = a;}
   int Block()const{return block;}
-  void SetDir1Start( const int &a){d1Start = a;}
   int Dir1Start()const{return d1Start;}
-  void SetDir1End( const int &a){d1End = a;}
   int Dir1End()const{return d1End;}
-  void SetD2irStart( const int &a){d2Start = a;}
   int Dir2Start()const{return d2Start;}
-  void SetDir2End( const int &a){d2End = a;}
   int Dir2End()const{return d2End;}
-  void SetConstSurface( const int &a){constSurf = a;}
   int ConstSurface()const{return constSurf;}
 
   friend ostream & operator<< (ostream &os, const patch&);
