@@ -24,7 +24,7 @@ class plot3dBlock {
 
  public:
    //constructor -- create a plot3d block by passing the above quantities
-   plot3dBlock( int, int, int, vector<double>&, vector<double>&, vector<double>&);
+   plot3dBlock( const int&, const int&, const int&, const vector<double>&, const vector<double>&, const vector<double>&);
    plot3dBlock();
 
    //member functions
@@ -45,12 +45,6 @@ class plot3dBlock {
    double XLoc(const int &a)const{return x[a];}
    double YLoc(const int &a)const{return y[a];}
    double ZLoc(const int &a)const{return z[a];}
-   void SetI(const int & dim){numi = dim;}
-   void SetJ(const int & dim){numj = dim;}
-   void SetK(const int & dim){numk = dim;}
-   void SetX(const vector<double> & data){x = data;}
-   void SetY(const vector<double> & data){y = data;}
-   void SetZ(const vector<double> & data){z = data;}
 
    //destructor
    ~plot3dBlock() {}

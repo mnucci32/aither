@@ -15,7 +15,7 @@ using std::ios;
 //----------------------------------------------------------------------------------------------------------------//
 //plot 3d block constructor, member functions
 //constructor -- assign passed variables to create plot3d block
-plot3dBlock::plot3dBlock( int i, int j, int k, vector<double> &xCoord, vector<double> &yCoord, vector<double> &zCoord){
+plot3dBlock::plot3dBlock( const int &i, const int &j, const int &k, const vector<double> &xCoord, const vector<double> &yCoord, const vector<double> &zCoord){
   numi = i;
   numj = j;
   numk = k;
