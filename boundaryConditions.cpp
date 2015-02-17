@@ -716,3 +716,60 @@ patch::patch( const int &bound, const int &b, const int &d1s, const int &d1e, co
 
 }
 
+void boundaryConditions::PackBC( char *(&sendBuffer), const int &sendBufSize, int &position)const{
+
+
+  //get string lengths for each boundary condition to be sent, so processors unpacking know how much data to unpack for each string
+  vector<int> strLength((*this).numSurfI + (*this).numSurfJ + (*this).numSurfK );
+  for ( unsigned int jj = 0; jj < strLength.size(); jj++ ){
+    strLength[jj] = (*this).GetBCTypes(jj).size();
+  }
+
+  MPI_Pack(&(*this).numSurfI, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).numSurfJ, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).numSurfK, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).iMin[0], (*this).iMin.size(), MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).iMax[0], (*this).iMax.size(), MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).jMin[0], (*this).jMin.size(), MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).jMax[0], (*this).jMax.size(), MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).kMin[0], (*this).kMin.size(), MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).kMax[0], (*this).kMax.size(), MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).tag[0], (*this).tag.size(), MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&strLength[0], strLength.size(), MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  for ( int jj = 0; jj < ((*this).numSurfI + (*this).numSurfJ + (*this).numSurfK); jj++ ){
+    MPI_Pack((*this).bcTypes[jj].c_str(), (*this).bcTypes[jj].size(), MPI_CHAR, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  }
+
+}
+
+
+void boundaryConditions::UnpackBC( char *(&recvBuffer), const int &recvBufSize, int &position){
+
+
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).numSurfI, 1, MPI_INT, MPI_COMM_WORLD); //unpack number of i-surfaces
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).numSurfJ, 1, MPI_INT, MPI_COMM_WORLD); //unpack number of j-surfaces
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).numSurfK, 1, MPI_INT, MPI_COMM_WORLD); //unpack number of k-surfaces
+
+  (*this).ResizeVecs((*this).numSurfI + (*this).numSurfJ + (*this).numSurfK);
+  vector<int> strLength((*this).numSurfI + (*this).numSurfJ + (*this).numSurfK);
+
+  //unpack boundary condition data into appropriate vectors
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).iMin[0], (*this).iMin.size(), MPI_INT, MPI_COMM_WORLD); //unpack i min coordinates
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).iMax[0], (*this).iMax.size(), MPI_INT, MPI_COMM_WORLD); //unpack i max coordinates
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).jMin[0], (*this).jMin.size(), MPI_INT, MPI_COMM_WORLD); //unpack j min coordinates
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).jMax[0], (*this).jMax.size(), MPI_INT, MPI_COMM_WORLD); //unpack j max coordinates
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).kMin[0], (*this).kMin.size(), MPI_INT, MPI_COMM_WORLD); //unpack k min coordinates
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).kMax[0], (*this).kMax.size(), MPI_INT, MPI_COMM_WORLD); //unpack k max coordinates
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).tag[0], (*this).tag.size(), MPI_INT, MPI_COMM_WORLD); //unpack tags
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &strLength[0], strLength.size(), MPI_INT, MPI_COMM_WORLD); //unpack string sizes
+  //unpack boundary condition names
+  for ( unsigned int jj = 0; jj < strLength.size(); jj++ ){
+    char *nameBuf = new char[strLength[jj]]; //allocate buffer to store BC name
+    MPI_Unpack(recvBuffer, recvBufSize, &position, &nameBuf[0], strLength[jj], MPI_CHAR, MPI_COMM_WORLD); //unpack bc types
+    string bcName(nameBuf, strLength[jj]); //create string of bc name
+    (*this).bcTypes[jj] = bcName;
+    delete [] nameBuf; //deallocate bc name buffer
+  }
+
+
+}

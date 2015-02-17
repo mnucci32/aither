@@ -6784,7 +6784,7 @@ void procBlock::SwapSliceMPI( const interblock &inter, const int &rank, const MP
     }
   }
   else{
-    cerr << "ERROR: Error in procBlock::SwapSliceMPIMPI(). Processor rank does not match either of interblock ranks!" << endl;
+    cerr << "ERROR: Error in procBlock::SwapSliceMPI(). Processor rank does not match either of interblock ranks!" << endl;
     exit(0);
   }
 
@@ -7777,5 +7777,176 @@ void procBlock::PutStateSlice( const stateSlice &slice, const interblock &inter,
       }
     }
   }
+
+}
+
+
+void procBlock::PackSendMPI(const MPI_Datatype &MPI_cellData, const MPI_Datatype &MPI_vec3d)const{
+
+  //determine size of buffer to send
+  int sendBufSize = 0;
+  int tempSize = 0;
+  MPI_Pack_size(15, MPI_INT, MPI_COMM_WORLD, &tempSize); //add size for ints in class procBlock
+  sendBufSize += tempSize;
+  MPI_Pack_size((*this).state.size(), MPI_cellData, MPI_COMM_WORLD, &tempSize); //add size for states
+  sendBufSize += tempSize;
+  MPI_Pack_size((*this).center.size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for cell centers
+  sendBufSize += tempSize;
+  MPI_Pack_size((*this).fAreaI.size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for face area I
+  sendBufSize += tempSize;
+  MPI_Pack_size((*this).fAreaJ.size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for face area J
+  sendBufSize += tempSize;
+  MPI_Pack_size((*this).fAreaK.size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for face area K
+  sendBufSize += tempSize;
+  MPI_Pack_size((*this).fCenterI.size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for face center I
+  sendBufSize += tempSize;
+  MPI_Pack_size((*this).fCenterJ.size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for face center J
+  sendBufSize += tempSize;
+  MPI_Pack_size((*this).fCenterK.size(), MPI_vec3d, MPI_COMM_WORLD, &tempSize); //add size for face center K
+  sendBufSize += tempSize;
+  MPI_Pack_size((*this).vol.size(), MPI_DOUBLE, MPI_COMM_WORLD, &tempSize); //add size for volumes
+  sendBufSize += tempSize;
+  MPI_Pack_size(3, MPI_INT, MPI_COMM_WORLD, &tempSize); //add size for number of surfaces
+  sendBufSize += tempSize;
+  //8x because iMin, iMax, jMin, jMax, kMin, kMax, tags, string sizes
+  MPI_Pack_size( ((*this).bc.NumSurfI() + (*this).bc.NumSurfJ() + (*this).bc.NumSurfK()) * 8, MPI_INT, MPI_COMM_WORLD, &tempSize); //add size for BCs
+  sendBufSize += tempSize;
+  int stringSize = 0;
+  for ( int jj = 0; jj < ((*this).bc.NumSurfI() + (*this).bc.NumSurfJ() + (*this).bc.NumSurfK()); jj++ ){
+    MPI_Pack_size((*this).bc.GetBCTypes(jj).size(), MPI_CHAR, MPI_COMM_WORLD, &tempSize); //add size for bc types
+    stringSize += tempSize;
+  }
+  sendBufSize += stringSize;
+
+  char *sendBuffer = new char[sendBufSize]; //allocate buffer to pack data into
+
+  //pack data to send into buffer
+  int position = 0;
+  //int and vector data
+  MPI_Pack(&(*this).numCells, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).numVars, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).numI, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).numJ, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).numK, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).numGhosts, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).parBlock, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).parBlockStartI, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).parBlockEndI, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).parBlockStartJ, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).parBlockEndJ, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).parBlockStartK, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).parBlockEndK, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).rank, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).globalPos, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).state[0], (*this).state.size(), MPI_cellData, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).center[0], (*this).center.size(), MPI_vec3d, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).fAreaI[0], (*this).fAreaI.size(), MPI_vec3d, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).fAreaJ[0], (*this).fAreaJ.size(), MPI_vec3d, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).fAreaK[0], (*this).fAreaK.size(), MPI_vec3d, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).fCenterI[0], (*this).fCenterI.size(), MPI_vec3d, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).fCenterJ[0], (*this).fCenterJ.size(), MPI_vec3d, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).fCenterK[0], (*this).fCenterK.size(), MPI_vec3d, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).vol[0], (*this).vol.size(), MPI_DOUBLE, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+
+  //pack boundary condition data
+  (*this).bc.PackBC(sendBuffer, sendBufSize, position);
+
+  //send buffer to appropriate processor
+  MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, (*this).rank, 2, MPI_COMM_WORLD);
+
+  delete [] sendBuffer; //deallocate buffer
+
+}
+
+
+void procBlock::RecvUnpackMPI( const MPI_Datatype &MPI_cellData, const MPI_Datatype &MPI_vec3d ){
+
+
+  MPI_Status status; //allocate MPI_Status structure
+
+  //probe message to get correct data size
+  int recvBufSize = 0;
+  MPI_Probe(ROOT, 2, MPI_COMM_WORLD, &status);
+  MPI_Get_count(&status, MPI_CHAR, &recvBufSize); //use MPI_CHAR because sending buffer was allocated with chars
+
+  char *recvBuffer = new char[recvBufSize]; //allocate buffer of correct size
+
+  //receive message from ROOT
+  MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, ROOT, 2, MPI_COMM_WORLD, &status);
+
+  //unpack procBlock INTs
+  int position = 0;
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).numCells, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).numVars, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).numI, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).numJ, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).numK, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).numGhosts, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).parBlock, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).parBlockStartI, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).parBlockEndI, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).parBlockStartJ, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).parBlockEndJ, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).parBlockStartK, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).parBlockEndK, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).rank, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).globalPos, 1, MPI_INT, MPI_COMM_WORLD);
+
+  //clean and resize the vectors in the class to 
+  (*this).CleanResizeVecs();
+
+  //unpack vector data into allocated vectors
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).state[0], (*this).state.size(), MPI_cellData, MPI_COMM_WORLD); //unpack states
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).center[0], (*this).center.size(), MPI_vec3d, MPI_COMM_WORLD); //unpack cell centers
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).fAreaI[0], (*this).fAreaI.size(), MPI_vec3d, MPI_COMM_WORLD); //unpack face area I
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).fAreaJ[0], (*this).fAreaJ.size(), MPI_vec3d, MPI_COMM_WORLD); //unpack face area J
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).fAreaK[0], (*this).fAreaK.size(), MPI_vec3d, MPI_COMM_WORLD); //unpack face area K
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).fCenterI[0], (*this).fCenterI.size(), MPI_vec3d, MPI_COMM_WORLD); //unpack face center I
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).fCenterJ[0], (*this).fCenterJ.size(), MPI_vec3d, MPI_COMM_WORLD); //unpack face center J
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).fCenterK[0], (*this).fCenterK.size(), MPI_vec3d, MPI_COMM_WORLD); //unpack face center K
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).vol[0], (*this).vol.size(), MPI_DOUBLE, MPI_COMM_WORLD); //unpack volumes
+
+  //unpack boundary conditions
+  (*this).bc.UnpackBC( recvBuffer, recvBufSize, position );
+
+  delete [] recvBuffer; //deallocate receiving buffer
+
+}
+
+
+void procBlock::CleanResizeVecs(){
+
+  int numCellsGhosts = ((*this).numI + 2 * (*this).numGhosts) * ((*this).numJ + 2 * (*this).numGhosts) * ((*this).numK + 2 * (*this).numGhosts);
+  int numFaceI = ((*this).numI + 2 * (*this).numGhosts + 1) * ((*this).numJ + 2 * (*this).numGhosts)     * ((*this).numK + 2 * (*this).numGhosts);
+  int numFaceJ = ((*this).numI + 2 * (*this).numGhosts)     * ((*this).numJ + 2 * (*this).numGhosts + 1) * ((*this).numK + 2 * (*this).numGhosts);
+  int numFaceK = ((*this).numI + 2 * (*this).numGhosts)     * ((*this).numJ + 2 * (*this).numGhosts)     * ((*this).numK + 2 * (*this).numGhosts + 1);
+
+  vector<primVars> dumState(numCellsGhosts);
+  (*this).state = dumState;
+
+  vector<vector3d<double> > dumCellVec(numCellsGhosts);
+  (*this).center = dumCellVec;
+
+  vector<vector3d<double> > dumFaceVecI(numFaceI);
+  (*this).fAreaI = dumFaceVecI;
+  (*this).fCenterI = dumFaceVecI;
+
+  vector<vector3d<double> > dumFaceVecJ(numFaceJ);
+  (*this).fAreaJ = dumFaceVecJ;
+  (*this).fCenterJ = dumFaceVecJ;
+
+  vector<vector3d<double> > dumFaceVecK(numFaceK);
+  (*this).fAreaK = dumFaceVecK;
+  (*this).fCenterK = dumFaceVecK;
+
+  vector<genArray> dumRes((*this).numCells);
+  (*this).residual = dumRes;
+
+  vector<double> dumCellScalar(numCellsGhosts);
+  (*this).vol = dumCellScalar;
+  
+  vector<double> dumCellScalarNG((*this).numCells);
+  (*this).avgWaveSpeed = dumCellScalarNG;
+  (*this).dt = dumCellScalarNG;
 
 }

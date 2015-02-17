@@ -18,6 +18,8 @@
 #include <fstream>
 #include <iostream>
 
+# define ROOT 0
+
 using std::vector;
 using std::string;
 using std::ios;
@@ -40,7 +42,7 @@ class procBlock {
   vector<genArray> residual;                 //cell residual
 
   vector<double> vol ;                      //cell volume
-  vector<double> avgWaveSpeed;             //maximum wave speed normal to i-faces
+  vector<double> avgWaveSpeed;             //maximum wave speed for cell
   vector<double> dt;                        //cell time step
 
   boundaryConditions bc;                   //boundary conditions for block
@@ -185,6 +187,7 @@ class procBlock {
   void RK4TimeAdvance(const primVars&, const idealGas&, const double&, const int&, const int&, const int&);
 
   void ResetResidWS();
+  void CleanResizeVecs();
 
   vector<genArray> AddVolTime(const vector<genArray>&, const vector<genArray>&, const double &, const double &)const;
   void DeltaNMinusOne( vector<genArray> &, const vector<genArray> &, const idealGas &, const double &, const double &);
@@ -215,6 +218,8 @@ class procBlock {
   void PutStateSlice(const stateSlice&, const interblock&, const int&);
 
   void SwapSliceMPI(const interblock&, const int&, const MPI_Datatype& );
+  void PackSendMPI(const MPI_Datatype&, const MPI_Datatype&)const;
+  void RecvUnpackMPI(const MPI_Datatype&, const MPI_Datatype&);
 
   //destructor
   ~procBlock() {}

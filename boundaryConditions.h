@@ -9,6 +9,7 @@ This class stores the information needed to specify the boundary conditions for 
 #include <string>  //string
 #include <iostream> //ostream
 #include "plot3d.h" //plot3dBlock
+#include "mpi.h" //parallelism
 
 using std::ostream;
 using std::vector;
@@ -88,6 +89,9 @@ class boundaryConditions {
   friend ostream & operator<< (ostream &os, const boundaryConditions&);
 
   string GetBCName(const int, const int, const int, const string&)const;
+
+  void PackBC( char*(&), const int&, int&)const;
+  void UnpackBC( char*(&), const int&, int&);
 
   //destructor
   ~boundaryConditions() {}
