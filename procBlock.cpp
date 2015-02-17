@@ -7781,7 +7781,7 @@ void procBlock::PutStateSlice( const stateSlice &slice, const interblock &inter,
 }
 
 
-void procBlock::PackSendMPI(const MPI_Datatype &MPI_cellData, const MPI_Datatype &MPI_vec3d)const{
+void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData, const MPI_Datatype &MPI_vec3d)const{
 
   //determine size of buffer to send
   int sendBufSize = 0;
@@ -7859,7 +7859,7 @@ void procBlock::PackSendMPI(const MPI_Datatype &MPI_cellData, const MPI_Datatype
 }
 
 
-void procBlock::RecvUnpackMPI( const MPI_Datatype &MPI_cellData, const MPI_Datatype &MPI_vec3d ){
+void procBlock::RecvUnpackGeomMPI( const MPI_Datatype &MPI_cellData, const MPI_Datatype &MPI_vec3d ){
 
 
   MPI_Status status; //allocate MPI_Status structure
@@ -7948,5 +7948,60 @@ void procBlock::CleanResizeVecs(){
   vector<double> dumCellScalarNG((*this).numCells);
   (*this).avgWaveSpeed = dumCellScalarNG;
   (*this).dt = dumCellScalarNG;
+
+}
+
+void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData){
+
+  MPI_Status status; //allocate MPI_Status structure
+
+  //probe message to get correct data size
+  int recvBufSize = 0;
+  MPI_Probe((*this).rank, (*this).globalPos, MPI_COMM_WORLD, &status); //global position used as tag because each block has a unique one
+  MPI_Get_count(&status, MPI_CHAR, &recvBufSize); //use MPI_CHAR because sending buffer was allocated with chars
+
+  char *recvBuffer = new char[recvBufSize]; //allocate buffer of correct size
+
+  //receive message from non-ROOT
+  MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, (*this).rank, (*this).globalPos, MPI_COMM_WORLD, &status);
+
+  //unpack vector data into allocated vectors
+  int position = 0;
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).state[0], (*this).state.size(), MPI_cellData, MPI_COMM_WORLD); //unpack states
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).residual[0], (*this).residual.size(), MPI_cellData, MPI_COMM_WORLD); //unpack residuals
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).dt[0], (*this).dt.size(), MPI_DOUBLE, MPI_COMM_WORLD); //unpack time steps
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).avgWaveSpeed[0], (*this).avgWaveSpeed.size(), MPI_DOUBLE, MPI_COMM_WORLD); //unpack average wave speeds
+
+  delete [] recvBuffer; //deallocate receiving buffer
+
+}
+
+void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData)const{
+
+  //determine size of buffer to send
+  int sendBufSize = 0;
+  int tempSize = 0;
+  MPI_Pack_size((*this).state.size(), MPI_cellData, MPI_COMM_WORLD, &tempSize); //add size for states
+  sendBufSize += tempSize;
+  MPI_Pack_size((*this).residual.size(), MPI_cellData, MPI_COMM_WORLD, &tempSize); //add size for residuals
+  sendBufSize += tempSize;
+  MPI_Pack_size((*this).dt.size(), MPI_DOUBLE, MPI_COMM_WORLD, &tempSize); //add size for time steps
+  sendBufSize += tempSize;
+  MPI_Pack_size((*this).avgWaveSpeed.size(), MPI_DOUBLE, MPI_COMM_WORLD, &tempSize); //add size for average wave speed
+  sendBufSize += tempSize;
+
+  char *sendBuffer = new char[sendBufSize]; //allocate buffer to pack data into
+
+  //pack data to send into buffer
+  int position = 0;
+  MPI_Pack(&(*this).state[0], (*this).state.size(), MPI_cellData, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).residual[0], (*this).residual.size(), MPI_cellData, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).dt[0], (*this).dt.size(), MPI_DOUBLE, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).avgWaveSpeed[0], (*this).avgWaveSpeed.size(), MPI_DOUBLE, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+
+  //send buffer to appropriate processor
+  MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, ROOT, (*this).GlobalPos(), MPI_COMM_WORLD);
+
+  delete [] sendBuffer; //deallocate buffer
 
 }

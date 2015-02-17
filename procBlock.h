@@ -218,8 +218,10 @@ class procBlock {
   void PutStateSlice(const stateSlice&, const interblock&, const int&);
 
   void SwapSliceMPI(const interblock&, const int&, const MPI_Datatype& );
-  void PackSendMPI(const MPI_Datatype&, const MPI_Datatype&)const;
-  void RecvUnpackMPI(const MPI_Datatype&, const MPI_Datatype&);
+  void PackSendGeomMPI(const MPI_Datatype&, const MPI_Datatype&)const;
+  void RecvUnpackGeomMPI(const MPI_Datatype&, const MPI_Datatype&);
+  void PackSendSolMPI(const MPI_Datatype&)const;
+  void RecvUnpackSolMPI(const MPI_Datatype&);
 
   //destructor
   ~procBlock() {}
