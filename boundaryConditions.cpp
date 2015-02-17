@@ -31,7 +31,7 @@ boundaryConditions::boundaryConditions(){
 }
 
 //constructor when passed number of i, j, k surfaces
-boundaryConditions::boundaryConditions( int i, int j, int k){
+boundaryConditions::boundaryConditions( const int &i, const int &j, const int &k){
   numSurfI = i;
   numSurfJ = j;
   numSurfK = k;

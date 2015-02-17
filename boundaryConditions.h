@@ -34,7 +34,7 @@ class boundaryConditions {
  public:
   //constructor
   boundaryConditions();
-  boundaryConditions( int, int, int );
+  boundaryConditions( const int&, const int&, const int& );
 
   //member functions
   void SetNumSurfI( const int &a){numSurfI = a;}
@@ -170,7 +170,7 @@ class interblock {
   int orientation;          //defines how patches are oriented relative to one another (1-8)
 
   //constructor
- interblock() : rank{0,0}, block{0,0}, boundary{0,0}, d1Start{0,0}, d1End{0,0}, d2Start{0,0}, d2End{0,0}, constSurf{0,0}, orientation(0) {};
+ interblock() : rank{0,0}, block{0,0}, localBlock{0,0}, boundary{0,0}, d1Start{0,0}, d1End{0,0}, d2Start{0,0}, d2End{0,0}, constSurf{0,0}, orientation(0) {};
 
   //member functions
   void SetInterblock(const patch&, const patch&);
