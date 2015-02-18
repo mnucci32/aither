@@ -914,3 +914,23 @@ double genArray::Sum(){
   return sum;
 }
 
+//member function to get the addresses of a resid to create an MPI_Datatype
+void resid::GetAddressesMPI(MPI_Aint (&displacement)[2])const{
+
+  //get addresses of each field
+  MPI_Get_address(&(*this).linf,  &displacement[0]);
+  MPI_Get_address(&(*this).blk,   &displacement[1]);
+
+}
+
+//member function to update class when a new maximum residual is found
+void resid::UpdateMax(const double &a, const int &b, const int &c, const int &d, const int &e, const int &f){
+
+  linf = a;
+  blk = b;
+  i = c;
+  j = d;
+  k = e;
+  eqn = f;
+
+}
