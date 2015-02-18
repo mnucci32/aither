@@ -289,7 +289,7 @@ void procBlock::AddToResidual(const inviscidFlux &flux, const int &ii){
   temp[3] = flux.RhoVelW();
   temp[4] = flux.RhoVelH();
 
-  (*this).SetResidual( (*this).Residual(ii) + temp, ii); 
+  (*this).residual[ii] = (*this).Residual(ii) + temp;
 }
 
 //member function to add a member of the viscous flux class to the residual
@@ -304,7 +304,7 @@ void procBlock::AddToResidual(const viscousFlux &flux, const int &ii){
   temp[3] = flux.MomZ();
   temp[4] = flux.Engy();
 
-  (*this).SetResidual( (*this).Residual(ii) + temp, ii); 
+  (*this).residual[ii] = (*this).Residual(ii) + temp;
 }
 
 //---------------------------------------------------------------------------------------------------------------//
@@ -408,7 +408,7 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
 
 	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the upper faces
 	  maxWS = CellSpectralRadius( (*this).FAreaI(loc), (*this).FAreaI(upFaceI), (*this).State(upperI), eqnState );
-	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperING) + maxWS, upperING);
+	  (*this).avgWaveSpeed[upperING] = (*this).AvgWaveSpeed(upperING) + maxWS;
 	}
 
       }
@@ -514,7 +514,7 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp){
 
 	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the upper faces
 	  maxWS = CellSpectralRadius( (*this).FAreaJ(loc), (*this).FAreaJ(upFaceJ), (*this).State(upperJ), eqnState );
-	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperJNG) + maxWS, upperJNG);
+	  (*this).avgWaveSpeed[upperJNG] = (*this).AvgWaveSpeed(upperJNG) + maxWS;
 	}
 
       }
@@ -620,7 +620,7 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp){
 
 	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the upper faces
 	  maxWS = CellSpectralRadius( (*this).FAreaK(loc), (*this).FAreaK(upFaceK), (*this).State(upperK), eqnState );
-	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(upperKNG) + maxWS, upperKNG);
+	  (*this).avgWaveSpeed[upperKNG] = (*this).AvgWaveSpeed(upperKNG) + maxWS;
 	}
 
       }
@@ -651,7 +651,7 @@ void procBlock::CalcCellDt( const int &i, const int &j, const int &k, const doub
 		      , (*this).NumI() + 2 * (*this).NumGhosts(), (*this).NumJ() + 2 * (*this).NumGhosts());
   double dt = cfl * ((*this).Vol(locG) / (*this).AvgWaveSpeed(loc)) ; //use nondimensional time
 
-  (*this).SetDt(dt, loc);
+  (*this).dt[loc] = dt;
 
 }
 
@@ -676,7 +676,7 @@ void procBlock::CalcBlockTimeStep( const input &inputVars, const double &aRef){
 	int loc = GetLoc1D(ii, jj, kk, imax, jmax); //current cell location
 
 	if (inputVars.Dt() > 0.0){   //dt specified, use global time stepping
-	  (*this).SetDt(inputVars.Dt() * aRef, loc);
+	  (*this).dt[loc] = inputVars.Dt() * aRef;
 	}
 	else if (inputVars.CFL() > 0.0){ //cfl specified, use local time stepping
 	  (*this).CalcCellDt(ii, jj, kk, inputVars.CFL());
@@ -819,7 +819,7 @@ void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState, const int &lo
   primVars tempState(consVars, false, eqnState);
 
   //update state
-  (*this).SetState(tempState, locG);
+  (*this).state[loc] = tempState;
 }
 
 //member function to advance the state vector to time n+1 (for implicit methods)
@@ -840,7 +840,7 @@ void procBlock::ImplicitTimeAdvance(const genArray &du, const idealGas &eqnState
   }
 
   //assign updated state
-  (*this).SetState(tempState, loc);
+  (*this).state[loc] = tempState;
 }
 
 /*member function to advance the state vector to time n+1 using 4th order (minimum storage) Runge-Kutta method (2nd order accurate)
@@ -868,7 +868,7 @@ void procBlock::RK4TimeAdvance( const primVars &currState, const idealGas &eqnSt
   primVars tempState(consVars, false, eqnState);
 
   //assign updated state
-  (*this).SetState(tempState, locG);
+  (*this).state[locG] = tempState;
 }
 
 //member function to reset the residual and wave speed back to zero after an iteration. This is done because the residual and wave
@@ -891,10 +891,10 @@ void procBlock::ResetResidWS( ){
 	int loc = GetLoc1D(ii, jj, kk, imax, jmax); //current cell location
 
 	//reset residual
-	(*this).SetResidual( initial, loc ) ;
+	(*this).residual[loc] = initial;
 	
 	//reset wave speed
-	(*this).SetAvgWaveSpeed( 0.0, loc ) ;
+	(*this).avgWaveSpeed[loc] = 0.0;
 
       }
     }
@@ -1794,7 +1794,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 
 	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the upper faces
 	  double maxWS = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaI(loc), (*this).FAreaI(fUpi), (*this).State(iUp), eqnState, suth, (*this).Vol(iUp) );
-	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(iUpNG) + vCoeff * maxWS, iUpNG);
+	  (*this).avgWaveSpeed[iUpNG] = (*this).AvgWaveSpeed(iUpNG) + vCoeff * maxWS;
 
 	}
 
@@ -1990,7 +1990,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 
 	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the upper faces
 	  double maxWS = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaJ(loc), (*this).FAreaJ(fUpj), (*this).State(jUp), eqnState, suth, (*this).Vol(jUp) );
-	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(jUpNG) + vCoeff * maxWS, jUpNG);
+	  (*this).avgWaveSpeed[jUpNG] = (*this).AvgWaveSpeed(jUpNG) + vCoeff * maxWS;
 
 	}
 
@@ -2187,7 +2187,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
 
 	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the upper faces
 	  double maxWS = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaK(loc), (*this).FAreaK(fUpk), (*this).State(kUp), eqnState, suth, (*this).Vol(kUp) );
-	  (*this).SetAvgWaveSpeed( (*this).AvgWaveSpeed(kUpNG) + vCoeff * maxWS, kUpNG);
+	  (*this).avgWaveSpeed[kUpNG] = (*this).AvgWaveSpeed(kUpNG) + vCoeff * maxWS;
 	}
 
       }
@@ -2282,33 +2282,33 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	//Assign volume ------------------------------------------------------------------------------------------
 	//mirror volume values from adjacent cells across i-boundary
 	//first layer of ghost cells
-	(*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
+	(*this).vol[cellLowG1] = (*this).Vol(cellLowIn1);
 
 	//second layer of ghost cells
 	if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG2);
+	  (*this).vol[cellLowG2] = (*this).Vol(cellLowIn1);
 	}
 	else{
-	  (*this).SetVol( (*this).Vol(cellLowIn2), cellLowG2);
+	  (*this).vol[cellLowG2] = (*this).Vol(cellLowIn2);
 	}
 
 	//Assign face areas ----------------------------------------------------------------------------------------
 	//mirror face area values from adjacent cells across i-boundary
 	//first layer of ghost cells
-	(*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG1_il);
-	(*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_jl), lFaceG1_jl);
-	(*this).SetFAreaK( (*this).FAreaK(lFaceIn1_kl), lFaceG1_kl);
+	(*this).fAreaI[lFaceG1_il] = (*this).FAreaI(lFaceIn1_iu);
+	(*this).fAreaJ[lFaceG1_jl] = (*this).FAreaJ(lFaceIn1_jl);
+	(*this).fAreaK[lFaceG1_kl] = (*this).FAreaK(lFaceIn1_kl);
 
 	//second layer of ghost cells
 	if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG2_il);
-	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_jl), lFaceG2_jl);
-	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_kl), lFaceG2_kl);
+	  (*this).fAreaI[lFaceG2_il] = (*this).FAreaI(lFaceIn1_iu);
+	  (*this).fAreaJ[lFaceG2_jl] = (*this).FAreaJ(lFaceIn1_jl);
+	  (*this).fAreaK[lFaceG2_kl] = (*this).FAreaK(lFaceIn1_kl);
 	}
 	else{
-	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn2_iu), lFaceG2_il);
-	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn2_jl), lFaceG2_jl);
-	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn2_kl), lFaceG2_kl);
+	  (*this).fAreaI[lFaceG2_il] = (*this).FAreaI(lFaceIn2_iu);
+	  (*this).fAreaJ[lFaceG2_jl] = (*this).FAreaJ(lFaceIn2_jl);
+	  (*this).fAreaK[lFaceG2_kl] = (*this).FAreaK(lFaceIn2_kl);
 	}
 
 	if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper j-face areas too
@@ -2323,14 +2323,14 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 
 	  //mirror face area values from adjacent cells
 	  //first layer of ghost cells
-	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG1_ju);
+	  (*this).fAreaJ[lFaceG1_ju] = (*this).FAreaJ(lFaceIn1_ju);
 
 	  //second layer of ghost cells
 	  if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	    (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG2_ju);
+	    (*this).fAreaJ[lFaceG2_ju] = (*this).FAreaJ(lFaceIn1_ju);
 	  }
 	  else{
-	    (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn2_ju), lFaceG2_ju);
+	    (*this).fAreaJ[lFaceG2_ju] = (*this).FAreaJ(lFaceIn2_ju);
 	  }
 
 	}
@@ -2347,14 +2347,14 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 
 	  //mirror face area values from adjacent cells
 	  //first layer of ghost cells
-	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_ku), lFaceG1_ku);
+	  (*this).fAreaK[lFaceG1_ku] = (*this).FAreaK(lFaceIn1_ku);
 
 	  //second layer of ghost cells
 	  if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	    (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_ku), lFaceG2_ku);
+	    (*this).fAreaK[lFaceG2_ku] = (*this).FAreaK(lFaceIn1_ku);
 	  }
 	  else{
-	    (*this).SetFAreaK( (*this).FAreaK(lFaceIn2_ku), lFaceG2_ku);
+	    (*this).fAreaK[lFaceG2_ku] = (*this).FAreaK(lFaceIn2_ku);
 	  }
 
 	}
@@ -2363,38 +2363,38 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	//cell centroid is moved interior cell width in the boundary normal direction
 	//first layer of ghost cells
 	vector3d<double> dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
-	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
+	(*this).center[cellLowG1] = (*this).Center(cellLowIn1) + dist2Move;
 
 	//second layer of ghost cells
 	if (imax < 2){ //one cell thick - use one cell for both ghost cells
 	  dist2Move = 2.0 * ((*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu));
-	  (*this).SetCenter( (*this).Center(cellLowG1) + dist2Move, cellLowG2);
+	  (*this).center[cellLowG2] = (*this).Center(cellLowG1) + dist2Move;
 	}
 	else{
 	  dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2_iu);
-	  (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
+	  (*this).center[cellLowG2] = (*this).Center(cellLowIn1) + dist2Move;
 	}
 
 	//Assign face centers --------------------------------------------------------------------------------------------------------------------
 	//face center is moved interior cell width in the boundary normal direction
 	//first layer of ghost cells
 	dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
-	(*this).SetFCenterI( (*this).FCenterI(lFaceB) + dist2Move, lFaceG1_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl) + dist2Move, lFaceG1_jl);
-	(*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl) + dist2Move, lFaceG1_kl);
+	(*this).fCenterI[lFaceG1_il] = (*this).FCenterI(lFaceB) + dist2Move;
+	(*this).fCenterJ[lFaceG1_jl] = (*this).FCenterJ(lFaceIn1_jl) + dist2Move;
+	(*this).fCenterK[lFaceG1_kl] = (*this).FCenterK(lFaceIn1_kl) + dist2Move;
 
 	//second layer of ghost cells
 	if (imax < 2){ //one cell thick - use one cell for both ghost cells
 	  dist2Move = 2.0 * ((*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu));
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceG1_il) + dist2Move, lFaceG2_il);
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceG1_jl) + dist2Move, lFaceG2_jl);
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceG1_kl) + dist2Move, lFaceG2_kl);
+	  (*this).fCenterI[lFaceG2_il] = (*this).FCenterI(lFaceG1_il) + dist2Move;
+	  (*this).fCenterJ[lFaceG2_jl] = (*this).FCenterJ(lFaceG1_jl) + dist2Move;
+	  (*this).fCenterK[lFaceG2_kl] = (*this).FCenterK(lFaceG1_kl) + dist2Move;
 	}
 	else{
 	  dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2_iu);
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceB) + dist2Move, lFaceG2_il);
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl) + dist2Move, lFaceG2_jl);
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl) + dist2Move, lFaceG2_kl);
+	  (*this).fCenterI[lFaceG2_il] = (*this).FCenterI(lFaceB) + dist2Move;
+	  (*this).fCenterJ[lFaceG2_jl] = (*this).FCenterJ(lFaceIn1_jl) + dist2Move;
+	  (*this).fCenterK[lFaceG2_kl] = (*this).FCenterK(lFaceIn1_kl) + dist2Move;
 	}
 
 	if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper face areas too
@@ -2409,16 +2409,16 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	  //face center is moved interior cell width in the boundary normal direction
 	  //first layer of ghost cells
 	  dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG1_ju);
+	  (*this).fCenterJ[lFaceG1_ju] = (*this).FCenterJ(lFaceIn1_ju) + dist2Move;
 
 	  //second layer of ghost cells
 	  if (imax < 2){ //one cell thick - use one cell for both ghost cells
 	    dist2Move = 2.0 * ((*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu));
-	    (*this).SetFCenterJ( (*this).FCenterJ(lFaceG1_ju) + dist2Move, lFaceG2_ju);
+	    (*this).fCenterJ[lFaceG2_ju] = (*this).FCenterJ(lFaceG1_ju) + dist2Move;
 	  }
 	  else{
 	    dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2_iu);
-	    (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG2_ju);
+	    (*this).fCenterJ[lFaceG2_ju] = (*this).FCenterJ(lFaceIn1_ju) + dist2Move;
 	  }
 
 	}
@@ -2435,16 +2435,16 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	  //face center is moved interior cell width in the boundary normal direction
 	  //first layer of ghost cells
 	  dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu);
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG1_ku);
+	  (*this).fCenterK[lFaceG1_ku] = (*this).FCenterK(lFaceIn1_ku) + dist2Move;
 
 	  //second layer of ghost cells
 	  if (imax < 2){ //one cell thick - use one cell for both ghost cells
 	    dist2Move = 2.0 * ((*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn1_iu));
-	    (*this).SetFCenterK( (*this).FCenterK(lFaceG1_ku) + dist2Move, lFaceG2_ku);
+	    (*this).fCenterK[lFaceG2_ku] = (*this).FCenterK(lFaceG1_ku) + dist2Move;
 	  }
 	  else{
 	    dist2Move = (*this).FCenterI(lFaceB) - (*this).FCenterI(lFaceIn2_iu);
-	    (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG2_ku);
+	    (*this).fCenterK[lFaceG2_ku] = (*this).FCenterK(lFaceIn1_ku) + dist2Move;
 	  }
 
 	}
@@ -2487,33 +2487,33 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	//Assign volume ------------------------------------------------------------------------------------------
 	//mirror volume values from adjacent cells across i-boundary
 	//first layer of ghost cells
-	(*this).SetVol( (*this).Vol(cellUpIn1), cellUpG1);
+	(*this).vol[cellUpG1] = (*this).Vol(cellUpIn1);
 
 	//second layer of ghost cells
 	if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetVol( (*this).Vol(cellUpIn1), cellUpG2);
+	  (*this).vol[cellUpG2] = (*this).Vol(cellUpIn1);
 	}
 	else{
-	  (*this).SetVol( (*this).Vol(cellUpIn2), cellUpG2);
+	  (*this).vol[cellUpG2] = (*this).Vol(cellUpIn2);
 	}
 
 	//Assign face areas ----------------------------------------------------------------------------------------
 	//mirror face area values from adjacent cells across i-boundary
 	//first layer of ghost cells
-	(*this).SetFAreaI( (*this).FAreaI(uFaceIn1_il), uFaceG1_iu);
-	(*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_jl), uFaceG1_jl);
-	(*this).SetFAreaK( (*this).FAreaK(uFaceIn1_kl), uFaceG1_kl);
+	(*this).fAreaI[uFaceG1_iu] = (*this).FAreaI(uFaceIn1_il);
+	(*this).fAreaJ[uFaceG1_jl] = (*this).FAreaJ(uFaceIn1_jl);
+	(*this).fAreaK[uFaceG1_kl] = (*this).FAreaK(uFaceIn1_kl);
 
 	//second layer of ghost cells
 	if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_il), uFaceG2_iu);
-	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_jl), uFaceG2_jl);
-	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_kl), uFaceG2_kl);
+	  (*this).fAreaI[uFaceG2_iu] = (*this).FAreaI(uFaceIn1_il);
+	  (*this).fAreaJ[uFaceG2_jl] = (*this).FAreaJ(uFaceIn1_jl);
+	  (*this).fAreaK[uFaceG2_kl] = (*this).FAreaK(uFaceIn1_kl);
 	}
 	else{
-	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn2_il), uFaceG2_iu);
-	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn2_jl), uFaceG2_jl);
-	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn2_kl), uFaceG2_kl);
+	  (*this).fAreaI[uFaceG2_iu] = (*this).FAreaI(uFaceIn2_il);
+	  (*this).fAreaJ[uFaceG2_jl] = (*this).FAreaJ(uFaceIn2_jl);
+	  (*this).fAreaK[uFaceG2_kl] = (*this).FAreaK(uFaceIn2_kl);
 	}
 
 	if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper j-face areas too
@@ -2528,14 +2528,14 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 
 	  //mirror face area values from adjacent cells
 	  //first layer of ghost cells
-	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_ju), uFaceG1_ju);
+	  (*this).fAreaJ[uFaceG1_ju] = (*this).FAreaJ(uFaceIn1_ju);
 
 	  //second layer of ghost cells
 	  if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	    (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_ju), uFaceG2_ju);
+	    (*this).fAreaJ[uFaceG2_ju] = (*this).FAreaJ(uFaceIn1_ju);
 	  }
 	  else{
-	    (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn2_ju), uFaceG2_ju);
+	    (*this).fAreaJ[uFaceG2_ju] = (*this).FAreaJ(uFaceIn2_ju);
 	  }
 
 	}
@@ -2552,14 +2552,14 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 
 	  //mirror face area values from adjacent cells
 	  //first layer of ghost cells
-	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_ku), uFaceG1_ku);
+	  (*this).fAreaK[uFaceG1_ku] = (*this).FAreaK(uFaceIn1_ku);
 
 	  //second layer of ghost cells
 	  if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	    (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_ku), uFaceG2_ku);
+	    (*this).fAreaK[uFaceG2_ku] = (*this).FAreaK(uFaceIn1_ku);
 	  }
 	  else{
-	    (*this).SetFAreaK( (*this).FAreaK(uFaceIn2_ku), uFaceG2_ku);
+	    (*this).fAreaK[uFaceG2_ku] = (*this).FAreaK(uFaceIn2_ku);
 	  }
 
 	}
@@ -2568,38 +2568,38 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	//cell centroid is moved interior cell width in the boundary normal direction
 	//first layer of ghost cells
 	vector3d<double> dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il);
-	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
+	(*this).center[cellUpG1] = (*this).Center(cellUpIn1) + dist2Move;
 
 	//second layer of ghost cells
 	if (imax < 2){ //one cell thick - use one cell for both ghost cells
 	  dist2Move = 2.0 * ((*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il));
-	  (*this).SetCenter( (*this).Center(cellUpG1) + dist2Move, cellUpG2);
+	  (*this).center[cellUpG2] = (*this).Center(cellUpG1) + dist2Move;
 	}
 	else{
 	  dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2_il);
-	  (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+	  (*this).center[cellUpG2] = (*this).Center(cellUpIn1) + dist2Move;
 	}
 
 	//Assign face centers --------------------------------------------------------------------------------------------------------------------
 	//face center is moved interior cell width in the boundary normal direction
 	//first layer of ghost cells
 	dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il);
-	(*this).SetFCenterI( (*this).FCenterI(uFaceB) + dist2Move, uFaceG1_iu);
-	(*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl) + dist2Move, uFaceG1_jl);
-	(*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl) + dist2Move, uFaceG1_kl);
+	(*this).fCenterI[uFaceG1_iu] = (*this).FCenterI(uFaceB) + dist2Move;
+	(*this).fCenterJ[uFaceG1_jl] = (*this).FCenterJ(uFaceIn1_jl) + dist2Move;
+	(*this).fCenterK[uFaceG1_kl] = (*this).FCenterK(uFaceIn1_kl) + dist2Move;
 
 	//second layer of ghost cells
 	if (imax < 2){ //one cell thick - use one cell for both ghost cells
 	  dist2Move = 2.0 * ((*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il));
-	  (*this).SetFCenterI( (*this).FCenterI(uFaceG1_iu) + dist2Move, uFaceG2_iu);
-	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceG1_jl) + dist2Move, uFaceG2_jl);
-	  (*this).SetFCenterK( (*this).FCenterK(uFaceG1_kl) + dist2Move, uFaceG2_kl);
+	  (*this).fCenterI[uFaceG2_iu] = (*this).FCenterI(uFaceG1_iu) + dist2Move;
+	  (*this).fCenterJ[uFaceG2_jl] = (*this).FCenterJ(uFaceG1_jl) + dist2Move;
+	  (*this).fCenterK[uFaceG2_kl] = (*this).FCenterK(uFaceG1_kl) + dist2Move;
 	}
 	else{
 	  dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2_il);
-	  (*this).SetFCenterI( (*this).FCenterI(uFaceB) + dist2Move, uFaceG2_iu);
-	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl) + dist2Move, uFaceG2_jl);
-	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl) + dist2Move, uFaceG2_kl);
+	  (*this).fCenterI[uFaceG2_iu] = (*this).FCenterI(uFaceB) + dist2Move;
+	  (*this).fCenterJ[uFaceG2_jl] = (*this).FCenterJ(uFaceIn1_jl) + dist2Move;
+	  (*this).fCenterK[uFaceG2_kl] = (*this).FCenterK(uFaceIn1_kl) + dist2Move;
 	}
 
 	if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper face areas too
@@ -2614,16 +2614,16 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	  //face center is moved interior cell width in the boundary normal direction
 	  //first layer of ghost cells
 	  dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il);
-	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju) + dist2Move, uFaceG1_ju);
+	  (*this).fCenterJ[uFaceG1_ju] = (*this).FCenterJ(uFaceIn1_ju) + dist2Move;
 
 	  //second layer of ghost cells
 	  if (imax < 2){ //one cell thick - use one cell for both ghost cells
 	    dist2Move = 2.0 * ((*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il));
-	    (*this).SetFCenterJ( (*this).FCenterJ(uFaceG1_ju) + dist2Move, uFaceG2_ju);
+	    (*this).fCenterJ[uFaceG2_ju] = (*this).FCenterJ(uFaceG1_ju) + dist2Move;
 	  }
 	  else{
 	    dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2_il);
-	    (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju) + dist2Move, uFaceG2_ju);
+	    (*this).fCenterJ[uFaceG2_ju] = (*this).FCenterJ(uFaceIn1_ju) + dist2Move;
 	  }
 
 	}
@@ -2640,16 +2640,16 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	  //face center is moved interior cell width in the boundary normal direction
 	  //first layer of ghost cells
 	  dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il);
-	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku) + dist2Move, uFaceG1_ku);
+	  (*this).fCenterK[uFaceG1_ku] = (*this).FCenterK(uFaceIn1_ku) + dist2Move;
 
 	  //second layer of ghost cells
 	  if (imax < 2){ //one cell thick - use one cell for both ghost cells
 	    dist2Move = 2.0 * ((*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn1_il));
-	    (*this).SetFCenterK( (*this).FCenterK(uFaceG1_ku) + dist2Move, uFaceG2_ku);
+	    (*this).fCenterK[uFaceG2_ku] = (*this).FCenterK(uFaceG1_ku) + dist2Move;
 	  }
 	  else{
 	    dist2Move = (*this).FCenterI(uFaceB) - (*this).FCenterI(uFaceIn2_il);
-	    (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku) + dist2Move, uFaceG2_ku);
+	    (*this).fCenterK[uFaceG2_ku] = (*this).FCenterK(uFaceIn1_ku) + dist2Move;
 	  }
 
 	}
@@ -2710,33 +2710,33 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	//Assign volume ------------------------------------------------------------------------------------------
 	//mirror volume values from adjacent cells across j-boundary
 	//first layer of ghost cells
-	(*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
+	(*this).vol[cellLowG1] = (*this).Vol(cellLowIn1);
 
 	//second layer of ghost cells
 	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG2);
+	  (*this).vol[cellLowG2] = (*this).Vol(cellLowIn1);
 	}
 	else{
-	  (*this).SetVol( (*this).Vol(cellLowIn2), cellLowG2);
+	  (*this).vol[cellLowG2] = (*this).Vol(cellLowIn2);
 	}
 
 	//Assign face areas ----------------------------------------------------------------------------------------
 	//mirror face area values from adjacent cells across j-boundary
 	//first layer of ghost cells
-	(*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG1_jl);
-	(*this).SetFAreaI( (*this).FAreaI(lFaceIn1_il), lFaceG1_il);
-	(*this).SetFAreaK( (*this).FAreaK(lFaceIn1_kl), lFaceG1_kl);
+	(*this).fAreaJ[lFaceG1_jl] = (*this).FAreaJ(lFaceIn1_ju);
+	(*this).fAreaI[lFaceG1_il] = (*this).FAreaI(lFaceIn1_il);
+	(*this).fAreaK[lFaceG1_kl] = (*this).FAreaK(lFaceIn1_kl);
 
 	//second layer of ghost cells
 	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG2_jl);
-	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_il), lFaceG2_il);
-	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_kl), lFaceG2_kl);
+	  (*this).fAreaJ[lFaceG2_jl] = (*this).FAreaJ(lFaceIn1_ju);
+	  (*this).fAreaI[lFaceG2_il] = (*this).FAreaI(lFaceIn1_il);
+	  (*this).fAreaK[lFaceG2_kl] = (*this).FAreaK(lFaceIn1_kl);
 	}
 	else{
-	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn2_ju), lFaceG2_jl);
-	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn2_il), lFaceG2_il);
-	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn2_kl), lFaceG2_kl);
+	  (*this).fAreaJ[lFaceG2_jl] = (*this).FAreaJ(lFaceIn2_ju);
+	  (*this).fAreaI[lFaceG2_il] = (*this).FAreaI(lFaceIn2_il);
+	  (*this).fAreaK[lFaceG2_kl] = (*this).FAreaK(lFaceIn2_kl);
 	}
 
 	if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
@@ -2751,14 +2751,14 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 
 	  //mirror face area values from adjacent cells
 	  //first layer of ghost cells
-	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG1_iu);
+	  (*this).fAreaI[lFaceG1_iu] = (*this).FAreaI(lFaceIn1_iu);
 
 	  //second layer of ghost cells
 	  if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	    (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG2_iu);
+	    (*this).fAreaI[lFaceG2_iu] = (*this).FAreaI(lFaceIn1_iu);
 	  }
 	  else{
-	    (*this).SetFAreaI( (*this).FAreaI(lFaceIn2_iu), lFaceG2_iu);
+	    (*this).fAreaI[lFaceG2_iu] = (*this).FAreaI(lFaceIn2_iu);
 	  }
 
 	}
@@ -2775,14 +2775,14 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 
 	  //mirror face area values from adjacent cells
 	  //first layer of ghost cells
-	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_ku), lFaceG1_ku);
+	  (*this).fAreaK[lFaceG1_ku] = (*this).FAreaK(lFaceIn1_ku);
 
 	  //second layer of ghost cells
 	  if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	    (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_ku), lFaceG2_ku);
+	    (*this).fAreaK[lFaceG2_ku] = (*this).FAreaK(lFaceIn1_ku);
 	  }
 	  else{
-	    (*this).SetFAreaK( (*this).FAreaK(lFaceIn2_ku), lFaceG2_ku);
+	    (*this).fAreaK[lFaceG2_ku] = (*this).FAreaK(lFaceIn2_ku);
 	  }
 
 	}
@@ -2791,38 +2791,38 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	//cell centroid is moved interior cell width in the boundary normal direction
 	//first layer of ghost cells
 	vector3d<double> dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
-	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
+	(*this).center[cellLowG1] = (*this).Center(cellLowIn1) + dist2Move;
 
 	//second layer of ghost cells
 	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
 	  dist2Move = 2.0 * ((*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju));
-	  (*this).SetCenter( (*this).Center(cellLowG1) + dist2Move, cellLowG2);
+	  (*this).center[cellLowG2] = (*this).Center(cellLowG1) + dist2Move;
 	}
 	else{
 	  dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2_ju);
-	  (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
+	  (*this).center[cellLowG2] = (*this).Center(cellLowIn1) + dist2Move;
 	}
 
 	//Assign face centers --------------------------------------------------------------------------------------------------------------------
 	//face center is moved interior cell width in the boundary normal direction
 	//first layer of ghost cells
 	dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
-	(*this).SetFCenterJ( (*this).FCenterJ(lFaceB) + dist2Move, lFaceG1_jl);
-	(*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il) + dist2Move, lFaceG1_il);
-	(*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl) + dist2Move, lFaceG1_kl);
+	(*this).fCenterJ[lFaceG1_jl] = (*this).FCenterJ(lFaceB) + dist2Move;
+	(*this).fCenterI[lFaceG1_il] = (*this).FCenterI(lFaceIn1_il) + dist2Move;
+	(*this).fCenterK[lFaceG1_kl] = (*this).FCenterK(lFaceIn1_kl) + dist2Move;
 
 	//second layer of ghost cells
 	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
 	  dist2Move = 2.0 * ((*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju));
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceG1_jl) + dist2Move, lFaceG2_jl);
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceG1_il) + dist2Move, lFaceG2_il);
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceG1_kl) + dist2Move, lFaceG2_kl);
+	  (*this).fCenterJ[lFaceG2_jl] = (*this).FCenterJ(lFaceG1_jl) + dist2Move;
+	  (*this).fCenterI[lFaceG2_il] = (*this).FCenterI(lFaceG1_il) + dist2Move;
+	  (*this).fCenterK[lFaceG2_kl] = (*this).FCenterK(lFaceG1_kl) + dist2Move;
 	}
 	else{
 	  dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2_ju);
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceB) + dist2Move, lFaceG2_jl);
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il) + dist2Move, lFaceG2_il);
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_kl) + dist2Move, lFaceG2_kl);
+	  (*this).fCenterJ[lFaceG2_jl] = (*this).FCenterJ(lFaceB) + dist2Move;
+	  (*this).fCenterI[lFaceG2_il] = (*this).FCenterI(lFaceIn1_il) + dist2Move;
+	  (*this).fCenterK[lFaceG2_kl] = (*this).FCenterK(lFaceIn1_kl) + dist2Move;
 	}
 
 	if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
@@ -2837,16 +2837,16 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	  //face center is moved interior cell width in the boundary normal direction
 	  //first layer of ghost cells
 	  dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG1_iu);
+	  (*this).fCenterI[lFaceG1_iu] = (*this).FCenterI(lFaceIn1_iu) + dist2Move;
 
 	  //second layer of ghost cells
 	  if (jmax < 2){ //one cell thick - use one cell for both ghost cells
 	    dist2Move = 2.0 * ((*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju));
-	    (*this).SetFCenterI( (*this).FCenterI(lFaceG1_iu) + dist2Move, lFaceG2_iu);
+	    (*this).fCenterI[lFaceG2_iu] = (*this).FCenterI(lFaceG1_iu) + dist2Move;
 	  }
 	  else{
 	    dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2_ju);
-	    (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG2_iu);
+	    (*this).fCenterI[lFaceG2_iu] = (*this).FCenterI(lFaceIn1_iu) + dist2Move;
 	  }
 
 	}
@@ -2863,16 +2863,16 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	  //face center is moved interior cell width in the boundary normal direction
 	  //first layer of ghost cells
 	  dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju);
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG1_ku);
+	  (*this).fCenterK[lFaceG1_ku] = (*this).FCenterK(lFaceIn1_ku) + dist2Move;
 
 	  //second layer of ghost cells
 	  if (jmax < 2){ //one cell thick - use one cell for both ghost cells
 	    dist2Move = 2.0 * ((*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn1_ju));
-	    (*this).SetFCenterK( (*this).FCenterK(lFaceG1_ku) + dist2Move, lFaceG2_ku);
+	    (*this).fCenterK[lFaceG2_ku] = (*this).FCenterK(lFaceG1_ku) + dist2Move;
 	  }
 	  else{
 	    dist2Move = (*this).FCenterJ(lFaceB) - (*this).FCenterJ(lFaceIn2_ju);
-	    (*this).SetFCenterK( (*this).FCenterK(lFaceIn1_ku) + dist2Move, lFaceG2_ku);
+	    (*this).fCenterK[lFaceG2_ku] = (*this).FCenterK(lFaceIn1_ku) + dist2Move;
 	  }
 
 	}
@@ -2915,33 +2915,33 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	//Assign volume ------------------------------------------------------------------------------------------
 	//mirror volume values from adjacent cells across j-boundary
 	//first layer of ghost cells
-	(*this).SetVol( (*this).Vol(cellUpIn1), cellUpG1);
+	(*this).vol[cellUpG1] = (*this).Vol(cellUpIn1);
 
 	//second layer of ghost cells
 	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetVol( (*this).Vol(cellUpIn1), cellUpG2);
+	  (*this).vol[cellUpG2] = (*this).Vol(cellUpIn1);
 	}
 	else{
-	  (*this).SetVol( (*this).Vol(cellUpIn2), cellUpG2);
+	  (*this).vol[cellUpG2] = (*this).Vol(cellUpIn2);
 	}
 
 	//Assign face areas ----------------------------------------------------------------------------------------
 	//mirror face area values from adjacent cells across j-boundary
 	//first layer of ghost cells
-	(*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_jl), uFaceG1_ju);
-	(*this).SetFAreaI( (*this).FAreaI(uFaceIn1_il), uFaceG1_il);
-	(*this).SetFAreaK( (*this).FAreaK(uFaceIn1_kl), uFaceG1_kl);
+	(*this).fAreaJ[uFaceG1_ju] = (*this).FAreaJ(uFaceIn1_jl);
+	(*this).fAreaI[uFaceG1_il] = (*this).FAreaI(uFaceIn1_il);
+	(*this).fAreaK[uFaceG1_kl] = (*this).FAreaK(uFaceIn1_kl);
 
 	//second layer of ghost cells
 	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_jl), uFaceG2_ju);
-	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_il), uFaceG2_il);
-	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_kl), uFaceG2_kl);
+	  (*this).fAreaJ[uFaceG2_ju] = (*this).FAreaJ(uFaceIn1_jl);
+	  (*this).fAreaI[uFaceG2_il] = (*this).FAreaI(uFaceIn1_il);
+	  (*this).fAreaK[uFaceG2_kl] = (*this).FAreaK(uFaceIn1_kl);
 	}
 	else{
-	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn2_jl), uFaceG2_ju);
-	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn2_il), uFaceG2_il);
-	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn2_kl), uFaceG2_kl);
+	  (*this).fAreaJ[uFaceG2_ju] = (*this).FAreaJ(uFaceIn2_jl);
+	  (*this).fAreaI[uFaceG2_il] = (*this).FAreaI(uFaceIn2_il);
+	  (*this).fAreaK[uFaceG2_kl] = (*this).FAreaK(uFaceIn2_kl);
 	}
 
 	if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
@@ -2956,14 +2956,14 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 
 	  //mirror face area values from adjacent cells
 	  //first layer of ghost cells
-	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_iu), uFaceG1_iu);
+	  (*this).fAreaI[uFaceG1_iu] = (*this).FAreaI(uFaceIn1_iu);
 
 	  //second layer of ghost cells
 	  if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	    (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_iu), uFaceG2_iu);
+	    (*this).fAreaI[uFaceG2_iu] = (*this).FAreaI(uFaceIn1_iu);
 	  }
 	  else{
-	    (*this).SetFAreaI( (*this).FAreaI(uFaceIn2_iu), uFaceG2_iu);
+	    (*this).fAreaI[uFaceG2_iu] = (*this).FAreaI(uFaceIn2_iu);
 	  }
 
 	}
@@ -2980,14 +2980,14 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 
 	  //mirror face area values from adjacent cells
 	  //first layer of ghost cells
-	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_ku), uFaceG1_ku);
+	  (*this).fAreaK[uFaceG1_ku] = (*this).FAreaK(uFaceIn1_ku);
 
 	  //second layer of ghost cells
 	  if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	    (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_ku), uFaceG2_ku);
+	    (*this).fAreaK[uFaceG2_ku] = (*this).FAreaK(uFaceIn1_ku);
 	  }
 	  else{
-	    (*this).SetFAreaK( (*this).FAreaK(uFaceIn2_ku), uFaceG2_ku);
+	    (*this).fAreaK[uFaceG2_ku] = (*this).FAreaK(uFaceIn2_ku);
 	  }
 
 	}
@@ -2996,38 +2996,38 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	//cell centroid is moved interior cell width in the boundary normal direction
 	//first layer of ghost cells
 	vector3d<double> dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl);
-	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
+	(*this).center[cellUpG1] = (*this).Center(cellUpIn1) + dist2Move;
 
 	//second layer of ghost cells
 	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
 	  dist2Move = 2.0 * ((*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl));
-	  (*this).SetCenter( (*this).Center(cellUpG1) + dist2Move, cellUpG2);
+	  (*this).center[cellUpG2] = (*this).Center(cellUpG1) + dist2Move;
 	}
 	else{
 	  dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2_jl);
-	  (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+	  (*this).center[cellUpG2] = (*this).Center(cellUpIn1) + dist2Move;
 	}
 
 	//Assign face centers --------------------------------------------------------------------------------------------------------------------
 	//face center is moved interior cell width in the boundary normal direction
 	//first layer of ghost cells
 	dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl);
-	(*this).SetFCenterJ( (*this).FCenterJ(uFaceB) + dist2Move, uFaceG1_ju);
-	(*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il) + dist2Move, uFaceG1_il);
-	(*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl) + dist2Move, uFaceG1_kl);
+	(*this).fCenterJ[uFaceG1_ju] = (*this).FCenterJ(uFaceB) + dist2Move;
+	(*this).fCenterI[uFaceG1_il] = (*this).FCenterI(uFaceIn1_il) + dist2Move;
+	(*this).fCenterK[uFaceG1_kl] = (*this).FCenterK(uFaceIn1_kl) + dist2Move;
 
 	//second layer of ghost cells
 	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
 	  dist2Move = 2.0 * ((*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl));
-	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceG1_ju) + dist2Move, uFaceG2_ju);
-	  (*this).SetFCenterI( (*this).FCenterI(uFaceG1_il) + dist2Move, uFaceG2_il);
-	  (*this).SetFCenterK( (*this).FCenterK(uFaceG1_kl) + dist2Move, uFaceG2_kl);
+	  (*this).fCenterJ[uFaceG2_ju] = (*this).FCenterJ(uFaceG1_ju) + dist2Move;
+	  (*this).fCenterI[uFaceG2_il] = (*this).FCenterI(uFaceG1_il) + dist2Move;
+	  (*this).fCenterK[uFaceG2_kl] = (*this).FCenterK(uFaceG1_kl) + dist2Move;
 	}
 	else{
 	  dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2_jl);
-	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceB) + dist2Move, uFaceG2_ju);
-	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il) + dist2Move, uFaceG2_il);
-	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_kl) + dist2Move, uFaceG2_kl);
+	  (*this).fCenterJ[uFaceG2_ju] = (*this).FCenterJ(uFaceB) + dist2Move;
+	  (*this).fCenterI[uFaceG2_il] = (*this).FCenterI(uFaceIn1_il) + dist2Move;
+	  (*this).fCenterK[uFaceG2_kl] = (*this).FCenterK(uFaceIn1_kl) + dist2Move;
 	}
 
 	if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
@@ -3042,16 +3042,16 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	  //face center is moved interior cell width in the boundary normal direction
 	  //first layer of ghost cells
 	  dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl);
-	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu) + dist2Move, uFaceG1_iu);
+	  (*this).fCenterI[uFaceG1_iu] = (*this).FCenterI(uFaceIn1_iu) + dist2Move;
 
 	  //second layer of ghost cells
 	  if (jmax < 2){ //one cell thick - use one cell for both ghost cells
 	    dist2Move = 2.0 * ((*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl));
-	    (*this).SetFCenterI( (*this).FCenterI(uFaceG1_iu) + dist2Move, uFaceG2_iu);
+	    (*this).fCenterI[uFaceG2_iu] = (*this).FCenterI(uFaceG1_iu) + dist2Move;
 	  }
 	  else{
 	    dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2_jl);
-	    (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu) + dist2Move, uFaceG2_iu);
+	    (*this).fCenterI[uFaceG2_iu] = (*this).FCenterI(uFaceIn1_iu) + dist2Move;
 	  }
 
 	}
@@ -3068,16 +3068,16 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	  //face center is moved interior cell width in the boundary normal direction
 	  //first layer of ghost cells
 	  dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl);
-	  (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku) + dist2Move, uFaceG1_ku);
+	  (*this).fCenterK[uFaceG1_ku] = (*this).FCenterK(uFaceIn1_ku) + dist2Move;
 
 	  //second layer of ghost cells
 	  if (jmax < 2){ //one cell thick - use one cell for both ghost cells
 	    dist2Move = 2.0 * ((*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn1_jl));
-	    (*this).SetFCenterK( (*this).FCenterK(uFaceG1_ku) + dist2Move, uFaceG2_ku);
+	    (*this).fCenterK[uFaceG2_ku] = (*this).FCenterK(uFaceG1_ku) + dist2Move;
 	  }
 	  else{
 	    dist2Move = (*this).FCenterJ(uFaceB) - (*this).FCenterJ(uFaceIn2_jl);
-	    (*this).SetFCenterK( (*this).FCenterK(uFaceIn1_ku) + dist2Move, uFaceG2_ku);
+	    (*this).fCenterK[uFaceG2_ku] = (*this).FCenterK(uFaceIn1_ku) + dist2Move;
 	  }
 
 	}
@@ -3137,33 +3137,33 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	//Assign volume ------------------------------------------------------------------------------------------
 	//mirror volume values from adjacent cells across k-boundary
 	//first layer of ghost cells
-	(*this).SetVol( (*this).Vol(cellLowIn1), cellLowG1);
+	(*this).vol[cellLowG1] = (*this).Vol(cellLowIn1);
 
 	//second layer of ghost cells
 	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetVol( (*this).Vol(cellLowIn1), cellLowG2);
+	  (*this).vol[cellLowG2] = (*this).Vol(cellLowIn1);
 	}
 	else{
-	  (*this).SetVol( (*this).Vol(cellLowIn2), cellLowG2);
+	  (*this).vol[cellLowG2] = (*this).Vol(cellLowIn2);
 	}
 
 	//Assign face areas ----------------------------------------------------------------------------------------
 	//mirror face area values from adjacent cells across k-boundary
 	//first layer of ghost cells
-	(*this).SetFAreaK( (*this).FAreaK(lFaceIn1_ku), lFaceG1_kl);
-	(*this).SetFAreaI( (*this).FAreaI(lFaceIn1_il), lFaceG1_il);
-	(*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_jl), lFaceG1_jl);
+	(*this).fAreaK[lFaceG1_kl] = (*this).FAreaK(lFaceIn1_ku);
+	(*this).fAreaI[lFaceG1_il] = (*this).FAreaI(lFaceIn1_il);
+	(*this).fAreaJ[lFaceG1_jl] = (*this).FAreaJ(lFaceIn1_jl);
 
 	//second layer of ghost cells
 	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn1_ku), lFaceG2_kl);
-	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_il), lFaceG2_il);
-	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_jl), lFaceG2_jl);
+	  (*this).fAreaK[lFaceG2_kl] = (*this).FAreaK(lFaceIn1_ku);
+	  (*this).fAreaI[lFaceG2_il] = (*this).FAreaI(lFaceIn1_il);
+	  (*this).fAreaJ[lFaceG2_jl] = (*this).FAreaJ(lFaceIn1_jl);
 	}
 	else{
-	  (*this).SetFAreaK( (*this).FAreaK(lFaceIn2_ku), lFaceG2_kl);
-	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn2_il), lFaceG2_il);
-	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn2_jl), lFaceG2_jl);
+	  (*this).fAreaK[lFaceG2_kl] = (*this).FAreaK(lFaceIn2_ku);
+	  (*this).fAreaI[lFaceG2_il] = (*this).FAreaI(lFaceIn2_il);
+	  (*this).fAreaJ[lFaceG2_jl] = (*this).FAreaJ(lFaceIn2_jl);
 	}
 
 	if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
@@ -3178,14 +3178,14 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 
 	  //mirror face area values from adjacent cells
 	  //first layer of ghost cells
-	  (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG1_iu);
+	  (*this).fAreaI[lFaceG1_iu] = (*this).FAreaI(lFaceIn1_iu);
 
 	  //second layer of ghost cells
 	  if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	    (*this).SetFAreaI( (*this).FAreaI(lFaceIn1_iu), lFaceG2_iu);
+	    (*this).fAreaI[lFaceG2_iu] = (*this).FAreaI(lFaceIn1_iu);
 	  }
 	  else{
-	    (*this).SetFAreaI( (*this).FAreaI(lFaceIn2_iu), lFaceG2_iu);
+	    (*this).fAreaI[lFaceG2_iu] = (*this).FAreaI(lFaceIn2_iu);
 	  }
 
 	}
@@ -3202,14 +3202,14 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 
 	  //mirror face area values from adjacent cells
 	  //first layer of ghost cells
-	  (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG1_ju);
+	  (*this).fAreaJ[lFaceG1_ju] = (*this).FAreaJ(lFaceIn1_ju);
 
 	  //second layer of ghost cells
 	  if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	    (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn1_ju), lFaceG2_ju);
+	    (*this).fAreaJ[lFaceG2_ju] = (*this).FAreaJ(lFaceIn1_ju);
 	  }
 	  else{
-	    (*this).SetFAreaJ( (*this).FAreaJ(lFaceIn2_ju), lFaceG2_ju);
+	    (*this).fAreaJ[lFaceG2_ju] = (*this).FAreaJ(lFaceIn2_ju);
 	  }
 
 	}
@@ -3218,38 +3218,38 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	//cell centroid is moved interior cell width in the boundary normal direction
 	//first layer of ghost cells
 	vector3d<double> dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
-	(*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG1);
+	(*this).center[cellLowG1] = (*this).Center(cellLowIn1) + dist2Move;
 
 	//second layer of ghost cells
 	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
 	  dist2Move = 2.0 * ((*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku));
-	  (*this).SetCenter( (*this).Center(cellLowG1) + dist2Move, cellLowG2);
+	  (*this).center[cellLowG2] = (*this).Center(cellLowG1) + dist2Move;
 	}
 	else{
 	  dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2_ku);
-	  (*this).SetCenter( (*this).Center(cellLowIn1) + dist2Move, cellLowG2);
+	  (*this).center[cellLowG2] = (*this).Center(cellLowIn1) + dist2Move;
 	}
 
 	//Assign face centers --------------------------------------------------------------------------------------------------------------------
 	//face center is moved interior cell width in the boundary normal direction
 	//first layer of ghost cells
 	dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
-	(*this).SetFCenterK( (*this).FCenterK(lFaceB) + dist2Move, lFaceG1_kl);
-	(*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il) + dist2Move, lFaceG1_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl) + dist2Move, lFaceG1_jl);
+	(*this).fCenterK[lFaceG1_kl] = (*this).FCenterK(lFaceB) + dist2Move;
+	(*this).fCenterI[lFaceG1_il] = (*this).FCenterI(lFaceIn1_il) + dist2Move;
+	(*this).fCenterJ[lFaceG1_jl] = (*this).FCenterJ(lFaceIn1_jl) + dist2Move;
 
 	//second layer of ghost cells
 	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
 	  dist2Move = 2.0 * ((*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku));
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceG1_kl) + dist2Move, lFaceG2_kl);
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceG1_il) + dist2Move, lFaceG2_il);
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceG1_jl) + dist2Move, lFaceG2_jl);
+	  (*this).fCenterK[lFaceG2_kl] = (*this).FCenterK(lFaceG1_kl) + dist2Move;
+	  (*this).fCenterI[lFaceG2_il] = (*this).FCenterI(lFaceG1_il) + dist2Move;
+	  (*this).fCenterJ[lFaceG2_jl] = (*this).FCenterJ(lFaceG1_jl) + dist2Move;
 	}
 	else{
 	  dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2_ku);
-	  (*this).SetFCenterK( (*this).FCenterK(lFaceB) + dist2Move, lFaceG2_kl);
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_il) + dist2Move, lFaceG2_il);
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_jl) + dist2Move, lFaceG2_jl);
+	  (*this).fCenterK[lFaceG2_kl] = (*this).FCenterK(lFaceB) + dist2Move;
+	  (*this).fCenterI[lFaceG2_il] = (*this).FCenterI(lFaceIn1_il) + dist2Move;
+	  (*this).fCenterJ[lFaceG2_jl] = (*this).FCenterJ(lFaceIn1_jl) + dist2Move;
 	}
 
 	if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
@@ -3264,16 +3264,16 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	  //face center is moved interior cell width in the boundary normal direction
 	  //first layer of ghost cells
 	  dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
-	  (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG1_iu);
+	  (*this).fCenterI[lFaceG1_iu] = (*this).FCenterI(lFaceIn1_iu) + dist2Move;
 
 	  //second layer of ghost cells
 	  if (kmax < 2){ //one cell thick - use one cell for both ghost cells
 	    dist2Move = 2.0 * ((*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku));
-	    (*this).SetFCenterI( (*this).FCenterI(lFaceG1_iu) + dist2Move, lFaceG2_iu);
+	    (*this).fCenterI[lFaceG2_iu] = (*this).FCenterI(lFaceG1_iu) + dist2Move;
 	  }
 	  else{
 	    dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2_ku);
-	    (*this).SetFCenterI( (*this).FCenterI(lFaceIn1_iu) + dist2Move, lFaceG2_iu);
+	    (*this).fCenterI[lFaceG2_iu] = (*this).FCenterI(lFaceIn1_iu) + dist2Move;
 	  }
 
 	}
@@ -3290,16 +3290,16 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	  //face center is moved interior cell width in the boundary normal direction
 	  //first layer of ghost cells
 	  dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku);
-	  (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG1_ju);
+	  (*this).fCenterJ[lFaceG1_ju] = (*this).FCenterJ(lFaceIn1_ju) + dist2Move;
 
 	  //second layer of ghost cells
 	  if (kmax < 2){ //one cell thick - use one cell for both ghost cells
 	    dist2Move = 2.0 * ((*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn1_ku));
-	    (*this).SetFCenterJ( (*this).FCenterJ(lFaceG1_ju) + dist2Move, lFaceG2_ju);
+	    (*this).fCenterJ[lFaceG2_ju] = (*this).FCenterJ(lFaceG1_ju) + dist2Move;
 	  }
 	  else{
 	    dist2Move = (*this).FCenterK(lFaceB) - (*this).FCenterK(lFaceIn2_ku);
-	    (*this).SetFCenterJ( (*this).FCenterJ(lFaceIn1_ju) + dist2Move, lFaceG2_ju);
+	    (*this).fCenterJ[lFaceG2_ju] = (*this).FCenterJ(lFaceIn1_ju) + dist2Move;
 	  }
 
 	}
@@ -3343,33 +3343,33 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	//Assign volume ------------------------------------------------------------------------------------------
 	//mirror volume values from adjacent cells across k-boundary
 	//first layer of ghost cells
-	(*this).SetVol( (*this).Vol(cellUpIn1), cellUpG1);
+	(*this).vol[cellUpG1] = (*this).Vol(cellUpIn1);
 
 	//second layer of ghost cells
 	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetVol( (*this).Vol(cellUpIn1), cellUpG2);
+	  (*this).vol[cellUpG2] = (*this).Vol(cellUpIn1);
 	}
 	else{
-	  (*this).SetVol( (*this).Vol(cellUpIn2), cellUpG2);
+	  (*this).vol[cellUpG2] = (*this).Vol(cellUpIn2);
 	}
 
 	//Assign face areas ----------------------------------------------------------------------------------------
 	//mirror face area values from adjacent cells across k-boundary
 	//first layer of ghost cells
-	(*this).SetFAreaK( (*this).FAreaK(uFaceIn1_kl), uFaceG1_ku);
-	(*this).SetFAreaI( (*this).FAreaI(uFaceIn1_il), uFaceG1_il);
-	(*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_jl), uFaceG1_jl);
+	(*this).fAreaK[uFaceG1_ku] = (*this).FAreaK(uFaceIn1_kl);
+	(*this).fAreaI[uFaceG1_il] = (*this).FAreaI(uFaceIn1_il);
+	(*this).fAreaJ[uFaceG1_jl] = (*this).FAreaJ(uFaceIn1_jl);
 
 	//second layer of ghost cells
 	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn1_kl), uFaceG2_ku);
-	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_il), uFaceG2_il);
-	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_jl), uFaceG2_jl);
+	  (*this).fAreaK[uFaceG2_ku] = (*this).FAreaK(uFaceIn1_kl);
+	  (*this).fAreaI[uFaceG2_il] = (*this).FAreaI(uFaceIn1_il);
+	  (*this).fAreaJ[uFaceG2_jl] = (*this).FAreaJ(uFaceIn1_jl);
 	}
 	else{
-	  (*this).SetFAreaK( (*this).FAreaK(uFaceIn2_kl), uFaceG2_ku);
-	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn2_il), uFaceG2_il);
-	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn2_jl), uFaceG2_jl);
+	  (*this).fAreaK[uFaceG2_ku] = (*this).FAreaK(uFaceIn2_kl);
+	  (*this).fAreaI[uFaceG2_il] = (*this).FAreaI(uFaceIn2_il);
+	  (*this).fAreaJ[uFaceG2_jl] = (*this).FAreaJ(uFaceIn2_jl);
 	}
 
 	if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
@@ -3384,14 +3384,14 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 
 	  //mirror face area values from adjacent cells
 	  //first layer of ghost cells
-	  (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_iu), uFaceG1_iu);
+	  (*this).fAreaI[uFaceG1_iu] = (*this).FAreaI(uFaceIn1_iu);
 
 	  //second layer of ghost cells
 	  if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	    (*this).SetFAreaI( (*this).FAreaI(uFaceIn1_iu), uFaceG2_iu);
+	    (*this).fAreaI[uFaceG2_iu] = (*this).FAreaI(uFaceIn1_iu);
 	  }
 	  else{
-	    (*this).SetFAreaI( (*this).FAreaI(uFaceIn2_iu), uFaceG2_iu);
+	    (*this).fAreaI[uFaceG2_iu] = (*this).FAreaI(uFaceIn2_iu);
 	  }
 
 	}
@@ -3408,14 +3408,14 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 
 	  //mirror face area values from adjacent cells
 	  //first layer of ghost cells
-	  (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_ju), uFaceG1_ju);
+	  (*this).fAreaJ[uFaceG1_ju] = (*this).FAreaJ(uFaceIn1_ju);
 
 	  //second layer of ghost cells
 	  if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	    (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn1_ju), uFaceG2_ju);
+	    (*this).fAreaJ[uFaceG2_ju] = (*this).FAreaJ(uFaceIn1_ju);
 	  }
 	  else{
-	    (*this).SetFAreaJ( (*this).FAreaJ(uFaceIn2_ju), uFaceG2_ju);
+	    (*this).fAreaJ[uFaceG2_ju] = (*this).FAreaJ(uFaceIn2_ju);
 	  }
 
 	}
@@ -3424,38 +3424,38 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	//cell centroid is moved interior cell width in the boundary normal direction
 	//first layer of ghost cells
 	vector3d<double> dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
-	(*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG1);
+	(*this).center[cellUpG1] = (*this).Center(cellUpIn1) + dist2Move;
 
 	//second layer of ghost cells
 	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
 	  dist2Move = 2.0 * ((*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl));
-	  (*this).SetCenter( (*this).Center(cellUpG1) + dist2Move, cellUpG2);
+	  (*this).center[cellUpG2] = (*this).Center(cellUpG1) + dist2Move;
 	}
 	else{
 	  dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2_kl);
-	  (*this).SetCenter( (*this).Center(cellUpIn1) + dist2Move, cellUpG2);
+	  (*this).center[cellUpG2] = (*this).Center(cellUpIn1) + dist2Move;
 	}
 
 	//Assign face centers --------------------------------------------------------------------------------------------------------------------
 	//face center is moved interior cell width in the boundary normal direction
 	//first layer of ghost cells
 	dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
-	(*this).SetFCenterK( (*this).FCenterK(uFaceB) + dist2Move, uFaceG1_ku);
-	(*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il) + dist2Move, uFaceG1_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl) + dist2Move, uFaceG1_jl);
+	(*this).fCenterK[uFaceG1_ku] = (*this).FCenterK(uFaceB) + dist2Move;
+	(*this).fCenterI[uFaceG1_il] = (*this).FCenterI(uFaceIn1_il) + dist2Move;
+	(*this).fCenterJ[uFaceG1_jl] = (*this).FCenterJ(uFaceIn1_jl) + dist2Move;
 
 	//second layer of ghost cells
 	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
 	  dist2Move = 2.0 * ((*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl));
-	  (*this).SetFCenterK( (*this).FCenterK(uFaceG1_ku) + dist2Move, uFaceG2_ku);
-	  (*this).SetFCenterI( (*this).FCenterI(uFaceG1_il) + dist2Move, uFaceG2_il);
-	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceG1_jl) + dist2Move, uFaceG2_jl);
+	  (*this).fCenterK[uFaceG2_ku] = (*this).FCenterK(uFaceG1_ku) + dist2Move;
+	  (*this).fCenterI[uFaceG2_il] = (*this).FCenterI(uFaceG1_il) + dist2Move;
+	  (*this).fCenterJ[uFaceG2_jl] = (*this).FCenterJ(uFaceG1_jl) + dist2Move;
 	}
 	else{
 	  dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2_kl);
-	  (*this).SetFCenterK( (*this).FCenterK(uFaceB) + dist2Move, uFaceG2_ku);
-	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_il) + dist2Move, uFaceG2_il);
-	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_jl) + dist2Move, uFaceG2_jl);
+	  (*this).fCenterK[uFaceG2_ku] = (*this).FCenterK(uFaceB) + dist2Move;
+	  (*this).fCenterI[uFaceG2_il] = (*this).FCenterI(uFaceIn1_il) + dist2Move;
+	  (*this).fCenterJ[uFaceG2_jl] = (*this).FCenterJ(uFaceIn1_jl) + dist2Move;
 	}
 
 	if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper i-face areas too
@@ -3470,16 +3470,16 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	  //face center is moved interior cell width in the boundary normal direction
 	  //first layer of ghost cells
 	  dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
-	  (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu) + dist2Move, uFaceG1_iu);
+	  (*this).fCenterI[uFaceG1_iu] = (*this).FCenterI(uFaceIn1_iu) + dist2Move;
 
 	  //second layer of ghost cells
 	  if (kmax < 2){ //one cell thick - use one cell for both ghost cells
 	    dist2Move = 2.0 * ((*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl));
-	    (*this).SetFCenterI( (*this).FCenterI(uFaceG1_iu) + dist2Move, uFaceG2_iu);
+	    (*this).fCenterI[uFaceG2_iu] = (*this).FCenterI(uFaceG1_iu) + dist2Move;
 	  }
 	  else{
 	    dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2_kl);
-	    (*this).SetFCenterI( (*this).FCenterI(uFaceIn1_iu) + dist2Move, uFaceG2_iu);
+	    (*this).fCenterI[uFaceG2_iu] = (*this).FCenterI(uFaceIn1_iu) + dist2Move;
 	  }
 
 	}
@@ -3496,16 +3496,16 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
 	  //face center is moved interior cell width in the boundary normal direction
 	  //first layer of ghost cells
 	  dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl);
-	  (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju) + dist2Move, uFaceG1_ju);
+	  (*this).fCenterJ[uFaceG1_ju] = (*this).FCenterJ(uFaceIn1_ju) + dist2Move;
 
 	  //second layer of ghost cells
 	  if (kmax < 2){ //one cell thick - use one cell for both ghost cells
 	    dist2Move = 2.0 * ((*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn1_kl));
-	    (*this).SetFCenterJ( (*this).FCenterJ(uFaceG1_ju) + dist2Move, uFaceG2_ju);
+	    (*this).fCenterJ[uFaceG2_ju] = (*this).FCenterJ(uFaceG1_ju) + dist2Move;
 	  }
 	  else{
 	    dist2Move = (*this).FCenterK(uFaceB) - (*this).FCenterK(uFaceIn2_kl);
-	    (*this).SetFCenterJ( (*this).FCenterJ(uFaceIn1_ju) + dist2Move, uFaceG2_ju);
+	    (*this).fCenterJ[uFaceG2_ju] = (*this).FCenterJ(uFaceIn1_ju) + dist2Move;
 	  }
 
 	}
@@ -3819,54 +3819,54 @@ void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
 	int gf_je_k2_il = GetLowerFaceI(ii, je, k2, imaxG, jmaxG);  //ghost face, on non-edge layer of j line of cells, on second layer of k line of cells
 
 	//volume -----------------------------------------------------------------------------------------------------------------------------------
-	(*this).SetVol( 0.5 * ( (*this).Vol(gc_j1_ke) + (*this).Vol(gc_je_k1) ) ,gce_j1_k1);
-	(*this).SetVol( (*this).Vol(gc_j2_ke) ,gce_j2_k1);
-	(*this).SetVol( (*this).Vol(gc_je_k2) ,gce_j1_k2);
-	(*this).SetVol( 0.5 * ( (*this).Vol(gc_j2_ke) + (*this).Vol(gc_je_k2) ) ,gce_j2_k2);
+	(*this).vol[gce_j1_k1] = 0.5 * ( (*this).Vol(gc_j1_ke) + (*this).Vol(gc_je_k1) );
+	(*this).vol[gce_j2_k1] = (*this).Vol(gc_j2_ke);
+	(*this).vol[gce_j1_k2] = (*this).Vol(gc_je_k2);
+	(*this).vol[gce_j2_k2] = 0.5 * ( (*this).Vol(gc_j2_ke) + (*this).Vol(gc_je_k2) );
 
 	//face areas --------------------------------------------------------------------------------------------------------------------------------
-	(*this).SetFAreaI( 0.5 * ( (*this).FAreaI(gf_je_k1_il) + (*this).FAreaI(gf_j1_ke_il) ), gfe_j1_k1_il);
-	(*this).SetFAreaJ( (*this).FAreaJ(gf_je_k1_jl), gfe_j1_k1_jl);
-	(*this).SetFAreaK( (*this).FAreaK(gf_j1_ke_kl), gfe_j1_k1_kl);
+	(*this).fAreaI[gfe_j1_k1_il] = 0.5 * ( (*this).FAreaI(gf_je_k1_il) + (*this).FAreaI(gf_j1_ke_il) );
+	(*this).fAreaJ[gfe_j1_k1_jl] = (*this).FAreaJ(gf_je_k1_jl);
+	(*this).fAreaK[gfe_j1_k1_kl] = (*this).FAreaK(gf_j1_ke_kl);
 
-	(*this).SetFAreaI( (*this).FAreaI(gf_je_k2_il), gfe_j1_k2_il);
-	(*this).SetFAreaJ( (*this).FAreaJ(gf_je_k2_jl), gfe_j1_k2_jl);
-	(*this).SetFAreaK( (*this).FAreaK(gf_j1_ke_kl), gfe_j1_k2_kl);
+	(*this).fAreaI[gfe_j1_k2_il] = (*this).FAreaI(gf_je_k2_il);
+	(*this).fAreaJ[gfe_j1_k2_jl] = (*this).FAreaJ(gf_je_k2_jl);
+	(*this).fAreaK[gfe_j1_k2_kl] = (*this).FAreaK(gf_j1_ke_kl);
 
-	(*this).SetFAreaI( (*this).FAreaI(gf_j2_ke_il), gfe_j2_k1_il);
-	(*this).SetFAreaJ( (*this).FAreaJ(gf_je_k1_jl), gfe_j2_k1_jl);
-	(*this).SetFAreaK( (*this).FAreaK(gf_j2_ke_kl), gfe_j2_k1_kl);
+	(*this).fAreaI[gfe_j2_k1_il] = (*this).FAreaI(gf_j2_ke_il);
+	(*this).fAreaJ[gfe_j2_k1_jl] = (*this).FAreaJ(gf_je_k1_jl);
+	(*this).fAreaK[gfe_j2_k1_kl] = (*this).FAreaK(gf_j2_ke_kl);
 
-	(*this).SetFAreaI( 0.5 * ( (*this).FAreaI(gf_j2_ke_il) + (*this).FAreaI(gf_je_k2_il) ), gfe_j2_k2_il);
-	(*this).SetFAreaJ( (*this).FAreaJ(gf_je_k2_jl), gfe_j2_k2_jl);
-	(*this).SetFAreaK( (*this).FAreaK(gf_j2_ke_kl), gfe_j2_k2_kl);
+	(*this).fAreaI[gfe_j2_k2_il] = 0.5 * ( (*this).FAreaI(gf_j2_ke_il) + (*this).FAreaI(gf_je_k2_il) );
+	(*this).fAreaJ[gfe_j2_k2_jl] = (*this).FAreaJ(gf_je_k2_jl);
+	(*this).fAreaK[gfe_j2_k2_kl] = (*this).FAreaK(gf_j2_ke_kl);
 
 	//centroids -------------------------------------------------------------------------------------------------------------------------------------
 	//edge centroid is moved distance of cell width normal to face dividing regular and edge ghost cells
 	vector3d<double> dist2MoveK = (*this).FCenterK(gf_j1_ke_kl) - (*this).FCenterK(gf_j1_ke_ku) ;
 	vector3d<double> dist2MoveJ = (*this).FCenterJ(gf_je_k1_jl) - (*this).FCenterJ(gf_je_k1_ju) ;
-	(*this).SetCenter( (*this).Center(gc_j1_ke) + dist2MoveK, gce_j1_k1);
-	(*this).SetCenter( (*this).Center(gc_j2_ke) + dist2MoveK, gce_j2_k1);
-	(*this).SetCenter( (*this).Center(gc_je_k2) + dist2MoveJ, gce_j1_k2);
-	(*this).SetCenter( (*this).Center(gc_je_k2) + 2.0 * dist2MoveJ, gce_j2_k2);
+	(*this).center[gce_j1_k1] = (*this).Center(gc_j1_ke) + dist2MoveK;
+	(*this).center[gce_j2_k1] = (*this).Center(gc_j2_ke) + dist2MoveK;
+	(*this).center[gce_j1_k2] = (*this).Center(gc_je_k2) + dist2MoveJ;
+	(*this).center[gce_j2_k2] = (*this).Center(gc_je_k2) + 2.0 * dist2MoveJ;
 
 	//face centers -----------------------------------------------------------------------------------------------------------------------------------
 	//edge face centers are moved distance of cell width normal to face dividing regular and edge ghost cells
-	(*this).SetFCenterI( (*this).FCenterI(gf_j1_ke_il) + dist2MoveK, gfe_j1_k1_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(gf_j1_ke_jl) + dist2MoveK, gfe_j1_k1_jl);
-	(*this).SetFCenterK( (*this).FCenterK(gf_j1_ke_kl) + dist2MoveK, gfe_j1_k1_kl);
+	(*this).fCenterI[gfe_j1_k1_il] = (*this).FCenterI(gf_j1_ke_il) + dist2MoveK;
+	(*this).fCenterJ[gfe_j1_k1_jl] = (*this).FCenterJ(gf_j1_ke_jl) + dist2MoveK;
+	(*this).fCenterK[gfe_j1_k1_kl] = (*this).FCenterK(gf_j1_ke_kl) + dist2MoveK;
 
-	(*this).SetFCenterI( (*this).FCenterI(gf_j2_ke_il) + dist2MoveK, gfe_j2_k1_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(gf_j2_ke_jl) + dist2MoveK, gfe_j2_k1_jl);
-	(*this).SetFCenterK( (*this).FCenterK(gf_j2_ke_kl) + dist2MoveK, gfe_j2_k1_kl);
+	(*this).fCenterI[gfe_j2_k1_il] = (*this).FCenterI(gf_j2_ke_il) + dist2MoveK;
+	(*this).fCenterJ[gfe_j2_k1_jl] = (*this).FCenterJ(gf_j2_ke_jl) + dist2MoveK;
+	(*this).fCenterK[gfe_j2_k1_kl] = (*this).FCenterK(gf_j2_ke_kl) + dist2MoveK;
 
-	(*this).SetFCenterI( (*this).FCenterI(gf_je_k2_il) + dist2MoveJ, gfe_j1_k2_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(gf_je_k2_jl) + dist2MoveJ, gfe_j1_k2_jl);
-	(*this).SetFCenterK( (*this).FCenterK(gf_je_k2_kl) + dist2MoveJ, gfe_j1_k2_kl);
+	(*this).fCenterI[gfe_j1_k2_il] = (*this).FCenterI(gf_je_k2_il) + dist2MoveJ;
+	(*this).fCenterJ[gfe_j1_k2_jl] = (*this).FCenterJ(gf_je_k2_jl) + dist2MoveJ;
+	(*this).fCenterK[gfe_j1_k2_kl] = (*this).FCenterK(gf_je_k2_kl) + dist2MoveJ;
 
-	(*this).SetFCenterI( (*this).FCenterI(gf_je_k2_il) + 2.0 * dist2MoveJ, gfe_j2_k2_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(gf_je_k2_jl) + 2.0 * dist2MoveJ, gfe_j2_k2_jl);
-	(*this).SetFCenterK( (*this).FCenterK(gf_je_k2_kl) + 2.0 * dist2MoveJ, gfe_j2_k2_kl);
+	(*this).fCenterI[gfe_j2_k2_il] = (*this).FCenterI(gf_je_k2_il) + 2.0 * dist2MoveJ;
+	(*this).fCenterJ[gfe_j2_k2_jl] = (*this).FCenterJ(gf_je_k2_jl) + 2.0 * dist2MoveJ;
+	(*this).fCenterK[gfe_j2_k2_kl] = (*this).FCenterK(gf_je_k2_kl) + 2.0 * dist2MoveJ;
 
 	//this is only done at the end of the i loop
 	if ( ii == imax - 1 + (*this).NumGhosts() ){ //at end of i-line of cells assign cell upper face areas too
@@ -3880,16 +3880,16 @@ void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
 	  int gfe_j2_k2_iu = GetUpperFaceI(ii, j2, k2, imaxG, jmaxG); //ghost face on edge, on second layer of j line of cells, on second layer of k line of cells
 
 	  //face areas
-	  (*this).SetFAreaI( (*this).FAreaI(gfe_j1_k1_il), gfe_j1_k1_iu);
-	  (*this).SetFAreaI( (*this).FAreaI(gfe_j1_k2_il), gfe_j1_k2_iu);
-	  (*this).SetFAreaI( (*this).FAreaI(gfe_j2_k1_il), gfe_j2_k1_iu);
-	  (*this).SetFAreaI( (*this).FAreaI(gfe_j2_k2_il), gfe_j2_k2_iu);
+	  (*this).fAreaI[gfe_j1_k1_iu] = (*this).FAreaI(gfe_j1_k1_il);
+	  (*this).fAreaI[gfe_j1_k2_iu] = (*this).FAreaI(gfe_j1_k2_il);
+	  (*this).fAreaI[gfe_j2_k1_iu] = (*this).FAreaI(gfe_j2_k1_il);
+	  (*this).fAreaI[gfe_j2_k2_iu] = (*this).FAreaI(gfe_j2_k2_il);
 
 	  //face centers
-	  (*this).SetFCenterI( (*this).FCenterI(gfe_j1_k1_il) + dist2MoveI, gfe_j1_k1_iu);
-	  (*this).SetFCenterI( (*this).FCenterI(gfe_j1_k2_il) + dist2MoveI, gfe_j1_k2_iu);
-	  (*this).SetFCenterI( (*this).FCenterI(gfe_j2_k1_il) + dist2MoveI, gfe_j2_k1_iu);
-	  (*this).SetFCenterI( (*this).FCenterI(gfe_j2_k2_il) + dist2MoveI, gfe_j2_k2_iu);
+	  (*this).fCenterI[gfe_j1_k1_iu] = (*this).FCenterI(gfe_j1_k1_il) + dist2MoveI;
+	  (*this).fCenterI[gfe_j1_k2_iu] = (*this).FCenterI(gfe_j1_k2_il) + dist2MoveI;
+	  (*this).fCenterI[gfe_j2_k1_iu] = (*this).FCenterI(gfe_j2_k1_il) + dist2MoveI;
+	  (*this).fCenterI[gfe_j2_k2_iu] = (*this).FCenterI(gfe_j2_k2_il) + dist2MoveI;
 
 	}
 
@@ -4156,54 +4156,54 @@ void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
 	int gf_ie_k2_jl = GetLowerFaceJ(ie, jj, k2, imaxG, jmaxG);  //ghost face, on non-edge layer of i line of cells, on second layer of k line of cells
 
 	//volume ----------------------------------------------------------------------------------------------------------------------------------------------
-	(*this).SetVol( 0.5 * ( (*this).Vol(gc_i1_ke) + (*this).Vol(gc_ie_k1) ) ,gce_i1_k1);
-	(*this).SetVol( (*this).Vol(gc_i2_ke) ,gce_i2_k1);
-	(*this).SetVol( (*this).Vol(gc_ie_k2) ,gce_i1_k2);
-	(*this).SetVol( 0.5 * ( (*this).Vol(gc_i2_ke) + (*this).Vol(gc_ie_k2) ) ,gce_i2_k2);
+	(*this).vol[gce_i1_k1] = 0.5 * ( (*this).Vol(gc_i1_ke) + (*this).Vol(gc_ie_k1) );
+	(*this).vol[gce_i2_k1] = (*this).Vol(gc_i2_ke);
+	(*this).vol[gce_i1_k2] = (*this).Vol(gc_ie_k2);
+	(*this).vol[gce_i2_k2] = 0.5 * ( (*this).Vol(gc_i2_ke) + (*this).Vol(gc_ie_k2) );
 
 	//face areas ------------------------------------------------------------------------------------------------------------------------------------------
-	(*this).SetFAreaJ( 0.5 * ( (*this).FAreaJ(gf_ie_k1_jl) + (*this).FAreaJ(gf_i1_ke_jl) ), gfe_i1_k1_jl);
-	(*this).SetFAreaI( (*this).FAreaI(gf_ie_k1_il), gfe_i1_k1_il);
-	(*this).SetFAreaK( (*this).FAreaK(gf_i1_ke_kl), gfe_i1_k1_kl);
+	(*this).fAreaJ[gfe_i1_k1_jl] = 0.5 * ( (*this).FAreaJ(gf_ie_k1_jl) + (*this).FAreaJ(gf_i1_ke_jl) );
+	(*this).fAreaI[gfe_i1_k1_il] = (*this).FAreaI(gf_ie_k1_il);
+	(*this).fAreaK[gfe_i1_k1_kl] = (*this).FAreaK(gf_i1_ke_kl);
 
-	(*this).SetFAreaJ( (*this).FAreaJ(gf_ie_k2_jl), gfe_i1_k2_jl);
-	(*this).SetFAreaI( (*this).FAreaI(gf_ie_k2_il), gfe_i1_k2_il);
-	(*this).SetFAreaK( (*this).FAreaK(gf_i1_ke_kl), gfe_i1_k2_kl);
+	(*this).fAreaJ[gfe_i1_k2_jl] = (*this).FAreaJ(gf_ie_k2_jl);
+	(*this).fAreaI[gfe_i1_k2_il] = (*this).FAreaI(gf_ie_k2_il);
+	(*this).fAreaK[gfe_i1_k2_kl] = (*this).FAreaK(gf_i1_ke_kl);
 
-	(*this).SetFAreaJ( (*this).FAreaJ(gf_i2_ke_jl), gfe_i2_k1_jl);
-	(*this).SetFAreaI( (*this).FAreaI(gf_ie_k1_il), gfe_i2_k1_il);
-	(*this).SetFAreaK( (*this).FAreaK(gf_i2_ke_kl), gfe_i2_k1_kl);
+	(*this).fAreaJ[gfe_i2_k1_jl] = (*this).FAreaJ(gf_i2_ke_jl);
+	(*this).fAreaI[gfe_i2_k1_il] = (*this).FAreaI(gf_ie_k1_il);
+	(*this).fAreaK[gfe_i2_k1_kl] = (*this).FAreaK(gf_i2_ke_kl);
 
-	(*this).SetFAreaJ( 0.5 * ( (*this).FAreaJ(gf_i2_ke_jl) + (*this).FAreaJ(gf_ie_k2_jl) ), gfe_i2_k2_jl);
-	(*this).SetFAreaI( (*this).FAreaI(gf_ie_k2_il), gfe_i2_k2_il);
-	(*this).SetFAreaK( (*this).FAreaK(gf_i2_ke_kl), gfe_i2_k2_kl);
+	(*this).fAreaJ[gfe_i2_k2_jl] = 0.5 * ( (*this).FAreaJ(gf_i2_ke_jl) + (*this).FAreaJ(gf_ie_k2_jl) );
+	(*this).fAreaI[gfe_i2_k2_il] = (*this).FAreaI(gf_ie_k2_il);
+	(*this).fAreaK[gfe_i2_k2_kl] = (*this).FAreaK(gf_i2_ke_kl);
 
 	//centroids --------------------------------------------------------------------------------------------------------------------------------------------
 	//edge centroid is moved distance of cell width normal to face dividing regular and edge ghost cells
 	vector3d<double> dist2MoveK = (*this).FCenterK(gf_i1_ke_kl) - (*this).FCenterK(gf_i1_ke_ku);
 	vector3d<double> dist2MoveI = (*this).FCenterI(gf_ie_k1_il) - (*this).FCenterI(gf_ie_k1_iu);
-	(*this).SetCenter( (*this).Center(gc_i1_ke) + dist2MoveK, gce_i1_k1);
-	(*this).SetCenter( (*this).Center(gc_i2_ke) + dist2MoveK, gce_i2_k1);
-	(*this).SetCenter( (*this).Center(gc_ie_k2) + dist2MoveI, gce_i1_k2);
-	(*this).SetCenter( (*this).Center(gc_ie_k2) + 2.0 * dist2MoveI, gce_i2_k2);
+	(*this).center[gce_i1_k1] = (*this).Center(gc_i1_ke) + dist2MoveK;
+	(*this).center[gce_i2_k1] = (*this).Center(gc_i2_ke) + dist2MoveK;
+	(*this).center[gce_i1_k2] = (*this).Center(gc_ie_k2) + dist2MoveI;
+	(*this).center[gce_i2_k2] = (*this).Center(gc_ie_k2) + 2.0 * dist2MoveI;
 
 	//face centers ------------------------------------------------------------------------------------------------------------------------------------------
 	//edge face centers are moved distance of cell width normal to face dividing regular and edge ghost cells
-	(*this).SetFCenterI( (*this).FCenterI(gf_i1_ke_il) + dist2MoveK, gfe_i1_k1_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(gf_i1_ke_jl) + dist2MoveK, gfe_i1_k1_jl);
-	(*this).SetFCenterK( (*this).FCenterK(gf_i1_ke_kl) + dist2MoveK, gfe_i1_k1_kl);
+	(*this).fCenterI[gfe_i1_k1_il] = (*this).FCenterI(gf_i1_ke_il) + dist2MoveK;
+	(*this).fCenterJ[gfe_i1_k1_jl] = (*this).FCenterJ(gf_i1_ke_jl) + dist2MoveK;
+	(*this).fCenterK[gfe_i1_k1_kl] = (*this).FCenterK(gf_i1_ke_kl) + dist2MoveK;
 
-	(*this).SetFCenterI( (*this).FCenterI(gf_i2_ke_il) + dist2MoveK, gfe_i2_k1_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(gf_i2_ke_jl) + dist2MoveK, gfe_i2_k1_jl);
-	(*this).SetFCenterK( (*this).FCenterK(gf_i2_ke_kl) + dist2MoveK, gfe_i2_k1_kl);
+	(*this).fCenterI[gfe_i2_k1_il] = (*this).FCenterI(gf_i2_ke_il) + dist2MoveK;
+	(*this).fCenterJ[gfe_i2_k1_jl] = (*this).FCenterJ(gf_i2_ke_jl) + dist2MoveK;
+	(*this).fCenterK[gfe_i2_k1_kl] = (*this).FCenterK(gf_i2_ke_kl) + dist2MoveK;
 
-	(*this).SetFCenterI( (*this).FCenterI(gf_ie_k2_il) + dist2MoveI, gfe_i1_k2_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(gf_ie_k2_jl) + dist2MoveI, gfe_i1_k2_jl);
-	(*this).SetFCenterK( (*this).FCenterK(gf_ie_k2_kl) + dist2MoveI, gfe_i1_k2_kl);
+	(*this).fCenterI[gfe_i1_k2_il] = (*this).FCenterI(gf_ie_k2_il) + dist2MoveI;
+	(*this).fCenterJ[gfe_i1_k2_jl] = (*this).FCenterJ(gf_ie_k2_jl) + dist2MoveI;
+	(*this).fCenterK[gfe_i1_k2_kl] = (*this).FCenterK(gf_ie_k2_kl) + dist2MoveI;
 
-	(*this).SetFCenterI( (*this).FCenterI(gf_ie_k2_il) + 2.0 * dist2MoveI, gfe_i2_k2_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(gf_ie_k2_jl) + 2.0 * dist2MoveI, gfe_i2_k2_jl);
-	(*this).SetFCenterK( (*this).FCenterK(gf_ie_k2_kl) + 2.0 * dist2MoveI, gfe_i2_k2_kl);
+	(*this).fCenterI[gfe_i2_k2_il] = (*this).FCenterI(gf_ie_k2_il) + 2.0 * dist2MoveI;
+	(*this).fCenterJ[gfe_i2_k2_jl] = (*this).FCenterJ(gf_ie_k2_jl) + 2.0 * dist2MoveI;
+	(*this).fCenterK[gfe_i2_k2_kl] = (*this).FCenterK(gf_ie_k2_kl) + 2.0 * dist2MoveI;
 
 	//this is only done at the end of the j loop
 	if ( jj == jmax - 1 + (*this).NumGhosts() ){ //at end of j-line of cells assign cell upper face areas too
@@ -4217,16 +4217,16 @@ void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
 	  int gfe_i2_k2_ju = GetUpperFaceJ(i2, jj, k2, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of k line of cells
 
 	  //face areas
-	  (*this).SetFAreaJ( (*this).FAreaJ(gfe_i1_k1_jl), gfe_i1_k1_ju);
-	  (*this).SetFAreaJ( (*this).FAreaJ(gfe_i1_k2_jl), gfe_i1_k2_ju);
-	  (*this).SetFAreaJ( (*this).FAreaJ(gfe_i2_k1_jl), gfe_i2_k1_ju);
-	  (*this).SetFAreaJ( (*this).FAreaJ(gfe_i2_k2_jl), gfe_i2_k2_ju);
+	  (*this).fAreaJ[gfe_i1_k1_ju] = (*this).FAreaJ(gfe_i1_k1_jl);
+	  (*this).fAreaJ[gfe_i1_k2_ju] = (*this).FAreaJ(gfe_i1_k2_jl);
+	  (*this).fAreaJ[gfe_i2_k1_ju] = (*this).FAreaJ(gfe_i2_k1_jl);
+	  (*this).fAreaJ[gfe_i2_k2_ju] = (*this).FAreaJ(gfe_i2_k2_jl);
 
 	  //face centers
-	  (*this).SetFCenterJ( (*this).FCenterJ(gfe_i1_k1_jl) + dist2MoveJ, gfe_i1_k1_ju);
-	  (*this).SetFCenterJ( (*this).FCenterJ(gfe_i1_k2_jl) + dist2MoveJ, gfe_i1_k2_ju);
-	  (*this).SetFCenterJ( (*this).FCenterJ(gfe_i2_k1_jl) + dist2MoveJ, gfe_i2_k1_ju);
-	  (*this).SetFCenterJ( (*this).FCenterJ(gfe_i2_k2_jl) + dist2MoveJ, gfe_i2_k2_ju);
+	  (*this).fCenterJ[gfe_i1_k1_ju] = (*this).FCenterJ(gfe_i1_k1_jl) + dist2MoveJ;
+	  (*this).fCenterJ[gfe_i1_k2_ju] = (*this).FCenterJ(gfe_i1_k2_jl) + dist2MoveJ;
+	  (*this).fCenterJ[gfe_i2_k1_ju] = (*this).FCenterJ(gfe_i2_k1_jl) + dist2MoveJ;
+	  (*this).fCenterJ[gfe_i2_k2_ju] = (*this).FCenterJ(gfe_i2_k2_jl) + dist2MoveJ;
 
 	}
 
@@ -4493,54 +4493,54 @@ void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
 	int gf_ie_j2_kl = GetLowerFaceK(ie, j2, kk, imaxG, jmaxG);  //ghost face, on non-edge layer of i line of cells, on second layer of j line of cells
 
 	//volume -----------------------------------------------------------------------------------------------------------------------------------------------
-	(*this).SetVol( 0.5 * ( (*this).Vol(gc_i1_je) + (*this).Vol(gc_ie_j1) ) ,gce_i1_j1);
-	(*this).SetVol( (*this).Vol(gc_i2_je) ,gce_i2_j1);
-	(*this).SetVol( (*this).Vol(gc_ie_j2) ,gce_i1_j2);
-	(*this).SetVol( 0.5 * ( (*this).Vol(gc_i2_je) + (*this).Vol(gc_ie_j2) ) ,gce_i2_j2);
+	(*this).vol[gce_i1_j1] = 0.5 * ( (*this).Vol(gc_i1_je) + (*this).Vol(gc_ie_j1) );
+	(*this).vol[gce_i2_j1] = (*this).Vol(gc_i2_je);
+	(*this).vol[gce_i1_j2] = (*this).Vol(gc_ie_j2);
+	(*this).vol[gce_i2_j2] = 0.5 * ( (*this).Vol(gc_i2_je) + (*this).Vol(gc_ie_j2) );
 
 	//face areas -------------------------------------------------------------------------------------------------------------------------------------------
-	(*this).SetFAreaK( 0.5 * ( (*this).FAreaK(gf_ie_j1_kl) + (*this).FAreaK(gf_i1_je_kl) ), gfe_i1_j1_kl);
-	(*this).SetFAreaI( (*this).FAreaI(gf_ie_j1_il), gfe_i1_j1_il);
-	(*this).SetFAreaJ( (*this).FAreaJ(gf_i1_je_jl), gfe_i1_j1_jl);
+	(*this).fAreaK[gfe_i1_j1_kl] = 0.5 * ( (*this).FAreaK(gf_ie_j1_kl) + (*this).FAreaK(gf_i1_je_kl) );
+	(*this).fAreaI[gfe_i1_j1_il] = (*this).FAreaI(gf_ie_j1_il);
+	(*this).fAreaJ[gfe_i1_j1_jl] = (*this).FAreaJ(gf_i1_je_jl);
 
-	(*this).SetFAreaK( (*this).FAreaK(gf_ie_j2_kl), gfe_i1_j2_kl);
-	(*this).SetFAreaI( (*this).FAreaI(gf_ie_j2_il), gfe_i1_j2_il);
-	(*this).SetFAreaJ( (*this).FAreaJ(gf_i1_je_jl), gfe_i1_j2_jl);
+	(*this).fAreaK[gfe_i1_j2_kl] = (*this).FAreaK(gf_ie_j2_kl);
+	(*this).fAreaI[gfe_i1_j2_il] = (*this).FAreaI(gf_ie_j2_il);
+	(*this).fAreaJ[gfe_i1_j2_jl] = (*this).FAreaJ(gf_i1_je_jl);
 
-	(*this).SetFAreaK( (*this).FAreaK(gf_i2_je_kl), gfe_i2_j1_kl);
-	(*this).SetFAreaI( (*this).FAreaI(gf_ie_j1_il), gfe_i2_j1_il);
-	(*this).SetFAreaJ( (*this).FAreaJ(gf_i2_je_jl), gfe_i2_j1_jl);
+	(*this).fAreaK[gfe_i2_j1_kl] = (*this).FAreaK(gf_i2_je_kl);
+	(*this).fAreaI[gfe_i2_j1_il] = (*this).FAreaI(gf_ie_j1_il);
+	(*this).fAreaJ[gfe_i2_j1_jl] = (*this).FAreaJ(gf_i2_je_jl);
 
-	(*this).SetFAreaK( 0.5 * ( (*this).FAreaK(gf_i2_je_kl) + (*this).FAreaJ(gf_ie_j2_kl) ), gfe_i2_j2_kl);
-	(*this).SetFAreaI( (*this).FAreaI(gf_ie_j2_il), gfe_i2_j2_il);
-	(*this).SetFAreaJ( (*this).FAreaJ(gf_i2_je_jl), gfe_i2_j2_jl);
+	(*this).fAreaK[gfe_i2_j2_kl] = 0.5 * ( (*this).FAreaK(gf_i2_je_kl) + (*this).FAreaJ(gf_ie_j2_kl) );
+	(*this).fAreaI[gfe_i2_j2_il] = (*this).FAreaI(gf_ie_j2_il);
+	(*this).fAreaJ[gfe_i2_j2_jl] = (*this).FAreaJ(gf_i2_je_jl);
 
 	//centroids ---------------------------------------------------------------------------------------------------------------------------------------------
 	//edge centroid is moved distance of cell width normal to face dividing regular and edge ghost cells
 	vector3d<double> dist2MoveJ = (*this).FCenterJ(gf_i1_je_jl) - (*this).FCenterJ(gf_i1_je_ju);
 	vector3d<double> dist2MoveI = (*this).FCenterI(gf_ie_j1_il) - (*this).FCenterI(gf_ie_j1_iu);
-	(*this).SetCenter( (*this).Center(gc_i1_je) + dist2MoveJ, gce_i1_j1);
-	(*this).SetCenter( (*this).Center(gc_i2_je) + dist2MoveJ, gce_i2_j1);
-	(*this).SetCenter( (*this).Center(gc_ie_j2) + dist2MoveI, gce_i1_j2);
-	(*this).SetCenter( (*this).Center(gc_ie_j2) + 2.0 * dist2MoveI, gce_i2_j2);
+	(*this).center[gce_i1_j1] = (*this).Center(gc_i1_je) + dist2MoveJ;
+	(*this).center[gce_i2_j1] = (*this).Center(gc_i2_je) + dist2MoveJ;
+	(*this).center[gce_i1_j2] = (*this).Center(gc_ie_j2) + dist2MoveI;
+	(*this).center[gce_i2_j2] = (*this).Center(gc_ie_j2) + 2.0 * dist2MoveI;
 
 	//face centers ------------------------------------------------------------------------------------------------------------------------------------------
 	//edge face centers are moved distance of cell width normal to face dividing regular and edge ghost cells
-	(*this).SetFCenterI( (*this).FCenterI(gf_i1_je_il) + dist2MoveJ, gfe_i1_j1_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(gf_i1_je_jl) + dist2MoveJ, gfe_i1_j1_jl);
-	(*this).SetFCenterK( (*this).FCenterK(gf_i1_je_kl) + dist2MoveJ, gfe_i1_j1_kl);
+	(*this).fCenterI[gfe_i1_j1_il] = (*this).FCenterI(gf_i1_je_il) + dist2MoveJ;
+	(*this).fCenterJ[gfe_i1_j1_jl] = (*this).FCenterJ(gf_i1_je_jl) + dist2MoveJ;
+	(*this).fCenterK[gfe_i1_j1_kl] = (*this).FCenterK(gf_i1_je_kl) + dist2MoveJ;
 
-	(*this).SetFCenterI( (*this).FCenterI(gf_i2_je_il) + dist2MoveJ, gfe_i2_j1_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(gf_i2_je_jl) + dist2MoveJ, gfe_i2_j1_jl);
-	(*this).SetFCenterK( (*this).FCenterK(gf_i2_je_kl) + dist2MoveJ, gfe_i2_j1_kl);
+	(*this).fCenterI[gfe_i2_j1_il] = (*this).FCenterI(gf_i2_je_il) + dist2MoveJ;
+	(*this).fCenterJ[gfe_i2_j1_jl] = (*this).FCenterJ(gf_i2_je_jl) + dist2MoveJ;
+	(*this).fCenterK[gfe_i2_j1_kl] = (*this).FCenterK(gf_i2_je_kl) + dist2MoveJ;
 
-	(*this).SetFCenterI( (*this).FCenterI(gf_ie_j2_il) + dist2MoveI, gfe_i1_j2_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(gf_ie_j2_jl) + dist2MoveI, gfe_i1_j2_jl);
-	(*this).SetFCenterK( (*this).FCenterK(gf_ie_j2_kl) + dist2MoveI, gfe_i1_j2_kl);
+	(*this).fCenterI[gfe_i1_j2_il] = (*this).FCenterI(gf_ie_j2_il) + dist2MoveI;
+	(*this).fCenterJ[gfe_i1_j2_jl] = (*this).FCenterJ(gf_ie_j2_jl) + dist2MoveI;
+	(*this).fCenterK[gfe_i1_j2_kl] = (*this).FCenterK(gf_ie_j2_kl) + dist2MoveI;
 
-	(*this).SetFCenterI( (*this).FCenterI(gf_ie_j2_il) + 2.0 * dist2MoveI, gfe_i2_j2_il);
-	(*this).SetFCenterJ( (*this).FCenterJ(gf_ie_j2_jl) + 2.0 * dist2MoveI, gfe_i2_j2_jl);
-	(*this).SetFCenterK( (*this).FCenterK(gf_ie_j2_kl) + 2.0 * dist2MoveI, gfe_i2_j2_kl);
+	(*this).fCenterI[gfe_i2_j2_il] = (*this).FCenterI(gf_ie_j2_il) + 2.0 * dist2MoveI;
+	(*this).fCenterJ[gfe_i2_j2_jl] = (*this).FCenterJ(gf_ie_j2_jl) + 2.0 * dist2MoveI;
+	(*this).fCenterK[gfe_i2_j2_kl] = (*this).FCenterK(gf_ie_j2_kl) + 2.0 * dist2MoveI;
 
 	//this is only done at the end of the k loop
 	if ( kk == kmax - 1 + (*this).NumGhosts() ){ //at end of k-line of cells assign cell upper face areas too
@@ -4554,16 +4554,16 @@ void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
 	  int gfe_i2_j2_ku = GetUpperFaceK(i2, j2, kk, imaxG, jmaxG); //ghost face on edge, on second layer of i line of cells, on second layer of j line of cells
 
 	  //face areas
-	  (*this).SetFAreaK( (*this).FAreaK(gfe_i1_j1_kl), gfe_i1_j1_ku);
-	  (*this).SetFAreaK( (*this).FAreaK(gfe_i1_j2_kl), gfe_i1_j2_ku);
-	  (*this).SetFAreaK( (*this).FAreaK(gfe_i2_j1_kl), gfe_i2_j1_ku);
-	  (*this).SetFAreaK( (*this).FAreaK(gfe_i2_j2_kl), gfe_i2_j2_ku);
+	  (*this).fAreaK[gfe_i1_j1_ku] = (*this).FAreaK(gfe_i1_j1_kl);
+	  (*this).fAreaK[gfe_i1_j2_ku] = (*this).FAreaK(gfe_i1_j2_kl);
+	  (*this).fAreaK[gfe_i2_j1_ku] = (*this).FAreaK(gfe_i2_j1_kl);
+	  (*this).fAreaK[gfe_i2_j2_ku] = (*this).FAreaK(gfe_i2_j2_kl);
 
 	  //face centers
-	  (*this).SetFCenterK( (*this).FCenterK(gfe_i1_j1_kl) + dist2MoveK, gfe_i1_j1_ku);
-	  (*this).SetFCenterK( (*this).FCenterK(gfe_i1_j2_kl) + dist2MoveK, gfe_i1_j2_ku);
-	  (*this).SetFCenterK( (*this).FCenterK(gfe_i2_j1_kl) + dist2MoveK, gfe_i2_j1_ku);
-	  (*this).SetFCenterK( (*this).FCenterK(gfe_i2_j2_kl) + dist2MoveK, gfe_i2_j2_ku);
+	  (*this).fCenterK[gfe_i1_j1_ku] = (*this).FCenterK(gfe_i1_j1_kl) + dist2MoveK;
+	  (*this).fCenterK[gfe_i1_j2_ku] = (*this).FCenterK(gfe_i1_j2_kl) + dist2MoveK;
+	  (*this).fCenterK[gfe_i2_j1_ku] = (*this).FCenterK(gfe_i2_j1_kl) + dist2MoveK;
+	  (*this).fCenterK[gfe_i2_j2_ku] = (*this).FCenterK(gfe_i2_j2_kl) + dist2MoveK;
 
 	}
       }
@@ -4641,18 +4641,18 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
 	int lFaceB = GetLowerFaceI((*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
 
 	//first layer of ghost cells
-	(*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1), cellLowG1);
+	(*this).state[cellLowG1] = (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1);
 
 	//second layer of ghost cells
 	if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetState( (*this).State(cellLowG1), cellLowG2);
+	  (*this).state[cellLowG2] = (*this).State(cellLowG1);
 	}
 	else{
 	  if (bcNameL == "slipWall" ){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
-	    (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1), cellLowG2);
+	    (*this).state[cellLowG2] = (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1);
 	  }
 	  else{
-	    (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 2), cellLowG2);
+	    (*this).state[cellLowG2] = (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 2);
 	  }
 	}
 
@@ -4673,18 +4673,18 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
 	int uFaceB = GetUpperFaceI(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
 
 	//first layer of ghost cells
-	(*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1), cellUpG1);
+	(*this).state[cellUpG1] = (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1);
 
 	//second layer of ghost cells
 	if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetState( (*this).State(cellUpG1), cellUpG2);
+	  (*this).state[cellUpG2] = (*this).State(cellUpG1);
 	}
 	else{
 	  if (bcNameU == "slipWall" ){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
-	    (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1), cellUpG2);
+	    (*this).state[cellUpG2] = (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1);
 	  }
 	  else{
-	    (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 2), cellUpG2);
+	    (*this).state[cellUpG2] = (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 2);
 	  }
 	}
 
@@ -4725,18 +4725,18 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
 	int lFaceB = GetLowerFaceJ(ii, (*this).NumGhosts(), kk, imaxG, jmaxG); 
 
 	//first layer of ghost cells
-	(*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG1);
+	(*this).state[cellLowG1] = (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1);
 
 	//second layer of ghost cells
 	if (jmax < 2){ //one cell thick - use once cell for both ghost cells
-	  (*this).SetState( (*this).State(cellLowG1), cellLowG2);
+	  (*this).state[cellLowG2] = (*this).State(cellLowG1);
 	}
 	else{
 	  if (bcNameL == "slipWall" ){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
-	    (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG2);
+	    (*this).state[cellLowG2] = (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1);
 	  }
 	  else{
-	    (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 2), cellLowG2);
+	    (*this).state[cellLowG2] = (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 2);
 	  }
 	}
 
@@ -4757,18 +4757,18 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
 	int uFaceB = GetUpperFaceJ(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
 
 	//first layer of ghost cells
-	(*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1), cellUpG1);
+	(*this).state[cellUpG1] = (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1);
 
 	//second layer of ghost cells
 	if (jmax < 2){ //one cell thick - use once cell for both ghost cells
-	  (*this).SetState( (*this).State(cellUpG1), cellUpG2);
+	  (*this).state[cellUpG2] = (*this).State(cellUpG1);
 	}
 	else{
 	  if (bcNameU == "slipWall" ){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
-	    (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1), cellUpG2);
+	    (*this).state[cellUpG2] = (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1);
 	  }
 	  else{
-	    (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 2), cellUpG2);
+	    (*this).state[cellUpG2] = (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 2);
 	  }
 	}
 
@@ -4809,18 +4809,18 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
 	int lFaceB = GetLowerFaceK(ii, jj, (*this).NumGhosts(), imaxG, jmaxG); 
 
 	//first layer of ghost cells
-	(*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1), cellLowG1);
+	(*this).state[cellLowG1] = (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1);
 
 	//second layer of ghost cells
 	if (kmax < 2){ //one cell thick - use once cell for both ghost cells
-	  (*this).SetState( (*this).State(cellLowG1), cellLowG2);
+	  (*this).state[cellLowG2] = (*this).State(cellLowG1);
 	}
 	else{
 	  if (bcNameL == "slipWall" ){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
-	    (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1), cellLowG2);
+	    (*this).state[cellLowG2] = (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1);
 	  }
 	  else{
-	    (*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 2), cellLowG2);
+	    (*this).state[cellLowG2] = (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 2);
 	  }
 	}
 
@@ -4841,18 +4841,18 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
 	int uFaceB = GetUpperFaceK(ii, jj, kmaxG - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
 
 	//first layer of ghost cells
-	(*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG1);
+	(*this).state[cellUpG1] = (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1);
 
 	//second layer of ghost cells
 	if (kmax < 2){ //one cell thick - use once cell for both ghost cells
-	  (*this).SetState( (*this).State(cellUpG1), cellUpG2);
+	  (*this).state[cellUpG2] = (*this).State(cellUpG1);
 	}
 	else{
 	  if (bcNameU == "slipWall" ){ //if slipWall, reflect second interior state over boundary face instead of extrapolation
-	    (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG2);
+	    (*this).state[cellUpG2] = (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1);
 	  }
 	  else{
-	    (*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 2), cellUpG2);
+	    (*this).state[cellUpG2] = (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 2);
 	  }
 	}
 
@@ -5103,22 +5103,22 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	}
 
 	if ( bc_J == "slipWall" && !(bc_K == "slipWall") ){  //j surface is a wall, but k surface is not - extend wall bc
-	  (*this).SetState( (*this).State(gc_je_k1).GetGhostState(bc_J, (*this).FAreaJ(gf_je_k1_jl), surfJ, inp, eos, 1) ,gce_j1_k1);
-	  (*this).SetState( (*this).State(gc_je_k2).GetGhostState(bc_J, (*this).FAreaJ(gf_je_k2_jl), surfJ, inp, eos, 1) ,gce_j1_k2);
-	  (*this).SetState( (*this).State(gc_je2_k1).GetGhostState(bc_J, (*this).FAreaJ(gf_je_k1_jl), surfJ, inp, eos, 1) ,gce_j2_k1);
-	  (*this).SetState( (*this).State(gc_je2_k2).GetGhostState(bc_J, (*this).FAreaJ(gf_je_k2_jl), surfJ, inp, eos, 1) ,gce_j2_k2);
+	  (*this).state[gce_j1_k1] = (*this).State(gc_je_k1).GetGhostState(bc_J, (*this).FAreaJ(gf_je_k1_jl), surfJ, inp, eos, 1);
+	  (*this).state[gce_j1_k2] = (*this).State(gc_je_k2).GetGhostState(bc_J, (*this).FAreaJ(gf_je_k2_jl), surfJ, inp, eos, 1);
+	  (*this).state[gce_j2_k1] = (*this).State(gc_je2_k1).GetGhostState(bc_J, (*this).FAreaJ(gf_je_k1_jl), surfJ, inp, eos, 1);
+	  (*this).state[gce_j2_k2] = (*this).State(gc_je2_k2).GetGhostState(bc_J, (*this).FAreaJ(gf_je_k2_jl), surfJ, inp, eos, 1);
 	}
 	else if ( !(bc_J == "slipWall") && bc_K == "slipWall" ){  //k surface is a wall, but j surface is not - extend wall bc
-	  (*this).SetState( (*this).State(gc_j1_ke).GetGhostState(bc_K, (*this).FAreaK(gf_j1_ke_kl), surfK, inp, eos, 1) ,gce_j1_k1);
-	  (*this).SetState( (*this).State(gc_j2_ke).GetGhostState(bc_K, (*this).FAreaK(gf_j2_ke_kl), surfK, inp, eos, 1) ,gce_j2_k1);
-	  (*this).SetState( (*this).State(gc_j1_ke2).GetGhostState(bc_K, (*this).FAreaK(gf_j1_ke_kl), surfK, inp, eos, 1) ,gce_j1_k2);
-	  (*this).SetState( (*this).State(gc_j2_ke2).GetGhostState(bc_K, (*this).FAreaK(gf_j2_ke_kl), surfK, inp, eos, 1) ,gce_j2_k2);
+	  (*this).state[gce_j1_k1] = (*this).State(gc_j1_ke).GetGhostState(bc_K, (*this).FAreaK(gf_j1_ke_kl), surfK, inp, eos, 1);
+	  (*this).state[gce_j2_k1] = (*this).State(gc_j2_ke).GetGhostState(bc_K, (*this).FAreaK(gf_j2_ke_kl), surfK, inp, eos, 1);
+	  (*this).state[gce_j1_k2] = (*this).State(gc_j1_ke2).GetGhostState(bc_K, (*this).FAreaK(gf_j1_ke_kl), surfK, inp, eos, 1);
+	  (*this).state[gce_j2_k2] = (*this).State(gc_j2_ke2).GetGhostState(bc_K, (*this).FAreaK(gf_j2_ke_kl), surfK, inp, eos, 1);
 	}
 	else{ // both surfaces are walls or neither are walls - proceed as normal
-	  (*this).SetState( 0.5 * ( (*this).State(gc_j1_ke) + (*this).State(gc_je_k1) ) ,gce_j1_k1);
-	  (*this).SetState( (*this).State(gc_j2_ke) ,gce_j2_k1);
-	  (*this).SetState( (*this).State(gc_je_k2) ,gce_j1_k2);
-	  (*this).SetState( 0.5 * ( (*this).State(gc_j2_ke) + (*this).State(gc_je_k2) ) ,gce_j2_k2);
+	  (*this).state[gce_j1_k1] = 0.5 * ( (*this).State(gc_j1_ke) + (*this).State(gc_je_k1) );
+	  (*this).state[gce_j2_k1] = (*this).State(gc_j2_ke);
+	  (*this).state[gce_j1_k2] = (*this).State(gc_je_k2);
+	  (*this).state[gce_j2_k2] = 0.5 * ( (*this).State(gc_j2_ke) + (*this).State(gc_je_k2) );
 	}
 
       }
@@ -5320,23 +5320,23 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	}
 
 	if ( bc_I == "slipWall" && !(bc_K == "slipWall") ){  //i surface is a wall, but k surface is not - extend wall bc
-	  (*this).SetState( (*this).State(gc_ie_k1).GetGhostState(bc_I, (*this).FAreaI(gf_ie_k1_il), surfI, inp, eos, 1) ,gce_i1_k1);
-	  (*this).SetState( (*this).State(gc_ie_k2).GetGhostState(bc_I, (*this).FAreaI(gf_ie_k2_il), surfI, inp, eos, 1) ,gce_i1_k2);
-	  (*this).SetState( (*this).State(gc_ie2_k1).GetGhostState(bc_I, (*this).FAreaI(gf_ie_k1_il), surfI, inp, eos, 1) ,gce_i2_k1);
-	  (*this).SetState( (*this).State(gc_ie2_k2).GetGhostState(bc_I, (*this).FAreaI(gf_ie_k2_il), surfI, inp, eos, 1) ,gce_i2_k2);
+	  (*this).state[gce_i1_k1] = (*this).State(gc_ie_k1).GetGhostState(bc_I, (*this).FAreaI(gf_ie_k1_il), surfI, inp, eos, 1);
+	  (*this).state[gce_i1_k2] = (*this).State(gc_ie_k2).GetGhostState(bc_I, (*this).FAreaI(gf_ie_k2_il), surfI, inp, eos, 1);
+	  (*this).state[gce_i2_k1] = (*this).State(gc_ie2_k1).GetGhostState(bc_I, (*this).FAreaI(gf_ie_k1_il), surfI, inp, eos, 1);
+	  (*this).state[gce_i2_k2] = (*this).State(gc_ie2_k2).GetGhostState(bc_I, (*this).FAreaI(gf_ie_k2_il), surfI, inp, eos, 1);
 	}
 	else if ( !(bc_I == "slipWall") && bc_K == "slipWall" ){  //k surface is a wall, but i surface is not - extend wall bc
-	  (*this).SetState( (*this).State(gc_i1_ke).GetGhostState(bc_K, (*this).FAreaK(gf_i1_ke_kl), surfK, inp, eos, 1) ,gce_i1_k1);
-	  (*this).SetState( (*this).State(gc_i2_ke).GetGhostState(bc_K, (*this).FAreaK(gf_i2_ke_kl), surfK, inp, eos, 1) ,gce_i2_k1);
-	  (*this).SetState( (*this).State(gc_i1_ke2).GetGhostState(bc_K, (*this).FAreaK(gf_i1_ke_kl), surfK, inp, eos, 1) ,gce_i1_k2);
-	  (*this).SetState( (*this).State(gc_i2_ke2).GetGhostState(bc_K, (*this).FAreaK(gf_i2_ke_kl), surfK, inp, eos, 1) ,gce_i2_k2);
+	  (*this).state[gce_i1_k1] = (*this).State(gc_i1_ke).GetGhostState(bc_K, (*this).FAreaK(gf_i1_ke_kl), surfK, inp, eos, 1);
+	  (*this).state[gce_i2_k1] = (*this).State(gc_i2_ke).GetGhostState(bc_K, (*this).FAreaK(gf_i2_ke_kl), surfK, inp, eos, 1);
+	  (*this).state[gce_i1_k2] = (*this).State(gc_i1_ke2).GetGhostState(bc_K, (*this).FAreaK(gf_i1_ke_kl), surfK, inp, eos, 1);
+	  (*this).state[gce_i2_k2] = (*this).State(gc_i2_ke2).GetGhostState(bc_K, (*this).FAreaK(gf_i2_ke_kl), surfK, inp, eos, 1);
 
 	}
 	else{ // both surfaces are walls or neither are walls - proceed as normal
-	  (*this).SetState( 0.5 * ( (*this).State(gc_i1_ke) + (*this).State(gc_ie_k1) ) ,gce_i1_k1);
-	  (*this).SetState( (*this).State(gc_i2_ke) ,gce_i2_k1);
-	  (*this).SetState( (*this).State(gc_ie_k2) ,gce_i1_k2);
-	  (*this).SetState( 0.5 * ( (*this).State(gc_i2_ke) + (*this).State(gc_ie_k2) ) ,gce_i2_k2);
+	  (*this).state[gce_i1_k1] = 0.5 * ( (*this).State(gc_i1_ke) + (*this).State(gc_ie_k1) );
+	  (*this).state[gce_i2_k1] = (*this).State(gc_i2_ke);
+	  (*this).state[gce_i1_k2] = (*this).State(gc_ie_k2);
+	  (*this).state[gce_i2_k2] = 0.5 * ( (*this).State(gc_i2_ke) + (*this).State(gc_ie_k2) );
 	}
 
       }
@@ -5537,22 +5537,22 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	}
 
 	if ( bc_I == "slipWall" && !(bc_J == "slipWall") ){  //i surface is a wall, but k surface is not - extend wall bc
-	  (*this).SetState( (*this).State(gc_ie_j1).GetGhostState(bc_I, (*this).FAreaI(gf_ie_j1_il), surfI, inp, eos, 1) ,gce_i1_j1);
-	  (*this).SetState( (*this).State(gc_ie_j2).GetGhostState(bc_I, (*this).FAreaI(gf_ie_j2_il), surfI, inp, eos, 1) ,gce_i1_j2);
-	  (*this).SetState( (*this).State(gc_ie2_j1).GetGhostState(bc_I, (*this).FAreaI(gf_ie_j1_il), surfI, inp, eos, 1) ,gce_i2_j1);
-	  (*this).SetState( (*this).State(gc_ie2_j2).GetGhostState(bc_I, (*this).FAreaI(gf_ie_j2_il), surfI, inp, eos, 1) ,gce_i2_j2);
+	  (*this).state[gce_i1_j1] = (*this).State(gc_ie_j1).GetGhostState(bc_I, (*this).FAreaI(gf_ie_j1_il), surfI, inp, eos, 1);
+	  (*this).state[gce_i1_j2] = (*this).State(gc_ie_j2).GetGhostState(bc_I, (*this).FAreaI(gf_ie_j2_il), surfI, inp, eos, 1);
+	  (*this).state[gce_i2_j1] = (*this).State(gc_ie2_j1).GetGhostState(bc_I, (*this).FAreaI(gf_ie_j1_il), surfI, inp, eos, 1);
+	  (*this).state[gce_i2_j2] = (*this).State(gc_ie2_j2).GetGhostState(bc_I, (*this).FAreaI(gf_ie_j2_il), surfI, inp, eos, 1);
 	}
 	else if ( !(bc_I == "slipWall") && bc_J == "slipWall" ){  //k surface is a wall, but i surface is not - extend wall bc
-	  (*this).SetState( (*this).State(gc_i1_je).GetGhostState(bc_J, (*this).FAreaJ(gf_i1_je_jl), surfJ, inp, eos, 1) ,gce_i1_j1);
-	  (*this).SetState( (*this).State(gc_i2_je).GetGhostState(bc_J, (*this).FAreaJ(gf_i2_je_jl), surfJ, inp, eos, 1) ,gce_i2_j1);
-	  (*this).SetState( (*this).State(gc_i1_je2).GetGhostState(bc_J, (*this).FAreaJ(gf_i1_je_jl), surfJ, inp, eos, 1) ,gce_i1_j2);
-	  (*this).SetState( (*this).State(gc_i2_je2).GetGhostState(bc_J, (*this).FAreaJ(gf_i2_je_jl), surfJ, inp, eos, 1) ,gce_i2_j2);
+	  (*this).state[gce_i1_j1] = (*this).State(gc_i1_je).GetGhostState(bc_J, (*this).FAreaJ(gf_i1_je_jl), surfJ, inp, eos, 1);
+	  (*this).state[gce_i2_j1] = (*this).State(gc_i2_je).GetGhostState(bc_J, (*this).FAreaJ(gf_i2_je_jl), surfJ, inp, eos, 1);
+	  (*this).state[gce_i1_j2] = (*this).State(gc_i1_je2).GetGhostState(bc_J, (*this).FAreaJ(gf_i1_je_jl), surfJ, inp, eos, 1);
+	  (*this).state[gce_i2_j2] = (*this).State(gc_i2_je2).GetGhostState(bc_J, (*this).FAreaJ(gf_i2_je_jl), surfJ, inp, eos, 1);
 	}
 	else{ // both surfaces are walls or neither are walls - proceed as normal
-	  (*this).SetState( 0.5 * ( (*this).State(gc_i1_je) + (*this).State(gc_ie_j1) ) ,gce_i1_j1);
-	  (*this).SetState( (*this).State(gc_i2_je) ,gce_i2_j1);
-	  (*this).SetState( (*this).State(gc_ie_j2) ,gce_i1_j2);
-	  (*this).SetState( 0.5 * ( (*this).State(gc_i2_je) + (*this).State(gc_ie_j2) ) ,gce_i2_j2);
+	  (*this).state[gce_i1_j1] = 0.5 * ( (*this).State(gc_i1_je) + (*this).State(gc_ie_j1) );
+	  (*this).state[gce_i2_j1] = (*this).State(gc_i2_je);
+	  (*this).state[gce_i1_j2] = (*this).State(gc_ie_j2);
+	  (*this).state[gce_i2_j2] = 0.5 * ( (*this).State(gc_i2_je) + (*this).State(gc_ie_j2) );
 	}
 
       }
@@ -5614,14 +5614,14 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
       //if viscous, overwrite regular ghost cell
       if (bcNameL == "viscousWall"){
 	//first layer of ghost cells
-	(*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1), cellLowG1);
+	(*this).state[cellLowG1] = (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1);
 
 	//second layer of ghost cells
 	if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetState( (*this).State(cellLowG1), cellLowG2);
+	  (*this).state[cellLowG2] = (*this).State(cellLowG1);
 	}
 	else{
-	  (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1), cellLowG2);
+	  (*this).state[cellLowG2] = (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, 1);
 	}
       }
 
@@ -5631,14 +5631,14 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
       //if viscous, overwrite regular ghost cell
       if (bcNameU == "viscousWall"){
 	//first layer of ghost cells
-	(*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1), cellUpG1);
+	(*this).state[cellUpG1] = (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1);
 
 	//second layer of ghost cells
 	if (imax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetState( (*this).State(cellUpG1), cellUpG2);
+	  (*this).state[cellUpG2] = (*this).State(cellUpG1);
 	}
 	else{
-	  (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1), cellUpG2);
+	  (*this).state[cellUpG2] = (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, 1);
 	}
       }
 
@@ -5678,14 +5678,14 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
       //if viscous, overwrite regular ghost cell
       if (bcNameL == "viscousWall"){
 	//first layer of ghost cells
-	(*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG1);
+	(*this).state[cellLowG1] = (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1);
 
 	//second layer of ghost cells
 	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetState( (*this).State(cellLowG1), cellLowG2);
+	  (*this).state[cellLowG2] = (*this).State(cellLowG1);
 	}
 	else{
-	  (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1), cellLowG2);
+	  (*this).state[cellLowG2] = (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, 1);
 	}
       }
 
@@ -5695,14 +5695,14 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
       //if viscous, overwrite regular ghost cell
       if (bcNameU == "viscousWall"){
 	//first layer of ghost cells
-	(*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1), cellUpG1);
+	(*this).state[cellUpG1] = (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1);
 
 	//second layer of ghost cells
 	if (jmax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetState( (*this).State(cellUpG1), cellUpG2);
+	  (*this).state[cellUpG2] = (*this).State(cellUpG1);
 	}
 	else{
-	  (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1), cellUpG2);
+	  (*this).state[cellUpG2] = (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, 1);
 	}
       }
 
@@ -5742,14 +5742,14 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
       //if viscous, overwrite regular ghost cells
       if (bcNameL == "viscousWall"){
 	//first layer of ghost cells
-	(*this).SetState( (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1), cellLowG1);
+	(*this).state[cellLowG1] = (*this).State(cellLowIn1).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1);
 
 	//second layer of ghost cells
 	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetState( (*this).State(cellLowG1), cellLowG2);
+	  (*this).state[cellLowG2] = (*this).State(cellLowG1);
 	}
 	else{
-	  (*this).SetState( (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1), cellLowG2);
+	  (*this).state[cellLowG2] = (*this).State(cellLowIn2).GetGhostState(bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, 1);
 	}
       }
 
@@ -5759,14 +5759,14 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
       //if viscous, overwrite regular ghost cells
       if (bcNameU == "viscousWall"){
 	//first layer of ghost cells
-	(*this).SetState( (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG1);
+	(*this).state[cellUpG1] = (*this).State(cellUpIn1).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1);
 
 	//second layer of ghost cells
 	if (kmax < 2){ //one cell thick - use one cell for both ghost cells
-	  (*this).SetState( (*this).State(cellUpG1), cellUpG2);
+	  (*this).state[cellUpG2] = (*this).State(cellUpG1);
 	}
 	else{
-	  (*this).SetState( (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1), cellUpG2);
+	  (*this).state[cellUpG2] = (*this).State(cellUpIn2).GetGhostState(bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, 1);
 	}
       }
 
@@ -6005,22 +6005,22 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp, const idealGas &eo
       int gc_je2_k2 = GetLoc1D(ii, je2, k2, imaxG, jmaxG);    //ghost cell, on second non-edge layer of j line of cells, on second layer of k line of cells  
 
       if ( bc_jl == "viscousWall" && !(bc_kl == "viscousWall") ){  //j surface is a viscous wall, but k surface is not - extend wall bc
-	(*this).SetState( (*this).State(gc_je_k1).GetGhostState(bc_jl, (*this).FAreaJ(gf_je_k1_jl), surfJ, inp, eos, 1) ,gce_j1_k1);
-	(*this).SetState( (*this).State(gc_je_k2).GetGhostState(bc_jl, (*this).FAreaJ(gf_je_k2_jl), surfJ, inp, eos, 1) ,gce_j1_k2);
-	(*this).SetState( (*this).State(gc_je2_k1).GetGhostState(bc_jl, (*this).FAreaJ(gf_je_k1_jl), surfJ, inp, eos, 1) ,gce_j2_k1);
-	(*this).SetState( (*this).State(gc_je2_k2).GetGhostState(bc_jl, (*this).FAreaJ(gf_je_k2_jl), surfJ, inp, eos, 1) ,gce_j2_k2);
+	(*this).state[gce_j1_k1] = (*this).State(gc_je_k1).GetGhostState(bc_jl, (*this).FAreaJ(gf_je_k1_jl), surfJ, inp, eos, 1);
+	(*this).state[gce_j1_k2] = (*this).State(gc_je_k2).GetGhostState(bc_jl, (*this).FAreaJ(gf_je_k2_jl), surfJ, inp, eos, 1);
+	(*this).state[gce_j2_k1] = (*this).State(gc_je2_k1).GetGhostState(bc_jl, (*this).FAreaJ(gf_je_k1_jl), surfJ, inp, eos, 1);
+	(*this).state[gce_j2_k2] = (*this).State(gc_je2_k2).GetGhostState(bc_jl, (*this).FAreaJ(gf_je_k2_jl), surfJ, inp, eos, 1);
       }
       else if ( !(bc_jl == "viscousWall") && bc_kl == "viscousWall" ){  //k surface is a viscous wall, but j surface is not - extend wall bc
-	(*this).SetState( (*this).State(gc_j1_ke).GetGhostState(bc_kl, (*this).FAreaK(gf_j1_ke_kl), surfK, inp, eos, 1) ,gce_j1_k1);
-	(*this).SetState( (*this).State(gc_j2_ke).GetGhostState(bc_kl, (*this).FAreaK(gf_j2_ke_kl), surfK, inp, eos, 1) ,gce_j2_k1);
-	(*this).SetState( (*this).State(gc_j1_ke2).GetGhostState(bc_kl, (*this).FAreaK(gf_j1_ke_kl), surfK, inp, eos, 1) ,gce_j1_k2);
-	(*this).SetState( (*this).State(gc_j2_ke2).GetGhostState(bc_kl, (*this).FAreaK(gf_j2_ke_kl), surfK, inp, eos, 1) ,gce_j2_k2);
+	(*this).state[gce_j1_k1] = (*this).State(gc_j1_ke).GetGhostState(bc_kl, (*this).FAreaK(gf_j1_ke_kl), surfK, inp, eos, 1);
+	(*this).state[gce_j2_k1] = (*this).State(gc_j2_ke).GetGhostState(bc_kl, (*this).FAreaK(gf_j2_ke_kl), surfK, inp, eos, 1);
+	(*this).state[gce_j1_k2] = (*this).State(gc_j1_ke2).GetGhostState(bc_kl, (*this).FAreaK(gf_j1_ke_kl), surfK, inp, eos, 1);
+	(*this).state[gce_j2_k2] = (*this).State(gc_j2_ke2).GetGhostState(bc_kl, (*this).FAreaK(gf_j2_ke_kl), surfK, inp, eos, 1);
       }
       else if ( bc_jl == "viscousWall" && bc_kl == "viscousWall" ){ // both surfaces are viscous walls - proceed as normal
-	(*this).SetState( 0.5 * ( (*this).State(gc_j1_ke) + (*this).State(gc_je_k1) ) ,gce_j1_k1);
-	(*this).SetState( (*this).State(gc_j2_ke) ,gce_j2_k1);
-	(*this).SetState( (*this).State(gc_je_k2) ,gce_j1_k2);
-	(*this).SetState( 0.5 * ( (*this).State(gc_j2_ke) + (*this).State(gc_je_k2) ) ,gce_j2_k2);
+	(*this).state[gce_j1_k1] = 0.5 * ( (*this).State(gc_j1_ke) + (*this).State(gc_je_k1) );
+	(*this).state[gce_j2_k1] = (*this).State(gc_j2_ke);
+	(*this).state[gce_j1_k2] = (*this).State(gc_je_k2);
+	(*this).state[gce_j2_k2] = 0.5 * ( (*this).State(gc_j2_ke) + (*this).State(gc_je_k2) );
       }
       //if no boundary is a viscous wall, do nothing
 
@@ -6210,22 +6210,22 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp, const idealGas &eo
       int gc_ie2_k2 = GetLoc1D(ie2, jj, k2, imaxG, jmaxG);     //ghost cell, on second non-edge layer of i line of cells, on second layer of k line of cells  
 
       if ( bc_il == "viscousWall" && !(bc_kl == "viscousWall") ){  //i surface is a viscous wall, but k surface is not - extend wall bc
-	(*this).SetState( (*this).State(gc_ie_k1).GetGhostState(bc_il, (*this).FAreaI(gf_ie_k1_il), surfI, inp, eos, 1) ,gce_i1_k1);
-	(*this).SetState( (*this).State(gc_ie_k2).GetGhostState(bc_il, (*this).FAreaI(gf_ie_k2_il), surfI, inp, eos, 1) ,gce_i1_k2);
-	(*this).SetState( (*this).State(gc_ie2_k1).GetGhostState(bc_il, (*this).FAreaI(gf_ie_k1_il), surfI, inp, eos, 1) ,gce_i2_k1);
-	(*this).SetState( (*this).State(gc_ie2_k2).GetGhostState(bc_il, (*this).FAreaI(gf_ie_k2_il), surfI, inp, eos, 1) ,gce_i2_k2);
+	(*this).state[gce_i1_k1] = (*this).State(gc_ie_k1).GetGhostState(bc_il, (*this).FAreaI(gf_ie_k1_il), surfI, inp, eos, 1);
+	(*this).state[gce_i1_k2] = (*this).State(gc_ie_k2).GetGhostState(bc_il, (*this).FAreaI(gf_ie_k2_il), surfI, inp, eos, 1);
+	(*this).state[gce_i2_k1] = (*this).State(gc_ie2_k1).GetGhostState(bc_il, (*this).FAreaI(gf_ie_k1_il), surfI, inp, eos, 1);
+	(*this).state[gce_i2_k2] = (*this).State(gc_ie2_k2).GetGhostState(bc_il, (*this).FAreaI(gf_ie_k2_il), surfI, inp, eos, 1);
       }
       else if ( !(bc_il == "viscousWall") && bc_kl == "viscousWall" ){  //k surface is a viscous wall, but i surface is not - extend wall bc
-	(*this).SetState( (*this).State(gc_i1_ke).GetGhostState(bc_kl, (*this).FAreaK(gf_i1_ke_kl), surfK, inp, eos, 1) ,gce_i1_k1);
-	(*this).SetState( (*this).State(gc_i2_ke).GetGhostState(bc_kl, (*this).FAreaK(gf_i2_ke_kl), surfK, inp, eos, 1) ,gce_i2_k1);
-	(*this).SetState( (*this).State(gc_i1_ke2).GetGhostState(bc_kl, (*this).FAreaK(gf_i1_ke_kl), surfK, inp, eos, 1) ,gce_i1_k2);
-	(*this).SetState( (*this).State(gc_i2_ke2).GetGhostState(bc_kl, (*this).FAreaK(gf_i2_ke_kl), surfK, inp, eos, 1) ,gce_i2_k2);
+	(*this).state[gce_i1_k1] = (*this).State(gc_i1_ke).GetGhostState(bc_kl, (*this).FAreaK(gf_i1_ke_kl), surfK, inp, eos, 1);
+	(*this).state[gce_i2_k1] = (*this).State(gc_i2_ke).GetGhostState(bc_kl, (*this).FAreaK(gf_i2_ke_kl), surfK, inp, eos, 1);
+	(*this).state[gce_i1_k2] = (*this).State(gc_i1_ke2).GetGhostState(bc_kl, (*this).FAreaK(gf_i1_ke_kl), surfK, inp, eos, 1);
+	(*this).state[gce_i2_k2] = (*this).State(gc_i2_ke2).GetGhostState(bc_kl, (*this).FAreaK(gf_i2_ke_kl), surfK, inp, eos, 1);
       }
       else if ( bc_il == "viscousWall" && bc_kl == "viscousWall" ){ // both surfaces are viscous walls - proceed as normal
-	(*this).SetState( 0.5 * ( (*this).State(gc_i1_ke) + (*this).State(gc_ie_k1) ) ,gce_i1_k1);
-	(*this).SetState( (*this).State(gc_i2_ke) ,gce_i2_k1);
-	(*this).SetState( (*this).State(gc_ie_k2) ,gce_i1_k2);
-	(*this).SetState( 0.5 * ( (*this).State(gc_i2_ke) + (*this).State(gc_ie_k2) ) ,gce_i2_k2);
+	(*this).state[gce_i1_k1] = 0.5 * ( (*this).State(gc_i1_ke) + (*this).State(gc_ie_k1) );
+	(*this).state[gce_i2_k1] = (*this).State(gc_i2_ke);
+	(*this).state[gce_i1_k2] = (*this).State(gc_ie_k2);
+	(*this).state[gce_i2_k2] = 0.5 * ( (*this).State(gc_i2_ke) + (*this).State(gc_ie_k2) );
       }
       //if neither surface is a wall then do nothing
 
@@ -6416,22 +6416,22 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp, const idealGas &eo
       int gc_ie2_j2 = GetLoc1D(ie2, j2, kk, imaxG, jmaxG);     //ghost cell, on second non-edge layer of i line of cells, on second layer of j line of cells  
 
       if ( bc_il == "viscousWall" && !(bc_jl == "viscousWall") ){  //i surface is a viscous wall, but k surface is not - extend wall bc
-	(*this).SetState( (*this).State(gc_ie_j1).GetGhostState(bc_il, (*this).FAreaI(gf_ie_j1_il), surfI, inp, eos, 1) ,gce_i1_j1);
-	(*this).SetState( (*this).State(gc_ie_j2).GetGhostState(bc_il, (*this).FAreaI(gf_ie_j2_il), surfI, inp, eos, 1) ,gce_i1_j2);
-	(*this).SetState( (*this).State(gc_ie2_j1).GetGhostState(bc_il, (*this).FAreaI(gf_ie_j1_il), surfI, inp, eos, 1) ,gce_i2_j1);
-	(*this).SetState( (*this).State(gc_ie2_j2).GetGhostState(bc_il, (*this).FAreaI(gf_ie_j2_il), surfI, inp, eos, 1) ,gce_i2_j2);
+	(*this).state[gce_i1_j1] = (*this).State(gc_ie_j1).GetGhostState(bc_il, (*this).FAreaI(gf_ie_j1_il), surfI, inp, eos, 1);
+	(*this).state[gce_i1_j2] = (*this).State(gc_ie_j2).GetGhostState(bc_il, (*this).FAreaI(gf_ie_j2_il), surfI, inp, eos, 1);
+	(*this).state[gce_i2_j1] = (*this).State(gc_ie2_j1).GetGhostState(bc_il, (*this).FAreaI(gf_ie_j1_il), surfI, inp, eos, 1);
+	(*this).state[gce_i2_j2] = (*this).State(gc_ie2_j2).GetGhostState(bc_il, (*this).FAreaI(gf_ie_j2_il), surfI, inp, eos, 1);
       }
       else if ( !(bc_il == "viscousWall") && bc_jl == "viscousWall" ){  //j surface is a viscous wall, but i surface is not - extend wall bc
-	(*this).SetState( (*this).State(gc_i1_je).GetGhostState(bc_jl, (*this).FAreaJ(gf_i1_je_jl), surfJ, inp, eos, 1) ,gce_i1_j1);
-	(*this).SetState( (*this).State(gc_i2_je).GetGhostState(bc_jl, (*this).FAreaJ(gf_i2_je_jl), surfJ, inp, eos, 1) ,gce_i2_j1);
-	(*this).SetState( (*this).State(gc_i1_je2).GetGhostState(bc_jl, (*this).FAreaJ(gf_i1_je_jl), surfJ, inp, eos, 1) ,gce_i1_j2);
-	(*this).SetState( (*this).State(gc_i2_je2).GetGhostState(bc_jl, (*this).FAreaJ(gf_i2_je_jl), surfJ, inp, eos, 1) ,gce_i2_j2);
+	(*this).state[gce_i1_j1] = (*this).State(gc_i1_je).GetGhostState(bc_jl, (*this).FAreaJ(gf_i1_je_jl), surfJ, inp, eos, 1);
+	(*this).state[gce_i2_j1] = (*this).State(gc_i2_je).GetGhostState(bc_jl, (*this).FAreaJ(gf_i2_je_jl), surfJ, inp, eos, 1);
+	(*this).state[gce_i1_j2] = (*this).State(gc_i1_je2).GetGhostState(bc_jl, (*this).FAreaJ(gf_i1_je_jl), surfJ, inp, eos, 1);
+	(*this).state[gce_i2_j2] = (*this).State(gc_i2_je2).GetGhostState(bc_jl, (*this).FAreaJ(gf_i2_je_jl), surfJ, inp, eos, 1);
       }
       else if ( bc_il == "viscousWall" && bc_jl == "viscousWall"){ // both surfaces are viscous walls - proceed as normal
-	(*this).SetState( 0.5 * ( (*this).State(gc_i1_je) + (*this).State(gc_ie_j1) ) ,gce_i1_j1);
-	(*this).SetState( (*this).State(gc_i2_je) ,gce_i2_j1);
-	(*this).SetState( (*this).State(gc_ie_j2) ,gce_i1_j2);
-	(*this).SetState( 0.5 * ( (*this).State(gc_i2_je) + (*this).State(gc_ie_j2) ) ,gce_i2_j2);
+	(*this).state[gce_i1_j1] = 0.5 * ( (*this).State(gc_i1_je) + (*this).State(gc_ie_j1) );
+	(*this).state[gce_i2_j1] = (*this).State(gc_i2_je);
+	(*this).state[gce_i1_j2] = (*this).State(gc_ie_j2);
+	(*this).state[gce_i2_j2] = 0.5 * ( (*this).State(gc_i2_je) + (*this).State(gc_ie_j2) );
       }
       //if neither surface is a viscous wall then do nothing
 
@@ -7176,59 +7176,59 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	int KupS  = GetUpperFaceK(indS[0], indS[1], indS[2], imaxS, jmaxS);
 
 	//swap cell data
-	(*this).SetVol( slice.Vol(locS), locB);
-	(*this).SetCenter( slice.Center(locS), locB);
+	(*this).vol[locB] = slice.Vol(locS);
+	(*this).center[locB] = slice.Center(locS);
 
 	//----------------------------------------------------------------------------------------------------------------------------------------
 	//swap face data
 	if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() <= 2 ){ //both patches i, i to i, j to j, k to k
 
 	  //swap face data for direction 3
-	  (*this).SetFCenterI( slice.FCenterI(IlowS) , IlowB);
-	  (*this).SetFAreaI( aFac3 * slice.FAreaI(IlowS) , IlowB);
+	  (*this).fCenterI[IlowB] = slice.FCenterI(IlowS) ;
+	  (*this).fAreaI[IlowB] = aFac3 * slice.FAreaI(IlowS) ;
 
 	  if ( l3 == (d3 - 1) ){ //at end of direction 3 line
-	    (*this).SetFCenterI( slice.FCenterI(IupS) , IupB);
-	    (*this).SetFAreaI( aFac3 * slice.FAreaI(IupS) , IupB);
+	    (*this).fCenterI[IupB] = slice.FCenterI(IupS) ;
+	    (*this).fAreaI[IupB] = aFac3 * slice.FAreaI(IupS) ;
 	  }
 
 	  //swap face data for direction 1
 	  if ( aFac1 == 1.0 ){
-	    (*this).SetFCenterJ( slice.FCenterJ(JlowS), JlowB );
-	    (*this).SetFAreaJ( aFac1 * slice.FAreaJ(JlowS), JlowB );
+	    (*this).fCenterJ[JlowB] = slice.FCenterJ(JlowS);
+	    (*this).fAreaJ[JlowB] = aFac1 * slice.FAreaJ(JlowS);
 
 	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).SetFCenterJ( slice.FCenterJ(JupS), JupB );
-	      (*this).SetFAreaJ( aFac1 * slice.FAreaJ(JupS), JupB );
+	      (*this).fCenterJ[JupB] = slice.FCenterJ(JupS);
+	      (*this).fAreaJ[JupB] = aFac1 * slice.FAreaJ(JupS);
 	    }
 	  }
 	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).SetFCenterJ( slice.FCenterJ(JupS), JlowB );
-	    (*this).SetFAreaJ( aFac1 * slice.FAreaJ(JupS), JlowB );
+	    (*this).fCenterJ[JlowB] = slice.FCenterJ(JupS);
+	    (*this).fAreaJ[JlowB] = aFac1 * slice.FAreaJ(JupS);
 
 	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).SetFCenterJ( slice.FCenterJ(JlowS), JupB );
-	      (*this).SetFAreaJ( aFac1 * slice.FAreaJ(JlowS), JupB );
+	      (*this).fCenterJ[JupB] = slice.FCenterJ(JlowS);
+	      (*this).fAreaJ[JupB] = aFac1 * slice.FAreaJ(JlowS);
 	    }
 	  }
 
 	  //swap face data for direction 2
 	  if ( aFac2 == 1.0 ){
-	    (*this).SetFCenterK( slice.FCenterK(KlowS), KlowB );
-	    (*this).SetFAreaK( aFac2 * slice.FAreaK(KlowS), KlowB );
+	    (*this).fCenterK[KlowB] = slice.FCenterK(KlowS);
+	    (*this).fAreaK[KlowB] = aFac2 * slice.FAreaK(KlowS);
 
 	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).SetFCenterK( slice.FCenterK(KupS), KupB );
-	      (*this).SetFAreaK( aFac2 * slice.FAreaK(KupS), KupB );
+	      (*this).fCenterK[KupB] = slice.FCenterK(KupS);
+	      (*this).fAreaK[KupB] = aFac2 * slice.FAreaK(KupS);
 	    }
 	  }
 	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).SetFCenterK( slice.FCenterK(KupS), KlowB );
-	    (*this).SetFAreaK( aFac2 * slice.FAreaK(KupS), KlowB );
+	    (*this).fCenterK[KlowB] = slice.FCenterK(KupS);
+	    (*this).fAreaK[KlowB] = aFac2 * slice.FAreaK(KupS);
 
 	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).SetFCenterK( slice.FCenterK(KlowS), KupB );
-	      (*this).SetFAreaK( aFac2 * slice.FAreaK(KlowS), KupB );
+	      (*this).fCenterK[KupB] = slice.FCenterK(KlowS);
+	      (*this).fAreaK[KupB] = aFac2 * slice.FAreaK(KlowS);
 	    }
 	  }
 
@@ -7237,51 +7237,51 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4 ){ //both patches j, j to j, k to k, i to i
 
 	  //swap face data for direction 3
-	  (*this).SetFCenterJ( slice.FCenterJ(JlowS) , JlowB);
-	  (*this).SetFAreaJ( aFac3 * slice.FAreaJ(JlowS) , JlowB);
+	  (*this).fCenterJ[JlowB] = slice.FCenterJ(JlowS) ;
+	  (*this).fAreaJ[JlowB] = aFac3 * slice.FAreaJ(JlowS) ;
 
 	  if ( l3 == (d3 - 1) ){ //at end of direction 3 line
-	    (*this).SetFCenterJ( slice.FCenterJ(JupS) , JupB);
-	    (*this).SetFAreaJ( aFac3 * slice.FAreaJ(JupS) , JupB);
+	    (*this).fCenterJ[JupB] = slice.FCenterJ(JupS) ;
+	    (*this).fAreaJ[JupB] = aFac3 * slice.FAreaJ(JupS) ;
 	  }
 
 	  //swap face data for direction 1
 	  if ( aFac1 == 1.0 ){
-	    (*this).SetFCenterK( slice.FCenterK(KlowS), KlowB );
-	    (*this).SetFAreaK( aFac1 * slice.FAreaK(KlowS), KlowB );
+	    (*this).fCenterK[KlowB] = slice.FCenterK(KlowS);
+	    (*this).fAreaK[KlowB] = aFac1 * slice.FAreaK(KlowS);
 
 	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).SetFCenterK( slice.FCenterK(KupS), KupB );
-	      (*this).SetFAreaK( aFac1 * slice.FAreaK(KupS), KupB );
+	      (*this).fCenterK[KupB] = slice.FCenterK(KupS);
+	      (*this).fAreaK[KupB] = aFac1 * slice.FAreaK(KupS);
 	    }
 	  }
 	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).SetFCenterK( slice.FCenterK(KupS), KlowB );
-	    (*this).SetFAreaK( aFac1 * slice.FAreaK(KupS), KlowB );
+	    (*this).fCenterK[KlowB] = slice.FCenterK(KupS);
+	    (*this).fAreaK[KlowB] = aFac1 * slice.FAreaK(KupS);
 
 	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).SetFCenterK( slice.FCenterK(KlowS), KupB );
-	      (*this).SetFAreaK( aFac1 * slice.FAreaK(KlowS), KupB );
+	      (*this).fCenterK[KupB] = slice.FCenterK(KlowS);
+	      (*this).fAreaK[KupB] = aFac1 * slice.FAreaK(KlowS);
 	    }
 	  }
 
 	  //swap face data for direction 2
 	  if ( aFac2 == 1.0 ){
-	    (*this).SetFCenterI( slice.FCenterI(IlowS), IlowB );
-	    (*this).SetFAreaI( aFac2 * slice.FAreaI(IlowS), IlowB );
+	    (*this).fCenterI[IlowB] = slice.FCenterI(IlowS);
+	    (*this).fAreaI[IlowB] = aFac2 * slice.FAreaI(IlowS);
 
 	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).SetFCenterI( slice.FCenterI(IupS), IupB );
-	      (*this).SetFAreaI( aFac2 * slice.FAreaI(IupS), IupB );
+	      (*this).fCenterI[IupB] = slice.FCenterI(IupS);
+	      (*this).fAreaI[IupB] = aFac2 * slice.FAreaI(IupS);
 	    }
 	  }
 	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).SetFCenterI( slice.FCenterI(IupS), IlowB );
-	    (*this).SetFAreaI( aFac2 * slice.FAreaI(IupS), IlowB );
+	    (*this).fCenterI[IlowB] = slice.FCenterI(IupS);
+	    (*this).fAreaI[IlowB] = aFac2 * slice.FAreaI(IupS);
 
 	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).SetFCenterI( slice.FCenterI(IlowS), IupB );
-	      (*this).SetFAreaI( aFac2 * slice.FAreaI(IlowS), IupB );
+	      (*this).fCenterI[IupB] = slice.FCenterI(IlowS);
+	      (*this).fAreaI[IupB] = aFac2 * slice.FAreaI(IlowS);
 	    }
 	  }
 	}
@@ -7289,51 +7289,51 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6 ){ //both patches k, k to k, i to i, j to j
 
 	  //swap face data for direction 3
-	  (*this).SetFCenterK( slice.FCenterK(KlowS) , KlowB);
-	  (*this).SetFAreaK( aFac3 * slice.FAreaK(KlowS) , KlowB);
+	  (*this).fCenterK[KlowB] = slice.FCenterK(KlowS) ;
+	  (*this).fAreaK[KlowB] = aFac3 * slice.FAreaK(KlowS) ;
 
 	  if ( l3 == (d3 - 1) ){ //at end of direction 3 line
-	    (*this).SetFCenterK( slice.FCenterK(KupS) , KupB);
-	    (*this).SetFAreaK( aFac3 * slice.FAreaK(KupS) , KupB);
+	    (*this).fCenterK[KupB] = slice.FCenterK(KupS) ;
+	    (*this).fAreaK[KupB] = aFac3 * slice.FAreaK(KupS) ;
 	  }
 
 	  //swap face data for direction 1
 	  if ( aFac1 == 1.0 ){
-	    (*this).SetFCenterI( slice.FCenterI(IlowS), IlowB );
-	    (*this).SetFAreaI( aFac1 * slice.FAreaI(IlowS), IlowB );
+	    (*this).fCenterI[IlowB] = slice.FCenterI(IlowS);
+	    (*this).fAreaI[IlowB] = aFac1 * slice.FAreaI(IlowS);
 
 	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).SetFCenterI( slice.FCenterI(IupS), IupB );
-	      (*this).SetFAreaI( aFac1 * slice.FAreaI(IupS), IupB );
+	      (*this).fCenterI[IupB] = slice.FCenterI(IupS);
+	      (*this).fAreaI[IupB] = aFac1 * slice.FAreaI(IupS);
 	    }
 	  }
 	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).SetFCenterI( slice.FCenterI(IupS), IlowB );
-	    (*this).SetFAreaI( aFac1 * slice.FAreaI(IupS), IlowB );
+	    (*this).fCenterI[IlowB] = slice.FCenterI(IupS);
+	    (*this).fAreaI[IlowB] = aFac1 * slice.FAreaI(IupS);
 
 	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).SetFCenterI( slice.FCenterI(IlowS), IupB );
-	      (*this).SetFAreaI( aFac1 * slice.FAreaI(IlowS), IupB );
+	      (*this).fCenterI[IupB] = slice.FCenterI(IlowS);
+	      (*this).fAreaI[IupB] = aFac1 * slice.FAreaI(IlowS);
 	    }
 	  }
 
 	  //swap face data for direction 2
 	  if ( aFac2 == 1.0 ){
-	    (*this).SetFCenterJ( slice.FCenterJ(JlowS), JlowB );
-	    (*this).SetFAreaJ( aFac2 * slice.FAreaJ(JlowS), JlowB );
+	    (*this).fCenterJ[JlowB] = slice.FCenterJ(JlowS);
+	    (*this).fAreaJ[JlowB] = aFac2 * slice.FAreaJ(JlowS);
 
 	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).SetFCenterJ( slice.FCenterJ(JupS), JupB );
-	      (*this).SetFAreaJ( aFac2 * slice.FAreaJ(JupS), JupB );
+	      (*this).fCenterJ[JupB] = slice.FCenterJ(JupS);
+	      (*this).fAreaJ[JupB] = aFac2 * slice.FAreaJ(JupS);
 	    }
 	  }
 	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).SetFCenterJ( slice.FCenterJ(JupS), JlowB );
-	    (*this).SetFAreaJ( aFac2 * slice.FAreaJ(JupS), JlowB );
+	    (*this).fCenterJ[JlowB] = slice.FCenterJ(JupS);
+	    (*this).fAreaJ[JlowB] = aFac2 * slice.FAreaJ(JupS);
 
 	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).SetFCenterJ( slice.FCenterJ(JlowS), JupB );
-	      (*this).SetFAreaJ( aFac2 * slice.FAreaJ(JlowS), JupB );
+	      (*this).fCenterJ[JupB] = slice.FCenterJ(JlowS);
+	      (*this).fAreaJ[JupB] = aFac2 * slice.FAreaJ(JlowS);
 	    }
 	  }
 	}
@@ -7341,51 +7341,51 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	else if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4){ //patches are i/j  - i to j, j to k, k to i
 
 	  //swap face data for direction 3
-	  (*this).SetFCenterI( slice.FCenterJ(JlowS) , IlowB);
-	  (*this).SetFAreaI( aFac3 * slice.FAreaJ(JlowS) , IlowB);
+	  (*this).fCenterI[IlowB] = slice.FCenterJ(JlowS) ;
+	  (*this).fAreaI[IlowB] = aFac3 * slice.FAreaJ(JlowS) ;
 
 	  if ( l3 == (d3 - 1) ){ //at end of direction 3 line
-	    (*this).SetFCenterI( slice.FCenterJ(JupS) , IupB);
-	    (*this).SetFAreaI( aFac3 * slice.FAreaJ(JupS) , IupB);
+	    (*this).fCenterI[IupB] = slice.FCenterJ(JupS) ;
+	    (*this).fAreaI[IupB] = aFac3 * slice.FAreaJ(JupS) ;
 	  }
 
 	  //swap face data for direction 1
 	  if ( aFac1 == 1.0 ){
-	    (*this).SetFCenterJ( slice.FCenterK(KlowS), JlowB );
-	    (*this).SetFAreaJ( aFac1 * slice.FAreaK(KlowS), JlowB );
+	    (*this).fCenterJ[JlowB] = slice.FCenterK(KlowS);
+	    (*this).fAreaJ[JlowB] = aFac1 * slice.FAreaK(KlowS);
 
 	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).SetFCenterJ( slice.FCenterK(KupS), JupB );
-	      (*this).SetFAreaJ( aFac1 * slice.FAreaK(KupS), JupB );
+	      (*this).fCenterJ[JupB] = slice.FCenterK(KupS);
+	      (*this).fAreaJ[JupB] = aFac1 * slice.FAreaK(KupS);
 	    }
 	  }
 	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).SetFCenterJ( slice.FCenterK(KupS), JlowB );
-	    (*this).SetFAreaJ( aFac1 * slice.FAreaK(KupS), JlowB );
+	    (*this).fCenterJ[JlowB] = slice.FCenterK(KupS);
+	    (*this).fAreaJ[JlowB] = aFac1 * slice.FAreaK(KupS);
 
 	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).SetFCenterJ( slice.FCenterK(KlowS), JupB );
-	      (*this).SetFAreaJ( aFac1 * slice.FAreaK(KlowS), JupB );
+	      (*this).fCenterJ[JupB] = slice.FCenterK(KlowS);
+	      (*this).fAreaJ[JupB] = aFac1 * slice.FAreaK(KlowS);
 	    }
 	  }
 
 	  //swap face data for direction 2
 	  if ( aFac2 == 1.0 ){
-	    (*this).SetFCenterK( slice.FCenterI(IlowS), KlowB );
-	    (*this).SetFAreaK( aFac2 * slice.FAreaI(IlowS), KlowB );
+	    (*this).fCenterK[KlowB] = slice.FCenterI(IlowS);
+	    (*this).fAreaK[KlowB] = aFac2 * slice.FAreaI(IlowS);
 
 	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).SetFCenterK( slice.FCenterI(IupS), KupB );
-	      (*this).SetFAreaK( aFac2 * slice.FAreaI(IupS), KupB );
+	      (*this).fCenterK[KupB] = slice.FCenterI(IupS);
+	      (*this).fAreaK[KupB] = aFac2 * slice.FAreaI(IupS);
 	    }
 	  }
 	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).SetFCenterK( slice.FCenterI(IupS), KlowB );
-	    (*this).SetFAreaK( aFac2 * slice.FAreaI(IupS), KlowB );
+	    (*this).fCenterK[KlowB] = slice.FCenterI(IupS);
+	    (*this).fAreaK[KlowB] = aFac2 * slice.FAreaI(IupS);
 
 	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).SetFCenterK( slice.FCenterI(IlowS), KupB );
-	      (*this).SetFAreaK( aFac2 * slice.FAreaI(IlowS), KupB );
+	      (*this).fCenterK[KupB] = slice.FCenterI(IlowS);
+	      (*this).fAreaK[KupB] = aFac2 * slice.FAreaI(IlowS);
 	    }
 	  }
 	}
@@ -7393,51 +7393,51 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	else if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6){ //patches are i/k  - i to k, j to i, k to j
 
 	  //swap face data for direction 3
-	  (*this).SetFCenterI( slice.FCenterK(KlowS) , IlowB);
-	  (*this).SetFAreaI( aFac3 * slice.FAreaK(KlowS) , IlowB);
+	  (*this).fCenterI[IlowB] = slice.FCenterK(KlowS) ;
+	  (*this).fAreaI[IlowB] = aFac3 * slice.FAreaK(KlowS) ;
 
 	  if ( l3 == (d3 - 1) ){ //at end of direction 3 line
-	    (*this).SetFCenterI( slice.FCenterK(KupS) , IupB);
-	    (*this).SetFAreaI( aFac3 * slice.FAreaK(KupS) , IupB);
+	    (*this).fCenterI[IupB] = slice.FCenterK(KupS) ;
+	    (*this).fAreaI[IupB] = aFac3 * slice.FAreaK(KupS) ;
 	  }
 
 	  //swap face data for direction 1
 	  if ( aFac1 == 1.0 ){
-	    (*this).SetFCenterJ( slice.FCenterI(IlowS), JlowB );
-	    (*this).SetFAreaJ( aFac1 * slice.FAreaI(IlowS), JlowB );
+	    (*this).fCenterJ[JlowB] = slice.FCenterI(IlowS);
+	    (*this).fAreaJ[JlowB] = aFac1 * slice.FAreaI(IlowS);
 
 	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).SetFCenterJ( slice.FCenterI(IupS), JupB );
-	      (*this).SetFAreaJ( aFac1 * slice.FAreaI(IupS), JupB );
+	      (*this).fCenterJ[JupB] = slice.FCenterI(IupS);
+	      (*this).fAreaJ[JupB] = aFac1 * slice.FAreaI(IupS);
 	    }
 	  }
 	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).SetFCenterJ( slice.FCenterI(IupS), JlowB );
-	    (*this).SetFAreaJ( aFac1 * slice.FAreaI(IupS), JlowB );
+	    (*this).fCenterJ[JlowB] = slice.FCenterI(IupS);
+	    (*this).fAreaJ[JlowB] = aFac1 * slice.FAreaI(IupS);
 
 	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).SetFCenterJ( slice.FCenterI(IlowS), JupB );
-	      (*this).SetFAreaJ( aFac1 * slice.FAreaI(IlowS), JupB );
+	      (*this).fCenterJ[JupB] = slice.FCenterI(IlowS);
+	      (*this).fAreaJ[JupB] = aFac1 * slice.FAreaI(IlowS);
 	    }
 	  }
 
 	  //swap face data for direction 2
 	  if ( aFac2 == 1.0 ){
-	    (*this).SetFCenterK( slice.FCenterJ(JlowS), KlowB );
-	    (*this).SetFAreaK( aFac2 * slice.FAreaJ(JlowS), KlowB );
+	    (*this).fCenterK[KlowB] = slice.FCenterJ(JlowS);
+	    (*this).fAreaK[KlowB] = aFac2 * slice.FAreaJ(JlowS);
 
 	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).SetFCenterK( slice.FCenterJ(JupS), KupB );
-	      (*this).SetFAreaK( aFac2 * slice.FAreaJ(JupS), KupB );
+	      (*this).fCenterK[KupB] = slice.FCenterJ(JupS);
+	      (*this).fAreaK[KupB] = aFac2 * slice.FAreaJ(JupS);
 	    }
 	  }
 	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).SetFCenterK( slice.FCenterJ(JupS), KlowB );
-	    (*this).SetFAreaK( aFac2 * slice.FAreaJ(JupS), KlowB );
+	    (*this).fCenterK[KlowB] = slice.FCenterJ(JupS);
+	    (*this).fAreaK[KlowB] = aFac2 * slice.FAreaJ(JupS);
 
 	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).SetFCenterK( slice.FCenterJ(JlowS), KupB );
-	      (*this).SetFAreaK( aFac2 * slice.FAreaJ(JlowS), KupB );
+	      (*this).fCenterK[KupB] = slice.FCenterJ(JlowS);
+	      (*this).fAreaK[KupB] = aFac2 * slice.FAreaJ(JlowS);
 	    }
 	  }
 	}
@@ -7445,51 +7445,51 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() <= 2 ){ //patches are j/i, j to i, k to j, i to k
 
 	  //swap face data for direction 3
-	  (*this).SetFCenterJ( slice.FCenterI(IlowS) , JlowB);
-	  (*this).SetFAreaJ( aFac3 * slice.FAreaI(IlowS) , JlowB);
+	  (*this).fCenterJ[JlowB] = slice.FCenterI(IlowS) ;
+	  (*this).fAreaJ[JlowB] = aFac3 * slice.FAreaI(IlowS) ;
 
 	  if ( l3 == (d3 - 1) ){ //at end of direction 3 line
-	    (*this).SetFCenterJ( slice.FCenterI(IupS) , JupB);
-	    (*this).SetFAreaJ( aFac3 * slice.FAreaI(IupS) , JupB);
+	    (*this).fCenterJ[JupB] = slice.FCenterI(IupS) ;
+	    (*this).fAreaJ[JupB] = aFac3 * slice.FAreaI(IupS) ;
 	  }
 
 	  //swap face data for direction 1
 	  if ( aFac1 == 1.0 ){
-	    (*this).SetFCenterK( slice.FCenterJ(JlowS), KlowB );
-	    (*this).SetFAreaK( aFac1 * slice.FAreaJ(JlowS), KlowB );
+	    (*this).fCenterK[KlowB] = slice.FCenterJ(JlowS);
+	    (*this).fAreaK[KlowB] = aFac1 * slice.FAreaJ(JlowS);
 
 	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).SetFCenterK( slice.FCenterJ(JupS), KupB );
-	      (*this).SetFAreaK( aFac1 * slice.FAreaJ(JupS), KupB );
+	      (*this).fCenterK[KupB] = slice.FCenterJ(JupS);
+	      (*this).fAreaK[KupB] = aFac1 * slice.FAreaJ(JupS);
 	    }
 	  }
 	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).SetFCenterK( slice.FCenterJ(JupS), KlowB );
-	    (*this).SetFAreaK( aFac1 * slice.FAreaJ(JupS), KlowB );
+	    (*this).fCenterK[KlowB] = slice.FCenterJ(JupS);
+	    (*this).fAreaK[KlowB] = aFac1 * slice.FAreaJ(JupS);
 
 	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).SetFCenterK( slice.FCenterJ(JlowS), KupB );
-	      (*this).SetFAreaK( aFac1 * slice.FAreaJ(JlowS), KupB );
+	      (*this).fCenterK[KupB] = slice.FCenterJ(JlowS);
+	      (*this).fAreaK[KupB] = aFac1 * slice.FAreaJ(JlowS);
 	    }
 	  }
 
 	  //swap face data for direction 2
 	  if ( aFac2 == 1.0 ){
-	    (*this).SetFCenterI( slice.FCenterK(KlowS), IlowB );
-	    (*this).SetFAreaI( aFac2 * slice.FAreaK(KlowS), IlowB );
+	    (*this).fCenterI[IlowB] = slice.FCenterK(KlowS);
+	    (*this).fAreaI[IlowB] = aFac2 * slice.FAreaK(KlowS);
 
 	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).SetFCenterI( slice.FCenterK(KupS), IupB );
-	      (*this).SetFAreaI( aFac2 * slice.FAreaK(KupS), IupB );
+	      (*this).fCenterI[IupB] = slice.FCenterK(KupS);
+	      (*this).fAreaI[IupB] = aFac2 * slice.FAreaK(KupS);
 	    }
 	  }
 	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).SetFCenterI( slice.FCenterK(KupS), IlowB );
-	    (*this).SetFAreaI( aFac2 * slice.FAreaK(KupS), IlowB );
+	    (*this).fCenterI[IlowB] = slice.FCenterK(KupS);
+	    (*this).fAreaI[IlowB] = aFac2 * slice.FAreaK(KupS);
 
 	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).SetFCenterI( slice.FCenterK(KlowS), IupB );
-	      (*this).SetFAreaI( aFac2 * slice.FAreaK(KlowS), IupB );
+	      (*this).fCenterI[IupB] = slice.FCenterK(KlowS);
+	      (*this).fAreaI[IupB] = aFac2 * slice.FAreaK(KlowS);
 	    }
 	  }
 
@@ -7498,51 +7498,51 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6 ){ //patches are j/k, j to k, k to i, i to j
 
 	  //swap face data for direction 3
-	  (*this).SetFCenterJ( slice.FCenterK(KlowS) , JlowB);
-	  (*this).SetFAreaJ( aFac3 * slice.FAreaK(KlowS) , JlowB);
+	  (*this).fCenterJ[JlowB] = slice.FCenterK(KlowS) ;
+	  (*this).fAreaJ[JlowB] = aFac3 * slice.FAreaK(KlowS) ;
 
 	  if ( l3 == (d3 - 1) ){ //at end of direction 3 line
-	    (*this).SetFCenterJ( slice.FCenterJ(JupS) , JupB);
-	    (*this).SetFAreaJ( aFac3 * slice.FAreaJ(JupS) , JupB);
+	    (*this).fCenterJ[JupB] = slice.FCenterJ(JupS) ;
+	    (*this).fAreaJ[JupB] = aFac3 * slice.FAreaJ(JupS) ;
 	  }
 
 	  //swap face data for direction 1
 	  if ( aFac1 == 1.0 ){
-	    (*this).SetFCenterK( slice.FCenterI(IlowS), KlowB );
-	    (*this).SetFAreaK( aFac1 * slice.FAreaI(IlowS), KlowB );
+	    (*this).fCenterK[KlowB] = slice.FCenterI(IlowS);
+	    (*this).fAreaK[KlowB] = aFac1 * slice.FAreaI(IlowS);
 
 	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).SetFCenterK( slice.FCenterI(IupS), KupB );
-	      (*this).SetFAreaK( aFac1 * slice.FAreaI(IupS), KupB );
+	      (*this).fCenterK[KupB] = slice.FCenterI(IupS);
+	      (*this).fAreaK[KupB] = aFac1 * slice.FAreaI(IupS);
 	    }
 	  }
 	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).SetFCenterK( slice.FCenterI(IupS), KlowB );
-	    (*this).SetFAreaK( aFac1 * slice.FAreaI(IupS), KlowB );
+	    (*this).fCenterK[KlowB] = slice.FCenterI(IupS);
+	    (*this).fAreaK[KlowB] = aFac1 * slice.FAreaI(IupS);
 
 	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).SetFCenterK( slice.FCenterI(IlowS), KupB );
-	      (*this).SetFAreaK( aFac1 * slice.FAreaI(IlowS), KupB );
+	      (*this).fCenterK[KupB] = slice.FCenterI(IlowS);
+	      (*this).fAreaK[KupB] = aFac1 * slice.FAreaI(IlowS);
 	    }
 	  }
 
 	  //swap face data for direction 2
 	  if ( aFac2 == 1.0 ){
-	    (*this).SetFCenterI( slice.FCenterJ(JlowS), IlowB );
-	    (*this).SetFAreaI( aFac2 * slice.FAreaJ(JlowS), IlowB );
+	    (*this).fCenterI[IlowB] = slice.FCenterJ(JlowS);
+	    (*this).fAreaI[IlowB] = aFac2 * slice.FAreaJ(JlowS);
 
 	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).SetFCenterI( slice.FCenterJ(JupS), IupB );
-	      (*this).SetFAreaI( aFac2 * slice.FAreaJ(JupS), IupB );
+	      (*this).fCenterI[IupB] = slice.FCenterJ(JupS);
+	      (*this).fAreaI[IupB] = aFac2 * slice.FAreaJ(JupS);
 	    }
 	  }
 	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).SetFCenterI( slice.FCenterJ(JupS), IlowB );
-	    (*this).SetFAreaI( aFac2 * slice.FAreaJ(JupS), IlowB );
+	    (*this).fCenterI[IlowB] = slice.FCenterJ(JupS);
+	    (*this).fAreaI[IlowB] = aFac2 * slice.FAreaJ(JupS);
 
 	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).SetFCenterI( slice.FCenterJ(JlowS), IupB );
-	      (*this).SetFAreaI( aFac2 * slice.FAreaJ(JlowS), IupB );
+	      (*this).fCenterI[IupB] = slice.FCenterJ(JlowS);
+	      (*this).fAreaI[IupB] = aFac2 * slice.FAreaJ(JlowS);
 	    }
 	  }
 	}
@@ -7550,51 +7550,51 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() <= 2 ){ //patches are k/i, k to i, i to j, j to k
 
 	  //swap face data for direction 3
-	  (*this).SetFCenterK( slice.FCenterI(IlowS) , KlowB);
-	  (*this).SetFAreaK( aFac3 * slice.FAreaI(IlowS) , KlowB);
+	  (*this).fCenterK[KlowB] = slice.FCenterI(IlowS) ;
+	  (*this).fAreaK[KlowB] = aFac3 * slice.FAreaI(IlowS) ;
 
 	  if ( l3 == (d3 - 1) ){ //at end of direction 3 line
-	    (*this).SetFCenterK( slice.FCenterI(IupS) , KupB);
-	    (*this).SetFAreaK( aFac3 * slice.FAreaI(IupS) , KupB);
+	    (*this).fCenterK[KupB] = slice.FCenterI(IupS) ;
+	    (*this).fAreaK[KupB] = aFac3 * slice.FAreaI(IupS) ;
 	  }
 
 	  //swap face data for direction 1
 	  if ( aFac1 == 1.0 ){
-	    (*this).SetFCenterI( slice.FCenterJ(JlowS), IlowB );
-	    (*this).SetFAreaI( aFac1 * slice.FAreaJ(JlowS), IlowB );
+	    (*this).fCenterI[IlowB] = slice.FCenterJ(JlowS);
+	    (*this).fAreaI[IlowB] = aFac1 * slice.FAreaJ(JlowS);
 
 	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).SetFCenterI( slice.FCenterJ(JupS), IupB );
-	      (*this).SetFAreaI( aFac1 * slice.FAreaJ(JupS), IupB );
+	      (*this).fCenterI[IupB] = slice.FCenterJ(JupS);
+	      (*this).fAreaI[IupB] = aFac1 * slice.FAreaJ(JupS);
 	    }
 	  }
 	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).SetFCenterI( slice.FCenterJ(JupS), IlowB );
-	    (*this).SetFAreaI( aFac1 * slice.FAreaJ(JupS), IlowB );
+	    (*this).fCenterI[IlowB] = slice.FCenterJ(JupS);
+	    (*this).fAreaI[IlowB] = aFac1 * slice.FAreaJ(JupS);
 
 	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).SetFCenterI( slice.FCenterJ(JlowS), IupB );
-	      (*this).SetFAreaI( aFac1 * slice.FAreaJ(JlowS), IupB );
+	      (*this).fCenterI[IupB] = slice.FCenterJ(JlowS);
+	      (*this).fAreaI[IupB] = aFac1 * slice.FAreaJ(JlowS);
 	    }
 	  }
 
 	  //swap face data for direction 2
 	  if ( aFac2 == 1.0 ){
-	    (*this).SetFCenterJ( slice.FCenterK(KlowS), JlowB );
-	    (*this).SetFAreaJ( aFac2 * slice.FAreaK(KlowS), JlowB );
+	    (*this).fCenterJ[JlowB] = slice.FCenterK(KlowS);
+	    (*this).fAreaJ[JlowB] = aFac2 * slice.FAreaK(KlowS);
 
 	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).SetFCenterJ( slice.FCenterK(KupS), JupB );
-	      (*this).SetFAreaJ( aFac2 * slice.FAreaK(KupS), JupB );
+	      (*this).fCenterJ[JupB] = slice.FCenterK(KupS);
+	      (*this).fAreaJ[JupB] = aFac2 * slice.FAreaK(KupS);
 	    }
 	  }
 	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).SetFCenterJ( slice.FCenterK(KupS), JlowB );
-	    (*this).SetFAreaJ( aFac2 * slice.FAreaK(KupS), JlowB );
+	    (*this).fCenterJ[JlowB] = slice.FCenterK(KupS);
+	    (*this).fAreaJ[JlowB] = aFac2 * slice.FAreaK(KupS);
 
 	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).SetFCenterJ( slice.FCenterK(KlowS), JupB );
-	      (*this).SetFAreaJ( aFac2 * slice.FAreaK(KlowS), JupB );
+	      (*this).fCenterJ[JupB] = slice.FCenterK(KlowS);
+	      (*this).fAreaJ[JupB] = aFac2 * slice.FAreaK(KlowS);
 	    }
 	  }
 	}
@@ -7602,51 +7602,51 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() <= 2 ){ //patches are k/j, k to j, i to k, j to i
 
 	  //swap face data for direction 3
-	  (*this).SetFCenterK( slice.FCenterJ(JlowS) , KlowB);
-	  (*this).SetFAreaK( aFac3 * slice.FAreaJ(JlowS) , KlowB);
+	  (*this).fCenterK[KlowB] = slice.FCenterJ(JlowS) ;
+	  (*this).fAreaK[KlowB] = aFac3 * slice.FAreaJ(JlowS) ;
 
 	  if ( l3 == (d3 - 1) ){ //at end of direction 3 line
-	    (*this).SetFCenterK( slice.FCenterJ(JupS) , KupB);
-	    (*this).SetFAreaK( aFac3 * slice.FAreaJ(JupS) , KupB);
+	    (*this).fCenterK[KupB] = slice.FCenterJ(JupS) ;
+	    (*this).fAreaK[KupB] = aFac3 * slice.FAreaJ(JupS) ;
 	  }
 
 	  //swap face data for direction 1
 	  if ( aFac1 == 1.0 ){
-	    (*this).SetFCenterI( slice.FCenterK(KlowS), IlowB );
-	    (*this).SetFAreaI( aFac1 * slice.FAreaK(KlowS), IlowB );
+	    (*this).fCenterI[IlowB] = slice.FCenterK(KlowS);
+	    (*this).fAreaI[IlowB] = aFac1 * slice.FAreaK(KlowS);
 
 	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).SetFCenterI( slice.FCenterK(KupS), IupB );
-	      (*this).SetFAreaI( aFac1 * slice.FAreaK(KupS), IupB );
+	      (*this).fCenterI[IupB] = slice.FCenterK(KupS);
+	      (*this).fAreaI[IupB] = aFac1 * slice.FAreaK(KupS);
 	    }
 	  }
 	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).SetFCenterI( slice.FCenterK(KupS), IlowB );
-	    (*this).SetFAreaI( aFac1 * slice.FAreaK(KupS), IlowB );
+	    (*this).fCenterI[IlowB] = slice.FCenterK(KupS);
+	    (*this).fAreaI[IlowB] = aFac1 * slice.FAreaK(KupS);
 
 	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).SetFCenterI( slice.FCenterK(KlowS), IupB );
-	      (*this).SetFAreaI( aFac1 * slice.FAreaK(KlowS), IupB );
+	      (*this).fCenterI[IupB] = slice.FCenterK(KlowS);
+	      (*this).fAreaI[IupB] = aFac1 * slice.FAreaK(KlowS);
 	    }
 	  }
 
 	  //swap face data for direction 2
 	  if ( aFac2 == 1.0 ){
-	    (*this).SetFCenterJ( slice.FCenterI(IlowS), JlowB );
-	    (*this).SetFAreaJ( aFac2 * slice.FAreaI(IlowS), JlowB );
+	    (*this).fCenterJ[JlowB] = slice.FCenterI(IlowS);
+	    (*this).fAreaJ[JlowB] = aFac2 * slice.FAreaI(IlowS);
 
 	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).SetFCenterJ( slice.FCenterI(IupS), JupB );
-	      (*this).SetFAreaJ( aFac2 * slice.FAreaI(IupS), JupB );
+	      (*this).fCenterJ[JupB] = slice.FCenterI(IupS);
+	      (*this).fAreaJ[JupB] = aFac2 * slice.FAreaI(IupS);
 	    }
 	  }
 	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).SetFCenterJ( slice.FCenterI(IupS), JlowB );
-	    (*this).SetFAreaJ( aFac2 * slice.FAreaI(IupS), JlowB );
+	    (*this).fCenterJ[JlowB] = slice.FCenterI(IupS);
+	    (*this).fAreaJ[JlowB] = aFac2 * slice.FAreaI(IupS);
 
 	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).SetFCenterJ( slice.FCenterI(IlowS), JupB );
-	      (*this).SetFAreaJ( aFac2 * slice.FAreaI(IlowS), JupB );
+	      (*this).fCenterJ[JupB] = slice.FCenterI(IlowS);
+	      (*this).fAreaJ[JupB] = aFac2 * slice.FAreaI(IlowS);
 	    }
 	  }
 	}
@@ -7703,7 +7703,7 @@ void procBlock::PutStateSlice( const stateSlice &slice, const interblock &inter,
 	int locS = GetLoc1D(indS[0], indS[1], indS[2], imaxS, jmaxS);
 
 	//swap cell data
-	(*this).SetState( slice.State(locS), locB);
+	(*this).state[locB] = slice.State(locS);
 
       }
     }
