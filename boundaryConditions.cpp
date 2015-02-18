@@ -137,6 +137,22 @@ string boundaryConditions::GetBCName(const int i, const int j, const int k, cons
 
 }
 
+//member function to fill one "row" of the vectors with data that has been read in from the input file. This function is called from
+//input::ReadInput(). It is necessary so that the private data can be altered from another class's member function.
+void boundaryConditions::AssignFromInput(const int &surfCounter, const vector<string> &tokens){
+
+  bcTypes[surfCounter] = tokens[0];
+  iMin[surfCounter] = atoi(tokens[1].c_str());
+  iMax[surfCounter] = atoi(tokens[2].c_str());
+  jMin[surfCounter] = atoi(tokens[3].c_str());
+  jMax[surfCounter] = atoi(tokens[4].c_str());
+  kMin[surfCounter] = atoi(tokens[5].c_str());
+  kMax[surfCounter] = atoi(tokens[6].c_str());
+  tag[surfCounter] = atoi(tokens[7].c_str());
+
+}
+
+
 //operator overload for << - allows use of cout, cerr, etc.
 ostream & operator<< (ostream &os, const interblock &bc){
 

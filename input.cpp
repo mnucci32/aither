@@ -392,14 +392,7 @@ void input::ReadInput(const string &inputName, const int &rank){
 
 	    }
 	    else {  //assign BC block variables
-	      tempBC[blk].bcTypes[surfCounter] = tokens[0];
-	      tempBC[blk].iMin[surfCounter] = atoi(tokens[1].c_str());
-	      tempBC[blk].iMax[surfCounter] = atoi(tokens[2].c_str());
-	      tempBC[blk].jMin[surfCounter] = atoi(tokens[3].c_str());
-	      tempBC[blk].jMax[surfCounter] = atoi(tokens[4].c_str());
-	      tempBC[blk].kMin[surfCounter] = atoi(tokens[5].c_str());
-	      tempBC[blk].kMax[surfCounter] = atoi(tokens[6].c_str());
-	      tempBC[blk].tag[surfCounter] = atoi(tokens[7].c_str());
+	      tempBC[blk].AssignFromInput(surfCounter, tokens);
 
 	      surfCounter++;
 	      if (surfCounter == numSurf){ //at end of block data, increment block index, reset surface counter

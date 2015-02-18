@@ -36,9 +36,6 @@ class boundaryConditions {
   boundaryConditions();
   boundaryConditions( const int&, const int&, const int& );
 
-  friend class input; //only input::ReadInput() needs access, but since boundaryConditions.h is included in input.h, this class would have to be moved into input.h for this to work.
-  //friend void input::ReadInput(const string&, const int&); //input parsing function is a friend function
-
   //member functions
   int NumSurfI()const{return numSurfI;}
   int NumSurfJ()const{return numSurfJ;}
@@ -59,6 +56,8 @@ class boundaryConditions {
   friend ostream & operator<< (ostream &os, const boundaryConditions&);
 
   string GetBCName(const int, const int, const int, const string&)const;
+
+  void AssignFromInput(const int&, const vector<string>& );
 
   void PackBC( char*(&), const int&, int&)const;
   void UnpackBC( char*(&), const int&, int&);
