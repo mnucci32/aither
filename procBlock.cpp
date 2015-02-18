@@ -737,12 +737,7 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const id
 	  //if any residual is larger than previous residual, a new linf residual is found
 	  for ( int ll = 0; ll < NUMVARS; ll++ ){
 	    if ( (*this).Residual(loc,ll) > linf.Linf() ){
-	      linf.SetLinf( (*this).Residual(loc,ll) ); //store linf residual
-	      linf.SetBlock( (*this).ParentBlock() ); //store block location
-	      linf.SetILoc( ii ); //store i index
-	      linf.SetJLoc( jj ); //store j index
-	      linf.SetKLoc( kk ); //store k index
-	      linf.SetEqn( ll+1 ); //store equation number
+	      linf.UpdateMax( (*this).Residual(loc,ll), (*this).ParentBlock(), ii, jj, kk, ll+1 );
 	    }
 	  }
 
@@ -780,12 +775,7 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag, const id
 
 	      for ( int ll = 0; ll < NUMVARS; ll++ ){
 		if ( (*this).Residual(loc,ll) > linf.Linf() ){
-		  linf.SetLinf( (*this).Residual(loc,ll) ); //store linf residual
-		  linf.SetBlock( (*this).ParentBlock() ); //store block location
-		  linf.SetILoc( ii ); //store i index
-		  linf.SetJLoc( jj ); //store j index
-		  linf.SetKLoc( kk ); //store k index
-		  linf.SetEqn( ll+1 ); //store equation number
+		  linf.UpdateMax((*this).Residual(loc,ll), (*this).ParentBlock(), ii, jj, kk, ll+1);
 		}
 	      }
 	    }
@@ -6637,32 +6627,8 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
   interblock inter1 = inter;
   interblock inter2 = inter;
 
-  //if at an upper surface, start block at upper boundary (after including ghosts), if at lower surface, start block at 0
-  int blkStart = (inter1.BoundarySecond() % 2 == 0) ? inter1.ConstSurfaceSecond() + blk1.NumGhosts() : 0;
-  inter1.SetConstSurfaceFirst(0); //slice always starts at 0
-  inter1.SetConstSurfaceSecond( blkStart );
-  //adjust direction 1 start and end for ghost cells
-  inter1.SetDir1EndFirst( inter1.Dir1EndFirst() - inter1.Dir1StartFirst() + 2 * blk1.NumGhosts());
-  inter1.SetDir1EndSecond( inter1.Dir1EndSecond() + 2 * blk1.NumGhosts());
-  inter1.SetDir1StartFirst(0); //slice always starts at 0
-  //adjust direction 2 start and end for ghost cells
-  inter1.SetDir2EndFirst( inter1.Dir2EndFirst() - inter1.Dir2StartFirst() + 2 * blk1.NumGhosts());
-  inter1.SetDir2EndSecond( inter1.Dir2EndSecond() + 2 * blk1.NumGhosts());
-  inter1.SetDir2StartFirst(0); //slice always starts at 0
-  inter1.SwapOrder(); //have block be first entry, slice second
-
-  //if at an upper surface, start block at upper boundary (after including ghosts), if at lower surface, start block at 0
-  blkStart = (inter2.BoundaryFirst() % 2 == 0) ? inter2.ConstSurfaceFirst() + blk2.NumGhosts() : 0;
-  inter2.SetConstSurfaceSecond(0); //slice always starts at 0
-  inter2.SetConstSurfaceFirst( blkStart );
-  //adjust direction 1 start and end for ghost cells
-  inter2.SetDir1EndSecond( inter2.Dir1EndSecond() - inter2.Dir1StartSecond() + 2 * blk2.NumGhosts());
-  inter2.SetDir1EndFirst( inter2.Dir1EndFirst() + 2 * blk2.NumGhosts());
-  inter2.SetDir1StartSecond(0); //slice always starts at 0
-  //adjust direction 2 start and end for ghost cells
-  inter2.SetDir2EndSecond( inter2.Dir2EndSecond() - inter2.Dir2StartSecond() + 2 * blk2.NumGhosts());
-  inter2.SetDir2EndFirst( inter2.Dir2EndFirst() + 2 * blk2.NumGhosts());
-  inter2.SetDir2StartSecond(0); //slice always starts at 0
+  inter1.AdjustForSlice(false, blk1.NumGhosts());
+  inter2.AdjustForSlice(true, blk2.NumGhosts());
 
   //put slices in proper blocks
   if (geom){ //put geomSlices in procBlock
@@ -6786,33 +6752,10 @@ void procBlock::SwapSliceMPI( const interblock &inter, const int &rank, const MP
   interblock interAdj = inter;
 
   if ( rank == inter.RankSecond() ) { //block to insert into is first in interblock
-    //if at an upper surface, start block at upper boundary (after including ghosts), if at lower surface, start block at 0
-    int blkStart = (interAdj.BoundarySecond() % 2 == 0) ? interAdj.ConstSurfaceSecond() + (*this).NumGhosts() : 0;
-    interAdj.SetConstSurfaceFirst(0); //slice always starts at 0
-    interAdj.SetConstSurfaceSecond( blkStart );
-    //adjust direction 1 start and end for ghost cells
-    interAdj.SetDir1EndFirst( interAdj.Dir1EndFirst() - interAdj.Dir1StartFirst() + 2 * (*this).NumGhosts());
-    interAdj.SetDir1EndSecond( interAdj.Dir1EndSecond() + 2 * (*this).NumGhosts());
-    interAdj.SetDir1StartFirst(0); //slice always starts at 0
-    //adjust direction 2 start and end for ghost cells
-    interAdj.SetDir2EndFirst( interAdj.Dir2EndFirst() - interAdj.Dir2StartFirst() + 2 * (*this).NumGhosts());
-    interAdj.SetDir2EndSecond( interAdj.Dir2EndSecond() + 2 * (*this).NumGhosts());
-    interAdj.SetDir2StartFirst(0); //slice always starts at 0
-    interAdj.SwapOrder(); //have block be first entry, slice second
+    interAdj.AdjustForSlice(false, (*this).NumGhosts() );
   }
   else{ //block to insert into is second in interblock, so pass swapped version
-    //if at an upper surface, start block at upper boundary (after including ghosts), if at lower surface, start block at 0
-    int blkStart = (interAdj.BoundaryFirst() % 2 == 0) ? interAdj.ConstSurfaceFirst() + (*this).NumGhosts() : 0;
-    interAdj.SetConstSurfaceSecond(0); //slice always starts at 0
-    interAdj.SetConstSurfaceFirst( blkStart );
-    //adjust direction 1 start and end for ghost cells
-    interAdj.SetDir1EndSecond( interAdj.Dir1EndSecond() - interAdj.Dir1StartSecond() + 2 * (*this).NumGhosts());
-    interAdj.SetDir1EndFirst( interAdj.Dir1EndFirst() + 2 * (*this).NumGhosts());
-    interAdj.SetDir1StartSecond(0); //slice always starts at 0
-    //adjust direction 2 start and end for ghost cells
-    interAdj.SetDir2EndSecond( interAdj.Dir2EndSecond() - interAdj.Dir2StartSecond() + 2 * (*this).NumGhosts());
-    interAdj.SetDir2EndFirst( interAdj.Dir2EndFirst() + 2 * (*this).NumGhosts());
-    interAdj.SetDir2StartSecond(0); //slice always starts at 0
+    interAdj.AdjustForSlice(true, (*this).NumGhosts() );
   }
 
   //interert stateSlice into procBlock

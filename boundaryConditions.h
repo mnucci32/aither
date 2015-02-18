@@ -146,7 +146,6 @@ pair is patch on a boundary that is point matched.
 */
 class interblock {
 
- public:
   int rank [2];             //processor location of boundaries
   int block [2];            //block numbers (global)
   int localBlock [2];       //local (on processor) block numbers
@@ -158,63 +157,52 @@ class interblock {
   int constSurf [2];        //index of direction 3
   int orientation;          //defines how patches are oriented relative to one another (1-8)
 
+ public:
   //constructor
  interblock() : rank{0,0}, block{0,0}, localBlock{0,0}, boundary{0,0}, d1Start{0,0}, d1End{0,0}, d2Start{0,0}, d2End{0,0}, constSurf{0,0}, orientation(0) {};
+ interblock( const patch&, const patch& );
 
   //member functions
-  void SetInterblock(const patch&, const patch&);
-
-  void SetRankFirst( const int &a){rank[0] = a;}
   int RankFirst()const{return rank[0];}
-  void SetRankSecond( const int &a){rank[1] = a;}
+  void SetRankFirst(const int &a){rank[0] = a;} //setter needed to assign to processor during decomposition
   int RankSecond()const{return rank[1];}
+  void SetRankSecond(const int &a){rank[1] = a;} //setter needed to assign to processor during decomposition
 
-  void SetBlockFirst( const int &a){block[0] = a;}
   int BlockFirst()const{return block[0];}
-  void SetBlockSecond( const int &a){block[1] = a;}
   int BlockSecond()const{return block[1];}
 
-  void SetLocalBlockFirst( const int &a){localBlock[0] = a;}
   int LocalBlockFirst()const{return localBlock[0];}
-  void SetLocalBlockSecond( const int &a){localBlock[1] = a;}
   int LocalBlockSecond()const{return localBlock[1];}
 
-  void SetBoundaryFirst( const int &a){boundary[0] = a;}
   int BoundaryFirst()const{return boundary[0];}
-  void SetBoundarySecond( const int &a){boundary[1] = a;}
   int BoundarySecond()const{return boundary[1];}
 
-  void SetDir1StartFirst( const int &a){d1Start[0] = a;}
   int Dir1StartFirst()const{return d1Start[0];}
-  void SetDir1StartSecond( const int &a){d1Start[1] = a;}
   int Dir1StartSecond()const{return d1Start[1];}
 
-  void SetDir1EndFirst( const int &a){d1End[0] = a;}
   int Dir1EndFirst()const{return d1End[0];}
-  void SetDir1EndSecond( const int &a){d1End[1] = a;}
   int Dir1EndSecond()const{return d1End[1];}
 
-  void SetDir2StartFirst( const int &a){d2Start[0] = a;}
   int Dir2StartFirst()const{return d2Start[0];}
-  void SetDir2StartSecond( const int &a){d2Start[1] = a;}
   int Dir2StartSecond()const{return d2Start[1];}
 
-  void SetDir2EndFirst( const int &a){d2End[0] = a;}
   int Dir2EndFirst()const{return d2End[0];}
-  void SetDir2EndSecond( const int &a){d2End[1] = a;}
   int Dir2EndSecond()const{return d2End[1];}
 
-  void SetConstSurfaceFirst( const int &a){constSurf[0] = a;}
   int ConstSurfaceFirst()const{return constSurf[0];}
-  void SetConstSurfaceSecond( const int &a){constSurf[1] = a;}
   int ConstSurfaceSecond()const{return constSurf[1];}
 
-  void SetOrientation( const int &a){orientation = a;}
   int Orientation()const{return orientation;}
 
   void SwapOrder();
 
+  void AdjustForSlice( const bool&, const int& );
+
   friend ostream & operator<< (ostream &os, const interblock&);
+
+  bool TestPatchMatch(const patch&, const patch&);
+
+  void GetAddressesMPI(MPI_Aint (&)[10])const;
 
   //destructor
   ~interblock() {}
@@ -224,7 +212,7 @@ class interblock {
 
 //function declarations
 vector<interblock> GetInterblockBCs( const vector<boundaryConditions>&, const vector<plot3dBlock>& );
-bool TestPatchMatch(const patch&, const patch&, interblock&);
+
 
 
 #endif

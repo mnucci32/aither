@@ -136,38 +136,38 @@ ostream & operator<< (ostream &os, const interblock &bc){
   return os;
 }
 
-//function to take in two patches and fill an interblock. The orientation is left at the default value 0.
-void interblock::SetInterblock(const patch &p1, const patch &p2){
+//constructor to take in two patches and fill an interblock. The orientation is left at the default value 0.
+interblock::interblock(const patch &p1, const patch &p2){
   // p1 -- patch 1
   // p2 -- patch 2
 
   //fill interblock
-  (*this).SetRankFirst(0); //default value is 0
-  (*this).SetRankSecond(0);
+  rank[0] = 0; //default value is 0
+  rank[1] = 0;
 
-  (*this).SetBlockFirst(p1.Block());
-  (*this).SetBlockSecond(p2.Block());
+  block[0] = p1.Block();
+  block[1] =p2.Block();
 
-  (*this).SetLocalBlockFirst(0); //default value is 0
-  (*this).SetLocalBlockSecond(0);
+  localBlock[0] = 0; //default value is 0
+  localBlock[1] = 0;
 
-  (*this).SetBoundaryFirst(p1.Boundary());
-  (*this).SetBoundarySecond(p2.Boundary());
+  boundary[0] = p1.Boundary();
+  boundary[1] = p2.Boundary();
 
-  (*this).SetDir1StartFirst(p1.Dir1Start());
-  (*this).SetDir1StartSecond(p2.Dir1Start());
+  d1Start[0] = p1.Dir1Start();
+  d1Start[1] = p2.Dir1Start();
 
-  (*this).SetDir1EndFirst(p1.Dir1End());
-  (*this).SetDir1EndSecond(p2.Dir1End());
+  d1End[0] = p1.Dir1End();
+  d1End[1] = p2.Dir1End();
 
-  (*this).SetDir2StartFirst(p1.Dir2Start());
-  (*this).SetDir2StartSecond(p2.Dir2Start());
+  d2Start[0] = p1.Dir2Start();
+  d2Start[1] = p2.Dir2Start();
 
-  (*this).SetDir2EndFirst(p1.Dir2End());
-  (*this).SetDir2EndSecond(p2.Dir2End());
+  d2End[0] = p1.Dir2End();
+  d2End[1] = p2.Dir2End();
 
-  (*this).SetConstSurfaceFirst(p1.ConstSurface());
-  (*this).SetConstSurfaceSecond(p2.ConstSurface());
+  constSurf[0] = p1.ConstSurface();
+  constSurf[1] = p2.ConstSurface();
 
   orientation = 0; //default value (real values 1-6)
 }
@@ -175,48 +175,22 @@ void interblock::SetInterblock(const patch &p1, const patch &p2){
 //function to swap the order of an interblock so the 2nd entry in the pair will be the first, and vice versa
 void interblock::SwapOrder(){
 
-  int temp = (*this).RankFirst();
-  (*this).SetRankFirst( (*this).RankSecond() );
-  (*this).SetRankSecond(temp);
-
-  temp = (*this).BlockFirst();
-  (*this).SetBlockFirst( (*this).BlockSecond() );
-  (*this).SetBlockSecond(temp);
-
-  temp = (*this).LocalBlockFirst();
-  (*this).SetLocalBlockFirst( (*this).LocalBlockSecond() );
-  (*this).SetLocalBlockSecond(temp);
-
-  temp = (*this).BoundaryFirst();
-  (*this).SetBoundaryFirst( (*this).BoundarySecond() );
-  (*this).SetBoundarySecond(temp);
-
-  temp = (*this).Dir1StartFirst();
-  (*this).SetDir1StartFirst( (*this).Dir1StartSecond() );
-  (*this).SetDir1StartSecond(temp);
-
-  temp = (*this).Dir1EndFirst();
-  (*this).SetDir1EndFirst( (*this).Dir1EndSecond() );
-  (*this).SetDir1EndSecond(temp);
-
-  temp = (*this).Dir2StartFirst();
-  (*this).SetDir2StartFirst( (*this).Dir2StartSecond() );
-  (*this).SetDir2StartSecond(temp);
-
-  temp = (*this).Dir2EndFirst();
-  (*this).SetDir2EndFirst( (*this).Dir2EndSecond() );
-  (*this).SetDir2EndSecond(temp);
-
-  temp = (*this).ConstSurfaceFirst();
-  (*this).SetConstSurfaceFirst( (*this).ConstSurfaceSecond() );
-  (*this).SetConstSurfaceSecond(temp);
+  swap(rank[0], rank[1]);
+  swap(block[0], block[1]);
+  swap(localBlock[0], localBlock[1]);
+  swap(boundary[0], boundary[1]);
+  swap(d1Start[0], d1Start[1]);
+  swap(d1End[0], d1End[1]);
+  swap(d2Start[0], d2Start[1]);
+  swap(d2End[0], d2End[1]);
+  swap(constSurf[0], constSurf[1]);
 
   //if orientation is 4 or 5, needs to be swapped because direction 1/2 are swapped and only one direction is reversed
-  if ((*this).Orientation() == 4){
-    (*this).SetOrientation(5);
+  if (orientation == 4){
+    orientation = 5;
   }
-  else if ((*this).Orientation() == 5){
-    (*this).SetOrientation(4);
+  else if (orientation == 5){
+    orientation = 4;
   }
 }
 
@@ -337,8 +311,8 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
 		       isolatedInterblocks[jj][5], isolatedInterblocks[jj][6], isolatedInterblocks[jj][7], grid[isolatedInterblocks[jj][0]]);
 
 	  //test for match
-	  interblock match;
-	  if ( TestPatchMatch(cPatch, nPatch, match) ){ //match found
+	  interblock match(cPatch, nPatch);
+	  if ( match.TestPatchMatch(cPatch, nPatch) ){ //match found
 	    connections[ii/2] = match; //store interblock pair
 	    swap(isolatedInterblocks[jj], isolatedInterblocks[ii+1]); //swap matched interblock BC to top portion of vector so it is not searched again
 	  }
@@ -422,10 +396,9 @@ cyclic, so on a constant i-patch, D1 is j, and D2 is k. On a constant j-patch, D
 at the minimim of D1 and D2 on the patch. C1 is the corner where D1 is at a max, and D2 is zero. C2 is the corner where D2 is at a max, and
 D1 is zero. C12 is the corner where both D1 and D2 are at a max.
 */
-bool TestPatchMatch( const patch &p1, const patch &p2, interblock &inter ){
+bool interblock::TestPatchMatch( const patch &p1, const patch &p2 ){
   // p1 -- first patch
   // p2 -- second patch
-  // iter -- interblock to fill if there is a match
 
   bool match = false; //initialize match to false
 
@@ -437,8 +410,7 @@ bool TestPatchMatch( const patch &p1, const patch &p2, interblock &inter ){
 
       //if all 3 corners match, same orientation
       if ( p1.Corner2() == p2.Corner2() ){ //corner 2s match
-	inter.SetInterblock(p1,p2);
-	inter.SetOrientation(1);
+	(*this).orientation = 1;
 	match = true;
       }
       else{ //no match
@@ -449,8 +421,7 @@ bool TestPatchMatch( const patch &p1, const patch &p2, interblock &inter ){
 
       //if origins match and 1 matches 2, 2 must match 1
       if ( p1.Corner2() == p2.Corner1() ){ //corner 2 matches corner 1
-	inter.SetInterblock(p1,p2);
-	inter.SetOrientation(2);
+	(*this).orientation = 2;
 	match = true;
       }
       else{ //no match
@@ -469,8 +440,7 @@ bool TestPatchMatch( const patch &p1, const patch &p2, interblock &inter ){
 
       //corner 2 must match 12 for match
       if ( p1.Corner2() == p2.Corner12() ){ 
-	inter.SetInterblock(p1,p2);
-	inter.SetOrientation(3);
+	(*this).orientation = 3;
 	match = true;
       }
       else{ //no match
@@ -481,8 +451,7 @@ bool TestPatchMatch( const patch &p1, const patch &p2, interblock &inter ){
 
       //corner 2 must match origin for match
       if ( p1.Corner2() == p2.Origin() ){ 
-	inter.SetInterblock(p1,p2);
-	inter.SetOrientation(4);
+	(*this).orientation = 4;
 	match = true;
       }
       else{ //no match
@@ -501,8 +470,7 @@ bool TestPatchMatch( const patch &p1, const patch &p2, interblock &inter ){
 
       //corner 2 must match 12 for match
       if ( p1.Corner2() == p2.Corner12() ){ 
-	inter.SetInterblock(p1,p2);
-	inter.SetOrientation(5);
+	(*this).orientation = 5;
 	match = true;
       }
       else{ //no match
@@ -513,8 +481,7 @@ bool TestPatchMatch( const patch &p1, const patch &p2, interblock &inter ){
 
       //corner 2 must match origin for match
       if ( p1.Corner2() == p2.Origin() ){ 
-	inter.SetInterblock(p1,p2);
-	inter.SetOrientation(6);
+	(*this).orientation = 6;
 	match = true;
       }
       else{ //no match
@@ -533,8 +500,7 @@ bool TestPatchMatch( const patch &p1, const patch &p2, interblock &inter ){
 
       //corner 2 must match 2 for match
       if ( p1.Corner2() == p2.Corner2() ){ 
-	inter.SetInterblock(p1,p2);
-	inter.SetOrientation(7);
+	(*this).orientation = 7;
 	match = true;
       }
       else{ //no match
@@ -545,8 +511,7 @@ bool TestPatchMatch( const patch &p1, const patch &p2, interblock &inter ){
 
       //corner 2 must match corner 1 for match
       if ( p1.Corner2() == p2.Corner2() ){ 
-	inter.SetInterblock(p1,p2);
-	inter.SetOrientation(8);
+	(*this).orientation = 8;
 	match = true;
       }
       else{ //no match
@@ -563,6 +528,48 @@ bool TestPatchMatch( const patch &p1, const patch &p2, interblock &inter ){
   }
 
   return match;
+}
+
+/* Member function to adjust the interblock for use with a geomSlice or stateSlice
+*/
+void interblock::AdjustForSlice( const bool &blkFirst, const int &numG ){
+  // blkFirst -- boolean that is true if block to insert into is first
+  // numG -- number of ghost cells in block
+
+  if (!blkFirst){ //block to insert into is second, swap order
+    (*this).SwapOrder(); //have block be first entry, slice second
+  }
+
+  //if at an upper surface, start block at upper boundary (after including ghosts), if at lower surface, start block at 0
+  int blkStart = ((*this).BoundaryFirst() % 2 == 0) ? (*this).ConstSurfaceFirst() + numG : 0;
+  (*this).constSurf[1] = 0; //slice always starts at 0
+  (*this).constSurf[0] = blkStart;
+  //adjust direction 1 start and end for ghost cells
+  (*this).d1End[1] = (*this).Dir1EndSecond() - (*this).Dir1StartSecond() + 2 * numG;
+  (*this).d1End[0] = (*this).Dir1EndFirst() + 2 * numG;
+  (*this).d1Start[1] = 0; //slice always starts at 0
+  //adjust direction 2 start and end for ghost cells
+  (*this).d2End[1] = (*this).Dir2EndSecond() - (*this).Dir2StartSecond() + 2 * numG;
+  (*this).d2End[0] = (*this).Dir2EndFirst() + 2 * numG;
+  (*this).d2Start[1] = 0; //slice always starts at 0
+
+}
+
+//Member function to get the addresses of an interblock to create an MPI_Datatype
+void interblock::GetAddressesMPI(MPI_Aint (&disp)[10])const{
+
+  //get addresses of each field
+  MPI_Get_address(&(*this).rank[0],       &disp[0]);
+  MPI_Get_address(&(*this).block[0],      &disp[1]);
+  MPI_Get_address(&(*this).localBlock[0], &disp[2]);
+  MPI_Get_address(&(*this).boundary[0],   &disp[3]);
+  MPI_Get_address(&(*this).d1Start[0],    &disp[4]);
+  MPI_Get_address(&(*this).d1End[0],      &disp[5]);
+  MPI_Get_address(&(*this).d2Start[0],    &disp[6]);
+  MPI_Get_address(&(*this).d2End[0],      &disp[7]);
+  MPI_Get_address(&(*this).constSurf[0],  &disp[8]);
+  MPI_Get_address(&(*this).orientation,   &disp[9]);
+
 }
 
 //constructor when passed no arguements

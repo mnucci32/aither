@@ -94,9 +94,8 @@ void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &M
   MPI_Datatype fieldTypes[2] = {MPI_DOUBLE, MPI_INT}; //field types
   MPI_Aint displacement[2], lBound, ext;
   resid res; //dummy resid to get layout of class
-  //get addresses of each field
-  MPI_Get_address(&res.linf,  &displacement[0]);
-  MPI_Get_address(&res.blk,   &displacement[1]);
+  res.GetAddressesMPI(displacement);
+
   //make addresses relative to first field
   for ( int ii = 1; ii >= 0; ii-- ){
     displacement[ii] -= displacement[0];
@@ -120,17 +119,8 @@ void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &M
   MPI_Datatype types[10] = {MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT}; //field types
   MPI_Aint disp[10], lowerBound, extent;
   interblock inter; //dummy interblock to get layout of class
-  //get addresses of each field
-  MPI_Get_address(&inter.rank[0],       &disp[0]);
-  MPI_Get_address(&inter.block[0],      &disp[1]);
-  MPI_Get_address(&inter.localBlock[0], &disp[2]);
-  MPI_Get_address(&inter.boundary[0],   &disp[3]);
-  MPI_Get_address(&inter.d1Start[0],    &disp[4]);
-  MPI_Get_address(&inter.d1End[0],      &disp[5]);
-  MPI_Get_address(&inter.d2Start[0],    &disp[6]);
-  MPI_Get_address(&inter.d2End[0],      &disp[7]);
-  MPI_Get_address(&inter.constSurf[0],  &disp[8]);
-  MPI_Get_address(&inter.orientation,   &disp[9]);
+  inter.GetAddressesMPI(disp);
+
   //make addresses relative to first field
   for ( int ii = 9; ii >= 0; ii-- ){
     disp[ii] -= disp[0];
