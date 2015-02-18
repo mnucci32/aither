@@ -87,14 +87,14 @@ void boundaryConditions::ResizeVecs( const int &i, const int &j, const int &k){
   numSurfJ = j;
   numSurfK = k;
 
-  bcTypes.resize(i * j * k);
-  iMin.resize(i * j * k);
-  iMax.resize(i * j * k);
-  jMin.resize(i * j * k);
-  jMax.resize(i * j * k);
-  kMin.resize(i * j * k);
-  kMax.resize(i * j * k);
-  tag.resize(i * j * k);
+  bcTypes.resize(i + j + k);
+  iMin.resize(i + j + k);
+  iMax.resize(i + j + k);
+  jMin.resize(i + j + k);
+  jMax.resize(i + j + k);
+  kMin.resize(i + j + k);
+  kMax.resize(i + j + k);
+  tag.resize(i + j + k);
 
 }
 

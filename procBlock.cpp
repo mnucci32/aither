@@ -6999,7 +6999,7 @@ geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, c
 
 	  if ( ii == sizeI - 1 ){ //at end of i-line assign upper face values too
 	    slice.SetFAreaI( iFac * (*this).FAreaI(lowIPar), upI );
-	    slice.SetFCenterI( (*this).FCenterI(locPar), upI );
+	    slice.SetFCenterI( (*this).FCenterI(lowIPar), upI );
 	  }
 	}
 	else{
