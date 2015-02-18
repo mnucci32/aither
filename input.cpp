@@ -99,11 +99,6 @@ input::input(): vars(32){
   vars[31] = "boundaryConditions:";  //boundary conditions should be listed last
 }
 
-//member function to set vector holding boundary conditions for each block
-void input::SetBCVec(const int &a){
-  bc.resize(a);
-}
-
 //function to trim leading and trailing whitespace from a string, and also remove data after a comment
 string trim(const string &s, const string &whitespace = " \t"){
 
@@ -386,28 +381,25 @@ void input::ReadInput(const string &inputName, const int &rank){
 	      lEnd++;
 	    }	    
 	    else if (readingBCs == lEnd){ //variables must be number of i, j, k surfaces for each block 
-	      //set number of i, j, k surfaces
-	      tempBC[blk].SetNumSurfI(atoi(tokens[0].c_str()));
-	      tempBC[blk].SetNumSurfJ(atoi(tokens[1].c_str()));
-	      tempBC[blk].SetNumSurfK(atoi(tokens[2].c_str()));
+	      //set number of i, j, k surfaces and resize vectors
+	      tempBC[blk].ResizeVecs( atoi(tokens[0].c_str()), atoi(tokens[1].c_str()), atoi(tokens[2].c_str()) );
 
 	      //set total number of surfaces
 	      numSurf = atoi(tokens[0].c_str()) + atoi(tokens[1].c_str()) + atoi(tokens[2].c_str());
-	      tempBC[blk].ResizeVecs(numSurf);
 
 	      lEnd += (numSurf + 1); //set new target for when block data is finished
 	      readingBCs++;
 
 	    }
 	    else {  //assign BC block variables
-	      tempBC[blk].SetBCTypes(tokens[0], surfCounter);
-	      tempBC[blk].SetIMin(atoi(tokens[1].c_str()), surfCounter);
-	      tempBC[blk].SetIMax(atoi(tokens[2].c_str()), surfCounter);
-	      tempBC[blk].SetJMin(atoi(tokens[3].c_str()), surfCounter);
-	      tempBC[blk].SetJMax(atoi(tokens[4].c_str()), surfCounter);
-	      tempBC[blk].SetKMin(atoi(tokens[5].c_str()), surfCounter);
-	      tempBC[blk].SetKMax(atoi(tokens[6].c_str()), surfCounter);
-	      tempBC[blk].SetTag(atoi(tokens[7].c_str()), surfCounter);
+	      tempBC[blk].bcTypes[surfCounter] = tokens[0];
+	      tempBC[blk].iMin[surfCounter] = atoi(tokens[1].c_str());
+	      tempBC[blk].iMax[surfCounter] = atoi(tokens[2].c_str());
+	      tempBC[blk].jMin[surfCounter] = atoi(tokens[3].c_str());
+	      tempBC[blk].jMax[surfCounter] = atoi(tokens[4].c_str());
+	      tempBC[blk].kMin[surfCounter] = atoi(tokens[5].c_str());
+	      tempBC[blk].kMax[surfCounter] = atoi(tokens[6].c_str());
+	      tempBC[blk].tag[surfCounter] = atoi(tokens[7].c_str());
 
 	      surfCounter++;
 	      if (surfCounter == numSurf){ //at end of block data, increment block index, reset surface counter

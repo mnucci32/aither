@@ -225,7 +225,6 @@ class matrixDiagonal {
 };
 
 class resid {
-
   double linf;
   int blk;
   int i;

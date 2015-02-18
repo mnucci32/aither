@@ -69,8 +69,6 @@ class input {
   boundaryConditions BC(const int &ind)const{return bc[ind];}
   vector<boundaryConditions> AllBC()const{return bc;}
   int NumBC()const{return bc.size();}
-  void SetBC(const vector<boundaryConditions> &a){bc = a;}
-  void SetBCVec(const int &a);
 
   string TimeIntegration()const{return timeIntegration;}
 

@@ -36,55 +36,25 @@ class boundaryConditions {
   boundaryConditions();
   boundaryConditions( const int&, const int&, const int& );
 
+  friend class input; //only input::ReadInput() needs access, but since boundaryConditions.h is included in input.h, this class would have to be moved into input.h for this to work.
+  //friend void input::ReadInput(const string&, const int&); //input parsing function is a friend function
+
   //member functions
-  void SetNumSurfI( const int &a){numSurfI = a;}
   int NumSurfI()const{return numSurfI;}
-  void SetNumSurfJ( const int &a){numSurfJ = a;}
   int NumSurfJ()const{return numSurfJ;}
-  void SetNumSurfK( const int &a){numSurfK = a;}
   int NumSurfK()const{return numSurfK;}
 
-  void SetBCTypes( const string &str, const int &a){bcTypes[a] = str;}
   string GetBCTypes( const int &a)const{return bcTypes[a];}
-  void SetBCTypesVec( const vector<string> &vec){bcTypes = vec;}
-  vector<string> GetBCTypesVec()const{return bcTypes;}
-
-  void SetIMin( const int &i, const int &a){iMin[a] = i;}
   int GetIMin( const int &a)const{return iMin[a];}
-  void SetIMinVec( const vector<int> &vec){iMin = vec;}
-  vector<int> GetIMinVec()const{return iMin;}
-
-  void SetJMin( const int &j, const int &a){jMin[a] = j;}
   int GetJMin( const int &a)const{return jMin[a];}
-  void SetJMinVec( const vector<int> &vec){jMin = vec;}
-  vector<int> GetJMinVec()const{return jMin;}
-
-  void SetKMin( const int &k, const int &a){kMin[a] = k;}
   int GetKMin( const int &a)const{return kMin[a];}
-  void SetKMinVec( const vector<int> &vec){kMin = vec;}
-  vector<int> GetKMinVec()const{return kMin;}
-
-  void SetIMax( const int &i, const int &a){iMax[a] = i;}
   int GetIMax( const int &a)const{return iMax[a];}
-  void SetIMaxVec( const vector<int> &vec){iMax = vec;}
-  vector<int> GetIMaxVec()const{return iMax;}
-
-  void SetJMax( const int &j, const int &a){jMax[a] = j;}
   int GetJMax( const int &a)const{return jMax[a];}
-  void SetJMaxVec( const vector<int> &vec){jMax = vec;}
-  vector<int> GetJMaxVec()const{return jMax;}
-
-  void SetKMax( const int &k, const int &a){kMax[a] = k;}
   int GetKMax( const int &a)const{return kMax[a];}
-  void SetKMaxVec( const vector<int> &vec){kMax = vec;}
-  vector<int> GetKMaxVec()const{return kMax;}
-
-  void SetTag( const int &t, const int &a){tag[a] = t;}
   int GetTag( const int &a)const{return tag[a];}
-  void SetTagVec( const vector<int> &vec){tag = vec;}
-  vector<int> GetTagVec()const{return tag;}
 
-  void ResizeVecs( const int &a);
+  void ResizeVecs( const int&);
+  void ResizeVecs( const int&, const int&, const int& );
 
   friend ostream & operator<< (ostream &os, const boundaryConditions&);
 
@@ -102,7 +72,6 @@ class boundaryConditions {
 is assigned the same boundary condition.
 */
 class patch {
-
   vector3d<double> origin;              //coordinates of patch origin
   vector3d<double> corner1;             //coordinates of direction 1 max, direction 2 zero
   vector3d<double> corner2;             //coordinates of direction 1 zero, direction 2 max
@@ -195,14 +164,11 @@ class interblock {
   int Orientation()const{return orientation;}
 
   void SwapOrder();
-
   void AdjustForSlice( const bool&, const int& );
+  bool TestPatchMatch(const patch&, const patch&);
+  void GetAddressesMPI(MPI_Aint (&)[10])const;
 
   friend ostream & operator<< (ostream &os, const interblock&);
-
-  bool TestPatchMatch(const patch&, const patch&);
-
-  void GetAddressesMPI(MPI_Aint (&)[10])const;
 
   //destructor
   ~interblock() {}

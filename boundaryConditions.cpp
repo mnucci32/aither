@@ -80,6 +80,24 @@ void boundaryConditions::ResizeVecs( const int &a){
 
 }
 
+//operator to resize all of the vector components of the boundary conditions class
+void boundaryConditions::ResizeVecs( const int &i, const int &j, const int &k){
+
+  numSurfI = i;
+  numSurfJ = j;
+  numSurfK = k;
+
+  bcTypes.resize(i * j * k);
+  iMin.resize(i * j * k);
+  iMax.resize(i * j * k);
+  jMin.resize(i * j * k);
+  jMax.resize(i * j * k);
+  kMin.resize(i * j * k);
+  kMax.resize(i * j * k);
+  tag.resize(i * j * k);
+
+}
+
 //member function to return the boundary condition type given the i,j,k face coordinates and the surface type
 string boundaryConditions::GetBCName(const int i, const int j, const int k, const string& surf)const{
 
