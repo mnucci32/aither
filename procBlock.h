@@ -87,18 +87,15 @@ class procBlock {
   int ParentBlockEndJ() const {return parBlockEndJ;}
   int ParentBlockStartK() const {return parBlockStartK;}
   int ParentBlockEndK() const {return parBlockEndK;}
-  void SetRank( const int &a){rank = a;}
+  void SetRank( const int &a){rank = a;}                             //setter needed for parallel decomposition
   int Rank() const {return rank;}
-  void SetGlobalPos( const int &a){globalPos = a;}
+  void SetGlobalPos( const int &a){globalPos = a;}                   //setter needed for parallel decomposition
   int GlobalPos() const {return globalPos;}
 
   boundaryConditions BC() const {return bc;}
 
-  //look into these!!!!!!!!!!!!!
   primVars State(const int &ind) const {return state[ind];}
-  vector<primVars> StateVec() const {return state;}
   vector<genArray> GetCopyConsVars(const idealGas &) const; 
-  const vector<primVars> & GetRefState() const {return state;}
 
   double Vol(const int &ind) const {return vol[ind];}
   vector3d<double> Center(const int &ind) const {return center[ind];}
@@ -114,9 +111,6 @@ class procBlock {
 
   void AddToResidual( const inviscidFlux &, const int &);
   void AddToResidual( const viscousFlux &, const int &);
-
-  //look into this!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-  const vector<genArray> & Residual() const {return residual;}
   genArray Residual(const int &ind) const {return residual[ind];}
   double Residual(const int &ind, const int &a) const {return residual[ind][a];}
 
@@ -299,10 +293,8 @@ tensor<double> CalcVelGradGG(const vector3d<double>&, const vector3d<double>&, c
 vector3d<double> CalcTempGradGG(const double&, const double&, const double&, const double&, const double&, const double&, const vector3d<double>&, const vector3d<double>&,
 				const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const double&);
 
-
 vector<int> GetSwapLoc( const int&, const int&, const int&, const interblock&, const bool&);
 void SwapSlice(const interblock&, procBlock&, procBlock&, const bool&);
-
 
 void GetBoundaryConditions(vector<procBlock>&, const input&, const idealGas&, const vector<interblock>&, const int &rank, const MPI_Datatype &MPI_cellData);
 
