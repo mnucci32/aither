@@ -9,6 +9,7 @@
 #include "mpi.h" //parallelism
 
 #define NUMVARS 5
+#define ROOT 0
 
 using std::vector;
 using std::string;
@@ -77,9 +78,9 @@ class colMatrix {
 /*class to store an array of a fixed size equal to the number of variables being solved for. This is useful because a vector of these will be
 contiguous in memory. */
 class genArray {
- public:
   double data[NUMVARS];
 
+ public:
   //constructor
   genArray();
   genArray(const double& );
@@ -110,6 +111,8 @@ class genArray {
   friend genArray operator * (const double&, const genArray&);
   friend genArray operator / (const double&, const genArray&);
   friend ostream & operator<< (ostream &os, const genArray&);
+
+  void GlobalReduceMPI( const int&, const int& );
 
   //destructor
   ~genArray() {}
@@ -245,6 +248,9 @@ class resid {
 
   void UpdateMax(const double&, const int&, const int&, const int&, const int&, const int&);
   void GetAddressesMPI(MPI_Aint (&)[2])const;
+  void GlobalReduceMPI( const int&, const MPI_Datatype&, const MPI_Op& );
+
+  friend void MaxLinf( resid*, resid*, int*, MPI_Datatype*);
 
   void Zero(){
     linf = 0.0;

@@ -251,32 +251,4 @@ void BroadcastString( string &str ){
   delete [] buf; //deallocate buffer
 }
 
-/* Function to calculate the maximum of two resid instances and allow access to all the data in the resid instance. This is used to create an operation
-for MPI_Reduce.
-*/
-void MaxLinf( resid *in, resid *inout, int *len, MPI_Datatype *MPI_DOUBLE_5INT){
-  // *in -- pointer to all input residuals (from all procs)
-  // *inout -- pointer to input and output residuals. The answer is stored here
-  // *len -- pointer to array size of *in and *inout
-  // *MPI_DOUBLE_5INT -- pointer to MPI_Datatype of double followed by 5 Ints, which represents the resid class
-
-  resid resLinf; //intialize a resid
-
-  for ( int ii = 0; ii < *len; ii++ ){ //loop over array of resids
-
-    if ( in->linf >= inout->linf ){ //if linf from input is greater than or equal to linf from output, then new max has been found
-      resLinf = *in;
-    }
-    else{ //no new max
-      resLinf = *inout;
-    }
-
-    *inout = resLinf; //assign max to output
-
-    //increment to next entry in array
-    in++;
-    inout++;
-  }
-
-}
 

@@ -254,19 +254,16 @@ int main( int argc, char *argv[] ) {
 
       } //loop for blocks --------------------------------------------------------------------------------------------------
 
-
       //Get residuals from all processors
-      if ( rank == ROOT ){
-      	MPI_Reduce(MPI_IN_PLACE, &residL2.data[0], numEqns, MPI_DOUBLE, MPI_SUM, ROOT, MPI_COMM_WORLD);
-      	MPI_Reduce(MPI_IN_PLACE, &matrixResid, 1, MPI_DOUBLE, MPI_SUM, ROOT, MPI_COMM_WORLD);
+      residL2.GlobalReduceMPI(rank, numEqns);
+      residLinf.GlobalReduceMPI(rank, MPI_DOUBLE_5INT, MPI_MAX_LINF);
 
-	MPI_Reduce(MPI_IN_PLACE, &residLinf, 1, MPI_DOUBLE_5INT, MPI_MAX_LINF, ROOT, MPI_COMM_WORLD);
+      //Get matrix residuals from all processors
+      if ( rank == ROOT ){
+      	MPI_Reduce(MPI_IN_PLACE, &matrixResid, 1, MPI_DOUBLE, MPI_SUM, ROOT, MPI_COMM_WORLD);
       }
       else{
-	MPI_Reduce(&residL2.data[0], &residL2.data[0], numEqns, MPI_DOUBLE, MPI_SUM, ROOT, MPI_COMM_WORLD);
 	MPI_Reduce(&matrixResid, &matrixResid, 1, MPI_DOUBLE, MPI_SUM, ROOT, MPI_COMM_WORLD);
-
-	MPI_Reduce(&residLinf, &residLinf, 1, MPI_DOUBLE_5INT, MPI_MAX_LINF, ROOT, MPI_COMM_WORLD);
       }
 
 
