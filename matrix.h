@@ -7,9 +7,7 @@
 #include <iostream>
 #include "plot3d.h" //matrix location functions
 #include "mpi.h" //parallelism
-
-#define NUMVARS 5
-#define ROOT 0
+#include "macros.h"
 
 using std::vector;
 using std::string;

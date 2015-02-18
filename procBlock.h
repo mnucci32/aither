@@ -16,8 +16,7 @@
 #include "mpi.h" //parallelism
 #include <fstream>
 #include <iostream>
-
-# define ROOT 0
+#include "macros.h"
 
 using std::vector;
 using std::string;

@@ -12,6 +12,7 @@
 #include "procBlock.h" //procBlock
 #include "boundaryConditions.h" //interblock
 #include <iostream>
+#include "macros.h"
 
 using std::vector;
 using std::string;
@@ -19,8 +20,6 @@ using std::ios;
 using std::cout;
 using std::endl;
 using std::cerr;
-
-#define ROOT 0
 
 //function definitions
 vector<int> ManualDecomposition(vector<procBlock>&, const int&, vector<interblock>&, const int& );
