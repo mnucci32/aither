@@ -6,7 +6,6 @@
 #include "vector3d.h" //vector3d
 #include "tensor.h" //tensor
 #include "plot3d.h" //plot3d
-#include "geomSlice.h" //geomSlice
 #include "eos.h" //idealGas
 #include "primVars.h" //primVars
 #include "inviscidFlux.h" //inviscidFlux
@@ -27,6 +26,10 @@ using std::ofstream;
 using std::cout;
 using std::endl;
 using std::cerr;
+
+//forward declarations
+class geomSlice;
+class stateSlice;
 
 class procBlock {
   vector<primVars> state;            //primative variables at cell center
@@ -227,6 +230,113 @@ class procBlock {
   ~procBlock() {}
 
 };
+
+class geomSlice {
+
+  vector<vector3d<double> > center;        //coordinates of cell center
+  vector<vector3d<double> > fAreaI;        //face area vector for i-faces
+  vector<vector3d<double> > fAreaJ;        //face area vector for j-faces
+  vector<vector3d<double> > fAreaK;        //face area vector for k-faces
+  vector<vector3d<double> > fCenterI;      //coordinates of i-face centers
+  vector<vector3d<double> > fCenterJ;      //coordinates of j-face centers
+  vector<vector3d<double> > fCenterK;      //coordinates of k-face centers
+
+  vector<double> vol ;                     //cell volume
+
+  int numCells;                            //number of cells in block
+  int numI;                                //i-dimension of block (cells)
+  int numJ;                                //j-dimension of block (cells)
+  int numK;                                //k-dimension of block (cells)
+  int parBlock;                            //parent block number
+  int parBlockStartI;                      //parent block starting index for i
+  int parBlockEndI;                        //parent block ending index for i
+  int parBlockStartJ;                      //parent block starting index for j
+  int parBlockEndJ;                        //parent block ending index for j
+  int parBlockStartK;                      //parent block starting index for k
+  int parBlockEndK;                        //parent block ending index for k
+
+ public:
+  //constructors
+  geomSlice();
+  geomSlice( const int&, const int&, const int&, const int&, const int&, const int&, const int&, const int&,
+	     const int&, const int& );
+
+  friend geomSlice procBlock::GetGeomSlice(const int&, const int&, const int&, const int&, const int&, const int&, const bool=false, const bool=false, const bool=false)const;
+
+  //member functions
+  int NumCells() const {return numCells;}
+  int NumI() const {return numI;}
+  int NumJ() const {return numJ;}
+  int NumK() const {return numK;}
+
+  int ParentBlock() const {return parBlock;}
+  int ParentBlockStartI() const {return parBlockStartI;}
+  int ParentBlockEndI() const {return parBlockEndI;}
+  int ParentBlockStartJ() const {return parBlockStartJ;}
+  int ParentBlockEndJ() const {return parBlockEndJ;}
+  int ParentBlockStartK() const {return parBlockStartK;}
+  int ParentBlockEndK() const {return parBlockEndK;}
+
+  double Vol(const int &ind) const {return vol[ind];}
+  vector3d<double> Center(const int &ind) const {return center[ind];}
+  vector3d<double> FAreaI(const int &ind) const {return fAreaI[ind];}
+  vector3d<double> FAreaJ(const int &ind) const {return fAreaJ[ind];}
+  vector3d<double> FAreaK(const int &ind) const {return fAreaK[ind];}
+  vector3d<double> FCenterI(const int &ind) const {return fCenterI[ind];}
+  vector3d<double> FCenterJ(const int &ind) const {return fCenterJ[ind];}
+  vector3d<double> FCenterK(const int &ind) const {return fCenterK[ind];}
+
+  //destructor
+  ~geomSlice() {}
+
+};
+
+class stateSlice {
+  vector<primVars> state ;                     //cell states
+
+  int numCells;                            //number of cells in block
+  int numI;                                //i-dimension of block (cells)
+  int numJ;                                //j-dimension of block (cells)
+  int numK;                                //k-dimension of block (cells)
+  int parBlock;                            //parent block number
+  int parBlockStartI;                      //parent block starting index for i
+  int parBlockEndI;                        //parent block ending index for i
+  int parBlockStartJ;                      //parent block starting index for j
+  int parBlockEndJ;                        //parent block ending index for j
+  int parBlockStartK;                      //parent block starting index for k
+  int parBlockEndK;                        //parent block ending index for k
+
+ public:
+  //constructors
+  stateSlice();
+  stateSlice( const int&, const int&, const int&, const int&, const int&, const int&, const int&, const int&,
+	     const int&, const int& );
+
+  friend stateSlice procBlock::GetStateSlice(const int&, const int&, const int&, const int&, const int&, const int&, const bool=false, const bool=false, const bool=false)const;
+
+  //member functions
+  int NumCells() const {return numCells;}
+  int NumI() const {return numI;}
+  int NumJ() const {return numJ;}
+  int NumK() const {return numK;}
+
+  int ParentBlock() const {return parBlock;}
+  int ParentBlockStartI() const {return parBlockStartI;}
+  int ParentBlockEndI() const {return parBlockEndI;}
+  int ParentBlockStartJ() const {return parBlockStartJ;}
+  int ParentBlockEndJ() const {return parBlockEndJ;}
+  int ParentBlockStartK() const {return parBlockStartK;}
+  int ParentBlockEndK() const {return parBlockEndK;}
+
+  primVars State(const int &ind) const {return state[ind];}
+
+  void PackSwapUnpackMPI( const interblock&, const MPI_Datatype&, const int& );
+
+  //destructor
+  ~stateSlice() {}
+
+};
+
 
 //function definitions
 double CellSpectralRadius(const vector3d<double> &, const vector3d<double> &, const primVars&, const idealGas&);

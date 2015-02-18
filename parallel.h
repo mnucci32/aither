@@ -11,7 +11,6 @@
 #include "primVars.h" //primVars
 #include "procBlock.h" //procBlock
 #include "boundaryConditions.h" //interblock
-#include "geomSlice.h" //geomSlice, stateSlice
 #include <iostream>
 
 using std::vector;
