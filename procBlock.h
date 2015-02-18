@@ -75,38 +75,24 @@ class procBlock {
   procBlock( const int&, const int&, const int&, const int& );
 
   //member functions
-  void SetNumCells( const int &a){numCells = a;}
   int NumCells() const {return numCells;}
-  void SetNumVars( const int &a){numVars = a;}
   int NumVars() const {return numVars;}
-  void SetI( const int &a){numI = a;}
   int NumI() const {return numI;}
-  void SetJ( const int &a){numJ = a;}
   int NumJ() const {return numJ;}
-  void SetK( const int &a){numK = a;}
   int NumK() const {return numK;}
-  void SetNumGhosts( const int &a){numGhosts = a;}
   int NumGhosts() const {return numGhosts;}
-  void SetParentBlock( const int &a){parBlock = a;}
   int ParentBlock() const {return parBlock;}
-  void SetParentBlockStartI( const int &a){parBlockStartI = a;}
   int ParentBlockStartI() const {return parBlockStartI;}
-  void SetParentBlockEndI( const int &a){parBlockEndI = a;}
   int ParentBlockEndI() const {return parBlockEndI;}
-  void SetParentBlockStartJ( const int &a){parBlockStartJ = a;}
   int ParentBlockStartJ() const {return parBlockStartJ;}
-  void SetParentBlockEndJ( const int &a){parBlockEndJ = a;}
   int ParentBlockEndJ() const {return parBlockEndJ;}
-  void SetParentBlockStartK( const int &a){parBlockStartK = a;}
   int ParentBlockStartK() const {return parBlockStartK;}
-  void SetParentBlockEndK( const int &a){parBlockEndK = a;}
   int ParentBlockEndK() const {return parBlockEndK;}
   void SetRank( const int &a){rank = a;}
   int Rank() const {return rank;}
   void SetGlobalPos( const int &a){globalPos = a;}
   int GlobalPos() const {return globalPos;}
 
-  void SetBCs( const boundaryConditions &a ){bc = a;}
   boundaryConditions BC() const {return bc;}
 
   void SetState( const primVars &a, const int &ind){state[ind] = a;}
