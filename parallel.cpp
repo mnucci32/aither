@@ -75,6 +75,7 @@ vector<int> CubicDecomposition(vector<procBlock> &grid, const int &numProc, vect
 
   procBlock splitTest = grid[0].Split("j", 30);
   cout << "after split:" << endl;
+  boundaryConditions spt1 = grid[0].BC();
   cout << grid[0].BC() << endl;
   vector<procBlock> split1(1,grid[0]);
   WriteCellCenter("split1", split1);
@@ -82,7 +83,12 @@ vector<int> CubicDecomposition(vector<procBlock> &grid, const int &numProc, vect
   cout << "and upper split:" << endl;
   cout << splitTest.BC() << endl;
   vector<procBlock> split2(1,splitTest);
+  boundaryConditions spt2 = split2[0].BC();
   WriteCellCenter("split2", split2);
+
+  cout << "and joined:" << endl;
+  spt1.Join(spt2, "j");
+  cout << spt1 << endl;
 
   exit(0);
 

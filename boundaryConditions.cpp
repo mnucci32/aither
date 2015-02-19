@@ -646,7 +646,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
   }
   else if ( dir == "j" ){ //split along j-plane
 
-    for ( int ii = 0; ii < (*this).NumSurfJ(); ii++ ){
+    for ( int ii = (*this).NumSurfI(); ii < (*this).NumSurfI() + (*this).NumSurfJ(); ii++ ){
       if ( (*this).GetJMax(ii) == 1){ //lower j surface
 	//no change to lower bc at lower j surface
 
@@ -674,7 +674,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
   }
   else if ( dir == "k" ){ //split along k-plane
 
-    for ( int ii = 0; ii < (*this).NumSurfK(); ii++ ){
+    for ( int ii = (*this).NumSurfI() + (*this).NumSurfJ(); ii < (*this).NumSurfaces(); ii++ ){
       if ( (*this).GetKMax(ii) == 1){ //lower k surface
 	//no change to lower bc at lower k surface
 
@@ -709,6 +709,58 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
   return bound2;
 
 }
+
+/* Member function to join 2 boundaryConditions. It assumes that the calling instance is the "lower" boundary condition and the input instance
+is the "upper" boundary condition.
+*/
+void boundaryConditions::Join( boundaryConditions &bc, const string &dir ){
+
+  if ( dir == "i" ){ //split along i-plane
+
+    for ( int ii = 0; ii < (*this).NumSurfI(); ii++ ){
+      if ( (*this).GetIMax(ii) != 1){ //upper i surface
+	//at upper i surface, get BCs from upper BC
+	(*this).bcTypes[ii] = bc.GetBCTypes(ii);
+	(*this).iMin[ii] += bc.GetIMin(ii) - 1;
+	(*this).iMax[ii] += bc.GetIMax(ii) - 1;
+	(*this).tag[ii] = bc.GetTag(ii);
+      }
+    }
+
+  }
+  else if ( dir == "j" ){ //split along j-plane
+
+    for ( int ii = (*this).NumSurfI(); ii < (*this).NumSurfI() + (*this).NumSurfJ(); ii++ ){
+      if ( (*this).GetJMax(ii) != 1){ //upper j surface
+	//at upper i surface, get BCs from upper BC
+	(*this).bcTypes[ii] = bc.GetBCTypes(ii);
+	(*this).jMin[ii] += bc.GetJMin(ii) - 1;
+	(*this).jMax[ii] += bc.GetJMax(ii) - 1;
+	(*this).tag[ii] = bc.GetTag(ii);
+      }
+    }
+
+  }
+  else if ( dir == "k" ){ //split along k-plane
+
+    for ( int ii = (*this).NumSurfI() + (*this).NumSurfJ(); ii < (*this).NumSurfaces(); ii++ ){
+      if ( (*this).GetKMax(ii) != 1){ //upper k surface
+	//at upper i surface, get BCs from upper BC
+	(*this).bcTypes[ii] = bc.GetBCTypes(ii);
+	(*this).kMin[ii] += bc.GetKMin(ii) - 1;
+	(*this).kMax[ii] += bc.GetKMax(ii) - 1;
+	(*this).tag[ii] = bc.GetTag(ii);
+      }
+    }
+
+  }
+  else{
+    cerr << "ERROR: Error in procBlock::Join(). Direction " << dir << " is not recognized! Choose either i, j, or k." << endl;
+    exit(0);
+  }
+
+}
+
 
 //constructor when passed no arguements
 patch::patch(){

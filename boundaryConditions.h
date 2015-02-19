@@ -61,6 +61,7 @@ class boundaryConditions {
   void AssignFromInput(const int&, const vector<string>& );
 
   boundaryConditions Split(const string&, const int&, const int&);
+  void Join(boundaryConditions&, const string&);
 
   void PackBC( char*(&), const int&, int&)const;
   void UnpackBC( char*(&), const int&, int&);
