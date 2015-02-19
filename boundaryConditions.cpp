@@ -606,6 +606,110 @@ void interblock::GetAddressesMPI(MPI_Aint (&disp)[10])const{
 
 }
 
+/* Member function to split boundary conditions along a given direction at a given index. The calling instance retains the lower portion of the split,
+and the returned instance is the upper portion
+*/
+boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, const int &numBlk){
+
+  int indNG = ind + 1; //+1 because boundaries start at 1, not 0
+
+  boundaryConditions bound1 = (*this);
+  boundaryConditions bound2 = (*this);
+
+  if ( dir == "i" ){ //split along i-plane
+
+    for ( int ii = 0; ii < (*this).NumSurfI(); ii++ ){
+      if ( (*this).GetIMax(ii) == 1){ //lower i surface
+	//no change to lower bc at lower i surface
+
+	//at lower i surface, upper bc is now interface
+	int tag = 2000 + numBlk; //lower surface matches with upper surface
+	bound2.bcTypes[ii] = "interblock";
+	bound2.iMin[ii] = (*this).GetIMin(ii);
+	bound2.iMax[ii] = (*this).GetIMax(ii);
+	bound2.tag[ii] = tag;
+      }
+      else {
+	//at upper i surface, lower bc is now interface
+	int tag = 1000 + numBlk; //upper surface matches with lower surface
+	bound1.bcTypes[ii] = "interblock";
+	bound1.iMin[ii] = indNG;
+	bound1.iMax[ii] = indNG;
+	bound1.tag[ii] = tag;
+
+	//at upper i surface, upper bc is same as original, but indices are adjusted for new block size
+	bound2.iMin[ii] = (*this).GetIMax(ii) - indNG + 1;
+	bound2.iMax[ii] = (*this).GetIMax(ii) - indNG + 1;
+      }
+    }
+
+  }
+  else if ( dir == "j" ){ //split along j-plane
+
+    for ( int ii = 0; ii < (*this).NumSurfJ(); ii++ ){
+      if ( (*this).GetJMax(ii) == 1){ //lower j surface
+	//no change to lower bc at lower j surface
+
+	//at lower j surface, upper bc is now interface
+	int tag = 4000 + numBlk; //lower surface matches with upper surface
+	bound2.bcTypes[ii] = "interblock";
+	bound2.jMin[ii] = (*this).GetJMin(ii);
+	bound2.jMax[ii] = (*this).GetJMax(ii);
+	bound2.tag[ii] = tag;
+      }
+      else {
+	//at upper j surface, lower bc is now interface
+	int tag = 3000 + numBlk; //upper surface matches with lower surface
+	bound1.bcTypes[ii] = "interblock";
+	bound1.jMin[ii] = indNG;
+	bound1.jMax[ii] = indNG;
+	bound1.tag[ii] = tag;
+
+	//at upper j surface, upper bc is same as original, but indices are adjusted for new block size
+	bound2.jMin[ii] = (*this).GetJMax(ii) - indNG + 1;
+	bound2.jMax[ii] = (*this).GetJMax(ii) - indNG + 1;
+      }
+    }
+
+  }
+  else if ( dir == "k" ){ //split along k-plane
+
+    for ( int ii = 0; ii < (*this).NumSurfK(); ii++ ){
+      if ( (*this).GetKMax(ii) == 1){ //lower k surface
+	//no change to lower bc at lower k surface
+
+	//at lower k surface, upper bc is now interface
+	int tag = 6000 + numBlk; //lower surface matches with upper surface
+	bound2.bcTypes[ii] = "interblock";
+	bound2.kMin[ii] = (*this).GetKMin(ii);
+	bound2.kMax[ii] = (*this).GetKMax(ii);
+	bound2.tag[ii] = tag;
+      }
+      else {
+	//at upper k surface, lower bc is now interface
+	int tag = 5000 + numBlk; //upper surface matches with lower surface
+	bound1.bcTypes[ii] = "interblock";
+	bound1.kMin[ii] = indNG;
+	bound1.kMax[ii] = indNG;
+	bound1.tag[ii] = tag;
+
+	//at upper k surface, upper bc is same as original, but indices are adjusted for new block size
+	bound2.kMin[ii] = (*this).GetKMax(ii) - indNG + 1;
+	bound2.kMax[ii] = (*this).GetKMax(ii) - indNG + 1;
+      }
+    }
+
+  }
+  else{
+    cerr << "ERROR: Error in procBlock::Split(). Direction " << dir << " is not recognized! Choose either i, j, or k." << endl;
+    exit(0);
+  }
+
+  (*this) = bound1;
+  return bound2;
+
+}
+
 //constructor when passed no arguements
 patch::patch(){
   //initialize all variables to zero

@@ -158,6 +158,8 @@ class procBlock {
   stateSlice GetStateSlice(const int&, const int&, const int&, const int&, const int&, const int&, const bool=false, const bool=false, const bool=false)const;
   void PutStateSlice(const stateSlice&, const interblock&, const int&);
 
+  procBlock Split(const string&, const int&);
+
   void SwapSliceMPI(const interblock&, const int&, const MPI_Datatype& );
   void PackSendGeomMPI(const MPI_Datatype&, const MPI_Datatype&)const;
   void RecvUnpackGeomMPI(const MPI_Datatype&, const MPI_Datatype&);

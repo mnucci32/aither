@@ -40,6 +40,7 @@ class boundaryConditions {
   int NumSurfI()const{return numSurfI;}
   int NumSurfJ()const{return numSurfJ;}
   int NumSurfK()const{return numSurfK;}
+  int NumSurfaces()const{return numSurfI + numSurfJ + numSurfK;}
 
   string GetBCTypes( const int &a)const{return bcTypes[a];}
   int GetIMin( const int &a)const{return iMin[a];}
@@ -58,6 +59,8 @@ class boundaryConditions {
   string GetBCName(const int, const int, const int, const string&)const;
 
   void AssignFromInput(const int&, const vector<string>& );
+
+  boundaryConditions Split(const string&, const int&, const int&);
 
   void PackBC( char*(&), const int&, int&)const;
   void UnpackBC( char*(&), const int&, int&);

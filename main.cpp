@@ -124,7 +124,7 @@ int main( int argc, char *argv[] ) {
     //----------------------------------------------------------------------------------------------
 
     //decompose grid
-    loadBal = ManualDecomposition(stateBlocks, numProcs, connections, totalCells);
+    loadBal = CubicDecomposition(stateBlocks, numProcs, connections, totalCells);
 
   }
 

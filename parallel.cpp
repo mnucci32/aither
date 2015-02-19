@@ -1,4 +1,5 @@
 #include "parallel.h"
+#include "output.h"
 
 /* Function to return processor list for manual decomposition. Manual decomposition assumes that each block will reside on it's own processor.
 The processor list tells how many procBlocks a processor will have.
@@ -24,6 +25,66 @@ vector<int> ManualDecomposition(vector<procBlock> &grid, const int &numProc, vec
   //vector containing number of procBlocks for each processor
   //in manual decomp, each proc gets 1 block
   vector<int> loadBal(numProc, 1);
+
+  //assign processor rank for each procBlock
+  for ( int ii = 0; ii < numProc; ii++ ){
+    grid[ii].SetRank(ii);
+  }
+
+  //assign global position for each procBlock
+  for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
+    grid[ii].SetGlobalPos(ii);
+    maxLoad = std::max(maxLoad, grid[ii].NumCells());
+  }
+
+  cout << "Ratio of most loaded processor to average processor is : " << (double)maxLoad / idealLoad << endl;
+  cout << "--------------------------------------------------------------------------------" << endl << endl;;
+
+  //adjust interblocks to have appropriate rank
+  for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
+    connections[ii].SetRankFirst(grid[connections[ii].BlockFirst()].Rank());
+    connections[ii].SetRankSecond(grid[connections[ii].BlockSecond()].Rank());
+  }
+
+  return loadBal;
+}
+
+/* Function to return processor list for cubic decomposition. 
+The processor list tells how many procBlocks a processor will have.
+*/
+vector<int> CubicDecomposition(vector<procBlock> &grid, const int &numProc, vector<interblock> &connections, const int &totalCells ){
+  // grid -- vector of procBlocks (no need to split procBlocks or combine them with cubic decomposition)
+  // numProc -- number of processors in run
+  // connections -- vector of interblocks, these are updated to have the correct rank after decomposition
+  // totalCells -- total number of cells in the grid; used for load balancing metrics
+
+  cout << "--------------------------------------------------------------------------------" << endl;
+  cout << "Using cubic grid decomposition." << endl;
+
+  double idealLoad = (double)totalCells / (double)numProc; //average number of cells per processor
+  int maxLoad = 0;
+
+  //vector containing number of procBlocks for each processor
+  //in cubic decomp, each proc gets 1 block
+  vector<int> loadBal(numProc, 1);
+
+  cout << "grid block 0 BCs" << endl;
+  cout << grid[0].BC() << endl;
+  vector<procBlock> original(1,grid[0]);
+  WriteCellCenter("original", original);
+
+  procBlock splitTest = grid[0].Split("j", 30);
+  cout << "after split:" << endl;
+  cout << grid[0].BC() << endl;
+  vector<procBlock> split1(1,grid[0]);
+  WriteCellCenter("split1", split1);
+
+  cout << "and upper split:" << endl;
+  cout << splitTest.BC() << endl;
+  vector<procBlock> split2(1,splitTest);
+  WriteCellCenter("split2", split2);
+
+  exit(0);
 
   //assign processor rank for each procBlock
   for ( int ii = 0; ii < numProc; ii++ ){

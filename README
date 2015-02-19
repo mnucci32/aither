@@ -25,7 +25,7 @@ geomSlice - A class to store slices of procBlocks. Used for inter block and inte
 parallel - functions to aid in the data exchange between processors.
 
 HOW TO COMPILE
-Assuming you have g++ (or equivalent) with c++0x support, just type 'make'.
+Assuming you have g++ (or equivalent) with c++11 support, just type 'make'.
 
 HOW TO RUN
 mpirun -n 1 main inputFile.inp >outputFile.out 2>errorFile.err
