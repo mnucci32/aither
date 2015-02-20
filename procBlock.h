@@ -159,6 +159,7 @@ class procBlock {
   void PutStateSlice(const stateSlice&, const interblock&, const int&);
 
   procBlock Split(const string&, const int&);
+  void Join(const procBlock&, const string&);
 
   void SwapSliceMPI(const interblock&, const int&, const MPI_Datatype& );
   void PackSendGeomMPI(const MPI_Datatype&, const MPI_Datatype&)const;
