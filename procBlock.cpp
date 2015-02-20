@@ -9066,8 +9066,325 @@ void procBlock::Join(const procBlock &blk, const string &dir){
     (*this) = newBlk;
 
   }
+  //-----------------------------------------------------------------------------------------------------------------------
+  //-----------------------------------------------------------------------------------------------------------------------
+  //-----------------------------------------------------------------------------------------------------------------------
+  else if ( dir == "k" ){
 
+    int newNumI = (*this).NumI();
+    int newNumJ = (*this).NumJ();
+    int newNumK = (*this).NumK() + blk.NumK();
 
+    int iMax = newNumI + 2 * (*this).NumGhosts();
+    int jMax = newNumJ + 2 * (*this).NumGhosts();
+    int kMax = newNumK + 2 * (*this).NumGhosts();
+
+    procBlock newBlk( newNumI, newNumJ, newNumK, (*this).NumGhosts() );
+
+    if ( (*this).ParentBlockStartK() < blk.ParentBlockStartK() ){ //calling instance is lower
+
+      newBlk.bc = (*this).BC();
+      newBlk.bc.Join(blk.BC(), dir);
+
+      newBlk.parBlockStartI = (*this).ParentBlockStartI();
+      newBlk.parBlockEndI = (*this).ParentBlockEndI();
+      newBlk.parBlockStartJ = (*this).ParentBlockStartJ();
+      newBlk.parBlockEndJ = (*this).ParentBlockEndJ();
+      newBlk.parBlockStartK = (*this).ParentBlockStartK();
+      newBlk.parBlockEndK = (*this).ParentBlockEndK() + blk.ParentBlockEndK();
+
+      int ind = (*this).ParentBlockEndK();
+
+      //loop over cell locations of of block
+      for ( int kk = 0; kk < kMax; kk++ ){
+	for ( int jj = 0; jj < jMax; jj++ ){
+	  for ( int ii = 0; ii < iMax; ii++ ){
+
+	    int loc = GetLoc1D(ii, jj, kk, iMax, jMax);
+	    int locNG = GetLoc1D(ii - newBlk.NumGhosts(), jj - newBlk.NumGhosts(), kk - newBlk.NumGhosts(), newBlk.NumI(), newBlk.NumJ());
+
+	    int fLowI = GetLowerFaceI(ii, jj, kk, iMax, jMax);
+	    int fLowJ = GetLowerFaceJ(ii, jj, kk, iMax, jMax);
+	    int fLowK = GetLowerFaceK(ii, jj, kk, iMax, jMax);
+
+	    //-------------------------------------------------------------------------------------------------------
+	    if ( kk >= ind + newBlk.NumGhosts() ){ //this portion of parent block overlaps with upper split
+
+	      int locU = GetLoc1D(ii, jj, kk - ind, iMax, jMax);
+	      int locNGU = GetLoc1D(ii - blk.NumGhosts() , jj - blk.NumGhosts(), kk - ind - blk.NumGhosts(), blk.NumI(), blk.NumJ());
+
+	      int fLowIU = GetLowerFaceI(ii, jj, kk - ind, iMax, jMax);
+	      int fLowJU = GetLowerFaceJ(ii, jj, kk - ind, iMax, jMax);
+	      int fLowKU = GetLowerFaceK(ii, jj, kk - ind, iMax, jMax);
+
+	      //assign cell variables
+	      newBlk.state[loc] = blk.state[locU];
+	      newBlk.vol[loc] = blk.vol[locU];
+	      newBlk.center[loc] = blk.center[locU];
+
+	      if ( kk >= (ind + blk.NumGhosts()) && kk < (kMax - blk.NumGhosts()) &&
+		   ii >= blk.NumGhosts() && ii < (iMax - blk.NumGhosts()) &&
+		   jj >= blk.NumGhosts() && jj < (jMax - blk.NumGhosts()) ){//physical cells
+
+		newBlk.avgWaveSpeed[locNG] = blk.avgWaveSpeed[locNGU];
+		newBlk.dt[locNG] = blk.dt[locNGU];
+		newBlk.residual[locNG] = blk.residual[locNGU];
+	      }
+
+	      //assign face variables
+	      newBlk.fAreaI[fLowI] = blk.fAreaI[fLowIU];
+	      newBlk.fAreaJ[fLowJ] = blk.fAreaJ[fLowJU];
+	      newBlk.fAreaK[fLowK] = blk.fAreaK[fLowKU];
+
+	      newBlk.fCenterI[fLowI] = blk.fCenterI[fLowIU];
+	      newBlk.fCenterJ[fLowJ] = blk.fCenterJ[fLowJU];
+	      newBlk.fCenterK[fLowK] = blk.fCenterK[fLowKU];
+
+	      if ( ii == iMax - 1 ) {//at end of i-line assign upper face values
+		int fUpI = GetUpperFaceI(ii, jj, kk, iMax, jMax);
+		int fUpIU = GetUpperFaceI(ii, jj, kk - ind, iMax, jMax);
+
+		newBlk.fAreaI[fUpI] = blk.fAreaI[fUpIU];
+		newBlk.fCenterI[fUpI] = blk.fCenterI[fUpIU];
+	      }
+
+	      if ( jj == jMax - 1 ){//at end of j-line assign upper face values
+		int fUpJ = GetUpperFaceJ(ii, jj, kk, iMax, jMax);
+		int fUpJU = GetUpperFaceJ(ii, jj, kk - ind, iMax, jMax);
+
+		newBlk.fAreaJ[fUpJ] = blk.fAreaJ[fUpJU];
+		newBlk.fCenterJ[fUpJ] = blk.fCenterJ[fUpJU];
+	      }
+
+	      if ( kk == kMax - 1 ){//at end of k-line assign upper face values
+		int fUpK = GetUpperFaceK(ii, jj, kk, iMax, jMax);
+		int fUpKU = GetUpperFaceK(ii, jj, kk - ind, iMax, jMax);
+
+		newBlk.fAreaK[fUpK] = blk.fAreaK[fUpKU];
+		newBlk.fCenterK[fUpK] = blk.fCenterK[fUpKU];
+	      }
+	    }
+
+	    //------------------------------------------------------------------------------------------------
+	    else{ //this portion of parent block overlaps with lower split
+
+	      int locL = GetLoc1D(ii, jj, kk, iMax, jMax);
+	      int locNGL = GetLoc1D(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), (*this).NumI(), (*this).NumJ());
+
+	      int fLowIL = GetLowerFaceI(ii, jj, kk, iMax, jMax);
+	      int fLowJL = GetLowerFaceJ(ii, jj, kk, iMax, jMax);
+	      int fLowKL = GetLowerFaceK(ii, jj, kk, iMax, jMax);
+
+	      //assign cell variables
+	      newBlk.state[loc] = (*this).state[locL];
+	      newBlk.vol[loc] = (*this).vol[locL];
+	      newBlk.center[loc] = (*this).center[locL];
+
+	      if ( kk >= (*this).NumGhosts() && kk < (ind + (*this).NumGhosts()) &&
+		   ii >= (*this).NumGhosts() && ii < (iMax - (*this).NumGhosts()) &&
+		   jj >= (*this).NumGhosts() && jj < (jMax - (*this).NumGhosts()) ){ //physical cell
+
+		newBlk.avgWaveSpeed[locNG] = (*this).avgWaveSpeed[locNGL];
+		newBlk.dt[locNG] = (*this).dt[locNGL];
+		newBlk.residual[locNG] = (*this).residual[locNGL];
+	      }
+
+	      //assign face variables
+	      newBlk.fAreaI[fLowI] = (*this).fAreaI[fLowIL];
+	      newBlk.fAreaJ[fLowJ] = (*this).fAreaJ[fLowJL];
+	      newBlk.fAreaK[fLowK] = (*this).fAreaK[fLowKL];
+
+	      newBlk.fCenterI[fLowI] = (*this).fCenterI[fLowIL];
+	      newBlk.fCenterJ[fLowJ] = (*this).fCenterJ[fLowJL];
+	      newBlk.fCenterK[fLowK] = (*this).fCenterK[fLowKL];
+
+	      if ( ii == iMax - 1 ) {//at end of i-line assign upper face values
+		int fUpI = GetUpperFaceI(ii, jj, kk, iMax, jMax);
+		int fUpIL = GetUpperFaceI(ii, jj, kk, iMax, jMax);
+
+		newBlk.fAreaI[fUpI] = (*this).fAreaI[fUpIL];
+		newBlk.fCenterI[fUpI] = (*this).fCenterI[fUpIL];
+	      }
+
+	      if ( jj == jMax - 1 ){//at end of j-line assign upper face values
+		int fUpJ = GetUpperFaceJ(ii, jj, kk, iMax, jMax);
+		int fUpJL = GetUpperFaceJ(ii, jj, kk, iMax, jMax);
+
+		newBlk.fAreaJ[fUpJ] = (*this).fAreaJ[fUpJL];
+		newBlk.fCenterJ[fUpJ] = (*this).fCenterJ[fUpJL];
+	      }
+
+	      if ( kk == ind + (*this).NumGhosts() - 1 ){//at end of k-line assign upper face values
+		int fUpK = GetUpperFaceK(ii, jj, kk, iMax, jMax);
+		int fUpKL = GetUpperFaceK(ii, jj, kk, iMax, jMax);
+
+		newBlk.fAreaK[fUpK] = (*this).fAreaK[fUpKL];
+		newBlk.fCenterK[fUpK] = (*this).fCenterK[fUpKL];
+	      }
+
+	    }
+
+	  }
+	}
+      }
+
+    }
+    else{ //input instance is lower
+
+      newBlk.bc = blk.BC();
+      newBlk.bc.Join((*this).BC(), dir);
+
+      newBlk.parBlockStartI = blk.ParentBlockStartI();
+      newBlk.parBlockEndI = blk.ParentBlockEndI();
+      newBlk.parBlockStartJ = blk.ParentBlockStartJ();
+      newBlk.parBlockEndJ = blk.ParentBlockEndJ();
+      newBlk.parBlockStartK = blk.ParentBlockStartK();
+      newBlk.parBlockEndK = blk.ParentBlockEndK() + (*this).ParentBlockEndK();
+
+      int ind = blk.ParentBlockEndK();
+
+      //loop over cell locations of of block
+      for ( int kk = 0; kk < kMax; kk++ ){
+	for ( int jj = 0; jj < jMax; jj++ ){
+	  for ( int ii = 0; ii < iMax; ii++ ){
+
+	    int loc = GetLoc1D(ii, jj, kk, iMax, jMax);
+	    int locNG = GetLoc1D(ii - newBlk.NumGhosts(), jj - newBlk.NumGhosts(), kk - newBlk.NumGhosts(), newBlk.NumI(), newBlk.NumJ());
+
+	    int fLowI = GetLowerFaceI(ii, jj, kk, iMax, jMax);
+	    int fLowJ = GetLowerFaceJ(ii, jj, kk, iMax, jMax);
+	    int fLowK = GetLowerFaceK(ii, jj, kk, iMax, jMax);
+
+	    //-------------------------------------------------------------------------------------------------------
+	    if ( kk >= ind + newBlk.NumGhosts() ){ //this portion of parent block overlaps with upper split
+
+	      int locU = GetLoc1D(ii, jj, kk - ind, iMax, jMax);
+	      int locNGU = GetLoc1D(ii - (*this).NumGhosts() , jj - (*this).NumGhosts(), kk - ind - (*this).NumGhosts(), (*this).NumI(), (*this).NumJ());
+
+	      int fLowIU = GetLowerFaceI(ii, jj, kk - ind, iMax, jMax);
+	      int fLowJU = GetLowerFaceJ(ii, jj, kk - ind, iMax, jMax);
+	      int fLowKU = GetLowerFaceK(ii, jj, kk - ind, iMax, jMax);
+
+	      //assign cell variables
+	      newBlk.state[loc] = (*this).state[locU];
+	      newBlk.vol[loc] = (*this).vol[locU];
+	      newBlk.center[loc] = (*this).center[locU];
+
+	      if ( kk >= (ind + (*this).NumGhosts()) && kk < (kMax - (*this).NumGhosts()) &&
+		   ii >= (*this).NumGhosts() && ii < (iMax - (*this).NumGhosts()) &&
+		   jj >= (*this).NumGhosts() && jj < (jMax - (*this).NumGhosts()) ){//physical cells
+
+		newBlk.avgWaveSpeed[locNG] = (*this).avgWaveSpeed[locNGU];
+		newBlk.dt[locNG] = (*this).dt[locNGU];
+		newBlk.residual[locNG] = (*this).residual[locNGU];
+	      }
+
+	      //assign face variables
+	      newBlk.fAreaI[fLowI] = (*this).fAreaI[fLowIU];
+	      newBlk.fAreaJ[fLowJ] = (*this).fAreaJ[fLowJU];
+	      newBlk.fAreaK[fLowK] = (*this).fAreaK[fLowKU];
+
+	      newBlk.fCenterI[fLowI] = (*this).fCenterI[fLowIU];
+	      newBlk.fCenterJ[fLowJ] = (*this).fCenterJ[fLowJU];
+	      newBlk.fCenterK[fLowK] = (*this).fCenterK[fLowKU];
+
+	      if ( ii == iMax - 1 ) {//at end of i-line assign upper face values
+		int fUpI = GetUpperFaceI(ii, jj, kk, iMax, jMax);
+		int fUpIU = GetUpperFaceI(ii, jj, kk - ind, iMax, jMax);
+
+		newBlk.fAreaI[fUpI] = (*this).fAreaI[fUpIU];
+		newBlk.fCenterI[fUpI] = (*this).fCenterI[fUpIU];
+	      }
+
+	      if ( jj == jMax - 1 ){//at end of j-line assign upper face values
+		int fUpJ = GetUpperFaceJ(ii, jj, kk, iMax, jMax);
+		int fUpJU = GetUpperFaceJ(ii, jj, kk - ind, iMax, jMax);
+
+		newBlk.fAreaJ[fUpJ] = (*this).fAreaJ[fUpJU];
+		newBlk.fCenterJ[fUpJ] = (*this).fCenterJ[fUpJU];
+	      }
+
+	      if ( kk == kMax - 1 ){//at end of k-line assign upper face values
+		int fUpK = GetUpperFaceK(ii, jj, kk, iMax, jMax);
+		int fUpKU = GetUpperFaceK(ii, jj, kk - ind, iMax, jMax);
+
+		newBlk.fAreaK[fUpK] = (*this).fAreaK[fUpKU];
+		newBlk.fCenterK[fUpK] = (*this).fCenterK[fUpKU];
+	      }
+	    }
+
+	    //------------------------------------------------------------------------------------------------
+	    else{ //this portion of parent block overlaps with lower split
+
+	      int locL = GetLoc1D(ii, jj, kk, iMax, jMax);
+	      int locNGL = GetLoc1D(ii - blk.NumGhosts(), jj - blk.NumGhosts(), kk - blk.NumGhosts(), blk.NumI(), blk.NumJ());
+
+	      int fLowIL = GetLowerFaceI(ii, jj, kk, iMax, jMax);
+	      int fLowJL = GetLowerFaceJ(ii, jj, kk, iMax, jMax);
+	      int fLowKL = GetLowerFaceK(ii, jj, kk, iMax, jMax);
+
+	      //assign cell variables
+	      newBlk.state[loc] = blk.state[locL];
+	      newBlk.vol[loc] = blk.vol[locL];
+	      newBlk.center[loc] = blk.center[locL];
+
+	      if ( kk >= blk.NumGhosts() && kk < (ind + blk.NumGhosts()) &&
+		   ii >= blk.NumGhosts() && ii < (iMax - blk.NumGhosts()) &&
+		   jj >= blk.NumGhosts() && jj < (jMax - blk.NumGhosts()) ){ //physical cell
+
+		newBlk.avgWaveSpeed[locNG] = blk.avgWaveSpeed[locNGL];
+		newBlk.dt[locNG] = blk.dt[locNGL];
+		newBlk.residual[locNG] = blk.residual[locNGL];
+	      }
+
+	      //assign face variables
+	      newBlk.fAreaI[fLowI] = blk.fAreaI[fLowIL];
+	      newBlk.fAreaJ[fLowJ] = blk.fAreaJ[fLowJL];
+	      newBlk.fAreaK[fLowK] = blk.fAreaK[fLowKL];
+
+	      newBlk.fCenterI[fLowI] = blk.fCenterI[fLowIL];
+	      newBlk.fCenterJ[fLowJ] = blk.fCenterJ[fLowJL];
+	      newBlk.fCenterK[fLowK] = blk.fCenterK[fLowKL];
+
+	      if ( ii == iMax - 1 ) {//at end of i-line assign upper face values
+		int fUpI = GetUpperFaceI(ii, jj, kk, iMax, jMax);
+		int fUpIL = GetUpperFaceI(ii, jj, kk, iMax, jMax);
+
+		newBlk.fAreaI[fUpI] = blk.fAreaI[fUpIL];
+		newBlk.fCenterI[fUpI] = blk.fCenterI[fUpIL];
+	      }
+
+	      if ( jj == jMax - 1 ){//at end of j-line assign upper face values
+		int fUpJ = GetUpperFaceJ(ii, jj, kk, iMax, jMax);
+		int fUpJL = GetUpperFaceJ(ii, jj, kk, iMax, jMax);
+
+		newBlk.fAreaJ[fUpJ] = blk.fAreaJ[fUpJL];
+		newBlk.fCenterJ[fUpJ] = blk.fCenterJ[fUpJL];
+	      }
+
+	      if ( kk == ind + blk.NumGhosts() - 1 ){//at end of k-line assign upper face values
+		int fUpK = GetUpperFaceK(ii, jj, kk, iMax, jMax);
+		int fUpKL = GetUpperFaceK(ii, jj, kk, iMax, jMax);
+
+		newBlk.fAreaK[fUpK] = blk.fAreaK[fUpKL];
+		newBlk.fCenterK[fUpK] = blk.fCenterK[fUpKL];
+	      }
+
+	    }
+
+	  }
+	}
+      }
+
+    }
+
+    (*this) = newBlk;
+
+  }
+  else {
+    cerr << "ERROR: Error in procBlock::Join(). Direction " << dir << " is not recognized! Choose either i, j, or k." << endl;
+    exit(0);
+  }
 
 }
 
