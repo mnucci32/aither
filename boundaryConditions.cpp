@@ -713,7 +713,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 /* Member function to join 2 boundaryConditions. It assumes that the calling instance is the "lower" boundary condition and the input instance
 is the "upper" boundary condition.
 */
-void boundaryConditions::Join( boundaryConditions &bc, const string &dir ){
+void boundaryConditions::Join( const boundaryConditions &bc, const string &dir ){
 
   if ( dir == "i" ){ //split along i-plane
 
