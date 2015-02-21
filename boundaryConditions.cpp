@@ -895,41 +895,332 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
 
   if ( dir == "i" ){ //split along i-plane
 
+    //total number of i surfaces in joined block will be equal to the lower i surfaces from lower bc plus the upper i surfaces from the upper bc
+    int numI = 0;
     for ( int ii = 0; ii < (*this).NumSurfI(); ii++ ){
-      if ( (*this).GetIMax(ii) != 1){ //upper i surface
-	//at upper i surface, get BCs from upper BC
-	(*this).bcTypes[ii] = bc.GetBCTypes(ii);
-	(*this).iMin[ii] += bc.GetIMin(ii) - 1;
-	(*this).iMax[ii] += bc.GetIMax(ii) - 1;
-	(*this).tag[ii] = bc.GetTag(ii);
+      if ( (*this).GetIMax(ii) == 1 ){ //lower i surface
+	numI++;
+      }
+    }
+    for ( int ii = 0; ii < bc.NumSurfI(); ii++ ){
+      if ( bc.GetIMax(ii) != 1 ){ //upper i surface
+	numI++;
       }
     }
 
+    //total number of j surfaces in joined block will be equal to all j surfaces from lower bc plus the j surfaces from the upper bc that only reside in the upper bc
+    int numJ = (*this).NumSurfJ() + bc.NumSurfJ();
+
+    //total number of k surfaces in joined block will be equal to all k surfaces from lower bc plus the k surfaces from the upper bc that only reside in the upper bc
+    int numK = (*this).NumSurfK() + bc.NumSurfK();
+
+    //initialze bc with new surface numbers
+    boundaryConditions newBC(numI, numJ, numK);
+    int cc = 0; //boundary condition counter
+
+    //insert all i lower surfaces from lower bc
+    int lowDimI = 0;
+    for ( int ii = 0; ii < (*this).NumSurfI(); ii++ ){
+      if ( (*this).GetIMax(ii) == 1 ){ //lower i surface
+	newBC.bcTypes[cc] = (*this).GetBCTypes(ii);
+	newBC.iMin[cc] = (*this).GetIMin(ii);
+	newBC.iMax[cc] = (*this).GetIMax(ii);
+	newBC.jMin[cc] = (*this).GetJMin(ii);
+	newBC.jMax[cc] = (*this).GetJMax(ii);
+	newBC.kMin[cc] = (*this).GetKMin(ii);
+	newBC.kMax[cc] = (*this).GetKMax(ii);
+	newBC.tag[cc] = (*this).GetTag(ii);
+	cc++;
+      }
+      else{
+	lowDimI = (*this).GetIMax(ii); //maximum i-dimension for lower bc
+      }
+    }
+    //insert all i upper surfaces from upper bc
+    for ( int ii = 0; ii < bc.NumSurfI(); ii++ ){
+      if ( bc.GetIMax(ii) != 1 ){ //upper i surface
+	newBC.bcTypes[cc] = bc.GetBCTypes(ii);
+	newBC.iMin[cc] = bc.GetIMin(ii) + lowDimI - 1; //adjust i coordinates for join
+	newBC.iMax[cc] = bc.GetIMax(ii) + lowDimI - 1;
+	newBC.jMin[cc] = bc.GetJMin(ii);
+	newBC.jMax[cc] = bc.GetJMax(ii);
+	newBC.kMin[cc] = bc.GetKMin(ii);
+	newBC.kMax[cc] = bc.GetKMax(ii);
+	newBC.tag[cc] = bc.GetTag(ii);
+	cc++;
+      }
+    }
+
+    //insert all j surfaces from lower and upper bcs
+    for ( int ii = (*this).NumSurfI(); ii < (*this).NumSurfI() + (*this).NumSurfJ(); ii++ ){
+      newBC.bcTypes[cc] = (*this).GetBCTypes(ii);
+      newBC.iMin[cc] = (*this).GetIMin(ii);
+      newBC.iMax[cc] = (*this).GetIMax(ii);
+      newBC.jMin[cc] = (*this).GetJMin(ii);
+      newBC.jMax[cc] = (*this).GetJMax(ii);
+      newBC.kMin[cc] = (*this).GetKMin(ii);
+      newBC.kMax[cc] = (*this).GetKMax(ii);
+      newBC.tag[cc] = (*this).GetTag(ii);
+      cc++;
+    }
+    for ( int ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++ ){
+      newBC.bcTypes[cc] = bc.GetBCTypes(ii);
+      newBC.iMin[cc] = bc.GetIMin(ii) + lowDimI - 1; //adjust i coordinates for join
+      newBC.iMax[cc] = bc.GetIMax(ii) + lowDimI - 1;
+      newBC.jMin[cc] = bc.GetJMin(ii);
+      newBC.jMax[cc] = bc.GetJMax(ii);
+      newBC.kMin[cc] = bc.GetKMin(ii);
+      newBC.kMax[cc] = bc.GetKMax(ii);
+      newBC.tag[cc] = bc.GetTag(ii);
+      cc++;
+    }
+
+    //insert all k surfaces from lower and upper bcs
+    for ( int ii = (*this).NumSurfI() + (*this).NumSurfJ(); ii < (*this).NumSurfaces(); ii++ ){
+      newBC.bcTypes[cc] = (*this).GetBCTypes(ii);
+      newBC.iMin[cc] = (*this).GetIMin(ii);
+      newBC.iMax[cc] = (*this).GetIMax(ii);
+      newBC.jMin[cc] = (*this).GetJMin(ii);
+      newBC.jMax[cc] = (*this).GetJMax(ii);
+      newBC.kMin[cc] = (*this).GetKMin(ii);
+      newBC.kMax[cc] = (*this).GetKMax(ii);
+      newBC.tag[cc] = (*this).GetTag(ii);
+      cc++;
+    }
+    for ( int ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++ ){
+      newBC.bcTypes[cc] = bc.GetBCTypes(ii);
+      newBC.iMin[cc] = bc.GetIMin(ii) + lowDimI - 1; //adjust i coordinates for join
+      newBC.iMax[cc] = bc.GetIMax(ii) + lowDimI - 1;
+      newBC.jMin[cc] = bc.GetJMin(ii);
+      newBC.jMax[cc] = bc.GetJMax(ii);
+      newBC.kMin[cc] = bc.GetKMin(ii);
+      newBC.kMax[cc] = bc.GetKMax(ii);
+      newBC.tag[cc] = bc.GetTag(ii);
+      cc++;
+    }
+
+    (*this) = newBC;
   }
   else if ( dir == "j" ){ //split along j-plane
 
+    //total number of j surfaces in joined block will be equal to the lower j surfaces from lower bc plus the upper j surfaces from the upper bc
+    int numJ = 0;
     for ( int ii = (*this).NumSurfI(); ii < (*this).NumSurfI() + (*this).NumSurfJ(); ii++ ){
-      if ( (*this).GetJMax(ii) != 1){ //upper j surface
-	//at upper i surface, get BCs from upper BC
-	(*this).bcTypes[ii] = bc.GetBCTypes(ii);
-	(*this).jMin[ii] += bc.GetJMin(ii) - 1;
-	(*this).jMax[ii] += bc.GetJMax(ii) - 1;
-	(*this).tag[ii] = bc.GetTag(ii);
+      if ( (*this).GetJMax(ii) == 1 ){ //lower j surface
+	numJ++;
       }
     }
+    for ( int ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++ ){
+      if ( bc.GetJMax(ii) != 1 ){ //upper j surface
+	numJ++;
+      }
+    }
+
+    //total number of i surfaces in joined block will be equal to all i surfaces from lower bc plus the i surfaces from the upper bc that only reside in the upper bc
+    int numI = (*this).NumSurfI() + bc.NumSurfI();
+
+    //total number of k surfaces in joined block will be equal to all k surfaces from lower bc plus the k surfaces from the upper bc that only reside in the upper bc
+    int numK = (*this).NumSurfK() + bc.NumSurfK();
+
+    //initialze bc with new surface numbers
+    boundaryConditions newBC(numI, numJ, numK);
+    int cc = numI; //boundary condition counter
+
+    //insert all j lower surfaces from lower bc
+    int lowDimJ = 0;
+    for ( int ii = (*this).NumSurfI(); ii < (*this).NumSurfI() + (*this).NumSurfJ(); ii++ ){
+      if ( (*this).GetJMax(ii) == 1 ){ //lower j surface
+	newBC.bcTypes[cc] = (*this).GetBCTypes(ii);
+	newBC.iMin[cc] = (*this).GetIMin(ii);
+	newBC.iMax[cc] = (*this).GetIMax(ii);
+	newBC.jMin[cc] = (*this).GetJMin(ii);
+	newBC.jMax[cc] = (*this).GetJMax(ii);
+	newBC.kMin[cc] = (*this).GetKMin(ii);
+	newBC.kMax[cc] = (*this).GetKMax(ii);
+	newBC.tag[cc] = (*this).GetTag(ii);
+	cc++;
+      }
+      else{
+	lowDimJ = (*this).GetJMax(ii); //maximum j-dimension for lower bc
+      }
+    }
+    //insert all j upper surfaces from upper bc
+    for ( int ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++ ){
+      if ( bc.GetJMax(ii) != 1 ){ //upper j surface
+	newBC.bcTypes[cc] = bc.GetBCTypes(ii);
+	newBC.iMin[cc] = bc.GetIMin(ii); 
+	newBC.iMax[cc] = bc.GetIMax(ii);
+	newBC.jMin[cc] = bc.GetJMin(ii) + lowDimJ - 1; //adjust j coordinates for join
+	newBC.jMax[cc] = bc.GetJMax(ii) + lowDimJ - 1;
+	newBC.kMin[cc] = bc.GetKMin(ii);
+	newBC.kMax[cc] = bc.GetKMax(ii);
+	newBC.tag[cc] = bc.GetTag(ii);
+	cc++;
+      }
+    }
+
+    cc = 0;
+    //insert all i surfaces from lower and upper bcs
+    for ( int ii = 0; ii < (*this).NumSurfI(); ii++ ){
+      newBC.bcTypes[cc] = (*this).GetBCTypes(ii);
+      newBC.iMin[cc] = (*this).GetIMin(ii);
+      newBC.iMax[cc] = (*this).GetIMax(ii);
+      newBC.jMin[cc] = (*this).GetJMin(ii);
+      newBC.jMax[cc] = (*this).GetJMax(ii);
+      newBC.kMin[cc] = (*this).GetKMin(ii);
+      newBC.kMax[cc] = (*this).GetKMax(ii);
+      newBC.tag[cc] = (*this).GetTag(ii);
+      cc++;
+    }
+    for ( int ii = 0; ii < bc.NumSurfI(); ii++ ){
+      newBC.bcTypes[cc] = bc.GetBCTypes(ii);
+      newBC.iMin[cc] = bc.GetIMin(ii); 
+      newBC.iMax[cc] = bc.GetIMax(ii);
+      newBC.jMin[cc] = bc.GetJMin(ii) + lowDimJ - 1; //adjust j coordinates for join
+      newBC.jMax[cc] = bc.GetJMax(ii) + lowDimJ - 1;
+      newBC.kMin[cc] = bc.GetKMin(ii);
+      newBC.kMax[cc] = bc.GetKMax(ii);
+      newBC.tag[cc] = bc.GetTag(ii);
+      cc++;
+    }
+
+    cc = numI + numJ;
+    //insert all k surfaces from lower and upper bcs
+    for ( int ii = (*this).NumSurfI() + (*this).NumSurfJ(); ii < (*this).NumSurfaces(); ii++ ){
+      newBC.bcTypes[cc] = (*this).GetBCTypes(ii);
+      newBC.iMin[cc] = (*this).GetIMin(ii);
+      newBC.iMax[cc] = (*this).GetIMax(ii);
+      newBC.jMin[cc] = (*this).GetJMin(ii);
+      newBC.jMax[cc] = (*this).GetJMax(ii);
+      newBC.kMin[cc] = (*this).GetKMin(ii);
+      newBC.kMax[cc] = (*this).GetKMax(ii);
+      newBC.tag[cc] = (*this).GetTag(ii);
+      cc++;
+    }
+    for ( int ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++ ){
+      newBC.bcTypes[cc] = bc.GetBCTypes(ii);
+      newBC.iMin[cc] = bc.GetIMin(ii);
+      newBC.iMax[cc] = bc.GetIMax(ii);
+      newBC.jMin[cc] = bc.GetJMin(ii) + lowDimJ - 1; //adjust j coordinates for join
+      newBC.jMax[cc] = bc.GetJMax(ii) + lowDimJ - 1;
+      newBC.kMin[cc] = bc.GetKMin(ii);
+      newBC.kMax[cc] = bc.GetKMax(ii);
+      newBC.tag[cc] = bc.GetTag(ii);
+      cc++;
+    }
+
+    (*this) = newBC;
 
   }
   else if ( dir == "k" ){ //split along k-plane
 
+    //total number of k surfaces in joined block will be equal to the lower k surfaces from lower bc plus the upper k surfaces from the upper bc
+    int numK = 0;
     for ( int ii = (*this).NumSurfI() + (*this).NumSurfJ(); ii < (*this).NumSurfaces(); ii++ ){
-      if ( (*this).GetKMax(ii) != 1){ //upper k surface
-	//at upper i surface, get BCs from upper BC
-	(*this).bcTypes[ii] = bc.GetBCTypes(ii);
-	(*this).kMin[ii] += bc.GetKMin(ii) - 1;
-	(*this).kMax[ii] += bc.GetKMax(ii) - 1;
-	(*this).tag[ii] = bc.GetTag(ii);
+      if ( (*this).GetKMax(ii) == 1 ){ //lower k surface
+	numK++;
       }
     }
+    for ( int ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++ ){
+      if ( bc.GetKMax(ii) != 1 ){ //upper k surface
+	numK++;
+      }
+    }
+
+    //total number of i surfaces in joined block will be equal to all i surfaces from lower bc plus the i surfaces from the upper bc that only reside in the upper bc
+    int numI = (*this).NumSurfI() + bc.NumSurfI();
+
+    //total number of j surfaces in joined block will be equal to all j surfaces from lower bc plus the j surfaces from the upper bc that only reside in the upper bc
+    int numJ = (*this).NumSurfJ() + bc.NumSurfJ();
+
+    //initialze bc with new surface numbers
+    boundaryConditions newBC(numI, numJ, numK);
+    int cc = numI + numJ; //boundary condition counter
+
+    //insert all k lower surfaces from lower bc
+    int lowDimK = 0;
+    for ( int ii = (*this).NumSurfI() + (*this).NumSurfJ(); ii < (*this).NumSurfaces(); ii++ ){
+      if ( (*this).GetKMax(ii) == 1 ){ //lower k surface
+	newBC.bcTypes[cc] = (*this).GetBCTypes(ii);
+	newBC.iMin[cc] = (*this).GetIMin(ii);
+	newBC.iMax[cc] = (*this).GetIMax(ii);
+	newBC.jMin[cc] = (*this).GetJMin(ii);
+	newBC.jMax[cc] = (*this).GetJMax(ii);
+	newBC.kMin[cc] = (*this).GetKMin(ii);
+	newBC.kMax[cc] = (*this).GetKMax(ii);
+	newBC.tag[cc] = (*this).GetTag(ii);
+	cc++;
+      }
+      else{
+	lowDimK = (*this).GetKMax(ii); //maximum k-dimension for lower bc
+      }
+    }
+    //insert all k upper surfaces from upper bc
+    for ( int ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++ ){
+      if ( bc.GetKMax(ii) != 1 ){ //upper k surface
+	newBC.bcTypes[cc] = bc.GetBCTypes(ii);
+	newBC.iMin[cc] = bc.GetIMin(ii); 
+	newBC.iMax[cc] = bc.GetIMax(ii);
+	newBC.jMin[cc] = bc.GetJMin(ii);
+	newBC.jMax[cc] = bc.GetJMax(ii);
+	newBC.kMin[cc] = bc.GetKMin(ii) + lowDimK - 1; //adjust k coordinates for join
+	newBC.kMax[cc] = bc.GetKMax(ii) + lowDimK - 1;
+	newBC.tag[cc] = bc.GetTag(ii);
+	cc++;
+      }
+    }
+
+    cc = 0;
+    //insert all i surfaces from lower and upper bcs
+    for ( int ii = 0; ii < (*this).NumSurfI(); ii++ ){
+      newBC.bcTypes[cc] = (*this).GetBCTypes(ii);
+      newBC.iMin[cc] = (*this).GetIMin(ii);
+      newBC.iMax[cc] = (*this).GetIMax(ii);
+      newBC.jMin[cc] = (*this).GetJMin(ii);
+      newBC.jMax[cc] = (*this).GetJMax(ii);
+      newBC.kMin[cc] = (*this).GetKMin(ii);
+      newBC.kMax[cc] = (*this).GetKMax(ii);
+      newBC.tag[cc] = (*this).GetTag(ii);
+      cc++;
+    }
+    for ( int ii = 0; ii < bc.NumSurfI(); ii++ ){
+      newBC.bcTypes[cc] = bc.GetBCTypes(ii);
+      newBC.iMin[cc] = bc.GetIMin(ii); 
+      newBC.iMax[cc] = bc.GetIMax(ii);
+      newBC.jMin[cc] = bc.GetJMin(ii);
+      newBC.jMax[cc] = bc.GetJMax(ii);
+      newBC.kMin[cc] = bc.GetKMin(ii) + lowDimK - 1; //adjust  coordinates for join
+      newBC.kMax[cc] = bc.GetKMax(ii) + lowDimK - 1;
+      newBC.tag[cc] = bc.GetTag(ii);
+      cc++;
+    }
+
+    cc = numI;
+    //insert all j surfaces from lower and upper bcs
+    for ( int ii = (*this).NumSurfI(); ii < (*this).NumSurfI() + (*this).NumSurfJ(); ii++ ){
+      newBC.bcTypes[cc] = (*this).GetBCTypes(ii);
+      newBC.iMin[cc] = (*this).GetIMin(ii);
+      newBC.iMax[cc] = (*this).GetIMax(ii);
+      newBC.jMin[cc] = (*this).GetJMin(ii);
+      newBC.jMax[cc] = (*this).GetJMax(ii);
+      newBC.kMin[cc] = (*this).GetKMin(ii);
+      newBC.kMax[cc] = (*this).GetKMax(ii);
+      newBC.tag[cc] = (*this).GetTag(ii);
+      cc++;
+    }
+    for ( int ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++ ){
+      newBC.bcTypes[cc] = bc.GetBCTypes(ii);
+      newBC.iMin[cc] = bc.GetIMin(ii);
+      newBC.iMax[cc] = bc.GetIMax(ii);
+      newBC.jMin[cc] = bc.GetJMin(ii);
+      newBC.jMax[cc] = bc.GetJMax(ii);
+      newBC.kMin[cc] = bc.GetKMin(ii) + lowDimK - 1; //adjust k coordinates for join
+      newBC.kMax[cc] = bc.GetKMax(ii) + lowDimK - 1;
+      newBC.tag[cc] = bc.GetTag(ii);
+      cc++;
+    }
+
+    (*this) = newBC;
 
   }
   else{
