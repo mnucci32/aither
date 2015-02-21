@@ -616,87 +616,265 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
   boundaryConditions bound1 = (*this);
   boundaryConditions bound2 = (*this);
 
+  vector<int> del1, del2;
+  del1.reserve((*this).NumSurfaces()); //reserved for maximum number of deletions
+  del2.reserve((*this).NumSurfaces()); //reserved for maximum number of deletions
+
   if ( dir == "i" ){ //split along i-plane
 
-    for ( int ii = 0; ii < (*this).NumSurfI(); ii++ ){
-      if ( (*this).GetIMax(ii) == 1){ //lower i surface
-	//no change to lower bc at lower i surface
+    int del1J = 0;
+    int del1K = 0;
+    int del2J = 0;
+    int del2K = 0;
 
-	//at lower i surface, upper bc is now interface
-	int tag = 2000 + numBlk; //lower surface matches with upper surface
-	bound2.bcTypes[ii] = "interblock";
-	bound2.iMin[ii] = (*this).GetIMin(ii);
-	bound2.iMax[ii] = (*this).GetIMax(ii);
-	bound2.tag[ii] = tag;
-      }
-      else {
-	//at upper i surface, lower bc is now interface
-	int tag = 1000 + numBlk; //upper surface matches with lower surface
-	bound1.bcTypes[ii] = "interblock";
-	bound1.iMin[ii] = indNG;
-	bound1.iMax[ii] = indNG;
-	bound1.tag[ii] = tag;
+    for ( int ii = 0; ii < (*this).NumSurfaces(); ii++ ){
+      if ( ii < (*this).NumSurfI() ){ //i-surface
+	if ( (*this).GetIMax(ii) == 1){ //lower i surface
+	  //no change to lower bc at lower i surface
 
-	//at upper i surface, upper bc is same as original, but indices are adjusted for new block size
-	bound2.iMin[ii] = (*this).GetIMax(ii) - indNG + 1;
-	bound2.iMax[ii] = (*this).GetIMax(ii) - indNG + 1;
+	  //at lower i surface, upper bc is now interface
+	  int tag = 2000 + numBlk; //lower surface matches with upper surface
+	  bound2.bcTypes[ii] = "interblock";
+	  bound2.iMin[ii] = (*this).GetIMin(ii);
+	  bound2.iMax[ii] = (*this).GetIMax(ii);
+	  bound2.tag[ii] = tag;
+	}
+	else{ //upper surface
+	  //at upper i surface, lower bc is now interface
+	  int tag = 1000 + numBlk; //upper surface matches with lower surface
+	  bound1.bcTypes[ii] = "interblock";
+	  bound1.iMin[ii] = indNG;
+	  bound1.iMax[ii] = indNG;
+	  bound1.tag[ii] = tag;
+
+	  //at upper i surface, upper bc is same as original, but indices are adjusted for new block size
+	  bound2.iMin[ii] = (*this).GetIMax(ii) - indNG + 1;
+	  bound2.iMax[ii] = (*this).GetIMax(ii) - indNG + 1;
+	}
       }
+      else { //j-surface or k-surface
+	if ( (*this).GetIMin(ii) >= indNG ){ //this surface is only present in the upper split
+	  del1.push_back(ii);
+	  bound2.iMin[ii] = (*this).GetIMax(ii) - indNG + 1;
+	  bound2.iMax[ii] = (*this).GetIMax(ii) - indNG + 1;
+	  if ( ii >= (*this).NumSurfI() && ii < (*this).NumSurfI() + (*this).NumSurfJ() ){ //j-surface
+	    del1J++;
+	  }
+	  else{ //k-surface
+	    del1K++;
+	  }
+	}
+	else if ( (*this).GetIMax(ii) >= indNG ){ //this surface straddles the split
+	  bound1.iMax[ii] = indNG;
+	  bound2.iMin[ii] = 1;
+	  bound2.iMax[ii] = (*this).GetIMax(ii) - indNG + 1;
+	}
+	else{ //this surface is only present in the lower split
+	  del2.push_back(ii);
+	  if ( ii >= (*this).NumSurfI() && ii < (*this).NumSurfI() + (*this).NumSurfJ() ){ //j-surface
+	    del2J++;
+	  }
+	  else{ //k-surface
+	    del2K++;
+	  }
+	}
+      }
+    }
+
+    //delete unnecessary boundaries
+    for ( unsigned int ii = 0; ii < del1.size(); ii++ ){
+      bound1.iMin.erase(bound1.iMin.begin() + del1[ii]);
+      bound1.iMax.erase(bound1.iMax.begin() + del1[ii]);
+      bound1.jMin.erase(bound1.jMin.begin() + del1[ii]);
+      bound1.jMax.erase(bound1.jMax.begin() + del1[ii]);
+      bound1.kMin.erase(bound1.kMin.begin() + del1[ii]);
+      bound1.kMax.erase(bound1.kMax.begin() + del1[ii]);
+      bound1.tag.erase(bound1.tag.begin() + del1[ii]);
+      bound1.numSurfJ -= del1J;
+      bound1.numSurfK -= del1K;
+    }
+    for ( unsigned int ii = 0; ii < del2.size(); ii++ ){
+      bound2.iMin.erase(bound2.iMin.begin() + del2[ii]);
+      bound2.iMax.erase(bound2.iMax.begin() + del2[ii]);
+      bound2.jMin.erase(bound2.jMin.begin() + del2[ii]);
+      bound2.jMax.erase(bound2.jMax.begin() + del2[ii]);
+      bound2.kMin.erase(bound2.kMin.begin() + del2[ii]);
+      bound2.kMax.erase(bound2.kMax.begin() + del2[ii]);
+      bound2.tag.erase(bound2.tag.begin() + del2[ii]);
+      bound2.numSurfJ -= del2J;
+      bound2.numSurfK -= del2K;
     }
 
   }
   else if ( dir == "j" ){ //split along j-plane
 
-    for ( int ii = (*this).NumSurfI(); ii < (*this).NumSurfI() + (*this).NumSurfJ(); ii++ ){
-      if ( (*this).GetJMax(ii) == 1){ //lower j surface
-	//no change to lower bc at lower j surface
+    int del1I = 0;
+    int del1K = 0;
+    int del2I = 0;
+    int del2K = 0;
 
-	//at lower j surface, upper bc is now interface
-	int tag = 4000 + numBlk; //lower surface matches with upper surface
-	bound2.bcTypes[ii] = "interblock";
-	bound2.jMin[ii] = (*this).GetJMin(ii);
-	bound2.jMax[ii] = (*this).GetJMax(ii);
-	bound2.tag[ii] = tag;
-      }
-      else {
-	//at upper j surface, lower bc is now interface
-	int tag = 3000 + numBlk; //upper surface matches with lower surface
-	bound1.bcTypes[ii] = "interblock";
-	bound1.jMin[ii] = indNG;
-	bound1.jMax[ii] = indNG;
-	bound1.tag[ii] = tag;
+    for ( int ii = 0; ii < (*this).NumSurfaces(); ii++ ){
+      if ( ii >= (*this).NumSurfI() && ii < (*this).NumSurfI() + (*this).NumSurfJ() ){ //j-surface
+	if ( (*this).GetJMax(ii) == 1){ //lower j surface
+	  //no change to lower bc at lower j surface
 
-	//at upper j surface, upper bc is same as original, but indices are adjusted for new block size
-	bound2.jMin[ii] = (*this).GetJMax(ii) - indNG + 1;
-	bound2.jMax[ii] = (*this).GetJMax(ii) - indNG + 1;
+	  //at lower j surface, upper bc is now interface
+	  int tag = 4000 + numBlk; //lower surface matches with upper surface
+	  bound2.bcTypes[ii] = "interblock";
+	  bound2.jMin[ii] = (*this).GetJMin(ii);
+	  bound2.jMax[ii] = (*this).GetJMax(ii);
+	  bound2.tag[ii] = tag;
+	}
+	else {
+	  //at upper j surface, lower bc is now interface
+	  int tag = 3000 + numBlk; //upper surface matches with lower surface
+	  bound1.bcTypes[ii] = "interblock";
+	  bound1.jMin[ii] = indNG;
+	  bound1.jMax[ii] = indNG;
+	  bound1.tag[ii] = tag;
+
+	  //at upper j surface, upper bc is same as original, but indices are adjusted for new block size
+	  bound2.jMin[ii] = (*this).GetJMax(ii) - indNG + 1;
+	  bound2.jMax[ii] = (*this).GetJMax(ii) - indNG + 1;
+	}
       }
+      else { //i-surface or k-surface
+	if ( (*this).GetJMin(ii) >= indNG ){ //this surface is only present in the upper split
+	  del1.push_back(ii);
+	  bound2.jMin[ii] = (*this).GetJMax(ii) - indNG + 1;
+	  bound2.jMax[ii] = (*this).GetJMax(ii) - indNG + 1;
+	  if ( ii < (*this).NumSurfI() ){ //i-surface
+	    del1I++;
+	  }
+	  else{ //k-surface
+	    del1K++;
+	  }
+	}
+	else if ( (*this).GetJMax(ii) >= indNG ){ //this surface straddles the split
+	  bound1.jMax[ii] = indNG;
+	  bound2.jMin[ii] = 1;
+	  bound2.jMax[ii] = (*this).GetJMax(ii) - indNG + 1;
+	}
+	else{ //this surface is only present in the lower split
+	  del2.push_back(ii);
+	  if ( ii < (*this).NumSurfI() ){ //i-surface
+	    del2I++;
+	  }
+	  else{ //k-surface
+	    del2K++;
+	  }
+	}
+      }
+    }
+
+    //delete unnecessary boundaries
+    for ( unsigned int ii = 0; ii < del1.size(); ii++ ){
+      bound1.iMin.erase(bound1.iMin.begin() + del1[ii]);
+      bound1.iMax.erase(bound1.iMax.begin() + del1[ii]);
+      bound1.jMin.erase(bound1.jMin.begin() + del1[ii]);
+      bound1.jMax.erase(bound1.jMax.begin() + del1[ii]);
+      bound1.kMin.erase(bound1.kMin.begin() + del1[ii]);
+      bound1.kMax.erase(bound1.kMax.begin() + del1[ii]);
+      bound1.tag.erase(bound1.tag.begin() + del1[ii]);
+      bound1.numSurfI -= del1I;
+      bound1.numSurfK -= del1K;
+    }
+    for ( unsigned int ii = 0; ii < del2.size(); ii++ ){
+      bound2.iMin.erase(bound2.iMin.begin() + del2[ii]);
+      bound2.iMax.erase(bound2.iMax.begin() + del2[ii]);
+      bound2.jMin.erase(bound2.jMin.begin() + del2[ii]);
+      bound2.jMax.erase(bound2.jMax.begin() + del2[ii]);
+      bound2.kMin.erase(bound2.kMin.begin() + del2[ii]);
+      bound2.kMax.erase(bound2.kMax.begin() + del2[ii]);
+      bound2.tag.erase(bound2.tag.begin() + del2[ii]);
+      bound2.numSurfI -= del2I;
+      bound2.numSurfK -= del2K;
     }
 
   }
   else if ( dir == "k" ){ //split along k-plane
 
-    for ( int ii = (*this).NumSurfI() + (*this).NumSurfJ(); ii < (*this).NumSurfaces(); ii++ ){
-      if ( (*this).GetKMax(ii) == 1){ //lower k surface
-	//no change to lower bc at lower k surface
+    int del1I = 0;
+    int del1J = 0;
+    int del2I = 0;
+    int del2J = 0;
 
-	//at lower k surface, upper bc is now interface
-	int tag = 6000 + numBlk; //lower surface matches with upper surface
-	bound2.bcTypes[ii] = "interblock";
-	bound2.kMin[ii] = (*this).GetKMin(ii);
-	bound2.kMax[ii] = (*this).GetKMax(ii);
-	bound2.tag[ii] = tag;
-      }
-      else {
-	//at upper k surface, lower bc is now interface
-	int tag = 5000 + numBlk; //upper surface matches with lower surface
-	bound1.bcTypes[ii] = "interblock";
-	bound1.kMin[ii] = indNG;
-	bound1.kMax[ii] = indNG;
-	bound1.tag[ii] = tag;
+    for ( int ii = 0; ii < (*this).NumSurfaces(); ii++ ){
+      if ( ii >= (*this).NumSurfI() + (*this).NumSurfJ() ){ //k-surface
+	if ( (*this).GetKMax(ii) == 1){ //lower k surface
+	  //no change to lower bc at lower k surface
 
-	//at upper k surface, upper bc is same as original, but indices are adjusted for new block size
-	bound2.kMin[ii] = (*this).GetKMax(ii) - indNG + 1;
-	bound2.kMax[ii] = (*this).GetKMax(ii) - indNG + 1;
+	  //at lower k surface, upper bc is now interface
+	  int tag = 6000 + numBlk; //lower surface matches with upper surface
+	  bound2.bcTypes[ii] = "interblock";
+	  bound2.kMin[ii] = (*this).GetKMin(ii);
+	  bound2.kMax[ii] = (*this).GetKMax(ii);
+	  bound2.tag[ii] = tag;
+	}
+	else {
+	  //at upper k surface, lower bc is now interface
+	  int tag = 5000 + numBlk; //upper surface matches with lower surface
+	  bound1.bcTypes[ii] = "interblock";
+	  bound1.kMin[ii] = indNG;
+	  bound1.kMax[ii] = indNG;
+	  bound1.tag[ii] = tag;
+
+	  //at upper k surface, upper bc is same as original, but indices are adjusted for new block size
+	  bound2.kMin[ii] = (*this).GetKMax(ii) - indNG + 1;
+	  bound2.kMax[ii] = (*this).GetKMax(ii) - indNG + 1;
+	}
       }
+      else { //i-surface or j-surface
+	if ( (*this).GetKMin(ii) >= indNG ){ //this surface is only present in the upper split
+	  del1.push_back(ii);
+	  bound2.kMin[ii] = (*this).GetKMax(ii) - indNG + 1;
+	  bound2.kMax[ii] = (*this).GetKMax(ii) - indNG + 1;
+	  if ( ii < (*this).NumSurfI() ){ //i-surface
+	    del1I++;
+	  }
+	  else{ //j-surface
+	    del1J++;
+	  }
+	}
+	else if ( (*this).GetKMax(ii) >= indNG ){ //this surface straddles the split
+	  bound1.kMax[ii] = indNG;
+	  bound2.kMin[ii] = 1;
+	  bound2.kMax[ii] = (*this).GetKMax(ii) - indNG + 1;
+	}
+	else{ //this surface is only present in the lower split
+	  del2.push_back(ii);
+	  if ( ii < (*this).NumSurfI() ){ //i-surface
+	    del2I++;
+	  }
+	  else{ //j-surface
+	    del2J++;
+	  }
+	}
+      }
+    }
+
+    //delete unnecessary boundaries
+    for ( unsigned int ii = 0; ii < del1.size(); ii++ ){
+      bound1.iMin.erase(bound1.iMin.begin() + del1[ii]);
+      bound1.iMax.erase(bound1.iMax.begin() + del1[ii]);
+      bound1.jMin.erase(bound1.jMin.begin() + del1[ii]);
+      bound1.jMax.erase(bound1.jMax.begin() + del1[ii]);
+      bound1.kMin.erase(bound1.kMin.begin() + del1[ii]);
+      bound1.kMax.erase(bound1.kMax.begin() + del1[ii]);
+      bound1.tag.erase(bound1.tag.begin() + del1[ii]);
+      bound1.numSurfI -= del1I;
+      bound1.numSurfJ -= del1J;
+    }
+    for ( unsigned int ii = 0; ii < del2.size(); ii++ ){
+      bound2.iMin.erase(bound2.iMin.begin() + del2[ii]);
+      bound2.iMax.erase(bound2.iMax.begin() + del2[ii]);
+      bound2.jMin.erase(bound2.jMin.begin() + del2[ii]);
+      bound2.jMax.erase(bound2.jMax.begin() + del2[ii]);
+      bound2.kMin.erase(bound2.kMin.begin() + del2[ii]);
+      bound2.kMax.erase(bound2.kMax.begin() + del2[ii]);
+      bound2.tag.erase(bound2.tag.begin() + del2[ii]);
+      bound2.numSurfI -= del2I;
+      bound2.numSurfJ -= del2J;
     }
 
   }
