@@ -64,11 +64,10 @@ procBlock::procBlock(){
 
 }
 //constructor -- initialize state vector with dummy variables
-procBlock::procBlock(const plot3dBlock &blk, const int& numBlk, const int &numG, const string &eqnSet){
+procBlock::procBlock(const plot3dBlock &blk, const int& numBlk, const int &numG){
   // blk -- plot3d block of which this procBlock is a subset of
   // numBlk -- the block number of blk (the parent block)
   // numG -- number of ghost cells
-  // eqnSet -- which equation set is being solved
 
   numI = blk.NumI()-1; //i, j, k dimensions are cell-based so subtract 1
   numJ = blk.NumJ()-1;
@@ -115,7 +114,7 @@ procBlock::procBlock(const plot3dBlock &blk, const int& numBlk, const int &numG,
 }
 
 //constructor -- assign passed variables to initialize state vector
-procBlock::procBlock( const double density, const double pressure, const vector3d<double> vel, const plot3dBlock &blk, const int &numBlk, const int &numG, const string &eqnSet,
+procBlock::procBlock( const double density, const double pressure, const vector3d<double> vel, const plot3dBlock &blk, const int &numBlk, const int &numG,
 		      const boundaryConditions &bound){
   // density -- density to initialize block with
   // pressure -- pressure to initialize block with
@@ -123,7 +122,6 @@ procBlock::procBlock( const double density, const double pressure, const vector3
   // blk -- plot3d block of which this procBlock is a subset of
   // numBlk -- the block number of blk (the parent block)
   // numG -- number of ghost cells
-  // eqnSet -- which equation set is being solved
   // bound -- boundary conditions for block
 
   numI = blk.NumI()-1;
@@ -170,13 +168,14 @@ procBlock::procBlock( const double density, const double pressure, const vector3
 }
 
 //constructor -- assign passed state to initialize state vector
-procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const int &numBlk, const int &numG, const string &eqnSet, const boundaryConditions& bound){
+procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const int &numBlk, const int &numG, const boundaryConditions& bound, const int &pos, const int &r){
   // inputState -- state to initialize block with (primative)
   // blk -- plot3d block of which this procBlock is a subset of
   // numBlk -- the block number of blk (the parent block)
   // numG -- number of ghost cells
-  // eqnSet -- which equation set is being solved
   // bound -- boundary conditions for block
+  // pos -- global position of block, an identifying number unique to this block
+  // r -- processor rank that procBlock should be on
 
   numI = blk.NumI()-1;
   numJ = blk.NumJ()-1;
@@ -192,8 +191,8 @@ procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const 
   parBlockEndJ = numJ;
   parBlockStartK = 0;
   parBlockEndK = numK;
-  rank = 0;
-  globalPos = 0;
+  rank = r;
+  globalPos = pos;
 
   bc = bound;
 
@@ -2215,11 +2214,8 @@ regular ghost cells and "edge" ghost cells. "Corner" cells are left with no valu
 In the above diagram where X represents the physical cells, cells marked G (regular ghost cells) and E ("edge" ghost cells) are assigned geometric
 values. G1 represents the first layer of ghost cells and G2 represents the second layer.
 */
-void procBlock::AssignGhostCellsGeom(const input &inp){
+void procBlock::AssignGhostCellsGeom(){
   // inp -- all input variables
-
-  //get boundary conditions for block
-  const boundaryConditions bound = inp.BC( (*this).ParentBlock() );
 
   //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
@@ -2237,8 +2233,8 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
     for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++ ){
 
       //name of boundary conditions at lower and upper boundaries
-      string bcNameL = bound.GetBCName(0, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "il");
-      string bcNameU = bound.GetBCName(imax, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "iu");
+      string bcNameL = (*this).BC().GetBCName(0, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "il");
+      string bcNameU = (*this).BC().GetBCName(imax, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "iu");
 
       if ( bcNameL == "interblock" && bcNameU == "interblock" && imax < 2 ){
 	cerr << "ERROR: Error in procBlock::AssignGhostCellsGeom(). Cannot have interblock BCs surrounding a block that is 1 cell thick!" << endl;
@@ -2665,8 +2661,8 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
     for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++ ){
 
       //name of boundary conditions at lower and upper boundaries
-      string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), 0, kk - (*this).NumGhosts(), "jl");
-      string bcNameU = bound.GetBCName(ii - (*this).NumGhosts(), jmax, kk - (*this).NumGhosts(), "ju");
+      string bcNameL = (*this).BC().GetBCName(ii - (*this).NumGhosts(), 0, kk - (*this).NumGhosts(), "jl");
+      string bcNameU = (*this).BC().GetBCName(ii - (*this).NumGhosts(), jmax, kk - (*this).NumGhosts(), "ju");
 
       if ( bcNameL == "interblock" && bcNameU == "interblock" && jmax < 2 ){
 	cerr << "ERROR: Error in procBlock::AssignGhostCellsGeom(). Cannot have interblock BCs surrounding a block that is 1 cell thick!" << endl;
@@ -3092,8 +3088,8 @@ void procBlock::AssignGhostCellsGeom(const input &inp){
     for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++ ){
 
       //name of boundary conditions at lower and upper boundaries
-      string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), 0, "kl");
-      string bcNameU = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kmax, "ku");
+      string bcNameL = (*this).BC().GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), 0, "kl");
+      string bcNameU = (*this).BC().GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kmax, "ku");
 
       if ( bcNameL == "interblock" && bcNameU == "interblock" && kmax < 2 ){
 	cerr << "ERROR: Error in procBlock::AssignGhostCellsGeom(). Cannot have interblock BCs surrounding a block that is 1 cell thick!" << endl;
@@ -3545,10 +3541,7 @@ axes on the side of the diagram indicate the coordinates of the edge ghost cells
 The values at edge cell 1,1 are the average of the values at the two ghost cells it touches at level "e". The values at edge cells 1,2 and 2,1 are identical to 
 the values of the ghost cells they tough at level "e". The values at edge cell 2,2 are the average of the values at the two (1,2 & 2,1) edge ghost cells it touches.
 */
-void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
-
-  //get boundary conditions for block
-  const boundaryConditions bound = inp.BC( (*this).ParentBlock() );
+void procBlock::AssignGhostCellsGeomEdge(){
 
   //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
@@ -3629,8 +3622,8 @@ void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
 	surfK = "kl";
 
 	//boundary conditions at corner
-	bc_J = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfJ);
-	bc_K = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+	bc_J = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfJ);
+	bc_K = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
 
       }
       else if ( cc == 1 ){ //at jl/ku edge - ghost cells are in the lower direction of j and upper direction of k, so use GetLowerFace for J
@@ -3681,8 +3674,8 @@ void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
 	surfK = "ku";
 
 	//boundary conditions at corner
-	bc_J = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfJ);
-	bc_K = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
+	bc_J = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfJ);
+	bc_K = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
 
       }
       else if ( cc == 2 ){ //at ju/kl edge - ghost cells are in the lower direction of k, and upper direction of j so use GetLowerFace for k
@@ -3733,8 +3726,8 @@ void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
 	surfK = "kl";
 
 	//boundary conditions at corner
-	bc_J = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, ke - (*this).NumGhosts(),surfJ);
-	bc_K = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+	bc_J = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, ke - (*this).NumGhosts(),surfJ);
+	bc_K = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
 
       }
       else if ( cc == 3 ){ //at ju/ku edge - ghost cells are in the upper direction of both j and k, use GetUpperFace for both
@@ -3785,8 +3778,8 @@ void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
 	surfK = "ku";
 
 	//boundary conditions at corner
-	bc_J = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, ke - (*this).NumGhosts(), surfJ);
-	bc_K = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
+	bc_J = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, ke - (*this).NumGhosts(), surfJ);
+	bc_K = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
 
       }
 
@@ -3966,8 +3959,8 @@ void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
 	surfK = "kl";
 
 	//boundary conditions at corner
-	bc_I = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
-	bc_K = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+	bc_I = (*this).BC().GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_K = (*this).BC().GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
 
       }
       else if ( cc == 1 ){ //at il/ku edge - ghost cells are in the lower direction of i and upper direction of k, so use GetLowerFace for J
@@ -4018,8 +4011,8 @@ void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
 	surfK = "ku";
 
 	//boundary conditions at corner
-	bc_I = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
-	bc_K = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
+	bc_I = (*this).BC().GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_K = (*this).BC().GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
 
       }
       else if ( cc == 2 ){ //at iu/kl edge - ghost cells are in the lower direction of k, and upper direction of i so use GetLowerFace for k
@@ -4070,8 +4063,8 @@ void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
 	surfK = "kl";
 
 	//boundary conditions at corner
-	bc_I = bound.GetBCName(ie - (*this).NumGhosts() + 1, jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
-	bc_K = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+	bc_I = (*this).BC().GetBCName(ie - (*this).NumGhosts() + 1, jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_K = (*this).BC().GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
 
       }
       else if ( cc == 3 ){ //at iu/ku edge - ghost cells are in the upper direction of both i and k, use GetUpperFace for both
@@ -4122,8 +4115,8 @@ void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
 	surfK = "ku";
 
 	//boundary conditioins at corner
-	bc_I = bound.GetBCName(ie - (*this).NumGhosts() + 1, jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
-	bc_K = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
+	bc_I = (*this).BC().GetBCName(ie - (*this).NumGhosts() + 1, jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_K = (*this).BC().GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
 
       }
 
@@ -4303,8 +4296,8 @@ void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
 	surfJ = "jl";
 
 	//boundary conditions at corner
-	bc_I = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
-	bc_J = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfJ);
+	bc_I = (*this).BC().GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_J = (*this).BC().GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfJ);
 
       }
       else if ( cc == 1 ){ //at il/ju edge - ghost cells are in the lower direction of i and upper direction of j, so use GetLowerFace for I
@@ -4355,8 +4348,8 @@ void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
 	surfJ = "ju";
 
 	//boundary conditions at corner
-	bc_I = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
-	bc_J = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, kk - (*this).NumGhosts(), surfJ);
+	bc_I = (*this).BC().GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_J = (*this).BC().GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, kk - (*this).NumGhosts(), surfJ);
 
       }
       else if ( cc == 2 ){ //at iu/jl edge - ghost cells are in the upper direction of i, and lower direction of j so use GetLowerFace for J
@@ -4407,8 +4400,8 @@ void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
 	surfJ = "jl";
 
 	//boundary conditions at corner
-	bc_I = bound.GetBCName(ie - (*this).NumGhosts() + 1, je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
-	bc_J = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfJ);
+	bc_I = (*this).BC().GetBCName(ie - (*this).NumGhosts() + 1, je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_J = (*this).BC().GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfJ);
 
       }
       else if ( cc == 3 ){ //at iu/ju edge - ghost cells are in the upper direction of both i and j, use GetUpperFace for both
@@ -4459,8 +4452,8 @@ void procBlock::AssignGhostCellsGeomEdge( const input& inp ){
 	surfJ = "ju";
 
 	//boundary conditions at corner
-	bc_I = bound.GetBCName(ie - (*this).NumGhosts() + 1, je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
-	bc_J = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, kk - (*this).NumGhosts(), surfJ);
+	bc_I = (*this).BC().GetBCName(ie - (*this).NumGhosts() + 1, je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_J = (*this).BC().GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, kk - (*this).NumGhosts(), surfJ);
 
       }
 
@@ -4596,9 +4589,6 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
   // inp -- all input variables
   // eos -- equation of state
 
-  //get boundary conditions for block
-  const boundaryConditions bound = inp.BC( (*this).ParentBlock() );
-
   //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
   int jmax = (*this).NumJ();
@@ -4615,8 +4605,8 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
     for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++ ){
 
       //name of boundary conditions at lower and upper boundaries
-      string bcNameL = bound.GetBCName(0, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "il");
-      string bcNameU = bound.GetBCName(imax, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "iu");
+      string bcNameL = (*this).BC().GetBCName(0, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "il");
+      string bcNameU = (*this).BC().GetBCName(imax, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "iu");
 
       //inviscid fluxes require different bc than viscous fluxes - treat all walls as the same
       if ( bcNameL == "viscousWall" ){
@@ -4699,8 +4689,8 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
     for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++ ){
 
       //name of boundary conditions at lower and upper boundaries
-      string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), 0, kk - (*this).NumGhosts(), "jl");
-      string bcNameU = bound.GetBCName(ii - (*this).NumGhosts(), jmax, kk - (*this).NumGhosts(), "ju");
+      string bcNameL = (*this).BC().GetBCName(ii - (*this).NumGhosts(), 0, kk - (*this).NumGhosts(), "jl");
+      string bcNameU = (*this).BC().GetBCName(ii - (*this).NumGhosts(), jmax, kk - (*this).NumGhosts(), "ju");
 
       //inviscid fluxes require different bc than viscous fluxes - treat all walls as the same
       if ( bcNameL == "viscousWall" ){
@@ -4783,8 +4773,8 @@ void procBlock::AssignInviscidGhostCells(const input &inp, const idealGas &eos){
     for ( int ii = (*this).NumGhosts(); ii < imax + (*this).NumGhosts(); ii++ ){
 
       //name of boundary conditions at lower and upper boundaries
-      string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), 0, "kl");
-      string bcNameU = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kmax, "ku");
+      string bcNameL = (*this).BC().GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), 0, "kl");
+      string bcNameU = (*this).BC().GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kmax, "ku");
 
       //inviscid fluxes require different bc than viscous fluxes - treat all walls as the same
       if ( bcNameL == "viscousWall" ){
@@ -4897,9 +4887,6 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
   // inp -- all input variables
   // eos -- equation of state
 
-  //get boundary conditions for block
-  const boundaryConditions bound = inp.BC( (*this).ParentBlock() );
-
   //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
   int jmax = (*this).NumJ();
@@ -4960,8 +4947,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_je_k2_jl = GetLowerFaceJ(ii, je, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_J = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfJ);
-	bc_K = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+	bc_J = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfJ);
+	bc_K = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
 
       }
       else if ( cc == 1 ){ //at jl/ku edge - ghost cells are in the lower direction of j and upper direction of k, so use GetLowerFace for J
@@ -4997,8 +4984,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_je_k2_jl = GetLowerFaceJ(ii, je, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_J = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfJ);
-	bc_K = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
+	bc_J = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfJ);
+	bc_K = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
 
       }
       else if ( cc == 2 ){ //at ju/kl edge - ghost cells are in the lower direction of k, and upper direction of j so use GetLowerFace for k
@@ -5034,8 +5021,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_je_k2_jl = GetUpperFaceJ(ii, je, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_J = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, ke - (*this).NumGhosts(),surfJ);
-	bc_K = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+	bc_J = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, ke - (*this).NumGhosts(),surfJ);
+	bc_K = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
 
       }
       else if ( cc == 3 ){ //at ju/ku edge - ghost cells are in the upper direction of both j and k, use GetUpperFace for both
@@ -5071,8 +5058,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_je_k2_jl = GetUpperFaceJ(ii, je, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_J = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, ke - (*this).NumGhosts(), surfJ);
-	bc_K = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
+	bc_J = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, ke - (*this).NumGhosts(), surfJ);
+	bc_K = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
 
       }
 
@@ -5176,8 +5163,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_ie_k2_il = GetLowerFaceI(ie, jj, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_I = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
-	bc_K = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+	bc_I = (*this).BC().GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_K = (*this).BC().GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
 
       }
       else if ( cc == 1 ){ //at il/ku edge - ghost cells are in the lower direction of i and upper direction of k, so use GetLowerFace for I
@@ -5213,8 +5200,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_ie_k2_il = GetLowerFaceI(ie, jj, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_I = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
-	bc_K = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
+	bc_I = (*this).BC().GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_K = (*this).BC().GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
 
       }
       else if ( cc == 2 ){ //at iu/kl edge - ghost cells are in the lower direction of k, and upper direction of i so use GetLowerFace for k
@@ -5250,8 +5237,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_ie_k2_il = GetUpperFaceI(ie, jj, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_I = bound.GetBCName(ie - (*this).NumGhosts() + 1, jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
-	bc_K = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+	bc_I = (*this).BC().GetBCName(ie - (*this).NumGhosts() + 1, jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_K = (*this).BC().GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
 
       }
       else if ( cc == 3 ){ //at iu/ku edge - ghost cells are in the upper direction of both j and k, use GetUpperFace for both
@@ -5287,8 +5274,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_ie_k2_il = GetUpperFaceI(ie, jj, k2, imaxG, jmaxG);  
 
 	//boundary conditioins at corner
-	bc_I = bound.GetBCName(ie - (*this).NumGhosts() + 1, jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
-	bc_K = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
+	bc_I = (*this).BC().GetBCName(ie - (*this).NumGhosts() + 1, jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_K = (*this).BC().GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
 
       }
 
@@ -5394,8 +5381,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_ie_j2_il = GetLowerFaceI(ie, j2, kk, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_I = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
-	bc_J = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfJ);
+	bc_I = (*this).BC().GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_J = (*this).BC().GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfJ);
 
       }
       else if ( cc == 1 ){ //at il/ju edge - ghost cells are in the lower direction of i and upper direction of j, so use GetLowerFace for I
@@ -5430,8 +5417,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_ie_j2_il = GetLowerFaceI(ie, j2, kk, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_I = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
-	bc_J = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, kk - (*this).NumGhosts(), surfJ);
+	bc_I = (*this).BC().GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_J = (*this).BC().GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, kk - (*this).NumGhosts(), surfJ);
 
       }
       else if ( cc == 2 ){ //at iu/jl edge - ghost cells are in the lower direction of j, and upper direction of i so use GetLowerFace for j
@@ -5467,8 +5454,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_ie_j2_il = GetUpperFaceI(ie, j2, kk, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_I = bound.GetBCName(ie - (*this).NumGhosts() + 1, je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
-	bc_J = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfJ);
+	bc_I = (*this).BC().GetBCName(ie - (*this).NumGhosts() + 1, je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_J = (*this).BC().GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfJ);
 
       }
       else if ( cc == 3 ){ //at iu/ju edge - ghost cells are in the upper direction of both i and j, use GetUpperFace for both
@@ -5504,8 +5491,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 	gf_ie_j2_il = GetUpperFaceI(ie, j2, kk, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_I = bound.GetBCName(ie - (*this).NumGhosts() + 1, je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
-	bc_J = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, kk - (*this).NumGhosts(), surfJ);
+	bc_I = (*this).BC().GetBCName(ie - (*this).NumGhosts() + 1, je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_J = (*this).BC().GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, kk - (*this).NumGhosts(), surfJ);
 
       }
 
@@ -5568,9 +5555,6 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
   // inp -- all input variables
   // eos -- equation of state
 
-  //get boundary conditions for block
-  const boundaryConditions bound = inp.BC( (*this).ParentBlock() );
-
   //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
   int jmax = (*this).NumJ();
@@ -5609,7 +5593,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
       int uFaceB = GetUpperFaceI(imaxG - 1 - (*this).NumGhosts(), jj, kk, imaxG, jmaxG); 
 
       //boundary condition at lower boundary
-      string bcNameL = bound.GetBCName(0, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "il");
+      string bcNameL = (*this).BC().GetBCName(0, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "il");
 
       //if viscous, overwrite regular ghost cell
       if (bcNameL == "viscousWall"){
@@ -5626,7 +5610,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
       }
 
       //boundary condition at upper boundary
-      string bcNameU = bound.GetBCName(imax, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "iu");
+      string bcNameU = (*this).BC().GetBCName(imax, jj - (*this).NumGhosts(), kk - (*this).NumGhosts(), "iu");
 
       //if viscous, overwrite regular ghost cell
       if (bcNameU == "viscousWall"){
@@ -5673,7 +5657,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
       int uFaceB = GetUpperFaceJ(ii, jmaxG - 1 - (*this).NumGhosts(), kk, imaxG, jmaxG); 
 
       //boundary condition at lower boundary
-      string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), 0, kk - (*this).NumGhosts(), "jl");
+      string bcNameL = (*this).BC().GetBCName(ii - (*this).NumGhosts(), 0, kk - (*this).NumGhosts(), "jl");
 
       //if viscous, overwrite regular ghost cell
       if (bcNameL == "viscousWall"){
@@ -5690,7 +5674,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
       }
 
       //boundary condition at upper boundary
-      string bcNameU = bound.GetBCName(ii - (*this).NumGhosts(), jmax, kk - (*this).NumGhosts(), "ju");
+      string bcNameU = (*this).BC().GetBCName(ii - (*this).NumGhosts(), jmax, kk - (*this).NumGhosts(), "ju");
 
       //if viscous, overwrite regular ghost cell
       if (bcNameU == "viscousWall"){
@@ -5737,7 +5721,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
       int uFaceB = GetUpperFaceK(ii, jj, kmax - 1 - (*this).NumGhosts(), imaxG, jmaxG); 
 
       //name of boundary condition at lower boundary
-      string bcNameL = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), 0, "kl");
+      string bcNameL = (*this).BC().GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), 0, "kl");
 
       //if viscous, overwrite regular ghost cells
       if (bcNameL == "viscousWall"){
@@ -5754,7 +5738,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos){
       }
 
       //boundary condition at upper boundary
-      string bcNameU = bound.GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kmax, "ku");
+      string bcNameU = (*this).BC().GetBCName(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kmax, "ku");
 
       //if viscous, overwrite regular ghost cells
       if (bcNameU == "viscousWall"){
@@ -5808,9 +5792,6 @@ occurs the viscousWall boundaries are "extended" into the ghost cells. This impl
 void procBlock::AssignViscousGhostCellsEdge(const input &inp, const idealGas &eos){
   // inp -- all input variables
   // eos -- equation of state
-
-  //get boundary conditions for block
-  const boundaryConditions bound = inp.BC( (*this).ParentBlock() );
 
   //max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
@@ -5872,8 +5853,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp, const idealGas &eo
 	gf_je_k2_jl = GetLowerFaceJ(ii, je, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_jl = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfJ);
-	bc_kl = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+	bc_jl = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfJ);
+	bc_kl = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
 
       }
       else if ( cc == 1 ){ //at jl/ku edge - ghost cells are in the lower direction of j and upper direction of k, so use GetLowerFace for J
@@ -5909,8 +5890,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp, const idealGas &eo
 	gf_je_k2_jl = GetLowerFaceJ(ii, je, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_jl = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfJ);
-	bc_kl = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
+	bc_jl = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfJ);
+	bc_kl = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
 
       }
       else if ( cc == 2 ){ //at ju/kl edge - ghost cells are in the lower direction of k, and upper direction of j so use GetLowerFace for k
@@ -5946,8 +5927,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp, const idealGas &eo
 	gf_je_k2_jl = GetUpperFaceJ(ii, je, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_jl = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, ke - (*this).NumGhosts(), surfJ);
-	bc_kl = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+	bc_jl = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, ke - (*this).NumGhosts(), surfJ);
+	bc_kl = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
 
       }
       else if ( cc == 3 ){ //at ju/ku edge - ghost cells are in the upper direction of both j and k, use GetUpperFace for both
@@ -5983,8 +5964,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp, const idealGas &eo
 	gf_je_k2_jl = GetUpperFaceJ(ii, je, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_jl = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, ke - (*this).NumGhosts(), surfJ);
-	bc_kl = bound.GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
+	bc_jl = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, ke - (*this).NumGhosts(), surfJ);
+	bc_kl = (*this).BC().GetBCName(ii - (*this).NumGhosts(), je - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
 
       }
 
@@ -6077,8 +6058,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp, const idealGas &eo
 	gf_ie_k2_il = GetLowerFaceI(ie, jj, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_il = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
-	bc_kl = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+	bc_il = (*this).BC().GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_kl = (*this).BC().GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
 
       }
       else if ( cc == 1 ){ //at il/ku edge - ghost cells are in the lower direction of i and upper direction of k, so use GetLowerFace for I
@@ -6114,8 +6095,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp, const idealGas &eo
 	gf_ie_k2_il = GetLowerFaceI(ie, jj, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_il = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
-	bc_kl = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
+	bc_il = (*this).BC().GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_kl = (*this).BC().GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
 
       }
       else if ( cc == 2 ){ //at iu/kl edge - ghost cells are in the lower direction of k, and upper direction of i so use GetLowerFace for k
@@ -6151,8 +6132,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp, const idealGas &eo
 	gf_ie_k2_il = GetUpperFaceI(ie, jj, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_il = bound.GetBCName(ie - (*this).NumGhosts() + 1, jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
-	bc_kl = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
+	bc_il = (*this).BC().GetBCName(ie - (*this).NumGhosts() + 1, jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_kl = (*this).BC().GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfK);
 
       }
       else if ( cc == 3 ){ //at iu/ku edge - ghost cells are in the upper direction of both i and k, use GetUpperFace for both
@@ -6188,8 +6169,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp, const idealGas &eo
 	gf_ie_k2_il = GetUpperFaceI(ie, jj, k2, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_il = bound.GetBCName(ie - (*this).NumGhosts() + 1, jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
-	bc_kl = bound.GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
+	bc_il = (*this).BC().GetBCName(ie - (*this).NumGhosts() + 1, jj - (*this).NumGhosts(), ke - (*this).NumGhosts(), surfI);
+	bc_kl = (*this).BC().GetBCName(ie - (*this).NumGhosts(), jj - (*this).NumGhosts(), ke - (*this).NumGhosts() + 1, surfK);
 
       }
 
@@ -6283,8 +6264,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp, const idealGas &eo
 	gf_ie_j2_il = GetLowerFaceI(ie, j2, kk, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_il = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
-	bc_jl = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfJ);
+	bc_il = (*this).BC().GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_jl = (*this).BC().GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfJ);
 
       }
       else if ( cc == 1 ){ //at il/ju edge - ghost cells are in the lower direction of i and upper direction of j, so use GetLowerFace for I
@@ -6320,8 +6301,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp, const idealGas &eo
 	gf_ie_j2_il = GetLowerFaceI(ie, j2, kk, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_il = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
-	bc_jl = bound.GetBCName(ie - (*this).NumGhosts(), je  - (*this).NumGhosts() + 1, kk - (*this).NumGhosts(), surfJ);
+	bc_il = (*this).BC().GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_jl = (*this).BC().GetBCName(ie - (*this).NumGhosts(), je  - (*this).NumGhosts() + 1, kk - (*this).NumGhosts(), surfJ);
 
       }
       else if ( cc == 2 ){ //at iu/jl edge - ghost cells are in the lower direction of j, and upper direction of i so use GetLowerFace for J
@@ -6357,8 +6338,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp, const idealGas &eo
 	gf_ie_j2_il = GetUpperFaceI(ie, j2, kk, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_il = bound.GetBCName(ie - (*this).NumGhosts() + 1, je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
-	bc_jl = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfJ);
+	bc_il = (*this).BC().GetBCName(ie - (*this).NumGhosts() + 1, je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_jl = (*this).BC().GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfJ);
 
       }
       else if ( cc == 3 ){ //at iu/ju edge - ghost cells are in the upper direction of both i and j, use GetUpperFace for both
@@ -6394,8 +6375,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp, const idealGas &eo
 	gf_ie_j2_il = GetUpperFaceI(ie, j2, kk, imaxG, jmaxG);  
 
 	//boundary conditions at corner
-	bc_il = bound.GetBCName(ie - (*this).NumGhosts() + 1, je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
-	bc_jl = bound.GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, kk - (*this).NumGhosts(), surfJ);
+	bc_il = (*this).BC().GetBCName(ie - (*this).NumGhosts() + 1, je - (*this).NumGhosts(), kk - (*this).NumGhosts(), surfI);
+	bc_jl = (*this).BC().GetBCName(ie - (*this).NumGhosts(), je - (*this).NumGhosts() + 1, kk - (*this).NumGhosts(), surfJ);
 
       }
 
@@ -7940,16 +7921,17 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData)const{
 /* Member function to split a procBlock along a plane defined by a direction and an index. The calling instance will retain the lower portion of the split,
 and the returned instance will retain the upper portion of the split.
 */
-procBlock procBlock::Split(const string &dir, const int &ind){
+procBlock procBlock::Split(const string &dir, const int &ind, const int &num){
   // dir -- plane to split along, either i, j, or k
   // ind -- index (face) to split at (w/o counting ghost cells)
+  // num -- new block number
 
   int iMax = (*this).NumI() + 2 * (*this).NumGhosts();
   int jMax = (*this).NumJ() + 2 * (*this).NumGhosts();
   int kMax = (*this).NumK() + 2 * (*this).NumGhosts();
 
   boundaryConditions bound1 = (*this).BC();
-  boundaryConditions bound2 = bound1.Split(dir, ind, (*this).ParentBlock());
+  boundaryConditions bound2 = bound1.Split(dir, ind, (*this).ParentBlock(), num);
 
   if ( dir == "i" ){ //split along i-plane
     int numI2 = (*this).NumI() - ind;

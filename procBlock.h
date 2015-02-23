@@ -68,9 +68,9 @@ class procBlock {
  public:
   //constructors
   procBlock();
-  procBlock( const plot3dBlock& , const int&, const int&, const string& );
-  procBlock( const double, const double, const vector3d<double>, const plot3dBlock&, const int&, const int&, const string&, const boundaryConditions& );
-  procBlock( const primVars&, const plot3dBlock&, const int &, const int&, const string&, const boundaryConditions& );
+  procBlock( const plot3dBlock& , const int&, const int& );
+  procBlock( const double, const double, const vector3d<double>, const plot3dBlock&, const int&, const int&, const boundaryConditions& );
+  procBlock( const primVars&, const plot3dBlock&, const int &, const int&, const boundaryConditions&, const int&, const int& );
   procBlock( const int&, const int&, const int&, const int& );
 
   //member functions
@@ -140,8 +140,8 @@ class procBlock {
   void CalcViscFluxJ(const sutherland&, const idealGas&, const input&);
   void CalcViscFluxK(const sutherland&, const idealGas&, const input&);
 
-  void AssignGhostCellsGeom(const input&);
-  void AssignGhostCellsGeomEdge(const input&);
+  void AssignGhostCellsGeom();
+  void AssignGhostCellsGeomEdge();
 
   void AssignInviscidGhostCells(const input&, const idealGas&);
   void AssignInviscidGhostCellsEdge(const input&, const idealGas&);
@@ -158,7 +158,7 @@ class procBlock {
   stateSlice GetStateSlice(const int&, const int&, const int&, const int&, const int&, const int&, const bool=false, const bool=false, const bool=false)const;
   void PutStateSlice(const stateSlice&, const interblock&, const int&);
 
-  procBlock Split(const string&, const int&);
+  procBlock Split(const string&, const int&, const int&);
   void Join(const procBlock&, const string&);
 
   void SwapSliceMPI(const interblock&, const int&, const MPI_Datatype& );
