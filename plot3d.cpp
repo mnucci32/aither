@@ -23,6 +23,16 @@ plot3dBlock::plot3dBlock( const int &i, const int &j, const int &k, const vector
   y = yCoord;
   z = zCoord;
 }
+plot3dBlock::plot3dBlock( const int &i, const int &j, const int &k ){
+  numi = i;
+  numj = j;
+  numk = k;
+  int numPts = i * j * k;
+  vector<double> initial(numPts, 0.0);
+  x = initial;
+  y = initial;
+  z = initial;
+}
 //constructor with no arguments
 plot3dBlock::plot3dBlock(){
   numi = 0;
@@ -987,4 +997,278 @@ vector<vector3d<int> > HyperplaneReorder( const int &imax, const int &jmax, cons
   }
 
   return reorder;
+}
+
+/* Member function to split a plot3dBlock along a plane defined by a direction and an index. The calling instance will retain the lower portion of the split,
+and the returned instance will retain the upper portion of the split.
+*/
+plot3dBlock plot3dBlock::Split(const string &dir, const int &ind){
+  // dir -- plane to split along, either i, j, or k
+  // ind -- index (face) to split at (w/o counting ghost cells)
+
+  if ( dir == "i" ){ //split along i-plane
+    int numI2 = (*this).NumI() - ind;
+    int numI1 = (*this).NumI() - numI2 + 1;
+
+    plot3dBlock blk1( numI1, (*this).NumJ(), (*this).NumK());
+    plot3dBlock blk2( numI2, (*this).NumJ(), (*this).NumK());
+
+    //loop over cell locations of of block
+    for ( int kk = 0; kk < (*this).NumK(); kk++ ){
+      for ( int jj = 0; jj < (*this).NumJ(); jj++ ){
+	for ( int ii = 0; ii < (*this).NumI(); ii++ ){
+
+	  int loc = GetLoc1D(ii, jj, kk, (*this).NumI(), (*this).NumJ());
+
+	  //-------------------------------------------------------------------------------------------------------
+	  if ( ii >= ind ){ //this portion of parent block overlaps with upper split
+	    int loc2 = GetLoc1D(ii - ind, jj, kk, blk2.NumI(), blk2.NumJ());
+
+	    //assign grid points
+	    blk2.x[loc2] = (*this).x[loc];
+	    blk2.y[loc2] = (*this).y[loc];
+	    blk2.z[loc2] = (*this).z[loc];
+	  }
+	  //------------------------------------------------------------------------------------------------
+	  if ( ii <= ind ){ //this portion of parent block overlaps with lower split
+	    int loc1 = GetLoc1D(ii, jj, kk, blk1.NumI(), blk1.NumJ());
+
+	    //assign grid points
+	    blk1.x[loc1] = (*this).x[loc];
+	    blk1.y[loc1] = (*this).y[loc];
+	    blk1.z[loc1] = (*this).z[loc];
+	  }
+
+	}
+      }
+    }
+
+    (*this) = blk1;
+    return blk2;
+
+  }
+  else if ( dir == "j" ){ //split along j-plane
+    int numJ2 = (*this).NumJ() - ind;
+    int numJ1 = (*this).NumJ() - numJ2 + 1;
+
+    plot3dBlock blk1( (*this).NumI(), numJ1, (*this).NumK());
+    plot3dBlock blk2( (*this).NumI(), numJ2, (*this).NumK());
+
+    //loop over cell locations of of block
+    for ( int kk = 0; kk < (*this).NumK(); kk++ ){
+      for ( int jj = 0; jj < (*this).NumJ(); jj++ ){
+	for ( int ii = 0; ii < (*this).NumI(); ii++ ){
+
+	  int loc = GetLoc1D(ii, jj, kk, (*this).NumI(), (*this).NumJ());
+
+	  //-------------------------------------------------------------------------------------------------------
+	  if ( jj >= ind ){ //this portion of parent block overlaps with upper split
+	    int loc2 = GetLoc1D(ii, jj - ind, kk, blk2.NumI(), blk2.NumJ());
+
+	    //assign cell variables
+	    blk2.x[loc2] = (*this).x[loc];
+	    blk2.y[loc2] = (*this).y[loc];
+	    blk2.z[loc2] = (*this).z[loc];
+	  }
+	  //------------------------------------------------------------------------------------------------
+	  if ( jj <= ind ){ //this portion of parent block overlaps with lower split
+	    int loc1 = GetLoc1D(ii, jj, kk, blk1.NumI(), blk1.NumJ());
+
+	    //assign cell variables
+	    blk1.x[loc1] = (*this).x[loc];
+	    blk1.y[loc1] = (*this).y[loc];
+	    blk1.z[loc1] = (*this).z[loc];
+	  }
+
+	}
+      }
+    }
+
+    (*this) = blk1;
+    return blk2;
+
+  }
+  else if ( dir == "k" ){ //split along k-plane
+    int numK2 = (*this).NumK() - ind;
+    int numK1 = (*this).NumK() - numK2 + 1;
+
+    plot3dBlock blk1( (*this).NumI(), (*this).NumJ(), numK1 );
+    plot3dBlock blk2( (*this).NumI(), (*this).NumJ(), numK2 );
+
+    //loop over cell locations of of block
+    for ( int kk = 0; kk < (*this).NumK(); kk++ ){
+      for ( int jj = 0; jj < (*this).NumJ(); jj++ ){
+	for ( int ii = 0; ii < (*this).NumI(); ii++ ){
+
+	  int loc = GetLoc1D(ii, jj, kk, (*this).NumI(), (*this).NumJ());
+
+	  //-------------------------------------------------------------------------------------------------------
+	  if ( kk >= ind ){ //this portion of parent block overlaps with upper split
+	    int loc2 = GetLoc1D(ii, jj, kk - ind, blk2.NumI(), blk2.NumJ());
+
+	    //assign cell variables
+	    blk2.x[loc2] = (*this).x[loc];
+	    blk2.y[loc2] = (*this).y[loc];
+	    blk2.z[loc2] = (*this).z[loc];
+	  }
+	  //------------------------------------------------------------------------------------------------
+	  if ( kk <= ind ){ //this portion of parent block overlaps with lower split
+	    int loc1 = GetLoc1D(ii, jj, kk, blk1.NumI(), blk1.NumJ());
+
+	    //assign cell variables
+	    blk1.x[loc1] = (*this).x[loc];
+	    blk1.y[loc1] = (*this).y[loc];
+	    blk1.z[loc1] = (*this).z[loc];
+	  }
+
+	}
+      }
+    }
+
+    (*this) = blk1;
+    return blk2;
+
+  }
+  else{
+    cerr << "ERROR: Error in plot3dBlock::Split(). Direction " << dir << " is not recognized! Choose either i, j, or k." << endl;
+    exit(0);
+  }
+
+}
+
+/* Member function to join a plot3dBlock along a plane defined by a direction. The calling instance will be the lower portion of the joined block,
+and the input instance will be the upper portion of the joined block.
+*/
+void plot3dBlock::Join(const plot3dBlock &blk, const string &dir){
+
+  if ( dir == "i" ){
+
+    int newNumI = (*this).NumI() + blk.NumI() - 1;
+    int newNumJ = (*this).NumJ();
+    int newNumK = (*this).NumK();
+
+    plot3dBlock newBlk( newNumI, newNumJ, newNumK);
+
+    int ind = (*this).NumI() - 1; //subtract 1 because boundary between blocks is repeated
+
+    //loop over cell locations of of block
+    for ( int kk = 0; kk < newNumK; kk++ ){
+      for ( int jj = 0; jj < newNumJ; jj++ ){
+	for ( int ii = 0; ii < newNumI; ii++ ){
+
+	  int loc = GetLoc1D(ii, jj, kk, newNumI, newNumJ);
+
+	  if ( ii >= ind ){ //this portion of parent block overlaps with upper split
+	    int locU = GetLoc1D(ii - ind, jj, kk, blk.NumI(), blk.NumJ());
+
+	    //assign grid points
+	    newBlk.x[loc] = blk.x[locU];
+	    newBlk.y[loc] = blk.y[locU];
+	    newBlk.z[loc] = blk.z[locU];
+	  }
+	  else{ //this portion of parent block overlaps with lower split
+	    int locL = GetLoc1D(ii, jj, kk, (*this).NumI(), (*this).NumJ());
+
+	    //assign grid points
+	    newBlk.x[loc] = (*this).x[locL];
+	    newBlk.y[loc] = (*this).y[locL];
+	    newBlk.z[loc] = (*this).z[locL];
+	  }
+
+	}
+      }
+    }
+
+    (*this) = newBlk;
+
+  }
+  //-----------------------------------------------------------------------------------------------------------------------
+  else if ( dir == "j" ){
+
+    int newNumI = (*this).NumI();
+    int newNumJ = (*this).NumJ() + blk.NumJ() - 1;
+    int newNumK = (*this).NumK();
+
+    plot3dBlock newBlk( newNumI, newNumJ, newNumK );
+
+    int ind = (*this).NumJ() - 1; //subtract 1 because boundary between blocks is repeated
+
+    //loop over cell locations of of block
+    for ( int kk = 0; kk < newNumK; kk++ ){
+      for ( int jj = 0; jj < newNumJ; jj++ ){
+	for ( int ii = 0; ii < newNumI; ii++ ){
+
+	  int loc = GetLoc1D(ii, jj, kk, newNumI, newNumJ);
+
+	  if ( jj >= ind ){ //this portion of parent block overlaps with upper split
+	    int locU = GetLoc1D(ii, jj - ind, kk, blk.NumI(), blk.NumJ());
+
+	    //assign grid points
+	    newBlk.x[loc] = blk.x[locU];
+	    newBlk.y[loc] = blk.y[locU];
+	    newBlk.z[loc] = blk.z[locU];
+	  }
+	  else{ //this portion of parent block overlaps with lower split
+	    int locL = GetLoc1D(ii, jj, kk, (*this).NumI(), (*this).NumJ());
+
+	    //assign grid points
+	    newBlk.x[loc] = (*this).x[locL];
+	    newBlk.y[loc] = (*this).y[locL];
+	    newBlk.z[loc] = (*this).z[locL];
+	  }
+
+	}
+      }
+    }
+
+    (*this) = newBlk;
+
+  }
+  //-----------------------------------------------------------------------------------------------------------------------
+  else if ( dir == "k" ){
+
+    int newNumI = (*this).NumI();
+    int newNumJ = (*this).NumJ();
+    int newNumK = (*this).NumK() + blk.NumK() - 1;
+
+    plot3dBlock newBlk( newNumI, newNumJ, newNumK);
+
+    int ind = (*this).NumK() - 1; //subtract 1 because boundary between blocks is repeated
+
+    //loop over cell locations of of block
+    for ( int kk = 0; kk < newNumK; kk++ ){
+      for ( int jj = 0; jj < newNumJ; jj++ ){
+	for ( int ii = 0; ii < newNumI; ii++ ){
+
+	  int loc = GetLoc1D(ii, jj, kk, newNumI, newNumJ);
+
+	  if ( kk >= ind ){ //this portion of parent block overlaps with upper split
+	    int locU = GetLoc1D(ii, jj, kk - ind, blk.NumI(), blk.NumJ());
+
+	    //assign grid points
+	    newBlk.x[loc] = blk.x[locU];
+	    newBlk.y[loc] = blk.y[locU];
+	    newBlk.z[loc] = blk.z[locU];
+	  }
+	  else{ //this portion of parent block overlaps with lower split
+	    int locL = GetLoc1D(ii, jj, kk, (*this).NumI(), (*this).NumJ());
+
+	    //assign grid points
+	    newBlk.x[loc] = (*this).x[locL];
+	    newBlk.y[loc] = (*this).y[locL];
+	    newBlk.z[loc] = (*this).z[locL];
+	  }
+
+	}
+      }
+    }
+
+    (*this) = newBlk;
+
+  }
+  else {
+    cerr << "ERROR: Error in plot3dBlock::Join(). Direction " << dir << " is not recognized! Choose either i, j, or k." << endl;
+    exit(0);
+  }
+
 }

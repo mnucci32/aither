@@ -101,13 +101,34 @@ int main( int argc, char *argv[] ) {
     //Read grid
     mesh = ReadP3dGrid(inputVars.GridName(), totalCells);
 
+    //split blocks and BCs 
+    vector<boundaryConditions> bcs = inputVars.AllBC();
+    plot3dBlock blk = mesh[0].Split("j",30);
+    cout << "block split" << endl;
+    procBlock lowSplit(state, mesh[0], 0, numGhost, inputVars.EquationSet(), bcs[0]);
+    vector<procBlock> ls(1,lowSplit);
+    WriteCellCenter("lowSplit",ls);
+    procBlock upSplit(state, blk, 0, numGhost, inputVars.EquationSet(), bcs[0]);
+    vector<procBlock> us(1,upSplit);
+    WriteCellCenter("upSplit",us);
+
+    mesh[0].Join(blk, "j");
+    cout << "block joined" << endl;
+    procBlock joined(state, mesh[0], 0, numGhost, inputVars.EquationSet(), bcs[0]);
+    vector<procBlock> splitJoin(1,joined);
+    WriteCellCenter("splitJoin",splitJoin);
+    exit(0);
+
     //Get interblock BCs
-    connections = GetInterblockBCs( inputVars.AllBC(), mesh );
+    connections = GetInterblockBCs( bcs, mesh );
+
+    //Could send proc3dblocks to processors here, or initialize all on ROOT processor
+
 
     //initialize the whole mesh with one state and assign ghost cells geometry ------------------
     stateBlocks.resize( mesh.size() );
     for ( int ll = 0; ll < (int)mesh.size(); ll++) {
-      stateBlocks[ll] = procBlock(state, mesh[ll], ll, numGhost, inputVars.EquationSet(), inputVars.BC(ll));
+      stateBlocks[ll] = procBlock(state, mesh[ll], ll, numGhost, inputVars.EquationSet(), bcs[ll]);
       stateBlocks[ll].AssignGhostCellsGeom(inputVars);
     }
 
