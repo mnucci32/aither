@@ -4,10 +4,11 @@
 /* Function to return processor list for manual decomposition. Manual decomposition assumes that each block will reside on it's own processor.
 The processor list tells how many procBlocks a processor will have.
 */
-vector<int> ManualDecomposition(vector<procBlock> &grid, const int &numProc, vector<interblock> &connections, const int &totalCells ){
+vector<int> ManualDecomposition(vector<plot3dBlock> &grid, vector<int> &blkRank, vector<int> &blkPar, const int &numProc, const int &totalCells ){
   // grid -- vector of procBlocks (no need to split procBlocks or combine them with manual decomposition)
+  // blkRank -- rank of processor that plot3dBlock will go on
+  // blkPar -- parent block of plot3dBlock
   // numProc -- number of processors in run
-  // connections -- vector of interblocks, these are updated to have the correct rank after decomposition
   // totalCells -- total number of cells in the grid; used for load balancing metrics
 
   if ( (int)grid.size() != numProc ){
@@ -26,25 +27,21 @@ vector<int> ManualDecomposition(vector<procBlock> &grid, const int &numProc, vec
   //in manual decomp, each proc gets 1 block
   vector<int> loadBal(numProc, 1);
 
-  //assign processor rank for each procBlock
-  for ( int ii = 0; ii < numProc; ii++ ){
-    grid[ii].SetRank(ii);
+  //assign processor rank for each plot3dBlock; global position is index, ii
+  blkRank.resize(grid.size());
+  blkPar.resize(grid.size());
+  for ( unsigned int ii = 0; ii < blkRank.size(); ii++ ){
+    blkRank[ii] = ii;
+    blkPar[ii] = ii;
   }
 
-  //assign global position for each procBlock
+  //find maximum number of cells on a processor
   for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
-    grid[ii].SetGlobalPos(ii);
     maxLoad = std::max(maxLoad, grid[ii].NumCells());
   }
 
   cout << "Ratio of most loaded processor to average processor is : " << (double)maxLoad / idealLoad << endl;
   cout << "--------------------------------------------------------------------------------" << endl << endl;;
-
-  //adjust interblocks to have appropriate rank
-  for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
-    connections[ii].SetRankFirst(grid[connections[ii].BlockFirst()].Rank());
-    connections[ii].SetRankSecond(grid[connections[ii].BlockSecond()].Rank());
-  }
 
   return loadBal;
 }
@@ -52,10 +49,12 @@ vector<int> ManualDecomposition(vector<procBlock> &grid, const int &numProc, vec
 /* Function to return processor list for cubic decomposition. 
 The processor list tells how many procBlocks a processor will have.
 */
-vector<int> CubicDecomposition(vector<procBlock> &grid, const int &numProc, vector<interblock> &connections, const int &totalCells ){
-  // grid -- vector of procBlocks (no need to split procBlocks or combine them with cubic decomposition)
+vector<int> CubicDecomposition(vector<plot3dBlock> &grid, vector<int> &blkRank, vector<int> &blkPar, vector<boundaryConditions> &bcs, const int &numProc, const int &totalCells ){
+  // grid -- vector of procBlocks (no need to split procBlocks or combine them with manual decomposition)
+  // blkRank -- rank of processor that plot3dBlock will go on
+  // blkPar -- parent block of plot3dBlock
+  // bcs -- vector of boundary conditions for all blocks
   // numProc -- number of processors in run
-  // connections -- vector of interblocks, these are updated to have the correct rank after decomposition
   // totalCells -- total number of cells in the grid; used for load balancing metrics
 
   cout << "--------------------------------------------------------------------------------" << endl;
@@ -64,61 +63,42 @@ vector<int> CubicDecomposition(vector<procBlock> &grid, const int &numProc, vect
   double idealLoad = (double)totalCells / (double)numProc; //average number of cells per processor
   int maxLoad = 0;
 
+  ///////////////////////////////////////////////////
+  int numBlks = numProc;
+
+
   //vector containing number of procBlocks for each processor
   //in cubic decomp, each proc gets 1 block
   vector<int> loadBal(numProc, 1);
 
-  cout << "grid block 0 BCs" << endl;
-  cout << grid[0].BC() << endl;
-  vector<procBlock> original(1,grid[0]);
-  WriteCellCenter("original", original);
-
-  procBlock splitTest = grid[0].Split("j", 30);
-  cout << "after split:" << endl;
-  boundaryConditions spt1 = grid[0].BC();
-  cout << grid[0].BC() << endl;
-  vector<procBlock> split1(1,grid[0]);
-  WriteCellCenter("split1", split1);
-
-  cout << "and upper split:" << endl;
-  cout << splitTest.BC() << endl;
-  vector<procBlock> split2(1,splitTest);
-  boundaryConditions spt2 = split2[0].BC();
-  WriteCellCenter("split2", split2);
-
-  cout << "and joined:" << endl;
-  spt1.Join(spt2, "j");
-  cout << spt1 << endl;
-
-  cout << "joining blocks" << endl;
-  grid[0].Join(splitTest,"j");
-  cout << "joined bcs:" << endl;
-  cout << grid[0].BC() << endl;
-  vector<procBlock> joined(1,grid[0]);
-  WriteCellCenter("joined", joined);
-
-
-  exit(0);
-
-  //assign processor rank for each procBlock
-  for ( int ii = 0; ii < numProc; ii++ ){
-    grid[ii].SetRank(ii);
+  blkRank.resize(grid.size());
+  blkPar.resize(grid.size());
+  for ( unsigned int ii = 0; ii < blkRank.size(); ii++ ){
+    blkRank[ii] = ii;
+    blkPar[ii] = ii;
   }
 
-  //assign global position for each procBlock
+  plot3dBlock newBlk = grid[0].Split("i",20);
+  grid.push_back(newBlk);
+  blkRank.push_back(numProc-1);
+  blkPar.push_back(0);
+  boundaryConditions newBcs = bcs[0].Split("i", 20, 0, numProc-1);
+  bcs.push_back(newBcs);
+
+
+
+
+
+
+  //find maximum number of cells on a processor
   for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
-    grid[ii].SetGlobalPos(ii);
     maxLoad = std::max(maxLoad, grid[ii].NumCells());
   }
 
+  ////////////////////////////////////////////////////////////
+
   cout << "Ratio of most loaded processor to average processor is : " << (double)maxLoad / idealLoad << endl;
   cout << "--------------------------------------------------------------------------------" << endl << endl;;
-
-  //adjust interblocks to have appropriate rank
-  for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
-    connections[ii].SetRankFirst(grid[connections[ii].BlockFirst()].Rank());
-    connections[ii].SetRankSecond(grid[connections[ii].BlockSecond()].Rank());
-  }
 
   return loadBal;
 }

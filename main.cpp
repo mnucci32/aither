@@ -103,24 +103,22 @@ int main( int argc, char *argv[] ) {
 
     //split blocks and BCs 
     vector<boundaryConditions> bcs = inputVars.AllBC();
-    plot3dBlock blk = mesh[0].Split("j",30);
-    cout << "block split" << endl;
-    procBlock lowSplit(state, mesh[0], 0, numGhost, inputVars.EquationSet(), bcs[0]);
-    vector<procBlock> ls(1,lowSplit);
-    WriteCellCenter("lowSplit",ls);
-    procBlock upSplit(state, blk, 0, numGhost, inputVars.EquationSet(), bcs[0]);
-    vector<procBlock> us(1,upSplit);
-    WriteCellCenter("upSplit",us);
-
-    mesh[0].Join(blk, "j");
-    cout << "block joined" << endl;
-    procBlock joined(state, mesh[0], 0, numGhost, inputVars.EquationSet(), bcs[0]);
-    vector<procBlock> splitJoin(1,joined);
-    WriteCellCenter("splitJoin",splitJoin);
-    exit(0);
+    //decompose grid
+    vector<int> blkRank;
+    vector<int> blkParent;
+    if ( inputVars.DecompMethod() == "manual" ){
+      loadBal = ManualDecomposition(mesh, blkRank, blkParent, numProcs, totalCells);
+    }
+    else if ( inputVars.DecompMethod() == "cubic" ){
+      loadBal = CubicDecomposition(mesh, blkRank, blkParent, bcs, numProcs, totalCells);
+    }
+    else{
+      cerr << "ERROR: Domain decomposition method " << inputVars.DecompMethod() << " is not recognized!" << endl;
+      exit(0);
+    }
 
     //Get interblock BCs
-    connections = GetInterblockBCs( bcs, mesh );
+    connections = GetInterblockBCs( bcs, mesh, blkRank );
 
     //Could send proc3dblocks to processors here, or initialize all on ROOT processor
 
@@ -128,24 +126,28 @@ int main( int argc, char *argv[] ) {
     //initialize the whole mesh with one state and assign ghost cells geometry ------------------
     stateBlocks.resize( mesh.size() );
     for ( int ll = 0; ll < (int)mesh.size(); ll++) {
-      stateBlocks[ll] = procBlock(state, mesh[ll], ll, numGhost, inputVars.EquationSet(), bcs[ll]);
-      stateBlocks[ll].AssignGhostCellsGeom(inputVars);
+      stateBlocks[ll] = procBlock(state, mesh[ll], blkParent[ll], numGhost, bcs[ll], ll, blkRank[ll]);
+      cout << "initializing block of size " << stateBlocks[ll].NumI() << ", " << stateBlocks[ll].NumJ() << ", " << stateBlocks[ll].NumK() << " with bcs: " << endl;
+      cout << stateBlocks[ll].BC() << endl;
+
+
+
+
+      stateBlocks[ll].AssignGhostCellsGeom();
     }
 
     //swap geometry for interblock BCs
     for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
+      cout << connections[ii] << endl;
       SwapSlice( connections[ii], stateBlocks[connections[ii].BlockFirst()], stateBlocks[connections[ii].BlockSecond()], true);
     }
     //Get ghost cell edge data
     for ( int ll = 0; ll < (int)mesh.size(); ll++) {
-      stateBlocks[ll].AssignGhostCellsGeomEdge(inputVars);
+      stateBlocks[ll].AssignGhostCellsGeomEdge();
     }
 
     cout << endl << "Solution Initialized" << endl;
     //----------------------------------------------------------------------------------------------
-
-    //decompose grid
-    loadBal = CubicDecomposition(stateBlocks, numProcs, connections, totalCells);
 
   }
 
