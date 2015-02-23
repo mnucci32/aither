@@ -60,7 +60,7 @@ class boundaryConditions {
 
   void AssignFromInput(const int&, const vector<string>& );
 
-  boundaryConditions Split(const string&, const int&, const int&);
+  boundaryConditions Split(const string&, const int&, const int&, const int&);
   void Join(const boundaryConditions&, const string&);
 
   void PackBC( char*(&), const int&, int&)const;
@@ -86,11 +86,12 @@ class patch {
   int d2Start;                          //direction 2 start index
   int d2End;                            //direction 2 end index
   int constSurf;                        //index of direction 3
+  int rank;                             //rank of block that patch belongs to
 
  public:
   //constructor
   patch();
-  patch(const int&, const int&, const int&, const int&, const int&, const int&, const int&, const int&, const plot3dBlock&);
+  patch(const int&, const int&, const int&, const int&, const int&, const int&, const int&, const int&, const plot3dBlock&, const int&);
 
   //member functions
   vector3d<double> Origin()const{return origin;}
@@ -105,6 +106,7 @@ class patch {
   int Dir2Start()const{return d2Start;}
   int Dir2End()const{return d2End;}
   int ConstSurface()const{return constSurf;}
+  int Rank()const{return rank;}
 
   friend ostream & operator<< (ostream &os, const patch&);
 
@@ -180,7 +182,7 @@ class interblock {
 
 
 //function declarations
-vector<interblock> GetInterblockBCs( const vector<boundaryConditions>&, const vector<plot3dBlock>& );
+vector<interblock> GetInterblockBCs( const vector<boundaryConditions>&, const vector<plot3dBlock>&, const vector<int>& );
 
 
 

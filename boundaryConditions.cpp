@@ -176,8 +176,8 @@ interblock::interblock(const patch &p1, const patch &p2){
   // p2 -- patch 2
 
   //fill interblock
-  rank[0] = 0; //default value is 0
-  rank[1] = 0;
+  rank[0] = p1.Rank();
+  rank[1] = p2.Rank();
 
   block[0] = p1.Block();
   block[1] =p2.Block();
@@ -230,9 +230,10 @@ void interblock::SwapOrder(){
 
 /* Function to go through the boundary conditions and pair the interblock BCs together and determine their orientation.
 */
-vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const vector<plot3dBlock> &grid ){
+vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const vector<plot3dBlock> &grid, const vector<int> &blkRank ){
   // bc -- vector of boundaryConditions for all blocks
   // grid -- vector of plot3Dblocks for entire computational mesh
+  // blkRank -- rank of blocks in grid
 
   //isolate only the interblock BCs and their associated data from all of the BCs
   vector<vector<int> > isolatedInterblocks; //outer vector for each interblock BC, inner vector for information about interblock
@@ -338,11 +339,11 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
 
 	  //get current patch
 	  patch cPatch(isolatedInterblocks[ii][1], isolatedInterblocks[ii][0], isolatedInterblocks[ii][2], isolatedInterblocks[ii][3], isolatedInterblocks[ii][4],
-		       isolatedInterblocks[ii][5], isolatedInterblocks[ii][6], isolatedInterblocks[ii][7], grid[isolatedInterblocks[ii][0]]);
+		       isolatedInterblocks[ii][5], isolatedInterblocks[ii][6], isolatedInterblocks[ii][7], grid[isolatedInterblocks[ii][0]], blkRank[isolatedInterblocks[ii][0]]);
 
 	  //get new patch (possible match)
 	  patch nPatch(isolatedInterblocks[jj][1], isolatedInterblocks[jj][0], isolatedInterblocks[jj][2], isolatedInterblocks[jj][3], isolatedInterblocks[jj][4],
-		       isolatedInterblocks[jj][5], isolatedInterblocks[jj][6], isolatedInterblocks[jj][7], grid[isolatedInterblocks[jj][0]]);
+		       isolatedInterblocks[jj][5], isolatedInterblocks[jj][6], isolatedInterblocks[jj][7], grid[isolatedInterblocks[jj][0]], blkRank[isolatedInterblocks[jj][0]]);
 
 	  //test for match
 	  interblock match(cPatch, nPatch);
@@ -609,7 +610,7 @@ void interblock::GetAddressesMPI(MPI_Aint (&disp)[10])const{
 /* Member function to split boundary conditions along a given direction at a given index. The calling instance retains the lower portion of the split,
 and the returned instance is the upper portion
 */
-boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, const int &numBlk){
+boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, const int &numBlk, const int &newBlkNum){
 
   int indNG = ind + 1; //+1 because boundaries start at 1, not 0
 
@@ -641,7 +642,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	}
 	else{ //upper surface
 	  //at upper i surface, lower bc is now interface
-	  int tag = 1000 + numBlk; //upper surface matches with lower surface
+	  int tag = 1000 + newBlkNum; //upper surface matches with lower surface
 	  bound1.bcTypes[ii] = "interblock";
 	  bound1.iMin[ii] = indNG;
 	  bound1.iMax[ii] = indNG;
@@ -727,7 +728,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	}
 	else {
 	  //at upper j surface, lower bc is now interface
-	  int tag = 3000 + numBlk; //upper surface matches with lower surface
+	  int tag = 3000 + newBlkNum; //upper surface matches with lower surface
 	  bound1.bcTypes[ii] = "interblock";
 	  bound1.jMin[ii] = indNG;
 	  bound1.jMax[ii] = indNG;
@@ -813,7 +814,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	}
 	else {
 	  //at upper k surface, lower bc is now interface
-	  int tag = 5000 + numBlk; //upper surface matches with lower surface
+	  int tag = 5000 + newBlkNum; //upper surface matches with lower surface
 	  bound1.bcTypes[ii] = "interblock";
 	  bound1.kMin[ii] = indNG;
 	  bound1.kMax[ii] = indNG;
@@ -1247,11 +1248,12 @@ patch::patch(){
   d2Start = 0;
   d2End = 0;
   constSurf = 0;
+  rank = 0;
 }
 
 //constructor with arguements passed
 patch::patch( const int &bound, const int &b, const int &d1s, const int &d1e, const int &d2s, const int &d2e, const int &d3s, 
-	      const int &d3e, const plot3dBlock &blk){
+	      const int &d3e, const plot3dBlock &blk, const int &r){
   // bound -- boundary number which patch is on (1-6)
   // b -- parent block number
   // d1s -- direction 1 starting index
@@ -1262,6 +1264,7 @@ patch::patch( const int &bound, const int &b, const int &d1s, const int &d1e, co
 
   boundary = bound;
   block = b;
+  rank = r;
 
   if ( bound == 1 || bound == 2 ){ //patch on i-surface - dir1 = j, dir2 = k
     d1Start = d2s;
