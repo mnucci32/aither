@@ -8292,7 +8292,7 @@ procBlock procBlock::Split(const string &dir, const int &ind){
 	  //-------------------------------------------------------------------------------------------------------
 	  if ( kk >= ind ){ //this portion of parent block overlaps with upper split
 
-	    int loc2 = GetLoc1D(ii, jj - ind, kk, iMax, jMax);
+	    int loc2 = GetLoc1D(ii, jj, kk - ind, iMax, jMax);
 	    int loc2NG = GetLoc1D(ii - (*this).NumGhosts(), jj - (*this).NumGhosts(), kk - ind - (*this).NumGhosts(), (*this).NumI(), (*this).NumJ());
 
 	    int fLowI2 = GetLowerFaceI(ii, jj, kk - ind, iMax, jMax);
