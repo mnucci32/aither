@@ -40,6 +40,7 @@ class plot3dBlock {
    int NumI() const {return numi;}
    int NumJ() const {return numj;}
    int NumK() const {return numk;}
+   int NumCells() const {return (numi-1) * (numj-1) * (numk-1);}
    vector<double> const X(){return x;}
    vector<double> const Y(){return y;}
    vector<double> const Z(){return z;}
