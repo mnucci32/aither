@@ -71,6 +71,38 @@ class boundaryConditions {
 
 };
 
+class boundarySurface {
+  string bcType;                 //boundary condition name for surface
+  int data [7];                  //data for boundary surface: imin, imax, jmin, jmax, kmin, kmax, tag
+
+ public:
+  //constructor
+  boundarySurface();
+  boundarySurface(const string&, const int&, const int&, const int&, const int&, const int&, const int&, const int&);
+
+  //member functions
+  string BCType()const{return bcType;}
+  int IMin()const{return data[0];}
+  int IMax()const{return data[1];}
+  int JMin()const{return data[2];}
+  int JMax()const{return data[3];}
+  int KMin()const{return data[4];}
+  int KMax()const{return data[5];}
+  int Tag()const{return data[6];}
+
+  int SurfaceType();
+
+  int PartnerBlock();
+  int PartnerSurface();
+
+  friend ostream & operator<< (ostream &os, const boundarySurface&);
+
+  //destructor
+  ~boundarySurface() {}
+
+};
+
+
 /* A class to store the necessary information for the boundary condition patches. A patch is a 2D surface on a block boundary that
 is assigned the same boundary condition.
 */

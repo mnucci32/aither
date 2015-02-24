@@ -1442,3 +1442,120 @@ void boundaryConditions::UnpackBC( char *(&recvBuffer), const int &recvBufSize, 
 
 
 }
+
+//constructor when passed no arguements
+boundarySurface::boundarySurface(){
+  bcType = "undefined";
+  data[0] = 0;
+  data[1] = 0;
+  data[2] = 0;
+  data[3] = 0;
+  data[4] = 0;
+  data[5] = 0;
+  data[6] = 0;
+}
+
+boundarySurface::boundarySurface(const string &name, const int &imin, const int &imax, const int &jmin, const int &jmax, const int &kmin, const int &kmax, const int &tag){
+  bcType = name;
+  data[0] = imin;
+  data[1] = imax;
+  data[2] = jmin;
+  data[3] = jmax;
+  data[4] = kmin;
+  data[5] = kmax;
+  data[6] = tag;
+}
+
+int boundarySurface::SurfaceType(){
+
+  int surf = 0;
+
+  if ( data[0] == data[1] ){ //i-surface
+    if ( data[1] == 1 ){ //lower surface
+      surf = 1;
+    }
+    else{ //upper surface
+      surf = 2;
+    }
+  }
+  else if ( data[2] == data[3] ){ //j-surface
+    if ( data[3] == 1){ //lower surface
+      surf = 3;
+    }
+    else{ //upper surface
+      surf = 4;
+    }
+  }
+  else if ( data[4] == data[5] ){ //k-surface
+    if ( data[5] == 1){ //lower surface
+      surf = 5;
+    }
+    else{ //upper surface
+      surf = 6;
+    }
+  }
+  else{
+    cerr << "ERROR: Error in boundarySurface::SurfaceType(). Surface is defined incorrectly, it is neither an i, j, or k surface." << endl;
+    cerr << (*this) << endl;
+    exit(0);
+  }
+
+  return surf;
+}
+
+int boundarySurface::PartnerBlock(){
+
+  if ( (*this).bcType != "interblock" ){ 
+    cerr << "ERROR: Partner blocks are only associated with interblock boundaries. Current boundary is " << (*this).bcType << endl;
+    exit(0);
+  }
+
+  int subtract = (*this).SurfaceType() * 1000;
+  return (*this).Tag() - subtract;
+}
+
+int boundarySurface::PartnerSurface(){
+
+  if ( (*this).bcType != "interblock" ){ 
+    cerr << "ERROR: Partner blocks are only associated with interblock boundaries. Current boundary is " << (*this).bcType << endl;
+    exit(0);
+  }
+
+  int surf = 0;
+
+  if ( (*this).Tag() < 2000 ){
+    surf = 1; //i-lower surface
+  }
+  else if ( (*this).Tag() < 3000 ){
+    surf = 2; //i-upper surface
+  }
+  else if ( (*this).Tag() < 4000 ){
+    surf = 3; //j-lower surface
+  }
+  else if ( (*this).Tag() < 5000 ){
+    surf = 4; //j-upper surface
+  }
+  else if ( (*this).Tag() < 6000 ){
+    surf = 5; //k-lower surface
+  }
+  else if ( (*this).Tag() < 7000 ){
+    surf = 6; //k-upper surface
+  }
+  else {
+    cerr << "ERROR: Error in boundarySurface::PartnerSurface(). Tag does not fit in range. Tag must be between 1000 and 6999." << endl;
+    cerr << (*this) << endl;
+    exit(0);
+  }
+
+
+  return surf;
+}
+
+//operator overload for << - allows use of cout, cerr, etc.
+ostream & operator<< (ostream &os, const boundarySurface &bcSurf){
+
+  os << bcSurf.bcType << "   " << bcSurf.IMin() << "   " << bcSurf.IMax() << "   " << bcSurf.JMin() << "   " << bcSurf.JMax() << "   "
+     << bcSurf.KMin() << "   " << bcSurf.KMax() << "   " << bcSurf.Tag() << endl;
+
+  return os;
+}
