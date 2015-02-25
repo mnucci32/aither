@@ -88,7 +88,17 @@ vector<int> CubicDecomposition(vector<plot3dBlock> &grid, vector<int> &blkRank, 
 
 
 
+  boundaryConditions myBC = bcs[2];
+  boundarySurface mySurf1 = myBC.GetSurface(3);
+  cout << "original surface: " << mySurf1 << endl;
+  bool split;
+  boundarySurface mySurf2 = mySurf1.Split("j", 20, 1, 7, split);
+  cout << "split surfaces:" << endl;
+  cout << "was split: " << split << endl;
+  cout << mySurf1 << endl;
+  cout << mySurf2 << endl;
 
+  exit(0);
 
 
   //find maximum number of cells on a processor

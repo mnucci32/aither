@@ -42,6 +42,8 @@ class boundarySurface {
 
   int PartnerBlock();
   int PartnerSurface();
+  void UpdateTagForSplitJoin(const int&);
+  boundarySurface Split(const string&, const int&, const int&, const int&, bool&);
 
   friend ostream & operator<< (ostream &os, const boundarySurface&);
 

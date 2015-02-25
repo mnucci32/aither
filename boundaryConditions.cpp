@@ -837,7 +837,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 
   }
   else{
-    cerr << "ERROR: Error in procBlock::Split(). Direction " << dir << " is not recognized! Choose either i, j, or k." << endl;
+    cerr << "ERROR: Error in boundaryCondition::Split(). Direction " << dir << " is not recognized! Choose either i, j, or k." << endl;
     exit(0);
   }
 
@@ -1465,3 +1465,75 @@ ostream & operator<< (ostream &os, const boundarySurface &bcSurf){
 
   return os;
 }
+
+void boundarySurface::UpdateTagForSplitJoin(const int &nBlk){
+  (*this).data[6] = (*this).PartnerSurface() * 1000 + nBlk;
+}
+
+boundarySurface boundarySurface::Split(const string &dir, const int &ind, const int &lBlk, const int &uBlk, bool &split){
+
+  int indNG = ind + 1; //+1 because boundaries start at 1, not 0
+
+  boundarySurface surf1 = (*this);
+  boundarySurface surf2 = (*this);
+
+  split = true;
+
+  if ( dir == "i" ){ //split along i-plane
+
+    if ( (*this).SurfaceType() == 1 || (*this).SurfaceType() == 2 ){ //cannot split an i-surface along i-plane, just update block
+      surf1.UpdateTagForSplitJoin(uBlk);
+      split = false;
+    }
+    else{ //j or k surface
+      surf2.data[0] = indNG;                            //imin
+      surf2.UpdateTagForSplitJoin(uBlk);
+
+      surf1.data[0] = 1;                                //imin
+      surf1.data[1] = (*this).IMax() - indNG + 1;       //imax
+      surf1.UpdateTagForSplitJoin(lBlk);
+    }
+
+  }
+  else if ( dir == "j" ){ //split along j-plane
+
+    if ( (*this).SurfaceType() == 3 || (*this).SurfaceType() == 4 ){ //cannot split a j-surface along j-plane, just update block
+      surf1.UpdateTagForSplitJoin(uBlk);
+      split = false;
+    }
+    else{ //i or k surface
+      surf2.data[2] = indNG;                            //jmin
+      surf2.UpdateTagForSplitJoin(uBlk);
+
+      surf1.data[2] = 1;                                //jmin
+      surf1.data[3] = (*this).JMax() - indNG + 1;       //jmax
+      surf1.UpdateTagForSplitJoin(lBlk);
+    }
+
+  }
+  else if ( dir == "k" ){ //split along k-plane
+
+    if ( (*this).SurfaceType() == 5 || (*this).SurfaceType() == 6 ){ //cannot split a k-surface along k-plane, just update block
+      surf1.UpdateTagForSplitJoin(uBlk);
+      split = false;
+    }
+    else{ //i or j surface
+      surf2.data[4] = indNG;                            //kmin
+      surf2.UpdateTagForSplitJoin(uBlk);
+
+      surf1.data[4] = 1;                                //kmin
+      surf1.data[5] = (*this).KMax() - indNG + 1;       //kmax
+      surf1.UpdateTagForSplitJoin(lBlk);
+    }
+
+  }
+  else{
+    cerr << "ERROR: Error in boundarySurface::Split(). Direction " << dir << " is not recognized! Choose either i, j, or k." << endl;
+    exit(0);
+  }
+
+  (*this) = surf1;
+  return surf2;
+
+}
+
