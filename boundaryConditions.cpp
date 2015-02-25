@@ -29,8 +29,6 @@ boundaryConditions::boundaryConditions( const int &i, const int &j, const int &k
 
   boundarySurface bcSurf;
   vector<boundarySurface> dumVec(length,bcSurf);
-
-  //assign dummy vectors to class variables
   surfs = dumVec;
 }
 
@@ -39,7 +37,7 @@ ostream & operator<< (ostream &os, const boundaryConditions &bc){
 
   os << "Number of surfaces (I, J, K): " << bc.numSurfI << ", " << bc.numSurfJ << ", " << bc.numSurfK << endl;
 
-  for ( unsigned int ii = 0; ii < bc.surfs.size(); ii++ ){
+  for ( int ii = 0; ii < bc.NumSurfaces(); ii++ ){
     os << bc.surfs[ii] << endl;
   }
 
@@ -567,12 +565,14 @@ void interblock::GetAddressesMPI(MPI_Aint (&disp)[10])const{
 /* Member function to split boundary conditions along a given direction at a given index. The calling instance retains the lower portion of the split,
 and the returned instance is the upper portion
 */
-boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, const int &numBlk, const int &newBlkNum){
+boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, const int &numBlk, const int &newBlkNum, vector<boundarySurface> &aSurf){
 
   int indNG = ind + 1; //+1 because boundaries start at 1, not 0
 
   boundaryConditions bound1 = (*this);
   boundaryConditions bound2 = (*this);
+
+  vector<boundarySurface> alteredSurf;
 
   vector<int> del1, del2;
   del1.reserve((*this).NumSurfaces()); //reserved for maximum number of deletions
@@ -608,9 +608,21 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	  //at upper i surface, upper bc is same as original, but indices are adjusted for new block size
 	  bound2.surfs[ii].data[0] = (*this).GetIMax(ii) - indNG + 1;      //imin
 	  bound2.surfs[ii].data[1] = (*this).GetIMax(ii) - indNG + 1;      //imax
+
+	  //at upper i surface, if bc is interblock, store boundarySurface because partner block BC will need to be updated
+	  if ( (*this).GetBCTypes(ii) == "interblock" ){
+	    alteredSurf.push_back((*this).GetSurface(ii));
+	  }
+
 	}
       }
       else { //j-surface or k-surface
+
+	//at j/k surface, if bc is interblock, store boundarySurface because partner block BC will need to be updated
+	if ( (*this).GetBCTypes(ii) == "interblock" ){
+	  alteredSurf.push_back((*this).GetSurface(ii));
+	}
+
 	if ( (*this).GetIMin(ii) >= indNG ){ //this surface is only present in the upper split
 	  del1.push_back(ii);
 	  bound2.surfs[ii].data[0] = (*this).GetIMax(ii) - indNG + 1;    //imin
@@ -682,9 +694,21 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	  //at upper j surface, upper bc is same as original, but indices are adjusted for new block size
 	  bound2.surfs[ii].data[2] = (*this).GetJMax(ii) - indNG + 1;  //jmin
 	  bound2.surfs[ii].data[3] = (*this).GetJMax(ii) - indNG + 1;  //jmax
+
+	  //at upper j surface, if bc is interblock, store boundarySurface because partner block BC will need to be updated
+	  if ( (*this).GetBCTypes(ii) == "interblock" ){
+	    alteredSurf.push_back((*this).GetSurface(ii));
+	  }
+
 	}
       }
       else { //i-surface or k-surface
+
+	//at i/k surface, if bc is interblock, store boundarySurface because partner block BC will need to be updated
+	if ( (*this).GetBCTypes(ii) == "interblock" ){
+	  alteredSurf.push_back((*this).GetSurface(ii));
+	}
+
 	if ( (*this).GetJMin(ii) >= indNG ){ //this surface is only present in the upper split
 	  del1.push_back(ii);
 	  bound2.surfs[ii].data[2] = (*this).GetJMax(ii) - indNG + 1;   //jmin
@@ -756,9 +780,21 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	  //at upper k surface, upper bc is same as original, but indices are adjusted for new block size
 	  bound2.surfs[ii].data[4] = (*this).GetKMax(ii) - indNG + 1;   //kmin
 	  bound2.surfs[ii].data[5] = (*this).GetKMax(ii) - indNG + 1;   //kmax
+
+	  //at upper k surface, if bc is interblock, store boundarySurface because partner block BC will need to be updated
+	  if ( (*this).GetBCTypes(ii) == "interblock" ){
+	    alteredSurf.push_back((*this).GetSurface(ii));
+	  }
+
 	}
       }
       else { //i-surface or j-surface
+
+	//at i/j surface, if bc is interblock, store boundarySurface because partner block BC will need to be updated
+	if ( (*this).GetBCTypes(ii) == "interblock" ){
+	  alteredSurf.push_back((*this).GetSurface(ii));
+	}
+
 	if ( (*this).GetKMin(ii) >= indNG ){ //this surface is only present in the upper split
 	  del1.push_back(ii);
 	  bound2.surfs[ii].data[4] = (*this).GetKMax(ii) - indNG + 1;      //kmin
@@ -806,6 +842,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
   }
 
   (*this) = bound1;
+  aSurf = alteredSurf;
   return bound2;
 
 }
@@ -813,7 +850,9 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 /* Member function to join 2 boundaryConditions. It assumes that the calling instance is the "lower" boundary condition and the input instance
 is the "upper" boundary condition.
 */
-void boundaryConditions::Join( const boundaryConditions &bc, const string &dir ){
+void boundaryConditions::Join( const boundaryConditions &bc, const string &dir, vector<boundarySurface> &aSurf ){
+
+  vector<boundarySurface> alteredSurf;
 
   if ( dir == "i" ){ //split along i-plane
 
@@ -854,6 +893,11 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
     //insert all i upper surfaces from upper bc
     for ( int ii = 0; ii < bc.NumSurfI(); ii++ ){
       if ( bc.GetIMax(ii) != 1 ){ //upper i surface
+	//at upper i surface, if bc is interblock, store boundarySurface because partner block BC will need to be updated
+	if ( (*this).GetBCTypes(ii) == "interblock" ){
+	  alteredSurf.push_back((*this).GetSurface(ii));
+	}
+
 	//adjust i coordinates for join
 	boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii) + lowDimI - 1, bc.GetIMax(ii) + lowDimI - 1, bc.GetJMin(ii), bc.GetJMax(ii), 
 			       bc.GetKMin(ii), bc.GetKMax(ii), bc.GetTag(ii) );
@@ -869,6 +913,11 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
       cc++;
     }
     for ( int ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++ ){
+      //at j surface for upper block, if bc is interblock, store boundarySurface because partner block BC will need to be updated
+      if ( (*this).GetBCTypes(ii) == "interblock" ){
+	alteredSurf.push_back((*this).GetSurface(ii));
+      }
+
       //adjust i coordinates for join
       boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii) + lowDimI - 1, bc.GetIMax(ii) + lowDimI - 1, bc.GetJMin(ii), bc.GetJMax(ii), 
 			     bc.GetKMin(ii), bc.GetKMax(ii), bc.GetTag(ii) );
@@ -883,6 +932,11 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
       cc++;
     }
     for ( int ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++ ){
+      //at k surface for upper block, if bc is interblock, store boundarySurface because partner block BC will need to be updated
+      if ( (*this).GetBCTypes(ii) == "interblock" ){
+	alteredSurf.push_back((*this).GetSurface(ii));
+      }
+
       //adjust i coordinates for join
       boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii) + lowDimI - 1, bc.GetIMax(ii) + lowDimI - 1, bc.GetJMin(ii), bc.GetJMax(ii), 
 			     bc.GetKMin(ii), bc.GetKMax(ii), bc.GetTag(ii) );
@@ -932,6 +986,11 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
     //insert all j upper surfaces from upper bc
     for ( int ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++ ){
       if ( bc.GetJMax(ii) != 1 ){ //upper j surface
+	//at j upper surface for upper block, if bc is interblock, store boundarySurface because partner block BC will need to be updated
+	if ( (*this).GetBCTypes(ii) == "interblock" ){
+	  alteredSurf.push_back((*this).GetSurface(ii));
+	}
+
 	//adjust j coordinates for join
 	boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii), bc.GetIMax(ii), bc.GetJMin(ii) + lowDimJ - 1, bc.GetJMax(ii) + lowDimJ - 1, 
 			       bc.GetKMin(ii), bc.GetKMax(ii), bc.GetTag(ii) );
@@ -948,6 +1007,11 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
       cc++;
     }
     for ( int ii = 0; ii < bc.NumSurfI(); ii++ ){
+      //at i surface for upper block, if bc is interblock, store boundarySurface because partner block BC will need to be updated
+      if ( (*this).GetBCTypes(ii) == "interblock" ){
+	alteredSurf.push_back((*this).GetSurface(ii));
+      }
+
       //adjust j coordinates for join
       boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii), bc.GetIMax(ii), bc.GetJMin(ii) + lowDimJ - 1, bc.GetJMax(ii) + lowDimJ - 1, 
 			     bc.GetKMin(ii), bc.GetKMax(ii), bc.GetTag(ii) );
@@ -963,6 +1027,11 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
       cc++;
     }
     for ( int ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++ ){
+      //at k surface for upper block, if bc is interblock, store boundarySurface because partner block BC will need to be updated
+      if ( (*this).GetBCTypes(ii) == "interblock" ){
+	alteredSurf.push_back((*this).GetSurface(ii));
+      }
+
       //adjust j coordinates for join
       boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii), bc.GetIMax(ii), bc.GetJMin(ii) + lowDimJ - 1, bc.GetJMax(ii) + lowDimJ - 1, 
 			     bc.GetKMin(ii), bc.GetKMax(ii), bc.GetTag(ii) );
@@ -1013,6 +1082,11 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
     //insert all k upper surfaces from upper bc
     for ( int ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++ ){
       if ( bc.GetKMax(ii) != 1 ){ //upper k surface
+	//at upper k surface for upper block, if bc is interblock, store boundarySurface because partner block BC will need to be updated
+	if ( (*this).GetBCTypes(ii) == "interblock" ){
+	  alteredSurf.push_back((*this).GetSurface(ii));
+	}
+
 	//adjust k coordinates for join
 	boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii), bc.GetIMax(ii), bc.GetJMin(ii), bc.GetJMax(ii), 
 			       bc.GetKMin(ii) + lowDimK - 1, bc.GetKMax(ii) + lowDimK - 1, bc.GetTag(ii) );
@@ -1029,6 +1103,11 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
       cc++;
     }
     for ( int ii = 0; ii < bc.NumSurfI(); ii++ ){
+      //at i surface for upper block, if bc is interblock, store boundarySurface because partner block BC will need to be updated
+      if ( (*this).GetBCTypes(ii) == "interblock" ){
+	alteredSurf.push_back((*this).GetSurface(ii));
+      }
+
       //adjust k coordinates for join
       boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii), bc.GetIMax(ii), bc.GetJMin(ii), bc.GetJMax(ii), 
 			     bc.GetKMin(ii) + lowDimK - 1, bc.GetKMax(ii) + lowDimK - 1, bc.GetTag(ii) );
@@ -1044,6 +1123,11 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
       cc++;
     }
     for ( int ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++ ){
+      //at j surface for upper block, if bc is interblock, store boundarySurface because partner block BC will need to be updated
+      if ( (*this).GetBCTypes(ii) == "interblock" ){
+	alteredSurf.push_back((*this).GetSurface(ii));
+      }
+
       //adjust k coordinates for join
       boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii), bc.GetIMax(ii), bc.GetJMin(ii), bc.GetJMax(ii), 
 			     bc.GetKMin(ii) + lowDimK - 1, bc.GetKMax(ii) + lowDimK - 1, bc.GetTag(ii) );
@@ -1060,6 +1144,7 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
     exit(0);
   }
 
+  aSurf = alteredSurf;
 }
 
 

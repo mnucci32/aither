@@ -76,6 +76,7 @@ class boundaryConditions {
   int GetJMax( const int &a)const{return surfs[a].JMax();}
   int GetKMax( const int &a)const{return surfs[a].KMax();}
   int GetTag( const int &a)const{return surfs[a].Tag();}
+  boundarySurface GetSurface( const int &a)const{return surfs[a];}
 
   void ResizeVecs( const int&);
   void ResizeVecs( const int&, const int&, const int& );
@@ -86,8 +87,8 @@ class boundaryConditions {
 
   void AssignFromInput(const int&, const vector<string>& );
 
-  boundaryConditions Split(const string&, const int&, const int&, const int&);
-  void Join(const boundaryConditions&, const string&);
+  boundaryConditions Split(const string&, const int&, const int&, const int&, vector<boundarySurface>&);
+  void Join(const boundaryConditions&, const string&, vector<boundarySurface>&);
 
   void PackBC( char*(&), const int&, int&)const;
   void UnpackBC( char*(&), const int&, int&);

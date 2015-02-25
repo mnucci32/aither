@@ -7921,7 +7921,7 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData)const{
 /* Member function to split a procBlock along a plane defined by a direction and an index. The calling instance will retain the lower portion of the split,
 and the returned instance will retain the upper portion of the split.
 */
-procBlock procBlock::Split(const string &dir, const int &ind, const int &num){
+procBlock procBlock::Split(const string &dir, const int &ind, const int &num, vector<boundarySurface> &alteredSurf){
   // dir -- plane to split along, either i, j, or k
   // ind -- index (face) to split at (w/o counting ghost cells)
   // num -- new block number
@@ -7931,7 +7931,7 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num){
   int kMax = (*this).NumK() + 2 * (*this).NumGhosts();
 
   boundaryConditions bound1 = (*this).BC();
-  boundaryConditions bound2 = bound1.Split(dir, ind, (*this).ParentBlock(), num);
+  boundaryConditions bound2 = bound1.Split(dir, ind, (*this).ParentBlock(), num, alteredSurf);
 
   if ( dir == "i" ){ //split along i-plane
     int numI2 = (*this).NumI() - ind;
@@ -8407,7 +8407,7 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num){
 
 
 
-void procBlock::Join(const procBlock &blk, const string &dir){
+void procBlock::Join(const procBlock &blk, const string &dir, vector<boundarySurface> &alteredSurf){
 
   if ( dir == "i" ){
 
@@ -8424,7 +8424,7 @@ void procBlock::Join(const procBlock &blk, const string &dir){
     if ( (*this).ParentBlockStartI() < blk.ParentBlockStartI() ){ //calling instance is lower
 
       newBlk.bc = (*this).BC();
-      newBlk.bc.Join(blk.BC(), dir);
+      newBlk.bc.Join(blk.BC(), dir, alteredSurf);
 
       int iMaxU = blk.NumI() + 2 * blk.NumGhosts();
       int iMaxL = (*this).NumI() + 2 * blk.NumGhosts();
@@ -8575,7 +8575,7 @@ void procBlock::Join(const procBlock &blk, const string &dir){
     else{ //input instance is lower
 
       newBlk.bc = blk.BC();
-      newBlk.bc.Join((*this).BC(), dir);
+      newBlk.bc.Join((*this).BC(), dir, alteredSurf);
 
       int iMaxU = (*this).NumI() + 2 * (*this).NumGhosts();
       int iMaxL = blk.NumI() + 2 * (*this).NumGhosts();
@@ -8745,7 +8745,7 @@ void procBlock::Join(const procBlock &blk, const string &dir){
     if ( (*this).ParentBlockStartJ() < blk.ParentBlockStartJ() ){ //calling instance is lower
 
       newBlk.bc = (*this).BC();
-      newBlk.bc.Join(blk.BC(), dir);
+      newBlk.bc.Join(blk.BC(), dir, alteredSurf);
 
       int jMaxU = blk.NumJ() + 2 * blk.NumGhosts();
       int jMaxL = (*this).NumJ() + 2 * blk.NumGhosts();
@@ -8896,7 +8896,7 @@ void procBlock::Join(const procBlock &blk, const string &dir){
     else{ //input instance is lower
 
       newBlk.bc = blk.BC();
-      newBlk.bc.Join((*this).BC(), dir);
+      newBlk.bc.Join((*this).BC(), dir, alteredSurf);
 
       int jMaxU = (*this).NumJ() + 2 * (*this).NumGhosts();
       int jMaxL = blk.NumJ() + 2 * (*this).NumGhosts();
@@ -9066,7 +9066,7 @@ void procBlock::Join(const procBlock &blk, const string &dir){
     if ( (*this).ParentBlockStartK() < blk.ParentBlockStartK() ){ //calling instance is lower
 
       newBlk.bc = (*this).BC();
-      newBlk.bc.Join(blk.BC(), dir);
+      newBlk.bc.Join(blk.BC(), dir, alteredSurf);
 
       newBlk.parBlockStartI = (*this).ParentBlockStartI();
       newBlk.parBlockEndI = (*this).ParentBlockEndI();
@@ -9214,7 +9214,7 @@ void procBlock::Join(const procBlock &blk, const string &dir){
     else{ //input instance is lower
 
       newBlk.bc = blk.BC();
-      newBlk.bc.Join((*this).BC(), dir);
+      newBlk.bc.Join((*this).BC(), dir, alteredSurf);
 
       newBlk.parBlockStartI = blk.ParentBlockStartI();
       newBlk.parBlockEndI = blk.ParentBlockEndI();

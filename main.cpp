@@ -161,9 +161,6 @@ int main( int argc, char *argv[] ) {
   //send procBlocks to appropriate processor
   vector<procBlock> localStateBlocks = SendProcBlocks(stateBlocks, rank, numProcBlock, MPI_cellData, MPI_vec3d);
 
-  cout << "Rank: " << rank << " procBlocks received! My BCs are:" << endl;
-  cout << localStateBlocks[0].BC() << endl;
-
   //send connections to all processors
   SendConnections( connections, MPI_interblock );
 
@@ -210,9 +207,7 @@ int main( int argc, char *argv[] ) {
     for ( int mm = 0; mm < inputVars.NonlinearIterations(); mm++ ){    //loop over nonlinear iterations
 
       //Get boundary conditions for all blocks
-      cout << "Getting BCs" << endl;
       GetBoundaryConditions(localStateBlocks, inputVars, eos, connections, rank, MPI_cellData);
-      cout << "Got BCs" << endl;
 
       for ( int bb = 0; bb < (int)localStateBlocks.size(); bb++ ){             //loop over number of blocks
 

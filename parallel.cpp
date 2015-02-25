@@ -78,11 +78,12 @@ vector<int> CubicDecomposition(vector<plot3dBlock> &grid, vector<int> &blkRank, 
     blkPar[ii] = ii;
   }
 
+  vector<boundarySurface> altSurf;
   plot3dBlock newBlk = grid[0].Split("i",20);
   grid.push_back(newBlk);
   blkRank.push_back(numProc-1);
   blkPar.push_back(0);
-  boundaryConditions newBcs = bcs[0].Split("i", 20, 0, numProc-1);
+  boundaryConditions newBcs = bcs[0].Split("i", 20, 0, numProc-1, altSurf);
   bcs.push_back(newBcs);
 
 
