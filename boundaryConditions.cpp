@@ -15,19 +15,9 @@ boundaryConditions::boundaryConditions(){
   numSurfK = 2;
   int length = numSurfI + numSurfJ + numSurfK;
 
-  vector<int> dumVecInt(length,0);
-  vector<string> dumVecStr(length,"undefined");
-
-  //assign dummy vectors to class variables
-  bcTypes = dumVecStr;
-  iMin = dumVecInt;
-  iMax = dumVecInt;
-  jMin = dumVecInt;
-  jMax = dumVecInt;
-  kMin = dumVecInt;
-  kMax = dumVecInt;
-  tag = dumVecInt;
-
+  boundarySurface bcSurf;
+  vector<boundarySurface> dumVec(length,bcSurf);
+  surfs = dumVec;
 }
 
 //constructor when passed number of i, j, k surfaces
@@ -37,19 +27,11 @@ boundaryConditions::boundaryConditions( const int &i, const int &j, const int &k
   numSurfK = k;
   int length = numSurfI + numSurfJ + numSurfK;
 
-  vector<int> dumVecInt(length,0);
-  vector<string> dumVecStr(length,"undefined");
+  boundarySurface bcSurf;
+  vector<boundarySurface> dumVec(length,bcSurf);
 
   //assign dummy vectors to class variables
-  bcTypes = dumVecStr;
-  iMin = dumVecInt;
-  iMax = dumVecInt;
-  jMin = dumVecInt;
-  jMax = dumVecInt;
-  kMin = dumVecInt;
-  kMax = dumVecInt;
-  tag = dumVecInt;
-
+  surfs = dumVec;
 }
 
 //operator overload for << - allows use of cout, cerr, etc.
@@ -57,10 +39,8 @@ ostream & operator<< (ostream &os, const boundaryConditions &bc){
 
   os << "Number of surfaces (I, J, K): " << bc.numSurfI << ", " << bc.numSurfJ << ", " << bc.numSurfK << endl;
 
-  for ( unsigned int ii = 0; ii < bc.bcTypes.size(); ii++ ){
-    os << bc.bcTypes[ii] << "   " << bc.iMin[ii] << "   " << bc.iMax[ii] << "   " << bc.jMin[ii] << "   " << bc.jMax[ii] << "   "
-       << bc.kMin[ii] << "   " << bc.kMax[ii] << "   " << bc.tag[ii] << endl;
-
+  for ( unsigned int ii = 0; ii < bc.surfs.size(); ii++ ){
+    os << bc.surfs[ii] << endl;
   }
 
   return os;
@@ -68,16 +48,7 @@ ostream & operator<< (ostream &os, const boundaryConditions &bc){
 
 //operator to resize all of the vector components of the boundary conditions class
 void boundaryConditions::ResizeVecs( const int &a){
-
-  bcTypes.resize(a);
-  iMin.resize(a);
-  iMax.resize(a);
-  jMin.resize(a);
-  jMax.resize(a);
-  kMin.resize(a);
-  kMax.resize(a);
-  tag.resize(a);
-
+  surfs.resize(a);
 }
 
 //operator to resize all of the vector components of the boundary conditions class
@@ -87,15 +58,7 @@ void boundaryConditions::ResizeVecs( const int &i, const int &j, const int &k){
   numSurfJ = j;
   numSurfK = k;
 
-  bcTypes.resize(i + j + k);
-  iMin.resize(i + j + k);
-  iMax.resize(i + j + k);
-  jMin.resize(i + j + k);
-  jMax.resize(i + j + k);
-  kMin.resize(i + j + k);
-  kMax.resize(i + j + k);
-  tag.resize(i + j + k);
-
+  surfs.resize(i + j + k);
 }
 
 //member function to return the boundary condition type given the i,j,k face coordinates and the surface type
@@ -141,15 +104,9 @@ string boundaryConditions::GetBCName(const int i, const int j, const int k, cons
 //input::ReadInput(). It is necessary so that the private data can be altered from another class's member function.
 void boundaryConditions::AssignFromInput(const int &surfCounter, const vector<string> &tokens){
 
-  bcTypes[surfCounter] = tokens[0];
-  iMin[surfCounter] = atoi(tokens[1].c_str());
-  iMax[surfCounter] = atoi(tokens[2].c_str());
-  jMin[surfCounter] = atoi(tokens[3].c_str());
-  jMax[surfCounter] = atoi(tokens[4].c_str());
-  kMin[surfCounter] = atoi(tokens[5].c_str());
-  kMax[surfCounter] = atoi(tokens[6].c_str());
-  tag[surfCounter] = atoi(tokens[7].c_str());
-
+  boundarySurface bcSurf(tokens[0], atoi(tokens[1].c_str()), atoi(tokens[2].c_str()), atoi(tokens[3].c_str()), atoi(tokens[4].c_str()), 
+			 atoi(tokens[5].c_str()), atoi(tokens[6].c_str()), atoi(tokens[7].c_str()) );
+  surfs[surfCounter] = bcSurf;
 }
 
 
@@ -635,29 +592,29 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 
 	  //at lower i surface, upper bc is now interface
 	  int tag = 2000 + numBlk; //lower surface matches with upper surface
-	  bound2.bcTypes[ii] = "interblock";
-	  bound2.iMin[ii] = (*this).GetIMin(ii);
-	  bound2.iMax[ii] = (*this).GetIMax(ii);
-	  bound2.tag[ii] = tag;
+	  bound2.surfs[ii].bcType = "interblock";          //bcType
+	  bound2.surfs[ii].data[0] = (*this).GetIMin(ii);  //imin
+	  bound2.surfs[ii].data[1] = (*this).GetIMax(ii);  //imax
+	  bound2.surfs[ii].data[6] = tag;                  //tag
 	}
 	else{ //upper surface
 	  //at upper i surface, lower bc is now interface
 	  int tag = 1000 + newBlkNum; //upper surface matches with lower surface
-	  bound1.bcTypes[ii] = "interblock";
-	  bound1.iMin[ii] = indNG;
-	  bound1.iMax[ii] = indNG;
-	  bound1.tag[ii] = tag;
+	  bound1.surfs[ii].bcType = "interblock"; //bcType
+	  bound1.surfs[ii].data[0] = indNG;       //imin
+	  bound1.surfs[ii].data[1] = indNG;       //imax
+	  bound1.surfs[ii].data[6] = tag;         //tag
 
 	  //at upper i surface, upper bc is same as original, but indices are adjusted for new block size
-	  bound2.iMin[ii] = (*this).GetIMax(ii) - indNG + 1;
-	  bound2.iMax[ii] = (*this).GetIMax(ii) - indNG + 1;
+	  bound2.surfs[ii].data[0] = (*this).GetIMax(ii) - indNG + 1;      //imin
+	  bound2.surfs[ii].data[1] = (*this).GetIMax(ii) - indNG + 1;      //imax
 	}
       }
       else { //j-surface or k-surface
 	if ( (*this).GetIMin(ii) >= indNG ){ //this surface is only present in the upper split
 	  del1.push_back(ii);
-	  bound2.iMin[ii] = (*this).GetIMax(ii) - indNG + 1;
-	  bound2.iMax[ii] = (*this).GetIMax(ii) - indNG + 1;
+	  bound2.surfs[ii].data[0] = (*this).GetIMax(ii) - indNG + 1;    //imin
+	  bound2.surfs[ii].data[1] = (*this).GetIMax(ii) - indNG + 1;    //imax
 	  if ( ii >= (*this).NumSurfI() && ii < (*this).NumSurfI() + (*this).NumSurfJ() ){ //j-surface
 	    del1J++;
 	  }
@@ -666,9 +623,9 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	  }
 	}
 	else if ( (*this).GetIMax(ii) >= indNG ){ //this surface straddles the split
-	  bound1.iMax[ii] = indNG;
-	  bound2.iMin[ii] = 1;
-	  bound2.iMax[ii] = (*this).GetIMax(ii) - indNG + 1;
+	  bound1.surfs[ii].data[1] = indNG;                               //imax
+	  bound2.surfs[ii].data[0] = 1;                                   //imin
+	  bound2.surfs[ii].data[1] = (*this).GetIMax(ii) - indNG + 1;     //imax
 	}
 	else{ //this surface is only present in the lower split
 	  del2.push_back(ii);
@@ -684,24 +641,12 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 
     //delete unnecessary boundaries
     for ( unsigned int ii = 0; ii < del1.size(); ii++ ){
-      bound1.iMin.erase(bound1.iMin.begin() + del1[ii]);
-      bound1.iMax.erase(bound1.iMax.begin() + del1[ii]);
-      bound1.jMin.erase(bound1.jMin.begin() + del1[ii]);
-      bound1.jMax.erase(bound1.jMax.begin() + del1[ii]);
-      bound1.kMin.erase(bound1.kMin.begin() + del1[ii]);
-      bound1.kMax.erase(bound1.kMax.begin() + del1[ii]);
-      bound1.tag.erase(bound1.tag.begin() + del1[ii]);
+      bound1.surfs.erase(bound1.surfs.begin() + del1[ii]);
       bound1.numSurfJ -= del1J;
       bound1.numSurfK -= del1K;
     }
     for ( unsigned int ii = 0; ii < del2.size(); ii++ ){
-      bound2.iMin.erase(bound2.iMin.begin() + del2[ii]);
-      bound2.iMax.erase(bound2.iMax.begin() + del2[ii]);
-      bound2.jMin.erase(bound2.jMin.begin() + del2[ii]);
-      bound2.jMax.erase(bound2.jMax.begin() + del2[ii]);
-      bound2.kMin.erase(bound2.kMin.begin() + del2[ii]);
-      bound2.kMax.erase(bound2.kMax.begin() + del2[ii]);
-      bound2.tag.erase(bound2.tag.begin() + del2[ii]);
+      bound2.surfs.erase(bound2.surfs.begin() + del2[ii]);
       bound2.numSurfJ -= del2J;
       bound2.numSurfK -= del2K;
     }
@@ -721,29 +666,29 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 
 	  //at lower j surface, upper bc is now interface
 	  int tag = 4000 + numBlk; //lower surface matches with upper surface
-	  bound2.bcTypes[ii] = "interblock";
-	  bound2.jMin[ii] = (*this).GetJMin(ii);
-	  bound2.jMax[ii] = (*this).GetJMax(ii);
-	  bound2.tag[ii] = tag;
+	  bound2.surfs[ii].bcType = "interblock";           //bctype
+	  bound2.surfs[ii].data[2] = (*this).GetJMin(ii);   //jmin
+	  bound2.surfs[ii].data[3] = (*this).GetJMax(ii);   //jmax
+	  bound2.surfs[ii].data[6] = tag;                   //tag
 	}
 	else {
 	  //at upper j surface, lower bc is now interface
 	  int tag = 3000 + newBlkNum; //upper surface matches with lower surface
-	  bound1.bcTypes[ii] = "interblock";
-	  bound1.jMin[ii] = indNG;
-	  bound1.jMax[ii] = indNG;
-	  bound1.tag[ii] = tag;
+	  bound1.surfs[ii].bcType = "interblock";         //bctype
+	  bound1.surfs[ii].data[2] = indNG;               //jmin
+	  bound1.surfs[ii].data[3] = indNG;               //jmax
+	  bound1.surfs[ii].data[6] = tag;                 //tag
 
 	  //at upper j surface, upper bc is same as original, but indices are adjusted for new block size
-	  bound2.jMin[ii] = (*this).GetJMax(ii) - indNG + 1;
-	  bound2.jMax[ii] = (*this).GetJMax(ii) - indNG + 1;
+	  bound2.surfs[ii].data[2] = (*this).GetJMax(ii) - indNG + 1;  //jmin
+	  bound2.surfs[ii].data[3] = (*this).GetJMax(ii) - indNG + 1;  //jmax
 	}
       }
       else { //i-surface or k-surface
 	if ( (*this).GetJMin(ii) >= indNG ){ //this surface is only present in the upper split
 	  del1.push_back(ii);
-	  bound2.jMin[ii] = (*this).GetJMax(ii) - indNG + 1;
-	  bound2.jMax[ii] = (*this).GetJMax(ii) - indNG + 1;
+	  bound2.surfs[ii].data[2] = (*this).GetJMax(ii) - indNG + 1;   //jmin
+	  bound2.surfs[ii].data[3] = (*this).GetJMax(ii) - indNG + 1;   //jmax
 	  if ( ii < (*this).NumSurfI() ){ //i-surface
 	    del1I++;
 	  }
@@ -752,9 +697,9 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	  }
 	}
 	else if ( (*this).GetJMax(ii) >= indNG ){ //this surface straddles the split
-	  bound1.jMax[ii] = indNG;
-	  bound2.jMin[ii] = 1;
-	  bound2.jMax[ii] = (*this).GetJMax(ii) - indNG + 1;
+	  bound1.surfs[ii].data[3] = indNG;                              //jmax
+	  bound2.surfs[ii].data[2] = 1;                                  //jmin
+	  bound2.surfs[ii].data[3] = (*this).GetJMax(ii) - indNG + 1;    //jmax
 	}
 	else{ //this surface is only present in the lower split
 	  del2.push_back(ii);
@@ -770,24 +715,12 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 
     //delete unnecessary boundaries
     for ( unsigned int ii = 0; ii < del1.size(); ii++ ){
-      bound1.iMin.erase(bound1.iMin.begin() + del1[ii]);
-      bound1.iMax.erase(bound1.iMax.begin() + del1[ii]);
-      bound1.jMin.erase(bound1.jMin.begin() + del1[ii]);
-      bound1.jMax.erase(bound1.jMax.begin() + del1[ii]);
-      bound1.kMin.erase(bound1.kMin.begin() + del1[ii]);
-      bound1.kMax.erase(bound1.kMax.begin() + del1[ii]);
-      bound1.tag.erase(bound1.tag.begin() + del1[ii]);
+      bound1.surfs.erase(bound1.surfs.begin() + del1[ii]);
       bound1.numSurfI -= del1I;
       bound1.numSurfK -= del1K;
     }
     for ( unsigned int ii = 0; ii < del2.size(); ii++ ){
-      bound2.iMin.erase(bound2.iMin.begin() + del2[ii]);
-      bound2.iMax.erase(bound2.iMax.begin() + del2[ii]);
-      bound2.jMin.erase(bound2.jMin.begin() + del2[ii]);
-      bound2.jMax.erase(bound2.jMax.begin() + del2[ii]);
-      bound2.kMin.erase(bound2.kMin.begin() + del2[ii]);
-      bound2.kMax.erase(bound2.kMax.begin() + del2[ii]);
-      bound2.tag.erase(bound2.tag.begin() + del2[ii]);
+      bound2.surfs.erase(bound2.surfs.begin() + del2[ii]);
       bound2.numSurfI -= del2I;
       bound2.numSurfK -= del2K;
     }
@@ -807,29 +740,29 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 
 	  //at lower k surface, upper bc is now interface
 	  int tag = 6000 + numBlk; //lower surface matches with upper surface
-	  bound2.bcTypes[ii] = "interblock";
-	  bound2.kMin[ii] = (*this).GetKMin(ii);
-	  bound2.kMax[ii] = (*this).GetKMax(ii);
-	  bound2.tag[ii] = tag;
+	  bound2.surfs[ii].bcType = "interblock";           //bctype
+	  bound2.surfs[ii].data[4] = (*this).GetKMin(ii);   //kmin
+	  bound2.surfs[ii].data[5] = (*this).GetKMax(ii);   //kmax
+	  bound2.surfs[ii].data[6] = tag;                   //tag
 	}
 	else {
 	  //at upper k surface, lower bc is now interface
 	  int tag = 5000 + newBlkNum; //upper surface matches with lower surface
-	  bound1.bcTypes[ii] = "interblock";
-	  bound1.kMin[ii] = indNG;
-	  bound1.kMax[ii] = indNG;
-	  bound1.tag[ii] = tag;
+	  bound1.surfs[ii].bcType = "interblock";           //bctype
+	  bound1.surfs[ii].data[4] = indNG;                 //kmin
+	  bound1.surfs[ii].data[5] = indNG;                 //kmax
+	  bound1.surfs[ii].data[6] = tag;                   //tag
 
 	  //at upper k surface, upper bc is same as original, but indices are adjusted for new block size
-	  bound2.kMin[ii] = (*this).GetKMax(ii) - indNG + 1;
-	  bound2.kMax[ii] = (*this).GetKMax(ii) - indNG + 1;
+	  bound2.surfs[ii].data[4] = (*this).GetKMax(ii) - indNG + 1;   //kmin
+	  bound2.surfs[ii].data[5] = (*this).GetKMax(ii) - indNG + 1;   //kmax
 	}
       }
       else { //i-surface or j-surface
 	if ( (*this).GetKMin(ii) >= indNG ){ //this surface is only present in the upper split
 	  del1.push_back(ii);
-	  bound2.kMin[ii] = (*this).GetKMax(ii) - indNG + 1;
-	  bound2.kMax[ii] = (*this).GetKMax(ii) - indNG + 1;
+	  bound2.surfs[ii].data[4] = (*this).GetKMax(ii) - indNG + 1;      //kmin
+	  bound2.surfs[ii].data[5] = (*this).GetKMax(ii) - indNG + 1;      //kmax
 	  if ( ii < (*this).NumSurfI() ){ //i-surface
 	    del1I++;
 	  }
@@ -838,9 +771,9 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	  }
 	}
 	else if ( (*this).GetKMax(ii) >= indNG ){ //this surface straddles the split
-	  bound1.kMax[ii] = indNG;
-	  bound2.kMin[ii] = 1;
-	  bound2.kMax[ii] = (*this).GetKMax(ii) - indNG + 1;
+	  bound1.surfs[ii].data[5] = indNG;                              //kmax
+	  bound2.surfs[ii].data[4] = 1;                                  //kmin
+	  bound2.surfs[ii].data[5] = (*this).GetKMax(ii) - indNG + 1;    //kmax
 	}
 	else{ //this surface is only present in the lower split
 	  del2.push_back(ii);
@@ -856,24 +789,12 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 
     //delete unnecessary boundaries
     for ( unsigned int ii = 0; ii < del1.size(); ii++ ){
-      bound1.iMin.erase(bound1.iMin.begin() + del1[ii]);
-      bound1.iMax.erase(bound1.iMax.begin() + del1[ii]);
-      bound1.jMin.erase(bound1.jMin.begin() + del1[ii]);
-      bound1.jMax.erase(bound1.jMax.begin() + del1[ii]);
-      bound1.kMin.erase(bound1.kMin.begin() + del1[ii]);
-      bound1.kMax.erase(bound1.kMax.begin() + del1[ii]);
-      bound1.tag.erase(bound1.tag.begin() + del1[ii]);
+      bound1.surfs.erase(bound1.surfs.begin() + del1[ii]);
       bound1.numSurfI -= del1I;
       bound1.numSurfJ -= del1J;
     }
     for ( unsigned int ii = 0; ii < del2.size(); ii++ ){
-      bound2.iMin.erase(bound2.iMin.begin() + del2[ii]);
-      bound2.iMax.erase(bound2.iMax.begin() + del2[ii]);
-      bound2.jMin.erase(bound2.jMin.begin() + del2[ii]);
-      bound2.jMax.erase(bound2.jMax.begin() + del2[ii]);
-      bound2.kMin.erase(bound2.kMin.begin() + del2[ii]);
-      bound2.kMax.erase(bound2.kMax.begin() + del2[ii]);
-      bound2.tag.erase(bound2.tag.begin() + del2[ii]);
+      bound2.surfs.erase(bound2.surfs.begin() + del2[ii]);
       bound2.numSurfI -= del2I;
       bound2.numSurfJ -= del2J;
     }
@@ -923,14 +844,7 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
     int lowDimI = 0;
     for ( int ii = 0; ii < (*this).NumSurfI(); ii++ ){
       if ( (*this).GetIMax(ii) == 1 ){ //lower i surface
-	newBC.bcTypes[cc] = (*this).GetBCTypes(ii);
-	newBC.iMin[cc] = (*this).GetIMin(ii);
-	newBC.iMax[cc] = (*this).GetIMax(ii);
-	newBC.jMin[cc] = (*this).GetJMin(ii);
-	newBC.jMax[cc] = (*this).GetJMax(ii);
-	newBC.kMin[cc] = (*this).GetKMin(ii);
-	newBC.kMax[cc] = (*this).GetKMax(ii);
-	newBC.tag[cc] = (*this).GetTag(ii);
+	newBC.surfs[cc] = (*this).surfs[ii];
 	cc++;
       }
       else{
@@ -940,63 +854,40 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
     //insert all i upper surfaces from upper bc
     for ( int ii = 0; ii < bc.NumSurfI(); ii++ ){
       if ( bc.GetIMax(ii) != 1 ){ //upper i surface
-	newBC.bcTypes[cc] = bc.GetBCTypes(ii);
-	newBC.iMin[cc] = bc.GetIMin(ii) + lowDimI - 1; //adjust i coordinates for join
-	newBC.iMax[cc] = bc.GetIMax(ii) + lowDimI - 1;
-	newBC.jMin[cc] = bc.GetJMin(ii);
-	newBC.jMax[cc] = bc.GetJMax(ii);
-	newBC.kMin[cc] = bc.GetKMin(ii);
-	newBC.kMax[cc] = bc.GetKMax(ii);
-	newBC.tag[cc] = bc.GetTag(ii);
+	//adjust i coordinates for join
+	boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii) + lowDimI - 1, bc.GetIMax(ii) + lowDimI - 1, bc.GetJMin(ii), bc.GetJMax(ii), 
+			       bc.GetKMin(ii), bc.GetKMax(ii), bc.GetTag(ii) );
+
+	newBC.surfs[cc] = bcSurf;
 	cc++;
       }
     }
 
     //insert all j surfaces from lower and upper bcs
     for ( int ii = (*this).NumSurfI(); ii < (*this).NumSurfI() + (*this).NumSurfJ(); ii++ ){
-      newBC.bcTypes[cc] = (*this).GetBCTypes(ii);
-      newBC.iMin[cc] = (*this).GetIMin(ii);
-      newBC.iMax[cc] = (*this).GetIMax(ii);
-      newBC.jMin[cc] = (*this).GetJMin(ii);
-      newBC.jMax[cc] = (*this).GetJMax(ii);
-      newBC.kMin[cc] = (*this).GetKMin(ii);
-      newBC.kMax[cc] = (*this).GetKMax(ii);
-      newBC.tag[cc] = (*this).GetTag(ii);
+      newBC.surfs[cc] = (*this).surfs[ii];
       cc++;
     }
     for ( int ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++ ){
-      newBC.bcTypes[cc] = bc.GetBCTypes(ii);
-      newBC.iMin[cc] = bc.GetIMin(ii) + lowDimI - 1; //adjust i coordinates for join
-      newBC.iMax[cc] = bc.GetIMax(ii) + lowDimI - 1;
-      newBC.jMin[cc] = bc.GetJMin(ii);
-      newBC.jMax[cc] = bc.GetJMax(ii);
-      newBC.kMin[cc] = bc.GetKMin(ii);
-      newBC.kMax[cc] = bc.GetKMax(ii);
-      newBC.tag[cc] = bc.GetTag(ii);
+      //adjust i coordinates for join
+      boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii) + lowDimI - 1, bc.GetIMax(ii) + lowDimI - 1, bc.GetJMin(ii), bc.GetJMax(ii), 
+			     bc.GetKMin(ii), bc.GetKMax(ii), bc.GetTag(ii) );
+
+      newBC.surfs[cc] = bcSurf;
       cc++;
     }
 
     //insert all k surfaces from lower and upper bcs
     for ( int ii = (*this).NumSurfI() + (*this).NumSurfJ(); ii < (*this).NumSurfaces(); ii++ ){
-      newBC.bcTypes[cc] = (*this).GetBCTypes(ii);
-      newBC.iMin[cc] = (*this).GetIMin(ii);
-      newBC.iMax[cc] = (*this).GetIMax(ii);
-      newBC.jMin[cc] = (*this).GetJMin(ii);
-      newBC.jMax[cc] = (*this).GetJMax(ii);
-      newBC.kMin[cc] = (*this).GetKMin(ii);
-      newBC.kMax[cc] = (*this).GetKMax(ii);
-      newBC.tag[cc] = (*this).GetTag(ii);
+      newBC.surfs[cc] = (*this).surfs[ii];
       cc++;
     }
     for ( int ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++ ){
-      newBC.bcTypes[cc] = bc.GetBCTypes(ii);
-      newBC.iMin[cc] = bc.GetIMin(ii) + lowDimI - 1; //adjust i coordinates for join
-      newBC.iMax[cc] = bc.GetIMax(ii) + lowDimI - 1;
-      newBC.jMin[cc] = bc.GetJMin(ii);
-      newBC.jMax[cc] = bc.GetJMax(ii);
-      newBC.kMin[cc] = bc.GetKMin(ii);
-      newBC.kMax[cc] = bc.GetKMax(ii);
-      newBC.tag[cc] = bc.GetTag(ii);
+      //adjust i coordinates for join
+      boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii) + lowDimI - 1, bc.GetIMax(ii) + lowDimI - 1, bc.GetJMin(ii), bc.GetJMax(ii), 
+			     bc.GetKMin(ii), bc.GetKMax(ii), bc.GetTag(ii) );
+
+      newBC.surfs[cc] = bcSurf;
       cc++;
     }
 
@@ -1031,14 +922,7 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
     int lowDimJ = 0;
     for ( int ii = (*this).NumSurfI(); ii < (*this).NumSurfI() + (*this).NumSurfJ(); ii++ ){
       if ( (*this).GetJMax(ii) == 1 ){ //lower j surface
-	newBC.bcTypes[cc] = (*this).GetBCTypes(ii);
-	newBC.iMin[cc] = (*this).GetIMin(ii);
-	newBC.iMax[cc] = (*this).GetIMax(ii);
-	newBC.jMin[cc] = (*this).GetJMin(ii);
-	newBC.jMax[cc] = (*this).GetJMax(ii);
-	newBC.kMin[cc] = (*this).GetKMin(ii);
-	newBC.kMax[cc] = (*this).GetKMax(ii);
-	newBC.tag[cc] = (*this).GetTag(ii);
+	newBC.surfs[cc] = (*this).surfs[ii];
 	cc++;
       }
       else{
@@ -1048,14 +932,11 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
     //insert all j upper surfaces from upper bc
     for ( int ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++ ){
       if ( bc.GetJMax(ii) != 1 ){ //upper j surface
-	newBC.bcTypes[cc] = bc.GetBCTypes(ii);
-	newBC.iMin[cc] = bc.GetIMin(ii); 
-	newBC.iMax[cc] = bc.GetIMax(ii);
-	newBC.jMin[cc] = bc.GetJMin(ii) + lowDimJ - 1; //adjust j coordinates for join
-	newBC.jMax[cc] = bc.GetJMax(ii) + lowDimJ - 1;
-	newBC.kMin[cc] = bc.GetKMin(ii);
-	newBC.kMax[cc] = bc.GetKMax(ii);
-	newBC.tag[cc] = bc.GetTag(ii);
+	//adjust j coordinates for join
+	boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii), bc.GetIMax(ii), bc.GetJMin(ii) + lowDimJ - 1, bc.GetJMax(ii) + lowDimJ - 1, 
+			       bc.GetKMin(ii), bc.GetKMax(ii), bc.GetTag(ii) );
+
+	newBC.surfs[cc] = bcSurf;
 	cc++;
       }
     }
@@ -1063,50 +944,30 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
     cc = 0;
     //insert all i surfaces from lower and upper bcs
     for ( int ii = 0; ii < (*this).NumSurfI(); ii++ ){
-      newBC.bcTypes[cc] = (*this).GetBCTypes(ii);
-      newBC.iMin[cc] = (*this).GetIMin(ii);
-      newBC.iMax[cc] = (*this).GetIMax(ii);
-      newBC.jMin[cc] = (*this).GetJMin(ii);
-      newBC.jMax[cc] = (*this).GetJMax(ii);
-      newBC.kMin[cc] = (*this).GetKMin(ii);
-      newBC.kMax[cc] = (*this).GetKMax(ii);
-      newBC.tag[cc] = (*this).GetTag(ii);
+      newBC.surfs[cc] = (*this).surfs[ii];
       cc++;
     }
     for ( int ii = 0; ii < bc.NumSurfI(); ii++ ){
-      newBC.bcTypes[cc] = bc.GetBCTypes(ii);
-      newBC.iMin[cc] = bc.GetIMin(ii); 
-      newBC.iMax[cc] = bc.GetIMax(ii);
-      newBC.jMin[cc] = bc.GetJMin(ii) + lowDimJ - 1; //adjust j coordinates for join
-      newBC.jMax[cc] = bc.GetJMax(ii) + lowDimJ - 1;
-      newBC.kMin[cc] = bc.GetKMin(ii);
-      newBC.kMax[cc] = bc.GetKMax(ii);
-      newBC.tag[cc] = bc.GetTag(ii);
+      //adjust j coordinates for join
+      boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii), bc.GetIMax(ii), bc.GetJMin(ii) + lowDimJ - 1, bc.GetJMax(ii) + lowDimJ - 1, 
+			     bc.GetKMin(ii), bc.GetKMax(ii), bc.GetTag(ii) );
+
+      newBC.surfs[cc] = bcSurf;
       cc++;
     }
 
     cc = numI + numJ;
     //insert all k surfaces from lower and upper bcs
     for ( int ii = (*this).NumSurfI() + (*this).NumSurfJ(); ii < (*this).NumSurfaces(); ii++ ){
-      newBC.bcTypes[cc] = (*this).GetBCTypes(ii);
-      newBC.iMin[cc] = (*this).GetIMin(ii);
-      newBC.iMax[cc] = (*this).GetIMax(ii);
-      newBC.jMin[cc] = (*this).GetJMin(ii);
-      newBC.jMax[cc] = (*this).GetJMax(ii);
-      newBC.kMin[cc] = (*this).GetKMin(ii);
-      newBC.kMax[cc] = (*this).GetKMax(ii);
-      newBC.tag[cc] = (*this).GetTag(ii);
+      newBC.surfs[cc] = (*this).surfs[ii];
       cc++;
     }
     for ( int ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++ ){
-      newBC.bcTypes[cc] = bc.GetBCTypes(ii);
-      newBC.iMin[cc] = bc.GetIMin(ii);
-      newBC.iMax[cc] = bc.GetIMax(ii);
-      newBC.jMin[cc] = bc.GetJMin(ii) + lowDimJ - 1; //adjust j coordinates for join
-      newBC.jMax[cc] = bc.GetJMax(ii) + lowDimJ - 1;
-      newBC.kMin[cc] = bc.GetKMin(ii);
-      newBC.kMax[cc] = bc.GetKMax(ii);
-      newBC.tag[cc] = bc.GetTag(ii);
+      //adjust j coordinates for join
+      boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii), bc.GetIMax(ii), bc.GetJMin(ii) + lowDimJ - 1, bc.GetJMax(ii) + lowDimJ - 1, 
+			     bc.GetKMin(ii), bc.GetKMax(ii), bc.GetTag(ii) );
+
+      newBC.surfs[cc] = bcSurf;
       cc++;
     }
 
@@ -1142,14 +1003,7 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
     int lowDimK = 0;
     for ( int ii = (*this).NumSurfI() + (*this).NumSurfJ(); ii < (*this).NumSurfaces(); ii++ ){
       if ( (*this).GetKMax(ii) == 1 ){ //lower k surface
-	newBC.bcTypes[cc] = (*this).GetBCTypes(ii);
-	newBC.iMin[cc] = (*this).GetIMin(ii);
-	newBC.iMax[cc] = (*this).GetIMax(ii);
-	newBC.jMin[cc] = (*this).GetJMin(ii);
-	newBC.jMax[cc] = (*this).GetJMax(ii);
-	newBC.kMin[cc] = (*this).GetKMin(ii);
-	newBC.kMax[cc] = (*this).GetKMax(ii);
-	newBC.tag[cc] = (*this).GetTag(ii);
+	newBC.surfs[cc] = (*this).surfs[ii];
 	cc++;
       }
       else{
@@ -1159,14 +1013,11 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
     //insert all k upper surfaces from upper bc
     for ( int ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++ ){
       if ( bc.GetKMax(ii) != 1 ){ //upper k surface
-	newBC.bcTypes[cc] = bc.GetBCTypes(ii);
-	newBC.iMin[cc] = bc.GetIMin(ii); 
-	newBC.iMax[cc] = bc.GetIMax(ii);
-	newBC.jMin[cc] = bc.GetJMin(ii);
-	newBC.jMax[cc] = bc.GetJMax(ii);
-	newBC.kMin[cc] = bc.GetKMin(ii) + lowDimK - 1; //adjust k coordinates for join
-	newBC.kMax[cc] = bc.GetKMax(ii) + lowDimK - 1;
-	newBC.tag[cc] = bc.GetTag(ii);
+	//adjust k coordinates for join
+	boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii), bc.GetIMax(ii), bc.GetJMin(ii), bc.GetJMax(ii), 
+			       bc.GetKMin(ii) + lowDimK - 1, bc.GetKMax(ii) + lowDimK - 1, bc.GetTag(ii) );
+
+	newBC.surfs[cc] = bcSurf;
 	cc++;
       }
     }
@@ -1174,50 +1025,30 @@ void boundaryConditions::Join( const boundaryConditions &bc, const string &dir )
     cc = 0;
     //insert all i surfaces from lower and upper bcs
     for ( int ii = 0; ii < (*this).NumSurfI(); ii++ ){
-      newBC.bcTypes[cc] = (*this).GetBCTypes(ii);
-      newBC.iMin[cc] = (*this).GetIMin(ii);
-      newBC.iMax[cc] = (*this).GetIMax(ii);
-      newBC.jMin[cc] = (*this).GetJMin(ii);
-      newBC.jMax[cc] = (*this).GetJMax(ii);
-      newBC.kMin[cc] = (*this).GetKMin(ii);
-      newBC.kMax[cc] = (*this).GetKMax(ii);
-      newBC.tag[cc] = (*this).GetTag(ii);
+      newBC.surfs[cc] = (*this).surfs[ii];
       cc++;
     }
     for ( int ii = 0; ii < bc.NumSurfI(); ii++ ){
-      newBC.bcTypes[cc] = bc.GetBCTypes(ii);
-      newBC.iMin[cc] = bc.GetIMin(ii); 
-      newBC.iMax[cc] = bc.GetIMax(ii);
-      newBC.jMin[cc] = bc.GetJMin(ii);
-      newBC.jMax[cc] = bc.GetJMax(ii);
-      newBC.kMin[cc] = bc.GetKMin(ii) + lowDimK - 1; //adjust  coordinates for join
-      newBC.kMax[cc] = bc.GetKMax(ii) + lowDimK - 1;
-      newBC.tag[cc] = bc.GetTag(ii);
+      //adjust k coordinates for join
+      boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii), bc.GetIMax(ii), bc.GetJMin(ii), bc.GetJMax(ii), 
+			     bc.GetKMin(ii) + lowDimK - 1, bc.GetKMax(ii) + lowDimK - 1, bc.GetTag(ii) );
+
+      newBC.surfs[cc] = bcSurf;
       cc++;
     }
 
     cc = numI;
     //insert all j surfaces from lower and upper bcs
     for ( int ii = (*this).NumSurfI(); ii < (*this).NumSurfI() + (*this).NumSurfJ(); ii++ ){
-      newBC.bcTypes[cc] = (*this).GetBCTypes(ii);
-      newBC.iMin[cc] = (*this).GetIMin(ii);
-      newBC.iMax[cc] = (*this).GetIMax(ii);
-      newBC.jMin[cc] = (*this).GetJMin(ii);
-      newBC.jMax[cc] = (*this).GetJMax(ii);
-      newBC.kMin[cc] = (*this).GetKMin(ii);
-      newBC.kMax[cc] = (*this).GetKMax(ii);
-      newBC.tag[cc] = (*this).GetTag(ii);
+      newBC.surfs[cc] = (*this).surfs[ii];
       cc++;
     }
     for ( int ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++ ){
-      newBC.bcTypes[cc] = bc.GetBCTypes(ii);
-      newBC.iMin[cc] = bc.GetIMin(ii);
-      newBC.iMax[cc] = bc.GetIMax(ii);
-      newBC.jMin[cc] = bc.GetJMin(ii);
-      newBC.jMax[cc] = bc.GetJMax(ii);
-      newBC.kMin[cc] = bc.GetKMin(ii) + lowDimK - 1; //adjust k coordinates for join
-      newBC.kMax[cc] = bc.GetKMax(ii) + lowDimK - 1;
-      newBC.tag[cc] = bc.GetTag(ii);
+      //adjust k coordinates for join
+      boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii), bc.GetIMax(ii), bc.GetJMin(ii), bc.GetJMax(ii), 
+			     bc.GetKMin(ii) + lowDimK - 1, bc.GetKMax(ii) + lowDimK - 1, bc.GetTag(ii) );
+
+      newBC.surfs[cc] = bcSurf;
       cc++;
     }
 
@@ -1389,7 +1220,7 @@ void boundaryConditions::PackBC( char *(&sendBuffer), const int &sendBufSize, in
 
 
   //get string lengths for each boundary condition to be sent, so processors unpacking know how much data to unpack for each string
-  vector<int> strLength((*this).numSurfI + (*this).numSurfJ + (*this).numSurfK );
+  vector<int> strLength((*this).NumSurfaces());
   for ( unsigned int jj = 0; jj < strLength.size(); jj++ ){
     strLength[jj] = (*this).GetBCTypes(jj).size();
   }
@@ -1397,20 +1228,15 @@ void boundaryConditions::PackBC( char *(&sendBuffer), const int &sendBufSize, in
   MPI_Pack(&(*this).numSurfI, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*this).numSurfJ, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*this).numSurfK, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).iMin[0], (*this).iMin.size(), MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).iMax[0], (*this).iMax.size(), MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).jMin[0], (*this).jMin.size(), MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).jMax[0], (*this).jMax.size(), MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).kMin[0], (*this).kMin.size(), MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).kMax[0], (*this).kMax.size(), MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).tag[0], (*this).tag.size(), MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  for ( int jj = 0; jj < (*this).NumSurfaces(); jj++ ){
+    MPI_Pack(&(*this).surfs[jj].data[0], 7, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  }
   MPI_Pack(&strLength[0], strLength.size(), MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  for ( int jj = 0; jj < ((*this).numSurfI + (*this).numSurfJ + (*this).numSurfK); jj++ ){
-    MPI_Pack((*this).bcTypes[jj].c_str(), (*this).bcTypes[jj].size(), MPI_CHAR, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  for ( int jj = 0; jj < (*this).NumSurfaces(); jj++ ){
+    MPI_Pack((*this).surfs[jj].bcType.c_str(), (*this).surfs[jj].bcType.size(), MPI_CHAR, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
 
 }
-
 
 void boundaryConditions::UnpackBC( char *(&recvBuffer), const int &recvBufSize, int &position){
 
@@ -1419,27 +1245,22 @@ void boundaryConditions::UnpackBC( char *(&recvBuffer), const int &recvBufSize, 
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).numSurfJ, 1, MPI_INT, MPI_COMM_WORLD); //unpack number of j-surfaces
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).numSurfK, 1, MPI_INT, MPI_COMM_WORLD); //unpack number of k-surfaces
 
-  (*this).ResizeVecs((*this).numSurfI + (*this).numSurfJ + (*this).numSurfK);
-  vector<int> strLength((*this).numSurfI + (*this).numSurfJ + (*this).numSurfK);
+  (*this).ResizeVecs((*this).NumSurfaces());
+  vector<int> strLength((*this).NumSurfaces());
 
   //unpack boundary condition data into appropriate vectors
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).iMin[0], (*this).iMin.size(), MPI_INT, MPI_COMM_WORLD); //unpack i min coordinates
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).iMax[0], (*this).iMax.size(), MPI_INT, MPI_COMM_WORLD); //unpack i max coordinates
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).jMin[0], (*this).jMin.size(), MPI_INT, MPI_COMM_WORLD); //unpack j min coordinates
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).jMax[0], (*this).jMax.size(), MPI_INT, MPI_COMM_WORLD); //unpack j max coordinates
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).kMin[0], (*this).kMin.size(), MPI_INT, MPI_COMM_WORLD); //unpack k min coordinates
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).kMax[0], (*this).kMax.size(), MPI_INT, MPI_COMM_WORLD); //unpack k max coordinates
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).tag[0], (*this).tag.size(), MPI_INT, MPI_COMM_WORLD); //unpack tags
+  for ( int jj = 0; jj < (*this).NumSurfaces(); jj++ ){
+    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).surfs[jj].data[0], 7, MPI_INT, MPI_COMM_WORLD); //unpack bc surfaces
+  }
   MPI_Unpack(recvBuffer, recvBufSize, &position, &strLength[0], strLength.size(), MPI_INT, MPI_COMM_WORLD); //unpack string sizes
   //unpack boundary condition names
   for ( unsigned int jj = 0; jj < strLength.size(); jj++ ){
     char *nameBuf = new char[strLength[jj]]; //allocate buffer to store BC name
     MPI_Unpack(recvBuffer, recvBufSize, &position, &nameBuf[0], strLength[jj], MPI_CHAR, MPI_COMM_WORLD); //unpack bc types
     string bcName(nameBuf, strLength[jj]); //create string of bc name
-    (*this).bcTypes[jj] = bcName;
+    (*this).surfs[jj].bcType = bcName;
     delete [] nameBuf; //deallocate bc name buffer
   }
-
 
 }
 
@@ -1555,7 +1376,7 @@ int boundarySurface::PartnerSurface(){
 ostream & operator<< (ostream &os, const boundarySurface &bcSurf){
 
   os << bcSurf.bcType << "   " << bcSurf.IMin() << "   " << bcSurf.IMax() << "   " << bcSurf.JMin() << "   " << bcSurf.JMax() << "   "
-     << bcSurf.KMin() << "   " << bcSurf.KMax() << "   " << bcSurf.Tag() << endl;
+     << bcSurf.KMin() << "   " << bcSurf.KMax() << "   " << bcSurf.Tag();
 
   return os;
 }

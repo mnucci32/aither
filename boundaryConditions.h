@@ -17,60 +17,6 @@ using std::string;
 using std::cout;
 using std::endl;
 
-// a class to store the necessary information for the boundary conditions of a block
-class boundaryConditions {
-  vector<string> bcTypes;                 //vector of boundary condition names for each surface
-  vector<int> iMin;                       //vector of min i coordinate defining surface
-  vector<int> iMax;                       //vector of max i coordinate defining surface
-  vector<int> jMin;                       //vector of min j coordinate defining surface
-  vector<int> jMax;                       //vector of max j coordinate defining surface
-  vector<int> kMin;                       //vector of min k coordinate defining surface
-  vector<int> kMax;                       //vector of max k coordinate defining surface
-  vector<int> tag;                        //vector of boundary condition tags
-  int numSurfI;                           //number of i-surfaces to define boundary on in block
-  int numSurfJ;                           //number of j-surfaces to define boundary on in block
-  int numSurfK;                           //number of k-surfaces to define boundary on in block
-
- public:
-  //constructor
-  boundaryConditions();
-  boundaryConditions( const int&, const int&, const int& );
-
-  //member functions
-  int NumSurfI()const{return numSurfI;}
-  int NumSurfJ()const{return numSurfJ;}
-  int NumSurfK()const{return numSurfK;}
-  int NumSurfaces()const{return numSurfI + numSurfJ + numSurfK;}
-
-  string GetBCTypes( const int &a)const{return bcTypes[a];}
-  int GetIMin( const int &a)const{return iMin[a];}
-  int GetJMin( const int &a)const{return jMin[a];}
-  int GetKMin( const int &a)const{return kMin[a];}
-  int GetIMax( const int &a)const{return iMax[a];}
-  int GetJMax( const int &a)const{return jMax[a];}
-  int GetKMax( const int &a)const{return kMax[a];}
-  int GetTag( const int &a)const{return tag[a];}
-
-  void ResizeVecs( const int&);
-  void ResizeVecs( const int&, const int&, const int& );
-
-  friend ostream & operator<< (ostream &os, const boundaryConditions&);
-
-  string GetBCName(const int, const int, const int, const string&)const;
-
-  void AssignFromInput(const int&, const vector<string>& );
-
-  boundaryConditions Split(const string&, const int&, const int&, const int&);
-  void Join(const boundaryConditions&, const string&);
-
-  void PackBC( char*(&), const int&, int&)const;
-  void UnpackBC( char*(&), const int&, int&);
-
-  //destructor
-  ~boundaryConditions() {}
-
-};
-
 class boundarySurface {
   string bcType;                 //boundary condition name for surface
   int data [7];                  //data for boundary surface: imin, imax, jmin, jmax, kmin, kmax, tag
@@ -79,6 +25,8 @@ class boundarySurface {
   //constructor
   boundarySurface();
   boundarySurface(const string&, const int&, const int&, const int&, const int&, const int&, const int&, const int&);
+
+  friend class boundaryConditions;
 
   //member functions
   string BCType()const{return bcType;}
@@ -99,6 +47,53 @@ class boundarySurface {
 
   //destructor
   ~boundarySurface() {}
+
+};
+
+// a class to store the necessary information for the boundary conditions of a block
+class boundaryConditions {
+  vector<boundarySurface> surfs;          //vector of boundary condition surfaces defining block
+  int numSurfI;                           //number of i-surfaces to define boundary on in block
+  int numSurfJ;                           //number of j-surfaces to define boundary on in block
+  int numSurfK;                           //number of k-surfaces to define boundary on in block
+
+ public:
+  //constructor
+  boundaryConditions();
+  boundaryConditions( const int&, const int&, const int& );
+
+  //member functions
+  int NumSurfI()const{return numSurfI;}
+  int NumSurfJ()const{return numSurfJ;}
+  int NumSurfK()const{return numSurfK;}
+  int NumSurfaces()const{return numSurfI + numSurfJ + numSurfK;}
+
+  string GetBCTypes( const int &a)const{return surfs[a].BCType();}
+  int GetIMin( const int &a)const{return surfs[a].IMin();}
+  int GetJMin( const int &a)const{return surfs[a].JMin();}
+  int GetKMin( const int &a)const{return surfs[a].KMin();}
+  int GetIMax( const int &a)const{return surfs[a].IMax();}
+  int GetJMax( const int &a)const{return surfs[a].JMax();}
+  int GetKMax( const int &a)const{return surfs[a].KMax();}
+  int GetTag( const int &a)const{return surfs[a].Tag();}
+
+  void ResizeVecs( const int&);
+  void ResizeVecs( const int&, const int&, const int& );
+
+  friend ostream & operator<< (ostream &os, const boundaryConditions&);
+
+  string GetBCName(const int, const int, const int, const string&)const;
+
+  void AssignFromInput(const int&, const vector<string>& );
+
+  boundaryConditions Split(const string&, const int&, const int&, const int&);
+  void Join(const boundaryConditions&, const string&);
+
+  void PackBC( char*(&), const int&, int&)const;
+  void UnpackBC( char*(&), const int&, int&);
+
+  //destructor
+  ~boundaryConditions() {}
 
 };
 
