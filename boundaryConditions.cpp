@@ -1486,12 +1486,25 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind, const 
       split = false;
     }
     else{ //j or k surface
-      surf2.data[0] = indNG;                            //imin
-      surf2.UpdateTagForSplitJoin(uBlk);
 
-      surf1.data[0] = 1;                                //imin
-      surf1.data[1] = (*this).IMax() - indNG + 1;       //imax
-      surf1.UpdateTagForSplitJoin(lBlk);
+      if ( (*this).IMin() >= indNG ){ //this surface is only present in the upper split
+	surf1.data[0] = (*this).IMax() - indNG + 1;    //imin
+	surf1.data[1] = (*this).IMax() - indNG + 1;    //imax
+	surf1.UpdateTagForSplitJoin(uBlk);
+	split = false;
+      }
+      else if ( (*this).IMax() >= indNG ){ //this surface straddles the split
+	surf2.data[0] = indNG;                            //imin
+	surf2.UpdateTagForSplitJoin(uBlk);
+
+	surf1.data[0] = 1;                                //imin
+	surf1.data[1] = (*this).IMax() - indNG + 1;       //imax
+	surf1.UpdateTagForSplitJoin(lBlk);
+      }
+      else{ //this surface is only present in the lower split
+	surf1.UpdateTagForSplitJoin(lBlk);
+	split = false;
+      }
     }
 
   }
@@ -1502,12 +1515,25 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind, const 
       split = false;
     }
     else{ //i or k surface
-      surf2.data[2] = indNG;                            //jmin
-      surf2.UpdateTagForSplitJoin(uBlk);
 
-      surf1.data[2] = 1;                                //jmin
-      surf1.data[3] = (*this).JMax() - indNG + 1;       //jmax
-      surf1.UpdateTagForSplitJoin(lBlk);
+      if ( (*this).JMin() >= indNG ){ //this surface is only present in the upper split
+	surf1.data[2] = (*this).JMax() - indNG + 1;    //jmin
+	surf1.data[3] = (*this).JMax() - indNG + 1;    //jmax
+	surf1.UpdateTagForSplitJoin(uBlk);
+	split = false;
+      }
+      else if ( (*this).JMax() >= indNG ){ //this surface straddles the split
+	surf2.data[2] = indNG;                            //jmin
+	surf2.UpdateTagForSplitJoin(uBlk);
+
+	surf1.data[2] = 1;                                //jmin
+	surf1.data[3] = (*this).JMax() - indNG + 1;       //jmax
+	surf1.UpdateTagForSplitJoin(lBlk);
+      }
+      else{ //this surface is only present in the lower split
+	surf1.UpdateTagForSplitJoin(lBlk);
+	split = false;
+      }
     }
 
   }
@@ -1518,12 +1544,25 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind, const 
       split = false;
     }
     else{ //i or j surface
-      surf2.data[4] = indNG;                            //kmin
-      surf2.UpdateTagForSplitJoin(uBlk);
 
-      surf1.data[4] = 1;                                //kmin
-      surf1.data[5] = (*this).KMax() - indNG + 1;       //kmax
-      surf1.UpdateTagForSplitJoin(lBlk);
+      if ( (*this).KMin() >= indNG ){ //this surface is only present in the upper split
+	surf1.data[4] = (*this).KMax() - indNG + 1;    //kmin
+	surf1.data[5] = (*this).KMax() - indNG + 1;    //kmax
+	surf1.UpdateTagForSplitJoin(uBlk);
+	split = false;
+      }
+      else if ( (*this).KMax() >= indNG ){ //this surface straddles the split
+	surf2.data[4] = indNG;                            //kmin
+	surf2.UpdateTagForSplitJoin(uBlk);
+
+	surf1.data[4] = 1;                                //kmin
+	surf1.data[5] = (*this).KMax() - indNG + 1;       //kmax
+	surf1.UpdateTagForSplitJoin(lBlk);
+      }
+      else{ //this surface is only present in the lower split
+	surf1.UpdateTagForSplitJoin(lBlk);
+	split = false;
+      }
     }
 
   }
