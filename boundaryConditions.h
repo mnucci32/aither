@@ -38,10 +38,15 @@ class boundarySurface {
   int KMax()const{return data[5];}
   int Tag()const{return data[6];}
 
-  int SurfaceType();
+  int SurfaceType()const;
+  string Direction1()const;
+  string Direction2()const;
+  string Direction3()const;
+  int Max1()const;
+  int Max2()const;
 
-  int PartnerBlock();
-  int PartnerSurface();
+  int PartnerBlock()const;
+  int PartnerSurface()const;
   void UpdateTagForSplitJoin(const int&);
   boundarySurface Split(const string&, const int&, const int&, const int&, bool&);
 
@@ -49,6 +54,51 @@ class boundarySurface {
 
   //destructor
   ~boundarySurface() {}
+
+};
+
+/* A class to store the necessary information for the boundary condition patches. A patch is a 2D surface on a block boundary that
+is assigned the same boundary condition.
+*/
+class patch {
+  vector3d<double> origin;              //coordinates of patch origin
+  vector3d<double> corner1;             //coordinates of direction 1 max, direction 2 zero
+  vector3d<double> corner2;             //coordinates of direction 1 zero, direction 2 max
+  vector3d<double> corner12;            //coordinates of direction 1/2 max
+  int boundary;                         //boundary number (1-6)
+  int block;                            //parent block number
+  int d1Start;                          //direction 1 start index
+  int d1End;                            //direction 1 end index
+  int d2Start;                          //direction 2 start index
+  int d2End;                            //direction 2 end index
+  int constSurf;                        //index of direction 3
+  int rank;                             //rank of block that patch belongs to
+
+ public:
+  //constructor
+  patch();
+  patch(const int&, const int&, const int&, const int&, const int&, const int&, const int&, const int&, const plot3dBlock&, const int&);
+  patch(const boundarySurface&, const plot3dBlock&, const int&);
+
+  //member functions
+  vector3d<double> Origin()const{return origin;}
+  vector3d<double> Corner1()const{return corner1;}
+  vector3d<double> Corner2()const{return corner2;}
+  vector3d<double> Corner12()const{return corner12;}
+
+  int Boundary()const{return boundary;}
+  int Block()const{return block;}
+  int Dir1Start()const{return d1Start;}
+  int Dir1End()const{return d1End;}
+  int Dir2Start()const{return d2Start;}
+  int Dir2End()const{return d2End;}
+  int ConstSurface()const{return constSurf;}
+  int Rank()const{return rank;}
+
+  friend ostream & operator<< (ostream &os, const patch&);
+
+  //destructor
+  ~patch() {}
 
 };
 
@@ -90,6 +140,7 @@ class boundaryConditions {
   void AssignFromInput(const int&, const vector<string>& );
 
   boundaryConditions Split(const string&, const int&, const int&, const int&, vector<boundarySurface>&);
+  void DependentSplit(const boundarySurface&, const plot3dBlock&, const plot3dBlock&, const int&, const string&, const int&, const int&, const int&);
   void Join(const boundaryConditions&, const string&, vector<boundarySurface>&);
 
   void PackBC( char*(&), const int&, int&)const;
@@ -97,51 +148,6 @@ class boundaryConditions {
 
   //destructor
   ~boundaryConditions() {}
-
-};
-
-
-/* A class to store the necessary information for the boundary condition patches. A patch is a 2D surface on a block boundary that
-is assigned the same boundary condition.
-*/
-class patch {
-  vector3d<double> origin;              //coordinates of patch origin
-  vector3d<double> corner1;             //coordinates of direction 1 max, direction 2 zero
-  vector3d<double> corner2;             //coordinates of direction 1 zero, direction 2 max
-  vector3d<double> corner12;            //coordinates of direction 1/2 max
-  int boundary;                         //boundary number (1-6)
-  int block;                            //parent block number
-  int d1Start;                          //direction 1 start index
-  int d1End;                            //direction 1 end index
-  int d2Start;                          //direction 2 start index
-  int d2End;                            //direction 2 end index
-  int constSurf;                        //index of direction 3
-  int rank;                             //rank of block that patch belongs to
-
- public:
-  //constructor
-  patch();
-  patch(const int&, const int&, const int&, const int&, const int&, const int&, const int&, const int&, const plot3dBlock&, const int&);
-
-  //member functions
-  vector3d<double> Origin()const{return origin;}
-  vector3d<double> Corner1()const{return corner1;}
-  vector3d<double> Corner2()const{return corner2;}
-  vector3d<double> Corner12()const{return corner12;}
-
-  int Boundary()const{return boundary;}
-  int Block()const{return block;}
-  int Dir1Start()const{return d1Start;}
-  int Dir1End()const{return d1End;}
-  int Dir2Start()const{return d2Start;}
-  int Dir2End()const{return d2End;}
-  int ConstSurface()const{return constSurf;}
-  int Rank()const{return rank;}
-
-  friend ostream & operator<< (ostream &os, const patch&);
-
-  //destructor
-  ~patch() {}
 
 };
 

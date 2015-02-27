@@ -847,6 +847,228 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 
 }
 
+
+void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3dBlock &part, const plot3dBlock &self, const int &sblk, 
+					const string &dir, const int &ind, const int &lblk, const int &ublk ){
+
+  // surf -- boundarySurface of partner block
+  // part -- plot3dBlock that surf is assigned to
+  // self -- plot3dBlock that (*this) is assigned to
+  // sblk -- block number of self
+  // dir -- direction that partner split was in
+  // ind -- index of split
+  // lblk -- lower block number in partner split
+  // ublk -- upper block number in partner split
+
+  patch partner(surf, part, lblk);
+
+  int indNG = ind + 1; //+1 because boundaries start at 1, not 0
+
+  for ( int ii = 0; ii < (*this).NumSurfaces(); ii++ ){
+
+    patch candidate((*this).GetSurface(ii), self, sblk);
+
+    interblock match(candidate, partner);
+    if ( match.TestPatchMatch(candidate, partner) ){ //match found
+      cout << "match found" << endl;
+      cout << (*this).GetSurface(ii) << endl;
+
+      boundarySurface lowSurf = (*this).GetSurface(ii);
+
+      string candDir;
+      int candInd;
+      if (match.Orientation() == 1){ //same orientation
+
+	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 1 of candidate
+	  candDir = lowSurf.Direction1();
+	}
+	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 2 of candidate
+	  candDir = lowSurf.Direction2();
+	}
+	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
+	  candDir = lowSurf.Direction3();
+	}
+	else{
+	  cerr<< "ERROR: Error in boundaryConditions::DependentSplit(). Direction " << dir << " is not recognized." << endl;
+	  cerr << "Please choose i, j, or k." << endl;
+	  exit(0);
+	}
+	candInd = indNG;
+
+      }
+      else if (match.Orientation() == 2){ //D1/D2 swapped
+
+	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 2 of candidate
+	  candDir = lowSurf.Direction2();
+	}
+	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 1 of candidate
+	  candDir = lowSurf.Direction1();
+	}
+	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
+	  candDir = lowSurf.Direction3();
+	}
+	else{
+	  cerr<< "ERROR: Error in boundaryConditions::DependentSplit(). Direction " << dir << " is not recognized." << endl;
+	  cerr << "Please choose i, j, or k." << endl;
+	  exit(0);
+	}
+	candInd = indNG;
+
+      }
+      else if (match.Orientation() == 3){ //D1 reversed
+
+	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 1 of candidate
+	  candDir = lowSurf.Direction1();
+	  candInd = surf.Max1() - indNG;
+	}
+	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 2 of candidate
+	  candDir = lowSurf.Direction2();
+	  candInd = indNG;
+	}
+	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
+	  candDir = lowSurf.Direction3();
+	  candInd = indNG;
+	}
+	else{
+	  cerr<< "ERROR: Error in boundaryConditions::DependentSplit(). Direction " << dir << " is not recognized." << endl;
+	  cerr << "Please choose i, j, or k." << endl;
+	  exit(0);
+	}
+
+      }
+      else if (match.Orientation() == 4){ //D1/D2 swapped, D1 reversed
+
+	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 2 of candidate
+	  candDir = lowSurf.Direction2();
+	  candInd = surf.Max1() - indNG;
+	}
+	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 1 of candidate
+	  candDir = lowSurf.Direction1();
+	  candInd = indNG;
+	}
+	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
+	  candDir = lowSurf.Direction3();
+	  candInd = indNG;
+	}
+	else{
+	  cerr<< "ERROR: Error in boundaryConditions::DependentSplit(). Direction " << dir << " is not recognized." << endl;
+	  cerr << "Please choose i, j, or k." << endl;
+	  exit(0);
+	}
+
+      }
+      else if (match.Orientation() == 5){ //D1/D2 swapped, D2 reversed
+
+	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 2 of candidate
+	  candDir = lowSurf.Direction2();
+	  candInd = indNG;
+	}
+	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 1 of candidate
+	  candDir = lowSurf.Direction1();
+	  candInd = surf.Max2() - indNG;
+	}
+	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
+	  candDir = lowSurf.Direction3();
+	  candInd = indNG;
+	}
+	else{
+	  cerr<< "ERROR: Error in boundaryConditions::DependentSplit(). Direction " << dir << " is not recognized." << endl;
+	  cerr << "Please choose i, j, or k." << endl;
+	  exit(0);
+	}
+
+      }
+      else if (match.Orientation() == 6){ //D2 reversed
+
+	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 1 of candidate
+	  candDir = lowSurf.Direction1();
+	  candInd = indNG;
+	}
+	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 2 of candidate
+	  candDir = lowSurf.Direction2();
+	  candInd = surf.Max2() - indNG;
+	}
+	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
+	  candDir = lowSurf.Direction3();
+	  candInd = indNG;
+	}
+	else{
+	  cerr<< "ERROR: Error in boundaryConditions::DependentSplit(). Direction " << dir << " is not recognized." << endl;
+	  cerr << "Please choose i, j, or k." << endl;
+	  exit(0);
+	}
+
+      }
+      else if (match.Orientation() == 7){ //D1/D2 swapped and reversed
+
+	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 2 of candidate
+	  candDir = lowSurf.Direction2();
+	  candInd = surf.Max1() - indNG;
+	}
+	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 1 of candidate
+	  candDir = lowSurf.Direction1();
+	  candInd = surf.Max2() - indNG;
+	}
+	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
+	  candDir = lowSurf.Direction3();
+	  candInd = indNG;
+	}
+	else{
+	  cerr<< "ERROR: Error in boundaryConditions::DependentSplit(). Direction " << dir << " is not recognized." << endl;
+	  cerr << "Please choose i, j, or k." << endl;
+	  exit(0);
+	}
+
+      }
+      else{ //D1/D2 reversed
+
+	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 1 of candidate
+	  candDir = lowSurf.Direction1();
+	  candInd = surf.Max1() - indNG;
+	}
+	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 2 of candidate
+	  candDir = lowSurf.Direction2();
+	  candInd = surf.Max2() - indNG;
+	}
+	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
+	  candDir = lowSurf.Direction3();
+	  candInd = indNG;
+	}
+	else{
+	  cerr<< "ERROR: Error in boundaryConditions::DependentSplit(). Direction " << dir << " is not recognized." << endl;
+	  cerr << "Please choose i, j, or k." << endl;
+	  exit(0);
+	}
+
+      }
+
+      //split matched surface
+      bool split = false;
+      boundarySurface upSurf = lowSurf.Split(candDir, candInd, lblk, ublk, split); 
+
+      //assign boundarySurface back into boundaryConditions, if surface wasn't split partner block was updated
+      (*this).surfs[ii] = lowSurf;
+
+      //if surface was split, insert it into the vector of boundarySurfaces and adjust the surface numbers
+      if (split){ //boundary surface was split, insert new surface into boundary conditions
+	(*this).surfs.insert( (*this).surfs.begin() + ii, upSurf );
+	if ( upSurf.SurfaceType() <= 2 ) { //i-surface
+	  (*this).numSurfI++;
+	}
+	else if ( upSurf.SurfaceType() <= 4 ){ //j-surface
+	  (*this).numSurfJ++;
+	}
+	else{
+	  (*this).numSurfK++;
+	}
+      }
+
+      break;
+    }
+  }
+}
+
+
 /* Member function to join 2 boundaryConditions. It assumes that the calling instance is the "lower" boundary condition and the input instance
 is the "upper" boundary condition.
 */
@@ -1301,6 +1523,132 @@ patch::patch( const int &bound, const int &b, const int &d1s, const int &d1e, co
 
 }
 
+//constructor with arguements passed
+patch::patch( const boundarySurface &surf, const plot3dBlock &blk, const int &bNum ){
+
+  boundary = surf.SurfaceType();
+  block = bNum;
+  rank = 0;
+
+  if ( boundary == 1 || boundary == 2 ){ //patch on i-surface - dir1 = j, dir2 = k
+    d1Start = surf.JMin() - 1;
+    d1End = surf.JMax() - 1;
+    d2Start = surf.KMin() - 1;
+    d2End = surf.KMax() - 1;
+    constSurf = surf.IMax() - 1;
+
+    //get corner points
+    //origin at jmin, kmin
+    int loc = GetLoc1D(constSurf, d1Start, d2Start, blk.NumI(), blk.NumJ()); 
+    vector3d<double> temp(blk.XLoc(loc),
+			  blk.YLoc(loc),
+			  blk.ZLoc(loc));
+    origin = temp;
+
+    //corner1 at jmax, kmin
+    loc = GetLoc1D(constSurf, d1End, d2Start, blk.NumI(), blk.NumJ()); 
+    temp.SetX(blk.XLoc(loc));
+    temp.SetY(blk.YLoc(loc));
+    temp.SetZ(blk.ZLoc(loc));
+    corner1 = temp;
+
+    //corner2 at jmin, kmax
+    loc = GetLoc1D(constSurf, d1Start, d2End, blk.NumI(), blk.NumJ()); 
+    temp.SetX(blk.XLoc(loc));
+    temp.SetY(blk.YLoc(loc));
+    temp.SetZ(blk.ZLoc(loc));
+    corner2 = temp;
+
+    //corner12 at jmax, kmax
+    loc = GetLoc1D(constSurf, d1End, d2End, blk.NumI(), blk.NumJ()); 
+    temp.SetX(blk.XLoc(loc));
+    temp.SetY(blk.YLoc(loc));
+    temp.SetZ(blk.ZLoc(loc));
+    corner12 = temp;
+
+  }
+  else if ( boundary == 3 || boundary == 4 ){ //patch on j-surface - dir1 = k, dir2 = i
+    d1Start = surf.KMin() - 1;
+    d1End = surf.KMax() - 1;
+    d2Start = surf.IMin() - 1;
+    d2End = surf.IMax() - 1;
+    constSurf = surf.JMax() - 1;
+
+    //get corner points
+    //origin at kmin, imin
+    int loc = GetLoc1D(d2Start, constSurf, d1Start, blk.NumI(), blk.NumJ()); 
+    vector3d<double> temp(blk.XLoc(loc),
+			  blk.YLoc(loc),
+			  blk.ZLoc(loc));
+    origin = temp;
+
+    //corner1 at kmax, imin
+    loc = GetLoc1D(d2Start, constSurf, d1End, blk.NumI(), blk.NumJ()); 
+    temp.SetX(blk.XLoc(loc));
+    temp.SetY(blk.YLoc(loc));
+    temp.SetZ(blk.ZLoc(loc));
+    corner1 = temp;
+
+    //corner2 at kmin, imax
+    loc = GetLoc1D(d2End, constSurf, d1Start, blk.NumI(), blk.NumJ()); 
+    temp.SetX(blk.XLoc(loc));
+    temp.SetY(blk.YLoc(loc));
+    temp.SetZ(blk.ZLoc(loc));
+    corner2 = temp;
+
+    //corner12 at kmax, imax
+    loc = GetLoc1D(d2End, constSurf, d1End, blk.NumI(), blk.NumJ()); 
+    temp.SetX(blk.XLoc(loc));
+    temp.SetY(blk.YLoc(loc));
+    temp.SetZ(blk.ZLoc(loc));
+    corner12 = temp;
+
+  }
+  else if ( boundary == 5 || boundary == 6 ){ //patch on k-surface - dir1 = i, dir2 = j
+    d1Start = surf.IMin();
+    d1End = surf.IMax();
+    d2Start = surf.JMin();
+    d2End = surf.JMax();
+    constSurf = surf.KMax();
+
+    //get corner points
+    //origin at imin, jmin
+    int loc = GetLoc1D(d1Start, d2Start, constSurf, blk.NumI(), blk.NumJ()); 
+    vector3d<double> temp(blk.XLoc(loc),
+			  blk.YLoc(loc),
+			  blk.ZLoc(loc));
+    origin = temp;
+
+    //corner1 at imax, jmin
+    loc = GetLoc1D(d1End, d2Start, constSurf, blk.NumI(), blk.NumJ()); 
+    temp.SetX(blk.XLoc(loc));
+    temp.SetY(blk.YLoc(loc));
+    temp.SetZ(blk.ZLoc(loc));
+    corner1 = temp;
+
+    //corner2 at imin, jmax
+    loc = GetLoc1D(d1Start, d2End, constSurf, blk.NumI(), blk.NumJ()); 
+    temp.SetX(blk.XLoc(loc));
+    temp.SetY(blk.YLoc(loc));
+    temp.SetZ(blk.ZLoc(loc));
+    corner2 = temp;
+
+    //corner12 at imax, jmax
+    loc = GetLoc1D(d1End, d2End, constSurf, blk.NumI(), blk.NumJ()); 
+    temp.SetX(blk.XLoc(loc));
+    temp.SetY(blk.YLoc(loc));
+    temp.SetZ(blk.ZLoc(loc));
+    corner12 = temp;
+
+  }
+  else{
+    cerr << "ERROR: Error in patch::patch(). Boundary surface " << boundary << " is not recognized!" << endl;
+    cerr << "Choose an integer between 1-6." << endl;
+    exit(0);
+  }
+
+}
+
 void boundaryConditions::PackBC( char *(&sendBuffer), const int &sendBufSize, int &position)const{
 
 
@@ -1372,7 +1720,7 @@ boundarySurface::boundarySurface(const string &name, const int &imin, const int 
   data[6] = tag;
 }
 
-int boundarySurface::SurfaceType(){
+int boundarySurface::SurfaceType() const {
 
   int surf = 0;
 
@@ -1409,7 +1757,7 @@ int boundarySurface::SurfaceType(){
   return surf;
 }
 
-int boundarySurface::PartnerBlock(){
+int boundarySurface::PartnerBlock() const {
 
   if ( (*this).bcType != "interblock" ){ 
     cerr << "ERROR: Partner blocks are only associated with interblock boundaries. Current boundary is " << (*this).bcType << endl;
@@ -1420,7 +1768,7 @@ int boundarySurface::PartnerBlock(){
   return (*this).Tag() - subtract;
 }
 
-int boundarySurface::PartnerSurface(){
+int boundarySurface::PartnerSurface() const {
 
   if ( (*this).bcType != "interblock" ){ 
     cerr << "ERROR: Partner blocks are only associated with interblock boundaries. Current boundary is " << (*this).bcType << endl;
@@ -1455,6 +1803,83 @@ int boundarySurface::PartnerSurface(){
 
 
   return surf;
+}
+
+string boundarySurface::Direction1()const{
+
+  string dir;
+  if ( (*this).SurfaceType() <= 2 ){ //dir 3 is i, dir 1 is j, dir 2 is k
+    dir = "j";
+  }
+  else if ( (*this).SurfaceType() <= 4){ //dir 3 is j, dir 1 is k, dir 2 is i
+    dir = "k";
+  }
+  else{ //dir 3 is k, dir 1 is i, dir 2 is j
+    dir = "i";
+  }
+
+  return dir;
+}
+
+string boundarySurface::Direction2()const{
+
+  string dir;
+  if ( (*this).SurfaceType() <= 2 ){ //dir 3 is i, dir 1 is j, dir 2 is k
+    dir = "k";
+  }
+  else if ( (*this).SurfaceType() <= 4){ //dir 3 is j, dir 1 is k, dir 2 is i
+    dir = "i";
+  }
+  else{ //dir 3 is k, dir 1 is i, dir 2 is j
+    dir = "j";
+  }
+
+  return dir;
+}
+
+string boundarySurface::Direction3()const{
+
+  string dir;
+  if ( (*this).SurfaceType() <= 2 ){ //dir 3 is i, dir 1 is j, dir 2 is k
+    dir = "i";
+  }
+  else if ( (*this).SurfaceType() <= 4){ //dir 3 is j, dir 1 is k, dir 2 is i
+    dir = "j";
+  }
+  else{ //dir 3 is k, dir 1 is i, dir 2 is j
+    dir = "k";
+  }
+
+  return dir;
+}
+
+
+int boundarySurface::Max1()const{
+  int m = 0;
+  if ( (*this).Direction1() == "i" ){
+    m = (*this).IMax();
+  }
+  else if ( (*this).Direction1() == "j" ){
+    m = (*this).JMax();
+  }
+  else{
+    m = (*this).KMax();
+  }
+  return m;
+}
+
+int boundarySurface::Max2()const{
+  int m = 0;
+  if ( (*this).Direction2() == "i" ){
+    m = (*this).IMax();
+  }
+  else if ( (*this).Direction2() == "j" ){
+    m = (*this).JMax();
+  }
+  else{
+    m = (*this).KMax();
+  }
+  return m;
 }
 
 //operator overload for << - allows use of cout, cerr, etc.

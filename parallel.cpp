@@ -79,24 +79,42 @@ vector<int> CubicDecomposition(vector<plot3dBlock> &grid, vector<int> &blkRank, 
   }
 
   vector<boundarySurface> altSurf;
-  plot3dBlock newBlk = grid[0].Split("i",20);
-  grid.push_back(newBlk);
+  plot3dBlock lBlk, uBlk; 
+  grid[0].Split("j",20, lBlk, uBlk);
+  //reassign grid[0] here: grid[0] = lBlk;
+
+  grid.push_back(uBlk);
   blkRank.push_back(numProc-1);
   blkPar.push_back(0);
-  boundaryConditions newBcs = bcs[0].Split("i", 20, 0, numProc-1, altSurf);
+  boundaryConditions newBcs = bcs[0].Split("j", 20, 0, numProc-1, altSurf);
   bcs.push_back(newBcs);
 
+  for ( unsigned int ii = 0; ii < altSurf.size(); ii++ ){
+
+    cout << "splitting surface related to: " << altSurf[ii] << endl;
+    patch self(altSurf[ii], grid[0], 0);
+    bcs[altSurf[ii].PartnerBlock()].DependentSplit(altSurf[ii], grid[0], grid[altSurf[ii].PartnerBlock()], altSurf[ii].PartnerBlock(), "j", 20, 0, numProc-1);
 
 
-  boundaryConditions myBC = bcs[2];
-  boundarySurface mySurf1 = myBC.GetSurface(3);
-  cout << "original surface: " << mySurf1 << endl;
-  bool split;
-  boundarySurface mySurf2 = mySurf1.Split("j", 20, 1, 7, split);
-  cout << "split surfaces:" << endl;
-  cout << "was split: " << split << endl;
-  cout << mySurf1 << endl;
-  cout << mySurf2 << endl;
+  }
+
+  cout << "updated BCs are:" << endl;
+  for ( unsigned int ii = 0; ii < bcs.size(); ii++ ){
+    cout << bcs[ii] << endl;
+  }
+
+
+
+
+  // boundaryConditions myBC = bcs[2];
+  // boundarySurface mySurf1 = myBC.GetSurface(3);
+  // cout << "original surface: " << mySurf1 << endl;
+  // bool split;
+  // boundarySurface mySurf2 = mySurf1.Split("j", 20, 1, 7, split);
+  // cout << "split surfaces:" << endl;
+  // cout << "was split: " << split << endl;
+  // cout << mySurf1 << endl;
+  // cout << mySurf2 << endl;
 
   exit(0);
 
