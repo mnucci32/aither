@@ -29,6 +29,10 @@ class plot3dBlock {
    plot3dBlock();
 
    //member functions
+ private:
+   void CleanResize( const int&, const int&, const int& );
+
+ public:
    const vector<double> Volume() const;
    const vector<vector3d<double> > FaceAreaI() const;
    const vector<vector3d<double> > FaceAreaJ() const;
@@ -48,7 +52,7 @@ class plot3dBlock {
    double YLoc(const int &a)const{return y[a];}
    double ZLoc(const int &a)const{return z[a];}
 
-   plot3dBlock Split(const string&, const int&);
+   void Split(const string&, const int&, plot3dBlock&, plot3dBlock&) const;
    void Join(const plot3dBlock&, const string&);
 
    //destructor

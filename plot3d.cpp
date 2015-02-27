@@ -1002,7 +1002,7 @@ vector<vector3d<int> > HyperplaneReorder( const int &imax, const int &jmax, cons
 /* Member function to split a plot3dBlock along a plane defined by a direction and an index. The calling instance will retain the lower portion of the split,
 and the returned instance will retain the upper portion of the split.
 */
-plot3dBlock plot3dBlock::Split(const string &dir, const int &ind){
+void plot3dBlock::Split(const string &dir, const int &ind, plot3dBlock &blk1, plot3dBlock &blk2)const{
   // dir -- plane to split along, either i, j, or k
   // ind -- index (face) to split at (w/o counting ghost cells)
 
@@ -1010,8 +1010,8 @@ plot3dBlock plot3dBlock::Split(const string &dir, const int &ind){
     int numI2 = (*this).NumI() - ind;
     int numI1 = (*this).NumI() - numI2 + 1;
 
-    plot3dBlock blk1( numI1, (*this).NumJ(), (*this).NumK());
-    plot3dBlock blk2( numI2, (*this).NumJ(), (*this).NumK());
+    blk1.CleanResize( numI1, (*this).NumJ(), (*this).NumK());
+    blk2.CleanResize( numI2, (*this).NumJ(), (*this).NumK());
 
     //loop over cell locations of of block
     for ( int kk = 0; kk < (*this).NumK(); kk++ ){
@@ -1042,9 +1042,6 @@ plot3dBlock plot3dBlock::Split(const string &dir, const int &ind){
 	}
       }
     }
-
-    (*this) = blk1;
-    return blk2;
 
   }
   else if ( dir == "j" ){ //split along j-plane
@@ -1084,9 +1081,6 @@ plot3dBlock plot3dBlock::Split(const string &dir, const int &ind){
       }
     }
 
-    (*this) = blk1;
-    return blk2;
-
   }
   else if ( dir == "k" ){ //split along k-plane
     int numK2 = (*this).NumK() - ind;
@@ -1124,9 +1118,6 @@ plot3dBlock plot3dBlock::Split(const string &dir, const int &ind){
 	}
       }
     }
-
-    (*this) = blk1;
-    return blk2;
 
   }
   else{
@@ -1271,4 +1262,10 @@ void plot3dBlock::Join(const plot3dBlock &blk, const string &dir){
     exit(0);
   }
 
+}
+
+void plot3dBlock::CleanResize(const int &i, const int &j, const int &k){
+
+  plot3dBlock newBlk(i, j, k);
+  (*this) = newBlk;
 }
