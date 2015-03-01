@@ -191,89 +191,16 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
   // blkRank -- rank of blocks in grid
 
   //isolate only the interblock BCs and their associated data from all of the BCs
-  vector<vector<int> > isolatedInterblocks; //outer vector for each interblock BC, inner vector for information about interblock
+  vector<boundarySurface> isolatedInterblocks; //outer vector for each interblock BC, inner vector for information about interblock
+  vector<int> blockNumbers;
+  vector<int> blockRanks;
   for ( unsigned int ii = 0; ii < bc.size(); ii++ ){ //loop over all blocks
-    int numSurf = bc[ii].NumSurfI() + bc[ii].NumSurfJ() + bc[ii].NumSurfK(); //number of surfaces in block
-
-    for ( int jj = 0; jj < numSurf; jj++ ){ //loop over number of surfaces in block
+    for ( int jj = 0; jj < bc[ii].NumSurfaces(); jj++ ){ //loop over number of surfaces in block
 
       if ( bc[ii].GetBCTypes(jj) == "interblock" ){ //if boundary condition is interblock, store data
-	vector<int> temp (10,0); 
-	temp[0] = ii;                                  //block number of bc
-	
-	//boundary number of bc (1-6)
-	if ( jj < bc[ii].NumSurfI() ){ //i-surface
-	  if ( bc[ii].GetIMin(jj) == 1) { //lower surface
-	    temp[1] = 1;
-	  }
-	  else{ //upper surface
-	    temp[1] = 2;
-	  }
-	}
-	else if ( jj < bc[ii].NumSurfI() + bc[ii].NumSurfJ() ){ //j-surface
-	  if ( bc[ii].GetJMin(jj) == 1) { //lower surface
-	    temp[1] = 3;
-	  }
-	  else{ //upper surface
-	    temp[1] = 4;
-	  }
-	}
-	else{ //k-surface
-	  if ( bc[ii].GetKMin(jj) == 1) { //lower surface
-	    temp[1] = 5;
-	  }
-	  else{ //upper surface
-	    temp[1] = 6;
-	  }
-	}
-
-	//1 subtracted from indices because vectors start at 0.
-	//these are grid point indices
-	temp[2] = bc[ii].GetIMin(jj) - 1;              //i min of bc patch
-	temp[3] = bc[ii].GetIMax(jj) - 1;              //i max of bc patch
-	temp[4] = bc[ii].GetJMin(jj) - 1;              //j min of bc patch
-	temp[5] = bc[ii].GetJMax(jj) - 1;              //j max of bc patch
-	temp[6] = bc[ii].GetKMin(jj) - 1;              //k min of bc patch
-	temp[7] = bc[ii].GetKMax(jj) - 1;              //k max of bc patch
-
-	//determine block/boundary that interblock BC is supposed to match to
-	int tag = bc[ii].GetTag(jj);
-	int bound = -1;
-	int blk = -1;
-	if (tag >= 1000  && tag < 2000){ //at il boundary
-	  bound = 1;
-	  blk = tag - 1000;
-	} 
-	else if ( tag >= 2000 && tag < 3000){ //at iu boundary
-	  bound = 2;
-	  blk = tag - 2000;
-	}
-	else if ( tag >= 3000 && tag < 4000){ //at jl boundary
-	  bound = 3;
-	  blk = tag - 3000;
-	}
-	else if ( tag >= 4000 && tag < 5000){ //at ju boundary
-	  bound = 4;
-	  blk = tag - 4000;
-	}
-	else if ( tag >= 5000 && tag < 6000){ //at kl boundary
-	  bound = 5;
-	  blk = tag - 5000;
-	}
-	else if ( tag >= 6000 && tag < 7000){ //at ku boundary
-	  bound = 6;
-	  blk = tag - 6000;
-	}
-	else{
-	  cerr << "ERROR: Error in boundaryConditions.cpp:GetInterblockBCs(). Not sure what to do with tag "
-	       << tag << " from block " << ii << " at boundary " << jj << "." << endl;
-	}
-
-	temp[8] = bound;                                  //boundary of match
-	temp[9] = blk;                                    //block of match
-
-	isolatedInterblocks.push_back(temp); //add data to end of vector
-
+	blockNumbers.push_back(ii);                              //block number of bc
+	blockRanks.push_back(blkRank[ii]);                       //rank of processor bc should go on
+	isolatedInterblocks.push_back(bc[ii].GetSurface(jj));    //boundarySurface of bc
       }
 
     }
@@ -289,25 +216,25 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
   for ( unsigned int ii = 0; ii < isolatedInterblocks.size(); ii+=2 ){
     for ( unsigned int jj = ii+1; jj < isolatedInterblocks.size(); jj++ ){ //loop over possible matches
 
-      if ( isolatedInterblocks[ii][9] == isolatedInterblocks[jj][0] ) { //blocks between interblock BCs match
-	if ( isolatedInterblocks[ii][8] == isolatedInterblocks[jj][1] ) { //boundary surfaces between interblock BCs match
+      //blocks and boundary surfaces between interblocks match
+      if ( isolatedInterblocks[ii].PartnerBlock() == blockNumbers[jj] && isolatedInterblocks[ii].PartnerSurface() == isolatedInterblocks[jj].SurfaceType() ){ //blocks between interblock BCs match
 
-	  //get current patch
-	  patch cPatch(isolatedInterblocks[ii][1], isolatedInterblocks[ii][0], isolatedInterblocks[ii][2], isolatedInterblocks[ii][3], isolatedInterblocks[ii][4],
-		       isolatedInterblocks[ii][5], isolatedInterblocks[ii][6], isolatedInterblocks[ii][7], grid[isolatedInterblocks[ii][0]], blkRank[isolatedInterblocks[ii][0]]);
+	//get current patch
+	patch cPatch( isolatedInterblocks[ii], grid[blockNumbers[ii]], blockNumbers[ii], blockRanks[ii] );
 
-	  //get new patch (possible match)
-	  patch nPatch(isolatedInterblocks[jj][1], isolatedInterblocks[jj][0], isolatedInterblocks[jj][2], isolatedInterblocks[jj][3], isolatedInterblocks[jj][4],
-		       isolatedInterblocks[jj][5], isolatedInterblocks[jj][6], isolatedInterblocks[jj][7], grid[isolatedInterblocks[jj][0]], blkRank[isolatedInterblocks[jj][0]]);
+	//get new patch (possible match)
+	patch nPatch( isolatedInterblocks[jj], grid[blockNumbers[jj]], blockNumbers[jj], blockRanks[jj] );
 
-	  //test for match
-	  interblock match(cPatch, nPatch);
-	  if ( match.TestPatchMatch(cPatch, nPatch) ){ //match found
-	    connections[ii/2] = match; //store interblock pair
-	    swap(isolatedInterblocks[jj], isolatedInterblocks[ii+1]); //swap matched interblock BC to top portion of vector so it is not searched again
-	  }
-
+	//test for match
+	interblock match(cPatch, nPatch);
+	if ( match.TestPatchMatch(cPatch, nPatch) ){ //match found
+	  connections[ii/2] = match; //store interblock pair
+	  swap(isolatedInterblocks[jj], isolatedInterblocks[ii+1]); //swap matched interblock BC to top portion of vector so it is not searched again
+	  swap(blockNumbers[jj], blockNumbers[ii+1]); 
+	  swap(blockRanks[jj], blockRanks[ii+1]); 
+	  break; //exit innermost loop and search for next interblock match
 	}
+
       }
     }
   }
@@ -862,16 +789,12 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
 
   patch partner(surf, part, lblk);
 
-  int indNG = ind + 1; //+1 because boundaries start at 1, not 0
-
   for ( int ii = 0; ii < (*this).NumSurfaces(); ii++ ){
 
     patch candidate((*this).GetSurface(ii), self, sblk);
 
     interblock match(candidate, partner);
     if ( match.TestPatchMatch(candidate, partner) ){ //match found
-      cout << "match found" << endl;
-      cout << (*this).GetSurface(ii) << endl;
 
       boundarySurface lowSurf = (*this).GetSurface(ii);
 
@@ -893,7 +816,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
 	  cerr << "Please choose i, j, or k." << endl;
 	  exit(0);
 	}
-	candInd = indNG;
+	candInd = ind;
 
       }
       else if (match.Orientation() == 2){ //D1/D2 swapped
@@ -912,22 +835,22 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
 	  cerr << "Please choose i, j, or k." << endl;
 	  exit(0);
 	}
-	candInd = indNG;
+	candInd = ind;
 
       }
       else if (match.Orientation() == 3){ //D1 reversed
 
 	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 1 of candidate
 	  candDir = lowSurf.Direction1();
-	  candInd = surf.Max1() - indNG;
+	  candInd = surf.Max1() -1 - ind;
 	}
 	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 2 of candidate
 	  candDir = lowSurf.Direction2();
-	  candInd = indNG;
+	  candInd = ind;
 	}
 	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
 	  candDir = lowSurf.Direction3();
-	  candInd = indNG;
+	  candInd = ind;
 	}
 	else{
 	  cerr<< "ERROR: Error in boundaryConditions::DependentSplit(). Direction " << dir << " is not recognized." << endl;
@@ -940,15 +863,15 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
 
 	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 2 of candidate
 	  candDir = lowSurf.Direction2();
-	  candInd = surf.Max1() - indNG;
+	  candInd = surf.Max1() - 1 - ind;
 	}
 	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 1 of candidate
 	  candDir = lowSurf.Direction1();
-	  candInd = indNG;
+	  candInd = ind;
 	}
 	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
 	  candDir = lowSurf.Direction3();
-	  candInd = indNG;
+	  candInd = ind;
 	}
 	else{
 	  cerr<< "ERROR: Error in boundaryConditions::DependentSplit(). Direction " << dir << " is not recognized." << endl;
@@ -961,15 +884,15 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
 
 	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 2 of candidate
 	  candDir = lowSurf.Direction2();
-	  candInd = indNG;
+	  candInd = ind;
 	}
 	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 1 of candidate
 	  candDir = lowSurf.Direction1();
-	  candInd = surf.Max2() - indNG;
+	  candInd = surf.Max2() - 1 - ind;
 	}
 	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
 	  candDir = lowSurf.Direction3();
-	  candInd = indNG;
+	  candInd = ind;
 	}
 	else{
 	  cerr<< "ERROR: Error in boundaryConditions::DependentSplit(). Direction " << dir << " is not recognized." << endl;
@@ -982,15 +905,15 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
 
 	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 1 of candidate
 	  candDir = lowSurf.Direction1();
-	  candInd = indNG;
+	  candInd = ind;
 	}
 	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 2 of candidate
 	  candDir = lowSurf.Direction2();
-	  candInd = surf.Max2() - indNG;
+	  candInd = surf.Max2() - 1 - ind;
 	}
 	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
 	  candDir = lowSurf.Direction3();
-	  candInd = indNG;
+	  candInd = ind;
 	}
 	else{
 	  cerr<< "ERROR: Error in boundaryConditions::DependentSplit(). Direction " << dir << " is not recognized." << endl;
@@ -1003,15 +926,15 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
 
 	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 2 of candidate
 	  candDir = lowSurf.Direction2();
-	  candInd = surf.Max1() - indNG;
+	  candInd = surf.Max1() - 1 - ind;
 	}
 	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 1 of candidate
 	  candDir = lowSurf.Direction1();
-	  candInd = surf.Max2() - indNG;
+	  candInd = surf.Max2() - 1 - ind;
 	}
 	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
 	  candDir = lowSurf.Direction3();
-	  candInd = indNG;
+	  candInd = ind;
 	}
 	else{
 	  cerr<< "ERROR: Error in boundaryConditions::DependentSplit(). Direction " << dir << " is not recognized." << endl;
@@ -1024,15 +947,15 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
 
 	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 1 of candidate
 	  candDir = lowSurf.Direction1();
-	  candInd = surf.Max1() - indNG;
+	  candInd = surf.Max1() - 1 - ind;
 	}
 	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 2 of candidate
 	  candDir = lowSurf.Direction2();
-	  candInd = surf.Max2() - indNG;
+	  candInd = surf.Max2() - 1 - ind;
 	}
 	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
 	  candDir = lowSurf.Direction3();
-	  candInd = indNG;
+	  candInd = ind;
 	}
 	else{
 	  cerr<< "ERROR: Error in boundaryConditions::DependentSplit(). Direction " << dir << " is not recognized." << endl;
@@ -1524,11 +1447,11 @@ patch::patch( const int &bound, const int &b, const int &d1s, const int &d1e, co
 }
 
 //constructor with arguements passed
-patch::patch( const boundarySurface &surf, const plot3dBlock &blk, const int &bNum ){
+patch::patch( const boundarySurface &surf, const plot3dBlock &blk, const int &bNum, int r ){
 
   boundary = surf.SurfaceType();
   block = bNum;
-  rank = 0;
+  rank = r;
 
   if ( boundary == 1 || boundary == 2 ){ //patch on i-surface - dir1 = j, dir2 = k
     d1Start = surf.JMin() - 1;
@@ -1649,6 +1572,25 @@ patch::patch( const boundarySurface &surf, const plot3dBlock &blk, const int &bN
 
 }
 
+//operator overload for << - allows use of cout, cerr, etc.
+ostream & operator<< (ostream &os, const patch &p){
+
+  os << "Boundary: " << p.Boundary() << endl;
+  os << "Block: " << p.Block() << endl;
+  os << "Direction 1 Start: " << p.Dir1Start() << endl;
+  os << "Direction 1 End: " << p.Dir1End() << endl;
+  os << "Direction 2 Start: " << p.Dir2Start() << endl;
+  os << "Direction 2 End: " << p.Dir2End() << endl;
+  os << "Constant Surface: " << p.ConstSurface() << endl;
+  os << "Rank: " << p.Rank() << endl;
+  os << "Origin: " << p.origin << endl;
+  os << "Corner 1: " << p.corner1 << endl;
+  os << "Corner 2: " << p.corner2 << endl;
+  os << "Corner 12: " << p.corner12 << endl;
+
+  return os;
+}
+
 void boundaryConditions::PackBC( char *(&sendBuffer), const int &sendBufSize, int &position)const{
 
 
@@ -1764,7 +1706,7 @@ int boundarySurface::PartnerBlock() const {
     exit(0);
   }
 
-  int subtract = (*this).SurfaceType() * 1000;
+  int subtract = (*this).PartnerSurface() * 1000;
   return (*this).Tag() - subtract;
 }
 

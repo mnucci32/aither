@@ -78,7 +78,7 @@ class patch {
   //constructor
   patch();
   patch(const int&, const int&, const int&, const int&, const int&, const int&, const int&, const int&, const plot3dBlock&, const int&);
-  patch(const boundarySurface&, const plot3dBlock&, const int&);
+  patch(const boundarySurface&, const plot3dBlock&, const int&, int=0);
 
   //member functions
   vector3d<double> Origin()const{return origin;}

@@ -78,25 +78,25 @@ vector<int> CubicDecomposition(vector<plot3dBlock> &grid, vector<int> &blkRank, 
     blkPar[ii] = ii;
   }
 
+  string dir = "j";
+  int ind = 20;
+  int blkNum = 0;
   vector<boundarySurface> altSurf;
   plot3dBlock lBlk, uBlk; 
-  grid[0].Split("j",20, lBlk, uBlk);
-  //reassign grid[0] here: grid[0] = lBlk;
-
+  grid[blkNum].Split(dir,ind, lBlk, uBlk);
   grid.push_back(uBlk);
   blkRank.push_back(numProc-1);
-  blkPar.push_back(0);
-  boundaryConditions newBcs = bcs[0].Split("j", 20, 0, numProc-1, altSurf);
+  blkPar.push_back(blkNum);
+  boundaryConditions newBcs = bcs[blkNum].Split(dir,ind, blkNum, numProc-1, altSurf);
   bcs.push_back(newBcs);
 
   for ( unsigned int ii = 0; ii < altSurf.size(); ii++ ){
-
-    cout << "splitting surface related to: " << altSurf[ii] << endl;
-    patch self(altSurf[ii], grid[0], 0);
-    bcs[altSurf[ii].PartnerBlock()].DependentSplit(altSurf[ii], grid[0], grid[altSurf[ii].PartnerBlock()], altSurf[ii].PartnerBlock(), "j", 20, 0, numProc-1);
-
-
+    bcs[altSurf[ii].PartnerBlock()].DependentSplit(altSurf[ii], grid[blkNum], grid[altSurf[ii].PartnerBlock()], altSurf[ii].PartnerBlock(), dir, ind, blkNum, numProc-1);
   }
+  //reassign split grid
+  grid[blkNum] = lBlk;
+
+
 
   cout << "updated BCs are:" << endl;
   for ( unsigned int ii = 0; ii < bcs.size(); ii++ ){
@@ -116,7 +116,7 @@ vector<int> CubicDecomposition(vector<plot3dBlock> &grid, vector<int> &blkRank, 
   // cout << mySurf1 << endl;
   // cout << mySurf2 << endl;
 
-  exit(0);
+  //exit(0);
 
 
   //find maximum number of cells on a processor
@@ -321,11 +321,11 @@ line arguments will be on any processor but ROOT.  */
 void BroadcastString( string &str ){
   // str -- string to broadcast to all processors
 
-  int strSize = str.size();  //get size of string
+  int strSize = str.size() + 1;  //get size of string (+1 for c_str end character)
+  MPI_Bcast(&strSize, 1, MPI_INT, ROOT, MPI_COMM_WORLD);  //broadcast string size
+
   char *buf = new char[strSize]; //allcate a char buffer of string size
   strcpy(buf, str.c_str()); //copy string into buffer
-
-  MPI_Bcast(&strSize, 1, MPI_INT, ROOT, MPI_COMM_WORLD);  //broadcast string size
   MPI_Bcast(&buf[0], strSize, MPI_CHAR, ROOT, MPI_COMM_WORLD);  //broadcast string as char
 
   //create new string and assign to old string

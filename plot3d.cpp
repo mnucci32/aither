@@ -1048,8 +1048,8 @@ void plot3dBlock::Split(const string &dir, const int &ind, plot3dBlock &blk1, pl
     int numJ2 = (*this).NumJ() - ind;
     int numJ1 = (*this).NumJ() - numJ2 + 1;
 
-    plot3dBlock blk1( (*this).NumI(), numJ1, (*this).NumK());
-    plot3dBlock blk2( (*this).NumI(), numJ2, (*this).NumK());
+    blk1.CleanResize( (*this).NumI(), numJ1, (*this).NumK() );
+    blk2.CleanResize( (*this).NumI(), numJ2, (*this).NumK() );
 
     //loop over cell locations of of block
     for ( int kk = 0; kk < (*this).NumK(); kk++ ){
@@ -1086,8 +1086,8 @@ void plot3dBlock::Split(const string &dir, const int &ind, plot3dBlock &blk1, pl
     int numK2 = (*this).NumK() - ind;
     int numK1 = (*this).NumK() - numK2 + 1;
 
-    plot3dBlock blk1( (*this).NumI(), (*this).NumJ(), numK1 );
-    plot3dBlock blk2( (*this).NumI(), (*this).NumJ(), numK2 );
+    blk1.CleanResize( (*this).NumI(), (*this).NumJ(), numK1 );
+    blk2.CleanResize( (*this).NumI(), (*this).NumJ(), numK2 );
 
     //loop over cell locations of of block
     for ( int kk = 0; kk < (*this).NumK(); kk++ ){

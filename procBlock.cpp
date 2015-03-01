@@ -6547,6 +6547,7 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
   }
   else{
     cerr << "ERROR: Error in procBlock::SwapSlice(). Surface boundary " << inter.BoundaryFirst() << " is not recognized!" << endl;
+    exit(0);
   }
 
   //Get indices for slice coming from second block to swap
@@ -6591,6 +6592,7 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
   }
   else{
     cerr << "ERROR: Error in procBlock::SwapSlice(). Surface boundary " << inter.BoundarySecond() << " is not recognized!" << endl;
+    exit(0);
   }
 
   geomSlice geom1, geom2;
@@ -6674,6 +6676,7 @@ void procBlock::SwapSliceMPI( const interblock &inter, const int &rank, const MP
     }
     else{
       cerr << "ERROR: Error in procBlock::SwapSliceMPI(). Surface boundary " << inter.BoundaryFirst() << " is not recognized!" << endl;
+      exit(0);
     }
   }
   else if( rank == inter.RankSecond() ){ //local block is second in interblock
@@ -6716,6 +6719,7 @@ void procBlock::SwapSliceMPI( const interblock &inter, const int &rank, const MP
     }
     else{
       cerr << "ERROR: Error in procBlock::SwapSliceMPI(). Surface boundary " << inter.BoundarySecond() << " is not recognized!" << endl;
+      exit(0);
     }
   }
   else{
@@ -6785,6 +6789,7 @@ vector<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const inter
     else{ 
       cerr << "ERROR: Error in procBlock:GetSwapLoc(). Boundary surface " << inter.BoundaryFirst() << " is not recognized!" << endl;
       cerr << "Please choose a number between 1-6." << endl;
+      exit(0);
     }
   }
   //--------------------------------------------------------------------------------------------------------------------------------------------
@@ -6881,7 +6886,7 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp, const id
 
   //loop over connections and swap ghost cells where needed
   for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
-    if ( connections[ii].RankFirst() == rank && connections[ii].RankSecond() == rank ) { //both sides of interblock are on same processor, swap w/o mpi
+    if ( connections[ii].RankFirst() == rank && connections[ii].RankSecond() == rank ) { //both sides of interblock are on this processor, swap w/o mpi
       SwapSlice( connections[ii], states[connections[ii].LocalBlockFirst()], states[connections[ii].LocalBlockSecond()], false);
     }
     else if ( connections[ii].RankFirst() == rank ){ //rank matches rank of one side of interblock, swap over mpi

@@ -27,6 +27,15 @@ using std::clock;
 
 int main( int argc, char *argv[] ) {
 
+
+  // {
+  //   cout << "waiting for attach" << endl;
+  //   int wait = 0;
+  //   while(wait == 0);
+  // }
+
+
+
   //initialize MPI and make calls to get number of processors and rank of each processor
   int numProcs, rank;
   MPI_Init(&argc,&argv);
@@ -120,6 +129,12 @@ int main( int argc, char *argv[] ) {
     //Get interblock BCs
     connections = GetInterblockBCs( bcs, mesh, blkRank );
 
+    cout << connections.size() << " connections found" << endl;
+    for ( unsigned int vv = 0; vv < connections.size(); vv++ ){
+      cout << connections[vv] << endl;
+    }
+
+
     //Could send proc3dblocks to processors here, or initialize all on ROOT processor
 
 
@@ -127,18 +142,16 @@ int main( int argc, char *argv[] ) {
     stateBlocks.resize( mesh.size() );
     for ( int ll = 0; ll < (int)mesh.size(); ll++) {
       stateBlocks[ll] = procBlock(state, mesh[ll], blkParent[ll], numGhost, bcs[ll], ll, blkRank[ll]);
-      cout << "initializing block of size " << stateBlocks[ll].NumI() << ", " << stateBlocks[ll].NumJ() << ", " << stateBlocks[ll].NumK() << " with bcs: " << endl;
-      cout << stateBlocks[ll].BC() << endl;
-
-
-
-
       stateBlocks[ll].AssignGhostCellsGeom();
     }
 
+
+    //debug
+    WriteCellCenter(inputVars.GridName(),stateBlocks);
+
+
     //swap geometry for interblock BCs
     for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
-      cout << connections[ii] << endl;
       SwapSlice( connections[ii], stateBlocks[connections[ii].BlockFirst()], stateBlocks[connections[ii].BlockSecond()], true);
     }
     //Get ghost cell edge data
@@ -288,7 +301,6 @@ int main( int argc, char *argv[] ) {
       else{
 	MPI_Reduce(&matrixResid, &matrixResid, 1, MPI_DOUBLE, MPI_SUM, ROOT, MPI_COMM_WORLD);
       }
-
 
       if ( rank == ROOT ){
 	//finish calculation of L2 norm of residual
