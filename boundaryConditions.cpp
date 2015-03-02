@@ -137,8 +137,8 @@ interblock::interblock(const patch &p1, const patch &p2){
   block[0] = p1.Block();
   block[1] =p2.Block();
 
-  localBlock[0] = 0; //default value is 0
-  localBlock[1] = 0;
+  localBlock[0] = p1.LocalBlock();
+  localBlock[1] = p2.LocalBlock();
 
   boundary[0] = p1.Boundary();
   boundary[1] = p2.Boundary();
@@ -158,7 +158,7 @@ interblock::interblock(const patch &p1, const patch &p2){
   constSurf[0] = p1.ConstSurface();
   constSurf[1] = p2.ConstSurface();
 
-  orientation = 0; //default value (real values 1-6)
+  orientation = 0; //default value (real values 1-8)
 }
 
 //function to swap the order of an interblock so the 2nd entry in the pair will be the first, and vice versa
@@ -185,21 +185,20 @@ void interblock::SwapOrder(){
 
 /* Function to go through the boundary conditions and pair the interblock BCs together and determine their orientation.
 */
-vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const vector<plot3dBlock> &grid, const vector<int> &blkRank ){
+vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const vector<plot3dBlock> &grid, const vector<vector3d<int> > &rankParPos ){
   // bc -- vector of boundaryConditions for all blocks
   // grid -- vector of plot3Dblocks for entire computational mesh
-  // blkRank -- rank of blocks in grid
+  // rankParPos -- rank of blocks in grid, parent block in grid, local position on processor
 
   //isolate only the interblock BCs and their associated data from all of the BCs
   vector<boundarySurface> isolatedInterblocks; //outer vector for each interblock BC, inner vector for information about interblock
-  vector<int> blockNumbers;
-  vector<int> blockRanks;
+  vector<vector3d<int> > numRankPos;
   for ( unsigned int ii = 0; ii < bc.size(); ii++ ){ //loop over all blocks
     for ( int jj = 0; jj < bc[ii].NumSurfaces(); jj++ ){ //loop over number of surfaces in block
 
       if ( bc[ii].GetBCTypes(jj) == "interblock" ){ //if boundary condition is interblock, store data
-	blockNumbers.push_back(ii);                              //block number of bc
-	blockRanks.push_back(blkRank[ii]);                       //rank of processor bc should go on
+	vector3d<int> temp(ii, rankParPos[ii][0], rankParPos[ii][2]);
+	numRankPos.push_back(temp);                              //block number of bc, rank, local position
 	isolatedInterblocks.push_back(bc[ii].GetSurface(jj));    //boundarySurface of bc
       }
 
@@ -217,21 +216,20 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
     for ( unsigned int jj = ii+1; jj < isolatedInterblocks.size(); jj++ ){ //loop over possible matches
 
       //blocks and boundary surfaces between interblocks match
-      if ( isolatedInterblocks[ii].PartnerBlock() == blockNumbers[jj] && isolatedInterblocks[ii].PartnerSurface() == isolatedInterblocks[jj].SurfaceType() ){ //blocks between interblock BCs match
+      if ( isolatedInterblocks[ii].PartnerBlock() == numRankPos[jj][0] && isolatedInterblocks[ii].PartnerSurface() == isolatedInterblocks[jj].SurfaceType() ){ //blocks between interblock BCs match
 
 	//get current patch
-	patch cPatch( isolatedInterblocks[ii], grid[blockNumbers[ii]], blockNumbers[ii], blockRanks[ii] );
+	patch cPatch( isolatedInterblocks[ii], grid[numRankPos[ii][0]], numRankPos[ii][0], numRankPos[ii][1], numRankPos[ii][2] );
 
 	//get new patch (possible match)
-	patch nPatch( isolatedInterblocks[jj], grid[blockNumbers[jj]], blockNumbers[jj], blockRanks[jj] );
+	patch nPatch( isolatedInterblocks[jj], grid[numRankPos[jj][0]], numRankPos[jj][0], numRankPos[jj][1], numRankPos[jj][2] );
 
 	//test for match
 	interblock match(cPatch, nPatch);
 	if ( match.TestPatchMatch(cPatch, nPatch) ){ //match found
 	  connections[ii/2] = match; //store interblock pair
 	  swap(isolatedInterblocks[jj], isolatedInterblocks[ii+1]); //swap matched interblock BC to top portion of vector so it is not searched again
-	  swap(blockNumbers[jj], blockNumbers[ii+1]); 
-	  swap(blockRanks[jj], blockRanks[ii+1]); 
+	  swap(numRankPos[jj], numRankPos[ii+1]); 
 	  break; //exit innermost loop and search for next interblock match
 	}
 
@@ -965,9 +963,17 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
 
       }
 
+      cout << "unsplit surface: " << lowSurf << endl;
+      cout << "splitting with dir, ind, orientation: " << candDir << ", " << candInd << ", " << match.Orientation() << endl;
+
       //split matched surface
       bool split = false;
-      boundarySurface upSurf = lowSurf.Split(candDir, candInd, lblk, ublk, split); 
+      boundarySurface upSurf = lowSurf.Split(candDir, candInd, lblk, ublk, split, match.Orientation()); 
+
+      cout << "split surfaces" << endl;
+      cout << lowSurf << endl;
+      cout << upSurf << endl;
+
 
       //assign boundarySurface back into boundaryConditions, if surface wasn't split partner block was updated
       (*this).surfs[ii] = lowSurf;
@@ -1310,11 +1316,12 @@ patch::patch(){
   d2End = 0;
   constSurf = 0;
   rank = 0;
+  localBlock = 0;
 }
 
 //constructor with arguements passed
 patch::patch( const int &bound, const int &b, const int &d1s, const int &d1e, const int &d2s, const int &d2e, const int &d3s, 
-	      const int &d3e, const plot3dBlock &blk, const int &r){
+	      const int &d3e, const plot3dBlock &blk, const int &r, const int &l){
   // bound -- boundary number which patch is on (1-6)
   // b -- parent block number
   // d1s -- direction 1 starting index
@@ -1326,6 +1333,7 @@ patch::patch( const int &bound, const int &b, const int &d1s, const int &d1e, co
   boundary = bound;
   block = b;
   rank = r;
+  localBlock = l;
 
   if ( bound == 1 || bound == 2 ){ //patch on i-surface - dir1 = j, dir2 = k
     d1Start = d2s;
@@ -1447,11 +1455,12 @@ patch::patch( const int &bound, const int &b, const int &d1s, const int &d1e, co
 }
 
 //constructor with arguements passed
-patch::patch( const boundarySurface &surf, const plot3dBlock &blk, const int &bNum, int r ){
+patch::patch( const boundarySurface &surf, const plot3dBlock &blk, const int &bNum, int r, int l){
 
   boundary = surf.SurfaceType();
   block = bNum;
   rank = r;
+  localBlock = l;
 
   if ( boundary == 1 || boundary == 2 ){ //patch on i-surface - dir1 = j, dir2 = k
     d1Start = surf.JMin() - 1;
@@ -1597,7 +1606,7 @@ void boundaryConditions::PackBC( char *(&sendBuffer), const int &sendBufSize, in
   //get string lengths for each boundary condition to be sent, so processors unpacking know how much data to unpack for each string
   vector<int> strLength((*this).NumSurfaces());
   for ( unsigned int jj = 0; jj < strLength.size(); jj++ ){
-    strLength[jj] = (*this).GetBCTypes(jj).size();
+    strLength[jj] = (*this).GetBCTypes(jj).size() + 1; //+1 for c_str end character
   }
 
   MPI_Pack(&(*this).numSurfI, 1, MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
@@ -1608,7 +1617,7 @@ void boundaryConditions::PackBC( char *(&sendBuffer), const int &sendBufSize, in
   }
   MPI_Pack(&strLength[0], strLength.size(), MPI_INT, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   for ( int jj = 0; jj < (*this).NumSurfaces(); jj++ ){
-    MPI_Pack((*this).surfs[jj].bcType.c_str(), (*this).surfs[jj].bcType.size(), MPI_CHAR, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+    MPI_Pack((*this).surfs[jj].bcType.c_str(), (*this).surfs[jj].bcType.size()+1, MPI_CHAR, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD); //+1 for c_str end character
   }
 
 }
@@ -1632,7 +1641,7 @@ void boundaryConditions::UnpackBC( char *(&recvBuffer), const int &recvBufSize, 
   for ( unsigned int jj = 0; jj < strLength.size(); jj++ ){
     char *nameBuf = new char[strLength[jj]]; //allocate buffer to store BC name
     MPI_Unpack(recvBuffer, recvBufSize, &position, &nameBuf[0], strLength[jj], MPI_CHAR, MPI_COMM_WORLD); //unpack bc types
-    string bcName(nameBuf, strLength[jj]); //create string of bc name
+    string bcName(nameBuf, strLength[jj] - 1); //create string of bc name (-1 to exclude c_str end character)
     (*this).surfs[jj].bcType = bcName;
     delete [] nameBuf; //deallocate bc name buffer
   }
@@ -1837,7 +1846,7 @@ void boundarySurface::UpdateTagForSplitJoin(const int &nBlk){
   (*this).data[6] = (*this).PartnerSurface() * 1000 + nBlk;
 }
 
-boundarySurface boundarySurface::Split(const string &dir, const int &ind, const int &lBlk, const int &uBlk, bool &split){
+boundarySurface boundarySurface::Split(const string &dir, const int &ind, const int &lBlk, const int &uBlk, bool &split, int orientation){
 
   int indNG = ind + 1; //+1 because boundaries start at 1, not 0
 
@@ -1845,6 +1854,12 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind, const 
   boundarySurface surf2 = (*this);
 
   split = true;
+  bool isReversed = surf1.SplitDirectionIsReversed(dir, orientation); //surf1 and surf2 have same orientation, so if reversed for 1, reversed for 2
+  if ( orientation != 0 ){
+    cout << "dependent splitting surface: " << (*this) << endl;
+    cout << "orientation is " << orientation << endl;
+    cout << "isReversed: " << isReversed << endl;
+  }
 
   if ( dir == "i" ){ //split along i-plane
 
@@ -1857,19 +1872,18 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind, const 
       if ( (*this).IMin() >= indNG ){ //this surface is only present in the upper split
 	surf1.data[0] = (*this).IMax() - indNG + 1;    //imin
 	surf1.data[1] = (*this).IMax() - indNG + 1;    //imax
-	surf1.UpdateTagForSplitJoin(uBlk);
+	isReversed ? surf1.UpdateTagForSplitJoin(lBlk) : surf1.UpdateTagForSplitJoin(uBlk);
 	split = false;
       }
       else if ( (*this).IMax() >= indNG ){ //this surface straddles the split
 	surf2.data[0] = indNG;                            //imin
-	surf2.UpdateTagForSplitJoin(uBlk);
+	isReversed ? surf2.UpdateTagForSplitJoin(lBlk) : surf2.UpdateTagForSplitJoin(uBlk);
 
-	surf1.data[0] = 1;                                //imin
-	surf1.data[1] = (*this).IMax() - indNG + 1;       //imax
-	surf1.UpdateTagForSplitJoin(lBlk);
+	surf1.data[1] = indNG;                            //imax
+	isReversed ? surf1.UpdateTagForSplitJoin(uBlk) : surf1.UpdateTagForSplitJoin(lBlk);
       }
       else{ //this surface is only present in the lower split
-	surf1.UpdateTagForSplitJoin(lBlk);
+	isReversed ? surf1.UpdateTagForSplitJoin(uBlk) : surf1.UpdateTagForSplitJoin(lBlk);
 	split = false;
       }
     }
@@ -1886,19 +1900,18 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind, const 
       if ( (*this).JMin() >= indNG ){ //this surface is only present in the upper split
 	surf1.data[2] = (*this).JMax() - indNG + 1;    //jmin
 	surf1.data[3] = (*this).JMax() - indNG + 1;    //jmax
-	surf1.UpdateTagForSplitJoin(uBlk);
+	isReversed ? surf1.UpdateTagForSplitJoin(lBlk) : surf1.UpdateTagForSplitJoin(uBlk);
 	split = false;
       }
       else if ( (*this).JMax() >= indNG ){ //this surface straddles the split
 	surf2.data[2] = indNG;                            //jmin
-	surf2.UpdateTagForSplitJoin(uBlk);
+	isReversed ? surf2.UpdateTagForSplitJoin(lBlk) : surf2.UpdateTagForSplitJoin(uBlk);
 
-	surf1.data[2] = 1;                                //jmin
-	surf1.data[3] = (*this).JMax() - indNG + 1;       //jmax
-	surf1.UpdateTagForSplitJoin(lBlk);
+	surf1.data[3] = indNG;                            //jmax
+	isReversed ? surf1.UpdateTagForSplitJoin(uBlk) : surf1.UpdateTagForSplitJoin(lBlk);
       }
       else{ //this surface is only present in the lower split
-	surf1.UpdateTagForSplitJoin(lBlk);
+	isReversed ? surf1.UpdateTagForSplitJoin(uBlk) : surf1.UpdateTagForSplitJoin(lBlk);
 	split = false;
       }
     }
@@ -1915,19 +1928,18 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind, const 
       if ( (*this).KMin() >= indNG ){ //this surface is only present in the upper split
 	surf1.data[4] = (*this).KMax() - indNG + 1;    //kmin
 	surf1.data[5] = (*this).KMax() - indNG + 1;    //kmax
-	surf1.UpdateTagForSplitJoin(uBlk);
+	isReversed ? surf1.UpdateTagForSplitJoin(lBlk) : surf1.UpdateTagForSplitJoin(uBlk);
 	split = false;
       }
       else if ( (*this).KMax() >= indNG ){ //this surface straddles the split
 	surf2.data[4] = indNG;                            //kmin
-	surf2.UpdateTagForSplitJoin(uBlk);
+	isReversed ? surf2.UpdateTagForSplitJoin(lBlk) : surf2.UpdateTagForSplitJoin(uBlk);
 
-	surf1.data[4] = 1;                                //kmin
-	surf1.data[5] = (*this).KMax() - indNG + 1;       //kmax
-	surf1.UpdateTagForSplitJoin(lBlk);
+	surf1.data[5] = indNG;                            //kmax
+	isReversed ? surf1.UpdateTagForSplitJoin(uBlk) : surf1.UpdateTagForSplitJoin(lBlk);
       }
       else{ //this surface is only present in the lower split
-	surf1.UpdateTagForSplitJoin(lBlk);
+	isReversed ? surf1.UpdateTagForSplitJoin(uBlk) : surf1.UpdateTagForSplitJoin(lBlk);
 	split = false;
       }
     }
@@ -1943,3 +1955,24 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind, const 
 
 }
 
+bool boundarySurface::SplitDirectionIsReversed( const string &dir, const int &orientation) const {
+
+  bool isReversed;
+
+  //find out if split direction is 1, 2, or 3
+  if ( (*this).Direction1() == dir ){ //split direction is direction 1 - reverse if dir 1 is reversed (relative to partner, taking into account D1/D2 swap)
+    isReversed = ( orientation == 3 || orientation == 5 || orientation == 7 || orientation == 8 ) ? true : false;
+  }
+  else if ( (*this).Direction2() == dir ){ //split direction is direction 2 - reverse if dir 2 is reversed (relative to partner, taking into account D1/D2 swap)
+    isReversed = ( orientation == 4 || orientation == 6 || orientation == 7 || orientation == 8 ) ? true : false;
+  }
+  else if ( (*this).Direction3() == dir ){ //split direction is direction 3 - no need to reverse
+    isReversed = false;
+  }
+  else {
+    cerr << "ERROR: Error in boundarySurface::SplitDirectionIsReversed(). Direction " << dir << " does not match i, j, or k!" << endl;
+    exit(0);
+  }
+
+  return isReversed;
+}

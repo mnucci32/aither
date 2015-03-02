@@ -183,7 +183,7 @@ void stateSlice::PackSwapUnpackMPI( const interblock &inter, const MPI_Datatype 
     MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankFirst(), 1, inter.RankFirst(), 1, MPI_COMM_WORLD, &status);
   }
 
-  //put slice back into procBlock
+  //put slice back into stateSlice
   position = 0;
   MPI_Unpack(buffer, bufSize, &position, &(*this).state[0], (*this).NumCells(), MPI_cellData, MPI_COMM_WORLD);
   MPI_Unpack(buffer, bufSize, &position, &(*this).numCells, 1, MPI_INT, MPI_COMM_WORLD);

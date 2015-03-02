@@ -113,13 +113,12 @@ int main( int argc, char *argv[] ) {
     //split blocks and BCs 
     vector<boundaryConditions> bcs = inputVars.AllBC();
     //decompose grid
-    vector<int> blkRank;
-    vector<int> blkParent;
+    vector<vector3d<int> > rankParPos;
     if ( inputVars.DecompMethod() == "manual" ){
-      loadBal = ManualDecomposition(mesh, blkRank, blkParent, numProcs, totalCells);
+      loadBal = ManualDecomposition(mesh, rankParPos, numProcs, totalCells);
     }
     else if ( inputVars.DecompMethod() == "cubic" ){
-      loadBal = CubicDecomposition(mesh, blkRank, blkParent, bcs, numProcs, totalCells);
+      loadBal = CubicDecomposition(mesh, rankParPos, bcs, numProcs, totalCells);
     }
     else{
       cerr << "ERROR: Domain decomposition method " << inputVars.DecompMethod() << " is not recognized!" << endl;
@@ -127,7 +126,7 @@ int main( int argc, char *argv[] ) {
     }
 
     //Get interblock BCs
-    connections = GetInterblockBCs( bcs, mesh, blkRank );
+    connections = GetInterblockBCs( bcs, mesh, rankParPos );
 
     cout << connections.size() << " connections found" << endl;
     for ( unsigned int vv = 0; vv < connections.size(); vv++ ){
@@ -141,13 +140,15 @@ int main( int argc, char *argv[] ) {
     //initialize the whole mesh with one state and assign ghost cells geometry ------------------
     stateBlocks.resize( mesh.size() );
     for ( int ll = 0; ll < (int)mesh.size(); ll++) {
-      stateBlocks[ll] = procBlock(state, mesh[ll], blkParent[ll], numGhost, bcs[ll], ll, blkRank[ll]);
+      stateBlocks[ll] = procBlock(state, mesh[ll], rankParPos[ll][1], numGhost, bcs[ll], ll, rankParPos[ll][0]);
       stateBlocks[ll].AssignGhostCellsGeom();
     }
 
 
     //debug
     WriteCellCenter(inputVars.GridName(),stateBlocks);
+    WriteFun(inputVars.GridName(),stateBlocks, eos, 0, inputVars.RRef(), aRef, inputVars.TRef());
+    WriteRes(inputVars.GridName(), 0, inputVars.OutputFrequency());
 
 
     //swap geometry for interblock BCs
@@ -211,6 +212,8 @@ int main( int argc, char *argv[] ) {
     WriteFun(inputVars.GridName(),stateBlocks, eos, 0, inputVars.RRef(), aRef, inputVars.TRef());
     WriteRes(inputVars.GridName(), 0, inputVars.OutputFrequency());
   }
+
+  cout << "starting iteration" << endl;
 
   for ( int nn = 0; nn < inputVars.Iterations(); nn++ ){            //loop over time
 

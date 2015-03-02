@@ -48,7 +48,8 @@ class boundarySurface {
   int PartnerBlock()const;
   int PartnerSurface()const;
   void UpdateTagForSplitJoin(const int&);
-  boundarySurface Split(const string&, const int&, const int&, const int&, bool&);
+  boundarySurface Split(const string&, const int&, const int&, const int&, bool&, int=0);
+  bool SplitDirectionIsReversed(const string&, const int&)const;
 
   friend ostream & operator<< (ostream &os, const boundarySurface&);
 
@@ -73,12 +74,13 @@ class patch {
   int d2End;                            //direction 2 end index
   int constSurf;                        //index of direction 3
   int rank;                             //rank of block that patch belongs to
+  int localBlock;                       //position of block on processor
 
  public:
   //constructor
   patch();
-  patch(const int&, const int&, const int&, const int&, const int&, const int&, const int&, const int&, const plot3dBlock&, const int&);
-  patch(const boundarySurface&, const plot3dBlock&, const int&, int=0);
+  patch(const int&, const int&, const int&, const int&, const int&, const int&, const int&, const int&, const plot3dBlock&, const int&, const int&);
+  patch(const boundarySurface&, const plot3dBlock&, const int&, int=0, int=0);
 
   //member functions
   vector3d<double> Origin()const{return origin;}
@@ -94,6 +96,7 @@ class patch {
   int Dir2End()const{return d2End;}
   int ConstSurface()const{return constSurf;}
   int Rank()const{return rank;}
+  int LocalBlock()const{return localBlock;}
 
   friend ostream & operator<< (ostream &os, const patch&);
 
@@ -218,7 +221,7 @@ class interblock {
 
 
 //function declarations
-vector<interblock> GetInterblockBCs( const vector<boundaryConditions>&, const vector<plot3dBlock>&, const vector<int>& );
+vector<interblock> GetInterblockBCs( const vector<boundaryConditions>&, const vector<plot3dBlock>&, const vector<vector3d<int> >& );
 
 
 

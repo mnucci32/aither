@@ -6729,6 +6729,7 @@ void procBlock::SwapSliceMPI( const interblock &inter, const int &rank, const MP
 
   //get local state slice to swap
   stateSlice state = (*this).GetStateSlice(is, ie, js, je, ks, ke);
+  cout << "Rank: " << rank << " swapping slice with " << state.NumCells() << " cells - " << state.NumI() << ", " << state.NumJ() << ", " << state.NumK() << endl;
 
   //swap state slices with partner block
   state.PackSwapUnpackMPI(inter, MPI_cellData, rank);
@@ -6743,7 +6744,7 @@ void procBlock::SwapSliceMPI( const interblock &inter, const int &rank, const MP
     interAdj.AdjustForSlice(true, (*this).NumGhosts() );
   }
 
-  //interert stateSlice into procBlock
+  //insert stateSlice into procBlock
   (*this).PutStateSlice(state, interAdj, (*this).NumGhosts());
 
 }
@@ -6756,7 +6757,7 @@ The vector will contain 3 entries corresponding to the i, j, and k locations of 
 what is specified in the pairID variable. The indices returned will correspond to cell locations and will take into account the orientation of the
 patches that comprise the interblock with relation to each other.
 */
-vector<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const interblock &inter, const bool &pairID ){
+vector3d<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const interblock &inter, const bool &pairID ){
   // l1 -- index of direction 1 within slice to insert
   // l2 -- index of direction 2 within slice to insert
   // l3 -- index of direction 3 within slice to insert
@@ -6764,7 +6765,7 @@ vector<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const inter
   // pairID -- returning index for first or second block in interblock match
 
   //preallocate vector to return
-  vector<int> loc(3);
+  vector3d<int> loc;
 
   if (pairID) { //working on first in pair -----------------------------------------------------------------------------------------------
     //first patch in pair is calculated using orientation 1
@@ -7133,8 +7134,8 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
       for ( int l1 = 0; l1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst()); l1++ ){
 
 	//get block and slice indices
-	vector<int> indB = GetSwapLoc(l1, l2, l3, inter, true);
-	vector<int> indS = GetSwapLoc(l1, l2, l3, inter, false);
+	vector3d<int> indB = GetSwapLoc(l1, l2, l3, inter, true);
+	vector3d<int> indS = GetSwapLoc(l1, l2, l3, inter, false);
 
 	//get cell locations
 	int locB = GetLoc1D(indB[0], indB[1], indB[2], imaxB, jmaxB);
@@ -7681,12 +7682,21 @@ void procBlock::PutStateSlice( const stateSlice &slice, const interblock &inter,
       for ( int l1 = 0; l1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst()); l1++ ){
 
 	//get block and slice indices
-	vector<int> indB = GetSwapLoc(l1, l2, l3, inter, true);
-	vector<int> indS = GetSwapLoc(l1, l2, l3, inter, false);
+	vector3d<int> indB = GetSwapLoc(l1, l2, l3, inter, true);
+	vector3d<int> indS = GetSwapLoc(l1, l2, l3, inter, false);
 
 	//get cell locations
 	int locB = GetLoc1D(indB[0], indB[1], indB[2], imaxB, jmaxB);
 	int locS = GetLoc1D(indS[0], indS[1], indS[2], imaxS, jmaxS);
+
+	if ( inter.BlockFirst() == 4 && inter.BlockSecond() == 2 && l2 == 0 && l3 == 0 ){
+	  if ( l1 == 0 ){
+	    cout << inter;
+	  }
+	  cout << "loc: " << l1 << ", " << l2 << ", " << l3 << endl;
+	  cout << "inserting into block location: " << indB << " of " << imaxB << ", " << jmaxB << ", " << (*this).NumK() + 2.0 * (*this).NumGhosts() << endl;
+	  cout << slice.State(locS) << endl;
+	}
 
 	//swap cell data
 	(*this).state[locB] = slice.State(locS);
@@ -7726,11 +7736,11 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData, const MPI_Data
   MPI_Pack_size(3, MPI_INT, MPI_COMM_WORLD, &tempSize); //add size for number of surfaces
   sendBufSize += tempSize;
   //8x because iMin, iMax, jMin, jMax, kMin, kMax, tags, string sizes
-  MPI_Pack_size( ((*this).bc.NumSurfI() + (*this).bc.NumSurfJ() + (*this).bc.NumSurfK()) * 8, MPI_INT, MPI_COMM_WORLD, &tempSize); //add size for BCs
+  MPI_Pack_size( (*this).bc.NumSurfaces() * 8, MPI_INT, MPI_COMM_WORLD, &tempSize); //add size for BCs
   sendBufSize += tempSize;
   int stringSize = 0;
-  for ( int jj = 0; jj < ((*this).bc.NumSurfI() + (*this).bc.NumSurfJ() + (*this).bc.NumSurfK()); jj++ ){
-    MPI_Pack_size((*this).bc.GetBCTypes(jj).size(), MPI_CHAR, MPI_COMM_WORLD, &tempSize); //add size for bc types
+  for ( int jj = 0; jj < (*this).bc.NumSurfaces(); jj++ ){
+    MPI_Pack_size((*this).bc.GetBCTypes(jj).size()+1, MPI_CHAR, MPI_COMM_WORLD, &tempSize); //add size for bc types (+1 for c_str end character)
     stringSize += tempSize;
   }
   sendBufSize += stringSize;

@@ -296,7 +296,7 @@ tensor<double> CalcVelGradGG(const vector3d<double>&, const vector3d<double>&, c
 vector3d<double> CalcTempGradGG(const double&, const double&, const double&, const double&, const double&, const double&, const vector3d<double>&, const vector3d<double>&,
 				const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const double&);
 
-vector<int> GetSwapLoc( const int&, const int&, const int&, const interblock&, const bool&);
+vector3d<int> GetSwapLoc( const int&, const int&, const int&, const interblock&, const bool&);
 void SwapSlice(const interblock&, procBlock&, procBlock&, const bool&);
 
 void GetBoundaryConditions(vector<procBlock>&, const input&, const idealGas&, const vector<interblock>&, const int &rank, const MPI_Datatype &MPI_cellData);
