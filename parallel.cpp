@@ -206,17 +206,17 @@ void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &M
 
 
   //create MPI datatype for interblock class
-  int counts[10] = {2,2,2,2,2,2,2,2,2,1}; //number of entries per field
-  MPI_Datatype types[10] = {MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT}; //field types
-  MPI_Aint disp[10], lowerBound, extent;
+  int counts[11] = {2,2,2,2,2,2,2,2,2,8,1}; //number of entries per field
+  MPI_Datatype types[11] = {MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_INT, MPI_C_BOOL, MPI_INT}; //field types
+  MPI_Aint disp[11], lowerBound, extent;
   interblock inter; //dummy interblock to get layout of class
   inter.GetAddressesMPI(disp);
 
   //make addresses relative to first field
-  for ( int ii = 9; ii >= 0; ii-- ){
+  for ( int ii = 10; ii >= 0; ii-- ){
     disp[ii] -= disp[0];
   }
-  MPI_Type_create_struct(10, counts, disp, types, &MPI_interblock);
+  MPI_Type_create_struct(11, counts, disp, types, &MPI_interblock);
 
   //check that datatype has the correct extent, if it doesn't change the extent
   //this is necessary to portably send an array of this type
