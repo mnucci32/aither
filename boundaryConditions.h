@@ -66,6 +66,7 @@ class patch {
   vector3d<double> corner1;             //coordinates of direction 1 max, direction 2 zero
   vector3d<double> corner2;             //coordinates of direction 1 zero, direction 2 max
   vector3d<double> corner12;            //coordinates of direction 1/2 max
+  bool interblockBorder[4];             //array of booleans for 4 sides of patch (1 if borders an interblock)
   int boundary;                         //boundary number (1-6)
   int block;                            //parent block number
   int d1Start;                          //direction 1 start index
@@ -79,15 +80,14 @@ class patch {
  public:
   //constructor
   patch();
-  patch(const int&, const int&, const int&, const int&, const int&, const int&, const int&, const int&, const plot3dBlock&, const int&, const int&);
-  patch(const boundarySurface&, const plot3dBlock&, const int&, int=0, int=0);
+  patch(const int&, const int&, const int&, const int&, const int&, const int&, const int&, const int&, const plot3dBlock&, const int&, const int&, const bool(&)[4]);
+  patch(const boundarySurface&, const plot3dBlock&, const int&, const bool(&)[4], int=0, int=0);
 
   //member functions
   vector3d<double> Origin()const{return origin;}
   vector3d<double> Corner1()const{return corner1;}
   vector3d<double> Corner2()const{return corner2;}
   vector3d<double> Corner12()const{return corner12;}
-
   int Boundary()const{return boundary;}
   int Block()const{return block;}
   int Dir1Start()const{return d1Start;}
@@ -97,6 +97,10 @@ class patch {
   int ConstSurface()const{return constSurf;}
   int Rank()const{return rank;}
   int LocalBlock()const{return localBlock;}
+  bool Dir1StartInterBorder()const{return interblockBorder[0];}
+  bool Dir1EndInterBorder()const{return interblockBorder[1];}
+  bool Dir2StartInterBorder()const{return interblockBorder[2];}
+  bool Dir2EndInterBorder()const{return interblockBorder[3];}
 
   friend ostream & operator<< (ostream &os, const patch&);
 
@@ -159,20 +163,22 @@ pair is patch on a boundary that is point matched.
 */
 class interblock {
 
-  int rank [2];             //processor location of boundaries
-  int block [2];            //block numbers (global)
-  int localBlock [2];       //local (on processor) block numbers
-  int boundary [2];         //boundary numbers
-  int d1Start [2];          //first direction start numbers for surface
-  int d1End [2];            //first direction end numbers for surface
-  int d2Start [2];          //second direction start numbers for surface
-  int d2End [2];            //second direction end numbers for surface
-  int constSurf [2];        //index of direction 3
-  int orientation;          //defines how patches are oriented relative to one another (1-8)
+  int rank [2];              //processor location of boundaries
+  int block [2];             //block numbers (global)
+  int localBlock [2];        //local (on processor) block numbers
+  int boundary [2];          //boundary numbers
+  int d1Start [2];           //first direction start numbers for surface
+  int d1End [2];             //first direction end numbers for surface
+  int d2Start [2];           //second direction start numbers for surface
+  int d2End [2];             //second direction end numbers for surface
+  int constSurf [2];         //index of direction 3
+  bool interblockBorder [8]; //borders interblock on sides of patch
+  int orientation;           //defines how patches are oriented relative to one another (1-8)
 
  public:
   //constructor
- interblock() : rank{0,0}, block{0,0}, localBlock{0,0}, boundary{0,0}, d1Start{0,0}, d1End{0,0}, d2Start{0,0}, d2End{0,0}, constSurf{0,0}, orientation(0) {};
+ interblock() : rank{0,0}, block{0,0}, localBlock{0,0}, boundary{0,0}, d1Start{0,0}, d1End{0,0}, d2Start{0,0}, d2End{0,0}, constSurf{0,0}, 
+	        interblockBorder{false, false, false, false, false, false, false, false}, orientation(0) {};
  interblock( const patch&, const patch& );
 
   //member functions
@@ -205,12 +211,21 @@ class interblock {
   int ConstSurfaceFirst()const{return constSurf[0];}
   int ConstSurfaceSecond()const{return constSurf[1];}
 
+  bool Dir1StartInterBorderFirst()const{return interblockBorder[0];}
+  bool Dir1EndInterBorderFirst()const{return interblockBorder[1];}
+  bool Dir2StartInterBorderFirst()const{return interblockBorder[2];}
+  bool Dir2EndInterBorderFirst()const{return interblockBorder[3];}
+  bool Dir1StartInterBorderSecond()const{return interblockBorder[4];}
+  bool Dir1EndInterBorderSecond()const{return interblockBorder[5];}
+  bool Dir2StartInterBorderSecond()const{return interblockBorder[6];}
+  bool Dir2EndInterBorderSecond()const{return interblockBorder[7];}
+
   int Orientation()const{return orientation;}
 
   void SwapOrder();
   void AdjustForSlice( const bool&, const int& );
   bool TestPatchMatch(const patch&, const patch&);
-  void GetAddressesMPI(MPI_Aint (&)[10])const;
+  void GetAddressesMPI(MPI_Aint (&)[11])const;
 
   friend ostream & operator<< (ostream &os, const interblock&);
 

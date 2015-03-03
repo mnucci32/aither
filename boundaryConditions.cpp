@@ -120,6 +120,10 @@ ostream & operator<< (ostream &os, const interblock &bc){
   os << "Direction 2 Starts: " << bc.Dir2StartFirst() << ", " << bc.Dir2StartSecond() << endl;
   os << "Direction 2 Ends: " << bc.Dir2EndFirst() << ", " << bc.Dir2EndSecond() << endl;
   os << "Direction 3 Constant Surface: " << bc.ConstSurfaceFirst() << ", " << bc.ConstSurfaceSecond() << endl;
+  os << "Direction 1 Start Borders Interblock: " << bc.Dir1StartInterBorderFirst() << ", " << bc.Dir1StartInterBorderSecond() << endl;
+  os << "Direction 1 End Borders Interblock: " << bc.Dir1EndInterBorderFirst() << ", " << bc.Dir1EndInterBorderSecond() << endl;
+  os << "Direction 2 Start Borders Interblock: " << bc.Dir2StartInterBorderFirst() << ", " << bc.Dir2StartInterBorderSecond() << endl;
+  os << "Direction 2 End Borders Interblock: " << bc.Dir2EndInterBorderFirst() << ", " << bc.Dir2EndInterBorderSecond() << endl;
   os << "Orientation: " << bc.Orientation() << endl;
 
   return os;
@@ -158,6 +162,15 @@ interblock::interblock(const patch &p1, const patch &p2){
   constSurf[0] = p1.ConstSurface();
   constSurf[1] = p2.ConstSurface();
 
+  interblockBorder[0] = p1.Dir1StartInterBorder();
+  interblockBorder[1] = p1.Dir1EndInterBorder();
+  interblockBorder[2] = p1.Dir2StartInterBorder();
+  interblockBorder[3] = p1.Dir2EndInterBorder();
+  interblockBorder[4] = p2.Dir1StartInterBorder();
+  interblockBorder[5] = p2.Dir1EndInterBorder();
+  interblockBorder[6] = p2.Dir2StartInterBorder();
+  interblockBorder[7] = p2.Dir2EndInterBorder();
+
   orientation = 0; //default value (real values 1-8)
 }
 
@@ -173,6 +186,11 @@ void interblock::SwapOrder(){
   swap(d2Start[0], d2Start[1]);
   swap(d2End[0], d2End[1]);
   swap(constSurf[0], constSurf[1]);
+
+  swap(interblockBorder[0], interblockBorder[4]);
+  swap(interblockBorder[1], interblockBorder[5]);
+  swap(interblockBorder[2], interblockBorder[6]);
+  swap(interblockBorder[3], interblockBorder[7]);
 
   //if orientation is 4 or 5, needs to be swapped because direction 1/2 are swapped and only one direction is reversed
   if (orientation == 4){
@@ -218,11 +236,13 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
       //blocks and boundary surfaces between interblocks match
       if ( isolatedInterblocks[ii].PartnerBlock() == numRankPos[jj][0] && isolatedInterblocks[ii].PartnerSurface() == isolatedInterblocks[jj].SurfaceType() ){ //blocks between interblock BCs match
 
+	bool border[4] = {false, false, false, false};
+
 	//get current patch
-	patch cPatch( isolatedInterblocks[ii], grid[numRankPos[ii][0]], numRankPos[ii][0], numRankPos[ii][1], numRankPos[ii][2] );
+	patch cPatch( isolatedInterblocks[ii], grid[numRankPos[ii][0]], numRankPos[ii][0], border, numRankPos[ii][1], numRankPos[ii][2] );
 
 	//get new patch (possible match)
-	patch nPatch( isolatedInterblocks[jj], grid[numRankPos[jj][0]], numRankPos[jj][0], numRankPos[jj][1], numRankPos[jj][2] );
+	patch nPatch( isolatedInterblocks[jj], grid[numRankPos[jj][0]], numRankPos[jj][0], border, numRankPos[jj][1], numRankPos[jj][2] );
 
 	//test for match
 	interblock match(cPatch, nPatch);
@@ -471,19 +491,20 @@ void interblock::AdjustForSlice( const bool &blkFirst, const int &numG ){
 }
 
 //Member function to get the addresses of an interblock to create an MPI_Datatype
-void interblock::GetAddressesMPI(MPI_Aint (&disp)[10])const{
+void interblock::GetAddressesMPI(MPI_Aint (&disp)[11])const{
 
   //get addresses of each field
-  MPI_Get_address(&(*this).rank[0],       &disp[0]);
-  MPI_Get_address(&(*this).block[0],      &disp[1]);
-  MPI_Get_address(&(*this).localBlock[0], &disp[2]);
-  MPI_Get_address(&(*this).boundary[0],   &disp[3]);
-  MPI_Get_address(&(*this).d1Start[0],    &disp[4]);
-  MPI_Get_address(&(*this).d1End[0],      &disp[5]);
-  MPI_Get_address(&(*this).d2Start[0],    &disp[6]);
-  MPI_Get_address(&(*this).d2End[0],      &disp[7]);
-  MPI_Get_address(&(*this).constSurf[0],  &disp[8]);
-  MPI_Get_address(&(*this).orientation,   &disp[9]);
+  MPI_Get_address(&(*this).rank[0],              &disp[0]);
+  MPI_Get_address(&(*this).block[0],             &disp[1]);
+  MPI_Get_address(&(*this).localBlock[0],        &disp[2]);
+  MPI_Get_address(&(*this).boundary[0],          &disp[3]);
+  MPI_Get_address(&(*this).d1Start[0],           &disp[4]);
+  MPI_Get_address(&(*this).d1End[0],             &disp[5]);
+  MPI_Get_address(&(*this).d2Start[0],           &disp[6]);
+  MPI_Get_address(&(*this).d2End[0],             &disp[7]);
+  MPI_Get_address(&(*this).constSurf[0],         &disp[8]);
+  MPI_Get_address(&(*this).interblockBorder[0],  &disp[9]);
+  MPI_Get_address(&(*this).orientation,          &disp[10]);
 
 }
 
@@ -785,11 +806,12 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
   // lblk -- lower block number in partner split
   // ublk -- upper block number in partner split
 
-  patch partner(surf, part, lblk);
+  bool border[4] = {false, false, false, false};
+  patch partner(surf, part, lblk, border);
 
   for ( int ii = 0; ii < (*this).NumSurfaces(); ii++ ){
 
-    patch candidate((*this).GetSurface(ii), self, sblk);
+    patch candidate((*this).GetSurface(ii), self, sblk, border);
 
     interblock match(candidate, partner);
     if ( match.TestPatchMatch(candidate, partner) ){ //match found
@@ -1317,11 +1339,15 @@ patch::patch(){
   constSurf = 0;
   rank = 0;
   localBlock = 0;
+  interblockBorder[0] = false;
+  interblockBorder[1] = false;
+  interblockBorder[2] = false;
+  interblockBorder[3] = false;
 }
 
 //constructor with arguements passed
 patch::patch( const int &bound, const int &b, const int &d1s, const int &d1e, const int &d2s, const int &d2e, const int &d3s, 
-	      const int &d3e, const plot3dBlock &blk, const int &r, const int &l){
+	      const int &d3e, const plot3dBlock &blk, const int &r, const int &l, const bool (&border)[4]){
   // bound -- boundary number which patch is on (1-6)
   // b -- parent block number
   // d1s -- direction 1 starting index
@@ -1334,6 +1360,10 @@ patch::patch( const int &bound, const int &b, const int &d1s, const int &d1e, co
   block = b;
   rank = r;
   localBlock = l;
+  interblockBorder[0] = border[0];
+  interblockBorder[1] = border[1];
+  interblockBorder[2] = border[2];
+  interblockBorder[3] = border[3];
 
   if ( bound == 1 || bound == 2 ){ //patch on i-surface - dir1 = j, dir2 = k
     d1Start = d2s;
@@ -1455,12 +1485,16 @@ patch::patch( const int &bound, const int &b, const int &d1s, const int &d1e, co
 }
 
 //constructor with arguements passed
-patch::patch( const boundarySurface &surf, const plot3dBlock &blk, const int &bNum, int r, int l){
+patch::patch( const boundarySurface &surf, const plot3dBlock &blk, const int &bNum, const bool (&border)[4], int r, int l){
 
   boundary = surf.SurfaceType();
   block = bNum;
   rank = r;
   localBlock = l;
+  interblockBorder[0] = border[0];
+  interblockBorder[1] = border[1];
+  interblockBorder[2] = border[2];
+  interblockBorder[3] = border[3];
 
   if ( boundary == 1 || boundary == 2 ){ //patch on i-surface - dir1 = j, dir2 = k
     d1Start = surf.JMin() - 1;
@@ -1592,6 +1626,7 @@ ostream & operator<< (ostream &os, const patch &p){
   os << "Direction 2 End: " << p.Dir2End() << endl;
   os << "Constant Surface: " << p.ConstSurface() << endl;
   os << "Rank: " << p.Rank() << endl;
+  os << "Borders Interblock: " << p.Dir1StartInterBorder() << ", " << p.Dir1EndInterBorder() << ", " << p.Dir2StartInterBorder() << ", " << p.Dir2EndInterBorder() << endl;
   os << "Origin: " << p.origin << endl;
   os << "Corner 1: " << p.corner1 << endl;
   os << "Corner 2: " << p.corner2 << endl;
