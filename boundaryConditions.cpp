@@ -1962,11 +1962,6 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind, const 
 
   split = true;
   bool isReversed = surf1.SplitDirectionIsReversed(dir, orientation); //surf1 and surf2 have same orientation, so if reversed for 1, reversed for 2
-  if ( orientation != 0 ){
-    cout << "dependent splitting surface: " << (*this) << endl;
-    cout << "orientation is " << orientation << endl;
-    cout << "isReversed: " << isReversed << endl;
-  }
 
   if ( dir == "i" ){ //split along i-plane
 

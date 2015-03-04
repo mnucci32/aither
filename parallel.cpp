@@ -67,27 +67,33 @@ vector<int> CubicDecomposition(vector<plot3dBlock> &grid, vector<vector3d<int> >
 
   //vector containing number of procBlocks for each processor
   //in cubic decomp, each proc gets 1 block
-  //vector<int> loadBal(numProc, 1);
-  vector<int> loadBal(1, 5);
+  vector<int> loadBal(numProc, 1);
+  //vector<int> loadBal(1, 5);
 
   rankParPos.resize(grid.size());
   for ( unsigned int ii = 0; ii < rankParPos.size(); ii++ ){
-    //blkRank[ii] = ii;
-    rankParPos[ii][0] = 0;      //rank
-    //blkPar[ii] = ii;
-    rankParPos[ii][1] = 0;      //parent block
-    rankParPos[ii][2] = ii;     //local position
+    //for single processor
+    // rankParPos[ii][0] = 0;      //rank
+    // rankParPos[ii][1] = 0;      //parent block
+    // rankParPos[ii][2] = ii;     //local position
+
+    rankParPos[ii][0] = ii;      //rank
+    rankParPos[ii][1] = ii;      //parent block
+    rankParPos[ii][2] = 0;       //local position
+
   }
 
   string dir = "j";
   int ind = 50;
   int blkNum = 3;
   int newBlk = 4;
+  int newRank = 4;
+  int newPos = 0;
   vector<boundarySurface> altSurf;
   plot3dBlock lBlk, uBlk; 
   grid[blkNum].Split(dir,ind, lBlk, uBlk);
   grid.push_back(uBlk);
-  vector3d<int> temp(0, blkNum, newBlk);
+  vector3d<int> temp(newRank, blkNum, newPos);
   rankParPos.push_back(temp);
   boundaryConditions newBcs = bcs[blkNum].Split(dir,ind, blkNum, newBlk, altSurf);
   bcs.push_back(newBcs);
@@ -108,6 +114,7 @@ vector<int> CubicDecomposition(vector<plot3dBlock> &grid, vector<vector3d<int> >
   cout << "updated block sizes are:" << endl;
   for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
     cout << "Block: " << ii << "  " << grid[ii].NumI() << ", " << grid[ii].NumJ() << ", " << grid[ii].NumK() << endl;
+    cout << "Rank, parent block, local position: " << rankParPos[ii] << endl;
   }
 
 

@@ -6729,7 +6729,6 @@ void procBlock::SwapSliceMPI( const interblock &inter, const int &rank, const MP
 
   //get local state slice to swap
   stateSlice state = (*this).GetStateSlice(is, ie, js, je, ks, ke);
-  cout << "Rank: " << rank << " swapping slice with " << state.NumCells() << " cells - " << state.NumI() << ", " << state.NumJ() << ", " << state.NumK() << endl;
 
   //swap state slices with partner block
   state.PackSwapUnpackMPI(inter, MPI_cellData, rank);
@@ -7809,6 +7808,9 @@ void procBlock::RecvUnpackGeomMPI( const MPI_Datatype &MPI_cellData, const MPI_D
   int recvBufSize = 0;
   MPI_Probe(ROOT, 2, MPI_COMM_WORLD, &status);
   MPI_Get_count(&status, MPI_CHAR, &recvBufSize); //use MPI_CHAR because sending buffer was allocated with chars
+
+
+  cout << "receiving a buffer of size " << recvBufSize << " from ROOT" << endl;
 
   char *recvBuffer = new char[recvBufSize]; //allocate buffer of correct size
 
