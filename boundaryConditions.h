@@ -44,6 +44,8 @@ class boundarySurface {
   string Direction3()const;
   int Max1()const;
   int Max2()const;
+  int Min1()const;
+  int Min2()const;
 
   int PartnerBlock()const;
   int PartnerSurface()const;
@@ -149,6 +151,8 @@ class boundaryConditions {
   boundaryConditions Split(const string&, const int&, const int&, const int&, vector<boundarySurface>&);
   void DependentSplit(const boundarySurface&, const plot3dBlock&, const plot3dBlock&, const int&, const string&, const int&, const int&, const int&);
   void Join(const boundaryConditions&, const string&, vector<boundarySurface>&);
+
+  void BordersInterblock(const int&, bool (&)[4])const;
 
   void PackBC( char*(&), const int&, int&)const;
   void UnpackBC( char*(&), const int&, int&);

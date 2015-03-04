@@ -108,6 +108,45 @@ void boundaryConditions::AssignFromInput(const int &surfCounter, const vector<st
 }
 
 
+void boundaryConditions::BordersInterblock(const int &ii, bool (&border)[4])const{
+  // ii -- index of surface to test for border matches
+  // border -- array of bools to show if boundarySurface is bordered by an interblock on any of its 4 sides
+
+  boundarySurface surf = (*this).GetSurface(ii);
+
+  //check that given boundarySurface is interblock
+  if ( surf.BCType() != "interblock" ){
+    cerr << "ERROR: Error in boundaryConditions::BordersInterblock(). Given index does not point to an interblock boundarySurface!" << endl;
+    cerr << surf << endl;
+    exit(0);
+  }
+
+  border[0] = false;
+  border[1] = false;
+  border[2] = false;
+  border[3] = false;
+
+  for ( int jj = 0; jj < (*this).NumSurfaces(); jj++ ){
+    boundarySurface possibleBorder = (*this).GetSurface(jj);
+    //if possible border is an interblock and of same surface type, test for border match
+    if ( possibleBorder.BCType() == "interblock" && possibleBorder.SurfaceType() == surf.SurfaceType() ){
+      if ( surf.Min1() == possibleBorder.Max1() ){
+	border[0] = true;
+      }
+      if ( surf.Max1() == possibleBorder.Min1() ){
+	border[1] = true;
+      }
+      if ( surf.Min2() == possibleBorder.Max2() ){
+	border[2] = true;
+      }
+      if( surf.Max2() == possibleBorder.Min2() ){
+	border[3] = true;
+      }
+    }
+  }
+
+}
+
 //operator overload for << - allows use of cout, cerr, etc.
 ostream & operator<< (ostream &os, const interblock &bc){
 
@@ -211,6 +250,7 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
   //isolate only the interblock BCs and their associated data from all of the BCs
   vector<boundarySurface> isolatedInterblocks; //outer vector for each interblock BC, inner vector for information about interblock
   vector<vector3d<int> > numRankPos;
+  vector<int> surfaceNums;
   for ( unsigned int ii = 0; ii < bc.size(); ii++ ){ //loop over all blocks
     for ( int jj = 0; jj < bc[ii].NumSurfaces(); jj++ ){ //loop over number of surfaces in block
 
@@ -218,6 +258,7 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
 	vector3d<int> temp(ii, rankParPos[ii][0], rankParPos[ii][2]);
 	numRankPos.push_back(temp);                              //block number of bc, rank, local position
 	isolatedInterblocks.push_back(bc[ii].GetSurface(jj));    //boundarySurface of bc
+	surfaceNums.push_back(jj);
       }
 
     }
@@ -237,10 +278,12 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
       if ( isolatedInterblocks[ii].PartnerBlock() == numRankPos[jj][0] && isolatedInterblocks[ii].PartnerSurface() == isolatedInterblocks[jj].SurfaceType() ){ //blocks between interblock BCs match
 
 	bool border[4] = {false, false, false, false};
+	bc[numRankPos[ii][0]].BordersInterblock(surfaceNums[ii], border);
 
 	//get current patch
 	patch cPatch( isolatedInterblocks[ii], grid[numRankPos[ii][0]], numRankPos[ii][0], border, numRankPos[ii][1], numRankPos[ii][2] );
 
+	bc[numRankPos[jj][0]].BordersInterblock(surfaceNums[jj], border);
 	//get new patch (possible match)
 	patch nPatch( isolatedInterblocks[jj], grid[numRankPos[jj][0]], numRankPos[jj][0], border, numRankPos[jj][1], numRankPos[jj][2] );
 
@@ -250,6 +293,7 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
 	  connections[ii/2] = match; //store interblock pair
 	  swap(isolatedInterblocks[jj], isolatedInterblocks[ii+1]); //swap matched interblock BC to top portion of vector so it is not searched again
 	  swap(numRankPos[jj], numRankPos[ii+1]); 
+	  swap(surfaceNums[jj], surfaceNums[ii+1]);
 	  break; //exit innermost loop and search for next interblock match
 	}
 
@@ -1854,6 +1898,20 @@ int boundarySurface::Max1()const{
   return m;
 }
 
+int boundarySurface::Min1()const{
+  int m = 0;
+  if ( (*this).Direction1() == "i" ){
+    m = (*this).IMin();
+  }
+  else if ( (*this).Direction1() == "j" ){
+    m = (*this).JMin();
+  }
+  else{
+    m = (*this).KMin();
+  }
+  return m;
+}
+
 int boundarySurface::Max2()const{
   int m = 0;
   if ( (*this).Direction2() == "i" ){
@@ -1864,6 +1922,20 @@ int boundarySurface::Max2()const{
   }
   else{
     m = (*this).KMax();
+  }
+  return m;
+}
+
+int boundarySurface::Min2()const{
+  int m = 0;
+  if ( (*this).Direction2() == "i" ){
+    m = (*this).IMin();
+  }
+  else if ( (*this).Direction2() == "j" ){
+    m = (*this).JMin();
+  }
+  else{
+    m = (*this).KMin();
   }
   return m;
 }
