@@ -6615,12 +6615,12 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
 
   //put slices in proper blocks
   if (geom){ //put geomSlices in procBlock
-    blk1.PutGeomSlice(geom2, inter2, blk2.NumGhosts());
-    blk2.PutGeomSlice(geom1, inter1, blk1.NumGhosts());
+    blk1.PutGeomSlice(geom2, inter2, blk2.NumGhosts(), blk2.NumGhosts());
+    blk2.PutGeomSlice(geom1, inter1, blk1.NumGhosts(), blk1.NumGhosts());
   }
   else{ //put stateSlices in procBlock
-    blk1.PutStateSlice(state2, inter2, blk2.NumGhosts());
-    blk2.PutStateSlice(state1, inter1, blk1.NumGhosts());
+    blk1.PutStateSlice(state2, inter2, blk2.NumGhosts(), blk2.NumGhosts());
+    blk2.PutStateSlice(state1, inter1, blk1.NumGhosts(), blk1.NumGhosts());
   }
 
 }
@@ -6745,7 +6745,7 @@ void procBlock::SwapSliceMPI( const interblock &inter, const int &rank, const MP
   }
 
   //insert stateSlice into procBlock
-  (*this).PutStateSlice(state, interAdj, (*this).NumGhosts());
+  (*this).PutStateSlice(state, interAdj, (*this).NumGhosts(), (*this).NumGhosts());
 
 }
 
@@ -7100,10 +7100,11 @@ stateSlice procBlock::GetStateSlice(const int &is, const int &ie, const int &js,
 /* Member function to overwrite a section of a procBlock's geometry with a geomSlice. The function uses the orientation supplied in the interblock to orient the 
 geomSlice relative to the procBlock. It assumes that the procBlock is listed first, and the geomSlice second in the interblock data structure.
 */
-void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, const int &d3){
+void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, const int &d3, const int &numG){
   // slice -- geomSlice to insert int procBlock
   // inter -- interblock data structure describing the patches and their orientation
   // d3 -- distance of direction normal to patch to insert
+  // numG -- number of ghost cells
 
   //check that number of cells to insert matches
   int blkCell = (inter.Dir1EndFirst() - inter.Dir1StartFirst()) * (inter.Dir2EndFirst() - inter.Dir2StartFirst()) * d3;
@@ -7123,6 +7124,12 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
   int imaxS = slice.NumI();
   int jmaxS = slice.NumJ();
 
+  //adjust insertion indices if patch borders another interblock on the same surface of the block
+  int adjS1 = (inter.Dir1StartInterBorderFirst()) ? numG : 0;
+  int adjE1 = (inter.Dir1EndInterBorderFirst()) ? numG : 0;
+  int adjS2 = (inter.Dir2StartInterBorderFirst()) ? numG : 0;
+  int adjE2 = (inter.Dir2EndInterBorderFirst()) ? numG : 0;
+
   //determine if area direction needs to be reversed
   double aFac3 = ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ) ? -1.0 : 1.0 ;
   double aFac1 = ( inter.Orientation() == 3 || inter.Orientation() == 4 || inter.Orientation() == 7 || inter.Orientation() == 8 ) ? -1.0 : 1.0 ;
@@ -7130,8 +7137,8 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 
   //loop over cells to insert
   for ( int l3 = 0; l3 < d3; l3++ ){
-    for ( int l2 = 0; l2 < (inter.Dir2EndFirst() - inter.Dir2StartFirst()); l2++ ){
-      for ( int l1 = 0; l1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst()); l1++ ){
+    for ( int l2 = adjS2; l2 < (inter.Dir2EndFirst() - inter.Dir2StartFirst() - adjE2); l2++ ){
+      for ( int l1 = adjS1; l1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst() - adjE1); l1++ ){
 
 	//get block and slice indices
 	vector3d<int> indB = GetSwapLoc(l1, l2, l3, inter, true);
@@ -7653,10 +7660,11 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 /* Member function to overwrite a section of a procBlock's states with a stateSlice. The function uses the orientation supplied in the interblock to orient the 
 stateSlice relative to the procBlock. It assumes that the procBlock is listed first, and the stateSlice second in the interblock data structure.
 */
-void procBlock::PutStateSlice( const stateSlice &slice, const interblock &inter, const int &d3){
+void procBlock::PutStateSlice( const stateSlice &slice, const interblock &inter, const int &d3, const int &numG){
   // slice -- geomSlice to insert int procBlock
   // inter -- interblock data structure defining the patches and their orientation
   // d3 -- distance of direction normal to patch to insert
+  // numG -- number of ghost cells
 
   //check that number of cells to insert matches
   int blkCell = (inter.Dir1EndFirst() - inter.Dir1StartFirst()) * (inter.Dir2EndFirst() - inter.Dir2StartFirst()) * d3;
@@ -7676,10 +7684,16 @@ void procBlock::PutStateSlice( const stateSlice &slice, const interblock &inter,
   int imaxS = slice.NumI();
   int jmaxS = slice.NumJ();
 
+  //adjust insertion indices if patch borders another interblock on the same surface of the block
+  int adjS1 = (inter.Dir1StartInterBorderFirst()) ? numG : 0;
+  int adjE1 = (inter.Dir1EndInterBorderFirst()) ? numG : 0;
+  int adjS2 = (inter.Dir2StartInterBorderFirst()) ? numG : 0;
+  int adjE2 = (inter.Dir2EndInterBorderFirst()) ? numG : 0;
+
   //loop over cells to insert
   for ( int l3 = 0; l3 < d3; l3++ ){
-    for ( int l2 = 0; l2 < (inter.Dir2EndFirst() - inter.Dir2StartFirst()); l2++ ){
-      for ( int l1 = 0; l1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst()); l1++ ){
+    for ( int l2 = adjS2; l2 < (inter.Dir2EndFirst() - inter.Dir2StartFirst() - adjE2); l2++ ){
+      for ( int l1 = adjS1; l1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst() - adjE1); l1++ ){
 
 	//get block and slice indices
 	vector3d<int> indB = GetSwapLoc(l1, l2, l3, inter, true);
@@ -7689,14 +7703,14 @@ void procBlock::PutStateSlice( const stateSlice &slice, const interblock &inter,
 	int locB = GetLoc1D(indB[0], indB[1], indB[2], imaxB, jmaxB);
 	int locS = GetLoc1D(indS[0], indS[1], indS[2], imaxS, jmaxS);
 
-	if ( inter.BlockFirst() == 4 && inter.BlockSecond() == 2 && l2 == 0 && l3 == 0 ){
-	  if ( l1 == 0 ){
-	    cout << inter;
-	  }
-	  cout << "loc: " << l1 << ", " << l2 << ", " << l3 << endl;
-	  cout << "inserting into block location: " << indB << " of " << imaxB << ", " << jmaxB << ", " << (*this).NumK() + 2.0 * (*this).NumGhosts() << endl;
-	  cout << slice.State(locS) << endl;
-	}
+	// if ( inter.BlockFirst() == 2 && inter.BlockSecond() == 4 && l2 == 0 && l3 == 0 ){
+	//   if ( l1 == 0 ){
+	//     cout << inter;
+	//   }
+	//   cout << "loc: " << l1 << ", " << l2 << ", " << l3 << endl;
+	//   cout << "inserting into block location: " << indB << " of " << imaxB << ", " << jmaxB << ", " << (*this).NumK() + 2.0 * (*this).NumGhosts() << endl;
+	//   cout << slice.State(locS) << endl;
+	// }
 
 	//swap cell data
 	(*this).state[locB] = slice.State(locS);

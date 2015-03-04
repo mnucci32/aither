@@ -153,10 +153,10 @@ class procBlock {
   bool AtEdge(const int&, const int&, const int&)const;
 
   geomSlice GetGeomSlice(const int&, const int&, const int&, const int&, const int&, const int&, const bool=false, const bool=false, const bool=false)const;
-  void PutGeomSlice(const geomSlice&, const interblock&, const int&);
+  void PutGeomSlice(const geomSlice&, const interblock&, const int&, const int&);
 
   stateSlice GetStateSlice(const int&, const int&, const int&, const int&, const int&, const int&, const bool=false, const bool=false, const bool=false)const;
-  void PutStateSlice(const stateSlice&, const interblock&, const int&);
+  void PutStateSlice(const stateSlice&, const interblock&, const int&, const int&);
 
   procBlock Split(const string&, const int&, const int&, vector<boundarySurface>&);
   void Join(const procBlock&, const string&, vector<boundarySurface>&);
