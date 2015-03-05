@@ -5063,7 +5063,7 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp, const idealGas &e
 
       }
 
-      //if both corner boundaries aren't interblocks, get edge cells; if bouth boundaries are interblocks, edge cells come from ghost cell exchange
+      //if both corner boundaries aren't interblocks, get edge cells; if both boundaries are interblocks, edge cells come from ghost cell exchange
       if ( bc_J != "interblock" && bc_K != "interblock" ){ 
 
 	int gce_j1_k1 = GetLoc1D(ii, j1, k1, imaxG, jmaxG);      //ghost cell on edge, on first layer of j line of cells, on first layer of k line of cells
@@ -7168,486 +7168,489 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	int KlowS = GetLowerFaceK(indS[0], indS[1], indS[2], imaxS, jmaxS);
 	int KupS  = GetUpperFaceK(indS[0], indS[1], indS[2], imaxS, jmaxS);
 
-	//swap cell data
-	(*this).vol[locB] = slice.Vol(locS);
-	(*this).center[locB] = slice.Center(locS);
 
-	//----------------------------------------------------------------------------------------------------------------------------------------
-	//swap face data
-	if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() <= 2 ){ //both patches i, i to i, j to j, k to k
+	if ( slice.Vol(locS) != 0.0 ){ //don't overwrite with garbage from partner block that hasn't recieved its ghost value yet (needed at "t" intersection)
+	  //swap cell data
+	  (*this).vol[locB] = slice.Vol(locS);
+	  (*this).center[locB] = slice.Center(locS);
 
-	  //swap face data for direction 3
-	  (*this).fCenterI[IlowB] = slice.FCenterI(IlowS) ;
-	  (*this).fAreaI[IlowB] = aFac3 * slice.FAreaI(IlowS) ;
+	  //----------------------------------------------------------------------------------------------------------------------------------------
+	  //swap face data
+	  if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() <= 2 ){ //both patches i, i to i, j to j, k to k
 
-	  if ( l3 == (d3 - 1) ){ //at end of direction 3 line
-	    (*this).fCenterI[IupB] = slice.FCenterI(IupS) ;
-	    (*this).fAreaI[IupB] = aFac3 * slice.FAreaI(IupS) ;
+	    //swap face data for direction 3
+	    (*this).fCenterI[IlowB] = slice.FCenterI(IlowS) ;
+	    (*this).fAreaI[IlowB] = aFac3 * slice.FAreaI(IlowS) ;
+
+	    if ( l3 == (d3 - 1) ){ //at end of direction 3 line
+	      (*this).fCenterI[IupB] = slice.FCenterI(IupS) ;
+	      (*this).fAreaI[IupB] = aFac3 * slice.FAreaI(IupS) ;
+	    }
+
+	    //swap face data for direction 1
+	    if ( aFac1 == 1.0 ){
+	      (*this).fCenterJ[JlowB] = slice.FCenterJ(JlowS);
+	      (*this).fAreaJ[JlowB] = aFac1 * slice.FAreaJ(JlowS);
+
+	      if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+		(*this).fCenterJ[JupB] = slice.FCenterJ(JupS);
+		(*this).fAreaJ[JupB] = aFac1 * slice.FAreaJ(JupS);
+	      }
+	    }
+	    else{ //if direction is reversed, upper/lower faces need to be swapped
+	      (*this).fCenterJ[JlowB] = slice.FCenterJ(JupS);
+	      (*this).fAreaJ[JlowB] = aFac1 * slice.FAreaJ(JupS);
+
+	      if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+		(*this).fCenterJ[JupB] = slice.FCenterJ(JlowS);
+		(*this).fAreaJ[JupB] = aFac1 * slice.FAreaJ(JlowS);
+	      }
+	    }
+
+	    //swap face data for direction 2
+	    if ( aFac2 == 1.0 ){
+	      (*this).fCenterK[KlowB] = slice.FCenterK(KlowS);
+	      (*this).fAreaK[KlowB] = aFac2 * slice.FAreaK(KlowS);
+
+	      if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+		(*this).fCenterK[KupB] = slice.FCenterK(KupS);
+		(*this).fAreaK[KupB] = aFac2 * slice.FAreaK(KupS);
+	      }
+	    }
+	    else{ //if direction is reversed, upper/lower faces need to be swapped
+	      (*this).fCenterK[KlowB] = slice.FCenterK(KupS);
+	      (*this).fAreaK[KlowB] = aFac2 * slice.FAreaK(KupS);
+
+	      if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+		(*this).fCenterK[KupB] = slice.FCenterK(KlowS);
+		(*this).fAreaK[KupB] = aFac2 * slice.FAreaK(KlowS);
+	      }
+	    }
+
 	  }
+	  //----------------------------------------------------------------------------------------------------------------------------------------
+	  else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4 ){ //both patches j, j to j, k to k, i to i
 
-	  //swap face data for direction 1
-	  if ( aFac1 == 1.0 ){
-	    (*this).fCenterJ[JlowB] = slice.FCenterJ(JlowS);
-	    (*this).fAreaJ[JlowB] = aFac1 * slice.FAreaJ(JlowS);
+	    //swap face data for direction 3
+	    (*this).fCenterJ[JlowB] = slice.FCenterJ(JlowS) ;
+	    (*this).fAreaJ[JlowB] = aFac3 * slice.FAreaJ(JlowS) ;
 
-	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).fCenterJ[JupB] = slice.FCenterJ(JupS);
-	      (*this).fAreaJ[JupB] = aFac1 * slice.FAreaJ(JupS);
+	    if ( l3 == (d3 - 1) ){ //at end of direction 3 line
+	      (*this).fCenterJ[JupB] = slice.FCenterJ(JupS) ;
+	      (*this).fAreaJ[JupB] = aFac3 * slice.FAreaJ(JupS) ;
+	    }
+
+	    //swap face data for direction 1
+	    if ( aFac1 == 1.0 ){
+	      (*this).fCenterK[KlowB] = slice.FCenterK(KlowS);
+	      (*this).fAreaK[KlowB] = aFac1 * slice.FAreaK(KlowS);
+
+	      if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+		(*this).fCenterK[KupB] = slice.FCenterK(KupS);
+		(*this).fAreaK[KupB] = aFac1 * slice.FAreaK(KupS);
+	      }
+	    }
+	    else{ //if direction is reversed, upper/lower faces need to be swapped
+	      (*this).fCenterK[KlowB] = slice.FCenterK(KupS);
+	      (*this).fAreaK[KlowB] = aFac1 * slice.FAreaK(KupS);
+
+	      if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+		(*this).fCenterK[KupB] = slice.FCenterK(KlowS);
+		(*this).fAreaK[KupB] = aFac1 * slice.FAreaK(KlowS);
+	      }
+	    }
+
+	    //swap face data for direction 2
+	    if ( aFac2 == 1.0 ){
+	      (*this).fCenterI[IlowB] = slice.FCenterI(IlowS);
+	      (*this).fAreaI[IlowB] = aFac2 * slice.FAreaI(IlowS);
+
+	      if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+		(*this).fCenterI[IupB] = slice.FCenterI(IupS);
+		(*this).fAreaI[IupB] = aFac2 * slice.FAreaI(IupS);
+	      }
+	    }
+	    else{ //if direction is reversed, upper/lower faces need to be swapped
+	      (*this).fCenterI[IlowB] = slice.FCenterI(IupS);
+	      (*this).fAreaI[IlowB] = aFac2 * slice.FAreaI(IupS);
+
+	      if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+		(*this).fCenterI[IupB] = slice.FCenterI(IlowS);
+		(*this).fAreaI[IupB] = aFac2 * slice.FAreaI(IlowS);
+	      }
 	    }
 	  }
-	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).fCenterJ[JlowB] = slice.FCenterJ(JupS);
-	    (*this).fAreaJ[JlowB] = aFac1 * slice.FAreaJ(JupS);
+	  //----------------------------------------------------------------------------------------------------------------------------------------
+	  else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6 ){ //both patches k, k to k, i to i, j to j
 
-	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).fCenterJ[JupB] = slice.FCenterJ(JlowS);
-	      (*this).fAreaJ[JupB] = aFac1 * slice.FAreaJ(JlowS);
+	    //swap face data for direction 3
+	    (*this).fCenterK[KlowB] = slice.FCenterK(KlowS) ;
+	    (*this).fAreaK[KlowB] = aFac3 * slice.FAreaK(KlowS) ;
+
+	    if ( l3 == (d3 - 1) ){ //at end of direction 3 line
+	      (*this).fCenterK[KupB] = slice.FCenterK(KupS) ;
+	      (*this).fAreaK[KupB] = aFac3 * slice.FAreaK(KupS) ;
+	    }
+
+	    //swap face data for direction 1
+	    if ( aFac1 == 1.0 ){
+	      (*this).fCenterI[IlowB] = slice.FCenterI(IlowS);
+	      (*this).fAreaI[IlowB] = aFac1 * slice.FAreaI(IlowS);
+
+	      if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+		(*this).fCenterI[IupB] = slice.FCenterI(IupS);
+		(*this).fAreaI[IupB] = aFac1 * slice.FAreaI(IupS);
+	      }
+	    }
+	    else{ //if direction is reversed, upper/lower faces need to be swapped
+	      (*this).fCenterI[IlowB] = slice.FCenterI(IupS);
+	      (*this).fAreaI[IlowB] = aFac1 * slice.FAreaI(IupS);
+
+	      if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+		(*this).fCenterI[IupB] = slice.FCenterI(IlowS);
+		(*this).fAreaI[IupB] = aFac1 * slice.FAreaI(IlowS);
+	      }
+	    }
+
+	    //swap face data for direction 2
+	    if ( aFac2 == 1.0 ){
+	      (*this).fCenterJ[JlowB] = slice.FCenterJ(JlowS);
+	      (*this).fAreaJ[JlowB] = aFac2 * slice.FAreaJ(JlowS);
+
+	      if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+		(*this).fCenterJ[JupB] = slice.FCenterJ(JupS);
+		(*this).fAreaJ[JupB] = aFac2 * slice.FAreaJ(JupS);
+	      }
+	    }
+	    else{ //if direction is reversed, upper/lower faces need to be swapped
+	      (*this).fCenterJ[JlowB] = slice.FCenterJ(JupS);
+	      (*this).fAreaJ[JlowB] = aFac2 * slice.FAreaJ(JupS);
+
+	      if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+		(*this).fCenterJ[JupB] = slice.FCenterJ(JlowS);
+		(*this).fAreaJ[JupB] = aFac2 * slice.FAreaJ(JlowS);
+	      }
 	    }
 	  }
+	  //----------------------------------------------------------------------------------------------------------------------------------------
+	  else if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4){ //patches are i/j  - i to j, j to k, k to i
 
-	  //swap face data for direction 2
-	  if ( aFac2 == 1.0 ){
-	    (*this).fCenterK[KlowB] = slice.FCenterK(KlowS);
-	    (*this).fAreaK[KlowB] = aFac2 * slice.FAreaK(KlowS);
+	    //swap face data for direction 3
+	    (*this).fCenterI[IlowB] = slice.FCenterJ(JlowS) ;
+	    (*this).fAreaI[IlowB] = aFac3 * slice.FAreaJ(JlowS) ;
 
-	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).fCenterK[KupB] = slice.FCenterK(KupS);
-	      (*this).fAreaK[KupB] = aFac2 * slice.FAreaK(KupS);
+	    if ( l3 == (d3 - 1) ){ //at end of direction 3 line
+	      (*this).fCenterI[IupB] = slice.FCenterJ(JupS) ;
+	      (*this).fAreaI[IupB] = aFac3 * slice.FAreaJ(JupS) ;
+	    }
+
+	    //swap face data for direction 1
+	    if ( aFac1 == 1.0 ){
+	      (*this).fCenterJ[JlowB] = slice.FCenterK(KlowS);
+	      (*this).fAreaJ[JlowB] = aFac1 * slice.FAreaK(KlowS);
+
+	      if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+		(*this).fCenterJ[JupB] = slice.FCenterK(KupS);
+		(*this).fAreaJ[JupB] = aFac1 * slice.FAreaK(KupS);
+	      }
+	    }
+	    else{ //if direction is reversed, upper/lower faces need to be swapped
+	      (*this).fCenterJ[JlowB] = slice.FCenterK(KupS);
+	      (*this).fAreaJ[JlowB] = aFac1 * slice.FAreaK(KupS);
+
+	      if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+		(*this).fCenterJ[JupB] = slice.FCenterK(KlowS);
+		(*this).fAreaJ[JupB] = aFac1 * slice.FAreaK(KlowS);
+	      }
+	    }
+
+	    //swap face data for direction 2
+	    if ( aFac2 == 1.0 ){
+	      (*this).fCenterK[KlowB] = slice.FCenterI(IlowS);
+	      (*this).fAreaK[KlowB] = aFac2 * slice.FAreaI(IlowS);
+
+	      if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+		(*this).fCenterK[KupB] = slice.FCenterI(IupS);
+		(*this).fAreaK[KupB] = aFac2 * slice.FAreaI(IupS);
+	      }
+	    }
+	    else{ //if direction is reversed, upper/lower faces need to be swapped
+	      (*this).fCenterK[KlowB] = slice.FCenterI(IupS);
+	      (*this).fAreaK[KlowB] = aFac2 * slice.FAreaI(IupS);
+
+	      if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+		(*this).fCenterK[KupB] = slice.FCenterI(IlowS);
+		(*this).fAreaK[KupB] = aFac2 * slice.FAreaI(IlowS);
+	      }
 	    }
 	  }
-	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).fCenterK[KlowB] = slice.FCenterK(KupS);
-	    (*this).fAreaK[KlowB] = aFac2 * slice.FAreaK(KupS);
+	  //----------------------------------------------------------------------------------------------------------------------------------------
+	  else if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6){ //patches are i/k  - i to k, j to i, k to j
 
-	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).fCenterK[KupB] = slice.FCenterK(KlowS);
-	      (*this).fAreaK[KupB] = aFac2 * slice.FAreaK(KlowS);
+	    //swap face data for direction 3
+	    (*this).fCenterI[IlowB] = slice.FCenterK(KlowS) ;
+	    (*this).fAreaI[IlowB] = aFac3 * slice.FAreaK(KlowS) ;
+
+	    if ( l3 == (d3 - 1) ){ //at end of direction 3 line
+	      (*this).fCenterI[IupB] = slice.FCenterK(KupS) ;
+	      (*this).fAreaI[IupB] = aFac3 * slice.FAreaK(KupS) ;
+	    }
+
+	    //swap face data for direction 1
+	    if ( aFac1 == 1.0 ){
+	      (*this).fCenterJ[JlowB] = slice.FCenterI(IlowS);
+	      (*this).fAreaJ[JlowB] = aFac1 * slice.FAreaI(IlowS);
+
+	      if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+		(*this).fCenterJ[JupB] = slice.FCenterI(IupS);
+		(*this).fAreaJ[JupB] = aFac1 * slice.FAreaI(IupS);
+	      }
+	    }
+	    else{ //if direction is reversed, upper/lower faces need to be swapped
+	      (*this).fCenterJ[JlowB] = slice.FCenterI(IupS);
+	      (*this).fAreaJ[JlowB] = aFac1 * slice.FAreaI(IupS);
+
+	      if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+		(*this).fCenterJ[JupB] = slice.FCenterI(IlowS);
+		(*this).fAreaJ[JupB] = aFac1 * slice.FAreaI(IlowS);
+	      }
+	    }
+
+	    //swap face data for direction 2
+	    if ( aFac2 == 1.0 ){
+	      (*this).fCenterK[KlowB] = slice.FCenterJ(JlowS);
+	      (*this).fAreaK[KlowB] = aFac2 * slice.FAreaJ(JlowS);
+
+	      if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+		(*this).fCenterK[KupB] = slice.FCenterJ(JupS);
+		(*this).fAreaK[KupB] = aFac2 * slice.FAreaJ(JupS);
+	      }
+	    }
+	    else{ //if direction is reversed, upper/lower faces need to be swapped
+	      (*this).fCenterK[KlowB] = slice.FCenterJ(JupS);
+	      (*this).fAreaK[KlowB] = aFac2 * slice.FAreaJ(JupS);
+
+	      if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+		(*this).fCenterK[KupB] = slice.FCenterJ(JlowS);
+		(*this).fAreaK[KupB] = aFac2 * slice.FAreaJ(JlowS);
+	      }
 	    }
 	  }
+	  //----------------------------------------------------------------------------------------------------------------------------------------
+	  else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() <= 2 ){ //patches are j/i, j to i, k to j, i to k
 
-	}
-	//----------------------------------------------------------------------------------------------------------------------------------------
-	else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4 ){ //both patches j, j to j, k to k, i to i
+	    //swap face data for direction 3
+	    (*this).fCenterJ[JlowB] = slice.FCenterI(IlowS) ;
+	    (*this).fAreaJ[JlowB] = aFac3 * slice.FAreaI(IlowS) ;
 
-	  //swap face data for direction 3
-	  (*this).fCenterJ[JlowB] = slice.FCenterJ(JlowS) ;
-	  (*this).fAreaJ[JlowB] = aFac3 * slice.FAreaJ(JlowS) ;
+	    if ( l3 == (d3 - 1) ){ //at end of direction 3 line
+	      (*this).fCenterJ[JupB] = slice.FCenterI(IupS) ;
+	      (*this).fAreaJ[JupB] = aFac3 * slice.FAreaI(IupS) ;
+	    }
 
-	  if ( l3 == (d3 - 1) ){ //at end of direction 3 line
-	    (*this).fCenterJ[JupB] = slice.FCenterJ(JupS) ;
-	    (*this).fAreaJ[JupB] = aFac3 * slice.FAreaJ(JupS) ;
+	    //swap face data for direction 1
+	    if ( aFac1 == 1.0 ){
+	      (*this).fCenterK[KlowB] = slice.FCenterJ(JlowS);
+	      (*this).fAreaK[KlowB] = aFac1 * slice.FAreaJ(JlowS);
+
+	      if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+		(*this).fCenterK[KupB] = slice.FCenterJ(JupS);
+		(*this).fAreaK[KupB] = aFac1 * slice.FAreaJ(JupS);
+	      }
+	    }
+	    else{ //if direction is reversed, upper/lower faces need to be swapped
+	      (*this).fCenterK[KlowB] = slice.FCenterJ(JupS);
+	      (*this).fAreaK[KlowB] = aFac1 * slice.FAreaJ(JupS);
+
+	      if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+		(*this).fCenterK[KupB] = slice.FCenterJ(JlowS);
+		(*this).fAreaK[KupB] = aFac1 * slice.FAreaJ(JlowS);
+	      }
+	    }
+
+	    //swap face data for direction 2
+	    if ( aFac2 == 1.0 ){
+	      (*this).fCenterI[IlowB] = slice.FCenterK(KlowS);
+	      (*this).fAreaI[IlowB] = aFac2 * slice.FAreaK(KlowS);
+
+	      if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+		(*this).fCenterI[IupB] = slice.FCenterK(KupS);
+		(*this).fAreaI[IupB] = aFac2 * slice.FAreaK(KupS);
+	      }
+	    }
+	    else{ //if direction is reversed, upper/lower faces need to be swapped
+	      (*this).fCenterI[IlowB] = slice.FCenterK(KupS);
+	      (*this).fAreaI[IlowB] = aFac2 * slice.FAreaK(KupS);
+
+	      if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+		(*this).fCenterI[IupB] = slice.FCenterK(KlowS);
+		(*this).fAreaI[IupB] = aFac2 * slice.FAreaK(KlowS);
+	      }
+	    }
+
 	  }
+	  //----------------------------------------------------------------------------------------------------------------------------------------
+	  else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6 ){ //patches are j/k, j to k, k to i, i to j
 
-	  //swap face data for direction 1
-	  if ( aFac1 == 1.0 ){
-	    (*this).fCenterK[KlowB] = slice.FCenterK(KlowS);
-	    (*this).fAreaK[KlowB] = aFac1 * slice.FAreaK(KlowS);
+	    //swap face data for direction 3
+	    (*this).fCenterJ[JlowB] = slice.FCenterK(KlowS) ;
+	    (*this).fAreaJ[JlowB] = aFac3 * slice.FAreaK(KlowS) ;
 
-	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).fCenterK[KupB] = slice.FCenterK(KupS);
-	      (*this).fAreaK[KupB] = aFac1 * slice.FAreaK(KupS);
+	    if ( l3 == (d3 - 1) ){ //at end of direction 3 line
+	      (*this).fCenterJ[JupB] = slice.FCenterJ(JupS) ;
+	      (*this).fAreaJ[JupB] = aFac3 * slice.FAreaJ(JupS) ;
+	    }
+
+	    //swap face data for direction 1
+	    if ( aFac1 == 1.0 ){
+	      (*this).fCenterK[KlowB] = slice.FCenterI(IlowS);
+	      (*this).fAreaK[KlowB] = aFac1 * slice.FAreaI(IlowS);
+
+	      if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+		(*this).fCenterK[KupB] = slice.FCenterI(IupS);
+		(*this).fAreaK[KupB] = aFac1 * slice.FAreaI(IupS);
+	      }
+	    }
+	    else{ //if direction is reversed, upper/lower faces need to be swapped
+	      (*this).fCenterK[KlowB] = slice.FCenterI(IupS);
+	      (*this).fAreaK[KlowB] = aFac1 * slice.FAreaI(IupS);
+
+	      if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+		(*this).fCenterK[KupB] = slice.FCenterI(IlowS);
+		(*this).fAreaK[KupB] = aFac1 * slice.FAreaI(IlowS);
+	      }
+	    }
+
+	    //swap face data for direction 2
+	    if ( aFac2 == 1.0 ){
+	      (*this).fCenterI[IlowB] = slice.FCenterJ(JlowS);
+	      (*this).fAreaI[IlowB] = aFac2 * slice.FAreaJ(JlowS);
+
+	      if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+		(*this).fCenterI[IupB] = slice.FCenterJ(JupS);
+		(*this).fAreaI[IupB] = aFac2 * slice.FAreaJ(JupS);
+	      }
+	    }
+	    else{ //if direction is reversed, upper/lower faces need to be swapped
+	      (*this).fCenterI[IlowB] = slice.FCenterJ(JupS);
+	      (*this).fAreaI[IlowB] = aFac2 * slice.FAreaJ(JupS);
+
+	      if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+		(*this).fCenterI[IupB] = slice.FCenterJ(JlowS);
+		(*this).fAreaI[IupB] = aFac2 * slice.FAreaJ(JlowS);
+	      }
 	    }
 	  }
-	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).fCenterK[KlowB] = slice.FCenterK(KupS);
-	    (*this).fAreaK[KlowB] = aFac1 * slice.FAreaK(KupS);
+	  //----------------------------------------------------------------------------------------------------------------------------------------
+	  else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() <= 2 ){ //patches are k/i, k to i, i to j, j to k
 
-	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).fCenterK[KupB] = slice.FCenterK(KlowS);
-	      (*this).fAreaK[KupB] = aFac1 * slice.FAreaK(KlowS);
+	    //swap face data for direction 3
+	    (*this).fCenterK[KlowB] = slice.FCenterI(IlowS) ;
+	    (*this).fAreaK[KlowB] = aFac3 * slice.FAreaI(IlowS) ;
+
+	    if ( l3 == (d3 - 1) ){ //at end of direction 3 line
+	      (*this).fCenterK[KupB] = slice.FCenterI(IupS) ;
+	      (*this).fAreaK[KupB] = aFac3 * slice.FAreaI(IupS) ;
+	    }
+
+	    //swap face data for direction 1
+	    if ( aFac1 == 1.0 ){
+	      (*this).fCenterI[IlowB] = slice.FCenterJ(JlowS);
+	      (*this).fAreaI[IlowB] = aFac1 * slice.FAreaJ(JlowS);
+
+	      if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+		(*this).fCenterI[IupB] = slice.FCenterJ(JupS);
+		(*this).fAreaI[IupB] = aFac1 * slice.FAreaJ(JupS);
+	      }
+	    }
+	    else{ //if direction is reversed, upper/lower faces need to be swapped
+	      (*this).fCenterI[IlowB] = slice.FCenterJ(JupS);
+	      (*this).fAreaI[IlowB] = aFac1 * slice.FAreaJ(JupS);
+
+	      if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+		(*this).fCenterI[IupB] = slice.FCenterJ(JlowS);
+		(*this).fAreaI[IupB] = aFac1 * slice.FAreaJ(JlowS);
+	      }
+	    }
+
+	    //swap face data for direction 2
+	    if ( aFac2 == 1.0 ){
+	      (*this).fCenterJ[JlowB] = slice.FCenterK(KlowS);
+	      (*this).fAreaJ[JlowB] = aFac2 * slice.FAreaK(KlowS);
+
+	      if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+		(*this).fCenterJ[JupB] = slice.FCenterK(KupS);
+		(*this).fAreaJ[JupB] = aFac2 * slice.FAreaK(KupS);
+	      }
+	    }
+	    else{ //if direction is reversed, upper/lower faces need to be swapped
+	      (*this).fCenterJ[JlowB] = slice.FCenterK(KupS);
+	      (*this).fAreaJ[JlowB] = aFac2 * slice.FAreaK(KupS);
+
+	      if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+		(*this).fCenterJ[JupB] = slice.FCenterK(KlowS);
+		(*this).fAreaJ[JupB] = aFac2 * slice.FAreaK(KlowS);
+	      }
 	    }
 	  }
+	  //----------------------------------------------------------------------------------------------------------------------------------------
+	  else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() <= 2 ){ //patches are k/j, k to j, i to k, j to i
 
-	  //swap face data for direction 2
-	  if ( aFac2 == 1.0 ){
-	    (*this).fCenterI[IlowB] = slice.FCenterI(IlowS);
-	    (*this).fAreaI[IlowB] = aFac2 * slice.FAreaI(IlowS);
+	    //swap face data for direction 3
+	    (*this).fCenterK[KlowB] = slice.FCenterJ(JlowS) ;
+	    (*this).fAreaK[KlowB] = aFac3 * slice.FAreaJ(JlowS) ;
 
-	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).fCenterI[IupB] = slice.FCenterI(IupS);
-	      (*this).fAreaI[IupB] = aFac2 * slice.FAreaI(IupS);
+	    if ( l3 == (d3 - 1) ){ //at end of direction 3 line
+	      (*this).fCenterK[KupB] = slice.FCenterJ(JupS) ;
+	      (*this).fAreaK[KupB] = aFac3 * slice.FAreaJ(JupS) ;
+	    }
+
+	    //swap face data for direction 1
+	    if ( aFac1 == 1.0 ){
+	      (*this).fCenterI[IlowB] = slice.FCenterK(KlowS);
+	      (*this).fAreaI[IlowB] = aFac1 * slice.FAreaK(KlowS);
+
+	      if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+		(*this).fCenterI[IupB] = slice.FCenterK(KupS);
+		(*this).fAreaI[IupB] = aFac1 * slice.FAreaK(KupS);
+	      }
+	    }
+	    else{ //if direction is reversed, upper/lower faces need to be swapped
+	      (*this).fCenterI[IlowB] = slice.FCenterK(KupS);
+	      (*this).fAreaI[IlowB] = aFac1 * slice.FAreaK(KupS);
+
+	      if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
+		(*this).fCenterI[IupB] = slice.FCenterK(KlowS);
+		(*this).fAreaI[IupB] = aFac1 * slice.FAreaK(KlowS);
+	      }
+	    }
+
+	    //swap face data for direction 2
+	    if ( aFac2 == 1.0 ){
+	      (*this).fCenterJ[JlowB] = slice.FCenterI(IlowS);
+	      (*this).fAreaJ[JlowB] = aFac2 * slice.FAreaI(IlowS);
+
+	      if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+		(*this).fCenterJ[JupB] = slice.FCenterI(IupS);
+		(*this).fAreaJ[JupB] = aFac2 * slice.FAreaI(IupS);
+	      }
+	    }
+	    else{ //if direction is reversed, upper/lower faces need to be swapped
+	      (*this).fCenterJ[JlowB] = slice.FCenterI(IupS);
+	      (*this).fAreaJ[JlowB] = aFac2 * slice.FAreaI(IupS);
+
+	      if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
+		(*this).fCenterJ[JupB] = slice.FCenterI(IlowS);
+		(*this).fAreaJ[JupB] = aFac2 * slice.FAreaI(IlowS);
+	      }
 	    }
 	  }
-	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).fCenterI[IlowB] = slice.FCenterI(IupS);
-	    (*this).fAreaI[IlowB] = aFac2 * slice.FAreaI(IupS);
-
-	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).fCenterI[IupB] = slice.FCenterI(IlowS);
-	      (*this).fAreaI[IupB] = aFac2 * slice.FAreaI(IlowS);
-	    }
+	  //----------------------------------------------------------------------------------------------------------------------------------------
+	  else{
+	    cerr << "ERROR: Error in procBlock::PutGeomSlice(). Unable to swap face quantities because behavior for interface with boundary pair "
+		 << inter.BoundaryFirst() << ", " << inter.BoundarySecond() << " is not defined." << endl;
+	    exit(0);
 	  }
-	}
-	//----------------------------------------------------------------------------------------------------------------------------------------
-	else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6 ){ //both patches k, k to k, i to i, j to j
-
-	  //swap face data for direction 3
-	  (*this).fCenterK[KlowB] = slice.FCenterK(KlowS) ;
-	  (*this).fAreaK[KlowB] = aFac3 * slice.FAreaK(KlowS) ;
-
-	  if ( l3 == (d3 - 1) ){ //at end of direction 3 line
-	    (*this).fCenterK[KupB] = slice.FCenterK(KupS) ;
-	    (*this).fAreaK[KupB] = aFac3 * slice.FAreaK(KupS) ;
-	  }
-
-	  //swap face data for direction 1
-	  if ( aFac1 == 1.0 ){
-	    (*this).fCenterI[IlowB] = slice.FCenterI(IlowS);
-	    (*this).fAreaI[IlowB] = aFac1 * slice.FAreaI(IlowS);
-
-	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).fCenterI[IupB] = slice.FCenterI(IupS);
-	      (*this).fAreaI[IupB] = aFac1 * slice.FAreaI(IupS);
-	    }
-	  }
-	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).fCenterI[IlowB] = slice.FCenterI(IupS);
-	    (*this).fAreaI[IlowB] = aFac1 * slice.FAreaI(IupS);
-
-	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).fCenterI[IupB] = slice.FCenterI(IlowS);
-	      (*this).fAreaI[IupB] = aFac1 * slice.FAreaI(IlowS);
-	    }
-	  }
-
-	  //swap face data for direction 2
-	  if ( aFac2 == 1.0 ){
-	    (*this).fCenterJ[JlowB] = slice.FCenterJ(JlowS);
-	    (*this).fAreaJ[JlowB] = aFac2 * slice.FAreaJ(JlowS);
-
-	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).fCenterJ[JupB] = slice.FCenterJ(JupS);
-	      (*this).fAreaJ[JupB] = aFac2 * slice.FAreaJ(JupS);
-	    }
-	  }
-	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).fCenterJ[JlowB] = slice.FCenterJ(JupS);
-	    (*this).fAreaJ[JlowB] = aFac2 * slice.FAreaJ(JupS);
-
-	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).fCenterJ[JupB] = slice.FCenterJ(JlowS);
-	      (*this).fAreaJ[JupB] = aFac2 * slice.FAreaJ(JlowS);
-	    }
-	  }
-	}
-	//----------------------------------------------------------------------------------------------------------------------------------------
-	else if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4){ //patches are i/j  - i to j, j to k, k to i
-
-	  //swap face data for direction 3
-	  (*this).fCenterI[IlowB] = slice.FCenterJ(JlowS) ;
-	  (*this).fAreaI[IlowB] = aFac3 * slice.FAreaJ(JlowS) ;
-
-	  if ( l3 == (d3 - 1) ){ //at end of direction 3 line
-	    (*this).fCenterI[IupB] = slice.FCenterJ(JupS) ;
-	    (*this).fAreaI[IupB] = aFac3 * slice.FAreaJ(JupS) ;
-	  }
-
-	  //swap face data for direction 1
-	  if ( aFac1 == 1.0 ){
-	    (*this).fCenterJ[JlowB] = slice.FCenterK(KlowS);
-	    (*this).fAreaJ[JlowB] = aFac1 * slice.FAreaK(KlowS);
-
-	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).fCenterJ[JupB] = slice.FCenterK(KupS);
-	      (*this).fAreaJ[JupB] = aFac1 * slice.FAreaK(KupS);
-	    }
-	  }
-	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).fCenterJ[JlowB] = slice.FCenterK(KupS);
-	    (*this).fAreaJ[JlowB] = aFac1 * slice.FAreaK(KupS);
-
-	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).fCenterJ[JupB] = slice.FCenterK(KlowS);
-	      (*this).fAreaJ[JupB] = aFac1 * slice.FAreaK(KlowS);
-	    }
-	  }
-
-	  //swap face data for direction 2
-	  if ( aFac2 == 1.0 ){
-	    (*this).fCenterK[KlowB] = slice.FCenterI(IlowS);
-	    (*this).fAreaK[KlowB] = aFac2 * slice.FAreaI(IlowS);
-
-	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).fCenterK[KupB] = slice.FCenterI(IupS);
-	      (*this).fAreaK[KupB] = aFac2 * slice.FAreaI(IupS);
-	    }
-	  }
-	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).fCenterK[KlowB] = slice.FCenterI(IupS);
-	    (*this).fAreaK[KlowB] = aFac2 * slice.FAreaI(IupS);
-
-	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).fCenterK[KupB] = slice.FCenterI(IlowS);
-	      (*this).fAreaK[KupB] = aFac2 * slice.FAreaI(IlowS);
-	    }
-	  }
-	}
-	//----------------------------------------------------------------------------------------------------------------------------------------
-	else if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6){ //patches are i/k  - i to k, j to i, k to j
-
-	  //swap face data for direction 3
-	  (*this).fCenterI[IlowB] = slice.FCenterK(KlowS) ;
-	  (*this).fAreaI[IlowB] = aFac3 * slice.FAreaK(KlowS) ;
-
-	  if ( l3 == (d3 - 1) ){ //at end of direction 3 line
-	    (*this).fCenterI[IupB] = slice.FCenterK(KupS) ;
-	    (*this).fAreaI[IupB] = aFac3 * slice.FAreaK(KupS) ;
-	  }
-
-	  //swap face data for direction 1
-	  if ( aFac1 == 1.0 ){
-	    (*this).fCenterJ[JlowB] = slice.FCenterI(IlowS);
-	    (*this).fAreaJ[JlowB] = aFac1 * slice.FAreaI(IlowS);
-
-	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).fCenterJ[JupB] = slice.FCenterI(IupS);
-	      (*this).fAreaJ[JupB] = aFac1 * slice.FAreaI(IupS);
-	    }
-	  }
-	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).fCenterJ[JlowB] = slice.FCenterI(IupS);
-	    (*this).fAreaJ[JlowB] = aFac1 * slice.FAreaI(IupS);
-
-	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).fCenterJ[JupB] = slice.FCenterI(IlowS);
-	      (*this).fAreaJ[JupB] = aFac1 * slice.FAreaI(IlowS);
-	    }
-	  }
-
-	  //swap face data for direction 2
-	  if ( aFac2 == 1.0 ){
-	    (*this).fCenterK[KlowB] = slice.FCenterJ(JlowS);
-	    (*this).fAreaK[KlowB] = aFac2 * slice.FAreaJ(JlowS);
-
-	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).fCenterK[KupB] = slice.FCenterJ(JupS);
-	      (*this).fAreaK[KupB] = aFac2 * slice.FAreaJ(JupS);
-	    }
-	  }
-	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).fCenterK[KlowB] = slice.FCenterJ(JupS);
-	    (*this).fAreaK[KlowB] = aFac2 * slice.FAreaJ(JupS);
-
-	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).fCenterK[KupB] = slice.FCenterJ(JlowS);
-	      (*this).fAreaK[KupB] = aFac2 * slice.FAreaJ(JlowS);
-	    }
-	  }
-	}
-	//----------------------------------------------------------------------------------------------------------------------------------------
-	else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() <= 2 ){ //patches are j/i, j to i, k to j, i to k
-
-	  //swap face data for direction 3
-	  (*this).fCenterJ[JlowB] = slice.FCenterI(IlowS) ;
-	  (*this).fAreaJ[JlowB] = aFac3 * slice.FAreaI(IlowS) ;
-
-	  if ( l3 == (d3 - 1) ){ //at end of direction 3 line
-	    (*this).fCenterJ[JupB] = slice.FCenterI(IupS) ;
-	    (*this).fAreaJ[JupB] = aFac3 * slice.FAreaI(IupS) ;
-	  }
-
-	  //swap face data for direction 1
-	  if ( aFac1 == 1.0 ){
-	    (*this).fCenterK[KlowB] = slice.FCenterJ(JlowS);
-	    (*this).fAreaK[KlowB] = aFac1 * slice.FAreaJ(JlowS);
-
-	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).fCenterK[KupB] = slice.FCenterJ(JupS);
-	      (*this).fAreaK[KupB] = aFac1 * slice.FAreaJ(JupS);
-	    }
-	  }
-	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).fCenterK[KlowB] = slice.FCenterJ(JupS);
-	    (*this).fAreaK[KlowB] = aFac1 * slice.FAreaJ(JupS);
-
-	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).fCenterK[KupB] = slice.FCenterJ(JlowS);
-	      (*this).fAreaK[KupB] = aFac1 * slice.FAreaJ(JlowS);
-	    }
-	  }
-
-	  //swap face data for direction 2
-	  if ( aFac2 == 1.0 ){
-	    (*this).fCenterI[IlowB] = slice.FCenterK(KlowS);
-	    (*this).fAreaI[IlowB] = aFac2 * slice.FAreaK(KlowS);
-
-	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).fCenterI[IupB] = slice.FCenterK(KupS);
-	      (*this).fAreaI[IupB] = aFac2 * slice.FAreaK(KupS);
-	    }
-	  }
-	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).fCenterI[IlowB] = slice.FCenterK(KupS);
-	    (*this).fAreaI[IlowB] = aFac2 * slice.FAreaK(KupS);
-
-	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).fCenterI[IupB] = slice.FCenterK(KlowS);
-	      (*this).fAreaI[IupB] = aFac2 * slice.FAreaK(KlowS);
-	    }
-	  }
-
-	}
-	//----------------------------------------------------------------------------------------------------------------------------------------
-	else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6 ){ //patches are j/k, j to k, k to i, i to j
-
-	  //swap face data for direction 3
-	  (*this).fCenterJ[JlowB] = slice.FCenterK(KlowS) ;
-	  (*this).fAreaJ[JlowB] = aFac3 * slice.FAreaK(KlowS) ;
-
-	  if ( l3 == (d3 - 1) ){ //at end of direction 3 line
-	    (*this).fCenterJ[JupB] = slice.FCenterJ(JupS) ;
-	    (*this).fAreaJ[JupB] = aFac3 * slice.FAreaJ(JupS) ;
-	  }
-
-	  //swap face data for direction 1
-	  if ( aFac1 == 1.0 ){
-	    (*this).fCenterK[KlowB] = slice.FCenterI(IlowS);
-	    (*this).fAreaK[KlowB] = aFac1 * slice.FAreaI(IlowS);
-
-	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).fCenterK[KupB] = slice.FCenterI(IupS);
-	      (*this).fAreaK[KupB] = aFac1 * slice.FAreaI(IupS);
-	    }
-	  }
-	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).fCenterK[KlowB] = slice.FCenterI(IupS);
-	    (*this).fAreaK[KlowB] = aFac1 * slice.FAreaI(IupS);
-
-	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).fCenterK[KupB] = slice.FCenterI(IlowS);
-	      (*this).fAreaK[KupB] = aFac1 * slice.FAreaI(IlowS);
-	    }
-	  }
-
-	  //swap face data for direction 2
-	  if ( aFac2 == 1.0 ){
-	    (*this).fCenterI[IlowB] = slice.FCenterJ(JlowS);
-	    (*this).fAreaI[IlowB] = aFac2 * slice.FAreaJ(JlowS);
-
-	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).fCenterI[IupB] = slice.FCenterJ(JupS);
-	      (*this).fAreaI[IupB] = aFac2 * slice.FAreaJ(JupS);
-	    }
-	  }
-	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).fCenterI[IlowB] = slice.FCenterJ(JupS);
-	    (*this).fAreaI[IlowB] = aFac2 * slice.FAreaJ(JupS);
-
-	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).fCenterI[IupB] = slice.FCenterJ(JlowS);
-	      (*this).fAreaI[IupB] = aFac2 * slice.FAreaJ(JlowS);
-	    }
-	  }
-	}
-	//----------------------------------------------------------------------------------------------------------------------------------------
-	else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() <= 2 ){ //patches are k/i, k to i, i to j, j to k
-
-	  //swap face data for direction 3
-	  (*this).fCenterK[KlowB] = slice.FCenterI(IlowS) ;
-	  (*this).fAreaK[KlowB] = aFac3 * slice.FAreaI(IlowS) ;
-
-	  if ( l3 == (d3 - 1) ){ //at end of direction 3 line
-	    (*this).fCenterK[KupB] = slice.FCenterI(IupS) ;
-	    (*this).fAreaK[KupB] = aFac3 * slice.FAreaI(IupS) ;
-	  }
-
-	  //swap face data for direction 1
-	  if ( aFac1 == 1.0 ){
-	    (*this).fCenterI[IlowB] = slice.FCenterJ(JlowS);
-	    (*this).fAreaI[IlowB] = aFac1 * slice.FAreaJ(JlowS);
-
-	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).fCenterI[IupB] = slice.FCenterJ(JupS);
-	      (*this).fAreaI[IupB] = aFac1 * slice.FAreaJ(JupS);
-	    }
-	  }
-	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).fCenterI[IlowB] = slice.FCenterJ(JupS);
-	    (*this).fAreaI[IlowB] = aFac1 * slice.FAreaJ(JupS);
-
-	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).fCenterI[IupB] = slice.FCenterJ(JlowS);
-	      (*this).fAreaI[IupB] = aFac1 * slice.FAreaJ(JlowS);
-	    }
-	  }
-
-	  //swap face data for direction 2
-	  if ( aFac2 == 1.0 ){
-	    (*this).fCenterJ[JlowB] = slice.FCenterK(KlowS);
-	    (*this).fAreaJ[JlowB] = aFac2 * slice.FAreaK(KlowS);
-
-	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).fCenterJ[JupB] = slice.FCenterK(KupS);
-	      (*this).fAreaJ[JupB] = aFac2 * slice.FAreaK(KupS);
-	    }
-	  }
-	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).fCenterJ[JlowB] = slice.FCenterK(KupS);
-	    (*this).fAreaJ[JlowB] = aFac2 * slice.FAreaK(KupS);
-
-	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).fCenterJ[JupB] = slice.FCenterK(KlowS);
-	      (*this).fAreaJ[JupB] = aFac2 * slice.FAreaK(KlowS);
-	    }
-	  }
-	}
-	//----------------------------------------------------------------------------------------------------------------------------------------
-	else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() <= 2 ){ //patches are k/j, k to j, i to k, j to i
-
-	  //swap face data for direction 3
-	  (*this).fCenterK[KlowB] = slice.FCenterJ(JlowS) ;
-	  (*this).fAreaK[KlowB] = aFac3 * slice.FAreaJ(JlowS) ;
-
-	  if ( l3 == (d3 - 1) ){ //at end of direction 3 line
-	    (*this).fCenterK[KupB] = slice.FCenterJ(JupS) ;
-	    (*this).fAreaK[KupB] = aFac3 * slice.FAreaJ(JupS) ;
-	  }
-
-	  //swap face data for direction 1
-	  if ( aFac1 == 1.0 ){
-	    (*this).fCenterI[IlowB] = slice.FCenterK(KlowS);
-	    (*this).fAreaI[IlowB] = aFac1 * slice.FAreaK(KlowS);
-
-	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).fCenterI[IupB] = slice.FCenterK(KupS);
-	      (*this).fAreaI[IupB] = aFac1 * slice.FAreaK(KupS);
-	    }
-	  }
-	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).fCenterI[IlowB] = slice.FCenterK(KupS);
-	    (*this).fAreaI[IlowB] = aFac1 * slice.FAreaK(KupS);
-
-	    if ( l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1) ){//at end of direction 1 line
-	      (*this).fCenterI[IupB] = slice.FCenterK(KlowS);
-	      (*this).fAreaI[IupB] = aFac1 * slice.FAreaK(KlowS);
-	    }
-	  }
-
-	  //swap face data for direction 2
-	  if ( aFac2 == 1.0 ){
-	    (*this).fCenterJ[JlowB] = slice.FCenterI(IlowS);
-	    (*this).fAreaJ[JlowB] = aFac2 * slice.FAreaI(IlowS);
-
-	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).fCenterJ[JupB] = slice.FCenterI(IupS);
-	      (*this).fAreaJ[JupB] = aFac2 * slice.FAreaI(IupS);
-	    }
-	  }
-	  else{ //if direction is reversed, upper/lower faces need to be swapped
-	    (*this).fCenterJ[JlowB] = slice.FCenterI(IupS);
-	    (*this).fAreaJ[JlowB] = aFac2 * slice.FAreaI(IupS);
-
-	    if ( l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1) ){//at end of direction 2 line
-	      (*this).fCenterJ[JupB] = slice.FCenterI(IlowS);
-	      (*this).fAreaJ[JupB] = aFac2 * slice.FAreaI(IlowS);
-	    }
-	  }
-	}
-	//----------------------------------------------------------------------------------------------------------------------------------------
-	else{
-	  cerr << "ERROR: Error in procBlock::PutGeomSlice(). Unable to swap face quantities because behavior for interface with boundary pair "
-	       << inter.BoundaryFirst() << ", " << inter.BoundarySecond() << " is not defined." << endl;
-	  exit(0);
 	}
 
       }
@@ -7702,17 +7705,20 @@ void procBlock::PutStateSlice( const stateSlice &slice, const interblock &inter,
 	int locB = GetLoc1D(indB[0], indB[1], indB[2], imaxB, jmaxB);
 	int locS = GetLoc1D(indS[0], indS[1], indS[2], imaxS, jmaxS);
 
-	// if ( inter.BlockFirst() == 2 && inter.BlockSecond() == 4 && l2 == 0 && l3 == 0 ){
-	//   if ( l1 == 0 ){
+	// if ( inter.BlockFirst() == 0 && l3 == 0 ){
+	//   if ( l1 == adjS1 && l2 == adjS2){
 	//     cout << inter;
 	//   }
 	//   cout << "loc: " << l1 << ", " << l2 << ", " << l3 << endl;
-	//   cout << "inserting into block location: " << indB << " of " << imaxB << ", " << jmaxB << ", " << (*this).NumK() + 2.0 * (*this).NumGhosts() << endl;
+	//   cout << "slice loc: " << indS << " of " << slice.NumI()-1 << ", " << slice.NumJ()-1 << ", " << slice.NumK()-1 << endl;
+	//   cout << "inserting into block location: " << indB << " of " << imaxB-1 << ", " << jmaxB-1 << ", " << (*this).NumK() + 2.0 * (*this).NumGhosts()-1 << endl;
 	//   cout << slice.State(locS) << endl;
 	// }
 
 	//swap cell data
-	(*this).state[locB] = slice.State(locS);
+	if ( !slice.State(locS).IsZero() ){
+	  (*this).state[locB] = slice.State(locS);
+	}
 
       }
     }
@@ -7808,9 +7814,6 @@ void procBlock::RecvUnpackGeomMPI( const MPI_Datatype &MPI_cellData, const MPI_D
   int recvBufSize = 0;
   MPI_Probe(ROOT, 2, MPI_COMM_WORLD, &status);
   MPI_Get_count(&status, MPI_CHAR, &recvBufSize); //use MPI_CHAR because sending buffer was allocated with chars
-
-
-  cout << "receiving a buffer of size " << recvBufSize << " from ROOT" << endl;
 
   char *recvBuffer = new char[recvBufSize]; //allocate buffer of correct size
 
