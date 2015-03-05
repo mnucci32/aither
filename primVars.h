@@ -45,6 +45,7 @@ class primVars {
   double P()const{return data[4];}
 
   void NondimensionalInitialize(const idealGas &, const vector3d<double>&);
+  bool IsZero()const;
 
   inline vector3d<double> Velocity()const;
 

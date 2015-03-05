@@ -528,6 +528,8 @@ primVars primVars::GetGhostState( const string &bcType, const vector3d<double> &
     }
     else {
       cerr << "ERROR: flow condition for characteristic BC is not recognized!" << endl;
+      cerr << "Interior state: " << (*this) << endl;
+      cerr << "Ghost state: " << ghostState << endl;
       exit(0);
     }
 
@@ -634,4 +636,15 @@ primVars primVars::UpdateWithConsVars(const idealGas &eqnState, const genArray &
   primVars primUpdate(consUpdate, false, eqnState);
 
   return primUpdate;
+}
+
+bool primVars::IsZero()const{
+
+  bool nonzero = false;
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    if ( (*this).data[ii] != 0.0 ){
+      nonzero = true;
+    }
+  }
+  return !nonzero;
 }
