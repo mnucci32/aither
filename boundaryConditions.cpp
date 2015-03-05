@@ -1029,17 +1029,9 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
 
       }
 
-      cout << "unsplit surface: " << lowSurf << endl;
-      cout << "splitting with dir, ind, orientation: " << candDir << ", " << candInd << ", " << match.Orientation() << endl;
-
       //split matched surface
       bool split = false;
       boundarySurface upSurf = lowSurf.Split(candDir, candInd, lblk, ublk, split, match.Orientation()); 
-
-      cout << "split surfaces" << endl;
-      cout << lowSurf << endl;
-      cout << upSurf << endl;
-
 
       //assign boundarySurface back into boundaryConditions, if surface wasn't split partner block was updated
       (*this).surfs[ii] = lowSurf;

@@ -133,7 +133,6 @@ int main( int argc, char *argv[] ) {
       cout << connections[vv] << endl;
     }
 
-
     //Could send proc3dblocks to processors here, or initialize all on ROOT processor
 
 
@@ -143,13 +142,6 @@ int main( int argc, char *argv[] ) {
       stateBlocks[ll] = procBlock(state, mesh[ll], rankParPos[ll][1], numGhost, bcs[ll], ll, rankParPos[ll][0]);
       stateBlocks[ll].AssignGhostCellsGeom();
     }
-
-
-    //debug
-    WriteCellCenter(inputVars.GridName(),stateBlocks);
-    WriteFun(inputVars.GridName(),stateBlocks, eos, 0, inputVars.RRef(), aRef, inputVars.TRef());
-    WriteRes(inputVars.GridName(), 0, inputVars.OutputFrequency());
-
 
     //swap geometry for interblock BCs
     for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
@@ -213,7 +205,6 @@ int main( int argc, char *argv[] ) {
     WriteRes(inputVars.GridName(), 0, inputVars.OutputFrequency());
   }
 
-  cout << "starting iteration" << endl;
 
   for ( int nn = 0; nn < inputVars.Iterations(); nn++ ){            //loop over time
 

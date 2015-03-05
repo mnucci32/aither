@@ -67,6 +67,7 @@ vector<int> CubicDecomposition(vector<plot3dBlock> &grid, vector<vector3d<int> >
 
   //vector containing number of procBlocks for each processor
   //in cubic decomp, each proc gets 1 block
+  
   vector<int> loadBal(numProc, 1);
   //vector<int> loadBal(1, 5);
 
@@ -83,12 +84,16 @@ vector<int> CubicDecomposition(vector<plot3dBlock> &grid, vector<vector3d<int> >
 
   }
 
+
   string dir = "j";
-  int ind = 50;
+  int ind = 40;
   int blkNum = 3;
   int newBlk = 4;
+  // int newRank = 0;
+  // int newPos = 4;
   int newRank = 4;
   int newPos = 0;
+
   vector<boundarySurface> altSurf;
   plot3dBlock lBlk, uBlk; 
   grid[blkNum].Split(dir,ind, lBlk, uBlk);
@@ -105,17 +110,16 @@ vector<int> CubicDecomposition(vector<plot3dBlock> &grid, vector<vector3d<int> >
   grid[blkNum] = lBlk;
 
 
-
   cout << "updated BCs are:" << endl;
   for ( unsigned int ii = 0; ii < bcs.size(); ii++ ){
     cout << bcs[ii] << endl;
   }
 
-  cout << "updated block sizes are:" << endl;
-  for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
-    cout << "Block: " << ii << "  " << grid[ii].NumI() << ", " << grid[ii].NumJ() << ", " << grid[ii].NumK() << endl;
-    cout << "Rank, parent block, local position: " << rankParPos[ii] << endl;
-  }
+  // cout << "updated block sizes are:" << endl;
+  // for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
+  //   cout << "Block: " << ii << "  " << grid[ii].NumI() << ", " << grid[ii].NumJ() << ", " << grid[ii].NumK() << endl;
+  //   cout << "Rank, parent block, local position: " << rankParPos[ii] << endl;
+  // }
 
 
 
