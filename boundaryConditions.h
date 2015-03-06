@@ -226,6 +226,15 @@ class interblock {
 
   int Orientation()const{return orientation;}
 
+  string Direction1First()const;
+  string Direction2First()const;
+  string Direction3First()const;
+  string Direction1Second()const;
+  string Direction2Second()const;
+  string Direction3Second()const;
+
+  void UpdateBorderFirst(const int&);
+  void UpdateBorderSecond(const int&);
   void SwapOrder();
   void AdjustForSlice( const bool&, const int& );
   bool TestPatchMatch(const patch&, const patch&);

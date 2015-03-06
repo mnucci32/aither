@@ -552,6 +552,126 @@ void interblock::GetAddressesMPI(MPI_Aint (&disp)[11])const{
 
 }
 
+string interblock::Direction1First()const{
+
+  string dir;
+  if ( (*this).BoundaryFirst() <= 2 ){ //dir 3 is i, dir 1 is j, dir 2 is k
+    dir = "j";
+  }
+  else if ( (*this).BoundaryFirst() <= 4){ //dir 3 is j, dir 1 is k, dir 2 is i
+    dir = "k";
+  }
+  else{ //dir 3 is k, dir 1 is i, dir 2 is j
+    dir = "i";
+  }
+
+  return dir;
+}
+
+string interblock::Direction1Second()const{
+
+  string dir;
+  if ( (*this).BoundarySecond() <= 2 ){ //dir 3 is i, dir 1 is j, dir 2 is k
+    dir = "j";
+  }
+  else if ( (*this).BoundarySecond() <= 4){ //dir 3 is j, dir 1 is k, dir 2 is i
+    dir = "k";
+  }
+  else{ //dir 3 is k, dir 1 is i, dir 2 is j
+    dir = "i";
+  }
+
+  return dir;
+}
+
+string interblock::Direction2First()const{
+
+  string dir;
+  if ( (*this).BoundaryFirst() <= 2 ){ //dir 3 is i, dir 1 is j, dir 2 is k
+    dir = "k";
+  }
+  else if ( (*this).BoundaryFirst() <= 4){ //dir 3 is j, dir 1 is k, dir 2 is i
+    dir = "i";
+  }
+  else{ //dir 3 is k, dir 1 is i, dir 2 is j
+    dir = "j";
+  }
+
+  return dir;
+}
+
+string interblock::Direction2Second()const{
+
+  string dir;
+  if ( (*this).BoundarySecond() <= 2 ){ //dir 3 is i, dir 1 is j, dir 2 is k
+    dir = "k";
+  }
+  else if ( (*this).BoundarySecond() <= 4){ //dir 3 is j, dir 1 is k, dir 2 is i
+    dir = "i";
+  }
+  else{ //dir 3 is k, dir 1 is i, dir 2 is j
+    dir = "j";
+  }
+
+  return dir;
+}
+
+string interblock::Direction3First()const{
+
+  string dir;
+  if ( (*this).BoundaryFirst() <= 2 ){ //dir 3 is i, dir 1 is j, dir 2 is k
+    dir = "i";
+  }
+  else if ( (*this).BoundaryFirst() <= 4){ //dir 3 is j, dir 1 is k, dir 2 is i
+    dir = "j";
+  }
+  else{ //dir 3 is k, dir 1 is i, dir 2 is j
+    dir = "k";
+  }
+
+  return dir;
+}
+
+string interblock::Direction3Second()const{
+
+  string dir;
+  if ( (*this).BoundarySecond() <= 2 ){ //dir 3 is i, dir 1 is j, dir 2 is k
+    dir = "i";
+  }
+  else if ( (*this).BoundarySecond() <= 4){ //dir 3 is j, dir 1 is k, dir 2 is i
+    dir = "j";
+  }
+  else{ //dir 3 is k, dir 1 is i, dir 2 is j
+    dir = "k";
+  }
+
+  return dir;
+}
+
+void interblock::UpdateBorderFirst(const int &a){
+
+  if ( a >= 1 && a <= 4 ){
+    (*this).interblockBorder[a-1] = true;
+  }
+  else{
+    cerr << "ERROR: Error in interblock::UpdateBorderFirst(). Position to update is out of range. Choose between 1-4. Position input was " << a << endl;
+    exit(0);
+  }
+
+}
+
+void interblock::UpdateBorderSecond(const int &a){
+
+  if ( a >= 1 && a <= 4 ){
+    (*this).interblockBorder[a-1+4] = true;
+  }
+  else{
+    cerr << "ERROR: Error in interblock::UpdateBorderSecond(). Position to update is out of range. Choose between 1-4. Position input was " << a << endl;
+    exit(0);
+  }
+
+}
+
 /* Member function to split boundary conditions along a given direction at a given index. The calling instance retains the lower portion of the split,
 and the returned instance is the upper portion
 */
