@@ -6447,10 +6447,9 @@ bool procBlock::AtCorner(const int& ii, const int& jj, const int& kk)const{
 }
 
 /* Member function to determine where in padded plot3dBlock an index is located. It takes in an i, j, k cell location and returns a boolean indicating
-if the given i, j, k location corresponds to a edge location. Edge locations are used in the gradient calculations. This function is NOT USED in the 
-code but is useful for debugging purposes.
+if the given i, j, k location corresponds to a edge location. Edge locations are used in the gradient calculations.
  */
-bool procBlock::AtEdge(const int& ii, const int& jj, const int& kk)const{
+bool procBlock::AtEdge(const int& ii, const int& jj, const int& kk, string &dir)const{
   // ii -- i index of location to test
   // jj -- j index of location to test
   // kk -- k index of location to test
@@ -6461,16 +6460,19 @@ bool procBlock::AtEdge(const int& ii, const int& jj, const int& kk)const{
        ( jj == (*this).NumGhosts() - 1 || jj == (*this).NumJ() + (*this).NumGhosts() ) &&
        ( kk == (*this).NumGhosts() - 1 || kk == (*this).NumK() + (*this).NumGhosts() ) ){
     atEdge = true;
+    dir = "i";
   }
   else if ( ( ii == (*this).NumGhosts() - 1 || ii == (*this).NumI() + (*this).NumGhosts() ) && //at j-edge - j in physical cell range, i/k at first level of ghost cells
 	    ( jj >= (*this).NumGhosts()     && jj <  (*this).NumJ() + (*this).NumGhosts() ) &&
 	    ( kk == (*this).NumGhosts() - 1 || kk == (*this).NumK() + (*this).NumGhosts() ) ){
     atEdge = true;
+    dir = "j";
   }
   else if ( ( ii == (*this).NumGhosts() - 1 || ii == (*this).NumI() + (*this).NumGhosts() ) && // at k-edge - k in physical cell range, i/j at first level of ghost cells
 	    ( jj == (*this).NumGhosts() - 1 || jj == (*this).NumJ() + (*this).NumGhosts() ) &&
 	    ( kk >= (*this).NumGhosts()     && kk <  (*this).NumK() + (*this).NumGhosts() ) ){
     atEdge = true;
+    dir = "k";
   }
   else{
     atEdge = false;
@@ -6499,7 +6501,7 @@ as if there were no separation in the grid.
 Only 3 faces at each ghost cell need to be swapped (i.e. the lower face for Ui is the upper face for Ui-1). At the end of a line (i-line, j-line or k-line), both the upper
 and lower faces need to be swapped.
 */
-void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const bool& geom ){
+void SwapSlice( interblock &inter, procBlock &blk1, procBlock &blk2, const bool& geom ){
   // inter -- interblock boundary information
   // blk1 -- first block involved in interblock boundary
   // blk2 -- second block involved in interblock boundary
@@ -6613,14 +6615,23 @@ void SwapSlice( const interblock &inter, procBlock &blk1, procBlock &blk2, const
   inter1.AdjustForSlice(false, blk1.NumGhosts());
   inter2.AdjustForSlice(true, blk2.NumGhosts());
 
+  int adjEdge1 = 0;
+  int adjEdge2 = 0;
   //put slices in proper blocks
   if (geom){ //put geomSlices in procBlock
-    blk1.PutGeomSlice(geom2, inter2, blk2.NumGhosts(), blk2.NumGhosts());
-    blk2.PutGeomSlice(geom1, inter1, blk1.NumGhosts(), blk1.NumGhosts());
+    adjEdge1 = blk1.PutGeomSlice(geom2, inter2, blk2.NumGhosts(), blk2.NumGhosts());
+    adjEdge2 = blk2.PutGeomSlice(geom1, inter1, blk1.NumGhosts(), blk1.NumGhosts());
   }
   else{ //put stateSlices in procBlock
     blk1.PutStateSlice(state2, inter2, blk2.NumGhosts(), blk2.NumGhosts());
     blk2.PutStateSlice(state1, inter1, blk1.NumGhosts(), blk1.NumGhosts());
+  }
+
+  if (adjEdge1 != 0){
+    inter.UpdateBorderFirst(adjEdge1);
+  }
+  if (adjEdge2 != 0){
+    inter.UpdateBorderSecond(adjEdge2);
   }
 
 }
@@ -6873,7 +6884,7 @@ vector3d<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const int
 /* Function to populate ghost cells with proper cell states for inviscid flow calculation. This function operates on the entire grid and uses interblock
 boundaries to pass the correct data between grid blocks.
 */
-void GetBoundaryConditions(vector<procBlock> &states, const input &inp, const idealGas &eos, const vector<interblock> &connections, const int &rank, const MPI_Datatype &MPI_cellData){
+void GetBoundaryConditions(vector<procBlock> &states, const input &inp, const idealGas &eos, vector<interblock> &connections, const int &rank, const MPI_Datatype &MPI_cellData){
   // states -- vector of all procBlocks in the solution domain
   // inp -- all input variables
   // eos -- equation of state
@@ -7099,7 +7110,7 @@ stateSlice procBlock::GetStateSlice(const int &is, const int &ie, const int &js,
 /* Member function to overwrite a section of a procBlock's geometry with a geomSlice. The function uses the orientation supplied in the interblock to orient the 
 geomSlice relative to the procBlock. It assumes that the procBlock is listed first, and the geomSlice second in the interblock data structure.
 */
-void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, const int &d3, const int &numG){
+int procBlock::PutGeomSlice( const geomSlice &slice, interblock& inter, const int &d3, const int &numG){
   // slice -- geomSlice to insert int procBlock
   // inter -- interblock data structure describing the patches and their orientation
   // d3 -- distance of direction normal to patch to insert
@@ -7128,6 +7139,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
   int adjE1 = (inter.Dir1EndInterBorderFirst()) ? numG : 0;
   int adjS2 = (inter.Dir2StartInterBorderFirst()) ? numG : 0;
   int adjE2 = (inter.Dir2EndInterBorderFirst()) ? numG : 0;
+  int adjEdge = 0;
 
   //determine if area direction needs to be reversed
   double aFac3 = ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ) ? -1.0 : 1.0 ;
@@ -7168,8 +7180,50 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
 	int KlowS = GetLowerFaceK(indS[0], indS[1], indS[2], imaxS, jmaxS);
 	int KupS  = GetUpperFaceK(indS[0], indS[1], indS[2], imaxS, jmaxS);
 
+	if ( slice.Vol(locS) == 0.0 ){
+	  //find out if on edge, if so save edge
+	  string edgeDir;
 
-	if ( slice.Vol(locS) != 0.0 ){ //don't overwrite with garbage from partner block that hasn't recieved its ghost value yet (needed at "t" intersection)
+	  if ( (*this).AtEdge(indB[0], indB[1], indB[2], edgeDir) ){ //at a block edge
+
+	    int dir1, dir2;
+	    if ( inter.Direction1First() == "i" ){
+	      dir1 = 0;
+	      dir2 = 1;
+	    }
+	    else if (inter.Direction1First() == "j" ){
+	      dir1 = 1;
+	      dir2 = 2;
+	    }
+	    else{
+	      dir1 = 2;
+	      dir2 = 0;
+	    }
+
+	    //find out edge direction
+	    if ( edgeDir == inter.Direction1First() ){ //edge direction matches interblock direction 1
+		if ( indB[dir2] < inter.Dir2StartFirst() + (*this).NumGhosts() ){ //adjust edge on lower dir2 side
+		  adjEdge = 3;
+		}
+		else{ //adjust edge on upper dir1 side
+		  adjEdge = 4;
+		}
+	    }
+	    else if ( edgeDir == inter.Direction2First() ){ //edge direction matches interblock direction 2
+		if ( indB[dir1] < inter.Dir1StartFirst() + (*this).NumGhosts() ){ //adjust edge on lower dir1 side
+		  adjEdge = 1;
+		}
+		else{ //adjust edge on upper dir2 side
+		  adjEdge = 2;
+		}
+	    }
+	    else {
+	      cerr << "ERROR: Error in procBlock::PutStateSlice(). Ghost cell edge direction does not match interblock direction 1 or 2." << endl;
+	      exit(0);
+	    }
+	  }
+	}
+	else{ //don't overwrite with garbage from partner block that hasn't recieved its ghost value yet (needed at "t" intersection)
 	  //swap cell data
 	  (*this).vol[locB] = slice.Vol(locS);
 	  (*this).center[locB] = slice.Center(locS);
@@ -7657,6 +7711,7 @@ void procBlock::PutGeomSlice( const geomSlice &slice, const interblock& inter, c
     }
   }
 
+  return adjEdge;
 }
 
 /* Member function to overwrite a section of a procBlock's states with a stateSlice. The function uses the orientation supplied in the interblock to orient the 
@@ -7692,6 +7747,7 @@ void procBlock::PutStateSlice( const stateSlice &slice, const interblock &inter,
   int adjS2 = (inter.Dir2StartInterBorderFirst()) ? numG : 0;
   int adjE2 = (inter.Dir2EndInterBorderFirst()) ? numG : 0;
 
+
   //loop over cells to insert
   for ( int l3 = 0; l3 < d3; l3++ ){
     for ( int l2 = adjS2; l2 < (inter.Dir2EndFirst() - inter.Dir2StartFirst() - adjE2); l2++ ){
@@ -7715,10 +7771,15 @@ void procBlock::PutStateSlice( const stateSlice &slice, const interblock &inter,
 	//   cout << slice.State(locS) << endl;
 	// }
 
+	// if ( slice.State(locS).IsZero() && dummyCount == 1){
+	//   cout << "interblock for zero state is: " << endl;
+	//   cout << "block location is " << indB << endl;
+	//   cout << "slice location is " << indS << endl;
+	//   cout << inter << endl;
+	// }
+
 	//swap cell data
-	if ( !slice.State(locS).IsZero() ){
-	  (*this).state[locB] = slice.State(locS);
-	}
+	(*this).state[locB] = slice.State(locS);
 
       }
     }

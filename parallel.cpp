@@ -86,8 +86,8 @@ vector<int> CubicDecomposition(vector<plot3dBlock> &grid, vector<vector3d<int> >
 
 
   string dir = "j";
-  int ind = 40;
-  int blkNum = 3;
+  int ind = 20;
+  int blkNum = 0;
   int newBlk = 4;
   // int newRank = 0;
   // int newPos = 4;
