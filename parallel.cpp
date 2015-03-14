@@ -65,6 +65,9 @@ vector<int> CubicDecomposition(vector<plot3dBlock> &grid, vector<vector3d<int> >
 
   ///////////////////////////////////////////////////
 
+
+  decomposition decomp(grid.size(), numProc);
+
   //vector containing number of procBlocks for each processor
   //in cubic decomp, each proc gets 1 block
   
@@ -353,4 +356,51 @@ void BroadcastString( string &str ){
   delete [] buf; //deallocate buffer
 }
 
+//constructor with no arguements
+decomposition::decomposition() {
 
+  //default value for rank, parent block, and local position is 0
+  vector<int> temp(1,0);
+  rank = temp;
+  parBlock = temp;
+  localPos = temp;
+
+  //no splits for default
+  vector<int> temp2;
+  splitHistBlkLow = temp2;
+  splitHistBlkUp = temp2;
+
+  //no splits for default
+  vector<string> temp3;
+  splitHistDir = temp3;
+
+  numProcs = 1;
+}
+
+//constructor with arguementss
+decomposition::decomposition( const int &num, const int &nProcs) {
+  // num -- number of grid blocks
+
+
+  //default configuration is all blocks on rank 0
+  //default value for rank is 0
+  vector<int> temp(num,0);
+  rank = temp;
+  parBlock = temp;
+  localPos = temp;
+  for ( int ii = 0; ii < num; ii++ ){
+    parBlock[ii] = ii;
+    localPos[ii] = ii;
+  }
+
+  //no splits for default
+  vector<int> temp2;
+  splitHistBlkLow = temp2;
+  splitHistBlkUp = temp2;
+
+  //no splits for default
+  vector<string> temp3;
+  splitHistDir = temp3;
+
+  numProcs = nProcs;
+}
