@@ -24,7 +24,7 @@ class idealGas {
  public:
   //constructor
   idealGas() : gamma(1.4), gasConst(287.058) {}
-  idealGas( const double a, const double b ) : gamma(a), gasConst(b) {}
+  idealGas( const double &a, const double &b ) : gamma(a), gasConst(b) {}
 
   //member functions
   double GetPressure(const double &rho, const double &specEn)const;
