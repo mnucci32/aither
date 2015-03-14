@@ -682,13 +682,13 @@ string interblock::Direction3Second()const{
 interblock surface are passed to the function, and it ensures that the interblockBorder variable at that position reads true. This is used during the first
 PutGeomSlice ghost cell exchange to locate a "t" intersection of blocks and ensure that they are treated properly. */
 void interblock::UpdateBorderFirst(const int &a){
-  // a -- position in interblockBorder to update (1-4) - (dir 1 start, dir1 end, dir2 start, dir2 end)
+  // a -- position in interblockBorder to update (0-3) - (dir 1 start, dir1 end, dir2 start, dir2 end)
 
-  if ( a >= 1 && a <= 4 ){
-    (*this).interblockBorder[a-1] = true;
+  if ( a >= 0 && a <= 3 ){
+    (*this).interblockBorder[a] = true;
   }
   else{
-    cerr << "ERROR: Error in interblock::UpdateBorderFirst(). Position to update is out of range. Choose between 1-4. Position input was " << a << endl;
+    cerr << "ERROR: Error in interblock::UpdateBorderFirst(). Position to update is out of range. Choose between 0-3. Position input was " << a << endl;
     exit(0);
   }
 
@@ -698,13 +698,13 @@ void interblock::UpdateBorderFirst(const int &a){
 interblock surface are passed to the function, and it ensures that the interblockBorder variable at that position reads true. This is used during the first
 PutGeomSlice ghost cell exchange to locate a "t" intersection of blocks and ensure that they are treated properly. */
 void interblock::UpdateBorderSecond(const int &a){
-  // a -- position in interblockBorder to update (1-4) - (dir 1 start, dir1 end, dir2 start, dir2 end)
+  // a -- position in interblockBorder to update (0-3) - (dir 1 start, dir1 end, dir2 start, dir2 end)
 
-  if ( a >= 1 && a <= 4 ){
-    (*this).interblockBorder[a-1+4] = true;
+  if ( a >= 0 && a <= 3 ){
+    (*this).interblockBorder[a+4] = true;
   }
   else{
-    cerr << "ERROR: Error in interblock::UpdateBorderSecond(). Position to update is out of range. Choose between 1-4. Position input was " << a << endl;
+    cerr << "ERROR: Error in interblock::UpdateBorderSecond(). Position to update is out of range. Choose between 0-3. Position input was " << a << endl;
     exit(0);
   }
 

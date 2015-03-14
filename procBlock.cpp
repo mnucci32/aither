@@ -6611,27 +6611,28 @@ void SwapSlice( interblock &inter, procBlock &blk1, procBlock &blk2, const bool&
   //change interblocks to work with slice and ghosts
   interblock inter1 = inter;
   interblock inter2 = inter;
-
   inter1.AdjustForSlice(false, blk1.NumGhosts());
   inter2.AdjustForSlice(true, blk2.NumGhosts());
 
-  int adjEdge1 = 0;
-  int adjEdge2 = 0;
   //put slices in proper blocks
   if (geom){ //put geomSlices in procBlock
-    adjEdge1 = blk1.PutGeomSlice(geom2, inter2, blk2.NumGhosts(), blk2.NumGhosts());
-    adjEdge2 = blk2.PutGeomSlice(geom1, inter1, blk1.NumGhosts(), blk1.NumGhosts());
+    //return vector determining if any of the 4 edges of the interblock need to be updated for a "t" intersection
+    vector<bool> adjEdge1 = blk1.PutGeomSlice(geom2, inter2, blk2.NumGhosts(), blk2.NumGhosts());
+    vector<bool> adjEdge2 = blk2.PutGeomSlice(geom1, inter1, blk1.NumGhosts(), blk1.NumGhosts());
+
+    //if an interblock border needs to be updated, update
+    for ( unsigned int ii = 0; ii < adjEdge1.size(); ii++ ){
+      if (adjEdge1[ii]){
+	inter.UpdateBorderFirst(ii);
+      }
+      if (adjEdge2[ii]){
+	inter.UpdateBorderSecond(ii);
+      }
+    }
   }
   else{ //put stateSlices in procBlock
     blk1.PutStateSlice(state2, inter2, blk2.NumGhosts(), blk2.NumGhosts());
     blk2.PutStateSlice(state1, inter1, blk1.NumGhosts(), blk1.NumGhosts());
-  }
-
-  if (adjEdge1 != 0){
-    inter.UpdateBorderFirst(adjEdge1);
-  }
-  if (adjEdge2 != 0){
-    inter.UpdateBorderSecond(adjEdge2);
   }
 
 }
@@ -6779,27 +6780,26 @@ vector3d<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const int
 
   if (pairID) { //working on first in pair -----------------------------------------------------------------------------------------------
     //first patch in pair is calculated using orientation 1
-    if ( inter.BoundaryFirst() == 1 || inter.BoundaryFirst() == 2 ){ //i-patch
+    if ( inter.Direction3First() == "i" ){ //i-patch
       //get direction 1 length
       loc[1] = inter.Dir1StartFirst() + l1; //direction 1 is j
       loc[2] = inter.Dir2StartFirst() + l2; //direction 2 is k
       loc[0] = inter.ConstSurfaceFirst() + l3 ; //add l3 to get to ghost cells (cell index instead of face)
     }
-    else if ( inter.BoundaryFirst() == 3 || inter.BoundaryFirst() == 4 ){ //j-patch
+    else if ( inter.Direction3First() == "j" ){ //j-patch
       //get direction 1 length
       loc[2] = inter.Dir1StartFirst() + l1; //direction 1 is k
       loc[0] = inter.Dir2StartFirst() + l2; //direction 2 is i
       loc[1] = inter.ConstSurfaceFirst() + l3 ; //add l3 to get to ghost cells (cell index instead of face)
     }
-    else if ( inter.BoundaryFirst() == 5 || inter.BoundaryFirst() == 6 ){ //k-patch
+    else if ( inter.Direction3First() == "k" ){ //k-patch
       //get direction 1 length
       loc[0] = inter.Dir1StartFirst() + l1; //direction 1 is i
       loc[1] = inter.Dir2StartFirst() + l2; //direction 2 is j
       loc[2] = inter.ConstSurfaceFirst() + l3 ; //add l3 to get to ghost cells (cell index instead of face)
     }
     else{ 
-      cerr << "ERROR: Error in procBlock:GetSwapLoc(). Boundary surface " << inter.BoundaryFirst() << " is not recognized!" << endl;
-      cerr << "Please choose a number between 1-6." << endl;
+      cerr << "ERROR: Error in procBlock:GetSwapLoc(). Boundary direction " << inter.Direction3First() << " is not recognized!" << endl;
       exit(0);
     }
   }
@@ -6808,7 +6808,7 @@ vector3d<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const int
   else{ //working on second in pair
 
     //-------------------------------------------------------------------------------------------------------
-    if ( inter.BoundarySecond() == 1 || inter.BoundarySecond() == 2){ //i-patch
+    if ( inter.Direction3Second() == "i" ){ //i-patch
 
       if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
 	//direction 1 is j (swapped) -- if true direction reversed -- subtract 1 from End to get to cell index
@@ -6829,7 +6829,7 @@ vector3d<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const int
       loc[0] = inter.ConstSurfaceSecond() + l3 ; //add l3 to get to ghost cells
     }
     //-------------------------------------------------------------------------------------------------------
-    else if ( inter.BoundarySecond() == 3 || inter.BoundarySecond() == 4 ){ //j-patch
+    else if ( inter.Direction3Second() == "j" ){ //j-patch
 
       if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
 	//direction 1 is k (swapped) -- if true direction reversed -- subtract 1 from End to get to cell index
@@ -6850,7 +6850,7 @@ vector3d<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const int
       loc[1] = inter.ConstSurfaceSecond() + l3 ; //add l3 to get to ghost cells
     }
     //-------------------------------------------------------------------------------------------------------
-    else if ( inter.BoundarySecond() == 5 || inter.BoundarySecond() == 6 ){ //k-patch
+    else if ( inter.Direction3Second() == "k" ){ //k-patch
 
       if ( inter.Orientation() == 2 || inter.Orientation() == 4 || inter.Orientation() == 5 || inter.Orientation() == 7 ){ //swap dir 1 and 2
 	//direction 1 is i (swapped) -- if true direction reversed -- subtract 1 from End to get to cell index
@@ -6872,8 +6872,7 @@ vector3d<int> GetSwapLoc( const int &l1, const int &l2, const int &l3, const int
     }
     //-------------------------------------------------------------------------------------------------------
     else{
-      cerr << "ERROR: Error in procBlock.cpp:GetSwapLoc(). Boundary surface of " << inter.BoundarySecond() << " is not recognized!" << endl;
-      cerr << "Valid numbers are between 1 and 6." << endl;
+      cerr << "ERROR: Error in procBlock.cpp:GetSwapLoc(). Boundary surface of " << inter.Direction3Second() << " is not recognized!" << endl;
       exit(0);
     }
   }
@@ -6908,6 +6907,7 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp, const id
     }
     //if rank doesn't match either side of interblock, then do nothing and move on to the next interblock
   }
+
   //loop over all blocks and get ghost cell edge data
   for ( unsigned int ii = 0; ii < states.size(); ii++) {
     states[ii].AssignInviscidGhostCellsEdge(inp, eos);
@@ -7108,9 +7108,34 @@ stateSlice procBlock::GetStateSlice(const int &is, const int &ie, const int &js,
 }
 
 /* Member function to overwrite a section of a procBlock's geometry with a geomSlice. The function uses the orientation supplied in the interblock to orient the 
-geomSlice relative to the procBlock. It assumes that the procBlock is listed first, and the geomSlice second in the interblock data structure.
+geomSlice relative to the procBlock. It assumes that the procBlock is listed first, and the geomSlice second in the interblock data structure. It returns a vector
+of 4 bools that are returned true if one of the 4 edges of the interblock need to be updated because they border an interblock, creating a possible "t" intersection.
+
+     __________     _________
+    |       |  |   |  |      |
+    |       |  |   |  |  2   |
+    |       |  |   |__|______|
+    |       |  |   |X_|______|
+    |  0    |--|    _________
+    |       |  |   |X_|______|
+    |       |  |   |  |      |
+    |       |  |   |  |  1   |
+    |_______|__|   |__|______|
+
+The block configuration shown above shows a "t"intersection. If blocks 0/1 are swapped first, block 1 gets all of its ghost cells including the edge cells (marked X)
+from block 0, but block 0 knows that the interblock swapping with block 1 borders another interblock (the one swapping with block 2), so it does not take the edge ghost
+cells from block 1. This is because the ghost cells that the edge of block 1 would supply will be supplied by the swap with block 2. If next, blocks 1/2 swap, block 1 now
+has garbage in its edge ghost cells. This is because it is the first swap for block 2, so its ghost cells are empty (filled with garbage). If next blocks 0/2 swap, block 0
+does not take the ghost cells from block 2 for the same reason it did not take them from block 1. This leaves blocks 0 and 2 with the correct ghost cells, but block 1 has
+garbage in its edge ghost cells. This problem occurs if the 1/2 swap is done between the 0/1 and 0/2 swaps!
+
+To solve this problem, in this situation the 1/2 swap is done without edge ghost cells. This fixes the problem because the correct ghost cells block 1 got from block 0 are
+not overwritten with the garbage ghost cells from block 2. The way this is enforced is the following. Initially all ghost cell volumes are initialized to 0. Therefore, if 
+a cell from a geomSlice with a volume of 0 is trying to be inserted into the procBlock, this cell has not been given its proper boundary conditions and should be ignored. 
+Subsequently, the interblock should be updated so that in the future this cell is not inserted.
+
 */
-int procBlock::PutGeomSlice( const geomSlice &slice, interblock& inter, const int &d3, const int &numG){
+vector<bool> procBlock::PutGeomSlice( const geomSlice &slice, interblock& inter, const int &d3, const int &numG){
   // slice -- geomSlice to insert int procBlock
   // inter -- interblock data structure describing the patches and their orientation
   // d3 -- distance of direction normal to patch to insert
@@ -7139,7 +7164,7 @@ int procBlock::PutGeomSlice( const geomSlice &slice, interblock& inter, const in
   int adjE1 = (inter.Dir1EndInterBorderFirst()) ? numG : 0;
   int adjS2 = (inter.Dir2StartInterBorderFirst()) ? numG : 0;
   int adjE2 = (inter.Dir2EndInterBorderFirst()) ? numG : 0;
-  int adjEdge = 0;
+  vector<bool> adjEdge(4,false); //initialize all return values to false
 
   //determine if area direction needs to be reversed
   double aFac3 = ( (inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0 ) ? -1.0 : 1.0 ;
@@ -7180,41 +7205,42 @@ int procBlock::PutGeomSlice( const geomSlice &slice, interblock& inter, const in
 	int KlowS = GetLowerFaceK(indS[0], indS[1], indS[2], imaxS, jmaxS);
 	int KupS  = GetUpperFaceK(indS[0], indS[1], indS[2], imaxS, jmaxS);
 
-	if ( slice.Vol(locS) == 0.0 ){
+	//don't overwrite with garbage from partner block that hasn't recieved its ghost value yet (needed at "t" intersection)
+	if ( slice.Vol(locS) == 0.0 ){ 
 	  //find out if on edge, if so save edge
 	  string edgeDir;
 
-	  if ( (*this).AtEdge(indB[0], indB[1], indB[2], edgeDir) ){ //at a block edge
+	  if ( (*this).AtEdge(indB[0], indB[1], indB[2], edgeDir) ){ //at a block edge -- possible need to adjust interblock
 
 	    int dir1, dir2;
 	    if ( inter.Direction1First() == "i" ){
-	      dir1 = 0;
-	      dir2 = 1;
+	      dir1 = 0; //direction 1 is i
+	      dir2 = 1; //direction 2 is j
 	    }
 	    else if (inter.Direction1First() == "j" ){
-	      dir1 = 1;
-	      dir2 = 2;
+	      dir1 = 1; //direction 1 is j
+	      dir2 = 2; //direction 2 is k
 	    }
 	    else{
-	      dir1 = 2;
-	      dir2 = 0;
+	      dir1 = 2; //direction 1 is k
+	      dir2 = 0; //direction 2 is i
 	    }
 
 	    //find out edge direction
 	    if ( edgeDir == inter.Direction1First() ){ //edge direction matches interblock direction 1
 		if ( indB[dir2] < inter.Dir2StartFirst() + (*this).NumGhosts() ){ //adjust edge on lower dir2 side
-		  adjEdge = 3;
+		  adjEdge[2] = true;
 		}
-		else{ //adjust edge on upper dir1 side
-		  adjEdge = 4;
+		else{ //adjust edge on upper dir2 side
+		  adjEdge[3] = true;
 		}
 	    }
 	    else if ( edgeDir == inter.Direction2First() ){ //edge direction matches interblock direction 2
 		if ( indB[dir1] < inter.Dir1StartFirst() + (*this).NumGhosts() ){ //adjust edge on lower dir1 side
-		  adjEdge = 1;
+		  adjEdge[0] = true;
 		}
-		else{ //adjust edge on upper dir2 side
-		  adjEdge = 2;
+		else{ //adjust edge on upper dir1 side
+		  adjEdge[1] = true;
 		}
 	    }
 	    else {
@@ -7223,14 +7249,15 @@ int procBlock::PutGeomSlice( const geomSlice &slice, interblock& inter, const in
 	    }
 	  }
 	}
-	else{ //don't overwrite with garbage from partner block that hasn't recieved its ghost value yet (needed at "t" intersection)
+	//volume is not 0, ok to overwrite variables
+	else{ 
 	  //swap cell data
 	  (*this).vol[locB] = slice.Vol(locS);
 	  (*this).center[locB] = slice.Center(locS);
 
 	  //----------------------------------------------------------------------------------------------------------------------------------------
 	  //swap face data
-	  if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() <= 2 ){ //both patches i, i to i, j to j, k to k
+	  if ( inter.Direction3First() == "i" && inter.Direction3Second() == "i" ){ //both patches i, i to i, j to j, k to k
 
 	    //swap face data for direction 3
 	    (*this).fCenterI[IlowB] = slice.FCenterI(IlowS) ;
@@ -7283,7 +7310,7 @@ int procBlock::PutGeomSlice( const geomSlice &slice, interblock& inter, const in
 
 	  }
 	  //----------------------------------------------------------------------------------------------------------------------------------------
-	  else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4 ){ //both patches j, j to j, k to k, i to i
+	  else if ( inter.Direction3First() == "j" && inter.Direction3Second() == "j" ){ //both patches j, j to j, k to k, i to i
 
 	    //swap face data for direction 3
 	    (*this).fCenterJ[JlowB] = slice.FCenterJ(JlowS) ;
@@ -7335,7 +7362,7 @@ int procBlock::PutGeomSlice( const geomSlice &slice, interblock& inter, const in
 	    }
 	  }
 	  //----------------------------------------------------------------------------------------------------------------------------------------
-	  else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6 ){ //both patches k, k to k, i to i, j to j
+	  else if ( inter.Direction3First() == "k" && inter.Direction3Second() == "k" ){ //both patches k, k to k, i to i, j to j
 
 	    //swap face data for direction 3
 	    (*this).fCenterK[KlowB] = slice.FCenterK(KlowS) ;
@@ -7387,7 +7414,7 @@ int procBlock::PutGeomSlice( const geomSlice &slice, interblock& inter, const in
 	    }
 	  }
 	  //----------------------------------------------------------------------------------------------------------------------------------------
-	  else if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() > 2 && inter.BoundarySecond() <= 4){ //patches are i/j  - i to j, j to k, k to i
+	  else if ( inter.Direction3First() == "i" && inter.Direction3Second() == "j" ){ //patches are i/j  - i to j, j to k, k to i
 
 	    //swap face data for direction 3
 	    (*this).fCenterI[IlowB] = slice.FCenterJ(JlowS) ;
@@ -7439,7 +7466,7 @@ int procBlock::PutGeomSlice( const geomSlice &slice, interblock& inter, const in
 	    }
 	  }
 	  //----------------------------------------------------------------------------------------------------------------------------------------
-	  else if ( inter.BoundaryFirst() <= 2 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6){ //patches are i/k  - i to k, j to i, k to j
+	  else if ( inter.Direction3First() == "i" && inter.Direction3Second() == "k" ){ //patches are i/k  - i to k, j to i, k to j
 
 	    //swap face data for direction 3
 	    (*this).fCenterI[IlowB] = slice.FCenterK(KlowS) ;
@@ -7491,7 +7518,7 @@ int procBlock::PutGeomSlice( const geomSlice &slice, interblock& inter, const in
 	    }
 	  }
 	  //----------------------------------------------------------------------------------------------------------------------------------------
-	  else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() <= 2 ){ //patches are j/i, j to i, k to j, i to k
+	  else if ( inter.Direction3First() == "j" && inter.Direction3Second() == "i" ){ //patches are j/i, j to i, k to j, i to k
 
 	    //swap face data for direction 3
 	    (*this).fCenterJ[JlowB] = slice.FCenterI(IlowS) ;
@@ -7544,7 +7571,7 @@ int procBlock::PutGeomSlice( const geomSlice &slice, interblock& inter, const in
 
 	  }
 	  //----------------------------------------------------------------------------------------------------------------------------------------
-	  else if ( inter.BoundaryFirst() > 2 && inter.BoundaryFirst() <= 4 && inter.BoundarySecond() > 4 && inter.BoundarySecond() <= 6 ){ //patches are j/k, j to k, k to i, i to j
+	  else if ( inter.Direction3First() > "j" && inter.Direction3Second() == "k" ){ //patches are j/k, j to k, k to i, i to j
 
 	    //swap face data for direction 3
 	    (*this).fCenterJ[JlowB] = slice.FCenterK(KlowS) ;
@@ -7596,7 +7623,7 @@ int procBlock::PutGeomSlice( const geomSlice &slice, interblock& inter, const in
 	    }
 	  }
 	  //----------------------------------------------------------------------------------------------------------------------------------------
-	  else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() <= 2 ){ //patches are k/i, k to i, i to j, j to k
+	  else if ( inter.Direction3First() == "k" && inter.Direction3Second() == "i" ){ //patches are k/i, k to i, i to j, j to k
 
 	    //swap face data for direction 3
 	    (*this).fCenterK[KlowB] = slice.FCenterI(IlowS) ;
@@ -7648,7 +7675,7 @@ int procBlock::PutGeomSlice( const geomSlice &slice, interblock& inter, const in
 	    }
 	  }
 	  //----------------------------------------------------------------------------------------------------------------------------------------
-	  else if ( inter.BoundaryFirst() > 4 && inter.BoundaryFirst() <= 6 && inter.BoundarySecond() <= 2 ){ //patches are k/j, k to j, i to k, j to i
+	  else if ( inter.Direction3First() == "k" && inter.Direction3Second() == "j" ){ //patches are k/j, k to j, i to k, j to i
 
 	    //swap face data for direction 3
 	    (*this).fCenterK[KlowB] = slice.FCenterJ(JlowS) ;
@@ -7761,23 +7788,6 @@ void procBlock::PutStateSlice( const stateSlice &slice, const interblock &inter,
 	int locB = GetLoc1D(indB[0], indB[1], indB[2], imaxB, jmaxB);
 	int locS = GetLoc1D(indS[0], indS[1], indS[2], imaxS, jmaxS);
 
-	// if ( inter.BlockFirst() == 0 && l3 == 0 ){
-	//   if ( l1 == adjS1 && l2 == adjS2){
-	//     cout << inter;
-	//   }
-	//   cout << "loc: " << l1 << ", " << l2 << ", " << l3 << endl;
-	//   cout << "slice loc: " << indS << " of " << slice.NumI()-1 << ", " << slice.NumJ()-1 << ", " << slice.NumK()-1 << endl;
-	//   cout << "inserting into block location: " << indB << " of " << imaxB-1 << ", " << jmaxB-1 << ", " << (*this).NumK() + 2.0 * (*this).NumGhosts()-1 << endl;
-	//   cout << slice.State(locS) << endl;
-	// }
-
-	// if ( slice.State(locS).IsZero() && dummyCount == 1){
-	//   cout << "interblock for zero state is: " << endl;
-	//   cout << "block location is " << indB << endl;
-	//   cout << "slice location is " << indS << endl;
-	//   cout << inter << endl;
-	// }
-
 	//swap cell data
 	(*this).state[locB] = slice.State(locS);
 
@@ -7787,8 +7797,10 @@ void procBlock::PutStateSlice( const stateSlice &slice, const interblock &inter,
 
 }
 
-
+/*Member function to pack and send procBlock geometry data to appropriate processor. */
 void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData, const MPI_Datatype &MPI_vec3d)const{
+  // MPI_cellData -- MPI data type for cell data
+  // MPI_vec3d -- MPI data type for a vector3d
 
   //determine size of buffer to send
   int sendBufSize = 0;
@@ -7867,7 +7879,8 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData, const MPI_Data
 
 
 void procBlock::RecvUnpackGeomMPI( const MPI_Datatype &MPI_cellData, const MPI_Datatype &MPI_vec3d ){
-
+  // MPI_cellData -- MPI data type for cell data
+  // MPI_vec3d -- MPI data type for a vector3d
 
   MPI_Status status; //allocate MPI_Status structure
 
@@ -7920,7 +7933,7 @@ void procBlock::RecvUnpackGeomMPI( const MPI_Datatype &MPI_cellData, const MPI_D
 
 }
 
-
+/*Member function to zero and resize the vectors in a procBlock to their appropriate size given the i, j, and k dimensions.*/
 void procBlock::CleanResizeVecs(){
 
   int numCellsGhosts = ((*this).numI + 2 * (*this).numGhosts) * ((*this).numJ + 2 * (*this).numGhosts) * ((*this).numK + 2 * (*this).numGhosts);
@@ -7958,7 +7971,9 @@ void procBlock::CleanResizeVecs(){
 
 }
 
+/*Member function to receive and unpack procBlock state data. This is used to gather the solution on the ROOT processor to write out the solution. */
 void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData){
+  // MPI_cellData -- MPI data type for cell data
 
   MPI_Status status; //allocate MPI_Status structure
 
@@ -7983,7 +7998,9 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData){
 
 }
 
+/*Member function to pack and send procBlock state data to the ROOT proecessor. This is used to gather the solution on the ROOT processor to write out the solution. */
 void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData)const{
+  // MPI_cellData -- MPI data type for cell data
 
   //determine size of buffer to send
   int sendBufSize = 0;
@@ -8020,6 +8037,7 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num, ve
   // dir -- plane to split along, either i, j, or k
   // ind -- index (face) to split at (w/o counting ghost cells)
   // num -- new block number
+  // alteredSurf -- vector of surfaces whose partners will need to be altered after this split
 
   int iMax = (*this).NumI() + 2 * (*this).NumGhosts();
   int jMax = (*this).NumJ() + 2 * (*this).NumGhosts();
@@ -8500,9 +8518,11 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num, ve
 
 }
 
-
-
+/* Member function to join a procBlock along a plane defined by a direction.*/
 void procBlock::Join(const procBlock &blk, const string &dir, vector<boundarySurface> &alteredSurf){
+  // blk -- block to join with
+  // dir -- plane to split along, either i, j, or k
+  // alteredSurf -- vector of surfaces whose partners will need to be altered after this split
 
   if ( dir == "i" ){
 
