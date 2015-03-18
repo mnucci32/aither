@@ -1,5 +1,11 @@
 #include "parallel.h"
 #include "output.h"
+#include <algorithm> //max_element
+#include <iterator> //distance
+
+using std::max_element;
+using std::min_element;
+using std::distance;
 
 /* Function to return processor list for manual decomposition. Manual decomposition assumes that each block will reside on it's own processor.
 The processor list tells how many procBlocks a processor will have.
@@ -67,6 +73,29 @@ vector<int> CubicDecomposition(vector<plot3dBlock> &grid, vector<vector3d<int> >
 
 
   decomposition decomp(grid.size(), numProc);
+  cout << decomp << endl;
+  cout << "Ideal Load: " << decomp.IdealLoad(grid) << endl;
+  cout << "Max Load: " << decomp.MaxLoad(grid) << endl;
+  double loaded = 0;
+  int ol = decomp.MostOverloadedProc(grid, loaded);
+  cout << "Most overloaded processor is " << ol << " overloaded by " << loaded << endl;
+  int ul = decomp.MostUnderloadedProc(grid, loaded);
+  cout << "Most underloaded processor is " << ul << " overloaded by " << loaded << endl;
+
+  decomp.SendToProc(1,1);
+  decomp.SendToProc(2,2);
+  decomp.SendToProc(3,3);
+  decomp.Split(0, "j");
+  decomp.SendToProc(4,4);
+
+  cout << decomp << endl;
+  cout << "Ideal Load: " << decomp.IdealLoad(grid) << endl;
+  cout << "Max Load: " << decomp.MaxLoad(grid) << endl;
+  ol = decomp.MostOverloadedProc(grid, loaded);
+  cout << "Most overloaded processor is " << ol << " overloaded by " << loaded << endl;
+  ul = decomp.MostUnderloadedProc(grid, loaded);
+  cout << "Most underloaded processor is " << ul << " overloaded by " << loaded << endl;
+
 
   //vector containing number of procBlocks for each processor
   //in cubic decomp, each proc gets 1 block
@@ -403,4 +432,145 @@ decomposition::decomposition( const int &num, const int &nProcs) {
   splitHistDir = temp3;
 
   numProcs = nProcs;
+}
+
+/*Member function to determine the ideal load given the mesh. The ideal load the the total number of cells divided by the number of processors.*/
+double decomposition::IdealLoad( const vector<plot3dBlock> &grid ) const {
+  // grid -- vector of plot3dBlocks containing entire grid
+
+  int totalCells = 0;
+  for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
+    totalCells += grid[ii].NumCells();
+  }
+
+  return (double)totalCells / (double)(*this).numProcs;
+}
+
+/*Member function to determine the maximum load (number of cells) on a processor.*/
+double decomposition::MaxLoad( const vector<plot3dBlock> &grid) const {
+  // grid -- vector of plot3dBlocks containing entire grid (split for decomposition)
+
+  vector<int> load((*this).numProcs, 0);
+  for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
+    load[(*this).rank[ii]] += grid[ii].NumCells();
+  }
+
+  return (double)*max_element(load.begin(), load.end());
+}
+
+/*Member function to determine the minimum load (number of cells) on a processor.*/
+double decomposition::MinLoad( const vector<plot3dBlock> &grid) const {
+  // grid -- vector of plot3dBlocks containing entire grid (split for decomposition)
+
+  vector<int> load((*this).numProcs, 0);
+  for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
+    load[(*this).rank[ii]] += grid[ii].NumCells();
+  }
+
+  return (double)*min_element(load.begin(), load.end());
+}
+
+/*Member function to determine the index of the maximum loaded (number of cells) processor.*/
+int decomposition::MostOverloadedProc( const vector<plot3dBlock> &grid, double &overload ) const {
+  // grid -- vector of plot3dBlocks containing entire grid (split for decomposition)
+  // overload -- how much the processor is overloaded by
+
+  vector<int> load((*this).numProcs, 0);
+  for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
+    load[(*this).rank[ii]] += grid[ii].NumCells();
+  }
+
+  overload = (*this).MaxLoad(grid) - (*this).IdealLoad(grid);
+  return distance(load.begin(), max_element(load.begin(), load.end()) );
+}
+
+/*Member function to determine the index of the minimum loaded (number of cells) processor.*/
+int decomposition::MostUnderloadedProc( const vector<plot3dBlock> &grid, double &underload) const {
+  // grid -- vector of plot3dBlocks containing entire grid (split for decomposition)
+  // underload -- how much processor is underloaded by
+
+  vector<int> load((*this).numProcs, 0);
+  for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
+    load[(*this).rank[ii]] += grid[ii].NumCells();
+  }
+
+  underload = (*this).IdealLoad(grid) - (*this).MinLoad(grid);
+  return distance(load.begin(), min_element(load.begin(), load.end()) );
+}
+
+/*Member function to return the number of blocks on a given processor.*/
+int decomposition::NumBlocksOnProc( const int &a) const {
+  // a -- processor rank to find number of blocks on
+
+  int num = 0;
+  for ( unsigned int ii = 0; ii < (*this).rank.size(); ii++ ){
+    if ( (*this).rank[ii] == a ){
+      num++;
+    }
+  }
+  return num;
+}
+
+/*Member function to return the number of blocks on all processors.*/
+vector<int> decomposition::NumBlocksOnAllProc() const{
+
+  vector<int> num((*this).numProcs,0);
+  for ( unsigned int ii = 0; ii < (*this).rank.size(); ii++ ){
+    num[(*this).rank[ii]]++;
+  }
+  return num;
+}
+
+/*Member function to send a block to a given processor*/
+void decomposition::SendToProc( const int &blk, const int &proc ){
+  // blk -- block index to send
+  // proc -- processor to send to
+
+  //only fields to change are local position on processor and processor rank
+
+  int oldPos = (*this).localPos[blk];
+  //local position is now equal to the number of blocks on given processor (equal b/c indexing starts at 0)
+  (*this).localPos[blk] = (*this).NumBlocksOnProc(proc); 
+
+  //all procBlocks on same processor with a local position higher than oldPos should be moved down one
+  for ( unsigned int ii = 0; ii < (*this).localPos.size(); ii++ ){
+    if ( (*this).rank[ii] == (*this).rank[blk] && (*this).localPos[ii] > oldPos ){ //procBlock is on given processor and in "higher" position than the block to be moved
+      (*this).localPos[ii]--;
+    }
+  }
+
+  //change rank of procBlock
+  (*this).rank[blk] = proc;
+}
+
+/*Member function to add data for a split*/
+void decomposition::Split( const int &low, const string &dir ){
+  // low -- index of lower block in split
+  // dir -- direction of split
+
+  (*this).splitHistBlkLow.push_back(low);                //assign lower block index in split (given)
+  (*this).splitHistBlkUp.push_back((*this).rank.size()); //assign upper block index in split (one more than current max index)
+  (*this).splitHistDir.push_back(dir);                   //assign split direction (given)
+
+  (*this).rank.push_back((*this).rank[low]);             //rank of upper portion of split block is same as lower
+  (*this).parBlock.push_back((*this).parBlock[low]);     //parent block of upper portion of split block is same as lower
+  //local position of upper portion of split block is equal to number of blocks on processor (b/c indexing starts at 0)
+  (*this).localPos.push_back((*this).NumBlocksOnProc((*this).rank[low]) - 1);    //-1 b/c indexing starts at 0
+
+}
+
+//operator overload for << - allows use of cout, cerr, etc.
+ostream & operator<< (ostream &os, const decomposition &d){
+  // os -- stream to print to
+  // d -- decomposition to print
+
+  os << "Decomposition for " << d.numProcs << " processors" << endl;
+  for ( unsigned int ii = 0; ii < d.rank.size(); ii++ ){
+    os << "Block: " << ii << "; Rank: " << d.rank[ii] << ", Parent Block: " << d.parBlock[ii] << ", Local Position: " << d.localPos[ii] << endl; 
+  }
+  os << "Split History" << endl;
+  for ( unsigned int ii = 0; ii < d.splitHistBlkLow.size(); ii++ ){
+    os << "Split Number: " << ii << "; Lower Index: " << d.splitHistBlkLow[ii] << ", Upper Index: " << d.splitHistBlkUp[ii] << ", Direction: " << d.splitHistDir[ii] << endl;
+  }
+  return os;
 }

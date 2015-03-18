@@ -20,6 +20,7 @@ using std::ios;
 using std::cout;
 using std::endl;
 using std::cerr;
+using std::ostream;
 
 class decomposition {
   vector<int> rank;                 //rank of each procBlock (vector size equals number of procBlocks after decomp)
@@ -36,12 +37,22 @@ class decomposition {
   decomposition( const int&, const int& );
 
   //member functions
-  double IdealLoad( const vector<plot3dBlock>&, const int& );   //determines ideal load given number of processors
-  double MaxLoad( const vector<plot3dBlock>&);                  //determines maximum load
-  int NumBlocksOnProc( const int&);                             //determines number of blocks on a given processor
-  vector<int> NumBlocksOnAllProc();                  //determines number of blocks on all processors
-  void SendToProc( const int&, const int&);                     //sends an entire block to a given processor
-  void Split( const int&, const int&, const string& );          //adds data for a split
+  double IdealLoad( const vector<plot3dBlock>& )const;
+  double MaxLoad( const vector<plot3dBlock>&)const;
+  double MinLoad( const vector<plot3dBlock>&)const;
+  int MostOverloadedProc( const vector<plot3dBlock>&, double& )const;
+  int MostUnderloadedProc( const vector<plot3dBlock>&, double& )const;
+  int NumBlocksOnProc( const int&)const;
+  vector<int> NumBlocksOnAllProc()const;
+  void SendToProc( const int&, const int&);
+  void Split( const int&, const string& );
+
+  //function to determine whether to send a whole block, or split a block
+  //function to determine split direction (longest direction)
+
+
+
+  friend ostream & operator<< (ostream &os, const decomposition&);
 
   //destructor
   ~decomposition() {}
