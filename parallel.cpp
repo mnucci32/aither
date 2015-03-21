@@ -55,7 +55,7 @@ vector<int> ManualDecomposition(vector<plot3dBlock> &grid, vector<vector3d<int> 
 /* Function to return processor list for cubic decomposition. 
 The processor list tells how many procBlocks a processor will have.
 */
-vector<int> CubicDecomposition(vector<plot3dBlock> &grid, vector<vector3d<int> >&rankParPos, vector<boundaryConditions> &bcs, const int &numProc, const int &totalCells ){
+decomposition CubicDecomposition(vector<plot3dBlock> &grid, vector<boundaryConditions> &bcs, const int &numProc ){
   // grid -- vector of procBlocks (no need to split procBlocks or combine them with manual decomposition)
   // blkRank -- rank of processor that plot3dBlock will go on
   // blkPar -- parent block of plot3dBlock
@@ -66,80 +66,138 @@ vector<int> CubicDecomposition(vector<plot3dBlock> &grid, vector<vector3d<int> >
   cout << "--------------------------------------------------------------------------------" << endl;
   cout << "Using cubic grid decomposition." << endl;
 
-  double idealLoad = (double)totalCells / (double)numProc; //average number of cells per processor
-  int maxLoad = 0;
 
   ///////////////////////////////////////////////////
 
 
   decomposition decomp(grid.size(), numProc);
-  cout << decomp << endl;
+  decomp.PrintDiagnostics(grid);
+
+  double idealLoad = decomp.IdealLoad(grid); //average number of cells per processor
+  int maxLoad = decomp.MaxLoad(grid);
+
+  cout << "Ideal Load: " << idealLoad << endl;
+  cout << "Max Load: " << maxLoad << endl;
+
+  int count = 0;
+
+  //HARD CODED -- change maximum count
+  while ( decomp.MaxLoad(grid) / decomp.IdealLoad(grid) > 1.1 && count < 10 ){
+
+    cout << "Max Ratio: " << decomp.MaxLoad(grid) / decomp.IdealLoad(grid) << endl;
+
+    double loaded = 0;
+    int ol = decomp.MostOverloadedProc(grid, loaded);
+    cout << "Most overloaded processor is " << ol << " overloaded by " << loaded << endl;
+    int ul = decomp.MostUnderloadedProc(grid, loaded);
+    cout << "Most underloaded processor is " << ul << " underloaded by " << loaded << endl;
+
+    string dir;
+    int blk;
+    int ind = decomp.SendWholeOrSplit(grid, ol, ul, blk, dir);
+
+    cout << "result of send/split is block, index, direction: " << blk << ", " << ind << ", " << dir << endl;
+
+    if (ind < 0 ){ //send whole
+      decomp.SendToProc(blk,ol,ul);
+
+      decomp.PrintDiagnostics(grid);
+    }
+    else { //split/send
+
+      int newBlk = grid.size();
+
+      vector<boundarySurface> altSurf;
+      plot3dBlock lBlk, uBlk; 
+      grid[blk].Split(dir, ind, lBlk, uBlk);
+      grid.push_back(uBlk);
+      boundaryConditions newBcs = bcs[blk].Split(dir, ind, blk, newBlk, altSurf);
+      bcs.push_back(newBcs);
+
+      for ( unsigned int ii = 0; ii < altSurf.size(); ii++ ){
+	bcs[altSurf[ii].PartnerBlock()].DependentSplit(altSurf[ii], grid[blk], grid[altSurf[ii].PartnerBlock()], altSurf[ii].PartnerBlock(), dir, ind, blk, newBlk);
+      }
+      //reassign split grid
+      grid[blk] = lBlk;
+
+      decomp.Split(blk,dir);
+      decomp.SendToProc(blk,ol,ul);
+
+      decomp.PrintDiagnostics(grid);
+
+      cout << "after split BCs are:" << endl;
+      for ( unsigned int ii = 0; ii < bcs.size(); ii++ ){
+	cout << bcs[ii] << endl;
+      }
+
+      
+    }
+
+    count++;
+
+
+  }
+
+  // decomp.SendToProc(1,1);
+  // decomp.SendToProc(2,2);
+  // decomp.SendToProc(3,3);
+  // decomp.Split(0, "j");
+  // decomp.SendToProc(4,4);
+
+  double loaded = 0;
+  cout << endl << endl << endl;
+  decomp.PrintDiagnostics(grid);
   cout << "Ideal Load: " << decomp.IdealLoad(grid) << endl;
   cout << "Max Load: " << decomp.MaxLoad(grid) << endl;
-  double loaded = 0;
   int ol = decomp.MostOverloadedProc(grid, loaded);
   cout << "Most overloaded processor is " << ol << " overloaded by " << loaded << endl;
   int ul = decomp.MostUnderloadedProc(grid, loaded);
-  cout << "Most underloaded processor is " << ul << " overloaded by " << loaded << endl;
-
-  decomp.SendToProc(1,1);
-  decomp.SendToProc(2,2);
-  decomp.SendToProc(3,3);
-  decomp.Split(0, "j");
-  decomp.SendToProc(4,4);
-
-  cout << decomp << endl;
-  cout << "Ideal Load: " << decomp.IdealLoad(grid) << endl;
-  cout << "Max Load: " << decomp.MaxLoad(grid) << endl;
-  ol = decomp.MostOverloadedProc(grid, loaded);
-  cout << "Most overloaded processor is " << ol << " overloaded by " << loaded << endl;
-  ul = decomp.MostUnderloadedProc(grid, loaded);
-  cout << "Most underloaded processor is " << ul << " overloaded by " << loaded << endl;
+  cout << "Most underloaded processor is " << ul << " underloaded by " << loaded << endl;
 
 
   //vector containing number of procBlocks for each processor
   //in cubic decomp, each proc gets 1 block
   
-  vector<int> loadBal(numProc, 1);
+  // vector<int> loadBal(numProc, 1);
   //vector<int> loadBal(1, 5);
 
-  rankParPos.resize(grid.size());
-  for ( unsigned int ii = 0; ii < rankParPos.size(); ii++ ){
-    //for single processor
-    // rankParPos[ii][0] = 0;      //rank
-    // rankParPos[ii][1] = 0;      //parent block
-    // rankParPos[ii][2] = ii;     //local position
+  // rankParPos.resize(grid.size());
+  // for ( unsigned int ii = 0; ii < rankParPos.size(); ii++ ){
+  //   //for single processor
+  //   // rankParPos[ii][0] = 0;      //rank
+  //   // rankParPos[ii][1] = 0;      //parent block
+  //   // rankParPos[ii][2] = ii;     //local position
 
-    rankParPos[ii][0] = ii;      //rank
-    rankParPos[ii][1] = ii;      //parent block
-    rankParPos[ii][2] = 0;       //local position
+  //   rankParPos[ii][0] = ii;      //rank
+  //   rankParPos[ii][1] = ii;      //parent block
+  //   rankParPos[ii][2] = 0;       //local position
 
-  }
+  // }
 
 
-  string dir = "j";
-  int ind = 20;
-  int blkNum = 0;
-  int newBlk = 4;
-  // int newRank = 0;
-  // int newPos = 4;
-  int newRank = 4;
-  int newPos = 0;
+  // string dir = "j";
+  // int ind = 20;
+  // int blkNum = 0;
+  // int newBlk = 4;
+  // // int newRank = 0;
+  // // int newPos = 4;
+  // int newRank = 4;
+  // int newPos = 0;
 
-  vector<boundarySurface> altSurf;
-  plot3dBlock lBlk, uBlk; 
-  grid[blkNum].Split(dir,ind, lBlk, uBlk);
-  grid.push_back(uBlk);
-  vector3d<int> temp(newRank, blkNum, newPos);
-  rankParPos.push_back(temp);
-  boundaryConditions newBcs = bcs[blkNum].Split(dir,ind, blkNum, newBlk, altSurf);
-  bcs.push_back(newBcs);
+  // vector<boundarySurface> altSurf;
+  // plot3dBlock lBlk, uBlk; 
+  // grid[blkNum].Split(dir,ind, lBlk, uBlk);
+  // grid.push_back(uBlk);
+  // vector3d<int> temp(newRank, blkNum, newPos);
+  // rankParPos.push_back(temp);
+  // boundaryConditions newBcs = bcs[blkNum].Split(dir,ind, blkNum, newBlk, altSurf);
+  // bcs.push_back(newBcs);
 
-  for ( unsigned int ii = 0; ii < altSurf.size(); ii++ ){
-    bcs[altSurf[ii].PartnerBlock()].DependentSplit(altSurf[ii], grid[blkNum], grid[altSurf[ii].PartnerBlock()], altSurf[ii].PartnerBlock(), dir, ind, blkNum, newBlk);
-  }
-  //reassign split grid
-  grid[blkNum] = lBlk;
+  // for ( unsigned int ii = 0; ii < altSurf.size(); ii++ ){
+  //   bcs[altSurf[ii].PartnerBlock()].DependentSplit(altSurf[ii], grid[blkNum], grid[altSurf[ii].PartnerBlock()], altSurf[ii].PartnerBlock(), dir, ind, blkNum, newBlk);
+  // }
+  // //reassign split grid
+  // grid[blkNum] = lBlk;
 
 
   cout << "updated BCs are:" << endl;
@@ -147,39 +205,19 @@ vector<int> CubicDecomposition(vector<plot3dBlock> &grid, vector<vector3d<int> >
     cout << bcs[ii] << endl;
   }
 
-  // cout << "updated block sizes are:" << endl;
-  // for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
-  //   cout << "Block: " << ii << "  " << grid[ii].NumI() << ", " << grid[ii].NumJ() << ", " << grid[ii].NumK() << endl;
-  //   cout << "Rank, parent block, local position: " << rankParPos[ii] << endl;
-  // }
-
-
-
-
-  // boundaryConditions myBC = bcs[2];
-  // boundarySurface mySurf1 = myBC.GetSurface(3);
-  // cout << "original surface: " << mySurf1 << endl;
-  // bool split;
-  // boundarySurface mySurf2 = mySurf1.Split("j", 20, 1, 7, split);
-  // cout << "split surfaces:" << endl;
-  // cout << "was split: " << split << endl;
-  // cout << mySurf1 << endl;
-  // cout << mySurf2 << endl;
-
-  //exit(0);
 
 
   //find maximum number of cells on a processor
-  for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
-    maxLoad = std::max(maxLoad, grid[ii].NumCells());
-  }
+  // for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
+  //   maxLoad = std::max(maxLoad, grid[ii].NumCells());
+  // }
 
   ////////////////////////////////////////////////////////////
 
-  cout << "Ratio of most loaded processor to average processor is : " << (double)maxLoad / idealLoad << endl;
+  cout << "Ratio of most loaded processor to average processor is : " << decomp.MaxLoad(grid) / idealLoad << endl;
   cout << "--------------------------------------------------------------------------------" << endl << endl;;
 
-  return loadBal;
+  return decomp;
 }
 
 //function to send each processor the number of procBlocks that it should contain
@@ -522,25 +560,27 @@ vector<int> decomposition::NumBlocksOnAllProc() const{
 }
 
 /*Member function to send a block to a given processor*/
-void decomposition::SendToProc( const int &blk, const int &proc ){
-  // blk -- block index to send
-  // proc -- processor to send to
+void decomposition::SendToProc( const int &blk, const int &fromProc, const int &toProc ){
+  // blk -- sending block index
+  // fromProc -- processor to send from
+  // toProc -- processor to send to
 
   //only fields to change are local position on processor and processor rank
 
   int oldPos = (*this).localPos[blk];
   //local position is now equal to the number of blocks on given processor (equal b/c indexing starts at 0)
-  (*this).localPos[blk] = (*this).NumBlocksOnProc(proc); 
+  (*this).localPos[blk] = (*this).NumBlocksOnProc(toProc); 
+
+  //change rank of procBlock
+  (*this).rank[blk] = toProc;
 
   //all procBlocks on same processor with a local position higher than oldPos should be moved down one
   for ( unsigned int ii = 0; ii < (*this).localPos.size(); ii++ ){
-    if ( (*this).rank[ii] == (*this).rank[blk] && (*this).localPos[ii] > oldPos ){ //procBlock is on given processor and in "higher" position than the block to be moved
+    if ( (*this).rank[ii] == fromProc && (*this).localPos[ii] > oldPos ){ //procBlock is on given processor and in "higher" position than the block to be moved
       (*this).localPos[ii]--;
     }
   }
 
-  //change rank of procBlock
-  (*this).rank[blk] = proc;
 }
 
 /*Member function to add data for a split*/
@@ -573,4 +613,115 @@ ostream & operator<< (ostream &os, const decomposition &d){
     os << "Split Number: " << ii << "; Lower Index: " << d.splitHistBlkLow[ii] << ", Upper Index: " << d.splitHistBlkUp[ii] << ", Direction: " << d.splitHistDir[ii] << endl;
   }
   return os;
+}
+
+double decomposition::ProcLoad( const vector<plot3dBlock> &grid, const int &proc )const{
+  // grid -- vector of plot3dBlocks making up entire grid
+  // proc -- rank of processor to calculate load for
+
+  int load = 0;
+  for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
+    if ( (*this).rank[ii] == proc ){
+      load += grid[ii].NumCells();
+    }
+  }
+  return (double)load;
+}
+
+double decomposition::LoadRatio( const vector<plot3dBlock> &grid, const int &proc )const{
+  // grid -- vector of plot3dBlocks making up entire grid
+  // proc -- rank of processor to calculate ratio for
+
+  double ideal = (*this).IdealLoad(grid);
+  double load = (*this).ProcLoad(grid, proc);
+  return fabs(1.0 - load/ideal);
+}
+
+/*Member function to determine whether to send a whole block or a split block from a given processor. If it is determined to send a split block, the index of the 
+split is returned, and the direction string is changed to the appropriate value. If a whole block is to be sent, the index returned is -1.*/
+int decomposition::SendWholeOrSplit( const vector<plot3dBlock> &grid, const int &send, const int &recv, int &blk, string &dir ) const {
+  // grid -- vector of plot3dBlocks making up entire grid
+  // send -- rank of processor to sending block
+  // recv -- rank of process to receive block
+  // blk -- block to split or send
+  // dir -- direction of split
+
+  int ind = -1;
+  dir = "none";
+
+  double sendRatio = (*this).LoadRatio(grid, send);
+  double recvRatio = (*this).LoadRatio(grid, recv);
+  double ideal = (*this).IdealLoad(grid);
+  double sendLoad = (*this).ProcLoad(grid, send);
+  double recvLoad = (*this).ProcLoad(grid, recv);
+
+  //find out if there is a block that can be sent that would improve both ratios
+  for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
+    if ( (*this).rank[ii] == send ){
+      double newSendRatio = fabs(1.0 - (sendLoad - (double)grid[ii].NumCells())/ideal);
+      double newRecvRatio = fabs(1.0 - (recvLoad + (double)grid[ii].NumCells())/ideal);
+      if ( newSendRatio < sendRatio && newRecvRatio < recvRatio ){ //can send whole block
+	blk = ii;
+	return ind;
+      }
+    }
+  }
+
+  //find out which block to split - largest
+  int bSize = 0;
+  for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
+    if ( (*this).rank[ii] == send ){
+      if ( grid[ii].NumCells() > bSize ){
+	blk = ii;
+	bSize = grid[ii].NumCells();
+      }
+    }
+  }
+
+  //get block split direction, plane size, and possible split length
+  int planeSize = 0;
+  int splitLen = 0;
+  if ( grid[blk].NumK() >= grid[blk].NumJ() && grid[blk].NumK() >= grid[blk].NumI() ){
+    dir = "k";
+    planeSize = (grid[blk].NumJ() - 1) * (grid[blk].NumI() - 1); //-1 to get cell sizes
+    splitLen = grid[blk].NumK() - 1;
+  }
+  else if ( grid[blk].NumJ() >= grid[blk].NumI() ){
+    dir = "j";
+    planeSize = (grid[blk].NumK() - 1) * (grid[blk].NumI() - 1);
+    splitLen = grid[blk].NumJ() - 1;
+  }
+  else{
+    dir = "i";
+    planeSize = (grid[blk].NumJ() - 1) * (grid[blk].NumK() - 1);
+    splitLen = grid[blk].NumI() - 1;
+  }
+
+  //get split index
+  for ( int ii = 0; ii < splitLen - 1; ii++ ){ //splitLen - 1 bc index is last cell that is kept in lower portion of split, if entire length is kept, no split
+    double newSendRatio = fabs(1.0 - (sendLoad - (double)(planeSize * (ii+1) ))/ideal);
+    double newRecvRatio = fabs(1.0 - (recvLoad + (double)(planeSize * (ii+1) ))/ideal);
+    if ( newSendRatio < sendRatio && newRecvRatio < recvRatio ){ //can send whole block
+      sendRatio = newSendRatio;
+      recvRatio = newRecvRatio;
+      ind = ii;
+    }
+  }
+
+  return ind;
+}
+
+void decomposition::PrintDiagnostics( const vector<plot3dBlock> &grid )const{
+
+  cout << "Decomposition for " << (*this).numProcs << " processors" << endl;
+  for ( unsigned int ii = 0; ii < (*this).rank.size(); ii++ ){
+    cout << "Block: " << ii << "; Rank: " << (*this).rank[ii] << ", Parent Block: " << (*this).parBlock[ii] << ", Local Position: " << (*this).localPos[ii] << 
+      ", NumI: " << grid[ii].NumI()-1 << ", NumJ: " << grid[ii].NumJ()-1 << ", NumK: " << grid[ii].NumK()-1 << ", Num Cells: " << grid[ii].NumCells() << endl; 
+  }
+  cout << "Split History" << endl;
+  for ( unsigned int ii = 0; ii < (*this).splitHistBlkLow.size(); ii++ ){
+    cout << "Split Number: " << ii << "; Lower Index: " << (*this).splitHistBlkLow[ii] << ", Upper Index: " << (*this).splitHistBlkUp[ii] << ", Direction: " << (*this).splitHistDir[ii] << endl;
+  }
+
+
 }

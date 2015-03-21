@@ -261,10 +261,10 @@ void interblock::SwapOrder(){
 
 /* Function to go through the boundary conditions and pair the interblock BCs together and determine their orientation.
 */
-vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const vector<plot3dBlock> &grid, const vector<vector3d<int> > &rankParPos ){
+vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const vector<plot3dBlock> &grid, const decomposition &decomp ){
   // bc -- vector of boundaryConditions for all blocks
   // grid -- vector of plot3Dblocks for entire computational mesh
-  // rankParPos -- rank of blocks in grid, parent block in grid, local position on processor
+  // decomp -- decomposition of grid onto processors
 
   //isolate only the interblock BCs and their associated data from all of the BCs
   vector<boundarySurface> isolatedInterblocks; //outer vector for each interblock BC, inner vector for information about interblock
@@ -276,7 +276,7 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
     for ( int jj = 0; jj < bc[ii].NumSurfaces(); jj++ ){ //loop over number of surfaces in block
 
       if ( bc[ii].GetBCTypes(jj) == "interblock" ){ //if boundary condition is interblock, store data
-	vector3d<int> temp(ii, rankParPos[ii][0], rankParPos[ii][2]);
+	vector3d<int> temp(ii, decomp.Rank(ii), decomp.LocalPosition(ii));
 	numRankPos.push_back(temp);                              //block number of bc, rank, local position
 	isolatedInterblocks.push_back(bc[ii].GetSurface(jj));    //boundarySurface of bc
 	surfaceNums.push_back(jj);
@@ -288,6 +288,7 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
   //----------------------------------------------------------------------------------------------------
   //intialize vector of interblocks to return
   //size is halved because each interblock pairs with another
+  cout << "found " << isolatedInterblocks.size() << " interblocks" << endl;
   vector<interblock> connections(isolatedInterblocks.size()/2);
 
   //loop over isolated interblocks
@@ -779,7 +780,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	}
 
 	if ( (*this).GetIMin(ii) >= indNG ){ //this surface is only present in the upper split
-	  bound2.surfs[ii].data[0] = (*this).GetIMax(ii) - indNG + 1;    //imin
+	  bound2.surfs[ii].data[0] = (*this).GetIMin(ii) - indNG + 1;    //imin
 	  bound2.surfs[ii].data[1] = (*this).GetIMax(ii) - indNG + 1;    //imax
 	  //can delete it from lower split
 	  del1.push_back(ii);
@@ -867,7 +868,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	}
 
 	if ( (*this).GetJMin(ii) >= indNG ){ //this surface is only present in the upper split
-	  bound2.surfs[ii].data[2] = (*this).GetJMax(ii) - indNG + 1;   //jmin
+	  bound2.surfs[ii].data[2] = (*this).GetJMin(ii) - indNG + 1;   //jmin
 	  bound2.surfs[ii].data[3] = (*this).GetJMax(ii) - indNG + 1;   //jmax
 	  //can delete from lower split
 	  del1.push_back(ii);
@@ -955,7 +956,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	}
 
 	if ( (*this).GetKMin(ii) >= indNG ){ //this surface is only present in the upper split
-	  bound2.surfs[ii].data[4] = (*this).GetKMax(ii) - indNG + 1;      //kmin
+	  bound2.surfs[ii].data[4] = (*this).GetKMin(ii) - indNG + 1;      //kmin
 	  bound2.surfs[ii].data[5] = (*this).GetKMax(ii) - indNG + 1;      //kmax
 	  //can delete from lower surface
 	  del1.push_back(ii);
@@ -1041,49 +1042,53 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
 
 	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 1 of candidate
 	  candDir = lowSurf.Direction1();
+	  candInd = ind - (surf.Min1() - 1) + (lowSurf.Min1() - 1);
 	}
 	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 2 of candidate
 	  candDir = lowSurf.Direction2();
+	  candInd = ind - (surf.Min2() - 1) + (lowSurf.Min2() - 1);
 	}
 	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
 	  candDir = lowSurf.Direction3();
+	  candInd = ind; //candInd doesn't matter for dir 3 b/c block cannot be split, only partner block updated
 	}
 	else{
 	  cerr<< "ERROR: Error in boundaryConditions::DependentSplit(). Direction " << dir << " is not recognized." << endl;
 	  cerr << "Please choose i, j, or k." << endl;
 	  exit(0);
 	}
-	candInd = ind;
 
       }
       else if (match.Orientation() == 2){ //D1/D2 swapped
 
 	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 2 of candidate
 	  candDir = lowSurf.Direction2();
+	  candInd = ind - (surf.Min2() - 1) + (lowSurf.Min2() - 1);
 	}
 	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 1 of candidate
 	  candDir = lowSurf.Direction1();
+	  candInd = ind - (surf.Min1() - 1) + (lowSurf.Min1() - 1);
 	}
 	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
 	  candDir = lowSurf.Direction3();
+	  candInd = ind;
 	}
 	else{
 	  cerr<< "ERROR: Error in boundaryConditions::DependentSplit(). Direction " << dir << " is not recognized." << endl;
 	  cerr << "Please choose i, j, or k." << endl;
 	  exit(0);
 	}
-	candInd = ind;
 
       }
       else if (match.Orientation() == 3){ //D1 reversed
 
 	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 1 of candidate
 	  candDir = lowSurf.Direction1();
-	  candInd = surf.Max1() -1 - ind;
+	  candInd = surf.Max1() - 1 - ind - (surf.Min1() - 1) + (lowSurf.Min1() - 1);
 	}
 	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 2 of candidate
 	  candDir = lowSurf.Direction2();
-	  candInd = ind;
+	  candInd = ind - (surf.Min2() - 1) + (lowSurf.Min2() - 1);
 	}
 	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
 	  candDir = lowSurf.Direction3();
@@ -1100,11 +1105,11 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
 
 	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 2 of candidate
 	  candDir = lowSurf.Direction2();
-	  candInd = surf.Max1() - 1 - ind;
+	  candInd = surf.Max1() - 1 - ind - (surf.Min1() - 1) + (lowSurf.Min1() - 1);
 	}
 	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 1 of candidate
 	  candDir = lowSurf.Direction1();
-	  candInd = ind;
+	  candInd = ind - (surf.Min2() - 1) + (lowSurf.Min2() - 1);
 	}
 	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
 	  candDir = lowSurf.Direction3();
@@ -1121,11 +1126,11 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
 
 	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 2 of candidate
 	  candDir = lowSurf.Direction2();
-	  candInd = ind;
+	  candInd = ind - (surf.Min1() - 1) + (lowSurf.Min1() - 1);
 	}
 	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 1 of candidate
 	  candDir = lowSurf.Direction1();
-	  candInd = surf.Max2() - 1 - ind;
+	  candInd = surf.Max2() - 1 - ind - (surf.Min2() - 1) + (lowSurf.Min2() - 1);
 	}
 	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
 	  candDir = lowSurf.Direction3();
@@ -1142,11 +1147,11 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
 
 	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 1 of candidate
 	  candDir = lowSurf.Direction1();
-	  candInd = ind;
+	  candInd = ind - (surf.Min1() - 1) + (lowSurf.Min1() - 1);
 	}
 	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 2 of candidate
 	  candDir = lowSurf.Direction2();
-	  candInd = surf.Max2() - 1 - ind;
+	  candInd = surf.Max2() - 1 - ind - (surf.Min2() - 1) + (lowSurf.Min2() - 1);
 	}
 	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
 	  candDir = lowSurf.Direction3();
@@ -1163,11 +1168,11 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
 
 	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 2 of candidate
 	  candDir = lowSurf.Direction2();
-	  candInd = surf.Max1() - 1 - ind;
+	  candInd = surf.Max1() - 1 - ind - (surf.Min1() - 1) + (lowSurf.Min1() - 1);
 	}
 	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 1 of candidate
 	  candDir = lowSurf.Direction1();
-	  candInd = surf.Max2() - 1 - ind;
+	  candInd = surf.Max2() - 1 - ind - (surf.Min2() - 1) + (lowSurf.Min2() - 1);
 	}
 	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
 	  candDir = lowSurf.Direction3();
@@ -1184,11 +1189,11 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
 
 	if ( surf.Direction1() == dir ){ //split was in direction 1 of partner, needs to be direction 1 of candidate
 	  candDir = lowSurf.Direction1();
-	  candInd = surf.Max1() - 1 - ind;
+	  candInd = surf.Max1() - 1 - ind - (surf.Min1() - 1) + (lowSurf.Min1() - 1);
 	}
 	else if ( surf.Direction2() == dir ){ //split was in direction 2 of partner, needs to be direction 2 of candidate
 	  candDir = lowSurf.Direction2();
-	  candInd = surf.Max2() - 1 - ind;
+	  candInd = surf.Max2() - 1 - ind - (surf.Min2() - 1) + (lowSurf.Min2() - 1);
 	}
 	else if ( surf.Direction3() == dir ){ //split was in direction 3 of partner, needs to be direction 3 of candidate
 	  candDir = lowSurf.Direction3();
@@ -1202,9 +1207,17 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
 
       }
 
+
+      cout << "splitting surface: " << lowSurf << " with direction, index, & orientation: " << candDir << ", " << candInd << ", " << match.Orientation() << endl;
+      cout << "partner surface: " << surf << endl;
+
       //split matched surface
       bool split = false; //flag to tell if surface was split (or just if block number updated)
       boundarySurface upSurf = lowSurf.Split(candDir, candInd, lblk, ublk, split, match.Orientation()); 
+
+      cout << "updated surface: " << lowSurf <<endl;
+
+
 
       //assign boundarySurface back into boundaryConditions, if surface wasn't split partner block was updated
       (*this).surfs[ii] = lowSurf;
@@ -2189,15 +2202,15 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind, const 
 
   if ( dir == "i" ){ //split along i-plane
 
-    if ( (*this).SurfaceType() == 1 || (*this).SurfaceType() == 2 ){ //cannot split an i-surface along i-plane, just update block
+    if ( (*this).SurfaceType() == 1 || (*this).SurfaceType() == 2 || indNG <= 0 ){ //cannot split an i-surface along i-plane, just update block
       surf1.UpdateTagForSplitJoin(uBlk);
       split = false;
     }
     else{ //j or k surface
 
       if ( (*this).IMin() >= indNG ){ //this surface is only present in the upper split
-	surf1.data[0] = (*this).IMax() - indNG + 1;    //imin
-	surf1.data[1] = (*this).IMax() - indNG + 1;    //imax
+	surf1.data[0] = (*this).IMin() - indNG + 1 + ((*this).IMin() - 1);    //imin
+	surf1.data[1] = (*this).IMax() - indNG + 1 + ((*this).IMin() - 1);    //imax
 	isReversed ? surf1.UpdateTagForSplitJoin(lBlk) : surf1.UpdateTagForSplitJoin(uBlk);
 	split = false;
       }
@@ -2217,15 +2230,15 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind, const 
   }
   else if ( dir == "j" ){ //split along j-plane
 
-    if ( (*this).SurfaceType() == 3 || (*this).SurfaceType() == 4 ){ //cannot split a j-surface along j-plane, just update block
+    if ( (*this).SurfaceType() == 3 || (*this).SurfaceType() == 4 || indNG <= 0){ //cannot split a j-surface along j-plane, just update block
       surf1.UpdateTagForSplitJoin(uBlk);
       split = false;
     }
     else{ //i or k surface
 
       if ( (*this).JMin() >= indNG ){ //this surface is only present in the upper split
-	surf1.data[2] = (*this).JMax() - indNG + 1;    //jmin
-	surf1.data[3] = (*this).JMax() - indNG + 1;    //jmax
+	surf1.data[2] = (*this).JMin() - indNG + 1 + ((*this).JMin() - 1);    //jmin
+	surf1.data[3] = (*this).JMax() - indNG + 1 + ((*this).JMin() - 1);    //jmax
 	isReversed ? surf1.UpdateTagForSplitJoin(lBlk) : surf1.UpdateTagForSplitJoin(uBlk);
 	split = false;
       }
@@ -2245,15 +2258,15 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind, const 
   }
   else if ( dir == "k" ){ //split along k-plane
 
-    if ( (*this).SurfaceType() == 5 || (*this).SurfaceType() == 6 ){ //cannot split a k-surface along k-plane, just update block
+    if ( (*this).SurfaceType() == 5 || (*this).SurfaceType() == 6 || indNG <= 0 ){ //cannot split a k-surface along k-plane, just update block
       surf1.UpdateTagForSplitJoin(uBlk);
       split = false;
     }
     else{ //i or j surface
 
       if ( (*this).KMin() >= indNG ){ //this surface is only present in the upper split
-	surf1.data[4] = (*this).KMax() - indNG + 1;    //kmin
-	surf1.data[5] = (*this).KMax() - indNG + 1;    //kmax
+	surf1.data[4] = (*this).KMin() - indNG + 1 + ((*this).KMin() - 1);    //kmin
+	surf1.data[5] = (*this).KMax() - indNG + 1 + ((*this).KMin() - 1);    //kmax
 	isReversed ? surf1.UpdateTagForSplitJoin(lBlk) : surf1.UpdateTagForSplitJoin(uBlk);
 	split = false;
       }

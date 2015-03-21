@@ -60,7 +60,7 @@ int main( int argc, char *argv[] ) {
 
   double totalCells = 0.0;
   input inputVars;
-  vector<int> loadBal;
+  decomposition decomp;
   int numProcBlock = 0;
 
   string inputFile = argv[1];  //name of input file is the second argument (the executable being the first)
@@ -113,12 +113,12 @@ int main( int argc, char *argv[] ) {
     //split blocks and BCs 
     vector<boundaryConditions> bcs = inputVars.AllBC();
     //decompose grid
-    vector<vector3d<int> > rankParPos;
+    //vector<vector3d<int> > rankParPos;
     if ( inputVars.DecompMethod() == "manual" ){
-      loadBal = ManualDecomposition(mesh, rankParPos, numProcs, totalCells);
+      //loadBal = ManualDecomposition(mesh, rankParPos, numProcs, totalCells);
     }
     else if ( inputVars.DecompMethod() == "cubic" ){
-      loadBal = CubicDecomposition(mesh, rankParPos, bcs, numProcs, totalCells);
+      decomp = CubicDecomposition(mesh, bcs, numProcs);
     }
     else{
       cerr << "ERROR: Domain decomposition method " << inputVars.DecompMethod() << " is not recognized!" << endl;
@@ -126,7 +126,7 @@ int main( int argc, char *argv[] ) {
     }
 
     //Get interblock BCs
-    connections = GetInterblockBCs( bcs, mesh, rankParPos );
+    connections = GetInterblockBCs( bcs, mesh, decomp );
 
     cout << connections.size() << " connections found" << endl;
     for ( unsigned int vv = 0; vv < connections.size(); vv++ ){
@@ -139,9 +139,21 @@ int main( int argc, char *argv[] ) {
     //initialize the whole mesh with one state and assign ghost cells geometry ------------------
     stateBlocks.resize( mesh.size() );
     for ( int ll = 0; ll < (int)mesh.size(); ll++) {
-      stateBlocks[ll] = procBlock(state, mesh[ll], rankParPos[ll][1], numGhost, bcs[ll], ll, rankParPos[ll][0]);
+      stateBlocks[ll] = procBlock(state, mesh[ll], decomp.ParentBlock(ll), numGhost, bcs[ll], ll, decomp.Rank(ll) );
       stateBlocks[ll].AssignGhostCellsGeom();
     }
+
+
+
+    //DEBUG
+    if ( rank == ROOT) {
+      //Write out cell centers grid file
+      WriteCellCenter(inputVars.GridName(),stateBlocks);
+      WriteFun(inputVars.GridName(),stateBlocks, eos, 0, inputVars.RRef(), aRef, inputVars.TRef());
+    }
+
+
+
 
     //swap geometry for interblock BCs
     for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
@@ -162,7 +174,7 @@ int main( int argc, char *argv[] ) {
   SetDataTypesMPI(numEqns, MPI_vec3d, MPI_cellData, MPI_procBlockInts, MPI_interblock, MPI_DOUBLE_5INT );
 
   //send number of procBlocks to all processors
-  SendNumProcBlocks( loadBal, rank, numProcBlock);
+  SendNumProcBlocks( decomp.NumBlocksOnAllProc(), rank, numProcBlock);
 
   //send procBlocks to appropriate processor
   vector<procBlock> localStateBlocks = SendProcBlocks(stateBlocks, rank, numProcBlock, MPI_cellData, MPI_vec3d);
