@@ -56,13 +56,8 @@ class procBlock {
   int numK;                                //k-dimension of block (cells)
   int numGhosts;                           //number of layers of ghost cells surrounding block
   int parBlock;                            //parent block number
-  int parBlockStartI;                      //parent block starting index for i
-  int parBlockEndI;                        //parent block ending index for i
-  int parBlockStartJ;                      //parent block starting index for j
-  int parBlockEndJ;                        //parent block ending index for j
-  int parBlockStartK;                      //parent block starting index for k
-  int parBlockEndK;                        //parent block ending index for k
   int rank;                                //processor rank
+  int localPos;                            //position on local processor
   int globalPos;                           //global position of procBlock in decomposed vector of procBlocks
 
  public:
@@ -70,7 +65,7 @@ class procBlock {
   procBlock();
   procBlock( const plot3dBlock& , const int&, const int& );
   procBlock( const double, const double, const vector3d<double>, const plot3dBlock&, const int&, const int&, const boundaryConditions& );
-  procBlock( const primVars&, const plot3dBlock&, const int &, const int&, const boundaryConditions&, const int&, const int& );
+  procBlock( const primVars&, const plot3dBlock&, const int &, const int&, const boundaryConditions&, const int&, const int&, const int& );
   procBlock( const int&, const int&, const int&, const int& );
 
   //member functions
@@ -81,12 +76,7 @@ class procBlock {
   int NumK() const {return numK;}
   int NumGhosts() const {return numGhosts;}
   int ParentBlock() const {return parBlock;}
-  int ParentBlockStartI() const {return parBlockStartI;}
-  int ParentBlockEndI() const {return parBlockEndI;}
-  int ParentBlockStartJ() const {return parBlockStartJ;}
-  int ParentBlockEndJ() const {return parBlockEndJ;}
-  int ParentBlockStartK() const {return parBlockStartK;}
-  int ParentBlockEndK() const {return parBlockEndK;}
+  int LocalPosition() const {return localPos;}
   void SetRank( const int &a){rank = a;}                             //setter needed for parallel decomposition
   int Rank() const {return rank;}
   void SetGlobalPos( const int &a){globalPos = a;}                   //setter needed for parallel decomposition

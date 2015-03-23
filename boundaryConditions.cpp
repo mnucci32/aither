@@ -711,6 +711,34 @@ void interblock::UpdateBorderSecond(const int &a){
 
 }
 
+
+int boundaryConditions::BlockDimI()const{
+
+  int dim = 0;
+  for ( int ii = 0; ii < (*this).NumSurfaces(); ii++ ){
+    dim = std::max(dim, (*this).GetIMax(ii));
+  }
+  return dim;
+}
+
+int boundaryConditions::BlockDimJ()const{
+
+  int dim = 0;
+  for ( int ii = 0; ii < (*this).NumSurfaces(); ii++ ){
+    dim = std::max(dim, (*this).GetJMax(ii));
+  }
+  return dim;
+}
+
+int boundaryConditions::BlockDimK()const{
+
+  int dim = 0;
+  for ( int ii = 0; ii < (*this).NumSurfaces(); ii++ ){
+    dim = std::max(dim, (*this).GetKMax(ii));
+  }
+  return dim;
+}
+
 /* Member function to split boundary conditions along a given direction at a given index. The calling instance retains the lower portion of the split,
 and the returned instance is the upper portion
 */
@@ -736,10 +764,15 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
   if ( dir == "i" ){ //split along i-plane
 
     //initialize deletion numbers to 0
+    int del1I = 0;
     int del1J = 0;
     int del1K = 0;
+    int del2I = 0;
     int del2J = 0;
     int del2K = 0;
+
+    int numInterL = 0;
+    int numInterU = 0;
 
     for ( int ii = 0; ii < (*this).NumSurfaces(); ii++ ){ //loop over all surfaces
       if ( ii < (*this).NumSurfI() ){ //i-surface
@@ -752,6 +785,19 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	  bound2.surfs[ii].data[0] = (*this).GetIMin(ii);  //imin
 	  bound2.surfs[ii].data[1] = (*this).GetIMax(ii);  //imax
 	  bound2.surfs[ii].data[6] = tag;                  //tag
+
+	  //there should only be one surface between the split blocks
+	  bound2.surfs[ii].data[2] = 1;                    //jmin
+	  bound2.surfs[ii].data[3] = (*this).BlockDimJ();  //jmax
+	  bound2.surfs[ii].data[4] = 1;                    //kmin
+	  bound2.surfs[ii].data[5] = (*this).BlockDimK();  //kmax
+
+	  if (numInterL > 0 ){
+	    del2.push_back(ii);
+	    del2I++;
+	  }
+
+	  numInterL++;
 	}
 	else{ //upper surface
 	  //at upper i surface, lower bc is now interface
@@ -760,6 +806,19 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	  bound1.surfs[ii].data[0] = indNG;       //imin
 	  bound1.surfs[ii].data[1] = indNG;       //imax
 	  bound1.surfs[ii].data[6] = tag;         //tag
+
+	  //there should only be one surface between the split blocks
+	  bound1.surfs[ii].data[2] = 1;                    //jmin
+	  bound1.surfs[ii].data[3] = (*this).BlockDimJ();  //jmax
+	  bound1.surfs[ii].data[4] = 1;                    //kmin
+	  bound1.surfs[ii].data[5] = (*this).BlockDimK();  //kmax
+
+	  if (numInterU > 0 ){
+	    del1.push_back(ii);
+	    del1I++;
+	  }
+
+	  numInterU++;
 
 	  //at upper i surface, upper bc is same as original, but indices are adjusted for new block size
 	  bound2.surfs[ii].data[0] = (*this).GetIMax(ii) - indNG + 1;      //imin
@@ -791,7 +850,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	    del1K++;
 	  }
 	}
-	else if ( (*this).GetIMax(ii) >= indNG ){ //this surface straddles the split
+	else if ( (*this).GetIMax(ii) > indNG ){ //this surface straddles the split
 	  bound1.surfs[ii].data[1] = indNG;                               //imax
 	  bound2.surfs[ii].data[0] = 1;                                   //imin
 	  bound2.surfs[ii].data[1] = (*this).GetIMax(ii) - indNG + 1;     //imax
@@ -811,11 +870,13 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
     //delete unnecessary boundaries and change number of surfaces in i,j,k to appropriate number
     for ( unsigned int ii = 0; ii < del1.size(); ii++ ){
       bound1.surfs.erase(bound1.surfs.begin() + del1[ii]);
+      bound1.numSurfI -= del1I;
       bound1.numSurfJ -= del1J;
       bound1.numSurfK -= del1K;
     }
     for ( unsigned int ii = 0; ii < del2.size(); ii++ ){
       bound2.surfs.erase(bound2.surfs.begin() + del2[ii]);
+      bound2.numSurfI -= del2I;
       bound2.numSurfJ -= del2J;
       bound2.numSurfK -= del2K;
     }
@@ -825,9 +886,14 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 
     //initialize deletion numbers to 0
     int del1I = 0;
+    int del1J = 0;
     int del1K = 0;
     int del2I = 0;
+    int del2J = 0;
     int del2K = 0;
+
+    int numInterL = 0;
+    int numInterU = 0;
 
     for ( int ii = 0; ii < (*this).NumSurfaces(); ii++ ){ //loop over all surfaces
       if ( ii >= (*this).NumSurfI() && ii < (*this).NumSurfI() + (*this).NumSurfJ() ){ //j-surface
@@ -840,6 +906,19 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	  bound2.surfs[ii].data[2] = (*this).GetJMin(ii);   //jmin
 	  bound2.surfs[ii].data[3] = (*this).GetJMax(ii);   //jmax
 	  bound2.surfs[ii].data[6] = tag;                   //tag
+
+	  //there should only be one surface between the split blocks
+	  bound2.surfs[ii].data[0] = 1;                    //imin
+	  bound2.surfs[ii].data[1] = (*this).BlockDimI();  //imax
+	  bound2.surfs[ii].data[4] = 1;                    //kmin
+	  bound2.surfs[ii].data[5] = (*this).BlockDimK();  //kmax
+
+	  if (numInterL > 0 ){
+	    del2.push_back(ii);
+	    del2J++;
+	  }
+
+	  numInterL++;
 	}
 	else {
 	  //at upper j surface, lower bc is now interface
@@ -848,6 +927,19 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	  bound1.surfs[ii].data[2] = indNG;               //jmin
 	  bound1.surfs[ii].data[3] = indNG;               //jmax
 	  bound1.surfs[ii].data[6] = tag;                 //tag
+
+	  //there should only be one surface between the split blocks
+	  bound1.surfs[ii].data[0] = 1;                    //imin
+	  bound1.surfs[ii].data[1] = (*this).BlockDimI();  //imax
+	  bound1.surfs[ii].data[4] = 1;                    //kmin
+	  bound1.surfs[ii].data[5] = (*this).BlockDimK();  //kmax
+
+	  if (numInterU > 0 ){
+	    del1.push_back(ii);
+	    del1J++;
+	  }
+
+	  numInterU++;
 
 	  //at upper j surface, upper bc is same as original, but indices are adjusted for new block size
 	  bound2.surfs[ii].data[2] = (*this).GetJMax(ii) - indNG + 1;  //jmin
@@ -879,7 +971,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	    del1K++;
 	  }
 	}
-	else if ( (*this).GetJMax(ii) >= indNG ){ //this surface straddles the split
+	else if ( (*this).GetJMax(ii) > indNG ){ //this surface straddles the split
 	  bound1.surfs[ii].data[3] = indNG;                              //jmax
 	  bound2.surfs[ii].data[2] = 1;                                  //jmin
 	  bound2.surfs[ii].data[3] = (*this).GetJMax(ii) - indNG + 1;    //jmax
@@ -900,11 +992,13 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
     for ( unsigned int ii = 0; ii < del1.size(); ii++ ){
       bound1.surfs.erase(bound1.surfs.begin() + del1[ii]);
       bound1.numSurfI -= del1I;
+      bound1.numSurfJ -= del1J;
       bound1.numSurfK -= del1K;
     }
     for ( unsigned int ii = 0; ii < del2.size(); ii++ ){
       bound2.surfs.erase(bound2.surfs.begin() + del2[ii]);
       bound2.numSurfI -= del2I;
+      bound2.numSurfJ -= del2J;
       bound2.numSurfK -= del2K;
     }
 
@@ -914,8 +1008,13 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
     //initialize deletion numbers to 0
     int del1I = 0;
     int del1J = 0;
+    int del1K = 0;
     int del2I = 0;
     int del2J = 0;
+    int del2K = 0;
+
+    int numInterL = 0;
+    int numInterU = 0;
 
     for ( int ii = 0; ii < (*this).NumSurfaces(); ii++ ){ //loop over all surfaces
       if ( ii >= (*this).NumSurfI() + (*this).NumSurfJ() ){ //k-surface
@@ -928,6 +1027,19 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	  bound2.surfs[ii].data[4] = (*this).GetKMin(ii);   //kmin
 	  bound2.surfs[ii].data[5] = (*this).GetKMax(ii);   //kmax
 	  bound2.surfs[ii].data[6] = tag;                   //tag
+
+	  //there should only be one surface between the split blocks
+	  bound2.surfs[ii].data[0] = 1;                    //imin
+	  bound2.surfs[ii].data[1] = (*this).BlockDimI();  //imax
+	  bound2.surfs[ii].data[2] = 1;                    //jmin
+	  bound2.surfs[ii].data[3] = (*this).BlockDimJ();  //jmax
+
+	  if (numInterL > 0 ){
+	    del2.push_back(ii);
+	    del2K++;
+	  }
+
+	  numInterL++;
 	}
 	else {
 	  //at upper k surface, lower bc is now interface
@@ -936,6 +1048,19 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	  bound1.surfs[ii].data[4] = indNG;                 //kmin
 	  bound1.surfs[ii].data[5] = indNG;                 //kmax
 	  bound1.surfs[ii].data[6] = tag;                   //tag
+
+	  //there should only be one surface between the split blocks
+	  bound1.surfs[ii].data[0] = 1;                    //imin
+	  bound1.surfs[ii].data[1] = (*this).BlockDimI();  //imax
+	  bound1.surfs[ii].data[2] = 1;                    //jmin
+	  bound1.surfs[ii].data[3] = (*this).BlockDimJ();  //jmax
+
+	  if (numInterU > 0 ){
+	    del1.push_back(ii);
+	    del1K++;
+	  }
+
+	  numInterU++;
 
 	  //at upper k surface, upper bc is same as original, but indices are adjusted for new block size
 	  bound2.surfs[ii].data[4] = (*this).GetKMax(ii) - indNG + 1;   //kmin
@@ -967,7 +1092,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
 	    del1J++;
 	  }
 	}
-	else if ( (*this).GetKMax(ii) >= indNG ){ //this surface straddles the split
+	else if ( (*this).GetKMax(ii) > indNG ){ //this surface straddles the split
 	  bound1.surfs[ii].data[5] = indNG;                              //kmax
 	  bound2.surfs[ii].data[4] = 1;                                  //kmin
 	  bound2.surfs[ii].data[5] = (*this).GetKMax(ii) - indNG + 1;    //kmax
@@ -994,6 +1119,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind, 
       bound2.surfs.erase(bound2.surfs.begin() + del2[ii]);
       bound2.numSurfI -= del2I;
       bound2.numSurfJ -= del2J;
+      bound2.numSurfK -= del2K;
     }
 
   }

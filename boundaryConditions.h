@@ -139,6 +139,10 @@ class boundaryConditions {
   int GetTag( const int &a)const{return surfs[a].Tag();}
   boundarySurface GetSurface( const int &a)const{return surfs[a];}
 
+  int BlockDimI()const;
+  int BlockDimJ()const;
+  int BlockDimK()const;
+
   void ResizeVecs( const int&);
   void ResizeVecs( const int&, const int&, const int& );
 

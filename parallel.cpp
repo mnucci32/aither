@@ -88,15 +88,15 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid, vector<boundaryCondi
 
     double loaded = 0;
     int ol = decomp.MostOverloadedProc(grid, loaded);
-    cout << "Most overloaded processor is " << ol << " overloaded by " << loaded << endl;
+    // cout << "Most overloaded processor is " << ol << " overloaded by " << loaded << endl;
     int ul = decomp.MostUnderloadedProc(grid, loaded);
-    cout << "Most underloaded processor is " << ul << " underloaded by " << loaded << endl;
+    // cout << "Most underloaded processor is " << ul << " underloaded by " << loaded << endl;
 
     string dir;
     int blk;
     int ind = decomp.SendWholeOrSplit(grid, ol, ul, blk, dir);
 
-    cout << "result of send/split is block, index, direction: " << blk << ", " << ind << ", " << dir << endl;
+    // cout << "result of send/split is block, index, direction: " << blk << ", " << ind << ", " << dir << endl;
 
     if (ind < 0 ){ //send whole
       decomp.SendToProc(blk,ol,ul);
@@ -125,10 +125,10 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid, vector<boundaryCondi
 
       decomp.PrintDiagnostics(grid);
 
-      cout << "after split BCs are:" << endl;
-      for ( unsigned int ii = 0; ii < bcs.size(); ii++ ){
-	cout << bcs[ii] << endl;
-      }
+      // cout << "after split BCs are:" << endl;
+      // for ( unsigned int ii = 0; ii < bcs.size(); ii++ ){
+      // 	cout << bcs[ii] << endl;
+      // }
 
       
     }
@@ -326,8 +326,8 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
   // MPI_cellData -- MPI_Datatype used for primVars and genArray transmission
   // MPI_vec3d -- MPI_Datatype used for vector3d<double>  transmission
 
-  vector<procBlock> localBlocks; //vector of procBlocks for each processor
-  localBlocks.reserve(numProcBlock); //each processor may allocate for a different size
+  vector<procBlock> localBlocks(numProcBlock); //vector of procBlocks for each processor
+  //localBlocks.reserve(numProcBlock); //each processor may allocate for a different size
 
   //------------------------------------------------------------------------------------------------------------------------------------------------
   //                                                                ROOT
@@ -336,7 +336,7 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
     for ( unsigned int ii = 0; ii < blocks.size(); ii++ ){ //loop over ALL blocks
 
       if (blocks[ii].Rank() == ROOT ){ //no need to send data because it is already on ROOT processor
-	localBlocks.push_back(blocks[ii]);
+	localBlocks[blocks[ii].LocalPosition()] = blocks[ii];
       }
       else{ //send data to receiving processors
 	//pack and send procBlock
@@ -354,7 +354,7 @@ vector<procBlock> SendProcBlocks( const vector<procBlock> &blocks, const int &ra
       procBlock tempBlock;
       tempBlock.RecvUnpackGeomMPI( MPI_cellData, MPI_vec3d );
 
-      localBlocks.push_back(tempBlock); //add procBlock to output vector
+      localBlocks[tempBlock.LocalPosition()] = tempBlock; //add procBlock to output vector
     }
   }
 
@@ -377,14 +377,12 @@ void GetProcBlocks( vector<procBlock> &blocks, const vector<procBlock> &localBlo
   //                                                                ROOT
   //------------------------------------------------------------------------------------------------------------------------------------------------
   if ( rank == ROOT ){ // may have to recv and unpack data
-    int locNum = 0;
 
     for ( unsigned int ii = 0; ii < blocks.size(); ii++ ){ //loop over ALL blocks
 
       if (blocks[ii].Rank() == ROOT ){ //no need to recv data because it is already on ROOT processor
 	//assign local state block to global state block in order of local state vector
-	blocks[ii] = localBlocks[locNum];
-	locNum++;
+	blocks[ii] = localBlocks[blocks[ii].LocalPosition()];
       }
       else{ //recv data from sending processors
 	blocks[ii].RecvUnpackSolMPI(MPI_cellData);
@@ -397,8 +395,27 @@ void GetProcBlocks( vector<procBlock> &blocks, const vector<procBlock> &localBlo
   //                                                                NON - ROOT
   //------------------------------------------------------------------------------------------------------------------------------------------------
   else { // pack and send data (non-root)
+
+    //get vector of local positions
+    vector<int> localPos(localBlocks.size());
+    for ( unsigned int ii = 0; ii < localPos.size(); ii++ ){
+      localPos[ii] = localBlocks[ii].LocalPosition();
+    }
+
     for ( unsigned int ii = 0; ii < localBlocks.size(); ii++ ){
-      localBlocks[ii].PackSendSolMPI(MPI_cellData);
+
+      //need to send data in order of global position, not local position to prevent deadlock
+      int minGlobal = 0;
+      for ( unsigned int jj = 0; jj < localPos.size(); jj++ ){
+	if ( localBlocks[localPos[jj]].GlobalPos() < localBlocks[minGlobal].GlobalPos() ){
+	  minGlobal = jj;
+	}
+      }
+
+      localBlocks[localPos[minGlobal]].PackSendSolMPI(MPI_cellData);
+
+      localPos.erase(localPos.begin() + minGlobal);
+
     }
   }
 

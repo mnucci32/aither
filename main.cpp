@@ -28,11 +28,11 @@ using std::clock;
 int main( int argc, char *argv[] ) {
 
 
-  // {
-  //   cout << "waiting for attach" << endl;
-  //   int wait = 0;
-  //   while(wait == 0);
-  // }
+  {
+    cout << "waiting for attach" << endl;
+    int wait = 0;
+    while(wait == 0);
+  }
 
 
 
@@ -139,7 +139,7 @@ int main( int argc, char *argv[] ) {
     //initialize the whole mesh with one state and assign ghost cells geometry ------------------
     stateBlocks.resize( mesh.size() );
     for ( int ll = 0; ll < (int)mesh.size(); ll++) {
-      stateBlocks[ll] = procBlock(state, mesh[ll], decomp.ParentBlock(ll), numGhost, bcs[ll], ll, decomp.Rank(ll) );
+      stateBlocks[ll] = procBlock(state, mesh[ll], decomp.ParentBlock(ll), numGhost, bcs[ll], ll, decomp.Rank(ll), decomp.LocalPosition(ll) );
       stateBlocks[ll].AssignGhostCellsGeom();
     }
 
@@ -175,6 +175,8 @@ int main( int argc, char *argv[] ) {
 
   //send number of procBlocks to all processors
   SendNumProcBlocks( decomp.NumBlocksOnAllProc(), rank, numProcBlock);
+
+  cout << "Rank: " << rank << " has " << numProcBlock << " procBlocks" << endl;
 
   //send procBlocks to appropriate processor
   vector<procBlock> localStateBlocks = SendProcBlocks(stateBlocks, rank, numProcBlock, MPI_cellData, MPI_vec3d);
@@ -216,7 +218,6 @@ int main( int argc, char *argv[] ) {
     WriteFun(inputVars.GridName(),stateBlocks, eos, 0, inputVars.RRef(), aRef, inputVars.TRef());
     WriteRes(inputVars.GridName(), 0, inputVars.OutputFrequency());
   }
-
 
   for ( int nn = 0; nn < inputVars.Iterations(); nn++ ){            //loop over time
 
