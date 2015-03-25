@@ -10,12 +10,10 @@ using std::distance;
 /* Function to return processor list for manual decomposition. Manual decomposition assumes that each block will reside on it's own processor.
 The processor list tells how many procBlocks a processor will have.
 */
-vector<int> ManualDecomposition(vector<plot3dBlock> &grid, vector<vector3d<int> > &rankParPos, const int &numProc, const int &totalCells ){
+decomposition ManualDecomposition(vector<plot3dBlock> &grid, vector<boundaryConditions> &bcs, const int &numProc ){
   // grid -- vector of procBlocks (no need to split procBlocks or combine them with manual decomposition)
-  // blkRank -- rank of processor that plot3dBlock will go on
-  // blkPar -- parent block of plot3dBlock
+  // bcs -- vector of boundary conditions for each block in grid
   // numProc -- number of processors in run
-  // totalCells -- total number of cells in the grid; used for load balancing metrics
 
   if ( (int)grid.size() != numProc ){
     cerr << "ERROR: Error in parallel.cpp:ManualDecomposition(). Manual decomposition assumes that the number of processors used is equal to the " <<
@@ -26,30 +24,26 @@ vector<int> ManualDecomposition(vector<plot3dBlock> &grid, vector<vector3d<int> 
   cout << "--------------------------------------------------------------------------------" << endl;
   cout << "Using manual grid decomposition." << endl;
 
-  double idealLoad = (double)totalCells / (double)numProc; //average number of cells per processor
-  int maxLoad = 0;
-
-  //vector containing number of procBlocks for each processor
-  //in manual decomp, each proc gets 1 block
-  vector<int> loadBal(numProc, 1);
-
-  //assign processor rank for each plot3dBlock; global position is index, ii
-  rankParPos.resize(grid.size());
-  for ( unsigned int ii = 0; ii < rankParPos.size(); ii++ ){
-    rankParPos[ii][0] = ii;   //rank
-    rankParPos[ii][1] = ii;   //parent block
-    rankParPos[ii][2] = 0;    //local block
+  decomposition decomp(grid.size(), numProc);
+  for ( unsigned int ii = 1; ii < grid.size(); ii++ ){
+    decomp.SendToProc(ii,ROOT,ii); //send block from ROOT to processor
   }
 
-  //find maximum number of cells on a processor
-  for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
-    maxLoad = std::max(maxLoad, grid[ii].NumCells());
-  }
+  decomp.PrintDiagnostics(grid);
+  cout << endl;
+  cout << "Ideal Load: " << decomp.IdealLoad(grid) << endl;
+  cout << "Max Load: " << decomp.MaxLoad(grid) << endl;
 
-  cout << "Ratio of most loaded processor to average processor is : " << (double)maxLoad / idealLoad << endl;
+  double loaded = 0;
+  int ol = decomp.MostOverloadedProc(grid, loaded);
+  cout << "Most overloaded processor is " << ol << "; overloaded by " << loaded << endl;
+  int ul = decomp.MostUnderloadedProc(grid, loaded);
+  cout << "Most underloaded processor is " << ul << "; underloaded by " << loaded << endl;
+
+  cout << "Ratio of most loaded processor to average processor is : " << decomp.MaxLoad(grid) / decomp.IdealLoad(grid) << endl;
   cout << "--------------------------------------------------------------------------------" << endl << endl;;
 
-  return loadBal;
+  return decomp;
 }
 
 /* Function to return processor list for cubic decomposition. 
@@ -57,51 +51,30 @@ The processor list tells how many procBlocks a processor will have.
 */
 decomposition CubicDecomposition(vector<plot3dBlock> &grid, vector<boundaryConditions> &bcs, const int &numProc ){
   // grid -- vector of procBlocks (no need to split procBlocks or combine them with manual decomposition)
-  // blkRank -- rank of processor that plot3dBlock will go on
-  // blkPar -- parent block of plot3dBlock
   // bcs -- vector of boundary conditions for all blocks
   // numProc -- number of processors in run
-  // totalCells -- total number of cells in the grid; used for load balancing metrics
 
   cout << "--------------------------------------------------------------------------------" << endl;
   cout << "Using cubic grid decomposition." << endl;
 
-
   ///////////////////////////////////////////////////
 
-
   decomposition decomp(grid.size(), numProc);
-  decomp.PrintDiagnostics(grid);
-
   double idealLoad = decomp.IdealLoad(grid); //average number of cells per processor
-  int maxLoad = decomp.MaxLoad(grid);
-
-  cout << "Ideal Load: " << idealLoad << endl;
-  cout << "Max Load: " << maxLoad << endl;
-
   int count = 0;
 
-  //HARD CODED -- change maximum count
-  while ( decomp.MaxLoad(grid) / decomp.IdealLoad(grid) > 1.1 && count < 10 ){
-
-    cout << "Max Ratio: " << decomp.MaxLoad(grid) / decomp.IdealLoad(grid) << endl;
+  while ( decomp.MaxLoad(grid) / idealLoad > 1.1 && count < numProc * 10 ){
 
     double loaded = 0;
     int ol = decomp.MostOverloadedProc(grid, loaded);
-    // cout << "Most overloaded processor is " << ol << " overloaded by " << loaded << endl;
     int ul = decomp.MostUnderloadedProc(grid, loaded);
-    // cout << "Most underloaded processor is " << ul << " underloaded by " << loaded << endl;
 
     string dir;
     int blk;
     int ind = decomp.SendWholeOrSplit(grid, ol, ul, blk, dir);
 
-    // cout << "result of send/split is block, index, direction: " << blk << ", " << ind << ", " << dir << endl;
-
     if (ind < 0 ){ //send whole
       decomp.SendToProc(blk,ol,ul);
-
-      decomp.PrintDiagnostics(grid);
     }
     else { //split/send
 
@@ -115,101 +88,36 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid, vector<boundaryCondi
       bcs.push_back(newBcs);
 
       for ( unsigned int ii = 0; ii < altSurf.size(); ii++ ){
-	bcs[altSurf[ii].PartnerBlock()].DependentSplit(altSurf[ii], grid[blk], grid[altSurf[ii].PartnerBlock()], altSurf[ii].PartnerBlock(), dir, ind, blk, newBlk);
+  	bcs[altSurf[ii].PartnerBlock()].DependentSplit(altSurf[ii], grid[blk], grid[altSurf[ii].PartnerBlock()], altSurf[ii].PartnerBlock(), dir, ind, blk, newBlk);
       }
       //reassign split grid
       grid[blk] = lBlk;
 
       decomp.Split(blk,dir);
       decomp.SendToProc(blk,ol,ul);
-
-      decomp.PrintDiagnostics(grid);
-
-      // cout << "after split BCs are:" << endl;
-      // for ( unsigned int ii = 0; ii < bcs.size(); ii++ ){
-      // 	cout << bcs[ii] << endl;
-      // }
-
-      
     }
 
     count++;
-
-
   }
 
-  // decomp.SendToProc(1,1);
-  // decomp.SendToProc(2,2);
-  // decomp.SendToProc(3,3);
-  // decomp.Split(0, "j");
-  // decomp.SendToProc(4,4);
+  if (count == numProc * 10 - 1){
+    cout << "WARNING: Maximum number of splits in decomposition has been reached." << endl;
+  }
+
+  decomp.PrintDiagnostics(grid);
+  cout << endl;
+  cout << "Ideal Load: " << idealLoad << endl;
+  cout << "Max Load: " << decomp.MaxLoad(grid) << endl;
 
   double loaded = 0;
-  cout << endl << endl << endl;
-  decomp.PrintDiagnostics(grid);
-  cout << "Ideal Load: " << decomp.IdealLoad(grid) << endl;
-  cout << "Max Load: " << decomp.MaxLoad(grid) << endl;
   int ol = decomp.MostOverloadedProc(grid, loaded);
-  cout << "Most overloaded processor is " << ol << " overloaded by " << loaded << endl;
+  cout << "Most overloaded processor is " << ol << "; overloaded by " << loaded << endl;
   int ul = decomp.MostUnderloadedProc(grid, loaded);
-  cout << "Most underloaded processor is " << ul << " underloaded by " << loaded << endl;
+  cout << "Most underloaded processor is " << ul << "; underloaded by " << loaded << endl;
 
-
-  //vector containing number of procBlocks for each processor
-  //in cubic decomp, each proc gets 1 block
-  
-  // vector<int> loadBal(numProc, 1);
-  //vector<int> loadBal(1, 5);
-
-  // rankParPos.resize(grid.size());
-  // for ( unsigned int ii = 0; ii < rankParPos.size(); ii++ ){
-  //   //for single processor
-  //   // rankParPos[ii][0] = 0;      //rank
-  //   // rankParPos[ii][1] = 0;      //parent block
-  //   // rankParPos[ii][2] = ii;     //local position
-
-  //   rankParPos[ii][0] = ii;      //rank
-  //   rankParPos[ii][1] = ii;      //parent block
-  //   rankParPos[ii][2] = 0;       //local position
-
-  // }
-
-
-  // string dir = "j";
-  // int ind = 20;
-  // int blkNum = 0;
-  // int newBlk = 4;
-  // // int newRank = 0;
-  // // int newPos = 4;
-  // int newRank = 4;
-  // int newPos = 0;
-
-  // vector<boundarySurface> altSurf;
-  // plot3dBlock lBlk, uBlk; 
-  // grid[blkNum].Split(dir,ind, lBlk, uBlk);
-  // grid.push_back(uBlk);
-  // vector3d<int> temp(newRank, blkNum, newPos);
-  // rankParPos.push_back(temp);
-  // boundaryConditions newBcs = bcs[blkNum].Split(dir,ind, blkNum, newBlk, altSurf);
-  // bcs.push_back(newBcs);
-
-  // for ( unsigned int ii = 0; ii < altSurf.size(); ii++ ){
-  //   bcs[altSurf[ii].PartnerBlock()].DependentSplit(altSurf[ii], grid[blkNum], grid[altSurf[ii].PartnerBlock()], altSurf[ii].PartnerBlock(), dir, ind, blkNum, newBlk);
-  // }
-  // //reassign split grid
-  // grid[blkNum] = lBlk;
-
-
-  cout << "updated BCs are:" << endl;
-  for ( unsigned int ii = 0; ii < bcs.size(); ii++ ){
-    cout << bcs[ii] << endl;
-  }
-
-
-
-  //find maximum number of cells on a processor
-  // for ( unsigned int ii = 0; ii < grid.size(); ii++ ){
-  //   maxLoad = std::max(maxLoad, grid[ii].NumCells());
+  // cout << "updated BCs are:" << endl;
+  // for ( unsigned int ii = 0; ii < bcs.size(); ii++ ){
+  //   cout << bcs[ii] << endl;
   // }
 
   ////////////////////////////////////////////////////////////
@@ -701,24 +609,26 @@ int decomposition::SendWholeOrSplit( const vector<plot3dBlock> &grid, const int 
   if ( grid[blk].NumK() >= grid[blk].NumJ() && grid[blk].NumK() >= grid[blk].NumI() ){
     dir = "k";
     planeSize = (grid[blk].NumJ() - 1) * (grid[blk].NumI() - 1); //-1 to get cell sizes
-    splitLen = grid[blk].NumK() - 1;
+    splitLen = grid[blk].NumK();
   }
   else if ( grid[blk].NumJ() >= grid[blk].NumI() ){
     dir = "j";
     planeSize = (grid[blk].NumK() - 1) * (grid[blk].NumI() - 1);
-    splitLen = grid[blk].NumJ() - 1;
+    splitLen = grid[blk].NumJ();
   }
   else{
     dir = "i";
     planeSize = (grid[blk].NumJ() - 1) * (grid[blk].NumK() - 1);
-    splitLen = grid[blk].NumI() - 1;
+    splitLen = grid[blk].NumI();
   }
 
   //get split index
-  for ( int ii = 0; ii < splitLen - 1; ii++ ){ //splitLen - 1 bc index is last cell that is kept in lower portion of split, if entire length is kept, no split
-    double newSendRatio = fabs(1.0 - (sendLoad - (double)(planeSize * (ii+1) ))/ideal);
-    double newRecvRatio = fabs(1.0 - (recvLoad + (double)(planeSize * (ii+1) ))/ideal);
-    if ( newSendRatio < sendRatio && newRecvRatio < recvRatio ){ //can send whole block
+  //splitLen - 2 bc index is last cell that is kept in lower portion of split, if entire length is kept, no split, need to keep at least 2 cells thick for ghost cell passing
+  //starting index at 2 so split is at least 2 cells thick for ghost cell passing - ind is the face index to split at
+  for ( int ii = 2; ii < splitLen - 2; ii++ ){ 
+    double newSendRatio = fabs(1.0 - (sendLoad - (double)(planeSize * ii ))/ideal);
+    double newRecvRatio = fabs(1.0 - (recvLoad + (double)(planeSize * ii ))/ideal);
+    if ( newSendRatio < sendRatio && newRecvRatio < recvRatio ){ //can send block at index
       sendRatio = newSendRatio;
       recvRatio = newRecvRatio;
       ind = ii;

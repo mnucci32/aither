@@ -24,7 +24,7 @@ using std::ostream;
 
 
 //function definitions
-vector<int> ManualDecomposition(vector<plot3dBlock>&, vector<vector3d<int> >&, const int&, const int& );
+decomposition ManualDecomposition(vector<plot3dBlock>&, vector<boundaryConditions>&, const int& );
 decomposition CubicDecomposition(vector<plot3dBlock>&, vector<boundaryConditions>&, const int& );
 
 void SendNumProcBlocks(const vector<int>&, const int&, int&);
