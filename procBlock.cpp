@@ -6930,7 +6930,7 @@ geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js, c
   int sizeK = ke - ks + 1;
 
   //initialize slice
-  geomSlice slice(sizeI, sizeJ, sizeK, (*this).ParentBlock(), is, ie+1, js, je+1, ks, ke+1 );
+  geomSlice slice(sizeI, sizeJ, sizeK, (*this).ParentBlock() );
 
   //get parent block maxes
   int imaxPar = (*this).NumI() + 2.0 * (*this).NumGhosts();
@@ -7071,7 +7071,7 @@ stateSlice procBlock::GetStateSlice(const int &is, const int &ie, const int &js,
   int sizeK = ke - ks + 1;
 
   //initialize state slice
-  stateSlice states(sizeI, sizeJ, sizeK, (*this).ParentBlock(), is, ie+1, js, je+1, ks, ke+1 );
+  stateSlice states(sizeI, sizeJ, sizeK, (*this).ParentBlock() );
 
   //get parent block maxes
   int imaxPar = (*this).NumI() + 2.0 * (*this).NumGhosts();
