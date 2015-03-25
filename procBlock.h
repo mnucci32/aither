@@ -77,9 +77,7 @@ class procBlock {
   int NumGhosts() const {return numGhosts;}
   int ParentBlock() const {return parBlock;}
   int LocalPosition() const {return localPos;}
-  void SetRank( const int &a){rank = a;}                             //setter needed for parallel decomposition
   int Rank() const {return rank;}
-  void SetGlobalPos( const int &a){globalPos = a;}                   //setter needed for parallel decomposition
   int GlobalPos() const {return globalPos;}
 
   boundaryConditions BC() const {return bc;}

@@ -28,11 +28,11 @@ using std::clock;
 int main( int argc, char *argv[] ) {
 
 
-  {
-    cout << "waiting for attach" << endl;
-    int wait = 0;
-    while(wait == 0);
-  }
+  // {
+  //   cout << "waiting for attach" << endl;
+  //   int wait = 0;
+  //   while(wait == 0);
+  // }
 
 
 
@@ -49,6 +49,7 @@ int main( int argc, char *argv[] ) {
     cout << "Using MPI Version " << version << "." << subversion << endl;
   }
 
+  cout << "Using " << numProcs << " processors" << endl;
   cout << "Hello from processor " << rank << " of " << numProcs << "!" << endl;
 
   //start clock to time simulation
@@ -110,12 +111,12 @@ int main( int argc, char *argv[] ) {
     //Read grid
     mesh = ReadP3dGrid(inputVars.GridName(), totalCells);
 
-    //split blocks and BCs 
+    //get BCs for blocks
     vector<boundaryConditions> bcs = inputVars.AllBC();
+
     //decompose grid
-    //vector<vector3d<int> > rankParPos;
     if ( inputVars.DecompMethod() == "manual" ){
-      //loadBal = ManualDecomposition(mesh, rankParPos, numProcs, totalCells);
+      decomp = ManualDecomposition(mesh, bcs, numProcs);
     }
     else if ( inputVars.DecompMethod() == "cubic" ){
       decomp = CubicDecomposition(mesh, bcs, numProcs);
@@ -128,10 +129,10 @@ int main( int argc, char *argv[] ) {
     //Get interblock BCs
     connections = GetInterblockBCs( bcs, mesh, decomp );
 
-    cout << connections.size() << " connections found" << endl;
-    for ( unsigned int vv = 0; vv < connections.size(); vv++ ){
-      cout << connections[vv] << endl;
-    }
+    // cout << connections.size() << " connections found" << endl;
+    // for ( unsigned int vv = 0; vv < connections.size(); vv++ ){
+    //   cout << connections[vv] << endl;
+    // }
 
     //Could send proc3dblocks to processors here, or initialize all on ROOT processor
 
@@ -142,18 +143,6 @@ int main( int argc, char *argv[] ) {
       stateBlocks[ll] = procBlock(state, mesh[ll], decomp.ParentBlock(ll), numGhost, bcs[ll], ll, decomp.Rank(ll), decomp.LocalPosition(ll) );
       stateBlocks[ll].AssignGhostCellsGeom();
     }
-
-
-
-    //DEBUG
-    if ( rank == ROOT) {
-      //Write out cell centers grid file
-      WriteCellCenter(inputVars.GridName(),stateBlocks);
-      WriteFun(inputVars.GridName(),stateBlocks, eos, 0, inputVars.RRef(), aRef, inputVars.TRef());
-    }
-
-
-
 
     //swap geometry for interblock BCs
     for ( unsigned int ii = 0; ii < connections.size(); ii++ ){
@@ -175,8 +164,6 @@ int main( int argc, char *argv[] ) {
 
   //send number of procBlocks to all processors
   SendNumProcBlocks( decomp.NumBlocksOnAllProc(), rank, numProcBlock);
-
-  cout << "Rank: " << rank << " has " << numProcBlock << " procBlocks" << endl;
 
   //send procBlocks to appropriate processor
   vector<procBlock> localStateBlocks = SendProcBlocks(stateBlocks, rank, numProcBlock, MPI_cellData, MPI_vec3d);

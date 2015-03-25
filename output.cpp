@@ -318,7 +318,8 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars, const ideal
 	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
 	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
 	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
-	      dumVec[loc] = vars[ll].Rank();  
+	      //dumVec[loc] = vars[ll].Rank();  
+	      dumVec[loc] = ll;
 	    }
 	  }
 	}

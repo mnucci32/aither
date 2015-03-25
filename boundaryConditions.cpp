@@ -288,7 +288,6 @@ vector<interblock> GetInterblockBCs( const vector<boundaryConditions> &bc, const
   //----------------------------------------------------------------------------------------------------
   //intialize vector of interblocks to return
   //size is halved because each interblock pairs with another
-  cout << "found " << isolatedInterblocks.size() << " interblocks" << endl;
   vector<interblock> connections(isolatedInterblocks.size()/2);
 
   //loop over isolated interblocks
@@ -1333,17 +1332,9 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf, const plot3
 
       }
 
-
-      cout << "splitting surface: " << lowSurf << " with direction, index, & orientation: " << candDir << ", " << candInd << ", " << match.Orientation() << endl;
-      cout << "partner surface: " << surf << endl;
-
       //split matched surface
       bool split = false; //flag to tell if surface was split (or just if block number updated)
       boundarySurface upSurf = lowSurf.Split(candDir, candInd, lblk, ublk, split, match.Orientation()); 
-
-      cout << "updated surface: " << lowSurf <<endl;
-
-
 
       //assign boundarySurface back into boundaryConditions, if surface wasn't split partner block was updated
       (*this).surfs[ii] = lowSurf;

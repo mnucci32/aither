@@ -61,7 +61,7 @@ input::input(): vars(32){
   stagInletProps[5] = 0.0;
   pressureOutlet[0] = 0.0;
   pressureOutlet[1] = 0.0;
-  decompMethod = "manual";     //default is manual decomposition
+  decompMethod = "cubic";     //default is cubic decomposition
 
   //keywords in the input file that the parser is looking for to define variables
   vars[0] = "gridName:";
