@@ -30,7 +30,7 @@ using std::cerr;
 //function definitions
 void WriteCellCenter(const string&, const vector<procBlock> &);
 void WriteCellCenterGhost(const string&, const vector<procBlock> &);
-void WriteFun(const string&, const vector<procBlock> &, const idealGas&, const double&, const double&, const double&, const double&);
+void WriteFun(const string&, const vector<procBlock> &, const idealGas&, const int&, const double&, const double&, const double&);
 void WriteRes(const string&, const int&, const int&);
 
 void WriteResiduals(const input&, genArray&, genArray&, const resid&, const double&, const int&, const int&);

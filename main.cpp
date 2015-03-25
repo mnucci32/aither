@@ -324,7 +324,7 @@ int main( int argc, char *argv[] ) {
       if ( rank == ROOT ){
 	cout << "writing out function file at iteration " << nn << endl;
 	//Write out function file
-	WriteFun(inputVars.GridName(),stateBlocks, eos, (double) (nn+1), inputVars.RRef(), aRef, inputVars.TRef());
+	WriteFun(inputVars.GridName(),stateBlocks, eos, (nn+1), inputVars.RRef(), aRef, inputVars.TRef());
 	WriteRes(inputVars.GridName(), (nn+1), inputVars.OutputFrequency());
       }
     }

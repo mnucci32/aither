@@ -170,13 +170,13 @@ void WriteCellCenterGhost(const string &gridName, const vector<procBlock > &vars
 
 //---------------------------------------------------------------------------------------------------------------//
 //function to write out variables in function file format
-void WriteFun(const string &gridName, const vector<procBlock> &vars, const idealGas &eqnState, const double &solTime, const double &refRho, const double &refSoS, const double &refT) {
+void WriteFun(const string &gridName, const vector<procBlock> &vars, const idealGas &eqnState, const int &solIter, const double &refRho, const double &refSoS, const double &refT) {
 
   //open binary plot3d function file 
   ofstream outFile;
   string fEnd = "_center";
   string fPostfix = ".fun";
-  string writeName = gridName + to_string(static_cast<long long int>(solTime)) + fEnd + fPostfix;
+  string writeName = gridName + to_string(static_cast<long long int>(solIter)) + fEnd + fPostfix;
   outFile.open(writeName.c_str(), ios::out | ios::binary);
 
   //check to see if file opened correctly
