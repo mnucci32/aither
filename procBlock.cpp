@@ -6395,6 +6395,26 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp, const idealGas &eo
 }
 
 /* Member function to determine where in padded plot3dBlock an index is located. It takes in an i, j, k cell location and returns a boolean indicating
+if the given i, j, k location corresponds to a physical cell location.
+ */
+bool procBlock::IsPhysical(const int& ii, const int& jj, const int& kk)const{
+  // ii -- i index of location to test
+  // jj -- j index of location to test
+  // kk -- k index of location to test
+
+  bool isPhysical = true;
+
+  //if any of (i, j, & k) are outside of the limits of physical cells, location is non-physical
+  if ( ( ii < (*this).NumGhosts() || ii > (*this).NumI() - 1 + (*this).NumGhosts() ) ||
+       ( jj < (*this).NumGhosts() || jj > (*this).NumJ() - 1 + (*this).NumGhosts() ) ||
+       ( kk < (*this).NumGhosts() || kk > (*this).NumK() - 1 + (*this).NumGhosts() ) ){
+    isPhysical = false;
+  }
+
+  return isPhysical;
+}
+
+/* Member function to determine where in padded plot3dBlock an index is located. It takes in an i, j, k cell location and returns a boolean indicating
 if the given i, j, k location corresponds to a corner location. Corner locations are not used at all. This function is NOT USED in the code but is useful
 for debugging purposes.
  */
