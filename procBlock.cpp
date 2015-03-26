@@ -8510,7 +8510,7 @@ void procBlock::Join(const procBlock &blk, const string &dir, vector<boundarySur
     procBlock newBlk( newNumI, newNumJ, newNumK, (*this).NumGhosts() );
 
     newBlk.bc = (*this).BC();
-    newBlk.bc.Join(blk.BC(), dir, alteredSurf);
+    // newBlk.bc.Join(blk.BC(), dir, alteredSurf);
 
     int iMaxU = blk.NumI() + 2 * blk.NumGhosts();
     int iMaxL = (*this).NumI() + 2 * blk.NumGhosts();
@@ -8649,6 +8649,7 @@ void procBlock::Join(const procBlock &blk, const string &dir, vector<boundarySur
 	}
       }
     }
+    (*this) = newBlk;
   }
   //-----------------------------------------------------------------------------------------------------------------------
   //-----------------------------------------------------------------------------------------------------------------------
@@ -8666,7 +8667,7 @@ void procBlock::Join(const procBlock &blk, const string &dir, vector<boundarySur
     procBlock newBlk( newNumI, newNumJ, newNumK, (*this).NumGhosts() );
 
     newBlk.bc = (*this).BC();
-    newBlk.bc.Join(blk.BC(), dir, alteredSurf);
+    // newBlk.bc.Join(blk.BC(), dir, alteredSurf);
 
     int jMaxU = blk.NumJ() + 2 * blk.NumGhosts();
     int jMaxL = (*this).NumJ() + 2 * blk.NumGhosts();
@@ -8805,6 +8806,7 @@ void procBlock::Join(const procBlock &blk, const string &dir, vector<boundarySur
 	}
       }
     }
+    (*this) = newBlk;
   }
   //-----------------------------------------------------------------------------------------------------------------------
   //-----------------------------------------------------------------------------------------------------------------------
@@ -8822,7 +8824,7 @@ void procBlock::Join(const procBlock &blk, const string &dir, vector<boundarySur
     procBlock newBlk( newNumI, newNumJ, newNumK, (*this).NumGhosts() );
 
     newBlk.bc = (*this).BC();
-    newBlk.bc.Join(blk.BC(), dir, alteredSurf);
+    // newBlk.bc.Join(blk.BC(), dir, alteredSurf);
 
     int ind = (*this).NumK();
 
@@ -8958,6 +8960,7 @@ void procBlock::Join(const procBlock &blk, const string &dir, vector<boundarySur
 	}
       }
     }
+    (*this) = newBlk;
   }
   else {
     cerr << "ERROR: Error in procBlock::Join(). Direction " << dir << " is not recognized! Choose either i, j, or k." << endl;
