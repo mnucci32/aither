@@ -18,7 +18,10 @@ using std::max;
 //---------------------------------------------------------------------------------------------------------------//
 //function declarations
 //function to write out cell centers of grid in plot3d format
-void WriteCellCenter(const string &gridName, const vector<procBlock > &vars) {
+void WriteCellCenter(const string &gridName, const vector<procBlock > &vars, const decomposition &decomp) {
+
+  //recombine procblocks into original configuration
+  vector<procBlock> recombVars = Recombine(vars, decomp);
 
   //open binary plot3d grid file 
   ofstream outFile;
@@ -34,7 +37,7 @@ void WriteCellCenter(const string &gridName, const vector<procBlock > &vars) {
   }
 
   //write number of blocks to file
-  int numBlks = vars.size();
+  int numBlks = recombVars.size();
   outFile.write(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
 
   //write i, j, k dimension for each block
@@ -44,30 +47,30 @@ void WriteCellCenter(const string &gridName, const vector<procBlock > &vars) {
 
   for ( int ll=0; ll < numBlks; ll++ ){ //loop over all blocks
     //subtract 1 from max values because procBlock maxes are in terms of nodes, not cells
-    dumInt = vars[ll].NumI();
+    dumInt = recombVars[ll].NumI();
     outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-    dumInt = vars[ll].NumJ();
+    dumInt = recombVars[ll].NumJ();
     outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-    dumInt = vars[ll].NumK();
+    dumInt = recombVars[ll].NumK();
     outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
   }
 
   //write out x, y, z coordinates of cell centers
   for ( int ll = 0; ll < numBlks; ll++ ){  //loop over all blocks
-    int maxi = vars[ll].NumI();
-    int maxj = vars[ll].NumJ();
-    int maxk = vars[ll].NumK();
-    int maxiG = vars[ll].NumI() + 2 * vars[ll].NumGhosts();
-    int maxjG = vars[ll].NumJ() + 2 * vars[ll].NumGhosts();
+    int maxi = recombVars[ll].NumI();
+    int maxj = recombVars[ll].NumJ();
+    int maxk = recombVars[ll].NumK();
+    int maxiG = recombVars[ll].NumI() + 2 * recombVars[ll].NumGhosts();
+    int maxjG = recombVars[ll].NumJ() + 2 * recombVars[ll].NumGhosts();
 
     for ( int nn = 0; nn < 3; nn++ ){  //loop over dimensions (3)
 
-      for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	  for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){ 
+      for ( int kk = recombVars[ll].NumGhosts(); kk < maxk + recombVars[ll].NumGhosts(); kk++ ){
+	for ( int jj = recombVars[ll].NumGhosts(); jj < maxj + recombVars[ll].NumGhosts(); jj++ ){
+	  for ( int ii = recombVars[ll].NumGhosts(); ii < maxi + recombVars[ll].NumGhosts(); ii++){ 
 
 	    int loc = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	    dumVec = vars[ll].Center(loc);  //at a given cell, get the cell center coordinates
+	    dumVec = recombVars[ll].Center(loc);  //at a given cell, get the cell center coordinates
 
 	    //for a given block, first write out all x coordinates, then all y coordinates, then all z coordinates
 	    if (nn == 0 ) {
@@ -95,7 +98,7 @@ void WriteCellCenter(const string &gridName, const vector<procBlock > &vars) {
 }
 
 //function to write out cell centers of grid with ghost cells in plot3d format
-void WriteCellCenterGhost(const string &gridName, const vector<procBlock > &vars) {
+void WriteCellCenterGhost(const string &gridName, const vector<procBlock > &vars ) {
 
   //open binary plot3d grid file 
   ofstream outFile;
@@ -170,7 +173,10 @@ void WriteCellCenterGhost(const string &gridName, const vector<procBlock > &vars
 
 //---------------------------------------------------------------------------------------------------------------//
 //function to write out variables in function file format
-void WriteFun(const string &gridName, const vector<procBlock> &vars, const idealGas &eqnState, const int &solIter, const double &refRho, const double &refSoS, const double &refT) {
+void WriteFun(const string &gridName, const vector<procBlock> &vars, const idealGas &eqnState, const int &solIter, const double &refRho, 
+	      const double &refSoS, const double &refT, const decomposition &decomp) {
+
+  vector<procBlock> recombVars = Recombine(vars, decomp);
 
   //open binary plot3d function file 
   ofstream outFile;
@@ -186,10 +192,10 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars, const ideal
   }
 
   //write number of blocks to file
-  int numBlks = vars.size();
+  int numBlks = recombVars.size();
   outFile.write(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
 
-  //write i, j, k, vars dimension for each block
+  //write i, j, k, recombVars dimension for each block
   int numVars = 11;            //number of variables to write out
   int dumInt = 0;
 
@@ -197,11 +203,11 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars, const ideal
   double dumDouble=0.0;
 
   for ( int ll=0; ll < numBlks; ll++ ){ //loop over all blocks and write out imax, jmax, kmax, numVars
-    dumInt = vars[ll].NumI();
+    dumInt = recombVars[ll].NumI();
     outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-    dumInt = vars[ll].NumJ();
+    dumInt = recombVars[ll].NumJ();
     outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-    dumInt = vars[ll].NumK();
+    dumInt = recombVars[ll].NumK();
     outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
 
     outFile.write(reinterpret_cast<char *>(&numVars), sizeof(numVars));
@@ -209,126 +215,126 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars, const ideal
 
   //write out variables
   for ( int ll = 0; ll < numBlks; ll++ ){ //loop over all blocks
-    int maxi = vars[ll].NumI();
-    int maxj = vars[ll].NumJ();
-    int maxk = vars[ll].NumK();
-    int blkLen = vars[ll].NumCells();
+    int maxi = recombVars[ll].NumI();
+    int maxj = recombVars[ll].NumJ();
+    int maxk = recombVars[ll].NumK();
+    int blkLen = recombVars[ll].NumCells();
     vector<double> dumVec(blkLen);
-    int maxiG = vars[ll].NumI() + 2 * vars[ll].NumGhosts();
-    int maxjG = vars[ll].NumJ() + 2 * vars[ll].NumGhosts();
+    int maxiG = recombVars[ll].NumI() + 2 * recombVars[ll].NumGhosts();
+    int maxjG = recombVars[ll].NumJ() + 2 * recombVars[ll].NumGhosts();
 
     for ( int vv = 0; vv < numVars; vv++ ){ //loop over the number of variables to write out
       //store nondimensional variable in dumVec for a given block in order. i.e. var1 var2 var3 etc
       if (vv == 0) {   //density
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){ 
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	for ( int kk = recombVars[ll].NumGhosts(); kk < maxk + recombVars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = recombVars[ll].NumGhosts(); jj < maxj + recombVars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = recombVars[ll].NumGhosts(); ii < maxi + recombVars[ll].NumGhosts(); ii++){ 
+	      int loc = GetLoc1D(ii - recombVars[ll].NumGhosts(), jj - recombVars[ll].NumGhosts(), kk - recombVars[ll].NumGhosts(), maxi, maxj);
 	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	      dumVec[loc] = vars[ll].State(locG).Rho(); 
+	      dumVec[loc] = recombVars[ll].State(locG).Rho(); 
 	    }
 	  }
 	}
       }
       else if (vv == 1) {  //vel-x
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	for ( int kk = recombVars[ll].NumGhosts(); kk < maxk + recombVars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = recombVars[ll].NumGhosts(); jj < maxj + recombVars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = recombVars[ll].NumGhosts(); ii < maxi + recombVars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - recombVars[ll].NumGhosts(), jj - recombVars[ll].NumGhosts(), kk - recombVars[ll].NumGhosts(), maxi, maxj);
 	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	      dumVec[loc] = vars[ll].State(locG).U();  
+	      dumVec[loc] = recombVars[ll].State(locG).U();  
 	    }
 	  }
 	}
       }
       else if (vv == 2) {  //vel-y
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	for ( int kk = recombVars[ll].NumGhosts(); kk < maxk + recombVars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = recombVars[ll].NumGhosts(); jj < maxj + recombVars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = recombVars[ll].NumGhosts(); ii < maxi + recombVars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - recombVars[ll].NumGhosts(), jj - recombVars[ll].NumGhosts(), kk - recombVars[ll].NumGhosts(), maxi, maxj);
 	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	      dumVec[loc] = vars[ll].State(locG).V();
+	      dumVec[loc] = recombVars[ll].State(locG).V();
 	    }
 	  }
 	}
       }
       else if (vv == 3) {   //vel-z
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	for ( int kk = recombVars[ll].NumGhosts(); kk < maxk + recombVars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = recombVars[ll].NumGhosts(); jj < maxj + recombVars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = recombVars[ll].NumGhosts(); ii < maxi + recombVars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - recombVars[ll].NumGhosts(), jj - recombVars[ll].NumGhosts(), kk - recombVars[ll].NumGhosts(), maxi, maxj);
 	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	      dumVec[loc] = vars[ll].State(locG).W(); 
+	      dumVec[loc] = recombVars[ll].State(locG).W(); 
 	    }
 	  }
 	}
       }
       else if (vv == 4) {                        //pressure
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	for ( int kk = recombVars[ll].NumGhosts(); kk < maxk + recombVars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = recombVars[ll].NumGhosts(); jj < maxj + recombVars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = recombVars[ll].NumGhosts(); ii < maxi + recombVars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - recombVars[ll].NumGhosts(), jj - recombVars[ll].NumGhosts(), kk - recombVars[ll].NumGhosts(), maxi, maxj);
 	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	      dumVec[loc] = vars[ll].State(locG).P();
+	      dumVec[loc] = recombVars[ll].State(locG).P();
 	    }
 	  }
 	}
       }
       else if (vv == 5) {                      //mach
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	for ( int kk = recombVars[ll].NumGhosts(); kk < maxk + recombVars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = recombVars[ll].NumGhosts(); jj < maxj + recombVars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = recombVars[ll].NumGhosts(); ii < maxi + recombVars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - recombVars[ll].NumGhosts(), jj - recombVars[ll].NumGhosts(), kk - recombVars[ll].NumGhosts(), maxi, maxj);
 	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	      vel = vars[ll].State(locG).Velocity();
-	      dumVec[loc] = vel.Mag() / eqnState.GetSoS( vars[ll].State(locG).P(), vars[ll].State(locG).Rho() );
+	      vel = recombVars[ll].State(locG).Velocity();
+	      dumVec[loc] = vel.Mag() / eqnState.GetSoS( recombVars[ll].State(locG).P(), recombVars[ll].State(locG).Rho() );
 	    }
 	  }
 	}
       }
       else if (vv == 6) {                     //speed of sound
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	for ( int kk = recombVars[ll].NumGhosts(); kk < maxk + recombVars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = recombVars[ll].NumGhosts(); jj < maxj + recombVars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = recombVars[ll].NumGhosts(); ii < maxi + recombVars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - recombVars[ll].NumGhosts(), jj - recombVars[ll].NumGhosts(), kk - recombVars[ll].NumGhosts(), maxi, maxj);
 	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	      dumVec[loc] = eqnState.GetSoS( vars[ll].State(locG).P(), vars[ll].State(locG).Rho() );
+	      dumVec[loc] = eqnState.GetSoS( recombVars[ll].State(locG).P(), recombVars[ll].State(locG).Rho() );
 	    }
 	  }
 	}
       }
       else if (vv == 7) {                    //time step - no ghost cells
 	for ( int ii = 0; ii < blkLen; ii++){
-	  dumVec[ii] = vars[ll].Dt(ii);  
+	  dumVec[ii] = recombVars[ll].Dt(ii);  
 	}
       }
       else if (vv == 8) {                     //temperature
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	for ( int kk = recombVars[ll].NumGhosts(); kk < maxk + recombVars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = recombVars[ll].NumGhosts(); jj < maxj + recombVars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = recombVars[ll].NumGhosts(); ii < maxi + recombVars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - recombVars[ll].NumGhosts(), jj - recombVars[ll].NumGhosts(), kk - recombVars[ll].NumGhosts(), maxi, maxj);
 	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	      dumVec[loc] = vars[ll].State(locG).Temperature(eqnState);   
+	      dumVec[loc] = recombVars[ll].State(locG).Temperature(eqnState);   
 	    }
 	  }
 	}
       }
       else if (vv == 9) {  //processor rank
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
-	      dumVec[loc] = vars[ll].Rank();  
+	for ( int kk = recombVars[ll].NumGhosts(); kk < maxk + recombVars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = recombVars[ll].NumGhosts(); jj < maxj + recombVars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = recombVars[ll].NumGhosts(); ii < maxi + recombVars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - recombVars[ll].NumGhosts(), jj - recombVars[ll].NumGhosts(), kk - recombVars[ll].NumGhosts(), maxi, maxj);
+	      dumVec[loc] = recombVars[ll].Rank();  
 	    }
 	  }
 	}
       }
       else if (vv == 10) {  //global position
-	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
-	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
-	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
-	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
-	      dumVec[loc] = vars[ll].GlobalPos();
+	for ( int kk = recombVars[ll].NumGhosts(); kk < maxk + recombVars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = recombVars[ll].NumGhosts(); jj < maxj + recombVars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = recombVars[ll].NumGhosts(); ii < maxi + recombVars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - recombVars[ll].NumGhosts(), jj - recombVars[ll].NumGhosts(), kk - recombVars[ll].NumGhosts(), maxi, maxj);
+	      dumVec[loc] = recombVars[ll].GlobalPos();
 	    }
 	  }
 	}
@@ -492,4 +498,20 @@ void WriteResiduals(const input &inp, genArray &residL2First, genArray &residL2,
   }
 
 
+}
+
+
+vector<procBlock> Recombine( const vector<procBlock> &vars, const decomposition &decomp ){
+  // vars -- vector of split procBlocks
+  // decomp -- decomposition
+
+  vector<procBlock> recombVars = vars;
+  vector<boundarySurface> dumSurf;
+  for ( int ii = decomp.NumSplits() - 1; ii >= 0; ii-- ){
+    //recombine blocks and resize vector
+    recombVars[decomp.SplitHistBlkLower(ii)].Join(recombVars[decomp.SplitHistBlkUpper(ii)], decomp.SplitHistDir(ii), dumSurf);
+    recombVars.resize(recombVars.size()-1);
+  }
+
+  return recombVars;
 }

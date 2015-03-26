@@ -16,6 +16,7 @@ It also writes out a master file in Ensight format to name the Plot3D functions.
 #include "procBlock.h" //procBlock
 #include "inviscidFlux.h" //inviscidFlux
 #include "input.h" //inputVars
+#include "boundaryConditions.h" //decomposition
 #include <fstream>
 #include <iostream>
 
@@ -28,11 +29,13 @@ using std::endl;
 using std::cerr;
 
 //function definitions
-void WriteCellCenter(const string&, const vector<procBlock> &);
+void WriteCellCenter(const string&, const vector<procBlock> &, const decomposition&);
 void WriteCellCenterGhost(const string&, const vector<procBlock> &);
-void WriteFun(const string&, const vector<procBlock> &, const idealGas&, const int&, const double&, const double&, const double&);
+void WriteFun(const string&, const vector<procBlock> &, const idealGas&, const int&, const double&, const double&, const double&, const decomposition&);
 void WriteRes(const string&, const int&, const int&);
 
 void WriteResiduals(const input&, genArray&, genArray&, const resid&, const double&, const int&, const int&);
+
+vector<procBlock> Recombine( const vector<procBlock>&, const decomposition& );
 
 #endif

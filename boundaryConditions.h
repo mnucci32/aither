@@ -191,9 +191,7 @@ class interblock {
 
   //member functions
   int RankFirst()const{return rank[0];}
-  void SetRankFirst(const int &a){rank[0] = a;} //setter needed to assign to processor during decomposition
   int RankSecond()const{return rank[1];}
-  void SetRankSecond(const int &a){rank[1] = a;} //setter needed to assign to processor during decomposition
 
   int BlockFirst()const{return block[0];}
   int BlockSecond()const{return block[1];}
@@ -281,6 +279,11 @@ class decomposition {
   void SendToProc( const int&, const int&, const int&);
   void Split( const int&, const string& );
   int SendWholeOrSplit( const vector<plot3dBlock>&, const int&, const int&, int&, string& )const;
+
+  int NumSplits()const{return (int)splitHistDir.size();}
+  int SplitHistBlkLower(const int &a)const{return splitHistBlkLow[a];}
+  int SplitHistBlkUpper(const int &a)const{return splitHistBlkUp[a];}
+  string SplitHistDir(const int &a)const{return splitHistDir[a];}
 
   void PrintDiagnostics( const vector<plot3dBlock>& )const;
 

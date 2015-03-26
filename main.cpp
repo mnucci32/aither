@@ -199,10 +199,10 @@ int main( int argc, char *argv[] ) {
 
   if ( rank == ROOT) {
     //Write out cell centers grid file
-    WriteCellCenter(inputVars.GridName(),stateBlocks);
-    //WriteCellCenterGhost(inputVars.GridName(),stateBlocks);
+    WriteCellCenter(inputVars.GridName(),stateBlocks, decomp);
+
     //Write out initial results
-    WriteFun(inputVars.GridName(),stateBlocks, eos, 0, inputVars.RRef(), aRef, inputVars.TRef());
+    WriteFun(inputVars.GridName(),stateBlocks, eos, 0, inputVars.RRef(), aRef, inputVars.TRef(), decomp);
     WriteRes(inputVars.GridName(), 0, inputVars.OutputFrequency());
   }
 
@@ -324,7 +324,7 @@ int main( int argc, char *argv[] ) {
       if ( rank == ROOT ){
 	cout << "writing out function file at iteration " << nn << endl;
 	//Write out function file
-	WriteFun(inputVars.GridName(),stateBlocks, eos, (nn+1), inputVars.RRef(), aRef, inputVars.TRef());
+	WriteFun(inputVars.GridName(),stateBlocks, eos, (nn+1), inputVars.RRef(), aRef, inputVars.TRef(), decomp);
 	WriteRes(inputVars.GridName(), (nn+1), inputVars.OutputFrequency());
       }
     }
