@@ -190,7 +190,7 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars, const ideal
   outFile.write(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
 
   //write i, j, k, vars dimension for each block
-  int numVars = 10;            //number of variables to write out
+  int numVars = 11;            //number of variables to write out
   int dumInt = 0;
 
   vector3d<double> vel;
@@ -318,8 +318,17 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars, const ideal
 	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
 	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
 	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
-	      //dumVec[loc] = vars[ll].Rank();  
-	      dumVec[loc] = ll;
+	      dumVec[loc] = vars[ll].Rank();  
+	    }
+	  }
+	}
+      }
+      else if (vv == 10) {  //global position
+	for ( int kk = vars[ll].NumGhosts(); kk < maxk + vars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = vars[ll].NumGhosts(); jj < maxj + vars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = vars[ll].NumGhosts(); ii < maxi + vars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - vars[ll].NumGhosts(), jj - vars[ll].NumGhosts(), kk - vars[ll].NumGhosts(), maxi, maxj);
+	      dumVec[loc] = vars[ll].GlobalPos();
 	    }
 	  }
 	}
@@ -391,7 +400,7 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
   }
 
   //write number of scalars and number of vectors
-  int numScalar = 10;
+  int numScalar = 11;
   int numVector = 1;
   resFile << numScalar << "     " << numVector << "     " << 0 << endl;
 
@@ -427,7 +436,8 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
   resFile << writeName << " F 0007 sos" << endl;
   resFile << writeName << " F 0008 dt" << endl;
   resFile << writeName << " F 0009 temperature" << endl;
-  resFile << writeName << " F 0010 processorID" << endl;
+  resFile << writeName << " F 0010 procRank" << endl;
+  resFile << writeName << " F 0011 procBlockID" << endl;
   resFile << writeName << " F 0002 0003 0004 velocity" << endl;
 
   //Close results file

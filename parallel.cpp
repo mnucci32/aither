@@ -321,7 +321,6 @@ void GetProcBlocks( vector<procBlock> &blocks, const vector<procBlock> &localBlo
       }
 
       localBlocks[localPos[minGlobal]].PackSendSolMPI(MPI_cellData);
-
       localPos.erase(localPos.begin() + minGlobal);
 
     }
