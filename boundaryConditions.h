@@ -255,7 +255,8 @@ class decomposition {
   vector<int> localPos;             //local position of each procBlock (vector size equals number of procBlocks after decomp)
   vector<int> splitHistBlkLow;      //lower block of split (vector size equals number of splits)
   vector<int> splitHistBlkUp;       //upper block of split (vector size equals number of splits)
-  vector<string> splitHistDir;      //direction of split (vector size eqals number of splits)
+  vector<int> splitHistIndex;       //index of split (vector size equals number of splits)
+  vector<string> splitHistDir;      //direction of split (vector size equals number of splits)
   int numProcs;                     //number of processors
 
  public:
@@ -277,12 +278,14 @@ class decomposition {
   int NumBlocksOnProc( const int&)const;
   vector<int> NumBlocksOnAllProc()const;
   void SendToProc( const int&, const int&, const int&);
-  void Split( const int&, const string& );
+  void Split( const int&, const int&, const string& );
   int SendWholeOrSplit( const vector<plot3dBlock>&, const int&, const int&, int&, string& )const;
+  int Size()const{return (int)rank.size();}
 
   int NumSplits()const{return (int)splitHistDir.size();}
   int SplitHistBlkLower(const int &a)const{return splitHistBlkLow[a];}
   int SplitHistBlkUpper(const int &a)const{return splitHistBlkUp[a];}
+  int SplitHistIndex(const int &a)const{return splitHistIndex[a];}
   string SplitHistDir(const int &a)const{return splitHistDir[a];}
 
   void PrintDiagnostics( const vector<plot3dBlock>& )const;
