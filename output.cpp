@@ -14,6 +14,7 @@ using std::ios;
 using std::ofstream;
 using std::to_string;
 using std::max;
+using std::pair;
 
 //---------------------------------------------------------------------------------------------------------------//
 //function declarations
@@ -324,7 +325,7 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars, const ideal
 	  for ( int jj = recombVars[ll].NumGhosts(); jj < maxj + recombVars[ll].NumGhosts(); jj++ ){
 	    for ( int ii = recombVars[ll].NumGhosts(); ii < maxi + recombVars[ll].NumGhosts(); ii++){         
 	      int loc = GetLoc1D(ii - recombVars[ll].NumGhosts(), jj - recombVars[ll].NumGhosts(), kk - recombVars[ll].NumGhosts(), maxi, maxj);
-	      dumVec[loc] = recombVars[ll].Rank();  
+	      dumVec[loc] = vars[SplitBlockNumber(recombVars, decomp, ll, ii - recombVars[ll].NumGhosts(), jj - recombVars[ll].NumGhosts(), kk - recombVars[ll].NumGhosts())].Rank();  
 	    }
 	  }
 	}
@@ -334,7 +335,7 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars, const ideal
 	  for ( int jj = recombVars[ll].NumGhosts(); jj < maxj + recombVars[ll].NumGhosts(); jj++ ){
 	    for ( int ii = recombVars[ll].NumGhosts(); ii < maxi + recombVars[ll].NumGhosts(); ii++){         
 	      int loc = GetLoc1D(ii - recombVars[ll].NumGhosts(), jj - recombVars[ll].NumGhosts(), kk - recombVars[ll].NumGhosts(), maxi, maxj);
-	      dumVec[loc] = recombVars[ll].GlobalPos();
+	      dumVec[loc] = vars[SplitBlockNumber(recombVars, decomp, ll, ii - recombVars[ll].NumGhosts(), jj - recombVars[ll].NumGhosts(), kk - recombVars[ll].NumGhosts())].GlobalPos();
 	    }
 	  }
 	}
@@ -500,7 +501,7 @@ void WriteResiduals(const input &inp, genArray &residL2First, genArray &residL2,
 
 }
 
-
+/*Function to take in a vector of split procBlocks and return a vector of joined procblocks (in their original configuration before grid decomposition).*/
 vector<procBlock> Recombine( const vector<procBlock> &vars, const decomposition &decomp ){
   // vars -- vector of split procBlocks
   // decomp -- decomposition
@@ -514,4 +515,72 @@ vector<procBlock> Recombine( const vector<procBlock> &vars, const decomposition 
   }
 
   return recombVars;
+}
+
+/*Function to take in indices from the recombined procBlocks and determine which split procBlock index the cell is associated with.*/
+int SplitBlockNumber( const vector<procBlock> &vars, const decomposition &decomp, const int &blk, const int &ii, const int &jj, const int &kk ){
+  // vars -- vector of recombined procblocks
+  // decomp -- decomposition data structure
+  // blk -- block number
+  // ii -- i index of cell in recombined block to find split block number
+  // jj -- j index of cell in recombined block to find split block number
+  // kk -- k index of cell in recombined block to find split block number
+
+  //Get block dimensions (both lower and upper extents)
+  vector<pair<vector3d<int>, vector3d<int> > > blkDims(vars.size());
+  vector3d<int> initialLower(0, 0, 0);
+  for ( unsigned int bb = 0; bb < blkDims.size(); bb++ ){
+    vector3d<int> dims(vars[bb].NumI(), vars[bb].NumJ(), vars[bb].NumK());
+    blkDims[bb].first = initialLower;
+    blkDims[bb].second = dims;
+  }
+
+  int ind = blk;
+
+  if ( decomp.NumSplits() == 0 ){ //no splits, cell must be in parent block already
+    return ind;
+  }
+  else{ //cell is in lower split already
+
+    for (int ss = 0; ss < decomp.NumSplits(); ss++ ){ //loop over all splits
+
+      if ( blk != decomp.ParentBlock(ss + vars.size() ) ){ //wrong parent block - split won't effect search so use dummy value
+	pair<vector3d<int>, vector3d<int> > dumBlk(initialLower, initialLower);
+	blkDims.push_back(dumBlk);
+      }
+      else{
+
+	//"split" blocks - change lower limits of block
+	if ( decomp.SplitHistDir(ss) == "i" ){
+	  pair<vector3d<int>, vector3d<int> > splitBlk = blkDims[decomp.SplitHistBlkLower(ss)];
+	  splitBlk.first[0] += decomp.SplitHistIndex(ss);
+	  blkDims.push_back(splitBlk);
+	}
+	else if ( decomp.SplitHistDir(ss) == "j" ){
+	  pair<vector3d<int>, vector3d<int> > splitBlk = blkDims[decomp.SplitHistBlkLower(ss)];
+	  splitBlk.first[1] += decomp.SplitHistIndex(ss);
+	  blkDims.push_back(splitBlk);
+	}
+	else{ //direction is k
+	  pair<vector3d<int>, vector3d<int> > splitBlk = blkDims[decomp.SplitHistBlkLower(ss)];
+	  splitBlk.first[2] += decomp.SplitHistIndex(ss);
+	  blkDims.push_back(splitBlk);
+	}
+
+	//test to see if block is in upper split
+	if ( !( ii <= blkDims[decomp.SplitHistBlkUpper(ss)].second.X() && jj <= blkDims[decomp.SplitHistBlkUpper(ss)].second.Y() && 
+		kk <= blkDims[decomp.SplitHistBlkUpper(ss)].second.Z() &&
+		ii >= blkDims[decomp.SplitHistBlkUpper(ss)].first.X()  && jj >= blkDims[decomp.SplitHistBlkUpper(ss)].first.Y()  && 
+		kk >= blkDims[decomp.SplitHistBlkUpper(ss)].first.Z() ) ){ //cell not in upper split, but in lower split - found block index
+	  return decomp.SplitHistBlkLower(ss);
+	}
+	else{ //cell in upper split (and lower split)
+	  ind = decomp.SplitHistBlkUpper(ss);
+	}
+
+      }
+    }
+  }
+
+  return ind; //cell was in uppermost split for given parent block
 }

@@ -37,5 +37,6 @@ void WriteRes(const string&, const int&, const int&);
 void WriteResiduals(const input&, genArray&, genArray&, const resid&, const double&, const int&, const int&);
 
 vector<procBlock> Recombine( const vector<procBlock>&, const decomposition& );
+int SplitBlockNumber( const vector<procBlock>&, const decomposition&, const int&, const int&, const int&, const int& );
 
 #endif
