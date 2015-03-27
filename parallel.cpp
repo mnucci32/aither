@@ -93,7 +93,7 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid, vector<boundaryCondi
       //reassign split grid
       grid[blk] = lBlk;
 
-      decomp.Split(blk,dir);
+      decomp.Split(blk, ind, dir);
       decomp.SendToProc(blk,ol,ul);
     }
 
@@ -360,6 +360,7 @@ decomposition::decomposition() {
   vector<int> temp2;
   splitHistBlkLow = temp2;
   splitHistBlkUp = temp2;
+  splitHistIndex = temp2;
 
   //no splits for default
   vector<string> temp3;
@@ -388,6 +389,7 @@ decomposition::decomposition( const int &num, const int &nProcs) {
   vector<int> temp2;
   splitHistBlkLow = temp2;
   splitHistBlkUp = temp2;
+  splitHistIndex = temp2;
 
   //no splits for default
   vector<string> temp3;
@@ -508,12 +510,14 @@ void decomposition::SendToProc( const int &blk, const int &fromProc, const int &
 }
 
 /*Member function to add data for a split*/
-void decomposition::Split( const int &low, const string &dir ){
+void decomposition::Split( const int &low, const int &ind, const string &dir ){
   // low -- index of lower block in split
   // dir -- direction of split
+  // ind -- index of split
 
   (*this).splitHistBlkLow.push_back(low);                //assign lower block index in split (given)
   (*this).splitHistBlkUp.push_back((*this).rank.size()); //assign upper block index in split (one more than current max index)
+  (*this).splitHistIndex.push_back(ind);                 //assign index of split
   (*this).splitHistDir.push_back(dir);                   //assign split direction (given)
 
   (*this).rank.push_back((*this).rank[low]);             //rank of upper portion of split block is same as lower
@@ -534,7 +538,8 @@ ostream & operator<< (ostream &os, const decomposition &d){
   }
   os << "Split History" << endl;
   for ( unsigned int ii = 0; ii < d.splitHistBlkLow.size(); ii++ ){
-    os << "Split Number: " << ii << "; Lower Index: " << d.splitHistBlkLow[ii] << ", Upper Index: " << d.splitHistBlkUp[ii] << ", Direction: " << d.splitHistDir[ii] << endl;
+    os << "Split Number: " << ii << "; Lower Index: " << d.splitHistBlkLow[ii] << ", Upper Index: " << d.splitHistBlkUp[ii] << ", Direction: " << d.splitHistDir[ii] 
+       << ", Split Index: " << d.splitHistIndex[ii] << endl;
   }
   return os;
 }
@@ -646,7 +651,8 @@ void decomposition::PrintDiagnostics( const vector<plot3dBlock> &grid )const{
   }
   cout << "Split History" << endl;
   for ( unsigned int ii = 0; ii < (*this).splitHistBlkLow.size(); ii++ ){
-    cout << "Split Number: " << ii << "; Lower Index: " << (*this).splitHistBlkLow[ii] << ", Upper Index: " << (*this).splitHistBlkUp[ii] << ", Direction: " << (*this).splitHistDir[ii] << endl;
+    cout << "Split Number: " << ii << "; Lower Index: " << (*this).splitHistBlkLow[ii] << ", Upper Index: " << (*this).splitHistBlkUp[ii] << ", Direction: " 
+	 << (*this).splitHistDir[ii] << ", Split Index: " << (*this).splitHistIndex[ii] << endl;
   }
 
 
