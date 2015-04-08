@@ -15,4 +15,4 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 #define ROOT 0
-#define NUMVARS 5
+#define NUMVARS 7

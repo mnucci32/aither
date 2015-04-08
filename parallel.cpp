@@ -178,6 +178,16 @@ void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &M
 
   //create MPI datatype for states (primVars), residuals (genArray), etc
   MPI_Type_contiguous(numEqn, MPI_DOUBLE, &MPI_cellData);
+
+  if ( numEqn != NUMVARS ){ //adjust extent if not using all equations
+    MPI_Aint lb, ext, lbdoub, extdoub;
+    MPI_Type_get_extent(MPI_cellData, &lb, &ext); //get lower bound and extent of current cellData datatype
+    MPI_Type_get_extent(MPI_DOUBLE, &lbdoub, &extdoub); //get lower bound and extent of double
+    //increase extent of cellData by the number of doubles that are unused equations
+    //this allows this datatype to behave properly in vectors and arrays because the extent/stride is now correct
+    MPI_Type_create_resized(MPI_cellData, lb, ext + (extdoub - lbdoub) * (NUMVARS - numEqn), &MPI_cellData);
+  }
+
   MPI_Type_commit(&MPI_cellData);
 
   //create MPI datatype for all the integers in the procBlock class

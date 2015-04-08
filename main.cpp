@@ -93,6 +93,9 @@ int main( int argc, char *argv[] ) {
   if ( (inputVars.EquationSet() == "euler") || (inputVars.EquationSet() == "navierStokes") ){
     numEqns = 5;
   }
+  else if (inputVars.EquationSet() == "rans"){
+    numEqns = 7;
+  }
   else{
     cerr << "ERROR: Equations set is not recognized. Cannot determine number of equations!" << endl;
   }
