@@ -62,9 +62,10 @@ int main( int argc, char *argv[] ) {
   MPI_Get_version(&version, &subversion);
   if (rank == ROOT ){
     cout << "Using MPI Version " << version << "." << subversion << endl;
+    cout << "Using " << numProcs << " processors" << endl;
   }
+  MPI_Barrier(MPI_COMM_WORLD);
 
-  cout << "Using " << numProcs << " processors" << endl;
   cout << "Hello from processor " << rank << " of " << numProcs << "!" << endl;
 
   //start clock to time simulation
