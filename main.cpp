@@ -51,7 +51,6 @@ int main( int argc, char *argv[] ) {
   // }
 
 
-
   //initialize MPI and make calls to get number of processors and rank of each processor
   int numProcs, rank;
   MPI_Init(&argc,&argv);
@@ -88,18 +87,6 @@ int main( int argc, char *argv[] ) {
   //Parse input file
   inputVars.ReadInput(inputFile, rank);
 
-  //Determine number of equations
-  int numEqns = 0;
-  if ( (inputVars.EquationSet() == "euler") || (inputVars.EquationSet() == "navierStokes") ){
-    numEqns = 5;
-  }
-  else if (inputVars.EquationSet() == "rans"){
-    numEqns = 7;
-  }
-  else{
-    cerr << "ERROR: Equations set is not recognized. Cannot determine number of equations!" << endl;
-  }
-
   //determine number of ghost cells
   int numGhost = 2;
 
@@ -125,7 +112,7 @@ int main( int argc, char *argv[] ) {
 
   if (rank == ROOT ){
 
-    cout << "Number of equations: " << numEqns << endl << endl;
+    cout << "Number of equations: " << inputVars.NumEquations() << endl << endl;
 
     //Read grid
     mesh = ReadP3dGrid(inputVars.GridName(), totalCells);
@@ -179,7 +166,7 @@ int main( int argc, char *argv[] ) {
 
   //set MPI datatypes
   MPI_Datatype MPI_vec3d, MPI_cellData, MPI_procBlockInts, MPI_interblock, MPI_DOUBLE_5INT;
-  SetDataTypesMPI(numEqns, MPI_vec3d, MPI_cellData, MPI_procBlockInts, MPI_interblock, MPI_DOUBLE_5INT );
+  SetDataTypesMPI(inputVars.NumEquations(), MPI_vec3d, MPI_cellData, MPI_procBlockInts, MPI_interblock, MPI_DOUBLE_5INT );
 
   //send number of procBlocks to all processors
   SendNumProcBlocks( decomp.NumBlocksOnAllProc(), rank, numProcBlock);
@@ -304,7 +291,7 @@ int main( int argc, char *argv[] ) {
       } //loop for blocks --------------------------------------------------------------------------------------------------
 
       //Get residuals from all processors
-      residL2.GlobalReduceMPI(rank, numEqns);
+      residL2.GlobalReduceMPI(rank, inputVars.NumEquations());
       residLinf.GlobalReduceMPI(rank, MPI_DOUBLE_5INT, MPI_MAX_LINF);
 
       //Get matrix residuals from all processors
@@ -317,11 +304,11 @@ int main( int argc, char *argv[] ) {
 
       if ( rank == ROOT ){
 	//finish calculation of L2 norm of residual
-	for ( int cc = 0; cc < numEqns; cc++ ){
+	for ( int cc = 0; cc < inputVars.NumEquations(); cc++ ){
 	  residL2[cc] = sqrt(residL2[cc]);
 	}
 	//finish calculation of matrix residual
-	matrixResid = sqrt(matrixResid/(totalCells * numEqns));
+	matrixResid = sqrt(matrixResid/(totalCells * inputVars.NumEquations()));
 
 	//print out run information
 	WriteResiduals(inputVars, residL2First, residL2, residLinf, matrixResid, nn, mm);

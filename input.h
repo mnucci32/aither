@@ -134,6 +134,7 @@ class input {
   string Vars(const int &ind)const{return vars[ind];}
 
   int NumVars()const{return vars.size();}
+  int NumEquations()const;
 
   void ReadInput(const string &, const int &);
 

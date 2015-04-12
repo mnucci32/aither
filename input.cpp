@@ -465,3 +465,20 @@ void input::CalcCFL(const int &i){
   }
 
 }
+
+//member function to determine number of equations to solver for
+int input::NumEquations()const{
+
+  int numEqns = 0;
+  if ( ((*this).EquationSet() == "euler") || ((*this).EquationSet() == "navierStokes") ){
+    numEqns = 5;
+  }
+  else if ((*this).EquationSet() == "rans"){
+    numEqns = 7;
+  }
+  else{
+    cerr << "ERROR: Equations set is not recognized. Cannot determine number of equations!" << endl;
+  }
+
+  return numEqns;
+}
