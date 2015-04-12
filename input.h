@@ -60,6 +60,7 @@ class input {
   double stagInletProps[6];             //vector of stagnation inlet properties
   double pressureOutlet[2];             //vector of pressure outlet properties
   string decompMethod;                  //method of decomposition for parallel problems
+  string turbModel;                     //turbulence model
 
  public:
   //constructor
@@ -130,6 +131,7 @@ class input {
   double PressureOutletP()const{return pressureOutlet[1];}
 
   string DecompMethod()const{return decompMethod;}
+  string TurbulenceModel()const{return turbModel;}
 
   string Vars(const int &ind)const{return vars[ind];}
 

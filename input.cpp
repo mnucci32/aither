@@ -34,7 +34,7 @@ using std::istream_iterator;
 
 //constructor for input class
 //initialize vector to have length of number of acceptable inputs to the code
-input::input(): vars(32){
+input::input(): vars(33){
 
   //default values for each variable
   gName = "";
@@ -78,6 +78,7 @@ input::input(): vars(32){
   pressureOutlet[0] = 0.0;
   pressureOutlet[1] = 0.0;
   decompMethod = "cubic";     //default is cubic decomposition
+  turbModel = "none";         //default turbulence model is none
 
   //keywords in the input file that the parser is looking for to define variables
   vars[0] = "gridName:";
@@ -111,8 +112,9 @@ input::input(): vars(32){
   vars[28] = "stagnationInlet:";
   vars[29] = "pressureOutlet:";
   vars[30] = "decompositionMethod:";
+  vars[31] = "turbulenceModel:";
 
-  vars[31] = "boundaryConditions:";  //boundary conditions should be listed last
+  vars[32] = "boundaryConditions:";  //boundary conditions should be listed last
 }
 
 //function to trim leading and trailing whitespace from a string, and also remove data after a comment
@@ -384,6 +386,11 @@ void input::ReadInput(const string &inputName, const int &rank){
           else if (ii==30 && readingBCs == 0){
             (*this).decompMethod = tokens[1];
             if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).DecompMethod() << endl;}
+            continue;
+          }
+          else if (ii==31 && readingBCs == 0){
+            (*this).turbModel = tokens[1];
+            if (rank == ROOT) {cout << (*this).Vars(ii) << " " << (*this).TurbulenceModel() << endl;}
             continue;
           }
 
