@@ -16,6 +16,7 @@
 
 #include "output.h"
 #include <iostream>
+#include <iomanip>
 #include <fstream>
 #include <vector>
 #include <string>
@@ -31,6 +32,8 @@ using std::ofstream;
 using std::to_string;
 using std::max;
 using std::pair;
+using std::setw;
+using std::setprecision;
 
 //---------------------------------------------------------------------------------------------------------------//
 //function declarations
@@ -492,29 +495,33 @@ void WriteResiduals(const input &inp, genArray &residL2First, genArray &residL2,
   //write out column headers every 100 iterations
   if (nn%100 == 0 && mm == 0){ 
     if (inp.Dt() > 0.0){
-      cout << "STEP    NONLINEAR     DT     RES-Mass     Res-Mom-X     Res-Mom-Y     Res-Mom-Z     Res-Energy    Max Res Eqn  " << 
-	"Max Res Blk    Max Res I    Max Res J    Max Res K    Max Res    Res-Matrix" << endl;
+      cout << std::left << setw(10) << "Step" << setw(10) << "NL Iter" << setw(14) << "Time Step" << setw(14) << "Res-Mass" << setw(14) << 
+	"Res-Mom-X" << setw(14) << "Res-Mom-Y" << setw(14) << "Res-Mom-Z" << setw(14) << "Res-Energy" << setw(14) << "Max-Res-Eqn" << setw(14) << 
+	"Max-Res-Blk" << setw(12) << "Max-Res-I" << setw(12) << "Max-Res-J" << setw(12) << "Max-Res-K" << setw(14) << "Max-Res" << setw(14) << "Res-Matrix" << endl;
     }
     else if (inp.CFL() > 0.0){
-      cout << "STEP    NONLINEAR     CFL     RES-Mass     Res-Mom-X     Res-Mom-Y     Res-Mom-Z     Res-Energy   Max Res Eqn  " << 
-	"Max Res Blk    Max Res I    Max Res J    Max Res K    Max Res    Res-Matrix" << endl;
+      cout << std::left << setw(10) << "Step" << setw(10) << "NL Iter" << setw(14) << "CFL" << setw(14) << "Res-Mass" << setw(14) << "Res-Mom-X" << 
+	setw(14) << "Res-Mom-Y" << setw(14) << "Res-Mom-Z" << setw(14) << "Res-Energy" << setw(14) << "Max-Res-Eqn" << setw(14) << "Max-Res-Blk" << 
+	setw(12) << "Max-Res-I" << setw(12) << "Max-Res-J" << setw(12) << "Max-Res-K" << setw(14) << "Max-Res" << setw(14) << "Res-Matrix" << endl;
     }
 
   }
   if (inp.Dt() > 0.0){
-    cout << nn << "     " << mm << "     " << inp.Dt() << "     " << residL2[0] <<  "     " << residL2[1] << "     " 
-	 << residL2[2] << "     " << residL2[3] << "     " << residL2[4] << "     " << residLinf.Eqn() << "     " << 
-      residLinf.Block() << "     " << residLinf.ILoc() <<"     " << residLinf.JLoc() << "     " << residLinf.KLoc() << "     " << residLinf.Linf() 
-	 << "     " << matrixResid << endl;
+    cout << std::left << setw(10) << nn << setw(10) << mm << setw(14) << setprecision(5) << std::scientific << inp.Dt() << setw(14) << residL2[0] <<  
+      setw(14) << residL2[1] << setw(14) << residL2[2] << setw(14) << residL2[3] << setw(14) << residL2[4] ;
+    cout.unsetf( std::ios::fixed | std::ios::scientific );
+    cout << std::left << setw(14) << residLinf.Eqn() << setw(14) << residLinf.Block() << setw(12) << residLinf.ILoc() <<setw(12) << residLinf.JLoc() << 
+      setw(12) << residLinf.KLoc() << setw(14) << setprecision(5) << std::scientific << residLinf.Linf() << setw(14) << matrixResid << endl;
   }
   else if (inp.CFL() > 0.0){
-    cout << nn << "     " << mm << "     " << inp.CFL() << "     " << residL2[0] <<  "     " << residL2[1] << "     " 
-	 << residL2[2] << "     " << residL2[3] << "     " << residL2[4] << "     "  << residLinf.Eqn() << "     " << 
-      residLinf.Block() << "     " << residLinf.ILoc() <<"     " << residLinf.JLoc() << "     " << residLinf.KLoc() << "     " << residLinf.Linf() 
-	 << "     " << matrixResid << endl;
+    cout << std::left << setw(10) << nn << setw(10) << mm << setw(14) << setprecision(5) << std::scientific << inp.CFL() << setw(14) << residL2[0] <<  
+      setw(14) << residL2[1] << setw(14) << residL2[2] << setw(14) << residL2[3] << setw(14) << residL2[4] ;
+    cout.unsetf( std::ios::fixed | std::ios::scientific );
+    cout << std::left << setw(14) << residLinf.Eqn() << setw(14) << residLinf.Block() << setw(12) << residLinf.ILoc() <<setw(12) << residLinf.JLoc() << 
+      setw(12) << residLinf.KLoc() << setw(14) << setprecision(5) << std::scientific << residLinf.Linf() << setw(14) << matrixResid << endl;
   }
 
-
+  cout.unsetf( std::ios::fixed | std::ios::scientific );
 }
 
 /*Function to take in a vector of split procBlocks and return a vector of joined procblocks (in their original configuration before grid decomposition).*/
