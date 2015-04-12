@@ -18,6 +18,7 @@
 #include "output.h"
 #include <algorithm> //max_element
 #include <iterator> //distance
+#include <cstring>
 
 using std::max_element;
 using std::min_element;
