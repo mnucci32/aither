@@ -663,7 +663,7 @@ void procBlock::CalcBlockTimeStep( const input &inputVars, const double &aRef){
 	int loc = GetLoc1D(ii, jj, kk, imax, jmax); //current cell location
 
 	if (inputVars.Dt() > 0.0){   //dt specified, use global time stepping
-	  (*this).dt[loc] = inputVars.Dt() * aRef;
+	  (*this).dt[loc] = inputVars.Dt() * aRef / inputVars.LRef(); //nondimensional time
 	}
 	else if (inputVars.CFL() > 0.0){ //cfl specified, use local time stepping
 	  (*this).CalcCellDt(ii, jj, kk, inputVars.CFL());

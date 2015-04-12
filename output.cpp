@@ -38,7 +38,7 @@ using std::setprecision;
 //---------------------------------------------------------------------------------------------------------------//
 //function declarations
 //function to write out cell centers of grid in plot3d format
-void WriteCellCenter(const string &gridName, const vector<procBlock > &vars, const decomposition &decomp) {
+void WriteCellCenter(const string &gridName, const vector<procBlock > &vars, const decomposition &decomp, const double &LRef) {
 
   //recombine procblocks into original configuration
   vector<procBlock> recombVars = Recombine(vars, decomp);
@@ -90,7 +90,7 @@ void WriteCellCenter(const string &gridName, const vector<procBlock > &vars, con
 	  for ( int ii = recombVars[ll].NumGhosts(); ii < maxi + recombVars[ll].NumGhosts(); ii++){ 
 
 	    int loc = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-	    dumVec = recombVars[ll].Center(loc);  //at a given cell, get the cell center coordinates
+	    dumVec = recombVars[ll].Center(loc) * LRef;  //at a given cell, get the cell center coordinates (dimensionalized)
 
 	    //for a given block, first write out all x coordinates, then all y coordinates, then all z coordinates
 	    if (nn == 0 ) {
@@ -194,7 +194,7 @@ void WriteCellCenterGhost(const string &gridName, const vector<procBlock > &vars
 //---------------------------------------------------------------------------------------------------------------//
 //function to write out variables in function file format
 void WriteFun(const string &gridName, const vector<procBlock> &vars, const idealGas &eqnState, const int &solIter, const double &refRho, 
-	      const double &refSoS, const double &refT, const decomposition &decomp) {
+	      const double &refSoS, const double &refT, const double &refL, const decomposition &decomp) {
 
   vector<procBlock> recombVars = Recombine(vars, decomp);
 
@@ -390,7 +390,7 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars, const ideal
 	  dumDouble = dumDouble * refSoS ; 
 	}
 	else if (vv == 7){                                 //time step
-	  dumDouble = dumDouble / refSoS;                        
+	  dumDouble = dumDouble / refSoS * refL;                        
 	}
 	else if (vv == 8){                                 //temperature
 	  dumDouble = dumDouble * refT;                        
@@ -399,7 +399,6 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars, const ideal
       }
     }
   }
-
 
   //close plot3d function file
   outFile.close();

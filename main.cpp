@@ -97,12 +97,7 @@ int main( int argc, char *argv[] ) {
   //Initialize state vector with nondimensional variables
   //get reference speed of sound
   double aRef = eos.GetSoS(inputVars.PRef(),inputVars.RRef());
-
-  //get a reference velocity
-  vector3d<double> velRef = inputVars.VelRef();
-
-  //initialize a single state
-  primVars state(1.0, 1.0/eos.Gamma(), velRef/aRef);
+  primVars state(1.0, 1.0/eos.Gamma(), inputVars.VelRef()/aRef);
 
   //initialize sutherland's law for viscosity
   sutherland suth(inputVars.TRef());
@@ -116,7 +111,7 @@ int main( int argc, char *argv[] ) {
     cout << "Number of equations: " << inputVars.NumEquations() << endl << endl;
 
     //Read grid
-    mesh = ReadP3dGrid(inputVars.GridName(), totalCells);
+    mesh = ReadP3dGrid(inputVars.GridName(), inputVars.LRef(), totalCells);
 
     //get BCs for blocks
     vector<boundaryConditions> bcs = inputVars.AllBC();
@@ -206,10 +201,10 @@ int main( int argc, char *argv[] ) {
 
   if ( rank == ROOT) {
     //Write out cell centers grid file
-    WriteCellCenter(inputVars.GridName(),stateBlocks, decomp);
+    WriteCellCenter(inputVars.GridName(),stateBlocks, decomp, inputVars.LRef());
 
     //Write out initial results
-    WriteFun(inputVars.GridName(),stateBlocks, eos, 0, inputVars.RRef(), aRef, inputVars.TRef(), decomp);
+    WriteFun(inputVars.GridName(),stateBlocks, eos, 0, inputVars.RRef(), aRef, inputVars.TRef(), inputVars.LRef(), decomp);
     WriteRes(inputVars.GridName(), 0, inputVars.OutputFrequency());
   }
 
@@ -331,7 +326,7 @@ int main( int argc, char *argv[] ) {
       if ( rank == ROOT ){
 	cout << "writing out function file at iteration " << nn << endl;
 	//Write out function file
-	WriteFun(inputVars.GridName(),stateBlocks, eos, (nn+1), inputVars.RRef(), aRef, inputVars.TRef(), decomp);
+	WriteFun(inputVars.GridName(),stateBlocks, eos, (nn+1), inputVars.RRef(), aRef, inputVars.TRef(), inputVars.LRef(), decomp);
 	WriteRes(inputVars.GridName(), (nn+1), inputVars.OutputFrequency());
       }
     }

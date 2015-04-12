@@ -78,8 +78,8 @@ class plot3dBlock {
 
 //------------------------------------------------------------------------------------------------------------------
 //function declarations
-vector<plot3dBlock> ReadP3dGrid(const string &gridName, double &numCells);
-vector3d<int> GetIJK(const int &, const int &, const int &, const int &);
+vector<plot3dBlock> ReadP3dGrid(const string&, const double&, double&);
+vector3d<int> GetIJK(const int&, const int&, const int&, const int&);
 
 //input cell coordinates, get face coordinates
 int GetUpperFaceI(const int &, const int &, const int &, const int &, const int &, int=1);

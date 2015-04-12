@@ -668,7 +668,7 @@ const vector<vector3d<double> > plot3dBlock::FaceCenterK() const {
 
 //---------------------------------------------------------------------------------------------------------------//
 //function to read in a plot3d grid and assign it to a plot3dMesh data type
-vector<plot3dBlock> ReadP3dGrid(const string &gridName, double &numCells) {
+vector<plot3dBlock> ReadP3dGrid(const string &gridName, const double &LRef, double &numCells) {
 
   //open binary plot3d grid file 
   ifstream fName;
@@ -730,15 +730,15 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, double &numCells) {
 
     for (int jj=0; jj < size; jj++){
       fName.read(reinterpret_cast<char *>(&tempDouble), sizeof(tempDouble));
-      tempX[jj] = tempDouble;
+      tempX[jj] = tempDouble / LRef;
     }
     for (int jj=0; jj < size; jj++){
       fName.read(reinterpret_cast<char *>(&tempDouble), sizeof(tempDouble));
-      tempY[jj] = tempDouble;
+      tempY[jj] = tempDouble / LRef;
     }
     for (int jj=0; jj < size; jj++){
       fName.read(reinterpret_cast<char *>(&tempDouble), sizeof(tempDouble));
-      tempZ[jj] = tempDouble;
+      tempZ[jj] = tempDouble / LRef;
     }
 
     //create single plot3dBlock and assign it appropriate location in vector
