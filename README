@@ -26,7 +26,7 @@ vector3d - A templated class to store vectors in 3D space.
 tensor - A class to store a 3x3 matrix and operate on its data.
 plot3d - Contains classes to read multiblock plot3d files and calculate grid metrics.
 viscousFlux - A class to store the viscous flux vector for a cell. Contains functions to calculate the flux.
-geomSlice - A class to store slices of procBlocks. Used for inter block and inter processor boundary conditions.
+slices - Classes to store slices of procBlocks. Used for inter block and inter processor boundary conditions.
 parallel - functions to aid in the data exchange between processors.
 
 HOW TO COMPILE
