@@ -15,6 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include "procBlock.h"
+#include "turbulence.h"
 #include <iostream>
 #include <fstream>
 #include <vector>
@@ -1673,6 +1674,19 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
   //coefficient for viscous spectral radii
   double vCoeff = 1.0;
 
+  //define turbulence model
+  turbModel *turb;
+  if ( inp.TurbulenceModel() == "none" ){
+    turb = new turbNone;
+  }
+  else if ( inp.TurbulenceModel() == "kOmegaWilcox2006" ){
+    turb = new turbKWWilcox;
+  }
+  else{
+    cerr << "ERROR: Error in procBlock::CalcViscFluxI(). Turbulence model " << inp.TurbulenceModel() << " is not recognized!" << endl;
+    exit(0);
+  }
+
   //loop over all physical faces
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
     for ( int jj = (*this).NumGhosts(); jj < jmax + (*this).NumGhosts(); jj++){    
@@ -1766,10 +1780,13 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 	//Get viscosity at face
 	double mu = FaceReconCentral( suth.GetViscosity( (*this).State(iLow).Temperature(eqnState) ), 
 				      suth.GetViscosity( (*this).State(iUp).Temperature(eqnState) ), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
-	mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
+	mu *= (mRef/Re);  //effective viscosity (due to nondimensionalization)
+
+	double eddyVisc = FaceReconCentral( turb->BoussinesqEddyVisc(), turb->BoussinesqEddyVisc(), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
+	eddyVisc *= (mRef/Re);  //effective viscosity (due to nondimensionalization)
 
 	//calculate viscous flux
-	viscousFlux tempViscFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaI(loc) );
+	viscousFlux tempViscFlux( velGrad, vel, mu, eddyVisc, suth, eqnState, tGrad, (*this).FAreaI(loc) );
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
 	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
@@ -1789,6 +1806,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
     }
   }
 
+  delete turb;
 }
 
 /* Function to calculate the viscous fluxes on the j-faces. All phyiscal (non-ghost) j-faces are looped over. The
@@ -1868,6 +1886,19 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 
   //coefficient for viscous spectral radii
   double vCoeff = 1.0;
+
+  //define turbulence model
+  turbModel *turb;
+  if ( inp.TurbulenceModel() == "none" ){
+    turb = new turbNone;
+  }
+  else if ( inp.TurbulenceModel() == "kOmegaWilcox2006" ){
+    turb = new turbKWWilcox;
+  }
+  else{
+    cerr << "ERROR: Error in procBlock::CalcViscFluxJ(). Turbulence model " << inp.TurbulenceModel() << " is not recognized!" << endl;
+    exit(0);
+  }
 
   //loop over physical faces
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
@@ -1964,8 +1995,11 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 				      suth.GetViscosity( (*this).State(jUp).Temperature(eqnState) ), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
 	mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
 
+	double eddyVisc = FaceReconCentral( turb->BoussinesqEddyVisc(), turb->BoussinesqEddyVisc(), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
+	eddyVisc *= (mRef/Re);  //effective viscosity (due to nondimensionalization)
+
 	//calculate viscous flux
-	viscousFlux tempViscFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaJ(loc) );
+	viscousFlux tempViscFlux( velGrad, vel, mu, eddyVisc, suth, eqnState, tGrad, (*this).FAreaJ(loc) );
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
 	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
@@ -1985,7 +2019,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
     }
   }
 
-
+  delete turb;
 }
 
 /* Function to calculate the viscous fluxes on the k-faces. All phyiscal (non-ghost) k-faces are looped over. The
@@ -2065,6 +2099,19 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
 
   //coefficient for viscous spectral radii
   double vCoeff = 1.0;
+
+  //define turbulence model
+  turbModel *turb;
+  if ( inp.TurbulenceModel() == "none" ){
+    turb = new turbNone;
+  }
+  else if ( inp.TurbulenceModel() == "kOmegaWilcox2006" ){
+    turb = new turbKWWilcox;
+  }
+  else{
+    cerr << "ERROR: Error in procBlock::CalcViscFluxK(). Turbulence model " << inp.TurbulenceModel() << " is not recognized!" << endl;
+    exit(0);
+  }
 
   //loop over physical faces
   for ( int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++){   
@@ -2161,8 +2208,11 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
 				      suth.GetViscosity( (*this).State(kUp).Temperature(eqnState) ), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
 	mu = mu * (mRef/Re);  //effective viscosity (due to nondimensionalization)
 
+	double eddyVisc = FaceReconCentral( turb->BoussinesqEddyVisc(), turb->BoussinesqEddyVisc(), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
+	eddyVisc *= (mRef/Re);  //effective viscosity (due to nondimensionalization)
+
 	//calculate viscous flux
-	viscousFlux tempViscFlux( velGrad, vel, mu, suth, eqnState, tGrad, (*this).FAreaK(loc) );
+	viscousFlux tempViscFlux( velGrad, vel, mu, eddyVisc, suth, eqnState, tGrad, (*this).FAreaK(loc) );
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
 	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
@@ -2181,6 +2231,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
     }
   }
 
+  delete turb;
 }
 
 /* Member function to assign geometric quantities such as volume, face area, cell centroid, and face center to ghost cells. This assigns values for
