@@ -31,6 +31,7 @@
 #include "output.h"
 #include "matrix.h"
 #include "parallel.h"
+#include "turbulence.h"
 #include <fenv.h>
 #include <ctime>
 
@@ -204,7 +205,7 @@ int main( int argc, char *argv[] ) {
     WriteCellCenter(inputVars.GridName(),stateBlocks, decomp, inputVars.LRef());
 
     //Write out initial results
-    WriteFun(inputVars.GridName(),stateBlocks, eos, 0, inputVars.RRef(), aRef, inputVars.TRef(), inputVars.LRef(), decomp);
+    WriteFun(inputVars.GridName(),stateBlocks, eos, suth, 0, decomp, inputVars);
     WriteRes(inputVars.GridName(), 0, inputVars.OutputFrequency());
   }
 
@@ -326,7 +327,7 @@ int main( int argc, char *argv[] ) {
       if ( rank == ROOT ){
 	cout << "writing out function file at iteration " << nn << endl;
 	//Write out function file
-	WriteFun(inputVars.GridName(),stateBlocks, eos, (nn+1), inputVars.RRef(), aRef, inputVars.TRef(), inputVars.LRef(), decomp);
+	WriteFun(inputVars.GridName(),stateBlocks, eos, suth, (nn+1), decomp, inputVars);
 	WriteRes(inputVars.GridName(), (nn+1), inputVars.OutputFrequency());
       }
     }
