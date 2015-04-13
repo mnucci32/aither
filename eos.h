@@ -57,6 +57,7 @@ class idealGas {
 
   double GetTemperature(const double &pressure, const double &rho)const;
   double GetConductivity(const double &mu)const{return mu/( (*this).GetPrandtl()*(gamma-1.0) );} //nondimensional version (R=1/gamma)
+  double GetTurbConductivity(const double &eddyVisc)const{return eddyVisc/( (*this).GetTurbPrandtl() * (gamma-1.0) );} //nondimensional version (R=1/gamma)
   double GetDensityTP(const double &temp, const double &press)const{return press*gamma/temp;}
 
   //destructor
