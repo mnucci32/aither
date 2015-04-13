@@ -33,6 +33,7 @@
 #include <fstream>
 #include <iostream>
 #include "macros.h"
+#include "turbulence.h"
 
 using std::vector;
 using std::string;
@@ -258,7 +259,7 @@ class stateSlice {
 
 //function definitions
 double CellSpectralRadius(const vector3d<double> &, const vector3d<double> &, const primVars&, const idealGas&);
-double ViscCellSpectralRadius(const vector3d<double>&, const vector3d<double>&, const primVars&, const idealGas&, const sutherland&, const double&);
+double ViscCellSpectralRadius(const vector3d<double>&, const vector3d<double>&, const primVars&, const idealGas&, const sutherland&, const double&, const turbModel*);
 
 template<class T>
 T FaceReconCentral(const T&, const T&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&);

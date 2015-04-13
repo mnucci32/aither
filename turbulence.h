@@ -38,7 +38,7 @@ class turbModel {
  turbModel(const string &meth) : eddyViscMethod(meth) {}
 
   //member functions
-  virtual double BoussinesqEddyVisc()=0;
+  virtual double BoussinesqEddyVisc()const=0;
 
   //destructor
   virtual ~turbModel() {}
@@ -53,10 +53,10 @@ class turbNone : public turbModel {
  turbNone() : turbModel() {}
 
   //member functions
-  virtual double BoussinesqEddyVisc(){return 0.0;};
+  virtual double BoussinesqEddyVisc()const{return 0.0;};
 
   //destructor
-  ~turbNone() {}
+  virtual ~turbNone() {}
 
 };
 
@@ -68,10 +68,10 @@ class turbKWWilcox : public turbModel {
  turbKWWilcox() : turbModel() {}
 
   //member functions
-  virtual double BoussinesqEddyVisc(){return 0.0;};
+  virtual double BoussinesqEddyVisc()const{return 0.0;};
 
   //destructor
-  ~turbKWWilcox() {}
+  virtual ~turbKWWilcox() {}
 
 };
 
