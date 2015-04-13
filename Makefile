@@ -10,46 +10,46 @@ LFLAGS = -std=c++11 -Wall $(OPTIM) -o $(CODENAME)
 $(CODENAME) : $(OBJS)
 	$(CC) $(LFLAGS) $(OBJS)
 
-plot3d.o : plot3d.cpp plot3d.h vector3d.h
+plot3d.o : plot3d.cpp plot3d.hpp vector3d.hpp
 	$(CC) $(CFLAGS) plot3d.cpp
 
-main.o : main.cpp plot3d.h vector3d.h input.h procBlock.h eos.h primVars.h boundaryConditions.h inviscidFlux.h tensor.h viscousFlux.h output.h matrix.h parallel.h turbulence.h
+main.o : main.cpp plot3d.hpp vector3d.hpp input.hpp procBlock.hpp eos.hpp primVars.hpp boundaryConditions.hpp inviscidFlux.hpp tensor.hpp viscousFlux.hpp output.hpp matrix.hpp parallel.hpp turbulence.hpp
 	$(CC) $(CFLAGS) main.cpp
 
-input.o : input.cpp input.h boundaryConditions.h
+input.o : input.cpp input.hpp boundaryConditions.hpp
 	$(CC) $(CFLAGS) input.cpp
 
-primVars.o : primVars.cpp primVars.h vector3d.h eos.h inviscidFlux.h boundaryConditions.h input.h
+primVars.o : primVars.cpp primVars.hpp vector3d.hpp eos.hpp inviscidFlux.hpp boundaryConditions.hpp input.hpp
 	$(CC) $(CFLAGS) primVars.cpp
 
-procBlock.o : procBlock.cpp procBlock.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h matrix.h viscousFlux.h boundaryConditions.h macros.h turbulence.h
+procBlock.o : procBlock.cpp procBlock.hpp vector3d.hpp plot3d.hpp eos.hpp primVars.hpp inviscidFlux.hpp input.hpp matrix.hpp viscousFlux.hpp boundaryConditions.hpp macros.hpp turbulence.hpp
 	$(CC) $(CFLAGS) procBlock.cpp
 
-inviscidFlux.o : inviscidFlux.cpp vector3d.h eos.h primVars.h inviscidFlux.h input.h
+inviscidFlux.o : inviscidFlux.cpp vector3d.hpp eos.hpp primVars.hpp inviscidFlux.hpp input.hpp
 	$(CC) $(CFLAGS) inviscidFlux.cpp
 
-boundaryConditions.o : boundaryConditions.cpp boundaryConditions.h plot3d.h vector3d.h
+boundaryConditions.o : boundaryConditions.cpp boundaryConditions.hpp plot3d.hpp vector3d.hpp
 	$(CC) $(CFLAGS) boundaryConditions.cpp
 
-eos.o : eos.cpp eos.h vector3d.h
+eos.o : eos.cpp eos.hpp vector3d.hpp
 	$(CC) $(CFLAGS) eos.cpp
 
-slices.o : slices.cpp procBlock.h
+slices.o : slices.cpp procBlock.hpp
 	$(CC) $(CFLAGS) slices.cpp
 
-viscousFlux.o : viscousFlux.cpp vector3d.h tensor.h eos.h primVars.h viscousFlux.h input.h
+viscousFlux.o : viscousFlux.cpp vector3d.hpp tensor.hpp eos.hpp primVars.hpp viscousFlux.hpp input.hpp
 	$(CC) $(CFLAGS) viscousFlux.cpp
 
-output.o : output.cpp output.h procBlock.h tensor.h vector3d.h plot3d.h eos.h primVars.h inviscidFlux.h input.h turbulence.h
+output.o : output.cpp output.hpp procBlock.hpp tensor.hpp vector3d.hpp plot3d.hpp eos.hpp primVars.hpp inviscidFlux.hpp input.hpp turbulence.hpp
 	$(CC) $(CFLAGS) output.cpp
 
-parallel.o : parallel.cpp parallel.h primVars.h procBlock.h vector3d.h plot3d.h boundaryConditions.h matrix.h
+parallel.o : parallel.cpp parallel.hpp primVars.hpp procBlock.hpp vector3d.hpp plot3d.hpp boundaryConditions.hpp matrix.hpp
 	$(CC) $(CFLAGS) parallel.cpp
 
-matrix.o : matrix.cpp matrix.h plot3d.h macros.h
+matrix.o : matrix.cpp matrix.hpp plot3d.hpp macros.hpp
 	$(CC) $(CFLAGS) matrix.cpp
 
-turbulence.o : turbulence.cpp turbulence.h
+turbulence.o : turbulence.cpp turbulence.hpp
 	$(CC) $(CFLAGS) turbulence.cpp
 
 clean:

@@ -24,7 +24,7 @@ This class stores the information needed to specify the boundary conditions for 
 #include <vector>  //vector
 #include <string>  //string
 #include <iostream> //ostream
-#include "plot3d.h" //plot3dBlock
+#include "plot3d.hpp" //plot3dBlock
 #include "mpi.h" //parallelism
 
 using std::ostream;

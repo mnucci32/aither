@@ -19,12 +19,12 @@
 
 #include <vector>  //vector
 #include <string>  //string
-#include "vector3d.h" //vector3d
-#include "tensor.h" //tensor
-#include "eos.h"  //idealGas
-#include "primVars.h" //primVars
-#include "matrix.h" //squareMatrix
-#include "input.h" //input
+#include "vector3d.hpp" //vector3d
+#include "tensor.hpp" //tensor
+#include "eos.hpp"  //idealGas
+#include "primVars.hpp" //primVars
+#include "matrix.hpp" //squareMatrix
+#include "input.hpp" //input
 #include <iostream> //cout
 
 using std::vector;

@@ -14,8 +14,8 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "parallel.h"
-#include "output.h"
+#include "parallel.hpp"
+#include "output.hpp"
 #include <algorithm> //max_element
 #include <iterator> //distance
 #include <cstring>

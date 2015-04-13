@@ -19,21 +19,21 @@
 
 #include <vector>  //vector
 #include <string>  //string
-#include "vector3d.h" //vector3d
-#include "tensor.h" //tensor
-#include "plot3d.h" //plot3d
-#include "eos.h" //idealGas
-#include "primVars.h" //primVars
-#include "inviscidFlux.h" //inviscidFlux
-#include "viscousFlux.h" //viscousFlux
-#include "input.h" //inputVars
-#include "matrix.h" //squareMatrix, matrixDiagonal
-#include "boundaryConditions.h" //interblock, patch
+#include "vector3d.hpp" //vector3d
+#include "tensor.hpp" //tensor
+#include "plot3d.hpp" //plot3d
+#include "eos.hpp" //idealGas
+#include "primVars.hpp" //primVars
+#include "inviscidFlux.hpp" //inviscidFlux
+#include "viscousFlux.hpp" //viscousFlux
+#include "input.hpp" //inputVars
+#include "matrix.hpp" //squareMatrix, matrixDiagonal
+#include "boundaryConditions.hpp" //interblock, patch
 #include "mpi.h" //parallelism
 #include <fstream>
 #include <iostream>
-#include "macros.h"
-#include "turbulence.h"
+#include "macros.hpp"
+#include "turbulence.hpp"
 
 using std::vector;
 using std::string;

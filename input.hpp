@@ -19,8 +19,8 @@
 
 #include <vector>  //vector
 #include <string>  //string
-#include "vector3d.h"
-#include "boundaryConditions.h"
+#include "vector3d.hpp"
+#include "boundaryConditions.hpp"
 
 using std::vector;
 using std::string;

@@ -24,15 +24,15 @@ It also writes out a master file in Ensight format to name the Plot3D functions.
 
 #include <vector>  //vector
 #include <string>  //string
-#include "vector3d.h" //vector3d
-#include "tensor.h" //tensor
-#include "plot3d.h" //plot3d
-#include "eos.h"
-#include "primVars.h" //primVars
-#include "procBlock.h" //procBlock
-#include "inviscidFlux.h" //inviscidFlux
-#include "input.h" //inputVars
-#include "boundaryConditions.h" //decomposition
+#include "vector3d.hpp" //vector3d
+#include "tensor.hpp" //tensor
+#include "plot3d.hpp" //plot3d
+#include "eos.hpp"
+#include "primVars.hpp" //primVars
+#include "procBlock.hpp" //procBlock
+#include "inviscidFlux.hpp" //inviscidFlux
+#include "input.hpp" //inputVars
+#include "boundaryConditions.hpp" //decomposition
 #include <fstream>
 #include <iostream>
 

@@ -14,8 +14,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "procBlock.h"
-#include "turbulence.h"
+#include "procBlock.hpp"
 #include <iostream>
 #include <fstream>
 #include <vector>

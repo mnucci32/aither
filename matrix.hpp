@@ -21,9 +21,9 @@
 #include <string>  //string
 #include <math.h>       //sqrt
 #include <iostream>
-#include "plot3d.h" //matrix location functions
+#include "plot3d.hpp" //matrix location functions
 #include "mpi.h" //parallelism
-#include "macros.h"
+#include "macros.hpp"
 
 using std::vector;
 using std::string;

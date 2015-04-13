@@ -15,23 +15,23 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <iostream>      //cout, cerr, endl
-#include "plot3d.h"
-#include "vector3d.h"
-#include "tensor.h"
-#include "input.h"
+#include "plot3d.hpp"
+#include "vector3d.hpp"
+#include "tensor.hpp"
+#include "input.hpp"
 #include <vector>        //stl vector
 #include <algorithm>     //max_element
 #include <numeric>       //accumulate
-#include "procBlock.h"
-#include "inviscidFlux.h"
-#include "viscousFlux.h"
-#include "primVars.h"
-#include "eos.h"
-#include "boundaryConditions.h"
-#include "output.h"
-#include "matrix.h"
-#include "parallel.h"
-#include "turbulence.h"
+#include "procBlock.hpp"
+#include "inviscidFlux.hpp"
+#include "viscousFlux.hpp"
+#include "primVars.hpp"
+#include "eos.hpp"
+#include "boundaryConditions.hpp"
+#include "output.hpp"
+#include "matrix.hpp"
+#include "parallel.hpp"
+#include "turbulence.hpp"
 #include <fenv.h>
 #include <ctime>
 

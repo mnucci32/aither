@@ -14,10 +14,10 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "boundaryConditions.h"
+#include "boundaryConditions.hpp"
 #include <math.h>       //sqrt
 #include <iostream>     //cout
-#include "vector3d.h"     //vector3d
+#include "vector3d.hpp"     //vector3d
 
 using std::cout;
 using std::endl;

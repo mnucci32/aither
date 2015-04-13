@@ -24,7 +24,7 @@
 
 #include <math.h>    //sqrt()
 #include <iostream>  //ostream
-#include "vector3d.h"
+#include "vector3d.hpp"
 
 using std::ostream;
 using std::endl;

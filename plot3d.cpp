@@ -14,7 +14,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "plot3d.h"
+#include "plot3d.hpp"
 #include <fstream>
 #include <iostream>
 #include <cstdlib>

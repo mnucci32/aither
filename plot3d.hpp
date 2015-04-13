@@ -22,7 +22,7 @@
 
 #include <vector>
 #include <string>
-#include "vector3d.h"
+#include "vector3d.hpp"
 
 using std::vector;
 using std::string;

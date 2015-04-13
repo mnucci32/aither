@@ -22,13 +22,13 @@
 #include "mpi.h" //parallelism
 #include <vector>  //vector
 #include <string>  //string
-#include "vector3d.h" //vector3d
-#include "plot3d.h" //plot3d
-#include "primVars.h" //primVars
-#include "procBlock.h" //procBlock
-#include "boundaryConditions.h" //interblock
+#include "vector3d.hpp" //vector3d
+#include "plot3d.hpp" //plot3d
+#include "primVars.hpp" //primVars
+#include "procBlock.hpp" //procBlock
+#include "boundaryConditions.hpp" //interblock
 #include <iostream>
-#include "macros.h"
+#include "macros.hpp"
 
 using std::vector;
 using std::string;

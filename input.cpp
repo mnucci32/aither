@@ -20,7 +20,7 @@
 #include <sstream>      //istringstream
 #include <iterator>     //istring_iterator
 #include <time.h>       //strftime
-#include "input.h"
+#include "input.hpp"
 
 #define ROOT 0
 

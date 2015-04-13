@@ -25,12 +25,12 @@ face using constant and MUSCL reconstruction. It is has a member function to sup
 
 #include <vector>  //vector
 #include <string>  //string
-#include "vector3d.h" //vector3d
-#include "plot3d.h" //vector3d
-#include "input.h" //inputVars
-#include "eos.h"  // idealGas
-#include "matrix.h" //genArray
-#include "boundaryConditions.h" //boundaryConditions
+#include "vector3d.hpp" //vector3d
+#include "plot3d.hpp" //vector3d
+#include "input.hpp" //inputVars
+#include "eos.hpp"  // idealGas
+#include "matrix.hpp" //genArray
+#include "boundaryConditions.hpp" //boundaryConditions
 #include <fstream>
 #include <iostream>
 

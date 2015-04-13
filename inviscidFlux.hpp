@@ -19,12 +19,12 @@
 
 #include <vector>  //vector
 #include <string>  //string
-#include "vector3d.h" //vector3d
-#include "eos.h"  //idealGas
-#include "primVars.h" //primVars
-#include "input.h" //input
+#include "vector3d.hpp" //vector3d
+#include "eos.hpp"  //idealGas
+#include "primVars.hpp" //primVars
+#include "input.hpp" //input
 #include <iostream> //cout
-#include "matrix.h"
+#include "matrix.hpp"
 
 using std::vector;
 using std::string;
