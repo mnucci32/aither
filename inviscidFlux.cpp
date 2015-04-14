@@ -57,6 +57,9 @@ inviscidFlux::inviscidFlux( const primVars &state, const idealGas &eqnState, con
   data[2] = state.Rho() * vel.DotProd(normArea) * vel.Y() + state.P() * normArea.Y();     
   data[3] = state.Rho() * vel.DotProd(normArea) * vel.Z() + state.P() * normArea.Z();     
   data[4] = state.Rho() * vel.DotProd(normArea) * state.Enthalpy(eqnState);
+
+  data[5] = 0.0;
+  data[6] = 0.0;
 }
 
 //constructor -- initialize flux from state vector using conservative variables
@@ -77,6 +80,9 @@ inviscidFlux::inviscidFlux( const genArray &cons, const idealGas &eqnState, cons
   data[2] = state.Rho() * vel.DotProd(normArea) * vel.Y() + state.P() * normArea.Y();     
   data[3] = state.Rho() * vel.DotProd(normArea) * vel.Z() + state.P() * normArea.Z();     
   data[4] = state.Rho() * vel.DotProd(normArea) * state.Enthalpy(eqnState);
+
+  data[5] = 0.0;
+  data[6] = 0.0;
 }
 
 /* Function to calculate inviscid flux using Roe's approximate Riemann solver. The function takes in the primative varibles constructed
@@ -160,36 +166,36 @@ inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGa
 
   //calculate right eigenvectors (T)
   //calculate eigenvector due to left acoustic wave
-  double lAcousticEigV[NUMVARS] = {1.0, 
+  double lAcousticEigV[5] = {1.0, 
                   	           uR - aR * areaNorm.X(), 
 			           vR - aR * areaNorm.Y(), 
 			           wR - aR * areaNorm.Z(), 
 			           hR - aR * velRSum};
 
   //calculate eigenvector due to entropy wave
-  double entropyEigV[NUMVARS] = {1.0, 
+  double entropyEigV[5] = {1.0, 
 			         uR, 
 			         vR, 
 			         wR, 
 			         0.5 * ( uR * uR + vR * vR + wR * wR)};
 
   //calculate eigenvector due to right acoustic wave
-  double rAcousticEigV[NUMVARS] = {1.0, 
+  double rAcousticEigV[5] = {1.0, 
 			           uR + aR * areaNorm.X(), 
 			           vR + aR * areaNorm.Y(), 
 			           wR + aR * areaNorm.Z(), 
 			           hR + aR * velRSum};
 
   //calculate eigenvector due to shear wave
-  double shearEigV[NUMVARS] = {0.0, 
+  double shearEigV[5] = {0.0, 
 			      (right.U() - left.U()) - normVelDiff * areaNorm.X(), 
 			      (right.V() - left.V()) - normVelDiff * areaNorm.Y(), 
 			      (right.W() - left.W()) - normVelDiff * areaNorm.Z(), 
 			      uR * (right.U() - left.U()) + vR * (right.V() - left.V()) + wR * (right.W() - left.W()) - velRSum * normVelDiff};
 
   //calculate dissipation term ( eigenvector * wave speed * wave strength)
-  double dissipation[NUMVARS] = {0.0, 0.0, 0.0, 0.0, 0.0};
-  for ( int ii=0; ii < NUMVARS; ii++ ) {                                    
+  double dissipation[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
+  for ( int ii=0; ii < 5; ii++ ) {                                    
     dissipation[ii] = waveSpeed[0] * waveStrength[0] * lAcousticEigV[ii]   //contribution from left acoustic wave
                     + waveSpeed[1] * waveStrength[1] * entropyEigV[ii]     //contribution from entropy wave
                     + waveSpeed[2] * waveStrength[2] * rAcousticEigV[ii]   //contribution from right acoustic wave
@@ -208,7 +214,7 @@ inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGa
 
 /* Member function to calculate the Roe flux, given the left and right convective fluxes as well as the dissipation term. 
 */
-void inviscidFlux::RoeFlux( const inviscidFlux &right, const double (&diss)[NUMVARS]){
+void inviscidFlux::RoeFlux( const inviscidFlux &right, const double (&diss)[5]){
   // right -- right convective flux
   // diss -- dissipation term
 

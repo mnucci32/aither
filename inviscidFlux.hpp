@@ -42,7 +42,7 @@ class inviscidFlux {
 
  public:
   //constructors
-  inviscidFlux() : data{0.0, 0.0, 0.0, 0.0, 0.0} {}
+  inviscidFlux() : data{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0} {}
   inviscidFlux( const primVars&, const idealGas&, const vector3d<double>& );
   inviscidFlux( const genArray&, const idealGas&, const vector3d<double>& );
 
@@ -53,7 +53,7 @@ class inviscidFlux {
   double RhoVelW() const {return data[3];}
   double RhoVelH() const {return data[4];}
 
-  void RoeFlux( const inviscidFlux&, const double(&) [NUMVARS] );
+  void RoeFlux( const inviscidFlux&, const double(&) [5] );
 
   inviscidFlux operator * (const double&);
   inviscidFlux operator / (const double&);
