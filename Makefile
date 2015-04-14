@@ -37,7 +37,7 @@ eos.o : eos.cpp eos.hpp vector3d.hpp
 slices.o : slices.cpp procBlock.hpp
 	$(CC) $(CFLAGS) slices.cpp
 
-viscousFlux.o : viscousFlux.cpp vector3d.hpp tensor.hpp eos.hpp primVars.hpp viscousFlux.hpp input.hpp
+viscousFlux.o : viscousFlux.cpp vector3d.hpp tensor.hpp eos.hpp primVars.hpp viscousFlux.hpp input.hpp turbulence.hpp
 	$(CC) $(CFLAGS) viscousFlux.cpp
 
 output.o : output.cpp output.hpp procBlock.hpp tensor.hpp vector3d.hpp plot3d.hpp eos.hpp primVars.hpp inviscidFlux.hpp input.hpp turbulence.hpp

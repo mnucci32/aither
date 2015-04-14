@@ -1189,7 +1189,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<genArray>
 	double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	double mRef = inp.VelRef().Mag() / aRef;
 	double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaI(ilFace2G), (*this).FAreaI(ilFaceG), 
-							      (*this).State(ilG).UpdateWithConsVars(eqnState, x[il]), eqnState, suth, (*this).Vol(ilG), turb );
+							      (*this).State(ilG).UpdateWithConsVars(eqnState, x[il]), eqnState, suth, (*this).Vol(ilG), turb->BoussinesqEddyVisc() );
 	specRad += vSpecRad;
       }
 
@@ -1209,7 +1209,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<genArray>
 	double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	double mRef = inp.VelRef().Mag() / aRef;
 	double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaJ(jlFace2G), (*this).FAreaJ(jlFaceG), 
-							      (*this).State(jlG).UpdateWithConsVars(eqnState, x[jl]), eqnState, suth, (*this).Vol(jlG), turb );
+							      (*this).State(jlG).UpdateWithConsVars(eqnState, x[jl]), eqnState, suth, (*this).Vol(jlG), turb->BoussinesqEddyVisc() );
 	specRad += vSpecRad;
       }
 
@@ -1229,7 +1229,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<genArray>
 	double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	double mRef = inp.VelRef().Mag() / aRef;
 	double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaK(klFace2G), (*this).FAreaK(klFaceG), 
-							      (*this).State(klG).UpdateWithConsVars(eqnState, x[kl]), eqnState, suth, (*this).Vol(klG), turb );
+							      (*this).State(klG).UpdateWithConsVars(eqnState, x[kl]), eqnState, suth, (*this).Vol(klG), turb->BoussinesqEddyVisc() );
 	specRad += vSpecRad;
       }
 
@@ -1296,7 +1296,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<genArray>
 	double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	double mRef = inp.VelRef().Mag() / aRef;
 	double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaI(iuFace2G), (*this).FAreaI(iuFaceG), 
-							      (*this).State(iuG).UpdateWithConsVars(eqnState, x[iu]), eqnState, suth, (*this).Vol(iuG), turb );
+							      (*this).State(iuG).UpdateWithConsVars(eqnState, x[iu]), eqnState, suth, (*this).Vol(iuG), turb->BoussinesqEddyVisc() );
 	specRad += vSpecRad;
       }
 
@@ -1316,7 +1316,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<genArray>
 	double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	double mRef = inp.VelRef().Mag() / aRef;
 	double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaJ(juFace2G), (*this).FAreaJ(juFaceG), 
-							      (*this).State(juG).UpdateWithConsVars(eqnState, x[ju]), eqnState, suth, (*this).Vol(juG), turb );
+							      (*this).State(juG).UpdateWithConsVars(eqnState, x[ju]), eqnState, suth, (*this).Vol(juG), turb->BoussinesqEddyVisc() );
 	specRad += vSpecRad;
       }
 
@@ -1336,7 +1336,7 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<genArray>
 	double aRef = eqnState.GetSoS( inp.PRef(), inp.RRef() );
 	double mRef = inp.VelRef().Mag() / aRef;
 	double vSpecRad = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaK(kuFace2G), (*this).FAreaK(kuFaceG), 
-							      (*this).State(kuG).UpdateWithConsVars(eqnState, x[ku]), eqnState, suth, (*this).Vol(kuG), turb );
+							      (*this).State(kuG).UpdateWithConsVars(eqnState, x[ku]), eqnState, suth, (*this).Vol(kuG), turb->BoussinesqEddyVisc() );
 	specRad += vSpecRad;
       }
 
@@ -1425,7 +1425,7 @@ at the cell center. G is gamma, mu is viscosity, and Pr is the Prandtl number (a
 average face area of the given direction (i, j, k), and V is the cell volume. This implementation comes from Blazek.
  */
 double ViscCellSpectralRadius(const vector3d<double> &fAreaL, const vector3d<double> &fAreaR, const primVars &state, const idealGas &eqnState, 
-			      const sutherland &suth, const double &vol, const turbModel *turb){
+			      const sutherland &suth, const double &vol, const double &eddyVisc){
   // fAreaL -- face area of lower face in either i, j, or k direction
   // fAreaR -- face area of upper face in either i, j, or k direction
   // state -- state at cell center (primative)
@@ -1435,7 +1435,7 @@ double ViscCellSpectralRadius(const vector3d<double> &fAreaL, const vector3d<dou
 
   double fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag()); //average area magnitude
   double maxTerm = max(4.0 / (3.0 * state.Rho()), eqnState.Gamma() / state.Rho()) ;
-  double mu = suth.GetViscosity(state.Temperature(eqnState)) + turb->BoussinesqEddyVisc(); //viscosity at cell center
+  double mu = suth.GetViscosity(state.Temperature(eqnState)) + eddyVisc; //viscosity at cell center
   double viscTerm = mu / eqnState.GetPrandtl();
 
   //return viscous spectral radius
@@ -1799,7 +1799,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 	eddyVisc *= (mRef/Re);  //effective viscosity (due to nondimensionalization)
 
 	//calculate viscous flux
-	viscousFlux tempViscFlux( velGrad, vel, mu, eddyVisc, suth, eqnState, tGrad, (*this).FAreaI(loc) );
+	viscousFlux tempViscFlux( velGrad, vel, mu, eddyVisc, suth, eqnState, tGrad, (*this).FAreaI(loc), turb->TurbPrandtlNumber() );
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
 	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
@@ -1810,7 +1810,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 	  (*this).AddToResidual(tempViscFlux * (*this).FAreaI(loc).Mag(), iUpNG);
 
 	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the upper faces
-	  double maxWS = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaI(loc), (*this).FAreaI(fUpi), (*this).State(iUp), eqnState, suth, (*this).Vol(iUp), turb );
+	  double maxWS = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaI(loc), (*this).FAreaI(fUpi), (*this).State(iUp), eqnState, suth, (*this).Vol(iUp), turb->BoussinesqEddyVisc() );
 	  (*this).avgWaveSpeed[iUpNG] = (*this).AvgWaveSpeed(iUpNG) + vCoeff * maxWS;
 
 	}
@@ -2012,7 +2012,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 	eddyVisc *= (mRef/Re);  //effective viscosity (due to nondimensionalization)
 
 	//calculate viscous flux
-	viscousFlux tempViscFlux( velGrad, vel, mu, eddyVisc, suth, eqnState, tGrad, (*this).FAreaJ(loc) );
+	viscousFlux tempViscFlux( velGrad, vel, mu, eddyVisc, suth, eqnState, tGrad, (*this).FAreaJ(loc), turb->TurbPrandtlNumber() );
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
 	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
@@ -2023,7 +2023,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 	  (*this).AddToResidual(tempViscFlux * (*this).FAreaJ(loc).Mag(), jUpNG);
 
 	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the upper faces
-	  double maxWS = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaJ(loc), (*this).FAreaJ(fUpj), (*this).State(jUp), eqnState, suth, (*this).Vol(jUp), turb );
+	  double maxWS = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaJ(loc), (*this).FAreaJ(fUpj), (*this).State(jUp), eqnState, suth, (*this).Vol(jUp), turb->BoussinesqEddyVisc() );
 	  (*this).avgWaveSpeed[jUpNG] = (*this).AvgWaveSpeed(jUpNG) + vCoeff * maxWS;
 
 	}
@@ -2225,7 +2225,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
 	eddyVisc *= (mRef/Re);  //effective viscosity (due to nondimensionalization)
 
 	//calculate viscous flux
-	viscousFlux tempViscFlux( velGrad, vel, mu, eddyVisc, suth, eqnState, tGrad, (*this).FAreaK(loc) );
+	viscousFlux tempViscFlux( velGrad, vel, mu, eddyVisc, suth, eqnState, tGrad, (*this).FAreaK(loc), turb->TurbPrandtlNumber() );
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
 	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
@@ -2236,7 +2236,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
 	  (*this).AddToResidual(tempViscFlux * (*this).FAreaK(loc).Mag(), kUpNG);
 
 	  //calculate component of wave speed. This is done on a cell by cell basis, so only at the upper faces
-	  double maxWS = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaK(loc), (*this).FAreaK(fUpk), (*this).State(kUp), eqnState, suth, (*this).Vol(kUp), turb );
+	  double maxWS = (mRef/Re) * ViscCellSpectralRadius( (*this).FAreaK(loc), (*this).FAreaK(fUpk), (*this).State(kUp), eqnState, suth, (*this).Vol(kUp), turb->BoussinesqEddyVisc() );
 	  (*this).avgWaveSpeed[kUpNG] = (*this).AvgWaveSpeed(kUpNG) + vCoeff * maxWS;
 	}
 

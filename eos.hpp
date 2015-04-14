@@ -53,11 +53,10 @@ class idealGas {
   double Gamma()const{return gamma;}
   double GasConst()const{return gasConst;}
   double GetPrandtl()const{return (4.0*gamma)/(9.0*gamma-5.0);}
-  double GetTurbPrandtl()const{return 0.9;}
 
   double GetTemperature(const double &pressure, const double &rho)const;
   double GetConductivity(const double &mu)const{return mu/( (*this).GetPrandtl()*(gamma-1.0) );} //nondimensional version (R=1/gamma)
-  double GetTurbConductivity(const double &eddyVisc)const{return eddyVisc/( (*this).GetTurbPrandtl() * (gamma-1.0) );} //nondimensional version (R=1/gamma)
+  double GetTurbConductivity(const double &eddyVisc, const double &prt)const{return eddyVisc/( prt * (gamma-1.0) );} //nondimensional version (R=1/gamma)
   double GetDensityTP(const double &temp, const double &press)const{return press*gamma/temp;}
 
   //destructor
