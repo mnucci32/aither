@@ -46,22 +46,33 @@ primVars::primVars( const genArray &a, const bool &prim, const idealGas &eqnStat
     data[3] = a[3]/a[0];
     double energy = a[4]/a[0];
     data[4] = eqnState.GetPressFromEnergy(data[0], energy, (*this).Velocity().Mag() );
+    data[5] = a[5]/a[0];
+    data[6] = a[6]/a[0];
   }
 
 }
 
 //member function to initialize a state with nondimensional values
-void primVars::NondimensionalInitialize(const idealGas &eos, const vector3d<double> &vel){
+void primVars::NondimensionalInitialize(const idealGas &eos, const vector3d<double> &vel, const double &aRef){
   data[0] = 1.0;
   data[4] = 1.0/eos.Gamma();
-  data[1] = vel.X() / eos.GetSoS(data[4], data[0]);
-  data[2] = vel.Y() / eos.GetSoS(data[4], data[0]);
-  data[3] = vel.Z() / eos.GetSoS(data[4], data[0]);
+
+  data[1] = vel.X() / aRef;
+  data[2] = vel.Y() / aRef;
+  data[3] = vel.Z() / aRef;
+
+  data[5] = 0.0;
+  data[6] = 0.0;
 }
 
 //operator overload for << - allows use of cout, cerr, etc.
 ostream & operator<< (ostream &os, const primVars &prim){
-  os << prim.data[0] << ", " << prim.data[1] << ", " << prim.data[2] << ", " << prim.data[3] << ", " << prim.data[4] << endl;
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    os << prim.data[ii];
+    if (ii != NUMVARS - 1){
+      os << ", " ;
+    }
+  }
   return os;
 }
 

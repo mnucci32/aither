@@ -48,10 +48,11 @@ class primVars {
 
  public:
   //constructors
- primVars() : data{0.0, 0.0, 0.0, 0.0, 0.0} {}
- primVars( const double &r, const double &p, const vector3d<double> &v) : data{r, v.X(), v.Y(), v.Z(), p} {}
- primVars( const double &a, const double &b, const double &c, const double &d, const double &e) : data{a, b, c, d, e} {}
- primVars( const genArray&, const bool&, const idealGas& );
+  primVars() : data{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0} {}
+  primVars( const double &r, const double &p, const vector3d<double> &v) : data{r, v.X(), v.Y(), v.Z(), p, 0.0, 0.0} {}
+  primVars( const double &a, const double &b, const double &c, const double &d, const double &e) : data{a, b, c, d, e, 0.0, 0.0} {}
+  primVars( const double &a, const double &b, const double &c, const double &d, const double &e, const double &f, const double &g) : data{a, b, c, d, e, f, g} {}
+  primVars( const genArray&, const bool&, const idealGas& );
 
   //member functions
   double Rho()const{return data[0];}
@@ -59,8 +60,10 @@ class primVars {
   double V()const{return data[2];}
   double W()const{return data[3];}
   double P()const{return data[4];}
+  double Tke()const{return data[5];}
+  double Omega()const{return data[6];}
 
-  void NondimensionalInitialize(const idealGas &, const vector3d<double>&);
+  void NondimensionalInitialize(const idealGas &, const vector3d<double>&, const double&);
   bool IsZero()const;
 
   inline vector3d<double> Velocity()const;
