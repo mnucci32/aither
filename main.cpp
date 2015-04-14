@@ -98,7 +98,8 @@ int main( int argc, char *argv[] ) {
   //Initialize state vector with nondimensional variables
   //get reference speed of sound
   double aRef = eos.GetSoS(inputVars.PRef(),inputVars.RRef());
-  primVars state(1.0, 1.0/eos.Gamma(), inputVars.VelRef()/aRef);
+  primVars state;
+  state.NondimensionalInitialize(eos, inputVars.VelRef(), aRef);
 
   //initialize sutherland's law for viscosity
   sutherland suth(inputVars.TRef());
@@ -190,7 +191,7 @@ int main( int argc, char *argv[] ) {
   genArray initial(0.0);
 
   //preallocate vectors for old solution
-  //outermost vector for blocks, inner vector for cell is blocks, genArray for variables in cell
+  //outermost vector for blocks, inner vector for cell in blocks, genArray for variables in cell
   vector<vector<genArray> > solTimeN(numProcBlock);
   vector<vector<genArray> > solDeltaNm1(numProcBlock);
 
