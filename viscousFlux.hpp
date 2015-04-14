@@ -25,6 +25,7 @@
 #include "primVars.hpp" //primVars
 #include "matrix.hpp" //squareMatrix
 #include "input.hpp" //input
+#include "turbulence.hpp" //turbModel
 #include <iostream> //cout
 
 using std::vector;
@@ -42,8 +43,8 @@ class viscousFlux {
 
  public:
   //constructors
-  viscousFlux() : data{0.0, 0.0, 0.0, 0.0} {}
-  viscousFlux( const tensor<double>&, const vector3d<double>&, const double&, const double&, const sutherland&, const idealGas&, const vector3d<double>&, const vector3d<double>& );
+  viscousFlux() : data{0.0, 0.0, 0.0, 0.0, 0.0, 0.0} {}
+  viscousFlux( const tensor<double>&, const vector3d<double>&, const double&, const double&, const sutherland&, const idealGas&, const vector3d<double>&, const vector3d<double>&, const double& );
 
   //member functions
   double MomX() const {return data[0];}
@@ -65,7 +66,7 @@ class viscousFlux {
 
 //function definitions
 void CalcTSLFluxJac( const double&, const double&, const idealGas&, const vector3d<double>&, const primVars&, const primVars&, 
-		     const double&, squareMatrix&, squareMatrix&, const sutherland&);
+		     const double&, squareMatrix&, squareMatrix&, const sutherland&, const double&);
 
 tensor<double> CalcVelGradTSL(const primVars&, const primVars&, const vector3d<double>&, const double&);
 

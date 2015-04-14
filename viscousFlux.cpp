@@ -44,7 +44,7 @@ In the above equation lambda is the bulk viscosity, velGradTrace is the trace of
 face area, mu is the dynamic viscosity, and velGrad is the velocity gradient tensor.
 */
 viscousFlux::viscousFlux( const tensor<double> &velGrad, const vector3d<double> &vel, const double &mu, const double &eddyVisc, const sutherland &suth, 
-			  const idealGas &eqnState, const vector3d<double> &tGrad, const vector3d<double> &areaVec){
+			  const idealGas &eqnState, const vector3d<double> &tGrad, const vector3d<double> &areaVec, const double &prt){
   // velGrad -- velocity gradient tensor
   // vel -- velocity vector
   // mu -- dynamic viscosity
@@ -65,8 +65,10 @@ viscousFlux::viscousFlux( const tensor<double> &velGrad, const vector3d<double> 
   data[0] = tau.X();
   data[1] = tau.Y();
   data[2] = tau.Z();
-  data[3] = tau.DotProd(vel) + (eqnState.GetConductivity(mu) + eqnState.GetTurbConductivity(eddyVisc)) * tGrad.DotProd(normArea);
+  data[3] = tau.DotProd(vel) + (eqnState.GetConductivity(mu) + eqnState.GetTurbConductivity(eddyVisc, prt)) * tGrad.DotProd(normArea);
 
+  data[4] = 0.0;
+  data[5] = 0.0;
 }
 
 //non-member functions -----------------------------------------------------------------------------------------------------------//
@@ -118,7 +120,7 @@ viscousFlux operator/ (const double &scalar, const viscousFlux &flux){
 
 //function to calculate the thin shear layer flux jacobian -- NOT USED in LUSGS formulation
 void CalcTSLFluxJac(const double &mu, const double &eddyVisc, const idealGas &eqnState, const vector3d<double> &areaVec, const primVars &left, const primVars &right, 
-		    const double &dist, squareMatrix &dFv_dUl, squareMatrix &dFv_dUr, const sutherland &suth){
+		    const double &dist, squareMatrix &dFv_dUl, squareMatrix &dFv_dUr, const sutherland &suth, const double &prt){
   // mu -- dynamic viscosity
   // eddyVisc -- turbulent eddy viscosity
   // eqnState -- equation of state
@@ -166,11 +168,11 @@ void CalcTSLFluxJac(const double &mu, const double &eddyVisc, const idealGas &eq
   double piY = vel.X() * etaZ   + vel.Y() * thetaY + vel.Z() * etaX;
   double piZ = vel.X() * etaY   + vel.Y() * etaX   + vel.Z() * thetaZ;
 
-  double phiRhoL = -1.0 * (eqnState.GetConductivity(mu) + eqnState.GetTurbConductivity(eddyVisc)) * left.Temperature(eqnState) / ((mu + eddyVisc) * left.Rho());
-  double phiRhoR = -1.0 * (eqnState.GetConductivity(mu) + eqnState.GetTurbConductivity(eddyVisc)) * right.Temperature(eqnState) / ((mu + eddyVisc) * right.Rho());
+  double phiRhoL = -1.0 * (eqnState.GetConductivity(mu) + eqnState.GetTurbConductivity(eddyVisc, prt)) * left.Temperature(eqnState) / ((mu + eddyVisc) * left.Rho());
+  double phiRhoR = -1.0 * (eqnState.GetConductivity(mu) + eqnState.GetTurbConductivity(eddyVisc, prt)) * right.Temperature(eqnState) / ((mu + eddyVisc) * right.Rho());
 
-  double phiPressL = (eqnState.GetConductivity(mu) + eqnState.GetTurbConductivity(eddyVisc)) / ((mu + eddyVisc) * left.Rho());
-  double phiPressR = (eqnState.GetConductivity(mu) + eqnState.GetTurbConductivity(eddyVisc)) / ((mu + eddyVisc)* right.Rho());
+  double phiPressL = (eqnState.GetConductivity(mu) + eqnState.GetTurbConductivity(eddyVisc, prt)) / ((mu + eddyVisc) * left.Rho());
+  double phiPressR = (eqnState.GetConductivity(mu) + eqnState.GetTurbConductivity(eddyVisc, prt)) / ((mu + eddyVisc)* right.Rho());
 
   //calculate matrix - derivative of left primative vars wrt left conservative vars
   squareMatrix dWl_dUl(5);
