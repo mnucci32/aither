@@ -64,26 +64,26 @@ class turbNone : public turbModel {
 
 
 class turbKWWilcox : public turbModel {
-  double alpha;
-  double betaStar;
-  double sigma;
-  double sigmaStar;
-  double sigmaD0;
-  double beta0;
-  double turbPrandtl;
 
  public:
   //constructor
- turbKWWilcox() : turbModel() {}
+  turbKWWilcox() : turbModel() {}
 
   //member functions
-  virtual double BoussinesqEddyVisc()const{return 0.0;};
-  virtual double TurbPrandtlNumber()const{return turbPrandtl;}
-  double SigmaD();
-  double Xw();
-  double FBeta();
-  double Beta();
-  double StrainKI();
+  virtual double BoussinesqEddyVisc() const {return 0.0;};
+  virtual double TurbPrandtlNumber() const {return 8.0/9.0;}
+  double Alpha() const {return 0.52;}
+  double BetaStar() const {return 0.09;}
+  double Sigma() const {return 0.5;}
+  double SigmaStar() const {return 0.6;}
+  double SigmaD0() const {return 0.125;}
+  double Beta0() const {return 0.0708;}
+
+  double SigmaD() const;
+  double Xw() const ;
+  double FBeta() const;
+  double Beta() const;
+  double StrainKI() const;
 
   //destructor
   virtual ~turbKWWilcox() {}
