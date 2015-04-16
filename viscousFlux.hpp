@@ -43,7 +43,7 @@ class viscousFlux {
 
  public:
   //constructors
-  viscousFlux() : data{0.0, 0.0, 0.0, 0.0, 0.0, 0.0} {}
+  viscousFlux() : data{0.0} {}
   viscousFlux( const tensor<double>&, const vector3d<double>&, const double&, const double&, const sutherland&, const idealGas&, const vector3d<double>&, const vector3d<double>&, const double& );
 
   //member functions
@@ -51,6 +51,8 @@ class viscousFlux {
   double MomY() const {return data[1];}
   double MomZ() const {return data[2];}
   double Engy() const {return data[3];}
+  double MomK() const {return data[4];}
+  double MomO() const {return data[5];}
 
   viscousFlux operator * (const double&);
   viscousFlux operator / (const double&);

@@ -760,12 +760,6 @@ genArray::genArray(const double &a){
   }
 }
 
-genArray::genArray(){
-  for ( int ii = 0; ii < NUMVARS; ii++ ){
-    data[ii] = 0.0;
-  }
-}
-
 //operator overload for addition
 genArray genArray::operator + (const genArray& s2)const{
   genArray s1 = *this;

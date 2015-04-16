@@ -74,47 +74,49 @@ viscousFlux::viscousFlux( const tensor<double> &velGrad, const vector3d<double> 
 //non-member functions -----------------------------------------------------------------------------------------------------------//
 //operator overload for << - allows use of cout, cerr, etc.
 ostream & operator<< (ostream &os, viscousFlux &flux){
-  os << "0.0, " << flux.data[0] << ", " << flux.data[1] << ", " << flux.data[2] << ", " << flux.data[3] << endl;
+  os << "0.0, ";
+  for ( int ii = 0; ii < NUMVARS-1; ii++ ){
+    os << flux.data[ii];
+    if ( ii != NUMVARS-2 ){
+      os << ", ";
+    }
+  }
   return os;
 }
 
 //member function for scalar multiplication
 viscousFlux  viscousFlux::operator * (const double &scalar){
   viscousFlux temp = *this;
-  temp.data[0] *= scalar;
-  temp.data[1] *= scalar;
-  temp.data[2] *= scalar;
-  temp.data[3] *= scalar;
+  for ( int ii = 0; ii < NUMVARS-1; ii++ ){
+    temp.data[ii] *= scalar;
+  }
   return temp;
 }
 
 //friend function to allow multiplication from either direction
 viscousFlux operator* (const double &scalar, const viscousFlux &flux){
   viscousFlux temp;
-  temp.data[0] = flux.MomX() * scalar;
-  temp.data[1] = flux.MomY() * scalar;
-  temp.data[2] = flux.MomZ() * scalar;
-  temp.data[3] = flux.Engy() * scalar;
+  for ( int ii = 0; ii < NUMVARS-1; ii++ ){
+    temp.data[ii] = flux.data[ii] * scalar;
+  }
   return temp;
 }
 
 //member function for scalar division
 viscousFlux  viscousFlux::operator / (const double &scalar){
   viscousFlux temp = *this;
-  temp.data[0] /= scalar;
-  temp.data[1] /= scalar;
-  temp.data[2] /= scalar;
-  temp.data[3] /= scalar;
+  for ( int ii = 0; ii < NUMVARS-1; ii++ ){
+    temp.data[ii] /= scalar;
+  }
   return temp;
 }
 
 //friend function to allow division from either direction
 viscousFlux operator/ (const double &scalar, const viscousFlux &flux){
   viscousFlux temp;
-  temp.data[0] = scalar / flux.MomX();
-  temp.data[0] = scalar / flux.MomY();
-  temp.data[0] = scalar / flux.MomZ();
-  temp.data[0] = scalar / flux.Engy();
+  for ( int ii = 0; ii < NUMVARS-1; ii++ ){
+    temp.data[0] = scalar / flux.data[ii];
+  }
   return temp;
 }
 

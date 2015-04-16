@@ -48,9 +48,10 @@ class primVars {
 
  public:
   //constructors
-  primVars() : data{0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0} {}
-  primVars( const double &r, const double &p, const vector3d<double> &v) : data{r, v.X(), v.Y(), v.Z(), p, 0.0, 0.0} {}
-  primVars( const double &a, const double &b, const double &c, const double &d, const double &e) : data{a, b, c, d, e, 0.0, 0.0} {}
+  primVars() : data{0.0} {}
+  primVars( const double & );
+  primVars( const double &r, const double &p, const vector3d<double> &v) : data{r, v.X(), v.Y(), v.Z(), p} {}
+  primVars( const double &a, const double &b, const double &c, const double &d, const double &e) : data{a, b, c, d, e} {}
   primVars( const double &a, const double &b, const double &c, const double &d, const double &e, const double &f, const double &g) : data{a, b, c, d, e, f, g} {}
   primVars( const genArray&, const bool&, const idealGas& );
 

@@ -32,6 +32,12 @@ using std::max;
 using std::min;
 
 //constructor
+primVars::primVars( const double &a ){
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    data[ii] = a;
+  }
+}
+
 primVars::primVars( const genArray &a, const bool &prim, const idealGas &eqnState ){
 
   if (prim){ //genArray is primative variables
@@ -79,128 +85,108 @@ ostream & operator<< (ostream &os, const primVars &prim){
 //operator overload for addition
 primVars primVars::operator + (const primVars& prim2)const{
   primVars prim1 = *this;
-  prim1.data[0] += prim2.data[0];
-  prim1.data[1] += prim2.data[1];
-  prim1.data[2] += prim2.data[2];
-  prim1.data[3] += prim2.data[3];
-  prim1.data[4] += prim2.data[4];
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    prim1.data[ii] += prim2.data[ii];
+  }
   return prim1;
 }
 
 //operator overload for addition with a scalar
 primVars operator+ (const double &scalar, const primVars &prim2){
-  primVars prim1( prim2.data[0] + scalar,
-		  prim2.data[1] + scalar,
-		  prim2.data[2] + scalar,
-		  prim2.data[3] + scalar,
-		  prim2.data[4] + scalar);
+  primVars prim1;
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    prim1.data[ii] = prim2.data[ii] + scalar;
+  }
   return prim1;
 }
 
 //operator overload for subtraction
 primVars primVars::operator - (const primVars& prim2)const{
   primVars prim1 = *this;
-  prim1.data[0] -= prim2.data[0];
-  prim1.data[1] -= prim2.data[1];
-  prim1.data[2] -= prim2.data[2];
-  prim1.data[3] -= prim2.data[3];
-  prim1.data[4] -= prim2.data[4];
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    prim1.data[ii] -= prim2.data[ii];
+  }
   return prim1;
 }
 
 //operator overload for subtraction with a scalar
 primVars operator- (const double &scalar, const primVars &prim2){
-  primVars prim1( scalar - prim2.data[0],
-		  scalar - prim2.data[1],
-		  scalar - prim2.data[2],
-		  scalar - prim2.data[3],
-		  scalar - prim2.data[4] );
+  primVars prim1;
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    prim1.data[ii] = scalar - prim2.data[ii];
+  }
   return prim1;
 }
 
 //operator overload for elementwise multiplication
 primVars primVars::operator * (const primVars& prim2)const{
   primVars prim1 = *this;
-  prim1.data[0] *= prim2.data[0];
-  prim1.data[1] *= prim2.data[1];
-  prim1.data[2] *= prim2.data[2];
-  prim1.data[3] *= prim2.data[3];
-  prim1.data[4] *= prim2.data[4];
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    prim1.data[ii] *= prim2.data[ii];
+  }
   return prim1;
 }
 
 //member function for scalar multiplication
 primVars  primVars::operator * (const double &scalar){
   primVars temp = *this;
-  temp.data[0] *= scalar;
-  temp.data[1] *= scalar;
-  temp.data[2] *= scalar;
-  temp.data[3] *= scalar;
-  temp.data[4] *= scalar;
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    temp.data[ii] *= scalar;
+  }
   return temp;
 }
 
 //member function for scalar addition
 primVars  primVars::operator + (const double &scalar){
   primVars temp = *this;
-  temp.data[0] += scalar;
-  temp.data[1] += scalar;
-  temp.data[2] += scalar;
-  temp.data[3] += scalar;
-  temp.data[4] += scalar;
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    temp.data[ii] += scalar;
+  }
   return temp;
 }
 
 //member function for scalar subtraction
 primVars  primVars::operator - (const double &scalar){
   primVars temp = *this;
-  temp.data[0] -= scalar;
-  temp.data[1] -= scalar;
-  temp.data[2] -= scalar;
-  temp.data[3] -= scalar;
-  temp.data[4] -= scalar;
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    temp.data[ii] -= scalar;
+  }
   return temp;
 }
 
 //member function for scalar division
 primVars  primVars::operator / (const double &scalar){
   primVars temp = *this;
-  temp.data[0] /= scalar;
-  temp.data[1] /= scalar;
-  temp.data[2] /= scalar;
-  temp.data[3] /= scalar;
-  temp.data[4] /= scalar;
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    temp.data[ii] /= scalar;
+  }
   return temp;
 }
 
 //operator overload for multiplication with a scalar
 primVars operator* (const double &scalar, const primVars &prim2){
-  primVars prim1( prim2.data[0] * scalar,
-		  prim2.data[1] * scalar,
-		  prim2.data[2] * scalar,
-		  prim2.data[3] * scalar,
-		  prim2.data[4] * scalar);
+  primVars prim1;
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    prim1.data[ii] = prim2.data[ii] * scalar;
+  }
   return prim1;
 }
 
 //operator overload for elementwise division
 primVars primVars::operator / (const primVars& prim2)const{
   primVars prim1 = *this;
-  prim1.data[0] /= prim2.data[0];
-  prim1.data[1] /= prim2.data[1];
-  prim1.data[2] /= prim2.data[2];
-  prim1.data[3] /= prim2.data[3];
-  prim1.data[4] /= prim2.data[4];
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    prim1.data[ii] /= prim2.data[ii];
+  }
   return prim1;
 }
 
 //operator overload for division with a scalar
 primVars operator/ (const double &scalar, const primVars &prim2){
-  primVars prim1( scalar / prim2.data[0],
-		  scalar / prim2.data[1],
-		  scalar / prim2.data[2],
-		  scalar / prim2.data[3],
-		  scalar / prim2.data[4]);
+  primVars prim1;
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    prim1.data[ii] = scalar / prim2.data[ii];
+  }
   return prim1;
 }
 
@@ -362,12 +348,9 @@ primVars primVars::LimiterMinmod( const primVars &upwind, const primVars &downwi
     sign.data[4] = 0.0;
   }
 
-
-  limiter.data[0] = sign.Rho() * max(0.0, min( fabs(upwind.Rho()), sign.Rho()*downwind.Rho()*beta ) );
-  limiter.data[1] = sign.U() * max(0.0, min( fabs(upwind.U()), sign.U()*downwind.U()*beta ) );
-  limiter.data[2] = sign.V() * max(0.0, min( fabs(upwind.V()), sign.V()*downwind.V()*beta ) );
-  limiter.data[3] = sign.W() * max(0.0, min( fabs(upwind.W()), sign.W()*downwind.W()*beta ) );
-  limiter.data[4] = sign.P() * max(0.0, min( fabs(upwind.P()), sign.P()*downwind.P()*beta ) );
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    limiter.data[ii] = sign.data[ii] * max(0.0, min( fabs(upwind.data[ii]), sign.data[ii]*downwind.data[ii]*beta ) );
+  }
 
   return limiter;
 }
@@ -378,18 +361,16 @@ primVars primVars::LimiterVanAlbada( const primVars &r)const{
 
   primVars limiter = (r + r*r)/(1 + r*r);
   //if value is negative, return zero
-  limiter.data[0] = max(0.0, limiter.Rho());
-  limiter.data[1] = max(0.0, limiter.U());
-  limiter.data[2] = max(0.0, limiter.V());
-  limiter.data[3] = max(0.0, limiter.W());
-  limiter.data[4] = max(0.0, limiter.P());
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    limiter.data[ii] = max(0.0, limiter.data[ii]);
+  }
   return limiter;
 }
 
 //member function to return no limiter
 primVars primVars::LimiterNone()const{
   //for no limiter return all 1s
-  primVars limiter(1.0, 1.0, 1.0, 1.0, 1.0);
+  primVars limiter(1.0);
   return limiter;
 }
 

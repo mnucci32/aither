@@ -96,8 +96,10 @@ class genArray {
 
  public:
   //constructor
-  genArray();
+  genArray() : data{0.0} {}
   genArray(const double& );
+  genArray(const double &a, const double &b, const double &c, const double &d, const double &e ) : data{a, b, c, d, e} {}
+  genArray(const double &a, const double &b, const double &c, const double &d, const double &e, const double &f, const double &g ) : data{a, b, c, d, e, f, g} {}
 
   //member functions
   void Zero();
