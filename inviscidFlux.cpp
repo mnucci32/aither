@@ -131,6 +131,8 @@ inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGa
   double wR = (left.W() + denRatio * right.W()) / (1.0 + denRatio);  //Roe averaged w-velocity
   double hR = (left.Enthalpy(eqnState) + denRatio * right.Enthalpy(eqnState)) / (1.0 + denRatio);  //Roe averaged total enthalpy
   double aR = sqrt( (eqnState.Gamma() - 1.0) * (hR - 0.5 * (uR*uR + vR*vR + wR*wR)) );  //Roe averaged speed of sound
+  double kR = (left.Tke() + denRatio * right.Tke()) / (1.0 + denRatio);  //Roe averaged tke
+  double omR = (left.Omega() + denRatio * right.Omega()) / (1.0 + denRatio);  //Roe averaged specific dissipation (omega)
   //Roe averaged face normal velocity
   vector3d<double> velR(uR,vR,wR);
 
@@ -141,16 +143,20 @@ inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGa
   double normVelDiff = right.Velocity().DotProd(areaNorm) - left.Velocity().DotProd(areaNorm);
 
   //calculate wave strengths (Cr - Cl)
-  double waveStrength[4] = {((right.P() - left.P()) - rhoR * aR * normVelDiff) / (2.0 * aR * aR), 
-			    (right.Rho() - left.Rho()) - (right.P() - left.P()) / (aR * aR), 
-			    ((right.P() - left.P()) + rhoR * aR * normVelDiff) / (2.0 * aR * aR), 
-			    rhoR};
+  double waveStrength[NUMVARS-1] = {((right.P() - left.P()) - rhoR * aR * normVelDiff) / (2.0 * aR * aR), 
+			            (right.Rho() - left.Rho()) - (right.P() - left.P()) / (aR * aR), 
+			            ((right.P() - left.P()) + rhoR * aR * normVelDiff) / (2.0 * aR * aR), 
+			            rhoR,
+                                    0.0,
+                                    0.0};
 
   //calculate absolute value of wave speeds (L)
-  double waveSpeed[4] = {fabs(velRSum - aR),              //left moving acoustic wave speed
-			 fabs(velRSum),                   //entropy wave speed
-			 fabs(velRSum + aR),              //right moving acoustic wave speed
-			 fabs(velRSum)};                  //shear wave speed
+  double waveSpeed[NUMVARS-1] = {fabs(velRSum - aR),              //left moving acoustic wave speed
+			         fabs(velRSum),                   //entropy wave speed
+			         fabs(velRSum + aR),              //right moving acoustic wave speed
+			         fabs(velRSum),                   //shear wave speed
+                                 fabs(velRSum),                   //turbulent eqn 1 wave speed
+                                 fabs(velRSum)};                  //turbulent eqn 2 wave speed
 
   //calculate entropy fix (Harten) and adjust wave speeds if necessary
   double entropyFix = 0.1;                                                            // default setting for entropy fix to kick in
@@ -166,40 +172,68 @@ inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGa
 
   //calculate right eigenvectors (T)
   //calculate eigenvector due to left acoustic wave
-  double lAcousticEigV[5] = {1.0, 
-                  	           uR - aR * areaNorm.X(), 
-			           vR - aR * areaNorm.Y(), 
-			           wR - aR * areaNorm.Z(), 
-			           hR - aR * velRSum};
+  genArray lAcousticEigV(1.0, 
+                  	 uR - aR * areaNorm.X(), 
+			 vR - aR * areaNorm.Y(), 
+			 wR - aR * areaNorm.Z(), 
+			 hR - aR * velRSum, 
+                         kR,
+                         omR);
 
   //calculate eigenvector due to entropy wave
-  double entropyEigV[5] = {1.0, 
-			         uR, 
-			         vR, 
-			         wR, 
-			         0.5 * ( uR * uR + vR * vR + wR * wR)};
+  genArray entropyEigV(1.0, 
+		       uR, 
+		       vR, 
+		       wR, 
+		       0.5 * ( uR * uR + vR * vR + wR * wR),
+                       0.0,
+                       0.0);
 
   //calculate eigenvector due to right acoustic wave
-  double rAcousticEigV[5] = {1.0, 
-			           uR + aR * areaNorm.X(), 
-			           vR + aR * areaNorm.Y(), 
-			           wR + aR * areaNorm.Z(), 
-			           hR + aR * velRSum};
+  genArray rAcousticEigV(1.0, 
+			 uR + aR * areaNorm.X(), 
+			 vR + aR * areaNorm.Y(), 
+			 wR + aR * areaNorm.Z(), 
+			 hR + aR * velRSum,
+                         kR,
+                         omR);
 
   //calculate eigenvector due to shear wave
-  double shearEigV[5] = {0.0, 
-			      (right.U() - left.U()) - normVelDiff * areaNorm.X(), 
-			      (right.V() - left.V()) - normVelDiff * areaNorm.Y(), 
-			      (right.W() - left.W()) - normVelDiff * areaNorm.Z(), 
-			      uR * (right.U() - left.U()) + vR * (right.V() - left.V()) + wR * (right.W() - left.W()) - velRSum * normVelDiff};
+  genArray shearEigV(0.0, 
+	             (right.U() - left.U()) - normVelDiff * areaNorm.X(), 
+	             (right.V() - left.V()) - normVelDiff * areaNorm.Y(), 
+	             (right.W() - left.W()) - normVelDiff * areaNorm.Z(), 
+	             uR * (right.U() - left.U()) + vR * (right.V() - left.V()) + wR * (right.W() - left.W()) - velRSum * normVelDiff,
+                     0.0,
+                     0.0);
+
+  //calculate eigenvector due to turbulent equation 1
+  genArray tkeEigV(0.0,
+                   0.0,
+                   0.0,
+                   0.0,
+                   0.0,
+                   1.0,
+                   0.0);
+
+  //calculate eigenvector due to turbulent equation 2
+  genArray omgEigV(0.0,
+                   0.0,
+                   0.0,
+                   0.0,
+                   0.0,
+                   0.0,
+                   1.0);
 
   //calculate dissipation term ( eigenvector * wave speed * wave strength)
-  double dissipation[5] = {0.0, 0.0, 0.0, 0.0, 0.0};
-  for ( int ii=0; ii < 5; ii++ ) {                                    
+  genArray dissipation(0.0);
+  for ( int ii=0; ii < NUMVARS; ii++ ) {                                    
     dissipation[ii] = waveSpeed[0] * waveStrength[0] * lAcousticEigV[ii]   //contribution from left acoustic wave
                     + waveSpeed[1] * waveStrength[1] * entropyEigV[ii]     //contribution from entropy wave
                     + waveSpeed[2] * waveStrength[2] * rAcousticEigV[ii]   //contribution from right acoustic wave
-                    + waveSpeed[3] * waveStrength[3] * shearEigV[ii];      //contribution from shear wave
+                    + waveSpeed[3] * waveStrength[3] * shearEigV[ii]       //contribution from shear wave
+                    + waveSpeed[4] * waveStrength[4] * tkeEigV[ii]         //contribution from turbulent wave 1
+                    + waveSpeed[5] * waveStrength[5] * omgEigV[ii];        //contribution from turbulent wave 2
   }
 
   //calculate left/right physical flux
@@ -214,15 +248,13 @@ inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGa
 
 /* Member function to calculate the Roe flux, given the left and right convective fluxes as well as the dissipation term. 
 */
-void inviscidFlux::RoeFlux( const inviscidFlux &right, const double (&diss)[5]){
+void inviscidFlux::RoeFlux( const inviscidFlux &right, const genArray &diss){
   // right -- right convective flux
   // diss -- dissipation term
 
-  (*this).data[0] = 0.5 * ((*this).RhoVel()  + right.RhoVel()  - diss[0]) ;
-  (*this).data[1] = 0.5 * ((*this).RhoVelU() + right.RhoVelU() - diss[1]) ;
-  (*this).data[2] = 0.5 * ((*this).RhoVelV() + right.RhoVelV() - diss[2]) ;
-  (*this).data[3] = 0.5 * ((*this).RhoVelW() + right.RhoVelW() - diss[3]) ;
-  (*this).data[4] = 0.5 * ((*this).RhoVelH() + right.RhoVelH() - diss[4]) ;
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    (*this).data[ii] = 0.5 * ( (*this).data[ii] + right.data[ii] - diss[ii] );
+  }
 }
 
 //function to calculate approximate Roe flux jacobians -- NOT USED in LUSGS method
@@ -603,53 +635,48 @@ void ApproxRoeFluxJacobian( const primVars &left, const primVars &right, const i
 
 //operator overload for << - allows use of cout, cerr, etc.
 ostream & operator<< (ostream &os, inviscidFlux &flux){
-
-  os << flux.data[0] << ", " << flux.data[1] << ", " << flux.data[2] << ", " << flux.data[3] << ", " << flux.data[4] << endl;
-
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    os << flux.data[ii];
+    if ( ii != NUMVARS-1 ){
+      os << ", ";
+    }
+  }
   return os;
 }
 
 //member function for scalar multiplication
 inviscidFlux  inviscidFlux::operator * (const double &scalar){
   inviscidFlux temp = *this;
-  temp.data[0] *= scalar;
-  temp.data[1] *= scalar;
-  temp.data[2] *= scalar;
-  temp.data[3] *= scalar;
-  temp.data[4] *= scalar;
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    temp.data[ii] *= scalar;
+  }
   return temp;
 }
 
 //friend function to allow multiplication (elementwise) from either direction
 inviscidFlux operator* (const double &scalar, const inviscidFlux &flux){
   inviscidFlux temp;
-  temp.data[0] = flux.RhoVel()  * scalar;
-  temp.data[1] = flux.RhoVelU() * scalar;
-  temp.data[2] = flux.RhoVelV() * scalar;
-  temp.data[3] = flux.RhoVelW() * scalar;
-  temp.data[4] = flux.RhoVelH() * scalar;
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    temp.data[ii] = flux.data[ii] * scalar;
+  }
   return temp;
 }
 
 //operator overload for addition
 inviscidFlux inviscidFlux::operator + (const inviscidFlux& invf2)const{
   inviscidFlux invf1 = *this;
-  invf1.data[0] += invf2.data[0];
-  invf1.data[1] += invf2.data[1];
-  invf1.data[2] += invf2.data[2];
-  invf1.data[3] += invf2.data[3];
-  invf1.data[4] += invf2.data[4];
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    invf1.data[ii] += invf2.data[ii];
+  }
   return invf1;
 }
 
 //operator overload for subtraction
 inviscidFlux inviscidFlux::operator - (const inviscidFlux& invf2)const{
   inviscidFlux invf1 = *this;
-  invf1.data[0] -= invf2.data[0];
-  invf1.data[1] -= invf2.data[1];
-  invf1.data[2] -= invf2.data[2];
-  invf1.data[3] -= invf2.data[3];
-  invf1.data[4] -= invf2.data[4];
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    invf1.data[ii] -= invf2.data[ii];
+  }
   return invf1;
 }
 
@@ -657,34 +684,31 @@ inviscidFlux inviscidFlux::operator - (const inviscidFlux& invf2)const{
 //member function for scalar division
 inviscidFlux  inviscidFlux::operator / (const double &scalar){
   inviscidFlux temp = *this;
-  temp.data[0] /= scalar;
-  temp.data[1] /= scalar;
-  temp.data[2] /= scalar;
-  temp.data[3] /= scalar;
-  temp.data[4] /= scalar;
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    temp.data[ii] /= scalar;
+  }
   return temp;
 }
 
 //friend function to allow division (elementwise) from either direction
 inviscidFlux operator/ (const double &scalar, const inviscidFlux &flux){
   inviscidFlux temp;
-  temp.data[0] = scalar / flux.RhoVel();
-  temp.data[1] = scalar / flux.RhoVelU();
-  temp.data[2] = scalar / flux.RhoVelV();
-  temp.data[3] = scalar / flux.RhoVelW();
-  temp.data[4] = scalar / flux.RhoVelH();
+  for ( int ii = 0; ii < NUMVARS; ii++ ){
+    temp.data[ii] = scalar / flux.data[ii];
+  }
   return temp;
 }
 
 
-//convert the inviscid flux to a column matrix
+//convert the inviscid flux to a genArray
 genArray inviscidFlux::ConvertToGenArray()const{
-  genArray temp(0.0);
-  temp[0] = (*this).RhoVel();
-  temp[1] = (*this).RhoVelU();
-  temp[2] = (*this).RhoVelV();
-  temp[3] = (*this).RhoVelW();
-  temp[4] = (*this).RhoVelH();
+  genArray temp((*this).RhoVel(),
+		(*this).RhoVelU(),
+		(*this).RhoVelV(),
+		(*this).RhoVelW(),
+		(*this).RhoVelH(),
+		(*this).RhoVelK(),
+		(*this).RhoVelO());
   return temp;
 }
 
