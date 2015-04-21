@@ -44,14 +44,6 @@ using std::clock;
 
 int main( int argc, char *argv[] ) {
 
-
-  // {
-  //   cout << "waiting for attach" << endl;
-  //   int wait = 0;
-  //   while(wait == 0);
-  // }
-
-
   //initialize MPI and make calls to get number of processors and rank of each processor
   int numProcs, rank;
   MPI_Init(&argc,&argv);
@@ -164,7 +156,7 @@ int main( int argc, char *argv[] ) {
 
   //set MPI datatypes
   MPI_Datatype MPI_vec3d, MPI_cellData, MPI_procBlockInts, MPI_interblock, MPI_DOUBLE_5INT;
-  SetDataTypesMPI(inputVars.NumEquations(), MPI_vec3d, MPI_cellData, MPI_procBlockInts, MPI_interblock, MPI_DOUBLE_5INT );
+  SetDataTypesMPI(MPI_vec3d, MPI_cellData, MPI_procBlockInts, MPI_interblock, MPI_DOUBLE_5INT );
 
   //send number of procBlocks to all processors
   SendNumProcBlocks( decomp.NumBlocksOnAllProc(), rank, numProcBlock);
@@ -345,6 +337,8 @@ int main( int argc, char *argv[] ) {
     cout << "Total Time: " << duration << " seconds" << endl;
   }
 
+  //free datatypes previously created
+  FreeDataTypesMPI(MPI_vec3d, MPI_cellData, MPI_procBlockInts, MPI_interblock, MPI_DOUBLE_5INT );
   MPI_Finalize();
 
   return 0;

@@ -164,9 +164,8 @@ void SendConnections(vector<interblock> &connections, const MPI_Datatype &MPI_in
 }
 
 /* Function to set custom MPI datatypes to allow for easier data transmission */
-void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData, MPI_Datatype &MPI_procBlockInts, MPI_Datatype &MPI_interblock,
-		     MPI_Datatype & MPI_DOUBLE_5INT ){
-  // numEqn -- number of equations being solved
+void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData, MPI_Datatype &MPI_procBlockInts, MPI_Datatype &MPI_interblock,
+		     MPI_Datatype &MPI_DOUBLE_5INT ){
   // MPI_vec3d -- output MPI_Datatype for a vector3d<double>
   // MPI_cellData -- output MPI_Datatype for primVars or genArray
   // MPI_procBlockInts -- output MPI_Datatype for 14 INTs (14 INTs in procBlock class)
@@ -178,23 +177,23 @@ void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &M
   MPI_Type_commit(&MPI_vec3d);
 
   //create MPI datatype for states (primVars), residuals (genArray), etc
-  MPI_Type_contiguous(numEqn, MPI_DOUBLE, &MPI_cellData);
+  MPI_Type_contiguous(NUMVARS, MPI_DOUBLE, &MPI_cellData);
 
-  if ( numEqn != NUMVARS ){ //adjust extent if not using all equations
-    MPI_Aint lb, ext, lbdoub, extdoub;
-    MPI_Type_get_extent(MPI_cellData, &lb, &ext); //get lower bound and extent of current cellData datatype
-    MPI_Type_get_extent(MPI_DOUBLE, &lbdoub, &extdoub); //get lower bound and extent of double
-    //increase extent of cellData by the number of doubles that are unused equations
-    //this allows this datatype to behave properly in vectors and arrays because the extent/stride is now correct
-    MPI_Type_create_resized(MPI_cellData, lb, ext + (extdoub - lbdoub) * (NUMVARS - numEqn), &MPI_cellData);
-  }
+  //faster to just send the whole array
+  // if ( numEqn != NUMVARS ){ //adjust extent if not using all equations
+  //   MPI_Aint lb, ext, lbdoub, extdoub;
+  //   MPI_Type_get_extent(MPI_cellData, &lb, &ext); //get lower bound and extent of current cellData datatype
+  //   MPI_Type_get_extent(MPI_DOUBLE, &lbdoub, &extdoub); //get lower bound and extent of double
+  //   //increase extent of cellData by the number of doubles that are unused equations
+  //   //this allows this datatype to behave properly in vectors and arrays because the extent/stride is now correct
+  //   MPI_Type_create_resized(MPI_cellData, lb, ext + (extdoub - lbdoub) * (NUMVARS - numEqn), &MPI_cellData);
+  // }
 
   MPI_Type_commit(&MPI_cellData);
 
   //create MPI datatype for all the integers in the procBlock class
   MPI_Type_contiguous(15, MPI_INT, &MPI_procBlockInts);
   MPI_Type_commit(&MPI_procBlockInts);
-
 
   //create MPI datatype for a double followed by 5 ints
   int fieldCounts[2] = {1,5}; //number of entries per field
@@ -244,6 +243,32 @@ void SetDataTypesMPI(const int &numEqn, MPI_Datatype &MPI_vec3d, MPI_Datatype &M
   }
 
   MPI_Type_commit(&MPI_interblock);
+
+}
+
+/* Function to free custom MPI datatypesn */
+void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData, MPI_Datatype &MPI_procBlockInts, MPI_Datatype &MPI_interblock,
+		     MPI_Datatype &MPI_DOUBLE_5INT ){
+  // MPI_vec3d -- output MPI_Datatype for a vector3d<double>
+  // MPI_cellData -- output MPI_Datatype for primVars or genArray
+  // MPI_procBlockInts -- output MPI_Datatype for 14 INTs (14 INTs in procBlock class)
+  // MPI_interblock -- output MPI_Datatype to send interblock class
+  // MPI_DOUBLE_5INT -- output MPI_Datatype for a double followed by 5 ints
+
+  //free vector3d<double> MPI datatype
+  MPI_Type_free(&MPI_vec3d);
+
+  //free MPI datatype for states (primVars), residuals (genArray), etc
+  MPI_Type_free(&MPI_cellData);
+
+  //free MPI datatype for all the integers in the procBlock class
+  MPI_Type_free(&MPI_procBlockInts);
+
+  //free MPI datatype for a double followed by 5 ints
+  MPI_Type_free(&MPI_DOUBLE_5INT);
+
+  //free MPI datatype for interblock class
+  MPI_Type_free(&MPI_interblock);
 
 }
 

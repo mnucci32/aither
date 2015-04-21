@@ -46,7 +46,8 @@ decomposition CubicDecomposition(vector<plot3dBlock>&, vector<boundaryConditions
 void SendNumProcBlocks(const vector<int>&, const int&, int&);
 void SendConnections(vector<interblock>&, const MPI_Datatype& );
 
-void SetDataTypesMPI(const int&, MPI_Datatype&, MPI_Datatype&, MPI_Datatype&, MPI_Datatype&, MPI_Datatype& );
+void SetDataTypesMPI(MPI_Datatype&, MPI_Datatype&, MPI_Datatype&, MPI_Datatype&, MPI_Datatype& );
+void FreeDataTypesMPI(MPI_Datatype&, MPI_Datatype&, MPI_Datatype&, MPI_Datatype&, MPI_Datatype& );
 
 vector<procBlock> SendProcBlocks( const vector<procBlock>&, const int&, const int&, const MPI_Datatype&, const MPI_Datatype& );
 void GetProcBlocks( vector<procBlock>&, const vector<procBlock>&, const int&, const MPI_Datatype& );

@@ -23,7 +23,7 @@
 #include <string>
 #include <cmath>
 
-#define VAROUT 12
+#define VAROUT 14
 
 using std::cout;
 using std::endl;
@@ -389,6 +389,28 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars, const ideal
 	  }
 	}
       }
+      else if (vv == 12) {                        //tke
+	for ( int kk = recombVars[ll].NumGhosts(); kk < maxk + recombVars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = recombVars[ll].NumGhosts(); jj < maxj + recombVars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = recombVars[ll].NumGhosts(); ii < maxi + recombVars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - recombVars[ll].NumGhosts(), jj - recombVars[ll].NumGhosts(), kk - recombVars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      dumVec[loc] = recombVars[ll].State(locG).Tke();
+	    }
+	  }
+	}
+      }
+      else if (vv == 13) {                        //omega
+	for ( int kk = recombVars[ll].NumGhosts(); kk < maxk + recombVars[ll].NumGhosts(); kk++ ){
+	  for ( int jj = recombVars[ll].NumGhosts(); jj < maxj + recombVars[ll].NumGhosts(); jj++ ){
+	    for ( int ii = recombVars[ll].NumGhosts(); ii < maxi + recombVars[ll].NumGhosts(); ii++){         
+	      int loc = GetLoc1D(ii - recombVars[ll].NumGhosts(), jj - recombVars[ll].NumGhosts(), kk - recombVars[ll].NumGhosts(), maxi, maxj);
+	      int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
+	      dumVec[loc] = recombVars[ll].State(locG).Omega();
+	    }
+	  }
+	}
+      }
       else {
 	cerr << "ERROR: Variable to write to function file is not defined!" << endl;
         exit(0);
@@ -424,6 +446,12 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars, const ideal
 	}
 	else if (vv == 8){                                 //temperature
 	  dumDouble = dumDouble * inp.TRef();                        
+	}
+	else if (vv == 12){                                 //tke
+	  dumDouble = dumDouble * refSoS * refSoS;                        
+	}
+	else if (vv == 13){                                 //omega
+	  dumDouble = dumDouble * refSoS * refSoS * inp.RRef() / suth.MuRef();                        
 	}
 	outFile.write(reinterpret_cast<char *>(&dumDouble), sizeof(dumDouble));
       }
