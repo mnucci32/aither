@@ -155,8 +155,8 @@ inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGa
 			         fabs(velRSum),                   //entropy wave speed
 			         fabs(velRSum + aR),              //right moving acoustic wave speed
 			         fabs(velRSum),                   //shear wave speed
-                                 fabs(velRSum),                   //turbulent eqn 1 wave speed
-                                 fabs(velRSum)};                  //turbulent eqn 2 wave speed
+                                 fabs(velRSum),                   //turbulent eqn 1 (k) wave speed
+                                 fabs(velRSum)};                  //turbulent eqn 2 (omega) wave speed
 
   //calculate entropy fix (Harten) and adjust wave speeds if necessary
   double entropyFix = 0.1;                                                            // default setting for entropy fix to kick in
