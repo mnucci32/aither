@@ -1388,8 +1388,9 @@ double procBlock::LUSGS( const vector<vector3d<int> > &reorder, vector<genArray>
     l2Resid = l2Resid + resid * resid;
   }
 
-  return l2Resid.Sum();
+  delete turb;
 
+  return l2Resid.Sum();
 }
 
 /*Function to return the inviscid spectral radius for one direction (i, j, or k) given a cell state, equation of state, and 2 face area vectors
