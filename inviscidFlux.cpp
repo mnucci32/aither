@@ -147,8 +147,8 @@ inviscidFlux RoeFlux( const primVars &left, const primVars &right, const idealGa
 			            (right.Rho() - left.Rho()) - (right.P() - left.P()) / (aR * aR), 
 			            ((right.P() - left.P()) + rhoR * aR * normVelDiff) / (2.0 * aR * aR), 
 			            rhoR,
-                                    0.0,
-                                    0.0};
+                                    rhoR * (right.Tke() - left.Tke()) + kR * (right.Rho() - left.Rho()) - (right.P() - left.P()) * kR / (aR * aR),
+                                    rhoR * (right.Omega() - left.Omega()) + omR * (right.Rho() - left.Rho()) - (right.P() - left.P()) * omR / (aR * aR)};
 
   //calculate absolute value of wave speeds (L)
   double waveSpeed[NUMVARS-1] = {fabs(velRSum - aR),              //left moving acoustic wave speed
