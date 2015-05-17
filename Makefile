@@ -1,4 +1,4 @@
-OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o inviscidFlux.o procBlock.o viscousFlux.o output.o matrix.o parallel.o slices.o turbulence.o
+OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o inviscidFlux.o procBlock.o viscousFlux.o output.o matrix.o parallel.o slices.o turbulence.o source.o
 CC = mpic++
 DEBUG = -ggdb -pg 
 OPTIM = -O3 -march=native
@@ -19,13 +19,13 @@ main.o : main.cpp plot3d.hpp vector3d.hpp input.hpp procBlock.hpp eos.hpp primVa
 input.o : input.cpp input.hpp boundaryConditions.hpp
 	$(CC) $(CFLAGS) input.cpp
 
-primVars.o : primVars.cpp primVars.hpp vector3d.hpp eos.hpp inviscidFlux.hpp boundaryConditions.hpp input.hpp
+primVars.o : primVars.cpp primVars.hpp vector3d.hpp eos.hpp inviscidFlux.hpp boundaryConditions.hpp input.hpp macros.hpp
 	$(CC) $(CFLAGS) primVars.cpp
 
 procBlock.o : procBlock.cpp procBlock.hpp vector3d.hpp plot3d.hpp eos.hpp primVars.hpp inviscidFlux.hpp input.hpp matrix.hpp viscousFlux.hpp boundaryConditions.hpp macros.hpp turbulence.hpp
 	$(CC) $(CFLAGS) procBlock.cpp
 
-inviscidFlux.o : inviscidFlux.cpp vector3d.hpp eos.hpp primVars.hpp inviscidFlux.hpp input.hpp
+inviscidFlux.o : inviscidFlux.cpp vector3d.hpp eos.hpp primVars.hpp inviscidFlux.hpp input.hpp macros.hpp
 	$(CC) $(CFLAGS) inviscidFlux.cpp
 
 boundaryConditions.o : boundaryConditions.cpp boundaryConditions.hpp plot3d.hpp vector3d.hpp
@@ -37,7 +37,7 @@ eos.o : eos.cpp eos.hpp vector3d.hpp
 slices.o : slices.cpp procBlock.hpp
 	$(CC) $(CFLAGS) slices.cpp
 
-viscousFlux.o : viscousFlux.cpp vector3d.hpp tensor.hpp eos.hpp primVars.hpp viscousFlux.hpp input.hpp turbulence.hpp
+viscousFlux.o : viscousFlux.cpp vector3d.hpp tensor.hpp eos.hpp primVars.hpp viscousFlux.hpp input.hpp turbulence.hpp macros.hpp
 	$(CC) $(CFLAGS) viscousFlux.cpp
 
 output.o : output.cpp output.hpp procBlock.hpp tensor.hpp vector3d.hpp plot3d.hpp eos.hpp primVars.hpp inviscidFlux.hpp input.hpp turbulence.hpp
@@ -51,6 +51,9 @@ matrix.o : matrix.cpp matrix.hpp plot3d.hpp macros.hpp
 
 turbulence.o : turbulence.cpp turbulence.hpp
 	$(CC) $(CFLAGS) turbulence.cpp
+
+source.o : source.cpp source.hpp macros.hpp turbulence.hpp primVars.hpp
+	$(CC) $(CFLAGS) source.cpp
 
 clean:
 	rm *.o *~ $(CODENAME)

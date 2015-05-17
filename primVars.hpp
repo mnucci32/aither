@@ -31,6 +31,7 @@ face using constant and MUSCL reconstruction. It is has a member function to sup
 #include "eos.hpp"  // idealGas
 #include "matrix.hpp" //genArray
 #include "boundaryConditions.hpp" //boundaryConditions
+#include "macros.hpp"
 #include <fstream>
 #include <iostream>
 
@@ -151,6 +152,8 @@ genArray primVars::ConsVars(const idealGas &eqnState)const{
   cv[2] = data[0] * data[2];
   cv[3] = data[0] * data[3];
   cv[4] = data[0] * (*this).Energy(eqnState);
+  cv[5] = data[0] * data[5];
+  cv[6] = data[0] * data[6];
   return cv;
 }
 

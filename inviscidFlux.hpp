@@ -25,6 +25,7 @@
 #include "input.hpp" //input
 #include <iostream> //cout
 #include "matrix.hpp"
+#include "macros.hpp"
 
 using std::vector;
 using std::string;

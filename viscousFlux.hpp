@@ -26,6 +26,7 @@
 #include "matrix.hpp" //squareMatrix
 #include "input.hpp" //input
 #include "turbulence.hpp" //turbModel
+#include "macros.hpp"
 #include <iostream> //cout
 
 using std::vector;
