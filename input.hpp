@@ -140,6 +140,10 @@ class input {
 
   void ReadInput(const string &, const int &);
 
+  bool IsImplicit() const;
+  bool IsViscous() const;
+  bool IsTurbulent() const;
+
   //destructor
   ~input() {}
 

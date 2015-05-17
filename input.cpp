@@ -489,3 +489,39 @@ int input::NumEquations()const{
 
   return numEqns;
 }
+
+//member function to determine of method is implicit or explicit
+bool input::IsImplicit()const{
+
+  if ( (*this).TimeIntegration() == "implicitEuler" || (*this).TimeIntegration() == "crankNicholson" || (*this).TimeIntegration() == "bdf2" ){
+    return true;
+  }
+  else{
+    return false;
+  }
+
+}
+
+//member function to determine of method is vicous or inviscid
+bool input::IsViscous()const{
+
+  if ( (*this).EquationSet() == "navierStokes" || (*this).EquationSet() == "rans" ){
+    return true;
+  }
+  else{
+    return false;
+  }
+
+}
+
+//member function to determine of method is turbulent
+bool input::IsTurbulent()const{
+
+  if ( (*this).EquationSet() == "rans" ){
+    return true;
+  }
+  else{
+    return false;
+  }
+
+}

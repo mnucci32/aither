@@ -173,12 +173,6 @@ int main( int argc, char *argv[] ) {
 
   //----------------------------------------------------------------------------------------------
 
-  //determine if implict or explicit
-  bool implicitFlag = false;
-  if ( inputVars.TimeIntegration() == "implicitEuler" || inputVars.TimeIntegration() == "crankNicholson" || inputVars.TimeIntegration() == "bdf2" ){
-    implicitFlag = true;
-  }
-
   //column matrix of zeros
   genArray initial(0.0);
 
@@ -220,7 +214,7 @@ int main( int argc, char *argv[] ) {
 	localStateBlocks[bb].CalcInvFluxK(eos, inputVars);
 
 	//if viscous change ghost cells and calculate viscous fluxes
-	if (inputVars.EquationSet() == "navierStokes"){
+	if ( inputVars.IsViscous() ){
 
 	  //determine ghost cell values for viscous fluxes
 	  localStateBlocks[bb].AssignViscousGhostCells(inputVars, eos);
@@ -235,7 +229,7 @@ int main( int argc, char *argv[] ) {
 	localStateBlocks[bb].CalcBlockTimeStep(inputVars, aRef);
 
 	//if implicit get old solution, reorder block, and use linear solver
-	if (implicitFlag){
+	if ( inputVars.IsImplicit() ){
 
 	  //store time-n solution
 	  if (mm == 0){ //first nonlinear iteration, save solution
@@ -260,7 +254,7 @@ int main( int argc, char *argv[] ) {
 	  matrixResid += localStateBlocks[bb].LUSGS(reorder, du, solTimeMmN, solDeltaNm1[bb], eos, inputVars, suth );
 
 	  //update solution
-	  localStateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, du, residL2, residLinf );
+	  localStateBlocks[bb].UpdateBlock(inputVars, inputVars.IsImplicit() , eos, aRef, du, residL2, residLinf );
 
 	  //assign time n to time n-1 at end of nonlinear iterations
 	  if (inputVars.TimeIntegration() == "bdf2" && mm == inputVars.NonlinearIterations()-1 ){
@@ -272,7 +266,7 @@ int main( int argc, char *argv[] ) {
 	else{ //explicit
 	  //update solution
 	  vector<genArray> dummyCorrection(1); //not used in explicit update
-	  localStateBlocks[bb].UpdateBlock(inputVars, implicitFlag, eos, aRef, dummyCorrection, residL2, residLinf );
+	  localStateBlocks[bb].UpdateBlock(inputVars, inputVars.IsImplicit(), eos, aRef, dummyCorrection, residL2, residLinf );
 	}
 
 	//zero residuals and wave speed
