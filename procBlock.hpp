@@ -271,7 +271,7 @@ tensor<double> CalcVelGradGG(const vector3d<double>&, const vector3d<double>&, c
 			     const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&,
 			     const vector3d<double>&, const vector3d<double>&, const double&);
 
-vector3d<double> CalcTempGradGG(const double&, const double&, const double&, const double&, const double&, const double&, const vector3d<double>&, const vector3d<double>&,
+vector3d<double> CalcScalarGradGG(const double&, const double&, const double&, const double&, const double&, const double&, const vector3d<double>&, const vector3d<double>&,
 				const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const vector3d<double>&, const double&);
 
 vector3d<int> GetSwapLoc( const int&, const int&, const int&, const interblock&, const bool&);

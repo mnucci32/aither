@@ -31,7 +31,9 @@ F = [ 0,
       taux,
       tauy,
       tauz,
-      tau (dot) vel + K * tGrad (dot) area ]
+      tau (dot) vel + K * tGrad (dot) area
+      (mu + mut) * tkeGrad (dot) area
+      (mu + mut) * omegaGrad (dot) area ]
 
 In the above equation tau is the wall shear stress. Taux, tauy, and tauz are the rows of the wall shear stress tensor i.e. 
 taux = tauxx + tauxy + tauxz. K is the thermal conductivity, tGrad is the temperature gradient, and area is the normalized
@@ -44,7 +46,8 @@ In the above equation lambda is the bulk viscosity, velGradTrace is the trace of
 face area, mu is the dynamic viscosity, and velGrad is the velocity gradient tensor.
 */
 viscousFlux::viscousFlux( const tensor<double> &velGrad, const vector3d<double> &vel, const double &mu, const double &eddyVisc, const sutherland &suth, 
-			  const idealGas &eqnState, const vector3d<double> &tGrad, const vector3d<double> &areaVec, const double &prt){
+			  const idealGas &eqnState, const vector3d<double> &tGrad, const vector3d<double> &areaVec, const vector3d<double> &tkeGrad, 
+			  const vector3d<double> &omegaGrad, const turbModel *turb){
   // velGrad -- velocity gradient tensor
   // vel -- velocity vector
   // mu -- dynamic viscosity
@@ -53,6 +56,9 @@ viscousFlux::viscousFlux( const tensor<double> &velGrad, const vector3d<double> 
   // eqnState -- equation of state
   // tGrad -- temperature gradient
   // areaVec -- area vector of face
+  // tkeGrad -- tke gradient
+  // omegaGrad -- omega gradient
+  // turb -- turbulence model
 
   vector3d<double> normArea = areaVec / areaVec.Mag(); //normalize face area
 
@@ -65,10 +71,11 @@ viscousFlux::viscousFlux( const tensor<double> &velGrad, const vector3d<double> 
   data[0] = tau.X();
   data[1] = tau.Y();
   data[2] = tau.Z();
-  data[3] = tau.DotProd(vel) + (eqnState.GetConductivity(mu) + eqnState.GetTurbConductivity(eddyVisc, prt)) * tGrad.DotProd(normArea);
+  data[3] = tau.DotProd(vel) + (eqnState.GetConductivity(mu) + eqnState.GetTurbConductivity(eddyVisc, turb->TurbPrandtlNumber() )) * tGrad.DotProd(normArea);
 
-  data[4] = 0.0;
-  data[5] = 0.0;
+  //turbulence viscous flux
+  data[4] = (mu + turb->Eqn1EddyViscFactor() * eddyVisc) * tkeGrad.DotProd(normArea);
+  data[5] = (mu + turb->Eqn2EddyViscFactor() * eddyVisc) * omegaGrad.DotProd(normArea);
 }
 
 //non-member functions -----------------------------------------------------------------------------------------------------------//

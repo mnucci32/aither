@@ -40,6 +40,8 @@ class turbModel {
   //member functions
   virtual double BoussinesqEddyVisc()const=0;
   virtual double TurbPrandtlNumber()const=0;
+  virtual double Eqn1EddyViscFactor()const=0;
+  virtual double Eqn2EddyViscFactor()const=0;
 
   //destructor
   virtual ~turbModel() {}
@@ -56,6 +58,8 @@ class turbNone : public turbModel {
   //member functions
   virtual double BoussinesqEddyVisc()const{return 0.0;};
   virtual double TurbPrandtlNumber()const{return 0.9;}
+  virtual double Eqn1EddyViscFactor()const{return 0.0;}
+  virtual double Eqn2EddyViscFactor()const{return 0.0;}
 
   //destructor
   virtual ~turbNone() {}
@@ -72,6 +76,9 @@ class turbKWWilcox : public turbModel {
   //member functions
   virtual double BoussinesqEddyVisc() const {return 0.0;};
   virtual double TurbPrandtlNumber() const {return 8.0/9.0;}
+  virtual double Eqn1EddyViscFactor() const {return (*this).SigmaStar();}
+  virtual double Eqn2EddyViscFactor() const {return (*this).Sigma();}
+
   double Alpha() const {return 0.52;}
   double BetaStar() const {return 0.09;}
   double Sigma() const {return 0.5;}

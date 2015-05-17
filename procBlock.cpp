@@ -1569,7 +1569,7 @@ tensor<double> CalcVelGradGG(const vector3d<double> &vil, const vector3d<double>
   return temp;
 }
 
-/* Function to calculate the temperature gradient at the cell center using the Green-Gauss method
+/* Function to calculate the gradient of a scalar at the cell center using the Green-Gauss method
 
 dU/dxj = (Sum)    U * Aij  / V        (j=1,2,3)
        i=1,nfaces
@@ -1578,30 +1578,30 @@ The above equation shows how the gradient of a scalar is calculated using the Gr
 Aij is the area at face i (component j). V is the volume of the control volume. X is the cartesian direction with
 j indicating the component. The convention is for the area vectors to point out of the control volume.
  */
-vector3d<double> CalcTempGradGG(const double &til, const double &tiu, const double &tjl, const double &tju, const double &tkl, const double &tku,
-					   const vector3d<double> &ail, const vector3d<double> &aiu, const vector3d<double> &ajl, const vector3d<double> &aju,
-					   const vector3d<double> &akl, const vector3d<double> &aku, const double &vol){
+vector3d<double> CalcScalarGradGG(const double &til, const double &tiu, const double &tjl, const double &tju, const double &tkl, const double &tku,
+				  const vector3d<double> &ail, const vector3d<double> &aiu, const vector3d<double> &ajl, const vector3d<double> &aju,
+				  const vector3d<double> &akl, const vector3d<double> &aku, const double &vol){
 
-  //til -- temperature at the lower face of the cell at which the temperature gradient is being calculated
-  //tiu -- temperature at the upper face of the cell at which the temperature gradient is being calculated
-  //tjl -- temperature at the lower face of the cell at which the temperature gradient is being calculated
-  //tju -- temperature at the upper face of the cell at which the temperature gradient is being calculated
-  //tkl -- temperature at the lower face of the cell at which the temperature gradient is being calculated
-  //tku -- temperature at the upper face of the cell at which the temperature gradient is being calculated
+  //til -- scalar value at the lower face of the cell at which the scalar gradient is being calculated
+  //tiu -- scalar value at the upper face of the cell at which the scalar gradient is being calculated
+  //tjl -- scalar value at the lower face of the cell at which the scalar gradient is being calculated
+  //tju -- scalar value at the upper face of the cell at which the scalar gradient is being calculated
+  //tkl -- scalar value at the lower face of the cell at which the scalar gradient is being calculated
+  //tku -- scalar value at the upper face of the cell at which the scalar gradient is being calculated
   
-  //ail -- area vector at the lower face of the cell at which the temperature gradient is being calculated
-  //aiu -- area vector at the upper face of the cell at which the temperature gradient is being calculated
-  //ajl -- area vector at the lower face of the cell at which the temperature gradient is being calculated
-  //aju -- area vector at the upper face of the cell at which the temperature gradient is being calculated
-  //akl -- area vector at the lower face of the cell at which the temperature gradient is being calculated
-  //aku -- area vector at the upper face of the cell at which the temperature gradient is being calculated
+  //ail -- area vector at the lower face of the cell at which the scalar gradient is being calculated
+  //aiu -- area vector at the upper face of the cell at which the scalar gradient is being calculated
+  //ajl -- area vector at the lower face of the cell at which the scalar gradient is being calculated
+  //aju -- area vector at the upper face of the cell at which the scalar gradient is being calculated
+  //akl -- area vector at the lower face of the cell at which the scalar gradient is being calculated
+  //aku -- area vector at the upper face of the cell at which the scalar gradient is being calculated
 
   //vol -- cell volume
 
   vector3d<double> temp;
   double invVol = 1.0/vol;
 
-  //define temperature gradient vector
+  //define scalar gradient vector
   //convention is for area vector to point out of cell, so lower values are negative, upper are positive
   temp.SetX( invVol * ( tiu*aiu.X() - til*ail.X() + tju*aju.X() - tjl*ajl.X() + tku*aku.X() - tkl*akl.X() ) );
   temp.SetY( invVol * ( tiu*aiu.Y() - til*ail.Y() + tju*aju.Y() - tjl*ajl.Y() + tku*aku.Y() - tkl*akl.Y() ) );
@@ -1690,11 +1690,13 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 
   //define turbulence model
   turbModel *turb;
+  bool turbFlag = false;
   if ( inp.TurbulenceModel() == "none" ){
     turb = new turbNone;
   }
   else if ( inp.TurbulenceModel() == "kOmegaWilcox2006" ){
     turb = new turbKWWilcox;
+    turbFlag = true;
   }
   else{
     cerr << "ERROR: Error in procBlock::CalcViscFluxI(). Turbulence model " << inp.TurbulenceModel() << " is not recognized!" << endl;
@@ -1790,7 +1792,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 			      (*this).State(kLowiLow).Temperature(eqnState) );
 
 	//Get temperature gradient at face
-	vector3d<double> tGrad = CalcTempGradGG( (*this).State(iLow).Temperature(eqnState), (*this).State(iUp).Temperature(eqnState), tjl, tju, tkl, tku, ail, aiu, ajl, aju, akl, aku, vol);
+	vector3d<double> tGrad = CalcScalarGradGG( (*this).State(iLow).Temperature(eqnState), (*this).State(iUp).Temperature(eqnState), tjl, tju, tkl, tku, ail, aiu, ajl, aju, akl, aku, vol);
 	//Get viscosity at face
 	double mu = FaceReconCentral( suth.GetViscosity( (*this).State(iLow).Temperature(eqnState) ), 
 				      suth.GetViscosity( (*this).State(iUp).Temperature(eqnState) ), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
@@ -1799,8 +1801,44 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 	double eddyVisc = FaceReconCentral( turb->BoussinesqEddyVisc(), turb->BoussinesqEddyVisc(), (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc) );
 	eddyVisc *= (mRef/Re);  //effective viscosity (due to nondimensionalization)
 
+	//if using a turbulence model, calculate gradients of turbulence variables
+	vector3d<double> tkeGrad;
+	vector3d<double> omegaGrad;
+
+	if (turbFlag){
+
+	  //calculate average tke on j and k faces of alternate control volume
+	  double tkeju = 0.25 * ( (*this).State(iLow).Tke() + (*this).State(iUp).Tke() + (*this).State(jUpiUp).Tke() +
+				(*this).State(jUpiLow).Tke() );
+	  double tkejl = 0.25 * ( (*this).State(iLow).Tke() + (*this).State(iUp).Tke() + (*this).State(jLowiUp).Tke() +
+				(*this).State(jLowiLow).Tke() );
+
+	  double tkeku = 0.25 * ( (*this).State(iLow).Tke() + (*this).State(iUp).Tke() + (*this).State(kUpiUp).Tke() +
+				(*this).State(kUpiLow).Tke() );
+	  double tkekl = 0.25 * ( (*this).State(iLow).Tke() + (*this).State(iUp).Tke() + (*this).State(kLowiUp).Tke() +
+				(*this).State(kLowiLow).Tke() );
+
+	  //Get tke gradient at face
+	  tkeGrad = CalcScalarGradGG( (*this).State(iLow).Tke(), (*this).State(iUp).Tke(), tkejl, tkeju, tkekl, tkeku, ail, aiu, ajl, aju, akl, aku, vol);
+
+	  //calculate average Omega on j and k faces of alternate control volume
+	  double omgju = 0.25 * ( (*this).State(iLow).Omega() + (*this).State(iUp).Omega() + (*this).State(jUpiUp).Omega() +
+				(*this).State(jUpiLow).Omega() );
+	  double omgjl = 0.25 * ( (*this).State(iLow).Omega() + (*this).State(iUp).Omega() + (*this).State(jLowiUp).Omega() +
+				(*this).State(jLowiLow).Omega() );
+
+	  double omgku = 0.25 * ( (*this).State(iLow).Omega() + (*this).State(iUp).Omega() + (*this).State(kUpiUp).Omega() +
+				(*this).State(kUpiLow).Omega() );
+	  double omgkl = 0.25 * ( (*this).State(iLow).Omega() + (*this).State(iUp).Omega() + (*this).State(kLowiUp).Omega() +
+				(*this).State(kLowiLow).Omega() );
+
+	  //Get omega gradient at face
+	  omegaGrad = CalcScalarGradGG( (*this).State(iLow).Omega(), (*this).State(iUp).Omega(), omgjl, omgju, omgkl, omgku, ail, aiu, ajl, aju, akl, aku, vol);
+
+	}
+
 	//calculate viscous flux
-	viscousFlux tempViscFlux( velGrad, vel, mu, eddyVisc, suth, eqnState, tGrad, (*this).FAreaI(loc), turb->TurbPrandtlNumber() );
+	viscousFlux tempViscFlux( velGrad, vel, mu, eddyVisc, suth, eqnState, tGrad, (*this).FAreaI(loc), tkeGrad, omegaGrad, turb );
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
 	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
@@ -1903,11 +1941,13 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 
   //define turbulence model
   turbModel *turb;
+  bool turbFlag = false;
   if ( inp.TurbulenceModel() == "none" ){
     turb = new turbNone;
   }
   else if ( inp.TurbulenceModel() == "kOmegaWilcox2006" ){
     turb = new turbKWWilcox;
+    turbFlag = true;
   }
   else{
     cerr << "ERROR: Error in procBlock::CalcViscFluxJ(). Turbulence model " << inp.TurbulenceModel() << " is not recognized!" << endl;
@@ -2003,7 +2043,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 			      (*this).State(kLowjLow).Temperature(eqnState) );
 
 	//Get temperature gradient at face
-	vector3d<double> tGrad = CalcTempGradGG( til, tiu, (*this).State(jLow).Temperature(eqnState), (*this).State(jUp).Temperature(eqnState), tkl, tku, ail, aiu, ajl, aju, akl, aku, vol);
+	vector3d<double> tGrad = CalcScalarGradGG( til, tiu, (*this).State(jLow).Temperature(eqnState), (*this).State(jUp).Temperature(eqnState), tkl, tku, ail, aiu, ajl, aju, akl, aku, vol);
 	//Get viscosity at face
 	double mu = FaceReconCentral( suth.GetViscosity( (*this).State(jLow).Temperature(eqnState) ), 
 				      suth.GetViscosity( (*this).State(jUp).Temperature(eqnState) ), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
@@ -2012,8 +2052,44 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 	double eddyVisc = FaceReconCentral( turb->BoussinesqEddyVisc(), turb->BoussinesqEddyVisc(), (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc) );
 	eddyVisc *= (mRef/Re);  //effective viscosity (due to nondimensionalization)
 
+	//if using a turbulence model, calculate gradients of turbulence variables
+	vector3d<double> tkeGrad;
+	vector3d<double> omegaGrad;
+
+	if (turbFlag){
+
+	  //calculate average tke on i and k faces of alternate control volume
+	  double tkeiu = 0.25 * ( (*this).State(jLow).Tke() + (*this).State(jUp).Tke() + (*this).State(iUpjUp).Tke() +
+				(*this).State(iUpjLow).Tke() );
+	  double tkeil = 0.25 * ( (*this).State(jLow).Tke() + (*this).State(jUp).Tke() + (*this).State(iLowjUp).Tke() +
+				(*this).State(iLowjLow).Tke() );
+
+	  double tkeku = 0.25 * ( (*this).State(jLow).Tke() + (*this).State(jUp).Tke() + (*this).State(kUpjUp).Tke() +
+				(*this).State(kUpjLow).Tke() );
+	  double tkekl = 0.25 * ( (*this).State(jLow).Tke() + (*this).State(jUp).Tke() + (*this).State(kLowjUp).Tke() +
+				(*this).State(kLowjLow).Tke() );
+
+	  //Get temperature gradient at face
+	  vector3d<double> tkeGrad = CalcScalarGradGG( tkeil, tkeiu, (*this).State(jLow).Tke(), (*this).State(jUp).Tke(), tkekl, tkeku, ail, aiu, ajl, aju, akl, aku, vol);
+
+	  //calculate average omega on i and k faces of alternate control volume
+	  double omgiu = 0.25 * ( (*this).State(jLow).Omega() + (*this).State(jUp).Omega() + (*this).State(iUpjUp).Omega() +
+				(*this).State(iUpjLow).Omega() );
+	  double omgil = 0.25 * ( (*this).State(jLow).Omega() + (*this).State(jUp).Omega() + (*this).State(iLowjUp).Omega() +
+				(*this).State(iLowjLow).Omega() );
+
+	  double omgku = 0.25 * ( (*this).State(jLow).Omega() + (*this).State(jUp).Omega() + (*this).State(kUpjUp).Omega() +
+				(*this).State(kUpjLow).Omega() );
+	  double omgkl = 0.25 * ( (*this).State(jLow).Omega() + (*this).State(jUp).Omega() + (*this).State(kLowjUp).Omega() +
+				(*this).State(kLowjLow).Omega() );
+
+	  //Get temperature gradient at face
+	  vector3d<double> omegaGrad = CalcScalarGradGG( omgil, omgiu, (*this).State(jLow).Omega(), (*this).State(jUp).Omega(), omgkl, omgku, ail, aiu, ajl, aju, akl, aku, vol);
+
+	}
+
 	//calculate viscous flux
-	viscousFlux tempViscFlux( velGrad, vel, mu, eddyVisc, suth, eqnState, tGrad, (*this).FAreaJ(loc), turb->TurbPrandtlNumber() );
+	viscousFlux tempViscFlux( velGrad, vel, mu, eddyVisc, suth, eqnState, tGrad, (*this).FAreaJ(loc), tkeGrad, omegaGrad, turb );
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
 	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
@@ -2116,11 +2192,13 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
 
   //define turbulence model
   turbModel *turb;
+  bool turbFlag = false;
   if ( inp.TurbulenceModel() == "none" ){
     turb = new turbNone;
   }
   else if ( inp.TurbulenceModel() == "kOmegaWilcox2006" ){
     turb = new turbKWWilcox;
+    turbFlag = true;
   }
   else{
     cerr << "ERROR: Error in procBlock::CalcViscFluxK(). Turbulence model " << inp.TurbulenceModel() << " is not recognized!" << endl;
@@ -2216,7 +2294,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
 			      (*this).State(jLowkLow).Temperature(eqnState) );
 
 	//Get temperature gradient at face
-	vector3d<double> tGrad = CalcTempGradGG( til, tiu, tjl, tju, (*this).State(kLow).Temperature(eqnState), (*this).State(kUp).Temperature(eqnState), ail, aiu, ajl, aju, akl, aku, vol);
+	vector3d<double> tGrad = CalcScalarGradGG( til, tiu, tjl, tju, (*this).State(kLow).Temperature(eqnState), (*this).State(kUp).Temperature(eqnState), ail, aiu, ajl, aju, akl, aku, vol);
 	//Get viscosity at face
 	double mu = FaceReconCentral( suth.GetViscosity( (*this).State(kLow).Temperature(eqnState) ), 
 				      suth.GetViscosity( (*this).State(kUp).Temperature(eqnState) ), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
@@ -2225,8 +2303,44 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
 	double eddyVisc = FaceReconCentral( turb->BoussinesqEddyVisc(), turb->BoussinesqEddyVisc(), (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc) );
 	eddyVisc *= (mRef/Re);  //effective viscosity (due to nondimensionalization)
 
+	//if using a turbulence model, calculate gradients of turbulence variables
+	vector3d<double> tkeGrad;
+	vector3d<double> omegaGrad;
+
+	if (turbFlag){
+
+	  //calculate average tke on i and j faces of alternate control volume
+	  double tkeiu = 0.25 * ( (*this).State(kLow).Tke() + (*this).State(kUp).Tke() + (*this).State(iUpkUp).Tke() +
+				(*this).State(iUpkLow).Tke() );
+	  double tkeil = 0.25 * ( (*this).State(kLow).Tke() + (*this).State(kUp).Tke() + (*this).State(iLowkUp).Tke() +
+				(*this).State(iLowkLow).Tke() );
+
+	  double tkeju = 0.25 * ( (*this).State(kLow).Tke() + (*this).State(kUp).Tke() + (*this).State(jUpkUp).Tke() +
+				(*this).State(jUpkLow).Tke() );
+	  double tkejl = 0.25 * ( (*this).State(kLow).Tke() + (*this).State(kUp).Tke() + (*this).State(jLowkUp).Tke() +
+				(*this).State(jLowkLow).Tke() );
+
+	  //Get temperature gradient at face
+	  vector3d<double> tkeGrad = CalcScalarGradGG( tkeil, tkeiu, tkejl, tkeju, (*this).State(kLow).Tke(), (*this).State(kUp).Tke(), ail, aiu, ajl, aju, akl, aku, vol);
+
+	  //calculate average omega on i and j faces of alternate control volume
+	  double omgiu = 0.25 * ( (*this).State(kLow).Omega() + (*this).State(kUp).Omega() + (*this).State(iUpkUp).Omega() +
+				(*this).State(iUpkLow).Omega() );
+	  double omgil = 0.25 * ( (*this).State(kLow).Omega() + (*this).State(kUp).Omega() + (*this).State(iLowkUp).Omega() +
+				(*this).State(iLowkLow).Omega() );
+
+	  double omgju = 0.25 * ( (*this).State(kLow).Omega() + (*this).State(kUp).Omega() + (*this).State(jUpkUp).Omega() +
+				(*this).State(jUpkLow).Omega() );
+	  double omgjl = 0.25 * ( (*this).State(kLow).Omega() + (*this).State(kUp).Omega() + (*this).State(jLowkUp).Omega() +
+				(*this).State(jLowkLow).Omega() );
+
+	  //Get temperature gradient at face
+	  vector3d<double> omegaGrad = CalcScalarGradGG( omgil, omgiu, omgjl, omgju, (*this).State(kLow).Omega(), (*this).State(kUp).Omega(), ail, aiu, ajl, aju, akl, aku, vol);
+
+	}
+
 	//calculate viscous flux
-	viscousFlux tempViscFlux( velGrad, vel, mu, eddyVisc, suth, eqnState, tGrad, (*this).FAreaK(loc), turb->TurbPrandtlNumber() );
+	viscousFlux tempViscFlux( velGrad, vel, mu, eddyVisc, suth, eqnState, tGrad, (*this).FAreaK(loc), tkeGrad, omegaGrad, turb );
 
 	//area vector points from left to right, so add to left cell, subtract from right cell
 	//but viscous fluxes are subtracted from inviscid fluxes, so sign is reversed
