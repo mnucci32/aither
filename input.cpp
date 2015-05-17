@@ -525,3 +525,14 @@ bool input::IsTurbulent()const{
   }
 
 }
+
+
+string input::OrderOfAccuracy() const{
+
+  if ( (*this).Kappa() == -2.0 ){
+    return "first";
+  }
+  else{
+    return "second";
+  }
+}

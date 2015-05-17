@@ -144,6 +144,8 @@ class input {
   bool IsViscous() const;
   bool IsTurbulent() const;
 
+  string OrderOfAccuracy() const;
+
   //destructor
   ~input() {}
 

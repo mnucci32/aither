@@ -359,7 +359,7 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp){
 	int lowFaceI = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG);
 	int lowFace2I = GetNeighborLowI(ii, jj, kk, imaxG, jmaxG, 2);
 
-	if (inp.Kappa() == -2.0){  //if value is still default, use constant reconstruction (first order)
+	if (inp.OrderOfAccuracy() == "first"){  //use constant reconstruction (first order)
 	  faceStateLower = (*this).State( lowerI ).FaceReconConst();
 	  faceStateUpper = (*this).State( upperI ).FaceReconConst();
 	}
@@ -466,7 +466,7 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp){
 	int lowFaceJ = GetNeighborLowJ(ii, jj, kk, imaxG, jmaxG);
 	int lowFace2J = GetNeighborLowJ(ii, jj, kk, imaxG, jmaxG, 2);
 
-	if ( inp.Kappa() == -2.0 ){ //if value is still default, use constant reconstruction (first order)
+	if ( inp.OrderOfAccuracy() == "first" ){ //use constant reconstruction (first order)
 	  faceStateLower = (*this).State( lowerJ ).FaceReconConst();
 	  faceStateUpper = (*this).State( upperJ ).FaceReconConst();
 	}
@@ -571,7 +571,7 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp){
 	int lowFaceK = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG);
 	int lowFace2K = GetNeighborLowK(ii, jj, kk, imaxG, jmaxG, 2);
 
-	if ( inp.Kappa() == -2.0 ){  //if value is still default, use constant reconstruction (first order)
+	if ( inp.OrderOfAccuracy() == "first" ){  //use constant reconstruction (first order)
 	  faceStateLower = (*this).State( lowerK ).FaceReconConst();
 	  faceStateUpper = (*this).State( upperK ).FaceReconConst();
 	}
@@ -1690,13 +1690,11 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 
   //define turbulence model
   turbModel *turb;
-  bool turbFlag = false;
   if ( inp.TurbulenceModel() == "none" ){
     turb = new turbNone;
   }
   else if ( inp.TurbulenceModel() == "kOmegaWilcox2006" ){
     turb = new turbKWWilcox;
-    turbFlag = true;
   }
   else{
     cerr << "ERROR: Error in procBlock::CalcViscFluxI(). Turbulence model " << inp.TurbulenceModel() << " is not recognized!" << endl;
@@ -1805,7 +1803,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState, 
 	vector3d<double> tkeGrad;
 	vector3d<double> omegaGrad;
 
-	if (turbFlag){
+	if ( inp.IsTurbulent() ){
 
 	  //calculate average tke on j and k faces of alternate control volume
 	  double tkeju = 0.25 * ( (*this).State(iLow).Tke() + (*this).State(iUp).Tke() + (*this).State(jUpiUp).Tke() +
@@ -1941,13 +1939,11 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 
   //define turbulence model
   turbModel *turb;
-  bool turbFlag = false;
   if ( inp.TurbulenceModel() == "none" ){
     turb = new turbNone;
   }
   else if ( inp.TurbulenceModel() == "kOmegaWilcox2006" ){
     turb = new turbKWWilcox;
-    turbFlag = true;
   }
   else{
     cerr << "ERROR: Error in procBlock::CalcViscFluxJ(). Turbulence model " << inp.TurbulenceModel() << " is not recognized!" << endl;
@@ -2056,7 +2052,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState, 
 	vector3d<double> tkeGrad;
 	vector3d<double> omegaGrad;
 
-	if (turbFlag){
+	if ( inp.IsTurbulent() ){
 
 	  //calculate average tke on i and k faces of alternate control volume
 	  double tkeiu = 0.25 * ( (*this).State(jLow).Tke() + (*this).State(jUp).Tke() + (*this).State(iUpjUp).Tke() +
@@ -2192,13 +2188,11 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
 
   //define turbulence model
   turbModel *turb;
-  bool turbFlag = false;
   if ( inp.TurbulenceModel() == "none" ){
     turb = new turbNone;
   }
   else if ( inp.TurbulenceModel() == "kOmegaWilcox2006" ){
     turb = new turbKWWilcox;
-    turbFlag = true;
   }
   else{
     cerr << "ERROR: Error in procBlock::CalcViscFluxK(). Turbulence model " << inp.TurbulenceModel() << " is not recognized!" << endl;
@@ -2307,7 +2301,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState, 
 	vector3d<double> tkeGrad;
 	vector3d<double> omegaGrad;
 
-	if (turbFlag){
+	if ( inp.IsTurbulent() ){
 
 	  //calculate average tke on i and j faces of alternate control volume
 	  double tkeiu = 0.25 * ( (*this).State(kLow).Tke() + (*this).State(kUp).Tke() + (*this).State(iUpkUp).Tke() +
