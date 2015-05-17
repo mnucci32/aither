@@ -26,3 +26,57 @@ using std::vector;
 using std::string;
 
 //constructor
+gradients::gradients(){
+
+  //default to 2 faces
+  velocityI.resize(2);
+  velocityJ.resize(2);
+  velocityK.resize(2);
+
+  temperatureI.resize(2);
+  temperatureJ.resize(2);
+  temperatureK.resize(2);
+
+  tkeI.resize(2);
+  tkeJ.resize(2);
+  tkeK.resize(2);
+
+  omegaI.resize(2);
+  omegaJ.resize(2);
+  omegaK.resize(2);
+
+}
+
+//alternate constructor to calculate gradients from state variables
+gradients::gradients( const bool &turbFlag, const procBlock &blk ){
+  // turbFlag -- flag to determine if simulation is turbulent and therefore requires tke and omega gradients
+  // blk -- procBlock to calculate gradients for
+
+  velocityI.resize( (blk.NumI() + 1) * blk.NumJ() * blk.NumK() );
+  velocityJ.resize( blk.NumI() * (blk.NumJ() + 1) * blk.NumK() );
+  velocityK.resize( blk.NumI() * blk.NumJ() * (blk.NumK() + 1) );
+
+  temperatureI.resize( (blk.NumI() + 1) * blk.NumJ() * blk.NumK() );
+  temperatureJ.resize( blk.NumI() * (blk.NumJ() + 1) * blk.NumK() );
+  temperatureK.resize( blk.NumI() * blk.NumJ() * (blk.NumK() + 1) );
+
+  if (turbFlag){
+    tkeI.resize( (blk.NumI() + 1) * blk.NumJ() * blk.NumK() );
+    tkeJ.resize( blk.NumI() * (blk.NumJ() + 1) * blk.NumK() );
+    tkeK.resize( blk.NumI() * blk.NumJ() * (blk.NumK() + 1) );
+
+    omegaI.resize( (blk.NumI() + 1) * blk.NumJ() * blk.NumK() );
+    omegaJ.resize( blk.NumI() * (blk.NumJ() + 1) * blk.NumK() );
+    omegaK.resize( blk.NumI() * blk.NumJ() * (blk.NumK() + 1) );
+  }
+  else{
+    tkeI.resize(2);
+    tkeJ.resize(2);
+    tkeK.resize(2);
+
+    omegaI.resize(2);
+    omegaJ.resize(2);
+    omegaK.resize(2);
+  }
+
+}

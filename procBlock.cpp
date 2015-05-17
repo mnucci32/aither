@@ -47,28 +47,22 @@ procBlock::procBlock(){
 
   int numFaces = (numI+1)*(numJ)*(numK);  
 
-  vector<primVars> dummyState (numCells);              //dummy state variable
-  vector<vector3d<double> > vec1(numFaces);                 //dummy vector variable length of number of faces
-  vector<vector3d<double> > vec2(numCells);             //dummy vector variable lenght of number of cells
-  vector<double> scalar(numCells);                      //dummy scalar variable lenght of number of cells
-  genArray singleResid(0.0);
-  vector<genArray> dummyResid(numCells, singleResid);
+  //size vectors holding cell center and cell face values appropriately
+  state.resize(numCells);
 
-  state = dummyState;      
+  center.resize(numCells);
+  fAreaI.resize(numFaces);
+  fAreaJ.resize(numFaces);
+  fAreaK.resize(numFaces);
+  fCenterI.resize(numFaces);
+  fCenterJ.resize(numFaces);
+  fCenterK.resize(numFaces);
 
-  center = vec2;
-  fAreaI = vec1;
-  fAreaJ = vec1;
-  fAreaK = vec1;
-  fCenterI = vec1;
-  fCenterJ = vec1;
-  fCenterK = vec1;
+  residual.resize(numCells);
 
-  residual = dummyResid;
-
-  vol = scalar;
-  avgWaveSpeed = scalar;
-  dt = scalar;
+  vol.resize(numCells);
+  avgWaveSpeed.resize(numCells);
+  dt.resize(numCells);
 
   boundaryConditions bound;
   bc = bound;
@@ -92,10 +86,7 @@ procBlock::procBlock(const plot3dBlock &blk, const int& numBlk, const int &numG)
 
   numVars = NUMVARS;
 
-  vector<primVars> dummyState (numCells);              //dummy state variable
-  vector<double> dummyScalar (numCells);                 //dummy time variable
-  genArray singleResid(0.0);
-  vector<genArray> dummyResid(numCells, singleResid);
+  vector<primVars> dummyState (1);              //dummy state variable
 
   //pad stored variable vectors with ghost cells
   state = PadWithGhosts( dummyState, numGhosts, numI, numJ, numK );      
@@ -109,9 +100,9 @@ procBlock::procBlock(const plot3dBlock &blk, const int& numBlk, const int &numG)
   fCenterJ = PadWithGhosts( blk.FaceCenterJ(), numGhosts, numI, numJ+1, numK );
   fCenterK = PadWithGhosts( blk.FaceCenterK(), numGhosts, numI, numJ, numK+1 );
 
-  avgWaveSpeed = dummyScalar;
-  dt = dummyScalar;
-  residual = dummyResid;
+  avgWaveSpeed.resize(numCells);
+  dt.resize(numCells);
+  residual.resize(numCells);
 
   boundaryConditions bound;
   bc = bound;
@@ -144,10 +135,7 @@ procBlock::procBlock( const double density, const double pressure, const vector3
   numVars = NUMVARS;
 
   primVars singleState(density, pressure, vel);
-  vector<primVars> dummyState (numCells,singleState);              //dummy state variable
-  vector<double> dummyScalar (numCells);                 //dummy time variable
-  genArray singleResid(0.0);
-  vector<genArray> dummyResid(numCells, singleResid);
+  vector<primVars> dummyState (1,singleState);              //dummy state variable
 
   //pad stored variable vectors with ghost cells
   state = PadWithGhosts( dummyState, numGhosts, numI, numJ, numK );      
@@ -161,9 +149,9 @@ procBlock::procBlock( const double density, const double pressure, const vector3
   fCenterJ = PadWithGhosts( blk.FaceCenterJ(), numGhosts, numI, numJ+1, numK );
   fCenterK = PadWithGhosts( blk.FaceCenterK(), numGhosts, numI, numJ, numK+1 );
 
-  avgWaveSpeed = dummyScalar;
-  dt = dummyScalar;
-  residual = dummyResid;
+  avgWaveSpeed.resize(numCells);
+  dt.resize(numCells);
+  residual.resize(numCells);
 }
 
 //constructor -- assign passed state to initialize state vector
@@ -192,10 +180,7 @@ procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const 
 
   numVars = NUMVARS;
 
-  vector<double> dummyScalar (numCells);                 //dummy time variable
-  vector<primVars> dummyState (numCells,inputState);              //dummy state variable
-  genArray singleResid(0.0);
-  vector<genArray> dummyResid(numCells, singleResid);
+  vector<primVars> dummyState (1,inputState);              //dummy state variable
 
   //pad stored variable vectors with ghost cells
   state = PadWithGhosts( dummyState, numGhosts, numI, numJ, numK );      
@@ -209,9 +194,9 @@ procBlock::procBlock( const primVars& inputState, const plot3dBlock &blk, const 
   fCenterJ = PadWithGhosts( blk.FaceCenterJ(), numGhosts, numI, numJ+1, numK );
   fCenterK = PadWithGhosts( blk.FaceCenterK(), numGhosts, numI, numJ, numK+1 );
 
-  avgWaveSpeed = dummyScalar;
-  dt = dummyScalar;
-  residual = dummyResid;
+  avgWaveSpeed.resize(numCells);
+  dt.resize(numCells);
+  residual.resize(numCells);
 }
 
 //constructor -- allocate space for procBlock
@@ -236,32 +221,27 @@ procBlock::procBlock( const int &ni, const int &nj, const int &nk, const int &nu
   bc = bound;
 
   numVars = NUMVARS;
-  primVars inputState;
 
-  vector<double> dummyScalar (numCells);                                //dummy scalar variable
-  vector<vector3d<double> > dummyVectorCell (numCells);                 //dummy vector3d cell variable
-  vector<vector3d<double> > dummyVectorFaceI ((numI+1) * numJ * numK);  //dummy vector3d i-face variable
-  vector<vector3d<double> > dummyVectorFaceJ (numI * (numJ+1) * numK);  //dummy vector3d j-face variable
-  vector<vector3d<double> > dummyVectorFaceK (numI * numJ * (numK+1));  //dummy vector3d k-face variable
-  vector<primVars> dummyState (numCells,inputState);                    //dummy state variable
-  genArray singleResid(0.0);
-  vector<genArray> dummyResid(numCells, singleResid);
+  int numCellPad = (numI + 2 * numGhosts) * (numJ + 2 * numGhosts) * (numK + 2 * numGhosts); 
+  int numFaceIPad = (numI + 2 * numGhosts + 1) * (numJ + 2 * numGhosts) * (numK + 2 * numGhosts); 
+  int numFaceJPad = (numI + 2 * numGhosts) * (numJ + 2 * numGhosts + 1) * (numK + 2 * numGhosts); 
+  int numFaceKPad = (numI + 2 * numGhosts) * (numJ + 2 * numGhosts) * (numK + 2 * numGhosts + 1); 
 
   //pad stored variable vectors with ghost cells
-  state = PadWithGhosts( dummyState, numGhosts, numI, numJ, numK );      
+  state.resize(numCellPad);
 
-  vol = PadWithGhosts( dummyScalar, numGhosts, numI, numJ, numK );
-  center = PadWithGhosts( dummyVectorCell, numGhosts, numI, numJ, numK );
-  fAreaI = PadWithGhosts( dummyVectorFaceI, numGhosts, numI+1, numJ, numK );
-  fAreaJ = PadWithGhosts( dummyVectorFaceJ, numGhosts, numI, numJ+1, numK );
-  fAreaK = PadWithGhosts( dummyVectorFaceK, numGhosts, numI, numJ, numK+1 );
-  fCenterI = PadWithGhosts( dummyVectorFaceI, numGhosts, numI+1, numJ, numK );
-  fCenterJ = PadWithGhosts( dummyVectorFaceJ, numGhosts, numI, numJ+1, numK );
-  fCenterK = PadWithGhosts( dummyVectorFaceK, numGhosts, numI, numJ, numK+1 );
+  vol.resize(numCellPad);
+  center.resize(numCellPad);
+  fAreaI.resize(numFaceIPad);
+  fAreaJ.resize(numFaceJPad);
+  fAreaK.resize(numFaceKPad);
+  fCenterI.resize(numFaceIPad);
+  fCenterJ.resize(numFaceJPad);
+  fCenterK.resize(numFaceKPad);
 
-  avgWaveSpeed = dummyScalar;
-  dt = dummyScalar;
-  residual = dummyResid;
+  avgWaveSpeed.resize(numCells);
+  dt.resize(numCells);
+  residual.resize(numCells);
 }
 
 //member function to add a member of the inviscid flux class to the residual
@@ -1506,12 +1486,14 @@ vector<T> PadWithGhosts( const vector<T> &var, const int &numGhosts, const int &
     for ( int jj = numGhosts; jj < numJ + numGhosts; jj++ ){
       for ( int ii = numGhosts; ii < numI + numGhosts; ii++ ){
 
-	//calcualte location with and with ghost cells
+	//calculate location with ghost cells
 	int newLoc = GetLoc1D(ii, jj, kk, newI, newJ);
-	int loc = GetLoc1D(ii-numGhosts, jj-numGhosts, kk-numGhosts, numI, numJ);
+	int loc = GetLoc1D(ii-numGhosts, jj-numGhosts, kk-numGhosts, numI, numJ); //location without ghost cells
 
 	//assign the given vector of variables to the correct location within the padded vector
-	padBlk[newLoc] = var[loc]; 
+	//if only 1 value, use for entire physical range
+	padBlk[newLoc] = (var.size() == 1) ? var[0] : var[loc];
+
       }
     }
   }
