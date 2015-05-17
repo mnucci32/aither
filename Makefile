@@ -1,4 +1,4 @@
-OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o inviscidFlux.o procBlock.o viscousFlux.o output.o matrix.o parallel.o slices.o turbulence.o source.o
+OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o inviscidFlux.o procBlock.o viscousFlux.o output.o matrix.o parallel.o slices.o turbulence.o source.o gradients.o
 CC = mpic++
 DEBUG = -ggdb -pg 
 OPTIM = -O3 -march=native
@@ -54,6 +54,9 @@ turbulence.o : turbulence.cpp turbulence.hpp
 
 source.o : source.cpp source.hpp macros.hpp turbulence.hpp primVars.hpp
 	$(CC) $(CFLAGS) source.cpp
+
+gradients.o : gradients.cpp gradients.hpp primVars.hpp vector3d.hpp tensor.hpp
+	$(CC) $(CFLAGS) gradients.cpp
 
 clean:
 	rm *.o *~ $(CODENAME)
