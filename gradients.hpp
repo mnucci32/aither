@@ -26,7 +26,7 @@
 #include "vector3d.hpp" //vector3d
 #include "tensor.hpp" //tensor
 #include "plot3d.hpp" //vector3d
-#include "primVars.hpp"
+#include "procBlock.hpp"
 #include <iostream>
 
 using std::vector;
@@ -37,20 +37,37 @@ using std::cerr;
 using std::ostream;
 
 class gradients {
-  vector<tensor<double> > velocity;              //velocity gradients at cell face
-  vector<vector3d<double> > temperature;         //temperature gradients at cell face
-  vector<vector3d<double> > tke;                 //tke gradients at cell face
-  vector<vector3d<double> > omega;               //omega gradients at cell face
+  vector<tensor<double> > velocityI;              //velocity gradients at cell i-face
+  vector<tensor<double> > velocityJ;              //velocity gradients at cell j-face
+  vector<tensor<double> > velocityK;              //velocity gradients at cell k-face
+  vector<vector3d<double> > temperatureI;         //temperature gradients at cell i-face
+  vector<vector3d<double> > temperatureJ;         //temperature gradients at cell j-face
+  vector<vector3d<double> > temperatureK;         //temperature gradients at cell k-face
+  vector<vector3d<double> > tkeI;                 //tke gradients at cell i-face
+  vector<vector3d<double> > tkeJ;                 //tke gradients at cell j-face
+  vector<vector3d<double> > tkeK;                 //tke gradients at cell k-face
+  vector<vector3d<double> > omegaI;               //omega gradients at cell i-face
+  vector<vector3d<double> > omegaJ;               //omega gradients at cell j-face
+  vector<vector3d<double> > omegaK;               //omega gradients at cell k-face
 
  public:
   //constructors
-  gradients(const bool&, const int&, const int&, const int&, const vector<primVars>&);
+  gradients();
+  gradients(const bool&, const procBlock&);
 
   //member functions
-  tensor<double> VelGrad(const int &a) const {return velocity[a];}
-  vector3d<double> TempGrad(const int &a) const {return temperature[a];}
-  vector3d<double> TkeGrad(const int &a) const {return tke[a];}
-  vector3d<double> OmegaGrad(const int &a) const {return omega[a];}
+  tensor<double> VelGradI(const int &a) const {return velocityI[a];}
+  tensor<double> VelGradJ(const int &a) const {return velocityJ[a];}
+  tensor<double> VelGradK(const int &a) const {return velocityK[a];}
+  vector3d<double> TempGradI(const int &a) const {return temperatureI[a];}
+  vector3d<double> TempGradJ(const int &a) const {return temperatureJ[a];}
+  vector3d<double> TempGradK(const int &a) const {return temperatureK[a];}
+  vector3d<double> TkeGradI(const int &a) const {return tkeI[a];}
+  vector3d<double> TkeGradJ(const int &a) const {return tkeJ[a];}
+  vector3d<double> TkeGradK(const int &a) const {return tkeK[a];}
+  vector3d<double> OmegaGradI(const int &a) const {return omegaI[a];}
+  vector3d<double> OmegaGradJ(const int &a) const {return omegaJ[a];}
+  vector3d<double> OmegaGradK(const int &a) const {return omegaK[a];}
 
   //destructor
   ~gradients() {}
