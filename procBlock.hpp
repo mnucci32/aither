@@ -46,6 +46,7 @@ using std::cerr;
 //forward declarations
 class geomSlice;
 class stateSlice;
+class gradients;
 
 class procBlock {
   vector<primVars> state;            //primative variables at cell center
@@ -141,9 +142,9 @@ class procBlock {
   double LUSGS( const vector<vector3d<int> > &, vector<genArray> &, const vector<genArray> &, const vector<genArray> &, 
 		const idealGas&, const input&, const sutherland&)const;
 
-  void CalcViscFluxI(const sutherland&, const idealGas&, const input&);
-  void CalcViscFluxJ(const sutherland&, const idealGas&, const input&);
-  void CalcViscFluxK(const sutherland&, const idealGas&, const input&);
+  void CalcViscFluxI(const sutherland&, const idealGas&, const input&, const gradients&);
+  void CalcViscFluxJ(const sutherland&, const idealGas&, const input&, const gradients&);
+  void CalcViscFluxK(const sutherland&, const idealGas&, const input&, const gradients&);
 
   void CalcGradsI(const int&, const int&, const int&, const idealGas&, const bool&, tensor<double>&, vector3d<double>&, vector3d<double>&, vector3d<double>&) const;
   void CalcGradsJ(const int&, const int&, const int&, const idealGas&, const bool&, tensor<double>&, vector3d<double>&, vector3d<double>&, vector3d<double>&) const;
@@ -257,6 +258,44 @@ class stateSlice {
 
   //destructor
   ~stateSlice() {}
+
+};
+
+class gradients {
+  vector<tensor<double> > velocityI;              //velocity gradients at cell i-face
+  vector<tensor<double> > velocityJ;              //velocity gradients at cell j-face
+  vector<tensor<double> > velocityK;              //velocity gradients at cell k-face
+  vector<vector3d<double> > temperatureI;         //temperature gradients at cell i-face
+  vector<vector3d<double> > temperatureJ;         //temperature gradients at cell j-face
+  vector<vector3d<double> > temperatureK;         //temperature gradients at cell k-face
+  vector<vector3d<double> > tkeI;                 //tke gradients at cell i-face
+  vector<vector3d<double> > tkeJ;                 //tke gradients at cell j-face
+  vector<vector3d<double> > tkeK;                 //tke gradients at cell k-face
+  vector<vector3d<double> > omegaI;               //omega gradients at cell i-face
+  vector<vector3d<double> > omegaJ;               //omega gradients at cell j-face
+  vector<vector3d<double> > omegaK;               //omega gradients at cell k-face
+
+ public:
+  //constructors
+  gradients();
+  gradients(const bool&, const procBlock&, const idealGas&);
+
+  //member functions
+  tensor<double> VelGradI(const int &a) const {return velocityI[a];}
+  tensor<double> VelGradJ(const int &a) const {return velocityJ[a];}
+  tensor<double> VelGradK(const int &a) const {return velocityK[a];}
+  vector3d<double> TempGradI(const int &a) const {return temperatureI[a];}
+  vector3d<double> TempGradJ(const int &a) const {return temperatureJ[a];}
+  vector3d<double> TempGradK(const int &a) const {return temperatureK[a];}
+  vector3d<double> TkeGradI(const int &a) const {return tkeI[a];}
+  vector3d<double> TkeGradJ(const int &a) const {return tkeJ[a];}
+  vector3d<double> TkeGradK(const int &a) const {return tkeK[a];}
+  vector3d<double> OmegaGradI(const int &a) const {return omegaI[a];}
+  vector3d<double> OmegaGradJ(const int &a) const {return omegaJ[a];}
+  vector3d<double> OmegaGradK(const int &a) const {return omegaK[a];}
+
+  //destructor
+  ~gradients() {}
 
 };
 

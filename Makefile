@@ -55,7 +55,7 @@ turbulence.o : turbulence.cpp turbulence.hpp
 source.o : source.cpp source.hpp macros.hpp turbulence.hpp primVars.hpp
 	$(CC) $(CFLAGS) source.cpp
 
-gradients.o : gradients.cpp gradients.hpp primVars.hpp vector3d.hpp tensor.hpp
+gradients.o : gradients.cpp primVars.hpp vector3d.hpp tensor.hpp
 	$(CC) $(CFLAGS) gradients.cpp
 
 clean:

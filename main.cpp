@@ -32,7 +32,6 @@
 #include "matrix.hpp"
 #include "parallel.hpp"
 #include "turbulence.hpp"
-#include "gradients.hpp"
 #include <fenv.h>
 #include <ctime>
 
@@ -224,9 +223,9 @@ int main( int argc, char *argv[] ) {
 	  gradients grads(inputVars.IsTurbulent(), localStateBlocks[bb], eos);
 
 	  //calculate viscous fluxes
-	  localStateBlocks[bb].CalcViscFluxI(suth, eos, inputVars);
-	  localStateBlocks[bb].CalcViscFluxJ(suth, eos, inputVars);
-	  localStateBlocks[bb].CalcViscFluxK(suth, eos, inputVars);
+	  localStateBlocks[bb].CalcViscFluxI(suth, eos, inputVars, grads);
+	  localStateBlocks[bb].CalcViscFluxJ(suth, eos, inputVars, grads);
+	  localStateBlocks[bb].CalcViscFluxK(suth, eos, inputVars, grads);
 	}
 
 	//calculate the time step to use in the simulation (either user specified or derived from CFL)
