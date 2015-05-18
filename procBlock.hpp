@@ -46,7 +46,6 @@ using std::cerr;
 //forward declarations
 class geomSlice;
 class stateSlice;
-class gradients;
 
 class procBlock {
   vector<primVars> state;            //primative variables at cell center
@@ -146,7 +145,9 @@ class procBlock {
   void CalcViscFluxJ(const sutherland&, const idealGas&, const input&);
   void CalcViscFluxK(const sutherland&, const idealGas&, const input&);
 
-  gradients CalcGradients();
+  void CalcGradsI(const int&, const int&, const int&, const idealGas&, const bool&, tensor<double>&, vector3d<double>&, vector3d<double>&, vector3d<double>&) const;
+  void CalcGradsJ(const int&, const int&, const int&, const idealGas&, const bool&, tensor<double>&, vector3d<double>&, vector3d<double>&, vector3d<double>&) const;
+  void CalcGradsK(const int&, const int&, const int&, const idealGas&, const bool&, tensor<double>&, vector3d<double>&, vector3d<double>&, vector3d<double>&) const;
 
   void AssignGhostCellsGeom();
   void AssignGhostCellsGeomEdge();

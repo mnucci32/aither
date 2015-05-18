@@ -27,6 +27,7 @@
 #include "tensor.hpp" //tensor
 #include "plot3d.hpp" //vector3d
 #include "procBlock.hpp"
+#include "eos.hpp"
 #include <iostream>
 
 using std::vector;
@@ -53,7 +54,7 @@ class gradients {
  public:
   //constructors
   gradients();
-  gradients(const bool&, const procBlock&);
+  gradients(const bool&, const procBlock&, const idealGas&);
 
   //member functions
   tensor<double> VelGradI(const int &a) const {return velocityI[a];}

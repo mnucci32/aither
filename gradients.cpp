@@ -48,10 +48,12 @@ gradients::gradients(){
 }
 
 //alternate constructor to calculate gradients from state variables
-gradients::gradients( const bool &turbFlag, const procBlock &blk ){
+gradients::gradients( const bool &turbFlag, const procBlock &blk, const idealGas &eos ){
   // turbFlag -- flag to determine if simulation is turbulent and therefore requires tke and omega gradients
   // blk -- procBlock to calculate gradients for
+  // eos -- equation of state
 
+  //size vectors for input procBlock
   velocityI.resize( (blk.NumI() + 1) * blk.NumJ() * blk.NumK() );
   velocityJ.resize( blk.NumI() * (blk.NumJ() + 1) * blk.NumK() );
   velocityK.resize( blk.NumI() * blk.NumJ() * (blk.NumK() + 1) );
@@ -60,6 +62,7 @@ gradients::gradients( const bool &turbFlag, const procBlock &blk ){
   temperatureJ.resize( blk.NumI() * (blk.NumJ() + 1) * blk.NumK() );
   temperatureK.resize( blk.NumI() * blk.NumJ() * (blk.NumK() + 1) );
 
+  //if flow is not turbulent, don't need tke and omega gradients so they can be set to a minimum size
   if (turbFlag){
     tkeI.resize( (blk.NumI() + 1) * blk.NumJ() * blk.NumK() );
     tkeJ.resize( blk.NumI() * (blk.NumJ() + 1) * blk.NumK() );
@@ -70,13 +73,78 @@ gradients::gradients( const bool &turbFlag, const procBlock &blk ){
     omegaK.resize( blk.NumI() * blk.NumJ() * (blk.NumK() + 1) );
   }
   else{
-    tkeI.resize(2);
-    tkeJ.resize(2);
-    tkeK.resize(2);
+    tkeI.resize(1);
+    tkeJ.resize(1);
+    tkeK.resize(1);
 
-    omegaI.resize(2);
-    omegaJ.resize(2);
-    omegaK.resize(2);
+    omegaI.resize(1);
+    omegaJ.resize(1);
+    omegaK.resize(1);
+  }
+
+  //loop over i-faces and calculate gradients
+  //loop over all physical faces
+  for ( int kk = 0; kk < blk.NumK(); kk++){   
+    for ( int jj = 0; jj < blk.NumJ(); jj++){    
+      for ( int ii = 0; ii < blk.NumI() + 1; ii++){      
+
+	//get face location
+	int loc = GetLoc1D(ii, jj, kk, blk.NumI() + 1, blk.NumJ());
+
+	if (turbFlag){
+	  blk.CalcGradsI(ii + blk.NumGhosts(), jj + blk.NumGhosts(), kk + blk.NumGhosts(), eos, turbFlag, velocityI[loc], temperatureI[loc], tkeI[loc], omegaI[loc]);
+	}
+	else{
+	  vector3d<double> dum1, dum2;
+	  blk.CalcGradsI(ii + blk.NumGhosts(), jj + blk.NumGhosts(), kk + blk.NumGhosts(), eos, turbFlag, velocityI[loc], temperatureI[loc], dum1, dum2);
+	}
+
+      }
+    }
+  }
+
+
+  //loop over j-faces and calculate gradients
+  //loop over all physical faces
+  for ( int kk = 0; kk < blk.NumK(); kk++){   
+    for ( int jj = 0; jj < blk.NumJ() + 1; jj++){    
+      for ( int ii = 0; ii < blk.NumI(); ii++){      
+
+	//get face location
+	int loc = GetLoc1D(ii, jj, kk, blk.NumI(), blk.NumJ() + 1);
+
+	if (turbFlag){
+	  blk.CalcGradsJ(ii + blk.NumGhosts(), jj + blk.NumGhosts(), kk + blk.NumGhosts(), eos, turbFlag, velocityJ[loc], temperatureJ[loc], tkeJ[loc], omegaJ[loc]);
+	}
+	else{
+	  vector3d<double> dum1, dum2;
+	  blk.CalcGradsJ(ii + blk.NumGhosts(), jj + blk.NumGhosts(), kk + blk.NumGhosts(), eos, turbFlag, velocityJ[loc], temperatureJ[loc], dum1, dum2);
+	}
+
+      }
+    }
+  }
+
+
+  //loop over k-faces and calculate gradients
+  //loop over all physical faces
+  for ( int kk = 0; kk < blk.NumK() + 1; kk++){   
+    for ( int jj = 0; jj < blk.NumJ(); jj++){    
+      for ( int ii = 0; ii < blk.NumI(); ii++){      
+
+	//get face location
+	int loc = GetLoc1D(ii, jj, kk, blk.NumI(), blk.NumJ());
+
+	if (turbFlag){
+	  blk.CalcGradsK(ii + blk.NumGhosts(), jj + blk.NumGhosts(), kk + blk.NumGhosts(), eos, turbFlag, velocityK[loc], temperatureK[loc], tkeK[loc], omegaK[loc]);
+	}
+	else{
+	  vector3d<double> dum1, dum2;
+	  blk.CalcGradsK(ii + blk.NumGhosts(), jj + blk.NumGhosts(), kk + blk.NumGhosts(), eos, turbFlag, velocityK[loc], temperatureK[loc], dum1, dum2);
+	}
+
+      }
+    }
   }
 
 }

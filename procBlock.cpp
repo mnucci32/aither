@@ -9160,5 +9160,364 @@ void procBlock::Join(const procBlock &blk, const string &dir, vector<boundarySur
 
 }
 
+void procBlock::CalcGradsI(const int &ii, const int &jj, const int &kk, const idealGas &eqnState, const bool &turbFlag, tensor<double> &velGrad, vector3d<double> &tGrad, 
+			   vector3d<double> &tkeGrad, vector3d<double> &omegaGrad) const {
+
+  int imax = (*this).NumI() + 2 * (*this).NumGhosts() + 1;
+  int jmax = (*this).NumJ() + 2 * (*this).NumGhosts();
+
+  //location of current face (with ghost cells included)
+  int loc = GetLoc1D(ii, jj, kk, imax, jmax);
+
+  //location of faces in the upper and lower i-direction (with ghost cells included)
+  int fUpi = GetNeighborUpI(ii, jj, kk, imax, jmax);
+  int fLowi = GetNeighborLowI(ii, jj, kk, imax, jmax);
+
+  //location of j-faces in the upper and lower direction belonging to the cells in the upper 
+  //and lower i-direction of the current face (with ghost cells included) - these are used in the 
+  //gradient calculation to construct the alternate control volume
+  int fUpjUpi = GetUpperFaceJ(ii, jj, kk, imax - 1, jmax);
+  int fUpjLowi = GetUpperFaceJ(ii - 1, jj, kk, imax - 1, jmax);
+  int fLowjUpi = GetLowerFaceJ(ii, jj, kk, imax - 1, jmax);
+  int fLowjLowi = GetLowerFaceJ(ii - 1, jj, kk, imax - 1, jmax);
+
+  //location of k-faces in the upper and lower direction belonging to the cells in the upper 
+  //and lower i-direction of the current face (with ghost cells included) - these are used in the 
+  //gradient calculation to construct the alternate control volume
+  int fUpkUpi = GetUpperFaceK(ii, jj, kk, imax - 1, jmax);
+  int fUpkLowi = GetUpperFaceK(ii - 1, jj, kk, imax - 1, jmax);
+  int fLowkUpi = GetLowerFaceK(ii, jj, kk, imax - 1, jmax);
+  int fLowkLowi = GetLowerFaceK(ii - 1, jj, kk, imax - 1, jmax);
+
+  //location of cells in the upper and lower i-direction with respect to baseline face (with ghost cells included)
+  int iLow  = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
+  int iUp  = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
+
+  //calculate areas of faces in alternate control volume
+  vector3d<double> aiu = 0.5 * ( (*this).FAreaI(loc) + (*this).FAreaI(fUpi) );
+  vector3d<double> ail = 0.5 * ( (*this).FAreaI(loc) + (*this).FAreaI(fLowi) );
+
+  vector3d<double> aju = 0.5 * ( (*this).FAreaJ(fUpjUpi) + (*this).FAreaJ(fUpjLowi) );
+  vector3d<double> ajl = 0.5 * ( (*this).FAreaJ(fLowjUpi) + (*this).FAreaJ(fLowjLowi) );
+
+  vector3d<double> aku = 0.5 * ( (*this).FAreaK(fUpkUpi) + (*this).FAreaK(fUpkLowi) );
+  vector3d<double> akl = 0.5 * ( (*this).FAreaK(fLowkUpi) + (*this).FAreaK(fLowkLowi) );
+
+  //calculate volume of alternate control volume
+  double vol = 0.5 * ( (*this).Vol(iLow) + (*this).Vol(iUp) );
+
+  //location of cells in the upper and lower j-direction and the upper 
+  //and lower i-direction of the current face (with ghost cells included) - these are used in the 
+  //gradient calculation to construct the alternate control volume
+  int jUpiUp = GetNeighborUpJ(ii, jj, kk, imax - 1, jmax);
+  int jUpiLow = GetNeighborUpJ(ii - 1, jj, kk, imax - 1, jmax);
+  int jLowiUp = GetNeighborLowJ(ii, jj, kk, imax - 1, jmax);
+  int jLowiLow = GetNeighborLowJ(ii - 1, jj, kk, imax - 1, jmax);
+
+  //location of cells in the upper and lower k-direction and the upper 
+  //and lower i-direction of the current face (with ghost cells included) - these are used in the 
+  //gradient calculation to construct the alternate control volume
+  int kUpiUp = GetNeighborUpK(ii, jj, kk, imax - 1, jmax);
+  int kUpiLow = GetNeighborUpK(ii - 1, jj, kk, imax - 1, jmax);
+  int kLowiUp = GetNeighborLowK(ii, jj, kk, imax - 1, jmax);
+  int kLowiLow = GetNeighborLowK(ii - 1, jj, kk, imax - 1, jmax);
+
+  //calculate average velocity on j and k faces of alternate control volume
+  vector3d<double> vju = 0.25 * ( (*this).State(iLow).Velocity() + (*this).State(iUp).Velocity() + (*this).State(jUpiUp).Velocity() + (*this).State(jUpiLow).Velocity() );
+  vector3d<double> vjl = 0.25 * ( (*this).State(iLow).Velocity() + (*this).State(iUp).Velocity() + (*this).State(jLowiUp).Velocity() + (*this).State(jLowiLow).Velocity() );
+
+  vector3d<double> vku = 0.25 * ( (*this).State(iLow).Velocity() + (*this).State(iUp).Velocity() + (*this).State(kUpiUp).Velocity() + (*this).State(kUpiLow).Velocity() );
+  vector3d<double> vkl = 0.25 * ( (*this).State(iLow).Velocity() + (*this).State(iUp).Velocity() + (*this).State(kLowiUp).Velocity() + (*this).State(kLowiLow).Velocity() );
+
+  //Get velocity gradient at face
+  velGrad = CalcVelGradGG( (*this).State(iLow).Velocity(), (*this).State(iUp).Velocity(), vjl, vju, vkl, vku, ail, aiu, ajl, aju, akl, aku, vol);
+
+  //calculate average temperature on j and k faces of alternate control volume
+  double tju = 0.25 * ( (*this).State(iLow).Temperature(eqnState) + (*this).State(iUp).Temperature(eqnState) + (*this).State(jUpiUp).Temperature(eqnState) +
+			(*this).State(jUpiLow).Temperature(eqnState) );
+  double tjl = 0.25 * ( (*this).State(iLow).Temperature(eqnState) + (*this).State(iUp).Temperature(eqnState) + (*this).State(jLowiUp).Temperature(eqnState) +
+			(*this).State(jLowiLow).Temperature(eqnState) );
+
+  double tku = 0.25 * ( (*this).State(iLow).Temperature(eqnState) + (*this).State(iUp).Temperature(eqnState) + (*this).State(kUpiUp).Temperature(eqnState) +
+			(*this).State(kUpiLow).Temperature(eqnState) );
+  double tkl = 0.25 * ( (*this).State(iLow).Temperature(eqnState) + (*this).State(iUp).Temperature(eqnState) + (*this).State(kLowiUp).Temperature(eqnState) +
+			(*this).State(kLowiLow).Temperature(eqnState) );
+
+  //Get temperature gradient at face
+  tGrad = CalcScalarGradGG( (*this).State(iLow).Temperature(eqnState), (*this).State(iUp).Temperature(eqnState), tjl, tju, tkl, tku, ail, aiu, ajl, aju, akl, aku, vol);
+
+  if (turbFlag){
+
+    //calculate average tke on j and k faces of alternate control volume
+    double tkeju = 0.25 * ( (*this).State(iLow).Tke() + (*this).State(iUp).Tke() + (*this).State(jUpiUp).Tke() +
+			    (*this).State(jUpiLow).Tke() );
+    double tkejl = 0.25 * ( (*this).State(iLow).Tke() + (*this).State(iUp).Tke() + (*this).State(jLowiUp).Tke() +
+			    (*this).State(jLowiLow).Tke() );
+
+    double tkeku = 0.25 * ( (*this).State(iLow).Tke() + (*this).State(iUp).Tke() + (*this).State(kUpiUp).Tke() +
+			    (*this).State(kUpiLow).Tke() );
+    double tkekl = 0.25 * ( (*this).State(iLow).Tke() + (*this).State(iUp).Tke() + (*this).State(kLowiUp).Tke() +
+			    (*this).State(kLowiLow).Tke() );
+
+    //Get tke gradient at face
+    tkeGrad = CalcScalarGradGG( (*this).State(iLow).Tke(), (*this).State(iUp).Tke(), tkejl, tkeju, tkekl, tkeku, ail, aiu, ajl, aju, akl, aku, vol);
+
+    //calculate average Omega on j and k faces of alternate control volume
+    double omgju = 0.25 * ( (*this).State(iLow).Omega() + (*this).State(iUp).Omega() + (*this).State(jUpiUp).Omega() +
+			    (*this).State(jUpiLow).Omega() );
+    double omgjl = 0.25 * ( (*this).State(iLow).Omega() + (*this).State(iUp).Omega() + (*this).State(jLowiUp).Omega() +
+			    (*this).State(jLowiLow).Omega() );
+
+    double omgku = 0.25 * ( (*this).State(iLow).Omega() + (*this).State(iUp).Omega() + (*this).State(kUpiUp).Omega() +
+			    (*this).State(kUpiLow).Omega() );
+    double omgkl = 0.25 * ( (*this).State(iLow).Omega() + (*this).State(iUp).Omega() + (*this).State(kLowiUp).Omega() +
+			    (*this).State(kLowiLow).Omega() );
+
+    //Get omega gradient at face
+    omegaGrad = CalcScalarGradGG( (*this).State(iLow).Omega(), (*this).State(iUp).Omega(), omgjl, omgju, omgkl, omgku, ail, aiu, ajl, aju, akl, aku, vol);
+
+  }
+
+}
+
+void procBlock::CalcGradsJ(const int &ii, const int &jj, const int &kk, const idealGas &eqnState, const bool &turbFlag, tensor<double> &velGrad, vector3d<double> &tGrad, 
+			   vector3d<double> &tkeGrad, vector3d<double> &omegaGrad) const {
+
+  int imax = (*this).NumI() + 2 * (*this).NumGhosts();
+  int jmax = (*this).NumJ() + 2 * (*this).NumGhosts() + 1;
+
+  //location of current face (with ghost cells included)
+  int loc = GetLoc1D(ii, jj, kk, imax, jmax);
+
+  //location of faces in the upper and lower j-direction (with ghost cells included)
+  int fUpj = GetNeighborUpJ(ii, jj, kk, imax, jmax);
+  int fLowj = GetNeighborLowJ(ii, jj, kk, imax, jmax);
+
+  //location of i-faces in the upper and lower direction belonging to the cells in the upper 
+  //and lower j-direction of the current face (with ghost cells included) - these are used in the 
+  //gradient calculation to construct the alternate control volume
+  int fUpiUpj = GetUpperFaceI(ii, jj, kk, imax, jmax - 1);
+  int fUpiLowj = GetUpperFaceI(ii, jj - 1, kk, imax, jmax - 1);
+  int fLowiUpj = GetLowerFaceI(ii, jj, kk, imax, jmax - 1);
+  int fLowiLowj = GetLowerFaceI(ii, jj - 1, kk, imax, jmax - 1);
+
+  //location of k-faces in the upper and lower direction belonging to the cells in the upper 
+  //and lower j-direction of the current face (with ghost cells included) - these are used in the 
+  //gradient calculation to construct the alternate control volume
+  int fUpkUpj = GetUpperFaceK(ii, jj, kk, imax, jmax - 1);
+  int fUpkLowj = GetUpperFaceK(ii, jj - 1, kk, imax, jmax - 1);
+  int fLowkUpj = GetLowerFaceK(ii, jj, kk, imax, jmax - 1);
+  int fLowkLowj = GetLowerFaceK(ii, jj - 1, kk, imax, jmax - 1);
+
+  //location of cells in the upper and lower j-direction with respect to baseline face (with ghost cells included)
+  int jLow  = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
+  int jUp  = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
+
+  //calculate areas of faces in alternate control volume
+  vector3d<double> aju = 0.5 * ( (*this).FAreaJ(loc) + (*this).FAreaJ(fUpj) );
+  vector3d<double> ajl = 0.5 * ( (*this).FAreaJ(loc) + (*this).FAreaJ(fLowj) );
+
+  vector3d<double> aiu = 0.5 * ( (*this).FAreaI(fUpiUpj) + (*this).FAreaI(fUpiLowj) );
+  vector3d<double> ail = 0.5 * ( (*this).FAreaI(fLowiUpj) + (*this).FAreaI(fLowiLowj) );
+
+  vector3d<double> aku = 0.5 * ( (*this).FAreaK(fUpkUpj) + (*this).FAreaK(fUpkLowj) );
+  vector3d<double> akl = 0.5 * ( (*this).FAreaK(fLowkUpj) + (*this).FAreaK(fLowkLowj) );
+
+  //calculate volume of alternate control volume
+  double vol = 0.5 * ( (*this).Vol(jLow) + (*this).Vol(jUp) );
+
+  //location of cells in the upper and lower i-direction and the upper 
+  //and lower j-direction of the current face (with ghost cells included) - these are used in the 
+  //gradient calculation to construct the alternate control volume
+  int iUpjUp = GetNeighborUpI(ii, jj, kk, imax, jmax - 1);
+  int iUpjLow = GetNeighborUpI(ii, jj - 1, kk, imax, jmax - 1);
+  int iLowjUp = GetNeighborLowI(ii, jj, kk, imax, jmax - 1);
+  int iLowjLow = GetNeighborLowI(ii, jj - 1, kk, imax, jmax - 1);
+
+  //location of cells in the upper and lower k-direction and the upper 
+  //and lower j-direction of the current face (with ghost cells included) - these are used in the 
+  //gradient calculation to construct the alternate control volume
+  int kUpjUp = GetNeighborUpK(ii, jj, kk, imax, jmax - 1);
+  int kUpjLow = GetNeighborUpK(ii, jj - 1, kk, imax, jmax - 1);
+  int kLowjUp = GetNeighborLowK(ii, jj, kk, imax, jmax - 1);
+  int kLowjLow = GetNeighborLowK(ii, jj - 1, kk, imax, jmax - 1);
+
+  //calculate average velocity on i and k faces of alternate control volume
+  vector3d<double> viu = 0.25 * ( (*this).State(jLow).Velocity() + (*this).State(jUp).Velocity() + (*this).State(iUpjUp).Velocity() + (*this).State(iUpjLow).Velocity() );
+  vector3d<double> vil = 0.25 * ( (*this).State(jLow).Velocity() + (*this).State(jUp).Velocity() + (*this).State(iLowjUp).Velocity() + (*this).State(iLowjLow).Velocity() );
+
+  vector3d<double> vku = 0.25 * ( (*this).State(jLow).Velocity() + (*this).State(jUp).Velocity() + (*this).State(kUpjUp).Velocity() + (*this).State(kUpjLow).Velocity() );
+  vector3d<double> vkl = 0.25 * ( (*this).State(jLow).Velocity() + (*this).State(jUp).Velocity() + (*this).State(kLowjUp).Velocity() + (*this).State(kLowjLow).Velocity() );
+
+  //Get velocity gradient at face
+  velGrad = CalcVelGradGG( vil, viu, (*this).State(jLow).Velocity(), (*this).State(jUp).Velocity(), vkl, vku, ail, aiu, ajl, aju, akl, aku, vol);
+
+  //calculate average temperature on i and k faces of alternate control volume
+  double tiu = 0.25 * ( (*this).State(jLow).Temperature(eqnState) + (*this).State(jUp).Temperature(eqnState) + (*this).State(iUpjUp).Temperature(eqnState) +
+			(*this).State(iUpjLow).Temperature(eqnState) );
+  double til = 0.25 * ( (*this).State(jLow).Temperature(eqnState) + (*this).State(jUp).Temperature(eqnState) + (*this).State(iLowjUp).Temperature(eqnState) +
+			(*this).State(iLowjLow).Temperature(eqnState) );
+
+  double tku = 0.25 * ( (*this).State(jLow).Temperature(eqnState) + (*this).State(jUp).Temperature(eqnState) + (*this).State(kUpjUp).Temperature(eqnState) +
+			(*this).State(kUpjLow).Temperature(eqnState) );
+  double tkl = 0.25 * ( (*this).State(jLow).Temperature(eqnState) + (*this).State(jUp).Temperature(eqnState) + (*this).State(kLowjUp).Temperature(eqnState) +
+			(*this).State(kLowjLow).Temperature(eqnState) );
+
+  //Get temperature gradient at face
+  tGrad = CalcScalarGradGG( til, tiu, (*this).State(jLow).Temperature(eqnState), (*this).State(jUp).Temperature(eqnState), tkl, tku, ail, aiu, ajl, aju, akl, aku, vol);
+
+  if (turbFlag){
+
+    //calculate average tke on i and k faces of alternate control volume
+    double tkeiu = 0.25 * ( (*this).State(jLow).Tke() + (*this).State(jUp).Tke() + (*this).State(iUpjUp).Tke() +
+			    (*this).State(iUpjLow).Tke() );
+    double tkeil = 0.25 * ( (*this).State(jLow).Tke() + (*this).State(jUp).Tke() + (*this).State(iLowjUp).Tke() +
+			    (*this).State(iLowjLow).Tke() );
+
+    double tkeku = 0.25 * ( (*this).State(jLow).Tke() + (*this).State(jUp).Tke() + (*this).State(kUpjUp).Tke() +
+			    (*this).State(kUpjLow).Tke() );
+    double tkekl = 0.25 * ( (*this).State(jLow).Tke() + (*this).State(jUp).Tke() + (*this).State(kLowjUp).Tke() +
+			    (*this).State(kLowjLow).Tke() );
+
+    //Get temperature gradient at face
+    tkeGrad = CalcScalarGradGG( tkeil, tkeiu, (*this).State(jLow).Tke(), (*this).State(jUp).Tke(), tkekl, tkeku, ail, aiu, ajl, aju, akl, aku, vol);
+
+    //calculate average omega on i and k faces of alternate control volume
+    double omgiu = 0.25 * ( (*this).State(jLow).Omega() + (*this).State(jUp).Omega() + (*this).State(iUpjUp).Omega() +
+			    (*this).State(iUpjLow).Omega() );
+    double omgil = 0.25 * ( (*this).State(jLow).Omega() + (*this).State(jUp).Omega() + (*this).State(iLowjUp).Omega() +
+			    (*this).State(iLowjLow).Omega() );
+
+    double omgku = 0.25 * ( (*this).State(jLow).Omega() + (*this).State(jUp).Omega() + (*this).State(kUpjUp).Omega() +
+			    (*this).State(kUpjLow).Omega() );
+    double omgkl = 0.25 * ( (*this).State(jLow).Omega() + (*this).State(jUp).Omega() + (*this).State(kLowjUp).Omega() +
+			    (*this).State(kLowjLow).Omega() );
+
+    //Get temperature gradient at face
+    omegaGrad = CalcScalarGradGG( omgil, omgiu, (*this).State(jLow).Omega(), (*this).State(jUp).Omega(), omgkl, omgku, ail, aiu, ajl, aju, akl, aku, vol);
+
+  }
+
+}
+
+void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk, const idealGas &eqnState, const bool &turbFlag, tensor<double> &velGrad, vector3d<double> &tGrad, 
+			   vector3d<double> &tkeGrad, vector3d<double> &omegaGrad) const {
+
+  int imax = (*this).NumI() + 2 * (*this).NumGhosts();
+  int jmax = (*this).NumJ() + 2 * (*this).NumGhosts();
+
+  //location of current face (with ghost cells included)
+  int loc = GetLoc1D(ii, jj, kk, imax, jmax);
+
+  //location of faces in the upper and lower k-direction (with ghost cells included)
+  int fUpk = GetNeighborUpK(ii, jj, kk, imax, jmax);
+  int fLowk = GetNeighborLowK(ii, jj, kk, imax, jmax);
+
+  //location of i-faces in the upper and lower direction belonging to the cells in the upper 
+  //and lower k-direction of the current face (with ghost cells included) - these are used in the 
+  //gradient calculation to construct the alternate control volume
+  int fUpiUpk = GetUpperFaceI(ii, jj, kk, imax, jmax);
+  int fUpiLowk = GetUpperFaceI(ii, jj, kk - 1, imax, jmax);
+  int fLowiUpk = GetLowerFaceI(ii, jj, kk, imax, jmax);
+  int fLowiLowk = GetLowerFaceI(ii, jj, kk - 1, imax, jmax);
+
+  //location of j-faces in the upper and lower direction belonging to the cells in the upper 
+  //and lower k-direction of the current face (with ghost cells included) - these are used in the 
+  //gradient calculation to construct the alternate control volume
+  int fUpjUpk = GetUpperFaceJ(ii, jj, kk, imax, jmax);
+  int fUpjLowk = GetUpperFaceJ(ii, jj, kk - 1, imax, jmax);
+  int fLowjUpk = GetLowerFaceJ(ii, jj, kk, imax, jmax);
+  int fLowjLowk = GetLowerFaceJ(ii, jj, kk - 1, imax, jmax);
+
+  //location of cells in the upper and lower k-direction with respect to baseline face (with ghost cells included)
+  int kLow  = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
+  int kUp  = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
+
+  //calculate areas of faces in alternate control volume
+  vector3d<double> aku = 0.5 * ( (*this).FAreaK(loc) + (*this).FAreaK(fUpk) );
+  vector3d<double> akl = 0.5 * ( (*this).FAreaK(loc) + (*this).FAreaK(fLowk) );
+
+  vector3d<double> aiu = 0.5 * ( (*this).FAreaI(fUpiUpk) + (*this).FAreaI(fUpiLowk) );
+  vector3d<double> ail = 0.5 * ( (*this).FAreaI(fLowiUpk) + (*this).FAreaI(fLowiLowk) );
+
+  vector3d<double> aju = 0.5 * ( (*this).FAreaJ(fUpjUpk) + (*this).FAreaJ(fUpjLowk) );
+  vector3d<double> ajl = 0.5 * ( (*this).FAreaJ(fLowjUpk) + (*this).FAreaJ(fLowjLowk) );
+
+  //calculate volume of alternate control volume
+  double vol = 0.5 * ( (*this).Vol(kLow) + (*this).Vol(kUp) );
+
+  //location of cells in the upper and lower k-direction and the upper 
+  //and lower i-direction of the current face (with ghost cells included) - these are used in the 
+  //gradient calculation to construct the alternate control volume
+  int iUpkUp = GetNeighborUpI(ii, jj, kk, imax, jmax);
+  int iUpkLow = GetNeighborUpI(ii, jj, kk - 1, imax, jmax);
+  int iLowkUp = GetNeighborLowI(ii, jj, kk, imax, jmax);
+  int iLowkLow = GetNeighborLowI(ii, jj, kk - 1, imax, jmax);
+
+  //location of cells in the upper and lower k-direction and the upper 
+  //and lower j-direction of the current face (with ghost cells included) - these are used in the 
+  //gradient calculation to construct the alternate control volume
+  int jUpkUp = GetNeighborUpK(ii, jj, kk, imax, jmax);
+  int jUpkLow = GetNeighborUpK(ii, jj, kk - 1, imax, jmax);
+  int jLowkUp = GetNeighborLowK(ii, jj, kk, imax, jmax);
+  int jLowkLow = GetNeighborLowK(ii, jj, kk - 1, imax, jmax);
+
+  //calculate average velocity on i and j faces of alternate control volume
+  vector3d<double> viu = 0.25 * ( (*this).State(kLow).Velocity() + (*this).State(kUp).Velocity() + (*this).State(iUpkUp).Velocity() + (*this).State(iUpkLow).Velocity() );
+  vector3d<double> vil = 0.25 * ( (*this).State(kLow).Velocity() + (*this).State(kUp).Velocity() + (*this).State(iLowkUp).Velocity() + (*this).State(iLowkLow).Velocity() );
+
+  vector3d<double> vju = 0.25 * ( (*this).State(kLow).Velocity() + (*this).State(kUp).Velocity() + (*this).State(jUpkUp).Velocity() + (*this).State(jUpkLow).Velocity() );
+  vector3d<double> vjl = 0.25 * ( (*this).State(kLow).Velocity() + (*this).State(kUp).Velocity() + (*this).State(jLowkUp).Velocity() + (*this).State(jLowkLow).Velocity() );
+
+  //Get velocity gradient at face
+  velGrad = CalcVelGradGG( vil, viu, vjl, vju, (*this).State(kLow).Velocity(), (*this).State(kUp).Velocity(), ail, aiu, ajl, aju, akl, aku, vol);
+
+  //calculate average temperature on i and j faces of alternate control volume
+  double tiu = 0.25 * ( (*this).State(kLow).Temperature(eqnState) + (*this).State(kUp).Temperature(eqnState) + (*this).State(iUpkUp).Temperature(eqnState) +
+			(*this).State(iUpkLow).Temperature(eqnState) );
+  double til = 0.25 * ( (*this).State(kLow).Temperature(eqnState) + (*this).State(kUp).Temperature(eqnState) + (*this).State(iLowkUp).Temperature(eqnState) +
+			(*this).State(iLowkLow).Temperature(eqnState) );
+
+  double tju = 0.25 * ( (*this).State(kLow).Temperature(eqnState) + (*this).State(kUp).Temperature(eqnState) + (*this).State(jUpkUp).Temperature(eqnState) +
+			(*this).State(jUpkLow).Temperature(eqnState) );
+  double tjl = 0.25 * ( (*this).State(kLow).Temperature(eqnState) + (*this).State(kUp).Temperature(eqnState) + (*this).State(jLowkUp).Temperature(eqnState) +
+			(*this).State(jLowkLow).Temperature(eqnState) );
+
+  //Get temperature gradient at face
+  tGrad = CalcScalarGradGG( til, tiu, tjl, tju, (*this).State(kLow).Temperature(eqnState), (*this).State(kUp).Temperature(eqnState), ail, aiu, ajl, aju, akl, aku, vol);
+
+  if (turbFlag){
+
+    //calculate average tke on i and j faces of alternate control volume
+    double tkeiu = 0.25 * ( (*this).State(kLow).Tke() + (*this).State(kUp).Tke() + (*this).State(iUpkUp).Tke() +
+			    (*this).State(iUpkLow).Tke() );
+    double tkeil = 0.25 * ( (*this).State(kLow).Tke() + (*this).State(kUp).Tke() + (*this).State(iLowkUp).Tke() +
+			    (*this).State(iLowkLow).Tke() );
+
+    double tkeju = 0.25 * ( (*this).State(kLow).Tke() + (*this).State(kUp).Tke() + (*this).State(jUpkUp).Tke() +
+			    (*this).State(jUpkLow).Tke() );
+    double tkejl = 0.25 * ( (*this).State(kLow).Tke() + (*this).State(kUp).Tke() + (*this).State(jLowkUp).Tke() +
+			    (*this).State(jLowkLow).Tke() );
+
+    //Get temperature gradient at face
+    tkeGrad = CalcScalarGradGG( tkeil, tkeiu, tkejl, tkeju, (*this).State(kLow).Tke(), (*this).State(kUp).Tke(), ail, aiu, ajl, aju, akl, aku, vol);
+
+    //calculate average omega on i and j faces of alternate control volume
+    double omgiu = 0.25 * ( (*this).State(kLow).Omega() + (*this).State(kUp).Omega() + (*this).State(iUpkUp).Omega() +
+			    (*this).State(iUpkLow).Omega() );
+    double omgil = 0.25 * ( (*this).State(kLow).Omega() + (*this).State(kUp).Omega() + (*this).State(iLowkUp).Omega() +
+			    (*this).State(iLowkLow).Omega() );
+
+    double omgju = 0.25 * ( (*this).State(kLow).Omega() + (*this).State(kUp).Omega() + (*this).State(jUpkUp).Omega() +
+			    (*this).State(jUpkLow).Omega() );
+    double omgjl = 0.25 * ( (*this).State(kLow).Omega() + (*this).State(kUp).Omega() + (*this).State(jLowkUp).Omega() +
+			    (*this).State(jLowkLow).Omega() );
+
+    //Get temperature gradient at face
+    omegaGrad = CalcScalarGradGG( omgil, omgiu, omgjl, omgju, (*this).State(kLow).Omega(), (*this).State(kUp).Omega(), ail, aiu, ajl, aju, akl, aku, vol);
+
+  }
+
+}
 
 

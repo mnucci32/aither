@@ -32,6 +32,7 @@
 #include "matrix.hpp"
 #include "parallel.hpp"
 #include "turbulence.hpp"
+#include "gradients.hpp"
 #include <fenv.h>
 #include <ctime>
 
@@ -218,6 +219,9 @@ int main( int argc, char *argv[] ) {
 
 	  //determine ghost cell values for viscous fluxes
 	  localStateBlocks[bb].AssignViscousGhostCells(inputVars, eos);
+
+	  //calculate gradients
+	  gradients grads(inputVars.IsTurbulent(), localStateBlocks[bb], eos);
 
 	  //calculate viscous fluxes
 	  localStateBlocks[bb].CalcViscFluxI(suth, eos, inputVars);
