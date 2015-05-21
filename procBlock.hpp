@@ -275,6 +275,10 @@ class gradients {
   vector<vector3d<double> > omegaJ;               //omega gradients at cell j-face
   vector<vector3d<double> > omegaK;               //omega gradients at cell k-face
 
+  int imax;                                       //number of cells in i-direction
+  int jmax;                                       //number of cells in j-direction
+  int kmax;                                       //number of cells in k-direction
+
  public:
   //constructors
   gradients();
@@ -293,6 +297,15 @@ class gradients {
   vector3d<double> OmegaGradI(const int &a) const {return omegaI[a];}
   vector3d<double> OmegaGradJ(const int &a) const {return omegaJ[a];}
   vector3d<double> OmegaGradK(const int &a) const {return omegaK[a];}
+
+  int NumI() const {return imax;}
+  int NumJ() const {return jmax;}
+  int NumK() const {return kmax;}
+
+  tensor<double> VelGradCell(const int&, const int&, const int&) const;
+  vector3d<double> TempGradCell(const int&, const int&, const int&) const;
+  vector3d<double> TkeGradCell(const int&, const int&, const int&) const;
+  vector3d<double> OmegaGradCell(const int&, const int&, const int&) const;
 
   //destructor
   ~gradients() {}

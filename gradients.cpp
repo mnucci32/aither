@@ -45,6 +45,10 @@ gradients::gradients(){
   omegaJ.resize(2);
   omegaK.resize(2);
 
+  imax = 1;
+  jmax = 1;
+  kmax = 1;
+
 }
 
 //alternate constructor to calculate gradients from state variables
@@ -52,6 +56,11 @@ gradients::gradients( const bool &turbFlag, const procBlock &blk, const idealGas
   // turbFlag -- flag to determine if simulation is turbulent and therefore requires tke and omega gradients
   // blk -- procBlock to calculate gradients for
   // eos -- equation of state
+
+  //set dimensions (cell-size)
+  imax = blk.NumI();
+  jmax = blk.NumJ();
+  kmax = blk.NumK();
 
   //size vectors for input procBlock
   velocityI.resize( (blk.NumI() + 1) * blk.NumJ() * blk.NumK() );
@@ -146,5 +155,53 @@ gradients::gradients( const bool &turbFlag, const procBlock &blk, const idealGas
       }
     }
   }
+
+}
+
+//member function to calculate velocity gradient at cell center
+tensor<double> gradients::VelGradCell(const int &ii, const int &jj, const int &kk) const{
+  // ii - i dimension of cell to get gradient at
+  // jj - j dimension of cell to get gradient at
+  // kk - k dimension of cell to get gradient at
+
+  return (1.0/6.0) * ( velocityI[GetUpperFaceI(ii,jj,kk,imax,jmax)] + velocityI[GetLowerFaceI(ii,jj,kk,imax,jmax)] + 
+		       velocityJ[GetUpperFaceJ(ii,jj,kk,imax,jmax)] + velocityJ[GetLowerFaceJ(ii,jj,kk,imax,jmax)] +
+		       velocityK[GetUpperFaceK(ii,jj,kk,imax,jmax)] + velocityK[GetLowerFaceK(ii,jj,kk,imax,jmax)] );
+
+}
+
+//member function to calculate temperature gradient at cell center
+vector3d<double> gradients::TempGradCell(const int &ii, const int &jj, const int &kk) const{
+  // ii - i dimension of cell to get gradient at
+  // jj - j dimension of cell to get gradient at
+  // kk - k dimension of cell to get gradient at
+
+  return (1.0/6.0) * ( temperatureI[GetUpperFaceI(ii,jj,kk,imax,jmax)] + temperatureI[GetLowerFaceI(ii,jj,kk,imax,jmax)] + 
+		       temperatureJ[GetUpperFaceJ(ii,jj,kk,imax,jmax)] + temperatureJ[GetLowerFaceJ(ii,jj,kk,imax,jmax)] +
+		       temperatureK[GetUpperFaceK(ii,jj,kk,imax,jmax)] + temperatureK[GetLowerFaceK(ii,jj,kk,imax,jmax)] );
+
+}
+
+//member function to calculate tke gradient at cell center
+vector3d<double> gradients::TkeGradCell(const int &ii, const int &jj, const int &kk) const{
+  // ii - i dimension of cell to get gradient at
+  // jj - j dimension of cell to get gradient at
+  // kk - k dimension of cell to get gradient at
+
+  return (1.0/6.0) * ( tkeI[GetUpperFaceI(ii,jj,kk,imax,jmax)] + tkeI[GetLowerFaceI(ii,jj,kk,imax,jmax)] + 
+		       tkeJ[GetUpperFaceJ(ii,jj,kk,imax,jmax)] + tkeJ[GetLowerFaceJ(ii,jj,kk,imax,jmax)] +
+		       tkeK[GetUpperFaceK(ii,jj,kk,imax,jmax)] + tkeK[GetLowerFaceK(ii,jj,kk,imax,jmax)] );
+
+}
+
+//member function to calculate omega gradient at cell center
+vector3d<double> gradients::OmegaGradCell(const int &ii, const int &jj, const int &kk) const{
+  // ii - i dimension of cell to get gradient at
+  // jj - j dimension of cell to get gradient at
+  // kk - k dimension of cell to get gradient at
+
+  return (1.0/6.0) * ( omegaI[GetUpperFaceI(ii,jj,kk,imax,jmax)] + omegaI[GetLowerFaceI(ii,jj,kk,imax,jmax)] + 
+		       omegaJ[GetUpperFaceJ(ii,jj,kk,imax,jmax)] + omegaJ[GetLowerFaceJ(ii,jj,kk,imax,jmax)] +
+		       omegaK[GetUpperFaceK(ii,jj,kk,imax,jmax)] + omegaK[GetLowerFaceK(ii,jj,kk,imax,jmax)] );
 
 }
