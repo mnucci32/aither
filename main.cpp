@@ -14,14 +14,16 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include <iostream>      //cout, cerr, endl
+#include <iostream>      // cout, cerr, endl
+#include <vector>        // stl vector
+#include <algorithm>     // max_element
+#include <numeric>       // accumulate
+#include <fenv.h>
+#include <ctime>
 #include "plot3d.hpp"
 #include "vector3d.hpp"
 #include "tensor.hpp"
 #include "input.hpp"
-#include <vector>        //stl vector
-#include <algorithm>     //max_element
-#include <numeric>       //accumulate
 #include "procBlock.hpp"
 #include "inviscidFlux.hpp"
 #include "viscousFlux.hpp"
@@ -32,8 +34,6 @@
 #include "matrix.hpp"
 #include "parallel.hpp"
 #include "turbulence.hpp"
-#include <fenv.h>
-#include <ctime>
 
 using std::cout;
 using std::cerr;
@@ -42,18 +42,18 @@ using std::vector;
 using std::clock_t;
 using std::clock;
 
-int main( int argc, char *argv[] ) {
-
-  //initialize MPI and make calls to get number of processors and rank of each processor
+int main(int argc, char *argv[]) {
+  // initialize MPI and make calls to get number
+  // of processors and rank of each processor
   int numProcs, rank;
-  MPI_Init(&argc,&argv);
+  MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &numProcs);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-  //get MPI version
+  // get MPI version
   int version, subversion;
   MPI_Get_version(&version, &subversion);
-  if (rank == ROOT ){
+  if ( rank == ROOT ) {
     cout << "Using MPI Version " << version << "." << subversion << endl;
     cout << "Using " << numProcs << " processors" << endl;
   }
@@ -61,12 +61,13 @@ int main( int argc, char *argv[] ) {
 
   cout << "Hello from processor " << rank << " of " << numProcs << "!" << endl;
 
-  //start clock to time simulation
+  // start clock to time simulation
   clock_t start;
   double duration;
   start = clock();
 
-  feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW); //enable exceptions so code won't run with NANs
+  // enable exceptions so code won't run with NANs
+  feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
 
   double totalCells = 0.0;
   input inputVars;
