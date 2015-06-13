@@ -14,90 +14,88 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#ifndef TURBHEADERDEF             //only if the macro TURBHEADERDEF is not defined execute these lines of code
-#define TURBHEADERDEF             //define the macro
+#ifndef TURBHEADERDEF  // only if the macro TURBHEADERDEF is not defined execute
+                       // these lines of code
+#define TURBHEADERDEF  // define the macro
 
-/* This defines the classes for the turbulence  models implemented in the code. */
+/* This defines the classes for the turbulence  models implemented in the code.
+ */
 
-#include <vector>  //vector
-#include <string>  //string
-#include <math.h>       //sqrt
+#include <math.h>  // sqrt
+#include <vector>  // vector
+#include <string>  // string
 
 using std::vector;
 using std::string;
 
 class turbModel {
-  string eddyViscMethod;
+  string eddyViscMethod_;
 
  public:
-  //constructor
+  // constructor
   turbModel() {
     string temp = "boussinesq";
-    eddyViscMethod = temp;
+    eddyViscMethod_ = temp;
   }
- turbModel(const string &meth) : eddyViscMethod(meth) {}
+  explicit turbModel(const string &meth) : eddyViscMethod_(meth) {}
 
-  //member functions
-  virtual double BoussinesqEddyVisc()const=0;
-  virtual double TurbPrandtlNumber()const=0;
-  virtual double Eqn1EddyViscFactor()const=0;
-  virtual double Eqn2EddyViscFactor()const=0;
+  // member functions
+  virtual double BoussinesqEddyVisc() const = 0;
+  virtual double TurbPrandtlNumber() const = 0;
+  virtual double Eqn1EddyViscFactor() const = 0;
+  virtual double Eqn2EddyViscFactor() const = 0;
 
-  //destructor
+  // destructor
   virtual ~turbModel() {}
-
 };
-
 
 class turbNone : public turbModel {
-
  public:
-  //constructor
- turbNone() : turbModel() {}
+  // constructor
+  turbNone() : turbModel() {}
 
-  //member functions
-  virtual double BoussinesqEddyVisc()const{return 0.0;};
-  virtual double TurbPrandtlNumber()const{return 0.9;}
-  virtual double Eqn1EddyViscFactor()const{return 0.0;}
-  virtual double Eqn2EddyViscFactor()const{return 0.0;}
+  // member functions
+  virtual double BoussinesqEddyVisc() const {
+    return 0.0;
+  }
+  virtual double TurbPrandtlNumber() const { return 0.9; }
+  virtual double Eqn1EddyViscFactor() const { return 0.0; }
+  virtual double Eqn2EddyViscFactor() const { return 0.0; }
 
-  //destructor
+  // destructor
   virtual ~turbNone() {}
-
 };
 
-
 class turbKWWilcox : public turbModel {
-
  public:
-  //constructor
+  // constructor
   turbKWWilcox() : turbModel() {}
 
-  //member functions
-  virtual double BoussinesqEddyVisc() const {return 0.0;};
-  virtual double TurbPrandtlNumber() const {return 8.0/9.0;}
-  virtual double Eqn1EddyViscFactor() const {return (*this).SigmaStar();}
-  virtual double Eqn2EddyViscFactor() const {return (*this).Sigma();}
+  // member functions
+  virtual double BoussinesqEddyVisc() const {
+    return 0.0;
+  }
+  virtual double TurbPrandtlNumber() const { return 8.0 / 9.0; }
+  virtual double Eqn1EddyViscFactor() const { return (*this).SigmaStar(); }
+  virtual double Eqn2EddyViscFactor() const { return (*this).Sigma(); }
 
-  double Alpha() const {return 0.52;}
-  double BetaStar() const {return 0.09;}
-  double Sigma() const {return 0.5;}
-  double SigmaStar() const {return 0.6;}
-  double SigmaD0() const {return 0.125;}
-  double Beta0() const {return 0.0708;}
+  double Alpha() const { return 0.52; }
+  double BetaStar() const { return 0.09; }
+  double Sigma() const { return 0.5; }
+  double SigmaStar() const { return 0.6; }
+  double SigmaD0() const { return 0.125; }
+  double Beta0() const { return 0.0708; }
 
   double SigmaD() const;
-  double Xw() const ;
+  double Xw() const;
   double FBeta() const;
   double Beta() const;
   double StrainKI() const;
 
-  //destructor
+  // destructor
   virtual ~turbKWWilcox() {}
-
 };
 
-//function declarations
-
+// function declarations
 
 #endif

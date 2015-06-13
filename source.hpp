@@ -14,15 +14,17 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#ifndef SOURCEHEADERDEF             //only if the macro SOURCEHEADERDEF is not defined execute these lines of code
-#define SOURCEHEADERDEF             //define the macro
+#ifndef SOURCEHEADERDEF  // only if the macro SOURCEHEADERDEF is not defined
+                         // execute these lines of code
+#define SOURCEHEADERDEF  // define the macro
 
 /* This header contains the source class.
 
-   The source class stores the source terms for the Euler and Navier-Stokes equations. */
+   The source class stores the source terms for the Euler and Navier-Stokes
+   equations. */
 
-#include <vector>  //vector
-#include <string>  //string
+#include <vector>  // vector
+#include <string>  // string
 #include <iostream>
 #include "turbulence.hpp"
 #include "primVars.hpp"
@@ -36,47 +38,44 @@ using std::cerr;
 using std::ostream;
 
 class source {
-  double data[NUMVARS];        //source variables at cell center
+  double data_[NUMVARS];  // source variables at cell center
 
  public:
-  //constructors
-  source() : data{0.0} {}
+  // constructors
+  source() : data_{0.0} {}
 
-  //member functions
-  double SrcMass()const{return data[0];}
-  double SrcMomX()const{return data[1];}
-  double SrcMomY()const{return data[2];}
-  double SrcMomZ()const{return data[3];}
-  double SrcEngy()const{return data[4];}
-  double SrcTke()const{return data[5];}
-  double SrcOmg()const{return data[6];}
+  // member functions
+  double SrcMass() const { return data_[0]; }
+  double SrcMomX() const { return data_[1]; }
+  double SrcMomY() const { return data_[2]; }
+  double SrcMomZ() const { return data_[3]; }
+  double SrcEngy() const { return data_[4]; }
+  double SrcTke() const { return data_[5]; }
+  double SrcOmg() const { return data_[6]; }
 
-  void CalcTurbSrc(const turbModel*, const primVars&);
+  void CalcTurbSrc(const turbModel *, const primVars &);
 
-  //operator overloads for addition and subtraction of states
-  source operator + (const source&)const;
-  source operator - (const source&)const;
-  source operator * (const source&)const;
-  source operator / (const source&)const;
+  // operator overloads for addition and subtraction of states
+  source operator+(const source &) const;
+  source operator-(const source &) const;
+  source operator*(const source &) const;
+  source operator/(const source &) const;
 
-  source operator + (const double&);
-  source operator - (const double&);
-  source operator * (const double&);
-  source operator / (const double&);
+  source operator+(const double &);
+  source operator-(const double &);
+  source operator*(const double &);
+  source operator/(const double &);
 
-  friend source operator + (const double&, const source&);
-  friend source operator - (const double&, const source&);
-  friend source operator * (const double&, const source&);
-  friend source operator / (const double&, const source&);
-  friend ostream & operator<< (ostream &os, const source&);
+  friend source operator+(const double &, const source &);
+  friend source operator-(const double &, const source &);
+  friend source operator*(const double &, const source &);
+  friend source operator/(const double &, const source &);
+  friend ostream &operator<<(ostream &os, const source &);
 
-  //destructor
+  // destructor
   ~source() {}
-
 };
 
-//function definitions
-
-
+// function definitions
 
 #endif

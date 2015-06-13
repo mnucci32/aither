@@ -14,12 +14,12 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include <cstdlib>      //exit()
+#include <cstdlib>   // exit()
+#include <iostream>  // cout
 #include "turbulence.hpp"
-#include <iostream>     //cout
 
 using std::cout;
 using std::endl;
 using std::cerr;
 
-//constructor
+// constructor

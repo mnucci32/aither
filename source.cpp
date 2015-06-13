@@ -14,11 +14,11 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "source.hpp"
 #include <iostream>
 #include <vector>
 #include <string>
 #include <cmath>
+#include "source.hpp"
 
 using std::cout;
 using std::endl;
@@ -26,123 +26,121 @@ using std::cerr;
 using std::vector;
 using std::string;
 
-//operator overload for << - allows use of cout, cerr, etc.
-ostream & operator<< (ostream &os, const source &src){
-  for ( int ii = 0; ii < NUMVARS; ii++ ){
-    os << src.data[ii];
-    if (ii != NUMVARS - 1){
-      os << ", " ;
+// operator overload for << - allows use of cout, cerr, etc.
+ostream &operator<<(ostream &os, const source &src) {
+  for (int ii = 0; ii < NUMVARS; ii++) {
+    os << src.data_[ii];
+    if (ii != NUMVARS - 1) {
+      os << ", ";
     }
   }
   return os;
 }
 
-//operator overload for addition
-source source::operator + (const source& src2)const{
+// operator overload for addition
+source source::operator+(const source &src2) const {
   source src1 = *this;
-  for ( int ii = 0; ii < NUMVARS; ii++ ){
-    src1.data[ii] += src2.data[ii];
+  for (int ii = 0; ii < NUMVARS; ii++) {
+    src1.data_[ii] += src2.data_[ii];
   }
   return src1;
 }
 
-//operator overload for addition with a scalar
-source operator+ (const double &scalar, const source &src2){
+// operator overload for addition with a scalar
+source operator+(const double &scalar, const source &src2) {
   source src1;
-  for ( int ii = 0; ii < NUMVARS; ii++ ){
-    src1.data[ii] = src2.data[ii] + scalar;
+  for (int ii = 0; ii < NUMVARS; ii++) {
+    src1.data_[ii] = src2.data_[ii] + scalar;
   }
   return src1;
 }
 
-//operator overload for subtraction
-source source::operator - (const source& src2)const{
+// operator overload for subtraction
+source source::operator-(const source &src2) const {
   source src1 = *this;
-  for ( int ii = 0; ii < NUMVARS; ii++ ){
-    src1.data[ii] -= src2.data[ii];
+  for (int ii = 0; ii < NUMVARS; ii++) {
+    src1.data_[ii] -= src2.data_[ii];
   }
   return src1;
 }
 
-//operator overload for subtraction with a scalar
-source operator- (const double &scalar, const source &src2){
+// operator overload for subtraction with a scalar
+source operator-(const double &scalar, const source &src2) {
   source src1;
-  for ( int ii = 0; ii < NUMVARS; ii++ ){
-    src1.data[ii] = scalar - src2.data[ii];
+  for (int ii = 0; ii < NUMVARS; ii++) {
+    src1.data_[ii] = scalar - src2.data_[ii];
   }
   return src1;
 }
 
-//operator overload for elementwise multiplication
-source source::operator * (const source& src2)const{
+// operator overload for elementwise multiplication
+source source::operator*(const source &src2) const {
   source src1 = *this;
-  for ( int ii = 0; ii < NUMVARS; ii++ ){
-    src1.data[ii] *= src2.data[ii];
+  for (int ii = 0; ii < NUMVARS; ii++) {
+    src1.data_[ii] *= src2.data_[ii];
   }
   return src1;
 }
 
-//member function for scalar multiplication
-source  source::operator * (const double &scalar){
+// member function for scalar multiplication
+source source::operator*(const double &scalar) {
   source temp = *this;
-  for ( int ii = 0; ii < NUMVARS; ii++ ){
-    temp.data[ii] *= scalar;
+  for (int ii = 0; ii < NUMVARS; ii++) {
+    temp.data_[ii] *= scalar;
   }
   return temp;
 }
 
-//member function for scalar addition
-source  source::operator + (const double &scalar){
+// member function for scalar addition
+source source::operator+(const double &scalar) {
   source temp = *this;
-  for ( int ii = 0; ii < NUMVARS; ii++ ){
-    temp.data[ii] += scalar;
+  for (int ii = 0; ii < NUMVARS; ii++) {
+    temp.data_[ii] += scalar;
   }
   return temp;
 }
 
-//member function for scalar subtraction
-source  source::operator - (const double &scalar){
+// member function for scalar subtraction
+source source::operator-(const double &scalar) {
   source temp = *this;
-  for ( int ii = 0; ii < NUMVARS; ii++ ){
-    temp.data[ii] -= scalar;
+  for (int ii = 0; ii < NUMVARS; ii++) {
+    temp.data_[ii] -= scalar;
   }
   return temp;
 }
 
-//member function for scalar division
-source  source::operator / (const double &scalar){
+// member function for scalar division
+source source::operator/(const double &scalar) {
   source temp = *this;
-  for ( int ii = 0; ii < NUMVARS; ii++ ){
-    temp.data[ii] /= scalar;
+  for (int ii = 0; ii < NUMVARS; ii++) {
+    temp.data_[ii] /= scalar;
   }
   return temp;
 }
 
-//operator overload for multiplication with a scalar
-source operator* (const double &scalar, const source &src2){
+// operator overload for multiplication with a scalar
+source operator*(const double &scalar, const source &src2) {
   source src1;
-  for ( int ii = 0; ii < NUMVARS; ii++ ){
-    src1.data[ii] = src2.data[ii] * scalar;
+  for (int ii = 0; ii < NUMVARS; ii++) {
+    src1.data_[ii] = src2.data_[ii] * scalar;
   }
   return src1;
 }
 
-//operator overload for elementwise division
-source source::operator / (const source& src2)const{
+// operator overload for elementwise division
+source source::operator/(const source &src2) const {
   source src1 = *this;
-  for ( int ii = 0; ii < NUMVARS; ii++ ){
-    src1.data[ii] /= src2.data[ii];
+  for (int ii = 0; ii < NUMVARS; ii++) {
+    src1.data_[ii] /= src2.data_[ii];
   }
   return src1;
 }
 
-//operator overload for division with a scalar
-source operator/ (const double &scalar, const source &src2){
+// operator overload for division with a scalar
+source operator/(const double &scalar, const source &src2) {
   source src1;
-  for ( int ii = 0; ii < NUMVARS; ii++ ){
-    src1.data[ii] = scalar / src2.data[ii];
+  for (int ii = 0; ii < NUMVARS; ii++) {
+    src1.data_[ii] = scalar / src2.data_[ii];
   }
   return src1;
 }
-
-
