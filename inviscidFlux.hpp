@@ -14,16 +14,17 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#ifndef INVFLUXHEADERDEF             //only if the macro INVFLUXHEADERDEF is not defined execute these lines of code
-#define INVFLUXHEADERDEF             //define the macro
+#ifndef INVFLUXHEADERDEF  // only if the macro INVFLUXHEADERDEF is not defined
+                          // execute these lines of code
+#define INVFLUXHEADERDEF  // define the macro
 
-#include <vector>  //vector
-#include <string>  //string
-#include "vector3d.hpp" //vector3d
-#include "eos.hpp"  //idealGas
-#include "primVars.hpp" //primVars
-#include "input.hpp" //input
-#include <iostream> //cout
+#include <vector>        // vector
+#include <string>        // string
+#include <iostream>      // cout
+#include "vector3d.hpp"  // vector3d
+#include "eos.hpp"       // idealGas
+#include "primVars.hpp"  // primVars
+#include "input.hpp"     // input
 #include "matrix.hpp"
 #include "macros.hpp"
 
@@ -35,54 +36,56 @@ using std::cerr;
 using std::ostream;
 
 class inviscidFlux {
-  double data[NUMVARS];           //rho dot velocity vector
-                                  //rho dot velocity vector * u-velocity + pressure * i-dir-vector
-                                  //rho dot velocity vector * v-velocity + pressure * j-dir-vector
-                                  //rho dot velocity vector * w-velocity + pressure * k-dir-vector
-                                  //rho dot velocity vector * enthalpy
+  double data_[NUMVARS];  // rho dot velocity vector
+  // rho dot velocity vector * u-velocity + pressure * i-dir-vector
+  // rho dot velocity vector * v-velocity + pressure * j-dir-vector
+  // rho dot velocity vector * w-velocity + pressure * k-dir-vector
+  // rho dot velocity vector * enthalpy
 
  public:
-  //constructors
-  inviscidFlux() : data{0.0} {}
-  inviscidFlux( const primVars&, const idealGas&, const vector3d<double>& );
-  inviscidFlux( const genArray&, const idealGas&, const vector3d<double>& );
+  // constructors
+  inviscidFlux() : data_{0.0} {}
+  inviscidFlux(const primVars&, const idealGas&, const vector3d<double>&);
+  inviscidFlux(const genArray&, const idealGas&, const vector3d<double>&);
 
-  //member functions
-  double RhoVel() const {return data[0];}
-  double RhoVelU() const {return data[1];}
-  double RhoVelV() const {return data[2];}
-  double RhoVelW() const {return data[3];}
-  double RhoVelH() const {return data[4];}
-  double RhoVelK() const {return data[5];}
-  double RhoVelO() const {return data[6];}
+  // member functions
+  double RhoVel() const { return data_[0]; }
+  double RhoVelU() const { return data_[1]; }
+  double RhoVelV() const { return data_[2]; }
+  double RhoVelW() const { return data_[3]; }
+  double RhoVelH() const { return data_[4]; }
+  double RhoVelK() const { return data_[5]; }
+  double RhoVelO() const { return data_[6]; }
 
-  void RoeFlux( const inviscidFlux&, const genArray& );
+  void RoeFlux(const inviscidFlux&, const genArray&);
 
-  inviscidFlux operator * (const double&);
-  inviscidFlux operator / (const double&);
+  inviscidFlux operator*(const double&);
+  inviscidFlux operator/(const double&);
 
-  inviscidFlux operator + (const inviscidFlux&)const;
-  inviscidFlux operator - (const inviscidFlux&)const;
+  inviscidFlux operator+(const inviscidFlux&) const;
+  inviscidFlux operator-(const inviscidFlux&) const;
 
-  friend ostream & operator<< (ostream &os, inviscidFlux&);
-  friend inviscidFlux operator * (const double&, const inviscidFlux&);
-  friend inviscidFlux operator / (const double&, const inviscidFlux&);
+  friend ostream& operator<<(ostream& os, inviscidFlux&);
+  friend inviscidFlux operator*(const double&, const inviscidFlux&);
+  friend inviscidFlux operator/(const double&, const inviscidFlux&);
 
-  genArray ConvertToGenArray()const;
+  genArray ConvertToGenArray() const;
 
-  //destructor
+  // destructor
   ~inviscidFlux() {}
-
 };
 
-//function definitions
-//function to calculate Roe flux with entropy fix
-inviscidFlux RoeFlux( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double& );                  
+// function definitions
+// function to calculate Roe flux with entropy fix
+inviscidFlux RoeFlux(const primVars&, const primVars&, const idealGas&,
+                     const vector3d<double>&, double&);
 
-//function to calculate Roe flux with entropy fix for implicit methods
-void ApproxRoeFluxJacobian( const primVars&, const primVars&, const idealGas&, const vector3d<double>&, double&, squareMatrix&, squareMatrix& );                  
+// function to calculate Roe flux with entropy fix for implicit methods
+void ApproxRoeFluxJacobian(const primVars&, const primVars&, const idealGas&,
+                           const vector3d<double>&, double&, squareMatrix&,
+                           squareMatrix&);
 
-genArray ConvectiveFluxUpdate( const primVars&, const idealGas &, const vector3d<double> &, const genArray&);
-
+genArray ConvectiveFluxUpdate(const primVars&, const idealGas&,
+                              const vector3d<double>&, const genArray&);
 
 #endif

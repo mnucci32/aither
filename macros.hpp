@@ -14,9 +14,9 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#ifndef MACROSHEADERDEF             //only if the macro MACROSHEADERDEF is not defined execute these lines of code
-#define MACROSHEADERDEF             //define the macro
-
+#ifndef MACROSHEADERDEF  // only if the macro MACROSHEADERDEF is not defined
+                         // execute these lines of code
+#define MACROSHEADERDEF  // define the macro
 
 #define ROOT 0
 #define NUMVARS 7
