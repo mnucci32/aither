@@ -159,7 +159,7 @@ int main(int argc, char *argv[]) {
                   MPI_interblock, MPI_DOUBLE_5INT);
 
   // Send number of procBlocks to all processors
-  SendNumProcBlocks(decomp.NumBlocksOnAllProc(), rank, numProcBlock);
+  SendNumProcBlocks(decomp.NumBlocksOnAllProc(), numProcBlock);
 
   // Send procBlocks to appropriate processor
   vector<procBlock> localStateBlocks =
