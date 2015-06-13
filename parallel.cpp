@@ -17,8 +17,8 @@
 #include <algorithm>  // max_element
 #include <iterator>   // distance
 #include <cstring>
-#include <vector>     // vector
-#include <string>     // string
+#include <vector>  // vector
+#include <string>  // string
 #include "parallel.hpp"
 #include "output.hpp"
 
@@ -38,7 +38,7 @@ decomposition ManualDecomposition(vector<plot3dBlock> &grid,
   // bcs -- vector of boundary conditions for each block in grid
   // numProc -- number of processors in run
 
-  if (static_cast<int> (grid.size()) != numProc) {
+  if (static_cast<int>(grid.size()) != numProc) {
     cerr << "ERROR: Error in parallel.cpp:ManualDecomposition(). Manual "
             "decomposition assumes that the number of processors used is equal "
             "to the "
@@ -336,7 +336,7 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
   //------------------------------------------------------------------------
   if (rank == ROOT) {  // may have to pack and send data
     for (unsigned int ii = 0; ii < blocks.size();
-         ii++) {  // loop over ALL blocks
+         ii++) {                        // loop over ALL blocks
       if (blocks[ii].Rank() == ROOT) {  // no need to send data because it is
                                         // already on ROOT processor
         localBlocks[blocks[ii].LocalPosition()] = blocks[ii];
@@ -383,7 +383,7 @@ void GetProcBlocks(vector<procBlock> &blocks,
   //--------------------------------------------------------------------------
   if (rank == ROOT) {  // may have to recv and unpack data
     for (unsigned int ii = 0; ii < blocks.size();
-         ii++) {  // loop over ALL blocks
+         ii++) {                        // loop over ALL blocks
       if (blocks[ii].Rank() == ROOT) {  // no need to recv data because it is
                                         // already on ROOT processor
         // assign local state block to global state block in order of local
@@ -393,9 +393,9 @@ void GetProcBlocks(vector<procBlock> &blocks,
         blocks[ii].RecvUnpackSolMPI(MPI_cellData);
       }
     }
-  //---------------------------------------------------------------------------
-  //                                   NON - ROOT
-  //---------------------------------------------------------------------------
+    //-------------------------------------------------------------------------
+    //                                   NON - ROOT
+    //-------------------------------------------------------------------------
   } else {  // pack and send data (non-root)
     // get vector of local positions
     vector<int> localPos_(localBlocks.size());
@@ -502,8 +502,8 @@ double decomposition::IdealLoad(const vector<plot3dBlock> &grid) const {
     totalCells += grid[ii].NumCells();
   }
 
-  return static_cast<double> (totalCells) /
-      static_cast<double> ((*this).numProcs);
+  return static_cast<double>(totalCells) /
+         static_cast<double>((*this).numProcs);
 }
 
 /*Member function to determine the maximum load (number of cells) on a
@@ -517,7 +517,7 @@ double decomposition::MaxLoad(const vector<plot3dBlock> &grid) const {
     load[(*this).rank_[ii]] += grid[ii].NumCells();
   }
 
-  return static_cast<double> (*max_element(load.begin(), load.end()));
+  return static_cast<double>(*max_element(load.begin(), load.end()));
 }
 
 /*Member function to determine the minimum load (number of cells) on a
@@ -531,7 +531,7 @@ double decomposition::MinLoad(const vector<plot3dBlock> &grid) const {
     load[(*this).rank_[ii]] += grid[ii].NumCells();
   }
 
-  return static_cast<double> (*min_element(load.begin(), load.end()));
+  return static_cast<double>(*min_element(load.begin(), load.end()));
 }
 
 /*Member function to determine the index of the maximum loaded (number of cells)
@@ -633,7 +633,7 @@ void decomposition::Split(const int &low, const int &ind, const string &dir) {
                                                             // than current max
                                                             // index)
   (*this).splitHistIndex_.push_back(ind);  // assign index of split
-  (*this).splitHistDir_.push_back(dir);  // assign split direction (given)
+  (*this).splitHistDir_.push_back(dir);    // assign split direction (given)
 
   (*this).rank_.push_back((*this).rank_[low]);  // rank of upper portion of
                                                 // split block is same as lower
@@ -679,7 +679,7 @@ double decomposition::ProcLoad(const vector<plot3dBlock> &grid,
       load += grid[ii].NumCells();
     }
   }
-  return static_cast<double> (load);
+  return static_cast<double>(load);
 }
 
 double decomposition::LoadRatio(const vector<plot3dBlock> &grid,
@@ -719,12 +719,10 @@ int decomposition::SendWholeOrSplit(const vector<plot3dBlock> &grid,
   // ratios
   for (unsigned int ii = 0; ii < grid.size(); ii++) {
     if ((*this).rank_[ii] == send) {
-      double newSendRatio =
-          fabs(1.0 - (sendLoad - static_cast<double> (grid[ii].NumCells()))
-               / ideal);
-      double newRecvRatio =
-          fabs(1.0 - (recvLoad + static_cast<double> (grid[ii].NumCells()))
-               / ideal);
+      double newSendRatio = fabs(
+          1.0 - (sendLoad - static_cast<double>(grid[ii].NumCells())) / ideal);
+      double newRecvRatio = fabs(
+          1.0 - (recvLoad + static_cast<double>(grid[ii].NumCells())) / ideal);
       if (newSendRatio < sendRatio &&
           newRecvRatio < recvRatio) {  // can send whole block
         blk = ii;
@@ -751,8 +749,7 @@ int decomposition::SendWholeOrSplit(const vector<plot3dBlock> &grid,
       grid[blk].NumK() >= grid[blk].NumI()) {
     dir = "k";
     // -1 to get cell sizes
-    planeSize =
-        (grid[blk].NumJ() - 1) * (grid[blk].NumI() - 1);
+    planeSize = (grid[blk].NumJ() - 1) * (grid[blk].NumI() - 1);
     splitLen = grid[blk].NumK();
   } else if (grid[blk].NumJ() >= grid[blk].NumI()) {
     dir = "j";
@@ -772,9 +769,9 @@ int decomposition::SendWholeOrSplit(const vector<plot3dBlock> &grid,
   // passing - ind is the face index to split at
   for (int ii = 2; ii < splitLen - 2; ii++) {
     double newSendRatio =
-        fabs(1.0 - (sendLoad - static_cast<double> (planeSize * ii)) / ideal);
+        fabs(1.0 - (sendLoad - static_cast<double>(planeSize * ii)) / ideal);
     double newRecvRatio =
-        fabs(1.0 - (recvLoad + static_cast<double> (planeSize * ii)) / ideal);
+        fabs(1.0 - (recvLoad + static_cast<double>(planeSize * ii)) / ideal);
     if (newSendRatio < sendRatio &&
         newRecvRatio < recvRatio) {  // can send block at index
       sendRatio = newSendRatio;
