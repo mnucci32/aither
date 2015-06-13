@@ -14,11 +14,12 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#ifndef INPUTHEADERDEF             //only if the macro INPUTHEADERDEF is not defined execute these lines of code
-#define INPUTHEADERDEF             //define the macro
+#ifndef INPUTHEADERDEF  // only if the macro INPUTHEADERDEF is not defined
+                        // execute these lines of code
+#define INPUTHEADERDEF  // define the macro
 
-#include <vector>  //vector
-#include <string>  //string
+#include <vector>  // vector
+#include <string>  // string
 #include "vector3d.hpp"
 #include "boundaryConditions.hpp"
 
@@ -26,117 +27,121 @@ using std::vector;
 using std::string;
 
 class input {
-
-  string gName;                         //grid file name
-  double dt;                            //time step
-  int iterations;                       //number of iterations
-  vector<string> vars;                  //variable names that are regcognized by the input file parser
-  double pRef;                          //reference pressure
-  double rRef;                          //reference density
-  double lRef;                          //reference length
-  double gamma;                         //ratio of specific heats
-  double gasConst;                      //gas constant of fluid
-  vector3d<double> velRef;              //reference velocity
-  vector<boundaryConditions> bc;        //vector of boundary conditions for each block
-  string timeIntegration;               //time integration method
-  double cfl;                           //cfl number for local time stepping
-  double kappa;                         //kappa paramenter for MUSCL face reconstruction
-  string limiter;                       //limiter to use in higher order calculations
-  int outputFrequency;                  //how often to output results
-  string equationSet;                   //which set of equations to solver Euler/Navier-Stokes
-  double tRef;                          //reference temperature
-  string matrixSolver;                  //matrix solver to solve Ax=b
-  int matrixSweeps;                     //number of sweeps for matrix solver
-  double matrixRelaxation;              //relaxation parameter for matrix solver
-  double timeIntTheta;                  //beam and warming time integration parameter
-  double timeIntZeta;                   //beam and warming time integration parameter
-  int nonlinearIterations;              //number of nonlinear iterations for time accurate scheme
-  double cflMax;                        //maximum cfl value
-  double cflStep;                       //cfl step size for ramp
-  double cflStart;                      //starting cfl number
-  string invFluxJac;                    //inviscid flux jacobian
-  double dualTimeCFL;                   //cfl number for dual time
-  string inviscidFlux;                  //scheme for inviscid flux calculation
-  double stagInletProps[6];             //vector of stagnation inlet properties
-  double pressureOutlet[2];             //vector of pressure outlet properties
-  string decompMethod;                  //method of decomposition for parallel problems
-  string turbModel;                     //turbulence model
+  string gName_;  // grid file name
+  double dt_;  // time step
+  int iterations_;  // number of iterations
+// variable names that are regcognized by the input file
+  vector<string> vars_;
+                        // parser
+  double pRef_;  // reference pressure
+  double rRef_;  // reference density
+  double lRef_;  // reference length
+  double gamma_;  // ratio of specific heats
+  double gasConst_;  // gas constant of fluid
+  vector3d<double> velRef_;  // reference velocity
+  vector<boundaryConditions> bc_;  // vector of boundary conditions for each
+                                  // block
+  string timeIntegration_;  // time integration method
+  double cfl_;  // cfl number for local time stepping
+  double kappa_;  // kappa paramenter for MUSCL face reconstruction
+  string limiter_;  // limiter to use in higher order calculations
+  int outputFrequency_;  // how often to output results
+  string equationSet_;  // which set of equations to solver Euler/Navier-Stokes
+  double tRef_;  // reference temperature
+  string matrixSolver_;  // matrix solver to solve Ax=b
+  int matrixSweeps_;  // number of sweeps for matrix solver
+  double matrixRelaxation_;  // relaxation parameter for matrix solver
+  double timeIntTheta_;  // beam and warming time integration parameter
+  double timeIntZeta_;  // beam and warming time integration parameter
+  int nonlinearIterations_;  // number of nonlinear iterations for time accurate
+                            // scheme
+  double cflMax_;  // maximum cfl_ value
+  double cflStep_;  // cfl_ step size for ramp
+  double cflStart_;  // starting cfl_ number
+  string invFluxJac_;  // inviscid flux jacobian
+  double dualTimeCFL_;  // cfl_ number for dual time
+  string inviscidFlux_;  // scheme for inviscid flux calculation
+  double stagInletProps_[6];  // vector of stagnation inlet properties
+  double pressureOutlet_[2];  // vector of pressure outlet properties
+  string decompMethod_;  // method of decomposition for parallel problems
+  string turbModel_;  // turbulence model
 
  public:
-  //constructor
+  // constructor
   input();
 
-  //member functions
-  string GridName()const{return gName;}
+  // member functions
+  string GridName() const { return gName_; }
 
-  double Dt()const{return dt;}
+  double Dt() const { return dt_; }
 
-  int Iterations()const{return iterations;}
+  int Iterations() const { return iterations_; }
 
-  double PRef()const{return pRef;}
-  double RRef()const{return rRef;}
-  double LRef()const{return lRef;}
-  double TRef()const{return tRef;}
+  double PRef() const { return pRef_; }
+  double RRef() const { return rRef_; }
+  double LRef() const { return lRef_; }
+  double TRef() const { return tRef_; }
 
-  double Gamma()const{return gamma;}
-  double R()const{return gasConst;}
+  double Gamma() const { return gamma_; }
+  double R() const { return gasConst_; }
 
-  vector3d<double> VelRef()const{return velRef;}
+  vector3d<double> VelRef() const { return velRef_; }
 
-  boundaryConditions BC(const int &ind)const{return bc[ind];}
-  vector<boundaryConditions> AllBC()const{return bc;}
-  int NumBC()const{return bc.size();}
+  boundaryConditions BC(const int &ind) const { return bc_[ind]; }
+  vector<boundaryConditions> AllBC() const { return bc_; }
+  int NumBC() const { return bc_.size(); }
 
-  string TimeIntegration()const{return timeIntegration;}
+  string TimeIntegration() const { return timeIntegration_; }
 
-  double CFL()const{return cfl;}
+  double CFL() const { return cfl_; }
   void CalcCFL(const int &i);
 
-  double Kappa()const{return kappa;}
+  double Kappa() const { return kappa_; }
 
-  string Limiter()const{return limiter;}
+  string Limiter() const { return limiter_; }
 
-  int OutputFrequency()const{return outputFrequency;}
+  int OutputFrequency() const { return outputFrequency_; }
 
-  string EquationSet()const{return equationSet;}
+  string EquationSet() const { return equationSet_; }
 
-  string MatrixSolver()const{return matrixSolver;}
-  int MatrixSweeps()const{return matrixSweeps;}
-  double MatrixRelaxation()const{return matrixRelaxation;}
+  string MatrixSolver() const { return matrixSolver_; }
+  int MatrixSweeps() const { return matrixSweeps_; }
+  double MatrixRelaxation() const { return matrixRelaxation_; }
 
-  double Theta()const{return timeIntTheta;}
+  double Theta() const { return timeIntTheta_; }
 
-  double Zeta()const{return timeIntZeta;}
+  double Zeta() const { return timeIntZeta_; }
 
-  int NonlinearIterations()const{return nonlinearIterations;}
+  int NonlinearIterations() const { return nonlinearIterations_; }
 
-  double CFLMax()const{return cflMax;}
-  double CFLStep()const{return cflStep;}
-  double CFLStart()const{return cflStart;}
+  double CFLMax() const { return cflMax_; }
+  double CFLStep() const { return cflStep_; }
+  double CFLStart() const { return cflStart_; }
 
-  string InvFluxJac()const{return invFluxJac;}
+  string InvFluxJac() const { return invFluxJac_; }
 
-  double DualTimeCFL()const{return dualTimeCFL;}
+  double DualTimeCFL() const { return dualTimeCFL_; }
 
-  string InviscidFlux()const{return inviscidFlux;}
+  string InviscidFlux() const { return inviscidFlux_; }
 
-  int StagInletTag()const{return (int)stagInletProps[0];}
-  double StagInletP0()const{return stagInletProps[1];}
-  double StagInletT0()const{return stagInletProps[2];}
-  double StagInletDx()const{return stagInletProps[3];}
-  double StagInletDy()const{return stagInletProps[4];}
-  double StagInletDz()const{return stagInletProps[5];}
+  int StagInletTag() const { return static_cast<int> (stagInletProps_[0]); }
+  double StagInletP0() const { return stagInletProps_[1]; }
+  double StagInletT0() const { return stagInletProps_[2]; }
+  double StagInletDx() const { return stagInletProps_[3]; }
+  double StagInletDy() const { return stagInletProps_[4]; }
+  double StagInletDz() const { return stagInletProps_[5]; }
 
-  int PressureOutletTag()const{return (int)pressureOutlet[0];}
-  double PressureOutletP()const{return pressureOutlet[1];}
+  int PressureOutletTag() const {
+    return static_cast<int> (pressureOutlet_[0]); }
+  double PressureOutletP() const { return pressureOutlet_[1]; }
 
-  string DecompMethod()const{return decompMethod;}
-  string TurbulenceModel()const{return turbModel;}
+  string DecompMethod() const { return decompMethod_; }
+  string TurbulenceModel() const { return turbModel_; }
 
-  string Vars(const int &ind)const{return vars[ind];}
+  string Vars(const int &ind) const { return vars_[ind]; }
 
-  int NumVars()const{return vars.size();}
-  int NumEquations()const;
+  int NumVars() const { return vars_.size(); }
+  int NumEquations() const;
 
   void ReadInput(const string &, const int &);
 
@@ -146,13 +151,11 @@ class input {
 
   string OrderOfAccuracy() const;
 
-  //destructor
+  // destructor
   ~input() {}
-
 };
 
-//function declarations
+// function declarations
 void PrintTime();
-
 
 #endif
