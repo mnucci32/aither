@@ -585,6 +585,8 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
   resFile << writeName << " F 0010 procRank" << endl;
   resFile << writeName << " F 0011 procBlockID" << endl;
   resFile << writeName << " F 0012 viscRatio" << endl;
+  resFile << writeName << " F 0013 tke" << endl;
+  resFile << writeName << " F 0014 omega" << endl;
   resFile << writeName << " F 0002 0003 0004 velocity" << endl;
 
   // Close results file
