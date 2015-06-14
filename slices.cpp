@@ -14,10 +14,10 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "procBlock.hpp"
 #include <iostream>
 #include <vector>
 #include <string>
+#include "procBlock.hpp"
 
 using std::cout;
 using std::endl;
@@ -25,147 +25,172 @@ using std::cerr;
 using std::vector;
 using std::string;
 
+// constructors for geomSlice class
+geomSlice::geomSlice() {
+  numCells_ = 1;
+  numI_ = 1;
+  numJ_ = 1;
+  numK_ = 1;
+  parBlock_ = 0;
 
-//constructors for geomSlice class
-geomSlice::geomSlice(){
-  numCells = 1;
-  numI = 1;
-  numJ = 1;
-  numK = 1;
-  parBlock = 0;
+  int numFaces = (numI_ + 1) * (numJ_) * (numK_);
 
-  int numFaces = (numI+1)*(numJ)*(numK);  
+  // dummy vector variable length of number of faces
+  vector<vector3d<double> > vec1(numFaces);
+  // dummy vector variable length of number of cells
+  vector<vector3d<double> > vec2(numCells_);
+  // dummy scalar variable length of number of cells
+  vector<double> scalar(numCells_);
 
-  vector<vector3d<double> > vec1(numFaces);                 //dummy vector variable length of number of faces
-  vector<vector3d<double> > vec2(numCells);                 //dummy vector variable length of number of cells
-  vector<double> scalar(numCells);                          //dummy scalar variable length of number of cells
+  center_ = vec2;
+  fAreaI_ = vec1;
+  fAreaJ_ = vec1;
+  fAreaK_ = vec1;
+  fCenterI_ = vec1;
+  fCenterJ_ = vec1;
+  fCenterK_ = vec1;
 
-  center = vec2;
-  fAreaI = vec1;
-  fAreaJ = vec1;
-  fAreaK = vec1;
-  fCenterI = vec1;
-  fCenterJ = vec1;
-  fCenterK = vec1;
-
-  vol = scalar;
-
+  vol_ = scalar;
 }
-//constructor -- initialize state vector with dummy variables
-geomSlice::geomSlice( const int &li, const int &lj, const int &lk, const int &pblk ){
+
+// constructor -- initialize state_ vector with dummy variables
+geomSlice::geomSlice(const int &li, const int &lj, const int &lk,
+                     const int &pblk) {
   // li -- size of direction i (cell)
   // lj -- size of direction j (cell)
   // lk -- size of direction k (cell)
   // pblk -- parent block that slice is coming from
 
-  numI = li;
-  numJ = lj;
-  numK = lk;
+  numI_ = li;
+  numJ_ = lj;
+  numK_ = lk;
 
-  numCells = li * lj * lk;
+  numCells_ = li * lj * lk;
 
-  parBlock = pblk;
+  parBlock_ = pblk;
 
-  int numIFaces = (numI+1)*(numJ)*(numK);  
-  int numJFaces = (numI)*(numJ+1)*(numK);  
-  int numKFaces = (numI)*(numJ)*(numK+1);  
+  int numIFaces = (numI_ + 1) * (numJ_) * (numK_);
+  int numJFaces = (numI_) * (numJ_ + 1) * (numK_);
+  int numKFaces = (numI_) * (numJ_) * (numK_ + 1);
 
-  vector<vector3d<double> > vecIFaces(numIFaces);                 //dummy vector variable length of number of faces
-  vector<vector3d<double> > vecJFaces(numJFaces);                 //dummy vector variable length of number of faces
-  vector<vector3d<double> > vecKFaces(numKFaces);                 //dummy vector variable length of number of faces
+  // dummy vector variable length of number of faces
+  vector<vector3d<double> > vecIFaces(numIFaces);
+  // dummy vector variable length of number of faces
+  vector<vector3d<double> > vecJFaces(numJFaces);
+  // dummy vector variable length of number of faces
+  vector<vector3d<double> > vecKFaces(numKFaces);
 
-  vector<vector3d<double> > vecCells(numCells);                   //dummy vector variable length of number of cells
-  vector<double> scalar(numCells);                                //dummy scalar variable length of number of cells
+  // dummy vector variable length of number of cells
+  vector<vector3d<double> > vecCells(numCells_);
+  // dummy scalar variable length of number of cells
+  vector<double> scalar(numCells_);
 
-  center = vecCells;
-  fAreaI = vecIFaces;
-  fAreaJ = vecJFaces;
-  fAreaK = vecKFaces;
-  fCenterI = vecIFaces;
-  fCenterJ = vecJFaces;
-  fCenterK = vecKFaces;
+  center_ = vecCells;
+  fAreaI_ = vecIFaces;
+  fAreaJ_ = vecJFaces;
+  fAreaK_ = vecKFaces;
+  fCenterI_ = vecIFaces;
+  fCenterJ_ = vecJFaces;
+  fCenterK_ = vecKFaces;
 
-  vol = scalar;
-
+  vol_ = scalar;
 }
 
-//constructors for stateSlice class
-stateSlice::stateSlice(){
-  numCells = 1;
-  numI = 1;
-  numJ = 1;
-  numK = 1;
-  parBlock = 0;
+// constructors for stateSlice class
+stateSlice::stateSlice() {
+  numCells_ = 1;
+  numI_ = 1;
+  numJ_ = 1;
+  numK_ = 1;
+  parBlock_ = 0;
 
-  vector<primVars> prims(numCells);                          //dummy primVars variable length of number of cells
+  // dummy primVars variable length of number of cells
+  vector<primVars> prims(numCells_);
 
-  state = prims;
-
+  state_ = prims;
 }
-//constructor -- initialize state vector with dummy variables
-stateSlice::stateSlice( const int &li, const int &lj, const int &lk, const int &pblk ){
+// constructor -- initialize state vector with dummy variables
+stateSlice::stateSlice(const int &li, const int &lj, const int &lk,
+                       const int &pblk) {
   // li -- size of direction i
   // lj -- size of direction j
   // lk -- size of direction k
   // pblk -- parent block that slice is coming from
 
-  numI = li;
-  numJ = lj;
-  numK = lk;
+  numI_ = li;
+  numJ_ = lj;
+  numK_ = lk;
 
-  numCells = li * lj * lk;
+  numCells_ = li * lj * lk;
 
-  parBlock = pblk;
+  parBlock_ = pblk;
 
-  vector<primVars> prims(numCells);                                //dummy primVars variable length of number of cells
+  // dummy primVars variable length of number of cells
+  vector<primVars> prims(numCells_);
 
-  state = prims;
-
+  state_ = prims;
 }
 
-/*Member function to pack a stateslice into a buffer, swap it with its interblock partner, and then unpack it into a stateslice.*/
-void stateSlice::PackSwapUnpackMPI( const interblock &inter, const MPI_Datatype &MPI_cellData, const int &rank ) {
+/*Member function to pack a stateslice into a buffer, swap it with its
+ * interblock partner, and then unpack it into a stateslice.*/
+void stateSlice::PackSwapUnpackMPI(const interblock &inter,
+                                   const MPI_Datatype &MPI_cellData,
+                                   const int &rank) {
   // inter -- interblock boundary for the swap
-  // MPI_cellData -- MPI datatype to pass cell state data
+  // MPI_cellData -- MPI datatype to pass cell state_ data
   // rank -- processor rank
 
-  //swap with mpi_send_recv_replace
-  //pack data into buffer, but first get size
+  // swap with mpi_send_recv_replace
+  // pack data into buffer, but first get size
   int bufSize = 0;
   int tempSize = 0;
-  MPI_Pack_size((*this).NumCells(), MPI_cellData, MPI_COMM_WORLD, &tempSize); //add size for states
+  MPI_Pack_size((*this).NumCells(), MPI_cellData, MPI_COMM_WORLD,
+                &tempSize);  // add size for states
   bufSize += tempSize;
-  MPI_Pack_size(5, MPI_INT, MPI_COMM_WORLD, &tempSize); //add size for ints in class stateSlice
+  MPI_Pack_size(5, MPI_INT, MPI_COMM_WORLD,
+                &tempSize);  // add size for ints in class stateSlice
   bufSize += tempSize;
 
-  char *buffer = new char[bufSize]; //allocate buffer to pack data into
+  char *buffer = new char[bufSize];  // allocate buffer to pack data into
 
-  //pack data into buffer
+  // pack data into buffer
   int position = 0;
-  MPI_Pack(&(*this).state[0], (*this).NumCells(), MPI_cellData, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).numCells, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).numI, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).numJ, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).numK, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).parBlock, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).state_[0], (*this).NumCells(), MPI_cellData, buffer,
+           bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).numCells_, 1, MPI_INT, buffer, bufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&(*this).numI_, 1, MPI_INT, buffer, bufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&(*this).numJ_, 1, MPI_INT, buffer, bufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&(*this).numK_, 1, MPI_INT, buffer, bufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&(*this).parBlock_, 1, MPI_INT, buffer, bufSize, &position,
+           MPI_COMM_WORLD);
 
   MPI_Status status;
-  if ( rank == inter.RankFirst() ){ //send/recv with second entry in interblock
-    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankSecond(), 1, inter.RankSecond(), 1, MPI_COMM_WORLD, &status);
-  }
-  else{ //send/recv with first entry in interblock
-    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankFirst(), 1, inter.RankFirst(), 1, MPI_COMM_WORLD, &status);
+  if (rank == inter.RankFirst()) {  // send/recv with second entry in interblock
+    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankSecond(), 1,
+                         inter.RankSecond(), 1, MPI_COMM_WORLD, &status);
+  } else {  // send/recv with first entry in interblock
+    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankFirst(), 1,
+                         inter.RankFirst(), 1, MPI_COMM_WORLD, &status);
   }
 
-  //put slice back into stateSlice
+  // put slice back into stateSlice
   position = 0;
-  MPI_Unpack(buffer, bufSize, &position, &(*this).state[0], (*this).NumCells(), MPI_cellData, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &(*this).numCells, 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &(*this).numI, 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &(*this).numJ, 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &(*this).numK, 1, MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &(*this).parBlock, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &(*this).state_[0], (*this).NumCells(),
+             MPI_cellData, MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &(*this).numCells_, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &(*this).numI_, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &(*this).numJ_, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &(*this).numK_, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &(*this).parBlock_, 1, MPI_INT,
+             MPI_COMM_WORLD);
 
-  delete [] buffer;
-
+  delete[] buffer;
 }

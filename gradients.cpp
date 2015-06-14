@@ -28,25 +28,25 @@ using std::string;
 // constructor
 gradients::gradients() {
   // default to 2 faces
-  velocityI.resize(2);
-  velocityJ.resize(2);
-  velocityK.resize(2);
+  velocityI_.resize(2);
+  velocityJ_.resize(2);
+  velocityK_.resize(2);
 
-  temperatureI.resize(2);
-  temperatureJ.resize(2);
-  temperatureK.resize(2);
+  temperatureI_.resize(2);
+  temperatureJ_.resize(2);
+  temperatureK_.resize(2);
 
-  tkeI.resize(2);
-  tkeJ.resize(2);
-  tkeK.resize(2);
+  tkeI_.resize(2);
+  tkeJ_.resize(2);
+  tkeK_.resize(2);
 
-  omegaI.resize(2);
-  omegaJ.resize(2);
-  omegaK.resize(2);
+  omegaI_.resize(2);
+  omegaJ_.resize(2);
+  omegaK_.resize(2);
 
-  imax = 1;
-  jmax = 1;
-  kmax = 1;
+  imax_ = 1;
+  jmax_ = 1;
+  kmax_ = 1;
 }
 
 // alternate constructor to calculate gradients from state variables
@@ -58,37 +58,37 @@ gradients::gradients(const bool &turbFlag, const procBlock &blk,
   // eos -- equation of state
 
   // set dimensions (cell-size)
-  imax = blk.NumI();
-  jmax = blk.NumJ();
-  kmax = blk.NumK();
+  imax_ = blk.NumI();
+  jmax_ = blk.NumJ();
+  kmax_ = blk.NumK();
 
   // size vectors for input procBlock
-  velocityI.resize((blk.NumI() + 1) * blk.NumJ() * blk.NumK());
-  velocityJ.resize(blk.NumI() * (blk.NumJ() + 1) * blk.NumK());
-  velocityK.resize(blk.NumI() * blk.NumJ() * (blk.NumK() + 1));
+  velocityI_.resize((blk.NumI() + 1) * blk.NumJ() * blk.NumK());
+  velocityJ_.resize(blk.NumI() * (blk.NumJ() + 1) * blk.NumK());
+  velocityK_.resize(blk.NumI() * blk.NumJ() * (blk.NumK() + 1));
 
-  temperatureI.resize((blk.NumI() + 1) * blk.NumJ() * blk.NumK());
-  temperatureJ.resize(blk.NumI() * (blk.NumJ() + 1) * blk.NumK());
-  temperatureK.resize(blk.NumI() * blk.NumJ() * (blk.NumK() + 1));
+  temperatureI_.resize((blk.NumI() + 1) * blk.NumJ() * blk.NumK());
+  temperatureJ_.resize(blk.NumI() * (blk.NumJ() + 1) * blk.NumK());
+  temperatureK_.resize(blk.NumI() * blk.NumJ() * (blk.NumK() + 1));
 
   // if flow is not turbulent, don't need tke and omega gradients so they can be
   // set to a minimum size
   if (turbFlag) {
-    tkeI.resize((blk.NumI() + 1) * blk.NumJ() * blk.NumK());
-    tkeJ.resize(blk.NumI() * (blk.NumJ() + 1) * blk.NumK());
-    tkeK.resize(blk.NumI() * blk.NumJ() * (blk.NumK() + 1));
+    tkeI_.resize((blk.NumI() + 1) * blk.NumJ() * blk.NumK());
+    tkeJ_.resize(blk.NumI() * (blk.NumJ() + 1) * blk.NumK());
+    tkeK_.resize(blk.NumI() * blk.NumJ() * (blk.NumK() + 1));
 
-    omegaI.resize((blk.NumI() + 1) * blk.NumJ() * blk.NumK());
-    omegaJ.resize(blk.NumI() * (blk.NumJ() + 1) * blk.NumK());
-    omegaK.resize(blk.NumI() * blk.NumJ() * (blk.NumK() + 1));
+    omegaI_.resize((blk.NumI() + 1) * blk.NumJ() * blk.NumK());
+    omegaJ_.resize(blk.NumI() * (blk.NumJ() + 1) * blk.NumK());
+    omegaK_.resize(blk.NumI() * blk.NumJ() * (blk.NumK() + 1));
   } else {
-    tkeI.resize(1);
-    tkeJ.resize(1);
-    tkeK.resize(1);
+    tkeI_.resize(1);
+    tkeJ_.resize(1);
+    tkeK_.resize(1);
 
-    omegaI.resize(1);
-    omegaJ.resize(1);
-    omegaK.resize(1);
+    omegaI_.resize(1);
+    omegaJ_.resize(1);
+    omegaK_.resize(1);
   }
 
   // loop over i-faces and calculate gradients
@@ -101,13 +101,13 @@ gradients::gradients(const bool &turbFlag, const procBlock &blk,
 
         if (turbFlag) {
           blk.CalcGradsI(ii + blk.NumGhosts(), jj + blk.NumGhosts(),
-                         kk + blk.NumGhosts(), eos, turbFlag, velocityI[loc],
-                         temperatureI[loc], tkeI[loc], omegaI[loc]);
+                         kk + blk.NumGhosts(), eos, turbFlag, velocityI_[loc],
+                         temperatureI_[loc], tkeI_[loc], omegaI_[loc]);
         } else {
           vector3d<double> dum1, dum2;
           blk.CalcGradsI(ii + blk.NumGhosts(), jj + blk.NumGhosts(),
-                         kk + blk.NumGhosts(), eos, turbFlag, velocityI[loc],
-                         temperatureI[loc], dum1, dum2);
+                         kk + blk.NumGhosts(), eos, turbFlag, velocityI_[loc],
+                         temperatureI_[loc], dum1, dum2);
         }
       }
     }
@@ -123,13 +123,13 @@ gradients::gradients(const bool &turbFlag, const procBlock &blk,
 
         if (turbFlag) {
           blk.CalcGradsJ(ii + blk.NumGhosts(), jj + blk.NumGhosts(),
-                         kk + blk.NumGhosts(), eos, turbFlag, velocityJ[loc],
-                         temperatureJ[loc], tkeJ[loc], omegaJ[loc]);
+                         kk + blk.NumGhosts(), eos, turbFlag, velocityJ_[loc],
+                         temperatureJ_[loc], tkeJ_[loc], omegaJ_[loc]);
         } else {
           vector3d<double> dum1, dum2;
           blk.CalcGradsJ(ii + blk.NumGhosts(), jj + blk.NumGhosts(),
-                         kk + blk.NumGhosts(), eos, turbFlag, velocityJ[loc],
-                         temperatureJ[loc], dum1, dum2);
+                         kk + blk.NumGhosts(), eos, turbFlag, velocityJ_[loc],
+                         temperatureJ_[loc], dum1, dum2);
         }
       }
     }
@@ -145,13 +145,13 @@ gradients::gradients(const bool &turbFlag, const procBlock &blk,
 
         if (turbFlag) {
           blk.CalcGradsK(ii + blk.NumGhosts(), jj + blk.NumGhosts(),
-                         kk + blk.NumGhosts(), eos, turbFlag, velocityK[loc],
-                         temperatureK[loc], tkeK[loc], omegaK[loc]);
+                         kk + blk.NumGhosts(), eos, turbFlag, velocityK_[loc],
+                         temperatureK_[loc], tkeK_[loc], omegaK_[loc]);
         } else {
           vector3d<double> dum1, dum2;
           blk.CalcGradsK(ii + blk.NumGhosts(), jj + blk.NumGhosts(),
-                         kk + blk.NumGhosts(), eos, turbFlag, velocityK[loc],
-                         temperatureK[loc], dum1, dum2);
+                         kk + blk.NumGhosts(), eos, turbFlag, velocityK_[loc],
+                         temperatureK_[loc], dum1, dum2);
         }
       }
     }
@@ -165,12 +165,12 @@ tensor<double> gradients::VelGradCell(const int &ii, const int &jj,
   // jj - j dimension of cell to get gradient at
   // kk - k dimension of cell to get gradient at
 
-  return (1.0 / 6.0) * (velocityI[GetUpperFaceI(ii, jj, kk, imax, jmax)] +
-                        velocityI[GetLowerFaceI(ii, jj, kk, imax, jmax)] +
-                        velocityJ[GetUpperFaceJ(ii, jj, kk, imax, jmax)] +
-                        velocityJ[GetLowerFaceJ(ii, jj, kk, imax, jmax)] +
-                        velocityK[GetUpperFaceK(ii, jj, kk, imax, jmax)] +
-                        velocityK[GetLowerFaceK(ii, jj, kk, imax, jmax)]);
+  return (1.0 / 6.0) * (velocityI_[GetUpperFaceI(ii, jj, kk, imax_, jmax_)] +
+                        velocityI_[GetLowerFaceI(ii, jj, kk, imax_, jmax_)] +
+                        velocityJ_[GetUpperFaceJ(ii, jj, kk, imax_, jmax_)] +
+                        velocityJ_[GetLowerFaceJ(ii, jj, kk, imax_, jmax_)] +
+                        velocityK_[GetUpperFaceK(ii, jj, kk, imax_, jmax_)] +
+                        velocityK_[GetLowerFaceK(ii, jj, kk, imax_, jmax_)]);
 }
 
 // member function to calculate temperature gradient at cell center
@@ -180,12 +180,12 @@ vector3d<double> gradients::TempGradCell(const int &ii, const int &jj,
   // jj - j dimension of cell to get gradient at
   // kk - k dimension of cell to get gradient at
 
-  return (1.0 / 6.0) * (temperatureI[GetUpperFaceI(ii, jj, kk, imax, jmax)] +
-                        temperatureI[GetLowerFaceI(ii, jj, kk, imax, jmax)] +
-                        temperatureJ[GetUpperFaceJ(ii, jj, kk, imax, jmax)] +
-                        temperatureJ[GetLowerFaceJ(ii, jj, kk, imax, jmax)] +
-                        temperatureK[GetUpperFaceK(ii, jj, kk, imax, jmax)] +
-                        temperatureK[GetLowerFaceK(ii, jj, kk, imax, jmax)]);
+  return (1.0 / 6.0) * (temperatureI_[GetUpperFaceI(ii, jj, kk, imax_, jmax_)] +
+                        temperatureI_[GetLowerFaceI(ii, jj, kk, imax_, jmax_)] +
+                        temperatureJ_[GetUpperFaceJ(ii, jj, kk, imax_, jmax_)] +
+                        temperatureJ_[GetLowerFaceJ(ii, jj, kk, imax_, jmax_)] +
+                        temperatureK_[GetUpperFaceK(ii, jj, kk, imax_, jmax_)] +
+                        temperatureK_[GetLowerFaceK(ii, jj, kk, imax_, jmax_)]);
 }
 
 // member function to calculate tke gradient at cell center
@@ -195,12 +195,12 @@ vector3d<double> gradients::TkeGradCell(const int &ii, const int &jj,
   // jj - j dimension of cell to get gradient at
   // kk - k dimension of cell to get gradient at
 
-  return (1.0 / 6.0) * (tkeI[GetUpperFaceI(ii, jj, kk, imax, jmax)] +
-                        tkeI[GetLowerFaceI(ii, jj, kk, imax, jmax)] +
-                        tkeJ[GetUpperFaceJ(ii, jj, kk, imax, jmax)] +
-                        tkeJ[GetLowerFaceJ(ii, jj, kk, imax, jmax)] +
-                        tkeK[GetUpperFaceK(ii, jj, kk, imax, jmax)] +
-                        tkeK[GetLowerFaceK(ii, jj, kk, imax, jmax)]);
+  return (1.0 / 6.0) * (tkeI_[GetUpperFaceI(ii, jj, kk, imax_, jmax_)] +
+                        tkeI_[GetLowerFaceI(ii, jj, kk, imax_, jmax_)] +
+                        tkeJ_[GetUpperFaceJ(ii, jj, kk, imax_, jmax_)] +
+                        tkeJ_[GetLowerFaceJ(ii, jj, kk, imax_, jmax_)] +
+                        tkeK_[GetUpperFaceK(ii, jj, kk, imax_, jmax_)] +
+                        tkeK_[GetLowerFaceK(ii, jj, kk, imax_, jmax_)]);
 }
 
 // member function to calculate omega gradient at cell center
@@ -210,10 +210,10 @@ vector3d<double> gradients::OmegaGradCell(const int &ii, const int &jj,
   // jj - j dimension of cell to get gradient at
   // kk - k dimension of cell to get gradient at
 
-  return (1.0 / 6.0) * (omegaI[GetUpperFaceI(ii, jj, kk, imax, jmax)] +
-                        omegaI[GetLowerFaceI(ii, jj, kk, imax, jmax)] +
-                        omegaJ[GetUpperFaceJ(ii, jj, kk, imax, jmax)] +
-                        omegaJ[GetLowerFaceJ(ii, jj, kk, imax, jmax)] +
-                        omegaK[GetUpperFaceK(ii, jj, kk, imax, jmax)] +
-                        omegaK[GetLowerFaceK(ii, jj, kk, imax, jmax)]);
+  return (1.0 / 6.0) * (omegaI_[GetUpperFaceI(ii, jj, kk, imax_, jmax_)] +
+                        omegaI_[GetLowerFaceI(ii, jj, kk, imax_, jmax_)] +
+                        omegaJ_[GetUpperFaceJ(ii, jj, kk, imax_, jmax_)] +
+                        omegaJ_[GetLowerFaceJ(ii, jj, kk, imax_, jmax_)] +
+                        omegaK_[GetUpperFaceK(ii, jj, kk, imax_, jmax_)] +
+                        omegaK_[GetLowerFaceK(ii, jj, kk, imax_, jmax_)]);
 }
