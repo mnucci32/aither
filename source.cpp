@@ -156,12 +156,11 @@ void source::CalcTurbSrc(const turbModel *turb, const primVars &state,
 
   // calculate wall shear stress (double dot) velocity gradient
   // wall shear stress
-  double mu = (suth.EffectiveViscosity(state.Temperature(eqnState)) +
-               turb->BoussinesqEddyVisc());
-  double lambda = suth.Lambda(mu);
+  double mut = turb->BoussinesqEddyVisc() * suth.NondimScaling();
+  double lambda = suth.Lambda(mut);
 
   tensor<double> tau =
-      lambda * grads.VelGradCell(ii, jj, kk).Trace() + mu *
+      lambda * grads.VelGradCell(ii, jj, kk).Trace() + mut *
       (grads.VelGradCell(ii, jj, kk) +
        grads.VelGradCell(ii, jj, kk).Transpose());
 

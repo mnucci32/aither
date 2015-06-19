@@ -1738,8 +1738,8 @@ double ViscCellSpectralRadius(const vector3d<double> &fAreaL,
   double fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());  // average area magnitude
   double maxTerm =
       max(4.0 / (3.0 * state.Rho()), eqnState.Gamma() / state.Rho());
-  double mu = suth.EffectiveViscosity(state.Temperature(eqnState)) +
-              eddyVisc;  // viscosity at cell center
+  double mu = (suth.Viscosity(state.Temperature(eqnState)) +
+               eddyVisc) * suth.NondimScaling();  // viscosity at cell center
   double viscTerm = mu / eqnState.Prandtl();
 
   // return viscous spectral radius
@@ -2127,7 +2127,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
         double eddyVisc = FaceReconCentral(
             turb->BoussinesqEddyVisc(), turb->BoussinesqEddyVisc(),
             (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc));
-        eddyVisc *= (suth.MRef() / suth.ReRef());  // effective viscosity
+        eddyVisc *= suth.NondimScaling();  // effective viscosity
 
         // calculate viscous flux
         vector3d<double> tkeGrad, omegaGrad;
@@ -2319,7 +2319,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
             turb->BoussinesqEddyVisc(), turb->BoussinesqEddyVisc(),
             (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc));
         // effective viscosity (due to nondimensionalization)
-        eddyVisc *= (suth.MRef() / suth.ReRef());
+        eddyVisc *= suth.NondimScaling();
 
         // calculate viscous flux
         vector3d<double> tkeGrad, omegaGrad;
@@ -2509,7 +2509,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
             turb->BoussinesqEddyVisc(), turb->BoussinesqEddyVisc(),
             (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc));
         // effective viscosity (due to nondimensionalization)
-        eddyVisc *= (suth.MRef() / suth.ReRef());
+        eddyVisc *= suth.NondimScaling();
 
         // calculate viscous flux
         vector3d<double> tkeGrad, omegaGrad;
