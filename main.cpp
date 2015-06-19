@@ -90,15 +90,16 @@ int main(int argc, char *argv[]) {
   // Get equation of state
   idealGas eos(inputVars.Gamma(), inputVars.R());
 
+  // Initialize sutherland's law for viscosity
+  sutherland suth(inputVars.TRef(), inputVars.RRef(), inputVars.LRef(),
+                  inputVars.PRef(), inputVars.VelRef(), eos);
+
   // Initialize state vector with nondimensional variables
   // Get reference speed of sound
   double aRef = eos.SoS(inputVars.PRef(), inputVars.RRef());
   primVars state;
-  state.NondimensionalInitialize(eos, inputVars.VelRef(), aRef);
-
-  // Initialize sutherland's law for viscosity
-  sutherland suth(inputVars.TRef(), inputVars.RRef(), inputVars.LRef(),
-                  inputVars.PRef(), inputVars.VelRef(), eos);
+  state.NondimensionalInitialize(eos, inputVars.VelRef(), aRef, suth.MuRef(),
+                                 inputVars.IsTurbulent());
 
   vector<plot3dBlock> mesh;
   vector<interblock> connections;

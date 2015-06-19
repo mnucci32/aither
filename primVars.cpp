@@ -61,7 +61,8 @@ primVars::primVars(const genArray &a, const bool &prim,
 // member function to initialize a state with nondimensional values
 void primVars::NondimensionalInitialize(const idealGas &eos,
                                         const vector3d<double> &vel,
-                                        const double &aRef) {
+                                        const double &aRef, const double &muRef,
+                                        const bool &isTurb) {
   data_[0] = 1.0;
   data_[4] = 1.0 / eos.Gamma();
 
@@ -69,8 +70,18 @@ void primVars::NondimensionalInitialize(const idealGas &eos,
   data_[2] = vel.Y() / aRef;
   data_[3] = vel.Z() / aRef;
 
-  data_[5] = 0.0;
-  data_[6] = 0.0;
+  if (isTurb) {
+    // Initialize turbulence quantities based off of specified turublence
+    // intensity and eddy viscosity ratio. This is the default for
+    // STAR-CCM+
+    const double turbInten = 0.01;
+    const double viscRatio = 10.0;
+    data_[5] = 1.5 * (turbInten * vel.Mag()) * (turbInten * vel.Mag());
+    data_[6] = data_[0] * data_[5] / (viscRatio * muRef);
+  } else {
+    data_[5] = 0.0;
+    data_[6] = 0.0;
+  }
 }
 
 // operator overload for << - allows use of cout, cerr, etc.
