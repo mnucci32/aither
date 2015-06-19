@@ -144,3 +144,33 @@ source operator/(const double &scalar, const source &src2) {
   }
   return src1;
 }
+
+// Member function to calculate the source terms for the turbulence equations
+void source::CalcTurbSrc(const turbModel *turb, const primVars &state,
+                         const gradients &grads, const sutherland &suth,
+                         const idealGas &eqnState, const int &ii, const int &jj,
+                         const int &kk, const input &inp) {
+  // turb -- turbulence model
+  // state -- primative variables
+  // grads -- gradients
+
+  // calculate wall shear stress (double dot) velocity gradient
+  // wall shear stress
+  double mu = (suth.EffectiveViscosity(state.Temperature(eqnState)) +
+               turb->BoussinesqEddyVisc());
+  double lambda = suth.Lambda(mu);
+
+  tensor<double> tau =
+      lambda * grads.VelGradCell(ii, jj, kk).Trace() + mu *
+      (grads.VelGradCell(ii, jj, kk) +
+       grads.VelGradCell(ii, jj, kk).Transpose());
+
+  data_[5] = state.Rho() * tau.DoubleDot(grads.VelGradCell(ii, jj, kk))
+      - turb->Eqn1DissipationCoeff() * state.Rho() * state.Omega() *
+      state.Tke();
+
+  data_[6] = turb->Eqn2ProductionCoeff() * state.Omega() / state.Tke() *
+      state.Rho() * tau.DoubleDot(grads.VelGradCell(ii, jj, kk))
+      - turb->Eqn2DissipationCoeff() * state.Rho() * state.Omega()
+      * state.Omega();
+}

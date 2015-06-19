@@ -53,12 +53,18 @@ class tensor {
   tensor<T> operator+(const tensor &) const;
   tensor<T> operator-(const tensor &) const;
   tensor<T> operator*(const tensor &) const;
+  tensor<T> operator+(const T &) const;
+  tensor<T> operator-(const T &) const;
   tensor<T> operator*(const T &) const;
   tensor<T> operator/(const T &) const;
   template <class TT>
   friend tensor<TT> operator*(const TT &, const tensor<TT> &);
   template <class TT>
   friend tensor<TT> operator/(const TT &, const tensor<TT> &);
+  template <class TT>
+  friend tensor<TT> operator+(const TT &, const tensor<TT> &);
+  template <class TT>
+  friend tensor<TT> operator-(const TT &, const tensor<TT> &);
   template <class TT>
   friend ostream &operator<<(ostream &os, const tensor<TT> &);
   // assignment of data_ members
@@ -85,6 +91,7 @@ class tensor {
   T Trace() const { return data_[0] + data_[4] + data_[8]; }
   tensor<T> Transpose() const;
   vector3d<T> MatMult(const vector3d<T> &) const;
+  T DoubleDot(const tensor<T> &) const;
   tensor<T> Identity() const;
   tensor<T> Zero() const;
 
@@ -164,6 +171,90 @@ tensor<T> tensor<T>::operator*(const tensor &v2) const {
   temp.data_[8] = (*this).data_[6] * v2.data_[2] +
                   (*this).data_[7] * v2.data_[5] +
                   (*this).data_[6] * v2.data_[8];
+
+  return temp;
+}
+
+// operator overload for addition with a scalar - element wise
+// addition
+template <class T>
+tensor<T> tensor<T>::operator+(const T &scalar) const {
+  tensor<T> temp = *this;
+  temp.data_[0] += scalar;
+  temp.data_[1] += scalar;
+  temp.data_[2] += scalar;
+
+  temp.data_[3] += scalar;
+  temp.data_[4] += scalar;
+  temp.data_[5] += scalar;
+
+  temp.data_[6] += scalar;
+  temp.data_[7] += scalar;
+  temp.data_[8] += scalar;
+
+  return temp;
+}
+
+// operator overload for addition with a scalar - element wise
+// addition
+// this function is a friend function of the class so that double + tensor
+// behaves as tensor + double
+template <class TT>
+tensor<TT> operator+(const TT &scalar, const tensor<TT> &v1) {
+  tensor<TT> temp;
+  temp.data_[0] = v1.data_[0] + scalar;
+  temp.data_[1] = v1.data_[1] + scalar;
+  temp.data_[2] = v1.data_[2] + scalar;
+
+  temp.data_[3] = v1.data_[3] + scalar;
+  temp.data_[4] = v1.data_[4] + scalar;
+  temp.data_[5] = v1.data_[5] + scalar;
+
+  temp.data_[6] = v1.data_[6] + scalar;
+  temp.data_[7] = v1.data_[7] + scalar;
+  temp.data_[8] = v1.data_[8] + scalar;
+
+  return temp;
+}
+
+// operator overload for subtraction with a scalar - element wise
+// subtraction
+template <class T>
+tensor<T> tensor<T>::operator-(const T &scalar) const {
+  tensor<T> temp = *this;
+  temp.data_[0] -= scalar;
+  temp.data_[1] -= scalar;
+  temp.data_[2] -= scalar;
+
+  temp.data_[3] -= scalar;
+  temp.data_[4] -= scalar;
+  temp.data_[5] -= scalar;
+
+  temp.data_[6] -= scalar;
+  temp.data_[7] -= scalar;
+  temp.data_[8] -= scalar;
+
+  return temp;
+}
+
+// operator overload for subtraction with a scalar - element wise
+// subtraction
+// this function is a friend function of the class so that double - tensor
+// behaves as tensor - double
+template <class TT>
+tensor<TT> operator-(const TT &scalar, const tensor<TT> &v1) {
+  tensor<TT> temp;
+  temp.data_[0] = v1.data_[0] - scalar;
+  temp.data_[1] = v1.data_[1] - scalar;
+  temp.data_[2] = v1.data_[2] - scalar;
+
+  temp.data_[3] = v1.data_[3] - scalar;
+  temp.data_[4] = v1.data_[4] - scalar;
+  temp.data_[5] = v1.data_[5] - scalar;
+
+  temp.data_[6] = v1.data_[6] - scalar;
+  temp.data_[7] = v1.data_[7] - scalar;
+  temp.data_[8] = v1.data_[8] - scalar;
 
   return temp;
 }
@@ -320,6 +411,16 @@ template <class T>
 tensor<T> tensor<T>::Zero() const {
   tensor<T> temp;
   return temp;
+}
+
+// Function to return the double dot product of two tensors
+template <class T>
+T tensor<T>::DoubleDot(const tensor<T> &temp) const {
+  return data_[0] * temp.data_[0] + data_[1] * temp.data_[1] +
+      data_[2] * temp.data_[2] + data_[3] * temp.data_[3] +
+      data_[4] * temp.data_[4] + data_[5] * temp.data_[5] +
+      data_[6] * temp.data_[6] + data_[7] * temp.data_[7] +
+      data_[8] * temp.data_[8];
 }
 
 #endif

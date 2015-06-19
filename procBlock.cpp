@@ -1385,11 +1385,7 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
 
       // if viscous add viscous contribution to spectral radius
       if (inp.EquationSet() != "euler") {
-        double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
-        double aRef = eqnState.GetSoS(inp.PRef(), inp.RRef());
-        double mRef = inp.VelRef().Mag() / aRef;
         double vSpecRad =
-            (mRef / Re) *
             ViscCellSpectralRadius(
                 (*this).FAreaI(ilFace2G), (*this).FAreaI(ilFaceG),
                 (*this).State(ilG).UpdateWithConsVars(eqnState, x[il]),
@@ -1417,11 +1413,7 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
 
       // if viscous add viscous contribution to spectral radius
       if (inp.EquationSet() != "euler") {
-        double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
-        double aRef = eqnState.GetSoS(inp.PRef(), inp.RRef());
-        double mRef = inp.VelRef().Mag() / aRef;
         double vSpecRad =
-            (mRef / Re) *
             ViscCellSpectralRadius(
                 (*this).FAreaJ(jlFace2G), (*this).FAreaJ(jlFaceG),
                 (*this).State(jlG).UpdateWithConsVars(eqnState, x[jl]),
@@ -1449,11 +1441,7 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
 
       // if viscous add viscous contribution to spectral radius
       if (inp.EquationSet() != "euler") {
-        double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
-        double aRef = eqnState.GetSoS(inp.PRef(), inp.RRef());
-        double mRef = inp.VelRef().Mag() / aRef;
         double vSpecRad =
-            (mRef / Re) *
             ViscCellSpectralRadius(
                 (*this).FAreaK(klFace2G), (*this).FAreaK(klFaceG),
                 (*this).State(klG).UpdateWithConsVars(eqnState, x[kl]),
@@ -1566,11 +1554,7 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
           (*this).State(iuG).UpdateWithConsVars(eqnState, x[iu]), eqnState);
 
       if (inp.EquationSet() != "euler") {  // viscous
-        double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
-        double aRef = eqnState.GetSoS(inp.PRef(), inp.RRef());
-        double mRef = inp.VelRef().Mag() / aRef;
         double vSpecRad =
-            (mRef / Re) *
             ViscCellSpectralRadius(
                 (*this).FAreaI(iuFace2G), (*this).FAreaI(iuFaceG),
                 (*this).State(iuG).UpdateWithConsVars(eqnState, x[iu]),
@@ -1597,11 +1581,7 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
           (*this).State(juG).UpdateWithConsVars(eqnState, x[ju]), eqnState);
 
       if (inp.EquationSet() != "euler") {  // viscous
-        double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
-        double aRef = eqnState.GetSoS(inp.PRef(), inp.RRef());
-        double mRef = inp.VelRef().Mag() / aRef;
         double vSpecRad =
-            (mRef / Re) *
             ViscCellSpectralRadius(
                 (*this).FAreaJ(juFace2G), (*this).FAreaJ(juFaceG),
                 (*this).State(juG).UpdateWithConsVars(eqnState, x[ju]),
@@ -1628,11 +1608,7 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
           (*this).State(kuG).UpdateWithConsVars(eqnState, x[ku]), eqnState);
 
       if (inp.EquationSet() != "euler") {  // viscous
-        double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
-        double aRef = eqnState.GetSoS(inp.PRef(), inp.RRef());
-        double mRef = inp.VelRef().Mag() / aRef;
         double vSpecRad =
-            (mRef / Re) *
             ViscCellSpectralRadius(
                 (*this).FAreaK(kuFace2G), (*this).FAreaK(kuFaceG),
                 (*this).State(kuG).UpdateWithConsVars(eqnState, x[ku]),
@@ -1762,9 +1738,9 @@ double ViscCellSpectralRadius(const vector3d<double> &fAreaL,
   double fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());  // average area magnitude
   double maxTerm =
       max(4.0 / (3.0 * state.Rho()), eqnState.Gamma() / state.Rho());
-  double mu = suth.GetViscosity(state.Temperature(eqnState)) +
+  double mu = suth.EffectiveViscosity(state.Temperature(eqnState)) +
               eddyVisc;  // viscosity at cell center
-  double viscTerm = mu / eqnState.GetPrandtl();
+  double viscTerm = mu / eqnState.Prandtl();
 
   // return viscous spectral radius
   return maxTerm * viscTerm * fMag * fMag / vol;
@@ -2095,12 +2071,6 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
   int imaxG = (*this).NumI() + 2 * (*this).NumGhosts() + 1;
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
-  // calculate reference Reynolds number and Mach number for
-  // nondimensionalization
-  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
-  double aRef = eqnState.GetSoS(inp.PRef(), inp.RRef());
-  double mRef = inp.VelRef().Mag() / aRef;
-
   // coefficient for viscous spectral radii
   double vCoeff = 1.0;
 
@@ -2150,17 +2120,14 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
 
         // Get viscosity at face
         double mu = FaceReconCentral(
-            suth.GetViscosity((*this).State(iLow).Temperature(eqnState)),
-            suth.GetViscosity((*this).State(iUp).Temperature(eqnState)),
+            suth.EffectiveViscosity((*this).State(iLow).Temperature(eqnState)),
+            suth.EffectiveViscosity((*this).State(iUp).Temperature(eqnState)),
             (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc));
-        mu *= (mRef / Re);  // effective viscosity (due to
-                            // nondimensionalization)
 
         double eddyVisc = FaceReconCentral(
             turb->BoussinesqEddyVisc(), turb->BoussinesqEddyVisc(),
             (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc));
-        eddyVisc *= (mRef / Re);  // effective viscosity
-                                  // (due to nondimensionalization)
+        eddyVisc *= (suth.MRef() / suth.ReRef());  // effective viscosity
 
         // calculate viscous flux
         vector3d<double> tkeGrad, omegaGrad;
@@ -2190,10 +2157,10 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           double maxWS =
-              (mRef / Re) * ViscCellSpectralRadius(
-                                (*this).FAreaI(loc), (*this).FAreaI(fUpi),
-                                (*this).State(iUp), eqnState, suth,
-                                (*this).Vol(iUp), turb->BoussinesqEddyVisc());
+              ViscCellSpectralRadius(
+                  (*this).FAreaI(loc), (*this).FAreaI(fUpi),
+                  (*this).State(iUp), eqnState, suth,
+                  (*this).Vol(iUp), turb->BoussinesqEddyVisc());
           (*this).avgWaveSpeed_[iUpNG] =
               (*this).AvgWaveSpeed(iUpNG) + vCoeff * maxWS;
         }
@@ -2295,12 +2262,6 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
   // calculating fluxes on j-faces so one more face in j-direction
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts() + 1;
 
-  // calculate reference Reynolds number and Mach number for
-  // nondimensionalization
-  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
-  double aRef = eqnState.GetSoS(inp.PRef(), inp.RRef());
-  double mRef = inp.VelRef().Mag() / aRef;
-
   // coefficient for viscous spectral radii
   double vCoeff = 1.0;
 
@@ -2350,17 +2311,15 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
 
         // Get viscosity at face
         double mu = FaceReconCentral(
-            suth.GetViscosity((*this).State(jLow).Temperature(eqnState)),
-            suth.GetViscosity((*this).State(jUp).Temperature(eqnState)),
+            suth.EffectiveViscosity((*this).State(jLow).Temperature(eqnState)),
+            suth.EffectiveViscosity((*this).State(jUp).Temperature(eqnState)),
             (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc));
-        mu = mu *
-             (mRef / Re);  // effective viscosity (due to nondimensionalization)
 
         double eddyVisc = FaceReconCentral(
             turb->BoussinesqEddyVisc(), turb->BoussinesqEddyVisc(),
             (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc));
-        eddyVisc *=
-            (mRef / Re);  // effective viscosity (due to nondimensionalization)
+        // effective viscosity (due to nondimensionalization)
+        eddyVisc *= (suth.MRef() / suth.ReRef());
 
         // calculate viscous flux
         vector3d<double> tkeGrad, omegaGrad;
@@ -2390,10 +2349,10 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           double maxWS =
-              (mRef / Re) * ViscCellSpectralRadius(
-                                (*this).FAreaJ(loc), (*this).FAreaJ(fUpj),
-                                (*this).State(jUp), eqnState, suth,
-                                (*this).Vol(jUp), turb->BoussinesqEddyVisc());
+              ViscCellSpectralRadius(
+                  (*this).FAreaJ(loc), (*this).FAreaJ(fUpj),
+                  (*this).State(jUp), eqnState, suth,
+                  (*this).Vol(jUp), turb->BoussinesqEddyVisc());
           (*this).avgWaveSpeed_[jUpNG] =
               (*this).AvgWaveSpeed(jUpNG) + vCoeff * maxWS;
         }
@@ -2493,12 +2452,6 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
   int imaxG = (*this).NumI() + 2 * (*this).NumGhosts();
   int jmaxG = (*this).NumJ() + 2 * (*this).NumGhosts();
 
-  // calculate reference Reynolds number and Mach number for
-  // nondimensionalization
-  double Re = inp.RRef() * inp.VelRef().Mag() * inp.LRef() / suth.MuRef();
-  double aRef = eqnState.GetSoS(inp.PRef(), inp.RRef());
-  double mRef = inp.VelRef().Mag() / aRef;
-
   // coefficient for viscous spectral radii
   double vCoeff = 1.0;
 
@@ -2548,17 +2501,15 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
 
         // Get viscosity at face
         double mu = FaceReconCentral(
-            suth.GetViscosity((*this).State(kLow).Temperature(eqnState)),
-            suth.GetViscosity((*this).State(kUp).Temperature(eqnState)),
+            suth.EffectiveViscosity((*this).State(kLow).Temperature(eqnState)),
+            suth.EffectiveViscosity((*this).State(kUp).Temperature(eqnState)),
             (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc));
-        mu = mu *
-             (mRef / Re);  // effective viscosity (due to nondimensionalization)
 
         double eddyVisc = FaceReconCentral(
             turb->BoussinesqEddyVisc(), turb->BoussinesqEddyVisc(),
             (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc));
-        eddyVisc *=
-            (mRef / Re);  // effective viscosity (due to nondimensionalization)
+        // effective viscosity (due to nondimensionalization)
+        eddyVisc *= (suth.MRef() / suth.ReRef());
 
         // calculate viscous flux
         vector3d<double> tkeGrad, omegaGrad;
@@ -2588,10 +2539,10 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           double maxWS =
-              (mRef / Re) * ViscCellSpectralRadius(
-                                (*this).FAreaK(loc), (*this).FAreaK(fUpk),
-                                (*this).State(kUp), eqnState, suth,
-                                (*this).Vol(kUp), turb->BoussinesqEddyVisc());
+              ViscCellSpectralRadius(
+                  (*this).FAreaK(loc), (*this).FAreaK(fUpk),
+                  (*this).State(kUp), eqnState, suth,
+                  (*this).Vol(kUp), turb->BoussinesqEddyVisc());
           (*this).avgWaveSpeed_[kUpNG] =
               (*this).AvgWaveSpeed(kUpNG) + vCoeff * maxWS;
         }

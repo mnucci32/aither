@@ -21,15 +21,19 @@
 /* This header file contains the idealGas and sutherland classes. 
 
 The ideal gas class stores the ratio of specific heats (gamma),
-and the gas constant R. It contains several member functions to calculate state variables using the equation of state
-P = rho * (gamma - 1) * specificEnergy for the euler equations and P = rho * R * temperature for the Navier-Stokes equations.
+and the gas constant R. It contains several member functions to calculate
+state variables using the equation of state
+P = rho * (gamma - 1) * specificEnergy for the euler equations and
+P = rho * R * temperature for the Navier-Stokes equations.
 
-The sutherland class stores a reference temperature and viscosity, as well as the sutherland coefficients. It is used for calculating
+The sutherland class stores a reference temperature and viscosity,
+as well as the sutherland coefficients. It is used for calculating
 a temperature dependent viscosity for the Navier-Stokes equations. */
 
 #include <math.h>  // sqrt
 #include <vector>  // vector
 #include <string>  // string
+#include "vector3d.hpp"
 
 using std::vector;
 using std::string;
@@ -44,29 +48,29 @@ class idealGas {
   idealGas(const double &a, const double &b) : gamma_(a), gasConst_(b) {}
 
   // Member functions
-  double GetPressure(const double &rho, const double &specEn) const;
-  double GetPressFromEnergy(const double &rho, const double &energy,
+  double Pressure(const double &rho, const double &specEn) const;
+  double PressFromEnergy(const double &rho, const double &energy,
                             const double &vel) const;
-  double GetDensity(const double &pressure, const double &specEn) const;
-  double GetSpecEnergy(const double &pressure, const double &rho) const;
-  double GetEnergy(const double &specEn, const double &vel) const;
-  double GetEnthalpy(const double &energy, const double &pressure,
+  double Density(const double &pressure, const double &specEn) const;
+  double SpecEnergy(const double &pressure, const double &rho) const;
+  double Energy(const double &specEn, const double &vel) const;
+  double Enthalpy(const double &energy, const double &pressure,
                      const double &rho) const;
-  double GetSoS(const double &pressure, const double &rho) const;
+  double SoS(const double &pressure, const double &rho) const;
   double Gamma() const {return gamma_;}
   double GasConst() const {return gasConst_;}
-  double GetPrandtl() const {return (4.0*gamma_)/(9.0*gamma_-5.0);}
+  double Prandtl() const {return (4.0 * gamma_) / (9.0 * gamma_ - 5.0);}
 
-  double GetTemperature(const double &pressure, const double &rho) const;
+  double Temperature(const double &pressure, const double &rho) const;
 
   // nondimensional version (R=1/gamma_)
-  double GetConductivity(const double &mu) const {
-    return mu/( (*this).GetPrandtl()*(gamma_-1.0) );}
+  double Conductivity(const double &mu) const {
+    return mu / ((*this).Prandtl() * (gamma_ - 1.0) );}
   // Nondimensional version (R=1/gamma_)
-  double GetTurbConductivity(const double &eddyVisc, const double &prt) const {
-    return eddyVisc/( prt * (gamma_-1.0) );}
-  double GetDensityTP(const double &temp, const double &press) const {
-    return press*gamma_/temp;}
+  double TurbConductivity(const double &eddyVisc, const double &prt) const {
+    return eddyVisc / ( prt * (gamma_ - 1.0) );}
+  double DensityTP(const double &temp, const double &press) const {
+    return press * gamma_ / temp;}
 
   // Destructor
   ~idealGas() {}
@@ -80,30 +84,45 @@ class sutherland {
   double tRef_;
   double muRef_;
   double bulkVisc_;
+  double reRef_;
+  double mRef_;
 
  public:
   // Constructors
   // Stoke's hypothesis -- bulk viscosity = 0
   // Sutherland's Law -- mu = muref * (C1 * Tref^1.5) / (T + S_)
   sutherland() : cOne_(1.458e-6), S_(110.4), tRef_(288.15),
-                 muRef_(cOne_ * pow(tRef_, 1.5)/(tRef_+S_)), bulkVisc_(0.0) {}
+                 muRef_(cOne_ * pow(tRef_, 1.5)/(tRef_+S_)), bulkVisc_(0.0),
+                 reRef_(0.0), mRef_(0.0) {}
 
-  sutherland(const double a, const double b, const double c) :
-     cOne_(a), S_(b), tRef_(c), muRef_(cOne_ * pow(c, 1.5)/(c+S_)),
-     bulkVisc_(0.0) {}
-
-  explicit sutherland(const double t) : cOne_(1.458e-6), S_(110.4),
-                                        tRef_(t),
-                                        muRef_(cOne_ * pow(t, 1.5)/(t+S_)),
-                                        bulkVisc_(0.0) {}
+  sutherland(const double &c, const double &s, const double &t,
+             const double &r, const double &p, const double &l,
+             const vector3d<double> &vel, const idealGas &eos) :
+      cOne_(c), S_(s), tRef_(t), muRef_(cOne_ * pow(tRef_, 1.5) / (tRef_ + S_)),
+      bulkVisc_(0.0), reRef_(r * vel.Mag() * l / muRef_),
+      mRef_(vel.Mag() / eos.SoS(p, r)) {}
+  explicit sutherland(const double &t) : cOne_(1.458e-6), S_(110.4),
+                                         tRef_(t),
+                                         muRef_(cOne_ * pow(t, 1.5)/(t+S_)),
+                                         bulkVisc_(0.0), reRef_(0.0),
+                                         mRef_(0.0) {}
+  sutherland(const double &t, const double &r, const double &l, const double &p,
+             const vector3d<double> &vel, const idealGas &eos) :
+      cOne_(1.458e-6), S_(110.4), tRef_(t),
+      muRef_(cOne_ * pow(t, 1.5)/(t+S_)), bulkVisc_(0.0),
+      reRef_(r * vel.Mag() * l / muRef_),
+      mRef_(vel.Mag() / eos.SoS(p, r)) {}
 
   // Member functions
-  double GetViscosity(const double &) const;
-  double GetLambda(const double &) const;
+  double Viscosity(const double&) const;
+  double EffectiveViscosity(const double&) const;
+  double Lambda(const double&) const;
   double ConstC1() const {return cOne_;}
   double ConstS() const {return S_;}
   double TRef() const {return tRef_;}
   double MuRef() const {return muRef_;}
+  double ReRef() const {return reRef_;}
+  double MRef() const {return mRef_;}
 };
 
 #endif

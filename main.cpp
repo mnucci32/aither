@@ -92,12 +92,13 @@ int main(int argc, char *argv[]) {
 
   // Initialize state vector with nondimensional variables
   // Get reference speed of sound
-  double aRef = eos.GetSoS(inputVars.PRef(), inputVars.RRef());
+  double aRef = eos.SoS(inputVars.PRef(), inputVars.RRef());
   primVars state;
   state.NondimensionalInitialize(eos, inputVars.VelRef(), aRef);
 
   // Initialize sutherland's law for viscosity
-  sutherland suth(inputVars.TRef());
+  sutherland suth(inputVars.TRef(), inputVars.RRef(), inputVars.LRef(),
+                  inputVars.PRef(), inputVars.VelRef(), eos);
 
   vector<plot3dBlock> mesh;
   vector<interblock> connections;
@@ -232,6 +233,8 @@ int main(int argc, char *argv[]) {
           localStateBlocks[bb].CalcViscFluxI(suth, eos, inputVars, grads);
           localStateBlocks[bb].CalcViscFluxJ(suth, eos, inputVars, grads);
           localStateBlocks[bb].CalcViscFluxK(suth, eos, inputVars, grads);
+
+          // If turblent, calculate source terms
         }
 
         // Calculate the time step to use in the simulation

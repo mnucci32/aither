@@ -28,6 +28,8 @@
 #include <iostream>
 #include "turbulence.hpp"
 #include "primVars.hpp"
+#include "procBlock.hpp"  // gradients
+#include "input.hpp"
 #include "macros.hpp"
 
 using std::vector;
@@ -53,7 +55,9 @@ class source {
   double SrcTke() const { return data_[5]; }
   double SrcOmg() const { return data_[6]; }
 
-  void CalcTurbSrc(const turbModel *, const primVars &);
+  void CalcTurbSrc(const turbModel*, const primVars&, const gradients&,
+                   const sutherland &, const idealGas&, const int&,
+                   const int&, const int&, const input&);
 
   // operator overloads for addition and subtraction of states
   source operator+(const source &) const;

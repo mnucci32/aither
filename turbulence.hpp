@@ -42,8 +42,13 @@ class turbModel {
   // member functions
   virtual double BoussinesqEddyVisc() const = 0;
   virtual double TurbPrandtlNumber() const = 0;
-  virtual double Eqn1EddyViscFactor() const = 0;
-  virtual double Eqn2EddyViscFactor() const = 0;
+  virtual double Eqn1ProductionCoeff() const = 0;
+  virtual double Eqn2ProductionCoeff() const = 0;
+  virtual double Eqn1DissipationCoeff() const = 0;
+  virtual double Eqn2DissipationCoeff() const = 0;
+  virtual double Eqn2CrossDiffCoeff() const = 0;
+  virtual double Eqn1MolecDiffCoeff() const = 0;
+  virtual double Eqn2MolecDiffCoeff() const = 0;
 
   // destructor
   virtual ~turbModel() {}
@@ -55,12 +60,16 @@ class turbNone : public turbModel {
   turbNone() : turbModel() {}
 
   // member functions
-  virtual double BoussinesqEddyVisc() const {
-    return 0.0;
-  }
-  virtual double TurbPrandtlNumber() const { return 0.9; }
-  virtual double Eqn1EddyViscFactor() const { return 0.0; }
-  virtual double Eqn2EddyViscFactor() const { return 0.0; }
+  virtual double BoussinesqEddyVisc() const {return 0.0;}
+  virtual double TurbPrandtlNumber() const {return 0.9;}
+  virtual double Eqn1ProductionCoeff() const {return 0.0;}
+  virtual double Eqn2ProductionCoeff() const {return 0.0;}
+  virtual double Eqn1DissipationCoeff() const {return 0.0;}
+  virtual double Eqn2DissipationCoeff() const {return 0.0;}
+  virtual double Eqn2CrossDiffCoeff() const {return 0.0;}
+  virtual double Eqn1MolecDiffCoeff() const {return 0.0;}
+  virtual double Eqn2MolecDiffCoeff() const {return 0.0;}
+
 
   // destructor
   virtual ~turbNone() {}
@@ -72,19 +81,23 @@ class turbKWWilcox : public turbModel {
   turbKWWilcox() : turbModel() {}
 
   // member functions
-  virtual double BoussinesqEddyVisc() const {
-    return 0.0;
-  }
+  virtual double BoussinesqEddyVisc() const {return 0.0;}
   virtual double TurbPrandtlNumber() const { return 8.0 / 9.0; }
-  virtual double Eqn1EddyViscFactor() const { return (*this).SigmaStar(); }
-  virtual double Eqn2EddyViscFactor() const { return (*this).Sigma(); }
+  virtual double Eqn1ProductionCoeff() const {return 1.0;}
+  virtual double Eqn2ProductionCoeff() const {return (*this).Alpha();}
+  virtual double Eqn1DissipationCoeff() const {return (*this).BetaStar();}
+  virtual double Eqn2DissipationCoeff() const {return 0.0;}
+  virtual double Eqn2CrossDiffCoeff() const {return 0.0;}
+  virtual double Eqn1MolecDiffCoeff() const {return (*this).SigmaStar();}
+  virtual double Eqn2MolecDiffCoeff() const {return (*this).Sigma();}
 
-  double Alpha() const { return 0.52; }
-  double BetaStar() const { return 0.09; }
-  double Sigma() const { return 0.5; }
-  double SigmaStar() const { return 0.6; }
-  double SigmaD0() const { return 0.125; }
-  double Beta0() const { return 0.0708; }
+  double Alpha() const {return 0.52;}
+  double BetaStar() const {return 0.09;}
+  double Sigma() const {return 0.5;}
+  double SigmaStar() const {return 0.6;}
+  double SigmaD0() const {return 0.125;}
+  double Beta0() const {return 0.0708;}
+  double CLim() const {return 0.875;}
 
   double SigmaD() const;
   double Xw() const;

@@ -69,10 +69,8 @@ viscousFlux::viscousFlux(
 
   vector3d<double> normArea = areaVec / areaVec.Mag();  // normalize face area
 
-  double lambda = suth.GetLambda(mu + eddyVisc);  // get 2nd coefficient of
-                                                  // viscosity assuming bulk
-                                                  // viscosity is 0 (Stoke's
-                                                  // hypothesis)
+  // get 2nd coefficient of viscosity assuming bulk viscosity is 0 (Stoke's)
+  double lambda = suth.Lambda(mu + eddyVisc);
 
   double velGradTrace = velGrad.Trace();  // trace of velocity gradient
   // wall shear stress
@@ -84,15 +82,15 @@ viscousFlux::viscousFlux(
   data_[0] = tau.X();
   data_[1] = tau.Y();
   data_[2] = tau.Z();
-  data_[3] = tau.DotProd(vel) + (eqnState.GetConductivity(mu) +
-                                 eqnState.GetTurbConductivity(
+  data_[3] = tau.DotProd(vel) + (eqnState.Conductivity(mu) +
+                                 eqnState.TurbConductivity(
                                      eddyVisc, turb->TurbPrandtlNumber())) *
-                                    tGrad.DotProd(normArea);
+                                 tGrad.DotProd(normArea);
 
   // turbulence viscous flux
   data_[4] =
-      (mu + turb->Eqn1EddyViscFactor() * eddyVisc) * tkeGrad.DotProd(normArea);
-  data_[5] = (mu + turb->Eqn2EddyViscFactor() * eddyVisc) *
+      (mu + turb->Eqn1MolecDiffCoeff() * eddyVisc) * tkeGrad.DotProd(normArea);
+  data_[5] = (mu + turb->Eqn2MolecDiffCoeff() * eddyVisc) *
              omegaGrad.DotProd(normArea);
 }
 
@@ -183,7 +181,7 @@ void CalcTSLFluxJac(const double &mu, const double &eddyVisc,
   tensor<double> velGradTSL = CalcVelGradTSL(left, right, normArea, dist);
 
   // calculate bulk viscosity
-  double lambda = suth.GetLambda(mu + eddyVisc);
+  double lambda = suth.Lambda(mu + eddyVisc);
 
   // calculate shear stress at face
   double velGradTrace = velGradTSL.Trace();
@@ -210,19 +208,19 @@ void CalcTSLFluxJac(const double &mu, const double &eddyVisc,
   double piY = vel.X() * etaZ + vel.Y() * thetaY + vel.Z() * etaX;
   double piZ = vel.X() * etaY + vel.Y() * etaX + vel.Z() * thetaZ;
 
-  double phiRhoL = -1.0 * (eqnState.GetConductivity(mu) +
-                           eqnState.GetTurbConductivity(eddyVisc, prt)) *
+  double phiRhoL = -1.0 * (eqnState.Conductivity(mu) +
+                           eqnState.TurbConductivity(eddyVisc, prt)) *
                    left.Temperature(eqnState) / ((mu + eddyVisc) * left.Rho());
-  double phiRhoR = -1.0 * (eqnState.GetConductivity(mu) +
-                           eqnState.GetTurbConductivity(eddyVisc, prt)) *
+  double phiRhoR = -1.0 * (eqnState.Conductivity(mu) +
+                           eqnState.TurbConductivity(eddyVisc, prt)) *
                    right.Temperature(eqnState) /
                    ((mu + eddyVisc) * right.Rho());
 
-  double phiPressL = (eqnState.GetConductivity(mu) +
-                      eqnState.GetTurbConductivity(eddyVisc, prt)) /
+  double phiPressL = (eqnState.Conductivity(mu) +
+                      eqnState.TurbConductivity(eddyVisc, prt)) /
                      ((mu + eddyVisc) * left.Rho());
-  double phiPressR = (eqnState.GetConductivity(mu) +
-                      eqnState.GetTurbConductivity(eddyVisc, prt)) /
+  double phiPressR = (eqnState.Conductivity(mu) +
+                      eqnState.TurbConductivity(eddyVisc, prt)) /
                      ((mu + eddyVisc) * right.Rho());
 
   // calculate matrix - derivative of left primative vars wrt left conservative
@@ -370,7 +368,7 @@ void CalcTSLFluxJac(const double &mu, const double &eddyVisc,
   dFv_dUl.Identity();
   dFv_dUr.Identity();
   double specRad = (mu + eddyVisc) * eqnState.Gamma() /
-                   (eqnState.GetPrandtl() * faceState.Rho() * dist);
+                   (eqnState.Prandtl() * faceState.Rho() * dist);
 
   // add or subtract spectral radius to flux jacobian
   dFv_dUl = -1.0 * specRad * dFv_dUl;

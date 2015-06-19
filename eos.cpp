@@ -25,57 +25,61 @@ using std::cerr;
 // Member functions for idealGas class
 // These functions calculate values using the ideal gas equation of state
 // P = rho * R * T (for Navier-Stokes) or P = (g-1) * rho * e (for Euler)
-double idealGas::GetPressure(const double &rho, const double &specEn) const {
-  return (gamma_-1.0) * rho * specEn;
+double idealGas::Pressure(const double &rho, const double &specEn) const {
+  return (gamma_ - 1.0) * rho * specEn;
 }
 
-double idealGas::GetPressFromEnergy(const double &rho, const double &energy,
-                                    const double &vel) const {
-  return (gamma_-1.0) * rho * (energy - 0.5 * vel * vel);
+double idealGas::PressFromEnergy(const double &rho, const double &energy,
+                                 const double &vel) const {
+  return (gamma_ - 1.0) * rho * (energy - 0.5 * vel * vel);
 }
 
-double idealGas::GetDensity(const double &pressure,
-                            const double &specEn) const {
-  return pressure / ((gamma_-1.0) * specEn);
+double idealGas::Density(const double &pressure,
+                         const double &specEn) const {
+  return pressure / ((gamma_ - 1.0) * specEn);
 }
 
-double idealGas::GetSpecEnergy(const double &pressure,
-                               const double &rho) const {
-  return pressure / ((gamma_-1.0) * rho);
+double idealGas::SpecEnergy(const double &pressure,
+                            const double &rho) const {
+  return pressure / ((gamma_ - 1.0) * rho);
 }
 
-double idealGas::GetEnergy(const double &specEn, const double &vel) const {
+double idealGas::Energy(const double &specEn, const double &vel) const {
   return specEn + 0.5 * vel * vel;
 }
 
-double idealGas::GetEnthalpy(const double &energy, const double &pressure,
-                             const double &rho) const {
+double idealGas::Enthalpy(const double &energy, const double &pressure,
+                          const double &rho) const {
   return energy + pressure / rho;
 }
 
-double idealGas::GetSoS(const double &pressure, const double &rho) const {
+double idealGas::SoS(const double &pressure, const double &rho) const {
   return sqrt(gamma_ * pressure / rho);
 }
 
-double idealGas::GetTemperature(const double &pressure,
-                                const double &rho) const {
+double idealGas::Temperature(const double &pressure,
+                             const double &rho) const {
   return pressure * gamma_ / rho;
 }
 
-
 // Functions for sutherland class
-double sutherland::GetViscosity(const double &t) const {
+double sutherland::Viscosity(const double &t) const {
   // Dimensionalize temperature
   double temp = t * tRef_;
 
   // Calculate viscosity
   double mu = (cOne_ * pow(temp, 1.5)) / (temp + S_);
 
-  // Nondimensionalize viscosity
-  return mu / muRef_;
+  // Nondimensionalize viscosity and scale
+  return (mu / muRef_);
 }
 
-double sutherland::GetLambda(const double &m) const {
+double sutherland::EffectiveViscosity(const double &t) const {
+  // Get viscosity and scale
+  return (*this).Viscosity(t) * (mRef_ / reRef_);
+}
+
+double sutherland::Lambda(const double &m) const {
   // Calculate lambda (2nd coeff of viscosity)
   return bulkVisc_ - (2.0/3.0) * m;
 }

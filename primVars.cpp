@@ -52,7 +52,7 @@ primVars::primVars(const genArray &a, const bool &prim,
     data_[3] = a[3] / a[0];
     double energy = a[4] / a[0];
     data_[4] =
-        eqnState.GetPressFromEnergy(data_[0], energy, (*this).Velocity().Mag());
+        eqnState.PressFromEnergy(data_[0], energy, (*this).Velocity().Mag());
     data_[5] = a[5] / a[0];
     data_[6] = a[6] / a[0];
   }
@@ -503,7 +503,7 @@ primVars primVars::GetGhostState(const string &bcType,
   // better options
   // set velocity and density to freestream values
   } else if (bcType == "subsonicInflow") {
-    double sos = eqnState.GetSoS(inputVars.PRef(), inputVars.RRef());
+    double sos = eqnState.SoS(inputVars.PRef(), inputVars.RRef());
     vector3d<double> ghostVel =
         inputVars.VelRef() / sos;  // nondimensionalize velocity
 
@@ -542,13 +542,13 @@ primVars primVars::GetGhostState(const string &bcType,
   // supersonic)
   } else if (bcType == "characteristic") {
     // freestream variables
-    double freeSoS = eqnState.GetSoS(inputVars.PRef(), inputVars.RRef());
+    double freeSoS = eqnState.SoS(inputVars.PRef(), inputVars.RRef());
     vector3d<double> freeVel = inputVars.VelRef() / freeSoS;
     primVars freeState(1.0, 1.0 / eqnState.Gamma(), freeVel);
 
     // internal variables
     double velIntNorm = (*this).Velocity().DotProd(normArea);
-    double SoSInt = eqnState.GetSoS((*this).P(), (*this).Rho());
+    double SoSInt = eqnState.SoS((*this).P(), (*this).Rho());
     double machInt = fabs(velIntNorm) / SoSInt;
 
     if (machInt >= 1.0 &&
@@ -627,7 +627,7 @@ primVars primVars::GetGhostState(const string &bcType,
   // freestream state
   } else if (bcType == "supersonicInflow") {
     // physical boundary conditions - fix everything
-    double sos = eqnState.GetSoS(inputVars.PRef(), inputVars.RRef());
+    double sos = eqnState.SoS(inputVars.PRef(), inputVars.RRef());
     vector3d<double> vel = inputVars.VelRef() / sos;  // nondimensional velocity
     ghostState.data_[0] = 1.0;  // nondimensional density
     ghostState.data_[1] = vel.X();
@@ -667,13 +667,13 @@ primVars primVars::GetGhostState(const string &bcType,
                                          0.5 * g));
     double tb =
         inputVars.StagInletT0() / inputVars.TRef() * (sosB * sosB / stagSoSsq);
-    double aRef = eqnState.GetSoS(inputVars.PRef(), inputVars.RRef());
+    double aRef = eqnState.SoS(inputVars.PRef(), inputVars.RRef());
     double pb = inputVars.StagInletP0() / (inputVars.RRef() * aRef * aRef) *
                 pow(sosB * sosB / stagSoSsq, eqnState.Gamma() / g);
     double vbMag =
         sqrt(2.0 / g * (inputVars.StagInletT0() / inputVars.TRef() - tb));
 
-    ghostState.data_[0] = eqnState.GetDensityTP(tb, pb);
+    ghostState.data_[0] = eqnState.DensityTP(tb, pb);
     ghostState.data_[1] = vbMag * inputVars.StagInletDx();
     ghostState.data_[2] = vbMag * inputVars.StagInletDy();
     ghostState.data_[3] = vbMag * inputVars.StagInletDz();
@@ -688,8 +688,8 @@ primVars primVars::GetGhostState(const string &bcType,
   // this boundary condition is appropriate for subsonic flow. Implementation
   // from Blazek
   } else if (bcType == "pressureOutlet") {
-    double aRef = eqnState.GetSoS(
-        inputVars.PRef(), inputVars.RRef());  // reference speed of sound
+    // reference speed of sound
+    double aRef = eqnState.SoS(inputVars.PRef(), inputVars.RRef());
     double pb = inputVars.PressureOutletP() /
                 (inputVars.RRef() * aRef *
                  aRef);  // nondimensional pressure from input file

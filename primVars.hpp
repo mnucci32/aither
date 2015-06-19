@@ -137,7 +137,7 @@ class primVars {
 // member function to calculate temperature from conserved variables and
 // equation of state
 double primVars::Temperature(const idealGas &eqnState) const {
-  return eqnState.GetTemperature(data_[4], data_[0]);
+  return eqnState.Temperature(data_[4], data_[0]);
 }
 
 // member function to calculate velocity from conserved variables
@@ -148,7 +148,7 @@ vector3d<double> primVars::Velocity() const {
 
 // member function to calculate total enthalpy from conserved variables
 double primVars::Energy(const idealGas &eqnState) const {
-  return eqnState.GetEnergy(eqnState.GetSpecEnergy(data_[4], data_[0]),
+  return eqnState.Energy(eqnState.SpecEnergy(data_[4], data_[0]),
                             (*this).Velocity().Mag());
 }
 
@@ -160,7 +160,7 @@ double primVars::SoS(const idealGas &eqnState) const {
 // member function to calculate enthalpy from conserved variables and equation
 // of state
 double primVars::Enthalpy(const idealGas &eqnState) const {
-  return eqnState.GetEnthalpy((*this).Energy(eqnState), data_[4], data_[0]);
+  return eqnState.Enthalpy((*this).Energy(eqnState), data_[4], data_[0]);
 }
 
 // member function to calculate conserved variables from primative variables

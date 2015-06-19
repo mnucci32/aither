@@ -202,7 +202,7 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars,
               const int &solIter, const decomposition &decomp,
               const input &inp) {
   // define reference speed of sound
-  double refSoS = eqnState.GetSoS(inp.PRef(), inp.RRef());
+  double refSoS = eqnState.SoS(inp.PRef(), inp.RRef());
 
   // define turbulence model
   turbModel *turb;
@@ -357,8 +357,8 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars,
               int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
               vel = recombVars[ll].State(locG).Velocity();
               dumVec[loc] =
-                  vel.Mag() / eqnState.GetSoS(recombVars[ll].State(locG).P(),
-                                              recombVars[ll].State(locG).Rho());
+                  vel.Mag() / eqnState.SoS(recombVars[ll].State(locG).P(),
+                                           recombVars[ll].State(locG).Rho());
             }
           }
         }
@@ -373,8 +373,8 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars,
                                  jj - recombVars[ll].NumGhosts(),
                                  kk - recombVars[ll].NumGhosts(), maxi, maxj);
               int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
-              dumVec[loc] = eqnState.GetSoS(recombVars[ll].State(locG).P(),
-                                            recombVars[ll].State(locG).Rho());
+              dumVec[loc] = eqnState.SoS(recombVars[ll].State(locG).P(),
+                                         recombVars[ll].State(locG).Rho());
             }
           }
         }
@@ -448,7 +448,7 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars,
               int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
               dumVec[loc] =
                   turb->BoussinesqEddyVisc() /
-                  suth.GetViscosity(
+                  suth.Viscosity(
                       recombVars[ll].State(locG).Temperature(eqnState));
             }
           }
