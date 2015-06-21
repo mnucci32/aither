@@ -76,7 +76,8 @@ void primVars::NondimensionalInitialize(const idealGas &eos,
     // STAR-CCM+
     const double turbInten = 0.01;
     const double viscRatio = 10.0;
-    data_[5] = 1.5 * (turbInten * vel.Mag()) * (turbInten * vel.Mag());
+    data_[5] = 1.5 * (turbInten * vel.Mag() / aRef) *
+        (turbInten * vel.Mag() / aRef);
     data_[6] = data_[0] * data_[5] / (viscRatio * muRef);
   } else {
     data_[5] = 0.0;
