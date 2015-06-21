@@ -273,7 +273,7 @@ class resid {
   void GetAddressesMPI(MPI_Aint (&)[2]) const;
   void GlobalReduceMPI(const int &, const MPI_Datatype &, const MPI_Op &);
 
-  friend void MaxLinf(resid *, resid *, int *, MPI_Datatype *);
+  void MaxLinf(resid *, resid *, int *, MPI_Datatype *);
 
   void Zero() {
     linf_ = 0.0;
