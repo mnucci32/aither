@@ -563,25 +563,19 @@ primVars primVars::GetGhostState(const string &bcType,
     double SoSInt = eqnState.SoS((*this).P(), (*this).Rho());
     double machInt = fabs(velIntNorm) / SoSInt;
 
-    if (machInt >= 1.0 &&
-        velIntNorm <
-            0.0) {  // supersonic inflow
-                    // -----------------------------------------------------
+    if (machInt >= 1.0 && velIntNorm < 0.0) {  // supersonic inflow
+      // -----------------------------------------------------
       // characteristics all go into the domain, so use freestream values for
       // both riemann invariants
       ghostState = freeState;
 
-    } else if (machInt >= 1.0 &&
-               velIntNorm >=
-                   0.0) {  // supersonic outflow
-                           // ----------------------------------------------
+    } else if (machInt >= 1.0 && velIntNorm >= 0.0) {  // supersonic outflow
+      // ----------------------------------------------
       // characteristics all leave the domain, so use interior values for both
       // riemann invariants
       ghostState = (*this);
-    } else if (machInt < 1.0 &&
-               velIntNorm <
-                   0.0) {  // subsonic inflow
-                           // ----------------------------------------------
+    } else if (machInt < 1.0 && velIntNorm < 0.0) {  // subsonic inflow
+      // ----------------------------------------------
       // characteristics go in both directions, use interior values for plus
       // characteristic and freestream values for minus characteristic
       double rhoSoSInt = (*this).Rho() * SoSInt;
@@ -601,10 +595,8 @@ primVars primVars::GetGhostState(const string &bcType,
       ghostState.data_[3] =
           freeState.W() -
           normArea.Z() * (freeState.P() - ghostState.P()) / rhoSoSInt;
-    } else if (machInt < 1.0 &&
-               velIntNorm >=
-                   0.0) {  // subsonic outflow
-                           // ----------------------------------------------------------
+    } else if (machInt < 1.0 && velIntNorm >= 0.0) {  // subsonic outflow
+      // ----------------------------------------------------------
       // characteristics go in both directions, use interior values for plus
       // characteristic and freestream values for minus characteristic
       double rhoSoSInt = (*this).Rho() * SoSInt;

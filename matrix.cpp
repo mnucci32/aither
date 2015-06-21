@@ -973,16 +973,16 @@ for MPI_Reduce.
 void MaxLinf(resid *in, resid *inout, int *len, MPI_Datatype *MPI_DOUBLE_5INT) {
   // *in -- pointer to all input residuals (from all procs)
   // *inout -- pointer to input and output residuals. The answer is stored here
-  // *len -- pointer to array size_ of *in and *inout
+  // *len -- pointer to array size of *in and *inout
   // *MPI_DOUBLE_5INT -- pointer to MPI_Datatype of double followed by 5 Ints,
   // which represents the resid class
 
   resid resLinf;  // intialize a resid
 
   for (int ii = 0; ii < *len; ii++) {  // loop over array of resids
-    if (in->linf_ >= inout->linf_) {  // if linf_ from input is greater than or
-                                    // equal to linf_ from output, then new max
-                                    // has been found
+    if (in->Linf() >= inout->Linf()) {  // if linf from input is greater than or
+                                        // equal to linf from output, then new
+                                        // max has been found
       resLinf = *in;
     } else {  // no new max
       resLinf = *inout;

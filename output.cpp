@@ -602,8 +602,8 @@ void WriteResiduals(const input &inp, genArray &residL2First, genArray &residL2,
   // determine normalization
   if (nn == 0 && mm == 0) {  // if at first iteration, normalize by itself
     residL2First = residL2;
-  } else if ((nn < 5) &&
-             mm == 0) {  // if within first 5 iterations reset normalization
+  // if within first 5 iterations reset normalization
+  } else if ((nn < 5) && mm == 0) {
     for (int cc = 0; cc < NUMVARS; cc++) {
       if (residL2[cc] > residL2First[cc]) {
         residL2First[cc] = residL2[cc];
@@ -616,47 +616,44 @@ void WriteResiduals(const input &inp, genArray &residL2First, genArray &residL2,
 
   // write out column headers every 100 iterations
   if (nn % 100 == 0 && mm == 0) {
+    cout << std::left << setw(7) << "Step" << setw(8) << "NL-Iter";
     if (inp.Dt() > 0.0) {
-      cout << std::left << setw(10) << "Step" << setw(10) << "NL Iter"
-           << setw(14) << "Time Step" << setw(14) << "Res-Mass" << setw(14)
-           << "Res-Mom-X" << setw(14) << "Res-Mom-Y" << setw(14) << "Res-Mom-Z"
-           << setw(14) << "Res-Energy" << setw(14) << "Max-Res-Eqn" << setw(14)
-           << "Max-Res-Blk" << setw(12) << "Max-Res-I" << setw(12)
-           << "Max-Res-J" << setw(12) << "Max-Res-K" << setw(14) << "Max-Res"
-           << setw(14) << "Res-Matrix" << endl;
+      cout << std::left << setw(12) << "Time-Step";
     } else if (inp.CFL() > 0.0) {
-      cout << std::left << setw(10) << "Step" << setw(10) << "NL Iter"
-           << setw(14) << "CFL" << setw(14) << "Res-Mass" << setw(14)
-           << "Res-Mom-X" << setw(14) << "Res-Mom-Y" << setw(14) << "Res-Mom-Z"
-           << setw(14) << "Res-Energy" << setw(14) << "Max-Res-Eqn" << setw(14)
-           << "Max-Res-Blk" << setw(12) << "Max-Res-I" << setw(12)
-           << "Max-Res-J" << setw(12) << "Max-Res-K" << setw(14) << "Max-Res"
-           << setw(14) << "Res-Matrix" << endl;
+      cout << std::left << setw(12) << "CFL";
     }
+    cout << std::left << setw(12) << "Res-Mass" << setw(12)
+         << "Res-Mom-X" << setw(12) << "Res-Mom-Y" << setw(12) << "Res-Mom-Z"
+         << setw(12) << "Res-Energy";
+    if (inp.IsTurbulent()) {
+      cout << std::left << setw(12) << "Res-Tke" << setw(12) << "Res-Omega";
+    }
+    cout << std::left << setw(8) << "Max-Eqn" << setw(8)
+         << "Max-Blk" << setw(8) << "Max-I" << setw(8)
+         << "Max-J" << setw(8) << "Max-K" << setw(12) << "Max-Res"
+         << setw(12) << "Res-Matrix" << endl;
   }
+
+  cout << std::left << setw(7) << nn << setw(8) << mm;
   if (inp.Dt() > 0.0) {
-    cout << std::left << setw(10) << nn << setw(10) << mm << setw(14)
-         << setprecision(5) << std::scientific << inp.Dt() << setw(14)
-         << residL2[0] << setw(14) << residL2[1] << setw(14) << residL2[2]
-         << setw(14) << residL2[3] << setw(14) << residL2[4];
-    cout.unsetf(std::ios::fixed | std::ios::scientific);
-    cout << std::left << setw(14) << residLinf.Eqn() << setw(14)
-         << residLinf.Block() << setw(12) << residLinf.ILoc() << setw(12)
-         << residLinf.JLoc() << setw(12) << residLinf.KLoc() << setw(14)
-         << setprecision(5) << std::scientific << residLinf.Linf() << setw(14)
-         << matrixResid << endl;
+    cout << std::left << setw(12) << setprecision(4) << std::scientific
+         << inp.Dt();
   } else if (inp.CFL() > 0.0) {
-    cout << std::left << setw(10) << nn << setw(10) << mm << setw(14)
-         << setprecision(5) << std::scientific << inp.CFL() << setw(14)
-         << residL2[0] << setw(14) << residL2[1] << setw(14) << residL2[2]
-         << setw(14) << residL2[3] << setw(14) << residL2[4];
-    cout.unsetf(std::ios::fixed | std::ios::scientific);
-    cout << std::left << setw(14) << residLinf.Eqn() << setw(14)
-         << residLinf.Block() << setw(12) << residLinf.ILoc() << setw(12)
-         << residLinf.JLoc() << setw(12) << residLinf.KLoc() << setw(14)
-         << setprecision(5) << std::scientific << residLinf.Linf() << setw(14)
-         << matrixResid << endl;
+    cout << std::left << setw(12) << setprecision(4) << std::scientific
+         << inp.CFL();
   }
+  cout << std::left << setw(12) << residL2[0] << setw(12) << residL2[1]
+       << setw(12) << residL2[2] << setw(12) << residL2[3] << setw(12)
+       << residL2[4];
+  if (inp.IsTurbulent()) {
+    cout << std::left << setw(12) << residL2[5] << setw(12) << residL2[6];
+  }
+  cout.unsetf(std::ios::fixed | std::ios::scientific);
+  cout << std::left << setw(8) << residLinf.Eqn() << setw(8)
+       << residLinf.Block() << setw(8) << residLinf.ILoc() << setw(8)
+       << residLinf.JLoc() << setw(8) << residLinf.KLoc() << setw(12)
+       << setprecision(4) << std::scientific << residLinf.Linf() << setw(12)
+       << matrixResid << endl;
 
   cout.unsetf(std::ios::fixed | std::ios::scientific);
 }
