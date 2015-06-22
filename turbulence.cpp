@@ -62,7 +62,11 @@ double turbKWWilcox::Xw(const primVars &state,
   // velGrad -- velocity gradient
 
   tensor<double> vorticity = 0.5 * (velGrad - velGrad.Transpose());
-  return fabs( (vorticity * vorticity).DoubleDot((*this).StrainKI(velGrad))
+
+  // using DoubleDotTrans for speed
+  // both tensors are symmetric so result is the same
+  // vorticity is asymmetric but vorticity * vorticity is symmetric
+  return fabs( (vorticity * vorticity).DoubleDotTrans((*this).StrainKI(velGrad))
                / pow((*this).BetaStar() * state.Omega(), 3.0) );
 }
 
@@ -81,6 +85,9 @@ double turbKWWilcox::OmegaTilda(const primVars &state,
   I.Identity();
   tensor<double> sHat = 0.5 * (velGrad + velGrad.Transpose()) - 1.0 / 3.0 *
       velGrad.Trace() * I;
+  
+  // using DoubleDotTrans instead of DoubleDot for speed
+  // since tensors are symmetric, result is the same
   return std::max(state.Omega(), (*this).CLim() *
-                  sqrt(2.0 * sHat.DoubleDot(sHat) / (*this).BetaStar()));
+                  sqrt(2.0 * sHat.DoubleDotTrans(sHat) / (*this).BetaStar()));
 }

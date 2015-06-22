@@ -92,6 +92,7 @@ class tensor {
   tensor<T> Transpose() const;
   vector3d<T> MatMult(const vector3d<T> &) const;
   T DoubleDot(const tensor<T> &) const;
+  T DoubleDotTrans(const tensor<T> &) const;
   tensor<T> Identity() const;
   tensor<T> Zero() const;
 
@@ -414,13 +415,26 @@ tensor<T> tensor<T>::Zero() const {
 }
 
 // Function to return the double dot product of two tensors
+// Aij Bij
 template <class T>
-T tensor<T>::DoubleDot(const tensor<T> &temp) const {
+T tensor<T>::DoubleDotTrans(const tensor<T> &temp) const {
   return data_[0] * temp.data_[0] + data_[1] * temp.data_[1] +
       data_[2] * temp.data_[2] + data_[3] * temp.data_[3] +
       data_[4] * temp.data_[4] + data_[5] * temp.data_[5] +
       data_[6] * temp.data_[6] + data_[7] * temp.data_[7] +
       data_[8] * temp.data_[8];
 }
+
+// Function to return the double dot product of two tensors
+// Aij Bji
+template <class T>
+T tensor<T>::DoubleDot(const tensor<T> &temp) const {
+  return data_[0] * temp.data_[0] + data_[1] * temp.data_[3] +
+      data_[2] * temp.data_[6] + data_[3] * temp.data_[1] +
+      data_[4] * temp.data_[4] + data_[5] * temp.data_[7] +
+      data_[6] * temp.data_[2] + data_[7] * temp.data_[5] +
+      data_[8] * temp.data_[8];
+}
+
 
 #endif

@@ -164,12 +164,14 @@ void source::CalcTurbSrc(const turbModel *turb, const primVars &state,
       (grads.VelGradCell(ii, jj, kk) +
        grads.VelGradCell(ii, jj, kk).Transpose());
 
-  data_[5] = state.Rho() * tau.DoubleDot(grads.VelGradCell(ii, jj, kk))
+  // Using DoubleDotTrans instead of DoubleDot for speed
+  // Since tensors are symmetric result is the same
+  data_[5] = state.Rho() * tau.DoubleDotTrans(grads.VelGradCell(ii, jj, kk))
       - turb->Eqn1DissipationCoeff() * state.Rho() * state.Omega() *
       state.Tke();
 
   data_[6] = turb->Eqn2ProductionCoeff() * state.Omega() / state.Tke() *
-      state.Rho() * tau.DoubleDot(grads.VelGradCell(ii, jj, kk))
+      state.Rho() * tau.DoubleDotTrans(grads.VelGradCell(ii, jj, kk))
       - turb->Eqn2DissipationCoeff(state, grads.VelGradCell(ii, jj, kk))
       * state.Rho() * state.Omega() * state.Omega();
 }
