@@ -447,7 +447,7 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars,
                                  kk - recombVars[ll].NumGhosts(), maxi, maxj);
               int locG = GetLoc1D(ii, jj, kk, maxiG, maxjG);
               dumVec[loc] =
-                  turb->BoussinesqEddyVisc() /
+                  turb->EddyVisc(recombVars[ll].State(locG)) /
                   suth.Viscosity(
                       recombVars[ll].State(locG).Temperature(eqnState));
             }

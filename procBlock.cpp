@@ -1389,7 +1389,8 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
             ViscCellSpectralRadius(
                 (*this).FAreaI(ilFace2G), (*this).FAreaI(ilFaceG),
                 (*this).State(ilG).UpdateWithConsVars(eqnState, x[il]),
-                eqnState, suth, (*this).Vol(ilG), turb->BoussinesqEddyVisc());
+                eqnState, suth, (*this).Vol(ilG),
+                turb->EddyVisc((*this).State(ilG)));
         specRad += vSpecRad;
       }
 
@@ -1417,7 +1418,8 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
             ViscCellSpectralRadius(
                 (*this).FAreaJ(jlFace2G), (*this).FAreaJ(jlFaceG),
                 (*this).State(jlG).UpdateWithConsVars(eqnState, x[jl]),
-                eqnState, suth, (*this).Vol(jlG), turb->BoussinesqEddyVisc());
+                eqnState, suth, (*this).Vol(jlG),
+                turb->EddyVisc((*this).State(jlG)));
         specRad += vSpecRad;
       }
 
@@ -1445,7 +1447,8 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
             ViscCellSpectralRadius(
                 (*this).FAreaK(klFace2G), (*this).FAreaK(klFaceG),
                 (*this).State(klG).UpdateWithConsVars(eqnState, x[kl]),
-                eqnState, suth, (*this).Vol(klG), turb->BoussinesqEddyVisc());
+                eqnState, suth, (*this).Vol(klG),
+                turb->EddyVisc((*this).State(klG)));
         specRad += vSpecRad;
       }
 
@@ -1558,7 +1561,8 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
             ViscCellSpectralRadius(
                 (*this).FAreaI(iuFace2G), (*this).FAreaI(iuFaceG),
                 (*this).State(iuG).UpdateWithConsVars(eqnState, x[iu]),
-                eqnState, suth, (*this).Vol(iuG), turb->BoussinesqEddyVisc());
+                eqnState, suth, (*this).Vol(iuG),
+                turb->EddyVisc((*this).State(iuG)));
         specRad += vSpecRad;
       }
 
@@ -1585,7 +1589,8 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
             ViscCellSpectralRadius(
                 (*this).FAreaJ(juFace2G), (*this).FAreaJ(juFaceG),
                 (*this).State(juG).UpdateWithConsVars(eqnState, x[ju]),
-                eqnState, suth, (*this).Vol(juG), turb->BoussinesqEddyVisc());
+                eqnState, suth, (*this).Vol(juG),
+                turb->EddyVisc((*this).State(juG)));
         specRad += vSpecRad;
       }
 
@@ -1612,7 +1617,8 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
             ViscCellSpectralRadius(
                 (*this).FAreaK(kuFace2G), (*this).FAreaK(kuFaceG),
                 (*this).State(kuG).UpdateWithConsVars(eqnState, x[ku]),
-                eqnState, suth, (*this).Vol(kuG), turb->BoussinesqEddyVisc());
+                eqnState, suth, (*this).Vol(kuG),
+                turb->EddyVisc((*this).State(kuG)));
         specRad += vSpecRad;
       }
 
@@ -2125,7 +2131,8 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
             (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc));
 
         double eddyVisc = FaceReconCentral(
-            turb->BoussinesqEddyVisc(), turb->BoussinesqEddyVisc(),
+            turb->EddyVisc((*this).State(iLow)),
+            turb->EddyVisc((*this).State(iUp)),
             (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc));
         eddyVisc *= suth.NondimScaling();  // effective viscosity
 
@@ -2160,7 +2167,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
               ViscCellSpectralRadius(
                   (*this).FAreaI(loc), (*this).FAreaI(fUpi),
                   (*this).State(iUp), eqnState, suth,
-                  (*this).Vol(iUp), turb->BoussinesqEddyVisc());
+                  (*this).Vol(iUp), turb->EddyVisc((*this).State(iUp)));
           (*this).avgWaveSpeed_[iUpNG] =
               (*this).AvgWaveSpeed(iUpNG) + vCoeff * maxWS;
         }
@@ -2316,7 +2323,8 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
             (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc));
 
         double eddyVisc = FaceReconCentral(
-            turb->BoussinesqEddyVisc(), turb->BoussinesqEddyVisc(),
+            turb->EddyVisc((*this).State(jLow)),
+            turb->EddyVisc((*this).State(jUp)),
             (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc));
         // effective viscosity (due to nondimensionalization)
         eddyVisc *= suth.NondimScaling();
@@ -2352,7 +2360,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
               ViscCellSpectralRadius(
                   (*this).FAreaJ(loc), (*this).FAreaJ(fUpj),
                   (*this).State(jUp), eqnState, suth,
-                  (*this).Vol(jUp), turb->BoussinesqEddyVisc());
+                  (*this).Vol(jUp), turb->EddyVisc((*this).State(jUp)));
           (*this).avgWaveSpeed_[jUpNG] =
               (*this).AvgWaveSpeed(jUpNG) + vCoeff * maxWS;
         }
@@ -2506,7 +2514,8 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
             (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc));
 
         double eddyVisc = FaceReconCentral(
-            turb->BoussinesqEddyVisc(), turb->BoussinesqEddyVisc(),
+            turb->EddyVisc((*this).State(kLow)),
+            turb->EddyVisc((*this).State(kUp)),
             (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc));
         // effective viscosity (due to nondimensionalization)
         eddyVisc *= suth.NondimScaling();
@@ -2542,7 +2551,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
               ViscCellSpectralRadius(
                   (*this).FAreaK(loc), (*this).FAreaK(fUpk),
                   (*this).State(kUp), eqnState, suth,
-                  (*this).Vol(kUp), turb->BoussinesqEddyVisc());
+                  (*this).Vol(kUp), turb->EddyVisc((*this).State(kUp)));
           (*this).avgWaveSpeed_[kUpNG] =
               (*this).AvgWaveSpeed(kUpNG) + vCoeff * maxWS;
         }

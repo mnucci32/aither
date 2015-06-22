@@ -24,6 +24,9 @@
 #include <math.h>  // sqrt
 #include <vector>  // vector
 #include <string>  // string
+#include "primVars.hpp"  // primVars
+#include "vector3d.hpp"  // vector3d
+#include "tensor.hpp"  // tensor
 
 using std::vector;
 using std::string;
@@ -33,20 +36,21 @@ class turbModel {
 
  public:
   // constructor
-  turbModel() {
-    string temp = "boussinesq";
-    eddyViscMethod_ = temp;
-  }
+  turbModel() : eddyViscMethod_("boussinesq") {}
   explicit turbModel(const string &meth) : eddyViscMethod_(meth) {}
 
   // member functions
-  virtual double BoussinesqEddyVisc() const = 0;
+  string EddyViscMethod() const {return eddyViscMethod_;}
+
+  virtual double EddyVisc(const primVars &state) const = 0;
   virtual double TurbPrandtlNumber() const = 0;
   virtual double Eqn1ProductionCoeff() const = 0;
   virtual double Eqn2ProductionCoeff() const = 0;
   virtual double Eqn1DissipationCoeff() const = 0;
-  virtual double Eqn2DissipationCoeff() const = 0;
-  virtual double Eqn2CrossDiffCoeff() const = 0;
+  virtual double Eqn2DissipationCoeff(const primVars &state,
+                                      const tensor<double> &velGrad) const = 0;
+  virtual double Eqn2CrossDiffCoeff(const vector3d<double> &kGrad,
+                                    const vector3d<double> &wGrad) const = 0;
   virtual double Eqn1MolecDiffCoeff() const = 0;
   virtual double Eqn2MolecDiffCoeff() const = 0;
 
@@ -58,38 +62,52 @@ class turbNone : public turbModel {
  public:
   // constructor
   turbNone() : turbModel() {}
+  explicit turbNone(const string &meth) : turbModel(meth) {}
 
   // member functions
-  virtual double BoussinesqEddyVisc() const {return 0.0;}
-  virtual double TurbPrandtlNumber() const {return 0.9;}
-  virtual double Eqn1ProductionCoeff() const {return 0.0;}
-  virtual double Eqn2ProductionCoeff() const {return 0.0;}
-  virtual double Eqn1DissipationCoeff() const {return 0.0;}
-  virtual double Eqn2DissipationCoeff() const {return 0.0;}
-  virtual double Eqn2CrossDiffCoeff() const {return 0.0;}
-  virtual double Eqn1MolecDiffCoeff() const {return 0.0;}
-  virtual double Eqn2MolecDiffCoeff() const {return 0.0;}
+  double EddyVisc(const primVars &state) const override {return 0.0;}
+  double TurbPrandtlNumber() const override {return 0.9;}
+  double Eqn1ProductionCoeff() const override {return 0.0;}
+  double Eqn2ProductionCoeff() const override {return 0.0;}
+  double Eqn1DissipationCoeff() const override {return 0.0;}
+  double Eqn2DissipationCoeff(const primVars &state,
+                              const tensor<double> &velGrad) const override {
+    return 0.0;
+  }
+  double Eqn2CrossDiffCoeff(const vector3d<double> &kGrad,
+                            const vector3d<double> &wGrad) const override {
+    return 0.0;
+  }
+  double Eqn1MolecDiffCoeff() const override {return 0.0;}
+  double Eqn2MolecDiffCoeff() const override {return 0.0;}
 
 
   // destructor
-  virtual ~turbNone() {}
+  ~turbNone() {}
 };
 
 class turbKWWilcox : public turbModel {
  public:
   // constructor
   turbKWWilcox() : turbModel() {}
+  explicit turbKWWilcox(const string &meth) : turbModel(meth) {}
 
   // member functions
-  virtual double BoussinesqEddyVisc() const {return 0.0;}
-  virtual double TurbPrandtlNumber() const { return 8.0 / 9.0; }
-  virtual double Eqn1ProductionCoeff() const {return 1.0;}
-  virtual double Eqn2ProductionCoeff() const {return (*this).Alpha();}
-  virtual double Eqn1DissipationCoeff() const {return (*this).BetaStar();}
-  virtual double Eqn2DissipationCoeff() const {return 0.0;}
-  virtual double Eqn2CrossDiffCoeff() const {return 0.0;}
-  virtual double Eqn1MolecDiffCoeff() const {return (*this).SigmaStar();}
-  virtual double Eqn2MolecDiffCoeff() const {return (*this).Sigma();}
+  double EddyVisc(const primVars&) const override;
+  double TurbPrandtlNumber() const override {return 8.0 / 9.0;}
+  double Eqn1ProductionCoeff() const override {return 1.0;}
+  double Eqn2ProductionCoeff() const override {return (*this).Alpha();}
+  double Eqn1DissipationCoeff() const override {return (*this).BetaStar();}
+  double Eqn2DissipationCoeff(const primVars &state,
+                              const tensor<double> &velGrad) const override {
+    return (*this).Beta(state, velGrad);
+  }
+  double Eqn2CrossDiffCoeff(const vector3d<double> &kGrad,
+                            const vector3d<double> &wGrad) const override {
+    return (*this).SigmaD(kGrad, wGrad);
+  }
+  double Eqn1MolecDiffCoeff() const override {return (*this).SigmaStar();}
+  double Eqn2MolecDiffCoeff() const override {return (*this).Sigma();}
 
   double Alpha() const {return 0.52;}
   double BetaStar() const {return 0.09;}
@@ -99,14 +117,15 @@ class turbKWWilcox : public turbModel {
   double Beta0() const {return 0.0708;}
   double CLim() const {return 0.875;}
 
-  double SigmaD() const;
-  double Xw() const;
-  double FBeta() const;
-  double Beta() const;
-  double StrainKI() const;
+  double SigmaD(const vector3d<double>&, const vector3d<double>&) const;
+  double Xw(const primVars&, const tensor<double>&) const;
+  double FBeta(const primVars&, const tensor<double>&) const;
+  double Beta(const primVars&, const tensor<double>&) const;
+  tensor<double> StrainKI(const tensor<double>&) const;
+  double OmegaTilda(const primVars&, const tensor<double>&) const;
 
   // destructor
-  virtual ~turbKWWilcox() {}
+  ~turbKWWilcox() {}
 };
 
 // function declarations

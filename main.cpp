@@ -236,6 +236,10 @@ int main(int argc, char *argv[]) {
           localStateBlocks[bb].CalcViscFluxK(suth, eos, inputVars, grads);
 
           // If turblent, calculate source terms
+          if (inputVars.IsTurbulent()) {
+            // calculate source terms
+            // localStateBlocks[bb].CalcSource();
+          }
         }
 
         // Calculate the time step to use in the simulation
