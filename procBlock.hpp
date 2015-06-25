@@ -175,11 +175,15 @@ class procBlock {
   void AssignGhostCellsGeom();
   void AssignGhostCellsGeomEdge();
 
-  void AssignInviscidGhostCells(const input &, const idealGas &);
-  void AssignInviscidGhostCellsEdge(const input &, const idealGas &);
+  void AssignInviscidGhostCells(const input &, const idealGas &,
+                                const sutherland &);
+  void AssignInviscidGhostCellsEdge(const input &, const idealGas &,
+                                    const sutherland &);
 
-  void AssignViscousGhostCells(const input &, const idealGas &);
-  void AssignViscousGhostCellsEdge(const input &, const idealGas &);
+  void AssignViscousGhostCells(const input &, const idealGas &,
+                               const sutherland &);
+  void AssignViscousGhostCellsEdge(const input &, const idealGas &,
+                                   const sutherland &);
 
   bool IsPhysical(const int &, const int &, const int &) const;
   bool AtCorner(const int &, const int &, const int &) const;
@@ -385,7 +389,7 @@ vector3d<int> GetSwapLoc(const int &, const int &, const int &,
 void SwapSlice(interblock &, procBlock &, procBlock &, const bool &);
 
 void GetBoundaryConditions(vector<procBlock> &, const input &, const idealGas &,
-                           vector<interblock> &, const int &rank_,
-                           const MPI_Datatype &MPI_cellData);
+                           const sutherland &, vector<interblock> &,
+                           const int &, const MPI_Datatype &);
 
 #endif

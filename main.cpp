@@ -210,7 +210,7 @@ int main(int argc, char *argv[]) {
     // loop over nonlinear iterations
     for ( int mm = 0; mm < inputVars.NonlinearIterations(); mm++ ) {
       // Get boundary conditions for all blocks
-      GetBoundaryConditions(localStateBlocks, inputVars, eos,
+      GetBoundaryConditions(localStateBlocks, inputVars, eos, suth,
                             connections, rank, MPI_cellData);
 
       // Loop over number of blocks
@@ -224,7 +224,7 @@ int main(int argc, char *argv[]) {
         // If viscous change ghost cells and calculate viscous fluxes
         if (inputVars.IsViscous()) {
           // Determine ghost cell values for viscous fluxes
-          localStateBlocks[bb].AssignViscousGhostCells(inputVars, eos);
+          localStateBlocks[bb].AssignViscousGhostCells(inputVars, eos, suth);
 
           // Calculate gradients
           gradients grads(inputVars.IsTurbulent(), localStateBlocks[bb], eos);
