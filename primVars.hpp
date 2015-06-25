@@ -56,7 +56,7 @@ class primVars {
   primVars() : data_{0.0} {}
   explicit primVars(const double &);
   primVars(const double &r, const double &p, const vector3d<double> &v)
-      : data_{r, v.X(), v.Y(), v.Z(), p} {}
+      : data_{r, v.X(), v.Y(), v.Z(), p, 0.0, 0.0} {}
   primVars(const double &a, const double &b, const double &c, const double &d,
            const double &e)
       : data_{a, b, c, d, e} {}
@@ -87,6 +87,9 @@ class primVars {
 
   inline genArray ConsVars(const idealGas &) const;
   primVars UpdateWithConsVars(const idealGas &, const genArray &) const;
+
+  void ApplyFarfieldTurbBC(const vector3d<double> &, const double &,
+                           const double &, const double &);
 
   // operator overloads for addition and subtraction of states
   primVars operator+(const primVars &) const;
@@ -126,7 +129,7 @@ class primVars {
   // member function to return the state of the appropriate ghost cell
   primVars GetGhostState(const string &, const vector3d<double> &,
                          const string &, const input &, const idealGas &,
-                         const int = 1) const;
+                         const sutherland &, const int = 1) const;
 
   // destructor
   ~primVars() {}
