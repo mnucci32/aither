@@ -74,8 +74,8 @@ class primVars {
   double Tke() const { return data_[5]; }
   double Omega() const { return data_[6]; }
 
-  void NondimensionalInitialize(const idealGas &, const vector3d<double> &,
-                                const double &, const double &, const bool &);
+  void NondimensionalInitialize(const idealGas&, const double&, const input&,
+                                const double&);
   bool IsZero() const;
 
   inline vector3d<double> Velocity() const;

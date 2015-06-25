@@ -98,8 +98,7 @@ int main(int argc, char *argv[]) {
   // Get reference speed of sound
   double aRef = eos.SoS(inputVars.PRef(), inputVars.RRef());
   primVars state;
-  state.NondimensionalInitialize(eos, inputVars.VelRef(), aRef, suth.MuRef(),
-                                 inputVars.IsTurbulent());
+  state.NondimensionalInitialize(eos, aRef, inputVars, suth.MuRef());
 
   vector<plot3dBlock> mesh;
   vector<interblock> connections;

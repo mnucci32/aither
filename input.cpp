@@ -36,7 +36,7 @@ using std::istream_iterator;
 
 // constructor for input class
 // initialize vector to have length of number of acceptable inputs to the code
-input::input() : vars_(33) {
+input::input() : vars_(35) {
   // default values for each variable
   gName_ = "";
   dt_ = -1.0;
@@ -83,6 +83,8 @@ input::input() : vars_(33) {
   pressureOutlet_[1] = 0.0;
   decompMethod_ = "cubic";  // default is cubic decomposition
   turbModel_ = "none";  // default turbulence model is none
+  farfieldTurbInten_ = 0.01;
+  farfieldEddyViscRatio_ = 10.0;
 
   // keywords in the input file that the parser is looking for to define
   // variables
@@ -118,9 +120,11 @@ input::input() : vars_(33) {
   vars_[29] = "pressureOutlet:";
   vars_[30] = "decompositionMethod:";
   vars_[31] = "turbulenceModel:";
+  vars_[32] = "farfieldTurbulenceIntensity:";
+  vars_[33] = "farfieldEddyViscosityRatio:";
 
-  vars_[32] = "boundaryConditions:";  // boundary conditions should be listed
-                                     // last
+  // boundary conditions should be listed last
+  vars_[vars_.size() - 1] = "boundaryConditions:";
 }
 
 // function to trim leading and trailing whitespace from a string, and also

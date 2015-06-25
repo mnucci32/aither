@@ -65,82 +65,84 @@ class input {
   double pressureOutlet_[2];  // vector of pressure outlet properties
   string decompMethod_;  // method of decomposition for parallel problems
   string turbModel_;  // turbulence model
+  double farfieldTurbInten_;  // turbulence intensity at farfield
+  double farfieldEddyViscRatio_;  // eddy viscosity ratio at farfield
 
  public:
   // constructor
   input();
 
   // member functions
-  string GridName() const { return gName_; }
+  string GridName() const {return gName_;}
 
-  double Dt() const { return dt_; }
+  double Dt() const {return dt_;}
 
-  int Iterations() const { return iterations_; }
+  int Iterations() const {return iterations_;}
 
-  double PRef() const { return pRef_; }
-  double RRef() const { return rRef_; }
-  double LRef() const { return lRef_; }
-  double TRef() const { return tRef_; }
+  double PRef() const {return pRef_;}
+  double RRef() const {return rRef_;}
+  double LRef() const {return lRef_;}
+  double TRef() const {return tRef_;}
 
-  double Gamma() const { return gamma_; }
-  double R() const { return gasConst_; }
+  double Gamma() const {return gamma_;}
+  double R() const {return gasConst_;}
 
-  vector3d<double> VelRef() const { return velRef_; }
+  vector3d<double> VelRef() const {return velRef_;}
 
-  boundaryConditions BC(const int &ind) const { return bc_[ind]; }
-  vector<boundaryConditions> AllBC() const { return bc_; }
-  int NumBC() const { return bc_.size(); }
+  boundaryConditions BC(const int &ind) const {return bc_[ind];}
+  vector<boundaryConditions> AllBC() const {return bc_;}
+  int NumBC() const {return bc_.size();}
 
-  string TimeIntegration() const { return timeIntegration_; }
+  string TimeIntegration() const {return timeIntegration_;}
 
-  double CFL() const { return cfl_; }
+  double CFL() const {return cfl_;}
   void CalcCFL(const int &i);
 
-  double Kappa() const { return kappa_; }
+  double Kappa() const {return kappa_;}
 
-  string Limiter() const { return limiter_; }
+  string Limiter() const {return limiter_;}
 
-  int OutputFrequency() const { return outputFrequency_; }
+  int OutputFrequency() const {return outputFrequency_;}
 
-  string EquationSet() const { return equationSet_; }
+  string EquationSet() const {return equationSet_;}
 
-  string MatrixSolver() const { return matrixSolver_; }
-  int MatrixSweeps() const { return matrixSweeps_; }
-  double MatrixRelaxation() const { return matrixRelaxation_; }
+  string MatrixSolver() const {return matrixSolver_;}
+  int MatrixSweeps() const {return matrixSweeps_;}
+  double MatrixRelaxation() const {return matrixRelaxation_;}
 
-  double Theta() const { return timeIntTheta_; }
+  double Theta() const {return timeIntTheta_;}
 
-  double Zeta() const { return timeIntZeta_; }
+  double Zeta() const {return timeIntZeta_;}
 
-  int NonlinearIterations() const { return nonlinearIterations_; }
+  int NonlinearIterations() const {return nonlinearIterations_;}
 
-  double CFLMax() const { return cflMax_; }
-  double CFLStep() const { return cflStep_; }
-  double CFLStart() const { return cflStart_; }
+  double CFLMax() const {return cflMax_;}
+  double CFLStep() const {return cflStep_;}
+  double CFLStart() const {return cflStart_;}
 
-  string InvFluxJac() const { return invFluxJac_; }
+  string InvFluxJac() const {return invFluxJac_;}
 
-  double DualTimeCFL() const { return dualTimeCFL_; }
+  double DualTimeCFL() const {return dualTimeCFL_;}
 
-  string InviscidFlux() const { return inviscidFlux_; }
+  string InviscidFlux() const {return inviscidFlux_;}
 
-  int StagInletTag() const { return static_cast<int> (stagInletProps_[0]); }
-  double StagInletP0() const { return stagInletProps_[1]; }
-  double StagInletT0() const { return stagInletProps_[2]; }
-  double StagInletDx() const { return stagInletProps_[3]; }
-  double StagInletDy() const { return stagInletProps_[4]; }
-  double StagInletDz() const { return stagInletProps_[5]; }
+  int StagInletTag() const {return static_cast<int> (stagInletProps_[0]);}
+  double StagInletP0() const {return stagInletProps_[1];}
+  double StagInletT0() const {return stagInletProps_[2];}
+  double StagInletDx() const {return stagInletProps_[3];}
+  double StagInletDy() const {return stagInletProps_[4];}
+  double StagInletDz() const {return stagInletProps_[5];}
 
   int PressureOutletTag() const {
-    return static_cast<int> (pressureOutlet_[0]); }
-  double PressureOutletP() const { return pressureOutlet_[1]; }
+    return static_cast<int> (pressureOutlet_[0]);}
+  double PressureOutletP() const {return pressureOutlet_[1];}
 
-  string DecompMethod() const { return decompMethod_; }
-  string TurbulenceModel() const { return turbModel_; }
+  string DecompMethod() const {return decompMethod_;}
+  string TurbulenceModel() const {return turbModel_;}
 
-  string Vars(const int &ind) const { return vars_[ind]; }
+  string Vars(const int &ind) const {return vars_[ind];}
 
-  int NumVars() const { return vars_.size(); }
+  int NumVars() const {return vars_.size();}
   int NumEquations() const;
 
   void ReadInput(const string &, const int &);
@@ -150,6 +152,9 @@ class input {
   bool IsTurbulent() const;
 
   string OrderOfAccuracy() const;
+
+  double FarfieldTurbIntensity() const {return farfieldTurbInten_;}
+  double FarfieldEddyViscRatio() const {return farfieldEddyViscRatio_;}
 
   // destructor
   ~input() {}

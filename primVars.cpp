@@ -59,26 +59,22 @@ primVars::primVars(const genArray &a, const bool &prim,
 }
 
 // member function to initialize a state with nondimensional values
-void primVars::NondimensionalInitialize(const idealGas &eos,
-                                        const vector3d<double> &vel,
-                                        const double &aRef, const double &muRef,
-                                        const bool &isTurb) {
+void primVars::NondimensionalInitialize(const idealGas &eos, const double &aRef,
+                                        const input &inp, const double &muRef) {
   data_[0] = 1.0;
   data_[4] = 1.0 / eos.Gamma();
 
-  data_[1] = vel.X() / aRef;
-  data_[2] = vel.Y() / aRef;
-  data_[3] = vel.Z() / aRef;
+  data_[1] = inp.VelRef().X() / aRef;
+  data_[2] = inp.VelRef().Y() / aRef;
+  data_[3] = inp.VelRef().Z() / aRef;
 
-  if (isTurb) {
+  if (inp.IsTurbulent()) {
     // Initialize turbulence quantities based off of specified turublence
     // intensity and eddy viscosity ratio. This is the default for
     // STAR-CCM+
-    const double turbInten = 0.01;
-    const double viscRatio = 10.0;
-    data_[5] = 1.5 * (turbInten * vel.Mag() / aRef) *
-        (turbInten * vel.Mag() / aRef);
-    data_[6] = data_[0] * data_[5] / (viscRatio * muRef);
+    data_[5] = 1.5 * pow(inp.FarfieldTurbIntensity() * inp.VelRef().Mag()
+                         / aRef, 2.0);
+    data_[6] = data_[0] * data_[5] / (inp.FarfieldEddyViscRatio() * muRef);
   } else {
     data_[5] = 0.0;
     data_[6] = 0.0;
