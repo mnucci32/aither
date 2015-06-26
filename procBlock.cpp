@@ -264,19 +264,18 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   residual_.resize(numCells_);
 }
 
-// member function to add a member of the inviscid flux class to the residual_
+// member function to add a member of the inviscid flux class to the residual
 void procBlock::AddToResidual(const inviscidFlux &flux, const int &ii) {
-  // flux -- inviscid flux to add to residual_
-  // ii -- location of residual_ to add to
+  // flux -- inviscid flux to add to residual
+  // ii -- location of residual to add to
 
-  genArray temp(0.0);
-  temp[0] = flux.RhoVel();
-  temp[1] = flux.RhoVelU();
-  temp[2] = flux.RhoVelV();
-  temp[3] = flux.RhoVelW();
-  temp[4] = flux.RhoVelH();
-
-  (*this).residual_[ii] = (*this).Residual(ii) + temp;
+  (*this).residual_[ii][0] += flux.RhoVel();
+  (*this).residual_[ii][1] += flux.RhoVelU();
+  (*this).residual_[ii][2] += flux.RhoVelV();
+  (*this).residual_[ii][3] += flux.RhoVelW();
+  (*this).residual_[ii][4] += flux.RhoVelH();
+  (*this).residual_[ii][5] += flux.RhoVelK();
+  (*this).residual_[ii][6] += flux.RhoVelO();
 }
 
 // member function to add a member of the viscous flux class to the residual_
@@ -284,14 +283,12 @@ void procBlock::AddToResidual(const viscousFlux &flux, const int &ii) {
   // flux -- inviscid flux to add to residual_
   // ii -- location of residual_ to add to
 
-  genArray temp(0.0);
-  temp[0] = 0.0;
-  temp[1] = flux.MomX();
-  temp[2] = flux.MomY();
-  temp[3] = flux.MomZ();
-  temp[4] = flux.Engy();
-
-  (*this).residual_[ii] = (*this).Residual(ii) + temp;
+  (*this).residual_[ii][1] += flux.MomX();
+  (*this).residual_[ii][2] += flux.MomY();
+  (*this).residual_[ii][3] += flux.MomZ();
+  (*this).residual_[ii][4] += flux.Engy();
+  (*this).residual_[ii][5] += flux.MomK();
+  (*this).residual_[ii][6] += flux.MomO();
 }
 
 //---------------------------------------------------------------------
