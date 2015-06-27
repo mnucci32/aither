@@ -23,6 +23,7 @@
 #include <string>
 #include <vector>
 #include "input.hpp"
+#include "turbulence.hpp"
 
 #define ROOT 0
 
@@ -542,10 +543,10 @@ void input::CalcCFL(const int &i) {
 // member function to determine number of equations to solver for
 int input::NumEquations() const {
   int numEqns = 0;
-  if (((*this).EquationSet() == "euler") ||
-      ((*this).EquationSet() == "navierStokes")) {
+  if ((equationSet_ == "euler") ||
+      (equationSet_ == "navierStokes")) {
     numEqns = 5;
-  } else if ((*this).EquationSet() == "rans") {
+  } else if (equationSet_ == "rans") {
     numEqns = 7;
   } else {
     cerr << "ERROR: Equations set is not recognized. Cannot determine number "
@@ -557,9 +558,9 @@ int input::NumEquations() const {
 
 // member function to determine of method is implicit or explicit
 bool input::IsImplicit() const {
-  if ((*this).TimeIntegration() == "implicitEuler" ||
-      (*this).TimeIntegration() == "crankNicholson" ||
-      (*this).TimeIntegration() == "bdf2") {
+  if (timeIntegration_ == "implicitEuler" ||
+      timeIntegration_ == "crankNicholson" ||
+      timeIntegration_ == "bdf2") {
     return true;
   } else {
     return false;
@@ -568,8 +569,8 @@ bool input::IsImplicit() const {
 
 // member function to determine of method is vicous or inviscid
 bool input::IsViscous() const {
-  if ((*this).EquationSet() == "navierStokes" ||
-      (*this).EquationSet() == "rans") {
+  if (equationSet_ == "navierStokes" ||
+      equationSet_ == "rans") {
     return true;
   } else {
     return false;
@@ -578,7 +579,7 @@ bool input::IsViscous() const {
 
 // member function to determine of method is turbulent
 bool input::IsTurbulent() const {
-  if ((*this).EquationSet() == "rans") {
+  if (equationSet_ == "rans") {
     return true;
   } else {
     return false;
@@ -586,9 +587,24 @@ bool input::IsTurbulent() const {
 }
 
 string input::OrderOfAccuracy() const {
-  if ((*this).Kappa() == -2.0) {
+  if (kappa_ == -2.0) {
     return "first";
   } else {
     return "second";
   }
+}
+
+turbModel* input::AssignTurbulenceModel() const {
+  // define turbulence model
+  turbModel *turb;
+  if (turbModel_ == "none") {
+    turb = new turbNone;
+  } else if (turbModel_ == "kOmegaWilcox2006") {
+    turb = new turbKWWilcox;
+  } else {
+    cerr << "ERROR: Error in input::AssignTurbulenceModel(). Turbulence model "
+         << turbModel_ << " is not recognized!" << endl;
+    exit(0);
+  }
+  return turb;
 }

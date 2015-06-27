@@ -152,14 +152,15 @@ class procBlock {
 
   double LUSGS(const vector<vector3d<int> > &, vector<genArray> &,
                const vector<genArray> &, const vector<genArray> &,
-               const idealGas &, const input &, const sutherland &) const;
+               const idealGas &, const input &, const sutherland &,
+               const turbModel *) const;
 
   void CalcViscFluxI(const sutherland &, const idealGas &, const input &,
-                     const gradients &);
+                     const gradients &, const turbModel *);
   void CalcViscFluxJ(const sutherland &, const idealGas &, const input &,
-                     const gradients &);
+                     const gradients &, const turbModel *);
   void CalcViscFluxK(const sutherland &, const idealGas &, const input &,
-                     const gradients &);
+                     const gradients &, const turbModel *);
 
   void CalcGradsI(const int &, const int &, const int &, const idealGas &,
                   const bool &, tensor<double> &, vector3d<double> &,
@@ -170,6 +171,9 @@ class procBlock {
   void CalcGradsK(const int &, const int &, const int &, const idealGas &,
                   const bool &, tensor<double> &, vector3d<double> &,
                   vector3d<double> &, vector3d<double> &) const;
+
+  void CalcSrcTerms(const gradients &, const sutherland &, const idealGas &,
+                    const turbModel *);
 
   void AssignGhostCellsGeom();
   void AssignGhostCellsGeomEdge();

@@ -26,6 +26,9 @@
 using std::vector;
 using std::string;
 
+// forward class declaration
+class turbModel;
+
 class input {
   string gName_;  // grid file name
   double dt_;  // time step
@@ -155,6 +158,8 @@ class input {
 
   double FarfieldTurbIntensity() const {return farfieldTurbInten_;}
   double FarfieldEddyViscRatio() const {return farfieldEddyViscRatio_;}
+
+  turbModel* AssignTurbulenceModel() const;
 
   // destructor
   ~input() {}

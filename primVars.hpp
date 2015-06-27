@@ -32,8 +32,7 @@ supply a ghost state given a boundary condition and boundary cell.  */
 #include <vector>                  // vector
 #include <string>                  // string
 #include "vector3d.hpp"            // vector3d
-#include "plot3d.hpp"              // vector3d
-#include "input.hpp"               // inputVars
+#include "input.hpp"               // input
 #include "eos.hpp"                 // idealGas
 #include "matrix.hpp"              // genArray
 #include "boundaryConditions.hpp"  // boundaryConditions

@@ -757,7 +757,7 @@ void procBlock::CalcBlockTimeStep(const input &inputVars, const double &aRef) {
   int jmax = (*this).NumJ();
   int kmax = (*this).NumK();
 
-  // loop over all physical cells - no ghost cells for dt_ variable
+  // loop over all physical cells - no ghost cells for dt variable
   for (int kk = 0; kk < kmax; kk++) {
     for (int jj = 0; jj < jmax; jj++) {
       for (int ii = 0; ii < imax; ii++) {
@@ -1276,7 +1276,7 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
                         vector<genArray> &x, const vector<genArray> &solTimeMmN,
                         const vector<genArray> &solDeltaNm1,
                         const idealGas &eqnState, const input &inp,
-                        const sutherland &suth) const {
+                        const sutherland &suth, const turbModel *turb) const {
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // x -- correction - added to solution at time n to get to time n+1 (assumed
   // to be zero to start)
@@ -1285,18 +1285,7 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
   // eqnState -- equation of state_
   // inp -- all input variables
   // suth -- method to get temperature varying viscosity (Sutherland's law)
-
-  // define turbulence model
-  turbModel *turb;
-  if (inp.TurbulenceModel() == "none") {
-    turb = new turbNone;
-  } else if (inp.TurbulenceModel() == "kOmegaWilcox2006") {
-    turb = new turbKWWilcox;
-  } else {
-    cerr << "ERROR: Error in procBlock::LUSGS(). Turbulence model "
-         << inp.TurbulenceModel() << " is not recognized!" << endl;
-    exit(0);
-  }
+  // turb -- turbulence model
 
   // max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
@@ -1693,8 +1682,6 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
     l2Resid = l2Resid + resid * resid;
   }
 
-  delete turb;
-
   return l2Resid.Sum();
 }
 
@@ -2069,13 +2056,15 @@ touches 15 cells. The gradient calculation with this stencil uses the "edge"
 ghost cells, but not the "corner" ghost cells.
 */
 void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
-                              const input &inp, const gradients &grads) {
+                              const input &inp, const gradients &grads,
+                              const turbModel *turb) {
   // suth -- method to get viscosity as a function of temperature (Sutherland's
   // law)
   // eqnState -- equation of state
   // inp -- all input variables
   // grads -- class holding gradients at face for velocity, temperature, tke,
   // and omega
+  // turb -- turbulence model
 
   // max dimensions for vectors without ghost cells
   int imax = (*this).NumI() + 1;  // calculating fluxes on i-faces so one more
@@ -2090,18 +2079,6 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
 
   // coefficient for viscous spectral radii
   double vCoeff = 1.0;
-
-  // define turbulence model
-  turbModel *turb;
-  if (inp.TurbulenceModel() == "none") {
-    turb = new turbNone;
-  } else if (inp.TurbulenceModel() == "kOmegaWilcox2006") {
-    turb = new turbKWWilcox;
-  } else {
-    cerr << "ERROR: Error in procBlock::CalcViscFluxI(). Turbulence model "
-         << inp.TurbulenceModel() << " is not recognized!" << endl;
-    exit(0);
-  }
 
   // loop over all physical faces
   for (int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++) {
@@ -2185,8 +2162,6 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
       }
     }
   }
-
-  delete turb;
 }
 
 /* Function to calculate the viscous fluxes on the j-faces. All phyiscal
@@ -2261,13 +2236,15 @@ faces in a cell touches 15 cells. The gradient calculation with this stencil use
 the "edge" ghost cells, but not the "corner" ghost cells.
 */
 void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
-                              const input &inp, const gradients &grads) {
+                              const input &inp, const gradients &grads,
+                              const turbModel *turb) {
   // suth -- method to get viscosity as a function of temperature (Sutherland's
   // law)
   // eqnState -- equation of state_
   // inp -- all input variables
   // grads -- class holding gradients at face for velocity, temperature, tke,
   // and omega
+  // turb -- turbulence model
 
   // max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
@@ -2282,18 +2259,6 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
 
   // coefficient for viscous spectral radii
   double vCoeff = 1.0;
-
-  // define turbulence model
-  turbModel *turb;
-  if (inp.TurbulenceModel() == "none") {
-    turb = new turbNone;
-  } else if (inp.TurbulenceModel() == "kOmegaWilcox2006") {
-    turb = new turbKWWilcox;
-  } else {
-    cerr << "ERROR: Error in procBlock::CalcViscFluxJ(). Turbulence model "
-         << inp.TurbulenceModel() << " is not recognized!" << endl;
-    exit(0);
-  }
 
   // loop over physical faces
   for (int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++) {
@@ -2378,8 +2343,6 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
       }
     }
   }
-
-  delete turb;
 }
 
 /* Function to calculate the viscous fluxes on the k-faces. All phyiscal
@@ -2453,13 +2416,15 @@ faces in a cell touches 15 cells. The gradient calculation with this stencil use
 the "edge" ghost cells, but not the "corner" ghost cells.
 */
 void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
-                              const input &inp, const gradients &grads) {
+                              const input &inp, const gradients &grads,
+                              const turbModel *turb) {
   // suth -- method to get viscosity as a function of temperature (Sutherland's
   // law)
   // eqnState -- equation of state_
   // inp -- all input variables
   // grads -- class holding gradients at face for velocity, temperature, tke,
   // and omega
+  // turb -- turbulence model
 
   // max dimensions for vectors without ghost cells
   int imax = (*this).NumI();
@@ -2473,18 +2438,6 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
 
   // coefficient for viscous spectral radii
   double vCoeff = 1.0;
-
-  // define turbulence model
-  turbModel *turb;
-  if (inp.TurbulenceModel() == "none") {
-    turb = new turbNone;
-  } else if (inp.TurbulenceModel() == "kOmegaWilcox2006") {
-    turb = new turbKWWilcox;
-  } else {
-    cerr << "ERROR: Error in procBlock::CalcViscFluxK(). Turbulence model "
-         << inp.TurbulenceModel() << " is not recognized!" << endl;
-    exit(0);
-  }
 
   // loop over physical faces
   for (int kk = (*this).NumGhosts(); kk < kmax + (*this).NumGhosts(); kk++) {
@@ -2569,8 +2522,6 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
       }
     }
   }
-
-  delete turb;
 }
 
 /* Member function to assign geometric quantities such as volume, face area,
@@ -11288,5 +11239,31 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
     omegaGrad = CalcScalarGradGG(
         omgil, omgiu, omgjl, omgju, (*this).State(kLow).Omega(),
         (*this).State(kUp).Omega(), ail, aiu, ajl, aju, akl, aku, vol_);
+  }
+}
+
+// Member function to calculate the source terms and add them to the residual
+void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
+                             const idealGas &eos, const turbModel *turb) {
+  // grads -- gradients (vel, temp, tke, omega)
+  // suth -- sutherland's law for viscosity
+  // eos -- equation of state
+  // turb -- turbulence model
+
+  // loop over all physical cells - no ghost cells for dt variable
+  for (int kk = 0; kk < (*this).NumK(); kk++) {
+    for (int jj = 0; jj < (*this).NumJ(); jj++) {
+      for (int ii = 0; ii < (*this).NumI(); ii++) {
+        // current cell location
+        int loc = GetLoc1D(ii, jj, kk, (*this).NumI(), (*this).NumJ());
+
+        // calculate turbulent source terms
+        source src;
+        src.CalcTurbSrc(turb, (*this).State(loc), grads, suth, eos, ii, jj, kk);
+
+        // add source terms to residual
+        (*this).AddToResidual(src * (*this).Vol(loc), loc);
+      }
+    }
   }
 }

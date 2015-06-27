@@ -149,10 +149,15 @@ source operator/(const double &scalar, const source &src2) {
 void source::CalcTurbSrc(const turbModel *turb, const primVars &state,
                          const gradients &grads, const sutherland &suth,
                          const idealGas &eqnState, const int &ii, const int &jj,
-                         const int &kk, const input &inp) {
+                         const int &kk) {
   // turb -- turbulence model
   // state -- primative variables
   // grads -- gradients
+  // suth -- sutherland's law for viscosity
+  // eqnState -- equation of state
+  // ii -- cell i-location to calculate source terms at
+  // jj -- cell j-location to calculate source terms at
+  // kk -- cell k-location to calculate source terms at
 
   // calculate wall shear stress (double dot) velocity gradient
   // wall shear stress

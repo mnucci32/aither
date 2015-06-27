@@ -101,6 +101,9 @@ int main(int argc, char *argv[]) {
   primVars state;
   state.NondimensionalInitialize(eos, aRef, inputVars, suth.MuRef());
 
+  // Get turbulence model
+  turbModel *turb = inputVars.AssignTurbulenceModel();
+
   vector<plot3dBlock> mesh;
   vector<interblock> connections;
   vector<procBlock> stateBlocks;
@@ -231,14 +234,13 @@ int main(int argc, char *argv[]) {
           gradients grads(inputVars.IsTurbulent(), localStateBlocks[bb], eos);
 
           // Calculate viscous fluxes
-          localStateBlocks[bb].CalcViscFluxI(suth, eos, inputVars, grads);
-          localStateBlocks[bb].CalcViscFluxJ(suth, eos, inputVars, grads);
-          localStateBlocks[bb].CalcViscFluxK(suth, eos, inputVars, grads);
+          localStateBlocks[bb].CalcViscFluxI(suth, eos, inputVars, grads, turb);
+          localStateBlocks[bb].CalcViscFluxJ(suth, eos, inputVars, grads, turb);
+          localStateBlocks[bb].CalcViscFluxK(suth, eos, inputVars, grads, turb);
 
           // If turblent, calculate source terms
           if (inputVars.IsTurbulent()) {
-            // calculate source terms
-            // localStateBlocks[bb].CalcSource();
+            // localStateBlocks[bb].CalcSrcTerms(grads, suth, eos, turb);
           }
         }
 
@@ -280,7 +282,7 @@ int main(int argc, char *argv[]) {
           // Calculate correction (du)
           matrixResid += localStateBlocks[bb].LUSGS(reorder, du, solTimeMmN,
                                                     solDeltaNm1[bb], eos,
-                                                    inputVars, suth);
+                                                    inputVars, suth, turb);
 
           // Update solution
           localStateBlocks[bb].UpdateBlock(inputVars, inputVars.IsImplicit(),
@@ -365,6 +367,8 @@ int main(int argc, char *argv[]) {
   // Free datatypes previously created
   FreeDataTypesMPI(MPI_vec3d, MPI_cellData, MPI_procBlockInts,
                    MPI_interblock, MPI_DOUBLE_5INT);
+  delete turb;
+  
   MPI_Finalize();
 
   return 0;
