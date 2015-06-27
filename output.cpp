@@ -597,8 +597,6 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
 void WriteResiduals(const input &inp, genArray &residL2First, genArray &residL2,
                     const resid &residLinf, const double &matrixResid,
                     const int &nn, const int &mm) {
-  double eps = 1.0e-30;
-
   // determine normalization
   if (nn == 0 && mm == 0) {  // if at first iteration, normalize by itself
     residL2First = residL2;
@@ -612,7 +610,7 @@ void WriteResiduals(const input &inp, genArray &residL2First, genArray &residL2,
   }
 
   // normalize residuals
-  residL2 = (residL2 + eps) / (residL2First + eps);
+  residL2 = (residL2 + EPS) / (residL2First + EPS);
 
   // write out column headers every 100 iterations
   if (nn % 100 == 0 && mm == 0) {

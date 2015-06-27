@@ -280,7 +280,6 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
   primVars r;
   primVars limiter;
   primVars invLimiter;
-  double eps = 1.0e-30;
 
   primVars primUW1 = *this;
 
@@ -289,8 +288,8 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
 
   // divided differences to base limiter on; eps must be listed to left of
   // primVars
-  r = (eps + (primDW1 - primUW1) / dPlus) /
-      (eps + (primUW1 - primUW2) / dMinus);
+  r = (EPS + (primDW1 - primUW1) / dPlus) /
+      (EPS + (primUW1 - primUW2) / dMinus);
 
   if (lim == "none") {
     limiter = LimiterNone();  // limiter defined on inverse of r
