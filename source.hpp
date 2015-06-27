@@ -28,7 +28,7 @@
 #include <iostream>
 #include "turbulence.hpp"
 #include "primVars.hpp"
-#include "procBlock.hpp"  // gradients
+#include "gradients.hpp"
 #include "input.hpp"
 #include "macros.hpp"
 

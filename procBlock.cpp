@@ -291,6 +291,20 @@ void procBlock::AddToResidual(const viscousFlux &flux, const int &ii) {
   (*this).residual_[ii][6] += flux.MomO();
 }
 
+// member function to add a member of the inviscid source class to the residual
+void procBlock::AddToResidual(const source &src, const int &ii) {
+  // src -- source to add to residual
+  // ii -- location of residual to add to
+
+  (*this).residual_[ii][0] += src.SrcMass();
+  (*this).residual_[ii][1] += src.SrcMomX();
+  (*this).residual_[ii][2] += src.SrcMomY();
+  (*this).residual_[ii][3] += src.SrcMomZ();
+  (*this).residual_[ii][4] += src.SrcEngy();
+  (*this).residual_[ii][5] += src.SrcTke();
+  (*this).residual_[ii][6] += src.SrcOmg();
+}
+
 //---------------------------------------------------------------------
 // function declarations
 

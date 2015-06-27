@@ -37,6 +37,7 @@
 #include "turbulence.hpp"
 #include "gradients.hpp"
 #include "slices.hpp"
+#include "source.hpp"
 
 using std::vector;
 using std::string;
@@ -119,6 +120,7 @@ class procBlock {
 
   void AddToResidual(const inviscidFlux &, const int &);
   void AddToResidual(const viscousFlux &, const int &);
+  void AddToResidual(const source &, const int &);
   genArray Residual(const int &ind) const { return residual_[ind]; }
   double Residual(const int &ind, const int &a) const {
     return residual_[ind][a];

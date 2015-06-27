@@ -52,7 +52,7 @@ matrix.o : matrix.cpp matrix.hpp plot3d.hpp macros.hpp
 turbulence.o : turbulence.cpp turbulence.hpp
 	$(CC) $(CFLAGS) turbulence.cpp
 
-source.o : source.cpp source.hpp macros.hpp turbulence.hpp primVars.hpp
+source.o : source.cpp source.hpp macros.hpp turbulence.hpp primVars.hpp gradients.hpp
 	$(CC) $(CFLAGS) source.cpp
 
 gradients.o : gradients.cpp gradients.hpp primVars.hpp vector3d.hpp tensor.hpp procBlock.hpp
