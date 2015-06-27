@@ -13,7 +13,7 @@ $(CODENAME) : $(OBJS)
 plot3d.o : plot3d.cpp plot3d.hpp vector3d.hpp
 	$(CC) $(CFLAGS) plot3d.cpp
 
-main.o : main.cpp plot3d.hpp vector3d.hpp input.hpp procBlock.hpp eos.hpp primVars.hpp boundaryConditions.hpp inviscidFlux.hpp tensor.hpp viscousFlux.hpp output.hpp matrix.hpp parallel.hpp turbulence.hpp
+main.o : main.cpp plot3d.hpp vector3d.hpp input.hpp procBlock.hpp eos.hpp primVars.hpp boundaryConditions.hpp inviscidFlux.hpp tensor.hpp viscousFlux.hpp output.hpp matrix.hpp parallel.hpp turbulence.hpp gradients.hpp
 	$(CC) $(CFLAGS) main.cpp
 
 input.o : input.cpp input.hpp boundaryConditions.hpp
@@ -34,7 +34,7 @@ boundaryConditions.o : boundaryConditions.cpp boundaryConditions.hpp plot3d.hpp 
 eos.o : eos.cpp eos.hpp vector3d.hpp
 	$(CC) $(CFLAGS) eos.cpp
 
-slices.o : slices.cpp procBlock.hpp
+slices.o : slices.cpp slices.hpp procBlock.hpp
 	$(CC) $(CFLAGS) slices.cpp
 
 viscousFlux.o : viscousFlux.cpp vector3d.hpp tensor.hpp eos.hpp primVars.hpp viscousFlux.hpp input.hpp turbulence.hpp macros.hpp
@@ -55,7 +55,7 @@ turbulence.o : turbulence.cpp turbulence.hpp
 source.o : source.cpp source.hpp macros.hpp turbulence.hpp primVars.hpp
 	$(CC) $(CFLAGS) source.cpp
 
-gradients.o : gradients.cpp primVars.hpp vector3d.hpp tensor.hpp
+gradients.o : gradients.cpp gradients.hpp primVars.hpp vector3d.hpp tensor.hpp procBlock.hpp
 	$(CC) $(CFLAGS) gradients.cpp
 
 clean:

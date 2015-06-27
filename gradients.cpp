@@ -17,6 +17,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include "gradients.hpp"
 #include "procBlock.hpp"
 
 using std::cout;

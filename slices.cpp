@@ -17,6 +17,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include "slices.hpp"
 #include "procBlock.hpp"
 
 using std::cout;
@@ -94,6 +95,163 @@ geomSlice::geomSlice(const int &li, const int &lj, const int &lk,
   fCenterK_ = vecKFaces;
 
   vol_ = scalar;
+}
+
+/* constructor to get a slice (portion) of the geometry of a procBlock. The
+geom slice remains in the orientation of its parent block unless
+the revI, revJ, or revK flags are activated to reverse either the i, j, or k
+directions respectively. This function essentially cuts out a portion
+of a procBlock and returns a geomSlice with that portion of the block geometry.
+*/
+geomSlice::geomSlice(const procBlock &blk, const int &is, const int &ie,
+                    const int &js, const int &je, const int &ks, const int &ke,
+                    const bool revI, const bool revJ, const bool revK) {
+  // blk -- procBlock to extract slice from
+  // is -- starting i-cell index for slice
+  // ie -- ending i-cell index for slice
+  // js -- starting j-cell index for slice
+  // je -- ending j-cell index for slice
+  // ks -- starting k-cell index for slice
+  // ke -- ending k-cell index for slice
+  // revI -- flag to reverse i direction of indices (default false)
+  // revJ -- flag to reverse j direction of indices (default false)
+  // revK -- flag to reverse k direction of indices (default false)
+
+  // allocate dimensions
+  numI_ = ie - is + 1;
+  numJ_ = je - js + 1;
+  numK_ = ke - ks + 1;
+  numCells_ = numI_ * numJ_ * numK_;
+  parBlock_ = blk.ParentBlock();
+
+  // allocate size for vectors
+  center_.resize(numCells_);
+  fAreaI_.resize((numI_ + 1) * numJ_ * numK_);
+  fAreaJ_.resize(numI_ * (numJ_ + 1) * numK_);
+  fAreaK_.resize(numI_ * numJ_ * (numK_ + 1));
+  fCenterI_.resize((numI_ + 1) * numJ_ * numK_);
+  fCenterJ_.resize(numI_ * (numJ_ + 1) * numK_);
+  fCenterK_.resize(numI_ * numJ_ * (numK_ + 1));
+  vol_.resize(numCells_);
+
+  // get parent block maxes
+  int imaxPar = blk.NumI() + 2.0 * blk.NumGhosts();
+  int jmaxPar = blk.NumJ() + 2.0 * blk.NumGhosts();
+
+  // loop over all cells in slice and populate
+  for (int kk = 0; kk < numK_; kk++) {
+    for (int jj = 0; jj < numJ_; jj++) {
+      for (int ii = 0; ii < numI_; ii++) {
+        // determine if direction needs to be reversed
+        int k = revK ? numK_ - 1 - kk : kk;
+        double kFac = revK ? -1.0 : 1.0;
+
+        int j = revJ ? numJ_ - 1 - jj : jj;
+        double jFac = revJ ? -1.0 : 1.0;
+
+        int i = revI ? numI_ - 1 - ii : ii;
+        double iFac = revI ? -1.0 : 1.0;
+
+        // cell locations
+        int locPar = GetLoc1D(is + i, js + j, ks + k, imaxPar, jmaxPar);
+        int loc = GetLoc1D(ii, jj, kk, numI_, numJ_);
+
+        // lower i-face locations
+        int lowIPar = GetLowerFaceI(is + i, js + j, ks + k, imaxPar, jmaxPar);
+        int lowI = GetLowerFaceI(ii, jj, kk, numI_, numJ_);
+
+        // upper i-face locations
+        int upIPar = GetUpperFaceI(is + i, js + j, ks + k, imaxPar, jmaxPar);
+        int upI = GetUpperFaceI(ii, jj, kk, numI_, numJ_);
+
+        // lower j-face locations
+        int lowJPar = GetLowerFaceJ(is + i, js + j, ks + k, imaxPar, jmaxPar);
+        int lowJ = GetLowerFaceJ(ii, jj, kk, numI_, numJ_);
+
+        // upper j-face locations
+        int upJPar = GetUpperFaceJ(is + i, js + j, ks + k, imaxPar, jmaxPar);
+        int upJ = GetUpperFaceJ(ii, jj, kk, numI_, numJ_);
+
+        // lower k-face locations
+        int lowKPar = GetLowerFaceK(is + i, js + j, ks + k, imaxPar, jmaxPar);
+        int lowK = GetLowerFaceK(ii, jj, kk, numI_, numJ_);
+
+        // upper k-face locations
+        int upKPar = GetUpperFaceK(is + i, js + j, ks + k, imaxPar, jmaxPar);
+        int upK = GetUpperFaceK(ii, jj, kk, numI_, numJ_);
+
+        // assign cell variables
+        vol_[loc] = blk.Vol(locPar);
+        center_[loc] = blk.Center(locPar);
+
+        // assign i-face variables
+        if (revI) {  // if direction is reversed, upper/lower faces need to be
+                     // swapped
+          fAreaI_[lowI] = iFac * blk.FAreaI(upIPar);
+          fCenterI_[lowI] = blk.FCenterI(upIPar);
+
+          if (ii ==
+              numI_ - 1) {  // at end of i-line assign upper face values too
+            fAreaI_[upI] = iFac * blk.FAreaI(lowIPar);
+            fCenterI_[upI] = blk.FCenterI(lowIPar);
+          }
+        } else {
+          fAreaI_[lowI] = iFac * blk.FAreaI(lowIPar);
+          fCenterI_[lowI] = blk.FCenterI(lowIPar);
+
+          if (ii ==
+              numI_ - 1) {  // at end of i-line assign upper face values too
+            fAreaI_[upI] = iFac * blk.FAreaI(upIPar);
+            fCenterI_[upI] = blk.FCenterI(upIPar);
+          }
+        }
+
+        // assign j-face variables
+        if (revJ) {  // if direction is reversed, upper/lower faces need to be
+                     // swapped
+          fAreaJ_[lowJ] = jFac * blk.FAreaJ(upJPar);
+          fCenterJ_[lowJ] = blk.FCenterJ(upJPar);
+
+          if (jj ==
+              numJ_ - 1) {  // at end of j-line assign upper face values too
+            fAreaJ_[upJ] = jFac * blk.FAreaJ(lowJPar);
+            fCenterJ_[upJ] = blk.FCenterJ(lowJPar);
+          }
+        } else {
+          fAreaJ_[lowJ] = jFac * blk.FAreaJ(lowJPar);
+          fCenterJ_[lowJ] = blk.FCenterJ(lowJPar);
+
+          if (jj ==
+              numJ_ - 1) {  // at end of j-line assign upper face values too
+            fAreaJ_[upJ] = jFac * blk.FAreaJ(upJPar);
+            fCenterJ_[upJ] = blk.FCenterJ(upJPar);
+          }
+        }
+
+        // assign k-face variables
+        if (revK) {  // if direction is reversed, upper/lower faces need to be
+                     // swapped
+          fAreaK_[lowK] = kFac * blk.FAreaK(upKPar);
+          fCenterK_[lowK] = blk.FCenterK(upKPar);
+
+          if (kk ==
+              numK_ - 1) {  // at end of k-line assign upper face values too
+            fAreaK_[upK] = kFac * blk.FAreaK(lowKPar);
+            fCenterK_[upK] = blk.FCenterK(lowKPar);
+          }
+        } else {
+          fAreaK_[lowK] = kFac * blk.FAreaK(lowKPar);
+          fCenterK_[lowK] = blk.FCenterK(lowKPar);
+
+          if (kk ==
+              numK_ - 1) {  // at end of k-line assign upper face values too
+            fAreaK_[upK] = kFac * blk.FAreaK(upKPar);
+            fCenterK_[upK] = blk.FCenterK(upKPar);
+          }
+        }
+      }
+    }
+  }
 }
 
 // constructors for stateSlice class
@@ -193,4 +351,60 @@ void stateSlice::PackSwapUnpackMPI(const interblock &inter,
              MPI_COMM_WORLD);
 
   delete[] buffer;
+}
+
+
+/* constructor to get a slice (portion) of the states of a procBlock. The
+state slice remains in the orientation of its parent block unless
+the revI, revJ, or revK flags are activated to reverse either the i, j, or k
+directions respectively. This function essentially cuts out a portion
+of a procBlock and returns a stateSlice with that portion of the block states.
+*/
+stateSlice::stateSlice(const procBlock &blk, const int &is, const int &ie,
+                       const int &js, const int &je, const int &ks,
+                       const int &ke, const bool revI, const bool revJ,
+                       const bool revK) {
+  // blk -- procBlock to get slice from
+  // is -- starting i-cell index for slice
+  // ie -- ending i-cell index for slice
+  // js -- starting j-cell index for slice
+  // je -- ending j-cell index for slice
+  // ks -- starting k-cell index for slice
+  // ke -- ending k-cell index for slice
+  // revI -- flag to reverse i direction of indices (default false)
+  // revJ -- flag to reverse j direction of indices (default false)
+  // revK -- flag to reverse k direction of indices (default false)
+
+  // allocate dimensions
+  numI_ = ie - is + 1;
+  numJ_ = je - js + 1;
+  numK_ = ke - ks + 1;
+  numCells_ = numI_ * numJ_ * numK_;
+  parBlock_ = blk.ParentBlock();
+
+  // allocate size for vectors
+  state_.resize(numCells_);
+
+  // get parent block maxes
+  int imaxPar = blk.NumI() + 2.0 * blk.NumGhosts();
+  int jmaxPar = blk.NumJ() + 2.0 * blk.NumGhosts();
+
+  // loop over all cells in slice and populate
+  for (int kk = 0; kk < numK_; kk++) {
+    for (int jj = 0; jj < numJ_; jj++) {
+      for (int ii = 0; ii < numI_; ii++) {
+        // determine if direction needs to be reversed
+        int k = revK ? numK_ - 1 - kk : kk;
+        int j = revJ ? numJ_ - 1 - jj : jj;
+        int i = revI ? numI_ - 1 - ii : ii;
+
+        // cell locations
+        int locPar = GetLoc1D(is + i, js + j, ks + k, imaxPar, jmaxPar);
+        int loc = GetLoc1D(ii, jj, kk, numI_, numJ_);
+
+        // assign cell variables
+        state_[loc] = blk.State(locPar);
+      }
+    }
+  }
 }

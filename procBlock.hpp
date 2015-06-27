@@ -31,10 +31,12 @@
 #include "inviscidFlux.hpp"        // inviscidFlux
 #include "viscousFlux.hpp"         // viscousFlux
 #include "input.hpp"               // inputVars
-#include "matrix.hpp"              // squareMatrix, matrixDiagonal
+#include "matrix.hpp"              // genArray
 #include "boundaryConditions.hpp"  // interblock, patch
 #include "macros.hpp"
 #include "turbulence.hpp"
+#include "gradients.hpp"
+#include "slices.hpp"
 
 using std::vector;
 using std::string;
@@ -43,11 +45,6 @@ using std::ofstream;
 using std::cout;
 using std::endl;
 using std::cerr;
-
-// forward declarations
-class geomSlice;
-class stateSlice;
-class gradients;
 
 class procBlock {
   vector<primVars> state_;  // primative variables at cell center
@@ -189,15 +186,8 @@ class procBlock {
   bool AtCorner(const int &, const int &, const int &) const;
   bool AtEdge(const int &, const int &, const int &, string &) const;
 
-  geomSlice GetGeomSlice(const int &, const int &, const int &, const int &,
-                         const int &, const int &, const bool = false,
-                         const bool = false, const bool = false) const;
   vector<bool> PutGeomSlice(const geomSlice &, interblock &, const int &,
                             const int &);
-
-  stateSlice GetStateSlice(const int &, const int &, const int &, const int &,
-                           const int &, const int &, const bool = false,
-                           const bool = false, const bool = false) const;
   void PutStateSlice(const stateSlice &, const interblock &, const int &,
                      const int &);
 
@@ -213,144 +203,6 @@ class procBlock {
 
   // destructor
   ~procBlock() {}
-};
-
-class geomSlice {
-  vector<vector3d<double> > center_;  // coordinates of cell center_
-  vector<vector3d<double> > fAreaI_;  // face area vector for i-faces
-  vector<vector3d<double> > fAreaJ_;  // face area vector for j-faces
-  vector<vector3d<double> > fAreaK_;  // face area vector for k-faces
-  vector<vector3d<double> > fCenterI_;  // coordinates of i-face centers
-  vector<vector3d<double> > fCenterJ_;  // coordinates of j-face centers
-  vector<vector3d<double> > fCenterK_;  // coordinates of k-face centers
-
-  vector<double> vol_;  // cell volume
-
-  int numCells_;  // number of cells in block
-  int numI_;  // i-dimension of block (cells)
-  int numJ_;  // j-dimension of block (cells)
-  int numK_;  // k-dimension of block (cells)
-  int parBlock_;  // parent block number
-
- public:
-  // constructors
-  geomSlice();
-  geomSlice(const int &, const int &, const int &, const int &);
-
-  friend geomSlice procBlock::GetGeomSlice(const int &, const int &,
-                                           const int &, const int &,
-                                           const int &, const int &,
-                                           const bool = false,
-                                           const bool = false,
-                                           const bool = false) const;
-
-  // member functions
-  int NumCells() const { return numCells_; }
-  int NumI() const { return numI_; }
-  int NumJ() const { return numJ_; }
-  int NumK() const { return numK_; }
-  int ParentBlock() const { return parBlock_; }
-
-  double Vol(const int &ind) const { return vol_[ind]; }
-  vector3d<double> Center(const int &ind) const { return center_[ind]; }
-  vector3d<double> FAreaI(const int &ind) const { return fAreaI_[ind]; }
-  vector3d<double> FAreaJ(const int &ind) const { return fAreaJ_[ind]; }
-  vector3d<double> FAreaK(const int &ind) const { return fAreaK_[ind]; }
-  vector3d<double> FCenterI(const int &ind) const { return fCenterI_[ind]; }
-  vector3d<double> FCenterJ(const int &ind) const { return fCenterJ_[ind]; }
-  vector3d<double> FCenterK(const int &ind) const { return fCenterK_[ind]; }
-
-  // destructor
-  ~geomSlice() {}
-};
-
-class stateSlice {
-  vector<primVars> state_;  // cell states
-
-  int numCells_;  // number of cells in block
-  int numI_;  // i-dimension of block (cells)
-  int numJ_;  // j-dimension of block (cells)
-  int numK_;  // k-dimension of block (cells)
-  int parBlock_;  // parent block number
-
- public:
-  // constructors
-  stateSlice();
-  stateSlice(const int &, const int &, const int &, const int &);
-
-  friend stateSlice procBlock::GetStateSlice(const int &, const int &,
-                                             const int &, const int &,
-                                             const int &, const int &,
-                                             const bool = false,
-                                             const bool = false,
-                                             const bool = false) const;
-
-  // member functions
-  int NumCells() const { return numCells_; }
-  int NumI() const { return numI_; }
-  int NumJ() const { return numJ_; }
-  int NumK() const { return numK_; }
-  int ParentBlock() const { return parBlock_; }
-
-  primVars State(const int &ind) const { return state_[ind]; }
-
-  void PackSwapUnpackMPI(const interblock &, const MPI_Datatype &, const int &);
-
-  // destructor
-  ~stateSlice() {}
-};
-
-class gradients {
-  vector<tensor<double> > velocityI_;  // velocity gradients at cell i-face
-  vector<tensor<double> > velocityJ_;  // velocity gradients at cell j-face
-  vector<tensor<double> > velocityK_;  // velocity gradients at cell k-face
-  vector<vector3d<double> > temperatureI_;  // temperature gradients at cell
-                                            // i-face
-  vector<vector3d<double> > temperatureJ_;  // temperature gradients at cell
-                                            // j-face
-  vector<vector3d<double> > temperatureK_;  // temperature gradients at cell
-                                            // k-face
-  vector<vector3d<double> > tkeI_;  // tke gradients at cell i-face
-  vector<vector3d<double> > tkeJ_;  // tke gradients at cell j-face
-  vector<vector3d<double> > tkeK_;  // tke gradients at cell k-face
-  vector<vector3d<double> > omegaI_;  // omega gradients at cell i-face
-  vector<vector3d<double> > omegaJ_;  // omega gradients at cell j-face
-  vector<vector3d<double> > omegaK_;  // omega gradients at cell k-face
-
-  int imax_;  // number of cells in i-direction
-  int jmax_;  // number of cells in j-direction
-  int kmax_;  // number of cells in k-direction
-
- public:
-  // constructors
-  gradients();
-  gradients(const bool &, const procBlock &, const idealGas &);
-
-  // member functions
-  tensor<double> VelGradI(const int &a) const { return velocityI_[a]; }
-  tensor<double> VelGradJ(const int &a) const { return velocityJ_[a]; }
-  tensor<double> VelGradK(const int &a) const { return velocityK_[a]; }
-  vector3d<double> TempGradI(const int &a) const { return temperatureI_[a]; }
-  vector3d<double> TempGradJ(const int &a) const { return temperatureJ_[a]; }
-  vector3d<double> TempGradK(const int &a) const { return temperatureK_[a]; }
-  vector3d<double> TkeGradI(const int &a) const { return tkeI_[a]; }
-  vector3d<double> TkeGradJ(const int &a) const { return tkeJ_[a]; }
-  vector3d<double> TkeGradK(const int &a) const { return tkeK_[a]; }
-  vector3d<double> OmegaGradI(const int &a) const { return omegaI_[a]; }
-  vector3d<double> OmegaGradJ(const int &a) const { return omegaJ_[a]; }
-  vector3d<double> OmegaGradK(const int &a) const { return omegaK_[a]; }
-
-  int NumI() const { return imax_; }
-  int NumJ() const { return jmax_; }
-  int NumK() const { return kmax_; }
-
-  tensor<double> VelGradCell(const int &, const int &, const int &) const;
-  vector3d<double> TempGradCell(const int &, const int &, const int &) const;
-  vector3d<double> TkeGradCell(const int &, const int &, const int &) const;
-  vector3d<double> OmegaGradCell(const int &, const int &, const int &) const;
-
-  // destructor
-  ~gradients() {}
 };
 
 // function definitions

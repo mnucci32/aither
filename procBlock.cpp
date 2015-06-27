@@ -8283,11 +8283,11 @@ void SwapSlice(interblock &inter, procBlock &blk1, procBlock &blk2,
   geomSlice geom1, geom2;
   stateSlice state1, state2;
   if (geom) {  // get geomSlices to swap
-    geom1 = blk1.GetGeomSlice(is1, ie1, js1, je1, ks1, ke1);
-    geom2 = blk2.GetGeomSlice(is2, ie2, js2, je2, ks2, ke2);
+    geom1 = geomSlice(blk1, is1, ie1, js1, je1, ks1, ke1);
+    geom2 = geomSlice(blk2, is2, ie2, js2, je2, ks2, ke2);
   } else {  // get stateSlices to swap
-    state1 = blk1.GetStateSlice(is1, ie1, js1, je1, ks1, ke1);
-    state2 = blk2.GetStateSlice(is2, ie2, js2, je2, ks2, ke2);
+    state1 = stateSlice(blk1, is1, ie1, js1, je1, ks1, ke1);
+    state2 = stateSlice(blk2, is2, ie2, js2, je2, ks2, ke2);
   }
 
   // change interblocks to work with slice and ghosts
@@ -8443,7 +8443,7 @@ void procBlock::SwapSliceMPI(const interblock &inter, const int &rank,
   }
 
   // get local state slice to swap
-  stateSlice state = (*this).GetStateSlice(is, ie, js, je, ks, ke);
+  stateSlice state((*this), is, ie, js, je, ks, ke);
 
   // swap state slices with partner block
   state.PackSwapUnpackMPI(inter, MPI_cellData, rank);
@@ -8670,209 +8670,6 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
   for (unsigned int ii = 0; ii < states.size(); ii++) {
     states[ii].AssignInviscidGhostCellsEdge(inp, eos, suth);
   }
-}
-
-/* Member function to get a slice (portion) of the geometry of a procBlock. The
-geom slice remains in the orientation of its parent block unless
-the revI, revJ, or revK flags are activated to reverse either the i, j, or k
-directions respectively. This function essentially cuts out a portion
-of a procBlock and returns a geomSlice with that portion of the block geometry.
-*/
-geomSlice procBlock::GetGeomSlice(const int &is, const int &ie, const int &js,
-                                  const int &je, const int &ks, const int &ke,
-                                  const bool revI, const bool revJ,
-                                  const bool revK) const {
-  // is -- starting i-cell index for slice
-  // ie -- ending i-cell index for slice
-  // js -- starting j-cell index for slice
-  // je -- ending j-cell index for slice
-  // ks -- starting k-cell index for slice
-  // ke -- ending k-cell index for slice
-  // revI -- flag to reverse i direction of indices (default false)
-  // revJ -- flag to reverse j direction of indices (default false)
-  // revK -- flag to reverse k direction of indices (default false)
-
-  int sizeI = ie - is + 1;
-  int sizeJ = je - js + 1;
-  int sizeK = ke - ks + 1;
-
-  // initialize slice
-  geomSlice slice(sizeI, sizeJ, sizeK, (*this).ParentBlock());
-
-  // get parent block maxes
-  int imaxPar = (*this).NumI() + 2.0 * (*this).NumGhosts();
-  int jmaxPar = (*this).NumJ() + 2.0 * (*this).NumGhosts();
-
-  // loop over all cells in slice and populate
-  for (int kk = 0; kk < sizeK; kk++) {
-    for (int jj = 0; jj < sizeJ; jj++) {
-      for (int ii = 0; ii < sizeI; ii++) {
-        // determine if direction needs to be reversed
-        int k = revK ? sizeK - 1 - kk : kk;
-        double kFac = revK ? -1.0 : 1.0;
-
-        int j = revJ ? sizeJ - 1 - jj : jj;
-        double jFac = revJ ? -1.0 : 1.0;
-
-        int i = revI ? sizeI - 1 - ii : ii;
-        double iFac = revI ? -1.0 : 1.0;
-
-        // cell locations
-        int locPar = GetLoc1D(is + i, js + j, ks + k, imaxPar, jmaxPar);
-        int loc = GetLoc1D(ii, jj, kk, sizeI, sizeJ);
-
-        // lower i-face locations
-        int lowIPar = GetLowerFaceI(is + i, js + j, ks + k, imaxPar, jmaxPar);
-        int lowI = GetLowerFaceI(ii, jj, kk, sizeI, sizeJ);
-
-        // upper i-face locations
-        int upIPar = GetUpperFaceI(is + i, js + j, ks + k, imaxPar, jmaxPar);
-        int upI = GetUpperFaceI(ii, jj, kk, sizeI, sizeJ);
-
-        // lower j-face locations
-        int lowJPar = GetLowerFaceJ(is + i, js + j, ks + k, imaxPar, jmaxPar);
-        int lowJ = GetLowerFaceJ(ii, jj, kk, sizeI, sizeJ);
-
-        // upper j-face locations
-        int upJPar = GetUpperFaceJ(is + i, js + j, ks + k, imaxPar, jmaxPar);
-        int upJ = GetUpperFaceJ(ii, jj, kk, sizeI, sizeJ);
-
-        // lower k-face locations
-        int lowKPar = GetLowerFaceK(is + i, js + j, ks + k, imaxPar, jmaxPar);
-        int lowK = GetLowerFaceK(ii, jj, kk, sizeI, sizeJ);
-
-        // upper k-face locations
-        int upKPar = GetUpperFaceK(is + i, js + j, ks + k, imaxPar, jmaxPar);
-        int upK = GetUpperFaceK(ii, jj, kk, sizeI, sizeJ);
-
-        // assign cell variables
-        slice.vol_[loc] = (*this).Vol(locPar);
-        slice.center_[loc] = (*this).Center(locPar);
-
-        // assign i-face variables
-        if (revI) {  // if direction is reversed, upper/lower faces need to be
-                     // swapped
-          slice.fAreaI_[lowI] = iFac * (*this).FAreaI(upIPar);
-          slice.fCenterI_[lowI] = (*this).FCenterI(upIPar);
-
-          if (ii ==
-              sizeI - 1) {  // at end of i-line assign upper face values too
-            slice.fAreaI_[upI] = iFac * (*this).FAreaI(lowIPar);
-            slice.fCenterI_[upI] = (*this).FCenterI(lowIPar);
-          }
-        } else {
-          slice.fAreaI_[lowI] = iFac * (*this).FAreaI(lowIPar);
-          slice.fCenterI_[lowI] = (*this).FCenterI(lowIPar);
-
-          if (ii ==
-              sizeI - 1) {  // at end of i-line assign upper face values too
-            slice.fAreaI_[upI] = iFac * (*this).FAreaI(upIPar);
-            slice.fCenterI_[upI] = (*this).FCenterI(upIPar);
-          }
-        }
-
-        // assign j-face variables
-        if (revJ) {  // if direction is reversed, upper/lower faces need to be
-                     // swapped
-          slice.fAreaJ_[lowJ] = jFac * (*this).FAreaJ(upJPar);
-          slice.fCenterJ_[lowJ] = (*this).FCenterJ(upJPar);
-
-          if (jj ==
-              sizeJ - 1) {  // at end of j-line assign upper face values too
-            slice.fAreaJ_[upJ] = jFac * (*this).FAreaJ(lowJPar);
-            slice.fCenterJ_[upJ] = (*this).FCenterJ(lowJPar);
-          }
-        } else {
-          slice.fAreaJ_[lowJ] = jFac * (*this).FAreaJ(lowJPar);
-          slice.fCenterJ_[lowJ] = (*this).FCenterJ(lowJPar);
-
-          if (jj ==
-              sizeJ - 1) {  // at end of j-line assign upper face values too
-            slice.fAreaJ_[upJ] = jFac * (*this).FAreaJ(upJPar);
-            slice.fCenterJ_[upJ] = (*this).FCenterJ(upJPar);
-          }
-        }
-
-        // assign k-face variables
-        if (revK) {  // if direction is reversed, upper/lower faces need to be
-                     // swapped
-          slice.fAreaK_[lowK] = kFac * (*this).FAreaK(upKPar);
-          slice.fCenterK_[lowK] = (*this).FCenterK(upKPar);
-
-          if (kk ==
-              sizeK - 1) {  // at end of k-line assign upper face values too
-            slice.fAreaK_[upK] = kFac * (*this).FAreaK(lowKPar);
-            slice.fCenterK_[upK] = (*this).FCenterK(lowKPar);
-          }
-        } else {
-          slice.fAreaK_[lowK] = kFac * (*this).FAreaK(lowKPar);
-          slice.fCenterK_[lowK] = (*this).FCenterK(lowKPar);
-
-          if (kk ==
-              sizeK - 1) {  // at end of k-line assign upper face values too
-            slice.fAreaK_[upK] = kFac * (*this).FAreaK(upKPar);
-            slice.fCenterK_[upK] = (*this).FCenterK(upKPar);
-          }
-        }
-      }
-    }
-  }
-
-  return slice;
-}
-
-/* Member function to get a slice (portion) of the states of a procBlock. The
-state slice remains in the orientation of its parent block unless
-the revI, revJ, or revK flags are activated to reverse either the i, j, or k
-directions respectively. This function essentially cuts out a portion
-of a procBlock and returns a stateSlice with that portion of the block states.
-*/
-stateSlice procBlock::GetStateSlice(const int &is, const int &ie, const int &js,
-                                    const int &je, const int &ks, const int &ke,
-                                    const bool revI, const bool revJ,
-                                    const bool revK) const {
-  // is -- starting i-cell index for slice
-  // ie -- ending i-cell index for slice
-  // js -- starting j-cell index for slice
-  // je -- ending j-cell index for slice
-  // ks -- starting k-cell index for slice
-  // ke -- ending k-cell index for slice
-  // revI -- flag to reverse i direction of indices (default false)
-  // revJ -- flag to reverse j direction of indices (default false)
-  // revK -- flag to reverse k direction of indices (default false)
-
-  int sizeI = ie - is + 1;
-  int sizeJ = je - js + 1;
-  int sizeK = ke - ks + 1;
-
-  // initialize state slice
-  stateSlice states(sizeI, sizeJ, sizeK, (*this).ParentBlock());
-
-  // get parent block maxes
-  int imaxPar = (*this).NumI() + 2.0 * (*this).NumGhosts();
-  int jmaxPar = (*this).NumJ() + 2.0 * (*this).NumGhosts();
-
-  // loop over all cells in slice and populate
-  for (int kk = 0; kk < sizeK; kk++) {
-    for (int jj = 0; jj < sizeJ; jj++) {
-      for (int ii = 0; ii < sizeI; ii++) {
-
-        // determine if direction needs to be reversed
-        int k = revK ? sizeK - 1 - kk : kk;
-        int j = revJ ? sizeJ - 1 - jj : jj;
-        int i = revI ? sizeI - 1 - ii : ii;
-
-        // cell locations
-        int locPar = GetLoc1D(is + i, js + j, ks + k, imaxPar, jmaxPar);
-        int loc = GetLoc1D(ii, jj, kk, sizeI, sizeJ);
-
-        // assign cell variables
-        states.state_[loc] = (*this).State(locPar);
-      }
-    }
-  }
-
-  return states;
 }
 
 /* Member function to overwrite a section of a procBlock's geometry with a

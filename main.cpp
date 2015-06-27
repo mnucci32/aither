@@ -35,6 +35,7 @@
 #include "matrix.hpp"
 #include "parallel.hpp"
 #include "turbulence.hpp"
+#include "gradients.hpp"
 
 using std::cout;
 using std::cerr;
