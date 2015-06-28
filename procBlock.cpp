@@ -21,6 +21,15 @@
 #include <string>
 #include <cmath>
 #include "procBlock.hpp"
+#include "plot3d.hpp"              // plot3d
+#include "eos.hpp"                 // idealGas
+#include "inviscidFlux.hpp"        // inviscidFlux
+#include "viscousFlux.hpp"         // viscousFlux
+#include "input.hpp"               // inputVars
+#include "turbulence.hpp"
+#include "gradients.hpp"
+#include "slices.hpp"
+#include "source.hpp"
 
 using std::cout;
 using std::endl;
@@ -9534,7 +9543,7 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
 
   // probe message to get correct data size
   int recvBufSize = 0;
-  MPI_Probe(ROOT, 2, MPI_COMM_WORLD, &status);
+  MPI_Probe(ROOTP, 2, MPI_COMM_WORLD, &status);
   MPI_Get_count(&status, MPI_CHAR, &recvBufSize);  // use MPI_CHAR because
                                                    // sending buffer was
                                                    // allocated with chars
@@ -9542,7 +9551,7 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
   char *recvBuffer = new char[recvBufSize];  // allocate buffer of correct size
 
   // receive message from ROOT
-  MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, ROOT, 2, MPI_COMM_WORLD,
+  MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, ROOTP, 2, MPI_COMM_WORLD,
            &status);
 
   // unpack procBlock INTs
@@ -9728,7 +9737,7 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData) const {
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
 
   // send buffer to appropriate processor
-  MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, ROOT, (*this).GlobalPos(),
+  MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, ROOTP, (*this).GlobalPos(),
            MPI_COMM_WORLD);
 
   delete[] sendBuffer;  // deallocate buffer

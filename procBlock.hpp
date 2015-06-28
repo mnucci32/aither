@@ -25,19 +25,10 @@
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"            // vector3d
 #include "tensor.hpp"              // tensor
-#include "plot3d.hpp"              // plot3d
-#include "eos.hpp"                 // idealGas
 #include "primVars.hpp"            // primVars
-#include "inviscidFlux.hpp"        // inviscidFlux
-#include "viscousFlux.hpp"         // viscousFlux
-#include "input.hpp"               // inputVars
 #include "matrix.hpp"              // genArray
 #include "boundaryConditions.hpp"  // interblock, patch
 #include "macros.hpp"
-#include "turbulence.hpp"
-#include "gradients.hpp"
-#include "slices.hpp"
-#include "source.hpp"
 
 using std::vector;
 using std::string;
@@ -46,6 +37,19 @@ using std::ofstream;
 using std::cout;
 using std::endl;
 using std::cerr;
+
+// forward class declarations
+class idealGas;
+class sutherland;
+class inviscidFlux;
+class viscousFlux;
+class input;
+class gradients;
+class geomSlice;
+class stateSlice;
+class source;
+class turbModel;
+class plot3dBlock;
 
 class procBlock {
   vector<primVars> state_;  // primative variables at cell center

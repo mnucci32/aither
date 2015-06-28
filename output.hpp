@@ -29,15 +29,6 @@ It also writes out a master file in Ensight format to name the Plot3D functions.
 #include <iostream>
 #include <vector>        // vector
 #include <string>        // string
-#include "vector3d.hpp"  // vector3d
-#include "tensor.hpp"    // tensor
-#include "plot3d.hpp"    // plot3d
-#include "eos.hpp"
-#include "primVars.hpp"            // primVars
-#include "procBlock.hpp"           // procBlock
-#include "inviscidFlux.hpp"        // inviscidFlux
-#include "input.hpp"               // inputVars
-#include "boundaryConditions.hpp"  // decomposition
 
 using std::vector;
 using std::string;
@@ -46,6 +37,15 @@ using std::ofstream;
 using std::cout;
 using std::endl;
 using std::cerr;
+
+// forward class declarations
+class procBlock;
+class genArray;
+class decomposition;
+class idealGas;
+class sutherland;
+class resid;
+class input;
 
 // function definitions
 void WriteCellCenter(const string &, const vector<procBlock> &,

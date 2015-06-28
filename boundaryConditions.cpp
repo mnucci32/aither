@@ -21,6 +21,7 @@
 #include <vector>     // vector
 #include "boundaryConditions.hpp"
 #include "vector3d.hpp"  // vector3d
+#include "plot3d.hpp"  // plot3dBlock
 
 using std::cout;
 using std::endl;

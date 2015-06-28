@@ -28,7 +28,6 @@
 #include <iostream>
 #include "primVars.hpp"
 #include "vector3d.hpp"
-#include "macros.hpp"
 
 using std::vector;
 using std::string;
@@ -37,7 +36,9 @@ using std::endl;
 using std::cerr;
 using std::ostream;
 
+// forward class declaration
 class procBlock;
+class interblock;
 
 class geomSlice {
   vector<vector3d<double> > center_;  // coordinates of cell center_

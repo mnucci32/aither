@@ -17,6 +17,9 @@
 #include <cmath>  // sqrt
 #include <string>
 #include "inviscidFlux.hpp"
+#include "eos.hpp"
+#include "primVars.hpp"
+#include "matrix.hpp"
 
 using std::cout;
 using std::endl;
@@ -957,7 +960,6 @@ genArray inviscidFlux::ConvertToGenArray() const {
 genArray ConvectiveFluxUpdate(const primVars &state, const idealGas &eqnState,
                               const vector3d<double> &fArea,
                               const genArray &du) {
-
   // get inviscid flux of old state
   inviscidFlux oldFlux(state, eqnState, fArea);
 

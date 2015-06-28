@@ -20,6 +20,7 @@
 #include <vector>
 #include <algorithm>  // swap
 #include "matrix.hpp"
+#include "plot3d.hpp"  // matrix location functions
 
 using std::cout;
 using std::endl;
@@ -925,12 +926,12 @@ double genArray::Sum() {
 // member function to sum the residuals from all processors
 void genArray::GlobalReduceMPI(const int &rank, const int &numEqns) {
   // Get residuals from all processors
-  if (rank == ROOT) {
+  if (rank == ROOTP) {
     MPI_Reduce(MPI_IN_PLACE, &(*this).data_[0], numEqns, MPI_DOUBLE, MPI_SUM,
-               ROOT, MPI_COMM_WORLD);
+               ROOTP, MPI_COMM_WORLD);
   } else {
     MPI_Reduce(&(*this).data_[0], &(*this).data_[0], numEqns, MPI_DOUBLE,
-               MPI_SUM, ROOT, MPI_COMM_WORLD);
+               MPI_SUM, ROOTP, MPI_COMM_WORLD);
   }
 }
 
@@ -957,11 +958,11 @@ void resid::GlobalReduceMPI(const int &rank,
                             const MPI_Datatype &MPI_DOUBLE_5INT,
                             const MPI_Op &MPI_MAX_LINF) {
   // Get residuals from all processors
-  if (rank == ROOT) {
-    MPI_Reduce(MPI_IN_PLACE, &(*this), 1, MPI_DOUBLE_5INT, MPI_MAX_LINF, ROOT,
+  if (rank == ROOTP) {
+    MPI_Reduce(MPI_IN_PLACE, &(*this), 1, MPI_DOUBLE_5INT, MPI_MAX_LINF, ROOTP,
                MPI_COMM_WORLD);
   } else {
-    MPI_Reduce(&(*this), &(*this), 1, MPI_DOUBLE_5INT, MPI_MAX_LINF, ROOT,
+    MPI_Reduce(&(*this), &(*this), 1, MPI_DOUBLE_5INT, MPI_MAX_LINF, ROOTP,
                MPI_COMM_WORLD);
   }
 }

@@ -24,8 +24,7 @@
 #include <vector>
 #include "input.hpp"
 #include "turbulence.hpp"
-
-#define ROOT 0
+#include "macros.hpp"
 
 using std::cout;
 using std::endl;
@@ -172,7 +171,7 @@ void input::ReadInput(const string &inputName, const int &rank) {
   // inputName -- name of input file
   // rank -- rank of processor
 
-  if (rank == ROOT) {
+  if (rank == ROOTP) {
     cout << "##################################################################"
             "#########################################################" << endl;
     PrintTime();
@@ -226,50 +225,50 @@ void input::ReadInput(const string &inputName, const int &rank) {
           // class to corresponding value and print assignment to std out
           if (ii == 0 && readingBCs == 0) {
             (*this).gName_ = tokens[1];
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).GridName() << endl;
             }
             continue;
           } else if (ii == 1 && readingBCs == 0) {
             (*this).dt_ = atof(tokens[1].c_str());  // double variable (atof)
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).Dt() << endl;
             }
             continue;
           } else if (ii == 2 && readingBCs == 0) {
             (*this).iterations_ = atoi(tokens[1].c_str());
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).Iterations() << endl;
             }
             continue;
           } else if (ii == 3 && readingBCs == 0) {
             (*this).pRef_ = atof(tokens[1].c_str());  // double variable (atof)
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).PRef() << endl;
             }
             continue;
           } else if (ii == 4 && readingBCs == 0) {
             (*this).rRef_ = atof(tokens[1].c_str());  // double variable (atof)
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).RRef() << endl;
             }
             continue;
           } else if (ii == 5 && readingBCs == 0) {
             (*this).lRef_ = atof(tokens[1].c_str());  // double variable (atof)
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).LRef() << endl;
             }
             continue;
           } else if (ii == 6 && readingBCs == 0) {
             (*this).gamma_ = atof(tokens[1].c_str());  // double variable (atof)
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).Gamma() << endl;
             }
             continue;
           } else if (ii == 7 && readingBCs == 0) {
             (*this).gasConst_ =
                 atof(tokens[1].c_str());  // double variable (atof)
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).R() << endl;
             }
             continue;
@@ -278,7 +277,7 @@ void input::ReadInput(const string &inputName, const int &rank) {
             temp.SetY(atof(tokens[2].c_str()));
             temp.SetZ(atof(tokens[3].c_str()));
             (*this).velRef_ = temp;
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).VelRef() << endl;
             }
             continue;
@@ -295,7 +294,7 @@ void input::ReadInput(const string &inputName, const int &rank) {
               (*this).timeIntZeta_ = 0.5;
             }
 
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).TimeIntegration()
                    << endl;
             }
@@ -318,7 +317,7 @@ void input::ReadInput(const string &inputName, const int &rank) {
               (*this).kappa_ = atof(tokens[1].c_str());
             }
 
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << tokens[1]
                    << " kappa_ = " << (*this).Kappa() << endl;
             }
@@ -332,90 +331,90 @@ void input::ReadInput(const string &inputName, const int &rank) {
             continue;
           } else if (ii == 12 && readingBCs == 0) {
             (*this).limiter_ = tokens[1];
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).Limiter() << endl;
             }
             continue;
           } else if (ii == 13 && readingBCs == 0) {
             (*this).outputFrequency_ = atoi(tokens[1].c_str());
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).OutputFrequency()
                    << endl;
             }
             continue;
           } else if (ii == 14 && readingBCs == 0) {
             (*this).equationSet_ = tokens[1];
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).EquationSet() << endl;
             }
             continue;
           } else if (ii == 15 && readingBCs == 0) {
             (*this).tRef_ = atof(tokens[1].c_str());  // double variable (atof)
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).TRef() << endl;
             }
             continue;
           } else if (ii == 16 && readingBCs == 0) {
             (*this).matrixSolver_ = tokens[1];
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).MatrixSolver() << endl;
             }
             continue;
           } else if (ii == 17 && readingBCs == 0) {
             (*this).matrixSweeps_ = atoi(tokens[1].c_str());
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).MatrixSweeps() << endl;
             }
             continue;
           } else if (ii == 18 && readingBCs == 0) {
             (*this).matrixRelaxation_ =
                 atof(tokens[1].c_str());  // double variable (atof)
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).MatrixRelaxation()
                    << endl;
             }
             continue;
           } else if (ii == 21 && readingBCs == 0) {
             (*this).nonlinearIterations_ = atoi(tokens[1].c_str());
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).NonlinearIterations()
                    << endl;
             }
             continue;
           } else if (ii == 22 && readingBCs == 0) {
             (*this).cflMax_ = atof(tokens[1].c_str());  // double  (atof)
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).CFLMax() << endl;
             }
             continue;
           } else if (ii == 23 && readingBCs == 0) {
             (*this).cflStep_ = atof(tokens[1].c_str());  // double (atof)
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).CFLStep() << endl;
             }
             continue;
           } else if (ii == 24 && readingBCs == 0) {
             (*this).cflStart_ =
                 atof(tokens[1].c_str());  // double variable (atof)
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).CFLStart() << endl;
             }
             continue;
           } else if (ii == 25 && readingBCs == 0) {
             (*this).invFluxJac_ = tokens[1];
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).InvFluxJac() << endl;
             }
           } else if (ii == 26 && readingBCs == 0) {
             (*this).dualTimeCFL_ =
                 atof(tokens[1].c_str());  // double variable (atof)
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).DualTimeCFL() << endl;
             }
             continue;
           } else if (ii == 27 && readingBCs == 0) {
             (*this).inviscidFlux_ = tokens[1];
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).InviscidFlux() << endl;
             }
           } else if (ii == 28 && readingBCs == 0) {
@@ -426,7 +425,7 @@ void input::ReadInput(const string &inputName, const int &rank) {
             (*this).stagInletProps_[3] = atof(tokens[4].c_str());  // dir-x
             (*this).stagInletProps_[4] = atof(tokens[5].c_str());  // dir-y
             (*this).stagInletProps_[5] = atof(tokens[6].c_str());  // dir-z
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).StagInletTag() << " "
                    << (*this).StagInletP0() << " " << (*this).StagInletT0()
                    << " " << (*this).StagInletDx() << " "
@@ -437,19 +436,19 @@ void input::ReadInput(const string &inputName, const int &rank) {
             (*this).pressureOutlet_[0] = atoi(tokens[1].c_str());  // tag
             (*this).pressureOutlet_[1] =
                 atof(tokens[2].c_str());  // outlet pressure
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).PressureOutletTag()
                    << " " << (*this).PressureOutletP() << endl;
             }
           } else if (ii == 30 && readingBCs == 0) {
             (*this).decompMethod_ = tokens[1];
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).DecompMethod() << endl;
             }
             continue;
           } else if (ii == 31 && readingBCs == 0) {
             (*this).turbModel_ = tokens[1];
-            if (rank == ROOT) {
+            if (rank == ROOTP) {
               cout << (*this).Vars(ii) << " " << (*this).TurbulenceModel()
                    << endl;
             }
@@ -499,7 +498,7 @@ void input::ReadInput(const string &inputName, const int &rank) {
             // counter starts at 0), so assign BCs and write them out
             if (blk == numBCBlks) {
               (*this).bc_ = tempBC;
-              if (rank == ROOT) {
+              if (rank == ROOTP) {
                 cout << (*this).Vars((*this).NumVars() - 1) << " "
                      << (*this).NumBC() << endl << endl;
                 for (int ll = 0; ll < (*this).NumBC(); ll++) {
@@ -518,7 +517,7 @@ void input::ReadInput(const string &inputName, const int &rank) {
     }
   }
 
-  if (rank == ROOT) {
+  if (rank == ROOTP) {
     cout << endl;
     cout << "Input file parse complete" << endl;
     cout << "##################################################################"

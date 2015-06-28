@@ -23,6 +23,15 @@
 #include <cmath>
 #include "output.hpp"
 #include "turbulence.hpp"
+#include "vector3d.hpp"  // vector3d
+#include "tensor.hpp"    // tensor
+#include "plot3d.hpp"    // plot3d
+#include "eos.hpp"
+#include "primVars.hpp"            // primVars
+#include "procBlock.hpp"           // procBlock
+#include "inviscidFlux.hpp"        // inviscidFlux
+#include "input.hpp"               // inputVars
+#include "boundaryConditions.hpp"  // decomposition
 
 #define VAROUT 14
 

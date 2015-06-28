@@ -18,8 +18,8 @@
                          // execute these lines of code
 #define MACROSHEADERDEF  // define the macro
 
-#define ROOT 0
 #define NUMVARS 7
 #define EPS 1.0e-30
+#define ROOTP 0
 
 #endif

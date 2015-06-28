@@ -24,12 +24,14 @@
 #include <math.h>  // sqrt
 #include <vector>  // vector
 #include <string>  // string
-#include "primVars.hpp"  // primVars
 #include "vector3d.hpp"  // vector3d
 #include "tensor.hpp"  // tensor
 
 using std::vector;
 using std::string;
+
+// forward class declaration
+class primVars;
 
 class turbModel {
   string eddyViscMethod_;

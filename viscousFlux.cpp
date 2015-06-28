@@ -14,9 +14,13 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "viscousFlux.hpp"
 #include <cmath>  // sqrt
 #include <string>
+#include "viscousFlux.hpp"
+#include "eos.hpp"         // idealGas
+#include "primVars.hpp"    // primVars
+#include "turbulence.hpp"  // turbModel
+#include "matrix.hpp"      // squareMatrix
 
 using std::cout;
 using std::endl;

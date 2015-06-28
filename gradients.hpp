@@ -26,10 +26,8 @@
 #include <vector>  // vector
 #include <string>  // string
 #include <iostream>
-#include "primVars.hpp"
 #include "vector3d.hpp"
 #include "tensor.hpp"
-#include "macros.hpp"
 
 using std::vector;
 using std::string;
@@ -38,7 +36,9 @@ using std::endl;
 using std::cerr;
 using std::ostream;
 
+// forward class declarations
 class procBlock;
+class idealGas;
 
 class gradients {
   vector<tensor<double> > velocityI_;  // velocity gradients at cell i-face

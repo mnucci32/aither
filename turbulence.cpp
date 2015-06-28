@@ -18,6 +18,7 @@
 #include <iostream>   // cout
 #include <algorithm>  // max
 #include "turbulence.hpp"
+#include "primVars.hpp"  // primVars
 
 using std::cout;
 using std::endl;

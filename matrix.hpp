@@ -24,7 +24,6 @@
 #include <iostream>
 #include <algorithm>   // swap
 #include "mpi.h"       // parallelism
-#include "plot3d.hpp"  // matrix location functions
 #include "macros.hpp"
 
 using std::vector;

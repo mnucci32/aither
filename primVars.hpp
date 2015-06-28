@@ -32,10 +32,8 @@ supply a ghost state given a boundary condition and boundary cell.  */
 #include <vector>                  // vector
 #include <string>                  // string
 #include "vector3d.hpp"            // vector3d
-#include "input.hpp"               // input
-#include "eos.hpp"                 // idealGas
+#include "eos.hpp"                 // idealGas, sutherland
 #include "matrix.hpp"              // genArray
-#include "boundaryConditions.hpp"  // boundaryConditions
 #include "macros.hpp"
 
 using std::vector;
@@ -46,6 +44,9 @@ using std::cout;
 using std::endl;
 using std::cerr;
 using std::ostream;
+
+// forward class declarations
+class input;
 
 class primVars {
   double data_[NUMVARS];  // primative variables at cell center
@@ -167,14 +168,13 @@ double primVars::Enthalpy(const idealGas &eqnState) const {
 
 // member function to calculate conserved variables from primative variables
 genArray primVars::ConsVars(const idealGas &eqnState) const {
-  genArray cv(0.0);
-  cv[0] = data_[0];
-  cv[1] = data_[0] * data_[1];
-  cv[2] = data_[0] * data_[2];
-  cv[3] = data_[0] * data_[3];
-  cv[4] = data_[0] * (*this).Energy(eqnState);
-  cv[5] = data_[0] * data_[5];
-  cv[6] = data_[0] * data_[6];
+  genArray cv(data_[0],
+              data_[0] * data_[1],
+              data_[0] * data_[2],
+              data_[0] * data_[3],
+              data_[0] * (*this).Energy(eqnState),
+              data_[0] * data_[5],
+              data_[0] * data_[6]);
   return cv;
 }
 

@@ -23,11 +23,6 @@
 #include <string>          // string
 #include "vector3d.hpp"    // vector3d
 #include "tensor.hpp"      // tensor
-#include "eos.hpp"         // idealGas
-#include "primVars.hpp"    // primVars
-#include "matrix.hpp"      // squareMatrix
-#include "input.hpp"       // input
-#include "turbulence.hpp"  // turbModel
 #include "macros.hpp"
 
 using std::vector;
@@ -36,6 +31,13 @@ using std::cout;
 using std::endl;
 using std::cerr;
 using std::ostream;
+
+// forward class declarations
+class primVars;
+class idealGas;
+class sutherland;
+class turbModel;
+class squareMatrix;
 
 class viscousFlux {
   double data_[NUMVARS - 1];  // viscous flux for x-momentum equation

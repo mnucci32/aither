@@ -21,6 +21,7 @@
 #include <cmath>
 #include <algorithm>  // max
 #include "primVars.hpp"
+#include "input.hpp"               // input
 
 using std::cout;
 using std::endl;

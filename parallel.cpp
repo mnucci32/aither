@@ -21,6 +21,13 @@
 #include <string>  // string
 #include "parallel.hpp"
 #include "output.hpp"
+#include "vector3d.hpp"            // vector3d
+#include "plot3d.hpp"              // plot3d
+#include "primVars.hpp"            // primVars
+#include "procBlock.hpp"           // procBlock
+#include "boundaryConditions.hpp"  // interblock
+#include "matrix.hpp"              // resid
+#include "macros.hpp"
 
 using std::max_element;
 using std::min_element;
@@ -54,7 +61,7 @@ decomposition ManualDecomposition(vector<plot3dBlock> &grid,
 
   decomposition decomp(grid.size(), numProc);
   for (unsigned int ii = 1; ii < grid.size(); ii++) {
-    decomp.SendToProc(ii, ROOT, ii);  // send block from ROOT to processor
+    decomp.SendToProc(ii, ROOTP, ii);  // send block from ROOT to processor
   }
 
   decomp.PrintDiagnostics(grid);
@@ -164,7 +171,7 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid,
 // function to send each processor the number of procBlocks that it should
 // contain
 void SendNumProcBlocks(const vector<int> &loadBal, int &numProcBlock) {
-  MPI_Scatter(&loadBal[0], 1, MPI_INT, &numProcBlock, 1, MPI_INT, ROOT,
+  MPI_Scatter(&loadBal[0], 1, MPI_INT, &numProcBlock, 1, MPI_INT, ROOTP,
               MPI_COMM_WORLD);
 }
 
@@ -174,12 +181,12 @@ void SendConnections(vector<interblock> &connections,
                      const MPI_Datatype &MPI_interblock) {
   // first determine the number of interblocks and send that to all processors
   int numCon = connections.size();
-  MPI_Bcast(&numCon, 1, MPI_INT, ROOT, MPI_COMM_WORLD);
+  MPI_Bcast(&numCon, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
 
   connections.resize(numCon);  // allocate space to receive the interblocks
 
   // broadcast all interblocks to all processors
-  MPI_Bcast(&connections[0], connections.size(), MPI_interblock, ROOT,
+  MPI_Bcast(&connections[0], connections.size(), MPI_interblock, ROOTP,
             MPI_COMM_WORLD);
 }
 
@@ -334,10 +341,10 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
   //------------------------------------------------------------------------
   //                                  ROOT
   //------------------------------------------------------------------------
-  if (rank == ROOT) {  // may have to pack and send data
+  if (rank == ROOTP) {  // may have to pack and send data
     for (unsigned int ii = 0; ii < blocks.size();
          ii++) {                        // loop over ALL blocks
-      if (blocks[ii].Rank() == ROOT) {  // no need to send data because it is
+      if (blocks[ii].Rank() == ROOTP) {  // no need to send data because it is
                                         // already on ROOT processor
         localBlocks[blocks[ii].LocalPosition()] = blocks[ii];
       } else {  // send data to receiving processors
@@ -381,10 +388,10 @@ void GetProcBlocks(vector<procBlock> &blocks,
   //--------------------------------------------------------------------------
   //                                      ROOT
   //--------------------------------------------------------------------------
-  if (rank == ROOT) {  // may have to recv and unpack data
+  if (rank == ROOTP) {  // may have to recv and unpack data
     for (unsigned int ii = 0; ii < blocks.size();
          ii++) {                        // loop over ALL blocks
-      if (blocks[ii].Rank() == ROOT) {  // no need to recv data because it is
+      if (blocks[ii].Rank() == ROOTP) {  // no need to recv data because it is
                                         // already on ROOT processor
         // assign local state block to global state block in order of local
         // state vector
@@ -428,12 +435,12 @@ void BroadcastString(string &str) {
 
   int strSize =
       str.size() + 1;  // get size of string (+1 for c_str end character)
-  MPI_Bcast(&strSize, 1, MPI_INT, ROOT,
+  MPI_Bcast(&strSize, 1, MPI_INT, ROOTP,
             MPI_COMM_WORLD);  // broadcast string size
 
   char *buf = new char[strSize];  // allcate a char buffer of string size
   snprintf(buf, strSize, "%s", str.c_str());  // copy string into buffer
-  MPI_Bcast(&buf[0], strSize, MPI_CHAR, ROOT,
+  MPI_Bcast(&buf[0], strSize, MPI_CHAR, ROOTP,
             MPI_COMM_WORLD);  // broadcast string as char
 
   // create new string and assign to old string

@@ -22,10 +22,6 @@
 #include <string>        // string
 #include <iostream>      // cout
 #include "vector3d.hpp"  // vector3d
-#include "eos.hpp"       // idealGas
-#include "primVars.hpp"  // primVars
-#include "input.hpp"     // input
-#include "matrix.hpp"
 #include "macros.hpp"
 
 using std::vector;
@@ -34,6 +30,12 @@ using std::cout;
 using std::endl;
 using std::cerr;
 using std::ostream;
+
+// forward class declaration
+class idealGas;
+class primVars;
+class genArray;
+class squareMatrix;
 
 class inviscidFlux {
   double data_[NUMVARS];  // rho dot velocity vector

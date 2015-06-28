@@ -26,14 +26,17 @@ This class stores the information needed to specify the boundary_ conditions for
 #include <vector>  // vector
 #include <string>  // string
 #include <iostream>  // ostream
-#include "plot3d.hpp"  // plot3dBlock
 #include "mpi.h"  // parallelism
+#include "vector3d.hpp"
 
 using std::ostream;
 using std::vector;
 using std::string;
 using std::cout;
 using std::endl;
+
+// forward class declaration
+class plot3dBlock;
 
 class boundarySurface {
   string bcType_;    // boundary_ condition name for surface

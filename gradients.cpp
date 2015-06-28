@@ -19,6 +19,8 @@
 #include <string>
 #include "gradients.hpp"
 #include "procBlock.hpp"
+#include "eos.hpp"
+#include "plot3d.hpp"   // plot3d location functions
 
 using std::cout;
 using std::endl;

@@ -23,11 +23,8 @@
 #include <string>        // stl string
 #include "plot3d.hpp"
 #include "vector3d.hpp"
-#include "tensor.hpp"
 #include "input.hpp"
 #include "procBlock.hpp"
-#include "inviscidFlux.hpp"
-#include "viscousFlux.hpp"
 #include "primVars.hpp"
 #include "eos.hpp"
 #include "boundaryConditions.hpp"
@@ -55,13 +52,12 @@ int main(int argc, char *argv[]) {
   // Get MPI version
   int version, subversion;
   MPI_Get_version(&version, &subversion);
-  if ( rank == ROOT ) {
+  if ( rank == ROOTP ) {
+    cout << "Code compiled on " << __DATE__ << " at " << __TIME__ << endl;
     cout << "Using MPI Version " << version << "." << subversion << endl;
     cout << "Using " << numProcs << " processors" << endl;
   }
   MPI_Barrier(MPI_COMM_WORLD);
-
-  cout << "Hello from processor " << rank << " of " << numProcs << "!" << endl;
 
   // Start clock to time simulation
   clock_t start;
@@ -108,7 +104,7 @@ int main(int argc, char *argv[]) {
   vector<interblock> connections;
   vector<procBlock> stateBlocks;
 
-  if (rank == ROOT) {
+  if (rank == ROOTP) {
     cout << "Number of equations: " << inputVars.NumEquations() << endl << endl;
 
     // Read grid
@@ -196,7 +192,7 @@ int main(int argc, char *argv[]) {
   // matrix inversion residual (only for implicit runs)
   double matrixResid = 0.0;
 
-  if (rank == ROOT) {
+  if (rank == ROOTP) {
     // Write out cell centers grid file
     WriteCellCenter(inputVars.GridName(), stateBlocks, decomp,
                     inputVars.LRef());
@@ -240,7 +236,7 @@ int main(int argc, char *argv[]) {
 
           // If turblent, calculate source terms
           if (inputVars.IsTurbulent()) {
-            // localStateBlocks[bb].CalcSrcTerms(grads, suth, eos, turb);
+            localStateBlocks[bb].CalcSrcTerms(grads, suth, eos, turb);
           }
         }
 
@@ -312,15 +308,15 @@ int main(int argc, char *argv[]) {
       residLinf.GlobalReduceMPI(rank, MPI_DOUBLE_5INT, MPI_MAX_LINF);
 
       // Get matrix residuals from all processors
-      if (rank == ROOT) {
+      if (rank == ROOTP) {
         MPI_Reduce(MPI_IN_PLACE, &matrixResid, 1, MPI_DOUBLE, MPI_SUM,
-                   ROOT, MPI_COMM_WORLD);
+                   ROOTP, MPI_COMM_WORLD);
       } else {
         MPI_Reduce(&matrixResid, &matrixResid, 1, MPI_DOUBLE, MPI_SUM,
-                   ROOT, MPI_COMM_WORLD);
+                   ROOTP, MPI_COMM_WORLD);
       }
 
-      if (rank == ROOT) {
+      if (rank == ROOTP) {
         // Finish calculation of L2 norm of residual
         for ( int cc = 0; cc < inputVars.NumEquations(); cc++ ) {
           residL2[cc] = sqrt(residL2[cc]);
@@ -344,7 +340,7 @@ int main(int argc, char *argv[]) {
       // Send/recv solutions
       GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData);
 
-      if (rank == ROOT) {
+      if (rank == ROOTP) {
         cout << "writing out function file at iteration " << nn << endl;
         // Write out function file
         WriteFun(inputVars.GridName(), stateBlocks, eos, suth, (nn+1),
@@ -355,7 +351,7 @@ int main(int argc, char *argv[]) {
   }  // loop for time ----------------------------------------------------------
 
 
-  if (rank == ROOT) {
+  if (rank == ROOTP) {
     cout << endl;
     cout << "Program Complete" << endl;
     PrintTime();

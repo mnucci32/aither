@@ -26,9 +26,6 @@
 #include <vector>  // vector
 #include <string>  // string
 #include <iostream>
-#include "turbulence.hpp"
-#include "primVars.hpp"
-#include "gradients.hpp"
 #include "macros.hpp"
 
 using std::vector;
@@ -37,6 +34,13 @@ using std::cout;
 using std::endl;
 using std::cerr;
 using std::ostream;
+
+// forward class declaration
+class primVars;
+class turbModel;
+class sutherland;
+class idealGas;
+class gradients;
 
 class source {
   double data_[NUMVARS];  // source variables at cell center

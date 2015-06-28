@@ -19,6 +19,9 @@
 #include <string>
 #include <cmath>
 #include "source.hpp"
+#include "turbulence.hpp"
+#include "primVars.hpp"
+#include "gradients.hpp"
 
 using std::cout;
 using std::endl;

@@ -19,6 +19,8 @@
 #include <string>
 #include "slices.hpp"
 #include "procBlock.hpp"
+#include "boundaryConditions.hpp"  // interblock
+#include "plot3d.hpp"              // location functions
 
 using std::cout;
 using std::endl;

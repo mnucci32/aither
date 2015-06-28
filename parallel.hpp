@@ -25,12 +25,6 @@
 #include <vector>                  // vector
 #include <string>                  // string
 #include "mpi.h"                   // parallelism
-#include "vector3d.hpp"            // vector3d
-#include "plot3d.hpp"              // plot3d
-#include "primVars.hpp"            // primVars
-#include "procBlock.hpp"           // procBlock
-#include "boundaryConditions.hpp"  // interblock
-#include "macros.hpp"
 
 using std::vector;
 using std::string;
@@ -39,6 +33,14 @@ using std::cout;
 using std::endl;
 using std::cerr;
 using std::ostream;
+
+// forward class declarations
+class boundaryConditions;
+class procBlock;
+class plot3dBlock;
+class interblock;
+class decomposition;
+class resid;
 
 // function definitions
 decomposition ManualDecomposition(vector<plot3dBlock>&,
