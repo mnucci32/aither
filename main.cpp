@@ -33,6 +33,7 @@
 #include "parallel.hpp"
 #include "turbulence.hpp"
 #include "gradients.hpp"
+#include "resid.hpp"
 
 using std::cout;
 using std::cerr;

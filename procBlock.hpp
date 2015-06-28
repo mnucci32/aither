@@ -50,6 +50,7 @@ class stateSlice;
 class source;
 class turbModel;
 class plot3dBlock;
+class resid;
 
 class procBlock {
   vector<primVars> state_;  // primative variables at cell center

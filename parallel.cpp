@@ -26,7 +26,7 @@
 #include "primVars.hpp"            // primVars
 #include "procBlock.hpp"           // procBlock
 #include "boundaryConditions.hpp"  // interblock
-#include "matrix.hpp"              // resid
+#include "resid.hpp"               // resid
 #include "macros.hpp"
 
 using std::max_element;

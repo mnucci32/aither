@@ -32,6 +32,7 @@
 #include "inviscidFlux.hpp"        // inviscidFlux
 #include "input.hpp"               // inputVars
 #include "boundaryConditions.hpp"  // decomposition
+#include "resid.hpp"               // resid
 
 #define VAROUT 14
 

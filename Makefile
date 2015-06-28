@@ -1,11 +1,11 @@
-OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o procBlock.o output.o matrix.o parallel.o slices.o turbulence.o gradients.o inviscidFlux.o viscousFlux.o source.o
+OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o procBlock.o output.o matrix.o parallel.o slices.o turbulence.o gradients.o inviscidFlux.o viscousFlux.o source.o resid.o
 CC = mpic++
 DEBUG = -ggdb -pg 
 OPTIM = -O3 -march=native
 PROF = -O3 -march=native -pg
 CODENAME = main
-CFLAGS = -std=c++11 -Wall -c $(OPTIM)
-LFLAGS = -std=c++11 -Wall $(OPTIM) -o $(CODENAME)
+CFLAGS = -std=c++11 -Wall -c $(DEBUG)
+LFLAGS = -std=c++11 -Wall $(DEBUG) -o $(CODENAME)
 
 $(CODENAME) : $(OBJS)
 	$(CC) $(LFLAGS) $(OBJS)
@@ -13,7 +13,7 @@ $(CODENAME) : $(OBJS)
 plot3d.o : plot3d.cpp plot3d.hpp vector3d.hpp
 	$(CC) $(CFLAGS) plot3d.cpp
 
-main.o : main.cpp plot3d.hpp vector3d.hpp input.hpp procBlock.hpp eos.hpp primVars.hpp boundaryConditions.hpp inviscidFlux.hpp tensor.hpp viscousFlux.hpp output.hpp matrix.hpp parallel.hpp turbulence.hpp gradients.hpp
+main.o : main.cpp plot3d.hpp vector3d.hpp input.hpp procBlock.hpp eos.hpp primVars.hpp boundaryConditions.hpp inviscidFlux.hpp tensor.hpp viscousFlux.hpp output.hpp matrix.hpp parallel.hpp turbulence.hpp gradients.hpp resid.hpp
 	$(CC) $(CFLAGS) main.cpp
 
 input.o : input.cpp input.hpp boundaryConditions.hpp
@@ -43,7 +43,7 @@ viscousFlux.o : viscousFlux.cpp vector3d.hpp tensor.hpp eos.hpp primVars.hpp vis
 output.o : output.cpp output.hpp procBlock.hpp tensor.hpp vector3d.hpp plot3d.hpp eos.hpp primVars.hpp inviscidFlux.hpp input.hpp turbulence.hpp
 	$(CC) $(CFLAGS) output.cpp
 
-parallel.o : parallel.cpp parallel.hpp primVars.hpp procBlock.hpp vector3d.hpp plot3d.hpp boundaryConditions.hpp matrix.hpp
+parallel.o : parallel.cpp parallel.hpp primVars.hpp procBlock.hpp vector3d.hpp plot3d.hpp boundaryConditions.hpp resid.hpp
 	$(CC) $(CFLAGS) parallel.cpp
 
 matrix.o : matrix.cpp matrix.hpp plot3d.hpp macros.hpp
@@ -57,6 +57,9 @@ source.o : source.cpp source.hpp macros.hpp turbulence.hpp primVars.hpp gradient
 
 gradients.o : gradients.cpp gradients.hpp primVars.hpp vector3d.hpp tensor.hpp procBlock.hpp
 	$(CC) $(CFLAGS) gradients.cpp
+
+resid.o : resid.cpp resid.hpp
+	$(CC) $(CFLAGS) resid.cpp
 
 clean:
 	rm *.o *~ $(CODENAME)

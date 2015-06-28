@@ -30,6 +30,7 @@
 #include "gradients.hpp"
 #include "slices.hpp"
 #include "source.hpp"
+#include "resid.hpp"
 
 using std::cout;
 using std::endl;
