@@ -833,11 +833,11 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag,
             (*this).ImplicitTimeAdvance(du[loc], eos, locG);
           }
 
-          // accumulate l2 norm of residual_
+          // accumulate l2 norm of residual
           l2 = l2 + (*this).Residual(loc) * (*this).Residual(loc);
 
-          // if any residual_ is larger than previous residual_, a new linf
-          // residual_ is found
+          // if any residual is larger than previous residual, a new linf
+          // residual is found
           for (int ll = 0; ll < NUMVARS; ll++) {
             if ((*this).Residual(loc, ll) > linf.Linf()) {
               linf.UpdateMax((*this).Residual(loc, ll), (*this).ParentBlock(),
@@ -887,6 +887,8 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag,
       }
       // for multistage RK4 method, calculate fluxes and residuals again
       if (rr < 3) {  // no need to calculate fluxes after final RK interation
+        // UPDATE NEEDED -- have to calculate grads, visc fluxes, source terms
+        // again. Maybe BCs as well
         (*this).CalcInvFluxI(eos, inputVars);
         (*this).CalcInvFluxJ(eos, inputVars);
         (*this).CalcInvFluxK(eos, inputVars);
@@ -912,7 +914,7 @@ void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState,
                                          const int &locG, const int &loc) {
   // eqnState -- equation of state
   // locG -- location of cell (including ghost cells)
-  // loc -- location of cell (withod ghost cells)
+  // loc -- location of cell (without ghost cells)
 
   // Get conserved variables for current state_ (time n)
   genArray consVars = (*this).State(locG).ConsVars(eqnState);
@@ -924,7 +926,7 @@ void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState,
   primVars tempState(consVars, false, eqnState);
 
   // update state
-  (*this).state_[loc] = tempState;
+  (*this).state_[locG] = tempState;
 }
 
 // member function to advance the state_ vector to time n+1 (for implicit
@@ -11260,19 +11262,23 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
   // eos -- equation of state
   // turb -- turbulence model
 
-  // loop over all physical cells - no ghost cells for dt variable
-  for (int kk = 0; kk < (*this).NumK(); kk++) {
-    for (int jj = 0; jj < (*this).NumJ(); jj++) {
-      for (int ii = 0; ii < (*this).NumI(); ii++) {
+  // loop over all physical cells - no ghost cells for source terms
+  for (int kk = numGhosts_; kk < numK_ + numGhosts_; kk++) {
+    for (int jj = numGhosts_; jj < numJ_ + numGhosts_; jj++) {
+      for (int ii = numGhosts_; ii < numI_ + numGhosts_; ii++) {
         // current cell location
-        int loc = GetLoc1D(ii, jj, kk, (*this).NumI(), (*this).NumJ());
+        int loc = GetLoc1D(ii, jj, kk, numI_ + 2.0 * numGhosts_,
+                           numJ_ + 2.0 * numGhosts_);
+        int locNG = GetLoc1D(ii - numGhosts_, jj - numGhosts_,
+                             kk - numGhosts_, numI_, numJ_);
 
         // calculate turbulent source terms
         source src;
-        src.CalcTurbSrc(turb, (*this).State(loc), grads, suth, eos, ii, jj, kk);
+        src.CalcTurbSrc(turb, (*this).State(loc), grads, suth, eos,
+                        ii - numGhosts_, jj - numGhosts_, kk - numGhosts_);
 
         // add source terms to residual
-        (*this).AddToResidual(src * (*this).Vol(loc), loc);
+        (*this).AddToResidual(src * (*this).Vol(loc), locNG);
       }
     }
   }
