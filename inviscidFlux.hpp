@@ -61,8 +61,8 @@ class inviscidFlux {
 
   void RoeFlux(const inviscidFlux&, const genArray&);
 
-  inviscidFlux operator*(const double&);
-  inviscidFlux operator/(const double&);
+  inviscidFlux operator*(const double&) const;
+  inviscidFlux operator/(const double&) const;
 
   inviscidFlux operator+(const inviscidFlux&) const;
   inviscidFlux operator-(const inviscidFlux&) const;

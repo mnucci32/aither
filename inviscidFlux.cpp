@@ -893,7 +893,7 @@ ostream &operator<<(ostream &os, inviscidFlux &flux) {
 }
 
 // member function for scalar multiplication
-inviscidFlux inviscidFlux::operator*(const double &scalar) {
+inviscidFlux inviscidFlux::operator*(const double &scalar) const {
   inviscidFlux temp = *this;
   for (int ii = 0; ii < NUMVARS; ii++) {
     temp.data_[ii] *= scalar;
@@ -929,7 +929,7 @@ inviscidFlux inviscidFlux::operator-(const inviscidFlux &invf2) const {
 }
 
 // member function for scalar division
-inviscidFlux inviscidFlux::operator/(const double &scalar) {
+inviscidFlux inviscidFlux::operator/(const double &scalar) const {
   inviscidFlux temp = *this;
   for (int ii = 0; ii < NUMVARS; ii++) {
     temp.data_[ii] /= scalar;
