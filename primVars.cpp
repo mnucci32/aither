@@ -61,7 +61,7 @@ primVars::primVars(const genArray &a, const bool &prim,
 
 // member function to initialize a state with nondimensional values
 void primVars::NondimensionalInitialize(const idealGas &eos, const double &aRef,
-                                        const input &inp, const double &muRef) {
+                                        const input &inp) {
   data_[0] = 1.0;
   data_[4] = 1.0 / eos.Gamma();
 
@@ -74,7 +74,7 @@ void primVars::NondimensionalInitialize(const idealGas &eos, const double &aRef,
     // intensity and eddy viscosity ratio. This is the default for
     // STAR-CCM+
     (*this).ApplyFarfieldTurbBC((*this).Velocity(), inp.FarfieldTurbIntensity(),
-                                inp.FarfieldEddyViscRatio(), muRef);
+                                inp.FarfieldEddyViscRatio());
   } else {
     data_[5] = 0.0;
     data_[6] = 0.0;
@@ -138,7 +138,7 @@ primVars primVars::operator*(const primVars &prim2) const {
 }
 
 // member function for scalar multiplication
-primVars primVars::operator*(const double &scalar) {
+primVars primVars::operator*(const double &scalar) const {
   primVars temp = *this;
   for (int ii = 0; ii < NUMVARS; ii++) {
     temp.data_[ii] *= scalar;
@@ -147,7 +147,7 @@ primVars primVars::operator*(const double &scalar) {
 }
 
 // member function for scalar addition
-primVars primVars::operator+(const double &scalar) {
+primVars primVars::operator+(const double &scalar) const {
   primVars temp = *this;
   for (int ii = 0; ii < NUMVARS; ii++) {
     temp.data_[ii] += scalar;
@@ -156,7 +156,7 @@ primVars primVars::operator+(const double &scalar) {
 }
 
 // member function for scalar subtraction
-primVars primVars::operator-(const double &scalar) {
+primVars primVars::operator-(const double &scalar) const {
   primVars temp = *this;
   for (int ii = 0; ii < NUMVARS; ii++) {
     temp.data_[ii] -= scalar;
@@ -165,7 +165,7 @@ primVars primVars::operator-(const double &scalar) {
 }
 
 // member function for scalar division
-primVars primVars::operator/(const double &scalar) {
+primVars primVars::operator/(const double &scalar) const {
   primVars temp = *this;
   for (int ii = 0; ii < NUMVARS; ii++) {
     temp.data_[ii] /= scalar;
@@ -506,13 +506,13 @@ primVars primVars::GetGhostState(const string &bcType,
     // numerical BCs for rho and pressure, same as boundary state
 
     // turbulence bcs
-    // tke at cell center is set to opposite ov velocity at boundary cell center
+    // tke at cell center is set to opposite of velocity at boundary cell center
     // so that tke at face will be zero
     if (inputVars.IsTurbulent()) {
       ghostState.data_[5] = -1.0 * (*this).Tke();
 
       double ks = 1.0e-6;  // avg height of sand grain roughness
-      double nuW = suth.Viscosity((*this).Temperature(eqnState))
+      double nuW = suth.EffectiveViscosity((*this).Temperature(eqnState))
           / (*this).Rho();
       double wWall = 40000.0 * nuW / (ks * ks);
       ghostState.data_[6] = 2.0 * wWall - (*this).Omega();
@@ -541,8 +541,7 @@ primVars primVars::GetGhostState(const string &bcType,
     if (inputVars.IsTurbulent()) {
       ghostState.ApplyFarfieldTurbBC(ghostVel,
                                      inputVars.FarfieldTurbIntensity(),
-                                     inputVars.FarfieldTurbIntensity(),
-                                     suth.MuRef());
+                                     inputVars.FarfieldEddyViscRatio());
     }
 
     if (layer == 2) {  // extrapolate to get ghost state at 2nd layer
@@ -552,8 +551,7 @@ primVars primVars::GetGhostState(const string &bcType,
       if (inputVars.IsTurbulent()) {
         ghostState.ApplyFarfieldTurbBC(ghostVel,
                                        inputVars.FarfieldTurbIntensity(),
-                                       inputVars.FarfieldTurbIntensity(),
-                                       suth.MuRef());
+                                       inputVars.FarfieldEddyViscRatio());
       }
     }
 
@@ -601,8 +599,7 @@ primVars primVars::GetGhostState(const string &bcType,
       if (inputVars.IsTurbulent()) {
         ghostState.ApplyFarfieldTurbBC(freeVel,
                                        inputVars.FarfieldTurbIntensity(),
-                                       inputVars.FarfieldTurbIntensity(),
-                                       suth.MuRef());
+                                       inputVars.FarfieldEddyViscRatio());
       }
 
     } else if (machInt >= 1.0 && velIntNorm >= 0.0) {  // supersonic outflow
@@ -636,8 +633,7 @@ primVars primVars::GetGhostState(const string &bcType,
       if (inputVars.IsTurbulent()) {
         ghostState.ApplyFarfieldTurbBC(freeVel,
                                        inputVars.FarfieldTurbIntensity(),
-                                       inputVars.FarfieldTurbIntensity(),
-                                       suth.MuRef());
+                                       inputVars.FarfieldEddyViscRatio());
       }
 
     } else if (machInt < 1.0 && velIntNorm >= 0.0) {  // subsonic outflow
@@ -676,8 +672,7 @@ primVars primVars::GetGhostState(const string &bcType,
       if (inputVars.IsTurbulent()) {
         ghostState.ApplyFarfieldTurbBC(freeVel,
                                        inputVars.FarfieldTurbIntensity(),
-                                       inputVars.FarfieldTurbIntensity(),
-                                       suth.MuRef());
+                                       inputVars.FarfieldEddyViscRatio());
       }
     }
 
@@ -699,8 +694,7 @@ primVars primVars::GetGhostState(const string &bcType,
     if (inputVars.IsTurbulent()) {
       ghostState.ApplyFarfieldTurbBC(vel,
                                      inputVars.FarfieldTurbIntensity(),
-                                     inputVars.FarfieldTurbIntensity(),
-                                     suth.MuRef());
+                                     inputVars.FarfieldEddyViscRatio());
     }
 
   // supersonic outflow boundary condition
@@ -751,8 +745,7 @@ primVars primVars::GetGhostState(const string &bcType,
     if (inputVars.IsTurbulent()) {
       ghostState.ApplyFarfieldTurbBC(inputVars.VelRef() / aRef,
                                      inputVars.FarfieldTurbIntensity(),
-                                     inputVars.FarfieldTurbIntensity(),
-                                     suth.MuRef());
+                                     inputVars.FarfieldEddyViscRatio());
     }
 
     if (layer == 2) {  // extrapolate to get ghost state at 2nd layer
@@ -762,8 +755,7 @@ primVars primVars::GetGhostState(const string &bcType,
       if (inputVars.IsTurbulent()) {
         ghostState.ApplyFarfieldTurbBC(inputVars.VelRef() / aRef,
                                        inputVars.FarfieldTurbIntensity(),
-                                       inputVars.FarfieldTurbIntensity(),
-                                       suth.MuRef());
+                                       inputVars.FarfieldEddyViscRatio());
       }
     }
 
@@ -847,13 +839,11 @@ bool primVars::IsZero() const {
 // eddy viscosity ratio
 void primVars::ApplyFarfieldTurbBC(const vector3d<double> &vel,
                                    const double &turbInten,
-                                   const double &viscRatio,
-                                   const double &muRef) {
+                                   const double &viscRatio) {
   // vel -- reference velocity (nondimensionalized)
   // turbInten -- turbulence intensity at farfield
   // viscRatio -- eddy viscosity ratio at farfield
-  // muRef -- reference viscosity
 
   data_[5] = 1.5 * pow(turbInten * vel.Mag(), 2.0);
-  data_[6] = data_[0] * data_[5] / (viscRatio * muRef);
+  data_[6] = data_[0] * data_[5] / viscRatio;
 }

@@ -86,7 +86,7 @@ source source::operator*(const source &src2) const {
 }
 
 // member function for scalar multiplication
-source source::operator*(const double &scalar) {
+source source::operator*(const double &scalar) const {
   source temp = *this;
   for (int ii = 0; ii < NUMVARS; ii++) {
     temp.data_[ii] *= scalar;
@@ -95,7 +95,7 @@ source source::operator*(const double &scalar) {
 }
 
 // member function for scalar addition
-source source::operator+(const double &scalar) {
+source source::operator+(const double &scalar) const {
   source temp = *this;
   for (int ii = 0; ii < NUMVARS; ii++) {
     temp.data_[ii] += scalar;
@@ -104,7 +104,7 @@ source source::operator+(const double &scalar) {
 }
 
 // member function for scalar subtraction
-source source::operator-(const double &scalar) {
+source source::operator-(const double &scalar) const {
   source temp = *this;
   for (int ii = 0; ii < NUMVARS; ii++) {
     temp.data_[ii] -= scalar;
@@ -113,7 +113,7 @@ source source::operator-(const double &scalar) {
 }
 
 // member function for scalar division
-source source::operator/(const double &scalar) {
+source source::operator/(const double &scalar) const {
   source temp = *this;
   for (int ii = 0; ii < NUMVARS; ii++) {
     temp.data_[ii] /= scalar;
@@ -164,25 +164,30 @@ void source::CalcTurbSrc(const turbModel *turb, const primVars &state,
 
   // calculate wall shear stress (double dot) velocity gradient
   // wall shear stress
-  double mut = turb->EddyVisc(state) * suth.NondimScaling();
+  tensor<double> vGrad = grads.VelGradCell(ii, jj, kk);
+  double mut = turb->EddyVisc(state, vGrad) * suth.NondimScaling();
   double lambda = suth.Lambda(mut);
 
+  tensor<double> I;
+  I.Identity();
   tensor<double> tau =
-      lambda * grads.VelGradCell(ii, jj, kk).Trace() + mut *
-      (grads.VelGradCell(ii, jj, kk) +
-       grads.VelGradCell(ii, jj, kk).Transpose());
+      lambda * vGrad.Trace() + mut * (vGrad + vGrad.Transpose())
+      - 2.0 / 3.0 * state.Rho() * state.Tke() * I;
+
+
+  double test = tau.DoubleDotTrans(vGrad);
+
 
   // Using DoubleDotTrans instead of DoubleDot for speed
   // Since tensors are symmetric result is the same
   data_[5] = suth.NondimScaling() * state.Rho() *
-      tau.DoubleDotTrans(grads.VelGradCell(ii, jj, kk))
-      - suth.InvNondimScaling() * turb->Eqn1DissipationCoeff() *
-      state.Rho() * state.Omega() * state.Tke();
+      tau.DoubleDotTrans(vGrad) - suth.InvNondimScaling() *
+      turb->Eqn1DissipationCoeff() * state.Rho() * state.Omega() *
+      state.Tke();
 
   data_[6] = suth.NondimScaling() * turb->Eqn2ProductionCoeff() *
       state.Omega() / state.Tke() * state.Rho() *
-      tau.DoubleDotTrans(grads.VelGradCell(ii, jj, kk))
-      - suth.InvNondimScaling() *
-      turb->Eqn2DissipationCoeff(state, grads.VelGradCell(ii, jj, kk))
-      * state.Rho() * state.Omega() * state.Omega();
+      tau.DoubleDotTrans(vGrad) - suth.InvNondimScaling() *
+      turb->Eqn2DissipationCoeff(state, vGrad) * state.Rho() *
+      state.Omega() * state.Omega();
 }

@@ -25,8 +25,16 @@ using std::endl;
 using std::cerr;
 
 // member functions for k-omega Wilcox 2006 model
-// member function to return the eddy viscosity
-double turbKWWilcox::EddyVisc(const primVars &state) const {
+// member function to return the eddy viscosity calculated with the stress
+// limiter
+double turbKWWilcox::EddyVisc(const primVars &state,
+                              const tensor<double> &vGrad) const {
+  return state.Rho() * state.Tke() / (*this).OmegaTilda(state, vGrad);
+}
+
+// member functionto return the eddy viscosity calculated without the stress
+// limiter
+double turbKWWilcox::EddyViscNoLim(const primVars &state) const {
   return state.Rho() * state.Tke() / state.Omega();
 }
 
@@ -86,7 +94,7 @@ double turbKWWilcox::OmegaTilda(const primVars &state,
   I.Identity();
   tensor<double> sHat = 0.5 * (velGrad + velGrad.Transpose()) - 1.0 / 3.0 *
       velGrad.Trace() * I;
-  
+
   // using DoubleDotTrans instead of DoubleDot for speed
   // since tensors are symmetric, result is the same
   return std::max(state.Omega(), (*this).CLim() *

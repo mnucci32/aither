@@ -74,8 +74,7 @@ class primVars {
   double Tke() const { return data_[5]; }
   double Omega() const { return data_[6]; }
 
-  void NondimensionalInitialize(const idealGas&, const double&, const input&,
-                                const double&);
+  void NondimensionalInitialize(const idealGas&, const double&, const input&);
   bool IsZero() const;
 
   inline vector3d<double> Velocity() const;
@@ -89,7 +88,7 @@ class primVars {
   primVars UpdateWithConsVars(const idealGas &, const genArray &) const;
 
   void ApplyFarfieldTurbBC(const vector3d<double> &, const double &,
-                           const double &, const double &);
+                           const double &);
 
   // operator overloads for addition and subtraction of states
   primVars operator+(const primVars &) const;
@@ -97,10 +96,10 @@ class primVars {
   primVars operator*(const primVars &) const;
   primVars operator/(const primVars &) const;
 
-  primVars operator+(const double &);
-  primVars operator-(const double &);
-  primVars operator*(const double &);
-  primVars operator/(const double &);
+  primVars operator+(const double &) const;
+  primVars operator-(const double &) const;
+  primVars operator*(const double &) const;
+  primVars operator/(const double &) const;
 
   friend primVars operator+(const double &, const primVars &);
   friend primVars operator-(const double &, const primVars &);

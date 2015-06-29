@@ -57,7 +57,8 @@ viscousFlux::viscousFlux(
     const double &mu, const double &eddyVisc, const sutherland &suth,
     const idealGas &eqnState, const vector3d<double> &tGrad,
     const vector3d<double> &areaVec, const vector3d<double> &tkeGrad,
-    const vector3d<double> &omegaGrad, const turbModel *turb) {
+    const vector3d<double> &omegaGrad, const turbModel *turb,
+    const primVars &state) {
   // velGrad -- velocity gradient tensor
   // vel -- velocity vector
   // mu -- dynamic viscosity
@@ -70,6 +71,7 @@ viscousFlux::viscousFlux(
   // tkeGrad -- tke gradient
   // omegaGrad -- omega gradient
   // turb -- turbulence model
+  // state -- primative variables at face
 
   vector3d<double> normArea = areaVec / areaVec.Mag();  // normalize face area
 
@@ -93,9 +95,10 @@ viscousFlux::viscousFlux(
 
   // turbulence viscous flux
   data_[4] =
-      (mu + turb->Eqn1MolecDiffCoeff() * eddyVisc) * tkeGrad.DotProd(normArea);
-  data_[5] = (mu + turb->Eqn2MolecDiffCoeff() * eddyVisc) *
-             omegaGrad.DotProd(normArea);
+      (mu + suth.NondimScaling() * turb->Eqn1MolecDiffCoeff() *
+       turb->EddyViscNoLim(state)) * tkeGrad.DotProd(normArea);
+  data_[5] = (mu + suth.NondimScaling() * turb->Eqn2MolecDiffCoeff() *
+              turb->EddyViscNoLim(state)) * omegaGrad.DotProd(normArea);
 }
 
 // non-member functions
@@ -113,7 +116,7 @@ ostream &operator<<(ostream &os, viscousFlux &flux) {
 }
 
 // member function for scalar multiplication
-viscousFlux viscousFlux::operator*(const double &scalar) {
+viscousFlux viscousFlux::operator*(const double &scalar) const {
   viscousFlux temp = *this;
   for (int ii = 0; ii < NUMVARS - 1; ii++) {
     temp.data_[ii] *= scalar;
@@ -131,7 +134,7 @@ viscousFlux operator*(const double &scalar, const viscousFlux &flux) {
 }
 
 // member function for scalar division
-viscousFlux viscousFlux::operator/(const double &scalar) {
+viscousFlux viscousFlux::operator/(const double &scalar) const {
   viscousFlux temp = *this;
   for (int ii = 0; ii < NUMVARS - 1; ii++) {
     temp.data_[ii] /= scalar;

@@ -52,7 +52,7 @@ class viscousFlux {
               const double&, const sutherland&, const idealGas&,
               const vector3d<double>&, const vector3d<double>&,
               const vector3d<double>&, const vector3d<double>&,
-              const turbModel*);
+              const turbModel*, const primVars&);
 
   // member functions
   double MomX() const { return data_[0]; }
@@ -62,8 +62,8 @@ class viscousFlux {
   double MomK() const { return data_[4]; }
   double MomO() const { return data_[5]; }
 
-  viscousFlux operator*(const double&);
-  viscousFlux operator/(const double&);
+  viscousFlux operator*(const double&) const;
+  viscousFlux operator/(const double&) const;
 
   friend ostream& operator<<(ostream& os, viscousFlux&);
   friend viscousFlux operator*(const double&, const viscousFlux&);

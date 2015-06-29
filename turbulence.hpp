@@ -44,7 +44,9 @@ class turbModel {
   // member functions
   string EddyViscMethod() const {return eddyViscMethod_;}
 
-  virtual double EddyVisc(const primVars &state) const = 0;
+  virtual double EddyVisc(const primVars &state,
+                          const tensor<double> &vGrad) const = 0;
+  virtual double EddyViscNoLim(const primVars &state) const = 0;
   virtual double TurbPrandtlNumber() const = 0;
   virtual double Eqn1ProductionCoeff() const = 0;
   virtual double Eqn2ProductionCoeff() const = 0;
@@ -67,7 +69,9 @@ class turbNone : public turbModel {
   explicit turbNone(const string &meth) : turbModel(meth) {}
 
   // member functions
-  double EddyVisc(const primVars &state) const override {return 0.0;}
+  double EddyVisc(const primVars &state,
+                  const tensor<double> &vGrad) const override {return 0.0;}
+  double EddyViscNoLim(const primVars &state) const override {return 0.0;}
   double TurbPrandtlNumber() const override {return 0.9;}
   double Eqn1ProductionCoeff() const override {return 0.0;}
   double Eqn2ProductionCoeff() const override {return 0.0;}
@@ -95,7 +99,8 @@ class turbKWWilcox : public turbModel {
   explicit turbKWWilcox(const string &meth) : turbModel(meth) {}
 
   // member functions
-  double EddyVisc(const primVars&) const override;
+  double EddyVisc(const primVars&, const tensor<double> &) const override;
+  double EddyViscNoLim(const primVars&) const override;
   double TurbPrandtlNumber() const override {return 8.0 / 9.0;}
   double Eqn1ProductionCoeff() const override {return 1.0;}
   double Eqn2ProductionCoeff() const override {return (*this).Alpha();}

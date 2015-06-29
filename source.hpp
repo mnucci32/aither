@@ -68,10 +68,10 @@ class source {
   source operator*(const source &) const;
   source operator/(const source &) const;
 
-  source operator+(const double &);
-  source operator-(const double &);
-  source operator*(const double &);
-  source operator/(const double &);
+  source operator+(const double &) const;
+  source operator-(const double &) const;
+  source operator*(const double &) const;
+  source operator/(const double &) const;
 
   friend source operator+(const double &, const source &);
   friend source operator-(const double &, const source &);
