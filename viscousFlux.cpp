@@ -94,11 +94,11 @@ viscousFlux::viscousFlux(
                                  tGrad.DotProd(normArea);
 
   // turbulence viscous flux
-  data_[4] =
-      (mu + suth.NondimScaling() * turb->Eqn1MolecDiffCoeff() *
-       turb->EddyViscNoLim(state)) * tkeGrad.DotProd(normArea);
-  data_[5] = (mu + suth.NondimScaling() * turb->Eqn2MolecDiffCoeff() *
-              turb->EddyViscNoLim(state)) * omegaGrad.DotProd(normArea);
+  data_[4] = (mu + suth.NondimScaling() * turb->MolecDiff1Coeff() *
+              turb->EddyVisc(state, velGrad)) * tkeGrad.DotProd(normArea);
+
+  data_[5] = (mu + suth.NondimScaling() * turb->MolecDiff2Coeff() *
+              turb->EddyVisc(state, velGrad)) * omegaGrad.DotProd(normArea);
 }
 
 // non-member functions
