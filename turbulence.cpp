@@ -19,6 +19,7 @@
 #include <algorithm>  // max
 #include "turbulence.hpp"
 #include "primVars.hpp"  // primVars
+#include "eos.hpp"       // sutherland
 
 using std::cout;
 using std::endl;
@@ -46,7 +47,7 @@ double turbKWWilcox::SigmaD(const vector3d<double> &kGrad,
   if (kGrad.DotProd(wGrad) <= 0.0) {
     return 0.0;
   } else {
-    return (*this).SigmaD0();
+    return sigmaD0_;
   }
 }
 
@@ -54,7 +55,7 @@ double turbKWWilcox::Beta(const primVars &state,
                           const tensor<double> &velGrad) const {
   // state -- primative variables
   // velGrad -- velocity gradient
-  return (*this).Beta0() * (*this).FBeta(state, velGrad);
+  return beta0_ * (*this).FBeta(state, velGrad);
 }
 
 double turbKWWilcox::FBeta(const primVars &state,
@@ -76,7 +77,7 @@ double turbKWWilcox::Xw(const primVars &state,
   // both tensors are symmetric so result is the same
   // vorticity is asymmetric but vorticity * vorticity is symmetric
   return fabs( (vorticity * vorticity).DoubleDotTrans((*this).StrainKI(velGrad))
-               / pow((*this).BetaStar() * state.Omega(), 3.0) );
+               / pow(betaStar_ * state.Omega(), 3.0) );
 }
 
 tensor<double> turbKWWilcox::StrainKI(const tensor<double> &velGrad) const {
@@ -97,6 +98,59 @@ double turbKWWilcox::OmegaTilda(const primVars &state,
 
   // using DoubleDotTrans instead of DoubleDot for speed
   // since tensors are symmetric, result is the same
-  return std::max(state.Omega(), (*this).CLim() *
-                  sqrt(2.0 * sHat.DoubleDotTrans(sHat) / (*this).BetaStar()));
+  return std::max(state.Omega(), clim_ *
+                  sqrt(2.0 * sHat.DoubleDotTrans(sHat) / betaStar_));
 }
+
+double turbKWWilcox::Production1(const primVars &state,
+                                 const tensor<double> &velGrad,
+                                 const sutherland &suth) const {
+  double mut = (*this).EddyVisc(state, velGrad);
+  double lambda = suth.Lambda(mut);
+
+  tensor<double> I;
+  I.Identity();
+  tensor<double> tau =
+      lambda * velGrad.Trace() + mut * (velGrad + velGrad.Transpose())
+      - 2.0 / 3.0 * state.Rho() * state.Tke() * I;
+
+  return tau.DoubleDotTrans(velGrad);
+}
+
+double turbKWWilcox::Production2(const primVars &state,
+                                 const tensor<double> &velGrad,
+                                 const sutherland &suth) const {
+  double mut = (*this).EddyVisc(state, velGrad);
+  double lambda = suth.Lambda(mut);
+
+  tensor<double> I;
+  I.Identity();
+  tensor<double> tau =
+      lambda * velGrad.Trace() + mut * (velGrad + velGrad.Transpose())
+      - 2.0 / 3.0 * state.Rho() * state.Tke() * I;
+
+  return alpha_ * state.Omega() / state.Tke() * tau.DoubleDotTrans(velGrad);
+}
+
+double turbKWWilcox::Dissipation1(const primVars &state) const {
+  return betaStar_ * state.Rho() * state.Tke() * state.Omega();
+}
+
+double turbKWWilcox::Dissipation2(const primVars &state,
+                                  const tensor<double> &velGrad) const {
+  return (*this).Beta(state, velGrad) * state.Rho() * state.Omega() *
+      state.Omega();
+}
+
+double turbKWWilcox::CrossDiff2(const primVars &state,
+                                const vector3d<double> &kGrad,
+                                const vector3d<double> &wGrad) const {
+  return state.Rho() * (*this).SigmaD(kGrad, wGrad) / state.Omega() *
+      kGrad.DotProd(wGrad);
+}
+
+
+
+
+
+

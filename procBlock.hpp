@@ -177,8 +177,7 @@ class procBlock {
                   const bool &, tensor<double> &, vector3d<double> &,
                   vector3d<double> &, vector3d<double> &) const;
 
-  void CalcSrcTerms(const gradients &, const sutherland &, const idealGas &,
-                    const turbModel *);
+  void CalcSrcTerms(const gradients &, const sutherland &, const turbModel *);
 
   void AssignGhostCellsGeom();
   void AssignGhostCellsGeomEdge();

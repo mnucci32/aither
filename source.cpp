@@ -151,8 +151,7 @@ source operator/(const double &scalar, const source &src2) {
 // Member function to calculate the source terms for the turbulence equations
 void source::CalcTurbSrc(const turbModel *turb, const primVars &state,
                          const gradients &grads, const sutherland &suth,
-                         const idealGas &eqnState, const int &ii, const int &jj,
-                         const int &kk) {
+                         const int &ii, const int &jj, const int &kk) {
   // turb -- turbulence model
   // state -- primative variables
   // grads -- gradients
@@ -162,32 +161,16 @@ void source::CalcTurbSrc(const turbModel *turb, const primVars &state,
   // jj -- cell j-location to calculate source terms at
   // kk -- cell k-location to calculate source terms at
 
-  // calculate wall shear stress (double dot) velocity gradient
-  // wall shear stress
+  // get cell gradients
   tensor<double> vGrad = grads.VelGradCell(ii, jj, kk);
-  double mut = turb->EddyVisc(state, vGrad) * suth.NondimScaling();
-  double lambda = suth.Lambda(mut);
+  vector3d<double> kGrad = grads.TkeGradCell(ii, jj, kk);
+  vector3d<double> wGrad = grads.OmegaGradCell(ii, jj, kk);
 
-  tensor<double> I;
-  I.Identity();
-  tensor<double> tau =
-      lambda * vGrad.Trace() + mut * (vGrad + vGrad.Transpose())
-      - 2.0 / 3.0 * state.Rho() * state.Tke() * I;
+  // calculate turbulent source terms
+  data_[5] = suth.NondimScaling() * turb->Production1(state, vGrad, suth)
+      - suth.InvNondimScaling() * turb->Dissipation1(state);
 
-
-  double test = tau.DoubleDotTrans(vGrad);
-
-
-  // Using DoubleDotTrans instead of DoubleDot for speed
-  // Since tensors are symmetric result is the same
-  data_[5] = suth.NondimScaling() * state.Rho() *
-      tau.DoubleDotTrans(vGrad) - suth.InvNondimScaling() *
-      turb->Eqn1DissipationCoeff() * state.Rho() * state.Omega() *
-      state.Tke();
-
-  data_[6] = suth.NondimScaling() * turb->Eqn2ProductionCoeff() *
-      state.Omega() / state.Tke() * state.Rho() *
-      tau.DoubleDotTrans(vGrad) - suth.InvNondimScaling() *
-      turb->Eqn2DissipationCoeff(state, vGrad) * state.Rho() *
-      state.Omega() * state.Omega();
+  data_[6] = suth.NondimScaling() * turb->Production2(state, vGrad, suth)
+      - suth.InvNondimScaling() * turb->Dissipation2(state, vGrad);
+      // + suth.NondimScaling() * turb->CrossDiff2(state, kGrad, wGrad);
 }

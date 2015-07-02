@@ -11277,10 +11277,9 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
 
 // Member function to calculate the source terms and add them to the residual
 void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
-                             const idealGas &eos, const turbModel *turb) {
+                             const turbModel *turb) {
   // grads -- gradients (vel, temp, tke, omega)
   // suth -- sutherland's law for viscosity
-  // eos -- equation of state
   // turb -- turbulence model
 
   // loop over all physical cells - no ghost cells for source terms
@@ -11295,7 +11294,7 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
 
         // calculate turbulent source terms
         source src;
-        src.CalcTurbSrc(turb, (*this).State(loc), grads, suth, eos,
+        src.CalcTurbSrc(turb, (*this).State(loc), grads, suth,
                         ii - numGhosts_, jj - numGhosts_, kk - numGhosts_);
 
         // add source terms to residual

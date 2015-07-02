@@ -511,8 +511,9 @@ primVars primVars::GetGhostState(const string &bcType,
     if (inputVars.IsTurbulent()) {
       ghostState.data_[5] = -1.0 * (*this).Tke();
 
-      double ks = 1.0e-6;  // avg height of sand grain roughness
-      double nuW = suth.EffectiveViscosity((*this).Temperature(eqnState))
+      // avg height of sand grain roughness
+      double ks = 1.0e-5 / inputVars.LRef();
+      double nuW = suth.Viscosity((*this).Temperature(eqnState))
           / (*this).Rho();
       double wWall = 40000.0 * nuW / (ks * ks);
       ghostState.data_[6] = 2.0 * wWall - (*this).Omega();

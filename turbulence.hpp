@@ -32,6 +32,7 @@ using std::string;
 
 // forward class declaration
 class primVars;
+class sutherland;
 
 class turbModel {
   string eddyViscMethod_;
@@ -48,15 +49,20 @@ class turbModel {
                           const tensor<double> &vGrad) const = 0;
   virtual double EddyViscNoLim(const primVars &state) const = 0;
   virtual double TurbPrandtlNumber() const = 0;
-  virtual double Eqn1ProductionCoeff() const = 0;
-  virtual double Eqn2ProductionCoeff() const = 0;
-  virtual double Eqn1DissipationCoeff() const = 0;
-  virtual double Eqn2DissipationCoeff(const primVars &state,
-                                      const tensor<double> &velGrad) const = 0;
-  virtual double Eqn2CrossDiffCoeff(const vector3d<double> &kGrad,
-                                    const vector3d<double> &wGrad) const = 0;
-  virtual double Eqn1MolecDiffCoeff() const = 0;
-  virtual double Eqn2MolecDiffCoeff() const = 0;
+  virtual double Production1(const primVars &state,
+                             const tensor<double> &velGrad,
+                             const sutherland &suth) const = 0;
+  virtual double Production2(const primVars &state,
+                             const tensor<double> &velGrad,
+                             const sutherland &suth) const = 0;
+  virtual double Dissipation1(const primVars &state) const = 0;
+  virtual double Dissipation2(const primVars &state,
+                              const tensor<double> &velGrad) const = 0;
+  virtual double CrossDiff2(const primVars &state,
+                            const vector3d<double> &kGrad,
+                            const vector3d<double> &wGrad) const = 0;
+  virtual double MolecDiff1Coeff() const = 0;
+  virtual double MolecDiff2Coeff() const = 0;
 
   // destructor
   virtual ~turbModel() {}
@@ -73,26 +79,36 @@ class turbNone : public turbModel {
                   const tensor<double> &vGrad) const override {return 0.0;}
   double EddyViscNoLim(const primVars &state) const override {return 0.0;}
   double TurbPrandtlNumber() const override {return 0.9;}
-  double Eqn1ProductionCoeff() const override {return 0.0;}
-  double Eqn2ProductionCoeff() const override {return 0.0;}
-  double Eqn1DissipationCoeff() const override {return 0.0;}
-  double Eqn2DissipationCoeff(const primVars &state,
-                              const tensor<double> &velGrad) const override {
+  double Production1(const primVars &state, const tensor<double> &velGrad,
+                     const sutherland &suth) const override {return 0.0;}
+  double Production2(const primVars &state, const tensor<double> &velGrad,
+                     const sutherland &suth) const override {return 0.0;}
+  double Dissipation1(const primVars &state) const override {return 0.0;}
+  double Dissipation2(const primVars &state,
+                      const tensor<double> &velGrad) const override {
     return 0.0;
   }
-  double Eqn2CrossDiffCoeff(const vector3d<double> &kGrad,
-                            const vector3d<double> &wGrad) const override {
+  double CrossDiff2(const primVars &state, const vector3d<double> &kGrad,
+                    const vector3d<double> &wGrad) const override {
     return 0.0;
   }
-  double Eqn1MolecDiffCoeff() const override {return 0.0;}
-  double Eqn2MolecDiffCoeff() const override {return 0.0;}
-
+  double MolecDiff1Coeff() const override {return 0.0;}
+  double MolecDiff2Coeff() const override {return 0.0;}
 
   // destructor
   ~turbNone() {}
 };
 
 class turbKWWilcox : public turbModel {
+  const double alpha_ = 0.52;
+  const double betaStar_ = 0.09;
+  const double sigma_ = 0.5;
+  const double sigmaStar_ = 0.6;
+  const double sigmaD0_ = 0.125;
+  const double beta0_ = 0.0708;
+  const double clim_ = 0.875;
+  const double prt_ = 8.0 / 9.0;
+
  public:
   // constructor
   turbKWWilcox() : turbModel() {}
@@ -101,28 +117,25 @@ class turbKWWilcox : public turbModel {
   // member functions
   double EddyVisc(const primVars&, const tensor<double> &) const override;
   double EddyViscNoLim(const primVars&) const override;
-  double TurbPrandtlNumber() const override {return 8.0 / 9.0;}
-  double Eqn1ProductionCoeff() const override {return 1.0;}
-  double Eqn2ProductionCoeff() const override {return (*this).Alpha();}
-  double Eqn1DissipationCoeff() const override {return (*this).BetaStar();}
-  double Eqn2DissipationCoeff(const primVars &state,
-                              const tensor<double> &velGrad) const override {
-    return (*this).Beta(state, velGrad);
-  }
-  double Eqn2CrossDiffCoeff(const vector3d<double> &kGrad,
-                            const vector3d<double> &wGrad) const override {
-    return (*this).SigmaD(kGrad, wGrad);
-  }
-  double Eqn1MolecDiffCoeff() const override {return (*this).SigmaStar();}
-  double Eqn2MolecDiffCoeff() const override {return (*this).Sigma();}
+  double TurbPrandtlNumber() const override {return prt_;}
+  double Production1(const primVars &, const tensor<double> &,
+                     const sutherland &) const override;
+  double Production2(const primVars &, const tensor<double> &,
+                     const sutherland &) const override;
+  double Dissipation1(const primVars &) const override;
+  double Dissipation2(const primVars &, const tensor<double> &) const override;
+  double CrossDiff2(const primVars &, const vector3d<double> &,
+                    const vector3d<double> &) const override;
+  double MolecDiff1Coeff() const override {return sigmaStar_;}
+  double MolecDiff2Coeff() const override {return sigma_;}
 
-  double Alpha() const {return 0.52;}
-  double BetaStar() const {return 0.09;}
-  double Sigma() const {return 0.5;}
-  double SigmaStar() const {return 0.6;}
-  double SigmaD0() const {return 0.125;}
-  double Beta0() const {return 0.0708;}
-  double CLim() const {return 0.875;}
+  double Alpha() const {return alpha_;}
+  double BetaStar() const {return betaStar_;}
+  double Sigma() const {return sigma_;}
+  double SigmaStar() const {return sigmaStar_;}
+  double SigmaD0() const {return sigmaD0_;}
+  double Beta0() const {return beta0_;}
+  double CLim() const {return clim_;}
 
   double SigmaD(const vector3d<double>&, const vector3d<double>&) const;
   double Xw(const primVars&, const tensor<double>&) const;

@@ -59,8 +59,7 @@ class source {
   double SrcOmg() const { return data_[6]; }
 
   void CalcTurbSrc(const turbModel *, const primVars &, const gradients &,
-                   const sutherland &, const idealGas &, const int &,
-                   const int &, const int &);
+                   const sutherland &, const int &, const int &, const int &);
 
   // operator overloads for addition and subtraction of states
   source operator+(const source &) const;
