@@ -171,6 +171,27 @@ void source::CalcTurbSrc(const turbModel *turb, const primVars &state,
       - suth.InvNondimScaling() * turb->Dissipation1(state);
 
   data_[6] = suth.NondimScaling() * turb->Production2(state, vGrad, suth)
-      - suth.InvNondimScaling() * turb->Dissipation2(state, vGrad);
-      // + suth.NondimScaling() * turb->CrossDiff2(state, kGrad, wGrad);
+      - suth.InvNondimScaling() * turb->Dissipation2(state, vGrad)
+      + suth.NondimScaling() * turb->CrossDiff2(state, kGrad, wGrad);
+
+
+  // data_[5] = suth.NondimScaling() * turb->Production1(state, vGrad, suth)
+  //     - turb->Dissipation1(state);
+
+  // data_[6] = suth.NondimScaling() * turb->Production2(state, vGrad, suth)
+  //     - turb->Dissipation2(state, vGrad)
+  //     + suth.NondimScaling() * turb->CrossDiff2(state, kGrad, wGrad);
+
+
+  
+  // if (fabs(data_[5]) > 1e8 || fabs(data_[6]) > 1e8) {
+  //   cout << suth.NondimScaling() << ", " << suth.InvNondimScaling() << endl;
+  //   cout << "state: " << state << endl;
+  //   cout << ii << ", " << jj << ", " << kk << ", " << suth.NondimScaling() *
+  //       turb->Production1(state,vGrad,suth) << ", " << suth.InvNondimScaling()
+  //       * turb->Dissipation1(state) << ", " << suth.NondimScaling() *
+  //       turb->Production2(state, vGrad, suth) << ", " << suth.InvNondimScaling()
+  //       * turb->Dissipation2(state, vGrad) << ", " << suth.NondimScaling() *
+  //       turb->CrossDiff2(state, kGrad, wGrad) << endl;
+  // }
 }

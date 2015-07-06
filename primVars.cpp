@@ -517,6 +517,15 @@ primVars primVars::GetGhostState(const string &bcType,
           / (*this).Rho();
       double wWall = 40000.0 * nuW / (ks * ks);
       ghostState.data_[6] = 2.0 * wWall - (*this).Omega();
+
+      // ghostState.data_[6] *= 1.0e-17;
+      
+      // DEBUG
+      ghostState.ApplyFarfieldTurbBC(inputVars.VelRef() /
+                                     eqnState.SoS(inputVars.PRef(),
+                                                  inputVars.RRef()),
+                                     inputVars.FarfieldTurbIntensity(),
+                                     inputVars.FarfieldEddyViscRatio());
     }
 
   // subsonic inflow boundary condition
@@ -567,7 +576,7 @@ primVars primVars::GetGhostState(const string &bcType,
 
     // numerical bcs for density, velocity -- equal to boundary cell
     // numerical bcs for turbulence variables
-    
+
     if (layer == 2) {  // extrapolate to get ghost state at 2nd layer
       ghostState = 2.0 * ghostState - (*this);
     }

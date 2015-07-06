@@ -916,7 +916,7 @@ void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState,
   // locG -- location of cell (including ghost cells)
   // loc -- location of cell (without ghost cells)
 
-  // Get conserved variables for current state_ (time n)
+  // Get conserved variables for current state (time n)
   genArray consVars = (*this).State(locG).ConsVars(eqnState);
   // calculate updated conserved variables
   consVars =
@@ -11282,13 +11282,15 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
   // suth -- sutherland's law for viscosity
   // turb -- turbulence model
 
+  int imaxG = numI_ + 2.0 * numGhosts_;
+  int jmaxG = numJ_ + 2.0 * numGhosts_;
+
   // loop over all physical cells - no ghost cells for source terms
   for (int kk = numGhosts_; kk < numK_ + numGhosts_; kk++) {
     for (int jj = numGhosts_; jj < numJ_ + numGhosts_; jj++) {
       for (int ii = numGhosts_; ii < numI_ + numGhosts_; ii++) {
         // current cell location
-        int loc = GetLoc1D(ii, jj, kk, numI_ + 2.0 * numGhosts_,
-                           numJ_ + 2.0 * numGhosts_);
+        int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
         int locNG = GetLoc1D(ii - numGhosts_, jj - numGhosts_,
                              kk - numGhosts_, numI_, numJ_);
 
