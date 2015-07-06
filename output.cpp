@@ -210,21 +210,9 @@ void WriteCellCenterGhost(const string &gridName,
 void WriteFun(const string &gridName, const vector<procBlock> &vars,
               const idealGas &eqnState, const sutherland &suth,
               const int &solIter, const decomposition &decomp,
-              const input &inp) {
+              const input &inp, const turbModel *turb) {
   // define reference speed of sound
   double refSoS = eqnState.SoS(inp.PRef(), inp.RRef());
-
-  // define turbulence model
-  turbModel *turb;
-  if (inp.TurbulenceModel() == "none") {
-    turb = new turbNone;
-  } else if (inp.TurbulenceModel() == "kOmegaWilcox2006") {
-    turb = new turbKWWilcox;
-  } else {
-    cerr << "ERROR: Error in output.cpp:WriteFun(). Turbulence model "
-         << inp.TurbulenceModel() << " is not recognized!" << endl;
-    exit(0);
-  }
 
   vector<procBlock> recombVars = Recombine(vars, decomp);
 
@@ -232,7 +220,7 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars,
   ofstream outFile;
   string fEnd = "_center";
   string fPostfix = ".fun";
-  string writeName = gridName + to_string(solIter) + fEnd + fPostfix;
+  string writeName = gridName + "_" + to_string(solIter) + fEnd + fPostfix;
   outFile.open(writeName.c_str(), ios::out | ios::binary);
 
   // check to see if file opened correctly
@@ -533,8 +521,6 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars,
 
   // close plot3d function file
   outFile.close();
-
-  delete turb;
 }
 
 // function to write out results file for ensight
@@ -547,7 +533,7 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
   string resName = gridName + fEnd + fResPostfix;
   resFile.open(resName.c_str(), ios::out);
 
-  string writeName = gridName + "*" + fEnd + fPostfix;
+  string writeName = gridName + "_*" + fEnd + fPostfix;
 
   // check to see if file opened correctly
   if (resFile.fail()) {

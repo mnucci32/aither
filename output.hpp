@@ -46,6 +46,7 @@ class idealGas;
 class sutherland;
 class resid;
 class input;
+class turbModel;
 
 // function definitions
 void WriteCellCenter(const string &, const vector<procBlock> &,
@@ -53,7 +54,7 @@ void WriteCellCenter(const string &, const vector<procBlock> &,
 void WriteCellCenterGhost(const string &, const vector<procBlock> &);
 void WriteFun(const string &, const vector<procBlock> &, const idealGas &,
               const sutherland &, const int &, const decomposition &,
-              const input &);
+              const input &, const turbModel *);
 void WriteRes(const string &, const int &, const int &);
 
 void WriteResiduals(const input &, genArray &, genArray &, const resid &,
