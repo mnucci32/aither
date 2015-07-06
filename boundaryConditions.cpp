@@ -403,6 +403,7 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
         interblock match(cPatch, nPatch);
         if (match.TestPatchMatch(cPatch, nPatch)) {  // match found
           connections[ii / 2] = match;               // store interblock pair
+
           // Swap matched interblock BC to top portion of vector so
           // it is not searched again
           swap(isolatedInterblocks[jj], isolatedInterblocks[ii + 1]);
@@ -2049,11 +2050,11 @@ patch::patch(const boundarySurface &surf, const plot3dBlock &blk,
 
   } else if (boundary_ == 5 ||
              boundary_ == 6) {  // patch on k-surface - dir1 = i, dir2 = j
-    d1Start_ = surf.IMin();
-    d1End_ = surf.IMax();
-    d2Start_ = surf.JMin();
-    d2End_ = surf.JMax();
-    constSurf_ = surf.KMax();
+    d1Start_ = surf.IMin() - 1;
+    d1End_ = surf.IMax() - 1;
+    d2Start_ = surf.JMin() - 1;
+    d2End_ = surf.JMax() - 1;
+    constSurf_ = surf.KMax() - 1;
 
     // get corner points
     // origin_ at imin, jmin
