@@ -200,7 +200,7 @@ int main(int argc, char *argv[]) {
 
     // Write out initial results
     WriteFun(inputVars.GridName(), stateBlocks, eos, suth, 0, decomp,
-             inputVars);
+             inputVars, turb);
     WriteRes(inputVars.GridName(), 0, inputVars.OutputFrequency());
   }
 
@@ -345,7 +345,7 @@ int main(int argc, char *argv[]) {
         cout << "writing out function file at iteration " << nn << endl;
         // Write out function file
         WriteFun(inputVars.GridName(), stateBlocks, eos, suth, (nn+1),
-                 decomp, inputVars);
+                 decomp, inputVars, turb);
         WriteRes(inputVars.GridName(), (nn+1), inputVars.OutputFrequency());
       }
     }
@@ -365,7 +365,7 @@ int main(int argc, char *argv[]) {
   FreeDataTypesMPI(MPI_vec3d, MPI_cellData, MPI_procBlockInts,
                    MPI_interblock, MPI_DOUBLE_5INT);
   delete turb;
-  
+
   MPI_Finalize();
 
   return 0;
