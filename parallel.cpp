@@ -18,6 +18,7 @@
 #include "output.h"
 #include <algorithm> //max_element
 #include <iterator> //distance
+#include <cstring>
 
 using std::max_element;
 using std::min_element;
@@ -353,7 +354,7 @@ void BroadcastString( string &str ){
   MPI_Bcast(&strSize, 1, MPI_INT, ROOT, MPI_COMM_WORLD);  //broadcast string size
 
   char *buf = new char[strSize]; //allcate a char buffer of string size
-  strcpy(buf, str.c_str()); //copy string into buffer
+  std::strcpy(buf, str.c_str()); //copy string into buffer
   MPI_Bcast(&buf[0], strSize, MPI_CHAR, ROOT, MPI_COMM_WORLD);  //broadcast string as char
 
   //create new string and assign to old string
