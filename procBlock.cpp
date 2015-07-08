@@ -9836,7 +9836,6 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                 jj < (jMax - (*this).NumGhosts()) &&
                 kk >= (*this).NumGhosts() &&
                 kk < (kMax - (*this).NumGhosts())) {  // physical cells
-
               blk2.avgWaveSpeed_[loc2NG] = (*this).avgWaveSpeed_[locNG];
               blk2.dt_[loc2NG] = (*this).dt_[locNG];
               blk2.residual_[loc2NG] = (*this).residual_[locNG];
@@ -9900,7 +9899,6 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                 jj < (jMax - (*this).NumGhosts()) &&
                 kk >= (*this).NumGhosts() &&
                 kk < (kMax - (*this).NumGhosts())) {  // physical cell
-
               blk1.avgWaveSpeed_[loc1NG] = (*this).avgWaveSpeed_[locNG];
               blk1.dt_[loc1NG] = (*this).dt_[locNG];
               blk1.residual_[loc1NG] = (*this).residual_[locNG];
@@ -9998,7 +9996,6 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                 ii < (iMax - (*this).NumGhosts()) &&
                 kk >= (*this).NumGhosts() &&
                 kk < (kMax - (*this).NumGhosts())) {  // physical cells
-
               blk2.avgWaveSpeed_[loc2NG] = (*this).avgWaveSpeed_[locNG];
               blk2.dt_[loc2NG] = (*this).dt_[locNG];
               blk2.residual_[loc2NG] = (*this).residual_[locNG];
@@ -10062,7 +10059,6 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                 ii < (iMax - (*this).NumGhosts()) &&
                 kk >= (*this).NumGhosts() &&
                 kk < (kMax - (*this).NumGhosts())) {  // physical cell
-
               blk1.avgWaveSpeed_[loc1NG] = (*this).avgWaveSpeed_[locNG];
               blk1.dt_[loc1NG] = (*this).dt_[locNG];
               blk1.residual_[loc1NG] = (*this).residual_[locNG];
@@ -10125,7 +10121,6 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
     for (int kk = 0; kk < kMax; kk++) {
       for (int jj = 0; jj < jMax; jj++) {
         for (int ii = 0; ii < iMax; ii++) {
-
           int loc = GetLoc1D(ii, jj, kk, iMax, jMax);
           int locNG = GetLoc1D(
               ii - (*this).NumGhosts(), jj - (*this).NumGhosts(),
@@ -10158,7 +10153,6 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                 ii < (iMax - (*this).NumGhosts()) &&
                 jj >= (*this).NumGhosts() &&
                 jj < (jMax - (*this).NumGhosts())) {  // physical cells
-
               blk2.avgWaveSpeed_[loc2NG] = (*this).avgWaveSpeed_[locNG];
               blk2.dt_[loc2NG] = (*this).dt_[locNG];
               blk2.residual_[loc2NG] = (*this).residual_[locNG];
@@ -10222,7 +10216,6 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                 ii < (iMax - (*this).NumGhosts()) &&
                 jj >= (*this).NumGhosts() &&
                 jj < (jMax - (*this).NumGhosts())) {  // physical cell
-
               blk1.avgWaveSpeed_[loc1NG] = (*this).avgWaveSpeed_[locNG];
               blk1.dt_[loc1NG] = (*this).dt_[locNG];
               blk1.residual_[loc1NG] = (*this).residual_[locNG];
@@ -10237,7 +10230,7 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
             blk1.fCenterJ_[fLowJ1] = (*this).fCenterJ_[fLowJ];
             blk1.fCenterK_[fLowK1] = (*this).fCenterK_[fLowK];
 
-            if (ii == jMax - 1) {  // at end of i-line assign upper face values
+            if (ii == iMax - 1) {  // at end of i-line assign upper face values
               int fUpI = GetUpperFaceI(ii, jj, kk, iMax, jMax);
               int fUpI1 = GetUpperFaceI(ii, jj, kk, iMax, jMax);
 
