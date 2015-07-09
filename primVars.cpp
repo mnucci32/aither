@@ -517,15 +517,7 @@ primVars primVars::GetGhostState(const string &bcType,
           / (*this).Rho();
       double wWall = 40000.0 * nuW / (ks * ks);
       ghostState.data_[6] = 2.0 * wWall - (*this).Omega();
-
-      // ghostState.data_[6] *= 1.0e-17;
-      
-      // DEBUG
-      ghostState.ApplyFarfieldTurbBC(inputVars.VelRef() /
-                                     eqnState.SoS(inputVars.PRef(),
-                                                  inputVars.RRef()),
-                                     inputVars.FarfieldTurbIntensity(),
-                                     inputVars.FarfieldEddyViscRatio());
+      ghostState.data_[6] *= suth.NondimScaling() * suth.NondimScaling();
     }
 
   // subsonic inflow boundary condition
