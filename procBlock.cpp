@@ -173,7 +173,7 @@ procBlock::procBlock(const double density, const double pressure,
   residual_.resize(numCells_);
 }
 
-// constructor -- assign passed state_ to initialize state_ vector
+// constructor -- assign passed state to initialize state vector
 procBlock::procBlock(const primVars &inputState, const plot3dBlock &blk,
                      const int &numBlk, const int &numG,
                      const boundaryConditions &bound, const int &pos,
@@ -3900,7 +3900,7 @@ void procBlock::AssignGhostCellsGeom() {
 
       // upper surface
       // -----------------------------------------------------------------
-      if (bcNameL != "interblock") {  // only supply geometry values for non
+      if (bcNameU != "interblock") {  // only supply geometry values for non
                                       // interblock BCs, for interblock, do
                                       // nothing
 
@@ -3949,7 +3949,7 @@ void procBlock::AssignGhostCellsGeom() {
                                    imaxG, jmaxG);
 
         // Assign volume
-        // ----------------------------------------------------------------------
+        // --------------------------------------------------------------------
         // mirror volume values from adjacent cells across k-boundary
         // first layer of ghost cells
         (*this).vol_[cellUpG1] = (*this).Vol(cellUpIn1);
@@ -3962,7 +3962,7 @@ void procBlock::AssignGhostCellsGeom() {
         }
 
         // Assign face areas
-        // ----------------------------------------------------------------------
+        // --------------------------------------------------------------------
         // mirror face area values from adjacent cells across k-boundary
         // first layer of ghost cells
         (*this).fAreaK_[uFaceG1_ku] = (*this).FAreaK(uFaceIn1_kl);

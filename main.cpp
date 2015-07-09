@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
                 stateBlocks[connections[ii].BlockSecond()], true);
     }
     // Get ghost cell edge data
-    for ( int ll = 0; ll < static_cast<int> (mesh.size()); ll++ ) {
+    for ( unsigned int ll = 0; ll < mesh.size(); ll++ ) {
       stateBlocks[ll].AssignGhostCellsGeomEdge();
     }
 
