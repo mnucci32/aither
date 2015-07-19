@@ -59,7 +59,7 @@ class primVars {
       : data_{r, v.X(), v.Y(), v.Z(), p, 0.0, 0.0} {}
   primVars(const double &a, const double &b, const double &c, const double &d,
            const double &e)
-      : data_{a, b, c, d, e} {}
+      : data_{a, b, c, d, e, 0.0, 0.0} {}
   primVars(const double &a, const double &b, const double &c, const double &d,
            const double &e, const double &f, const double &g)
       : data_{a, b, c, d, e, f, g} {}

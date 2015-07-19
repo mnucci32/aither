@@ -66,8 +66,8 @@ inviscidFlux::inviscidFlux(const primVars &state, const idealGas &eqnState,
       state.Rho() * vel.DotProd(normArea) * vel.Z() + state.P() * normArea.Z();
   data_[4] = state.Rho() * vel.DotProd(normArea) * state.Enthalpy(eqnState);
 
-  data_[5] = 0.0;
-  data_[6] = 0.0;
+  data_[5] = state.Rho() * vel.DotProd(normArea) * state.Tke();
+  data_[6] = state.Rho() * vel.DotProd(normArea) * state.Omega();
 }
 
 // constructor -- initialize flux from state vector using conservative variables
@@ -93,8 +93,8 @@ inviscidFlux::inviscidFlux(const genArray &cons, const idealGas &eqnState,
       state.Rho() * vel.DotProd(normArea) * vel.Z() + state.P() * normArea.Z();
   data_[4] = state.Rho() * vel.DotProd(normArea) * state.Enthalpy(eqnState);
 
-  data_[5] = 0.0;
-  data_[6] = 0.0;
+  data_[5] = state.Rho() * vel.DotProd(normArea) * state.Tke();
+  data_[6] = state.Rho() * vel.DotProd(normArea) * state.Omega();
 }
 
 /* Function to calculate inviscid flux using Roe's approximate Riemann solver.
