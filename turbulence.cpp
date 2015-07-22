@@ -25,6 +25,20 @@ using std::cout;
 using std::endl;
 using std::cerr;
 
+tensor<double> turbModel::BoussinesqReynoldsStress(
+    const primVars &state, const tensor<double> &velGrad,
+    const sutherland &suth) const {
+  double mut = (*this).EddyVisc(state, velGrad);
+  double lambda = suth.Lambda(mut);
+
+  tensor<double> I;
+  I.Identity();
+  tensor<double> tau =
+      lambda * velGrad.Trace() * I + mut * (velGrad + velGrad.Transpose())
+      - 2.0 / 3.0 * state.Rho() * state.Tke() * I;
+  return tau;
+}
+
 // member functions for k-omega Wilcox 2006 model
 // member function to return the eddy viscosity calculated with the stress
 // limiter
@@ -84,7 +98,7 @@ tensor<double> turbKWWilcox::StrainKI(const tensor<double> &velGrad) const {
   // velGrad -- velocity gradient
   tensor<double> I;
   I.Identity();
-  return 0.5 * (velGrad + velGrad.Transpose()) - 0.5 * velGrad.Trace() * I;
+  return 0.5 * ((velGrad + velGrad.Transpose()) - velGrad.Trace() * I);
 }
 
 double turbKWWilcox::OmegaTilda(const primVars &state,
@@ -105,30 +119,14 @@ double turbKWWilcox::OmegaTilda(const primVars &state,
 double turbKWWilcox::Production1(const primVars &state,
                                  const tensor<double> &velGrad,
                                  const sutherland &suth) const {
-  double mut = (*this).EddyVisc(state, velGrad);
-  double lambda = suth.Lambda(mut);
-
-  tensor<double> I;
-  I.Identity();
-  tensor<double> tau =
-      lambda * velGrad.Trace() + mut * (velGrad + velGrad.Transpose())
-      - 2.0 / 3.0 * state.Rho() * state.Tke() * I;
-
+  tensor<double> tau = (*this).BoussinesqReynoldsStress(state, velGrad, suth);
   return tau.DoubleDotTrans(velGrad);
 }
 
 double turbKWWilcox::Production2(const primVars &state,
                                  const tensor<double> &velGrad,
                                  const sutherland &suth) const {
-  double mut = (*this).EddyVisc(state, velGrad);
-  double lambda = suth.Lambda(mut);
-
-  tensor<double> I;
-  I.Identity();
-  tensor<double> tau =
-      lambda * velGrad.Trace() + mut * (velGrad + velGrad.Transpose())
-      - 2.0 / 3.0 * state.Rho() * state.Tke() * I;
-
+  tensor<double> tau = (*this).BoussinesqReynoldsStress(state, velGrad, suth);
   return alpha_ * state.Omega() / state.Tke() * tau.DoubleDotTrans(velGrad);
 }
 

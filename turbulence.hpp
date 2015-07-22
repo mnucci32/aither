@@ -63,6 +63,9 @@ class turbModel {
                             const vector3d<double> &wGrad) const = 0;
   virtual double MolecDiff1Coeff() const = 0;
   virtual double MolecDiff2Coeff() const = 0;
+  tensor<double> BoussinesqReynoldsStress(const primVars &state,
+                                          const tensor<double> &velGrad,
+                                          const sutherland &suth) const;
 
   // destructor
   virtual ~turbModel() {}
@@ -108,6 +111,10 @@ class turbKWWilcox : public turbModel {
   const double beta0_ = 0.0708;
   const double clim_ = 0.875;
   const double prt_ = 8.0 / 9.0;
+  // These aren't used yet
+  const double ks_ = 1.0e-6;
+  const double minK_ = 1.0e-15;
+  const double minW_ = 1.0e-15;
 
  public:
   // constructor
