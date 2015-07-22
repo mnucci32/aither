@@ -448,6 +448,21 @@ void input::ReadInput(const string &inputName, const int &rank) {
                    << endl;
             }
             continue;
+          } else if (ii == 32 && readingBCs == 0) {
+            farfieldTurbInten_ = atof(tokens[1].c_str());  // double (atof)
+            if (rank == ROOTP) {
+              cout << (*this).Vars(ii) << " " << (*this).FarfieldTurbIntensity()
+                   << endl;
+            }
+            continue;
+          } else if (ii == 33 && readingBCs == 0) {
+            farfieldEddyViscRatio_ = atof(tokens[1].c_str());  // double (atof)
+            if (rank == ROOTP) {
+              cout << (*this).Vars(ii) << " " << (*this).FarfieldEddyViscRatio()
+                   << endl;
+            }
+            continue;
+
           // reading BCs
           // -------------------------------------------------------------
           } else if (ii == (*this).NumVars() - 1 || readingBCs > 0) {
