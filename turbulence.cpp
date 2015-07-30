@@ -98,7 +98,7 @@ tensor<double> turbKWWilcox::StrainKI(const tensor<double> &velGrad) const {
   // velGrad -- velocity gradient
   tensor<double> I;
   I.Identity();
-  return 0.5 * ((velGrad + velGrad.Transpose()) - velGrad.Trace() * I);
+  return 0.5 * (velGrad + velGrad.Transpose() - velGrad.Trace() * I);
 }
 
 double turbKWWilcox::OmegaTilda(const primVars &state,
@@ -147,7 +147,24 @@ double turbKWWilcox::CrossDiff2(const primVars &state,
       kGrad.DotProd(wGrad);
 }
 
+void turbKWWilcox::Print() const {
+  cout << "Eddy Viscosity Method: " << (*this).EddyViscMethod() << endl;
+  cout << "Alpha: " << alpha_ << endl;
+  cout << "Beta*: " << betaStar_ << endl;
+  cout << "Sigma: " << sigma_ << endl;
+  cout << "Sigma*: " << sigmaStar_ << endl;
+  cout << "SigmaD0: " << sigmaD0_ << endl;
+  cout << "Beta0: " << beta0_ << endl;
+  cout << "Clim: " << clim_ << endl;
+  cout << "Turbulent Prandtl Number: " << prt_ << endl;
+  cout << "ks: " << ks_ << endl;
+  cout << "Min TKE: " << minK_ << endl;
+  cout << "Min Omega: " << minW_ << endl;
+}
 
+void turbNone::Print() const {
+  cout << "No Turbulence Model" << endl;
+}
 
 
 

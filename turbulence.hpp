@@ -63,6 +63,9 @@ class turbModel {
                             const vector3d<double> &wGrad) const = 0;
   virtual double MolecDiff1Coeff() const = 0;
   virtual double MolecDiff2Coeff() const = 0;
+
+  virtual void Print() const = 0;
+
   tensor<double> BoussinesqReynoldsStress(const primVars &state,
                                           const tensor<double> &velGrad,
                                           const sutherland &suth) const;
@@ -97,6 +100,8 @@ class turbNone : public turbModel {
   }
   double MolecDiff1Coeff() const override {return 0.0;}
   double MolecDiff2Coeff() const override {return 0.0;}
+
+  void Print() const override;
 
   // destructor
   ~turbNone() {}
@@ -150,6 +155,8 @@ class turbKWWilcox : public turbModel {
   double Beta(const primVars&, const tensor<double>&) const;
   tensor<double> StrainKI(const tensor<double>&) const;
   double OmegaTilda(const primVars&, const tensor<double>&) const;
+
+  void Print() const override;
 
   // destructor
   ~turbKWWilcox() {}
