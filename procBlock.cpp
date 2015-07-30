@@ -1397,13 +1397,12 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
 
       // if viscous add viscous contribution to spectral radius
       if (inp.EquationSet() != "euler") {
-        double vSpecRad =
+        specRad +=
             ViscCellSpectralRadius(
                 (*this).FAreaI(ilFace2G), (*this).FAreaI(ilFaceG),
                 (*this).State(ilG).UpdateWithConsVars(eqnState, x[il]),
                 eqnState, suth, (*this).Vol(ilG),
                 turb->EddyViscNoLim((*this).State(ilG)));
-        specRad += vSpecRad;
       }
 
       // at given face location, call function to calculate convective flux
@@ -1426,13 +1425,12 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
 
       // if viscous add viscous contribution to spectral radius
       if (inp.EquationSet() != "euler") {
-        double vSpecRad =
+        specRad +=
             ViscCellSpectralRadius(
                 (*this).FAreaJ(jlFace2G), (*this).FAreaJ(jlFaceG),
                 (*this).State(jlG).UpdateWithConsVars(eqnState, x[jl]),
                 eqnState, suth, (*this).Vol(jlG),
                 turb->EddyViscNoLim((*this).State(jlG)));
-        specRad += vSpecRad;
       }
 
       // at given face location, call function to calculate convective flux
@@ -1455,13 +1453,12 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
 
       // if viscous add viscous contribution to spectral radius
       if (inp.EquationSet() != "euler") {
-        double vSpecRad =
+        specRad +=
             ViscCellSpectralRadius(
                 (*this).FAreaK(klFace2G), (*this).FAreaK(klFaceG),
                 (*this).State(klG).UpdateWithConsVars(eqnState, x[kl]),
                 eqnState, suth, (*this).Vol(klG),
                 turb->EddyViscNoLim((*this).State(klG)));
-        specRad += vSpecRad;
       }
 
       // at given face location, call function to calculate convective flux
@@ -1569,13 +1566,12 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
           (*this).State(iuG).UpdateWithConsVars(eqnState, x[iu]), eqnState);
 
       if (inp.EquationSet() != "euler") {  // viscous
-        double vSpecRad =
+        specRad +=
             ViscCellSpectralRadius(
                 (*this).FAreaI(iuFace2G), (*this).FAreaI(iuFaceG),
                 (*this).State(iuG).UpdateWithConsVars(eqnState, x[iu]),
                 eqnState, suth, (*this).Vol(iuG),
                 turb->EddyViscNoLim((*this).State(iuG)));
-        specRad += vSpecRad;
       }
 
       // at given face location, call function to calculate convective flux
@@ -1597,13 +1593,12 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
           (*this).State(juG).UpdateWithConsVars(eqnState, x[ju]), eqnState);
 
       if (inp.EquationSet() != "euler") {  // viscous
-        double vSpecRad =
+        specRad +=
             ViscCellSpectralRadius(
                 (*this).FAreaJ(juFace2G), (*this).FAreaJ(juFaceG),
                 (*this).State(juG).UpdateWithConsVars(eqnState, x[ju]),
                 eqnState, suth, (*this).Vol(juG),
                 turb->EddyViscNoLim((*this).State(juG)));
-        specRad += vSpecRad;
       }
 
       // at given face location, call function to calculate convective flux
@@ -1625,13 +1620,12 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
           (*this).State(kuG).UpdateWithConsVars(eqnState, x[ku]), eqnState);
 
       if (inp.EquationSet() != "euler") {  // viscous
-        double vSpecRad =
+        specRad +=
             ViscCellSpectralRadius(
                 (*this).FAreaK(kuFace2G), (*this).FAreaK(kuFaceG),
                 (*this).State(kuG).UpdateWithConsVars(eqnState, x[ku]),
                 eqnState, suth, (*this).Vol(kuG),
                 turb->EddyViscNoLim((*this).State(kuG)));
-        specRad += vSpecRad;
       }
 
       // at given face location, call function to calculate convective flux
@@ -11278,22 +11272,24 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
   int imaxG = numI_ + 2.0 * numGhosts_;
   int jmaxG = numJ_ + 2.0 * numGhosts_;
 
-  // loop over all physical cells - no ghost cells for source terms
-  for (int kk = numGhosts_; kk < numK_ + numGhosts_; kk++) {
-    for (int jj = numGhosts_; jj < numJ_ + numGhosts_; jj++) {
-      for (int ii = numGhosts_; ii < numI_ + numGhosts_; ii++) {
+  // loop over all physical cells - no ghost cells needed for source terms
+  for (int kk = 0; kk < numK_; kk++) {
+    for (int jj = 0; jj < numJ_; jj++) {
+      for (int ii = 0; ii < numI_; ii++) {
         // current cell location
-        int loc = GetLoc1D(ii, jj, kk, imaxG, jmaxG);
-        int locNG = GetLoc1D(ii - numGhosts_, jj - numGhosts_,
-                             kk - numGhosts_, numI_, numJ_);
+        int loc = GetLoc1D(ii + numGhosts_, jj + numGhosts_, kk + numGhosts_,
+                           imaxG, jmaxG);
+        int locNG = GetLoc1D(ii, jj, kk, numI_, numJ_);
 
         // calculate turbulent source terms
         source src;
         src.CalcTurbSrc(turb, (*this).State(loc), grads, suth,
-                        ii - numGhosts_, jj - numGhosts_, kk - numGhosts_);
+                        ii, jj, kk);
 
         // add source terms to residual
-        (*this).AddToResidual(src * (*this).Vol(loc), locNG);
+        // multiply by -1 because residual is initially on opposite
+        // side of equation
+        (*this).AddToResidual(src * (-1.0 * (*this).Vol(loc)), locNG);
       }
     }
   }
