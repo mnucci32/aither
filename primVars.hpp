@@ -74,7 +74,8 @@ class primVars {
   double Tke() const { return data_[5]; }
   double Omega() const { return data_[6]; }
 
-  void NondimensionalInitialize(const idealGas&, const double&, const input&);
+  void NondimensionalInitialize(const idealGas&, const double&, const input&,
+                                const sutherland&);
   bool IsZero() const;
 
   inline vector3d<double> Velocity() const;
@@ -88,7 +89,8 @@ class primVars {
   primVars UpdateWithConsVars(const idealGas &, const genArray &) const;
 
   void ApplyFarfieldTurbBC(const vector3d<double> &, const double &,
-                           const double &);
+                           const double &, const sutherland &,
+                           const idealGas &);
 
   // operator overloads for addition and subtraction of states
   primVars operator+(const primVars &) const;
@@ -105,7 +107,7 @@ class primVars {
   friend primVars operator-(const double &, const primVars &);
   friend primVars operator*(const double &, const primVars &);
   friend primVars operator/(const double &, const primVars &);
-  friend ostream &operator<<(ostream &os, const primVars &);
+  friend ostream &operator<<(ostream &, const primVars &);
 
   // member function to calculate reconstruction of state variables from cell
   // center to cell face assuming value at cell center is constant over cell

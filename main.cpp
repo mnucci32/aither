@@ -96,7 +96,7 @@ int main(int argc, char *argv[]) {
   // Get reference speed of sound
   double aRef = eos.SoS(inputVars.PRef(), inputVars.RRef());
   primVars state;
-  state.NondimensionalInitialize(eos, aRef, inputVars);
+  state.NondimensionalInitialize(eos, aRef, inputVars, suth);
 
   // Get turbulence model
   turbModel *turb = inputVars.AssignTurbulenceModel();
