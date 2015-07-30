@@ -78,10 +78,9 @@ viscousFlux::viscousFlux(
   // get 2nd coefficient of viscosity assuming bulk viscosity is 0 (Stoke's)
   double lambda = suth.Lambda(mu + eddyVisc);
 
-  double velGradTrace = velGrad.Trace();  // trace of velocity gradient
   // wall shear stress
   vector3d<double> tau =
-      lambda * velGradTrace * normArea +
+      lambda * velGrad.Trace() * normArea +
       (mu + eddyVisc) *
           (velGrad.MatMult(normArea) + velGrad.Transpose().MatMult(normArea));
 
