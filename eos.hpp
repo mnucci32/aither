@@ -79,15 +79,15 @@ class idealGas {
 // Function declarations
 
 class sutherland {
-  double cOne_;
-  double S_;
-  double tRef_;
-  double muRef_;
-  double bulkVisc_;
-  double reRef_;
-  double mRef_;
-  double scaling_;
-  double invScaling_;
+  const double cOne_;
+  const double S_;
+  const double tRef_;
+  const double muRef_;
+  const double bulkVisc_;
+  const double reRef_;
+  const double mRef_;
+  const double scaling_;
+  const double invScaling_;
 
  public:
   // Constructors

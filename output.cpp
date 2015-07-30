@@ -487,8 +487,8 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars,
         exit(0);
       }
 
-      for (int nn = 0; nn < blkLen;
-           nn++) {  // write out dimensional variables -- loop over block length
+      // write out dimensional variables -- loop over block length
+      for (int nn = 0; nn < blkLen; nn++) {
         dumDouble = dumVec[nn];
 
         if (vv == 0) {  // density

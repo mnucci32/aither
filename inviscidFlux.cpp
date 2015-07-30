@@ -170,12 +170,13 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
               (1.0 + denRatio);  // Roe averaged tke
   double omR = (left.Omega() + denRatio * right.Omega()) /
                (1.0 + denRatio);  // Roe averaged specific dissipation (omega)
+
   // Roe averaged face normal velocity
   vector3d<double> velR(uR, vR, wR);
 
   vector3d<double> areaNorm = areaVec / areaVec.Mag();  // normalize area vector
-  double velRSum = velR.DotProd(
-      areaNorm);  // Roe velocity dotted with normalized area vector
+  // Roe velocity dotted with normalized area vector
+  double velRSum = velR.DotProd(areaNorm);
 
   // normal velocity difference between left and right states
   double normVelDiff =
