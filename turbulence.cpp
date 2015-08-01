@@ -99,7 +99,7 @@ double turbKWWilcox::Xw(const primVars &state,
   // vorticity is asymmetric but vorticity * vorticity is symmetric
   return fabs( (vorticity * vorticity).DoubleDotTrans((*this).StrainKI(velGrad))
                / pow(betaStar_ * state.Omega(), 3.0) )
-      * pow(suth.NondimScaling(), 3);
+      * pow(suth.NondimScaling(), 3.0);
 }
 
 tensor<double> turbKWWilcox::StrainKI(const tensor<double> &velGrad) const {
