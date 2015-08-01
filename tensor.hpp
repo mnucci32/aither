@@ -165,13 +165,13 @@ tensor<T> tensor<T>::operator*(const tensor &v2) const {
 
   temp.data_[6] = (*this).data_[6] * v2.data_[0] +
                   (*this).data_[7] * v2.data_[3] +
-                  (*this).data_[6] * v2.data_[6];
+                  (*this).data_[8] * v2.data_[6];
   temp.data_[7] = (*this).data_[6] * v2.data_[1] +
                   (*this).data_[7] * v2.data_[4] +
-                  (*this).data_[6] * v2.data_[7];
+                  (*this).data_[8] * v2.data_[7];
   temp.data_[8] = (*this).data_[6] * v2.data_[2] +
                   (*this).data_[7] * v2.data_[5] +
-                  (*this).data_[6] * v2.data_[8];
+                  (*this).data_[8] * v2.data_[8];
 
   return temp;
 }
