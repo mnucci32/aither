@@ -168,14 +168,9 @@ void source::CalcTurbSrc(const turbModel *turb, const primVars &state,
 
   // calculate turbulent source terms
   data_[5] = suth.NondimScaling() * turb->Production1(state, vGrad, suth)
-      - suth.InvNondimScaling() * turb->Dissipation1(state);
+      - suth.InvNondimScaling() * turb->Destruction1(state);
 
   data_[6] = suth.NondimScaling() * turb->Production2(state, vGrad, suth)
-      - suth.InvNondimScaling() * turb->Dissipation2(state, vGrad)
+      - suth.InvNondimScaling() * turb->Destruction2(state, vGrad, suth)
       + suth.NondimScaling() * turb->CrossDiff2(state, kGrad, wGrad);
-
-  // DEBUG
-  // data_[5] = 0.0;
-  // data_[6] = 0.0;
-  
 }

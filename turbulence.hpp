@@ -46,7 +46,8 @@ class turbModel {
   string EddyViscMethod() const {return eddyViscMethod_;}
 
   virtual double EddyVisc(const primVars &state,
-                          const tensor<double> &vGrad) const = 0;
+                          const tensor<double> &vGrad,
+                          const sutherland &suth) const = 0;
   virtual double EddyViscNoLim(const primVars &state) const = 0;
   virtual double TurbPrandtlNumber() const = 0;
   virtual double Production1(const primVars &state,
@@ -55,9 +56,10 @@ class turbModel {
   virtual double Production2(const primVars &state,
                              const tensor<double> &velGrad,
                              const sutherland &suth) const = 0;
-  virtual double Dissipation1(const primVars &state) const = 0;
-  virtual double Dissipation2(const primVars &state,
-                              const tensor<double> &velGrad) const = 0;
+  virtual double Destruction1(const primVars &state) const = 0;
+  virtual double Destruction2(const primVars &state,
+                              const tensor<double> &velGrad,
+                              const sutherland &suth) const = 0;
   virtual double CrossDiff2(const primVars &state,
                             const vector3d<double> &kGrad,
                             const vector3d<double> &wGrad) const = 0;
@@ -82,16 +84,18 @@ class turbNone : public turbModel {
 
   // member functions
   double EddyVisc(const primVars &state,
-                  const tensor<double> &vGrad) const override {return 0.0;}
+                  const tensor<double> &vGrad,
+                  const sutherland &suth) const override {return 0.0;}
   double EddyViscNoLim(const primVars &state) const override {return 0.0;}
   double TurbPrandtlNumber() const override {return 0.9;}
   double Production1(const primVars &state, const tensor<double> &velGrad,
                      const sutherland &suth) const override {return 0.0;}
   double Production2(const primVars &state, const tensor<double> &velGrad,
                      const sutherland &suth) const override {return 0.0;}
-  double Dissipation1(const primVars &state) const override {return 0.0;}
-  double Dissipation2(const primVars &state,
-                      const tensor<double> &velGrad) const override {
+  double Destruction1(const primVars &state) const override {return 0.0;}
+  double Destruction2(const primVars &state,
+                      const tensor<double> &velGrad,
+                      const sutherland &suth) const override {
     return 0.0;
   }
   double CrossDiff2(const primVars &state, const vector3d<double> &kGrad,
@@ -127,15 +131,17 @@ class turbKWWilcox : public turbModel {
   explicit turbKWWilcox(const string &meth) : turbModel(meth) {}
 
   // member functions
-  double EddyVisc(const primVars&, const tensor<double> &) const override;
+  double EddyVisc(const primVars&, const tensor<double> &,
+                  const sutherland &) const override;
   double EddyViscNoLim(const primVars&) const override;
   double TurbPrandtlNumber() const override {return prt_;}
   double Production1(const primVars &, const tensor<double> &,
                      const sutherland &) const override;
   double Production2(const primVars &, const tensor<double> &,
                      const sutherland &) const override;
-  double Dissipation1(const primVars &) const override;
-  double Dissipation2(const primVars &, const tensor<double> &) const override;
+  double Destruction1(const primVars &) const override;
+  double Destruction2(const primVars &, const tensor<double> &,
+                      const sutherland &) const override;
   double CrossDiff2(const primVars &, const vector3d<double> &,
                     const vector3d<double> &) const override;
   double MolecDiff1Coeff() const override {return sigmaStar_;}
@@ -150,11 +156,12 @@ class turbKWWilcox : public turbModel {
   double CLim() const {return clim_;}
 
   double SigmaD(const vector3d<double>&, const vector3d<double>&) const;
-  double Xw(const primVars&, const tensor<double>&) const;
-  double FBeta(const primVars&, const tensor<double>&) const;
-  double Beta(const primVars&, const tensor<double>&) const;
+  double Xw(const primVars&, const tensor<double>&, const sutherland&) const;
+  double FBeta(const primVars&, const tensor<double>&, const sutherland&) const;
+  double Beta(const primVars&, const tensor<double>&, const sutherland&) const;
   tensor<double> StrainKI(const tensor<double>&) const;
-  double OmegaTilda(const primVars&, const tensor<double>&) const;
+  double OmegaTilda(const primVars&, const tensor<double>&,
+                    const sutherland&) const;
 
   void Print() const override;
 

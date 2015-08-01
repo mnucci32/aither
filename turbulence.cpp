@@ -28,7 +28,7 @@ using std::cerr;
 tensor<double> turbModel::BoussinesqReynoldsStress(
     const primVars &state, const tensor<double> &velGrad,
     const sutherland &suth) const {
-  double mut = (*this).EddyVisc(state, velGrad);
+  double mut = (*this).EddyVisc(state, velGrad, suth);
   double lambda = suth.Lambda(mut);
 
   tensor<double> I;
@@ -43,8 +43,9 @@ tensor<double> turbModel::BoussinesqReynoldsStress(
 // member function to return the eddy viscosity calculated with the stress
 // limiter
 double turbKWWilcox::EddyVisc(const primVars &state,
-                              const tensor<double> &vGrad) const {
-  return state.Rho() * state.Tke() / (*this).OmegaTilda(state, vGrad);
+                              const tensor<double> &vGrad,
+                              const sutherland &suth) const {
+  return state.Rho() * state.Tke() / (*this).OmegaTilda(state, vGrad, suth);
 }
 
 // member functionto return the eddy viscosity calculated without the stress
@@ -66,24 +67,30 @@ double turbKWWilcox::SigmaD(const vector3d<double> &kGrad,
 }
 
 double turbKWWilcox::Beta(const primVars &state,
-                          const tensor<double> &velGrad) const {
+                          const tensor<double> &velGrad,
+                          const sutherland &suth) const {
   // state -- primative variables
   // velGrad -- velocity gradient
-  return beta0_ * (*this).FBeta(state, velGrad);
+  // suth -- sutherland's law for viscosity
+  return beta0_ * (*this).FBeta(state, velGrad, suth);
 }
 
 double turbKWWilcox::FBeta(const primVars &state,
-                           const tensor<double> &velGrad) const {
+                           const tensor<double> &velGrad,
+                           const sutherland &suth) const {
   // state -- primative variables
   // velGrad -- velocity gradient
-  double xw = (*this).Xw(state, velGrad);
+  // suth -- sutherland's law for viscosity
+  double xw = (*this).Xw(state, velGrad, suth);
   return (1.0 + 85.0 * xw) / (1.0 + 100.0 * xw);
 }
 
 double turbKWWilcox::Xw(const primVars &state,
-                        const tensor<double> &velGrad) const {
+                        const tensor<double> &velGrad,
+                        const sutherland &suth) const {
   // state -- primative variables
   // velGrad -- velocity gradient
+  // suth -- sutherland's law for viscosity
 
   tensor<double> vorticity = 0.5 * (velGrad - velGrad.Transpose());
 
@@ -91,7 +98,8 @@ double turbKWWilcox::Xw(const primVars &state,
   // both tensors are symmetric so result is the same
   // vorticity is asymmetric but vorticity * vorticity is symmetric
   return fabs( (vorticity * vorticity).DoubleDotTrans((*this).StrainKI(velGrad))
-               / pow(betaStar_ * state.Omega(), 3.0) );
+               / pow(betaStar_ * state.Omega(), 3.0) )
+      * pow(suth.NondimScaling(), 3);
 }
 
 tensor<double> turbKWWilcox::StrainKI(const tensor<double> &velGrad) const {
@@ -102,9 +110,12 @@ tensor<double> turbKWWilcox::StrainKI(const tensor<double> &velGrad) const {
 }
 
 double turbKWWilcox::OmegaTilda(const primVars &state,
-                                const tensor<double> &velGrad) const {
+                                const tensor<double> &velGrad,
+                                const sutherland &suth) const {
   // state -- primative variables
   // velGrad -- velocity gradient
+  // suth -- sutherland's law for viscosity
+
   tensor<double> I;
   I.Identity();
   tensor<double> sHat = 0.5 * (velGrad + velGrad.Transpose()) - 1.0 / 3.0 *
@@ -112,7 +123,7 @@ double turbKWWilcox::OmegaTilda(const primVars &state,
 
   // using DoubleDotTrans instead of DoubleDot for speed
   // since tensors are symmetric, result is the same
-  return std::max(state.Omega(), clim_ *
+  return std::max(state.Omega(), suth.NondimScaling() * clim_ *
                   sqrt(2.0 * sHat.DoubleDotTrans(sHat) / betaStar_));
 }
 
@@ -130,13 +141,14 @@ double turbKWWilcox::Production2(const primVars &state,
   return alpha_ * state.Omega() / state.Tke() * tau.DoubleDotTrans(velGrad);
 }
 
-double turbKWWilcox::Dissipation1(const primVars &state) const {
+double turbKWWilcox::Destruction1(const primVars &state) const {
   return betaStar_ * state.Rho() * state.Tke() * state.Omega();
 }
 
-double turbKWWilcox::Dissipation2(const primVars &state,
-                                  const tensor<double> &velGrad) const {
-  return (*this).Beta(state, velGrad) * state.Rho() * state.Omega() *
+double turbKWWilcox::Destruction2(const primVars &state,
+                                  const tensor<double> &velGrad,
+                                  const sutherland &suth) const {
+  return (*this).Beta(state, velGrad, suth) * state.Rho() * state.Omega() *
       state.Omega();
 }
 

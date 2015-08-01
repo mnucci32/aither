@@ -2130,8 +2130,8 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
             (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc));
 
         double eddyVisc = FaceReconCentral(
-            turb->EddyVisc((*this).State(iLow), grads.VelGradI(locNG)),
-            turb->EddyVisc((*this).State(iUp), grads.VelGradI(locNG)),
+            turb->EddyVisc((*this).State(iLow), grads.VelGradI(locNG), suth),
+            turb->EddyVisc((*this).State(iUp), grads.VelGradI(locNG), suth),
             (*this).Center(iLow), (*this).Center(iUp), (*this).FCenterI(loc));
         eddyVisc *= suth.NondimScaling();  // effective viscosity
 
@@ -2167,8 +2167,9 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
               ViscCellSpectralRadius(
                   (*this).FAreaI(loc), (*this).FAreaI(fUpi),
                   (*this).State(iUp), eqnState, suth,
-                  (*this).Vol(iUp), turb->EddyVisc((*this).State(iUp),
-                                                   grads.VelGradI(locNG)));
+                  (*this).Vol(iUp),
+                  turb->EddyVisc((*this).State(iUp), grads.VelGradI(locNG),
+                                 suth));
           (*this).avgWaveSpeed_[iUpNG] =
               (*this).AvgWaveSpeed(iUpNG) + vCoeff * maxWS;
         }
@@ -2317,8 +2318,8 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
             (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc));
 
         double eddyVisc = FaceReconCentral(
-            turb->EddyVisc((*this).State(jLow), grads.VelGradJ(locNG)),
-            turb->EddyVisc((*this).State(jUp), grads.VelGradJ(locNG)),
+            turb->EddyVisc((*this).State(jLow), grads.VelGradJ(locNG), suth),
+            turb->EddyVisc((*this).State(jUp), grads.VelGradJ(locNG), suth),
             (*this).Center(jLow), (*this).Center(jUp), (*this).FCenterJ(loc));
         // effective viscosity (due to nondimensionalization)
         eddyVisc *= suth.NondimScaling();
@@ -2355,8 +2356,9 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
               ViscCellSpectralRadius(
                   (*this).FAreaJ(loc), (*this).FAreaJ(fUpj),
                   (*this).State(jUp), eqnState, suth,
-                  (*this).Vol(jUp), turb->EddyVisc((*this).State(jUp),
-                                                   grads.VelGradJ(locNG)));
+                  (*this).Vol(jUp),
+                  turb->EddyVisc((*this).State(jUp), grads.VelGradJ(locNG),
+                                 suth));
           (*this).avgWaveSpeed_[jUpNG] =
               (*this).AvgWaveSpeed(jUpNG) + vCoeff * maxWS;
         }
@@ -2503,8 +2505,8 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
             (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc));
 
         double eddyVisc = FaceReconCentral(
-            turb->EddyVisc((*this).State(kLow), grads.VelGradK(locNG)),
-            turb->EddyVisc((*this).State(kUp), grads.VelGradK(locNG)),
+            turb->EddyVisc((*this).State(kLow), grads.VelGradK(locNG), suth),
+            turb->EddyVisc((*this).State(kUp), grads.VelGradK(locNG), suth),
             (*this).Center(kLow), (*this).Center(kUp), (*this).FCenterK(loc));
         // effective viscosity (due to nondimensionalization)
         eddyVisc *= suth.NondimScaling();
@@ -2541,8 +2543,9 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
               ViscCellSpectralRadius(
                   (*this).FAreaK(loc), (*this).FAreaK(fUpk),
                   (*this).State(kUp), eqnState, suth,
-                  (*this).Vol(kUp), turb->EddyVisc((*this).State(kUp),
-                                                   grads.VelGradK(locNG)));
+                  (*this).Vol(kUp),
+                  turb->EddyVisc((*this).State(kUp), grads.VelGradK(locNG),
+                                 suth));
           (*this).avgWaveSpeed_[kUpNG] =
               (*this).AvgWaveSpeed(kUpNG) + vCoeff * maxWS;
         }
