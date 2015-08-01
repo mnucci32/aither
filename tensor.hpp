@@ -93,8 +93,8 @@ class tensor {
   vector3d<T> MatMult(const vector3d<T> &) const;
   T DoubleDot(const tensor<T> &) const;
   T DoubleDotTrans(const tensor<T> &) const;
-  tensor<T> Identity() const;
-  tensor<T> Zero() const;
+  void Identity();
+  void Zero();
 
   // destructor
   ~tensor() {}
@@ -385,33 +385,38 @@ vector3d<T> tensor<T>::MatMult(const vector3d<T> &vec) const {
   return temp;
 }
 
-// Function to return the identity matrix
+// Function to convert the matrix to the identity matrix
 template <class T>
-tensor<T> tensor<T>::Identity() const {
-  tensor<T> temp;
+void tensor<T>::Identity() {
   T one = 1;
   T zero = 0;
 
-  temp.data_[0] = one;
-  temp.data_[1] = zero;
-  temp.data_[2] = zero;
+  data_[0] = one;
+  data_[1] = zero;
+  data_[2] = zero;
 
-  temp.data_[3] = zero;
-  temp.data_[4] = one;
-  temp.data_[5] = zero;
+  data_[3] = zero;
+  data_[4] = one;
+  data_[5] = zero;
 
-  temp.data_[6] = zero;
-  temp.data_[7] = zero;
-  temp.data_[8] = one;
-
-  return temp;
+  data_[6] = zero;
+  data_[7] = zero;
+  data_[8] = one;
 }
 
-// Function to return a tensor with all zero entries
+// Function to zero a tensor
 template <class T>
-tensor<T> tensor<T>::Zero() const {
-  tensor<T> temp;
-  return temp;
+void tensor<T>::Zero() {
+  T var = 0;
+  data_[0] = var;
+  data_[1] = var;
+  data_[2] = var;
+  data_[3] = var;
+  data_[4] = var;
+  data_[5] = var;
+  data_[6] = var;
+  data_[7] = var;
+  data_[8] = var;
 }
 
 // Function to return the double dot product of two tensors
