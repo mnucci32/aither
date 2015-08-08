@@ -124,7 +124,7 @@ class primVars {
   // member function to calculate Van Albada limiter function
   primVars LimiterVanAlbada(const primVars &) const;
   primVars LimiterMinmod(const primVars &, const primVars &,
-                         const double) const;
+                         const double &) const;
   primVars LimiterNone() const;
 
   // member function to return the state of the appropriate ghost cell

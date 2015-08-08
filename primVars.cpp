@@ -225,7 +225,7 @@ and Ui+1 is the downwind point. For the right reconstruction Ui+1 is the first
 upwind point, Ui+2 is the second upwind point, and Ui is the downwind point.
 
 For left reconstruction the MUSCL scheme goes as follows:
-Ui+1/2 = Ui + 0.5 * ( (1-K) * (Ui - Ui-1) + (1+K) * (Ui+1 - Ui) )
+Ui+1/2 = Ui + 0.25 * ( (1-K) * (Ui - Ui-1) + (1+K) * (Ui+1 - Ui) )
 
 The above equation assumes there is no limiter, and that the grid spacing is
 uniform. In the above equation K refers to the parameter kappa which can be
@@ -243,12 +243,16 @@ error
 limits order of accuracy to 2)
 
 With limiters the equation looks as follows:
-Ui+1/2 = Ui + 0.5 * L * ( (1-K*L) * (Ui - Ui-1) + (1+K*L) * (Ui+1 - Ui) )
+Ui+1/2 = Ui + 0.25 * (Ui - Ui-1) * ( (1-K) * L  + (1+K) * R * Linv )
 
 L represents the limiter function which ranges between 0 and 1. A value of 1
 implies there is no limiter and the full accuracy of the scheme is achieved. A
 value of 0 implies that the solution has been limited to first order accuracy.
 An in between value results in an order of accuracy between first and second.
+Linv is the inverse of the limiter.
+
+R represents the divided difference that the limiter is a function of.
+R = (Ui - Ui-1) / (Ui+1 - Ui)
 
 The MUSCL scheme can be extended to nonuniform grids by adding in terms
 representing the difference in size between the cells. In the above diagram the
@@ -259,9 +263,9 @@ second upwind cells.
 
 dP = (UW1 + DW) / (2.0 * UW)
 dM = (UW + UW2) / (2.0 * UW)
+R = ((Ui - Ui-1) / dP) / ((Ui+1 - Ui) / dM)
 
-Ui+1/2 = Ui + 0.5 * L * (1/(dP+dM)) *  ( (dP-K*L) * (Ui - Ui-1) / dM + (dM+K*L)
-* (Ui+1 - Ui) / dP )
+Ui+1/2 = Ui + 0.25 * ((Ui - Ui-1) / dM) * ( (1-K) * L  + (1+K) * R * Linv )
 
 */
 primVars primVars::FaceReconMUSCL(const primVars &primUW2,
@@ -278,11 +282,6 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
   // uw2 is length of furthest upwind cell
   // dw is length of downwind cell
 
-  primVars facePrim;
-  primVars r;
-  primVars limiter;
-  primVars invLimiter;
-
   primVars primUW1 = *this;
 
   double dPlus = (uw + dw) / (2.0 * uw);
@@ -290,89 +289,55 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
 
   // divided differences to base limiter on; eps must be listed to left of
   // primVars
-  r = (EPS + (primDW1 - primUW1) / dPlus) /
-      (EPS + (primUW1 - primUW2) / dMinus);
+  primVars r = (EPS + (primDW1 - primUW1) / dPlus) /
+               (EPS + (primUW1 - primUW2) / dMinus);
 
+  primVars limiter;
+  primVars invLimiter;
   if (lim == "none") {
-    limiter = LimiterNone();  // limiter defined on inverse of r
-    invLimiter = LimiterNone();
+    limiter = LimiterNone();
+    invLimiter = limiter;
   } else if (lim == "vanAlbada") {
-    limiter = LimiterVanAlbada(r);  // limiter defined on inverse of r
+    limiter = LimiterVanAlbada(r);
     invLimiter = LimiterVanAlbada(1.0 / r);
   } else if (lim == "minmod") {
     limiter = LimiterMinmod(primUW1 - primUW2, primDW1 - primUW1, kappa);
+    invLimiter = limiter / r;
   } else {
     cerr << "ERROR: Limiter " << lim << " is not recognized!" << endl;
   }
 
   // calculate reconstructed state at face using MUSCL method with limiter
-  facePrim =
-      primUW1 + (limiter / (2.0 * (dPlus + dMinus))) *
-                    ((dPlus - kappa * limiter) * (primUW1 - primUW2) / dMinus +
-                     (dMinus + kappa * limiter) * (primDW1 - primUW1) / dPlus);
-
-  return facePrim;
+  return primUW1 + 0.25 * ((primUW1 - primUW2) / dMinus) *
+      ((1.0 - kappa) * limiter + (1.0 + kappa) * r * invLimiter);
 }
 
 // member function to calculate minmod limiter
 primVars primVars::LimiterMinmod(const primVars &upwind,
                                  const primVars &downwind,
-                                 const double kap) const {
+                                 const double &kap) const {
   // upwind -- upwind state (primative)
   // downwind -- downwind state (primative)
   // kap -- MUSCL parameter kappa
 
-  primVars limiter, sign;
+  primVars limiter;
 
   // calculate minmod parameter beta
   double beta = (3.0 - kap) / (1.0 - kap);
 
   // calculate minmod limiter
-  if (upwind.Rho() > 0.0) {
-    sign.data_[0] = 1.0;
-  } else if (upwind.Rho() < 0.0) {
-    sign.data_[0] = -1.0;
-  } else {
-    sign.data_[0] = 0.0;
-  }
-
-  if (upwind.U() > 0.0) {
-    sign.data_[1] = 1.0;
-  } else if (upwind.U() < 0.0) {
-    sign.data_[1] = -1.0;
-  } else {
-    sign.data_[1] = 0.0;
-  }
-
-  if (upwind.V() > 0.0) {
-    sign.data_[2] = 1.0;
-  } else if (upwind.V() < 0.0) {
-    sign.data_[2] = -1.0;
-  } else {
-    sign.data_[2] = 0.0;
-  }
-
-  if (upwind.W() > 0.0) {
-    sign.data_[3] = 1.0;
-  } else if (upwind.W() < 0.0) {
-    sign.data_[3] = -1.0;
-  } else {
-    sign.data_[3] = 0.0;
-  }
-
-  if (upwind.P() > 0.0) {
-    sign.data_[4] = 1.0;
-  } else if (upwind.P() < 0.0) {
-    sign.data_[4] = -1.0;
-  } else {
-    sign.data_[4] = 0.0;
-  }
-
   for (int ii = 0; ii < NUMVARS; ii++) {
-    limiter.data_[ii] =
-        sign.data_[ii] *
+    double sign;
+    if (upwind.data_[ii] > 0.0) {
+      sign = 1.0;
+    } else if (upwind.data_[ii] < 0.0) {
+      sign = -1.0;
+    } else {
+      sign = 0.0;
+    }
+    limiter.data_[ii] = sign *
         max(0.0, min(fabs(upwind.data_[ii]),
-                     sign.data_[ii] * downwind.data_[ii] * beta));
+                     sign * downwind.data_[ii] * beta));
   }
 
   return limiter;
@@ -519,6 +484,10 @@ primVars primVars::GetGhostState(const string &bcType,
       double wWall = (40000.0 * nuW / (ks * ks)) * suth.NondimScaling() *
           suth.NondimScaling();
       ghostState.data_[6] = 2.0 * wWall - (*this).Omega();
+
+      if (layer == 2) {
+        ghostState.data_[6] = (2.0 * ghostState.data_[6] - wWall);
+      }
     }
 
   // subsonic inflow boundary condition
