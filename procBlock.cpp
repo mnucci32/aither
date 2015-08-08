@@ -6986,7 +6986,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
           (*this).state_[cellLowG2] = (*this).State(cellLowG1);
         } else {
           (*this).state_[cellLowG2] = (*this).State(cellLowIn2).GetGhostState(
-              bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, suth, 1);
+              bcNameL, (*this).FAreaI(lFaceB), "il", inp, eos, suth, 2);
         }
       }
 
@@ -7005,7 +7005,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
           (*this).state_[cellUpG2] = (*this).State(cellUpG1);
         } else {
           (*this).state_[cellUpG2] = (*this).State(cellUpIn2).GetGhostState(
-              bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, suth, 1);
+              bcNameU, (*this).FAreaI(uFaceB), "iu", inp, eos, suth, 2);
         }
       }
     }
@@ -7056,7 +7056,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
           (*this).state_[cellLowG2] = (*this).State(cellLowG1);
         } else {
           (*this).state_[cellLowG2] = (*this).State(cellLowIn2).GetGhostState(
-              bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, suth, 1);
+              bcNameL, (*this).FAreaJ(lFaceB), "jl", inp, eos, suth, 2);
         }
       }
 
@@ -7075,7 +7075,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
           (*this).state_[cellUpG2] = (*this).State(cellUpG1);
         } else {
           (*this).state_[cellUpG2] = (*this).State(cellUpIn2).GetGhostState(
-              bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, suth, 1);
+              bcNameU, (*this).FAreaJ(uFaceB), "ju", inp, eos, suth, 2);
         }
       }
     }
@@ -7126,7 +7126,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
           (*this).state_[cellLowG2] = (*this).State(cellLowG1);
         } else {
           (*this).state_[cellLowG2] = (*this).State(cellLowIn2).GetGhostState(
-              bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, suth, 1);
+              bcNameL, (*this).FAreaK(lFaceB), "kl", inp, eos, suth, 2);
         }
       }
 
@@ -7145,7 +7145,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
           (*this).state_[cellUpG2] = (*this).State(cellUpG1);
         } else {
           (*this).state_[cellUpG2] = (*this).State(cellUpIn2).GetGhostState(
-              bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, suth, 1);
+              bcNameU, (*this).FAreaK(uFaceB), "ku", inp, eos, suth, 2);
         }
       }
     }
