@@ -6,7 +6,6 @@ gridName: viscousFlatPlate
 equationSet: navierStokes
 timeIntegration: implicitEuler
 cflStart: 10000.0
-cflStep: 1.0
 cflMax: 10000.0
 faceReconstruction: thirdOrder
 limiter: none
@@ -29,8 +28,6 @@ boundaryConditions: 1
 #Block   1  -- Indices: 65 65 2
 2 2 2
 #i_surfaces -------------------------------------------
-#subsonicInflow      1     1     1    65     1     2    0
-#subsonicOutflow    65    65     1    65     1     2    0
 characteristic      1     1     1    65     1     2    0
 characteristic     65    65     1    65     1     2    0
 #j_surfaces -------------------------------------------

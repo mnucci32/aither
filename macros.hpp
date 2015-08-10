@@ -14,5 +14,12 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#define ROOT 0
-#define NUMVARS 5
+#ifndef MACROSHEADERDEF  // only if the macro MACROSHEADERDEF is not defined
+                         // execute these lines of code
+#define MACROSHEADERDEF  // define the macro
+
+#define NUMVARS 7
+#define EPS 1.0e-30
+#define ROOTP 0
+
+#endif

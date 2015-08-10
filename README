@@ -1,31 +1,19 @@
 ABOUT THE CODE
-This code is for a 3D Navier-Stokes computational fluid dynamics solver. It is a cell centered, structured solver, using mulit-block structured grids in Plot3D format. It uses explicit and implicit time integration methods. It uses MUSCL extrapolation to reconstruct the conserved variables from the cell centers to the cell faces. The code uses the Roe flux difference splitting scheme for the inviscid fluxes, and a central scheme for the viscous fluxes. It is second order accurate in both space and time.
+This code is for a 3D Navier-Stokes computational fluid dynamics solver. It is a cell centered, structured solver, using mulit-block structured grids in Plot3D format. It uses explicit and implicit time integration methods. It uses MUSCL extrapolation to reconstruct the primative variables from the cell centers to the cell faces. The code uses the Roe flux difference splitting scheme for the inviscid fluxes, and a central scheme for the viscous fluxes. It is second order accurate in both space and time.
 
 CURRENT STATUS
-The code is 2nd order accurate in space and time using the explicit solver. Available explicit time integration methods are forward euler (1st order) and a minimum storage four stage Runge-Kutta method (2nd order). The implicit solver (LU-SGS) is implemented for implicit time integration. Dual time stepping is implemented for time accuracy in the implicit solver. Available implicit time integrations methods come from the Beam and Warming family of methods and are the implicit euler (1st order), Crank-Nicholson (2nd order), and BDF2 (2nd order) methods. The code has been thoroughly commented. Recently it has been made parallel.
+The code is 2nd order accurate in space and time. Available explicit time integration methods are forward euler (1st order) and a minimum storage four stage Runge-Kutta method (2nd order). The implicit solver (LU-SGS) is implemented for implicit time integration. Dual time stepping is implemented for time accuracy in the implicit solver. Available implicit time integrations methods come from the Beam and Warming family of methods and are the implicit euler (1st order), Crank-Nicholson (2nd order), and BDF2 (2nd order) methods. The code has been thoroughly commented. It has been made parallel using MPI. Currently the Wilcox K-Omega 2006 turbulence model is available.
+
+The next task is to add a wall distance calculation. The wall distance calculation will be used to implement additional turbulence models.
 
 TO DO LIST
-- Add RANS terms with turbulence model.
-  -Add wall distance calculation
-
-FILES AND CLASSES
-procBlock - A class to store the state vector (primatives), cell volume, face areas, time step, and residual for a plot3D processor block of cells.
-boundaryConditions - A class to store the data for the boundary conditions on each block.
-eos - A class to impliment the perfect gas equation of state and sutherland's law for viscosity.
-input - A class to read in the input file and store the necessary data.
-inviscidFlux - A class to store the inviscid flux vector for a cell. Contains functions to calculate the flux.
-main - The driver of the code.
-MAKEFILE - The makefile to compile the code
-matrix - A set of classes to store the matrix elements of the Jacobian matrix for the implicit solver.
-output - Functions to write out the solution in plot3D function file format.
-primVars - A class to store the primative variables at a cell center.
-vector3d - A templated class to store vectors in 3D space.
-viscousFlux - A class to store the viscous flux vector for a cell. Contains functions to calculate the flux.
-geomSlice - A class to store slices of procBlocks. Used for inter block and inter processor boundary conditions.
-parallel - functions to aid in the data exchange between processors.
+- Add wall distance calculation
+- Implement SST turbulence model
+- Implement higher order state reconstruction for DES / Hybrid RANS/LES
+- Implement tubulence model for DES / Hybrid RANS/LES
 
 HOW TO COMPILE
-Assuming you have g++ (or equivalent) with c++11 support, just type 'make'.
+Assuming you have g++ (or equivalent) with c++11 support and some version of MPI (I use MPICH), just type 'make'.
 
 HOW TO RUN
-mpirun -n 1 main inputFile.inp >outputFile.out 2>errorFile.err
+mpirun -np 1 main inputFile.inp >outputFile.out 2>errorFile.err

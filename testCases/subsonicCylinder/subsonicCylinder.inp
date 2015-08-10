@@ -5,9 +5,8 @@ gridName: subsonicCylinder
 #solver parameters
 equationSet: euler
 timeIntegration: implicitEuler
-cflStart: 1000.0
-cflStep: 1.0
-cflMax: 1000.0
+cflStart: 100000.0
+cflMax: 100000.0
 faceReconstruction: thirdOrder
 limiter: none
 iterations: 5000
