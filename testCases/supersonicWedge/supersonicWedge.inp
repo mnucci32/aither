@@ -6,7 +6,6 @@ gridName: supersonicWedge
 equationSet: euler
 timeIntegration: explicitEuler
 cflStart: 0.4
-cflStep: 0.1
 cflMax: 0.4
 faceReconstruction: thirdOrder
 limiter: vanAlbada
@@ -18,9 +17,6 @@ pressureRef: 101300.0
 densityRef: 1.2256
 temperatureRef: 288.0
 velocity: 852.4, 0.0, 0.0
-#
-matrixSolver: lusgs
-matrixRelaxation: 1.0
 #
 #---------------------------------------------------------------------------#
 #Boundary Conditions
