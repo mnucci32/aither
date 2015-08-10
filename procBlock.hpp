@@ -192,9 +192,10 @@ class procBlock {
   void AssignViscousGhostCellsEdge(const input &, const idealGas &,
                                    const sutherland &);
 
-  bool IsPhysical(const int &, const int &, const int &) const;
-  bool AtCorner(const int &, const int &, const int &) const;
-  bool AtEdge(const int &, const int &, const int &, string &) const;
+  bool IsPhysical(const int &, const int &, const int &, const bool &) const;
+  bool AtCorner(const int &, const int &, const int &, const bool &) const;
+  bool AtEdge(const int &, const int &, const int &, const bool &,
+              string &) const;
 
   vector<bool> PutGeomSlice(const geomSlice &, interblock &, const int &,
                             const int &);

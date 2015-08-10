@@ -1317,12 +1317,12 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
   genArray initial(0.0);
 
   // initialize L and U matrices
-  vector<genArray> U(x.size(), initial);
-  vector<genArray> L(x.size(), initial);
+  vector<genArray> U((*this).NumCells(), initial);
+  vector<genArray> L((*this).NumCells(), initial);
 
   //--------------------------------------------------------------------
   // forward sweep over all physical cells
-  for (int ii = 0; ii < static_cast<int> (x.size()); ii++) {
+  for (int ii = 0; ii < (*this).NumCells(); ii++) {
     // indicies for variables without ghost cells
     // location of cell on diagonal
     int loc =
@@ -1388,7 +1388,8 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
 
     // if i lower diagonal cell is in physical location there is a contribution
     // from it
-    if (il >= 0 && il < static_cast<int> (x.size())) {
+    if ((*this).IsPhysical(reorder[ii].X() - 1, reorder[ii].Y(),
+                           reorder[ii].Z(), false)) {
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center_ values are used
       double specRad = CellSpectralRadius(
@@ -1416,7 +1417,8 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
     }
     // if j lower diagonal cell is in physical location there is a contribution
     // from it
-    if (jl >= 0 && jl < static_cast<int> (x.size())) {
+    if ((*this).IsPhysical(reorder[ii].X(), reorder[ii].Y() - 1,
+                           reorder[ii].Z(), false)) {
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center_ values are used
       double specRad = CellSpectralRadius(
@@ -1444,7 +1446,8 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
     }
     // if k lower diagonal cell is in physical location there is a contribution
     // from it
-    if (kl >= 0 && kl < static_cast<int> (x.size())) {
+    if ((*this).IsPhysical(reorder[ii].X(), reorder[ii].Y(),
+                           reorder[ii].Z() - 1, false)) {
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center_ values are used
       double specRad = CellSpectralRadius(
@@ -1492,7 +1495,7 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
 
   //----------------------------------------------------------------------
   // backward sweep over all physical cells
-  for (int ii = static_cast<int> (x.size()) - 1; ii >= 0; ii--) {
+  for (int ii = (*this).NumCells() - 1; ii >= 0; ii--) {
     // indicies for variables without ghost cells
     // location of cell on diagonal
     int loc =
@@ -1558,7 +1561,8 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
 
     // if i upper diagonal cell is in physical location there is a contribution
     // from it
-    if (iu >= 0 && iu < static_cast<int> (x.size())) {
+    if ((*this).IsPhysical(reorder[ii].X() + 1, reorder[ii].Y(),
+                           reorder[ii].Z(), false)) {
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center_ values are used
       double specRad = CellSpectralRadius(
@@ -1585,7 +1589,8 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
     }
     // if j upper diagonal cell is in physical location there is a contribution
     // from it
-    if (ju >= 0 && ju < static_cast<int> (x.size())) {
+    if ((*this).IsPhysical(reorder[ii].X(), reorder[ii].Y() + 1,
+                           reorder[ii].Z(), false)) {
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center_ values are used
       double specRad = CellSpectralRadius(
@@ -1612,7 +1617,8 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
     }
     // if k upper diagonal cell is in physical location there is a contribution
     // from it
-    if (ku >= 0 && ku < static_cast<int> (x.size())) {
+    if ((*this).IsPhysical(reorder[ii].X(), reorder[ii].Y(),
+                           reorder[ii].Z() + 1, false)) {
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center_ values are used
       double specRad = CellSpectralRadius(
@@ -1661,7 +1667,7 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
 
   genArray resid(0.0);
 
-  for (int ii = 0; ii < static_cast<int> (x.size()); ii++) {
+  for (int ii = 0; ii < (*this).NumCells(); ii++) {
     // location of diagonal cell with and without ghost cells
     int loc =
         GetLoc1D(reorder[ii].X(), reorder[ii].Y(), reorder[ii].Z(), imax, jmax);
@@ -8034,21 +8040,25 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
 It takes in an i, j, k cell location and returns a boolean indicating
 if the given i, j, k location corresponds to a physical cell location.
  */
-bool procBlock::IsPhysical(const int &ii, const int &jj, const int &kk) const {
+bool procBlock::IsPhysical(const int &ii, const int &jj, const int &kk,
+                           const bool &includeGhost) const {
   // ii -- i index of location to test
   // jj -- j index of location to test
   // kk -- k index of location to test
+  // includeGhost -- flag to determine if inputs include ghost cells or not
 
   bool isPhysical = true;
 
+  int offset = includeGhost ? (*this).NumGhosts() : 0;
+
   // if any of (i, j, & k) are outside of the limits of physical cells, location
   // is non-physical
-  if ((ii < (*this).NumGhosts() ||
-       ii > (*this).NumI() - 1 + (*this).NumGhosts()) ||
-      (jj < (*this).NumGhosts() ||
-       jj > (*this).NumJ() - 1 + (*this).NumGhosts()) ||
-      (kk < (*this).NumGhosts() ||
-       kk > (*this).NumK() - 1 + (*this).NumGhosts())) {
+  if ((ii < offset ||
+       ii > (*this).NumI() - 1 + offset) ||
+      (jj < offset ||
+       jj > (*this).NumJ() - 1 + offset) ||
+      (kk < offset ||
+       kk > (*this).NumK() - 1 + offset)) {
     isPhysical = false;
   }
 
@@ -8061,24 +8071,26 @@ if the given i, j, k location corresponds to a corner location. Corner locations
 are not used at all. This function is NOT USED in the code but is useful
 for debugging purposes.
  */
-bool procBlock::AtCorner(const int &ii, const int &jj, const int &kk) const {
+bool procBlock::AtCorner(const int &ii, const int &jj, const int &kk,
+                         const bool &includeGhost) const {
   // ii -- i index of location to test
   // jj -- j index of location to test
   // kk -- k index of location to test
+  // includeGhost -- flag to determine if inputs include ghost cells or not
 
-  bool atCorner;
+  bool atCorner = false;
+
+  int offset = includeGhost ? (*this).NumGhosts() : 0;
 
   // if all (i, j, & k) are outside of the limits of physical cells, location is
   // a corner location
-  if ((ii < (*this).NumGhosts() ||
-       ii > (*this).NumI() - 1 + (*this).NumGhosts()) &&
-      (jj < (*this).NumGhosts() ||
-       jj > (*this).NumJ() - 1 + (*this).NumGhosts()) &&
-      (kk < (*this).NumGhosts() ||
-       kk > (*this).NumK() - 1 + (*this).NumGhosts())) {
+  if ((ii < offset ||
+       ii > (*this).NumI() - 1 + offset) &&
+      (jj < offset ||
+       jj > (*this).NumJ() - 1 + offset) &&
+      (kk < offset ||
+       kk > (*this).NumK() - 1 + offset)) {
     atCorner = true;
-  } else {
-    atCorner = false;
   }
 
   return atCorner;
@@ -8090,48 +8102,50 @@ if the given i, j, k location corresponds to a edge location. Edge locations are
 used in the gradient calculations.
  */
 bool procBlock::AtEdge(const int &ii, const int &jj, const int &kk,
-                       string &dir) const {
+                       const bool &includeGhost, string &dir) const {
   // ii -- i index of location to test
   // jj -- j index of location to test
   // kk -- k index of location to test
+  // includeGhost -- flag to determine if inputs include ghost cells or not
+  // dir -- direction that edge runs in
 
-  bool atEdge;
+  bool atEdge = false;
 
-  if ((ii >= (*this).NumGhosts() &&
-       ii < (*this).NumI() + (*this).NumGhosts()) &&  // at i-edge - i in
-                                                      // physical cell range,
-                                                      // j/k at first level of
-                                                      // ghost cells
-      (jj == (*this).NumGhosts() - 1 ||
-       jj == (*this).NumJ() + (*this).NumGhosts()) &&
-      (kk == (*this).NumGhosts() - 1 ||
-       kk == (*this).NumK() + (*this).NumGhosts())) {
+  int offset = includeGhost ? (*this).NumGhosts() : 0;
+
+  if ((ii >= offset &&
+       ii < (*this).NumI() + offset) &&  // at i-edge - i in
+                                         // physical cell range,
+                                         // j/k at first level of
+                                         // ghost cells
+      (jj == offset - 1 ||
+       jj == (*this).NumJ() + offset) &&
+      (kk == offset - 1 ||
+       kk == (*this).NumK() + offset)) {
     atEdge = true;
     dir = "i";
-  } else if ((ii == (*this).NumGhosts() - 1 ||
+  } else if ((ii == offset - 1 ||
               ii == (*this).NumI() +
-                        (*this).NumGhosts()) &&  // at j-edge - j in physical
-                                                 // cell range, i/k at first
-                                                 // level of ghost cells
-             (jj >= (*this).NumGhosts() &&
-              jj < (*this).NumJ() + (*this).NumGhosts()) &&
-             (kk == (*this).NumGhosts() - 1 ||
-              kk == (*this).NumK() + (*this).NumGhosts())) {
+                        offset) &&  // at j-edge - j in physical
+                                    // cell range, i/k at first
+                                    // level of ghost cells
+             (jj >= offset &&
+              jj < (*this).NumJ() + offset) &&
+             (kk == offset - 1 ||
+              kk == (*this).NumK() + offset)) {
     atEdge = true;
     dir = "j";
-  } else if ((ii == (*this).NumGhosts() - 1 ||
+  } else if ((ii == offset - 1 ||
               ii == (*this).NumI() +
-                        (*this).NumGhosts()) &&  // at k-edge - k in physical
-                                                 // cell range, i/j at first
-                                                 // level of ghost cells
-             (jj == (*this).NumGhosts() - 1 ||
-              jj == (*this).NumJ() + (*this).NumGhosts()) &&
-             (kk >= (*this).NumGhosts() &&
-              kk < (*this).NumK() + (*this).NumGhosts())) {
+                        offset) &&  // at k-edge - k in physical
+                                    // cell range, i/j at first
+                                    // level of ghost cells
+             (jj == offset - 1 ||
+              jj == (*this).NumJ() + offset) &&
+             (kk >= offset &&
+              kk < (*this).NumK() + offset)) {
     atEdge = true;
     dir = "k";
-  } else {
-    atEdge = false;
   }
 
   return atEdge;
@@ -8799,7 +8813,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
           // find out if on edge, if so save edge
           string edgeDir;
 
-          if ((*this).AtEdge(indB[0], indB[1], indB[2],
+          if ((*this).AtEdge(indB[0], indB[1], indB[2], true,
                              edgeDir)) {  // at a block edge -- possible need to
                                           // adjust interblock
 
