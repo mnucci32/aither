@@ -118,8 +118,8 @@ class primVars {
   // center to cell face this function uses muscle extrapolation resulting in
   // higher order accuracy
   primVars FaceReconMUSCL(const primVars &, const primVars &, const double &,
-                          const string &, const double = 1.0,
-                          const double = 1.0, const double = 1.0) const;
+                          const string &, const double &,
+                          const double &, const double &) const;
 
   // member function to calculate Van Albada limiter function
   primVars LimiterVanAlbada(const primVars &) const;

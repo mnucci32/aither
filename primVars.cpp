@@ -270,8 +270,8 @@ Ui+1/2 = Ui + 0.25 * ((Ui - Ui-1) / dM) * ( (1-K) * L  + (1+K) * R * Linv )
 */
 primVars primVars::FaceReconMUSCL(const primVars &primUW2,
                                   const primVars &primDW1, const double &kappa,
-                                  const string &lim, double uw, double uw2,
-                                  double dw) const {
+                                  const string &lim, const double &uw,
+                                  const double &uw2, const double &dw) const {
   // primUW2 is the upwind cell furthest from the face at which the primative is
   // being reconstructed.
   // primUW1 is the upwind cell nearest to the face at which the primative is
@@ -284,13 +284,13 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
 
   primVars primUW1 = *this;
 
-  double dPlus = (uw + dw) / (2.0 * uw);
-  double dMinus = (uw + uw2) / (2.0 * uw);
+  double dPlus = (uw + uw) / (uw + dw);
+  double dMinus = (uw + uw) / (uw + uw2);
 
   // divided differences to base limiter on; eps must be listed to left of
   // primVars
-  primVars r = (EPS + (primDW1 - primUW1) / dPlus) /
-               (EPS + (primUW1 - primUW2) / dMinus);
+  primVars r = (EPS + (primDW1 - primUW1) * dPlus) /
+               (EPS + (primUW1 - primUW2) * dMinus);
 
   primVars limiter;
   primVars invLimiter;
@@ -308,7 +308,7 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
   }
 
   // calculate reconstructed state at face using MUSCL method with limiter
-  return primUW1 + 0.25 * ((primUW1 - primUW2) / dMinus) *
+  return primUW1 + 0.25 * ((primUW1 - primUW2) * dMinus) *
       ((1.0 - kappa) * limiter + (1.0 + kappa) * r * invLimiter);
 }
 
