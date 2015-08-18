@@ -40,11 +40,12 @@ class tensor {
 
  public:
   // constructor
-  tensor(T a, T b, T c, T d, T e, T f, T g, T h, T i)
+  tensor(const T &a, const T &b, const T &c, const T &d, const T &e,
+         const T &f, const T &g, const T &h, const T &i)
       : data_{a, b, c, d, e, f, g, h, i} {}
   tensor() : data_{0, 0, 0, 0, 0, 0, 0, 0, 0} {}
-  explicit tensor(T i) : data_{i, 0, 0, 0, i, 0, 0, 0, i} {}
-  tensor(vector3d<T> v1, vector3d<T> v2, vector3d<T> v3)
+  explicit tensor(const T &i) : data_{i, 0, 0, 0, i, 0, 0, 0, i} {}
+  tensor(const vector3d<T> &v1, const vector3d<T> &v2, const vector3d<T> &v3)
       : data_{v1.X(), v1.Y(), v1.Z(), v2.X(), v2.Y(),
               v2.Z(), v3.X(), v3.Y(), v3.Z()} {}
 
