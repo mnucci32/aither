@@ -37,7 +37,7 @@ class vector3d {
 
  public:
   // constructor
-  vector3d(T a, T b, T c) : data_{a, b, c} {}
+  vector3d(const T &a, const T &b, const T &c) : data_{a, b, c} {}
   vector3d() : data_{0, 0, 0} {}
 
   // member functions
@@ -74,6 +74,46 @@ class vector3d {
   // destructor
   ~vector3d() {}
 };
+
+template <class T>
+class unitVec3dMag {
+  vector3d<T> unitVec_;
+  T mag_;
+
+ public:
+  // constructor
+  explicit unitVec3dMag(const vector3d<T> &a) : unitVec_{a / a.Mag()},
+    mag_(a.Mag()) {}
+
+  // member functions
+  // operator overloads
+  unitVec3dMag<T> operator+(const unitVec3dMag &) const;
+  unitVec3dMag<T> operator-(const unitVec3dMag &) const;
+  unitVec3dMag<T> operator*(const T &) const;
+  unitVec3dMag<T> operator/(const T &) const;
+  bool operator==(const unitVec3dMag &) const;
+  template <class TT>
+  friend unitVec3dMag<TT> operator*(const TT &, const unitVec3dMag<TT> &);
+  template <class TT>
+  friend unitVec3dMag<TT> operator/(const TT &, const unitVec3dMag<TT> &);
+  template <class TT>
+  friend ostream &operator<<(ostream &os, const unitVec3dMag<TT> &);
+  // access of data_ members
+  vector3d<T> UnitVec() const { return unitVec_; }
+  T X() const { return unitVec_.X(); }
+  T Y() const { return unitVec_.Y(); }
+  T Z() const { return unitVec_.Z(); }
+  T Mag() const { return mag_; }
+  T MagSq() const { return mag_ * mag_; }
+
+  // math functions
+  T DotProd(const unitVec3dMag &) const;
+  unitVec3dMag<T> CrossProd(const unitVec3dMag &) const;
+
+  // destructor
+  ~unitVec3dMag() {}
+};
+
 
 // operator overload for addition - element wise addition
 template <class T>
@@ -159,9 +199,8 @@ T vector3d<T>::DotProd(const vector3d &v2) const {
 template <class T>
 bool vector3d<T>::operator==(const vector3d &v2) const {
   bool test = false;
-  vector3d<T> temp = *this;
-  if (temp.data_[0] == v2.data_[0] && temp.data_[1] == v2.data_[1] &&
-      temp.data_[2] == v2.data_[2]) {
+  if (data_[0] == v2.data_[0] && data_[1] == v2.data_[1] &&
+      data_[2] == v2.data_[2]) {
     test = true;
   }
   return test;
@@ -202,6 +241,96 @@ template <class T>
 T vector3d<T>::Distance(const vector3d &v2) const {
   return sqrt(pow(data_[0] - v2.data_[0], 2) + pow(data_[1] - v2.data_[1], 2) +
               pow(data_[2] - v2.data_[2], 2));
+}
+
+// -----------------------------------------------------------------
+// Functions for unitVec3dMag class
+// operator overload for addition - element wise addition
+template <class T>
+unitVec3dMag<T> unitVec3dMag<T>::operator+(const unitVec3dMag &v2) const {
+  vector3d<T> newVec = (*this).unitVec_ * (*this).mag_ +
+      v2.unitVec_ * v2.mag_;
+  unitVec3dMag<T> temp(newVec);
+  return temp;
+}
+
+// operator overload for subtraction - element wise subtraction
+template <class T>
+unitVec3dMag<T> unitVec3dMag<T>::operator-(const unitVec3dMag &v2) const {
+  vector3d<T> newVec = (*this).unitVec_ * (*this).mag_ -
+      v2.unitVec_ * v2.mag_;
+  unitVec3dMag<T> temp(newVec);
+  return temp;
+}
+
+// operator overload for multiplication with a scalar - element wise
+// multiplication
+template <class T>
+unitVec3dMag<T> unitVec3dMag<T>::operator*(const T &scalar) const {
+  unitVec3dMag<T> temp = *this;
+  temp.mag_ *= scalar;
+  return temp;
+}
+
+// operator overload for multiplication with a scalar - element wise
+// multiplication
+// this function is a friend function of the class so that double * unitVec3dMag
+// behaves as unitVec3dMag * double
+template <class TT>
+unitVec3dMag<TT> operator*(const TT &scalar, const unitVec3dMag<TT> &v1) {
+  unitVec3dMag<TT> temp = v1;
+  temp.mag_ *= scalar;
+  return temp;
+}
+
+// operator overload for divisioin with a scalar - element wise division
+template <class T>
+unitVec3dMag<T> unitVec3dMag<T>::operator/(const T &scalar) const {
+  unitVec3dMag<T> temp = *this;
+  temp.mag_ /= scalar;
+  return temp;
+}
+
+// operator overload for division with a scalar - element wise division
+// this function is a friend function of the class so that double / unitVec3dMag
+// works
+template <class TT>
+unitVec3dMag<TT> operator/(const TT &scalar, const unitVec3dMag<TT> &v1) {
+  unitVec3dMag<TT> temp = v1;
+  temp.mag_ = scalar / temp.mag_;
+  return temp;
+}
+
+// operator overload for << - allows use of cout, cerr, etc.
+template <class TT>
+ostream &operator<<(ostream &os, const unitVec3dMag<TT> &v1) {
+  os << v1.unitVec_.X() << ", " << v1.unitVec_.Y() << ", " << v1.unitVec_.Z()
+     << ", " << v1.mag_;
+  return os;
+}
+
+// Function to calculate the dot product of two vectors
+template <class T>
+T unitVec3dMag<T>::DotProd(const unitVec3dMag &v2) const {
+  return mag_ * v2.mag_ * (unitVec_.dotProd(v2.unitVec_));
+}
+
+// operator overload for comparison
+template <class T>
+bool unitVec3dMag<T>::operator==(const unitVec3dMag &v2) const {
+  bool test = false;
+  if (unitVec_ == v2.unitVec_ && mag_ == v2.mag_) {
+    test = true;
+  }
+  return test;
+}
+
+// Function to calculate the cross product of two vectors
+template <class T>
+unitVec3dMag<T> unitVec3dMag<T>::CrossProd(const unitVec3dMag &v2) const {
+  vector3d<T> newVec = (unitVec_ * mag_).CrossProd(v2.unitVec * v2.mag_);
+  unitVec3dMag<T> crossProd(newVec);
+  return crossProd;
 }
 
 #endif
