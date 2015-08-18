@@ -53,9 +53,9 @@ class plot3dBlock {
 
  public:
   const vector<double> Volume() const;
-  const vector<vector3d<double> > FaceAreaI() const;
-  const vector<vector3d<double> > FaceAreaJ() const;
-  const vector<vector3d<double> > FaceAreaK() const;
+  const vector<unitVec3dMag<double> > FaceAreaI() const;
+  const vector<unitVec3dMag<double> > FaceAreaJ() const;
+  const vector<unitVec3dMag<double> > FaceAreaK() const;
   const vector<vector3d<double> > Centroid() const;
   const vector<vector3d<double> > FaceCenterI() const;
   const vector<vector3d<double> > FaceCenterJ() const;

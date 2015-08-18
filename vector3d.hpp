@@ -39,6 +39,8 @@ class vector3d {
   // constructor
   vector3d(const T &a, const T &b, const T &c) : data_{a, b, c} {}
   vector3d() : data_{0, 0, 0} {}
+  // copy constructor
+  vector3d(const vector3d<T> &a) : data_{a.data_[0], a.data_[1], a.data_[2]} {}
 
   // member functions
   // operator overloads
@@ -82,8 +84,11 @@ class unitVec3dMag {
 
  public:
   // constructor
+  unitVec3dMag() : unitVec_(), mag_(0) {}
   explicit unitVec3dMag(const vector3d<T> &a) : unitVec_{a / a.Mag()},
     mag_(a.Mag()) {}
+  // copy constructor
+  unitVec3dMag(const unitVec3dMag<T> &a) : unitVec_(a.unitVec_), mag_(a.mag_) {}
 
   // member functions
   // operator overloads
@@ -99,12 +104,14 @@ class unitVec3dMag {
   template <class TT>
   friend ostream &operator<<(ostream &os, const unitVec3dMag<TT> &);
   // access of data_ members
-  vector3d<T> UnitVec() const { return unitVec_; }
+  vector3d<T> UnitVector() const { return unitVec_; }
   T X() const { return unitVec_.X(); }
   T Y() const { return unitVec_.Y(); }
   T Z() const { return unitVec_.Z(); }
   T Mag() const { return mag_; }
+
   T MagSq() const { return mag_ * mag_; }
+  vector3d<T> Vector() const { return unitVec_ * mag_; }
 
   // math functions
   T DotProd(const unitVec3dMag &) const;

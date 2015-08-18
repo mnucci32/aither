@@ -156,16 +156,17 @@ int main(int argc, char *argv[]) {
 
   // Set MPI datatypes
   MPI_Datatype MPI_vec3d, MPI_cellData, MPI_procBlockInts,
-      MPI_interblock, MPI_DOUBLE_5INT;
+      MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag;
   SetDataTypesMPI(MPI_vec3d, MPI_cellData, MPI_procBlockInts,
-                  MPI_interblock, MPI_DOUBLE_5INT);
+                  MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag);
 
   // Send number of procBlocks to all processors
   SendNumProcBlocks(decomp.NumBlocksOnAllProc(), numProcBlock);
 
   // Send procBlocks to appropriate processor
   vector<procBlock> localStateBlocks =
-      SendProcBlocks(stateBlocks, rank, numProcBlock, MPI_cellData, MPI_vec3d);
+      SendProcBlocks(stateBlocks, rank, numProcBlock, MPI_cellData, MPI_vec3d,
+                     MPI_vec3dMag);
 
   // Send connections to all processors
   SendConnections(connections, MPI_interblock);
@@ -363,7 +364,7 @@ int main(int argc, char *argv[]) {
 
   // Free datatypes previously created
   FreeDataTypesMPI(MPI_vec3d, MPI_cellData, MPI_procBlockInts,
-                   MPI_interblock, MPI_DOUBLE_5INT);
+                   MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag);
   delete turb;
 
   MPI_Finalize();

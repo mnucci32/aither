@@ -194,17 +194,23 @@ void SendConnections(vector<interblock> &connections,
 void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
                      MPI_Datatype &MPI_procBlockInts,
                      MPI_Datatype &MPI_interblock,
-                     MPI_Datatype &MPI_DOUBLE_5INT) {
+                     MPI_Datatype &MPI_DOUBLE_5INT,
+                     MPI_Datatype &MPI_vec3dMag) {
   // MPI_vec3d -- output MPI_Datatype for a vector3d<double>
   // MPI_cellData -- output MPI_Datatype for primVars or genArray
   // MPI_procBlockInts -- output MPI_Datatype for 14 INTs (14 INTs in procBlock
   // class)
   // MPI_interblock -- output MPI_Datatype to send interblock class
   // MPI_DOUBLE_5INT -- output MPI_Datatype for a double followed by 5 ints
+  // MPI_vec3dMag -- output MPI_Datatype for a unitVect3dMag<double>
 
   // create vector3d<double> MPI datatype
   MPI_Type_contiguous(3, MPI_DOUBLE, &MPI_vec3d);
   MPI_Type_commit(&MPI_vec3d);
+
+  // create vector3d<double> MPI datatype
+  MPI_Type_contiguous(4, MPI_DOUBLE, &MPI_vec3dMag);
+  MPI_Type_commit(&MPI_vec3dMag);
 
   // create MPI datatype for states (primVars), residuals (genArray), etc
   MPI_Type_contiguous(NUMVARS, MPI_DOUBLE, &MPI_cellData);
@@ -287,16 +293,21 @@ void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
 void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
                       MPI_Datatype &MPI_procBlockInts,
                       MPI_Datatype &MPI_interblock,
-                      MPI_Datatype &MPI_DOUBLE_5INT) {
+                      MPI_Datatype &MPI_DOUBLE_5INT,
+                      MPI_Datatype &MPI_vec3dMag) {
   // MPI_vec3d -- output MPI_Datatype for a vector3d<double>
   // MPI_cellData -- output MPI_Datatype for primVars or genArray
   // MPI_procBlockInts -- output MPI_Datatype for 14 INTs (14 INTs in procBlock
   // class)
   // MPI_interblock -- output MPI_Datatype to send interblock class
   // MPI_DOUBLE_5INT -- output MPI_Datatype for a double followed by 5 ints
+  // MPI_vec3dMag -- output MPI_Datatype for a unitVect3dMag<double>
 
   // free vector3d<double> MPI datatype
   MPI_Type_free(&MPI_vec3d);
+
+  // free unitVect3dMag<double> MPI datatype
+  MPI_Type_free(&MPI_vec3dMag);
 
   // free MPI datatype for states (primVars), residuals (genArray), etc
   MPI_Type_free(&MPI_cellData);
@@ -322,7 +333,8 @@ simulation.
 vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
                                  const int &rank, const int &numProcBlock,
                                  const MPI_Datatype &MPI_cellData,
-                                 const MPI_Datatype &MPI_vec3d) {
+                                 const MPI_Datatype &MPI_vec3d,
+                                 const MPI_Datatype &MPI_vec3dMag) {
   // blocks -- full vector of all procBlocks. This is only used on ROOT
   // processor, all other processors just need a dummy variable to call the
   // function
@@ -332,6 +344,7 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
   // processors may give different values).
   // MPI_cellData -- MPI_Datatype used for primVars and genArray transmission
   // MPI_vec3d -- MPI_Datatype used for vector3d<double>  transmission
+  // MPI_vec3dMag -- MPI_Datatype used for unitVec3dMag<double>  transmission
 
   vector<procBlock> localBlocks(
       numProcBlock);  // vector of procBlocks for each processor
@@ -349,7 +362,7 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
         localBlocks[blocks[ii].LocalPosition()] = blocks[ii];
       } else {  // send data to receiving processors
         // pack and send procBlock
-        blocks[ii].PackSendGeomMPI(MPI_cellData, MPI_vec3d);
+        blocks[ii].PackSendGeomMPI(MPI_cellData, MPI_vec3d, MPI_vec3dMag);
       }
     }
     //--------------------------------------------------------------------------
@@ -359,7 +372,7 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
     for (int ii = 0; ii < numProcBlock; ii++) {
       // recv and unpack procBlock
       procBlock tempBlock;
-      tempBlock.RecvUnpackGeomMPI(MPI_cellData, MPI_vec3d);
+      tempBlock.RecvUnpackGeomMPI(MPI_cellData, MPI_vec3d, MPI_vec3dMag);
 
       localBlocks[tempBlock.LocalPosition()] =
           tempBlock;  // add procBlock to output vector

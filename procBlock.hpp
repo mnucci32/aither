@@ -55,19 +55,21 @@ class resid;
 class procBlock {
   vector<primVars> state_;  // primative variables at cell center
 
+  vector<genArray> residual_;  // cell residual
+
+  vector<unitVec3dMag<double> > fAreaI_;  // face area vector for i-faces
+  vector<unitVec3dMag<double> > fAreaJ_;  // face area vector for j-faces
+  vector<unitVec3dMag<double> > fAreaK_;  // face area vector for k-faces
+
   vector<vector3d<double> > center_;  // coordinates of cell center
-  vector<vector3d<double> > fAreaI_;  // face area vector for i-faces
-  vector<vector3d<double> > fAreaJ_;  // face area vector for j-faces
-  vector<vector3d<double> > fAreaK_;  // face area vector for k-faces
   vector<vector3d<double> > fCenterI_;  // coordinates of i-face centers
   vector<vector3d<double> > fCenterJ_;  // coordinates of j-face centers
   vector<vector3d<double> > fCenterK_;  // coordinates of k-face centers
 
-  vector<genArray> residual_;  // cell residual
-
   vector<double> vol_;  // cell volume
   vector<double> avgWaveSpeed_;  // maximum wave speed for cell
   vector<double> dt_;  // cell time step
+  vector<double> wallDist_;  // distance to nearest viscous wall
 
   boundaryConditions bc_;  // boundary conditions for block
 
@@ -86,10 +88,6 @@ class procBlock {
  public:
   // constructors
   procBlock();
-  procBlock(const plot3dBlock &, const int &, const int &);
-  procBlock(const double, const double, const vector3d<double>,
-            const plot3dBlock &, const int &, const int &,
-            const boundaryConditions &);
   procBlock(const primVars &, const plot3dBlock &, const int &, const int &,
             const boundaryConditions &, const int &, const int &, const int &);
   procBlock(const int &, const int &, const int &, const int &);
@@ -113,15 +111,29 @@ class procBlock {
 
   double Vol(const int &ind) const { return vol_[ind]; }
   vector3d<double> Center(const int &ind) const { return center_[ind]; }
-  vector3d<double> FAreaI(const int &ind) const { return fAreaI_[ind]; }
-  vector3d<double> FAreaJ(const int &ind) const { return fAreaJ_[ind]; }
-  vector3d<double> FAreaK(const int &ind) const { return fAreaK_[ind]; }
+  vector3d<double> FAreaUnitI(const int &ind) const {
+    return fAreaI_[ind].UnitVector();
+  }
+  vector3d<double> FAreaUnitJ(const int &ind) const {
+    return fAreaJ_[ind].UnitVector();
+  }
+  vector3d<double> FAreaUnitK(const int &ind) const {
+    return fAreaK_[ind].UnitVector();
+  }
+  double FAreaMagI(const int &ind) const { return fAreaI_[ind].Mag(); }
+  double FAreaMagJ(const int &ind) const { return fAreaJ_[ind].Mag(); }
+  double FAreaMagK(const int &ind) const { return fAreaK_[ind].Mag(); }
+  unitVec3dMag<double> FAreaI(const int &ind) const { return fAreaI_[ind]; }
+  unitVec3dMag<double> FAreaJ(const int &ind) const { return fAreaJ_[ind]; }
+  unitVec3dMag<double> FAreaK(const int &ind) const { return fAreaK_[ind]; }
+
   vector3d<double> FCenterI(const int &ind) const { return fCenterI_[ind]; }
   vector3d<double> FCenterJ(const int &ind) const { return fCenterJ_[ind]; }
   vector3d<double> FCenterK(const int &ind) const { return fCenterK_[ind]; }
 
   double AvgWaveSpeed(const int &ind) const { return avgWaveSpeed_[ind]; }
   double Dt(const int &ind) const { return dt_[ind]; }
+  double WallDist(const int &ind) const { return wallDist_[ind]; }
 
   void AddToResidual(const inviscidFlux &, const int &);
   void AddToResidual(const viscousFlux &, const int &);
@@ -207,8 +219,10 @@ class procBlock {
   void Join(const procBlock &, const string &, vector<boundarySurface> &);
 
   void SwapSliceMPI(const interblock &, const int &, const MPI_Datatype &);
-  void PackSendGeomMPI(const MPI_Datatype &, const MPI_Datatype &) const;
-  void RecvUnpackGeomMPI(const MPI_Datatype &, const MPI_Datatype &);
+  void PackSendGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
+                       const MPI_Datatype &) const;
+  void RecvUnpackGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
+                         const MPI_Datatype &);
   void PackSendSolMPI(const MPI_Datatype &) const;
   void RecvUnpackSolMPI(const MPI_Datatype &);
 
@@ -217,10 +231,11 @@ class procBlock {
 };
 
 // function definitions
-double CellSpectralRadius(const vector3d<double> &, const vector3d<double> &,
+double CellSpectralRadius(const unitVec3dMag<double> &,
+                          const unitVec3dMag<double> &,
                           const primVars &, const idealGas &);
-double ViscCellSpectralRadius(const vector3d<double> &,
-                              const vector3d<double> &, const primVars &,
+double ViscCellSpectralRadius(const unitVec3dMag<double> &,
+                              const unitVec3dMag<double> &, const primVars &,
                               const idealGas &, const sutherland &,
                               const double &, const double &);
 

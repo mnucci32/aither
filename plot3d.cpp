@@ -290,10 +290,10 @@ A = 0.5 * rAD (cross) rCB
 In the equation above rAD is the vector from D to A and rCD is the vector from B
 to C. The normal vector points in the direction of increasing i.
 */
-const vector<vector3d<double> > plot3dBlock::FaceAreaI() const {
+const vector<unitVec3dMag<double> > plot3dBlock::FaceAreaI() const {
   int len = numi_ * (numj_ - 1) * (numk_ - 1);  // number of i-faces in the
                                                 // block
-  vector<vector3d<double> > fArea;  // declare and reserve space for vector
+  vector<unitVec3dMag<double> > fArea;  // declare and reserve space for vector
   fArea.reserve(len);
 
   // vectors of coordinates of the 4 points that make up each face
@@ -340,10 +340,11 @@ const vector<vector3d<double> > plot3dBlock::FaceAreaI() const {
         // fArea[index] = 0.5 * xbd.CrossProd(xac);     //area vector is
         // calculated so that normal points nominally in direction of increasing
         // i-coordinate
-        fArea.push_back(0.5 * xbd.CrossProd(xac));  // area vector is calculated
-                                                    // so that normal points
-                                                    // nominally in direction of
-                                                    // increasing i-coordinate
+        unitVec3dMag<double> unitArea(0.5 * xbd.CrossProd(xac));
+        fArea.push_back(unitArea);  // area vector is calculated
+                                    // so that normal points
+                                    // nominally in direction of
+                                    // increasing i-coordinate
 
         if (fArea[index].Mag() <= 0) {
           cerr << "ERROR: Negative face area in PLOT3D block at index " << index
@@ -435,10 +436,10 @@ A = 0.5 * rAD (cross) rCB
 In the equation above rAD is the vector from D to A and rCD is the vector from B
 to C. The normal points in the direction of increasing j.
 */
-const vector<vector3d<double> > plot3dBlock::FaceAreaJ() const {
+const vector<unitVec3dMag<double> > plot3dBlock::FaceAreaJ() const {
   int len = (numi_ - 1) * numj_ * (numk_ - 1);  // number of i-faces in the
                                                 // block
-  vector<vector3d<double> > fArea;  // declare and reserve space for vector
+  vector<unitVec3dMag<double> > fArea;  // declare and reserve space for vector
   fArea.reserve(len);
 
   // vectors of coordinates of the 4 points that make up each face
@@ -485,10 +486,11 @@ const vector<vector3d<double> > plot3dBlock::FaceAreaJ() const {
         // fArea[index] = 0.5 * xbd.CrossProd(xac);       //area vector is
         // calculated so that normal nominally points in direction of increasing
         // j-coordinate
-        fArea.push_back(0.5 * xbd.CrossProd(xac));  // area vector is calculated
-                                                    // so that normal nominally
-                                                    // points in direction of
-                                                    // increasing j-coordinate
+        unitVec3dMag<double> unitArea(0.5 * xbd.CrossProd(xac));
+        fArea.push_back(unitArea);  // area vector is calculated
+                                    // so that normal nominally
+                                    // points in direction of
+                                    // increasing j-coordinate
 
         if (fArea[index].Mag() <= 0) {
           cerr << "ERROR: Negative face area in PLOT3D block at index " << index
@@ -581,10 +583,10 @@ A = 0.5 * rAD (cross) rCB
 In the equation above rAD is the vector from D to A and rCD is the vector from B
 to C. The normal vector points in the direction of increasing k.
 */
-const vector<vector3d<double> > plot3dBlock::FaceAreaK() const {
+const vector<unitVec3dMag<double> > plot3dBlock::FaceAreaK() const {
   int len = (numi_ - 1) * (numj_ - 1) * numk_;  // number of i-faces in the
                                                 // block
-  vector<vector3d<double> > fArea;  // declare and reserve space for vector
+  vector<unitVec3dMag<double> > fArea;  // declare and reserve space for vector
   fArea.reserve(len);
 
   // vectors of coordinates of the 4 points that make up each face
@@ -631,10 +633,11 @@ const vector<vector3d<double> > plot3dBlock::FaceAreaK() const {
         // fArea[index] = 0.5 * xac.CrossProd(xbd);   //area vector is
         // calculated so that normal nominally points in direction of increasing
         // k-coordinate
-        fArea.push_back(0.5 * xac.CrossProd(xbd));  // area vector is calculated
-                                                    // so that normal nominally
-                                                    // points in direction of
-                                                    // increasing k-coordinate
+        unitVec3dMag<double> unitArea(0.5 * xbd.CrossProd(xac));
+        fArea.push_back(unitArea);  // area vector is calculated
+                                    // so that normal nominally
+                                    // points in direction of
+                                    // increasing k-coordinate
 
         if (fArea[index].Mag() <= 0) {
           cerr << "ERROR: Negative face area in PLOT3D block at index " << index

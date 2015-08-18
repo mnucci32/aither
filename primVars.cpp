@@ -394,7 +394,7 @@ primVars primVars::GetGhostState(const string &bcType,
                                  const sutherland &suth,
                                  const int layer) const {
   // bcType -- type of boundary condition to supply ghost cell for
-  // areaVec -- area vector of boundary face
+  // areaVec -- unit area vector of boundary face
   // surf -- i, j, k surface of boundary
   // inputVar -- all input variables
   // eqnState -- equation of state
@@ -416,13 +416,11 @@ primVars primVars::GetGhostState(const string &bcType,
   }
 
   // normalize area vector (should always point out of domain)
-  vector3d<double> normArea;
+  vector3d<double> normArea = areaVec;
   if (surf == "il" || surf == "jl" || surf == "kl") {
-    normArea = -1.0 * areaVec / areaVec.Mag();  // at lower surface normal
-                                                // should point out of domain
-                                                // for ghost cell calculation
-  } else if (surf == "iu" || surf == "ju" || surf == "ku") {
-    normArea = areaVec / areaVec.Mag();
+    normArea = -1.0 * normArea;  // at lower surface normal
+                                 // should point out of domain
+                                 //  for ghost cell calculation
   }
 
   double normVelCellCenter = 0;

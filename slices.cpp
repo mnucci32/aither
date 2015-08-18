@@ -38,22 +38,15 @@ geomSlice::geomSlice() {
 
   int numFaces = (numI_ + 1) * (numJ_) * (numK_);
 
-  // dummy vector variable length of number of faces
-  vector<vector3d<double> > vec1(numFaces);
-  // dummy vector variable length of number of cells
-  vector<vector3d<double> > vec2(numCells_);
-  // dummy scalar variable length of number of cells
-  vector<double> scalar(numCells_);
+  center_ = vector<vector3d<double> >(numCells_);
+  fAreaI_ = vector<unitVec3dMag<double> >(numFaces);
+  fAreaJ_ = fAreaI_;
+  fAreaK_ = fAreaI_;
+  fCenterI_ = vector<vector3d<double> >(numFaces);
+  fCenterJ_ = fCenterI_;
+  fCenterK_ = fCenterI_;
 
-  center_ = vec2;
-  fAreaI_ = vec1;
-  fAreaJ_ = vec1;
-  fAreaK_ = vec1;
-  fCenterI_ = vec1;
-  fCenterJ_ = vec1;
-  fCenterK_ = vec1;
-
-  vol_ = scalar;
+  vol_ = vector<double>(numCells_);
 }
 
 // constructor -- initialize state_ vector with dummy variables
@@ -76,27 +69,15 @@ geomSlice::geomSlice(const int &li, const int &lj, const int &lk,
   int numJFaces = (numI_) * (numJ_ + 1) * (numK_);
   int numKFaces = (numI_) * (numJ_) * (numK_ + 1);
 
-  // dummy vector variable length of number of faces
-  vector<vector3d<double> > vecIFaces(numIFaces);
-  // dummy vector variable length of number of faces
-  vector<vector3d<double> > vecJFaces(numJFaces);
-  // dummy vector variable length of number of faces
-  vector<vector3d<double> > vecKFaces(numKFaces);
+  center_ = vector<vector3d<double> >(numCells_);
+  fAreaI_ = vector<unitVec3dMag<double> > (numIFaces);
+  fAreaJ_ = vector<unitVec3dMag<double> > (numJFaces);
+  fAreaK_ = vector<unitVec3dMag<double> > (numKFaces);
+  fCenterI_ = vector<vector3d<double> > (numIFaces);
+  fCenterJ_ = vector<vector3d<double> > (numJFaces);
+  fCenterK_ = vector<vector3d<double> > (numKFaces);
 
-  // dummy vector variable length of number of cells
-  vector<vector3d<double> > vecCells(numCells_);
-  // dummy scalar variable length of number of cells
-  vector<double> scalar(numCells_);
-
-  center_ = vecCells;
-  fAreaI_ = vecIFaces;
-  fAreaJ_ = vecJFaces;
-  fAreaK_ = vecKFaces;
-  fCenterI_ = vecIFaces;
-  fCenterJ_ = vecJFaces;
-  fCenterK_ = vecKFaces;
-
-  vol_ = scalar;
+  vol_ = vector<double>(numCells_);
 }
 
 /* constructor to get a slice (portion) of the geometry of a procBlock. The
@@ -264,10 +245,7 @@ stateSlice::stateSlice() {
   numK_ = 1;
   parBlock_ = 0;
 
-  // dummy primVars variable length of number of cells
-  vector<primVars> prims(numCells_);
-
-  state_ = prims;
+  state_ = vector<primVars>(numCells_);
 }
 // constructor -- initialize state vector with dummy variables
 stateSlice::stateSlice(const int &li, const int &lj, const int &lk,
@@ -285,10 +263,7 @@ stateSlice::stateSlice(const int &li, const int &lj, const int &lk,
 
   parBlock_ = pblk;
 
-  // dummy primVars variable length of number of cells
-  vector<primVars> prims(numCells_);
-
-  state_ = prims;
+  state_ = vector<primVars>(numCells_);
 }
 
 /*Member function to pack a stateslice into a buffer, swap it with its
