@@ -9633,6 +9633,9 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData) {
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).dt_[0],
              (*this).dt_.size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack time steps
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).wallDist_[0],
+             (*this).wallDist_.size(), MPI_DOUBLE,
+             MPI_COMM_WORLD);  // unpack wall distance
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).avgWaveSpeed_[0],
              (*this).avgWaveSpeed_.size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack average wave speeds
@@ -9658,6 +9661,9 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData) const {
   MPI_Pack_size((*this).dt_.size(), MPI_DOUBLE, MPI_COMM_WORLD,
                 &tempSize);  // add size for time steps
   sendBufSize += tempSize;
+  MPI_Pack_size((*this).wallDist_.size(), MPI_DOUBLE, MPI_COMM_WORLD,
+                &tempSize);  // add size for wall distance
+  sendBufSize += tempSize;
   MPI_Pack_size((*this).avgWaveSpeed_.size(), MPI_DOUBLE, MPI_COMM_WORLD,
                 &tempSize);  // add size for average wave speed
   sendBufSize += tempSize;
@@ -9673,6 +9679,8 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData) const {
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*this).dt_[0], (*this).dt_.size(), MPI_DOUBLE, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*this).wallDist_[0], (*this).wallDist_.size(), MPI_DOUBLE,
+           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*this).avgWaveSpeed_[0], (*this).avgWaveSpeed_.size(), MPI_DOUBLE,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
 
