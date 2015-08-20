@@ -418,7 +418,7 @@ primVars primVars::GetGhostState(const string &bcType,
   // face area vector (should always point out of domain)
   // at lower surface normal should point out of domain for ghost cell calc
   vector3d<double> normArea = (surf == "il" || surf == "jl" || surf == "kl") ?
-      areaVec : -1.0 * areaVec;
+      -1.0 * areaVec : areaVec;
 
   double normVelCellCenter = 0;
 
