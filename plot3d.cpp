@@ -631,7 +631,7 @@ const vector<unitVec3dMag<double> > plot3dBlock::FaceAreaK() const {
         // k-coordinate
         // area vector is calculated so that normal nominally points in
         // direction of increasing k-coordinate
-        fArea.push_back(unitVec3dMag<double>(0.5 * xbd.CrossProd(xac)));
+        fArea.push_back(unitVec3dMag<double>(0.5 * xac.CrossProd(xbd)));
 
         if (fArea[index].Mag() <= 0) {
           cerr << "ERROR: Negative face area in PLOT3D block at index " << index
