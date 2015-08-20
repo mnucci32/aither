@@ -1626,7 +1626,8 @@ double CellSpectralRadius(const unitVec3dMag<double> &fAreaL,
   // eqnState -- equation of state
 
   // normalize face areas
-  vector3d<double> normAvg = 0.5 * (fAreaL.UnitVector() + fAreaR.UnitVector());
+  vector3d<double> normAvg = (0.5 * (fAreaL.UnitVector() +
+                                     fAreaR.UnitVector())).Normalize();
   double fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());  // average area magnitude
 
   // return spectral radius

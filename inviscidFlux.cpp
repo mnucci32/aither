@@ -943,10 +943,9 @@ inviscidFlux operator/(const double &scalar, const inviscidFlux &flux) {
 
 // convert the inviscid flux to a genArray
 genArray inviscidFlux::ConvertToGenArray() const {
-  genArray temp((*this).RhoVel(), (*this).RhoVelU(), (*this).RhoVelV(),
-                (*this).RhoVelW(), (*this).RhoVelH(), (*this).RhoVelK(),
-                (*this).RhoVelO());
-  return temp;
+  return genArray((*this).RhoVel(), (*this).RhoVelU(), (*this).RhoVelV(),
+                  (*this).RhoVelW(), (*this).RhoVelH(), (*this).RhoVelK(),
+                  (*this).RhoVelO());
 }
 
 // function to take in the primative variables, equation of state, face area

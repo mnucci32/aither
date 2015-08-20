@@ -9,7 +9,7 @@ cflStart: 100000.0
 cflMax: 100000.0
 faceReconstruction: thirdOrder
 limiter: none
-iterations: 5000
+iterations: 1 #5000
 outputFrequency: 1000
 #
 stagnationInlet: 1 102010.0 288.58 1.0 0.0 0.0

@@ -415,13 +415,10 @@ primVars primVars::GetGhostState(const string &bcType,
     exit(0);
   }
 
-  // normalize area vector (should always point out of domain)
-  vector3d<double> normArea = areaVec;
-  if (surf == "il" || surf == "jl" || surf == "kl") {
-    normArea = -1.0 * normArea;  // at lower surface normal
-                                 // should point out of domain
-                                 //  for ghost cell calculation
-  }
+  // face area vector (should always point out of domain)
+  // at lower surface normal should point out of domain for ghost cell calc
+  vector3d<double> normArea = (surf == "il" || surf == "jl" || surf == "kl") ?
+      areaVec : -1.0 * areaVec;
 
   double normVelCellCenter = 0;
 
@@ -797,9 +794,7 @@ primVars primVars::UpdateWithConsVars(const idealGas &eqnState,
   genArray consUpdate = (*this).ConsVars(eqnState) + du;
 
   // convert back to primative variables
-  primVars primUpdate(consUpdate, false, eqnState);
-
-  return primUpdate;
+  return primVars(consUpdate, false, eqnState);
 }
 
 bool primVars::IsZero() const {

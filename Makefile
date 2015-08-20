@@ -4,8 +4,8 @@ DEBUG = -ggdb -pg
 OPTIM = -O3 -march=native
 PROF = -O3 -march=native -pg
 CODENAME = main
-CFLAGS = -std=c++11 -Wall -c $(OPTIM)
-LFLAGS = -std=c++11 -Wall $(OPTIM) -o $(CODENAME)
+CFLAGS = -std=c++11 -Wall -c $(DEBUG)
+LFLAGS = -std=c++11 -Wall $(DEBUG) -o $(CODENAME)
 
 $(CODENAME) : $(OBJS)
 	$(CC) $(LFLAGS) $(OBJS)
