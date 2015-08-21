@@ -34,6 +34,7 @@
 #include "turbulence.hpp"
 #include "gradients.hpp"
 #include "resid.hpp"
+#include "multiArray3d.hpp"
 
 using std::cout;
 using std::cerr;
