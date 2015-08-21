@@ -48,8 +48,8 @@ class vector3d {
   vector3d<T> operator-(const vector3d &) const;
   vector3d<T> operator*(const T &) const;
   vector3d<T> operator/(const T &) const;
-  T operator[](const int &a) const { return data_[a]; }
-  T &operator[](const int &a) { return data_[a]; }
+  const T& operator[](const int &a) const { return data_[a]; }
+  T& operator[](const int &a) { return data_[a]; }
   bool operator==(const vector3d &) const;
   template <class TT>
   friend vector3d<TT> operator*(const TT &, const vector3d<TT> &);
