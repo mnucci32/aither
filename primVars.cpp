@@ -394,7 +394,7 @@ primVars primVars::GetGhostState(const string &bcType,
                                  const sutherland &suth,
                                  const int layer) const {
   // bcType -- type of boundary condition to supply ghost cell for
-  // areaVec -- area vector of boundary face
+  // areaVec -- unit area vector of boundary face
   // surf -- i, j, k surface of boundary
   // inputVar -- all input variables
   // eqnState -- equation of state
@@ -415,15 +415,10 @@ primVars primVars::GetGhostState(const string &bcType,
     exit(0);
   }
 
-  // normalize area vector (should always point out of domain)
-  vector3d<double> normArea;
-  if (surf == "il" || surf == "jl" || surf == "kl") {
-    normArea = -1.0 * areaVec / areaVec.Mag();  // at lower surface normal
-                                                // should point out of domain
-                                                // for ghost cell calculation
-  } else if (surf == "iu" || surf == "ju" || surf == "ku") {
-    normArea = areaVec / areaVec.Mag();
-  }
+  // face area vector (should always point out of domain)
+  // at lower surface normal should point out of domain for ghost cell calc
+  vector3d<double> normArea = (surf == "il" || surf == "jl" || surf == "kl") ?
+      -1.0 * areaVec : areaVec;
 
   double normVelCellCenter = 0;
 
@@ -799,9 +794,7 @@ primVars primVars::UpdateWithConsVars(const idealGas &eqnState,
   genArray consUpdate = (*this).ConsVars(eqnState) + du;
 
   // convert back to primative variables
-  primVars primUpdate(consUpdate, false, eqnState);
-
-  return primUpdate;
+  return primVars(consUpdate, false, eqnState);
 }
 
 bool primVars::IsZero() const {

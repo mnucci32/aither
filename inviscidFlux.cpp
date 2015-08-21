@@ -49,12 +49,11 @@ areax, areay, areaz -- area components
 
 */
 inviscidFlux::inviscidFlux(const primVars &state, const idealGas &eqnState,
-                           const vector3d<double> &areaVec) {
+                           const vector3d<double> &normArea) {
   // state -- primative variables
   // eqnState -- equation of state
-  // areaVec -- area vector of face
+  // normArea -- unit area vector of face
 
-  vector3d<double> normArea = areaVec / areaVec.Mag();  // normalize area vector
   vector3d<double> vel = state.Velocity();
 
   data_[0] = state.Rho() * vel.DotProd(normArea);
@@ -73,15 +72,14 @@ inviscidFlux::inviscidFlux(const primVars &state, const idealGas &eqnState,
 // constructor -- initialize flux from state vector using conservative variables
 // flux is a 3D flux in the normal direction of the given face
 inviscidFlux::inviscidFlux(const genArray &cons, const idealGas &eqnState,
-                           const vector3d<double> &areaVec) {
+                           const vector3d<double> &normArea) {
   // cons -- genArray of conserved variables
   // eqnState -- equation of state
-  // areaVec -- area vector of face
+  // normArea -- unit area vector of face
 
   // convert conserved variables to primative variables
   primVars state(cons, false, eqnState);
 
-  vector3d<double> normArea = areaVec / areaVec.Mag();  // normalize area vector
   vector3d<double> vel = state.Velocity();
 
   data_[0] = state.Rho() * vel.DotProd(normArea);
@@ -143,12 +141,12 @@ wave strength across the face.
 
 */
 inviscidFlux RoeFlux(const primVars &left, const primVars &right,
-                     const idealGas &eqnState, const vector3d<double> &areaVec,
+                     const idealGas &eqnState, const vector3d<double> &areaNorm,
                      double &maxWS) {
   // left -- primative variables from left
   // right -- primative variables from right
   // eqnState -- equation of state
-  // areaVec -- area vector of face
+  // areaNorm -- norm area vector of face
   // maxWS -- maximum wave speed at face
 
   // compute Rho averaged quantities
@@ -174,7 +172,6 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   // Roe averaged face normal velocity
   vector3d<double> velR(uR, vR, wR);
 
-  vector3d<double> areaNorm = areaVec / areaVec.Mag();  // normalize area vector
   // Roe velocity dotted with normalized area vector
   double velRSum = velR.DotProd(areaNorm);
 
@@ -292,12 +289,12 @@ void inviscidFlux::RoeFlux(const inviscidFlux &right, const genArray &diss) {
 // method
 void ApproxRoeFluxJacobian(const primVars &left, const primVars &right,
                            const idealGas &eqnState,
-                           const vector3d<double> &areaVec, double &maxWS,
+                           const vector3d<double> &areaNorm, double &maxWS,
                            squareMatrix &dF_dUl, squareMatrix &dF_dUr) {
   // left --> primative variables from left side
   // right --> primative variables from right side
   // eqnStat --> ideal gas equation of state
-  // areaVec --> face area vector
+  // areaNorm --> face unit area vector
   // maxWS --> maximum wave speed
   // dF_dUl --> dF/dUl, derivative of the Roe flux wrt the left state
   // (conservative variables)
@@ -327,9 +324,6 @@ void ApproxRoeFluxJacobian(const primVars &left, const primVars &right,
                                                                  // sound
   // Roe averaged face normal velocity
   vector3d<double> velR(uR, vR, wR);
-
-  vector3d<double> areaNorm =
-      areaVec / areaVec.Mag();  // normalize area vector to unit vector
 
   // dot product of velocities (Roe, left, right) with unit area vector
   double velRNorm = velR.DotProd(areaNorm);
@@ -949,26 +943,25 @@ inviscidFlux operator/(const double &scalar, const inviscidFlux &flux) {
 
 // convert the inviscid flux to a genArray
 genArray inviscidFlux::ConvertToGenArray() const {
-  genArray temp((*this).RhoVel(), (*this).RhoVelU(), (*this).RhoVelV(),
-                (*this).RhoVelW(), (*this).RhoVelH(), (*this).RhoVelK(),
-                (*this).RhoVelO());
-  return temp;
+  return genArray((*this).RhoVel(), (*this).RhoVelU(), (*this).RhoVelV(),
+                  (*this).RhoVelW(), (*this).RhoVelH(), (*this).RhoVelK(),
+                  (*this).RhoVelO());
 }
 
 // function to take in the primative variables, equation of state, face area
 // vector, and conservative variable update and calculate the change in the
 // convective flux
 genArray ConvectiveFluxUpdate(const primVars &state, const idealGas &eqnState,
-                              const vector3d<double> &fArea,
+                              const vector3d<double> &normArea,
                               const genArray &du) {
   // get inviscid flux of old state
-  inviscidFlux oldFlux(state, eqnState, fArea);
+  inviscidFlux oldFlux(state, eqnState, normArea);
 
   // get updated state in primative variables
   primVars stateUpdate = state.UpdateWithConsVars(eqnState, du);
 
   // get updated inviscid flux
-  inviscidFlux newFlux(stateUpdate, eqnState, fArea);
+  inviscidFlux newFlux(stateUpdate, eqnState, normArea);
 
   // calculate difference in flux
   inviscidFlux dFlux = newFlux - oldFlux;

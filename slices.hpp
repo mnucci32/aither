@@ -42,9 +42,9 @@ class interblock;
 
 class geomSlice {
   vector<vector3d<double> > center_;  // coordinates of cell center_
-  vector<vector3d<double> > fAreaI_;  // face area vector for i-faces
-  vector<vector3d<double> > fAreaJ_;  // face area vector for j-faces
-  vector<vector3d<double> > fAreaK_;  // face area vector for k-faces
+  vector<unitVec3dMag<double> > fAreaI_;  // face area vector for i-faces
+  vector<unitVec3dMag<double> > fAreaJ_;  // face area vector for j-faces
+  vector<unitVec3dMag<double> > fAreaK_;  // face area vector for k-faces
   vector<vector3d<double> > fCenterI_;  // coordinates of i-face centers
   vector<vector3d<double> > fCenterJ_;  // coordinates of j-face centers
   vector<vector3d<double> > fCenterK_;  // coordinates of k-face centers
@@ -74,9 +74,9 @@ class geomSlice {
 
   double Vol(const int &ind) const { return vol_[ind]; }
   vector3d<double> Center(const int &ind) const { return center_[ind]; }
-  vector3d<double> FAreaI(const int &ind) const { return fAreaI_[ind]; }
-  vector3d<double> FAreaJ(const int &ind) const { return fAreaJ_[ind]; }
-  vector3d<double> FAreaK(const int &ind) const { return fAreaK_[ind]; }
+  unitVec3dMag<double> FAreaI(const int &ind) const { return fAreaI_[ind]; }
+  unitVec3dMag<double> FAreaJ(const int &ind) const { return fAreaJ_[ind]; }
+  unitVec3dMag<double> FAreaK(const int &ind) const { return fAreaK_[ind]; }
   vector3d<double> FCenterI(const int &ind) const { return fCenterI_[ind]; }
   vector3d<double> FCenterJ(const int &ind) const { return fCenterJ_[ind]; }
   vector3d<double> FCenterK(const int &ind) const { return fCenterK_[ind]; }

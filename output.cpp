@@ -34,7 +34,7 @@
 #include "boundaryConditions.hpp"  // decomposition
 #include "resid.hpp"               // resid
 
-#define VAROUT 14
+#define VAROUT 15
 
 using std::cout;
 using std::endl;
@@ -481,6 +481,10 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars,
             }
           }
         }
+      } else if (vv == 14) {  // wall distance - no ghost cells
+        for (int ii = 0; ii < blkLen; ii++) {
+          dumVec[ii] = recombVars[ll].WallDist(ii);
+        }
       } else {
         cerr << "ERROR: Variable to write to function file is not defined!"
              << endl;
@@ -513,6 +517,8 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars,
           dumDouble = dumDouble * refSoS * refSoS;
         } else if (vv == 13) {  // omega
           dumDouble = dumDouble * refSoS * refSoS * inp.RRef() / suth.MuRef();
+        } else if (vv == 14) {  // wall distance
+          dumDouble = dumDouble * inp.LRef();
         }
         outFile.write(reinterpret_cast<char *>(&dumDouble), sizeof(dumDouble));
       }
@@ -583,6 +589,7 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
   resFile << writeName << " F 0012 viscRatio" << endl;
   resFile << writeName << " F 0013 tke" << endl;
   resFile << writeName << " F 0014 omega" << endl;
+  resFile << writeName << " F 0015 wallDistance" << endl;
   resFile << writeName << " F 0002 0003 0004 velocity" << endl;
 
   // Close results file
