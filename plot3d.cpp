@@ -29,42 +29,7 @@ using std::ifstream;
 using std::ofstream;
 using std::ios;
 
-//--------------------------------------------------------------------------
-// plot 3d block constructor, member functions
-// constructor -- assign passed variables to create plot3d block
-plot3dBlock::plot3dBlock(const int &i, const int &j, const int &k,
-                         const vector<double> &xCoord,
-                         const vector<double> &yCoord,
-                         const vector<double> &zCoord) {
-  numi_ = i;
-  numj_ = j;
-  numk_ = k;
-  x_ = xCoord;
-  y_ = yCoord;
-  z_ = zCoord;
-}
-plot3dBlock::plot3dBlock(const int &i, const int &j, const int &k) {
-  numi_ = i;
-  numj_ = j;
-  numk_ = k;
-  int numPts = i * j * k;
-  vector<double> initial(numPts, 0.0);
-  x_ = initial;
-  y_ = initial;
-  z_ = initial;
-}
-// constructor with no arguments
-plot3dBlock::plot3dBlock() {
-  numi_ = 0;
-  numj_ = 0;
-  numk_ = 0;
-  vector<double> xCoord(1, 0);
-  vector<double> yCoord(1, 0);
-  vector<double> zCoord(1, 0);
-  x_ = xCoord;
-  y_ = yCoord;
-  z_ = zCoord;
-}
+// plot 3d block member functions
 
 // plot3dBlock member function that calcualtes the volume of each cell
 /*
@@ -79,118 +44,69 @@ The equation above shows how the volume of a pyramid (Vp) is calculated. Havg is
 the average distance from the four base points to the top of the pyramid. D1 and
 D2 are the diagonal distances of the four base points.
 */
-const vector<double> plot3dBlock::Volume() const {
+multiArray3d<double> plot3dBlock::Volume() const {
+  // Allocate multiArray3d to store cell volumes in
+  multiArray3d<double> vol((*this).NumI() - 1, (*this).NumJ() - 1,
+                           (*this).NumK() - 1);
 
-  int len =
-      (numi_ - 1) * (numj_ - 1) * (numk_ - 1);  // number of cells in the block
-
-  vector<double> vol;  // declare vector and reserve necessary space
-  vol.reserve(len);
-
-  // each hex cell is broken up into 3 pyramids and the volume of each pyramid
-  // is calculated
-  double pyramid1 = 0;
-  double pyramid2 = 0;
-  double pyramid3 = 0;
-
-  // vectors of coordinates of the 8 points that make up each hex cell
-  vector3d<double> botStarAft(0, 0, 0);
-  vector3d<double> botStarFore(0, 0, 0);
-  vector3d<double> botPortFore(0, 0, 0);
-  vector3d<double> botPortAft(0, 0, 0);
-  vector3d<double> topStarAft(0, 0, 0);
-  vector3d<double> topStarFore(0, 0, 0);
-  vector3d<double> topPortFore(0, 0, 0);
-  vector3d<double> topPortAft(0, 0, 0);
-
-  // vectors of the components that go into calculating the volume of each
-  // pyramid
-  vector3d<double> xp(0, 0, 0);  // avg vector from 4 base points to peak point
-  vector3d<double> xac(0, 0, 0);  // vector along diagonal of base
-  vector3d<double> xbd(0, 0, 0);  // vector along diagonal of base
-
-  int index = 0;  // cell index counter
-
-  for (int kk = 0; kk < numk_ - 1; kk++) {
-    for (int jj = 0; jj < numj_ - 1; jj++) {
-      for (int ii = 0; ii < numi_ - 1; ii++) {
-        // assign coordinates to 8 points that make up the cell being analyzed
-        int loc = GetLoc1D(ii, jj, kk, numi_, numj_);
-
+  // Loop over all cells
+  for (int kk = 0; kk < vol.NumK(); kk++) {
+    for (int jj = 0; jj < vol.NumJ(); jj++) {
+      for (int ii = 0; ii < vol.NumI(); ii++) {
         // baseline location
-        botStarAft.SetX(x_[loc]);
-        botStarAft.SetY(y_[loc]);
-        botStarAft.SetZ(z_[loc]);
-
+        vector3d<double> botStarAft = coords_(ii, jj, kk);
         // up 1 in the i-direction
-        botStarFore.SetX(x_[loc + 1]);
-        botStarFore.SetY(y_[loc + 1]);
-        botStarFore.SetZ(z_[loc + 1]);
-
+        vector3d<double> botStarFore = coords_(ii + 1, jj, kk);
         // up 1 in the j-direction
-        botPortAft.SetX(x_[loc + numi_]);
-        botPortAft.SetY(y_[loc + numi_]);
-        botPortAft.SetZ(z_[loc + numi_]);
-
+        vector3d<double> botPortAft = coords_(ii, jj + 1, kk);
         // up 1 in the i and j directions
-        botPortFore.SetX(x_[loc + numi_ + 1]);
-        botPortFore.SetY(y_[loc + numi_ + 1]);
-        botPortFore.SetZ(z_[loc + numi_ + 1]);
-
+        vector3d<double> botPortFore = coords_(ii + 1, jj + 1, kk);
         // up 1 in the k direction
-        topStarAft.SetX(x_[loc + numi_ * numj_]);
-        topStarAft.SetY(y_[loc + numi_ * numj_]);
-        topStarAft.SetZ(z_[loc + numi_ * numj_]);
-
+        vector3d<double> topStarAft = coords_(ii, jj, kk + 1);
         // up 1 in the i and k directions
-        topStarFore.SetX(x_[loc + numi_ * numj_ + 1]);
-        topStarFore.SetY(y_[loc + numi_ * numj_ + 1]);
-        topStarFore.SetZ(z_[loc + numi_ * numj_ + 1]);
-
+        vector3d<double> topStarFore = coords_(ii + 1, jj, kk + 1);
         // up 1 in the j and k directions
-        topPortAft.SetX(x_[loc + numi_ + numi_ * numj_]);
-        topPortAft.SetY(y_[loc + numi_ + numi_ * numj_]);
-        topPortAft.SetZ(z_[loc + numi_ + numi_ * numj_]);
-
+        vector3d<double> topPortAft = coords_(ii, jj + 1, kk + 1);
         // up 1 in the i, j, and k directions
-        topPortFore.SetX(x_[loc + numi_ + numi_ * numj_ + 1]);
-        topPortFore.SetY(y_[loc + numi_ + numi_ * numj_ + 1]);
-        topPortFore.SetZ(z_[loc + numi_ + numi_ * numj_ + 1]);
+        vector3d<double> topPortFore = coords_(ii + 1, jj + 1, kk + 1);
 
         // Point of all three pyramids is located at the top, starboard, aft
         // corner of the cell
         // Calculate volume for pyramid 1 - quad face is bottom side
-        xp = 0.25 * ((botStarAft - topStarAft) + (botPortAft - topStarAft) +
-                     (botStarFore - topStarAft) + (botPortFore - topStarAft));
-        xac = botPortFore - botStarAft;
-        xbd = botStarFore - botPortAft;
-        pyramid1 = 1.0 / 6.0 * xp.DotProd(xac.CrossProd(xbd));
+        // xp is average vector from 4 base points to peak of pyramid
+        vector3d<double> xp = 0.25 * ((botStarAft - topStarAft) +
+                                      (botPortAft - topStarAft) +
+                                      (botStarFore - topStarAft) +
+                                      (botPortFore - topStarAft));
+        // vectors along diagonal of base
+        vector3d<double> xac = botPortFore - botStarAft;
+        vector3d<double> xbd = botStarFore - botPortAft;
+        double pyramidVol = 1.0 / 6.0 * xp.DotProd(xac.CrossProd(xbd));
 
         // Calculate volume for pyramid2 - quad face is fore side
         xp = 0.25 * ((botStarFore - topStarAft) + (botPortFore - topStarAft) +
                      (topStarFore - topStarAft) + (topPortFore - topStarAft));
         xac = topPortFore - botStarFore;
         xbd = topStarFore - botPortFore;
-        pyramid2 = 1.0 / 6.0 * xp.DotProd(xac.CrossProd(xbd));
+        pyramidVol += 1.0 / 6.0 * xp.DotProd(xac.CrossProd(xbd));
 
         // Calculate volume for pyramid3 - quad face is port side
         xp = 0.25 * ((botPortFore - topStarAft) + (botPortAft - topStarAft) +
                      (topPortFore - topStarAft) + (topPortAft - topStarAft));
         xac = topPortFore - botPortAft;
         xbd = botPortFore - topPortAft;
-        pyramid3 = 1.0 / 6.0 * xp.DotProd(xac.CrossProd(xbd));
+        pyramidVol = 1.0 / 6.0 * xp.DotProd(xac.CrossProd(xbd));
 
-        // vol[index] = pyramid1 + pyramid2 + pyramid3;
-        vol.push_back(pyramid1 + pyramid2 + pyramid3);
+        // Assign volume to appropriate location
+        vol(ii, jj, kk) = pyramidVol;
 
-        if (vol[index] == 0) {
-          cerr << "ERROR: Negative volume in PLOT3D block at index " << index
-               << "!!!" << endl;
-          cerr << "i-dim = " << ii + 1 << ", j-dim = " << jj + 1
-               << ", k-dim = " << kk + 1 << endl;
-          exit(1);
+        // Check for negative volumes
+        if (pyramidVol <= 0) {
+          cerr << "ERROR: Negative volume in PLOT3D block!!!" << endl;
+          cerr << "i-dim = " << ii << ", j-dim = " << jj
+               << ", k-dim = " << kk << endl;
+          exit(0);
         }
-        index++;
       }
     }
   }
@@ -200,73 +116,37 @@ const vector<double> plot3dBlock::Volume() const {
 
 // plot3dBlock member function that calcualtes the centroid of each cell
 // the centroid of the hexahedron is the average of the 8 points that define it
-const vector<vector3d<double> > plot3dBlock::Centroid() const {
-  int len =
-      (numi_ - 1) * (numj_ - 1) * (numk_ - 1);  // number of cells in the block
-  vector<vector3d<double> > centroid;  // declare and preallocate centroid
-                                       // vector
-  centroid.reserve(len);
+multiArray3d<vector3d<double> > plot3dBlock::Centroid() const {
+  // Allocate multiArray3d to store cell centroids in
+  multiArray3d<vector3d<double> > centroid((*this).NumI() - 1,
+                                           (*this).NumJ() - 1,
+                                           (*this).NumK() - 1);
 
-  // vectors of coordinates of the 8 points that make up each hex cell
-  vector3d<double> botStarAft(0, 0, 0);
-  vector3d<double> botStarFore(0, 0, 0);
-  vector3d<double> botPortFore(0, 0, 0);
-  vector3d<double> botPortAft(0, 0, 0);
-  vector3d<double> topStarAft(0, 0, 0);
-  vector3d<double> topStarFore(0, 0, 0);
-  vector3d<double> topPortFore(0, 0, 0);
-  vector3d<double> topPortAft(0, 0, 0);
-
-  for (int kk = 0; kk < numk_ - 1; kk++) {
-    for (int jj = 0; jj < numj_ - 1; jj++) {
-      for (int ii = 0; ii < numi_ - 1; ii++) {
-        // assign coordinates to 8 points that make up the cell being analyzed
-        int loc = GetLoc1D(ii, jj, kk, numi_, numj_);
-
+  // loop over all cells
+  for (int kk = 0; kk < centroid.NumK(); kk++) {
+    for (int jj = 0; jj < centroid.NumJ(); jj++) {
+      for (int ii = 0; ii < centroid.NumI(); ii++) {
         // baseline location
-        botStarAft.SetX(x_[loc]);
-        botStarAft.SetY(y_[loc]);
-        botStarAft.SetZ(z_[loc]);
-
-        // up 1 in the i direction
-        botStarFore.SetX(x_[loc + 1]);
-        botStarFore.SetY(y_[loc + 1]);
-        botStarFore.SetZ(z_[loc + 1]);
-
-        // up 1 in the j direction
-        botPortAft.SetX(x_[loc + numi_]);
-        botPortAft.SetY(y_[loc + numi_]);
-        botPortAft.SetZ(z_[loc + numi_]);
-
+        vector3d<double> botStarAft = coords_(ii, jj, kk);
+        // up 1 in the i-direction
+        vector3d<double> botStarFore = coords_(ii + 1, jj, kk);
+        // up 1 in the j-direction
+        vector3d<double> botPortAft = coords_(ii, jj + 1, kk);
         // up 1 in the i and j directions
-        botPortFore.SetX(x_[loc + numi_ + 1]);
-        botPortFore.SetY(y_[loc + numi_ + 1]);
-        botPortFore.SetZ(z_[loc + numi_ + 1]);
-
+        vector3d<double> botPortFore = coords_(ii + 1, jj + 1, kk);
         // up 1 in the k direction
-        topStarAft.SetX(x_[loc + numi_ * numj_]);
-        topStarAft.SetY(y_[loc + numi_ * numj_]);
-        topStarAft.SetZ(z_[loc + numi_ * numj_]);
-
+        vector3d<double> topStarAft = coords_(ii, jj, kk + 1);
         // up 1 in the i and k directions
-        topStarFore.SetX(x_[loc + numi_ * numj_ + 1]);
-        topStarFore.SetY(y_[loc + numi_ * numj_ + 1]);
-        topStarFore.SetZ(z_[loc + numi_ * numj_ + 1]);
-
+        vector3d<double> topStarFore = coords_(ii + 1, jj, kk + 1);
         // up 1 in the j and k directions
-        topPortAft.SetX(x_[loc + numi_ + numi_ * numj_]);
-        topPortAft.SetY(y_[loc + numi_ + numi_ * numj_]);
-        topPortAft.SetZ(z_[loc + numi_ + numi_ * numj_]);
-
+        vector3d<double> topPortAft = coords_(ii, jj + 1, kk + 1);
         // up 1 in the i, j, and k directions
-        topPortFore.SetX(x_[loc + numi_ + numi_ * numj_ + 1]);
-        topPortFore.SetY(y_[loc + numi_ + numi_ * numj_ + 1]);
-        topPortFore.SetZ(z_[loc + numi_ + numi_ * numj_ + 1]);
+        vector3d<double> topPortFore = coords_(ii + 1, jj + 1, kk + 1);
 
         // Calculate the centroid of the cell
-        centroid.push_back(0.125 * (botStarAft + botStarFore + botPortAft +
-                                    botPortFore + topStarAft + topStarFore +
-                                    topPortAft + topPortFore));
+        centroid(ii, jj, kk) = (0.125 * (botStarAft + botStarFore + botPortAft +
+                                         botPortFore + topStarAft + topStarFore
+                                         + topPortAft + topPortFore));
       }
     }
   }
@@ -290,71 +170,43 @@ A = 0.5 * rAD (cross) rCB
 In the equation above rAD is the vector from D to A and rCD is the vector from B
 to C. The normal vector points in the direction of increasing i.
 */
-const vector<unitVec3dMag<double> > plot3dBlock::FaceAreaI() const {
-  int len = numi_ * (numj_ - 1) * (numk_ - 1);  // number of i-faces in the
-                                                // block
-  vector<unitVec3dMag<double> > fArea;  // declare and reserve space for vector
-  fArea.reserve(len);
+multiArray3d<unitVec3dMag<double> > plot3dBlock::FaceAreaI() const {
+  // Allocate multiArray3d to store cell face areas
+  multiArray3d<unitVec3dMag<double> > fArea((*this).NumI(), (*this).NumJ() - 1,
+                                            (*this).NumK() - 1);
 
-  // vectors of coordinates of the 4 points that make up each face
-  vector3d<double> botStarAft(0, 0, 0);
-  vector3d<double> botPortAft(0, 0, 0);
-  vector3d<double> topStarAft(0, 0, 0);
-  vector3d<double> topPortAft(0, 0, 0);
-
-  int index = 0;  // cell index counter
-
-  for (int kk = 0; kk < numk_ - 1; kk++) {
-    for (int jj = 0; jj < numj_ - 1; jj++) {
-      for (int ii = 0; ii < numi_; ii++) {
-        // assign coordinates to 4 points that make up the face being analyzed
-        int loc = GetLoc1D(ii, jj, kk, numi_, numj_);
-
+  // loop over all i-faces
+  for (int kk = 0; kk < fArea.NumK(); kk++) {
+    for (int jj = 0; jj < fArea.NumJ(); jj++) {
+      for (int ii = 0; ii < fArea.NumI(); ii++) {
         // baseline location
-        botStarAft.SetX(x_[loc]);
-        botStarAft.SetY(y_[loc]);
-        botStarAft.SetZ(z_[loc]);
-
-        // up 1 in j direction
-        botPortAft.SetX(x_[loc + numi_]);
-        botPortAft.SetY(y_[loc + numi_]);
-        botPortAft.SetZ(z_[loc + numi_]);
-
-        // up 1 in k direction
-        topStarAft.SetX(x_[loc + numi_ * numj_]);
-        topStarAft.SetY(y_[loc + numi_ * numj_]);
-        topStarAft.SetZ(z_[loc + numi_ * numj_]);
-
-        // up 1 in j and k directions
-        topPortAft.SetX(x_[loc + numi_ + numi_ * numj_]);
-        topPortAft.SetY(y_[loc + numi_ + numi_ * numj_]);
-        topPortAft.SetZ(z_[loc + numi_ + numi_ * numj_]);
+        vector3d<double> botStarAft = coords_(ii, jj, kk);
+        // up 1 in the j-direction
+        vector3d<double> botPortAft = coords_(ii, jj + 1, kk);
+        // up 1 in the k direction
+        vector3d<double> topStarAft = coords_(ii, jj, kk + 1);
+        // up 1 in the j and k directions
+        vector3d<double> topPortAft = coords_(ii, jj + 1, kk + 1);
 
         // Calculate area for face by taking 1/2 of the cross product between
         // opposite diagonals
-        vector3d<double> xac =
-            topPortAft - botStarAft;  // vector from opposite corners of face
-        vector3d<double> xbd =
-            botPortAft - topStarAft;  // vector from opposite corners of face
+        // vectors from opposite corners of face
+        vector3d<double> xac = topPortAft - botStarAft;
+        vector3d<double> xbd = botPortAft - topStarAft;
 
-        // fArea[index] = 0.5 * xbd.CrossProd(xac);     //area vector is
-        // calculated so that normal points nominally in direction of increasing
-        // i-coordinate
         // area vector is calculated so that normal points nominally in
         // direction of increasing i-coordinate
-        fArea.push_back(unitVec3dMag<double>(0.5 * xbd.CrossProd(xac)));
+        fArea(ii, jj, kk) = unitVec3dMag<double>(0.5 * xbd.CrossProd(xac));
 
-        if (fArea[index].Mag() <= 0) {
-          cerr << "ERROR: Negative face area in PLOT3D block at index " << index
-               << "!!!" << endl;
-          cerr << "Face area = " << fArea[index].Mag() << endl;
+        if (fArea(ii, jj, kk).Mag() <= 0) {
+          cerr << "ERROR: Negative i-face area in PLOT3D block!!!" << endl;
+          cerr << "Face area = " << fArea(ii, jj, kk).Mag() << endl;
           cerr << "i-dim = " << ii << ", j-dim = " << jj << ", k-dim = " << kk
                << endl;
           cerr << "Vectors to opposite diagonals are : " << xac << " and "
                << xbd << endl;
           exit(0);
         }
-        index++;
       }
     }
   }
@@ -365,52 +217,27 @@ const vector<unitVec3dMag<double> > plot3dBlock::FaceAreaI() const {
 // plot3dBlock member function that calcualtes the center of each face normal to
 // the i-direction the face center is calculated as the average of the 4 points
 // that comprise it
-const vector<vector3d<double> > plot3dBlock::FaceCenterI() const {
-  int len = numi_ * (numj_ - 1) * (numk_ - 1);  // number of i-faces in the
-                                                // block
-  vector<vector3d<double> > fCenter;  // declare and reserve space for vector
-  fCenter.reserve(len);
-
-  // vectors of coordinates of the 4 points that make up each face
-  vector3d<double> botStarAft(0, 0, 0);
-  vector3d<double> botPortAft(0, 0, 0);
-  vector3d<double> topStarAft(0, 0, 0);
-  vector3d<double> topPortAft(0, 0, 0);
-
-  // int index = 0;                         //cell index counter
-
-  for (int kk = 0; kk < numk_ - 1; kk++) {
-    for (int jj = 0; jj < numj_ - 1; jj++) {
-      for (int ii = 0; ii < numi_; ii++) {
-        // assign coordinates to 4 points that make up the face being analyzed
-        int loc = GetLoc1D(ii, jj, kk, numi_, numj_);
-
+multiArray3d<vector3d<double> > plot3dBlock::FaceCenterI() const {
+  // Allocate multiArray3d to store cell face centers
+  multiArray3d<vector3d<double> > fCenter((*this).NumI(),
+                                          (*this).NumJ() - 1,
+                                          (*this).NumK() - 1);
+  // loop over all i-faces
+  for (int kk = 0; kk < fCenter.NumK(); kk++) {
+    for (int jj = 0; jj < fCenter.NumJ(); jj++) {
+      for (int ii = 0; ii < fCenter.NumI(); ii++) {
         // baseline location
-        botStarAft.SetX(x_[loc]);
-        botStarAft.SetY(y_[loc]);
-        botStarAft.SetZ(z_[loc]);
-
-        // up 1 in j direction
-        botPortAft.SetX(x_[loc + numi_]);
-        botPortAft.SetY(y_[loc + numi_]);
-        botPortAft.SetZ(z_[loc + numi_]);
-
-        // up 1 in k direction
-        topStarAft.SetX(x_[loc + numi_ * numj_]);
-        topStarAft.SetY(y_[loc + numi_ * numj_]);
-        topStarAft.SetZ(z_[loc + numi_ * numj_]);
-
-        // up 1 in j and k directions
-        topPortAft.SetX(x_[loc + numi_ + numi_ * numj_]);
-        topPortAft.SetY(y_[loc + numi_ + numi_ * numj_]);
-        topPortAft.SetZ(z_[loc + numi_ + numi_ * numj_]);
+        vector3d<double> botStarAft = coords_(ii, jj, kk);
+        // up 1 in the j-direction
+        vector3d<double> botPortAft = coords_(ii, jj + 1, kk);
+        // up 1 in the k direction
+        vector3d<double> topStarAft = coords_(ii, jj, kk + 1);
+        // up 1 in the j and k directions
+        vector3d<double> topPortAft = coords_(ii, jj + 1, kk + 1);
 
         // Calculate face center by averaging four points that make up the face
-        // fCenter[index] = 0.25 * (botStarAft + botPortAft + topStarAft +
-        // topPortAft);
-        fCenter.push_back(0.25 *
-                          (botStarAft + botPortAft + topStarAft + topPortAft));
-        // index++;
+        fCenter(ii, jj, kk) = 0.25 *
+            (botStarAft + botPortAft + topStarAft + topPortAft);
       }
     }
   }
@@ -434,71 +261,43 @@ A = 0.5 * rAD (cross) rCB
 In the equation above rAD is the vector from D to A and rCD is the vector from B
 to C. The normal points in the direction of increasing j.
 */
-const vector<unitVec3dMag<double> > plot3dBlock::FaceAreaJ() const {
-  int len = (numi_ - 1) * numj_ * (numk_ - 1);  // number of i-faces in the
-                                                // block
-  vector<unitVec3dMag<double> > fArea;  // declare and reserve space for vector
-  fArea.reserve(len);
+multiArray3d<unitVec3dMag<double> > plot3dBlock::FaceAreaJ() const {
+  // Allocate multiArray3d to store cell face areas
+  multiArray3d<unitVec3dMag<double> > fArea((*this).NumI() - 1, (*this).NumJ(),
+                                            (*this).NumK() - 1);
 
-  // vectors of coordinates of the 4 points that make up each face
-  vector3d<double> botStarAft(0, 0, 0);
-  vector3d<double> botPortAft(0, 0, 0);
-  vector3d<double> topStarAft(0, 0, 0);
-  vector3d<double> topPortAft(0, 0, 0);
-
-  int index = 0;  // cell index counter
-
-  for (int kk = 0; kk < numk_ - 1; kk++) {
-    for (int jj = 0; jj < numj_; jj++) {
-      for (int ii = 0; ii < numi_ - 1; ii++) {
-        // assign coordinates to 4 points that make up the face being analyzed
-        int loc = GetLoc1D(ii, jj, kk, numi_, numj_);
-
-        // up 1 in i direction
-        botStarAft.SetX(x_[loc + 1]);
-        botStarAft.SetY(y_[loc + 1]);
-        botStarAft.SetZ(z_[loc + 1]);
-
+  // loop over all j-faces
+  for (int kk = 0; kk < fArea.NumK(); kk++) {
+    for (int jj = 0; jj < fArea.NumJ(); jj++) {
+      for (int ii = 0; ii < fArea.NumI(); ii++) {
         // baseline location
-        botPortAft.SetX(x_[loc]);
-        botPortAft.SetY(y_[loc]);
-        botPortAft.SetZ(z_[loc]);
-
-        // up 1 in i and k directions
-        topStarAft.SetX(x_[loc + numi_ * numj_ + 1]);
-        topStarAft.SetY(y_[loc + numi_ * numj_ + 1]);
-        topStarAft.SetZ(z_[loc + numi_ * numj_ + 1]);
-
-        // up 1 in k direction
-        topPortAft.SetX(x_[loc + numi_ * numj_]);
-        topPortAft.SetY(y_[loc + numi_ * numj_]);
-        topPortAft.SetZ(z_[loc + numi_ * numj_]);
+        vector3d<double> botStarAft = coords_(ii, jj, kk);
+        // up 1 in the i-direction
+        vector3d<double> botStarFore = coords_(ii + 1, jj, kk);
+        // up 1 in the k direction
+        vector3d<double> topStarAft = coords_(ii, jj, kk + 1);
+        // up 1 in the i and k directions
+        vector3d<double> topStarFore = coords_(ii + 1, jj, kk + 1);
 
         // Calculate area for face by taking 1/2 of the cross product between
         // opposite diagonals
-        vector3d<double> xac =
-            topPortAft - botStarAft;  // vector from opposite corners of face
-        vector3d<double> xbd =
-            botPortAft - topStarAft;  // vector from opposite corners of face
+        // vectors from opposite corners of face
+        vector3d<double> xac = topStarAft - botStarFore;
+        vector3d<double> xbd = botStarAft - topStarFore;
 
-        // fArea[index] = 0.5 * xbd.CrossProd(xac);       //area vector is
-        // calculated so that normal nominally points in direction of increasing
-        // j-coordinate
         // area vector is calculated so that normal nominally points in
         // direction of increasing j-coordinate
-        fArea.push_back(unitVec3dMag<double>(0.5 * xbd.CrossProd(xac)));
+        fArea(ii, jj, kk) = unitVec3dMag<double>(0.5 * xbd.CrossProd(xac));
 
-        if (fArea[index].Mag() <= 0) {
-          cerr << "ERROR: Negative face area in PLOT3D block at index " << index
-               << "!!!" << endl;
-          cerr << "Face area = " << fArea[index].Mag() << endl;
-          cerr << "i-dim = " << ii + 1 << ", j-dim = " << jj + 1
-               << ", k-dim = " << kk + 1 << endl;
+        if (fArea(ii, jj, kk).Mag() <= 0) {
+          cerr << "ERROR: Negative j-face area in PLOT3D block!!!" << endl;
+          cerr << "Face area = " << fArea(ii, jj, kk).Mag() << endl;
+          cerr << "i-dim = " << ii << ", j-dim = " << jj
+               << ", k-dim = " << kk << endl;
           cerr << "Vectors to opposite diagonals are : " << xac << " and "
                << xbd << endl;
           exit(0);
         }
-        index++;
       }
     }
   }
@@ -509,53 +308,28 @@ const vector<unitVec3dMag<double> > plot3dBlock::FaceAreaJ() const {
 // plot3dBlock member function that calcualtes the area of each face normal to
 // the j-direction
 // the face center is calculated as the average of the 4 points that comprise it
-const vector<vector3d<double> > plot3dBlock::FaceCenterJ() const {
-  int len = (numi_ - 1) * numj_ * (numk_ - 1);  // number of i-faces in the
-                                                // block
-  vector<vector3d<double> > fCenter;  // declare and reserve space for vector
-  fCenter.reserve(len);
-
-  // vectors of coordinates of the 4 points that make up each face
-  vector3d<double> botStarAft(0, 0, 0);
-  vector3d<double> botPortAft(0, 0, 0);
-  vector3d<double> topStarAft(0, 0, 0);
-  vector3d<double> topPortAft(0, 0, 0);
-
-  // int index = 0;                         //cell index counter
-
-  for (int kk = 0; kk < numk_ - 1; kk++) {
-    for (int jj = 0; jj < numj_; jj++) {
-      for (int ii = 0; ii < numi_ - 1; ii++) {
-        // assign coordinates to 4 points that make up the face being analyzed
-        int loc = GetLoc1D(ii, jj, kk, numi_, numj_);
-
-        // up 1 in i direction
-        botStarAft.SetX(x_[loc + 1]);
-        botStarAft.SetY(y_[loc + 1]);
-        botStarAft.SetZ(z_[loc + 1]);
-
+multiArray3d<vector3d<double> > plot3dBlock::FaceCenterJ() const {
+  // Allocate multiArray3d to store cell face centers
+  multiArray3d<vector3d<double> > fCenter((*this).NumI() - 1,
+                                          (*this).NumJ(),
+                                          (*this).NumK() - 1);
+  // loop over all j-faces
+  for (int kk = 0; kk < fCenter.NumK(); kk++) {
+    for (int jj = 0; jj < fCenter.NumJ(); jj++) {
+      for (int ii = 0; ii < fCenter.NumI(); ii++) {
         // baseline location
-        botPortAft.SetX(x_[loc]);
-        botPortAft.SetY(y_[loc]);
-        botPortAft.SetZ(z_[loc]);
-
-        // up 1 in i and k directions
-        topStarAft.SetX(x_[loc + numi_ * numj_ + 1]);
-        topStarAft.SetY(y_[loc + numi_ * numj_ + 1]);
-        topStarAft.SetZ(z_[loc + numi_ * numj_ + 1]);
-
-        // up 1 in k direction
-        topPortAft.SetX(x_[loc + numi_ * numj_]);
-        topPortAft.SetY(y_[loc + numi_ * numj_]);
-        topPortAft.SetZ(z_[loc + numi_ * numj_]);
+        vector3d<double> botStarAft = coords_(ii, jj, kk);
+        // up 1 in the i-direction
+        vector3d<double> botStarFore = coords_(ii + 1, jj, kk);
+        // up 1 in the k direction
+        vector3d<double> topStarAft = coords_(ii, jj, kk + 1);
+        // up 1 in the i and k directions
+        vector3d<double> topStarFore = coords_(ii + 1, jj, kk + 1);
 
         // Calculate face center by averaging the four points that make up the
         // face
-        // fCenter[index] = 0.25 * (botStarAft + botPortAft + topStarAft +
-        // topPortAft);
-        fCenter.push_back(0.25 *
-                          (botStarAft + botPortAft + topStarAft + topPortAft));
-        // index++;
+        fCenter(ii, jj, kk) = 0.25 *
+            (botStarAft + botStarFore + topStarAft + topStarFore);
       }
     }
   }
@@ -579,71 +353,43 @@ A = 0.5 * rAD (cross) rCB
 In the equation above rAD is the vector from D to A and rCD is the vector from B
 to C. The normal vector points in the direction of increasing k.
 */
-const vector<unitVec3dMag<double> > plot3dBlock::FaceAreaK() const {
-  int len = (numi_ - 1) * (numj_ - 1) * numk_;  // number of i-faces in the
-                                                // block
-  vector<unitVec3dMag<double> > fArea;  // declare and reserve space for vector
-  fArea.reserve(len);
-
-  // vectors of coordinates of the 4 points that make up each face
-  vector3d<double> botStarAft(0, 0, 0);
-  vector3d<double> botPortAft(0, 0, 0);
-  vector3d<double> topStarAft(0, 0, 0);
-  vector3d<double> topPortAft(0, 0, 0);
-
-  int index = 0;  // cell index counter
-
-  for (int kk = 0; kk < numk_; kk++) {
-    for (int jj = 0; jj < numj_ - 1; jj++) {
-      for (int ii = 0; ii < numi_ - 1; ii++) {
-        // assign coordinates to 4 points that make up the face being analyzed
-        int loc = GetLoc1D(ii, jj, kk, numi_, numj_);
-
+multiArray3d<unitVec3dMag<double> > plot3dBlock::FaceAreaK() const {
+  // Allocate multiArray3d to store cell face areas
+  multiArray3d<unitVec3dMag<double> > fArea((*this).NumI() - 1,
+                                            (*this).NumJ() - 1,
+                                            (*this).NumK());
+  // loop over all k-faces
+  for (int kk = 0; kk < fArea.NumK(); kk++) {
+    for (int jj = 0; jj < fArea.NumJ(); jj++) {
+      for (int ii = 0; ii < fArea.NumI(); ii++) {
         // baseline location
-        botStarAft.SetX(x_[loc]);
-        botStarAft.SetY(y_[loc]);
-        botStarAft.SetZ(z_[loc]);
-
-        // up 1 in j direction
-        botPortAft.SetX(x_[loc + numi_]);
-        botPortAft.SetY(y_[loc + numi_]);
-        botPortAft.SetZ(z_[loc + numi_]);
-
-        // up 1 in i direction
-        topStarAft.SetX(x_[loc + 1]);
-        topStarAft.SetY(y_[loc + 1]);
-        topStarAft.SetZ(z_[loc + 1]);
-
-        // up 1 in i and j directions
-        topPortAft.SetX(x_[loc + numi_ + 1]);
-        topPortAft.SetY(y_[loc + numi_ + 1]);
-        topPortAft.SetZ(z_[loc + numi_ + 1]);
+        vector3d<double> botStarAft = coords_(ii, jj, kk);
+        // up 1 in the i-direction
+        vector3d<double> botStarFore = coords_(ii + 1, jj, kk);
+        // up 1 in the j-direction
+        vector3d<double> botPortAft = coords_(ii, jj + 1, kk);
+        // up 1 in the i and j directions
+        vector3d<double> botPortFore = coords_(ii + 1, jj + 1, kk);
 
         // Calculate area for face by taking 1/2 of the cross product between
         // opposite diagonals
-        vector3d<double> xac =
-            topPortAft - botStarAft;  // vector from opposite corners of face
-        vector3d<double> xbd =
-            botPortAft - topStarAft;  // vector from opposite corners of face
+        // vectors from opposite corners of face
+        vector3d<double> xac = botPortAft - botStarFore;
+        vector3d<double> xbd = botPortFore - botStarAft;
 
-        // fArea[index] = 0.5 * xac.CrossProd(xbd);   //area vector is
-        // calculated so that normal nominally points in direction of increasing
-        // k-coordinate
         // area vector is calculated so that normal nominally points in
         // direction of increasing k-coordinate
-        fArea.push_back(unitVec3dMag<double>(0.5 * xac.CrossProd(xbd)));
+        fArea(ii, jj, kk) = unitVec3dMag<double>(0.5 * xbd.CrossProd(xac));
 
-        if (fArea[index].Mag() <= 0) {
-          cerr << "ERROR: Negative face area in PLOT3D block at index " << index
-               << "!!!" << endl;
-          cerr << "Face area = " << fArea[index].Mag() << endl;
-          cerr << "i-dim = " << ii + 1 << ", j-dim = " << jj + 1
-               << ", k-dim = " << kk + 1 << endl;
+        if (fArea(ii, jj, kk).Mag() <= 0) {
+          cerr << "ERROR: Negative k-face area in PLOT3D block!!!" << endl;
+          cerr << "Face area = " << fArea(ii, jj, kk).Mag() << endl;
+          cerr << "i-dim = " << ii << ", j-dim = " << jj
+               << ", k-dim = " << kk << endl;
           cerr << "Vectors to opposite diagonals are : " << xac << " and "
                << xbd << endl;
           exit(0);
         }
-        index++;
       }
     }
   }
@@ -654,47 +400,27 @@ const vector<unitVec3dMag<double> > plot3dBlock::FaceAreaK() const {
 // plot3dBlock member function that calcualtes the area of each face normal to
 // the k-direction
 // the face center is calculated as the average of the 4 points that comprise it
-const vector<vector3d<double> > plot3dBlock::FaceCenterK() const {
-  int len = (numi_ - 1) * (numj_ - 1) * numk_;  // number of i-faces in the
-                                                // block
-  vector<vector3d<double> > fCenter;  // declare and reserve space for vector
-  fCenter.reserve(len);
-
-  // vectors of coordinates of the 8 points that make up each hex cell
-  vector3d<double> botStarAft(0, 0, 0);
-  vector3d<double> botPortAft(0, 0, 0);
-  vector3d<double> topStarAft(0, 0, 0);
-  vector3d<double> topPortAft(0, 0, 0);
-
-  for (int kk = 0; kk < numk_; kk++) {
-    for (int jj = 0; jj < numj_ - 1; jj++) {
-      for (int ii = 0; ii < numi_ - 1; ii++) {
-        // assign coordinates to 8 points that make up the cell being analyzed
-        int loc = GetLoc1D(ii, jj, kk, numi_, numj_);
-
+multiArray3d<vector3d<double> > plot3dBlock::FaceCenterK() const {
+  // Allocate multiArray3d to store cell face centers
+  multiArray3d<vector3d<double> > fCenter((*this).NumI() - 1,
+                                          (*this).NumJ() - 1,
+                                          (*this).NumK());
+  // loop over all k-faces
+  for (int kk = 0; kk < fCenter.NumK(); kk++) {
+    for (int jj = 0; jj < fCenter.NumJ(); jj++) {
+      for (int ii = 0; ii < fCenter.NumI(); ii++) {
         // baseline location
-        botStarAft.SetX(x_[loc]);
-        botStarAft.SetY(y_[loc]);
-        botStarAft.SetZ(z_[loc]);
-
-        // up 1 in j direction
-        botPortAft.SetX(x_[loc + numi_]);
-        botPortAft.SetY(y_[loc + numi_]);
-        botPortAft.SetZ(z_[loc + numi_]);
-
-        // up 1 in i direction
-        topStarAft.SetX(x_[loc + 1]);
-        topStarAft.SetY(y_[loc + 1]);
-        topStarAft.SetZ(z_[loc + 1]);
-
-        // up 1 in i and j directions
-        topPortAft.SetX(x_[loc + numi_ + 1]);
-        topPortAft.SetY(y_[loc + numi_ + 1]);
-        topPortAft.SetZ(z_[loc + numi_ + 1]);
+        vector3d<double> botStarAft = coords_(ii, jj, kk);
+        // up 1 in the i-direction
+        vector3d<double> botStarFore = coords_(ii + 1, jj, kk);
+        // up 1 in the j-direction
+        vector3d<double> botPortAft = coords_(ii, jj + 1, kk);
+        // up 1 in the i and j directions
+        vector3d<double> botPortFore = coords_(ii + 1, jj + 1, kk);
 
         // Calculate face center by averaging four points that make up cell face
-        fCenter.push_back(0.25 *
-                          (botStarAft + botPortAft + topStarAft + topPortAft));
+        fCenter(ii, jj, kk) = 0.25 *
+            (botStarAft + botStarFore + botPortAft + botPortFore);
       }
     }
   }
@@ -758,27 +484,23 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, const double &LRef,
   mesh.reserve(numBlks);
 
   for (int ii = 0; ii < numBlks; ii++) {
-    int size = vecI[ii] * vecJ[ii] * vecK[ii];
-    vector<double> tempX(size, 0.0);
-    vector<double> tempY(size, 0.0);
-    vector<double> tempZ(size, 0.0);
+    multiArray3d<vector3d<double> > coordinates(vecI[ii], vecJ[ii], vecK[ii]);
 
-    for (int jj = 0; jj < size; jj++) {
+    for (int jj = 0; jj < coordinates.Size(); jj++) {
       fName.read(reinterpret_cast<char *>(&tempDouble), sizeof(tempDouble));
-      tempX[jj] = tempDouble / LRef;
+      coordinates(jj)[0] = tempDouble / LRef;
     }
-    for (int jj = 0; jj < size; jj++) {
+    for (int jj = 0; jj < coordinates.Size(); jj++) {
       fName.read(reinterpret_cast<char *>(&tempDouble), sizeof(tempDouble));
-      tempY[jj] = tempDouble / LRef;
+      coordinates(jj)[1] = tempDouble / LRef;
     }
-    for (int jj = 0; jj < size; jj++) {
+    for (int jj = 0; jj < coordinates.Size(); jj++) {
       fName.read(reinterpret_cast<char *>(&tempDouble), sizeof(tempDouble));
-      tempZ[jj] = tempDouble / LRef;
+      coordinates(jj)[2] = tempDouble / LRef;
     }
 
     // create single plot3dBlock and assign it appropriate location in vector
-    plot3dBlock singleBlock(vecI[ii], vecJ[ii], vecK[ii], tempX, tempY, tempZ);
-    mesh.push_back(singleBlock);
+    mesh.push_back(plot3dBlock(coordinates));
 
     cout << "Block " << ii << " read" << endl;
   }
@@ -790,274 +512,6 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, const double &LRef,
   fName.close();
 
   return mesh;
-}
-
-// function to take in imax, jmax, kmax, and vector index and return the i, j, k
-// indices of that cell
-vector3d<int> GetIJK(const int &imax, const int &jmax, const int &kmax,
-                     const int &index) {
-  vector3d<int> ijk;
-  bool breakFlag = false;
-
-  // Loop over all possible i, j, k combinations. When calculated index matches
-  // given index, i, j, k location
-  // is found. Once found, break out of loops and return
-  for (int kk = 0; kk < kmax; kk++) {
-    for (int jj = 0; jj < jmax; jj++) {
-      for (int ii = 0; ii < imax; ii++) {
-        int loc = GetLoc1D(ii, jj, kk, imax, jmax);
-        if (loc == index) {
-          ijk.SetX(ii);
-          ijk.SetY(jj);
-          ijk.SetZ(kk);
-          breakFlag = true;
-          break;
-        }
-      }
-      if (breakFlag) break;
-    }
-    if (breakFlag) break;
-  }
-
-  return ijk;
-}
-
-//-----------------------------------------------------------------------------
-// functions to take in i, j, k indexes of a cell and return the 1D index of the
-// face belonging to that cell
-/*
-    _________________________________________
-    |         |         |          |         |
-    |         |         |          |         |
-    |   Ui-1  |   Ui    |   Ui+1   |   Ui+2  |
-    |         |         |          |         |
-    |         |         |          |         |
-    |_________|_________|__________|_________|
-  Ui-1       Ui       Ui+1       Ui+2      Ui+3
-
-If the given i, j, k indices correspond to the location of cell Ui, the GetUpper
-functions will return the index of the face at face location Ui+1 and the
-GetLower functions will return the index of the face at face location Ui.
-
-The default is the return the index of the adjacent face, but this can be
-changed by supplying the last argument (num) to the function.
-
-*/
-// function to take in i, j, k indexes of a cell and return the 1D index of the
-// face in the upper i-direction
-int GetUpperFaceI(const int &i, const int &j, const int &k, const int &imax,
-                  const int &jmax, int num) {
-  return i + 1 + (num - 1) + j * (imax + 1) + k * (imax + 1) * jmax;
-}
-// function to take in i, j, k indexes of a cell and return the 1D index of the
-// face in the lower i-direction
-int GetLowerFaceI(const int &i, const int &j, const int &k, const int &imax,
-                  const int &jmax, int num) {
-  return i + 1 - num + j * (imax + 1) + k * (imax + 1) * jmax;
-}
-// function to take in i, j, k indexes of a cell and return the 1D index of the
-// face in the upper j-direction
-int GetUpperFaceJ(const int &i, const int &j, const int &k, const int &imax,
-                  const int &jmax, int num) {
-  return i + (j + 1 + (num - 1)) * imax + k * imax * (jmax + 1);
-}
-// function to take in i, j, k indexes of a cell and return the 1D index of the
-// face in the lower j-direction
-int GetLowerFaceJ(const int &i, const int &j, const int &k, const int &imax,
-                  const int &jmax, int num) {
-  return i + (j + 1 - num) * imax + k * imax * (jmax + 1);
-}
-// function to take in i, j, k indexes of a cell and return the 1D index of the
-// face in the upper k-direction
-int GetUpperFaceK(const int &i, const int &j, const int &k, const int &imax,
-                  const int &jmax, int num) {
-  return i + j * imax + (k + 1 + (num - 1)) * imax * jmax;
-}
-// function to take in i, j, k indexes of a cell and return the 1D index of the
-// face in the lower k-direction
-int GetLowerFaceK(const int &i, const int &j, const int &k, const int &imax,
-                  const int &jmax, int num) {
-  return i + j * imax + (k + 1 - num) * imax * jmax;
-}
-
-//---------------------------------------------------------------------------
-// functions to take in i, j, k indexes of a cell/face and return the 1D index
-// of the neighbor cell/face
-/*
-    _________________________________________
-    |         |         |          |         |
-    |         |         |          |         |
-    |   Ui-1  |   Ui    |   Ui+1   |   Ui+2  |
-    |         |         |          |         |
-    |         |         |          |         |
-    |_________|_________|__________|_________|
-  Ui-1       Ui       Ui+1       Ui+2      Ui+3
-
-If the given i, j, k indices correspond to the location of cell Ui, the GetUpper
-functions will return the index of the cell at location Ui+1 and the GetLower
-functions will return the index of the cell at location Ui-1.
-
-If the given i, j, k indices correspond to the location of face Ui, the GetUpper
-functions will return the index of the face at location Ui+1 and the GetLower
-functions will return the index of the face at location Ui-1.
-
-The default is to return the index of the adjacent neighbor, but this can be
-changed by supplying the last argument (num) to the function.
-
-*/
-// function to take in i, j, k indexes of a cell/face and return the 1D index of
-// the neighbor cell/face to the lower i face
-int GetNeighborLowI(const int &i, const int &j, const int &k, const int &imax,
-                    const int &jmax, int num) {
-  return i - num + j * imax + k * imax * jmax;
-}
-// function to take in i, j, k indexes of a cell/face and return the 1D index of
-// the neighbor cell/face to the upper i face
-int GetNeighborUpI(const int &i, const int &j, const int &k, const int &imax,
-                   const int &jmax, int num) {
-  return i + num + j * imax + k * imax * jmax;
-}
-// function to take in i, j, k indexes of a cell/face and return the 1D index of
-// the neighbor cell/face to the lower j face
-int GetNeighborLowJ(const int &i, const int &j, const int &k, const int &imax,
-                    const int &jmax, int num) {
-  return i + (j - num) * imax + k * imax * jmax;
-}
-// function to take in i, j, k indexes of a cell/face and return the 1D index of
-// the neighbor cell/face to the upper j face
-int GetNeighborUpJ(const int &i, const int &j, const int &k, const int &imax,
-                   const int &jmax, int num) {
-  return i + (j + num) * imax + k * imax * jmax;
-}
-// function to take in i, j, k indexes of a cell/face and return the 1D index of
-// the neighbor cell/face to the lower k face
-int GetNeighborLowK(const int &i, const int &j, const int &k, const int &imax,
-                    const int &jmax, int num) {
-  return i + j * imax + (k - num) * imax * jmax;
-}
-// function to take in i, j, k indexes of a cell/face and return the 1D index of
-// the neighbor cell/face to the upper k face
-int GetNeighborUpK(const int &i, const int &j, const int &k, const int &imax,
-                   const int &jmax, int num) {
-  return i + j * imax + (k + num) * imax * jmax;
-  ;
-}
-
-//-----------------------------------------------------------------------------
-// functions to take in i, j, k, imax, jmax of a face and return the 1D index of
-// the neighbor cell
-/*
-    _________________________________________
-    |         |         |          |         |
-    |         |         |          |         |
-    |   Ui-1  |   Ui    |   Ui+1   |   Ui+2  |
-    |         |         |          |         |
-    |         |         |          |         |
-    |_________|_________|__________|_________|
-  Ui-1       Ui       Ui+1       Ui+2      Ui+3
-
-If the given i, j, k indices correspond to the location of face Ui, the GetUpper
-functions will return the index of the cell at location Ui and the GetLower
-functions will return the index of the cell at location Ui-1.
-
-The default is to return the index of the adjacent cell, but this can be changed
-by supplying the last argument (num) to the function.
-
-*/
-// function to take in i, j, k indexes of a k-face and return the 1D index of
-// the neighbor cell in the lower k direction
-int GetCellFromFaceLowerK(const int &i, const int &j, const int &k,
-                          const int &imax, const int &jmax, int num) {
-  return i + j * imax + (k - 1 - (num - 1)) * imax * jmax;
-}
-// function to take in i, j, k indexes of a k-face and return the 1D index of
-// the neighbor cell in the upper k direction
-int GetCellFromFaceUpperK(const int &i, const int &j, const int &k,
-                          const int &imax, const int &jmax, int num) {
-  return i + j * imax + (k - 1 + num) * imax * jmax;
-}
-// function to take in i, j, k indexes of a j-face and return the 1D index of
-// the neighbor cell in the lower j direction
-int GetCellFromFaceLowerJ(const int &i, const int &j, const int &k,
-                          const int &imax, const int &jmax, int num) {
-  return i + (j - 1 - (num - 1)) * imax + k * imax * (jmax - 1);
-}
-// function to take in i, j, k indexes of a j-face and return the 1D index of
-// the neighbor cell in the upper j direction
-int GetCellFromFaceUpperJ(const int &i, const int &j, const int &k,
-                          const int &imax, const int &jmax, int num) {
-  return i + (j - 1 + num) * imax + k * imax * (jmax - 1);
-}
-// function to take in i, j, k indexes of a i-face and return the 1D index of
-// the neighbor cell in the lower i direction
-int GetCellFromFaceLowerI(const int &i, const int &j, const int &k,
-                          const int &imax, const int &jmax, int num) {
-  return (i - 1 - (num - 1)) + j * (imax - 1) + k * (imax - 1) * jmax;
-}
-// function to take in i, j, k indexes of a i-face and return the 1D index of
-// the neighbor cell in the upper i direction
-int GetCellFromFaceUpperI(const int &i, const int &j, const int &k,
-                          const int &imax, const int &jmax, int num) {
-  return (i - 1 + num) + j * (imax - 1) + k * (imax - 1) * jmax;
-}
-
-// function to take in i, j, k, imax, jmax and return corresponding location
-// inside 1D array
-int GetLoc1D(const int &i, const int &j, const int &k, const int &imax,
-             const int &jmax) {
-  return i + j * imax + k * imax * jmax;
-}
-
-// function to take in j, j, k indexes of a cell and the diagonal label, and
-// determine if the matrix should have data at the cell
-// NOT currently USED, but useful for debugging
-bool IsMatrixData(const int &i, const int &j, const int &k, const int &imax,
-                  const int &jmax, const int &kmax, const string &label) {
-  bool isData;
-
-  if (label == "il") {
-    if (i == 0) {
-      isData = false;  // at lower i boundary, there is no lower i diagonal
-    } else {
-      isData = true;
-    }
-  } else if (label == "iu") {
-    if (i == imax - 1) {
-      isData = false;  // at upper i boundary, there is no upper i diagonal
-    } else {
-      isData = true;
-    }
-  } else if (label == "jl") {
-    if (j == 0) {
-      isData = false;  // at lower j boundary, there is no lower j diagonal
-    } else {
-      isData = true;
-    }
-  } else if (label == "ju") {
-    if (j == jmax - 1) {
-      isData = false;  // at upper j boundary, there is no upper j diagonal
-    } else {
-      isData = true;
-    }
-  } else if (label == "kl") {
-    if (k == 0) {
-      isData = false;  // at lower k boundary, there is no lower k diagonal
-    } else {
-      isData = true;
-    }
-  } else if (label == "ku") {
-    if (k == kmax - 1) {
-      isData = false;  // at upper k boundary, there is no upper k diagonal
-    } else {
-      isData = true;
-    }
-  } else {
-    cerr << "ERROR: Cannot determine position in matrix because block surface "
-         << label << " is not recognized!" << endl;
-    isData = false;
-    exit(0);
-  }
-  return isData;
 }
 
 // function to reorder the block by hyperplanes
@@ -1080,8 +534,7 @@ vector<vector3d<int> > HyperplaneReorder(const int &imax, const int &jmax,
         for (int ii = 0; ii < imax; ii++) {
           if (ii + jj + kk == pp) {  // if sum of ii, jj, and kk equals pp than
                                      // point is on hyperplane pp
-            vector3d<int> loc(ii, jj, kk);
-            reorder[count] = loc;
+            reorder[count] = vector3d<int>(ii, jj, kk);
             count++;
           }
         }
@@ -1093,8 +546,7 @@ vector<vector3d<int> > HyperplaneReorder(const int &imax, const int &jmax,
 }
 
 /* Member function to split a plot3dBlock along a plane defined by a direction
-and an index. The calling instance will retain the lower portion of the split,
-and the returned instance will retain the upper portion of the split.
+and an index.
 */
 void plot3dBlock::Split(const string &dir, const int &ind, plot3dBlock &blk1,
                         plot3dBlock &blk2) const {
@@ -1102,116 +554,26 @@ void plot3dBlock::Split(const string &dir, const int &ind, plot3dBlock &blk1,
   // ind -- index (face) to split at (w/o counting ghost cells)
 
   if (dir == "i") {  // split along i-plane
-    int numI2 = (*this).NumI() - ind;
-    int numI1 = (*this).NumI() - numI2 + 1;
-
-    blk1.CleanResize(numI1, (*this).NumJ(), (*this).NumK());
-    blk2.CleanResize(numI2, (*this).NumJ(), (*this).NumK());
-
-    // loop over cell locations of of block
-    for (int kk = 0; kk < (*this).NumK(); kk++) {
-      for (int jj = 0; jj < (*this).NumJ(); jj++) {
-        for (int ii = 0; ii < (*this).NumI(); ii++) {
-          int loc = GetLoc1D(ii, jj, kk, (*this).NumI(), (*this).NumJ());
-
-          //------------------------------------------------------------------
-          // this portion of parent block overlaps with upper split
-          if (ii >= ind) {
-            int loc2 = GetLoc1D(ii - ind, jj, kk, blk2.NumI(), blk2.NumJ());
-
-            // assign grid points
-            blk2.x_[loc2] = (*this).x_[loc];
-            blk2.y_[loc2] = (*this).y_[loc];
-            blk2.z_[loc2] = (*this).z_[loc];
-          }
-          //------------------------------------------------------------------
-          // this portion of parent block overlaps with lower split
-          if (ii <= ind) {
-            int loc1 = GetLoc1D(ii, jj, kk, blk1.NumI(), blk1.NumJ());
-
-            // assign grid points
-            blk1.x_[loc1] = (*this).x_[loc];
-            blk1.y_[loc1] = (*this).y_[loc];
-            blk1.z_[loc1] = (*this).z_[loc];
-          }
-        }
-      }
-    }
-
+    blk1 = plot3dBlock(coords_.Slice(0, ind,
+                                     0, coords_.NumJ() - 1,
+                                     0, coords_.NumK() - 1));
+    blk2 = plot3dBlock(coords_.Slice(ind, coords_.NumI() - 1,
+                                     0, coords_.NumJ() - 1,
+                                     0, coords_.NumK() - 1));
   } else if (dir == "j") {  // split along j-plane
-    int numJ2 = (*this).NumJ() - ind;
-    int numJ1 = (*this).NumJ() - numJ2 + 1;
-
-    blk1.CleanResize((*this).NumI(), numJ1, (*this).NumK());
-    blk2.CleanResize((*this).NumI(), numJ2, (*this).NumK());
-
-    // loop over cell locations of of block
-    for (int kk = 0; kk < (*this).NumK(); kk++) {
-      for (int jj = 0; jj < (*this).NumJ(); jj++) {
-        for (int ii = 0; ii < (*this).NumI(); ii++) {
-          int loc = GetLoc1D(ii, jj, kk, (*this).NumI(), (*this).NumJ());
-
-          //------------------------------------------------------------------
-          // this portion of parent block overlaps with upper split
-          if (jj >= ind) {
-            int loc2 = GetLoc1D(ii, jj - ind, kk, blk2.NumI(), blk2.NumJ());
-
-            // assign cell variables
-            blk2.x_[loc2] = (*this).x_[loc];
-            blk2.y_[loc2] = (*this).y_[loc];
-            blk2.z_[loc2] = (*this).z_[loc];
-          }
-          //------------------------------------------------------------------
-          // this portion of parent block overlaps with lower split
-          if (jj <= ind) {
-            int loc1 = GetLoc1D(ii, jj, kk, blk1.NumI(), blk1.NumJ());
-
-            // assign cell variables
-            blk1.x_[loc1] = (*this).x_[loc];
-            blk1.y_[loc1] = (*this).y_[loc];
-            blk1.z_[loc1] = (*this).z_[loc];
-          }
-        }
-      }
-    }
-
+    blk1 = plot3dBlock(coords_.Slice(0, coords_.NumI() - 1,
+                                     0, ind,
+                                     0, coords_.NumK() - 1));
+    blk2 = plot3dBlock(coords_.Slice(0, coords_.NumI() - 1,
+                                     ind, coords_.NumJ() - 1,
+                                     0, coords_.NumK() - 1));
   } else if (dir == "k") {  // split along k-plane
-    int numK2 = (*this).NumK() - ind;
-    int numK1 = (*this).NumK() - numK2 + 1;
-
-    blk1.CleanResize((*this).NumI(), (*this).NumJ(), numK1);
-    blk2.CleanResize((*this).NumI(), (*this).NumJ(), numK2);
-
-    // loop over cell locations of of block
-    for (int kk = 0; kk < (*this).NumK(); kk++) {
-      for (int jj = 0; jj < (*this).NumJ(); jj++) {
-        for (int ii = 0; ii < (*this).NumI(); ii++) {
-          int loc = GetLoc1D(ii, jj, kk, (*this).NumI(), (*this).NumJ());
-
-          //-----------------------------------------------------------------
-          // this portion of parent block overlaps with upper split
-          if (kk >= ind) {
-            int loc2 = GetLoc1D(ii, jj, kk - ind, blk2.NumI(), blk2.NumJ());
-
-            // assign cell variables
-            blk2.x_[loc2] = (*this).x_[loc];
-            blk2.y_[loc2] = (*this).y_[loc];
-            blk2.z_[loc2] = (*this).z_[loc];
-          }
-          //-----------------------------------------------------------------
-          // this portion of parent block overlaps with lower split
-          if (kk <= ind) {
-            int loc1 = GetLoc1D(ii, jj, kk, blk1.NumI(), blk1.NumJ());
-
-            // assign cell variables
-            blk1.x_[loc1] = (*this).x_[loc];
-            blk1.y_[loc1] = (*this).y_[loc];
-            blk1.z_[loc1] = (*this).z_[loc];
-          }
-        }
-      }
-    }
-
+    blk1 = plot3dBlock(coords_.Slice(0, coords_.NumI() - 1,
+                                     0, coords_.NumJ() - 1,
+                                     0, ind));
+    blk2 = plot3dBlock(coords_.Slice(0, coords_.NumI() - 1,
+                                     0, coords_.NumJ() - 1,
+                                     ind, coords_.NumK() - 1));
   } else {
     cerr << "ERROR: Error in plot3dBlock::Split(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
@@ -1226,120 +588,40 @@ and the input instance will be the upper portion of the joined block.
 void plot3dBlock::Join(const plot3dBlock &blk, const string &dir) {
   if (dir == "i") {
     int newNumI = (*this).NumI() + blk.NumI() - 1;
-    int newNumJ = (*this).NumJ();
-    int newNumK = (*this).NumK();
 
-    plot3dBlock newBlk(newNumI, newNumJ, newNumK);
+    plot3dBlock newBlk(newNumI, (*this).NumJ(), (*this).NumK());
 
-    int ind = (*this).NumI() - 1;  // -1 b/c boundary between blocks is repeated
+    newBlk.coords_.Insert(0, (*this).NumI(), 0, (*this).NumJ(), 0,
+                          (*this).NumK(), coords_);
 
-    // loop over cell locations of of block
-    for (int kk = 0; kk < newNumK; kk++) {
-      for (int jj = 0; jj < newNumJ; jj++) {
-        for (int ii = 0; ii < newNumI; ii++) {
-          int loc = GetLoc1D(ii, jj, kk, newNumI, newNumJ);
-
-          // this portion of parent block overlaps with upper split
-          if (ii >= ind) {
-            int locU = GetLoc1D(ii - ind, jj, kk, blk.NumI(), blk.NumJ());
-
-            // assign grid points
-            newBlk.x_[loc] = blk.x_[locU];
-            newBlk.y_[loc] = blk.y_[locU];
-            newBlk.z_[loc] = blk.z_[locU];
-          } else {  // this portion of parent block overlaps with lower split
-            int locL = GetLoc1D(ii, jj, kk, (*this).NumI(), (*this).NumJ());
-
-            // assign grid points
-            newBlk.x_[loc] = (*this).x_[locL];
-            newBlk.y_[loc] = (*this).y_[locL];
-            newBlk.z_[loc] = (*this).z_[locL];
-          }
-        }
-      }
-    }
-
+    newBlk.coords_.Insert((*this).NumI(), newNumI, 0, (*this).NumJ(), 0,
+                          (*this).NumK(), blk.coords_);
     (*this) = newBlk;
   } else if (dir == "j") {
-    int newNumI = (*this).NumI();
     int newNumJ = (*this).NumJ() + blk.NumJ() - 1;
-    int newNumK = (*this).NumK();
 
-    plot3dBlock newBlk(newNumI, newNumJ, newNumK);
+    plot3dBlock newBlk((*this).NumI(), newNumJ, (*this).NumK());
 
-    int ind = (*this).NumJ() - 1;  // -1 b/c boundary between blocks is repeated
+    newBlk.coords_.Insert(0, (*this).NumI(), 0, (*this).NumJ(), 0,
+                          (*this).NumK(), coords_);
 
-    // loop over cell locations of of block
-    for (int kk = 0; kk < newNumK; kk++) {
-      for (int jj = 0; jj < newNumJ; jj++) {
-        for (int ii = 0; ii < newNumI; ii++) {
-          int loc = GetLoc1D(ii, jj, kk, newNumI, newNumJ);
-
-          // this portion of parent block overlaps with upper split
-          if (jj >= ind) {
-            int locU = GetLoc1D(ii, jj - ind, kk, blk.NumI(), blk.NumJ());
-
-            // assign grid points
-            newBlk.x_[loc] = blk.x_[locU];
-            newBlk.y_[loc] = blk.y_[locU];
-            newBlk.z_[loc] = blk.z_[locU];
-          } else {  // this portion of parent block overlaps with lower split
-            int locL = GetLoc1D(ii, jj, kk, (*this).NumI(), (*this).NumJ());
-
-            // assign grid points
-            newBlk.x_[loc] = (*this).x_[locL];
-            newBlk.y_[loc] = (*this).y_[locL];
-            newBlk.z_[loc] = (*this).z_[locL];
-          }
-        }
-      }
-    }
-
+    newBlk.coords_.Insert(0, (*this).NumI(), (*this).NumJ(), newNumJ, 0,
+                          (*this).NumK(), blk.coords_);
     (*this) = newBlk;
   } else if (dir == "k") {
-    int newNumI = (*this).NumI();
-    int newNumJ = (*this).NumJ();
     int newNumK = (*this).NumK() + blk.NumK() - 1;
 
-    plot3dBlock newBlk(newNumI, newNumJ, newNumK);
+    plot3dBlock newBlk((*this).NumI(), (*this).NumJ(), newNumK);
 
-    int ind = (*this).NumK() - 1;  // -1 b/c boundary between blocks is repeated
+    newBlk.coords_.Insert(0, (*this).NumI(), 0, (*this).NumJ(), 0,
+                          (*this).NumK(), coords_);
 
-    // loop over cell locations of of block
-    for (int kk = 0; kk < newNumK; kk++) {
-      for (int jj = 0; jj < newNumJ; jj++) {
-        for (int ii = 0; ii < newNumI; ii++) {
-          int loc = GetLoc1D(ii, jj, kk, newNumI, newNumJ);
-
-          // this portion of parent block overlaps with upper split
-          if (kk >= ind) {
-            int locU = GetLoc1D(ii, jj, kk - ind, blk.NumI(), blk.NumJ());
-
-            // assign grid points
-            newBlk.x_[loc] = blk.x_[locU];
-            newBlk.y_[loc] = blk.y_[locU];
-            newBlk.z_[loc] = blk.z_[locU];
-          } else {  // this portion of parent block overlaps with lower split
-            int locL = GetLoc1D(ii, jj, kk, (*this).NumI(), (*this).NumJ());
-
-            // assign grid points
-            newBlk.x_[loc] = (*this).x_[locL];
-            newBlk.y_[loc] = (*this).y_[locL];
-            newBlk.z_[loc] = (*this).z_[locL];
-          }
-        }
-      }
-    }
-
+    newBlk.coords_.Insert(0, (*this).NumI(), 0, (*this).NumJ(), (*this).NumK(),
+                          newNumK, blk.coords_);
     (*this) = newBlk;
   } else {
     cerr << "ERROR: Error in plot3dBlock::Join(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
     exit(0);
   }
-}
-
-void plot3dBlock::CleanResize(const int &i, const int &j, const int &k) {
-  plot3dBlock newBlk(i, j, k);
-  (*this) = newBlk;
 }

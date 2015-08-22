@@ -42,11 +42,13 @@ class multiArray3d {
   int numK_;
 
   // private member functions
-  int GetLoc1D(const int&, const int&, const int&) const;
+  int GetLoc1D(const int &ii, const int &jj, const int &kk) const {
+    return ii + jj * numI_ + kk * numI_ * numJ_;
+  }
 
  public:
   // constructor
-  multiArray3d() : numI_(1), numJ_(1), numK_(1), data_(vector<T>(1)) {}
+  multiArray3d() : data_(vector<T>(1)), numI_(1), numJ_(1), numK_(1) {}
   multiArray3d(const int&, const int&, const int&);
   multiArray3d(const int&, const int&, const int&, const T&);
 
@@ -62,8 +64,20 @@ class multiArray3d {
               const int&, const multiArray3d<T>&);
 
   // operator overloads
-  T& operator()(const int&, const int&, const int&);
-  const T& operator()(const int&, const int&, const int&) const;
+  T& operator()(const int &ii, const int &jj, const int &kk) {
+    return data_[(*this).GetLoc1D(ii, jj, kk)];
+  }
+  const T& operator()(const int &ii, const int &jj, const int &kk) const {
+    return data_[(*this).GetLoc1D(ii, jj, kk)];
+  }
+  T& operator()(const int &ind) {
+    return data_[ind];
+  }
+  const T& operator()(const int &ind) const {
+    return data_[ind];
+  }
+
+
   void operator*(const T&);
   void operator/(const T&);
   void operator+(const T&);
@@ -106,26 +120,6 @@ multiArray3d<T>::multiArray3d(const int &ii, const int &jj, const int &kk,
 }
 
 // member functions
-// function for data access
-template <class T>
-T& multiArray3d<T>::operator()(const int &ii, const int &jj, const int &kk) {
-  return data_[(*this).GetLoc1D(ii, jj, kk)];
-}
-
-// function for data access
-template <class T>
-const T& multiArray3d<T>::operator()(const int &ii, const int &jj,
-                                     const int &kk) const {
-  return data_[(*this).GetLoc1D(ii, jj, kk)];
-}
-
-// function to get 1D location
-template <class T>
-int multiArray3d<T>::GetLoc1D(const int &ii, const int &jj,
-                              const int &kk) const {
-  return ii + jj * numI_ + kk * numI_ * numJ_;
-}
-
 // operator overload to multiply all data components by same factor
 template <class T>
 void multiArray3d<T>::operator*(const T &factor) {

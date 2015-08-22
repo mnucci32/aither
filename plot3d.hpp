@@ -25,6 +25,7 @@
 #include <vector>
 #include <string>
 #include "vector3d.hpp"
+#include "multiArray3d.hpp"
 
 using std::vector;
 using std::string;
@@ -33,43 +34,44 @@ using std::string;
 // Class for an individual plot3d block
 class plot3dBlock {
   // by default everything above the public: declaration is private
-  vector<double> x_;  // vector of x-coordinates
-  vector<double> y_;  // vector of y-coordinates
-  vector<double> z_;  // vector of z-coordinates
-  int numi_;  // number of points in i-direction
-  int numj_;  // number of points in j-direction
-  int numk_;  // number of points in k-direction
+  multiArray3d<vector3d<double> > coords_;  // coordinates of nodes in block
 
  public:
   // constructor -- create a plot3d block by passing the above quantities
-  plot3dBlock(const int &, const int &, const int &, const vector<double> &,
-              const vector<double> &, const vector<double> &);
-  plot3dBlock(const int &, const int &, const int &);
-  plot3dBlock();
+  explicit plot3dBlock(const multiArray3d<vector3d<double> > &coordinates) :
+      coords_(coordinates) {}
+  plot3dBlock(const int &ii, const int &jj, const int &kk) :
+      coords_(multiArray3d<vector3d<double> >(ii, jj, kk)) {}
+  plot3dBlock() : coords_(multiArray3d<vector3d<double> >()) {}
 
   // member functions
- private:
-  void CleanResize(const int &, const int &, const int &);
+  multiArray3d<double> Volume() const;
+  multiArray3d<unitVec3dMag<double> > FaceAreaI() const;
+  multiArray3d<unitVec3dMag<double> > FaceAreaJ() const;
+  multiArray3d<unitVec3dMag<double> > FaceAreaK() const;
+  multiArray3d<vector3d<double> > Centroid() const;
+  multiArray3d<vector3d<double> > FaceCenterI() const;
+  multiArray3d<vector3d<double> > FaceCenterJ() const;
+  multiArray3d<vector3d<double> > FaceCenterK() const;
 
- public:
-  const vector<double> Volume() const;
-  const vector<unitVec3dMag<double> > FaceAreaI() const;
-  const vector<unitVec3dMag<double> > FaceAreaJ() const;
-  const vector<unitVec3dMag<double> > FaceAreaK() const;
-  const vector<vector3d<double> > Centroid() const;
-  const vector<vector3d<double> > FaceCenterI() const;
-  const vector<vector3d<double> > FaceCenterJ() const;
-  const vector<vector3d<double> > FaceCenterK() const;
-  int NumI() const { return numi_; }
-  int NumJ() const { return numj_; }
-  int NumK() const { return numk_; }
-  int NumCells() const { return (numi_ - 1) * (numj_ - 1) * (numk_ - 1); }
-  vector<double> const X() { return x_; }
-  vector<double> const Y() { return y_; }
-  vector<double> const Z() { return z_; }
-  double XLoc(const int &a) const { return x_[a]; }
-  double YLoc(const int &a) const { return y_[a]; }
-  double ZLoc(const int &a) const { return z_[a]; }
+  int NumI() const { return coords_.NumI(); }
+  int NumJ() const { return coords_.NumJ(); }
+  int NumK() const { return coords_.NumK(); }
+  int NumCells() const {
+    return (coords_.NumI() - 1) * (coords_.NumJ() - 1) * (coords_.NumK() - 1);
+  }
+  double X(const int &ii, const int &jj, const int &kk) const {
+    return coords_(ii, jj, kk)[0];
+  }
+  double Y(const int &ii, const int &jj, const int &kk) const {
+    return coords_(ii, jj, kk)[1];
+  }
+  double Z(const int &ii, const int &jj, const int &kk) const {
+    return coords_(ii, jj, kk)[2];
+  }
+  vector3d<double> Coords(const int &ii, const int &jj, const int &kk) const {
+    return coords_(ii, jj, kk);
+  }
 
   void Split(const string &, const int &, plot3dBlock &, plot3dBlock &) const;
   void Join(const plot3dBlock &, const string &);
@@ -81,56 +83,6 @@ class plot3dBlock {
 //-------------------------------------------------------------------------
 // function declarations
 vector<plot3dBlock> ReadP3dGrid(const string &, const double &, double &);
-vector3d<int> GetIJK(const int &, const int &, const int &, const int &);
-
-// input cell coordinates, get face coordinates
-int GetUpperFaceI(const int &, const int &, const int &, const int &,
-                  const int &, int = 1);
-int GetLowerFaceI(const int &, const int &, const int &, const int &,
-                  const int &, int = 1);
-int GetUpperFaceJ(const int &, const int &, const int &, const int &,
-                  const int &, int = 1);
-int GetLowerFaceJ(const int &, const int &, const int &, const int &,
-                  const int &, int = 1);
-int GetUpperFaceK(const int &, const int &, const int &, const int &,
-                  const int &, int = 1);
-int GetLowerFaceK(const int &, const int &, const int &, const int &,
-                  const int &, int = 1);
-
-// input cell coordinates get neighbor cell coordinates
-int GetNeighborUpI(const int &, const int &, const int &, const int &,
-                   const int &, int = 1);
-int GetNeighborLowI(const int &, const int &, const int &, const int &,
-                    const int &, int = 1);
-int GetNeighborUpJ(const int &, const int &, const int &, const int &,
-                   const int &, int = 1);
-int GetNeighborLowJ(const int &, const int &, const int &, const int &,
-                    const int &, int = 1);
-int GetNeighborUpK(const int &, const int &, const int &, const int &,
-                   const int &, int = 1);
-int GetNeighborLowK(const int &, const int &, const int &, const int &,
-                    const int &, int = 1);
-
-// input face coordinates, get cell coordinates
-int GetCellFromFaceUpperI(const int &, const int &, const int &, const int &,
-                          const int &, int = 1);
-int GetCellFromFaceLowerI(const int &, const int &, const int &, const int &,
-                          const int &, int = 1);
-int GetCellFromFaceUpperJ(const int &, const int &, const int &, const int &,
-                          const int &, int = 1);
-int GetCellFromFaceLowerJ(const int &, const int &, const int &, const int &,
-                          const int &, int = 1);
-int GetCellFromFaceUpperK(const int &, const int &, const int &, const int &,
-                          const int &, int = 1);
-int GetCellFromFaceLowerK(const int &, const int &, const int &, const int &,
-                          const int &, int = 1);
-
-// get location inside of 1D array
-int GetLoc1D(const int &, const int &, const int &, const int &, const int &);
-
-// find out if matrix should have data at the indicated cell
-bool IsMatrixData(const int &, const int &, const int &, const int &,
-                  const int &, const int &, const string &);
 
 // function to reorder block by hyperplanes
 vector<vector3d<int> > HyperplaneReorder(const int &, const int &, const int &);

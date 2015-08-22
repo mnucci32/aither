@@ -10,7 +10,7 @@ LFLAGS = -std=c++11 -Wall $(OPTIM) -o $(CODENAME)
 $(CODENAME) : $(OBJS)
 	$(CC) $(LFLAGS) $(OBJS)
 
-plot3d.o : plot3d.cpp plot3d.hpp vector3d.hpp
+plot3d.o : plot3d.cpp plot3d.hpp vector3d.hpp multiArray3d.hpp
 	$(CC) $(CFLAGS) plot3d.cpp
 
 main.o : main.cpp plot3d.hpp vector3d.hpp input.hpp procBlock.hpp eos.hpp primVars.hpp boundaryConditions.hpp inviscidFlux.hpp tensor.hpp viscousFlux.hpp output.hpp matrix.hpp parallel.hpp turbulence.hpp gradients.hpp resid.hpp multiArray3d.hpp
