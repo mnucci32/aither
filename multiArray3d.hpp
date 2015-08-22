@@ -35,7 +35,7 @@ using std::cerr;
 using std::vector;
 
 template <class T>
-class multiArray3D {
+class multiArray3d {
   vector<T> data_;
   int numI_;
   int numJ_;
@@ -46,9 +46,9 @@ class multiArray3D {
 
  public:
   // constructor
-  multiArray3D() : numI_(1), numJ_(1), numK_(1), data_(vector<T>(1)) {}
-  multiArray3D(const int&, const int&, const int&);
-  multiArray3D(const int&, const int&, const int&, const T&);
+  multiArray3d() : numI_(1), numJ_(1), numK_(1), data_(vector<T>(1)) {}
+  multiArray3d(const int&, const int&, const int&);
+  multiArray3d(const int&, const int&, const int&, const T&);
 
   // member functions
   int Size() const { return data_.size(); }
@@ -56,10 +56,10 @@ class multiArray3D {
   int NumJ() const { return numJ_; }
   int NumK() const { return numK_; }
 
-  multiArray3D<T> Slice(const int&, const int&, const int&, const int&,
+  multiArray3d<T> Slice(const int&, const int&, const int&, const int&,
                         const int&, const int&) const;
   void Insert(const int&, const int&, const int&, const int&, const int&,
-              const int&, const multiArray3D<T>&);
+              const int&, const multiArray3d<T>&);
 
   // operator overloads
   T& operator()(const int&, const int&, const int&);
@@ -70,16 +70,16 @@ class multiArray3D {
   void operator-(const T&);
 
   template <class TT>
-  friend ostream &operator<<(ostream &, const multiArray3D<T> &);
+  friend ostream &operator<<(ostream &, const multiArray3d<TT> &);
 
   // destructor
-  ~multiArray3D() {}
+  ~multiArray3d() {}
 };
 
 
 // constructor - default initialization
 template <class T>
-multiArray3D<T>::multiArray3D(const int &ii, const int &jj, const int &kk) {
+multiArray3d<T>::multiArray3d(const int &ii, const int &jj, const int &kk) {
   // ii -- i-dimension
   // jj -- j-dimension
   // kk -- k-dimension
@@ -92,7 +92,7 @@ multiArray3D<T>::multiArray3D(const int &ii, const int &jj, const int &kk) {
 
 // constructor - uniform initialization
 template <class T>
-multiArray3D<T>::multiArray3D(const int &ii, const int &jj, const int &kk,
+multiArray3d<T>::multiArray3d(const int &ii, const int &jj, const int &kk,
                               const T &init) {
   // ii -- i-dimension
   // jj -- j-dimension
@@ -108,27 +108,27 @@ multiArray3D<T>::multiArray3D(const int &ii, const int &jj, const int &kk,
 // member functions
 // function for data access
 template <class T>
-T& multiArray3D<T>::operator()(const int &ii, const int &jj, const int &kk) {
+T& multiArray3d<T>::operator()(const int &ii, const int &jj, const int &kk) {
   return data_[(*this).GetLoc1D(ii, jj, kk)];
 }
 
 // function for data access
 template <class T>
-const T& multiArray3D<T>::operator()(const int &ii, const int &jj,
+const T& multiArray3d<T>::operator()(const int &ii, const int &jj,
                                      const int &kk) const {
   return data_[(*this).GetLoc1D(ii, jj, kk)];
 }
 
 // function to get 1D location
 template <class T>
-int multiArray3D<T>::GetLoc1D(const int &ii, const int &jj,
+int multiArray3d<T>::GetLoc1D(const int &ii, const int &jj,
                               const int &kk) const {
   return ii + jj * numI_ + kk * numI_ * numJ_;
 }
 
 // operator overload to multiply all data components by same factor
 template <class T>
-void multiArray3D<T>::operator*(const T &factor) {
+void multiArray3d<T>::operator*(const T &factor) {
   for (unsigned int ii = 0; ii < data_.size(); ii++) {
     data_[ii] *= factor;
   }
@@ -136,7 +136,7 @@ void multiArray3D<T>::operator*(const T &factor) {
 
 // operator overload to divide all data components by same factor
 template <class T>
-void multiArray3D<T>::operator/(const T &factor) {
+void multiArray3d<T>::operator/(const T &factor) {
   for (unsigned int ii = 0; ii < data_.size(); ii++) {
     data_[ii] /= factor;
   }
@@ -144,7 +144,7 @@ void multiArray3D<T>::operator/(const T &factor) {
 
 // operator overload to add the same factor to all data components
 template <class T>
-void multiArray3D<T>::operator+(const T &factor) {
+void multiArray3d<T>::operator+(const T &factor) {
   for (unsigned int ii = 0; ii < data_.size(); ii++) {
     data_[ii] += factor;
   }
@@ -152,7 +152,7 @@ void multiArray3D<T>::operator+(const T &factor) {
 
 // operator overload to subtract the same factor from all data components
 template <class T>
-void multiArray3D<T>::operator-(const T &factor) {
+void multiArray3d<T>::operator-(const T &factor) {
   for (unsigned int ii = 0; ii < data_.size(); ii++) {
     data_[ii] -= factor;
   }
@@ -160,7 +160,7 @@ void multiArray3D<T>::operator-(const T &factor) {
 
 // member function to return a slice of the array
 template <class T>
-multiArray3D<T> multiArray3D<T>::Slice(const int &is, const int &ie,
+multiArray3d<T> multiArray3d<T>::Slice(const int &is, const int &ie,
                                        const int &js, const int &je,
                                        const int &ks, const int &ke) const {
   // is -- starting i-index to take slice (inclusive)
@@ -176,22 +176,23 @@ multiArray3D<T> multiArray3D<T>::Slice(const int &is, const int &ie,
         je <= (*this).numJ_ && je >= 0 && js <= (*this).numJ_ && js >= 0 &&
         ke <= (*this).numK_ && ke >= 0 && ks <= (*this).numK_ && ks >= 0 &&
         ie >= is && je >= js && ke >= ks)) {
-    cerr << "ERROR: Error in multiArray3D::Slice. Cannot take slice with "
+    cerr << "ERROR: Error in multiArray3d::Slice. Cannot take slice with "
          << "boundaries " << is << ", " << ie << ", " << js << ", " << je
          << ", " << ks << ", " << ke << " from array with dimensions " <<
         (*this).numI_ << ", " << (*this).numJ_ << ", " << (*this).numK_ << endl;
     exit(0);
   }
 
-  multiArray3D<T> array(ie - is + 1, je - js + 1, ke - ks + 1);
+  multiArray3d<T> array(ie - is + 1, je - js + 1, ke - ks + 1);
 
-  // ii, jj, kk are for new sliced array
-  // pii, pjj, pkk are for parent array
-  int pii, pjj, pkk;
-  for (int kk = 0, pkk = ks; kk < array.numK_; kk++, pkk++) {
-    for (int jj = 0, pjj = js; jj < array.numJ_; jj++, pjj++) {
-      for (int ii = 0, pii = is; ii < array.numI_; ii++, pii++) {
-        array(ii, jj, kk) = (*this)(pii, pjj, pkk);
+// in struct s is for index of sliced array, p is for index of parent array
+  for (struct {int s; int p;} kk = {0, ks}; kk.s <= array.numK_;
+       kk.s++, kk.p++) {
+    for (struct {int s; int p;} jj = {0, js}; jj.s <= array.numJ_;
+         jj.s++, jj.p++) {
+      for (struct {int s; int p;} ii = {0, is}; ii.s <= array.numI_;
+           ii.s++, ii.p++) {
+        array(ii.s, jj.s, kk.s) = (*this)(ii.p, jj.p, kk.p);
       }
     }
   }
@@ -200,9 +201,9 @@ multiArray3D<T> multiArray3D<T>::Slice(const int &is, const int &ie,
 
 // member function to insert an array into this one
 template <class T>
-void multiArray3D<T>::Insert(const int &is, const int &ie, const int &js,
+void multiArray3d<T>::Insert(const int &is, const int &ie, const int &js,
                              const int &je, const int &ks, const int &ke,
-                             const multiArray3D<T> &array) {
+                             const multiArray3d<T> &array) {
   // is -- starting i-index to insert slice (inclusive)
   // ie -- ending i-index to insert slice (inclusive)
   // js -- starting j-index to insert slice (inclusive)
@@ -224,13 +225,14 @@ void multiArray3D<T>::Insert(const int &is, const int &ie, const int &js,
     exit(0);
   }
 
-  // ii, jj, kk are for new sliced array
-  // pii, pjj, pkk are for parent array
-  int pii, pjj, pkk;
-  for (int kk = 0, pkk = ks; kk < array.numK_; kk++, pkk++) {
-    for (int jj = 0, pjj = js; jj < array.numJ_; jj++, pjj++) {
-      for (int ii = 0, pii = is; ii < array.numI_; ii++, pii++) {
-        (*this)(pii, pjj, pkk) = array(ii, jj, kk);
+  // in struct s is for index of sliced array, p is for index of parent array
+  for (struct {int s; int p;} kk = {0, ks}; kk.s <= array.numK_;
+       kk.s++, kk.p++) {
+    for (struct {int s; int p;} jj = {0, js}; jj.s <= array.numJ_;
+         jj.s++, jj.p++) {
+      for (struct {int s; int p;} ii = {0, is}; ii.s <= array.numI_;
+           ii.s++, ii.p++) {
+        (*this)(ii.p, jj.p, kk.p) = array(ii.s, jj.s, kk.s);
       }
     }
   }
@@ -238,11 +240,11 @@ void multiArray3D<T>::Insert(const int &is, const int &ie, const int &js,
 
 // overload to print array contents to stream
 template <class TT>
-ostream &operator<<(ostream &os, const multiArray3D<TT> &array) {
+ostream &operator<<(ostream &os, const multiArray3d<TT> &array) {
   os << "Size: " << array.numI_ << ", " << array.numJ_ << ", "
      << array.numK_ << endl;
 
-  for (int kk = 0; kk < array.numI_; kk++) {
+  for (int kk = 0; kk < array.numK_; kk++) {
     for (int jj = 0; jj < array.numJ_; jj++) {
       for (int ii = 0; ii < array.numI_; ii++) {
         os << ii << ", " << jj << ", " << kk << ", " <<
