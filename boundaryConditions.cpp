@@ -1856,30 +1856,16 @@ patch::patch(const int &bound, const int &b, const int &d1s, const int &d1e,
 
     // get corner points
     // origin_ at jmin, kmin
-    int loc = GetLoc1D(constSurf_, d1Start_, d2Start_, blk.NumI(), blk.NumJ());
-    vector3d<double> temp(blk.XLoc(loc), blk.YLoc(loc), blk.ZLoc(loc));
-    origin_ = temp;
+    origin_ = vector3d<double>(blk.Coords(constSurf_, d1Start_, d2Start_));
 
     // corner1_ at jmax, kmin
-    loc = GetLoc1D(constSurf_, d1End_, d2Start_, blk.NumI(), blk.NumJ());
-    temp.SetX(blk.XLoc(loc));
-    temp.SetY(blk.YLoc(loc));
-    temp.SetZ(blk.ZLoc(loc));
-    corner1_ = temp;
+    corner1_ = vector3d<double>(blk.Coords(constSurf_, d1End_, d2Start_));
 
     // corner2_ at jmin, kmax
-    loc = GetLoc1D(constSurf_, d1Start_, d2End_, blk.NumI(), blk.NumJ());
-    temp.SetX(blk.XLoc(loc));
-    temp.SetY(blk.YLoc(loc));
-    temp.SetZ(blk.ZLoc(loc));
-    corner2_ = temp;
+    corner2_ = vector3d<double>(blk.Coords(constSurf_, d1Start_, d2End_));
 
     // corner12_ at jmax, kmax
-    loc = GetLoc1D(constSurf_, d1End_, d2End_, blk.NumI(), blk.NumJ());
-    temp.SetX(blk.XLoc(loc));
-    temp.SetY(blk.YLoc(loc));
-    temp.SetZ(blk.ZLoc(loc));
-    corner12_ = temp;
+    corner12_ = vector3d<double>(blk.Coords(constSurf_, d1End_, d2End_));
 
   } else if (bound == 3 ||
              bound == 4) {  // patch on j-surface - dir1 = k, dir2 = i
@@ -1891,30 +1877,16 @@ patch::patch(const int &bound, const int &b, const int &d1s, const int &d1e,
 
     // get corner points
     // origin_ at kmin, imin
-    int loc = GetLoc1D(d2Start_, constSurf_, d1Start_, blk.NumI(), blk.NumJ());
-    vector3d<double> temp(blk.XLoc(loc), blk.YLoc(loc), blk.ZLoc(loc));
-    origin_ = temp;
+    origin_ = vector3d<double>(blk.Coords(d2Start_, constSurf_, d1Start_));
 
     // corner1_ at kmax, imin
-    loc = GetLoc1D(d2Start_, constSurf_, d1End_, blk.NumI(), blk.NumJ());
-    temp.SetX(blk.XLoc(loc));
-    temp.SetY(blk.YLoc(loc));
-    temp.SetZ(blk.ZLoc(loc));
-    corner1_ = temp;
+    corner1_ = vector3d<double>(blk.Coords(d2Start_, constSurf_, d1End_));
 
     // corner2_ at kmin, imax
-    loc = GetLoc1D(d2End_, constSurf_, d1Start_, blk.NumI(), blk.NumJ());
-    temp.SetX(blk.XLoc(loc));
-    temp.SetY(blk.YLoc(loc));
-    temp.SetZ(blk.ZLoc(loc));
-    corner2_ = temp;
+    corner2_ = vector3d<double>(blk.Coords(d2End_, constSurf_, d1Start_));
 
     // corner12_ at kmax, imax
-    loc = GetLoc1D(d2End_, constSurf_, d1End_, blk.NumI(), blk.NumJ());
-    temp.SetX(blk.XLoc(loc));
-    temp.SetY(blk.YLoc(loc));
-    temp.SetZ(blk.ZLoc(loc));
-    corner12_ = temp;
+    corner12_ = vector3d<double>(blk.Coords(d2End_, constSurf_, d1End_));
 
   } else if (bound == 5 ||
              bound == 6) {  // patch on k-surface - dir1 = i, dir2 = j
@@ -1926,165 +1898,19 @@ patch::patch(const int &bound, const int &b, const int &d1s, const int &d1e,
 
     // get corner points
     // origin_ at imin, jmin
-    int loc = GetLoc1D(d1Start_, d2Start_, constSurf_, blk.NumI(), blk.NumJ());
-    vector3d<double> temp(blk.XLoc(loc), blk.YLoc(loc), blk.ZLoc(loc));
-    origin_ = temp;
+    origin_ = vector3d<double>(blk.Coords(d1Start_, d2Start_, constSurf_));
 
     // corner1_ at imax, jmin
-    loc = GetLoc1D(d1End_, d2Start_, constSurf_, blk.NumI(), blk.NumJ());
-    temp.SetX(blk.XLoc(loc));
-    temp.SetY(blk.YLoc(loc));
-    temp.SetZ(blk.ZLoc(loc));
-    corner1_ = temp;
+    corner1_ = vector3d<double>(blk.Coords(d1End_, d2Start_, constSurf_));
 
     // corner2_ at imin, jmax
-    loc = GetLoc1D(d1Start_, d2End_, constSurf_, blk.NumI(), blk.NumJ());
-    temp.SetX(blk.XLoc(loc));
-    temp.SetY(blk.YLoc(loc));
-    temp.SetZ(blk.ZLoc(loc));
-    corner2_ = temp;
+    corner2_ = vector3d<double>(blk.Coords(d1Start_, d2End_, constSurf_));
 
     // corner12_ at imax, jmax
-    loc = GetLoc1D(d1End_, d2End_, constSurf_, blk.NumI(), blk.NumJ());
-    temp.SetX(blk.XLoc(loc));
-    temp.SetY(blk.YLoc(loc));
-    temp.SetZ(blk.ZLoc(loc));
-    corner12_ = temp;
+    corner12_ = vector3d<double>(blk.Coords(d1End_, d2End_, constSurf_));
 
   } else {
     cerr << "ERROR: Error in patch::patch(). Boundary surface " << bound
-         << " is not recognized!" << endl;
-    cerr << "Choose an integer between 1-6." << endl;
-    exit(0);
-  }
-}
-
-// constructor with arguements passed
-patch::patch(const boundarySurface &surf, const plot3dBlock &blk,
-             const int &bNum, const bool (&border)[4], int r, int l) {
-  // surf -- boundarySurface to construct patch from
-  // blk -- plot3dBlock that patch is on
-  // bNum -- block_ number of plot3dBlock
-  // border -- flags for interblock borders
-  // r -- rank_ of processor patch is on
-  // l -- local block_ number on processor
-
-  boundary_ = surf.SurfaceType();
-  block_ = bNum;
-  rank_ = r;
-  localBlock_ = l;
-  interblockBorder_[0] = border[0];
-  interblockBorder_[1] = border[1];
-  interblockBorder_[2] = border[2];
-  interblockBorder_[3] = border[3];
-
-  if (boundary_ == 1 ||
-      boundary_ == 2) {  // patch on i-surface - dir1 = j, dir2 = k
-    d1Start_ = surf.JMin() - 1;
-    d1End_ = surf.JMax() - 1;
-    d2Start_ = surf.KMin() - 1;
-    d2End_ = surf.KMax() - 1;
-    constSurf_ = surf.IMax() - 1;
-
-    // get corner points
-    // origin_ at jmin, kmin
-    int loc = GetLoc1D(constSurf_, d1Start_, d2Start_, blk.NumI(), blk.NumJ());
-    vector3d<double> temp(blk.XLoc(loc), blk.YLoc(loc), blk.ZLoc(loc));
-    origin_ = temp;
-
-    // corner1_ at jmax, kmin
-    loc = GetLoc1D(constSurf_, d1End_, d2Start_, blk.NumI(), blk.NumJ());
-    temp.SetX(blk.XLoc(loc));
-    temp.SetY(blk.YLoc(loc));
-    temp.SetZ(blk.ZLoc(loc));
-    corner1_ = temp;
-
-    // corner2_ at jmin, kmax
-    loc = GetLoc1D(constSurf_, d1Start_, d2End_, blk.NumI(), blk.NumJ());
-    temp.SetX(blk.XLoc(loc));
-    temp.SetY(blk.YLoc(loc));
-    temp.SetZ(blk.ZLoc(loc));
-    corner2_ = temp;
-
-    // corner12_ at jmax, kmax
-    loc = GetLoc1D(constSurf_, d1End_, d2End_, blk.NumI(), blk.NumJ());
-    temp.SetX(blk.XLoc(loc));
-    temp.SetY(blk.YLoc(loc));
-    temp.SetZ(blk.ZLoc(loc));
-    corner12_ = temp;
-
-  } else if (boundary_ == 3 ||
-             boundary_ == 4) {  // patch on j-surface - dir1 = k, dir2 = i
-    d1Start_ = surf.KMin() - 1;
-    d1End_ = surf.KMax() - 1;
-    d2Start_ = surf.IMin() - 1;
-    d2End_ = surf.IMax() - 1;
-    constSurf_ = surf.JMax() - 1;
-
-    // get corner points
-    // origin_ at kmin, imin
-    int loc = GetLoc1D(d2Start_, constSurf_, d1Start_, blk.NumI(), blk.NumJ());
-    vector3d<double> temp(blk.XLoc(loc), blk.YLoc(loc), blk.ZLoc(loc));
-    origin_ = temp;
-
-    // corner1_ at kmax, imin
-    loc = GetLoc1D(d2Start_, constSurf_, d1End_, blk.NumI(), blk.NumJ());
-    temp.SetX(blk.XLoc(loc));
-    temp.SetY(blk.YLoc(loc));
-    temp.SetZ(blk.ZLoc(loc));
-    corner1_ = temp;
-
-    // corner2_ at kmin, imax
-    loc = GetLoc1D(d2End_, constSurf_, d1Start_, blk.NumI(), blk.NumJ());
-    temp.SetX(blk.XLoc(loc));
-    temp.SetY(blk.YLoc(loc));
-    temp.SetZ(blk.ZLoc(loc));
-    corner2_ = temp;
-
-    // corner12_ at kmax, imax
-    loc = GetLoc1D(d2End_, constSurf_, d1End_, blk.NumI(), blk.NumJ());
-    temp.SetX(blk.XLoc(loc));
-    temp.SetY(blk.YLoc(loc));
-    temp.SetZ(blk.ZLoc(loc));
-    corner12_ = temp;
-
-  } else if (boundary_ == 5 ||
-             boundary_ == 6) {  // patch on k-surface - dir1 = i, dir2 = j
-    d1Start_ = surf.IMin() - 1;
-    d1End_ = surf.IMax() - 1;
-    d2Start_ = surf.JMin() - 1;
-    d2End_ = surf.JMax() - 1;
-    constSurf_ = surf.KMax() - 1;
-
-    // get corner points
-    // origin_ at imin, jmin
-    int loc = GetLoc1D(d1Start_, d2Start_, constSurf_, blk.NumI(), blk.NumJ());
-    vector3d<double> temp(blk.XLoc(loc), blk.YLoc(loc), blk.ZLoc(loc));
-    origin_ = temp;
-
-    // corner1_ at imax, jmin
-    loc = GetLoc1D(d1End_, d2Start_, constSurf_, blk.NumI(), blk.NumJ());
-    temp.SetX(blk.XLoc(loc));
-    temp.SetY(blk.YLoc(loc));
-    temp.SetZ(blk.ZLoc(loc));
-    corner1_ = temp;
-
-    // corner2_ at imin, jmax
-    loc = GetLoc1D(d1Start_, d2End_, constSurf_, blk.NumI(), blk.NumJ());
-    temp.SetX(blk.XLoc(loc));
-    temp.SetY(blk.YLoc(loc));
-    temp.SetZ(blk.ZLoc(loc));
-    corner2_ = temp;
-
-    // corner12_ at imax, jmax
-    loc = GetLoc1D(d1End_, d2End_, constSurf_, blk.NumI(), blk.NumJ());
-    temp.SetX(blk.XLoc(loc));
-    temp.SetY(blk.YLoc(loc));
-    temp.SetZ(blk.ZLoc(loc));
-    corner12_ = temp;
-
-  } else {
-    cerr << "ERROR: Error in patch::patch(). Boundary surface " << boundary_
          << " is not recognized!" << endl;
     cerr << "Choose an integer between 1-6." << endl;
     exit(0);

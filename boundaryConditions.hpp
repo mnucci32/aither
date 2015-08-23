@@ -111,8 +111,11 @@ class patch {
   patch(const int&, const int&, const int&, const int&, const int&, const int&,
         const int&, const int&, const plot3dBlock&, const int&, const int&,
         const bool(&)[4]);
-  patch(const boundarySurface&, const plot3dBlock&, const int&,
-        const bool(&)[4], int = 0, int = 0);
+  patch(const boundarySurface &surf, const plot3dBlock &blk, const int &bNum,
+        const bool (&border)[4], int r = 0, int l = 0) :
+      patch(surf.SurfaceType(), bNum, surf.IMax() - 1, surf.IMin() - 1,
+            surf.JMin() -1, surf.JMax() - 1, surf.KMin() - 1,
+            surf.KMax() - 1, blk, r, l, border) {}
 
   // Member functions
   vector3d<double> Origin() const {return origin_;}
