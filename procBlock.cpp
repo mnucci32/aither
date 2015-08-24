@@ -1045,9 +1045,9 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
     int jp = reorder[ii].Y();
     int kp = reorder[ii].Z();
     // indices for variables with ghost cells
-    int ig = reorder[ii].X() - numGhosts_;
-    int jg = reorder[ii].Y() - numGhosts_;
-    int kg = reorder[ii].Z() - numGhosts_;
+    int ig = reorder[ii].X() + numGhosts_;
+    int jg = reorder[ii].Y() + numGhosts_;
+    int kg = reorder[ii].Z() + numGhosts_;
 
     // if i lower diagonal cell is in physical location there is a contribution
     // from it
@@ -1181,9 +1181,9 @@ double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
     int jp = reorder[ii].Y();
     int kp = reorder[ii].Z();
     // indices for variables with ghost cells
-    int ig = reorder[ii].X() - numGhosts_;
-    int jg = reorder[ii].Y() - numGhosts_;
-    int kg = reorder[ii].Z() - numGhosts_;
+    int ig = reorder[ii].X() + numGhosts_;
+    int jg = reorder[ii].Y() + numGhosts_;
+    int kg = reorder[ii].Z() + numGhosts_;
 
     // if i upper diagonal cell is in physical location there is a contribution
     // from it
@@ -8989,14 +8989,6 @@ void procBlock::PutStateSlice(const stateSlice &slice, const interblock &inter,
     exit(0);
   }
 
-  // get block maxes
-  int imaxB = (*this).NumI() + 2.0 * numGhosts_;
-  int jmaxB = (*this).NumJ() + 2.0 * numGhosts_;
-
-  // get slice maxes
-  int imaxS = slice.NumI();
-  int jmaxS = slice.NumJ();
-
   // adjust insertion indices if patch borders another interblock on the same
   // surface of the block
   int adjS1 = (inter.Dir1StartInterBorderFirst()) ? numG : 0;
@@ -9014,12 +9006,9 @@ void procBlock::PutStateSlice(const stateSlice &slice, const interblock &inter,
         vector3d<int> indB = GetSwapLoc(l1, l2, l3, inter, true);
         vector3d<int> indS = GetSwapLoc(l1, l2, l3, inter, false);
 
-        // get cell locations
-        int locB = GetLoc1D(indB[0], indB[1], indB[2], imaxB, jmaxB);
-        int locS = GetLoc1D(indS[0], indS[1], indS[2], imaxS, jmaxS);
-
         // swap cell data
-        (*this).state_[locB] = slice.State(locS);
+        state_(indB[0], indB[1], indB[2]) = slice.State(indS[0], indS[1],
+                                                        indS[2]);
       }
     }
   }
@@ -9037,103 +9026,104 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
   // determine size of buffer to send
   int sendBufSize = 0;
   int tempSize = 0;
-  MPI_Pack_size(10, MPI_INT, MPI_COMM_WORLD,
+  // adding 3 more ints for block dimensions
+  MPI_Pack_size(8, MPI_INT, MPI_COMM_WORLD,
                 &tempSize);  // add size for ints in class procBlock
   sendBufSize += tempSize;
-  MPI_Pack_size((*this).state_.size(), MPI_cellData, MPI_COMM_WORLD,
+  MPI_Pack_size(state_.Size(), MPI_cellData, MPI_COMM_WORLD,
                 &tempSize);  // add size for states
   sendBufSize += tempSize;
-  MPI_Pack_size((*this).center_.size(), MPI_vec3d, MPI_COMM_WORLD,
+  MPI_Pack_size(center_.Size(), MPI_vec3d, MPI_COMM_WORLD,
                 &tempSize);  // add size for cell centers
   sendBufSize += tempSize;
-  MPI_Pack_size((*this).fAreaI_.size(), MPI_vec3dMag, MPI_COMM_WORLD,
+  MPI_Pack_size(fAreaI_.Size(), MPI_vec3dMag, MPI_COMM_WORLD,
                 &tempSize);  // add size for face area I
   sendBufSize += tempSize;
-  MPI_Pack_size((*this).fAreaJ_.size(), MPI_vec3dMag, MPI_COMM_WORLD,
+  MPI_Pack_size(fAreaJ_.Size(), MPI_vec3dMag, MPI_COMM_WORLD,
                 &tempSize);  // add size for face area J
   sendBufSize += tempSize;
-  MPI_Pack_size((*this).fAreaK_.size(), MPI_vec3dMag, MPI_COMM_WORLD,
+  MPI_Pack_size(fAreaK_.Size(), MPI_vec3dMag, MPI_COMM_WORLD,
                 &tempSize);  // add size for face area K
   sendBufSize += tempSize;
-  MPI_Pack_size((*this).fCenterI_.size(), MPI_vec3d, MPI_COMM_WORLD,
+  MPI_Pack_size(fCenterI_.Size(), MPI_vec3d, MPI_COMM_WORLD,
                 &tempSize);  // add size for face center_ I
   sendBufSize += tempSize;
-  MPI_Pack_size((*this).fCenterJ_.size(), MPI_vec3d, MPI_COMM_WORLD,
+  MPI_Pack_size(fCenterJ_.Size(), MPI_vec3d, MPI_COMM_WORLD,
                 &tempSize);  // add size for face center_ J
   sendBufSize += tempSize;
-  MPI_Pack_size((*this).fCenterK_.size(), MPI_vec3d, MPI_COMM_WORLD,
+  MPI_Pack_size(fCenterK_.Size(), MPI_vec3d, MPI_COMM_WORLD,
                 &tempSize);  // add size for face center_ K
   sendBufSize += tempSize;
-  MPI_Pack_size((*this).vol_.size(), MPI_DOUBLE, MPI_COMM_WORLD,
+  MPI_Pack_size(vol_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                 &tempSize);  // add size for volumes
   sendBufSize += tempSize;
   MPI_Pack_size(3, MPI_INT, MPI_COMM_WORLD,
-                &tempSize);  // add size for number of surfaces
+                &tempSize);  // add size for number of bc surfaces
   sendBufSize += tempSize;
   // 8x because iMin, iMax, jMin, jMax, kMin, kMax, tags, string sizes
-  MPI_Pack_size((*this).bc_.NumSurfaces() * 8, MPI_INT, MPI_COMM_WORLD,
+  MPI_Pack_size(bc_.NumSurfaces() * 8, MPI_INT, MPI_COMM_WORLD,
                 &tempSize);  // add size for BCs
   sendBufSize += tempSize;
 
   int stringSize = 0;
-  for (int jj = 0; jj < (*this).bc_.NumSurfaces(); jj++) {
+  for (int jj = 0; jj < bc_.NumSurfaces(); jj++) {
     MPI_Pack_size(
-        (*this).bc_.GetBCTypes(jj).size() + 1, MPI_CHAR, MPI_COMM_WORLD,
+        bc_.GetBCTypes(jj).size() + 1, MPI_CHAR, MPI_COMM_WORLD,
         &tempSize);  // add size for bc_ types (+1 for c_str end character)
     stringSize += tempSize;
   }
   sendBufSize += stringSize;
 
-  char *sendBuffer = new char[sendBufSize];  // allocate buffer to pack data
-                                             // into
+  // allocate buffer to pack data into
+  char *sendBuffer = new char[sendBufSize];
+
+  int numI = (*this).NumI();
+  int numJ = (*this).NumJ();
+  int numK = (*this).NumK();
 
   // pack data to send into buffer
   int position = 0;
   // int and vector data
-  MPI_Pack(&(*this).numCells_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&numI, 1, MPI_INT, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&(*this).numVars_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&numJ, 1, MPI_INT, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&(*this).numI_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&numK, 1, MPI_INT, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&(*this).numJ_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&numGhosts_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&(*this).numK_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&parBlock_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&(*this).numGhosts_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&rank_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&(*this).parBlock_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&localPos_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&(*this).rank_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+  MPI_Pack(&globalPos_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&(*this).localPos_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&(*this).globalPos_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&(*this).state_[0], (*this).state_.size(), MPI_cellData, sendBuffer,
+  MPI_Pack(&state_(0, 0, 0), state_.Size(), MPI_cellData, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).center_[0], (*this).center_.size(), MPI_vec3d, sendBuffer,
+  MPI_Pack(&center_(0, 0, 0), center_.Size(), MPI_vec3d, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).fAreaI_[0], (*this).fAreaI_.size(), MPI_vec3dMag,
+  MPI_Pack(&fAreaI_(0, 0, 0), fAreaI_.Size(), MPI_vec3dMag,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).fAreaJ_[0], (*this).fAreaJ_.size(), MPI_vec3dMag,
+  MPI_Pack(&fAreaJ_(0, 0, 0), fAreaJ_.Size(), MPI_vec3dMag,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).fAreaK_[0], (*this).fAreaK_.size(), MPI_vec3dMag,
+  MPI_Pack(&fAreaK_(0, 0, 0), fAreaK_.Size(), MPI_vec3dMag,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).fCenterI_[0], (*this).fCenterI_.size(), MPI_vec3d,
+  MPI_Pack(&fCenterI_(0, 0, 0), fCenterI_.Size(), MPI_vec3d,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).fCenterJ_[0], (*this).fCenterJ_.size(), MPI_vec3d,
+  MPI_Pack(&fCenterJ_(0, 0, 0), fCenterJ_.Size(), MPI_vec3d,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).fCenterK_[0], (*this).fCenterK_.size(), MPI_vec3d,
+  MPI_Pack(&fCenterK_(0, 0, 0), fCenterK_.Size(), MPI_vec3d,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).vol_[0], (*this).vol_.size(), MPI_DOUBLE, sendBuffer,
+  MPI_Pack(&vol_(0, 0, 0), vol_.Size(), MPI_DOUBLE, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
 
   // pack boundary condition data
-  (*this).bc_.PackBC(sendBuffer, sendBufSize, position);
+  bc_.PackBC(sendBuffer, sendBufSize, position);
 
   // send buffer to appropriate processor
-  MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, (*this).rank_, 2,
+  MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, rank_, 2,
            MPI_COMM_WORLD);
 
   delete[] sendBuffer;  // deallocate buffer
@@ -9161,104 +9151,94 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
   MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, ROOTP, 2, MPI_COMM_WORLD,
            &status);
 
+  int numI, numJ, numK;
   // unpack procBlock INTs
   int position = 0;
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).numCells_, 1, MPI_INT,
-             MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).numVars_, 1, MPI_INT,
-             MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).numI_, 1, MPI_INT,
-             MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).numJ_, 1, MPI_INT,
-             MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).numK_, 1, MPI_INT,
-             MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).numGhosts_, 1,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &numI, 1,
              MPI_INT, MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).parBlock_, 1, MPI_INT,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &numJ, 1,
+             MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &numK, 1,
+             MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &numGhosts_, 1,
+             MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &parBlock_, 1, MPI_INT,
              MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).rank_, 1, MPI_INT,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &rank_, 1, MPI_INT,
              MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).localPos_, 1, MPI_INT,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &localPos_, 1, MPI_INT,
              MPI_COMM_WORLD);
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).globalPos_, 1,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &globalPos_, 1,
              MPI_INT, MPI_COMM_WORLD);
 
   // clean and resize the vectors in the class to
-  (*this).CleanResizeVecs();
+  (*this).CleanResizeVecs(numI, numJ, numK);
 
   // unpack vector data into allocated vectors
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).state_[0],
-             (*this).state_.size(), MPI_cellData,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &state_(0, 0, 0),
+             state_.Size(), MPI_cellData,
              MPI_COMM_WORLD);  // unpack states
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).center_[0],
-             (*this).center_.size(), MPI_vec3d,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &center_(0, 0, 0),
+             center_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack cell centers
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).fAreaI_[0],
-             (*this).fAreaI_.size(), MPI_vec3dMag,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &fAreaI_(0, 0, 0),
+             fAreaI_.Size(), MPI_vec3dMag,
              MPI_COMM_WORLD);  // unpack face area I
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).fAreaJ_[0],
-             (*this).fAreaJ_.size(), MPI_vec3dMag,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &fAreaJ_(0, 0, 0),
+             fAreaJ_.Size(), MPI_vec3dMag,
              MPI_COMM_WORLD);  // unpack face area J
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).fAreaK_[0],
-             (*this).fAreaK_.size(), MPI_vec3dMag,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &fAreaK_(0, 0, 0),
+             fAreaK_.Size(), MPI_vec3dMag,
              MPI_COMM_WORLD);  // unpack face area K
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).fCenterI_[0],
-             (*this).fCenterI_.size(), MPI_vec3d,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &fCenterI_(0, 0, 0),
+             fCenterI_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack face center_ I
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).fCenterJ_[0],
-             (*this).fCenterJ_.size(), MPI_vec3d,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &fCenterJ_(0, 0, 0),
+             fCenterJ_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack face center_ J
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).fCenterK_[0],
-             (*this).fCenterK_.size(), MPI_vec3d,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &fCenterK_(0, 0, 0),
+             fCenterK_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack face center_ K
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).vol_[0],
-             (*this).vol_.size(), MPI_DOUBLE,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &vol_(0, 0, 0),
+             vol_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack volumes
 
   // unpack boundary conditions
-  (*this).bc_.UnpackBC(recvBuffer, recvBufSize, position);
+  bc_.UnpackBC(recvBuffer, recvBufSize, position);
 
   delete[] recvBuffer;  // deallocate receiving buffer
 }
 
 /*Member function to zero and resize the vectors in a procBlock to their
  * appropriate size given the i, j, and k dimensions.*/
-void procBlock::CleanResizeVecs() {
-  int numCellsGhosts = ((*this).numI_ + 2 * (*this).numGhosts_) *
-                       ((*this).numJ_ + 2 * (*this).numGhosts_) *
-                       ((*this).numK_ + 2 * (*this).numGhosts_);
-  int numFaceI = ((*this).numI_ + 2 * (*this).numGhosts_ + 1) *
-                 ((*this).numJ_ + 2 * (*this).numGhosts_) *
-                 ((*this).numK_ + 2 * (*this).numGhosts_);
-  int numFaceJ = ((*this).numI_ + 2 * (*this).numGhosts_) *
-                 ((*this).numJ_ + 2 * (*this).numGhosts_ + 1) *
-                 ((*this).numK_ + 2 * (*this).numGhosts_);
-  int numFaceK = ((*this).numI_ + 2 * (*this).numGhosts_) *
-                 ((*this).numJ_ + 2 * (*this).numGhosts_) *
-                 ((*this).numK_ + 2 * (*this).numGhosts_ + 1);
+void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
+                                const int &numK) {
+  // numI -- i-dimension to resize to (no ghosts)
+  // numJ -- j-dimension to resize to (no ghosts)
+  // numK -- k-dimension to resize to (no ghosts)
 
-  (*this).state_ = vector<primVars>(numCellsGhosts);
+  // indices for variables with ghost cells
+  int ig = numI + numGhosts_;
+  int jg = numJ + numGhosts_;
+  int kg = numK + numGhosts_;
 
-  (*this).center_ = vector<vector3d<double> >(numCellsGhosts);
+  state_.ClearResize(ig, jg, kg);
+  center_.ClearResize(ig, jg, kg);
+  vol_.ClearResize(ig, jg, kg);
 
-  (*this).fCenterI_ = vector<vector3d<double> >(numFaceI);
-  (*this).fAreaI_ = vector<unitVec3dMag<double> >(numFaceI);
+  fCenterI_.ClearResize(ig + 1, jg, kg);
+  fAreaI_.ClearResize(ig + 1, jg, kg);
 
-  (*this).fCenterJ_ = vector<vector3d<double> >(numFaceJ);
-  (*this).fAreaJ_ = vector<unitVec3dMag<double> >(numFaceJ);
+  fCenterJ_.ClearResize(ig, jg + 1, kg);
+  fAreaJ_.ClearResize(ig, jg + 1, kg);
 
-  (*this).fCenterK_ = vector<vector3d<double> >(numFaceK);
-  (*this).fAreaK_ = vector<unitVec3dMag<double> >(numFaceK);
+  fCenterK_.ClearResize(ig, jg, kg + 1);
+  fAreaK_.ClearResize(ig, jg, kg + 1);
 
-  (*this).residual_ = vector<genArray>((*this).numCells_);
-
-  (*this).vol_ = vector<double>(numCellsGhosts);
-
-  (*this).wallDist_ = vector<double>((*this).numCells_, DEFAULTWALLDIST);
-
-  avgWaveSpeed_ = vector<double>((*this).numCells_);
-  (*this).dt_ = vector<double>((*this).numCells_);
+  residual_.ClearResize(numI, numJ, numK);
+  avgWaveSpeed_.ClearResize(numI, numJ, numK);
+  dt_.ClearResize(numI, numJ, numK);
+  wallDist_.ClearResize(numI, numJ, numK, DEFAULTWALLDIST);
 }
 
 /*Member function to receive and unpack procBlock state data. This is used to
@@ -9270,7 +9250,7 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData) {
 
   // probe message to get correct data size
   int recvBufSize = 0;
-  MPI_Probe((*this).rank_, (*this).globalPos_, MPI_COMM_WORLD,
+  MPI_Probe(rank_, globalPos_, MPI_COMM_WORLD,
             &status);  // global position used as tag because each block has a
                        // unique one
   MPI_Get_count(&status, MPI_CHAR, &recvBufSize);  // use MPI_CHAR because
@@ -9280,25 +9260,25 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData) {
   char *recvBuffer = new char[recvBufSize];  // allocate buffer of correct size
 
   // receive message from non-ROOT
-  MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, (*this).rank_,
-           (*this).globalPos_, MPI_COMM_WORLD, &status);
+  MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, rank_,
+           globalPos_, MPI_COMM_WORLD, &status);
 
   // unpack vector data into allocated vectors
   int position = 0;
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).state_[0],
-             (*this).state_.size(), MPI_cellData,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &state_(0, 0, 0),
+             state_.Size(), MPI_cellData,
              MPI_COMM_WORLD);  // unpack states
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).residual_[0],
-             (*this).residual_.size(), MPI_cellData,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &residual_(0, 0, 0),
+             residual_.Size(), MPI_cellData,
              MPI_COMM_WORLD);  // unpack residuals
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).dt_[0],
-             (*this).dt_.size(), MPI_DOUBLE,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &dt_(0, 0, 0),
+             dt_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack time steps
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*this).wallDist_[0],
-             (*this).wallDist_.size(), MPI_DOUBLE,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &wallDist_(0, 0, 0),
+             wallDist_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack wall distance
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &avgWaveSpeed_[0],
-             avgWaveSpeed_.size(), MPI_DOUBLE,
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &avgWaveSpeed_(0, 0, 0),
+             avgWaveSpeed_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack average wave speeds
 
   delete[] recvBuffer;  // deallocate receiving buffer
@@ -9313,19 +9293,19 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData) const {
   // determine size of buffer to send
   int sendBufSize = 0;
   int tempSize = 0;
-  MPI_Pack_size((*this).state_.size(), MPI_cellData, MPI_COMM_WORLD,
+  MPI_Pack_size(state_.Size(), MPI_cellData, MPI_COMM_WORLD,
                 &tempSize);  // add size for states
   sendBufSize += tempSize;
-  MPI_Pack_size((*this).residual_.size(), MPI_cellData, MPI_COMM_WORLD,
+  MPI_Pack_size(residual_.Size(), MPI_cellData, MPI_COMM_WORLD,
                 &tempSize);  // add size for residuals
   sendBufSize += tempSize;
-  MPI_Pack_size((*this).dt_.size(), MPI_DOUBLE, MPI_COMM_WORLD,
+  MPI_Pack_size(dt_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                 &tempSize);  // add size for time steps
   sendBufSize += tempSize;
-  MPI_Pack_size((*this).wallDist_.size(), MPI_DOUBLE, MPI_COMM_WORLD,
+  MPI_Pack_size(wallDist_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                 &tempSize);  // add size for wall distance
   sendBufSize += tempSize;
-  MPI_Pack_size(avgWaveSpeed_.size(), MPI_DOUBLE, MPI_COMM_WORLD,
+  MPI_Pack_size(avgWaveSpeed_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                 &tempSize);  // add size for average wave speed
   sendBufSize += tempSize;
 
@@ -9334,19 +9314,19 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData) const {
 
   // pack data to send into buffer
   int position = 0;
-  MPI_Pack(&(*this).state_[0], (*this).state_.size(), MPI_cellData, sendBuffer,
+  MPI_Pack(&state_(0, 0, 0), state_.Size(), MPI_cellData, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).residual_[0], (*this).residual_.size(), MPI_cellData,
+  MPI_Pack(&residual_(0, 0, 0), residual_.Size(), MPI_cellData,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).dt_[0], (*this).dt_.size(), MPI_DOUBLE, sendBuffer,
+  MPI_Pack(&dt_(0, 0, 0), dt_.Size(), MPI_DOUBLE, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).wallDist_[0], (*this).wallDist_.size(), MPI_DOUBLE,
+  MPI_Pack(&wallDist_(0, 0, 0), wallDist_.Size(), MPI_DOUBLE,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&avgWaveSpeed_[0], avgWaveSpeed_.size(), MPI_DOUBLE,
+  MPI_Pack(&avgWaveSpeed_(0, 0, 0), avgWaveSpeed_.Size(), MPI_DOUBLE,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
 
   // send buffer to appropriate processor
-  MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, ROOTP, (*this).GlobalPos(),
+  MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, ROOTP, globalPos_,
            MPI_COMM_WORLD);
 
   delete[] sendBuffer;  // deallocate buffer
@@ -10368,171 +10348,127 @@ void procBlock::CalcGradsI(const int &ii, const int &jj, const int &kk,
                            tensor<double> &velGrad, vector3d<double> &tGrad,
                            vector3d<double> &tkeGrad,
                            vector3d<double> &omegaGrad) const {
-  int imax = (*this).NumI() + 2 * numGhosts_ + 1;
-  int jmax = (*this).NumJ() + 2 * numGhosts_;
-
-  // location of current face (with ghost cells included)
-  int loc = GetLoc1D(ii, jj, kk, imax, jmax);
-
-  // location of faces in the upper and lower i-direction (with ghost cells
-  // included)
-  int fUpi = GetNeighborUpI(ii, jj, kk, imax, jmax);
-  int fLowi = GetNeighborLowI(ii, jj, kk, imax, jmax);
-
-  // location of j-faces in the upper and lower direction belonging to the cells
-  // in the upper and lower i-direction of the current face (with ghost cells
-  // included) - these are used in the gradient calculation to construct the
-  // alternate control volume
-  int fUpjUpi = GetUpperFaceJ(ii, jj, kk, imax - 1, jmax);
-  int fUpjLowi = GetUpperFaceJ(ii - 1, jj, kk, imax - 1, jmax);
-  int fLowjUpi = GetLowerFaceJ(ii, jj, kk, imax - 1, jmax);
-  int fLowjLowi = GetLowerFaceJ(ii - 1, jj, kk, imax - 1, jmax);
-
-  // location of k-faces in the upper and lower direction belonging to the cells
-  // in the upper and lower i-direction of the current face (with ghost cells
-  // included) - these are used in the gradient calculation to construct the
-  // alternate control volume
-  int fUpkUpi = GetUpperFaceK(ii, jj, kk, imax - 1, jmax);
-  int fUpkLowi = GetUpperFaceK(ii - 1, jj, kk, imax - 1, jmax);
-  int fLowkUpi = GetLowerFaceK(ii, jj, kk, imax - 1, jmax);
-  int fLowkLowi = GetLowerFaceK(ii - 1, jj, kk, imax - 1, jmax);
-
-  // location of cells in the upper and lower i-direction with respect to
-  // baseline face (with ghost cells included)
-  int iLow = GetCellFromFaceLowerI(ii, jj, kk, imax, jmax);
-  int iUp = GetCellFromFaceUpperI(ii, jj, kk, imax, jmax);
+  // ii -- i-index for face (including ghosts)
+  // jj -- j-index for face (including ghosts)
+  // kk -- k-index for face (including ghosts)
+  // eqnState -- equation of state
+  // turbFlag -- flag to determine if simulation is turbulent
+  // velGrad -- tensor to store velocity gradient
+  // tGrad -- vector3d to store temperature gradient
+  // tkeGrad -- vector3d to store tke gradient
+  // omegaGrad -- vector3d to store omega gradient
 
   // calculate areas of faces in alternate control volume
-  vector3d<double> aiu = 0.5 * ((*this).FAreaI(loc).Vector() +
-                                (*this).FAreaI(fUpi).Vector());
-  vector3d<double> ail = 0.5 * ((*this).FAreaI(loc).Vector() +
-                                (*this).FAreaI(fLowi).Vector());
+  vector3d<double> aiu = 0.5 * ((*this).FAreaI(ii, jj, kk).Vector() +
+                                (*this).FAreaI(ii + 1, jj, kk).Vector());
+  vector3d<double> ail = 0.5 * ((*this).FAreaI(ii, jj, kk).Vector() +
+                                (*this).FAreaI(ii - 1, jj, kk).Vector());
 
-  vector3d<double> aju =
-      0.5 * ((*this).FAreaJ(fUpjUpi).Vector() +
-             (*this).FAreaJ(fUpjLowi).Vector());
-  vector3d<double> ajl =
-      0.5 * ((*this).FAreaJ(fLowjUpi).Vector() +
-             (*this).FAreaJ(fLowjLowi).Vector());
+  vector3d<double> aju = 0.5 *
+      ((*this).FAreaJ(ii, jj + 1, kk).Vector() +
+       (*this).FAreaJ(ii - 1, jj + 1, kk).Vector());
+  vector3d<double> ajl = 0.5 *
+      ((*this).FAreaJ(ii, jj, kk).Vector() +
+       (*this).FAreaJ(ii - 1, jj, kk).Vector());
 
-  vector3d<double> aku =
-      0.5 * ((*this).FAreaK(fUpkUpi).Vector() +
-             (*this).FAreaK(fUpkLowi).Vector());
-  vector3d<double> akl =
-      0.5 * ((*this).FAreaK(fLowkUpi).Vector() +
-             (*this).FAreaK(fLowkLowi).Vector());
+  vector3d<double> aku = 0.5 *
+      ((*this).FAreaK(ii, jj, kk + 1).Vector() +
+       (*this).FAreaK(ii - 1, jj, kk + 1).Vector());
+  vector3d<double> akl = 0.5 *
+      ((*this).FAreaK(ii, jj, kk).Vector() +
+       (*this).FAreaK(ii - 1, jj, kk).Vector());
 
   // calculate volume of alternate control volume
-  double vol_ = 0.5 * (vol_(iLow) + vol_(iUp));
-
-  // location of cells in the upper and lower j-direction and the upper
-  // and lower i-direction of the current face (with ghost cells included) -
-  // these are used in the gradient calculation to construct the alternate
-  // control volume
-  int jUpiUp = GetNeighborUpJ(ii, jj, kk, imax - 1, jmax);
-  int jUpiLow = GetNeighborUpJ(ii - 1, jj, kk, imax - 1, jmax);
-  int jLowiUp = GetNeighborLowJ(ii, jj, kk, imax - 1, jmax);
-  int jLowiLow = GetNeighborLowJ(ii - 1, jj, kk, imax - 1, jmax);
-
-  // location of cells in the upper and lower k-direction and the upper
-  // and lower i-direction of the current face (with ghost cells included) -
-  // these are used in the gradient calculation to construct the alternate
-  // control volume
-  int kUpiUp = GetNeighborUpK(ii, jj, kk, imax - 1, jmax);
-  int kUpiLow = GetNeighborUpK(ii - 1, jj, kk, imax - 1, jmax);
-  int kLowiUp = GetNeighborLowK(ii, jj, kk, imax - 1, jmax);
-  int kLowiLow = GetNeighborLowK(ii - 1, jj, kk, imax - 1, jmax);
+  double vol = 0.5 * (vol_(ii - 1, jj, kk) + vol_(ii, jj, kk));
 
   // calculate average velocity on j and k faces of alternate control volume
-  vector3d<double> vju =
-      0.25 *
-      (state_(iLow).Velocity() + state_(iUp).Velocity() +
-       state_(jUpiUp).Velocity() + state_(jUpiLow).Velocity());
-  vector3d<double> vjl =
-      0.25 *
-      (state_(iLow).Velocity() + state_(iUp).Velocity() +
-       state_(jLowiUp).Velocity() + state_(jLowiLow).Velocity());
+  vector3d<double> vju = 0.25 *
+      (state_(ii - 1, jj, kk).Velocity() + state_(ii, jj, kk).Velocity() +
+       state_(ii, jj + 1, kk).Velocity() +
+       state_(ii - 1, jj + 1, kk).Velocity());
+  vector3d<double> vjl = 0.25 *
+      (state_(ii - 1, jj, kk).Velocity() + state_(ii, jj, kk).Velocity() +
+       state_(ii, jj - 1, kk).Velocity() +
+       state_(ii - 1, jj - 1, kk).Velocity());
 
-  vector3d<double> vku =
-      0.25 *
-      (state_(iLow).Velocity() + state_(iUp).Velocity() +
-       state_(kUpiUp).Velocity() + state_(kUpiLow).Velocity());
-  vector3d<double> vkl =
-      0.25 *
-      (state_(iLow).Velocity() + state_(iUp).Velocity() +
-       state_(kLowiUp).Velocity() + state_(kLowiLow).Velocity());
+  vector3d<double> vku = 0.25 *
+      (state_(ii - 1, jj, kk).Velocity() + state_(ii, jj, kk).Velocity() +
+       state_(ii, jj, kk + 1).Velocity() +
+       state_(ii - 1, jj, kk + 1).Velocity());
+  vector3d<double> vkl = 0.25 *
+      (state_(ii - 1, jj, kk).Velocity() + state_(ii, jj, kk).Velocity() +
+       state_(ii, jj, kk - 1).Velocity() +
+       state_(ii - 1, jj, kk - 1).Velocity());
 
   // Get velocity gradient at face
-  velGrad = CalcVelGradGG(state_(iLow).Velocity(),
-                          state_(iUp).Velocity(), vjl, vju, vkl, vku,
-                          ail, aiu, ajl, aju, akl, aku, vol_);
+  velGrad = CalcVelGradGG(state_(ii - 1, jj, kk).Velocity(),
+                          state_(ii, jj, kk).Velocity(), vjl, vju, vkl, vku,
+                          ail, aiu, ajl, aju, akl, aku, vol);
 
   // calculate average temperature on j and k faces of alternate control volume
-  double tju = 0.25 * (state_(iLow).Temperature(eqnState) +
-                       state_(iUp).Temperature(eqnState) +
-                       state_(jUpiUp).Temperature(eqnState) +
-                       state_(jUpiLow).Temperature(eqnState));
-  double tjl = 0.25 * (state_(iLow).Temperature(eqnState) +
-                       state_(iUp).Temperature(eqnState) +
-                       state_(jLowiUp).Temperature(eqnState) +
-                       state_(jLowiLow).Temperature(eqnState));
+  double tju = 0.25 * (state_(ii - 1, jj, kk).Temperature(eqnState) +
+                       state_(ii, jj, kk).Temperature(eqnState) +
+                       state_(ii, jj + 1, kk).Temperature(eqnState) +
+                       state_(ii - 1, jj + 1, kk).Temperature(eqnState));
+  double tjl = 0.25 * (state_(ii - 1, jj, kk).Temperature(eqnState) +
+                       state_(ii, jj, kk).Temperature(eqnState) +
+                       state_(ii, jj - 1, kk).Temperature(eqnState) +
+                       state_(ii - 1, jj - 1, kk).Temperature(eqnState));
 
-  double tku = 0.25 * (state_(iLow).Temperature(eqnState) +
-                       state_(iUp).Temperature(eqnState) +
-                       state_(kUpiUp).Temperature(eqnState) +
-                       state_(kUpiLow).Temperature(eqnState));
-  double tkl = 0.25 * (state_(iLow).Temperature(eqnState) +
-                       state_(iUp).Temperature(eqnState) +
-                       state_(kLowiUp).Temperature(eqnState) +
-                       state_(kLowiLow).Temperature(eqnState));
+  double tku = 0.25 * (state_(ii - 1, jj, kk).Temperature(eqnState) +
+                       state_(ii, jj, kk).Temperature(eqnState) +
+                       state_(ii, jj, kk + 1).Temperature(eqnState) +
+                       state_(ii - 1, jj, kk + 1).Temperature(eqnState));
+  double tkl = 0.25 * (state_(ii - 1, jj, kk).Temperature(eqnState) +
+                       state_(ii, jj, kk).Temperature(eqnState) +
+                       state_(ii, jj, kk - 1).Temperature(eqnState) +
+                       state_(ii - 1, jj, kk - 1).Temperature(eqnState));
 
   // Get temperature gradient at face
-  tGrad = CalcScalarGradGG(state_(iLow).Temperature(eqnState),
-                           state_(iUp).Temperature(eqnState), tjl, tju,
-                           tkl, tku, ail, aiu, ajl, aju, akl, aku, vol_);
+  tGrad = CalcScalarGradGG(state_(ii - 1, jj, kk).Temperature(eqnState),
+                           state_(ii, jj, kk).Temperature(eqnState), tjl, tju,
+                           tkl, tku, ail, aiu, ajl, aju, akl, aku, vol);
 
   if (turbFlag) {
     // calculate average tke on j and k faces of alternate control volume
-    double tkeju =
-        0.25 * (state_(iLow).Tke() + state_(iUp).Tke() +
-                state_(jUpiUp).Tke() + state_(jUpiLow).Tke());
-    double tkejl =
-        0.25 * (state_(iLow).Tke() + state_(iUp).Tke() +
-                state_(jLowiUp).Tke() + state_(jLowiLow).Tke());
+    double tkeju = 0.25 *
+        (state_(ii - 1, jj, kk).Tke() + state_(ii, jj, kk).Tke() +
+         state_(ii, jj + 1, kk).Tke() + state_(ii - 1, jj + 1, kk).Tke());
+    double tkejl = 0.25 *
+        (state_(ii - 1, jj, kk).Tke() + state_(ii, jj, kk).Tke() +
+         state_(ii, jj - 1, kk).Tke() + state_(ii - 1, jj - 1, kk).Tke());
 
-    double tkeku =
-        0.25 * (state_(iLow).Tke() + state_(iUp).Tke() +
-                state_(kUpiUp).Tke() + state_(kUpiLow).Tke());
-    double tkekl =
-        0.25 * (state_(iLow).Tke() + state_(iUp).Tke() +
-                state_(kLowiUp).Tke() + state_(kLowiLow).Tke());
+    double tkeku = 0.25 *
+        (state_(ii - 1, jj, kk).Tke() + state_(ii, jj, kk).Tke() +
+         state_(ii, jj, kk + 1).Tke() + state_(ii - 1, jj, kk + 1).Tke());
+    double tkekl = 0.25 *
+        (state_(ii - 1, jj, kk).Tke() + state_(ii, jj, kk).Tke() +
+         state_(ii, jj, kk - 1).Tke() + state_(ii - 1, jj, kk - 1).Tke());
 
     // Get tke gradient at face
-    tkeGrad = CalcScalarGradGG(state_(iLow).Tke(),
-                               state_(iUp).Tke(), tkejl, tkeju, tkekl,
-                               tkeku, ail, aiu, ajl, aju, akl, aku, vol_);
+    tkeGrad = CalcScalarGradGG(state_(ii - 1, jj, kk).Tke(),
+                               state_(ii, jj, kk).Tke(), tkejl, tkeju, tkekl,
+                               tkeku, ail, aiu, ajl, aju, akl, aku, vol);
 
     // calculate average Omega on j and k faces of alternate control volume
-    double omgju =
-        0.25 * (state_(iLow).Omega() + state_(iUp).Omega() +
-                state_(jUpiUp).Omega() + state_(jUpiLow).Omega());
-    double omgjl =
-        0.25 *
-        (state_(iLow).Omega() + state_(iUp).Omega() +
-         state_(jLowiUp).Omega() + state_(jLowiLow).Omega());
+    double omgju = 0.25 *
+        (state_(ii - 1, jj, kk).Omega() + state_(ii, jj, kk).Omega() +
+         state_(ii, jj + 1, kk).Omega() + state_(ii - 1, jj + 1, kk).Omega());
+    double omgjl = 0.25 *
+        (state_(ii - 1, jj, kk).Omega() + state_(ii, jj, kk).Omega() +
+         state_(ii, jj - 1, kk).Omega() + state_(ii - 1, jj - 1, kk).Omega());
 
-    double omgku =
-        0.25 * (state_(iLow).Omega() + state_(iUp).Omega() +
-                state_(kUpiUp).Omega() + state_(kUpiLow).Omega());
-    double omgkl =
-        0.25 *
-        (state_(iLow).Omega() + state_(iUp).Omega() +
-         state_(kLowiUp).Omega() + state_(kLowiLow).Omega());
+    double omgku = 0.25 *
+        (state_(ii - 1, jj, kk).Omega() + state_(ii, jj, kk).Omega() +
+         state_(ii, jj, kk + 1).Omega() + state_(ii - 1, jj, kk + 1).Omega());
+    double omgkl = 0.25 *
+        (state_(ii - 1, jj, kk).Omega() + state_(ii, jj, kk).Omega() +
+         state_(ii, jj, kk - 1).Omega() + state_(ii - 1, jj, kk - 1).Omega());
 
     // Get omega gradient at face
     omegaGrad = CalcScalarGradGG(
-        state_(iLow).Omega(), state_(iUp).Omega(), omgjl, omgju,
-        omgkl, omgku, ail, aiu, ajl, aju, akl, aku, vol_);
+        state_(ii - 1, jj, kk).Omega(), state_(ii, jj, kk).Omega(), omgjl,
+        omgju, omgkl, omgku, ail, aiu, ajl, aju, akl, aku, vol);
   }
 }
 
@@ -10541,171 +10477,128 @@ void procBlock::CalcGradsJ(const int &ii, const int &jj, const int &kk,
                            tensor<double> &velGrad, vector3d<double> &tGrad,
                            vector3d<double> &tkeGrad,
                            vector3d<double> &omegaGrad) const {
-  int imax = (*this).NumI() + 2 * numGhosts_;
-  int jmax = (*this).NumJ() + 2 * numGhosts_ + 1;
-
-  // location of current face (with ghost cells included)
-  int loc = GetLoc1D(ii, jj, kk, imax, jmax);
-
-  // location of faces in the upper and lower j-direction (with ghost cells
-  // included)
-  int fUpj = GetNeighborUpJ(ii, jj, kk, imax, jmax);
-  int fLowj = GetNeighborLowJ(ii, jj, kk, imax, jmax);
-
-  // location of i-faces in the upper and lower direction belonging to the cells
-  // in the upper and lower j-direction of the current face (with ghost cells
-  // included) - these are used in the gradient calculation to construct the
-  // alternate control volume
-  int fUpiUpj = GetUpperFaceI(ii, jj, kk, imax, jmax - 1);
-  int fUpiLowj = GetUpperFaceI(ii, jj - 1, kk, imax, jmax - 1);
-  int fLowiUpj = GetLowerFaceI(ii, jj, kk, imax, jmax - 1);
-  int fLowiLowj = GetLowerFaceI(ii, jj - 1, kk, imax, jmax - 1);
-
-  // location of k-faces in the upper and lower direction belonging to the cells
-  // in the upper and lower j-direction of the current face (with ghost cells
-  // included) - these are used in the gradient calculation to construct the
-  // alternate control volume
-  int fUpkUpj = GetUpperFaceK(ii, jj, kk, imax, jmax - 1);
-  int fUpkLowj = GetUpperFaceK(ii, jj - 1, kk, imax, jmax - 1);
-  int fLowkUpj = GetLowerFaceK(ii, jj, kk, imax, jmax - 1);
-  int fLowkLowj = GetLowerFaceK(ii, jj - 1, kk, imax, jmax - 1);
-
-  // location of cells in the upper and lower j-direction with respect to
-  // baseline face (with ghost cells included)
-  int jLow = GetCellFromFaceLowerJ(ii, jj, kk, imax, jmax);
-  int jUp = GetCellFromFaceUpperJ(ii, jj, kk, imax, jmax);
+  // ii -- i-index for face (including ghosts)
+  // jj -- j-index for face (including ghosts)
+  // kk -- k-index for face (including ghosts)
+  // eqnState -- equation of state
+  // turbFlag -- flag to determine if simulation is turbulent
+  // velGrad -- tensor to store velocity gradient
+  // tGrad -- vector3d to store temperature gradient
+  // tkeGrad -- vector3d to store tke gradient
+  // omegaGrad -- vector3d to store omega gradient
 
   // calculate areas of faces in alternate control volume
-  vector3d<double> aju = 0.5 * ((*this).FAreaJ(loc).Vector() +
-                                (*this).FAreaJ(fUpj).Vector());
-  vector3d<double> ajl = 0.5 * ((*this).FAreaJ(loc).Vector() +
-                                    (*this).FAreaJ(fLowj).Vector());
+  vector3d<double> aju = 0.5 * ((*this).FAreaJ(ii, jj, kk).Vector() +
+                                (*this).FAreaJ(ii, jj + 1, kk).Vector());
+  vector3d<double> ajl = 0.5 * ((*this).FAreaJ(ii, jj, kk).Vector() +
+                                    (*this).FAreaJ(ii, jj - 1, kk).Vector());
 
-  vector3d<double> aiu =
-      0.5 * ((*this).FAreaI(fUpiUpj).Vector() +
-             (*this).FAreaI(fUpiLowj).Vector());
-  vector3d<double> ail =
-      0.5 * ((*this).FAreaI(fLowiUpj).Vector() +
-             (*this).FAreaI(fLowiLowj).Vector());
+  vector3d<double> aiu = 0.5 *
+      ((*this).FAreaI(ii + 1, jj, kk).Vector() +
+       (*this).FAreaI(ii + 1, jj - 1, kk).Vector());
+  vector3d<double> ail = 0.5 *
+      ((*this).FAreaI(ii, jj, kk).Vector() +
+       (*this).FAreaI(ii, jj - 1, kk).Vector());
 
-  vector3d<double> aku =
-      0.5 * ((*this).FAreaK(fUpkUpj).Vector() +
-             (*this).FAreaK(fUpkLowj).Vector());
-  vector3d<double> akl =
-      0.5 * ((*this).FAreaK(fLowkUpj).Vector() +
-             (*this).FAreaK(fLowkLowj).Vector());
+  vector3d<double> aku = 0.5 *
+      ((*this).FAreaK(ii, jj, kk + 1).Vector() +
+       (*this).FAreaK(ii, jj - 1, kk + 1).Vector());
+  vector3d<double> akl = 0.5 *
+      ((*this).FAreaK(ii, jj, kk).Vector() +
+       (*this).FAreaK(ii, jj - 1, kk).Vector());
 
   // calculate volume of alternate control volume
-  double vol_ = 0.5 * (vol_(jLow) + vol_(jUp));
-
-  // location of cells in the upper and lower i-direction and the upper
-  // and lower j-direction of the current face (with ghost cells included) -
-  // these are used in the gradient calculation to construct the alternate
-  // control volume
-  int iUpjUp = GetNeighborUpI(ii, jj, kk, imax, jmax - 1);
-  int iUpjLow = GetNeighborUpI(ii, jj - 1, kk, imax, jmax - 1);
-  int iLowjUp = GetNeighborLowI(ii, jj, kk, imax, jmax - 1);
-  int iLowjLow = GetNeighborLowI(ii, jj - 1, kk, imax, jmax - 1);
-
-  // location of cells in the upper and lower k-direction and the upper
-  // and lower j-direction of the current face (with ghost cells included) -
-  // these are used in the gradient calculation to construct the alternate
-  // control volume
-  int kUpjUp = GetNeighborUpK(ii, jj, kk, imax, jmax - 1);
-  int kUpjLow = GetNeighborUpK(ii, jj - 1, kk, imax, jmax - 1);
-  int kLowjUp = GetNeighborLowK(ii, jj, kk, imax, jmax - 1);
-  int kLowjLow = GetNeighborLowK(ii, jj - 1, kk, imax, jmax - 1);
+  double vol = 0.5 * (vol_(ii, jj - 1, kk) + vol_(ii, jj, kk));
 
   // calculate average velocity on i and k faces of alternate control volume
-  vector3d<double> viu =
-      0.25 *
-      (state_(jLow).Velocity() + state_(jUp).Velocity() +
-       state_(iUpjUp).Velocity() + state_(iUpjLow).Velocity());
-  vector3d<double> vil =
-      0.25 *
-      (state_(jLow).Velocity() + state_(jUp).Velocity() +
-       state_(iLowjUp).Velocity() + state_(iLowjLow).Velocity());
+  vector3d<double> viu = 0.25 *
+      (state_(ii, jj - 1, kk).Velocity() + state_(ii, jj, kk).Velocity() +
+       state_(ii + 1, jj, kk).Velocity() +
+       state_(ii + 1, jj - 1, kk).Velocity());
+  vector3d<double> vil = 0.25 *
+      (state_(ii, jj - 1, kk).Velocity() + state_(ii, jj, kk).Velocity() +
+       state_(ii - 1, jj, kk).Velocity() +
+       state_(ii - 1, jj - 1, kk).Velocity());
 
-  vector3d<double> vku =
-      0.25 *
-      (state_(jLow).Velocity() + state_(jUp).Velocity() +
-       state_(kUpjUp).Velocity() + state_(kUpjLow).Velocity());
-  vector3d<double> vkl =
-      0.25 *
-      (state_(jLow).Velocity() + state_(jUp).Velocity() +
-       state_(kLowjUp).Velocity() + state_(kLowjLow).Velocity());
+  vector3d<double> vku = 0.25 *
+      (state_(ii, jj - 1, kk).Velocity() + state_(ii, jj, kk).Velocity() +
+       state_(ii, jj, kk + 1).Velocity() +
+       state_(ii, jj - 1, kk + 1).Velocity());
+  vector3d<double> vkl = 0.25 *
+      (state_(ii, jj - 1, kk).Velocity() + state_(ii, jj, kk).Velocity() +
+       state_(ii, jj, kk - 1).Velocity() +
+       state_(ii, jj - 1, kk - 1).Velocity());
 
   // Get velocity gradient at face
-  velGrad = CalcVelGradGG(vil, viu, state_(jLow).Velocity(),
-                          state_(jUp).Velocity(), vkl, vku, ail, aiu,
-                          ajl, aju, akl, aku, vol_);
+  velGrad = CalcVelGradGG(vil, viu, state_(ii, jj - 1, kk).Velocity(),
+                          state_(ii, jj, kk).Velocity(), vkl, vku, ail, aiu,
+                          ajl, aju, akl, aku, vol);
 
   // calculate average temperature on i and k faces of alternate control volume
-  double tiu = 0.25 * (state_(jLow).Temperature(eqnState) +
-                       state_(jUp).Temperature(eqnState) +
-                       state_(iUpjUp).Temperature(eqnState) +
-                       state_(iUpjLow).Temperature(eqnState));
-  double til = 0.25 * (state_(jLow).Temperature(eqnState) +
-                       state_(jUp).Temperature(eqnState) +
-                       state_(iLowjUp).Temperature(eqnState) +
-                       state_(iLowjLow).Temperature(eqnState));
+  double tiu = 0.25 * (state_(ii, jj - 1, kk).Temperature(eqnState) +
+                       state_(ii, jj, kk).Temperature(eqnState) +
+                       state_(ii + 1, jj, kk).Temperature(eqnState) +
+                       state_(ii + 1, jj - 1, kk).Temperature(eqnState));
+  double til = 0.25 * (state_(ii, jj - 1, kk).Temperature(eqnState) +
+                       state_(ii, jj, kk).Temperature(eqnState) +
+                       state_(ii - 1, jj, kk).Temperature(eqnState) +
+                       state_(ii - 1, jj - 1, kk).Temperature(eqnState));
 
-  double tku = 0.25 * (state_(jLow).Temperature(eqnState) +
-                       state_(jUp).Temperature(eqnState) +
-                       state_(kUpjUp).Temperature(eqnState) +
-                       state_(kUpjLow).Temperature(eqnState));
-  double tkl = 0.25 * (state_(jLow).Temperature(eqnState) +
-                       state_(jUp).Temperature(eqnState) +
-                       state_(kLowjUp).Temperature(eqnState) +
-                       state_(kLowjLow).Temperature(eqnState));
+  double tku = 0.25 * (state_(ii, jj - 1, kk).Temperature(eqnState) +
+                       state_(ii, jj, kk).Temperature(eqnState) +
+                       state_(ii, jj, kk + 1).Temperature(eqnState) +
+                       state_(ii, jj - 1, kk + 1).Temperature(eqnState));
+  double tkl = 0.25 * (state_(ii, jj - 1, kk).Temperature(eqnState) +
+                       state_(ii, jj, kk).Temperature(eqnState) +
+                       state_(ii, jj, kk - 1).Temperature(eqnState) +
+                       state_(ii, jj - 1, kk - 1).Temperature(eqnState));
 
   // Get temperature gradient at face
-  tGrad = CalcScalarGradGG(til, tiu, state_(jLow).Temperature(eqnState),
-                           state_(jUp).Temperature(eqnState), tkl, tku,
-                           ail, aiu, ajl, aju, akl, aku, vol_);
+  tGrad = CalcScalarGradGG(til, tiu,
+                           state_(ii, jj - 1, kk).Temperature(eqnState),
+                           state_(ii, jj, kk).Temperature(eqnState), tkl, tku,
+                           ail, aiu, ajl, aju, akl, aku, vol);
 
   if (turbFlag) {
     // calculate average tke on i and k faces of alternate control volume
-    double tkeiu =
-        0.25 * (state_(jLow).Tke() + state_(jUp).Tke() +
-                state_(iUpjUp).Tke() + state_(iUpjLow).Tke());
-    double tkeil =
-        0.25 * (state_(jLow).Tke() + state_(jUp).Tke() +
-                state_(iLowjUp).Tke() + state_(iLowjLow).Tke());
+    double tkeiu = 0.25 *
+        (state_(ii, jj - 1, kk).Tke() + state_(ii, jj, kk).Tke() +
+         state_(ii + 1, jj, kk).Tke() + state_(ii + 1, jj - 1, kk).Tke());
+    double tkeil = 0.25 *
+        (state_(ii, jj - 1, kk).Tke() + state_(ii, jj, kk).Tke() +
+         state_(ii - 1, jj, kk).Tke() + state_(ii - 1, jj - 1, kk).Tke());
 
-    double tkeku =
-        0.25 * (state_(jLow).Tke() + state_(jUp).Tke() +
-                state_(kUpjUp).Tke() + state_(kUpjLow).Tke());
-    double tkekl =
-        0.25 * (state_(jLow).Tke() + state_(jUp).Tke() +
-                state_(kLowjUp).Tke() + state_(kLowjLow).Tke());
+    double tkeku = 0.25 *
+        (state_(ii, jj - 1, kk).Tke() + state_(ii, jj, kk).Tke() +
+         state_(ii, jj, kk + 1).Tke() + state_(ii, jj - 1, kk + 1).Tke());
+    double tkekl = 0.25 *
+        (state_(ii, jj - 1, kk).Tke() + state_(ii, jj, kk).Tke() +
+         state_(ii, jj, kk - 1).Tke() + state_(ii, jj - 1, kk - 1).Tke());
 
     // Get temperature gradient at face
-    tkeGrad = CalcScalarGradGG(tkeil, tkeiu, state_(jLow).Tke(),
-                               state_(jUp).Tke(), tkekl, tkeku, ail, aiu,
-                               ajl, aju, akl, aku, vol_);
+    tkeGrad = CalcScalarGradGG(tkeil, tkeiu, state_(ii, jj - 1, kk).Tke(),
+                               state_(ii, jj, kk).Tke(), tkekl, tkeku, ail, aiu,
+                               ajl, aju, akl, aku, vol);
 
     // calculate average omega on i and k faces of alternate control volume
-    double omgiu =
-        0.25 * (state_(jLow).Omega() + state_(jUp).Omega() +
-                state_(iUpjUp).Omega() + state_(iUpjLow).Omega());
-    double omgil =
-        0.25 *
-        (state_(jLow).Omega() + state_(jUp).Omega() +
-         state_(iLowjUp).Omega() + state_(iLowjLow).Omega());
+    double omgiu = 0.25 *
+        (state_(ii, jj - 1, kk).Omega() + state_(ii, jj, kk).Omega() +
+         state_(ii + 1, jj, kk).Omega() + state_(ii + 1, jj - 1, kk).Omega());
+    double omgil = 0.25 *
+        (state_(ii, jj - 1, kk).Omega() + state_(ii, jj, kk).Omega() +
+         state_(ii - 1, jj, kk).Omega() + state_(ii - 1, jj - 1, kk).Omega());
 
-    double omgku =
-        0.25 * (state_(jLow).Omega() + state_(jUp).Omega() +
-                state_(kUpjUp).Omega() + state_(kUpjLow).Omega());
-    double omgkl =
-        0.25 *
-        (state_(jLow).Omega() + state_(jUp).Omega() +
-         state_(kLowjUp).Omega() + state_(kLowjLow).Omega());
+    double omgku = 0.25 *
+        (state_(ii, jj - 1, kk).Omega() + state_(ii, jj, kk).Omega() +
+         state_(ii, jj, kk + 1).Omega() + state_(ii, jj - 1, kk + 1).Omega());
+    double omgkl = 0.25 *
+        (state_(ii, jj - 1, kk).Omega() + state_(ii, jj, kk).Omega() +
+         state_(ii, jj, kk - 1).Omega() + state_(ii, jj - 1, kk - 1).Omega());
 
     // Get temperature gradient at face
-    omegaGrad = CalcScalarGradGG(omgil, omgiu, state_(jLow).Omega(),
-                                 state_(jUp).Omega(), omgkl, omgku, ail,
-                                 aiu, ajl, aju, akl, aku, vol_);
+    omegaGrad = CalcScalarGradGG(omgil, omgiu, state_(ii, jj - 1, kk).Omega(),
+                                 state_(ii, jj, kk).Omega(), omgkl, omgku, ail,
+                                 aiu, ajl, aju, akl, aku, vol);
   }
 }
 
@@ -10714,172 +10607,128 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
                            tensor<double> &velGrad, vector3d<double> &tGrad,
                            vector3d<double> &tkeGrad,
                            vector3d<double> &omegaGrad) const {
-  int imax = (*this).NumI() + 2 * numGhosts_;
-  int jmax = (*this).NumJ() + 2 * numGhosts_;
-
-  // location of current face (with ghost cells included)
-  int loc = GetLoc1D(ii, jj, kk, imax, jmax);
-
-  // location of faces in the upper and lower k-direction (with ghost cells
-  // included)
-  int fUpk = GetNeighborUpK(ii, jj, kk, imax, jmax);
-  int fLowk = GetNeighborLowK(ii, jj, kk, imax, jmax);
-
-  // location of i-faces in the upper and lower direction belonging to the cells
-  // in the upper and lower k-direction of the current face (with ghost cells
-  // included) - these are used in the gradient calculation to construct the
-  // alternate control volume
-  int fUpiUpk = GetUpperFaceI(ii, jj, kk, imax, jmax);
-  int fUpiLowk = GetUpperFaceI(ii, jj, kk - 1, imax, jmax);
-  int fLowiUpk = GetLowerFaceI(ii, jj, kk, imax, jmax);
-  int fLowiLowk = GetLowerFaceI(ii, jj, kk - 1, imax, jmax);
-
-  // location of j-faces in the upper and lower direction belonging to the cells
-  // in the upper and lower k-direction of the current face (with ghost cells
-  // included) - these are used in the gradient calculation to construct the
-  // alternate control volume
-  int fUpjUpk = GetUpperFaceJ(ii, jj, kk, imax, jmax);
-  int fUpjLowk = GetUpperFaceJ(ii, jj, kk - 1, imax, jmax);
-  int fLowjUpk = GetLowerFaceJ(ii, jj, kk, imax, jmax);
-  int fLowjLowk = GetLowerFaceJ(ii, jj, kk - 1, imax, jmax);
-
-  // location of cells in the upper and lower k-direction with respect to
-  // baseline face (with ghost cells included)
-  int kLow = GetCellFromFaceLowerK(ii, jj, kk, imax, jmax);
-  int kUp = GetCellFromFaceUpperK(ii, jj, kk, imax, jmax);
+  // ii -- i-index for face (including ghosts)
+  // jj -- j-index for face (including ghosts)
+  // kk -- k-index for face (including ghosts)
+  // eqnState -- equation of state
+  // turbFlag -- flag to determine if simulation is turbulent
+  // velGrad -- tensor to store velocity gradient
+  // tGrad -- vector3d to store temperature gradient
+  // tkeGrad -- vector3d to store tke gradient
+  // omegaGrad -- vector3d to store omega gradient
 
   // calculate areas of faces in alternate control volume
-  vector3d<double> aku = 0.5 * ((*this).FAreaK(loc).Vector() +
-                                (*this).FAreaK(fUpk).Vector());
-  vector3d<double> akl = 0.5 * ((*this).FAreaK(loc).Vector() +
-                                (*this).FAreaK(fLowk).Vector());
+  vector3d<double> aku = 0.5 * ((*this).FAreaK(ii, jj, kk).Vector() +
+                                (*this).FAreaK(ii, jj, kk + 1).Vector());
+  vector3d<double> akl = 0.5 * ((*this).FAreaK(ii, jj, kk).Vector() +
+                                (*this).FAreaK(ii, jj, kk - 1).Vector());
 
-  vector3d<double> aiu =
-      0.5 * ((*this).FAreaI(fUpiUpk).Vector() +
-             (*this).FAreaI(fUpiLowk).Vector());
-  vector3d<double> ail =
-      0.5 * ((*this).FAreaI(fLowiUpk).Vector() +
-             (*this).FAreaI(fLowiLowk).Vector());
+  vector3d<double> aiu = 0.5 *
+      ((*this).FAreaI(ii + 1, jj, kk).Vector() +
+       (*this).FAreaI(ii + 1, jj, kk - 1).Vector());
+  vector3d<double> ail = 0.5 *
+      ((*this).FAreaI(ii, jj, kk).Vector() +
+       (*this).FAreaI(ii, jj, kk - 1).Vector());
 
-  vector3d<double> aju =
-      0.5 * ((*this).FAreaJ(fUpjUpk).Vector() +
-             (*this).FAreaJ(fUpjLowk).Vector());
-  vector3d<double> ajl =
-      0.5 * ((*this).FAreaJ(fLowjUpk).Vector()
-             + (*this).FAreaJ(fLowjLowk).Vector());
+  vector3d<double> aju = 0.5 *
+      ((*this).FAreaJ(ii, jj + 1, kk).Vector() +
+       (*this).FAreaJ(ii, jj + 1, kk - 1).Vector());
+  vector3d<double> ajl = 0.5 *
+      ((*this).FAreaJ(ii, jj, kk).Vector()
+       + (*this).FAreaJ(ii, jj, kk - 1).Vector());
 
   // calculate volume of alternate control volume
-  double vol_ = 0.5 * (vol_(kLow) + vol_(kUp));
-
-  // location of cells in the upper and lower k-direction and the upper
-  // and lower i-direction of the current face (with ghost cells included) -
-  // these are used in the gradient calculation to construct the alternate
-  // control volume
-  int iUpkUp = GetNeighborUpI(ii, jj, kk, imax, jmax);
-  int iUpkLow = GetNeighborUpI(ii, jj, kk - 1, imax, jmax);
-  int iLowkUp = GetNeighborLowI(ii, jj, kk, imax, jmax);
-  int iLowkLow = GetNeighborLowI(ii, jj, kk - 1, imax, jmax);
-
-  // location of cells in the upper and lower k-direction and the upper
-  // and lower j-direction of the current face (with ghost cells included) -
-  // these are used in the gradient calculation to construct the alternate
-  // control volume
-  int jUpkUp = GetNeighborUpK(ii, jj, kk, imax, jmax);
-  int jUpkLow = GetNeighborUpK(ii, jj, kk - 1, imax, jmax);
-  int jLowkUp = GetNeighborLowK(ii, jj, kk, imax, jmax);
-  int jLowkLow = GetNeighborLowK(ii, jj, kk - 1, imax, jmax);
+  double vol = 0.5 * (vol_(ii, jj, kk - 1) + vol_(ii, jj, kk));
 
   // calculate average velocity on i and j faces of alternate control volume
-  vector3d<double> viu =
-      0.25 *
-      (state_(kLow).Velocity() + state_(kUp).Velocity() +
-       state_(iUpkUp).Velocity() + state_(iUpkLow).Velocity());
-  vector3d<double> vil =
-      0.25 *
-      (state_(kLow).Velocity() + state_(kUp).Velocity() +
-       state_(iLowkUp).Velocity() + state_(iLowkLow).Velocity());
+  vector3d<double> viu = 0.25 *
+      (state_(ii, jj, kk - 1).Velocity() + state_(ii, jj, kk).Velocity() +
+       state_(ii + 1, jj, kk).Velocity() +
+       state_(ii + 1, jj, kk - 1).Velocity());
+  vector3d<double> vil = 0.25 *
+      (state_(ii, jj, kk - 1).Velocity() + state_(ii, jj, kk).Velocity() +
+       state_(ii - 1, jj, kk).Velocity() +
+       state_(ii - 1, jj, kk - 1).Velocity());
 
-  vector3d<double> vju =
-      0.25 *
-      (state_(kLow).Velocity() + state_(kUp).Velocity() +
-       state_(jUpkUp).Velocity() + state_(jUpkLow).Velocity());
-  vector3d<double> vjl =
-      0.25 *
-      (state_(kLow).Velocity() + state_(kUp).Velocity() +
-       state_(jLowkUp).Velocity() + state_(jLowkLow).Velocity());
+  vector3d<double> vju = 0.25 *
+      (state_(ii, jj, kk - 1).Velocity() + state_(ii, jj, kk).Velocity() +
+       state_(ii, jj, kk + 1).Velocity() +
+       state_(ii, jj + 1, kk - 1).Velocity());
+  vector3d<double> vjl = 0.25 *
+      (state_(ii, jj, kk - 1).Velocity() + state_(ii, jj, kk).Velocity() +
+       state_(ii, jj - 1, kk).Velocity() +
+       state_(ii, jj - 1, kk - 1).Velocity());
 
   // Get velocity gradient at face
-  velGrad = CalcVelGradGG(vil, viu, vjl, vju, state_(kLow).Velocity(),
-                          state_(kUp).Velocity(), ail, aiu, ajl, aju,
-                          akl, aku, vol_);
+  velGrad = CalcVelGradGG(vil, viu, vjl, vju, state_(ii, jj, kk - 1).Velocity(),
+                          state_(ii, jj, kk).Velocity(), ail, aiu, ajl, aju,
+                          akl, aku, vol);
 
   // calculate average temperature on i and j faces of alternate control volume
-  double tiu = 0.25 * (state_(kLow).Temperature(eqnState) +
-                       state_(kUp).Temperature(eqnState) +
-                       state_(iUpkUp).Temperature(eqnState) +
-                       state_(iUpkLow).Temperature(eqnState));
-  double til = 0.25 * (state_(kLow).Temperature(eqnState) +
-                       state_(kUp).Temperature(eqnState) +
-                       state_(iLowkUp).Temperature(eqnState) +
-                       state_(iLowkLow).Temperature(eqnState));
+  double tiu = 0.25 * (state_(ii, jj, kk - 1).Temperature(eqnState) +
+                       state_(ii, jj, kk).Temperature(eqnState) +
+                       state_(ii + 1, jj, kk).Temperature(eqnState) +
+                       state_(ii + 1, jj, kk - 1).Temperature(eqnState));
+  double til = 0.25 * (state_(ii, jj, kk - 1).Temperature(eqnState) +
+                       state_(ii, jj, kk).Temperature(eqnState) +
+                       state_(ii - 1, jj, kk).Temperature(eqnState) +
+                       state_(ii - 1, jj, kk - 1).Temperature(eqnState));
 
-  double tju = 0.25 * (state_(kLow).Temperature(eqnState) +
-                       state_(kUp).Temperature(eqnState) +
-                       state_(jUpkUp).Temperature(eqnState) +
-                       state_(jUpkLow).Temperature(eqnState));
-  double tjl = 0.25 * (state_(kLow).Temperature(eqnState) +
-                       state_(kUp).Temperature(eqnState) +
-                       state_(jLowkUp).Temperature(eqnState) +
-                       state_(jLowkLow).Temperature(eqnState));
+  double tju = 0.25 * (state_(ii, jj, kk - 1).Temperature(eqnState) +
+                       state_(ii, jj, kk).Temperature(eqnState) +
+                       state_(ii, jj, kk + 1).Temperature(eqnState) +
+                       state_(ii, jj + 1, kk - 1).Temperature(eqnState));
+  double tjl = 0.25 * (state_(ii, jj, kk - 1).Temperature(eqnState) +
+                       state_(ii, jj, kk).Temperature(eqnState) +
+                       state_(ii, jj - 1, kk).Temperature(eqnState) +
+                       state_(ii, jj - 1, kk - 1).Temperature(eqnState));
 
   // Get temperature gradient at face
   tGrad = CalcScalarGradGG(til, tiu, tjl, tju,
-                           state_(kLow).Temperature(eqnState),
-                           state_(kUp).Temperature(eqnState), ail, aiu,
-                           ajl, aju, akl, aku, vol_);
+                           state_(ii, jj, kk - 1).Temperature(eqnState),
+                           state_(ii, jj, kk).Temperature(eqnState), ail, aiu,
+                           ajl, aju, akl, aku, vol);
 
   if (turbFlag) {
     // calculate average tke on i and j faces of alternate control volume
-    double tkeiu =
-        0.25 * (state_(kLow).Tke() + state_(kUp).Tke() +
-                state_(iUpkUp).Tke() + state_(iUpkLow).Tke());
-    double tkeil =
-        0.25 * (state_(kLow).Tke() + state_(kUp).Tke() +
-                state_(iLowkUp).Tke() + state_(iLowkLow).Tke());
+    double tkeiu = 0.25 *
+        (state_(ii, jj, kk - 1).Tke() + state_(ii, jj, kk).Tke() +
+         state_(ii + 1, jj, kk).Tke() + state_(ii + 1, jj, kk - 1).Tke());
+    double tkeil = 0.25 *
+        (state_(ii, jj, kk - 1).Tke() + state_(ii, jj, kk).Tke() +
+         state_(ii - 1, jj, kk).Tke() + state_(ii - 1, jj, kk - 1).Tke());
 
-    double tkeju =
-        0.25 * (state_(kLow).Tke() + state_(kUp).Tke() +
-                state_(jUpkUp).Tke() + state_(jUpkLow).Tke());
-    double tkejl =
-        0.25 * (state_(kLow).Tke() + state_(kUp).Tke() +
-                state_(jLowkUp).Tke() + state_(jLowkLow).Tke());
+    double tkeju = 0.25 *
+        (state_(ii, jj, kk - 1).Tke() + state_(ii, jj, kk).Tke() +
+         state_(ii, jj, kk + 1).Tke() + state_(ii, jj + 1, kk - 1).Tke());
+    double tkejl = 0.25 *
+        (state_(ii, jj, kk - 1).Tke() + state_(ii, jj, kk).Tke() +
+         state_(ii, jj - 1, kk).Tke() + state_(ii, jj - 1, kk - 1).Tke());
 
     // Get temperature gradient at face
     tkeGrad = CalcScalarGradGG(
-        tkeil, tkeiu, tkejl, tkeju, state_(kLow).Tke(),
-        state_(kUp).Tke(), ail, aiu, ajl, aju, akl, aku, vol_);
+        tkeil, tkeiu, tkejl, tkeju, state_(ii, jj, kk - 1).Tke(),
+        state_(ii, jj, kk).Tke(), ail, aiu, ajl, aju, akl, aku, vol);
 
     // calculate average omega on i and j faces of alternate control volume
-    double omgiu =
-        0.25 * (state_(kLow).Omega() + state_(kUp).Omega() +
-                state_(iUpkUp).Omega() + state_(iUpkLow).Omega());
-    double omgil =
-        0.25 *
-        (state_(kLow).Omega() + state_(kUp).Omega() +
-         state_(iLowkUp).Omega() + state_(iLowkLow).Omega());
+    double omgiu = 0.25 *
+        (state_(ii, jj, kk - 1).Omega() + state_(ii, jj, kk).Omega() +
+         state_(ii + 1, jj, kk).Omega() + state_(ii + 1, jj, kk - 1).Omega());
+    double omgil = 0.25 *
+        (state_(ii, jj, kk - 1).Omega() + state_(ii, jj, kk).Omega() +
+         state_(ii - 1, jj, kk).Omega() + state_(ii - 1, jj, kk - 1).Omega());
 
-    double omgju =
-        0.25 * (state_(kLow).Omega() + state_(kUp).Omega() +
-                state_(jUpkUp).Omega() + state_(jUpkLow).Omega());
-    double omgjl =
-        0.25 *
-        (state_(kLow).Omega() + state_(kUp).Omega() +
-         state_(jLowkUp).Omega() + state_(jLowkLow).Omega());
+    double omgju = 0.25 *
+        (state_(ii, jj, kk - 1).Omega() + state_(ii, jj, kk).Omega() +
+         state_(ii, jj, kk + 1).Omega() + state_(ii, jj + 1, kk - 1).Omega());
+    double omgjl = 0.25 *
+        (state_(ii, jj, kk - 1).Omega() + state_(ii, jj, kk).Omega() +
+         state_(ii, jj - 1, kk).Omega() + state_(ii, jj - 1, kk - 1).Omega());
 
     // Get temperature gradient at face
     omegaGrad = CalcScalarGradGG(
-        omgil, omgiu, omgjl, omgju, state_(kLow).Omega(),
-        state_(kUp).Omega(), ail, aiu, ajl, aju, akl, aku, vol_);
+        omgil, omgiu, omgjl, omgju, state_(ii, jj, kk - 1).Omega(),
+        state_(ii, jj, kk).Omega(), ail, aiu, ajl, aju, akl, aku, vol);
   }
 }
 

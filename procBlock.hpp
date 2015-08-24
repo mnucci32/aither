@@ -201,7 +201,7 @@ class procBlock {
                       const int &, const int &);
 
   void ResetResidWS();
-  void CleanResizeVecs();
+  void CleanResizeVecs(const int &, const int &, const int &);
 
   multiArray3d<genArray> AddVolTime(const multiArray3d<genArray> &,
                               const multiArray3d<genArray> &, const double &,
