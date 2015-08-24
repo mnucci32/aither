@@ -83,6 +83,10 @@ class multiArray3d {
   void operator+(const T&);
   void operator-(const T&);
 
+  void ClearResize(const int &ii, const int &jj, const int &kk) {
+    (*this) = multiArray3d<T>(ii, jj, kk);
+  }
+
   template <class TT>
   friend ostream &operator<<(ostream &, const multiArray3d<TT> &);
 

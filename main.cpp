@@ -185,8 +185,8 @@ int main(int argc, char *argv[]) {
   // Preallocate vectors for old solution
   // Outermost vector for blocks, inner vector for cell in blocks,
   // genArray for variables in cell
-  vector<vector<genArray> > solTimeN(numProcBlock);
-  vector<vector<genArray> > solDeltaNm1(numProcBlock);
+  vector<multiArray3d<genArray> > solTimeN(numProcBlock);
+  vector<multiArray3d<genArray> > solDeltaNm1(numProcBlock);
 
   // Initialize residual variables
   genArray residL2(0.0);  // l2 norm residuals
@@ -256,7 +256,9 @@ int main(int argc, char *argv[]) {
             // At first iteration, resize vector for old solution
             // and calculate solution at time n=-1
             if (nn == 0) {
-              solDeltaNm1[bb].resize(solTimeN[bb].size());
+              solDeltaNm1[bb].ClearResize(solTimeN[bb].NumI(),
+                                          solTimeN[bb].NumJ(),
+                                          solTimeN[bb].NumK());
               localStateBlocks[bb].DeltaNMinusOne(solDeltaNm1[bb], solTimeN[bb],
                                                   eos, inputVars.Theta(),
                                                   inputVars.Zeta());
@@ -264,7 +266,7 @@ int main(int argc, char *argv[]) {
           }
 
           // Add volume divided by time step term to time m minus time n values
-          vector<genArray> solTimeMmN =
+          multiArray3d<genArray> solTimeMmN =
               localStateBlocks[bb].AddVolTime(
                   localStateBlocks[bb].GetCopyConsVars(eos),
                   solTimeN[bb], inputVars.Theta(), inputVars.Zeta());
@@ -276,7 +278,9 @@ int main(int argc, char *argv[]) {
                                 localStateBlocks[bb].NumK());
 
           // Reserve space for correction du
-          vector<genArray> du(localStateBlocks[bb].NumCells(), initial);
+          multiArray3d<genArray> du(localStateBlocks[bb].NumI(),
+                                    localStateBlocks[bb].NumJ(),
+                                    localStateBlocks[bb].NumK(), initial);
 
           // Calculate correction (du)
           matrixResid += localStateBlocks[bb].LUSGS(reorder, du, solTimeMmN,
@@ -296,7 +300,8 @@ int main(int argc, char *argv[]) {
           }
         } else {  // explicit
           // Update solution
-          vector<genArray> dummyCorrection(1);  // not used in explicit update
+          // not used in explicit update
+          multiArray3d<genArray> dummyCorrection(1, 1, 1);
           localStateBlocks[bb].UpdateBlock(inputVars, inputVars.IsImplicit(),
                                            eos, aRef, dummyCorrection, residL2,
                                            residLinf);

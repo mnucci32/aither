@@ -24,6 +24,7 @@
 #include <iostream>
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"            // vector3d
+#include "multiArray3d.hpp"        // multiArray3d
 #include "tensor.hpp"              // tensor
 #include "primVars.hpp"            // primVars
 #include "matrix.hpp"              // genArray
@@ -53,34 +54,29 @@ class plot3dBlock;
 class resid;
 
 class procBlock {
-  vector<primVars> state_;  // primative variables at cell center
+  multiArray3d<primVars> state_;  // primative variables at cell center
 
-  vector<genArray> residual_;  // cell residual
+  multiArray3d<genArray> residual_;  // cell residual
 
-  vector<unitVec3dMag<double> > fAreaI_;  // face area vector for i-faces
-  vector<unitVec3dMag<double> > fAreaJ_;  // face area vector for j-faces
-  vector<unitVec3dMag<double> > fAreaK_;  // face area vector for k-faces
+  multiArray3d<unitVec3dMag<double> > fAreaI_;  // face area vector for i-faces
+  multiArray3d<unitVec3dMag<double> > fAreaJ_;  // face area vector for j-faces
+  multiArray3d<unitVec3dMag<double> > fAreaK_;  // face area vector for k-faces
 
-  vector<vector3d<double> > center_;  // coordinates of cell center
-  vector<vector3d<double> > fCenterI_;  // coordinates of i-face centers
-  vector<vector3d<double> > fCenterJ_;  // coordinates of j-face centers
-  vector<vector3d<double> > fCenterK_;  // coordinates of k-face centers
+  multiArray3d<vector3d<double> > center_;  // coordinates of cell center
+  multiArray3d<vector3d<double> > fCenterI_;  // coordinates of i-face centers
+  multiArray3d<vector3d<double> > fCenterJ_;  // coordinates of j-face centers
+  multiArray3d<vector3d<double> > fCenterK_;  // coordinates of k-face centers
 
-  vector<double> vol_;  // cell volume
-  vector<double> avgWaveSpeed_;  // maximum wave speed for cell
-  vector<double> dt_;  // cell time step
-  vector<double> wallDist_;  // distance to nearest viscous wall
+  multiArray3d<double> vol_;  // cell volume
+  multiArray3d<double> avgWaveSpeed_;  // maximum wave speed for cell
+  multiArray3d<double> dt_;  // cell time step
+  multiArray3d<double> wallDist_;  // distance to nearest viscous wall
 
   boundaryConditions bc_;  // boundary conditions for block
 
-  int numCells_;  // number of cells in block
-  int numVars_;  // number of variables stored at cell
-  int numI_;  // i-dimension of block (cells)
-  int numJ_;  // j-dimension of block (cells)
-  int numK_;  // k-dimension of block (cells)
   int numGhosts_;  // number of layers of ghost cells surrounding block
   int parBlock_;  // parent block number
-  int rank_;  // processor rank_
+  int rank_;  // processor rank
   int localPos_;  // position on local processor
   int globalPos_;  // global position of procBlock in decomposed vector of
                    // procBlocks
@@ -93,11 +89,10 @@ class procBlock {
   procBlock(const int &, const int &, const int &, const int &);
 
   // member functions
-  int NumCells() const { return numCells_; }
-  int NumVars() const { return numVars_; }
-  int NumI() const { return numI_; }
-  int NumJ() const { return numJ_; }
-  int NumK() const { return numK_; }
+  int NumCells() const { return residual_.Size(); }
+  int NumI() const { return residual_.NumI(); }
+  int NumJ() const { return residual_.NumJ(); }
+  int NumK() const { return residual_.NumK(); }
   int NumGhosts() const { return numGhosts_; }
   int ParentBlock() const { return parBlock_; }
   int LocalPosition() const { return localPos_; }
@@ -106,41 +101,84 @@ class procBlock {
 
   boundaryConditions BC() const { return bc_; }
 
-  primVars State(const int &ind) const { return state_[ind]; }
-  vector<genArray> GetCopyConsVars(const idealGas &) const;
-
-  double Vol(const int &ind) const { return vol_[ind]; }
-  vector3d<double> Center(const int &ind) const { return center_[ind]; }
-  vector3d<double> FAreaUnitI(const int &ind) const {
-    return fAreaI_[ind].UnitVector();
+  primVars State(const int &ii, const int &jj, const int &kk) const {
+    return state_(ii, jj, kk);
   }
-  vector3d<double> FAreaUnitJ(const int &ind) const {
-    return fAreaJ_[ind].UnitVector();
+
+  multiArray3d<genArray> GetCopyConsVars(const idealGas &) const;
+
+  double Vol(const int &ii, const int &jj, const int &kk) const {
+    return vol_(ii, jj, kk);
   }
-  vector3d<double> FAreaUnitK(const int &ind) const {
-    return fAreaK_[ind].UnitVector();
+  vector3d<double> Center(const int &ii, const int &jj, const int &kk) const {
+    return center_(ii, jj, kk);
   }
-  double FAreaMagI(const int &ind) const { return fAreaI_[ind].Mag(); }
-  double FAreaMagJ(const int &ind) const { return fAreaJ_[ind].Mag(); }
-  double FAreaMagK(const int &ind) const { return fAreaK_[ind].Mag(); }
-  unitVec3dMag<double> FAreaI(const int &ind) const { return fAreaI_[ind]; }
-  unitVec3dMag<double> FAreaJ(const int &ind) const { return fAreaJ_[ind]; }
-  unitVec3dMag<double> FAreaK(const int &ind) const { return fAreaK_[ind]; }
+  vector3d<double> FAreaUnitI(const int &ii, const int &jj,
+                              const int &kk) const {
+    return fAreaI_(ii, jj, kk).UnitVector();
+  }
+  vector3d<double> FAreaUnitJ(const int &ii, const int &jj,
+                              const int &kk) const {
+    return fAreaJ_(ii, jj, kk).UnitVector();
+  }
+  vector3d<double> FAreaUnitK(const int &ii, const int &jj,
+                              const int &kk) const {
+    return fAreaK_(ii, jj, kk).UnitVector();
+  }
+  double FAreaMagI(const int &ii, const int &jj, const int &kk) const {
+    return fAreaI_(ii, jj, kk).Mag();
+  }
+  double FAreaMagJ(const int &ii, const int &jj, const int &kk) const {
+    return fAreaJ_(ii, jj, kk).Mag();
+  }
+  double FAreaMagK(const int &ii, const int &jj, const int &kk) const {
+    return fAreaK_(ii, jj, kk).Mag();
+  }
+  unitVec3dMag<double> FAreaI(const int &ii, const int &jj,
+                              const int &kk) const {
+    return fAreaI_(ii, jj, kk);
+  }
+  unitVec3dMag<double> FAreaJ(const int &ii, const int &jj,
+                              const int &kk) const {
+    return fAreaJ_(ii, jj, kk);
+  }
+  unitVec3dMag<double> FAreaK(const int &ii, const int &jj,
+                              const int &kk) const {
+    return fAreaK_(ii, jj, kk);
+  }
 
-  vector3d<double> FCenterI(const int &ind) const { return fCenterI_[ind]; }
-  vector3d<double> FCenterJ(const int &ind) const { return fCenterJ_[ind]; }
-  vector3d<double> FCenterK(const int &ind) const { return fCenterK_[ind]; }
+  vector3d<double> FCenterI(const int &ii, const int &jj, const int &kk) const {
+    return fCenterI_(ii, jj, kk);
+  }
+  vector3d<double> FCenterJ(const int &ii, const int &jj, const int &kk) const {
+    return fCenterJ_(ii, jj, kk);
+  }
+  vector3d<double> FCenterK(const int &ii, const int &jj, const int &kk) const {
+    return fCenterK_(ii, jj, kk);
+  }
 
-  double AvgWaveSpeed(const int &ind) const { return avgWaveSpeed_[ind]; }
-  double Dt(const int &ind) const { return dt_[ind]; }
-  double WallDist(const int &ind) const { return wallDist_[ind]; }
+  double AvgWaveSpeed(const int &ii, const int &jj, const int &kk) const {
+    return avgWaveSpeed_(ii, jj, kk);
+  }
+  double Dt(const int &ii, const int &jj, const int &kk) const {
+    return dt_(ii, jj, kk);
+  }
+  double WallDist(const int &ii, const int &jj, const int &kk) const {
+    return wallDist_(ii, jj, kk);
+  }
 
-  void AddToResidual(const inviscidFlux &, const int &);
-  void AddToResidual(const viscousFlux &, const int &);
-  void AddToResidual(const source &, const int &);
-  genArray Residual(const int &ind) const { return residual_[ind]; }
-  double Residual(const int &ind, const int &a) const {
-    return residual_[ind][a];
+  void AddToResidual(const inviscidFlux &, const int &, const int &,
+                     const int &);
+  void AddToResidual(const viscousFlux &, const int &, const int &,
+                     const int &);
+  void AddToResidual(const source &, const int &, const int &, const int &);
+
+  genArray Residual(const int &ii, const int &jj, const int &kk) const {
+    return residual_(ii, jj, kk);
+  }
+  double Residual(const int &ii, const int &jj, const int &kk,
+                  const int &a) const {
+    return residual_(ii, jj, kk)[a];
   }
 
   void CalcCellDt(const int &, const int &, const int &, const double &);
@@ -151,24 +189,28 @@ class procBlock {
 
   void CalcBlockTimeStep(const input &, const double &);
   void UpdateBlock(const input &, const int &, const idealGas &, const double &,
-                   const vector<genArray> &, genArray &, resid &);
+                   const multiArray3d<genArray> &, genArray &, resid &);
 
-  void ExplicitEulerTimeAdvance(const idealGas &, const int &, const int &);
-  void ImplicitTimeAdvance(const genArray &, const idealGas &, const int &);
-  void RK4TimeAdvance(const primVars &, const idealGas &, const double &,
-                      const int &, const int &, const int &);
+  void ExplicitEulerTimeAdvance(const idealGas &, const int &, const int &,
+                                const int &, const int &, const int &,
+                                const int &);
+  void ImplicitTimeAdvance(const genArray &, const idealGas &, const int &,
+                           const int &, const int &);
+  void RK4TimeAdvance(const primVars &, const idealGas &, const int &,
+                      const int &, const int &const int &, const int &,
+                      const int &, const int &);
 
   void ResetResidWS();
   void CleanResizeVecs();
 
-  vector<genArray> AddVolTime(const vector<genArray> &,
-                              const vector<genArray> &, const double &,
+  multiArray3d<genArray> AddVolTime(const multiArray3d<genArray> &,
+                              const multiArray3d<genArray> &, const double &,
                               const double &) const;
-  void DeltaNMinusOne(vector<genArray> &, const vector<genArray> &,
+  void DeltaNMinusOne(multiArray3d<genArray> &, const multiArray3d<genArray> &,
                       const idealGas &, const double &, const double &);
 
-  double LUSGS(const vector<vector3d<int> > &, vector<genArray> &,
-               const vector<genArray> &, const vector<genArray> &,
+  double LUSGS(const vector<vector3d<int> > &, multiArray3d<genArray> &,
+               const multiArray3d<genArray> &, const multiArray3d<genArray> &,
                const idealGas &, const input &, const sutherland &,
                const turbModel *) const;
 
@@ -244,7 +286,7 @@ T FaceReconCentral(const T &, const T &, const vector3d<double> &,
                    const vector3d<double> &, const vector3d<double> &);
 
 template <class T>
-vector<T> PadWithGhosts(const vector<T> &, const int &, const int &,
+multiArray3d<T> PadWithGhosts(const multiArray3d<T> &, const int &, const int &,
                         const int &, const int &);
 
 tensor<double> CalcVelGradGG(const vector3d<double> &, const vector3d<double> &,

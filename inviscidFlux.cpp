@@ -141,13 +141,12 @@ wave strength across the face.
 
 */
 inviscidFlux RoeFlux(const primVars &left, const primVars &right,
-                     const idealGas &eqnState, const vector3d<double> &areaNorm,
-                     double &maxWS) {
+                     const idealGas &eqnState,
+                     const vector3d<double> &areaNorm) {
   // left -- primative variables from left
   // right -- primative variables from right
   // eqnState -- equation of state
   // areaNorm -- norm area vector of face
-  // maxWS -- maximum wave speed at face
 
   // compute Rho averaged quantities
   double denRatio = sqrt(right.Rho() / left.Rho());
@@ -210,8 +209,6 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
     waveSpeed[2] =
         0.5 * (waveSpeed[2] * waveSpeed[2] / entropyFix + entropyFix);
   }
-
-  maxWS = fabs(velRSum) + aR;  // calculate maximum wave speed
 
   // calculate right eigenvectors (T)
   // calculate eigenvector due to left acoustic wave

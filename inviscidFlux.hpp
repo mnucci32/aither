@@ -80,7 +80,7 @@ class inviscidFlux {
 // function definitions
 // function to calculate Roe flux with entropy fix
 inviscidFlux RoeFlux(const primVars&, const primVars&, const idealGas&,
-                     const vector3d<double>&, double&);
+                     const vector3d<double>&);
 
 // function to calculate Roe flux with entropy fix for implicit methods
 void ApproxRoeFluxJacobian(const primVars&, const primVars&, const idealGas&,

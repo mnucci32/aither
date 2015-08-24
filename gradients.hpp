@@ -24,42 +24,39 @@
    viscous fluxes, and source terms. */
 
 #include <vector>  // vector
-#include <string>  // string
 #include <iostream>
 #include "vector3d.hpp"
 #include "tensor.hpp"
+#include "multiArray3d.hpp"
 
-using std::vector;
-using std::string;
 using std::cout;
 using std::endl;
 using std::cerr;
-using std::ostream;
 
 // forward class declarations
 class procBlock;
 class idealGas;
 
 class gradients {
-  vector<tensor<double> > velocityI_;  // velocity gradients at cell i-face
-  vector<tensor<double> > velocityJ_;  // velocity gradients at cell j-face
-  vector<tensor<double> > velocityK_;  // velocity gradients at cell k-face
-  vector<vector3d<double> > temperatureI_;  // temperature gradients at cell
-                                            // i-face
-  vector<vector3d<double> > temperatureJ_;  // temperature gradients at cell
-                                            // j-face
-  vector<vector3d<double> > temperatureK_;  // temperature gradients at cell
-                                            // k-face
-  vector<vector3d<double> > tkeI_;  // tke gradients at cell i-face
-  vector<vector3d<double> > tkeJ_;  // tke gradients at cell j-face
-  vector<vector3d<double> > tkeK_;  // tke gradients at cell k-face
-  vector<vector3d<double> > omegaI_;  // omega gradients at cell i-face
-  vector<vector3d<double> > omegaJ_;  // omega gradients at cell j-face
-  vector<vector3d<double> > omegaK_;  // omega gradients at cell k-face
+  // velocity gradients at cell faces
+  multiArray3d<tensor<double> > velocityI_;
+  multiArray3d<tensor<double> > velocityJ_;
+  multiArray3d<tensor<double> > velocityK_;
 
-  int imax_;  // number of cells in i-direction
-  int jmax_;  // number of cells in j-direction
-  int kmax_;  // number of cells in k-direction
+  // temperature gradients at cell faces
+  multiArray3d<vector3d<double> > temperatureI_;
+  multiArray3d<vector3d<double> > temperatureJ_;
+  multiArray3d<vector3d<double> > temperatureK_;
+
+  // tke gradients at cell faces
+  multiArray3d<vector3d<double> > tkeI_;
+  multiArray3d<vector3d<double> > tkeJ_;
+  multiArray3d<vector3d<double> > tkeK_;
+
+  // omega gradients at cell faces
+  multiArray3d<vector3d<double> > omegaI_;
+  multiArray3d<vector3d<double> > omegaJ_;
+  multiArray3d<vector3d<double> > omegaK_;
 
  public:
   // constructors
@@ -80,9 +77,10 @@ class gradients {
   vector3d<double> OmegaGradJ(const int &a) const { return omegaJ_[a]; }
   vector3d<double> OmegaGradK(const int &a) const { return omegaK_[a]; }
 
-  int NumI() const { return imax_; }
-  int NumJ() const { return jmax_; }
-  int NumK() const { return kmax_; }
+  // functions to get number of cells in block
+  int NumI() const { return velocityI_.NumI() - 1; }
+  int NumJ() const { return velocityI_.NumJ(); }
+  int NumK() const { return velocityI_.NumK(); }
 
   tensor<double> VelGradCell(const int &, const int &, const int &) const;
   vector3d<double> TempGradCell(const int &, const int &, const int &) const;
