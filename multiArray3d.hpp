@@ -78,10 +78,15 @@ class multiArray3d {
   }
 
 
-  void operator*(const T&);
-  void operator/(const T&);
-  void operator+(const T&);
-  void operator-(const T&);
+  multiArray3d<T> operator*(const T&) const;
+  multiArray3d<T> operator/(const T&) const;
+  multiArray3d<T> operator+(const T&) const;
+  multiArray3d<T> operator-(const T&) const;
+
+  multiArray3d<T> operator*(const multiArray3d<T> &) const;
+  multiArray3d<T> operator/(const multiArray3d<T> &) const;
+  multiArray3d<T> operator+(const multiArray3d<T> &) const;
+  multiArray3d<T> operator-(const multiArray3d<T> &) const;
 
   void ClearResize(const int &ii, const int &jj, const int &kk) {
     (*this) = multiArray3d<T>(ii, jj, kk);
@@ -129,34 +134,82 @@ multiArray3d<T>::multiArray3d(const int &ii, const int &jj, const int &kk,
 // member functions
 // operator overload to multiply all data components by same factor
 template <class T>
-void multiArray3d<T>::operator*(const T &factor) {
-  for (unsigned int ii = 0; ii < data_.size(); ii++) {
-    data_[ii] *= factor;
+multiArray3d<T> multiArray3d<T>::operator*(const T &factor) const {
+  multiArray3d<T> arr = *this;
+  for (T& val : arr.data_) {
+    val *= factor;
   }
+  return arr;
 }
 
 // operator overload to divide all data components by same factor
 template <class T>
-void multiArray3d<T>::operator/(const T &factor) {
-  for (unsigned int ii = 0; ii < data_.size(); ii++) {
-    data_[ii] /= factor;
+multiArray3d<T> multiArray3d<T>::operator/(const T &factor) const {
+  multiArray3d<T> arr = *this;
+  for (T& val : arr.data_) {
+    val /= factor;
   }
+  return arr;
 }
 
 // operator overload to add the same factor to all data components
 template <class T>
-void multiArray3d<T>::operator+(const T &factor) {
-  for (unsigned int ii = 0; ii < data_.size(); ii++) {
-    data_[ii] += factor;
+multiArray3d<T> multiArray3d<T>::operator+(const T &factor) const {
+  multiArray3d<T> arr = *this;
+  for (T& val : arr.data_) {
+    val += factor;
   }
+  return arr;
 }
 
 // operator overload to subtract the same factor from all data components
 template <class T>
-void multiArray3d<T>::operator-(const T &factor) {
-  for (unsigned int ii = 0; ii < data_.size(); ii++) {
-    data_[ii] -= factor;
+multiArray3d<T> multiArray3d<T>::operator-(const T &factor) const {
+  multiArray3d<T> arr = *this;
+  for (T& val : arr.data_) {
+    val -= factor;
   }
+  return arr;
+}
+
+// operator overload for pointwise multiplication
+template <class T>
+multiArray3d<T> multiArray3d<T>::operator*(const multiArray3d<T> &b) const {
+  multiArray3d<T> arr = *this;
+  for (unsigned int ii = 0; ii < data_.size(); ii++) {
+    arr.data_[ii] *= b.data_[ii];
+  }
+  return arr;
+}
+
+// operator overload to divide all data components by same factor
+template <class T>
+multiArray3d<T> multiArray3d<T>::operator/(const T &factor) const {
+  multiArray3d<T> arr = *this;
+  for (unsigned int ii = 0; ii < data_.size(); ii++) {
+    arr.data_[ii] /= b.data_[ii];
+  }
+  return arr;
+}
+
+// operator overload to add the same factor to all data components
+template <class T>
+multiArray3d<T> multiArray3d<T>::operator+(const T &factor) const {
+  multiArray3d<T> arr = *this;
+  for (unsigned int ii = 0; ii < data_.size(); ii++) {
+    arr.data_[ii] += b.data_[ii];
+  }
+  return arr;
+}
+
+// operator overload to subtract the same factor from all data components
+template <class T>
+multiArray3d<T> multiArray3d<T>::operator-(const T &factor) const {
+  multiArray3d<T> arr = *this;
+  for (unsigned int ii = 0; ii < data_.size(); ii++) {
+    arr.data_[ii] -= b.data_[ii];
+  }
+  return arr;
 }
 
 // member function to return a slice of the array
