@@ -63,12 +63,16 @@ class multiArray3d {
   void Insert(const int&, const int&, const int&, const int&, const int&,
               const int&, const multiArray3d<T>&);
 
+  void GrowI();
+  void GrowJ();
+  void GrowK();
+
   // operator overloads
   T& operator()(const int &ii, const int &jj, const int &kk) {
-    return data_[(*this).GetLoc1D(ii, jj, kk)];
+    return data_[this->.GetLoc1D(ii, jj, kk)];
   }
   const T& operator()(const int &ii, const int &jj, const int &kk) const {
-    return data_[(*this).GetLoc1D(ii, jj, kk)];
+    return data_[this->.GetLoc1D(ii, jj, kk)];
   }
   T& operator()(const int &ind) {
     return data_[ind];
@@ -76,7 +80,6 @@ class multiArray3d {
   const T& operator()(const int &ind) const {
     return data_[ind];
   }
-
 
   multiArray3d<T> operator*(const T&) const;
   multiArray3d<T> operator/(const T&) const;
@@ -89,10 +92,10 @@ class multiArray3d {
   multiArray3d<T> operator-(const multiArray3d<T> &) const;
 
   void ClearResize(const int &ii, const int &jj, const int &kk) {
-    (*this) = multiArray3d<T>(ii, jj, kk);
+    *this = multiArray3d<T>(ii, jj, kk);
   }
   void ClearResize(const int &ii, const int &jj, const int &kk, const T &val) {
-    (*this) = multiArray3d<T>(ii, jj, kk, val);
+    *this = multiArray3d<T>(ii, jj, kk, val);
   }
 
   template <class TT>
@@ -226,14 +229,14 @@ multiArray3d<T> multiArray3d<T>::Slice(const int &is, const int &ie,
 
   // check that slice bounds are within parent array and that end bounds are
   // greater than or equal to start bounds
-  if (!(ie <= (*this).numI_ && ie >= 0 && is <= (*this).numI_ && is >= 0 &&
-        je <= (*this).numJ_ && je >= 0 && js <= (*this).numJ_ && js >= 0 &&
-        ke <= (*this).numK_ && ke >= 0 && ks <= (*this).numK_ && ks >= 0 &&
+  if (!(ie <= numI_ && ie >= 0 && is <= numI_ && is >= 0 &&
+        je <= numJ_ && je >= 0 && js <= numJ_ && js >= 0 &&
+        ke <= numK_ && ke >= 0 && ks <= numK_ && ks >= 0 &&
         ie >= is && je >= js && ke >= ks)) {
     cerr << "ERROR: Error in multiArray3d::Slice. Cannot take slice with "
          << "boundaries " << is << ", " << ie << ", " << js << ", " << je
          << ", " << ks << ", " << ke << " from array with dimensions " <<
-        (*this).numI_ << ", " << (*this).numJ_ << ", " << (*this).numK_ << endl;
+        numI_ << ", " << numJ_ << ", " << numK_ << endl;
     exit(0);
   }
 
@@ -308,5 +311,48 @@ ostream &operator<<(ostream &os, const multiArray3d<TT> &array) {
   }
   return os;
 }
+
+template <class T>
+void multiArray3d<T>::GrowI() {
+  multiArray3d<T> arr(numI_ + 1, numJ_, numK_);
+  for (int kk = 0; kk < arr.numK_; kk++) {
+    for (int jj = 0; jj < arr.numJ_; jj++) {
+      for (int ii = 0; ii < arr.numI_; ii++) {
+        arr(ii, jj, kk) = (ii == arr.numI_ - 1) ? (*this)(ii - 1, jj, kk) :
+            (*this)(ii, jj, kk);
+      }
+    }
+  }
+  *this = arr;
+}
+
+template <class T>
+void multiArray3d<T>::GrowJ() {
+  multiArray3d<T> arr(numI_, numJ_ + 1, numK_);
+  for (int kk = 0; kk < arr.numK_; kk++) {
+    for (int jj = 0; jj < arr.numJ_; jj++) {
+      for (int ii = 0; ii < arr.numI_; ii++) {
+        arr(ii, jj, kk) = (jj == arr.numJ_ - 1) ? (*this)(ii, jj - 1, kk) :
+            (*this)(ii, jj, kk);
+      }
+    }
+  }
+  *this = arr;
+}
+
+template <class T>
+void multiArray3d<T>::GrowK() {
+  multiArray3d<T> arr(numI_, numJ_, numK_ + 1);
+  for (int kk = 0; kk < arr.numK_; kk++) {
+    for (int jj = 0; jj < arr.numJ_; jj++) {
+      for (int ii = 0; ii < arr.numI_; ii++) {
+        arr(ii, jj, kk) = (kk == arr.numK_ - 1) ? (*this)(ii, jj, kk - 1) :
+            (*this)(ii, jj, kk);
+      }
+    }
+  }
+  *this = arr;
+}
+
 
 #endif
