@@ -3246,12 +3246,18 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
     int imax = this->NumI() + numGhosts_;
 
     int jp = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_;
+    int ji1 = (cc <= 1) ? jp + 1 : jp - 1;
     int jg1 = (cc <= 1) ? jp - 1 : jp + 1;
     int jg2 = (cc <= 1) ? jp - 2 : jp + 2;
 
     int kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
+    int ki1 = (cc % 2 == 0) ? kp + 1 : kp - 1;
     int kg1 = (cc % 2 == 0) ? kp - 1 : kp + 1;
     int kg2 = (cc % 2 == 0) ? kp - 2 : kp + 2;
+
+    // surface types of surfaces forming edge
+    string surfJ = (cc <= 1) ? "jl" : "ju";
+    string surfK = (cc % 2 == 0) ? "kl" : "ku";
 
     // face indices
     // these only change from cell indices for upper edges
@@ -3268,17 +3274,46 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
     int kg1F = (cc % 2 == 0) ? kp - 1 : kp + 1;
     int kg2F = (cc % 2 == 0) ? kp - 2 : kp + 2;
 
-    // Assign volumes
-    state_.Insert(imin, imax, jg1, jg1, kg1, kg1, 0.5 *
-                (state_.Slice(imin, imax, jp, jp, kg1, kg1) +
-                 state_.Slice(imin, imax, jg1, jg1, kp, kp)));
-    state_.Insert(imin, imax, jg1, jg1, kg2, kg2,
-                state_.Slice(imin, imax, jp, jp, kg2, kg2));
-    state_.Insert(imin, imax, jg2, jg2, kg1, kg1,
-                state_.Slice(imin, imax, jg2, jg2, kp, kp));
-    state_.Insert(imin, imax, jg2, jg2, kg2, kg2, 0.5 *
-                (state_.Slice(imin, imax, jg1, jg1, kg2, kg2) +
-                 state_.Slice(imin, imax, jg2, jg2, kg1, kg1)));
+
+    for (int ii = imin; ii < imax; ii++) {
+      // boundary conditions at corner
+      string bc_J = bc_.GetBCName(ii - numGhosts_, jpF - numGhosts_,
+                                  kp - numGhosts_, surfJ);
+      bc_J = (bc_J == "viscousWall") ? "slipWall" : bc_J;
+      string bc_K = bc_.GetBCName(ii - numGhosts_, jp - numGhosts_,
+                                  kpF - numGhosts_, surfK);
+      bc_K = (bc_K == "viscousWall") ? "slipWall" : bc_K;
+
+      // Assign states
+      // j surface is a wall, but k surface is not - extend wall bc
+      if (bc_J == "slipWall" && !(bc_K == "slipWall")) {
+        state_(ii, jg1, kg1) = state_(ii, jp, kg1).GetGhostState(
+            bc_J, this->FAreaUnitJ(ii, jpF, kg1), surfJ, inp, eos, suth, 1);
+        state_(ii, jg1, kg2) = state_(ii, jp, kg2).GetGhostState(
+            bc_J, this->FAreaUnitJ(ii, jpF, kg2), surfJ, inp, eos, suth, 1);
+        state_(ii, jg2, kg1) = state_(ii, ji1, kg1).GetGhostState(
+            bc_J, this->FAreaUnitJ(ii, jpF, kg1), surfJ, inp, eos, suth, 2);
+        state_(ii, jg2, kg2) = state_(ii, ji1, kg2).GetGhostState(
+            bc_J, this->FAreaUnitJ(ii, jpF, kg2), surfJ, inp, eos, suth, 2);
+        // k surface is a wall, but j surface is not - extend wall bc
+      } else if (!(bc_J == "slipWall") && bc_K == "slipWall") {
+        state_(ii, jg1, kg1) = state_(ii, jg1, kp).GetGhostState(
+            bc_K, this->FAreaUnitK(ii, jg1, kpF), surfK, inp, eos, suth, 1);
+        state_(ii, jg2, kg1) = state_(ii, jg2, kp).GetGhostState(
+            bc_K, this->FAreaUnitK(ii, jg2, kpF), surfK, inp, eos, suth, 1);
+        state_(ii, jg1, kg2) = state_(ii, jg1, ki1).GetGhostState(
+            bc_K, this->FAreaUnitK(ii, jg1, kpF), surfK, inp, eos, suth, 2);
+        state_(ii, jg2, kg2) = state_(ii, jg2, ki1).GetGhostState(
+            bc_K, this->FAreaUnitK(ii, jg2, kpF), surfK, inp, eos, suth, 2);
+      } else {  // both surfaces or neither are walls - proceed as normal
+        state_(ii, jg1, kg1) = 0.5 * (state_(ii, jp, kg1) +
+                                      state_(ii, jg1, kp));
+        state_(ii, jg1, kg2) = state_(ii, jp, kg2);
+        state_(ii, jg2, kg1) = state_(ii, jg2, kp);
+        state_(ii, jg2, kg2) = 0.5 * (state_(ii, jg1, kg2) +
+                                      state_(ii, jg2, kg1));
+      }
+    }
   }
 
   // ------------------------------------------------------------------------
@@ -3294,12 +3329,18 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
     int jmax = this->NumJ() + numGhosts_;
 
     int ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
+    int ii1 = (cc <= 1) ? ip + 1 : ip - 1;
     int ig1 = (cc <= 1) ? ip - 1 : ip + 1;
     int ig2 = (cc <= 1) ? ip - 2 : ip + 2;
 
     int kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
+    int ki1 = (cc % 2 == 0) ? kp + 1 : kp - 1;
     int kg1 = (cc % 2 == 0) ? kp - 1 : kp + 1;
     int kg2 = (cc % 2 == 0) ? kp - 2 : kp + 2;
+
+    // surface types of surfaces forming edge
+    string surfI = (cc <= 1) ? "il" : "iu";
+    string surfK = (cc % 2 == 0) ? "kl" : "ku";
 
     // face indices
     // these only change from cell indices for upper edges
@@ -3316,17 +3357,46 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
     int kg1F = (cc % 2 == 0) ? kp - 1 : kp + 1;
     int kg2F = (cc % 2 == 0) ? kp - 2 : kp + 2;
 
-    // Assign volumes
-    state_.Insert(ig1, ig1, jmin, jmax, kg1, kg1, 0.5 *
-                (state_.Slice(ip, ip, jmin, jmax, kg1, kg1) +
-                 state_.Slice(ig1, ig1, jmin, jmax, kp, kp)));
-    state_.Insert(ig1, ig1, jmin, jmax, kg2, kg2,
-                state_.Slice(ip, ip, jmin, jmax, kg2, kg2));
-    state_.Insert(ig2, ig2, jmin, jmax, kg1, kg1,
-                state_.Slice(ig2, ig2, jmin, jmax, kp, kp));
-    state_.Insert(ig2, ig2, jmin, jmax, kg2, kg2, 0.5 *
-                (state_.Slice(ig1, ig1, jmin, jmax, kg2, kg2) +
-                 state_.Slice(ig2, ig2, jmin, jmax, kg1, kg1)));
+    // Assign states
+    for (int jj = jmin; jj < jmax; jj++) {
+      // boundary conditions at corner
+      string bc_I = bc_.GetBCName(ipF - numGhosts_, jj - numGhosts_,
+                                  kp - numGhosts_, surfI);
+      bc_I = (bc_I == "viscousWall") ? "slipWall" : bc_I;
+      string bc_K = bc_.GetBCName(ip - numGhosts_, jj - numGhosts_,
+                                  kpF - numGhosts_, surfK);
+      bc_K = (bc_K == "viscousWall") ? "slipWall" : bc_K;
+
+      // Assign states
+      // i surface is a wall, but k surface is not - extend wall bc
+      if (bc_I == "slipWall" && !(bc_K == "slipWall")) {
+        state_(ig1, jj, kg1) = state_(ip, jj, kg1).GetGhostState(
+            bc_I, this->FAreaUnitI(ipF, jj, kg1), surfI, inp, eos, suth, 1);
+        state_(ig1, jj, kg2) = state_(ip, jj, kg2).GetGhostState(
+            bc_I, this->FAreaUnitI(ipF, jj, kg2), surfI, inp, eos, suth, 1);
+        state_(ig2, jj, kg1) = state_(ii1, jj, kg1).GetGhostState(
+            bc_I, this->FAreaUnitI(ipF, jj, kg1), surfI, inp, eos, suth, 2);
+        state_(ig2, jj, kg2) = state_(ii1, jj, kg2).GetGhostState(
+            bc_I, this->FAreaUnitI(ipF, jj, kg2), surfI, inp, eos, suth, 2);
+        // k surface is a wall, but i surface is not - extend wall bc
+      } else if (!(bc_I == "slipWall") && bc_K == "slipWall") {
+        state_(ig1, jj, kg1) = state_(ig1, jj, kp).GetGhostState(
+            bc_K, this->FAreaUnitK(ig1, jj, kpF), surfK, inp, eos, suth, 1);
+        state_(ig2, jj, kg1) = state_(ig2, jj, kp).GetGhostState(
+            bc_K, this->FAreaUnitK(ig2, jj, kpF), surfK, inp, eos, suth, 1);
+        state_(ig1, jj, kg2) = state_(ig1, jj, ki1).GetGhostState(
+            bc_K, this->FAreaUnitK(ig1, jj, kpF), surfK, inp, eos, suth, 2);
+        state_(ig2, jj, kg2) = state_(ig2, jj, ki1).GetGhostState(
+            bc_K, this->FAreaUnitK(ig2, jj, kpF), surfK, inp, eos, suth, 2);
+      } else {  // both surfaces or neither are walls - proceed as normal
+        state_(ig1, jj, kg1) = 0.5 * (state_(ip, jj, kg1) +
+                                      state_(ig1, jj, kp));
+        state_(ig1, jj, kg2) = state_(ip, jj, kg2);
+        state_(ig2, jj, kg1) = state_(ig2, jj, kp);
+        state_(ig2, jj, kg2) = 0.5 * (state_(ig1, jj, kg2) +
+                                      state_(ig2, jj, kg1));
+      }
+    }
   }
 
   // ------------------------------------------------------------------------
@@ -3342,12 +3412,18 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
     int kmax = this->NumK() + numGhosts_;
 
     int ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
+    int ii1 = (cc <= 1) ? ip + 1 : ip - 1;
     int ig1 = (cc <= 1) ? ip - 1 : ip + 1;
     int ig2 = (cc <= 1) ? ip - 2 : ip + 2;
 
     int jp = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_;
+    int ji1 = (cc % 2 == 0) ? jp + 1 : jp - 1;
     int jg1 = (cc % 2 == 0) ? jp - 1 : jp + 1;
     int jg2 = (cc % 2 == 0) ? jp - 2 : jp + 2;
+
+    // surface types of surfaces forming edge
+    string surfI = (cc <= 1) ? "il" : "iu";
+    string surfJ = (cc % 2 == 0) ? "jl" : "ju";
 
     // face indices
     // these only change from cell indices for upper edges
@@ -3364,910 +3440,44 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
     int jg1F = (cc % 2 == 0) ? jp - 1 : jp + 1;
     int jg2F = (cc % 2 == 0) ? jp - 2 : jp + 2;
 
-    // Assign volumes
-    state_.Insert(ig1, ig1, jg1, jg1, kmin, kmax, 0.5 *
-                (state_.Slice(ip, ip, jg1, jg1, kmin, kmax) +
-                 state_.Slice(ig1, ig1, jp, jp, kmin, kmax)));
-    state_.Insert(ig1, ig1, jg2, jg2, kmin, kmax,
-                state_.Slice(ip, ip, jg2, jg2, kmin, kmax));
-    state_.Insert(ig2, ig2, jg1, jg1, kmin, kmax,
-                state_.Slice(ig2, ig2, jp, jp, kmin, kmax));
-    state_.Insert(ig2, ig2, jg2, jg2, kmin, kmax, 0.5 *
-                (state_.Slice(ig1, ig1, jg2, jg2, kmin, kmax) +
-                 state_.Slice(ig2, ig2, jg1, jg1, kmin, kmax)));
-  }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-  
-  // max dimensions for vectors without ghost cells
-  int imax = this->NumI();
-  int jmax = this->NumJ();
-  int kmax = this->NumK();
-
-  // max dimensions for vectors with ghost cells
-  int imaxG = imax + 2 * numGhosts_;
-  int jmaxG = jmax + 2 * numGhosts_;
-  int kmaxG = kmax + 2 * numGhosts_;
-
-  //--------------------------------------------------------------------------
-  // loop over edges at lower and upper j sides of block - this will include 4
-  // edges that run in the i-direction --------------------------------
-  // edges at the jl/kl, jl/ku, ju/kl, ju/ku sides will be accounted for in this
-  // loop
-  for (int ii = numGhosts_; ii < imax + numGhosts_; ii++) {
-    for (int cc = 0; cc < 4; cc++) {  // loop over 4 edges
-      int j1, k1, j2, k2, je, ke, je2, ke2;
-
-      int gf_j1_ke_kl;
-      int gf_j2_ke_kl;
-      int gf_je_k1_jl;
-      int gf_je_k2_jl;
-
-      string bc_J, bc_K;
-      string surfJ, surfK;
-
-      if (cc == 0) {  // at jl/kl edge - ghost cells are in the lower direction
-                      // of both j and k, so use GetLowerFace for both
-        j2 = 0;
-        j1 = 1;
-        je = numGhosts_;
-        if (jmax > 1) {
-          je2 = numGhosts_ + 1;
-        } else {
-          je2 = je;
-        }
-
-        k2 = 0;
-        k1 = 1;
-        ke = numGhosts_;
-        if (kmax > 1) {
-          ke2 = numGhosts_ + 1;
-        } else {
-          ke2 = ke;
-        }
-
-        surfJ = "jl";
-        surfK = "kl";
-
-        // ghost face, on first/second layer of j line of cells, on non-edge
-        // layer of k line of cells
-        gf_j1_ke_kl = GetLowerFaceK(ii, j1, ke, imaxG, jmaxG);
-        gf_j2_ke_kl = GetLowerFaceK(ii, j2, ke, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of j line of cells, on first/second
-        // layer of k line of cells
-        gf_je_k1_jl = GetLowerFaceJ(ii, je, k1, imaxG, jmaxG);
-        gf_je_k2_jl = GetLowerFaceJ(ii, je, k2, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_J = (*this).BC().GetBCName(ii - numGhosts_,
-                                      je - numGhosts_,
-                                      ke - numGhosts_, surfJ);
-        bc_K = (*this).BC().GetBCName(ii - numGhosts_,
-                                      je - numGhosts_,
-                                      ke - numGhosts_, surfK);
-
-      } else if (cc == 1) {  // at jl/ku edge - ghost cells are in the lower
-                             // direction of j and upper direction of k, so use
-                             // GetLowerFace for J
-        j2 = 0;
-        j1 = 1;
-        je = numGhosts_;
-        if (jmax > 1) {
-          je2 = numGhosts_ + 1;
-        } else {
-          je2 = je;
-        }
-
-        k2 = kmaxG - 1;
-        k1 = kmaxG - 2;
-        ke = kmax - 1 + numGhosts_;
-        if (kmax > 1) {
-          ke2 = kmax - 1 + numGhosts_ - 1;
-        } else {
-          ke2 = ke;
-        }
-
-        surfJ = "jl";
-        surfK = "ku";
-
-        // ghost face, on first/second layer of j line of cells, on non-edge
-        // layer of k line of cells
-        gf_j1_ke_kl = GetUpperFaceK(ii, j1, ke, imaxG, jmaxG);
-        gf_j2_ke_kl = GetUpperFaceK(ii, j2, ke, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of j line of cells, on first/second
-        // layer of k line of cells
-        gf_je_k1_jl = GetLowerFaceJ(ii, je, k1, imaxG, jmaxG);
-        gf_je_k2_jl = GetLowerFaceJ(ii, je, k2, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_J = (*this).BC().GetBCName(ii - numGhosts_,
-                                      je - numGhosts_,
-                                      ke - numGhosts_, surfJ);
-        bc_K = (*this).BC().GetBCName(ii - numGhosts_,
-                                      je - numGhosts_,
-                                      ke - numGhosts_ + 1, surfK);
-
-      } else if (cc == 2) {  // at ju/kl edge - ghost cells are in the lower
-                             // direction of k, and upper direction of j so use
-                             // GetLowerFace for k
-        j2 = jmaxG - 1;
-        j1 = jmaxG - 2;
-        je = jmax - 1 + numGhosts_;
-        if (jmax > 1) {
-          je2 = jmax - 1 + numGhosts_ - 1;
-        } else {
-          je2 = je;
-        }
-
-        k2 = 0;
-        k1 = 1;
-        ke = numGhosts_;
-        if (kmax > 1) {
-          ke2 = numGhosts_ + 1;
-        } else {
-          ke2 = ke;
-        }
-
-        surfJ = "ju";
-        surfK = "kl";
-
-        // ghost face, on first/second layer of j line of cells, on non-edge
-        // layer of k line of cells
-        gf_j1_ke_kl = GetLowerFaceK(ii, j1, ke, imaxG, jmaxG);
-        gf_j2_ke_kl = GetLowerFaceK(ii, j2, ke, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of j line of cells, on first/second
-        // layer of k line of cells
-        gf_je_k1_jl = GetUpperFaceJ(ii, je, k1, imaxG, jmaxG);
-        gf_je_k2_jl = GetUpperFaceJ(ii, je, k2, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_J = (*this).BC().GetBCName(ii - numGhosts_,
-                                      je - numGhosts_ + 1,
-                                      ke - numGhosts_, surfJ);
-        bc_K = (*this).BC().GetBCName(ii - numGhosts_,
-                                      je - numGhosts_,
-                                      ke - numGhosts_, surfK);
-
-      } else if (cc == 3) {  // at ju/ku edge - ghost cells are in the upper
-                             // direction of both j and k, use GetUpperFace for
-                             // both
-        j2 = jmaxG - 1;
-        j1 = jmaxG - 2;
-        je = jmax - 1 + numGhosts_;
-        if (jmax > 1) {
-          je2 = jmax - 1 + numGhosts_ - 1;
-        } else {
-          je2 = je;
-        }
-
-        k2 = kmaxG - 1;
-        k1 = kmaxG - 2;
-        ke = kmax - 1 + numGhosts_;
-        if (kmax > 1) {
-          ke2 = kmax - 1 + numGhosts_ - 1;
-        } else {
-          ke2 = ke;
-        }
-
-        surfJ = "ju";
-        surfK = "ku";
-
-        // ghost face, on first/second layer of j line of cells, on non-edge
-        // layer of k line of cells
-        gf_j1_ke_kl = GetUpperFaceK(ii, j1, ke, imaxG, jmaxG);
-        gf_j2_ke_kl = GetUpperFaceK(ii, j2, ke, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of j line of cells, on first/second
-        // layer of k line of cells
-        gf_je_k1_jl = GetUpperFaceJ(ii, je, k1, imaxG, jmaxG);
-        gf_je_k2_jl = GetUpperFaceJ(ii, je, k2, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_J = (*this).BC().GetBCName(ii - numGhosts_,
-                                      je - numGhosts_ + 1,
-                                      ke - numGhosts_, surfJ);
-        bc_K = (*this).BC().GetBCName(ii - numGhosts_,
-                                      je - numGhosts_,
-                                      ke - numGhosts_ + 1, surfK);
-      }
-
-      // if both corner boundaries aren't interblocks, get edge cells; if both
-      // boundaries are interblocks, edge cells come from ghost cell exchange
-      if (bc_J != "interblock" && bc_K != "interblock") {
-        int gce_j1_k1 = GetLoc1D(ii, j1, k1, imaxG,
-                                 jmaxG);  // ghost cell on edge, on first layer
-                                          // of j line of cells, on first layer
-                                          // of k line of cells
-        int gce_j1_k2 = GetLoc1D(ii, j1, k2, imaxG,
-                                 jmaxG);  // ghost cell on edge, on first layer
-                                          // of j line of cells, on second layer
-                                          // of k line of cells
-        int gce_j2_k1 = GetLoc1D(ii, j2, k1, imaxG,
-                                 jmaxG);  // ghost cell on edge, on second layer
-                                          // of j line of cells, on first layer
-                                          // of k line of cells
-        int gce_j2_k2 = GetLoc1D(ii, j2, k2, imaxG,
-                                 jmaxG);  // ghost cell on edge, on second layer
-                                          // of j line of cells, on second layer
-                                          // of k line of cells
-
-        int gc_j1_ke = GetLoc1D(ii, j1, ke, imaxG, jmaxG);  // ghost cell, on
-                                                            // first layer of j
-                                                            // line of cells, on
-                                                            // non-edge layer of
-                                                            // k line of cells
-        int gc_j2_ke = GetLoc1D(ii, j2, ke, imaxG, jmaxG);  // ghost cell, on
-                                                            // second layer of j
-                                                            // line of cells, on
-                                                            // non-edge layer of
-                                                            // k line of cells
-        int gc_je_k1 = GetLoc1D(ii, je, k1, imaxG, jmaxG);  // ghost cell, on
-                                                            // non-edge layer of
-                                                            // j line of cells,
-                                                            // on first layer of
-                                                            // k line of cells
-        int gc_je_k2 = GetLoc1D(ii, je, k2, imaxG,
-                                jmaxG);  // ghost cell, on non-edge layer of j
-                                         // line of cells, on second layer of k
-                                         // line of cells
-
-        int gc_j1_ke2 = GetLoc1D(ii, j1, ke2, imaxG,
-                                 jmaxG);  // ghost cell, on first layer of j
-                                          // line of cells, on second non-edge
-                                          // layer of k line of cells
-        int gc_j2_ke2 = GetLoc1D(ii, j2, ke2, imaxG,
-                                 jmaxG);  // ghost cell, on second layer of j
-                                          // line of cells, on second non-edge
-                                          // layer of k line of cells
-        int gc_je2_k1 = GetLoc1D(ii, je2, k1, imaxG,
-                                 jmaxG);  // ghost cell, on second non-edge
-                                          // layer of j line of cells, on first
-                                          // layer of k line of cells
-        int gc_je2_k2 = GetLoc1D(ii, je2, k2, imaxG,
-                                 jmaxG);  // ghost cell, on second non-edge
-                                          // layer of j line of cells, on second
-                                          // layer of k line of cells
-
-        // inviscid fluxes require different bc_ than viscous fluxes - treat all
-        // walls as the same
-        if (bc_J == "viscousWall") {
-          bc_J = "slipWall";
-        }
-        if (bc_K == "viscousWall") {
-          bc_K = "slipWall";
-        }
-
-        if (bc_J == "slipWall" &&
-            !(bc_K == "slipWall")) {  // j surface is a wall, but k surface is
-                                      // not - extend wall bc_
-          (*this).state_[gce_j1_k1] = state_(gc_je_k1).GetGhostState(
-              bc_J, (*this).FAreaUnitJ(gf_je_k1_jl), surfJ, inp, eos, suth, 1);
-          (*this).state_[gce_j1_k2] = state_(gc_je_k2).GetGhostState(
-              bc_J, (*this).FAreaUnitJ(gf_je_k2_jl), surfJ, inp, eos, suth, 1);
-          (*this).state_[gce_j2_k1] = state_(gc_je2_k1).GetGhostState(
-              bc_J, (*this).FAreaUnitJ(gf_je_k1_jl), surfJ, inp, eos, suth, 1);
-          (*this).state_[gce_j2_k2] = state_(gc_je2_k2).GetGhostState(
-              bc_J, (*this).FAreaUnitJ(gf_je_k2_jl), surfJ, inp, eos, suth, 1);
-        } else if (!(bc_J == "slipWall") &&
-                   bc_K == "slipWall") {  // k surface is a wall, but j surface
-                                          // is not - extend wall bc_
-          (*this).state_[gce_j1_k1] = state_(gc_j1_ke).GetGhostState(
-              bc_K, (*this).FAreaUnitK(gf_j1_ke_kl), surfK, inp, eos, suth, 1);
-          (*this).state_[gce_j2_k1] = state_(gc_j2_ke).GetGhostState(
-              bc_K, (*this).FAreaUnitK(gf_j2_ke_kl), surfK, inp, eos, suth, 1);
-          (*this).state_[gce_j1_k2] = state_(gc_j1_ke2).GetGhostState(
-              bc_K, (*this).FAreaUnitK(gf_j1_ke_kl), surfK, inp, eos, suth, 1);
-          (*this).state_[gce_j2_k2] = state_(gc_j2_ke2).GetGhostState(
-              bc_K, (*this).FAreaUnitK(gf_j2_ke_kl), surfK, inp, eos, suth, 1);
-        } else {  // both surfaces are walls or neither are walls - proceed as
-                  // normal
-          (*this).state_[gce_j1_k1] =
-              0.5 * (state_(gc_j1_ke) + state_(gc_je_k1));
-          (*this).state_[gce_j2_k1] = state_(gc_j2_ke);
-          (*this).state_[gce_j1_k2] = state_(gc_je_k2);
-          (*this).state_[gce_j2_k2] =
-              0.5 * (state_(gc_j2_ke) + state_(gc_je_k2));
-        }
-      }
-    }
-  }
-
-  //--------------------------------------------------------------------------
-  // loop over edges at lower and upper i sides of block - this will include 4
-  // edges that run in the j-direction --------------------------------
-  // edges at the il/kl, il/ku, iu/kl, iu/ku sides will be accounted for in this
-  // loop
-  for (int jj = numGhosts_; jj < jmax + numGhosts_; jj++) {
-    for (int cc = 0; cc < 4; cc++) {  // loop over 4 edges
-      int i1, k1, i2, k2, ie, ke, ie2, ke2;
-
-      int gf_i1_ke_kl;
-      int gf_i2_ke_kl;
-      int gf_ie_k1_il;
-      int gf_ie_k2_il;
-
-      string bc_I, bc_K;
-      string surfI, surfK;
-
-      if (cc == 0) {  // at il/kl edge - ghost cells are in the lower direction
-                      // of both i and k, so use GetLowerFace for both
-        i2 = 0;
-        i1 = 1;
-        ie = numGhosts_;
-        if (imax > 1) {
-          ie2 = numGhosts_ + 1;
-        } else {
-          ie2 = ie;
-        }
-
-        k2 = 0;
-        k1 = 1;
-        ke = numGhosts_;
-        if (kmax > 1) {
-          ke2 = numGhosts_ + 1;
-        } else {
-          ke2 = ke;
-        }
-
-        surfI = "il";
-        surfK = "kl";
-
-        // ghost face, on first/second layer of i line of cells, on non-edge
-        // layer of k line of cells
-        gf_i1_ke_kl = GetLowerFaceK(i1, jj, ke, imaxG, jmaxG);
-        gf_i2_ke_kl = GetLowerFaceK(i2, jj, ke, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of i line of cells, on first/second
-        // layer of k line of cells
-        gf_ie_k1_il = GetLowerFaceI(ie, jj, k1, imaxG, jmaxG);
-        gf_ie_k2_il = GetLowerFaceI(ie, jj, k2, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_I = (*this).BC().GetBCName(ie - numGhosts_,
-                                      jj - numGhosts_,
-                                      ke - numGhosts_, surfI);
-        bc_K = (*this).BC().GetBCName(ie - numGhosts_,
-                                      jj - numGhosts_,
-                                      ke - numGhosts_, surfK);
-
-      } else if (cc == 1) {  // at il/ku edge - ghost cells are in the lower
-                             // direction of i and upper direction of k, so use
-                             // GetLowerFace for I
-        i2 = 0;
-        i1 = 1;
-        ie = numGhosts_;
-        if (imax > 1) {
-          ie2 = numGhosts_ + 1;
-        } else {
-          ie2 = ke;
-        }
-
-        k2 = kmaxG - 1;
-        k1 = kmaxG - 2;
-        ke = kmax - 1 + numGhosts_;
-        if (kmax > 1) {
-          ke2 = kmax - 1 + numGhosts_ - 1;
-        } else {
-          ke2 = ke;
-        }
-
-        surfI = "il";
-        surfK = "ku";
-
-        // ghost face, on first/second layer of i line of cells, on non-edge
-        // layer of k line of cells
-        gf_i1_ke_kl = GetUpperFaceK(i1, jj, ke, imaxG, jmaxG);
-        gf_i2_ke_kl = GetUpperFaceK(i2, jj, ke, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of i line of cells, on first/second
-        // layer of k line of cells
-        gf_ie_k1_il = GetLowerFaceI(ie, jj, k1, imaxG, jmaxG);
-        gf_ie_k2_il = GetLowerFaceI(ie, jj, k2, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_I = (*this).BC().GetBCName(ie - numGhosts_,
-                                      jj - numGhosts_,
-                                      ke - numGhosts_, surfI);
-        bc_K = (*this).BC().GetBCName(ie - numGhosts_,
-                                      jj - numGhosts_,
-                                      ke - numGhosts_ + 1, surfK);
-
-      } else if (cc == 2) {  // at iu/kl edge - ghost cells are in the lower
-                             // direction of k, and upper direction of i so use
-                             // GetLowerFace for k
-        i2 = imaxG - 1;
-        i1 = imaxG - 2;
-        ie = imax - 1 + numGhosts_;
-        if (imax > 1) {
-          ie2 = imax - 1 + numGhosts_ - 1;
-        } else {
-          ie2 = ke;
-        }
-
-        k2 = 0;
-        k1 = 1;
-        ke = numGhosts_;
-        if (kmax > 1) {
-          ke2 = numGhosts_ + 1;
-        } else {
-          ke2 = ke;
-        }
-
-        surfI = "iu";
-        surfK = "kl";
-
-        // ghost face, on first/second layer of i line of cells, on non-edge
-        // layer of k line of cells
-        gf_i1_ke_kl = GetLowerFaceK(i1, jj, ke, imaxG, jmaxG);
-        gf_i2_ke_kl = GetLowerFaceK(i2, jj, ke, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of i line of cells, on first/second
-        // layer of k line of cells
-        gf_ie_k1_il = GetUpperFaceI(ie, jj, k1, imaxG, jmaxG);
-        gf_ie_k2_il = GetUpperFaceI(ie, jj, k2, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_I = (*this).BC().GetBCName(ie - numGhosts_ + 1,
-                                      jj - numGhosts_,
-                                      ke - numGhosts_, surfI);
-        bc_K = (*this).BC().GetBCName(ie - numGhosts_,
-                                      jj - numGhosts_,
-                                      ke - numGhosts_, surfK);
-
-      } else if (cc == 3) {  // at iu/ku edge - ghost cells are in the upper
-                             // direction of both j and k, use GetUpperFace for
-                             // both
-        i2 = imaxG - 1;
-        i1 = imaxG - 2;
-        ie = imax - 1 + numGhosts_;
-        if (imax > 1) {
-          ie2 = imax - 1 + numGhosts_ - 1;
-        } else {
-          ie2 = ie;
-        }
-
-        k2 = kmaxG - 1;
-        k1 = kmaxG - 2;
-        ke = kmax - 1 + numGhosts_;
-        if (kmax > 1) {
-          ke2 = kmax - 1 + numGhosts_ - 1;
-        } else {
-          ke2 = ke;
-        }
-
-        surfI = "iu";
-        surfK = "ku";
-
-        // ghost face, on first/second layer of i line of cells, on non-edge
-        // layer of k line of cells
-        gf_i1_ke_kl = GetUpperFaceK(i1, jj, ke, imaxG, jmaxG);
-        gf_i2_ke_kl = GetUpperFaceK(i2, jj, ke, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of i line of cells, on first/second
-        // layer of k line of cells
-        gf_ie_k1_il = GetUpperFaceI(ie, jj, k1, imaxG, jmaxG);
-        gf_ie_k2_il = GetUpperFaceI(ie, jj, k2, imaxG, jmaxG);
-
-        // boundary conditioins at corner
-        bc_I = (*this).BC().GetBCName(ie - numGhosts_ + 1,
-                                      jj - numGhosts_,
-                                      ke - numGhosts_, surfI);
-        bc_K = (*this).BC().GetBCName(ie - numGhosts_,
-                                      jj - numGhosts_,
-                                      ke - numGhosts_ + 1, surfK);
-      }
-
-      // if both corner boundaries aren't interblocks, get edge cells; if bouth
-      // boundaries are interblocks, edge cells come from ghost cell exchange
-      if (bc_I != "interblock" && bc_K != "interblock") {
-        // location of ghost cells
-        int gce_i1_k1 = GetLoc1D(i1, jj, k1, imaxG,
-                                 jmaxG);  // ghost cell on edge, on first layer
-                                          // of i line of cells, on first layer
-                                          // of k line of cells
-        int gce_i1_k2 = GetLoc1D(i1, jj, k2, imaxG,
-                                 jmaxG);  // ghost cell on edge, on first layer
-                                          // of i line of cells, on second layer
-                                          // of k line of cells
-        int gce_i2_k1 = GetLoc1D(i2, jj, k1, imaxG,
-                                 jmaxG);  // ghost cell on edge, on second layer
-                                          // of i line of cells, on first layer
-                                          // of k line of cells
-        int gce_i2_k2 = GetLoc1D(i2, jj, k2, imaxG,
-                                 jmaxG);  // ghost cell on edge, on second layer
-                                          // of i line of cells, on second layer
-                                          // of k line of cells
-
-        int gc_i1_ke = GetLoc1D(i1, jj, ke, imaxG, jmaxG);  // ghost cell, on
-                                                            // first layer of i
-                                                            // line of cells, on
-                                                            // non-edge layer of
-                                                            // k line of cells
-        int gc_i2_ke = GetLoc1D(i2, jj, ke, imaxG, jmaxG);  // ghost cell, on
-                                                            // second layer of i
-                                                            // line of cells, on
-                                                            // non-edge layer of
-                                                            // k line of cells
-        int gc_ie_k1 = GetLoc1D(ie, jj, k1, imaxG, jmaxG);  // ghost cell, on
-                                                            // non-edge layer of
-                                                            // i line of cells,
-                                                            // on first layer of
-                                                            // k line of cells
-        int gc_ie_k2 = GetLoc1D(ie, jj, k2, imaxG,
-                                jmaxG);  // ghost cell, on non-edge layer of i
-                                         // line of cells, on second layer of k
-                                         // line of cells
-
-        int gc_i1_ke2 = GetLoc1D(i1, jj, ke2, imaxG,
-                                 jmaxG);  // ghost cell, on first layer of i
-                                          // line of cells, on second non-edge
-                                          // layer of k line of cells
-        int gc_i2_ke2 = GetLoc1D(i2, jj, ke2, imaxG,
-                                 jmaxG);  // ghost cell, on second layer of i
-                                          // line of cells, on second non-edge
-                                          // layer of k line of cells
-        int gc_ie2_k1 = GetLoc1D(ie2, jj, k1, imaxG,
-                                 jmaxG);  // ghost cell, on second non-edge
-                                          // layer of i line of cells, on first
-                                          // layer of k line of cells
-        int gc_ie2_k2 = GetLoc1D(ie2, jj, k2, imaxG,
-                                 jmaxG);  // ghost cell, on second non-edge
-                                          // layer of i line of cells, on second
-                                          // layer of k line of cells
-
-        // inviscid fluxes require different bc_ than viscous fluxes - treat all
-        // walls as the same
-        if (bc_I == "viscousWall") {
-          bc_I = "slipWall";
-        }
-        if (bc_K == "viscousWall") {
-          bc_K = "slipWall";
-        }
-
-        if (bc_I == "slipWall" &&
-            !(bc_K == "slipWall")) {  // i surface is a wall, but k surface is
-                                      // not - extend wall bc_
-          (*this).state_[gce_i1_k1] = state_(gc_ie_k1).GetGhostState(
-              bc_I, (*this).FAreaUnitI(gf_ie_k1_il), surfI, inp, eos, suth, 1);
-          (*this).state_[gce_i1_k2] = state_(gc_ie_k2).GetGhostState(
-              bc_I, (*this).FAreaUnitI(gf_ie_k2_il), surfI, inp, eos, suth, 1);
-          (*this).state_[gce_i2_k1] = state_(gc_ie2_k1).GetGhostState(
-              bc_I, (*this).FAreaUnitI(gf_ie_k1_il), surfI, inp, eos, suth, 1);
-          (*this).state_[gce_i2_k2] = state_(gc_ie2_k2).GetGhostState(
-              bc_I, (*this).FAreaUnitI(gf_ie_k2_il), surfI, inp, eos, suth, 1);
-        } else if (!(bc_I == "slipWall") &&
-                   bc_K == "slipWall") {  // k surface is a wall, but i surface
-                                          // is not - extend wall bc_
-          (*this).state_[gce_i1_k1] = state_(gc_i1_ke).GetGhostState(
-              bc_K, (*this).FAreaUnitK(gf_i1_ke_kl), surfK, inp, eos, suth, 1);
-          (*this).state_[gce_i2_k1] = state_(gc_i2_ke).GetGhostState(
-              bc_K, (*this).FAreaUnitK(gf_i2_ke_kl), surfK, inp, eos, suth, 1);
-          (*this).state_[gce_i1_k2] = state_(gc_i1_ke2).GetGhostState(
-              bc_K, (*this).FAreaUnitK(gf_i1_ke_kl), surfK, inp, eos, suth, 1);
-          (*this).state_[gce_i2_k2] = state_(gc_i2_ke2).GetGhostState(
-              bc_K, (*this).FAreaUnitK(gf_i2_ke_kl), surfK, inp, eos, suth, 1);
-
-        } else {  // both surfaces are walls or neither are walls - proceed as
-                  // normal
-          (*this).state_[gce_i1_k1] =
-              0.5 * (state_(gc_i1_ke) + state_(gc_ie_k1));
-          (*this).state_[gce_i2_k1] = state_(gc_i2_ke);
-          (*this).state_[gce_i1_k2] = state_(gc_ie_k2);
-          (*this).state_[gce_i2_k2] =
-              0.5 * (state_(gc_i2_ke) + state_(gc_ie_k2));
-        }
-      }
-    }
-  }
-
-  //--------------------------------------------------------------------------
-  // loop over edges at lower and upper i sides of block - this will include 4
-  // edges that run in the k-direction --------------------------------
-  // edges at the il/jl, il/ju, iu/jl, iu/ju sides will be accounted for in this
-  // loop
-  for (int kk = numGhosts_; kk < kmax + numGhosts_; kk++) {
-    for (int cc = 0; cc < 4; cc++) {  // loop over 4 edges
-      int i1, j1, i2, j2, ie, je, ie2, je2;
-
-      int gf_i1_je_jl;
-      int gf_i2_je_jl;
-      int gf_ie_j1_il;
-      int gf_ie_j2_il;
-
-      string bc_I, bc_J;
-      string surfI, surfJ;
-
-      if (cc == 0) {  // at il/jl edge - ghost cells are in the lower direction
-                      // of both i and j, so use GetLowerFace for both
-        i2 = 0;
-        i1 = 1;
-        ie = numGhosts_;
-        if (imax > 1) {
-          ie2 = numGhosts_ + 1;
-        } else {
-          ie2 = ie;
-        }
-
-        j2 = 0;
-        j1 = 1;
-        je = numGhosts_;
-        if (jmax > 1) {
-          je2 = numGhosts_ + 1;
-        } else {
-          je2 = je;
-        }
-
-        surfI = "il";
-        surfJ = "jl";
-
-        // ghost face, on first/second layer of i line of cells, on non-edge
-        // layer of j line of cells
-        gf_i1_je_jl = GetLowerFaceJ(i1, je, kk, imaxG, jmaxG);
-        gf_i2_je_jl = GetLowerFaceJ(i2, je, kk, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of i line of cells, on first/second
-        // layer of j line of cells
-        gf_ie_j1_il = GetLowerFaceI(ie, j1, kk, imaxG, jmaxG);
-        gf_ie_j2_il = GetLowerFaceI(ie, j2, kk, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_I = (*this).BC().GetBCName(ie - numGhosts_,
-                                      je - numGhosts_,
-                                      kk - numGhosts_, surfI);
-        bc_J = (*this).BC().GetBCName(ie - numGhosts_,
-                                      je - numGhosts_,
-                                      kk - numGhosts_, surfJ);
-
-      } else if (cc == 1) {  // at il/ju edge - ghost cells are in the lower
-                             // direction of i and upper direction of j, so use
-                             // GetLowerFace for I
-        i2 = 0;
-        i1 = 1;
-        ie = numGhosts_;
-        if (imax > 1) {
-          ie2 = numGhosts_ + 1;
-        } else {
-          ie2 = ie;
-        }
-
-        j2 = jmaxG - 1;
-        j1 = jmaxG - 2;
-        je = jmax - 1 + numGhosts_;
-        if (jmax > 1) {
-          je2 = jmax - 1 + numGhosts_ - 1;
-        } else {
-          je2 = je;
-        }
-        surfI = "il";
-        surfJ = "ju";
-
-        // ghost face, on first/second layer of i line of cells, on non-edge
-        // layer of j line of cells
-        gf_i1_je_jl = GetUpperFaceJ(i1, je, kk, imaxG, jmaxG);
-        gf_i2_je_jl = GetUpperFaceJ(i2, je, kk, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of i line of cells, on first/second
-        // layer of j line of cells
-        gf_ie_j1_il = GetLowerFaceI(ie, j1, kk, imaxG, jmaxG);
-        gf_ie_j2_il = GetLowerFaceI(ie, j2, kk, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_I = (*this).BC().GetBCName(ie - numGhosts_,
-                                      je - numGhosts_,
-                                      kk - numGhosts_, surfI);
-        bc_J = (*this).BC().GetBCName(ie - numGhosts_,
-                                      je - numGhosts_ + 1,
-                                      kk - numGhosts_, surfJ);
-
-      } else if (cc == 2) {  // at iu/jl edge - ghost cells are in the lower
-                             // direction of j, and upper direction of i so use
-                             // GetLowerFace for j
-        i2 = imaxG - 1;
-        i1 = imaxG - 2;
-        ie = imax - 1 + numGhosts_;
-        if (imax > 1) {
-          ie2 = imax - 1 + numGhosts_ - 1;
-        } else {
-          ie2 = ie;
-        }
-
-        j2 = 0;
-        j1 = 1;
-        je = numGhosts_;
-        if (jmax > 1) {
-          je2 = numGhosts_ + 1;
-        } else {
-          je2 = je;
-        }
-
-        surfI = "iu";
-        surfJ = "jl";
-
-        // ghost face, on first/second layer of i line of cells, on non-edge
-        // layer of j line of cells
-        gf_i1_je_jl = GetLowerFaceJ(i1, je, kk, imaxG, jmaxG);
-        gf_i2_je_jl = GetLowerFaceJ(i2, je, kk, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of i line of cells, on first/second
-        // layer of j line of cells
-        gf_ie_j1_il = GetUpperFaceI(ie, j1, kk, imaxG, jmaxG);
-        gf_ie_j2_il = GetUpperFaceI(ie, j2, kk, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_I = (*this).BC().GetBCName(ie - numGhosts_ + 1,
-                                      je - numGhosts_,
-                                      kk - numGhosts_, surfI);
-        bc_J = (*this).BC().GetBCName(ie - numGhosts_,
-                                      je - numGhosts_,
-                                      kk - numGhosts_, surfJ);
-
-      } else if (cc == 3) {  // at iu/ju edge - ghost cells are in the upper
-                             // direction of both i and j, use GetUpperFace for
-                             // both
-        i2 = imaxG - 1;
-        i1 = imaxG - 2;
-        ie = imax - 1 + numGhosts_;
-        if (imax > 1) {
-          ie2 = imax - 1 + numGhosts_ - 1;
-        } else {
-          ie2 = ie;
-        }
-
-        j2 = jmaxG - 1;
-        j1 = jmaxG - 2;
-        je = jmax - 1 + numGhosts_;
-        if (jmax > 1) {
-          je2 = jmax - 1 + numGhosts_ - 1;
-        } else {
-          je2 = je;
-        }
-
-        surfI = "iu";
-        surfJ = "ju";
-
-        // ghost face, on first/second layer of i line of cells, on non-edge
-        // layer of j line of cells
-        gf_i1_je_jl = GetUpperFaceJ(i1, je, kk, imaxG, jmaxG);
-        gf_i2_je_jl = GetUpperFaceJ(i2, je, kk, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of i line of cells, on first/second
-        // layer of j line of cells
-        gf_ie_j1_il = GetUpperFaceI(ie, j1, kk, imaxG, jmaxG);
-        gf_ie_j2_il = GetUpperFaceI(ie, j2, kk, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_I = (*this).BC().GetBCName(ie - numGhosts_ + 1,
-                                      je - numGhosts_,
-                                      kk - numGhosts_, surfI);
-        bc_J = (*this).BC().GetBCName(ie - numGhosts_,
-                                      je - numGhosts_ + 1,
-                                      kk - numGhosts_, surfJ);
-      }
-
-      // if both corner boundaries aren't interblocks, get edge cells; if bouth
-      // boundaries are interblocks, edge cells come from ghost cell exchange
-      if (bc_I != "interblock" && bc_J != "interblock") {
-        // location of ghost cells
-        int gce_i1_j1 = GetLoc1D(i1, j1, kk, imaxG,
-                                 jmaxG);  // ghost cell on edge, on first layer
-                                          // of i line of cells, on first layer
-                                          // of k line of cells
-        int gce_i1_j2 = GetLoc1D(i1, j2, kk, imaxG,
-                                 jmaxG);  // ghost cell on edge, on first layer
-                                          // of i line of cells, on second layer
-                                          // of k line of cells
-        int gce_i2_j1 = GetLoc1D(i2, j1, kk, imaxG,
-                                 jmaxG);  // ghost cell on edge, on second layer
-                                          // of i line of cells, on first layer
-                                          // of k line of cells
-        int gce_i2_j2 = GetLoc1D(i2, j2, kk, imaxG,
-                                 jmaxG);  // ghost cell on edge, on second layer
-                                          // of i line of cells, on second layer
-                                          // of k line of cells
-
-        int gc_i1_je = GetLoc1D(i1, je, kk, imaxG, jmaxG);  // ghost cell, on
-                                                            // first layer of i
-                                                            // line of cells, on
-                                                            // non-edge layer of
-                                                            // j line of cells
-        int gc_i2_je = GetLoc1D(i2, je, kk, imaxG, jmaxG);  // ghost cell, on
-                                                            // second layer of i
-                                                            // line of cells, on
-                                                            // non-edge layer of
-                                                            // j line of cells
-        int gc_ie_j1 = GetLoc1D(ie, j1, kk, imaxG, jmaxG);  // ghost cell, on
-                                                            // non-edge layer of
-                                                            // i line of cells,
-                                                            // on first layer of
-                                                            // j line of cells
-        int gc_ie_j2 = GetLoc1D(ie, j2, kk, imaxG,
-                                jmaxG);  // ghost cell, on non-edge layer of i
-                                         // line of cells, on second layer of j
-                                         // line of cells
-
-        int gc_i1_je2 = GetLoc1D(i1, je2, kk, imaxG,
-                                 jmaxG);  // ghost cell, on first layer of i
-                                          // line of cells, on second non-edge
-                                          // layer of j line of cells
-        int gc_i2_je2 = GetLoc1D(i2, je2, kk, imaxG,
-                                 jmaxG);  // ghost cell, on second layer of i
-                                          // line of cells, on second non-edge
-                                          // layer of j line of cells
-        int gc_ie2_j1 = GetLoc1D(ie2, j1, kk, imaxG,
-                                 jmaxG);  // ghost cell, on second non-edge
-                                          // layer of i line of cells, on first
-                                          // layer of j line of cells
-        int gc_ie2_j2 = GetLoc1D(ie2, j2, kk, imaxG,
-                                 jmaxG);  // ghost cell, on second non-edge
-                                          // layer of i line of cells, on second
-                                          // layer of j line of cells
-
-        // inviscid fluxes require different bc_ than viscous fluxes - treat all
-        // walls as the same
-        if (bc_I == "viscousWall") {
-          bc_I = "slipWall";
-        }
-        if (bc_J == "viscousWall") {
-          bc_J = "slipWall";
-        }
-
-        if (bc_I == "slipWall" &&
-            !(bc_J == "slipWall")) {  // i surface is a wall, but k surface is
-                                      // not - extend wall bc_
-          (*this).state_[gce_i1_j1] = state_(gc_ie_j1).GetGhostState(
-              bc_I, (*this).FAreaUnitI(gf_ie_j1_il), surfI, inp, eos, suth, 1);
-          (*this).state_[gce_i1_j2] = state_(gc_ie_j2).GetGhostState(
-              bc_I, (*this).FAreaUnitI(gf_ie_j2_il), surfI, inp, eos, suth, 1);
-          (*this).state_[gce_i2_j1] = state_(gc_ie2_j1).GetGhostState(
-              bc_I, (*this).FAreaUnitI(gf_ie_j1_il), surfI, inp, eos, suth, 1);
-          (*this).state_[gce_i2_j2] = state_(gc_ie2_j2).GetGhostState(
-              bc_I, (*this).FAreaUnitI(gf_ie_j2_il), surfI, inp, eos, suth, 1);
-        } else if (!(bc_I == "slipWall") &&
-                   bc_J == "slipWall") {  // k surface is a wall, but i surface
-                                          // is not - extend wall bc_
-          (*this).state_[gce_i1_j1] = state_(gc_i1_je).GetGhostState(
-              bc_J, (*this).FAreaUnitJ(gf_i1_je_jl), surfJ, inp, eos, suth, 1);
-          (*this).state_[gce_i2_j1] = state_(gc_i2_je).GetGhostState(
-              bc_J, (*this).FAreaUnitJ(gf_i2_je_jl), surfJ, inp, eos, suth, 1);
-          (*this).state_[gce_i1_j2] = state_(gc_i1_je2).GetGhostState(
-              bc_J, (*this).FAreaUnitJ(gf_i1_je_jl), surfJ, inp, eos, suth, 1);
-          (*this).state_[gce_i2_j2] = state_(gc_i2_je2).GetGhostState(
-              bc_J, (*this).FAreaUnitJ(gf_i2_je_jl), surfJ, inp, eos, suth, 1);
-        } else {  // both surfaces are walls or neither are walls - proceed as
-                  // normal
-          (*this).state_[gce_i1_j1] =
-              0.5 * (state_(gc_i1_je) + state_(gc_ie_j1));
-          (*this).state_[gce_i2_j1] = state_(gc_i2_je);
-          (*this).state_[gce_i1_j2] = state_(gc_ie_j2);
-          (*this).state_[gce_i2_j2] =
-              0.5 * (state_(gc_i2_je) + state_(gc_ie_j2));
-        }
+    // Assign states
+    for (int kk = kmin; kk < kmax; kk++) {
+      // boundary conditions at corner
+      string bc_I = bc_.GetBCName(ipF - numGhosts_, jp - numGhosts_,
+                           kk - numGhosts_, surfI);
+      bc_I = (bc_I == "viscousWall") ? "slipWall" : bc_I;
+      string bc_J = bc_.GetBCName(ip - numGhosts_, jpF - numGhosts_,
+                           kk - numGhosts_, surfJ);
+      bc_J = (bc_J == "viscousWall") ? "slipWall" : bc_J;
+
+      // Assign states
+      // i surface is a wall, but j surface is not - extend wall bc
+      if (bc_I == "slipWall" && !(bc_J == "slipWall")) {
+        state_(ig1, jg1, kk) = state_(ip, jg1, kk).GetGhostState(
+            bc_I, this->FAreaUnitI(ipF, jg1, kk), surfI, inp, eos, suth, 1);
+        state_(ig1, jg2, kk) = state_(ip, jg2, kk).GetGhostState(
+            bc_I, this->FAreaUnitI(ipF, jg2, kk), surfI, inp, eos, suth, 1);
+        state_(ig2, jg1, kk) = state_(ii1, jg1, kk).GetGhostState(
+            bc_I, this->FAreaUnitI(ipF, jg1, kk), surfI, inp, eos, suth, 2);
+        state_(ig2, jg2, kk) = state_(ii1, jg2, kk).GetGhostState(
+            bc_I, this->FAreaUnitI(ipF, jg2, kk), surfI, inp, eos, suth, 2);
+        // j surface is a wall, but i surface is not - extend wall bc
+      } else if (!(bc_I == "slipWall") && bc_J == "slipWall") {
+        state_(ig1, jg1, kk) = state_(ig1, jp, kk).GetGhostState(
+            bc_J, this->FAreaUnitK(ig1, jpF, kk), surfJ, inp, eos, suth, 1);
+        state_(ig2, jg1, kk) = state_(ig2, jp, kk).GetGhostState(
+            bc_J, this->FAreaUnitK(ig2, jpF, kk), surfJ, inp, eos, suth, 1);
+        state_(ig1, jg2, kk) = state_(ig1, ji1, kk).GetGhostState(
+            bc_J, this->FAreaUnitK(ig1, jpF, kk), surfJ, inp, eos, suth, 2);
+        state_(ig2, jg2, kk) = state_(ig2, ji1, kk).GetGhostState(
+            bc_J, this->FAreaUnitK(ig2, jpF, kk), surfJ, inp, eos, suth, 2);
+      } else {  // both surfaces or neither are walls - proceed as normal
+        state_(ig1, jg1, kk) = 0.5 * (state_(ip, jg1, kk) +
+                                      state_(ig1, jp, kk));
+        state_(ig1, jg2, kk) = state_(ip, jg2, kk);
+        state_(ig2, jg1, kk) = state_(ig2, jp, kk);
+        state_(ig2, jg2, kk) = 0.5 * (state_(ig1, jg2, kk) +
+                                      state_(ig2, jg1, kk));
       }
     }
   }
@@ -4485,835 +3695,252 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
 
-  // max dimensions for vectors without ghost cells
-  int imax = this->NumI();
-  int jmax = this->NumJ();
-  int kmax = this->NumK();
+  // ------------------------------------------------------------------------
+  // loop over 4 edges that run in i-direction
+  for (int cc = 0; cc < 4; cc++) {
+    // cc = 0 -> jl/kl
+    // cc = 1 -> jl/ku
+    // cc = 2 -> ju/kl
+    // cc = 3 -> ju/ku
 
-  // max dimensions for vectors with ghost cells
-  int imaxG = imax + 2 * numGhosts_;
-  int jmaxG = jmax + 2 * numGhosts_;
-  int kmaxG = kmax + 2 * numGhosts_;
+    // cell indices
+    int imin = numGhosts_;
+    int imax = this->NumI() + numGhosts_;
 
-  //--------------------------------------------------------------------------
-  // loop over edges at lower and upper j sides of block - this will include 4
-  // edges that run in the i-direction --------------------------------
-  // edges at the jl/kl, jl/ku, ju/kl, ju/ku sides will be accounted for in this
-  // loop
-  for (int ii = numGhosts_; ii < imax + numGhosts_; ii++) {
-    for (int cc = 0; cc < 4; cc++) {  // loop over 4 edges
-      int j1, k1, j2, k2, je, ke, je2, ke2;
+    int jp = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_;
+    int ji1 = (cc <= 1) ? jp + 1 : jp - 1;
+    int jg1 = (cc <= 1) ? jp - 1 : jp + 1;
+    int jg2 = (cc <= 1) ? jp - 2 : jp + 2;
 
-      int gf_j1_ke_kl;
-      int gf_j2_ke_kl;
-      int gf_je_k1_jl;
-      int gf_je_k2_jl;
+    int kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
+    int ki1 = (cc % 2 == 0) ? kp + 1 : kp - 1;
+    int kg1 = (cc % 2 == 0) ? kp - 1 : kp + 1;
+    int kg2 = (cc % 2 == 0) ? kp - 2 : kp + 2;
 
-      string bc_jl, bc_kl;
-      string surfJ, surfK;
+    // surface types of surfaces forming edge
+    string surfJ = (cc <= 1) ? "jl" : "ju";
+    string surfK = (cc % 2 == 0) ? "kl" : "ku";
 
-      if (cc == 0) {  // at jl/kl edge - ghost cells are in the lower direction
-                      // of both j and k, so use GetLowerFace for both
-        j2 = 0;
-        j1 = 1;
-        je = numGhosts_;
-        if (jmax > 1) {
-          je2 = numGhosts_ + 1;
-        } else {
-          je2 = je;
-        }
+    // face indices
+    // these only change from cell indices for upper edges
+    // these should only be used for accessing faces in their corresponding
+    // direction - i.e. jpF should only be used to access fAreaJ, or fCenterJ
+    int imaxF = this->NumI() + numGhosts_ + 1;
 
-        k2 = 0;
-        k1 = 1;
-        ke = numGhosts_;
-        if (kmax > 1) {
-          ke2 = numGhosts_ + 1;
-        } else {
-          ke2 = ke;
-        }
+    int jpF = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_ + 1;
+    int jiF = (cc <= 1) ? jp + 1 : jp - 1;
+    int jg1F = (cc <= 1) ? jp - 1 : jp + 1;
+    int jg2F = (cc <= 1) ? jp - 2 : jp + 2;
 
-        surfJ = "jl";
-        surfK = "kl";
+    int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ + 1;
+    int kg1F = (cc % 2 == 0) ? kp - 1 : kp + 1;
+    int kg2F = (cc % 2 == 0) ? kp - 2 : kp + 2;
 
-        // ghost face, on first/second layer of j line of cells, on non-edge
-        // layer of k line of cells
-        gf_j1_ke_kl = GetLowerFaceK(ii, j1, ke, imaxG, jmaxG);
-        gf_j2_ke_kl = GetLowerFaceK(ii, j2, ke, imaxG, jmaxG);
 
-        // ghost face, on non-edge layer of j line of cells, on first/second
-        // layer of k line of cells
-        gf_je_k1_jl = GetLowerFaceJ(ii, je, k1, imaxG, jmaxG);
-        gf_je_k2_jl = GetLowerFaceJ(ii, je, k2, imaxG, jmaxG);
+    for (int ii = imin; ii < imax; ii++) {
+      // boundary conditions at corner
+      string bc_J = bc_.GetBCName(ii - numGhosts_, jpF - numGhosts_,
+                                  kp - numGhosts_, surfJ);
+      string bc_K = bc_.GetBCName(ii - numGhosts_, jp - numGhosts_,
+                                  kpF - numGhosts_, surfK);
 
-        // boundary conditions at corner
-        bc_jl = (*this).BC().GetBCName(ii - numGhosts_,
-                                       je - numGhosts_,
-                                       ke - numGhosts_, surfJ);
-        bc_kl = (*this).BC().GetBCName(ii - numGhosts_,
-                                       je - numGhosts_,
-                                       ke - numGhosts_, surfK);
-
-      } else if (cc == 1) {  // at jl/ku edge - ghost cells are in the lower
-                             // direction of j and upper direction of k, so use
-                             // GetLowerFace for J
-        j2 = 0;
-        j1 = 1;
-        je = numGhosts_;
-        if (jmax > 1) {
-          je2 = numGhosts_ + 1;
-        } else {
-          je2 = je;
-        }
-
-        k2 = kmaxG - 1;
-        k1 = kmaxG - 2;
-        ke = kmax - 1 + numGhosts_;
-        if (kmax > 1) {
-          ke2 = kmax - 1 + numGhosts_ - 1;
-        } else {
-          ke2 = ke;
-        }
-
-        surfJ = "jl";
-        surfK = "ku";
-
-        // ghost face, on first/second layer of j line of cells, on non-edge
-        // layer of k line of cells
-        gf_j1_ke_kl = GetUpperFaceK(ii, j1, ke, imaxG, jmaxG);
-        gf_j2_ke_kl = GetUpperFaceK(ii, j2, ke, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of j line of cells, on first/second
-        // layer of k line of cells
-        gf_je_k1_jl = GetLowerFaceJ(ii, je, k1, imaxG, jmaxG);
-        gf_je_k2_jl = GetLowerFaceJ(ii, je, k2, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_jl = (*this).BC().GetBCName(ii - numGhosts_,
-                                       je - numGhosts_,
-                                       ke - numGhosts_, surfJ);
-        bc_kl = (*this).BC().GetBCName(ii - numGhosts_,
-                                       je - numGhosts_,
-                                       ke - numGhosts_ + 1, surfK);
-
-      } else if (cc == 2) {  // at ju/kl edge - ghost cells are in the lower
-                             // direction of k, and upper direction of j so use
-                             // GetLowerFace for k
-        j2 = jmaxG - 1;
-        j1 = jmaxG - 2;
-        je = jmax - 1 + numGhosts_;
-        if (jmax > 1) {
-          je2 = jmax - 1 + numGhosts_ - 1;
-        } else {
-          je2 = je;
-        }
-
-        k2 = 0;
-        k1 = 1;
-        ke = numGhosts_;
-        if (kmax > 1) {
-          ke2 = numGhosts_ + 1;
-        } else {
-          ke2 = ke;
-        }
-
-        surfJ = "ju";
-        surfK = "kl";
-
-        // ghost face, on first/second layer of j line of cells, on non-edge
-        // layer of k line of cells
-        gf_j1_ke_kl = GetLowerFaceK(ii, j1, ke, imaxG, jmaxG);
-        gf_j2_ke_kl = GetLowerFaceK(ii, j2, ke, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of j line of cells, on first/second
-        // layer of k line of cells
-        gf_je_k1_jl = GetUpperFaceJ(ii, je, k1, imaxG, jmaxG);
-        gf_je_k2_jl = GetUpperFaceJ(ii, je, k2, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_jl = (*this).BC().GetBCName(ii - numGhosts_,
-                                       je - numGhosts_ + 1,
-                                       ke - numGhosts_, surfJ);
-        bc_kl = (*this).BC().GetBCName(ii - numGhosts_,
-                                       je - numGhosts_,
-                                       ke - numGhosts_, surfK);
-
-      } else if (cc == 3) {  // at ju/ku edge - ghost cells are in the upper
-                             // direction of both j and k, use GetUpperFace for
-                             // both
-        j2 = jmaxG - 1;
-        j1 = jmaxG - 2;
-        je = jmax - 1 + numGhosts_;
-        if (jmax > 1) {
-          je2 = jmax - 1 + numGhosts_ - 1;
-        } else {
-          je2 = je;
-        }
-
-        k2 = kmaxG - 1;
-        k1 = kmaxG - 2;
-        ke = kmax - 1 + numGhosts_;
-        if (kmax > 1) {
-          ke2 = kmax - 1 + numGhosts_ - 1;
-        } else {
-          ke2 = ke;
-        }
-
-        surfJ = "ju";
-        surfK = "ku";
-
-        // ghost face, on first/second layer of j line of cells, on non-edge
-        // layer of k line of cells
-        gf_j1_ke_kl = GetUpperFaceK(ii, j1, ke, imaxG, jmaxG);
-        gf_j2_ke_kl = GetUpperFaceK(ii, j2, ke, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of j line of cells, on first/second
-        // layer of k line of cells
-        gf_je_k1_jl = GetUpperFaceJ(ii, je, k1, imaxG, jmaxG);
-        gf_je_k2_jl = GetUpperFaceJ(ii, je, k2, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_jl = (*this).BC().GetBCName(ii - numGhosts_,
-                                       je - numGhosts_ + 1,
-                                       ke - numGhosts_, surfJ);
-        bc_kl = (*this).BC().GetBCName(ii - numGhosts_,
-                                       je - numGhosts_,
-                                       ke - numGhosts_ + 1, surfK);
+      // Assign states
+      // j surface is a wall, but k surface is not - extend wall bc
+      if (bc_J == "viscousWall" && !(bc_K == "viscousWall")) {
+        state_(ii, jg1, kg1) = state_(ii, jp, kg1).GetGhostState(
+            bc_J, this->FAreaUnitJ(ii, jpF, kg1), surfJ, inp, eos, suth, 1);
+        state_(ii, jg1, kg2) = state_(ii, jp, kg2).GetGhostState(
+            bc_J, this->FAreaUnitJ(ii, jpF, kg2), surfJ, inp, eos, suth, 1);
+        state_(ii, jg2, kg1) = state_(ii, ji1, kg1).GetGhostState(
+            bc_J, this->FAreaUnitJ(ii, jpF, kg1), surfJ, inp, eos, suth, 2);
+        state_(ii, jg2, kg2) = state_(ii, ji1, kg2).GetGhostState(
+            bc_J, this->FAreaUnitJ(ii, jpF, kg2), surfJ, inp, eos, suth, 2);
+        // k surface is a wall, but j surface is not - extend wall bc
+      } else if (!(bc_J == "viscousWall") && bc_K == "viscousWall") {
+        state_(ii, jg1, kg1) = state_(ii, jg1, kp).GetGhostState(
+            bc_K, this->FAreaUnitK(ii, jg1, kpF), surfK, inp, eos, suth, 1);
+        state_(ii, jg2, kg1) = state_(ii, jg2, kp).GetGhostState(
+            bc_K, this->FAreaUnitK(ii, jg2, kpF), surfK, inp, eos, suth, 1);
+        state_(ii, jg1, kg2) = state_(ii, jg1, ki1).GetGhostState(
+            bc_K, this->FAreaUnitK(ii, jg1, kpF), surfK, inp, eos, suth, 2);
+        state_(ii, jg2, kg2) = state_(ii, jg2, ki1).GetGhostState(
+            bc_K, this->FAreaUnitK(ii, jg2, kpF), surfK, inp, eos, suth, 2);
+      // both surfaces are walls - proceed as normal
+      } else if (bc_J == "viscousWall" && bc_K == "viscousWall") {
+        state_(ii, jg1, kg1) = 0.5 * (state_(ii, jp, kg1) +
+                                      state_(ii, jg1, kp));
+        state_(ii, jg1, kg2) = state_(ii, jp, kg2);
+        state_(ii, jg2, kg1) = state_(ii, jg2, kp);
+        state_(ii, jg2, kg2) = 0.5 * (state_(ii, jg1, kg2) +
+                                      state_(ii, jg2, kg1));
       }
-
-      // location of ghost cells
-      int gce_j1_k1 =
-          GetLoc1D(ii, j1, k1, imaxG, jmaxG);  // ghost cell on edge, on first
-                                               // layer of j line of cells, on
-                                               // first layer of k line of cells
-      int gce_j1_k2 = GetLoc1D(ii, j1, k2, imaxG,
-                               jmaxG);  // ghost cell on edge, on first layer of
-                                        // j line of cells, on second layer of k
-                                        // line of cells
-      int gce_j2_k1 =
-          GetLoc1D(ii, j2, k1, imaxG, jmaxG);  // ghost cell on edge, on second
-                                               // layer of j line of cells, on
-                                               // first layer of k line of cells
-      int gce_j2_k2 = GetLoc1D(ii, j2, k2, imaxG,
-                               jmaxG);  // ghost cell on edge, on second layer
-                                        // of j line of cells, on second layer
-                                        // of k line of cells
-
-      int gc_j1_ke =
-          GetLoc1D(ii, j1, ke, imaxG, jmaxG);  // ghost cell, on first layer of
-                                               // j line of cells, on non-edge
-                                               // layer of k line of cells
-      int gc_j2_ke =
-          GetLoc1D(ii, j2, ke, imaxG, jmaxG);  // ghost cell, on second layer of
-                                               // j line of cells, on non-edge
-                                               // layer of k line of cells
-      int gc_je_k1 =
-          GetLoc1D(ii, je, k1, imaxG, jmaxG);  // ghost cell, on non-edge layer
-                                               // of j line of cells, on first
-                                               // layer of k line of cells
-      int gc_je_k2 =
-          GetLoc1D(ii, je, k2, imaxG, jmaxG);  // ghost cell, on non-edge layer
-                                               // of j line of cells, on second
-                                               // layer of k line of cells
-
-      int gc_j1_ke2 = GetLoc1D(ii, j1, ke2, imaxG,
-                               jmaxG);  // ghost cell, on first layer of j line
-                                        // of cells, on second non-edge layer of
-                                        // k line of cells
-      int gc_j2_ke2 = GetLoc1D(ii, j2, ke2, imaxG,
-                               jmaxG);  // ghost cell, on second layer of j line
-                                        // of cells, on second non-edge layer of
-                                        // k line of cells
-      int gc_je2_k1 = GetLoc1D(ii, je2, k1, imaxG,
-                               jmaxG);  // ghost cell, on second non-edge layer
-                                        // of j line of cells, on first layer of
-                                        // k line of cells
-      int gc_je2_k2 = GetLoc1D(ii, je2, k2, imaxG,
-                               jmaxG);  // ghost cell, on second non-edge layer
-                                        // of j line of cells, on second layer
-                                        // of k line of cells
-
-      if (bc_jl == "viscousWall" &&
-          !(bc_kl == "viscousWall")) {  // j surface is a viscous wall, but k
-                                        // surface is not - extend wall bc_
-        (*this).state_[gce_j1_k1] = state_(gc_je_k1).GetGhostState(
-            bc_jl, (*this).FAreaUnitJ(gf_je_k1_jl), surfJ, inp, eos, suth, 1);
-        (*this).state_[gce_j1_k2] = state_(gc_je_k2).GetGhostState(
-            bc_jl, (*this).FAreaUnitJ(gf_je_k2_jl), surfJ, inp, eos, suth, 1);
-        (*this).state_[gce_j2_k1] = state_(gc_je2_k1).GetGhostState(
-            bc_jl, (*this).FAreaUnitJ(gf_je_k1_jl), surfJ, inp, eos, suth, 1);
-        (*this).state_[gce_j2_k2] = state_(gc_je2_k2).GetGhostState(
-            bc_jl, (*this).FAreaUnitJ(gf_je_k2_jl), surfJ, inp, eos, suth, 1);
-      } else if (!(bc_jl == "viscousWall") &&
-                 bc_kl == "viscousWall") {  // k surface is a viscous wall, but
-                                            // j surface is not - extend wall
-                                            // bc_
-        (*this).state_[gce_j1_k1] = state_(gc_j1_ke).GetGhostState(
-            bc_kl, (*this).FAreaUnitK(gf_j1_ke_kl), surfK, inp, eos, suth, 1);
-        (*this).state_[gce_j2_k1] = state_(gc_j2_ke).GetGhostState(
-            bc_kl, (*this).FAreaUnitK(gf_j2_ke_kl), surfK, inp, eos, suth, 1);
-        (*this).state_[gce_j1_k2] = state_(gc_j1_ke2).GetGhostState(
-            bc_kl, (*this).FAreaUnitK(gf_j1_ke_kl), surfK, inp, eos, suth, 1);
-        (*this).state_[gce_j2_k2] = state_(gc_j2_ke2).GetGhostState(
-            bc_kl, (*this).FAreaUnitK(gf_j2_ke_kl), surfK, inp, eos, suth, 1);
-      } else if (bc_jl == "viscousWall" &&
-                 bc_kl == "viscousWall") {  // both surfaces are viscous walls -
-                                            // proceed as normal
-        (*this).state_[gce_j1_k1] =
-            0.5 * (state_(gc_j1_ke) + state_(gc_je_k1));
-        (*this).state_[gce_j2_k1] = state_(gc_j2_ke);
-        (*this).state_[gce_j1_k2] = state_(gc_je_k2);
-        (*this).state_[gce_j2_k2] =
-            0.5 * (state_(gc_j2_ke) + state_(gc_je_k2));
-      }
-      // if no boundary is a viscous wall, do nothing
+      // if neither surfaces are walls, do nothing
     }
   }
 
-  //-------------------------------------------------------------------------
-  // loop over edges at lower and upper i sides of block - this will include 4
-  // edges that run in the j-direction --------------------------------
-  // edges at the il/kl, il/ku, iu/kl, iu/ku sides will be accounted for in this
-  // loop
-  for (int jj = numGhosts_; jj < jmax + numGhosts_; jj++) {
-    for (int cc = 0; cc < 4; cc++) {  // loop over 4 edges
-      int i1, k1, i2, k2, ie, ke, ie2, ke2;
+  // ------------------------------------------------------------------------
+  // loop over 4 edges that run in j-direction
+  for (int cc = 0; cc < 4; cc++) {
+    // cc = 0 -> il/kl
+    // cc = 1 -> il/ku
+    // cc = 2 -> iu/kl
+    // cc = 3 -> iu/ku
 
-      int gf_i1_ke_kl;
-      int gf_i2_ke_kl;
-      int gf_ie_k1_il;
-      int gf_ie_k2_il;
+    // cell indices
+    int jmin = numGhosts_;
+    int jmax = this->NumJ() + numGhosts_;
 
-      string bc_il, bc_kl;
-      string surfI, surfK;
+    int ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
+    int ii1 = (cc <= 1) ? ip + 1 : ip - 1;
+    int ig1 = (cc <= 1) ? ip - 1 : ip + 1;
+    int ig2 = (cc <= 1) ? ip - 2 : ip + 2;
 
-      if (cc == 0) {  // at il/kl edge - ghost cells are in the lower direction
-                      // of both i and k, so use GetLowerFace for both
-        i2 = 0;
-        i1 = 1;
-        ie = numGhosts_;
-        if (imax > 1) {
-          ie2 = numGhosts_ + 1;
-        } else {
-          ie2 = ie;
-        }
+    int kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
+    int ki1 = (cc % 2 == 0) ? kp + 1 : kp - 1;
+    int kg1 = (cc % 2 == 0) ? kp - 1 : kp + 1;
+    int kg2 = (cc % 2 == 0) ? kp - 2 : kp + 2;
 
-        k2 = 0;
-        k1 = 1;
-        ke = numGhosts_;
-        if (kmax > 1) {
-          ke2 = numGhosts_ + 1;
-        } else {
-          ke2 = ke;
-        }
+    // surface types of surfaces forming edge
+    string surfI = (cc <= 1) ? "il" : "iu";
+    string surfK = (cc % 2 == 0) ? "kl" : "ku";
 
-        surfI = "il";
-        surfK = "kl";
+    // face indices
+    // these only change from cell indices for upper edges
+    // these should only be used for accessing faces in their corresponding
+    // direction - i.e. ipF should only be used to access fAreaI, or fCenterI
+    int jmaxF = this->NumJ() + numGhosts_ + 1;
 
-        // ghost face, on first/second layer of i line of cells, on non-edge
-        // layer of k line of cells
-        gf_i1_ke_kl = GetLowerFaceK(i1, jj, ke, imaxG, jmaxG);
-        gf_i2_ke_kl = GetLowerFaceK(i2, jj, ke, imaxG, jmaxG);
+    int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ + 1;
+    int iiF = (cc <= 1) ? ip + 1 : ip - 1;
+    int ig1F = (cc <= 1) ? ip - 1 : ip + 1;
+    int ig2F = (cc <= 1) ? ip - 2 : ip + 2;
 
-        // ghost face, on non-edge layer of i line of cells, on first/second
-        // layer of k line of cells
-        gf_ie_k1_il = GetLowerFaceI(ie, jj, k1, imaxG, jmaxG);
-        gf_ie_k2_il = GetLowerFaceI(ie, jj, k2, imaxG, jmaxG);
+    int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ + 1;
+    int kg1F = (cc % 2 == 0) ? kp - 1 : kp + 1;
+    int kg2F = (cc % 2 == 0) ? kp - 2 : kp + 2;
 
-        // boundary conditions at corner
-        bc_il = (*this).BC().GetBCName(ie - numGhosts_,
-                                       jj - numGhosts_,
-                                       ke - numGhosts_, surfI);
-        bc_kl = (*this).BC().GetBCName(ie - numGhosts_,
-                                       jj - numGhosts_,
-                                       ke - numGhosts_, surfK);
+    // Assign states
+    for (int jj = jmin; jj < jmax; jj++) {
+      // boundary conditions at corner
+      string bc_I = bc_.GetBCName(ipF - numGhosts_, jj - numGhosts_,
+                                  kp - numGhosts_, surfI);
+      string bc_K = bc_.GetBCName(ip - numGhosts_, jj - numGhosts_,
+                                  kpF - numGhosts_, surfK);
 
-      } else if (cc == 1) {  // at il/ku edge - ghost cells are in the lower
-                             // direction of i and upper direction of k, so use
-                             // GetLowerFace for I
-        i2 = 0;
-        i1 = 1;
-        ie = numGhosts_;
-        if (imax > 1) {
-          ie2 = numGhosts_ + 1;
-        } else {
-          ie2 = ie;
-        }
-
-        k2 = kmaxG - 1;
-        k1 = kmaxG - 2;
-        ke = kmax - 1 + numGhosts_;
-        if (kmax > 1) {
-          ke2 = kmax - 1 + numGhosts_ - 1;
-        } else {
-          ke2 = ke;
-        }
-
-        surfI = "il";
-        surfK = "ku";
-
-        // ghost face, on first/second layer of i line of cells, on non-edge
-        // layer of k line of cells
-        gf_i1_ke_kl = GetUpperFaceK(i1, jj, ke, imaxG, jmaxG);
-        gf_i2_ke_kl = GetUpperFaceK(i2, jj, ke, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of i line of cells, on first/second
-        // layer of k line of cells
-        gf_ie_k1_il = GetLowerFaceI(ie, jj, k1, imaxG, jmaxG);
-        gf_ie_k2_il = GetLowerFaceI(ie, jj, k2, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_il = (*this).BC().GetBCName(ie - numGhosts_,
-                                       jj - numGhosts_,
-                                       ke - numGhosts_, surfI);
-        bc_kl = (*this).BC().GetBCName(ie - numGhosts_,
-                                       jj - numGhosts_,
-                                       ke - numGhosts_ + 1, surfK);
-
-      } else if (cc == 2) {  // at iu/kl edge - ghost cells are in the lower
-                             // direction of k, and upper direction of i so use
-                             // GetLowerFace for k
-        i2 = imaxG - 1;
-        i1 = imaxG - 2;
-        ie = imax - 1 + numGhosts_;
-        if (imax > 1) {
-          ie2 = imax - 1 + numGhosts_ - 1;
-        } else {
-          ie2 = ie;
-        }
-
-        k2 = 0;
-        k1 = 1;
-        ke = numGhosts_;
-        if (kmax > 1) {
-          ke2 = numGhosts_ + 1;
-        } else {
-          ke2 = ke;
-        }
-
-        surfI = "iu";
-        surfK = "kl";
-
-        // ghost face, on first/second layer of i line of cells, on non-edge
-        // layer of k line of cells
-        gf_i1_ke_kl = GetLowerFaceK(i1, jj, ke, imaxG, jmaxG);
-        gf_i2_ke_kl = GetLowerFaceK(i2, jj, ke, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of i line of cells, on first/second
-        // layer of k line of cells
-        gf_ie_k1_il = GetUpperFaceI(ie, jj, k1, imaxG, jmaxG);
-        gf_ie_k2_il = GetUpperFaceI(ie, jj, k2, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_il = (*this).BC().GetBCName(ie - numGhosts_ + 1,
-                                       jj - numGhosts_,
-                                       ke - numGhosts_, surfI);
-        bc_kl = (*this).BC().GetBCName(ie - numGhosts_,
-                                       jj - numGhosts_,
-                                       ke - numGhosts_, surfK);
-
-      } else if (cc == 3) {  // at iu/ku edge - ghost cells are in the upper
-                             // direction of both i and k, use GetUpperFace for
-                             // both
-        i2 = imaxG - 1;
-        i1 = imaxG - 2;
-        ie = imax - 1 + numGhosts_;
-        if (imax > 1) {
-          ie2 = imax - 1 + numGhosts_ - 1;
-        } else {
-          ie2 = ie;
-        }
-
-        k2 = kmaxG - 1;
-        k1 = kmaxG - 2;
-        ke = kmax - 1 + numGhosts_;
-        if (kmax > 1) {
-          ke2 = kmax - 1 + numGhosts_ - 1;
-        } else {
-          ke2 = ke;
-        }
-
-        surfI = "iu";
-        surfK = "ku";
-
-        // ghost face, on first/second layer of i line of cells, on non-edge
-        // layer of k line of cells
-        gf_i1_ke_kl = GetUpperFaceK(i1, jj, ke, imaxG, jmaxG);
-        gf_i2_ke_kl = GetUpperFaceK(i2, jj, ke, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of i line of cells, on first/second
-        // layer of k line of cells
-        gf_ie_k1_il = GetUpperFaceI(ie, jj, k1, imaxG, jmaxG);
-        gf_ie_k2_il = GetUpperFaceI(ie, jj, k2, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_il = (*this).BC().GetBCName(ie - numGhosts_ + 1,
-                                       jj - numGhosts_,
-                                       ke - numGhosts_, surfI);
-        bc_kl = (*this).BC().GetBCName(ie - numGhosts_,
-                                       jj - numGhosts_,
-                                       ke - numGhosts_ + 1, surfK);
+      // Assign states
+      // i surface is a wall, but k surface is not - extend wall bc
+      if (bc_I == "viscousWall" && !(bc_K == "viscousWall")) {
+        state_(ig1, jj, kg1) = state_(ip, jj, kg1).GetGhostState(
+            bc_I, this->FAreaUnitI(ipF, jj, kg1), surfI, inp, eos, suth, 1);
+        state_(ig1, jj, kg2) = state_(ip, jj, kg2).GetGhostState(
+            bc_I, this->FAreaUnitI(ipF, jj, kg2), surfI, inp, eos, suth, 1);
+        state_(ig2, jj, kg1) = state_(ii1, jj, kg1).GetGhostState(
+            bc_I, this->FAreaUnitI(ipF, jj, kg1), surfI, inp, eos, suth, 2);
+        state_(ig2, jj, kg2) = state_(ii1, jj, kg2).GetGhostState(
+            bc_I, this->FAreaUnitI(ipF, jj, kg2), surfI, inp, eos, suth, 2);
+        // k surface is a wall, but i surface is not - extend wall bc
+      } else if (!(bc_I == "viscousWall") && bc_K == "viscousWall") {
+        state_(ig1, jj, kg1) = state_(ig1, jj, kp).GetGhostState(
+            bc_K, this->FAreaUnitK(ig1, jj, kpF), surfK, inp, eos, suth, 1);
+        state_(ig2, jj, kg1) = state_(ig2, jj, kp).GetGhostState(
+            bc_K, this->FAreaUnitK(ig2, jj, kpF), surfK, inp, eos, suth, 1);
+        state_(ig1, jj, kg2) = state_(ig1, jj, ki1).GetGhostState(
+            bc_K, this->FAreaUnitK(ig1, jj, kpF), surfK, inp, eos, suth, 2);
+        state_(ig2, jj, kg2) = state_(ig2, jj, ki1).GetGhostState(
+            bc_K, this->FAreaUnitK(ig2, jj, kpF), surfK, inp, eos, suth, 2);
+      // both surfaces are walls - proceed as normal
+      } else if (bc_I == "viscousWall" && bc_K == "viscousWall") {
+        state_(ig1, jj, kg1) = 0.5 * (state_(ip, jj, kg1) +
+                                      state_(ig1, jj, kp));
+        state_(ig1, jj, kg2) = state_(ip, jj, kg2);
+        state_(ig2, jj, kg1) = state_(ig2, jj, kp);
+        state_(ig2, jj, kg2) = 0.5 * (state_(ig1, jj, kg2) +
+                                      state_(ig2, jj, kg1));
       }
-
-      // location of ghost cells
-      int gce_i1_k1 =
-          GetLoc1D(i1, jj, k1, imaxG, jmaxG);  // ghost cell on edge, on first
-                                               // layer of i line of cells, on
-                                               // first layer of k line of cells
-      int gce_i1_k2 = GetLoc1D(i1, jj, k2, imaxG,
-                               jmaxG);  // ghost cell on edge, on first layer of
-                                        // i line of cells, on second layer of k
-                                        // line of cells
-      int gce_i2_k1 =
-          GetLoc1D(i2, jj, k1, imaxG, jmaxG);  // ghost cell on edge, on second
-                                               // layer of i line of cells, on
-                                               // first layer of k line of cells
-      int gce_i2_k2 = GetLoc1D(i2, jj, k2, imaxG,
-                               jmaxG);  // ghost cell on edge, on second layer
-                                        // of i line of cells, on second layer
-                                        // of k line of cells
-
-      int gc_i1_ke =
-          GetLoc1D(i1, jj, ke, imaxG, jmaxG);  // ghost cell, on first layer of
-                                               // i line of cells, on non-edge
-                                               // layer of k line of cells
-      int gc_i2_ke =
-          GetLoc1D(i2, jj, ke, imaxG, jmaxG);  // ghost cell, on second layer of
-                                               // i line of cells, on non-edge
-                                               // layer of k line of cells
-      int gc_ie_k1 =
-          GetLoc1D(ie, jj, k1, imaxG, jmaxG);  // ghost cell, on non-edge layer
-                                               // of i line of cells, on first
-                                               // layer of k line of cells
-      int gc_ie_k2 =
-          GetLoc1D(ie, jj, k2, imaxG, jmaxG);  // ghost cell, on non-edge layer
-                                               // of i line of cells, on second
-                                               // layer of k line of cells
-
-      int gc_i1_ke2 = GetLoc1D(i1, jj, ke2, imaxG,
-                               jmaxG);  // ghost cell, on first layer of i line
-                                        // of cells, on second non-edge layer of
-                                        // k line of cells
-      int gc_i2_ke2 = GetLoc1D(i2, jj, ke2, imaxG,
-                               jmaxG);  // ghost cell, on second layer of i line
-                                        // of cells, on second non-edge layer of
-                                        // k line of cells
-      int gc_ie2_k1 = GetLoc1D(ie2, jj, k1, imaxG,
-                               jmaxG);  // ghost cell, on second non-edge layer
-                                        // of i line of cells, on first layer of
-                                        // k line of cells
-      int gc_ie2_k2 = GetLoc1D(ie2, jj, k2, imaxG,
-                               jmaxG);  // ghost cell, on second non-edge layer
-                                        // of i line of cells, on second layer
-                                        // of k line of cells
-
-      if (bc_il == "viscousWall" &&
-          !(bc_kl == "viscousWall")) {  // i surface is a viscous wall, but k
-                                        // surface is not - extend wall bc_
-        (*this).state_[gce_i1_k1] = state_(gc_ie_k1).GetGhostState(
-            bc_il, (*this).FAreaUnitI(gf_ie_k1_il), surfI, inp, eos, suth, 1);
-        (*this).state_[gce_i1_k2] = state_(gc_ie_k2).GetGhostState(
-            bc_il, (*this).FAreaUnitI(gf_ie_k2_il), surfI, inp, eos, suth, 1);
-        (*this).state_[gce_i2_k1] = state_(gc_ie2_k1).GetGhostState(
-            bc_il, (*this).FAreaUnitI(gf_ie_k1_il), surfI, inp, eos, suth, 1);
-        (*this).state_[gce_i2_k2] = state_(gc_ie2_k2).GetGhostState(
-            bc_il, (*this).FAreaUnitI(gf_ie_k2_il), surfI, inp, eos, suth, 1);
-      } else if (!(bc_il == "viscousWall") &&
-                 bc_kl == "viscousWall") {  // k surface is a viscous wall, but
-                                            // i surface is not - extend wall
-                                            // bc_
-        (*this).state_[gce_i1_k1] = state_(gc_i1_ke).GetGhostState(
-            bc_kl, (*this).FAreaUnitK(gf_i1_ke_kl), surfK, inp, eos, suth, 1);
-        (*this).state_[gce_i2_k1] = state_(gc_i2_ke).GetGhostState(
-            bc_kl, (*this).FAreaUnitK(gf_i2_ke_kl), surfK, inp, eos, suth, 1);
-        (*this).state_[gce_i1_k2] = state_(gc_i1_ke2).GetGhostState(
-            bc_kl, (*this).FAreaUnitK(gf_i1_ke_kl), surfK, inp, eos, suth, 1);
-        (*this).state_[gce_i2_k2] = state_(gc_i2_ke2).GetGhostState(
-            bc_kl, (*this).FAreaUnitK(gf_i2_ke_kl), surfK, inp, eos, suth, 1);
-      } else if (bc_il == "viscousWall" &&
-                 bc_kl == "viscousWall") {  // both surfaces are viscous walls -
-                                            // proceed as normal
-        (*this).state_[gce_i1_k1] =
-            0.5 * (state_(gc_i1_ke) + state_(gc_ie_k1));
-        (*this).state_[gce_i2_k1] = state_(gc_i2_ke);
-        (*this).state_[gce_i1_k2] = state_(gc_ie_k2);
-        (*this).state_[gce_i2_k2] =
-            0.5 * (state_(gc_i2_ke) + state_(gc_ie_k2));
-      }
-      // if neither surface is a wall then do nothing
+      // if neither surfaces are walls, do nothing
     }
   }
 
-  //--------------------------------------------------------------------------
-  // loop over edges at lower and upper i sides of block - this will include 4
-  // edges that run in the k-direction --------------------------------
-  // edges at the il/jl, il/ju, iu/jl, iu/ju sides will be accounted for in this
-  // loop
-  for (int kk = numGhosts_; kk < kmax + numGhosts_; kk++) {
-    for (int cc = 0; cc < 4; cc++) {  // loop over 4 edges
-      int i1, j1, i2, j2, ie, je, ie2, je2;
+  // ------------------------------------------------------------------------
+  // loop over 4 edges that run in k-direction
+  for (int cc = 0; cc < 4; cc++) {
+    // cc = 0 -> il/jl
+    // cc = 1 -> il/ju
+    // cc = 2 -> iu/jl
+    // cc = 3 -> iu/ju
 
-      int gf_i1_je_jl;
-      int gf_i2_je_jl;
-      int gf_ie_j1_il;
-      int gf_ie_j2_il;
+    // cell indices
+    int kmin = numGhosts_;
+    int kmax = this->NumK() + numGhosts_;
 
-      string bc_il, bc_jl;
-      string surfI, surfJ;
+    int ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
+    int ii1 = (cc <= 1) ? ip + 1 : ip - 1;
+    int ig1 = (cc <= 1) ? ip - 1 : ip + 1;
+    int ig2 = (cc <= 1) ? ip - 2 : ip + 2;
 
-      if (cc == 0) {  // at il/jl edge - ghost cells are in the lower direction
-                      // of both i and j, so use GetLowerFace for both
-        i2 = 0;
-        i1 = 1;
-        ie = numGhosts_;
-        if (imax > 1) {
-          ie2 = numGhosts_ + 1;
-        } else {
-          ie2 = ie;
-        }
+    int jp = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_;
+    int ji1 = (cc % 2 == 0) ? jp + 1 : jp - 1;
+    int jg1 = (cc % 2 == 0) ? jp - 1 : jp + 1;
+    int jg2 = (cc % 2 == 0) ? jp - 2 : jp + 2;
 
-        j2 = 0;
-        j1 = 1;
-        je = numGhosts_;
-        if (jmax > 1) {
-          je2 = numGhosts_ + 1;
-        } else {
-          je2 = je;
-        }
+    // surface types of surfaces forming edge
+    string surfI = (cc <= 1) ? "il" : "iu";
+    string surfJ = (cc % 2 == 0) ? "jl" : "ju";
 
-        surfI = "il";
-        surfJ = "jl";
+    // face indices
+    // these only change from cell indices for upper edges
+    // these should only be used for accessing faces in their corresponding
+    // direction - i.e. ipF should only be used to access fAreaI, or fCenterI
+    int kmaxF = this->NumK() + numGhosts_ + 1;
 
-        // ghost face, on first/second layer of i line of cells, on non-edge
-        // layer of j line of cells
-        gf_i1_je_jl = GetLowerFaceJ(i1, je, kk, imaxG, jmaxG);
-        gf_i2_je_jl = GetLowerFaceJ(i2, je, kk, imaxG, jmaxG);
+    int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ + 1;
+    int iiF = (cc <= 1) ? ip + 1 : ip - 1;
+    int ig1F = (cc <= 1) ? ip - 1 : ip + 1;
+    int ig2F = (cc <= 1) ? ip - 2 : ip + 2;
 
-        // ghost face, on non-edge layer of i line of cells, on first/second
-        // layer of j line of cells
-        gf_ie_j1_il = GetLowerFaceI(ie, j1, kk, imaxG, jmaxG);
-        gf_ie_j2_il = GetLowerFaceI(ie, j2, kk, imaxG, jmaxG);
+    int jpF = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_ + 1;
+    int jg1F = (cc % 2 == 0) ? jp - 1 : jp + 1;
+    int jg2F = (cc % 2 == 0) ? jp - 2 : jp + 2;
 
-        // boundary conditions at corner
-        bc_il = (*this).BC().GetBCName(ie - numGhosts_,
-                                       je - numGhosts_,
-                                       kk - numGhosts_, surfI);
-        bc_jl = (*this).BC().GetBCName(ie - numGhosts_,
-                                       je - numGhosts_,
-                                       kk - numGhosts_, surfJ);
+    // Assign states
+    for (int kk = kmin; kk < kmax; kk++) {
+      // boundary conditions at corner
+      string bc_I = bc_.GetBCName(ipF - numGhosts_, jp - numGhosts_,
+                           kk - numGhosts_, surfI);
+      string bc_J = bc_.GetBCName(ip - numGhosts_, jpF - numGhosts_,
+                           kk - numGhosts_, surfJ);
 
-      } else if (cc == 1) {  // at il/ju edge - ghost cells are in the lower
-                             // direction of i and upper direction of j, so use
-                             // GetLowerFace for I
-        i2 = 0;
-        i1 = 1;
-        ie = numGhosts_;
-        if (imax > 1) {
-          ie2 = numGhosts_ + 1;
-        } else {
-          ie2 = ie;
-        }
-
-        j2 = jmaxG - 1;
-        j1 = jmaxG - 2;
-        je = jmax - 1 + numGhosts_;
-        if (jmax > 1) {
-          je2 = jmax - 1 + numGhosts_ - 1;
-        } else {
-          je2 = je;
-        }
-
-        surfI = "il";
-        surfJ = "ju";
-
-        // ghost face, on first/second layer of i line of cells, on non-edge
-        // layer of j line of cells
-        gf_i1_je_jl = GetUpperFaceJ(i1, je, kk, imaxG, jmaxG);
-        gf_i2_je_jl = GetUpperFaceJ(i2, je, kk, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of i line of cells, on first/second
-        // layer of j line of cells
-        gf_ie_j1_il = GetLowerFaceI(ie, j1, kk, imaxG, jmaxG);
-        gf_ie_j2_il = GetLowerFaceI(ie, j2, kk, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_il = (*this).BC().GetBCName(ie - numGhosts_,
-                                       je - numGhosts_,
-                                       kk - numGhosts_, surfI);
-        bc_jl = (*this).BC().GetBCName(ie - numGhosts_,
-                                       je - numGhosts_ + 1,
-                                       kk - numGhosts_, surfJ);
-
-      } else if (cc == 2) {  // at iu/jl edge - ghost cells are in the lower
-                             // direction of j, and upper direction of i so use
-                             // GetLowerFace for J
-        i2 = imaxG - 1;
-        i1 = imaxG - 2;
-        ie = imax - 1 + numGhosts_;
-        if (imax > 1) {
-          ie2 = imax - 1 + numGhosts_ - 1;
-        } else {
-          ie2 = ie;
-        }
-
-        j2 = 0;
-        j1 = 1;
-        je = numGhosts_;
-        if (jmax > 1) {
-          je2 = numGhosts_ + 1;
-        } else {
-          je2 = je;
-        }
-
-        surfI = "iu";
-        surfJ = "jl";
-
-        // ghost face, on first/second layer of i line of cells, on non-edge
-        // layer of j line of cells
-        gf_i1_je_jl = GetLowerFaceJ(i1, je, kk, imaxG, jmaxG);
-        gf_i2_je_jl = GetLowerFaceJ(i2, je, kk, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of i line of cells, on first/second
-        // layer of j line of cells
-        gf_ie_j1_il = GetUpperFaceI(ie, j1, kk, imaxG, jmaxG);
-        gf_ie_j2_il = GetUpperFaceI(ie, j2, kk, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_il = (*this).BC().GetBCName(ie - numGhosts_ + 1,
-                                       je - numGhosts_,
-                                       kk - numGhosts_, surfI);
-        bc_jl = (*this).BC().GetBCName(ie - numGhosts_,
-                                       je - numGhosts_,
-                                       kk - numGhosts_, surfJ);
-
-      } else if (cc == 3) {  // at iu/ju edge - ghost cells are in the upper
-                             // direction of both i and j, use GetUpperFace for
-                             // both
-        i2 = imaxG - 1;
-        i1 = imaxG - 2;
-        ie = imax - 1 + numGhosts_;
-        if (imax > 1) {
-          ie2 = imax - 1 + numGhosts_ - 1;
-        } else {
-          ie2 = ie;
-        }
-
-        j2 = jmaxG - 1;
-        j1 = jmaxG - 2;
-        je = jmax - 1 + numGhosts_;
-        if (jmax > 1) {
-          je2 = jmax - 1 + numGhosts_ - 1;
-        } else {
-          je2 = je;
-        }
-
-        surfI = "iu";
-        surfJ = "ju";
-
-        // ghost face, on first/second layer of i line of cells, on non-edge
-        // layer of j line of cells
-        gf_i1_je_jl = GetUpperFaceJ(i1, je, kk, imaxG, jmaxG);
-        gf_i2_je_jl = GetUpperFaceJ(i2, je, kk, imaxG, jmaxG);
-
-        // ghost face, on non-edge layer of i line of cells, on first/second
-        // layer of j line of cells
-        gf_ie_j1_il = GetUpperFaceI(ie, j1, kk, imaxG, jmaxG);
-        gf_ie_j2_il = GetUpperFaceI(ie, j2, kk, imaxG, jmaxG);
-
-        // boundary conditions at corner
-        bc_il = (*this).BC().GetBCName(ie - numGhosts_ + 1,
-                                       je - numGhosts_,
-                                       kk - numGhosts_, surfI);
-        bc_jl = (*this).BC().GetBCName(ie - numGhosts_,
-                                       je - numGhosts_ + 1,
-                                       kk - numGhosts_, surfJ);
+      // Assign states
+      // i surface is a wall, but j surface is not - extend wall bc
+      if (bc_I == "viscousWall" && !(bc_J == "viscousWall")) {
+        state_(ig1, jg1, kk) = state_(ip, jg1, kk).GetGhostState(
+            bc_I, this->FAreaUnitI(ipF, jg1, kk), surfI, inp, eos, suth, 1);
+        state_(ig1, jg2, kk) = state_(ip, jg2, kk).GetGhostState(
+            bc_I, this->FAreaUnitI(ipF, jg2, kk), surfI, inp, eos, suth, 1);
+        state_(ig2, jg1, kk) = state_(ii1, jg1, kk).GetGhostState(
+            bc_I, this->FAreaUnitI(ipF, jg1, kk), surfI, inp, eos, suth, 2);
+        state_(ig2, jg2, kk) = state_(ii1, jg2, kk).GetGhostState(
+            bc_I, this->FAreaUnitI(ipF, jg2, kk), surfI, inp, eos, suth, 2);
+        // j surface is a wall, but i surface is not - extend wall bc
+      } else if (!(bc_I == "viscousWall") && bc_J == "viscousWall") {
+        state_(ig1, jg1, kk) = state_(ig1, jp, kk).GetGhostState(
+            bc_J, this->FAreaUnitK(ig1, jpF, kk), surfJ, inp, eos, suth, 1);
+        state_(ig2, jg1, kk) = state_(ig2, jp, kk).GetGhostState(
+            bc_J, this->FAreaUnitK(ig2, jpF, kk), surfJ, inp, eos, suth, 1);
+        state_(ig1, jg2, kk) = state_(ig1, ji1, kk).GetGhostState(
+            bc_J, this->FAreaUnitK(ig1, jpF, kk), surfJ, inp, eos, suth, 2);
+        state_(ig2, jg2, kk) = state_(ig2, ji1, kk).GetGhostState(
+            bc_J, this->FAreaUnitK(ig2, jpF, kk), surfJ, inp, eos, suth, 2);
+      // both surfaces are walls - proceed as normal
+      } else if (bc_I == "viscousWall" && bc_J == "viscousWall") {
+        state_(ig1, jg1, kk) = 0.5 * (state_(ip, jg1, kk) +
+                                      state_(ig1, jp, kk));
+        state_(ig1, jg2, kk) = state_(ip, jg2, kk);
+        state_(ig2, jg1, kk) = state_(ig2, jp, kk);
+        state_(ig2, jg2, kk) = 0.5 * (state_(ig1, jg2, kk) +
+                                      state_(ig2, jg1, kk));
       }
-
-      // location of ghost cells
-      int gce_i1_j1 =
-          GetLoc1D(i1, j1, kk, imaxG, jmaxG);  // ghost cell on edge, on first
-                                               // layer of i line of cells, on
-                                               // first layer of k line of cells
-      int gce_i1_j2 = GetLoc1D(i1, j2, kk, imaxG,
-                               jmaxG);  // ghost cell on edge, on first layer of
-                                        // i line of cells, on second layer of k
-                                        // line of cells
-      int gce_i2_j1 =
-          GetLoc1D(i2, j1, kk, imaxG, jmaxG);  // ghost cell on edge, on second
-                                               // layer of i line of cells, on
-                                               // first layer of k line of cells
-      int gce_i2_j2 = GetLoc1D(i2, j2, kk, imaxG,
-                               jmaxG);  // ghost cell on edge, on second layer
-                                        // of i line of cells, on second layer
-                                        // of k line of cells
-
-      int gc_i1_je =
-          GetLoc1D(i1, je, kk, imaxG, jmaxG);  // ghost cell, on first layer of
-                                               // i line of cells, on non-edge
-                                               // layer of j line of cells
-      int gc_i2_je =
-          GetLoc1D(i2, je, kk, imaxG, jmaxG);  // ghost cell, on second layer of
-                                               // i line of cells, on non-edge
-                                               // layer of j line of cells
-      int gc_ie_j1 =
-          GetLoc1D(ie, j1, kk, imaxG, jmaxG);  // ghost cell, on non-edge layer
-                                               // of i line of cells, on first
-                                               // layer of j line of cells
-      int gc_ie_j2 =
-          GetLoc1D(ie, j2, kk, imaxG, jmaxG);  // ghost cell, on non-edge layer
-                                               // of i line of cells, on second
-                                               // layer of j line of cells
-
-      int gc_i1_je2 = GetLoc1D(i1, je2, kk, imaxG,
-                               jmaxG);  // ghost cell, on first layer of i line
-                                        // of cells, on second non-edge layer of
-                                        // j line of cells
-      int gc_i2_je2 = GetLoc1D(i2, je2, kk, imaxG,
-                               jmaxG);  // ghost cell, on second layer of i line
-                                        // of cells, on second non-edge layer of
-                                        // j line of cells
-      int gc_ie2_j1 = GetLoc1D(ie2, j1, kk, imaxG,
-                               jmaxG);  // ghost cell, on second non-edge layer
-                                        // of i line of cells, on first layer of
-                                        // j line of cells
-      int gc_ie2_j2 = GetLoc1D(ie2, j2, kk, imaxG,
-                               jmaxG);  // ghost cell, on second non-edge layer
-                                        // of i line of cells, on second layer
-                                        // of j line of cells
-
-      if (bc_il == "viscousWall" &&
-          !(bc_jl == "viscousWall")) {  // i surface is a viscous wall, but k
-                                        // surface is not - extend wall bc_
-        (*this).state_[gce_i1_j1] = state_(gc_ie_j1).GetGhostState(
-            bc_il, (*this).FAreaUnitI(gf_ie_j1_il), surfI, inp, eos, suth, 1);
-        (*this).state_[gce_i1_j2] = state_(gc_ie_j2).GetGhostState(
-            bc_il, (*this).FAreaUnitI(gf_ie_j2_il), surfI, inp, eos, suth, 1);
-        (*this).state_[gce_i2_j1] = state_(gc_ie2_j1).GetGhostState(
-            bc_il, (*this).FAreaUnitI(gf_ie_j1_il), surfI, inp, eos, suth, 1);
-        (*this).state_[gce_i2_j2] = state_(gc_ie2_j2).GetGhostState(
-            bc_il, (*this).FAreaUnitI(gf_ie_j2_il), surfI, inp, eos, suth, 1);
-      } else if (!(bc_il == "viscousWall") &&
-                 bc_jl == "viscousWall") {  // j surface is a viscous wall, but
-                                            // i surface is not - extend wall
-                                            // bc_
-        (*this).state_[gce_i1_j1] = state_(gc_i1_je).GetGhostState(
-            bc_jl, (*this).FAreaUnitJ(gf_i1_je_jl), surfJ, inp, eos, suth, 1);
-        (*this).state_[gce_i2_j1] = state_(gc_i2_je).GetGhostState(
-            bc_jl, (*this).FAreaUnitJ(gf_i2_je_jl), surfJ, inp, eos, suth, 1);
-        (*this).state_[gce_i1_j2] = state_(gc_i1_je2).GetGhostState(
-            bc_jl, (*this).FAreaUnitJ(gf_i1_je_jl), surfJ, inp, eos, suth, 1);
-        (*this).state_[gce_i2_j2] = state_(gc_i2_je2).GetGhostState(
-            bc_jl, (*this).FAreaUnitJ(gf_i2_je_jl), surfJ, inp, eos, suth, 1);
-      } else if (bc_il == "viscousWall" &&
-                 bc_jl == "viscousWall") {  // both surfaces are viscous walls -
-                                            // proceed as normal
-        (*this).state_[gce_i1_j1] =
-            0.5 * (state_(gc_i1_je) + state_(gc_ie_j1));
-        (*this).state_[gce_i2_j1] = state_(gc_i2_je);
-        (*this).state_[gce_i1_j2] = state_(gc_ie_j2);
-        (*this).state_[gce_i2_j2] =
-            0.5 * (state_(gc_i2_je) + state_(gc_ie_j2));
-      }
-      // if neither surface is a viscous wall then do nothing
+      // if neither surfaces are walls, do nothing
     }
   }
 }
@@ -6025,14 +4652,6 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
     exit(0);
   }
 
-  // get procBlock maxes
-  int imaxB = this->NumI() + 2.0 * numGhosts_;
-  int jmaxB = this->NumJ() + 2.0 * numGhosts_;
-
-  // get slice maxes
-  int imaxS = slice.NumI();
-  int jmaxS = slice.NumJ();
-
   // adjust insertion indices if patch borders another interblock on the same
   // surface of the block
   int adjS1 = (inter.Dir1StartInterBorderFirst()) ? numG : 0;
@@ -6042,16 +4661,14 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
   vector<bool> adjEdge(4, false);  // initialize all return values to false
 
   // determine if area direction needs to be reversed
-  double aFac3 =
-      ((inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0) ? -1.0 : 1.0;
+  double aFac3 = ((inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0)
+      ? -1.0 : 1.0;
   double aFac1 = (inter.Orientation() == 3 || inter.Orientation() == 4 ||
                   inter.Orientation() == 7 || inter.Orientation() == 8)
-                     ? -1.0
-                     : 1.0;
+      ? -1.0 : 1.0;
   double aFac2 = (inter.Orientation() == 5 || inter.Orientation() == 6 ||
                   inter.Orientation() == 7 || inter.Orientation() == 8)
-                     ? -1.0
-                     : 1.0;
+      ? -1.0 : 1.0;
 
   // loop over cells to insert
   for (int l3 = 0; l3 < d3; l3++) {
@@ -6063,41 +4680,13 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
         vector3d<int> indB = GetSwapLoc(l1, l2, l3, inter, true);
         vector3d<int> indS = GetSwapLoc(l1, l2, l3, inter, false);
 
-        // get cell locations
-        int locB = GetLoc1D(indB[0], indB[1], indB[2], imaxB, jmaxB);
-        int locS = GetLoc1D(indS[0], indS[1], indS[2], imaxS, jmaxS);
-
-        // get i-face locations
-        int IlowB = GetLowerFaceI(indB[0], indB[1], indB[2], imaxB, jmaxB);
-        int IupB = GetUpperFaceI(indB[0], indB[1], indB[2], imaxB, jmaxB);
-
-        int IlowS = GetLowerFaceI(indS[0], indS[1], indS[2], imaxS, jmaxS);
-        int IupS = GetUpperFaceI(indS[0], indS[1], indS[2], imaxS, jmaxS);
-
-        // get j-face locations
-        int JlowB = GetLowerFaceJ(indB[0], indB[1], indB[2], imaxB, jmaxB);
-        int JupB = GetUpperFaceJ(indB[0], indB[1], indB[2], imaxB, jmaxB);
-
-        int JlowS = GetLowerFaceJ(indS[0], indS[1], indS[2], imaxS, jmaxS);
-        int JupS = GetUpperFaceJ(indS[0], indS[1], indS[2], imaxS, jmaxS);
-
-        // get k-face locations
-        int KlowB = GetLowerFaceK(indB[0], indB[1], indB[2], imaxB, jmaxB);
-        int KupB = GetUpperFaceK(indB[0], indB[1], indB[2], imaxB, jmaxB);
-
-        int KlowS = GetLowerFaceK(indS[0], indS[1], indS[2], imaxS, jmaxS);
-        int KupS = GetUpperFaceK(indS[0], indS[1], indS[2], imaxS, jmaxS);
-
         // don't overwrite with garbage from partner block that hasn't recieved
         // its ghost value yet (needed at "t" intersection)
-        if (slice.Vol(locS) == 0.0) {
+        if (slice.Vol(indS[0], indS[1], indS[2]) == 0.0) {
           // find out if on edge, if so save edge
+          // at a block edge -- possible need to adjust interblock
           string edgeDir;
-
-          if ((*this).AtEdge(indB[0], indB[1], indB[2], true,
-                             edgeDir)) {  // at a block edge -- possible need to
-                                          // adjust interblock
-
+          if (this->AtEdge(indB[0], indB[1], indB[2], true, edgeDir)) {
             int dir1, dir2;
             if (inter.Direction1First() == "i") {
               dir1 = 0;  // direction 1 is i
@@ -6111,21 +4700,18 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
             }
 
             // find out edge direction
-            if (edgeDir == inter.Direction1First()) {  // edge direction matches
-                                                       // interblock direction 1
-              if (indB[dir2] <
-                  inter.Dir2StartFirst() +
-                      numGhosts_) {  // adjust edge on lower dir2 side
+            // edge direction matches interblock direction 1
+            if (edgeDir == inter.Direction1First()) {
+              // adjust edge on lower dir2 side
+              if (indB[dir2] < inter.Dir2StartFirst() + numGhosts_) {
                 adjEdge[2] = true;
               } else {  // adjust edge on upper dir2 side
                 adjEdge[3] = true;
               }
-            } else if (edgeDir ==
-                       inter.Direction2First()) {  // edge direction matches
-                                                   // interblock direction 2
-              if (indB[dir1] <
-                  inter.Dir1StartFirst() +
-                      numGhosts_) {  // adjust edge on lower dir1 side
+            // edge direction matches interblock direction 2
+            } else if (edgeDir == inter.Direction2First()) {
+              // adjust edge on lower dir1 side
+              if (indB[dir1] < inter.Dir1StartFirst() + numGhosts_) {
                 adjEdge[0] = true;
               } else {  // adjust edge on upper dir1 side
                 adjEdge[1] = true;
@@ -6141,521 +4727,703 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
         // volume is not 0, ok to overwrite variables
         } else {
           // swap cell data
-          (*this).vol_[locB] = slice.Vol(locS);
-          (*this).center_[locB] = slice.Center(locS);
+          vol_(indB[0], indB[1], indB[2]) = slice.Vol(indS[0], indS[1],
+                                                      indS[2]);
+          center_(indB[0], indB[1], indB[2]) = slice.Center(indS[0], indS[1],
+                                                            indS[2]);
 
           //-------------------------------------------------------------------
           // swap face data
+          // both patches i, i to i, j to j, k to k
           if (inter.Direction3First() == "i" &&
-              inter.Direction3Second() ==
-                  "i") {  // both patches i, i to i, j to j, k to k
+              inter.Direction3Second() == "i") {
             // swap face data for direction 3
-            (*this).fCenterI_[IlowB] = slice.FCenterI(IlowS);
-            (*this).fAreaI_[IlowB] = aFac3 * slice.FAreaI(IlowS);
+            fCenterI_(indB[0], indB[1], indB[2]) =
+                slice.FCenterI(indS[0], indS[1], indS[2]);
+            fAreaI_(indB[0], indB[1], indB[2]) = aFac3 *
+                slice.FAreaI(indS[0], indS[1], indS[2]);
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
-              (*this).fCenterI_[IupB] = slice.FCenterI(IupS);
-              (*this).fAreaI_[IupB] = aFac3 * slice.FAreaI(IupS);
+              fCenterI_(indB[0] + 1, indB[1], indB[2]) =
+                  slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+              fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac3 *
+                  slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
             }
 
             // swap face data for direction 1
             if (aFac1 == 1.0) {
-              (*this).fCenterJ_[JlowB] = slice.FCenterJ(JlowS);
-              (*this).fAreaJ_[JlowB] = aFac1 * slice.FAreaJ(JlowS);
+              fCenterJ_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterJ(indS[0], indS[1], indS[2]);
+              fAreaJ_(indB[0], indB[1], indB[2]) = aFac1 *
+                  slice.FAreaJ(indS[0], indS[1], indS[2]);
 
-              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() -
-                         1)) {  // at end of direction 1 line
-                (*this).fCenterJ_[JupB] = slice.FCenterJ(JupS);
-                (*this).fAreaJ_[JupB] = aFac1 * slice.FAreaJ(JupS);
+              // at end of direction 1 line
+              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1)) {
+                fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
+                    slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+                fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac1 *
+                    slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
               }
-            } else {  // if direction is reversed, upper/lower faces need to be
-                      // swapped
-              (*this).fCenterJ_[JlowB] = slice.FCenterJ(JupS);
-              (*this).fAreaJ_[JlowB] = aFac1 * slice.FAreaJ(JupS);
+            // if direction is reversed, upper/lower faces need to be swapped
+            } else {
+              fCenterJ_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+              fAreaJ_(indB[0], indB[1], indB[2]) = aFac1 *
+                  slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
 
-              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() -
-                         1)) {  // at end of direction 1 line
-                (*this).fCenterJ_[JupB] = slice.FCenterJ(JlowS);
-                (*this).fAreaJ_[JupB] = aFac1 * slice.FAreaJ(JlowS);
+              // at end of direction 1 line
+              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1)) {
+                fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
+                    slice.FCenterJ(indS[0], indS[1], indS[2]);
+                fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac1 *
+                    slice.FAreaJ(indS[0], indS[1], indS[2]);
               }
             }
 
             // swap face data for direction 2
             if (aFac2 == 1.0) {
-              (*this).fCenterK_[KlowB] = slice.FCenterK(KlowS);
-              (*this).fAreaK_[KlowB] = aFac2 * slice.FAreaK(KlowS);
+              fCenterK_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterK(indS[0], indS[1], indS[2]);
+              fAreaK_(indB[0], indB[1], indB[2]) = aFac2 *
+                  slice.FAreaK(indS[0], indS[1], indS[2]);
 
-              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() -
-                         1)) {  // at end of direction 2 line
-                (*this).fCenterK_[KupB] = slice.FCenterK(KupS);
-                (*this).fAreaK_[KupB] = aFac2 * slice.FAreaK(KupS);
+              // at end of direction 2 line
+              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1)) {
+                fCenterK_(indB[0], indB[1], indB[2] + 1) =
+                    slice.FCenterK(indS[0], indS[1], indS[2] + 1);
+                fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac2 *
+                    slice.FAreaK(indS[0], indS[1], indS[2] + 1);
               }
-            } else {  // if direction is reversed, upper/lower faces need to be
-                      // swapped
-              (*this).fCenterK_[KlowB] = slice.FCenterK(KupS);
-              (*this).fAreaK_[KlowB] = aFac2 * slice.FAreaK(KupS);
+            // if direction is reversed, upper/lower faces need to be swapped
+            } else {
+              fCenterK_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterK(indS[0], indS[1], indS[2] + 1);
+              fAreaK_(indB[0], indB[1], indB[2]) = aFac2 *
+                  slice.FAreaK(indS[0], indS[1], indS[2] + 1);
 
-              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() -
-                         1)) {  // at end of direction 2 line
-                (*this).fCenterK_[KupB] = slice.FCenterK(KlowS);
-                (*this).fAreaK_[KupB] = aFac2 * slice.FAreaK(KlowS);
+              // at end of direction 2 line
+              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1)) {
+                fCenterK_(indB[0], indB[1], indB[2] + 1) =
+                    slice.FCenterK(indS[0], indS[1], indS[2]);
+                fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac2 *
+                    slice.FAreaK(indS[0], indS[1], indS[2]);
               }
             }
 
           //----------------------------------------------------------------
+          // both patches j, j to j, k to k, i to i
           } else if (inter.Direction3First() == "j" &&
-                   inter.Direction3Second() ==
-                       "j") {  // both patches j, j to j, k to k, i to i
+                     inter.Direction3Second() == "j") {
             // swap face data for direction 3
-            (*this).fCenterJ_[JlowB] = slice.FCenterJ(JlowS);
-            (*this).fAreaJ_[JlowB] = aFac3 * slice.FAreaJ(JlowS);
+            fCenterJ_(indB[0], indB[1], indB[2]) =
+                slice.FCenterJ(indS[0], indS[1], indS[2]);
+            fAreaJ_(indB[0], indB[1], indB[2]) = aFac3 *
+                slice.FAreaJ(indS[0], indS[1], indS[2]);
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
-              (*this).fCenterJ_[JupB] = slice.FCenterJ(JupS);
-              (*this).fAreaJ_[JupB] = aFac3 * slice.FAreaJ(JupS);
+              fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
+                  slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+              fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac3 *
+                  slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
             }
 
             // swap face data for direction 1
             if (aFac1 == 1.0) {
-              (*this).fCenterK_[KlowB] = slice.FCenterK(KlowS);
-              (*this).fAreaK_[KlowB] = aFac1 * slice.FAreaK(KlowS);
+              fCenterK_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterK(indS[0], indS[1], indS[2]);
+              fAreaK_(indB[0], indB[1], indB[2]) = aFac1 *
+                  slice.FAreaK(indS[0], indS[1], indS[2]);
 
-              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() -
-                         1)) {  // at end of direction 1 line
-                (*this).fCenterK_[KupB] = slice.FCenterK(KupS);
-                (*this).fAreaK_[KupB] = aFac1 * slice.FAreaK(KupS);
+              // at end of direction 1 line
+              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1)) {
+                fCenterK_(indB[0], indB[1], indB[2] + 1) =
+                    slice.FCenterK(indS[0], indS[1], indS[2] + 1);
+                fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac1 *
+                    slice.FAreaK(indS[0], indS[1], indS[2] + 1);
               }
-            } else {  // if direction is reversed, upper/lower faces need to be
-                      // swapped
-              (*this).fCenterK_[KlowB] = slice.FCenterK(KupS);
-              (*this).fAreaK_[KlowB] = aFac1 * slice.FAreaK(KupS);
+            // if direction is reversed, upper/lower faces need to be swapped
+            } else {
+              fCenterK_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterK(indS[0], indS[1], indS[2] + 1);
+              fAreaK_(indB[0], indB[1], indB[2]) = aFac1 *
+                  slice.FAreaK(indS[0], indS[1], indS[2] + 1);
 
-              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() -
-                         1)) {  // at end of direction 1 line
-                (*this).fCenterK_[KupB] = slice.FCenterK(KlowS);
-                (*this).fAreaK_[KupB] = aFac1 * slice.FAreaK(KlowS);
+              // at end of direction 1 line
+              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1)) {
+                fCenterK_(indB[0], indB[1], indB[2] + 1) =
+                    slice.FCenterK(indS[0], indS[1], indS[2]);
+                fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac1 *
+                    slice.FAreaK(indS[0], indS[1], indS[2]);
               }
             }
 
             // swap face data for direction 2
             if (aFac2 == 1.0) {
-              (*this).fCenterI_[IlowB] = slice.FCenterI(IlowS);
-              (*this).fAreaI_[IlowB] = aFac2 * slice.FAreaI(IlowS);
+              fCenterI_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterI(indS[0], indS[1], indS[2]);
+              fAreaI_(indB[0], indB[1], indB[2]) = aFac2 *
+                  slice.FAreaI(indS[0], indS[1], indS[2]);
 
-              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() -
-                         1)) {  // at end of direction 2 line
-                (*this).fCenterI_[IupB] = slice.FCenterI(IupS);
-                (*this).fAreaI_[IupB] = aFac2 * slice.FAreaI(IupS);
+              // at end of direction 2 line
+              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1)) {
+                fCenterI_(indB[0] + 1, indB[1], indB[2]) =
+                    slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+                fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac2 *
+                    slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
               }
-            } else {  // if direction is reversed, upper/lower faces need to be
-                      // swapped
-              (*this).fCenterI_[IlowB] = slice.FCenterI(IupS);
-              (*this).fAreaI_[IlowB] = aFac2 * slice.FAreaI(IupS);
+            // if direction is reversed, upper/lower faces need to be swapped
+            } else {
+              fCenterI_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+              fAreaI_(indB[0], indB[1], indB[2]) = aFac2 *
+                  slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
 
-              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() -
-                         1)) {  // at end of direction 2 line
-                (*this).fCenterI_[IupB] = slice.FCenterI(IlowS);
-                (*this).fAreaI_[IupB] = aFac2 * slice.FAreaI(IlowS);
+              // at end of direction 2 line
+              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1)) {
+                fCenterI_(indB[0] + 1, indB[1], indB[2]) =
+                    slice.FCenterI(indS[0], indS[1], indS[2]);
+                fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac2 *
+                    slice.FAreaI(indS[0], indS[1], indS[2]);
               }
             }
 
           //-------------------------------------------------------------
+          // both patches k, k to k, i to i, j to j
           } else if (inter.Direction3First() == "k" &&
-                   inter.Direction3Second() ==
-                       "k") {  // both patches k, k to k, i to i, j to j
+                     inter.Direction3Second() == "k") {
             // swap face data for direction 3
-            (*this).fCenterK_[KlowB] = slice.FCenterK(KlowS);
-            (*this).fAreaK_[KlowB] = aFac3 * slice.FAreaK(KlowS);
+            fCenterK_(indB[0], indB[1], indB[2]) =
+                slice.FCenterK(indS[0], indS[1], indS[2]);
+            fAreaK_(indB[0], indB[1], indB[2]) = aFac3 *
+                slice.FAreaK(indS[0], indS[1], indS[2]);
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
-              (*this).fCenterK_[KupB] = slice.FCenterK(KupS);
-              (*this).fAreaK_[KupB] = aFac3 * slice.FAreaK(KupS);
+              fCenterK_(indB[0], indB[1], indB[2] + 1) =
+                  slice.FCenterK(indS[0], indS[1], indS[2] + 1);
+              fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac3 *
+                  slice.FAreaK(indS[0], indS[1], indS[2] + 1);
             }
 
             // swap face data for direction 1
             if (aFac1 == 1.0) {
-              (*this).fCenterI_[IlowB] = slice.FCenterI(IlowS);
-              (*this).fAreaI_[IlowB] = aFac1 * slice.FAreaI(IlowS);
+              fCenterI_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterI(indS[0], indS[1], indS[2]);
+              fAreaI_(indB[0], indB[1], indB[2]) = aFac1 *
+                  slice.FAreaI(indS[0], indS[1], indS[2]);
 
-              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() -
-                         1)) {  // at end of direction 1 line
-                (*this).fCenterI_[IupB] = slice.FCenterI(IupS);
-                (*this).fAreaI_[IupB] = aFac1 * slice.FAreaI(IupS);
+              // at end of direction 1 line
+              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1)) {
+                fCenterI_(indB[0] + 1, indB[1], indB[2]) =
+                    slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+                fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac1 *
+                    slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
               }
-            } else {  // if direction is reversed, upper/lower faces need to be
-                      // swapped
-              (*this).fCenterI_[IlowB] = slice.FCenterI(IupS);
-              (*this).fAreaI_[IlowB] = aFac1 * slice.FAreaI(IupS);
+            // if direction is reversed, upper/lower faces need to be swapped
+            } else {
+              fCenterI_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+              fAreaI_(indB[0], indB[1], indB[2]) = aFac1 *
+                  slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
 
-              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() -
-                         1)) {  // at end of direction 1 line
-                (*this).fCenterI_[IupB] = slice.FCenterI(IlowS);
-                (*this).fAreaI_[IupB] = aFac1 * slice.FAreaI(IlowS);
+              // at end of direction 1 line
+              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1)) {
+                fCenterI_(indB[0] + 1, indB[1], indB[2]) =
+                    slice.FCenterI(indS[0], indS[1], indS[2]);
+                fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac1 *
+                    slice.FAreaI(indS[0], indS[1], indS[2]);
               }
             }
 
             // swap face data for direction 2
             if (aFac2 == 1.0) {
-              (*this).fCenterJ_[JlowB] = slice.FCenterJ(JlowS);
-              (*this).fAreaJ_[JlowB] = aFac2 * slice.FAreaJ(JlowS);
+              fCenterJ_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterJ(indS[0], indS[1], indS[2]);
+              fAreaJ_(indB[0], indB[1], indB[2]) = aFac2 *
+                  slice.FAreaJ(indS[0], indS[1], indS[2]);
 
-              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() -
-                         1)) {  // at end of direction 2 line
-                (*this).fCenterJ_[JupB] = slice.FCenterJ(JupS);
-                (*this).fAreaJ_[JupB] = aFac2 * slice.FAreaJ(JupS);
+              // at end of direction 2 line
+              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1)) {
+                fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
+                    slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+                fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac2 *
+                    slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
               }
-            } else {  // if direction is reversed, upper/lower faces need to be
-                      // swapped
-              (*this).fCenterJ_[JlowB] = slice.FCenterJ(JupS);
-              (*this).fAreaJ_[JlowB] = aFac2 * slice.FAreaJ(JupS);
+            // if direction is reversed, upper/lower faces need to be swapped
+            } else {
+              fCenterJ_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+              fAreaJ_(indB[0], indB[1], indB[2]) = aFac2 *
+                  slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
 
-              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() -
-                         1)) {  // at end of direction 2 line
-                (*this).fCenterJ_[JupB] = slice.FCenterJ(JlowS);
-                (*this).fAreaJ_[JupB] = aFac2 * slice.FAreaJ(JlowS);
+              // at end of direction 2 line
+              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1)) {
+                fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
+                    slice.FCenterJ(indS[0], indS[1], indS[2]);
+                fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac2 *
+                    slice.FAreaJ(indS[0], indS[1], indS[2]);
               }
             }
 
           //---------------------------------------------------------------
+          // patches are i/j  - i to j, j to k, k to i
           } else if (inter.Direction3First() == "i" &&
-                   inter.Direction3Second() ==
-                       "j") {  // patches are i/j  - i to j, j to k, k to i
+                     inter.Direction3Second() == "j") {
             // swap face data for direction 3
-            (*this).fCenterI_[IlowB] = slice.FCenterJ(JlowS);
-            (*this).fAreaI_[IlowB] = aFac3 * slice.FAreaJ(JlowS);
+            fCenterI_(indB[0], indB[1], indB[2]) =
+                slice.FCenterJ(indS[0], indS[1], indS[2]);
+            fAreaI_(indB[0], indB[1], indB[2]) = aFac3 *
+                slice.FAreaJ(indS[0], indS[1], indS[2]);
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
-              (*this).fCenterI_[IupB] = slice.FCenterJ(JupS);
-              (*this).fAreaI_[IupB] = aFac3 * slice.FAreaJ(JupS);
+              fCenterI_(indB[0] + 1, indB[1], indB[2]) =
+                  slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+              fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac3 *
+                  slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
             }
 
             // swap face data for direction 1
             if (aFac1 == 1.0) {
-              (*this).fCenterJ_[JlowB] = slice.FCenterK(KlowS);
-              (*this).fAreaJ_[JlowB] = aFac1 * slice.FAreaK(KlowS);
+              fCenterJ_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterK(indS[0], indS[1], indS[2]);
+              fAreaJ_(indB[0], indB[1], indB[2]) = aFac1 *
+                  slice.FAreaK(indS[0], indS[1], indS[2]);
 
-              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() -
-                         1)) {  // at end of direction 1 line
-                (*this).fCenterJ_[JupB] = slice.FCenterK(KupS);
-                (*this).fAreaJ_[JupB] = aFac1 * slice.FAreaK(KupS);
+              // at end of direction 1 line
+              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1)) {
+                fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
+                    slice.FCenterK(indS[0], indS[1], indS[2] + 1);
+                fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac1 *
+                    slice.FAreaK(indS[0], indS[1], indS[2] + 1);
               }
-            } else {  // if direction is reversed, upper/lower faces need to be
-                      // swapped
-              (*this).fCenterJ_[JlowB] = slice.FCenterK(KupS);
-              (*this).fAreaJ_[JlowB] = aFac1 * slice.FAreaK(KupS);
+            // if direction is reversed, upper/lower faces need to be swapped
+            } else {
+              fCenterJ_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterK(indS[0], indS[1], indS[2] + 1);
+              fAreaJ_(indB[0], indB[1], indB[2]) = aFac1 *
+                  slice.FAreaK(indS[0], indS[1], indS[2] + 1);
 
-              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() -
-                         1)) {  // at end of direction 1 line
-                (*this).fCenterJ_[JupB] = slice.FCenterK(KlowS);
-                (*this).fAreaJ_[JupB] = aFac1 * slice.FAreaK(KlowS);
+              // at end of direction 1 line
+              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1)) {
+                fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
+                    slice.FCenterK(indS[0], indS[1], indS[2]);
+                fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac1 *
+                    slice.FAreaK(indS[0], indS[1], indS[2]);
               }
             }
 
             // swap face data for direction 2
             if (aFac2 == 1.0) {
-              (*this).fCenterK_[KlowB] = slice.FCenterI(IlowS);
-              (*this).fAreaK_[KlowB] = aFac2 * slice.FAreaI(IlowS);
+              fCenterK_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterI(indS[0], indS[1], indS[2]);
+              fAreaK_(indB[0], indB[1], indB[2]) = aFac2 *
+                  slice.FAreaI(indS[0], indS[1], indS[2]);
 
-              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() -
-                         1)) {  // at end of direction 2 line
-                (*this).fCenterK_[KupB] = slice.FCenterI(IupS);
-                (*this).fAreaK_[KupB] = aFac2 * slice.FAreaI(IupS);
+              // at end of direction 2 line
+              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1)) {
+                fCenterK_(indB[0], indB[1], indB[2] + 1) =
+                    slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+                fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac2 *
+                    slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
               }
-            } else {  // if direction is reversed, upper/lower faces need to be
-                      // swapped
-              (*this).fCenterK_[KlowB] = slice.FCenterI(IupS);
-              (*this).fAreaK_[KlowB] = aFac2 * slice.FAreaI(IupS);
+            // if direction is reversed, upper/lower faces need to be swapped
+            } else {
+              fCenterK_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+              fAreaK_(indB[0], indB[1], indB[2]) = aFac2 *
+                  slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
 
-              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() -
-                         1)) {  // at end of direction 2 line
-                (*this).fCenterK_[KupB] = slice.FCenterI(IlowS);
-                (*this).fAreaK_[KupB] = aFac2 * slice.FAreaI(IlowS);
+              // at end of direction 2 line
+              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1)) {
+                fCenterK_(indB[0], indB[1], indB[2] + 1) =
+                    slice.FCenterI(indS[0], indS[1], indS[2]);
+                fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac2 *
+                    slice.FAreaI(indS[0], indS[1], indS[2]);
               }
             }
 
           //------------------------------------------------------------------
+          // patches are i/k  - i to k, j to i, k to j
           } else if (inter.Direction3First() == "i" &&
-                   inter.Direction3Second() ==
-                       "k") {  // patches are i/k  - i to k, j to i, k to j
+                     inter.Direction3Second() == "k") {
             // swap face data for direction 3
-            (*this).fCenterI_[IlowB] = slice.FCenterK(KlowS);
-            (*this).fAreaI_[IlowB] = aFac3 * slice.FAreaK(KlowS);
+            fCenterI_(indB[0], indB[1], indB[2]) =
+                slice.FCenterK(indS[0], indS[1], indS[2]);
+            fAreaI_(indB[0], indB[1], indB[2]) = aFac3 *
+                slice.FAreaK(indS[0], indS[1], indS[2]);
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
-              (*this).fCenterI_[IupB] = slice.FCenterK(KupS);
-              (*this).fAreaI_[IupB] = aFac3 * slice.FAreaK(KupS);
+              fCenterI_(indB[0] + 1, indB[1], indB[2]) =
+                  slice.FCenterK(indS[0], indS[1], indS[2] + 1);
+              fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac3 *
+                  slice.FAreaK(indS[0], indS[1], indS[2] + 1);
             }
 
             // swap face data for direction 1
             if (aFac1 == 1.0) {
-              (*this).fCenterJ_[JlowB] = slice.FCenterI(IlowS);
-              (*this).fAreaJ_[JlowB] = aFac1 * slice.FAreaI(IlowS);
+              fCenterJ_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterI(indS[0], indS[1], indS[2]);
+              fAreaJ_(indB[0], indB[1], indB[2]) = aFac1 *
+                  slice.FAreaI(indS[0], indS[1], indS[2]);
 
-              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() -
-                         1)) {  // at end of direction 1 line
-                (*this).fCenterJ_[JupB] = slice.FCenterI(IupS);
-                (*this).fAreaJ_[JupB] = aFac1 * slice.FAreaI(IupS);
+              // at end of direction 1 line
+              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1)) {
+                fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
+                    slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+                fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac1 *
+                    slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
               }
-            } else {  // if direction is reversed, upper/lower faces need to be
-                      // swapped
-              (*this).fCenterJ_[JlowB] = slice.FCenterI(IupS);
-              (*this).fAreaJ_[JlowB] = aFac1 * slice.FAreaI(IupS);
+            // if direction is reversed, upper/lower faces need to be swapped
+            } else {
+              fCenterJ_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+              fAreaJ_(indB[0], indB[1], indB[2]) = aFac1 *
+                  slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
 
-              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() -
-                         1)) {  // at end of direction 1 line
-                (*this).fCenterJ_[JupB] = slice.FCenterI(IlowS);
-                (*this).fAreaJ_[JupB] = aFac1 * slice.FAreaI(IlowS);
+              // at end of direction 1 line
+              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1)) {
+                fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
+                    slice.FCenterI(indS[0], indS[1], indS[2]);
+                fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac1 *
+                    slice.FAreaI(indS[0], indS[1], indS[2]);
               }
             }
 
             // swap face data for direction 2
             if (aFac2 == 1.0) {
-              (*this).fCenterK_[KlowB] = slice.FCenterJ(JlowS);
-              (*this).fAreaK_[KlowB] = aFac2 * slice.FAreaJ(JlowS);
+              fCenterK_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterJ(indS[0], indS[1], indS[2]);
+              fAreaK_(indB[0], indB[1], indB[2]) = aFac2 *
+                  slice.FAreaJ(indS[0], indS[1], indS[2]);
 
-              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() -
-                         1)) {  // at end of direction 2 line
-                (*this).fCenterK_[KupB] = slice.FCenterJ(JupS);
-                (*this).fAreaK_[KupB] = aFac2 * slice.FAreaJ(JupS);
+              // at end of direction 2 line
+              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1)) {
+                fCenterK_(indB[0], indB[1], indB[2] + 1) =
+                    slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+                fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac2 *
+                    slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
               }
-            } else {  // if direction is reversed, upper/lower faces need to be
-                      // swapped
-              (*this).fCenterK_[KlowB] = slice.FCenterJ(JupS);
-              (*this).fAreaK_[KlowB] = aFac2 * slice.FAreaJ(JupS);
+            // if direction is reversed, upper/lower faces need to be swapped
+            } else {
+              fCenterK_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+              fAreaK_(indB[0], indB[1], indB[2]) = aFac2 *
+                  slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
 
-              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() -
-                         1)) {  // at end of direction 2 line
-                (*this).fCenterK_[KupB] = slice.FCenterJ(JlowS);
-                (*this).fAreaK_[KupB] = aFac2 * slice.FAreaJ(JlowS);
+              // at end of direction 2 line
+              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1)) {
+                fCenterK_(indB[0], indB[1], indB[2] + 1) =
+                    slice.FCenterJ(indS[0], indS[1], indS[2]);
+                fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac2 *
+                    slice.FAreaJ(indS[0], indS[1], indS[2]);
               }
             }
 
           //--------------------------------------------------------------
+          // patches are j/i, j to i, k to j, i to k
           } else if (inter.Direction3First() == "j" &&
-                   inter.Direction3Second() ==
-                       "i") {  // patches are j/i, j to i, k to j, i to k
+                     inter.Direction3Second() == "i") {
             // swap face data for direction 3
-            (*this).fCenterJ_[JlowB] = slice.FCenterI(IlowS);
-            (*this).fAreaJ_[JlowB] = aFac3 * slice.FAreaI(IlowS);
+            fCenterJ_(indB[0], indB[1], indB[2]) =
+                slice.FCenterI(indS[0], indS[1], indS[2]);
+            fAreaJ_(indB[0], indB[1], indB[2]) = aFac3 *
+                slice.FAreaI(indS[0], indS[1], indS[2]);
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
-              (*this).fCenterJ_[JupB] = slice.FCenterI(IupS);
-              (*this).fAreaJ_[JupB] = aFac3 * slice.FAreaI(IupS);
+              fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
+                  slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+              fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac3 *
+                  slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
             }
 
             // swap face data for direction 1
             if (aFac1 == 1.0) {
-              (*this).fCenterK_[KlowB] = slice.FCenterJ(JlowS);
-              (*this).fAreaK_[KlowB] = aFac1 * slice.FAreaJ(JlowS);
+              fCenterK_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterJ(indS[0], indS[1], indS[2]);
+              fAreaK_(indB[0], indB[1], indB[2]) = aFac1 *
+                  slice.FAreaJ(indS[0], indS[1], indS[2]);
 
-              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() -
-                         1)) {  // at end of direction 1 line
-                (*this).fCenterK_[KupB] = slice.FCenterJ(JupS);
-                (*this).fAreaK_[KupB] = aFac1 * slice.FAreaJ(JupS);
+              // at end of direction 1 line
+              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1)) {
+                fCenterK_(indB[0], indB[1], indB[2] + 1) =
+                    slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+                fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac1 *
+                    slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
               }
-            } else {  // if direction is reversed, upper/lower faces need to be
-                      // swapped
-              (*this).fCenterK_[KlowB] = slice.FCenterJ(JupS);
-              (*this).fAreaK_[KlowB] = aFac1 * slice.FAreaJ(JupS);
+            // if direction is reversed, upper/lower faces need to be swapped
+            } else {
+              fCenterK_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+              fAreaK_(indB[0], indB[1], indB[2]) = aFac1 *
+                  slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
 
-              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() -
-                         1)) {  // at end of direction 1 line
-                (*this).fCenterK_[KupB] = slice.FCenterJ(JlowS);
-                (*this).fAreaK_[KupB] = aFac1 * slice.FAreaJ(JlowS);
+              // at end of direction 1 line
+              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1)) {
+                fCenterK_(indB[0], indB[1], indB[2] + 1) =
+                    slice.FCenterJ(indS[0], indS[1], indS[2]);
+                fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac1 *
+                    slice.FAreaJ(indS[0], indS[1], indS[2]);
               }
             }
 
             // swap face data for direction 2
             if (aFac2 == 1.0) {
-              (*this).fCenterI_[IlowB] = slice.FCenterK(KlowS);
-              (*this).fAreaI_[IlowB] = aFac2 * slice.FAreaK(KlowS);
+              fCenterI_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterK(indS[0], indS[1], indS[2]);
+              fAreaI_(indB[0], indB[1], indB[2]) = aFac2 *
+                  slice.FAreaK(indS[0], indS[1], indS[2]);
 
-              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() -
-                         1)) {  // at end of direction 2 line
-                (*this).fCenterI_[IupB] = slice.FCenterK(KupS);
-                (*this).fAreaI_[IupB] = aFac2 * slice.FAreaK(KupS);
+              // at end of direction 2 line
+              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1)) {
+                fCenterI_(indB[0] + 1, indB[1], indB[2]) =
+                    slice.FCenterK(indS[0], indS[1], indS[2] + 1);
+                fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac2 *
+                    slice.FAreaK(indS[0], indS[1], indS[2] + 1);
               }
-            } else {  // if direction is reversed, upper/lower faces need to be
-                      // swapped
-              (*this).fCenterI_[IlowB] = slice.FCenterK(KupS);
-              (*this).fAreaI_[IlowB] = aFac2 * slice.FAreaK(KupS);
+            // if direction is reversed, upper/lower faces need to be swapped
+            } else {
+              fCenterI_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterK(indS[0], indS[1], indS[2] + 1);
+              fAreaI_(indB[0], indB[1], indB[2]) = aFac2 *
+                  slice.FAreaK(indS[0], indS[1], indS[2] + 1);
 
-              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() -
-                         1)) {  // at end of direction 2 line
-                (*this).fCenterI_[IupB] = slice.FCenterK(KlowS);
-                (*this).fAreaI_[IupB] = aFac2 * slice.FAreaK(KlowS);
+              // at end of direction 2 line
+              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1)) {
+                fCenterI_(indB[0] + 1, indB[1], indB[2]) =
+                    slice.FCenterK(indS[0], indS[1], indS[2]);
+                fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac2 *
+                    slice.FAreaK(indS[0], indS[1], indS[2]);
               }
             }
 
 
           //-----------------------------------------------------------------
+          // patches are j/k, j to k, k to i, i to j
           } else if (inter.Direction3First() > "j" &&
-                   inter.Direction3Second() ==
-                       "k") {  // patches are j/k, j to k, k to i, i to j
+                     inter.Direction3Second() == "k") {
             // swap face data for direction 3
-            (*this).fCenterJ_[JlowB] = slice.FCenterK(KlowS);
-            (*this).fAreaJ_[JlowB] = aFac3 * slice.FAreaK(KlowS);
+            fCenterJ_(indB[0], indB[1], indB[2]) =
+                slice.FCenterK(indS[0], indS[1], indS[2]);
+            fAreaJ_(indB[0], indB[1], indB[2]) = aFac3 *
+                slice.FAreaK(indS[0], indS[1], indS[2]);
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
-              (*this).fCenterJ_[JupB] = slice.FCenterJ(JupS);
-              (*this).fAreaJ_[JupB] = aFac3 * slice.FAreaJ(JupS);
+              fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
+                  slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+              fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac3 *
+                  slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
             }
 
             // swap face data for direction 1
             if (aFac1 == 1.0) {
-              (*this).fCenterK_[KlowB] = slice.FCenterI(IlowS);
-              (*this).fAreaK_[KlowB] = aFac1 * slice.FAreaI(IlowS);
+              fCenterK_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterI(indS[0], indS[1], indS[2]);
+              fAreaK_(indB[0], indB[1], indB[2]) = aFac1 *
+                  slice.FAreaI(indS[0], indS[1], indS[2]);
 
-              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() -
-                         1)) {  // at end of direction 1 line
-                (*this).fCenterK_[KupB] = slice.FCenterI(IupS);
-                (*this).fAreaK_[KupB] = aFac1 * slice.FAreaI(IupS);
+              // at end of direction 1 line
+              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1)) {
+                fCenterK_(indB[0], indB[1], indB[2] + 1) =
+                    slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+                fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac1 *
+                    slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
               }
-            } else {  // if direction is reversed, upper/lower faces need to be
-                      // swapped
-              (*this).fCenterK_[KlowB] = slice.FCenterI(IupS);
-              (*this).fAreaK_[KlowB] = aFac1 * slice.FAreaI(IupS);
+            // if direction is reversed, upper/lower faces need to be swapped
+            } else {
+              fCenterK_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+              fAreaK_(indB[0], indB[1], indB[2]) = aFac1 *
+                  slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
 
-              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() -
-                         1)) {  // at end of direction 1 line
-                (*this).fCenterK_[KupB] = slice.FCenterI(IlowS);
-                (*this).fAreaK_[KupB] = aFac1 * slice.FAreaI(IlowS);
+              // at end of direction 1 line
+              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1)) {
+                fCenterK_(indB[0], indB[1], indB[2] + 1) =
+                    slice.FCenterI(indS[0], indS[1], indS[2]);
+                fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac1 *
+                    slice.FAreaI(indS[0], indS[1], indS[2]);
               }
             }
 
             // swap face data for direction 2
             if (aFac2 == 1.0) {
-              (*this).fCenterI_[IlowB] = slice.FCenterJ(JlowS);
-              (*this).fAreaI_[IlowB] = aFac2 * slice.FAreaJ(JlowS);
+              fCenterI_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterJ(indS[0], indS[1], indS[2]);
+              fAreaI_(indB[0], indB[1], indB[2]) = aFac2 *
+                  slice.FAreaJ(indS[0], indS[1], indS[2]);
 
-              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() -
-                         1)) {  // at end of direction 2 line
-                (*this).fCenterI_[IupB] = slice.FCenterJ(JupS);
-                (*this).fAreaI_[IupB] = aFac2 * slice.FAreaJ(JupS);
+              // at end of direction 2 line
+              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1)) {
+                fCenterI_(indB[0] + 1, indB[1], indB[2]) =
+                    slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+                fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac2 *
+                    slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
               }
-            } else {  // if direction is reversed, upper/lower faces need to be
-                      // swapped
-              (*this).fCenterI_[IlowB] = slice.FCenterJ(JupS);
-              (*this).fAreaI_[IlowB] = aFac2 * slice.FAreaJ(JupS);
+            // if direction is reversed, upper/lower faces need to be swapped
+            } else {
+              fCenterI_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+              fAreaI_(indB[0], indB[1], indB[2]) = aFac2 *
+                  slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
 
-              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() -
-                         1)) {  // at end of direction 2 line
-                (*this).fCenterI_[IupB] = slice.FCenterJ(JlowS);
-                (*this).fAreaI_[IupB] = aFac2 * slice.FAreaJ(JlowS);
+              // at end of direction 2 line
+              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1)) {
+                fCenterI_(indB[0] + 1, indB[1], indB[2]) =
+                    slice.FCenterJ(indS[0], indS[1], indS[2]);
+                fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac2 *
+                    slice.FAreaJ(indS[0], indS[1], indS[2]);
               }
             }
 
           //------------------------------------------------------------------
+          // patches are k/i, k to i, i to j, j to k
           } else if (inter.Direction3First() == "k" &&
-                   inter.Direction3Second() ==
-                       "i") {  // patches are k/i, k to i, i to j, j to k
+                     inter.Direction3Second() == "i") {
             // swap face data for direction 3
-            (*this).fCenterK_[KlowB] = slice.FCenterI(IlowS);
-            (*this).fAreaK_[KlowB] = aFac3 * slice.FAreaI(IlowS);
+            fCenterK_(indB[0], indB[1], indB[2]) =
+                slice.FCenterI(indS[0], indS[1], indS[2]);
+            fAreaK_(indB[0], indB[1], indB[2]) = aFac3 *
+                slice.FAreaI(indS[0], indS[1], indS[2]);
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
-              (*this).fCenterK_[KupB] = slice.FCenterI(IupS);
-              (*this).fAreaK_[KupB] = aFac3 * slice.FAreaI(IupS);
+              fCenterK_(indB[0], indB[1], indB[2] + 1) =
+                  slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+              fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac3 *
+                  slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
             }
 
             // swap face data for direction 1
             if (aFac1 == 1.0) {
-              (*this).fCenterI_[IlowB] = slice.FCenterJ(JlowS);
-              (*this).fAreaI_[IlowB] = aFac1 * slice.FAreaJ(JlowS);
+              fCenterI_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterJ(indS[0], indS[1], indS[2]);
+              fAreaI_(indB[0], indB[1], indB[2]) = aFac1 *
+                  slice.FAreaJ(indS[0], indS[1], indS[2]);
 
-              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() -
-                         1)) {  // at end of direction 1 line
-                (*this).fCenterI_[IupB] = slice.FCenterJ(JupS);
-                (*this).fAreaI_[IupB] = aFac1 * slice.FAreaJ(JupS);
+              // at end of direction 1 line
+              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1)) {
+                fCenterI_(indB[0] + 1, indB[1], indB[2]) =
+                    slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+                fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac1 *
+                    slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
               }
-            } else {  // if direction is reversed, upper/lower faces need to be
-                      // swapped
-              (*this).fCenterI_[IlowB] = slice.FCenterJ(JupS);
-              (*this).fAreaI_[IlowB] = aFac1 * slice.FAreaJ(JupS);
+            // if direction is reversed, upper/lower faces need to be swapped
+            } else {
+              fCenterI_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+              fAreaI_(indB[0], indB[1], indB[2]) = aFac1 *
+                  slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
 
-              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() -
-                         1)) {  // at end of direction 1 line
-                (*this).fCenterI_[IupB] = slice.FCenterJ(JlowS);
-                (*this).fAreaI_[IupB] = aFac1 * slice.FAreaJ(JlowS);
+              // at end of direction 1 line
+              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1)) {
+                fCenterI_(indB[0] + 1, indB[1], indB[2]) =
+                    slice.FCenterJ(indS[0], indS[1], indS[2]);
+                fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac1 *
+                    slice.FAreaJ(indS[0], indS[1], indS[2]);
               }
             }
 
             // swap face data for direction 2
             if (aFac2 == 1.0) {
-              (*this).fCenterJ_[JlowB] = slice.FCenterK(KlowS);
-              (*this).fAreaJ_[JlowB] = aFac2 * slice.FAreaK(KlowS);
+              fCenterJ_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterK(indS[0], indS[1], indS[2]);
+              fAreaJ_(indB[0], indB[1], indB[2]) = aFac2 *
+                  slice.FAreaK(indS[0], indS[1], indS[2]);
 
-              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() -
-                         1)) {  // at end of direction 2 line
-                (*this).fCenterJ_[JupB] = slice.FCenterK(KupS);
-                (*this).fAreaJ_[JupB] = aFac2 * slice.FAreaK(KupS);
+              // at end of direction 2 line
+              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1)) {
+                fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
+                    slice.FCenterK(indS[0], indS[1], indS[2] + 1);
+                fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac2 *
+                    slice.FAreaK(indS[0], indS[1], indS[2] + 1);
               }
-            } else {  // if direction is reversed, upper/lower faces need to be
-                      // swapped
-              (*this).fCenterJ_[JlowB] = slice.FCenterK(KupS);
-              (*this).fAreaJ_[JlowB] = aFac2 * slice.FAreaK(KupS);
+            // if direction is reversed, upper/lower faces need to be swapped
+            } else {
+              fCenterJ_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterK(indS[0], indS[1], indS[2] + 1);
+              fAreaJ_(indB[0], indB[1], indB[2]) = aFac2 *
+                  slice.FAreaK(indS[0], indS[1], indS[2] + 1);
 
-              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() -
-                         1)) {  // at end of direction 2 line
-                (*this).fCenterJ_[JupB] = slice.FCenterK(KlowS);
-                (*this).fAreaJ_[JupB] = aFac2 * slice.FAreaK(KlowS);
+              // at end of direction 2 line
+              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1)) {
+                fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
+                    slice.FCenterK(indS[0], indS[1], indS[2]);
+                fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac2 *
+                    slice.FAreaK(indS[0], indS[1], indS[2]);
               }
             }
 
           //-------------------------------------------------------------------
+          // patches are k/j, k to j, i to k, j to i
           } else if (inter.Direction3First() == "k" &&
-                   inter.Direction3Second() ==
-                       "j") {  // patches are k/j, k to j, i to k, j to i
+                     inter.Direction3Second() == "j") {
             // swap face data for direction 3
-            (*this).fCenterK_[KlowB] = slice.FCenterJ(JlowS);
-            (*this).fAreaK_[KlowB] = aFac3 * slice.FAreaJ(JlowS);
+            fCenterK_(indB[0], indB[1], indB[2]) =
+                slice.FCenterJ(indS[0], indS[1], indS[2]);
+            fAreaK_(indB[0], indB[1], indB[2]) = aFac3 *
+                slice.FAreaJ(indS[0], indS[1], indS[2]);
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
-              (*this).fCenterK_[KupB] = slice.FCenterJ(JupS);
-              (*this).fAreaK_[KupB] = aFac3 * slice.FAreaJ(JupS);
+              fCenterK_(indB[0], indB[1], indB[2] + 1) =
+                  slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+              fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac3 *
+                  slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
             }
 
             // swap face data for direction 1
             if (aFac1 == 1.0) {
-              (*this).fCenterI_[IlowB] = slice.FCenterK(KlowS);
-              (*this).fAreaI_[IlowB] = aFac1 * slice.FAreaK(KlowS);
+              fCenterI_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterK(indS[0], indS[1], indS[2]);
+              fAreaI_(indB[0], indB[1], indB[2]) = aFac1 *
+                  slice.FAreaK(indS[0], indS[1], indS[2]);
 
-              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() -
-                         1)) {  // at end of direction 1 line
-                (*this).fCenterI_[IupB] = slice.FCenterK(KupS);
-                (*this).fAreaI_[IupB] = aFac1 * slice.FAreaK(KupS);
+              // at end of direction 1 line
+              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1)) {
+                fCenterI_(indB[0] + 1, indB[1], indB[2]) =
+                    slice.FCenterK(indS[0], indS[1], indS[2] + 1);
+                fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac1 *
+                    slice.FAreaK(indS[0], indS[1], indS[2] + 1);
               }
-            } else {  // if direction is reversed, upper/lower faces need to be
-                      // swapped
-              (*this).fCenterI_[IlowB] = slice.FCenterK(KupS);
-              (*this).fAreaI_[IlowB] = aFac1 * slice.FAreaK(KupS);
+            // if direction is reversed, upper/lower faces need to be swapped
+            } else {
+              fCenterI_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterK(indS[0], indS[1], indS[2] + 1);
+              fAreaI_(indB[0], indB[1], indB[2]) = aFac1 *
+                  slice.FAreaK(indS[0], indS[1], indS[2] + 1);
 
-              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() -
-                         1)) {  // at end of direction 1 line
-                (*this).fCenterI_[IupB] = slice.FCenterK(KlowS);
-                (*this).fAreaI_[IupB] = aFac1 * slice.FAreaK(KlowS);
+              // at end of direction 1 line
+              if (l1 == (inter.Dir1EndFirst() - inter.Dir1StartFirst() - 1)) {
+                fCenterI_(indB[0] + 1, indB[1], indB[2]) =
+                    slice.FCenterK(indS[0], indS[1], indS[2]);
+                fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac1 *
+                    slice.FAreaK(indS[0], indS[1], indS[2]);
               }
             }
 
             // swap face data for direction 2
             if (aFac2 == 1.0) {
-              (*this).fCenterJ_[JlowB] = slice.FCenterI(IlowS);
-              (*this).fAreaJ_[JlowB] = aFac2 * slice.FAreaI(IlowS);
+              fCenterJ_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterI(indS[0], indS[1], indS[2]);
+              fAreaJ_(indB[0], indB[1], indB[2]) = aFac2 *
+                  slice.FAreaI(indS[0], indS[1], indS[2]);
 
-              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() -
-                         1)) {  // at end of direction 2 line
-                (*this).fCenterJ_[JupB] = slice.FCenterI(IupS);
-                (*this).fAreaJ_[JupB] = aFac2 * slice.FAreaI(IupS);
+              // at end of direction 2 line
+              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1)) {
+                fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
+                    slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+                fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac2 *
+                    slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
               }
-            } else {  // if direction is reversed, upper/lower faces need to be
-                      // swapped
-              (*this).fCenterJ_[JlowB] = slice.FCenterI(IupS);
-              (*this).fAreaJ_[JlowB] = aFac2 * slice.FAreaI(IupS);
+            // if direction is reversed, upper/lower faces need to be swapped
+            } else {
+              fCenterJ_(indB[0], indB[1], indB[2]) =
+                  slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+              fAreaJ_(indB[0], indB[1], indB[2]) = aFac2 *
+                  slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
 
-              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() -
-                         1)) {  // at end of direction 2 line
-                (*this).fCenterJ_[JupB] = slice.FCenterI(IlowS);
-                (*this).fAreaJ_[JupB] = aFac2 * slice.FAreaI(IlowS);
+              // at end of direction 2 line
+              if (l2 == (inter.Dir2EndFirst() - inter.Dir2StartFirst() - 1)) {
+                fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
+                    slice.FCenterI(indS[0], indS[1], indS[2]);
+                fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac2 *
+                    slice.FAreaI(indS[0], indS[1], indS[2]);
               }
             }
 
@@ -6720,8 +5488,8 @@ void procBlock::PutStateSlice(const stateSlice &slice, const interblock &inter,
         vector3d<int> indS = GetSwapLoc(l1, l2, l3, inter, false);
 
         // swap cell data
-        state_(indB[0], indB[1], indB[2]) = slice.State(indS[0], indS[1],
-                                                        indS[2]);
+        state_(indB[0], indB[1], indB[2]) =
+            slice.State(indS[0], indS[1], indS[2]);
       }
     }
   }
@@ -6885,7 +5653,7 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
              MPI_INT, MPI_COMM_WORLD);
 
   // clean and resize the vectors in the class to
-  (*this).CleanResizeVecs(numI, numJ, numK);
+  this->CleanResizeVecs(numI, numJ, numK);
 
   // unpack vector data into allocated vectors
   MPI_Unpack(recvBuffer, recvBufSize, &position, &state_(0, 0, 0),
@@ -7057,188 +5825,153 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
   // alteredSurf -- vector of surfaces whose partners will need to be altered
   // after this split
 
-  int iMax = this->NumI() + 2 * numGhosts_;
-  int jMax = this->NumJ() + 2 * numGhosts_;
-  int kMax = this->NumK() + 2 * numGhosts_;
-
-  boundaryConditions bound1 = (*this).BC();
-  boundaryConditions bound2 =
-      bound1.Split(dir, ind, (*this).ParentBlock(), num, alteredSurf);
+  boundaryConditions bound1 = bc_;
+  boundaryConditions bound2 = bound1.Split(dir, ind, parBlock_, num,
+                                           alteredSurf);
 
   if (dir == "i") {  // split along i-plane
-    int numI2 = this->NumI() - ind;
-    int numI1 = this->NumI() - numI2;
+    int numI2 = numI_ - ind;
+    int numI1 = numI_ - numI2;
 
-    procBlock blk1(numI1, this->NumJ(), this->NumK(), numGhosts_);
-    procBlock blk2(numI2, this->NumJ(), this->NumK(), numGhosts_);
+    procBlock blk1(numI1, numJ_, numK_, numGhosts_);
+    procBlock blk2(numI2, numJ_, numK_, numGhosts_);
 
-    blk1.parBlock_ = (*this).ParentBlock();
-    blk2.parBlock_ = (*this).ParentBlock();
+    blk1.parBlock_ = parBlock_;
+    blk2.parBlock_ = parBlock_;
 
-    int iMax1 = numI1 + 2 * numGhosts_;
-    int iMax2 = numI2 + 2 * numGhosts_;
+    // indices for lower block
+    int iMaxG1 = numI1 + 2 * numGhosts_;
+    int iMax1 = numI1;
 
-    // loop over cell locations of of block
-    for (int kk = 0; kk < kMax; kk++) {
-      for (int jj = 0; jj < jMax; jj++) {
-        for (int ii = 0; ii < iMax; ii++) {
-          int loc = GetLoc1D(ii, jj, kk, iMax, jMax);
-          int locNG = GetLoc1D(
-              ii - numGhosts_, jj - numGhosts_,
-              kk - numGhosts_, this->NumI(), this->NumJ());
+    // indices for upper block
+    int iMaxG2 = numI2 + 2 * numGhosts_;
+    int iMax2 = numI2;
 
-          int fLowI = GetLowerFaceI(ii, jj, kk, iMax, jMax);
-          int fLowJ = GetLowerFaceJ(ii, jj, kk, iMax, jMax);
-          int fLowK = GetLowerFaceK(ii, jj, kk, iMax, jMax);
+    int iMaxPG2 = numI_ + 2 * numGhosts_;
+    int iMinPG2 = ind;
+    int iMaxP2 = numI_;
+    int iMinP2 = ind + numGhosts_;
 
-          //--------------------------------------------------------------
-          // this portion of parent block overlaps with upper split
-          if (ii >= ind) {
-            int loc2 = GetLoc1D(ii - ind, jj, kk, iMax2, jMax);
-            int loc2NG = GetLoc1D(
-                ii - ind - numGhosts_, jj - numGhosts_,
-                kk - numGhosts_, numI2, this->NumJ());
+    // indices common to both blocks
+    int jMaxG = numJ_ + 2 * numGhosts_;
+    int jMax = numJ_;
+    int kMaxG = numK_ + 2 * numGhosts_;
+    int kMax = numK_;
 
-            int fLowI2 = GetLowerFaceI(ii - ind, jj, kk, iMax2, jMax);
-            int fLowJ2 = GetLowerFaceJ(ii - ind, jj, kk, iMax2, jMax);
-            int fLowK2 = GetLowerFaceK(ii - ind, jj, kk, iMax2, jMax);
+    // ------------------------------------------------------------------
+    // assign variables for lower split
+    // assign cell variables with ghost cells
+    blk1.state_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
+                       state_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
+    blk1.vol_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
+                     vol_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
+    blk1.center_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
+                        center_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
+    // assign cell variables without ghost cells
+    blk1.avgWaveSpeed_.Insert(0, iMax1, 0, jMax, 0, kMax,
+                              avgWaveSpeed_.Slice(0, iMax1, 0, jMax, 0, kMax));
+    blk1.dt_.Insert(0, iMax1, 0, jMax, 0, kMax,
+                    dt_.Slice(0, iMax1, 0, jMax, 0, kMax));
+    blk1.wallDist_.Insert(0, iMax1, 0, jMax, 0, kMax,
+                          wallDist_.Slice(0, iMax1, 0, jMax, 0, kMax));
+    blk1.residual_.Insert(0, iMax1, 0, jMax, 0, kMax,
+                          residual_.Slice(0, iMax1, 0, jMax, 0, kMax));
 
-            // assign cell variables
-            blk2.state_[loc2] = (*this).state_[loc];
-            blk2.vol_[loc2] = (*this).vol_[loc];
-            blk2.center_[loc2] = (*this).center_[loc];
+    // assign face variables
+    blk1.fAreaI_.Insert(0, iMaxG1 + 1, 0, jMaxG, 0, kMaxG,
+                        fAreaI_.Slice(0, iMaxG1 + 1, 0, jMaxG, 0, kMaxG));
+    blk1.fAreaJ_.Insert(0, iMaxG1, 0, jMaxG + 1, 0, kMaxG,
+                        fAreaJ_.Slice(0, iMaxG1, 0, jMaxG + 1, 0, kMaxG));
+    blk1.fAreaK_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG + 1,
+                        fAreaK_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG + 1));
 
-            if (ii >= (ind + numGhosts_) &&
-                ii < (iMax - numGhosts_) &&
-                jj >= numGhosts_ &&
-                jj < (jMax - numGhosts_) &&
-                kk >= numGhosts_ &&
-                kk < (kMax - numGhosts_)) {  // physical cells
-              blk2.avgWaveSpeed_[loc2NG] = avgWaveSpeed_[locNG];
-              blk2.dt_[loc2NG] = (*this).dt_[locNG];
-              blk2.wallDist_[loc2NG] = (*this).wallDist_[locNG];
-              blk2.residual_[loc2NG] = (*this).residual_[locNG];
-            }
+    blk1.fCenterI_.Insert(0, iMaxG1 + 1, 0, jMaxG, 0, kMaxG,
+                        fCenterI_.Slice(0, iMaxG1 + 1, 0, jMaxG, 0, kMaxG));
+    blk1.fCenterJ_.Insert(0, iMaxG1, 0, jMaxG + 1, 0, kMaxG,
+                        fCenterJ_.Slice(0, iMaxG1, 0, jMaxG + 1, 0, kMaxG));
+    blk1.fCenterK_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG + 1,
+                        fCenterK_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG + 1));
 
-            // assign face variables
-            blk2.fAreaI_[fLowI2] = (*this).fAreaI_[fLowI];
-            blk2.fAreaJ_[fLowJ2] = (*this).fAreaJ_[fLowJ];
-            blk2.fAreaK_[fLowK2] = (*this).fAreaK_[fLowK];
+    // ------------------------------------------------------------------
+    // assign variables for upper split
+    // assign cell variables with ghost cells
+    blk2.state_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
+                       state_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
+    blk2.vol_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
+                       vol_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
+    blk2.center_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
+                       center_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
+    // assign cell variables without ghost cells
+    blk2.avgWaveSpeed_.Insert(0, iMax2, 0, jMax, 0, kMax,
+                              avgWaveSpeed_.Slice(iMinP2, iMaxP2, 0, jMax, 0,
+                                                  kMax));
+    blk2.dt_.Insert(0, iMax2, 0, jMax, 0, kMax,
+                    dt_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
+    blk2.wallDist_.Insert(0, iMax2, 0, jMax, 0, kMax,
+                          wallDist_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
+    blk2.residual_.Insert(0, iMax2, 0, jMax, 0, kMax,
+                          residual_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
+    // assign face variables
+    blk2.fAreaI_.Insert(0, iMaxG2 + 1, 0, jMaxG, 0, kMaxG,
+                        fAreaI_.Slice(iMinPG2, iMaxPG2 + 1, 0, jMaxG, 0,
+                                      kMaxG));
+    blk2.fAreaJ_.Insert(0, iMaxG2, 0, jMaxG + 1, 0, kMaxG,
+                        fAreaJ_.Slice(iMinPG2, iMaxPG2, 0, jMaxG + 1, 0,
+                                      kMaxG));
+    blk2.fAreaK_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG + 1,
+                        fAreaK_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0,
+                                      kMaxG + 1));
 
-            blk2.fCenterI_[fLowI2] = (*this).fCenterI_[fLowI];
-            blk2.fCenterJ_[fLowJ2] = (*this).fCenterJ_[fLowJ];
-            blk2.fCenterK_[fLowK2] = (*this).fCenterK_[fLowK];
+    blk2.fCenterI_.Insert(0, iMaxG2 + 1, 0, jMaxG, 0, kMaxG,
+                          fCenterI_.Slice(iMinPG2, iMaxPG2 + 1, 0, jMaxG, 0,
+                                          kMaxG));
+    blk2.fCenterJ_.Insert(0, iMaxG2, 0, jMaxG + 1, 0, kMaxG,
+                          fCenterJ_.Slice(iMinPG2, iMaxPG2, 0, jMaxG + 1, 0,
+                                          kMaxG));
+    blk2.fCenterK_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG + 1,
+                          fCenterK_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0,
+                                          kMaxG + 1));
 
-            if (ii == iMax - 1) {  // at end of i-line assign upper face values
-              int fUpI = GetUpperFaceI(ii, jj, kk, iMax, jMax);
-              int fUpI2 = GetUpperFaceI(ii - ind, jj, kk, iMax2, jMax);
-
-              blk2.fAreaI_[fUpI2] = (*this).fAreaI_[fUpI];
-              blk2.fCenterI_[fUpI2] = (*this).fCenterI_[fUpI];
-            }
-
-            if (jj == jMax - 1) {  // at end of j-line assign upper face values
-              int fUpJ = GetUpperFaceJ(ii, jj, kk, iMax, jMax);
-              int fUpJ2 = GetUpperFaceJ(ii - ind, jj, kk, iMax2, jMax);
-
-              blk2.fAreaJ_[fUpJ2] = (*this).fAreaJ_[fUpJ];
-              blk2.fCenterJ_[fUpJ2] = (*this).fCenterJ_[fUpJ];
-            }
-
-            if (kk == kMax - 1) {  // at end of k-line assign upper face values
-              int fUpK = GetUpperFaceK(ii, jj, kk, iMax, jMax);
-              int fUpK2 = GetUpperFaceK(ii - ind, jj, kk, iMax2, jMax);
-
-              blk2.fAreaK_[fUpK2] = (*this).fAreaK_[fUpK];
-              blk2.fCenterK_[fUpK2] = (*this).fCenterK_[fUpK];
-            }
-          }
-
-          //------------------------------------------------------------------
-          if (ii < ind + 2 * numGhosts_) {  // this portion of parent
-                                                     // block overlaps with
-                                                     // lower split
-
-            int loc1 = GetLoc1D(ii, jj, kk, iMax1, jMax);
-            int loc1NG =
-                GetLoc1D(ii - numGhosts_, jj - numGhosts_,
-                         kk - numGhosts_, numI1, this->NumJ());
-
-            int fLowI1 = GetLowerFaceI(ii, jj, kk, iMax1, jMax);
-            int fLowJ1 = GetLowerFaceJ(ii, jj, kk, iMax1, jMax);
-            int fLowK1 = GetLowerFaceK(ii, jj, kk, iMax1, jMax);
-
-            // assign cell variables
-            blk1.state_[loc1] = (*this).state_[loc];
-            blk1.vol_[loc1] = (*this).vol_[loc];
-            blk1.center_[loc1] = (*this).center_[loc];
-
-            if (ii >= numGhosts_ && ii < (ind + numGhosts_) &&
-                jj >= numGhosts_ &&
-                jj < (jMax - numGhosts_) &&
-                kk >= numGhosts_ &&
-                kk < (kMax - numGhosts_)) {  // physical cell
-              blk1.avgWaveSpeed_[loc1NG] = avgWaveSpeed_[locNG];
-              blk1.dt_[loc1NG] = (*this).dt_[locNG];
-              blk1.wallDist_[loc1NG] = (*this).wallDist_[locNG];
-              blk1.residual_[loc1NG] = (*this).residual_[locNG];
-            }
-
-            // assign face variables
-            blk1.fAreaI_[fLowI1] = (*this).fAreaI_[fLowI];
-            blk1.fAreaJ_[fLowJ1] = (*this).fAreaJ_[fLowJ];
-            blk1.fAreaK_[fLowK1] = (*this).fAreaK_[fLowK];
-
-            blk1.fCenterI_[fLowI1] = (*this).fCenterI_[fLowI];
-            blk1.fCenterJ_[fLowJ1] = (*this).fCenterJ_[fLowJ];
-            blk1.fCenterK_[fLowK1] = (*this).fCenterK_[fLowK];
-
-            if (ii == ind + numGhosts_ -
-                          1) {  // at end of i-line assign upper face values
-              int fUpI = GetUpperFaceI(ii, jj, kk, iMax, jMax);
-              int fUpI1 = GetUpperFaceI(ii, jj, kk, iMax1, jMax);
-
-              blk1.fAreaI_[fUpI1] = (*this).fAreaI_[fUpI];
-              blk1.fCenterI_[fUpI1] = (*this).fCenterI_[fUpI];
-            }
-
-            if (jj == jMax - 1) {  // at end of j-line assign upper face values
-              int fUpJ = GetUpperFaceJ(ii, jj, kk, iMax, jMax);
-              int fUpJ1 = GetUpperFaceJ(ii, jj, kk, iMax1, jMax);
-
-              blk1.fAreaJ_[fUpJ1] = (*this).fAreaJ_[fUpJ];
-              blk1.fCenterJ_[fUpJ1] = (*this).fCenterJ_[fUpJ];
-            }
-
-            if (kk == kMax - 1) {  // at end of k-line assign upper face values
-              int fUpK = GetUpperFaceK(ii, jj, kk, iMax, jMax);
-              int fUpK1 = GetUpperFaceK(ii, jj, kk, iMax1, jMax);
-
-              blk1.fAreaK_[fUpK1] = (*this).fAreaK_[fUpK];
-              blk1.fCenterK_[fUpK1] = (*this).fCenterK_[fUpK];
-            }
-          }
-        }
-      }
-    }
-
+    // assign boundary conditions
     blk1.bc_ = bound1;
     (*this) = blk1;
     blk2.bc_ = bound2;
     return blk2;
 
   } else if (dir == "j") {  // split along j-plane
-    int numJ2 = this->NumJ() - ind;
-    int numJ1 = this->NumJ() - numJ2;
+    int numJ2 = numJ_ - ind;
+    int numJ1 = numJ_ - numJ2;
 
-    procBlock blk1(this->NumI(), numJ1, this->NumK(), numGhosts_);
-    procBlock blk2(this->NumI(), numJ2, this->NumK(), numGhosts_);
+    procBlock blk1(numI_, numJ1, numK_, numGhosts_);
+    procBlock blk2(numI_, numJ2, numK_, numGhosts_);
 
-    blk1.parBlock_ = (*this).ParentBlock();
-    blk2.parBlock_ = (*this).ParentBlock();
+    blk1.parBlock_ = parBlock_;
+    blk2.parBlock_ = parBlock_;
 
-    int jMax1 = numJ1 + 2 * numGhosts_;
-    int jMax2 = numJ2 + 2 * numGhosts_;
+    // indices for lower block
+    int jMaxG1 = numJ1 + 2 * numGhosts_;
+    int jMax1 = numJ1;
+
+    // indices for upper block
+    int jMaxG2 = numJ2 + 2 * numGhosts_;
+    int jMax2 = numJ2;
+
+    int jMaxPG2 = numJ_ + 2 * numGhosts_;
+    int jMinPG2 = ind;
+    int jMaxP2 = numJ_;
+    int jMinP2 = ind + numGhosts_;
+
+    // indices common to both blocks
+    int iMaxG = numI_ + 2 * numGhosts_;
+    int iMax = numI_;
+    int kMaxG = numK_ + 2 * numGhosts_;
+    int kMax = numK_;
+
+
+    // DEBUG - start here
+
+
+    
 
     // loop over cell locations of of block
     for (int kk = 0; kk < kMax; kk++) {

@@ -92,7 +92,7 @@ void boundaryConditions::ResizeVecs(const int &i, const int &j, const int &k) {
   surfs_.resize(i + j + k);
 }
 
-// Member function to return the boundary_ condition type given the
+// Member function to return the boundary condition type given the
 // i,j,k face coordinates and the surface type
 string boundaryConditions::GetBCName(const int i, const int j, const int k,
                                      const string &surf) const {
@@ -121,7 +121,7 @@ string boundaryConditions::GetBCName(const int i, const int j, const int k,
     cerr << "ERROR: Surface type " << surf << " is not recognized!" << endl;
   }
 
-  // Determine which boundary_ condition should be applied
+  // Determine which boundary condition should be applied
   for (int nn = iStart; nn < iEnd; nn++) {
     // Boundary mins and maxes start at 1 instead of 0, so 1 is subtracted
     // Determine which boundary_ given i, j, k coordinates apply to
