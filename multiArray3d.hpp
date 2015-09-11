@@ -69,10 +69,10 @@ class multiArray3d {
 
   // operator overloads
   T& operator()(const int &ii, const int &jj, const int &kk) {
-    return data_[this->.GetLoc1D(ii, jj, kk)];
+    return data_[this->GetLoc1D(ii, jj, kk)];
   }
   const T& operator()(const int &ii, const int &jj, const int &kk) const {
-    return data_[this->.GetLoc1D(ii, jj, kk)];
+    return data_[this->GetLoc1D(ii, jj, kk)];
   }
   T& operator()(const int &ind) {
     return data_[ind];
@@ -187,7 +187,7 @@ multiArray3d<T> multiArray3d<T>::operator*(const multiArray3d<T> &b) const {
 
 // operator overload to divide all data components by same factor
 template <class T>
-multiArray3d<T> multiArray3d<T>::operator/(const T &factor) const {
+multiArray3d<T> multiArray3d<T>::operator/(const multiArray3d<T> &b) const {
   multiArray3d<T> arr = *this;
   for (unsigned int ii = 0; ii < data_.size(); ii++) {
     arr.data_[ii] /= b.data_[ii];
@@ -197,7 +197,7 @@ multiArray3d<T> multiArray3d<T>::operator/(const T &factor) const {
 
 // operator overload to add the same factor to all data components
 template <class T>
-multiArray3d<T> multiArray3d<T>::operator+(const T &factor) const {
+multiArray3d<T> multiArray3d<T>::operator+(const multiArray3d<T> &b) const {
   multiArray3d<T> arr = *this;
   for (unsigned int ii = 0; ii < data_.size(); ii++) {
     arr.data_[ii] += b.data_[ii];
@@ -207,7 +207,7 @@ multiArray3d<T> multiArray3d<T>::operator+(const T &factor) const {
 
 // operator overload to subtract the same factor from all data components
 template <class T>
-multiArray3d<T> multiArray3d<T>::operator-(const T &factor) const {
+multiArray3d<T> multiArray3d<T>::operator-(const multiArray3d<T> &b) const {
   multiArray3d<T> arr = *this;
   for (unsigned int ii = 0; ii < data_.size(); ii++) {
     arr.data_[ii] -= b.data_[ii];

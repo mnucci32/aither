@@ -197,7 +197,7 @@ class procBlock {
   void ImplicitTimeAdvance(const genArray &, const idealGas &, const int &,
                            const int &, const int &);
   void RK4TimeAdvance(const primVars &, const idealGas &, const int &,
-                      const int &, const int &const int &, const int &,
+                      const int &, const int &, const int &, const int &,
                       const int &, const int &);
 
   void ResetResidWS();
@@ -286,8 +286,7 @@ T FaceReconCentral(const T &, const T &, const vector3d<double> &,
                    const vector3d<double> &, const vector3d<double> &);
 
 template <class T>
-multiArray3d<T> PadWithGhosts(const multiArray3d<T> &, const int &, const int &,
-                        const int &, const int &);
+multiArray3d<T> PadWithGhosts(const multiArray3d<T> &, const int &);
 
 tensor<double> CalcVelGradGG(const vector3d<double> &, const vector3d<double> &,
                              const vector3d<double> &, const vector3d<double> &,

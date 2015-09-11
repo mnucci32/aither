@@ -34,6 +34,7 @@ supply a ghost state given a boundary condition and boundary cell.  */
 #include "vector3d.hpp"            // vector3d
 #include "eos.hpp"                 // idealGas, sutherland
 #include "matrix.hpp"              // genArray
+#include "multiArray3d.hpp"        // multiArray3d
 #include "macros.hpp"
 
 using std::vector;

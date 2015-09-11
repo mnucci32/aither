@@ -64,18 +64,48 @@ class gradients {
   gradients(const bool &, const procBlock &, const idealGas &);
 
   // member functions
-  tensor<double> VelGradI(const int &a) const { return velocityI_[a]; }
-  tensor<double> VelGradJ(const int &a) const { return velocityJ_[a]; }
-  tensor<double> VelGradK(const int &a) const { return velocityK_[a]; }
-  vector3d<double> TempGradI(const int &a) const { return temperatureI_[a]; }
-  vector3d<double> TempGradJ(const int &a) const { return temperatureJ_[a]; }
-  vector3d<double> TempGradK(const int &a) const { return temperatureK_[a]; }
-  vector3d<double> TkeGradI(const int &a) const { return tkeI_[a]; }
-  vector3d<double> TkeGradJ(const int &a) const { return tkeJ_[a]; }
-  vector3d<double> TkeGradK(const int &a) const { return tkeK_[a]; }
-  vector3d<double> OmegaGradI(const int &a) const { return omegaI_[a]; }
-  vector3d<double> OmegaGradJ(const int &a) const { return omegaJ_[a]; }
-  vector3d<double> OmegaGradK(const int &a) const { return omegaK_[a]; }
+  tensor<double> VelGradI(const int &ii, const int &jj, const int &kk) const {
+    return velocityI_(ii, jj, kk);
+  }
+  tensor<double> VelGradJ(const int &ii, const int &jj, const int &kk) const {
+    return velocityJ_(ii, jj, kk);
+  }
+  tensor<double> VelGradK(const int &ii, const int &jj, const int &kk) const {
+    return velocityK_(ii, jj, kk);
+  }
+  vector3d<double> TempGradI(const int &ii, const int &jj,
+                             const int &kk) const {
+    return temperatureI_(ii, jj, kk);
+  }
+  vector3d<double> TempGradJ(const int &ii, const int &jj,
+                             const int &kk) const {
+    return temperatureJ_(ii, jj, kk);
+  }
+  vector3d<double> TempGradK(const int &ii, const int &jj,
+                             const int &kk) const {
+    return temperatureK_(ii, jj, kk);
+  }
+  vector3d<double> TkeGradI(const int &ii, const int &jj, const int &kk) const {
+    return tkeI_(ii, jj, kk);
+  }
+  vector3d<double> TkeGradJ(const int &ii, const int &jj, const int &kk) const {
+    return tkeJ_(ii, jj, kk);
+  }
+  vector3d<double> TkeGradK(const int &ii, const int &jj, const int &kk) const {
+    return tkeK_(ii, jj, kk);
+  }
+  vector3d<double> OmegaGradI(const int &ii, const int &jj,
+                              const int &kk) const {
+    return omegaI_(ii, jj, kk);
+  }
+  vector3d<double> OmegaGradJ(const int &ii, const int &jj,
+                              const int &kk) const {
+    return omegaJ_(ii, jj, kk);
+  }
+  vector3d<double> OmegaGradK(const int &ii, const int &jj,
+                              const int &kk) const {
+    return omegaK_(ii, jj, kk);
+  }
 
   // functions to get number of cells in block
   int NumI() const { return velocityI_.NumI() - 1; }

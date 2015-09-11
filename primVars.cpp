@@ -848,8 +848,9 @@ multiArray3d<primVars> GetGhostStates(
     for (int jj = 0; jj < bndStates.NumJ(); jj++) {
       for (int ii = 0; ii < bndStates.NumI(); ii++) {
         ghostStates(ii, jj, kk) =
-            bndStates(ii, jj, kk).GetGhostState(bcName, faceAreas(ii, jj, kk),
-                                                surf, inp, eos, suth, layer);
+            bndStates(ii, jj, kk).
+            GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),
+                          surf, inp, eos, suth, layer);
       }
     }
   }
