@@ -86,6 +86,15 @@ class multiArray3d {
   multiArray3d<T> operator+(const T&) const;
   multiArray3d<T> operator-(const T&) const;
 
+  template <class TT>
+  friend multiArray3d<TT> operator*(const TT&, const multiArray3d<TT>&);
+  template <class TT>
+  friend multiArray3d<TT> operator/(const TT&, const multiArray3d<TT>&);
+  template <class TT>
+  friend multiArray3d<TT> operator+(const TT&, const multiArray3d<TT>&);
+  template <class TT>
+  friend multiArray3d<TT> operator-(const TT&, const multiArray3d<TT>&);
+
   multiArray3d<T> operator*(const multiArray3d<T> &) const;
   multiArray3d<T> operator/(const multiArray3d<T> &) const;
   multiArray3d<T> operator+(const multiArray3d<T> &) const;
@@ -145,7 +154,12 @@ multiArray3d<T> multiArray3d<T>::operator*(const T &factor) const {
   return arr;
 }
 
-// operator overload to divide all data components by same factor
+template <class TT>
+multiArray3d<TT> operator*(const TT &factor, const multiArray3d<TT> &arr) {
+  return arr * factor;
+}
+
+// operator overload to divide the same factor by all data components
 template <class T>
 multiArray3d<T> multiArray3d<T>::operator/(const T &factor) const {
   multiArray3d<T> arr = *this;
@@ -153,6 +167,15 @@ multiArray3d<T> multiArray3d<T>::operator/(const T &factor) const {
     val /= factor;
   }
   return arr;
+}
+
+template <class TT>
+multiArray3d<TT> operator/(const TT &factor, const multiArray3d<TT> &arr) {
+  multiArray3d<TT> out = arr;
+  for (TT& val : out.data_) {
+    val = factor / val;
+  }
+  return out;
 }
 
 // operator overload to add the same factor to all data components
@@ -165,6 +188,11 @@ multiArray3d<T> multiArray3d<T>::operator+(const T &factor) const {
   return arr;
 }
 
+template <class TT>
+multiArray3d<TT> operator+(const TT &factor, const multiArray3d<TT> &arr) {
+  return arr + factor;
+}
+
 // operator overload to subtract the same factor from all data components
 template <class T>
 multiArray3d<T> multiArray3d<T>::operator-(const T &factor) const {
@@ -173,6 +201,15 @@ multiArray3d<T> multiArray3d<T>::operator-(const T &factor) const {
     val -= factor;
   }
   return arr;
+}
+
+template <class TT>
+multiArray3d<TT> operator-(const TT &factor, const multiArray3d<TT> &arr) {
+  multiArray3d<TT> out = arr;
+  for (TT& val : out.data_) {
+    val = factor - val;
+  }
+  return out;
 }
 
 // operator overload for pointwise multiplication

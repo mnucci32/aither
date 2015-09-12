@@ -2306,9 +2306,9 @@ void procBlock::AssignGhostCellsGeom() {
       // second layer of ghost cells
       // one cell thick - use one cell for both ghost cells
       if (this->NumI() < 2) {
-        dist2Move = dist2Move * 2.0;
-        dist2MoveJ = dist2MoveJ * 2.0;
-        dist2MoveK = dist2MoveK * 2.0;
+        dist2Move = dist2Move + dist2Move;
+        dist2MoveJ = dist2MoveJ + dist2MoveJ;
+        dist2MoveK = dist2MoveK + dist2MoveK;
       } else {
         dist2Move =
             fCenterI_.Slice(bnd, bnd, jmin, jmax, kmin, kmax)
@@ -2421,9 +2421,9 @@ void procBlock::AssignGhostCellsGeom() {
       // second layer of ghost cells
       // one cell thick - use one cell for both ghost cells
       if (this->NumJ() < 2) {
-        dist2Move = dist2Move * 2.0;
-        dist2MoveI = dist2MoveI * 2.0;
-        dist2MoveK = dist2MoveK * 2.0;
+        dist2Move = dist2Move + dist2Move;
+        dist2MoveI = dist2MoveI + dist2MoveI;
+        dist2MoveK = dist2MoveK + dist2MoveK;
       } else {
         dist2Move =
             fCenterJ_.Slice(imin, imax, bnd, bnd, kmin, kmax)
@@ -2536,9 +2536,9 @@ void procBlock::AssignGhostCellsGeom() {
       // second layer of ghost cells
       // one cell thick - use one cell for both ghost cells
       if (this->NumK() < 2) {
-        dist2Move = dist2Move * 2.0;
-        dist2MoveI = dist2MoveI * 2.0;
-        dist2MoveJ = dist2MoveJ * 2.0;
+        dist2Move = dist2Move + dist2Move;
+        dist2MoveI = dist2MoveI + dist2MoveI;
+        dist2MoveJ = dist2MoveJ + dist2MoveJ;
       } else {
         dist2Move =
             fCenterK_.Slice(imin, imax, jmin, jmax, bnd, bnd)

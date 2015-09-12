@@ -57,14 +57,17 @@ class vector3d {
   friend vector3d<TT> operator/(const TT &, const vector3d<TT> &);
   template <class TT>
   friend ostream &operator<<(ostream &os, const vector3d<TT> &);
+
   // assignment of data_ members
   void SetX(const T &val) { data_[0] = val; }
   void SetY(const T &val) { data_[1] = val; }
   void SetZ(const T &val) { data_[2] = val; }
+
   // access of data_ members
   T X() const { return data_[0]; }
   T Y() const { return data_[1]; }
   T Z() const { return data_[2]; }
+
   // math functions
   T DotProd(const vector3d &) const;
   vector3d<T> CrossProd(const vector3d &) const;
