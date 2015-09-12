@@ -34,7 +34,7 @@ using std::cout;
 using std::cerr;
 using std::vector;
 
-template <class T>
+template <typename T>
 class multiArray3d {
   vector<T> data_;
   int numI_;
@@ -86,14 +86,32 @@ class multiArray3d {
   multiArray3d<T> operator+(const T&) const;
   multiArray3d<T> operator-(const T&) const;
 
-  template <class TT>
+  template <typename TT>
+  multiArray3d<T> operator*(const TT&) const;
+  template <typename TT>
+  multiArray3d<T> operator/(const TT&) const;
+  template <typename TT>
+  multiArray3d<T> operator+(const TT&) const;
+  template <typename TT>
+  multiArray3d<T> operator-(const TT&) const;
+
+  template <typename TT>
   friend multiArray3d<TT> operator*(const TT&, const multiArray3d<TT>&);
-  template <class TT>
+  template <typename TT>
   friend multiArray3d<TT> operator/(const TT&, const multiArray3d<TT>&);
-  template <class TT>
+  template <typename TT>
   friend multiArray3d<TT> operator+(const TT&, const multiArray3d<TT>&);
-  template <class TT>
+  template <typename TT>
   friend multiArray3d<TT> operator-(const TT&, const multiArray3d<TT>&);
+
+  template <typename T1, typename T2>
+  friend multiArray3d<T1> operator*(const T2&, const multiArray3d<T1>&);
+  template <typename T1, typename T2>
+  friend multiArray3d<T1> operator/(const T2&, const multiArray3d<T1>&);
+  template <typename T1, typename T2>
+  friend multiArray3d<T1> operator+(const T2&, const multiArray3d<T1>&);
+  template <typename T1, typename T2>
+  friend multiArray3d<T1> operator-(const T2&, const multiArray3d<T1>&);
 
   multiArray3d<T> operator*(const multiArray3d<T> &) const;
   multiArray3d<T> operator/(const multiArray3d<T> &) const;
@@ -107,7 +125,7 @@ class multiArray3d {
     *this = multiArray3d<T>(ii, jj, kk, val);
   }
 
-  template <class TT>
+  template <typename TT>
   friend ostream &operator<<(ostream &, const multiArray3d<TT> &);
 
   // destructor
@@ -116,7 +134,7 @@ class multiArray3d {
 
 
 // constructor - default initialization
-template <class T>
+template <typename T>
 multiArray3d<T>::multiArray3d(const int &ii, const int &jj, const int &kk) {
   // ii -- i-dimension
   // jj -- j-dimension
@@ -129,7 +147,7 @@ multiArray3d<T>::multiArray3d(const int &ii, const int &jj, const int &kk) {
 }
 
 // constructor - uniform initialization
-template <class T>
+template <typename T>
 multiArray3d<T>::multiArray3d(const int &ii, const int &jj, const int &kk,
                               const T &init) {
   // ii -- i-dimension
@@ -145,7 +163,7 @@ multiArray3d<T>::multiArray3d(const int &ii, const int &jj, const int &kk,
 
 // member functions
 // operator overload to multiply all data components by same factor
-template <class T>
+template <typename T>
 multiArray3d<T> multiArray3d<T>::operator*(const T &factor) const {
   multiArray3d<T> arr = *this;
   for (T& val : arr.data_) {
@@ -154,13 +172,29 @@ multiArray3d<T> multiArray3d<T>::operator*(const T &factor) const {
   return arr;
 }
 
-template <class TT>
+template <typename TT>
 multiArray3d<TT> operator*(const TT &factor, const multiArray3d<TT> &arr) {
   return arr * factor;
 }
 
+template <typename T>
+template <typename TT>
+multiArray3d<T> multiArray3d<T>::operator*(const TT &factor) const {
+  multiArray3d<T> arr = *this;
+  for (T& val : arr.data_) {
+    val = val * factor;
+  }
+  return arr;
+}
+
+template <typename T1, typename T2>
+multiArray3d<T1> operator*(const T2 &factor, const multiArray3d<T1> &arr) {
+  return arr * factor;
+}
+
+
 // operator overload to divide the same factor by all data components
-template <class T>
+template <typename T>
 multiArray3d<T> multiArray3d<T>::operator/(const T &factor) const {
   multiArray3d<T> arr = *this;
   for (T& val : arr.data_) {
@@ -169,7 +203,7 @@ multiArray3d<T> multiArray3d<T>::operator/(const T &factor) const {
   return arr;
 }
 
-template <class TT>
+template <typename TT>
 multiArray3d<TT> operator/(const TT &factor, const multiArray3d<TT> &arr) {
   multiArray3d<TT> out = arr;
   for (TT& val : out.data_) {
@@ -178,8 +212,27 @@ multiArray3d<TT> operator/(const TT &factor, const multiArray3d<TT> &arr) {
   return out;
 }
 
+template <typename T>
+template <typename TT>
+multiArray3d<T> multiArray3d<T>::operator/(const TT &factor) const {
+  multiArray3d<T> arr = *this;
+  for (T& val : arr.data_) {
+    val = val / factor;
+  }
+  return arr;
+}
+
+template <typename T1, typename T2>
+multiArray3d<T1> operator/(const T2 &factor, const multiArray3d<T1> &arr) {
+  multiArray3d<T1> out = arr;
+  for (T1& val : out.data_) {
+    val = factor / val;
+  }
+  return out;
+}
+
 // operator overload to add the same factor to all data components
-template <class T>
+template <typename T>
 multiArray3d<T> multiArray3d<T>::operator+(const T &factor) const {
   multiArray3d<T> arr = *this;
   for (T& val : arr.data_) {
@@ -188,13 +241,28 @@ multiArray3d<T> multiArray3d<T>::operator+(const T &factor) const {
   return arr;
 }
 
-template <class TT>
+template <typename TT>
 multiArray3d<TT> operator+(const TT &factor, const multiArray3d<TT> &arr) {
   return arr + factor;
 }
 
+template <typename T>
+template <typename TT>
+multiArray3d<T> multiArray3d<T>::operator+(const TT &factor) const {
+  multiArray3d<T> arr = *this;
+  for (T& val : arr.data_) {
+    val = val + factor;
+  }
+  return arr;
+}
+
+template <typename T1, typename T2>
+multiArray3d<T1> operator+(const T2 &factor, const multiArray3d<T1> &arr) {
+  return arr + factor;
+}
+
 // operator overload to subtract the same factor from all data components
-template <class T>
+template <typename T>
 multiArray3d<T> multiArray3d<T>::operator-(const T &factor) const {
   multiArray3d<T> arr = *this;
   for (T& val : arr.data_) {
@@ -203,7 +271,7 @@ multiArray3d<T> multiArray3d<T>::operator-(const T &factor) const {
   return arr;
 }
 
-template <class TT>
+template <typename TT>
 multiArray3d<TT> operator-(const TT &factor, const multiArray3d<TT> &arr) {
   multiArray3d<TT> out = arr;
   for (TT& val : out.data_) {
@@ -212,48 +280,67 @@ multiArray3d<TT> operator-(const TT &factor, const multiArray3d<TT> &arr) {
   return out;
 }
 
+template <typename T>
+template <typename TT>
+multiArray3d<T> multiArray3d<T>::operator-(const TT &factor) const {
+  multiArray3d<T> arr = *this;
+  for (T& val : arr.data_) {
+    val = val - factor;
+  }
+  return arr;
+}
+
+template <typename T1, typename T2>
+multiArray3d<T1> operator-(const T2 &factor, const multiArray3d<T1> &arr) {
+  multiArray3d<T1> out = arr;
+  for (T1& val : out.data_) {
+    val = factor - val;
+  }
+  return out;
+}
+
 // operator overload for pointwise multiplication
-template <class T>
+template <typename T>
 multiArray3d<T> multiArray3d<T>::operator*(const multiArray3d<T> &b) const {
   multiArray3d<T> arr = *this;
   for (unsigned int ii = 0; ii < data_.size(); ii++) {
-    arr.data_[ii] *= b.data_[ii];
+    arr.data_[ii] = arr.data_[ii] * b.data_[ii];
   }
   return arr;
 }
 
 // operator overload to divide all data components by same factor
-template <class T>
+template <typename T>
 multiArray3d<T> multiArray3d<T>::operator/(const multiArray3d<T> &b) const {
   multiArray3d<T> arr = *this;
   for (unsigned int ii = 0; ii < data_.size(); ii++) {
-    arr.data_[ii] /= b.data_[ii];
+    arr.data_[ii] = arr.data_[ii] / b.data_[ii];
   }
   return arr;
 }
 
 // operator overload to add the same factor to all data components
-template <class T>
+template <typename T>
 multiArray3d<T> multiArray3d<T>::operator+(const multiArray3d<T> &b) const {
   multiArray3d<T> arr = *this;
   for (unsigned int ii = 0; ii < data_.size(); ii++) {
-    arr.data_[ii] += b.data_[ii];
+    arr.data_[ii] = arr.data_[ii] + b.data_[ii];
   }
   return arr;
 }
 
 // operator overload to subtract the same factor from all data components
-template <class T>
+template <typename T>
 multiArray3d<T> multiArray3d<T>::operator-(const multiArray3d<T> &b) const {
   multiArray3d<T> arr = *this;
   for (unsigned int ii = 0; ii < data_.size(); ii++) {
-    arr.data_[ii] -= b.data_[ii];
+    arr.data_[ii] = arr.data_[ii] - b.data_[ii];
   }
   return arr;
 }
 
 // member function to return a slice of the array
-template <class T>
+template <typename T>
 multiArray3d<T> multiArray3d<T>::Slice(const int &is, const int &ie,
                                        const int &js, const int &je,
                                        const int &ks, const int &ke) const {
@@ -294,7 +381,7 @@ multiArray3d<T> multiArray3d<T>::Slice(const int &is, const int &ie,
 }
 
 // member function to insert an array into this one
-template <class T>
+template <typename T>
 void multiArray3d<T>::Insert(const int &is, const int &ie, const int &js,
                              const int &je, const int &ks, const int &ke,
                              const multiArray3d<T> &array) {
@@ -333,7 +420,7 @@ void multiArray3d<T>::Insert(const int &is, const int &ie, const int &js,
 }
 
 // overload to print array contents to stream
-template <class TT>
+template <typename TT>
 ostream &operator<<(ostream &os, const multiArray3d<TT> &array) {
   os << "Size: " << array.numI_ << ", " << array.numJ_ << ", "
      << array.numK_ << endl;
@@ -349,7 +436,7 @@ ostream &operator<<(ostream &os, const multiArray3d<TT> &array) {
   return os;
 }
 
-template <class T>
+template <typename T>
 void multiArray3d<T>::GrowI() {
   multiArray3d<T> arr(numI_ + 1, numJ_, numK_);
   for (int kk = 0; kk < arr.numK_; kk++) {
@@ -363,7 +450,7 @@ void multiArray3d<T>::GrowI() {
   *this = arr;
 }
 
-template <class T>
+template <typename T>
 void multiArray3d<T>::GrowJ() {
   multiArray3d<T> arr(numI_, numJ_ + 1, numK_);
   for (int kk = 0; kk < arr.numK_; kk++) {
@@ -377,7 +464,7 @@ void multiArray3d<T>::GrowJ() {
   *this = arr;
 }
 
-template <class T>
+template <typename T>
 void multiArray3d<T>::GrowK() {
   multiArray3d<T> arr(numI_, numJ_, numK_ + 1);
   for (int kk = 0; kk < arr.numK_; kk++) {

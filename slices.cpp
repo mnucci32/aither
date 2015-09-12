@@ -87,9 +87,9 @@ geomSlice::geomSlice(const procBlock &blk, const int &is, const int &ie,
 
   // allocate size for vectors
   center_ = multiArray3d<vector3d<double> >(numI, numJ, numK);
-  fAreaI_ = multiArray3d<unitVect3dMag<double> >(numI + 1, numJ, numK);
+  fAreaI_ = multiArray3d<unitVec3dMag<double> >(numI + 1, numJ, numK);
   fAreaJ_ = multiArray3d<unitVec3dMag<double> >(numI, numJ + 1, numK);
-  fAreaK_ = multiArray3d<unitVect3dMag<double> >(numI, numJ, numK + 1);
+  fAreaK_ = multiArray3d<unitVec3dMag<double> >(numI, numJ, numK + 1);
   fCenterI_ = multiArray3d<vector3d<double> >(numI + 1, numJ, numK);
   fCenterJ_ = multiArray3d<vector3d<double> >(numI, numJ + 1, numK);
   fCenterK_ = multiArray3d<vector3d<double> >(numI, numJ, numK + 1);

@@ -2306,9 +2306,9 @@ void procBlock::AssignGhostCellsGeom() {
       // second layer of ghost cells
       // one cell thick - use one cell for both ghost cells
       if (this->NumI() < 2) {
-        dist2Move = dist2Move + dist2Move;
-        dist2MoveJ = dist2MoveJ + dist2MoveJ;
-        dist2MoveK = dist2MoveK + dist2MoveK;
+        dist2Move = dist2Move * 2.0;
+        dist2MoveJ = dist2MoveJ * 2.0;
+        dist2MoveK = dist2MoveK * 2.0;
       } else {
         dist2Move =
             fCenterI_.Slice(bnd, bnd, jmin, jmax, kmin, kmax)
@@ -2421,9 +2421,9 @@ void procBlock::AssignGhostCellsGeom() {
       // second layer of ghost cells
       // one cell thick - use one cell for both ghost cells
       if (this->NumJ() < 2) {
-        dist2Move = dist2Move + dist2Move;
-        dist2MoveI = dist2MoveI + dist2MoveI;
-        dist2MoveK = dist2MoveK + dist2MoveK;
+        dist2Move = dist2Move * 2.0;
+        dist2MoveI = dist2MoveI * 2.0;
+        dist2MoveK = dist2MoveK * 2.0;
       } else {
         dist2Move =
             fCenterJ_.Slice(imin, imax, bnd, bnd, kmin, kmax)
@@ -2536,9 +2536,9 @@ void procBlock::AssignGhostCellsGeom() {
       // second layer of ghost cells
       // one cell thick - use one cell for both ghost cells
       if (this->NumK() < 2) {
-        dist2Move = dist2Move + dist2Move;
-        dist2MoveI = dist2MoveI + dist2MoveI;
-        dist2MoveJ = dist2MoveJ + dist2MoveJ;
+        dist2Move = dist2Move * 2.0;
+        dist2MoveI = dist2MoveI * 2.0;
+        dist2MoveJ = dist2MoveJ * 2.0;
       } else {
         dist2Move =
             fCenterK_.Slice(imin, imax, jmin, jmax, bnd, bnd)
@@ -3035,51 +3035,35 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
     int kmax = bc_.GetKMax(ii) - 2 + numGhosts_;
 
     int g1, g2, i1, i2;  // indices for cells
-    int fg1, fg2, fi1, fi2, bnd;  // indices for faces
+    int bnd;  // indices for faces
     if (bc_.GetSurfaceType(ii) == 2) {  // upper i-surface
       g2 = imax + 2;
       g1 = imax + 1;
       i1 = imax;
       i2 = imax - 1;
 
-      fg2 = imax + 3;
-      fg1 = imax + 2;
       bnd = imax + 1;
-      fi1 = imax;
-      fi2 = imax - 1;
     } else if (bc_.GetSurfaceType(ii) == 4) {  // upper j-surface
       g2 = jmax + 2;
       g1 = jmax + 1;
       i1 = jmax;
       i2 = jmax - 1;
 
-      fg2 = jmax + 3;
-      fg1 = jmax + 2;
       bnd = jmax + 1;
-      fi1 = jmax;
-      fi2 = jmax - 1;
     } else if (bc_.GetSurfaceType(ii) == 6) {  // upper k-surface
       g2 = kmax + 2;
       g1 = kmax + 1;
       i1 = kmax;
       i2 = kmax - 1;
 
-      fg2 = kmax + 3;
-      fg1 = kmax + 2;
       bnd = kmax + 1;
-      fi1 = kmax;
-      fi2 = kmax - 1;
     } else {  // lower surface
       g2 = 0;
       g1 = 1;
       i1 = 2;
       i2 = 3;
 
-      fg2 = 0;
-      fg1 = 1;
       bnd = 2;
-      fi1 = 3;
-      fi2 = 4;
     }
 
     //-----------------------------------------------------------------------
@@ -3269,17 +3253,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
     // these only change from cell indices for upper edges
     // these should only be used for accessing faces in their corresponding
     // direction - i.e. jpF should only be used to access fAreaJ, or fCenterJ
-    int imaxF = this->NumI() + numGhosts_ + 1;
-
     int jpF = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_ + 1;
-    int jiF = (cc <= 1) ? jp + 1 : jp - 1;
-    int jg1F = (cc <= 1) ? jp - 1 : jp + 1;
-    int jg2F = (cc <= 1) ? jp - 2 : jp + 2;
-
     int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ + 1;
-    int kg1F = (cc % 2 == 0) ? kp - 1 : kp + 1;
-    int kg2F = (cc % 2 == 0) ? kp - 2 : kp + 2;
-
 
     for (int ii = imin; ii < imax; ii++) {
       // boundary conditions at corner
@@ -3352,16 +3327,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
     // these only change from cell indices for upper edges
     // these should only be used for accessing faces in their corresponding
     // direction - i.e. ipF should only be used to access fAreaI, or fCenterI
-    int jmaxF = this->NumJ() + numGhosts_ + 1;
-
     int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ + 1;
-    int iiF = (cc <= 1) ? ip + 1 : ip - 1;
-    int ig1F = (cc <= 1) ? ip - 1 : ip + 1;
-    int ig2F = (cc <= 1) ? ip - 2 : ip + 2;
-
     int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ + 1;
-    int kg1F = (cc % 2 == 0) ? kp - 1 : kp + 1;
-    int kg2F = (cc % 2 == 0) ? kp - 2 : kp + 2;
 
     // Assign states
     for (int jj = jmin; jj < jmax; jj++) {
@@ -3435,16 +3402,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
     // these only change from cell indices for upper edges
     // these should only be used for accessing faces in their corresponding
     // direction - i.e. ipF should only be used to access fAreaI, or fCenterI
-    int kmaxF = this->NumK() + numGhosts_ + 1;
-
     int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ + 1;
-    int iiF = (cc <= 1) ? ip + 1 : ip - 1;
-    int ig1F = (cc <= 1) ? ip - 1 : ip + 1;
-    int ig2F = (cc <= 1) ? ip - 2 : ip + 2;
-
     int jpF = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_ + 1;
-    int jg1F = (cc % 2 == 0) ? jp - 1 : jp + 1;
-    int jg2F = (cc % 2 == 0) ? jp - 2 : jp + 2;
 
     // Assign states
     for (int kk = kmin; kk < kmax; kk++) {
@@ -3511,51 +3470,35 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
     int kmax = bc_.GetKMax(ii) - 2 + numGhosts_;
 
     int g1, g2, i1, i2;  // indices for cells
-    int fg1, fg2, fi1, fi2, bnd;  // indices for faces
+    int bnd;  // indices for faces
     if (bc_.GetSurfaceType(ii) == 2) {  // upper i-surface
       g2 = imax + 2;
       g1 = imax + 1;
       i1 = imax;
       i2 = imax - 1;
 
-      fg2 = imax + 3;
-      fg1 = imax + 2;
       bnd = imax + 1;
-      fi1 = imax;
-      fi2 = imax - 1;
     } else if (bc_.GetSurfaceType(ii) == 4) {  // upper j-surface
       g2 = jmax + 2;
       g1 = jmax + 1;
       i1 = jmax;
       i2 = jmax - 1;
 
-      fg2 = jmax + 3;
-      fg1 = jmax + 2;
       bnd = jmax + 1;
-      fi1 = jmax;
-      fi2 = jmax - 1;
     } else if (bc_.GetSurfaceType(ii) == 6) {  // upper k-surface
       g2 = kmax + 2;
       g1 = kmax + 1;
       i1 = kmax;
       i2 = kmax - 1;
 
-      fg2 = kmax + 3;
-      fg1 = kmax + 2;
       bnd = kmax + 1;
-      fi1 = kmax;
-      fi2 = kmax - 1;
     } else {  // lower surface
       g2 = 0;
       g1 = 1;
       i1 = 2;
       i2 = 3;
 
-      fg2 = 0;
-      fg1 = 1;
       bnd = 2;
-      fi1 = 3;
-      fi2 = 4;
     }
 
     //-----------------------------------------------------------------------
@@ -3731,17 +3674,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
     // these only change from cell indices for upper edges
     // these should only be used for accessing faces in their corresponding
     // direction - i.e. jpF should only be used to access fAreaJ, or fCenterJ
-    int imaxF = this->NumI() + numGhosts_ + 1;
-
     int jpF = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_ + 1;
-    int jiF = (cc <= 1) ? jp + 1 : jp - 1;
-    int jg1F = (cc <= 1) ? jp - 1 : jp + 1;
-    int jg2F = (cc <= 1) ? jp - 2 : jp + 2;
-
     int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ + 1;
-    int kg1F = (cc % 2 == 0) ? kp - 1 : kp + 1;
-    int kg2F = (cc % 2 == 0) ? kp - 2 : kp + 2;
-
 
     for (int ii = imin; ii < imax; ii++) {
       // boundary conditions at corner
@@ -3814,16 +3748,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
     // these only change from cell indices for upper edges
     // these should only be used for accessing faces in their corresponding
     // direction - i.e. ipF should only be used to access fAreaI, or fCenterI
-    int jmaxF = this->NumJ() + numGhosts_ + 1;
-
     int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ + 1;
-    int iiF = (cc <= 1) ? ip + 1 : ip - 1;
-    int ig1F = (cc <= 1) ? ip - 1 : ip + 1;
-    int ig2F = (cc <= 1) ? ip - 2 : ip + 2;
-
     int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ + 1;
-    int kg1F = (cc % 2 == 0) ? kp - 1 : kp + 1;
-    int kg2F = (cc % 2 == 0) ? kp - 2 : kp + 2;
 
     // Assign states
     for (int jj = jmin; jj < jmax; jj++) {
@@ -3897,16 +3823,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
     // these only change from cell indices for upper edges
     // these should only be used for accessing faces in their corresponding
     // direction - i.e. ipF should only be used to access fAreaI, or fCenterI
-    int kmaxF = this->NumK() + numGhosts_ + 1;
-
     int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ + 1;
-    int iiF = (cc <= 1) ? ip + 1 : ip - 1;
-    int ig1F = (cc <= 1) ? ip - 1 : ip + 1;
-    int ig2F = (cc <= 1) ? ip - 2 : ip + 2;
-
     int jpF = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_ + 1;
-    int jg1F = (cc % 2 == 0) ? jp - 1 : jp + 1;
-    int jg2F = (cc % 2 == 0) ? jp - 2 : jp + 2;
 
     // Assign states
     for (int kk = kmin; kk < kmax; kk++) {
@@ -5836,11 +5754,11 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                                            alteredSurf);
 
   if (dir == "i") {  // split along i-plane
-    int numI2 = numI_ - ind;
-    int numI1 = numI_ - numI2;
+    int numI2 = this->NumI() - ind;
+    int numI1 = this->NumI() - numI2;
 
-    procBlock blk1(numI1, numJ_, numK_, numGhosts_);
-    procBlock blk2(numI2, numJ_, numK_, numGhosts_);
+    procBlock blk1(numI1, this->NumJ(), this->NumK(), numGhosts_);
+    procBlock blk2(numI2, this->NumJ(), this->NumK(), numGhosts_);
 
     blk1.parBlock_ = parBlock_;
     blk2.parBlock_ = parBlock_;
@@ -5853,16 +5771,16 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
     int iMaxG2 = numI2 + 2 * numGhosts_;
     int iMax2 = numI2;
 
-    int iMaxPG2 = numI_ + 2 * numGhosts_;
+    int iMaxPG2 = this->NumI() + 2 * numGhosts_;
     int iMinPG2 = ind;
-    int iMaxP2 = numI_;
+    int iMaxP2 = this->NumI();
     int iMinP2 = ind + numGhosts_;
 
     // indices common to both blocks
-    int jMaxG = numJ_ + 2 * numGhosts_;
-    int jMax = numJ_;
-    int kMaxG = numK_ + 2 * numGhosts_;
-    int kMax = numK_;
+    int jMaxG = this->NumJ() + 2 * numGhosts_;
+    int jMax = this->NumJ();
+    int kMaxG = this->NumK() + 2 * numGhosts_;
+    int kMax = this->NumK();
 
     // ------------------------------------------------------------------
     // assign variables for lower split
@@ -5945,11 +5863,11 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
     return blk2;
 
   } else if (dir == "j") {  // split along j-plane
-    int numJ2 = numJ_ - ind;
-    int numJ1 = numJ_ - numJ2;
+    int numJ2 = this->NumJ() - ind;
+    int numJ1 = this->NumJ() - numJ2;
 
-    procBlock blk1(numI_, numJ1, numK_, numGhosts_);
-    procBlock blk2(numI_, numJ2, numK_, numGhosts_);
+    procBlock blk1(this->NumI(), numJ1, this->NumK(), numGhosts_);
+    procBlock blk2(this->NumI(), numJ2, this->NumK(), numGhosts_);
 
     blk1.parBlock_ = parBlock_;
     blk2.parBlock_ = parBlock_;
@@ -5962,16 +5880,16 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
     int jMaxG2 = numJ2 + 2 * numGhosts_;
     int jMax2 = numJ2;
 
-    int jMaxPG2 = numJ_ + 2 * numGhosts_;
+    int jMaxPG2 = this->NumJ() + 2 * numGhosts_;
     int jMinPG2 = ind;
-    int jMaxP2 = numJ_;
+    int jMaxP2 = this->NumJ();
     int jMinP2 = ind + numGhosts_;
 
     // indices common to both blocks
-    int iMaxG = numI_ + 2 * numGhosts_;
-    int iMax = numI_;
-    int kMaxG = numK_ + 2 * numGhosts_;
-    int kMax = numK_;
+    int iMaxG = this->NumI() + 2 * numGhosts_;
+    int iMax = this->NumI();
+    int kMaxG = this->NumK() + 2 * numGhosts_;
+    int kMax = this->NumK();
 
     // ------------------------------------------------------------------
     // assign variables for lower split
@@ -6054,11 +5972,11 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
     return blk2;
 
   } else if (dir == "k") {  // split along k-plane
-    int numK2 = numK_ - ind;
-    int numK1 = numK_ - numK2;
+    int numK2 = this->NumK() - ind;
+    int numK1 = this->NumK() - numK2;
 
-    procBlock blk1(numI_, numJ_, numK1, numGhosts_);
-    procBlock blk2(numI_, numJ_, numK2, numGhosts_);
+    procBlock blk1(this->NumI(), this->NumJ(), numK1, numGhosts_);
+    procBlock blk2(this->NumI(), this->NumJ(), numK2, numGhosts_);
 
     blk1.parBlock_ = parBlock_;
     blk2.parBlock_ = parBlock_;
@@ -6071,16 +5989,16 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
     int kMaxG2 = numK2 + 2 * numGhosts_;
     int kMax2 = numK2;
 
-    int kMaxPG2 = numK_ + 2 * numGhosts_;
+    int kMaxPG2 = this->NumK() + 2 * numGhosts_;
     int kMinPG2 = ind;
-    int kMaxP2 = numK_;
+    int kMaxP2 = this->NumK();
     int kMinP2 = ind + numGhosts_;
 
     // indices common to both blocks
-    int iMaxG = numI_ + 2 * numGhosts_;
-    int iMax = numI_;
-    int jMaxG = numJ_ + 2 * numGhosts_;
-    int jMax = numJ_;
+    int iMaxG = this->NumI() + 2 * numGhosts_;
+    int iMax = this->NumI();
+    int jMaxG = this->NumJ() + 2 * numGhosts_;
+    int jMax = this->NumJ();
 
     // ------------------------------------------------------------------
     // assign variables for lower split
@@ -6179,9 +6097,9 @@ void procBlock::Join(const procBlock &blk, const string &dir,
   // after this split
 
   if (dir == "i") {  // --------------------------------------------------
-    int iMax = numI_ + blk.numI_;
-    int jMax = numJ_;
-    int kMax = numK_;
+    int iMax = this->NumI() + blk.NumI();
+    int jMax = this->NumJ();
+    int kMax = this->NumK();
 
     int iMaxG = iMax + 2 * numGhosts_;
     int jMaxG = jMax + 2 * numGhosts_;
@@ -6192,10 +6110,10 @@ void procBlock::Join(const procBlock &blk, const string &dir,
     newBlk.bc_ = bc_;
     newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
 
-    int iMaxUG = blk.numI_ + 2 * blk.numGhosts_;
-    int iMaxU = blk.numI_;
-    int iMaxLG = numI_ + blk.numGhosts_;  // don't copy upper ghosts
-    int iMaxL = numI_;
+    int iMaxUG = blk.NumI() + 2 * blk.numGhosts_;
+    int iMaxU = blk.NumI();
+    int iMaxLG = this->NumI() + blk.numGhosts_;  // don't copy upper ghosts
+    int iMaxL = this->NumI();
 
     int iMinUG = numGhosts_;
 
@@ -6276,9 +6194,9 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 
     *this = newBlk;
   } else if (dir == "j") {  // -----------------------------------------
-    int iMax = numI_;
-    int jMax = numJ_ + blk.numJ_;
-    int kMax = numK_;
+    int iMax = this->NumI();
+    int jMax = this->NumJ() + blk.NumJ();
+    int kMax = this->NumK();
 
     int iMaxG = iMax + 2 * numGhosts_;
     int jMaxG = jMax + 2 * numGhosts_;
@@ -6289,10 +6207,10 @@ void procBlock::Join(const procBlock &blk, const string &dir,
     newBlk.bc_ = bc_;
     newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
 
-    int jMaxUG = blk.numJ_ + 2 * blk.numGhosts_;
-    int jMaxU = blk.numJ_;
-    int jMaxLG = numJ_ + blk.numGhosts_;  // don't copy upper ghosts
-    int jMaxL = numJ_;
+    int jMaxUG = blk.NumJ() + 2 * blk.numGhosts_;
+    int jMaxU = blk.NumJ();
+    int jMaxLG = this->NumJ() + blk.numGhosts_;  // don't copy upper ghosts
+    int jMaxL = this->NumJ();
 
     int jMinUG = numGhosts_;
 
@@ -6373,9 +6291,9 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 
     *this = newBlk;
   } else if (dir == "k") {  // ----------------------------------------------
-    int iMax = numI_;
-    int jMax = numJ_;
-    int kMax = numK_ + blk.numK_;
+    int iMax = this->NumI();
+    int jMax = this->NumJ();
+    int kMax = this->NumK() + blk.NumK();
 
     int iMaxG = iMax + 2 * numGhosts_;
     int jMaxG = jMax + 2 * numGhosts_;
@@ -6386,10 +6304,10 @@ void procBlock::Join(const procBlock &blk, const string &dir,
     newBlk.bc_ = bc_;
     newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
 
-    int kMaxUG = blk.numK_ + 2 * blk.numGhosts_;
-    int kMaxU = blk.numK_;
-    int kMaxLG = numK_ + blk.numGhosts_;  // don't copy upper ghosts
-    int kMaxL = numK_;
+    int kMaxUG = blk.NumK() + 2 * blk.numGhosts_;
+    int kMaxU = blk.NumK();
+    int kMaxLG = this->NumK() + blk.numGhosts_;  // don't copy upper ghosts
+    int kMaxL = this->NumK();
 
     int kMinUG = numGhosts_;
 
@@ -6438,14 +6356,14 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                                             kMaxUG));
     // assign cell variables without ghost cells
     newBlk.avgWaveSpeed_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
-                                blk.avgWaveSpeed_.Slice(0, iMax, 0, jMaxU, 0,
-                                                    kMax));
+                                blk.avgWaveSpeed_.Slice(0, iMax, 0, jMax, 0,
+                                                    kMaxU));
     newBlk.dt_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
-                      blk.dt_.Slice(0, iMax, 0, jMaxU, 0, kMax));
+                      blk.dt_.Slice(0, iMax, 0, jMax, 0, kMaxU));
     newBlk.wallDist_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
-                            blk.wallDist_.Slice(0, iMax, 0, jMaxU, 0, kMax));
+                            blk.wallDist_.Slice(0, iMax, 0, jMax, 0, kMaxU));
     newBlk.residual_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
-                            blk.residual_.Slice(0, iMax, 0, jMaxU, 0, kMax));
+                            blk.residual_.Slice(0, iMax, 0, jMax, 0, kMaxU));
 
     // assign face variables
     newBlk.fAreaI_.Insert(0, iMaxG + 1, 0, jMaxG, kMaxLG + 1, kMaxG,
@@ -6869,7 +6787,7 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
                this->NumI(); ii.g++, ii.p++) {
         // calculate turbulent source terms
         source src;
-        src.CalcTurbSrc(turb, state_(loc), grads, suth,
+        src.CalcTurbSrc(turb, state_(ii.g, jj.g, kk.g), grads, suth,
                         ii.p, jj.p, kk.p);
 
         // add source terms to residual

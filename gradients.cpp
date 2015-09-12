@@ -55,44 +55,44 @@ gradients::gradients(const bool &turbFlag, const procBlock &blk,
   // eos -- equation of state
 
   // size vectors for input procBlock
-  velocityI_ = multiArray3d<tensor<double> >((blk.NumI() + 1) * blk.NumJ() *
+  velocityI_ = multiArray3d<tensor<double> >(blk.NumI() + 1, blk.NumJ(),
                                              blk.NumK());
-  velocityJ_ = multiArray3d<tensor<double> >(blk.NumI() * (blk.NumJ() + 1) *
+  velocityJ_ = multiArray3d<tensor<double> >(blk.NumI(), blk.NumJ() + 1,
                                              blk.NumK());
-  velocityK_ = multiArray3d<tensor<double> >(blk.NumI() * blk.NumJ() *
-                                             (blk.NumK() + 1));
+  velocityK_ = multiArray3d<tensor<double> >(blk.NumI(), blk.NumJ(),
+                                             blk.NumK() + 1);
 
-  temperatureI_ = multiArray3d<tensor3d<double> >((blk.NumI() + 1) *
-                                                  blk.NumJ() * blk.NumK());
-  temperatureJ_ = multiArray3d<tensor3d<double> >(blk.NumI() * (blk.NumJ() + 1)
-                                                  * blk.NumK());
-  temperatureK_ = multiArray3d<tensor3d<double> >(blk.NumI() * blk.NumJ() *
-                                                  (blk.NumK() + 1));
+  temperatureI_ = multiArray3d<vector3d<double> >(blk.NumI() + 1,
+                                                  blk.NumJ(), blk.NumK());
+  temperatureJ_ = multiArray3d<vector3d<double> >(blk.NumI(), blk.NumJ() + 1,
+                                                  blk.NumK());
+  temperatureK_ = multiArray3d<vector3d<double> >(blk.NumI(), blk.NumJ(),
+                                                  blk.NumK() + 1);
 
   // if flow is not turbulent, don't need tke and omega gradients so they can be
   // set to a minimum size
   if (turbFlag) {
-    tkeI_ = multiArray3d<tensor3d<double> >((blk.NumI() + 1) * blk.NumJ()
-                                            * blk.NumK());
-    tkeJ_ = multiArray3d<tensor3d<double> >(blk.NumI() * (blk.NumJ() + 1)
-                                            * blk.NumK());
-    tkeK_ = multiArray3d<tensor3d<double> >(blk.NumI() * blk.NumJ() *
-                                            (blk.NumK() + 1));
+    tkeI_ = multiArray3d<vector3d<double> >(blk.NumI() + 1, blk.NumJ(),
+                                            blk.NumK());
+    tkeJ_ = multiArray3d<vector3d<double> >(blk.NumI(), blk.NumJ() + 1,
+                                            blk.NumK());
+    tkeK_ = multiArray3d<vector3d<double> >(blk.NumI(), blk.NumJ(),
+                                            blk.NumK() + 1);
 
-    omegaI_ = multiArray3d<tensor3d<double> >((blk.NumI() + 1) * blk.NumJ() *
+    omegaI_ = multiArray3d<vector3d<double> >(blk.NumI() + 1, blk.NumJ(),
                                               blk.NumK());
-    omegaJ_ = multiArray3d<tensor3d<double> >(blk.NumI() * (blk.NumJ() + 1) *
+    omegaJ_ = multiArray3d<vector3d<double> >(blk.NumI(), blk.NumJ() + 1,
                                               blk.NumK());
-    omegaK_ = multiArray3d<tensor3d<double> >(blk.NumI() * blk.NumJ() *
-                                              (blk.NumK() + 1));
+    omegaK_ = multiArray3d<vector3d<double> >(blk.NumI(), blk.NumJ(),
+                                              blk.NumK() + 1);
   } else {
-    tkeI_ = multiArray3d<tensor3d<double> >(1, 1, 1);
-    tkeJ_ = multiArray3d<tensor3d<double> >(1, 1, 1);
-    tkeK_ = multiArray3d<tensor3d<double> >(1, 1, 1);
+    tkeI_ = multiArray3d<vector3d<double> >(1, 1, 1);
+    tkeJ_ = multiArray3d<vector3d<double> >(1, 1, 1);
+    tkeK_ = multiArray3d<vector3d<double> >(1, 1, 1);
 
-    omegaI_ = multiArray3d<tensor3d<double> >(1, 1, 1);
-    omegaJ_ = multiArray3d<tensor3d<double> >(1, 1, 1);
-    omegaK_ = multiArray3d<tensor3d<double> >(1, 1, 1);
+    omegaI_ = multiArray3d<vector3d<double> >(1, 1, 1);
+    omegaJ_ = multiArray3d<vector3d<double> >(1, 1, 1);
+    omegaK_ = multiArray3d<vector3d<double> >(1, 1, 1);
   }
 
   // loop over i-faces and calculate gradients
