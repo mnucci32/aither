@@ -54,13 +54,13 @@ procBlock::procBlock() {
   // size vectors holding cell center and cell face values appropriately
   state_ = multiArray3d<primVars>(1, 1, 1);
 
-  center_ = multiArray3d<vector3d<double> >(1, 1, 1);
-  fAreaI_ = multiArray3d<unitVec3dMag<double> >(1, 1, 1);
-  fAreaJ_ = multiArray3d<unitVec3dMag<double> >(1, 1, 1);
-  fAreaK_ = multiArray3d<unitVec3dMag<double> >(1, 1, 1);
-  fCenterI_ = multiArray3d<vector3d<double> >(1, 1, 1);
-  fCenterJ_ = multiArray3d<vector3d<double> >(1, 1, 1);
-  fCenterK_ = multiArray3d<vector3d<double> >(1, 1, 1);
+  center_ = multiArray3d<vector3d<double>>(1, 1, 1);
+  fAreaI_ = multiArray3d<unitVec3dMag<double>>(1, 1, 1);
+  fAreaJ_ = multiArray3d<unitVec3dMag<double>>(1, 1, 1);
+  fAreaK_ = multiArray3d<unitVec3dMag<double>>(1, 1, 1);
+  fCenterI_ = multiArray3d<vector3d<double>>(1, 1, 1);
+  fCenterJ_ = multiArray3d<vector3d<double>>(1, 1, 1);
+  fCenterK_ = multiArray3d<vector3d<double>>(1, 1, 1);
 
   residual_ = multiArray3d<genArray>(1, 1, 1);
 
@@ -137,21 +137,21 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
 
   // pad stored variable vectors with ghost cells
   state_ = multiArray3d<primVars>(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG);
-  center_ = multiArray3d<vector3d<double> >(ni + 2 * numG, nj + 2 * numG,
+  center_ = multiArray3d<vector3d<double>>(ni + 2 * numG, nj + 2 * numG,
                                             nk + 2 * numG);
-  fAreaI_ = multiArray3d<unitVec3dMag<double> >(ni + 2 * numG + 1,
+  fAreaI_ = multiArray3d<unitVec3dMag<double>>(ni + 2 * numG + 1,
                                                 nj + 2 * numG, nk + 2 * numG);
-  fAreaJ_ = multiArray3d<unitVec3dMag<double> >(ni + 2 * numG,
+  fAreaJ_ = multiArray3d<unitVec3dMag<double>>(ni + 2 * numG,
                                                 nj + 2 * numG + 1,
                                                 nk + 2 * numG);
-  fAreaK_ = multiArray3d<unitVec3dMag<double> >(ni + 2 * numG,
+  fAreaK_ = multiArray3d<unitVec3dMag<double>>(ni + 2 * numG,
                                                 nj + 2 * numG,
                                                 nk + 2 * numG + 1);
-  fCenterI_ = multiArray3d<vector3d<double> >(ni + 2 * numG + 1, nj + 2 * numG,
+  fCenterI_ = multiArray3d<vector3d<double>>(ni + 2 * numG + 1, nj + 2 * numG,
                                               nk + 2 * numG);
-  fCenterJ_ = multiArray3d<vector3d<double> >(ni + 2 * numG, nj + 2 * numG + 1,
+  fCenterJ_ = multiArray3d<vector3d<double>>(ni + 2 * numG, nj + 2 * numG + 1,
                                               nk + 2 * numG);
-  fCenterK_ = multiArray3d<vector3d<double> >(ni + 2 * numG, nj + 2 * numG,
+  fCenterK_ = multiArray3d<vector3d<double>>(ni + 2 * numG, nj + 2 * numG,
                                               nk + 2 * numG + 1);
   residual_ = multiArray3d<genArray>(ni, nj, nk);
   vol_ = multiArray3d<double>(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG);
@@ -1016,7 +1016,7 @@ variabes (FD(Unj)) which is known due to sweeping along hyperplanes.
 For viscous simulations, the viscous contribution to the spectral radius K is
 used, and everything else remains the same.
  */
-double procBlock::LUSGS(const vector<vector3d<int> > &reorder,
+double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                         multiArray3d<genArray> &x,
                         const multiArray3d<genArray> &solTimeMmN,
                         const multiArray3d<genArray> &solDeltaNm1,
@@ -1463,8 +1463,9 @@ multiArray3d<T> PadWithGhosts(const multiArray3d<T> &var,
   multiArray3d<T> padBlk(var.NumI() + 2 * numGhosts, var.NumJ() + 2 * numGhosts,
                          var.NumK() + 2 * numGhosts);
 
-  padBlk.Insert(numGhosts, var.NumI() + numGhosts - 1, numGhosts, var.NumJ() +
-                numGhosts - 1, numGhosts, var.NumK() + numGhosts - 1, var);
+  padBlk.Insert(numGhosts, padBlk.NumI() - numGhosts - 1,
+                numGhosts, padBlk.NumJ() - numGhosts - 1,
+                numGhosts, padBlk.NumK() - numGhosts - 1, var);
   return padBlk;
 }
 
@@ -2277,11 +2278,11 @@ void procBlock::AssignGhostCellsGeom() {
 
       // centroid is moved interior cell width in the boundary normal
       // direction
-      multiArray3d<vector3d<double> > dist2Move =
+      multiArray3d<vector3d<double>> dist2Move =
           fCenterI_.Slice(bnd, bnd, jmin, jmax, kmin, kmax)
           - fCenterI_.Slice(fi1, fi1, jmin, jmax, kmin, kmax);
-      multiArray3d<vector3d<double> > dist2MoveJ = dist2Move;
-      multiArray3d<vector3d<double> > dist2MoveK = dist2Move;
+      multiArray3d<vector3d<double>> dist2MoveJ = dist2Move;
+      multiArray3d<vector3d<double>> dist2MoveK = dist2Move;
       dist2MoveJ.GrowJ();
       dist2MoveK.GrowK();
 
@@ -2392,11 +2393,11 @@ void procBlock::AssignGhostCellsGeom() {
 
       // centroid is moved interior cell width in the boundary normal
       // direction
-      multiArray3d<vector3d<double> > dist2Move =
+      multiArray3d<vector3d<double>> dist2Move =
           fCenterJ_.Slice(imin, imax, bnd, bnd, kmin, kmax)
           - fCenterJ_.Slice(imin, imax, fi1, fi1, kmin, kmax);
-      multiArray3d<vector3d<double> > dist2MoveI = dist2Move;
-      multiArray3d<vector3d<double> > dist2MoveK = dist2Move;
+      multiArray3d<vector3d<double>> dist2MoveI = dist2Move;
+      multiArray3d<vector3d<double>> dist2MoveK = dist2Move;
       dist2MoveI.GrowI();
       dist2MoveK.GrowK();
 
@@ -2507,11 +2508,11 @@ void procBlock::AssignGhostCellsGeom() {
 
       // centroid is moved interior cell width in the boundary normal
       // direction
-      multiArray3d<vector3d<double> > dist2Move =
+      multiArray3d<vector3d<double>> dist2Move =
           fCenterK_.Slice(imin, imax, jmin, jmax, bnd, bnd)
-          - fCenterK_.Slice(imin, imax, jmax, jmax, fi1, fi1);
-      multiArray3d<vector3d<double> > dist2MoveI = dist2Move;
-      multiArray3d<vector3d<double> > dist2MoveJ = dist2Move;
+          - fCenterK_.Slice(imin, imax, jmin, jmax, fi1, fi1);
+      multiArray3d<vector3d<double>> dist2MoveI = dist2Move;
+      multiArray3d<vector3d<double>> dist2MoveJ = dist2Move;
       dist2MoveI.GrowI();
       dist2MoveJ.GrowJ();
 
@@ -2614,13 +2615,13 @@ void procBlock::AssignGhostCellsGeomEdge() {
 
     // cell indices
     int imin = numGhosts_;
-    int imax = this->NumI() + numGhosts_;
+    int imax = this->NumI() + numGhosts_ - 1;
 
-    int jp = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_;
+    int jp = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_ - 1;
     int jg1 = (cc <= 1) ? jp - 1 : jp + 1;
     int jg2 = (cc <= 1) ? jp - 2 : jp + 2;
 
-    int kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
+    int kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ - 1;
     int kg1 = (cc % 2 == 0) ? kp - 1 : kp + 1;
     int kg2 = (cc % 2 == 0) ? kp - 2 : kp + 2;
 
@@ -2628,14 +2629,14 @@ void procBlock::AssignGhostCellsGeomEdge() {
     // these only change from cell indices for upper edges
     // these should only be used for accessing faces in their corresponding
     // direction - i.e. jpF should only be used to access fAreaJ, or fCenterJ
-    int imaxF = this->NumI() + numGhosts_ + 1;
+    int imaxF = this->NumI() + numGhosts_;
 
-    int jpF = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_ + 1;
+    int jpF = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_;
     int jiF = (cc <= 1) ? jp + 1 : jp - 1;
     int jg1F = (cc <= 1) ? jp - 1 : jp + 1;
     int jg2F = (cc <= 1) ? jp - 2 : jp + 2;
 
-    int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ + 1;
+    int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
     int kg1F = (cc % 2 == 0) ? kp - 1 : kp + 1;
     int kg2F = (cc % 2 == 0) ? kp - 2 : kp + 2;
 
@@ -2687,7 +2688,7 @@ void procBlock::AssignGhostCellsGeomEdge() {
                     fAreaK_.Slice(imin, imax, jg2, jg2, kg1F, kg1F)));
 
     // Assign centroids
-    multiArray3d<vector3d<double> > dist2MoveJ =
+    multiArray3d<vector3d<double>> dist2MoveJ =
         fCenterJ_.Slice(imin, imax, jpF, jpF, kp, kp) -
         fCenterJ_.Slice(imin, imax, jiF, jiF, kp, kp);
 
@@ -2701,7 +2702,7 @@ void procBlock::AssignGhostCellsGeomEdge() {
                    center_.Slice(imin, imax, jg1, jg1, kg2, kg2));
 
     // Assign face centers
-    multiArray3d<vector3d<double> > dist2MoveJf =
+    multiArray3d<vector3d<double>> dist2MoveJf =
         fCenterJ_.Slice(imin, imaxF, jpF, jpF, kp, kp) -
         fCenterJ_.Slice(imin, imaxF, jiF, jiF, kp, kp);
 
@@ -2744,13 +2745,13 @@ void procBlock::AssignGhostCellsGeomEdge() {
 
     // cell indices
     int jmin = numGhosts_;
-    int jmax = this->NumJ() + numGhosts_;
+    int jmax = this->NumJ() + numGhosts_ - 1;
 
-    int ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
+    int ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ - 1;
     int ig1 = (cc <= 1) ? ip - 1 : ip + 1;
     int ig2 = (cc <= 1) ? ip - 2 : ip + 2;
 
-    int kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
+    int kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ - 1;
     int kg1 = (cc % 2 == 0) ? kp - 1 : kp + 1;
     int kg2 = (cc % 2 == 0) ? kp - 2 : kp + 2;
 
@@ -2758,14 +2759,14 @@ void procBlock::AssignGhostCellsGeomEdge() {
     // these only change from cell indices for upper edges
     // these should only be used for accessing faces in their corresponding
     // direction - i.e. ipF should only be used to access fAreaI, or fCenterI
-    int jmaxF = this->NumJ() + numGhosts_ + 1;
+    int jmaxF = this->NumJ() + numGhosts_;
 
-    int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ + 1;
+    int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
     int iiF = (cc <= 1) ? ip + 1 : ip - 1;
     int ig1F = (cc <= 1) ? ip - 1 : ip + 1;
     int ig2F = (cc <= 1) ? ip - 2 : ip + 2;
 
-    int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ + 1;
+    int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
     int kg1F = (cc % 2 == 0) ? kp - 1 : kp + 1;
     int kg2F = (cc % 2 == 0) ? kp - 2 : kp + 2;
 
@@ -2817,7 +2818,7 @@ void procBlock::AssignGhostCellsGeomEdge() {
                     fAreaK_.Slice(ig2, ig2, jmin, jmax, kg1F, kg1F)));
 
     // Assign centroids
-    multiArray3d<vector3d<double> > dist2MoveI =
+    multiArray3d<vector3d<double>> dist2MoveI =
         fCenterI_.Slice(ipF, ipF, jmin, jmax, kp, kp) -
         fCenterI_.Slice(iiF, iiF, jmin, jmax, kp, kp);
 
@@ -2831,7 +2832,7 @@ void procBlock::AssignGhostCellsGeomEdge() {
                    center_.Slice(ig1, ig1, jmin, jmax, kg2, kg2));
 
     // Assign face centers
-    multiArray3d<vector3d<double> > dist2MoveIf =
+    multiArray3d<vector3d<double>> dist2MoveIf =
         fCenterI_.Slice(ipF, ipF, jmin, jmaxF, kp, kp) -
         fCenterI_.Slice(iiF, iiF, jmin, jmaxF, kp, kp);
 
@@ -2874,13 +2875,13 @@ void procBlock::AssignGhostCellsGeomEdge() {
 
     // cell indices
     int kmin = numGhosts_;
-    int kmax = this->NumK() + numGhosts_;
+    int kmax = this->NumK() + numGhosts_ - 1;
 
-    int ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
+    int ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ - 1;
     int ig1 = (cc <= 1) ? ip - 1 : ip + 1;
     int ig2 = (cc <= 1) ? ip - 2 : ip + 2;
 
-    int jp = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_;
+    int jp = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_ - 1;
     int jg1 = (cc % 2 == 0) ? jp - 1 : jp + 1;
     int jg2 = (cc % 2 == 0) ? jp - 2 : jp + 2;
 
@@ -2888,14 +2889,14 @@ void procBlock::AssignGhostCellsGeomEdge() {
     // these only change from cell indices for upper edges
     // these should only be used for accessing faces in their corresponding
     // direction - i.e. ipF should only be used to access fAreaI, or fCenterI
-    int kmaxF = this->NumK() + numGhosts_ + 1;
+    int kmaxF = this->NumK() + numGhosts_;
 
-    int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ + 1;
+    int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
     int iiF = (cc <= 1) ? ip + 1 : ip - 1;
     int ig1F = (cc <= 1) ? ip - 1 : ip + 1;
     int ig2F = (cc <= 1) ? ip - 2 : ip + 2;
 
-    int jpF = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_ + 1;
+    int jpF = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_;
     int jg1F = (cc % 2 == 0) ? jp - 1 : jp + 1;
     int jg2F = (cc % 2 == 0) ? jp - 2 : jp + 2;
 
@@ -2947,7 +2948,7 @@ void procBlock::AssignGhostCellsGeomEdge() {
                     fAreaK_.Slice(ig2, ig2, jg1, jg1, kmin, kmaxF)));
 
     // Assign centroids
-    multiArray3d<vector3d<double> > dist2MoveI =
+    multiArray3d<vector3d<double>> dist2MoveI =
         fCenterI_.Slice(ipF, ipF, jp, jp, kmin, kmax) -
         fCenterI_.Slice(iiF, iiF, jp, jp, kmin, kmax);
 
@@ -2961,7 +2962,7 @@ void procBlock::AssignGhostCellsGeomEdge() {
                    center_.Slice(ig1, ig1, jg2, jg2, kmin, kmax));
 
     // Assign face centers
-    multiArray3d<vector3d<double> > dist2MoveIf =
+    multiArray3d<vector3d<double>> dist2MoveIf =
         fCenterI_.Slice(ipF, ipF, jp, jp, kmin, kmaxF) -
         fCenterI_.Slice(iiF, iiF, jp, jp, kmin, kmaxF);
 
@@ -3077,7 +3078,7 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
       string bcName = (bc_.GetBCTypes(ii) == "viscousWall") ? "slipWall" :
           bc_.GetBCTypes(ii);
       // assign state for first layer of ghost cells
-      multiArray3d<unitVec3dMag<double> > faceAreas =
+      multiArray3d<unitVec3dMag<double>> faceAreas =
           fAreaI_.Slice(bnd, bnd, jmin, jmax, kmin, kmax);
       multiArray3d<primVars> boundaryStates =
           state_.Slice(i1, i1, jmin, jmax, kmin, kmax);
@@ -3113,7 +3114,7 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
       string bcName = (bc_.GetBCTypes(ii) == "viscousWall") ? "slipWall" :
           bc_.GetBCTypes(ii);
       // assign state for first layer of ghost cells
-      multiArray3d<unitVec3dMag<double> > faceAreas =
+      multiArray3d<unitVec3dMag<double>> faceAreas =
           fAreaI_.Slice(imin, imax, bnd, bnd, kmin, kmax);
       multiArray3d<primVars> boundaryStates =
           state_.Slice(imin, imax, i1, i1, kmin, kmax);
@@ -3150,7 +3151,7 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
       string bcName = (bc_.GetBCTypes(ii) == "viscousWall") ? "slipWall" :
           bc_.GetBCTypes(ii);
       // assign state for first layer of ghost cells
-      multiArray3d<unitVec3dMag<double> > faceAreas =
+      multiArray3d<unitVec3dMag<double>> faceAreas =
           fAreaI_.Slice(imin, imax, jmin, jmax, bnd, bnd);
       multiArray3d<primVars> boundaryStates =
           state_.Slice(imin, imax, jmin, jmax, i1, i1);
@@ -3233,14 +3234,14 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
 
     // cell indices
     int imin = numGhosts_;
-    int imax = this->NumI() + numGhosts_;
+    int imax = this->NumI() + numGhosts_ - 1;
 
-    int jp = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_;
+    int jp = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_ - 1;
     int ji1 = (cc <= 1) ? jp + 1 : jp - 1;
     int jg1 = (cc <= 1) ? jp - 1 : jp + 1;
     int jg2 = (cc <= 1) ? jp - 2 : jp + 2;
 
-    int kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
+    int kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ - 1;
     int ki1 = (cc % 2 == 0) ? kp + 1 : kp - 1;
     int kg1 = (cc % 2 == 0) ? kp - 1 : kp + 1;
     int kg2 = (cc % 2 == 0) ? kp - 2 : kp + 2;
@@ -3253,8 +3254,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
     // these only change from cell indices for upper edges
     // these should only be used for accessing faces in their corresponding
     // direction - i.e. jpF should only be used to access fAreaJ, or fCenterJ
-    int jpF = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_ + 1;
-    int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ + 1;
+    int jpF = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_;
+    int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
 
     for (int ii = imin; ii < imax; ii++) {
       // boundary conditions at corner
@@ -3307,14 +3308,14 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
 
     // cell indices
     int jmin = numGhosts_;
-    int jmax = this->NumJ() + numGhosts_;
+    int jmax = this->NumJ() + numGhosts_ - 1;
 
-    int ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
+    int ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ - 1;
     int ii1 = (cc <= 1) ? ip + 1 : ip - 1;
     int ig1 = (cc <= 1) ? ip - 1 : ip + 1;
     int ig2 = (cc <= 1) ? ip - 2 : ip + 2;
 
-    int kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
+    int kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ - 1;
     int ki1 = (cc % 2 == 0) ? kp + 1 : kp - 1;
     int kg1 = (cc % 2 == 0) ? kp - 1 : kp + 1;
     int kg2 = (cc % 2 == 0) ? kp - 2 : kp + 2;
@@ -3327,8 +3328,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
     // these only change from cell indices for upper edges
     // these should only be used for accessing faces in their corresponding
     // direction - i.e. ipF should only be used to access fAreaI, or fCenterI
-    int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ + 1;
-    int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ + 1;
+    int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
+    int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
 
     // Assign states
     for (int jj = jmin; jj < jmax; jj++) {
@@ -3382,14 +3383,14 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
 
     // cell indices
     int kmin = numGhosts_;
-    int kmax = this->NumK() + numGhosts_;
+    int kmax = this->NumK() + numGhosts_ - 1;
 
-    int ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
+    int ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ - 1;
     int ii1 = (cc <= 1) ? ip + 1 : ip - 1;
     int ig1 = (cc <= 1) ? ip - 1 : ip + 1;
     int ig2 = (cc <= 1) ? ip - 2 : ip + 2;
 
-    int jp = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_;
+    int jp = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_ - 1;
     int ji1 = (cc % 2 == 0) ? jp + 1 : jp - 1;
     int jg1 = (cc % 2 == 0) ? jp - 1 : jp + 1;
     int jg2 = (cc % 2 == 0) ? jp - 2 : jp + 2;
@@ -3402,8 +3403,8 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
     // these only change from cell indices for upper edges
     // these should only be used for accessing faces in their corresponding
     // direction - i.e. ipF should only be used to access fAreaI, or fCenterI
-    int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ + 1;
-    int jpF = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_ + 1;
+    int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
+    int jpF = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_;
 
     // Assign states
     for (int kk = kmin; kk < kmax; kk++) {
@@ -3510,7 +3511,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
       string surf = (bc_.GetSurfaceType(ii) == 1) ? "il" : "iu";
       string bcName = "viscousWall";
       // assign state for first layer of ghost cells
-      multiArray3d<unitVec3dMag<double> > faceAreas =
+      multiArray3d<unitVec3dMag<double>> faceAreas =
           fAreaI_.Slice(bnd, bnd, jmin, jmax, kmin, kmax);
       multiArray3d<primVars> boundaryStates =
           state_.Slice(i1, i1, jmin, jmax, kmin, kmax);
@@ -3541,7 +3542,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
       string surf = (bc_.GetSurfaceType(ii) == 3) ? "jl" : "ju";
       string bcName = "viscousWall";
       // assign state for first layer of ghost cells
-      multiArray3d<unitVec3dMag<double> > faceAreas =
+      multiArray3d<unitVec3dMag<double>> faceAreas =
           fAreaI_.Slice(imin, imax, bnd, bnd, kmin, kmax);
       multiArray3d<primVars> boundaryStates =
           state_.Slice(imin, imax, i1, i1, kmin, kmax);
@@ -3573,7 +3574,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
       string surf = (bc_.GetSurfaceType(ii) == 3) ? "kl" : "ku";
       string bcName = "viscousWall";
       // assign state for first layer of ghost cells
-      multiArray3d<unitVec3dMag<double> > faceAreas =
+      multiArray3d<unitVec3dMag<double>> faceAreas =
           fAreaI_.Slice(imin, imax, jmin, jmax, bnd, bnd);
       multiArray3d<primVars> boundaryStates =
           state_.Slice(imin, imax, jmin, jmax, i1, i1);
@@ -3654,14 +3655,14 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
 
     // cell indices
     int imin = numGhosts_;
-    int imax = this->NumI() + numGhosts_;
+    int imax = this->NumI() + numGhosts_ - 1;
 
-    int jp = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_;
+    int jp = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_ - 1;
     int ji1 = (cc <= 1) ? jp + 1 : jp - 1;
     int jg1 = (cc <= 1) ? jp - 1 : jp + 1;
     int jg2 = (cc <= 1) ? jp - 2 : jp + 2;
 
-    int kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
+    int kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ - 1;
     int ki1 = (cc % 2 == 0) ? kp + 1 : kp - 1;
     int kg1 = (cc % 2 == 0) ? kp - 1 : kp + 1;
     int kg2 = (cc % 2 == 0) ? kp - 2 : kp + 2;
@@ -3674,8 +3675,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
     // these only change from cell indices for upper edges
     // these should only be used for accessing faces in their corresponding
     // direction - i.e. jpF should only be used to access fAreaJ, or fCenterJ
-    int jpF = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_ + 1;
-    int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ + 1;
+    int jpF = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_;
+    int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
 
     for (int ii = imin; ii < imax; ii++) {
       // boundary conditions at corner
@@ -3728,14 +3729,14 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
 
     // cell indices
     int jmin = numGhosts_;
-    int jmax = this->NumJ() + numGhosts_;
+    int jmax = this->NumJ() + numGhosts_ - 1;
 
-    int ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
+    int ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ - 1;
     int ii1 = (cc <= 1) ? ip + 1 : ip - 1;
     int ig1 = (cc <= 1) ? ip - 1 : ip + 1;
     int ig2 = (cc <= 1) ? ip - 2 : ip + 2;
 
-    int kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
+    int kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ - 1;
     int ki1 = (cc % 2 == 0) ? kp + 1 : kp - 1;
     int kg1 = (cc % 2 == 0) ? kp - 1 : kp + 1;
     int kg2 = (cc % 2 == 0) ? kp - 2 : kp + 2;
@@ -3748,8 +3749,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
     // these only change from cell indices for upper edges
     // these should only be used for accessing faces in their corresponding
     // direction - i.e. ipF should only be used to access fAreaI, or fCenterI
-    int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ + 1;
-    int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ + 1;
+    int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
+    int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
 
     // Assign states
     for (int jj = jmin; jj < jmax; jj++) {
@@ -3803,14 +3804,14 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
 
     // cell indices
     int kmin = numGhosts_;
-    int kmax = this->NumK() + numGhosts_;
+    int kmax = this->NumK() + numGhosts_ - 1;
 
-    int ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
+    int ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ - 1;
     int ii1 = (cc <= 1) ? ip + 1 : ip - 1;
     int ig1 = (cc <= 1) ? ip - 1 : ip + 1;
     int ig2 = (cc <= 1) ? ip - 2 : ip + 2;
 
-    int jp = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_;
+    int jp = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_ - 1;
     int ji1 = (cc % 2 == 0) ? jp + 1 : jp - 1;
     int jg1 = (cc % 2 == 0) ? jp - 1 : jp + 1;
     int jg2 = (cc % 2 == 0) ? jp - 2 : jp + 2;
@@ -3823,8 +3824,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
     // these only change from cell indices for upper edges
     // these should only be used for accessing faces in their corresponding
     // direction - i.e. ipF should only be used to access fAreaI, or fCenterI
-    int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ + 1;
-    int jpF = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_ + 1;
+    int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
+    int jpF = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_;
 
     // Assign states
     for (int kk = kmin; kk < kmax; kk++) {
