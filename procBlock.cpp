@@ -168,13 +168,13 @@ void procBlock::AddToResidual(const inviscidFlux &flux, const int &ii,
   // jj -- j-location of residual to add to
   // kk -- k-location of residual to add to
 
-  (*this).residual_(ii, jj, kk)[0] += flux.RhoVel();
-  (*this).residual_(ii, jj, kk)[1] += flux.RhoVelU();
-  (*this).residual_(ii, jj, kk)[2] += flux.RhoVelV();
-  (*this).residual_(ii, jj, kk)[3] += flux.RhoVelW();
-  (*this).residual_(ii, jj, kk)[4] += flux.RhoVelH();
-  (*this).residual_(ii, jj, kk)[5] += flux.RhoVelK();
-  (*this).residual_(ii, jj, kk)[6] += flux.RhoVelO();
+  residual_(ii, jj, kk)[0] += flux.RhoVel();
+  residual_(ii, jj, kk)[1] += flux.RhoVelU();
+  residual_(ii, jj, kk)[2] += flux.RhoVelV();
+  residual_(ii, jj, kk)[3] += flux.RhoVelW();
+  residual_(ii, jj, kk)[4] += flux.RhoVelH();
+  residual_(ii, jj, kk)[5] += flux.RhoVelK();
+  residual_(ii, jj, kk)[6] += flux.RhoVelO();
 }
 
 // member function to add a member of the viscous flux class to the residual_
@@ -185,12 +185,12 @@ void procBlock::AddToResidual(const viscousFlux &flux, const int &ii,
   // jj -- j-location of residual to add to
   // kk -- k-location of residual to add to
 
-  (*this).residual_(ii, jj, kk)[1] += flux.MomX();
-  (*this).residual_(ii, jj, kk)[2] += flux.MomY();
-  (*this).residual_(ii, jj, kk)[3] += flux.MomZ();
-  (*this).residual_(ii, jj, kk)[4] += flux.Engy();
-  (*this).residual_(ii, jj, kk)[5] += flux.MomK();
-  (*this).residual_(ii, jj, kk)[6] += flux.MomO();
+  residual_(ii, jj, kk)[1] += flux.MomX();
+  residual_(ii, jj, kk)[2] += flux.MomY();
+  residual_(ii, jj, kk)[3] += flux.MomZ();
+  residual_(ii, jj, kk)[4] += flux.Engy();
+  residual_(ii, jj, kk)[5] += flux.MomK();
+  residual_(ii, jj, kk)[6] += flux.MomO();
 }
 
 // member function to add a member of the inviscid source class to the residual
@@ -201,13 +201,13 @@ void procBlock::AddToResidual(const source &src, const int &ii,
   // jj -- j-location of residual to add to
   // kk -- k-location of residual to add to
 
-  (*this).residual_(ii, jj, kk)[0] += src.SrcMass();
-  (*this).residual_(ii, jj, kk)[1] += src.SrcMomX();
-  (*this).residual_(ii, jj, kk)[2] += src.SrcMomY();
-  (*this).residual_(ii, jj, kk)[3] += src.SrcMomZ();
-  (*this).residual_(ii, jj, kk)[4] += src.SrcEngy();
-  (*this).residual_(ii, jj, kk)[5] += src.SrcTke();
-  (*this).residual_(ii, jj, kk)[6] += src.SrcOmg();
+  residual_(ii, jj, kk)[0] += src.SrcMass();
+  residual_(ii, jj, kk)[1] += src.SrcMomX();
+  residual_(ii, jj, kk)[2] += src.SrcMomY();
+  residual_(ii, jj, kk)[3] += src.SrcMomZ();
+  residual_(ii, jj, kk)[4] += src.SrcEngy();
+  residual_(ii, jj, kk)[5] += src.SrcTke();
+  residual_(ii, jj, kk)[6] += src.SrcOmg();
 }
 
 //---------------------------------------------------------------------
@@ -254,7 +254,7 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp) {
       for (struct {int p; int g;} ii = {0, numGhosts_}; ii.g <
                fAreaI_.NumI() - numGhosts_; ii.g++, ii.p++) {
         primVars faceStateLower, faceStateUpper;
-        
+
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
           faceStateLower = state_(ii.g - 1, jj.g, kk.g).FaceReconConst();
@@ -299,7 +299,7 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp) {
                               ii.p - 1, jj.p, kk.p);
         }
         // at right boundary there is no right cell to add to
-        if (ii.g < fAreaI_.NumI() - 2 * numGhosts_ - 1) {
+        if (ii.g < fAreaI_.NumI() - numGhosts_ - 1) {
           this->AddToResidual(-1.0 * tempFlux *
                               this->FAreaMagI(ii.g, jj.g, kk.g),
                               ii.p, jj.p, kk.p);
@@ -401,7 +401,7 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp) {
                               ii.p, jj.p - 1, kk.p);
         }
         // at right boundary no right cell to add to
-        if (jj.g < fAreaJ_.NumJ() - 2 * numGhosts_ - 1) {
+        if (jj.g < fAreaJ_.NumJ() - numGhosts_ - 1) {
           this->AddToResidual(-1.0 * tempFlux *
                               this->FAreaMagJ(ii.g, jj.g, kk.g),
                               ii.p, jj.p, kk.p);
@@ -505,7 +505,7 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp) {
                               ii.p, jj.p, kk.p - 1);
         }
         // at right boundary no right cell to add to
-        if (kk.g < fAreaK_.NumK() - 2 * numGhosts_ - 1) {
+        if (kk.g < fAreaK_.NumK() - numGhosts_ - 1) {
           this->AddToResidual(-1.0 * tempFlux *
                               this->FAreaMagK(ii.g, jj.g, kk.g),
                               ii.p, jj.p, kk.p);
@@ -566,7 +566,7 @@ void procBlock::CalcBlockTimeStep(const input &inputVars, const double &aRef) {
 
         // cfl specified, use local time stepping
         } else if (inputVars.CFL() > 0.0) {
-          (*this).CalcCellDt(ii, jj, kk, inputVars.CFL());
+          this->CalcCellDt(ii, jj, kk, inputVars.CFL());
         } else {
           cerr << "ERROR: Neither dt or cfl was specified!" << endl;
           exit(0);
@@ -1767,7 +1767,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                                 ii.p - 1, jj.p, kk.p);
         }
         // at right boundary ther eis to right cell to add to
-        if (ii.g < fAreaI_.NumI() - 2 *numGhosts_ - 1) {
+        if (ii.g < fAreaI_.NumI() - numGhosts_ - 1) {
           this->AddToResidual(tempViscFlux *
                                 this->FAreaMagI(ii.g, jj.g, kk.g),
                                 ii.p, jj.p, kk.p);
@@ -1942,7 +1942,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                                 ii.p, jj.p - 1, kk.p);
         }
         // at right boundary there is no right cell to add to
-        if (jj.g < fAreaJ_.NumJ() - 2 * numGhosts_ - 1) {
+        if (jj.g < fAreaJ_.NumJ() - numGhosts_ - 1) {
           this->AddToResidual(tempViscFlux *
                                 this->FAreaMagJ(ii.g, jj.g, kk.g),
                                 ii.p, jj.p, kk.p);
@@ -2114,7 +2114,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                                 ii.p, jj.p, kk.p - 1);
         }
         // at right boundary there is no right cell to add to
-        if (kk.g < fAreaK_.NumK() - 2 * numGhosts_ - 1) {
+        if (kk.g < fAreaK_.NumK() - numGhosts_ - 1) {
           this->AddToResidual(tempViscFlux *
                                 this->FAreaMagK(ii.g, jj.g, kk.g),
                                 ii.p, jj.p, kk.p);
@@ -2169,9 +2169,9 @@ void procBlock::AssignGhostCellsGeom() {
     int kmin = bc_.GetKMin(ii) - 1 + numGhosts_;
     int kmax = bc_.GetKMax(ii) - 2 + numGhosts_;
 
-    int imaxF = bc_.GetIMax(ii) - 1 + numGhosts_;
-    int jmaxF = bc_.GetJMax(ii) - 1 + numGhosts_;
-    int kmaxF = bc_.GetKMax(ii) - 1 + numGhosts_;
+    int imaxF = imax + 1;
+    int jmaxF = jmax + 1;
+    int kmaxF = kmax + 1;
 
     int g1, g2, i1, i2;  // indices for cells
     int fg1, fg2, fi1, fi2, bnd;  // indices for faces
@@ -2246,11 +2246,11 @@ void procBlock::AssignGhostCellsGeom() {
       fAreaI_.Insert(fg1, fg1, jmin, jmax, kmin, kmax,
                      fAreaI_.Slice(fi1, fi1, jmin, jmax, kmin, kmax));
 
-      fAreaJ_.Insert(fg1, fg1, jmin, jmaxF, kmin, kmax,
-                     fAreaJ_.Slice(bnd, bnd, jmin, jmaxF, kmin, kmax));
+      fAreaJ_.Insert(g1, g1, jmin, jmaxF, kmin, kmax,
+                     fAreaJ_.Slice(i1, i1, jmin, jmaxF, kmin, kmax));
 
-      fAreaK_.Insert(fg1, fg1, jmin, jmax, kmin, kmaxF,
-                     fAreaK_.Slice(bnd, bnd, jmin, jmax, kmin, kmaxF));
+      fAreaK_.Insert(g1, g1, jmin, jmax, kmin, kmaxF,
+                     fAreaK_.Slice(i1, i1, jmin, jmax, kmin, kmaxF));
 
       // assign face areas for second layer
       // one cell thick - use one cell for both ghost cells
@@ -2258,20 +2258,20 @@ void procBlock::AssignGhostCellsGeom() {
         fAreaI_.Insert(fg2, fg2, jmin, jmax, kmin, kmax,
                        fAreaI_.Slice(fi1, fi1, jmin, jmax, kmin, kmax));
 
-        fAreaJ_.Insert(fg2, fg2, jmin, jmaxF, kmin, kmax,
-                       fAreaJ_.Slice(bnd, bnd, jmin, jmaxF, kmin, kmax));
+        fAreaJ_.Insert(g2, g2, jmin, jmaxF, kmin, kmax,
+                       fAreaJ_.Slice(i1, i1, jmin, jmaxF, kmin, kmax));
 
-        fAreaK_.Insert(fg2, fg2, jmin, jmax, kmin, kmaxF,
-                       fAreaK_.Slice(bnd, bnd, jmin, jmax, kmin, kmaxF));
+        fAreaK_.Insert(g2, g2, jmin, jmax, kmin, kmaxF,
+                       fAreaK_.Slice(i1, i1, jmin, jmax, kmin, kmaxF));
       } else {
         fAreaI_.Insert(fg2, fg2, jmin, jmax, kmin, kmax,
                        fAreaI_.Slice(fi2, fi2, jmin, jmax, kmin, kmax));
 
-        fAreaJ_.Insert(fg2, fg2, jmin, jmaxF, kmin, kmax,
-                       fAreaJ_.Slice(fi1, fi1, jmin, jmaxF, kmin, kmax));
+        fAreaJ_.Insert(g2, g2, jmin, jmaxF, kmin, kmax,
+                       fAreaJ_.Slice(i2, i2, jmin, jmaxF, kmin, kmax));
 
-        fAreaK_.Insert(fg2, fg2, jmin, jmax, kmin, kmaxF,
-                       fAreaK_.Slice(fi1, fi1, jmin, jmax, kmin, kmaxF));
+        fAreaK_.Insert(g2, g2, jmin, jmax, kmin, kmaxF,
+                       fAreaK_.Slice(i2, i2, jmin, jmax, kmin, kmaxF));
       }
 
       // Assign cell centroid, and face centers
@@ -2296,12 +2296,12 @@ void procBlock::AssignGhostCellsGeom() {
                        fCenterI_.Slice(bnd, bnd, jmin, jmax, kmin, kmax)
                        + dist2Move);
 
-      fCenterJ_.Insert(fg1, fg1, jmin, jmaxF, kmin, kmax,
-                       fCenterJ_.Slice(bnd, bnd, jmin, jmaxF, kmin, kmax)
+      fCenterJ_.Insert(g1, g1, jmin, jmaxF, kmin, kmax,
+                       fCenterJ_.Slice(i1, i1, jmin, jmaxF, kmin, kmax)
                        + dist2MoveJ);
 
-      fCenterK_.Insert(fg1, fg1, jmin, jmax, kmin, kmaxF,
-                       fCenterK_.Slice(bnd, bnd, jmin, jmax, kmin, kmaxF)
+      fCenterK_.Insert(g1, g1, jmin, jmax, kmin, kmaxF,
+                       fCenterK_.Slice(i1, i1, jmin, jmax, kmin, kmaxF)
                        + dist2MoveK);
 
       // second layer of ghost cells
@@ -2328,12 +2328,12 @@ void procBlock::AssignGhostCellsGeom() {
                        fCenterI_.Slice(bnd, bnd, jmin, jmax, kmin, kmax)
                        + dist2Move);
 
-      fCenterJ_.Insert(fg2, fg2, jmin, jmaxF, kmin, kmax,
-                       fCenterJ_.Slice(bnd, bnd, jmin, jmaxF, kmin, kmax)
+      fCenterJ_.Insert(g2, g2, jmin, jmaxF, kmin, kmax,
+                       fCenterJ_.Slice(i1, i1, jmin, jmaxF, kmin, kmax)
                        + dist2MoveJ);
 
-      fCenterK_.Insert(fg2, fg2, jmin, jmax, kmin, kmaxF,
-                       fCenterK_.Slice(bnd, bnd, jmin, jmax, kmin, kmaxF)
+      fCenterK_.Insert(g2, g2, jmin, jmax, kmin, kmaxF,
+                       fCenterK_.Slice(i1, i1, jmin, jmax, kmin, kmaxF)
                        + dist2MoveK);
 
     //-----------------------------------------------------------------------
@@ -2358,35 +2358,35 @@ void procBlock::AssignGhostCellsGeom() {
       }
 
       // assign face areas for first layer
-      fAreaI_.Insert(imin, imaxF, fg1, fg1, kmin, kmax,
-                     fAreaI_.Slice(imin, imaxF, bnd, bnd, kmin, kmax));
+      fAreaI_.Insert(imin, imaxF, g1, g1, kmin, kmax,
+                     fAreaI_.Slice(imin, imaxF, i1, i1, kmin, kmax));
 
       fAreaJ_.Insert(imin, imax, fg1, fg1, kmin, kmax,
                      fAreaJ_.Slice(imin, imax, fi1, fi1, kmin, kmax));
 
-      fAreaK_.Insert(imin, imax, fg1, fg1, kmin, kmaxF,
-                     fAreaK_.Slice(imin, imax, bnd, bnd, kmin, kmaxF));
+      fAreaK_.Insert(imin, imax, g1, g1, kmin, kmaxF,
+                     fAreaK_.Slice(imin, imax, i1, i1, kmin, kmaxF));
 
       // assign face areas for second layer
       // one cell thick - use one cell for both ghost cells
       if (this->NumJ() < 2) {
-        fAreaI_.Insert(imin, imaxF, fg2, fg2, kmin, kmax,
-                       fAreaI_.Slice(imin, imaxF, bnd, bnd, kmin, kmax));
+        fAreaI_.Insert(imin, imaxF, g2, g2, kmin, kmax,
+                       fAreaI_.Slice(imin, imaxF, i1, i1, kmin, kmax));
 
         fAreaJ_.Insert(imin, imax, fg2, fg2, kmin, kmax,
                        fAreaJ_.Slice(imin, imax, fi1, fi1, kmin, kmax));
 
-        fAreaK_.Insert(imin, imax, fg2, fg2, kmin, kmaxF,
-                       fAreaK_.Slice(imin, imax, bnd, bnd, kmin, kmaxF));
+        fAreaK_.Insert(imin, imax, g2, g2, kmin, kmaxF,
+                       fAreaK_.Slice(imin, imax, i1, i1, kmin, kmaxF));
       } else {
-        fAreaI_.Insert(imin, imaxF, fg2, fg2, kmin, kmax,
-                       fAreaI_.Slice(imin, imaxF, fi1, fi1, kmin, kmax));
+        fAreaI_.Insert(imin, imaxF, g2, g2, kmin, kmax,
+                       fAreaI_.Slice(imin, imaxF, i2, i2, kmin, kmax));
 
         fAreaJ_.Insert(imin, imax, fg2, fg2, kmin, kmax,
                        fAreaJ_.Slice(imin, imax, fi2, fi2, kmin, kmax));
 
-        fAreaK_.Insert(imin, imax, fg2, fg2, kmin, kmaxF,
-                       fAreaK_.Slice(imin, imax, fi1, fi1, kmin, kmaxF));
+        fAreaK_.Insert(imin, imax, g2, g2, kmin, kmaxF,
+                       fAreaK_.Slice(imin, imax, i2, i2, kmin, kmaxF));
       }
 
       // Assign cell centroid, and face centers
@@ -2407,16 +2407,16 @@ void procBlock::AssignGhostCellsGeom() {
                      + dist2Move);
 
       // Assign face centers
-      fCenterI_.Insert(imin, imaxF, fg1, fg1, kmin, kmax,
-                       fCenterI_.Slice(imin, imaxF, bnd, bnd, kmin, kmax)
+      fCenterI_.Insert(imin, imaxF, g1, g1, kmin, kmax,
+                       fCenterI_.Slice(imin, imaxF, i1, i1, kmin, kmax)
                        + dist2MoveI);
 
       fCenterJ_.Insert(imin, imax, fg1, fg1, kmin, kmax,
                        fCenterJ_.Slice(imin, imax, bnd, bnd, kmin, kmax)
                        + dist2Move);
 
-      fCenterK_.Insert(imin, imax, fg1, fg1, kmin, kmaxF,
-                       fCenterK_.Slice(imin, imax, bnd, bnd, kmin, kmaxF)
+      fCenterK_.Insert(imin, imax, g1, g1, kmin, kmaxF,
+                       fCenterK_.Slice(imin, imax, i1, i1, kmin, kmaxF)
                        + dist2MoveK);
 
       // second layer of ghost cells
@@ -2439,16 +2439,16 @@ void procBlock::AssignGhostCellsGeom() {
                      center_.Slice(imin, imax, i1, i1, kmin, kmax)
                      + dist2Move);
 
-      fCenterI_.Insert(imin, imaxF, fg2, fg2, kmin, kmax,
-                       fCenterI_.Slice(imin, imaxF, bnd, bnd, kmin, kmax)
+      fCenterI_.Insert(imin, imaxF, g2, g2, kmin, kmax,
+                       fCenterI_.Slice(imin, imaxF, i1, i1, kmin, kmax)
                        + dist2MoveI);
 
       fCenterJ_.Insert(imin, imax, fg2, fg2, kmin, kmax,
                        fCenterJ_.Slice(imin, imax, bnd, bnd, kmin, kmax)
                        + dist2Move);
 
-      fCenterK_.Insert(imin, imax, fg2, fg2, kmin, kmaxF,
-                       fCenterK_.Slice(imin, imax, bnd, bnd, kmin, kmaxF)
+      fCenterK_.Insert(imin, imax, g2, g2, kmin, kmaxF,
+                       fCenterK_.Slice(imin, imax, i1, i1, kmin, kmaxF)
                        + dist2MoveK);
 
     //-----------------------------------------------------------------------
@@ -2473,11 +2473,11 @@ void procBlock::AssignGhostCellsGeom() {
       }
 
       // assign face areas for first layer
-      fAreaI_.Insert(imin, imaxF, jmin, jmax, fg1, fg1,
-                     fAreaI_.Slice(imin, imaxF, jmin, jmax, bnd, bnd));
+      fAreaI_.Insert(imin, imaxF, jmin, jmax, g1, g1,
+                     fAreaI_.Slice(imin, imaxF, jmin, jmax, i1, i1));
 
-      fAreaJ_.Insert(imin, imax, jmin, jmaxF, fg1, fg1,
-                     fAreaJ_.Slice(imin, imax, jmin, jmaxF, bnd, bnd));
+      fAreaJ_.Insert(imin, imax, jmin, jmaxF, g1, g1,
+                     fAreaJ_.Slice(imin, imax, jmin, jmaxF, i1, i1));
 
       fAreaK_.Insert(imin, imax, jmin, jmax, fg1, fg1,
                      fAreaK_.Slice(imin, imax, jmin, jmax, fi1, fi1));
@@ -2485,20 +2485,20 @@ void procBlock::AssignGhostCellsGeom() {
       // assign face areas for second layer
       // one cell thick - use one cell for both ghost cells
       if (this->NumK() < 2) {
-        fAreaI_.Insert(imin, imaxF, jmin, jmax, fg2, fg2,
-                       fAreaI_.Slice(imin, imaxF, jmin, jmax, bnd, bnd));
+        fAreaI_.Insert(imin, imaxF, jmin, jmax, g2, g2,
+                       fAreaI_.Slice(imin, imaxF, jmin, jmax, i1, i1));
 
-        fAreaJ_.Insert(imin, imax, jmin, jmaxF, fg2, fg2,
-                       fAreaJ_.Slice(imin, imax, jmin, jmaxF, bnd, bnd));
+        fAreaJ_.Insert(imin, imax, jmin, jmaxF, g2, g2,
+                       fAreaJ_.Slice(imin, imax, jmin, jmaxF, i1, i1));
 
         fAreaK_.Insert(imin, imax, jmin, jmax, fg2, fg2,
                        fAreaK_.Slice(imin, imax, jmin, jmax, fi1, fi1));
       } else {
-        fAreaI_.Insert(imin, imaxF, jmin, jmax, fg2, fg2,
-                       fAreaI_.Slice(imin, imaxF, jmin, jmax, fi1, fi1));
+        fAreaI_.Insert(imin, imaxF, jmin, jmax, g2, g2,
+                       fAreaI_.Slice(imin, imaxF, jmin, jmax, i2, i2));
 
-        fAreaJ_.Insert(imin, imax, jmin, jmaxF, fg2, fg2,
-                       fAreaJ_.Slice(imin, imax, jmin, jmaxF, fi1, fi1));
+        fAreaJ_.Insert(imin, imax, jmin, jmaxF, g2, g2,
+                       fAreaJ_.Slice(imin, imax, jmin, jmaxF, i2, i2));
 
         fAreaK_.Insert(imin, imax, jmin, jmax, fg2, fg2,
                        fAreaK_.Slice(imin, imax, jmin, jmax, fi2, fi2));
@@ -2522,12 +2522,12 @@ void procBlock::AssignGhostCellsGeom() {
                      + dist2Move);
 
       // Assign face centers
-      fCenterI_.Insert(imin, imaxF, jmin, jmax, fg1, fg1,
-                       fCenterI_.Slice(imin, imaxF, jmin, jmax, bnd, bnd)
+      fCenterI_.Insert(imin, imaxF, jmin, jmax, g1, g1,
+                       fCenterI_.Slice(imin, imaxF, jmin, jmax, i1, i1)
                        + dist2MoveI);
 
-      fCenterJ_.Insert(imin, imax, jmin, jmaxF, fg1, fg1,
-                       fCenterJ_.Slice(imin, imax, jmin, jmaxF, bnd, bnd)
+      fCenterJ_.Insert(imin, imax, jmin, jmaxF, g1, g1,
+                       fCenterJ_.Slice(imin, imax, jmin, jmaxF, i1, i1)
                        + dist2MoveJ);
 
       fCenterK_.Insert(imin, imax, jmin, jmax, fg1, fg1,
@@ -2554,12 +2554,12 @@ void procBlock::AssignGhostCellsGeom() {
                      center_.Slice(imin, imax, jmin, jmax, i1, i1)
                      + dist2Move);
 
-      fCenterI_.Insert(imin, imaxF, jmin, jmax, fg2, fg2,
-                       fCenterI_.Slice(imin, imaxF, jmin, jmax, bnd, bnd)
+      fCenterI_.Insert(imin, imaxF, jmin, jmax, g2, g2,
+                       fCenterI_.Slice(imin, imaxF, jmin, jmax, i1, i1)
                        + dist2MoveI);
 
-      fCenterJ_.Insert(imin, imax, jmin, jmaxF, fg2, fg2,
-                       fCenterJ_.Slice(imin, imax, jmin, jmaxF, bnd, bnd)
+      fCenterJ_.Insert(imin, imax, jmin, jmaxF, g2, g2,
+                       fCenterJ_.Slice(imin, imax, jmin, jmaxF, i1, i1)
                        + dist2MoveJ);
 
       fCenterK_.Insert(imin, imax, jmin, jmax, fg2, fg2,
@@ -3147,7 +3147,7 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
     // for interblock do nothing
     } else if ((bc_.GetSurfaceType(ii) == 5 || bc_.GetSurfaceType(ii) == 6) &&
                bc_.GetBCTypes(ii) != "interblock") {
-      string surf = (bc_.GetSurfaceType(ii) == 3) ? "kl" : "ku";
+      string surf = (bc_.GetSurfaceType(ii) == 5) ? "kl" : "ku";
       string bcName = (bc_.GetBCTypes(ii) == "viscousWall") ? "slipWall" :
           bc_.GetBCTypes(ii);
       // assign state for first layer of ghost cells
@@ -3257,7 +3257,7 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
     int jpF = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_;
     int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
 
-    for (int ii = imin; ii < imax; ii++) {
+    for (int ii = imin; ii <= imax; ii++) {
       // boundary conditions at corner
       string bc_J = bc_.GetBCName(ii - numGhosts_, jpF - numGhosts_,
                                   kp - numGhosts_, surfJ);
@@ -3332,7 +3332,7 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
     int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
 
     // Assign states
-    for (int jj = jmin; jj < jmax; jj++) {
+    for (int jj = jmin; jj <= jmax; jj++) {
       // boundary conditions at corner
       string bc_I = bc_.GetBCName(ipF - numGhosts_, jj - numGhosts_,
                                   kp - numGhosts_, surfI);
@@ -3407,7 +3407,7 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
     int jpF = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_;
 
     // Assign states
-    for (int kk = kmin; kk < kmax; kk++) {
+    for (int kk = kmin; kk <= kmax; kk++) {
       // boundary conditions at corner
       string bc_I = bc_.GetBCName(ipF - numGhosts_, jp - numGhosts_,
                            kk - numGhosts_, surfI);
@@ -3430,13 +3430,13 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
         // j surface is a wall, but i surface is not - extend wall bc
       } else if (!(bc_I == "slipWall") && bc_J == "slipWall") {
         state_(ig1, jg1, kk) = state_(ig1, jp, kk).GetGhostState(
-            bc_J, this->FAreaUnitK(ig1, jpF, kk), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ig1, jpF, kk), surfJ, inp, eos, suth, 1);
         state_(ig2, jg1, kk) = state_(ig2, jp, kk).GetGhostState(
-            bc_J, this->FAreaUnitK(ig2, jpF, kk), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ig2, jpF, kk), surfJ, inp, eos, suth, 1);
         state_(ig1, jg2, kk) = state_(ig1, ji1, kk).GetGhostState(
-            bc_J, this->FAreaUnitK(ig1, jpF, kk), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ig1, jpF, kk), surfJ, inp, eos, suth, 2);
         state_(ig2, jg2, kk) = state_(ig2, ji1, kk).GetGhostState(
-            bc_J, this->FAreaUnitK(ig2, jpF, kk), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ig2, jpF, kk), surfJ, inp, eos, suth, 2);
       } else {  // both surfaces or neither are walls - proceed as normal
         state_(ig1, jg1, kk) = 0.5 * (state_(ip, jg1, kk) +
                                       state_(ig1, jp, kk));
@@ -3571,7 +3571,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
     // only overwrite cell values for viscous walls
     } else if ((bc_.GetSurfaceType(ii) == 5 || bc_.GetSurfaceType(ii) == 6) &&
                bc_.GetBCTypes(ii) == "viscousWall") {
-      string surf = (bc_.GetSurfaceType(ii) == 3) ? "kl" : "ku";
+      string surf = (bc_.GetSurfaceType(ii) == 5) ? "kl" : "ku";
       string bcName = "viscousWall";
       // assign state for first layer of ghost cells
       multiArray3d<unitVec3dMag<double>> faceAreas =
@@ -3678,7 +3678,7 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
     int jpF = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_;
     int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
 
-    for (int ii = imin; ii < imax; ii++) {
+    for (int ii = imin; ii <= imax; ii++) {
       // boundary conditions at corner
       string bc_J = bc_.GetBCName(ii - numGhosts_, jpF - numGhosts_,
                                   kp - numGhosts_, surfJ);
@@ -3753,7 +3753,7 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
     int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
 
     // Assign states
-    for (int jj = jmin; jj < jmax; jj++) {
+    for (int jj = jmin; jj <= jmax; jj++) {
       // boundary conditions at corner
       string bc_I = bc_.GetBCName(ipF - numGhosts_, jj - numGhosts_,
                                   kp - numGhosts_, surfI);
@@ -3828,7 +3828,7 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
     int jpF = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_;
 
     // Assign states
-    for (int kk = kmin; kk < kmax; kk++) {
+    for (int kk = kmin; kk <= kmax; kk++) {
       // boundary conditions at corner
       string bc_I = bc_.GetBCName(ipF - numGhosts_, jp - numGhosts_,
                            kk - numGhosts_, surfI);
@@ -3849,13 +3849,13 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
         // j surface is a wall, but i surface is not - extend wall bc
       } else if (!(bc_I == "viscousWall") && bc_J == "viscousWall") {
         state_(ig1, jg1, kk) = state_(ig1, jp, kk).GetGhostState(
-            bc_J, this->FAreaUnitK(ig1, jpF, kk), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ig1, jpF, kk), surfJ, inp, eos, suth, 1);
         state_(ig2, jg1, kk) = state_(ig2, jp, kk).GetGhostState(
-            bc_J, this->FAreaUnitK(ig2, jpF, kk), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ig2, jpF, kk), surfJ, inp, eos, suth, 1);
         state_(ig1, jg2, kk) = state_(ig1, ji1, kk).GetGhostState(
-            bc_J, this->FAreaUnitK(ig1, jpF, kk), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ig1, jpF, kk), surfJ, inp, eos, suth, 2);
         state_(ig2, jg2, kk) = state_(ig2, ji1, kk).GetGhostState(
-            bc_J, this->FAreaUnitK(ig2, jpF, kk), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ig2, jpF, kk), surfJ, inp, eos, suth, 2);
       // both surfaces are walls - proceed as normal
       } else if (bc_I == "viscousWall" && bc_J == "viscousWall") {
         state_(ig1, jg1, kk) = 0.5 * (state_(ip, jg1, kk) +
