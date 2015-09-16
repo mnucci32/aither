@@ -81,6 +81,10 @@ class multiArray3d {
     return data_[ind];
   }
 
+  // DEBUG
+  T GetElem(const int &ii, const int &jj, const int &kk) const;
+
+  
   multiArray3d<T> operator*(const T&) const;
   multiArray3d<T> operator/(const T&) const;
   multiArray3d<T> operator+(const T&) const;
@@ -131,6 +135,19 @@ class multiArray3d {
   // destructor
   ~multiArray3d() {}
 };
+
+
+
+// DEBUG
+template <typename T>
+T multiArray3d<T>::GetElem(const int &ii, const int &jj, const int &kk) const {
+    return data_[this->GetLoc1D(ii, jj, kk)];
+}
+
+
+
+
+
 
 
 // constructor - default initialization

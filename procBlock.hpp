@@ -281,11 +281,11 @@ double ViscCellSpectralRadius(const unitVec3dMag<double> &,
                               const idealGas &, const sutherland &,
                               const double &, const double &);
 
-template <class T>
+template <typename T>
 T FaceReconCentral(const T &, const T &, const vector3d<double> &,
                    const vector3d<double> &, const vector3d<double> &);
 
-template <class T>
+template <typename T>
 multiArray3d<T> PadWithGhosts(const multiArray3d<T> &, const int &);
 
 tensor<double> CalcVelGradGG(const vector3d<double> &, const vector3d<double> &,

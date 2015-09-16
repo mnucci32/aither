@@ -14,12 +14,10 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include <iostream>
-#include <fstream>
-#include <algorithm>
+#include <iostream>               // cout, cerr, endl
+#include <algorithm>              // max, min
 #include <vector>
 #include <string>
-#include <cmath>
 #include "procBlock.hpp"
 #include "plot3d.hpp"              // plot3d
 #include "eos.hpp"                 // idealGas
@@ -37,9 +35,6 @@ using std::endl;
 using std::cerr;
 using std::vector;
 using std::string;
-using std::ios;
-using std::ofstream;
-using std::to_string;
 using std::max;
 using std::min;
 
@@ -1410,7 +1405,7 @@ double ViscCellSpectralRadius(const unitVec3dMag<double> &fAreaL,
 
 // function to reconstruct cell variables to the face using central
 // differences
-template <class T>
+template <typename T>
 T FaceReconCentral(const T &velU, const T &velD, const vector3d<double> &pU,
                    const vector3d<double> &pD, const vector3d<double> &pF) {
   // velU -- velocity at the cell center of the upwind cell
@@ -1453,7 +1448,7 @@ These cells are not used though. There is a place in the vector for them to make
 accessing the padded vector of cells the same as for a plot3d block without ghost
 cells.
 */
-template <class T>
+template <typename T>
 multiArray3d<T> PadWithGhosts(const multiArray3d<T> &var,
                               const int &numGhosts) {
   // var -- vector of variables to pad (no ghost cells included)
@@ -2994,6 +2989,9 @@ void procBlock::AssignGhostCellsGeomEdge() {
     fCenterK_.Insert(ig2, ig2, jg2, jg2, kmin, kmaxF, dist2MoveIf +
                     fCenterK_.Slice(ig1, ig1, jg2, jg2, kmin, kmaxF));
   }
+  // DEBUG
+  cout << center_ << endl;
+  exit(0);
 }
 
 /* Member function to assign values for ghost cells for the inviscid flux

@@ -15,7 +15,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <iostream>
-#include <fstream>
 #include <vector>
 #include <string>
 #include <cmath>
@@ -28,8 +27,6 @@ using std::endl;
 using std::cerr;
 using std::vector;
 using std::string;
-using std::ios;
-using std::ofstream;
 using std::max;
 using std::min;
 
