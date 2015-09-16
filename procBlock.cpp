@@ -2627,13 +2627,13 @@ void procBlock::AssignGhostCellsGeomEdge() {
     int imaxF = this->NumI() + numGhosts_;
 
     int jpF = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_;
-    int jiF = (cc <= 1) ? jp + 1 : jp - 1;
-    int jg1F = (cc <= 1) ? jp - 1 : jp + 1;
-    int jg2F = (cc <= 1) ? jp - 2 : jp + 2;
+    int jiF = (cc <= 1) ? jpF + 1 : jpF - 1;
+    int jg1F = (cc <= 1) ? jpF - 1 : jpF + 1;
+    int jg2F = (cc <= 1) ? jpF - 2 : jpF + 2;
 
     int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
-    int kg1F = (cc % 2 == 0) ? kp - 1 : kp + 1;
-    int kg2F = (cc % 2 == 0) ? kp - 2 : kp + 2;
+    int kg1F = (cc % 2 == 0) ? kpF - 1 : kpF + 1;
+    int kg2F = (cc % 2 == 0) ? kpF - 2 : kpF + 2;
 
     // Assign volumes
     vol_.Insert(imin, imax, jg1, jg1, kg1, kg1, 0.5 *
@@ -2757,13 +2757,13 @@ void procBlock::AssignGhostCellsGeomEdge() {
     int jmaxF = this->NumJ() + numGhosts_;
 
     int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
-    int iiF = (cc <= 1) ? ip + 1 : ip - 1;
-    int ig1F = (cc <= 1) ? ip - 1 : ip + 1;
-    int ig2F = (cc <= 1) ? ip - 2 : ip + 2;
+    int iiF = (cc <= 1) ? ipF + 1 : ipF - 1;
+    int ig1F = (cc <= 1) ? ipF - 1 : ipF + 1;
+    int ig2F = (cc <= 1) ? ipF - 2 : ipF + 2;
 
     int kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
-    int kg1F = (cc % 2 == 0) ? kp - 1 : kp + 1;
-    int kg2F = (cc % 2 == 0) ? kp - 2 : kp + 2;
+    int kg1F = (cc % 2 == 0) ? kpF - 1 : kpF + 1;
+    int kg2F = (cc % 2 == 0) ? kpF - 2 : kpF + 2;
 
     // Assign volumes
     vol_.Insert(ig1, ig1, jmin, jmax, kg1, kg1, 0.5 *
@@ -2887,13 +2887,13 @@ void procBlock::AssignGhostCellsGeomEdge() {
     int kmaxF = this->NumK() + numGhosts_;
 
     int ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
-    int iiF = (cc <= 1) ? ip + 1 : ip - 1;
-    int ig1F = (cc <= 1) ? ip - 1 : ip + 1;
-    int ig2F = (cc <= 1) ? ip - 2 : ip + 2;
+    int iiF = (cc <= 1) ? ipF + 1 : ipF - 1;
+    int ig1F = (cc <= 1) ? ipF - 1 : ipF + 1;
+    int ig2F = (cc <= 1) ? ipF - 2 : ipF + 2;
 
     int jpF = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_;
-    int jg1F = (cc % 2 == 0) ? jp - 1 : jp + 1;
-    int jg2F = (cc % 2 == 0) ? jp - 2 : jp + 2;
+    int jg1F = (cc % 2 == 0) ? jpF - 1 : jpF + 1;
+    int jg2F = (cc % 2 == 0) ? jpF - 2 : jpF + 2;
 
     // Assign volumes
     vol_.Insert(ig1, ig1, jg1, jg1, kmin, kmax, 0.5 *
@@ -2989,9 +2989,6 @@ void procBlock::AssignGhostCellsGeomEdge() {
     fCenterK_.Insert(ig2, ig2, jg2, jg2, kmin, kmaxF, dist2MoveIf +
                     fCenterK_.Slice(ig1, ig1, jg2, jg2, kmin, kmaxF));
   }
-  // DEBUG
-  cout << center_ << endl;
-  exit(0);
 }
 
 /* Member function to assign values for ghost cells for the inviscid flux
