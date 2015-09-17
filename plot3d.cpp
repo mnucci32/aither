@@ -95,7 +95,7 @@ multiArray3d<double> plot3dBlock::Volume() const {
                      (topPortFore - topStarAft) + (topPortAft - topStarAft));
         xac = topPortFore - botPortAft;
         xbd = botPortFore - topPortAft;
-        pyramidVol = 1.0 / 6.0 * xp.DotProd(xac.CrossProd(xbd));
+        pyramidVol += 1.0 / 6.0 * xp.DotProd(xac.CrossProd(xbd));
 
         // Assign volume to appropriate location
         vol(ii, jj, kk) = pyramidVol;
