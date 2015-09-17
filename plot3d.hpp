@@ -34,25 +34,25 @@ using std::string;
 // Class for an individual plot3d block
 class plot3dBlock {
   // by default everything above the public: declaration is private
-  multiArray3d<vector3d<double> > coords_;  // coordinates of nodes in block
+  multiArray3d<vector3d<double>> coords_;  // coordinates of nodes in block
 
  public:
   // constructor -- create a plot3d block by passing the above quantities
-  explicit plot3dBlock(const multiArray3d<vector3d<double> > &coordinates) :
+  explicit plot3dBlock(const multiArray3d<vector3d<double>> &coordinates) :
       coords_(coordinates) {}
   plot3dBlock(const int &ii, const int &jj, const int &kk) :
-      coords_(multiArray3d<vector3d<double> >(ii, jj, kk)) {}
-  plot3dBlock() : coords_(multiArray3d<vector3d<double> >()) {}
+      coords_(multiArray3d<vector3d<double>>(ii, jj, kk)) {}
+  plot3dBlock() : coords_(multiArray3d<vector3d<double>>()) {}
 
   // member functions
   multiArray3d<double> Volume() const;
-  multiArray3d<unitVec3dMag<double> > FaceAreaI() const;
-  multiArray3d<unitVec3dMag<double> > FaceAreaJ() const;
-  multiArray3d<unitVec3dMag<double> > FaceAreaK() const;
-  multiArray3d<vector3d<double> > Centroid() const;
-  multiArray3d<vector3d<double> > FaceCenterI() const;
-  multiArray3d<vector3d<double> > FaceCenterJ() const;
-  multiArray3d<vector3d<double> > FaceCenterK() const;
+  multiArray3d<unitVec3dMag<double>> FaceAreaI() const;
+  multiArray3d<unitVec3dMag<double>> FaceAreaJ() const;
+  multiArray3d<unitVec3dMag<double>> FaceAreaK() const;
+  multiArray3d<vector3d<double>> Centroid() const;
+  multiArray3d<vector3d<double>> FaceCenterI() const;
+  multiArray3d<vector3d<double>> FaceCenterJ() const;
+  multiArray3d<vector3d<double>> FaceCenterK() const;
 
   int NumI() const { return coords_.NumI(); }
   int NumJ() const { return coords_.NumJ(); }
@@ -85,6 +85,6 @@ class plot3dBlock {
 vector<plot3dBlock> ReadP3dGrid(const string &, const double &, double &);
 
 // function to reorder block by hyperplanes
-vector<vector3d<int> > HyperplaneReorder(const int &, const int &, const int &);
+vector<vector3d<int>> HyperplaneReorder(const int &, const int &, const int &);
 
 #endif
