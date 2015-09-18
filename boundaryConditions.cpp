@@ -1505,9 +1505,9 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
     for (int ii = 0; ii < bc.NumSurfI(); ii++) {
       if (bc.GetSurface(ii).SurfaceType() == 2) {  // upper i surface
         // at upper i surface, if bc is interblock, store boundarySurface
-        // because partner block_ BC will need to be updated
-        if (this->GetBCTypes(ii) == "interblock") {
-          alteredSurf.push_back(this->GetSurface(ii));
+        // because partner block BC will need to be updated
+        if (bc.GetBCTypes(ii) == "interblock") {
+          alteredSurf.push_back(bc.GetSurface(ii));
         }
 
         // adjust i coordinates for join
@@ -1528,10 +1528,10 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       cc++;
     }
     for (int ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++) {
-      // at j surface for upper block_, if bc is interblock, store
-      // boundarySurface because partner block_ BC will need to be updated
-      if (this->GetBCTypes(ii) == "interblock") {
-        alteredSurf.push_back(this->GetSurface(ii));
+      // at j surface for upper block, if bc is interblock, store
+      // boundarySurface because partner block BC will need to be updated
+      if (bc.GetBCTypes(ii) == "interblock") {
+        alteredSurf.push_back(bc.GetSurface(ii));
       }
 
       // adjust i coordinates for join
@@ -1551,10 +1551,10 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       cc++;
     }
     for (int ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++) {
-      // at k surface for upper block_, if bc is interblock, store
-      // boundarySurface because partner block_ BC will need to be updated
-      if (this->GetBCTypes(ii) == "interblock") {
-        alteredSurf.push_back(this->GetSurface(ii));
+      // at k surface for upper block, if bc is interblock, store
+      // boundarySurface because partner block BC will need to be updated
+      if (bc.GetBCTypes(ii) == "interblock") {
+        alteredSurf.push_back(bc.GetSurface(ii));
       }
 
       // adjust i coordinates for join
@@ -1612,10 +1612,10 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
     // insert all j upper surfaces from upper bc
     for (int ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++) {
       if (bc.GetSurface(ii).SurfaceType() == 4) {  // upper j surface
-        // at j upper surface for upper block_, if bc is interblock, store
-        // boundarySurface because partner block_ BC will need to be updated
-        if (this->GetBCTypes(ii) == "interblock") {
-          alteredSurf.push_back(this->GetSurface(ii));
+        // at j upper surface for upper block, if bc is interblock, store
+        // boundarySurface because partner block BC will need to be updated
+        if (bc.GetBCTypes(ii) == "interblock") {
+          alteredSurf.push_back(bc.GetSurface(ii));
         }
 
         // adjust j coordinates for join
@@ -1636,10 +1636,10 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       cc++;
     }
     for (int ii = 0; ii < bc.NumSurfI(); ii++) {
-      // at i surface for upper block_, if bc is interblock, store
-      // boundarySurface because partner block_ BC will need to be updated
-      if (this->GetBCTypes(ii) == "interblock") {
-        alteredSurf.push_back(this->GetSurface(ii));
+      // at i surface for upper block, if bc is interblock, store
+      // boundarySurface because partner block BC will need to be updated
+      if (bc.GetBCTypes(ii) == "interblock") {
+        alteredSurf.push_back(bc.GetSurface(ii));
       }
 
       // adjust j coordinates for join
@@ -1660,10 +1660,10 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       cc++;
     }
     for (int ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++) {
-      // at k surface for upper block_, if bc is interblock, store
-      // boundarySurface because partner block_ BC will need to be updated
-      if (this->GetBCTypes(ii) == "interblock") {
-        alteredSurf.push_back(this->GetSurface(ii));
+      // at k surface for upper block, if bc is interblock, store
+      // boundarySurface because partner block BC will need to be updated
+      if (bc.GetBCTypes(ii) == "interblock") {
+        alteredSurf.push_back(bc.GetSurface(ii));
       }
 
       // adjust j coordinates for join
@@ -1722,10 +1722,10 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
     // insert all k upper surfaces from upper bc
     for (int ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++) {
       if (bc.GetSurface(ii).SurfaceType() == 6) {  // upper k surface
-        // at upper k surface for upper block_, if bc is interblock, store
-        // boundarySurface because partner block_ BC will need to be updated
-        if (this->GetBCTypes(ii) == "interblock") {
-          alteredSurf.push_back(this->GetSurface(ii));
+        // at upper k surface for upper block, if bc is interblock, store
+        // boundarySurface because partner block BC will need to be updated
+        if (bc.GetBCTypes(ii) == "interblock") {
+          alteredSurf.push_back(bc.GetSurface(ii));
         }
 
         // adjust k coordinates for join
@@ -1748,8 +1748,8 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
     for (int ii = 0; ii < bc.NumSurfI(); ii++) {
       // at i surface for upper block_, if bc is interblock, store
       // boundarySurface because partner block_ BC will need to be updated
-      if (this->GetBCTypes(ii) == "interblock") {
-        alteredSurf.push_back(this->GetSurface(ii));
+      if (bc.GetBCTypes(ii) == "interblock") {
+        alteredSurf.push_back(bc.GetSurface(ii));
       }
 
       // adjust k coordinates for join
@@ -1770,10 +1770,10 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       cc++;
     }
     for (int ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++) {
-      // at j surface for upper block_, if bc is interblock, store
-      // boundarySurface because partner block_ BC will need to be updated
-      if (this->GetBCTypes(ii) == "interblock") {
-        alteredSurf.push_back(this->GetSurface(ii));
+      // at j surface for upper block, if bc is interblock, store
+      // boundarySurface because partner block BC will need to be updated
+      if (bc.GetBCTypes(ii) == "interblock") {
+        alteredSurf.push_back(bc.GetSurface(ii));
       }
 
       // adjust k coordinates for join
