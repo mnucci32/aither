@@ -3256,10 +3256,14 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
       // boundary conditions at corner
       string bc_J = bc_.GetBCName(ii - numGhosts_, jpF - numGhosts_,
                                   kp - numGhosts_, surfJ);
-      bc_J = (bc_J == "viscousWall") ? "slipWall" : bc_J;
+      if (bc_J == "viscousWall") {
+        bc_J = "slipWall";
+      }
       string bc_K = bc_.GetBCName(ii - numGhosts_, jp - numGhosts_,
                                   kpF - numGhosts_, surfK);
-      bc_K = (bc_K == "viscousWall") ? "slipWall" : bc_K;
+      if (bc_K == "viscousWall") {
+        bc_K = "slipWall";
+      }
 
       // Assign states
       // j surface is a wall, but k surface is not - extend wall bc
@@ -3268,9 +3272,9 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
             bc_J, this->FAreaUnitJ(ii, jpF, kg1), surfJ, inp, eos, suth, 1);
         state_(ii, jg1, kg2) = state_(ii, jp, kg2).GetGhostState(
             bc_J, this->FAreaUnitJ(ii, jpF, kg2), surfJ, inp, eos, suth, 1);
-        state_(ii, jg2, kg1) = state_(ii, ji1, kg1).GetGhostState(
+        state_(ii, jg2, kg1) = state_(ii, jg1, ki1).GetGhostState(
             bc_J, this->FAreaUnitJ(ii, jpF, kg1), surfJ, inp, eos, suth, 2);
-        state_(ii, jg2, kg2) = state_(ii, ji1, kg2).GetGhostState(
+        state_(ii, jg2, kg2) = state_(ii, jg2, ki1).GetGhostState(
             bc_J, this->FAreaUnitJ(ii, jpF, kg2), surfJ, inp, eos, suth, 2);
         // k surface is a wall, but j surface is not - extend wall bc
       } else if (bc_J != "slipWall" && bc_K == "slipWall") {
@@ -3278,9 +3282,9 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
             bc_K, this->FAreaUnitK(ii, jg1, kpF), surfK, inp, eos, suth, 1);
         state_(ii, jg2, kg1) = state_(ii, jg2, kp).GetGhostState(
             bc_K, this->FAreaUnitK(ii, jg2, kpF), surfK, inp, eos, suth, 1);
-        state_(ii, jg1, kg2) = state_(ii, jg1, ki1).GetGhostState(
+        state_(ii, jg1, kg2) = state_(ii, ji1, kg1).GetGhostState(
             bc_K, this->FAreaUnitK(ii, jg1, kpF), surfK, inp, eos, suth, 2);
-        state_(ii, jg2, kg2) = state_(ii, jg2, ki1).GetGhostState(
+        state_(ii, jg2, kg2) = state_(ii, ji1, kg2).GetGhostState(
             bc_K, this->FAreaUnitK(ii, jg2, kpF), surfK, inp, eos, suth, 2);
       } else {  // both surfaces or neither are walls - proceed as normal
         state_(ii, jg1, kg1) = 0.5 * (state_(ii, jp, kg1) +
@@ -3331,10 +3335,14 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
       // boundary conditions at corner
       string bc_I = bc_.GetBCName(ipF - numGhosts_, jj - numGhosts_,
                                   kp - numGhosts_, surfI);
-      bc_I = (bc_I == "viscousWall") ? "slipWall" : bc_I;
+      if (bc_I == "viscousWall") {
+        bc_I = "slipWall";
+      }
       string bc_K = bc_.GetBCName(ip - numGhosts_, jj - numGhosts_,
                                   kpF - numGhosts_, surfK);
-      bc_K = (bc_K == "viscousWall") ? "slipWall" : bc_K;
+      if (bc_K == "viscousWall") {
+        bc_K = "slipWall";
+      }
 
       // Assign states
       // i surface is a wall, but k surface is not - extend wall bc
@@ -3343,9 +3351,9 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
             bc_I, this->FAreaUnitI(ipF, jj, kg1), surfI, inp, eos, suth, 1);
         state_(ig1, jj, kg2) = state_(ip, jj, kg2).GetGhostState(
             bc_I, this->FAreaUnitI(ipF, jj, kg2), surfI, inp, eos, suth, 1);
-        state_(ig2, jj, kg1) = state_(ii1, jj, kg1).GetGhostState(
+        state_(ig2, jj, kg1) = state_(ig1, jj, ki1).GetGhostState(
             bc_I, this->FAreaUnitI(ipF, jj, kg1), surfI, inp, eos, suth, 2);
-        state_(ig2, jj, kg2) = state_(ii1, jj, kg2).GetGhostState(
+        state_(ig2, jj, kg2) = state_(ig2, jj, ki1).GetGhostState(
             bc_I, this->FAreaUnitI(ipF, jj, kg2), surfI, inp, eos, suth, 2);
         // k surface is a wall, but i surface is not - extend wall bc
       } else if (bc_I != "slipWall" && bc_K == "slipWall") {
@@ -3353,9 +3361,9 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
             bc_K, this->FAreaUnitK(ig1, jj, kpF), surfK, inp, eos, suth, 1);
         state_(ig2, jj, kg1) = state_(ig2, jj, kp).GetGhostState(
             bc_K, this->FAreaUnitK(ig2, jj, kpF), surfK, inp, eos, suth, 1);
-        state_(ig1, jj, kg2) = state_(ig1, jj, ki1).GetGhostState(
+        state_(ig1, jj, kg2) = state_(ii1, jj, kg1).GetGhostState(
             bc_K, this->FAreaUnitK(ig1, jj, kpF), surfK, inp, eos, suth, 2);
-        state_(ig2, jj, kg2) = state_(ig2, jj, ki1).GetGhostState(
+        state_(ig2, jj, kg2) = state_(ii1, jj, kg2).GetGhostState(
             bc_K, this->FAreaUnitK(ig2, jj, kpF), surfK, inp, eos, suth, 2);
       } else {  // both surfaces or neither are walls - proceed as normal
         state_(ig1, jj, kg1) = 0.5 * (state_(ip, jj, kg1) +
@@ -3406,10 +3414,14 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
       // boundary conditions at corner
       string bc_I = bc_.GetBCName(ipF - numGhosts_, jp - numGhosts_,
                            kk - numGhosts_, surfI);
-      bc_I = (bc_I == "viscousWall") ? "slipWall" : bc_I;
+      if (bc_I == "viscousWall") {
+        bc_I = "slipWall";
+      }
       string bc_J = bc_.GetBCName(ip - numGhosts_, jpF - numGhosts_,
                            kk - numGhosts_, surfJ);
-      bc_J = (bc_J == "viscousWall") ? "slipWall" : bc_J;
+      if (bc_J == "viscousWall") {
+        bc_J = "slipWall";
+      }
 
       // Assign states
       // i surface is a wall, but j surface is not - extend wall bc
@@ -3418,9 +3430,9 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
             bc_I, this->FAreaUnitI(ipF, jg1, kk), surfI, inp, eos, suth, 1);
         state_(ig1, jg2, kk) = state_(ip, jg2, kk).GetGhostState(
             bc_I, this->FAreaUnitI(ipF, jg2, kk), surfI, inp, eos, suth, 1);
-        state_(ig2, jg1, kk) = state_(ii1, jg1, kk).GetGhostState(
+        state_(ig2, jg1, kk) = state_(ig1, ji1, kk).GetGhostState(
             bc_I, this->FAreaUnitI(ipF, jg1, kk), surfI, inp, eos, suth, 2);
-        state_(ig2, jg2, kk) = state_(ii1, jg2, kk).GetGhostState(
+        state_(ig2, jg2, kk) = state_(ig2, ji1, kk).GetGhostState(
             bc_I, this->FAreaUnitI(ipF, jg2, kk), surfI, inp, eos, suth, 2);
         // j surface is a wall, but i surface is not - extend wall bc
       } else if (bc_I != "slipWall" && bc_J == "slipWall") {
@@ -3428,9 +3440,9 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
             bc_J, this->FAreaUnitJ(ig1, jpF, kk), surfJ, inp, eos, suth, 1);
         state_(ig2, jg1, kk) = state_(ig2, jp, kk).GetGhostState(
             bc_J, this->FAreaUnitJ(ig2, jpF, kk), surfJ, inp, eos, suth, 1);
-        state_(ig1, jg2, kk) = state_(ig1, ji1, kk).GetGhostState(
+        state_(ig1, jg2, kk) = state_(ii1, jg1, kk).GetGhostState(
             bc_J, this->FAreaUnitJ(ig1, jpF, kk), surfJ, inp, eos, suth, 2);
-        state_(ig2, jg2, kk) = state_(ig2, ji1, kk).GetGhostState(
+        state_(ig2, jg2, kk) = state_(ii1, jg2, kk).GetGhostState(
             bc_J, this->FAreaUnitJ(ig2, jpF, kk), surfJ, inp, eos, suth, 2);
       } else {  // both surfaces or neither are walls - proceed as normal
         state_(ig1, jg1, kk) = 0.5 * (state_(ip, jg1, kk) +
@@ -3442,11 +3454,6 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
       }
     }
   }
-  
-  // DEBUG
-  cout << state_;
-  exit(0);
-
 }
 
 /* Member function to assign ghost cells for the viscous flow calculation. This
@@ -3692,9 +3699,9 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
             bc_J, this->FAreaUnitJ(ii, jpF, kg1), surfJ, inp, eos, suth, 1);
         state_(ii, jg1, kg2) = state_(ii, jp, kg2).GetGhostState(
             bc_J, this->FAreaUnitJ(ii, jpF, kg2), surfJ, inp, eos, suth, 1);
-        state_(ii, jg2, kg1) = state_(ii, ji1, kg1).GetGhostState(
+        state_(ii, jg2, kg1) = state_(ii, jg1, ki1).GetGhostState(
             bc_J, this->FAreaUnitJ(ii, jpF, kg1), surfJ, inp, eos, suth, 2);
-        state_(ii, jg2, kg2) = state_(ii, ji1, kg2).GetGhostState(
+        state_(ii, jg2, kg2) = state_(ii, jg2, ki1).GetGhostState(
             bc_J, this->FAreaUnitJ(ii, jpF, kg2), surfJ, inp, eos, suth, 2);
         // k surface is a wall, but j surface is not - extend wall bc
       } else if (bc_J != "viscousWall" && bc_K == "viscousWall") {
@@ -3702,9 +3709,9 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
             bc_K, this->FAreaUnitK(ii, jg1, kpF), surfK, inp, eos, suth, 1);
         state_(ii, jg2, kg1) = state_(ii, jg2, kp).GetGhostState(
             bc_K, this->FAreaUnitK(ii, jg2, kpF), surfK, inp, eos, suth, 1);
-        state_(ii, jg1, kg2) = state_(ii, jg1, ki1).GetGhostState(
+        state_(ii, jg1, kg2) = state_(ii, ji1, kg1).GetGhostState(
             bc_K, this->FAreaUnitK(ii, jg1, kpF), surfK, inp, eos, suth, 2);
-        state_(ii, jg2, kg2) = state_(ii, jg2, ki1).GetGhostState(
+        state_(ii, jg2, kg2) = state_(ii, ji1, kg2).GetGhostState(
             bc_K, this->FAreaUnitK(ii, jg2, kpF), surfK, inp, eos, suth, 2);
       // both surfaces are walls - proceed as normal
       } else if (bc_J == "viscousWall" && bc_K == "viscousWall") {
@@ -3767,9 +3774,9 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
             bc_I, this->FAreaUnitI(ipF, jj, kg1), surfI, inp, eos, suth, 1);
         state_(ig1, jj, kg2) = state_(ip, jj, kg2).GetGhostState(
             bc_I, this->FAreaUnitI(ipF, jj, kg2), surfI, inp, eos, suth, 1);
-        state_(ig2, jj, kg1) = state_(ii1, jj, kg1).GetGhostState(
+        state_(ig2, jj, kg1) = state_(ig1, jj, ki1).GetGhostState(
             bc_I, this->FAreaUnitI(ipF, jj, kg1), surfI, inp, eos, suth, 2);
-        state_(ig2, jj, kg2) = state_(ii1, jj, kg2).GetGhostState(
+        state_(ig2, jj, kg2) = state_(ig2, jj, ki1).GetGhostState(
             bc_I, this->FAreaUnitI(ipF, jj, kg2), surfI, inp, eos, suth, 2);
         // k surface is a wall, but i surface is not - extend wall bc
       } else if (bc_I != "viscousWall" && bc_K == "viscousWall") {
@@ -3777,9 +3784,9 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
             bc_K, this->FAreaUnitK(ig1, jj, kpF), surfK, inp, eos, suth, 1);
         state_(ig2, jj, kg1) = state_(ig2, jj, kp).GetGhostState(
             bc_K, this->FAreaUnitK(ig2, jj, kpF), surfK, inp, eos, suth, 1);
-        state_(ig1, jj, kg2) = state_(ig1, jj, ki1).GetGhostState(
+        state_(ig1, jj, kg2) = state_(ii1, jj, kg1).GetGhostState(
             bc_K, this->FAreaUnitK(ig1, jj, kpF), surfK, inp, eos, suth, 2);
-        state_(ig2, jj, kg2) = state_(ig2, jj, ki1).GetGhostState(
+        state_(ig2, jj, kg2) = state_(ii1, jj, kg2).GetGhostState(
             bc_K, this->FAreaUnitK(ig2, jj, kpF), surfK, inp, eos, suth, 2);
       // both surfaces are walls - proceed as normal
       } else if (bc_I == "viscousWall" && bc_K == "viscousWall") {
@@ -3842,9 +3849,9 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
             bc_I, this->FAreaUnitI(ipF, jg1, kk), surfI, inp, eos, suth, 1);
         state_(ig1, jg2, kk) = state_(ip, jg2, kk).GetGhostState(
             bc_I, this->FAreaUnitI(ipF, jg2, kk), surfI, inp, eos, suth, 1);
-        state_(ig2, jg1, kk) = state_(ii1, jg1, kk).GetGhostState(
+        state_(ig2, jg1, kk) = state_(ig1, ji1, kk).GetGhostState(
             bc_I, this->FAreaUnitI(ipF, jg1, kk), surfI, inp, eos, suth, 2);
-        state_(ig2, jg2, kk) = state_(ii1, jg2, kk).GetGhostState(
+        state_(ig2, jg2, kk) = state_(ig2, ji1, kk).GetGhostState(
             bc_I, this->FAreaUnitI(ipF, jg2, kk), surfI, inp, eos, suth, 2);
         // j surface is a wall, but i surface is not - extend wall bc
       } else if (bc_I != "viscousWall" && bc_J == "viscousWall") {
@@ -3852,9 +3859,9 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
             bc_J, this->FAreaUnitJ(ig1, jpF, kk), surfJ, inp, eos, suth, 1);
         state_(ig2, jg1, kk) = state_(ig2, jp, kk).GetGhostState(
             bc_J, this->FAreaUnitJ(ig2, jpF, kk), surfJ, inp, eos, suth, 1);
-        state_(ig1, jg2, kk) = state_(ig1, ji1, kk).GetGhostState(
+        state_(ig1, jg2, kk) = state_(ii1, jg1, kk).GetGhostState(
             bc_J, this->FAreaUnitJ(ig1, jpF, kk), surfJ, inp, eos, suth, 2);
-        state_(ig2, jg2, kk) = state_(ig2, ji1, kk).GetGhostState(
+        state_(ig2, jg2, kk) = state_(ii1, jg2, kk).GetGhostState(
             bc_J, this->FAreaUnitJ(ig2, jpF, kk), surfJ, inp, eos, suth, 2);
       // both surfaces are walls - proceed as normal
       } else if (bc_I == "viscousWall" && bc_J == "viscousWall") {
