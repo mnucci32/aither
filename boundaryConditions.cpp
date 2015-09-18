@@ -331,7 +331,7 @@ void interblock::SwapOrder() {
   }
 }
 
-/* Function to go through the boundary_ conditions and pair the interblock
+/* Function to go through the boundary conditions and pair the interblock
    BCs together and determine their orientation.*/
 vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
                                     const vector<plot3dBlock> &grid,
@@ -346,9 +346,9 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
   // information about interblock
   vector<boundarySurface> isolatedInterblocks;
 
-  // Block_ number of bc, rank_ of block_, local position on processor
-  // (different from rankParPos because it holds block_ number instead
-  // of parent block_ number)
+  // Block number of bc, rank of block, local position on processor
+  // (different from rankParPos because it holds block number instead
+  // of parent block number)
   vector<vector3d<int> > numRankPos;
   vector<int> surfaceNums;  // surface number of interblock
 
