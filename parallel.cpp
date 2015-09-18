@@ -346,10 +346,8 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
   // MPI_vec3d -- MPI_Datatype used for vector3d<double>  transmission
   // MPI_vec3dMag -- MPI_Datatype used for unitVec3dMag<double>  transmission
 
-  vector<procBlock> localBlocks(
-      numProcBlock);  // vector of procBlocks for each processor
-  // localBlocks.reserve(numProcBlock); //each processor may allocate for a
-  // different size
+  // vector of procBlocks for each processor
+  vector<procBlock> localBlocks(numProcBlock);
 
   //------------------------------------------------------------------------
   //                                  ROOT
@@ -374,8 +372,8 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
       procBlock tempBlock;
       tempBlock.RecvUnpackGeomMPI(MPI_cellData, MPI_vec3d, MPI_vec3dMag);
 
-      localBlocks[tempBlock.LocalPosition()] =
-          tempBlock;  // add procBlock to output vector
+      // add procBlock to output vector
+      localBlocks[tempBlock.LocalPosition()] = tempBlock;
     }
   }
 

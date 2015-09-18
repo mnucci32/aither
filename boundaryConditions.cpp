@@ -1953,8 +1953,8 @@ void boundaryConditions::PackBC(char *(&sendBuffer), const int &sendBufSize,
   // unpacking know how much data to unpack for each string
   vector<int> strLength(this->NumSurfaces());
   for (unsigned int jj = 0; jj < strLength.size(); jj++) {
-    strLength[jj] =
-        this->GetBCTypes(jj).size() + 1;  // +1 for c_str end character
+    // +1 for c_str end character
+    strLength[jj] = this->GetBCTypes(jj).size() + 1;
   }
 
   // pack surface numbers
@@ -1996,9 +1996,10 @@ void boundaryConditions::UnpackBC(char *(&recvBuffer), const int &recvBufSize,
   MPI_Unpack(recvBuffer, recvBufSize, &position, &numSurfK_, 1, MPI_INT,
              MPI_COMM_WORLD);  // unpack number of k-surfaces
 
-  this->ResizeVecs(this->NumSurfaces());  // resize boundaryCondition
-  vector<int> strLength(
-      this->NumSurfaces());  // allocate vector for string lengths
+  // resize boundaryCondition
+  this->ResizeVecs(this->NumSurfaces());
+  // allocate vector for string lengths
+  vector<int> strLength(this->NumSurfaces());
 
   // unpack boundary_ condition surface data (non-string) into appropriate
   // vectors

@@ -5631,9 +5631,9 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
   // numK -- k-dimension to resize to (no ghosts)
 
   // indices for variables with ghost cells
-  int ig = numI + numGhosts_;
-  int jg = numJ + numGhosts_;
-  int kg = numK + numGhosts_;
+  int ig = numI + 2 * numGhosts_;
+  int jg = numJ + 2 * numGhosts_;
+  int kg = numK + 2 * numGhosts_;
 
   state_.ClearResize(ig, jg, kg);
   center_.ClearResize(ig, jg, kg);
@@ -5772,23 +5772,23 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
     blk2.parBlock_ = parBlock_;
 
     // indices for lower block
-    int iMaxG1 = numI1 + 2 * numGhosts_;
-    int iMax1 = numI1;
+    int iMaxG1 = numI1 + 2 * numGhosts_ - 1;
+    int iMax1 = numI1 - 1;
 
     // indices for upper block
-    int iMaxG2 = numI2 + 2 * numGhosts_;
-    int iMax2 = numI2;
+    int iMaxG2 = numI2 + 2 * numGhosts_ - 1;
+    int iMax2 = numI2 - 1;
 
-    int iMaxPG2 = this->NumI() + 2 * numGhosts_;
+    int iMaxPG2 = this->NumI() + 2 * numGhosts_ - 1;
     int iMinPG2 = ind;
-    int iMaxP2 = this->NumI();
+    int iMaxP2 = this->NumI() - 1;
     int iMinP2 = ind + numGhosts_;
 
     // indices common to both blocks
-    int jMaxG = this->NumJ() + 2 * numGhosts_;
-    int jMax = this->NumJ();
-    int kMaxG = this->NumK() + 2 * numGhosts_;
-    int kMax = this->NumK();
+    int jMaxG = this->NumJ() + 2 * numGhosts_ - 1;
+    int jMax = this->NumJ() - 1;
+    int kMaxG = this->NumK() + 2 * numGhosts_ - 1;
+    int kMax = this->NumK() - 1;
 
     // ------------------------------------------------------------------
     // assign variables for lower split
@@ -5881,23 +5881,23 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
     blk2.parBlock_ = parBlock_;
 
     // indices for lower block
-    int jMaxG1 = numJ1 + 2 * numGhosts_;
-    int jMax1 = numJ1;
+    int jMaxG1 = numJ1 + 2 * numGhosts_ - 1;
+    int jMax1 = numJ1 - 1;
 
     // indices for upper block
-    int jMaxG2 = numJ2 + 2 * numGhosts_;
-    int jMax2 = numJ2;
+    int jMaxG2 = numJ2 + 2 * numGhosts_ - 1;
+    int jMax2 = numJ2 - 1;
 
-    int jMaxPG2 = this->NumJ() + 2 * numGhosts_;
+    int jMaxPG2 = this->NumJ() + 2 * numGhosts_ - 1;
     int jMinPG2 = ind;
-    int jMaxP2 = this->NumJ();
+    int jMaxP2 = this->NumJ() - 1;
     int jMinP2 = ind + numGhosts_;
 
     // indices common to both blocks
-    int iMaxG = this->NumI() + 2 * numGhosts_;
-    int iMax = this->NumI();
-    int kMaxG = this->NumK() + 2 * numGhosts_;
-    int kMax = this->NumK();
+    int iMaxG = this->NumI() + 2 * numGhosts_ - 1;
+    int iMax = this->NumI() - 1;
+    int kMaxG = this->NumK() + 2 * numGhosts_ - 1;
+    int kMax = this->NumK() - 1;
 
     // ------------------------------------------------------------------
     // assign variables for lower split
@@ -5990,23 +5990,23 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
     blk2.parBlock_ = parBlock_;
 
     // indices for lower block
-    int kMaxG1 = numK1 + 2 * numGhosts_;
-    int kMax1 = numK1;
+    int kMaxG1 = numK1 + 2 * numGhosts_ - 1;
+    int kMax1 = numK1 - 1;
 
     // indices for upper block
-    int kMaxG2 = numK2 + 2 * numGhosts_;
-    int kMax2 = numK2;
+    int kMaxG2 = numK2 + 2 * numGhosts_ - 1;
+    int kMax2 = numK2 - 1;
 
-    int kMaxPG2 = this->NumK() + 2 * numGhosts_;
+    int kMaxPG2 = this->NumK() + 2 * numGhosts_ - 1;
     int kMinPG2 = ind;
-    int kMaxP2 = this->NumK();
+    int kMaxP2 = this->NumK() - 1;
     int kMinP2 = ind + numGhosts_;
 
     // indices common to both blocks
-    int iMaxG = this->NumI() + 2 * numGhosts_;
-    int iMax = this->NumI();
-    int jMaxG = this->NumJ() + 2 * numGhosts_;
-    int jMax = this->NumJ();
+    int iMaxG = this->NumI() + 2 * numGhosts_ - 1;
+    int iMax = this->NumI() - 1;
+    int jMaxG = this->NumJ() + 2 * numGhosts_ - 1;
+    int jMax = this->NumJ() - 1;
 
     // ------------------------------------------------------------------
     // assign variables for lower split
@@ -6105,25 +6105,27 @@ void procBlock::Join(const procBlock &blk, const string &dir,
   // after this split
 
   if (dir == "i") {  // --------------------------------------------------
-    int iMax = this->NumI() + blk.NumI();
-    int jMax = this->NumJ();
-    int kMax = this->NumK();
+    procBlock newBlk(this->NumI() + blk.NumI(), this->NumJ(), this->NumK(),
+                     numGhosts_);
 
-    int iMaxG = iMax + 2 * numGhosts_;
-    int jMaxG = jMax + 2 * numGhosts_;
-    int kMaxG = kMax + 2 * numGhosts_;
+    // cell indices
+    int iMax = this->NumI() + blk.NumI() - 1;
+    int jMax = this->NumJ() - 1;
+    int kMax = this->NumK() - 1;
 
-    procBlock newBlk(iMax, jMax, kMax, numGhosts_);
+    int iMaxG = iMax + 2 * numGhosts_ - 1;
+    int jMaxG = jMax + 2 * numGhosts_ - 1;
+    int kMaxG = kMax + 2 * numGhosts_ - 1;
+
+    int iMaxUG = blk.NumI() + 2 * blk.numGhosts_ - 1;
+    int iMaxU = blk.NumI() - 1;
+    int iMaxLG = this->NumI() + numGhosts_ - 1;  // don't copy upper ghosts
+    int iMaxL = this->NumI() - 1;
+
+    int iMinUG = numGhosts_;
 
     newBlk.bc_ = bc_;
     newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
-
-    int iMaxUG = blk.NumI() + 2 * blk.numGhosts_;
-    int iMaxU = blk.NumI();
-    int iMaxLG = this->NumI() + blk.numGhosts_;  // don't copy upper ghosts
-    int iMaxL = this->NumI();
-
-    int iMinUG = numGhosts_;
 
     // assign variables from lower block -----------------------------
     // assign cell variables with ghost cells
@@ -6202,25 +6204,27 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 
     *this = newBlk;
   } else if (dir == "j") {  // -----------------------------------------
-    int iMax = this->NumI();
-    int jMax = this->NumJ() + blk.NumJ();
-    int kMax = this->NumK();
+    procBlock newBlk(this->NumI(), this->NumJ() + blk.NumJ(), this->NumK(),
+                     numGhosts_);
 
-    int iMaxG = iMax + 2 * numGhosts_;
-    int jMaxG = jMax + 2 * numGhosts_;
-    int kMaxG = kMax + 2 * numGhosts_;
+    // cell indices
+    int iMax = this->NumI() - 1;
+    int jMax = this->NumJ() + blk.NumJ() - 1;
+    int kMax = this->NumK() - 1;
 
-    procBlock newBlk(iMax, jMax, kMax, numGhosts_);
+    int iMaxG = iMax + 2 * numGhosts_ - 1;
+    int jMaxG = jMax + 2 * numGhosts_ - 1;
+    int kMaxG = kMax + 2 * numGhosts_ - 1;
+
+    int jMaxUG = blk.NumJ() + 2 * blk.numGhosts_ - 1;
+    int jMaxU = blk.NumJ() - 1;
+    int jMaxLG = this->NumJ() + numGhosts_ - 1;  // don't copy upper ghosts
+    int jMaxL = this->NumJ() - 1;
+
+    int jMinUG = numGhosts_;
 
     newBlk.bc_ = bc_;
     newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
-
-    int jMaxUG = blk.NumJ() + 2 * blk.numGhosts_;
-    int jMaxU = blk.NumJ();
-    int jMaxLG = this->NumJ() + blk.numGhosts_;  // don't copy upper ghosts
-    int jMaxL = this->NumJ();
-
-    int jMinUG = numGhosts_;
 
     // assign variables from lower block -----------------------------
     // assign cell variables with ghost cells
@@ -6299,25 +6303,27 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 
     *this = newBlk;
   } else if (dir == "k") {  // ----------------------------------------------
-    int iMax = this->NumI();
-    int jMax = this->NumJ();
-    int kMax = this->NumK() + blk.NumK();
+    procBlock newBlk(this->NumI(), this->NumJ(), this->NumK() + blk.NumK(),
+                     numGhosts_);
 
-    int iMaxG = iMax + 2 * numGhosts_;
-    int jMaxG = jMax + 2 * numGhosts_;
-    int kMaxG = kMax + 2 * numGhosts_;
+    // cell indices
+    int iMax = this->NumI() - 1;
+    int jMax = this->NumJ() - 1;
+    int kMax = this->NumK() + blk.NumK() - 1;
 
-    procBlock newBlk(iMax, jMax, kMax, numGhosts_);
+    int iMaxG = iMax + 2 * numGhosts_ - 1;
+    int jMaxG = jMax + 2 * numGhosts_ - 1;
+    int kMaxG = kMax + 2 * numGhosts_ - 1;
+
+    int kMaxUG = blk.NumK() + 2 * blk.numGhosts_ - 1;
+    int kMaxU = blk.NumK() - 1;
+    int kMaxLG = this->NumK() + numGhosts_ - 1;  // don't copy upper ghosts
+    int kMaxL = this->NumK() - 1;
+
+    int kMinUG = numGhosts_;
 
     newBlk.bc_ = bc_;
     newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
-
-    int kMaxUG = blk.NumK() + 2 * blk.numGhosts_;
-    int kMaxU = blk.NumK();
-    int kMaxLG = this->NumK() + blk.numGhosts_;  // don't copy upper ghosts
-    int kMaxL = this->NumK();
-
-    int kMinUG = numGhosts_;
 
     // assign variables from lower block -----------------------------
     // assign cell variables with ghost cells
