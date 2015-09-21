@@ -2922,8 +2922,8 @@ void procBlock::AssignGhostCellsGeomEdge() {
                    fAreaI_.Slice(ipF, ipF, jg2, jg2, kmin, kmax));
     fAreaJ_.Insert(ig1, ig1, jg2F, jg2F, kmin, kmax,
                    fAreaJ_.Slice(ip, ip, jg2F, jg2F, kmin, kmax));
-    fAreaK_.Insert(ig1, ig1, jg2F, jg2F, kmin, kmaxF,
-                   fAreaK_.Slice(ip, ip, jg2F, jg2F, kmin, kmaxF));
+    fAreaK_.Insert(ig1, ig1, jg2, jg2, kmin, kmaxF,
+                   fAreaK_.Slice(ip, ip, jg2, jg2, kmin, kmaxF));
 
     fAreaI_.Insert(ig2F, ig2F, jg1, jg1, kmin, kmax,
                    fAreaI_.Slice(ig2F, ig2F, jp, jp, kmin, kmax));
@@ -4293,7 +4293,7 @@ void procBlock::SwapSliceMPI(const interblock &inter, const int &rank,
   }
 
   // get local state slice to swap
-  stateSlice state((*this), is, ie, js, je, ks, ke);
+  stateSlice state(*this, is, ie, js, je, ks, ke);
 
   // swap state slices with partner block
   state.PackSwapUnpackMPI(inter, MPI_cellData, rank);
@@ -4302,11 +4302,11 @@ void procBlock::SwapSliceMPI(const interblock &inter, const int &rank,
   interblock interAdj = inter;
 
   // block to insert into is first in interblock
-  if (rank == inter.RankSecond()) {
-    interAdj.AdjustForSlice(false, numGhosts_);
+  if (rank == inter.RankFirst()) {
+    interAdj.AdjustForSlice(true, numGhosts_);
   } else {  // block to insert into is second in interblock, so pass swapped
             // version
-    interAdj.AdjustForSlice(true, numGhosts_);
+    interAdj.AdjustForSlice(false, numGhosts_);
   }
 
   // insert stateSlice into procBlock
@@ -4320,22 +4320,22 @@ interblock boundary. The vector is formatted as shown below:
 
 The vector will contain 3 entries corresponding to the i, j, and k locations of
 either the first or second pair in the interblock, depending on what is
-specified in the pairID variable. The indices returned will correspond to cell
+specified in the 'first' variable. The indices returned will correspond to cell
 locations and will take into account the orientation of the patches that
 comprise the interblock with relation to each other.
 */
 vector3d<int> GetSwapLoc(const int &l1, const int &l2, const int &l3,
-                         const interblock &inter, const bool &pairID) {
+                         const interblock &inter, const bool &first) {
   // l1 -- index of direction 1 within slice to insert
   // l2 -- index of direction 2 within slice to insert
   // l3 -- index of direction 3 within slice to insert
   // inter -- interblock boundary condition
-  // pairID -- returning index for first or second block in interblock match
+  // first -- flag for first or second block in interblock match
 
   // preallocate vector to return
   vector3d<int> loc;
 
-  if (pairID) {  // working on first in pair ------------------------------
+  if (first) {  // working on first in pair ------------------------------
     // first patch in pair is calculated using orientation 1
     if (inter.Direction3First() == "i") {  // i-patch
       // get direction 1 length
@@ -4385,7 +4385,7 @@ vector3d<int> GetSwapLoc(const int &l1, const int &l2, const int &l3,
                      ? inter.Dir1EndSecond() - 1 - l1
                      : inter.Dir1StartSecond() + l1;
 
-        // direction 1 is k -- if true direction reversed -- subtract 1 from End
+        // direction 2 is k -- if true direction reversed -- subtract 1 from End
         // to get to cell index
         loc[2] = (inter.Orientation() == 3 || inter.Orientation() == 8)
                      ? inter.Dir2EndSecond() - 1 - l2
@@ -4649,7 +4649,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
                 adjEdge[1] = true;
               }
             } else {
-              cerr << "ERROR: Error in procBlock::PutStateSlice(). Ghost cell "
+              cerr << "ERROR: Error in procBlock::PutGeomSlice(). Ghost cell "
                       "edge direction does not match interblock direction 1 or "
                       "2." << endl;
               exit(0);
@@ -5382,7 +5382,7 @@ is listed first, and the stateSlice second in the interblock data structure.
 */
 void procBlock::PutStateSlice(const stateSlice &slice, const interblock &inter,
                               const int &d3, const int &numG) {
-  // slice -- geomSlice to insert int procBlock
+  // slice -- stateSlice to insert in procBlock
   // inter -- interblock data structure defining the patches and their
   // orientation
   // d3 -- distance of direction normal to patch to insert
@@ -5397,7 +5397,7 @@ void procBlock::PutStateSlice(const stateSlice &slice, const interblock &inter,
     cerr << "Direction 1, 2, 3 of procBlock: "
          << inter.Dir1EndFirst() - inter.Dir1StartFirst() << ", "
          << inter.Dir2EndFirst() - inter.Dir2StartFirst() << ", " << d3 << endl;
-    cerr << "Direction I, J, K of geomSlice: " << slice.NumI() << ", "
+    cerr << "Direction I, J, K of stateSlice: " << slice.NumI() << ", "
          << slice.NumJ() << ", " << slice.NumK() << endl;
     exit(0);
   }
