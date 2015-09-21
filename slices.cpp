@@ -219,20 +219,30 @@ void stateSlice::PackSwapUnpackMPI(const interblock &inter,
   // pack data into buffer, but first get size
   int bufSize = 0;
   int tempSize = 0;
-  MPI_Pack_size((*this).NumCells(), MPI_cellData, MPI_COMM_WORLD,
+  MPI_Pack_size(this->NumCells(), MPI_cellData, MPI_COMM_WORLD,
                 &tempSize);  // add size for states
   bufSize += tempSize;
-  MPI_Pack_size(1, MPI_INT, MPI_COMM_WORLD,
-                &tempSize);  // add size for ints in class stateSlice
+  // add size for ints in class stateSlice, and 3 ints for multiArray3d dims
+  MPI_Pack_size(4, MPI_INT, MPI_COMM_WORLD,
+                &tempSize);
   bufSize += tempSize;
 
   char *buffer = new char[bufSize];  // allocate buffer to pack data into
 
   // pack data into buffer
+  int numI = this->NumI();
+  int numJ = this->NumJ();
+  int numK = this->NumK();
   int position = 0;
-  MPI_Pack(&(*this).state_(0, 0, 0), (*this).NumCells(), MPI_cellData, buffer,
+  MPI_Pack(&numI, 1, MPI_INT, buffer, bufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&numJ, 1, MPI_INT, buffer, bufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&numK, 1, MPI_INT, buffer, bufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&state_(0, 0, 0), this->NumCells(), MPI_cellData, buffer,
            bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).parBlock_, 1, MPI_INT, buffer, bufSize, &position,
+  MPI_Pack(&parBlock_, 1, MPI_INT, buffer, bufSize, &position,
            MPI_COMM_WORLD);
 
   MPI_Status status;
@@ -246,9 +256,18 @@ void stateSlice::PackSwapUnpackMPI(const interblock &inter,
 
   // put slice back into stateSlice
   position = 0;
-  MPI_Unpack(buffer, bufSize, &position, &(*this).state_(0, 0, 0),
-             (*this).NumCells(), MPI_cellData, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &(*this).parBlock_, 1, MPI_INT,
+  MPI_Unpack(buffer, bufSize, &position, &numI, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &numJ, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &numK, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  // resize slice
+  state_.ClearResize(numI, numJ, numK);
+
+  MPI_Unpack(buffer, bufSize, &position, &state_(0, 0, 0),
+             this->NumCells(), MPI_cellData, MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &parBlock_, 1, MPI_INT,
              MPI_COMM_WORLD);
 
   delete[] buffer;
