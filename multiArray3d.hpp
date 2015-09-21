@@ -43,7 +43,16 @@ class multiArray3d {
 
   // private member functions
   int GetLoc1D(const int &ii, const int &jj, const int &kk) const {
+    // DEBUG
+    // if (ii < numI_ && jj < numJ_ && kk < numK_) {
     return ii + jj * numI_ + kk * numI_ * numJ_;
+    // } else {
+    //   cerr << "ERROR: Tried to access location outside of bounds of "
+    //        << "multiArray3d" << endl;
+    //   cerr << "Tried to access " << ii << ", " << jj << ", " << kk << endl;
+    //   cerr << "Maximum locations are " << numI_ - 1 << ", " << numJ_ - 1 << ", "
+    //        << numK_ - 1 << endl;
+    // }
   }
 
  public:
@@ -128,6 +137,8 @@ class multiArray3d {
   void ClearResize(const int &ii, const int &jj, const int &kk, const T &val) {
     *this = multiArray3d<T>(ii, jj, kk, val);
   }
+
+  void SameSizeResize(const int &ii, const int&jj, const int &kk);
 
   template <typename TT>
   friend ostream &operator<<(ostream &, const multiArray3d<TT> &);
@@ -493,6 +504,20 @@ void multiArray3d<T>::GrowK() {
     }
   }
   *this = arr;
+}
+
+template <typename T>
+void multiArray3d<T>::SameSizeResize(const int &ii, const int&jj,
+                                     const int &kk) {
+  if (this->Size() != (ii * jj * kk)) {
+    cerr << "ERROR: Error in multiArray3d<T>::SameSizeResize. Attempting to "
+         << "resize array of " << this->Size() << " cells to " <<
+        ii * jj * kk << " cells." << endl;
+    exit(0);
+  }
+    numI_ = ii;
+    numJ_ = jj;
+    numK_ = kk;
 }
 
 

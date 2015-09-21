@@ -263,7 +263,7 @@ void stateSlice::PackSwapUnpackMPI(const interblock &inter,
   MPI_Unpack(buffer, bufSize, &position, &numK, 1, MPI_INT,
              MPI_COMM_WORLD);
   // resize slice
-  state_.ClearResize(numI, numJ, numK);
+  state_.SameSizeResize(numI, numJ, numK);
 
   MPI_Unpack(buffer, bufSize, &position, &state_(0, 0, 0),
              this->NumCells(), MPI_cellData, MPI_COMM_WORLD);

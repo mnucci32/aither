@@ -433,64 +433,56 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
                      __________________           __________________
                     |C1             C12|         |C1             C12|
                     |                  |         |                  |
-Orientation 1:      |                  |         |                  |    Same
-orientation
+Orientation 1:      |                  |         |                  |  Same orientation
                   D1|O               C2|       D1|O               C2|
                    ^|__________________|        ^|__________________|
                    | -->D2                      | -->D2
                      __________________           __________________
                     |C1             C12|         |C2             C12|
                     |                  |         |                  |
-Orientation 2:      |                  |         |                  |    D1/D2
-swapped
+Orientation 2:      |                  |         |                  |  D1/D2 swapped
                   D1|O               C2|       D2|O               C1|
                    ^|__________________|        ^|__________________|
                    | -->D2                      | -->D1
                      __________________           __________________
                     |C1             C12|         |O               C2|
                     |                  |         |                  |
-Orientation 3:      |                  |         |                  |    D1
-reversed
+Orientation 3:      |                  |         |                  |  D1 reversed
                   D1|O               C2|      -D1|C1             C12|
                    ^|__________________|        ^|__________________|
                    | -->D2                      | -->D2
                      __________________           __________________
                     |C1             C12|         |C12             C2|
                     |                  |         |                  |
-Orientation 4:      |                  |         |                  |    D1/D2
-swapped, D1 reversed
+Orientation 4:      |                  |         |                  |  D1/D2 swapped, D1 reversed
                   D1|O               C2|       D2|C1               O|
                    ^|__________________|        ^|__________________|
                    | -->D2                      | D1<--
                      __________________           __________________
                     |C1             C12|         |O               C1|
                     |                  |         |                  |
-Orientation 5:      |                  |         |                  |    D1/D2
-swapped, D2 reversed
+Orientation 5:      |                  |         |                  |  D1/D2 swapped, D2 reversed
                   D1|O               C2|      -D2|C2             C12|
                    ^|__________________|        ^|__________________|
                    | -->D2                      | -->D1
                      __________________           __________________
                     |C1             C12|         |C12             C1|
                     |                  |         |                  |
-Orientation 6:      |                  |         |                  |    D2
-reversed
+Orientation 6:      |                  |         |                  |  D2 reversed
                   D1|O               C2|       D1|C2               O|
                    ^|__________________|        ^|__________________|
                    | -->D2                      | D2<--
                      __________________           __________________
                     |C1             C12|         |C1               O|
                     |                  |         |                  |
-Orientation 7:      |                  |         |                  |    D1/D2
-swapped, D1/D2 reversed
+Orientation 7:      |                  |         |                  |  D1/D2 swapped, D1/D2 reversed
                   D1|O               C2|      -D2|C12             C2|
                    ^|__________________|        ^|__________________|
                    | -->D2                      | D1<--
                      __________________           __________________
                     |C1             C12|         |C2               O|
                     |                  |         |                  |
-Orientation 8:      |                  |         |                  |    D1/D2
-reversed
+Orientation 8:      |                  |         |                  |  D1/D2 reversed
                   D1|O               C2|      -D1|C12             C1|
                    ^|__________________|        ^|__________________|
                    | -->D2                      | D2<--
@@ -607,7 +599,7 @@ bool interblock::TestPatchMatch(const patch &p1, const patch &p2) {
 void interblock::AdjustForSlice(const bool &blkFirst, const int &numG) {
   // blkFirst -- boolean that is true if block to insert into is first
   // numG -- number of ghost cells in block
-  if (!blkFirst) {        // block to insert into is second, swap order
+  if (!blkFirst) {      // block to insert into is second, swap order
     this->SwapOrder();  // have block be first entry, slice second
   }
 
