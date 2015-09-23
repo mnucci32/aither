@@ -75,6 +75,7 @@ class vector3d {
   inline T MagSq() const;
   T SumElem() const;
   T Distance(const vector3d &) const;
+  T DistSq(const vector3d &) const;
   vector3d<T> Normalize() const;
 
   // destructor
@@ -251,8 +252,14 @@ T vector3d<T>::SumElem() const {
 // Function to calculate the distance between two vector3ds
 template <typename T>
 T vector3d<T>::Distance(const vector3d &v2) const {
-  return sqrt(pow(data_[0] - v2.data_[0], 2) + pow(data_[1] - v2.data_[1], 2) +
-              pow(data_[2] - v2.data_[2], 2));
+  return sqrt(this->DistSq(v2));
+}
+
+// Function to calculate the distance squared between two vector3ds
+template <typename T>
+T vector3d<T>::DistSq(const vector3d &v2) const {
+  return pow(data_[0] - v2.data_[0], 2) + pow(data_[1] - v2.data_[1], 2) +
+      pow(data_[2] - v2.data_[2], 2);
 }
 
 // Function to normalize a vector3d into a unit vector

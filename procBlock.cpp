@@ -660,11 +660,13 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag,
       // for multistage RK4 method, calculate fluxes and residuals again
       if (rr < 3) {  // no need to calculate fluxes after final RK interation
         // UPDATE NEEDED -- have to calculate grads, visc fluxes, source terms
-        // again. Maybe BCs as well
+        // again. Problem is viscous BCs overwrite inviscid BCs, but inviscid
+        // BCs are needed again for next RK iteration
         this->CalcInvFluxI(eos, inputVars);
         this->CalcInvFluxJ(eos, inputVars);
         this->CalcInvFluxK(eos, inputVars);
-        this->CalcBlockTimeStep(inputVars, aRef);
+        // time step should be constant
+        // this->CalcBlockTimeStep(inputVars, aRef);
       }
     }
   } else {
@@ -732,7 +734,7 @@ void procBlock::RK4TimeAdvance(const primVars &currState,
                                const idealGas &eqnState, const int &ig,
                                const int &jg, const int &kg, const int &ip,
                                const int &jp, const int &kp, const int &rk) {
-  // currState -- current state_ (including steps within RK4) (primative)
+  // currState -- current state (including steps within RK4) (primative)
   // eqnState -- equation of state
   // ig -- i-location of cell (including ghost cells)
   // jg -- j-location of cell (including ghost cells)
