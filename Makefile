@@ -1,4 +1,4 @@
-OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o procBlock.o output.o matrix.o parallel.o slices.o turbulence.o gradients.o inviscidFlux.o viscousFlux.o source.o resid.o
+OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o procBlock.o output.o matrix.o parallel.o slices.o turbulence.o gradients.o inviscidFlux.o viscousFlux.o source.o resid.o kdtree.o
 CC = mpic++
 DEBUG = -ggdb -pg 
 OPTIM = -O3 -march=native
@@ -60,6 +60,9 @@ gradients.o : gradients.cpp gradients.hpp primVars.hpp vector3d.hpp tensor.hpp p
 
 resid.o : resid.cpp resid.hpp
 	$(CC) $(CFLAGS) resid.cpp
+
+kdtree.o : kdtree.cpp kdtree.hpp vector3d.hpp
+	$(CC) $(CFLAGS) kdtree.cpp
 
 clean:
 	rm *.o *~ $(CODENAME)
