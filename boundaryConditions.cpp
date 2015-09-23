@@ -775,6 +775,17 @@ void interblock::UpdateBorderSecond(const int &a) {
   }
 }
 
+// member function to determine the number of faces with a viscous wall BC
+int boundaryConditions::NumViscousFaces() const {
+  int nFaces = 0;
+  for (int ii = 0; ii < this->NumSurfaces(); ii++) {
+    if (this->GetBCTypes(ii) == "viscousWall") {
+      nFaces += surfs_[ii].NumFaces();
+    }
+  }
+  return nFaces;
+}
+
 int boundaryConditions::BlockDimI() const {
   int dim = 0;
   for (int ii = 0; ii < this->NumSurfaces(); ii++) {
@@ -2234,6 +2245,20 @@ int boundarySurface::Min2() const {
     m = this->KMin();
   }
   return m;
+}
+
+// member function to return the number of faces this boundary surface is
+// applied to
+int boundarySurface::NumFaces() const {
+  int nFaces = 0;
+  if (this->SurfaceType() <= 2) {  // i-surface
+    nFaces = (this->JMax() - this->JMin()) * (this->KMax() - this->KMin());
+  } else if (this->SurfaceType() <= 4) {  // j-surface
+    nFaces = (this->IMax() - this->IMin()) * (this->KMax() - this->KMin());
+  } else {  // k-surface
+    nFaces = (this->IMax() - this->IMin()) * (this->JMax() - this->JMin());
+  }
+  return nFaces;
 }
 
 // operator overload for << - allows use of cout, cerr, etc.

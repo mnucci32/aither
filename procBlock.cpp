@@ -6815,3 +6815,95 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
     }
   }
 }
+
+vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &blks) {
+  // blks -- vector of all procBlocks in simulation
+
+  // get vector of BCs
+  vector<boundaryConditions> bcs;
+  bcs.reserve(blks.size());
+  for (unsigned int ii = 0; ii < bcs.size(); ii++) {
+    bcs.push_back(blks[ii].BC());
+  }
+
+  // determine number of faces with viscous wall BC
+  int nFaces = 0;
+  for (unsigned int ii = 0; ii < bcs.size(); ii++) {
+    nFaces += bcs[ii].NumViscousFaces();
+  }
+
+  // allocate vector for face centers
+  vector<vector3d<double>> faceCenters;
+  faceCenters.reserve(nFaces);
+
+  int numG = blks[0].NumGhosts();  // number of ghost cells
+
+  // store viscous face centers
+  for (unsigned int aa = 0; aa < bcs.size(); aa++) {  // loop over BCs
+    for (int bb = 0; bb < bcs[aa].NumSurfaces(); bb++) {  // loop over surfaces
+      if (bcs[aa].GetBCTypes(bb) == "viscousWall") {
+        // only store face center if surface is viscous wall
+
+        if (bcs[aa].GetSurfaceType(bb) <= 2) {  // i-surface
+          int ii = (bcs[aa].GetSurfaceType(bb) % 2 == 0)
+              ? blks[aa].NumI() + numG : numG;
+
+          for (int jj = bcs[aa].GetJMin(bb) - 1 + numG;
+               jj < bcs[aa].GetJMax(bb) - 1 + numG; jj++) {
+            for (int kk = bcs[aa].GetKMin(bb) - 1 + numG;
+                 kk < bcs[aa].GetKMax(bb) - 1 + numG; kk++) {
+              faceCenters.push_back(blks[aa].FCenterI(ii, jj, kk));
+            }
+          }
+        } else if (bcs[aa].GetSurfaceType(bb) <= 4) {  // j-surface
+          int jj = (bcs[aa].GetSurfaceType(bb) % 2 == 0)
+              ? blks[aa].NumJ() + numG : numG;
+
+          for (int ii = bcs[aa].GetIMin(bb) - 1 + numG;
+               ii < bcs[aa].GetIMax(bb) - 1 + numG; ii++) {
+            for (int kk = bcs[aa].GetKMin(bb) - 1 + numG;
+                 kk < bcs[aa].GetKMax(bb) - 1 + numG; kk++) {
+              faceCenters.push_back(blks[aa].FCenterJ(ii, jj, kk));
+            }
+          }
+        } else {  // k-surface
+          int kk = (bcs[aa].GetSurfaceType(bb) % 2 == 0)
+              ? blks[aa].NumK() + numG : numG;
+
+          for (int ii = bcs[aa].GetIMin(bb) - 1 + numG;
+               ii < bcs[aa].GetIMax(bb) - 1 + numG; ii++) {
+            for (int jj = bcs[aa].GetKMin(bb) - 1 + numG;
+                 jj < bcs[aa].GetKMax(bb) - 1 + numG; jj++) {
+              faceCenters.push_back(blks[aa].FCenterK(ii, jj, kk));
+            }
+          }
+        }
+      }
+    }
+  }
+
+  return faceCenters;
+}
+
+// member function to calculate the distance to the nearest viscous wall of
+// all cell centers
+void procBlock::CalcWallDistance(const kdtree &tree) {
+  vector3d<double> neighbor;
+  // loop over all physical cells - no ghost cells for wallDist variable
+  for (int kk = 0; kk < this->NumK(); kk++) {
+    for (int jj = 0; jj < this->NumJ(); jj++) {
+      for (int ii = 0; ii < this->NumI(); ii++) {
+        wallDist_(ii, jj, kk) = tree.NearestNeighbor(center_(ii, jj, kk),
+                                                     neighbor);
+      }
+    }
+  }
+}
+
+// function to calculate the distance to the nearest viscous wall of all
+// cell centers
+void CalcWallDistance(vector<procBlock> &localBlocks, const kdtree &tree) {
+  for (unsigned int ii = 0; ii < localBlocks.size(); ii++) {
+    localBlocks[ii].CalcWallDistance(tree);
+  }
+}

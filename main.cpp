@@ -35,6 +35,7 @@
 #include "gradients.hpp"
 #include "resid.hpp"
 #include "multiArray3d.hpp"
+#include "kdtree.hpp"
 
 using std::cout;
 using std::cerr;
@@ -105,6 +106,7 @@ int main(int argc, char *argv[]) {
   vector<plot3dBlock> mesh;
   vector<interblock> connections;
   vector<procBlock> stateBlocks;
+  vector<vector3d<double>> viscFaces;
 
   if (rank == ROOTP) {
     cout << "Number of equations: " << inputVars.NumEquations() << endl << endl;
@@ -151,6 +153,9 @@ int main(int argc, char *argv[]) {
       stateBlocks[ll].AssignGhostCellsGeomEdge();
     }
 
+    // Get face centers of faces with viscous wall BC
+    viscFaces = GetViscousFaceCenters(stateBlocks);
+
     cout << endl << "Solution Initialized" << endl;
     //---------------------------------------------------------------------
   }
@@ -172,10 +177,20 @@ int main(int argc, char *argv[]) {
   // Send connections to all processors
   SendConnections(connections, MPI_interblock);
 
+  // Broadcast viscous face centers to all processors
+  BroadcastViscFaces(MPI_vec3d, viscFaces);
+
   // Create operation
   MPI_Op MPI_MAX_LINF;
   MPI_Op_create(reinterpret_cast<MPI_User_function *> (MaxLinf), true,
                 &MPI_MAX_LINF);
+
+  //-----------------------------------------------------------------------
+  // wall distance calculation
+  // Construct k-d tree for wall distance calculation
+  kdtree tree(viscFaces);
+
+  CalcWallDistance(localStateBlocks, tree);
 
   //-----------------------------------------------------------------------
 

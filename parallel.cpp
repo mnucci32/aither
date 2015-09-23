@@ -821,3 +821,17 @@ void decomposition::PrintDiagnostics(const vector<plot3dBlock> &grid) const {
          << ", Split Index: " << (*this).splitHistIndex_[ii] << endl;
   }
 }
+
+
+void BroadcastViscFaces(const MPI_Datatype &MPI_vec3d,
+                        vector<vector3d<double>> &viscFaces) {
+  // first determine the number of viscous faces and send that to all processors
+  int nFaces = viscFaces.size();
+  MPI_Bcast(&nFaces, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
+
+  viscFaces.resize(nFaces);  // allocate space to receive the viscous faces
+
+  // broadcast all viscous faces to all processors
+  MPI_Bcast(&viscFaces[0], viscFaces.size(), MPI_vec3d, ROOTP,
+            MPI_COMM_WORLD);
+}

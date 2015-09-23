@@ -22,7 +22,7 @@ input.o : input.cpp input.hpp boundaryConditions.hpp
 primVars.o : primVars.cpp primVars.hpp vector3d.hpp eos.hpp inviscidFlux.hpp boundaryConditions.hpp input.hpp macros.hpp
 	$(CC) $(CFLAGS) primVars.cpp
 
-procBlock.o : procBlock.cpp procBlock.hpp vector3d.hpp plot3d.hpp eos.hpp primVars.hpp inviscidFlux.hpp input.hpp matrix.hpp viscousFlux.hpp boundaryConditions.hpp macros.hpp turbulence.hpp
+procBlock.o : procBlock.cpp procBlock.hpp vector3d.hpp plot3d.hpp eos.hpp primVars.hpp inviscidFlux.hpp input.hpp matrix.hpp viscousFlux.hpp boundaryConditions.hpp macros.hpp turbulence.hpp kdtree.hpp
 	$(CC) $(CFLAGS) procBlock.cpp
 
 inviscidFlux.o : inviscidFlux.cpp vector3d.hpp eos.hpp primVars.hpp inviscidFlux.hpp input.hpp macros.hpp matrix.hpp

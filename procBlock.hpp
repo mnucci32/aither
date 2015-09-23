@@ -30,6 +30,7 @@
 #include "matrix.hpp"              // genArray
 #include "boundaryConditions.hpp"  // interblock, patch
 #include "macros.hpp"
+#include "kdtree.hpp"              // kdtree
 
 using std::vector;
 using std::string;
@@ -268,6 +269,8 @@ class procBlock {
   void PackSendSolMPI(const MPI_Datatype &) const;
   void RecvUnpackSolMPI(const MPI_Datatype &);
 
+  void CalcWallDistance(const kdtree &);
+
   // destructor
   ~procBlock() {}
 };
@@ -311,4 +314,15 @@ void GetBoundaryConditions(vector<procBlock> &, const input &, const idealGas &,
                            const sutherland &, vector<interblock> &,
                            const int &, const MPI_Datatype &);
 
+vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &);
+void CalcWallDistance(vector<procBlock> &, const kdtree &);
+
 #endif
+
+
+
+
+
+
+
+
