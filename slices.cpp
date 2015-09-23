@@ -15,45 +15,27 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <iostream>
-#include <vector>
-#include <string>
 #include "slices.hpp"
 #include "procBlock.hpp"
 #include "boundaryConditions.hpp"  // interblock
-#include "plot3d.hpp"              // location functions
 
 using std::cout;
 using std::endl;
 using std::cerr;
-using std::vector;
-using std::string;
 
 // constructors for geomSlice class
 geomSlice::geomSlice() {
-  numCells_ = 1;
-  numI_ = 1;
-  numJ_ = 1;
-  numK_ = 1;
   parBlock_ = 0;
 
-  int numFaces = (numI_ + 1) * (numJ_) * (numK_);
+  center_ = multiArray3d<vector3d<double> >(1, 1, 1);
+  fAreaI_ = multiArray3d<unitVec3dMag<double> >(1, 1, 1);
+  fAreaJ_ = fAreaI_;
+  fAreaK_ = fAreaI_;
+  fCenterI_ = multiArray3d<vector3d<double> >(1, 1, 1);
+  fCenterJ_ = fCenterI_;
+  fCenterK_ = fCenterI_;
 
-  // dummy vector variable length of number of faces
-  vector<vector3d<double> > vec1(numFaces);
-  // dummy vector variable length of number of cells
-  vector<vector3d<double> > vec2(numCells_);
-  // dummy scalar variable length of number of cells
-  vector<double> scalar(numCells_);
-
-  center_ = vec2;
-  fAreaI_ = vec1;
-  fAreaJ_ = vec1;
-  fAreaK_ = vec1;
-  fCenterI_ = vec1;
-  fCenterJ_ = vec1;
-  fCenterK_ = vec1;
-
-  vol_ = scalar;
+  vol_ = multiArray3d<double>(1, 1, 1);
 }
 
 // constructor -- initialize state_ vector with dummy variables
@@ -64,39 +46,17 @@ geomSlice::geomSlice(const int &li, const int &lj, const int &lk,
   // lk -- size of direction k (cell)
   // pblk -- parent block that slice is coming from
 
-  numI_ = li;
-  numJ_ = lj;
-  numK_ = lk;
-
-  numCells_ = li * lj * lk;
-
   parBlock_ = pblk;
 
-  int numIFaces = (numI_ + 1) * (numJ_) * (numK_);
-  int numJFaces = (numI_) * (numJ_ + 1) * (numK_);
-  int numKFaces = (numI_) * (numJ_) * (numK_ + 1);
+  center_ = multiArray3d<vector3d<double> >(li, lj, lk);
+  fAreaI_ = multiArray3d<unitVec3dMag<double> > (li + 1, lj, lk);
+  fAreaJ_ = multiArray3d<unitVec3dMag<double> > (li, lj + 1, lk);
+  fAreaK_ = multiArray3d<unitVec3dMag<double> > (li, lj, lk + 1);
+  fCenterI_ = multiArray3d<vector3d<double> > (li + 1, lj, lk);
+  fCenterJ_ = multiArray3d<vector3d<double> > (li, lj + 1, lk);
+  fCenterK_ = multiArray3d<vector3d<double> > (li, lj, lk + 1);
 
-  // dummy vector variable length of number of faces
-  vector<vector3d<double> > vecIFaces(numIFaces);
-  // dummy vector variable length of number of faces
-  vector<vector3d<double> > vecJFaces(numJFaces);
-  // dummy vector variable length of number of faces
-  vector<vector3d<double> > vecKFaces(numKFaces);
-
-  // dummy vector variable length of number of cells
-  vector<vector3d<double> > vecCells(numCells_);
-  // dummy scalar variable length of number of cells
-  vector<double> scalar(numCells_);
-
-  center_ = vecCells;
-  fAreaI_ = vecIFaces;
-  fAreaJ_ = vecJFaces;
-  fAreaK_ = vecKFaces;
-  fCenterI_ = vecIFaces;
-  fCenterJ_ = vecJFaces;
-  fCenterK_ = vecKFaces;
-
-  vol_ = scalar;
+  vol_ = multiArray3d<double>(li, lj, lk);
 }
 
 /* constructor to get a slice (portion) of the geometry of a procBlock. The
@@ -120,135 +80,108 @@ geomSlice::geomSlice(const procBlock &blk, const int &is, const int &ie,
   // revK -- flag to reverse k direction of indices (default false)
 
   // allocate dimensions
-  numI_ = ie - is + 1;
-  numJ_ = je - js + 1;
-  numK_ = ke - ks + 1;
-  numCells_ = numI_ * numJ_ * numK_;
+  int numI = ie - is + 1;
+  int numJ = je - js + 1;
+  int numK = ke - ks + 1;
   parBlock_ = blk.ParentBlock();
 
   // allocate size for vectors
-  center_.resize(numCells_);
-  fAreaI_.resize((numI_ + 1) * numJ_ * numK_);
-  fAreaJ_.resize(numI_ * (numJ_ + 1) * numK_);
-  fAreaK_.resize(numI_ * numJ_ * (numK_ + 1));
-  fCenterI_.resize((numI_ + 1) * numJ_ * numK_);
-  fCenterJ_.resize(numI_ * (numJ_ + 1) * numK_);
-  fCenterK_.resize(numI_ * numJ_ * (numK_ + 1));
-  vol_.resize(numCells_);
-
-  // get parent block maxes
-  int imaxPar = blk.NumI() + 2.0 * blk.NumGhosts();
-  int jmaxPar = blk.NumJ() + 2.0 * blk.NumGhosts();
+  center_ = multiArray3d<vector3d<double> >(numI, numJ, numK);
+  fAreaI_ = multiArray3d<unitVec3dMag<double> >(numI + 1, numJ, numK);
+  fAreaJ_ = multiArray3d<unitVec3dMag<double> >(numI, numJ + 1, numK);
+  fAreaK_ = multiArray3d<unitVec3dMag<double> >(numI, numJ, numK + 1);
+  fCenterI_ = multiArray3d<vector3d<double> >(numI + 1, numJ, numK);
+  fCenterJ_ = multiArray3d<vector3d<double> >(numI, numJ + 1, numK);
+  fCenterK_ = multiArray3d<vector3d<double> >(numI, numJ, numK + 1);
+  vol_ = multiArray3d<double>(numI, numJ, numK);
 
   // loop over all cells in slice and populate
-  for (int kk = 0; kk < numK_; kk++) {
-    for (int jj = 0; jj < numJ_; jj++) {
-      for (int ii = 0; ii < numI_; ii++) {
+  for (int kk = 0; kk < vol_.NumK(); kk++) {
+    for (int jj = 0; jj < vol_.NumJ(); jj++) {
+      for (int ii = 0; ii < vol_.NumI(); ii++) {
         // determine if direction needs to be reversed
-        int k = revK ? numK_ - 1 - kk : kk;
+        int k = revK ? numK - 1 - kk : kk;
         double kFac = revK ? -1.0 : 1.0;
 
-        int j = revJ ? numJ_ - 1 - jj : jj;
+        int j = revJ ? numJ - 1 - jj : jj;
         double jFac = revJ ? -1.0 : 1.0;
 
-        int i = revI ? numI_ - 1 - ii : ii;
+        int i = revI ? numI - 1 - ii : ii;
         double iFac = revI ? -1.0 : 1.0;
 
-        // cell locations
-        int locPar = GetLoc1D(is + i, js + j, ks + k, imaxPar, jmaxPar);
-        int loc = GetLoc1D(ii, jj, kk, numI_, numJ_);
-
-        // lower i-face locations
-        int lowIPar = GetLowerFaceI(is + i, js + j, ks + k, imaxPar, jmaxPar);
-        int lowI = GetLowerFaceI(ii, jj, kk, numI_, numJ_);
-
-        // upper i-face locations
-        int upIPar = GetUpperFaceI(is + i, js + j, ks + k, imaxPar, jmaxPar);
-        int upI = GetUpperFaceI(ii, jj, kk, numI_, numJ_);
-
-        // lower j-face locations
-        int lowJPar = GetLowerFaceJ(is + i, js + j, ks + k, imaxPar, jmaxPar);
-        int lowJ = GetLowerFaceJ(ii, jj, kk, numI_, numJ_);
-
-        // upper j-face locations
-        int upJPar = GetUpperFaceJ(is + i, js + j, ks + k, imaxPar, jmaxPar);
-        int upJ = GetUpperFaceJ(ii, jj, kk, numI_, numJ_);
-
-        // lower k-face locations
-        int lowKPar = GetLowerFaceK(is + i, js + j, ks + k, imaxPar, jmaxPar);
-        int lowK = GetLowerFaceK(ii, jj, kk, numI_, numJ_);
-
-        // upper k-face locations
-        int upKPar = GetUpperFaceK(is + i, js + j, ks + k, imaxPar, jmaxPar);
-        int upK = GetUpperFaceK(ii, jj, kk, numI_, numJ_);
-
         // assign cell variables
-        vol_[loc] = blk.Vol(locPar);
-        center_[loc] = blk.Center(locPar);
+        vol_(ii, jj, kk) = blk.Vol(is + i, js + j, ks + k);
+        center_(ii, jj, kk) = blk.Center(is + i, js + j, ks + k);
 
         // assign i-face variables
-        if (revI) {  // if direction is reversed, upper/lower faces need to be
-                     // swapped
-          fAreaI_[lowI] = iFac * blk.FAreaI(upIPar);
-          fCenterI_[lowI] = blk.FCenterI(upIPar);
+        // if direction is reversed, upper/lower faces need to be swapped
+        if (revI) {
+          fAreaI_(ii, jj, kk) = iFac * blk.FAreaI(is + i + 1, js + j, ks + k);
+          fCenterI_(ii, jj, kk) = blk.FCenterI(is + i + 1, js + j, ks + k);
 
-          if (ii ==
-              numI_ - 1) {  // at end of i-line assign upper face values too
-            fAreaI_[upI] = iFac * blk.FAreaI(lowIPar);
-            fCenterI_[upI] = blk.FCenterI(lowIPar);
+          // at end of i-line assign upper face values too
+          if (ii == numI - 1) {
+            fAreaI_(ii + 1, jj, kk) = iFac * blk.FAreaI(is + i, js + j, ks + k);
+            fCenterI_(ii + 1, jj, kk) = blk.FCenterI(is + i, js + j, ks + k);
           }
         } else {
-          fAreaI_[lowI] = iFac * blk.FAreaI(lowIPar);
-          fCenterI_[lowI] = blk.FCenterI(lowIPar);
+          fAreaI_(ii, jj, kk) = iFac * blk.FAreaI(is + i, js + j, ks + k);
+          fCenterI_(ii, jj, kk) = blk.FCenterI(is + i, js + j, ks + k);
 
-          if (ii ==
-              numI_ - 1) {  // at end of i-line assign upper face values too
-            fAreaI_[upI] = iFac * blk.FAreaI(upIPar);
-            fCenterI_[upI] = blk.FCenterI(upIPar);
+          // at end of i-line assign upper face values too
+          if (ii == numI - 1) {
+            fAreaI_(ii + 1, jj, kk) = iFac * blk.FAreaI(is + i + 1, js + j,
+                                                        ks + k);
+            fCenterI_(ii + 1, jj, kk) = blk.FCenterI(is + i + 1, js + j,
+                                                     ks + k);
           }
         }
 
         // assign j-face variables
-        if (revJ) {  // if direction is reversed, upper/lower faces need to be
-                     // swapped
-          fAreaJ_[lowJ] = jFac * blk.FAreaJ(upJPar);
-          fCenterJ_[lowJ] = blk.FCenterJ(upJPar);
+        // if direction is reversed, upper/lower faces need to be swapped
+        if (revJ) {
+          fAreaJ_(ii, jj, kk) = jFac * blk.FAreaJ(is + i, js + j + 1, ks + k);
+          fCenterJ_(ii, jj, kk) = blk.FCenterJ(is + i, js + j + 1, ks + k);
 
-          if (jj ==
-              numJ_ - 1) {  // at end of j-line assign upper face values too
-            fAreaJ_[upJ] = jFac * blk.FAreaJ(lowJPar);
-            fCenterJ_[upJ] = blk.FCenterJ(lowJPar);
+          // at end of j-line assign upper face values too
+          if (jj == numJ - 1) {
+            fAreaJ_(ii, jj + 1, kk) = jFac * blk.FAreaJ(is + i, js + j, ks + k);
+            fCenterJ_(ii, jj + 1, kk) = blk.FCenterJ(is + i, js + j, ks + k);
           }
         } else {
-          fAreaJ_[lowJ] = jFac * blk.FAreaJ(lowJPar);
-          fCenterJ_[lowJ] = blk.FCenterJ(lowJPar);
+          fAreaJ_(ii, jj, kk) = jFac * blk.FAreaJ(is + i, js + j, ks + k);
+          fCenterJ_(ii, jj, kk) = blk.FCenterJ(is + i, js + j, ks + k);
 
-          if (jj ==
-              numJ_ - 1) {  // at end of j-line assign upper face values too
-            fAreaJ_[upJ] = jFac * blk.FAreaJ(upJPar);
-            fCenterJ_[upJ] = blk.FCenterJ(upJPar);
+          // at end of j-line assign upper face values too
+          if (jj == numJ - 1) {
+            fAreaJ_(ii, jj + 1, kk) = jFac * blk.FAreaJ(is + i, js + j + 1,
+                                                        ks + k);
+            fCenterJ_(ii, jj + 1, kk) = blk.FCenterJ(is + i, js + j + 1,
+                                                     ks + k);
           }
         }
 
         // assign k-face variables
-        if (revK) {  // if direction is reversed, upper/lower faces need to be
-                     // swapped
-          fAreaK_[lowK] = kFac * blk.FAreaK(upKPar);
-          fCenterK_[lowK] = blk.FCenterK(upKPar);
+        // if direction is reversed, upper/lower faces need to be swapped
+        if (revK) {
+          fAreaK_(ii, jj, kk) = kFac * blk.FAreaK(is + i, js + j, ks + k + 1);
+          fCenterK_(ii, jj, kk) = blk.FCenterK(is + i, js + j, ks + k + 1);
 
-          if (kk ==
-              numK_ - 1) {  // at end of k-line assign upper face values too
-            fAreaK_[upK] = kFac * blk.FAreaK(lowKPar);
-            fCenterK_[upK] = blk.FCenterK(lowKPar);
+          // at end of k-line assign upper face values too
+          if (kk == numK - 1) {
+            fAreaK_(ii, jj, kk + 1) = kFac * blk.FAreaK(is + i, js + j, ks + k);
+            fCenterK_(ii, jj, kk + 1) = blk.FCenterK(is + i, js + j, ks + k);
           }
         } else {
-          fAreaK_[lowK] = kFac * blk.FAreaK(lowKPar);
-          fCenterK_[lowK] = blk.FCenterK(lowKPar);
+          fAreaK_(ii, jj, kk) = kFac * blk.FAreaK(is + i, js + j, ks + k);
+          fCenterK_(ii, jj, kk) = blk.FCenterK(is + i, js + j, ks + k);
 
-          if (kk ==
-              numK_ - 1) {  // at end of k-line assign upper face values too
-            fAreaK_[upK] = kFac * blk.FAreaK(upKPar);
-            fCenterK_[upK] = blk.FCenterK(upKPar);
+          // at end of k-line assign upper face values too
+          if (kk == numK - 1) {
+            fAreaK_(ii, jj, kk + 1) = kFac * blk.FAreaK(is + i, js + j,
+                                                        ks + k + 1);
+            fCenterK_(ii, jj, kk + 1) = blk.FCenterK(is + i, js + j,
+                                                     ks + k + 1);
           }
         }
       }
@@ -258,16 +191,8 @@ geomSlice::geomSlice(const procBlock &blk, const int &is, const int &ie,
 
 // constructors for stateSlice class
 stateSlice::stateSlice() {
-  numCells_ = 1;
-  numI_ = 1;
-  numJ_ = 1;
-  numK_ = 1;
   parBlock_ = 0;
-
-  // dummy primVars variable length of number of cells
-  vector<primVars> prims(numCells_);
-
-  state_ = prims;
+  state_ = multiArray3d<primVars>(1, 1, 1);
 }
 // constructor -- initialize state vector with dummy variables
 stateSlice::stateSlice(const int &li, const int &lj, const int &lk,
@@ -277,18 +202,8 @@ stateSlice::stateSlice(const int &li, const int &lj, const int &lk,
   // lk -- size of direction k
   // pblk -- parent block that slice is coming from
 
-  numI_ = li;
-  numJ_ = lj;
-  numK_ = lk;
-
-  numCells_ = li * lj * lk;
-
   parBlock_ = pblk;
-
-  // dummy primVars variable length of number of cells
-  vector<primVars> prims(numCells_);
-
-  state_ = prims;
+  state_ = multiArray3d<primVars>(li, lj, lk);
 }
 
 /*Member function to pack a stateslice into a buffer, swap it with its
@@ -304,28 +219,30 @@ void stateSlice::PackSwapUnpackMPI(const interblock &inter,
   // pack data into buffer, but first get size
   int bufSize = 0;
   int tempSize = 0;
-  MPI_Pack_size((*this).NumCells(), MPI_cellData, MPI_COMM_WORLD,
+  MPI_Pack_size(this->NumCells(), MPI_cellData, MPI_COMM_WORLD,
                 &tempSize);  // add size for states
   bufSize += tempSize;
-  MPI_Pack_size(5, MPI_INT, MPI_COMM_WORLD,
-                &tempSize);  // add size for ints in class stateSlice
+  // add size for ints in class stateSlice, and 3 ints for multiArray3d dims
+  MPI_Pack_size(4, MPI_INT, MPI_COMM_WORLD,
+                &tempSize);
   bufSize += tempSize;
 
   char *buffer = new char[bufSize];  // allocate buffer to pack data into
 
   // pack data into buffer
+  int numI = this->NumI();
+  int numJ = this->NumJ();
+  int numK = this->NumK();
   int position = 0;
-  MPI_Pack(&(*this).state_[0], (*this).NumCells(), MPI_cellData, buffer,
+  MPI_Pack(&numI, 1, MPI_INT, buffer, bufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&numJ, 1, MPI_INT, buffer, bufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&numK, 1, MPI_INT, buffer, bufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&state_(0, 0, 0), this->NumCells(), MPI_cellData, buffer,
            bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&(*this).numCells_, 1, MPI_INT, buffer, bufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&(*this).numI_, 1, MPI_INT, buffer, bufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&(*this).numJ_, 1, MPI_INT, buffer, bufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&(*this).numK_, 1, MPI_INT, buffer, bufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&(*this).parBlock_, 1, MPI_INT, buffer, bufSize, &position,
+  MPI_Pack(&parBlock_, 1, MPI_INT, buffer, bufSize, &position,
            MPI_COMM_WORLD);
 
   MPI_Status status;
@@ -339,17 +256,18 @@ void stateSlice::PackSwapUnpackMPI(const interblock &inter,
 
   // put slice back into stateSlice
   position = 0;
-  MPI_Unpack(buffer, bufSize, &position, &(*this).state_[0], (*this).NumCells(),
-             MPI_cellData, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &(*this).numCells_, 1, MPI_INT,
+  MPI_Unpack(buffer, bufSize, &position, &numI, 1, MPI_INT,
              MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &(*this).numI_, 1, MPI_INT,
+  MPI_Unpack(buffer, bufSize, &position, &numJ, 1, MPI_INT,
              MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &(*this).numJ_, 1, MPI_INT,
+  MPI_Unpack(buffer, bufSize, &position, &numK, 1, MPI_INT,
              MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &(*this).numK_, 1, MPI_INT,
-             MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &(*this).parBlock_, 1, MPI_INT,
+  // resize slice
+  state_.SameSizeResize(numI, numJ, numK);
+
+  MPI_Unpack(buffer, bufSize, &position, &state_(0, 0, 0),
+             this->NumCells(), MPI_cellData, MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &parBlock_, 1, MPI_INT,
              MPI_COMM_WORLD);
 
   delete[] buffer;
@@ -378,34 +296,25 @@ stateSlice::stateSlice(const procBlock &blk, const int &is, const int &ie,
   // revK -- flag to reverse k direction of indices (default false)
 
   // allocate dimensions
-  numI_ = ie - is + 1;
-  numJ_ = je - js + 1;
-  numK_ = ke - ks + 1;
-  numCells_ = numI_ * numJ_ * numK_;
+  int numI = ie - is + 1;
+  int numJ = je - js + 1;
+  int numK = ke - ks + 1;
   parBlock_ = blk.ParentBlock();
 
   // allocate size for vectors
-  state_.resize(numCells_);
-
-  // get parent block maxes
-  int imaxPar = blk.NumI() + 2.0 * blk.NumGhosts();
-  int jmaxPar = blk.NumJ() + 2.0 * blk.NumGhosts();
+  state_ = multiArray3d<primVars>(numI, numJ, numK);
 
   // loop over all cells in slice and populate
-  for (int kk = 0; kk < numK_; kk++) {
-    for (int jj = 0; jj < numJ_; jj++) {
-      for (int ii = 0; ii < numI_; ii++) {
+  for (int kk = 0; kk < state_.NumK(); kk++) {
+    for (int jj = 0; jj < state_.NumJ(); jj++) {
+      for (int ii = 0; ii < state_.NumI(); ii++) {
         // determine if direction needs to be reversed
-        int k = revK ? numK_ - 1 - kk : kk;
-        int j = revJ ? numJ_ - 1 - jj : jj;
-        int i = revI ? numI_ - 1 - ii : ii;
-
-        // cell locations
-        int locPar = GetLoc1D(is + i, js + j, ks + k, imaxPar, jmaxPar);
-        int loc = GetLoc1D(ii, jj, kk, numI_, numJ_);
+        int k = revK ? numK - 1 - kk : kk;
+        int j = revJ ? numJ - 1 - jj : jj;
+        int i = revI ? numI - 1 - ii : ii;
 
         // assign cell variables
-        state_[loc] = blk.State(locPar);
+        state_(ii, jj, kk) = blk.State(is + i, js + j, ks + k);
       }
     }
   }

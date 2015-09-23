@@ -23,38 +23,30 @@
    The gradients class stores the gradient terms for the inviscid fluxes
    viscous fluxes, and source terms. */
 
-#include <vector>  // vector
-#include <string>  // string
 #include <iostream>
 #include "primVars.hpp"
 #include "vector3d.hpp"
+#include "multiArray3d.hpp"
 
 using std::vector;
-using std::string;
 using std::cout;
 using std::endl;
 using std::cerr;
-using std::ostream;
 
 // forward class declaration
 class procBlock;
 class interblock;
 
 class geomSlice {
-  vector<vector3d<double> > center_;  // coordinates of cell center_
-  vector<vector3d<double> > fAreaI_;  // face area vector for i-faces
-  vector<vector3d<double> > fAreaJ_;  // face area vector for j-faces
-  vector<vector3d<double> > fAreaK_;  // face area vector for k-faces
-  vector<vector3d<double> > fCenterI_;  // coordinates of i-face centers
-  vector<vector3d<double> > fCenterJ_;  // coordinates of j-face centers
-  vector<vector3d<double> > fCenterK_;  // coordinates of k-face centers
+  multiArray3d<vector3d<double> > center_;  // coordinates of cell center_
+  multiArray3d<unitVec3dMag<double> > fAreaI_;  // face area vector for i-faces
+  multiArray3d<unitVec3dMag<double> > fAreaJ_;  // face area vector for j-faces
+  multiArray3d<unitVec3dMag<double> > fAreaK_;  // face area vector for k-faces
+  multiArray3d<vector3d<double> > fCenterI_;  // coordinates of i-face centers
+  multiArray3d<vector3d<double> > fCenterJ_;  // coordinates of j-face centers
+  multiArray3d<vector3d<double> > fCenterK_;  // coordinates of k-face centers
+  multiArray3d<double> vol_;  // cell volume
 
-  vector<double> vol_;  // cell volume
-
-  int numCells_;  // number of cells in block
-  int numI_;  // i-dimension of block (cells)
-  int numJ_;  // j-dimension of block (cells)
-  int numK_;  // k-dimension of block (cells)
   int parBlock_;  // parent block number
 
  public:
@@ -66,32 +58,47 @@ class geomSlice {
             const bool = false, const bool = false);
 
   // member functions
-  int NumCells() const { return numCells_; }
-  int NumI() const { return numI_; }
-  int NumJ() const { return numJ_; }
-  int NumK() const { return numK_; }
+  int NumCells() const { return vol_.Size(); }
+  int NumI() const { return vol_.NumI(); }
+  int NumJ() const { return vol_.NumJ(); }
+  int NumK() const { return vol_.NumK(); }
   int ParentBlock() const { return parBlock_; }
 
-  double Vol(const int &ind) const { return vol_[ind]; }
-  vector3d<double> Center(const int &ind) const { return center_[ind]; }
-  vector3d<double> FAreaI(const int &ind) const { return fAreaI_[ind]; }
-  vector3d<double> FAreaJ(const int &ind) const { return fAreaJ_[ind]; }
-  vector3d<double> FAreaK(const int &ind) const { return fAreaK_[ind]; }
-  vector3d<double> FCenterI(const int &ind) const { return fCenterI_[ind]; }
-  vector3d<double> FCenterJ(const int &ind) const { return fCenterJ_[ind]; }
-  vector3d<double> FCenterK(const int &ind) const { return fCenterK_[ind]; }
+  double Vol(const int &ii, const int &jj, const int &kk) const {
+    return vol_(ii, jj, kk);
+  }
+  vector3d<double> Center(const int &ii, const int &jj, const int &kk) const {
+    return center_(ii, jj, kk);
+  }
+  unitVec3dMag<double> FAreaI(const int &ii, const int &jj,
+                              const int &kk) const {
+    return fAreaI_(ii, jj, kk);
+  }
+  unitVec3dMag<double> FAreaJ(const int &ii, const int &jj,
+                              const int &kk) const {
+    return fAreaJ_(ii, jj, kk);
+  }
+  unitVec3dMag<double> FAreaK(const int &ii, const int &jj,
+                              const int &kk) const {
+    return fAreaK_(ii, jj, kk);
+  }
+  vector3d<double> FCenterI(const int &ii, const int &jj, const int &kk) const {
+    return fCenterI_(ii, jj, kk);
+  }
+  vector3d<double> FCenterJ(const int &ii, const int &jj, const int &kk) const {
+    return fCenterJ_(ii, jj, kk);
+  }
+  vector3d<double> FCenterK(const int &ii, const int &jj, const int &kk) const {
+    return fCenterK_(ii, jj, kk);
+  }
 
   // destructor
   ~geomSlice() {}
 };
 
 class stateSlice {
-  vector<primVars> state_;  // cell states
+  multiArray3d<primVars> state_;  // cell states
 
-  int numCells_;  // number of cells in block
-  int numI_;  // i-dimension of block (cells)
-  int numJ_;  // j-dimension of block (cells)
-  int numK_;  // k-dimension of block (cells)
   int parBlock_;  // parent block number
 
  public:
@@ -104,13 +111,15 @@ class stateSlice {
              const bool = false, const bool = false);
 
   // member functions
-  int NumCells() const { return numCells_; }
-  int NumI() const { return numI_; }
-  int NumJ() const { return numJ_; }
-  int NumK() const { return numK_; }
+  int NumCells() const { return state_.Size(); }
+  int NumI() const { return state_.NumI(); }
+  int NumJ() const { return state_.NumJ(); }
+  int NumK() const { return state_.NumK(); }
   int ParentBlock() const { return parBlock_; }
 
-  primVars State(const int &ind) const { return state_[ind]; }
+  primVars State(const int &ii, const int &jj, const int &kk) const {
+    return state_(ii, jj, kk);
+  }
 
   void PackSwapUnpackMPI(const interblock &, const MPI_Datatype &, const int &);
 

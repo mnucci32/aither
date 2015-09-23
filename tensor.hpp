@@ -34,17 +34,18 @@ using std::ostream;
 using std::endl;
 
 // Templated class for a 2D tensor holding 9 elements
-template <class T>
+template <typename T>
 class tensor {
   T data_[9];
 
  public:
   // constructor
-  tensor(T a, T b, T c, T d, T e, T f, T g, T h, T i)
+  tensor(const T &a, const T &b, const T &c, const T &d, const T &e,
+         const T &f, const T &g, const T &h, const T &i)
       : data_{a, b, c, d, e, f, g, h, i} {}
   tensor() : data_{0, 0, 0, 0, 0, 0, 0, 0, 0} {}
-  explicit tensor(T i) : data_{i, 0, 0, 0, i, 0, 0, 0, i} {}
-  tensor(vector3d<T> v1, vector3d<T> v2, vector3d<T> v3)
+  explicit tensor(const T &i) : data_{i, 0, 0, 0, i, 0, 0, 0, i} {}
+  tensor(const vector3d<T> &v1, const vector3d<T> &v2, const vector3d<T> &v3)
       : data_{v1.X(), v1.Y(), v1.Z(), v2.X(), v2.Y(),
               v2.Z(), v3.X(), v3.Y(), v3.Z()} {}
 
@@ -57,15 +58,15 @@ class tensor {
   tensor<T> operator-(const T &) const;
   tensor<T> operator*(const T &) const;
   tensor<T> operator/(const T &) const;
-  template <class TT>
+  template <typename TT>
   friend tensor<TT> operator*(const TT &, const tensor<TT> &);
-  template <class TT>
+  template <typename TT>
   friend tensor<TT> operator/(const TT &, const tensor<TT> &);
-  template <class TT>
+  template <typename TT>
   friend tensor<TT> operator+(const TT &, const tensor<TT> &);
-  template <class TT>
+  template <typename TT>
   friend tensor<TT> operator-(const TT &, const tensor<TT> &);
-  template <class TT>
+  template <typename TT>
   friend ostream &operator<<(ostream &os, const tensor<TT> &);
   // assignment of data_ members
   void SetXX(const T &val) { data_[0] = val; }
@@ -101,7 +102,7 @@ class tensor {
 };
 
 // operator overload for addition - element wise addition
-template <class T>
+template <typename T>
 tensor<T> tensor<T>::operator+(const tensor &v2) const {
   tensor<T> temp = (*this);
   temp.data_[0] += v2.data_[0];
@@ -120,7 +121,7 @@ tensor<T> tensor<T>::operator+(const tensor &v2) const {
 }
 
 // operator overload for subtraction - element wise subtraction
-template <class T>
+template <typename T>
 tensor<T> tensor<T>::operator-(const tensor &v2) const {
   tensor<T> temp = *this;
   temp.data_[0] -= v2.data_[0];
@@ -139,7 +140,7 @@ tensor<T> tensor<T>::operator-(const tensor &v2) const {
 }
 
 // operator overload for multiplication - matrix multiplication
-template <class T>
+template <typename T>
 tensor<T> tensor<T>::operator*(const tensor &v2) const {
   tensor<T> temp;
 
@@ -178,7 +179,7 @@ tensor<T> tensor<T>::operator*(const tensor &v2) const {
 
 // operator overload for addition with a scalar - element wise
 // addition
-template <class T>
+template <typename T>
 tensor<T> tensor<T>::operator+(const T &scalar) const {
   tensor<T> temp = *this;
   temp.data_[0] += scalar;
@@ -200,7 +201,7 @@ tensor<T> tensor<T>::operator+(const T &scalar) const {
 // addition
 // this function is a friend function of the class so that double + tensor
 // behaves as tensor + double
-template <class TT>
+template <typename TT>
 tensor<TT> operator+(const TT &scalar, const tensor<TT> &v1) {
   tensor<TT> temp;
   temp.data_[0] = v1.data_[0] + scalar;
@@ -220,7 +221,7 @@ tensor<TT> operator+(const TT &scalar, const tensor<TT> &v1) {
 
 // operator overload for subtraction with a scalar - element wise
 // subtraction
-template <class T>
+template <typename T>
 tensor<T> tensor<T>::operator-(const T &scalar) const {
   tensor<T> temp = *this;
   temp.data_[0] -= scalar;
@@ -242,7 +243,7 @@ tensor<T> tensor<T>::operator-(const T &scalar) const {
 // subtraction
 // this function is a friend function of the class so that double - tensor
 // behaves as tensor - double
-template <class TT>
+template <typename TT>
 tensor<TT> operator-(const TT &scalar, const tensor<TT> &v1) {
   tensor<TT> temp;
   temp.data_[0] = v1.data_[0] - scalar;
@@ -262,7 +263,7 @@ tensor<TT> operator-(const TT &scalar, const tensor<TT> &v1) {
 
 // operator overload for multiplication with a scalar - element wise
 // multiplication
-template <class T>
+template <typename T>
 tensor<T> tensor<T>::operator*(const T &scalar) const {
   tensor<T> temp = *this;
   temp.data_[0] *= scalar;
@@ -284,7 +285,7 @@ tensor<T> tensor<T>::operator*(const T &scalar) const {
 // multiplication
 // this function is a friend function of the class so that double * tensor
 // behaves as tensor * double
-template <class TT>
+template <typename TT>
 tensor<TT> operator*(const TT &scalar, const tensor<TT> &v1) {
   tensor<TT> temp;
   temp.data_[0] = v1.data_[0] * scalar;
@@ -303,7 +304,7 @@ tensor<TT> operator*(const TT &scalar, const tensor<TT> &v1) {
 }
 
 // operator overload for division with a scalar - element wise division
-template <class T>
+template <typename T>
 tensor<T> tensor<T>::operator/(const T &scalar) const {
   tensor<T> temp = *this;
   temp.data_[0] /= scalar;
@@ -323,7 +324,7 @@ tensor<T> tensor<T>::operator/(const T &scalar) const {
 
 // operator overload for division with a scalar - element wise division
 // this function is a friend function of the class so that double / tensor works
-template <class TT>
+template <typename TT>
 tensor<TT> operator/(const TT &scalar, const tensor<TT> &v1) {
   tensor<TT> temp;
   temp.data_[0] = scalar / v1.data_[0];
@@ -342,7 +343,7 @@ tensor<TT> operator/(const TT &scalar, const tensor<TT> &v1) {
 }
 
 // operator overload for << - allows use of cout, cerr, etc.
-template <class TT>
+template <typename TT>
 ostream &operator<<(ostream &os, const tensor<TT> &v1) {
   os << v1.data_[0] << ", " << v1.data_[1] << ", " << v1.data_[2] << endl;
   os << v1.data_[3] << ", " << v1.data_[4] << ", " << v1.data_[5] << endl;
@@ -351,7 +352,7 @@ ostream &operator<<(ostream &os, const tensor<TT> &v1) {
 }
 
 // Function to return the transpose of the given tensor
-template <class T>
+template <typename T>
 tensor<T> tensor<T>::Transpose() const {
   tensor<T> temp;
 
@@ -371,7 +372,7 @@ tensor<T> tensor<T>::Transpose() const {
 }
 
 // Function to return the matrix multiplication of a tensor and vector3d
-template <class T>
+template <typename T>
 vector3d<T> tensor<T>::MatMult(const vector3d<T> &vec) const {
   vector3d<T> temp;
 
@@ -386,7 +387,7 @@ vector3d<T> tensor<T>::MatMult(const vector3d<T> &vec) const {
 }
 
 // Function to convert the matrix to the identity matrix
-template <class T>
+template <typename T>
 void tensor<T>::Identity() {
   T one = 1;
   T zero = 0;
@@ -405,7 +406,7 @@ void tensor<T>::Identity() {
 }
 
 // Function to zero a tensor
-template <class T>
+template <typename T>
 void tensor<T>::Zero() {
   T var = 0;
   data_[0] = var;
@@ -421,7 +422,7 @@ void tensor<T>::Zero() {
 
 // Function to return the double dot product of two tensors
 // Aij Bij
-template <class T>
+template <typename T>
 T tensor<T>::DoubleDotTrans(const tensor<T> &temp) const {
   return data_[0] * temp.data_[0] + data_[1] * temp.data_[1] +
       data_[2] * temp.data_[2] + data_[3] * temp.data_[3] +
@@ -432,7 +433,7 @@ T tensor<T>::DoubleDotTrans(const tensor<T> &temp) const {
 
 // Function to return the double dot product of two tensors
 // Aij Bji
-template <class T>
+template <typename T>
 T tensor<T>::DoubleDot(const tensor<T> &temp) const {
   return data_[0] * temp.data_[0] + data_[1] * temp.data_[3] +
       data_[2] * temp.data_[6] + data_[3] * temp.data_[1] +

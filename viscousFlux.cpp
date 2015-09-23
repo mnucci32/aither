@@ -56,7 +56,7 @@ viscousFlux::viscousFlux(
     const tensor<double> &velGrad, const vector3d<double> &vel,
     const double &mu, const double &eddyVisc, const sutherland &suth,
     const idealGas &eqnState, const vector3d<double> &tGrad,
-    const vector3d<double> &areaVec, const vector3d<double> &tkeGrad,
+    const vector3d<double> &normArea, const vector3d<double> &tkeGrad,
     const vector3d<double> &omegaGrad, const turbModel *turb,
     const primVars &state) {
   // velGrad -- velocity gradient tensor
@@ -67,13 +67,11 @@ viscousFlux::viscousFlux(
   // law)
   // eqnState -- equation of state
   // tGrad -- temperature gradient
-  // areaVec -- area vector of face
+  // normArea -- unit area vector of face
   // tkeGrad -- tke gradient
   // omegaGrad -- omega gradient
   // turb -- turbulence model
   // state -- primative variables at face
-
-  vector3d<double> normArea = areaVec / areaVec.Mag();  // normalize face area
 
   // get 2nd coefficient of viscosity assuming bulk viscosity is 0 (Stoke's)
   double lambda = suth.Lambda(mu + eddyVisc);
@@ -153,7 +151,7 @@ viscousFlux operator/(const double &scalar, const viscousFlux &flux) {
 // function to calculate the thin shear layer flux jacobian -- NOT USED in LUSGS
 // formulation
 void CalcTSLFluxJac(const double &mu, const double &eddyVisc,
-                    const idealGas &eqnState, const vector3d<double> &areaVec,
+                    const idealGas &eqnState, const vector3d<double> &normArea,
                     const primVars &left, const primVars &right,
                     const double &dist, squareMatrix &dFv_dUl,
                     squareMatrix &dFv_dUr, const sutherland &suth,
@@ -161,7 +159,7 @@ void CalcTSLFluxJac(const double &mu, const double &eddyVisc,
   // mu -- dynamic viscosity
   // eddyVisc -- turbulent eddy viscosity
   // eqnState -- equation of state
-  // areaVec -- area vector of face
+  // normArea -- unit area vector of face
   // left -- left state (primative)
   // right -- right state (primative)
   // dist -- distance from centroid of left cell to centroid of right cell
@@ -176,9 +174,6 @@ void CalcTSLFluxJac(const double &mu, const double &eddyVisc,
             "matrices are not of the correct size!" << endl;
     exit(0);
   }
-
-  // normalize area vector
-  vector3d<double> normArea = areaVec / areaVec.Mag();
 
   // get velocity at face
   vector3d<double> vel = 0.5 * (right.Velocity() + left.Velocity());
@@ -385,15 +380,12 @@ void CalcTSLFluxJac(const double &mu, const double &eddyVisc,
 // Shear Layer approximation
 // NOT USED in LUSGS formulation
 tensor<double> CalcVelGradTSL(const primVars &left, const primVars &right,
-                              const vector3d<double> &areaVec,
+                              const vector3d<double> &normArea,
                               const double &dist) {
   // left -- left state (primative)
   // right -- right state (primative)
-  // areaVec -- area vector of face
+  // normArea -- unit area vector of face
   // dist -- distance between centroid of left cell and right cell
-
-  // normalize area vector
-  vector3d<double> normArea = areaVec / areaVec.Mag();
 
   // initialize velocity gradient tensor
   tensor<double> velGrad;

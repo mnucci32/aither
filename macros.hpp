@@ -21,5 +21,6 @@
 #define NUMVARS 7
 #define EPS 1.0e-30
 #define ROOTP 0
+#define DEFAULTWALLDIST 1.0e6
 
 #endif
