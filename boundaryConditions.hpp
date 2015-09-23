@@ -39,8 +39,8 @@ using std::endl;
 class plot3dBlock;
 
 class boundarySurface {
-  string bcType_;    // boundary_ condition name for surface
-  // data for boundary_ surface: imin, imax, jmin, jmax, kmin, kmax, tag
+  string bcType_;    // boundary condition name for surface
+  // data for boundary surface: imin, imax, jmin, jmax, kmin, kmax, tag
   int data_[7];
 
  public:
@@ -111,8 +111,11 @@ class patch {
   patch(const int&, const int&, const int&, const int&, const int&, const int&,
         const int&, const int&, const plot3dBlock&, const int&, const int&,
         const bool(&)[4]);
-  patch(const boundarySurface&, const plot3dBlock&, const int&,
-        const bool(&)[4], int = 0, int = 0);
+  patch(const boundarySurface &surf, const plot3dBlock &blk, const int &bNum,
+        const bool (&border)[4], int r = 0, int l = 0) :
+      patch(surf.SurfaceType(), bNum, surf.IMin() - 1, surf.IMax() - 1,
+            surf.JMin() -1, surf.JMax() - 1, surf.KMin() - 1,
+            surf.KMax() - 1, blk, r, l, border) {}
 
   // Member functions
   vector3d<double> Origin() const {return origin_;}
@@ -167,6 +170,7 @@ class boundaryConditions {
   int GetJMax(const int &a) const {return surfs_[a].JMax();}
   int GetKMax(const int &a) const {return surfs_[a].KMax();}
   int GetTag(const int &a) const {return surfs_[a].Tag();}
+  int GetSurfaceType(const int &a) const {return surfs_[a].SurfaceType();}
   boundarySurface GetSurface(const int &a) const {return surfs_[a];}
 
   int BlockDimI() const;

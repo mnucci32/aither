@@ -124,8 +124,8 @@ class genArray {
   genArray operator*(const double &) const;
   genArray operator/(const double &) const;
 
-  double operator[](const int &r) const { return data_[r]; }
-  double &operator[](const int &r) { return data_[r]; }
+  const double & operator[](const int &r) const { return data_[r]; }
+  double & operator[](const int &r) { return data_[r]; }
 
   friend genArray operator+(const double &, const genArray &);
   friend genArray operator-(const double &, const genArray &);

@@ -20,36 +20,30 @@
 #include "gradients.hpp"
 #include "procBlock.hpp"
 #include "eos.hpp"
-#include "plot3d.hpp"   // plot3d location functions
 
 using std::cout;
 using std::endl;
 using std::cerr;
-using std::vector;
 using std::string;
 
 // constructor
 gradients::gradients() {
-  // default to 2 faces
-  velocityI_.resize(2);
-  velocityJ_.resize(2);
-  velocityK_.resize(2);
+  // default to 1 faces
+  velocityI_ = multiArray3d<tensor<double> >(1, 1, 1);
+  velocityJ_ = multiArray3d<tensor<double> >(1, 1, 1);
+  velocityK_ = multiArray3d<tensor<double> >(1, 1, 1);
 
-  temperatureI_.resize(2);
-  temperatureJ_.resize(2);
-  temperatureK_.resize(2);
+  temperatureI_ = multiArray3d<vector3d<double> >(1, 1, 1);
+  temperatureJ_ = multiArray3d<vector3d<double> >(1, 1, 1);
+  temperatureK_ = multiArray3d<vector3d<double> >(1, 1, 1);
 
-  tkeI_.resize(2);
-  tkeJ_.resize(2);
-  tkeK_.resize(2);
+  tkeI_ = multiArray3d<vector3d<double> >(1, 1, 1);
+  tkeJ_ = multiArray3d<vector3d<double> >(1, 1, 1);
+  tkeK_ = multiArray3d<vector3d<double> >(1, 1, 1);
 
-  omegaI_.resize(2);
-  omegaJ_.resize(2);
-  omegaK_.resize(2);
-
-  imax_ = 1;
-  jmax_ = 1;
-  kmax_ = 1;
+  omegaI_ = multiArray3d<vector3d<double> >(1, 1, 1);
+  omegaJ_ = multiArray3d<vector3d<double> >(1, 1, 1);
+  omegaK_ = multiArray3d<vector3d<double> >(1, 1, 1);
 }
 
 // alternate constructor to calculate gradients from state variables
@@ -60,38 +54,45 @@ gradients::gradients(const bool &turbFlag, const procBlock &blk,
   // blk -- procBlock to calculate gradients for
   // eos -- equation of state
 
-  // set dimensions (cell-size)
-  imax_ = blk.NumI();
-  jmax_ = blk.NumJ();
-  kmax_ = blk.NumK();
-
   // size vectors for input procBlock
-  velocityI_.resize((blk.NumI() + 1) * blk.NumJ() * blk.NumK());
-  velocityJ_.resize(blk.NumI() * (blk.NumJ() + 1) * blk.NumK());
-  velocityK_.resize(blk.NumI() * blk.NumJ() * (blk.NumK() + 1));
+  velocityI_ = multiArray3d<tensor<double> >(blk.NumI() + 1, blk.NumJ(),
+                                             blk.NumK());
+  velocityJ_ = multiArray3d<tensor<double> >(blk.NumI(), blk.NumJ() + 1,
+                                             blk.NumK());
+  velocityK_ = multiArray3d<tensor<double> >(blk.NumI(), blk.NumJ(),
+                                             blk.NumK() + 1);
 
-  temperatureI_.resize((blk.NumI() + 1) * blk.NumJ() * blk.NumK());
-  temperatureJ_.resize(blk.NumI() * (blk.NumJ() + 1) * blk.NumK());
-  temperatureK_.resize(blk.NumI() * blk.NumJ() * (blk.NumK() + 1));
+  temperatureI_ = multiArray3d<vector3d<double> >(blk.NumI() + 1,
+                                                  blk.NumJ(), blk.NumK());
+  temperatureJ_ = multiArray3d<vector3d<double> >(blk.NumI(), blk.NumJ() + 1,
+                                                  blk.NumK());
+  temperatureK_ = multiArray3d<vector3d<double> >(blk.NumI(), blk.NumJ(),
+                                                  blk.NumK() + 1);
 
   // if flow is not turbulent, don't need tke and omega gradients so they can be
   // set to a minimum size
   if (turbFlag) {
-    tkeI_.resize((blk.NumI() + 1) * blk.NumJ() * blk.NumK());
-    tkeJ_.resize(blk.NumI() * (blk.NumJ() + 1) * blk.NumK());
-    tkeK_.resize(blk.NumI() * blk.NumJ() * (blk.NumK() + 1));
+    tkeI_ = multiArray3d<vector3d<double> >(blk.NumI() + 1, blk.NumJ(),
+                                            blk.NumK());
+    tkeJ_ = multiArray3d<vector3d<double> >(blk.NumI(), blk.NumJ() + 1,
+                                            blk.NumK());
+    tkeK_ = multiArray3d<vector3d<double> >(blk.NumI(), blk.NumJ(),
+                                            blk.NumK() + 1);
 
-    omegaI_.resize((blk.NumI() + 1) * blk.NumJ() * blk.NumK());
-    omegaJ_.resize(blk.NumI() * (blk.NumJ() + 1) * blk.NumK());
-    omegaK_.resize(blk.NumI() * blk.NumJ() * (blk.NumK() + 1));
+    omegaI_ = multiArray3d<vector3d<double> >(blk.NumI() + 1, blk.NumJ(),
+                                              blk.NumK());
+    omegaJ_ = multiArray3d<vector3d<double> >(blk.NumI(), blk.NumJ() + 1,
+                                              blk.NumK());
+    omegaK_ = multiArray3d<vector3d<double> >(blk.NumI(), blk.NumJ(),
+                                              blk.NumK() + 1);
   } else {
-    tkeI_.resize(1);
-    tkeJ_.resize(1);
-    tkeK_.resize(1);
+    tkeI_ = multiArray3d<vector3d<double> >(1, 1, 1);
+    tkeJ_ = multiArray3d<vector3d<double> >(1, 1, 1);
+    tkeK_ = multiArray3d<vector3d<double> >(1, 1, 1);
 
-    omegaI_.resize(1);
-    omegaJ_.resize(1);
-    omegaK_.resize(1);
+    omegaI_ = multiArray3d<vector3d<double> >(1, 1, 1);
+    omegaJ_ = multiArray3d<vector3d<double> >(1, 1, 1);
+    omegaK_ = multiArray3d<vector3d<double> >(1, 1, 1);
   }
 
   // loop over i-faces and calculate gradients
@@ -99,18 +100,17 @@ gradients::gradients(const bool &turbFlag, const procBlock &blk,
   for (int kk = 0; kk < blk.NumK(); kk++) {
     for (int jj = 0; jj < blk.NumJ(); jj++) {
       for (int ii = 0; ii < blk.NumI() + 1; ii++) {
-        // get face location
-        int loc = GetLoc1D(ii, jj, kk, blk.NumI() + 1, blk.NumJ());
-
         if (turbFlag) {
           blk.CalcGradsI(ii + blk.NumGhosts(), jj + blk.NumGhosts(),
-                         kk + blk.NumGhosts(), eos, turbFlag, velocityI_[loc],
-                         temperatureI_[loc], tkeI_[loc], omegaI_[loc]);
+                         kk + blk.NumGhosts(), eos, turbFlag,
+                         velocityI_(ii, jj, kk), temperatureI_(ii, jj, kk),
+                         tkeI_(ii, jj, kk), omegaI_(ii, jj, kk));
         } else {
           vector3d<double> dum1, dum2;
           blk.CalcGradsI(ii + blk.NumGhosts(), jj + blk.NumGhosts(),
-                         kk + blk.NumGhosts(), eos, turbFlag, velocityI_[loc],
-                         temperatureI_[loc], dum1, dum2);
+                         kk + blk.NumGhosts(), eos, turbFlag,
+                         velocityI_(ii, jj, kk), temperatureI_(ii, jj, kk),
+                         dum1, dum2);
         }
       }
     }
@@ -122,17 +122,17 @@ gradients::gradients(const bool &turbFlag, const procBlock &blk,
     for (int jj = 0; jj < blk.NumJ() + 1; jj++) {
       for (int ii = 0; ii < blk.NumI(); ii++) {
         // get face location
-        int loc = GetLoc1D(ii, jj, kk, blk.NumI(), blk.NumJ() + 1);
-
         if (turbFlag) {
           blk.CalcGradsJ(ii + blk.NumGhosts(), jj + blk.NumGhosts(),
-                         kk + blk.NumGhosts(), eos, turbFlag, velocityJ_[loc],
-                         temperatureJ_[loc], tkeJ_[loc], omegaJ_[loc]);
+                         kk + blk.NumGhosts(), eos, turbFlag,
+                         velocityJ_(ii, jj, kk), temperatureJ_(ii, jj, kk),
+                         tkeJ_(ii, jj, kk), omegaJ_(ii, jj, kk));
         } else {
           vector3d<double> dum1, dum2;
           blk.CalcGradsJ(ii + blk.NumGhosts(), jj + blk.NumGhosts(),
-                         kk + blk.NumGhosts(), eos, turbFlag, velocityJ_[loc],
-                         temperatureJ_[loc], dum1, dum2);
+                         kk + blk.NumGhosts(), eos, turbFlag,
+                         velocityJ_(ii, jj, kk), temperatureJ_(ii, jj, kk),
+                         dum1, dum2);
         }
       }
     }
@@ -143,18 +143,17 @@ gradients::gradients(const bool &turbFlag, const procBlock &blk,
   for (int kk = 0; kk < blk.NumK() + 1; kk++) {
     for (int jj = 0; jj < blk.NumJ(); jj++) {
       for (int ii = 0; ii < blk.NumI(); ii++) {
-        // get face location
-        int loc = GetLoc1D(ii, jj, kk, blk.NumI(), blk.NumJ());
-
         if (turbFlag) {
           blk.CalcGradsK(ii + blk.NumGhosts(), jj + blk.NumGhosts(),
-                         kk + blk.NumGhosts(), eos, turbFlag, velocityK_[loc],
-                         temperatureK_[loc], tkeK_[loc], omegaK_[loc]);
+                         kk + blk.NumGhosts(), eos, turbFlag,
+                         velocityK_(ii, jj, kk), temperatureK_(ii, jj, kk),
+                         tkeK_(ii, jj, kk), omegaK_(ii, jj, kk));
         } else {
           vector3d<double> dum1, dum2;
           blk.CalcGradsK(ii + blk.NumGhosts(), jj + blk.NumGhosts(),
-                         kk + blk.NumGhosts(), eos, turbFlag, velocityK_[loc],
-                         temperatureK_[loc], dum1, dum2);
+                         kk + blk.NumGhosts(), eos, turbFlag,
+                         velocityK_(ii, jj, kk), temperatureK_(ii, jj, kk),
+                         dum1, dum2);
         }
       }
     }
@@ -168,12 +167,9 @@ tensor<double> gradients::VelGradCell(const int &ii, const int &jj,
   // jj - j dimension of cell to get gradient at
   // kk - k dimension of cell to get gradient at
 
-  return (1.0 / 6.0) * (velocityI_[GetUpperFaceI(ii, jj, kk, imax_, jmax_)] +
-                        velocityI_[GetLowerFaceI(ii, jj, kk, imax_, jmax_)] +
-                        velocityJ_[GetUpperFaceJ(ii, jj, kk, imax_, jmax_)] +
-                        velocityJ_[GetLowerFaceJ(ii, jj, kk, imax_, jmax_)] +
-                        velocityK_[GetUpperFaceK(ii, jj, kk, imax_, jmax_)] +
-                        velocityK_[GetLowerFaceK(ii, jj, kk, imax_, jmax_)]);
+  return (1.0 / 6.0) * (velocityI_(ii, jj, kk) + velocityI_(ii + 1, jj, kk) +
+                        velocityJ_(ii, jj, kk) + velocityJ_(ii, jj + 1, kk) +
+                        velocityK_(ii, jj, kk) + velocityK_(ii, jj, kk + 1));
 }
 
 // member function to calculate temperature gradient at cell center
@@ -183,12 +179,12 @@ vector3d<double> gradients::TempGradCell(const int &ii, const int &jj,
   // jj - j dimension of cell to get gradient at
   // kk - k dimension of cell to get gradient at
 
-  return (1.0 / 6.0) * (temperatureI_[GetUpperFaceI(ii, jj, kk, imax_, jmax_)] +
-                        temperatureI_[GetLowerFaceI(ii, jj, kk, imax_, jmax_)] +
-                        temperatureJ_[GetUpperFaceJ(ii, jj, kk, imax_, jmax_)] +
-                        temperatureJ_[GetLowerFaceJ(ii, jj, kk, imax_, jmax_)] +
-                        temperatureK_[GetUpperFaceK(ii, jj, kk, imax_, jmax_)] +
-                        temperatureK_[GetLowerFaceK(ii, jj, kk, imax_, jmax_)]);
+  return (1.0 / 6.0) * (temperatureI_(ii, jj, kk) +
+                        temperatureI_(ii + 1, jj, kk) +
+                        temperatureJ_(ii, jj, kk) +
+                        temperatureJ_(ii, jj + 1, kk) +
+                        temperatureK_(ii, jj, kk) +
+                        temperatureK_(ii, jj, kk + 1));
 }
 
 // member function to calculate tke gradient at cell center
@@ -198,12 +194,9 @@ vector3d<double> gradients::TkeGradCell(const int &ii, const int &jj,
   // jj - j dimension of cell to get gradient at
   // kk - k dimension of cell to get gradient at
 
-  return (1.0 / 6.0) * (tkeI_[GetUpperFaceI(ii, jj, kk, imax_, jmax_)] +
-                        tkeI_[GetLowerFaceI(ii, jj, kk, imax_, jmax_)] +
-                        tkeJ_[GetUpperFaceJ(ii, jj, kk, imax_, jmax_)] +
-                        tkeJ_[GetLowerFaceJ(ii, jj, kk, imax_, jmax_)] +
-                        tkeK_[GetUpperFaceK(ii, jj, kk, imax_, jmax_)] +
-                        tkeK_[GetLowerFaceK(ii, jj, kk, imax_, jmax_)]);
+  return (1.0 / 6.0) * (tkeI_(ii, jj, kk) + tkeI_(ii + 1, jj, kk) +
+                        tkeJ_(ii, jj, kk) + tkeJ_(ii, jj + 1, kk) +
+                        tkeK_(ii, jj, kk) + tkeK_(ii, jj, kk + 1));
 }
 
 // member function to calculate omega gradient at cell center
@@ -213,10 +206,7 @@ vector3d<double> gradients::OmegaGradCell(const int &ii, const int &jj,
   // jj - j dimension of cell to get gradient at
   // kk - k dimension of cell to get gradient at
 
-  return (1.0 / 6.0) * (omegaI_[GetUpperFaceI(ii, jj, kk, imax_, jmax_)] +
-                        omegaI_[GetLowerFaceI(ii, jj, kk, imax_, jmax_)] +
-                        omegaJ_[GetUpperFaceJ(ii, jj, kk, imax_, jmax_)] +
-                        omegaJ_[GetLowerFaceJ(ii, jj, kk, imax_, jmax_)] +
-                        omegaK_[GetUpperFaceK(ii, jj, kk, imax_, jmax_)] +
-                        omegaK_[GetLowerFaceK(ii, jj, kk, imax_, jmax_)]);
+  return (1.0 / 6.0) * (omegaI_(ii, jj, kk) + omegaI_(ii + 1, jj, kk) +
+                        omegaJ_(ii, jj, kk) + omegaJ_(ii, jj + 1, kk) +
+                        omegaK_(ii, jj, kk) + omegaK_(ii, jj, kk + 1));
 }

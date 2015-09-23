@@ -34,6 +34,7 @@ supply a ghost state given a boundary condition and boundary cell.  */
 #include "vector3d.hpp"            // vector3d
 #include "eos.hpp"                 // idealGas, sutherland
 #include "matrix.hpp"              // genArray
+#include "multiArray3d.hpp"        // multiArray3d
 #include "macros.hpp"
 
 using std::vector;
@@ -137,6 +138,10 @@ class primVars {
 };
 
 // function definitions
+multiArray3d<primVars> GetGhostStates(
+    const multiArray3d<primVars> &, const string &,
+    const multiArray3d<unitVec3dMag<double> > &, const string &, const input &,
+    const idealGas &, const sutherland &, const int = 1);
 
 // member function to calculate temperature from conserved variables and
 // equation of state

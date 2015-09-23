@@ -15,7 +15,6 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <iostream>
-#include <fstream>
 #include <vector>
 #include <string>
 #include <cmath>
@@ -28,8 +27,6 @@ using std::endl;
 using std::cerr;
 using std::vector;
 using std::string;
-using std::ios;
-using std::ofstream;
 using std::max;
 using std::min;
 
@@ -824,4 +821,35 @@ void primVars::ApplyFarfieldTurbBC(const vector3d<double> &vel,
   data_[5] = 1.5 * pow(turbInten * vel.Mag(), 2.0);
   data_[6] = data_[0] * data_[5] /
       (viscRatio * suth.Viscosity((*this).Temperature(eqnState)));
+}
+
+
+multiArray3d<primVars> GetGhostStates(
+    const multiArray3d<primVars> &bndStates, const string &bcName,
+    const multiArray3d<unitVec3dMag<double> > &faceAreas, const string &surf,
+    const input &inp, const idealGas &eos, const sutherland &suth,
+    const int layer) {
+  // bndStates -- states at cells adjacent to boundary
+  // bcName -- boundary condition type
+  // faceAreas -- face areas of boundary
+  // surf -- boundary surface type
+  // inp -- input variables
+  // eos -- equation of state
+  // suth -- sutherland's law for viscosity
+  // layer -- layer of ghost cell to return
+  //          (1 closest to boundary, or 2 farthest)
+
+  multiArray3d<primVars> ghostStates(bndStates.NumI(), bndStates.NumJ(),
+                                     bndStates.NumK());
+  for (int kk = 0; kk < bndStates.NumK(); kk++) {
+    for (int jj = 0; jj < bndStates.NumJ(); jj++) {
+      for (int ii = 0; ii < bndStates.NumI(); ii++) {
+        ghostStates(ii, jj, kk) =
+            bndStates(ii, jj, kk).
+            GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),
+                          surf, inp, eos, suth, layer);
+      }
+    }
+  }
+  return ghostStates;
 }
