@@ -25,6 +25,7 @@
 #include <vector>                  // vector
 #include <string>                  // string
 #include "mpi.h"                   // parallelism
+#include "vector3d.hpp"
 
 using std::vector;
 using std::string;
@@ -65,4 +66,7 @@ void GetProcBlocks(vector<procBlock>&, const vector<procBlock>&, const int&,
 void MaxLinf(resid*, resid*, int*, MPI_Datatype*);
 
 void BroadcastString(string& str);
+
+void BroadcastViscFaces(const MPI_Datatype&, vector<vector3d<double>> &);
+
 #endif

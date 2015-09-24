@@ -69,6 +69,7 @@ class boundarySurface {
   int Max2() const;
   int Min1() const;
   int Min2() const;
+  int NumFaces() const;
 
   int PartnerBlock() const;
   int PartnerSurface() const;
@@ -172,6 +173,7 @@ class boundaryConditions {
   int GetTag(const int &a) const {return surfs_[a].Tag();}
   int GetSurfaceType(const int &a) const {return surfs_[a].SurfaceType();}
   boundarySurface GetSurface(const int &a) const {return surfs_[a];}
+  int NumViscousFaces() const;
 
   int BlockDimI() const;
   int BlockDimJ() const;

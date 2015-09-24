@@ -30,10 +30,12 @@ using std::string;
 class turbModel;
 
 class input {
+  string simName_;  // simulation name
   string gName_;  // grid file name
   double dt_;  // time step
   int iterations_;  // number of iterations
-// variable names that are regcognized by the input file
+
+  // variable names that are regcognized by the input file
   vector<string> vars_;
                         // parser
   double pRef_;  // reference pressure
@@ -73,9 +75,11 @@ class input {
 
  public:
   // constructor
-  input();
+  explicit input(const string &);
 
   // member functions
+  string SimName() const {return simName_;}
+  string SimNameRoot() const;
   string GridName() const {return gName_;}
 
   double Dt() const {return dt_;}
@@ -148,7 +152,7 @@ class input {
   int NumVars() const {return vars_.size();}
   int NumEquations() const;
 
-  void ReadInput(const string &, const int &);
+  void ReadInput(const int &);
 
   bool IsImplicit() const;
   bool IsViscous() const;

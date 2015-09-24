@@ -35,6 +35,7 @@
 #include "gradients.hpp"
 #include "resid.hpp"
 #include "multiArray3d.hpp"
+#include "kdtree.hpp"
 
 using std::cout;
 using std::cerr;
@@ -62,17 +63,10 @@ int main(int argc, char *argv[]) {
   MPI_Barrier(MPI_COMM_WORLD);
 
   // Start clock to time simulation
-  clock_t start;
-  double duration;
-  start = clock();
+  clock_t start = clock();
 
   // Enable exceptions so code won't run with NANs
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
-
-  double totalCells = 0.0;
-  input inputVars;
-  decomposition decomp;
-  int numProcBlock = 0;
 
   // Name of input file is the second argument (the executable being the first)
   string inputFile = argv[1];
@@ -80,8 +74,13 @@ int main(int argc, char *argv[]) {
   // Broadcast input file name to all names for portability
   BroadcastString(inputFile);
 
+  double totalCells = 0.0;
+  input inputVars(inputFile);
+  decomposition decomp;
+  int numProcBlock = 0;
+
   // Parse input file
-  inputVars.ReadInput(inputFile, rank);
+  inputVars.ReadInput(rank);
 
   // Determine number of ghost cells
   int numGhost = 2;
@@ -105,6 +104,7 @@ int main(int argc, char *argv[]) {
   vector<plot3dBlock> mesh;
   vector<interblock> connections;
   vector<procBlock> stateBlocks;
+  vector<vector3d<double>> viscFaces;
 
   if (rank == ROOTP) {
     cout << "Number of equations: " << inputVars.NumEquations() << endl << endl;
@@ -151,7 +151,10 @@ int main(int argc, char *argv[]) {
       stateBlocks[ll].AssignGhostCellsGeomEdge();
     }
 
-    cout << endl << "Solution Initialized" << endl;
+    // Get face centers of faces with viscous wall BC
+    viscFaces = GetViscousFaceCenters(stateBlocks);
+
+    cout << "Solution Initialized" << endl << endl;
     //---------------------------------------------------------------------
   }
 
@@ -172,10 +175,44 @@ int main(int argc, char *argv[]) {
   // Send connections to all processors
   SendConnections(connections, MPI_interblock);
 
+  // Broadcast viscous face centers to all processors
+  BroadcastViscFaces(MPI_vec3d, viscFaces);
+
   // Create operation
   MPI_Op MPI_MAX_LINF;
   MPI_Op_create(reinterpret_cast<MPI_User_function *> (MaxLinf), true,
                 &MPI_MAX_LINF);
+
+  //-----------------------------------------------------------------------
+  // wall distance calculation
+
+  clock_t wallStart = clock();
+
+  if (rank == ROOTP) {
+    cout << "Starting wall distance calculation..." << endl;
+    cout << "Building k-d tree..." << endl;
+  }
+
+  // Construct k-d tree for wall distance calculation
+  kdtree tree(viscFaces);
+
+  if (rank == ROOTP) {
+    double kdDuration = (clock() - wallStart) /
+        static_cast<double> (CLOCKS_PER_SEC);
+    cout << "K-d tree complete after " << kdDuration << " seconds" << endl;
+  }
+
+  if (tree.Size() > 0) {
+    CalcWallDistance(localStateBlocks, tree);
+  }
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (rank == ROOTP) {
+    double wallDuration = (clock() - wallStart) /
+        static_cast<double> (CLOCKS_PER_SEC);
+    cout << "Wall distance calculation finished after " << wallDuration
+         << " seconds" << endl << endl;
+  }
 
   //-----------------------------------------------------------------------
 
@@ -195,15 +232,17 @@ int main(int argc, char *argv[]) {
   // matrix inversion residual (only for implicit runs)
   double matrixResid = 0.0;
 
+  // Send/recv solutions - necessary to get wall distances
+  GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData);
+
   if (rank == ROOTP) {
     // Write out cell centers grid file
     WriteCellCenter(inputVars.GridName(), stateBlocks, decomp,
                     inputVars.LRef());
 
     // Write out initial results
-    WriteFun(inputVars.GridName(), stateBlocks, eos, suth, 0, decomp,
-             inputVars, turb);
-    WriteRes(inputVars.GridName(), 0, inputVars.OutputFrequency());
+    WriteFun(stateBlocks, eos, suth, 0, decomp, inputVars, turb);
+    WriteRes(inputVars.SimNameRoot(), 0, inputVars.OutputFrequency());
   }
 
   for ( int nn = 0; nn < inputVars.Iterations(); nn++ ) {   // loop over time
@@ -351,9 +390,8 @@ int main(int argc, char *argv[]) {
       if (rank == ROOTP) {
         cout << "writing out function file at iteration " << nn << endl;
         // Write out function file
-        WriteFun(inputVars.GridName(), stateBlocks, eos, suth, (nn+1),
-                 decomp, inputVars, turb);
-        WriteRes(inputVars.GridName(), (nn+1), inputVars.OutputFrequency());
+        WriteFun(stateBlocks, eos, suth, (nn+1), decomp, inputVars, turb);
+        WriteRes(inputVars.SimNameRoot(), (nn+1), inputVars.OutputFrequency());
       }
     }
   }  // loop for time ----------------------------------------------------------
@@ -364,7 +402,7 @@ int main(int argc, char *argv[]) {
     cout << "Program Complete" << endl;
     PrintTime();
 
-    duration = (clock() - start)/static_cast<double> (CLOCKS_PER_SEC);
+    double duration = (clock() - start) / static_cast<double> (CLOCKS_PER_SEC);
     cout << "Total Time: " << duration << " seconds" << endl;
   }
 
