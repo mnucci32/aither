@@ -63,9 +63,7 @@ int main(int argc, char *argv[]) {
   MPI_Barrier(MPI_COMM_WORLD);
 
   // Start clock to time simulation
-  clock_t start;
-  double duration;
-  start = clock();
+  clock_t start = clock();
 
   // Enable exceptions so code won't run with NANs
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
@@ -156,7 +154,7 @@ int main(int argc, char *argv[]) {
     // Get face centers of faces with viscous wall BC
     viscFaces = GetViscousFaceCenters(stateBlocks);
 
-    cout << endl << "Solution Initialized" << endl;
+    cout << "Solution Initialized" << endl << endl;
     //---------------------------------------------------------------------
   }
 
@@ -187,10 +185,34 @@ int main(int argc, char *argv[]) {
 
   //-----------------------------------------------------------------------
   // wall distance calculation
+
+  clock_t wallStart = clock();
+
+  if (rank == ROOTP) {
+    cout << "Starting wall distance calculation..." << endl;
+    cout << "Building k-d tree..." << endl;
+  }
+
   // Construct k-d tree for wall distance calculation
   kdtree tree(viscFaces);
 
-  CalcWallDistance(localStateBlocks, tree);
+  if (rank == ROOTP) {
+    double kdDuration = (clock() - wallStart) /
+        static_cast<double> (CLOCKS_PER_SEC);
+    cout << "K-d tree complete after " << kdDuration << " seconds" << endl;
+  }
+
+  if (tree.Size() > 0) {
+    CalcWallDistance(localStateBlocks, tree);
+  }
+
+  MPI_Barrier(MPI_COMM_WORLD);
+  if (rank == ROOTP) {
+    double wallDuration = (clock() - wallStart) /
+        static_cast<double> (CLOCKS_PER_SEC);
+    cout << "Wall distance calculation finished after " << wallDuration
+         << " seconds" << endl << endl;
+  }
 
   //-----------------------------------------------------------------------
 
@@ -209,6 +231,9 @@ int main(int argc, char *argv[]) {
   resid residLinf;  // linf residuals
   // matrix inversion residual (only for implicit runs)
   double matrixResid = 0.0;
+
+  // Send/recv solutions - necessary to get wall distances
+  GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData);
 
   if (rank == ROOTP) {
     // Write out cell centers grid file
@@ -379,7 +404,7 @@ int main(int argc, char *argv[]) {
     cout << "Program Complete" << endl;
     PrintTime();
 
-    duration = (clock() - start)/static_cast<double> (CLOCKS_PER_SEC);
+    double duration = (clock() - start) / static_cast<double> (CLOCKS_PER_SEC);
     cout << "Total Time: " << duration << " seconds" << endl;
   }
 

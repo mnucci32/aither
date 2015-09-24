@@ -73,12 +73,14 @@ class kdtree {
                        double &) const;
   bool SphereInside(const vector3d<double>&, const double &,
                     const vector3d<double>&, const int &) const;
+
  public:
   // constructor
   explicit kdtree(const vector<vector3d<double>> &);
 
   // member functions
   double NearestNeighbor(const vector3d<double> &, vector3d<double> &) const;
+  int Size() const {return nodes_.size();}
 
   // destructor
   ~kdtree() {}

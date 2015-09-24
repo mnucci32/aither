@@ -6822,7 +6822,7 @@ vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &blks) {
   // get vector of BCs
   vector<boundaryConditions> bcs;
   bcs.reserve(blks.size());
-  for (unsigned int ii = 0; ii < bcs.size(); ii++) {
+  for (unsigned int ii = 0; ii < blks.size(); ii++) {
     bcs.push_back(blks[ii].BC());
   }
 
@@ -6843,7 +6843,6 @@ vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &blks) {
     for (int bb = 0; bb < bcs[aa].NumSurfaces(); bb++) {  // loop over surfaces
       if (bcs[aa].GetBCTypes(bb) == "viscousWall") {
         // only store face center if surface is viscous wall
-
         if (bcs[aa].GetSurfaceType(bb) <= 2) {  // i-surface
           int ii = (bcs[aa].GetSurfaceType(bb) % 2 == 0)
               ? blks[aa].NumI() + numG : numG;
@@ -6872,8 +6871,8 @@ vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &blks) {
 
           for (int ii = bcs[aa].GetIMin(bb) - 1 + numG;
                ii < bcs[aa].GetIMax(bb) - 1 + numG; ii++) {
-            for (int jj = bcs[aa].GetKMin(bb) - 1 + numG;
-                 jj < bcs[aa].GetKMax(bb) - 1 + numG; jj++) {
+            for (int jj = bcs[aa].GetJMin(bb) - 1 + numG;
+                 jj < bcs[aa].GetJMax(bb) - 1 + numG; jj++) {
               faceCenters.push_back(blks[aa].FCenterK(ii, jj, kk));
             }
           }
@@ -6881,7 +6880,6 @@ vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &blks) {
       }
     }
   }
-
   return faceCenters;
 }
 
@@ -6889,12 +6887,15 @@ vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &blks) {
 // all cell centers
 void procBlock::CalcWallDistance(const kdtree &tree) {
   vector3d<double> neighbor;
-  // loop over all physical cells - no ghost cells for wallDist variable
-  for (int kk = 0; kk < this->NumK(); kk++) {
-    for (int jj = 0; jj < this->NumJ(); jj++) {
-      for (int ii = 0; ii < this->NumI(); ii++) {
-        wallDist_(ii, jj, kk) = tree.NearestNeighbor(center_(ii, jj, kk),
-                                                     neighbor);
+  // loop over cells
+  for (struct {int p; int g;} kk = {0, numGhosts_}; kk.p <
+           this->NumK(); kk.g++, kk.p++) {
+    for (struct {int p; int g;} jj = {0, numGhosts_}; jj.p <
+             this->NumJ(); jj.g++, jj.p++) {
+      for (struct {int p; int g;} ii = {0, numGhosts_}; ii.p <
+               this->NumI(); ii.g++, ii.p++) {
+        wallDist_(ii.p, jj.p, kk.p) =
+            tree.NearestNeighbor(center_(ii.g, jj.g, kk.g), neighbor);
       }
     }
   }
