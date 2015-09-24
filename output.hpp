@@ -51,7 +51,7 @@ class turbModel;
 // function definitions
 void WriteCellCenter(const string &, const vector<procBlock> &,
                      const decomposition &, const double &);
-void WriteFun(const string &, const vector<procBlock> &, const idealGas &,
+void WriteFun(const vector<procBlock> &, const idealGas &,
               const sutherland &, const int &, const decomposition &,
               const input &, const turbModel *);
 void WriteRes(const string &, const int &, const int &);

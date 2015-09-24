@@ -120,10 +120,10 @@ void WriteCellCenter(const string &gridName, const vector<procBlock> &vars,
 
 //----------------------------------------------------------------------
 // function to write out variables in function file format
-void WriteFun(const string &gridName, const vector<procBlock> &vars,
-              const idealGas &eqnState, const sutherland &suth,
-              const int &solIter, const decomposition &decomp,
-              const input &inp, const turbModel *turb) {
+void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
+              const sutherland &suth, const int &solIter,
+              const decomposition &decomp, const input &inp,
+              const turbModel *turb) {
   // define reference speed of sound
   double refSoS = eqnState.SoS(inp.PRef(), inp.RRef());
 
@@ -133,7 +133,8 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars,
   ofstream outFile;
   string fEnd = "_center";
   string fPostfix = ".fun";
-  string writeName = gridName + "_" + to_string(solIter) + fEnd + fPostfix;
+  string writeName = inp.SimNameRoot() + "_" + to_string(solIter) + fEnd +
+      fPostfix;
   outFile.open(writeName.c_str(), ios::out | ios::binary);
 
   // check to see if file opened correctly

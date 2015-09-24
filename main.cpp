@@ -68,19 +68,19 @@ int main(int argc, char *argv[]) {
   // Enable exceptions so code won't run with NANs
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
 
-  double totalCells = 0.0;
-  input inputVars;
-  decomposition decomp;
-  int numProcBlock = 0;
-
   // Name of input file is the second argument (the executable being the first)
   string inputFile = argv[1];
 
   // Broadcast input file name to all names for portability
   BroadcastString(inputFile);
 
+  double totalCells = 0.0;
+  input inputVars(inputFile);
+  decomposition decomp;
+  int numProcBlock = 0;
+
   // Parse input file
-  inputVars.ReadInput(inputFile, rank);
+  inputVars.ReadInput(rank);
 
   // Determine number of ghost cells
   int numGhost = 2;
@@ -241,9 +241,8 @@ int main(int argc, char *argv[]) {
                     inputVars.LRef());
 
     // Write out initial results
-    WriteFun(inputVars.GridName(), stateBlocks, eos, suth, 0, decomp,
-             inputVars, turb);
-    WriteRes(inputVars.GridName(), 0, inputVars.OutputFrequency());
+    WriteFun(stateBlocks, eos, suth, 0, decomp, inputVars, turb);
+    WriteRes(inputVars.SimNameRoot(), 0, inputVars.OutputFrequency());
   }
 
   for ( int nn = 0; nn < inputVars.Iterations(); nn++ ) {   // loop over time
@@ -391,9 +390,8 @@ int main(int argc, char *argv[]) {
       if (rank == ROOTP) {
         cout << "writing out function file at iteration " << nn << endl;
         // Write out function file
-        WriteFun(inputVars.GridName(), stateBlocks, eos, suth, (nn+1),
-                 decomp, inputVars, turb);
-        WriteRes(inputVars.GridName(), (nn+1), inputVars.OutputFrequency());
+        WriteFun(stateBlocks, eos, suth, (nn+1), decomp, inputVars, turb);
+        WriteRes(inputVars.SimNameRoot(), (nn+1), inputVars.OutputFrequency());
       }
     }
   }  // loop for time ----------------------------------------------------------
