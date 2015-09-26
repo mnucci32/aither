@@ -337,11 +337,15 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (vv == 14) {  // wall distance - no ghost cells
-        for (int kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (int jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (int ii = 0; ii < recombVars[ll].NumI(); ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].WallDist(ii, jj, kk);
+      } else if (vv == 14) {  // wall distance
+        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
+             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
+          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
+               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
+            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
+                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
+              dumArr(ii.p, jj.p, kk.p) =
+                  recombVars[ll].WallDist(ii.g, jj.g, kk.g);
             }
           }
         }

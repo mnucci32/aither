@@ -7,7 +7,6 @@ The code is 2nd order accurate in space and time. Available explicit time integr
 The next task is to add a wall distance calculation. The wall distance calculation will be used to implement additional turbulence models.
 
 TO DO LIST
-- Add wall distance calculation
 - Implement SST turbulence model
 - Implement higher order state reconstruction for DES / Hybrid RANS/LES
 - Implement tubulence model for DES / Hybrid RANS/LES
@@ -16,4 +15,4 @@ HOW TO COMPILE
 Assuming you have g++ (or equivalent) with c++11 support and some version of MPI (I use MPICH), just type 'make'.
 
 HOW TO RUN
-mpirun -np 1 main inputFile.inp >outputFile.out 2>errorFile.err
+mpirun -np 1 main inputFile.inp >outputFile.out 2>errorFile.err &

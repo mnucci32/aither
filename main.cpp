@@ -278,7 +278,7 @@ int main(int argc, char *argv[]) {
 
           // If turblent, calculate source terms
           if (inputVars.IsTurbulent()) {
-            localStateBlocks[bb].CalcSrcTerms(grads, suth, turb);
+            localStateBlocks[bb].CalcSrcTerms(grads, suth, eos, turb);
           }
         }
 

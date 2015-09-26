@@ -58,7 +58,7 @@ viscousFlux::viscousFlux(
     const idealGas &eqnState, const vector3d<double> &tGrad,
     const vector3d<double> &normArea, const vector3d<double> &tkeGrad,
     const vector3d<double> &omegaGrad, const turbModel *turb,
-    const primVars &state) {
+    const primVars &state, const double &wallDist) {
   // velGrad -- velocity gradient tensor
   // vel -- velocity vector
   // mu -- dynamic viscosity
@@ -72,6 +72,7 @@ viscousFlux::viscousFlux(
   // omegaGrad -- omega gradient
   // turb -- turbulence model
   // state -- primative variables at face
+  // wallDist -- distance to nearest viscous wall
 
   // get 2nd coefficient of viscosity assuming bulk viscosity is 0 (Stoke's)
   double lambda = suth.Lambda(mu + eddyVisc);
@@ -91,10 +92,14 @@ viscousFlux::viscousFlux(
                                  tGrad.DotProd(normArea);
 
   // turbulence viscous flux
-  data_[4] = (mu + suth.NondimScaling() * turb->MolecDiff1Coeff() *
+  data_[4] = (mu + suth.NondimScaling() *
+              turb->MolecDiff1Coeff(state, tkeGrad, omegaGrad, suth, eqnState,
+                                    wallDist) *
               turb->EddyViscNoLim(state)) * tkeGrad.DotProd(normArea);
 
-  data_[5] = (mu + suth.NondimScaling() * turb->MolecDiff2Coeff() *
+  data_[5] = (mu + suth.NondimScaling() *
+              turb->MolecDiff2Coeff(state, tkeGrad, omegaGrad, suth, eqnState,
+                                    wallDist) *
               turb->EddyViscNoLim(state)) * omegaGrad.DotProd(normArea);
 }
 

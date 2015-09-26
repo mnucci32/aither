@@ -609,6 +609,8 @@ turbModel* input::AssignTurbulenceModel() const {
     turb = new turbNone;
   } else if (turbModel_ == "kOmegaWilcox2006") {
     turb = new turbKWWilcox;
+  } else if (turbModel_ == "sst2003") {
+    turb = new turbKWSst;
   } else {
     cerr << "ERROR: Error in input::AssignTurbulenceModel(). Turbulence model "
          << turbModel_ << " is not recognized!" << endl;

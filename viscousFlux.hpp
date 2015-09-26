@@ -52,7 +52,7 @@ class viscousFlux {
               const double&, const sutherland&, const idealGas&,
               const vector3d<double>&, const vector3d<double>&,
               const vector3d<double>&, const vector3d<double>&,
-              const turbModel*, const primVars&);
+              const turbModel*, const primVars&, const double&);
 
   // member functions
   double MomX() const { return data_[0]; }

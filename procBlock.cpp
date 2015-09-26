@@ -104,11 +104,14 @@ procBlock::procBlock(const primVars &inputState, const plot3dBlock &blk,
   fCenterJ_ = PadWithGhosts(blk.FaceCenterJ(), numGhosts_);
   fCenterK_ = PadWithGhosts(blk.FaceCenterK(), numGhosts_);
 
+  wallDist_ = multiArray3d<double>(blk.NumI() - 1 + 2.0 * numGhosts_,
+                                   blk.NumJ() - 1 + 2.0 * numGhosts_,
+                                   blk.NumK() - 1 + 2.0 * numGhosts_,
+                                   DEFAULTWALLDIST);
+
   avgWaveSpeed_ = multiArray3d<double>(blk.NumI() - 1, blk.NumJ() - 1,
                                        blk.NumK() - 1);
   dt_ = multiArray3d<double>(blk.NumI() - 1, blk.NumJ() - 1, blk.NumK() - 1);
-  wallDist_ = multiArray3d<double>(blk.NumI() - 1, blk.NumJ() - 1,
-                                   blk.NumK() - 1, DEFAULTWALLDIST);
   residual_ = multiArray3d<genArray>(blk.NumI() - 1, blk.NumJ() - 1,
                                      blk.NumK() - 1);
 }
@@ -150,9 +153,11 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
                                               nk + 2 * numG + 1);
   residual_ = multiArray3d<genArray>(ni, nj, nk);
   vol_ = multiArray3d<double>(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG);
+  wallDist_ = multiArray3d<double>(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG,
+                                   DEFAULTWALLDIST);
+
   avgWaveSpeed_ = multiArray3d<double>(ni, nj, nk);
   dt_ = multiArray3d<double>(ni, nj, nk);
-  wallDist_ = multiArray3d<double>(ni, nj, nk);
 }
 
 // member function to add a member of the inviscid flux class to the residual
@@ -1734,13 +1739,22 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
 
         double eddyVisc =
             FaceReconCentral(
-            turb->EddyVisc(state_(ii.g - 1, jj.g, kk.g),
-                           grads.VelGradI(ii.p, jj.p, kk.p), suth),
-            turb->EddyVisc(state_(ii.g, jj.g, kk.g),
-                           grads.VelGradI(ii.p, jj.p, kk.p), suth),
-            center_(ii.g - 1, jj.g, kk.g), center_(ii.g, jj.g, kk.g),
-            fCenterI_(ii.g, jj.g, kk.g));
+                turb->EddyVisc(state_(ii.g - 1, jj.g, kk.g),
+                               grads.VelGradI(ii.p, jj.p, kk.p), suth, eqnState,
+                               wallDist_(ii.g - 1, jj.g, kk.g)),
+                turb->EddyVisc(state_(ii.g, jj.g, kk.g),
+                               grads.VelGradI(ii.p, jj.p, kk.p), suth, eqnState,
+                               wallDist_(ii.g, jj.g, kk.g)),
+                center_(ii.g - 1, jj.g, kk.g), center_(ii.g, jj.g, kk.g),
+                fCenterI_(ii.g, jj.g, kk.g));
         eddyVisc *= suth.NondimScaling();  // effective viscosity
+
+        // Get wall distance at face
+        double wDist = FaceReconCentral(wallDist_(ii.g - 1, jj.g, kk.g),
+                                        wallDist_(ii.g, jj.g, kk.g),
+                                        center_(ii.g - 1, jj.g, kk.g),
+                                        center_(ii.g, jj.g, kk.g),
+                                        fCenterI_(ii.g, jj.g, kk.g));
 
         // calculate viscous flux
         vector3d<double> tkeGrad, omegaGrad;
@@ -1752,7 +1766,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                                  eddyVisc, suth, eqnState,
                                  grads.TempGradI(ii.p, jj.p, kk.p),
                                  this->FAreaUnitI(ii.g, jj.g, kk.g), tkeGrad,
-                                 omegaGrad, turb, state);
+                                 omegaGrad, turb, state, wDist);
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
@@ -1778,7 +1792,8 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                   state_(ii.g, jj.g, kk.g), eqnState, suth,
                   vol_(ii.g, jj.g, kk.g),
                   turb->EddyVisc(state_(ii.g, jj.g, kk.g),
-                                 grads.VelGradI(ii.p, jj.p, kk.p), suth));
+                                 grads.VelGradI(ii.p, jj.p, kk.p), suth,
+                                 eqnState, wallDist_(ii.g, jj.g, kk.g)));
         }
       }
     }
@@ -1908,14 +1923,23 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
         double eddyVisc =
             FaceReconCentral(
                 turb->EddyVisc(state_(ii.g, jj.g - 1, kk.g),
-                               grads.VelGradJ(ii.p, jj.p, kk.p), suth),
+                               grads.VelGradJ(ii.p, jj.p, kk.p), suth, eqnState,
+                               wallDist_(ii.g, jj.g - 1, kk.g)),
                 turb->EddyVisc(state_(ii.g, jj.g, kk.g),
-                               grads.VelGradJ(ii.p, jj.p, kk.p), suth),
-                             center_(ii.g, jj.g - 1, kk.g),
-                             center_(ii.g, jj.g, kk.g),
-                             fCenterJ_(ii.g, jj.g, kk.g));
+                               grads.VelGradJ(ii.p, jj.p, kk.p), suth, eqnState,
+                               wallDist_(ii.g, jj.g, kk.g)),
+                center_(ii.g, jj.g - 1, kk.g),
+                center_(ii.g, jj.g, kk.g),
+                fCenterJ_(ii.g, jj.g, kk.g));
         // effective viscosity (due to nondimensionalization)
         eddyVisc *= suth.NondimScaling();
+
+        // Get wall distance at face
+        double wDist = FaceReconCentral(wallDist_(ii.g, jj.g - 1, kk.g),
+                                        wallDist_(ii.g, jj.g, kk.g),
+                                        center_(ii.g, jj.g - 1, kk.g),
+                                        center_(ii.g, jj.g, kk.g),
+                                        fCenterJ_(ii.g, jj.g, kk.g));
 
         // calculate viscous flux
         vector3d<double> tkeGrad, omegaGrad;
@@ -1927,7 +1951,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                                  eddyVisc, suth, eqnState,
                                  grads.TempGradJ(ii.p, jj.p, kk.p),
                                  this->FAreaUnitJ(ii.g, jj.g, kk.g), tkeGrad,
-                                 omegaGrad, turb, state);
+                                 omegaGrad, turb, state, wDist);
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
@@ -1953,7 +1977,8 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                   state_(ii.g, jj.g, kk.g), eqnState, suth,
                   vol_(ii.g, jj.g, kk.g),
                   turb->EddyVisc(state_(ii.g, jj.g, kk.g),
-                                 grads.VelGradJ(ii.p, jj.p, kk.p), suth));
+                                 grads.VelGradJ(ii.p, jj.p, kk.p), suth,
+                                 eqnState, wallDist_(ii.g, jj.g, kk.g)));
         }
       }
     }
@@ -2081,13 +2106,22 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
         double eddyVisc =
             FaceReconCentral(
             turb->EddyVisc(state_(ii.g, jj.g, kk.g - 1),
-                           grads.VelGradK(ii.p, jj.p, kk.p), suth),
+                           grads.VelGradK(ii.p, jj.p, kk.p), suth, eqnState,
+                           wallDist_(ii.g, jj.g, kk.g - 1)),
             turb->EddyVisc(state_(ii.g, jj.g, kk.g),
-                           grads.VelGradK(ii.p, jj.p, kk.p), suth),
+                           grads.VelGradK(ii.p, jj.p, kk.p), suth, eqnState,
+                           wallDist_(ii.g, jj.g, kk.g)),
             center_(ii.g, jj.g, kk.g - 1), center_(ii.g, jj.g, kk.g),
             fCenterK_(ii.g, jj.g, kk.g));
         // effective viscosity (due to nondimensionalization)
         eddyVisc *= suth.NondimScaling();
+
+        // Get wall distance at face
+        double wDist = FaceReconCentral(wallDist_(ii.g, jj.g, kk.g - 1),
+                                        wallDist_(ii.g, jj.g, kk.g),
+                                        center_(ii.g, jj.g, kk.g - 1),
+                                        center_(ii.g, jj.g, kk.g),
+                                        fCenterK_(ii.g, jj.g, kk.g));
 
         // calculate viscous flux
         vector3d<double> tkeGrad, omegaGrad;
@@ -2099,7 +2133,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                                  eddyVisc, suth, eqnState,
                                  grads.TempGradK(ii.p, jj.p, kk.p),
                                  this->FAreaUnitK(ii.g, jj.g, kk.g), tkeGrad,
-                                 omegaGrad, turb, state);
+                                 omegaGrad, turb, state, wDist);
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
@@ -2125,7 +2159,8 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                   state_(ii.g, jj.g, kk.g), eqnState, suth,
                   vol_(ii.g, jj.g, kk.g),
                   turb->EddyVisc(state_(ii.g, jj.g, kk.g),
-                                 grads.VelGradK(ii.p, jj.p, kk.p), suth));
+                                 grads.VelGradK(ii.p, jj.p, kk.p), suth,
+                                 eqnState, wallDist_(ii.g, jj.g, kk.g)));
         }
       }
     }
@@ -5650,10 +5685,11 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
   fCenterK_.ClearResize(ig, jg, kg + 1);
   fAreaK_.ClearResize(ig, jg, kg + 1);
 
+  wallDist_.ClearResize(ig, jg, kg, DEFAULTWALLDIST);
+
   residual_.ClearResize(numI, numJ, numK);
   avgWaveSpeed_.ClearResize(numI, numJ, numK);
   dt_.ClearResize(numI, numJ, numK);
-  wallDist_.ClearResize(numI, numJ, numK, DEFAULTWALLDIST);
 }
 
 /*Member function to receive and unpack procBlock state data. This is used to
@@ -5801,13 +5837,14 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                      vol_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
     blk1.center_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
                         center_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
+    blk1.wallDist_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
+                          wallDist_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
+
     // assign cell variables without ghost cells
     blk1.avgWaveSpeed_.Insert(0, iMax1, 0, jMax, 0, kMax,
                               avgWaveSpeed_.Slice(0, iMax1, 0, jMax, 0, kMax));
     blk1.dt_.Insert(0, iMax1, 0, jMax, 0, kMax,
                     dt_.Slice(0, iMax1, 0, jMax, 0, kMax));
-    blk1.wallDist_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                          wallDist_.Slice(0, iMax1, 0, jMax, 0, kMax));
     blk1.residual_.Insert(0, iMax1, 0, jMax, 0, kMax,
                           residual_.Slice(0, iMax1, 0, jMax, 0, kMax));
 
@@ -5835,14 +5872,16 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                        vol_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
     blk2.center_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
                        center_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
+    blk2.wallDist_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
+                          wallDist_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0,
+                                          kMaxG));
+
     // assign cell variables without ghost cells
     blk2.avgWaveSpeed_.Insert(0, iMax2, 0, jMax, 0, kMax,
                               avgWaveSpeed_.Slice(iMinP2, iMaxP2, 0, jMax, 0,
                                                   kMax));
     blk2.dt_.Insert(0, iMax2, 0, jMax, 0, kMax,
                     dt_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
-    blk2.wallDist_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                          wallDist_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
     blk2.residual_.Insert(0, iMax2, 0, jMax, 0, kMax,
                           residual_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
     // assign face variables
@@ -5910,13 +5949,14 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                      vol_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
     blk1.center_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
                         center_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
+    blk1.wallDist_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
+                          wallDist_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
+
     // assign cell variables without ghost cells
     blk1.avgWaveSpeed_.Insert(0, iMax, 0, jMax1, 0, kMax,
                               avgWaveSpeed_.Slice(0, iMax, 0, jMax1, 0, kMax));
     blk1.dt_.Insert(0, iMax, 0, jMax1, 0, kMax,
                     dt_.Slice(0, iMax, 0, jMax1, 0, kMax));
-    blk1.wallDist_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                          wallDist_.Slice(0, iMax, 0, jMax1, 0, kMax));
     blk1.residual_.Insert(0, iMax, 0, jMax1, 0, kMax,
                           residual_.Slice(0, iMax, 0, jMax1, 0, kMax));
 
@@ -5944,14 +5984,15 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                        vol_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0, kMaxG));
     blk2.center_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
                        center_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0, kMaxG));
+    blk2.wallDist_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
+                          wallDist_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0, kMaxG));
+
     // assign cell variables without ghost cells
     blk2.avgWaveSpeed_.Insert(0, iMax, 0, jMax2, 0, kMax,
                               avgWaveSpeed_.Slice(0, iMax, jMinP2, jMaxP2, 0,
                                                   kMax));
     blk2.dt_.Insert(0, iMax, 0, jMax2, 0, kMax,
                     dt_.Slice(0, iMax, jMinP2, jMaxP2, 0, kMax));
-    blk2.wallDist_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                          wallDist_.Slice(0, iMax, jMinP2, jMaxP2, 0, kMax));
     blk2.residual_.Insert(0, iMax, 0, jMax2, 0, kMax,
                           residual_.Slice(0, iMax, jMinP2, jMaxP2, 0, kMax));
     // assign face variables
@@ -6019,13 +6060,14 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                      vol_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
     blk1.center_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
                         center_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
+    blk1.wallDist_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
+                          wallDist_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
+
     // assign cell variables without ghost cells
     blk1.avgWaveSpeed_.Insert(0, iMax, 0, jMax, 0, kMax1,
                               avgWaveSpeed_.Slice(0, iMax, 0, jMax, 0, kMax1));
     blk1.dt_.Insert(0, iMax, 0, jMax, 0, kMax1,
                     dt_.Slice(0, iMax, 0, jMax, 0, kMax1));
-    blk1.wallDist_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                          wallDist_.Slice(0, iMax, 0, jMax, 0, kMax1));
     blk1.residual_.Insert(0, iMax, 0, jMax, 0, kMax1,
                           residual_.Slice(0, iMax, 0, jMax, 0, kMax1));
 
@@ -6053,14 +6095,16 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                        vol_.Slice(0, iMaxG, 0, jMaxG, kMinPG2, kMaxPG2));
     blk2.center_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
                        center_.Slice(0, iMaxG, 0, jMaxG, kMinPG2, kMaxPG2));
+    blk2.wallDist_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
+                          wallDist_.Slice(0, iMaxG, 0, jMaxG, kMinPG2,
+                                          kMaxPG2));
+
     // assign cell variables without ghost cells
     blk2.avgWaveSpeed_.Insert(0, iMax, 0, jMax, 0, kMax2,
                               avgWaveSpeed_.Slice(0, iMax, 0, jMax, kMinP2,
                                                   kMaxP2));
     blk2.dt_.Insert(0, iMax, 0, jMax, 0, kMax2,
                     dt_.Slice(0, iMax, 0, jMax, kMinP2, kMaxP2));
-    blk2.wallDist_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                          wallDist_.Slice(0, iMax, 0, jMax, kMinP2, kMaxP2));
     blk2.residual_.Insert(0, iMax, 0, jMax, 0, kMax2,
                           residual_.Slice(0, iMax, 0, jMax, kMinP2, kMaxP2));
     // assign face variables
@@ -6137,14 +6181,15 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                        vol_.Slice(0, iMaxLG, 0, jMaxG, 0, kMaxG));
     newBlk.center_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG,
                           center_.Slice(0, iMaxLG, 0, jMaxG, 0, kMaxG));
+    newBlk.wallDist_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG,
+                            wallDist_.Slice(0, iMaxLG, 0, jMaxG, 0, kMaxG));
+
     // assign cell variables without ghost cells
     newBlk.avgWaveSpeed_.Insert(0, iMaxL, 0, jMax, 0, kMax,
                                 avgWaveSpeed_.Slice(0, iMaxL, 0, jMax, 0,
                                                     kMax));
     newBlk.dt_.Insert(0, iMaxL, 0, jMax, 0, kMax,
                       dt_.Slice(0, iMaxL, 0, jMax, 0, kMax));
-    newBlk.wallDist_.Insert(0, iMaxL, 0, jMax, 0, kMax,
-                            wallDist_.Slice(0, iMaxL, 0, jMax, 0, kMax));
     newBlk.residual_.Insert(0, iMaxL, 0, jMax, 0, kMax,
                             residual_.Slice(0, iMaxL, 0, jMax, 0, kMax));
 
@@ -6172,14 +6217,16 @@ void procBlock::Join(const procBlock &blk, const string &dir,
     newBlk.center_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG, 0, kMaxG,
                           blk.center_.Slice(iMinUG, iMaxUG, 0, jMaxG, 0,
                                             kMaxG));
+    newBlk.wallDist_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG, 0, kMaxG,
+                            blk.wallDist_.Slice(iMinUG, iMaxUG, 0, jMaxG, 0,
+                                                kMaxG));
+
     // assign cell variables without ghost cells
     newBlk.avgWaveSpeed_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
                                 blk.avgWaveSpeed_.Slice(0, iMaxU, 0, jMax, 0,
                                                     kMax));
     newBlk.dt_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
                       blk.dt_.Slice(0, iMaxU, 0, jMax, 0, kMax));
-    newBlk.wallDist_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
-                            blk.wallDist_.Slice(0, iMaxU, 0, jMax, 0, kMax));
     newBlk.residual_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
                             blk.residual_.Slice(0, iMaxU, 0, jMax, 0, kMax));
 
@@ -6236,14 +6283,15 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                        vol_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG));
     newBlk.center_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG,
                           center_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG));
+    newBlk.wallDist_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG,
+                            wallDist_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG));
+
     // assign cell variables without ghost cells
     newBlk.avgWaveSpeed_.Insert(0, iMax, 0, jMaxL, 0, kMax,
                                 avgWaveSpeed_.Slice(0, iMax, 0, jMaxL, 0,
                                                     kMax));
     newBlk.dt_.Insert(0, iMax, 0, jMaxL, 0, kMax,
                       dt_.Slice(0, iMax, 0, jMaxL, 0, kMax));
-    newBlk.wallDist_.Insert(0, iMax, 0, jMaxL, 0, kMax,
-                            wallDist_.Slice(0, iMax, 0, jMaxL, 0, kMax));
     newBlk.residual_.Insert(0, iMax, 0, jMaxL, 0, kMax,
                             residual_.Slice(0, iMax, 0, jMaxL, 0, kMax));
 
@@ -6271,14 +6319,16 @@ void procBlock::Join(const procBlock &blk, const string &dir,
     newBlk.center_.Insert(0, iMaxG, jMaxLG + 1, jMaxG, 0, kMaxG,
                           blk.center_.Slice(0, iMaxG, jMinUG, jMaxUG, 0,
                                             kMaxG));
+    newBlk.wallDist_.Insert(0, iMaxG, jMaxLG + 1, jMaxG, 0, kMaxG,
+                            blk.wallDist_.Slice(0, iMaxG, jMinUG, jMaxUG, 0,
+                                                kMaxG));
+
     // assign cell variables without ghost cells
     newBlk.avgWaveSpeed_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
                                 blk.avgWaveSpeed_.Slice(0, iMax, 0, jMaxU, 0,
                                                     kMax));
     newBlk.dt_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
                       blk.dt_.Slice(0, iMax, 0, jMaxU, 0, kMax));
-    newBlk.wallDist_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
-                            blk.wallDist_.Slice(0, iMax, 0, jMaxU, 0, kMax));
     newBlk.residual_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
                             blk.residual_.Slice(0, iMax, 0, jMaxU, 0, kMax));
 
@@ -6335,14 +6385,15 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                        vol_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxLG));
     newBlk.center_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG,
                           center_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxLG));
+    newBlk.wallDist_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG,
+                            wallDist_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxLG));
+
     // assign cell variables without ghost cells
     newBlk.avgWaveSpeed_.Insert(0, iMax, 0, jMax, 0, kMaxL,
                                 avgWaveSpeed_.Slice(0, iMax, 0, jMax, 0,
                                                     kMaxL));
     newBlk.dt_.Insert(0, iMax, 0, jMax, 0, kMaxL,
                       dt_.Slice(0, iMax, 0, jMax, 0, kMaxL));
-    newBlk.wallDist_.Insert(0, iMax, 0, jMax, 0, kMaxL,
-                            wallDist_.Slice(0, iMax, 0, jMax, 0, kMaxL));
     newBlk.residual_.Insert(0, iMax, 0, jMax, 0, kMaxL,
                             residual_.Slice(0, iMax, 0, jMax, 0, kMaxL));
 
@@ -6370,14 +6421,16 @@ void procBlock::Join(const procBlock &blk, const string &dir,
     newBlk.center_.Insert(0, iMaxG, 0, jMaxG, kMaxLG + 1, kMaxG,
                           blk.center_.Slice(0, iMaxG, 0, jMaxG, kMinUG,
                                             kMaxUG));
+    newBlk.wallDist_.Insert(0, iMaxG, 0, jMaxG, kMaxLG + 1, kMaxG,
+                            blk.wallDist_.Slice(0, iMaxG, 0, jMaxG, kMinUG,
+                                                kMaxUG));
+
     // assign cell variables without ghost cells
     newBlk.avgWaveSpeed_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
                                 blk.avgWaveSpeed_.Slice(0, iMax, 0, jMax, 0,
                                                     kMaxU));
     newBlk.dt_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
                       blk.dt_.Slice(0, iMax, 0, jMax, 0, kMaxU));
-    newBlk.wallDist_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
-                            blk.wallDist_.Slice(0, iMax, 0, jMax, 0, kMaxU));
     newBlk.residual_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
                             blk.residual_.Slice(0, iMax, 0, jMax, 0, kMaxU));
 
@@ -6789,9 +6842,10 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
 
 // Member function to calculate the source terms and add them to the residual
 void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
-                             const turbModel *turb) {
+                             const idealGas &eos, const turbModel *turb) {
   // grads -- gradients (vel, temp, tke, omega)
   // suth -- sutherland's law for viscosity
+  // eos -- equation of state
   // turb -- turbulence model
 
   // loop over all physical cells - no ghost cells needed for source terms
@@ -6803,8 +6857,8 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
                this->NumI(); ii.g++, ii.p++) {
         // calculate turbulent source terms
         source src;
-        src.CalcTurbSrc(turb, state_(ii.g, jj.g, kk.g), grads, suth,
-                        ii.p, jj.p, kk.p);
+        src.CalcTurbSrc(turb, state_(ii.g, jj.g, kk.g), grads, suth, eos,
+                        wallDist_(ii.g, jj.g, kk.g), ii.p, jj.p, kk.p);
 
         // add source terms to residual
         // multiply by -1 because residual is initially on opposite
@@ -6887,15 +6941,12 @@ vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &blks) {
 // all cell centers
 void procBlock::CalcWallDistance(const kdtree &tree) {
   vector3d<double> neighbor;
-  // loop over cells
-  for (struct {int p; int g;} kk = {0, numGhosts_}; kk.p <
-           this->NumK(); kk.g++, kk.p++) {
-    for (struct {int p; int g;} jj = {0, numGhosts_}; jj.p <
-             this->NumJ(); jj.g++, jj.p++) {
-      for (struct {int p; int g;} ii = {0, numGhosts_}; ii.p <
-               this->NumI(); ii.g++, ii.p++) {
-        wallDist_(ii.p, jj.p, kk.p) =
-            tree.NearestNeighbor(center_(ii.g, jj.g, kk.g), neighbor);
+  // loop over cells, including ghosts
+  for (int kk = 0; kk < wallDist_.NumK(); kk++) {
+    for (int jj = 0; jj < wallDist_.NumJ(); jj++) {
+      for (int ii = 0; ii < wallDist_.NumI(); ii++) {
+        wallDist_(ii, jj, kk) =
+            tree.NearestNeighbor(center_(ii, jj, kk), neighbor);
       }
     }
   }
