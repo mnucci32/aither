@@ -169,14 +169,11 @@ void source::CalcTurbSrc(const turbModel *turb, const primVars &state,
   vector3d<double> wGrad = grads.OmegaGradCell(ii, jj, kk);
 
   // calculate turbulent source terms
-  data_[5] = suth.NondimScaling() * turb->Production1(state, vGrad, suth,
-                                                      eqnState, wallDist)
-      - suth.InvNondimScaling() * turb->Destruction1(state);
+  data_[5] = turb->Production1(state, vGrad, suth, eqnState, wallDist)
+      - turb->Destruction1(state, suth);
 
-  data_[6] = suth.NondimScaling() *
+  data_[6] =
       turb->Production2(state, vGrad, kGrad, wGrad, suth, eqnState, wallDist)
-      - suth.InvNondimScaling() *
-      turb->Destruction2(state, vGrad, kGrad, wGrad, suth, eqnState, wallDist)
-      + suth.NondimScaling() *
-      turb->CrossDiff2(state, kGrad, wGrad, suth, eqnState, wallDist);
+      - turb->Destruction2(state, vGrad, kGrad, wGrad, suth, eqnState, wallDist)
+      + turb->CrossDiff2(state, kGrad, wGrad, suth, eqnState, wallDist);
 }

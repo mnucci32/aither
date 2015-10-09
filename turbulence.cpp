@@ -97,6 +97,21 @@ double turbKWWilcox::EddyVisc(const primVars &state,
   return state.Rho() * state.Tke() / this->OmegaTilda(state, vGrad, suth);
 }
 
+// member function for the production of tke
+double turbKWWilcox::Production1(const primVars &state,
+                                 const tensor<double> &velGrad,
+                                 const sutherland &suth, const idealGas &eos,
+                                 const double &wallDist) const {
+  return suth.NondimScaling() *
+      this->ReynoldsStressDDotVelGrad(state, velGrad, suth, eos, wallDist);
+}
+
+// member function for the destruction of tke
+double turbKWWilcox::Destruction1(const primVars &state,
+                                  const sutherland &suth) const {
+  return suth.InvNondimScaling() * betaStar_ * this->TkeDestruction(state);
+}
+
 // member function for production of omega
 double turbKWWilcox::Production2(const primVars &state,
                                  const tensor<double> &velGrad,
@@ -105,7 +120,7 @@ double turbKWWilcox::Production2(const primVars &state,
                                  const sutherland &suth, const idealGas &eos,
                                  const double &wallDist) const {
   return gamma_ * state.Omega() / state.Tke() *
-      this->ReynoldsStressDDotVelGrad(state, velGrad, suth, eos, wallDist);
+      this->Production1(state, velGrad, suth, eos, wallDist);
 }
 
 // member function for destruction of omega
@@ -115,7 +130,8 @@ double turbKWWilcox::Destruction2(const primVars &state,
                                   const vector3d<double> &wGrad,
                                   const sutherland &suth, const idealGas &eos,
                                   const double &wallDist) const {
-  return this->Beta(state, velGrad, suth) * this->OmegaDestruction(state);
+  return suth.InvNondimScaling() * this->Beta(state, velGrad, suth) *
+      this->OmegaDestruction(state);
 }
 
 // member funtion for cross diffusion term in omega equation
@@ -124,7 +140,8 @@ double turbKWWilcox::CrossDiff2(const primVars &state,
                                 const vector3d<double> &wGrad,
                                 const sutherland &suth, const idealGas &eos,
                                 const double &wallDist) const {
-  return this->SigmaD(kGrad, wGrad) * this->CrossDiffusion(state, kGrad, wGrad);
+  return suth.NondimScaling() * this->SigmaD(kGrad, wGrad) *
+      this->CrossDiffusion(state, kGrad, wGrad);
 }
 
 double turbKWWilcox::SigmaD(const vector3d<double> &kGrad,
@@ -220,17 +237,14 @@ void turbKWWilcox::Print() const {
 double turbKWSst::EddyVisc(const primVars &state, const tensor<double> &vGrad,
                            const sutherland &suth, const idealGas &eos,
                            const double &wallDist) const {
-  // DEBUG
-  return this->EddyViscNoLim(state);
+  tensor<double> strainRate = 0.5 * (vGrad + vGrad.Transpose());
 
-  // tensor<double> strainRate = 0.5 * (vGrad + vGrad.Transpose());
-
-  // // using DoubleDotTrans for speed
-  // // both tensors are symmetric so result is the same
-  // double meanStrainRate = sqrt(2.0 * strainRate.DoubleDotTrans(strainRate));
-  // return state.Rho() * a1_ * state.Tke() /
-  //     max(a1_ * state.Omega(), suth.NondimScaling() * meanStrainRate *
-  //         this->F2(state, suth, eos, wallDist));
+  // using DoubleDotTrans for speed
+  // both tensors are symmetric so result is the same
+  double meanStrainRate = sqrt(2.0 * strainRate.DoubleDotTrans(strainRate));
+  return state.Rho() * a1_ * state.Tke() /
+      max(a1_ * state.Omega(), suth.NondimScaling() * meanStrainRate *
+          this->F2(state, suth, eos, wallDist));
 }
 
 // member function for production of tke
@@ -238,12 +252,16 @@ double turbKWSst::Production1(const primVars &state,
                               const tensor<double> &velGrad,
                               const sutherland &suth, const idealGas &eos,
                               const double &wallDist) const {
-  // DEBUG
-  return this->ReynoldsStressDDotVelGrad(state, velGrad, suth, eos, wallDist);
-  
-  // return min(this->ReynoldsStressDDotVelGrad(state, velGrad, suth, eos,
-  //                                            wallDist),
-  //            kProd2Dest_ * this->Destruction1(state));
+  return min(suth.NondimScaling() *
+             this->ReynoldsStressDDotVelGrad(state, velGrad, suth, eos,
+                                             wallDist),
+             kProd2Dest_ * this->Destruction1(state, suth));
+}
+
+// member function for the destruction of tke
+double turbKWSst::Destruction1(const primVars &state,
+                               const sutherland &suth) const {
+  return suth.InvNondimScaling() * betaStar_ * this->TkeDestruction(state);
 }
 
 // member function for production of omega
@@ -255,10 +273,7 @@ double turbKWSst::Production2(const primVars &state,
                               const double &wallDist) const {
   return this->BlendedCoeff(gamma1_, gamma2_, state, kGrad, wGrad, suth, eos,
                             wallDist) * state.Omega() / state.Tke() *
-      this->ReynoldsStressDDotVelGrad(state, velGrad, suth, eos, wallDist);
-      // DEBUG
-      // min(this->ReynoldsStressDDotVelGrad(state, velGrad, suth, eos, wallDist),
-      //     kProd2Dest_ * this->Destruction1(state));
+      this->Production1(state, velGrad, suth, eos, wallDist);
 }
 
 // member function for destruction of omega
@@ -268,7 +283,8 @@ double turbKWSst::Destruction2(const primVars &state,
                                const vector3d<double> &wGrad,
                                const sutherland &suth, const idealGas &eos,
                                const double &wallDist) const {
-  return this->BlendedCoeff(beta1_, beta2_, state, kGrad, wGrad, suth, eos,
+  return suth.InvNondimScaling() *
+      this->BlendedCoeff(beta1_, beta2_, state, kGrad, wGrad, suth, eos,
                             wallDist) * this->OmegaDestruction(state);
 }
 
@@ -278,62 +294,36 @@ double turbKWSst::CrossDiff2(const primVars &state,
                              const vector3d<double> &wGrad,
                              const sutherland &suth, const idealGas &eos,
                              const double &wallDist) const {
-  return 2.0 * (1.0 - this->F1(state, kGrad, wGrad, suth, eos, wallDist)) *
-      sigmaW2_ * this->CrossDiffusion(state, kGrad, wGrad);
+  // DEBUG - using CDkw instead of CrossDiffusion (keeps value positive)
+  return suth.NondimScaling() *
+      (1.0 - this->F1(state, kGrad, wGrad, suth, eos, wallDist)) *
+      this->CDkw(state, kGrad, wGrad);
+
+  // return suth.NondimScaling() * 2.0 *
+  //     (1.0 - this->F1(state, kGrad, wGrad, suth, eos, wallDist)) *
+  //     sigmaW2_ * this->CrossDiffusion(state, kGrad, wGrad);
 }
 
 double turbKWSst::CDkw(const primVars &state, const vector3d<double> &kGrad,
                        const vector3d<double> &wGrad) const {
-  return max(2.0 * state.Rho() * sigmaW2_ * (1.0 / state.Omega()) *
+  return max(2.0 * state.Rho() * sigmaW2_ / state.Omega() *
              kGrad.DotProd(wGrad), 10e-10);
 }
 
 double turbKWSst::F1(const primVars &state, const vector3d<double> &kGrad,
                      const vector3d<double> &wGrad, const sutherland &suth,
                      const idealGas &eos, const double &wallDist) const {
-  // DEBUG
-  // return 1.0;
-  if (true) {
-    // double temp1 = suth.NondimScaling() * sqrt(state.Tke()) /
-    //     (betaStar_ * state.Omega() * wallDist);
-
-    double temp2 = suth.NondimScaling() * suth.NondimScaling() *
-        500.0 * suth.Viscosity(state.Temperature(eos)) /
-        (wallDist * wallDist * state.Rho() * state.Omega());
-
-    double temp3 = 4.0 * state.Rho() * sigmaW2_ * state.Tke() /
-        (this->CDkw(state, kGrad, wGrad) * wallDist * wallDist);
-
-    double arg1 = min(temp2, temp3);
-  
+  double arg1 = min(max(this->Alpha1(state, suth, wallDist),
+                        this->Alpha2(state, suth, eos, wallDist)),
+                    this->Alpha3(state, kGrad, wGrad, wallDist));
   return tanh(pow(arg1, 4.0));
-  } else {
-
-    double arg1 = min(max(suth.NondimScaling() * sqrt(state.Tke()) /
-                          (betaStar_ * state.Omega() * wallDist),
-
-                          suth.NondimScaling() * suth.NondimScaling() *
-                          500.0 * suth.Viscosity(state.Temperature(eos)) /
-                          (wallDist * wallDist * state.Rho() * state.Omega()) ),
-
-                      4.0 * state.Rho() * sigmaW2_ * state.Tke() /
-                      (this->CDkw(state, kGrad, wGrad) * wallDist * wallDist) );
-    return tanh(pow(arg1, 4.0));
-  }
 }
 
 double turbKWSst::F2(const primVars &state, const sutherland &suth,
                      const idealGas &eos, const double &wallDist) const {
-  // DEBUG
-  return 0.0;
-  
-  // double arg2 = max(suth.NondimScaling() * 2.0 * sqrt(state.Tke()) /
-  //                   (betaStar_ * state.Omega() * wallDist),
-
-  //                   suth.NondimScaling() * suth.NondimScaling() *
-  //                   500.0 * suth.Viscosity(state.Temperature(eos)) /
-  //                   (wallDist * wallDist * state.Rho() * state.Omega()) );
-  // return tanh(arg2 * arg2);
+  double arg2 = max(2.0 * this->Alpha1(state, suth, wallDist),
+                    this->Alpha2(state, suth, eos, wallDist));
+  return tanh(arg2 * arg2);
 }
 
 double turbKWSst::BlendedCoeff(const double &coeff1, const double &coeff2,
@@ -343,7 +333,7 @@ double turbKWSst::BlendedCoeff(const double &coeff1, const double &coeff2,
                                const sutherland &suth, const idealGas &eos,
                                const double &wallDist) const {
   double f1 = this->F1(state, kGrad, wGrad, suth, eos, wallDist);
-  return f1 * coeff1 + (1 - f1) * coeff2;
+  return f1 * coeff1 + (1.0 - f1) * coeff2;
 }
 
 double turbKWSst::MolecDiff1Coeff(const primVars &state,
@@ -362,6 +352,28 @@ double turbKWSst::MolecDiff2Coeff(const primVars &state,
                                   const double &wallDist) const {
   return this->BlendedCoeff(sigmaW1_, sigmaW2_, state, kGrad, wGrad, suth, eos,
                             wallDist);
+}
+
+double turbKWSst::Alpha1(const primVars &state, const sutherland &suth,
+                         const double &wallDist) const {
+  // DEBUG - set to 0 if k is negative (ghost cells)
+  return (state.Tke() <= 0.0) ? 0.0 :
+      suth.NondimScaling() * sqrt(state.Tke()) /
+      (betaStar_ * state.Omega() * wallDist);
+}
+
+double turbKWSst::Alpha2(const primVars &state, const sutherland &suth,
+                         const idealGas &eos, const double &wallDist) const {
+  return suth.NondimScaling() * suth.NondimScaling() *
+      500.0 * suth.Viscosity(state.Temperature(eos)) /
+      (wallDist * wallDist * state.Rho() * state.Omega());
+}
+
+double turbKWSst::Alpha3(const primVars &state, const vector3d<double> &kGrad,
+                         const vector3d<double> &wGrad,
+                         const double &wallDist) const {
+  return 4.0 * state.Rho() * sigmaW2_ * state.Tke() /
+      (this->CDkw(state, kGrad, wGrad) * wallDist * wallDist);
 }
 
 // member function to print out turbulence variables

@@ -72,7 +72,8 @@ class turbModel {
                              const tensor<double> &velGrad,
                              const sutherland &suth, const idealGas &eos,
                              const double &wallDist) const = 0;
-  virtual double Destruction1(const primVars &state) const = 0;
+  virtual double Destruction1(const primVars &state,
+                              const sutherland &suth) const = 0;
   virtual double Production2(const primVars &state,
                              const tensor<double> &velGrad,
                              const vector3d<double> &kGrad,
@@ -100,7 +101,7 @@ class turbModel {
                                  const vector3d<double> &wGrad,
                                  const sutherland &suth, const idealGas &eos,
                                  const double &walldist) const = 0;
-
+  virtual double WallBeta() const = 0;
   virtual void Print() const = 0;
 
   // destructor
@@ -121,7 +122,8 @@ class turbNone : public turbModel {
   double Production1(const primVars &state, const tensor<double> &velGrad,
                      const sutherland &suth, const idealGas &eos,
                      const double &wallDist) const override {return 0.0;}
-  double Destruction1(const primVars &state) const override {return 0.0;}
+  double Destruction1(const primVars &state, const sutherland &suth)
+      const override {return 0.0;}
   double Production2(const primVars &state, const tensor<double> &velGrad,
                      const vector3d<double> &kGrad,
                      const vector3d<double> &wGrad,
@@ -144,6 +146,7 @@ class turbNone : public turbModel {
                          const vector3d<double> &wGrad,
                          const sutherland &suth, const idealGas &eos,
                          const double &walldist) const override {return 0.0;}
+  double WallBeta() const override {return 1.0;}
 
   void Print() const override;
 
@@ -180,14 +183,10 @@ class turbKWWilcox : public turbModel {
                   const sutherland &, const idealGas &,
                   const double &) const override;
   double TurbPrandtlNumber() const override {return prt_;}
-  double Production1(const primVars &state, const tensor<double> &velGrad,
-                     const sutherland &suth, const idealGas &eos,
-                     const double &wallDist) const override {
-    return this->ReynoldsStressDDotVelGrad(state, velGrad, suth, eos, wallDist);
-  }
-  double Destruction1(const primVars &state) const override {
-    return betaStar_ * this->TkeDestruction(state);
-  }
+  double Production1(const primVars &, const tensor<double> &,
+                     const sutherland &, const idealGas &,
+                     const double &) const override;
+  double Destruction1(const primVars &, const sutherland &) const override;
   double Production2(const primVars &, const tensor<double> &,
                      const vector3d<double> &, const vector3d<double> &,
                      const sutherland &, const idealGas &,
@@ -211,6 +210,7 @@ class turbKWWilcox : public turbModel {
                          const double &walldist) const override {
     return sigma_;
   }
+  double WallBeta() const override {return beta0_;}
 
   double Gamma() const {return gamma_;}
   double BetaStar() const {return betaStar_;}
@@ -252,6 +252,11 @@ class turbKWSst : public turbModel {
                       const vector3d<double> &, const vector3d<double> &,
                       const sutherland &, const idealGas &,
                       const double &) const;
+  double Alpha1(const primVars &, const sutherland &, const double &) const;
+  double Alpha2(const primVars &, const sutherland &, const idealGas &,
+                const double &) const;
+  double Alpha3(const primVars &, const vector3d<double> &,
+                const vector3d<double> &, const double &) const;
 
  public:
   // constructor
@@ -265,9 +270,7 @@ class turbKWSst : public turbModel {
   double Production1(const primVars &, const tensor<double> &,
                      const sutherland &, const idealGas &,
                      const double &) const override;
-  double Destruction1(const primVars &state) const override {
-    return betaStar_ * this->TkeDestruction(state);
-  }
+  double Destruction1(const primVars &, const sutherland &) const override;
   double Production2(const primVars &, const tensor<double> &,
                      const vector3d<double> &, const vector3d<double> &,
                      const sutherland &, const idealGas &,
@@ -287,6 +290,7 @@ class turbKWSst : public turbModel {
   double MolecDiff2Coeff(const primVars &, const vector3d<double> &,
                          const vector3d<double> &, const sutherland &,
                          const idealGas &, const double &) const override;
+  double WallBeta() const override {return beta1_;}
 
   double Gamma1() const {return gamma1_;}
   double Beta1() const {return beta1_;}
