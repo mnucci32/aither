@@ -2085,7 +2085,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                              center_(ii.g, jj.g, kk.g),
                              fCenterK_(ii.g, jj.g, kk.g));
 
-        // Get velocity at face
+        // Get state at face
         primVars state =
             FaceReconCentral(state_(ii.g, jj.g, kk.g - 1),
                              state_(ii.g, jj.g, kk.g),
@@ -3052,10 +3052,12 @@ second layer.
 */
 void procBlock::AssignInviscidGhostCells(const input &inp,
                                          const idealGas &eos,
-                                         const sutherland &suth) {
+                                         const sutherland &suth,
+                                         const turbModel *turb) {
   // inp -- all input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
+  // turb -- turbulence model
 
   // loop over all boundary surfaces
   for (int ii = 0; ii < bc_.NumSurfaces(); ii++) {
@@ -3114,9 +3116,11 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
           fAreaI_.Slice(bnd, bnd, jmin, jmax, kmin, kmax);
       multiArray3d<primVars> boundaryStates =
           state_.Slice(i1, i1, jmin, jmax, kmin, kmax);
+      multiArray3d<double> wDist =
+          wallDist_.Slice(i1, i1, jmin, jmax, kmin, kmax);
       multiArray3d<primVars> ghostStates =
-          GetGhostStates(boundaryStates, bcName, faceAreas, surf, inp, eos,
-                         suth, 1);
+          GetGhostStates(boundaryStates, bcName, faceAreas, wDist, surf, inp,
+                         eos, suth, turb, 1);
 
       state_.Insert(g1, g1, jmin, jmax, kmin, kmax, ghostStates);
 
@@ -3128,9 +3132,10 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
         // if slipWall reflect 2nd interior state instead of extrapolation
         if (bcName == "slipWall") {
           boundaryStates = state_.Slice(i2, i2, jmin, jmax, kmin, kmax);
+          wDist = wallDist_.Slice(i2, i2, jmin, jmax, kmin, kmax);
         }
-        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, surf,
-                                     inp, eos, suth, 2);
+        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
+                                     surf, inp, eos, suth, turb, 2);
 
         state_.Insert(g2, g2, jmin, jmax, kmin, kmax, ghostStates);
       }
@@ -3150,9 +3155,11 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
           fAreaJ_.Slice(imin, imax, bnd, bnd, kmin, kmax);
       multiArray3d<primVars> boundaryStates =
           state_.Slice(imin, imax, i1, i1, kmin, kmax);
+      multiArray3d<double> wDist =
+          wallDist_.Slice(imin, imax, i1, i1, kmin, kmax);
       multiArray3d<primVars> ghostStates =
-          GetGhostStates(boundaryStates, bcName, faceAreas, surf, inp, eos,
-                         suth, 1);
+          GetGhostStates(boundaryStates, bcName, faceAreas, wDist, surf, inp,
+                         eos, suth, turb, 1);
 
       // assign state for first layer of ghost cells
       state_.Insert(imin, imax, g1, g1, kmin, kmax, ghostStates);
@@ -3165,9 +3172,10 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
         // if slipWall reflect 2nd interior state instead of extrapolation
         if (bcName == "slipWall") {
           boundaryStates = state_.Slice(imin, imax, i2, i2, kmin, kmax);
+          wDist = wallDist_.Slice(imin, imax, i2, i2, kmin, kmax);
         }
-        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, surf,
-                                     inp, eos, suth, 2);
+        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
+                                     surf, inp, eos, suth, turb, 2);
 
         state_.Insert(imin, imax, g2, g2, kmin, kmax, ghostStates);
       }
@@ -3187,9 +3195,11 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
           fAreaK_.Slice(imin, imax, jmin, jmax, bnd, bnd);
       multiArray3d<primVars> boundaryStates =
           state_.Slice(imin, imax, jmin, jmax, i1, i1);
+      multiArray3d<double> wDist =
+          wallDist_.Slice(imin, imax, jmin, jmax, i1, i1);
       multiArray3d<primVars> ghostStates =
-          GetGhostStates(boundaryStates, bcName, faceAreas, surf, inp, eos,
-                         suth, 1);
+          GetGhostStates(boundaryStates, bcName, faceAreas, wDist, surf, inp,
+                         eos, suth, turb, 1);
 
       // assign state for first layer of ghost cells
       state_.Insert(imin, imax, jmin, jmax, g1, g1, ghostStates);
@@ -3202,9 +3212,10 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
         // if slipWall reflect 2nd interior state instead of extrapolation
         if (bcName == "slipWall") {
           boundaryStates = state_.Slice(imin, imax, jmin, jmax, i2, i2);
+          wDist = wallDist_.Slice(imin, imax, jmin, jmax, i2, i2);
         }
-        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, surf,
-                                     inp, eos, suth, 2);
+        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
+                                     surf, inp, eos, suth, turb, 2);
 
         state_.Insert(imin, imax, jmin, jmax, g2, g2, ghostStates);
       }
@@ -3251,10 +3262,12 @@ implementation is described in Blazek.
 */
 void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
                                              const idealGas &eos,
-                                             const sutherland &suth) {
+                                             const sutherland &suth,
+                                             const turbModel *turb) {
   // inp -- all input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
+  // turb -- turbulence model
 
   // ------------------------------------------------------------------------
   // loop over 4 edges that run in i-direction
@@ -3306,23 +3319,31 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
       // j surface is a wall, but k surface is not - extend wall bc
       if (bc_J == "slipWall" && bc_K != "slipWall") {
         state_(ii, jg1, kg1) = state_(ii, jp, kg1).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg1), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ii, jpF, kg1), wallDist_(ii, jp, kg1),
+            surfJ, inp, eos, suth, turb, 1);
         state_(ii, jg1, kg2) = state_(ii, jp, kg2).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg2), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ii, jpF, kg2), wallDist_(ii, jp, kg2),
+            surfJ, inp, eos, suth, turb, 1);
         state_(ii, jg2, kg1) = state_(ii, jg1, ki1).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg1), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ii, jpF, kg1), wallDist_(ii, jg1, ki1),
+            surfJ, inp, eos, suth, turb, 2);
         state_(ii, jg2, kg2) = state_(ii, jg2, ki1).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg2), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ii, jpF, kg2), wallDist_(ii, jg2, ki1),
+            surfJ, inp, eos, suth, turb, 2);
         // k surface is a wall, but j surface is not - extend wall bc
       } else if (bc_J != "slipWall" && bc_K == "slipWall") {
         state_(ii, jg1, kg1) = state_(ii, jg1, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg1, kpF), surfK, inp, eos, suth, 1);
+            bc_K, this->FAreaUnitK(ii, jg1, kpF), wallDist_(ii, jg1, kp),
+            surfK, inp, eos, suth, turb, 1);
         state_(ii, jg2, kg1) = state_(ii, jg2, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg2, kpF), surfK, inp, eos, suth, 1);
+            bc_K, this->FAreaUnitK(ii, jg2, kpF), wallDist_(ii, jg2, kp),
+            surfK, inp, eos, suth, turb, 1);
         state_(ii, jg1, kg2) = state_(ii, ji1, kg1).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg1, kpF), surfK, inp, eos, suth, 2);
+            bc_K, this->FAreaUnitK(ii, jg1, kpF), wallDist_(ii, ji1, kg1),
+            surfK, inp, eos, suth, turb, 2);
         state_(ii, jg2, kg2) = state_(ii, ji1, kg2).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg2, kpF), surfK, inp, eos, suth, 2);
+            bc_K, this->FAreaUnitK(ii, jg2, kpF), wallDist_(ii, ji1, kg2),
+            surfK, inp, eos, suth, turb, 2);
       } else {  // both surfaces or neither are walls - proceed as normal
         state_(ii, jg1, kg1) = 0.5 * (state_(ii, jp, kg1) +
                                       state_(ii, jg1, kp));
@@ -3385,23 +3406,31 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
       // i surface is a wall, but k surface is not - extend wall bc
       if (bc_I == "slipWall" && bc_K != "slipWall") {
         state_(ig1, jj, kg1) = state_(ip, jj, kg1).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg1), surfI, inp, eos, suth, 1);
+            bc_I, this->FAreaUnitI(ipF, jj, kg1), wallDist_(ip, jj, kg1),
+            surfI, inp, eos, suth, turb, 1);
         state_(ig1, jj, kg2) = state_(ip, jj, kg2).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg2), surfI, inp, eos, suth, 1);
+            bc_I, this->FAreaUnitI(ipF, jj, kg2), wallDist_(ip, jj, kg2),
+            surfI, inp, eos, suth, turb, 1);
         state_(ig2, jj, kg1) = state_(ig1, jj, ki1).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg1), surfI, inp, eos, suth, 2);
+            bc_I, this->FAreaUnitI(ipF, jj, kg1), wallDist_(ig1, jj, ki1),
+            surfI, inp, eos, suth, turb, 2);
         state_(ig2, jj, kg2) = state_(ig2, jj, ki1).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg2), surfI, inp, eos, suth, 2);
+            bc_I, this->FAreaUnitI(ipF, jj, kg2), wallDist_(ig2, jj, ki1),
+            surfI, inp, eos, suth, turb, 2);
         // k surface is a wall, but i surface is not - extend wall bc
       } else if (bc_I != "slipWall" && bc_K == "slipWall") {
         state_(ig1, jj, kg1) = state_(ig1, jj, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ig1, jj, kpF), surfK, inp, eos, suth, 1);
+            bc_K, this->FAreaUnitK(ig1, jj, kpF), wallDist_(ig1, jj, kp),
+            surfK, inp, eos, suth, turb, 1);
         state_(ig2, jj, kg1) = state_(ig2, jj, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ig2, jj, kpF), surfK, inp, eos, suth, 1);
+            bc_K, this->FAreaUnitK(ig2, jj, kpF), wallDist_(ig2, jj, kp),
+            surfK, inp, eos, suth, turb, 1);
         state_(ig1, jj, kg2) = state_(ii1, jj, kg1).GetGhostState(
-            bc_K, this->FAreaUnitK(ig1, jj, kpF), surfK, inp, eos, suth, 2);
+            bc_K, this->FAreaUnitK(ig1, jj, kpF), wallDist_(ii1, jj, kg1),
+            surfK, inp, eos, suth, turb, 2);
         state_(ig2, jj, kg2) = state_(ii1, jj, kg2).GetGhostState(
-            bc_K, this->FAreaUnitK(ig2, jj, kpF), surfK, inp, eos, suth, 2);
+            bc_K, this->FAreaUnitK(ig2, jj, kpF), wallDist_(ii1, jj, kg2),
+            surfK, inp, eos, suth, turb, 2);
       } else {  // both surfaces or neither are walls - proceed as normal
         state_(ig1, jj, kg1) = 0.5 * (state_(ip, jj, kg1) +
                                       state_(ig1, jj, kp));
@@ -3464,23 +3493,31 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
       // i surface is a wall, but j surface is not - extend wall bc
       if (bc_I == "slipWall" && bc_J != "slipWall") {
         state_(ig1, jg1, kk) = state_(ip, jg1, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg1, kk), surfI, inp, eos, suth, 1);
+            bc_I, this->FAreaUnitI(ipF, jg1, kk), wallDist_(ip, jg1, kk),
+            surfI, inp, eos, suth, turb, 1);
         state_(ig1, jg2, kk) = state_(ip, jg2, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg2, kk), surfI, inp, eos, suth, 1);
+            bc_I, this->FAreaUnitI(ipF, jg2, kk), wallDist_(ip, jg2, kk),
+            surfI, inp, eos, suth, turb, 1);
         state_(ig2, jg1, kk) = state_(ig1, ji1, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg1, kk), surfI, inp, eos, suth, 2);
+            bc_I, this->FAreaUnitI(ipF, jg1, kk), wallDist_(ig1, ji1, kk),
+            surfI, inp, eos, suth, turb, 2);
         state_(ig2, jg2, kk) = state_(ig2, ji1, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg2, kk), surfI, inp, eos, suth, 2);
+            bc_I, this->FAreaUnitI(ipF, jg2, kk), wallDist_(ig2, ji1, kk),
+            surfI, inp, eos, suth, turb, 2);
         // j surface is a wall, but i surface is not - extend wall bc
       } else if (bc_I != "slipWall" && bc_J == "slipWall") {
         state_(ig1, jg1, kk) = state_(ig1, jp, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig1, jpF, kk), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ig1, jpF, kk), wallDist_(ig1, jp, kk),
+            surfJ, inp, eos, suth, turb, 1);
         state_(ig2, jg1, kk) = state_(ig2, jp, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig2, jpF, kk), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ig2, jpF, kk), wallDist_(ig2, jp, kk),
+            surfJ, inp, eos, suth, turb, 1);
         state_(ig1, jg2, kk) = state_(ii1, jg1, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig1, jpF, kk), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ig1, jpF, kk), wallDist_(ii1, jg1, kk),
+            surfJ, inp, eos, suth, turb, 2);
         state_(ig2, jg2, kk) = state_(ii1, jg2, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig2, jpF, kk), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ig2, jpF, kk), wallDist_(ii1, jg2, kk),
+            surfJ, inp, eos, suth, turb, 2);
       } else {  // both surfaces or neither are walls - proceed as normal
         state_(ig1, jg1, kk) = 0.5 * (state_(ip, jg1, kk) +
                                       state_(ig1, jp, kk));
@@ -3499,10 +3536,12 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
  condition. It overwrites both regular and edge ghost cells.
 */
 void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
-                                        const sutherland &suth) {
+                                        const sutherland &suth,
+                                        const turbModel *turb) {
   // inp -- all input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
+  // turb -- turbulence model
 
   // loop over all boundary surfaces
   for (int ii = 0; ii < bc_.NumSurfaces(); ii++) {
@@ -3559,9 +3598,11 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
           fAreaI_.Slice(bnd, bnd, jmin, jmax, kmin, kmax);
       multiArray3d<primVars> boundaryStates =
           state_.Slice(i1, i1, jmin, jmax, kmin, kmax);
+      multiArray3d<double> wDist =
+          wallDist_.Slice(i1, i1, jmin, jmax, kmin, kmax);
       multiArray3d<primVars> ghostStates =
-          GetGhostStates(boundaryStates, bcName, faceAreas, surf, inp, eos,
-                         suth, 1);
+          GetGhostStates(boundaryStates, bcName, faceAreas, wDist, surf, inp,
+                         eos, suth, turb, 1);
 
       state_.Insert(g1, g1, jmin, jmax, kmin, kmax, ghostStates);
 
@@ -3571,8 +3612,9 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
         state_.Insert(g2, g2, jmin, jmax, kmin, kmax, ghostStates);
       } else {
         boundaryStates = state_.Slice(i2, i2, jmin, jmax, kmin, kmax);
-        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, surf,
-                                     inp, eos, suth, 2);
+        wDist = wallDist_.Slice(i2, i2, jmin, jmax, kmin, kmax);
+        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
+                                     surf, inp, eos, suth, turb, 2);
 
         state_.Insert(g2, g2, jmin, jmax, kmin, kmax, ghostStates);
       }
@@ -3590,9 +3632,11 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
           fAreaJ_.Slice(imin, imax, bnd, bnd, kmin, kmax);
       multiArray3d<primVars> boundaryStates =
           state_.Slice(imin, imax, i1, i1, kmin, kmax);
+      multiArray3d<double> wDist =
+          wallDist_.Slice(imin, imax, i1, i1, kmin, kmax);
       multiArray3d<primVars> ghostStates =
-          GetGhostStates(boundaryStates, bcName, faceAreas, surf, inp, eos,
-                         suth, 1);
+          GetGhostStates(boundaryStates, bcName, faceAreas, wDist, surf, inp,
+                         eos, suth, turb, 1);
 
       // assign state for first layer of ghost cells
       state_.Insert(imin, imax, g1, g1, kmin, kmax, ghostStates);
@@ -3603,8 +3647,9 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
         state_.Insert(imin, imax, g2, g2, kmin, kmax, ghostStates);
       } else {
         boundaryStates = state_.Slice(imin, imax, i2, i2, kmin, kmax);
-        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, surf,
-                                     inp, eos, suth, 2);
+        wDist = wallDist_.Slice(imin, imax, i2, i2, kmin, kmax);
+        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
+                                     surf, inp, eos, suth, turb, 2);
 
         state_.Insert(imin, imax, g2, g2, kmin, kmax, ghostStates);
       }
@@ -3622,9 +3667,11 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
           fAreaK_.Slice(imin, imax, jmin, jmax, bnd, bnd);
       multiArray3d<primVars> boundaryStates =
           state_.Slice(imin, imax, jmin, jmax, i1, i1);
+      multiArray3d<double> wDist =
+          wallDist_.Slice(imin, imax, jmin, jmax, i1, i1);
       multiArray3d<primVars> ghostStates =
-          GetGhostStates(boundaryStates, bcName, faceAreas, surf, inp, eos,
-                         suth, 1);
+          GetGhostStates(boundaryStates, bcName, faceAreas, wDist, surf, inp,
+                         eos, suth, turb, 1);
 
       // assign state for first layer of ghost cells
       state_.Insert(imin, imax, jmin, jmax, g1, g1, ghostStates);
@@ -3635,8 +3682,9 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
         state_.Insert(imin, imax, jmin, jmax, g2, g2, ghostStates);
       } else {
         boundaryStates = state_.Slice(imin, imax, jmin, jmax, i2, i2);
-        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, surf,
-                                     inp, eos, suth, 2);
+        wDist = wallDist_.Slice(imin, imax, jmin, jmax, i2, i2);
+        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
+                                     surf, inp, eos, suth, turb, 2);
 
         state_.Insert(imin, imax, jmin, jmax, g2, g2, ghostStates);
       }
@@ -3644,7 +3692,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
   }
 
   // Assign edge ghost cells
-  this->AssignViscousGhostCellsEdge(inp, eos, suth);
+  this->AssignViscousGhostCellsEdge(inp, eos, suth, turb);
 }
 
 /* Member function to assign values to ghost cells located on the 12 block edges
@@ -3684,10 +3732,12 @@ implementation is described in Blazek.
 */
 void procBlock::AssignViscousGhostCellsEdge(const input &inp,
                                             const idealGas &eos,
-                                            const sutherland &suth) {
+                                            const sutherland &suth,
+                                            const turbModel *turb) {
   // inp -- all input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
+  // turb -- turbulence model
 
   // ------------------------------------------------------------------------
   // loop over 4 edges that run in i-direction
@@ -3733,23 +3783,31 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
       // j surface is a wall, but k surface is not - extend wall bc
       if (bc_J == "viscousWall" && bc_K != "viscousWall") {
         state_(ii, jg1, kg1) = state_(ii, jp, kg1).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg1), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ii, jpF, kg1), wallDist_(ii, jp, kg1),
+            surfJ, inp, eos, suth, turb, 1);
         state_(ii, jg1, kg2) = state_(ii, jp, kg2).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg2), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ii, jpF, kg2), wallDist_(ii, jp, kg2),
+            surfJ, inp, eos, suth, turb, 1);
         state_(ii, jg2, kg1) = state_(ii, jg1, ki1).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg1), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ii, jpF, kg1), wallDist_(ii, jg1, ki1),
+            surfJ, inp, eos, suth, turb, 2);
         state_(ii, jg2, kg2) = state_(ii, jg2, ki1).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg2), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ii, jpF, kg2), wallDist_(ii, jg2, ki1),
+            surfJ, inp, eos, suth, turb, 2);
         // k surface is a wall, but j surface is not - extend wall bc
       } else if (bc_J != "viscousWall" && bc_K == "viscousWall") {
         state_(ii, jg1, kg1) = state_(ii, jg1, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg1, kpF), surfK, inp, eos, suth, 1);
+            bc_K, this->FAreaUnitK(ii, jg1, kpF), wallDist_(ii, jg1, kp),
+            surfK, inp, eos, suth, turb, 1);
         state_(ii, jg2, kg1) = state_(ii, jg2, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg2, kpF), surfK, inp, eos, suth, 1);
+            bc_K, this->FAreaUnitK(ii, jg2, kpF), wallDist_(ii, jg2, kp),
+            surfK, inp, eos, suth, turb, 1);
         state_(ii, jg1, kg2) = state_(ii, ji1, kg1).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg1, kpF), surfK, inp, eos, suth, 2);
+            bc_K, this->FAreaUnitK(ii, jg1, kpF), wallDist_(ii, ji1, kg1),
+            surfK, inp, eos, suth, turb, 2);
         state_(ii, jg2, kg2) = state_(ii, ji1, kg2).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg2, kpF), surfK, inp, eos, suth, 2);
+            bc_K, this->FAreaUnitK(ii, jg2, kpF), wallDist_(ii, ji1, kg2),
+            surfK, inp, eos, suth, turb, 2);
       // both surfaces are walls - proceed as normal
       } else if (bc_J == "viscousWall" && bc_K == "viscousWall") {
         state_(ii, jg1, kg1) = 0.5 * (state_(ii, jp, kg1) +
@@ -3808,23 +3866,31 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
       // i surface is a wall, but k surface is not - extend wall bc
       if (bc_I == "viscousWall" && bc_K != "viscousWall") {
         state_(ig1, jj, kg1) = state_(ip, jj, kg1).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg1), surfI, inp, eos, suth, 1);
+            bc_I, this->FAreaUnitI(ipF, jj, kg1), wallDist_(ip, jj, kg1),
+            surfI, inp, eos, suth, turb, 1);
         state_(ig1, jj, kg2) = state_(ip, jj, kg2).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg2), surfI, inp, eos, suth, 1);
+            bc_I, this->FAreaUnitI(ipF, jj, kg2), wallDist_(ip, jj, kg2),
+            surfI, inp, eos, suth, turb, 1);
         state_(ig2, jj, kg1) = state_(ig1, jj, ki1).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg1), surfI, inp, eos, suth, 2);
+            bc_I, this->FAreaUnitI(ipF, jj, kg1), wallDist_(ig1, jj, ki1),
+            surfI, inp, eos, suth, turb, 2);
         state_(ig2, jj, kg2) = state_(ig2, jj, ki1).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg2), surfI, inp, eos, suth, 2);
+            bc_I, this->FAreaUnitI(ipF, jj, kg2), wallDist_(ig2, jj, ki1),
+            surfI, inp, eos, suth, turb, 2);
         // k surface is a wall, but i surface is not - extend wall bc
       } else if (bc_I != "viscousWall" && bc_K == "viscousWall") {
         state_(ig1, jj, kg1) = state_(ig1, jj, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ig1, jj, kpF), surfK, inp, eos, suth, 1);
+            bc_K, this->FAreaUnitK(ig1, jj, kpF), wallDist_(ig1, jj, kp),
+            surfK, inp, eos, suth, turb, 1);
         state_(ig2, jj, kg1) = state_(ig2, jj, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ig2, jj, kpF), surfK, inp, eos, suth, 1);
+            bc_K, this->FAreaUnitK(ig2, jj, kpF), wallDist_(ig2, jj, kp),
+            surfK, inp, eos, suth, turb, 1);
         state_(ig1, jj, kg2) = state_(ii1, jj, kg1).GetGhostState(
-            bc_K, this->FAreaUnitK(ig1, jj, kpF), surfK, inp, eos, suth, 2);
+            bc_K, this->FAreaUnitK(ig1, jj, kpF), wallDist_(ii1, jj, kg1),
+            surfK, inp, eos, suth, turb, 2);
         state_(ig2, jj, kg2) = state_(ii1, jj, kg2).GetGhostState(
-            bc_K, this->FAreaUnitK(ig2, jj, kpF), surfK, inp, eos, suth, 2);
+            bc_K, this->FAreaUnitK(ig2, jj, kpF), wallDist_(ii1, jj, kg2),
+            surfK, inp, eos, suth, turb, 2);
       // both surfaces are walls - proceed as normal
       } else if (bc_I == "viscousWall" && bc_K == "viscousWall") {
         state_(ig1, jj, kg1) = 0.5 * (state_(ip, jj, kg1) +
@@ -3883,23 +3949,31 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
       // i surface is a wall, but j surface is not - extend wall bc
       if (bc_I == "viscousWall" && bc_J != "viscousWall") {
         state_(ig1, jg1, kk) = state_(ip, jg1, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg1, kk), surfI, inp, eos, suth, 1);
+            bc_I, this->FAreaUnitI(ipF, jg1, kk), wallDist_(ip, jg1, kk),
+            surfI, inp, eos, suth, turb, 1);
         state_(ig1, jg2, kk) = state_(ip, jg2, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg2, kk), surfI, inp, eos, suth, 1);
+            bc_I, this->FAreaUnitI(ipF, jg2, kk), wallDist_(ip, jg2, kk),
+            surfI, inp, eos, suth, turb, 1);
         state_(ig2, jg1, kk) = state_(ig1, ji1, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg1, kk), surfI, inp, eos, suth, 2);
+            bc_I, this->FAreaUnitI(ipF, jg1, kk), wallDist_(ig1, ji1, kk),
+            surfI, inp, eos, suth, turb, 2);
         state_(ig2, jg2, kk) = state_(ig2, ji1, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg2, kk), surfI, inp, eos, suth, 2);
+            bc_I, this->FAreaUnitI(ipF, jg2, kk), wallDist_(ig2, ji1, kk),
+            surfI, inp, eos, suth, turb, 2);
         // j surface is a wall, but i surface is not - extend wall bc
       } else if (bc_I != "viscousWall" && bc_J == "viscousWall") {
         state_(ig1, jg1, kk) = state_(ig1, jp, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig1, jpF, kk), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ig1, jpF, kk), wallDist_(ig1, jp, kk),
+            surfJ, inp, eos, suth, turb, 1);
         state_(ig2, jg1, kk) = state_(ig2, jp, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig2, jpF, kk), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ig2, jpF, kk), wallDist_(ig2, jp, kk),
+            surfJ, inp, eos, suth, turb, 1);
         state_(ig1, jg2, kk) = state_(ii1, jg1, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig1, jpF, kk), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ig1, jpF, kk), wallDist_(ii1, jg1, kk),
+            surfJ, inp, eos, suth, turb, 2);
         state_(ig2, jg2, kk) = state_(ii1, jg2, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig2, jpF, kk), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ig2, jpF, kk), wallDist_(ii1, jg2, kk),
+            surfJ, inp, eos, suth, turb, 2);
       // both surfaces are walls - proceed as normal
       } else if (bc_I == "viscousWall" && bc_J == "viscousWall") {
         state_(ig1, jg1, kk) = 0.5 * (state_(ip, jg1, kk) +
@@ -4515,6 +4589,7 @@ boundaries to pass the correct data between grid blocks.
 */
 void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
                            const idealGas &eos, const sutherland &suth,
+                           const turbModel *turb,
                            vector<interblock> &connections, const int &rank,
                            const MPI_Datatype &MPI_cellData) {
   // states -- vector of all procBlocks in the solution domain
@@ -4525,7 +4600,7 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
 
   // loop over all blocks and assign inviscid ghost cells
   for (unsigned int ii = 0; ii < states.size(); ii++) {
-    states[ii].AssignInviscidGhostCells(inp, eos, suth);
+    states[ii].AssignInviscidGhostCells(inp, eos, suth, turb);
   }
 
   // loop over connections and swap ghost cells where needed
@@ -4554,7 +4629,7 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
 
   // loop over all blocks and get ghost cell edge data
   for (unsigned int ii = 0; ii < states.size(); ii++) {
-    states[ii].AssignInviscidGhostCellsEdge(inp, eos, suth);
+    states[ii].AssignInviscidGhostCellsEdge(inp, eos, suth, turb);
   }
 }
 

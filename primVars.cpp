@@ -21,6 +21,7 @@
 #include <algorithm>  // max
 #include "primVars.hpp"
 #include "input.hpp"               // input
+#include "turbulence.hpp"          // turbModel
 
 using std::cout;
 using std::endl;
@@ -386,16 +387,20 @@ subsonicOutflow, supersonicInflow, supersonicOutflow
 */
 primVars primVars::GetGhostState(const string &bcType,
                                  const vector3d<double> &areaVec,
-                                 const string &surf, const input &inputVars,
+                                 const double &wallDist, const string &surf,
+                                 const input &inputVars,
                                  const idealGas &eqnState,
                                  const sutherland &suth,
+                                 const turbModel *turb,
                                  const int layer) const {
   // bcType -- type of boundary condition to supply ghost cell for
   // areaVec -- unit area vector of boundary face
   // surf -- i, j, k surface of boundary
+  // wallDist -- distance from cell center to nearest wall boundary
   // inputVar -- all input variables
   // eqnState -- equation of state
   // suth -- sutherland model for viscosity
+  // turb -- turbulence model
   // layer -- layer of ghost cell to return (first (closest) or second
   // (farthest))
   // the instance of primVars being acted upon should be the interior cell
@@ -470,11 +475,14 @@ primVars primVars::GetGhostState(const string &bcType,
       ghostState.data_[5] = -1.0 * (*this).Tke();
 
       // avg height of sand grain roughness
-      double ks = 1.0e-5 / inputVars.LRef();
+      // double ks = 1.0e-5 / inputVars.LRef();
       double nuW = suth.Viscosity((*this).Temperature(eqnState))
           / (*this).Rho();
-      double wWall = (40000.0 * nuW / (ks * ks)) * suth.NondimScaling() *
-          suth.NondimScaling();
+      double wWall = suth.NondimScaling() * suth.NondimScaling() *
+          60.0 * nuW / (wallDist * wallDist * turb->WallBeta());
+
+      // double wWall = (40000.0 * nuW / (ks * ks)) * suth.NondimScaling() *
+      //     suth.NondimScaling();
       ghostState.data_[6] = 2.0 * wWall - (*this).Omega();
 
       if (layer == 2) {
@@ -790,8 +798,19 @@ primVars primVars::UpdateWithConsVars(const idealGas &eqnState,
   // convert primative to conservative and update
   genArray consUpdate = (*this).ConsVars(eqnState) + du;
 
+  // DEBUG
+  primVars update(consUpdate, false, eqnState);
+  if (update.Tke() < 1.0e-15) {
+    update.data_[5] = 1.0e-15;
+  }
+  if (update.Omega() < 1.0e-15) {
+    update.data_[6] = 1.0e-15;
+  }
+  return update;
+
+  
   // convert back to primative variables
-  return primVars(consUpdate, false, eqnState);
+  // return primVars(consUpdate, false, eqnState);
 }
 
 bool primVars::IsZero() const {
@@ -826,9 +845,10 @@ void primVars::ApplyFarfieldTurbBC(const vector3d<double> &vel,
 
 multiArray3d<primVars> GetGhostStates(
     const multiArray3d<primVars> &bndStates, const string &bcName,
-    const multiArray3d<unitVec3dMag<double> > &faceAreas, const string &surf,
+    const multiArray3d<unitVec3dMag<double> > &faceAreas,
+    const multiArray3d<double> &wDist, const string &surf,
     const input &inp, const idealGas &eos, const sutherland &suth,
-    const int layer) {
+    const turbModel *turb, const int layer) {
   // bndStates -- states at cells adjacent to boundary
   // bcName -- boundary condition type
   // faceAreas -- face areas of boundary
@@ -836,6 +856,7 @@ multiArray3d<primVars> GetGhostStates(
   // inp -- input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
+  // turb -- turbulence model
   // layer -- layer of ghost cell to return
   //          (1 closest to boundary, or 2 farthest)
 
@@ -847,7 +868,7 @@ multiArray3d<primVars> GetGhostStates(
         ghostStates(ii, jj, kk) =
             bndStates(ii, jj, kk).
             GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),
-                          surf, inp, eos, suth, layer);
+                          wDist(ii, jj, kk), surf, inp, eos, suth, turb, layer);
       }
     }
   }

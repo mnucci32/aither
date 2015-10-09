@@ -222,8 +222,8 @@ int main(int argc, char *argv[]) {
   // Preallocate vectors for old solution
   // Outermost vector for blocks, inner vector for cell in blocks,
   // genArray for variables in cell
-  vector<multiArray3d<genArray> > solTimeN(numProcBlock);
-  vector<multiArray3d<genArray> > solDeltaNm1(numProcBlock);
+  vector<multiArray3d<genArray>> solTimeN(numProcBlock);
+  vector<multiArray3d<genArray>> solDeltaNm1(numProcBlock);
 
   // Initialize residual variables
   genArray residL2(0.0);  // l2 norm residuals
@@ -252,7 +252,7 @@ int main(int argc, char *argv[]) {
     // loop over nonlinear iterations
     for ( int mm = 0; mm < inputVars.NonlinearIterations(); mm++ ) {
       // Get boundary conditions for all blocks
-      GetBoundaryConditions(localStateBlocks, inputVars, eos, suth,
+      GetBoundaryConditions(localStateBlocks, inputVars, eos, suth, turb,
                             connections, rank, MPI_cellData);
 
       // Loop over number of blocks
@@ -266,7 +266,8 @@ int main(int argc, char *argv[]) {
         // If viscous change ghost cells and calculate viscous fluxes
         if (inputVars.IsViscous()) {
           // Determine ghost cell values for viscous fluxes
-          localStateBlocks[bb].AssignViscousGhostCells(inputVars, eos, suth);
+          localStateBlocks[bb].AssignViscousGhostCells(inputVars, eos, suth,
+                                                       turb);
 
           // Calculate gradients
           gradients grads(inputVars.IsTurbulent(), localStateBlocks[bb], eos);
@@ -311,7 +312,7 @@ int main(int argc, char *argv[]) {
                   solTimeN[bb], inputVars.Theta(), inputVars.Zeta());
 
           // Reorder block (by hyperplanes) for lusgs
-          vector<vector3d<int> > reorder =
+          vector<vector3d<int>> reorder =
               HyperplaneReorder(localStateBlocks[bb].NumI(),
                                 localStateBlocks[bb].NumJ(),
                                 localStateBlocks[bb].NumK());

@@ -239,14 +239,14 @@ class procBlock {
   void AssignGhostCellsGeomEdge();
 
   void AssignInviscidGhostCells(const input &, const idealGas &,
-                                const sutherland &);
+                                const sutherland &, const turbModel *);
   void AssignInviscidGhostCellsEdge(const input &, const idealGas &,
-                                    const sutherland &);
+                                    const sutherland &, const turbModel *);
 
   void AssignViscousGhostCells(const input &, const idealGas &,
-                               const sutherland &);
+                               const sutherland &, const turbModel *);
   void AssignViscousGhostCellsEdge(const input &, const idealGas &,
-                                   const sutherland &);
+                                   const sutherland &, const turbModel *);
 
   bool IsPhysical(const int &, const int &, const int &, const bool &) const;
   bool AtCorner(const int &, const int &, const int &, const bool &) const;
@@ -312,8 +312,9 @@ vector3d<int> GetSwapLoc(const int &, const int &, const int &,
 void SwapSlice(interblock &, procBlock &, procBlock &, const bool &);
 
 void GetBoundaryConditions(vector<procBlock> &, const input &, const idealGas &,
-                           const sutherland &, vector<interblock> &,
-                           const int &, const MPI_Datatype &);
+                           const sutherland &, const turbModel *,
+                           vector<interblock> &, const int &,
+                           const MPI_Datatype &);
 
 vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &);
 void CalcWallDistance(vector<procBlock> &, const kdtree &);
