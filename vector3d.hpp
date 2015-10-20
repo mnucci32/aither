@@ -347,7 +347,7 @@ ostream &operator<<(ostream &os, const unitVec3dMag<TT> &v1) {
 // Function to calculate the dot product of two vectors
 template <typename T>
 T unitVec3dMag<T>::DotProd(const unitVec3dMag &v2) const {
-  return mag_ * v2.mag_ * (unitVec_.dotProd(v2.unitVec_));
+  return mag_ * v2.mag_ * (unitVec_.DotProd(v2.unitVec_));
 }
 
 // operator overload for comparison
