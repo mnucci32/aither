@@ -271,8 +271,11 @@ double turbKWSst::Production2(const primVars &state,
                               const vector3d<double> &wGrad,
                               const sutherland &suth, const idealGas &eos,
                               const double &wallDist) const {
+  double nut = this->EddyVisc(state, velGrad, suth, eos, wallDist)
+      / state.Rho();
+
   return this->BlendedCoeff(gamma1_, gamma2_, state, kGrad, wGrad, suth, eos,
-                            wallDist) * state.Omega() / state.Tke() *
+                            wallDist) / nut *
       this->Production1(state, velGrad, suth, eos, wallDist);
 }
 
@@ -294,20 +297,18 @@ double turbKWSst::CrossDiff2(const primVars &state,
                              const vector3d<double> &wGrad,
                              const sutherland &suth, const idealGas &eos,
                              const double &wallDist) const {
-  // DEBUG - using CDkw instead of CrossDiffusion (keeps value positive)
+  // Using CDkw instead of whole cross diffusion term
+  // Both Loci/CHEM and SU2 use this implementation
+
   return suth.NondimScaling() *
       (1.0 - this->F1(state, kGrad, wGrad, suth, eos, wallDist)) *
       this->CDkw(state, kGrad, wGrad);
-
-  // return suth.NondimScaling() * 2.0 *
-  //     (1.0 - this->F1(state, kGrad, wGrad, suth, eos, wallDist)) *
-  //     sigmaW2_ * this->CrossDiffusion(state, kGrad, wGrad);
 }
 
 double turbKWSst::CDkw(const primVars &state, const vector3d<double> &kGrad,
                        const vector3d<double> &wGrad) const {
   return max(2.0 * state.Rho() * sigmaW2_ / state.Omega() *
-             kGrad.DotProd(wGrad), 10e-10);
+             kGrad.DotProd(wGrad), 1.0e-10);
 }
 
 double turbKWSst::F1(const primVars &state, const vector3d<double> &kGrad,

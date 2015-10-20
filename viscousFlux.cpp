@@ -78,18 +78,16 @@ viscousFlux::viscousFlux(
   double lambda = suth.Lambda(mu + eddyVisc);
 
   // wall shear stress
-  vector3d<double> tau =
-      lambda * velGrad.Trace() * normArea +
-      (mu + eddyVisc) *
-          (velGrad.MatMult(normArea) + velGrad.Transpose().MatMult(normArea));
+  vector3d<double> tau = lambda * velGrad.Trace() * normArea + (mu + eddyVisc) *
+      (velGrad.MatMult(normArea) + velGrad.Transpose().MatMult(normArea));
 
   data_[0] = tau.X();
   data_[1] = tau.Y();
   data_[2] = tau.Z();
-  data_[3] = tau.DotProd(vel) + (eqnState.Conductivity(mu) +
-                                 eqnState.TurbConductivity(
-                                     eddyVisc, turb->TurbPrandtlNumber())) *
-                                 tGrad.DotProd(normArea);
+  data_[3] = tau.DotProd(vel) +
+      (eqnState.Conductivity(mu) +
+       eqnState.TurbConductivity(eddyVisc, turb->TurbPrandtlNumber())) *
+      tGrad.DotProd(normArea);
 
   // turbulence viscous flux
   data_[4] = (mu + suth.NondimScaling() *

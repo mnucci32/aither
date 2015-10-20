@@ -291,6 +291,7 @@ class turbKWSst : public turbModel {
                          const vector3d<double> &, const sutherland &,
                          const idealGas &, const double &) const override;
   double WallBeta() const override {return beta1_;}
+  double TurbPrandtlNumber() const override {return prt_;}
 
   double Gamma1() const {return gamma1_;}
   double Beta1() const {return beta1_;}

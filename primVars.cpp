@@ -474,15 +474,11 @@ primVars primVars::GetGhostState(const string &bcType,
     if (inputVars.IsTurbulent()) {
       ghostState.data_[5] = -1.0 * (*this).Tke();
 
-      // avg height of sand grain roughness
-      // double ks = 1.0e-5 / inputVars.LRef();
       double nuW = suth.Viscosity((*this).Temperature(eqnState))
           / (*this).Rho();
       double wWall = suth.NondimScaling() * suth.NondimScaling() *
           60.0 * nuW / (wallDist * wallDist * turb->WallBeta());
 
-      // double wWall = (40000.0 * nuW / (ks * ks)) * suth.NondimScaling() *
-      //     suth.NondimScaling();
       ghostState.data_[6] = 2.0 * wWall - (*this).Omega();
 
       if (layer == 2) {
@@ -845,7 +841,7 @@ void primVars::ApplyFarfieldTurbBC(const vector3d<double> &vel,
 
 multiArray3d<primVars> GetGhostStates(
     const multiArray3d<primVars> &bndStates, const string &bcName,
-    const multiArray3d<unitVec3dMag<double> > &faceAreas,
+    const multiArray3d<unitVec3dMag<double>> &faceAreas,
     const multiArray3d<double> &wDist, const string &surf,
     const input &inp, const idealGas &eos, const sutherland &suth,
     const turbModel *turb, const int layer) {
