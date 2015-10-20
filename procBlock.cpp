@@ -3132,7 +3132,6 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
         // if slipWall reflect 2nd interior state instead of extrapolation
         if (bcName == "slipWall") {
           boundaryStates = state_.Slice(i2, i2, jmin, jmax, kmin, kmax);
-          wDist = wallDist_.Slice(i2, i2, jmin, jmax, kmin, kmax);
         }
         ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
                                      surf, inp, eos, suth, turb, 2);
@@ -3172,7 +3171,6 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
         // if slipWall reflect 2nd interior state instead of extrapolation
         if (bcName == "slipWall") {
           boundaryStates = state_.Slice(imin, imax, i2, i2, kmin, kmax);
-          wDist = wallDist_.Slice(imin, imax, i2, i2, kmin, kmax);
         }
         ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
                                      surf, inp, eos, suth, turb, 2);
@@ -3212,7 +3210,6 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
         // if slipWall reflect 2nd interior state instead of extrapolation
         if (bcName == "slipWall") {
           boundaryStates = state_.Slice(imin, imax, jmin, jmax, i2, i2);
-          wDist = wallDist_.Slice(imin, imax, jmin, jmax, i2, i2);
         }
         ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
                                      surf, inp, eos, suth, turb, 2);
@@ -3612,7 +3609,6 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
         state_.Insert(g2, g2, jmin, jmax, kmin, kmax, ghostStates);
       } else {
         boundaryStates = state_.Slice(i2, i2, jmin, jmax, kmin, kmax);
-        wDist = wallDist_.Slice(i2, i2, jmin, jmax, kmin, kmax);
         ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
                                      surf, inp, eos, suth, turb, 2);
 
@@ -3647,7 +3643,6 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
         state_.Insert(imin, imax, g2, g2, kmin, kmax, ghostStates);
       } else {
         boundaryStates = state_.Slice(imin, imax, i2, i2, kmin, kmax);
-        wDist = wallDist_.Slice(imin, imax, i2, i2, kmin, kmax);
         ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
                                      surf, inp, eos, suth, turb, 2);
 
@@ -3682,7 +3677,6 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
         state_.Insert(imin, imax, jmin, jmax, g2, g2, ghostStates);
       } else {
         boundaryStates = state_.Slice(imin, imax, jmin, jmax, i2, i2);
-        wDist = wallDist_.Slice(imin, imax, jmin, jmax, i2, i2);
         ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
                                      surf, inp, eos, suth, turb, 2);
 
@@ -6945,6 +6939,7 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
   }
 }
 
+// function to get face centers of cells on viscous walls
 vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &blks) {
   // blks -- vector of all procBlocks in simulation
 
