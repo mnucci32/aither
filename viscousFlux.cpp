@@ -53,16 +53,13 @@ the velocity gradient, area is the normalized face area, mu is the dynamic
 viscosity, and velGrad is the velocity gradient tensor.
 */
 viscousFlux::viscousFlux(
-    const tensor<double> &velGrad, const vector3d<double> &vel,
-    const double &mu, const sutherland &suth, const idealGas &eqnState,
-    const vector3d<double> &tGrad, const vector3d<double> &normArea,
-    const vector3d<double> &tkeGrad, const vector3d<double> &omegaGrad,
-    const turbModel *turb, const primVars &state, const double &wallDist) {
+    const tensor<double> &velGrad, const sutherland &suth,
+    const idealGas &eqnState, const vector3d<double> &tGrad,
+    const vector3d<double> &normArea, const vector3d<double> &tkeGrad,
+    const vector3d<double> &omegaGrad, const turbModel *turb,
+    const primVars &state, const double &wallDist) {
   // velGrad -- velocity gradient tensor
-  // vel -- velocity vector
-  // mu -- dynamic viscosity
-  // suth -- method to get viscosity as a function of temperature (Sutherland's
-  // law)
+  // suth -- method to get viscosity (Sutherland's law)
   // eqnState -- equation of state
   // tGrad -- temperature gradient
   // normArea -- unit area vector of face
@@ -71,6 +68,9 @@ viscousFlux::viscousFlux(
   // turb -- turbulence model
   // state -- primative variables at face
   // wallDist -- distance to nearest viscous wall
+
+  // get laminar viscosity
+  double mu = suth.EffectiveViscosity(state.Temperature(eqnState));
 
   // get turbulent eddy viscosity and molecular diffusion coefficient for
   // turbulence equations
@@ -90,7 +90,7 @@ viscousFlux::viscousFlux(
   data_[0] = tau.X();
   data_[1] = tau.Y();
   data_[2] = tau.Z();
-  data_[3] = tau.DotProd(vel) +
+  data_[3] = tau.DotProd(state.Velocity()) +
       (eqnState.Conductivity(mu) +
        eqnState.TurbConductivity(mut, turb->TurbPrandtlNumber())) *
       tGrad.DotProd(normArea);

@@ -1711,14 +1711,6 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
              fAreaI_.NumJ() - numGhosts_; jj.g++, jj.p++) {
       for (struct {int p; int g;} ii = {0, numGhosts_}; ii.g <
                fAreaI_.NumI() - numGhosts_; ii.g++, ii.p++) {
-        // Get velocity at face
-        vector3d<double> vel =
-            FaceReconCentral(state_(ii.g - 1, jj.g, kk.g).Velocity(),
-                             state_(ii.g, jj.g, kk.g).Velocity(),
-                             center_(ii.g - 1, jj.g, kk.g),
-                             center_(ii.g, jj.g, kk.g),
-                             fCenterI_(ii.g, jj.g, kk.g));
-
         // Get state at face
         primVars state =
             FaceReconCentral(state_(ii.g - 1, jj.g, kk.g),
@@ -1726,16 +1718,6 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                              center_(ii.g - 1, jj.g, kk.g),
                              center_(ii.g, jj.g, kk.g),
                              fCenterI_(ii.g, jj.g, kk.g));
-
-        // Get viscosity at face
-        double mu =
-            FaceReconCentral(
-                suth.EffectiveViscosity(state_(ii.g - 1, jj.g, kk.g).
-                                        Temperature(eqnState)),
-                suth.EffectiveViscosity(state_(ii.g, jj.g, kk.g).
-                                        Temperature(eqnState)),
-                center_(ii.g - 1, jj.g, kk.g), center_(ii.g, jj.g, kk.g),
-                fCenterI_(ii.g, jj.g, kk.g));
 
         // Get wall distance at face
         double wDist = FaceReconCentral(wallDist_(ii.g - 1, jj.g, kk.g),
@@ -1750,9 +1732,8 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           tkeGrad = grads.TkeGradI(ii.p, jj.p, kk.p);
           omegaGrad = grads.OmegaGradI(ii.p, jj.p, kk.p);
         }
-        viscousFlux tempViscFlux(grads.VelGradI(ii.p, jj.p, kk.p), vel, mu,
-                                 suth, eqnState,
-                                 grads.TempGradI(ii.p, jj.p, kk.p),
+        viscousFlux tempViscFlux(grads.VelGradI(ii.p, jj.p, kk.p), suth,
+                                 eqnState, grads.TempGradI(ii.p, jj.p, kk.p),
                                  this->FAreaUnitI(ii.g, jj.g, kk.g), tkeGrad,
                                  omegaGrad, turb, state, wDist);
 
@@ -1881,30 +1862,12 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
       for (struct {int p; int g;} ii = {0, numGhosts_}; ii.g <
                fAreaJ_.NumI() - numGhosts_; ii.g++, ii.p++) {
         // Get velocity at face
-        vector3d<double> vel =
-            FaceReconCentral(state_(ii.g, jj.g - 1, kk.g).Velocity(),
-                             state_(ii.g, jj.g, kk.g).Velocity(),
-                             center_(ii.g, jj.g - 1, kk.g),
-                             center_(ii.g, jj.g, kk.g),
-                             fCenterJ_(ii.g, jj.g, kk.g));
-
-        // Get velocity at face
         primVars state =
             FaceReconCentral(state_(ii.g, jj.g - 1, kk.g),
                              state_(ii.g, jj.g, kk.g),
                              center_(ii.g, jj.g - 1, kk.g),
                              center_(ii.g, jj.g, kk.g),
                              fCenterJ_(ii.g, jj.g, kk.g));
-
-        // Get viscosity at face
-        double mu =
-            FaceReconCentral(
-                suth.EffectiveViscosity(state_(ii.g, jj.g - 1, kk.g).
-                                        Temperature(eqnState)),
-                suth.EffectiveViscosity(state_(ii.g, jj.g, kk.g).
-                                        Temperature(eqnState)),
-                center_(ii.g, jj.g - 1, kk.g), center_(ii.g, jj.g, kk.g),
-                fCenterJ_(ii.g, jj.g, kk.g));
 
         // Get wall distance at face
         double wDist = FaceReconCentral(wallDist_(ii.g, jj.g - 1, kk.g),
@@ -1919,9 +1882,8 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           tkeGrad = grads.TkeGradJ(ii.p, jj.p, kk.p);
           omegaGrad = grads.OmegaGradJ(ii.p, jj.p, kk.p);
         }
-        viscousFlux tempViscFlux(grads.VelGradJ(ii.p, jj.p, kk.p), vel, mu,
-                                 suth, eqnState,
-                                 grads.TempGradJ(ii.p, jj.p, kk.p),
+        viscousFlux tempViscFlux(grads.VelGradJ(ii.p, jj.p, kk.p), suth,
+                                 eqnState, grads.TempGradJ(ii.p, jj.p, kk.p),
                                  this->FAreaUnitJ(ii.g, jj.g, kk.g), tkeGrad,
                                  omegaGrad, turb, state, wDist);
 
@@ -2047,14 +2009,6 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
              fAreaK_.NumJ() - numGhosts_; jj.g++, jj.p++) {
       for (struct {int p; int g;} ii = {0, numGhosts_}; ii.g <
                fAreaK_.NumI() - numGhosts_; ii.g++, ii.p++) {
-        // Get velocity at face
-        vector3d<double> vel =
-            FaceReconCentral(state_(ii.g, jj.g, kk.g - 1).Velocity(),
-                             state_(ii.g, jj.g, kk.g).Velocity(),
-                             center_(ii.g, jj.g, kk.g - 1),
-                             center_(ii.g, jj.g, kk.g),
-                             fCenterK_(ii.g, jj.g, kk.g));
-
         // Get state at face
         primVars state =
             FaceReconCentral(state_(ii.g, jj.g, kk.g - 1),
@@ -2062,16 +2016,6 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                              center_(ii.g, jj.g, kk.g - 1),
                              center_(ii.g, jj.g, kk.g),
                              fCenterK_(ii.g, jj.g, kk.g));
-
-        // Get viscosity at face
-        double mu =
-            FaceReconCentral(
-                suth.EffectiveViscosity(state_(ii.g, jj.g, kk.g - 1).
-                                        Temperature(eqnState)),
-                suth.EffectiveViscosity(state_(ii.g, jj.g, kk.g).
-                                        Temperature(eqnState)),
-                center_(ii.g, jj.g, kk.g - 1), center_(ii.g, jj.g, kk.g),
-                fCenterK_(ii.g, jj.g, kk.g));
 
         // Get wall distance at face
         double wDist = FaceReconCentral(wallDist_(ii.g, jj.g, kk.g - 1),
@@ -2086,9 +2030,8 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           tkeGrad = grads.TkeGradK(ii.p, jj.p, kk.p);
           omegaGrad = grads.OmegaGradK(ii.p, jj.p, kk.p);
         }
-        viscousFlux tempViscFlux(grads.VelGradK(ii.p, jj.p, kk.p), vel, mu,
-                                 suth, eqnState,
-                                 grads.TempGradK(ii.p, jj.p, kk.p),
+        viscousFlux tempViscFlux(grads.VelGradK(ii.p, jj.p, kk.p), suth,
+                                 eqnState, grads.TempGradK(ii.p, jj.p, kk.p),
                                  this->FAreaUnitK(ii.g, jj.g, kk.g), tkeGrad,
                                  omegaGrad, turb, state, wDist);
 
