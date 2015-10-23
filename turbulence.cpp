@@ -289,9 +289,7 @@ double turbKWSst::BlendedCoeff(const double &coeff1, const double &coeff2,
 
 double turbKWSst::Alpha1(const primVars &state, const sutherland &suth,
                          const double &wallDist) const {
-  // DEBUG - set to 0 if k is negative (ghost cells)
-  return (state.Tke() <= 0.0) ? 0.0 :
-      suth.NondimScaling() * sqrt(state.Tke()) /
+  return suth.NondimScaling() * sqrt(state.Tke()) /
       (betaStar_ * state.Omega() * wallDist);
 }
 
