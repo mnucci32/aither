@@ -50,13 +50,11 @@ class turbModel {
   tensor<double> BoussinesqReynoldsStress(const primVars &state,
                                           const tensor<double> &velGrad,
                                           const sutherland &suth,
-                                          const idealGas &eos,
-                                          const double &wallDist) const;
+                                          const double &mut) const;
   double ReynoldsStressDDotVelGrad(const primVars &state,
                                    const tensor<double> &velGrad,
                                    const sutherland &suth,
-                                   const idealGas &eos,
-                                   const double &wallDist) const;
+                                   const double &mut) const;
   double TkeDestruction(const primVars &state) const;
   double OmegaDestruction(const primVars &state) const;
   double CrossDiffusion(const primVars &state,
@@ -64,43 +62,24 @@ class turbModel {
                         const vector3d<double> &wGrad) const;
 
   // abstract functions
+  virtual void CalcTurbSrc(const primVars &state, const tensor<double> &velGrad,
+                           const vector3d<double> &kGrad,
+                           const vector3d<double> &wGrad,
+                           const sutherland &suth, const idealGas &eos,
+                           const double &wallDist, double &ksrc,
+                           double &wsrc) const = 0;
   virtual double EddyVisc(const primVars &state,
                           const tensor<double> &vGrad,
-                          const sutherland &suth, const idealGas &eos,
-                          const double &wallDist) const = 0;
-  virtual double Production1(const primVars &state,
-                             const tensor<double> &velGrad,
-                             const sutherland &suth, const idealGas &eos,
-                             const double &wallDist) const = 0;
-  virtual double Destruction1(const primVars &state,
-                              const sutherland &suth) const = 0;
-  virtual double Production2(const primVars &state,
-                             const tensor<double> &velGrad,
-                             const vector3d<double> &kGrad,
-                             const vector3d<double> &wGrad,
-                             const sutherland &suth, const idealGas &eos,
-                             const double &wallDist) const = 0;
-  virtual double Destruction2(const primVars &state,
-                              const tensor<double> &velGrad,
-                              const vector3d<double> &kGrad,
-                              const vector3d<double> &wGrad,
-                              const sutherland &suth, const idealGas &eos,
-                              const double &wallDist) const = 0;
-  virtual double CrossDiff2(const primVars &state,
-                            const vector3d<double> &kGrad,
-                            const vector3d<double> &wGrad,
-                            const sutherland &suth, const idealGas &eos,
-                            const double &walldist) const = 0;
-  virtual double MolecDiff1Coeff(const primVars &state,
-                                 const vector3d<double> &kGrad,
-                                 const vector3d<double> &wGrad,
-                                 const sutherland &suth, const idealGas &eos,
-                                 const double &walldist) const = 0;
-  virtual double MolecDiff2Coeff(const primVars &state,
-                                 const vector3d<double> &kGrad,
-                                 const vector3d<double> &wGrad,
-                                 const sutherland &suth, const idealGas &eos,
-                                 const double &walldist) const = 0;
+                          const sutherland &suth, const double &f2) const = 0;
+  virtual double EddyViscAndMolecDiffCoeff(const primVars &state,
+                                           const tensor<double> &vGrad,
+                                           const vector3d<double> &kGrad,
+                                           const vector3d<double> &wGrad,
+                                           const sutherland &suth,
+                                           const idealGas &eos,
+                                           const double &wallDist,
+                                           double &sigmaK,
+                                           double &sigmaW) const = 0;
   virtual double WallBeta() const = 0;
   virtual void Print() const = 0;
 
@@ -115,37 +94,24 @@ class turbNone : public turbModel {
   explicit turbNone(const string &meth) : turbModel(meth) {}
 
   // member functions
+  void CalcTurbSrc(const primVars &state, const tensor<double> &velGrad,
+                   const vector3d<double> &kGrad,
+                   const vector3d<double> &wGrad,
+                   const sutherland &suth, const idealGas &eos,
+                   const double &wallDist, double &ksrc,
+                   double &wsrc) const override;
   double EddyVisc(const primVars &state,  const tensor<double> &vGrad,
-                  const sutherland &suth, const idealGas &eos,
-                  const double &wallDist) const override {return 0.0;}
+                  const sutherland &suth,
+                  const double &f2) const override {return 0.0;}
   double EddyViscNoLim(const primVars &state) const override {return 0.0;}
-  double Production1(const primVars &state, const tensor<double> &velGrad,
-                     const sutherland &suth, const idealGas &eos,
-                     const double &wallDist) const override {return 0.0;}
-  double Destruction1(const primVars &state, const sutherland &suth)
-      const override {return 0.0;}
-  double Production2(const primVars &state, const tensor<double> &velGrad,
-                     const vector3d<double> &kGrad,
-                     const vector3d<double> &wGrad,
-                     const sutherland &suth, const idealGas &eos,
-                     const double &wallDist) const override {return 0.0;}
-  double Destruction2(const primVars &state, const tensor<double> &velGrad,
-                      const vector3d<double> &kGrad,
-                      const vector3d<double> &wGrad, const sutherland &suth,
-                      const idealGas &eos, const double &wallDist)
-      const override {return 0.0;}
-  double CrossDiff2(const primVars &state, const vector3d<double> &kGrad,
-                    const vector3d<double> &wGrad, const sutherland &suth,
-                    const idealGas &eos, const double &wallDist)
-      const override {return 0.0;}
-  double MolecDiff1Coeff(const primVars &state, const vector3d<double> &kGrad,
-                         const vector3d<double> &wGrad,
-                         const sutherland &suth, const idealGas &eos,
-                         const double &walldist) const override {return 0.0;}
-  double MolecDiff2Coeff(const primVars &state, const vector3d<double> &kGrad,
-                         const vector3d<double> &wGrad,
-                         const sutherland &suth, const idealGas &eos,
-                         const double &walldist) const override {return 0.0;}
+  double EddyViscAndMolecDiffCoeff(const primVars &state,
+                                   const tensor<double> &velGrad,
+                                   const vector3d<double> &kGrad,
+                                   const vector3d<double> &wGrad,
+                                   const sutherland &suth,
+                                   const idealGas &eos,
+                                   const double &wallDist, double &sigmaK,
+                                   double &sigmaW) const override {return 0.0;}
   double WallBeta() const override {return 1.0;}
 
   void Print() const override;
@@ -179,37 +145,19 @@ class turbKWWilcox : public turbModel {
   explicit turbKWWilcox(const string &meth) : turbModel(meth) {}
 
   // member functions
+  void CalcTurbSrc(const primVars &, const tensor<double> &,
+                   const vector3d<double> &, const vector3d<double> &,
+                   const sutherland &, const idealGas &, const double &,
+                   double &, double &) const override;
   double EddyVisc(const primVars&, const tensor<double> &,
-                  const sutherland &, const idealGas &,
-                  const double &) const override;
+                  const sutherland &, const double &) const override;
+  double EddyViscAndMolecDiffCoeff(const primVars &, const tensor<double> &,
+                                   const vector3d<double> &,
+                                   const vector3d<double> &, const sutherland &,
+                                   const idealGas &, const double &,
+                                   double &, double &) const override;
+
   double TurbPrandtlNumber() const override {return prt_;}
-  double Production1(const primVars &, const tensor<double> &,
-                     const sutherland &, const idealGas &,
-                     const double &) const override;
-  double Destruction1(const primVars &, const sutherland &) const override;
-  double Production2(const primVars &, const tensor<double> &,
-                     const vector3d<double> &, const vector3d<double> &,
-                     const sutherland &, const idealGas &,
-                     const double &) const override;
-  double Destruction2(const primVars &, const tensor<double> &,
-                      const vector3d<double> &, const vector3d<double> &,
-                      const sutherland &, const idealGas &,
-                      const double &) const override;
-  double CrossDiff2(const primVars &, const vector3d<double> &,
-                    const vector3d<double> &, const sutherland &,
-                    const idealGas &, const double &) const override;
-  double MolecDiff1Coeff(const primVars &state, const vector3d<double> &kGrad,
-                         const vector3d<double> &wGrad,
-                         const sutherland &suth, const idealGas &eos,
-                         const double &walldist) const override {
-    return sigmaStar_;
-  }
-  double MolecDiff2Coeff(const primVars &state, const vector3d<double> &kGrad,
-                         const vector3d<double> &wGrad,
-                         const sutherland &suth, const idealGas &eos,
-                         const double &walldist) const override {
-    return sigma_;
-  }
   double WallBeta() const override {return beta0_;}
 
   double Gamma() const {return gamma_;}
@@ -243,20 +191,14 @@ class turbKWSst : public turbModel {
   // private member functions
   double CDkw(const primVars &, const vector3d<double> &,
               const vector3d<double> &) const;
-  double F1(const primVars &, const vector3d<double> &,
-            const vector3d<double> &, const sutherland &, const idealGas&,
-            const double &) const;
-  double F2(const primVars &, const sutherland &, const idealGas &,
-            const double &) const;
-  double BlendedCoeff(const double &, const double &, const primVars &,
-                      const vector3d<double> &, const vector3d<double> &,
-                      const sutherland &, const idealGas &,
-                      const double &) const;
+  double F1(const double &, const double &, const double &) const;
+  double F2(const double &, const double &) const;
+  double BlendedCoeff(const double &, const double &, const double &) const;
   double Alpha1(const primVars &, const sutherland &, const double &) const;
   double Alpha2(const primVars &, const sutherland &, const idealGas &,
                 const double &) const;
-  double Alpha3(const primVars &, const vector3d<double> &,
-                const vector3d<double> &, const double &) const;
+  double Alpha3(const primVars &, const double &,
+                const double &) const;
 
  public:
   // constructor
@@ -264,32 +206,18 @@ class turbKWSst : public turbModel {
   explicit turbKWSst(const string &meth) : turbModel(meth) {}
 
   // member functions
+  void CalcTurbSrc(const primVars &, const tensor<double> &,
+                   const vector3d<double> &, const vector3d<double> &,
+                   const sutherland &, const idealGas &, const double &,
+                   double &, double &) const override;
   double EddyVisc(const primVars &, const tensor<double> &,
-                  const sutherland &, const idealGas &,
-                  const double &) const override;
-  double Production1(const primVars &, const tensor<double> &,
-                     const sutherland &, const idealGas &,
-                     const double &) const override;
-  double Destruction1(const primVars &, const sutherland &) const override;
-  double Production2(const primVars &, const tensor<double> &,
-                     const vector3d<double> &, const vector3d<double> &,
-                     const sutherland &, const idealGas &,
-                     const double &) const override;
-  double Destruction2(const primVars &, const tensor<double> &,
-                      const vector3d<double> &, const vector3d<double> &,
-                      const sutherland &, const idealGas &,
-                      const double &) const override;
+                  const sutherland &, const double &) const override;
+  double EddyViscAndMolecDiffCoeff(const primVars &, const tensor<double> &,
+                                   const vector3d<double> &,
+                                   const vector3d<double> &, const sutherland &,
+                                   const idealGas &, const double &,
+                                   double &, double &) const override;
 
-  double CrossDiff2(const primVars &, const vector3d<double> &,
-                    const vector3d<double> &, const sutherland &,
-                    const idealGas &, const double &) const override;
-
-  double MolecDiff1Coeff(const primVars &, const vector3d<double> &,
-                         const vector3d<double> &, const sutherland &,
-                         const idealGas &, const double &) const override;
-  double MolecDiff2Coeff(const primVars &, const vector3d<double> &,
-                         const vector3d<double> &, const sutherland &,
-                         const idealGas &, const double &) const override;
   double WallBeta() const override {return beta1_;}
   double TurbPrandtlNumber() const override {return prt_;}
 

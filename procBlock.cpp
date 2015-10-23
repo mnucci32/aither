@@ -1737,18 +1737,6 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                 center_(ii.g - 1, jj.g, kk.g), center_(ii.g, jj.g, kk.g),
                 fCenterI_(ii.g, jj.g, kk.g));
 
-        double eddyVisc =
-            FaceReconCentral(
-                turb->EddyVisc(state_(ii.g - 1, jj.g, kk.g),
-                               grads.VelGradI(ii.p, jj.p, kk.p), suth, eqnState,
-                               wallDist_(ii.g - 1, jj.g, kk.g)),
-                turb->EddyVisc(state_(ii.g, jj.g, kk.g),
-                               grads.VelGradI(ii.p, jj.p, kk.p), suth, eqnState,
-                               wallDist_(ii.g, jj.g, kk.g)),
-                center_(ii.g - 1, jj.g, kk.g), center_(ii.g, jj.g, kk.g),
-                fCenterI_(ii.g, jj.g, kk.g));
-        eddyVisc *= suth.NondimScaling();  // effective viscosity
-
         // Get wall distance at face
         double wDist = FaceReconCentral(wallDist_(ii.g - 1, jj.g, kk.g),
                                         wallDist_(ii.g, jj.g, kk.g),
@@ -1763,7 +1751,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           omegaGrad = grads.OmegaGradI(ii.p, jj.p, kk.p);
         }
         viscousFlux tempViscFlux(grads.VelGradI(ii.p, jj.p, kk.p), vel, mu,
-                                 eddyVisc, suth, eqnState,
+                                 suth, eqnState,
                                  grads.TempGradI(ii.p, jj.p, kk.p),
                                  this->FAreaUnitI(ii.g, jj.g, kk.g), tkeGrad,
                                  omegaGrad, turb, state, wDist);
@@ -1791,9 +1779,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                   fAreaI_(ii.g + 1, jj.g, kk.g),
                   state_(ii.g, jj.g, kk.g), eqnState, suth,
                   vol_(ii.g, jj.g, kk.g),
-                  turb->EddyVisc(state_(ii.g, jj.g, kk.g),
-                                 grads.VelGradI(ii.p, jj.p, kk.p), suth,
-                                 eqnState, wallDist_(ii.g, jj.g, kk.g)));
+                  turb->EddyViscNoLim(state_(ii.g, jj.g, kk.g)));
         }
       }
     }
@@ -1920,20 +1906,6 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                 center_(ii.g, jj.g - 1, kk.g), center_(ii.g, jj.g, kk.g),
                 fCenterJ_(ii.g, jj.g, kk.g));
 
-        double eddyVisc =
-            FaceReconCentral(
-                turb->EddyVisc(state_(ii.g, jj.g - 1, kk.g),
-                               grads.VelGradJ(ii.p, jj.p, kk.p), suth, eqnState,
-                               wallDist_(ii.g, jj.g - 1, kk.g)),
-                turb->EddyVisc(state_(ii.g, jj.g, kk.g),
-                               grads.VelGradJ(ii.p, jj.p, kk.p), suth, eqnState,
-                               wallDist_(ii.g, jj.g, kk.g)),
-                center_(ii.g, jj.g - 1, kk.g),
-                center_(ii.g, jj.g, kk.g),
-                fCenterJ_(ii.g, jj.g, kk.g));
-        // effective viscosity (due to nondimensionalization)
-        eddyVisc *= suth.NondimScaling();
-
         // Get wall distance at face
         double wDist = FaceReconCentral(wallDist_(ii.g, jj.g - 1, kk.g),
                                         wallDist_(ii.g, jj.g, kk.g),
@@ -1948,7 +1920,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           omegaGrad = grads.OmegaGradJ(ii.p, jj.p, kk.p);
         }
         viscousFlux tempViscFlux(grads.VelGradJ(ii.p, jj.p, kk.p), vel, mu,
-                                 eddyVisc, suth, eqnState,
+                                 suth, eqnState,
                                  grads.TempGradJ(ii.p, jj.p, kk.p),
                                  this->FAreaUnitJ(ii.g, jj.g, kk.g), tkeGrad,
                                  omegaGrad, turb, state, wDist);
@@ -1976,9 +1948,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                   fAreaJ_(ii.g, jj.g + 1, kk.g),
                   state_(ii.g, jj.g, kk.g), eqnState, suth,
                   vol_(ii.g, jj.g, kk.g),
-                  turb->EddyVisc(state_(ii.g, jj.g, kk.g),
-                                 grads.VelGradJ(ii.p, jj.p, kk.p), suth,
-                                 eqnState, wallDist_(ii.g, jj.g, kk.g)));
+                  turb->EddyViscNoLim(state_(ii.g, jj.g, kk.g)));
         }
       }
     }
@@ -2103,19 +2073,6 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                 center_(ii.g, jj.g, kk.g - 1), center_(ii.g, jj.g, kk.g),
                 fCenterK_(ii.g, jj.g, kk.g));
 
-        double eddyVisc =
-            FaceReconCentral(
-            turb->EddyVisc(state_(ii.g, jj.g, kk.g - 1),
-                           grads.VelGradK(ii.p, jj.p, kk.p), suth, eqnState,
-                           wallDist_(ii.g, jj.g, kk.g - 1)),
-            turb->EddyVisc(state_(ii.g, jj.g, kk.g),
-                           grads.VelGradK(ii.p, jj.p, kk.p), suth, eqnState,
-                           wallDist_(ii.g, jj.g, kk.g)),
-            center_(ii.g, jj.g, kk.g - 1), center_(ii.g, jj.g, kk.g),
-            fCenterK_(ii.g, jj.g, kk.g));
-        // effective viscosity (due to nondimensionalization)
-        eddyVisc *= suth.NondimScaling();
-
         // Get wall distance at face
         double wDist = FaceReconCentral(wallDist_(ii.g, jj.g, kk.g - 1),
                                         wallDist_(ii.g, jj.g, kk.g),
@@ -2130,7 +2087,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           omegaGrad = grads.OmegaGradK(ii.p, jj.p, kk.p);
         }
         viscousFlux tempViscFlux(grads.VelGradK(ii.p, jj.p, kk.p), vel, mu,
-                                 eddyVisc, suth, eqnState,
+                                 suth, eqnState,
                                  grads.TempGradK(ii.p, jj.p, kk.p),
                                  this->FAreaUnitK(ii.g, jj.g, kk.g), tkeGrad,
                                  omegaGrad, turb, state, wDist);
@@ -2158,9 +2115,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                   fAreaK_(ii.g, jj.g, kk.g + 1),
                   state_(ii.g, jj.g, kk.g), eqnState, suth,
                   vol_(ii.g, jj.g, kk.g),
-                  turb->EddyVisc(state_(ii.g, jj.g, kk.g),
-                                 grads.VelGradK(ii.p, jj.p, kk.p), suth,
-                                 eqnState, wallDist_(ii.g, jj.g, kk.g)));
+                  turb->EddyViscNoLim(state_(ii.g, jj.g, kk.g)));
         }
       }
     }

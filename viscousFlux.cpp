@@ -54,15 +54,13 @@ viscosity, and velGrad is the velocity gradient tensor.
 */
 viscousFlux::viscousFlux(
     const tensor<double> &velGrad, const vector3d<double> &vel,
-    const double &mu, const double &eddyVisc, const sutherland &suth,
-    const idealGas &eqnState, const vector3d<double> &tGrad,
-    const vector3d<double> &normArea, const vector3d<double> &tkeGrad,
-    const vector3d<double> &omegaGrad, const turbModel *turb,
-    const primVars &state, const double &wallDist) {
+    const double &mu, const sutherland &suth, const idealGas &eqnState,
+    const vector3d<double> &tGrad, const vector3d<double> &normArea,
+    const vector3d<double> &tkeGrad, const vector3d<double> &omegaGrad,
+    const turbModel *turb, const primVars &state, const double &wallDist) {
   // velGrad -- velocity gradient tensor
   // vel -- velocity vector
   // mu -- dynamic viscosity
-  // eddyVisc -- turbulent eddy viscosity
   // suth -- method to get viscosity as a function of temperature (Sutherland's
   // law)
   // eqnState -- equation of state
@@ -74,11 +72,19 @@ viscousFlux::viscousFlux(
   // state -- primative variables at face
   // wallDist -- distance to nearest viscous wall
 
+  // get turbulent eddy viscosity and molecular diffusion coefficient for
+  // turbulence equations
+  double tkeCoeff = 0.0;
+  double omgCoeff = 0.0;
+  double mut = turb->EddyViscAndMolecDiffCoeff(state, velGrad, tkeGrad,
+                                               omegaGrad, suth, eqnState,
+                                               wallDist, tkeCoeff, omgCoeff);
+
   // get 2nd coefficient of viscosity assuming bulk viscosity is 0 (Stoke's)
-  double lambda = suth.Lambda(mu + eddyVisc);
+  double lambda = suth.Lambda(mu + mut);
 
   // wall shear stress
-  vector3d<double> tau = lambda * velGrad.Trace() * normArea + (mu + eddyVisc) *
+  vector3d<double> tau = lambda * velGrad.Trace() * normArea + (mu + mut) *
       (velGrad.MatMult(normArea) + velGrad.Transpose().MatMult(normArea));
 
   data_[0] = tau.X();
@@ -86,19 +92,12 @@ viscousFlux::viscousFlux(
   data_[2] = tau.Z();
   data_[3] = tau.DotProd(vel) +
       (eqnState.Conductivity(mu) +
-       eqnState.TurbConductivity(eddyVisc, turb->TurbPrandtlNumber())) *
+       eqnState.TurbConductivity(mut, turb->TurbPrandtlNumber())) *
       tGrad.DotProd(normArea);
 
   // turbulence viscous flux
-  data_[4] = (mu + suth.NondimScaling() *
-              turb->MolecDiff1Coeff(state, tkeGrad, omegaGrad, suth, eqnState,
-                                    wallDist) *
-              turb->EddyViscNoLim(state)) * tkeGrad.DotProd(normArea);
-
-  data_[5] = (mu + suth.NondimScaling() *
-              turb->MolecDiff2Coeff(state, tkeGrad, omegaGrad, suth, eqnState,
-                                    wallDist) *
-              turb->EddyViscNoLim(state)) * omegaGrad.DotProd(normArea);
+  data_[4] = (mu + tkeCoeff) * tkeGrad.DotProd(normArea);
+  data_[5] = (mu + omgCoeff) * omegaGrad.DotProd(normArea);
 }
 
 // non-member functions
