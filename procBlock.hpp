@@ -59,14 +59,14 @@ class procBlock {
 
   multiArray3d<genArray> residual_;  // cell residual
 
-  multiArray3d<unitVec3dMag<double> > fAreaI_;  // face area vector for i-faces
-  multiArray3d<unitVec3dMag<double> > fAreaJ_;  // face area vector for j-faces
-  multiArray3d<unitVec3dMag<double> > fAreaK_;  // face area vector for k-faces
+  multiArray3d<unitVec3dMag<double>> fAreaI_;  // face area vector for i-faces
+  multiArray3d<unitVec3dMag<double>> fAreaJ_;  // face area vector for j-faces
+  multiArray3d<unitVec3dMag<double>> fAreaK_;  // face area vector for k-faces
 
-  multiArray3d<vector3d<double> > center_;  // coordinates of cell center
-  multiArray3d<vector3d<double> > fCenterI_;  // coordinates of i-face centers
-  multiArray3d<vector3d<double> > fCenterJ_;  // coordinates of j-face centers
-  multiArray3d<vector3d<double> > fCenterK_;  // coordinates of k-face centers
+  multiArray3d<vector3d<double>> center_;  // coordinates of cell center
+  multiArray3d<vector3d<double>> fCenterI_;  // coordinates of i-face centers
+  multiArray3d<vector3d<double>> fCenterJ_;  // coordinates of j-face centers
+  multiArray3d<vector3d<double>> fCenterK_;  // coordinates of k-face centers
 
   multiArray3d<double> vol_;  // cell volume
   multiArray3d<double> avgWaveSpeed_;  // maximum wave speed for cell
@@ -190,16 +190,18 @@ class procBlock {
 
   void CalcBlockTimeStep(const input &, const double &);
   void UpdateBlock(const input &, const int &, const idealGas &, const double &,
-                   const multiArray3d<genArray> &, genArray &, resid &);
+                   const multiArray3d<genArray> &, const turbModel *,
+                   genArray &, resid &);
 
-  void ExplicitEulerTimeAdvance(const idealGas &, const int &, const int &,
+  void ExplicitEulerTimeAdvance(const idealGas &, const turbModel *,
                                 const int &, const int &, const int &,
-                                const int &);
-  void ImplicitTimeAdvance(const genArray &, const idealGas &, const int &,
-                           const int &, const int &);
-  void RK4TimeAdvance(const primVars &, const idealGas &, const int &,
+                                const int &, const int &, const int &);
+  void ImplicitTimeAdvance(const genArray &, const idealGas &,
+                           const turbModel *, const int &, const int &,
+                           const int &);
+  void RK4TimeAdvance(const primVars &, const idealGas &, const turbModel *,
                       const int &, const int &, const int &, const int &,
-                      const int &, const int &);
+                      const int &, const int &, const int &);
 
   void ResetResidWS();
   void CleanResizeVecs(const int &, const int &, const int &);
@@ -210,7 +212,7 @@ class procBlock {
   void DeltaNMinusOne(multiArray3d<genArray> &, const multiArray3d<genArray> &,
                       const idealGas &, const double &, const double &);
 
-  double LUSGS(const vector<vector3d<int> > &, multiArray3d<genArray> &,
+  double LUSGS(const vector<vector3d<int>> &, multiArray3d<genArray> &,
                const multiArray3d<genArray> &, const multiArray3d<genArray> &,
                const idealGas &, const input &, const sutherland &,
                const turbModel *) const;

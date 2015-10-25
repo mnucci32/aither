@@ -38,13 +38,13 @@ class procBlock;
 class interblock;
 
 class geomSlice {
-  multiArray3d<vector3d<double> > center_;  // coordinates of cell center_
-  multiArray3d<unitVec3dMag<double> > fAreaI_;  // face area vector for i-faces
-  multiArray3d<unitVec3dMag<double> > fAreaJ_;  // face area vector for j-faces
-  multiArray3d<unitVec3dMag<double> > fAreaK_;  // face area vector for k-faces
-  multiArray3d<vector3d<double> > fCenterI_;  // coordinates of i-face centers
-  multiArray3d<vector3d<double> > fCenterJ_;  // coordinates of j-face centers
-  multiArray3d<vector3d<double> > fCenterK_;  // coordinates of k-face centers
+  multiArray3d<vector3d<double>> center_;  // coordinates of cell center_
+  multiArray3d<unitVec3dMag<double>> fAreaI_;  // face area vector for i-faces
+  multiArray3d<unitVec3dMag<double>> fAreaJ_;  // face area vector for j-faces
+  multiArray3d<unitVec3dMag<double>> fAreaK_;  // face area vector for k-faces
+  multiArray3d<vector3d<double>> fCenterI_;  // coordinates of i-face centers
+  multiArray3d<vector3d<double>> fCenterJ_;  // coordinates of j-face centers
+  multiArray3d<vector3d<double>> fCenterK_;  // coordinates of k-face centers
   multiArray3d<double> vol_;  // cell volume
 
   int parBlock_;  // parent block number

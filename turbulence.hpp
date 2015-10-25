@@ -36,7 +36,7 @@ class sutherland;
 class idealGas;
 
 class turbModel {
-  string eddyViscMethod_;
+  const string eddyViscMethod_;
 
  public:
   // constructor
@@ -47,6 +47,8 @@ class turbModel {
   string EddyViscMethod() const {return eddyViscMethod_;}
   virtual double EddyViscNoLim(const primVars &state) const;
   virtual double TurbPrandtlNumber() const {return 0.9;}
+  virtual double TkeMin() const {return 1.0e-20;}
+  virtual double OmegaMin() const {return 1.0e-20;}
   tensor<double> BoussinesqReynoldsStress(const primVars &state,
                                           const tensor<double> &velGrad,
                                           const sutherland &suth,
@@ -113,6 +115,8 @@ class turbNone : public turbModel {
                                    const double &wallDist, double &sigmaK,
                                    double &sigmaW) const override {return 0.0;}
   double WallBeta() const override {return 1.0;}
+  double TkeMin() const override {return 0.0;}
+  double OmegaMin() const override {return 0.0;}
 
   void Print() const override;
 

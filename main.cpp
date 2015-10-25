@@ -329,7 +329,8 @@ int main(int argc, char *argv[]) {
 
           // Update solution
           localStateBlocks[bb].UpdateBlock(inputVars, inputVars.IsImplicit(),
-                                           eos, aRef, du, residL2, residLinf);
+                                           eos, aRef, du, turb, residL2,
+                                           residLinf);
 
           // Assign time n to time n-1 at end of nonlinear iterations
           if (inputVars.TimeIntegration() == "bdf2" &&
@@ -343,8 +344,8 @@ int main(int argc, char *argv[]) {
           // not used in explicit update
           multiArray3d<genArray> dummyCorrection(1, 1, 1);
           localStateBlocks[bb].UpdateBlock(inputVars, inputVars.IsImplicit(),
-                                           eos, aRef, dummyCorrection, residL2,
-                                           residLinf);
+                                           eos, aRef, dummyCorrection, turb,
+                                           residL2, residLinf);
         }
 
         // Zero residuals and wave speed

@@ -582,8 +582,8 @@ implicit methods it uses the correction du and calls the implicit updater.
 */
 void procBlock::UpdateBlock(const input &inputVars, const int &impFlag,
                             const idealGas &eos, const double &aRef,
-                            const multiArray3d<genArray> &du, genArray &l2,
-                            resid &linf) {
+                            const multiArray3d<genArray> &du,
+                            const turbModel *turb, genArray &l2, resid &linf) {
   // inputVars -- all input variables
   // impFlag -- flag to determine if simulation is to be solved via explicit or
   // implicit time stepping
@@ -591,6 +591,7 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag,
   // aRef -- reference speed of sound (for nondimensionalization)
   // bb
   // du -- updates to conservative variables (only used in implicit solver)
+  // turb -- turbulence model
   // l2 -- l-2 norm of residual
   // linf -- l-infinity norm of residual
 
@@ -605,10 +606,10 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag,
                  this->NumI(); ii.g++, ii.p++) {
           // explicit euler time integration
           if (inputVars.TimeIntegration() == "explicitEuler") {
-            this->ExplicitEulerTimeAdvance(eos, ii.g, jj.g, kk.g,
+            this->ExplicitEulerTimeAdvance(eos, turb, ii.g, jj.g, kk.g,
                                            ii.p, jj.p, kk.p);
           } else if (impFlag) {  // if implicit use update (du)
-            this->ImplicitTimeAdvance(du(ii.p, jj.p, kk.p), eos,
+            this->ImplicitTimeAdvance(du(ii.p, jj.p, kk.p), eos, turb,
                                       ii.g, jj.g, kk.g);
           }
 
@@ -642,7 +643,7 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag,
           for (struct {int p; int g;} ii = {0, numGhosts_}; ii.p <
                    this->NumI(); ii.g++, ii.p++) {
             // advance 1 RK stage
-            this->RK4TimeAdvance(stateN(ii.g, jj.g, kk.g), eos,
+            this->RK4TimeAdvance(stateN(ii.g, jj.g, kk.g), eos, turb,
                                  ii.g, jj.g, kk.g,
                                  ii.p, jj.p, kk.p, rr);
 
@@ -690,10 +691,12 @@ n+1, dt_ is the cell's time step, V is the cell's volume, and R is the cell's
 residual.
  */
 void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState,
+                                         const turbModel *turb,
                                          const int &ig, const int &jg,
                                          const int &kg, const int &ip,
                                          const int &jp, const int &kp) {
   // eqnState -- equation of state
+  // turb -- turbulence model
   // ig -- i-location of cell (including ghost cells)
   // jg -- j-location of cell (including ghost cells)
   // kg -- k-location of cell (including ghost cells)
@@ -708,22 +711,26 @@ void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState,
       residual_(ip, jp, kp);
 
   // calculate updated primative variables and update state
-  state_(ig, jg, kg) = primVars(consVars, false, eqnState);
+  state_(ig, jg, kg) = primVars(consVars, false, eqnState, turb);
 }
 
-// member function to advance the state_ vector to time n+1 (for implicit
+// member function to advance the state vector to time n+1 (for implicit
 // methods)
 void procBlock::ImplicitTimeAdvance(const genArray &du,
-                                    const idealGas &eqnState, const int &ii,
+                                    const idealGas &eqnState,
+                                    const turbModel *turb,
+                                    const int &ii,
                                     const int &jj, const int &kk) {
   // du -- update for a specific cell (to move from time n to n+1)
   // eqnState -- equation of state
+  // turb -- turbulence model
   // ii -- i-location of cell (with ghosts)
   // jj -- j-location of cell (with ghosts)
   // kk -- k-location of cell (with ghosts)
 
   // calculate updated state (primative variables)
-  state_(ii, jj, kk) = state_(ii, jj, kk).UpdateWithConsVars(eqnState, du);
+  state_(ii, jj, kk) = state_(ii, jj, kk).UpdateWithConsVars(eqnState, du,
+                                                             turb);
 }
 
 /*member function to advance the state_ vector to time n+1 using 4th order
@@ -736,11 +743,13 @@ n+1, dt_ is the cell's time step, V is the cell's volume, alpha is the runge-kut
 coefficient, and R is the cell's residual.
  */
 void procBlock::RK4TimeAdvance(const primVars &currState,
-                               const idealGas &eqnState, const int &ig,
-                               const int &jg, const int &kg, const int &ip,
-                               const int &jp, const int &kp, const int &rk) {
+                               const idealGas &eqnState, const turbModel *turb,
+                               const int &ig, const int &jg, const int &kg,
+                               const int &ip, const int &jp, const int &kp,
+                               const int &rk) {
   // currState -- current state (including steps within RK4) (primative)
   // eqnState -- equation of state
+  // turb -- turbulence model
   // ig -- i-location of cell (including ghost cells)
   // jg -- j-location of cell (including ghost cells)
   // kg -- k-location of cell (including ghost cells)
@@ -757,7 +766,7 @@ void procBlock::RK4TimeAdvance(const primVars &currState,
       dt_(ip, jp, kp) / vol_(ig, jg, kg) * alpha[rk] * residual_(ip, jp, kp);
 
   // calculate updated primative variables
-  state_(ig, jg, kg) = primVars(consVars, false, eqnState);
+  state_(ig, jg, kg) = primVars(consVars, false, eqnState, turb);
 }
 
 // member function to reset the residual and wave speed back to zero after an
@@ -1067,7 +1076,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                              fAreaI_(ig, jg, kg),
                              state_(ig - 1, jg, kg).
                              UpdateWithConsVars(eqnState,
-                                                x(ip - 1, jp, kp)), eqnState);
+                                                x(ip - 1, jp, kp), turb),
+                             eqnState);
 
       // if viscous add viscous contribution to spectral radius
       if (inp.EquationSet() != "euler") {
@@ -1076,7 +1086,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                                    fAreaI_(ig, jg, kg),
                                    state_(ig - 1, jg, kg).
                                    UpdateWithConsVars(eqnState,
-                                                      x(ip - 1, jp, kp)),
+                                                      x(ip - 1, jp, kp), turb),
                                    eqnState, suth, vol_(ig - 1, jg, kg),
                                    turb->EddyViscNoLim(state_(ig - 1, jg, kg)));
       }
@@ -1084,7 +1094,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       // at given face location, call function to calculate convective flux
       // change
       genArray fluxChange = ConvectiveFluxUpdate(
-          state_(ig - 1, jg, kg), eqnState, this->FAreaUnitI(ig, jg, kg),
+          state_(ig - 1, jg, kg), eqnState, turb, this->FAreaUnitI(ig, jg, kg),
           x(ip - 1, jp, kp));
 
       // update L matrix
@@ -1102,7 +1112,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                              fAreaJ_(ig, jg, kg),
                              state_(ig, jg - 1, kg).
                              UpdateWithConsVars(eqnState,
-                                                x(ip, jp - 1, kp)), eqnState);
+                                                x(ip, jp - 1, kp), turb),
+                             eqnState);
 
       // if viscous add viscous contribution to spectral radius
       if (inp.EquationSet() != "euler") {
@@ -1110,7 +1121,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
             ViscCellSpectralRadius(
                 fAreaJ_(ig, jg - 1, kg), fAreaJ_(ig, jg, kg),
                 state_(ig, jg - 1, kg).
-                UpdateWithConsVars(eqnState, x(ip, jp - 1, kp)),
+                UpdateWithConsVars(eqnState, x(ip, jp - 1, kp), turb),
                 eqnState, suth, vol_(ig, jg - 1, kg),
                 turb->EddyViscNoLim(state_(ig, jg - 1, kg)));
       }
@@ -1118,7 +1129,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       // at given face location, call function to calculate convective flux
       // change
       genArray fluxChange = ConvectiveFluxUpdate(
-          state_(ig, jg - 1, kg), eqnState, this->FAreaUnitJ(ig, jg, kg),
+          state_(ig, jg - 1, kg), eqnState, turb, this->FAreaUnitJ(ig, jg, kg),
           x(ip, jp - 1, kp));
 
       // update L matrix
@@ -1136,7 +1147,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                              fAreaK_(ig, jg, kg),
                              state_(ig, jg, kg - 1).
                              UpdateWithConsVars(eqnState,
-                                                x(ip, jp, kp - 1)), eqnState);
+                                                x(ip, jp, kp - 1), turb),
+                             eqnState);
 
       // if viscous add viscous contribution to spectral radius
       if (inp.EquationSet() != "euler") {
@@ -1144,7 +1156,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
             ViscCellSpectralRadius(
                 fAreaK_(ig, jg, kg - 1), fAreaK_(ig, jg, kg),
                 state_(ig, jg, kg - 1).
-                UpdateWithConsVars(eqnState, x(ip, jp, kp - 1)),
+                UpdateWithConsVars(eqnState, x(ip, jp, kp - 1), turb),
                 eqnState, suth, vol_(ig, jg, kg - 1),
                 turb->EddyViscNoLim(state_(ig, jg, kg - 1)));
       }
@@ -1152,7 +1164,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       // at given face location, call function to calculate convective flux
       // change
       genArray fluxChange = ConvectiveFluxUpdate(
-          state_(ig, jg, kg - 1), eqnState, this->FAreaUnitK(ig, jg, kg),
+          state_(ig, jg, kg - 1), eqnState, turb, this->FAreaUnitK(ig, jg, kg),
           x(ip, jp, kp - 1));
 
       // update L matrix
@@ -1203,7 +1215,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                              fAreaI_(ig + 1, jg, kg),
                              state_(ig + 1, jg, kg).
                              UpdateWithConsVars(eqnState,
-                                                x(ip + 1, jp, kp)), eqnState);
+                                                x(ip + 1, jp, kp), turb),
+                             eqnState);
 
       if (inp.EquationSet() != "euler") {  // viscous
         specRad +=
@@ -1211,7 +1224,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                                    fAreaI_(ig + 1, jg, kg),
                                    state_(ig + 1, jg, kg).
                                    UpdateWithConsVars(eqnState,
-                                                      x(ip + 1, jp, kp)),
+                                                      x(ip + 1, jp, kp), turb),
                                    eqnState, suth, vol_(ig + 1, jg, kg),
                                    turb->EddyViscNoLim(state_(ig + 1, jg, kg)));
       }
@@ -1219,8 +1232,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       // at given face location, call function to calculate convective flux
       // change
       genArray fluxChange = ConvectiveFluxUpdate(
-          state_(ig + 1, jg, kg), eqnState, this->FAreaUnitI(ig + 1, jg, kg),
-          x(ip + 1, jp, kp));
+          state_(ig + 1, jg, kg), eqnState, turb,
+          this->FAreaUnitI(ig + 1, jg, kg), x(ip + 1, jp, kp));
 
       // update U matrix
       U(ip, jp, kp) = U(ip, jp, kp) + 0.5 *
@@ -1237,7 +1250,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                              fAreaJ_(ig, jg + 1, kg),
                              state_(ig, jg + 1, kg).
                              UpdateWithConsVars(eqnState,
-                                                x(ip, jp + 1, kp)), eqnState);
+                                                x(ip, jp + 1, kp), turb),
+                             eqnState);
 
       if (inp.EquationSet() != "euler") {  // viscous
         specRad +=
@@ -1245,7 +1259,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                                    fAreaJ_(ig, jg + 1, kg),
                                    state_(ig, jg + 1, kg).
                                    UpdateWithConsVars(eqnState,
-                                                      x(ip, jp + 1, kp)),
+                                                      x(ip, jp + 1, kp), turb),
                                    eqnState, suth, vol_(ig, jg + 1, kg),
                                    turb->EddyViscNoLim(state_(ig, jg + 1, kg)));
       }
@@ -1253,8 +1267,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       // at given face location, call function to calculate convective flux
       // change
       genArray fluxChange = ConvectiveFluxUpdate(
-          state_(ig, jg + 1, kg), eqnState, this->FAreaUnitJ(ig, jg + 1, kg),
-          x(ip, jp + 1, kp));
+          state_(ig, jg + 1, kg), eqnState, turb,
+          this->FAreaUnitJ(ig, jg + 1, kg), x(ip, jp + 1, kp));
 
       // update U matrix
       U(ip, jp, kp) = U(ip, jp, kp) + 0.5 *
@@ -1271,7 +1285,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                              fAreaK_(ig, jg, kg + 1),
                              state_(ig, jg, kg + 1).
                              UpdateWithConsVars(eqnState,
-                                                x(ip, jp, kp + 1)), eqnState);
+                                                x(ip, jp, kp + 1), turb),
+                             eqnState);
 
       if (inp.EquationSet() != "euler") {  // viscous
         specRad +=
@@ -1279,7 +1294,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                                    fAreaK_(ig, jg, kg + 1),
                                    state_(ig, jg, kg + 1).
                                    UpdateWithConsVars(eqnState,
-                                                      x(ip, jp, kp + 1)),
+                                                      x(ip, jp, kp + 1), turb),
                                    eqnState, suth, vol_(ig, jg, kg + 1),
                                    turb->EddyViscNoLim(state_(ig, jg, kg + 1)));
       }
@@ -1287,8 +1302,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       // at given face location, call function to calculate convective flux
       // change
       genArray fluxChange = ConvectiveFluxUpdate(
-          state_(ig, jg, kg + 1), eqnState, this->FAreaUnitK(ig, jg, kg + 1),
-          x(ip, jp, kp + 1));
+          state_(ig, jg, kg + 1), eqnState, turb,
+          this->FAreaUnitK(ig, jg, kg + 1), x(ip, jp, kp + 1));
 
       // update U matrix
       U(ip, jp, kp) = U(ip, jp, kp) + 0.5 *

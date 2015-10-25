@@ -65,7 +65,7 @@ class primVars {
   primVars(const double &a, const double &b, const double &c, const double &d,
            const double &e, const double &f, const double &g)
       : data_{a, b, c, d, e, f, g} {}
-  primVars(const genArray &, const bool &, const idealGas &);
+  primVars(const genArray &, const bool &, const idealGas &, const turbModel *);
 
   // member functions
   double Rho() const { return data_[0]; }
@@ -88,7 +88,8 @@ class primVars {
   inline double SoS(const idealGas &) const;
 
   inline genArray ConsVars(const idealGas &) const;
-  primVars UpdateWithConsVars(const idealGas &, const genArray &) const;
+  primVars UpdateWithConsVars(const idealGas &, const genArray &,
+                              const turbModel *) const;
 
   void ApplyFarfieldTurbBC(const vector3d<double> &, const double &,
                            const double &, const sutherland &,

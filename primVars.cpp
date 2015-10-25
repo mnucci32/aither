@@ -39,7 +39,12 @@ primVars::primVars(const double &a) {
 }
 
 primVars::primVars(const genArray &a, const bool &prim,
-                   const idealGas &eqnState) {
+                   const idealGas &eqnState, const turbModel *turb) {
+  // a -- array of conservative or primative variables
+  // prim -- flag that is true if variable a is primative variables
+  // eqnState -- equation of state
+  // turb -- turbulence model
+
   if (prim) {  // genArray is primative variables
     for (int ii = 0; ii < NUMVARS; ii++) {
       data_[ii] = a[ii];
@@ -55,6 +60,10 @@ primVars::primVars(const genArray &a, const bool &prim,
     data_[5] = a[5] / a[0];
     data_[6] = a[6] / a[0];
   }
+
+  // Adjust turbulence variables to be above minimum if necessary
+  data_[5] = max(data_[5], turb->TkeMin());
+  data_[6] = max(data_[6], turb->OmegaMin());
 }
 
 // member function to initialize a state with nondimensional values
@@ -787,26 +796,16 @@ primVars primVars::GetGhostState(const string &bcType,
 // variables, and update the primative variables with it.
 // this is used in the implicit solver
 primVars primVars::UpdateWithConsVars(const idealGas &eqnState,
-                                      const genArray &du) const {
+                                      const genArray &du,
+                                      const turbModel *turb) const {
   // eqnState -- equation of state
   // du -- updates to conservative variables
+  // turb -- turbulence model
 
   // convert primative to conservative and update
   genArray consUpdate = (*this).ConsVars(eqnState) + du;
 
-  // DEBUG
-  primVars update(consUpdate, false, eqnState);
-  if (update.Tke() < 1.0e-15) {
-    update.data_[5] = 1.0e-15;
-  }
-  if (update.Omega() < 1.0e-15) {
-    update.data_[6] = 1.0e-15;
-  }
-  return update;
-
-  
-  // convert back to primative variables
-  // return primVars(consUpdate, false, eqnState);
+  return primVars(consUpdate, false, eqnState, turb);
 }
 
 bool primVars::IsZero() const {

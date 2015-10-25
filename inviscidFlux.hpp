@@ -36,6 +36,7 @@ class idealGas;
 class primVars;
 class genArray;
 class squareMatrix;
+class turbModel;
 
 class inviscidFlux {
   double data_[NUMVARS];  // rho dot velocity vector
@@ -44,11 +45,16 @@ class inviscidFlux {
   // rho dot velocity vector * w-velocity + pressure * k-dir-vector
   // rho dot velocity vector * enthalpy
 
+  // private member functions
+  void ConstructFromPrim(const primVars&, const idealGas&,
+                         const vector3d<double>&);
+
  public:
   // constructors
   inviscidFlux() : data_{0.0} {}
   inviscidFlux(const primVars&, const idealGas&, const vector3d<double>&);
-  inviscidFlux(const genArray&, const idealGas&, const vector3d<double>&);
+  inviscidFlux(const genArray&, const idealGas&, const turbModel*,
+               const vector3d<double>&);
 
   // member functions
   double RhoVel() const { return data_[0]; }
@@ -88,6 +94,7 @@ void ApproxRoeFluxJacobian(const primVars&, const primVars&, const idealGas&,
                            squareMatrix&);
 
 genArray ConvectiveFluxUpdate(const primVars&, const idealGas&,
-                              const vector3d<double>&, const genArray&);
+                              const turbModel *, const vector3d<double>&,
+                              const genArray&);
 
 #endif
