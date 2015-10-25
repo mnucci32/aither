@@ -104,11 +104,14 @@ procBlock::procBlock(const primVars &inputState, const plot3dBlock &blk,
   fCenterJ_ = PadWithGhosts(blk.FaceCenterJ(), numGhosts_);
   fCenterK_ = PadWithGhosts(blk.FaceCenterK(), numGhosts_);
 
+  wallDist_ = multiArray3d<double>(blk.NumI() - 1 + 2.0 * numGhosts_,
+                                   blk.NumJ() - 1 + 2.0 * numGhosts_,
+                                   blk.NumK() - 1 + 2.0 * numGhosts_,
+                                   DEFAULTWALLDIST);
+
   avgWaveSpeed_ = multiArray3d<double>(blk.NumI() - 1, blk.NumJ() - 1,
                                        blk.NumK() - 1);
   dt_ = multiArray3d<double>(blk.NumI() - 1, blk.NumJ() - 1, blk.NumK() - 1);
-  wallDist_ = multiArray3d<double>(blk.NumI() - 1, blk.NumJ() - 1,
-                                   blk.NumK() - 1, DEFAULTWALLDIST);
   residual_ = multiArray3d<genArray>(blk.NumI() - 1, blk.NumJ() - 1,
                                      blk.NumK() - 1);
 }
@@ -150,9 +153,11 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
                                               nk + 2 * numG + 1);
   residual_ = multiArray3d<genArray>(ni, nj, nk);
   vol_ = multiArray3d<double>(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG);
+  wallDist_ = multiArray3d<double>(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG,
+                                   DEFAULTWALLDIST);
+
   avgWaveSpeed_ = multiArray3d<double>(ni, nj, nk);
   dt_ = multiArray3d<double>(ni, nj, nk);
-  wallDist_ = multiArray3d<double>(ni, nj, nk);
 }
 
 // member function to add a member of the inviscid flux class to the residual
@@ -577,8 +582,8 @@ implicit methods it uses the correction du and calls the implicit updater.
 */
 void procBlock::UpdateBlock(const input &inputVars, const int &impFlag,
                             const idealGas &eos, const double &aRef,
-                            const multiArray3d<genArray> &du, genArray &l2,
-                            resid &linf) {
+                            const multiArray3d<genArray> &du,
+                            const turbModel *turb, genArray &l2, resid &linf) {
   // inputVars -- all input variables
   // impFlag -- flag to determine if simulation is to be solved via explicit or
   // implicit time stepping
@@ -586,6 +591,7 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag,
   // aRef -- reference speed of sound (for nondimensionalization)
   // bb
   // du -- updates to conservative variables (only used in implicit solver)
+  // turb -- turbulence model
   // l2 -- l-2 norm of residual
   // linf -- l-infinity norm of residual
 
@@ -600,10 +606,10 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag,
                  this->NumI(); ii.g++, ii.p++) {
           // explicit euler time integration
           if (inputVars.TimeIntegration() == "explicitEuler") {
-            this->ExplicitEulerTimeAdvance(eos, ii.g, jj.g, kk.g,
+            this->ExplicitEulerTimeAdvance(eos, turb, ii.g, jj.g, kk.g,
                                            ii.p, jj.p, kk.p);
           } else if (impFlag) {  // if implicit use update (du)
-            this->ImplicitTimeAdvance(du(ii.p, jj.p, kk.p), eos,
+            this->ImplicitTimeAdvance(du(ii.p, jj.p, kk.p), eos, turb,
                                       ii.g, jj.g, kk.g);
           }
 
@@ -637,7 +643,7 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag,
           for (struct {int p; int g;} ii = {0, numGhosts_}; ii.p <
                    this->NumI(); ii.g++, ii.p++) {
             // advance 1 RK stage
-            this->RK4TimeAdvance(stateN(ii.g, jj.g, kk.g), eos,
+            this->RK4TimeAdvance(stateN(ii.g, jj.g, kk.g), eos, turb,
                                  ii.g, jj.g, kk.g,
                                  ii.p, jj.p, kk.p, rr);
 
@@ -685,10 +691,12 @@ n+1, dt_ is the cell's time step, V is the cell's volume, and R is the cell's
 residual.
  */
 void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState,
+                                         const turbModel *turb,
                                          const int &ig, const int &jg,
                                          const int &kg, const int &ip,
                                          const int &jp, const int &kp) {
   // eqnState -- equation of state
+  // turb -- turbulence model
   // ig -- i-location of cell (including ghost cells)
   // jg -- j-location of cell (including ghost cells)
   // kg -- k-location of cell (including ghost cells)
@@ -703,22 +711,26 @@ void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState,
       residual_(ip, jp, kp);
 
   // calculate updated primative variables and update state
-  state_(ig, jg, kg) = primVars(consVars, false, eqnState);
+  state_(ig, jg, kg) = primVars(consVars, false, eqnState, turb);
 }
 
-// member function to advance the state_ vector to time n+1 (for implicit
+// member function to advance the state vector to time n+1 (for implicit
 // methods)
 void procBlock::ImplicitTimeAdvance(const genArray &du,
-                                    const idealGas &eqnState, const int &ii,
+                                    const idealGas &eqnState,
+                                    const turbModel *turb,
+                                    const int &ii,
                                     const int &jj, const int &kk) {
   // du -- update for a specific cell (to move from time n to n+1)
   // eqnState -- equation of state
+  // turb -- turbulence model
   // ii -- i-location of cell (with ghosts)
   // jj -- j-location of cell (with ghosts)
   // kk -- k-location of cell (with ghosts)
 
   // calculate updated state (primative variables)
-  state_(ii, jj, kk) = state_(ii, jj, kk).UpdateWithConsVars(eqnState, du);
+  state_(ii, jj, kk) = state_(ii, jj, kk).UpdateWithConsVars(eqnState, du,
+                                                             turb);
 }
 
 /*member function to advance the state_ vector to time n+1 using 4th order
@@ -731,11 +743,13 @@ n+1, dt_ is the cell's time step, V is the cell's volume, alpha is the runge-kut
 coefficient, and R is the cell's residual.
  */
 void procBlock::RK4TimeAdvance(const primVars &currState,
-                               const idealGas &eqnState, const int &ig,
-                               const int &jg, const int &kg, const int &ip,
-                               const int &jp, const int &kp, const int &rk) {
+                               const idealGas &eqnState, const turbModel *turb,
+                               const int &ig, const int &jg, const int &kg,
+                               const int &ip, const int &jp, const int &kp,
+                               const int &rk) {
   // currState -- current state (including steps within RK4) (primative)
   // eqnState -- equation of state
+  // turb -- turbulence model
   // ig -- i-location of cell (including ghost cells)
   // jg -- j-location of cell (including ghost cells)
   // kg -- k-location of cell (including ghost cells)
@@ -752,7 +766,7 @@ void procBlock::RK4TimeAdvance(const primVars &currState,
       dt_(ip, jp, kp) / vol_(ig, jg, kg) * alpha[rk] * residual_(ip, jp, kp);
 
   // calculate updated primative variables
-  state_(ig, jg, kg) = primVars(consVars, false, eqnState);
+  state_(ig, jg, kg) = primVars(consVars, false, eqnState, turb);
 }
 
 // member function to reset the residual and wave speed back to zero after an
@@ -1062,7 +1076,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                              fAreaI_(ig, jg, kg),
                              state_(ig - 1, jg, kg).
                              UpdateWithConsVars(eqnState,
-                                                x(ip - 1, jp, kp)), eqnState);
+                                                x(ip - 1, jp, kp), turb),
+                             eqnState);
 
       // if viscous add viscous contribution to spectral radius
       if (inp.EquationSet() != "euler") {
@@ -1071,7 +1086,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                                    fAreaI_(ig, jg, kg),
                                    state_(ig - 1, jg, kg).
                                    UpdateWithConsVars(eqnState,
-                                                      x(ip - 1, jp, kp)),
+                                                      x(ip - 1, jp, kp), turb),
                                    eqnState, suth, vol_(ig - 1, jg, kg),
                                    turb->EddyViscNoLim(state_(ig - 1, jg, kg)));
       }
@@ -1079,7 +1094,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       // at given face location, call function to calculate convective flux
       // change
       genArray fluxChange = ConvectiveFluxUpdate(
-          state_(ig - 1, jg, kg), eqnState, this->FAreaUnitI(ig, jg, kg),
+          state_(ig - 1, jg, kg), eqnState, turb, this->FAreaUnitI(ig, jg, kg),
           x(ip - 1, jp, kp));
 
       // update L matrix
@@ -1097,7 +1112,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                              fAreaJ_(ig, jg, kg),
                              state_(ig, jg - 1, kg).
                              UpdateWithConsVars(eqnState,
-                                                x(ip, jp - 1, kp)), eqnState);
+                                                x(ip, jp - 1, kp), turb),
+                             eqnState);
 
       // if viscous add viscous contribution to spectral radius
       if (inp.EquationSet() != "euler") {
@@ -1105,7 +1121,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
             ViscCellSpectralRadius(
                 fAreaJ_(ig, jg - 1, kg), fAreaJ_(ig, jg, kg),
                 state_(ig, jg - 1, kg).
-                UpdateWithConsVars(eqnState, x(ip, jp - 1, kp)),
+                UpdateWithConsVars(eqnState, x(ip, jp - 1, kp), turb),
                 eqnState, suth, vol_(ig, jg - 1, kg),
                 turb->EddyViscNoLim(state_(ig, jg - 1, kg)));
       }
@@ -1113,7 +1129,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       // at given face location, call function to calculate convective flux
       // change
       genArray fluxChange = ConvectiveFluxUpdate(
-          state_(ig, jg - 1, kg), eqnState, this->FAreaUnitJ(ig, jg, kg),
+          state_(ig, jg - 1, kg), eqnState, turb, this->FAreaUnitJ(ig, jg, kg),
           x(ip, jp - 1, kp));
 
       // update L matrix
@@ -1131,7 +1147,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                              fAreaK_(ig, jg, kg),
                              state_(ig, jg, kg - 1).
                              UpdateWithConsVars(eqnState,
-                                                x(ip, jp, kp - 1)), eqnState);
+                                                x(ip, jp, kp - 1), turb),
+                             eqnState);
 
       // if viscous add viscous contribution to spectral radius
       if (inp.EquationSet() != "euler") {
@@ -1139,7 +1156,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
             ViscCellSpectralRadius(
                 fAreaK_(ig, jg, kg - 1), fAreaK_(ig, jg, kg),
                 state_(ig, jg, kg - 1).
-                UpdateWithConsVars(eqnState, x(ip, jp, kp - 1)),
+                UpdateWithConsVars(eqnState, x(ip, jp, kp - 1), turb),
                 eqnState, suth, vol_(ig, jg, kg - 1),
                 turb->EddyViscNoLim(state_(ig, jg, kg - 1)));
       }
@@ -1147,7 +1164,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       // at given face location, call function to calculate convective flux
       // change
       genArray fluxChange = ConvectiveFluxUpdate(
-          state_(ig, jg, kg - 1), eqnState, this->FAreaUnitK(ig, jg, kg),
+          state_(ig, jg, kg - 1), eqnState, turb, this->FAreaUnitK(ig, jg, kg),
           x(ip, jp, kp - 1));
 
       // update L matrix
@@ -1198,7 +1215,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                              fAreaI_(ig + 1, jg, kg),
                              state_(ig + 1, jg, kg).
                              UpdateWithConsVars(eqnState,
-                                                x(ip + 1, jp, kp)), eqnState);
+                                                x(ip + 1, jp, kp), turb),
+                             eqnState);
 
       if (inp.EquationSet() != "euler") {  // viscous
         specRad +=
@@ -1206,7 +1224,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                                    fAreaI_(ig + 1, jg, kg),
                                    state_(ig + 1, jg, kg).
                                    UpdateWithConsVars(eqnState,
-                                                      x(ip + 1, jp, kp)),
+                                                      x(ip + 1, jp, kp), turb),
                                    eqnState, suth, vol_(ig + 1, jg, kg),
                                    turb->EddyViscNoLim(state_(ig + 1, jg, kg)));
       }
@@ -1214,8 +1232,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       // at given face location, call function to calculate convective flux
       // change
       genArray fluxChange = ConvectiveFluxUpdate(
-          state_(ig + 1, jg, kg), eqnState, this->FAreaUnitI(ig + 1, jg, kg),
-          x(ip + 1, jp, kp));
+          state_(ig + 1, jg, kg), eqnState, turb,
+          this->FAreaUnitI(ig + 1, jg, kg), x(ip + 1, jp, kp));
 
       // update U matrix
       U(ip, jp, kp) = U(ip, jp, kp) + 0.5 *
@@ -1232,7 +1250,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                              fAreaJ_(ig, jg + 1, kg),
                              state_(ig, jg + 1, kg).
                              UpdateWithConsVars(eqnState,
-                                                x(ip, jp + 1, kp)), eqnState);
+                                                x(ip, jp + 1, kp), turb),
+                             eqnState);
 
       if (inp.EquationSet() != "euler") {  // viscous
         specRad +=
@@ -1240,7 +1259,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                                    fAreaJ_(ig, jg + 1, kg),
                                    state_(ig, jg + 1, kg).
                                    UpdateWithConsVars(eqnState,
-                                                      x(ip, jp + 1, kp)),
+                                                      x(ip, jp + 1, kp), turb),
                                    eqnState, suth, vol_(ig, jg + 1, kg),
                                    turb->EddyViscNoLim(state_(ig, jg + 1, kg)));
       }
@@ -1248,8 +1267,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       // at given face location, call function to calculate convective flux
       // change
       genArray fluxChange = ConvectiveFluxUpdate(
-          state_(ig, jg + 1, kg), eqnState, this->FAreaUnitJ(ig, jg + 1, kg),
-          x(ip, jp + 1, kp));
+          state_(ig, jg + 1, kg), eqnState, turb,
+          this->FAreaUnitJ(ig, jg + 1, kg), x(ip, jp + 1, kp));
 
       // update U matrix
       U(ip, jp, kp) = U(ip, jp, kp) + 0.5 *
@@ -1266,7 +1285,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                              fAreaK_(ig, jg, kg + 1),
                              state_(ig, jg, kg + 1).
                              UpdateWithConsVars(eqnState,
-                                                x(ip, jp, kp + 1)), eqnState);
+                                                x(ip, jp, kp + 1), turb),
+                             eqnState);
 
       if (inp.EquationSet() != "euler") {  // viscous
         specRad +=
@@ -1274,7 +1294,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                                    fAreaK_(ig, jg, kg + 1),
                                    state_(ig, jg, kg + 1).
                                    UpdateWithConsVars(eqnState,
-                                                      x(ip, jp, kp + 1)),
+                                                      x(ip, jp, kp + 1), turb),
                                    eqnState, suth, vol_(ig, jg, kg + 1),
                                    turb->EddyViscNoLim(state_(ig, jg, kg + 1)));
       }
@@ -1282,8 +1302,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       // at given face location, call function to calculate convective flux
       // change
       genArray fluxChange = ConvectiveFluxUpdate(
-          state_(ig, jg, kg + 1), eqnState, this->FAreaUnitK(ig, jg, kg + 1),
-          x(ip, jp, kp + 1));
+          state_(ig, jg, kg + 1), eqnState, turb,
+          this->FAreaUnitK(ig, jg, kg + 1), x(ip, jp, kp + 1));
 
       // update U matrix
       U(ip, jp, kp) = U(ip, jp, kp) + 0.5 *
@@ -1706,14 +1726,6 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
              fAreaI_.NumJ() - numGhosts_; jj.g++, jj.p++) {
       for (struct {int p; int g;} ii = {0, numGhosts_}; ii.g <
                fAreaI_.NumI() - numGhosts_; ii.g++, ii.p++) {
-        // Get velocity at face
-        vector3d<double> vel =
-            FaceReconCentral(state_(ii.g - 1, jj.g, kk.g).Velocity(),
-                             state_(ii.g, jj.g, kk.g).Velocity(),
-                             center_(ii.g - 1, jj.g, kk.g),
-                             center_(ii.g, jj.g, kk.g),
-                             fCenterI_(ii.g, jj.g, kk.g));
-
         // Get state at face
         primVars state =
             FaceReconCentral(state_(ii.g - 1, jj.g, kk.g),
@@ -1722,25 +1734,12 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                              center_(ii.g, jj.g, kk.g),
                              fCenterI_(ii.g, jj.g, kk.g));
 
-        // Get viscosity at face
-        double mu =
-            FaceReconCentral(
-                suth.EffectiveViscosity(state_(ii.g - 1, jj.g, kk.g).
-                                        Temperature(eqnState)),
-                suth.EffectiveViscosity(state_(ii.g, jj.g, kk.g).
-                                        Temperature(eqnState)),
-                center_(ii.g - 1, jj.g, kk.g), center_(ii.g, jj.g, kk.g),
-                fCenterI_(ii.g, jj.g, kk.g));
-
-        double eddyVisc =
-            FaceReconCentral(
-            turb->EddyVisc(state_(ii.g - 1, jj.g, kk.g),
-                           grads.VelGradI(ii.p, jj.p, kk.p), suth),
-            turb->EddyVisc(state_(ii.g, jj.g, kk.g),
-                           grads.VelGradI(ii.p, jj.p, kk.p), suth),
-            center_(ii.g - 1, jj.g, kk.g), center_(ii.g, jj.g, kk.g),
-            fCenterI_(ii.g, jj.g, kk.g));
-        eddyVisc *= suth.NondimScaling();  // effective viscosity
+        // Get wall distance at face
+        double wDist = FaceReconCentral(wallDist_(ii.g - 1, jj.g, kk.g),
+                                        wallDist_(ii.g, jj.g, kk.g),
+                                        center_(ii.g - 1, jj.g, kk.g),
+                                        center_(ii.g, jj.g, kk.g),
+                                        fCenterI_(ii.g, jj.g, kk.g));
 
         // calculate viscous flux
         vector3d<double> tkeGrad, omegaGrad;
@@ -1748,11 +1747,10 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           tkeGrad = grads.TkeGradI(ii.p, jj.p, kk.p);
           omegaGrad = grads.OmegaGradI(ii.p, jj.p, kk.p);
         }
-        viscousFlux tempViscFlux(grads.VelGradI(ii.p, jj.p, kk.p), vel, mu,
-                                 eddyVisc, suth, eqnState,
-                                 grads.TempGradI(ii.p, jj.p, kk.p),
+        viscousFlux tempViscFlux(grads.VelGradI(ii.p, jj.p, kk.p), suth,
+                                 eqnState, grads.TempGradI(ii.p, jj.p, kk.p),
                                  this->FAreaUnitI(ii.g, jj.g, kk.g), tkeGrad,
-                                 omegaGrad, turb, state);
+                                 omegaGrad, turb, state, wDist);
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
@@ -1777,8 +1775,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                   fAreaI_(ii.g + 1, jj.g, kk.g),
                   state_(ii.g, jj.g, kk.g), eqnState, suth,
                   vol_(ii.g, jj.g, kk.g),
-                  turb->EddyVisc(state_(ii.g, jj.g, kk.g),
-                                 grads.VelGradI(ii.p, jj.p, kk.p), suth));
+                  turb->EddyViscNoLim(state_(ii.g, jj.g, kk.g)));
         }
       }
     }
@@ -1880,14 +1877,6 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
       for (struct {int p; int g;} ii = {0, numGhosts_}; ii.g <
                fAreaJ_.NumI() - numGhosts_; ii.g++, ii.p++) {
         // Get velocity at face
-        vector3d<double> vel =
-            FaceReconCentral(state_(ii.g, jj.g - 1, kk.g).Velocity(),
-                             state_(ii.g, jj.g, kk.g).Velocity(),
-                             center_(ii.g, jj.g - 1, kk.g),
-                             center_(ii.g, jj.g, kk.g),
-                             fCenterJ_(ii.g, jj.g, kk.g));
-
-        // Get velocity at face
         primVars state =
             FaceReconCentral(state_(ii.g, jj.g - 1, kk.g),
                              state_(ii.g, jj.g, kk.g),
@@ -1895,27 +1884,12 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                              center_(ii.g, jj.g, kk.g),
                              fCenterJ_(ii.g, jj.g, kk.g));
 
-        // Get viscosity at face
-        double mu =
-            FaceReconCentral(
-                suth.EffectiveViscosity(state_(ii.g, jj.g - 1, kk.g).
-                                        Temperature(eqnState)),
-                suth.EffectiveViscosity(state_(ii.g, jj.g, kk.g).
-                                        Temperature(eqnState)),
-                center_(ii.g, jj.g - 1, kk.g), center_(ii.g, jj.g, kk.g),
-                fCenterJ_(ii.g, jj.g, kk.g));
-
-        double eddyVisc =
-            FaceReconCentral(
-                turb->EddyVisc(state_(ii.g, jj.g - 1, kk.g),
-                               grads.VelGradJ(ii.p, jj.p, kk.p), suth),
-                turb->EddyVisc(state_(ii.g, jj.g, kk.g),
-                               grads.VelGradJ(ii.p, jj.p, kk.p), suth),
-                             center_(ii.g, jj.g - 1, kk.g),
-                             center_(ii.g, jj.g, kk.g),
-                             fCenterJ_(ii.g, jj.g, kk.g));
-        // effective viscosity (due to nondimensionalization)
-        eddyVisc *= suth.NondimScaling();
+        // Get wall distance at face
+        double wDist = FaceReconCentral(wallDist_(ii.g, jj.g - 1, kk.g),
+                                        wallDist_(ii.g, jj.g, kk.g),
+                                        center_(ii.g, jj.g - 1, kk.g),
+                                        center_(ii.g, jj.g, kk.g),
+                                        fCenterJ_(ii.g, jj.g, kk.g));
 
         // calculate viscous flux
         vector3d<double> tkeGrad, omegaGrad;
@@ -1923,11 +1897,10 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           tkeGrad = grads.TkeGradJ(ii.p, jj.p, kk.p);
           omegaGrad = grads.OmegaGradJ(ii.p, jj.p, kk.p);
         }
-        viscousFlux tempViscFlux(grads.VelGradJ(ii.p, jj.p, kk.p), vel, mu,
-                                 eddyVisc, suth, eqnState,
-                                 grads.TempGradJ(ii.p, jj.p, kk.p),
+        viscousFlux tempViscFlux(grads.VelGradJ(ii.p, jj.p, kk.p), suth,
+                                 eqnState, grads.TempGradJ(ii.p, jj.p, kk.p),
                                  this->FAreaUnitJ(ii.g, jj.g, kk.g), tkeGrad,
-                                 omegaGrad, turb, state);
+                                 omegaGrad, turb, state, wDist);
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
@@ -1952,8 +1925,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                   fAreaJ_(ii.g, jj.g + 1, kk.g),
                   state_(ii.g, jj.g, kk.g), eqnState, suth,
                   vol_(ii.g, jj.g, kk.g),
-                  turb->EddyVisc(state_(ii.g, jj.g, kk.g),
-                                 grads.VelGradJ(ii.p, jj.p, kk.p), suth));
+                  turb->EddyViscNoLim(state_(ii.g, jj.g, kk.g)));
         }
       }
     }
@@ -2052,15 +2024,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
              fAreaK_.NumJ() - numGhosts_; jj.g++, jj.p++) {
       for (struct {int p; int g;} ii = {0, numGhosts_}; ii.g <
                fAreaK_.NumI() - numGhosts_; ii.g++, ii.p++) {
-        // Get velocity at face
-        vector3d<double> vel =
-            FaceReconCentral(state_(ii.g, jj.g, kk.g - 1).Velocity(),
-                             state_(ii.g, jj.g, kk.g).Velocity(),
-                             center_(ii.g, jj.g, kk.g - 1),
-                             center_(ii.g, jj.g, kk.g),
-                             fCenterK_(ii.g, jj.g, kk.g));
-
-        // Get velocity at face
+        // Get state at face
         primVars state =
             FaceReconCentral(state_(ii.g, jj.g, kk.g - 1),
                              state_(ii.g, jj.g, kk.g),
@@ -2068,26 +2032,12 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                              center_(ii.g, jj.g, kk.g),
                              fCenterK_(ii.g, jj.g, kk.g));
 
-        // Get viscosity at face
-        double mu =
-            FaceReconCentral(
-                suth.EffectiveViscosity(state_(ii.g, jj.g, kk.g - 1).
-                                        Temperature(eqnState)),
-                suth.EffectiveViscosity(state_(ii.g, jj.g, kk.g).
-                                        Temperature(eqnState)),
-                center_(ii.g, jj.g, kk.g - 1), center_(ii.g, jj.g, kk.g),
-                fCenterK_(ii.g, jj.g, kk.g));
-
-        double eddyVisc =
-            FaceReconCentral(
-            turb->EddyVisc(state_(ii.g, jj.g, kk.g - 1),
-                           grads.VelGradK(ii.p, jj.p, kk.p), suth),
-            turb->EddyVisc(state_(ii.g, jj.g, kk.g),
-                           grads.VelGradK(ii.p, jj.p, kk.p), suth),
-            center_(ii.g, jj.g, kk.g - 1), center_(ii.g, jj.g, kk.g),
-            fCenterK_(ii.g, jj.g, kk.g));
-        // effective viscosity (due to nondimensionalization)
-        eddyVisc *= suth.NondimScaling();
+        // Get wall distance at face
+        double wDist = FaceReconCentral(wallDist_(ii.g, jj.g, kk.g - 1),
+                                        wallDist_(ii.g, jj.g, kk.g),
+                                        center_(ii.g, jj.g, kk.g - 1),
+                                        center_(ii.g, jj.g, kk.g),
+                                        fCenterK_(ii.g, jj.g, kk.g));
 
         // calculate viscous flux
         vector3d<double> tkeGrad, omegaGrad;
@@ -2095,11 +2045,10 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           tkeGrad = grads.TkeGradK(ii.p, jj.p, kk.p);
           omegaGrad = grads.OmegaGradK(ii.p, jj.p, kk.p);
         }
-        viscousFlux tempViscFlux(grads.VelGradK(ii.p, jj.p, kk.p), vel, mu,
-                                 eddyVisc, suth, eqnState,
-                                 grads.TempGradK(ii.p, jj.p, kk.p),
+        viscousFlux tempViscFlux(grads.VelGradK(ii.p, jj.p, kk.p), suth,
+                                 eqnState, grads.TempGradK(ii.p, jj.p, kk.p),
                                  this->FAreaUnitK(ii.g, jj.g, kk.g), tkeGrad,
-                                 omegaGrad, turb, state);
+                                 omegaGrad, turb, state, wDist);
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
@@ -2124,8 +2073,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                   fAreaK_(ii.g, jj.g, kk.g + 1),
                   state_(ii.g, jj.g, kk.g), eqnState, suth,
                   vol_(ii.g, jj.g, kk.g),
-                  turb->EddyVisc(state_(ii.g, jj.g, kk.g),
-                                 grads.VelGradK(ii.p, jj.p, kk.p), suth));
+                  turb->EddyViscNoLim(state_(ii.g, jj.g, kk.g)));
         }
       }
     }
@@ -3017,10 +2965,12 @@ second layer.
 */
 void procBlock::AssignInviscidGhostCells(const input &inp,
                                          const idealGas &eos,
-                                         const sutherland &suth) {
+                                         const sutherland &suth,
+                                         const turbModel *turb) {
   // inp -- all input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
+  // turb -- turbulence model
 
   // loop over all boundary surfaces
   for (int ii = 0; ii < bc_.NumSurfaces(); ii++) {
@@ -3079,9 +3029,11 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
           fAreaI_.Slice(bnd, bnd, jmin, jmax, kmin, kmax);
       multiArray3d<primVars> boundaryStates =
           state_.Slice(i1, i1, jmin, jmax, kmin, kmax);
+      multiArray3d<double> wDist =
+          wallDist_.Slice(i1, i1, jmin, jmax, kmin, kmax);
       multiArray3d<primVars> ghostStates =
-          GetGhostStates(boundaryStates, bcName, faceAreas, surf, inp, eos,
-                         suth, 1);
+          GetGhostStates(boundaryStates, bcName, faceAreas, wDist, surf, inp,
+                         eos, suth, turb, 1);
 
       state_.Insert(g1, g1, jmin, jmax, kmin, kmax, ghostStates);
 
@@ -3094,8 +3046,8 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
         if (bcName == "slipWall") {
           boundaryStates = state_.Slice(i2, i2, jmin, jmax, kmin, kmax);
         }
-        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, surf,
-                                     inp, eos, suth, 2);
+        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
+                                     surf, inp, eos, suth, turb, 2);
 
         state_.Insert(g2, g2, jmin, jmax, kmin, kmax, ghostStates);
       }
@@ -3115,9 +3067,11 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
           fAreaJ_.Slice(imin, imax, bnd, bnd, kmin, kmax);
       multiArray3d<primVars> boundaryStates =
           state_.Slice(imin, imax, i1, i1, kmin, kmax);
+      multiArray3d<double> wDist =
+          wallDist_.Slice(imin, imax, i1, i1, kmin, kmax);
       multiArray3d<primVars> ghostStates =
-          GetGhostStates(boundaryStates, bcName, faceAreas, surf, inp, eos,
-                         suth, 1);
+          GetGhostStates(boundaryStates, bcName, faceAreas, wDist, surf, inp,
+                         eos, suth, turb, 1);
 
       // assign state for first layer of ghost cells
       state_.Insert(imin, imax, g1, g1, kmin, kmax, ghostStates);
@@ -3131,8 +3085,8 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
         if (bcName == "slipWall") {
           boundaryStates = state_.Slice(imin, imax, i2, i2, kmin, kmax);
         }
-        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, surf,
-                                     inp, eos, suth, 2);
+        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
+                                     surf, inp, eos, suth, turb, 2);
 
         state_.Insert(imin, imax, g2, g2, kmin, kmax, ghostStates);
       }
@@ -3152,9 +3106,11 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
           fAreaK_.Slice(imin, imax, jmin, jmax, bnd, bnd);
       multiArray3d<primVars> boundaryStates =
           state_.Slice(imin, imax, jmin, jmax, i1, i1);
+      multiArray3d<double> wDist =
+          wallDist_.Slice(imin, imax, jmin, jmax, i1, i1);
       multiArray3d<primVars> ghostStates =
-          GetGhostStates(boundaryStates, bcName, faceAreas, surf, inp, eos,
-                         suth, 1);
+          GetGhostStates(boundaryStates, bcName, faceAreas, wDist, surf, inp,
+                         eos, suth, turb, 1);
 
       // assign state for first layer of ghost cells
       state_.Insert(imin, imax, jmin, jmax, g1, g1, ghostStates);
@@ -3168,8 +3124,8 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
         if (bcName == "slipWall") {
           boundaryStates = state_.Slice(imin, imax, jmin, jmax, i2, i2);
         }
-        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, surf,
-                                     inp, eos, suth, 2);
+        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
+                                     surf, inp, eos, suth, turb, 2);
 
         state_.Insert(imin, imax, jmin, jmax, g2, g2, ghostStates);
       }
@@ -3216,10 +3172,12 @@ implementation is described in Blazek.
 */
 void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
                                              const idealGas &eos,
-                                             const sutherland &suth) {
+                                             const sutherland &suth,
+                                             const turbModel *turb) {
   // inp -- all input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
+  // turb -- turbulence model
 
   // ------------------------------------------------------------------------
   // loop over 4 edges that run in i-direction
@@ -3271,23 +3229,31 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
       // j surface is a wall, but k surface is not - extend wall bc
       if (bc_J == "slipWall" && bc_K != "slipWall") {
         state_(ii, jg1, kg1) = state_(ii, jp, kg1).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg1), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ii, jpF, kg1), wallDist_(ii, jp, kg1),
+            surfJ, inp, eos, suth, turb, 1);
         state_(ii, jg1, kg2) = state_(ii, jp, kg2).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg2), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ii, jpF, kg2), wallDist_(ii, jp, kg2),
+            surfJ, inp, eos, suth, turb, 1);
         state_(ii, jg2, kg1) = state_(ii, jg1, ki1).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg1), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ii, jpF, kg1), wallDist_(ii, jg1, ki1),
+            surfJ, inp, eos, suth, turb, 2);
         state_(ii, jg2, kg2) = state_(ii, jg2, ki1).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg2), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ii, jpF, kg2), wallDist_(ii, jg2, ki1),
+            surfJ, inp, eos, suth, turb, 2);
         // k surface is a wall, but j surface is not - extend wall bc
       } else if (bc_J != "slipWall" && bc_K == "slipWall") {
         state_(ii, jg1, kg1) = state_(ii, jg1, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg1, kpF), surfK, inp, eos, suth, 1);
+            bc_K, this->FAreaUnitK(ii, jg1, kpF), wallDist_(ii, jg1, kp),
+            surfK, inp, eos, suth, turb, 1);
         state_(ii, jg2, kg1) = state_(ii, jg2, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg2, kpF), surfK, inp, eos, suth, 1);
+            bc_K, this->FAreaUnitK(ii, jg2, kpF), wallDist_(ii, jg2, kp),
+            surfK, inp, eos, suth, turb, 1);
         state_(ii, jg1, kg2) = state_(ii, ji1, kg1).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg1, kpF), surfK, inp, eos, suth, 2);
+            bc_K, this->FAreaUnitK(ii, jg1, kpF), wallDist_(ii, ji1, kg1),
+            surfK, inp, eos, suth, turb, 2);
         state_(ii, jg2, kg2) = state_(ii, ji1, kg2).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg2, kpF), surfK, inp, eos, suth, 2);
+            bc_K, this->FAreaUnitK(ii, jg2, kpF), wallDist_(ii, ji1, kg2),
+            surfK, inp, eos, suth, turb, 2);
       } else {  // both surfaces or neither are walls - proceed as normal
         state_(ii, jg1, kg1) = 0.5 * (state_(ii, jp, kg1) +
                                       state_(ii, jg1, kp));
@@ -3350,23 +3316,31 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
       // i surface is a wall, but k surface is not - extend wall bc
       if (bc_I == "slipWall" && bc_K != "slipWall") {
         state_(ig1, jj, kg1) = state_(ip, jj, kg1).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg1), surfI, inp, eos, suth, 1);
+            bc_I, this->FAreaUnitI(ipF, jj, kg1), wallDist_(ip, jj, kg1),
+            surfI, inp, eos, suth, turb, 1);
         state_(ig1, jj, kg2) = state_(ip, jj, kg2).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg2), surfI, inp, eos, suth, 1);
+            bc_I, this->FAreaUnitI(ipF, jj, kg2), wallDist_(ip, jj, kg2),
+            surfI, inp, eos, suth, turb, 1);
         state_(ig2, jj, kg1) = state_(ig1, jj, ki1).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg1), surfI, inp, eos, suth, 2);
+            bc_I, this->FAreaUnitI(ipF, jj, kg1), wallDist_(ig1, jj, ki1),
+            surfI, inp, eos, suth, turb, 2);
         state_(ig2, jj, kg2) = state_(ig2, jj, ki1).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg2), surfI, inp, eos, suth, 2);
+            bc_I, this->FAreaUnitI(ipF, jj, kg2), wallDist_(ig2, jj, ki1),
+            surfI, inp, eos, suth, turb, 2);
         // k surface is a wall, but i surface is not - extend wall bc
       } else if (bc_I != "slipWall" && bc_K == "slipWall") {
         state_(ig1, jj, kg1) = state_(ig1, jj, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ig1, jj, kpF), surfK, inp, eos, suth, 1);
+            bc_K, this->FAreaUnitK(ig1, jj, kpF), wallDist_(ig1, jj, kp),
+            surfK, inp, eos, suth, turb, 1);
         state_(ig2, jj, kg1) = state_(ig2, jj, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ig2, jj, kpF), surfK, inp, eos, suth, 1);
+            bc_K, this->FAreaUnitK(ig2, jj, kpF), wallDist_(ig2, jj, kp),
+            surfK, inp, eos, suth, turb, 1);
         state_(ig1, jj, kg2) = state_(ii1, jj, kg1).GetGhostState(
-            bc_K, this->FAreaUnitK(ig1, jj, kpF), surfK, inp, eos, suth, 2);
+            bc_K, this->FAreaUnitK(ig1, jj, kpF), wallDist_(ii1, jj, kg1),
+            surfK, inp, eos, suth, turb, 2);
         state_(ig2, jj, kg2) = state_(ii1, jj, kg2).GetGhostState(
-            bc_K, this->FAreaUnitK(ig2, jj, kpF), surfK, inp, eos, suth, 2);
+            bc_K, this->FAreaUnitK(ig2, jj, kpF), wallDist_(ii1, jj, kg2),
+            surfK, inp, eos, suth, turb, 2);
       } else {  // both surfaces or neither are walls - proceed as normal
         state_(ig1, jj, kg1) = 0.5 * (state_(ip, jj, kg1) +
                                       state_(ig1, jj, kp));
@@ -3429,23 +3403,31 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
       // i surface is a wall, but j surface is not - extend wall bc
       if (bc_I == "slipWall" && bc_J != "slipWall") {
         state_(ig1, jg1, kk) = state_(ip, jg1, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg1, kk), surfI, inp, eos, suth, 1);
+            bc_I, this->FAreaUnitI(ipF, jg1, kk), wallDist_(ip, jg1, kk),
+            surfI, inp, eos, suth, turb, 1);
         state_(ig1, jg2, kk) = state_(ip, jg2, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg2, kk), surfI, inp, eos, suth, 1);
+            bc_I, this->FAreaUnitI(ipF, jg2, kk), wallDist_(ip, jg2, kk),
+            surfI, inp, eos, suth, turb, 1);
         state_(ig2, jg1, kk) = state_(ig1, ji1, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg1, kk), surfI, inp, eos, suth, 2);
+            bc_I, this->FAreaUnitI(ipF, jg1, kk), wallDist_(ig1, ji1, kk),
+            surfI, inp, eos, suth, turb, 2);
         state_(ig2, jg2, kk) = state_(ig2, ji1, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg2, kk), surfI, inp, eos, suth, 2);
+            bc_I, this->FAreaUnitI(ipF, jg2, kk), wallDist_(ig2, ji1, kk),
+            surfI, inp, eos, suth, turb, 2);
         // j surface is a wall, but i surface is not - extend wall bc
       } else if (bc_I != "slipWall" && bc_J == "slipWall") {
         state_(ig1, jg1, kk) = state_(ig1, jp, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig1, jpF, kk), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ig1, jpF, kk), wallDist_(ig1, jp, kk),
+            surfJ, inp, eos, suth, turb, 1);
         state_(ig2, jg1, kk) = state_(ig2, jp, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig2, jpF, kk), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ig2, jpF, kk), wallDist_(ig2, jp, kk),
+            surfJ, inp, eos, suth, turb, 1);
         state_(ig1, jg2, kk) = state_(ii1, jg1, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig1, jpF, kk), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ig1, jpF, kk), wallDist_(ii1, jg1, kk),
+            surfJ, inp, eos, suth, turb, 2);
         state_(ig2, jg2, kk) = state_(ii1, jg2, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig2, jpF, kk), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ig2, jpF, kk), wallDist_(ii1, jg2, kk),
+            surfJ, inp, eos, suth, turb, 2);
       } else {  // both surfaces or neither are walls - proceed as normal
         state_(ig1, jg1, kk) = 0.5 * (state_(ip, jg1, kk) +
                                       state_(ig1, jp, kk));
@@ -3464,10 +3446,12 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
  condition. It overwrites both regular and edge ghost cells.
 */
 void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
-                                        const sutherland &suth) {
+                                        const sutherland &suth,
+                                        const turbModel *turb) {
   // inp -- all input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
+  // turb -- turbulence model
 
   // loop over all boundary surfaces
   for (int ii = 0; ii < bc_.NumSurfaces(); ii++) {
@@ -3524,9 +3508,11 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
           fAreaI_.Slice(bnd, bnd, jmin, jmax, kmin, kmax);
       multiArray3d<primVars> boundaryStates =
           state_.Slice(i1, i1, jmin, jmax, kmin, kmax);
+      multiArray3d<double> wDist =
+          wallDist_.Slice(i1, i1, jmin, jmax, kmin, kmax);
       multiArray3d<primVars> ghostStates =
-          GetGhostStates(boundaryStates, bcName, faceAreas, surf, inp, eos,
-                         suth, 1);
+          GetGhostStates(boundaryStates, bcName, faceAreas, wDist, surf, inp,
+                         eos, suth, turb, 1);
 
       state_.Insert(g1, g1, jmin, jmax, kmin, kmax, ghostStates);
 
@@ -3536,8 +3522,8 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
         state_.Insert(g2, g2, jmin, jmax, kmin, kmax, ghostStates);
       } else {
         boundaryStates = state_.Slice(i2, i2, jmin, jmax, kmin, kmax);
-        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, surf,
-                                     inp, eos, suth, 2);
+        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
+                                     surf, inp, eos, suth, turb, 2);
 
         state_.Insert(g2, g2, jmin, jmax, kmin, kmax, ghostStates);
       }
@@ -3555,9 +3541,11 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
           fAreaJ_.Slice(imin, imax, bnd, bnd, kmin, kmax);
       multiArray3d<primVars> boundaryStates =
           state_.Slice(imin, imax, i1, i1, kmin, kmax);
+      multiArray3d<double> wDist =
+          wallDist_.Slice(imin, imax, i1, i1, kmin, kmax);
       multiArray3d<primVars> ghostStates =
-          GetGhostStates(boundaryStates, bcName, faceAreas, surf, inp, eos,
-                         suth, 1);
+          GetGhostStates(boundaryStates, bcName, faceAreas, wDist, surf, inp,
+                         eos, suth, turb, 1);
 
       // assign state for first layer of ghost cells
       state_.Insert(imin, imax, g1, g1, kmin, kmax, ghostStates);
@@ -3568,8 +3556,8 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
         state_.Insert(imin, imax, g2, g2, kmin, kmax, ghostStates);
       } else {
         boundaryStates = state_.Slice(imin, imax, i2, i2, kmin, kmax);
-        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, surf,
-                                     inp, eos, suth, 2);
+        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
+                                     surf, inp, eos, suth, turb, 2);
 
         state_.Insert(imin, imax, g2, g2, kmin, kmax, ghostStates);
       }
@@ -3587,9 +3575,11 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
           fAreaK_.Slice(imin, imax, jmin, jmax, bnd, bnd);
       multiArray3d<primVars> boundaryStates =
           state_.Slice(imin, imax, jmin, jmax, i1, i1);
+      multiArray3d<double> wDist =
+          wallDist_.Slice(imin, imax, jmin, jmax, i1, i1);
       multiArray3d<primVars> ghostStates =
-          GetGhostStates(boundaryStates, bcName, faceAreas, surf, inp, eos,
-                         suth, 1);
+          GetGhostStates(boundaryStates, bcName, faceAreas, wDist, surf, inp,
+                         eos, suth, turb, 1);
 
       // assign state for first layer of ghost cells
       state_.Insert(imin, imax, jmin, jmax, g1, g1, ghostStates);
@@ -3600,8 +3590,8 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
         state_.Insert(imin, imax, jmin, jmax, g2, g2, ghostStates);
       } else {
         boundaryStates = state_.Slice(imin, imax, jmin, jmax, i2, i2);
-        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, surf,
-                                     inp, eos, suth, 2);
+        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
+                                     surf, inp, eos, suth, turb, 2);
 
         state_.Insert(imin, imax, jmin, jmax, g2, g2, ghostStates);
       }
@@ -3609,7 +3599,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
   }
 
   // Assign edge ghost cells
-  this->AssignViscousGhostCellsEdge(inp, eos, suth);
+  this->AssignViscousGhostCellsEdge(inp, eos, suth, turb);
 }
 
 /* Member function to assign values to ghost cells located on the 12 block edges
@@ -3649,10 +3639,12 @@ implementation is described in Blazek.
 */
 void procBlock::AssignViscousGhostCellsEdge(const input &inp,
                                             const idealGas &eos,
-                                            const sutherland &suth) {
+                                            const sutherland &suth,
+                                            const turbModel *turb) {
   // inp -- all input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
+  // turb -- turbulence model
 
   // ------------------------------------------------------------------------
   // loop over 4 edges that run in i-direction
@@ -3698,23 +3690,31 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
       // j surface is a wall, but k surface is not - extend wall bc
       if (bc_J == "viscousWall" && bc_K != "viscousWall") {
         state_(ii, jg1, kg1) = state_(ii, jp, kg1).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg1), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ii, jpF, kg1), wallDist_(ii, jp, kg1),
+            surfJ, inp, eos, suth, turb, 1);
         state_(ii, jg1, kg2) = state_(ii, jp, kg2).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg2), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ii, jpF, kg2), wallDist_(ii, jp, kg2),
+            surfJ, inp, eos, suth, turb, 1);
         state_(ii, jg2, kg1) = state_(ii, jg1, ki1).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg1), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ii, jpF, kg1), wallDist_(ii, jg1, ki1),
+            surfJ, inp, eos, suth, turb, 2);
         state_(ii, jg2, kg2) = state_(ii, jg2, ki1).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg2), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ii, jpF, kg2), wallDist_(ii, jg2, ki1),
+            surfJ, inp, eos, suth, turb, 2);
         // k surface is a wall, but j surface is not - extend wall bc
       } else if (bc_J != "viscousWall" && bc_K == "viscousWall") {
         state_(ii, jg1, kg1) = state_(ii, jg1, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg1, kpF), surfK, inp, eos, suth, 1);
+            bc_K, this->FAreaUnitK(ii, jg1, kpF), wallDist_(ii, jg1, kp),
+            surfK, inp, eos, suth, turb, 1);
         state_(ii, jg2, kg1) = state_(ii, jg2, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg2, kpF), surfK, inp, eos, suth, 1);
+            bc_K, this->FAreaUnitK(ii, jg2, kpF), wallDist_(ii, jg2, kp),
+            surfK, inp, eos, suth, turb, 1);
         state_(ii, jg1, kg2) = state_(ii, ji1, kg1).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg1, kpF), surfK, inp, eos, suth, 2);
+            bc_K, this->FAreaUnitK(ii, jg1, kpF), wallDist_(ii, ji1, kg1),
+            surfK, inp, eos, suth, turb, 2);
         state_(ii, jg2, kg2) = state_(ii, ji1, kg2).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg2, kpF), surfK, inp, eos, suth, 2);
+            bc_K, this->FAreaUnitK(ii, jg2, kpF), wallDist_(ii, ji1, kg2),
+            surfK, inp, eos, suth, turb, 2);
       // both surfaces are walls - proceed as normal
       } else if (bc_J == "viscousWall" && bc_K == "viscousWall") {
         state_(ii, jg1, kg1) = 0.5 * (state_(ii, jp, kg1) +
@@ -3773,23 +3773,31 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
       // i surface is a wall, but k surface is not - extend wall bc
       if (bc_I == "viscousWall" && bc_K != "viscousWall") {
         state_(ig1, jj, kg1) = state_(ip, jj, kg1).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg1), surfI, inp, eos, suth, 1);
+            bc_I, this->FAreaUnitI(ipF, jj, kg1), wallDist_(ip, jj, kg1),
+            surfI, inp, eos, suth, turb, 1);
         state_(ig1, jj, kg2) = state_(ip, jj, kg2).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg2), surfI, inp, eos, suth, 1);
+            bc_I, this->FAreaUnitI(ipF, jj, kg2), wallDist_(ip, jj, kg2),
+            surfI, inp, eos, suth, turb, 1);
         state_(ig2, jj, kg1) = state_(ig1, jj, ki1).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg1), surfI, inp, eos, suth, 2);
+            bc_I, this->FAreaUnitI(ipF, jj, kg1), wallDist_(ig1, jj, ki1),
+            surfI, inp, eos, suth, turb, 2);
         state_(ig2, jj, kg2) = state_(ig2, jj, ki1).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg2), surfI, inp, eos, suth, 2);
+            bc_I, this->FAreaUnitI(ipF, jj, kg2), wallDist_(ig2, jj, ki1),
+            surfI, inp, eos, suth, turb, 2);
         // k surface is a wall, but i surface is not - extend wall bc
       } else if (bc_I != "viscousWall" && bc_K == "viscousWall") {
         state_(ig1, jj, kg1) = state_(ig1, jj, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ig1, jj, kpF), surfK, inp, eos, suth, 1);
+            bc_K, this->FAreaUnitK(ig1, jj, kpF), wallDist_(ig1, jj, kp),
+            surfK, inp, eos, suth, turb, 1);
         state_(ig2, jj, kg1) = state_(ig2, jj, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ig2, jj, kpF), surfK, inp, eos, suth, 1);
+            bc_K, this->FAreaUnitK(ig2, jj, kpF), wallDist_(ig2, jj, kp),
+            surfK, inp, eos, suth, turb, 1);
         state_(ig1, jj, kg2) = state_(ii1, jj, kg1).GetGhostState(
-            bc_K, this->FAreaUnitK(ig1, jj, kpF), surfK, inp, eos, suth, 2);
+            bc_K, this->FAreaUnitK(ig1, jj, kpF), wallDist_(ii1, jj, kg1),
+            surfK, inp, eos, suth, turb, 2);
         state_(ig2, jj, kg2) = state_(ii1, jj, kg2).GetGhostState(
-            bc_K, this->FAreaUnitK(ig2, jj, kpF), surfK, inp, eos, suth, 2);
+            bc_K, this->FAreaUnitK(ig2, jj, kpF), wallDist_(ii1, jj, kg2),
+            surfK, inp, eos, suth, turb, 2);
       // both surfaces are walls - proceed as normal
       } else if (bc_I == "viscousWall" && bc_K == "viscousWall") {
         state_(ig1, jj, kg1) = 0.5 * (state_(ip, jj, kg1) +
@@ -3848,23 +3856,31 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
       // i surface is a wall, but j surface is not - extend wall bc
       if (bc_I == "viscousWall" && bc_J != "viscousWall") {
         state_(ig1, jg1, kk) = state_(ip, jg1, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg1, kk), surfI, inp, eos, suth, 1);
+            bc_I, this->FAreaUnitI(ipF, jg1, kk), wallDist_(ip, jg1, kk),
+            surfI, inp, eos, suth, turb, 1);
         state_(ig1, jg2, kk) = state_(ip, jg2, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg2, kk), surfI, inp, eos, suth, 1);
+            bc_I, this->FAreaUnitI(ipF, jg2, kk), wallDist_(ip, jg2, kk),
+            surfI, inp, eos, suth, turb, 1);
         state_(ig2, jg1, kk) = state_(ig1, ji1, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg1, kk), surfI, inp, eos, suth, 2);
+            bc_I, this->FAreaUnitI(ipF, jg1, kk), wallDist_(ig1, ji1, kk),
+            surfI, inp, eos, suth, turb, 2);
         state_(ig2, jg2, kk) = state_(ig2, ji1, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg2, kk), surfI, inp, eos, suth, 2);
+            bc_I, this->FAreaUnitI(ipF, jg2, kk), wallDist_(ig2, ji1, kk),
+            surfI, inp, eos, suth, turb, 2);
         // j surface is a wall, but i surface is not - extend wall bc
       } else if (bc_I != "viscousWall" && bc_J == "viscousWall") {
         state_(ig1, jg1, kk) = state_(ig1, jp, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig1, jpF, kk), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ig1, jpF, kk), wallDist_(ig1, jp, kk),
+            surfJ, inp, eos, suth, turb, 1);
         state_(ig2, jg1, kk) = state_(ig2, jp, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig2, jpF, kk), surfJ, inp, eos, suth, 1);
+            bc_J, this->FAreaUnitJ(ig2, jpF, kk), wallDist_(ig2, jp, kk),
+            surfJ, inp, eos, suth, turb, 1);
         state_(ig1, jg2, kk) = state_(ii1, jg1, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig1, jpF, kk), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ig1, jpF, kk), wallDist_(ii1, jg1, kk),
+            surfJ, inp, eos, suth, turb, 2);
         state_(ig2, jg2, kk) = state_(ii1, jg2, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig2, jpF, kk), surfJ, inp, eos, suth, 2);
+            bc_J, this->FAreaUnitJ(ig2, jpF, kk), wallDist_(ii1, jg2, kk),
+            surfJ, inp, eos, suth, turb, 2);
       // both surfaces are walls - proceed as normal
       } else if (bc_I == "viscousWall" && bc_J == "viscousWall") {
         state_(ig1, jg1, kk) = 0.5 * (state_(ip, jg1, kk) +
@@ -4480,6 +4496,7 @@ boundaries to pass the correct data between grid blocks.
 */
 void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
                            const idealGas &eos, const sutherland &suth,
+                           const turbModel *turb,
                            vector<interblock> &connections, const int &rank,
                            const MPI_Datatype &MPI_cellData) {
   // states -- vector of all procBlocks in the solution domain
@@ -4490,7 +4507,7 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
 
   // loop over all blocks and assign inviscid ghost cells
   for (unsigned int ii = 0; ii < states.size(); ii++) {
-    states[ii].AssignInviscidGhostCells(inp, eos, suth);
+    states[ii].AssignInviscidGhostCells(inp, eos, suth, turb);
   }
 
   // loop over connections and swap ghost cells where needed
@@ -4519,7 +4536,7 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
 
   // loop over all blocks and get ghost cell edge data
   for (unsigned int ii = 0; ii < states.size(); ii++) {
-    states[ii].AssignInviscidGhostCellsEdge(inp, eos, suth);
+    states[ii].AssignInviscidGhostCellsEdge(inp, eos, suth, turb);
   }
 }
 
@@ -5650,10 +5667,11 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
   fCenterK_.ClearResize(ig, jg, kg + 1);
   fAreaK_.ClearResize(ig, jg, kg + 1);
 
+  wallDist_.ClearResize(ig, jg, kg, DEFAULTWALLDIST);
+
   residual_.ClearResize(numI, numJ, numK);
   avgWaveSpeed_.ClearResize(numI, numJ, numK);
   dt_.ClearResize(numI, numJ, numK);
-  wallDist_.ClearResize(numI, numJ, numK, DEFAULTWALLDIST);
 }
 
 /*Member function to receive and unpack procBlock state data. This is used to
@@ -5801,13 +5819,14 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                      vol_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
     blk1.center_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
                         center_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
+    blk1.wallDist_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
+                          wallDist_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
+
     // assign cell variables without ghost cells
     blk1.avgWaveSpeed_.Insert(0, iMax1, 0, jMax, 0, kMax,
                               avgWaveSpeed_.Slice(0, iMax1, 0, jMax, 0, kMax));
     blk1.dt_.Insert(0, iMax1, 0, jMax, 0, kMax,
                     dt_.Slice(0, iMax1, 0, jMax, 0, kMax));
-    blk1.wallDist_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                          wallDist_.Slice(0, iMax1, 0, jMax, 0, kMax));
     blk1.residual_.Insert(0, iMax1, 0, jMax, 0, kMax,
                           residual_.Slice(0, iMax1, 0, jMax, 0, kMax));
 
@@ -5835,14 +5854,16 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                        vol_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
     blk2.center_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
                        center_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
+    blk2.wallDist_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
+                          wallDist_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0,
+                                          kMaxG));
+
     // assign cell variables without ghost cells
     blk2.avgWaveSpeed_.Insert(0, iMax2, 0, jMax, 0, kMax,
                               avgWaveSpeed_.Slice(iMinP2, iMaxP2, 0, jMax, 0,
                                                   kMax));
     blk2.dt_.Insert(0, iMax2, 0, jMax, 0, kMax,
                     dt_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
-    blk2.wallDist_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                          wallDist_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
     blk2.residual_.Insert(0, iMax2, 0, jMax, 0, kMax,
                           residual_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
     // assign face variables
@@ -5910,13 +5931,14 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                      vol_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
     blk1.center_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
                         center_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
+    blk1.wallDist_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
+                          wallDist_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
+
     // assign cell variables without ghost cells
     blk1.avgWaveSpeed_.Insert(0, iMax, 0, jMax1, 0, kMax,
                               avgWaveSpeed_.Slice(0, iMax, 0, jMax1, 0, kMax));
     blk1.dt_.Insert(0, iMax, 0, jMax1, 0, kMax,
                     dt_.Slice(0, iMax, 0, jMax1, 0, kMax));
-    blk1.wallDist_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                          wallDist_.Slice(0, iMax, 0, jMax1, 0, kMax));
     blk1.residual_.Insert(0, iMax, 0, jMax1, 0, kMax,
                           residual_.Slice(0, iMax, 0, jMax1, 0, kMax));
 
@@ -5944,14 +5966,15 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                        vol_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0, kMaxG));
     blk2.center_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
                        center_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0, kMaxG));
+    blk2.wallDist_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
+                          wallDist_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0, kMaxG));
+
     // assign cell variables without ghost cells
     blk2.avgWaveSpeed_.Insert(0, iMax, 0, jMax2, 0, kMax,
                               avgWaveSpeed_.Slice(0, iMax, jMinP2, jMaxP2, 0,
                                                   kMax));
     blk2.dt_.Insert(0, iMax, 0, jMax2, 0, kMax,
                     dt_.Slice(0, iMax, jMinP2, jMaxP2, 0, kMax));
-    blk2.wallDist_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                          wallDist_.Slice(0, iMax, jMinP2, jMaxP2, 0, kMax));
     blk2.residual_.Insert(0, iMax, 0, jMax2, 0, kMax,
                           residual_.Slice(0, iMax, jMinP2, jMaxP2, 0, kMax));
     // assign face variables
@@ -6019,13 +6042,14 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                      vol_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
     blk1.center_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
                         center_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
+    blk1.wallDist_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
+                          wallDist_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
+
     // assign cell variables without ghost cells
     blk1.avgWaveSpeed_.Insert(0, iMax, 0, jMax, 0, kMax1,
                               avgWaveSpeed_.Slice(0, iMax, 0, jMax, 0, kMax1));
     blk1.dt_.Insert(0, iMax, 0, jMax, 0, kMax1,
                     dt_.Slice(0, iMax, 0, jMax, 0, kMax1));
-    blk1.wallDist_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                          wallDist_.Slice(0, iMax, 0, jMax, 0, kMax1));
     blk1.residual_.Insert(0, iMax, 0, jMax, 0, kMax1,
                           residual_.Slice(0, iMax, 0, jMax, 0, kMax1));
 
@@ -6053,14 +6077,16 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                        vol_.Slice(0, iMaxG, 0, jMaxG, kMinPG2, kMaxPG2));
     blk2.center_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
                        center_.Slice(0, iMaxG, 0, jMaxG, kMinPG2, kMaxPG2));
+    blk2.wallDist_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
+                          wallDist_.Slice(0, iMaxG, 0, jMaxG, kMinPG2,
+                                          kMaxPG2));
+
     // assign cell variables without ghost cells
     blk2.avgWaveSpeed_.Insert(0, iMax, 0, jMax, 0, kMax2,
                               avgWaveSpeed_.Slice(0, iMax, 0, jMax, kMinP2,
                                                   kMaxP2));
     blk2.dt_.Insert(0, iMax, 0, jMax, 0, kMax2,
                     dt_.Slice(0, iMax, 0, jMax, kMinP2, kMaxP2));
-    blk2.wallDist_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                          wallDist_.Slice(0, iMax, 0, jMax, kMinP2, kMaxP2));
     blk2.residual_.Insert(0, iMax, 0, jMax, 0, kMax2,
                           residual_.Slice(0, iMax, 0, jMax, kMinP2, kMaxP2));
     // assign face variables
@@ -6137,14 +6163,15 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                        vol_.Slice(0, iMaxLG, 0, jMaxG, 0, kMaxG));
     newBlk.center_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG,
                           center_.Slice(0, iMaxLG, 0, jMaxG, 0, kMaxG));
+    newBlk.wallDist_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG,
+                            wallDist_.Slice(0, iMaxLG, 0, jMaxG, 0, kMaxG));
+
     // assign cell variables without ghost cells
     newBlk.avgWaveSpeed_.Insert(0, iMaxL, 0, jMax, 0, kMax,
                                 avgWaveSpeed_.Slice(0, iMaxL, 0, jMax, 0,
                                                     kMax));
     newBlk.dt_.Insert(0, iMaxL, 0, jMax, 0, kMax,
                       dt_.Slice(0, iMaxL, 0, jMax, 0, kMax));
-    newBlk.wallDist_.Insert(0, iMaxL, 0, jMax, 0, kMax,
-                            wallDist_.Slice(0, iMaxL, 0, jMax, 0, kMax));
     newBlk.residual_.Insert(0, iMaxL, 0, jMax, 0, kMax,
                             residual_.Slice(0, iMaxL, 0, jMax, 0, kMax));
 
@@ -6172,14 +6199,16 @@ void procBlock::Join(const procBlock &blk, const string &dir,
     newBlk.center_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG, 0, kMaxG,
                           blk.center_.Slice(iMinUG, iMaxUG, 0, jMaxG, 0,
                                             kMaxG));
+    newBlk.wallDist_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG, 0, kMaxG,
+                            blk.wallDist_.Slice(iMinUG, iMaxUG, 0, jMaxG, 0,
+                                                kMaxG));
+
     // assign cell variables without ghost cells
     newBlk.avgWaveSpeed_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
                                 blk.avgWaveSpeed_.Slice(0, iMaxU, 0, jMax, 0,
                                                     kMax));
     newBlk.dt_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
                       blk.dt_.Slice(0, iMaxU, 0, jMax, 0, kMax));
-    newBlk.wallDist_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
-                            blk.wallDist_.Slice(0, iMaxU, 0, jMax, 0, kMax));
     newBlk.residual_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
                             blk.residual_.Slice(0, iMaxU, 0, jMax, 0, kMax));
 
@@ -6236,14 +6265,15 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                        vol_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG));
     newBlk.center_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG,
                           center_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG));
+    newBlk.wallDist_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG,
+                            wallDist_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG));
+
     // assign cell variables without ghost cells
     newBlk.avgWaveSpeed_.Insert(0, iMax, 0, jMaxL, 0, kMax,
                                 avgWaveSpeed_.Slice(0, iMax, 0, jMaxL, 0,
                                                     kMax));
     newBlk.dt_.Insert(0, iMax, 0, jMaxL, 0, kMax,
                       dt_.Slice(0, iMax, 0, jMaxL, 0, kMax));
-    newBlk.wallDist_.Insert(0, iMax, 0, jMaxL, 0, kMax,
-                            wallDist_.Slice(0, iMax, 0, jMaxL, 0, kMax));
     newBlk.residual_.Insert(0, iMax, 0, jMaxL, 0, kMax,
                             residual_.Slice(0, iMax, 0, jMaxL, 0, kMax));
 
@@ -6271,14 +6301,16 @@ void procBlock::Join(const procBlock &blk, const string &dir,
     newBlk.center_.Insert(0, iMaxG, jMaxLG + 1, jMaxG, 0, kMaxG,
                           blk.center_.Slice(0, iMaxG, jMinUG, jMaxUG, 0,
                                             kMaxG));
+    newBlk.wallDist_.Insert(0, iMaxG, jMaxLG + 1, jMaxG, 0, kMaxG,
+                            blk.wallDist_.Slice(0, iMaxG, jMinUG, jMaxUG, 0,
+                                                kMaxG));
+
     // assign cell variables without ghost cells
     newBlk.avgWaveSpeed_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
                                 blk.avgWaveSpeed_.Slice(0, iMax, 0, jMaxU, 0,
                                                     kMax));
     newBlk.dt_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
                       blk.dt_.Slice(0, iMax, 0, jMaxU, 0, kMax));
-    newBlk.wallDist_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
-                            blk.wallDist_.Slice(0, iMax, 0, jMaxU, 0, kMax));
     newBlk.residual_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
                             blk.residual_.Slice(0, iMax, 0, jMaxU, 0, kMax));
 
@@ -6335,14 +6367,15 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                        vol_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxLG));
     newBlk.center_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG,
                           center_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxLG));
+    newBlk.wallDist_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG,
+                            wallDist_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxLG));
+
     // assign cell variables without ghost cells
     newBlk.avgWaveSpeed_.Insert(0, iMax, 0, jMax, 0, kMaxL,
                                 avgWaveSpeed_.Slice(0, iMax, 0, jMax, 0,
                                                     kMaxL));
     newBlk.dt_.Insert(0, iMax, 0, jMax, 0, kMaxL,
                       dt_.Slice(0, iMax, 0, jMax, 0, kMaxL));
-    newBlk.wallDist_.Insert(0, iMax, 0, jMax, 0, kMaxL,
-                            wallDist_.Slice(0, iMax, 0, jMax, 0, kMaxL));
     newBlk.residual_.Insert(0, iMax, 0, jMax, 0, kMaxL,
                             residual_.Slice(0, iMax, 0, jMax, 0, kMaxL));
 
@@ -6370,14 +6403,16 @@ void procBlock::Join(const procBlock &blk, const string &dir,
     newBlk.center_.Insert(0, iMaxG, 0, jMaxG, kMaxLG + 1, kMaxG,
                           blk.center_.Slice(0, iMaxG, 0, jMaxG, kMinUG,
                                             kMaxUG));
+    newBlk.wallDist_.Insert(0, iMaxG, 0, jMaxG, kMaxLG + 1, kMaxG,
+                            blk.wallDist_.Slice(0, iMaxG, 0, jMaxG, kMinUG,
+                                                kMaxUG));
+
     // assign cell variables without ghost cells
     newBlk.avgWaveSpeed_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
                                 blk.avgWaveSpeed_.Slice(0, iMax, 0, jMax, 0,
                                                     kMaxU));
     newBlk.dt_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
                       blk.dt_.Slice(0, iMax, 0, jMax, 0, kMaxU));
-    newBlk.wallDist_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
-                            blk.wallDist_.Slice(0, iMax, 0, jMax, 0, kMaxU));
     newBlk.residual_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
                             blk.residual_.Slice(0, iMax, 0, jMax, 0, kMaxU));
 
@@ -6789,9 +6824,10 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
 
 // Member function to calculate the source terms and add them to the residual
 void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
-                             const turbModel *turb) {
+                             const idealGas &eos, const turbModel *turb) {
   // grads -- gradients (vel, temp, tke, omega)
   // suth -- sutherland's law for viscosity
+  // eos -- equation of state
   // turb -- turbulence model
 
   // loop over all physical cells - no ghost cells needed for source terms
@@ -6803,8 +6839,8 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
                this->NumI(); ii.g++, ii.p++) {
         // calculate turbulent source terms
         source src;
-        src.CalcTurbSrc(turb, state_(ii.g, jj.g, kk.g), grads, suth,
-                        ii.p, jj.p, kk.p);
+        src.CalcTurbSrc(turb, state_(ii.g, jj.g, kk.g), grads, suth, eos,
+                        wallDist_(ii.g, jj.g, kk.g), ii.p, jj.p, kk.p);
 
         // add source terms to residual
         // multiply by -1 because residual is initially on opposite
@@ -6816,6 +6852,7 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
   }
 }
 
+// function to get face centers of cells on viscous walls
 vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &blks) {
   // blks -- vector of all procBlocks in simulation
 
@@ -6887,15 +6924,12 @@ vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &blks) {
 // all cell centers
 void procBlock::CalcWallDistance(const kdtree &tree) {
   vector3d<double> neighbor;
-  // loop over cells
-  for (struct {int p; int g;} kk = {0, numGhosts_}; kk.p <
-           this->NumK(); kk.g++, kk.p++) {
-    for (struct {int p; int g;} jj = {0, numGhosts_}; jj.p <
-             this->NumJ(); jj.g++, jj.p++) {
-      for (struct {int p; int g;} ii = {0, numGhosts_}; ii.p <
-               this->NumI(); ii.g++, ii.p++) {
-        wallDist_(ii.p, jj.p, kk.p) =
-            tree.NearestNeighbor(center_(ii.g, jj.g, kk.g), neighbor);
+  // loop over cells, including ghosts
+  for (int kk = 0; kk < wallDist_.NumK(); kk++) {
+    for (int jj = 0; jj < wallDist_.NumJ(); jj++) {
+      for (int ii = 0; ii < wallDist_.NumI(); ii++) {
+        wallDist_(ii, jj, kk) =
+            tree.NearestNeighbor(center_(ii, jj, kk), neighbor);
       }
     }
   }

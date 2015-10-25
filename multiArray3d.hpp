@@ -43,16 +43,7 @@ class multiArray3d {
 
   // private member functions
   int GetLoc1D(const int &ii, const int &jj, const int &kk) const {
-    // DEBUG
-    // if (ii < numI_ && jj < numJ_ && kk < numK_) {
     return ii + jj * numI_ + kk * numI_ * numJ_;
-    // } else {
-    //   cerr << "ERROR: Tried to access location outside of bounds of "
-    //        << "multiArray3d" << endl;
-    //   cerr << "Tried to access " << ii << ", " << jj << ", " << kk << endl;
-    //   cerr << "Maximum locations are " << numI_ - 1 << ", " << numJ_ - 1 << ", "
-    //        << numK_ - 1 << endl;
-    // }
   }
 
  public:
@@ -90,10 +81,8 @@ class multiArray3d {
     return data_[ind];
   }
 
-  // DEBUG
   T GetElem(const int &ii, const int &jj, const int &kk) const;
 
-  
   multiArray3d<T> operator*(const T&) const;
   multiArray3d<T> operator/(const T&) const;
   multiArray3d<T> operator+(const T&) const;
@@ -147,19 +136,19 @@ class multiArray3d {
   ~multiArray3d() {}
 };
 
-
-
-// DEBUG
 template <typename T>
 T multiArray3d<T>::GetElem(const int &ii, const int &jj, const int &kk) const {
+  if (ii < numI_ && jj < numJ_ && kk < numK_ && ii >= 0 && jj >= 0 && kk >= 0) {
     return data_[this->GetLoc1D(ii, jj, kk)];
+  } else {
+    cerr << "ERROR: Tried to access location outside of bounds of "
+         << "multiArray3d" << endl;
+    cerr << "Tried to access " << ii << ", " << jj << ", " << kk << endl;
+    cerr << "Maximum locations are " << numI_ - 1 << ", " << numJ_ - 1 << ", "
+         << numK_ - 1 << endl;
+    exit(0);
+  }
 }
-
-
-
-
-
-
 
 // constructor - default initialization
 template <typename T>

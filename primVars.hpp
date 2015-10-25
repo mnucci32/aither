@@ -48,6 +48,7 @@ using std::ostream;
 
 // forward class declarations
 class input;
+class turbModel;
 
 class primVars {
   double data_[NUMVARS];  // primative variables at cell center
@@ -64,7 +65,7 @@ class primVars {
   primVars(const double &a, const double &b, const double &c, const double &d,
            const double &e, const double &f, const double &g)
       : data_{a, b, c, d, e, f, g} {}
-  primVars(const genArray &, const bool &, const idealGas &);
+  primVars(const genArray &, const bool &, const idealGas &, const turbModel *);
 
   // member functions
   double Rho() const { return data_[0]; }
@@ -87,7 +88,8 @@ class primVars {
   inline double SoS(const idealGas &) const;
 
   inline genArray ConsVars(const idealGas &) const;
-  primVars UpdateWithConsVars(const idealGas &, const genArray &) const;
+  primVars UpdateWithConsVars(const idealGas &, const genArray &,
+                              const turbModel *) const;
 
   void ApplyFarfieldTurbBC(const vector3d<double> &, const double &,
                            const double &, const sutherland &,
@@ -130,8 +132,9 @@ class primVars {
 
   // member function to return the state of the appropriate ghost cell
   primVars GetGhostState(const string &, const vector3d<double> &,
-                         const string &, const input &, const idealGas &,
-                         const sutherland &, const int = 1) const;
+                         const double &, const string &, const input &,
+                         const idealGas &, const sutherland &,
+                         const turbModel *, const int = 1) const;
 
   // destructor
   ~primVars() {}
@@ -140,8 +143,9 @@ class primVars {
 // function definitions
 multiArray3d<primVars> GetGhostStates(
     const multiArray3d<primVars> &, const string &,
-    const multiArray3d<unitVec3dMag<double> > &, const string &, const input &,
-    const idealGas &, const sutherland &, const int = 1);
+    const multiArray3d<unitVec3dMag<double>> &, const multiArray3d<double> &,
+    const string &, const input &, const idealGas &, const sutherland &,
+    const turbModel *, const int = 1);
 
 // member function to calculate temperature from conserved variables and
 // equation of state

@@ -349,7 +349,7 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
   // Block number of bc, rank of block, local position on processor
   // (different from rankParPos because it holds block number instead
   // of parent block number)
-  vector<vector3d<int> > numRankPos;
+  vector<vector3d<int>> numRankPos;
   vector<int> surfaceNums;  // surface number of interblock
 
   for (unsigned int ii = 0; ii < bc.size(); ii++) {  // loop over all blocks

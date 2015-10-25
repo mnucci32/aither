@@ -20,6 +20,7 @@
 #include "eos.hpp"
 #include "primVars.hpp"
 #include "matrix.hpp"
+#include "turbulence.hpp"
 
 using std::cout;
 using std::endl;
@@ -47,9 +48,17 @@ H -- enthalpy
 velx, vely, velz -- velocity components
 areax, areay, areaz -- area components
 
+Constructor is put in a private member function because identical code is
+used for constructing from primative variables and conservative variables
+once the conservative variables have been changed to primative variables.
+The C++11 way of delegating constructors is not used because the primVars
+class is not fully defined in the inviscidFlux.hpp header. This way both
+constructors (primVars version and genArray version) can call this function
+to avoid code duplication.
 */
-inviscidFlux::inviscidFlux(const primVars &state, const idealGas &eqnState,
-                           const vector3d<double> &normArea) {
+void inviscidFlux::ConstructFromPrim(const primVars &state,
+                                     const idealGas &eqnState,
+                                     const vector3d<double> &normArea) {
   // state -- primative variables
   // eqnState -- equation of state
   // normArea -- unit area vector of face
@@ -69,30 +78,29 @@ inviscidFlux::inviscidFlux(const primVars &state, const idealGas &eqnState,
   data_[6] = state.Rho() * vel.DotProd(normArea) * state.Omega();
 }
 
-// constructor -- initialize flux from state vector using conservative variables
-// flux is a 3D flux in the normal direction of the given face
-inviscidFlux::inviscidFlux(const genArray &cons, const idealGas &eqnState,
+inviscidFlux::inviscidFlux(const primVars &state, const idealGas &eqnState,
                            const vector3d<double> &normArea) {
-  // cons -- genArray of conserved variables
+  // state -- primative variables
   // eqnState -- equation of state
   // normArea -- unit area vector of face
 
+  this->ConstructFromPrim(state, eqnState, normArea);
+}
+
+// constructor -- initialize flux from state vector using conservative variables
+// flux is a 3D flux in the normal direction of the given face
+inviscidFlux::inviscidFlux(const genArray &cons, const idealGas &eqnState,
+                           const turbModel *turb,
+                           const vector3d<double> &normArea) {
+  // cons -- genArray of conserved variables
+  // eqnState -- equation of state
+  // turb -- turbulence model
+  // normArea -- unit area vector of face
+
   // convert conserved variables to primative variables
-  primVars state(cons, false, eqnState);
+  primVars state(cons, false, eqnState, turb);
 
-  vector3d<double> vel = state.Velocity();
-
-  data_[0] = state.Rho() * vel.DotProd(normArea);
-  data_[1] =
-      state.Rho() * vel.DotProd(normArea) * vel.X() + state.P() * normArea.X();
-  data_[2] =
-      state.Rho() * vel.DotProd(normArea) * vel.Y() + state.P() * normArea.Y();
-  data_[3] =
-      state.Rho() * vel.DotProd(normArea) * vel.Z() + state.P() * normArea.Z();
-  data_[4] = state.Rho() * vel.DotProd(normArea) * state.Enthalpy(eqnState);
-
-  data_[5] = state.Rho() * vel.DotProd(normArea) * state.Tke();
-  data_[6] = state.Rho() * vel.DotProd(normArea) * state.Omega();
+  this->ConstructFromPrim(state, eqnState, normArea);
 }
 
 /* Function to calculate inviscid flux using Roe's approximate Riemann solver.
@@ -949,13 +957,14 @@ genArray inviscidFlux::ConvertToGenArray() const {
 // vector, and conservative variable update and calculate the change in the
 // convective flux
 genArray ConvectiveFluxUpdate(const primVars &state, const idealGas &eqnState,
+                              const turbModel *turb,
                               const vector3d<double> &normArea,
                               const genArray &du) {
   // get inviscid flux of old state
   inviscidFlux oldFlux(state, eqnState, normArea);
 
   // get updated state in primative variables
-  primVars stateUpdate = state.UpdateWithConsVars(eqnState, du);
+  primVars stateUpdate = state.UpdateWithConsVars(eqnState, du, turb);
 
   // get updated inviscid flux
   inviscidFlux newFlux(stateUpdate, eqnState, normArea);

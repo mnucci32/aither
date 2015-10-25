@@ -1,6 +1,6 @@
 OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o procBlock.o output.o matrix.o parallel.o slices.o turbulence.o gradients.o inviscidFlux.o viscousFlux.o source.o resid.o kdtree.o
 CC = mpic++
-DEBUG = -ggdb -pg 
+DEBUG = -ggdb -pg
 OPTIM = -O3 -march=native
 PROF = -O3 -march=native -pg
 CODENAME = main
@@ -25,7 +25,7 @@ primVars.o : primVars.cpp primVars.hpp vector3d.hpp eos.hpp inviscidFlux.hpp bou
 procBlock.o : procBlock.cpp procBlock.hpp vector3d.hpp plot3d.hpp eos.hpp primVars.hpp inviscidFlux.hpp input.hpp matrix.hpp viscousFlux.hpp boundaryConditions.hpp macros.hpp turbulence.hpp kdtree.hpp
 	$(CC) $(CFLAGS) procBlock.cpp
 
-inviscidFlux.o : inviscidFlux.cpp vector3d.hpp eos.hpp primVars.hpp inviscidFlux.hpp input.hpp macros.hpp matrix.hpp
+inviscidFlux.o : inviscidFlux.cpp vector3d.hpp eos.hpp primVars.hpp inviscidFlux.hpp input.hpp macros.hpp matrix.hpp turbulence.hpp
 	$(CC) $(CFLAGS) inviscidFlux.cpp
 
 boundaryConditions.o : boundaryConditions.cpp boundaryConditions.hpp plot3d.hpp vector3d.hpp

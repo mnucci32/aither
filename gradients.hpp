@@ -39,24 +39,24 @@ class idealGas;
 
 class gradients {
   // velocity gradients at cell faces
-  multiArray3d<tensor<double> > velocityI_;
-  multiArray3d<tensor<double> > velocityJ_;
-  multiArray3d<tensor<double> > velocityK_;
+  multiArray3d<tensor<double>> velocityI_;
+  multiArray3d<tensor<double>> velocityJ_;
+  multiArray3d<tensor<double>> velocityK_;
 
   // temperature gradients at cell faces
-  multiArray3d<vector3d<double> > temperatureI_;
-  multiArray3d<vector3d<double> > temperatureJ_;
-  multiArray3d<vector3d<double> > temperatureK_;
+  multiArray3d<vector3d<double>> temperatureI_;
+  multiArray3d<vector3d<double>> temperatureJ_;
+  multiArray3d<vector3d<double>> temperatureK_;
 
   // tke gradients at cell faces
-  multiArray3d<vector3d<double> > tkeI_;
-  multiArray3d<vector3d<double> > tkeJ_;
-  multiArray3d<vector3d<double> > tkeK_;
+  multiArray3d<vector3d<double>> tkeI_;
+  multiArray3d<vector3d<double>> tkeJ_;
+  multiArray3d<vector3d<double>> tkeK_;
 
   // omega gradients at cell faces
-  multiArray3d<vector3d<double> > omegaI_;
-  multiArray3d<vector3d<double> > omegaJ_;
-  multiArray3d<vector3d<double> > omegaK_;
+  multiArray3d<vector3d<double>> omegaI_;
+  multiArray3d<vector3d<double>> omegaJ_;
+  multiArray3d<vector3d<double>> omegaK_;
 
  public:
   // constructors

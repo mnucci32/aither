@@ -48,11 +48,10 @@ class viscousFlux {
  public:
   // constructors
   viscousFlux() : data_{0.0} {}
-  viscousFlux(const tensor<double>&, const vector3d<double>&, const double&,
-              const double&, const sutherland&, const idealGas&,
+  viscousFlux(const tensor<double>&, const sutherland&, const idealGas&,
               const vector3d<double>&, const vector3d<double>&,
               const vector3d<double>&, const vector3d<double>&,
-              const turbModel*, const primVars&);
+              const turbModel*, const primVars&, const double&);
 
   // member functions
   double MomX() const { return data_[0]; }
