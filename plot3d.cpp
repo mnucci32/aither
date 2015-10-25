@@ -527,15 +527,13 @@ vector<vector3d<int>> HyperplaneReorder(const int &imax, const int &jmax,
   vector<vector3d<int>> reorder;
   reorder.reserve(imax * jmax * kmax);
 
-  int count = 0;
   for (int pp = 0; pp < numPlanes; pp++) {
     for (int kk = 0; kk < kmax; kk++) {
       for (int jj = 0; jj < jmax; jj++) {
         for (int ii = 0; ii < imax; ii++) {
           if (ii + jj + kk == pp) {  // if sum of ii, jj, and kk equals pp than
                                      // point is on hyperplane pp
-            reorder[count] = vector3d<int>(ii, jj, kk);
-            count++;
+            reorder.push_back(vector3d<int>(ii, jj, kk));
           }
         }
       }

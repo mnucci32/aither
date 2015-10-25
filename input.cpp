@@ -36,7 +36,7 @@ using std::istream_iterator;
 
 // constructor for input class
 // initialize vector to have length of number of acceptable inputs to the code
-input::input() : vars_(35) {
+input::input(const string &name) : simName_(name), vars_(35) {
   // default values for each variable
   gName_ = "";
   dt_ = -1.0;
@@ -130,20 +130,20 @@ input::input() : vars_(35) {
 // function to trim leading and trailing whitespace from a string, and also
 // remove data after a comment
 string trim(const string &s, const string &whitespace = " \t") {
-  const string comment = "#";  //# is comment character for input file
+  const string comment = "#";  // # is comment character for input file
 
   if (s.empty()) {
     return "";  // string is empty
   } else {
-    const unsigned int sBegin = s.find_first_not_of(
-        whitespace);  // find index of first non whitespace character
-    const int sEnd = s.find_last_not_of(
-        whitespace);  // find index of last non whitespace character
+    // find index of first non whitespace character
+    const unsigned int sBegin = s.find_first_not_of(whitespace);
+    // find index of last non whitespace character
+    const int sEnd = s.find_last_not_of(whitespace);
     const int sRange = sEnd - sBegin + 1;  // range to trim string to
     string temp = s.substr(sBegin, sRange);
 
-    const int tempComment =
-        temp.find(comment);  // find index of first comment character
+    // find index of first comment character
+    const int tempComment = temp.find(comment);
     const int tempRange = tempComment - 0;  // find range of string to return
 
     return temp.substr(0, tempRange);
@@ -167,8 +167,7 @@ void PrintTime() {
 // function to read the input file and return the data as a member of the input
 // class
 // read the input file
-void input::ReadInput(const string &inputName, const int &rank) {
-  // inputName -- name of input file
+void input::ReadInput(const int &rank) {
   // rank -- rank of processor
 
   if (rank == ROOTP) {
@@ -176,15 +175,15 @@ void input::ReadInput(const string &inputName, const int &rank) {
             "#########################################################" << endl;
     PrintTime();
     cout << endl;
-    cout << "Parsing input file " << inputName << endl << endl;
+    cout << "Parsing input file " << simName_ << endl << endl;
     cout << "Solver Inputs" << endl;
   }
 
   // open input file
   ifstream inFile;
-  inFile.open(inputName.c_str(), ios::in);
+  inFile.open(simName_.c_str(), ios::in);
   if (inFile.fail()) {
-    cerr << "ERROR: Error in input::ReadInput(). Input file " << inputName
+    cerr << "ERROR: Error in input::ReadInput(). Input file " << simName_
          << " did not open correctly!!!" << endl;
     exit(0);
   }
@@ -202,8 +201,8 @@ void input::ReadInput(const string &inputName, const int &rank) {
   while (getline(inFile, line)) {  // while there are still lines in the input
                                    // file, execute loop
 
-    line = trim(
-        line);  // remove leading and trailing whitespace and ignore comments
+    // remove leading and trailing whitespace and ignore comments
+    line = trim(line);
 
     // split line into words
     istringstream buf(line);
@@ -610,10 +609,18 @@ turbModel* input::AssignTurbulenceModel() const {
     turb = new turbNone;
   } else if (turbModel_ == "kOmegaWilcox2006") {
     turb = new turbKWWilcox;
+  } else if (turbModel_ == "sst2003") {
+    turb = new turbKWSst;
   } else {
     cerr << "ERROR: Error in input::AssignTurbulenceModel(). Turbulence model "
          << turbModel_ << " is not recognized!" << endl;
     exit(0);
   }
   return turb;
+}
+
+// member function to return the name of the simulation without the file
+// extension i.e. "myInput.inp" would return "myInput"
+string input::SimNameRoot() const {
+  return simName_.substr(0, simName_.find("."));
 }

@@ -120,10 +120,10 @@ void WriteCellCenter(const string &gridName, const vector<procBlock> &vars,
 
 //----------------------------------------------------------------------
 // function to write out variables in function file format
-void WriteFun(const string &gridName, const vector<procBlock> &vars,
-              const idealGas &eqnState, const sutherland &suth,
-              const int &solIter, const decomposition &decomp,
-              const input &inp, const turbModel *turb) {
+void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
+              const sutherland &suth, const int &solIter,
+              const decomposition &decomp, const input &inp,
+              const turbModel *turb) {
   // define reference speed of sound
   double refSoS = eqnState.SoS(inp.PRef(), inp.RRef());
 
@@ -133,7 +133,8 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars,
   ofstream outFile;
   string fEnd = "_center";
   string fPostfix = ".fun";
-  string writeName = gridName + "_" + to_string(solIter) + fEnd + fPostfix;
+  string writeName = inp.SimNameRoot() + "_" + to_string(solIter) + fEnd +
+      fPostfix;
   outFile.open(writeName.c_str(), ios::out | ios::binary);
 
   // check to see if file opened correctly
@@ -336,11 +337,15 @@ void WriteFun(const string &gridName, const vector<procBlock> &vars,
             }
           }
         }
-      } else if (vv == 14) {  // wall distance - no ghost cells
-        for (int kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (int jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (int ii = 0; ii < recombVars[ll].NumI(); ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].WallDist(ii, jj, kk);
+      } else if (vv == 14) {  // wall distance
+        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
+             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
+          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
+               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
+            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
+                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
+              dumArr(ii.p, jj.p, kk.p) =
+                  recombVars[ll].WallDist(ii.g, jj.g, kk.g);
             }
           }
         }
@@ -557,7 +562,7 @@ int SplitBlockNumber(const vector<procBlock> &vars, const decomposition &decomp,
   // kk -- k index of cell in recombined block to find split block number
 
   // Get block dimensions (both lower and upper extents)
-  vector<pair<vector3d<int>, vector3d<int> > > blkDims(vars.size());
+  vector<pair<vector3d<int>, vector3d<int>>> blkDims(vars.size());
   vector3d<int> initialLower(0, 0, 0);
   for (unsigned int bb = 0; bb < blkDims.size(); bb++) {
     vector3d<int> dims(vars[bb].NumI(), vars[bb].NumJ(), vars[bb].NumK());
@@ -575,22 +580,22 @@ int SplitBlockNumber(const vector<procBlock> &vars, const decomposition &decomp,
       if (blk != decomp.ParentBlock(
                      ss + vars.size())) {  // wrong parent block - split won't
                                            // effect search so use dummy value
-        pair<vector3d<int>, vector3d<int> > dumBlk(initialLower, initialLower);
+        pair<vector3d<int>, vector3d<int>> dumBlk(initialLower, initialLower);
         blkDims.push_back(dumBlk);
       } else {
         // "split" blocks - change lower limits of block
         if (decomp.SplitHistDir(ss) == "i") {
-          pair<vector3d<int>, vector3d<int> > splitBlk =
+          pair<vector3d<int>, vector3d<int>> splitBlk =
               blkDims[decomp.SplitHistBlkLower(ss)];
           splitBlk.first[0] += decomp.SplitHistIndex(ss);
           blkDims.push_back(splitBlk);
         } else if (decomp.SplitHistDir(ss) == "j") {
-          pair<vector3d<int>, vector3d<int> > splitBlk =
+          pair<vector3d<int>, vector3d<int>> splitBlk =
               blkDims[decomp.SplitHistBlkLower(ss)];
           splitBlk.first[1] += decomp.SplitHistIndex(ss);
           blkDims.push_back(splitBlk);
         } else {  // direction is k
-          pair<vector3d<int>, vector3d<int> > splitBlk =
+          pair<vector3d<int>, vector3d<int>> splitBlk =
               blkDims[decomp.SplitHistBlkLower(ss)];
           splitBlk.first[2] += decomp.SplitHistIndex(ss);
           blkDims.push_back(splitBlk);

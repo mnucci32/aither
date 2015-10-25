@@ -151,12 +151,14 @@ source operator/(const double &scalar, const source &src2) {
 // Member function to calculate the source terms for the turbulence equations
 void source::CalcTurbSrc(const turbModel *turb, const primVars &state,
                          const gradients &grads, const sutherland &suth,
+                         const idealGas &eqnState, const double &wallDist,
                          const int &ii, const int &jj, const int &kk) {
   // turb -- turbulence model
   // state -- primative variables
   // grads -- gradients
   // suth -- sutherland's law for viscosity
   // eqnState -- equation of state
+  // wallDist -- distance to nearest viscous wall
   // ii -- cell i-location to calculate source terms at
   // jj -- cell j-location to calculate source terms at
   // kk -- cell k-location to calculate source terms at
@@ -167,10 +169,12 @@ void source::CalcTurbSrc(const turbModel *turb, const primVars &state,
   vector3d<double> wGrad = grads.OmegaGradCell(ii, jj, kk);
 
   // calculate turbulent source terms
-  data_[5] = suth.NondimScaling() * turb->Production1(state, vGrad, suth)
-      - suth.InvNondimScaling() * turb->Destruction1(state);
+  double ksrc = 0.0;
+  double wsrc = 0.0;
+  turb->CalcTurbSrc(state, vGrad, kGrad, wGrad, suth, eqnState, wallDist,
+                    ksrc, wsrc);
 
-  data_[6] = suth.NondimScaling() * turb->Production2(state, vGrad, suth)
-      - suth.InvNondimScaling() * turb->Destruction2(state, vGrad, suth)
-      + suth.NondimScaling() * turb->CrossDiff2(state, kGrad, wGrad);
+  // assign turbulent source terms
+  data_[5] = ksrc;
+  data_[6] = wsrc;
 }

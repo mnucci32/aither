@@ -21,6 +21,7 @@
 #include <algorithm>  // max
 #include "primVars.hpp"
 #include "input.hpp"               // input
+#include "turbulence.hpp"          // turbModel
 
 using std::cout;
 using std::endl;
@@ -38,7 +39,12 @@ primVars::primVars(const double &a) {
 }
 
 primVars::primVars(const genArray &a, const bool &prim,
-                   const idealGas &eqnState) {
+                   const idealGas &eqnState, const turbModel *turb) {
+  // a -- array of conservative or primative variables
+  // prim -- flag that is true if variable a is primative variables
+  // eqnState -- equation of state
+  // turb -- turbulence model
+
   if (prim) {  // genArray is primative variables
     for (int ii = 0; ii < NUMVARS; ii++) {
       data_[ii] = a[ii];
@@ -54,6 +60,10 @@ primVars::primVars(const genArray &a, const bool &prim,
     data_[5] = a[5] / a[0];
     data_[6] = a[6] / a[0];
   }
+
+  // Adjust turbulence variables to be above minimum if necessary
+  data_[5] = max(data_[5], turb->TkeMin());
+  data_[6] = max(data_[6], turb->OmegaMin());
 }
 
 // member function to initialize a state with nondimensional values
@@ -386,16 +396,20 @@ subsonicOutflow, supersonicInflow, supersonicOutflow
 */
 primVars primVars::GetGhostState(const string &bcType,
                                  const vector3d<double> &areaVec,
-                                 const string &surf, const input &inputVars,
+                                 const double &wallDist, const string &surf,
+                                 const input &inputVars,
                                  const idealGas &eqnState,
                                  const sutherland &suth,
+                                 const turbModel *turb,
                                  const int layer) const {
   // bcType -- type of boundary condition to supply ghost cell for
   // areaVec -- unit area vector of boundary face
   // surf -- i, j, k surface of boundary
+  // wallDist -- distance from cell center to nearest wall boundary
   // inputVar -- all input variables
   // eqnState -- equation of state
   // suth -- sutherland model for viscosity
+  // turb -- turbulence model
   // layer -- layer of ghost cell to return (first (closest) or second
   // (farthest))
   // the instance of primVars being acted upon should be the interior cell
@@ -469,12 +483,11 @@ primVars primVars::GetGhostState(const string &bcType,
     if (inputVars.IsTurbulent()) {
       ghostState.data_[5] = -1.0 * (*this).Tke();
 
-      // avg height of sand grain roughness
-      double ks = 1.0e-5 / inputVars.LRef();
       double nuW = suth.Viscosity((*this).Temperature(eqnState))
           / (*this).Rho();
-      double wWall = (40000.0 * nuW / (ks * ks)) * suth.NondimScaling() *
-          suth.NondimScaling();
+      double wWall = suth.NondimScaling() * suth.NondimScaling() *
+          60.0 * nuW / (wallDist * wallDist * turb->WallBeta());
+
       ghostState.data_[6] = 2.0 * wWall - (*this).Omega();
 
       if (layer == 2) {
@@ -783,15 +796,16 @@ primVars primVars::GetGhostState(const string &bcType,
 // variables, and update the primative variables with it.
 // this is used in the implicit solver
 primVars primVars::UpdateWithConsVars(const idealGas &eqnState,
-                                      const genArray &du) const {
+                                      const genArray &du,
+                                      const turbModel *turb) const {
   // eqnState -- equation of state
   // du -- updates to conservative variables
+  // turb -- turbulence model
 
   // convert primative to conservative and update
   genArray consUpdate = (*this).ConsVars(eqnState) + du;
 
-  // convert back to primative variables
-  return primVars(consUpdate, false, eqnState);
+  return primVars(consUpdate, false, eqnState, turb);
 }
 
 bool primVars::IsZero() const {
@@ -826,9 +840,10 @@ void primVars::ApplyFarfieldTurbBC(const vector3d<double> &vel,
 
 multiArray3d<primVars> GetGhostStates(
     const multiArray3d<primVars> &bndStates, const string &bcName,
-    const multiArray3d<unitVec3dMag<double> > &faceAreas, const string &surf,
+    const multiArray3d<unitVec3dMag<double>> &faceAreas,
+    const multiArray3d<double> &wDist, const string &surf,
     const input &inp, const idealGas &eos, const sutherland &suth,
-    const int layer) {
+    const turbModel *turb, const int layer) {
   // bndStates -- states at cells adjacent to boundary
   // bcName -- boundary condition type
   // faceAreas -- face areas of boundary
@@ -836,6 +851,7 @@ multiArray3d<primVars> GetGhostStates(
   // inp -- input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
+  // turb -- turbulence model
   // layer -- layer of ghost cell to return
   //          (1 closest to boundary, or 2 farthest)
 
@@ -847,7 +863,7 @@ multiArray3d<primVars> GetGhostStates(
         ghostStates(ii, jj, kk) =
             bndStates(ii, jj, kk).
             GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),
-                          surf, inp, eos, suth, layer);
+                          wDist(ii, jj, kk), surf, inp, eos, suth, turb, layer);
       }
     }
   }
