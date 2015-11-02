@@ -31,8 +31,8 @@ using std::fabs;
 
 // copy constructor
 squareMatrix::squareMatrix(const squareMatrix &cp) {
-  (*this).size_ = cp.Size();
-  (*this).data_ = new double[cp.Size() * cp.Size()];
+  size_ = cp.Size();
+  data_ = new double[cp.Size() * cp.Size()];
   copy(&cp.data_[0], &cp.data_[0] + cp.Size() * cp.Size(), &(*this).data_[0]);
 }
 
@@ -405,8 +405,8 @@ colMatrix squareMatrix::Multiply(const colMatrix &X) const {
 
 // copy constructor
 matrixDiagonal::matrixDiagonal(const matrixDiagonal &cp) {
-  (*this).size_ = cp.Size();
-  (*this).data_ = new squareMatrix[cp.Size()];
+  size_ = cp.Size();
+  data_ = new squareMatrix[cp.Size()];
   copy(&cp.data_[0], &cp.data_[0] + cp.Size(), &(*this).data_[0]);
 }
 
@@ -493,8 +493,8 @@ void matrixDiagonal::Inverse() {
 // functions for colMatrix class
 // copy constructor
 colMatrix::colMatrix(const colMatrix &cp) {
-  (*this).size_ = cp.Size();
-  (*this).data_ = new double[cp.Size()];
+  size_ = cp.Size();
+  data_ = new double[cp.Size()];
   copy(&cp.data_[0], &cp.data_[0] + cp.Size(), &(*this).data_[0]);
 }
 

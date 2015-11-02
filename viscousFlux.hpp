@@ -53,6 +53,14 @@ class viscousFlux {
               const vector3d<double>&, const vector3d<double>&,
               const turbModel*, const primVars&, const double&);
 
+  // move constructor and assignment operator
+  viscousFlux(viscousFlux&&) noexcept = default;
+  viscousFlux& operator=(viscousFlux&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  viscousFlux(const viscousFlux&) = default;
+  viscousFlux& operator=(const viscousFlux&) = default;
+
   // member functions
   double MomX() const { return data_[0]; }
   double MomY() const { return data_[1]; }
@@ -69,7 +77,7 @@ class viscousFlux {
   friend viscousFlux operator/(const double&, const viscousFlux&);
 
   // destructor
-  ~viscousFlux() {}
+  ~viscousFlux() noexcept {}
 };
 
 // function definitions

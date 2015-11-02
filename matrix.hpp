@@ -38,7 +38,7 @@ class colMatrix {
  public:
   // constructor
   explicit colMatrix(const int &a) : size_(a) { data_ = new double[a]; }
-  colMatrix() : size_(0), data_(NULL) {}
+  colMatrix() : size_(0), data_(nullptr) {}
 
   // copy constructor
   colMatrix(const colMatrix &cp);
@@ -47,9 +47,9 @@ class colMatrix {
   colMatrix &operator=(colMatrix other);
 
   // move constructor
-  explicit colMatrix(colMatrix &&other) : colMatrix() {
+  explicit colMatrix(colMatrix &&other) noexcept : colMatrix() {
     swap(*this, other);
-    other.data_ = NULL;
+    other.data_ = nullptr;
   }
 
   // member functions
@@ -83,9 +83,9 @@ class colMatrix {
   friend void swap(colMatrix &first, colMatrix &second);
 
   // destructor
-  ~colMatrix() {
+  ~colMatrix() noexcept {
     delete[] data_;
-    data_ = NULL;
+    data_ = nullptr;
   }
 };
 
@@ -109,6 +109,14 @@ class genArray {
   // member functions
   void Zero();
   double Sum();
+
+  // move constructor and assignment operator
+  genArray(genArray&&) noexcept = default;
+  genArray& operator=(genArray&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  genArray(const genArray&) = default;
+  genArray& operator=(const genArray&) = default;
 
   // operator overloads
   genArray operator+(const genArray &) const;
@@ -136,7 +144,7 @@ class genArray {
   void GlobalReduceMPI(const int &, const int &);
 
   // destructor
-  ~genArray() {}
+  ~genArray() noexcept {}
 };
 
 // class to store a square matrix
@@ -147,19 +155,18 @@ class squareMatrix {
  public:
   // constructor
   explicit squareMatrix(const int &a) : size_(a) { data_ = new double[a * a]; }
-  squareMatrix() : size_(0), data_(NULL) {}
+  squareMatrix() : size_(0), data_(nullptr) {}
 
   // copy constructor
   squareMatrix(const squareMatrix &cp);
 
   // copy assignment operator
-  squareMatrix &operator=(squareMatrix other);
-  // squareMatrix& operator= (const squareMatrix &other);
+  squareMatrix& operator=(squareMatrix other);
 
   // move constructor
-  explicit squareMatrix(squareMatrix &&other) : squareMatrix() {
+  explicit squareMatrix(squareMatrix &&other) noexcept : squareMatrix() {
     swap(*this, other);
-    other.data_ = NULL;
+    other.data_ = nullptr;
   }
 
   // member functions
@@ -194,9 +201,9 @@ class squareMatrix {
   friend void swap(squareMatrix &first, squareMatrix &second);
 
   // destructor
-  ~squareMatrix() {
+  ~squareMatrix() noexcept {
     delete[] data_;
-    data_ = NULL;
+    data_ = nullptr;
   }
 };
 
@@ -210,7 +217,7 @@ class matrixDiagonal {
   // constructor
   explicit matrixDiagonal(const int &a) : size_(a) {
     data_ = new squareMatrix[a];}
-  matrixDiagonal() : size_(0), data_(NULL) {}
+  matrixDiagonal() : size_(0), data_(nullptr) {}
 
   // copy constructor
   matrixDiagonal(const matrixDiagonal &cp);
@@ -219,9 +226,9 @@ class matrixDiagonal {
   matrixDiagonal &operator=(matrixDiagonal other);
 
   // move constructor
-  explicit matrixDiagonal(matrixDiagonal &&other) : matrixDiagonal() {
+  explicit matrixDiagonal(matrixDiagonal &&other) noexcept : matrixDiagonal() {
     swap(*this, other);
-    other.data_ = NULL;
+    other.data_ = nullptr;
   }
 
   // member functions
@@ -238,9 +245,9 @@ class matrixDiagonal {
   friend void swap(matrixDiagonal &first, matrixDiagonal &second);
 
   // destructor
-  ~matrixDiagonal() {
+  ~matrixDiagonal() noexcept {
     delete[] data_;
-    data_ = NULL;
+    data_ = nullptr;
   }
 };
 

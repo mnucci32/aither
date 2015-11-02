@@ -56,14 +56,13 @@ primVars::primVars(const genArray &a, const bool &prim,
     data_[3] = a[3] / a[0];
     double energy = a[4] / a[0];
     data_[4] =
-        eqnState.PressFromEnergy(data_[0], energy, (*this).Velocity().Mag());
+        eqnState.PressFromEnergy(data_[0], energy, this->Velocity().Mag());
     data_[5] = a[5] / a[0];
     data_[6] = a[6] / a[0];
   }
 
   // Adjust turbulence variables to be above minimum if necessary
-  data_[5] = max(data_[5], turb->TkeMin());
-  data_[6] = max(data_[6], turb->OmegaMin());
+  this->LimitTurb(turb);
 }
 
 // member function to initialize a state with nondimensional values
@@ -81,7 +80,7 @@ void primVars::NondimensionalInitialize(const idealGas &eos, const double &aRef,
     // Initialize turbulence quantities based off of specified turublence
     // intensity and eddy viscosity ratio. This is the default for
     // STAR-CCM+
-    (*this).ApplyFarfieldTurbBC((*this).Velocity(), inp.FarfieldTurbIntensity(),
+    this->ApplyFarfieldTurbBC(this->Velocity(), inp.FarfieldTurbIntensity(),
                                 inp.FarfieldEddyViscRatio(), suth, eos);
   } else {
     data_[5] = 0.0;
@@ -440,7 +439,7 @@ primVars primVars::GetGhostState(const string &bcType,
   if (bcType == "slipWall") {  // for slip wall state should be reflected across
                                // boundary face, density and pressure stay equal
                                // to the boundary cell
-    vector3d<double> stateVel = (*this).Velocity();
+    vector3d<double> stateVel = this->Velocity();
     normVelCellCenter = stateVel.DotProd(normArea);
 
     // for a slip wall the velocity of the boundary cell center is reflected
@@ -464,7 +463,7 @@ primVars primVars::GetGhostState(const string &bcType,
   } else if (bcType == "viscousWall") {  // for viscous wall velocity at face
                                        // should be 0.0, density and pressure
                                        // stay equal to the boundary cell
-    vector3d<double> stateVel = (*this).Velocity();
+    vector3d<double> stateVel = this->Velocity();
 
     // ghost cell velocity at cell center is set to opposite of velocity at
     // boundary cell center so that velocity at face will be zero
@@ -481,14 +480,14 @@ primVars primVars::GetGhostState(const string &bcType,
     // tke at cell center is set to opposite of tke at boundary cell center
     // so that tke at face will be zero
     if (inputVars.IsTurbulent()) {
-      ghostState.data_[5] = -1.0 * (*this).Tke();
+      ghostState.data_[5] = -1.0 * this->Tke();
 
-      double nuW = suth.Viscosity((*this).Temperature(eqnState))
-          / (*this).Rho();
+      double nuW = suth.Viscosity(this->Temperature(eqnState))
+          / this->Rho();
       double wWall = suth.NondimScaling() * suth.NondimScaling() *
           60.0 * nuW / (wallDist * wallDist * turb->WallBeta());
 
-      ghostState.data_[6] = 2.0 * wWall - (*this).Omega();
+      ghostState.data_[6] = 2.0 * wWall - this->Omega();
 
       if (layer == 2) {
         ghostState.data_[6] = (2.0 * ghostState.data_[6] - wWall);
@@ -564,8 +563,8 @@ primVars primVars::GetGhostState(const string &bcType,
     primVars freeState(1.0, 1.0 / eqnState.Gamma(), freeVel);
 
     // internal variables
-    double velIntNorm = (*this).Velocity().DotProd(normArea);
-    double SoSInt = eqnState.SoS((*this).P(), (*this).Rho());
+    double velIntNorm = this->Velocity().DotProd(normArea);
+    double SoSInt = eqnState.SoS(this->P(), this->Rho());
     double machInt = fabs(velIntNorm) / SoSInt;
 
     if (machInt >= 1.0 && velIntNorm < 0.0) {  // supersonic inflow
@@ -591,10 +590,10 @@ primVars primVars::GetGhostState(const string &bcType,
       // ----------------------------------------------
       // characteristics go in both directions, use interior values for plus
       // characteristic and freestream values for minus characteristic
-      double rhoSoSInt = (*this).Rho() * SoSInt;
-      vector3d<double> velDiff = freeState.Velocity() - (*this).Velocity();
+      double rhoSoSInt = this->Rho() * SoSInt;
+      vector3d<double> velDiff = freeState.Velocity() - this->Velocity();
       ghostState.data_[4] =
-          0.5 * (freeState.P() + (*this).P() -
+          0.5 * (freeState.P() + this->P() -
                  rhoSoSInt * normArea.DotProd(velDiff));  // plus characteristic
       // minus characteristic
       ghostState.data_[0] = freeState.Rho() + (ghostState.P() - freeState.P()) /
@@ -621,19 +620,19 @@ primVars primVars::GetGhostState(const string &bcType,
       // ----------------------------------------------------------
       // characteristics go in both directions, use interior values for plus
       // characteristic and freestream values for minus characteristic
-      double rhoSoSInt = (*this).Rho() * SoSInt;
+      double rhoSoSInt = this->Rho() * SoSInt;
       ghostState.data_[4] = freeState.P();  // minus characteristic
       // plus characteristic
       ghostState.data_[0] =
-          (*this).Rho() + (ghostState.P() - (*this).P()) / (SoSInt * SoSInt);
-      ghostState.data_[1] = (*this).U() + normArea.X() *
-                                              ((*this).P() - ghostState.P()) /
+          this->Rho() + (ghostState.P() - this->P()) / (SoSInt * SoSInt);
+      ghostState.data_[1] = this->U() + normArea.X() *
+                                              (this->P() - ghostState.P()) /
                                               rhoSoSInt;
-      ghostState.data_[2] = (*this).V() + normArea.Y() *
-                                              ((*this).P() - ghostState.P()) /
+      ghostState.data_[2] = this->V() + normArea.Y() *
+                                              (this->P() - ghostState.P()) /
                                               rhoSoSInt;
-      ghostState.data_[3] = (*this).W() + normArea.Z() *
-                                              ((*this).P() - ghostState.P()) /
+      ghostState.data_[3] = this->W() + normArea.Z() *
+                                              (this->P() - ghostState.P()) /
                                               rhoSoSInt;
 
       // numerical bcs for turbulence variables
@@ -698,13 +697,13 @@ primVars primVars::GetGhostState(const string &bcType,
     double g = eqnState.Gamma() - 1.0;
     // calculate outgoing riemann invarient
     double rNeg =
-        (*this).Velocity().DotProd(normArea) - 2.0 * (*this).SoS(eqnState) / g;
+        this->Velocity().DotProd(normArea) - 2.0 * this->SoS(eqnState) / g;
 
     // calculate SoS on boundary
     double cosTheta =
-        -1.0 * (*this).Velocity().DotProd(normArea) / (*this).Velocity().Mag();
+        -1.0 * this->Velocity().DotProd(normArea) / this->Velocity().Mag();
     double stagSoSsq =
-        pow((*this).SoS(eqnState), 2.0) + 0.5 * g * (*this).Velocity().MagSq();
+        pow(this->SoS(eqnState), 2.0) + 0.5 * g * this->Velocity().MagSq();
 
     double sosB = -1.0 * rNeg * g / (g * cosTheta * cosTheta + 2.0) *
                   (1.0 + cosTheta * sqrt((g * cosTheta * cosTheta + 2.0) *
@@ -755,17 +754,17 @@ primVars primVars::GetGhostState(const string &bcType,
                 (inputVars.RRef() * aRef *
                  aRef);  // nondimensional pressure from input file
 
-    double SoSInt = (*this).SoS(eqnState);
-    double rhoSoSInt = (*this).Rho() * SoSInt;
+    double SoSInt = this->SoS(eqnState);
+    double rhoSoSInt = this->Rho() * SoSInt;
     ghostState.data_[4] = pb;
     ghostState.data_[0] =
-        (*this).Rho() + (ghostState.P() - (*this).P()) / (SoSInt * SoSInt);
+        this->Rho() + (ghostState.P() - this->P()) / (SoSInt * SoSInt);
     ghostState.data_[1] =
-        (*this).U() + normArea.X() * ((*this).P() - ghostState.P()) / rhoSoSInt;
+        this->U() + normArea.X() * (this->P() - ghostState.P()) / rhoSoSInt;
     ghostState.data_[2] =
-        (*this).V() + normArea.Y() * ((*this).P() - ghostState.P()) / rhoSoSInt;
+        this->V() + normArea.Y() * (this->P() - ghostState.P()) / rhoSoSInt;
     ghostState.data_[3] =
-        (*this).W() + normArea.Z() * ((*this).P() - ghostState.P()) / rhoSoSInt;
+        this->W() + normArea.Z() * (this->P() - ghostState.P()) / rhoSoSInt;
 
     // numerical bcs for turbulence variables
 
@@ -803,7 +802,7 @@ primVars primVars::UpdateWithConsVars(const idealGas &eqnState,
   // turb -- turbulence model
 
   // convert primative to conservative and update
-  genArray consUpdate = (*this).ConsVars(eqnState) + du;
+  genArray consUpdate = this->ConsVars(eqnState) + du;
 
   return primVars(consUpdate, false, eqnState, turb);
 }
@@ -811,7 +810,7 @@ primVars primVars::UpdateWithConsVars(const idealGas &eqnState,
 bool primVars::IsZero() const {
   bool nonzero = false;
   for (int ii = 0; ii < NUMVARS; ii++) {
-    if ((*this).data_[ii] != 0.0) {
+    if (data_[ii] != 0.0) {
       nonzero = true;
     }
   }
@@ -834,7 +833,7 @@ void primVars::ApplyFarfieldTurbBC(const vector3d<double> &vel,
 
   data_[5] = 1.5 * pow(turbInten * vel.Mag(), 2.0);
   data_[6] = data_[0] * data_[5] /
-      (viscRatio * suth.Viscosity((*this).Temperature(eqnState)));
+      (viscRatio * suth.Viscosity(this->Temperature(eqnState)));
 }
 
 
@@ -868,4 +867,10 @@ multiArray3d<primVars> GetGhostStates(
     }
   }
   return ghostStates;
+}
+
+void primVars::LimitTurb(const turbModel *turb) {
+  // Adjust turbulence variables to be above minimum if necessary
+  data_[5] = max(data_[5], turb->TkeMin());
+  data_[6] = max(data_[6], turb->OmegaMin());
 }

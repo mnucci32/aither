@@ -1428,10 +1428,10 @@ double ViscCellSpectralRadius(const unitVec3dMag<double> &fAreaL,
 // function to reconstruct cell variables to the face using central
 // differences
 template <typename T>
-T FaceReconCentral(const T &velU, const T &velD, const vector3d<double> &pU,
+T FaceReconCentral(const T &varU, const T &varD, const vector3d<double> &pU,
                    const vector3d<double> &pD, const vector3d<double> &pF) {
-  // velU -- velocity at the cell center of the upwind cell
-  // velD -- velocity at the cell center of the downwind cell
+  // varU -- variable at the cell center of the upwind cell
+  // varD -- variable at the cell center of the downwind cell
   // pU -- position of the cell center of the upwind cell
   // pD -- position of the cell center of the downwind cell
   // pF -- position of the face center of the face on which the reconstruction
@@ -1441,9 +1441,11 @@ T FaceReconCentral(const T &velU, const T &velD, const vector3d<double> &pU,
   double cen2cen = pU.Distance(pD);
   // distance from upwind cell center to cell face
   double up2face = pU.Distance(pF);
+  // ratio of distance from upwind cell center to cell face to center to center
+  double upRatio = up2face / cen2cen;
 
   // reconstruct with central difference
-  return velD * (up2face / cen2cen) + velU * (1.0 - (up2face / cen2cen));
+  return varD * upRatio + varU * (1.0 - upRatio);
 }
 
 /* Function to pad a vector with a specified number of ghost cells
@@ -1733,6 +1735,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                              center_(ii.g - 1, jj.g, kk.g),
                              center_(ii.g, jj.g, kk.g),
                              fCenterI_(ii.g, jj.g, kk.g));
+        state.LimitTurb(turb);
 
         // Get wall distance at face
         double wDist = FaceReconCentral(wallDist_(ii.g - 1, jj.g, kk.g),
@@ -1883,6 +1886,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                              center_(ii.g, jj.g - 1, kk.g),
                              center_(ii.g, jj.g, kk.g),
                              fCenterJ_(ii.g, jj.g, kk.g));
+        state.LimitTurb(turb);
 
         // Get wall distance at face
         double wDist = FaceReconCentral(wallDist_(ii.g, jj.g - 1, kk.g),
@@ -2031,6 +2035,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                              center_(ii.g, jj.g, kk.g - 1),
                              center_(ii.g, jj.g, kk.g),
                              fCenterK_(ii.g, jj.g, kk.g));
+        state.LimitTurb(turb);
 
         // Get wall distance at face
         double wDist = FaceReconCentral(wallDist_(ii.g, jj.g, kk.g - 1),

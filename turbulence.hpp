@@ -43,6 +43,14 @@ class turbModel {
   turbModel() : eddyViscMethod_("boussinesq") {}
   explicit turbModel(const string &meth) : eddyViscMethod_(meth) {}
 
+  // move constructor and assignment operator
+  turbModel(turbModel&&) noexcept = default;
+  turbModel& operator=(turbModel&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  turbModel(const turbModel&) = default;
+  turbModel& operator=(const turbModel&) = default;
+
   // member functions
   string EddyViscMethod() const {return eddyViscMethod_;}
   virtual double EddyViscNoLim(const primVars &state) const;
@@ -86,7 +94,7 @@ class turbModel {
   virtual void Print() const = 0;
 
   // destructor
-  virtual ~turbModel() {}
+  virtual ~turbModel() noexcept {}
 };
 
 class turbNone : public turbModel {
@@ -94,6 +102,14 @@ class turbNone : public turbModel {
   // constructor
   turbNone() : turbModel() {}
   explicit turbNone(const string &meth) : turbModel(meth) {}
+
+  // move constructor and assignment operator
+  turbNone(turbNone &&model) noexcept : turbModel(std::move(model)) {}
+  turbNone& operator=(turbNone&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  turbNone(const turbNone &model) : turbModel(model) {}
+  turbNone& operator=(const turbNone&) = default;
 
   // member functions
   void CalcTurbSrc(const primVars &state, const tensor<double> &velGrad,
@@ -121,18 +137,18 @@ class turbNone : public turbModel {
   void Print() const override;
 
   // destructor
-  ~turbNone() {}
+  ~turbNone() noexcept {}
 };
 
 class turbKWWilcox : public turbModel {
-  const double gamma_ = 0.52;
-  const double betaStar_ = 0.09;
-  const double sigma_ = 0.5;
-  const double sigmaStar_ = 0.6;
-  const double sigmaD0_ = 0.125;
-  const double beta0_ = 0.0708;
-  const double clim_ = 0.875;
-  const double prt_ = 8.0 / 9.0;
+  constexpr static double gamma_ = 0.52;
+  constexpr static double betaStar_ = 0.09;
+  constexpr static double sigma_ = 0.5;
+  constexpr static double sigmaStar_ = 0.6;
+  constexpr static double sigmaD0_ = 0.125;
+  constexpr static double beta0_ = 0.0708;
+  constexpr static double clim_ = 0.875;
+  constexpr static double prt_ = 8.0 / 9.0;
 
   // private member functions
   double SigmaD(const vector3d<double>&, const vector3d<double>&) const;
@@ -147,6 +163,14 @@ class turbKWWilcox : public turbModel {
   // constructor
   turbKWWilcox() : turbModel() {}
   explicit turbKWWilcox(const string &meth) : turbModel(meth) {}
+
+  // move constructor and assignment operator
+  turbKWWilcox(turbKWWilcox &&model) noexcept : turbModel(std::move(model)) {}
+  turbKWWilcox& operator=(turbKWWilcox&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  turbKWWilcox(const turbKWWilcox &model) : turbModel(model) {}
+  turbKWWilcox& operator=(const turbKWWilcox&) = default;
 
   // member functions
   void CalcTurbSrc(const primVars &, const tensor<double> &,
@@ -175,22 +199,22 @@ class turbKWWilcox : public turbModel {
   void Print() const override;
 
   // destructor
-  ~turbKWWilcox() {}
+  ~turbKWWilcox() noexcept {}
 };
 
 class turbKWSst : public turbModel {
-  const double betaStar_ = 0.09;
-  const double sigmaK1_ = 0.85;
-  const double sigmaK2_ = 1.0;
-  const double sigmaW1_ = 0.5;
-  const double sigmaW2_ = 0.856;
-  const double beta1_ = 0.075;
-  const double beta2_ = 0.0828;
-  const double gamma1_ = 5.0 / 9.0;
-  const double gamma2_ = 0.44;
-  const double a1_ = 0.31;
-  const double prt_ = 0.9;
-  const double kProd2Dest_ = 10.0;
+  constexpr static double betaStar_ = 0.09;
+  constexpr static double sigmaK1_ = 0.85;
+  constexpr static double sigmaK2_ = 1.0;
+  constexpr static double sigmaW1_ = 0.5;
+  constexpr static double sigmaW2_ = 0.856;
+  constexpr static double beta1_ = 0.075;
+  constexpr static double beta2_ = 0.0828;
+  constexpr static double gamma1_ = 5.0 / 9.0;
+  constexpr static double gamma2_ = 0.44;
+  constexpr static double a1_ = 0.31;
+  constexpr static double prt_ = 0.9;
+  constexpr static double kProd2Dest_ = 10.0;
 
   // private member functions
   double CDkw(const primVars &, const vector3d<double> &,
@@ -208,6 +232,14 @@ class turbKWSst : public turbModel {
   // constructor
   turbKWSst() : turbModel() {}
   explicit turbKWSst(const string &meth) : turbModel(meth) {}
+
+  // move constructor and assignment operator
+  turbKWSst(turbKWSst &&model) noexcept : turbModel(std::move(model)) {}
+  turbKWSst& operator=(turbKWSst&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  turbKWSst(const turbKWSst &model) : turbModel(model) {}
+  turbKWSst& operator=(const turbKWSst&) = default;
 
   // member functions
   void CalcTurbSrc(const primVars &, const tensor<double> &,
@@ -241,7 +273,7 @@ class turbKWSst : public turbModel {
   void Print() const override;
 
   // destructor
-  ~turbKWSst() {}
+  ~turbKWSst() noexcept {}
 };
 
 

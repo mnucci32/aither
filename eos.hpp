@@ -47,6 +47,14 @@ class idealGas {
   idealGas() : gamma_(1.4), gasConst_(287.058) {}
   idealGas(const double &a, const double &b) : gamma_(a), gasConst_(b) {}
 
+  // move constructor and assignment operator
+  idealGas(idealGas&&) noexcept = default;
+  idealGas& operator=(idealGas&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  idealGas(const idealGas&) = default;
+  idealGas& operator=(const idealGas&) = default;
+
   // Member functions
   double Pressure(const double &rho, const double &specEn) const;
   double PressFromEnergy(const double &rho, const double &energy,
@@ -73,7 +81,7 @@ class idealGas {
     return press * gamma_ / temp;}
 
   // Destructor
-  ~idealGas() {}
+  ~idealGas() noexcept {}
 };
 
 // Function declarations
@@ -118,6 +126,14 @@ class sutherland {
       mRef_(vel.Mag() / eos.SoS(p, r)), scaling_(mRef_ / reRef_),
       invScaling_(reRef_ / mRef_) {}
 
+  // move constructor and assignment operator
+  sutherland(sutherland&&) noexcept = default;
+  sutherland& operator=(sutherland&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  sutherland(const sutherland&) = default;
+  sutherland& operator=(const sutherland&) = default;
+
   // Member functions
   double Viscosity(const double&) const;
   double EffectiveViscosity(const double&) const;
@@ -130,6 +146,9 @@ class sutherland {
   double MRef() const {return mRef_;}
   double NondimScaling() const {return scaling_;}
   double InvNondimScaling() const {return invScaling_;}
+
+  // Destructor
+  ~sutherland() noexcept {}
 };
 
 #endif

@@ -207,7 +207,8 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
       fabs(velRSum)};  // turbulent eqn 2 (omega) wave speed
 
   // calculate entropy fix (Harten) and adjust wave speeds if necessary
-  double entropyFix = 0.1;  // default setting for entropy fix to kick in
+  // default setting for entropy fix to kick in
+  constexpr double entropyFix = 0.1;
 
   if (waveSpeed[0] < entropyFix) {
     waveSpeed[0] =

@@ -52,6 +52,14 @@ class multiArray3d {
   multiArray3d(const int&, const int&, const int&);
   multiArray3d(const int&, const int&, const int&, const T&);
 
+  // move constructor and assignment operator
+  multiArray3d(multiArray3d&&) noexcept = default;
+  multiArray3d& operator=(multiArray3d&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  multiArray3d(const multiArray3d&) = default;
+  multiArray3d& operator=(const multiArray3d&) = default;
+
   // member functions
   int Size() const { return data_.size(); }
   int NumI() const { return numI_; }
@@ -133,7 +141,7 @@ class multiArray3d {
   friend ostream &operator<<(ostream &, const multiArray3d<TT> &);
 
   // destructor
-  ~multiArray3d() {}
+  ~multiArray3d() noexcept {}
 };
 
 template <typename T>

@@ -39,8 +39,14 @@ class vector3d {
   // constructor
   vector3d(const T &a, const T &b, const T &c) : data_{a, b, c} {}
   vector3d() : data_{0, 0, 0} {}
-  // copy constructor
-  vector3d(const vector3d<T> &a) : data_{a.data_[0], a.data_[1], a.data_[2]} {}
+
+  // move constructor and assignment operator
+  vector3d(vector3d<T>&&) noexcept = default;
+  vector3d& operator=(vector3d<T>&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  vector3d(const vector3d<T>&) = default;
+  vector3d& operator=(const vector3d<T>&) = default;
 
   // member functions
   // operator overloads
@@ -79,7 +85,7 @@ class vector3d {
   vector3d<T> Normalize() const;
 
   // destructor
-  ~vector3d() {}
+  ~vector3d() noexcept {}
 };
 
 template <typename T>
@@ -92,8 +98,14 @@ class unitVec3dMag {
   unitVec3dMag() : unitVec_(), mag_(0) {}
   explicit unitVec3dMag(const vector3d<T> &a) : unitVec_(a.Normalize()),
     mag_(a.Mag()) {}
-  // copy constructor
-  unitVec3dMag(const unitVec3dMag<T> &a) : unitVec_(a.unitVec_), mag_(a.mag_) {}
+
+  // move constructor and assignment operator
+  unitVec3dMag(unitVec3dMag<T>&&) noexcept = default;
+  unitVec3dMag& operator=(unitVec3dMag<T>&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  unitVec3dMag(const unitVec3dMag<T>&) = default;
+  unitVec3dMag& operator=(const unitVec3dMag<T>&) = default;
 
   // member functions
   // operator overloads
@@ -124,7 +136,7 @@ class unitVec3dMag {
   unitVec3dMag<T> CrossProd(const unitVec3dMag &) const;
 
   // destructor
-  ~unitVec3dMag() {}
+  ~unitVec3dMag() noexcept {}
 };
 
 

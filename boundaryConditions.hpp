@@ -49,6 +49,14 @@ class boundarySurface {
   boundarySurface(const string&, const int&, const int&, const int&,
                   const int&, const int&, const int&, const int&);
 
+  // move constructor and assignment operator
+  boundarySurface(boundarySurface&&) noexcept = default;
+  boundarySurface& operator=(boundarySurface&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  boundarySurface(const boundarySurface&) = default;
+  boundarySurface& operator=(const boundarySurface&) = default;
+
   friend class boundaryConditions;
 
   // Member functions
@@ -81,7 +89,7 @@ class boundarySurface {
   friend ostream & operator<< (ostream &os, const boundarySurface&);
 
   // Destructor
-  ~boundarySurface() {}
+  ~boundarySurface() noexcept {}
 };
 
 /* A class to store the necessary information for the boundary_ condition patches.
@@ -118,6 +126,14 @@ class patch {
             surf.JMin() -1, surf.JMax() - 1, surf.KMin() - 1,
             surf.KMax() - 1, blk, r, l, border) {}
 
+  // move constructor and assignment operator
+  patch(patch&&) noexcept = default;
+  patch& operator=(patch&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  patch(const patch&) = default;
+  patch& operator=(const patch&) = default;
+
   // Member functions
   vector3d<double> Origin() const {return origin_;}
   vector3d<double> Corner1() const {return corner1_;}
@@ -140,7 +156,7 @@ class patch {
   friend ostream & operator<< (ostream &os, const patch&);
 
   // Destructor
-  ~patch() {}
+  ~patch() noexcept {}
 };
 
 // A class to store the necessary information for the boundary
@@ -156,6 +172,14 @@ class boundaryConditions {
   // Constructor
   boundaryConditions();
   boundaryConditions(const int&, const int&, const int&);
+
+  // move constructor and assignment operator
+  boundaryConditions(boundaryConditions&&) noexcept = default;
+  boundaryConditions& operator=(boundaryConditions&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  boundaryConditions(const boundaryConditions&) = default;
+  boundaryConditions& operator=(const boundaryConditions&) = default;
 
   // Member functions
   int NumSurfI() const {return numSurfI_;}
@@ -201,7 +225,7 @@ class boundaryConditions {
   void UnpackBC(char*(&), const int&, int&);
 
   // Destructor
-  ~boundaryConditions() {}
+  ~boundaryConditions() noexcept {}
 };
 
 /* A class to store the necessary information for the interblock boundary_ conditions.
@@ -228,6 +252,14 @@ class interblock {
                             false, false, false}, orientation_(0) {}
 
   interblock(const patch&, const patch&);
+
+  // move constructor and assignment operator
+  interblock(interblock&&) noexcept = default;
+  interblock& operator=(interblock&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  interblock(const interblock&) = default;
+  interblock& operator=(const interblock&) = default;
 
   // Member functions
   int RankFirst() const {return rank_[0];}
@@ -285,7 +317,7 @@ class interblock {
   friend ostream & operator<< (ostream &os, const interblock&);
 
   // Destructor
-  ~interblock() {}
+  ~interblock() noexcept {}
 };
 
 class decomposition {
@@ -312,6 +344,14 @@ class decomposition {
   // Constructor
   decomposition();
   decomposition(const int&, const int&);
+
+  // move constructor and assignment operator
+  decomposition(decomposition&&) noexcept = default;
+  decomposition& operator=(decomposition&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  decomposition(const decomposition&) = default;
+  decomposition& operator=(const decomposition&) = default;
 
   // Member functions
   int Rank(const int &a) const {return rank_[a];}
@@ -343,7 +383,7 @@ class decomposition {
   friend ostream & operator<< (ostream &os, const decomposition&);
 
   // Destructor
-  ~decomposition() {}
+  ~decomposition() noexcept {}
 };
 
 

@@ -44,6 +44,14 @@ class plot3dBlock {
       coords_(multiArray3d<vector3d<double>>(ii, jj, kk)) {}
   plot3dBlock() : coords_(multiArray3d<vector3d<double>>()) {}
 
+  // move constructor and assignment operator
+  plot3dBlock(plot3dBlock&&) noexcept = default;
+  plot3dBlock& operator=(plot3dBlock&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  plot3dBlock(const plot3dBlock&) = default;
+  plot3dBlock& operator=(const plot3dBlock&) = default;
+
   // member functions
   multiArray3d<double> Volume() const;
   multiArray3d<unitVec3dMag<double>> FaceAreaI() const;
@@ -77,7 +85,7 @@ class plot3dBlock {
   void Join(const plot3dBlock &, const string &);
 
   // destructor
-  ~plot3dBlock() {}
+  ~plot3dBlock() noexcept {}
 };
 
 //-------------------------------------------------------------------------

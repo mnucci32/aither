@@ -77,6 +77,14 @@ class input {
   // constructor
   explicit input(const string &);
 
+  // move constructor and assignment operator
+  input(input&&) noexcept = default;
+  input& operator=(input&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  input(const input&) = default;
+  input& operator=(const input&) = default;
+
   // member functions
   string SimName() const {return simName_;}
   string SimNameRoot() const;
@@ -166,7 +174,7 @@ class input {
   turbModel* AssignTurbulenceModel() const;
 
   // destructor
-  ~input() {}
+  ~input() noexcept {}
 };
 
 // function declarations

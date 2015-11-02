@@ -49,6 +49,14 @@ class tensor {
       : data_{v1.X(), v1.Y(), v1.Z(), v2.X(), v2.Y(),
               v2.Z(), v3.X(), v3.Y(), v3.Z()} {}
 
+  // move constructor and assignment operator
+  tensor(tensor<T>&&) noexcept = default;
+  tensor& operator=(tensor<T>&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  tensor(const tensor<T>&) = default;
+  tensor& operator=(const tensor<T>&) = default;
+
   // member functions
   // operator overloads
   tensor<T> operator+(const tensor &) const;
@@ -98,7 +106,7 @@ class tensor {
   void Zero();
 
   // destructor
-  ~tensor() {}
+  ~tensor() noexcept {}
 };
 
 // operator overload for addition - element wise addition

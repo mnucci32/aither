@@ -67,6 +67,14 @@ class primVars {
       : data_{a, b, c, d, e, f, g} {}
   primVars(const genArray &, const bool &, const idealGas &, const turbModel *);
 
+  // move constructor and assignment operator
+  primVars(primVars&&) noexcept = default;
+  primVars& operator=(primVars&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  primVars(const primVars&) = default;
+  primVars& operator=(const primVars&) = default;
+
   // member functions
   double Rho() const { return data_[0]; }
   double U() const { return data_[1]; }
@@ -94,6 +102,7 @@ class primVars {
   void ApplyFarfieldTurbBC(const vector3d<double> &, const double &,
                            const double &, const sutherland &,
                            const idealGas &);
+  void LimitTurb(const turbModel *);
 
   // operator overloads for addition and subtraction of states
   primVars operator+(const primVars &) const;
@@ -137,7 +146,7 @@ class primVars {
                          const turbModel *, const int = 1) const;
 
   // destructor
-  ~primVars() {}
+  ~primVars() noexcept {}
 };
 
 // function definitions

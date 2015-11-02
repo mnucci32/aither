@@ -49,6 +49,14 @@ class source {
   // constructors
   source() : data_{0.0} {}
 
+  // move constructor and assignment operator
+  source(source&&) noexcept = default;
+  source& operator=(source&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  source(const source&) = default;
+  source& operator=(const source&) = default;
+
   // member functions
   double SrcMass() const { return data_[0]; }
   double SrcMomX() const { return data_[1]; }
@@ -80,7 +88,7 @@ class source {
   friend ostream &operator<<(ostream &os, const source &);
 
   // destructor
-  ~source() {}
+  ~source() noexcept {}
 };
 
 // function definitions

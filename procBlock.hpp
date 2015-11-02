@@ -89,6 +89,14 @@ class procBlock {
             const boundaryConditions &, const int &, const int &, const int &);
   procBlock(const int &, const int &, const int &, const int &);
 
+  // move constructor and assignment operator
+  procBlock(procBlock&&) noexcept = default;
+  procBlock& operator=(procBlock&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  procBlock(const procBlock&) = default;
+  procBlock& operator=(const procBlock&) = default;
+
   // member functions
   int NumCells() const { return residual_.Size(); }
   int NumI() const { return residual_.NumI(); }
@@ -275,7 +283,7 @@ class procBlock {
   void CalcWallDistance(const kdtree &);
 
   // destructor
-  ~procBlock() {}
+  ~procBlock() noexcept {}
 };
 
 // function definitions

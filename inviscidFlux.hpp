@@ -56,6 +56,14 @@ class inviscidFlux {
   inviscidFlux(const genArray&, const idealGas&, const turbModel*,
                const vector3d<double>&);
 
+  // move constructor and assignment operator
+  inviscidFlux(inviscidFlux&&) noexcept = default;
+  inviscidFlux& operator=(inviscidFlux&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  inviscidFlux(const inviscidFlux&) = default;
+  inviscidFlux& operator=(const inviscidFlux&) = default;
+
   // member functions
   double RhoVel() const { return data_[0]; }
   double RhoVelU() const { return data_[1]; }
@@ -80,7 +88,7 @@ class inviscidFlux {
   genArray ConvertToGenArray() const;
 
   // destructor
-  ~inviscidFlux() {}
+  ~inviscidFlux() noexcept {}
 };
 
 // function definitions
