@@ -16,8 +16,6 @@
 
 #include <iostream>      // cout, cerr, endl
 #include <vector>        // stl vector
-#include <algorithm>     // max_element
-#include <numeric>       // accumulate
 #include <cfenv>         // exceptions
 #include <ctime>         // clock
 #include <string>        // stl string
@@ -47,13 +45,15 @@ using std::clock;
 int main(int argc, char *argv[]) {
   // Initialize MPI and make calls to get number
   // of processors and rank of each processor
-  int numProcs, rank;
+  auto numProcs = 1;
+  auto rank = 0;
   MPI_Init(&argc, &argv);
   MPI_Comm_size(MPI_COMM_WORLD, &numProcs);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
   // Get MPI version
-  int version, subversion;
+  auto version = 3;
+  auto subversion = 0;
   MPI_Get_version(&version, &subversion);
   if ( rank == ROOTP ) {
     cout << "Code compiled on " << __DATE__ << " at " << __TIME__ << endl;
@@ -63,7 +63,7 @@ int main(int argc, char *argv[]) {
   MPI_Barrier(MPI_COMM_WORLD);
 
   // Start clock to time simulation
-  clock_t start = clock();
+  auto start = clock();
 
   // Enable exceptions so code won't run with NANs
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
@@ -74,16 +74,16 @@ int main(int argc, char *argv[]) {
   // Broadcast input file name to all names for portability
   BroadcastString(inputFile);
 
-  double totalCells = 0.0;
+  auto totalCells = 0.0;
   input inputVars(inputFile);
   decomposition decomp;
-  int numProcBlock = 0;
+  auto numProcBlock = 0;
 
   // Parse input file
   inputVars.ReadInput(rank);
 
   // Determine number of ghost cells
-  int numGhost = 2;
+  auto numGhost = 2;
 
   // Get equation of state
   idealGas eos(inputVars.Gamma(), inputVars.R());
@@ -94,7 +94,7 @@ int main(int argc, char *argv[]) {
 
   // Initialize state vector with nondimensional variables
   // Get reference speed of sound
-  double aRef = eos.SoS(inputVars.PRef(), inputVars.RRef());
+  auto aRef = eos.SoS(inputVars.PRef(), inputVars.RRef());
   primVars state;
   state.NondimensionalInitialize(eos, aRef, inputVars, suth);
 
@@ -113,7 +113,7 @@ int main(int argc, char *argv[]) {
     mesh = ReadP3dGrid(inputVars.GridName(), inputVars.LRef(), totalCells);
 
     // Get BCs for blocks
-    vector<boundaryConditions> bcs = inputVars.AllBC();
+    auto bcs = inputVars.AllBC();
 
     // Decompose grid
     if (inputVars.DecompMethod() == "manual") {
@@ -134,7 +134,7 @@ int main(int argc, char *argv[]) {
 
     // Initialize the whole mesh with one state and assign ghost cells geometry
     stateBlocks.resize(mesh.size());
-    for ( int ll = 0; ll < static_cast<int> (mesh.size()); ll++ ) {
+    for (auto ll = 0; ll < static_cast<int>(mesh.size()); ll++) {
       stateBlocks[ll] = procBlock(state, mesh[ll], decomp.ParentBlock(ll),
                                   numGhost, bcs[ll], ll, decomp.Rank(ll),
                                   decomp.LocalPosition(ll) );
@@ -142,12 +142,12 @@ int main(int argc, char *argv[]) {
     }
 
     // Swap geometry for interblock BCs
-    for ( unsigned int ii = 0; ii < connections.size(); ii++ ) {
+    for (auto ii = 0; ii < static_cast<int>(connections.size()); ii++) {
       SwapSlice(connections[ii], stateBlocks[connections[ii].BlockFirst()],
                 stateBlocks[connections[ii].BlockSecond()], true);
     }
     // Get ghost cell edge data
-    for ( unsigned int ll = 0; ll < mesh.size(); ll++ ) {
+    for (auto ll = 0; ll < static_cast<int>(mesh.size()); ll++) {
       stateBlocks[ll].AssignGhostCellsGeomEdge();
     }
 
@@ -168,9 +168,8 @@ int main(int argc, char *argv[]) {
   SendNumProcBlocks(decomp.NumBlocksOnAllProc(), numProcBlock);
 
   // Send procBlocks to appropriate processor
-  vector<procBlock> localStateBlocks =
-      SendProcBlocks(stateBlocks, rank, numProcBlock, MPI_cellData, MPI_vec3d,
-                     MPI_vec3dMag);
+  auto localStateBlocks = SendProcBlocks(stateBlocks, rank, numProcBlock,
+                                         MPI_cellData, MPI_vec3d, MPI_vec3dMag);
 
   // Send connections to all processors
   SendConnections(connections, MPI_interblock);
@@ -186,7 +185,7 @@ int main(int argc, char *argv[]) {
   //-----------------------------------------------------------------------
   // wall distance calculation
 
-  clock_t wallStart = clock();
+  auto wallStart = clock();
 
   if (rank == ROOTP) {
     cout << "Starting wall distance calculation..." << endl;
@@ -197,7 +196,7 @@ int main(int argc, char *argv[]) {
   kdtree tree(viscFaces);
 
   if (rank == ROOTP) {
-    double kdDuration = (clock() - wallStart) /
+    auto kdDuration = (clock() - wallStart) /
         static_cast<double> (CLOCKS_PER_SEC);
     cout << "K-d tree complete after " << kdDuration << " seconds" << endl;
   }
@@ -208,7 +207,7 @@ int main(int argc, char *argv[]) {
 
   MPI_Barrier(MPI_COMM_WORLD);
   if (rank == ROOTP) {
-    double wallDuration = (clock() - wallStart) /
+    auto wallDuration = (clock() - wallStart) /
         static_cast<double> (CLOCKS_PER_SEC);
     cout << "Wall distance calculation finished after " << wallDuration
          << " seconds" << endl << endl;
@@ -230,7 +229,7 @@ int main(int argc, char *argv[]) {
   genArray residL2First(0.0);  // l2 norm residuals to normalize by
   resid residLinf;  // linf residuals
   // matrix inversion residual (only for implicit runs)
-  double matrixResid = 0.0;
+  auto matrixResid = 0.0;
 
   // Send/recv solutions - necessary to get wall distances
   GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData);
@@ -245,19 +244,19 @@ int main(int argc, char *argv[]) {
     WriteRes(inputVars.SimNameRoot(), 0, inputVars.OutputFrequency());
   }
 
-  for ( int nn = 0; nn < inputVars.Iterations(); nn++ ) {   // loop over time
+  for (auto nn = 0; nn < inputVars.Iterations(); nn++) {   // loop over time
     // Calculate cfl number
     inputVars.CalcCFL(nn);
 
     // loop over nonlinear iterations
-    for ( int mm = 0; mm < inputVars.NonlinearIterations(); mm++ ) {
+    for (auto mm = 0; mm < inputVars.NonlinearIterations(); mm++) {
       // Get boundary conditions for all blocks
       GetBoundaryConditions(localStateBlocks, inputVars, eos, suth, turb,
                             connections, rank, MPI_cellData);
 
       // Loop over number of blocks
-      for ( int bb = 0; bb < static_cast<int> (localStateBlocks.size());
-            bb++ ) {
+      for (auto bb = 0; bb < static_cast<int>(localStateBlocks.size());
+            bb++) {
         // Calculate inviscid fluxes
         localStateBlocks[bb].CalcInvFluxI(eos, inputVars);
         localStateBlocks[bb].CalcInvFluxJ(eos, inputVars);
@@ -312,10 +311,9 @@ int main(int argc, char *argv[]) {
                   solTimeN[bb], inputVars.Theta(), inputVars.Zeta());
 
           // Reorder block (by hyperplanes) for lusgs
-          vector<vector3d<int>> reorder =
-              HyperplaneReorder(localStateBlocks[bb].NumI(),
-                                localStateBlocks[bb].NumJ(),
-                                localStateBlocks[bb].NumK());
+          auto reorder = HyperplaneReorder(localStateBlocks[bb].NumI(),
+                                           localStateBlocks[bb].NumJ(),
+                                           localStateBlocks[bb].NumK());
 
           // Reserve space for correction du
           multiArray3d<genArray> du(localStateBlocks[bb].NumI(),
@@ -404,7 +402,7 @@ int main(int argc, char *argv[]) {
     cout << "Program Complete" << endl;
     PrintTime();
 
-    double duration = (clock() - start) / static_cast<double> (CLOCKS_PER_SEC);
+    auto duration = (clock() - start) / static_cast<double> (CLOCKS_PER_SEC);
     cout << "Total Time: " << duration << " seconds" << endl;
   }
 

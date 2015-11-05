@@ -80,7 +80,7 @@ class colMatrix {
   friend colMatrix operator/(const double &, const colMatrix &);
   friend ostream &operator<<(ostream &os, const colMatrix &);
 
-  friend void swap(colMatrix &first, colMatrix &second);
+  friend void swap(colMatrix &first, colMatrix &second) noexcept;
 
   // destructor
   ~colMatrix() noexcept {
@@ -97,14 +97,14 @@ class genArray {
 
  public:
   // constructor
-  genArray() : data_{0.0} {}
-  explicit genArray(const double &);
-  genArray(const double &a, const double &b, const double &c, const double &d,
-           const double &e)
-      : data_{a, b, c, d, e} {}
   genArray(const double &a, const double &b, const double &c, const double &d,
            const double &e, const double &f, const double &g)
       : data_{a, b, c, d, e, f, g} {}
+  genArray(const double &a, const double &b, const double &c, const double &d,
+           const double &e)
+      : genArray(a, b, c, d, e, 0.0, 0.0) {}
+  genArray() : genArray(0.0, 0.0, 0.0, 0.0, 0.0) {}
+  explicit genArray(const double &a) : genArray(a, a, a, a, a, a, a) {}
 
   // member functions
   void Zero();
@@ -198,7 +198,7 @@ class squareMatrix {
   friend squareMatrix operator/(const double &, const squareMatrix &);
   friend ostream &operator<<(ostream &os, const squareMatrix &);
 
-  friend void swap(squareMatrix &first, squareMatrix &second);
+  friend void swap(squareMatrix &first, squareMatrix &second) noexcept;
 
   // destructor
   ~squareMatrix() noexcept {
@@ -242,7 +242,7 @@ class matrixDiagonal {
   // operator overloads
   friend ostream &operator<<(ostream &os, const matrixDiagonal &);
 
-  friend void swap(matrixDiagonal &first, matrixDiagonal &second);
+  friend void swap(matrixDiagonal &first, matrixDiagonal &second) noexcept;
 
   // destructor
   ~matrixDiagonal() noexcept {

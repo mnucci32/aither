@@ -84,10 +84,10 @@ class procBlock {
 
  public:
   // constructors
-  procBlock();
   procBlock(const primVars &, const plot3dBlock &, const int &, const int &,
             const boundaryConditions &, const int &, const int &, const int &);
   procBlock(const int &, const int &, const int &, const int &);
+  procBlock() : procBlock(1, 1, 1, 0) {}
 
   // move constructor and assignment operator
   procBlock(procBlock&&) noexcept = default;

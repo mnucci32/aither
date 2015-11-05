@@ -45,9 +45,9 @@ class boundarySurface {
 
  public:
   // Constructor
-  boundarySurface();
   boundarySurface(const string&, const int&, const int&, const int&,
                   const int&, const int&, const int&, const int&);
+  boundarySurface() : boundarySurface("undefined", 0, 0, 0, 0, 0, 0, 0) {}
 
   // move constructor and assignment operator
   boundarySurface(boundarySurface&&) noexcept = default;
@@ -170,8 +170,8 @@ class boundaryConditions {
 
  public:
   // Constructor
-  boundaryConditions();
   boundaryConditions(const int&, const int&, const int&);
+  boundaryConditions() : boundaryConditions(2, 2, 2) {}
 
   // move constructor and assignment operator
   boundaryConditions(boundaryConditions&&) noexcept = default;
@@ -338,12 +338,12 @@ class decomposition {
   vector<int> splitHistIndex_;
   // direction of split (vector size equals number of splits)
   vector<string> splitHistDir_;
-  int numProcs;                     // number of processors
+  int numProcs_;                     // number of processors
 
  public:
   // Constructor
-  decomposition();
   decomposition(const int&, const int&);
+  decomposition() : decomposition(1, 1) {}
 
   // move constructor and assignment operator
   decomposition(decomposition&&) noexcept = default;

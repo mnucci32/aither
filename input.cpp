@@ -136,15 +136,15 @@ string trim(const string &s, const string &whitespace = " \t") {
     return "";  // string is empty
   } else {
     // find index of first non whitespace character
-    const unsigned int sBegin = s.find_first_not_of(whitespace);
+    const auto sBegin = s.find_first_not_of(whitespace);
     // find index of last non whitespace character
-    const int sEnd = s.find_last_not_of(whitespace);
-    const int sRange = sEnd - sBegin + 1;  // range to trim string to
-    string temp = s.substr(sBegin, sRange);
+    const auto sEnd = s.find_last_not_of(whitespace);
+    const auto sRange = sEnd - sBegin + 1;  // range to trim string to
+    auto temp = s.substr(sBegin, sRange);
 
     // find index of first comment character
-    const int tempComment = temp.find(comment);
-    const int tempRange = tempComment - 0;  // find range of string to return
+    const auto tempComment = temp.find(comment);
+    const auto tempRange = tempComment - 0;  // find range of string to return
 
     return temp.substr(0, tempRange);
   }
@@ -158,7 +158,7 @@ void PrintTime() {
   time(&rawtime);
   localtime_r(&rawtime, &timeinfo);
 
-  const int kBufLen = 100;  // hard coded max buffer length
+  constexpr auto kBufLen = 100;  // hard coded max buffer length
   char buffer[kBufLen];
   strftime(buffer, kBufLen, "%c", &timeinfo);
   cout << buffer << endl;
@@ -181,22 +181,22 @@ void input::ReadInput(const int &rank) {
 
   // open input file
   ifstream inFile;
-  inFile.open(simName_.c_str(), ios::in);
+  inFile.open(simName_, ios::in);
   if (inFile.fail()) {
     cerr << "ERROR: Error in input::ReadInput(). Input file " << simName_
          << " did not open correctly!!!" << endl;
     exit(0);
   }
 
-  string line;
+  string line = "";
   vector3d<double> temp;
-  int readingBCs = 0;
-  int blk = 0;
-  int surfCounter = 0;
-  int numBCBlks = 0;
+  auto readingBCs = 0;
+  auto blk = 0;
+  auto surfCounter = 0;
+  auto numBCBlks = 0;
   vector<boundaryConditions> tempBC(1);
-  int lEnd = 0;
-  int numSurf = 0;
+  auto lEnd = 0;
+  auto numSurf = 0;
 
   while (getline(inFile, line)) {  // while there are still lines in the input
                                    // file, execute loop
@@ -212,11 +212,11 @@ void input::ReadInput(const int &rank) {
     // search to see if first token corresponds to any keywords
     // line must contain at least 2 tokens (keyword and value)
     if (tokens.size() >= 2) {
-      for (int ii = 0; ii < (*this).NumVars();
+      for (auto ii = 0; ii < this->NumVars();
            ii++) {  // loop over all input variables and see if they match
                     // keywords
 
-        if (tokens[0] == (*this).Vars(ii) ||
+        if (tokens[0] == this->Vars(ii) ||
             readingBCs > 0) {  // if first token matches a keyword or reading
                                // boundary conditions
 
@@ -225,75 +225,75 @@ void input::ReadInput(const int &rank) {
           if (ii == 0 && readingBCs == 0) {
             gName_ = tokens[1];
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).GridName() << endl;
+              cout << this->Vars(ii) << " " << this->GridName() << endl;
             }
             continue;
           } else if (ii == 1 && readingBCs == 0) {
-            dt_ = atof(tokens[1].c_str());  // double variable (atof)
+            dt_ = stod(tokens[1]);  // double variable (stod)
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).Dt() << endl;
+              cout << this->Vars(ii) << " " << this->Dt() << endl;
             }
             continue;
           } else if (ii == 2 && readingBCs == 0) {
-            iterations_ = atoi(tokens[1].c_str());
+            iterations_ = stoi(tokens[1]);
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).Iterations() << endl;
+              cout << this->Vars(ii) << " " << this->Iterations() << endl;
             }
             continue;
           } else if (ii == 3 && readingBCs == 0) {
-            pRef_ = atof(tokens[1].c_str());  // double variable (atof)
+            pRef_ = stod(tokens[1]);  // double variable (stod)
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).PRef() << endl;
+              cout << this->Vars(ii) << " " << this->PRef() << endl;
             }
             continue;
           } else if (ii == 4 && readingBCs == 0) {
-            rRef_ = atof(tokens[1].c_str());  // double variable (atof)
+            rRef_ = stod(tokens[1]);  // double variable (stod)
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).RRef() << endl;
+              cout << this->Vars(ii) << " " << this->RRef() << endl;
             }
             continue;
           } else if (ii == 5 && readingBCs == 0) {
-            lRef_ = atof(tokens[1].c_str());  // double variable (atof)
+            lRef_ = stod(tokens[1]);  // double variable (stod)
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).LRef() << endl;
+              cout << this->Vars(ii) << " " << this->LRef() << endl;
             }
             continue;
           } else if (ii == 6 && readingBCs == 0) {
-            gamma_ = atof(tokens[1].c_str());  // double variable (atof)
+            gamma_ = stod(tokens[1]);  // double variable (stod)
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).Gamma() << endl;
+              cout << this->Vars(ii) << " " << this->Gamma() << endl;
             }
             continue;
           } else if (ii == 7 && readingBCs == 0) {
-            gasConst_ = atof(tokens[1].c_str());  // double variable (atof)
+            gasConst_ = stod(tokens[1]);  // double variable (stod)
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).R() << endl;
+              cout << this->Vars(ii) << " " << this->R() << endl;
             }
             continue;
           } else if (ii == 8 && readingBCs == 0) {
-            temp.SetX(atof(tokens[1].c_str()));  // double variable (atof)
-            temp.SetY(atof(tokens[2].c_str()));
-            temp.SetZ(atof(tokens[3].c_str()));
+            temp.SetX(stod(tokens[1]));  // double variable (stod)
+            temp.SetY(stod(tokens[2]));
+            temp.SetZ(stod(tokens[3]));
             velRef_ = temp;
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).VelRef() << endl;
+              cout << this->Vars(ii) << " " << this->VelRef() << endl;
             }
             continue;
           } else if (ii == 9 && readingBCs == 0) {
             timeIntegration_ = tokens[1];
-            if ((*this).TimeIntegration() == "implicitEuler") {
+            if (this->TimeIntegration() == "implicitEuler") {
               timeIntTheta_ = 1.0;
               timeIntZeta_ = 0.0;
-            } else if ((*this).TimeIntegration() == "crankNicholson") {
+            } else if (this->TimeIntegration() == "crankNicholson") {
               timeIntTheta_ = 0.5;
               timeIntZeta_ = 0.0;
-            } else if ((*this).TimeIntegration() == "bdf2") {
+            } else if (this->TimeIntegration() == "bdf2") {
               timeIntTheta_ = 1.0;
               timeIntZeta_ = 0.5;
             }
 
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).TimeIntegration()
+              cout << this->Vars(ii) << " " << this->TimeIntegration()
                    << endl;
             }
             continue;
@@ -312,16 +312,16 @@ void input::ReadInput(const int &rank) {
               kappa_ = -2.0;
             } else {
               // if string is not recognized, set kappa to number input
-              kappa_ = atof(tokens[1].c_str());
+              kappa_ = stod(tokens[1]);
             }
 
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << tokens[1]
-                   << " kappa = " << (*this).Kappa() << endl;
+              cout << this->Vars(ii) << " " << tokens[1]
+                   << " kappa = " << this->Kappa() << endl;
             }
-            if (((*this).Kappa() < -1.0) || ((*this).Kappa() > 1.0)) {
+            if ((this->Kappa() < -1.0) || (this->Kappa() > 1.0)) {
               cerr << "ERROR: Error in input::ReadInput(). Kappa value of "
-                   << (*this).Kappa()
+                   << this->Kappa()
                    << " is not valid! Choose a value between -1.0 and 1.0."
                    << endl;
               exit(0);
@@ -330,146 +330,146 @@ void input::ReadInput(const int &rank) {
           } else if (ii == 12 && readingBCs == 0) {
             limiter_ = tokens[1];
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).Limiter() << endl;
+              cout << this->Vars(ii) << " " << this->Limiter() << endl;
             }
             continue;
           } else if (ii == 13 && readingBCs == 0) {
-            outputFrequency_ = atoi(tokens[1].c_str());
+            outputFrequency_ = stoi(tokens[1]);
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).OutputFrequency()
+              cout << this->Vars(ii) << " " << this->OutputFrequency()
                    << endl;
             }
             continue;
           } else if (ii == 14 && readingBCs == 0) {
             equationSet_ = tokens[1];
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).EquationSet() << endl;
+              cout << this->Vars(ii) << " " << this->EquationSet() << endl;
             }
             continue;
           } else if (ii == 15 && readingBCs == 0) {
-            tRef_ = atof(tokens[1].c_str());  // double variable (atof)
+            tRef_ = stod(tokens[1]);  // double variable (stod)
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).TRef() << endl;
+              cout << this->Vars(ii) << " " << this->TRef() << endl;
             }
             continue;
           } else if (ii == 16 && readingBCs == 0) {
             matrixSolver_ = tokens[1];
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).MatrixSolver() << endl;
+              cout << this->Vars(ii) << " " << this->MatrixSolver() << endl;
             }
             continue;
           } else if (ii == 17 && readingBCs == 0) {
-            matrixSweeps_ = atoi(tokens[1].c_str());
+            matrixSweeps_ = stoi(tokens[1]);
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).MatrixSweeps() << endl;
+              cout << this->Vars(ii) << " " << this->MatrixSweeps() << endl;
             }
             continue;
           } else if (ii == 18 && readingBCs == 0) {
             matrixRelaxation_ =
-                atof(tokens[1].c_str());  // double variable (atof)
+                stod(tokens[1]);  // double variable (stod)
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).MatrixRelaxation()
+              cout << this->Vars(ii) << " " << this->MatrixRelaxation()
                    << endl;
             }
             continue;
           } else if (ii == 21 && readingBCs == 0) {
-            nonlinearIterations_ = atoi(tokens[1].c_str());
+            nonlinearIterations_ = stoi(tokens[1]);
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).NonlinearIterations()
+              cout << this->Vars(ii) << " " << this->NonlinearIterations()
                    << endl;
             }
             continue;
           } else if (ii == 22 && readingBCs == 0) {
-            cflMax_ = atof(tokens[1].c_str());  // double  (atof)
+            cflMax_ = stod(tokens[1]);  // double  (stod)
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).CFLMax() << endl;
+              cout << this->Vars(ii) << " " << this->CFLMax() << endl;
             }
             continue;
           } else if (ii == 23 && readingBCs == 0) {
-            cflStep_ = atof(tokens[1].c_str());  // double (atof)
+            cflStep_ = stod(tokens[1]);  // double (stod)
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).CFLStep() << endl;
+              cout << this->Vars(ii) << " " << this->CFLStep() << endl;
             }
             continue;
           } else if (ii == 24 && readingBCs == 0) {
-            cflStart_ = atof(tokens[1].c_str());  // double variable (atof)
+            cflStart_ = stod(tokens[1]);  // double variable (stod)
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).CFLStart() << endl;
+              cout << this->Vars(ii) << " " << this->CFLStart() << endl;
             }
             continue;
           } else if (ii == 25 && readingBCs == 0) {
             invFluxJac_ = tokens[1];
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).InvFluxJac() << endl;
+              cout << this->Vars(ii) << " " << this->InvFluxJac() << endl;
             }
           } else if (ii == 26 && readingBCs == 0) {
-            dualTimeCFL_ = atof(tokens[1].c_str());  // double variable (atof)
+            dualTimeCFL_ = stod(tokens[1]);  // double variable (stod)
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).DualTimeCFL() << endl;
+              cout << this->Vars(ii) << " " << this->DualTimeCFL() << endl;
             }
             continue;
           } else if (ii == 27 && readingBCs == 0) {
             inviscidFlux_ = tokens[1];
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).InviscidFlux() << endl;
+              cout << this->Vars(ii) << " " << this->InviscidFlux() << endl;
             }
           } else if (ii == 28 && readingBCs == 0) {
-            stagInletProps_[0] = atoi(tokens[1].c_str());  // tag
-            stagInletProps_[1] = atof(tokens[2].c_str());  // stag pressure
-            stagInletProps_[2] = atof(tokens[3].c_str());  // stag temp
-            stagInletProps_[3] = atof(tokens[4].c_str());  // dir-x
-            stagInletProps_[4] = atof(tokens[5].c_str());  // dir-y
-            stagInletProps_[5] = atof(tokens[6].c_str());  // dir-z
+            stagInletProps_[0] = stoi(tokens[1]);  // tag
+            stagInletProps_[1] = stod(tokens[2]);  // stag pressure
+            stagInletProps_[2] = stod(tokens[3]);  // stag temp
+            stagInletProps_[3] = stod(tokens[4]);  // dir-x
+            stagInletProps_[4] = stod(tokens[5]);  // dir-y
+            stagInletProps_[5] = stod(tokens[6]);  // dir-z
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).StagInletTag() << " "
-                   << (*this).StagInletP0() << " " << (*this).StagInletT0()
-                   << " " << (*this).StagInletDx() << " "
-                   << (*this).StagInletDy() << " " << (*this).StagInletDz()
+              cout << this->Vars(ii) << " " << this->StagInletTag() << " "
+                   << this->StagInletP0() << " " << this->StagInletT0()
+                   << " " << this->StagInletDx() << " "
+                   << this->StagInletDy() << " " << this->StagInletDz()
                    << endl;
             }
           } else if (ii == 29 && readingBCs == 0) {
-            pressureOutlet_[0] = atoi(tokens[1].c_str());  // tag
-            pressureOutlet_[1] = atof(tokens[2].c_str());  // outlet pressure
+            pressureOutlet_[0] = stoi(tokens[1]);  // tag
+            pressureOutlet_[1] = stod(tokens[2]);  // outlet pressure
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).PressureOutletTag()
-                   << " " << (*this).PressureOutletP() << endl;
+              cout << this->Vars(ii) << " " << this->PressureOutletTag()
+                   << " " << this->PressureOutletP() << endl;
             }
           } else if (ii == 30 && readingBCs == 0) {
             decompMethod_ = tokens[1];
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).DecompMethod() << endl;
+              cout << this->Vars(ii) << " " << this->DecompMethod() << endl;
             }
             continue;
           } else if (ii == 31 && readingBCs == 0) {
             turbModel_ = tokens[1];
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).TurbulenceModel()
+              cout << this->Vars(ii) << " " << this->TurbulenceModel()
                    << endl;
             }
             continue;
           } else if (ii == 32 && readingBCs == 0) {
-            farfieldTurbInten_ = atof(tokens[1].c_str());  // double (atof)
+            farfieldTurbInten_ = stod(tokens[1]);  // double (stod)
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).FarfieldTurbIntensity()
+              cout << this->Vars(ii) << " " << this->FarfieldTurbIntensity()
                    << endl;
             }
             continue;
           } else if (ii == 33 && readingBCs == 0) {
-            farfieldEddyViscRatio_ = atof(tokens[1].c_str());  // double (atof)
+            farfieldEddyViscRatio_ = stod(tokens[1]);  // double (stod)
             if (rank == ROOTP) {
-              cout << (*this).Vars(ii) << " " << (*this).FarfieldEddyViscRatio()
+              cout << this->Vars(ii) << " " << this->FarfieldEddyViscRatio()
                    << endl;
             }
             continue;
 
           // reading BCs
           // -------------------------------------------------------------
-          } else if (ii == (*this).NumVars() - 1 || readingBCs > 0) {
+          } else if (ii == this->NumVars() - 1 || readingBCs > 0) {
             // read in boundary conditions and assign to boundaryConditions
             // class
             if (readingBCs == 0) {  // variable read must be number of blocks if
                                     // first line of BCs
-              numBCBlks = atoi(tokens[1].c_str());
+              numBCBlks = stoi(tokens[1]);
               tempBC.resize(numBCBlks);  // resize vector holding BCs to correct
                                          // number of blocks
               readingBCs++;
@@ -477,13 +477,13 @@ void input::ReadInput(const int &rank) {
             } else if (readingBCs == lEnd) {  // variables must be number of i,
                                               // j, k surfaces for each block
               // set number of i, j, k surfaces and resize vectors
-              tempBC[blk].ResizeVecs(atoi(tokens[0].c_str()),
-                                     atoi(tokens[1].c_str()),
-                                     atoi(tokens[2].c_str()));
+              tempBC[blk].ResizeVecs(stoi(tokens[0]),
+                                     stoi(tokens[1]),
+                                     stoi(tokens[2]));
 
               // set total number of surfaces
-              numSurf = atoi(tokens[0].c_str()) + atoi(tokens[1].c_str()) +
-                        atoi(tokens[2].c_str());
+              numSurf = stoi(tokens[0]) + stoi(tokens[1]) +
+                        stoi(tokens[2]);
 
               lEnd += (numSurf +
                        1);  // set new target for when block data is finished
@@ -508,11 +508,11 @@ void input::ReadInput(const int &rank) {
             if (blk == numBCBlks) {
               bc_ = tempBC;
               if (rank == ROOTP) {
-                cout << (*this).Vars((*this).NumVars() - 1) << " "
-                     << (*this).NumBC() << endl << endl;
-                for (int ll = 0; ll < (*this).NumBC(); ll++) {
+                cout << this->Vars(this->NumVars() - 1) << " "
+                     << this->NumBC() << endl << endl;
+                for (auto ll = 0; ll < this->NumBC(); ll++) {
                   cout << "Block: " << ll << endl;
-                  cout << (*this).BC(ll) << endl;
+                  cout << this->BC(ll) << endl;
                 }
               }
             }
@@ -550,7 +550,7 @@ void input::CalcCFL(const int &i) {
 
 // member function to determine number of equations to solver for
 int input::NumEquations() const {
-  int numEqns = 0;
+  auto numEqns = 0;
   if ((equationSet_ == "euler") ||
       (equationSet_ == "navierStokes")) {
     numEqns = 5;

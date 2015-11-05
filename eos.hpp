@@ -44,8 +44,8 @@ class idealGas {
 
  public:
   // Constructor
-  idealGas() : gamma_(1.4), gasConst_(287.058) {}
   idealGas(const double &a, const double &b) : gamma_(a), gasConst_(b) {}
+  idealGas() : idealGas(1.4, 287.058) {}
 
   // move constructor and assignment operator
   idealGas(idealGas&&) noexcept = default;
@@ -58,12 +58,12 @@ class idealGas {
   // Member functions
   double Pressure(const double &rho, const double &specEn) const;
   double PressFromEnergy(const double &rho, const double &energy,
-                            const double &vel) const;
+                         const double &vel) const;
   double Density(const double &pressure, const double &specEn) const;
   double SpecEnergy(const double &pressure, const double &rho) const;
   double Energy(const double &specEn, const double &vel) const;
   double Enthalpy(const double &energy, const double &pressure,
-                     const double &rho) const;
+                  const double &rho) const;
   double SoS(const double &pressure, const double &rho) const;
   double Gamma() const {return gamma_;}
   double GasConst() const {return gasConst_;}
@@ -73,7 +73,7 @@ class idealGas {
 
   // nondimensional version (R=1/gamma_)
   double Conductivity(const double &mu) const {
-    return mu / ((*this).Prandtl() * (gamma_ - 1.0) );}
+    return mu / (this->Prandtl() * (gamma_ - 1.0) );}
   // Nondimensional version (R=1/gamma_)
   double TurbConductivity(const double &eddyVisc, const double &prt) const {
     return eddyVisc / ( prt * (gamma_ - 1.0) );}
@@ -101,10 +101,6 @@ class sutherland {
   // Constructors
   // Stoke's hypothesis -- bulk viscosity = 0
   // Sutherland's Law -- mu = muref * (C1 * Tref^1.5) / (T + S_)
-  sutherland() : cOne_(1.458e-6), S_(110.4), tRef_(288.15),
-                 muRef_(cOne_ * pow(tRef_, 1.5)/(tRef_+S_)), bulkVisc_(0.0),
-                 reRef_(0.0), mRef_(0.0), scaling_(0.0), invScaling_(0.0) {}
-
   sutherland(const double &c, const double &s, const double &t,
              const double &r, const double &p, const double &l,
              const vector3d<double> &vel, const idealGas &eos) :
@@ -112,19 +108,17 @@ class sutherland {
       bulkVisc_(0.0), reRef_(r * vel.Mag() * l / muRef_),
       mRef_(vel.Mag() / eos.SoS(p, r)), scaling_(mRef_ / reRef_),
       invScaling_(reRef_ / mRef_) {}
+  sutherland(const double &t, const double &r, const double &l, const double &p,
+             const vector3d<double> &vel, const idealGas &eos) :
+      sutherland(1.458e-6, 110.4, t, r, p, l, vel, eos) {}
+
   explicit sutherland(const double &t) : cOne_(1.458e-6), S_(110.4),
                                          tRef_(t),
                                          muRef_(cOne_ * pow(t, 1.5)/(t+S_)),
                                          bulkVisc_(0.0), reRef_(0.0),
                                          mRef_(0.0), scaling_(0.0),
                                          invScaling_(0.0) {}
-  sutherland(const double &t, const double &r, const double &l, const double &p,
-             const vector3d<double> &vel, const idealGas &eos) :
-      cOne_(1.458e-6), S_(110.4), tRef_(t),
-      muRef_(cOne_ * pow(t, 1.5)/(t+S_)), bulkVisc_(0.0),
-      reRef_(r * vel.Mag() * l / muRef_),
-      mRef_(vel.Mag() / eos.SoS(p, r)), scaling_(mRef_ / reRef_),
-      invScaling_(reRef_ / mRef_) {}
+  sutherland() : sutherland(288.15) {}
 
   // move constructor and assignment operator
   sutherland(sutherland&&) noexcept = default;

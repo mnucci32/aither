@@ -80,9 +80,9 @@ geomSlice::geomSlice(const procBlock &blk, const int &is, const int &ie,
   // revK -- flag to reverse k direction of indices (default false)
 
   // allocate dimensions
-  int numI = ie - is + 1;
-  int numJ = je - js + 1;
-  int numK = ke - ks + 1;
+  const auto numI = ie - is + 1;
+  const auto numJ = je - js + 1;
+  const auto numK = ke - ks + 1;
   parBlock_ = blk.ParentBlock();
 
   // allocate size for vectors
@@ -96,18 +96,18 @@ geomSlice::geomSlice(const procBlock &blk, const int &is, const int &ie,
   vol_ = multiArray3d<double>(numI, numJ, numK);
 
   // loop over all cells in slice and populate
-  for (int kk = 0; kk < vol_.NumK(); kk++) {
-    for (int jj = 0; jj < vol_.NumJ(); jj++) {
-      for (int ii = 0; ii < vol_.NumI(); ii++) {
+  for (auto kk = 0; kk < vol_.NumK(); kk++) {
+    for (auto jj = 0; jj < vol_.NumJ(); jj++) {
+      for (auto ii = 0; ii < vol_.NumI(); ii++) {
         // determine if direction needs to be reversed
-        int k = revK ? numK - 1 - kk : kk;
-        double kFac = revK ? -1.0 : 1.0;
+        auto k = revK ? numK - 1 - kk : kk;
+        auto kFac = revK ? -1.0 : 1.0;
 
-        int j = revJ ? numJ - 1 - jj : jj;
-        double jFac = revJ ? -1.0 : 1.0;
+        auto j = revJ ? numJ - 1 - jj : jj;
+        auto jFac = revJ ? -1.0 : 1.0;
 
-        int i = revI ? numI - 1 - ii : ii;
-        double iFac = revI ? -1.0 : 1.0;
+        auto i = revI ? numI - 1 - ii : ii;
+        auto iFac = revI ? -1.0 : 1.0;
 
         // assign cell variables
         vol_(ii, jj, kk) = blk.Vol(is + i, js + j, ks + k);
@@ -217,8 +217,8 @@ void stateSlice::PackSwapUnpackMPI(const interblock &inter,
 
   // swap with mpi_send_recv_replace
   // pack data into buffer, but first get size
-  int bufSize = 0;
-  int tempSize = 0;
+  auto bufSize = 0;
+  auto tempSize = 0;
   MPI_Pack_size(this->NumCells(), MPI_cellData, MPI_COMM_WORLD,
                 &tempSize);  // add size for states
   bufSize += tempSize;
@@ -227,13 +227,13 @@ void stateSlice::PackSwapUnpackMPI(const interblock &inter,
                 &tempSize);
   bufSize += tempSize;
 
-  char *buffer = new char[bufSize];  // allocate buffer to pack data into
+  auto *buffer = new char[bufSize];  // allocate buffer to pack data into
 
   // pack data into buffer
-  int numI = this->NumI();
-  int numJ = this->NumJ();
-  int numK = this->NumK();
-  int position = 0;
+  auto numI = this->NumI();
+  auto numJ = this->NumJ();
+  auto numK = this->NumK();
+  auto position = 0;
   MPI_Pack(&numI, 1, MPI_INT, buffer, bufSize, &position,
            MPI_COMM_WORLD);
   MPI_Pack(&numJ, 1, MPI_INT, buffer, bufSize, &position,
@@ -296,22 +296,22 @@ stateSlice::stateSlice(const procBlock &blk, const int &is, const int &ie,
   // revK -- flag to reverse k direction of indices (default false)
 
   // allocate dimensions
-  int numI = ie - is + 1;
-  int numJ = je - js + 1;
-  int numK = ke - ks + 1;
+  const auto numI = ie - is + 1;
+  const auto numJ = je - js + 1;
+  const auto numK = ke - ks + 1;
   parBlock_ = blk.ParentBlock();
 
   // allocate size for vectors
   state_ = multiArray3d<primVars>(numI, numJ, numK);
 
   // loop over all cells in slice and populate
-  for (int kk = 0; kk < state_.NumK(); kk++) {
-    for (int jj = 0; jj < state_.NumJ(); jj++) {
-      for (int ii = 0; ii < state_.NumI(); ii++) {
+  for (auto kk = 0; kk < state_.NumK(); kk++) {
+    for (auto jj = 0; jj < state_.NumJ(); jj++) {
+      for (auto ii = 0; ii < state_.NumI(); ii++) {
         // determine if direction needs to be reversed
-        int k = revK ? numK - 1 - kk : kk;
-        int j = revJ ? numJ - 1 - jj : jj;
-        int i = revI ? numI - 1 - ii : ii;
+        auto k = revK ? numK - 1 - kk : kk;
+        auto j = revJ ? numJ - 1 - jj : jj;
+        auto i = revI ? numI - 1 - ii : ii;
 
         // assign cell variables
         state_(ii, jj, kk) = blk.State(is + i, js + j, ks + k);

@@ -112,7 +112,7 @@ class tensor {
 // operator overload for addition - element wise addition
 template <typename T>
 tensor<T> tensor<T>::operator+(const tensor &v2) const {
-  tensor<T> temp = (*this);
+  auto temp = *this;
   temp.data_[0] += v2.data_[0];
   temp.data_[1] += v2.data_[1];
   temp.data_[2] += v2.data_[2];
@@ -131,7 +131,7 @@ tensor<T> tensor<T>::operator+(const tensor &v2) const {
 // operator overload for subtraction - element wise subtraction
 template <typename T>
 tensor<T> tensor<T>::operator-(const tensor &v2) const {
-  tensor<T> temp = *this;
+  auto temp = *this;
   temp.data_[0] -= v2.data_[0];
   temp.data_[1] -= v2.data_[1];
   temp.data_[2] -= v2.data_[2];
@@ -152,35 +152,35 @@ template <typename T>
 tensor<T> tensor<T>::operator*(const tensor &v2) const {
   tensor<T> temp;
 
-  temp.data_[0] = (*this).data_[0] * v2.data_[0] +
-                  (*this).data_[1] * v2.data_[3] +
-                  (*this).data_[2] * v2.data_[6];
-  temp.data_[1] = (*this).data_[0] * v2.data_[1] +
-                  (*this).data_[1] * v2.data_[4] +
-                  (*this).data_[2] * v2.data_[7];
-  temp.data_[2] = (*this).data_[0] * v2.data_[2] +
-                  (*this).data_[1] * v2.data_[5] +
-                  (*this).data_[2] * v2.data_[8];
+  temp.data_[0] = data_[0] * v2.data_[0] +
+                  data_[1] * v2.data_[3] +
+                  data_[2] * v2.data_[6];
+  temp.data_[1] = data_[0] * v2.data_[1] +
+                  data_[1] * v2.data_[4] +
+                  data_[2] * v2.data_[7];
+  temp.data_[2] = data_[0] * v2.data_[2] +
+                  data_[1] * v2.data_[5] +
+                  data_[2] * v2.data_[8];
 
-  temp.data_[3] = (*this).data_[3] * v2.data_[0] +
-                  (*this).data_[4] * v2.data_[3] +
-                  (*this).data_[5] * v2.data_[6];
-  temp.data_[4] = (*this).data_[3] * v2.data_[1] +
-                  (*this).data_[4] * v2.data_[4] +
-                  (*this).data_[5] * v2.data_[7];
-  temp.data_[5] = (*this).data_[3] * v2.data_[2] +
-                  (*this).data_[4] * v2.data_[5] +
-                  (*this).data_[5] * v2.data_[8];
+  temp.data_[3] = data_[3] * v2.data_[0] +
+                  data_[4] * v2.data_[3] +
+                  data_[5] * v2.data_[6];
+  temp.data_[4] = data_[3] * v2.data_[1] +
+                  data_[4] * v2.data_[4] +
+                  data_[5] * v2.data_[7];
+  temp.data_[5] = data_[3] * v2.data_[2] +
+                  data_[4] * v2.data_[5] +
+                  data_[5] * v2.data_[8];
 
-  temp.data_[6] = (*this).data_[6] * v2.data_[0] +
-                  (*this).data_[7] * v2.data_[3] +
-                  (*this).data_[8] * v2.data_[6];
-  temp.data_[7] = (*this).data_[6] * v2.data_[1] +
-                  (*this).data_[7] * v2.data_[4] +
-                  (*this).data_[8] * v2.data_[7];
-  temp.data_[8] = (*this).data_[6] * v2.data_[2] +
-                  (*this).data_[7] * v2.data_[5] +
-                  (*this).data_[8] * v2.data_[8];
+  temp.data_[6] = data_[6] * v2.data_[0] +
+                  data_[7] * v2.data_[3] +
+                  data_[8] * v2.data_[6];
+  temp.data_[7] = data_[6] * v2.data_[1] +
+                  data_[7] * v2.data_[4] +
+                  data_[8] * v2.data_[7];
+  temp.data_[8] = data_[6] * v2.data_[2] +
+                  data_[7] * v2.data_[5] +
+                  data_[8] * v2.data_[8];
 
   return temp;
 }
@@ -189,7 +189,7 @@ tensor<T> tensor<T>::operator*(const tensor &v2) const {
 // addition
 template <typename T>
 tensor<T> tensor<T>::operator+(const T &scalar) const {
-  tensor<T> temp = *this;
+  auto temp = *this;
   temp.data_[0] += scalar;
   temp.data_[1] += scalar;
   temp.data_[2] += scalar;
@@ -231,7 +231,7 @@ tensor<TT> operator+(const TT &scalar, const tensor<TT> &v1) {
 // subtraction
 template <typename T>
 tensor<T> tensor<T>::operator-(const T &scalar) const {
-  tensor<T> temp = *this;
+  auto temp = *this;
   temp.data_[0] -= scalar;
   temp.data_[1] -= scalar;
   temp.data_[2] -= scalar;
@@ -273,7 +273,7 @@ tensor<TT> operator-(const TT &scalar, const tensor<TT> &v1) {
 // multiplication
 template <typename T>
 tensor<T> tensor<T>::operator*(const T &scalar) const {
-  tensor<T> temp = *this;
+  auto temp = *this;
   temp.data_[0] *= scalar;
   temp.data_[1] *= scalar;
   temp.data_[2] *= scalar;
@@ -314,7 +314,7 @@ tensor<TT> operator*(const TT &scalar, const tensor<TT> &v1) {
 // operator overload for division with a scalar - element wise division
 template <typename T>
 tensor<T> tensor<T>::operator/(const T &scalar) const {
-  tensor<T> temp = *this;
+  auto temp = *this;
   temp.data_[0] /= scalar;
   temp.data_[1] /= scalar;
   temp.data_[2] /= scalar;
@@ -364,17 +364,17 @@ template <typename T>
 tensor<T> tensor<T>::Transpose() const {
   tensor<T> temp;
 
-  temp.data_[0] = (*this).data_[0];
-  temp.data_[1] = (*this).data_[3];
-  temp.data_[2] = (*this).data_[6];
+  temp.data_[0] = data_[0];
+  temp.data_[1] = data_[3];
+  temp.data_[2] = data_[6];
 
-  temp.data_[3] = (*this).data_[1];
-  temp.data_[4] = (*this).data_[4];
-  temp.data_[5] = (*this).data_[7];
+  temp.data_[3] = data_[1];
+  temp.data_[4] = data_[4];
+  temp.data_[5] = data_[7];
 
-  temp.data_[6] = (*this).data_[2];
-  temp.data_[7] = (*this).data_[5];
-  temp.data_[8] = (*this).data_[8];
+  temp.data_[6] = data_[2];
+  temp.data_[7] = data_[5];
+  temp.data_[8] = data_[8];
 
   return temp;
 }
@@ -384,12 +384,9 @@ template <typename T>
 vector3d<T> tensor<T>::MatMult(const vector3d<T> &vec) const {
   vector3d<T> temp;
 
-  temp.SetX((*this).data_[0] * vec.X() + (*this).data_[1] * vec.Y() +
-            (*this).data_[2] * vec.Z());
-  temp.SetY((*this).data_[3] * vec.X() + (*this).data_[4] * vec.Y() +
-            (*this).data_[5] * vec.Z());
-  temp.SetZ((*this).data_[6] * vec.X() + (*this).data_[7] * vec.Y() +
-            (*this).data_[8] * vec.Z());
+  temp.SetX(data_[0] * vec.X() + data_[1] * vec.Y() + data_[2] * vec.Z());
+  temp.SetY(data_[3] * vec.X() + data_[4] * vec.Y() + data_[5] * vec.Z());
+  temp.SetZ(data_[6] * vec.X() + data_[7] * vec.Y() + data_[8] * vec.Z());
 
   return temp;
 }

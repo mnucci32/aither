@@ -40,11 +40,11 @@ double turbModel::EddyViscNoLim(const primVars &state) const {
 tensor<double> turbModel::BoussinesqReynoldsStress(
     const primVars &state, const tensor<double> &velGrad,
     const sutherland &suth, const double &mut) const {
-  double lambda = suth.Lambda(mut);
+  const auto lambda = suth.Lambda(mut);
 
   tensor<double> I;
   I.Identity();
-  tensor<double> tau =
+  const auto tau =
       lambda * velGrad.Trace() * I + mut * (velGrad + velGrad.Transpose())
       - 2.0 / 3.0 * state.Rho() * state.Tke() * I;
   return tau;
@@ -55,8 +55,7 @@ double turbModel::ReynoldsStressDDotVelGrad(const primVars &state,
                                             const tensor<double> &velGrad,
                                             const sutherland &suth,
                                             const double &mut) const {
-  tensor<double> tau = this->BoussinesqReynoldsStress(state, velGrad, suth,
-                                                      mut);
+  const auto tau = this->BoussinesqReynoldsStress(state, velGrad, suth, mut);
   return tau.DoubleDotTrans(velGrad);
 }
 
@@ -135,7 +134,7 @@ double turbKWWilcox::FBeta(const primVars &state,
   // state -- primative variables
   // velGrad -- velocity gradient
   // suth -- sutherland's law for viscosity
-  double xw = this->Xw(state, velGrad, suth);
+  auto xw = this->Xw(state, velGrad, suth);
   return (1.0 + 85.0 * xw) / (1.0 + 100.0 * xw);
 }
 
@@ -146,7 +145,7 @@ double turbKWWilcox::Xw(const primVars &state,
   // velGrad -- velocity gradient
   // suth -- sutherland's law for viscosity
 
-  tensor<double> vorticity = 0.5 * (velGrad - velGrad.Transpose());
+  const auto vorticity = 0.5 * (velGrad - velGrad.Transpose());
 
   // using DoubleDotTrans for speed
   // both tensors are symmetric so result is the same
@@ -172,7 +171,7 @@ double turbKWWilcox::OmegaTilda(const primVars &state,
 
   tensor<double> I;
   I.Identity();
-  tensor<double> sHat = 0.5 * (velGrad + velGrad.Transpose()) - 1.0 / 3.0 *
+  const auto sHat = 0.5 * (velGrad + velGrad.Transpose()) - 1.0 / 3.0 *
       velGrad.Trace() * I;
 
   // using DoubleDotTrans instead of DoubleDot for speed
@@ -190,23 +189,23 @@ void turbKWWilcox::CalcTurbSrc(const primVars &state,
                                const double &wallDist, double &ksrc,
                                double &wsrc) const {
   // calculate tke destruction
-  double tkeDest = suth.InvNondimScaling() * betaStar_ *
+  const auto tkeDest = suth.InvNondimScaling() * betaStar_ *
       this->TkeDestruction(state);
 
   // calculate omega destruction
-  double omgDest = suth.InvNondimScaling() * this->Beta(state, velGrad, suth) *
-      this->OmegaDestruction(state);
+  const auto omgDest = suth.InvNondimScaling() *
+      this->Beta(state, velGrad, suth) * this->OmegaDestruction(state);
 
   // calculate tke production
-  double mut = this->EddyVisc(state, velGrad, suth, 0.0);
-  double tkeProd = suth.NondimScaling() *
+  const auto mut = this->EddyVisc(state, velGrad, suth, 0.0);
+  const auto tkeProd = suth.NondimScaling() *
       this->ReynoldsStressDDotVelGrad(state, velGrad, suth, mut);
 
   // calculate omega production
-  double omgProd = gamma_ * state.Omega() / state.Tke() * tkeProd;
+  const auto omgProd = gamma_ * state.Omega() / state.Tke() * tkeProd;
 
   // calculate omega cross diffusion
-  double omgCd = suth.NondimScaling() * this->SigmaD(kGrad, wGrad) *
+  const auto omgCd = suth.NondimScaling() * this->SigmaD(kGrad, wGrad) *
       this->CrossDiffusion(state, kGrad, wGrad);
 
   // assign source term values
@@ -228,7 +227,7 @@ double turbKWWilcox::EddyViscAndMolecDiffCoeff(const primVars &state,
                                                double &sigmaK,
                                                double &sigmaW) const {
   // calculate limited eddy (effective) viscosity
-  double mut = this->EddyViscNoLim(state) * suth.NondimScaling();
+  const auto mut = this->EddyViscNoLim(state) * suth.NondimScaling();
 
   // calculate blended coefficients
   sigmaK = sigmaStar_ * mut;
@@ -256,11 +255,11 @@ void turbKWWilcox::Print() const {
 // member function for eddy viscosity with limiter
 double turbKWSst::EddyVisc(const primVars &state, const tensor<double> &vGrad,
                            const sutherland &suth, const double &f2) const {
-  tensor<double> strainRate = 0.5 * (vGrad + vGrad.Transpose());
+  const auto strainRate = 0.5 * (vGrad + vGrad.Transpose());
 
   // using DoubleDotTrans for speed
   // both tensors are symmetric so result is the same
-  double meanStrainRate = sqrt(2.0 * strainRate.DoubleDotTrans(strainRate));
+  const auto meanStrainRate = sqrt(2.0 * strainRate.DoubleDotTrans(strainRate));
   return state.Rho() * a1_ * state.Tke() /
       max(a1_ * state.Omega(), suth.NondimScaling() * meanStrainRate * f2);
 }
@@ -273,12 +272,12 @@ double turbKWSst::CDkw(const primVars &state, const vector3d<double> &kGrad,
 
 double turbKWSst::F1(const double &alpha1, const double &alpha2,
                      const double &alpha3) const {
-  double arg1 = min(max(alpha1, alpha2), alpha3);
+  const auto arg1 = min(max(alpha1, alpha2), alpha3);
   return tanh(pow(arg1, 4.0));
 }
 
 double turbKWSst::F2(const double &alpha1, const double &alpha2) const {
-  double arg2 = max(2.0 * alpha1, alpha2);
+  const auto arg2 = max(2.0 * alpha1, alpha2);
   return tanh(arg2 * arg2);
 }
 
@@ -315,39 +314,39 @@ void turbKWSst::CalcTurbSrc(const primVars &state,
                             const double &wallDist, double &ksrc,
                             double &wsrc) const {
   // calculate blending functions
-  double alpha1 = this->Alpha1(state, suth, wallDist);
-  double alpha2 = this->Alpha2(state, suth, eos, wallDist);
-  double cdkw = this->CDkw(state, kGrad, wGrad);
-  double alpha3 = this->Alpha3(state, wallDist, cdkw);
-  double f1 = this->F1(alpha1, alpha2, alpha3);
-  double f2 = this->F2(alpha1, alpha2);
+  const auto alpha1 = this->Alpha1(state, suth, wallDist);
+  const auto alpha2 = this->Alpha2(state, suth, eos, wallDist);
+  const auto cdkw = this->CDkw(state, kGrad, wGrad);
+  const auto alpha3 = this->Alpha3(state, wallDist, cdkw);
+  const auto f1 = this->F1(alpha1, alpha2, alpha3);
+  const auto f2 = this->F2(alpha1, alpha2);
 
   // calculate blended coefficients
-  double gamma = this->BlendedCoeff(gamma1_, gamma2_, f1);
-  double beta = this->BlendedCoeff(beta1_, beta2_, f1);
+  const auto gamma = this->BlendedCoeff(gamma1_, gamma2_, f1);
+  const auto beta = this->BlendedCoeff(beta1_, beta2_, f1);
 
   // calculate tke destruction
-  double tkeDest = suth.InvNondimScaling() * betaStar_ *
+  const auto tkeDest = suth.InvNondimScaling() * betaStar_ *
       this->TkeDestruction(state);
 
   // calculate omega destruction
-  double omgDest = suth.InvNondimScaling() * beta *
+  const auto omgDest = suth.InvNondimScaling() * beta *
       this->OmegaDestruction(state);
 
   // calculate tke production
-  double mut = this->EddyVisc(state, velGrad, suth, f2);
-  double tkeProd =
+  const auto mut = this->EddyVisc(state, velGrad, suth, f2);
+  const auto tkeProd =
       min(suth.NondimScaling() *
           this->ReynoldsStressDDotVelGrad(state, velGrad, suth, mut),
           kProd2Dest_ * tkeDest);
 
   // calculate omega production
-  double omgProd = gamma * state.Rho() / mut * tkeProd;
+  const auto omgProd = gamma * state.Rho() / mut * tkeProd;
 
   // calculate omega cross diffusion
   // Using CDkw instead of whole cross diffusion term
   // Both Loci/CHEM and SU2 use this implementation
-  double omgCd = suth.NondimScaling() * (1.0 - f1) * cdkw;
+  const auto omgCd = suth.NondimScaling() * (1.0 - f1) * cdkw;
 
   // assign source term values
   ksrc = tkeProd - tkeDest;
@@ -368,15 +367,16 @@ double turbKWSst::EddyViscAndMolecDiffCoeff(const primVars &state,
                                             double &sigmaK,
                                             double &sigmaW) const {
   // calculate blending functions
-  double alpha1 = this->Alpha1(state, suth, wallDist);
-  double alpha2 = this->Alpha2(state, suth, eos, wallDist);
-  double cdkw = this->CDkw(state, kGrad, wGrad);
-  double alpha3 = this->Alpha3(state, wallDist, cdkw);
-  double f1 = this->F1(alpha1, alpha2, alpha3);
-  double f2 = this->F2(alpha1, alpha2);
+  const auto alpha1 = this->Alpha1(state, suth, wallDist);
+  const auto alpha2 = this->Alpha2(state, suth, eos, wallDist);
+  const auto cdkw = this->CDkw(state, kGrad, wGrad);
+  const auto alpha3 = this->Alpha3(state, wallDist, cdkw);
+  const auto f1 = this->F1(alpha1, alpha2, alpha3);
+  const auto f2 = this->F2(alpha1, alpha2);
 
   // calculate limited eddy (effective) viscosity
-  double mut = this->EddyVisc(state, velGrad, suth, f2) * suth.NondimScaling();
+  const auto mut = this->EddyVisc(state, velGrad, suth, f2) *
+      suth.NondimScaling();
 
   // calculate blended coefficients
   sigmaK = this->BlendedCoeff(sigmaK1_, sigmaK2_, f1) * mut;

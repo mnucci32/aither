@@ -31,7 +31,7 @@ using std::string;
 
 // operator overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, const source &src) {
-  for (int ii = 0; ii < NUMVARS; ii++) {
+  for (auto ii = 0; ii < NUMVARS; ii++) {
     os << src.data_[ii];
     if (ii != NUMVARS - 1) {
       os << ", ";
@@ -43,7 +43,7 @@ ostream &operator<<(ostream &os, const source &src) {
 // operator overload for addition
 source source::operator+(const source &src2) const {
   source src1 = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
+  for (auto ii = 0; ii < NUMVARS; ii++) {
     src1.data_[ii] += src2.data_[ii];
   }
   return src1;
@@ -52,7 +52,7 @@ source source::operator+(const source &src2) const {
 // operator overload for addition with a scalar
 source operator+(const double &scalar, const source &src2) {
   source src1;
-  for (int ii = 0; ii < NUMVARS; ii++) {
+  for (auto ii = 0; ii < NUMVARS; ii++) {
     src1.data_[ii] = src2.data_[ii] + scalar;
   }
   return src1;
@@ -61,7 +61,7 @@ source operator+(const double &scalar, const source &src2) {
 // operator overload for subtraction
 source source::operator-(const source &src2) const {
   source src1 = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
+  for (auto ii = 0; ii < NUMVARS; ii++) {
     src1.data_[ii] -= src2.data_[ii];
   }
   return src1;
@@ -70,7 +70,7 @@ source source::operator-(const source &src2) const {
 // operator overload for subtraction with a scalar
 source operator-(const double &scalar, const source &src2) {
   source src1;
-  for (int ii = 0; ii < NUMVARS; ii++) {
+  for (auto ii = 0; ii < NUMVARS; ii++) {
     src1.data_[ii] = scalar - src2.data_[ii];
   }
   return src1;
@@ -79,7 +79,7 @@ source operator-(const double &scalar, const source &src2) {
 // operator overload for elementwise multiplication
 source source::operator*(const source &src2) const {
   source src1 = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
+  for (auto ii = 0; ii < NUMVARS; ii++) {
     src1.data_[ii] *= src2.data_[ii];
   }
   return src1;
@@ -88,7 +88,7 @@ source source::operator*(const source &src2) const {
 // member function for scalar multiplication
 source source::operator*(const double &scalar) const {
   source temp = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
+  for (auto ii = 0; ii < NUMVARS; ii++) {
     temp.data_[ii] *= scalar;
   }
   return temp;
@@ -97,7 +97,7 @@ source source::operator*(const double &scalar) const {
 // member function for scalar addition
 source source::operator+(const double &scalar) const {
   source temp = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
+  for (auto ii = 0; ii < NUMVARS; ii++) {
     temp.data_[ii] += scalar;
   }
   return temp;
@@ -106,7 +106,7 @@ source source::operator+(const double &scalar) const {
 // member function for scalar subtraction
 source source::operator-(const double &scalar) const {
   source temp = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
+  for (auto ii = 0; ii < NUMVARS; ii++) {
     temp.data_[ii] -= scalar;
   }
   return temp;
@@ -115,7 +115,7 @@ source source::operator-(const double &scalar) const {
 // member function for scalar division
 source source::operator/(const double &scalar) const {
   source temp = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
+  for (auto ii = 0; ii < NUMVARS; ii++) {
     temp.data_[ii] /= scalar;
   }
   return temp;
@@ -124,7 +124,7 @@ source source::operator/(const double &scalar) const {
 // operator overload for multiplication with a scalar
 source operator*(const double &scalar, const source &src2) {
   source src1;
-  for (int ii = 0; ii < NUMVARS; ii++) {
+  for (auto ii = 0; ii < NUMVARS; ii++) {
     src1.data_[ii] = src2.data_[ii] * scalar;
   }
   return src1;
@@ -133,7 +133,7 @@ source operator*(const double &scalar, const source &src2) {
 // operator overload for elementwise division
 source source::operator/(const source &src2) const {
   source src1 = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
+  for (auto ii = 0; ii < NUMVARS; ii++) {
     src1.data_[ii] /= src2.data_[ii];
   }
   return src1;
@@ -142,7 +142,7 @@ source source::operator/(const source &src2) const {
 // operator overload for division with a scalar
 source operator/(const double &scalar, const source &src2) {
   source src1;
-  for (int ii = 0; ii < NUMVARS; ii++) {
+  for (auto ii = 0; ii < NUMVARS; ii++) {
     src1.data_[ii] = scalar / src2.data_[ii];
   }
   return src1;
@@ -164,17 +164,19 @@ void source::CalcTurbSrc(const turbModel *turb, const primVars &state,
   // kk -- cell k-location to calculate source terms at
 
   // get cell gradients
-  tensor<double> vGrad = grads.VelGradCell(ii, jj, kk);
-  vector3d<double> kGrad = grads.TkeGradCell(ii, jj, kk);
-  vector3d<double> wGrad = grads.OmegaGradCell(ii, jj, kk);
+  const auto vGrad = grads.VelGradCell(ii, jj, kk);
+  const auto kGrad = grads.TkeGradCell(ii, jj, kk);
+  const auto wGrad = grads.OmegaGradCell(ii, jj, kk);
 
   // calculate turbulent source terms
-  double ksrc = 0.0;
-  double wsrc = 0.0;
-  turb->CalcTurbSrc(state, vGrad, kGrad, wGrad, suth, eqnState, wallDist,
-                    ksrc, wsrc);
+  auto ksrc = 0.0;
+  auto wsrc = 0.0;
+  // DEBUG
+  // turb->CalcTurbSrc(state, vGrad, kGrad, wGrad, suth, eqnState, wallDist,
+  //                   ksrc, wsrc);
 
   // assign turbulent source terms
-  data_[5] = ksrc;
-  data_[6] = wsrc;
+  // DEBUG
+  data_[5] = 0.0;  // ksrc;
+  data_[6] = 0.0;  // wsrc;
 }

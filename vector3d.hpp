@@ -143,7 +143,7 @@ class unitVec3dMag {
 // operator overload for addition - element wise addition
 template <typename T>
 vector3d<T> vector3d<T>::operator+(const vector3d &v2) const {
-  vector3d<T> temp = *this;
+  auto temp = *this;
   temp.data_[0] += v2.data_[0];
   temp.data_[1] += v2.data_[1];
   temp.data_[2] += v2.data_[2];
@@ -153,7 +153,7 @@ vector3d<T> vector3d<T>::operator+(const vector3d &v2) const {
 // operator overload for subtraction - element wise subtraction
 template <typename T>
 vector3d<T> vector3d<T>::operator-(const vector3d &v2) const {
-  vector3d<T> temp = *this;
+  auto temp = *this;
   temp.data_[0] -= v2.data_[0];
   temp.data_[1] -= v2.data_[1];
   temp.data_[2] -= v2.data_[2];
@@ -164,7 +164,7 @@ vector3d<T> vector3d<T>::operator-(const vector3d &v2) const {
 // multiplication
 template <typename T>
 vector3d<T> vector3d<T>::operator*(const T &scalar) const {
-  vector3d<T> temp = *this;
+  auto temp = *this;
   temp.data_[0] *= scalar;
   temp.data_[1] *= scalar;
   temp.data_[2] *= scalar;
@@ -187,7 +187,7 @@ vector3d<TT> operator*(const TT &scalar, const vector3d<TT> &v1) {
 // operator overload for divisioin with a scalar - element wise division
 template <typename T>
 vector3d<T> vector3d<T>::operator/(const T &scalar) const {
-  vector3d<T> temp = *this;
+  auto temp = *this;
   temp.data_[0] /= scalar;
   temp.data_[1] /= scalar;
   temp.data_[2] /= scalar;
@@ -223,7 +223,7 @@ T vector3d<T>::DotProd(const vector3d &v2) const {
 // operator overload for comparison
 template <typename T>
 bool vector3d<T>::operator==(const vector3d &v2) const {
-  bool test = false;
+  auto test = false;
   if (data_[0] == v2.data_[0] && data_[1] == v2.data_[1] &&
       data_[2] == v2.data_[2]) {
     test = true;
@@ -277,7 +277,7 @@ T vector3d<T>::DistSq(const vector3d &v2) const {
 // Function to normalize a vector3d into a unit vector
 template <typename T>
 vector3d<T> vector3d<T>::Normalize() const {
-  return (*this) / (*this).Mag();
+  return (*this) / this->Mag();
 }
 
 // -----------------------------------------------------------------
@@ -285,7 +285,7 @@ vector3d<T> vector3d<T>::Normalize() const {
 // operator overload for addition - element wise addition
 template <typename T>
 unitVec3dMag<T> unitVec3dMag<T>::operator+(const unitVec3dMag &v2) const {
-  vector3d<T> newVec = (*this).Vector() + v2.Vector();
+  auto newVec = this->Vector() + v2.Vector();
   unitVec3dMag<T> temp(newVec);
   return temp;
 }
@@ -293,7 +293,7 @@ unitVec3dMag<T> unitVec3dMag<T>::operator+(const unitVec3dMag &v2) const {
 // operator overload for subtraction - element wise subtraction
 template <typename T>
 unitVec3dMag<T> unitVec3dMag<T>::operator-(const unitVec3dMag &v2) const {
-  vector3d<T> newVec = (*this).Vector() - v2.Vector();
+  auto newVec = this->Vector() - v2.Vector();
   unitVec3dMag<T> temp(newVec);
   return temp;
 }
@@ -302,7 +302,7 @@ unitVec3dMag<T> unitVec3dMag<T>::operator-(const unitVec3dMag &v2) const {
 // multiplication
 template <typename T>
 unitVec3dMag<T> unitVec3dMag<T>::operator*(const T &scalar) const {
-  unitVec3dMag<T> temp = *this;
+  auto temp = *this;
   if (scalar < 0) {
     temp.unitVec_ = -1.0 * temp.unitVec_;
   }
@@ -316,7 +316,7 @@ unitVec3dMag<T> unitVec3dMag<T>::operator*(const T &scalar) const {
 // behaves as unitVec3dMag * double
 template <typename TT>
 unitVec3dMag<TT> operator*(const TT &scalar, const unitVec3dMag<TT> &v1) {
-  unitVec3dMag<TT> temp = v1;
+  auto temp = v1;
   if (scalar < 0) {
     temp.unitVec_ = -1.0 * temp.unitVec_;
   }
@@ -327,7 +327,7 @@ unitVec3dMag<TT> operator*(const TT &scalar, const unitVec3dMag<TT> &v1) {
 // operator overload for divisioin with a scalar - element wise division
 template <typename T>
 unitVec3dMag<T> unitVec3dMag<T>::operator/(const T &scalar) const {
-  unitVec3dMag<T> temp = *this;
+  auto temp = *this;
   if (scalar < 0) {
     temp.unitVec_ = -1.0 * temp.unitVec_;
   }
@@ -340,7 +340,7 @@ unitVec3dMag<T> unitVec3dMag<T>::operator/(const T &scalar) const {
 // works
 template <typename TT>
 unitVec3dMag<TT> operator/(const TT &scalar, const unitVec3dMag<TT> &v1) {
-  unitVec3dMag<TT> temp = v1;
+  auto temp = v1;
   if (scalar < 0) {
     temp.unitVec_ = -1.0 * temp.unitVec_;
   }
@@ -365,7 +365,7 @@ T unitVec3dMag<T>::DotProd(const unitVec3dMag &v2) const {
 // operator overload for comparison
 template <typename T>
 bool unitVec3dMag<T>::operator==(const unitVec3dMag &v2) const {
-  bool test = false;
+  auto test = false;
   if (unitVec_ == v2.unitVec_ && mag_ == v2.mag_) {
     test = true;
   }
@@ -375,7 +375,7 @@ bool unitVec3dMag<T>::operator==(const unitVec3dMag &v2) const {
 // Function to calculate the cross product of two vectors
 template <typename T>
 unitVec3dMag<T> unitVec3dMag<T>::CrossProd(const unitVec3dMag &v2) const {
-  vector3d<T> newVec = (*this).Vector().CrossProd(v2.Vector());
+  auto newVec = this->Vector().CrossProd(v2.Vector());
   unitVec3dMag<T> crossProd(newVec);
   return crossProd;
 }

@@ -97,9 +97,9 @@ gradients::gradients(const bool &turbFlag, const procBlock &blk,
 
   // loop over i-faces and calculate gradients
   // loop over all physical faces
-  for (int kk = 0; kk < blk.NumK(); kk++) {
-    for (int jj = 0; jj < blk.NumJ(); jj++) {
-      for (int ii = 0; ii < blk.NumI() + 1; ii++) {
+  for (auto kk = 0; kk < blk.NumK(); kk++) {
+    for (auto jj = 0; jj < blk.NumJ(); jj++) {
+      for (auto ii = 0; ii < blk.NumI() + 1; ii++) {
         if (turbFlag) {
           blk.CalcGradsI(ii + blk.NumGhosts(), jj + blk.NumGhosts(),
                          kk + blk.NumGhosts(), eos, turbFlag,
@@ -118,9 +118,9 @@ gradients::gradients(const bool &turbFlag, const procBlock &blk,
 
   // loop over j-faces and calculate gradients
   // loop over all physical faces
-  for (int kk = 0; kk < blk.NumK(); kk++) {
-    for (int jj = 0; jj < blk.NumJ() + 1; jj++) {
-      for (int ii = 0; ii < blk.NumI(); ii++) {
+  for (auto kk = 0; kk < blk.NumK(); kk++) {
+    for (auto jj = 0; jj < blk.NumJ() + 1; jj++) {
+      for (auto ii = 0; ii < blk.NumI(); ii++) {
         // get face location
         if (turbFlag) {
           blk.CalcGradsJ(ii + blk.NumGhosts(), jj + blk.NumGhosts(),
@@ -140,9 +140,9 @@ gradients::gradients(const bool &turbFlag, const procBlock &blk,
 
   // loop over k-faces and calculate gradients
   // loop over all physical faces
-  for (int kk = 0; kk < blk.NumK() + 1; kk++) {
-    for (int jj = 0; jj < blk.NumJ(); jj++) {
-      for (int ii = 0; ii < blk.NumI(); ii++) {
+  for (auto kk = 0; kk < blk.NumK() + 1; kk++) {
+    for (auto jj = 0; jj < blk.NumJ(); jj++) {
+      for (auto ii = 0; ii < blk.NumI(); ii++) {
         if (turbFlag) {
           blk.CalcGradsK(ii + blk.NumGhosts(), jj + blk.NumGhosts(),
                          kk + blk.NumGhosts(), eos, turbFlag,

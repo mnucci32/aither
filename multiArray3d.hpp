@@ -190,7 +190,7 @@ multiArray3d<T>::multiArray3d(const int &ii, const int &jj, const int &kk,
 // operator overload to multiply all data components by same factor
 template <typename T>
 multiArray3d<T> multiArray3d<T>::operator*(const T &factor) const {
-  multiArray3d<T> arr = *this;
+  auto arr = *this;
   for (T& val : arr.data_) {
     val *= factor;
   }
@@ -205,7 +205,7 @@ multiArray3d<TT> operator*(const TT &factor, const multiArray3d<TT> &arr) {
 template <typename T>
 template <typename TT>
 multiArray3d<T> multiArray3d<T>::operator*(const TT &factor) const {
-  multiArray3d<T> arr = *this;
+  auto arr = *this;
   for (T& val : arr.data_) {
     val = val * factor;
   }
@@ -221,7 +221,7 @@ multiArray3d<T1> operator*(const T2 &factor, const multiArray3d<T1> &arr) {
 // operator overload to divide the same factor by all data components
 template <typename T>
 multiArray3d<T> multiArray3d<T>::operator/(const T &factor) const {
-  multiArray3d<T> arr = *this;
+  auto arr = *this;
   for (T& val : arr.data_) {
     val /= factor;
   }
@@ -230,7 +230,7 @@ multiArray3d<T> multiArray3d<T>::operator/(const T &factor) const {
 
 template <typename TT>
 multiArray3d<TT> operator/(const TT &factor, const multiArray3d<TT> &arr) {
-  multiArray3d<TT> out = arr;
+  auto out = arr;
   for (TT& val : out.data_) {
     val = factor / val;
   }
@@ -240,7 +240,7 @@ multiArray3d<TT> operator/(const TT &factor, const multiArray3d<TT> &arr) {
 template <typename T>
 template <typename TT>
 multiArray3d<T> multiArray3d<T>::operator/(const TT &factor) const {
-  multiArray3d<T> arr = *this;
+  auto arr = *this;
   for (T& val : arr.data_) {
     val = val / factor;
   }
@@ -249,7 +249,7 @@ multiArray3d<T> multiArray3d<T>::operator/(const TT &factor) const {
 
 template <typename T1, typename T2>
 multiArray3d<T1> operator/(const T2 &factor, const multiArray3d<T1> &arr) {
-  multiArray3d<T1> out = arr;
+  auto out = arr;
   for (T1& val : out.data_) {
     val = factor / val;
   }
@@ -259,7 +259,7 @@ multiArray3d<T1> operator/(const T2 &factor, const multiArray3d<T1> &arr) {
 // operator overload to add the same factor to all data components
 template <typename T>
 multiArray3d<T> multiArray3d<T>::operator+(const T &factor) const {
-  multiArray3d<T> arr = *this;
+  auto arr = *this;
   for (T& val : arr.data_) {
     val += factor;
   }
@@ -274,7 +274,7 @@ multiArray3d<TT> operator+(const TT &factor, const multiArray3d<TT> &arr) {
 template <typename T>
 template <typename TT>
 multiArray3d<T> multiArray3d<T>::operator+(const TT &factor) const {
-  multiArray3d<T> arr = *this;
+  auto arr = *this;
   for (T& val : arr.data_) {
     val = val + factor;
   }
@@ -289,7 +289,7 @@ multiArray3d<T1> operator+(const T2 &factor, const multiArray3d<T1> &arr) {
 // operator overload to subtract the same factor from all data components
 template <typename T>
 multiArray3d<T> multiArray3d<T>::operator-(const T &factor) const {
-  multiArray3d<T> arr = *this;
+  auto arr = *this;
   for (T& val : arr.data_) {
     val -= factor;
   }
@@ -298,7 +298,7 @@ multiArray3d<T> multiArray3d<T>::operator-(const T &factor) const {
 
 template <typename TT>
 multiArray3d<TT> operator-(const TT &factor, const multiArray3d<TT> &arr) {
-  multiArray3d<TT> out = arr;
+  auto out = arr;
   for (TT& val : out.data_) {
     val = factor - val;
   }
@@ -308,7 +308,7 @@ multiArray3d<TT> operator-(const TT &factor, const multiArray3d<TT> &arr) {
 template <typename T>
 template <typename TT>
 multiArray3d<T> multiArray3d<T>::operator-(const TT &factor) const {
-  multiArray3d<T> arr = *this;
+  auto arr = *this;
   for (T& val : arr.data_) {
     val = val - factor;
   }
@@ -317,7 +317,7 @@ multiArray3d<T> multiArray3d<T>::operator-(const TT &factor) const {
 
 template <typename T1, typename T2>
 multiArray3d<T1> operator-(const T2 &factor, const multiArray3d<T1> &arr) {
-  multiArray3d<T1> out = arr;
+  auto out = arr;
   for (T1& val : out.data_) {
     val = factor - val;
   }
@@ -327,8 +327,8 @@ multiArray3d<T1> operator-(const T2 &factor, const multiArray3d<T1> &arr) {
 // operator overload for pointwise multiplication
 template <typename T>
 multiArray3d<T> multiArray3d<T>::operator*(const multiArray3d<T> &b) const {
-  multiArray3d<T> arr = *this;
-  for (unsigned int ii = 0; ii < data_.size(); ii++) {
+  auto arr = *this;
+  for (auto ii = 0; ii < this->Size(); ii++) {
     arr.data_[ii] = arr.data_[ii] * b.data_[ii];
   }
   return arr;
@@ -337,8 +337,8 @@ multiArray3d<T> multiArray3d<T>::operator*(const multiArray3d<T> &b) const {
 // operator overload to divide all data components by same factor
 template <typename T>
 multiArray3d<T> multiArray3d<T>::operator/(const multiArray3d<T> &b) const {
-  multiArray3d<T> arr = *this;
-  for (unsigned int ii = 0; ii < data_.size(); ii++) {
+  auto arr = *this;
+  for (auto ii = 0; ii < this->Size(); ii++) {
     arr.data_[ii] = arr.data_[ii] / b.data_[ii];
   }
   return arr;
@@ -347,8 +347,8 @@ multiArray3d<T> multiArray3d<T>::operator/(const multiArray3d<T> &b) const {
 // operator overload to add the same factor to all data components
 template <typename T>
 multiArray3d<T> multiArray3d<T>::operator+(const multiArray3d<T> &b) const {
-  multiArray3d<T> arr = *this;
-  for (unsigned int ii = 0; ii < data_.size(); ii++) {
+  auto arr = *this;
+  for (auto ii = 0; ii < this->Size(); ii++) {
     arr.data_[ii] = arr.data_[ii] + b.data_[ii];
   }
   return arr;
@@ -357,8 +357,8 @@ multiArray3d<T> multiArray3d<T>::operator+(const multiArray3d<T> &b) const {
 // operator overload to subtract the same factor from all data components
 template <typename T>
 multiArray3d<T> multiArray3d<T>::operator-(const multiArray3d<T> &b) const {
-  multiArray3d<T> arr = *this;
-  for (unsigned int ii = 0; ii < data_.size(); ii++) {
+  auto arr = *this;
+  for (auto ii = 0; ii < this->Size(); ii++) {
     arr.data_[ii] = arr.data_[ii] - b.data_[ii];
   }
   return arr;
@@ -450,9 +450,9 @@ ostream &operator<<(ostream &os, const multiArray3d<TT> &array) {
   os << "Size: " << array.numI_ << ", " << array.numJ_ << ", "
      << array.numK_ << endl;
 
-  for (int kk = 0; kk < array.numK_; kk++) {
-    for (int jj = 0; jj < array.numJ_; jj++) {
-      for (int ii = 0; ii < array.numI_; ii++) {
+  for (auto kk = 0; kk < array.numK_; kk++) {
+    for (auto jj = 0; jj < array.numJ_; jj++) {
+      for (auto ii = 0; ii < array.numI_; ii++) {
         os << ii << ", " << jj << ", " << kk << ", " <<
             array(ii, jj, kk) << endl;
       }
@@ -464,9 +464,9 @@ ostream &operator<<(ostream &os, const multiArray3d<TT> &array) {
 template <typename T>
 void multiArray3d<T>::GrowI() {
   multiArray3d<T> arr(numI_ + 1, numJ_, numK_);
-  for (int kk = 0; kk < arr.numK_; kk++) {
-    for (int jj = 0; jj < arr.numJ_; jj++) {
-      for (int ii = 0; ii < arr.numI_; ii++) {
+  for (auto kk = 0; kk < arr.numK_; kk++) {
+    for (auto jj = 0; jj < arr.numJ_; jj++) {
+      for (auto ii = 0; ii < arr.numI_; ii++) {
         arr(ii, jj, kk) = (ii == arr.numI_ - 1) ? (*this)(ii - 1, jj, kk) :
             (*this)(ii, jj, kk);
       }
@@ -478,9 +478,9 @@ void multiArray3d<T>::GrowI() {
 template <typename T>
 void multiArray3d<T>::GrowJ() {
   multiArray3d<T> arr(numI_, numJ_ + 1, numK_);
-  for (int kk = 0; kk < arr.numK_; kk++) {
-    for (int jj = 0; jj < arr.numJ_; jj++) {
-      for (int ii = 0; ii < arr.numI_; ii++) {
+  for (auto kk = 0; kk < arr.numK_; kk++) {
+    for (auto jj = 0; jj < arr.numJ_; jj++) {
+      for (auto ii = 0; ii < arr.numI_; ii++) {
         arr(ii, jj, kk) = (jj == arr.numJ_ - 1) ? (*this)(ii, jj - 1, kk) :
             (*this)(ii, jj, kk);
       }
@@ -492,9 +492,9 @@ void multiArray3d<T>::GrowJ() {
 template <typename T>
 void multiArray3d<T>::GrowK() {
   multiArray3d<T> arr(numI_, numJ_, numK_ + 1);
-  for (int kk = 0; kk < arr.numK_; kk++) {
-    for (int jj = 0; jj < arr.numJ_; jj++) {
-      for (int ii = 0; ii < arr.numI_; ii++) {
+  for (auto kk = 0; kk < arr.numK_; kk++) {
+    for (auto jj = 0; jj < arr.numJ_; jj++) {
+      for (auto ii = 0; ii < arr.numI_; ii++) {
         arr(ii, jj, kk) = (kk == arr.numK_ - 1) ? (*this)(ii, jj, kk - 1) :
             (*this)(ii, jj, kk);
       }

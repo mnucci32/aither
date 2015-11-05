@@ -55,16 +55,16 @@ class primVars {
 
  public:
   // constructors
-  primVars() : data_{0.0} {}
-  explicit primVars(const double &);
-  primVars(const double &r, const double &p, const vector3d<double> &v)
-      : data_{r, v.X(), v.Y(), v.Z(), p, 0.0, 0.0} {}
-  primVars(const double &a, const double &b, const double &c, const double &d,
-           const double &e)
-      : data_{a, b, c, d, e, 0.0, 0.0} {}
   primVars(const double &a, const double &b, const double &c, const double &d,
            const double &e, const double &f, const double &g)
       : data_{a, b, c, d, e, f, g} {}
+  primVars(const double &a, const double &b, const double &c, const double &d,
+           const double &e)
+      : primVars(a, b, c, d, e, 0.0, 0.0) {}
+  primVars() : primVars(0.0, 0.0, 0.0, 0.0, 0.0) {}
+  explicit primVars(const double &a) : primVars(a, a, a, a, a, a, a) {}
+  primVars(const double &r, const double &p, const vector3d<double> &v)
+      : primVars(r, v.X(), v.Y(), v.Z(), p) {}
   primVars(const genArray &, const bool &, const idealGas &, const turbModel *);
 
   // move constructor and assignment operator
