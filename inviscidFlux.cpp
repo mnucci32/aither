@@ -16,6 +16,7 @@
 
 #include <cmath>  // sqrt
 #include <string>
+#include <memory>
 #include "inviscidFlux.hpp"
 #include "eos.hpp"
 #include "primVars.hpp"
@@ -29,6 +30,7 @@ using std::vector;
 using std::string;
 using std::max;
 using std::copysign;
+using std::unique_ptr;
 
 // constructor -- initialize flux from state vector
 // flux is a 3D flux in the normal direction of the given face
@@ -88,7 +90,7 @@ inviscidFlux::inviscidFlux(const primVars &state, const idealGas &eqnState,
 // constructor -- initialize flux from state vector using conservative variables
 // flux is a 3D flux in the normal direction of the given face
 inviscidFlux::inviscidFlux(const genArray &cons, const idealGas &eqnState,
-                           const turbModel *turb,
+                           const unique_ptr<turbModel> &turb,
                            const vector3d<double> &normArea) {
   // cons -- genArray of conserved variables
   // eqnState -- equation of state
@@ -960,7 +962,7 @@ genArray inviscidFlux::ConvertToGenArray() const {
 // vector, and conservative variable update and calculate the change in the
 // convective flux
 genArray ConvectiveFluxUpdate(const primVars &state, const idealGas &eqnState,
-                              const turbModel *turb,
+                              const unique_ptr<turbModel> &turb,
                               const vector3d<double> &normArea,
                               const genArray &du) {
   // get inviscid flux of old state

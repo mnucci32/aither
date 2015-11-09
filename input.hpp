@@ -18,13 +18,15 @@
                         // execute these lines of code
 #define INPUTHEADERDEF  // define the macro
 
-#include <vector>  // vector
-#include <string>  // string
+#include <vector>                   // vector
+#include <string>                   // string
+#include <memory>                   // unique_ptr
 #include "vector3d.hpp"
 #include "boundaryConditions.hpp"
 
 using std::vector;
 using std::string;
+using std::unique_ptr;
 
 // forward class declaration
 class turbModel;
@@ -171,7 +173,7 @@ class input {
   double FarfieldTurbIntensity() const {return farfieldTurbInten_;}
   double FarfieldEddyViscRatio() const {return farfieldEddyViscRatio_;}
 
-  turbModel* AssignTurbulenceModel() const;
+  unique_ptr<turbModel> AssignTurbulenceModel() const;
 
   // destructor
   ~input() noexcept {}

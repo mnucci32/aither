@@ -19,6 +19,7 @@
 #include <cfenv>         // exceptions
 #include <ctime>         // clock
 #include <string>        // stl string
+#include <memory>        // unique_ptr
 #include "plot3d.hpp"
 #include "vector3d.hpp"
 #include "input.hpp"
@@ -99,7 +100,7 @@ int main(int argc, char *argv[]) {
   state.NondimensionalInitialize(eos, aRef, inputVars, suth);
 
   // Get turbulence model
-  turbModel *turb = inputVars.AssignTurbulenceModel();
+  auto turb = inputVars.AssignTurbulenceModel();
 
   vector<plot3dBlock> mesh;
   vector<interblock> connections;
@@ -409,7 +410,6 @@ int main(int argc, char *argv[]) {
   // Free datatypes previously created
   FreeDataTypesMPI(MPI_vec3d, MPI_cellData, MPI_procBlockInts,
                    MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag);
-  delete turb;
 
   MPI_Finalize();
 

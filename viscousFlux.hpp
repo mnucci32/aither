@@ -21,6 +21,7 @@
 #include <iostream>        // cout
 #include <vector>          // vector
 #include <string>          // string
+#include <memory>          // unique_ptr
 #include "vector3d.hpp"    // vector3d
 #include "tensor.hpp"      // tensor
 #include "macros.hpp"
@@ -31,6 +32,7 @@ using std::cout;
 using std::endl;
 using std::cerr;
 using std::ostream;
+using std:: unique_ptr;
 
 // forward class declarations
 class primVars;
@@ -51,7 +53,7 @@ class viscousFlux {
   viscousFlux(const tensor<double>&, const sutherland&, const idealGas&,
               const vector3d<double>&, const vector3d<double>&,
               const vector3d<double>&, const vector3d<double>&,
-              const turbModel*, const primVars&, const double&);
+              const unique_ptr<turbModel>&, const primVars&, const double&);
 
   // move constructor and assignment operator
   viscousFlux(viscousFlux&&) noexcept = default;

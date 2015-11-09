@@ -22,6 +22,7 @@
 #include <string>                  // string
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"            // vector3d
 #include "multiArray3d.hpp"        // multiArray3d
@@ -39,6 +40,7 @@ using std::ofstream;
 using std::cout;
 using std::endl;
 using std::cerr;
+using std::unique_ptr;
 
 // forward class declarations
 class idealGas;
@@ -198,18 +200,19 @@ class procBlock {
 
   void CalcBlockTimeStep(const input &, const double &);
   void UpdateBlock(const input &, const int &, const idealGas &, const double &,
-                   const multiArray3d<genArray> &, const turbModel *,
-                   genArray &, resid &);
+                   const multiArray3d<genArray> &,
+                   const unique_ptr<turbModel> &, genArray &, resid &);
 
-  void ExplicitEulerTimeAdvance(const idealGas &, const turbModel *,
+  void ExplicitEulerTimeAdvance(const idealGas &, const unique_ptr<turbModel> &,
                                 const int &, const int &, const int &,
                                 const int &, const int &, const int &);
   void ImplicitTimeAdvance(const genArray &, const idealGas &,
-                           const turbModel *, const int &, const int &,
-                           const int &);
-  void RK4TimeAdvance(const primVars &, const idealGas &, const turbModel *,
+                           const unique_ptr<turbModel> &, const int &,
+                           const int &, const int &);
+  void RK4TimeAdvance(const primVars &, const idealGas &,
+                      const unique_ptr<turbModel> &, const int &, const int &,
                       const int &, const int &, const int &, const int &,
-                      const int &, const int &, const int &);
+                      const int &);
 
   void ResetResidWS();
   void CleanResizeVecs(const int &, const int &, const int &);
@@ -223,14 +226,14 @@ class procBlock {
   double LUSGS(const vector<vector3d<int>> &, multiArray3d<genArray> &,
                const multiArray3d<genArray> &, const multiArray3d<genArray> &,
                const idealGas &, const input &, const sutherland &,
-               const turbModel *) const;
+               const unique_ptr<turbModel> &) const;
 
   void CalcViscFluxI(const sutherland &, const idealGas &, const input &,
-                     const gradients &, const turbModel *);
+                     const gradients &, const unique_ptr<turbModel> &);
   void CalcViscFluxJ(const sutherland &, const idealGas &, const input &,
-                     const gradients &, const turbModel *);
+                     const gradients &, const unique_ptr<turbModel> &);
   void CalcViscFluxK(const sutherland &, const idealGas &, const input &,
-                     const gradients &, const turbModel *);
+                     const gradients &, const unique_ptr<turbModel> &);
 
   void CalcGradsI(const int &, const int &, const int &, const idealGas &,
                   const bool &, tensor<double> &, vector3d<double> &,
@@ -243,20 +246,24 @@ class procBlock {
                   vector3d<double> &, vector3d<double> &) const;
 
   void CalcSrcTerms(const gradients &, const sutherland &, const idealGas &,
-                    const turbModel *);
+                    const unique_ptr<turbModel> &);
 
   void AssignGhostCellsGeom();
   void AssignGhostCellsGeomEdge();
 
   void AssignInviscidGhostCells(const input &, const idealGas &,
-                                const sutherland &, const turbModel *);
+                                const sutherland &,
+                                const unique_ptr<turbModel> &);
   void AssignInviscidGhostCellsEdge(const input &, const idealGas &,
-                                    const sutherland &, const turbModel *);
+                                    const sutherland &,
+                                    const unique_ptr<turbModel> &);
 
   void AssignViscousGhostCells(const input &, const idealGas &,
-                               const sutherland &, const turbModel *);
+                               const sutherland &,
+                               const unique_ptr<turbModel> &);
   void AssignViscousGhostCellsEdge(const input &, const idealGas &,
-                                   const sutherland &, const turbModel *);
+                                   const sutherland &,
+                                   const unique_ptr<turbModel> &);
 
   bool IsPhysical(const int &, const int &, const int &, const bool &) const;
   bool AtCorner(const int &, const int &, const int &, const bool &) const;
@@ -322,7 +329,7 @@ vector3d<int> GetSwapLoc(const int &, const int &, const int &,
 void SwapSlice(interblock &, procBlock &, procBlock &, const bool &);
 
 void GetBoundaryConditions(vector<procBlock> &, const input &, const idealGas &,
-                           const sutherland &, const turbModel *,
+                           const sutherland &, const unique_ptr<turbModel> &,
                            vector<interblock> &, const int &,
                            const MPI_Datatype &);
 

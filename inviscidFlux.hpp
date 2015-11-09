@@ -21,6 +21,7 @@
 #include <vector>        // vector
 #include <string>        // string
 #include <iostream>      // cout
+#include <memory>        // unique_ptr
 #include "vector3d.hpp"  // vector3d
 #include "macros.hpp"
 
@@ -30,6 +31,7 @@ using std::cout;
 using std::endl;
 using std::cerr;
 using std::ostream;
+using std::unique_ptr;
 
 // forward class declaration
 class idealGas;
@@ -53,7 +55,7 @@ class inviscidFlux {
   // constructors
   inviscidFlux() : data_{0.0} {}
   inviscidFlux(const primVars&, const idealGas&, const vector3d<double>&);
-  inviscidFlux(const genArray&, const idealGas&, const turbModel*,
+  inviscidFlux(const genArray&, const idealGas&, const unique_ptr<turbModel>&,
                const vector3d<double>&);
 
   // move constructor and assignment operator
@@ -102,7 +104,7 @@ void ApproxRoeFluxJacobian(const primVars&, const primVars&, const idealGas&,
                            squareMatrix&);
 
 genArray ConvectiveFluxUpdate(const primVars&, const idealGas&,
-                              const turbModel *, const vector3d<double>&,
-                              const genArray&);
+                              const unique_ptr<turbModel> &,
+                              const vector3d<double>&, const genArray&);
 
 #endif

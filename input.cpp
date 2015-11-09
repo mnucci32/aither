@@ -20,6 +20,7 @@
 #include <cstdlib>   // exit()
 #include <sstream>   // istringstream
 #include <iterator>  // istring_iterator
+#include <memory>    // make_unique
 #include <string>
 #include <vector>
 #include "input.hpp"
@@ -33,6 +34,7 @@ using std::ios;
 using std::cerr;
 using std::istringstream;
 using std::istream_iterator;
+using std::unique_ptr;
 
 // constructor for input class
 // initialize vector to have length of number of acceptable inputs to the code
@@ -602,15 +604,15 @@ string input::OrderOfAccuracy() const {
   }
 }
 
-turbModel* input::AssignTurbulenceModel() const {
+unique_ptr<turbModel> input::AssignTurbulenceModel() const {
   // define turbulence model
-  turbModel *turb;
+  unique_ptr<turbModel> turb(nullptr);
   if (turbModel_ == "none") {
-    turb = new turbNone;
+    turb = unique_ptr<turbModel>{std::make_unique<turbNone>()};
   } else if (turbModel_ == "kOmegaWilcox2006") {
-    turb = new turbKWWilcox;
+    turb = unique_ptr<turbModel>{std::make_unique<turbKWWilcox>()};
   } else if (turbModel_ == "sst2003") {
-    turb = new turbKWSst;
+    turb = unique_ptr<turbModel>{std::make_unique<turbKWSst>()};
   } else {
     cerr << "ERROR: Error in input::AssignTurbulenceModel(). Turbulence model "
          << turbModel_ << " is not recognized!" << endl;

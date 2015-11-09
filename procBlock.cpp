@@ -18,6 +18,7 @@
 #include <algorithm>              // max, min
 #include <vector>
 #include <string>
+#include <memory>
 #include "procBlock.hpp"
 #include "plot3d.hpp"              // plot3d
 #include "eos.hpp"                 // idealGas
@@ -37,6 +38,7 @@ using std::vector;
 using std::string;
 using std::max;
 using std::min;
+using std::unique_ptr;
 
 // constructors for procBlock class
 procBlock::procBlock(const primVars &inputState, const plot3dBlock &blk,
@@ -554,7 +556,8 @@ implicit methods it uses the correction du and calls the implicit updater.
 void procBlock::UpdateBlock(const input &inputVars, const int &impFlag,
                             const idealGas &eos, const double &aRef,
                             const multiArray3d<genArray> &du,
-                            const turbModel *turb, genArray &l2, resid &linf) {
+                            const unique_ptr<turbModel> &turb,
+                            genArray &l2, resid &linf) {
   // inputVars -- all input variables
   // impFlag -- flag to determine if simulation is to be solved via explicit or
   // implicit time stepping
@@ -662,7 +665,7 @@ n+1, dt_ is the cell's time step, V is the cell's volume, and R is the cell's
 residual.
  */
 void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState,
-                                         const turbModel *turb,
+                                         const unique_ptr<turbModel> &turb,
                                          const int &ig, const int &jg,
                                          const int &kg, const int &ip,
                                          const int &jp, const int &kp) {
@@ -689,7 +692,7 @@ void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState,
 // methods)
 void procBlock::ImplicitTimeAdvance(const genArray &du,
                                     const idealGas &eqnState,
-                                    const turbModel *turb,
+                                    const unique_ptr<turbModel> &turb,
                                     const int &ii,
                                     const int &jj, const int &kk) {
   // du -- update for a specific cell (to move from time n to n+1)
@@ -714,7 +717,8 @@ n+1, dt_ is the cell's time step, V is the cell's volume, alpha is the runge-kut
 coefficient, and R is the cell's residual.
  */
 void procBlock::RK4TimeAdvance(const primVars &currState,
-                               const idealGas &eqnState, const turbModel *turb,
+                               const idealGas &eqnState,
+                               const unique_ptr<turbModel> &turb,
                                const int &ig, const int &jg, const int &kg,
                                const int &ip, const int &jp, const int &kp,
                                const int &rk) {
@@ -1003,7 +1007,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                         const multiArray3d<genArray> &solTimeMmN,
                         const multiArray3d<genArray> &solDeltaNm1,
                         const idealGas &eqnState, const input &inp,
-                        const sutherland &suth, const turbModel *turb) const {
+                        const sutherland &suth,
+                        const unique_ptr<turbModel> &turb) const {
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // x -- correction - added to solution at time n to get to time n+1 (assumed
   // to be zero to start)
@@ -1679,7 +1684,7 @@ ghost cells, but not the "corner" ghost cells.
 */
 void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                               const input &inp, const gradients &grads,
-                              const turbModel *turb) {
+                              const unique_ptr<turbModel> &turb) {
   // suth -- method to get viscosity as a function of temperature (Sutherland's
   // law)
   // eqnState -- equation of state
@@ -1829,7 +1834,7 @@ the "edge" ghost cells, but not the "corner" ghost cells.
 */
 void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                               const input &inp, const gradients &grads,
-                              const turbModel *turb) {
+                              const unique_ptr<turbModel> &turb) {
   // suth -- method to get viscosity as a function of temperature (Sutherland's
   // law)
   // eqnState -- equation of state_
@@ -1979,7 +1984,7 @@ the "edge" ghost cells, but not the "corner" ghost cells.
 */
 void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                               const input &inp, const gradients &grads,
-                              const turbModel *turb) {
+                              const unique_ptr<turbModel> &turb) {
   // suth -- method to get viscosity as a function of temperature (Sutherland's
   // law)
   // eqnState -- equation of state_
@@ -2942,7 +2947,7 @@ second layer.
 void procBlock::AssignInviscidGhostCells(const input &inp,
                                          const idealGas &eos,
                                          const sutherland &suth,
-                                         const turbModel *turb) {
+                                         const unique_ptr<turbModel> &turb) {
   // inp -- all input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
@@ -3134,10 +3139,9 @@ at the corner are wall boundaries (slipWall, viscousWall) and the other is not.
 When this occurs the wall boundaries are "extended" into the ghost cells. This
 implementation is described in Blazek.
 */
-void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
-                                             const idealGas &eos,
-                                             const sutherland &suth,
-                                             const turbModel *turb) {
+void procBlock::AssignInviscidGhostCellsEdge(
+    const input &inp, const idealGas &eos, const sutherland &suth,
+    const unique_ptr<turbModel> &turb) {
   // inp -- all input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
@@ -3411,7 +3415,7 @@ void procBlock::AssignInviscidGhostCellsEdge(const input &inp,
 */
 void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
                                         const sutherland &suth,
-                                        const turbModel *turb) {
+                                        const unique_ptr<turbModel> &turb) {
   // inp -- all input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
@@ -3592,7 +3596,7 @@ implementation is described in Blazek.
 void procBlock::AssignViscousGhostCellsEdge(const input &inp,
                                             const idealGas &eos,
                                             const sutherland &suth,
-                                            const turbModel *turb) {
+                                            const unique_ptr<turbModel> &turb) {
   // inp -- all input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
@@ -4433,7 +4437,7 @@ boundaries to pass the correct data between grid blocks.
 */
 void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
                            const idealGas &eos, const sutherland &suth,
-                           const turbModel *turb,
+                           const unique_ptr<turbModel> &turb,
                            vector<interblock> &connections, const int &rank,
                            const MPI_Datatype &MPI_cellData) {
   // states -- vector of all procBlocks in the solution domain
@@ -6761,7 +6765,8 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
 
 // Member function to calculate the source terms and add them to the residual
 void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
-                             const idealGas &eos, const turbModel *turb) {
+                             const idealGas &eos,
+                             const unique_ptr<turbModel> &turb) {
   // grads -- gradients (vel, temp, tke, omega)
   // suth -- sutherland's law for viscosity
   // eos -- equation of state

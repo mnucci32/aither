@@ -19,6 +19,7 @@
 #include <cstring>
 #include <vector>  // vector
 #include <string>  // string
+#include <memory>  // make_unique
 #include "parallel.hpp"
 #include "output.hpp"
 #include "vector3d.hpp"            // vector3d
@@ -32,6 +33,8 @@
 using std::max_element;
 using std::min_element;
 using std::distance;
+using std::unique_ptr;
+using std::make_unique;
 
 /* Function to return processor list for manual decomposition. Manual
 decomposition assumes that each block will reside on it's own processor.

@@ -1993,7 +1993,7 @@ void boundaryConditions::UnpackBC(char *(&recvBuffer), const int &recvBufSize,
   // allocate vector for string lengths
   vector<int> strLength(this->NumSurfaces());
 
-  // unpack boundary_ condition surface data (non-string) into appropriate
+  // unpack boundary condition surface data (non-string) into appropriate
   // vectors
   for (auto jj = 0; jj < this->NumSurfaces(); jj++) {
     MPI_Unpack(recvBuffer, recvBufSize, &position, &surfs_[jj].data_[0],
@@ -2001,7 +2001,7 @@ void boundaryConditions::UnpackBC(char *(&recvBuffer), const int &recvBufSize,
   }
   MPI_Unpack(recvBuffer, recvBufSize, &position, &strLength[0],
              strLength.size(), MPI_INT, MPI_COMM_WORLD);  // unpack string sizes
-  // unpack boundary_ condition names
+  // unpack boundary condition names
   for (auto jj = 0; jj < static_cast<int>(strLength.size()); jj++) {
     auto *nameBuf = new char[strLength[jj]];  // allocate buffer to store BC
                                               // name

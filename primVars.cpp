@@ -17,6 +17,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <memory>
 #include <cmath>
 #include <algorithm>  // max
 #include "primVars.hpp"
@@ -30,9 +31,11 @@ using std::vector;
 using std::string;
 using std::max;
 using std::min;
+using std::unique_ptr;
 
 primVars::primVars(const genArray &a, const bool &prim,
-                   const idealGas &eqnState, const turbModel *turb) {
+                   const idealGas &eqnState,
+                   const unique_ptr<turbModel> &turb) {
   // a -- array of conservative or primative variables
   // prim -- flag that is true if variable a is primative variables
   // eqnState -- equation of state
@@ -390,7 +393,7 @@ primVars primVars::GetGhostState(const string &bcType,
                                  const input &inputVars,
                                  const idealGas &eqnState,
                                  const sutherland &suth,
-                                 const turbModel *turb,
+                                 const unique_ptr<turbModel> &turb,
                                  const int layer) const {
   // bcType -- type of boundary condition to supply ghost cell for
   // areaVec -- unit area vector of boundary face
@@ -787,7 +790,7 @@ primVars primVars::GetGhostState(const string &bcType,
 // this is used in the implicit solver
 primVars primVars::UpdateWithConsVars(const idealGas &eqnState,
                                       const genArray &du,
-                                      const turbModel *turb) const {
+                                      const unique_ptr<turbModel> &turb) const {
   // eqnState -- equation of state
   // du -- updates to conservative variables
   // turb -- turbulence model
@@ -833,7 +836,7 @@ multiArray3d<primVars> GetGhostStates(
     const multiArray3d<unitVec3dMag<double>> &faceAreas,
     const multiArray3d<double> &wDist, const string &surf,
     const input &inp, const idealGas &eos, const sutherland &suth,
-    const turbModel *turb, const int layer) {
+    const unique_ptr<turbModel> &turb, const int layer) {
   // bndStates -- states at cells adjacent to boundary
   // bcName -- boundary condition type
   // faceAreas -- face areas of boundary
@@ -860,7 +863,7 @@ multiArray3d<primVars> GetGhostStates(
   return ghostStates;
 }
 
-void primVars::LimitTurb(const turbModel *turb) {
+void primVars::LimitTurb(const unique_ptr<turbModel> &turb) {
   // Adjust turbulence variables to be above minimum if necessary
   data_[5] = max(data_[5], turb->TkeMin());
   data_[6] = max(data_[6], turb->OmegaMin());

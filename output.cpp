@@ -49,6 +49,7 @@ using std::max;
 using std::pair;
 using std::setw;
 using std::setprecision;
+using std::unique_ptr;
 
 //-----------------------------------------------------------------------
 // function declarations
@@ -123,7 +124,7 @@ void WriteCellCenter(const string &gridName, const vector<procBlock> &vars,
 void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
               const sutherland &suth, const int &solIter,
               const decomposition &decomp, const input &inp,
-              const turbModel *turb) {
+              const unique_ptr<turbModel> &turb) {
   // define reference speed of sound
   auto refSoS = eqnState.SoS(inp.PRef(), inp.RRef());
 

@@ -18,6 +18,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <memory>
 #include "source.hpp"
 #include "turbulence.hpp"
 #include "primVars.hpp"
@@ -28,6 +29,7 @@ using std::endl;
 using std::cerr;
 using std::vector;
 using std::string;
+using std::unique_ptr;
 
 // operator overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, const source &src) {
@@ -149,10 +151,11 @@ source operator/(const double &scalar, const source &src2) {
 }
 
 // Member function to calculate the source terms for the turbulence equations
-void source::CalcTurbSrc(const turbModel *turb, const primVars &state,
-                         const gradients &grads, const sutherland &suth,
-                         const idealGas &eqnState, const double &wallDist,
-                         const int &ii, const int &jj, const int &kk) {
+void source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
+                         const primVars &state, const gradients &grads,
+                         const sutherland &suth, const idealGas &eqnState,
+                         const double &wallDist, const int &ii, const int &jj,
+                         const int &kk) {
   // turb -- turbulence model
   // state -- primative variables
   // grads -- gradients
@@ -171,12 +174,10 @@ void source::CalcTurbSrc(const turbModel *turb, const primVars &state,
   // calculate turbulent source terms
   auto ksrc = 0.0;
   auto wsrc = 0.0;
-  // DEBUG
-  // turb->CalcTurbSrc(state, vGrad, kGrad, wGrad, suth, eqnState, wallDist,
-  //                   ksrc, wsrc);
+  turb->CalcTurbSrc(state, vGrad, kGrad, wGrad, suth, eqnState, wallDist,
+                    ksrc, wsrc);
 
   // assign turbulent source terms
-  // DEBUG
-  data_[5] = 0.0;  // ksrc;
-  data_[6] = 0.0;  // wsrc;
+  data_[5] = ksrc;
+  data_[6] = wsrc;
 }

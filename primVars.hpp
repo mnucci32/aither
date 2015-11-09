@@ -31,6 +31,7 @@ supply a ghost state given a boundary condition and boundary cell.  */
 #include <iostream>
 #include <vector>                  // vector
 #include <string>                  // string
+#include <memory>                  // unique_ptr
 #include "vector3d.hpp"            // vector3d
 #include "eos.hpp"                 // idealGas, sutherland
 #include "matrix.hpp"              // genArray
@@ -45,6 +46,7 @@ using std::cout;
 using std::endl;
 using std::cerr;
 using std::ostream;
+using std::unique_ptr;
 
 // forward class declarations
 class input;
@@ -65,7 +67,8 @@ class primVars {
   explicit primVars(const double &a) : primVars(a, a, a, a, a, a, a) {}
   primVars(const double &r, const double &p, const vector3d<double> &v)
       : primVars(r, v.X(), v.Y(), v.Z(), p) {}
-  primVars(const genArray &, const bool &, const idealGas &, const turbModel *);
+  primVars(const genArray &, const bool &, const idealGas &,
+           const unique_ptr<turbModel> &);
 
   // move constructor and assignment operator
   primVars(primVars&&) noexcept = default;
@@ -97,12 +100,12 @@ class primVars {
 
   inline genArray ConsVars(const idealGas &) const;
   primVars UpdateWithConsVars(const idealGas &, const genArray &,
-                              const turbModel *) const;
+                              const unique_ptr<turbModel> &) const;
 
   void ApplyFarfieldTurbBC(const vector3d<double> &, const double &,
                            const double &, const sutherland &,
                            const idealGas &);
-  void LimitTurb(const turbModel *);
+  void LimitTurb(const unique_ptr<turbModel> &);
 
   // operator overloads for addition and subtraction of states
   primVars operator+(const primVars &) const;
@@ -143,7 +146,7 @@ class primVars {
   primVars GetGhostState(const string &, const vector3d<double> &,
                          const double &, const string &, const input &,
                          const idealGas &, const sutherland &,
-                         const turbModel *, const int = 1) const;
+                         const unique_ptr<turbModel> &, const int = 1) const;
 
   // destructor
   ~primVars() noexcept {}
@@ -154,7 +157,7 @@ multiArray3d<primVars> GetGhostStates(
     const multiArray3d<primVars> &, const string &,
     const multiArray3d<unitVec3dMag<double>> &, const multiArray3d<double> &,
     const string &, const input &, const idealGas &, const sutherland &,
-    const turbModel *, const int = 1);
+    const unique_ptr<turbModel> &, const int = 1);
 
 // member function to calculate temperature from conserved variables and
 // equation of state

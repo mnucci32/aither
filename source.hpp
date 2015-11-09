@@ -26,6 +26,7 @@
 #include <vector>  // vector
 #include <string>  // string
 #include <iostream>
+#include <memory>
 #include "macros.hpp"
 
 using std::vector;
@@ -34,6 +35,7 @@ using std::cout;
 using std::endl;
 using std::cerr;
 using std::ostream;
+using std::unique_ptr;
 
 // forward class declaration
 class primVars;
@@ -66,9 +68,10 @@ class source {
   double SrcTke() const { return data_[5]; }
   double SrcOmg() const { return data_[6]; }
 
-  void CalcTurbSrc(const turbModel *, const primVars &, const gradients &,
-                   const sutherland &, const idealGas &, const double &,
-                   const int &, const int &, const int &);
+  void CalcTurbSrc(const unique_ptr<turbModel> &, const primVars &,
+                   const gradients &, const sutherland &,
+                   const idealGas &, const double &, const int &,
+                   const int &, const int &);
 
   // operator overloads for addition and subtraction of states
   source operator+(const source &) const;

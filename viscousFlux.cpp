@@ -16,6 +16,7 @@
 
 #include <cmath>  // sqrt
 #include <string>
+#include <memory>
 #include "viscousFlux.hpp"
 #include "eos.hpp"         // idealGas
 #include "primVars.hpp"    // primVars
@@ -28,6 +29,7 @@ using std::cerr;
 using std::vector;
 using std::string;
 using std::max;
+using std:: unique_ptr;
 
 // constructor -- initialize flux from velocity gradient
 /*
@@ -56,7 +58,7 @@ viscousFlux::viscousFlux(
     const tensor<double> &velGrad, const sutherland &suth,
     const idealGas &eqnState, const vector3d<double> &tGrad,
     const vector3d<double> &normArea, const vector3d<double> &tkeGrad,
-    const vector3d<double> &omegaGrad, const turbModel *turb,
+    const vector3d<double> &omegaGrad, const unique_ptr<turbModel> &turb,
     const primVars &state, const double &wallDist) {
   // velGrad -- velocity gradient tensor
   // suth -- method to get viscosity (Sutherland's law)
