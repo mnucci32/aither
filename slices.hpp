@@ -24,6 +24,7 @@
    viscous fluxes, and source terms. */
 
 #include <iostream>
+#include "mpi.h"
 #include "primVars.hpp"
 #include "vector3d.hpp"
 #include "multiArray3d.hpp"

@@ -20,6 +20,7 @@
 #include "inviscidFlux.hpp"
 #include "eos.hpp"
 #include "primVars.hpp"
+#include "genArray.hpp"
 #include "matrix.hpp"
 #include "turbulence.hpp"
 

@@ -16,11 +16,8 @@
 
 #include <cstdlib>  // exit()
 #include <iostream>  // cout
-#include <cmath>
-#include <vector>
 #include <algorithm>  // swap
 #include "matrix.hpp"
-#include "plot3d.hpp"  // matrix location functions
 
 using std::cout;
 using std::endl;
@@ -522,23 +519,6 @@ colMatrix colMatrix::operator+(const colMatrix &s2) const {
   return s1;
 }
 
-// operator overload for addition
-colMatrix colMatrix::operator+(const vector<double> &v1) const {
-  auto s1 = *this;
-
-  // check to see that matrix dimensions are the same
-  if (s1.size_ != static_cast<int> (v1.size())) {
-    cerr << "ERROR: Cannot add column matrix of size_ " << s1.size_
-         << " to vector class of size_ " << v1.size()
-         << ", dimensions do not agree." << endl;
-  }
-
-  for (auto rr = 0; rr < s1.size_; rr++) {
-    s1.SetData(rr, s1.Data(rr) + v1[rr]);
-  }
-  return s1;
-}
-
 // operator overload for addition with a scalar
 colMatrix colMatrix::operator+(const double &scalar) const {
   auto s1 = *this;
@@ -571,23 +551,6 @@ colMatrix colMatrix::operator-(const colMatrix &s2) const {
 
   for (auto rr = 0; rr < s2.Size(); rr++) {
     s1.SetData(rr, s1.Data(rr) - s2.Data(rr));
-  }
-  return s1;
-}
-
-// operator overload for addition
-colMatrix colMatrix::operator-(const vector<double> &v1) const {
-  auto s1 = *this;
-
-  // check to see that matrix dimensions are the same
-  if (s1.size_ != static_cast<int> (v1.size())) {
-    cerr << "ERROR: Cannot subtract column matrix of size_ " << s1.size_
-         << " to vector class of size_ " << v1.size()
-         << ", dimensions do not agree." << endl;
-  }
-
-  for (auto rr = 0; rr < s1.size_; rr++) {
-    s1.SetData(rr, s1.Data(rr) - v1[rr]);
   }
   return s1;
 }
@@ -712,7 +675,6 @@ double colMatrix::Sum() {
 
 // member function to delete the contents of the data_ structure and resize it
 void colMatrix::CleanResizeZero(const int &s) {
-
   delete[] data_;
   data_ = new double[s];
   size_ = s;
@@ -722,182 +684,3 @@ void colMatrix::CleanResizeZero(const int &s) {
   }
 }
 
-// ------------------------------------------------------------------
-// functions for genArray class
-
-// operator overload for addition
-genArray genArray::operator+(const genArray &s2) const {
-  auto s1 = *this;
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    s1[rr] += s2[rr];
-  }
-  return s1;
-}
-
-// operator overload for addition
-genArray genArray::operator+(const vector<double> &v1) const {
-  // check to see that vector is appropriate size_
-  if (v1.size() != NUMVARS) {
-    cerr << "ERROR: Cannot add vector and genArray because vector not "
-            "appropriate size_! Vector is of size_ " << v1.size() << endl;
-    exit(0);
-  }
-
-  genArray s1 = *this;
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    s1[rr] += v1[rr];
-  }
-  return s1;
-}
-
-// operator overload for addition with a scalar
-genArray genArray::operator+(const double &scalar) const {
-  auto s1 = *this;
-
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    s1[rr] += scalar;
-  }
-  return s1;
-}
-
-// operator overload for addition with a scalar
-genArray operator+(const double &scalar, const genArray &s2) {
-  genArray s1;
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    s1[rr] = scalar + s2[rr];
-  }
-  return s1;
-}
-
-// operator overload for subtraction
-genArray genArray::operator-(const genArray &s2) const {
-  auto s1 = *this;
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    s1[rr] -= s2[rr];
-  }
-  return s1;
-}
-
-// operator overload for addition
-genArray genArray::operator-(const vector<double> &v1) const {
-  // check to see that vector is appropriate size_
-  if (v1.size() != NUMVARS) {
-    cerr << "ERROR: Cannot subtract vector and genArray because vector not "
-            "appropriate size_! Vector is of size_ " << v1.size() << endl;
-    exit(0);
-  }
-
-  auto s1 = *this;
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    s1[rr] -= v1[rr];
-  }
-  return s1;
-}
-
-// operator overload for subtraction with a scalar
-genArray genArray::operator-(const double &scalar) const {
-  auto s1 = *this;
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    s1[rr] -= scalar;
-  }
-  return s1;
-}
-
-// operator overload for subtraction with a scalar
-genArray operator-(const double &scalar, const genArray &s2) {
-  genArray s1;
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    s1[rr] = scalar - s2[rr];
-  }
-  return s1;
-}
-
-// operator overload for elementwise multiplication
-genArray genArray::operator*(const genArray &s2) const {
-  auto s1 = *this;
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    s1[rr] *= s2[rr];
-  }
-  return s1;
-}
-
-// operator overload for multiplication with a scalar
-genArray genArray::operator*(const double &scalar) const {
-  auto s1 = *this;
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    s1[rr] *= scalar;
-  }
-  return s1;
-}
-
-// operator overload for multiplication with a scalar
-genArray operator*(const double &scalar, const genArray &s2) {
-  genArray s1;
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    s1[rr] = s2[rr] * scalar;
-  }
-  return s1;
-}
-
-// operator overload for elementwise division
-genArray genArray::operator/(const genArray &s2) const {
-  auto s1 = *this;
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    s1[rr] /= s2[rr];
-  }
-  return s1;
-}
-
-// operator overload for division with a scalar
-genArray genArray::operator/(const double &scalar) const {
-  auto s1 = *this;
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    s1[rr] /= scalar;
-  }
-  return s1;
-}
-
-// operator overload for division with a scalar
-genArray operator/(const double &scalar, const genArray &s2) {
-  genArray s1;
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    s1[rr] = scalar / s2[rr];
-  }
-  return s1;
-}
-
-// operation overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, const genArray &m) {
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    cout << m[rr] << endl;
-  }
-  return os;
-}
-
-// member function to zero the matrix
-void genArray::Zero() {
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    (*this)[rr] = 0.0;
-  }
-}
-
-// member function to sum column matrix
-double genArray::Sum() {
-  auto sum = 0.0;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    sum += (*this)[ii];
-  }
-  return sum;
-}
-
-// member function to sum the residuals from all processors
-void genArray::GlobalReduceMPI(const int &rank, const int &numEqns) {
-  // Get residuals from all processors
-  if (rank == ROOTP) {
-    MPI_Reduce(MPI_IN_PLACE, &data_[0], numEqns, MPI_DOUBLE, MPI_SUM,
-               ROOTP, MPI_COMM_WORLD);
-  } else {
-    MPI_Reduce(&data_[0], &data_[0], numEqns, MPI_DOUBLE, MPI_SUM, ROOTP,
-               MPI_COMM_WORLD);
-  }
-}

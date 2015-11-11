@@ -28,7 +28,7 @@
 #include "multiArray3d.hpp"        // multiArray3d
 #include "tensor.hpp"              // tensor
 #include "primVars.hpp"            // primVars
-#include "matrix.hpp"              // genArray
+#include "genArray.hpp"              // genArray
 #include "boundaryConditions.hpp"  // interblock, patch
 #include "macros.hpp"
 #include "kdtree.hpp"              // kdtree

@@ -18,16 +18,9 @@
                          // execute these lines of code
 #define MATRIXHEADERDEF  // define the macro
 
-#include <math.h>  // sqrt
-#include <vector>  // vector
-#include <string>  // string
 #include <iostream>
-#include <algorithm>   // swap
-#include "mpi.h"       // parallelism
 #include "macros.hpp"
 
-using std::vector;
-using std::string;
 using std::ostream;
 
 // class to store a column matrix
@@ -66,9 +59,6 @@ class colMatrix {
   colMatrix operator*(const colMatrix &) const;
   colMatrix operator/(const colMatrix &) const;
 
-  colMatrix operator+(const vector<double> &) const;
-  colMatrix operator-(const vector<double> &) const;
-
   colMatrix operator+(const double &) const;
   colMatrix operator-(const double &) const;
   colMatrix operator*(const double &) const;
@@ -87,64 +77,6 @@ class colMatrix {
     delete[] data_;
     data_ = nullptr;
   }
-};
-
-/*class to store an array of a fixed size_ equal to the number of variables
-being solved for. This is useful because a vector of these will be
-contiguous in memory. */
-class genArray {
-  double data_[NUMVARS];
-
- public:
-  // constructor
-  genArray(const double &a, const double &b, const double &c, const double &d,
-           const double &e, const double &f, const double &g)
-      : data_{a, b, c, d, e, f, g} {}
-  genArray(const double &a, const double &b, const double &c, const double &d,
-           const double &e)
-      : genArray(a, b, c, d, e, 0.0, 0.0) {}
-  genArray() : genArray(0.0, 0.0, 0.0, 0.0, 0.0) {}
-  explicit genArray(const double &a) : genArray(a, a, a, a, a, a, a) {}
-
-  // member functions
-  void Zero();
-  double Sum();
-
-  // move constructor and assignment operator
-  genArray(genArray&&) noexcept = default;
-  genArray& operator=(genArray&&) noexcept = default;
-
-  // copy constructor and assignment operator
-  genArray(const genArray&) = default;
-  genArray& operator=(const genArray&) = default;
-
-  // operator overloads
-  genArray operator+(const genArray &) const;
-  genArray operator-(const genArray &) const;
-  genArray operator*(const genArray &) const;
-  genArray operator/(const genArray &) const;
-
-  genArray operator+(const vector<double> &) const;
-  genArray operator-(const vector<double> &) const;
-
-  genArray operator+(const double &) const;
-  genArray operator-(const double &) const;
-  genArray operator*(const double &) const;
-  genArray operator/(const double &) const;
-
-  const double & operator[](const int &r) const { return data_[r]; }
-  double & operator[](const int &r) { return data_[r]; }
-
-  friend genArray operator+(const double &, const genArray &);
-  friend genArray operator-(const double &, const genArray &);
-  friend genArray operator*(const double &, const genArray &);
-  friend genArray operator/(const double &, const genArray &);
-  friend ostream &operator<<(ostream &os, const genArray &);
-
-  void GlobalReduceMPI(const int &, const int &);
-
-  // destructor
-  ~genArray() noexcept {}
 };
 
 // class to store a square matrix

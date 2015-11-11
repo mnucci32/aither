@@ -28,7 +28,7 @@
 #include "eos.hpp"
 #include "boundaryConditions.hpp"
 #include "output.hpp"
-#include "matrix.hpp"
+#include "genArray.hpp"
 #include "parallel.hpp"
 #include "turbulence.hpp"
 #include "gradients.hpp"

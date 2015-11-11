@@ -34,6 +34,7 @@
 #include "input.hpp"               // inputVars
 #include "boundaryConditions.hpp"  // decomposition
 #include "resid.hpp"               // resid
+#include "genArray.hpp"            // genArray
 
 #define VAROUT 15
 
