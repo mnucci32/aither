@@ -86,8 +86,6 @@ class boundarySurface {
                         const int&, bool&, int = 0);
   bool SplitDirectionIsReversed(const string&, const int&) const;
 
-  friend ostream & operator<< (ostream &os, const boundarySurface&);
-
   // Destructor
   ~boundarySurface() noexcept {}
 };
@@ -153,8 +151,6 @@ class patch {
   bool Dir2StartInterBorder() const {return interblockBorder_[2];}
   bool Dir2EndInterBorder() const {return interblockBorder_[3];}
 
-  friend ostream & operator<< (ostream &os, const patch&);
-
   // Destructor
   ~patch() noexcept {}
 };
@@ -205,8 +201,6 @@ class boundaryConditions {
 
   void ResizeVecs(const int&);
   void ResizeVecs(const int&, const int&, const int&);
-
-  friend ostream & operator<< (ostream &os, const boundaryConditions&);
 
   string GetBCName(const int, const int, const int, const string&) const;
 
@@ -314,14 +308,12 @@ class interblock {
   bool TestPatchMatch(const patch&, const patch&);
   void GetAddressesMPI(MPI_Aint (&)[11])const;
 
-  friend ostream & operator<< (ostream &os, const interblock&);
-
   // Destructor
   ~interblock() noexcept {}
 };
 
 class decomposition {
-  // rank_ of each procBlock
+  // rank of each procBlock
   // (vector size equals number of procBlocks after decomp)
   vector<int> rank_;
   // parent block_ of each procBlock
@@ -357,6 +349,7 @@ class decomposition {
   int Rank(const int &a) const {return rank_[a];}
   int ParentBlock(const int &a) const {return parBlock_[a];}
   int LocalPosition(const int &a) const {return localPos_[a];}
+  int NumProcs() const {return numProcs_;}
   double IdealLoad(const vector<plot3dBlock>&) const;
   double MaxLoad(const vector<plot3dBlock>&) const;
   double MinLoad(const vector<plot3dBlock>&) const;
@@ -380,8 +373,6 @@ class decomposition {
 
   void PrintDiagnostics(const vector<plot3dBlock>&) const;
 
-  friend ostream & operator<< (ostream &os, const decomposition&);
-
   // Destructor
   ~decomposition() noexcept {}
 };
@@ -392,5 +383,10 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions>&,
                                     const vector<plot3dBlock>&,
                                     const decomposition&);
 
+ostream & operator<< (ostream &os, const boundaryConditions&);
+ostream & operator<< (ostream &os, const boundarySurface&);
+ostream & operator<< (ostream &os, const patch&);
+ostream & operator<< (ostream &os, const decomposition&);
+ostream & operator<< (ostream &os, const interblock&);
 
 #endif

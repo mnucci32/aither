@@ -107,50 +107,14 @@ viscousFlux::viscousFlux(
 // ----------------------------------------------------------------------------
 // operator overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, viscousFlux &flux) {
-  os << "0.0, ";
-  for (auto ii = 0; ii < NUMVARS - 1; ii++) {
-    os << flux.data_[ii];
-    if (ii != NUMVARS - 2) {
-      os << ", ";
-    }
-  }
+  os << "0.0" << endl;
+  os << flux.MomX() << endl;
+  os << flux.MomY() << endl;
+  os << flux.MomZ() << endl;
+  os << flux.Engy() << endl;
+  os << flux.MomK() << endl;
+  os << flux.MomO() << endl;
   return os;
-}
-
-// member function for scalar multiplication
-viscousFlux viscousFlux::operator*(const double &scalar) const {
-  viscousFlux temp = *this;
-  for (auto ii = 0; ii < NUMVARS - 1; ii++) {
-    temp.data_[ii] *= scalar;
-  }
-  return temp;
-}
-
-// friend function to allow multiplication from either direction
-viscousFlux operator*(const double &scalar, const viscousFlux &flux) {
-  viscousFlux temp;
-  for (auto ii = 0; ii < NUMVARS - 1; ii++) {
-    temp.data_[ii] = flux.data_[ii] * scalar;
-  }
-  return temp;
-}
-
-// member function for scalar division
-viscousFlux viscousFlux::operator/(const double &scalar) const {
-  viscousFlux temp = *this;
-  for (auto ii = 0; ii < NUMVARS - 1; ii++) {
-    temp.data_[ii] /= scalar;
-  }
-  return temp;
-}
-
-// friend function to allow division from either direction
-viscousFlux operator/(const double &scalar, const viscousFlux &flux) {
-  viscousFlux temp;
-  for (auto ii = 0; ii < NUMVARS - 1; ii++) {
-    temp.data_[0] = scalar / flux.data_[ii];
-  }
-  return temp;
 }
 
 // function to calculate the thin shear layer flux jacobian -- NOT USED in LUSGS

@@ -47,27 +47,27 @@ boundaryConditions::boundaryConditions(const int &i, const int &j,
 
 // Operator overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, const boundaryConditions &bc) {
-  // bc -- boundary_ conditions to print
+  // bc -- boundary conditions to print
   // os -- ostream to print to
 
-  os << "Number of surfaces (I, J, K): " << bc.numSurfI_ << ", " << bc.numSurfJ_
-     << ", " << bc.numSurfK_ << endl;
+  os << "Number of surfaces (I, J, K): " << bc.NumSurfI() << ", " <<
+      bc.NumSurfJ() << ", " << bc.NumSurfK() << endl;
 
   for (auto ii = 0; ii < bc.NumSurfaces(); ii++) {
-    os << bc.surfs_[ii] << endl;
+    os << bc.GetSurface(ii) << endl;
   }
   return os;
 }
 
 // Operator to resize all of the vector components of the
-// boundary_ conditions class
+// boundary conditions class
 void boundaryConditions::ResizeVecs(const int &a) {
   // a -- total number of surfaces (i+j+k)
   surfs_.resize(a);
 }
 
 // Operator to resize all of the vector components of the
-// boundary_ conditions class
+// boundary conditions class
 void boundaryConditions::ResizeVecs(const int &i, const int &j, const int &k) {
   // i -- number of i surfaces
   // j -- number of j surfaces
@@ -853,7 +853,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
           // At lower i surface, upper bc is now interface
           auto tag = 2000 + numBlk;  // lower surface matches with upper surface
-          bound2.surfs_[ii].bcType_ = "interblock";          // bcType_
+          bound2.surfs_[ii].bcType_ = "interblock";          // bcType
           bound2.surfs_[ii].data_[0] = this->GetIMin(ii);  // imin
           bound2.surfs_[ii].data_[1] = this->GetIMax(ii);  // imax
           bound2.surfs_[ii].data_[6] = tag;                  // tag
@@ -1925,10 +1925,10 @@ ostream &operator<<(ostream &os, const patch &p) {
   os << "Borders Interblock: " << p.Dir1StartInterBorder() << ", "
      << p.Dir1EndInterBorder() << ", " << p.Dir2StartInterBorder() << ", "
      << p.Dir2EndInterBorder() << endl;
-  os << "Origin: " << p.origin_ << endl;
-  os << "Corner 1: " << p.corner1_ << endl;
-  os << "Corner 2: " << p.corner2_ << endl;
-  os << "Corner 12: " << p.corner12_ << endl;
+  os << "Origin: " << p.Origin() << endl;
+  os << "Corner 1: " << p.Corner1() << endl;
+  os << "Corner 2: " << p.Corner2() << endl;
+  os << "Corner 12: " << p.Corner12() << endl;
 
   return os;
 }
@@ -2239,13 +2239,13 @@ int boundarySurface::NumFaces() const {
 }
 
 // operator overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, const boundarySurface &bcSurf_) {
+ostream &operator<<(ostream &os, const boundarySurface &bcSurf) {
   // os -- ostream to print to
-  // bcSurf_ -- boundarySurface to print
+  // bcSurf -- boundarySurface to print
 
-  os << bcSurf_.bcType_ << "   " << bcSurf_.IMin() << "   " << bcSurf_.IMax()
-     << "   " << bcSurf_.JMin() << "   " << bcSurf_.JMax() << "   "
-     << bcSurf_.KMin() << "   " << bcSurf_.KMax() << "   " << bcSurf_.Tag();
+  os << bcSurf.BCType() << "   " << bcSurf.IMin() << "   " << bcSurf.IMax()
+     << "   " << bcSurf.JMin() << "   " << bcSurf.JMax() << "   "
+     << bcSurf.KMin() << "   " << bcSurf.KMax() << "   " << bcSurf.Tag();
 
   return os;
 }

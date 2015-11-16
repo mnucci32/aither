@@ -86,121 +86,14 @@ void primVars::NondimensionalInitialize(const idealGas &eos, const double &aRef,
 
 // operator overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, const primVars &prim) {
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    os << prim.data_[ii];
-    if (ii != NUMVARS - 1) {
-      os << ", ";
-    }
-  }
+  os << prim.Rho() << endl;
+  os << prim.U() << endl;
+  os << prim.V() << endl;
+  os << prim.W() << endl;
+  os << prim.P() << endl;
+  os << prim.Tke() << endl;
+  os << prim.Omega() << endl;
   return os;
-}
-
-// operator overload for addition
-primVars primVars::operator+(const primVars &prim2) const {
-  primVars prim1 = *this;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    prim1.data_[ii] += prim2.data_[ii];
-  }
-  return prim1;
-}
-
-// operator overload for addition with a scalar
-primVars operator+(const double &scalar, const primVars &prim2) {
-  primVars prim1;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    prim1.data_[ii] = prim2.data_[ii] + scalar;
-  }
-  return prim1;
-}
-
-// operator overload for subtraction
-primVars primVars::operator-(const primVars &prim2) const {
-  primVars prim1 = *this;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    prim1.data_[ii] -= prim2.data_[ii];
-  }
-  return prim1;
-}
-
-// operator overload for subtraction with a scalar
-primVars operator-(const double &scalar, const primVars &prim2) {
-  primVars prim1;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    prim1.data_[ii] = scalar - prim2.data_[ii];
-  }
-  return prim1;
-}
-
-// operator overload for elementwise multiplication
-primVars primVars::operator*(const primVars &prim2) const {
-  primVars prim1 = *this;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    prim1.data_[ii] *= prim2.data_[ii];
-  }
-  return prim1;
-}
-
-// member function for scalar multiplication
-primVars primVars::operator*(const double &scalar) const {
-  primVars temp = *this;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    temp.data_[ii] *= scalar;
-  }
-  return temp;
-}
-
-// member function for scalar addition
-primVars primVars::operator+(const double &scalar) const {
-  primVars temp = *this;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    temp.data_[ii] += scalar;
-  }
-  return temp;
-}
-
-// member function for scalar subtraction
-primVars primVars::operator-(const double &scalar) const {
-  primVars temp = *this;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    temp.data_[ii] -= scalar;
-  }
-  return temp;
-}
-
-// member function for scalar division
-primVars primVars::operator/(const double &scalar) const {
-  primVars temp = *this;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    temp.data_[ii] /= scalar;
-  }
-  return temp;
-}
-
-// operator overload for multiplication with a scalar
-primVars operator*(const double &scalar, const primVars &prim2) {
-  primVars prim1;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    prim1.data_[ii] = prim2.data_[ii] * scalar;
-  }
-  return prim1;
-}
-
-// operator overload for elementwise division
-primVars primVars::operator/(const primVars &prim2) const {
-  primVars prim1 = *this;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    prim1.data_[ii] /= prim2.data_[ii];
-  }
-  return prim1;
-}
-
-// operator overload for division with a scalar
-primVars operator/(const double &scalar, const primVars &prim2) {
-  primVars prim1;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    prim1.data_[ii] = scalar / prim2.data_[ii];
-  }
-  return prim1;
 }
 
 // member function to calculate reconstruction of primative variables from cell

@@ -30,7 +30,7 @@ using std::cerr;
 // operation overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, const genArray &m) {
   for (auto rr = 0; rr < NUMVARS; rr++) {
-    cout << m[rr] << endl;
+    os << m[rr] << endl;
   }
   return os;
 }

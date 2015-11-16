@@ -646,18 +646,18 @@ ostream &operator<<(ostream &os, const decomposition &d) {
   // os -- stream to print to
   // d -- decomposition to print
 
-  os << "Decomposition for " << d.numProcs_ << " processors" << endl;
-  for (auto ii = 0; ii < static_cast<int>(d.rank_.size()); ii++) {
-    os << "Block: " << ii << "; Rank: " << d.rank_[ii]
-       << ", Parent Block: " << d.parBlock_[ii]
-       << ", Local Position: " << d.localPos_[ii] << endl;
+  os << "Decomposition for " << d.NumProcs() << " processors" << endl;
+  for (auto ii = 0; ii < d.Size(); ii++) {
+    os << "Block: " << ii << "; Rank: " << d.Rank(ii)
+       << ", Parent Block: " << d.ParentBlock(ii)
+       << ", Local Position: " << d.LocalPosition(ii) << endl;
   }
   os << "Split History" << endl;
-  for (unsigned int ii = 0; ii < d.splitHistBlkLow_.size(); ii++) {
-    os << "Split Number: " << ii << "; Lower Index: " << d.splitHistBlkLow_[ii]
-       << ", Upper Index: " << d.splitHistBlkUp_[ii]
-       << ", Direction: " << d.splitHistDir_[ii]
-       << ", Split Index: " << d.splitHistIndex_[ii] << endl;
+  for (auto ii = 0; ii < d.NumSplits(); ii++) {
+    os << "Split Number: " << ii << "; Lower Index: " << d.SplitHistBlkLower(ii)
+       << ", Upper Index: " << d.SplitHistBlkUpper(ii)
+       << ", Direction: " << d.SplitHistDir(ii)
+       << ", Split Index: " << d.SplitHistIndex(ii) << endl;
   }
   return os;
 }

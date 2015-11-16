@@ -150,10 +150,28 @@ void procBlock::AddToResidual(const inviscidFlux &flux, const int &ii,
   residual_(ii, jj, kk)[6] += flux.RhoVelO();
 }
 
+// member function to subtract a member of the inviscid flux class from the
+// residual
+void procBlock::SubtractFromResidual(const inviscidFlux &flux, const int &ii,
+                                     const int &jj, const int &kk) {
+  // flux -- inviscid flux to add to residual
+  // ii -- i-location of residual to add to
+  // jj -- j-location of residual to add to
+  // kk -- k-location of residual to add to
+
+  residual_(ii, jj, kk)[0] -= flux.RhoVel();
+  residual_(ii, jj, kk)[1] -= flux.RhoVelU();
+  residual_(ii, jj, kk)[2] -= flux.RhoVelV();
+  residual_(ii, jj, kk)[3] -= flux.RhoVelW();
+  residual_(ii, jj, kk)[4] -= flux.RhoVelH();
+  residual_(ii, jj, kk)[5] -= flux.RhoVelK();
+  residual_(ii, jj, kk)[6] -= flux.RhoVelO();
+}
+
 // member function to add a member of the viscous flux class to the residual_
 void procBlock::AddToResidual(const viscousFlux &flux, const int &ii,
                               const int &jj, const int &kk) {
-  // flux -- inviscid flux to add to residual_
+  // flux -- inviscid flux to add to residual
   // ii -- location of residual_ to add to
   // jj -- j-location of residual to add to
   // kk -- k-location of residual to add to
@@ -166,21 +184,40 @@ void procBlock::AddToResidual(const viscousFlux &flux, const int &ii,
   residual_(ii, jj, kk)[6] += flux.MomO();
 }
 
-// member function to add a member of the inviscid source class to the residual
-void procBlock::AddToResidual(const source &src, const int &ii,
+// member function to subtract a member of the viscous flux class from the
+// residual
+void procBlock::SubtractFromResidual(const viscousFlux &flux, const int &ii,
+                              const int &jj, const int &kk) {
+  // flux -- inviscid flux to add to residual_
+  // ii -- location of residual_ to add to
+  // jj -- j-location of residual to add to
+  // kk -- k-location of residual to add to
+
+  residual_(ii, jj, kk)[1] -= flux.MomX();
+  residual_(ii, jj, kk)[2] -= flux.MomY();
+  residual_(ii, jj, kk)[3] -= flux.MomZ();
+  residual_(ii, jj, kk)[4] -= flux.Engy();
+  residual_(ii, jj, kk)[5] -= flux.MomK();
+  residual_(ii, jj, kk)[6] -= flux.MomO();
+}
+
+
+// member function to subtract a member of the inviscid source class from the
+// residual
+void procBlock::SubtractFromResidual(const source &src, const int &ii,
                               const int &jj, const int &kk) {
   // src -- source to add to residual
   // ii -- location of residual to add to
   // jj -- j-location of residual to add to
   // kk -- k-location of residual to add to
 
-  residual_(ii, jj, kk)[0] += src.SrcMass();
-  residual_(ii, jj, kk)[1] += src.SrcMomX();
-  residual_(ii, jj, kk)[2] += src.SrcMomY();
-  residual_(ii, jj, kk)[3] += src.SrcMomZ();
-  residual_(ii, jj, kk)[4] += src.SrcEngy();
-  residual_(ii, jj, kk)[5] += src.SrcTke();
-  residual_(ii, jj, kk)[6] += src.SrcOmg();
+  residual_(ii, jj, kk)[0] -= src.SrcMass();
+  residual_(ii, jj, kk)[1] -= src.SrcMomX();
+  residual_(ii, jj, kk)[2] -= src.SrcMomY();
+  residual_(ii, jj, kk)[3] -= src.SrcMomZ();
+  residual_(ii, jj, kk)[4] -= src.SrcEngy();
+  residual_(ii, jj, kk)[5] -= src.SrcTke();
+  residual_(ii, jj, kk)[6] -= src.SrcOmg();
 }
 
 //---------------------------------------------------------------------
@@ -273,9 +310,9 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp) {
         }
         // at right boundary there is no right cell to add to
         if (ii.g < fAreaI_.NumI() - numGhosts_ - 1) {
-          this->AddToResidual(-1.0 * tempFlux *
-                              this->FAreaMagI(ii.g, jj.g, kk.g),
-                              ii.p, jj.p, kk.p);
+          this->SubtractFromResidual(tempFlux *
+                                     this->FAreaMagI(ii.g, jj.g, kk.g),
+                                     ii.p, jj.p, kk.p);
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           avgWaveSpeed_(ii.p, jj.p, kk.p) +=
@@ -375,9 +412,9 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp) {
         }
         // at right boundary no right cell to add to
         if (jj.g < fAreaJ_.NumJ() - numGhosts_ - 1) {
-          this->AddToResidual(-1.0 * tempFlux *
-                              this->FAreaMagJ(ii.g, jj.g, kk.g),
-                              ii.p, jj.p, kk.p);
+          this->SubtractFromResidual(tempFlux *
+                                     this->FAreaMagJ(ii.g, jj.g, kk.g),
+                                     ii.p, jj.p, kk.p);
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
@@ -479,9 +516,9 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp) {
         }
         // at right boundary no right cell to add to
         if (kk.g < fAreaK_.NumK() - numGhosts_ - 1) {
-          this->AddToResidual(-1.0 * tempFlux *
-                              this->FAreaMagK(ii.g, jj.g, kk.g),
-                              ii.p, jj.p, kk.p);
+          this->SubtractFromResidual(tempFlux *
+                                     this->FAreaMagK(ii.g, jj.g, kk.g),
+                                     ii.p, jj.p, kk.p);
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
@@ -1736,9 +1773,9 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
         // fluxes, so sign is reversed
         // at left boundary there is no left cell to add to
         if (ii.g > numGhosts_) {
-          this->AddToResidual(-1.0 * tempViscFlux *
-                                this->FAreaMagI(ii.g, jj.g, kk.g),
-                                ii.p - 1, jj.p, kk.p);
+          this->SubtractFromResidual(tempViscFlux *
+                                     this->FAreaMagI(ii.g, jj.g, kk.g),
+                                     ii.p - 1, jj.p, kk.p);
         }
         // at right boundary ther eis to right cell to add to
         if (ii.g < fAreaI_.NumI() - numGhosts_ - 1) {
@@ -1887,9 +1924,9 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
         // fluxes, so sign is reversed
         // at left boundary there is no left cell to add to
         if (jj.g > numGhosts_) {
-          this->AddToResidual(-1.0 * tempViscFlux *
-                                this->FAreaMagJ(ii.g, jj.g, kk.g),
-                                ii.p, jj.p - 1, kk.p);
+          this->SubtractFromResidual(tempViscFlux *
+                                     this->FAreaMagJ(ii.g, jj.g, kk.g),
+                                     ii.p, jj.p - 1, kk.p);
         }
         // at right boundary there is no right cell to add to
         if (jj.g < fAreaJ_.NumJ() - numGhosts_ - 1) {
@@ -2036,9 +2073,9 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
         // fluxes, so sign is reversed
         // at left boundary there is no left cell to add to
         if (kk.g > numGhosts_) {
-          this->AddToResidual(-1.0 * tempViscFlux *
-                                this->FAreaMagK(ii.g, jj.g, kk.g),
-                                ii.p, jj.p, kk.p - 1);
+          this->SubtractFromResidual(tempViscFlux *
+                                     this->FAreaMagK(ii.g, jj.g, kk.g),
+                                     ii.p, jj.p, kk.p - 1);
         }
         // at right boundary there is no right cell to add to
         if (kk.g < fAreaK_.NumK() - numGhosts_ - 1) {
@@ -2062,7 +2099,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
 }
 
 /* Member function to assign geometric quantities such as volume, face area,
-cell centroid, and face center_ to ghost cells. This assigns values for
+cell centroid, and face center to ghost cells. This assigns values for
 regular ghost cells and "edge" ghost cells. "Corner" cells are left with no
 value as they are not used.
            ____ ____ ____ ____ ____ ____ ____ ____
@@ -2233,9 +2270,9 @@ void procBlock::AssignGhostCellsGeom() {
       // second layer of ghost cells
       // one cell thick - use one cell for both ghost cells
       if (this->NumI() < 2) {
-        dist2Move = dist2Move * 2.0;
-        dist2MoveJ = dist2MoveJ * 2.0;
-        dist2MoveK = dist2MoveK * 2.0;
+        dist2Move *= 2.0;
+        dist2MoveJ *= 2.0;
+        dist2MoveK *= 2.0;
       } else {
         dist2Move =
             fCenterI_.Slice(bnd, bnd, jmin, jmax, kmin, kmax)
@@ -2348,9 +2385,9 @@ void procBlock::AssignGhostCellsGeom() {
       // second layer of ghost cells
       // one cell thick - use one cell for both ghost cells
       if (this->NumJ() < 2) {
-        dist2Move = dist2Move * 2.0;
-        dist2MoveI = dist2MoveI * 2.0;
-        dist2MoveK = dist2MoveK * 2.0;
+        dist2Move *= 2.0;
+        dist2MoveI *= 2.0;
+        dist2MoveK *= 2.0;
       } else {
         dist2Move =
             fCenterJ_.Slice(imin, imax, bnd, bnd, kmin, kmax)
@@ -2463,9 +2500,9 @@ void procBlock::AssignGhostCellsGeom() {
       // second layer of ghost cells
       // one cell thick - use one cell for both ghost cells
       if (this->NumK() < 2) {
-        dist2Move = dist2Move * 2.0;
-        dist2MoveI = dist2MoveI * 2.0;
-        dist2MoveJ = dist2MoveJ * 2.0;
+        dist2Move *= 2.0;
+        dist2MoveI *= 2.0;
+        dist2MoveJ *= 2.0;
       } else {
         dist2Move =
             fCenterK_.Slice(imin, imax, jmin, jmax, bnd, bnd)
@@ -6787,8 +6824,8 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
         // add source terms to residual
         // multiply by -1 because residual is initially on opposite
         // side of equation
-        this->AddToResidual(src * (-1.0 * vol_(ii.g, jj.g, kk.g)),
-                            ii.p, jj.p, kk.p);
+        this->SubtractFromResidual(src * (vol_(ii.g, jj.g, kk.g)),
+                                   ii.p, jj.p, kk.p);
       }
     }
   }

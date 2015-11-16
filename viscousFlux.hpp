@@ -71,12 +71,35 @@ class viscousFlux {
   double MomK() const { return data_[4]; }
   double MomO() const { return data_[5]; }
 
-  viscousFlux operator*(const double&) const;
-  viscousFlux operator/(const double&) const;
+  inline viscousFlux & operator+=(const viscousFlux &);
+  inline viscousFlux & operator-=(const viscousFlux &);
+  inline viscousFlux & operator*=(const viscousFlux &);
+  inline viscousFlux & operator/=(const viscousFlux &);
 
-  friend ostream& operator<<(ostream& os, viscousFlux&);
-  friend viscousFlux operator*(const double&, const viscousFlux&);
-  friend viscousFlux operator/(const double&, const viscousFlux&);
+  inline viscousFlux & operator+=(const double &);
+  inline viscousFlux & operator-=(const double &);
+  inline viscousFlux & operator*=(const double &);
+  inline viscousFlux & operator/=(const double &);
+
+  inline viscousFlux operator+(const double &s) const {
+    auto lhs = *this;
+    return lhs += s;
+  }
+  inline viscousFlux operator-(const double &s) const {
+    auto lhs = *this;
+    return lhs -= s;
+  }
+  inline viscousFlux operator*(const double &s) const {
+    auto lhs = *this;
+    return lhs *= s;
+  }
+  inline viscousFlux operator/(const double &s) const {
+    auto lhs = *this;
+    return lhs /= s;
+  }
+
+  friend inline const viscousFlux operator-(const double &lhs, viscousFlux rhs);
+  friend inline const viscousFlux operator/(const double &lhs, viscousFlux rhs);
 
   // destructor
   ~viscousFlux() noexcept {}
@@ -90,5 +113,110 @@ void CalcTSLFluxJac(const double&, const double&, const idealGas&,
 
 tensor<double> CalcVelGradTSL(const primVars&, const primVars&,
                               const vector3d<double>&, const double&);
+
+// operator overload for addition
+viscousFlux & viscousFlux::operator+=(const viscousFlux &arr) {
+  for (auto rr = 0; rr < NUMVARS - 1; rr++) {
+    data_[rr] += arr.data_[rr];
+  }
+  return *this;
+}
+
+// operator overload for subtraction with a scalar
+viscousFlux & viscousFlux::operator-=(const viscousFlux &arr) {
+  for (auto rr = 0; rr < NUMVARS - 1; rr++) {
+    data_[rr] -= arr.data_[rr];
+  }
+  return *this;
+}
+
+// operator overload for elementwise multiplication
+viscousFlux & viscousFlux::operator*=(const viscousFlux &arr) {
+  for (auto rr = 0; rr < NUMVARS - 1; rr++) {
+    data_[rr] *= arr.data_[rr];
+  }
+  return *this;
+}
+
+// operator overload for elementwise division
+viscousFlux & viscousFlux::operator/=(const viscousFlux &arr) {
+  for (auto rr = 0; rr < NUMVARS - 1; rr++) {
+    data_[rr] /= arr.data_[rr];
+  }
+  return *this;
+}
+
+inline const viscousFlux operator+(viscousFlux lhs, const viscousFlux &rhs) {
+  return lhs += rhs;
+}
+
+inline const viscousFlux operator-(viscousFlux lhs, const viscousFlux &rhs) {
+  return lhs -= rhs;
+}
+
+inline const viscousFlux operator*(viscousFlux lhs, const viscousFlux &rhs) {
+  return lhs *= rhs;
+}
+
+inline const viscousFlux operator/(viscousFlux lhs, const viscousFlux &rhs) {
+  return lhs /= rhs;
+}
+
+// operator overloads for double -------------------------------------
+// operator overload for addition
+viscousFlux & viscousFlux::operator+=(const double &scalar) {
+  for (auto &val : data_) {
+    val += scalar;
+  }
+  return *this;
+}
+
+// operator overload for subtraction with a scalar
+viscousFlux & viscousFlux::operator-=(const double &scalar) {
+  for (auto &val : data_) {
+    val -= scalar;
+  }
+  return *this;
+}
+
+// operator overload for elementwise multiplication
+viscousFlux & viscousFlux::operator*=(const double &scalar) {
+  for (auto &val : data_) {
+    val *= scalar;
+  }
+  return *this;
+}
+
+// operator overload for elementwise division
+viscousFlux & viscousFlux::operator/=(const double &scalar) {
+  for (auto &val : data_) {
+    val /= scalar;
+  }
+  return *this;
+}
+
+inline const viscousFlux operator+(const double &lhs, viscousFlux rhs) {
+  return rhs += lhs;
+}
+
+inline const viscousFlux operator-(const double &lhs, viscousFlux rhs) {
+  for (auto rr = 0; rr < NUMVARS - 1; rr++) {
+    rhs.data_[rr] = lhs - rhs.data_[rr];
+  }
+  return rhs;
+}
+
+inline const viscousFlux operator*(const double &lhs, viscousFlux rhs) {
+  return rhs *= lhs;
+}
+
+inline const viscousFlux operator/(const double &lhs, viscousFlux rhs) {
+  for (auto rr = 0; rr < NUMVARS - 1; rr++) {
+    rhs.data_[rr] = lhs / rhs.data_[rr];
+  }
+  return rhs;
+}
+
+ostream &operator<<(ostream &os, const viscousFlux &);
 
 #endif

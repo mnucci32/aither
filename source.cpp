@@ -33,121 +33,14 @@ using std::unique_ptr;
 
 // operator overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, const source &src) {
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    os << src.data_[ii];
-    if (ii != NUMVARS - 1) {
-      os << ", ";
-    }
-  }
+  os << src.SrcMass() << endl;
+  os << src.SrcMomX() << endl;
+  os << src.SrcMomY() << endl;
+  os << src.SrcMomZ() << endl;
+  os << src.SrcEngy() << endl;
+  os << src.SrcTke() << endl;
+  os << src.SrcOmg() << endl;
   return os;
-}
-
-// operator overload for addition
-source source::operator+(const source &src2) const {
-  source src1 = *this;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    src1.data_[ii] += src2.data_[ii];
-  }
-  return src1;
-}
-
-// operator overload for addition with a scalar
-source operator+(const double &scalar, const source &src2) {
-  source src1;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    src1.data_[ii] = src2.data_[ii] + scalar;
-  }
-  return src1;
-}
-
-// operator overload for subtraction
-source source::operator-(const source &src2) const {
-  source src1 = *this;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    src1.data_[ii] -= src2.data_[ii];
-  }
-  return src1;
-}
-
-// operator overload for subtraction with a scalar
-source operator-(const double &scalar, const source &src2) {
-  source src1;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    src1.data_[ii] = scalar - src2.data_[ii];
-  }
-  return src1;
-}
-
-// operator overload for elementwise multiplication
-source source::operator*(const source &src2) const {
-  source src1 = *this;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    src1.data_[ii] *= src2.data_[ii];
-  }
-  return src1;
-}
-
-// member function for scalar multiplication
-source source::operator*(const double &scalar) const {
-  source temp = *this;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    temp.data_[ii] *= scalar;
-  }
-  return temp;
-}
-
-// member function for scalar addition
-source source::operator+(const double &scalar) const {
-  source temp = *this;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    temp.data_[ii] += scalar;
-  }
-  return temp;
-}
-
-// member function for scalar subtraction
-source source::operator-(const double &scalar) const {
-  source temp = *this;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    temp.data_[ii] -= scalar;
-  }
-  return temp;
-}
-
-// member function for scalar division
-source source::operator/(const double &scalar) const {
-  source temp = *this;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    temp.data_[ii] /= scalar;
-  }
-  return temp;
-}
-
-// operator overload for multiplication with a scalar
-source operator*(const double &scalar, const source &src2) {
-  source src1;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    src1.data_[ii] = src2.data_[ii] * scalar;
-  }
-  return src1;
-}
-
-// operator overload for elementwise division
-source source::operator/(const source &src2) const {
-  source src1 = *this;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    src1.data_[ii] /= src2.data_[ii];
-  }
-  return src1;
-}
-
-// operator overload for division with a scalar
-source operator/(const double &scalar, const source &src2) {
-  source src1;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    src1.data_[ii] = scalar / src2.data_[ii];
-  }
-  return src1;
 }
 
 // Member function to calculate the source terms for the turbulence equations

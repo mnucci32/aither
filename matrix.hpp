@@ -23,62 +23,6 @@
 
 using std::ostream;
 
-// class to store a column matrix
-class colMatrix {
-  int size_;
-  double *data_;
-
- public:
-  // constructor
-  explicit colMatrix(const int &a) : size_(a) { data_ = new double[a]; }
-  colMatrix() : size_(0), data_(nullptr) {}
-
-  // copy constructor
-  colMatrix(const colMatrix &cp);
-
-  // copy assignment operator
-  colMatrix &operator=(colMatrix other);
-
-  // move constructor
-  explicit colMatrix(colMatrix &&other) noexcept : colMatrix() {
-    swap(*this, other);
-    other.data_ = nullptr;
-  }
-
-  // member functions
-  double Data(const int &) const;
-  void SetData(const int &, const double &);
-  int Size() const { return size_; }
-  void Zero();
-  double Sum();
-  void CleanResizeZero(const int &);
-
-  // operator overloads
-  colMatrix operator+(const colMatrix &) const;
-  colMatrix operator-(const colMatrix &) const;
-  colMatrix operator*(const colMatrix &) const;
-  colMatrix operator/(const colMatrix &) const;
-
-  colMatrix operator+(const double &) const;
-  colMatrix operator-(const double &) const;
-  colMatrix operator*(const double &) const;
-  colMatrix operator/(const double &) const;
-
-  friend colMatrix operator+(const double &, const colMatrix &);
-  friend colMatrix operator-(const double &, const colMatrix &);
-  friend colMatrix operator*(const double &, const colMatrix &);
-  friend colMatrix operator/(const double &, const colMatrix &);
-  friend ostream &operator<<(ostream &os, const colMatrix &);
-
-  friend void swap(colMatrix &first, colMatrix &second) noexcept;
-
-  // destructor
-  ~colMatrix() noexcept {
-    delete[] data_;
-    data_ = nullptr;
-  }
-};
-
 // class to store a square matrix
 class squareMatrix {
   int size_;
@@ -112,7 +56,6 @@ class squareMatrix {
   void LinCombRow(const int &, const double &, const int &);
   void Zero();
   void Identity();
-  colMatrix Multiply(const colMatrix &) const;
 
   // operator overloads
   squareMatrix operator+(const squareMatrix &) const;

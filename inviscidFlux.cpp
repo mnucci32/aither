@@ -889,67 +889,14 @@ void ApproxRoeFluxJacobian(const primVars &left, const primVars &right,
 
 // operator overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, inviscidFlux &flux) {
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    os << flux.data_[ii];
-    if (ii != NUMVARS - 1) {
-      os << ", ";
-    }
-  }
+  os << flux.RhoVel() << endl;
+  os << flux.RhoVelU() << endl;
+  os << flux.RhoVelV() << endl;
+  os << flux.RhoVelW() << endl;
+  os << flux.RhoVelH() << endl;
+  os << flux.RhoVelK() << endl;
+  os << flux.RhoVelO() << endl;
   return os;
-}
-
-// member function for scalar multiplication
-inviscidFlux inviscidFlux::operator*(const double &scalar) const {
-  inviscidFlux temp = *this;
-  for (auto &val : temp.data_) {
-    val *= scalar;
-  }
-  return temp;
-}
-
-// friend function to allow multiplication (elementwise) from either direction
-inviscidFlux operator*(const double &scalar, const inviscidFlux &flux) {
-  inviscidFlux temp;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    temp.data_[ii] = flux.data_[ii] * scalar;
-  }
-  return temp;
-}
-
-// operator overload for addition
-inviscidFlux inviscidFlux::operator+(const inviscidFlux &invf2) const {
-  inviscidFlux invf1 = *this;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    invf1.data_[ii] += invf2.data_[ii];
-  }
-  return invf1;
-}
-
-// operator overload for subtraction
-inviscidFlux inviscidFlux::operator-(const inviscidFlux &invf2) const {
-  inviscidFlux invf1 = *this;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    invf1.data_[ii] -= invf2.data_[ii];
-  }
-  return invf1;
-}
-
-// member function for scalar division
-inviscidFlux inviscidFlux::operator/(const double &scalar) const {
-  inviscidFlux temp = *this;
-  for (auto &val : temp.data_) {
-    val /= scalar;
-  }
-  return temp;
-}
-
-// friend function to allow division (elementwise) from either direction
-inviscidFlux operator/(const double &scalar, const inviscidFlux &flux) {
-  inviscidFlux temp;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    temp.data_[ii] = scalar / flux.data_[ii];
-  }
-  return temp;
 }
 
 // convert the inviscid flux to a genArray

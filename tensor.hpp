@@ -26,9 +26,12 @@
 // any files that depend on the header. Leaving the implementation in
 // streamlines the compiling process.
 
-#include <math.h>    // sqrt()
-#include <iostream>  // ostream
+#include <cmath>       // sqrt()
+#include <iostream>     // ostream
+#include <type_traits>  // is_arithmetic
 #include "vector3d.hpp"
+
+#define SIZE 9
 
 using std::ostream;
 using std::endl;
@@ -36,7 +39,10 @@ using std::endl;
 // Templated class for a 2D tensor holding 9 elements
 template <typename T>
 class tensor {
-  T data_[9];
+  static_assert(std::is_arithmetic<T>::value,
+                "tensor<T> requires an arithmetic type!");
+
+  T data_[SIZE];
 
  public:
   // constructor
@@ -59,24 +65,39 @@ class tensor {
 
   // member functions
   // operator overloads
-  tensor<T> operator+(const tensor &) const;
-  tensor<T> operator-(const tensor &) const;
-  tensor<T> operator*(const tensor &) const;
-  tensor<T> operator+(const T &) const;
-  tensor<T> operator-(const T &) const;
-  tensor<T> operator*(const T &) const;
-  tensor<T> operator/(const T &) const;
+  inline tensor<T> & operator+=(const tensor<T> &);
+  inline tensor<T> & operator-=(const tensor<T> &);
+  inline tensor<T> & operator*=(const tensor<T> &);
+  inline tensor<T> & operator/=(const tensor<T> &);
+
+  inline tensor<T> & operator+=(const T &);
+  inline tensor<T> & operator-=(const T &);
+  inline tensor<T> & operator*=(const T &);
+  inline tensor<T> & operator/=(const T &);
+
+  inline tensor<T> operator+(const T &s) const {
+    auto lhs = *this;
+    return lhs += s;
+  }
+  inline tensor<T> operator-(const T &s) const {
+    auto lhs = *this;
+    return lhs -= s;
+  }
+  inline tensor<T> operator*(const T &s) const {
+    auto lhs = *this;
+    return lhs *= s;
+  }
+  inline tensor<T> operator/(const T &s) const {
+    auto lhs = *this;
+    return lhs /= s;
+  }
+
   template <typename TT>
-  friend tensor<TT> operator*(const TT &, const tensor<TT> &);
+  friend inline const tensor<TT> operator-(const TT &lhs, tensor<TT> rhs);
   template <typename TT>
-  friend tensor<TT> operator/(const TT &, const tensor<TT> &);
-  template <typename TT>
-  friend tensor<TT> operator+(const TT &, const tensor<TT> &);
-  template <typename TT>
-  friend tensor<TT> operator-(const TT &, const tensor<TT> &);
-  template <typename TT>
-  friend ostream &operator<<(ostream &os, const tensor<TT> &);
-  // assignment of data_ members
+  friend inline const tensor<TT> operator/(const TT &lhs, tensor<TT> rhs);
+
+  // assignment of data members
   void SetXX(const T &val) { data_[0] = val; }
   void SetXY(const T &val) { data_[1] = val; }
   void SetXZ(const T &val) { data_[2] = val; }
@@ -86,7 +107,8 @@ class tensor {
   void SetZX(const T &val) { data_[6] = val; }
   void SetZY(const T &val) { data_[7] = val; }
   void SetZZ(const T &val) { data_[8] = val; }
-  // access of data_ members
+
+  // access of data members
   T XX() const { return data_[0]; }
   T XY() const { return data_[1]; }
   T XZ() const { return data_[2]; }
@@ -96,10 +118,12 @@ class tensor {
   T ZX() const { return data_[6]; }
   T ZY() const { return data_[7]; }
   T ZZ() const { return data_[8]; }
+
   // math functions
   T Trace() const { return data_[0] + data_[4] + data_[8]; }
   tensor<T> Transpose() const;
   vector3d<T> MatMult(const vector3d<T> &) const;
+  tensor<T> MatMult(const tensor<T> &) const;
   T DoubleDot(const tensor<T> &) const;
   T DoubleDotTrans(const tensor<T> &) const;
   void Identity();
@@ -109,47 +133,128 @@ class tensor {
   ~tensor() noexcept {}
 };
 
-// operator overload for addition - element wise addition
+// operator overload for addition
 template <typename T>
-tensor<T> tensor<T>::operator+(const tensor &v2) const {
-  auto temp = *this;
-  temp.data_[0] += v2.data_[0];
-  temp.data_[1] += v2.data_[1];
-  temp.data_[2] += v2.data_[2];
-
-  temp.data_[3] += v2.data_[3];
-  temp.data_[4] += v2.data_[4];
-  temp.data_[5] += v2.data_[5];
-
-  temp.data_[6] += v2.data_[6];
-  temp.data_[7] += v2.data_[7];
-  temp.data_[8] += v2.data_[8];
-
-  return temp;
+tensor<T> & tensor<T>::operator+=(const tensor<T> &ten) {
+  for (auto rr = 0; rr < SIZE; rr++) {
+    data_[rr] += ten.data_[rr];
+  }
+  return *this;
 }
 
-// operator overload for subtraction - element wise subtraction
+// operator overload for subtraction with a scalar
 template <typename T>
-tensor<T> tensor<T>::operator-(const tensor &v2) const {
-  auto temp = *this;
-  temp.data_[0] -= v2.data_[0];
-  temp.data_[1] -= v2.data_[1];
-  temp.data_[2] -= v2.data_[2];
-
-  temp.data_[3] -= v2.data_[3];
-  temp.data_[4] -= v2.data_[4];
-  temp.data_[5] -= v2.data_[5];
-
-  temp.data_[6] -= v2.data_[6];
-  temp.data_[7] -= v2.data_[7];
-  temp.data_[8] -= v2.data_[8];
-
-  return temp;
+tensor<T> & tensor<T>::operator-=(const tensor<T> &ten) {
+  for (auto rr = 0; rr < SIZE; rr++) {
+    data_[rr] -= ten.data_[rr];
+  }
+  return *this;
 }
 
-// operator overload for multiplication - matrix multiplication
+// operator overload for elementwise multiplication
 template <typename T>
-tensor<T> tensor<T>::operator*(const tensor &v2) const {
+tensor<T> & tensor<T>::operator*=(const tensor<T> &ten) {
+  for (auto rr = 0; rr < SIZE; rr++) {
+    data_[rr] *= ten.data_[rr];
+  }
+  return *this;
+}
+
+// operator overload for elementwise division
+template <typename T>
+tensor<T> & tensor<T>::operator/=(const tensor<T> &ten) {
+  for (auto rr = 0; rr < SIZE; rr++) {
+    data_[rr] /= ten.data_[rr];
+  }
+  return *this;
+}
+
+template <typename T>
+inline const tensor<T> operator+(tensor<T> lhs, const tensor<T> &rhs) {
+  return lhs += rhs;
+}
+
+template <typename T>
+inline const tensor<T> operator-(tensor<T> lhs, const tensor<T> &rhs) {
+  return lhs -= rhs;
+}
+
+template <typename T>
+inline const tensor<T> operator*(tensor<T> lhs, const tensor<T> &rhs) {
+  return lhs *= rhs;
+}
+
+template <typename T>
+inline const tensor<T> operator/(tensor<T> lhs, const tensor<T> &rhs) {
+  return lhs /= rhs;
+}
+
+// operator overloads for double -------------------------------------
+// operator overload for addition
+template <typename T>
+tensor<T> & tensor<T>::operator+=(const T &scalar) {
+  for (auto &val : data_) {
+    val += scalar;
+  }
+  return *this;
+}
+
+// operator overload for subtraction with a scalar
+template <typename T>
+tensor<T> & tensor<T>::operator-=(const T &scalar) {
+  for (auto &val : data_) {
+    val -= scalar;
+  }
+  return *this;
+}
+
+// operator overload for elementwise multiplication
+template <typename T>
+tensor<T> & tensor<T>::operator*=(const T &scalar) {
+  for (auto &val : data_) {
+    val *= scalar;
+  }
+  return *this;
+}
+
+// operator overload for elementwise division
+template <typename T>
+tensor<T> & tensor<T>::operator/=(const T &scalar) {
+  for (auto &val : data_) {
+    val /= scalar;
+  }
+  return *this;
+}
+
+template <typename T>
+inline const tensor<T> operator+(const T &lhs, tensor<T> rhs) {
+  return rhs += lhs;
+}
+
+template <typename T>
+inline const tensor<T> operator-(const T &lhs, tensor<T> rhs) {
+  for (auto rr = 0; rr < SIZE; rr++) {
+    rhs.data_[rr] = lhs - rhs.data_[rr];
+  }
+  return rhs;
+}
+
+template <typename T>
+inline const tensor<T> operator*(const T &lhs, tensor<T> rhs) {
+  return rhs *= lhs;
+}
+
+template <typename T>
+inline const tensor<T> operator/(const T &lhs, tensor<T> rhs) {
+  for (auto rr = 0; rr < SIZE; rr++) {
+    rhs.data_[rr] = lhs / rhs.data_[rr];
+  }
+  return rhs;
+}
+
+// function for matrix multiplication
+template <typename T>
+tensor<T> tensor<T>::MatMult(const tensor &v2) const {
   tensor<T> temp;
 
   temp.data_[0] = data_[0] * v2.data_[0] +
@@ -185,177 +290,12 @@ tensor<T> tensor<T>::operator*(const tensor &v2) const {
   return temp;
 }
 
-// operator overload for addition with a scalar - element wise
-// addition
-template <typename T>
-tensor<T> tensor<T>::operator+(const T &scalar) const {
-  auto temp = *this;
-  temp.data_[0] += scalar;
-  temp.data_[1] += scalar;
-  temp.data_[2] += scalar;
-
-  temp.data_[3] += scalar;
-  temp.data_[4] += scalar;
-  temp.data_[5] += scalar;
-
-  temp.data_[6] += scalar;
-  temp.data_[7] += scalar;
-  temp.data_[8] += scalar;
-
-  return temp;
-}
-
-// operator overload for addition with a scalar - element wise
-// addition
-// this function is a friend function of the class so that double + tensor
-// behaves as tensor + double
-template <typename TT>
-tensor<TT> operator+(const TT &scalar, const tensor<TT> &v1) {
-  tensor<TT> temp;
-  temp.data_[0] = v1.data_[0] + scalar;
-  temp.data_[1] = v1.data_[1] + scalar;
-  temp.data_[2] = v1.data_[2] + scalar;
-
-  temp.data_[3] = v1.data_[3] + scalar;
-  temp.data_[4] = v1.data_[4] + scalar;
-  temp.data_[5] = v1.data_[5] + scalar;
-
-  temp.data_[6] = v1.data_[6] + scalar;
-  temp.data_[7] = v1.data_[7] + scalar;
-  temp.data_[8] = v1.data_[8] + scalar;
-
-  return temp;
-}
-
-// operator overload for subtraction with a scalar - element wise
-// subtraction
-template <typename T>
-tensor<T> tensor<T>::operator-(const T &scalar) const {
-  auto temp = *this;
-  temp.data_[0] -= scalar;
-  temp.data_[1] -= scalar;
-  temp.data_[2] -= scalar;
-
-  temp.data_[3] -= scalar;
-  temp.data_[4] -= scalar;
-  temp.data_[5] -= scalar;
-
-  temp.data_[6] -= scalar;
-  temp.data_[7] -= scalar;
-  temp.data_[8] -= scalar;
-
-  return temp;
-}
-
-// operator overload for subtraction with a scalar - element wise
-// subtraction
-// this function is a friend function of the class so that double - tensor
-// behaves as tensor - double
-template <typename TT>
-tensor<TT> operator-(const TT &scalar, const tensor<TT> &v1) {
-  tensor<TT> temp;
-  temp.data_[0] = v1.data_[0] - scalar;
-  temp.data_[1] = v1.data_[1] - scalar;
-  temp.data_[2] = v1.data_[2] - scalar;
-
-  temp.data_[3] = v1.data_[3] - scalar;
-  temp.data_[4] = v1.data_[4] - scalar;
-  temp.data_[5] = v1.data_[5] - scalar;
-
-  temp.data_[6] = v1.data_[6] - scalar;
-  temp.data_[7] = v1.data_[7] - scalar;
-  temp.data_[8] = v1.data_[8] - scalar;
-
-  return temp;
-}
-
-// operator overload for multiplication with a scalar - element wise
-// multiplication
-template <typename T>
-tensor<T> tensor<T>::operator*(const T &scalar) const {
-  auto temp = *this;
-  temp.data_[0] *= scalar;
-  temp.data_[1] *= scalar;
-  temp.data_[2] *= scalar;
-
-  temp.data_[3] *= scalar;
-  temp.data_[4] *= scalar;
-  temp.data_[5] *= scalar;
-
-  temp.data_[6] *= scalar;
-  temp.data_[7] *= scalar;
-  temp.data_[8] *= scalar;
-
-  return temp;
-}
-
-// operator overload for multiplication with a scalar - element wise
-// multiplication
-// this function is a friend function of the class so that double * tensor
-// behaves as tensor * double
-template <typename TT>
-tensor<TT> operator*(const TT &scalar, const tensor<TT> &v1) {
-  tensor<TT> temp;
-  temp.data_[0] = v1.data_[0] * scalar;
-  temp.data_[1] = v1.data_[1] * scalar;
-  temp.data_[2] = v1.data_[2] * scalar;
-
-  temp.data_[3] = v1.data_[3] * scalar;
-  temp.data_[4] = v1.data_[4] * scalar;
-  temp.data_[5] = v1.data_[5] * scalar;
-
-  temp.data_[6] = v1.data_[6] * scalar;
-  temp.data_[7] = v1.data_[7] * scalar;
-  temp.data_[8] = v1.data_[8] * scalar;
-
-  return temp;
-}
-
-// operator overload for division with a scalar - element wise division
-template <typename T>
-tensor<T> tensor<T>::operator/(const T &scalar) const {
-  auto temp = *this;
-  temp.data_[0] /= scalar;
-  temp.data_[1] /= scalar;
-  temp.data_[2] /= scalar;
-
-  temp.data_[3] /= scalar;
-  temp.data_[4] /= scalar;
-  temp.data_[5] /= scalar;
-
-  temp.data_[6] /= scalar;
-  temp.data_[7] /= scalar;
-  temp.data_[8] /= scalar;
-
-  return temp;
-}
-
-// operator overload for division with a scalar - element wise division
-// this function is a friend function of the class so that double / tensor works
-template <typename TT>
-tensor<TT> operator/(const TT &scalar, const tensor<TT> &v1) {
-  tensor<TT> temp;
-  temp.data_[0] = scalar / v1.data_[0];
-  temp.data_[1] = scalar / v1.data_[1];
-  temp.data_[2] = scalar / v1.data_[2];
-
-  temp.data_[3] = scalar / v1.data_[3];
-  temp.data_[4] = scalar / v1.data_[4];
-  temp.data_[5] = scalar / v1.data_[5];
-
-  temp.data_[6] = scalar / v1.data_[6];
-  temp.data_[7] = scalar / v1.data_[7];
-  temp.data_[8] = scalar / v1.data_[8];
-
-  return temp;
-}
-
 // operator overload for << - allows use of cout, cerr, etc.
-template <typename TT>
-ostream &operator<<(ostream &os, const tensor<TT> &v1) {
-  os << v1.data_[0] << ", " << v1.data_[1] << ", " << v1.data_[2] << endl;
-  os << v1.data_[3] << ", " << v1.data_[4] << ", " << v1.data_[5] << endl;
-  os << v1.data_[6] << ", " << v1.data_[7] << ", " << v1.data_[8] << endl;
+template <typename T>
+ostream &operator<<(ostream &os, const tensor<T> &v1) {
+  os << v1.XX() << ", " << v1.XY() << ", " << v1.XZ() << endl;
+  os << v1.YX() << ", " << v1.YY() << ", " << v1.YZ() << endl;
+  os << v1.ZX() << ", " << v1.ZY() << ", " << v1.ZZ() << endl;
   return os;
 }
 

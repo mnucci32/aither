@@ -73,27 +73,145 @@ class source {
                    const idealGas &, const double &, const int &,
                    const int &, const int &);
 
-  // operator overloads for addition and subtraction of states
-  source operator+(const source &) const;
-  source operator-(const source &) const;
-  source operator*(const source &) const;
-  source operator/(const source &) const;
+  inline source & operator+=(const source &);
+  inline source & operator-=(const source &);
+  inline source & operator*=(const source &);
+  inline source & operator/=(const source &);
 
-  source operator+(const double &) const;
-  source operator-(const double &) const;
-  source operator*(const double &) const;
-  source operator/(const double &) const;
+  inline source & operator+=(const double &);
+  inline source & operator-=(const double &);
+  inline source & operator*=(const double &);
+  inline source & operator/=(const double &);
 
-  friend source operator+(const double &, const source &);
-  friend source operator-(const double &, const source &);
-  friend source operator*(const double &, const source &);
-  friend source operator/(const double &, const source &);
-  friend ostream &operator<<(ostream &os, const source &);
+  inline source operator+(const double &s) const {
+    auto lhs = *this;
+    return lhs += s;
+  }
+  inline source operator-(const double &s) const {
+    auto lhs = *this;
+    return lhs -= s;
+  }
+  inline source operator*(const double &s) const {
+    auto lhs = *this;
+    return lhs *= s;
+  }
+  inline source operator/(const double &s) const {
+    auto lhs = *this;
+    return lhs /= s;
+  }
+
+  friend inline const source operator-(const double &lhs, source rhs);
+  friend inline const source operator/(const double &lhs, source rhs);
 
   // destructor
   ~source() noexcept {}
 };
 
-// function definitions
+// function definitions -------------------------------------
+
+// operator overload for addition
+source & source::operator+=(const source &arr) {
+  for (auto rr = 0; rr < NUMVARS; rr++) {
+    data_[rr] += arr.data_[rr];
+  }
+  return *this;
+}
+
+// operator overload for subtraction with a scalar
+source & source::operator-=(const source &arr) {
+  for (auto rr = 0; rr < NUMVARS; rr++) {
+    data_[rr] -= arr.data_[rr];
+  }
+  return *this;
+}
+
+// operator overload for elementwise multiplication
+source & source::operator*=(const source &arr) {
+  for (auto rr = 0; rr < NUMVARS; rr++) {
+    data_[rr] *= arr.data_[rr];
+  }
+  return *this;
+}
+
+// operator overload for elementwise division
+source & source::operator/=(const source &arr) {
+  for (auto rr = 0; rr < NUMVARS; rr++) {
+    data_[rr] /= arr.data_[rr];
+  }
+  return *this;
+}
+
+inline const source operator+(source lhs, const source &rhs) {
+  return lhs += rhs;
+}
+
+inline const source operator-(source lhs, const source &rhs) {
+  return lhs -= rhs;
+}
+
+inline const source operator*(source lhs, const source &rhs) {
+  return lhs *= rhs;
+}
+
+inline const source operator/(source lhs, const source &rhs) {
+  return lhs /= rhs;
+}
+
+// operator overloads for double -------------------------------------
+// operator overload for addition
+source & source::operator+=(const double &scalar) {
+  for (auto &val : data_) {
+    val += scalar;
+  }
+  return *this;
+}
+
+// operator overload for subtraction with a scalar
+source & source::operator-=(const double &scalar) {
+  for (auto &val : data_) {
+    val -= scalar;
+  }
+  return *this;
+}
+
+// operator overload for elementwise multiplication
+source & source::operator*=(const double &scalar) {
+  for (auto &val : data_) {
+    val *= scalar;
+  }
+  return *this;
+}
+
+// operator overload for elementwise division
+source & source::operator/=(const double &scalar) {
+  for (auto &val : data_) {
+    val /= scalar;
+  }
+  return *this;
+}
+
+inline const source operator+(const double &lhs, source rhs) {
+  return rhs += lhs;
+}
+
+inline const source operator-(const double &lhs, source rhs) {
+  for (auto rr = 0; rr < NUMVARS; rr++) {
+    rhs.data_[rr] = lhs - rhs.data_[rr];
+  }
+  return rhs;
+}
+
+inline const source operator*(const double &lhs, source rhs) {
+  return rhs *= lhs;
+}
+
+inline const source operator/(const double &lhs, source rhs) {
+  for (auto rr = 0; rr < NUMVARS; rr++) {
+    rhs.data_[rr] = lhs / rhs.data_[rr];
+  }
+  return rhs;
+}
+
+ostream &operator<<(ostream &os, const source &);
 
 #endif

@@ -108,21 +108,35 @@ class primVars {
   void LimitTurb(const unique_ptr<turbModel> &);
 
   // operator overloads for addition and subtraction of states
-  primVars operator+(const primVars &) const;
-  primVars operator-(const primVars &) const;
-  primVars operator*(const primVars &) const;
-  primVars operator/(const primVars &) const;
+  inline primVars & operator+=(const primVars &);
+  inline primVars & operator-=(const primVars &);
+  inline primVars & operator*=(const primVars &);
+  inline primVars & operator/=(const primVars &);
 
-  primVars operator+(const double &) const;
-  primVars operator-(const double &) const;
-  primVars operator*(const double &) const;
-  primVars operator/(const double &) const;
+  inline primVars & operator+=(const double &);
+  inline primVars & operator-=(const double &);
+  inline primVars & operator*=(const double &);
+  inline primVars & operator/=(const double &);
 
-  friend primVars operator+(const double &, const primVars &);
-  friend primVars operator-(const double &, const primVars &);
-  friend primVars operator*(const double &, const primVars &);
-  friend primVars operator/(const double &, const primVars &);
-  friend ostream &operator<<(ostream &, const primVars &);
+  inline primVars operator+(const double &s) const {
+    auto lhs = *this;
+    return lhs += s;
+  }
+  inline primVars operator-(const double &s) const {
+    auto lhs = *this;
+    return lhs -= s;
+  }
+  inline primVars operator*(const double &s) const {
+    auto lhs = *this;
+    return lhs *= s;
+  }
+  inline primVars operator/(const double &s) const {
+    auto lhs = *this;
+    return lhs /= s;
+  }
+
+  friend inline const primVars operator-(const double &lhs, primVars rhs);
+  friend inline const primVars operator/(const double &lhs, primVars rhs);
 
   // member function to calculate reconstruction of state variables from cell
   // center to cell face assuming value at cell center is constant over cell
@@ -199,5 +213,110 @@ genArray primVars::ConsVars(const idealGas &eqnState) const {
               data_[0] * data_[6]);
   return cv;
 }
+
+// operator overload for addition
+primVars & primVars::operator+=(const primVars &arr) {
+  for (auto rr = 0; rr < NUMVARS; rr++) {
+    data_[rr] += arr.data_[rr];
+  }
+  return *this;
+}
+
+// operator overload for subtraction with a scalar
+primVars & primVars::operator-=(const primVars &arr) {
+  for (auto rr = 0; rr < NUMVARS; rr++) {
+    data_[rr] -= arr.data_[rr];
+  }
+  return *this;
+}
+
+// operator overload for elementwise multiplication
+primVars & primVars::operator*=(const primVars &arr) {
+  for (auto rr = 0; rr < NUMVARS; rr++) {
+    data_[rr] *= arr.data_[rr];
+  }
+  return *this;
+}
+
+// operator overload for elementwise division
+primVars & primVars::operator/=(const primVars &arr) {
+  for (auto rr = 0; rr < NUMVARS; rr++) {
+    data_[rr] /= arr.data_[rr];
+  }
+  return *this;
+}
+
+inline const primVars operator+(primVars lhs, const primVars &rhs) {
+  return lhs += rhs;
+}
+
+inline const primVars operator-(primVars lhs, const primVars &rhs) {
+  return lhs -= rhs;
+}
+
+inline const primVars operator*(primVars lhs, const primVars &rhs) {
+  return lhs *= rhs;
+}
+
+inline const primVars operator/(primVars lhs, const primVars &rhs) {
+  return lhs /= rhs;
+}
+
+// operator overloads for double -------------------------------------
+// operator overload for addition
+primVars & primVars::operator+=(const double &scalar) {
+  for (auto &val : data_) {
+    val += scalar;
+  }
+  return *this;
+}
+
+// operator overload for subtraction with a scalar
+primVars & primVars::operator-=(const double &scalar) {
+  for (auto &val : data_) {
+    val -= scalar;
+  }
+  return *this;
+}
+
+// operator overload for elementwise multiplication
+primVars & primVars::operator*=(const double &scalar) {
+  for (auto &val : data_) {
+    val *= scalar;
+  }
+  return *this;
+}
+
+// operator overload for elementwise division
+primVars & primVars::operator/=(const double &scalar) {
+  for (auto &val : data_) {
+    val /= scalar;
+  }
+  return *this;
+}
+
+inline const primVars operator+(const double &lhs, primVars rhs) {
+  return rhs += lhs;
+}
+
+inline const primVars operator-(const double &lhs, primVars rhs) {
+  for (auto rr = 0; rr < NUMVARS; rr++) {
+    rhs.data_[rr] = lhs - rhs.data_[rr];
+  }
+  return rhs;
+}
+
+inline const primVars operator*(const double &lhs, primVars rhs) {
+  return rhs *= lhs;
+}
+
+inline const primVars operator/(const double &lhs, primVars rhs) {
+  for (auto rr = 0; rr < NUMVARS; rr++) {
+    rhs.data_[rr] = lhs / rhs.data_[rr];
+  }
+  return rhs;
+}
+
+ostream &operator<<(ostream &os, const primVars &);
 
 #endif
