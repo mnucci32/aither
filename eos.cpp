@@ -65,10 +65,10 @@ double idealGas::Temperature(const double &pressure,
 // Functions for sutherland class
 double sutherland::Viscosity(const double &t) const {
   // Dimensionalize temperature
-  double temp = t * tRef_;
+  const auto temp = t * tRef_;
 
   // Calculate viscosity
-  double mu = (cOne_ * pow(temp, 1.5)) / (temp + S_);
+  const auto mu = (cOne_ * pow(temp, 1.5)) / (temp + S_);
 
   // Nondimensionalize viscosity
   return (mu / muRef_);
@@ -76,10 +76,10 @@ double sutherland::Viscosity(const double &t) const {
 
 double sutherland::EffectiveViscosity(const double &t) const {
   // Get viscosity and scale
-  return (*this).Viscosity(t) * scaling_;
+  return this->Viscosity(t) * scaling_;
 }
 
 double sutherland::Lambda(const double &mu) const {
   // Calculate lambda (2nd coeff of viscosity)
-  return bulkVisc_ - (2.0/3.0) * mu;
+  return bulkVisc_ - (2.0 / 3.0) * mu;
 }

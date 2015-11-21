@@ -25,38 +25,68 @@
 // included in any files that depend on the header. Leaving the implementation
 // in streamlines the compiling process.
 
-#include <math.h>    // sqrt()
-#include <iostream>  // ostream
+#include <cmath>        // sqrt()
+#include <iostream>     // ostream
+#include <type_traits>  // is_arithmetic
+
+#define LENGTH 3
 
 using std::ostream;
 
 // Templated class for a vector holding 3 entries
 template <typename T>
 class vector3d {
-  T data_[3];
+  static_assert(std::is_arithmetic<T>::value,
+                "vector3d<T> requires an arithmetic type!");
+
+  T data_[LENGTH];
 
  public:
   // constructor
   vector3d(const T &a, const T &b, const T &c) : data_{a, b, c} {}
   vector3d() : data_{0, 0, 0} {}
-  // copy constructor
-  vector3d(const vector3d<T> &a) : data_{a.data_[0], a.data_[1], a.data_[2]} {}
+
+  // move constructor and assignment operator
+  vector3d(vector3d<T>&&) noexcept = default;
+  vector3d& operator=(vector3d<T>&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  vector3d(const vector3d<T>&) = default;
+  vector3d& operator=(const vector3d<T>&) = default;
 
   // member functions
   // operator overloads
-  vector3d<T> operator+(const vector3d &) const;
-  vector3d<T> operator-(const vector3d &) const;
-  vector3d<T> operator*(const T &) const;
-  vector3d<T> operator/(const T &) const;
   const T& operator[](const int &a) const { return data_[a]; }
   T& operator[](const int &a) { return data_[a]; }
-  bool operator==(const vector3d &) const;
-  template <typename TT>
-  friend vector3d<TT> operator*(const TT &, const vector3d<TT> &);
-  template <typename TT>
-  friend vector3d<TT> operator/(const TT &, const vector3d<TT> &);
-  template <typename TT>
-  friend ostream &operator<<(ostream &os, const vector3d<TT> &);
+
+  bool operator==(const vector3d<T>&) const;
+
+  inline vector3d<T> & operator+=(const vector3d<T> &);
+  inline vector3d<T> & operator-=(const vector3d<T> &);
+  inline vector3d<T> & operator*=(const vector3d<T> &);
+  inline vector3d<T> & operator/=(const vector3d<T> &);
+
+  inline vector3d<T> & operator+=(const T &);
+  inline vector3d<T> & operator-=(const T &);
+  inline vector3d<T> & operator*=(const T &);
+  inline vector3d<T> & operator/=(const T &);
+
+  inline vector3d<T> operator+(const T &s) const {
+    auto lhs = *this;
+    return lhs += s;
+  }
+  inline vector3d<T> operator-(const T &s) const {
+    auto lhs = *this;
+    return lhs -= s;
+  }
+  inline vector3d<T> operator*(const T &s) const {
+    auto lhs = *this;
+    return lhs *= s;
+  }
+  inline vector3d<T> operator/(const T &s) const {
+    auto lhs = *this;
+    return lhs /= s;
+  }
 
   // assignment of data_ members
   void SetX(const T &val) { data_[0] = val; }
@@ -69,21 +99,24 @@ class vector3d {
   T Z() const { return data_[2]; }
 
   // math functions
-  T DotProd(const vector3d &) const;
-  vector3d<T> CrossProd(const vector3d &) const;
+  T DotProd(const vector3d<T>&) const;
+  vector3d<T> CrossProd(const vector3d<T>&) const;
   inline T Mag() const;
   inline T MagSq() const;
   T SumElem() const;
-  T Distance(const vector3d &) const;
-  T DistSq(const vector3d &) const;
+  T Distance(const vector3d<T>&) const;
+  T DistSq(const vector3d<T>&) const;
   vector3d<T> Normalize() const;
 
   // destructor
-  ~vector3d() {}
+  ~vector3d() noexcept {}
 };
 
 template <typename T>
 class unitVec3dMag {
+  static_assert(std::is_arithmetic<T>::value,
+                "unitVect3dMag<T> requires an arithmetic type!");
+
   vector3d<T> unitVec_;
   T mag_;
 
@@ -92,22 +125,35 @@ class unitVec3dMag {
   unitVec3dMag() : unitVec_(), mag_(0) {}
   explicit unitVec3dMag(const vector3d<T> &a) : unitVec_(a.Normalize()),
     mag_(a.Mag()) {}
-  // copy constructor
-  unitVec3dMag(const unitVec3dMag<T> &a) : unitVec_(a.unitVec_), mag_(a.mag_) {}
+
+  // move constructor and assignment operator
+  unitVec3dMag(unitVec3dMag<T>&&) noexcept = default;
+  unitVec3dMag& operator=(unitVec3dMag<T>&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  unitVec3dMag(const unitVec3dMag<T>&) = default;
+  unitVec3dMag& operator=(const unitVec3dMag<T>&) = default;
 
   // member functions
   // operator overloads
-  unitVec3dMag<T> operator+(const unitVec3dMag &) const;
-  unitVec3dMag<T> operator-(const unitVec3dMag &) const;
-  unitVec3dMag<T> operator*(const T &) const;
-  unitVec3dMag<T> operator/(const T &) const;
-  bool operator==(const unitVec3dMag &) const;
-  template <typename TT>
-  friend unitVec3dMag<TT> operator*(const TT &, const unitVec3dMag<TT> &);
-  template <typename TT>
-  friend unitVec3dMag<TT> operator/(const TT &, const unitVec3dMag<TT> &);
-  template <typename TT>
-  friend ostream &operator<<(ostream &os, const unitVec3dMag<TT> &);
+  bool operator==(const unitVec3dMag<T>&) const;
+
+  inline unitVec3dMag<T> & operator+=(const unitVec3dMag<T> &);
+  inline unitVec3dMag<T> & operator-=(const unitVec3dMag<T> &);
+
+  inline unitVec3dMag<T> & operator*=(const T &);
+  inline unitVec3dMag<T> & operator/=(const T &);
+
+  inline unitVec3dMag<T> operator*(const T &s) const {
+    auto lhs = *this;
+    lhs.mag_ *= s;
+    return *this;
+  }
+  inline unitVec3dMag<T> operator/(const T &s) const {
+    auto lhs = *this;
+    lhs.mag_ /= s;
+    return *this;
+  }
 
   // access of data_ members
   vector3d<T> UnitVector() const { return unitVec_; }
@@ -120,98 +166,149 @@ class unitVec3dMag {
   vector3d<T> Vector() const { return unitVec_ * mag_; }
 
   // math functions
-  T DotProd(const unitVec3dMag &) const;
-  unitVec3dMag<T> CrossProd(const unitVec3dMag &) const;
+  T DotProd(const unitVec3dMag<T>&) const;
+  unitVec3dMag<T> CrossProd(const unitVec3dMag<T>&) const;
 
   // destructor
-  ~unitVec3dMag() {}
+  ~unitVec3dMag() noexcept {}
 };
 
-
-// operator overload for addition - element wise addition
+// operator overload for addition
 template <typename T>
-vector3d<T> vector3d<T>::operator+(const vector3d &v2) const {
-  vector3d<T> temp = *this;
-  temp.data_[0] += v2.data_[0];
-  temp.data_[1] += v2.data_[1];
-  temp.data_[2] += v2.data_[2];
-  return temp;
+vector3d<T> & vector3d<T>::operator+=(const vector3d<T> &vec) {
+  for (auto rr = 0; rr < LENGTH; rr++) {
+    data_[rr] += vec[rr];
+  }
+  return *this;
 }
 
-// operator overload for subtraction - element wise subtraction
+// operator overload for subtraction with a scalar
 template <typename T>
-vector3d<T> vector3d<T>::operator-(const vector3d &v2) const {
-  vector3d<T> temp = *this;
-  temp.data_[0] -= v2.data_[0];
-  temp.data_[1] -= v2.data_[1];
-  temp.data_[2] -= v2.data_[2];
-  return temp;
+vector3d<T> & vector3d<T>::operator-=(const vector3d<T> &vec) {
+  for (auto rr = 0; rr < LENGTH; rr++) {
+    data_[rr] -= vec[rr];
+  }
+  return *this;
 }
 
-// operator overload for multiplication with a scalar - element wise
-// multiplication
+// operator overload for elementwise multiplication
 template <typename T>
-vector3d<T> vector3d<T>::operator*(const T &scalar) const {
-  vector3d<T> temp = *this;
-  temp.data_[0] *= scalar;
-  temp.data_[1] *= scalar;
-  temp.data_[2] *= scalar;
-  return temp;
+vector3d<T> & vector3d<T>::operator*=(const vector3d<T> &vec) {
+  for (auto rr = 0; rr < LENGTH; rr++) {
+    data_[rr] *= vec[rr];
+  }
+  return *this;
 }
 
-// operator overload for multiplication with a scalar - element wise
-// multiplication
-// this function is a friend function of the class so that double * vector3d
-// behaves as vector3d * double
-template <typename TT>
-vector3d<TT> operator*(const TT &scalar, const vector3d<TT> &v1) {
-  vector3d<TT> temp;
-  temp.data_[0] = v1.data_[0] * scalar;
-  temp.data_[1] = v1.data_[1] * scalar;
-  temp.data_[2] = v1.data_[2] * scalar;
-  return temp;
-}
-
-// operator overload for divisioin with a scalar - element wise division
+// operator overload for elementwise division
 template <typename T>
-vector3d<T> vector3d<T>::operator/(const T &scalar) const {
-  vector3d<T> temp = *this;
-  temp.data_[0] /= scalar;
-  temp.data_[1] /= scalar;
-  temp.data_[2] /= scalar;
-  return temp;
+vector3d<T> & vector3d<T>::operator/=(const vector3d<T> &vec) {
+  for (auto rr = 0; rr < LENGTH; rr++) {
+    data_[rr] /= vec[rr];
+  }
+  return *this;
 }
 
-// operator overload for division with a scalar - element wise division
-// this function is a friend function of the class so that double / vector3d
-// works
-template <typename TT>
-vector3d<TT> operator/(const TT &scalar, const vector3d<TT> &v1) {
-  vector3d<TT> temp;
-  temp.data_[0] = scalar / v1.data_[0];
-  temp.data_[1] = scalar / v1.data_[1];
-  temp.data_[2] = scalar / v1.data_[2];
-  return temp;
+template <typename T>
+inline const vector3d<T> operator+(vector3d<T> lhs, const vector3d<T> &rhs) {
+  return lhs += rhs;
 }
 
-// operator overload for << - allows use of cout, cerr, etc.
-template <typename TT>
-ostream &operator<<(ostream &os, const vector3d<TT> &v1) {
-  os << v1.data_[0] << ", " << v1.data_[1] << ", " << v1.data_[2];
+template <typename T>
+inline const vector3d<T> operator-(vector3d<T> lhs, const vector3d<T> &rhs) {
+  return lhs -= rhs;
+}
+
+template <typename T>
+inline const vector3d<T> operator*(vector3d<T> lhs, const vector3d<T> &rhs) {
+  return lhs *= rhs;
+}
+
+template <typename T>
+inline const vector3d<T> operator/(vector3d<T> lhs, const vector3d<T> &rhs) {
+  return lhs /= rhs;
+}
+
+// operator overloads for double -------------------------------------
+// operator overload for addition
+template <typename T>
+vector3d<T> & vector3d<T>::operator+=(const T &scalar) {
+  for (auto &val : data_) {
+    val += scalar;
+  }
+  return *this;
+}
+
+// operator overload for subtraction with a scalar
+template <typename T>
+vector3d<T> & vector3d<T>::operator-=(const T &scalar) {
+  for (auto &val : data_) {
+    val -= scalar;
+  }
+  return *this;
+}
+
+// operator overload for elementwise multiplication
+template <typename T>
+vector3d<T> & vector3d<T>::operator*=(const T &scalar) {
+  for (auto &val : data_) {
+    val *= scalar;
+  }
+  return *this;
+}
+
+// operator overload for elementwise division
+template <typename T>
+vector3d<T> & vector3d<T>::operator/=(const T &scalar) {
+  for (auto &val : data_) {
+    val /= scalar;
+  }
+  return *this;
+}
+
+template <typename T>
+inline const vector3d<T> operator+(const T &lhs, vector3d<T> rhs) {
+  return rhs += lhs;
+}
+
+template <typename T>
+inline const vector3d<T> operator-(const T &lhs, vector3d<T> rhs) {
+  for (auto rr = 0; rr < LENGTH; rr++) {
+    rhs[rr] = lhs - rhs[rr];
+  }
+  return rhs;
+}
+
+template <typename T>
+inline const vector3d<T> operator*(const T &lhs, vector3d<T> rhs) {
+  return rhs *= lhs;
+}
+
+template <typename T>
+inline const vector3d<T> operator/(const T &lhs, vector3d<T> rhs) {
+  for (auto rr = 0; rr < LENGTH; rr++) {
+    rhs[rr] = lhs / rhs[rr];
+  }
+  return rhs;
+}
+
+template <typename T>
+ostream &operator<<(ostream &os, const vector3d<T> &v) {
+  os << v[0] << ", " << v[1] << ", " << v[2];
   return os;
 }
 
 // Function to calculate the dot product of two vectors
 template <typename T>
-T vector3d<T>::DotProd(const vector3d &v2) const {
+T vector3d<T>::DotProd(const vector3d<T>&v2) const {
   return data_[0] * v2.data_[0] + data_[1] * v2.data_[1] +
          data_[2] * v2.data_[2];
 }
 
 // operator overload for comparison
 template <typename T>
-bool vector3d<T>::operator==(const vector3d &v2) const {
-  bool test = false;
+bool vector3d<T>::operator==(const vector3d<T>&v2) const {
+  auto test = false;
   if (data_[0] == v2.data_[0] && data_[1] == v2.data_[1] &&
       data_[2] == v2.data_[2]) {
     test = true;
@@ -221,7 +318,7 @@ bool vector3d<T>::operator==(const vector3d &v2) const {
 
 // Function to calculate the cross product of two vectors
 template <typename T>
-vector3d<T> vector3d<T>::CrossProd(const vector3d &v2) const {
+vector3d<T> vector3d<T>::CrossProd(const vector3d<T>&v2) const {
   vector3d<T> crossProd;
 
   crossProd.data_[0] = data_[1] * v2.data_[2] - data_[2] * v2.data_[1];
@@ -251,13 +348,13 @@ T vector3d<T>::SumElem() const {
 
 // Function to calculate the distance between two vector3ds
 template <typename T>
-T vector3d<T>::Distance(const vector3d &v2) const {
+T vector3d<T>::Distance(const vector3d<T>&v2) const {
   return sqrt(this->DistSq(v2));
 }
 
 // Function to calculate the distance squared between two vector3ds
 template <typename T>
-T vector3d<T>::DistSq(const vector3d &v2) const {
+T vector3d<T>::DistSq(const vector3d<T>&v2) const {
   return pow(data_[0] - v2.data_[0], 2) + pow(data_[1] - v2.data_[1], 2) +
       pow(data_[2] - v2.data_[2], 2);
 }
@@ -265,95 +362,21 @@ T vector3d<T>::DistSq(const vector3d &v2) const {
 // Function to normalize a vector3d into a unit vector
 template <typename T>
 vector3d<T> vector3d<T>::Normalize() const {
-  return (*this) / (*this).Mag();
+  return (*this) / this->Mag();
 }
 
 // -----------------------------------------------------------------
 // Functions for unitVec3dMag class
-// operator overload for addition - element wise addition
-template <typename T>
-unitVec3dMag<T> unitVec3dMag<T>::operator+(const unitVec3dMag &v2) const {
-  vector3d<T> newVec = (*this).Vector() + v2.Vector();
-  unitVec3dMag<T> temp(newVec);
-  return temp;
-}
-
-// operator overload for subtraction - element wise subtraction
-template <typename T>
-unitVec3dMag<T> unitVec3dMag<T>::operator-(const unitVec3dMag &v2) const {
-  vector3d<T> newVec = (*this).Vector() - v2.Vector();
-  unitVec3dMag<T> temp(newVec);
-  return temp;
-}
-
-// operator overload for multiplication with a scalar - element wise
-// multiplication
-template <typename T>
-unitVec3dMag<T> unitVec3dMag<T>::operator*(const T &scalar) const {
-  unitVec3dMag<T> temp = *this;
-  if (scalar < 0) {
-    temp.unitVec_ = -1.0 * temp.unitVec_;
-  }
-  temp.mag_ *= fabs(scalar);
-  return temp;
-}
-
-// operator overload for multiplication with a scalar - element wise
-// multiplication
-// this function is a friend function of the class so that double * unitVec3dMag
-// behaves as unitVec3dMag * double
-template <typename TT>
-unitVec3dMag<TT> operator*(const TT &scalar, const unitVec3dMag<TT> &v1) {
-  unitVec3dMag<TT> temp = v1;
-  if (scalar < 0) {
-    temp.unitVec_ = -1.0 * temp.unitVec_;
-  }
-  temp.mag_ *= fabs(scalar);
-  return temp;
-}
-
-// operator overload for divisioin with a scalar - element wise division
-template <typename T>
-unitVec3dMag<T> unitVec3dMag<T>::operator/(const T &scalar) const {
-  unitVec3dMag<T> temp = *this;
-  if (scalar < 0) {
-    temp.unitVec_ = -1.0 * temp.unitVec_;
-  }
-  temp.mag_ /= fabs(scalar);
-  return temp;
-}
-
-// operator overload for division with a scalar - element wise division
-// this function is a friend function of the class so that double / unitVec3dMag
-// works
-template <typename TT>
-unitVec3dMag<TT> operator/(const TT &scalar, const unitVec3dMag<TT> &v1) {
-  unitVec3dMag<TT> temp = v1;
-  if (scalar < 0) {
-    temp.unitVec_ = -1.0 * temp.unitVec_;
-  }
-  temp.mag_ = fabs(scalar) / temp.mag_;
-  return temp;
-}
-
-// operator overload for << - allows use of cout, cerr, etc.
-template <typename TT>
-ostream &operator<<(ostream &os, const unitVec3dMag<TT> &v1) {
-  os << v1.unitVec_.X() << ", " << v1.unitVec_.Y() << ", " << v1.unitVec_.Z()
-     << ", " << v1.mag_;
-  return os;
-}
-
 // Function to calculate the dot product of two vectors
 template <typename T>
-T unitVec3dMag<T>::DotProd(const unitVec3dMag &v2) const {
+T unitVec3dMag<T>::DotProd(const unitVec3dMag<T>&v2) const {
   return mag_ * v2.mag_ * (unitVec_.DotProd(v2.unitVec_));
 }
 
 // operator overload for comparison
 template <typename T>
-bool unitVec3dMag<T>::operator==(const unitVec3dMag &v2) const {
-  bool test = false;
+bool unitVec3dMag<T>::operator==(const unitVec3dMag<T>&v2) const {
+  auto test = false;
   if (unitVec_ == v2.unitVec_ && mag_ == v2.mag_) {
     test = true;
   }
@@ -362,10 +385,80 @@ bool unitVec3dMag<T>::operator==(const unitVec3dMag &v2) const {
 
 // Function to calculate the cross product of two vectors
 template <typename T>
-unitVec3dMag<T> unitVec3dMag<T>::CrossProd(const unitVec3dMag &v2) const {
-  vector3d<T> newVec = (*this).Vector().CrossProd(v2.Vector());
+unitVec3dMag<T> unitVec3dMag<T>::CrossProd(const unitVec3dMag<T>&v2) const {
+  auto newVec = this->Vector().CrossProd(v2.Vector());
   unitVec3dMag<T> crossProd(newVec);
   return crossProd;
 }
+
+// operator overload for addition
+template <typename T>
+unitVec3dMag<T> & unitVec3dMag<T>::operator+=(const unitVec3dMag<T> &vec) {
+  auto newVec = this->Vector() + vec.Vector();
+  *this = unitVec3dMag<T>(newVec);
+  return *this;
+}
+
+// operator overload for subtraction with a scalar
+template <typename T>
+unitVec3dMag<T> & unitVec3dMag<T>::operator-=(const unitVec3dMag<T> &vec) {
+  auto newVec = this->Vector() - vec.Vector();
+  *this = unitVec3dMag<T>(newVec);
+  return *this;
+}
+
+template <typename T>
+inline const unitVec3dMag<T> operator+(unitVec3dMag<T> lhs,
+                                       const unitVec3dMag<T> &rhs) {
+  return lhs += rhs;
+}
+
+template <typename T>
+inline const unitVec3dMag<T> operator-(unitVec3dMag<T> lhs,
+                                       const unitVec3dMag<T> &rhs) {
+  return lhs -= rhs;
+}
+
+// operator overloads for double -------------------------------------
+// operator overload for elementwise multiplication
+template <typename T>
+unitVec3dMag<T> & unitVec3dMag<T>::operator*=(const T &scalar) {
+  if (scalar < 0.0) {
+    unitVec_ *= -1.0;
+  }
+  mag_ *= fabs(scalar);
+  return *this;
+}
+
+// operator overload for elementwise division
+template <typename T>
+unitVec3dMag<T> & unitVec3dMag<T>::operator/=(const T &scalar) {
+  if (scalar < 0.0) {
+    unitVec_ *= -1.0;
+  }
+  mag_ /= fabs(scalar);
+  return *this;
+}
+
+template <typename T>
+inline const unitVec3dMag<T> operator*(const T &lhs, unitVec3dMag<T> rhs) {
+  return rhs *= lhs;
+}
+
+template <typename T>
+inline const unitVec3dMag<T> operator/(const T &lhs, unitVec3dMag<T> rhs) {
+  if (lhs < 0.0) {
+    rhs.unitVec_ *= -1.0;
+  }
+  rhs.mag_ = fabs(lhs) / rhs.mag_;
+  return rhs;
+}
+
+template <typename T>
+ostream &operator<<(ostream &os, const unitVec3dMag<T> &v) {
+  os << v.Vector() << ", " << v.Mag();
+  return os;
+}
+
 
 #endif

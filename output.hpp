@@ -29,6 +29,7 @@ It also writes out a master file in Ensight format to name the Plot3D functions.
 #include <iostream>
 #include <vector>        // vector
 #include <string>        // string
+#include <memory>        // unique_ptr
 
 using std::vector;
 using std::string;
@@ -37,6 +38,7 @@ using std::ofstream;
 using std::cout;
 using std::endl;
 using std::cerr;
+using std::unique_ptr;
 
 // forward class declarations
 class procBlock;
@@ -53,7 +55,7 @@ void WriteCellCenter(const string &, const vector<procBlock> &,
                      const decomposition &, const double &);
 void WriteFun(const vector<procBlock> &, const idealGas &,
               const sutherland &, const int &, const decomposition &,
-              const input &, const turbModel *);
+              const input &, const unique_ptr<turbModel> &);
 void WriteRes(const string &, const int &, const int &);
 
 void WriteResiduals(const input &, genArray &, genArray &, const resid &,

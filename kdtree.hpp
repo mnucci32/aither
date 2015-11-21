@@ -78,12 +78,20 @@ class kdtree {
   // constructor
   explicit kdtree(const vector<vector3d<double>> &);
 
+  // move constructor and assignment operator
+  kdtree(kdtree&&) noexcept = default;
+  kdtree& operator=(kdtree&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  kdtree(const kdtree&) = default;
+  kdtree& operator=(const kdtree&) = default;
+
   // member functions
   double NearestNeighbor(const vector3d<double> &, vector3d<double> &) const;
   int Size() const {return nodes_.size();}
 
   // destructor
-  ~kdtree() {}
+  ~kdtree() noexcept {}
 };
 
 #endif

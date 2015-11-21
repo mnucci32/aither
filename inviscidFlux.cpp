@@ -16,9 +16,11 @@
 
 #include <cmath>  // sqrt
 #include <string>
+#include <memory>
 #include "inviscidFlux.hpp"
 #include "eos.hpp"
 #include "primVars.hpp"
+#include "genArray.hpp"
 #include "matrix.hpp"
 #include "turbulence.hpp"
 
@@ -29,6 +31,7 @@ using std::vector;
 using std::string;
 using std::max;
 using std::copysign;
+using std::unique_ptr;
 
 // constructor -- initialize flux from state vector
 // flux is a 3D flux in the normal direction of the given face
@@ -63,19 +66,17 @@ void inviscidFlux::ConstructFromPrim(const primVars &state,
   // eqnState -- equation of state
   // normArea -- unit area vector of face
 
-  vector3d<double> vel = state.Velocity();
+  const auto vel = state.Velocity();
+  const auto velNorm = vel.DotProd(normArea);
 
-  data_[0] = state.Rho() * vel.DotProd(normArea);
-  data_[1] =
-      state.Rho() * vel.DotProd(normArea) * vel.X() + state.P() * normArea.X();
-  data_[2] =
-      state.Rho() * vel.DotProd(normArea) * vel.Y() + state.P() * normArea.Y();
-  data_[3] =
-      state.Rho() * vel.DotProd(normArea) * vel.Z() + state.P() * normArea.Z();
-  data_[4] = state.Rho() * vel.DotProd(normArea) * state.Enthalpy(eqnState);
+  data_[0] = state.Rho() * velNorm;
+  data_[1] = state.Rho() * velNorm * vel.X() + state.P() * normArea.X();
+  data_[2] = state.Rho() * velNorm * vel.Y() + state.P() * normArea.Y();
+  data_[3] = state.Rho() * velNorm * vel.Z() + state.P() * normArea.Z();
+  data_[4] = state.Rho() * velNorm * state.Enthalpy(eqnState);
 
-  data_[5] = state.Rho() * vel.DotProd(normArea) * state.Tke();
-  data_[6] = state.Rho() * vel.DotProd(normArea) * state.Omega();
+  data_[5] = state.Rho() * velNorm * state.Tke();
+  data_[6] = state.Rho() * velNorm * state.Omega();
 }
 
 inviscidFlux::inviscidFlux(const primVars &state, const idealGas &eqnState,
@@ -90,7 +91,7 @@ inviscidFlux::inviscidFlux(const primVars &state, const idealGas &eqnState,
 // constructor -- initialize flux from state vector using conservative variables
 // flux is a 3D flux in the normal direction of the given face
 inviscidFlux::inviscidFlux(const genArray &cons, const idealGas &eqnState,
-                           const turbModel *turb,
+                           const unique_ptr<turbModel> &turb,
                            const vector3d<double> &normArea) {
   // cons -- genArray of conserved variables
   // eqnState -- equation of state
@@ -98,7 +99,7 @@ inviscidFlux::inviscidFlux(const genArray &cons, const idealGas &eqnState,
   // normArea -- unit area vector of face
 
   // convert conserved variables to primative variables
-  primVars state(cons, false, eqnState, turb);
+  const primVars state(cons, false, eqnState, turb);
 
   this->ConstructFromPrim(state, eqnState, normArea);
 }
@@ -157,97 +158,103 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   // areaNorm -- norm area vector of face
 
   // compute Rho averaged quantities
-  double denRatio = sqrt(right.Rho() / left.Rho());
-  double rhoR = left.Rho() * denRatio;  // Roe averaged density
-  double uR = (left.U() + denRatio * right.U()) /
-              (1.0 + denRatio);  // Roe averaged u-velocity
-  double vR = (left.V() + denRatio * right.V()) /
-              (1.0 + denRatio);  // Roe averaged v-velocity
-  double wR = (left.W() + denRatio * right.W()) /
-              (1.0 + denRatio);  // Roe averaged w-velocity
-  double hR = (left.Enthalpy(eqnState) + denRatio * right.Enthalpy(eqnState)) /
-              (1.0 + denRatio);  // Roe averaged total enthalpy
-  double aR = sqrt((eqnState.Gamma() - 1.0) *
-                   (hR - 0.5 * (uR * uR + vR * vR + wR * wR)));  // Roe averaged
-                                                                 // speed of
-                                                                 // sound
-  double kR = (left.Tke() + denRatio * right.Tke()) /
-              (1.0 + denRatio);  // Roe averaged tke
-  double omR = (left.Omega() + denRatio * right.Omega()) /
-               (1.0 + denRatio);  // Roe averaged specific dissipation (omega)
+  // density ratio
+  const auto denRatio = sqrt(right.Rho() / left.Rho());
+  // Roe averaged density
+  const auto rhoR = left.Rho() * denRatio;
+  // Roe averaged velocities - u, v, w
+  const auto uR = (left.U() + denRatio * right.U()) / (1.0 + denRatio);
+  const auto vR = (left.V() + denRatio * right.V()) / (1.0 + denRatio);
+  const auto wR = (left.W() + denRatio * right.W()) / (1.0 + denRatio);
+  // Roe averaged total enthalpy
+  const auto hR = (left.Enthalpy(eqnState) + denRatio *
+                   right.Enthalpy(eqnState)) / (1.0 + denRatio);
+  // Roe averaged speed of sound
+  const auto aR = sqrt((eqnState.Gamma() - 1.0) *
+                       (hR - 0.5 * (uR * uR + vR * vR + wR * wR)));
+  // Roe averaged tke
+  const auto kR = (left.Tke() + denRatio * right.Tke()) / (1.0 + denRatio);
+  // Roe averaged specific dissipation (omega)
+  const auto omR = (left.Omega() + denRatio * right.Omega()) / (1.0 + denRatio);
 
   // Roe averaged face normal velocity
-  vector3d<double> velR(uR, vR, wR);
+  const vector3d<double> velR(uR, vR, wR);
 
   // Roe velocity dotted with normalized area vector
-  double velRSum = velR.DotProd(areaNorm);
+  const auto velRSum = velR.DotProd(areaNorm);
 
   // normal velocity difference between left and right states
-  double normVelDiff =
-      right.Velocity().DotProd(areaNorm) - left.Velocity().DotProd(areaNorm);
+  const auto normVelDiff = right.Velocity().DotProd(areaNorm) -
+      left.Velocity().DotProd(areaNorm);
 
   // calculate wave strengths (Cr - Cl)
   double waveStrength[NUMVARS - 1] = {
-      ((right.P() - left.P()) - rhoR * aR * normVelDiff) / (2.0 * aR * aR),
-      (right.Rho() - left.Rho()) - (right.P() - left.P()) / (aR * aR),
-      ((right.P() - left.P()) + rhoR * aR * normVelDiff) / (2.0 * aR * aR),
-      rhoR,
-      rhoR * (right.Tke() - left.Tke()) + kR * (right.Rho() - left.Rho()) -
-          (right.P() - left.P()) * kR / (aR * aR),
-      rhoR * (right.Omega() - left.Omega()) + omR * (right.Rho() - left.Rho()) -
-          (right.P() - left.P()) * omR / (aR * aR)};
+    ((right.P() - left.P()) - rhoR * aR * normVelDiff) / (2.0 * aR * aR),
+    (right.Rho() - left.Rho()) - (right.P() - left.P()) / (aR * aR),
+    ((right.P() - left.P()) + rhoR * aR * normVelDiff) / (2.0 * aR * aR),
+    rhoR,
+    rhoR * (right.Tke() - left.Tke()) + kR * (right.Rho() - left.Rho()) -
+    (right.P() - left.P()) * kR / (aR * aR),
+    rhoR * (right.Omega() - left.Omega()) + omR * (right.Rho() - left.Rho()) -
+    (right.P() - left.P()) * omR / (aR * aR)};
 
   // calculate absolute value of wave speeds (L)
   double waveSpeed[NUMVARS - 1] = {
-      fabs(velRSum - aR),  // left moving acoustic wave speed
-      fabs(velRSum),  // entropy wave speed
-      fabs(velRSum + aR),  // right moving acoustic wave speed
-      fabs(velRSum),  // shear wave speed
-      fabs(velRSum),  // turbulent eqn 1 (k) wave speed
-      fabs(velRSum)};  // turbulent eqn 2 (omega) wave speed
+    fabs(velRSum - aR),  // left moving acoustic wave speed
+    fabs(velRSum),  // entropy wave speed
+    fabs(velRSum + aR),  // right moving acoustic wave speed
+    fabs(velRSum),  // shear wave speed
+    fabs(velRSum),  // turbulent eqn 1 (k) wave speed
+    fabs(velRSum)};  // turbulent eqn 2 (omega) wave speed
 
   // calculate entropy fix (Harten) and adjust wave speeds if necessary
-  double entropyFix = 0.1;  // default setting for entropy fix to kick in
+  // default setting for entropy fix to kick in
+  constexpr auto entropyFix = 0.1;
 
   if (waveSpeed[0] < entropyFix) {
-    waveSpeed[0] =
-        0.5 * (waveSpeed[0] * waveSpeed[0] / entropyFix + entropyFix);
+    waveSpeed[0] = 0.5 * (waveSpeed[0] * waveSpeed[0] /
+                          entropyFix + entropyFix);
   }
   if (waveSpeed[2] < entropyFix) {
-    waveSpeed[2] =
-        0.5 * (waveSpeed[2] * waveSpeed[2] / entropyFix + entropyFix);
+    waveSpeed[2] = 0.5 * (waveSpeed[2] * waveSpeed[2] /
+                          entropyFix + entropyFix);
   }
 
   // calculate right eigenvectors (T)
   // calculate eigenvector due to left acoustic wave
-  genArray lAcousticEigV(1.0, uR - aR * areaNorm.X(), vR - aR * areaNorm.Y(),
-                         wR - aR * areaNorm.Z(), hR - aR * velRSum, kR, omR);
+  const genArray lAcousticEigV(1.0, uR - aR * areaNorm.X(),
+                               vR - aR * areaNorm.Y(), wR - aR * areaNorm.Z(),
+                               hR - aR * velRSum, kR, omR);
 
   // calculate eigenvector due to entropy wave
-  genArray entropyEigV(1.0, uR, vR, wR, 0.5 * (uR * uR + vR * vR + wR * wR),
-                       0.0, 0.0);
+  const genArray entropyEigV(1.0, uR, vR, wR,
+                             0.5 * (uR * uR + vR * vR + wR * wR),
+                             0.0, 0.0);
 
   // calculate eigenvector due to right acoustic wave
-  genArray rAcousticEigV(1.0, uR + aR * areaNorm.X(), vR + aR * areaNorm.Y(),
-                         wR + aR * areaNorm.Z(), hR + aR * velRSum, kR, omR);
+  const genArray rAcousticEigV(1.0, uR + aR * areaNorm.X(),
+                               vR + aR * areaNorm.Y(), wR + aR * areaNorm.Z(),
+                               hR + aR * velRSum, kR, omR);
 
   // calculate eigenvector due to shear wave
-  genArray shearEigV(0.0, (right.U() - left.U()) - normVelDiff * areaNorm.X(),
-                     (right.V() - left.V()) - normVelDiff * areaNorm.Y(),
-                     (right.W() - left.W()) - normVelDiff * areaNorm.Z(),
-                     uR * (right.U() - left.U()) + vR * (right.V() - left.V()) +
-                         wR * (right.W() - left.W()) - velRSum * normVelDiff,
-                     0.0, 0.0);
+  const genArray shearEigV(0.0,
+                           (right.U() - left.U()) - normVelDiff * areaNorm.X(),
+                           (right.V() - left.V()) - normVelDiff * areaNorm.Y(),
+                           (right.W() - left.W()) - normVelDiff * areaNorm.Z(),
+                           uR * (right.U() - left.U()) +
+                           vR * (right.V() - left.V()) +
+                           wR * (right.W() - left.W()) - velRSum * normVelDiff,
+                           0.0, 0.0);
 
   // calculate eigenvector due to turbulent equation 1
-  genArray tkeEigV(0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+  const genArray tkeEigV(0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
 
   // calculate eigenvector due to turbulent equation 2
-  genArray omgEigV(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0);
+  const genArray omgEigV(0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0);
 
   // calculate dissipation term ( eigenvector * wave speed * wave strength)
   genArray dissipation(0.0);
-  for (int ii = 0; ii < NUMVARS; ii++) {
+  for (auto ii = 0; ii < NUMVARS; ii++) {
     dissipation[ii] =
         waveSpeed[0] * waveStrength[0] *
             lAcousticEigV[ii]  // contribution from left acoustic wave
@@ -285,8 +292,8 @@ void inviscidFlux::RoeFlux(const inviscidFlux &right, const genArray &diss) {
   // right -- right convective flux
   // diss -- dissipation term
 
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    (*this).data_[ii] = 0.5 * ((*this).data_[ii] + right.data_[ii] - diss[ii]);
+  for (auto ii = 0; ii < NUMVARS; ii++) {
+    data_[ii] = 0.5 * (data_[ii] + right.data_[ii] - diss[ii]);
   }
 }
 
@@ -313,27 +320,26 @@ void ApproxRoeFluxJacobian(const primVars &left, const primVars &right,
   }
 
   // compute Rho averaged quantities
-  double denRatio = sqrt(right.Rho() / left.Rho());
-  // double rhoR = left.Rho() * denRatio;  //Roe averaged density
-  double uR = (left.U() + denRatio * right.U()) /
-              (1.0 + denRatio);  // Roe averaged u-velocity
-  double vR = (left.V() + denRatio * right.V()) /
-              (1.0 + denRatio);  // Roe averaged v-velocity
-  double wR = (left.W() + denRatio * right.W()) /
-              (1.0 + denRatio);  // Roe averaged w-velocity
-  double hR = (left.Enthalpy(eqnState) + denRatio * right.Enthalpy(eqnState)) /
-              (1.0 + denRatio);  // Roe averaged total enthalpy
-  double aR = sqrt((eqnState.Gamma() - 1.0) *
-                   (hR - 0.5 * (uR * uR + vR * vR + wR * wR)));  // Roe averaged
-                                                                 // speed of
-                                                                 // sound
+  const auto denRatio = sqrt(right.Rho() / left.Rho());
+  const auto uR = (left.U() + denRatio * right.U()) /
+      (1.0 + denRatio);  // Roe averaged u-velocity
+  const auto vR = (left.V() + denRatio * right.V()) /
+      (1.0 + denRatio);  // Roe averaged v-velocity
+  const auto wR = (left.W() + denRatio * right.W()) /
+      (1.0 + denRatio);  // Roe averaged w-velocity
+  const auto hR = (left.Enthalpy(eqnState) + denRatio *
+                   right.Enthalpy(eqnState)) /
+      (1.0 + denRatio);  // Roe averaged total enthalpy
+  // Roe averaged speed of sound
+  const auto aR = sqrt((eqnState.Gamma() - 1.0) *
+                       (hR - 0.5 * (uR * uR + vR * vR + wR * wR)));
   // Roe averaged face normal velocity
-  vector3d<double> velR(uR, vR, wR);
+  const vector3d<double> velR(uR, vR, wR);
 
   // dot product of velocities (Roe, left, right) with unit area vector
-  double velRNorm = velR.DotProd(areaNorm);
-  double velLeftNorm = left.Velocity().DotProd(areaNorm);
-  double velRightNorm = right.Velocity().DotProd(areaNorm);
+  const auto velRNorm = velR.DotProd(areaNorm);
+  const auto velLeftNorm = left.Velocity().DotProd(areaNorm);
+  const auto velRightNorm = right.Velocity().DotProd(areaNorm);
 
   // calculate diagonal eigenvalue matrix |lambda|
   squareMatrix lambda(5);
@@ -883,91 +889,38 @@ void ApproxRoeFluxJacobian(const primVars &left, const primVars &right,
 
 // operator overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, inviscidFlux &flux) {
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    os << flux.data_[ii];
-    if (ii != NUMVARS - 1) {
-      os << ", ";
-    }
-  }
+  os << flux.RhoVel() << endl;
+  os << flux.RhoVelU() << endl;
+  os << flux.RhoVelV() << endl;
+  os << flux.RhoVelW() << endl;
+  os << flux.RhoVelH() << endl;
+  os << flux.RhoVelK() << endl;
+  os << flux.RhoVelO() << endl;
   return os;
-}
-
-// member function for scalar multiplication
-inviscidFlux inviscidFlux::operator*(const double &scalar) const {
-  inviscidFlux temp = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    temp.data_[ii] *= scalar;
-  }
-  return temp;
-}
-
-// friend function to allow multiplication (elementwise) from either direction
-inviscidFlux operator*(const double &scalar, const inviscidFlux &flux) {
-  inviscidFlux temp;
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    temp.data_[ii] = flux.data_[ii] * scalar;
-  }
-  return temp;
-}
-
-// operator overload for addition
-inviscidFlux inviscidFlux::operator+(const inviscidFlux &invf2) const {
-  inviscidFlux invf1 = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    invf1.data_[ii] += invf2.data_[ii];
-  }
-  return invf1;
-}
-
-// operator overload for subtraction
-inviscidFlux inviscidFlux::operator-(const inviscidFlux &invf2) const {
-  inviscidFlux invf1 = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    invf1.data_[ii] -= invf2.data_[ii];
-  }
-  return invf1;
-}
-
-// member function for scalar division
-inviscidFlux inviscidFlux::operator/(const double &scalar) const {
-  inviscidFlux temp = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    temp.data_[ii] /= scalar;
-  }
-  return temp;
-}
-
-// friend function to allow division (elementwise) from either direction
-inviscidFlux operator/(const double &scalar, const inviscidFlux &flux) {
-  inviscidFlux temp;
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    temp.data_[ii] = scalar / flux.data_[ii];
-  }
-  return temp;
 }
 
 // convert the inviscid flux to a genArray
 genArray inviscidFlux::ConvertToGenArray() const {
-  return genArray((*this).RhoVel(), (*this).RhoVelU(), (*this).RhoVelV(),
-                  (*this).RhoVelW(), (*this).RhoVelH(), (*this).RhoVelK(),
-                  (*this).RhoVelO());
+  return genArray(this->RhoVel(), this->RhoVelU(), this->RhoVelV(),
+                  this->RhoVelW(), this->RhoVelH(), this->RhoVelK(),
+                  this->RhoVelO());
 }
 
 // function to take in the primative variables, equation of state, face area
 // vector, and conservative variable update and calculate the change in the
 // convective flux
 genArray ConvectiveFluxUpdate(const primVars &state, const idealGas &eqnState,
-                              const turbModel *turb,
+                              const unique_ptr<turbModel> &turb,
                               const vector3d<double> &normArea,
                               const genArray &du) {
   // get inviscid flux of old state
-  inviscidFlux oldFlux(state, eqnState, normArea);
+  const inviscidFlux oldFlux(state, eqnState, normArea);
 
   // get updated state in primative variables
-  primVars stateUpdate = state.UpdateWithConsVars(eqnState, du, turb);
+  const primVars stateUpdate = state.UpdateWithConsVars(eqnState, du, turb);
 
   // get updated inviscid flux
-  inviscidFlux newFlux(stateUpdate, eqnState, normArea);
+  const inviscidFlux newFlux(stateUpdate, eqnState, normArea);
 
   // calculate difference in flux
   inviscidFlux dFlux = newFlux - oldFlux;

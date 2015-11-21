@@ -16,6 +16,7 @@
 
 #include <cmath>  // sqrt
 #include <string>
+#include <memory>
 #include "viscousFlux.hpp"
 #include "eos.hpp"         // idealGas
 #include "primVars.hpp"    // primVars
@@ -28,6 +29,7 @@ using std::cerr;
 using std::vector;
 using std::string;
 using std::max;
+using std:: unique_ptr;
 
 // constructor -- initialize flux from velocity gradient
 /*
@@ -56,7 +58,7 @@ viscousFlux::viscousFlux(
     const tensor<double> &velGrad, const sutherland &suth,
     const idealGas &eqnState, const vector3d<double> &tGrad,
     const vector3d<double> &normArea, const vector3d<double> &tkeGrad,
-    const vector3d<double> &omegaGrad, const turbModel *turb,
+    const vector3d<double> &omegaGrad, const unique_ptr<turbModel> &turb,
     const primVars &state, const double &wallDist) {
   // velGrad -- velocity gradient tensor
   // suth -- method to get viscosity (Sutherland's law)
@@ -70,21 +72,22 @@ viscousFlux::viscousFlux(
   // wallDist -- distance to nearest viscous wall
 
   // get laminar viscosity
-  double mu = suth.EffectiveViscosity(state.Temperature(eqnState));
+  const auto mu = suth.EffectiveViscosity(state.Temperature(eqnState));
 
   // get turbulent eddy viscosity and molecular diffusion coefficient for
   // turbulence equations
-  double tkeCoeff = 0.0;
-  double omgCoeff = 0.0;
-  double mut = turb->EddyViscAndMolecDiffCoeff(state, velGrad, tkeGrad,
-                                               omegaGrad, suth, eqnState,
-                                               wallDist, tkeCoeff, omgCoeff);
+  auto tkeCoeff = 0.0;
+  auto omgCoeff = 0.0;
+  const auto mut = turb->EddyViscAndMolecDiffCoeff(state, velGrad, tkeGrad,
+                                                   omegaGrad, suth, eqnState,
+                                                   wallDist, tkeCoeff,
+                                                   omgCoeff);
 
   // get 2nd coefficient of viscosity assuming bulk viscosity is 0 (Stoke's)
-  double lambda = suth.Lambda(mu + mut);
+  const auto lambda = suth.Lambda(mu + mut);
 
   // wall shear stress
-  vector3d<double> tau = lambda * velGrad.Trace() * normArea + (mu + mut) *
+  const auto tau = lambda * velGrad.Trace() * normArea + (mu + mut) *
       (velGrad.MatMult(normArea) + velGrad.Transpose().MatMult(normArea));
 
   data_[0] = tau.X();
@@ -104,50 +107,14 @@ viscousFlux::viscousFlux(
 // ----------------------------------------------------------------------------
 // operator overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, viscousFlux &flux) {
-  os << "0.0, ";
-  for (int ii = 0; ii < NUMVARS - 1; ii++) {
-    os << flux.data_[ii];
-    if (ii != NUMVARS - 2) {
-      os << ", ";
-    }
-  }
+  os << "0.0" << endl;
+  os << flux.MomX() << endl;
+  os << flux.MomY() << endl;
+  os << flux.MomZ() << endl;
+  os << flux.Engy() << endl;
+  os << flux.MomK() << endl;
+  os << flux.MomO() << endl;
   return os;
-}
-
-// member function for scalar multiplication
-viscousFlux viscousFlux::operator*(const double &scalar) const {
-  viscousFlux temp = *this;
-  for (int ii = 0; ii < NUMVARS - 1; ii++) {
-    temp.data_[ii] *= scalar;
-  }
-  return temp;
-}
-
-// friend function to allow multiplication from either direction
-viscousFlux operator*(const double &scalar, const viscousFlux &flux) {
-  viscousFlux temp;
-  for (int ii = 0; ii < NUMVARS - 1; ii++) {
-    temp.data_[ii] = flux.data_[ii] * scalar;
-  }
-  return temp;
-}
-
-// member function for scalar division
-viscousFlux viscousFlux::operator/(const double &scalar) const {
-  viscousFlux temp = *this;
-  for (int ii = 0; ii < NUMVARS - 1; ii++) {
-    temp.data_[ii] /= scalar;
-  }
-  return temp;
-}
-
-// friend function to allow division from either direction
-viscousFlux operator/(const double &scalar, const viscousFlux &flux) {
-  viscousFlux temp;
-  for (int ii = 0; ii < NUMVARS - 1; ii++) {
-    temp.data_[0] = scalar / flux.data_[ii];
-  }
-  return temp;
 }
 
 // function to calculate the thin shear layer flux jacobian -- NOT USED in LUSGS
@@ -389,24 +356,20 @@ tensor<double> CalcVelGradTSL(const primVars &left, const primVars &right,
   // normArea -- unit area vector of face
   // dist -- distance between centroid of left cell and right cell
 
-  // initialize velocity gradient tensor
-  tensor<double> velGrad;
-
   // calculate velocity derivatives
-  vector3d<double> velDeriv = (right.Velocity() - left.Velocity()) / dist;
+  const auto velDeriv = (right.Velocity() - left.Velocity()) / dist;
 
   // populate velocity gradient tensor
-  velGrad.SetXX(velDeriv.X() * normArea.X());
-  velGrad.SetXY(velDeriv.Y() * normArea.X());
-  velGrad.SetXZ(velDeriv.Z() * normArea.X());
-
-  velGrad.SetYX(velDeriv.X() * normArea.Y());
-  velGrad.SetYY(velDeriv.Y() * normArea.Y());
-  velGrad.SetYZ(velDeriv.Z() * normArea.Y());
-
-  velGrad.SetZX(velDeriv.X() * normArea.Z());
-  velGrad.SetZY(velDeriv.Y() * normArea.Z());
-  velGrad.SetZZ(velDeriv.Z() * normArea.Z());
+  tensor<double> velGrad(
+      velDeriv.X() * normArea.X(),
+      velDeriv.Y() * normArea.X(),
+      velDeriv.Z() * normArea.X(),
+      velDeriv.X() * normArea.Y(),
+      velDeriv.Y() * normArea.Y(),
+      velDeriv.Z() * normArea.Y(),
+      velDeriv.X() * normArea.Z(),
+      velDeriv.Y() * normArea.Z(),
+      velDeriv.Z() * normArea.Z());
 
   return velGrad;
 }

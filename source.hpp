@@ -26,6 +26,7 @@
 #include <vector>  // vector
 #include <string>  // string
 #include <iostream>
+#include <memory>
 #include "macros.hpp"
 
 using std::vector;
@@ -34,6 +35,7 @@ using std::cout;
 using std::endl;
 using std::cerr;
 using std::ostream;
+using std::unique_ptr;
 
 // forward class declaration
 class primVars;
@@ -49,6 +51,14 @@ class source {
   // constructors
   source() : data_{0.0} {}
 
+  // move constructor and assignment operator
+  source(source&&) noexcept = default;
+  source& operator=(source&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  source(const source&) = default;
+  source& operator=(const source&) = default;
+
   // member functions
   double SrcMass() const { return data_[0]; }
   double SrcMomX() const { return data_[1]; }
@@ -58,31 +68,150 @@ class source {
   double SrcTke() const { return data_[5]; }
   double SrcOmg() const { return data_[6]; }
 
-  void CalcTurbSrc(const turbModel *, const primVars &, const gradients &,
-                   const sutherland &, const idealGas &, const double &,
-                   const int &, const int &, const int &);
+  void CalcTurbSrc(const unique_ptr<turbModel> &, const primVars &,
+                   const gradients &, const sutherland &,
+                   const idealGas &, const double &, const int &,
+                   const int &, const int &);
 
-  // operator overloads for addition and subtraction of states
-  source operator+(const source &) const;
-  source operator-(const source &) const;
-  source operator*(const source &) const;
-  source operator/(const source &) const;
+  inline source & operator+=(const source &);
+  inline source & operator-=(const source &);
+  inline source & operator*=(const source &);
+  inline source & operator/=(const source &);
 
-  source operator+(const double &) const;
-  source operator-(const double &) const;
-  source operator*(const double &) const;
-  source operator/(const double &) const;
+  inline source & operator+=(const double &);
+  inline source & operator-=(const double &);
+  inline source & operator*=(const double &);
+  inline source & operator/=(const double &);
 
-  friend source operator+(const double &, const source &);
-  friend source operator-(const double &, const source &);
-  friend source operator*(const double &, const source &);
-  friend source operator/(const double &, const source &);
-  friend ostream &operator<<(ostream &os, const source &);
+  inline source operator+(const double &s) const {
+    auto lhs = *this;
+    return lhs += s;
+  }
+  inline source operator-(const double &s) const {
+    auto lhs = *this;
+    return lhs -= s;
+  }
+  inline source operator*(const double &s) const {
+    auto lhs = *this;
+    return lhs *= s;
+  }
+  inline source operator/(const double &s) const {
+    auto lhs = *this;
+    return lhs /= s;
+  }
+
+  friend inline const source operator-(const double &lhs, source rhs);
+  friend inline const source operator/(const double &lhs, source rhs);
 
   // destructor
-  ~source() {}
+  ~source() noexcept {}
 };
 
-// function definitions
+// function definitions -------------------------------------
+
+// operator overload for addition
+source & source::operator+=(const source &arr) {
+  for (auto rr = 0; rr < NUMVARS; rr++) {
+    data_[rr] += arr.data_[rr];
+  }
+  return *this;
+}
+
+// operator overload for subtraction with a scalar
+source & source::operator-=(const source &arr) {
+  for (auto rr = 0; rr < NUMVARS; rr++) {
+    data_[rr] -= arr.data_[rr];
+  }
+  return *this;
+}
+
+// operator overload for elementwise multiplication
+source & source::operator*=(const source &arr) {
+  for (auto rr = 0; rr < NUMVARS; rr++) {
+    data_[rr] *= arr.data_[rr];
+  }
+  return *this;
+}
+
+// operator overload for elementwise division
+source & source::operator/=(const source &arr) {
+  for (auto rr = 0; rr < NUMVARS; rr++) {
+    data_[rr] /= arr.data_[rr];
+  }
+  return *this;
+}
+
+inline const source operator+(source lhs, const source &rhs) {
+  return lhs += rhs;
+}
+
+inline const source operator-(source lhs, const source &rhs) {
+  return lhs -= rhs;
+}
+
+inline const source operator*(source lhs, const source &rhs) {
+  return lhs *= rhs;
+}
+
+inline const source operator/(source lhs, const source &rhs) {
+  return lhs /= rhs;
+}
+
+// operator overloads for double -------------------------------------
+// operator overload for addition
+source & source::operator+=(const double &scalar) {
+  for (auto &val : data_) {
+    val += scalar;
+  }
+  return *this;
+}
+
+// operator overload for subtraction with a scalar
+source & source::operator-=(const double &scalar) {
+  for (auto &val : data_) {
+    val -= scalar;
+  }
+  return *this;
+}
+
+// operator overload for elementwise multiplication
+source & source::operator*=(const double &scalar) {
+  for (auto &val : data_) {
+    val *= scalar;
+  }
+  return *this;
+}
+
+// operator overload for elementwise division
+source & source::operator/=(const double &scalar) {
+  for (auto &val : data_) {
+    val /= scalar;
+  }
+  return *this;
+}
+
+inline const source operator+(const double &lhs, source rhs) {
+  return rhs += lhs;
+}
+
+inline const source operator-(const double &lhs, source rhs) {
+  for (auto rr = 0; rr < NUMVARS; rr++) {
+    rhs.data_[rr] = lhs - rhs.data_[rr];
+  }
+  return rhs;
+}
+
+inline const source operator*(const double &lhs, source rhs) {
+  return rhs *= lhs;
+}
+
+inline const source operator/(const double &lhs, source rhs) {
+  for (auto rr = 0; rr < NUMVARS; rr++) {
+    rhs.data_[rr] = lhs / rhs.data_[rr];
+  }
+  return rhs;
+}
+
+ostream &operator<<(ostream &os, const source &);
 
 #endif

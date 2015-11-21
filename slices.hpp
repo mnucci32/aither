@@ -24,6 +24,7 @@
    viscous fluxes, and source terms. */
 
 #include <iostream>
+#include "mpi.h"
 #include "primVars.hpp"
 #include "vector3d.hpp"
 #include "multiArray3d.hpp"
@@ -56,6 +57,14 @@ class geomSlice {
   geomSlice(const procBlock &, const int &, const int &, const int &,
             const int &, const int &, const int &, const bool = false,
             const bool = false, const bool = false);
+
+  // move constructor and assignment operator
+  geomSlice(geomSlice&&) noexcept = default;
+  geomSlice& operator=(geomSlice&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  geomSlice(const geomSlice&) = default;
+  geomSlice& operator=(const geomSlice&) = default;
 
   // member functions
   int NumCells() const { return vol_.Size(); }
@@ -93,7 +102,7 @@ class geomSlice {
   }
 
   // destructor
-  ~geomSlice() {}
+  ~geomSlice() noexcept {}
 };
 
 class stateSlice {
@@ -110,6 +119,14 @@ class stateSlice {
              const int &, const int &, const int &, const bool = false,
              const bool = false, const bool = false);
 
+  // move constructor and assignment operator
+  stateSlice(stateSlice&&) noexcept = default;
+  stateSlice& operator=(stateSlice&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  stateSlice(const stateSlice&) = default;
+  stateSlice& operator=(const stateSlice&) = default;
+
   // member functions
   int NumCells() const { return state_.Size(); }
   int NumI() const { return state_.NumI(); }
@@ -124,7 +141,7 @@ class stateSlice {
   void PackSwapUnpackMPI(const interblock &, const MPI_Datatype &, const int &);
 
   // destructor
-  ~stateSlice() {}
+  ~stateSlice() noexcept {}
 };
 
 // function definitions

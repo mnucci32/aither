@@ -63,6 +63,14 @@ class gradients {
   gradients();
   gradients(const bool &, const procBlock &, const idealGas &);
 
+  // move constructor and assignment operator
+  gradients(gradients&&) noexcept = default;
+  gradients& operator=(gradients&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  gradients(const gradients&) = default;
+  gradients& operator=(const gradients&) = default;
+
   // member functions
   tensor<double> VelGradI(const int &ii, const int &jj, const int &kk) const {
     return velocityI_(ii, jj, kk);
@@ -118,7 +126,7 @@ class gradients {
   vector3d<double> OmegaGradCell(const int &, const int &, const int &) const;
 
   // destructor
-  ~gradients() {}
+  ~gradients() noexcept {}
 };
 
 // function definitions

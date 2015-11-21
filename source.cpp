@@ -18,6 +18,7 @@
 #include <vector>
 #include <string>
 #include <cmath>
+#include <memory>
 #include "source.hpp"
 #include "turbulence.hpp"
 #include "primVars.hpp"
@@ -28,131 +29,26 @@ using std::endl;
 using std::cerr;
 using std::vector;
 using std::string;
+using std::unique_ptr;
 
 // operator overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, const source &src) {
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    os << src.data_[ii];
-    if (ii != NUMVARS - 1) {
-      os << ", ";
-    }
-  }
+  os << src.SrcMass() << endl;
+  os << src.SrcMomX() << endl;
+  os << src.SrcMomY() << endl;
+  os << src.SrcMomZ() << endl;
+  os << src.SrcEngy() << endl;
+  os << src.SrcTke() << endl;
+  os << src.SrcOmg() << endl;
   return os;
 }
 
-// operator overload for addition
-source source::operator+(const source &src2) const {
-  source src1 = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    src1.data_[ii] += src2.data_[ii];
-  }
-  return src1;
-}
-
-// operator overload for addition with a scalar
-source operator+(const double &scalar, const source &src2) {
-  source src1;
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    src1.data_[ii] = src2.data_[ii] + scalar;
-  }
-  return src1;
-}
-
-// operator overload for subtraction
-source source::operator-(const source &src2) const {
-  source src1 = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    src1.data_[ii] -= src2.data_[ii];
-  }
-  return src1;
-}
-
-// operator overload for subtraction with a scalar
-source operator-(const double &scalar, const source &src2) {
-  source src1;
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    src1.data_[ii] = scalar - src2.data_[ii];
-  }
-  return src1;
-}
-
-// operator overload for elementwise multiplication
-source source::operator*(const source &src2) const {
-  source src1 = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    src1.data_[ii] *= src2.data_[ii];
-  }
-  return src1;
-}
-
-// member function for scalar multiplication
-source source::operator*(const double &scalar) const {
-  source temp = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    temp.data_[ii] *= scalar;
-  }
-  return temp;
-}
-
-// member function for scalar addition
-source source::operator+(const double &scalar) const {
-  source temp = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    temp.data_[ii] += scalar;
-  }
-  return temp;
-}
-
-// member function for scalar subtraction
-source source::operator-(const double &scalar) const {
-  source temp = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    temp.data_[ii] -= scalar;
-  }
-  return temp;
-}
-
-// member function for scalar division
-source source::operator/(const double &scalar) const {
-  source temp = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    temp.data_[ii] /= scalar;
-  }
-  return temp;
-}
-
-// operator overload for multiplication with a scalar
-source operator*(const double &scalar, const source &src2) {
-  source src1;
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    src1.data_[ii] = src2.data_[ii] * scalar;
-  }
-  return src1;
-}
-
-// operator overload for elementwise division
-source source::operator/(const source &src2) const {
-  source src1 = *this;
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    src1.data_[ii] /= src2.data_[ii];
-  }
-  return src1;
-}
-
-// operator overload for division with a scalar
-source operator/(const double &scalar, const source &src2) {
-  source src1;
-  for (int ii = 0; ii < NUMVARS; ii++) {
-    src1.data_[ii] = scalar / src2.data_[ii];
-  }
-  return src1;
-}
-
 // Member function to calculate the source terms for the turbulence equations
-void source::CalcTurbSrc(const turbModel *turb, const primVars &state,
-                         const gradients &grads, const sutherland &suth,
-                         const idealGas &eqnState, const double &wallDist,
-                         const int &ii, const int &jj, const int &kk) {
+void source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
+                         const primVars &state, const gradients &grads,
+                         const sutherland &suth, const idealGas &eqnState,
+                         const double &wallDist, const int &ii, const int &jj,
+                         const int &kk) {
   // turb -- turbulence model
   // state -- primative variables
   // grads -- gradients
@@ -164,13 +60,13 @@ void source::CalcTurbSrc(const turbModel *turb, const primVars &state,
   // kk -- cell k-location to calculate source terms at
 
   // get cell gradients
-  tensor<double> vGrad = grads.VelGradCell(ii, jj, kk);
-  vector3d<double> kGrad = grads.TkeGradCell(ii, jj, kk);
-  vector3d<double> wGrad = grads.OmegaGradCell(ii, jj, kk);
+  const auto vGrad = grads.VelGradCell(ii, jj, kk);
+  const auto kGrad = grads.TkeGradCell(ii, jj, kk);
+  const auto wGrad = grads.OmegaGradCell(ii, jj, kk);
 
   // calculate turbulent source terms
-  double ksrc = 0.0;
-  double wsrc = 0.0;
+  auto ksrc = 0.0;
+  auto wsrc = 0.0;
   turb->CalcTurbSrc(state, vGrad, kGrad, wGrad, suth, eqnState, wallDist,
                     ksrc, wsrc);
 

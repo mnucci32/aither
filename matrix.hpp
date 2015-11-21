@@ -18,126 +18,10 @@
                          // execute these lines of code
 #define MATRIXHEADERDEF  // define the macro
 
-#include <math.h>  // sqrt
-#include <vector>  // vector
-#include <string>  // string
 #include <iostream>
-#include <algorithm>   // swap
-#include "mpi.h"       // parallelism
 #include "macros.hpp"
 
-using std::vector;
-using std::string;
 using std::ostream;
-
-// class to store a column matrix
-class colMatrix {
-  int size_;
-  double *data_;
-
- public:
-  // constructor
-  explicit colMatrix(const int &a) : size_(a) { data_ = new double[a]; }
-  colMatrix() : size_(0), data_(NULL) {}
-
-  // copy constructor
-  colMatrix(const colMatrix &cp);
-
-  // copy assignment operator
-  colMatrix &operator=(colMatrix other);
-
-  // move constructor
-  explicit colMatrix(colMatrix &&other) : colMatrix() {
-    swap(*this, other);
-    other.data_ = NULL;
-  }
-
-  // member functions
-  double Data(const int &) const;
-  void SetData(const int &, const double &);
-  int Size() const { return size_; }
-  void Zero();
-  double Sum();
-  void CleanResizeZero(const int &);
-
-  // operator overloads
-  colMatrix operator+(const colMatrix &) const;
-  colMatrix operator-(const colMatrix &) const;
-  colMatrix operator*(const colMatrix &) const;
-  colMatrix operator/(const colMatrix &) const;
-
-  colMatrix operator+(const vector<double> &) const;
-  colMatrix operator-(const vector<double> &) const;
-
-  colMatrix operator+(const double &) const;
-  colMatrix operator-(const double &) const;
-  colMatrix operator*(const double &) const;
-  colMatrix operator/(const double &) const;
-
-  friend colMatrix operator+(const double &, const colMatrix &);
-  friend colMatrix operator-(const double &, const colMatrix &);
-  friend colMatrix operator*(const double &, const colMatrix &);
-  friend colMatrix operator/(const double &, const colMatrix &);
-  friend ostream &operator<<(ostream &os, const colMatrix &);
-
-  friend void swap(colMatrix &first, colMatrix &second);
-
-  // destructor
-  ~colMatrix() {
-    delete[] data_;
-    data_ = NULL;
-  }
-};
-
-/*class to store an array of a fixed size_ equal to the number of variables
-being solved for. This is useful because a vector of these will be
-contiguous in memory. */
-class genArray {
-  double data_[NUMVARS];
-
- public:
-  // constructor
-  genArray() : data_{0.0} {}
-  explicit genArray(const double &);
-  genArray(const double &a, const double &b, const double &c, const double &d,
-           const double &e)
-      : data_{a, b, c, d, e} {}
-  genArray(const double &a, const double &b, const double &c, const double &d,
-           const double &e, const double &f, const double &g)
-      : data_{a, b, c, d, e, f, g} {}
-
-  // member functions
-  void Zero();
-  double Sum();
-
-  // operator overloads
-  genArray operator+(const genArray &) const;
-  genArray operator-(const genArray &) const;
-  genArray operator*(const genArray &) const;
-  genArray operator/(const genArray &) const;
-
-  genArray operator+(const vector<double> &) const;
-  genArray operator-(const vector<double> &) const;
-
-  genArray operator+(const double &) const;
-  genArray operator-(const double &) const;
-  genArray operator*(const double &) const;
-  genArray operator/(const double &) const;
-
-  const double & operator[](const int &r) const { return data_[r]; }
-  double & operator[](const int &r) { return data_[r]; }
-
-  friend genArray operator+(const double &, const genArray &);
-  friend genArray operator-(const double &, const genArray &);
-  friend genArray operator*(const double &, const genArray &);
-  friend genArray operator/(const double &, const genArray &);
-  friend ostream &operator<<(ostream &os, const genArray &);
-
-  void GlobalReduceMPI(const int &, const int &);
-
-  // destructor
-  ~genArray() {}
-};
 
 // class to store a square matrix
 class squareMatrix {
@@ -147,19 +31,18 @@ class squareMatrix {
  public:
   // constructor
   explicit squareMatrix(const int &a) : size_(a) { data_ = new double[a * a]; }
-  squareMatrix() : size_(0), data_(NULL) {}
+  squareMatrix() : size_(0), data_(nullptr) {}
 
   // copy constructor
   squareMatrix(const squareMatrix &cp);
 
   // copy assignment operator
-  squareMatrix &operator=(squareMatrix other);
-  // squareMatrix& operator= (const squareMatrix &other);
+  squareMatrix& operator=(squareMatrix other);
 
   // move constructor
-  explicit squareMatrix(squareMatrix &&other) : squareMatrix() {
+  explicit squareMatrix(squareMatrix &&other) noexcept : squareMatrix() {
     swap(*this, other);
-    other.data_ = NULL;
+    other.data_ = nullptr;
   }
 
   // member functions
@@ -173,7 +56,6 @@ class squareMatrix {
   void LinCombRow(const int &, const double &, const int &);
   void Zero();
   void Identity();
-  colMatrix Multiply(const colMatrix &) const;
 
   // operator overloads
   squareMatrix operator+(const squareMatrix &) const;
@@ -191,12 +73,12 @@ class squareMatrix {
   friend squareMatrix operator/(const double &, const squareMatrix &);
   friend ostream &operator<<(ostream &os, const squareMatrix &);
 
-  friend void swap(squareMatrix &first, squareMatrix &second);
+  friend void swap(squareMatrix &first, squareMatrix &second) noexcept;
 
   // destructor
-  ~squareMatrix() {
+  ~squareMatrix() noexcept {
     delete[] data_;
-    data_ = NULL;
+    data_ = nullptr;
   }
 };
 
@@ -210,7 +92,7 @@ class matrixDiagonal {
   // constructor
   explicit matrixDiagonal(const int &a) : size_(a) {
     data_ = new squareMatrix[a];}
-  matrixDiagonal() : size_(0), data_(NULL) {}
+  matrixDiagonal() : size_(0), data_(nullptr) {}
 
   // copy constructor
   matrixDiagonal(const matrixDiagonal &cp);
@@ -219,9 +101,9 @@ class matrixDiagonal {
   matrixDiagonal &operator=(matrixDiagonal other);
 
   // move constructor
-  explicit matrixDiagonal(matrixDiagonal &&other) : matrixDiagonal() {
+  explicit matrixDiagonal(matrixDiagonal &&other) noexcept : matrixDiagonal() {
     swap(*this, other);
-    other.data_ = NULL;
+    other.data_ = nullptr;
   }
 
   // member functions
@@ -235,12 +117,12 @@ class matrixDiagonal {
   // operator overloads
   friend ostream &operator<<(ostream &os, const matrixDiagonal &);
 
-  friend void swap(matrixDiagonal &first, matrixDiagonal &second);
+  friend void swap(matrixDiagonal &first, matrixDiagonal &second) noexcept;
 
   // destructor
-  ~matrixDiagonal() {
+  ~matrixDiagonal() noexcept {
     delete[] data_;
-    data_ = NULL;
+    data_ = nullptr;
   }
 };
 

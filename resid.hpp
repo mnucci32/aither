@@ -36,6 +36,14 @@ class resid {
         const int &f)
       : linf_(a), blk_(b), i_(c), j_(d), k_(e), eqn_(f) {}
 
+  // move constructor and assignment operator
+  resid(resid&&) noexcept = default;
+  resid& operator=(resid&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  resid(const resid&) = default;
+  resid& operator=(const resid&) = default;
+
   // member functions
   double Linf() const { return linf_; }
   int Block() const { return blk_; }
@@ -61,7 +69,7 @@ class resid {
   }
 
   // destructor
-  ~resid() {}
+  ~resid() noexcept {}
 };
 
 // function declarations

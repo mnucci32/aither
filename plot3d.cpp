@@ -50,38 +50,38 @@ multiArray3d<double> plot3dBlock::Volume() const {
                            this->NumK() - 1);
 
   // Loop over all cells
-  for (int kk = 0; kk < vol.NumK(); kk++) {
-    for (int jj = 0; jj < vol.NumJ(); jj++) {
-      for (int ii = 0; ii < vol.NumI(); ii++) {
+  for (auto kk = 0; kk < vol.NumK(); kk++) {
+    for (auto jj = 0; jj < vol.NumJ(); jj++) {
+      for (auto ii = 0; ii < vol.NumI(); ii++) {
         // baseline location
-        vector3d<double> botStarAft = coords_(ii, jj, kk);
+        auto botStarAft = coords_(ii, jj, kk);
         // up 1 in the i-direction
-        vector3d<double> botStarFore = coords_(ii + 1, jj, kk);
+        auto botStarFore = coords_(ii + 1, jj, kk);
         // up 1 in the j-direction
-        vector3d<double> botPortAft = coords_(ii, jj + 1, kk);
+        auto botPortAft = coords_(ii, jj + 1, kk);
         // up 1 in the i and j directions
-        vector3d<double> botPortFore = coords_(ii + 1, jj + 1, kk);
+        auto botPortFore = coords_(ii + 1, jj + 1, kk);
         // up 1 in the k direction
-        vector3d<double> topStarAft = coords_(ii, jj, kk + 1);
+        auto topStarAft = coords_(ii, jj, kk + 1);
         // up 1 in the i and k directions
-        vector3d<double> topStarFore = coords_(ii + 1, jj, kk + 1);
+        auto topStarFore = coords_(ii + 1, jj, kk + 1);
         // up 1 in the j and k directions
-        vector3d<double> topPortAft = coords_(ii, jj + 1, kk + 1);
+        auto topPortAft = coords_(ii, jj + 1, kk + 1);
         // up 1 in the i, j, and k directions
-        vector3d<double> topPortFore = coords_(ii + 1, jj + 1, kk + 1);
+        auto topPortFore = coords_(ii + 1, jj + 1, kk + 1);
 
         // Point of all three pyramids is located at the top, starboard, aft
         // corner of the cell
         // Calculate volume for pyramid 1 - quad face is bottom side
         // xp is average vector from 4 base points to peak of pyramid
-        vector3d<double> xp = 0.25 * ((botStarAft - topStarAft) +
-                                      (botPortAft - topStarAft) +
-                                      (botStarFore - topStarAft) +
-                                      (botPortFore - topStarAft));
+        auto xp = 0.25 * ((botStarAft - topStarAft) +
+                          (botPortAft - topStarAft) +
+                          (botStarFore - topStarAft) +
+                          (botPortFore - topStarAft));
         // vectors along diagonal of base
-        vector3d<double> xac = botPortFore - botStarAft;
-        vector3d<double> xbd = botStarFore - botPortAft;
-        double pyramidVol = 1.0 / 6.0 * xp.DotProd(xac.CrossProd(xbd));
+        auto xac = botPortFore - botStarAft;
+        auto xbd = botStarFore - botPortAft;
+        auto pyramidVol = 1.0 / 6.0 * xp.DotProd(xac.CrossProd(xbd));
 
         // Calculate volume for pyramid2 - quad face is fore side
         xp = 0.25 * ((botStarFore - topStarAft) + (botPortFore - topStarAft) +
@@ -123,25 +123,25 @@ multiArray3d<vector3d<double>> plot3dBlock::Centroid() const {
                                            this->NumK() - 1);
 
   // loop over all cells
-  for (int kk = 0; kk < centroid.NumK(); kk++) {
-    for (int jj = 0; jj < centroid.NumJ(); jj++) {
-      for (int ii = 0; ii < centroid.NumI(); ii++) {
+  for (auto kk = 0; kk < centroid.NumK(); kk++) {
+    for (auto jj = 0; jj < centroid.NumJ(); jj++) {
+      for (auto ii = 0; ii < centroid.NumI(); ii++) {
         // baseline location
-        vector3d<double> botStarAft = coords_(ii, jj, kk);
+        auto botStarAft = coords_(ii, jj, kk);
         // up 1 in the i-direction
-        vector3d<double> botStarFore = coords_(ii + 1, jj, kk);
+        auto botStarFore = coords_(ii + 1, jj, kk);
         // up 1 in the j-direction
-        vector3d<double> botPortAft = coords_(ii, jj + 1, kk);
+        auto botPortAft = coords_(ii, jj + 1, kk);
         // up 1 in the i and j directions
-        vector3d<double> botPortFore = coords_(ii + 1, jj + 1, kk);
+        auto botPortFore = coords_(ii + 1, jj + 1, kk);
         // up 1 in the k direction
-        vector3d<double> topStarAft = coords_(ii, jj, kk + 1);
+        auto topStarAft = coords_(ii, jj, kk + 1);
         // up 1 in the i and k directions
-        vector3d<double> topStarFore = coords_(ii + 1, jj, kk + 1);
+        auto topStarFore = coords_(ii + 1, jj, kk + 1);
         // up 1 in the j and k directions
-        vector3d<double> topPortAft = coords_(ii, jj + 1, kk + 1);
+        auto topPortAft = coords_(ii, jj + 1, kk + 1);
         // up 1 in the i, j, and k directions
-        vector3d<double> topPortFore = coords_(ii + 1, jj + 1, kk + 1);
+        auto topPortFore = coords_(ii + 1, jj + 1, kk + 1);
 
         // Calculate the centroid of the cell
         centroid(ii, jj, kk) = (0.125 * (botStarAft + botStarFore + botPortAft +
@@ -176,23 +176,23 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaI() const {
                                             this->NumK() - 1);
 
   // loop over all i-faces
-  for (int kk = 0; kk < fArea.NumK(); kk++) {
-    for (int jj = 0; jj < fArea.NumJ(); jj++) {
-      for (int ii = 0; ii < fArea.NumI(); ii++) {
+  for (auto kk = 0; kk < fArea.NumK(); kk++) {
+    for (auto jj = 0; jj < fArea.NumJ(); jj++) {
+      for (auto ii = 0; ii < fArea.NumI(); ii++) {
         // baseline location
-        vector3d<double> botStarAft = coords_(ii, jj, kk);
+        auto botStarAft = coords_(ii, jj, kk);
         // up 1 in the j-direction
-        vector3d<double> botPortAft = coords_(ii, jj + 1, kk);
+        auto botPortAft = coords_(ii, jj + 1, kk);
         // up 1 in the k direction
-        vector3d<double> topStarAft = coords_(ii, jj, kk + 1);
+        auto topStarAft = coords_(ii, jj, kk + 1);
         // up 1 in the j and k directions
-        vector3d<double> topPortAft = coords_(ii, jj + 1, kk + 1);
+        auto topPortAft = coords_(ii, jj + 1, kk + 1);
 
         // Calculate area for face by taking 1/2 of the cross product between
         // opposite diagonals
         // vectors from opposite corners of face
-        vector3d<double> xac = topPortAft - botStarAft;
-        vector3d<double> xbd = botPortAft - topStarAft;
+        auto xac = topPortAft - botStarAft;
+        auto xbd = botPortAft - topStarAft;
 
         // area vector is calculated so that normal points nominally in
         // direction of increasing i-coordinate
@@ -220,20 +220,20 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaI() const {
 multiArray3d<vector3d<double>> plot3dBlock::FaceCenterI() const {
   // Allocate multiArray3d to store cell face centers
   multiArray3d<vector3d<double>> fCenter(this->NumI(),
-                                          this->NumJ() - 1,
-                                          this->NumK() - 1);
+                                         this->NumJ() - 1,
+                                         this->NumK() - 1);
   // loop over all i-faces
-  for (int kk = 0; kk < fCenter.NumK(); kk++) {
-    for (int jj = 0; jj < fCenter.NumJ(); jj++) {
-      for (int ii = 0; ii < fCenter.NumI(); ii++) {
+  for (auto kk = 0; kk < fCenter.NumK(); kk++) {
+    for (auto jj = 0; jj < fCenter.NumJ(); jj++) {
+      for (auto ii = 0; ii < fCenter.NumI(); ii++) {
         // baseline location
-        vector3d<double> botStarAft = coords_(ii, jj, kk);
+        auto botStarAft = coords_(ii, jj, kk);
         // up 1 in the j-direction
-        vector3d<double> botPortAft = coords_(ii, jj + 1, kk);
+        auto botPortAft = coords_(ii, jj + 1, kk);
         // up 1 in the k direction
-        vector3d<double> topStarAft = coords_(ii, jj, kk + 1);
+        auto topStarAft = coords_(ii, jj, kk + 1);
         // up 1 in the j and k directions
-        vector3d<double> topPortAft = coords_(ii, jj + 1, kk + 1);
+        auto topPortAft = coords_(ii, jj + 1, kk + 1);
 
         // Calculate face center by averaging four points that make up the face
         fCenter(ii, jj, kk) = 0.25 *
@@ -264,26 +264,26 @@ to C. The normal points in the direction of increasing j.
 multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaJ() const {
   // Allocate multiArray3d to store cell face areas
   multiArray3d<unitVec3dMag<double>> fArea(this->NumI() - 1, this->NumJ(),
-                                            this->NumK() - 1);
+                                           this->NumK() - 1);
 
   // loop over all j-faces
-  for (int kk = 0; kk < fArea.NumK(); kk++) {
-    for (int jj = 0; jj < fArea.NumJ(); jj++) {
-      for (int ii = 0; ii < fArea.NumI(); ii++) {
+  for (auto kk = 0; kk < fArea.NumK(); kk++) {
+    for (auto jj = 0; jj < fArea.NumJ(); jj++) {
+      for (auto ii = 0; ii < fArea.NumI(); ii++) {
         // baseline location
-        vector3d<double> botStarAft = coords_(ii, jj, kk);
+        auto botStarAft = coords_(ii, jj, kk);
         // up 1 in the i-direction
-        vector3d<double> botStarFore = coords_(ii + 1, jj, kk);
+        auto botStarFore = coords_(ii + 1, jj, kk);
         // up 1 in the k direction
-        vector3d<double> topStarAft = coords_(ii, jj, kk + 1);
+        auto topStarAft = coords_(ii, jj, kk + 1);
         // up 1 in the i and k directions
-        vector3d<double> topStarFore = coords_(ii + 1, jj, kk + 1);
+        auto topStarFore = coords_(ii + 1, jj, kk + 1);
 
         // Calculate area for face by taking 1/2 of the cross product between
         // opposite diagonals
         // vectors from opposite corners of face
-        vector3d<double> xac = topStarAft - botStarFore;
-        vector3d<double> xbd = botStarAft - topStarFore;
+        auto xac = topStarAft - botStarFore;
+        auto xbd = botStarAft - topStarFore;
 
         // area vector is calculated so that normal nominally points in
         // direction of increasing j-coordinate
@@ -314,17 +314,17 @@ multiArray3d<vector3d<double>> plot3dBlock::FaceCenterJ() const {
                                           this->NumJ(),
                                           this->NumK() - 1);
   // loop over all j-faces
-  for (int kk = 0; kk < fCenter.NumK(); kk++) {
-    for (int jj = 0; jj < fCenter.NumJ(); jj++) {
-      for (int ii = 0; ii < fCenter.NumI(); ii++) {
+  for (auto kk = 0; kk < fCenter.NumK(); kk++) {
+    for (auto jj = 0; jj < fCenter.NumJ(); jj++) {
+      for (auto ii = 0; ii < fCenter.NumI(); ii++) {
         // baseline location
-        vector3d<double> botStarAft = coords_(ii, jj, kk);
+        auto botStarAft = coords_(ii, jj, kk);
         // up 1 in the i-direction
-        vector3d<double> botStarFore = coords_(ii + 1, jj, kk);
+        auto botStarFore = coords_(ii + 1, jj, kk);
         // up 1 in the k direction
-        vector3d<double> topStarAft = coords_(ii, jj, kk + 1);
+        auto topStarAft = coords_(ii, jj, kk + 1);
         // up 1 in the i and k directions
-        vector3d<double> topStarFore = coords_(ii + 1, jj, kk + 1);
+        auto topStarFore = coords_(ii + 1, jj, kk + 1);
 
         // Calculate face center by averaging the four points that make up the
         // face
@@ -359,23 +359,23 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaK() const {
                                             this->NumJ() - 1,
                                             this->NumK());
   // loop over all k-faces
-  for (int kk = 0; kk < fArea.NumK(); kk++) {
-    for (int jj = 0; jj < fArea.NumJ(); jj++) {
-      for (int ii = 0; ii < fArea.NumI(); ii++) {
+  for (auto kk = 0; kk < fArea.NumK(); kk++) {
+    for (auto jj = 0; jj < fArea.NumJ(); jj++) {
+      for (auto ii = 0; ii < fArea.NumI(); ii++) {
         // baseline location
-        vector3d<double> botStarAft = coords_(ii, jj, kk);
+        auto botStarAft = coords_(ii, jj, kk);
         // up 1 in the i-direction
-        vector3d<double> botStarFore = coords_(ii + 1, jj, kk);
+        auto botStarFore = coords_(ii + 1, jj, kk);
         // up 1 in the j-direction
-        vector3d<double> botPortAft = coords_(ii, jj + 1, kk);
+        auto botPortAft = coords_(ii, jj + 1, kk);
         // up 1 in the i and j directions
-        vector3d<double> botPortFore = coords_(ii + 1, jj + 1, kk);
+        auto botPortFore = coords_(ii + 1, jj + 1, kk);
 
         // Calculate area for face by taking 1/2 of the cross product between
         // opposite diagonals
         // vectors from opposite corners of face
-        vector3d<double> xac = botPortAft - botStarFore;
-        vector3d<double> xbd = botPortFore - botStarAft;
+        auto xac = botPortAft - botStarFore;
+        auto xbd = botPortFore - botStarAft;
 
         // area vector is calculated so that normal nominally points in
         // direction of increasing k-coordinate
@@ -406,17 +406,17 @@ multiArray3d<vector3d<double>> plot3dBlock::FaceCenterK() const {
                                           this->NumJ() - 1,
                                           this->NumK());
   // loop over all k-faces
-  for (int kk = 0; kk < fCenter.NumK(); kk++) {
-    for (int jj = 0; jj < fCenter.NumJ(); jj++) {
-      for (int ii = 0; ii < fCenter.NumI(); ii++) {
+  for (auto kk = 0; kk < fCenter.NumK(); kk++) {
+    for (auto jj = 0; jj < fCenter.NumJ(); jj++) {
+      for (auto ii = 0; ii < fCenter.NumI(); ii++) {
         // baseline location
-        vector3d<double> botStarAft = coords_(ii, jj, kk);
+        auto botStarAft = coords_(ii, jj, kk);
         // up 1 in the i-direction
-        vector3d<double> botStarFore = coords_(ii + 1, jj, kk);
+        auto botStarFore = coords_(ii + 1, jj, kk);
         // up 1 in the j-direction
-        vector3d<double> botPortAft = coords_(ii, jj + 1, kk);
+        auto botPortAft = coords_(ii, jj + 1, kk);
         // up 1 in the i and j directions
-        vector3d<double> botPortFore = coords_(ii + 1, jj + 1, kk);
+        auto botPortFore = coords_(ii + 1, jj + 1, kk);
 
         // Calculate face center by averaging four points that make up cell face
         fCenter(ii, jj, kk) = 0.25 *
@@ -435,8 +435,8 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, const double &LRef,
   // open binary plot3d grid file
   ifstream fName;
   string fPostfix = ".xyz";
-  string readName = gridName + fPostfix;
-  fName.open(readName.c_str(), ios::in | ios::binary);
+  auto readName = gridName + fPostfix;
+  fName.open(readName, ios::in | ios::binary);
 
   // check to see if file opened correctly
   if (fName.fail()) {
@@ -447,7 +447,7 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, const double &LRef,
 
   // read the number of plot3d blocks in the file
   cout << "Reading grid file..." << endl << endl;
-  int numBlks;
+  auto numBlks = 1;
   fName.read(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
   cout << "Number of blocks: " << numBlks << endl << endl;
 
@@ -456,11 +456,11 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, const double &LRef,
   vector<int> vecI(numBlks, 0);
   vector<int> vecJ(numBlks, 0);
   vector<int> vecK(numBlks, 0);
-  int tempInt = 0;
+  auto tempInt = 0;
   numCells = 0;
 
   // loop over all blocks and fill i, j, k vectors with block sizes
-  for (int ii = 0; ii < numBlks; ii++) {
+  for (auto ii = 0; ii < numBlks; ii++) {
     cout << "Block Number: " << ii << "     ";
     fName.read(reinterpret_cast<char *>(&tempInt), sizeof(tempInt));
     vecI[ii] = tempInt;
@@ -479,22 +479,22 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, const double &LRef,
   cout << endl;
 
   // read each block and add it to the vector of plot3dBlocks
-  double tempDouble = 0;
+  auto tempDouble = 0.0;
   vector<plot3dBlock> mesh;
   mesh.reserve(numBlks);
 
-  for (int ii = 0; ii < numBlks; ii++) {
+  for (auto ii = 0; ii < numBlks; ii++) {
     multiArray3d<vector3d<double>> coordinates(vecI[ii], vecJ[ii], vecK[ii]);
 
-    for (int jj = 0; jj < coordinates.Size(); jj++) {
+    for (auto jj = 0; jj < coordinates.Size(); jj++) {
       fName.read(reinterpret_cast<char *>(&tempDouble), sizeof(tempDouble));
       coordinates(jj)[0] = tempDouble / LRef;
     }
-    for (int jj = 0; jj < coordinates.Size(); jj++) {
+    for (auto jj = 0; jj < coordinates.Size(); jj++) {
       fName.read(reinterpret_cast<char *>(&tempDouble), sizeof(tempDouble));
       coordinates(jj)[1] = tempDouble / LRef;
     }
-    for (int jj = 0; jj < coordinates.Size(); jj++) {
+    for (auto jj = 0; jj < coordinates.Size(); jj++) {
       fName.read(reinterpret_cast<char *>(&tempDouble), sizeof(tempDouble));
       coordinates(jj)[2] = tempDouble / LRef;
     }
@@ -521,16 +521,16 @@ calculating a flux jacobian. Ex. The solver must visit all points on hyperplane
 1 before visiting any points on hyperplane 2.
 */
 vector<vector3d<int>> HyperplaneReorder(const int &imax, const int &jmax,
-                                         const int &kmax) {
-  int numPlanes =
-      imax + jmax + kmax - 2;  // total number of hyperplanes in a given block
+                                        const int &kmax) {
+  // total number of hyperplanes in a given block
+  const auto numPlanes = imax + jmax + kmax - 2;
   vector<vector3d<int>> reorder;
   reorder.reserve(imax * jmax * kmax);
 
-  for (int pp = 0; pp < numPlanes; pp++) {
-    for (int kk = 0; kk < kmax; kk++) {
-      for (int jj = 0; jj < jmax; jj++) {
-        for (int ii = 0; ii < imax; ii++) {
+  for (auto pp = 0; pp < numPlanes; pp++) {
+    for (auto kk = 0; kk < kmax; kk++) {
+      for (auto jj = 0; jj < jmax; jj++) {
+        for (auto ii = 0; ii < imax; ii++) {
           if (ii + jj + kk == pp) {  // if sum of ii, jj, and kk equals pp than
                                      // point is on hyperplane pp
             reorder.push_back(vector3d<int>(ii, jj, kk));

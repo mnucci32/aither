@@ -44,8 +44,8 @@ int kdtree::FindMedian(const int &start, const int &end,
   // end -- ending index in nodes_ to find median
   // dim -- dimension (x, y, z) to find median
 
-  const int numPts = end - start;
-  const int medPos = start + (numPts - 1) / 2;  // position of median
+  const auto numPts = end - start;
+  const auto medPos = start + (numPts - 1) / 2;  // position of median
 
   // put median of data in position that median would be in a sorted vector
   // this is prefered to std::sort because it is O(n) instead of O(n log(n))
@@ -67,7 +67,7 @@ void kdtree::BuildKdtree(const int &start, const int &end,
   // end -- ending index in nodes_ to build tree
   // depth -- depth of tree
 
-  const int numPts = end - start;
+  const auto numPts = end - start;
 
   // recursive base case - at leaf node
   if (numPts <= binSize_) {
@@ -75,14 +75,14 @@ void kdtree::BuildKdtree(const int &start, const int &end,
   }
 
   // determine dimension to sort/split on
-  const int dim = depth % dim_;
+  const auto dim = depth % dim_;
 
   // find median
-  int medInd = this->FindMedian(start, end, dim);
+  const auto medInd = this->FindMedian(start, end, dim);
 
   // move median to first element
   std::swap(nodes_[start], nodes_[medInd]);
-  double median = nodes_[start][dim];
+  const auto median = nodes_[start][dim];
 
   // put all elements less than or equal to the median in
   // top portion of vector, and all other elements in bottom
@@ -90,9 +90,9 @@ void kdtree::BuildKdtree(const int &start, const int &end,
   // not sort the data
 
   // start is at median, so use next index down
-  int pTop = start + 1;
+  auto pTop = start + 1;
   // end is just past the last value, so use index up
-  int pBot = end - 1;
+  auto pBot = end - 1;
 
   while (pTop <= pBot) {
     // if inside this conditional, point found belongs in top
@@ -150,12 +150,12 @@ void kdtree::NearestNeighbor(const int &start, const int &end,
   // neighbor -- current best guess for nearest neighbor
   // minDist -- current minimum distance squared found
 
-  const int numPts = end - start;
+  const auto numPts = end - start;
 
   // recursive base case - at leaf node do linear search
   if (numPts <= binSize_) {
-    for (int ii = start; ii < end; ii++) {
-      double testDistance = pt.DistSq(nodes_[ii]);
+    for (auto ii = start; ii < end; ii++) {
+      auto testDistance = pt.DistSq(nodes_[ii]);
       if (testDistance < minDist) {
         minDist = testDistance;
         neighbor = nodes_[ii];
@@ -165,10 +165,10 @@ void kdtree::NearestNeighbor(const int &start, const int &end,
   }
 
   // determine dimension of branch split
-  const int dim = depth % dim_;
+  const auto dim = depth % dim_;
 
   // check to see if splitting node is closer than current closest
-  double testDistance = pt.DistSq(nodes_[start]);
+  auto testDistance = pt.DistSq(nodes_[start]);
   if (testDistance < minDist) {
     minDist = testDistance;
     neighbor = nodes_[start];
@@ -215,7 +215,7 @@ bool kdtree::SphereInside(const vector3d<double> &guess,
   // split -- coordinates at splitting node
   // dim -- dimension of split
 
-  double dist2Split =  guess[dim] - split[dim];
+  auto dist2Split =  guess[dim] - split[dim];
   dist2Split *= dist2Split;  // compare squared distances
 
   // if the distance to the split is greater than the current min
@@ -232,7 +232,7 @@ double kdtree::NearestNeighbor(const vector3d<double> &pt,
   // neighbor -- variable to output coordinates of nearest neighbor
 
   // start with large initial guess
-  double minDist = std::numeric_limits<double>::max();
+  auto minDist = std::numeric_limits<double>::max();
   this->NearestNeighbor(0, nodes_.size(), 0, pt, neighbor, minDist);
 
   // return distance, not distance squared
