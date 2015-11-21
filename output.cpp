@@ -34,6 +34,7 @@
 #include "input.hpp"               // inputVars
 #include "boundaryConditions.hpp"  // decomposition
 #include "resid.hpp"               // resid
+#include "genArray.hpp"            // genArray
 
 #define VAROUT 15
 
@@ -49,6 +50,7 @@ using std::max;
 using std::pair;
 using std::setw;
 using std::setprecision;
+using std::unique_ptr;
 
 //-----------------------------------------------------------------------
 // function declarations
@@ -56,14 +58,14 @@ using std::setprecision;
 void WriteCellCenter(const string &gridName, const vector<procBlock> &vars,
                      const decomposition &decomp, const double &LRef) {
   // recombine procblocks into original configuration
-  vector<procBlock> recombVars = Recombine(vars, decomp);
+  auto recombVars = Recombine(vars, decomp);
 
   // open binary output file
   ofstream outFile;
   string fEnd = "_center";
   string fPostfix = ".xyz";
-  string writeName = gridName + fEnd + fPostfix;
-  outFile.open(writeName.c_str(), ios::out | ios::binary);
+  auto writeName = gridName + fEnd + fPostfix;
+  outFile.open(writeName, ios::out | ios::binary);
 
   // check to see if file opened correctly
   if (outFile.fail()) {
@@ -73,12 +75,12 @@ void WriteCellCenter(const string &gridName, const vector<procBlock> &vars,
   }
 
   // write number of blocks to file
-  int numBlks = recombVars.size();
+  auto numBlks = static_cast<int>(recombVars.size());
   outFile.write(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
 
   // write i, j, k dimension for each block
-  for (int ll = 0; ll < numBlks; ll++) {  // loop over all blocks
-    int dumInt = recombVars[ll].NumI();
+  for (auto ll = 0; ll < numBlks; ll++) {  // loop over all blocks
+    auto dumInt = recombVars[ll].NumI();
     outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
     dumInt = recombVars[ll].NumJ();
     outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
@@ -87,24 +89,24 @@ void WriteCellCenter(const string &gridName, const vector<procBlock> &vars,
   }
 
   // write out x, y, z coordinates of cell centers
-  for (int ll = 0; ll < numBlks; ll++) {  // loop over all blocks
-    int maxi = recombVars[ll].NumI();
-    int maxj = recombVars[ll].NumJ();
-    int maxk = recombVars[ll].NumK();
+  for (auto ll = 0; ll < numBlks; ll++) {  // loop over all blocks
+    auto maxi = recombVars[ll].NumI();
+    auto maxj = recombVars[ll].NumJ();
+    auto maxk = recombVars[ll].NumK();
 
-    for (int nn = 0; nn < 3; nn++) {  // loop over dimensions (3)
-      for (int kk = recombVars[ll].NumGhosts();
+    for (auto nn = 0; nn < 3; nn++) {  // loop over dimensions (3)
+      for (auto kk = recombVars[ll].NumGhosts();
            kk < maxk + recombVars[ll].NumGhosts(); kk++) {
-        for (int jj = recombVars[ll].NumGhosts();
+        for (auto jj = recombVars[ll].NumGhosts();
              jj < maxj + recombVars[ll].NumGhosts(); jj++) {
-          for (int ii = recombVars[ll].NumGhosts();
+          for (auto ii = recombVars[ll].NumGhosts();
                ii < maxi + recombVars[ll].NumGhosts(); ii++) {
             // get the cell center coordinates (dimensionalized)
-            vector3d<double> dumVec = recombVars[ll].Center(ii, jj, kk) * LRef;
+            auto dumVec = recombVars[ll].Center(ii, jj, kk) * LRef;
 
             // for a given block, first write out all x coordinates, then all y
             // coordinates, then all z coordinates
-            double dumDouble = dumVec[nn];
+            auto dumDouble = dumVec[nn];
             // write to file
             outFile.write(reinterpret_cast<char *>(&dumDouble),
                           sizeof(dumDouble));
@@ -123,19 +125,19 @@ void WriteCellCenter(const string &gridName, const vector<procBlock> &vars,
 void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
               const sutherland &suth, const int &solIter,
               const decomposition &decomp, const input &inp,
-              const turbModel *turb) {
+              const unique_ptr<turbModel> &turb) {
   // define reference speed of sound
-  double refSoS = eqnState.SoS(inp.PRef(), inp.RRef());
+  auto refSoS = eqnState.SoS(inp.PRef(), inp.RRef());
 
-  vector<procBlock> recombVars = Recombine(vars, decomp);
+  auto recombVars = Recombine(vars, decomp);
 
   // open binary plot3d function file
   ofstream outFile;
   string fEnd = "_center";
   string fPostfix = ".fun";
-  string writeName = inp.SimNameRoot() + "_" + to_string(solIter) + fEnd +
+  auto writeName = inp.SimNameRoot() + "_" + to_string(solIter) + fEnd +
       fPostfix;
-  outFile.open(writeName.c_str(), ios::out | ios::binary);
+  outFile.open(writeName, ios::out | ios::binary);
 
   // check to see if file opened correctly
   if (outFile.fail()) {
@@ -145,15 +147,15 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
   }
 
   // write number of blocks to file
-  int numBlks = recombVars.size();
+  auto numBlks = static_cast<int>(recombVars.size());
   outFile.write(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
 
   // write i, j, k, recombVars dimension for each block
-  int numVars = VAROUT;  // number of variables to write out
+  auto numVars = VAROUT;  // number of variables to write out
 
   // loop over all blocks and write out imax, jmax, kmax, numVars
-  for (int ll = 0; ll < numBlks; ll++) {
-    int dumInt = recombVars[ll].NumI();
+  for (auto ll = 0; ll < numBlks; ll++) {
+    auto dumInt = recombVars[ll].NumI();
     outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
     dumInt = recombVars[ll].NumJ();
     outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
@@ -164,12 +166,12 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
   }
 
   // write out variables
-  for (int ll = 0; ll < numBlks; ll++) {  // loop over all blocks
+  for (auto ll = 0; ll < numBlks; ll++) {  // loop over all blocks
     multiArray3d<double> dumArr(recombVars[ll].NumI(), recombVars[ll].NumJ(),
                                 recombVars[ll].NumK());
 
     // loop over the number of variables to write out
-    for (int vv = 0; vv < numVars; vv++) {
+    for (auto vv = 0; vv < numVars; vv++) {
       // store nondimensional variable in dumArr for a given block in order.
       // i.e. var1 var2 var3 etc
       if (vv == 0) {  // density
@@ -281,18 +283,18 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
           }
         }
       } else if (vv == 9) {  // processor rank
-        for (int kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (int jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (int ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
+          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
+            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
               dumArr(ii, jj, kk) = vars[SplitBlockNumber(recombVars, decomp, ll,
                                                          ii, jj, kk)].Rank();
             }
           }
         }
       } else if (vv == 10) {  // global position
-        for (int kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (int jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (int ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
+          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
+            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
               dumArr(ii, jj, kk) =
                   vars[SplitBlockNumber(recombVars, decomp, ll,
                                         ii, jj, kk)].GlobalPos();
@@ -356,10 +358,10 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
       }
 
       // write out dimensional variables -- loop over block length
-      for (int kk = 0; kk < recombVars[ll].NumK(); kk++) {
-        for (int jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-          for (int ii = 0; ii < recombVars[ll].NumI(); ii++) {
-            double dumDouble = dumArr(ii, jj, kk);
+      for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
+        for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
+          for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+            auto dumDouble = dumArr(ii, jj, kk);
 
             if (vv == 0) {  // density
               dumDouble = dumDouble * inp.RRef();
@@ -406,10 +408,10 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
   string fResPostfix = ".res";
   string fPostfix = ".fun";
   string fEnd = "_center";
-  string resName = gridName + fEnd + fResPostfix;
-  resFile.open(resName.c_str(), ios::out);
+  auto resName = gridName + fEnd + fResPostfix;
+  resFile.open(resName, ios::out);
 
-  string writeName = gridName + "_*" + fEnd + fPostfix;
+  auto writeName = gridName + "_*" + fEnd + fPostfix;
 
   // check to see if file opened correctly
   if (resFile.fail()) {
@@ -419,19 +421,18 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
   }
 
   // write number of scalars and number of vectors
-  int numScalar = VAROUT;
-  int numVector = 1;
+  constexpr auto numScalar = VAROUT;
+  auto numVector = 1;
   resFile << numScalar << "     " << numVector << "     " << 0 << endl;
 
   // write number of time points that there is solution data at
-  int numTime = iter / outFreq;
+  auto numTime = iter / outFreq;
   resFile << numTime << endl;
 
   // Write solution times or iteration numbers
-  int solTime = 0;
-  int ii = 0;
-  int count = 1;
-  for (ii = 0; ii < numTime; ii++) {
+  auto solTime = 0;
+  auto count = 1;
+  for (auto ii = 0; ii < numTime; ii++) {
     solTime += outFreq;
     if (count % 10 == 0) {
       resFile << endl;
@@ -475,7 +476,7 @@ void WriteResiduals(const input &inp, genArray &residL2First, genArray &residL2,
     residL2First = residL2;
   // if within first 5 iterations reset normalization
   } else if ((nn < 5) && mm == 0) {
-    for (int cc = 0; cc < NUMVARS; cc++) {
+    for (auto cc = 0; cc < NUMVARS; cc++) {
       if (residL2[cc] > residL2First[cc]) {
         residL2First[cc] = residL2[cc];
       }
@@ -536,9 +537,9 @@ vector<procBlock> Recombine(const vector<procBlock> &vars,
   // vars -- vector of split procBlocks
   // decomp -- decomposition
 
-  vector<procBlock> recombVars = vars;
+  auto recombVars = vars;
   vector<boundarySurface> dumSurf;
-  for (int ii = decomp.NumSplits() - 1; ii >= 0; ii--) {
+  for (auto ii = decomp.NumSplits() - 1; ii >= 0; ii--) {
     // recombine blocks and resize vector
     recombVars[decomp.SplitHistBlkLower(ii)]
         .Join(recombVars[decomp.SplitHistBlkUpper(ii)], decomp.SplitHistDir(ii),
@@ -564,22 +565,21 @@ int SplitBlockNumber(const vector<procBlock> &vars, const decomposition &decomp,
   // Get block dimensions (both lower and upper extents)
   vector<pair<vector3d<int>, vector3d<int>>> blkDims(vars.size());
   vector3d<int> initialLower(0, 0, 0);
-  for (unsigned int bb = 0; bb < blkDims.size(); bb++) {
+  for (auto bb = 0; bb < static_cast<int>(blkDims.size()); bb++) {
     vector3d<int> dims(vars[bb].NumI(), vars[bb].NumJ(), vars[bb].NumK());
     blkDims[bb].first = initialLower;
     blkDims[bb].second = dims;
   }
 
-  int ind = blk;
+  auto ind = blk;
 
-  if (decomp.NumSplits() ==
-      0) {  // no splits, cell must be in parent block already
+  // no splits, cell must be in parent block already
+  if (decomp.NumSplits() == 0) {
     return ind;
   } else {  // cell is in lower split already
-    for (int ss = 0; ss < decomp.NumSplits(); ss++) {  // loop over all splits
-      if (blk != decomp.ParentBlock(
-                     ss + vars.size())) {  // wrong parent block - split won't
-                                           // effect search so use dummy value
+    for (auto ss = 0; ss < decomp.NumSplits(); ss++) {  // loop over all splits
+      // wrong parent block - split won't effect search so use dummy value
+      if (blk != decomp.ParentBlock(ss + vars.size())) {
         pair<vector3d<int>, vector3d<int>> dumBlk(initialLower, initialLower);
         blkDims.push_back(dumBlk);
       } else {
@@ -607,9 +607,8 @@ int SplitBlockNumber(const vector<procBlock> &vars, const decomposition &decomp,
               kk <= blkDims[decomp.SplitHistBlkUpper(ss)].second.Z() &&
               ii >= blkDims[decomp.SplitHistBlkUpper(ss)].first.X() &&
               jj >= blkDims[decomp.SplitHistBlkUpper(ss)].first.Y() &&
-              kk >= blkDims[decomp.SplitHistBlkUpper(ss)]
-                        .first.Z())) {  // cell not in upper split, but in lower
-                                        // split - found block index
+              kk >= blkDims[decomp.SplitHistBlkUpper(ss)].first.Z())) {
+          // cell not in upper split, but in lower split - found block index
           return decomp.SplitHistBlkLower(ss);
         } else {  // cell in upper split (and lower split)
           ind = decomp.SplitHistBlkUpper(ss);

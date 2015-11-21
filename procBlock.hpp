@@ -22,12 +22,13 @@
 #include <string>                  // string
 #include <fstream>
 #include <iostream>
+#include <memory>
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"            // vector3d
 #include "multiArray3d.hpp"        // multiArray3d
 #include "tensor.hpp"              // tensor
 #include "primVars.hpp"            // primVars
-#include "matrix.hpp"              // genArray
+#include "genArray.hpp"              // genArray
 #include "boundaryConditions.hpp"  // interblock, patch
 #include "macros.hpp"
 #include "kdtree.hpp"              // kdtree
@@ -39,6 +40,7 @@ using std::ofstream;
 using std::cout;
 using std::endl;
 using std::cerr;
+using std::unique_ptr;
 
 // forward class declarations
 class idealGas;
@@ -84,10 +86,18 @@ class procBlock {
 
  public:
   // constructors
-  procBlock();
   procBlock(const primVars &, const plot3dBlock &, const int &, const int &,
             const boundaryConditions &, const int &, const int &, const int &);
   procBlock(const int &, const int &, const int &, const int &);
+  procBlock() : procBlock(1, 1, 1, 0) {}
+
+  // move constructor and assignment operator
+  procBlock(procBlock&&) noexcept = default;
+  procBlock& operator=(procBlock&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  procBlock(const procBlock&) = default;
+  procBlock& operator=(const procBlock&) = default;
 
   // member functions
   int NumCells() const { return residual_.Size(); }
@@ -172,7 +182,12 @@ class procBlock {
                      const int &);
   void AddToResidual(const viscousFlux &, const int &, const int &,
                      const int &);
-  void AddToResidual(const source &, const int &, const int &, const int &);
+  void SubtractFromResidual(const inviscidFlux &, const int &, const int &,
+                            const int &);
+  void SubtractFromResidual(const viscousFlux &, const int &, const int &,
+                            const int &);
+  void SubtractFromResidual(const source &, const int &, const int &,
+                            const int &);
 
   genArray Residual(const int &ii, const int &jj, const int &kk) const {
     return residual_(ii, jj, kk);
@@ -190,18 +205,19 @@ class procBlock {
 
   void CalcBlockTimeStep(const input &, const double &);
   void UpdateBlock(const input &, const int &, const idealGas &, const double &,
-                   const multiArray3d<genArray> &, const turbModel *,
-                   genArray &, resid &);
+                   const multiArray3d<genArray> &,
+                   const unique_ptr<turbModel> &, genArray &, resid &);
 
-  void ExplicitEulerTimeAdvance(const idealGas &, const turbModel *,
+  void ExplicitEulerTimeAdvance(const idealGas &, const unique_ptr<turbModel> &,
                                 const int &, const int &, const int &,
                                 const int &, const int &, const int &);
   void ImplicitTimeAdvance(const genArray &, const idealGas &,
-                           const turbModel *, const int &, const int &,
-                           const int &);
-  void RK4TimeAdvance(const primVars &, const idealGas &, const turbModel *,
+                           const unique_ptr<turbModel> &, const int &,
+                           const int &, const int &);
+  void RK4TimeAdvance(const primVars &, const idealGas &,
+                      const unique_ptr<turbModel> &, const int &, const int &,
                       const int &, const int &, const int &, const int &,
-                      const int &, const int &, const int &);
+                      const int &);
 
   void ResetResidWS();
   void CleanResizeVecs(const int &, const int &, const int &);
@@ -215,14 +231,14 @@ class procBlock {
   double LUSGS(const vector<vector3d<int>> &, multiArray3d<genArray> &,
                const multiArray3d<genArray> &, const multiArray3d<genArray> &,
                const idealGas &, const input &, const sutherland &,
-               const turbModel *) const;
+               const unique_ptr<turbModel> &) const;
 
   void CalcViscFluxI(const sutherland &, const idealGas &, const input &,
-                     const gradients &, const turbModel *);
+                     const gradients &, const unique_ptr<turbModel> &);
   void CalcViscFluxJ(const sutherland &, const idealGas &, const input &,
-                     const gradients &, const turbModel *);
+                     const gradients &, const unique_ptr<turbModel> &);
   void CalcViscFluxK(const sutherland &, const idealGas &, const input &,
-                     const gradients &, const turbModel *);
+                     const gradients &, const unique_ptr<turbModel> &);
 
   void CalcGradsI(const int &, const int &, const int &, const idealGas &,
                   const bool &, tensor<double> &, vector3d<double> &,
@@ -235,20 +251,24 @@ class procBlock {
                   vector3d<double> &, vector3d<double> &) const;
 
   void CalcSrcTerms(const gradients &, const sutherland &, const idealGas &,
-                    const turbModel *);
+                    const unique_ptr<turbModel> &);
 
   void AssignGhostCellsGeom();
   void AssignGhostCellsGeomEdge();
 
   void AssignInviscidGhostCells(const input &, const idealGas &,
-                                const sutherland &, const turbModel *);
+                                const sutherland &,
+                                const unique_ptr<turbModel> &);
   void AssignInviscidGhostCellsEdge(const input &, const idealGas &,
-                                    const sutherland &, const turbModel *);
+                                    const sutherland &,
+                                    const unique_ptr<turbModel> &);
 
   void AssignViscousGhostCells(const input &, const idealGas &,
-                               const sutherland &, const turbModel *);
+                               const sutherland &,
+                               const unique_ptr<turbModel> &);
   void AssignViscousGhostCellsEdge(const input &, const idealGas &,
-                                   const sutherland &, const turbModel *);
+                                   const sutherland &,
+                                   const unique_ptr<turbModel> &);
 
   bool IsPhysical(const int &, const int &, const int &, const bool &) const;
   bool AtCorner(const int &, const int &, const int &, const bool &) const;
@@ -275,7 +295,7 @@ class procBlock {
   void CalcWallDistance(const kdtree &);
 
   // destructor
-  ~procBlock() {}
+  ~procBlock() noexcept {}
 };
 
 // function definitions
@@ -314,7 +334,7 @@ vector3d<int> GetSwapLoc(const int &, const int &, const int &,
 void SwapSlice(interblock &, procBlock &, procBlock &, const bool &);
 
 void GetBoundaryConditions(vector<procBlock> &, const input &, const idealGas &,
-                           const sutherland &, const turbModel *,
+                           const sutherland &, const unique_ptr<turbModel> &,
                            vector<interblock> &, const int &,
                            const MPI_Datatype &);
 

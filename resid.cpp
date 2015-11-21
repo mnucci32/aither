@@ -61,7 +61,7 @@ void MaxLinf(resid *in, resid *inout, int *len, MPI_Datatype *MPI_DOUBLE_5INT) {
 
   resid resLinf;  // intialize a resid
 
-  for (int ii = 0; ii < *len; ii++) {  // loop over array of resids
+  for (auto ii = 0; ii < *len; ii++) {  // loop over array of resids
     if (in->Linf() >= inout->Linf()) {  // if linf from input is greater than or
                                         // equal to linf from output, then new
                                         // max has been found

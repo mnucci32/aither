@@ -28,18 +28,6 @@ using std::endl;
 using std::cerr;
 using std::swap;
 
-// Constructor when passed no arguements
-boundaryConditions::boundaryConditions() {
-  numSurfI_ = 2;
-  numSurfJ_ = 2;
-  numSurfK_ = 2;
-  int length = numSurfI_ + numSurfJ_ + numSurfK_;
-
-  boundarySurface bcSurf_;
-  vector<boundarySurface> dumVec(length, bcSurf_);
-  surfs_ = dumVec;
-}
-
 // Constructor when passed number of i, j, k surfaces
 boundaryConditions::boundaryConditions(const int &i, const int &j,
                                        const int &k) {
@@ -50,7 +38,7 @@ boundaryConditions::boundaryConditions(const int &i, const int &j,
   numSurfI_ = i;
   numSurfJ_ = j;
   numSurfK_ = k;
-  int length = numSurfI_ + numSurfJ_ + numSurfK_;
+  auto length = numSurfI_ + numSurfJ_ + numSurfK_;
 
   boundarySurface bcSurf_;
   vector<boundarySurface> dumVec(length, bcSurf_);
@@ -59,27 +47,27 @@ boundaryConditions::boundaryConditions(const int &i, const int &j,
 
 // Operator overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, const boundaryConditions &bc) {
-  // bc -- boundary_ conditions to print
+  // bc -- boundary conditions to print
   // os -- ostream to print to
 
-  os << "Number of surfaces (I, J, K): " << bc.numSurfI_ << ", " << bc.numSurfJ_
-     << ", " << bc.numSurfK_ << endl;
+  os << "Number of surfaces (I, J, K): " << bc.NumSurfI() << ", " <<
+      bc.NumSurfJ() << ", " << bc.NumSurfK() << endl;
 
-  for (int ii = 0; ii < bc.NumSurfaces(); ii++) {
-    os << bc.surfs_[ii] << endl;
+  for (auto ii = 0; ii < bc.NumSurfaces(); ii++) {
+    os << bc.GetSurface(ii) << endl;
   }
   return os;
 }
 
 // Operator to resize all of the vector components of the
-// boundary_ conditions class
+// boundary conditions class
 void boundaryConditions::ResizeVecs(const int &a) {
   // a -- total number of surfaces (i+j+k)
   surfs_.resize(a);
 }
 
 // Operator to resize all of the vector components of the
-// boundary_ conditions class
+// boundary conditions class
 void boundaryConditions::ResizeVecs(const int &i, const int &j, const int &k) {
   // i -- number of i surfaces
   // j -- number of j surfaces
@@ -102,8 +90,8 @@ string boundaryConditions::GetBCName(const int i, const int j, const int k,
   // surf -- boundary_ condition surface
 
   string bcName;
-  int iStart = 0;
-  int iEnd = 0;
+  auto iStart = 0;
+  auto iEnd = 0;
 
   // i-surfaces search between 0 and number of i-surfaces
   if (surf == "il" || surf == "iu") {
@@ -145,18 +133,17 @@ void boundaryConditions::AssignFromInput(const int &surfCounter,
   // surfCounter -- index at which to place data
   // tokens -- vector of strings read from input file
 
-  boundarySurface bcSurf_(tokens[0], atoi(tokens[1].c_str()),
-                          atoi(tokens[2].c_str()), atoi(tokens[3].c_str()),
-                          atoi(tokens[4].c_str()), atoi(tokens[5].c_str()),
-                          atoi(tokens[6].c_str()), atoi(tokens[7].c_str()));
+  boundarySurface bcSurf_(tokens[0], stoi(tokens[1]),
+                          stoi(tokens[2]), stoi(tokens[3]),
+                          stoi(tokens[4]), stoi(tokens[5]),
+                          stoi(tokens[6]), stoi(tokens[7]));
   surfs_[surfCounter] = bcSurf_;
 }
 
-/* Member function to determine of what sides of a boundary_ condition surface
-   it
-   borders an interblock boundary_. This is necessary to complete the ghost cell
+/* Member function to determine of what sides of a boundary condition surface
+   it borders an interblock boundary. This is necessary to complete the ghost cell
    swap properly. The function alters an array of 4 bools, which return true if
-   the boundary_ surface borders an interblock on the side that they represent.
+   the boundary surface borders an interblock on the side that they represent.
    The order of the 4 bools is as follows [direction 1 start, direction 1 end,
    direction 2 start, direction 2 end].*/
 void boundaryConditions::BordersInterblock(const int &ii,
@@ -166,7 +153,7 @@ void boundaryConditions::BordersInterblock(const int &ii,
   // by an interblock on any of its 4 sides
 
   // Get surface to test for interblock borders
-  boundarySurface surf = this->GetSurface(ii);
+  auto surf = this->GetSurface(ii);
 
   // Check that given boundarySurface is interblock
   if (surf.BCType() != "interblock") {
@@ -183,9 +170,9 @@ void boundaryConditions::BordersInterblock(const int &ii,
   border[2] = false;
   border[3] = false;
 
-  // Loop over all surfaces in boundary_ conditions
-  for (int jj = 0; jj < this->NumSurfaces(); jj++) {
-    boundarySurface possibleBorder = this->GetSurface(jj);
+  // Loop over all surfaces in boundary conditions
+  for (auto jj = 0; jj < this->NumSurfaces(); jj++) {
+    auto possibleBorder = this->GetSurface(jj);
     // If possible border is an interblock and of same surface type,
     // test for border match
     if (possibleBorder.BCType() == "interblock" &&
@@ -352,9 +339,10 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
   vector<vector3d<int>> numRankPos;
   vector<int> surfaceNums;  // surface number of interblock
 
-  for (unsigned int ii = 0; ii < bc.size(); ii++) {  // loop over all blocks
+  // loop over all blocks
+  for (auto ii = 0; ii < static_cast<int>(bc.size()); ii++) {
     // Loop over number of surfaces in block
-    for (int jj = 0; jj < bc[ii].NumSurfaces(); jj++) {
+    for (auto jj = 0; jj < bc[ii].NumSurfaces(); jj++) {
       // If boundary condition is interblock, store data
       if (bc[ii].GetBCTypes(jj) == "interblock") {
         vector3d<int> temp(ii, decomp.Rank(ii), decomp.LocalPosition(ii));
@@ -374,9 +362,11 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
   // Loop over isolated interblocks
   // ii counts by two because after a pair is found, that data is swapped
   // to ii+1. This allows the next search to avoid the matched pair
-  for (unsigned int ii = 0; ii < isolatedInterblocks.size(); ii += 2) {
+  for (auto ii = 0; ii < static_cast<int>(isolatedInterblocks.size());
+       ii += 2) {
     // Loop over possible matches
-    for (unsigned int jj = ii + 1; jj < isolatedInterblocks.size(); jj++) {
+    for (auto jj = ii + 1; jj <
+             static_cast<int>(isolatedInterblocks.size()); jj++) {
       // Blocks and boundary surfaces between interblocks match
       // blocks between interblock BCs match
       if (isolatedInterblocks[ii].PartnerBlock() == numRankPos[jj][0] &&
@@ -500,7 +490,7 @@ bool interblock::TestPatchMatch(const patch &p1, const patch &p2) {
   // p1 -- first patch
   // p2 -- second patch
 
-  bool match = false;  // initialize match to false
+  auto match = false;  // initialize match to false
 
   // Determine if there is a potential match by comparing origins
   if (p1.Origin() == p2.Origin()) {  // origins match -----------------------
@@ -605,7 +595,7 @@ void interblock::AdjustForSlice(const bool &blkFirst, const int &numG) {
 
   // If at an upper surface, start block at upper boundary
   // (after including ghosts), if at lower surface, start block_ at 0
-  int blkStart = (this->BoundaryFirst() % 2 == 0)
+  auto blkStart = (this->BoundaryFirst() % 2 == 0)
                      ? this->ConstSurfaceFirst() + numG
                      : 0;
   constSurf_[1] = 0;  // slice always starts at 0
@@ -642,7 +632,7 @@ void interblock::GetAddressesMPI(MPI_Aint (&disp)[11]) const {
 // Function to return which direction (i,j,k) is direction 1 in the
 // first partner in the interblock
 string interblock::Direction1First() const {
-  string dir;
+  string dir = "";
   if (this->BoundaryFirst() <= 2) {  // dir 3 is i, dir 1 is j, dir 2 is k
     dir = "j";
   } else if (this->BoundaryFirst() <= 4) {  // dir 3 - j, dir 1 - k, dir 2 - i
@@ -657,7 +647,7 @@ string interblock::Direction1First() const {
 // Function to return which direction (i,j,k) is direction 1 in the second
 // partner in the interblock
 string interblock::Direction1Second() const {
-  string dir;
+  string dir = "";
   if (this->BoundarySecond() <= 2) {  // dir 3 is i, dir 1 is j, dir 2 is k
     dir = "j";
   } else if (this->BoundarySecond() <= 4) {  // dir 3-j, dir 1-k, dir 2-i
@@ -672,7 +662,7 @@ string interblock::Direction1Second() const {
 // Function to return which direction (i,j,k) is direction 2 in the first
 // partner in the interblock
 string interblock::Direction2First() const {
-  string dir;
+  string dir = "";
   if (this->BoundaryFirst() <= 2) {  // dir 3 is i, dir 1 is j, dir 2 is k
     dir = "k";
   } else if (this->BoundaryFirst() <= 4) {  // dir 3 - j, dir 1 - k, dir 2 - i
@@ -687,7 +677,7 @@ string interblock::Direction2First() const {
 // Function to return which direction (i,j,k) is direction 2 in the second
 // partner in the interblock
 string interblock::Direction2Second() const {
-  string dir;
+  string dir = "";
   if (this->BoundarySecond() <= 2) {  // dir 3 is i, dir 1 is j, dir 2 is k
     dir = "k";
   } else if (this->BoundarySecond() <= 4) {  // dir 3-j, dir 1-k, dir 2-i
@@ -702,7 +692,7 @@ string interblock::Direction2Second() const {
 // function to return which direction (i,j,k) is direction 3 in the first
 // partner in the interblock
 string interblock::Direction3First() const {
-  string dir;
+  string dir = "";
   if (this->BoundaryFirst() <= 2) {  // dir 3 is i, dir 1 is j, dir 2 is k
     dir = "i";
   } else if (this->BoundaryFirst() <= 4) {  // dir 3 - j, dir 1 - k, dir 2 - i
@@ -717,7 +707,7 @@ string interblock::Direction3First() const {
 // Function to return which direction (i,j,k) is direction 3 in the second
 // partner in the interblock
 string interblock::Direction3Second() const {
-  string dir;
+  string dir = "";
   if (this->BoundarySecond() <= 2) {  // dir 3 is i, dir 1 is j, dir 2 is k
     dir = "i";
   } else if (this->BoundarySecond() <= 4) {  // dir 3-j, dir 1-k, dir 2-i
@@ -777,8 +767,8 @@ void interblock::UpdateBorderSecond(const int &a) {
 
 // member function to determine the number of faces with a viscous wall BC
 int boundaryConditions::NumViscousFaces() const {
-  int nFaces = 0;
-  for (int ii = 0; ii < this->NumSurfaces(); ii++) {
+  auto nFaces = 0;
+  for (auto ii = 0; ii < this->NumSurfaces(); ii++) {
     if (this->GetBCTypes(ii) == "viscousWall") {
       nFaces += surfs_[ii].NumFaces();
     }
@@ -787,24 +777,24 @@ int boundaryConditions::NumViscousFaces() const {
 }
 
 int boundaryConditions::BlockDimI() const {
-  int dim = 0;
-  for (int ii = 0; ii < this->NumSurfaces(); ii++) {
+  auto dim = 0;
+  for (auto ii = 0; ii < this->NumSurfaces(); ii++) {
     dim = std::max(dim, this->GetIMax(ii));
   }
   return dim;
 }
 
 int boundaryConditions::BlockDimJ() const {
-  int dim = 0;
-  for (int ii = 0; ii < this->NumSurfaces(); ii++) {
+  auto dim = 0;
+  for (auto ii = 0; ii < this->NumSurfaces(); ii++) {
     dim = std::max(dim, this->GetJMax(ii));
   }
   return dim;
 }
 
 int boundaryConditions::BlockDimK() const {
-  int dim = 0;
-  for (int ii = 0; ii < this->NumSurfaces(); ii++) {
+  auto dim = 0;
+  for (auto ii = 0; ii < this->NumSurfaces(); ii++) {
     dim = std::max(dim, this->GetKMax(ii));
   }
   return dim;
@@ -827,10 +817,10 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
   // because their partners will need to be altered for the split as well
 
   // +1 because boundaries (in boundaryConditions) start at 1, not 0
-  int indNG = ind + 1;
+  auto indNG = ind + 1;
 
-  boundaryConditions bound1 = (*this);  // lower boundaryConditions
-  boundaryConditions bound2 = (*this);  // upper boundaryConditions
+  auto bound1 = (*this);  // lower boundaryConditions
+  auto bound2 = (*this);  // upper boundaryConditions
 
   // Initialize vector of surfaces that will be altered by this split
   vector<boundarySurface> alteredSurf;
@@ -845,25 +835,25 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
   if (dir == "i") {  // split along i-plane
     // Initialize deletion numbers to 0
-    int del1I = 0;
-    int del1J = 0;
-    int del1K = 0;
-    int del2I = 0;
-    int del2J = 0;
-    int del2K = 0;
+    auto del1I = 0;
+    auto del1J = 0;
+    auto del1K = 0;
+    auto del2I = 0;
+    auto del2J = 0;
+    auto del2K = 0;
 
-    int numInterL = 0;
-    int numInterU = 0;
+    auto numInterL = 0;
+    auto numInterU = 0;
 
     // Loop over all surfaces
-    for (int ii = 0; ii < this->NumSurfaces(); ii++) {
+    for (auto ii = 0; ii < this->NumSurfaces(); ii++) {
       if (ii < this->NumSurfI()) {                      // i-surface
         if (this->GetSurface(ii).SurfaceType() == 1) {  // lower i surface
           // No change to lower bc at lower i surface
 
           // At lower i surface, upper bc is now interface
-          int tag = 2000 + numBlk;  // lower surface matches with upper surface
-          bound2.surfs_[ii].bcType_ = "interblock";          // bcType_
+          auto tag = 2000 + numBlk;  // lower surface matches with upper surface
+          bound2.surfs_[ii].bcType_ = "interblock";          // bcType
           bound2.surfs_[ii].data_[0] = this->GetIMin(ii);  // imin
           bound2.surfs_[ii].data_[1] = this->GetIMax(ii);  // imax
           bound2.surfs_[ii].data_[6] = tag;                  // tag
@@ -882,7 +872,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
         } else {  // upper surface
           // At upper i surface, lower bc is now interface
           // upper surface matches with lower surface
-          int tag = 1000 + newBlkNum;
+          auto tag = 1000 + newBlkNum;
           bound1.surfs_[ii].bcType_ = "interblock";  // bcType_
           bound1.surfs_[ii].data_[0] = indNG;        // imin
           bound1.surfs_[ii].data_[1] = indNG;        // imax
@@ -949,13 +939,13 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
     // Delete unnecessary boundaries and change number of surfaces in i,j,k
     // to appropriate number
-    for (unsigned int ii = 0; ii < del1.size(); ii++) {
+    for (auto ii = 0; ii < static_cast<int>(del1.size()); ii++) {
       bound1.surfs_.erase(bound1.surfs_.begin() + del1[ii]);
       bound1.numSurfI_ -= del1I;
       bound1.numSurfJ_ -= del1J;
       bound1.numSurfK_ -= del1K;
     }
-    for (unsigned int ii = 0; ii < del2.size(); ii++) {
+    for (auto ii = 0; ii < static_cast<int>(del2.size()); ii++) {
       bound2.surfs_.erase(bound2.surfs_.begin() + del2[ii]);
       bound2.numSurfI_ -= del2I;
       bound2.numSurfJ_ -= del2J;
@@ -963,25 +953,25 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
     }
   } else if (dir == "j") {  // split along j-plane
     // Initialize deletion numbers to 0
-    int del1I = 0;
-    int del1J = 0;
-    int del1K = 0;
-    int del2I = 0;
-    int del2J = 0;
-    int del2K = 0;
+    auto del1I = 0;
+    auto del1J = 0;
+    auto del1K = 0;
+    auto del2I = 0;
+    auto del2J = 0;
+    auto del2K = 0;
 
-    int numInterL = 0;
-    int numInterU = 0;
+    auto numInterL = 0;
+    auto numInterU = 0;
 
     // Loop over all surfaces
-    for (int ii = 0; ii < this->NumSurfaces(); ii++) {
+    for (auto ii = 0; ii < this->NumSurfaces(); ii++) {
       if (ii >= this->NumSurfI() &&
           ii < this->NumSurfI() + this->NumSurfJ()) {  // j-surface
         if (this->GetSurface(ii).SurfaceType() == 3) {   // lower j surface
           // No change to lower bc at lower j surface
 
           // At lower j surface, upper bc is now interface
-          int tag = 4000 + numBlk;  // lower surface matches with upper surface
+          auto tag = 4000 + numBlk;  // lower surface matches with upper surface
           bound2.surfs_[ii].bcType_ = "interblock";          // bctype
           bound2.surfs_[ii].data_[2] = this->GetJMin(ii);  // jmin
           bound2.surfs_[ii].data_[3] = this->GetJMax(ii);  // jmax
@@ -1000,7 +990,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           numInterL++;
         } else {
           // At upper j surface, lower bc is now interface
-          int tag = 3000 + newBlkNum;  // upper surface matches with lower
+          auto tag = 3000 + newBlkNum;  // upper surface matches with lower
           bound1.surfs_[ii].bcType_ = "interblock";  // bctype
           bound1.surfs_[ii].data_[2] = indNG;        // jmin
           bound1.surfs_[ii].data_[3] = indNG;        // jmax
@@ -1063,13 +1053,13 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
     // Delete unnecessary boundaries - and set number of surfaces (i, j, k)
     // to appropriate number
-    for (unsigned int ii = 0; ii < del1.size(); ii++) {
+    for (auto ii = 0; ii < static_cast<int>(del1.size()); ii++) {
       bound1.surfs_.erase(bound1.surfs_.begin() + del1[ii]);
       bound1.numSurfI_ -= del1I;
       bound1.numSurfJ_ -= del1J;
       bound1.numSurfK_ -= del1K;
     }
-    for (unsigned int ii = 0; ii < del2.size(); ii++) {
+    for (auto ii = 0; ii < static_cast<int>(del2.size()); ii++) {
       bound2.surfs_.erase(bound2.surfs_.begin() + del2[ii]);
       bound2.numSurfI_ -= del2I;
       bound2.numSurfJ_ -= del2J;
@@ -1077,24 +1067,24 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
     }
   } else if (dir == "k") {  // split along k-plane
     // Initialize deletion numbers to 0
-    int del1I = 0;
-    int del1J = 0;
-    int del1K = 0;
-    int del2I = 0;
-    int del2J = 0;
-    int del2K = 0;
+    auto del1I = 0;
+    auto del1J = 0;
+    auto del1K = 0;
+    auto del2I = 0;
+    auto del2J = 0;
+    auto del2K = 0;
 
-    int numInterL = 0;
-    int numInterU = 0;
+    auto numInterL = 0;
+    auto numInterU = 0;
 
     // Loop over all surfaces
-    for (int ii = 0; ii < this->NumSurfaces(); ii++) {
+    for (auto ii = 0; ii < this->NumSurfaces(); ii++) {
       if (ii >= this->NumSurfI() + this->NumSurfJ()) {  // k-surface
         if (this->GetSurface(ii).SurfaceType() == 5) {    // lower k surface
           // No change to lower bc at lower k surface
 
           // At lower k surface, upper bc is now interface
-          int tag = 6000 + numBlk;  // lower surface matches with upper
+          auto tag = 6000 + numBlk;  // lower surface matches with upper
           bound2.surfs_[ii].bcType_ = "interblock";          // bctype
           bound2.surfs_[ii].data_[4] = this->GetKMin(ii);  // kmin
           bound2.surfs_[ii].data_[5] = this->GetKMax(ii);  // kmax
@@ -1113,7 +1103,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           numInterL++;
         } else {
           // At upper k surface, lower bc is now interface
-          int tag = 5000 + newBlkNum;  // upper surface matches with lower
+          auto tag = 5000 + newBlkNum;  // upper surface matches with lower
           bound1.surfs_[ii].bcType_ = "interblock";  // bctype
           bound1.surfs_[ii].data_[4] = indNG;        // kmin
           bound1.surfs_[ii].data_[5] = indNG;        // kmax
@@ -1176,12 +1166,12 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
     // Delete unnecessary boundaries and set surface numbers (i,j,k) to
     // appropriate value
-    for (unsigned int ii = 0; ii < del1.size(); ii++) {
+    for (auto ii = 0; ii < static_cast<int>(del1.size()); ii++) {
       bound1.surfs_.erase(bound1.surfs_.begin() + del1[ii]);
       bound1.numSurfI_ -= del1I;
       bound1.numSurfJ_ -= del1J;
     }
-    for (unsigned int ii = 0; ii < del2.size(); ii++) {
+    for (auto ii = 0; ii < static_cast<int>(del2.size()); ii++) {
       bound2.surfs_.erase(bound2.surfs_.begin() + del2[ii]);
       bound2.numSurfI_ -= del2I;
       bound2.numSurfJ_ -= del2J;
@@ -1217,24 +1207,23 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
   // lblk -- lower block_ number in partner split
   // ublk -- upper block_ number in partner split
 
-  bool border[4] = {false, false, false,
-                    false};  // dummy value used because interblock is only used
-                             // to test for match
+  // dummy value used because interblock is only used to test for match
+  bool border[4] = {false, false, false, false};
+
   patch partner(surf, part, lblk, border);  // create patch for partner
 
-  for (int ii = 0; ii < this->NumSurfaces(); ii++) {  // loop over all
-                                                        // surfaces
-
-    patch candidate(this->GetSurface(ii), self, sblk,
-                    border);  // create patch for candidate match
+  // loop over all surfaces
+  for (auto ii = 0; ii < this->NumSurfaces(); ii++) {
+    // create patch for candidate match
+    patch candidate(this->GetSurface(ii), self, sblk, border);
 
     interblock match(candidate, partner);
     if (match.TestPatchMatch(candidate, partner)) {  // match found
-      boundarySurface lowSurf = this->GetSurface(ii);  // get match surface
+      auto lowSurf = this->GetSurface(ii);  // get match surface
 
       // determine direction and index to split surface
-      string candDir;
-      int candInd;
+      string candDir = "";
+      auto candInd = 0;
       if (match.Orientation() == 1) {  // same orientation
         if (surf.Direction1() == dir) {  // split was in direction 1 of partner,
                                          // needs to be direction 1 of candidate
@@ -1422,10 +1411,10 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
       }
 
       // split matched surface
-      bool split = false;  // flag to tell if surface was split (or just if
+      auto split = false;  // flag to tell if surface was split (or just if
                            // block_ number updated)
-      boundarySurface upSurf = lowSurf.Split(candDir, candInd, lblk, ublk,
-                                             split, match.Orientation());
+      auto upSurf = lowSurf.Split(candDir, candInd, lblk, ublk, split,
+                                  match.Orientation());
 
       // assign boundarySurface back into boundaryConditions, if surface wasn't
       // split partner block_ was updated
@@ -1468,13 +1457,13 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
   if (dir == "i") {  // split along i-plane
     // total number of i surfaces in joined block_ will be equal to the lower i
     // surfaces from lower bc plus the upper i surfaces from the upper bc
-    int numI = 0;
-    for (int ii = 0; ii < this->NumSurfI(); ii++) {
+    auto numI = 0;
+    for (auto ii = 0; ii < this->NumSurfI(); ii++) {
       if (this->GetSurface(ii).SurfaceType() == 1) {  // lower i surface
         numI++;
       }
     }
-    for (int ii = 0; ii < bc.NumSurfI(); ii++) {
+    for (auto ii = 0; ii < bc.NumSurfI(); ii++) {
       if (bc.GetSurface(ii).SurfaceType() == 2) {  // upper i surface
         numI++;
       }
@@ -1483,20 +1472,20 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
     // total number of j surfaces in joined block_ will be equal to all j
     // surfaces from lower bc plus the j surfaces from the upper bc that only
     // reside in the upper bc
-    int numJ = this->NumSurfJ() + bc.NumSurfJ();
+    auto numJ = this->NumSurfJ() + bc.NumSurfJ();
 
     // total number of k surfaces in joined block_ will be equal to all k
     // surfaces from lower bc plus the k surfaces from the upper bc that only
     // reside in the upper bc
-    int numK = this->NumSurfK() + bc.NumSurfK();
+    auto numK = this->NumSurfK() + bc.NumSurfK();
 
     // initialze bc with new surface numbers
     boundaryConditions newBC(numI, numJ, numK);
-    int cc = 0;  // boundary_ condition counter
+    auto cc = 0;  // boundary condition counter
 
     // insert all i lower surfaces from lower bc
-    int lowDimI = 0;
-    for (int ii = 0; ii < this->NumSurfI(); ii++) {
+    auto lowDimI = 0;
+    for (auto ii = 0; ii < this->NumSurfI(); ii++) {
       if (this->GetSurface(ii).SurfaceType() == 1) {  // lower i surface
         newBC.surfs_[cc] = surfs_[ii];
         cc++;
@@ -1505,7 +1494,7 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       }
     }
     // insert all i upper surfaces from upper bc
-    for (int ii = 0; ii < bc.NumSurfI(); ii++) {
+    for (auto ii = 0; ii < bc.NumSurfI(); ii++) {
       if (bc.GetSurface(ii).SurfaceType() == 2) {  // upper i surface
         // at upper i surface, if bc is interblock, store boundarySurface
         // because partner block BC will need to be updated
@@ -1525,12 +1514,12 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
     }
 
     // insert all j surfaces from lower and upper bcs
-    for (int ii = this->NumSurfI();
+    for (auto ii = this->NumSurfI();
          ii < this->NumSurfI() + this->NumSurfJ(); ii++) {
       newBC.surfs_[cc] = surfs_[ii];
       cc++;
     }
-    for (int ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++) {
+    for (auto ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++) {
       // at j surface for upper block, if bc is interblock, store
       // boundarySurface because partner block BC will need to be updated
       if (bc.GetBCTypes(ii) == "interblock") {
@@ -1548,12 +1537,12 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
     }
 
     // insert all k surfaces from lower and upper bcs
-    for (int ii = this->NumSurfI() + this->NumSurfJ();
+    for (auto ii = this->NumSurfI() + this->NumSurfJ();
          ii < this->NumSurfaces(); ii++) {
       newBC.surfs_[cc] = surfs_[ii];
       cc++;
     }
-    for (int ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++) {
+    for (auto ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++) {
       // at k surface for upper block, if bc is interblock, store
       // boundarySurface because partner block BC will need to be updated
       if (bc.GetBCTypes(ii) == "interblock") {
@@ -1574,14 +1563,14 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
   } else if (dir == "j") {  // split along j-plane
     // total number of j surfaces in joined block_ will be equal to the lower j
     // surfaces from lower bc plus the upper j surfaces from the upper bc
-    int numJ = 0;
-    for (int ii = this->NumSurfI();
+    auto numJ = 0;
+    for (auto ii = this->NumSurfI();
          ii < this->NumSurfI() + this->NumSurfJ(); ii++) {
       if (this->GetSurface(ii).SurfaceType() == 3) {  // lower j surface
         numJ++;
       }
     }
-    for (int ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++) {
+    for (auto ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++) {
       if (bc.GetSurface(ii).SurfaceType() == 4) {  // upper j surface
         numJ++;
       }
@@ -1590,20 +1579,20 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
     // total number of i surfaces in joined block_ will be equal to all i
     // surfaces from lower bc plus the i surfaces from the upper bc that only
     // reside in the upper bc
-    int numI = this->NumSurfI() + bc.NumSurfI();
+    auto numI = this->NumSurfI() + bc.NumSurfI();
 
     // total number of k surfaces in joined block_ will be equal to all k
     // surfaces from lower bc plus the k surfaces from the upper bc that only
     // reside in the upper bc
-    int numK = this->NumSurfK() + bc.NumSurfK();
+    auto numK = this->NumSurfK() + bc.NumSurfK();
 
     // initialze bc with new surface numbers
     boundaryConditions newBC(numI, numJ, numK);
-    int cc = numI;  // boundary_ condition counter
+    auto cc = numI;  // boundary_ condition counter
 
     // insert all j lower surfaces from lower bc
-    int lowDimJ = 0;
-    for (int ii = this->NumSurfI();
+    auto lowDimJ = 0;
+    for (auto ii = this->NumSurfI();
          ii < this->NumSurfI() + this->NumSurfJ(); ii++) {
       if (this->GetSurface(ii).SurfaceType() == 3) {  // lower j surface
         newBC.surfs_[cc] = surfs_[ii];
@@ -1613,7 +1602,7 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       }
     }
     // insert all j upper surfaces from upper bc
-    for (int ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++) {
+    for (auto ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++) {
       if (bc.GetSurface(ii).SurfaceType() == 4) {  // upper j surface
         // at j upper surface for upper block, if bc is interblock, store
         // boundarySurface because partner block BC will need to be updated
@@ -1634,11 +1623,11 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
 
     cc = 0;
     // insert all i surfaces from lower and upper bcs
-    for (int ii = 0; ii < this->NumSurfI(); ii++) {
+    for (auto ii = 0; ii < this->NumSurfI(); ii++) {
       newBC.surfs_[cc] = surfs_[ii];
       cc++;
     }
-    for (int ii = 0; ii < bc.NumSurfI(); ii++) {
+    for (auto ii = 0; ii < bc.NumSurfI(); ii++) {
       // at i surface for upper block, if bc is interblock, store
       // boundarySurface because partner block BC will need to be updated
       if (bc.GetBCTypes(ii) == "interblock") {
@@ -1657,12 +1646,12 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
 
     cc = numI + numJ;
     // insert all k surfaces from lower and upper bcs
-    for (int ii = this->NumSurfI() + this->NumSurfJ();
+    for (auto ii = this->NumSurfI() + this->NumSurfJ();
          ii < this->NumSurfaces(); ii++) {
       newBC.surfs_[cc] = surfs_[ii];
       cc++;
     }
-    for (int ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++) {
+    for (auto ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++) {
       // at k surface for upper block, if bc is interblock, store
       // boundarySurface because partner block BC will need to be updated
       if (bc.GetBCTypes(ii) == "interblock") {
@@ -1684,14 +1673,14 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
   } else if (dir == "k") {  // split along k-plane
     // total number of k surfaces in joined block_ will be equal to the lower k
     // surfaces from lower bc plus the upper k surfaces from the upper bc
-    int numK = 0;
-    for (int ii = this->NumSurfI() + this->NumSurfJ();
+    auto numK = 0;
+    for (auto ii = this->NumSurfI() + this->NumSurfJ();
          ii < this->NumSurfaces(); ii++) {
       if (this->GetSurface(ii).SurfaceType() == 5) {  // lower k surface
         numK++;
       }
     }
-    for (int ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++) {
+    for (auto ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++) {
       if (bc.GetSurface(ii).SurfaceType() == 6) {  // upper k surface
         numK++;
       }
@@ -1700,20 +1689,20 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
     // total number of i surfaces in joined block_ will be equal to all i
     // surfaces from lower bc plus the i surfaces from the upper bc that only
     // reside in the upper bc
-    int numI = this->NumSurfI() + bc.NumSurfI();
+    auto numI = this->NumSurfI() + bc.NumSurfI();
 
     // total number of j surfaces in joined block_ will be equal to all j
     // surfaces from lower bc plus the j surfaces from the upper bc that only
     // reside in the upper bc
-    int numJ = this->NumSurfJ() + bc.NumSurfJ();
+    auto numJ = this->NumSurfJ() + bc.NumSurfJ();
 
     // initialze bc with new surface numbers
     boundaryConditions newBC(numI, numJ, numK);
-    int cc = numI + numJ;  // boundary_ condition counter
+    auto cc = numI + numJ;  // boundary_ condition counter
 
     // insert all k lower surfaces from lower bc
-    int lowDimK = 0;
-    for (int ii = this->NumSurfI() + this->NumSurfJ();
+    auto lowDimK = 0;
+    for (auto ii = this->NumSurfI() + this->NumSurfJ();
          ii < this->NumSurfaces(); ii++) {
       if (this->GetSurface(ii).SurfaceType() == 5) {  // lower k surface
         newBC.surfs_[cc] = surfs_[ii];
@@ -1723,7 +1712,7 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       }
     }
     // insert all k upper surfaces from upper bc
-    for (int ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++) {
+    for (auto ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++) {
       if (bc.GetSurface(ii).SurfaceType() == 6) {  // upper k surface
         // at upper k surface for upper block, if bc is interblock, store
         // boundarySurface because partner block BC will need to be updated
@@ -1744,11 +1733,11 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
 
     cc = 0;
     // insert all i surfaces from lower and upper bcs
-    for (int ii = 0; ii < this->NumSurfI(); ii++) {
+    for (auto ii = 0; ii < this->NumSurfI(); ii++) {
       newBC.surfs_[cc] = surfs_[ii];
       cc++;
     }
-    for (int ii = 0; ii < bc.NumSurfI(); ii++) {
+    for (auto ii = 0; ii < bc.NumSurfI(); ii++) {
       // at i surface for upper block_, if bc is interblock, store
       // boundarySurface because partner block_ BC will need to be updated
       if (bc.GetBCTypes(ii) == "interblock") {
@@ -1767,12 +1756,12 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
 
     cc = numI;
     // insert all j surfaces from lower and upper bcs
-    for (int ii = this->NumSurfI();
+    for (auto ii = this->NumSurfI();
          ii < this->NumSurfI() + this->NumSurfJ(); ii++) {
       newBC.surfs_[cc] = surfs_[ii];
       cc++;
     }
-    for (int ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++) {
+    for (auto ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++) {
       // at j surface for upper block, if bc is interblock, store
       // boundarySurface because partner block BC will need to be updated
       if (bc.GetBCTypes(ii) == "interblock") {
@@ -1936,10 +1925,10 @@ ostream &operator<<(ostream &os, const patch &p) {
   os << "Borders Interblock: " << p.Dir1StartInterBorder() << ", "
      << p.Dir1EndInterBorder() << ", " << p.Dir2StartInterBorder() << ", "
      << p.Dir2EndInterBorder() << endl;
-  os << "Origin: " << p.origin_ << endl;
-  os << "Corner 1: " << p.corner1_ << endl;
-  os << "Corner 2: " << p.corner2_ << endl;
-  os << "Corner 12: " << p.corner12_ << endl;
+  os << "Origin: " << p.Origin() << endl;
+  os << "Corner 1: " << p.Corner1() << endl;
+  os << "Corner 2: " << p.Corner2() << endl;
+  os << "Corner 12: " << p.Corner12() << endl;
 
   return os;
 }
@@ -1955,7 +1944,7 @@ void boundaryConditions::PackBC(char *(&sendBuffer), const int &sendBufSize,
   // get string lengths for each boundary_ condition to be sent, so processors
   // unpacking know how much data to unpack for each string
   vector<int> strLength(this->NumSurfaces());
-  for (unsigned int jj = 0; jj < strLength.size(); jj++) {
+  for (auto jj = 0; jj < static_cast<int>(strLength.size()); jj++) {
     // +1 for c_str end character
     strLength[jj] = this->GetBCTypes(jj).size() + 1;
   }
@@ -1968,15 +1957,15 @@ void boundaryConditions::PackBC(char *(&sendBuffer), const int &sendBufSize,
   MPI_Pack(&numSurfK_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
   // pack non-string data from boundarySurface
-  for (int jj = 0; jj < this->NumSurfaces(); jj++) {
+  for (auto jj = 0; jj < this->NumSurfaces(); jj++) {
     MPI_Pack(&surfs_[jj].data_[0], 7, MPI_INT, sendBuffer, sendBufSize,
              &position, MPI_COMM_WORLD);
   }
   // pack string size
   MPI_Pack(&strLength[0], strLength.size(), MPI_INT, sendBuffer, sendBufSize,
            &position, MPI_COMM_WORLD);
-  // pack boundary_ condtion names
-  for (int jj = 0; jj < this->NumSurfaces(); jj++) {
+  // pack boundary condtion names
+  for (auto jj = 0; jj < this->NumSurfaces(); jj++) {
     MPI_Pack(surfs_[jj].bcType_.c_str(),
              surfs_[jj].bcType_.size() + 1, MPI_CHAR, sendBuffer,
              sendBufSize, &position,
@@ -2004,17 +1993,17 @@ void boundaryConditions::UnpackBC(char *(&recvBuffer), const int &recvBufSize,
   // allocate vector for string lengths
   vector<int> strLength(this->NumSurfaces());
 
-  // unpack boundary_ condition surface data (non-string) into appropriate
+  // unpack boundary condition surface data (non-string) into appropriate
   // vectors
-  for (int jj = 0; jj < this->NumSurfaces(); jj++) {
+  for (auto jj = 0; jj < this->NumSurfaces(); jj++) {
     MPI_Unpack(recvBuffer, recvBufSize, &position, &surfs_[jj].data_[0],
                7, MPI_INT, MPI_COMM_WORLD);  // unpack bc surfaces
   }
   MPI_Unpack(recvBuffer, recvBufSize, &position, &strLength[0],
              strLength.size(), MPI_INT, MPI_COMM_WORLD);  // unpack string sizes
-  // unpack boundary_ condition names
-  for (unsigned int jj = 0; jj < strLength.size(); jj++) {
-    char *nameBuf = new char[strLength[jj]];  // allocate buffer to store BC
+  // unpack boundary condition names
+  for (auto jj = 0; jj < static_cast<int>(strLength.size()); jj++) {
+    auto *nameBuf = new char[strLength[jj]];  // allocate buffer to store BC
                                               // name
     MPI_Unpack(recvBuffer, recvBufSize, &position, &nameBuf[0], strLength[jj],
                MPI_CHAR, MPI_COMM_WORLD);  // unpack bc types
@@ -2024,18 +2013,6 @@ void boundaryConditions::UnpackBC(char *(&recvBuffer), const int &recvBufSize,
     surfs_[jj].bcType_ = bcName;
     delete[] nameBuf;  // deallocate bc name buffer
   }
-}
-
-// constructor when passed no arguements
-boundarySurface::boundarySurface() {
-  bcType_ = "undefined";
-  data_[0] = 0;
-  data_[1] = 0;
-  data_[2] = 0;
-  data_[3] = 0;
-  data_[4] = 0;
-  data_[5] = 0;
-  data_[6] = 0;
 }
 
 boundarySurface::boundarySurface(const string &name, const int &imin,
@@ -2065,7 +2042,7 @@ boundarySurface::boundarySurface(const string &name, const int &imin,
 // type is an integer from 1 to 6 representing the imin, imax, jmin, jmax, kmin,
 // or kmax surfaces respectively.
 int boundarySurface::SurfaceType() const {
-  int surf = 0;
+  auto surf = 0;
 
   if (data_[0] == data_[1]) {  // i-surface
     if (data_[1] == 1) {  // lower surface
@@ -2105,7 +2082,7 @@ int boundarySurface::PartnerBlock() const {
     exit(0);
   }
 
-  int subtract = this->PartnerSurface() * 1000;
+  auto subtract = this->PartnerSurface() * 1000;
   return this->Tag() - subtract;
 }
 
@@ -2119,7 +2096,7 @@ int boundarySurface::PartnerSurface() const {
     exit(0);
   }
 
-  int surf = 0;
+  auto surf = 0;
 
   if (this->Tag() < 2000) {
     surf = 1;  // i-lower surface
@@ -2146,7 +2123,7 @@ int boundarySurface::PartnerSurface() const {
 // member function to return a string corresponding to which direction (i,j,k)
 // is direction 1 of the boundary_ surface
 string boundarySurface::Direction1() const {
-  string dir;
+  string dir = "";
   if (this->SurfaceType() <= 2) {  // dir 3 is i, dir 1 is j, dir 2 is k
     dir = "j";
   } else if (this->SurfaceType() <= 4) {  // dir 3 is j, dir 1 is k, dir 2 is
@@ -2162,7 +2139,7 @@ string boundarySurface::Direction1() const {
 // member function to return a string corresponding to which direction (i,j,k)
 // is direction 2 of the boundary_ surface
 string boundarySurface::Direction2() const {
-  string dir;
+  string dir = "";
   if (this->SurfaceType() <= 2) {  // dir 3 is i, dir 1 is j, dir 2 is k
     dir = "k";
   } else if (this->SurfaceType() <= 4) {  // dir 3 is j, dir 1 is k, dir 2 is
@@ -2178,7 +2155,7 @@ string boundarySurface::Direction2() const {
 // member function to return a string corresponding to which direction (i,j,k)
 // is direction 3 of the boundary_ surface.
 string boundarySurface::Direction3() const {
-  string dir;
+  string dir = "";
   if (this->SurfaceType() <= 2) {  // dir 3 is i, dir 1 is j, dir 2 is k
     dir = "i";
   } else if (this->SurfaceType() <= 4) {  // dir 3 is j, dir 1 is k, dir 2 is
@@ -2194,7 +2171,7 @@ string boundarySurface::Direction3() const {
 // member function to return the maximum dimension of the surface in direction
 // 1.
 int boundarySurface::Max1() const {
-  int m = 0;
+  auto m = 0;
   if (this->Direction1() == "i") {
     m = this->IMax();
   } else if (this->Direction1() == "j") {
@@ -2208,7 +2185,7 @@ int boundarySurface::Max1() const {
 // member function to return the minimum dimension of the surface in direction
 // 1.
 int boundarySurface::Min1() const {
-  int m = 0;
+  auto m = 0;
   if (this->Direction1() == "i") {
     m = this->IMin();
   } else if (this->Direction1() == "j") {
@@ -2222,7 +2199,7 @@ int boundarySurface::Min1() const {
 // member function to return the maximum dimension of the surface in direction
 // 2.
 int boundarySurface::Max2() const {
-  int m = 0;
+  auto m = 0;
   if (this->Direction2() == "i") {
     m = this->IMax();
   } else if (this->Direction2() == "j") {
@@ -2236,7 +2213,7 @@ int boundarySurface::Max2() const {
 // member function to return the minimum dimension of the surface in direction
 // 2.
 int boundarySurface::Min2() const {
-  int m = 0;
+  auto m = 0;
   if (this->Direction2() == "i") {
     m = this->IMin();
   } else if (this->Direction2() == "j") {
@@ -2250,7 +2227,7 @@ int boundarySurface::Min2() const {
 // member function to return the number of faces this boundary surface is
 // applied to
 int boundarySurface::NumFaces() const {
-  int nFaces = 0;
+  auto nFaces = 0;
   if (this->SurfaceType() <= 2) {  // i-surface
     nFaces = (this->JMax() - this->JMin()) * (this->KMax() - this->KMin());
   } else if (this->SurfaceType() <= 4) {  // j-surface
@@ -2262,13 +2239,13 @@ int boundarySurface::NumFaces() const {
 }
 
 // operator overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, const boundarySurface &bcSurf_) {
+ostream &operator<<(ostream &os, const boundarySurface &bcSurf) {
   // os -- ostream to print to
-  // bcSurf_ -- boundarySurface to print
+  // bcSurf -- boundarySurface to print
 
-  os << bcSurf_.bcType_ << "   " << bcSurf_.IMin() << "   " << bcSurf_.IMax()
-     << "   " << bcSurf_.JMin() << "   " << bcSurf_.JMax() << "   "
-     << bcSurf_.KMin() << "   " << bcSurf_.KMax() << "   " << bcSurf_.Tag();
+  os << bcSurf.BCType() << "   " << bcSurf.IMin() << "   " << bcSurf.IMax()
+     << "   " << bcSurf.JMin() << "   " << bcSurf.JMax() << "   "
+     << bcSurf.KMin() << "   " << bcSurf.KMax() << "   " << bcSurf.Tag();
 
   return os;
 }
@@ -2299,17 +2276,16 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind,
   // no split, upper surface returned is meaningless
   // orientation -- if called from DependentSplit, orientation of partner split
 
-  int indNG = ind + 1;  // +1 because boundaries start at 1, not 0
+  auto indNG = ind + 1;  // +1 because boundaries start at 1, not 0
 
-  boundarySurface surf1 = (*this);  // lower surface
-  boundarySurface surf2 = (*this);  // upper surface
+  auto surf1 = (*this);  // lower surface
+  auto surf2 = (*this);  // upper surface
 
   split = true;  // initialize split flag
   // flag to determine if the split direction is reversed - used to determine
   // which block_ should match lower/upper surfaces
-  bool isReversed = surf1.SplitDirectionIsReversed(
-      dir, orientation);  // surf1 and surf2 have same orientation, so if
-                          // reversed for 1, reversed for 2
+  // surf1 and surf2 have same orientation, so if reversed for 1, reversed for 2
+  auto isReversed = surf1.SplitDirectionIsReversed(dir, orientation);
 
   if (dir == "i") {  // split along i-plane
     if (this->SurfaceType() == 1 || this->SurfaceType() == 2 ||
@@ -2436,7 +2412,7 @@ bool boundarySurface::SplitDirectionIsReversed(const string &dir,
   // dir -- direction of split
   // orientation -- orientation of one patch to its partner
 
-  bool isReversed;
+  auto isReversed = false;
 
   // find out if split direction is 1, 2, or 3
   if (this->Direction1() ==

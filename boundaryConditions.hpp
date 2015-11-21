@@ -45,9 +45,17 @@ class boundarySurface {
 
  public:
   // Constructor
-  boundarySurface();
   boundarySurface(const string&, const int&, const int&, const int&,
                   const int&, const int&, const int&, const int&);
+  boundarySurface() : boundarySurface("undefined", 0, 0, 0, 0, 0, 0, 0) {}
+
+  // move constructor and assignment operator
+  boundarySurface(boundarySurface&&) noexcept = default;
+  boundarySurface& operator=(boundarySurface&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  boundarySurface(const boundarySurface&) = default;
+  boundarySurface& operator=(const boundarySurface&) = default;
 
   friend class boundaryConditions;
 
@@ -78,10 +86,8 @@ class boundarySurface {
                         const int&, bool&, int = 0);
   bool SplitDirectionIsReversed(const string&, const int&) const;
 
-  friend ostream & operator<< (ostream &os, const boundarySurface&);
-
   // Destructor
-  ~boundarySurface() {}
+  ~boundarySurface() noexcept {}
 };
 
 /* A class to store the necessary information for the boundary_ condition patches.
@@ -118,6 +124,14 @@ class patch {
             surf.JMin() -1, surf.JMax() - 1, surf.KMin() - 1,
             surf.KMax() - 1, blk, r, l, border) {}
 
+  // move constructor and assignment operator
+  patch(patch&&) noexcept = default;
+  patch& operator=(patch&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  patch(const patch&) = default;
+  patch& operator=(const patch&) = default;
+
   // Member functions
   vector3d<double> Origin() const {return origin_;}
   vector3d<double> Corner1() const {return corner1_;}
@@ -137,10 +151,8 @@ class patch {
   bool Dir2StartInterBorder() const {return interblockBorder_[2];}
   bool Dir2EndInterBorder() const {return interblockBorder_[3];}
 
-  friend ostream & operator<< (ostream &os, const patch&);
-
   // Destructor
-  ~patch() {}
+  ~patch() noexcept {}
 };
 
 // A class to store the necessary information for the boundary
@@ -154,8 +166,16 @@ class boundaryConditions {
 
  public:
   // Constructor
-  boundaryConditions();
   boundaryConditions(const int&, const int&, const int&);
+  boundaryConditions() : boundaryConditions(2, 2, 2) {}
+
+  // move constructor and assignment operator
+  boundaryConditions(boundaryConditions&&) noexcept = default;
+  boundaryConditions& operator=(boundaryConditions&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  boundaryConditions(const boundaryConditions&) = default;
+  boundaryConditions& operator=(const boundaryConditions&) = default;
 
   // Member functions
   int NumSurfI() const {return numSurfI_;}
@@ -182,8 +202,6 @@ class boundaryConditions {
   void ResizeVecs(const int&);
   void ResizeVecs(const int&, const int&, const int&);
 
-  friend ostream & operator<< (ostream &os, const boundaryConditions&);
-
   string GetBCName(const int, const int, const int, const string&) const;
 
   void AssignFromInput(const int&, const vector<string>&);
@@ -201,7 +219,7 @@ class boundaryConditions {
   void UnpackBC(char*(&), const int&, int&);
 
   // Destructor
-  ~boundaryConditions() {}
+  ~boundaryConditions() noexcept {}
 };
 
 /* A class to store the necessary information for the interblock boundary_ conditions.
@@ -228,6 +246,14 @@ class interblock {
                             false, false, false}, orientation_(0) {}
 
   interblock(const patch&, const patch&);
+
+  // move constructor and assignment operator
+  interblock(interblock&&) noexcept = default;
+  interblock& operator=(interblock&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  interblock(const interblock&) = default;
+  interblock& operator=(const interblock&) = default;
 
   // Member functions
   int RankFirst() const {return rank_[0];}
@@ -282,14 +308,12 @@ class interblock {
   bool TestPatchMatch(const patch&, const patch&);
   void GetAddressesMPI(MPI_Aint (&)[11])const;
 
-  friend ostream & operator<< (ostream &os, const interblock&);
-
   // Destructor
-  ~interblock() {}
+  ~interblock() noexcept {}
 };
 
 class decomposition {
-  // rank_ of each procBlock
+  // rank of each procBlock
   // (vector size equals number of procBlocks after decomp)
   vector<int> rank_;
   // parent block_ of each procBlock
@@ -306,17 +330,26 @@ class decomposition {
   vector<int> splitHistIndex_;
   // direction of split (vector size equals number of splits)
   vector<string> splitHistDir_;
-  int numProcs;                     // number of processors
+  int numProcs_;                     // number of processors
 
  public:
   // Constructor
-  decomposition();
   decomposition(const int&, const int&);
+  decomposition() : decomposition(1, 1) {}
+
+  // move constructor and assignment operator
+  decomposition(decomposition&&) noexcept = default;
+  decomposition& operator=(decomposition&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  decomposition(const decomposition&) = default;
+  decomposition& operator=(const decomposition&) = default;
 
   // Member functions
   int Rank(const int &a) const {return rank_[a];}
   int ParentBlock(const int &a) const {return parBlock_[a];}
   int LocalPosition(const int &a) const {return localPos_[a];}
+  int NumProcs() const {return numProcs_;}
   double IdealLoad(const vector<plot3dBlock>&) const;
   double MaxLoad(const vector<plot3dBlock>&) const;
   double MinLoad(const vector<plot3dBlock>&) const;
@@ -340,10 +373,8 @@ class decomposition {
 
   void PrintDiagnostics(const vector<plot3dBlock>&) const;
 
-  friend ostream & operator<< (ostream &os, const decomposition&);
-
   // Destructor
-  ~decomposition() {}
+  ~decomposition() noexcept {}
 };
 
 
@@ -352,5 +383,10 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions>&,
                                     const vector<plot3dBlock>&,
                                     const decomposition&);
 
+ostream & operator<< (ostream &os, const boundaryConditions&);
+ostream & operator<< (ostream &os, const boundarySurface&);
+ostream & operator<< (ostream &os, const patch&);
+ostream & operator<< (ostream &os, const decomposition&);
+ostream & operator<< (ostream &os, const interblock&);
 
 #endif
