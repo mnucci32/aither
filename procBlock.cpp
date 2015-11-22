@@ -1,12 +1,12 @@
-/*  An open source Navier-Stokes CFD solver.
+/*  This file is part of aither.
     Copyright (C) 2015  Michael Nucci (michael.nucci@gmail.com)
 
-    This program is free software: you can redistribute it and/or modify
+    Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
+    Aither is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -592,9 +592,11 @@ implicit methods it uses the correction du and calls the implicit updater.
 */
 void procBlock::UpdateBlock(const input &inputVars, const int &impFlag,
                             const idealGas &eos, const double &aRef,
+                            const sutherland &suth,
                             const multiArray3d<genArray> &du,
+                            const multiArray3d<genArray> &consVars,
                             const unique_ptr<turbModel> &turb,
-                            genArray &l2, resid &linf) {
+                            const int &rr, genArray &l2, resid &linf) {
   // inputVars -- all input variables
   // impFlag -- flag to determine if simulation is to be solved via explicit or
   // implicit time stepping
@@ -603,92 +605,48 @@ void procBlock::UpdateBlock(const input &inputVars, const int &impFlag,
   // bb
   // du -- updates to conservative variables (only used in implicit solver)
   // turb -- turbulence model
+  // rr -- nonlinear iteration number
   // l2 -- l-2 norm of residual
   // linf -- l-infinity norm of residual
 
-  // if not runge-kutta 4 step method for time integration
-  if (inputVars.TimeIntegration() != "rk4") {
-    // loop over all physical cells
-    for (struct {int p; int g;} kk = {0, numGhosts_}; kk.p <
-             this->NumK(); kk.g++, kk.p++) {
-      for (struct {int p; int g;} jj = {0, numGhosts_}; jj.p <
-               this->NumJ(); jj.g++, jj.p++) {
-        for (struct {int p; int g;} ii = {0, numGhosts_}; ii.p <
-                 this->NumI(); ii.g++, ii.p++) {
-          // explicit euler time integration
-          if (inputVars.TimeIntegration() == "explicitEuler") {
-            this->ExplicitEulerTimeAdvance(eos, turb, ii.g, jj.g, kk.g,
-                                           ii.p, jj.p, kk.p);
-          } else if (impFlag) {  // if implicit use update (du)
-            this->ImplicitTimeAdvance(du(ii.p, jj.p, kk.p), eos, turb,
-                                      ii.g, jj.g, kk.g);
-          }
+  // loop over all physical cells
+  for (struct {int p; int g;} kk = {0, numGhosts_}; kk.p <
+           this->NumK(); kk.g++, kk.p++) {
+    for (struct {int p; int g;} jj = {0, numGhosts_}; jj.p <
+             this->NumJ(); jj.g++, jj.p++) {
+      for (struct {int p; int g;} ii = {0, numGhosts_}; ii.p <
+               this->NumI(); ii.g++, ii.p++) {
+        // explicit euler time integration
+        if (inputVars.TimeIntegration() == "explicitEuler") {
+          this->ExplicitEulerTimeAdvance(eos, turb, ii.g, jj.g, kk.g,
+                                         ii.p, jj.p, kk.p);
+        // 4-stage runge-kutta method (explicit)
+        } else if (inputVars.TimeIntegration() == "rk4") {
+          // advance 1 RK stage
+          this->RK4TimeAdvance(consVars(ii.p, jj.p, kk.p), eos, turb,
+                               ii.g, jj.g, kk.g,
+                               ii.p, jj.p, kk.p, rr);
+        } else if (impFlag) {  // if implicit use update (du)
+          this->ImplicitTimeAdvance(du(ii.p, jj.p, kk.p), eos, turb,
+                                    ii.g, jj.g, kk.g);
+        } else {
+          cerr << "ERROR: Time integration scheme " <<
+              inputVars.TimeIntegration() << " is not recognized!" << endl;
+        }
 
-          // accumulate l2 norm of residual
-          l2 = l2 + residual_(ii.p, jj.p, kk.p) * residual_(ii.p, jj.p, kk.p);
+        // accumulate l2 norm of residual
+        l2 = l2 + residual_(ii.p, jj.p, kk.p) * residual_(ii.p, jj.p, kk.p);
 
-          // if any residual is larger than previous residual, a new linf
-          // residual is found
-          for (auto ll = 0; ll < NUMVARS; ll++) {
-            if (this->Residual(ii.p, jj.p, kk.p, ll) > linf.Linf()) {
-              linf.UpdateMax(this->Residual(ii.p, jj.p, kk.p, ll),
-                             parBlock_, ii.p, jj.p, kk.p, ll + 1);
-            }
+        // if any residual is larger than previous residual, a new linf
+        // residual is found
+        for (auto ll = 0; ll < NUMVARS; ll++) {
+          if (this->Residual(ii.p, jj.p, kk.p, ll) > linf.Linf()) {
+            linf.UpdateMax(this->Residual(ii.p, jj.p, kk.p, ll),
+                           parBlock_, ii.p, jj.p, kk.p, ll + 1);
           }
         }
       }
     }
-  // using min storage rk4 method
-  } else if (inputVars.TimeIntegration() == "rk4") {
-    // save state and local time step at time n
-    auto stateN = state_;
-    auto dtN = dt_;
-
-    // loop over rk stages
-    for (auto rr = 0; rr < 4; rr++) {
-      // loop over all physical cells
-      for (struct {int p; int g;} kk = {0, numGhosts_}; kk.p <
-               this->NumK(); kk.g++, kk.p++) {
-        for (struct {int p; int g;} jj = {0, numGhosts_}; jj.p <
-                 this->NumJ(); jj.g++, jj.p++) {
-          for (struct {int p; int g;} ii = {0, numGhosts_}; ii.p <
-                   this->NumI(); ii.g++, ii.p++) {
-            // advance 1 RK stage
-            this->RK4TimeAdvance(stateN(ii.g, jj.g, kk.g), eos, turb,
-                                 ii.g, jj.g, kk.g,
-                                 ii.p, jj.p, kk.p, rr);
-
-            // at last stage
-            // accumulate l2 norm of residual
-            if (rr == 3) {
-              l2 = l2 + residual_(ii.p, jj.p, kk.p) *
-                  residual_(ii.p, jj.p, kk.p);
-
-              for (auto ll = 0; ll < NUMVARS; ll++) {
-                if (this->Residual(ii.p, jj.p, kk.p, ll) > linf.Linf()) {
-                  linf.UpdateMax(this->Residual(ii.p, jj.p, kk.p, ll),
-                                 parBlock_, ii.p, jj.p, kk.p, ll + 1);
-                }
-              }
-            }
-          }
-        }
-      }
-      // for multistage RK4 method, calculate fluxes and residuals again
-      if (rr < 3) {  // no need to calculate fluxes after final RK interation
-        // UPDATE NEEDED -- have to calculate grads, visc fluxes, source terms
-        // again. Problem is viscous BCs overwrite inviscid BCs, but inviscid
-        // BCs are needed again for next RK iteration
-        this->CalcInvFluxI(eos, inputVars);
-        this->CalcInvFluxJ(eos, inputVars);
-        this->CalcInvFluxK(eos, inputVars);
-        // time step should be constant
-        // this->CalcBlockTimeStep(inputVars, aRef);
-      }
-    }
-  } else {
-    cerr << "ERROR: Time integration scheme " << inputVars.TimeIntegration()
-         << " is not recognized!" << endl;
   }
 }
 
@@ -753,7 +711,7 @@ Un is the conserved variables at time n, Un+1 is the conserved variables at time
 n+1, dt_ is the cell's time step, V is the cell's volume, alpha is the runge-kutta
 coefficient, and R is the cell's residual.
  */
-void procBlock::RK4TimeAdvance(const primVars &currState,
+void procBlock::RK4TimeAdvance(const genArray &currState,
                                const idealGas &eqnState,
                                const unique_ptr<turbModel> &turb,
                                const int &ig, const int &jg, const int &kg,
@@ -774,8 +732,8 @@ void procBlock::RK4TimeAdvance(const primVars &currState,
   double alpha[4] = {0.25, 1.0 / 3.0, 0.5, 1.0};
 
   // update conserved variables
-  auto consVars = currState.ConsVars(eqnState) -
-      dt_(ip, jp, kp) / vol_(ig, jg, kg) * alpha[rk] * residual_(ip, jp, kp);
+  auto consVars = currState - dt_(ip, jp, kp) / vol_(ig, jg, kg) *
+      alpha[rk] * residual_(ip, jp, kp);
 
   // calculate updated primative variables
   state_(ig, jg, kg) = primVars(consVars, false, eqnState, turb);
@@ -826,32 +784,37 @@ The above equation shows that the time m minus time n term (FD(Un)) requires a
 (1+zeta)V/(t*theta) term multiplied by it. That is the purpose of this
 function.
 */
-multiArray3d<genArray> procBlock::AddVolTime(const multiArray3d<genArray> &m,
-                                             const multiArray3d<genArray> &n,
-                                             const double &theta,
-                                             const double &zeta) const {
-  // m -- solution for block at time m
+multiArray3d<genArray> procBlock::SolTimeMMinusN(
+    const multiArray3d<genArray> &n, const idealGas &eos, const input &inp,
+    const int &mm) const {
   // n -- solution for block at time n
-  // theta -- Beam & Warming coefficient theta for time integration
-  // zeta -- Beam & Warming coefficient zeta for time integration
+  // eos -- equation of state
+  // inp -- input variables
+  // mm -- nonlinear iteration number
 
-  // initialize a vector to hold the returned values
-  multiArray3d<genArray> mMinusN(m.NumI(), m.NumJ(), m.NumK());
+  // initialize a vector to hold the returned values to zero
+  multiArray3d<genArray> mMinusN(n.NumI(), n.NumJ(), n.NumK());
 
-  // loop over all physical cells
-  for (struct {int p; int g;} kk = {0, numGhosts_}; kk.p <
-           this->NumK(); kk.g++, kk.p++) {
-    for (struct {int p; int g;} jj = {0, numGhosts_}; jj.p <
-             this->NumJ(); jj.g++, jj.p++) {
-      for (struct {int p; int g;} ii = {0, numGhosts_}; ii.p <
-               this->NumI(); ii.g++, ii.p++) {
-        auto I = (vol_(ii.g, jj.g, kk.g) * (1.0 + zeta)) /
-            (dt_(ii.p, jj.p, kk.p) * theta);
-        mMinusN(ii.p, jj.p, kk.p) =
-            I * (m(ii.p, jj.p, kk.p) - n(ii.p, jj.p, kk.p));
+  // if mm is 0, then solution at time m and solution at time n is the same
+  if (mm != 0) {
+    auto m = this->GetCopyConsVars(eos);
+
+    // loop over all physical cells
+    for (struct {int p; int g;} kk = {0, numGhosts_}; kk.p <
+             this->NumK(); kk.g++, kk.p++) {
+      for (struct {int p; int g;} jj = {0, numGhosts_}; jj.p <
+               this->NumJ(); jj.g++, jj.p++) {
+        for (struct {int p; int g;} ii = {0, numGhosts_}; ii.p <
+                 this->NumI(); ii.g++, ii.p++) {
+          auto I = (vol_(ii.g, jj.g, kk.g) * (1.0 + inp.Zeta())) /
+              (dt_(ii.p, jj.p, kk.p) * inp.Theta());
+          mMinusN(ii.p, jj.p, kk.p) =
+              I * (m(ii.p, jj.p, kk.p) - n(ii.p, jj.p, kk.p));
+        }
       }
     }
   }
+
   return mMinusN;
 }
 
@@ -880,17 +843,20 @@ Rearranging the above equation we get the following:
 The above equation shows that the time n minus time n-1 term (FD(Un-1)) requires
 a zeta*V/(t*theta) term multiplied by it. That is the purpose of this
 function.
+
+This function is supposed to be run at the end of a time step when the data stored
+in *this has been updated to the next time step.
 */
-void procBlock::DeltaNMinusOne(multiArray3d<genArray> &solDeltaNm1,
-                               const multiArray3d<genArray> &solTimeN,
-                               const idealGas &eqnState, const double &theta,
-                               const double &zeta) {
-  // solDeltaNm1 -- The solution at time n minus the solution at time n-1. (Un -
-  // Un-1) (output)
+multiArray3d<genArray> procBlock::DeltaNMinusOne(
+    const multiArray3d<genArray> &solTimeN, const idealGas &eqnState,
+    const double &theta, const double &zeta) const {
   // solTimeN -- The solution at time n
-  // eqnState -- equation of state_
+  // eqnState -- equation of state
   // theta -- Beam & Warming coefficient theta for time integration
   // zeta -- Beam & Warming coefficient zeta for time integration
+
+  // Solution at time n minus solution at time n-1
+  multiArray3d<genArray> solDeltaNm1(this->NumI(), this->NumJ(), this->NumK());
 
   // loop over physical cells
   for (struct {int p; int g;} kk = {0, numGhosts_}; kk.p <
@@ -907,6 +873,7 @@ void procBlock::DeltaNMinusOne(multiArray3d<genArray> &solDeltaNm1,
       }
     }
   }
+  return solDeltaNm1;
 }
 
 // Member function to return a copy of the conserved variables. This is useful
@@ -6914,10 +6881,53 @@ void procBlock::CalcWallDistance(const kdtree &tree) {
   }
 }
 
+// member function to calculate the residual (LHS)
+void procBlock::CalcResidual(const sutherland &suth, const idealGas &eos,
+                             const input &inp,
+                             const unique_ptr<turbModel> &turb) {
+  // Calculate inviscid fluxes
+  this->CalcInvFluxI(eos, inp);
+  this->CalcInvFluxJ(eos, inp);
+  this->CalcInvFluxK(eos, inp);
+
+  // If viscous change ghost cells and calculate viscous fluxes
+  if (inp.IsViscous()) {
+    // Determine ghost cell values for viscous fluxes
+    this->AssignViscousGhostCells(inp, eos, suth,
+                                                 turb);
+
+    // Calculate gradients
+    gradients grads(inp.IsTurbulent(), *this, eos);
+
+    // Calculate viscous fluxes
+    this->CalcViscFluxI(suth, eos, inp, grads, turb);
+    this->CalcViscFluxJ(suth, eos, inp, grads, turb);
+    this->CalcViscFluxK(suth, eos, inp, grads, turb);
+
+    // If turblent, calculate source terms
+    if (inp.IsTurbulent()) {
+      this->CalcSrcTerms(grads, suth, eos, turb);
+    }
+  }
+}
+
+
 // function to calculate the distance to the nearest viscous wall of all
 // cell centers
 void CalcWallDistance(vector<procBlock> &localBlocks, const kdtree &tree) {
   for (auto ii = 0; ii < static_cast<int>(localBlocks.size()); ii++) {
     localBlocks[ii].CalcWallDistance(tree);
   }
+}
+
+// function to take in a vector of procBlocks and return a vector of the
+// conservative variable states
+vector<multiArray3d<genArray>> GetCopyConsVars(const vector<procBlock> &blocks,
+                                               const idealGas &eos) {
+  vector<multiArray3d<genArray>> consVars(blocks.size());
+
+  for (auto ii = 0; ii < static_cast<int>(blocks.size()); ii++) {
+    consVars[ii] = blocks[ii].GetCopyConsVars(eos);
+  }
+  return consVars;
 }

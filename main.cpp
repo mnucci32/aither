@@ -1,12 +1,12 @@
-/*  An open source Navier-Stokes CFD solver.
+/*  This file is part of aither.
     Copyright (C) 2015  Michael Nucci (michael.nucci@gmail.com)
 
-    This program is free software: you can redistribute it and/or modify
+    Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
+    Aither is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -130,9 +130,6 @@ int main(int argc, char *argv[]) {
     // Get interblock BCs
     connections = GetInterblockBCs(bcs, mesh, decomp);
 
-    // Could send proc3dblocks to processors here,
-    // or initialize all on ROOT processor
-
     // Initialize the whole mesh with one state and assign ghost cells geometry
     stateBlocks.resize(mesh.size());
     for (auto ll = 0; ll < static_cast<int>(mesh.size()); ll++) {
@@ -220,8 +217,7 @@ int main(int argc, char *argv[]) {
   genArray initial(0.0);
 
   // Preallocate vectors for old solution
-  // Outermost vector for blocks, inner vector for cell in blocks,
-  // genArray for variables in cell
+  // Outermost vector for blocks, genArray for variables in cell
   vector<multiArray3d<genArray>> solTimeN(numProcBlock);
   vector<multiArray3d<genArray>> solDeltaNm1(numProcBlock);
 
@@ -245,9 +241,17 @@ int main(int argc, char *argv[]) {
     WriteRes(inputVars.SimNameRoot(), 0, inputVars.OutputFrequency());
   }
 
+  // ----------------------------------------------------------------------
+  // ----------------------- Start Main Loop ------------------------------
+  // ----------------------------------------------------------------------
   for (auto nn = 0; nn < inputVars.Iterations(); nn++) {   // loop over time
     // Calculate cfl number
     inputVars.CalcCFL(nn);
+
+    // Store time-n solution, for time integration methods that require it
+    if (inputVars.IsImplicit() || inputVars.TimeIntegration() == "rk4") {
+      solTimeN = GetCopyConsVars(localStateBlocks, eos);
+    }
 
     // loop over nonlinear iterations
     for (auto mm = 0; mm < inputVars.NonlinearIterations(); mm++) {
@@ -258,30 +262,8 @@ int main(int argc, char *argv[]) {
       // Loop over number of blocks
       for (auto bb = 0; bb < static_cast<int>(localStateBlocks.size());
             bb++) {
-        // Calculate inviscid fluxes
-        localStateBlocks[bb].CalcInvFluxI(eos, inputVars);
-        localStateBlocks[bb].CalcInvFluxJ(eos, inputVars);
-        localStateBlocks[bb].CalcInvFluxK(eos, inputVars);
-
-        // If viscous change ghost cells and calculate viscous fluxes
-        if (inputVars.IsViscous()) {
-          // Determine ghost cell values for viscous fluxes
-          localStateBlocks[bb].AssignViscousGhostCells(inputVars, eos, suth,
-                                                       turb);
-
-          // Calculate gradients
-          gradients grads(inputVars.IsTurbulent(), localStateBlocks[bb], eos);
-
-          // Calculate viscous fluxes
-          localStateBlocks[bb].CalcViscFluxI(suth, eos, inputVars, grads, turb);
-          localStateBlocks[bb].CalcViscFluxJ(suth, eos, inputVars, grads, turb);
-          localStateBlocks[bb].CalcViscFluxK(suth, eos, inputVars, grads, turb);
-
-          // If turblent, calculate source terms
-          if (inputVars.IsTurbulent()) {
-            localStateBlocks[bb].CalcSrcTerms(grads, suth, eos, turb);
-          }
-        }
+        // Calculate residual (LHS)
+        localStateBlocks[bb].CalcResidual(suth, eos, inputVars, turb);
 
         // Calculate the time step to use in the simulation
         // (either user specified or derived from CFL)
@@ -289,27 +271,17 @@ int main(int argc, char *argv[]) {
 
         // If implicit get old solution, reorder block, and use linear solver
         if (inputVars.IsImplicit()) {
-          // Store time-n solution
-          if (mm == 0) {  // first nonlinear iteration, save solution
-            solTimeN[bb] = localStateBlocks[bb].GetCopyConsVars(eos);
-
-            // At first iteration, resize vector for old solution
-            // and calculate solution at time n=-1
-            if (nn == 0) {
-              solDeltaNm1[bb].ClearResize(solTimeN[bb].NumI(),
-                                          solTimeN[bb].NumJ(),
-                                          solTimeN[bb].NumK());
-              localStateBlocks[bb].DeltaNMinusOne(solDeltaNm1[bb], solTimeN[bb],
-                                                  eos, inputVars.Theta(),
-                                                  inputVars.Zeta());
-            }
+          // At first iteration, resize vector for old solution
+          if (nn == 0 && mm == 0) {
+            solDeltaNm1[bb].ClearResize(solTimeN[bb].NumI(),
+                                        solTimeN[bb].NumJ(),
+                                        solTimeN[bb].NumK());
           }
 
-          // Add volume divided by time step term to time m minus time n values
+          // Get term for solution at time m minus solution at time n
           multiArray3d<genArray> solTimeMmN =
-              localStateBlocks[bb].AddVolTime(
-                  localStateBlocks[bb].GetCopyConsVars(eos),
-                  solTimeN[bb], inputVars.Theta(), inputVars.Zeta());
+              localStateBlocks[bb].SolTimeMMinusN(solTimeN[bb], eos, inputVars,
+                                                  mm);
 
           // Reorder block (by hyperplanes) for lusgs
           auto reorder = HyperplaneReorder(localStateBlocks[bb].NumI(),
@@ -328,23 +300,25 @@ int main(int argc, char *argv[]) {
 
           // Update solution
           localStateBlocks[bb].UpdateBlock(inputVars, inputVars.IsImplicit(),
-                                           eos, aRef, du, turb, residL2,
-                                           residLinf);
+                                           eos, aRef, suth, du, solTimeN[bb],
+                                           turb, mm, residL2, residLinf);
 
           // Assign time n to time n-1 at end of nonlinear iterations
           if (inputVars.TimeIntegration() == "bdf2" &&
               mm == inputVars.NonlinearIterations() - 1 ) {
-            localStateBlocks[bb].DeltaNMinusOne(solDeltaNm1[bb], solTimeN[bb],
-                                                eos, inputVars.Theta(),
-                                                inputVars.Zeta());
+            solDeltaNm1[bb] =
+                localStateBlocks[bb].DeltaNMinusOne(solTimeN[bb], eos,
+                                                    inputVars.Theta(),
+                                                    inputVars.Zeta());
           }
         } else {  // explicit
           // Update solution
           // not used in explicit update
           multiArray3d<genArray> dummyCorrection(1, 1, 1);
           localStateBlocks[bb].UpdateBlock(inputVars, inputVars.IsImplicit(),
-                                           eos, aRef, dummyCorrection, turb,
-                                           residL2, residLinf);
+                                           eos, aRef, suth, dummyCorrection,
+                                           solTimeN[bb], turb, mm, residL2,
+                                           residLinf);
         }
 
         // Zero residuals and wave speed

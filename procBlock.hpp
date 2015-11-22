@@ -1,12 +1,12 @@
-/*  An open source Navier-Stokes CFD solver.
+/*  This file is part of aither.
     Copyright (C) 2015  Michael Nucci (michael.nucci@gmail.com)
 
-    This program is free software: you can redistribute it and/or modify
+    Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
+    Aither is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -83,6 +83,45 @@ class procBlock {
   int localPos_;  // position on local processor
   int globalPos_;  // global position of procBlock in decomposed vector of
                    // procBlocks
+
+  // private member functions
+  void CalcInvFluxI(const idealGas &, const input &);
+  void CalcInvFluxJ(const idealGas &, const input &);
+  void CalcInvFluxK(const idealGas &, const input &);
+
+  void CalcViscFluxI(const sutherland &, const idealGas &, const input &,
+                     const gradients &, const unique_ptr<turbModel> &);
+  void CalcViscFluxJ(const sutherland &, const idealGas &, const input &,
+                     const gradients &, const unique_ptr<turbModel> &);
+  void CalcViscFluxK(const sutherland &, const idealGas &, const input &,
+                     const gradients &, const unique_ptr<turbModel> &);
+
+  void CalcCellDt(const int &, const int &, const int &, const double &);
+
+  void ExplicitEulerTimeAdvance(const idealGas &, const unique_ptr<turbModel> &,
+                                const int &, const int &, const int &,
+                                const int &, const int &, const int &);
+  void ImplicitTimeAdvance(const genArray &, const idealGas &,
+                           const unique_ptr<turbModel> &, const int &,
+                           const int &, const int &);
+  void RK4TimeAdvance(const genArray &, const idealGas &,
+                      const unique_ptr<turbModel> &, const int &, const int &,
+                      const int &, const int &, const int &, const int &,
+                      const int &);
+
+  void CalcSrcTerms(const gradients &, const sutherland &, const idealGas &,
+                    const unique_ptr<turbModel> &);
+
+  void AddToResidual(const inviscidFlux &, const int &, const int &,
+                     const int &);
+  void AddToResidual(const viscousFlux &, const int &, const int &,
+                     const int &);
+  void SubtractFromResidual(const inviscidFlux &, const int &, const int &,
+                            const int &);
+  void SubtractFromResidual(const viscousFlux &, const int &, const int &,
+                            const int &);
+  void SubtractFromResidual(const source &, const int &, const int &,
+                            const int &);
 
  public:
   // constructors
@@ -178,17 +217,6 @@ class procBlock {
     return wallDist_(ii, jj, kk);
   }
 
-  void AddToResidual(const inviscidFlux &, const int &, const int &,
-                     const int &);
-  void AddToResidual(const viscousFlux &, const int &, const int &,
-                     const int &);
-  void SubtractFromResidual(const inviscidFlux &, const int &, const int &,
-                            const int &);
-  void SubtractFromResidual(const viscousFlux &, const int &, const int &,
-                            const int &);
-  void SubtractFromResidual(const source &, const int &, const int &,
-                            const int &);
-
   genArray Residual(const int &ii, const int &jj, const int &kk) const {
     return residual_(ii, jj, kk);
   }
@@ -197,61 +225,18 @@ class procBlock {
     return residual_(ii, jj, kk)[a];
   }
 
-  void CalcCellDt(const int &, const int &, const int &, const double &);
-
-  void CalcInvFluxI(const idealGas &, const input &);
-  void CalcInvFluxJ(const idealGas &, const input &);
-  void CalcInvFluxK(const idealGas &, const input &);
-
   void CalcBlockTimeStep(const input &, const double &);
   void UpdateBlock(const input &, const int &, const idealGas &, const double &,
+                   const sutherland &, const multiArray3d<genArray> &,
                    const multiArray3d<genArray> &,
-                   const unique_ptr<turbModel> &, genArray &, resid &);
+                   const unique_ptr<turbModel> &, const int &, genArray &,
+                   resid &);
 
-  void ExplicitEulerTimeAdvance(const idealGas &, const unique_ptr<turbModel> &,
-                                const int &, const int &, const int &,
-                                const int &, const int &, const int &);
-  void ImplicitTimeAdvance(const genArray &, const idealGas &,
-                           const unique_ptr<turbModel> &, const int &,
-                           const int &, const int &);
-  void RK4TimeAdvance(const primVars &, const idealGas &,
-                      const unique_ptr<turbModel> &, const int &, const int &,
-                      const int &, const int &, const int &, const int &,
-                      const int &);
+  void CalcResidual(const sutherland &, const idealGas &, const input &,
+                    const unique_ptr<turbModel> &);
 
   void ResetResidWS();
   void CleanResizeVecs(const int &, const int &, const int &);
-
-  multiArray3d<genArray> AddVolTime(const multiArray3d<genArray> &,
-                              const multiArray3d<genArray> &, const double &,
-                              const double &) const;
-  void DeltaNMinusOne(multiArray3d<genArray> &, const multiArray3d<genArray> &,
-                      const idealGas &, const double &, const double &);
-
-  double LUSGS(const vector<vector3d<int>> &, multiArray3d<genArray> &,
-               const multiArray3d<genArray> &, const multiArray3d<genArray> &,
-               const idealGas &, const input &, const sutherland &,
-               const unique_ptr<turbModel> &) const;
-
-  void CalcViscFluxI(const sutherland &, const idealGas &, const input &,
-                     const gradients &, const unique_ptr<turbModel> &);
-  void CalcViscFluxJ(const sutherland &, const idealGas &, const input &,
-                     const gradients &, const unique_ptr<turbModel> &);
-  void CalcViscFluxK(const sutherland &, const idealGas &, const input &,
-                     const gradients &, const unique_ptr<turbModel> &);
-
-  void CalcGradsI(const int &, const int &, const int &, const idealGas &,
-                  const bool &, tensor<double> &, vector3d<double> &,
-                  vector3d<double> &, vector3d<double> &) const;
-  void CalcGradsJ(const int &, const int &, const int &, const idealGas &,
-                  const bool &, tensor<double> &, vector3d<double> &,
-                  vector3d<double> &, vector3d<double> &) const;
-  void CalcGradsK(const int &, const int &, const int &, const idealGas &,
-                  const bool &, tensor<double> &, vector3d<double> &,
-                  vector3d<double> &, vector3d<double> &) const;
-
-  void CalcSrcTerms(const gradients &, const sutherland &, const idealGas &,
-                    const unique_ptr<turbModel> &);
 
   void AssignGhostCellsGeom();
   void AssignGhostCellsGeomEdge();
@@ -270,6 +255,30 @@ class procBlock {
                                    const sutherland &,
                                    const unique_ptr<turbModel> &);
 
+  void CalcGradsI(const int &, const int &, const int &, const idealGas &,
+                  const bool &, tensor<double> &, vector3d<double> &,
+                  vector3d<double> &, vector3d<double> &) const;
+  void CalcGradsJ(const int &, const int &, const int &, const idealGas &,
+                  const bool &, tensor<double> &, vector3d<double> &,
+                  vector3d<double> &, vector3d<double> &) const;
+  void CalcGradsK(const int &, const int &, const int &, const idealGas &,
+                  const bool &, tensor<double> &, vector3d<double> &,
+                  vector3d<double> &, vector3d<double> &) const;
+
+  void CalcWallDistance(const kdtree &);
+
+  multiArray3d<genArray> DeltaNMinusOne(const multiArray3d<genArray> &,
+                                        const idealGas &, const double &,
+                                        const double &) const;
+  multiArray3d<genArray> SolTimeMMinusN(const multiArray3d<genArray> &,
+                                        const idealGas &, const input &,
+                                        const int &) const;
+
+  double LUSGS(const vector<vector3d<int>> &, multiArray3d<genArray> &,
+               const multiArray3d<genArray> &, const multiArray3d<genArray> &,
+               const idealGas &, const input &, const sutherland &,
+               const unique_ptr<turbModel> &) const;
+
   bool IsPhysical(const int &, const int &, const int &, const bool &) const;
   bool AtCorner(const int &, const int &, const int &, const bool &) const;
   bool AtEdge(const int &, const int &, const int &, const bool &,
@@ -285,14 +294,13 @@ class procBlock {
   void Join(const procBlock &, const string &, vector<boundarySurface> &);
 
   void SwapSliceMPI(const interblock &, const int &, const MPI_Datatype &);
+
   void PackSendGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
                        const MPI_Datatype &) const;
   void RecvUnpackGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
                          const MPI_Datatype &);
   void PackSendSolMPI(const MPI_Datatype &) const;
   void RecvUnpackSolMPI(const MPI_Datatype &);
-
-  void CalcWallDistance(const kdtree &);
 
   // destructor
   ~procBlock() noexcept {}
@@ -340,6 +348,9 @@ void GetBoundaryConditions(vector<procBlock> &, const input &, const idealGas &,
 
 vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &);
 void CalcWallDistance(vector<procBlock> &, const kdtree &);
+
+vector<multiArray3d<genArray>> GetCopyConsVars(const vector<procBlock> &,
+                                               const idealGas &);
 
 #endif
 

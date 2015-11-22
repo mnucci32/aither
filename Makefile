@@ -3,7 +3,7 @@ CC = mpic++
 DEBUG = -ggdb -pg
 OPTIM = -O3 -march=native
 PROF = -O3 -march=native -pg
-CODENAME = main
+CODENAME = aither
 CFLAGS = -std=c++14 -Wall -c $(OPTIM)
 LFLAGS = -std=c++14 -Wall $(OPTIM) -o $(CODENAME)
 
