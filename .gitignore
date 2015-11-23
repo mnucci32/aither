@@ -1,0 +1,12 @@
+# ignore linker files
+*.o
+
+# ignore temporary files and out files
+*~
+*.out
+
+# ignore executable
+aither
+
+# ignore test cases
+testCases
