@@ -11,7 +11,7 @@ callgrind.out.*
 cachegrind.out.*
 
 #Ignore compiled executable
-main
+aither
 
 #Ignore results files
 *.fun

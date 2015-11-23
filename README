@@ -1,3 +1,5 @@
+Accurate Implicit Three-dimensional Efficient RANS (AITHER)
+
 ABOUT THE CODE
 This code is for a 3D Navier-Stokes computational fluid dynamics solver. It is a cell centered, structured solver, using mulit-block structured grids in Plot3D format. It uses explicit and implicit time integration methods. It uses MUSCL extrapolation to reconstruct the primative variables from the cell centers to the cell faces. The code uses the Roe flux difference splitting scheme for the inviscid fluxes, and a central scheme for the viscous fluxes. It is second order accurate in both space and time.
 
@@ -13,4 +15,4 @@ HOW TO COMPILE
 Assuming you have g++ (or equivalent) with c++14 support and some version of MPI (I use MPICH), just type 'make'.
 
 HOW TO RUN
-mpirun -np 1 main inputFile.inp >outputFile.out 2>errorFile.err &
+mpirun -np 1 aither inputFile.inp >outputFile.out 2>errorFile.err &
