@@ -1,12 +1,12 @@
-/*  An open source Navier-Stokes CFD solver.
+/*  This file is part of aither.
     Copyright (C) 2015  Michael Nucci (michael.nucci@gmail.com)
 
-    This program is free software: you can redistribute it and/or modify
+    Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
-    This program is distributed in the hope that it will be useful,
+    Aither is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
@@ -528,6 +528,9 @@ void input::ReadInput(const int &rank) {
     }
   }
 
+  // input file sanity checks
+  this->CheckNonlinearIterations();
+
   if (rank == ROOTP) {
     cout << endl;
     cout << "Input file parse complete" << endl;
@@ -625,4 +628,21 @@ unique_ptr<turbModel> input::AssignTurbulenceModel() const {
 // extension i.e. "myInput.inp" would return "myInput"
 string input::SimNameRoot() const {
   return simName_.substr(0, simName_.find("."));
+}
+
+// member function to check validity of nonlinear iterations
+void input::CheckNonlinearIterations() {
+  if (timeIntegration_ == "rk4" && nonlinearIterations_ != 4) {
+    cerr << "WARNING: For RK4 method, nonlinear iterations should be set to "
+         << 4 << " changing value from " << nonlinearIterations_ << " to "
+         << 4 << endl;
+    nonlinearIterations_ = 4;
+  }
+
+  if (timeIntegration_ == "euler" && nonlinearIterations_ != 1) {
+    cerr << "WARNING: For euler method, nonlinear iterations should be set to "
+         << 1 << " changing value from " << nonlinearIterations_ << " to " << 1
+         << endl;
+    nonlinearIterations_ = 1;
+  }
 }
