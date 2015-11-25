@@ -1,0 +1,9 @@
+# Site settings
+title: Aither
+baseurl: "/aither" # the subpath of your site, e.g. /blog/
+url: http://mnucci32.github.io/aither
+twitter_username: aitherCFD
+github_username: mnucci32
+
+# Build settings
+markdown: kramdown
