@@ -1,6 +1,6 @@
 # Site settings
 title: Aither
-baseurl: /aither
+baseurl: "/aither"
 url: http://mnucci32.github.io/aither
 twitter_username: aitherCFD
 github_username: mnucci32
