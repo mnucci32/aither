@@ -12,5 +12,5 @@ layout: theme
 
 {% endfor %}
 
-subscribe via [RSS]({{ "/feed.xml" | prepend: site.baseurl }})
+subscribe via [RSS]({{ "feed.xml" | prepend: site.baseurl }})
 
