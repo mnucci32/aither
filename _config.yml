@@ -1,6 +1,6 @@
 # Site settings
 title: Aither
-baseurl: aithercfd.com #"/aither" # the subpath of your site, e.g. /blog/
+baseurl: /aither
 url: http://mnucci32.github.io/aither
 twitter_username: aitherCFD
 github_username: mnucci32
