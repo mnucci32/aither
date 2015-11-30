@@ -8,7 +8,7 @@ layout: theme
 
 #### {{ post.date | date: "%b %-d, %Y" }}
 
-## [{{ post.title }}]({{ post.url | prepend: site.baseurl }})
+## [{{ post.title }}]({{ post.url }})
 
 {% endfor %}
 
