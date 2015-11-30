@@ -5,5 +5,7 @@ url: http://mnucci32.github.io/aither
 twitter_username: aitherCFD
 github_username: mnucci32
 
+exclude: [aither, testCases]
+
 # Build settings
 markdown: kramdown
