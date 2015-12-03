@@ -3,6 +3,7 @@ layout: post
 title: "Introducing Aither"
 date: 2015-11-24 10:24:00
 tags: [CFD, Aither]
+comments: true
 ---
 # Introduction
 Aither (**A**ccurate **I**mplicit **T**hree-dimensional **H**igh-order **E**ffcient **R**ANS), pronounced [*ee-thir*](https://en.wikipedia.org/wiki/Aether_(mythology)), is an open source CFD code written in C++11/14. Aither is a structured multi-block Reynolds-Averaged Navier-Stokes code. The Aither project is hosted on Github.

@@ -3,6 +3,7 @@ layout: post
 title: "Compiling Aither & Running A Simulation"
 date: 2015-11-24 22:30
 tags: [CFD, Aither, MPI, C++, Compiler]
+comments: true
 ---
 # Compiling Aither
 To compile Aither you must have a C++ compiler with C++14 support. [G++](https://gcc.gnu.org/) version 5 and up should work, as well as [Clang](http://clang.llvm.org/) 3.4 and up. Before compiling, you must have an MPI implementation installed. Aither should work with any standard implementation, and has been used with both [OpenMPI](http://www.open-mpi.org/) and [MPICH](https://www.mpich.org/). Once these dependencies are installed, all that is necessary to compile the code is to navigate to the source code directory and type *make*.

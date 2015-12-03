@@ -1,5 +1,7 @@
 ---
 layout: theme
+title: home
+comments: false
 ---
 
 # Blog Posts
