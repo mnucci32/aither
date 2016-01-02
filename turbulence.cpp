@@ -85,15 +85,19 @@ void turbNone::Print() const {
 }
 
 // member function to calculate turbulence source terms
-void turbNone::CalcTurbSrc(const primVars &state, const tensor<double> &velGrad,
-                           const vector3d<double> &kGrad,
-                           const vector3d<double> &wGrad,
-                           const sutherland &suth, const idealGas &eos,
-                           const double &wallDist, double &ksrc,
-                           double &wsrc) const {
+double turbNone::CalcTurbSrc(const primVars &state,
+                             const tensor<double> &velGrad,
+                             const vector3d<double> &kGrad,
+                             const vector3d<double> &wGrad,
+                             const sutherland &suth, const idealGas &eos,
+                             const double &wallDist, double &ksrc,
+                             double &wsrc) const {
   // set k and omega source terms to zero
   ksrc = 0.0;
   wsrc = 0.0;
+
+  // return source jacobian spectral radius
+  return this->SpecRad(state, suth);
 }
 
 // ---------------------------------------------------------------------
@@ -180,14 +184,15 @@ double turbKWWilcox::OmegaTilda(const primVars &state,
                   sqrt(2.0 * sHat.DoubleDotTrans(sHat) / betaStar_));
 }
 
-// member function to calculate turbulence source terms
-void turbKWWilcox::CalcTurbSrc(const primVars &state,
-                               const tensor<double> &velGrad,
-                               const vector3d<double> &kGrad,
-                               const vector3d<double> &wGrad,
-                               const sutherland &suth, const idealGas &eos,
-                               const double &wallDist, double &ksrc,
-                               double &wsrc) const {
+// member function to calculate turbulence source terms and return source
+// spectral radius
+double turbKWWilcox::CalcTurbSrc(const primVars &state,
+                                 const tensor<double> &velGrad,
+                                 const vector3d<double> &kGrad,
+                                 const vector3d<double> &wGrad,
+                                 const sutherland &suth, const idealGas &eos,
+                                 const double &wallDist, double &ksrc,
+                                 double &wsrc) const {
   // calculate tke destruction
   const auto tkeDest = suth.InvNondimScaling() * betaStar_ *
       this->TkeDestruction(state);
@@ -211,6 +216,9 @@ void turbKWWilcox::CalcTurbSrc(const primVars &state,
   // assign source term values
   ksrc = tkeProd - tkeDest;
   wsrc = omgProd - omgDest + omgCd;
+
+  // return spectral radius of source jacobian
+  return this->SpecRad(state, suth);
 }
 
 // member function to calculate the eddy viscosity, and the molecular diffusion
@@ -234,6 +242,12 @@ double turbKWWilcox::EddyViscAndMolecDiffCoeff(const primVars &state,
   sigmaW = sigma_ * mut;
 
   return mut;
+}
+
+// member function to calculate the spectral radius of the source jacobian
+double turbKWWilcox::SpecRad(const primVars &state,
+                             const sutherland &suth) const {
+  return -2.0 * betaStar_ * state.Omega() * suth.InvNondimScaling();
 }
 
 // member function to print out turbulence variables
@@ -305,14 +319,15 @@ double turbKWSst::Alpha3(const primVars &state, const double &wallDist,
       (cdkw * wallDist * wallDist);
 }
 
-// member function to calculate turbulence source terms
-void turbKWSst::CalcTurbSrc(const primVars &state,
-                            const tensor<double> &velGrad,
-                            const vector3d<double> &kGrad,
-                            const vector3d<double> &wGrad,
-                            const sutherland &suth, const idealGas &eos,
-                            const double &wallDist, double &ksrc,
-                            double &wsrc) const {
+// member function to calculate turbulence source terms and source spectral
+// radius
+double turbKWSst::CalcTurbSrc(const primVars &state,
+                              const tensor<double> &velGrad,
+                              const vector3d<double> &kGrad,
+                              const vector3d<double> &wGrad,
+                              const sutherland &suth, const idealGas &eos,
+                              const double &wallDist, double &ksrc,
+                              double &wsrc) const {
   // calculate blending functions
   const auto alpha1 = this->Alpha1(state, suth, wallDist);
   const auto alpha2 = this->Alpha2(state, suth, eos, wallDist);
@@ -351,6 +366,9 @@ void turbKWSst::CalcTurbSrc(const primVars &state,
   // assign source term values
   ksrc = tkeProd - tkeDest;
   wsrc = omgProd - omgDest + omgCd;
+
+  // return spectral radius of source jacobian
+  return this->SpecRad(state, suth);
 }
 
 // member function to calculate the eddy viscosity, and the molecular diffusion
@@ -383,6 +401,12 @@ double turbKWSst::EddyViscAndMolecDiffCoeff(const primVars &state,
   sigmaW = this->BlendedCoeff(sigmaW1_, sigmaW2_, f1) * mut;
 
   return mut;
+}
+
+// member function to calculate the spectral radius of the source jacobian
+double turbKWSst::SpecRad(const primVars &state, const sutherland &suth) const {
+  // DEBUG
+  return -2.0 * betaStar_ * state.Omega() * suth.InvNondimScaling() * 1.0e-6;
 }
 
 // member function to print out turbulence variables

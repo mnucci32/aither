@@ -1028,6 +1028,10 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
   // initialize genArray to zero
   genArray initial(0.0);
 
+  // initialized genArrays corresponding to mean flow and turbulence variables
+  genArray meanFlowI(1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
+  genArray turbFlowI(0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0);
+
   // initialize L and U matrices
   multiArray3d<genArray> U(this->NumI(), this->NumJ(), this->NumK(),
                            initial);
@@ -1049,108 +1053,118 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
     // if i lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip - 1, jp, kp, false)) {
+      // calculate updated state
+      auto stateUpdate = state_(ig - 1, jg, kg).
+          UpdateWithConsVars(eqnState, x(ip - 1, jp, kp), turb);
+
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center values are used
-      auto specRad =
-          CellSpectralRadius(fAreaI_(ig - 1, jg, kg),
-                             fAreaI_(ig, jg, kg),
-                             state_(ig - 1, jg, kg).
-                             UpdateWithConsVars(eqnState,
-                                                x(ip - 1, jp, kp), turb),
-                             eqnState);
+      auto specRad = CellSpectralRadius(fAreaI_(ig - 1, jg, kg),
+                                        fAreaI_(ig, jg, kg), stateUpdate,
+                                        eqnState);
 
       // if viscous add viscous contribution to spectral radius
-      if (inp.EquationSet() != "euler") {
+      if (inp.IsViscous()) {
         specRad +=
-            ViscCellSpectralRadius(fAreaI_(ig - 1, jg, kg),
-                                   fAreaI_(ig, jg, kg),
-                                   state_(ig - 1, jg, kg).
-                                   UpdateWithConsVars(eqnState,
-                                                      x(ip - 1, jp, kp), turb),
-                                   eqnState, suth, vol_(ig - 1, jg, kg),
-                                   turb->EddyViscNoLim(state_(ig - 1, jg, kg)));
+            ViscCellSpectralRadius(fAreaI_(ig - 1, jg, kg), fAreaI_(ig, jg, kg),
+                                   stateUpdate, eqnState, suth,
+                                   vol_(ig - 1, jg, kg),
+                                   turb->EddyViscNoLim(stateUpdate));
       }
+
+      // if turbulent add source contribution to spectral radius
+      // subtract since source term is on opposite side of equation
+      auto turbSpecRad = inp.IsTurbulent() ? specRad -
+          turb->SpecRad(stateUpdate, suth) * vol_(ig - 1, jg, kg) : 0.0;
 
       // at given face location, call function to calculate convective flux
       // change
       auto fluxChange = ConvectiveFluxUpdate(
-          state_(ig - 1, jg, kg), eqnState, turb, this->FAreaUnitI(ig, jg, kg),
-          x(ip - 1, jp, kp));
+          state_(ig - 1, jg, kg), stateUpdate, eqnState,
+          this->FAreaUnitI(ig, jg, kg));
 
       // update L matrix
       L(ip, jp, kp) = L(ip, jp, kp) + 0.5 *
           (this->FAreaMagI(ig, jg, kg) * fluxChange + inp.MatrixRelaxation() *
-           specRad * x(ip - 1, jp, kp));
+           (specRad * meanFlowI + turbSpecRad * turbFlowI) * x(ip - 1, jp, kp));
     }
+
     // if j lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip, jp - 1, kp, false)) {
+      // calculate updated state
+      auto stateUpdate = state_(ig, jg - 1, kg).
+          UpdateWithConsVars(eqnState, x(ip, jp - 1, kp), turb);
+
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center values are used
-      auto specRad =
-          CellSpectralRadius(fAreaJ_(ig, jg - 1, kg),
-                             fAreaJ_(ig, jg, kg),
-                             state_(ig, jg - 1, kg).
-                             UpdateWithConsVars(eqnState,
-                                                x(ip, jp - 1, kp), turb),
-                             eqnState);
+      auto specRad = CellSpectralRadius(fAreaJ_(ig, jg - 1, kg),
+                                        fAreaJ_(ig, jg, kg),
+                                        stateUpdate, eqnState);
 
       // if viscous add viscous contribution to spectral radius
-      if (inp.EquationSet() != "euler") {
+      if (inp.IsViscous()) {
         specRad +=
-            ViscCellSpectralRadius(
-                fAreaJ_(ig, jg - 1, kg), fAreaJ_(ig, jg, kg),
-                state_(ig, jg - 1, kg).
-                UpdateWithConsVars(eqnState, x(ip, jp - 1, kp), turb),
-                eqnState, suth, vol_(ig, jg - 1, kg),
-                turb->EddyViscNoLim(state_(ig, jg - 1, kg)));
+            ViscCellSpectralRadius(fAreaJ_(ig, jg - 1, kg), fAreaJ_(ig, jg, kg),
+                                   stateUpdate, eqnState, suth,
+                                   vol_(ig, jg - 1, kg),
+                                   turb->EddyViscNoLim(stateUpdate));
       }
+
+      // if turbulent add source contribution to spectral radius
+      // subtract since source term is on opposite side of equation
+      auto turbSpecRad = inp.IsTurbulent() ? specRad -
+          turb->SpecRad(stateUpdate, suth) * vol_(ig, jg - 1, kg) : 0.0;
 
       // at given face location, call function to calculate convective flux
       // change
       auto fluxChange = ConvectiveFluxUpdate(
-          state_(ig, jg - 1, kg), eqnState, turb, this->FAreaUnitJ(ig, jg, kg),
-          x(ip, jp - 1, kp));
+          state_(ig, jg - 1, kg), stateUpdate, eqnState,
+          this->FAreaUnitJ(ig, jg, kg));
 
       // update L matrix
       L(ip, jp, kp) = L(ip, jp, kp) + 0.5 *
           (this->FAreaMagJ(ig, jg, kg) * fluxChange + inp.MatrixRelaxation() *
-           specRad * x(ip, jp - 1, kp));
+           (specRad * meanFlowI + turbSpecRad * turbFlowI) * x(ip, jp - 1, kp));
     }
+
     // if k lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip, jp, kp - 1, false)) {
+      // calculate updated state
+      auto stateUpdate = state_(ig, jg, kg - 1).
+          UpdateWithConsVars(eqnState, x(ip, jp, kp - 1), turb);
+
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center values are used
-      auto specRad =
-          CellSpectralRadius(fAreaK_(ig, jg, kg - 1),
-                             fAreaK_(ig, jg, kg),
-                             state_(ig, jg, kg - 1).
-                             UpdateWithConsVars(eqnState,
-                                                x(ip, jp, kp - 1), turb),
-                             eqnState);
+      auto specRad = CellSpectralRadius(fAreaK_(ig, jg, kg - 1),
+                                        fAreaK_(ig, jg, kg),
+                                        stateUpdate, eqnState);
 
       // if viscous add viscous contribution to spectral radius
-      if (inp.EquationSet() != "euler") {
+      if (inp.IsViscous()) {
         specRad +=
-            ViscCellSpectralRadius(
-                fAreaK_(ig, jg, kg - 1), fAreaK_(ig, jg, kg),
-                state_(ig, jg, kg - 1).
-                UpdateWithConsVars(eqnState, x(ip, jp, kp - 1), turb),
-                eqnState, suth, vol_(ig, jg, kg - 1),
-                turb->EddyViscNoLim(state_(ig, jg, kg - 1)));
+            ViscCellSpectralRadius(fAreaK_(ig, jg, kg - 1), fAreaK_(ig, jg, kg),
+                                   stateUpdate, eqnState, suth,
+                                   vol_(ig, jg, kg - 1),
+                                   turb->EddyViscNoLim(stateUpdate));
       }
+
+      // if turbulent add source contribution to spectral radius
+      // subtract since source term is on opposite side of equation
+      auto turbSpecRad = inp.IsTurbulent() ? specRad -
+          turb->SpecRad(stateUpdate, suth) * vol_(ig, jg, kg - 1) : 0.0;
 
       // at given face location, call function to calculate convective flux
       // change
       auto fluxChange = ConvectiveFluxUpdate(
-          state_(ig, jg, kg - 1), eqnState, turb, this->FAreaUnitK(ig, jg, kg),
-          x(ip, jp, kp - 1));
+          state_(ig, jg, kg - 1), stateUpdate, eqnState,
+          this->FAreaUnitK(ig, jg, kg));
 
       // update L matrix
       L(ip, jp, kp) = L(ip, jp, kp) + 0.5 *
           (this->FAreaMagK(ig, jg, kg) * fluxChange + inp.MatrixRelaxation() *
-           specRad * x(ip, jp, kp - 1));
+          (specRad * meanFlowI + turbSpecRad * turbFlowI) * x(ip, jp, kp - 1));
     }
 
     // add dual time stepping contribution to main diagonal
@@ -1188,107 +1202,119 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
     // if i upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip + 1, jp, kp, false)) {
+      // calculate updated state
+      auto stateUpdate = state_(ig + 1, jg, kg).
+          UpdateWithConsVars(eqnState, x(ip + 1, jp, kp), turb);
+
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center values are used
-      auto specRad =
-          CellSpectralRadius(fAreaI_(ig + 2, jg, kg),
-                             fAreaI_(ig + 1, jg, kg),
-                             state_(ig + 1, jg, kg).
-                             UpdateWithConsVars(eqnState,
-                                                x(ip + 1, jp, kp), turb),
-                             eqnState);
+      auto specRad = CellSpectralRadius(fAreaI_(ig + 2, jg, kg),
+                                        fAreaI_(ig + 1, jg, kg),
+                                        stateUpdate, eqnState);
 
-      if (inp.EquationSet() != "euler") {  // viscous
+      if (inp.IsViscous()) {  // viscous
         specRad +=
             ViscCellSpectralRadius(fAreaI_(ig + 2, jg, kg),
                                    fAreaI_(ig + 1, jg, kg),
-                                   state_(ig + 1, jg, kg).
-                                   UpdateWithConsVars(eqnState,
-                                                      x(ip + 1, jp, kp), turb),
-                                   eqnState, suth, vol_(ig + 1, jg, kg),
-                                   turb->EddyViscNoLim(state_(ig + 1, jg, kg)));
+                                   stateUpdate, eqnState, suth,
+                                   vol_(ig + 1, jg, kg),
+                                   turb->EddyViscNoLim(stateUpdate));
       }
+
+      // if turbulent add source contribution to spectral radius
+      // subtract since source term is on opposite side of equation
+      auto turbSpecRad = inp.IsTurbulent() ? specRad -
+          turb->SpecRad(stateUpdate, suth) * vol_(ig + 1, jg, kg) : 0.0;
 
       // at given face location, call function to calculate convective flux
       // change
       auto fluxChange = ConvectiveFluxUpdate(
-          state_(ig + 1, jg, kg), eqnState, turb,
-          this->FAreaUnitI(ig + 1, jg, kg), x(ip + 1, jp, kp));
+          state_(ig + 1, jg, kg), stateUpdate, eqnState,
+          this->FAreaUnitI(ig + 1, jg, kg));
 
       // update U matrix
       U(ip, jp, kp) = U(ip, jp, kp) + 0.5 *
-          (this->FAreaMagI(ig + 1, jg, kg) * fluxChange -
-           inp.MatrixRelaxation() * specRad * x(ip + 1, jp, kp));
+          (this->FAreaMagI(ig + 1, jg, kg) * fluxChange - inp.MatrixRelaxation()
+           * (specRad * meanFlowI + turbSpecRad * turbFlowI) *
+           x(ip + 1, jp, kp));
     }
+
     // if j upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip, jp + 1, kp, false)) {
+      // calculate updated state
+      auto stateUpdate = state_(ig, jg + 1, kg).
+          UpdateWithConsVars(eqnState, x(ip, jp + 1, kp), turb);
+
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center values are used
-      auto specRad =
-          CellSpectralRadius(fAreaJ_(ig, jg + 2, kg),
-                             fAreaJ_(ig, jg + 1, kg),
-                             state_(ig, jg + 1, kg).
-                             UpdateWithConsVars(eqnState,
-                                                x(ip, jp + 1, kp), turb),
-                             eqnState);
+      auto specRad = CellSpectralRadius(fAreaJ_(ig, jg + 2, kg),
+                                        fAreaJ_(ig, jg + 1, kg),
+                                        stateUpdate, eqnState);
 
-      if (inp.EquationSet() != "euler") {  // viscous
+      if (inp.IsViscous()) {  // viscous
         specRad +=
             ViscCellSpectralRadius(fAreaJ_(ig, jg + 2, kg),
                                    fAreaJ_(ig, jg + 1, kg),
-                                   state_(ig, jg + 1, kg).
-                                   UpdateWithConsVars(eqnState,
-                                                      x(ip, jp + 1, kp), turb),
-                                   eqnState, suth, vol_(ig, jg + 1, kg),
-                                   turb->EddyViscNoLim(state_(ig, jg + 1, kg)));
+                                   stateUpdate, eqnState, suth,
+                                   vol_(ig, jg + 1, kg),
+                                   turb->EddyViscNoLim(stateUpdate));
       }
+
+      // if turbulent add source contribution to spectral radius
+      // subtract since source term is on opposite side of equation
+      auto turbSpecRad = inp.IsTurbulent() ? specRad -
+          turb->SpecRad(stateUpdate, suth) * vol_(ig, jg + 1, kg) : 0.0;
 
       // at given face location, call function to calculate convective flux
       // change
       auto fluxChange = ConvectiveFluxUpdate(
-          state_(ig, jg + 1, kg), eqnState, turb,
-          this->FAreaUnitJ(ig, jg + 1, kg), x(ip, jp + 1, kp));
+          state_(ig, jg + 1, kg), stateUpdate, eqnState,
+          this->FAreaUnitJ(ig, jg + 1, kg));
 
       // update U matrix
       U(ip, jp, kp) = U(ip, jp, kp) + 0.5 *
-          (this->FAreaMagJ(ig, jg + 1, kg) * fluxChange -
-           inp.MatrixRelaxation() * specRad * x(ip, jp + 1, kp));
+          (this->FAreaMagJ(ig, jg + 1, kg) * fluxChange - inp.MatrixRelaxation()
+           * (specRad * meanFlowI + turbSpecRad * turbFlowI) * x(ip, jp + 1, kp));
     }
     // if k upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip, jp, kp + 1, false)) {
+      // calculate updated state
+      auto stateUpdate = state_(ig, jg, kg + 1).
+          UpdateWithConsVars(eqnState, x(ip, jp, kp + 1), turb);
+
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center values are used
-      auto specRad =
-          CellSpectralRadius(fAreaK_(ig, jg, kg + 2),
-                             fAreaK_(ig, jg, kg + 1),
-                             state_(ig, jg, kg + 1).
-                             UpdateWithConsVars(eqnState,
-                                                x(ip, jp, kp + 1), turb),
-                             eqnState);
+      auto specRad = CellSpectralRadius(fAreaK_(ig, jg, kg + 2),
+                                        fAreaK_(ig, jg, kg + 1),
+                                        stateUpdate, eqnState);
 
-      if (inp.EquationSet() != "euler") {  // viscous
+      if (inp.IsViscous()) {  // viscous
         specRad +=
             ViscCellSpectralRadius(fAreaK_(ig, jg, kg + 2),
                                    fAreaK_(ig, jg, kg + 1),
-                                   state_(ig, jg, kg + 1).
-                                   UpdateWithConsVars(eqnState,
-                                                      x(ip, jp, kp + 1), turb),
-                                   eqnState, suth, vol_(ig, jg, kg + 1),
-                                   turb->EddyViscNoLim(state_(ig, jg, kg + 1)));
+                                   stateUpdate, eqnState, suth,
+                                   vol_(ig, jg, kg + 1),
+                                   turb->EddyViscNoLim(stateUpdate));
       }
+
+      // if turbulent add source contribution to spectral radius
+      // subtract since source term is on opposite side of equation
+      auto turbSpecRad = inp.IsTurbulent() ? specRad -
+          turb->SpecRad(stateUpdate, suth) * vol_(ig, jg, kg + 1) : 0.0;
 
       // at given face location, call function to calculate convective flux
       // change
       auto fluxChange = ConvectiveFluxUpdate(
-          state_(ig, jg, kg + 1), eqnState, turb,
-          this->FAreaUnitK(ig, jg, kg + 1), x(ip, jp, kp + 1));
+          state_(ig, jg, kg + 1), stateUpdate, eqnState,
+          this->FAreaUnitK(ig, jg, kg + 1));
 
       // update U matrix
       U(ip, jp, kp) = U(ip, jp, kp) + 0.5 *
-          (this->FAreaMagK(ig, jg, kg + 1) * fluxChange -
-           inp.MatrixRelaxation() * specRad * x(ip, jp, kp + 1));
+          (this->FAreaMagK(ig, jg, kg + 1) * fluxChange - inp.MatrixRelaxation()
+          * (specRad * meanFlowI + turbSpecRad * turbFlowI) *
+           x(ip, jp, kp + 1));
     }
 
     // add dual time stepping contribution to main diagonal
@@ -6785,14 +6811,20 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
                this->NumI(); ii.g++, ii.p++) {
         // calculate turbulent source terms
         source src;
-        src.CalcTurbSrc(turb, state_(ii.g, jj.g, kk.g), grads, suth, eos,
-                        wallDist_(ii.g, jj.g, kk.g), ii.p, jj.p, kk.p);
+        auto srcJacSpecRad = src.CalcTurbSrc(turb, state_(ii.g, jj.g, kk.g),
+                                             grads, suth, eos,
+                                             wallDist_(ii.g, jj.g, kk.g),
+                                             ii.p, jj.p, kk.p);
 
         // add source terms to residual
-        // multiply by -1 because residual is initially on opposite
-        // side of equation
+        // subtract because residual is initially on opposite side of equation
         this->SubtractFromResidual(src * (vol_(ii.g, jj.g, kk.g)),
                                    ii.p, jj.p, kk.p);
+
+        // add contribution of source spectral radius to wave speed
+        // subtract because residual is initially on opposite side of equation
+        // avgWaveSpeed_(ii.p, jj.p, kk.p) -= srcJacSpecRad *
+        //     vol_(ii.g, jj.g, kk.g);
       }
     }
   }

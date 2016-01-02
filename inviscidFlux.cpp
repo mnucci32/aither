@@ -909,15 +909,12 @@ genArray inviscidFlux::ConvertToGenArray() const {
 // function to take in the primative variables, equation of state, face area
 // vector, and conservative variable update and calculate the change in the
 // convective flux
-genArray ConvectiveFluxUpdate(const primVars &state, const idealGas &eqnState,
-                              const unique_ptr<turbModel> &turb,
-                              const vector3d<double> &normArea,
-                              const genArray &du) {
+genArray ConvectiveFluxUpdate(const primVars &state,
+                              const primVars &stateUpdate,
+                              const idealGas &eqnState,
+                              const vector3d<double> &normArea) {
   // get inviscid flux of old state
   const inviscidFlux oldFlux(state, eqnState, normArea);
-
-  // get updated state in primative variables
-  const primVars stateUpdate = state.UpdateWithConsVars(eqnState, du, turb);
 
   // get updated inviscid flux
   const inviscidFlux newFlux(stateUpdate, eqnState, normArea);

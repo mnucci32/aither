@@ -44,7 +44,7 @@ ostream &operator<<(ostream &os, const source &src) {
 }
 
 // Member function to calculate the source terms for the turbulence equations
-void source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
+double source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
                          const primVars &state, const gradients &grads,
                          const sutherland &suth, const idealGas &eqnState,
                          const double &wallDist, const int &ii, const int &jj,
@@ -67,10 +67,13 @@ void source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
   // calculate turbulent source terms
   auto ksrc = 0.0;
   auto wsrc = 0.0;
-  turb->CalcTurbSrc(state, vGrad, kGrad, wGrad, suth, eqnState, wallDist,
-                    ksrc, wsrc);
+  auto srcJacSpecRad = turb->CalcTurbSrc(state, vGrad, kGrad, wGrad, suth,
+                                         eqnState, wallDist, ksrc, wsrc);
 
   // assign turbulent source terms
   data_[5] = ksrc;
   data_[6] = wsrc;
+
+  // return spectral radius of source jacobian
+  return srcJacSpecRad;
 }

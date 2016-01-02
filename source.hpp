@@ -68,7 +68,7 @@ class source {
   double SrcTke() const { return data_[5]; }
   double SrcOmg() const { return data_[6]; }
 
-  void CalcTurbSrc(const unique_ptr<turbModel> &, const primVars &,
+  double CalcTurbSrc(const unique_ptr<turbModel> &, const primVars &,
                    const gradients &, const sutherland &,
                    const idealGas &, const double &, const int &,
                    const int &, const int &);
