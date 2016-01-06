@@ -30,6 +30,7 @@
 #include "slices.hpp"
 #include "source.hpp"
 #include "resid.hpp"
+#include "fluxJacobian.hpp"
 
 using std::cout;
 using std::endl;
@@ -250,9 +251,12 @@ a cell basis instead of a face bases, it is only calculated for the upper cell
 variable and is eventually used in the time step calculation if the time step
 isn't explicitly specified.
 */
-void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp) {
+void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
+                             multiArray3d<fluxJacobian> &mainDiagonal) {
   // eqnState -- equation of state
   // inp -- all input variables
+  // mainDiagonal -- main diagonal of LHS to store flux jacobians for implicit
+  //                 solver
 
 
   // loop over all physical i-faces
@@ -316,9 +320,16 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp) {
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           avgWaveSpeed_(ii.p, jj.p, kk.p) +=
-              CellSpectralRadius(fAreaI_(ii.g, jj.g, kk.g),
-                                 fAreaI_(ii.g + 1, jj.g, kk.g),
-                                 state_(ii.g, jj.g, kk.g), eqnState);
+              state_(ii.g, jj.g, kk.g).CellSpectralRadius(
+                  fAreaI_(ii.g, jj.g, kk.g), fAreaI_(ii.g + 1, jj.g, kk.g),
+                  eqnState);
+
+          // if implicit, calculate flux jacobian
+          if (inp.IsImplicit()) {
+            mainDiagonal(ii.p, jj.p, kk.p).AddInviscidJacobian(
+                state_(ii.g, jj.g, kk.g), fAreaI_(ii.g, jj.g, kk.g),
+                fAreaI_(ii.g + 1, jj.g, kk.g), eqnState, inp.IsTurbulent());
+          }
         }
       }
     }
@@ -352,9 +363,12 @@ a cell basis instead of a face bases, it is only calculated for the upper cell
 variable and is eventually used in the time step calculation if the time step
 isn't explicitly specified.
 */
-void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp) {
+void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
+                             multiArray3d<fluxJacobian> &mainDiagonal) {
   // eqnState -- equation of state
   // inp -- all input variables
+  // mainDiagonal -- main diagonal of LHS to store flux jacobians for implicit
+  //                 solver
 
   // loop over all physical j-faces
   // in struct p is for physical index, g is for index with ghosts
@@ -419,9 +433,16 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp) {
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           avgWaveSpeed_(ii.p, jj.p, kk.p) +=
-              CellSpectralRadius(fAreaJ_(ii.g, jj.g, kk.g),
-                                 fAreaJ_(ii.g, jj.g + 1, kk.g),
-                                 state_(ii.g, jj.g, kk.g), eqnState);
+              state_(ii.g, jj.g, kk.g).CellSpectralRadius(
+                  fAreaJ_(ii.g, jj.g, kk.g), fAreaJ_(ii.g, jj.g + 1, kk.g),
+                  eqnState);
+
+          // if implicit, calculate flux jacobian
+          if (inp.IsImplicit()) {
+            mainDiagonal(ii.p, jj.p, kk.p).AddInviscidJacobian(
+                state_(ii.g, jj.g, kk.g), fAreaJ_(ii.g, jj.g, kk.g),
+                fAreaJ_(ii.g, jj.g + 1, kk.g), eqnState, inp.IsTurbulent());
+          }
         }
       }
     }
@@ -455,9 +476,12 @@ a cell basis instead of a face bases, it is only calculated for the upper cell
 variable and is eventually used in the time step calculation if the time step
 isn't explicitly specified.
 */
-void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp) {
+void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
+                             multiArray3d<fluxJacobian> &mainDiagonal) {
   // eqnState -- equation of state
   // inp -- all input variables
+  // mainDiagonal -- main diagonal of LHS to store flux jacobians for implicit
+  //                 solver
 
   // loop over all physical k-faces
   // in struct p is for physical index, g is for index with ghosts
@@ -523,9 +547,15 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp) {
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           avgWaveSpeed_(ii.p, jj.p, kk.p) +=
-              CellSpectralRadius(fAreaK_(ii.g, jj.g, kk.g),
-                                 fAreaK_(ii.g, jj.g, kk.g + 1),
-                                 state_(ii.g, jj.g, kk.g), eqnState);
+              state_(ii.g, jj.g, kk.g).CellSpectralRadius(
+                  fAreaK_(ii.g, jj.g, kk.g), fAreaK_(ii.g, jj.g, kk.g + 1),
+                  eqnState);
+
+          if (inp.IsImplicit()) {
+            mainDiagonal(ii.p, jj.p, kk.p).AddInviscidJacobian(
+                state_(ii.g, jj.g, kk.g), fAreaK_(ii.g, jj.g, kk.g),
+                fAreaK_(ii.g, jj.g, kk.g + 1), eqnState, inp.IsTurbulent());
+          }
         }
       }
     }
@@ -1012,7 +1042,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                         const multiArray3d<genArray> &solDeltaNm1,
                         const idealGas &eqnState, const input &inp,
                         const sutherland &suth,
-                        const unique_ptr<turbModel> &turb) const {
+                        const unique_ptr<turbModel> &turb,
+                        const multiArray3d<fluxJacobian> &mainDiagonal) const {
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // x -- correction - added to solution at time n to get to time n+1 (assumed
   // to be zero to start)
@@ -1022,15 +1053,12 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
   // inp -- all input variables
   // suth -- method to get temperature varying viscosity (Sutherland's law)
   // turb -- turbulence model
+  // mainDiagonal -- main diagonal of flux jacobians
 
   auto thetaInv = 1.0 / inp.Theta();
 
   // initialize genArray to zero
   genArray initial(0.0);
-
-  // initialized genArrays corresponding to mean flow and turbulence variables
-  genArray meanFlowI(1.0, 1.0, 1.0, 1.0, 1.0, 0.0, 0.0);
-  genArray turbFlowI(0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 1.0);
 
   // initialize L and U matrices
   multiArray3d<genArray> U(this->NumI(), this->NumJ(), this->NumK(),
@@ -1059,23 +1087,9 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
 
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center values are used
-      auto specRad = CellSpectralRadius(fAreaI_(ig - 1, jg, kg),
-                                        fAreaI_(ig, jg, kg), stateUpdate,
-                                        eqnState);
-
-      // if viscous add viscous contribution to spectral radius
-      if (inp.IsViscous()) {
-        specRad +=
-            ViscCellSpectralRadius(fAreaI_(ig - 1, jg, kg), fAreaI_(ig, jg, kg),
-                                   stateUpdate, eqnState, suth,
-                                   vol_(ig - 1, jg, kg),
-                                   turb->EddyViscNoLim(stateUpdate));
-      }
-
-      // if turbulent add source contribution to spectral radius
-      // subtract since source term is on opposite side of equation
-      auto turbSpecRad = inp.IsTurbulent() ? specRad -
-          turb->SpecRad(stateUpdate, suth) * vol_(ig - 1, jg, kg) : 0.0;
+      fluxJacobian fluxJacUpdate(stateUpdate, fAreaI_(ig - 1, jg, kg),
+                                 fAreaI_(ig, jg, kg), eqnState, suth,
+                                 vol_(ig - 1, jg, kg), turb, inp, false);
 
       // at given face location, call function to calculate convective flux
       // change
@@ -1086,7 +1100,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       // update L matrix
       L(ip, jp, kp) = L(ip, jp, kp) + 0.5 *
           (this->FAreaMagI(ig, jg, kg) * fluxChange + inp.MatrixRelaxation() *
-           (specRad * meanFlowI + turbSpecRad * turbFlowI) * x(ip - 1, jp, kp));
+           fluxJacUpdate.ArrayMult(x(ip - 1, jp, kp)));
     }
 
     // if j lower diagonal cell is in physical location there is a contribution
@@ -1098,23 +1112,9 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
 
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center values are used
-      auto specRad = CellSpectralRadius(fAreaJ_(ig, jg - 1, kg),
-                                        fAreaJ_(ig, jg, kg),
-                                        stateUpdate, eqnState);
-
-      // if viscous add viscous contribution to spectral radius
-      if (inp.IsViscous()) {
-        specRad +=
-            ViscCellSpectralRadius(fAreaJ_(ig, jg - 1, kg), fAreaJ_(ig, jg, kg),
-                                   stateUpdate, eqnState, suth,
-                                   vol_(ig, jg - 1, kg),
-                                   turb->EddyViscNoLim(stateUpdate));
-      }
-
-      // if turbulent add source contribution to spectral radius
-      // subtract since source term is on opposite side of equation
-      auto turbSpecRad = inp.IsTurbulent() ? specRad -
-          turb->SpecRad(stateUpdate, suth) * vol_(ig, jg - 1, kg) : 0.0;
+      fluxJacobian fluxJacUpdate(stateUpdate, fAreaJ_(ig, jg - 1, kg),
+                                 fAreaJ_(ig, jg, kg), eqnState, suth,
+                                 vol_(ig, jg - 1, kg), turb, inp, false);
 
       // at given face location, call function to calculate convective flux
       // change
@@ -1125,7 +1125,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       // update L matrix
       L(ip, jp, kp) = L(ip, jp, kp) + 0.5 *
           (this->FAreaMagJ(ig, jg, kg) * fluxChange + inp.MatrixRelaxation() *
-           (specRad * meanFlowI + turbSpecRad * turbFlowI) * x(ip, jp - 1, kp));
+           fluxJacUpdate.ArrayMult(x(ip, jp - 1, kp)));
     }
 
     // if k lower diagonal cell is in physical location there is a contribution
@@ -1137,23 +1137,9 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
 
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center values are used
-      auto specRad = CellSpectralRadius(fAreaK_(ig, jg, kg - 1),
-                                        fAreaK_(ig, jg, kg),
-                                        stateUpdate, eqnState);
-
-      // if viscous add viscous contribution to spectral radius
-      if (inp.IsViscous()) {
-        specRad +=
-            ViscCellSpectralRadius(fAreaK_(ig, jg, kg - 1), fAreaK_(ig, jg, kg),
-                                   stateUpdate, eqnState, suth,
-                                   vol_(ig, jg, kg - 1),
-                                   turb->EddyViscNoLim(stateUpdate));
-      }
-
-      // if turbulent add source contribution to spectral radius
-      // subtract since source term is on opposite side of equation
-      auto turbSpecRad = inp.IsTurbulent() ? specRad -
-          turb->SpecRad(stateUpdate, suth) * vol_(ig, jg, kg - 1) : 0.0;
+      fluxJacobian fluxJacUpdate(stateUpdate, fAreaK_(ig, jg, kg - 1),
+                                 fAreaK_(ig, jg, kg), eqnState, suth,
+                                 vol_(ig, jg, kg - 1), turb, inp, false);
 
       // at given face location, call function to calculate convective flux
       // change
@@ -1164,7 +1150,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       // update L matrix
       L(ip, jp, kp) = L(ip, jp, kp) + 0.5 *
           (this->FAreaMagK(ig, jg, kg) * fluxChange + inp.MatrixRelaxation() *
-          (specRad * meanFlowI + turbSpecRad * turbFlowI) * x(ip, jp, kp - 1));
+           fluxJacUpdate.ArrayMult(x(ip, jp, kp - 1)));
     }
 
     // add dual time stepping contribution to main diagonal
@@ -1176,15 +1162,27 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       diagTimeVol += tau;
     }
 
-    auto AiiInv = 1.0 / ((avgWaveSpeed_(ip, jp, kp) + diagTimeVol) *
-                           inp.MatrixRelaxation());
+    // DEBUG
+    fluxJacobian scale(1.0, 1.0);
+    auto AiiInv = ((mainDiagonal(ip, jp, kp) + diagTimeVol * scale) *
+                   inp.MatrixRelaxation()).Inverse(inp.IsTurbulent());
+
+    // DEBUG
+    // auto AiiInv = 1.0 / ((avgWaveSpeed_(ip, jp, kp) + diagTimeVol) *
+    //                      inp.MatrixRelaxation());
 
     // calculate intermediate update
     // normal at lower boundaries needs to be reversed, so add instead
     // of subtract L
-    x(ip, jp, kp) = AiiInv * (-1.0 * thetaInv * residual_(ip, jp, kp) -
-                              solDeltaNm1(ip, jp, kp) - solTimeMmN(ip, jp, kp) +
-                              L(ip, jp, kp));
+    x(ip, jp, kp) = AiiInv.ArrayMult(-1.0 * thetaInv * residual_(ip, jp, kp) -
+                                     solDeltaNm1(ip, jp, kp) -
+                                     solTimeMmN(ip, jp, kp) + L(ip, jp, kp));
+
+    // DEBUG
+    // x(ip, jp, kp) = AiiInv * (-1.0 * thetaInv * residual_(ip, jp, kp) -
+    //                           solDeltaNm1(ip, jp, kp) -
+    //                           solTimeMmN(ip, jp, kp) + L(ip, jp, kp));
+
   }  // end forward sweep
 
   //----------------------------------------------------------------------
@@ -1208,23 +1206,9 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
 
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center values are used
-      auto specRad = CellSpectralRadius(fAreaI_(ig + 2, jg, kg),
-                                        fAreaI_(ig + 1, jg, kg),
-                                        stateUpdate, eqnState);
-
-      if (inp.IsViscous()) {  // viscous
-        specRad +=
-            ViscCellSpectralRadius(fAreaI_(ig + 2, jg, kg),
-                                   fAreaI_(ig + 1, jg, kg),
-                                   stateUpdate, eqnState, suth,
-                                   vol_(ig + 1, jg, kg),
-                                   turb->EddyViscNoLim(stateUpdate));
-      }
-
-      // if turbulent add source contribution to spectral radius
-      // subtract since source term is on opposite side of equation
-      auto turbSpecRad = inp.IsTurbulent() ? specRad -
-          turb->SpecRad(stateUpdate, suth) * vol_(ig + 1, jg, kg) : 0.0;
+      fluxJacobian fluxJacUpdate(stateUpdate, fAreaI_(ig + 2, jg, kg),
+                                 fAreaI_(ig + 1, jg, kg), eqnState, suth,
+                                 vol_(ig + 1, jg, kg), turb, inp, false);
 
       // at given face location, call function to calculate convective flux
       // change
@@ -1235,8 +1219,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       // update U matrix
       U(ip, jp, kp) = U(ip, jp, kp) + 0.5 *
           (this->FAreaMagI(ig + 1, jg, kg) * fluxChange - inp.MatrixRelaxation()
-           * (specRad * meanFlowI + turbSpecRad * turbFlowI) *
-           x(ip + 1, jp, kp));
+           * fluxJacUpdate.ArrayMult(x(ip + 1, jp, kp)));
     }
 
     // if j upper diagonal cell is in physical location there is a contribution
@@ -1248,23 +1231,9 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
 
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center values are used
-      auto specRad = CellSpectralRadius(fAreaJ_(ig, jg + 2, kg),
-                                        fAreaJ_(ig, jg + 1, kg),
-                                        stateUpdate, eqnState);
-
-      if (inp.IsViscous()) {  // viscous
-        specRad +=
-            ViscCellSpectralRadius(fAreaJ_(ig, jg + 2, kg),
-                                   fAreaJ_(ig, jg + 1, kg),
-                                   stateUpdate, eqnState, suth,
-                                   vol_(ig, jg + 1, kg),
-                                   turb->EddyViscNoLim(stateUpdate));
-      }
-
-      // if turbulent add source contribution to spectral radius
-      // subtract since source term is on opposite side of equation
-      auto turbSpecRad = inp.IsTurbulent() ? specRad -
-          turb->SpecRad(stateUpdate, suth) * vol_(ig, jg + 1, kg) : 0.0;
+      fluxJacobian fluxJacUpdate(stateUpdate, fAreaJ_(ig, jg + 2, kg),
+                                 fAreaJ_(ig, jg + 1, kg), eqnState, suth,
+                                 vol_(ig, jg + 1, kg), turb, inp, false);
 
       // at given face location, call function to calculate convective flux
       // change
@@ -1275,7 +1244,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       // update U matrix
       U(ip, jp, kp) = U(ip, jp, kp) + 0.5 *
           (this->FAreaMagJ(ig, jg + 1, kg) * fluxChange - inp.MatrixRelaxation()
-           * (specRad * meanFlowI + turbSpecRad * turbFlowI) * x(ip, jp + 1, kp));
+           * fluxJacUpdate.ArrayMult(x(ip, jp + 1, kp)));
     }
     // if k upper diagonal cell is in physical location there is a contribution
     // from it
@@ -1286,23 +1255,9 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
 
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center values are used
-      auto specRad = CellSpectralRadius(fAreaK_(ig, jg, kg + 2),
-                                        fAreaK_(ig, jg, kg + 1),
-                                        stateUpdate, eqnState);
-
-      if (inp.IsViscous()) {  // viscous
-        specRad +=
-            ViscCellSpectralRadius(fAreaK_(ig, jg, kg + 2),
-                                   fAreaK_(ig, jg, kg + 1),
-                                   stateUpdate, eqnState, suth,
-                                   vol_(ig, jg, kg + 1),
-                                   turb->EddyViscNoLim(stateUpdate));
-      }
-
-      // if turbulent add source contribution to spectral radius
-      // subtract since source term is on opposite side of equation
-      auto turbSpecRad = inp.IsTurbulent() ? specRad -
-          turb->SpecRad(stateUpdate, suth) * vol_(ig, jg, kg + 1) : 0.0;
+      fluxJacobian fluxJacUpdate(stateUpdate, fAreaK_(ig, jg, kg + 2),
+                                 fAreaK_(ig, jg, kg + 1), eqnState, suth,
+                                 vol_(ig, jg, kg + 1), turb, inp, false);
 
       // at given face location, call function to calculate convective flux
       // change
@@ -1313,8 +1268,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       // update U matrix
       U(ip, jp, kp) = U(ip, jp, kp) + 0.5 *
           (this->FAreaMagK(ig, jg, kg + 1) * fluxChange - inp.MatrixRelaxation()
-          * (specRad * meanFlowI + turbSpecRad * turbFlowI) *
-           x(ip, jp, kp + 1));
+           * fluxJacUpdate.ArrayMult(x(ip, jp, kp + 1)));
     }
 
     // add dual time stepping contribution to main diagonal
@@ -1326,11 +1280,20 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       diagTimeVol += tau;
     }
 
-    auto AiiInv = 1.0 / ((avgWaveSpeed_(ip, jp, kp) + diagTimeVol) *
-                           inp.MatrixRelaxation());
+    // DEBUG
+    fluxJacobian scale(1.0, 1.0);
+    auto AiiInv = ((mainDiagonal(ip, jp, kp) + diagTimeVol * scale) *
+                   inp.MatrixRelaxation()).Inverse(inp.IsTurbulent());
+    // DEBUG
+    // auto AiiInv = 1.0 / ((avgWaveSpeed_(ip, jp, kp) + diagTimeVol) *
+    //                      inp.MatrixRelaxation())
 
     // calculate update
-    x(ip, jp, kp) = x(ip, jp, kp) - AiiInv * U(ip, jp, kp);
+    x(ip, jp, kp) = x(ip, jp, kp) - AiiInv.ArrayMult(U(ip, jp, kp));
+
+    // DEBUG
+    // x(ip, jp, kp) = x(ip, jp, kp) - AiiInv * U(ip, jp, kp);
+
   }  // end backward sweep
 
   //-------------------------------------------------------------------
@@ -1354,81 +1317,20 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
           diagTimeVol += tau;
         }
 
-        auto Aii = (avgWaveSpeed_(ii.p, jj.p, kk.p) + diagTimeVol) *
+        auto Aii = (mainDiagonal(ii.p, jj.p, kk.p) + diagTimeVol) *
             inp.MatrixRelaxation();
 
         // normal at lower boundaries needs to be reversed, so add instead of
         // subtract L
         auto resid = -1.0 * thetaInv * residual_(ii.p, jj.p, kk.p) +
-            solDeltaNm1(ii.p, jj.p, kk.p) + solTimeMmN(ii.p, jj.p, kk.p) - Aii *
-            x(ii.p, jj.p, kk.p) + L(ii.p, jj.p, kk.p) - U(ii.p, jj.p, kk.p);
+            solDeltaNm1(ii.p, jj.p, kk.p) + solTimeMmN(ii.p, jj.p, kk.p) -
+            Aii.ArrayMult(x(ii.p, jj.p, kk.p)) + L(ii.p, jj.p, kk.p) -
+            U(ii.p, jj.p, kk.p);
         l2Resid = l2Resid + resid * resid;
       }
     }
   }
   return l2Resid.Sum();
-}
-
-/*Function to return the inviscid spectral radius for one direction (i, j, or k)
-given a cell state, equation of state, and 2 face area vectors
-
-L = 0.5 * (A1 + A2) * (|Vn| + SoS)
-
-In the above equation L is the spectral radius in either the i, j, or k
-direction. A1 and A2 are the two face areas in that direction. Vn is the
-cell velocity normal to that direction. SoS is the speed of sound at the cell
- */
-double CellSpectralRadius(const unitVec3dMag<double> &fAreaL,
-                          const unitVec3dMag<double> &fAreaR,
-                          const primVars &state, const idealGas &eqnState) {
-  // fAreaL -- face area of lower face in either i, j, or k direction
-  // fAreaR -- face area of upper face in either i, j, or k direction
-  // state -- state at cell center (primative)
-  // eqnState -- equation of state
-
-  // normalize face areas
-  auto normAvg = (0.5 * (fAreaL.UnitVector() +
-                                     fAreaR.UnitVector())).Normalize();
-  auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());  // average area magnitude
-
-  // return spectral radius
-  return (fabs(state.Velocity().DotProd(normAvg)) + state.SoS(eqnState)) *
-         fMag;
-}
-
-/*Function to calculate the viscous spectral radius for one direction (i, j, or
-k).
-
-L = max(4/(3*rho), g/rho) * mu/Pr * A^2 / V
-
-In the above equation L is the viscous spectral radius for a given direction (i,
-j, or k). Rho is the density at the cell center. G is gamma, mu is viscosity,
-and Pr is the Prandtl number (all at the cell center). A is the average face area
-of the given direction (i, j, k), and V is the cell volume. This implementation
-comes from Blazek.
- */
-double ViscCellSpectralRadius(const unitVec3dMag<double> &fAreaL,
-                              const unitVec3dMag<double> &fAreaR,
-                              const primVars &state, const idealGas &eqnState,
-                              const sutherland &suth, const double &vol,
-                              const double &eddyVisc) {
-  // fAreaL -- face area of lower face in either i, j, or k direction
-  // fAreaR -- face area of upper face in either i, j, or k direction
-  // state -- state at cell center (primative)
-  // eqnState -- equation of state
-  // suth -- method to the temperature varying visosity and Prandtl number
-  // (Sutherland's law)
-  // vol -- cell volume
-
-  auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());  // average area magnitude
-  auto maxTerm =
-      max(4.0 / (3.0 * state.Rho()), eqnState.Gamma() / state.Rho());
-  auto mu = (suth.Viscosity(state.Temperature(eqnState)) +
-               eddyVisc) * suth.NondimScaling();  // viscosity at cell center
-  auto viscTerm = mu / eqnState.Prandtl();
-
-  // return viscous spectral radius
-  return maxTerm * viscTerm * fMag * fMag / vol;
 }
 
 // function to reconstruct cell variables to the face using central
@@ -1714,7 +1616,8 @@ ghost cells, but not the "corner" ghost cells.
 */
 void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                               const input &inp, const gradients &grads,
-                              const unique_ptr<turbModel> &turb) {
+                              const unique_ptr<turbModel> &turb,
+                              multiArray3d<fluxJacobian> &mainDiagonal) {
   // suth -- method to get viscosity as a function of temperature (Sutherland's
   // law)
   // eqnState -- equation of state
@@ -1722,9 +1625,11 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
   // grads -- class holding gradients at face for velocity, temperature, tke,
   // and omega
   // turb -- turbulence model
+  // mainDiagonal -- main diagonal of LHS used to store flux jacobians for
+  //                 implicit solver
 
   // coefficient for viscous spectral radii
-  auto vCoeff = 1.0;
+  auto vCoeff = inp.ViscousCFLCoefficient();
 
   // loop over all physical i-faces
   // in struct p is for physical index, g is for index with ghosts
@@ -1779,12 +1684,16 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           avgWaveSpeed_(ii.p, jj.p, kk.p) += vCoeff *
-              ViscCellSpectralRadius(
-                  fAreaI_(ii.g, jj.g, kk.g),
-                  fAreaI_(ii.g + 1, jj.g, kk.g),
-                  state_(ii.g, jj.g, kk.g), eqnState, suth,
-                  vol_(ii.g, jj.g, kk.g),
-                  turb->EddyViscNoLim(state_(ii.g, jj.g, kk.g)));
+              state_(ii.g, jj.g, kk.g).ViscCellSpectralRadius(
+                  fAreaI_(ii.g, jj.g, kk.g), fAreaI_(ii.g + 1, jj.g, kk.g),
+                  eqnState, suth, vol_(ii.g, jj.g, kk.g), turb);
+
+          if (inp.IsImplicit()) {
+            mainDiagonal(ii.p, jj.p, kk.p).AddViscousJacobian(
+                state_(ii.g, jj.g, kk.g), fAreaI_(ii.g, jj.g, kk.g),
+                fAreaI_(ii.g + 1, jj.g, kk.g), eqnState, suth,
+                vol_(ii.g, jj.g, kk.g), turb, inp.IsTurbulent());
+          }
         }
       }
     }
@@ -1864,7 +1773,8 @@ the "edge" ghost cells, but not the "corner" ghost cells.
 */
 void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                               const input &inp, const gradients &grads,
-                              const unique_ptr<turbModel> &turb) {
+                              const unique_ptr<turbModel> &turb,
+                              multiArray3d<fluxJacobian> &mainDiagonal) {
   // suth -- method to get viscosity as a function of temperature (Sutherland's
   // law)
   // eqnState -- equation of state_
@@ -1872,10 +1782,11 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
   // grads -- class holding gradients at face for velocity, temperature, tke,
   // and omega
   // turb -- turbulence model
+  // mainDiagonal -- main diagonal of LHS used to store flux jacobians for
+  //                 implicit solver
 
   // coefficient for viscous spectral radii
-  auto vCoeff = 1.0;
-
+  auto vCoeff = inp.ViscousCFLCoefficient();
 
   // loop over all physical j-faces
   // in struct p is for physical index, g is for index with ghosts
@@ -1930,12 +1841,16 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           avgWaveSpeed_(ii.p, jj.p, kk.p) += vCoeff *
-              ViscCellSpectralRadius(
-                  fAreaJ_(ii.g, jj.g, kk.g),
-                  fAreaJ_(ii.g, jj.g + 1, kk.g),
-                  state_(ii.g, jj.g, kk.g), eqnState, suth,
-                  vol_(ii.g, jj.g, kk.g),
-                  turb->EddyViscNoLim(state_(ii.g, jj.g, kk.g)));
+              state_(ii.g, jj.g, kk.g).ViscCellSpectralRadius(
+                  fAreaJ_(ii.g, jj.g, kk.g), fAreaJ_(ii.g, jj.g + 1, kk.g),
+                  eqnState, suth, vol_(ii.g, jj.g, kk.g), turb);
+
+          if (inp.IsImplicit()) {
+            mainDiagonal(ii.p, jj.p, kk.p).AddViscousJacobian(
+                state_(ii.g, jj.g, kk.g), fAreaJ_(ii.g, jj.g, kk.g),
+                fAreaJ_(ii.g, jj.g + 1, kk.g), eqnState, suth,
+                vol_(ii.g, jj.g, kk.g), turb, inp.IsTurbulent());
+          }
         }
       }
     }
@@ -2014,7 +1929,8 @@ the "edge" ghost cells, but not the "corner" ghost cells.
 */
 void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                               const input &inp, const gradients &grads,
-                              const unique_ptr<turbModel> &turb) {
+                              const unique_ptr<turbModel> &turb,
+                              multiArray3d<fluxJacobian> &mainDiagonal) {
   // suth -- method to get viscosity as a function of temperature (Sutherland's
   // law)
   // eqnState -- equation of state_
@@ -2022,9 +1938,11 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
   // grads -- class holding gradients at face for velocity, temperature, tke,
   // and omega
   // turb -- turbulence model
+  // mainDiagonal -- main diagonal of LHS used to store flux jacobians for
+  //                 implicit solver
 
   // coefficient for viscous spectral radii
-  auto vCoeff = 1.0;
+  auto vCoeff = inp.ViscousCFLCoefficient();
 
   // loop over all physical k-faces
   // in struct p is for physical index, g is for index with ghosts
@@ -2079,12 +1997,16 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           avgWaveSpeed_(ii.p, jj.p, kk.p) += vCoeff *
-              ViscCellSpectralRadius(
-                  fAreaK_(ii.g, jj.g, kk.g),
-                  fAreaK_(ii.g, jj.g, kk.g + 1),
-                  state_(ii.g, jj.g, kk.g), eqnState, suth,
-                  vol_(ii.g, jj.g, kk.g),
-                  turb->EddyViscNoLim(state_(ii.g, jj.g, kk.g)));
+              state_(ii.g, jj.g, kk.g).ViscCellSpectralRadius(
+                  fAreaK_(ii.g, jj.g, kk.g), fAreaK_(ii.g, jj.g, kk.g + 1),
+                  eqnState, suth, vol_(ii.g, jj.g, kk.g), turb);
+
+          if (inp.IsImplicit()) {
+            mainDiagonal(ii.p, jj.p, kk.p).AddViscousJacobian(
+                state_(ii.g, jj.g, kk.g), fAreaK_(ii.g, jj.g, kk.g),
+                fAreaK_(ii.g, jj.g, kk.g + 1), eqnState, suth,
+                vol_(ii.g, jj.g, kk.g), turb, inp.IsTurbulent());
+          }
         }
       }
     }
@@ -6796,11 +6718,14 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
 // Member function to calculate the source terms and add them to the residual
 void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
                              const idealGas &eos,
-                             const unique_ptr<turbModel> &turb) {
+                             const unique_ptr<turbModel> &turb,
+                             multiArray3d<fluxJacobian> &mainDiagonal) {
   // grads -- gradients (vel, temp, tke, omega)
   // suth -- sutherland's law for viscosity
   // eos -- equation of state
   // turb -- turbulence model
+  // mainDiagonal -- main diagonal of LHS used to store flux jacobians for
+  //                 implicit solver
 
   // loop over all physical cells - no ghost cells needed for source terms
   for (struct {int p; int g;} kk = {0, numGhosts_}; kk.p <
@@ -6811,20 +6736,17 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
                this->NumI(); ii.g++, ii.p++) {
         // calculate turbulent source terms
         source src;
-        auto srcJacSpecRad = src.CalcTurbSrc(turb, state_(ii.g, jj.g, kk.g),
-                                             grads, suth, eos,
-                                             wallDist_(ii.g, jj.g, kk.g),
-                                             ii.p, jj.p, kk.p);
+        src.CalcTurbSrc(turb, state_(ii.g, jj.g, kk.g), grads, suth, eos,
+                        wallDist_(ii.g, jj.g, kk.g), ii.p, jj.p, kk.p);
 
         // add source terms to residual
         // subtract because residual is initially on opposite side of equation
         this->SubtractFromResidual(src * (vol_(ii.g, jj.g, kk.g)),
                                    ii.p, jj.p, kk.p);
 
-        // add contribution of source spectral radius to wave speed
-        // subtract because residual is initially on opposite side of equation
-        // avgWaveSpeed_(ii.p, jj.p, kk.p) -= srcJacSpecRad *
-        //     vol_(ii.g, jj.g, kk.g);
+        // add contribution of source spectral radius to flux jacobian
+        mainDiagonal(ii.p, jj.p, kk.p).AddTurbSourceJacobian(
+            state_(ii.g, jj.g, kk.g), suth, vol_(ii.g, jj.g, kk.g), turb);
       }
     }
   }
@@ -6916,29 +6838,30 @@ void procBlock::CalcWallDistance(const kdtree &tree) {
 // member function to calculate the residual (LHS)
 void procBlock::CalcResidual(const sutherland &suth, const idealGas &eos,
                              const input &inp,
-                             const unique_ptr<turbModel> &turb) {
+                             const unique_ptr<turbModel> &turb,
+                             multiArray3d<fluxJacobian> &mainDiagonal) {
   // Calculate inviscid fluxes
-  this->CalcInvFluxI(eos, inp);
-  this->CalcInvFluxJ(eos, inp);
-  this->CalcInvFluxK(eos, inp);
+  this->CalcInvFluxI(eos, inp, mainDiagonal);
+  this->CalcInvFluxJ(eos, inp, mainDiagonal);
+  this->CalcInvFluxK(eos, inp, mainDiagonal);
 
   // If viscous change ghost cells and calculate viscous fluxes
   if (inp.IsViscous()) {
     // Determine ghost cell values for viscous fluxes
     this->AssignViscousGhostCells(inp, eos, suth,
-                                                 turb);
+                                  turb);
 
     // Calculate gradients
     gradients grads(inp.IsTurbulent(), *this, eos);
 
     // Calculate viscous fluxes
-    this->CalcViscFluxI(suth, eos, inp, grads, turb);
-    this->CalcViscFluxJ(suth, eos, inp, grads, turb);
-    this->CalcViscFluxK(suth, eos, inp, grads, turb);
+    this->CalcViscFluxI(suth, eos, inp, grads, turb, mainDiagonal);
+    this->CalcViscFluxJ(suth, eos, inp, grads, turb, mainDiagonal);
+    this->CalcViscFluxK(suth, eos, inp, grads, turb, mainDiagonal);
 
     // If turblent, calculate source terms
     if (inp.IsTurbulent()) {
-      this->CalcSrcTerms(grads, suth, eos, turb);
+      this->CalcSrcTerms(grads, suth, eos, turb, mainDiagonal);
     }
   }
 }

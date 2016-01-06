@@ -35,6 +35,7 @@
 #include "resid.hpp"
 #include "multiArray3d.hpp"
 #include "kdtree.hpp"
+#include "fluxJacobian.hpp"
 
 using std::cout;
 using std::cerr;
@@ -262,8 +263,14 @@ int main(int argc, char *argv[]) {
       // Loop over number of blocks
       for (auto bb = 0; bb < static_cast<int>(localStateBlocks.size());
             bb++) {
-        // Calculate residual (LHS)
-        localStateBlocks[bb].CalcResidual(suth, eos, inputVars, turb);
+        // Allocate array for flux jacobian
+        multiArray3d<fluxJacobian> mainDiagonal(
+            localStateBlocks[bb].NumI(), localStateBlocks[bb].NumJ(),
+            localStateBlocks[bb].NumK());
+
+        // Calculate residual (RHS)
+        localStateBlocks[bb].CalcResidual(suth, eos, inputVars, turb,
+                                          mainDiagonal);
 
         // Calculate the time step to use in the simulation
         // (either user specified or derived from CFL)
@@ -271,7 +278,7 @@ int main(int argc, char *argv[]) {
 
         // If implicit get old solution, reorder block, and use linear solver
         if (inputVars.IsImplicit()) {
-          // At first iteration, resize vector for old solution
+          // At first iteration, resize array for old solution
           if (nn == 0 && mm == 0) {
             solDeltaNm1[bb].ClearResize(solTimeN[bb].NumI(),
                                         solTimeN[bb].NumJ(),
@@ -296,7 +303,8 @@ int main(int argc, char *argv[]) {
           // Calculate correction (du)
           matrixResid += localStateBlocks[bb].LUSGS(reorder, du, solTimeMmN,
                                                     solDeltaNm1[bb], eos,
-                                                    inputVars, suth, turb);
+                                                    inputVars, suth, turb,
+                                                    mainDiagonal);
 
           // Update solution
           localStateBlocks[bb].UpdateBlock(inputVars, inputVars.IsImplicit(),

@@ -55,6 +55,7 @@ class source;
 class turbModel;
 class plot3dBlock;
 class resid;
+class fluxJacobian;
 
 class procBlock {
   multiArray3d<primVars> state_;  // primative variables at cell center
@@ -85,16 +86,22 @@ class procBlock {
                    // procBlocks
 
   // private member functions
-  void CalcInvFluxI(const idealGas &, const input &);
-  void CalcInvFluxJ(const idealGas &, const input &);
-  void CalcInvFluxK(const idealGas &, const input &);
+  void CalcInvFluxI(const idealGas &, const input &,
+                    multiArray3d<fluxJacobian> &);
+  void CalcInvFluxJ(const idealGas &, const input &,
+                    multiArray3d<fluxJacobian> &);
+  void CalcInvFluxK(const idealGas &, const input &,
+                    multiArray3d<fluxJacobian> &);
 
   void CalcViscFluxI(const sutherland &, const idealGas &, const input &,
-                     const gradients &, const unique_ptr<turbModel> &);
+                     const gradients &, const unique_ptr<turbModel> &,
+                     multiArray3d<fluxJacobian> &);
   void CalcViscFluxJ(const sutherland &, const idealGas &, const input &,
-                     const gradients &, const unique_ptr<turbModel> &);
+                     const gradients &, const unique_ptr<turbModel> &,
+                     multiArray3d<fluxJacobian> &);
   void CalcViscFluxK(const sutherland &, const idealGas &, const input &,
-                     const gradients &, const unique_ptr<turbModel> &);
+                     const gradients &, const unique_ptr<turbModel> &,
+                     multiArray3d<fluxJacobian> &);
 
   void CalcCellDt(const int &, const int &, const int &, const double &);
 
@@ -110,7 +117,8 @@ class procBlock {
                       const int &);
 
   void CalcSrcTerms(const gradients &, const sutherland &, const idealGas &,
-                    const unique_ptr<turbModel> &);
+                    const unique_ptr<turbModel> &,
+                    multiArray3d<fluxJacobian> &);
 
   void AddToResidual(const inviscidFlux &, const int &, const int &,
                      const int &);
@@ -233,7 +241,8 @@ class procBlock {
                    resid &);
 
   void CalcResidual(const sutherland &, const idealGas &, const input &,
-                    const unique_ptr<turbModel> &);
+                    const unique_ptr<turbModel> &,
+                    multiArray3d<fluxJacobian> &);
 
   void ResetResidWS();
   void CleanResizeVecs(const int &, const int &, const int &);
@@ -277,7 +286,8 @@ class procBlock {
   double LUSGS(const vector<vector3d<int>> &, multiArray3d<genArray> &,
                const multiArray3d<genArray> &, const multiArray3d<genArray> &,
                const idealGas &, const input &, const sutherland &,
-               const unique_ptr<turbModel> &) const;
+               const unique_ptr<turbModel> &,
+               const multiArray3d<fluxJacobian> &) const;
 
   bool IsPhysical(const int &, const int &, const int &, const bool &) const;
   bool AtCorner(const int &, const int &, const int &, const bool &) const;
@@ -307,14 +317,6 @@ class procBlock {
 };
 
 // function definitions
-double CellSpectralRadius(const unitVec3dMag<double> &,
-                          const unitVec3dMag<double> &,
-                          const primVars &, const idealGas &);
-double ViscCellSpectralRadius(const unitVec3dMag<double> &,
-                              const unitVec3dMag<double> &, const primVars &,
-                              const idealGas &, const sutherland &,
-                              const double &, const double &);
-
 template <typename T>
 T FaceReconCentral(const T &, const T &, const vector3d<double> &,
                    const vector3d<double> &, const vector3d<double> &);

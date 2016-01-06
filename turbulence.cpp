@@ -405,8 +405,7 @@ double turbKWSst::EddyViscAndMolecDiffCoeff(const primVars &state,
 
 // member function to calculate the spectral radius of the source jacobian
 double turbKWSst::SpecRad(const primVars &state, const sutherland &suth) const {
-  // DEBUG
-  return -2.0 * betaStar_ * state.Omega() * suth.InvNondimScaling() * 1.0e-6;
+  return -2.0 * betaStar_ * state.Omega() * suth.InvNondimScaling();
 }
 
 // member function to print out turbulence variables

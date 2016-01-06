@@ -646,3 +646,16 @@ void input::CheckNonlinearIterations() {
     nonlinearIterations_ = 1;
   }
 }
+
+// member function to calculate the coefficient used to scale the viscous
+// spectral radius in the time step calculation
+double input::ViscousCFLCoefficient() const {
+  auto coeff = 1.0;
+  if (this->Kappa() == 1.0) {  // central
+    coeff = 4.0;
+  } else if (this->Kappa() == -2.0) {  // first order upwind
+    coeff = 2.0;
+  }
+  return coeff;
+}
+
