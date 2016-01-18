@@ -99,8 +99,8 @@ viscousFlux::viscousFlux(
       tGrad.DotProd(normArea);
 
   // turbulence viscous flux
-  data_[4] = (mu + tkeCoeff) * tkeGrad.DotProd(normArea);
-  data_[5] = (mu + omgCoeff) * omegaGrad.DotProd(normArea);
+  data_[4] = (mu + tkeCoeff * mut) * tkeGrad.DotProd(normArea);
+  data_[5] = (mu + omgCoeff * mut) * omegaGrad.DotProd(normArea);
 }
 
 // non-member functions

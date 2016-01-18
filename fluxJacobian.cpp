@@ -43,7 +43,7 @@ fluxJacobian::fluxJacobian(const primVars &state,
 
   const auto isTurbulent = inp.IsTurbulent();
 
-  this->AddInviscidJacobian(state, fAreaL, fAreaR, eos, isTurbulent);
+  this->AddInviscidJacobian(state, fAreaL, fAreaR, eos, turb, isTurbulent);
 
   if (inp.IsViscous()) {
     this->AddViscousJacobian(state, fAreaL, fAreaR, eos, suth, vol,
@@ -61,16 +61,12 @@ void fluxJacobian::AddInviscidJacobian(const primVars &state,
                                        const unitVec3dMag<double> &fAreaL,
                                        const unitVec3dMag<double> &fAreaR,
                                        const idealGas &eos,
+                                       const unique_ptr<turbModel> &turb,
                                        const bool &isTurbulent) {
   flowJacobian_ += state.CellSpectralRadius(fAreaL, fAreaR, eos);
 
   if (isTurbulent) {
-    // DEBUG
-    // auto normAvg = (0.5 * (fAreaL.UnitVector() +
-    //                        fAreaR.UnitVector())).Normalize();
-    // auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
-    // turbJacobian_ += state.Velocity().DotProd(normAvg) * fMag;
-    turbJacobian_ += state.CellSpectralRadius(fAreaL, fAreaR, eos);
+    turbJacobian_ += turb->InviscidSpecRad(state, fAreaL, fAreaR);
   }
 }
 
@@ -82,11 +78,11 @@ void fluxJacobian::AddViscousJacobian(const primVars &state,
                                       const double &vol,
                                       const unique_ptr<turbModel> &turb,
                                       const bool &isTurbulent) {
-  auto jac = state.ViscCellSpectralRadius(fAreaL, fAreaR, eos, suth, vol, turb);
-  flowJacobian_ += jac;
+  flowJacobian_ += state.ViscCellSpectralRadius(fAreaL, fAreaR, eos, suth, vol,
+                                               turb);
 
   if (isTurbulent) {
-    turbJacobian_ += jac;
+    turbJacobian_ += turb->ViscSpecRad(state, fAreaL, fAreaR, eos, suth, vol);
   }
 }
 
@@ -94,7 +90,7 @@ void fluxJacobian::AddTurbSourceJacobian(const primVars &state,
                                          const sutherland &suth,
                                          const double &vol,
                                          const unique_ptr<turbModel> &turb) {
-  turbJacobian_ -= turb->SpecRad(state, suth) * vol;
+  turbJacobian_ -= turb->SrcSpecRad(state, suth) * vol;
 }
 
 genArray fluxJacobian::ArrayMult(genArray arr) const {

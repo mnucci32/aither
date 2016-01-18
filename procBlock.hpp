@@ -87,10 +87,13 @@ class procBlock {
 
   // private member functions
   void CalcInvFluxI(const idealGas &, const input &,
+                    const unique_ptr<turbModel> &,
                     multiArray3d<fluxJacobian> &);
   void CalcInvFluxJ(const idealGas &, const input &,
+                    const unique_ptr<turbModel> &,
                     multiArray3d<fluxJacobian> &);
   void CalcInvFluxK(const idealGas &, const input &,
+                    const unique_ptr<turbModel> &,
                     multiArray3d<fluxJacobian> &);
 
   void CalcViscFluxI(const sutherland &, const idealGas &, const input &,

@@ -97,7 +97,7 @@ double turbNone::CalcTurbSrc(const primVars &state,
   wsrc = 0.0;
 
   // return source jacobian spectral radius
-  return this->SpecRad(state, suth);
+  return this->SrcSpecRad(state, suth);
 }
 
 // ---------------------------------------------------------------------
@@ -218,7 +218,7 @@ double turbKWWilcox::CalcTurbSrc(const primVars &state,
   wsrc = omgProd - omgDest + omgCd;
 
   // return spectral radius of source jacobian
-  return this->SpecRad(state, suth);
+  return this->SrcSpecRad(state, suth);
 }
 
 // member function to calculate the eddy viscosity, and the molecular diffusion
@@ -238,16 +238,39 @@ double turbKWWilcox::EddyViscAndMolecDiffCoeff(const primVars &state,
   const auto mut = this->EddyViscNoLim(state) * suth.NondimScaling();
 
   // calculate blended coefficients
-  sigmaK = sigmaStar_ * mut;
-  sigmaW = sigma_ * mut;
+  sigmaK = sigmaStar_;
+  sigmaW = sigma_;
 
   return mut;
 }
 
 // member function to calculate the spectral radius of the source jacobian
-double turbKWWilcox::SpecRad(const primVars &state,
-                             const sutherland &suth) const {
+double turbKWWilcox::SrcSpecRad(const primVars &state,
+                                const sutherland &suth) const {
   return -2.0 * betaStar_ * state.Omega() * suth.InvNondimScaling();
+}
+
+// member function to calculate inviscid spectral radius
+double turbKWWilcox::InviscidSpecRad(const primVars &state,
+                                     const unitVec3dMag<double> &fAreaL,
+                                     const unitVec3dMag<double> &fAreaR) const {
+  auto normAvg = (0.5 * (fAreaL.UnitVector() +
+                         fAreaR.UnitVector())).Normalize();
+  auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
+  return state.Velocity().DotProd(normAvg) * fMag;
+}
+
+// member function to calculate viscous spectral radius
+double turbKWWilcox::ViscSpecRad(const primVars &state,
+                                 const unitVec3dMag<double> &fAreaL,
+                                 const unitVec3dMag<double> &fAreaR,
+                                 const idealGas &eos, const sutherland &suth,
+                                 const double &vol) const {
+  const auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
+
+  return suth.NondimScaling() * fMag * fMag / (vol * state.Rho()) *
+      (suth.Viscosity(state.Temperature(eos)) +
+       sigmaStar_ * this->EddyViscNoLim(state));
 }
 
 // member function to print out turbulence variables
@@ -368,7 +391,7 @@ double turbKWSst::CalcTurbSrc(const primVars &state,
   wsrc = omgProd - omgDest + omgCd;
 
   // return spectral radius of source jacobian
-  return this->SpecRad(state, suth);
+  return this->SrcSpecRad(state, suth);
 }
 
 // member function to calculate the eddy viscosity, and the molecular diffusion
@@ -397,15 +420,41 @@ double turbKWSst::EddyViscAndMolecDiffCoeff(const primVars &state,
       suth.NondimScaling();
 
   // calculate blended coefficients
-  sigmaK = this->BlendedCoeff(sigmaK1_, sigmaK2_, f1) * mut;
-  sigmaW = this->BlendedCoeff(sigmaW1_, sigmaW2_, f1) * mut;
+  sigmaK = this->BlendedCoeff(sigmaK1_, sigmaK2_, f1);
+  sigmaW = this->BlendedCoeff(sigmaW1_, sigmaW2_, f1);
 
   return mut;
 }
 
 // member function to calculate the spectral radius of the source jacobian
-double turbKWSst::SpecRad(const primVars &state, const sutherland &suth) const {
+double turbKWSst::SrcSpecRad(const primVars &state,
+                             const sutherland &suth) const {
   return -2.0 * betaStar_ * state.Omega() * suth.InvNondimScaling();
+}
+
+// member function to calculate inviscid spectral radius
+double turbKWSst::InviscidSpecRad(const primVars &state,
+                                  const unitVec3dMag<double> &fAreaL,
+                                  const unitVec3dMag<double> &fAreaR) const {
+  auto normAvg = (0.5 * (fAreaL.UnitVector() +
+                         fAreaR.UnitVector())).Normalize();
+  auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
+  return state.Velocity().DotProd(normAvg) * fMag;
+}
+
+// member function to calculate viscous spectral radius
+double turbKWSst::ViscSpecRad(const primVars &state,
+                              const unitVec3dMag<double> &fAreaL,
+                              const unitVec3dMag<double> &fAreaR,
+                              const idealGas &eos, const sutherland &suth,
+                              const double &vol) const {
+  const auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
+  // should be blended sigmaK, but using largest value
+  const auto coeff = 1.0;
+
+  return suth.NondimScaling() * fMag * fMag / (vol * state.Rho()) *
+      (suth.Viscosity(state.Temperature(eos)) +
+       coeff * this->EddyViscNoLim(state));
 }
 
 // member function to print out turbulence variables

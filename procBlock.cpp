@@ -252,6 +252,7 @@ variable and is eventually used in the time step calculation if the time step
 isn't explicitly specified.
 */
 void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
+                             const unique_ptr<turbModel> &turb,
                              multiArray3d<fluxJacobian> &mainDiagonal) {
   // eqnState -- equation of state
   // inp -- all input variables
@@ -328,7 +329,8 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
           if (inp.IsImplicit()) {
             mainDiagonal(ii.p, jj.p, kk.p).AddInviscidJacobian(
                 state_(ii.g, jj.g, kk.g), fAreaI_(ii.g, jj.g, kk.g),
-                fAreaI_(ii.g + 1, jj.g, kk.g), eqnState, inp.IsTurbulent());
+                fAreaI_(ii.g + 1, jj.g, kk.g), eqnState, turb,
+                inp.IsTurbulent());
           }
         }
       }
@@ -364,6 +366,7 @@ variable and is eventually used in the time step calculation if the time step
 isn't explicitly specified.
 */
 void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
+                             const unique_ptr<turbModel> &turb,
                              multiArray3d<fluxJacobian> &mainDiagonal) {
   // eqnState -- equation of state
   // inp -- all input variables
@@ -441,7 +444,8 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
           if (inp.IsImplicit()) {
             mainDiagonal(ii.p, jj.p, kk.p).AddInviscidJacobian(
                 state_(ii.g, jj.g, kk.g), fAreaJ_(ii.g, jj.g, kk.g),
-                fAreaJ_(ii.g, jj.g + 1, kk.g), eqnState, inp.IsTurbulent());
+                fAreaJ_(ii.g, jj.g + 1, kk.g), eqnState, turb,
+                inp.IsTurbulent());
           }
         }
       }
@@ -477,6 +481,7 @@ variable and is eventually used in the time step calculation if the time step
 isn't explicitly specified.
 */
 void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
+                             const unique_ptr<turbModel> &turb,
                              multiArray3d<fluxJacobian> &mainDiagonal) {
   // eqnState -- equation of state
   // inp -- all input variables
@@ -554,7 +559,8 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
           if (inp.IsImplicit()) {
             mainDiagonal(ii.p, jj.p, kk.p).AddInviscidJacobian(
                 state_(ii.g, jj.g, kk.g), fAreaK_(ii.g, jj.g, kk.g),
-                fAreaK_(ii.g, jj.g, kk.g + 1), eqnState, inp.IsTurbulent());
+                fAreaK_(ii.g, jj.g, kk.g + 1), eqnState, turb,
+                inp.IsTurbulent());
           }
         }
       }
@@ -1157,19 +1163,13 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
     auto diagTimeVol = (vol_(ig, jg, kg) * (1.0 + inp.Zeta())) /
                          (dt_(ip, jp, kp) * inp.Theta());
     if (inp.DualTimeCFL() > 0.0) {  // use dual time stepping
-      auto tau = avgWaveSpeed_(ip, jp, kp) /
+      auto tauVol = avgWaveSpeed_(ip, jp, kp) /
                    inp.DualTimeCFL();  // equal to volume / tau
-      diagTimeVol += tau;
+      diagTimeVol += tauVol;
     }
 
-    // DEBUG
-    fluxJacobian scale(1.0, 1.0);
-    auto AiiInv = ((mainDiagonal(ip, jp, kp) + diagTimeVol * scale) *
+    auto AiiInv = ((mainDiagonal(ip, jp, kp) + diagTimeVol) *
                    inp.MatrixRelaxation()).Inverse(inp.IsTurbulent());
-
-    // DEBUG
-    // auto AiiInv = 1.0 / ((avgWaveSpeed_(ip, jp, kp) + diagTimeVol) *
-    //                      inp.MatrixRelaxation());
 
     // calculate intermediate update
     // normal at lower boundaries needs to be reversed, so add instead
@@ -1177,12 +1177,6 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
     x(ip, jp, kp) = AiiInv.ArrayMult(-1.0 * thetaInv * residual_(ip, jp, kp) -
                                      solDeltaNm1(ip, jp, kp) -
                                      solTimeMmN(ip, jp, kp) + L(ip, jp, kp));
-
-    // DEBUG
-    // x(ip, jp, kp) = AiiInv * (-1.0 * thetaInv * residual_(ip, jp, kp) -
-    //                           solDeltaNm1(ip, jp, kp) -
-    //                           solTimeMmN(ip, jp, kp) + L(ip, jp, kp));
-
   }  // end forward sweep
 
   //----------------------------------------------------------------------
@@ -1275,25 +1269,16 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
     auto diagTimeVol = (vol_(ig, jg, kg) * (1.0 + inp.Zeta())) /
                          (dt_(ip, jp, kp) * inp.Theta());
     if (inp.DualTimeCFL() > 0.0) {  // use dual time stepping
-      auto tau = avgWaveSpeed_(ip, jp, kp) /
+      auto tauVol = avgWaveSpeed_(ip, jp, kp) /
                    inp.DualTimeCFL();  // equal to volume / tau
-      diagTimeVol += tau;
+      diagTimeVol += tauVol;
     }
 
-    // DEBUG
-    fluxJacobian scale(1.0, 1.0);
-    auto AiiInv = ((mainDiagonal(ip, jp, kp) + diagTimeVol * scale) *
+    auto AiiInv = ((mainDiagonal(ip, jp, kp) + diagTimeVol) *
                    inp.MatrixRelaxation()).Inverse(inp.IsTurbulent());
-    // DEBUG
-    // auto AiiInv = 1.0 / ((avgWaveSpeed_(ip, jp, kp) + diagTimeVol) *
-    //                      inp.MatrixRelaxation())
 
     // calculate update
     x(ip, jp, kp) = x(ip, jp, kp) - AiiInv.ArrayMult(U(ip, jp, kp));
-
-    // DEBUG
-    // x(ip, jp, kp) = x(ip, jp, kp) - AiiInv * U(ip, jp, kp);
-
   }  // end backward sweep
 
   //-------------------------------------------------------------------
@@ -1312,9 +1297,9 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
         auto diagTimeVol = (vol_(ii.g, jj.g, kk.g) * (1.0 + inp.Zeta())) /
             (dt_(ii.p, jj.p, kk.p) * inp.Theta());
         if (inp.DualTimeCFL() > 0.0) {  // use dual time stepping
-          auto tau = avgWaveSpeed_(ii.p, jj.p, kk.p) /
+          auto tauVol = avgWaveSpeed_(ii.p, jj.p, kk.p) /
               inp.DualTimeCFL();  // equal to volume / tau
-          diagTimeVol += tau;
+          diagTimeVol += tauVol;
         }
 
         auto Aii = (mainDiagonal(ii.p, jj.p, kk.p) + diagTimeVol) *
@@ -1674,8 +1659,15 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           this->SubtractFromResidual(tempViscFlux *
                                      this->FAreaMagI(ii.g, jj.g, kk.g),
                                      ii.p - 1, jj.p, kk.p);
+
+          if (inp.IsImplicit()) {
+            mainDiagonal(ii.p - 1, jj.p, kk.p).AddViscousJacobian(
+                state_(ii.g - 1, jj.g, kk.g), fAreaI_(ii.g - 1, jj.g, kk.g),
+                fAreaI_(ii.g, jj.g, kk.g), eqnState, suth,
+                vol_(ii.g - 1, jj.g, kk.g), turb, inp.IsTurbulent());
+          }
         }
-        // at right boundary ther eis to right cell to add to
+        // at right boundary there is no right cell to add to
         if (ii.g < fAreaI_.NumI() - numGhosts_ - 1) {
           this->AddToResidual(tempViscFlux *
                                 this->FAreaMagI(ii.g, jj.g, kk.g),
@@ -1831,6 +1823,13 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           this->SubtractFromResidual(tempViscFlux *
                                      this->FAreaMagJ(ii.g, jj.g, kk.g),
                                      ii.p, jj.p - 1, kk.p);
+
+          if (inp.IsImplicit()) {
+            mainDiagonal(ii.p, jj.p - 1, kk.p).AddViscousJacobian(
+                state_(ii.g, jj.g - 1, kk.g), fAreaJ_(ii.g, jj.g - 1, kk.g),
+                fAreaJ_(ii.g, jj.g, kk.g), eqnState, suth,
+                vol_(ii.g, jj.g - 1, kk.g), turb, inp.IsTurbulent());
+          }
         }
         // at right boundary there is no right cell to add to
         if (jj.g < fAreaJ_.NumJ() - numGhosts_ - 1) {
@@ -1987,6 +1986,13 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           this->SubtractFromResidual(tempViscFlux *
                                      this->FAreaMagK(ii.g, jj.g, kk.g),
                                      ii.p, jj.p, kk.p - 1);
+
+          if (inp.IsImplicit()) {
+            mainDiagonal(ii.p, jj.p, kk.p - 1).AddViscousJacobian(
+                state_(ii.g, jj.g, kk.g - 1), fAreaK_(ii.g, jj.g, kk.g - 1),
+                fAreaK_(ii.g, jj.g, kk.g), eqnState, suth,
+                vol_(ii.g, jj.g, kk.g - 1), turb, inp.IsTurbulent());
+          }
         }
         // at right boundary there is no right cell to add to
         if (kk.g < fAreaK_.NumK() - numGhosts_ - 1) {
@@ -6841,9 +6847,9 @@ void procBlock::CalcResidual(const sutherland &suth, const idealGas &eos,
                              const unique_ptr<turbModel> &turb,
                              multiArray3d<fluxJacobian> &mainDiagonal) {
   // Calculate inviscid fluxes
-  this->CalcInvFluxI(eos, inp, mainDiagonal);
-  this->CalcInvFluxJ(eos, inp, mainDiagonal);
-  this->CalcInvFluxK(eos, inp, mainDiagonal);
+  this->CalcInvFluxI(eos, inp, turb, mainDiagonal);
+  this->CalcInvFluxJ(eos, inp, turb, mainDiagonal);
+  this->CalcInvFluxK(eos, inp, turb, mainDiagonal);
 
   // If viscous change ghost cells and calculate viscous fluxes
   if (inp.IsViscous()) {

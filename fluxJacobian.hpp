@@ -68,7 +68,7 @@ class fluxJacobian {
 
   void AddInviscidJacobian(const primVars &, const unitVec3dMag<double> &,
                            const unitVec3dMag<double> &, const idealGas &,
-                           const bool &);
+                           const unique_ptr<turbModel> &, const bool &);
   void AddViscousJacobian(const primVars &, const unitVec3dMag<double> &,
                           const unitVec3dMag<double> &, const idealGas &,
                           const sutherland &, const double &,
