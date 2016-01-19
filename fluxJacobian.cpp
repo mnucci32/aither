@@ -78,11 +78,14 @@ void fluxJacobian::AddViscousJacobian(const primVars &state,
                                       const double &vol,
                                       const unique_ptr<turbModel> &turb,
                                       const bool &isTurbulent) {
-  flowJacobian_ += state.ViscCellSpectralRadius(fAreaL, fAreaR, eos, suth, vol,
-                                               turb);
+  // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
+  flowJacobian_ += 2.0 * state.ViscCellSpectralRadius(fAreaL, fAreaR, eos, suth,
+                                                      vol, turb);
 
   if (isTurbulent) {
-    turbJacobian_ += turb->ViscSpecRad(state, fAreaL, fAreaR, eos, suth, vol);
+    // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
+    turbJacobian_ += 2.0 * turb->ViscSpecRad(state, fAreaL, fAreaR, eos, suth,
+                                             vol);
   }
 }
 

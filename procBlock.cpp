@@ -1659,13 +1659,6 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           this->SubtractFromResidual(tempViscFlux *
                                      this->FAreaMagI(ii.g, jj.g, kk.g),
                                      ii.p - 1, jj.p, kk.p);
-
-          if (inp.IsImplicit()) {
-            mainDiagonal(ii.p - 1, jj.p, kk.p).AddViscousJacobian(
-                state_(ii.g - 1, jj.g, kk.g), fAreaI_(ii.g - 1, jj.g, kk.g),
-                fAreaI_(ii.g, jj.g, kk.g), eqnState, suth,
-                vol_(ii.g - 1, jj.g, kk.g), turb, inp.IsTurbulent());
-          }
         }
         // at right boundary there is no right cell to add to
         if (ii.g < fAreaI_.NumI() - numGhosts_ - 1) {
@@ -1823,13 +1816,6 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           this->SubtractFromResidual(tempViscFlux *
                                      this->FAreaMagJ(ii.g, jj.g, kk.g),
                                      ii.p, jj.p - 1, kk.p);
-
-          if (inp.IsImplicit()) {
-            mainDiagonal(ii.p, jj.p - 1, kk.p).AddViscousJacobian(
-                state_(ii.g, jj.g - 1, kk.g), fAreaJ_(ii.g, jj.g - 1, kk.g),
-                fAreaJ_(ii.g, jj.g, kk.g), eqnState, suth,
-                vol_(ii.g, jj.g - 1, kk.g), turb, inp.IsTurbulent());
-          }
         }
         // at right boundary there is no right cell to add to
         if (jj.g < fAreaJ_.NumJ() - numGhosts_ - 1) {
@@ -1986,13 +1972,6 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           this->SubtractFromResidual(tempViscFlux *
                                      this->FAreaMagK(ii.g, jj.g, kk.g),
                                      ii.p, jj.p, kk.p - 1);
-
-          if (inp.IsImplicit()) {
-            mainDiagonal(ii.p, jj.p, kk.p - 1).AddViscousJacobian(
-                state_(ii.g, jj.g, kk.g - 1), fAreaK_(ii.g, jj.g, kk.g - 1),
-                fAreaK_(ii.g, jj.g, kk.g), eqnState, suth,
-                vol_(ii.g, jj.g, kk.g - 1), turb, inp.IsTurbulent());
-          }
         }
         // at right boundary there is no right cell to add to
         if (kk.g < fAreaK_.NumK() - numGhosts_ - 1) {
