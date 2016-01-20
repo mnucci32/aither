@@ -40,6 +40,9 @@ class turbModel;
 class input;
 class genArray;
 
+// This class holds the flux jacobians for the flow and turbulence equations.
+// In the LU-SGS method the jacobians are scalars.
+
 class fluxJacobian {
   double flowJacobian_;
   double turbJacobian_;

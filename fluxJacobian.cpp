@@ -38,6 +38,18 @@ fluxJacobian::fluxJacobian(const primVars &state,
                            const double &vol,
                            const unique_ptr<turbModel> &turb,
                            const input &inp, const bool &mainDiagonal) {
+  // state -- primative variables
+  // fAreaL -- face area for left face
+  // fAreaR -- face area for right face
+  // eos -- equation of state
+  // suth -- sutherland's law for viscosity
+  // vol -- cell volume
+  // turb -- turbulence model
+  // inp -- input variables
+  // mainDiagonal -- flag to determine if jacobian is for main diagonal of
+  //                 implicit matrix
+
+  // initialize jacobians
   flowJacobian_ = 0.0;
   turbJacobian_ = 0.0;
 
@@ -45,24 +57,34 @@ fluxJacobian::fluxJacobian(const primVars &state,
 
   this->AddInviscidJacobian(state, fAreaL, fAreaR, eos, turb, isTurbulent);
 
+  // if viscous, add viscous jacobians
   if (inp.IsViscous()) {
     this->AddViscousJacobian(state, fAreaL, fAreaR, eos, suth, vol,
                              turb, isTurbulent);
   }
 
-  // source term is only added to main diagonal
+  // source term is only added to main diagonal,
+  // and only for turbulence equations
   if (mainDiagonal && isTurbulent) {
     this->AddTurbSourceJacobian(state, suth, vol, turb);
   }
 }
 
 // member functions
+// member function to add inviscid jacobians
 void fluxJacobian::AddInviscidJacobian(const primVars &state,
                                        const unitVec3dMag<double> &fAreaL,
                                        const unitVec3dMag<double> &fAreaR,
                                        const idealGas &eos,
                                        const unique_ptr<turbModel> &turb,
                                        const bool &isTurbulent) {
+  // state -- primative variables
+  // fAreaL -- face area for left face
+  // fAreaR -- face area for right face
+  // eos -- equation of state
+  // turb -- turbulence model
+  // isTurbulent -- flag to determine if simulation is turbulent
+
   flowJacobian_ += state.CellSpectralRadius(fAreaL, fAreaR, eos);
 
   if (isTurbulent) {
@@ -70,6 +92,7 @@ void fluxJacobian::AddInviscidJacobian(const primVars &state,
   }
 }
 
+// member function to add viscous jacobians
 void fluxJacobian::AddViscousJacobian(const primVars &state,
                                       const unitVec3dMag<double> &fAreaL,
                                       const unitVec3dMag<double> &fAreaR,
@@ -78,6 +101,15 @@ void fluxJacobian::AddViscousJacobian(const primVars &state,
                                       const double &vol,
                                       const unique_ptr<turbModel> &turb,
                                       const bool &isTurbulent) {
+  // state -- primative variables
+  // fAreaL -- face area for left face
+  // fAreaR -- face area for right face
+  // eos -- equation of state
+  // suth -- sutherland's law for viscosity
+  // vol -- cell volume
+  // turb -- turbulence model
+  // isTurbulent -- flag to determine if simulation is turbulent
+
   // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
   flowJacobian_ += 2.0 * state.ViscCellSpectralRadius(fAreaL, fAreaR, eos, suth,
                                                       vol, turb);
@@ -89,13 +121,21 @@ void fluxJacobian::AddViscousJacobian(const primVars &state,
   }
 }
 
+// member function to add source jacobians
+// this should only be used for the main diagonal
 void fluxJacobian::AddTurbSourceJacobian(const primVars &state,
                                          const sutherland &suth,
                                          const double &vol,
                                          const unique_ptr<turbModel> &turb) {
+  // state -- primative variables
+  // suth -- sutherland's law for viscosity
+  // vol -- cell volume
+  // turb -- turbulence model
+
   turbJacobian_ -= turb->SrcSpecRad(state, suth) * vol;
 }
 
+// member function to multiply the flux jacobians with a genArray
 genArray fluxJacobian::ArrayMult(genArray arr) const {
   arr[0] *= flowJacobian_;
   arr[1] *= flowJacobian_;
@@ -109,6 +149,7 @@ genArray fluxJacobian::ArrayMult(genArray arr) const {
   return arr;
 }
 
+// member function to take the inverse of a flux jacobian
 fluxJacobian fluxJacobian::Inverse(const bool &isTurbulent) const {
   auto inv = *this;
   inv.flowJacobian_ = 1.0 / inv.flowJacobian_;

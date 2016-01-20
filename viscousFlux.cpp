@@ -39,13 +39,13 @@ F = [ 0,
       tauy,
       tauz,
       tau (dot) vel + K * tGrad (dot) area
-      (mu + mut) * tkeGrad (dot) area
-      (mu + mut) * omegaGrad (dot) area ]
+      (mu + sk *mut) * tkeGrad (dot) area
+      (mu + sw *mut) * omegaGrad (dot) area ]
 
 In the above equation tau is the wall shear stress. Taux, tauy, and tauz are the
 rows of the wall shear stress tensor i.e. taux = tauxx + tauxy + tauxz. K is the
 thermal conductivity, tGrad is the temperature gradient, and area is the
-normalized face area.
+normalized face area. Sk and sw are turbulence model coefficients
 
 Wall shear stress:
 tau = lambda * velGradTrace * area + mu * ( velGrad * area + velGrad' * area)
