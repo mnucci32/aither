@@ -18,3 +18,7 @@ aither
 *.res
 *.out
 *_center.xyz
+
+#Ignore blog files
+_site
+.sass_cache
