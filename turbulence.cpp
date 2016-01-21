@@ -192,8 +192,9 @@ double turbKWWilcox::Xw(const primVars &state,
   // using DoubleDotTrans for speed
   // both tensors are symmetric so result is the same
   // vorticity is asymmetric but vorticity * vorticity is symmetric
-  return fabs( (vorticity * vorticity).DoubleDotTrans(this->StrainKI(velGrad))
-               / pow(betaStar_ * state.Omega(), 3.0) )
+  return fabs(
+      (vorticity.MatMult(vorticity)).DoubleDotTrans(this->StrainKI(velGrad))
+      / pow(betaStar_ * state.Omega(), 3.0) )
       * pow(suth.NondimScaling(), 3.0);
 }
 
