@@ -761,3 +761,67 @@ void primVars::LimitTurb(const unique_ptr<turbModel> &turb) {
   data_[5] = max(data_[5], turb->TkeMin());
   data_[6] = max(data_[6], turb->OmegaMin());
 }
+
+/*Function to return the inviscid spectral radius for one direction (i, j, or k)
+given a cell state, equation of state, and 2 face area vectors
+
+L = 0.5 * (A1 + A2) * (|Vn| + SoS)
+
+In the above equation L is the spectral radius in either the i, j, or k
+direction. A1 and A2 are the two face areas in that direction. Vn is the
+cell velocity normal to that direction. SoS is the speed of sound at the cell
+ */
+double primVars::CellSpectralRadius(const unitVec3dMag<double> &fAreaL,
+                                    const unitVec3dMag<double> &fAreaR,
+                                    const idealGas &eqnState) const {
+  // fAreaL -- face area of lower face in either i, j, or k direction
+  // fAreaR -- face area of upper face in either i, j, or k direction
+  // eqnState -- equation of state
+
+  // normalize face areas
+  const auto normAvg = (0.5 * (fAreaL.UnitVector() +
+                               fAreaR.UnitVector())).Normalize();
+  // average area magnitude
+  const auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
+
+  // return spectral radius
+  return (fabs(this->Velocity().DotProd(normAvg)) + this->SoS(eqnState)) *
+         fMag;
+}
+
+/*Function to calculate the viscous spectral radius for one direction (i, j, or
+k).
+
+L = max(4/(3*rho), g/rho) * mu/Pr * A^2 / V
+
+In the above equation L is the viscous spectral radius for a given direction (i,
+j, or k). Rho is the density at the cell center. G is gamma, mu is viscosity,
+and Pr is the Prandtl number (all at the cell center). A is the average face area
+of the given direction (i, j, k), and V is the cell volume. This implementation
+comes from Blazek.
+ */
+double primVars::ViscCellSpectralRadius(
+    const unitVec3dMag<double> &fAreaL, const unitVec3dMag<double> &fAreaR,
+    const idealGas &eqnState, const sutherland &suth, const double &vol,
+    const unique_ptr<turbModel> &turb) const {
+  // fAreaL -- face area of lower face in either i, j, or k direction
+  // fAreaR -- face area of upper face in either i, j, or k direction
+  // eqnState -- equation of state
+  // suth -- method to the temperature varying visosity and Prandtl number
+  // (Sutherland's law)
+  // vol -- cell volume
+  // turb -- turbulence model
+
+  // average area magnitude
+  const auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
+  const auto maxTerm = max(4.0 / (3.0 * this->Rho()),
+                           eqnState.Gamma() / this->Rho());
+  // viscosity at cell center
+  const auto mu = suth.Viscosity(this->Temperature(eqnState));
+  const auto viscTerm = suth.NondimScaling() *
+      (mu / eqnState.Prandtl() +
+       turb->EddyViscNoLim(*this) / turb->TurbPrandtlNumber());
+
+  // return viscous spectral radius
+  return maxTerm * viscTerm * fMag * fMag / vol;
+}

@@ -125,9 +125,8 @@ void ApproxRoeFluxJacobian(const primVars&, const primVars&, const idealGas&,
                            const vector3d<double>&, double&, squareMatrix&,
                            squareMatrix&);
 
-genArray ConvectiveFluxUpdate(const primVars&, const idealGas&,
-                              const unique_ptr<turbModel> &,
-                              const vector3d<double>&, const genArray&);
+genArray ConvectiveFluxUpdate(const primVars&, const primVars&, const idealGas&,
+                              const vector3d<double>&);
 
 // operator overload for addition
 inviscidFlux & inviscidFlux::operator+=(const inviscidFlux &arr) {

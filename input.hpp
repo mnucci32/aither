@@ -128,7 +128,6 @@ class input {
   double MatrixRelaxation() const {return matrixRelaxation_;}
 
   double Theta() const {return timeIntTheta_;}
-
   double Zeta() const {return timeIntZeta_;}
 
   int NonlinearIterations() const {return nonlinearIterations_;}
@@ -176,6 +175,8 @@ class input {
   unique_ptr<turbModel> AssignTurbulenceModel() const;
 
   void CheckNonlinearIterations();
+
+  double ViscousCFLCoefficient() const;
 
   // destructor
   ~input() noexcept {}
