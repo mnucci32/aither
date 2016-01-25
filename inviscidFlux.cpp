@@ -169,37 +169,36 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   const auto uR = (left.U() + denRatio * right.U()) / (1.0 + denRatio);
   const auto vR = (left.V() + denRatio * right.V()) / (1.0 + denRatio);
   const auto wR = (left.W() + denRatio * right.W()) / (1.0 + denRatio);
+  const vector3d<double> velR(uR, vR, wR);
+
   // Roe averaged total enthalpy
   const auto hR = (left.Enthalpy(eqnState) + denRatio *
                    right.Enthalpy(eqnState)) / (1.0 + denRatio);
   // Roe averaged speed of sound
   const auto aR = sqrt((eqnState.Gamma() - 1.0) *
-                       (hR - 0.5 * (uR * uR + vR * vR + wR * wR)));
+                       (hR - 0.5 * velR.DotProd(velR)));
   // Roe averaged tke
   const auto kR = (left.Tke() + denRatio * right.Tke()) / (1.0 + denRatio);
   // Roe averaged specific dissipation (omega)
   const auto omR = (left.Omega() + denRatio * right.Omega()) / (1.0 + denRatio);
 
-  // Roe averaged face normal velocity
-  const vector3d<double> velR(uR, vR, wR);
-
   // Roe velocity dotted with normalized area vector
   const auto velRSum = velR.DotProd(areaNorm);
 
+  // Delta between right and left states
+  const auto delta = right - left;
+
   // normal velocity difference between left and right states
-  const auto normVelDiff = right.Velocity().DotProd(areaNorm) -
-      left.Velocity().DotProd(areaNorm);
+  const auto normVelDiff = delta.Velocity().DotProd(areaNorm);
 
   // calculate wave strengths (Cr - Cl)
   double waveStrength[NUMVARS - 1] = {
-    ((right.P() - left.P()) - rhoR * aR * normVelDiff) / (2.0 * aR * aR),
-    (right.Rho() - left.Rho()) - (right.P() - left.P()) / (aR * aR),
-    ((right.P() - left.P()) + rhoR * aR * normVelDiff) / (2.0 * aR * aR),
+    (delta.P() - rhoR * aR * normVelDiff) / (2.0 * aR * aR),
+    delta.Rho() - delta.P() / (aR * aR),
+    (delta.P() + rhoR * aR * normVelDiff) / (2.0 * aR * aR),
     rhoR,
-    rhoR * (right.Tke() - left.Tke()) + kR * (right.Rho() - left.Rho()) -
-    (right.P() - left.P()) * kR / (aR * aR),
-    rhoR * (right.Omega() - left.Omega()) + omR * (right.Rho() - left.Rho()) -
-    (right.P() - left.P()) * omR / (aR * aR)};
+    rhoR * delta.Tke() + kR * delta.Rho() - delta.P() * kR / (aR * aR),
+    rhoR * delta.Omega() + omR * delta.Rho() - delta.P() * omR / (aR * aR)};
 
   // calculate absolute value of wave speeds (L)
   double waveSpeed[NUMVARS - 1] = {
@@ -231,7 +230,7 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
 
   // calculate eigenvector due to entropy wave
   const genArray entropyEigV(1.0, uR, vR, wR,
-                             0.5 * (uR * uR + vR * vR + wR * wR),
+                             0.5 * velR.DotProd(velR),
                              0.0, 0.0);
 
   // calculate eigenvector due to right acoustic wave
@@ -241,12 +240,11 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
 
   // calculate eigenvector due to shear wave
   const genArray shearEigV(0.0,
-                           (right.U() - left.U()) - normVelDiff * areaNorm.X(),
-                           (right.V() - left.V()) - normVelDiff * areaNorm.Y(),
-                           (right.W() - left.W()) - normVelDiff * areaNorm.Z(),
-                           uR * (right.U() - left.U()) +
-                           vR * (right.V() - left.V()) +
-                           wR * (right.W() - left.W()) - velRSum * normVelDiff,
+                           delta.U() - normVelDiff * areaNorm.X(),
+                           delta.V() - normVelDiff * areaNorm.Y(),
+                           delta.W() - normVelDiff * areaNorm.Z(),
+                           velR.DotProd(delta.Velocity()) -
+                           velRSum * normVelDiff,
                            0.0, 0.0);
 
   // calculate eigenvector due to turbulent equation 1
