@@ -237,7 +237,7 @@ class procBlock {
   }
 
   void CalcBlockTimeStep(const input &, const double &);
-  void UpdateBlock(const input &, const int &, const idealGas &, const double &,
+  void UpdateBlock(const input &, const idealGas &, const double &,
                    const sutherland &, const multiArray3d<genArray> &,
                    const multiArray3d<genArray> &,
                    const unique_ptr<turbModel> &, const int &, genArray &,
@@ -291,6 +291,11 @@ class procBlock {
                const idealGas &, const input &, const sutherland &,
                const unique_ptr<turbModel> &,
                const multiArray3d<fluxJacobian> &) const;
+  double DPLUR(multiArray3d<genArray> &,
+               const multiArray3d<genArray> &, const multiArray3d<genArray> &,
+               const idealGas &, const input &, const sutherland &,
+               const unique_ptr<turbModel> &,
+               multiArray3d<fluxJacobian> &, const int &) const;
 
   bool IsPhysical(const int &, const int &, const int &, const bool &) const;
   bool AtCorner(const int &, const int &, const int &, const bool &) const;
@@ -356,6 +361,20 @@ void CalcWallDistance(vector<procBlock> &, const kdtree &);
 
 vector<multiArray3d<genArray>> GetCopyConsVars(const vector<procBlock> &,
                                                const idealGas &);
+
+void ExplicitUpdate(vector<procBlock> &, const input &, const idealGas &,
+                    const double &, const sutherland &,
+                    const vector<multiArray3d<genArray>> &,
+                    const unique_ptr<turbModel> &, const int &, genArray &,
+                    resid &);
+double ImplicitUpdate(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
+                      vector<multiArray3d<genArray>> &, const input &,
+                      const idealGas &, const double &, const sutherland &,
+                      const vector<multiArray3d<genArray>> &,
+                      const vector<multiArray3d<genArray>> &,
+                      vector<multiArray3d<genArray>> &,
+                      const unique_ptr<turbModel> &,
+                      const int &, genArray &, resid &);
 
 #endif
 

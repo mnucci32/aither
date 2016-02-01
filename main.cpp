@@ -213,21 +213,16 @@ int main(int argc, char *argv[]) {
   }
 
   //-----------------------------------------------------------------------
-
-  // Column matrix of zeros
-  genArray initial(0.0);
-
   // Preallocate vectors for old solution
   // Outermost vector for blocks, genArray for variables in cell
   vector<multiArray3d<genArray>> solTimeN(numProcBlock);
   vector<multiArray3d<genArray>> solDeltaNm1(numProcBlock);
+  vector<multiArray3d<genArray>> solDeltaMmN(numProcBlock);
+  vector<multiArray3d<genArray>> du(numProcBlock);
+  // Allocate array for flux jacobian
+  vector<multiArray3d<fluxJacobian>> mainDiagonal(numProcBlock);
 
-  // Initialize residual variables
-  genArray residL2(0.0);  // l2 norm residuals
   genArray residL2First(0.0);  // l2 norm residuals to normalize by
-  resid residLinf;  // linf residuals
-  // matrix inversion residual (only for implicit runs)
-  auto matrixResid = 0.0;
 
   // Send/recv solutions - necessary to get wall distances
   GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData);
@@ -261,78 +256,48 @@ int main(int argc, char *argv[]) {
                             connections, rank, MPI_cellData);
 
       // Loop over number of blocks
-      for (auto bb = 0; bb < static_cast<int>(localStateBlocks.size());
-            bb++) {
-        // Allocate array for flux jacobian
-        multiArray3d<fluxJacobian> mainDiagonal(
-            localStateBlocks[bb].NumI(), localStateBlocks[bb].NumJ(),
-            localStateBlocks[bb].NumK());
+      for (auto bb = 0; bb < numProcBlock; bb++) {
+        // Get solution at time M - N if implicit
+        if (inputVars.IsImplicit()) {
+          solDeltaMmN[bb] = localStateBlocks[bb].SolTimeMMinusN(
+              solTimeN[bb], eos, inputVars, mm);
+          if (nn == 0 && mm == 0) {
+            // At first iteration, resize array for old solution
+            solDeltaNm1[bb].ClearResize(solTimeN[bb].NumI(),
+                                        solTimeN[bb].NumJ(),
+                                        solTimeN[bb].NumK());
+            mainDiagonal[bb].ClearResize(solTimeN[bb].NumI(),
+                                         solTimeN[bb].NumJ(),
+                                         solTimeN[bb].NumK());
+            du[bb].ClearResize(solTimeN[bb].NumI(), solTimeN[bb].NumJ(),
+                               solTimeN[bb].NumK(), genArray(0.0));
+          }
+        }
 
         // Calculate residual (RHS)
         localStateBlocks[bb].CalcResidual(suth, eos, inputVars, turb,
-                                          mainDiagonal);
+                                          mainDiagonal[bb]);
 
         // Calculate the time step to use in the simulation
         // (either user specified or derived from CFL)
         localStateBlocks[bb].CalcBlockTimeStep(inputVars, aRef);
+      }
 
-        // If implicit get old solution, reorder block, and use linear solver
-        if (inputVars.IsImplicit()) {
-          // At first iteration, resize array for old solution
-          if (nn == 0 && mm == 0) {
-            solDeltaNm1[bb].ClearResize(solTimeN[bb].NumI(),
-                                        solTimeN[bb].NumJ(),
-                                        solTimeN[bb].NumK());
-          }
+      // Initialize residual variables
+      genArray residL2(0.0);  // l2 norm residuals
+      resid residLinf;  // linf residuals
+      auto matrixResid = 0.0;
+      if (inputVars.IsImplicit()) {
+        matrixResid = ImplicitUpdate(localStateBlocks, mainDiagonal, du,
+                                     inputVars, eos, aRef, suth, solTimeN,
+                                     solDeltaMmN, solDeltaNm1, turb, mm,
+                                     residL2, residLinf);
+      } else {  // explicit time integration
+        ExplicitUpdate(localStateBlocks, inputVars, eos, aRef, suth, solTimeN,
+                       turb, mm, residL2, residLinf);
+      }
 
-          // Get term for solution at time m minus solution at time n
-          multiArray3d<genArray> solTimeMmN =
-              localStateBlocks[bb].SolTimeMMinusN(solTimeN[bb], eos, inputVars,
-                                                  mm);
-
-          // Reorder block (by hyperplanes) for lusgs
-          auto reorder = HyperplaneReorder(localStateBlocks[bb].NumI(),
-                                           localStateBlocks[bb].NumJ(),
-                                           localStateBlocks[bb].NumK());
-
-          // Reserve space for correction du
-          multiArray3d<genArray> du(localStateBlocks[bb].NumI(),
-                                    localStateBlocks[bb].NumJ(),
-                                    localStateBlocks[bb].NumK(), initial);
-
-          // Calculate correction (du)
-          matrixResid += localStateBlocks[bb].LUSGS(reorder, du, solTimeMmN,
-                                                    solDeltaNm1[bb], eos,
-                                                    inputVars, suth, turb,
-                                                    mainDiagonal);
-
-          // Update solution
-          localStateBlocks[bb].UpdateBlock(inputVars, inputVars.IsImplicit(),
-                                           eos, aRef, suth, du, solTimeN[bb],
-                                           turb, mm, residL2, residLinf);
-
-          // Assign time n to time n-1 at end of nonlinear iterations
-          if (inputVars.TimeIntegration() == "bdf2" &&
-              mm == inputVars.NonlinearIterations() - 1 ) {
-            solDeltaNm1[bb] =
-                localStateBlocks[bb].DeltaNMinusOne(solTimeN[bb], eos,
-                                                    inputVars.Theta(),
-                                                    inputVars.Zeta());
-          }
-        } else {  // explicit
-          // Update solution
-          // not used in explicit update
-          multiArray3d<genArray> dummyCorrection(1, 1, 1);
-          localStateBlocks[bb].UpdateBlock(inputVars, inputVars.IsImplicit(),
-                                           eos, aRef, suth, dummyCorrection,
-                                           solTimeN[bb], turb, mm, residL2,
-                                           residLinf);
-        }
-
-        // Zero residuals and wave speed
-        localStateBlocks[bb].ResetResidWS();
-      }  // loop for blocks ---------------------------------------------------
-
+      // ----------------------------------------------------------------------
       // Get residuals from all processors
       residL2.GlobalReduceMPI(rank, inputVars.NumEquations());
       residLinf.GlobalReduceMPI(rank, MPI_DOUBLE_5INT, MPI_MAX_LINF);
@@ -358,13 +323,7 @@ int main(int argc, char *argv[]) {
         WriteResiduals(inputVars, residL2First, residL2, residLinf, matrixResid,
                        nn, mm);
       }
-
-      // Reset residuals
-      residL2.Zero();
-      residLinf.Zero();
-      matrixResid = 0.0;
     }  // loop for nonlinear iterations ---------------------------------------
-
 
     if ((nn+1) % inputVars.OutputFrequency() == 0) {  // write out function file
       // Send/recv solutions
@@ -377,8 +336,7 @@ int main(int argc, char *argv[]) {
         WriteRes(inputVars.SimNameRoot(), (nn+1), inputVars.OutputFrequency());
       }
     }
-  }  // loop for time ----------------------------------------------------------
-
+  }  // loop for time step -----------------------------------------------------
 
   if (rank == ROOTP) {
     cout << endl;

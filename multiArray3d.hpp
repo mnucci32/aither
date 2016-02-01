@@ -75,6 +75,8 @@ class multiArray3d {
   void Insert(const int&, const int&, const int&, const int&, const int&,
               const int&, const multiArray3d<T>&);
 
+  void Zero(const T&);
+
   void GrowI();
   void GrowJ();
   void GrowK();
@@ -510,6 +512,14 @@ void multiArray3d<T>::SameSizeResize(const int &ii, const int&jj,
     numI_ = ii;
     numJ_ = jj;
     numK_ = kk;
+}
+
+// member function to "zero out" the container with a supplied "zero"
+template <typename T>
+void multiArray3d<T>::Zero(const T &zero) {
+  for (auto &val : data_) {
+    val = zero;
+  }
 }
 
 // operation overload for << - allows use of cout, cerr, etc.
