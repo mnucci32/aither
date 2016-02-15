@@ -151,9 +151,13 @@ class procBlock {
 
   // member functions
   int NumCells() const { return residual_.Size(); }
+  int NumCellsGhosts() const { return state_.Size(); }
   int NumI() const { return residual_.NumI(); }
   int NumJ() const { return residual_.NumJ(); }
   int NumK() const { return residual_.NumK(); }
+  int NumIG() const { return state_.NumI(); }
+  int NumJG() const { return state_.NumJ(); }
+  int NumKG() const { return state_.NumK(); }
   int NumGhosts() const { return numGhosts_; }
   int ParentBlock() const { return parBlock_; }
   int LocalPosition() const { return localPos_; }
@@ -290,11 +294,13 @@ class procBlock {
                const multiArray3d<genArray> &, const multiArray3d<genArray> &,
                const idealGas &, const input &, const sutherland &,
                const unique_ptr<turbModel> &,
-               const multiArray3d<fluxJacobian> &) const;
+               multiArray3d<fluxJacobian> &,
+               multiArray3d<fluxJacobian> &) const;
   double DPLUR(multiArray3d<genArray> &,
                const multiArray3d<genArray> &, const multiArray3d<genArray> &,
                const idealGas &, const input &, const sutherland &,
                const unique_ptr<turbModel> &,
+               multiArray3d<fluxJacobian> &,
                multiArray3d<fluxJacobian> &, const int &) const;
 
   bool IsPhysical(const int &, const int &, const int &, const bool &) const;

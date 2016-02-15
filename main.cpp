@@ -58,7 +58,9 @@ int main(int argc, char *argv[]) {
   auto subversion = 0;
   MPI_Get_version(&version, &subversion);
   if ( rank == ROOTP ) {
-    cout << "Code compiled on " << __DATE__ << " at " << __TIME__ << endl;
+    cout << "Aither version " << MAJORVERSION << "." << MINORVERSION << "."
+         << PATCHNUMBER << endl;
+    cout << "Compiled on " << __DATE__ << " at " << __TIME__ << endl;
     cout << "Using MPI Version " << version << "." << subversion << endl;
     cout << "Using " << numProcs << " processors" << endl;
   }
@@ -263,14 +265,15 @@ int main(int argc, char *argv[]) {
               solTimeN[bb], eos, inputVars, mm);
           if (nn == 0 && mm == 0) {
             // At first iteration, resize array for old solution
-            solDeltaNm1[bb].ClearResize(solTimeN[bb].NumI(),
-                                        solTimeN[bb].NumJ(),
-                                        solTimeN[bb].NumK());
-            mainDiagonal[bb].ClearResize(solTimeN[bb].NumI(),
-                                         solTimeN[bb].NumJ(),
-                                         solTimeN[bb].NumK());
-            du[bb].ClearResize(solTimeN[bb].NumI(), solTimeN[bb].NumJ(),
-                               solTimeN[bb].NumK(), genArray(0.0));
+            solDeltaNm1[bb].ClearResize(localStateBlocks[bb].NumI(),
+                                        localStateBlocks[bb].NumJ(),
+                                        localStateBlocks[bb].NumK());
+            mainDiagonal[bb].ClearResize(localStateBlocks[bb].NumI(),
+                                         localStateBlocks[bb].NumJ(),
+                                         localStateBlocks[bb].NumK());
+            du[bb].ClearResize(localStateBlocks[bb].NumIG(),
+                               localStateBlocks[bb].NumJG(),
+                               localStateBlocks[bb].NumKG(), genArray(0.0));
           }
         }
 

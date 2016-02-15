@@ -202,7 +202,7 @@ class boundaryConditions {
   void ResizeVecs(const int&);
   void ResizeVecs(const int&, const int&, const int&);
 
-  string GetBCName(const int, const int, const int, const string&) const;
+  string GetBCName(const int&, const int&, const int&, const string&) const;
 
   void AssignFromInput(const int&, const vector<string>&);
 

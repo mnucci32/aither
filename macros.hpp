@@ -22,5 +22,8 @@
 #define EPS 1.0e-30
 #define ROOTP 0
 #define DEFAULTWALLDIST 1.0e10
+#define MAJORVERSION 0
+#define MINORVERSION 1
+#define PATCHNUMBER 0
 
 #endif

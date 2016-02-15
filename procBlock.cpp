@@ -661,7 +661,7 @@ void procBlock::UpdateBlock(const input &inputVars, const idealGas &eos,
                                ii.g, jj.g, kk.g,
                                ii.p, jj.p, kk.p, rr);
         } else if (inputVars.IsImplicit()) {  // if implicit use update (du)
-          this->ImplicitTimeAdvance(du(ii.p, jj.p, kk.p), eos, turb,
+          this->ImplicitTimeAdvance(du(ii.g, jj.g, kk.g), eos, turb,
                                     ii.g, jj.g, kk.g);
         } else {
           cerr << "ERROR: Time integration scheme " <<
@@ -1047,7 +1047,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                         const idealGas &eqnState, const input &inp,
                         const sutherland &suth,
                         const unique_ptr<turbModel> &turb,
-                        const multiArray3d<fluxJacobian> &mainDiagonal) const {
+                        multiArray3d<fluxJacobian> &mainDiagonal,
+                        multiArray3d<fluxJacobian> &aiiInv) const {
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // x -- correction - added to solution at time n to get to time n+1 (assumed
   // to be zero to start)
@@ -1058,6 +1059,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
   // suth -- method to get temperature varying viscosity (Sutherland's law)
   // turb -- turbulence model
   // mainDiagonal -- main diagonal of flux jacobians
+  // aiiInv -- inverse of main diagonal
 
   auto thetaInv = 1.0 / inp.Theta();
 
@@ -1069,6 +1071,9 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                            initial);
   multiArray3d<genArray> L(this->NumI(), this->NumJ(), this->NumK(),
                            initial);
+
+  // initialize residual vector
+  genArray l2Resid(0.0);
 
   //--------------------------------------------------------------------
   // forward sweep over all physical cells
@@ -1082,12 +1087,13 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
     auto jg = reorder[ii].Y() + numGhosts_;
     auto kg = reorder[ii].Z() + numGhosts_;
 
+    // -----------------------------------------------------------------------
     // if i lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip - 1, jp, kp, false)) {
       // calculate updated state
       auto stateUpdate = state_(ig - 1, jg, kg).
-          UpdateWithConsVars(eqnState, x(ip - 1, jp, kp), turb);
+          UpdateWithConsVars(eqnState, x(ig - 1, jg, kg), turb);
 
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center values are used
@@ -1102,17 +1108,18 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
           this->FAreaUnitI(ig, jg, kg));
 
       // update L matrix
-      L(ip, jp, kp) = L(ip, jp, kp) + 0.5 *
+      L(ip, jp, kp) += 0.5 *
           (this->FAreaMagI(ig, jg, kg) * fluxChange + inp.MatrixRelaxation() *
-           fluxJacUpdate.ArrayMult(x(ip - 1, jp, kp)));
+           fluxJacUpdate.ArrayMult(x(ig - 1, jg, kg)));
     }
 
+    // -----------------------------------------------------------------------
     // if j lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip, jp - 1, kp, false)) {
       // calculate updated state
       auto stateUpdate = state_(ig, jg - 1, kg).
-          UpdateWithConsVars(eqnState, x(ip, jp - 1, kp), turb);
+          UpdateWithConsVars(eqnState, x(ig, jg - 1, kg), turb);
 
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center values are used
@@ -1127,17 +1134,18 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
           this->FAreaUnitJ(ig, jg, kg));
 
       // update L matrix
-      L(ip, jp, kp) = L(ip, jp, kp) + 0.5 *
+      L(ip, jp, kp) += 0.5 *
           (this->FAreaMagJ(ig, jg, kg) * fluxChange + inp.MatrixRelaxation() *
-           fluxJacUpdate.ArrayMult(x(ip, jp - 1, kp)));
+           fluxJacUpdate.ArrayMult(x(ig, jg - 1, kg)));
     }
 
+    // -----------------------------------------------------------------------
     // if k lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip, jp, kp - 1, false)) {
       // calculate updated state
       auto stateUpdate = state_(ig, jg, kg - 1).
-          UpdateWithConsVars(eqnState, x(ip, jp, kp - 1), turb);
+          UpdateWithConsVars(eqnState, x(ig, jg, kg - 1), turb);
 
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center values are used
@@ -1152,11 +1160,12 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
           this->FAreaUnitK(ig, jg, kg));
 
       // update L matrix
-      L(ip, jp, kp) = L(ip, jp, kp) + 0.5 *
+      L(ip, jp, kp) += 0.5 *
           (this->FAreaMagK(ig, jg, kg) * fluxChange + inp.MatrixRelaxation() *
-           fluxJacUpdate.ArrayMult(x(ip, jp, kp - 1)));
+           fluxJacUpdate.ArrayMult(x(ig, jg, kg - 1)));
     }
 
+    // -----------------------------------------------------------------------
     // add dual time stepping contribution to main diagonal
     auto diagTimeVol = (vol_(ig, jg, kg) * (1.0 + inp.Zeta())) /
                          (dt_(ip, jp, kp) * inp.Theta());
@@ -1166,15 +1175,20 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
       diagTimeVol += tauVol;
     }
 
-    auto AiiInv = ((mainDiagonal(ip, jp, kp) + diagTimeVol) *
-                   inp.MatrixRelaxation()).Inverse(inp.IsTurbulent());
+    mainDiagonal(ip, jp, kp) += diagTimeVol;
+    mainDiagonal(ip, jp, kp) *= inp.MatrixRelaxation();
+
+    // calculate inverse of main diagonal -- only done during first sweep
+    aiiInv(ip, jp, kp) = mainDiagonal(ip, jp, kp).Inverse(inp.IsTurbulent());
 
     // calculate intermediate update
     // normal at lower boundaries needs to be reversed, so add instead
     // of subtract L
-    x(ip, jp, kp) = AiiInv.ArrayMult(-1.0 * thetaInv * residual_(ip, jp, kp) -
-                                     solDeltaNm1(ip, jp, kp) -
-                                     solTimeMmN(ip, jp, kp) + L(ip, jp, kp));
+    x(ig, jg, kg) = aiiInv(ip, jp, kp).ArrayMult(-1.0 * thetaInv *
+                                                 residual_(ip, jp, kp) -
+                                                 solDeltaNm1(ip, jp, kp) -
+                                                 solTimeMmN(ip, jp, kp) +
+                                                 L(ip, jp, kp));
   }  // end forward sweep
 
   //----------------------------------------------------------------------
@@ -1189,12 +1203,13 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
     auto jg = reorder[ii].Y() + numGhosts_;
     auto kg = reorder[ii].Z() + numGhosts_;
 
+    // -----------------------------------------------------------------------
     // if i upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip + 1, jp, kp, false)) {
       // calculate updated state
       auto stateUpdate = state_(ig + 1, jg, kg).
-          UpdateWithConsVars(eqnState, x(ip + 1, jp, kp), turb);
+          UpdateWithConsVars(eqnState, x(ig + 1, jg, kg), turb);
 
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center values are used
@@ -1209,17 +1224,18 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
           this->FAreaUnitI(ig + 1, jg, kg));
 
       // update U matrix
-      U(ip, jp, kp) = U(ip, jp, kp) + 0.5 *
+      U(ip, jp, kp) += 0.5 *
           (this->FAreaMagI(ig + 1, jg, kg) * fluxChange - inp.MatrixRelaxation()
-           * fluxJacUpdate.ArrayMult(x(ip + 1, jp, kp)));
+           * fluxJacUpdate.ArrayMult(x(ig + 1, jg, kg)));
     }
 
+    // -----------------------------------------------------------------------
     // if j upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip, jp + 1, kp, false)) {
       // calculate updated state
       auto stateUpdate = state_(ig, jg + 1, kg).
-          UpdateWithConsVars(eqnState, x(ip, jp + 1, kp), turb);
+          UpdateWithConsVars(eqnState, x(ig, jg + 1, kg), turb);
 
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center values are used
@@ -1234,16 +1250,18 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
           this->FAreaUnitJ(ig, jg + 1, kg));
 
       // update U matrix
-      U(ip, jp, kp) = U(ip, jp, kp) + 0.5 *
+      U(ip, jp, kp) += 0.5 *
           (this->FAreaMagJ(ig, jg + 1, kg) * fluxChange - inp.MatrixRelaxation()
-           * fluxJacUpdate.ArrayMult(x(ip, jp + 1, kp)));
+           * fluxJacUpdate.ArrayMult(x(ig, jg + 1, kg)));
     }
+
+    // -----------------------------------------------------------------------
     // if k upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip, jp, kp + 1, false)) {
       // calculate updated state
       auto stateUpdate = state_(ig, jg, kg + 1).
-          UpdateWithConsVars(eqnState, x(ip, jp, kp + 1), turb);
+          UpdateWithConsVars(eqnState, x(ig, jg, kg + 1), turb);
 
       // at given face location, call function to calculate spectral radius,
       // since values are constant throughout cell, cell center values are used
@@ -1258,61 +1276,22 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
           this->FAreaUnitK(ig, jg, kg + 1));
 
       // update U matrix
-      U(ip, jp, kp) = U(ip, jp, kp) + 0.5 *
+      U(ip, jp, kp) += 0.5 *
           (this->FAreaMagK(ig, jg, kg + 1) * fluxChange - inp.MatrixRelaxation()
-           * fluxJacUpdate.ArrayMult(x(ip, jp, kp + 1)));
+           * fluxJacUpdate.ArrayMult(x(ig, jg, kg + 1)));
     }
 
-    // add dual time stepping contribution to main diagonal
-    auto diagTimeVol = (vol_(ig, jg, kg) * (1.0 + inp.Zeta())) /
-                         (dt_(ip, jp, kp) * inp.Theta());
-    if (inp.DualTimeCFL() > 0.0) {  // use dual time stepping
-      auto tauVol = avgWaveSpeed_(ip, jp, kp) /
-                   inp.DualTimeCFL();  // equal to volume / tau
-      diagTimeVol += tauVol;
-    }
-
-    auto AiiInv = ((mainDiagonal(ip, jp, kp) + diagTimeVol) *
-                   inp.MatrixRelaxation()).Inverse(inp.IsTurbulent());
-
+    // -----------------------------------------------------------------------
     // calculate update
-    x(ip, jp, kp) = x(ip, jp, kp) - AiiInv.ArrayMult(U(ip, jp, kp));
+    x(ig, jg, kg) -= aiiInv(ip, jp, kp).ArrayMult(U(ip, jp, kp));
+
+    // since backward sweep is last sweep, calculate residual
+    auto resid = -1.0 * thetaInv * residual_(ip, jp, kp) +
+        solDeltaNm1(ip, jp, kp) + solTimeMmN(ip, jp, kp) -
+        mainDiagonal(ip, jp, kp).ArrayMult(x(ig, jg, kg)) + L(ip, jp, kp) -
+        U(ip, jp, kp);
+    l2Resid += resid * resid;
   }  // end backward sweep
-
-  //-------------------------------------------------------------------
-  // calculate residual
-  // initialize LUSGS residual vector
-  genArray l2Resid(0.0);
-
-  // loop over physical cells, can use natural order for speed
-  for (struct {int p; int g;} kk = {0, numGhosts_}; kk.p <
-           this->NumK(); kk.g++, kk.p++) {
-    for (struct {int p; int g;} jj = {0, numGhosts_}; jj.p <
-             this->NumJ(); jj.g++, jj.p++) {
-      for (struct {int p; int g;} ii = {0, numGhosts_}; ii.p <
-               this->NumI(); ii.g++, ii.p++) {
-        // calclate dual time stepping contribution
-        auto diagTimeVol = (vol_(ii.g, jj.g, kk.g) * (1.0 + inp.Zeta())) /
-            (dt_(ii.p, jj.p, kk.p) * inp.Theta());
-        if (inp.DualTimeCFL() > 0.0) {  // use dual time stepping
-          auto tauVol = avgWaveSpeed_(ii.p, jj.p, kk.p) /
-              inp.DualTimeCFL();  // equal to volume / tau
-          diagTimeVol += tauVol;
-        }
-
-        auto Aii = (mainDiagonal(ii.p, jj.p, kk.p) + diagTimeVol) *
-            inp.MatrixRelaxation();
-
-        // normal at lower boundaries needs to be reversed, so add instead of
-        // subtract L
-        auto resid = -1.0 * thetaInv * residual_(ii.p, jj.p, kk.p) +
-            solDeltaNm1(ii.p, jj.p, kk.p) + solTimeMmN(ii.p, jj.p, kk.p) -
-            Aii.ArrayMult(x(ii.p, jj.p, kk.p)) + L(ii.p, jj.p, kk.p) -
-            U(ii.p, jj.p, kk.p);
-        l2Resid = l2Resid + resid * resid;
-      }
-    }
-  }
   return l2Resid.Sum();
 }
 
@@ -1325,19 +1304,24 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                         const sutherland &suth,
                         const unique_ptr<turbModel> &turb,
                         multiArray3d<fluxJacobian> &mainDiagonal,
+                        multiArray3d<fluxJacobian> &aiiInv,
                         const int &sweep) const {
   // x -- correction - added to solution at time n to get to time n+1 (assumed
   // to be zero to start)
   // solTimeMmn -- solution at time m minus n
   // solDeltaNm1 -- solution at time n minus solution at time n-1
-  // eqnState -- equation of state_
+  // eqnState -- equation of state
   // inp -- all input variables
   // suth -- method to get temperature varying viscosity (Sutherland's law)
   // turb -- turbulence model
   // mainDiagonal -- main diagonal of flux jacobians
+  // aiiInv -- inverse of main diagonal
   // sweep -- number of sweep through domain
 
   auto thetaInv = 1.0 / inp.Theta();
+
+  // initialize residuals
+  genArray l2Resid(0.0);
 
   if (sweep == 0) {  // need to invert main diagonal
     for (struct {int p; int g;} kk = {0, numGhosts_}; kk.p <
@@ -1355,15 +1339,18 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
             diagTimeVol += tauVol;
           }
 
+          // add volume and time terms to main diagonal
+          mainDiagonal(ii.p, jj.p, kk.p) += diagTimeVol;
+          mainDiagonal(ii.p, jj.p, kk.p) *= inp.MatrixRelaxation();
+
           // invert main diagonal
-          mainDiagonal(ii.p, jj.p, kk.p) =
-              ((mainDiagonal(ii.p, jj.p, kk.p) + diagTimeVol)
-               * inp.MatrixRelaxation()).Inverse(inp.IsTurbulent());
+          aiiInv(ii.p, jj.p, kk.p) =
+              mainDiagonal(ii.p, jj.p, kk.p).Inverse(inp.IsTurbulent());
 
           // calculate update
-          x(ii.p, jj.p, kk.p) = mainDiagonal(ii.p, jj.p, kk.p).ArrayMult(
-              -1.0 * thetaInv * residual_(ii.p, jj.p, kk.p) -
-              solDeltaNm1(ii.p, jj.p, kk.p) - solTimeMmN(ii.p, jj.p, kk.p));
+          x(ii.g, jj.g, kk.g) = aiiInv(ii.p, jj.p, kk.p).ArrayMult(
+              -1.0 * thetaInv * residual_(ii.p, jj.p, kk.p));  // -
+              // solDeltaNm1(ii.p, jj.p, kk.p) - solTimeMmN(ii.p, jj.p, kk.p));
         }
       }
     }
@@ -1383,10 +1370,11 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           // -------------------------------------------------------------
           // if i lower diagonal cell is in physical location there is a
           // contribution from it
-          if (this->IsPhysical(ii.p - 1, jj.p, kk.p, false)) {
+          if (this->IsPhysical(ii.p - 1, jj.p, kk.p, false) ||
+              bc_.GetBCName(ii.p, jj.p, kk.p, "il") == "interblock") {
             // calculate updated state
             auto stateUpdate = state_(ii.g - 1, jj.g, kk.g).
-                UpdateWithConsVars(eqnState, xold(ii.p - 1, jj.p, kk.p), turb);
+                UpdateWithConsVars(eqnState, xold(ii.g - 1, jj.g, kk.g), turb);
 
             // calculate flux jacobian of updated state
             fluxJacobian fluxJacUpdate(stateUpdate,
@@ -1405,16 +1393,17 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
             offDiagonal += 0.5 *
                 (this->FAreaMagI(ii.g, jj.g, kk.g) * fluxChange +
                  inp.MatrixRelaxation() *
-                 fluxJacUpdate.ArrayMult(xold(ii.p - 1, jj.p, kk.p)));
+                 fluxJacUpdate.ArrayMult(xold(ii.g - 1, jj.g, kk.g)));
           }
 
           // --------------------------------------------------------------
           // if j lower diagonal cell is in physical location there is a
           // constribution from it
-          if (this->IsPhysical(ii.p, jj.p - 1, kk.p, false)) {
+          if (this->IsPhysical(ii.p, jj.p - 1, kk.p, false) ||
+              bc_.GetBCName(ii.p, jj.p, kk.p, "jl") == "interblock") {
             // calculate updated state
             auto stateUpdate = state_(ii.g, jj.g - 1, kk.g).
-                UpdateWithConsVars(eqnState, xold(ii.p, jj.p - 1, kk.p), turb);
+                UpdateWithConsVars(eqnState, xold(ii.g, jj.g - 1, kk.g), turb);
 
             // calculate flux jacobian of updated state
             fluxJacobian fluxJacUpdate(stateUpdate,
@@ -1433,16 +1422,17 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
             offDiagonal += 0.5 *
                 (this->FAreaMagJ(ii.g, jj.g, kk.g) * fluxChange +
                  inp.MatrixRelaxation() *
-                 fluxJacUpdate.ArrayMult(xold(ii.p, jj.p - 1, kk.p)));
+                 fluxJacUpdate.ArrayMult(xold(ii.g, jj.g - 1, kk.g)));
           }
 
           // --------------------------------------------------------------
           // if k lower diagonal cell is in physical location there is a
           // contribution from it
-          if (this->IsPhysical(ii.p, jj.p, kk.p - 1, false)) {
+          if (this->IsPhysical(ii.p, jj.p, kk.p - 1, false) ||
+              bc_.GetBCName(ii.p, jj.p, kk.p, "kl") == "interblock") {
             // calculate updated state
             auto stateUpdate = state_(ii.g, jj.g, kk.g - 1).
-                UpdateWithConsVars(eqnState, xold(ii.p, jj.p, kk.p - 1), turb);
+                UpdateWithConsVars(eqnState, xold(ii.g, jj.g, kk.g - 1), turb);
 
             // calculate flux jacobian of updated state
             fluxJacobian fluxJacUpdate(stateUpdate,
@@ -1461,16 +1451,17 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
             offDiagonal += 0.5 *
                 (this->FAreaMagK(ii.g, jj.g, kk.g) * fluxChange +
                  inp.MatrixRelaxation() *
-                 fluxJacUpdate.ArrayMult(xold(ii.p, jj.p, kk.p - 1)));
+                 fluxJacUpdate.ArrayMult(xold(ii.g, jj.g, kk.g - 1)));
           }
 
           // --------------------------------------------------------------
           // if i upper diagonal cell is in physical location there is a
           // contribution from it
-          if (this->IsPhysical(ii.p + 1, jj.p, kk.p, false)) {
+          if (this->IsPhysical(ii.p + 1, jj.p, kk.p, false) ||
+              bc_.GetBCName(ii.p + 1, jj.p, kk.p, "iu") == "interblock") {
             // calculate updated state
             auto stateUpdate = state_(ii.g + 1, jj.g, kk.g).
-                UpdateWithConsVars(eqnState, xold(ii.p + 1, jj.p, kk.p), turb);
+                UpdateWithConsVars(eqnState, xold(ii.g + 1, jj.g, kk.g), turb);
 
             // calculate flux jacobian of updated state
             fluxJacobian fluxJacUpdate(stateUpdate,
@@ -1486,19 +1477,20 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                 this->FAreaUnitI(ii.g + 1, jj.g, kk.g));
 
             // update off diagonal
-            offDiagonal += 0.5 *
+            offDiagonal -= 0.5 *
                 (this->FAreaMagI(ii.g + 1, jj.g, kk.g) * fluxChange -
                  inp.MatrixRelaxation() *
-                 fluxJacUpdate.ArrayMult(xold(ii.p + 1, jj.p, kk.p)));
+                 fluxJacUpdate.ArrayMult(xold(ii.g + 1, jj.g, kk.g)));
           }
 
           // --------------------------------------------------------------
           // if j upper diagonal cell is in physical location there is a
           // contribution from it
-          if (this->IsPhysical(ii.p, jj.p + 1, kk.p, false)) {
+          if (this->IsPhysical(ii.p, jj.p + 1, kk.p, false) ||
+              bc_.GetBCName(ii.p, jj.p + 1, kk.p, "ju") == "interblock") {
             // calculate updated state
             auto stateUpdate = state_(ii.g, jj.g + 1, kk.g).
-                UpdateWithConsVars(eqnState, xold(ii.p, jj.p + 1, kk.p), turb);
+                UpdateWithConsVars(eqnState, xold(ii.g, jj.g + 1, kk.g), turb);
 
             // calculate flux jacobian of updated state
             fluxJacobian fluxJacUpdate(stateUpdate,
@@ -1513,20 +1505,21 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                 state_(ii.g, jj.g + 1, kk.g), stateUpdate, eqnState,
                 this->FAreaUnitJ(ii.g, jj.g + 1, kk.g));
 
-            // update U matrix
-            offDiagonal += 0.5 *
+            // update off diagonal
+            offDiagonal -= 0.5 *
                 (this->FAreaMagJ(ii.g, jj.g + 1, kk.g) * fluxChange -
                  inp.MatrixRelaxation() *
-                 fluxJacUpdate.ArrayMult(xold(ii.p, jj.p + 1, kk.p)));
+                 fluxJacUpdate.ArrayMult(xold(ii.g, jj.g + 1, kk.g)));
           }
 
           // --------------------------------------------------------------
           // if k upper diagonal cell is in physical location there is a
           // contribution from it
-          if (this->IsPhysical(ii.p, jj.p, kk.p + 1, false)) {
+          if (this->IsPhysical(ii.p, jj.p, kk.p + 1, false) ||
+              bc_.GetBCName(ii.p, jj.p, kk.p + 1, "ku") == "interblock") {
             // calculate updated state
             auto stateUpdate = state_(ii.g, jj.g, kk.g + 1).
-                UpdateWithConsVars(eqnState, xold(ii.p, jj.p, kk.p + 1), turb);
+                UpdateWithConsVars(eqnState, xold(ii.g, jj.g, kk.g + 1), turb);
 
             // calculate flux jacobian of updated state
             fluxJacobian fluxJacUpdate(stateUpdate,
@@ -1541,64 +1534,33 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                 state_(ii.g, jj.g, kk.g + 1), stateUpdate, eqnState,
                 this->FAreaUnitK(ii.g, jj.g, kk.g + 1));
 
-            // update U matrix
-            offDiagonal += 0.5 *
+            // update off diagonal
+            offDiagonal -= 0.5 *
                 (this->FAreaMagK(ii.g, jj.g, kk.g + 1) * fluxChange -
                  inp.MatrixRelaxation() *
-                 fluxJacUpdate.ArrayMult(xold(ii.p, jj.p, kk.p + 1)));
+                 fluxJacUpdate.ArrayMult(xold(ii.g, jj.g, kk.g + 1)));
           }
 
+          // --------------------------------------------------------------
           // calculate update
-          x(ii.p, jj.p, kk.p) = mainDiagonal(ii.p, jj.p, kk.p).ArrayMult(
-              -1.0 * thetaInv * residual_(ii.p, jj.p, kk.p) -
-              solDeltaNm1(ii.p, jj.p, kk.p) - solTimeMmN(ii.p, jj.p, kk.p) -
-              offDiagonal);
+          x(ii.g, jj.g, kk.g) = aiiInv(ii.p, jj.p, kk.p).ArrayMult(
+              -1.0 * thetaInv * residual_(ii.p, jj.p, kk.p)
+              // - solDeltaNm1(ii.p, jj.p, kk.p) - solTimeMmN(ii.p, jj.p, kk.p)
+              + offDiagonal);
+
+          // if done with sweeps, calculate residual
+          if (sweep == inp.MatrixSweeps() - 1) {
+          auto resid = -1.0 * thetaInv * residual_(ii.p, jj.p, kk.p) +
+              solDeltaNm1(ii.p, jj.p, kk.p) + solTimeMmN(ii.p, jj.p, kk.p) -
+              mainDiagonal(ii.p, jj.p, kk.p).ArrayMult(x(ii.g, jj.g, kk.g))
+              + offDiagonal;
+          l2Resid += resid * resid;
+          }
         }
       }
     }
   }
-
-  //-------------------------------------------------------------------
-  // calculate residual
-  if (sweep != inp.MatrixSweeps()) {
-    // if there are more sweeps to come, don't bother calculating residual
-    return 0.0;
-  } else {
-    return 0.0;
-    // // initialize DPLUR residual vector
-    // genArray l2Resid(0.0);
-
-    // // loop over physical cells
-    // for (struct {int p; int g;} kk = {0, numGhosts_}; kk.p <
-    //          this->NumK(); kk.g++, kk.p++) {
-    //   for (struct {int p; int g;} jj = {0, numGhosts_}; jj.p <
-    //            this->NumJ(); jj.g++, jj.p++) {
-    //     for (struct {int p; int g;} ii = {0, numGhosts_}; ii.p <
-    //              this->NumI(); ii.g++, ii.p++) {
-    //       // calculate dual time stepping contribution
-    //       auto diagTimeVol = (vol_(ii.g, jj.g, kk.g) * (1.0 + inp.Zeta())) /
-    //           (dt_(ii.p, jj.p, kk.p) * inp.Theta());
-    //       if (inp.DualTimeCFL() > 0.0) {  // use dual time stepping
-    //         auto tauVol = avgWaveSpeed_(ii.p, jj.p, kk.p) /
-    //             inp.DualTimeCFL();  // equal to volume / tau
-    //         diagTimeVol += tauVol;
-    //       }
-
-    //       auto Aii = (mainDiagonal(ii.p, jj.p, kk.p) + diagTimeVol) *
-    //           inp.MatrixRelaxation();
-
-    //       // normal at lower boundaries needs to be reversed, so add instead of
-    //       // subtract L
-    //       auto resid = -1.0 * thetaInv * residual_(ii.p, jj.p, kk.p) +
-    //           solDeltaNm1(ii.p, jj.p, kk.p) + solTimeMmN(ii.p, jj.p, kk.p) -
-    //           Aii.ArrayMult(x(ii.p, jj.p, kk.p)) + L(ii.p, jj.p, kk.p) -
-    //           U(ii.p, jj.p, kk.p);
-    //       l2Resid = l2Resid + resid * resid;
-    //     }
-    //   }
-    // }
-    // return l2Resid.Sum();
-  }
+  return l2Resid.Sum();
 }
 
 // function to reconstruct cell variables to the face using central
@@ -7199,6 +7161,9 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   // initialize matrix residual
   auto matrixResid = 0.0;
 
+  // initialize inverse of main diagonal
+  auto aiiInv = mainDiagonal;
+
   // Solve Ax=b with supported solver
   if (inp.MatrixSolver() == "lusgs") {
     for (auto bb = 0; bb < static_cast<int>(blocks.size()); bb++) {
@@ -7210,7 +7175,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
       // Calculate correction (du)
       matrixResid += blocks[bb].LUSGS(reorder, du[bb], solDeltaMmN[bb],
                                       solDeltaNm1[bb], eos, inp, suth,
-                                      turb, mainDiagonal[bb]);
+                                      turb, mainDiagonal[bb], aiiInv[bb]);
     }
   } else if (inp.MatrixSolver() == "dplur") {
     for (auto ii = 0; ii < inp.MatrixSweeps(); ii++) {
@@ -7218,7 +7183,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
         // Calculate correction (du)
         matrixResid += blocks[bb].DPLUR(du[bb], solDeltaMmN[bb],
                                         solDeltaNm1[bb], eos, inp, suth, turb,
-                                        mainDiagonal[bb], ii);
+                                        mainDiagonal[bb], aiiInv[bb], ii);
       }
 
       // swap corrections for interblock boundaries
@@ -7246,7 +7211,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
     // Zero residuals, wave speed, flux jacobians, and update
     blocks[bb].ResetResidWS();
     mainDiagonal[bb].Zero(fluxJacobian(0.0, 0.0));
-    du[bb].Zero(genArray(0.0));
+    // du[bb].Zero(genArray(0.0));
   }
 
   return matrixResid;
