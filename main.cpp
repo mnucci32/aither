@@ -16,10 +16,13 @@
 
 #include <iostream>      // cout, cerr, endl
 #include <vector>        // stl vector
-#include <cfenv>         // exceptions
 #include <ctime>         // clock
 #include <string>        // stl string
 #include <memory>        // unique_ptr
+#ifdef __linux__
+  #include <cfenv>         // exceptions
+#endif
+
 #include "plot3d.hpp"
 #include "vector3d.hpp"
 #include "input.hpp"
@@ -70,8 +73,10 @@ int main(int argc, char *argv[]) {
   auto start = clock();
 
   // Enable exceptions so code won't run with NANs
-  feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
-
+  #ifdef __linux__
+    feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
+  #endif
+  
   // Name of input file is the second argument (the executable being the first)
   string inputFile = argv[1];
 
