@@ -43,7 +43,8 @@ class genArray {
   // member functions
   void Zero();
   double Sum();
-
+  void SquareRoot();
+  
   // move constructor and assignment operator
   genArray(genArray&&) noexcept = default;
   genArray& operator=(genArray&&) noexcept = default;

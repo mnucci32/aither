@@ -777,18 +777,8 @@ void procBlock::RK4TimeAdvance(const genArray &currState,
 // iteration. This is done because the residual and wave
 // speed are accumulated over many function calls.
 void procBlock::ResetResidWS() {
-  // loop over all physical cells - no ghost cells in residual variable
-  for (auto kk = 0; kk < this->NumK(); kk++) {
-    for (auto jj = 0; jj < this->NumJ(); jj++) {
-      for (auto ii = 0; ii < this->NumI(); ii++) {
-        // reset residual
-        residual_(ii, jj, kk) = genArray(0.0);
-
-        // reset wave speed
-        avgWaveSpeed_(ii, jj, kk) = 0.0;
-      }
-    }
-  }
+  residual_.Zero(genArray(0.0));
+  avgWaveSpeed_.Zero(0.0);
 }
 
 /* Member function to add the cell volume divided by the cell time step to the
@@ -854,7 +844,7 @@ multiArray3d<genArray> procBlock::SolTimeMMinusN(
 
 /* Member function to calculate the delta n-1 term for the implicit bdf2 solver.
 
-dU/dt_ = V/t * [ ((1 + zeta) * FD - zeta * BD) / ((1 + theta) * FD )] * Un = -Rn
+dU/dt = V/t * [ ((1 + zeta) * FD - zeta * BD) / ((1 + theta) * FD )] * Un = -Rn
 
 The above equation shows the governing equations written in the Beam & Warming
 format for time integration. U is the vector of conserved variables
@@ -1168,23 +1158,23 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
     // -----------------------------------------------------------------------
     // add dual time stepping contribution to main diagonal
     auto diagTimeVol = (vol_(ig, jg, kg) * (1.0 + inp.Zeta())) /
-                         (dt_(ip, jp, kp) * inp.Theta());
+      (dt_(ip, jp, kp) * inp.Theta());
     if (inp.DualTimeCFL() > 0.0) {  // use dual time stepping
       auto tauVol = avgWaveSpeed_(ip, jp, kp) /
-                   inp.DualTimeCFL();  // equal to volume / tau
+	inp.DualTimeCFL();  // equal to volume / tau
       diagTimeVol += tauVol;
     }
 
-    mainDiagonal(ip, jp, kp) += diagTimeVol;
     mainDiagonal(ip, jp, kp) *= inp.MatrixRelaxation();
-
+    mainDiagonal(ip, jp, kp) += diagTimeVol;
+    
     // calculate inverse of main diagonal -- only done during first sweep
     aiiInv(ip, jp, kp) = mainDiagonal(ip, jp, kp).Inverse(inp.IsTurbulent());
 
     // calculate intermediate update
     // normal at lower boundaries needs to be reversed, so add instead
     // of subtract L
-    x(ig, jg, kg) = aiiInv(ip, jp, kp).ArrayMult(-1.0 * thetaInv *
+    x(ig, jg, kg) = aiiInv(ip, jp, kp).ArrayMult(-thetaInv *
                                                  residual_(ip, jp, kp) -
                                                  solDeltaNm1(ip, jp, kp) -
                                                  solTimeMmN(ip, jp, kp) +
@@ -1286,7 +1276,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
     x(ig, jg, kg) -= aiiInv(ip, jp, kp).ArrayMult(U(ip, jp, kp));
 
     // since backward sweep is last sweep, calculate residual
-    auto resid = -1.0 * thetaInv * residual_(ip, jp, kp) +
+    auto resid = -thetaInv * residual_(ip, jp, kp) +
         solDeltaNm1(ip, jp, kp) + solTimeMmN(ip, jp, kp) -
         mainDiagonal(ip, jp, kp).ArrayMult(x(ig, jg, kg)) + L(ip, jp, kp) -
         U(ip, jp, kp);
@@ -1340,8 +1330,8 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           }
 
           // add volume and time terms to main diagonal
-          mainDiagonal(ii.p, jj.p, kk.p) += diagTimeVol;
           mainDiagonal(ii.p, jj.p, kk.p) *= inp.MatrixRelaxation();
+          mainDiagonal(ii.p, jj.p, kk.p) += diagTimeVol;
 
           // invert main diagonal
           aiiInv(ii.p, jj.p, kk.p) =
@@ -1349,8 +1339,8 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
 
           // calculate update
           x(ii.g, jj.g, kk.g) = aiiInv(ii.p, jj.p, kk.p).ArrayMult(
-              -1.0 * thetaInv * residual_(ii.p, jj.p, kk.p));  // -
-              // solDeltaNm1(ii.p, jj.p, kk.p) - solTimeMmN(ii.p, jj.p, kk.p));
+	      -thetaInv * residual_(ii.p, jj.p, kk.p)); // -
+	  // solDeltaNm1(ii.p, jj.p, kk.p) - solTimeMmN(ii.p, jj.p, kk.p));
         }
       }
     }
@@ -1544,17 +1534,17 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           // --------------------------------------------------------------
           // calculate update
           x(ii.g, jj.g, kk.g) = aiiInv(ii.p, jj.p, kk.p).ArrayMult(
-              -1.0 * thetaInv * residual_(ii.p, jj.p, kk.p)
-              // - solDeltaNm1(ii.p, jj.p, kk.p) - solTimeMmN(ii.p, jj.p, kk.p)
+              -thetaInv * residual_(ii.p, jj.p, kk.p)
+              - solDeltaNm1(ii.p, jj.p, kk.p) - solTimeMmN(ii.p, jj.p, kk.p)
               + offDiagonal);
 
           // if done with sweeps, calculate residual
           if (sweep == inp.MatrixSweeps() - 1) {
-          auto resid = -1.0 * thetaInv * residual_(ii.p, jj.p, kk.p) +
+	    auto resid = -thetaInv * residual_(ii.p, jj.p, kk.p) +
               solDeltaNm1(ii.p, jj.p, kk.p) + solTimeMmN(ii.p, jj.p, kk.p) -
               mainDiagonal(ii.p, jj.p, kk.p).ArrayMult(x(ii.g, jj.g, kk.g))
               + offDiagonal;
-          l2Resid += resid * resid;
+	    l2Resid += resid * resid;
           }
         }
       }
@@ -4046,7 +4036,7 @@ bool procBlock::IsPhysical(const int &ii, const int &jj, const int &kk,
 
   auto isPhysical = true;
 
-  auto offset = includeGhost ? numGhosts_ : 0;
+  const auto offset = includeGhost ? numGhosts_ : 0;
 
   // if any of (i, j, & k) are outside of the limits of physical cells, location
   // is non-physical
@@ -7185,7 +7175,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
                                         solDeltaNm1[bb], eos, inp, suth, turb,
                                         mainDiagonal[bb], aiiInv[bb], ii);
       }
-
+      
       // swap corrections for interblock boundaries
     }
   } else {

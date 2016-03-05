@@ -51,6 +51,13 @@ double genArray::Sum() {
   return sum;
 }
 
+// member function to square root each element
+void genArray::SquareRoot() {
+  for (auto &val : data_) {
+    val = sqrt(val);
+  }
+}
+
 // member function to sum the residuals from all processors
 void genArray::GlobalReduceMPI(const int &rank, const int &numEqns) {
   // Get residuals from all processors

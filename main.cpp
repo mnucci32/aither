@@ -326,9 +326,8 @@ int main(int argc, char *argv[]) {
 
       if (rank == ROOTP) {
         // Finish calculation of L2 norm of residual
-        for ( int cc = 0; cc < inputVars.NumEquations(); cc++ ) {
-          residL2[cc] = sqrt(residL2[cc]);
-        }
+	residL2.SquareRoot();
+
         // Finish calculation of matrix residual
         matrixResid = sqrt(matrixResid/(totalCells * inputVars.NumEquations()));
 
@@ -352,8 +351,7 @@ int main(int argc, char *argv[]) {
   }  // loop for time step -----------------------------------------------------
 
   if (rank == ROOTP) {
-    cout << endl;
-    cout << "Program Complete" << endl;
+    cout << endl << "Program Complete" << endl;
     PrintTime();
 
     auto duration = (clock() - start) / static_cast<double> (CLOCKS_PER_SEC);

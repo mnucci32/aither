@@ -88,12 +88,12 @@ class vector3d {
     return lhs /= s;
   }
 
-  // assignment of data_ members
+  // assignment of data members
   void SetX(const T &val) { data_[0] = val; }
   void SetY(const T &val) { data_[1] = val; }
   void SetZ(const T &val) { data_[2] = val; }
 
-  // access of data_ members
+  // access of data members
   T X() const { return data_[0]; }
   T Y() const { return data_[1]; }
   T Z() const { return data_[2]; }
