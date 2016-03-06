@@ -4218,188 +4218,25 @@ The above diagram shows the resulting values after the ghost cell swap. The
 logic ensures that the ghost cells at the interblock boundary exactly match
 their partner block as if there were no separation in the grid.
 */
-void SwapStateSlice(const interblock &inter, procBlock &blk1, procBlock &blk2) {
+void procBlock::SwapStateSlice(const interblock &inter, procBlock &blk) {
   // inter -- interblock boundary information
-  // blk1 -- first block involved in interblock boundary
-  // blk2 -- second block involved in interblock boundary
+  // blk -- second block involved in interblock boundary
 
-  // Get indices for slice coming from first block to swap
-  auto is1 = 0;
-  auto ie1 = 0;
-  auto js1 = 0;
-  auto je1 = 0;
-  auto ks1 = 0;
-  auto ke1 = 0;
-
-  inter.FirstSliceIndices(is1, ie1, js1, je1, ks1, ke1, blk1.NumGhosts());
-
-  // Get indices for slice coming from second block to swap
-  auto is2 = 0;
-  auto ie2 = 0;
-  auto js2 = 0;
-  auto je2 = 0;
-  auto ks2 = 0;
-  auto ke2 = 0;
-
-  inter.SecondSliceIndices(is2, ie2, js2, je2, ks2, ke2, blk2.NumGhosts());
-
-  // get slices to swap
-  auto state1 = blk1.SliceState(is1, ie1, js1, je1, ks1, ke1);
-  auto state2 = blk2.SliceState(is2, ie2, js2, je2, ks2, ke2);
-
-  // change interblocks to work with slice and ghosts
-  interblock inter1 = inter;
-  interblock inter2 = inter;
-  inter1.AdjustForSlice(false, blk1.NumGhosts());
-  inter2.AdjustForSlice(true, blk2.NumGhosts());
-
-  // put slices in proper blocks
-  blk1.PutStateSlice(state2, inter2, blk2.NumGhosts(), blk2.NumGhosts());
-  blk2.PutStateSlice(state1, inter1, blk1.NumGhosts(), blk1.NumGhosts());
+  state_.SwapSlice(inter, blk.state_, numGhosts_, blk.NumGhosts());
 }
 
 
-/* Function to swap slice using MPI. This is similar to the SwapSlice member
+/* Function to swap slice using MPI. This is similar to the SwapSlice
 function, but is called when the neighboring procBlocks are on different
 processors.
 */
-void procBlock::SwapSliceMPI(const interblock &inter, const int &rank,
-                             const MPI_Datatype &MPI_cellData) {
+void procBlock::SwapStateSliceMPI(const interblock &inter, const int &rank,
+                                  const MPI_Datatype &MPI_cellData) {
   // inter -- interblock boundary information
   // rank -- processor rank
   // MPI_cellData -- MPI datatype for passing primVars, genArray
 
-  // Get indices for slice coming from block to swap
-  int is, ie, js, je, ks, ke;
-
-  if (rank == inter.RankFirst()) {  // local block is first in interblock
-    // if at upper boundary no need to adjust for ghost cells as constant
-    // surface is already at the interior cells when acounting for ghost cells
-    // if at the lower boundary adjust the constant surface by the number of
-    // ghost cells to get to the first interior cell
-    auto upLowFac = (inter.BoundaryFirst() % 2 == 0) ? 0 : numGhosts_;
-
-    if (inter.BoundaryFirst() == 1 ||
-        inter.BoundaryFirst() == 2) {  // direction 3 is i
-      // extend min/maxes to cover ghost cells
-      is = inter.ConstSurfaceFirst() + upLowFac;
-      ie = is + numGhosts_ - 1;
-
-      // direction 1 is j
-      js = inter.Dir1StartFirst();
-      je = inter.Dir1EndFirst() - 1 + 2 * numGhosts_;
-
-      // direction 2 is k
-      ks = inter.Dir2StartFirst();
-      ke = inter.Dir2EndFirst() - 1 + 2 * numGhosts_;
-    } else if (inter.BoundaryFirst() == 3 ||
-               inter.BoundaryFirst() == 4) {  // direction 3 is j
-      // extend min/maxes to cover ghost cells
-      js = inter.ConstSurfaceFirst() + upLowFac;
-      je = js + numGhosts_ - 1;
-
-      // direction 1 is k
-      ks = inter.Dir1StartFirst();
-      ke = inter.Dir1EndFirst() - 1 + 2 * numGhosts_;
-
-      // direction 2 is i
-      is = inter.Dir2StartFirst();
-      ie = inter.Dir2EndFirst() - 1 + 2 * numGhosts_;
-    } else if (inter.BoundaryFirst() == 5 ||
-               inter.BoundaryFirst() == 6) {  // direction 3 is k
-      // extend min/maxes to cover ghost cells
-      ks = inter.ConstSurfaceFirst() + upLowFac;
-      ke = ks + numGhosts_ - 1;
-
-      // direction 1 is i
-      is = inter.Dir1StartFirst();
-      ie = inter.Dir1EndFirst() - 1 + 2 * numGhosts_;
-
-      // direction 2 is j
-      js = inter.Dir2StartFirst();
-      je = inter.Dir2EndFirst() - 1 + 2 * numGhosts_;
-    } else {
-      cerr << "ERROR: Error in procBlock::SwapSliceMPI(). Surface boundary "
-           << inter.BoundaryFirst() << " is not recognized!" << endl;
-      exit(0);
-    }
-  // local block is second in interblock
-  } else if (rank == inter.RankSecond()) {
-    // if at upper boundary no need to adjust for ghost cells as constant
-    // surface is already at the interior cells when acounting for ghost cells
-    // if at the lower boundary adjust the constant surface by the number of
-    // ghost cells to get to the first interior cell
-    auto upLowFac = (inter.BoundarySecond() % 2 == 0) ? 0 : numGhosts_;
-
-    if (inter.BoundarySecond() == 1 ||
-        inter.BoundarySecond() == 2) {  // direction 3 is i
-      // extend min/maxes to cover ghost cells
-      is = inter.ConstSurfaceSecond() + upLowFac;
-      ie = is + numGhosts_ - 1;
-
-      // direction 1 is j
-      js = inter.Dir1StartSecond();
-      je = inter.Dir1EndSecond() - 1 + 2 * numGhosts_;
-
-      // direction 2 is k
-      ks = inter.Dir2StartSecond();
-      ke = inter.Dir2EndSecond() - 1 + 2 * numGhosts_;
-    } else if (inter.BoundarySecond() == 3 ||
-               inter.BoundarySecond() == 4) {  // direction 3 is j
-      // extend min/maxes to cover ghost cells
-      js = inter.ConstSurfaceSecond() + upLowFac;
-      je = js + numGhosts_ - 1;
-
-      // direction 1 is k
-      ks = inter.Dir1StartSecond();
-      ke = inter.Dir1EndSecond() - 1 + 2 * numGhosts_;
-
-      // direction 2 is i
-      is = inter.Dir2StartSecond();
-      ie = inter.Dir2EndSecond() - 1 + 2 * numGhosts_;
-    } else if (inter.BoundarySecond() == 5 ||
-               inter.BoundarySecond() == 6) {  // direction 3 is k
-      // extend min/maxes to cover ghost cells
-      ks = inter.ConstSurfaceSecond() + upLowFac;
-      ke = ks + numGhosts_ - 1;
-
-      // direction 1 is i
-      is = inter.Dir1StartSecond();
-      ie = inter.Dir1EndSecond() - 1 + 2 * numGhosts_;
-
-      // direction 2 is j
-      js = inter.Dir2StartSecond();
-      je = inter.Dir2EndSecond() - 1 + 2 * numGhosts_;
-    } else {
-      cerr << "ERROR: Error in procBlock::SwapSliceMPI(). Surface boundary "
-           << inter.BoundarySecond() << " is not recognized!" << endl;
-      exit(0);
-    }
-  } else {
-    cerr << "ERROR: Error in procBlock::SwapSliceMPI(). Processor rank does "
-            "not match either of interblock ranks!" << endl;
-    exit(0);
-  }
-
-  // get local state slice to swap
-  auto state = this->SliceState(is, ie, js, je, ks, ke);
-
-  // swap state slices with partner block
-  state.PackSwapUnpackMPI(inter, MPI_cellData, rank);
-
-  // change interblocks to work with slice and ghosts
-  auto interAdj = inter;
-
-  // block to insert into is first in interblock
-  if (rank == inter.RankFirst()) {
-    interAdj.AdjustForSlice(true, numGhosts_);
-  } else {  // block to insert into is second in interblock, so pass swapped
-            // version
-    interAdj.AdjustForSlice(false, numGhosts_);
-  }
-
-  // insert state slice into procBlock
-  this->PutStateSlice(state, interAdj, numGhosts_, numGhosts_);
+  state_.SwapSliceMPI(inter, rank, MPI_cellData, numGhosts_);
 }
 
 /* Function to populate ghost cells with proper cell states for inviscid flow
@@ -4430,19 +4267,20 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
         connections[ii].RankSecond() == rank) {  // both sides of interblock
                                                   // are on this processor, swap
                                                   // w/o mpi
-      SwapStateSlice(connections[ii], states[connections[ii].LocalBlockFirst()],
-                     states[connections[ii].LocalBlockSecond()]);
+      states[connections[ii].LocalBlockFirst()]
+          .SwapStateSlice(connections[ii],
+                          states[connections[ii].LocalBlockSecond()]);
     } else if (connections[ii].RankFirst() ==
                rank) {  // rank matches rank of first side of interblock,
                          // swap over mpi
       states[connections[ii].LocalBlockFirst()]
-          .SwapSliceMPI(connections[ii], rank, MPI_cellData);
+          .SwapStateSliceMPI(connections[ii], rank, MPI_cellData);
 
     } else if (connections[ii].RankSecond() ==
                rank) {  // rank matches rank of second side of interblock,
                          // swap over mpi
       states[connections[ii].LocalBlockSecond()]
-          .SwapSliceMPI(connections[ii], rank, MPI_cellData);
+          .SwapStateSliceMPI(connections[ii], rank, MPI_cellData);
     }
     // if rank doesn't match either side of interblock, then do nothing and
     // move on to the next interblock
@@ -6922,6 +6760,8 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   // initialize inverse of main diagonal
   auto aiiInv = mainDiagonal;
 
+  auto numG = blocks[0].NumGhosts();
+
   // Solve Ax=b with supported solver
   if (inp.MatrixSolver() == "lusgs") {
     for (auto bb = 0; bb < static_cast<int>(blocks.size()); bb++) {
@@ -6945,7 +6785,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
       }
 
       // swap corrections for interblock boundaries
-      SwapImplicitUpdate(du, connections, rank, MPI_cellData);
+      SwapImplicitUpdate(du, connections, rank, MPI_cellData, numG);
     }
   } else {
     cerr << "ERROR: Matrix solver " << inp.MatrixSolver() <<
@@ -6977,32 +6817,34 @@ double ImplicitUpdate(vector<procBlock> &blocks,
 
 void SwapImplicitUpdate(vector<multiArray3d<genArray>> &du,
                         const vector<interblock> &connections, const int &rank,
-                        const MPI_Datatype &MPI_cellData) {
+                        const MPI_Datatype &MPI_cellData,
+                        const int &numGhosts) {
   // du -- implicit update in conservative variables
   // connections -- interblock boundary conditions
   // rank -- processor rank
   // MPI_cellData -- datatype to pass primVars or genArray
+  // numGhosts -- number of ghost cells
 
-  // // loop over all connections and swap interblock updates when necessary
-  // for (auto ii = 0; ii < static_cast<int>(connections.size()); ii++) {
-  //   if (connections[ii].RankFirst() == rank &&
-  //       connections[ii].RankSecond() == rank) {
-  //     // both sides of interblock are on this processor, swap w/o mpi
-  //     SwapStateSlice(connections[ii], du[connections[ii].LocalBlockFirst()],
-  //               du[connections[ii].LocalBlockSecond()]);
-  //   } else if (connections[ii].RankFirst() == rank) {
-  //     // rank matches rank of first side of interblock, swap over mpi
-  //     du[connections[ii].LocalBlockFirst()]
-  //         .SwapSliceMPI(connections[ii], rank, MPI_cellData);
+  // loop over all connections and swap interblock updates when necessary
+  for (auto ii = 0; ii < static_cast<int>(connections.size()); ii++) {
+    if (connections[ii].RankFirst() == rank &&
+        connections[ii].RankSecond() == rank) {
+      // both sides of interblock are on this processor, swap w/o mpi
+      du[connections[ii].LocalBlockFirst()].SwapSlice(connections[ii],
+                du[connections[ii].LocalBlockSecond()], numGhosts, numGhosts);
+    } else if (connections[ii].RankFirst() == rank) {
+      // rank matches rank of first side of interblock, swap over mpi
+      du[connections[ii].LocalBlockFirst()]
+          .SwapSliceMPI(connections[ii], rank, MPI_cellData, numGhosts);
 
-  //   } else if (connections[ii].RankSecond() == rank) {
-  //     // rank matches rank of second side of interblock, swap over mpi
-  //     du[connections[ii].LocalBlockSecond()]
-  //         .SwapSliceMPI(connections[ii], rank, MPI_cellData);
-  //   }
-  //   // if rank doesn't match either side of interblock, then do nothing and
-  //   // move on to the next interblock
-  // }
+    } else if (connections[ii].RankSecond() == rank) {
+      // rank matches rank of second side of interblock, swap over mpi
+      du[connections[ii].LocalBlockSecond()]
+          .SwapSliceMPI(connections[ii], rank, MPI_cellData, numGhosts);
+    }
+    // if rank doesn't match either side of interblock, then do nothing and
+    // move on to the next interblock
+  }
 }
 
 multiArray3d<primVars> procBlock::SliceState(const int &is, const int &ie,

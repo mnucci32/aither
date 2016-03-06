@@ -78,6 +78,11 @@ class multiArray3d {
               const int&, const multiArray3d<T>&);
   void PutSlice(const multiArray3d<T> &, const interblock &, const int &,
                 const int &);
+  void SwapSliceMPI(const interblock&, const int&, const MPI_Datatype&,
+                    const int&);
+  void SwapSlice(const interblock&, multiArray3d<T>&, const int&,
+                      const int&);
+
   void Zero(const T&);
 
   void GrowI();
@@ -652,6 +657,122 @@ void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
              this->Size(), MPI_cellData, MPI_COMM_WORLD);
 
   delete[] buffer;
+}
+
+/* Function to swap slice using MPI. This is similar to the SwapSlice
+function, but is called when the neighboring procBlocks are on different
+processors.
+*/
+template <typename T>
+void multiArray3d<T>::SwapSliceMPI(const interblock &inter, const int &rank,
+                             const MPI_Datatype &MPI_cellData,
+                             const int &numGhosts) {
+  // inter -- interblock boundary information
+  // rank -- processor rank
+  // MPI_cellData -- MPI datatype for passing primVars, genArray
+  // numGhosts -- number of ghost cells
+
+  // Get indices for slice coming from block to swap
+  auto is = 0;
+  auto ie = 0;
+  auto js = 0;
+  auto je = 0;
+  auto ks = 0;
+  auto ke = 0;
+
+  if (rank == inter.RankFirst()) {  // local block is first in interblock
+    inter.FirstSliceIndices(is, ie, js, je, ks, ke, numGhosts);
+  // local block is second in interblock
+  } else if (rank == inter.RankSecond()) {
+    inter.SecondSliceIndices(is, ie, js, je, ks, ke, numGhosts);
+  } else {
+    cerr << "ERROR: Error in procBlock::SwapSliceMPI(). Processor rank does "
+            "not match either of interblock ranks!" << endl;
+    exit(0);
+  }
+
+  // get local state slice to swap
+  auto slice = this->Slice(is, ie, js, je, ks, ke);
+
+  // swap state slices with partner block
+  slice.PackSwapUnpackMPI(inter, MPI_cellData, rank);
+
+  // change interblocks to work with slice and ghosts
+  auto interAdj = inter;
+
+  // block to insert into is first in interblock
+  if (rank == inter.RankFirst()) {
+    interAdj.AdjustForSlice(true, numGhosts);
+  } else {  // block to insert into is second in interblock, so pass swapped
+            // version
+    interAdj.AdjustForSlice(false, numGhosts);
+  }
+
+  // insert state slice into procBlock
+  this->PutSlice(slice, interAdj, numGhosts, numGhosts);
+}
+
+/* Function to swap ghost cells between two blocks at an interblock
+boundary. Slices are removed from the physical cells (extending into ghost cells
+at the edges) of one block and inserted into the ghost cells of its partner
+block. The reverse is also true. The slices are taken in the coordinate system
+orientation of their parent block.
+
+   Interior Cells    Ghost Cells               Ghost Cells   Interior Cells
+   ________ ______|________ _________       _______________|_______ _________
+Ui-3/2   Ui-1/2   |    Uj+1/2    Uj+3/2  Ui-3/2    Ui-1/2  |    Uj+1/2    Uj+3/2
+  |        |      |        |         |     |        |      |       |         |
+  | Ui-1   |  Ui  |  Uj    |  Uj+1   |     |  Ui-1  |   Ui |  Uj   |  Uj+1   |
+  |        |      |        |         |     |        |      |       |         |
+  |________|______|________|_________|     |________|______|_______|_________|
+                  |                                        |
+
+The above diagram shows the resulting values after the ghost cell swap. The
+logic ensures that the ghost cells at the interblock boundary exactly match
+their partner block as if there were no separation in the grid.
+*/
+template <typename T>
+void multiArray3d<T>::SwapSlice(const interblock &inter,
+                                multiArray3d<T> &array, const int &numG1,
+                                const int &numG2) {
+  // inter -- interblock boundary information
+  // array -- second array involved in interblock boundary
+  // numG1 -- number of ghost cells in first array
+  // numG2 -- number of ghost cells in second array
+
+  // Get indices for slice coming from first block to swap
+  auto is1 = 0;
+  auto ie1 = 0;
+  auto js1 = 0;
+  auto je1 = 0;
+  auto ks1 = 0;
+  auto ke1 = 0;
+
+  inter.FirstSliceIndices(is1, ie1, js1, je1, ks1, ke1, numG1);
+
+  // Get indices for slice coming from second block to swap
+  auto is2 = 0;
+  auto ie2 = 0;
+  auto js2 = 0;
+  auto je2 = 0;
+  auto ks2 = 0;
+  auto ke2 = 0;
+
+  inter.SecondSliceIndices(is2, ie2, js2, je2, ks2, ke2, numG2);
+
+  // get slices to swap
+  auto slice1 = this->Slice(is1, ie1, js1, je1, ks1, ke1);
+  auto slice2 = array.Slice(is2, ie2, js2, je2, ks2, ke2);
+
+  // change interblocks to work with slice and ghosts
+  interblock inter1 = inter;
+  interblock inter2 = inter;
+  inter1.AdjustForSlice(false, numG1);
+  inter2.AdjustForSlice(true, numG2);
+
+  // put slices in proper blocks
+  this->PutSlice(slice2, inter2, numG2, numG2);
+  array.PutSlice(slice1, inter1, numG1, numG1);
 }
 
 

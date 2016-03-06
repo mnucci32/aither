@@ -320,7 +320,8 @@ class procBlock {
                   vector<boundarySurface> &);
   void Join(const procBlock &, const string &, vector<boundarySurface> &);
 
-  void SwapSliceMPI(const interblock &, const int &, const MPI_Datatype &);
+  void SwapStateSlice(const interblock &, procBlock &);
+  void SwapStateSliceMPI(const interblock &, const int &, const MPI_Datatype &);
 
   void PackSendGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
                        const MPI_Datatype &) const;
@@ -357,7 +358,6 @@ vector3d<double> CalcScalarGradGG(
     const vector3d<double> &, const double &);
 
 void SwapGeomSlice(interblock &, procBlock &, procBlock &);
-void SwapStateSlice(const interblock &, procBlock &, procBlock &);
 
 void GetBoundaryConditions(vector<procBlock> &, const input &, const idealGas &,
                            const sutherland &, const unique_ptr<turbModel> &,
@@ -388,7 +388,7 @@ double ImplicitUpdate(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
 
 void SwapImplicitUpdate(vector<multiArray3d<genArray>> &,
                         const vector<interblock> &, const int &,
-                        const MPI_Datatype &);
+                        const MPI_Datatype &, const int &);
 #endif
 
 
