@@ -50,7 +50,6 @@ class viscousFlux;
 class input;
 class gradients;
 class geomSlice;
-class stateSlice;
 class source;
 class turbModel;
 class plot3dBlock;
@@ -169,6 +168,10 @@ class procBlock {
   primVars State(const int &ii, const int &jj, const int &kk) const {
     return state_(ii, jj, kk);
   }
+
+  multiArray3d<primVars> SliceState(const int &, const int &, const int &,
+                                    const int &, const int &,
+                                    const int &) const;
 
   multiArray3d<genArray> GetCopyConsVars(const idealGas &) const;
 
@@ -310,8 +313,8 @@ class procBlock {
 
   vector<bool> PutGeomSlice(const geomSlice &, interblock &, const int &,
                             const int &);
-  void PutStateSlice(const stateSlice &, const interblock &, const int &,
-                     const int &);
+  void PutStateSlice(const multiArray3d<primVars> &, const interblock &,
+                     const int &, const int &);
 
   procBlock Split(const string &, const int &, const int &,
                   vector<boundarySurface> &);
@@ -353,9 +356,8 @@ vector3d<double> CalcScalarGradGG(
     const vector3d<double> &, const vector3d<double> &,
     const vector3d<double> &, const double &);
 
-vector3d<int> GetSwapLoc(const int &, const int &, const int &,
-                         const interblock &, const bool &);
-void SwapSlice(interblock &, procBlock &, procBlock &, const bool &);
+void SwapGeomSlice(interblock &, procBlock &, procBlock &);
+void SwapStateSlice(const interblock &, procBlock &, procBlock &);
 
 void GetBoundaryConditions(vector<procBlock> &, const input &, const idealGas &,
                            const sutherland &, const unique_ptr<turbModel> &,
@@ -380,8 +382,13 @@ double ImplicitUpdate(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
                       const vector<multiArray3d<genArray>> &,
                       vector<multiArray3d<genArray>> &,
                       const unique_ptr<turbModel> &,
-                      const int &, genArray &, resid &);
+                      const int &, genArray &, resid &,
+                      const vector<interblock> &, const int &,
+                      const MPI_Datatype &);
 
+void SwapImplicitUpdate(vector<multiArray3d<genArray>> &,
+                        const vector<interblock> &, const int &,
+                        const MPI_Datatype &);
 #endif
 
 

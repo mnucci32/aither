@@ -4146,130 +4146,33 @@ Only 3 faces at each ghost cell need to be swapped (i.e. the lower face for Ui
 is the upper face for Ui-1). At the end of a line (i-line, j-line or k-line),
 both the upper and lower faces need to be swapped.
 */
-void SwapSlice(interblock &inter, procBlock &blk1, procBlock &blk2,
-               const bool &geom) {
+void SwapGeomSlice(interblock &inter, procBlock &blk1, procBlock &blk2) {
   // inter -- interblock boundary information
   // blk1 -- first block involved in interblock boundary
   // blk2 -- second block involved in interblock boundary
-  // geom -- boolean to determine whether to swap geometry or states
 
   // Get indices for slice coming from first block to swap
-  int is1, ie1, js1, je1, ks1, ke1;
+  auto is1 = 0;
+  auto ie1 = 0;
+  auto js1 = 0;
+  auto je1 = 0;
+  auto ks1 = 0;
+  auto ke1 = 0;
 
-  // if at upper boundary no need to adjust for ghost cells as constant surface
-  // is already at the interior cells when acounting for ghost cells
-  // if at the lower boundary adjust the constant surface by the number of ghost
-  // cells to get to the first interior cell
-  auto upLowFac = (inter.BoundaryFirst() % 2 == 0) ? 0 : blk1.NumGhosts();
-
-  if (inter.BoundaryFirst() == 1 ||
-      inter.BoundaryFirst() == 2) {  // direction 3 is i
-    // extend min/maxes to cover ghost cells
-    is1 = inter.ConstSurfaceFirst() + upLowFac;
-    ie1 = is1 + blk1.NumGhosts() - 1;
-
-    // direction 1 is j
-    js1 = inter.Dir1StartFirst();
-    je1 = inter.Dir1EndFirst() - 1 + 2 * blk1.NumGhosts();
-
-    // direction 2 is k
-    ks1 = inter.Dir2StartFirst();
-    ke1 = inter.Dir2EndFirst() - 1 + 2 * blk1.NumGhosts();
-  } else if (inter.BoundaryFirst() == 3 ||
-             inter.BoundaryFirst() == 4) {  // direction 3 is j
-    // extend min/maxes to cover ghost cells
-    js1 = inter.ConstSurfaceFirst() + upLowFac;
-    je1 = js1 + blk1.NumGhosts() - 1;
-
-    // direction 1 is k
-    ks1 = inter.Dir1StartFirst();
-    ke1 = inter.Dir1EndFirst() - 1 + 2 * blk1.NumGhosts();
-
-    // direction 2 is i
-    is1 = inter.Dir2StartFirst();
-    ie1 = inter.Dir2EndFirst() - 1 + 2 * blk1.NumGhosts();
-  } else if (inter.BoundaryFirst() == 5 ||
-             inter.BoundaryFirst() == 6) {  // direction 3 is k
-    // extend min/maxes to cover ghost cells
-    ks1 = inter.ConstSurfaceFirst() + upLowFac;
-    ke1 = ks1 + blk1.NumGhosts() - 1;
-
-    // direction 1 is i
-    is1 = inter.Dir1StartFirst();
-    ie1 = inter.Dir1EndFirst() - 1 + 2 * blk1.NumGhosts();
-
-    // direction 2 is j
-    js1 = inter.Dir2StartFirst();
-    je1 = inter.Dir2EndFirst() - 1 + 2 * blk1.NumGhosts();
-  } else {
-    cerr << "ERROR: Error in procBlock::SwapSlice(). Surface boundary "
-         << inter.BoundaryFirst() << " is not recognized!" << endl;
-    exit(0);
-  }
+  inter.FirstSliceIndices(is1, ie1, js1, je1, ks1, ke1, blk1.NumGhosts());
 
   // Get indices for slice coming from second block to swap
-  int is2, ie2, js2, je2, ks2, ke2;
+  auto is2 = 0;
+  auto ie2 = 0;
+  auto js2 = 0;
+  auto je2 = 0;
+  auto ks2 = 0;
+  auto ke2 = 0;
 
-  // if at upper boundary no need to adjust for ghost cells as constant surface
-  // is already at the interior cells when acounting for ghost cells
-  // if at the lower boundary adjust the constant surface by the number of ghost
-  // cells to get to the first interior cell
-  upLowFac = (inter.BoundarySecond() % 2 == 0) ? 0 : blk2.NumGhosts();
+  inter.SecondSliceIndices(is2, ie2, js2, je2, ks2, ke2, blk2.NumGhosts());
 
-  if (inter.BoundarySecond() == 1 ||
-      inter.BoundarySecond() == 2) {  // direction 3 is i
-    // extend min/maxes to cover ghost cells
-    is2 = inter.ConstSurfaceSecond() + upLowFac;
-    ie2 = is2 + blk2.NumGhosts() - 1;
-
-    // direction 1 is j
-    js2 = inter.Dir1StartSecond();
-    je2 = inter.Dir1EndSecond() - 1 + 2 * blk2.NumGhosts();
-
-    // direction 2 is k
-    ks2 = inter.Dir2StartSecond();
-    ke2 = inter.Dir2EndSecond() - 1 + 2 * blk2.NumGhosts();
-  } else if (inter.BoundarySecond() == 3 ||
-             inter.BoundarySecond() == 4) {  // direction 3 is j
-    // extend min/maxes to cover ghost cells
-    js2 = inter.ConstSurfaceSecond() + upLowFac;
-    je2 = js2 + blk2.NumGhosts() - 1;
-
-    // direction 1 is k
-    ks2 = inter.Dir1StartSecond();
-    ke2 = inter.Dir1EndSecond() - 1 + 2 * blk2.NumGhosts();
-
-    // direction 2 is i
-    is2 = inter.Dir2StartSecond();
-    ie2 = inter.Dir2EndSecond() - 1 + 2 * blk2.NumGhosts();
-  } else if (inter.BoundarySecond() == 5 ||
-             inter.BoundarySecond() == 6) {  // direction 3 is k
-    // extend min/maxes to cover ghost cells
-    ks2 = inter.ConstSurfaceSecond() + upLowFac;
-    ke2 = ks2 + blk2.NumGhosts() - 1;
-
-    // direction 1 is i
-    is2 = inter.Dir1StartSecond();
-    ie2 = inter.Dir1EndSecond() - 1 + 2 * blk2.NumGhosts();
-
-    // direction 2 is j
-    js2 = inter.Dir2StartSecond();
-    je2 = inter.Dir2EndSecond() - 1 + 2 * blk2.NumGhosts();
-  } else {
-    cerr << "ERROR: Error in procBlock::SwapSlice(). Surface boundary "
-         << inter.BoundarySecond() << " is not recognized!" << endl;
-    exit(0);
-  }
-
-  geomSlice geom1, geom2;
-  stateSlice state1, state2;
-  if (geom) {  // get geomSlices to swap
-    geom1 = geomSlice(blk1, is1, ie1, js1, je1, ks1, ke1);
-    geom2 = geomSlice(blk2, is2, ie2, js2, je2, ks2, ke2);
-  } else {  // get stateSlices to swap
-    state1 = stateSlice(blk1, is1, ie1, js1, je1, ks1, ke1);
-    state2 = stateSlice(blk2, is2, ie2, js2, je2, ks2, ke2);
-  }
+  auto geom1 = geomSlice(blk1, is1, ie1, js1, je1, ks1, ke1);
+  auto geom2 = geomSlice(blk2, is2, ie2, js2, je2, ks2, ke2);
 
   // change interblocks to work with slice and ghosts
   interblock inter1 = inter;
@@ -4278,28 +4181,83 @@ void SwapSlice(interblock &inter, procBlock &blk1, procBlock &blk2,
   inter2.AdjustForSlice(true, blk2.NumGhosts());
 
   // put slices in proper blocks
-  if (geom) {  // put geomSlices in procBlock
-    // return vector determining if any of the 4 edges of the interblock need to
-    // be updated for a "t" intersection
-    auto adjEdge1 = blk1.PutGeomSlice(geom2, inter2, blk2.NumGhosts(),
-                                      blk2.NumGhosts());
-    auto adjEdge2 = blk2.PutGeomSlice(geom1, inter1, blk1.NumGhosts(),
-                                      blk1.NumGhosts());
+  // return vector determining if any of the 4 edges of the interblock need to
+  // be updated for a "t" intersection
+  auto adjEdge1 = blk1.PutGeomSlice(geom2, inter2, blk2.NumGhosts(),
+                                    blk2.NumGhosts());
+  auto adjEdge2 = blk2.PutGeomSlice(geom1, inter1, blk1.NumGhosts(),
+                                    blk1.NumGhosts());
 
-    // if an interblock border needs to be updated, update
-    for (auto ii = 0; ii < static_cast<int>(adjEdge1.size()); ii++) {
-      if (adjEdge1[ii]) {
-        inter.UpdateBorderFirst(ii);
-      }
-      if (adjEdge2[ii]) {
-        inter.UpdateBorderSecond(ii);
-      }
+  // if an interblock border needs to be updated, update
+  for (auto ii = 0; ii < static_cast<int>(adjEdge1.size()); ii++) {
+    if (adjEdge1[ii]) {
+      inter.UpdateBorderFirst(ii);
     }
-  } else {  // put stateSlices in procBlock
-    blk1.PutStateSlice(state2, inter2, blk2.NumGhosts(), blk2.NumGhosts());
-    blk2.PutStateSlice(state1, inter1, blk1.NumGhosts(), blk1.NumGhosts());
+    if (adjEdge2[ii]) {
+      inter.UpdateBorderSecond(ii);
+    }
   }
 }
+
+/* Function to swap ghost cells between two blocks at an interblock
+boundary. Slices are removed from the physical cells (extending into ghost cells
+at the edges) of one block and inserted into the ghost cells of its partner
+block. The reverse is also true. The slices are taken in the coordinate system
+orientation of their parent block.
+
+   Interior Cells    Ghost Cells               Ghost Cells   Interior Cells
+   ________ ______|________ _________       _______________|_______ _________
+Ui-3/2   Ui-1/2   |    Uj+1/2    Uj+3/2  Ui-3/2    Ui-1/2  |    Uj+1/2    Uj+3/2
+  |        |      |        |         |     |        |      |       |         |
+  | Ui-1   |  Ui  |  Uj    |  Uj+1   |     |  Ui-1  |   Ui |  Uj   |  Uj+1   |
+  |        |      |        |         |     |        |      |       |         |
+  |________|______|________|_________|     |________|______|_______|_________|
+                  |                                        |
+
+The above diagram shows the resulting values after the ghost cell swap. The
+logic ensures that the ghost cells at the interblock boundary exactly match
+their partner block as if there were no separation in the grid.
+*/
+void SwapStateSlice(const interblock &inter, procBlock &blk1, procBlock &blk2) {
+  // inter -- interblock boundary information
+  // blk1 -- first block involved in interblock boundary
+  // blk2 -- second block involved in interblock boundary
+
+  // Get indices for slice coming from first block to swap
+  auto is1 = 0;
+  auto ie1 = 0;
+  auto js1 = 0;
+  auto je1 = 0;
+  auto ks1 = 0;
+  auto ke1 = 0;
+
+  inter.FirstSliceIndices(is1, ie1, js1, je1, ks1, ke1, blk1.NumGhosts());
+
+  // Get indices for slice coming from second block to swap
+  auto is2 = 0;
+  auto ie2 = 0;
+  auto js2 = 0;
+  auto je2 = 0;
+  auto ks2 = 0;
+  auto ke2 = 0;
+
+  inter.SecondSliceIndices(is2, ie2, js2, je2, ks2, ke2, blk2.NumGhosts());
+
+  // get slices to swap
+  auto state1 = blk1.SliceState(is1, ie1, js1, je1, ks1, ke1);
+  auto state2 = blk2.SliceState(is2, ie2, js2, je2, ks2, ke2);
+
+  // change interblocks to work with slice and ghosts
+  interblock inter1 = inter;
+  interblock inter2 = inter;
+  inter1.AdjustForSlice(false, blk1.NumGhosts());
+  inter2.AdjustForSlice(true, blk2.NumGhosts());
+
+  // put slices in proper blocks
+  blk1.PutStateSlice(state2, inter2, blk2.NumGhosts(), blk2.NumGhosts());
+  blk2.PutStateSlice(state1, inter1, blk1.NumGhosts(), blk1.NumGhosts());
+}
+
 
 /* Function to swap slice using MPI. This is similar to the SwapSlice member
 function, but is called when the neighboring procBlocks are on different
@@ -4424,7 +4382,7 @@ void procBlock::SwapSliceMPI(const interblock &inter, const int &rank,
   }
 
   // get local state slice to swap
-  stateSlice state(*this, is, ie, js, je, ks, ke);
+  auto state = this->SliceState(is, ie, js, je, ks, ke);
 
   // swap state slices with partner block
   state.PackSwapUnpackMPI(inter, MPI_cellData, rank);
@@ -4440,167 +4398,8 @@ void procBlock::SwapSliceMPI(const interblock &inter, const int &rank,
     interAdj.AdjustForSlice(false, numGhosts_);
   }
 
-  // insert stateSlice into procBlock
+  // insert state slice into procBlock
   this->PutStateSlice(state, interAdj, numGhosts_, numGhosts_);
-}
-
-/* Function to return a vector of location indicies for ghost cells at an
-interblock boundary. The vector is formatted as shown below:
-
-  vector = [i j k]
-
-The vector will contain 3 entries corresponding to the i, j, and k locations of
-either the first or second pair in the interblock, depending on what is
-specified in the 'first' variable. The indices returned will correspond to cell
-locations and will take into account the orientation of the patches that
-comprise the interblock with relation to each other.
-*/
-vector3d<int> GetSwapLoc(const int &l1, const int &l2, const int &l3,
-                         const interblock &inter, const bool &first) {
-  // l1 -- index of direction 1 within slice to insert
-  // l2 -- index of direction 2 within slice to insert
-  // l3 -- index of direction 3 within slice to insert
-  // inter -- interblock boundary condition
-  // first -- flag for first or second block in interblock match
-
-  // preallocate vector to return
-  vector3d<int> loc;
-
-  if (first) {  // working on first in pair ------------------------------
-    // first patch in pair is calculated using orientation 1
-    if (inter.Direction3First() == "i") {  // i-patch
-      // get direction 1 length
-      loc[1] = inter.Dir1StartFirst() + l1;  // direction 1 is j
-      loc[2] = inter.Dir2StartFirst() + l2;  // direction 2 is k
-      loc[0] = inter.ConstSurfaceFirst() +
-               l3;  // add l3 to get to ghost cells (cell index instead of face)
-    } else if (inter.Direction3First() == "j") {  // j-patch
-      // get direction 1 length
-      loc[2] = inter.Dir1StartFirst() + l1;  // direction 1 is k
-      loc[0] = inter.Dir2StartFirst() + l2;  // direction 2 is i
-      loc[1] = inter.ConstSurfaceFirst() +
-               l3;  // add l3 to get to ghost cells (cell index instead of face)
-    } else if (inter.Direction3First() == "k") {  // k-patch
-      // get direction 1 length
-      loc[0] = inter.Dir1StartFirst() + l1;  // direction 1 is i
-      loc[1] = inter.Dir2StartFirst() + l2;  // direction 2 is j
-      loc[2] = inter.ConstSurfaceFirst() +
-               l3;  // add l3 to get to ghost cells (cell index instead of face)
-    } else {
-      cerr << "ERROR: Error in procBlock:GetSwapLoc(). Boundary direction "
-           << inter.Direction3First() << " is not recognized!" << endl;
-      exit(0);
-    }
-  //--------------------------------------------------------------------------
-  // need to use orientation for second in pair
-  } else {  // working on second in pair ---------------------------------------
-    if (inter.Direction3Second() == "i") {  // i-patch
-      if (inter.Orientation() == 2 || inter.Orientation() == 4 ||
-          inter.Orientation() == 5 ||
-          inter.Orientation() == 7) {  // swap dir 1 and 2
-        // direction 1 is j (swapped) -- if true direction reversed -- subtract
-        // 1 from End to get to cell index
-        loc[2] = (inter.Orientation() == 5 || inter.Orientation() == 7)
-                     ? inter.Dir2EndSecond() - 1 - l1
-                     : inter.Dir2StartSecond() + l1;
-
-        // direction 2 is k (swapped) -- if true direction reversed -- subtract
-        // 1 from End to get to cell index
-        loc[1] = (inter.Orientation() == 4 || inter.Orientation() == 7)
-                     ? inter.Dir1EndSecond() - 1 - l2
-                     : inter.Dir1StartSecond() + l2;
-      } else {  // no direction swap
-        // direction 1 is j -- if true direction reversed -- subtract 1 from End
-        // to get to cell index
-        loc[1] = (inter.Orientation() == 6 || inter.Orientation() == 8)
-                     ? inter.Dir1EndSecond() - 1 - l1
-                     : inter.Dir1StartSecond() + l1;
-
-        // direction 2 is k -- if true direction reversed -- subtract 1 from End
-        // to get to cell index
-        loc[2] = (inter.Orientation() == 3 || inter.Orientation() == 8)
-                     ? inter.Dir2EndSecond() - 1 - l2
-                     : inter.Dir2StartSecond() + l2;
-      }
-
-      // calculate index for all ghost layers
-      loc[0] = inter.ConstSurfaceSecond() + l3;  // add l3 to get to ghost cells
-
-    //-------------------------------------------------------------------------
-    } else if (inter.Direction3Second() == "j") {  // j-patch
-      if (inter.Orientation() == 2 || inter.Orientation() == 4 ||
-          inter.Orientation() == 5 ||
-          inter.Orientation() == 7) {  // swap dir 1 and 2
-        // direction 1 is k (swapped) -- if true direction reversed -- subtract
-        // 1 from End to get to cell index
-        loc[0] = (inter.Orientation() == 5 || inter.Orientation() == 7)
-                     ? inter.Dir2EndSecond() - 1 - l1
-                     : inter.Dir2StartSecond() + l1;
-
-        // direction 2 is i (swapped) -- if true direction reversed -- subtract
-        // 1 from End to get to cell index
-        loc[2] = (inter.Orientation() == 4 || inter.Orientation() == 7)
-                     ? inter.Dir1EndSecond() - 1 - l2
-                     : inter.Dir1StartSecond() + l2;
-      } else {  // no direction swap
-        // direction 1 is k -- if true direction reversed -- subtract 1 from End
-        // to get to cell index
-        loc[2] = (inter.Orientation() == 3 || inter.Orientation() == 8)
-                     ? inter.Dir1EndSecond() - 1 - l1
-                     : inter.Dir1StartSecond() + l1;
-
-        // direction 2 is i -- if true direction reversed -- subtract 1 from End
-        // to get to cell index
-        loc[0] = (inter.Orientation() == 6 || inter.Orientation() == 8)
-                     ? inter.Dir2EndSecond() - 1 - l2
-                     : inter.Dir2StartSecond() + l2;
-      }
-
-      // calculate index for all ghost layers
-      loc[1] = inter.ConstSurfaceSecond() + l3;  // add l3 to get to ghost cells
-
-    //------------------------------------------------------------------------
-    } else if (inter.Direction3Second() == "k") {  // k-patch
-      if (inter.Orientation() == 2 || inter.Orientation() == 4 ||
-          inter.Orientation() == 5 ||
-          inter.Orientation() == 7) {  // swap dir 1 and 2
-        // direction 1 is i (swapped) -- if true direction reversed -- subtract
-        // 1 from End to get to cell index
-        loc[1] = (inter.Orientation() == 5 || inter.Orientation() == 7)
-                     ? inter.Dir2EndSecond() - 1 - l1
-                     : inter.Dir2StartSecond() + l1;
-
-        // direction 2 is j (swapped) -- if true direction reversed -- subtract
-        // 1 from End to get to cell index
-        loc[0] = (inter.Orientation() == 4 || inter.Orientation() == 7)
-                     ? inter.Dir1EndSecond() - 1 - l2
-                     : inter.Dir1StartSecond() + l2;
-      } else {  // no direction swap
-        // direction 1 is i -- if true direction reversed -- subtract 1 from End
-        // to get to cell index
-        loc[0] = (inter.Orientation() == 3 || inter.Orientation() == 8)
-                     ? inter.Dir1EndSecond() - 1 - l1
-                     : inter.Dir1StartSecond() + l1;
-
-        // direction 2 is j -- if true direction reversed -- subtract 1 from End
-        // to get to cell index
-        loc[1] = (inter.Orientation() == 6 || inter.Orientation() == 8)
-                     ? inter.Dir2EndSecond() - 1 - l2
-                     : inter.Dir2StartSecond() + l2;
-      }
-
-      // calculate index for all ghost layers
-      loc[2] = inter.ConstSurfaceSecond() + l3;  // add l3 to get to ghost cells
-
-    //--------------------------------------------------------------------------
-    } else {
-      cerr << "ERROR: Error in procBlock.cpp:GetSwapLoc(). Boundary surface of "
-           << inter.Direction3Second() << " is not recognized!" << endl;
-      exit(0);
-    }
-  }
-
-  return loc;
 }
 
 /* Function to populate ghost cells with proper cell states for inviscid flow
@@ -4617,6 +4416,8 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
   // connections -- vector of interblock connections
+  // rank -- processor rank
+  // MPI_cellData -- data type to pass primVars, genArray
 
   // loop over all blocks and assign inviscid ghost cells
   for (auto ii = 0; ii < static_cast<int>(states.size()); ii++) {
@@ -4629,8 +4430,8 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
         connections[ii].RankSecond() == rank) {  // both sides of interblock
                                                   // are on this processor, swap
                                                   // w/o mpi
-      SwapSlice(connections[ii], states[connections[ii].LocalBlockFirst()],
-                states[connections[ii].LocalBlockSecond()], false);
+      SwapStateSlice(connections[ii], states[connections[ii].LocalBlockFirst()],
+                     states[connections[ii].LocalBlockSecond()]);
     } else if (connections[ii].RankFirst() ==
                rank) {  // rank matches rank of first side of interblock,
                          // swap over mpi
@@ -5508,55 +5309,20 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 }
 
 /* Member function to overwrite a section of a procBlock's states with a
-stateSlice. The function uses the orientation supplied in the interblock to
-orient the stateSlice relative to the procBlock. It assumes that the procBlock
-is listed first, and the stateSlice second in the interblock data structure.
+slice of states. The function uses the orientation supplied in the interblock to
+orient the slice relative to the procBlock. It assumes that the procBlock
+is listed first, and the slice second in the interblock data structure.
 */
-void procBlock::PutStateSlice(const stateSlice &slice, const interblock &inter,
+void procBlock::PutStateSlice(const multiArray3d<primVars> &slice,
+                              const interblock &inter,
                               const int &d3, const int &numG) {
-  // slice -- stateSlice to insert in procBlock
+  // slice -- slice to insert in procBlock
   // inter -- interblock data structure defining the patches and their
   // orientation
   // d3 -- distance of direction normal to patch to insert
   // numG -- number of ghost cells
 
-  // check that number of cells to insert matches
-  auto blkCell = (inter.Dir1EndFirst() - inter.Dir1StartFirst()) *
-      (inter.Dir2EndFirst() - inter.Dir2StartFirst()) * d3;
-  if (blkCell != slice.NumCells()) {
-    cerr << "ERROR: Error in procBlock::PutStateSlice(). Number of cells being "
-            "inserted does not match designated space to insert to." << endl;
-    cerr << "Direction 1, 2, 3 of procBlock: "
-         << inter.Dir1EndFirst() - inter.Dir1StartFirst() << ", "
-         << inter.Dir2EndFirst() - inter.Dir2StartFirst() << ", " << d3 << endl;
-    cerr << "Direction I, J, K of stateSlice: " << slice.NumI() << ", "
-         << slice.NumJ() << ", " << slice.NumK() << endl;
-    exit(0);
-  }
-
-  // adjust insertion indices if patch borders another interblock on the same
-  // surface of the block
-  auto adjS1 = (inter.Dir1StartInterBorderFirst()) ? numG : 0;
-  auto adjE1 = (inter.Dir1EndInterBorderFirst()) ? numG : 0;
-  auto adjS2 = (inter.Dir2StartInterBorderFirst()) ? numG : 0;
-  auto adjE2 = (inter.Dir2EndInterBorderFirst()) ? numG : 0;
-
-  // loop over cells to insert
-  for (auto l3 = 0; l3 < d3; l3++) {
-    for (auto l2 = adjS2;
-         l2 < (inter.Dir2EndFirst() - inter.Dir2StartFirst() - adjE2); l2++) {
-      for (auto l1 = adjS1;
-           l1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst() - adjE1); l1++) {
-        // get block and slice indices
-        auto indB = GetSwapLoc(l1, l2, l3, inter, true);
-        auto indS = GetSwapLoc(l1, l2, l3, inter, false);
-
-        // swap cell data
-        state_(indB[0], indB[1], indB[2]) =
-            slice.State(indS[0], indS[1], indS[2]);
-      }
-    }
-  }
+  state_.PutSlice(slice, inter, d3, numG);
 }
 
 /*Member function to pack and send procBlock geometry data to appropriate
@@ -7133,7 +6899,9 @@ double ImplicitUpdate(vector<procBlock> &blocks,
                       const vector<multiArray3d<genArray>> &solDeltaMmN,
                       vector<multiArray3d<genArray>> &solDeltaNm1,
                       const unique_ptr<turbModel> &turb, const int &mm,
-                      genArray &residL2, resid &residLinf) {
+                      genArray &residL2, resid &residLinf,
+                      const vector<interblock> &connections, const int &rank,
+                      const MPI_Datatype &MPI_cellData) {
   // blocks -- vector of procBlocks on current processor
   // mainDiagonal -- main diagonal of A matrix for all blocks on processor
   // du -- implicit update
@@ -7175,8 +6943,9 @@ double ImplicitUpdate(vector<procBlock> &blocks,
                                         solDeltaNm1[bb], eos, inp, suth, turb,
                                         mainDiagonal[bb], aiiInv[bb], ii);
       }
-      
+
       // swap corrections for interblock boundaries
+      SwapImplicitUpdate(du, connections, rank, MPI_cellData);
     }
   } else {
     cerr << "ERROR: Matrix solver " << inp.MatrixSolver() <<
@@ -7201,8 +6970,45 @@ double ImplicitUpdate(vector<procBlock> &blocks,
     // Zero residuals, wave speed, flux jacobians, and update
     blocks[bb].ResetResidWS();
     mainDiagonal[bb].Zero(fluxJacobian(0.0, 0.0));
-    // du[bb].Zero(genArray(0.0));
   }
 
   return matrixResid;
 }
+
+void SwapImplicitUpdate(vector<multiArray3d<genArray>> &du,
+                        const vector<interblock> &connections, const int &rank,
+                        const MPI_Datatype &MPI_cellData) {
+  // du -- implicit update in conservative variables
+  // connections -- interblock boundary conditions
+  // rank -- processor rank
+  // MPI_cellData -- datatype to pass primVars or genArray
+
+  // // loop over all connections and swap interblock updates when necessary
+  // for (auto ii = 0; ii < static_cast<int>(connections.size()); ii++) {
+  //   if (connections[ii].RankFirst() == rank &&
+  //       connections[ii].RankSecond() == rank) {
+  //     // both sides of interblock are on this processor, swap w/o mpi
+  //     SwapStateSlice(connections[ii], du[connections[ii].LocalBlockFirst()],
+  //               du[connections[ii].LocalBlockSecond()]);
+  //   } else if (connections[ii].RankFirst() == rank) {
+  //     // rank matches rank of first side of interblock, swap over mpi
+  //     du[connections[ii].LocalBlockFirst()]
+  //         .SwapSliceMPI(connections[ii], rank, MPI_cellData);
+
+  //   } else if (connections[ii].RankSecond() == rank) {
+  //     // rank matches rank of second side of interblock, swap over mpi
+  //     du[connections[ii].LocalBlockSecond()]
+  //         .SwapSliceMPI(connections[ii], rank, MPI_cellData);
+  //   }
+  //   // if rank doesn't match either side of interblock, then do nothing and
+  //   // move on to the next interblock
+  // }
+}
+
+multiArray3d<primVars> procBlock::SliceState(const int &is, const int &ie,
+                                             const int &js, const int &je,
+                                             const int &ks,
+                                             const int &ke) const {
+  return state_.Slice(is, ie, js, je, ks, ke);
+}
+

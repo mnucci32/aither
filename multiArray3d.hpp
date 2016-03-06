@@ -26,7 +26,9 @@
 
 #include <iostream>  // ostream
 #include <vector>    // vector
+#include "mpi.h"
 #include "vector3d.hpp"
+#include "boundaryConditions.hpp"  // interblock
 
 using std::ostream;
 using std::endl;
@@ -74,12 +76,15 @@ class multiArray3d {
                         const int&, const int&) const;
   void Insert(const int&, const int&, const int&, const int&, const int&,
               const int&, const multiArray3d<T>&);
-
+  void PutSlice(const multiArray3d<T> &, const interblock &, const int &,
+                const int &);
   void Zero(const T&);
 
   void GrowI();
   void GrowJ();
   void GrowK();
+
+  void PackSwapUnpackMPI(const interblock &, const MPI_Datatype &, const int &);
 
   T GetElem(const int &ii, const int &jj, const int &kk) const;
 
@@ -185,7 +190,6 @@ T multiArray3d<T>::GetElem(const int &ii, const int &jj, const int &kk) const {
     exit(0);
   }
 }
-
 
 // Same type operator overloads
 // operator overload for addition
@@ -537,6 +541,117 @@ ostream &operator<<(ostream &os, const multiArray3d<T> &array) {
     }
   }
   return os;
+}
+
+template <typename T>
+void multiArray3d<T>::PutSlice(const multiArray3d<T> &array,
+                               const interblock &inter, const int &d3,
+                               const int &numG) {
+  // array -- array to insert into *this
+  // inter -- interblock data structure defining patches and orientation
+  // d3 -- distance of directioni normal to patch to insert
+  // numG -- number of ghost cells
+
+  // check that number of cells to insert matches
+  auto blkCell = (inter.Dir1EndFirst() - inter.Dir1StartFirst()) *
+      (inter.Dir2EndFirst() - inter.Dir2StartFirst()) * d3;
+  if (blkCell != array.Size()) {
+    cerr << "ERROR: Error in multiArray3d<T>::PutSlice(). Number of cells "
+            "being inserted does not match designated space to insert." << endl;
+    cerr << "Direction 1, 2, 3 of multiArray3d<T> to insert into: "
+         << inter.Dir1EndFirst() - inter.Dir1StartFirst() << ", "
+         << inter.Dir2EndFirst() - inter.Dir2StartFirst() << ", " << d3 << endl;
+    cerr << "Direction I, J, K of multiArray3d<T> to insert: " << array.NumI()
+         << ", " << array.NumJ() << ", " << array.NumK() << endl;
+    exit(0);
+  }
+
+  // adjust insertion indices if patch borders another interblock on the same
+  // surface of the block
+  auto adjS1 = (inter.Dir1StartInterBorderFirst()) ? numG : 0;
+  auto adjE1 = (inter.Dir1EndInterBorderFirst()) ? numG : 0;
+  auto adjS2 = (inter.Dir2StartInterBorderFirst()) ? numG : 0;
+  auto adjE2 = (inter.Dir2EndInterBorderFirst()) ? numG : 0;
+
+  // loop over cells to insert
+  for (auto l3 = 0; l3 < d3; l3++) {
+    for (auto l2 = adjS2;
+         l2 < (inter.Dir2EndFirst() - inter.Dir2StartFirst() - adjE2); l2++) {
+      for (auto l1 = adjS1;
+           l1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst() - adjE1); l1++) {
+        // get acceptor and inserter indices
+        auto indA = GetSwapLoc(l1, l2, l3, inter, true);
+        auto indI = GetSwapLoc(l1, l2, l3, inter, false);
+
+        // swap cell data
+        (*this)(indA[0], indA[1], indA[2]) = array(indI[0], indI[1], indI[2]);
+      }
+    }
+  }
+}
+
+/*Member function to pack an array into a buffer, swap it with its
+ * interblock partner, and then unpack it into an array.*/
+template <typename T>
+void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
+                                        const MPI_Datatype &MPI_cellData,
+                                        const int &rank) {
+  // inter -- interblock boundary for the swap
+  // MPI_cellData -- MPI datatype to pass data type in array
+  // rank -- processor rank
+
+  // swap with mpi_send_recv_replace
+  // pack data into buffer, but first get size
+  auto bufSize = 0;
+  auto tempSize = 0;
+  MPI_Pack_size(this->Size(), MPI_cellData, MPI_COMM_WORLD,
+                &tempSize);  // add size for states
+  bufSize += tempSize;
+  // add size for 3 ints for multiArray3d dims
+  MPI_Pack_size(3, MPI_INT, MPI_COMM_WORLD,
+                &tempSize);
+  bufSize += tempSize;
+
+  auto *buffer = new char[bufSize];  // allocate buffer to pack data into
+
+  // pack data into buffer
+  auto numI = this->NumI();
+  auto numJ = this->NumJ();
+  auto numK = this->NumK();
+  auto position = 0;
+  MPI_Pack(&numI, 1, MPI_INT, buffer, bufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&numJ, 1, MPI_INT, buffer, bufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&numK, 1, MPI_INT, buffer, bufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&data_[0], this->Size(), MPI_cellData, buffer,
+           bufSize, &position, MPI_COMM_WORLD);
+
+  MPI_Status status;
+  if (rank == inter.RankFirst()) {  // send/recv with second entry in interblock
+    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankSecond(), 1,
+                         inter.RankSecond(), 1, MPI_COMM_WORLD, &status);
+  } else {  // send/recv with first entry in interblock
+    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankFirst(), 1,
+                         inter.RankFirst(), 1, MPI_COMM_WORLD, &status);
+  }
+
+  // put slice back into multiArray3d
+  position = 0;
+  MPI_Unpack(buffer, bufSize, &position, &numI, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &numJ, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &numK, 1, MPI_INT,
+             MPI_COMM_WORLD);
+  // resize slice
+  this->SameSizeResize(numI, numJ, numK);
+
+  MPI_Unpack(buffer, bufSize, &position, &data_[0],
+             this->Size(), MPI_cellData, MPI_COMM_WORLD);
+
+  delete[] buffer;
 }
 
 

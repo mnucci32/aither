@@ -154,8 +154,8 @@ int main(int argc, char *argv[]) {
 
     // Swap geometry for interblock BCs
     for (auto ii = 0; ii < static_cast<int>(connections.size()); ii++) {
-      SwapSlice(connections[ii], stateBlocks[connections[ii].BlockFirst()],
-                stateBlocks[connections[ii].BlockSecond()], true);
+      SwapGeomSlice(connections[ii], stateBlocks[connections[ii].BlockFirst()],
+                    stateBlocks[connections[ii].BlockSecond()]);
     }
     // Get ghost cell edge data
     for (auto ll = 0; ll < static_cast<int>(mesh.size()); ll++) {
@@ -304,7 +304,8 @@ int main(int argc, char *argv[]) {
         matrixResid = ImplicitUpdate(localStateBlocks, mainDiagonal, du,
                                      inputVars, eos, aRef, suth, solTimeN,
                                      solDeltaMmN, solDeltaNm1, turb, mm,
-                                     residL2, residLinf);
+                                     residL2, residLinf, connections, rank,
+                                     MPI_cellData);
       } else {  // explicit time integration
         ExplicitUpdate(localStateBlocks, inputVars, eos, aRef, suth, solTimeN,
                        turb, mm, residL2, residLinf);
