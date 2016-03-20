@@ -145,53 +145,52 @@ void CalcTSLFluxJac(const double &mu, const double &eddyVisc,
   }
 
   // get velocity at face
-  vector3d<double> vel = 0.5 * (right.Velocity() + left.Velocity());
+  const auto vel = 0.5 * (right.Velocity() + left.Velocity());
 
   // calculate thin shear layer velocity gradients
-  tensor<double> velGradTSL = CalcVelGradTSL(left, right, normArea, dist);
+  const auto velGradTSL = CalcVelGradTSL(left, right, normArea, dist);
 
   // calculate bulk viscosity
-  double lambda = suth.Lambda(mu + eddyVisc);
+  const auto lambda = suth.Lambda(mu + eddyVisc);
 
   // calculate shear stress at face
-  double velGradTrace = velGradTSL.Trace();
-  vector3d<double> tau =
-      lambda * velGradTrace * normArea +
+  const auto velGradTrace = velGradTSL.Trace();
+  const auto tau = lambda * velGradTrace * normArea +
       (mu + eddyVisc) * (velGradTSL.MatMult(normArea) +
                          velGradTSL.Transpose().MatMult(normArea));
 
   // calculate coefficients (from Blazek)
-  double theta = normArea.MagSq();
-  double thetaX = (4.0 / 3.0) * normArea.X() * normArea.X() +
-                  normArea.Y() * normArea.Y() + normArea.Z() * normArea.Z();
-  double thetaY = normArea.X() * normArea.X() +
-                  (4.0 / 3.0) * normArea.Y() * normArea.Y() +
-                  normArea.Z() * normArea.Z();
-  double thetaZ = normArea.X() * normArea.X() + normArea.Y() * normArea.Y() +
-                  (4.0 / 3.0) * normArea.Z() * normArea.Z();
+  const auto theta = normArea.MagSq();
+  const auto thetaX = (4.0 / 3.0) * normArea.X() * normArea.X() +
+      normArea.Y() * normArea.Y() + normArea.Z() * normArea.Z();
+  const auto thetaY = normArea.X() * normArea.X() +
+      (4.0 / 3.0) * normArea.Y() * normArea.Y() +
+      normArea.Z() * normArea.Z();
+  const auto thetaZ = normArea.X() * normArea.X() + normArea.Y() *
+      normArea.Y() + (4.0 / 3.0) * normArea.Z() * normArea.Z();
 
-  double etaX = (1.0 / 3.0) * normArea.Y() * normArea.Z();
-  double etaY = (1.0 / 3.0) * normArea.X() * normArea.Z();
-  double etaZ = (1.0 / 3.0) * normArea.X() * normArea.Y();
+  const auto etaX = (1.0 / 3.0) * normArea.Y() * normArea.Z();
+  const auto etaY = (1.0 / 3.0) * normArea.X() * normArea.Z();
+  const auto etaZ = (1.0 / 3.0) * normArea.X() * normArea.Y();
 
-  double piX = vel.X() * thetaX + vel.Y() * etaZ + vel.Z() * etaY;
-  double piY = vel.X() * etaZ + vel.Y() * thetaY + vel.Z() * etaX;
-  double piZ = vel.X() * etaY + vel.Y() * etaX + vel.Z() * thetaZ;
+  const auto piX = vel.X() * thetaX + vel.Y() * etaZ + vel.Z() * etaY;
+  const auto piY = vel.X() * etaZ + vel.Y() * thetaY + vel.Z() * etaX;
+  const auto piZ = vel.X() * etaY + vel.Y() * etaX + vel.Z() * thetaZ;
 
-  double phiRhoL = -1.0 * (eqnState.Conductivity(mu) +
-                           eqnState.TurbConductivity(eddyVisc, prt)) *
-                   left.Temperature(eqnState) / ((mu + eddyVisc) * left.Rho());
-  double phiRhoR = -1.0 * (eqnState.Conductivity(mu) +
-                           eqnState.TurbConductivity(eddyVisc, prt)) *
-                   right.Temperature(eqnState) /
-                   ((mu + eddyVisc) * right.Rho());
+  const auto phiRhoL = -1.0 * (eqnState.Conductivity(mu) +
+                               eqnState.TurbConductivity(eddyVisc, prt)) *
+      left.Temperature(eqnState) / ((mu + eddyVisc) * left.Rho());
+  const auto phiRhoR = -1.0 * (eqnState.Conductivity(mu) +
+                               eqnState.TurbConductivity(eddyVisc, prt)) *
+      right.Temperature(eqnState) /
+      ((mu + eddyVisc) * right.Rho());
 
-  double phiPressL = (eqnState.Conductivity(mu) +
-                      eqnState.TurbConductivity(eddyVisc, prt)) /
-                     ((mu + eddyVisc) * left.Rho());
-  double phiPressR = (eqnState.Conductivity(mu) +
-                      eqnState.TurbConductivity(eddyVisc, prt)) /
-                     ((mu + eddyVisc) * right.Rho());
+  const auto phiPressL = (eqnState.Conductivity(mu) +
+                          eqnState.TurbConductivity(eddyVisc, prt)) /
+      ((mu + eddyVisc) * left.Rho());
+  const auto phiPressR = (eqnState.Conductivity(mu) +
+                          eqnState.TurbConductivity(eddyVisc, prt)) /
+      ((mu + eddyVisc) * right.Rho());
 
   // calculate matrix - derivative of left primative vars wrt left conservative
   // vars
@@ -334,11 +333,11 @@ void CalcTSLFluxJac(const double &mu, const double &eddyVisc,
   dFv_dUr = dFv_dUr * dWr_dUr;
 
   // calculate spectral radius
-  primVars faceState = 0.5 * (left + right);
+  const auto faceState = 0.5 * (left + right);
   dFv_dUl.Identity();
   dFv_dUr.Identity();
-  double specRad = (mu + eddyVisc) * eqnState.Gamma() /
-                   (eqnState.Prandtl() * faceState.Rho() * dist);
+  const auto specRad = (mu + eddyVisc) * eqnState.Gamma() /
+      (eqnState.Prandtl() * faceState.Rho() * dist);
 
   // add or subtract spectral radius to flux jacobian
   dFv_dUl = -1.0 * specRad * dFv_dUl;

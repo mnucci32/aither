@@ -50,7 +50,7 @@ primVars::primVars(const genArray &a, const bool &prim,
     data_[1] = a[1] / a[0];
     data_[2] = a[2] / a[0];
     data_[3] = a[3] / a[0];
-    double energy = a[4] / a[0];
+    const auto energy = a[4] / a[0];
     data_[4] =
         eqnState.PressFromEnergy(data_[0], energy, this->Velocity().Mag());
     data_[5] = a[5] / a[0];
@@ -177,14 +177,14 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
   // uw2 is length of furthest upwind cell
   // dw is length of downwind cell
 
-  const primVars primUW1 = *this;
+  const auto primUW1 = *this;
 
   const auto dPlus = (uw + uw) / (uw + dw);
   const auto dMinus = (uw + uw) / (uw + uw2);
 
   // divided differences to base limiter on; eps must be listed to left of
   // primVars
-  const primVars r = (EPS + (primDW1 - primUW1) * dPlus) /
+  const auto r = (EPS + (primDW1 - primUW1) * dPlus) /
       (EPS + (primUW1 - primUW2) * dMinus);
 
   primVars limiter;
@@ -240,7 +240,7 @@ primVars primVars::LimiterMinmod(const primVars &upwind,
 primVars primVars::LimiterVanAlbada(const primVars &r) const {
   // r -- ratio of divided differences
 
-  primVars limiter = (r + r * r) / (1 + r * r);
+  auto limiter = (r + r * r) / (1 + r * r);
   // if value is negative, return zero
   for (auto ii = 0; ii < NUMVARS; ii++) {
     limiter.data_[ii] = max(0.0, limiter.data_[ii]);
@@ -302,7 +302,7 @@ primVars primVars::GetGhostState(const string &bcType,
   // bordering the boundary
 
   // set ghost state equal to boundary state to start
-  primVars ghostState = (*this);
+  auto ghostState = (*this);
 
   // check to see that ghost layer corresponds to allowable number
   if (!(layer == 1 || layer == 2)) {
@@ -696,9 +696,10 @@ primVars primVars::UpdateWithConsVars(const idealGas &eqnState,
 
 bool primVars::IsZero() const {
   auto nonzero = false;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    if (data_[ii] != 0.0) {
+  for (auto &var : data_) {
+    if (var != 0.0) {
       nonzero = true;
+      break;
     }
   }
   return !nonzero;

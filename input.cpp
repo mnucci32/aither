@@ -35,6 +35,8 @@ using std::cerr;
 using std::istringstream;
 using std::istream_iterator;
 using std::unique_ptr;
+using std::stoi;
+using std::stod;
 
 // constructor for input class
 // initialize vector to have length of number of acceptable inputs to the code
@@ -182,8 +184,7 @@ void input::ReadInput(const int &rank) {
   }
 
   // open input file
-  ifstream inFile;
-  inFile.open(simName_, ios::in);
+  ifstream inFile(simName_, ios::in);
   if (inFile.fail()) {
     cerr << "ERROR: Error in input::ReadInput(). Input file " << simName_
          << " did not open correctly!!!" << endl;

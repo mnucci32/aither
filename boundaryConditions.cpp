@@ -38,7 +38,7 @@ boundaryConditions::boundaryConditions(const int &i, const int &j,
   numSurfI_ = i;
   numSurfJ_ = j;
   numSurfK_ = k;
-  auto length = numSurfI_ + numSurfJ_ + numSurfK_;
+  const auto length = numSurfI_ + numSurfJ_ + numSurfK_;
 
   boundarySurface bcSurf_;
   vector<boundarySurface> dumVec(length, bcSurf_);
@@ -154,7 +154,7 @@ void boundaryConditions::BordersInterblock(const int &ii,
   // by an interblock on any of its 4 sides
 
   // Get surface to test for interblock borders
-  auto surf = this->GetSurface(ii);
+  const auto surf = this->GetSurface(ii);
 
   // Check that given boundarySurface is interblock
   if (surf.BCType() != "interblock") {
@@ -173,7 +173,7 @@ void boundaryConditions::BordersInterblock(const int &ii,
 
   // Loop over all surfaces in boundary conditions
   for (auto jj = 0; jj < this->NumSurfaces(); jj++) {
-    auto possibleBorder = this->GetSurface(jj);
+    const auto possibleBorder = this->GetSurface(jj);
     // If possible border is an interblock and of same surface type,
     // test for border match
     if (possibleBorder.BCType() == "interblock" &&
@@ -346,7 +346,7 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
     for (auto jj = 0; jj < bc[ii].NumSurfaces(); jj++) {
       // If boundary condition is interblock, store data
       if (bc[ii].GetBCTypes(jj) == "interblock") {
-        vector3d<int> temp(ii, decomp.Rank(ii), decomp.LocalPosition(ii));
+        const vector3d<int> temp(ii, decomp.Rank(ii), decomp.LocalPosition(ii));
         numRankPos.push_back(temp);  // block number of bc, rank, local position
         // boundarySurface of bc
         isolatedInterblocks.push_back(bc[ii].GetSurface(jj));
@@ -378,17 +378,17 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
         bc[numRankPos[ii][0]].BordersInterblock(surfaceNums[ii], border);
 
         // Get current patch
-        patch cPatch(isolatedInterblocks[ii], grid[numRankPos[ii][0]],
-                     numRankPos[ii][0], border, numRankPos[ii][1],
-                     numRankPos[ii][2]);
+        const patch cPatch(isolatedInterblocks[ii], grid[numRankPos[ii][0]],
+                           numRankPos[ii][0], border, numRankPos[ii][1],
+                           numRankPos[ii][2]);
 
         // Determine if surface borders any other interblocks
         bc[numRankPos[jj][0]].BordersInterblock(surfaceNums[jj], border);
 
         // Get new patch (possible match)
-        patch nPatch(isolatedInterblocks[jj], grid[numRankPos[jj][0]],
-                     numRankPos[jj][0], border, numRankPos[jj][1],
-                     numRankPos[jj][2]);
+        const patch nPatch(isolatedInterblocks[jj], grid[numRankPos[jj][0]],
+                           numRankPos[jj][0], border, numRankPos[jj][1],
+                           numRankPos[jj][2]);
 
         // Test for match
         interblock match(cPatch, nPatch);
@@ -483,8 +483,7 @@ patch 1.
 D1 and D2 are the local patch directions. They are cyclic, so on a constant
 i-patch,
 D1 is j, and D2 is k. On a constant j-patch, D1 is k, and D2 is i, etc. O is the
-origin_ which is always at the minimim of D1 and D2 on the patch. C1 is the
-corner
+origin which is always at the minimim of D1 and D2 on the patch. C1 is the corner
 where D1 is at a max, and D2 is zero. C2 is the corner where D2 is at a max, and
 D1 is zero. C12 is the corner where both D1 and D2 are at a max.*/
 bool interblock::TestPatchMatch(const patch &p1, const patch &p2) {
@@ -595,9 +594,9 @@ void interblock::AdjustForSlice(const bool &blkFirst, const int &numG) {
 
   // If at an upper surface, start block at upper boundary
   // (after including ghosts), if at lower surface, start block_ at 0
-  auto blkStart = (this->BoundaryFirst() % 2 == 0)
-                     ? this->ConstSurfaceFirst() + numG
-                     : 0;
+  const auto blkStart = (this->BoundaryFirst() % 2 == 0)
+      ? this->ConstSurfaceFirst() + numG : 0;
+
   constSurf_[1] = 0;  // slice always starts at 0
   constSurf_[0] = blkStart;
   // Adjust direction 1 start and end for ghost cells
@@ -782,7 +781,7 @@ void interblock::FirstSliceIndices(int &is1, int &ie1, int &js1, int &je1,
   // is already at the interior cells when acounting for ghost cells
   // if at the lower boundary adjust the constant surface by the number of ghost
   // cells to get to the first interior cell
-  auto upLowFac = (this->BoundaryFirst() % 2 == 0) ? 0 : numGhosts1;
+  const auto upLowFac = (this->BoundaryFirst() % 2 == 0) ? 0 : numGhosts1;
 
   if (this->BoundaryFirst() == 1 ||
       this->BoundaryFirst() == 2) {  // direction 3 is i
@@ -847,7 +846,7 @@ void interblock::SecondSliceIndices(int &is2, int &ie2, int &js2, int &je2,
   // is already at the interior cells when acounting for ghost cells
   // if at the lower boundary adjust the constant surface by the number of ghost
   // cells to get to the first interior cell
-  auto upLowFac = (this->BoundarySecond() % 2 == 0) ? 0 : numGhosts2;
+  const auto upLowFac = (this->BoundarySecond() % 2 == 0) ? 0 : numGhosts2;
 
   if (this->BoundarySecond() == 1 ||
       this->BoundarySecond() == 2) {  // direction 3 is i
@@ -948,7 +947,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
   // because their partners will need to be altered for the split as well
 
   // +1 because boundaries (in boundaryConditions) start at 1, not 0
-  auto indNG = ind + 1;
+  const auto indNG = ind + 1;
 
   auto bound1 = (*this);  // lower boundaryConditions
   auto bound2 = (*this);  // upper boundaryConditions
@@ -983,7 +982,8 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           // No change to lower bc at lower i surface
 
           // At lower i surface, upper bc is now interface
-          auto tag = 2000 + numBlk;  // lower surface matches with upper surface
+          // lower surface matches with upper surface
+          const auto tag = 2000 + numBlk;
           bound2.surfs_[ii].bcType_ = "interblock";          // bcType
           bound2.surfs_[ii].data_[0] = this->GetIMin(ii);  // imin
           bound2.surfs_[ii].data_[1] = this->GetIMax(ii);  // imax
@@ -1003,7 +1003,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
         } else {  // upper surface
           // At upper i surface, lower bc is now interface
           // upper surface matches with lower surface
-          auto tag = 1000 + newBlkNum;
+          const auto tag = 1000 + newBlkNum;
           bound1.surfs_[ii].bcType_ = "interblock";  // bcType_
           bound1.surfs_[ii].data_[0] = indNG;        // imin
           bound1.surfs_[ii].data_[1] = indNG;        // imax
@@ -1102,7 +1102,8 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           // No change to lower bc at lower j surface
 
           // At lower j surface, upper bc is now interface
-          auto tag = 4000 + numBlk;  // lower surface matches with upper surface
+          // lower surface matches with upper surface
+          const auto tag = 4000 + numBlk;
           bound2.surfs_[ii].bcType_ = "interblock";          // bctype
           bound2.surfs_[ii].data_[2] = this->GetJMin(ii);  // jmin
           bound2.surfs_[ii].data_[3] = this->GetJMax(ii);  // jmax
@@ -1121,7 +1122,8 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           numInterL++;
         } else {
           // At upper j surface, lower bc is now interface
-          auto tag = 3000 + newBlkNum;  // upper surface matches with lower
+          // upper surface matches with lower
+          const auto tag = 3000 + newBlkNum;
           bound1.surfs_[ii].bcType_ = "interblock";  // bctype
           bound1.surfs_[ii].data_[2] = indNG;        // jmin
           bound1.surfs_[ii].data_[3] = indNG;        // jmax
@@ -1215,7 +1217,8 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           // No change to lower bc at lower k surface
 
           // At lower k surface, upper bc is now interface
-          auto tag = 6000 + numBlk;  // lower surface matches with upper
+          // lower surface matches with upper
+          const auto tag = 6000 + numBlk;
           bound2.surfs_[ii].bcType_ = "interblock";          // bctype
           bound2.surfs_[ii].data_[4] = this->GetKMin(ii);  // kmin
           bound2.surfs_[ii].data_[5] = this->GetKMax(ii);  // kmax
@@ -1234,7 +1237,8 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           numInterL++;
         } else {
           // At upper k surface, lower bc is now interface
-          auto tag = 5000 + newBlkNum;  // upper surface matches with lower
+          // upper surface matches with lower
+          const auto tag = 5000 + newBlkNum;
           bound1.surfs_[ii].bcType_ = "interblock";  // bctype
           bound1.surfs_[ii].data_[4] = indNG;        // kmin
           bound1.surfs_[ii].data_[5] = indNG;        // kmax
@@ -1341,12 +1345,12 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
   // dummy value used because interblock is only used to test for match
   bool border[4] = {false, false, false, false};
 
-  patch partner(surf, part, lblk, border);  // create patch for partner
+  const patch partner(surf, part, lblk, border);  // create patch for partner
 
   // loop over all surfaces
   for (auto ii = 0; ii < this->NumSurfaces(); ii++) {
     // create patch for candidate match
-    patch candidate(this->GetSurface(ii), self, sblk, border);
+    const patch candidate(this->GetSurface(ii), self, sblk, border);
 
     interblock match(candidate, partner);
     if (match.TestPatchMatch(candidate, partner)) {  // match found
@@ -1544,8 +1548,8 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
       // split matched surface
       auto split = false;  // flag to tell if surface was split (or just if
                            // block_ number updated)
-      auto upSurf = lowSurf.Split(candDir, candInd, lblk, ublk, split,
-                                  match.Orientation());
+      const auto upSurf = lowSurf.Split(candDir, candInd, lblk, ublk, split,
+                                        match.Orientation());
 
       // assign boundarySurface back into boundaryConditions, if surface wasn't
       // split partner block_ was updated
@@ -1603,12 +1607,12 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
     // total number of j surfaces in joined block_ will be equal to all j
     // surfaces from lower bc plus the j surfaces from the upper bc that only
     // reside in the upper bc
-    auto numJ = this->NumSurfJ() + bc.NumSurfJ();
+    const auto numJ = this->NumSurfJ() + bc.NumSurfJ();
 
     // total number of k surfaces in joined block_ will be equal to all k
     // surfaces from lower bc plus the k surfaces from the upper bc that only
     // reside in the upper bc
-    auto numK = this->NumSurfK() + bc.NumSurfK();
+    const auto numK = this->NumSurfK() + bc.NumSurfK();
 
     // initialze bc with new surface numbers
     boundaryConditions newBC(numI, numJ, numK);
@@ -1634,12 +1638,15 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
         }
 
         // adjust i coordinates for join
-        boundarySurface bcSurf_(bc.GetBCTypes(ii), bc.GetIMin(ii) + lowDimI - 1,
-                                bc.GetIMax(ii) + lowDimI - 1, bc.GetJMin(ii),
-                                bc.GetJMax(ii), bc.GetKMin(ii), bc.GetKMax(ii),
-                                bc.GetTag(ii));
+        const boundarySurface bcSurf(bc.GetBCTypes(ii),
+                                     bc.GetIMin(ii) + lowDimI - 1,
+                                     bc.GetIMax(ii) + lowDimI - 1,
+                                     bc.GetJMin(ii),
+                                     bc.GetJMax(ii), bc.GetKMin(ii),
+                                     bc.GetKMax(ii),
+                                     bc.GetTag(ii));
 
-        newBC.surfs_[cc] = bcSurf_;
+        newBC.surfs_[cc] = bcSurf;
         cc++;
       }
     }
@@ -1658,12 +1665,15 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       }
 
       // adjust i coordinates for join
-      boundarySurface bcSurf_(bc.GetBCTypes(ii), bc.GetIMin(ii) + lowDimI - 1,
-                              bc.GetIMax(ii) + lowDimI - 1, bc.GetJMin(ii),
-                              bc.GetJMax(ii), bc.GetKMin(ii), bc.GetKMax(ii),
-                              bc.GetTag(ii));
+      const boundarySurface bcSurf(bc.GetBCTypes(ii),
+                                   bc.GetIMin(ii) + lowDimI - 1,
+                                   bc.GetIMax(ii) + lowDimI - 1,
+                                   bc.GetJMin(ii),
+                                   bc.GetJMax(ii), bc.GetKMin(ii),
+                                   bc.GetKMax(ii),
+                                   bc.GetTag(ii));
 
-      newBC.surfs_[cc] = bcSurf_;
+      newBC.surfs_[cc] = bcSurf;
       cc++;
     }
 
@@ -1681,12 +1691,15 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       }
 
       // adjust i coordinates for join
-      boundarySurface bcSurf_(bc.GetBCTypes(ii), bc.GetIMin(ii) + lowDimI - 1,
-                              bc.GetIMax(ii) + lowDimI - 1, bc.GetJMin(ii),
-                              bc.GetJMax(ii), bc.GetKMin(ii), bc.GetKMax(ii),
-                              bc.GetTag(ii));
+      const boundarySurface bcSurf(bc.GetBCTypes(ii),
+                                   bc.GetIMin(ii) + lowDimI - 1,
+                                   bc.GetIMax(ii) + lowDimI - 1,
+                                   bc.GetJMin(ii),
+                                   bc.GetJMax(ii), bc.GetKMin(ii),
+                                   bc.GetKMax(ii),
+                                   bc.GetTag(ii));
 
-      newBC.surfs_[cc] = bcSurf_;
+      newBC.surfs_[cc] = bcSurf;
       cc++;
     }
 
@@ -1710,12 +1723,12 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
     // total number of i surfaces in joined block_ will be equal to all i
     // surfaces from lower bc plus the i surfaces from the upper bc that only
     // reside in the upper bc
-    auto numI = this->NumSurfI() + bc.NumSurfI();
+    const auto numI = this->NumSurfI() + bc.NumSurfI();
 
     // total number of k surfaces in joined block_ will be equal to all k
     // surfaces from lower bc plus the k surfaces from the upper bc that only
     // reside in the upper bc
-    auto numK = this->NumSurfK() + bc.NumSurfK();
+    const auto numK = this->NumSurfK() + bc.NumSurfK();
 
     // initialze bc with new surface numbers
     boundaryConditions newBC(numI, numJ, numK);
@@ -1742,12 +1755,14 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
         }
 
         // adjust j coordinates for join
-        boundarySurface bcSurf_(bc.GetBCTypes(ii), bc.GetIMin(ii),
-                                bc.GetIMax(ii), bc.GetJMin(ii) + lowDimJ - 1,
-                                bc.GetJMax(ii) + lowDimJ - 1, bc.GetKMin(ii),
-                                bc.GetKMax(ii), bc.GetTag(ii));
+        const boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii),
+                                     bc.GetIMax(ii),
+                                     bc.GetJMin(ii) + lowDimJ - 1,
+                                     bc.GetJMax(ii) + lowDimJ - 1,
+                                     bc.GetKMin(ii),
+                                     bc.GetKMax(ii), bc.GetTag(ii));
 
-        newBC.surfs_[cc] = bcSurf_;
+        newBC.surfs_[cc] = bcSurf;
         cc++;
       }
     }
@@ -1766,12 +1781,13 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       }
 
       // adjust j coordinates for join
-      boundarySurface bcSurf_(bc.GetBCTypes(ii), bc.GetIMin(ii), bc.GetIMax(ii),
-                              bc.GetJMin(ii) + lowDimJ - 1,
-                              bc.GetJMax(ii) + lowDimJ - 1, bc.GetKMin(ii),
-                              bc.GetKMax(ii), bc.GetTag(ii));
+      const boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii),
+                                   bc.GetIMax(ii),
+                                   bc.GetJMin(ii) + lowDimJ - 1,
+                                   bc.GetJMax(ii) + lowDimJ - 1, bc.GetKMin(ii),
+                                   bc.GetKMax(ii), bc.GetTag(ii));
 
-      newBC.surfs_[cc] = bcSurf_;
+      newBC.surfs_[cc] = bcSurf;
       cc++;
     }
 
@@ -1790,12 +1806,14 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       }
 
       // adjust j coordinates for join
-      boundarySurface bcSurf_(bc.GetBCTypes(ii), bc.GetIMin(ii), bc.GetIMax(ii),
-                              bc.GetJMin(ii) + lowDimJ - 1,
-                              bc.GetJMax(ii) + lowDimJ - 1, bc.GetKMin(ii),
-                              bc.GetKMax(ii), bc.GetTag(ii));
+      const boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii),
+                                    bc.GetIMax(ii),
+                                    bc.GetJMin(ii) + lowDimJ - 1,
+                                    bc.GetJMax(ii) + lowDimJ - 1,
+                                    bc.GetKMin(ii),
+                                    bc.GetKMax(ii), bc.GetTag(ii));
 
-      newBC.surfs_[cc] = bcSurf_;
+      newBC.surfs_[cc] = bcSurf;
       cc++;
     }
 
@@ -1820,12 +1838,12 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
     // total number of i surfaces in joined block_ will be equal to all i
     // surfaces from lower bc plus the i surfaces from the upper bc that only
     // reside in the upper bc
-    auto numI = this->NumSurfI() + bc.NumSurfI();
+    const auto numI = this->NumSurfI() + bc.NumSurfI();
 
     // total number of j surfaces in joined block_ will be equal to all j
     // surfaces from lower bc plus the j surfaces from the upper bc that only
     // reside in the upper bc
-    auto numJ = this->NumSurfJ() + bc.NumSurfJ();
+    const auto numJ = this->NumSurfJ() + bc.NumSurfJ();
 
     // initialze bc with new surface numbers
     boundaryConditions newBC(numI, numJ, numK);
@@ -1852,12 +1870,14 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
         }
 
         // adjust k coordinates for join
-        boundarySurface bcSurf_(bc.GetBCTypes(ii), bc.GetIMin(ii),
-                                bc.GetIMax(ii), bc.GetJMin(ii), bc.GetJMax(ii),
-                                bc.GetKMin(ii) + lowDimK - 1,
-                                bc.GetKMax(ii) + lowDimK - 1, bc.GetTag(ii));
+        const boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii),
+                                     bc.GetIMax(ii), bc.GetJMin(ii),
+                                     bc.GetJMax(ii),
+                                     bc.GetKMin(ii) + lowDimK - 1,
+                                     bc.GetKMax(ii) + lowDimK - 1,
+                                     bc.GetTag(ii));
 
-        newBC.surfs_[cc] = bcSurf_;
+        newBC.surfs_[cc] = bcSurf;
         cc++;
       }
     }
@@ -1876,12 +1896,13 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       }
 
       // adjust k coordinates for join
-      boundarySurface bcSurf_(bc.GetBCTypes(ii), bc.GetIMin(ii), bc.GetIMax(ii),
-                              bc.GetJMin(ii), bc.GetJMax(ii),
-                              bc.GetKMin(ii) + lowDimK - 1,
-                              bc.GetKMax(ii) + lowDimK - 1, bc.GetTag(ii));
+      const boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii),
+                                   bc.GetIMax(ii),
+                                   bc.GetJMin(ii), bc.GetJMax(ii),
+                                   bc.GetKMin(ii) + lowDimK - 1,
+                                   bc.GetKMax(ii) + lowDimK - 1, bc.GetTag(ii));
 
-      newBC.surfs_[cc] = bcSurf_;
+      newBC.surfs_[cc] = bcSurf;
       cc++;
     }
 
@@ -1900,12 +1921,13 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       }
 
       // adjust k coordinates for join
-      boundarySurface bcSurf_(bc.GetBCTypes(ii), bc.GetIMin(ii), bc.GetIMax(ii),
-                              bc.GetJMin(ii), bc.GetJMax(ii),
-                              bc.GetKMin(ii) + lowDimK - 1,
-                              bc.GetKMax(ii) + lowDimK - 1, bc.GetTag(ii));
+      const boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii),
+                                   bc.GetIMax(ii),
+                                   bc.GetJMin(ii), bc.GetJMax(ii),
+                                   bc.GetKMin(ii) + lowDimK - 1,
+                                   bc.GetKMax(ii) + lowDimK - 1, bc.GetTag(ii));
 
-      newBC.surfs_[cc] = bcSurf_;
+      newBC.surfs_[cc] = bcSurf;
       cc++;
     }
 
@@ -2213,7 +2235,7 @@ int boundarySurface::PartnerBlock() const {
     exit(0);
   }
 
-  auto subtract = this->PartnerSurface() * 1000;
+  const auto subtract = this->PartnerSurface() * 1000;
   return this->Tag() - subtract;
 }
 
@@ -2407,7 +2429,7 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind,
   // no split, upper surface returned is meaningless
   // orientation -- if called from DependentSplit, orientation of partner split
 
-  auto indNG = ind + 1;  // +1 because boundaries start at 1, not 0
+  const auto indNG = ind + 1;  // +1 because boundaries start at 1, not 0
 
   auto surf1 = (*this);  // lower surface
   auto surf2 = (*this);  // upper surface
@@ -2416,7 +2438,7 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind,
   // flag to determine if the split direction is reversed - used to determine
   // which block_ should match lower/upper surfaces
   // surf1 and surf2 have same orientation, so if reversed for 1, reversed for 2
-  auto isReversed = surf1.SplitDirectionIsReversed(dir, orientation);
+  const auto isReversed = surf1.SplitDirectionIsReversed(dir, orientation);
 
   if (dir == "i") {  // split along i-plane
     if (this->SurfaceType() == 1 || this->SurfaceType() == 2 ||

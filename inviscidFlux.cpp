@@ -192,7 +192,7 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   const auto normVelDiff = delta.Velocity().DotProd(areaNorm);
 
   // calculate wave strengths (Cr - Cl)
-  double waveStrength[NUMVARS - 1] = {
+  const double waveStrength[NUMVARS - 1] = {
     (delta.P() - rhoR * aR * normVelDiff) / (2.0 * aR * aR),
     delta.Rho() - delta.P() / (aR * aR),
     (delta.P() + rhoR * aR * normVelDiff) / (2.0 * aR * aR),
