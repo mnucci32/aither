@@ -39,6 +39,7 @@ using std::cout;
 using std::endl;
 using std::cerr;
 using std::unique_ptr;
+using std::ostream;
 
 // forward class declarations
 class procBlock;
@@ -58,8 +59,11 @@ void WriteFun(const vector<procBlock> &, const idealGas &,
               const input &, const unique_ptr<turbModel> &);
 void WriteRes(const string &, const int &, const int &);
 
-void WriteResiduals(const input &, genArray &, genArray &, const resid &,
-                    const double &, const int &, const int &);
+void WriteResiduals(const input &, genArray &, const genArray &, const resid &,
+                    const double &, const int &, const int &, ostream &);
+void PrintResiduals(const input &, genArray &, const genArray &, const resid &,
+                    const double &, const int &, const int &, ostream &);
+void PrintHeaders(const input &, ostream &);
 
 vector<procBlock> Recombine(const vector<procBlock> &, const decomposition &);
 int SplitBlockNumber(const vector<procBlock> &, const decomposition &,

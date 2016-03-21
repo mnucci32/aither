@@ -73,15 +73,15 @@ int main(int argc, char *argv[]) {
   MPI_Barrier(MPI_COMM_WORLD);
 
   // Start clock to time simulation
-  auto start = clock();
+  const auto start = clock();
 
   // Enable exceptions so code won't run with NANs
 #ifdef __linux__
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
 #elif __APPLE__
-  _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_INVALID);    
+  _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_INVALID);
 #endif
-  
+
   // Name of input file is the second argument (the executable being the first)
   string inputFile = argv[1];
 
@@ -97,23 +97,23 @@ int main(int argc, char *argv[]) {
   inputVars.ReadInput(rank);
 
   // Determine number of ghost cells
-  auto numGhost = 2;
+  const auto numGhost = 2;
 
   // Get equation of state
-  idealGas eos(inputVars.Gamma(), inputVars.R());
+  const idealGas eos(inputVars.Gamma(), inputVars.R());
 
   // Initialize sutherland's law for viscosity
-  sutherland suth(inputVars.TRef(), inputVars.RRef(), inputVars.LRef(),
-                  inputVars.PRef(), inputVars.VelRef(), eos);
+  const sutherland suth(inputVars.TRef(), inputVars.RRef(), inputVars.LRef(),
+                        inputVars.PRef(), inputVars.VelRef(), eos);
 
   // Initialize state vector with nondimensional variables
   // Get reference speed of sound
-  auto aRef = eos.SoS(inputVars.PRef(), inputVars.RRef());
-  primVars state;
+  const auto aRef = eos.SoS(inputVars.PRef(), inputVars.RRef());
+  primVars state(0.0);
   state.NondimensionalInitialize(eos, aRef, inputVars, suth);
 
   // Get turbulence model
-  auto turb = inputVars.AssignTurbulenceModel();
+  const auto turb = inputVars.AssignTurbulenceModel();
 
   vector<plot3dBlock> mesh;
   vector<interblock> connections;
@@ -196,7 +196,7 @@ int main(int argc, char *argv[]) {
   //-----------------------------------------------------------------------
   // wall distance calculation
 
-  auto wallStart = clock();
+  const auto wallStart = clock();
 
   if (rank == ROOTP) {
     cout << "Starting wall distance calculation..." << endl;
@@ -207,7 +207,7 @@ int main(int argc, char *argv[]) {
   kdtree tree(viscFaces);
 
   if (rank == ROOTP) {
-    auto kdDuration = (clock() - wallStart) /
+    const auto kdDuration = (clock() - wallStart) /
         static_cast<double> (CLOCKS_PER_SEC);
     cout << "K-d tree complete after " << kdDuration << " seconds" << endl;
   }
@@ -218,7 +218,7 @@ int main(int argc, char *argv[]) {
 
   MPI_Barrier(MPI_COMM_WORLD);
   if (rank == ROOTP) {
-    auto wallDuration = (clock() - wallStart) /
+    const auto wallDuration = (clock() - wallStart) /
         static_cast<double> (CLOCKS_PER_SEC);
     cout << "Wall distance calculation finished after " << wallDuration
          << " seconds" << endl << endl;
@@ -239,7 +239,12 @@ int main(int argc, char *argv[]) {
   // Send/recv solutions - necessary to get wall distances
   GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData);
 
+  ofstream resFile;
   if (rank == ROOTP) {
+    // Open residual file
+    resFile.open(inputVars.SimNameRoot() + ".resid", ios::out);
+
+
     // Write out cell centers grid file
     WriteCellCenter(inputVars.GridName(), stateBlocks, decomp,
                     inputVars.LRef());
@@ -327,14 +332,14 @@ int main(int argc, char *argv[]) {
 
       if (rank == ROOTP) {
         // Finish calculation of L2 norm of residual
-	residL2.SquareRoot();
+        residL2.SquareRoot();
 
         // Finish calculation of matrix residual
         matrixResid = sqrt(matrixResid/(totalCells * inputVars.NumEquations()));
 
         // Print out run information
         WriteResiduals(inputVars, residL2First, residL2, residLinf, matrixResid,
-                       nn, mm);
+                       nn, mm, resFile);
       }
     }  // loop for nonlinear iterations ---------------------------------------
 
@@ -352,6 +357,9 @@ int main(int argc, char *argv[]) {
   }  // loop for time step -----------------------------------------------------
 
   if (rank == ROOTP) {
+    // close residual file
+    resFile.close();
+
     cout << endl << "Program Complete" << endl;
     PrintTime();
 
