@@ -6781,7 +6781,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
                                       turb, mainDiagonal[bb], aiiInv[bb]);
     }
   } else if (inp.MatrixSolver() == "dplur") {
-    for (auto ii = 0; ii < inp.MatrixSweeps(); ii++) {
+    for (auto ii = 0; ii <= inp.MatrixSweeps(); ii++) {
       for (auto bb = 0; bb < static_cast<int>(blocks.size()); bb++) {
         // Calculate correction (du)
         matrixResid += blocks[bb].DPLUR(du[bb], solDeltaMmN[bb],
@@ -6790,7 +6790,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
       }
 
       // swap corrections for interblock boundaries
-      if (ii < inp.MatrixSweeps() - 1) {
+      if (ii < inp.MatrixSweeps()) {
         SwapImplicitUpdate(du, connections, rank, MPI_cellData, numG);
       }
     }
