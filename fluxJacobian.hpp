@@ -39,6 +39,7 @@ class sutherland;
 class turbModel;
 class input;
 class genArray;
+class squareMatrix;
 
 // This class holds the flux jacobians for the flow and turbulence equations.
 // In the LU-SGS method the jacobians are scalars.
@@ -220,5 +221,11 @@ inline const fluxJacobian operator/(const double &lhs, fluxJacobian rhs) {
 }
 
 ostream &operator<<(ostream &os, const fluxJacobian &);
+
+squareMatrix LaxFriedrichsFluxJacobian(const primVars &, const primVars &,
+                                       const idealGas &,
+                                       const vector3d<double> &, const bool &);
+squareMatrix InvFluxJacobian(const primVars &, const idealGas &,
+                             const vector3d<double> &);
 
 #endif

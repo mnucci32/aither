@@ -22,6 +22,7 @@
 #include "input.hpp"       // input
 #include "primVars.hpp"    // primVars
 #include "genArray.hpp"    // genArray
+#include "matrix.hpp"      // squareMatrix
 
 using std::cout;
 using std::endl;
@@ -149,7 +150,7 @@ genArray fluxJacobian::ArrayMult(genArray arr) const {
   return arr;
 }
 
-// member function to take the inverse of a flux jacobian
+// function to take the inverse of a flux jacobian
 fluxJacobian fluxJacobian::Inverse(const bool &isTurbulent) const {
   auto inv = *this;
   inv.flowJacobian_ = 1.0 / inv.flowJacobian_;
@@ -169,3 +170,97 @@ ostream &operator<<(ostream &os, fluxJacobian &jacobian) {
   return os;
 }
 
+// function to calculate Lax-Friedrichs flux jacobians
+squareMatrix LaxFriedrichsFluxJacobian(const primVars &left,
+                                       const primVars &right,
+                                       const idealGas &eqnState,
+                                       const vector3d<double> &areaNorm,
+                                       const bool &positive) {
+  // left -- primative variables from left side
+  // right -- primative variables from right side
+  // eqnState -- ideal gas equation of state
+  // areaNorm -- face area vector
+  // positive -- flag to determine whether to add or subtract dissipation
+
+  // form average state
+  const auto avgState = 0.5 * (left + right);
+
+  // dot product of velocities with unit area vector
+  const auto specRad = fabs(avgState.Velocity().DotProd(areaNorm)) +
+      avgState.SoS(eqnState);
+
+  // form dissipation matrix based on spectral radius
+  squareMatrix dissipation(5);
+  dissipation.Identity();
+  const auto fac = (positive) ? 1.0 : -1.0;
+  dissipation *= fac * specRad;
+
+  // begin jacobian calculation
+  auto fluxJac = InvFluxJacobian(avgState, eqnState, areaNorm);
+  return 0.5 * (fluxJac + dissipation);
+}
+
+// function to calculate Lax-Friedrichs flux jacobians
+squareMatrix InvFluxJacobian(const primVars &state,
+                             const idealGas &eqnState,
+                             const vector3d<double> &areaNorm) {
+  // state -- primative variables from left side
+  // eqnState -- ideal gas equation of state
+  // areaNorm -- face area vector
+
+  // dot product of velocity with unit area vector
+  const auto velNorm = state.Velocity().DotProd(areaNorm);
+
+  const auto gammaMinusOne = eqnState.Gamma() - 1.0;
+
+  // begin jacobian calculation
+  squareMatrix A(5);
+
+  // calculate flux derivatives wrt left state
+  // column zero
+  A(0, 0) = 0.0;
+  A(1, 0) = 0.5 * gammaMinusOne * state.Velocity().MagSq() * areaNorm.X() -
+      state.U() * velNorm;
+  A(2, 0) = 0.5 * gammaMinusOne * state.Velocity().MagSq() * areaNorm.Y() -
+      state.V() * velNorm;
+  A(3, 0) = 0.5 * gammaMinusOne * state.Velocity().MagSq() * areaNorm.Z() -
+      state.W() * velNorm;
+  A(4, 0) = (0.5 * gammaMinusOne * state.Velocity().MagSq() -
+             state.Enthalpy(eqnState)) * velNorm;
+
+  // column one
+  A(0, 1) = areaNorm.X();
+  A(1, 1) = state.U() * areaNorm.X() - gammaMinusOne * state.U() * areaNorm.X()
+      + velNorm;
+  A(2, 1) = state.V() * areaNorm.X() - gammaMinusOne * state.U() * areaNorm.Y();
+  A(3, 1) = state.W() * areaNorm.X() - gammaMinusOne * state.U() * areaNorm.Z();
+  A(4, 1) = state.Enthalpy(eqnState) * areaNorm.X() - gammaMinusOne *
+      state.U() * velNorm;
+
+  // column two
+  A(0, 2) = areaNorm.Y();
+  A(1, 2) = state.U() * areaNorm.Y() - gammaMinusOne * state.V() * areaNorm.X();
+  A(2, 2) = state.V() * areaNorm.Y() - gammaMinusOne * state.V() * areaNorm.Y()
+      + velNorm;
+  A(3, 2) = state.W() * areaNorm.Y() - gammaMinusOne * state.V() * areaNorm.Z();
+  A(4, 2) = state.Enthalpy(eqnState) * areaNorm.Y() - gammaMinusOne *
+      state.V() * velNorm;
+
+  // column three
+  A(0, 3) = areaNorm.Z();
+  A(1, 3) = state.U() * areaNorm.Z() - gammaMinusOne * state.W() * areaNorm.X();
+  A(2, 3) = state.V() * areaNorm.Z() - gammaMinusOne * state.W() * areaNorm.Y();
+  A(3, 3) = state.W() * areaNorm.Z() - gammaMinusOne * state.W() * areaNorm.Z()
+      + velNorm;
+  A(4, 3) = state.Enthalpy(eqnState) * areaNorm.Z() - gammaMinusOne *
+      state.W() * velNorm;
+
+  // column four
+  A(0, 4) = 0.0;
+  A(1, 4) = gammaMinusOne * areaNorm.X();
+  A(2, 4) = gammaMinusOne * areaNorm.Y();
+  A(3, 4) = gammaMinusOne * areaNorm.Z();
+  A(4, 4) = eqnState.Gamma() * velNorm;
+
+  return A;
+}

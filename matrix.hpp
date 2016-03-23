@@ -19,36 +19,37 @@
 #define MATRIXHEADERDEF  // define the macro
 
 #include <iostream>
+#include <vector>
 #include "macros.hpp"
 
 using std::ostream;
+using std::vector;
 
 // class to store a square matrix
 class squareMatrix {
   int size_;
-  double *data_;
+  vector<double> data_;
+
+  // private member functions
+  int GetLoc(const int &r, const int &c) const {
+    return c + r * size_;
+  }
 
  public:
   // constructor
-  explicit squareMatrix(const int &a) : size_(a) { data_ = new double[a * a]; }
-  squareMatrix() : size_(0), data_(nullptr) {}
+  explicit squareMatrix(const int &a) : size_(a), data_(a * a, 0.0) {}
+  squareMatrix() : squareMatrix(0) {}
 
-  // copy constructor
-  squareMatrix(const squareMatrix &cp);
+  // move constructor and assignment operator
+  squareMatrix(squareMatrix &&) noexcept = default;
+  squareMatrix& operator=(squareMatrix &&) = default;
 
-  // copy assignment operator
-  squareMatrix& operator=(squareMatrix other);
-
-  // move constructor
-  explicit squareMatrix(squareMatrix &&other) noexcept : squareMatrix() {
-    swap(*this, other);
-    other.data_ = nullptr;
-  }
+  // copy constructor and assignment operator
+  squareMatrix(const squareMatrix &) = default;
+  squareMatrix& operator=(const squareMatrix &) = default;
 
   // member functions
-  double Data(const int &, const int &) const;
-  void SetData(const int &, const int &, const double &);
-  int Size() const { return size_; }
+  int Size() const {return size_;}
   void SwapRows(const int &, const int &);
   void Inverse();
   int FindMaxInCol(const int &, const int &, const int &) const;
@@ -56,76 +57,157 @@ class squareMatrix {
   void LinCombRow(const int &, const double &, const int &);
   void Zero();
   void Identity();
+  squareMatrix MatMult(const squareMatrix &) const;
 
   // operator overloads
-  squareMatrix operator+(const squareMatrix &) const;
-  squareMatrix operator-(const squareMatrix &) const;
-  squareMatrix operator*(const squareMatrix &) const;
+  double & operator()(const int &r, const int &c) {
+    return data_[this->GetLoc(r, c)];
+  }
+  const double & operator()(const int &r, const int &c) const {
+    return data_[this->GetLoc(r, c)];
+  }
 
-  squareMatrix operator+(const double &) const;
-  squareMatrix operator-(const double &) const;
-  squareMatrix operator*(const double &) const;
-  squareMatrix operator/(const double &) const;
+  inline squareMatrix & operator+=(const squareMatrix &);
+  inline squareMatrix & operator-=(const squareMatrix &);
+  inline squareMatrix & operator*=(const squareMatrix &);
+  inline squareMatrix & operator/=(const squareMatrix &);
 
-  friend squareMatrix operator+(const double &, const squareMatrix &);
-  friend squareMatrix operator-(const double &, const squareMatrix &);
-  friend squareMatrix operator*(const double &, const squareMatrix &);
-  friend squareMatrix operator/(const double &, const squareMatrix &);
-  friend ostream &operator<<(ostream &os, const squareMatrix &);
+  inline squareMatrix & operator+=(const double &);
+  inline squareMatrix & operator-=(const double &);
+  inline squareMatrix & operator*=(const double &);
+  inline squareMatrix & operator/=(const double &);
 
-  friend void swap(squareMatrix &first, squareMatrix &second) noexcept;
+  inline squareMatrix operator+(const double &s) const {
+    auto lhs = *this;
+    return lhs += s;
+  }
+  inline squareMatrix operator-(const double &s) const {
+    auto lhs = *this;
+    return lhs -= s;
+  }
+  inline squareMatrix operator*(const double &s) const {
+    auto lhs = *this;
+    return lhs *= s;
+  }
+  inline squareMatrix operator/(const double &s) const {
+    auto lhs = *this;
+    return lhs /= s;
+  }
 
   // destructor
-  ~squareMatrix() noexcept {
-    delete[] data_;
-    data_ = nullptr;
-  }
+  ~squareMatrix() noexcept {}
 };
 
-// Class to store the implicit flux jacobians for the entire mesh. Only values
-// on populated diagonals are stored.
-class matrixDiagonal {
-  int size_;
-  squareMatrix *data_;
-
- public:
-  // constructor
-  explicit matrixDiagonal(const int &a) : size_(a) {
-    data_ = new squareMatrix[a];}
-  matrixDiagonal() : size_(0), data_(nullptr) {}
-
-  // copy constructor
-  matrixDiagonal(const matrixDiagonal &cp);
-
-  // copy assignment operator
-  matrixDiagonal &operator=(matrixDiagonal other);
-
-  // move constructor
-  explicit matrixDiagonal(matrixDiagonal &&other) noexcept : matrixDiagonal() {
-    swap(*this, other);
-    other.data_ = nullptr;
-  }
-
-  // member functions
-  squareMatrix Data(const int &) const;
-  void SetData(const int &, const squareMatrix &);
-  int Size() const { return size_; }
-  void Zero(const int &);
-  void CleanResizeZero(const int &, const int &);
-  void Inverse();
-
-  // operator overloads
-  friend ostream &operator<<(ostream &os, const matrixDiagonal &);
-
-  friend void swap(matrixDiagonal &first, matrixDiagonal &second) noexcept;
-
-  // destructor
-  ~matrixDiagonal() noexcept {
-    delete[] data_;
-    data_ = nullptr;
-  }
-};
 
 // function declarations
+ostream &operator<<(ostream &os, const squareMatrix &);
+
+// operator overload for addition
+squareMatrix & squareMatrix::operator+=(const squareMatrix &mat) {
+  for (auto ii = 0; ii < static_cast<int>(mat.data_.size()); ii++) {
+    data_[ii] += mat.data_[ii];
+  }
+  return *this;
+}
+
+// operator overload for subtraction
+squareMatrix & squareMatrix::operator-=(const squareMatrix &mat) {
+  for (auto ii = 0; ii < static_cast<int>(mat.data_.size()); ii++) {
+    data_[ii] -= mat.data_[ii];
+  }
+  return *this;
+}
+
+// operator overload for elementwise multiplication
+squareMatrix & squareMatrix::operator*=(const squareMatrix &mat) {
+  for (auto ii = 0; ii < static_cast<int>(mat.data_.size()); ii++) {
+    data_[ii] *= mat.data_[ii];
+  }
+  return *this;
+}
+
+// operator overload for elementwise multiplication
+squareMatrix & squareMatrix::operator/=(const squareMatrix &mat) {
+  for (auto ii = 0; ii < static_cast<int>(mat.data_.size()); ii++) {
+    data_[ii] /= mat.data_[ii];
+  }
+  return *this;
+}
+
+inline const squareMatrix operator+(squareMatrix lhs, const squareMatrix &rhs) {
+  return lhs += rhs;
+}
+
+inline const squareMatrix operator-(squareMatrix lhs, const squareMatrix &rhs) {
+  return lhs -= rhs;
+}
+
+inline const squareMatrix operator*(squareMatrix lhs, const squareMatrix &rhs) {
+  return lhs *= rhs;
+}
+
+inline const squareMatrix operator/(squareMatrix lhs, const squareMatrix &rhs) {
+  return lhs /= rhs;
+}
+
+// operator overloads for double --------------------------------------------
+// operator overload for addition
+squareMatrix & squareMatrix::operator+=(const double &scalar) {
+  for (auto &val : data_) {
+    val += scalar;
+  }
+  return *this;
+}
+
+// operator overload for subtraction
+squareMatrix & squareMatrix::operator-=(const double &scalar) {
+  for (auto &val : data_) {
+    val -= scalar;
+  }
+  return *this;
+}
+
+// operator overload for multiplication
+squareMatrix & squareMatrix::operator*=(const double &scalar) {
+  for (auto &val : data_) {
+    val *= scalar;
+  }
+  return *this;
+}
+
+// operator overload for division
+squareMatrix & squareMatrix::operator/=(const double &scalar) {
+  for (auto &val : data_) {
+    val /= scalar;
+  }
+  return *this;
+}
+
+inline const squareMatrix operator+(const double &lhs, squareMatrix rhs) {
+  return rhs += lhs;
+}
+
+inline const squareMatrix operator-(const double &lhs, squareMatrix rhs) {
+  for (auto rr = 0; rr < rhs.Size(); rr++) {
+    for (auto cc = 0; cc < rhs.Size(); cc++) {
+      rhs(rr, cc) = lhs - rhs(rr, cc);
+    }
+  }
+  return rhs;
+}
+
+inline const squareMatrix operator*(const double &lhs, squareMatrix rhs) {
+  return rhs *= lhs;
+}
+
+inline const squareMatrix operator/(const double &lhs, squareMatrix rhs) {
+  for (auto rr = 0; rr < rhs.Size(); rr++) {
+    for (auto cc = 0; cc < rhs.Size(); cc++) {
+      rhs(rr, cc) = lhs / rhs(rr, cc);
+    }
+  }
+  return rhs;
+}
+
 
 #endif

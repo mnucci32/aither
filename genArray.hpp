@@ -44,7 +44,7 @@ class genArray {
   void Zero();
   double Sum();
   void SquareRoot();
-  
+
   // move constructor and assignment operator
   genArray(genArray&&) noexcept = default;
   genArray& operator=(genArray&&) noexcept = default;
@@ -99,7 +99,7 @@ genArray & genArray::operator+=(const genArray &arr) {
   return *this;
 }
 
-// operator overload for subtraction with a scalar
+// operator overload for subtraction
 genArray & genArray::operator-=(const genArray &arr) {
   for (auto rr = 0; rr < NUMVARS; rr++) {
     data_[rr] -= arr[rr];
