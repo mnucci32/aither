@@ -25,6 +25,9 @@
 using std::ostream;
 using std::vector;
 
+// forward class declarations
+class genArray;
+
 // class to store a square matrix
 class squareMatrix {
   int size_;
@@ -58,7 +61,8 @@ class squareMatrix {
   void Zero();
   void Identity();
   squareMatrix MatMult(const squareMatrix &) const;
-
+  genArray VecMult(const genArray &) const;
+  
   // operator overloads
   double & operator()(const int &r, const int &c) {
     return data_[this->GetLoc(r, c)];

@@ -18,6 +18,7 @@
 #include <iostream>  // cout
 #include <algorithm>  // swap
 #include "matrix.hpp"
+#include "genArray.hpp"
 
 using std::cout;
 using std::endl;
@@ -171,3 +172,15 @@ void squareMatrix::Identity() {
   }
 }
 
+// member function to do matrix/vector multplication
+genArray squareMatrix::VecMult(const genArray &vec) const {
+  // vec -- vector to multiply with
+  
+  genArray product(0.0);
+  for (auto rr = 0; rr < size_; rr++) {
+    for (auto cc = 0; cc < size_; cc++) {
+      product[rr] += (*this)(rr, cc) * vec[cc];
+    }
+  }
+  return product;
+}

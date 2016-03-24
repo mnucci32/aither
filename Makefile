@@ -46,7 +46,7 @@ output.o : output.cpp output.hpp procBlock.hpp tensor.hpp vector3d.hpp plot3d.hp
 parallel.o : parallel.cpp parallel.hpp primVars.hpp procBlock.hpp vector3d.hpp plot3d.hpp boundaryConditions.hpp resid.hpp
 	$(CC) $(CFLAGS) parallel.cpp
 
-matrix.o : matrix.cpp matrix.hpp macros.hpp
+matrix.o : matrix.cpp matrix.hpp macros.hpp genArray.hpp
 	$(CC) $(CFLAGS) matrix.cpp
 
 genArray.o : genArray.cpp genArray.hpp macros.hpp
