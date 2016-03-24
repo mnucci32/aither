@@ -331,13 +331,13 @@ vector3d<T> vector3d<T>::CrossProd(const vector3d<T>&v2) const {
 // Function to calculate the magnitude of the vector
 template <typename T>
 T vector3d<T>::Mag() const {
-  return sqrt(data_[0] * data_[0] + data_[1] * data_[1] + data_[2] * data_[2]);
+  return sqrt(this->MagSq());
 }
 
 // Function to calculate the square of the magnitude of the vector
 template <typename T>
 T vector3d<T>::MagSq() const {
-  return data_[0] * data_[0] + data_[1] * data_[1] + data_[2] * data_[2];
+  return this->DotProd(*this);
 }
 
 // Function to sum the elements in the vector

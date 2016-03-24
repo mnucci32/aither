@@ -161,29 +161,17 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   // areaNorm -- norm area vector of face
 
   // compute Rho averaged quantities
-  // density ratio
-  const auto denRatio = sqrt(right.Rho() / left.Rho());
-  // Roe averaged density
-  const auto rhoR = left.Rho() * denRatio;
-  // Roe averaged velocities - u, v, w
-  const auto uR = (left.U() + denRatio * right.U()) / (1.0 + denRatio);
-  const auto vR = (left.V() + denRatio * right.V()) / (1.0 + denRatio);
-  const auto wR = (left.W() + denRatio * right.W()) / (1.0 + denRatio);
-  const vector3d<double> velR(uR, vR, wR);
+  // Roe averaged state
+  const auto roe = RoeAveragedState(left, right, eqnState);
 
   // Roe averaged total enthalpy
-  const auto hR = (left.Enthalpy(eqnState) + denRatio *
-                   right.Enthalpy(eqnState)) / (1.0 + denRatio);
+  const auto hR = roe.Enthalpy(eqnState);
+
   // Roe averaged speed of sound
-  const auto aR = sqrt((eqnState.Gamma() - 1.0) *
-                       (hR - 0.5 * velR.DotProd(velR)));
-  // Roe averaged tke
-  const auto kR = (left.Tke() + denRatio * right.Tke()) / (1.0 + denRatio);
-  // Roe averaged specific dissipation (omega)
-  const auto omR = (left.Omega() + denRatio * right.Omega()) / (1.0 + denRatio);
+  const auto aR = roe.SoS(eqnState);
 
   // Roe velocity dotted with normalized area vector
-  const auto velRSum = velR.DotProd(areaNorm);
+  const auto velRSum = roe.Velocity().DotProd(areaNorm);
 
   // Delta between right and left states
   const auto delta = right - left;
@@ -193,12 +181,12 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
 
   // calculate wave strengths (Cr - Cl)
   const double waveStrength[NUMVARS - 1] = {
-    (delta.P() - rhoR * aR * normVelDiff) / (2.0 * aR * aR),
+    (delta.P() - roe.Rho() * aR * normVelDiff) / (2.0 * aR * aR),
     delta.Rho() - delta.P() / (aR * aR),
-    (delta.P() + rhoR * aR * normVelDiff) / (2.0 * aR * aR),
-    rhoR,
-    rhoR * delta.Tke() + kR * delta.Rho() - delta.P() * kR / (aR * aR),
-    rhoR * delta.Omega() + omR * delta.Rho() - delta.P() * omR / (aR * aR)};
+    (delta.P() + roe.Rho() * aR * normVelDiff) / (2.0 * aR * aR),
+    roe.Rho(),
+    roe.Rho() * delta.Tke() + roe.Tke() * delta.Rho() - delta.P() * roe.Tke() / (aR * aR),
+    roe.Rho() * delta.Omega() + roe.Omega() * delta.Rho() - delta.P() * roe.Omega() / (aR * aR)};
 
   // calculate absolute value of wave speeds (L)
   double waveSpeed[NUMVARS - 1] = {
@@ -224,26 +212,26 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
 
   // calculate right eigenvectors (T)
   // calculate eigenvector due to left acoustic wave
-  const genArray lAcousticEigV(1.0, uR - aR * areaNorm.X(),
-                               vR - aR * areaNorm.Y(), wR - aR * areaNorm.Z(),
-                               hR - aR * velRSum, kR, omR);
+  const genArray lAcousticEigV(1.0, roe.U() - aR * areaNorm.X(),
+                               roe.V() - aR * areaNorm.Y(), roe.W() - aR * areaNorm.Z(),
+                               hR - aR * velRSum, roe.Tke(), roe.Omega());
 
   // calculate eigenvector due to entropy wave
-  const genArray entropyEigV(1.0, uR, vR, wR,
-                             0.5 * velR.DotProd(velR),
+  const genArray entropyEigV(1.0, roe.U(), roe.V(), roe.W(),
+                             0.5 * roe.Velocity().MagSq(),
                              0.0, 0.0);
 
   // calculate eigenvector due to right acoustic wave
-  const genArray rAcousticEigV(1.0, uR + aR * areaNorm.X(),
-                               vR + aR * areaNorm.Y(), wR + aR * areaNorm.Z(),
-                               hR + aR * velRSum, kR, omR);
+  const genArray rAcousticEigV(1.0, roe.U() + aR * areaNorm.X(),
+                               roe.V() + aR * areaNorm.Y(), roe.W() + aR * areaNorm.Z(),
+                               hR + aR * velRSum, roe.Tke(), roe.Omega());
 
   // calculate eigenvector due to shear wave
   const genArray shearEigV(0.0,
                            delta.U() - normVelDiff * areaNorm.X(),
                            delta.V() - normVelDiff * areaNorm.Y(),
                            delta.W() - normVelDiff * areaNorm.Z(),
-                           velR.DotProd(delta.Velocity()) -
+                           roe.Velocity().DotProd(delta.Velocity()) -
                            velRSum * normVelDiff,
                            0.0, 0.0);
 
@@ -285,6 +273,33 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
 
   return leftFlux;
 }
+
+
+inviscidFlux RusanovFlux(const primVars &left, const primVars &right,
+                         const idealGas &eqnState,
+                         const vector3d<double> &areaNorm,
+			 const bool &positive) {
+  // left -- primative variables from left
+  // right -- primative variables from right
+  // eqnState -- equation of state
+  // areaNorm -- norm area vector of face
+  // positive -- flag that is positive to add spectral radius
+
+  // calculate maximum spectral radius
+  const auto leftSpecRad = fabs(left.Velocity().DotProd(areaNorm))
+    + left.SoS(eqnState);
+  const auto rightSpecRad = fabs(right.Velocity().DotProd(areaNorm))
+    + right.SoS(eqnState);
+  const auto fac = positive ? -1.0 : 1.0;
+  const auto specRad = fac * max(leftSpecRad, rightSpecRad);
+  
+  // calculate left/right physical flux
+  inviscidFlux leftFlux(left, eqnState, areaNorm);
+  inviscidFlux rightFlux(right, eqnState, areaNorm);
+
+  return 0.5 * (leftFlux + rightFlux - specRad);
+}
+
 
 /* Member function to calculate the Roe flux, given the left and right
  * convective fluxes as well as the dissipation term.
@@ -765,4 +780,27 @@ genArray ConvectiveFluxUpdate(const primVars &state,
   inviscidFlux dFlux = newFlux - oldFlux;
 
   return dFlux.ConvertToGenArray();
+}
+
+primVars RoeAveragedState(const primVars &left, const primVars &right, const idealGas &eos) {
+
+  // compute Rho averaged quantities
+  // density ratio
+  const auto denRatio = sqrt(right.Rho() / left.Rho());
+  // Roe averaged density
+  const auto rhoR = left.Rho() * denRatio;
+  // Roe averaged velocities - u, v, w
+  const auto uR = (left.U() + denRatio * right.U()) / (1.0 + denRatio);
+  const auto vR = (left.V() + denRatio * right.V()) / (1.0 + denRatio);
+  const auto wR = (left.W() + denRatio * right.W()) / (1.0 + denRatio);
+
+  // Roe averaged pressure
+  const auto pR = (left.P() + denRatio * right.P()) / (1.0 + denRatio);
+
+  // Roe averaged tke
+  const auto kR = (left.Tke() + denRatio * right.Tke()) / (1.0 + denRatio);
+  // Roe averaged specific dissipation (omega)
+  const auto omR = (left.Omega() + denRatio * right.Omega()) / (1.0 + denRatio);
+
+  return primVars(rhoR, uR, vR, wR, pR, kR, omR);
 }
