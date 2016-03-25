@@ -826,3 +826,27 @@ double primVars::ViscCellSpectralRadius(
   // return viscous spectral radius
   return maxTerm * viscTerm * fMag * fMag / vol;
 }
+
+// function to calculate the Roe averaged state
+primVars RoeAveragedState(const primVars &left, const primVars &right, const idealGas &eos) {
+
+  // compute Rho averaged quantities
+  // density ratio
+  const auto denRatio = sqrt(right.Rho() / left.Rho());
+  // Roe averaged density
+  const auto rhoR = left.Rho() * denRatio;
+  // Roe averaged velocities - u, v, w
+  const auto uR = (left.U() + denRatio * right.U()) / (1.0 + denRatio);
+  const auto vR = (left.V() + denRatio * right.V()) / (1.0 + denRatio);
+  const auto wR = (left.W() + denRatio * right.W()) / (1.0 + denRatio);
+
+  // Roe averaged pressure
+  const auto pR = (left.P() + denRatio * right.P()) / (1.0 + denRatio);
+
+  // Roe averaged tke
+  const auto kR = (left.Tke() + denRatio * right.Tke()) / (1.0 + denRatio);
+  // Roe averaged specific dissipation (omega)
+  const auto omR = (left.Omega() + denRatio * right.Omega()) / (1.0 + denRatio);
+
+  return primVars(rhoR, uR, vR, wR, pR, kR, omR);
+}

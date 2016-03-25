@@ -222,10 +222,13 @@ inline const fluxJacobian operator/(const double &lhs, fluxJacobian rhs) {
 
 ostream &operator<<(ostream &os, const fluxJacobian &);
 
-squareMatrix LaxFriedrichsFluxJacobian(const primVars &, const primVars &,
-                                       const idealGas &,
-                                       const vector3d<double> &, const bool &);
+squareMatrix RusanovFluxJacobian(const primVars &, const primVars &,
+                                 const idealGas &, const vector3d<double> &,
+				 const bool &);
 squareMatrix InvFluxJacobian(const primVars &, const idealGas &,
                              const vector3d<double> &);
+squareMatrix ApproxRoeFluxJacobian(const primVars &, const primVars &,
+				   const idealGas &, const vector3d<double> &,
+				   const bool &);
 
 #endif

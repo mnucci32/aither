@@ -170,34 +170,46 @@ ostream &operator<<(ostream &os, fluxJacobian &jacobian) {
   return os;
 }
 
-// function to calculate Lax-Friedrichs flux jacobians
-squareMatrix LaxFriedrichsFluxJacobian(const primVars &left,
-                                       const primVars &right,
-                                       const idealGas &eqnState,
-                                       const vector3d<double> &areaNorm,
-                                       const bool &positive) {
+/* Function to calculate Rusanov flux jacobian. The Rusanov flux is defined as
+shown below.
+
+  F = 0.5 * (F(Ul) + F(Ur) - L(Ul, Ur) * (Ur - Ul)
+
+Differentiating by the left and right states gives the left and right flux
+jacobians.
+
+  dF_Ul = 0.5 * (A(Ul) + L(Ul, Ur))
+  dF_Ur = 0.5 * (A(Ur) - L(Ul, Ur))
+
+In the above equations the dissipation term L is held constant during
+differentiation. A represents the convective flux jacobian matrix.
+ */
+squareMatrix RusanovFluxJacobian(const primVars &left, const primVars &right,
+				 const idealGas &eos,
+				 const vector3d<double> &areaNorm,
+				 const bool &positive) {
   // left -- primative variables from left side
   // right -- primative variables from right side
-  // eqnState -- ideal gas equation of state
+  // eos -- ideal gas equation of state
   // areaNorm -- face area vector
   // positive -- flag to determine whether to add or subtract dissipation
 
-  // form average state
-  const auto avgState = 0.5 * (left + right);
-
   // dot product of velocities with unit area vector
-  const auto specRad = fabs(avgState.Velocity().DotProd(areaNorm)) +
-      avgState.SoS(eqnState);
+  const auto specRad = std::max(fabs(left.Velocity().DotProd(areaNorm)) +
+				left.SoS(eos),
+				fabs(right.Velocity().DotProd(areaNorm)) +
+				right.SoS(eos));
 
   // form dissipation matrix based on spectral radius
   squareMatrix dissipation(5);
   dissipation.Identity();
-  const auto fac = (positive) ? 1.0 : -1.0;
-  dissipation *= fac * specRad;
+  dissipation *= specRad;
 
   // begin jacobian calculation
-  auto fluxJac = InvFluxJacobian(avgState, eqnState, areaNorm);
-  return 0.5 * (fluxJac + dissipation);
+  const auto fluxJac = positive ?
+    InvFluxJacobian(left, eos, areaNorm) : InvFluxJacobian(right, eos, areaNorm);
+
+  return positive ? 0.5 * (fluxJac + dissipation) : 0.5 * (fluxJac - dissipation);
 }
 
 // function to calculate Lax-Friedrichs flux jacobians
@@ -263,4 +275,41 @@ squareMatrix InvFluxJacobian(const primVars &state,
   A(4, 4) = eqnState.Gamma() * velNorm;
 
   return A;
+}
+
+/* Function to calculate approximate Roe flux jacobian. The Roe flux is
+defined as shown below.
+
+  F = 0.5 * (F(Ul) + F(Ur) - Aroe(Ul, Ur) * (Ur - Ul)
+
+Differentiating by the left and right states gives the left and right flux
+jacobians.
+
+  dF_Ul = 0.5 * (A(Ul) + Aroe(Ul, Ur))
+  dF_Ur = 0.5 * (A(Ur) - Aroe(Ul, Ur))
+
+In the above equations the Roe matrix Aroe is held constant during
+differentiation. A represents the convective flux jacobian matrix.
+ */
+squareMatrix ApproxRoeFluxJacobian(const primVars &left, const primVars &right,
+				   const idealGas &eos,
+				   const vector3d<double> &areaNorm,
+				   const bool &positive) {
+  // left -- primative variables from left side
+  // right -- primative variables from right side
+  // eos -- ideal gas equation of state
+  // areaNorm -- face unit area vector
+  // positive -- flag to determine whether to add or subtract dissipation
+
+  // compute Roe averaged state
+  const auto roeAvg = RoeAveragedState(left, right, eos);
+
+  // compute Roe matrix
+  const auto Aroe = InvFluxJacobian(roeAvg, eos, areaNorm);
+
+  // compute convective flux jacobian
+  const auto fluxJac = positive ?
+    InvFluxJacobian(left, eos, areaNorm) : InvFluxJacobian(right, eos, areaNorm);
+
+  return positive ? 0.5 * (fluxJac + Aroe) : 0.5 * (fluxJac - Aroe);
 }

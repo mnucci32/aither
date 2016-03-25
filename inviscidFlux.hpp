@@ -122,9 +122,6 @@ inviscidFlux RoeFlux(const primVars&, const primVars&, const idealGas&,
 inviscidFlux RusanovFlux(const primVars&, const primVars&, const idealGas&,
                          const vector3d<double>&, const bool&);
 
-
-primVars RoeAveragedState(const primVars&, const primVars&, const idealGas&);
-
 // function to calculate Roe flux with entropy fix for implicit methods
 void ApproxRoeFluxJacobian(const primVars&, const primVars&, const idealGas&,
                            const vector3d<double>&, double&, squareMatrix&,

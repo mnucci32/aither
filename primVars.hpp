@@ -327,4 +327,6 @@ inline const primVars operator/(const double &lhs, primVars rhs) {
 
 ostream &operator<<(ostream &os, const primVars &);
 
+primVars RoeAveragedState(const primVars&, const primVars&, const idealGas&);
+
 #endif
