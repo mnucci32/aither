@@ -28,10 +28,11 @@
 #include "multiArray3d.hpp"        // multiArray3d
 #include "tensor.hpp"              // tensor
 #include "primVars.hpp"            // primVars
-#include "genArray.hpp"              // genArray
+#include "genArray.hpp"            // genArray
 #include "boundaryConditions.hpp"  // interblock, patch
 #include "macros.hpp"
 #include "kdtree.hpp"              // kdtree
+#include "uncoupledScalar.hpp"     // uncoupledScalar
 
 using std::vector;
 using std::string;
@@ -70,8 +71,8 @@ class procBlock {
   multiArray3d<vector3d<double>> fCenterJ_;  // coordinates of j-face centers
   multiArray3d<vector3d<double>> fCenterK_;  // coordinates of k-face centers
 
+  multiArray3d<uncoupledScalar> specRadius_;  // maximum wave speed for cell
   multiArray3d<double> vol_;  // cell volume
-  multiArray3d<double> avgWaveSpeed_;  // maximum wave speed for cell
   multiArray3d<double> dt_;  // cell time step
   multiArray3d<double> wallDist_;  // distance to nearest viscous wall
 
@@ -119,7 +120,7 @@ class procBlock {
                       const int &);
 
   void CalcSrcTerms(const gradients &, const sutherland &, const idealGas &,
-                    const unique_ptr<turbModel> &,
+                    const unique_ptr<turbModel> &, const input &,
                     multiArray3d<fluxJacobian> &);
 
   void AddToResidual(const inviscidFlux &, const int &, const int &,
@@ -225,8 +226,8 @@ class procBlock {
     return fCenterK_(ii, jj, kk);
   }
 
-  double AvgWaveSpeed(const int &ii, const int &jj, const int &kk) const {
-    return avgWaveSpeed_(ii, jj, kk);
+  uncoupledScalar SpectralRadius(const int &ii, const int &jj, const int &kk) const {
+    return specRadius_(ii, jj, kk);
   }
   double Dt(const int &ii, const int &jj, const int &kk) const {
     return dt_(ii, jj, kk);
@@ -292,19 +293,21 @@ class procBlock {
   multiArray3d<genArray> SolTimeMMinusN(const multiArray3d<genArray> &,
                                         const idealGas &, const input &,
                                         const int &) const;
-
+  multiArray3d<fluxJacobian> InvertDiagonal(multiArray3d<fluxJacobian> &,
+					    const input &) const;
+  
   double LUSGS(const vector<vector3d<int>> &, multiArray3d<genArray> &,
                const multiArray3d<genArray> &, const multiArray3d<genArray> &,
                const idealGas &, const input &, const sutherland &,
                const unique_ptr<turbModel> &,
-               multiArray3d<fluxJacobian> &,
-               multiArray3d<fluxJacobian> &) const;
+               const multiArray3d<fluxJacobian> &,
+               const multiArray3d<fluxJacobian> &) const;
   double DPLUR(multiArray3d<genArray> &,
                const multiArray3d<genArray> &, const multiArray3d<genArray> &,
                const idealGas &, const input &, const sutherland &,
                const unique_ptr<turbModel> &,
-               multiArray3d<fluxJacobian> &,
-               multiArray3d<fluxJacobian> &, const int &) const;
+               const multiArray3d<fluxJacobian> &,
+               const multiArray3d<fluxJacobian> &, const int &) const;
 
   bool IsPhysical(const int &, const int &, const int &, const bool &) const;
   bool AtCorner(const int &, const int &, const int &, const bool &) const;
@@ -327,8 +330,8 @@ class procBlock {
                        const MPI_Datatype &) const;
   void RecvUnpackGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
                          const MPI_Datatype &);
-  void PackSendSolMPI(const MPI_Datatype &) const;
-  void RecvUnpackSolMPI(const MPI_Datatype &);
+  void PackSendSolMPI(const MPI_Datatype &, const MPI_Datatype &) const;
+  void RecvUnpackSolMPI(const MPI_Datatype &, const MPI_Datatype &);
 
   // destructor
   ~procBlock() noexcept {}

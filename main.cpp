@@ -171,9 +171,9 @@ int main(int argc, char *argv[]) {
 
   // Set MPI datatypes
   MPI_Datatype MPI_vec3d, MPI_cellData, MPI_procBlockInts,
-      MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag;
+    MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag, MPI_uncoupledScalar;
   SetDataTypesMPI(MPI_vec3d, MPI_cellData, MPI_procBlockInts,
-                  MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag);
+                  MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag, MPI_uncoupledScalar);
 
   // Send number of procBlocks to all processors
   SendNumProcBlocks(decomp.NumBlocksOnAllProc(), numProcBlock);
@@ -237,7 +237,8 @@ int main(int argc, char *argv[]) {
   genArray residL2First(0.0);  // l2 norm residuals to normalize by
 
   // Send/recv solutions - necessary to get wall distances
-  GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData);
+  GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData,
+		MPI_uncoupledScalar);
 
   ofstream resFile;
   if (rank == ROOTP) {
@@ -345,7 +346,8 @@ int main(int argc, char *argv[]) {
 
     if ((nn+1) % inputVars.OutputFrequency() == 0) {  // write out function file
       // Send/recv solutions
-      GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData);
+      GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData,
+		    MPI_uncoupledScalar);
 
       if (rank == ROOTP) {
         cout << "writing out function file at iteration " << nn << endl;
@@ -369,7 +371,7 @@ int main(int argc, char *argv[]) {
 
   // Free datatypes previously created
   FreeDataTypesMPI(MPI_vec3d, MPI_cellData, MPI_procBlockInts,
-                   MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag);
+                   MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag, MPI_uncoupledScalar);
 
   MPI_Finalize();
 

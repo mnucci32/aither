@@ -600,6 +600,15 @@ bool input::IsTurbulent() const {
   }
 }
 
+// member function to determine if solution should use a block matrix
+bool input::IsBlockMatrix() const {
+  if (this->IsImplicit() && matrixSolver_ == "bdplur") {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 string input::OrderOfAccuracy() const {
   if (kappa_ == -2.0) {
     return "first";

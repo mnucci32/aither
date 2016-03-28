@@ -18,11 +18,12 @@
 #include <string>
 #include <memory>
 #include "fluxJacobian.hpp"
-#include "turbulence.hpp"  // turbModel
-#include "input.hpp"       // input
-#include "primVars.hpp"    // primVars
-#include "genArray.hpp"    // genArray
-#include "matrix.hpp"      // squareMatrix
+#include "turbulence.hpp"    // turbModel
+#include "input.hpp"         // input
+#include "primVars.hpp"      // primVars
+#include "genArray.hpp"      // genArray
+#include "matrix.hpp"        // squareMatrix
+#include "inviscidFlux.hpp"  // ConvectiveFluxUpdate
 
 using std::cout;
 using std::endl;
@@ -312,4 +313,29 @@ squareMatrix ApproxRoeFluxJacobian(const primVars &left, const primVars &right,
     InvFluxJacobian(left, eos, areaNorm) : InvFluxJacobian(right, eos, areaNorm);
 
   return positive ? 0.5 * (fluxJac + Aroe) : 0.5 * (fluxJac - Aroe);
+}
+
+genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
+			    const unitVec3dMag<double> &area,
+			    const idealGas &eos,
+			    const unique_ptr<turbModel> &turb,
+			    const fluxJacobian &specRad, const bool &positive) {
+  // state -- primative variables at off diagonal
+  // update -- conserved variable update at off diagonal
+  // area -- face area vector
+  // eos -- equation of state
+  // turb -- turbulence model
+  // specRad -- spectral radius at off diagonal
+  // positive -- flag to determine whether to add or subtract dissipation
+
+  // calculate updated state
+  const auto stateUpdate = state.UpdateWithConsVars(eos, update, turb);
+
+  // calculate updated convective flux
+  const auto fluxChange = ConvectiveFluxUpdate(state, stateUpdate, eos,
+					       area.UnitVector());
+
+  return positive ?
+    0.5 * (area.Mag() * fluxChange + specRad.ArrayMult(update)) :
+    0.5 * (area.Mag() * fluxChange - specRad.ArrayMult(update));
 }

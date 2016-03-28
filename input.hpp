@@ -166,7 +166,8 @@ class input {
   bool IsImplicit() const;
   bool IsViscous() const;
   bool IsTurbulent() const;
-
+  bool IsBlockMatrix() const;
+  
   string OrderOfAccuracy() const;
 
   double FarfieldTurbIntensity() const {return farfieldTurbInten_;}
