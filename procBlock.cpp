@@ -262,81 +262,77 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
 
 
   // loop over all physical i-faces
-  // in struct p is for physical index, g is for index with ghosts
-  for (struct {int p; int g;} kk = {0, numGhosts_}; kk.g <
-           fAreaI_.NumK() - numGhosts_; kk.g++, kk.p++) {
-    for (struct {int p; int g;} jj = {0, numGhosts_}; jj.g <
-             fAreaI_.NumJ() - numGhosts_; jj.g++, jj.p++) {
-      for (struct {int p; int g;} ii = {0, numGhosts_}; ii.g <
-               fAreaI_.NumI() - numGhosts_; ii.g++, ii.p++) {
+  for (auto kp = 0, kg = numGhosts_; kg < fAreaI_.NumK() - numGhosts_; kg++, kp++) {
+    for (auto jp = 0, jg = numGhosts_; jg < fAreaI_.NumJ() - numGhosts_; jg++, jp++) {
+      for (auto ip = 0, ig = numGhosts_; ig < fAreaI_.NumI() - numGhosts_; ig++, ip++) {
         primVars faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
-          faceStateLower = state_(ii.g - 1, jj.g, kk.g).FaceReconConst();
-          faceStateUpper = state_(ii.g, jj.g, kk.g).FaceReconConst();
+          faceStateLower = state_(ig - 1, jg, kg).FaceReconConst();
+          faceStateUpper = state_(ig, jg, kg).FaceReconConst();
         } else {  // second order accuracy -- use MUSCL extrapolation
           // length of second upwind, first upwind, and downwind cells in
           // i-direction
-          const auto upwind2L = fCenterI_(ii.g - 1, jj.g, kk.g).
-              Distance(fCenterI_(ii.g - 2, jj.g, kk.g));
-          const auto upwindL = fCenterI_(ii.g, jj.g, kk.g).
-              Distance(fCenterI_(ii.g - 1, jj.g, kk.g));
-          const auto downwindL = fCenterI_(ii.g, jj.g, kk.g).
-              Distance(fCenterI_(ii.g + 1, jj.g, kk.g));
+          const auto upwind2L = fCenterI_(ig - 1, jg, kg).
+              Distance(fCenterI_(ig - 2, jg, kg));
+          const auto upwindL = fCenterI_(ig, jg, kg).
+              Distance(fCenterI_(ig - 1, jg, kg));
+          const auto downwindL = fCenterI_(ig, jg, kg).
+              Distance(fCenterI_(ig + 1, jg, kg));
 
-          faceStateLower = state_(ii.g - 1, jj.g, kk.g).FaceReconMUSCL(
-              state_(ii.g - 2, jj.g, kk.g), state_(ii.g, jj.g, kk.g),
+          faceStateLower = state_(ig - 1, jg, kg).FaceReconMUSCL(
+              state_(ig - 2, jg, kg), state_(ig, jg, kg),
               inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL);
 
           // length of second upwind, first upwind, and downwind cells in
           // i-direction
-          const auto upwind2U = fCenterI_(ii.g + 1, jj.g, kk.g).
-              Distance(fCenterI_(ii.g + 2, jj.g, kk.g));
-          const auto upwindU = fCenterI_(ii.g, jj.g, kk.g).
-              Distance(fCenterI_(ii.g + 1, jj.g, kk.g));
-          const auto downwindU = fCenterI_(ii.g, jj.g, kk.g).
-              Distance(fCenterI_(ii.g - 1, jj.g, kk.g));
+          const auto upwind2U = fCenterI_(ig + 1, jg, kg).
+              Distance(fCenterI_(ig + 2, jg, kg));
+          const auto upwindU = fCenterI_(ig, jg, kg).
+              Distance(fCenterI_(ig + 1, jg, kg));
+          const auto downwindU = fCenterI_(ig, jg, kg).
+              Distance(fCenterI_(ig - 1, jg, kg));
 
-          faceStateUpper = state_(ii.g, jj.g, kk.g).FaceReconMUSCL(
-              state_(ii.g + 1, jj.g, kk.g), state_(ii.g - 1, jj.g, kk.g),
+          faceStateUpper = state_(ig, jg, kg).FaceReconMUSCL(
+              state_(ig + 1, jg, kg), state_(ig - 1, jg, kg),
               inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU);
         }
         // calculate Roe flux at face
         const inviscidFlux tempFlux = RoeFlux(
             faceStateLower, faceStateUpper, eqnState,
-            this->FAreaUnitI(ii.g, jj.g, kk.g));
+            this->FAreaUnitI(ig, jg, kg));
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell
         // at left boundary there is no left cell to add to
-        if (ii.g > numGhosts_) {
-          this->AddToResidual(tempFlux * this->FAreaMagI(ii.g, jj.g, kk.g),
-                              ii.p - 1, jj.p, kk.p);
+        if (ig > numGhosts_) {
+          this->AddToResidual(tempFlux * this->FAreaMagI(ig, jg, kg),
+                              ip - 1, jp, kp);
         }
         // at right boundary there is no right cell to add to
-        if (ii.g < fAreaI_.NumI() - numGhosts_ - 1) {
+        if (ig < fAreaI_.NumI() - numGhosts_ - 1) {
           this->SubtractFromResidual(tempFlux *
-                                     this->FAreaMagI(ii.g, jj.g, kk.g),
-                                     ii.p, jj.p, kk.p);
+                                     this->FAreaMagI(ig, jg, kg),
+                                     ip, jp, kp);
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-          specRadius_(ii.p, jj.p, kk.p).AddToFlowVariable(
-	      state_(ii.g, jj.g, kk.g).CellSpectralRadius(fAreaI_(ii.g, jj.g, kk.g),
-							  fAreaI_(ii.g + 1, jj.g, kk.g),
+          specRadius_(ip, jp, kp).AddToFlowVariable(
+	      state_(ig, jg, kg).CellSpectralRadius(fAreaI_(ig, jg, kg),
+							  fAreaI_(ig + 1, jg, kg),
 							  eqnState));
 	  if (inp.IsTurbulent()) {
-              specRadius_(ii.p, jj.p, kk.p).AddToTurbVariable(
-		  turb->InviscidSpecRad(state_(ii.g, jj.g, kk.g), fAreaI_(ii.g, jj.g, kk.g),
-					fAreaI_(ii.g + 1, jj.g, kk.g)));
+              specRadius_(ip, jp, kp).AddToTurbVariable(
+		  turb->InviscidSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
+					fAreaI_(ig + 1, jg, kg)));
 	  }
 
 
           // if using a block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
-            mainDiagonal(ii.p, jj.p, kk.p).AddInviscidJacobian(
-                state_(ii.g, jj.g, kk.g), fAreaI_(ii.g, jj.g, kk.g),
-                fAreaI_(ii.g + 1, jj.g, kk.g), eqnState, turb,
+            mainDiagonal(ip, jp, kp).AddInviscidJacobian(
+                state_(ig, jg, kg), fAreaI_(ig, jg, kg),
+                fAreaI_(ig + 1, jg, kg), eqnState, turb,
                 inp.IsTurbulent());
           }
         }
@@ -381,83 +377,79 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
   //                 solver
 
   // loop over all physical j-faces
-  // in struct p is for physical index, g is for index with ghosts
-  for (struct {int p; int g;} kk = {0, numGhosts_}; kk.g <
-           fAreaJ_.NumK() - numGhosts_; kk.g++, kk.p++) {
-    for (struct {int p; int g;} jj = {0, numGhosts_}; jj.g <
-             fAreaJ_.NumJ() - numGhosts_; jj.g++, jj.p++) {
-      for (struct {int p; int g;} ii = {0, numGhosts_}; ii.g <
-               fAreaJ_.NumI() - numGhosts_; ii.g++, ii.p++) {
+  for (auto kp = 0, kg = numGhosts_; kg < fAreaJ_.NumK() - numGhosts_; kg++, kp++) {
+    for (auto jp = 0, jg = numGhosts_; jg < fAreaJ_.NumJ() - numGhosts_; jg++, jp++) {
+      for (auto ip = 0, ig = numGhosts_; ig < fAreaJ_.NumI() - numGhosts_; ig++, ip++) {
         primVars faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
-          faceStateLower = state_(ii.g, jj.g - 1, kk.g).FaceReconConst();
-          faceStateUpper = state_(ii.g, jj.g, kk.g).FaceReconConst();
+          faceStateLower = state_(ig, jg - 1, kg).FaceReconConst();
+          faceStateUpper = state_(ig, jg, kg).FaceReconConst();
         } else {  // second order accuracy -- use MUSCL extrapolation
           // length of second upwind, first upwind, and downwind cells in
           // j-direction
-          const auto upwind2L = fCenterJ_(ii.g, jj.g - 1, kk.g).
-              Distance(fCenterJ_(ii.g, jj.g - 2, kk.g));
-          const auto upwindL = fCenterJ_(ii.g, jj.g, kk.g).
-              Distance(fCenterJ_(ii.g, jj.g - 1, kk.g));
-          const auto downwindL = fCenterJ_(ii.g, jj.g, kk.g).
-              Distance(fCenterJ_(ii.g, jj.g + 1, kk.g));
+          const auto upwind2L = fCenterJ_(ig, jg - 1, kg).
+              Distance(fCenterJ_(ig, jg - 2, kg));
+          const auto upwindL = fCenterJ_(ig, jg, kg).
+              Distance(fCenterJ_(ig, jg - 1, kg));
+          const auto downwindL = fCenterJ_(ig, jg, kg).
+              Distance(fCenterJ_(ig, jg + 1, kg));
 
-          faceStateLower = state_(ii.g, jj.g - 1, kk.g).FaceReconMUSCL(
-              state_(ii.g, jj.g - 2, kk.g), state_(ii.g, jj.g, kk.g),
+          faceStateLower = state_(ig, jg - 1, kg).FaceReconMUSCL(
+              state_(ig, jg - 2, kg), state_(ig, jg, kg),
               inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL);
 
           // length of second upwind, first upwind, and downwind cells in
           // j-direction
-          const auto upwind2U = fCenterJ_(ii.g, jj.g + 1, kk.g).
-              Distance(fCenterJ_(ii.g, jj.g + 2, kk.g));
-          const auto upwindU = fCenterJ_(ii.g, jj.g, kk.g).
-              Distance(fCenterJ_(ii.g, jj.g + 1, kk.g));
-          const auto downwindU = fCenterJ_(ii.g, jj.g, kk.g).
-              Distance(fCenterJ_(ii.g, jj.g - 1, kk.g));
+          const auto upwind2U = fCenterJ_(ig, jg + 1, kg).
+              Distance(fCenterJ_(ig, jg + 2, kg));
+          const auto upwindU = fCenterJ_(ig, jg, kg).
+              Distance(fCenterJ_(ig, jg + 1, kg));
+          const auto downwindU = fCenterJ_(ig, jg, kg).
+              Distance(fCenterJ_(ig, jg - 1, kg));
 
-          faceStateUpper = state_(ii.g, jj.g, kk.g).FaceReconMUSCL(
-              state_(ii.g, jj.g + 1, kk.g), state_(ii.g, jj.g - 1, kk.g),
+          faceStateUpper = state_(ig, jg, kg).FaceReconMUSCL(
+              state_(ig, jg + 1, kg), state_(ig, jg - 1, kg),
               inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU);
         }
 
         // calculate Roe flux at face
         const inviscidFlux tempFlux = RoeFlux(
             faceStateLower, faceStateUpper, eqnState,
-            this->FAreaUnitJ(ii.g, jj.g, kk.g));
+            this->FAreaUnitJ(ig, jg, kg));
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell
         // at left boundary no left cell to add to
-        if (jj.g > numGhosts_) {
-          this->AddToResidual(tempFlux * this->FAreaMagJ(ii.g, jj.g, kk.g),
-                              ii.p, jj.p - 1, kk.p);
+        if (jg > numGhosts_) {
+          this->AddToResidual(tempFlux * this->FAreaMagJ(ig, jg, kg),
+                              ip, jp - 1, kp);
         }
         // at right boundary no right cell to add to
-        if (jj.g < fAreaJ_.NumJ() - numGhosts_ - 1) {
+        if (jg < fAreaJ_.NumJ() - numGhosts_ - 1) {
           this->SubtractFromResidual(tempFlux *
-                                     this->FAreaMagJ(ii.g, jj.g, kk.g),
-                                     ii.p, jj.p, kk.p);
+                                     this->FAreaMagJ(ig, jg, kg),
+                                     ip, jp, kp);
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-	  specRadius_(ii.p, jj.p, kk.p).AddToFlowVariable(
-	      state_(ii.g, jj.g, kk.g).CellSpectralRadius(fAreaJ_(ii.g, jj.g, kk.g),
-							  fAreaJ_(ii.g, jj.g + 1, kk.g),
+	  specRadius_(ip, jp, kp).AddToFlowVariable(
+	      state_(ig, jg, kg).CellSpectralRadius(fAreaJ_(ig, jg, kg),
+							  fAreaJ_(ig, jg + 1, kg),
 							  eqnState));
 	  if (inp.IsTurbulent()) {
-	    specRadius_(ii.p, jj.p, kk.p).AddToTurbVariable(
-		turb->InviscidSpecRad(state_(ii.g, jj.g, kk.g), fAreaJ_(ii.g, jj.g, kk.g),
-				      fAreaJ_(ii.g, jj.g + 1, kk.g)));
+	    specRadius_(ip, jp, kp).AddToTurbVariable(
+		turb->InviscidSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
+				      fAreaJ_(ig, jg + 1, kg)));
 
 	  }
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
-            mainDiagonal(ii.p, jj.p, kk.p).AddInviscidJacobian(
-                state_(ii.g, jj.g, kk.g), fAreaJ_(ii.g, jj.g, kk.g),
-                fAreaJ_(ii.g, jj.g + 1, kk.g), eqnState, turb,
+            mainDiagonal(ip, jp, kp).AddInviscidJacobian(
+                state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
+                fAreaJ_(ig, jg + 1, kg), eqnState, turb,
                 inp.IsTurbulent());
           }
         }
@@ -502,83 +494,79 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
   //                 solver
 
   // loop over all physical k-faces
-  // in struct p is for physical index, g is for index with ghosts
-  for (struct {int p; int g;} kk = {0, numGhosts_}; kk.g <
-           fAreaK_.NumK() - numGhosts_; kk.g++, kk.p++) {
-    for (struct {int p; int g;} jj = {0, numGhosts_}; jj.g <
-             fAreaK_.NumJ() - numGhosts_; jj.g++, jj.p++) {
-      for (struct {int p; int g;} ii = {0, numGhosts_}; ii.g <
-               fAreaK_.NumI() - numGhosts_; ii.g++, ii.p++) {
+  for (auto kp = 0, kg = numGhosts_; kg < fAreaK_.NumK() - numGhosts_; kg++, kp++) {
+    for (auto jp = 0, jg = numGhosts_; jg < fAreaK_.NumJ() - numGhosts_; jg++, jp++) {
+      for (auto ip = 0, ig = numGhosts_; ig < fAreaK_.NumI() - numGhosts_; ig++, ip++) {
         primVars faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
-          faceStateLower = state_(ii.g, jj.g, kk.g - 1).FaceReconConst();
-          faceStateUpper = state_(ii.g, jj.g, kk.g).FaceReconConst();
+          faceStateLower = state_(ig, jg, kg - 1).FaceReconConst();
+          faceStateUpper = state_(ig, jg, kg).FaceReconConst();
         } else {  // second order accuracy -- use MUSCL extrapolation
           // length of second upwind, first upwind, and downwind cells in
           // j-direction
-          const auto upwind2L = fCenterK_(ii.g, jj.g, kk.g - 1).
-              Distance(fCenterK_(ii.g, jj.g, kk.g - 2));
-          const auto upwindL = fCenterK_(ii.g, jj.g, kk.g).
-              Distance(fCenterK_(ii.g, jj.g, kk.g - 1));
-          const auto downwindL = fCenterK_(ii.g, jj.g, kk.g).
-              Distance(fCenterK_(ii.g, jj.g, kk.g + 1));
+          const auto upwind2L = fCenterK_(ig, jg, kg - 1).
+              Distance(fCenterK_(ig, jg, kg - 2));
+          const auto upwindL = fCenterK_(ig, jg, kg).
+              Distance(fCenterK_(ig, jg, kg - 1));
+          const auto downwindL = fCenterK_(ig, jg, kg).
+              Distance(fCenterK_(ig, jg, kg + 1));
 
-          faceStateLower = state_(ii.g, jj.g, kk.g - 1).FaceReconMUSCL(
-              state_(ii.g, jj.g, kk.g - 2), state_(ii.g, jj.g, kk.g),
+          faceStateLower = state_(ig, jg, kg - 1).FaceReconMUSCL(
+              state_(ig, jg, kg - 2), state_(ig, jg, kg),
               inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL);
 
           // length of second upwind, first upwind, and downwind cells in
           // j-direction
-          const auto upwind2U = fCenterK_(ii.g, jj.g, kk.g + 1).
-              Distance(fCenterK_(ii.g, jj.g, kk.g + 2));
-          const auto upwindU = fCenterK_(ii.g, jj.g, kk.g).
-              Distance(fCenterK_(ii.g, jj.g, kk.g + 1));
-          const auto downwindU = fCenterK_(ii.g, jj.g, kk.g).
-              Distance(fCenterK_(ii.g, jj.g, kk.g - 1));
+          const auto upwind2U = fCenterK_(ig, jg, kg + 1).
+              Distance(fCenterK_(ig, jg, kg + 2));
+          const auto upwindU = fCenterK_(ig, jg, kg).
+              Distance(fCenterK_(ig, jg, kg + 1));
+          const auto downwindU = fCenterK_(ig, jg, kg).
+              Distance(fCenterK_(ig, jg, kg - 1));
 
-          faceStateUpper = state_(ii.g, jj.g, kk.g).FaceReconMUSCL(
-              state_(ii.g, jj.g, kk.g + 1), state_(ii.g, jj.g, kk.g - 1),
+          faceStateUpper = state_(ig, jg, kg).FaceReconMUSCL(
+              state_(ig, jg, kg + 1), state_(ig, jg, kg - 1),
               inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU);
         }
 
         // calculate Roe flux at face
         const inviscidFlux tempFlux = RoeFlux(
             faceStateLower, faceStateUpper, eqnState,
-            this->FAreaUnitK(ii.g, jj.g, kk.g));
+            this->FAreaUnitK(ig, jg, kg));
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell
         // at left boundary no left cell to add to
-        if (kk.g > numGhosts_) {
+        if (kg > numGhosts_) {
           this->AddToResidual(tempFlux *
-                              this->FAreaMagK(ii.g, jj.g, kk.g),
-                              ii.p, jj.p, kk.p - 1);
+                              this->FAreaMagK(ig, jg, kg),
+                              ip, jp, kp - 1);
         }
         // at right boundary no right cell to add to
-        if (kk.g < fAreaK_.NumK() - numGhosts_ - 1) {
+        if (kg < fAreaK_.NumK() - numGhosts_ - 1) {
           this->SubtractFromResidual(tempFlux *
-                                     this->FAreaMagK(ii.g, jj.g, kk.g),
-                                     ii.p, jj.p, kk.p);
+                                     this->FAreaMagK(ig, jg, kg),
+                                     ip, jp, kp);
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-          specRadius_(ii.p, jj.p, kk.p).AddToFlowVariable(
-	      state_(ii.g, jj.g, kk.g).CellSpectralRadius(fAreaK_(ii.g, jj.g, kk.g),
-							  fAreaK_(ii.g, jj.g, kk.g + 1),
+          specRadius_(ip, jp, kp).AddToFlowVariable(
+	      state_(ig, jg, kg).CellSpectralRadius(fAreaK_(ig, jg, kg),
+							  fAreaK_(ig, jg, kg + 1),
 							  eqnState));
 	  if (inp.IsTurbulent()) {
-              specRadius_(ii.p, jj.p, kk.p).AddToTurbVariable(
-		  turb->InviscidSpecRad(state_(ii.g, jj.g, kk.g), fAreaK_(ii.g, jj.g, kk.g),
-					fAreaK_(ii.g + 1, jj.g, kk.g + 1)));
+              specRadius_(ip, jp, kp).AddToTurbVariable(
+		  turb->InviscidSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
+					fAreaK_(ig + 1, jg, kg + 1)));
 	  }
 
 	  // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
-            mainDiagonal(ii.p, jj.p, kk.p).AddInviscidJacobian(
-                state_(ii.g, jj.g, kk.g), fAreaK_(ii.g, jj.g, kk.g),
-                fAreaK_(ii.g, jj.g, kk.g + 1), eqnState, turb,
+            mainDiagonal(ip, jp, kp).AddInviscidJacobian(
+                state_(ig, jg, kg), fAreaK_(ig, jg, kg),
+                fAreaK_(ig, jg, kg + 1), eqnState, turb,
                 inp.IsTurbulent());
           }
         }
@@ -595,7 +583,7 @@ dt = CFL * V / (Lci + Lcj + Lck + C * (Lvi + Lvj + Lvk)) (Blazek 6.18)
 In the above equation dt is the time step, CFL is the CFL number, V is the cell
 volume, Lci, Lcj, Lck are the convective (inviscid) spectral radii in the i, j,
 and k directions, C is a constant (typical value b/w 1 and 4), and Lvi, Lvj,
-Lvk are the viscous spectral radii. This function is only used when the time
+Lvk are the viscous spectral radi This function is only used when the time
 step isn't explicitly defined by the user.
 */
 void procBlock::CalcCellDt(const int &ii, const int &jj, const int &kk,
@@ -663,39 +651,36 @@ void procBlock::UpdateBlock(const input &inputVars, const idealGas &eos,
   // linf -- l-infinity norm of residual
 
   // loop over all physical cells
-  for (struct {int p; int g;} kk = {0, numGhosts_}; kk.p <
-           this->NumK(); kk.g++, kk.p++) {
-    for (struct {int p; int g;} jj = {0, numGhosts_}; jj.p <
-             this->NumJ(); jj.g++, jj.p++) {
-      for (struct {int p; int g;} ii = {0, numGhosts_}; ii.p <
-               this->NumI(); ii.g++, ii.p++) {
+  for (auto kp = 0, kg = numGhosts_; kp < this->NumK(); kg++, kp++) {
+    for (auto jp = 0, jg = numGhosts_; jp < this->NumJ(); jg++, jp++) {
+      for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
         // explicit euler time integration
         if (inputVars.TimeIntegration() == "explicitEuler") {
-          this->ExplicitEulerTimeAdvance(eos, turb, ii.g, jj.g, kk.g,
-                                         ii.p, jj.p, kk.p);
+          this->ExplicitEulerTimeAdvance(eos, turb, ig, jg, kg,
+                                         ip, jp, kp);
         // 4-stage runge-kutta method (explicit)
         } else if (inputVars.TimeIntegration() == "rk4") {
           // advance 1 RK stage
-          this->RK4TimeAdvance(consVars(ii.p, jj.p, kk.p), eos, turb,
-                               ii.g, jj.g, kk.g,
-                               ii.p, jj.p, kk.p, rr);
+          this->RK4TimeAdvance(consVars(ip, jp, kp), eos, turb,
+                               ig, jg, kg,
+                               ip, jp, kp, rr);
         } else if (inputVars.IsImplicit()) {  // if implicit use update (du)
-          this->ImplicitTimeAdvance(du(ii.g, jj.g, kk.g), eos, turb,
-                                    ii.g, jj.g, kk.g);
+          this->ImplicitTimeAdvance(du(ig, jg, kg), eos, turb,
+                                    ig, jg, kg);
         } else {
           cerr << "ERROR: Time integration scheme " <<
               inputVars.TimeIntegration() << " is not recognized!" << endl;
         }
 
         // accumulate l2 norm of residual
-        l2 = l2 + residual_(ii.p, jj.p, kk.p) * residual_(ii.p, jj.p, kk.p);
+        l2 = l2 + residual_(ip, jp, kp) * residual_(ip, jp, kp);
 
         // if any residual is larger than previous residual, a new linf
         // residual is found
         for (auto ll = 0; ll < NUMVARS; ll++) {
-          if (this->Residual(ii.p, jj.p, kk.p, ll) > linf.Linf()) {
-            linf.UpdateMax(this->Residual(ii.p, jj.p, kk.p, ll),
-                           parBlock_, ii.p, jj.p, kk.p, ll + 1);
+          if (this->Residual(ip, jp, kp, ll) > linf.Linf()) {
+            linf.UpdateMax(this->Residual(ip, jp, kp, ll),
+                           parBlock_, ip, jp, kp, ll + 1);
           }
         }
       }
@@ -843,16 +828,13 @@ multiArray3d<genArray> procBlock::SolTimeMMinusN(
     auto m = this->GetCopyConsVars(eos);
 
     // loop over all physical cells
-    for (struct {int p; int g;} kk = {0, numGhosts_}; kk.p <
-             this->NumK(); kk.g++, kk.p++) {
-      for (struct {int p; int g;} jj = {0, numGhosts_}; jj.p <
-               this->NumJ(); jj.g++, jj.p++) {
-        for (struct {int p; int g;} ii = {0, numGhosts_}; ii.p <
-                 this->NumI(); ii.g++, ii.p++) {
-          const auto diagVolTime = (vol_(ii.g, jj.g, kk.g) * (1.0 + inp.Zeta()))
-              / (dt_(ii.p, jj.p, kk.p) * inp.Theta());
-          mMinusN(ii.p, jj.p, kk.p) =
-              diagVolTime * (m(ii.p, jj.p, kk.p) - n(ii.p, jj.p, kk.p));
+  for (auto kp = 0, kg = numGhosts_; kp < this->NumK(); kg++, kp++) {
+    for (auto jp = 0, jg = numGhosts_; jp < this->NumJ(); jg++, jp++) {
+      for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
+          const auto diagVolTime = (vol_(ig, jg, kg) * (1.0 + inp.Zeta()))
+              / (dt_(ip, jp, kp) * inp.Theta());
+          mMinusN(ip, jp, kp) =
+              diagVolTime * (m(ip, jp, kp) - n(ip, jp, kp));
         }
       }
     }
@@ -902,17 +884,14 @@ multiArray3d<genArray> procBlock::DeltaNMinusOne(
   multiArray3d<genArray> solDeltaNm1(this->NumI(), this->NumJ(), this->NumK());
 
   // loop over physical cells
-  for (struct {int p; int g;} kk = {0, numGhosts_}; kk.p <
-           this->NumK(); kk.g++, kk.p++) {
-    for (struct {int p; int g;} jj = {0, numGhosts_}; jj.p <
-             this->NumJ(); jj.g++, jj.p++) {
-      for (struct {int p; int g;} ii = {0, numGhosts_}; ii.p <
-               this->NumI(); ii.g++, ii.p++) {
-        const auto diagVolTime = (vol_(ii.g, jj.g, kk.g) * zeta) /
-            (dt_(ii.p, jj.p, kk.p) * theta);
-        solDeltaNm1(ii.p, jj.p, kk.p) = diagVolTime *
-            (state_(ii.g, jj.g, kk.g).ConsVars(eqnState) -
-             solTimeN(ii.p, jj.p, kk.p));
+  for (auto kp = 0, kg = numGhosts_; kp < this->NumK(); kg++, kp++) {
+    for (auto jp = 0, jg = numGhosts_; jp < this->NumJ(); jg++, jp++) {
+      for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
+        const auto diagVolTime = (vol_(ig, jg, kg) * zeta) /
+            (dt_(ip, jp, kp) * theta);
+        solDeltaNm1(ip, jp, kp) = diagVolTime *
+            (state_(ig, jg, kg).ConsVars(eqnState) -
+             solTimeN(ip, jp, kp));
       }
     }
   }
@@ -966,15 +945,12 @@ multiArray3d<genArray> procBlock::GetCopyConsVars(
                                   this->NumK());
 
   // loop over physical cells
-  for (struct {int p; int g;} kk = {0, numGhosts_}; kk.p <
-           consVars.NumK(); kk.g++, kk.p++) {
-    for (struct {int p; int g;} jj = {0, numGhosts_}; jj.p <
-             consVars.NumJ(); jj.g++, jj.p++) {
-      for (struct {int p; int g;} ii = {0, numGhosts_}; ii.p <
-               consVars.NumI(); ii.g++, ii.p++) {
+  for (auto kp = 0, kg = numGhosts_; kp < this->NumK(); kg++, kp++) {
+    for (auto jp = 0, jg = numGhosts_; jp < this->NumJ(); jg++, jp++) {
+      for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
         // convert state to conservative variables
-        consVars(ii.p, jj.p, kk.p) =
-            state_(ii.g, jj.g, kk.g).ConsVars(eqnState);
+        consVars(ip, jp, kp) =
+            state_(ig, jg, kg).ConsVars(eqnState);
       }
     }
   }
@@ -1864,78 +1840,74 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
   //                 implicit solver
 
   // loop over all physical i-faces
-  // in struct p is for physical index, g is for index with ghosts
-  for (struct {int p; int g;} kk = {0, numGhosts_}; kk.g <
-           fAreaI_.NumK() - numGhosts_; kk.g++, kk.p++) {
-    for (struct {int p; int g;} jj = {0, numGhosts_}; jj.g <
-             fAreaI_.NumJ() - numGhosts_; jj.g++, jj.p++) {
-      for (struct {int p; int g;} ii = {0, numGhosts_}; ii.g <
-               fAreaI_.NumI() - numGhosts_; ii.g++, ii.p++) {
+  for (auto kp = 0, kg = numGhosts_; kg < fAreaI_.NumK() - numGhosts_; kg++, kp++) {
+    for (auto jp = 0, jg = numGhosts_; jg < fAreaI_.NumJ() - numGhosts_; jg++, jp++) {
+      for (auto ip = 0, ig = numGhosts_; ig < fAreaI_.NumI() - numGhosts_; ig++, ip++) {
         // Get state at face
         auto state =
-            FaceReconCentral(state_(ii.g - 1, jj.g, kk.g),
-                             state_(ii.g, jj.g, kk.g),
-                             center_(ii.g - 1, jj.g, kk.g),
-                             center_(ii.g, jj.g, kk.g),
-                             fCenterI_(ii.g, jj.g, kk.g));
+            FaceReconCentral(state_(ig - 1, jg, kg),
+                             state_(ig, jg, kg),
+                             center_(ig - 1, jg, kg),
+                             center_(ig, jg, kg),
+                             fCenterI_(ig, jg, kg));
         state.LimitTurb(turb);
 
         // Get wall distance at face
-        const auto wDist = FaceReconCentral(wallDist_(ii.g - 1, jj.g, kk.g),
-                                            wallDist_(ii.g, jj.g, kk.g),
-                                            center_(ii.g - 1, jj.g, kk.g),
-                                            center_(ii.g, jj.g, kk.g),
-                                            fCenterI_(ii.g, jj.g, kk.g));
+        const auto wDist = FaceReconCentral(wallDist_(ig - 1, jg, kg),
+                                            wallDist_(ig, jg, kg),
+                                            center_(ig - 1, jg, kg),
+                                            center_(ig, jg, kg),
+                                            fCenterI_(ig, jg, kg));
 
         // calculate viscous flux
         vector3d<double> tkeGrad, omegaGrad;
         if (inp.IsTurbulent()) {
-          tkeGrad = grads.TkeGradI(ii.p, jj.p, kk.p);
-          omegaGrad = grads.OmegaGradI(ii.p, jj.p, kk.p);
+          tkeGrad = grads.TkeGradI(ip, jp, kp);
+          omegaGrad = grads.OmegaGradI(ip, jp, kp);
         }
-        const viscousFlux tempViscFlux(grads.VelGradI(ii.p, jj.p, kk.p), suth,
+        const viscousFlux tempViscFlux(grads.VelGradI(ip, jp, kp), suth,
                                        eqnState,
-                                       grads.TempGradI(ii.p, jj.p, kk.p),
-                                       this->FAreaUnitI(ii.g, jj.g, kk.g),
+                                       grads.TempGradI(ip, jp, kp),
+                                       this->FAreaUnitI(ig, jg, kg),
                                        tkeGrad, omegaGrad, turb, state, wDist);
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
         // fluxes, so sign is reversed
         // at left boundary there is no left cell to add to
-        if (ii.g > numGhosts_) {
+        if (ig > numGhosts_) {
           this->SubtractFromResidual(tempViscFlux *
-                                     this->FAreaMagI(ii.g, jj.g, kk.g),
-                                     ii.p - 1, jj.p, kk.p);
+                                     this->FAreaMagI(ig, jg, kg),
+                                     ip - 1, jp, kp);
         }
         // at right boundary there is no right cell to add to
-        if (ii.g < fAreaI_.NumI() - numGhosts_ - 1) {
+        if (ig < fAreaI_.NumI() - numGhosts_ - 1) {
           this->AddToResidual(tempViscFlux *
-                                this->FAreaMagI(ii.g, jj.g, kk.g),
-                                ii.p, jj.p, kk.p);
+                                this->FAreaMagI(ig, jg, kg),
+                                ip, jp, kp);
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
 	  // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
-	  specRadius_(ii.p, jj.p, kk.p).AddToFlowVariable(2.0 *
-	      state_(ii.g, jj.g, kk.g).ViscCellSpectralRadius(fAreaI_(ii.g, jj.g, kk.g),
-							      fAreaI_(ii.g + 1, jj.g, kk.g),
+	  specRadius_(ip, jp, kp).AddToFlowVariable(2.0 *
+	      state_(ig, jg, kg).ViscCellSpectralRadius(fAreaI_(ig, jg, kg),
+							      fAreaI_(ig + 1, jg, kg),
 							      eqnState, suth,
-							      vol_(ii.g, jj.g, kk.g), turb));
+							      vol_(ig, jg, kg), turb));
 	  if (inp.IsTurbulent()) {
 	    // factor of 2 because viscous spectral radisu is not halved (Blazek 6.53)
-	    specRadius_(ii.p, jj.p, kk.p).AddToTurbVariable(2.0 *
-		  turb->ViscSpecRad(state_(ii.g, jj.g, kk.g), fAreaI_(ii.g, jj.g, kk.g),
-		 		    fAreaI_(ii.g + 1, jj.g, kk.g), eqnState, suth,
-				    vol_(ii.g, jj.g, kk.g)));
+	    specRadius_(ip, jp, kp).AddToTurbVariable(2.0 *
+		  turb->ViscSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
+		 		    fAreaI_(ig + 1, jg, kg), eqnState, suth,
+				    vol_(ig, jg, kg)));
 	  }
 
 	  // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
-            mainDiagonal(ii.p, jj.p, kk.p).AddViscousJacobian(
-                state_(ii.g, jj.g, kk.g), fAreaI_(ii.g, jj.g, kk.g),
-                fAreaI_(ii.g + 1, jj.g, kk.g), eqnState, suth,
-                vol_(ii.g, jj.g, kk.g), turb, inp.IsTurbulent());
+            mainDiagonal(ip, jp, kp).AddViscousJacobian(
+                state_(ig, jg, kg), fAreaI_(ig, jg, kg),
+                fAreaI_(ig + 1, jg, kg), eqnState, suth,
+                vol_(ig, jg, kg), turb, inp.IsTurbulent());
           }
         }
       }
@@ -2029,78 +2001,74 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
   //                 implicit solver
 
   // loop over all physical j-faces
-  // in struct p is for physical index, g is for index with ghosts
-  for (struct {int p; int g;} kk = {0, numGhosts_}; kk.g <
-           fAreaJ_.NumK() - numGhosts_; kk.g++, kk.p++) {
-    for (struct {int p; int g;} jj = {0, numGhosts_}; jj.g <
-             fAreaJ_.NumJ() - numGhosts_; jj.g++, jj.p++) {
-      for (struct {int p; int g;} ii = {0, numGhosts_}; ii.g <
-               fAreaJ_.NumI() - numGhosts_; ii.g++, ii.p++) {
+  for (auto kp = 0, kg = numGhosts_; kg < fAreaJ_.NumK() - numGhosts_; kg++, kp++) {
+    for (auto jp = 0, jg = numGhosts_; jg < fAreaJ_.NumJ() - numGhosts_; jg++, jp++) {
+      for (auto ip = 0, ig = numGhosts_; ig < fAreaJ_.NumI() - numGhosts_; ig++, ip++) {
         // Get velocity at face
         auto state =
-            FaceReconCentral(state_(ii.g, jj.g - 1, kk.g),
-                             state_(ii.g, jj.g, kk.g),
-                             center_(ii.g, jj.g - 1, kk.g),
-                             center_(ii.g, jj.g, kk.g),
-                             fCenterJ_(ii.g, jj.g, kk.g));
+            FaceReconCentral(state_(ig, jg - 1, kg),
+                             state_(ig, jg, kg),
+                             center_(ig, jg - 1, kg),
+                             center_(ig, jg, kg),
+                             fCenterJ_(ig, jg, kg));
         state.LimitTurb(turb);
 
         // Get wall distance at face
-        const auto wDist = FaceReconCentral(wallDist_(ii.g, jj.g - 1, kk.g),
-                                            wallDist_(ii.g, jj.g, kk.g),
-                                            center_(ii.g, jj.g - 1, kk.g),
-                                            center_(ii.g, jj.g, kk.g),
-                                            fCenterJ_(ii.g, jj.g, kk.g));
+        const auto wDist = FaceReconCentral(wallDist_(ig, jg - 1, kg),
+                                            wallDist_(ig, jg, kg),
+                                            center_(ig, jg - 1, kg),
+                                            center_(ig, jg, kg),
+                                            fCenterJ_(ig, jg, kg));
 
         // calculate viscous flux
         vector3d<double> tkeGrad, omegaGrad;
         if (inp.IsTurbulent()) {
-          tkeGrad = grads.TkeGradJ(ii.p, jj.p, kk.p);
-          omegaGrad = grads.OmegaGradJ(ii.p, jj.p, kk.p);
+          tkeGrad = grads.TkeGradJ(ip, jp, kp);
+          omegaGrad = grads.OmegaGradJ(ip, jp, kp);
         }
-        const viscousFlux tempViscFlux(grads.VelGradJ(ii.p, jj.p, kk.p), suth,
+        const viscousFlux tempViscFlux(grads.VelGradJ(ip, jp, kp), suth,
                                        eqnState,
-                                       grads.TempGradJ(ii.p, jj.p, kk.p),
-                                       this->FAreaUnitJ(ii.g, jj.g, kk.g),
+                                       grads.TempGradJ(ip, jp, kp),
+                                       this->FAreaUnitJ(ig, jg, kg),
                                        tkeGrad, omegaGrad, turb, state, wDist);
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
         // fluxes, so sign is reversed
         // at left boundary there is no left cell to add to
-        if (jj.g > numGhosts_) {
+        if (jg > numGhosts_) {
           this->SubtractFromResidual(tempViscFlux *
-                                     this->FAreaMagJ(ii.g, jj.g, kk.g),
-                                     ii.p, jj.p - 1, kk.p);
+                                     this->FAreaMagJ(ig, jg, kg),
+                                     ip, jp - 1, kp);
         }
         // at right boundary there is no right cell to add to
-        if (jj.g < fAreaJ_.NumJ() - numGhosts_ - 1) {
+        if (jg < fAreaJ_.NumJ() - numGhosts_ - 1) {
           this->AddToResidual(tempViscFlux *
-                                this->FAreaMagJ(ii.g, jj.g, kk.g),
-                                ii.p, jj.p, kk.p);
+                                this->FAreaMagJ(ig, jg, kg),
+                                ip, jp, kp);
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
 	  // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
-	  specRadius_(ii.p, jj.p, kk.p).AddToFlowVariable(2.0 *
-	      state_(ii.g, jj.g, kk.g).ViscCellSpectralRadius(fAreaJ_(ii.g, jj.g, kk.g),
-							      fAreaJ_(ii.g, jj.g + 1, kk.g),
+	  specRadius_(ip, jp, kp).AddToFlowVariable(2.0 *
+	      state_(ig, jg, kg).ViscCellSpectralRadius(fAreaJ_(ig, jg, kg),
+							      fAreaJ_(ig, jg + 1, kg),
 							      eqnState, suth,
-							      vol_(ii.g, jj.g, kk.g), turb));
+							      vol_(ig, jg, kg), turb));
 	  if (inp.IsTurbulent()) {
 	    // factor of 2 because viscous spectral radisu is not halved (Blazek 6.53)
-	    specRadius_(ii.p, jj.p, kk.p).AddToTurbVariable(2.0 *
-		  turb->ViscSpecRad(state_(ii.g, jj.g, kk.g), fAreaJ_(ii.g, jj.g, kk.g),
-		 		    fAreaJ_(ii.g, jj.g + 1, kk.g), eqnState, suth,
-				    vol_(ii.g, jj.g, kk.g)));
+	    specRadius_(ip, jp, kp).AddToTurbVariable(2.0 *
+		  turb->ViscSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
+		 		    fAreaJ_(ig, jg + 1, kg), eqnState, suth,
+				    vol_(ig, jg, kg)));
 	  }
 
 	  // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
-            mainDiagonal(ii.p, jj.p, kk.p).AddViscousJacobian(
-                state_(ii.g, jj.g, kk.g), fAreaJ_(ii.g, jj.g, kk.g),
-                fAreaJ_(ii.g, jj.g + 1, kk.g), eqnState, suth,
-                vol_(ii.g, jj.g, kk.g), turb, inp.IsTurbulent());
+            mainDiagonal(ip, jp, kp).AddViscousJacobian(
+                state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
+                fAreaJ_(ig, jg + 1, kg), eqnState, suth,
+                vol_(ig, jg, kg), turb, inp.IsTurbulent());
           }
         }
       }
@@ -2193,78 +2161,74 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
   //                 implicit solver
 
   // loop over all physical k-faces
-  // in struct p is for physical index, g is for index with ghosts
-  for (struct {int p; int g;} kk = {0, numGhosts_}; kk.g <
-           fAreaK_.NumK() - numGhosts_; kk.g++, kk.p++) {
-    for (struct {int p; int g;} jj = {0, numGhosts_}; jj.g <
-             fAreaK_.NumJ() - numGhosts_; jj.g++, jj.p++) {
-      for (struct {int p; int g;} ii = {0, numGhosts_}; ii.g <
-               fAreaK_.NumI() - numGhosts_; ii.g++, ii.p++) {
+  for (auto kp = 0, kg = numGhosts_; kg < fAreaK_.NumK() - numGhosts_; kg++, kp++) {
+    for (auto jp = 0, jg = numGhosts_; jg < fAreaK_.NumJ() - numGhosts_; jg++, jp++) {
+      for (auto ip = 0, ig = numGhosts_; ig < fAreaK_.NumI() - numGhosts_; ig++, ip++) {
         // Get state at face
         auto state =
-            FaceReconCentral(state_(ii.g, jj.g, kk.g - 1),
-                             state_(ii.g, jj.g, kk.g),
-                             center_(ii.g, jj.g, kk.g - 1),
-                             center_(ii.g, jj.g, kk.g),
-                             fCenterK_(ii.g, jj.g, kk.g));
+            FaceReconCentral(state_(ig, jg, kg - 1),
+                             state_(ig, jg, kg),
+                             center_(ig, jg, kg - 1),
+                             center_(ig, jg, kg),
+                             fCenterK_(ig, jg, kg));
         state.LimitTurb(turb);
 
         // Get wall distance at face
-        const auto wDist = FaceReconCentral(wallDist_(ii.g, jj.g, kk.g - 1),
-                                            wallDist_(ii.g, jj.g, kk.g),
-                                            center_(ii.g, jj.g, kk.g - 1),
-                                            center_(ii.g, jj.g, kk.g),
-                                            fCenterK_(ii.g, jj.g, kk.g));
+        const auto wDist = FaceReconCentral(wallDist_(ig, jg, kg - 1),
+                                            wallDist_(ig, jg, kg),
+                                            center_(ig, jg, kg - 1),
+                                            center_(ig, jg, kg),
+                                            fCenterK_(ig, jg, kg));
 
         // calculate viscous flux
         vector3d<double> tkeGrad, omegaGrad;
         if (inp.IsTurbulent()) {
-          tkeGrad = grads.TkeGradK(ii.p, jj.p, kk.p);
-          omegaGrad = grads.OmegaGradK(ii.p, jj.p, kk.p);
+          tkeGrad = grads.TkeGradK(ip, jp, kp);
+          omegaGrad = grads.OmegaGradK(ip, jp, kp);
         }
-        const viscousFlux tempViscFlux(grads.VelGradK(ii.p, jj.p, kk.p), suth,
+        const viscousFlux tempViscFlux(grads.VelGradK(ip, jp, kp), suth,
                                        eqnState,
-                                       grads.TempGradK(ii.p, jj.p, kk.p),
-                                       this->FAreaUnitK(ii.g, jj.g, kk.g),
+                                       grads.TempGradK(ip, jp, kp),
+                                       this->FAreaUnitK(ig, jg, kg),
                                        tkeGrad, omegaGrad, turb, state, wDist);
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
         // fluxes, so sign is reversed
         // at left boundary there is no left cell to add to
-        if (kk.g > numGhosts_) {
+        if (kg > numGhosts_) {
           this->SubtractFromResidual(tempViscFlux *
-                                     this->FAreaMagK(ii.g, jj.g, kk.g),
-                                     ii.p, jj.p, kk.p - 1);
+                                     this->FAreaMagK(ig, jg, kg),
+                                     ip, jp, kp - 1);
         }
         // at right boundary there is no right cell to add to
-        if (kk.g < fAreaK_.NumK() - numGhosts_ - 1) {
+        if (kg < fAreaK_.NumK() - numGhosts_ - 1) {
           this->AddToResidual(tempViscFlux *
-                                this->FAreaMagK(ii.g, jj.g, kk.g),
-                                ii.p, jj.p, kk.p);
+                                this->FAreaMagK(ig, jg, kg),
+                                ip, jp, kp);
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
 	  // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
-	  specRadius_(ii.p, jj.p, kk.p).AddToFlowVariable(2.0 *
-	      state_(ii.g, jj.g, kk.g).ViscCellSpectralRadius(fAreaK_(ii.g, jj.g, kk.g),
-							      fAreaK_(ii.g, jj.g, kk.g + 1),
+	  specRadius_(ip, jp, kp).AddToFlowVariable(2.0 *
+	      state_(ig, jg, kg).ViscCellSpectralRadius(fAreaK_(ig, jg, kg),
+							      fAreaK_(ig, jg, kg + 1),
 							      eqnState, suth,
-							      vol_(ii.g, jj.g, kk.g), turb));
+							      vol_(ig, jg, kg), turb));
 	  if (inp.IsTurbulent()) {
 	    // factor of 2 because viscous spectral radisu is not halved (Blazek 6.53)
-	    specRadius_(ii.p, jj.p, kk.p).AddToTurbVariable(2.0 *
-		  turb->ViscSpecRad(state_(ii.g, jj.g, kk.g), fAreaK_(ii.g, jj.g, kk.g),
-		 		    fAreaK_(ii.g, jj.g, kk.g + 1), eqnState, suth,
-				    vol_(ii.g, jj.g, kk.g)));
+	    specRadius_(ip, jp, kp).AddToTurbVariable(2.0 *
+		  turb->ViscSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
+		 		    fAreaK_(ig, jg, kg + 1), eqnState, suth,
+				    vol_(ig, jg, kg)));
 	  }
 
 	  // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
-            mainDiagonal(ii.p, jj.p, kk.p).AddViscousJacobian(
-                state_(ii.g, jj.g, kk.g), fAreaK_(ii.g, jj.g, kk.g),
-                fAreaK_(ii.g, jj.g, kk.g + 1), eqnState, suth,
-                vol_(ii.g, jj.g, kk.g), turb, inp.IsTurbulent());
+            mainDiagonal(ip, jp, kp).AddViscousJacobian(
+                state_(ig, jg, kg), fAreaK_(ig, jg, kg),
+                fAreaK_(ig, jg, kg + 1), eqnState, suth,
+                vol_(ig, jg, kg), turb, inp.IsTurbulent());
           }
         }
       }
@@ -6602,30 +6566,27 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
   //                 implicit solver
 
   // loop over all physical cells - no ghost cells needed for source terms
-  for (struct {int p; int g;} kk = {0, numGhosts_}; kk.p <
-           this->NumK(); kk.g++, kk.p++) {
-    for (struct {int p; int g;} jj = {0, numGhosts_}; jj.p <
-             this->NumJ(); jj.g++, jj.p++) {
-      for (struct {int p; int g;} ii = {0, numGhosts_}; ii.p <
-               this->NumI(); ii.g++, ii.p++) {
+  for (auto kp = 0, kg = numGhosts_; kp < this->NumK(); kg++, kp++) {
+    for (auto jp = 0, jg = numGhosts_; jp < this->NumJ(); jg++, jp++) {
+      for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
         // calculate turbulent source terms
         source src;
-        src.CalcTurbSrc(turb, state_(ii.g, jj.g, kk.g), grads, suth, eos,
-                        wallDist_(ii.g, jj.g, kk.g), ii.p, jj.p, kk.p);
+        src.CalcTurbSrc(turb, state_(ig, jg, kg), grads, suth, eos,
+                        wallDist_(ig, jg, kg), ip, jp, kp);
 
         // add source terms to residual
         // subtract because residual is initially on opposite side of equation
-        this->SubtractFromResidual(src * (vol_(ii.g, jj.g, kk.g)),
-                                   ii.p, jj.p, kk.p);
+        this->SubtractFromResidual(src * (vol_(ig, jg, kg)),
+                                   ip, jp, kp);
 
 	// add source spectral radius for turbulence equations
-        specRadius_(ii.p, jj.p, kk.p).AddToTurbVariable(vol_(ii.g, jj.g, kk.g) *
-	    turb->SrcSpecRad(state_(ii.g, jj.g, kk.g), suth));
+        specRadius_(ip, jp, kp).AddToTurbVariable(vol_(ig, jg, kg) *
+	    turb->SrcSpecRad(state_(ig, jg, kg), suth));
 
 	// add contribution of source spectral radius to flux jacobian
 	if (inp.IsBlockMatrix()) {
-	  mainDiagonal(ii.p, jj.p, kk.p).AddTurbSourceJacobian(
-	     state_(ii.g, jj.g, kk.g), suth, vol_(ii.g, jj.g, kk.g), turb);
+	  mainDiagonal(ip, jp, kp).AddTurbSourceJacobian(
+	     state_(ig, jg, kg), suth, vol_(ig, jg, kg), turb);
 	}
       }
     }

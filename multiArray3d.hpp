@@ -414,14 +414,11 @@ multiArray3d<T> multiArray3d<T>::Slice(const int &is, const int &ie,
 
   multiArray3d<T> array(ie - is + 1, je - js + 1, ke - ks + 1);
 
-// in struct s is for index of sliced array, p is for index of parent array
-  for (struct {int s; int p;} kk = {0, ks}; kk.s < array.numK_;
-       kk.s++, kk.p++) {
-    for (struct {int s; int p;} jj = {0, js}; jj.s < array.numJ_;
-         jj.s++, jj.p++) {
-      for (struct {int s; int p;} ii = {0, is}; ii.s < array.numI_;
-           ii.s++, ii.p++) {
-        array(ii.s, jj.s, kk.s) = (*this)(ii.p, jj.p, kk.p);
+// s is for index of sliced array, p is for index of parent array
+  for (auto kks = 0, kkp = ks; kks < array.numK_; kks++, kkp++) {
+    for (auto jjs = 0, jjp = js; jjs < array.numJ_; jjs++, jjp++) {
+      for (auto iis = 0, iip = is; iis < array.numI_; iis++, iip++) {
+        array(iis, jjs, kks) = (*this)(iip, jjp, kkp);
       }
     }
   }
@@ -454,14 +451,11 @@ void multiArray3d<T>::Insert(const int &is, const int &ie, const int &js,
     exit(0);
   }
 
-  // in struct s is for index of sliced array, p is for index of parent array
-  for (struct {int s; int p;} kk = {0, ks}; kk.s < array.numK_;
-       kk.s++, kk.p++) {
-    for (struct {int s; int p;} jj = {0, js}; jj.s < array.numJ_;
-         jj.s++, jj.p++) {
-      for (struct {int s; int p;} ii = {0, is}; ii.s < array.numI_;
-           ii.s++, ii.p++) {
-        (*this)(ii.p, jj.p, kk.p) = array(ii.s, jj.s, kk.s);
+  // s is for index of sliced array, p is for index of parent array
+  for (auto kks = 0, kkp = ks; kks < array.numK_; kks++, kkp++) {
+    for (auto jjs = 0, jjp = js; jjs < array.numJ_; jjs++, jjp++) {
+      for (auto iis = 0, iip = is; iis < array.numI_; iis++, iip++) {
+        (*this)(iip, jjp, kkp) = array(iis, jjs, kks);
       }
     }
   }

@@ -173,110 +173,110 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
       // store nondimensional variable in dumArr for a given block in order.
       // i.e. var1 var2 var3 etc
       if (vv == 0) {  // density
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  recombVars[ll].State(ii.g, jj.g, kk.g).Rho();
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  recombVars[ll].State(ig, jg, kg).Rho();
             }
           }
         }
       } else if (vv == 1) {  // vel-x
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  recombVars[ll].State(ii.g, jj.g, kk.g).U();
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  recombVars[ll].State(ig, jg, kg).U();
             }
           }
         }
       } else if (vv == 2) {  // vel-y
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  recombVars[ll].State(ii.g, jj.g, kk.g).V();
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  recombVars[ll].State(ig, jg, kg).V();
             }
           }
         }
       } else if (vv == 3) {  // vel-z
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  recombVars[ll].State(ii.g, jj.g, kk.g).W();
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  recombVars[ll].State(ig, jg, kg).W();
             }
           }
         }
       } else if (vv == 4) {  // pressure
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  recombVars[ll].State(ii.g, jj.g, kk.g).P();
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  recombVars[ll].State(ig, jg, kg).P();
             }
           }
         }
       } else if (vv == 5) {  // mach
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
               const auto vel =
-                  recombVars[ll].State(ii.g, jj.g, kk.g).Velocity();
-              dumArr(ii.p, jj.p, kk.p) = vel.Mag() /
-                  eqnState.SoS(recombVars[ll].State(ii.g, jj.g, kk.g).P(),
-                               recombVars[ll].State(ii.g, jj.g, kk.g).Rho());
+                  recombVars[ll].State(ig, jg, kg).Velocity();
+              dumArr(ip, jp, kp) = vel.Mag() /
+                  eqnState.SoS(recombVars[ll].State(ig, jg, kg).P(),
+                               recombVars[ll].State(ig, jg, kg).Rho());
             }
           }
         }
       } else if (vv == 6) {  // speed of sound
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  eqnState.SoS(recombVars[ll].State(ii.g, jj.g, kk.g).P(),
-                               recombVars[ll].State(ii.g, jj.g, kk.g).Rho());
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  eqnState.SoS(recombVars[ll].State(ig, jg, kg).P(),
+                               recombVars[ll].State(ig, jg, kg).Rho());
             }
           }
         }
       } else if (vv == 7) {  // time step - no ghost cells
-        for (int kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (int jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (int ii = 0; ii < recombVars[ll].NumI(); ii++) {
+	for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
+          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
+            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].Dt(ii, jj, kk);
             }
           }
         }
       } else if (vv == 8) {  // temperature
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  recombVars[ll].State(ii.g, jj.g, kk.g).Temperature(eqnState);
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  recombVars[ll].State(ig, jg, kg).Temperature(eqnState);
             }
           }
         }
@@ -300,52 +300,52 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
           }
         }
       } else if (vv == 11) {  // viscosity ratio
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  turb->EddyViscNoLim(recombVars[ll].State(ii.g, jj.g, kk.g)) /
-                  suth.Viscosity(recombVars[ll].State(ii.g, jj.g, kk.g).
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  turb->EddyViscNoLim(recombVars[ll].State(ig, jg, kg)) /
+                  suth.Viscosity(recombVars[ll].State(ig, jg, kg).
                                  Temperature(eqnState));
             }
           }
         }
       } else if (vv == 12) {  // tke
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  recombVars[ll].State(ii.g, jj.g, kk.g).Tke();
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  recombVars[ll].State(ig, jg, kg).Tke();
             }
           }
         }
       } else if (vv == 13) {  // omega
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  recombVars[ll].State(ii.g, jj.g, kk.g).Omega();
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  recombVars[ll].State(ig, jg, kg).Omega();
             }
           }
         }
       } else if (vv == 14) {  // wall distance
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  recombVars[ll].WallDist(ii.g, jj.g, kk.g);
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  recombVars[ll].WallDist(ig, jg, kg);
             }
           }
         }
