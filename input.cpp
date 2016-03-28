@@ -14,8 +14,9 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include <time.h>    // strftime
+#include <chrono>    // timing capability
 #include <iostream>  // cout
+#include <iomanip>   // put_time
 #include <fstream>   // ifstream
 #include <cstdlib>   // exit()
 #include <sstream>   // istringstream
@@ -156,16 +157,9 @@ string trim(const string &s, const string &whitespace = " \t") {
 
 // function to print the time
 void PrintTime() {
-  time_t rawtime;
-  struct tm timeinfo;
-
-  time(&rawtime);
-  localtime_r(&rawtime, &timeinfo);
-
-  constexpr auto kBufLen = 100;  // hard coded max buffer length
-  char buffer[kBufLen];
-  strftime(buffer, kBufLen, "%c", &timeinfo);
-  cout << buffer << endl;
+  auto now = std::chrono::high_resolution_clock::now();
+  auto nowOut = std::chrono::high_resolution_clock::to_time_t(now);
+  cout << std::put_time(std::localtime(&nowOut), "%c") << endl;
 }
 
 // function to read the input file and return the data as a member of the input

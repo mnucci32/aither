@@ -16,7 +16,7 @@
 
 #include <iostream>      // cout, cerr, endl
 #include <vector>        // stl vector
-#include <ctime>         // clock
+#include <chrono>        // clock
 #include <string>        // stl string
 #include <memory>        // unique_ptr
 
@@ -47,8 +47,6 @@ using std::cout;
 using std::cerr;
 using std::endl;
 using std::vector;
-using std::clock_t;
-using std::clock;
 
 int main(int argc, char *argv[]) {
   // Initialize MPI and make calls to get number
@@ -73,7 +71,7 @@ int main(int argc, char *argv[]) {
   MPI_Barrier(MPI_COMM_WORLD);
 
   // Start clock to time simulation
-  const auto start = clock();
+  const auto start = std::chrono::high_resolution_clock::now();
 
   // Enable exceptions so code won't run with NANs
 #ifdef __linux__
@@ -196,7 +194,7 @@ int main(int argc, char *argv[]) {
   //-----------------------------------------------------------------------
   // wall distance calculation
 
-  const auto wallStart = clock();
+  const auto wallStart = std::chrono::high_resolution_clock::now();
 
   if (rank == ROOTP) {
     cout << "Starting wall distance calculation..." << endl;
@@ -207,9 +205,9 @@ int main(int argc, char *argv[]) {
   kdtree tree(viscFaces);
 
   if (rank == ROOTP) {
-    const auto kdDuration = (clock() - wallStart) /
-        static_cast<double> (CLOCKS_PER_SEC);
-    cout << "K-d tree complete after " << kdDuration << " seconds" << endl;
+    const auto kdEnd = std::chrono::high_resolution_clock::now();
+    const std::chrono::duration<double> kdDuration = kdEnd - wallStart;
+    cout << "K-d tree complete after " << kdDuration.count() << " seconds" << endl;
   }
 
   if (tree.Size() > 0) {
@@ -218,9 +216,9 @@ int main(int argc, char *argv[]) {
 
   MPI_Barrier(MPI_COMM_WORLD);
   if (rank == ROOTP) {
-    const auto wallDuration = (clock() - wallStart) /
-        static_cast<double> (CLOCKS_PER_SEC);
-    cout << "Wall distance calculation finished after " << wallDuration
+    const auto wallEnd = std::chrono::high_resolution_clock::now();
+    const std::chrono::duration<double> wallDuration = wallEnd - wallStart;
+    cout << "Wall distance calculation finished after " << wallDuration.count()
          << " seconds" << endl << endl;
   }
 
@@ -365,8 +363,9 @@ int main(int argc, char *argv[]) {
     cout << endl << "Program Complete" << endl;
     PrintTime();
 
-    auto duration = (clock() - start) / static_cast<double> (CLOCKS_PER_SEC);
-    cout << "Total Time: " << duration << " seconds" << endl;
+    const auto simEnd = std::chrono::high_resolution_clock::now();
+    const std::chrono::duration<double> duration = simEnd - start;
+    cout << "Total Time: " << duration.count() << " seconds" << endl;
   }
 
   // Free datatypes previously created
