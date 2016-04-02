@@ -318,7 +318,7 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           specRadius_(ip, jp, kp).AddToFlowVariable(
-	      state_(ig, jg, kg).CellSpectralRadius(fAreaI_(ig, jg, kg),
+	      state_(ig, jg, kg).InvCellSpectralRadius(fAreaI_(ig, jg, kg),
 							  fAreaI_(ig + 1, jg, kg),
 							  eqnState));
 	  if (inp.IsTurbulent()) {
@@ -435,7 +435,7 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
 	  specRadius_(ip, jp, kp).AddToFlowVariable(
-	      state_(ig, jg, kg).CellSpectralRadius(fAreaJ_(ig, jg, kg),
+	      state_(ig, jg, kg).InvCellSpectralRadius(fAreaJ_(ig, jg, kg),
 							  fAreaJ_(ig, jg + 1, kg),
 							  eqnState));
 	  if (inp.IsTurbulent()) {
@@ -553,7 +553,7 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           specRadius_(ip, jp, kp).AddToFlowVariable(
-	      state_(ig, jg, kg).CellSpectralRadius(fAreaK_(ig, jg, kg),
+	      state_(ig, jg, kg).InvCellSpectralRadius(fAreaK_(ig, jg, kg),
 							  fAreaK_(ig, jg, kg + 1),
 							  eqnState));
 	  if (inp.IsTurbulent()) {
@@ -1113,80 +1113,36 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
     // if i lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip - 1, jp, kp, false)) {
-      // calculate updated state
-      const auto stateUpdate = state_(ig - 1, jg, kg).
-          UpdateWithConsVars(eqnState, x(ig - 1, jg, kg), turb);
-
-      // at given face location, call function to calculate spectral radius,
-      // since values are constant throughout cell, cell center values are used
-      const fluxJacobian fluxJacUpdate(stateUpdate, fAreaI_(ig - 1, jg, kg),
-                                       fAreaI_(ig, jg, kg), eqnState, suth,
-                                       vol_(ig - 1, jg, kg), turb, inp, false);
-
-      // at given face location, call function to calculate convective flux
-      // change
-      const auto fluxChange = ConvectiveFluxUpdate(
-          state_(ig - 1, jg, kg), stateUpdate, eqnState,
-          this->FAreaUnitI(ig, jg, kg));
-
       // update L matrix
-      L(ip, jp, kp) += (this->FAreaMagI(ig, jg, kg) * fluxChange +
-           fluxJacUpdate.ArrayMult(x(ig - 1, jg, kg)));
+      L(ip, jp, kp) += RusanovOffDiagonal(state_(ig - 1, jg, kg), x(ig - 1 , jg, kg),
+					  fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
+					  vol_(ig - 1, jg, kg), eqnState, suth, turb,
+					  inp, true);
     }
 
     // -----------------------------------------------------------------------
     // if j lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip, jp - 1, kp, false)) {
-      // calculate updated state
-      const auto stateUpdate = state_(ig, jg - 1, kg).
-          UpdateWithConsVars(eqnState, x(ig, jg - 1, kg), turb);
-
-      // at given face location, call function to calculate spectral radius,
-      // since values are constant throughout cell, cell center values are used
-      const fluxJacobian fluxJacUpdate(stateUpdate, fAreaJ_(ig, jg - 1, kg),
-                                 fAreaJ_(ig, jg, kg), eqnState, suth,
-                                 vol_(ig, jg - 1, kg), turb, inp, false);
-
-      // at given face location, call function to calculate convective flux
-      // change
-      const auto fluxChange = ConvectiveFluxUpdate(
-          state_(ig, jg - 1, kg), stateUpdate, eqnState,
-          this->FAreaUnitJ(ig, jg, kg));
-
       // update L matrix
-      L(ip, jp, kp) += (this->FAreaMagJ(ig, jg, kg) * fluxChange +
-           fluxJacUpdate.ArrayMult(x(ig, jg - 1, kg)));
+      L(ip, jp, kp) += RusanovOffDiagonal(state_(ig, jg - 1, kg), x(ig, jg - 1, kg),
+					  fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
+					  vol_(ig, jg - 1, kg), eqnState, suth, turb,
+					  inp, true);
     }
 
     // -----------------------------------------------------------------------
     // if k lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip, jp, kp - 1, false)) {
-      // calculate updated state
-      const auto stateUpdate = state_(ig, jg, kg - 1).
-          UpdateWithConsVars(eqnState, x(ig, jg, kg - 1), turb);
-
-      // at given face location, call function to calculate spectral radius,
-      // since values are constant throughout cell, cell center values are used
-      const fluxJacobian fluxJacUpdate(stateUpdate, fAreaK_(ig, jg, kg - 1),
-                                 fAreaK_(ig, jg, kg), eqnState, suth,
-                                 vol_(ig, jg, kg - 1), turb, inp, false);
-
-      // at given face location, call function to calculate convective flux
-      // change
-      const auto fluxChange = ConvectiveFluxUpdate(
-          state_(ig, jg, kg - 1), stateUpdate, eqnState,
-          this->FAreaUnitK(ig, jg, kg));
-
       // update L matrix
-      L(ip, jp, kp) += (this->FAreaMagK(ig, jg, kg) * fluxChange +
-           fluxJacUpdate.ArrayMult(x(ig, jg, kg - 1)));
+      L(ip, jp, kp) += RusanovOffDiagonal(state_(ig, jg, kg - 1), x(ig, jg, kg - 1),
+					  fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
+					  vol_(ig, jg, kg - 1), eqnState, suth, turb,
+					  inp, true);
     }
 
     // -----------------------------------------------------------------------
-
-    L(ip, jp, kp) *= 0.5;
 
     // calculate intermediate update
     // normal at lower boundaries needs to be reversed, so add instead
@@ -1214,80 +1170,36 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
     // if i upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip + 1, jp, kp, false)) {
-      // calculate updated state
-      const auto stateUpdate = state_(ig + 1, jg, kg).
-          UpdateWithConsVars(eqnState, x(ig + 1, jg, kg), turb);
-
-      // at given face location, call function to calculate spectral radius,
-      // since values are constant throughout cell, cell center values are used
-      const fluxJacobian fluxJacUpdate(stateUpdate, fAreaI_(ig + 2, jg, kg),
-                                 fAreaI_(ig + 1, jg, kg), eqnState, suth,
-                                 vol_(ig + 1, jg, kg), turb, inp, false);
-
-      // at given face location, call function to calculate convective flux
-      // change
-      const auto fluxChange = ConvectiveFluxUpdate(
-          state_(ig + 1, jg, kg), stateUpdate, eqnState,
-          this->FAreaUnitI(ig + 1, jg, kg));
-
       // update U matrix
-      U(ip, jp, kp) += (this->FAreaMagI(ig + 1, jg, kg) * fluxChange -
-           fluxJacUpdate.ArrayMult(x(ig + 1, jg, kg)));
+      U(ip, jp, kp) += RusanovOffDiagonal(state_(ig + 1, jg, kg), x(ig + 1, jg, kg),
+					  fAreaI_(ig + 1, jg, kg), fAreaI_(ig + 2, jg, kg),
+					  vol_(ig + 1, jg, kg), eqnState, suth, turb,
+					  inp, false);
     }
 
     // -----------------------------------------------------------------------
     // if j upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip, jp + 1, kp, false)) {
-      // calculate updated state
-      const auto stateUpdate = state_(ig, jg + 1, kg).
-          UpdateWithConsVars(eqnState, x(ig, jg + 1, kg), turb);
-
-      // at given face location, call function to calculate spectral radius,
-      // since values are constant throughout cell, cell center values are used
-      const fluxJacobian fluxJacUpdate(stateUpdate, fAreaJ_(ig, jg + 2, kg),
-                                 fAreaJ_(ig, jg + 1, kg), eqnState, suth,
-                                 vol_(ig, jg + 1, kg), turb, inp, false);
-
-      // at given face location, call function to calculate convective flux
-      // change
-      const auto fluxChange = ConvectiveFluxUpdate(
-          state_(ig, jg + 1, kg), stateUpdate, eqnState,
-          this->FAreaUnitJ(ig, jg + 1, kg));
-
       // update U matrix
-      U(ip, jp, kp) += (this->FAreaMagJ(ig, jg + 1, kg) * fluxChange -
-           fluxJacUpdate.ArrayMult(x(ig, jg + 1, kg)));
+      U(ip, jp, kp) += RusanovOffDiagonal(state_(ig, jg + 1, kg), x(ig, jg + 1, kg),
+					  fAreaJ_(ig, jg + 1, kg), fAreaJ_(ig, jg + 2, kg),
+					  vol_(ig, jg + 1, kg), eqnState, suth, turb,
+					  inp, false);
     }
 
     // -----------------------------------------------------------------------
     // if k upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip, jp, kp + 1, false)) {
-      // calculate updated state
-      const auto stateUpdate = state_(ig, jg, kg + 1).
-          UpdateWithConsVars(eqnState, x(ig, jg, kg + 1), turb);
-
-      // at given face location, call function to calculate spectral radius,
-      // since values are constant throughout cell, cell center values are used
-      const fluxJacobian fluxJacUpdate(stateUpdate, fAreaK_(ig, jg, kg + 2),
-                                 fAreaK_(ig, jg, kg + 1), eqnState, suth,
-                                 vol_(ig, jg, kg + 1), turb, inp, false);
-
-      // at given face location, call function to calculate convective flux
-      // change
-      const auto fluxChange = ConvectiveFluxUpdate(
-          state_(ig, jg, kg + 1), stateUpdate, eqnState,
-          this->FAreaUnitK(ig, jg, kg + 1));
-
       // update U matrix
-      U(ip, jp, kp) += (this->FAreaMagK(ig, jg, kg + 1) * fluxChange -
-           fluxJacUpdate.ArrayMult(x(ig, jg, kg + 1)));
+      U(ip, jp, kp) += RusanovOffDiagonal(state_(ig, jg, kg + 1), x(ig, jg, kg + 1),
+					  fAreaK_(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 2),
+					  vol_(ig, jg, kg + 1), eqnState, suth, turb,
+					  inp, false);
     }
 
     // -----------------------------------------------------------------------
-
-    U(ip, jp, kp) *= 0.5;
 
     // calculate update
     x(ig, jg, kg) -= aiiInv(ip, jp, kp).ArrayMult(U(ip, jp, kp));
@@ -1895,7 +1807,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
 							      eqnState, suth,
 							      vol_(ig, jg, kg), turb));
 	  if (inp.IsTurbulent()) {
-	    // factor of 2 because viscous spectral radisu is not halved (Blazek 6.53)
+	    // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
 	    specRadius_(ip, jp, kp).AddToTurbVariable(2.0 *
 		  turb->ViscSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
 		 		    fAreaI_(ig + 1, jg, kg), eqnState, suth,
@@ -2056,7 +1968,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
 							      eqnState, suth,
 							      vol_(ig, jg, kg), turb));
 	  if (inp.IsTurbulent()) {
-	    // factor of 2 because viscous spectral radisu is not halved (Blazek 6.53)
+	    // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
 	    specRadius_(ip, jp, kp).AddToTurbVariable(2.0 *
 		  turb->ViscSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
 		 		    fAreaJ_(ig, jg + 1, kg), eqnState, suth,
@@ -2216,7 +2128,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
 							      eqnState, suth,
 							      vol_(ig, jg, kg), turb));
 	  if (inp.IsTurbulent()) {
-	    // factor of 2 because viscous spectral radisu is not halved (Blazek 6.53)
+	    // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
 	    specRadius_(ip, jp, kp).AddToTurbVariable(2.0 *
 		  turb->ViscSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
 		 		    fAreaK_(ig, jg, kg + 1), eqnState, suth,
@@ -6580,7 +6492,7 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
                                    ip, jp, kp);
 
 	// add source spectral radius for turbulence equations
-        specRadius_(ip, jp, kp).AddToTurbVariable(vol_(ig, jg, kg) *
+        specRadius_(ip, jp, kp).SubtractFromTurbVariable(vol_(ig, jg, kg) *
 	    turb->SrcSpecRad(state_(ig, jg, kg), suth));
 
 	// add contribution of source spectral radius to flux jacobian

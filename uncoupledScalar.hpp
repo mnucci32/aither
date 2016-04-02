@@ -56,10 +56,8 @@ class uncoupledScalar {
 
   void AddToFlowVariable(const double &s) {flowVar_ += s;}
   void AddToTurbVariable(const double &s) {turbVar_ += s;}
-  void AddToAll(const double &s) {
-    flowVar_ += s;
-    turbVar_ += s;
-  }
+  void SubtractFromFlowVariable(const double &s) {flowVar_ -= s;}
+  void SubtractFromTurbVariable(const double &s) {turbVar_ -= s;}
   
   void Zero() {
     flowVar_ = 0.0;

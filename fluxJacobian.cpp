@@ -87,7 +87,7 @@ void fluxJacobian::AddInviscidJacobian(const primVars &state,
   // turb -- turbulence model
   // isTurbulent -- flag to determine if simulation is turbulent
 
-  flowJacobian_ += state.CellSpectralRadius(fAreaL, fAreaR, eos);
+  flowJacobian_ += state.InvCellSpectralRadius(fAreaL, fAreaR, eos);
 
   if (isTurbulent) {
     turbJacobian_ += turb->InviscidSpecRad(state, fAreaL, fAreaR);
@@ -316,16 +316,20 @@ squareMatrix ApproxRoeFluxJacobian(const primVars &left, const primVars &right,
 }
 
 genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
-			    const unitVec3dMag<double> &area,
-			    const idealGas &eos,
-			    const unique_ptr<turbModel> &turb,
-			    const fluxJacobian &specRad, const bool &positive) {
+			    const unitVec3dMag<double> &fAreaL,
+			    const unitVec3dMag<double> &fAreaR,			    
+			    const double &vol, const idealGas &eos,
+			    const sutherland &suth, const unique_ptr<turbModel> &turb,
+			    const input &inp, const bool &positive) {
   // state -- primative variables at off diagonal
   // update -- conserved variable update at off diagonal
-  // area -- face area vector
+  // fAreaL -- face area vector on off diagonal boundary
+  // fAreaR -- face area vector opposite off diagonal boundary
+  // vol -- cell volume
   // eos -- equation of state
+  // suth -- sutherland's law for viscosity
   // turb -- turbulence model
-  // specRad -- spectral radius at off diagonal
+  // inp -- input variables
   // positive -- flag to determine whether to add or subtract dissipation
 
   // calculate updated state
@@ -333,9 +337,52 @@ genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
 
   // calculate updated convective flux
   const auto fluxChange = ConvectiveFluxUpdate(state, stateUpdate, eos,
-					       area.UnitVector());
+					       fAreaL.UnitVector());
 
+  const uncoupledScalar specRad(state.CellSpectralRadius(fAreaL, fAreaR, eos, suth,
+							 vol, turb, inp.IsViscous()),
+				turb->SpectralRadius(state, fAreaL, fAreaR, eos, suth,
+						     vol, false));
+  
   return positive ?
-    0.5 * (area.Mag() * fluxChange + specRad.ArrayMult(update)) :
-    0.5 * (area.Mag() * fluxChange - specRad.ArrayMult(update));
+    0.5 * (fAreaL.Mag() * fluxChange + specRad.ArrayMult(update)) :
+    0.5 * (fAreaL.Mag() * fluxChange - specRad.ArrayMult(update));
+
+
+  // return positive ?
+  //   0.5 * (area.Mag() * fluxChange + specRad.ArrayMult(update)) :
+  //   0.5 * (area.Mag() * fluxChange - specRad.ArrayMult(update));
+}
+
+
+genArray RoeOffDiagonal(const primVars &left, const primVars &right,
+			const genArray &update,
+			const unitVec3dMag<double> &area,
+			const idealGas &eos,
+			const unique_ptr<turbModel> &turb,
+			const bool &positive) {
+  // left -- primative variables at left side
+  // right -- primative variables at right side
+  // update -- conserved variable update at off diagonal
+  // area -- face area vector
+  // eos -- equation of state
+  // turb -- turbulence model
+  // positive -- flag to determine whether to add or subtract dissipation
+
+  const auto areaNorm = area.UnitVector();
+
+  // calculate Roe flux with old variables
+  const auto oldFlux = RoeFlux(left, right, eos, areaNorm);
+
+  // calculate updated Roe flux
+  const auto stateUpdate = positive ? left.UpdateWithConsVars(eos, update, turb) :
+    right.UpdateWithConsVars(eos, update, turb);
+
+  const auto newFlux = positive ?
+    RoeFlux(stateUpdate, right, eos, areaNorm) :
+    RoeFlux(left, stateUpdate, eos, areaNorm);
+
+  // ADD UPDATES FOR VISCOUS FLUX
+  
+  return 0.5 * area.Mag() * (newFlux - oldFlux).ConvertToGenArray();
 }

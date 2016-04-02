@@ -55,7 +55,7 @@ class fluxJacobian {
       flowJacobian_(flow), turbJacobian_(turb) {}
   fluxJacobian() : fluxJacobian(0.0, 0.0) {}
     fluxJacobian(const uncoupledScalar &specRad) :
-      fluxJacobian(specRad.FlowVariable(), specRad.TurbVariable()) {}
+      fluxJacobian(specRad.FlowVariable(), specRad.TurbVariable()) {}  
   fluxJacobian(const primVars &, const unitVec3dMag<double> &,
                const unitVec3dMag<double> &, const idealGas &,
                const sutherland &, const double &,
@@ -233,8 +233,13 @@ squareMatrix InvFluxJacobian(const primVars &, const idealGas &,
 squareMatrix ApproxRoeFluxJacobian(const primVars &, const primVars &,
 				   const idealGas &, const vector3d<double> &,
 				   const bool &);
-genArray RusanoveOffDiagonal(const primVars &, const genArray &,
-			     const unitVec3dMag<double> &, const idealGas &,
-			     const unique_ptr<turbModel> &, const fluxJacobian &,
-			     const bool &);
+genArray RusanovOffDiagonal(const primVars &, const genArray &,
+			    const unitVec3dMag<double> &, const unitVec3dMag<double> &,
+			    const double &, const idealGas &, const sutherland &,
+			    const unique_ptr<turbModel> &, const input &, const bool &);
+genArray RoeOffDiagonal(const primVars &, const primVars &, const genArray &,
+			const unitVec3dMag<double> &, const idealGas &,
+			const unique_ptr<turbModel> &, const bool &);
+
+
 #endif

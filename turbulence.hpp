@@ -71,6 +71,12 @@ class turbModel {
                         const vector3d<double> &kGrad,
                         const vector3d<double> &wGrad) const;
 
+  double SpectralRadius(const primVars &state,
+			const unitVec3dMag<double> &fAreaL,
+			const unitVec3dMag<double> &fAreaR,
+			const idealGas &eos, const sutherland &suth,
+			const double &vol, const bool &addSrc) const;
+  
   // abstract functions
   virtual double CalcTurbSrc(const primVars &state,
                              const tensor<double> &velGrad,
@@ -103,7 +109,7 @@ class turbModel {
                              const unitVec3dMag<double> &fAreaR,
                              const idealGas &eos, const sutherland &suth,
                              const double &vol) const = 0;
-
+  
   virtual void Print() const = 0;
 
   // destructor

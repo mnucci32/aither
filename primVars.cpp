@@ -772,9 +772,9 @@ In the above equation L is the spectral radius in either the i, j, or k
 direction. A1 and A2 are the two face areas in that direction. Vn is the
 cell velocity normal to that direction. SoS is the speed of sound at the cell
  */
-double primVars::CellSpectralRadius(const unitVec3dMag<double> &fAreaL,
-                                    const unitVec3dMag<double> &fAreaR,
-                                    const idealGas &eqnState) const {
+double primVars::InvCellSpectralRadius(const unitVec3dMag<double> &fAreaL,
+				       const unitVec3dMag<double> &fAreaR,
+				       const idealGas &eqnState) const {
   // fAreaL -- face area of lower face in either i, j, or k direction
   // fAreaR -- face area of upper face in either i, j, or k direction
   // eqnState -- equation of state
@@ -809,7 +809,7 @@ double primVars::ViscCellSpectralRadius(
   // fAreaR -- face area of upper face in either i, j, or k direction
   // eqnState -- equation of state
   // suth -- method to the temperature varying visosity and Prandtl number
-  // (Sutherland's law)
+  //         (Sutherland's law)
   // vol -- cell volume
   // turb -- turbulence model
 
@@ -826,6 +826,30 @@ double primVars::ViscCellSpectralRadius(
   // return viscous spectral radius
   return maxTerm * viscTerm * fMag * fMag / vol;
 }
+
+double primVars::CellSpectralRadius(
+    const unitVec3dMag<double> &fAreaL, const unitVec3dMag<double> &fAreaR,
+    const idealGas &eqnState, const sutherland &suth, const double &vol,
+    const unique_ptr<turbModel> &turb, const bool &isViscous) const {
+  // fAreaL -- face area of lower face in either i, j, or k direction
+  // fAreaR -- face area of upper face in either i, j, or k direction
+  // eqnState -- equation of state
+  // suth -- method to the temperature varying visosity and Prandtl number
+  //         (Sutherland's law)
+  // vol -- cell volume
+  // turb -- turbulence model
+  // isViscous -- flag that is true if simulation is viscous
+  
+  auto specRad = this->InvCellSpectralRadius(fAreaL, fAreaR, eqnState);
+
+  if (isViscous) {
+    // factor 2 2 because viscous spectral radius is not halved (Blazek 6.53)
+    specRad += 2.0 * this->ViscCellSpectralRadius(fAreaL, fAreaR, eqnState, suth,
+						  vol, turb);
+  }
+  return specRad;
+}
+
 
 // function to calculate the Roe averaged state
 primVars RoeAveragedState(const primVars &left, const primVars &right, const idealGas &eos) {

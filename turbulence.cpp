@@ -105,6 +105,31 @@ double turbModel::CrossDiffusion(const primVars &state,
   return state.Rho() / state.Omega() * kGrad.DotProd(wGrad);
 }
 
+// member function to calculate the spectral radius of the turbulence equations
+double turbModel::SpectralRadius(const primVars &state,
+				 const unitVec3dMag<double> &fAreaL,
+				 const unitVec3dMag<double> &fAreaR,
+				 const idealGas &eos, const sutherland &suth,
+				 const double &vol, const bool &addSrc) const {
+  // state -- primative variables
+  // fAreaL -- area at left face
+  // fAreaR -- area at right face
+  // eos -- equation of state
+  // suth -- sutherland's law for viscosity
+  // vol -- cell volume
+  // addSrc -- flag to determine if source jacobian spectral radius should be included
+
+  auto specRad = this->InviscidSpecRad(state, fAreaL, fAreaR);
+  // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
+  specRad += 2.0 * this->ViscSpecRad(state, fAreaL, fAreaR, eos, suth, vol);
+  if (addSrc) {
+    // minus sign because source terms are on RHS
+    specRad -= this->SrcSpecRad(state, suth) * vol;
+  }
+  
+  return specRad;    
+}
+
 // -------------------------------------------------------------------------
 // member functions for the turbNone class
 
