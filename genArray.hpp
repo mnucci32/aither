@@ -23,6 +23,9 @@
 
 using std::ostream;
 
+// forward class declarations
+class uncoupledScalar;
+
 /*class to store an array of a fixed size equal to the number of variables
 being solved for. This is useful because a vector of these will be
 contiguous in memory. */
@@ -39,7 +42,8 @@ class genArray {
       : genArray(a, b, c, d, e, 0.0, 0.0) {}
   genArray() : genArray(0.0, 0.0, 0.0, 0.0, 0.0) {}
   explicit genArray(const double &a) : genArray(a, a, a, a, a, a, a) {}
-
+  explicit genArray(const uncoupledScalar &a);
+  
   // member functions
   void Zero();
   double Sum();

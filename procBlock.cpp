@@ -6484,7 +6484,7 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
         // calculate turbulent source terms
         source src;
         src.CalcTurbSrc(turb, state_(ig, jg, kg), grads, suth, eos,
-                        wallDist_(ig, jg, kg), ip, jp, kp);
+                        wallDist_(ig, jg, kg), vol_(ig, jg, kg), ip, jp, kp);
 
         // add source terms to residual
         // subtract because residual is initially on opposite side of equation
@@ -6492,8 +6492,8 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
                                    ip, jp, kp);
 
 	// add source spectral radius for turbulence equations
-        specRadius_(ip, jp, kp).SubtractFromTurbVariable(vol_(ig, jg, kg) *
-	    turb->SrcSpecRad(state_(ig, jg, kg), suth));
+        specRadius_(ip, jp, kp).SubtractFromTurbVariable(
+	    turb->SrcSpecRad(state_(ig, jg, kg), suth, vol_(ig, jg, kg)));
 
 	// add contribution of source spectral radius to flux jacobian
 	if (inp.IsBlockMatrix()) {

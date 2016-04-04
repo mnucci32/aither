@@ -134,7 +134,7 @@ void fluxJacobian::AddTurbSourceJacobian(const primVars &state,
   // vol -- cell volume
   // turb -- turbulence model
 
-  turbJacobian_ -= turb->SrcSpecRad(state, suth) * vol;
+  turbJacobian_ -= turb->SrcSpecRad(state, suth, vol);
 }
 
 // member function to multiply the flux jacobians with a genArray
@@ -339,6 +339,7 @@ genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
   const auto fluxChange = ConvectiveFluxUpdate(state, stateUpdate, eos,
 					       fAreaL.UnitVector());
 
+  // can't use stored cell spectral radius b/c it has contribuitons from i, j, k
   const uncoupledScalar specRad(state.CellSpectralRadius(fAreaL, fAreaR, eos, suth,
 							 vol, turb, inp.IsViscous()),
 				turb->SpectralRadius(state, fAreaL, fAreaR, eos, suth,
@@ -347,29 +348,31 @@ genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
   return positive ?
     0.5 * (fAreaL.Mag() * fluxChange + specRad.ArrayMult(update)) :
     0.5 * (fAreaL.Mag() * fluxChange - specRad.ArrayMult(update));
-
-
-  // return positive ?
-  //   0.5 * (area.Mag() * fluxChange + specRad.ArrayMult(update)) :
-  //   0.5 * (area.Mag() * fluxChange - specRad.ArrayMult(update));
 }
 
 
 genArray RoeOffDiagonal(const primVars &left, const primVars &right,
 			const genArray &update,
-			const unitVec3dMag<double> &area,
-			const idealGas &eos,
+			const unitVec3dMag<double> &fAreaL,
+			const unitVec3dMag<double> &fAreaR,			
+			const double &vol,
+			const idealGas &eos, const sutherland &suth,
 			const unique_ptr<turbModel> &turb,
+			const input &inp,
 			const bool &positive) {
   // left -- primative variables at left side
   // right -- primative variables at right side
   // update -- conserved variable update at off diagonal
-  // area -- face area vector
+  // fAreaL -- face area vector on off diagonal boundary
+  // fAreaR -- face area vector opposite off diagonal boundary
+  // vol -- cell volume
   // eos -- equation of state
+  // suth -- sutherland's law for viscosity
   // turb -- turbulence model
+  // inp -- input variables
   // positive -- flag to determine whether to add or subtract dissipation
 
-  const auto areaNorm = area.UnitVector();
+  const auto areaNorm = fAreaL.UnitVector();
 
   // calculate Roe flux with old variables
   const auto oldFlux = RoeFlux(left, right, eos, areaNorm);
@@ -382,7 +385,19 @@ genArray RoeOffDiagonal(const primVars &left, const primVars &right,
     RoeFlux(stateUpdate, right, eos, areaNorm) :
     RoeFlux(left, stateUpdate, eos, areaNorm);
 
-  // ADD UPDATES FOR VISCOUS FLUX
+  // add contribution for viscous terms
+  uncoupledScalar specRad(0.0, 0.0);
+  if (inp.IsViscous()) {
+    // calculate Roe averaged state
+    const auto roeState = RoeAveragedState(left, right, eos);
+
+    specRad.AddToFlowVariable(roeState.ViscCellSpectralRadius(fAreaL, fAreaR, eos, suth,
+							      vol, turb));
+    if (inp.IsTurbulent()) {
+      specRad.AddToTurbVariable(turb->ViscSpecRad(roeState, fAreaL, fAreaR, eos, suth, vol));
+    }
+  }
+  const genArray specRadArr(specRad);
   
-  return 0.5 * area.Mag() * (newFlux - oldFlux).ConvertToGenArray();
+  return 0.5 * fAreaL.Mag() * (newFlux - oldFlux).ConvertToGenArray() + specRadArr;
 }
