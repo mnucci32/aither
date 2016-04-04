@@ -1268,172 +1268,74 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           // contribution from it
           if (this->IsPhysical(ip - 1, jp, kp, false) ||
               bc_.GetBCName(ip, jp, kp, "il") == "interblock") {
-            // calculate updated state
-            const auto stateUpdate = state_(ig - 1, jg, kg).
-                UpdateWithConsVars(eqnState, xold(ig - 1, jg, kg), turb);
-
-            // calculate flux jacobian of updated state
-            const fluxJacobian fluxJacUpdate(stateUpdate,
-                                             fAreaI_(ig - 1, jg, kg),
-                                             fAreaI_(ig, jg, kg),
-                                             eqnState, suth,
-                                             vol_(ig - 1, jg, kg), turb,
-                                             inp, false);
-
-            // at given face location, call function to calculate convective
-            // flux change
-            const auto fluxChange = ConvectiveFluxUpdate(
-                state_(ig - 1, jg, kg), stateUpdate, eqnState,
-                this->FAreaUnitI(ig, jg, kg));
-
-            // update off diagonal
-            offDiagonal += (this->FAreaMagI(ig, jg, kg) * fluxChange +
-                 fluxJacUpdate.ArrayMult(xold(ig - 1, jg, kg)));
-          }
+	    // update off diagonal
+	    offDiagonal += RusanovOffDiagonal(state_(ig - 1, jg, kg), xold(ig - 1, jg, kg),
+					      fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
+					      vol_(ig - 1, jg, kg), eqnState, suth, turb,
+					      inp, true);
+	  }
 
           // --------------------------------------------------------------
           // if j lower diagonal cell is in physical location there is a
           // constribution from it
           if (this->IsPhysical(ip, jp - 1, kp, false) ||
               bc_.GetBCName(ip, jp, kp, "jl") == "interblock") {
-            // calculate updated state
-            const auto stateUpdate = state_(ig, jg - 1, kg).
-                UpdateWithConsVars(eqnState, xold(ig, jg - 1, kg), turb);
-
-            // calculate flux jacobian of updated state
-            const fluxJacobian fluxJacUpdate(stateUpdate,
-                                             fAreaJ_(ig, jg - 1, kg),
-                                             fAreaJ_(ig, jg, kg),
-                                             eqnState, suth,
-                                             vol_(ig, jg - 1, kg), turb,
-                                             inp, false);
-
-            // at given face location, call function to calculate convective
-            // flux change
-            const auto fluxChange = ConvectiveFluxUpdate(
-                state_(ig, jg - 1, kg), stateUpdate, eqnState,
-                this->FAreaUnitJ(ig, jg, kg));
-
-            // update off diagonal
-            offDiagonal += (this->FAreaMagJ(ig, jg, kg) * fluxChange +
-                 fluxJacUpdate.ArrayMult(xold(ig, jg - 1, kg)));
-          }
+	    // update off diagonal
+	    offDiagonal += RusanovOffDiagonal(state_(ig, jg - 1, kg), xold(ig, jg - 1, kg),
+					      fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
+					      vol_(ig, jg - 1, kg), eqnState, suth, turb,
+					      inp, true);
+	  }
 
           // --------------------------------------------------------------
           // if k lower diagonal cell is in physical location there is a
           // contribution from it
           if (this->IsPhysical(ip, jp, kp - 1, false) ||
               bc_.GetBCName(ip, jp, kp, "kl") == "interblock") {
-            // calculate updated state
-            const auto stateUpdate = state_(ig, jg, kg - 1).
-                UpdateWithConsVars(eqnState, xold(ig, jg, kg - 1), turb);
-
-            // calculate flux jacobian of updated state
-            const fluxJacobian fluxJacUpdate(stateUpdate,
-                                             fAreaK_(ig, jg, kg - 1),
-                                             fAreaK_(ig, jg, kg),
-                                             eqnState, suth,
-                                             vol_(ig, jg, kg - 1), turb,
-                                             inp, false);
-
-            // at given face location, call function to calculate convective
-            // flux change
-            const auto fluxChange = ConvectiveFluxUpdate(
-                state_(ig, jg, kg - 1), stateUpdate, eqnState,
-                this->FAreaUnitK(ig, jg, kg));
-
-            // update off diagonal
-            offDiagonal += (this->FAreaMagK(ig, jg, kg) * fluxChange +
-                 fluxJacUpdate.ArrayMult(xold(ig, jg, kg - 1)));
-          }
+	    // update off diagonal
+	    offDiagonal += RusanovOffDiagonal(state_(ig, jg, kg - 1), xold(ig, jg, kg - 1),
+					      fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
+					      vol_(ig, jg, kg - 1), eqnState, suth, turb,
+					      inp, true);
+	  }
 
           // --------------------------------------------------------------
           // if i upper diagonal cell is in physical location there is a
           // contribution from it
           if (this->IsPhysical(ip + 1, jp, kp, false) ||
               bc_.GetBCName(ip + 1, jp, kp, "iu") == "interblock") {
-            // calculate updated state
-            const auto stateUpdate = state_(ig + 1, jg, kg).
-                UpdateWithConsVars(eqnState, xold(ig + 1, jg, kg), turb);
-
-            // calculate flux jacobian of updated state
-            const fluxJacobian fluxJacUpdate(stateUpdate,
-                                             fAreaI_(ig + 2, jg, kg),
-                                             fAreaI_(ig + 1, jg, kg),
-                                             eqnState, suth,
-                                             vol_(ig + 1, jg, kg), turb,
-                                             inp, false);
-
-            // at given face location, call function to calculate convective
-            // flux change
-            const auto fluxChange = ConvectiveFluxUpdate(
-                state_(ig + 1, jg, kg), stateUpdate, eqnState,
-                this->FAreaUnitI(ig + 1, jg, kg));
-
-            // update off diagonal
-            offDiagonal -= (this->FAreaMagI(ig + 1, jg, kg) * fluxChange -
-                 fluxJacUpdate.ArrayMult(xold(ig + 1, jg, kg)));
-          }
+	    // update off diagonal
+	    offDiagonal -= RusanovOffDiagonal(state_(ig + 1, jg, kg), xold(ig + 1, jg, kg),
+					      fAreaI_(ig + 1, jg, kg), fAreaI_(ig + 2, jg, kg),
+					      vol_(ig + 1, jg, kg), eqnState, suth, turb,
+					      inp, false);
+	  }
 
           // --------------------------------------------------------------
           // if j upper diagonal cell is in physical location there is a
           // contribution from it
           if (this->IsPhysical(ip, jp + 1, kp, false) ||
               bc_.GetBCName(ip, jp + 1, kp, "ju") == "interblock") {
-            // calculate updated state
-            const auto stateUpdate = state_(ig, jg + 1, kg).
-                UpdateWithConsVars(eqnState, xold(ig, jg + 1, kg), turb);
-
-            // calculate flux jacobian of updated state
-            const fluxJacobian fluxJacUpdate(stateUpdate,
-                                             fAreaJ_(ig, jg + 2, kg),
-                                             fAreaJ_(ig, jg + 1, kg),
-                                             eqnState, suth,
-                                             vol_(ig, jg + 1, kg), turb,
-                                             inp, false);
-
-            // at given face location, call function to calculate convective
-            // flux change
-            const auto fluxChange = ConvectiveFluxUpdate(
-                state_(ig, jg + 1, kg), stateUpdate, eqnState,
-                this->FAreaUnitJ(ig, jg + 1, kg));
-
-            // update off diagonal
-            offDiagonal -= (this->FAreaMagJ(ig, jg + 1, kg) * fluxChange -
-                 fluxJacUpdate.ArrayMult(xold(ig, jg + 1, kg)));
-          }
+	    // update off diagonal
+	    offDiagonal -= RusanovOffDiagonal(state_(ig, jg + 1, kg), xold(ig, jg + 1, kg),
+					      fAreaJ_(ig, jg + 1, kg), fAreaJ_(ig, jg + 2, kg),
+					      vol_(ig, jg + 1, kg), eqnState, suth, turb,
+					      inp, false);
+	  }
 
           // --------------------------------------------------------------
           // if k upper diagonal cell is in physical location there is a
           // contribution from it
           if (this->IsPhysical(ip, jp, kp + 1, false) ||
               bc_.GetBCName(ip, jp, kp + 1, "ku") == "interblock") {
-            // calculate updated state
-            const auto stateUpdate = state_(ig, jg, kg + 1).
-                UpdateWithConsVars(eqnState, xold(ig, jg, kg + 1), turb);
-
-            // calculate flux jacobian of updated state
-            const fluxJacobian fluxJacUpdate(stateUpdate,
-                                             fAreaK_(ig, jg, kg + 2),
-                                             fAreaK_(ig, jg, kg + 1),
-                                             eqnState, suth,
-                                             vol_(ig, jg, kg + 1), turb,
-                                             inp, false);
-
-            // at given face location, call function to calculate convective
-            // flux change
-            const auto fluxChange = ConvectiveFluxUpdate(
-                state_(ig, jg, kg + 1), stateUpdate, eqnState,
-                this->FAreaUnitK(ig, jg, kg + 1));
-
-            // update off diagonal
-            offDiagonal -= (this->FAreaMagK(ig, jg, kg + 1) * fluxChange -
-                 fluxJacUpdate.ArrayMult(xold(ig, jg, kg + 1)));
-          }
+	    // update off diagonal
+	    offDiagonal -= RusanovOffDiagonal(state_(ig, jg, kg + 1), xold(ig, jg, kg + 1),
+					      fAreaK_(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 2),
+					      vol_(ig, jg, kg + 1), eqnState, suth, turb,
+					      inp, false);
+	  }
 
           // --------------------------------------------------------------
-
-          offDiagonal *= 0.5;
 
           // calculate update
           x(ig, jg, kg) = aiiInv(ip, jp, kp).ArrayMult(

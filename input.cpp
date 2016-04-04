@@ -74,7 +74,8 @@ input::input(const string &name) : simName_(name), vars_(35) {
   cflMax_ = 1.0;
   cflStep_ = 0.0;
   cflStart_ = 1.0;
-  invFluxJac_ = "laxFriedrichs";  // default is approximate roe flux
+  invFluxJac_ = "rusanov";  // default is approximate rusanov which is used
+                            // with lusgs
   dualTimeCFL_ = -1.0;  // default value of -1; negative value means dual time
                        // stepping is not used
   inviscidFlux_ = "roe";  // default value is roe flux
