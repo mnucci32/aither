@@ -240,7 +240,7 @@ genArray RusanovOffDiagonal(const primVars &, const genArray &,
 genArray RoeOffDiagonal(const primVars &, const primVars &, const genArray &,
 			const unitVec3dMag<double> &, const unitVec3dMag<double> &,
 			const double &, const idealGas &, const sutherland &,
-			const unique_ptr<turbModel> &, const bool &);
+			const unique_ptr<turbModel> &, const input &, const bool &);
 
 
 #endif

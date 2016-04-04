@@ -387,7 +387,8 @@ genArray RoeOffDiagonal(const primVars &left, const primVars &right,
 
   // add contribution for viscous terms
   uncoupledScalar specRad(0.0, 0.0);
-  if (inp.IsViscous()) {
+  // DEBUG
+  if (inp.IsViscous() && false) {
     // calculate Roe averaged state
     const auto roeState = RoeAveragedState(left, right, eos);
 
@@ -399,5 +400,7 @@ genArray RoeOffDiagonal(const primVars &left, const primVars &right,
   }
   const genArray specRadArr(specRad);
   
-  return 0.5 * fAreaL.Mag() * (newFlux - oldFlux).ConvertToGenArray() + specRadArr;
+  return positive ?
+    0.5 * fAreaL.Mag() * (newFlux - oldFlux).ConvertToGenArray() + specRadArr :
+    0.5 * fAreaL.Mag() * (newFlux - oldFlux).ConvertToGenArray() - specRadArr;
 }

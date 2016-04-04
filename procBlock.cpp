@@ -1269,10 +1269,22 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           if (this->IsPhysical(ip - 1, jp, kp, false) ||
               bc_.GetBCName(ip, jp, kp, "il") == "interblock") {
 	    // update off diagonal
-	    offDiagonal += RusanovOffDiagonal(state_(ig - 1, jg, kg), xold(ig - 1, jg, kg),
-					      fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
-					      vol_(ig - 1, jg, kg), eqnState, suth, turb,
-					      inp, true);
+	    if (inp.InvFluxJac() == "rusanov") {
+	      offDiagonal += RusanovOffDiagonal(state_(ig - 1, jg, kg), xold(ig - 1, jg, kg),
+						fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
+						vol_(ig - 1, jg, kg), eqnState, suth, turb,
+						inp, true);
+	    } else if (inp.InvFluxJac() == "approximateRoe") {
+	      offDiagonal += RoeOffDiagonal(state_(ig - 1, jg, kg), state_(ig, jg, kg),
+					    xold(ig - 1, jg, kg),
+					    fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
+					    vol_(ig - 1, jg, kg), eqnState, suth, turb,
+					    inp, true);
+	    } else {
+	      cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux jacobian " <<
+		"method  of " << inp.InvFluxJac() << " is not recognized!" << endl;
+	      exit(1);
+	    }
 	  }
 
           // --------------------------------------------------------------
@@ -1281,10 +1293,22 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           if (this->IsPhysical(ip, jp - 1, kp, false) ||
               bc_.GetBCName(ip, jp, kp, "jl") == "interblock") {
 	    // update off diagonal
-	    offDiagonal += RusanovOffDiagonal(state_(ig, jg - 1, kg), xold(ig, jg - 1, kg),
-					      fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
-					      vol_(ig, jg - 1, kg), eqnState, suth, turb,
-					      inp, true);
+	    if (inp.InvFluxJac() == "rusanov") {
+	      offDiagonal += RusanovOffDiagonal(state_(ig, jg - 1, kg), xold(ig, jg - 1, kg),
+						fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
+						vol_(ig, jg - 1, kg), eqnState, suth, turb,
+						inp, true);
+	    } else if (inp.InvFluxJac() == "approximateRoe") {
+	      offDiagonal += RoeOffDiagonal(state_(ig, jg - 1, kg), state_(ig, jg, kg),
+					    xold(ig, jg - 1, kg),
+					    fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
+					    vol_(ig, jg - 1, kg), eqnState, suth, turb,
+					    inp, true);
+	    } else {
+	      cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux jacobian " <<
+		"method  of " << inp.InvFluxJac() << " is not recognized!" << endl;
+	      exit(1);
+	    }
 	  }
 
           // --------------------------------------------------------------
@@ -1293,10 +1317,22 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           if (this->IsPhysical(ip, jp, kp - 1, false) ||
               bc_.GetBCName(ip, jp, kp, "kl") == "interblock") {
 	    // update off diagonal
-	    offDiagonal += RusanovOffDiagonal(state_(ig, jg, kg - 1), xold(ig, jg, kg - 1),
-					      fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
-					      vol_(ig, jg, kg - 1), eqnState, suth, turb,
-					      inp, true);
+	    if (inp.InvFluxJac() == "rusanov") {
+	      offDiagonal += RusanovOffDiagonal(state_(ig, jg, kg - 1), xold(ig, jg, kg - 1),
+						fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
+						vol_(ig, jg, kg - 1), eqnState, suth, turb,
+						inp, true);
+	    } else if (inp.InvFluxJac() == "approximateRoe") {
+	      offDiagonal += RoeOffDiagonal(state_(ig, jg, kg - 1), state_(ig, jg, kg),
+					    xold(ig, jg, kg - 1),
+					    fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
+					    vol_(ig, jg, kg - 1), eqnState, suth, turb,
+					    inp, true);
+	    } else {
+	      cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux jacobian " <<
+		"method  of " << inp.InvFluxJac() << " is not recognized!" << endl;
+	      exit(1);
+	    }
 	  }
 
           // --------------------------------------------------------------
@@ -1305,10 +1341,22 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           if (this->IsPhysical(ip + 1, jp, kp, false) ||
               bc_.GetBCName(ip + 1, jp, kp, "iu") == "interblock") {
 	    // update off diagonal
-	    offDiagonal -= RusanovOffDiagonal(state_(ig + 1, jg, kg), xold(ig + 1, jg, kg),
-					      fAreaI_(ig + 1, jg, kg), fAreaI_(ig + 2, jg, kg),
-					      vol_(ig + 1, jg, kg), eqnState, suth, turb,
-					      inp, false);
+	    if (inp.InvFluxJac() == "rusanov") {
+	      offDiagonal -= RusanovOffDiagonal(state_(ig + 1, jg, kg), xold(ig + 1, jg, kg),
+						fAreaI_(ig + 1, jg, kg), fAreaI_(ig + 2, jg, kg),
+						vol_(ig + 1, jg, kg), eqnState, suth, turb,
+						inp, false);
+	    } else if (inp.InvFluxJac() == "approximateRoe") {
+	      offDiagonal -= RoeOffDiagonal(state_(ig + 1, jg, kg), state_(ig, jg, kg),
+					    xold(ig + 1, jg, kg),
+					    fAreaI_(ig + 1, jg, kg), fAreaI_(ig + 2, jg, kg),
+					    vol_(ig + 1, jg, kg), eqnState, suth, turb,
+					    inp, false);
+	    } else {
+	      cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux jacobian " <<
+		"method  of " << inp.InvFluxJac() << " is not recognized!" << endl;
+	      exit(1);
+	    }
 	  }
 
           // --------------------------------------------------------------
@@ -1317,10 +1365,22 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           if (this->IsPhysical(ip, jp + 1, kp, false) ||
               bc_.GetBCName(ip, jp + 1, kp, "ju") == "interblock") {
 	    // update off diagonal
-	    offDiagonal -= RusanovOffDiagonal(state_(ig, jg + 1, kg), xold(ig, jg + 1, kg),
-					      fAreaJ_(ig, jg + 1, kg), fAreaJ_(ig, jg + 2, kg),
-					      vol_(ig, jg + 1, kg), eqnState, suth, turb,
-					      inp, false);
+	    if (inp.InvFluxJac() == "rusanov") {
+	      offDiagonal -= RusanovOffDiagonal(state_(ig, jg + 1, kg), xold(ig, jg + 1, kg),
+						fAreaJ_(ig, jg + 1, kg), fAreaJ_(ig, jg + 2, kg),
+						vol_(ig, jg + 1, kg), eqnState, suth, turb,
+						inp, false);
+	    } else if (inp.InvFluxJac() == "approximateRoe") {
+	      offDiagonal -= RoeOffDiagonal(state_(ig, jg + 1, kg), state_(ig, jg, kg),
+					    xold(ig, jg + 1, kg),
+					    fAreaJ_(ig, jg + 1, kg), fAreaJ_(ig, jg + 2, kg),
+					    vol_(ig, jg + 1, kg), eqnState, suth, turb,
+					    inp, false);
+	    } else {
+	      cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux jacobian " <<
+		"method  of " << inp.InvFluxJac() << " is not recognized!" << endl;
+	      exit(1);
+	    }
 	  }
 
           // --------------------------------------------------------------
@@ -1329,10 +1389,22 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           if (this->IsPhysical(ip, jp, kp + 1, false) ||
               bc_.GetBCName(ip, jp, kp + 1, "ku") == "interblock") {
 	    // update off diagonal
-	    offDiagonal -= RusanovOffDiagonal(state_(ig, jg, kg + 1), xold(ig, jg, kg + 1),
-					      fAreaK_(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 2),
-					      vol_(ig, jg, kg + 1), eqnState, suth, turb,
-					      inp, false);
+	    if (inp.InvFluxJac() == "rusanov") {
+	      offDiagonal -= RusanovOffDiagonal(state_(ig, jg, kg + 1), xold(ig, jg, kg + 1),
+						fAreaK_(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 2),
+						vol_(ig, jg, kg + 1), eqnState, suth, turb,
+						inp, false);
+	    } else if (inp.InvFluxJac() == "approximateRoe") {
+	      offDiagonal -= RoeOffDiagonal(state_(ig, jg, kg + 1), state_(ig, jg, kg),
+					    xold(ig, jg, kg + 1),
+					    fAreaK_(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 2),
+					    vol_(ig, jg, kg + 1), eqnState, suth, turb,
+					    inp, false);
+	    } else {
+	      cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux jacobian " <<
+		"method  of " << inp.InvFluxJac() << " is not recognized!" << endl;
+	      exit(1);
+	    }
 	  }
 
           // --------------------------------------------------------------
