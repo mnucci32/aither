@@ -1083,10 +1083,43 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
   // mainDiagonal -- main diagonal of flux jacobians
   // aiiInv -- inverse of main diagonal
 
+  // forward sweep over all physical cells
+  auto l2Resid = LUSGS_Forward(reorder, x, solTimeMmN, solDeltaNm1, eqnState, inp,
+			       suth, turb, mainDiagonal, aiiInv);
+
+  // backward sweep over all physical cells
+  LUSGS_Backward(reorder, x, solTimeMmN, solDeltaNm1, eqnState, inp, suth, turb,
+		 mainDiagonal, aiiInv, l2Resid);
+  
+  return l2Resid.Sum();
+}
+
+
+genArray procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
+				  multiArray3d<genArray> &x,
+				  const multiArray3d<genArray> &solTimeMmN,
+				  const multiArray3d<genArray> &solDeltaNm1,
+				  const idealGas &eqnState, const input &inp,
+				  const sutherland &suth,
+				  const unique_ptr<turbModel> &turb,
+				  const multiArray3d<fluxJacobian> &mainDiagonal,
+				  const multiArray3d<fluxJacobian> &aiiInv) const {
+  // reorder -- order of cells to visit (this should be ordered in hyperplanes)
+  // x -- correction - added to solution at time n to get to time n+1 (assumed
+  //      to be zero to start)
+  // solTimeMmn -- solution at time m minus n
+  // solDeltaNm1 -- solution at time n minus solution at time n-1
+  // eqnState -- equation of state
+  // inp -- all input variables
+  // suth -- method to get temperature varying viscosity (Sutherland's law)
+  // turb -- turbulence model
+  // mainDiagonal -- main diagonal of flux jacobians
+  // aiiInv -- inverse of main diagonal
+
   const auto thetaInv = 1.0 / inp.Theta();
 
   // initialize residual vector
-  genArray l2Resid(0.0);
+  genArray partialResid(0.0);
 
   //--------------------------------------------------------------------
   // forward sweep over all physical cells
@@ -1146,9 +1179,36 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                                                  solDeltaNm1(ip, jp, kp) -
                                                  solTimeMmN(ip, jp, kp) +
                                                  L);
-    const auto partialResid = mainDiagonal(ip, jp, kp).ArrayMult(L);
-    l2Resid += partialResid * partialResid;
+    const auto tempResid = mainDiagonal(ip, jp, kp).ArrayMult(L);
+    partialResid += tempResid * tempResid;
   }  // end forward sweep
+
+  return partialResid;
+}
+
+void procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
+			       multiArray3d<genArray> &x,
+			       const multiArray3d<genArray> &solTimeMmN,
+			       const multiArray3d<genArray> &solDeltaNm1,
+			       const idealGas &eqnState, const input &inp,
+			       const sutherland &suth,
+			       const unique_ptr<turbModel> &turb,
+			       const multiArray3d<fluxJacobian> &mainDiagonal,
+			       const multiArray3d<fluxJacobian> &aiiInv,
+			       genArray &l2Resid) const {
+  // reorder -- order of cells to visit (this should be ordered in hyperplanes)
+  // x -- correction - added to solution at time n to get to time n+1 (assumed
+  //      to be zero to start)
+  // solTimeMmn -- solution at time m minus n
+  // solDeltaNm1 -- solution at time n minus solution at time n-1
+  // eqnState -- equation of state
+  // inp -- all input variables
+  // suth -- method to get temperature varying viscosity (Sutherland's law)
+  // turb -- turbulence model
+  // mainDiagonal -- main diagonal of flux jacobians
+  // aiiInv -- inverse of main diagonal
+
+  const auto thetaInv = 1.0 / inp.Theta();
 
   //----------------------------------------------------------------------
   // backward sweep over all physical cells
@@ -1209,8 +1269,8 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
         mainDiagonal(ip, jp, kp).ArrayMult(x(ig, jg, kg)) - U;
     l2Resid += resid * resid;
   }  // end backward sweep
-  return l2Resid.Sum();
 }
+
 
 /* Member function to calculate the implicit update via the DP-LUR method
  */

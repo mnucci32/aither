@@ -302,6 +302,19 @@ class procBlock {
                const unique_ptr<turbModel> &,
                const multiArray3d<fluxJacobian> &,
                const multiArray3d<fluxJacobian> &) const;
+  genArray LUSGS_Forward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
+			 const multiArray3d<genArray> &, const multiArray3d<genArray> &,
+			 const idealGas &, const input &, const sutherland &,
+			 const unique_ptr<turbModel> &,
+			 const multiArray3d<fluxJacobian> &,
+			 const multiArray3d<fluxJacobian> &) const;
+  void LUSGS_Backward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
+		      const multiArray3d<genArray> &, const multiArray3d<genArray> &,
+		      const idealGas &, const input &, const sutherland &,
+		      const unique_ptr<turbModel> &,
+		      const multiArray3d<fluxJacobian> &,
+		      const multiArray3d<fluxJacobian> &, genArray &) const;
+
   double DPLUR(multiArray3d<genArray> &,
                const multiArray3d<genArray> &, const multiArray3d<genArray> &,
                const idealGas &, const input &, const sutherland &,
