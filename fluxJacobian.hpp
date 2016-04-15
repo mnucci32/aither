@@ -242,5 +242,10 @@ genArray RoeOffDiagonal(const primVars &, const primVars &, const genArray &,
 			const double &, const idealGas &, const sutherland &,
 			const unique_ptr<turbModel> &, const input &, const bool &);
 
+squareMatrix DelPrimativeDelConservative(const primVars &, const idealGas &);
+
+squareMatrix ApproxTSLJacobian(const primVars &, const idealGas &, const sutherland &,
+			       const vector3d<double> &, const double &,
+			       const unique_ptr<turbModel> &);
 
 #endif

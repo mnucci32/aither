@@ -29,7 +29,7 @@ using std::cerr;
 using std::vector;
 using std::string;
 using std::max;
-using std:: unique_ptr;
+using std::unique_ptr;
 
 // constructor -- initialize flux from velocity gradient
 /*

@@ -167,15 +167,15 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
                                   const primVars &primDW1, const double &kappa,
                                   const string &lim, const double &uw,
                                   const double &uw2, const double &dw) const {
-  // primUW2 is the upwind cell furthest from the face at which the primative is
-  // being reconstructed.
-  // primUW1 is the upwind cell nearest to the face at which the primative is
-  // being reconstructed.
-  // primDW1 is the downwind cell.
-  // kappa is the parameter that determines which scheme is implemented
-  // uw is length of upwind cell
-  // uw2 is length of furthest upwind cell
-  // dw is length of downwind cell
+  // primUW2 -- upwind cell furthest from the face at which the primative is
+  //            being reconstructed.
+  // primUW1 -- upwind cell nearest to the face at which the primative is
+  //            being reconstructed.
+  // primDW1 -- downwind cell.
+  // kappa -- parameter that determines which scheme is implemented
+  // uw -- length of upwind cell
+  // uw2 -- length of furthest upwind cell
+  // dw -- length of downwind cell
 
   const auto primUW1 = *this;
 
@@ -185,7 +185,7 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
   // divided differences to base limiter on; eps must be listed to left of
   // primVars
   const auto r = (EPS + (primDW1 - primUW1) * dPlus) /
-      (EPS + (primUW1 - primUW2) * dMinus);
+      (EPS + (primUW1 - primUW2) * dMinus);  
 
   primVars limiter;
   primVars invLimiter;
@@ -200,11 +200,12 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
     invLimiter = limiter / r;
   } else {
     cerr << "ERROR: Limiter " << lim << " is not recognized!" << endl;
+    exit(1);
   }
 
   // calculate reconstructed state at face using MUSCL method with limiter
   return primUW1 + 0.25 * ((primUW1 - primUW2) * dMinus) *
-      ((1.0 - kappa) * limiter + (1.0 + kappa) * r * invLimiter);
+    ((1.0 - kappa) * limiter + (1.0 + kappa) * r * invLimiter);
 }
 
 // member function to calculate minmod limiter
@@ -309,15 +310,13 @@ primVars primVars::GetGhostState(const string &bcType,
     cerr << "ERROR: Error in primVars::GetGhostState. Requesting ghost state "
             "at a ghost layer " << layer << ". Please choose either 1 or 2"
          << endl;
-    exit(0);
+    exit(1);
   }
 
   // face area vector (should always point out of domain)
   // at lower surface normal should point out of domain for ghost cell calc
   const auto normArea =
       (surf == "il" || surf == "jl" || surf == "kl") ? -1.0 * areaVec : areaVec;
-
-  auto normVelCellCenter = 0.0;
 
   // slip wall boundary condition
   // ----------------------------------------------------------------------
@@ -327,7 +326,7 @@ primVars primVars::GetGhostState(const string &bcType,
                                // boundary face, density and pressure stay equal
                                // to the boundary cell
     const auto stateVel = this->Velocity();
-    normVelCellCenter = stateVel.DotProd(normArea);
+    const auto normVelCellCenter = stateVel.DotProd(normArea);
 
     // for a slip wall the velocity of the boundary cell center is reflected
     // across the boundary face to get the velocity at the ghost cell center
@@ -527,7 +526,7 @@ primVars primVars::GetGhostState(const string &bcType,
            << endl;
       cerr << "Interior state: " << (*this) << endl;
       cerr << "Ghost state: " << ghostState << endl;
-      exit(0);
+      exit(1);
     }
 
     if (layer == 2) {  // extrapolate to get ghost state at 2nd layer
@@ -672,7 +671,7 @@ primVars primVars::GetGhostState(const string &bcType,
     cerr << "ERROR: Error in primVars::GetGhostState ghost state for BC type "
          << bcType << " is not supported!" << endl;
     cerr << "surface is " << surf << endl;
-    exit(0);
+    exit(1);
   }
 
   return ghostState;

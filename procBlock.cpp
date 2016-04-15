@@ -622,7 +622,7 @@ void procBlock::CalcBlockTimeStep(const input &inputVars, const double &aRef) {
           this->CalcCellDt(ii, jj, kk, inputVars.CFL());
         } else {
           cerr << "ERROR: Neither dt or cfl was specified!" << endl;
-          exit(0);
+          exit(1);
         }
       }
     }
@@ -643,8 +643,9 @@ void procBlock::UpdateBlock(const input &inputVars, const idealGas &eos,
   // inputVars -- all input variables
   // eos -- equation of state
   // aRef -- reference speed of sound (for nondimensionalization)
-  // bb
+  // suth -- sutherland's law for viscosity
   // du -- updates to conservative variables (only used in implicit solver)
+  // consVars -- conservative variables to updated (used in RK4)
   // turb -- turbulence model
   // rr -- nonlinear iteration number
   // l2 -- l-2 norm of residual
@@ -714,8 +715,7 @@ void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState,
   // Get conserved variables for current state (time n)
   auto consVars = state_(ig, jg, kg).ConsVars(eqnState);
   // calculate updated conserved variables
-  consVars = consVars - dt_(ip, jp, kp) / vol_(ig, jg, kg) *
-      residual_(ip, jp, kp);
+  consVars -= dt_(ip, jp, kp) / vol_(ig, jg, kg) * residual_(ip, jp, kp);
 
   // calculate updated primative variables and update state
   state_(ig, jg, kg) = primVars(consVars, false, eqnState, turb);
@@ -1073,7 +1073,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                         const multiArray3d<fluxJacobian> &aiiInv) const {
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // x -- correction - added to solution at time n to get to time n+1 (assumed
-  // to be zero to start)
+  //      to be zero to start)
   // solTimeMmn -- solution at time m minus n
   // solDeltaNm1 -- solution at time n minus solution at time n-1
   // eqnState -- equation of state
@@ -1084,15 +1084,6 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
   // aiiInv -- inverse of main diagonal
 
   const auto thetaInv = 1.0 / inp.Theta();
-
-  // initialize genArray to zero
-  const genArray initial(0.0);
-
-  // initialize L and U matrices
-  multiArray3d<genArray> U(this->NumI(), this->NumJ(), this->NumK(),
-                           initial);
-  multiArray3d<genArray> L(this->NumI(), this->NumJ(), this->NumK(),
-                           initial);
 
   // initialize residual vector
   genArray l2Resid(0.0);
@@ -1109,12 +1100,15 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
     const auto jg = reorder[ii].Y() + numGhosts_;
     const auto kg = reorder[ii].Z() + numGhosts_;
 
+    // initialize term for contribution from lower triangular matrix
+    genArray L(0.0);
+    
     // -----------------------------------------------------------------------
     // if i lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip - 1, jp, kp, false)) {
       // update L matrix
-      L(ip, jp, kp) += RusanovOffDiagonal(state_(ig - 1, jg, kg), x(ig - 1 , jg, kg),
+      L += RusanovOffDiagonal(state_(ig - 1, jg, kg), x(ig - 1 , jg, kg),
 					  fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
 					  vol_(ig - 1, jg, kg), eqnState, suth, turb,
 					  inp, true);
@@ -1125,7 +1119,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
     // from it
     if (this->IsPhysical(ip, jp - 1, kp, false)) {
       // update L matrix
-      L(ip, jp, kp) += RusanovOffDiagonal(state_(ig, jg - 1, kg), x(ig, jg - 1, kg),
+      L += RusanovOffDiagonal(state_(ig, jg - 1, kg), x(ig, jg - 1, kg),
 					  fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
 					  vol_(ig, jg - 1, kg), eqnState, suth, turb,
 					  inp, true);
@@ -1136,7 +1130,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
     // from it
     if (this->IsPhysical(ip, jp, kp - 1, false)) {
       // update L matrix
-      L(ip, jp, kp) += RusanovOffDiagonal(state_(ig, jg, kg - 1), x(ig, jg, kg - 1),
+      L += RusanovOffDiagonal(state_(ig, jg, kg - 1), x(ig, jg, kg - 1),
 					  fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
 					  vol_(ig, jg, kg - 1), eqnState, suth, turb,
 					  inp, true);
@@ -1151,7 +1145,9 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
                                                  residual_(ip, jp, kp) -
                                                  solDeltaNm1(ip, jp, kp) -
                                                  solTimeMmN(ip, jp, kp) +
-                                                 L(ip, jp, kp));
+                                                 L);
+    const auto partialResid = mainDiagonal(ip, jp, kp).ArrayMult(L);
+    l2Resid += partialResid * partialResid;
   }  // end forward sweep
 
   //----------------------------------------------------------------------
@@ -1166,12 +1162,15 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
     const auto jg = reorder[ii].Y() + numGhosts_;
     const auto kg = reorder[ii].Z() + numGhosts_;
 
+    // initialize term for contribution from upper triangular matrix
+    genArray U(0.0);
+    
     // -----------------------------------------------------------------------
     // if i upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip + 1, jp, kp, false)) {
       // update U matrix
-      U(ip, jp, kp) += RusanovOffDiagonal(state_(ig + 1, jg, kg), x(ig + 1, jg, kg),
+      U += RusanovOffDiagonal(state_(ig + 1, jg, kg), x(ig + 1, jg, kg),
 					  fAreaI_(ig + 1, jg, kg), fAreaI_(ig + 2, jg, kg),
 					  vol_(ig + 1, jg, kg), eqnState, suth, turb,
 					  inp, false);
@@ -1182,7 +1181,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
     // from it
     if (this->IsPhysical(ip, jp + 1, kp, false)) {
       // update U matrix
-      U(ip, jp, kp) += RusanovOffDiagonal(state_(ig, jg + 1, kg), x(ig, jg + 1, kg),
+      U += RusanovOffDiagonal(state_(ig, jg + 1, kg), x(ig, jg + 1, kg),
 					  fAreaJ_(ig, jg + 1, kg), fAreaJ_(ig, jg + 2, kg),
 					  vol_(ig, jg + 1, kg), eqnState, suth, turb,
 					  inp, false);
@@ -1193,7 +1192,7 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
     // from it
     if (this->IsPhysical(ip, jp, kp + 1, false)) {
       // update U matrix
-      U(ip, jp, kp) += RusanovOffDiagonal(state_(ig, jg, kg + 1), x(ig, jg, kg + 1),
+      U += RusanovOffDiagonal(state_(ig, jg, kg + 1), x(ig, jg, kg + 1),
 					  fAreaK_(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 2),
 					  vol_(ig, jg, kg + 1), eqnState, suth, turb,
 					  inp, false);
@@ -1202,13 +1201,12 @@ double procBlock::LUSGS(const vector<vector3d<int>> &reorder,
     // -----------------------------------------------------------------------
 
     // calculate update
-    x(ig, jg, kg) -= aiiInv(ip, jp, kp).ArrayMult(U(ip, jp, kp));
+    x(ig, jg, kg) -= aiiInv(ip, jp, kp).ArrayMult(U);
 
     // since backward sweep is last sweep, calculate residual
     const auto resid = -thetaInv * residual_(ip, jp, kp) +
         solDeltaNm1(ip, jp, kp) + solTimeMmN(ip, jp, kp) -
-        mainDiagonal(ip, jp, kp).ArrayMult(x(ig, jg, kg)) + L(ip, jp, kp) -
-        U(ip, jp, kp);
+        mainDiagonal(ip, jp, kp).ArrayMult(x(ig, jg, kg)) - U;
     l2Resid += resid * resid;
   }  // end backward sweep
   return l2Resid.Sum();
@@ -1226,7 +1224,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                         const multiArray3d<fluxJacobian> &aiiInv,
                         const int &sweep) const {
   // x -- correction - added to solution at time n to get to time n+1 (assumed
-  // to be zero to start)
+  //                   to be zero to start)
   // solTimeMmn -- solution at time m minus n
   // solDeltaNm1 -- solution at time n minus solution at time n-1
   // eqnState -- equation of state
@@ -1243,13 +1241,13 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
   genArray l2Resid(0.0);
 
   if (sweep == 0) {  // need to invert main diagonal
-  for (auto kp = 0, kg = numGhosts_; kp < this->NumK(); kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jp < this->NumJ(); jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
+    for (auto kp = 0, kg = numGhosts_; kp < this->NumK(); kg++, kp++) {
+      for (auto jp = 0, jg = numGhosts_; jp < this->NumJ(); jg++, jp++) {
+	for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
           // calculate update
           x(ig, jg, kg) = aiiInv(ip, jp, kp).ArrayMult(
-              -thetaInv * residual_(ip, jp, kp) -
-              solDeltaNm1(ip, jp, kp) - solTimeMmN(ip, jp, kp));
+	       -thetaInv * residual_(ip, jp, kp) -
+	       solDeltaNm1(ip, jp, kp) - solTimeMmN(ip, jp, kp));
         }
       }
     }
@@ -1414,7 +1412,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
               -thetaInv * residual_(ip, jp, kp)
               - solDeltaNm1(ip, jp, kp) - solTimeMmN(ip, jp, kp)
               + offDiagonal);
-
+	  
           // if done with sweeps, calculate residual
           if (sweep == inp.MatrixSweeps() - 1) {
             const auto resid = -thetaInv * residual_(ip, jp, kp) -
@@ -4247,7 +4245,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
          << inter.Dir2EndFirst() - inter.Dir2StartFirst() << ", " << d3 << endl;
     cerr << "Direction I, J, K of geomSlice: " << slice.NumI() << ", "
          << slice.NumJ() << ", " << slice.NumK() << endl;
-    exit(0);
+    exit(1);
   }
 
   // adjust insertion indices if patch borders another interblock on the same
@@ -4318,7 +4316,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
               cerr << "ERROR: Error in procBlock::PutGeomSlice(). Ghost cell "
                       "edge direction does not match interblock direction 1 or "
                       "2." << endl;
-              exit(0);
+              exit(1);
             }
           }
 
@@ -5031,7 +5029,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
                     "face quantities because behavior for interface with "
                     "boundary pair " << inter.BoundaryFirst() << ", "
                  << inter.BoundarySecond() << " is not defined." << endl;
-            exit(0);
+            exit(1);
           }
         }
       }
@@ -5735,7 +5733,7 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
   } else {
     cerr << "ERROR: Error in procBlock::Split(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
-    exit(0);
+    exit(1);
   }
 }
 
@@ -6057,7 +6055,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
   } else {
     cerr << "ERROR: Error in procBlock::Join(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
-    exit(0);
+    exit(1);
   }
 }
 
@@ -6704,7 +6702,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
     cerr << "ERROR: Matrix solver " << inp.MatrixSolver() <<
         " is not recognized!" << endl;
     cerr << "Please choose lusgs or dplur." << endl;
-    exit(0);
+    exit(1);
   }
 
   // Update blocks and reset residuals and wave speeds
