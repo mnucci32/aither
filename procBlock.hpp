@@ -293,33 +293,28 @@ class procBlock {
   multiArray3d<genArray> SolTimeMMinusN(const multiArray3d<genArray> &,
                                         const idealGas &, const input &,
                                         const int &) const;
-  multiArray3d<fluxJacobian> InvertDiagonal(multiArray3d<fluxJacobian> &,
-					    const input &) const;
+  void InvertDiagonal(multiArray3d<fluxJacobian> &, const input &) const;
   
   double LUSGS(const vector<vector3d<int>> &, multiArray3d<genArray> &,
                const multiArray3d<genArray> &, const multiArray3d<genArray> &,
                const idealGas &, const input &, const sutherland &,
                const unique_ptr<turbModel> &,
-               const multiArray3d<fluxJacobian> &,
                const multiArray3d<fluxJacobian> &) const;
-  genArray LUSGS_Forward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
-			 const multiArray3d<genArray> &, const multiArray3d<genArray> &,
-			 const idealGas &, const input &, const sutherland &,
-			 const unique_ptr<turbModel> &,
-			 const multiArray3d<fluxJacobian> &,
-			 const multiArray3d<fluxJacobian> &) const;
-  void LUSGS_Backward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
-		      const multiArray3d<genArray> &, const multiArray3d<genArray> &,
-		      const idealGas &, const input &, const sutherland &,
-		      const unique_ptr<turbModel> &,
-		      const multiArray3d<fluxJacobian> &,
-		      const multiArray3d<fluxJacobian> &, genArray &) const;
+  void LUSGS_Forward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
+		     const multiArray3d<genArray> &, const multiArray3d<genArray> &,
+		     const idealGas &, const input &, const sutherland &,
+		     const unique_ptr<turbModel> &,
+		     const multiArray3d<fluxJacobian> &) const;
+  double LUSGS_Backward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
+			const multiArray3d<genArray> &, const multiArray3d<genArray> &,
+			const idealGas &, const input &, const sutherland &,
+			const unique_ptr<turbModel> &,
+			const multiArray3d<fluxJacobian> &) const;
 
   double DPLUR(multiArray3d<genArray> &,
                const multiArray3d<genArray> &, const multiArray3d<genArray> &,
                const idealGas &, const input &, const sutherland &,
                const unique_ptr<turbModel> &,
-               const multiArray3d<fluxJacobian> &,
                const multiArray3d<fluxJacobian> &, const int &) const;
 
   bool IsPhysical(const int &, const int &, const int &, const bool &) const;
