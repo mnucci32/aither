@@ -228,7 +228,6 @@ int main(int argc, char *argv[]) {
   vector<multiArray3d<genArray>> solTimeN(numProcBlock);
   vector<multiArray3d<genArray>> solDeltaNm1(numProcBlock);
   vector<multiArray3d<genArray>> solDeltaMmN(numProcBlock);
-  vector<multiArray3d<genArray>> du(numProcBlock);
   // Allocate array for flux jacobian
   vector<multiArray3d<fluxJacobian>> mainDiagonal(numProcBlock);
 
@@ -285,9 +284,6 @@ int main(int argc, char *argv[]) {
             mainDiagonal[bb].ClearResize(localStateBlocks[bb].NumI(),
                                          localStateBlocks[bb].NumJ(),
                                          localStateBlocks[bb].NumK());
-            du[bb].ClearResize(localStateBlocks[bb].NumIG(),
-                               localStateBlocks[bb].NumJG(),
-                               localStateBlocks[bb].NumKG(), genArray(0.0));
           }
         }
 
@@ -305,7 +301,7 @@ int main(int argc, char *argv[]) {
       resid residLinf;  // linf residuals
       auto matrixResid = 0.0;
       if (inputVars.IsImplicit()) {
-        matrixResid = ImplicitUpdate(localStateBlocks, mainDiagonal, du,
+        matrixResid = ImplicitUpdate(localStateBlocks, mainDiagonal,
                                      inputVars, eos, aRef, suth, solTimeN,
                                      solDeltaMmN, solDeltaNm1, turb, mm,
                                      residL2, residLinf, connections, rank,

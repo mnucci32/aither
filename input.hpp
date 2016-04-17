@@ -126,7 +126,8 @@ class input {
   string MatrixSolver() const {return matrixSolver_;}
   int MatrixSweeps() const {return matrixSweeps_;}
   double MatrixRelaxation() const {return matrixRelaxation_;}
-
+  bool MatrixRequiresInitialization() const;
+  
   double Theta() const {return timeIntTheta_;}
   double Zeta() const {return timeIntZeta_;}
 
