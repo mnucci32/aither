@@ -664,3 +664,7 @@ double input::ViscousCFLCoefficient() const {
   return coeff;
 }
 
+bool input::MatrixRequiresInitialization() const {
+  // initialize matrix if using DPLUR, or if using LUSGS with more than one sweep
+  return (matrixSolver_ == "dplur" || matrixSweeps_ > 1) ? true : false;    
+}
