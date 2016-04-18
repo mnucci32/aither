@@ -107,17 +107,18 @@ double turbModel::CrossDiffusion(const primVars &state,
 
 // member function to calculate the spectral radius of the turbulence equations
 double turbModel::SpectralRadius(const primVars &state,
-				 const unitVec3dMag<double> &fAreaL,
-				 const unitVec3dMag<double> &fAreaR,
-				 const idealGas &eos, const sutherland &suth,
-				 const double &vol, const bool &addSrc) const {
+                                 const unitVec3dMag<double> &fAreaL,
+                                 const unitVec3dMag<double> &fAreaR,
+                                 const idealGas &eos, const sutherland &suth,
+                                 const double &vol, const bool &addSrc) const {
   // state -- primative variables
   // fAreaL -- area at left face
   // fAreaR -- area at right face
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
   // vol -- cell volume
-  // addSrc -- flag to determine if source jacobian spectral radius should be included
+  // addSrc -- flag to determine if source jacobian spectral radius should be
+  //           included
 
   auto specRad = this->InviscidSpecRad(state, fAreaL, fAreaR);
   // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
@@ -126,8 +127,8 @@ double turbModel::SpectralRadius(const primVars &state,
     // minus sign because source terms are on RHS
     specRad -= this->SrcSpecRad(state, suth, vol);
   }
-  
-  return specRad;    
+
+  return specRad;
 }
 
 // -------------------------------------------------------------------------
@@ -145,7 +146,7 @@ double turbNone::CalcTurbSrc(const primVars &state,
                              const vector3d<double> &wGrad,
                              const sutherland &suth, const idealGas &eos,
                              const double &wallDist, const double &vol,
-			     double &ksrc, double &wsrc) const {
+                             double &ksrc, double &wsrc) const {
   // set k and omega source terms to zero
   ksrc = 0.0;
   wsrc = 0.0;
@@ -257,9 +258,8 @@ double turbKWWilcox::CalcTurbSrc(const primVars &state,
                                  const vector3d<double> &kGrad,
                                  const vector3d<double> &wGrad,
                                  const sutherland &suth, const idealGas &eos,
-                                 const double &wallDist,
-				 const double &vol,
-				 double &ksrc, double &wsrc) const {
+                                 const double &wallDist, const double &vol,
+                                 double &ksrc, double &wsrc) const {
   // state -- primative variables
   // velGrad -- velocity gradient
   // kGrad -- tke gradient
@@ -340,7 +340,7 @@ double turbKWWilcox::EddyViscAndMolecDiffCoeff(const primVars &state,
 */
 double turbKWWilcox::SrcSpecRad(const primVars &state,
                                 const sutherland &suth,
-				const double &vol) const {
+                                const double &vol) const {
   // state -- primative variables
   // suth -- sutherland's law for viscosity
   // vol -- cell volume
@@ -479,7 +479,7 @@ double turbKWSst::CalcTurbSrc(const primVars &state,
                               const vector3d<double> &wGrad,
                               const sutherland &suth, const idealGas &eos,
                               const double &wallDist, const double &vol,
-			      double &ksrc, double &wsrc) const {
+                              double &ksrc, double &wsrc) const {
   // state -- primative variables
   // velGrad -- velocity gradient
   // kGrad -- tke gradient
@@ -584,7 +584,7 @@ double turbKWSst::EddyViscAndMolecDiffCoeff(const primVars &state,
 */
 double turbKWSst::SrcSpecRad(const primVars &state,
                              const sutherland &suth,
-			     const double &vol) const {
+                             const double &vol) const {
   // state -- primative variables
   // suth -- sutherland's law for viscosity
 

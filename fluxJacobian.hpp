@@ -54,8 +54,8 @@ class fluxJacobian {
   fluxJacobian(const double &flow, const double &turb) :
       flowJacobian_(flow), turbJacobian_(turb) {}
   fluxJacobian() : fluxJacobian(0.0, 0.0) {}
-    fluxJacobian(const uncoupledScalar &specRad) :
-      fluxJacobian(specRad.FlowVariable(), specRad.TurbVariable()) {}  
+  explicit fluxJacobian(const uncoupledScalar &specRad) :
+      fluxJacobian(specRad.FlowVariable(), specRad.TurbVariable()) {}
   fluxJacobian(const primVars &, const unitVec3dMag<double> &,
                const unitVec3dMag<double> &, const idealGas &,
                const sutherland &, const double &,
@@ -227,25 +227,31 @@ ostream &operator<<(ostream &os, const fluxJacobian &);
 
 squareMatrix RusanovFluxJacobian(const primVars &, const primVars &,
                                  const idealGas &, const vector3d<double> &,
-				 const bool &);
+                                 const bool &);
 squareMatrix InvFluxJacobian(const primVars &, const idealGas &,
                              const vector3d<double> &);
 squareMatrix ApproxRoeFluxJacobian(const primVars &, const primVars &,
-				   const idealGas &, const vector3d<double> &,
-				   const bool &);
+                                   const idealGas &, const vector3d<double> &,
+                                   const bool &);
 genArray RusanovOffDiagonal(const primVars &, const genArray &,
-			    const unitVec3dMag<double> &, const unitVec3dMag<double> &,
-			    const double &, const idealGas &, const sutherland &,
-			    const unique_ptr<turbModel> &, const input &, const bool &);
+                            const unitVec3dMag<double> &,
+                            const unitVec3dMag<double> &,
+                            const double &, const idealGas &,
+                            const sutherland &,
+                            const unique_ptr<turbModel> &,
+                            const input &, const bool &);
 genArray RoeOffDiagonal(const primVars &, const primVars &, const genArray &,
-			const unitVec3dMag<double> &, const unitVec3dMag<double> &,
-			const double &, const idealGas &, const sutherland &,
-			const unique_ptr<turbModel> &, const input &, const bool &);
+                        const unitVec3dMag<double> &,
+                        const unitVec3dMag<double> &,
+                        const double &, const idealGas &, const sutherland &,
+                        const unique_ptr<turbModel> &, const input &,
+                        const bool &);
 
 squareMatrix DelPrimativeDelConservative(const primVars &, const idealGas &);
 
-squareMatrix ApproxTSLJacobian(const primVars &, const idealGas &, const sutherland &,
-			       const vector3d<double> &, const double &,
-			       const unique_ptr<turbModel> &);
+squareMatrix ApproxTSLJacobian(const primVars &, const idealGas &,
+                               const sutherland &,
+                               const vector3d<double> &, const double &,
+                               const unique_ptr<turbModel> &);
 
 #endif

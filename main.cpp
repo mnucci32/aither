@@ -171,7 +171,8 @@ int main(int argc, char *argv[]) {
   MPI_Datatype MPI_vec3d, MPI_cellData, MPI_procBlockInts,
     MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag, MPI_uncoupledScalar;
   SetDataTypesMPI(MPI_vec3d, MPI_cellData, MPI_procBlockInts,
-                  MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag, MPI_uncoupledScalar);
+                  MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag,
+                  MPI_uncoupledScalar);
 
   // Send number of procBlocks to all processors
   SendNumProcBlocks(decomp.NumBlocksOnAllProc(), numProcBlock);
@@ -207,7 +208,8 @@ int main(int argc, char *argv[]) {
   if (rank == ROOTP) {
     const auto kdEnd = std::chrono::high_resolution_clock::now();
     const std::chrono::duration<double> kdDuration = kdEnd - wallStart;
-    cout << "K-d tree complete after " << kdDuration.count() << " seconds" << endl;
+    cout << "K-d tree complete after " << kdDuration.count() << " seconds"
+         << endl;
   }
 
   if (tree.Size() > 0) {
@@ -235,7 +237,7 @@ int main(int argc, char *argv[]) {
 
   // Send/recv solutions - necessary to get wall distances
   GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData,
-		MPI_uncoupledScalar);
+                MPI_uncoupledScalar);
 
   ofstream resFile;
   if (rank == ROOTP) {
@@ -341,7 +343,7 @@ int main(int argc, char *argv[]) {
     if ((nn+1) % inputVars.OutputFrequency() == 0) {  // write out function file
       // Send/recv solutions
       GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData,
-		    MPI_uncoupledScalar);
+                    MPI_uncoupledScalar);
 
       if (rank == ROOTP) {
         cout << "writing out function file at iteration " << nn << endl;
@@ -366,7 +368,8 @@ int main(int argc, char *argv[]) {
 
   // Free datatypes previously created
   FreeDataTypesMPI(MPI_vec3d, MPI_cellData, MPI_procBlockInts,
-                   MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag, MPI_uncoupledScalar);
+                   MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag,
+                   MPI_uncoupledScalar);
 
   MPI_Finalize();
 

@@ -85,7 +85,7 @@ procBlock::procBlock(const primVars &inputState, const plot3dBlock &blk,
                                    DEFAULTWALLDIST);
 
   specRadius_ = multiArray3d<uncoupledScalar>(blk.NumI() - 1, blk.NumJ() - 1,
-					      blk.NumK() - 1);
+                                              blk.NumK() - 1);
   dt_ = multiArray3d<double>(blk.NumI() - 1, blk.NumJ() - 1, blk.NumK() - 1);
   residual_ = multiArray3d<genArray>(blk.NumI() - 1, blk.NumJ() - 1,
                                      blk.NumK() - 1);
@@ -262,9 +262,12 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
 
 
   // loop over all physical i-faces
-  for (auto kp = 0, kg = numGhosts_; kg < fAreaI_.NumK() - numGhosts_; kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jg < fAreaI_.NumJ() - numGhosts_; jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ig < fAreaI_.NumI() - numGhosts_; ig++, ip++) {
+  for (auto kp = 0, kg = numGhosts_; kg < fAreaI_.NumK() - numGhosts_;
+       kg++, kp++) {
+    for (auto jp = 0, jg = numGhosts_; jg < fAreaI_.NumJ() - numGhosts_;
+         jg++, jp++) {
+      for (auto ip = 0, ig = numGhosts_; ig < fAreaI_.NumI() - numGhosts_;
+           ig++, ip++) {
         primVars faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
@@ -318,22 +321,20 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           specRadius_(ip, jp, kp).AddToFlowVariable(
-	      state_(ig, jg, kg).InvCellSpectralRadius(fAreaI_(ig, jg, kg),
-							  fAreaI_(ig + 1, jg, kg),
-							  eqnState));
-	  if (inp.IsTurbulent()) {
-              specRadius_(ip, jp, kp).AddToTurbVariable(
-		  turb->InviscidSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
-					fAreaI_(ig + 1, jg, kg)));
-	  }
-
+              state_(ig, jg, kg).InvCellSpectralRadius(fAreaI_(ig, jg, kg),
+                                                       fAreaI_(ig + 1, jg, kg),
+                                                       eqnState));
+          if (inp.IsTurbulent()) {
+            specRadius_(ip, jp, kp).AddToTurbVariable(
+                turb->InviscidSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
+                                      fAreaI_(ig + 1, jg, kg)));
+          }
 
           // if using a block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             mainDiagonal(ip, jp, kp).AddInviscidJacobian(
                 state_(ig, jg, kg), fAreaI_(ig, jg, kg),
-                fAreaI_(ig + 1, jg, kg), eqnState, turb,
-                inp.IsTurbulent());
+                fAreaI_(ig + 1, jg, kg), eqnState, turb, inp.IsTurbulent());
           }
         }
       }
@@ -377,9 +378,12 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
   //                 solver
 
   // loop over all physical j-faces
-  for (auto kp = 0, kg = numGhosts_; kg < fAreaJ_.NumK() - numGhosts_; kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jg < fAreaJ_.NumJ() - numGhosts_; jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ig < fAreaJ_.NumI() - numGhosts_; ig++, ip++) {
+  for (auto kp = 0, kg = numGhosts_; kg < fAreaJ_.NumK() - numGhosts_;
+       kg++, kp++) {
+    for (auto jp = 0, jg = numGhosts_; jg < fAreaJ_.NumJ() - numGhosts_;
+         jg++, jp++) {
+      for (auto ip = 0, ig = numGhosts_; ig < fAreaJ_.NumI() - numGhosts_;
+           ig++, ip++) {
         primVars faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
@@ -434,16 +438,15 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-	  specRadius_(ip, jp, kp).AddToFlowVariable(
-	      state_(ig, jg, kg).InvCellSpectralRadius(fAreaJ_(ig, jg, kg),
-							  fAreaJ_(ig, jg + 1, kg),
-							  eqnState));
-	  if (inp.IsTurbulent()) {
-	    specRadius_(ip, jp, kp).AddToTurbVariable(
-		turb->InviscidSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
-				      fAreaJ_(ig, jg + 1, kg)));
-
-	  }
+          specRadius_(ip, jp, kp).AddToFlowVariable(
+              state_(ig, jg, kg).InvCellSpectralRadius(fAreaJ_(ig, jg, kg),
+                                                       fAreaJ_(ig, jg + 1, kg),
+                                                       eqnState));
+          if (inp.IsTurbulent()) {
+            specRadius_(ip, jp, kp).AddToTurbVariable(
+                turb->InviscidSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
+                                      fAreaJ_(ig, jg + 1, kg)));
+          }
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
@@ -494,9 +497,12 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
   //                 solver
 
   // loop over all physical k-faces
-  for (auto kp = 0, kg = numGhosts_; kg < fAreaK_.NumK() - numGhosts_; kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jg < fAreaK_.NumJ() - numGhosts_; jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ig < fAreaK_.NumI() - numGhosts_; ig++, ip++) {
+  for (auto kp = 0, kg = numGhosts_; kg < fAreaK_.NumK() - numGhosts_;
+       kg++, kp++) {
+    for (auto jp = 0, jg = numGhosts_; jg < fAreaK_.NumJ() - numGhosts_;
+         jg++, jp++) {
+      for (auto ip = 0, ig = numGhosts_; ig < fAreaK_.NumI() - numGhosts_;
+           ig++, ip++) {
         primVars faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
@@ -553,16 +559,16 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           specRadius_(ip, jp, kp).AddToFlowVariable(
-	      state_(ig, jg, kg).InvCellSpectralRadius(fAreaK_(ig, jg, kg),
-							  fAreaK_(ig, jg, kg + 1),
-							  eqnState));
-	  if (inp.IsTurbulent()) {
-              specRadius_(ip, jp, kp).AddToTurbVariable(
-		  turb->InviscidSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
-					fAreaK_(ig + 1, jg, kg + 1)));
-	  }
+              state_(ig, jg, kg).InvCellSpectralRadius(fAreaK_(ig, jg, kg),
+                                                       fAreaK_(ig, jg, kg + 1),
+                                                       eqnState));
+          if (inp.IsTurbulent()) {
+            specRadius_(ip, jp, kp).AddToTurbVariable(
+                turb->InviscidSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
+                                      fAreaK_(ig + 1, jg, kg + 1)));
+          }
 
-	  // if using block matrix on main diagonal, calculate flux jacobian
+          // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             mainDiagonal(ip, jp, kp).AddInviscidJacobian(
                 state_(ig, jg, kg), fAreaK_(ig, jg, kg),
@@ -899,7 +905,7 @@ multiArray3d<genArray> procBlock::DeltaNMinusOne(
 }
 
 void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
-			       const input &inp) const {
+                               const input &inp) const {
   // mainDiagonal -- main diagonal in implicit operator
   // inp -- input variables
 
@@ -908,28 +914,30 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
     for (auto jp = 0, jg = numGhosts_; jp < this->NumJ(); jg++, jp++) {
       for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
         auto diagVolTime = (vol_(ig, jg, kg) * (1.0 + inp.Zeta())) /
-	  (dt_(ip, jp, kp) * inp.Theta());
-	if (inp.DualTimeCFL() > 0.0) {  // use dual time stepping
-	  // equal to volume / tau
-	  diagVolTime += specRadius_(ip, jp, kp).FlowVariable() / inp.DualTimeCFL();
-	}
+            (dt_(ip, jp, kp) * inp.Theta());
+        if (inp.DualTimeCFL() > 0.0) {  // use dual time stepping
+          // equal to volume / tau
+          diagVolTime += specRadius_(ip, jp, kp).FlowVariable() /
+              inp.DualTimeCFL();
+        }
 
-	// if not using a block matrix on diagonal, construct from spectral radii
-	if (!inp.IsBlockMatrix()) {
-	  mainDiagonal(ip, jp, kp) = fluxJacobian(specRadius_(ip, jp, kp));
-	}
-	  
-	// add volume and time term
-	mainDiagonal(ip, jp, kp) *= inp.MatrixRelaxation();
-	mainDiagonal(ip, jp, kp) += diagVolTime;
+        // if not using a block matrix on diagonal, construct from
+        // spectral radii
+        if (!inp.IsBlockMatrix()) {
+          mainDiagonal(ip, jp, kp) = fluxJacobian(specRadius_(ip, jp, kp));
+        }
 
-	// invert main diagonal
-	mainDiagonal(ip, jp, kp) = mainDiagonal(ip, jp, kp).Inverse(inp.IsTurbulent());
+        // add volume and time term
+        mainDiagonal(ip, jp, kp) *= inp.MatrixRelaxation();
+        mainDiagonal(ip, jp, kp) += diagVolTime;
+
+        // invert main diagonal
+        mainDiagonal(ip, jp, kp) =
+            mainDiagonal(ip, jp, kp).Inverse(inp.IsTurbulent());
       }
     }
   }
 }
-
 
 // Member function to return a copy of the conserved variables. This is useful
 // for "saving" the solution at a specific time.
@@ -1096,85 +1104,89 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // initialize term for contribution from lower/upper triangular matrix
     genArray L(0.0);
     genArray U(0.0);
-    
+
     // if i lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip - 1, jp, kp, false) ||
-	bc_.GetBCName(ip, jp, kp, "il") == "interblock") {
+        bc_.GetBCName(ip, jp, kp, "il") == "interblock") {
       // update L matrix
       L += RusanovOffDiagonal(state_(ig - 1, jg, kg), x(ig - 1 , jg, kg),
-					  fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
-					  vol_(ig - 1, jg, kg), eqnState, suth, turb,
-					  inp, true);
+                              fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
+                              vol_(ig - 1, jg, kg), eqnState, suth, turb,
+                              inp, true);
     }
 
     // -----------------------------------------------------------------------
     // if j lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip, jp - 1, kp, false) ||
-	bc_.GetBCName(ip, jp, kp, "jl") == "interblock") {
+        bc_.GetBCName(ip, jp, kp, "jl") == "interblock") {
       // update L matrix
       L += RusanovOffDiagonal(state_(ig, jg - 1, kg), x(ig, jg - 1, kg),
-					  fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
-					  vol_(ig, jg - 1, kg), eqnState, suth, turb,
-					  inp, true);
+                              fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
+                              vol_(ig, jg - 1, kg), eqnState, suth, turb,
+                              inp, true);
     }
 
     // -----------------------------------------------------------------------
     // if k lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip, jp, kp - 1, false) ||
-	bc_.GetBCName(ip, jp, kp, "kl") == "interblock") {
+        bc_.GetBCName(ip, jp, kp, "kl") == "interblock") {
       // update L matrix
       L += RusanovOffDiagonal(state_(ig, jg, kg - 1), x(ig, jg, kg - 1),
-					  fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
-					  vol_(ig, jg, kg - 1), eqnState, suth, turb,
-					  inp, true);
+                              fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
+                              vol_(ig, jg, kg - 1), eqnState, suth, turb,
+                              inp, true);
     }
 
 
-    // Only need to calculate contribution for U if matrix update has been initialized,
-    // or if this is not the first sweep through the domain. If the matrix is not
-    // initialized, the update x is 0 for the first sweep, so U is 0.
+    // Only need to calculate contribution for U if matrix update has been
+    // initialized, or if this is not the first sweep through the domain.
+    // If the matrix is not initialized, the update x is 0 for the first
+    // sweep, so U is 0.
     if (sweep > 0 || inp.MatrixRequiresInitialization()) {
       // -----------------------------------------------------------------------
-      // if i upper diagonal cell is in physical location there is a contribution
+      // if i upper cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ip + 1, jp, kp, false) ||
-	  bc_.GetBCName(ip + 1, jp, kp, "iu") == "interblock") {
-	// update U matrix
-	U += RusanovOffDiagonal(state_(ig + 1, jg, kg), x(ig + 1 , jg, kg),
-				fAreaI_(ig + 1, jg, kg), fAreaI_(ig + 2, jg, kg),
-				vol_(ig + 1, jg, kg), eqnState, suth, turb,
-				inp, false);
+          bc_.GetBCName(ip + 1, jp, kp, "iu") == "interblock") {
+        // update U matrix
+        U += RusanovOffDiagonal(state_(ig + 1, jg, kg), x(ig + 1 , jg, kg),
+                                fAreaI_(ig + 1, jg, kg),
+                                fAreaI_(ig + 2, jg, kg),
+                                vol_(ig + 1, jg, kg), eqnState, suth, turb,
+                                inp, false);
       }
 
       // -----------------------------------------------------------------------
-      // if j upper diagonal cell is in physical location there is a contribution
+      // if j upper cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ip, jp + 1, kp, false) ||
-	  bc_.GetBCName(ip, jp + 1, kp, "ju") == "interblock") {
-	// update U matrix
-	U += RusanovOffDiagonal(state_(ig, jg + 1, kg), x(ig, jg + 1, kg),
-				fAreaJ_(ig, jg + 1, kg), fAreaJ_(ig, jg + 2, kg),
-				vol_(ig, jg + 1, kg), eqnState, suth, turb,
-				inp, false);
+          bc_.GetBCName(ip, jp + 1, kp, "ju") == "interblock") {
+        // update U matrix
+        U += RusanovOffDiagonal(state_(ig, jg + 1, kg), x(ig, jg + 1, kg),
+                                fAreaJ_(ig, jg + 1, kg),
+                                fAreaJ_(ig, jg + 2, kg),
+                                vol_(ig, jg + 1, kg), eqnState, suth, turb,
+                                inp, false);
       }
 
       // -----------------------------------------------------------------------
-      // if k lower diagonal cell is in physical location there is a contribution
+      // if k lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ip, jp, kp + 1, false) ||
-	  bc_.GetBCName(ip, jp, kp + 1, "ku") == "interblock") {
-	// update U matrix
-	U += RusanovOffDiagonal(state_(ig, jg, kg + 1), x(ig, jg, kg + 1),
-				fAreaK_(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 2),
-				vol_(ig, jg, kg + 1), eqnState, suth, turb,
-				inp, false);
+          bc_.GetBCName(ip, jp, kp + 1, "ku") == "interblock") {
+        // update U matrix
+        U += RusanovOffDiagonal(state_(ig, jg, kg + 1), x(ig, jg, kg + 1),
+                                fAreaK_(ig, jg, kg + 1),
+                                fAreaK_(ig, jg, kg + 2),
+                                vol_(ig, jg, kg + 1), eqnState, suth, turb,
+                                inp, false);
       }
     }
     // -----------------------------------------------------------------------
-    
+
     // calculate intermediate update
     // normal at lower boundaries needs to be reversed, so add instead
     // of subtract L
@@ -1187,14 +1199,14 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
 }
 
 double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
-				 multiArray3d<genArray> &x,
-				 const multiArray3d<genArray> &solTimeMmN,
-				 const multiArray3d<genArray> &solDeltaNm1,
-				 const idealGas &eqnState, const input &inp,
-				 const sutherland &suth,
-				 const unique_ptr<turbModel> &turb,
-				 const multiArray3d<fluxJacobian> &aInv,
-				 const int &sweep) const {
+                                 multiArray3d<genArray> &x,
+                                 const multiArray3d<genArray> &solTimeMmN,
+                                 const multiArray3d<genArray> &solDeltaNm1,
+                                 const idealGas &eqnState, const input &inp,
+                                 const sutherland &suth,
+                                 const unique_ptr<turbModel> &turb,
+                                 const multiArray3d<fluxJacobian> &aInv,
+                                 const int &sweep) const {
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // x -- correction - added to solution at time n to get to time n+1 (assumed
   //      to be zero to start)
@@ -1208,7 +1220,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
   // sweep -- sweep number through domain
 
   const auto thetaInv = 1.0 / inp.Theta();
-  
+
   genArray l2Error(0.0);
 
   // backward sweep over all physical cells
@@ -1225,83 +1237,83 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
     // initialize term for contribution from upper/lower triangular matrix
     genArray U(0.0);
     genArray L(0.0);
-    
+
     // -----------------------------------------------------------------------
     // if i upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip + 1, jp, kp, false) ||
-	bc_.GetBCName(ip + 1, jp, kp, "iu") == "interblock") {
+        bc_.GetBCName(ip + 1, jp, kp, "iu") == "interblock") {
       // update U matrix
       U += RusanovOffDiagonal(state_(ig + 1, jg, kg), x(ig + 1, jg, kg),
-					  fAreaI_(ig + 1, jg, kg), fAreaI_(ig + 2, jg, kg),
-					  vol_(ig + 1, jg, kg), eqnState, suth, turb,
-					  inp, false);
+                              fAreaI_(ig + 1, jg, kg), fAreaI_(ig + 2, jg, kg),
+                              vol_(ig + 1, jg, kg), eqnState, suth, turb,
+                              inp, false);
     }
 
     // -----------------------------------------------------------------------
     // if j upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip, jp + 1, kp, false) ||
-	bc_.GetBCName(ip, jp + 1, kp, "ju") == "interblock") {
+        bc_.GetBCName(ip, jp + 1, kp, "ju") == "interblock") {
       // update U matrix
       U += RusanovOffDiagonal(state_(ig, jg + 1, kg), x(ig, jg + 1, kg),
-					  fAreaJ_(ig, jg + 1, kg), fAreaJ_(ig, jg + 2, kg),
-					  vol_(ig, jg + 1, kg), eqnState, suth, turb,
-					  inp, false);
+                              fAreaJ_(ig, jg + 1, kg), fAreaJ_(ig, jg + 2, kg),
+                              vol_(ig, jg + 1, kg), eqnState, suth, turb,
+                              inp, false);
     }
 
     // -----------------------------------------------------------------------
     // if k upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ip, jp, kp + 1, false) ||
-	bc_.GetBCName(ip, jp, kp + 1, "ku") == "interblock") {
+        bc_.GetBCName(ip, jp, kp + 1, "ku") == "interblock") {
       // update U matrix
       U += RusanovOffDiagonal(state_(ig, jg, kg + 1), x(ig, jg, kg + 1),
-					  fAreaK_(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 2),
-					  vol_(ig, jg, kg + 1), eqnState, suth, turb,
-					  inp, false);
+                              fAreaK_(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 2),
+                              vol_(ig, jg, kg + 1), eqnState, suth, turb,
+                              inp, false);
     }
 
 
-    // Only need to calculate contribution for L if matrix update has been initialized,
-    // or if this is not the first sweep through the domain. If the matrix is not
-    // initialized, then b - Lx^* was already solved for in the forward sweep, so L
-    // is not needed
+    // Only need to calculate contribution for L if matrix update has been
+    // initialized, or if this is not the first sweep through the domain.
+    // If the matrix is not initialized, then b - Lx^* was already solved for
+    // in the forward sweep, so L is not needed
     if (sweep > 0 || inp.MatrixRequiresInitialization()) {
       // -----------------------------------------------------------------------
-      // if i lower diagonal cell is in physical location there is a contribution
+      // if i lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ip - 1, jp, kp, false) ||
-	  bc_.GetBCName(ip, jp, kp, "il") == "interblock") {
-	// update U matrix
-	L += RusanovOffDiagonal(state_(ig - 1, jg, kg), x(ig - 1, jg, kg),
-				fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
-				vol_(ig - 1, jg, kg), eqnState, suth, turb,
-				inp, true);
+          bc_.GetBCName(ip, jp, kp, "il") == "interblock") {
+        // update U matrix
+        L += RusanovOffDiagonal(state_(ig - 1, jg, kg), x(ig - 1, jg, kg),
+                                fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
+                                vol_(ig - 1, jg, kg), eqnState, suth, turb,
+                                inp, true);
       }
 
       // -----------------------------------------------------------------------
-      // if j lower diagonal cell is in physical location there is a contribution
+      // if j lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ip, jp - 1, kp, false) ||
-	  bc_.GetBCName(ip, jp, kp, "jl") == "interblock") {
-	// update U matrix
-	L += RusanovOffDiagonal(state_(ig, jg - 1, kg), x(ig, jg - 1, kg),
-				fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
-				vol_(ig, jg - 1, kg), eqnState, suth, turb,
-				inp, true);
+          bc_.GetBCName(ip, jp, kp, "jl") == "interblock") {
+        // update U matrix
+        L += RusanovOffDiagonal(state_(ig, jg - 1, kg), x(ig, jg - 1, kg),
+                                fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
+                                vol_(ig, jg - 1, kg), eqnState, suth, turb,
+                                inp, true);
       }
 
       // -----------------------------------------------------------------------
-      // if k lower diagonal cell is in physical location there is a contribution
+      // if k lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ip, jp, kp - 1, false) ||
-	  bc_.GetBCName(ip, jp, kp, "kl") == "interblock") {
-	// update U matrix
-	L += RusanovOffDiagonal(state_(ig, jg, kg - 1), x(ig, jg, kg - 1),
-				fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
-				vol_(ig, jg, kg - 1), eqnState, suth, turb,
-				inp, true);
+          bc_.GetBCName(ip, jp, kp, "kl") == "interblock") {
+        // update U matrix
+        L += RusanovOffDiagonal(state_(ig, jg, kg - 1), x(ig, jg, kg - 1),
+                                fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
+                                vol_(ig, jg, kg - 1), eqnState, suth, turb,
+                                inp, true);
       }
     }
     // -----------------------------------------------------------------------
@@ -1309,11 +1321,13 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
     // calculate update
     auto xold = x(ig, jg, kg);
     if (sweep > 0 || inp.MatrixRequiresInitialization()) {
-      x(ig, jg, kg) = aInv(ip, jp, kp).ArrayMult(-thetaInv * residual_(ip, jp, kp) -
-						 solDeltaNm1(ip, jp, kp) -
-						 solTimeMmN(ip, jp, kp) + L - U);
+      x(ig, jg, kg) = aInv(ip, jp, kp).ArrayMult(-thetaInv *
+                                                 residual_(ip, jp, kp) -
+                                                 solDeltaNm1(ip, jp, kp) -
+                                                 solTimeMmN(ip, jp, kp) +
+                                                 L - U);
     } else {
-      x(ig, jg, kg) -= aInv(ip, jp, kp).ArrayMult(U);      
+      x(ig, jg, kg) -= aInv(ip, jp, kp).ArrayMult(U);
     }
     const auto error = x(ig, jg, kg) - xold;
     l2Error += error * error;
@@ -1353,165 +1367,183 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
   for (auto kp = 0, kg = numGhosts_; kp < this->NumK(); kg++, kp++) {
     for (auto jp = 0, jg = numGhosts_; jp < this->NumJ(); jg++, jp++) {
       for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
-	// calculate off diagonal terms - initialize to zero
-	genArray offDiagonal(0.0);
+        // calculate off diagonal terms - initialize to zero
+        genArray offDiagonal(0.0);
 
-	// -------------------------------------------------------------
-	// if i lower diagonal cell is in physical location there is a
-	// contribution from it
-	if (this->IsPhysical(ip - 1, jp, kp, false) ||
-	    bc_.GetBCName(ip, jp, kp, "il") == "interblock") {
-	  // update off diagonal
-	  if (inp.InvFluxJac() == "rusanov") {
-	    offDiagonal += RusanovOffDiagonal(state_(ig - 1, jg, kg), xold(ig - 1, jg, kg),
-					      fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
-					      vol_(ig - 1, jg, kg), eqnState, suth, turb,
-					      inp, true);
-	  } else if (inp.InvFluxJac() == "approximateRoe") {
-	    offDiagonal += RoeOffDiagonal(state_(ig - 1, jg, kg), state_(ig, jg, kg),
-					  xold(ig - 1, jg, kg),
-					  fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
-					  vol_(ig - 1, jg, kg), eqnState, suth, turb,
-					  inp, true);
-	  } else {
-	    cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux jacobian " <<
-	      "method  of " << inp.InvFluxJac() << " is not recognized!" << endl;
-	    exit(1);
-	  }
-	}
+        // -------------------------------------------------------------
+        // if i lower diagonal cell is in physical location there is a
+        // contribution from it
+        if (this->IsPhysical(ip - 1, jp, kp, false) ||
+            bc_.GetBCName(ip, jp, kp, "il") == "interblock") {
+          // update off diagonal
+          if (inp.InvFluxJac() == "rusanov") {
+            offDiagonal +=
+                RusanovOffDiagonal(state_(ig - 1, jg, kg), xold(ig - 1, jg, kg),
+                                   fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
+                                   vol_(ig - 1, jg, kg), eqnState, suth, turb,
+                                   inp, true);
+          } else if (inp.InvFluxJac() == "approximateRoe") {
+            offDiagonal +=
+                RoeOffDiagonal(state_(ig - 1, jg, kg), state_(ig, jg, kg),
+                               xold(ig - 1, jg, kg), fAreaI_(ig, jg, kg),
+                               fAreaI_(ig - 1, jg, kg), vol_(ig - 1, jg, kg),
+                               eqnState, suth, turb, inp, true);
+          } else {
+            cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux " <<
+                "jacobian method  of " << inp.InvFluxJac() <<
+                " is not recognized!" << endl;
+            exit(1);
+          }
+        }
 
-	// --------------------------------------------------------------
-	// if j lower diagonal cell is in physical location there is a
-	// constribution from it
-	if (this->IsPhysical(ip, jp - 1, kp, false) ||
-	    bc_.GetBCName(ip, jp, kp, "jl") == "interblock") {
-	  // update off diagonal
-	  if (inp.InvFluxJac() == "rusanov") {
-	    offDiagonal += RusanovOffDiagonal(state_(ig, jg - 1, kg), xold(ig, jg - 1, kg),
-					      fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
-					      vol_(ig, jg - 1, kg), eqnState, suth, turb,
-					      inp, true);
-	  } else if (inp.InvFluxJac() == "approximateRoe") {
-	    offDiagonal += RoeOffDiagonal(state_(ig, jg - 1, kg), state_(ig, jg, kg),
-					  xold(ig, jg - 1, kg),
-					  fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
-					  vol_(ig, jg - 1, kg), eqnState, suth, turb,
-					  inp, true);
-	  } else {
-	    cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux jacobian " <<
-	      "method  of " << inp.InvFluxJac() << " is not recognized!" << endl;
-	    exit(1);
-	  }
-	}
+        // --------------------------------------------------------------
+        // if j lower diagonal cell is in physical location there is a
+        // constribution from it
+        if (this->IsPhysical(ip, jp - 1, kp, false) ||
+            bc_.GetBCName(ip, jp, kp, "jl") == "interblock") {
+          // update off diagonal
+          if (inp.InvFluxJac() == "rusanov") {
+            offDiagonal +=
+                RusanovOffDiagonal(state_(ig, jg - 1, kg), xold(ig, jg - 1, kg),
+                                   fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
+                                   vol_(ig, jg - 1, kg), eqnState, suth, turb,
+                                   inp, true);
+          } else if (inp.InvFluxJac() == "approximateRoe") {
+            offDiagonal +=
+                RoeOffDiagonal(state_(ig, jg - 1, kg), state_(ig, jg, kg),
+                               xold(ig, jg - 1, kg), fAreaJ_(ig, jg, kg),
+                               fAreaJ_(ig, jg - 1, kg), vol_(ig, jg - 1, kg),
+                               eqnState, suth, turb, inp, true);
+          } else {
+            cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux " <<
+                "jacobian method  of " << inp.InvFluxJac() <<
+                " is not recognized!" << endl;
+            exit(1);
+          }
+        }
 
-	// --------------------------------------------------------------
-	// if k lower diagonal cell is in physical location there is a
-	// contribution from it
-	if (this->IsPhysical(ip, jp, kp - 1, false) ||
-	    bc_.GetBCName(ip, jp, kp, "kl") == "interblock") {
-	  // update off diagonal
-	  if (inp.InvFluxJac() == "rusanov") {
-	    offDiagonal += RusanovOffDiagonal(state_(ig, jg, kg - 1), xold(ig, jg, kg - 1),
-					      fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
-					      vol_(ig, jg, kg - 1), eqnState, suth, turb,
-					      inp, true);
-	  } else if (inp.InvFluxJac() == "approximateRoe") {
-	    offDiagonal += RoeOffDiagonal(state_(ig, jg, kg - 1), state_(ig, jg, kg),
-					  xold(ig, jg, kg - 1),
-					  fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
-					  vol_(ig, jg, kg - 1), eqnState, suth, turb,
-					  inp, true);
-	  } else {
-	    cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux jacobian " <<
-	      "method  of " << inp.InvFluxJac() << " is not recognized!" << endl;
-	    exit(1);
-	  }
-	}
+        // --------------------------------------------------------------
+        // if k lower diagonal cell is in physical location there is a
+        // contribution from it
+        if (this->IsPhysical(ip, jp, kp - 1, false) ||
+            bc_.GetBCName(ip, jp, kp, "kl") == "interblock") {
+          // update off diagonal
+          if (inp.InvFluxJac() == "rusanov") {
+            offDiagonal +=
+                RusanovOffDiagonal(state_(ig, jg, kg - 1), xold(ig, jg, kg - 1),
+                                   fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
+                                   vol_(ig, jg, kg - 1), eqnState, suth, turb,
+                                   inp, true);
+          } else if (inp.InvFluxJac() == "approximateRoe") {
+            offDiagonal +=
+                RoeOffDiagonal(state_(ig, jg, kg - 1), state_(ig, jg, kg),
+                               xold(ig, jg, kg - 1),
+                               fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
+                               vol_(ig, jg, kg - 1), eqnState, suth, turb,
+                               inp, true);
+          } else {
+            cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux " <<
+                "jacobian method  of " << inp.InvFluxJac() <<
+                " is not recognized!" << endl;
+            exit(1);
+          }
+        }
 
-	// --------------------------------------------------------------
-	// if i upper diagonal cell is in physical location there is a
-	// contribution from it
-	if (this->IsPhysical(ip + 1, jp, kp, false) ||
-	    bc_.GetBCName(ip + 1, jp, kp, "iu") == "interblock") {
-	  // update off diagonal
-	  if (inp.InvFluxJac() == "rusanov") {
-	    offDiagonal -= RusanovOffDiagonal(state_(ig + 1, jg, kg), xold(ig + 1, jg, kg),
-					      fAreaI_(ig + 1, jg, kg), fAreaI_(ig + 2, jg, kg),
-					      vol_(ig + 1, jg, kg), eqnState, suth, turb,
-					      inp, false);
-	  } else if (inp.InvFluxJac() == "approximateRoe") {
-	    offDiagonal -= RoeOffDiagonal(state_(ig + 1, jg, kg), state_(ig, jg, kg),
-					  xold(ig + 1, jg, kg),
-					  fAreaI_(ig + 1, jg, kg), fAreaI_(ig + 2, jg, kg),
-					  vol_(ig + 1, jg, kg), eqnState, suth, turb,
-					  inp, false);
-	  } else {
-	    cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux jacobian " <<
-	      "method  of " << inp.InvFluxJac() << " is not recognized!" << endl;
-	    exit(1);
-	  }
-	}
+        // --------------------------------------------------------------
+        // if i upper diagonal cell is in physical location there is a
+        // contribution from it
+        if (this->IsPhysical(ip + 1, jp, kp, false) ||
+            bc_.GetBCName(ip + 1, jp, kp, "iu") == "interblock") {
+          // update off diagonal
+          if (inp.InvFluxJac() == "rusanov") {
+            offDiagonal -=
+                RusanovOffDiagonal(state_(ig + 1, jg, kg), xold(ig + 1, jg, kg),
+                                   fAreaI_(ig + 1, jg, kg),
+                                   fAreaI_(ig + 2, jg, kg),
+                                   vol_(ig + 1, jg, kg), eqnState, suth, turb,
+                                   inp, false);
+          } else if (inp.InvFluxJac() == "approximateRoe") {
+            offDiagonal -=
+                RoeOffDiagonal(state_(ig + 1, jg, kg), state_(ig, jg, kg),
+                               xold(ig + 1, jg, kg),
+                               fAreaI_(ig + 1, jg, kg), fAreaI_(ig + 2, jg, kg),
+                               vol_(ig + 1, jg, kg), eqnState, suth, turb,
+                               inp, false);
+          } else {
+            cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux " <<
+                "jacobian method  of " << inp.InvFluxJac() <<
+                " is not recognized!" << endl;
+            exit(1);
+          }
+        }
 
-	// --------------------------------------------------------------
-	// if j upper diagonal cell is in physical location there is a
-	// contribution from it
-	if (this->IsPhysical(ip, jp + 1, kp, false) ||
-	    bc_.GetBCName(ip, jp + 1, kp, "ju") == "interblock") {
-	  // update off diagonal
-	  if (inp.InvFluxJac() == "rusanov") {
-	    offDiagonal -= RusanovOffDiagonal(state_(ig, jg + 1, kg), xold(ig, jg + 1, kg),
-					      fAreaJ_(ig, jg + 1, kg), fAreaJ_(ig, jg + 2, kg),
-					      vol_(ig, jg + 1, kg), eqnState, suth, turb,
-					      inp, false);
-	  } else if (inp.InvFluxJac() == "approximateRoe") {
-	    offDiagonal -= RoeOffDiagonal(state_(ig, jg + 1, kg), state_(ig, jg, kg),
-					  xold(ig, jg + 1, kg),
-					  fAreaJ_(ig, jg + 1, kg), fAreaJ_(ig, jg + 2, kg),
-					  vol_(ig, jg + 1, kg), eqnState, suth, turb,
-					  inp, false);
-	  } else {
-	    cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux jacobian " <<
-	      "method  of " << inp.InvFluxJac() << " is not recognized!" << endl;
-	    exit(1);
-	  }
-	}
+        // --------------------------------------------------------------
+        // if j upper diagonal cell is in physical location there is a
+        // contribution from it
+        if (this->IsPhysical(ip, jp + 1, kp, false) ||
+            bc_.GetBCName(ip, jp + 1, kp, "ju") == "interblock") {
+          // update off diagonal
+          if (inp.InvFluxJac() == "rusanov") {
+            offDiagonal -=
+                RusanovOffDiagonal(state_(ig, jg + 1, kg), xold(ig, jg + 1, kg),
+                                   fAreaJ_(ig, jg + 1, kg),
+                                   fAreaJ_(ig, jg + 2, kg),
+                                   vol_(ig, jg + 1, kg), eqnState, suth, turb,
+                                   inp, false);
+          } else if (inp.InvFluxJac() == "approximateRoe") {
+            offDiagonal -=
+                RoeOffDiagonal(state_(ig, jg + 1, kg), state_(ig, jg, kg),
+                               xold(ig, jg + 1, kg),
+                               fAreaJ_(ig, jg + 1, kg), fAreaJ_(ig, jg + 2, kg),
+                               vol_(ig, jg + 1, kg), eqnState, suth, turb,
+                               inp, false);
+          } else {
+            cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux " <<
+                "jacobian method  of " << inp.InvFluxJac() <<
+                " is not recognized!" << endl;
+            exit(1);
+          }
+        }
 
-	// --------------------------------------------------------------
-	// if k upper diagonal cell is in physical location there is a
-	// contribution from it
-	if (this->IsPhysical(ip, jp, kp + 1, false) ||
-	    bc_.GetBCName(ip, jp, kp + 1, "ku") == "interblock") {
-	  // update off diagonal
-	  if (inp.InvFluxJac() == "rusanov") {
-	    offDiagonal -= RusanovOffDiagonal(state_(ig, jg, kg + 1), xold(ig, jg, kg + 1),
-					      fAreaK_(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 2),
-					      vol_(ig, jg, kg + 1), eqnState, suth, turb,
-					      inp, false);
-	  } else if (inp.InvFluxJac() == "approximateRoe") {
-	    offDiagonal -= RoeOffDiagonal(state_(ig, jg, kg + 1), state_(ig, jg, kg),
-					  xold(ig, jg, kg + 1),
-					  fAreaK_(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 2),
-					  vol_(ig, jg, kg + 1), eqnState, suth, turb,
-					  inp, false);
-	  } else {
-	    cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux jacobian " <<
-	      "method  of " << inp.InvFluxJac() << " is not recognized!" << endl;
-	    exit(1);
-	  }
-	}
+        // --------------------------------------------------------------
+        // if k upper diagonal cell is in physical location there is a
+        // contribution from it
+        if (this->IsPhysical(ip, jp, kp + 1, false) ||
+            bc_.GetBCName(ip, jp, kp + 1, "ku") == "interblock") {
+          // update off diagonal
+          if (inp.InvFluxJac() == "rusanov") {
+            offDiagonal -=
+                RusanovOffDiagonal(state_(ig, jg, kg + 1), xold(ig, jg, kg + 1),
+                                   fAreaK_(ig, jg, kg + 1),
+                                   fAreaK_(ig, jg, kg + 2),
+                                   vol_(ig, jg, kg + 1), eqnState, suth, turb,
+                                   inp, false);
+          } else if (inp.InvFluxJac() == "approximateRoe") {
+            offDiagonal -=
+                RoeOffDiagonal(state_(ig, jg, kg + 1), state_(ig, jg, kg),
+                               xold(ig, jg, kg + 1),
+                               fAreaK_(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 2),
+                               vol_(ig, jg, kg + 1), eqnState, suth, turb,
+                               inp, false);
+          } else {
+            cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux " <<
+                "jacobian method  of " << inp.InvFluxJac() <<
+                " is not recognized!" << endl;
+            exit(1);
+          }
+        }
 
-	// --------------------------------------------------------------
+        // --------------------------------------------------------------
 
-	// calculate update
-	x(ig, jg, kg) = aInv(ip, jp, kp).ArrayMult(
-	     -thetaInv * residual_(ip, jp, kp)
-	     - solDeltaNm1(ip, jp, kp) - solTimeMmN(ip, jp, kp)
-	     + offDiagonal);
-	  
-	// calculate matrix error
-	const auto error = x(ig, jg, kg) - xold(ig, jg, kg);
-	l2Error += error * error;
+        // calculate update
+        x(ig, jg, kg) = aInv(ip, jp, kp).ArrayMult(
+            -thetaInv * residual_(ip, jp, kp)
+            - solDeltaNm1(ip, jp, kp) - solTimeMmN(ip, jp, kp)
+            + offDiagonal);
 
+        // calculate matrix error
+        const auto error = x(ig, jg, kg) - xold(ig, jg, kg);
+        l2Error += error * error;
       }
     }
   }
@@ -1529,23 +1561,23 @@ multiArray3d<genArray> procBlock::InitializeMatrixUpdate(const input &inp,
 
   // allocate multiarray for update
   multiArray3d<genArray> x(this->NumIG(), this->NumJG(), this->NumKG(),
-			   genArray(0.0));
+                           genArray(0.0));
 
   if (inp.MatrixRequiresInitialization()) {
     const auto thetaInv = 1.0 / inp.Theta();
 
     for (auto kp = 0, kg = numGhosts_; kp < this->NumK(); kg++, kp++) {
       for (auto jp = 0, jg = numGhosts_; jp < this->NumJ(); jg++, jp++) {
-	for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
-	  // calculate update
-	  x(ig, jg, kg) = aInv(ip, jp, kp).ArrayMult(
-	        -thetaInv * residual_(ip, jp, kp) -
-	        solDeltaNm1(ip, jp, kp) - solTimeMmN(ip, jp, kp));
-	}
+        for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
+          // calculate update
+          x(ig, jg, kg) = aInv(ip, jp, kp).ArrayMult(
+              -thetaInv * residual_(ip, jp, kp) -
+              solDeltaNm1(ip, jp, kp) - solTimeMmN(ip, jp, kp));
+        }
       }
     }
   }
-  
+
   return x;
 }
 
@@ -1846,9 +1878,12 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
   //                 implicit solver
 
   // loop over all physical i-faces
-  for (auto kp = 0, kg = numGhosts_; kg < fAreaI_.NumK() - numGhosts_; kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jg < fAreaI_.NumJ() - numGhosts_; jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ig < fAreaI_.NumI() - numGhosts_; ig++, ip++) {
+  for (auto kp = 0, kg = numGhosts_; kg < fAreaI_.NumK() - numGhosts_;
+       kg++, kp++) {
+    for (auto jp = 0, jg = numGhosts_; jg < fAreaI_.NumJ() - numGhosts_;
+         jg++, jp++) {
+      for (auto ip = 0, ig = numGhosts_; ig < fAreaI_.NumI() - numGhosts_;
+           ig++, ip++) {
         // Get state at face
         auto state =
             FaceReconCentral(state_(ig - 1, jg, kg),
@@ -1889,26 +1924,26 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
         // at right boundary there is no right cell to add to
         if (ig < fAreaI_.NumI() - numGhosts_ - 1) {
           this->AddToResidual(tempViscFlux *
-                                this->FAreaMagI(ig, jg, kg),
-                                ip, jp, kp);
+                              this->FAreaMagI(ig, jg, kg),
+                              ip, jp, kp);
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-	  // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
-	  specRadius_(ip, jp, kp).AddToFlowVariable(2.0 *
-	      state_(ig, jg, kg).ViscCellSpectralRadius(fAreaI_(ig, jg, kg),
-							      fAreaI_(ig + 1, jg, kg),
-							      eqnState, suth,
-							      vol_(ig, jg, kg), turb));
-	  if (inp.IsTurbulent()) {
-	    // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
-	    specRadius_(ip, jp, kp).AddToTurbVariable(2.0 *
-		  turb->ViscSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
-		 		    fAreaI_(ig + 1, jg, kg), eqnState, suth,
-				    vol_(ig, jg, kg)));
-	  }
+          // factor 2 because visc spectral radius is not halved (Blazek 6.53)
+          specRadius_(ip, jp, kp).AddToFlowVariable(
+              2.0 * state_(ig, jg, kg).ViscCellSpectralRadius(
+                  fAreaI_(ig, jg, kg), fAreaI_(ig + 1, jg, kg), eqnState, suth,
+                  vol_(ig, jg, kg), turb));
 
-	  // if using block matrix on main diagonal, calculate flux jacobian
+          if (inp.IsTurbulent()) {
+            // factor 2 because visc spectral radius is not halved (Blazek 6.53)
+            specRadius_(ip, jp, kp).AddToTurbVariable(
+                2.0 * turb->ViscSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
+                                        fAreaI_(ig + 1, jg, kg), eqnState, suth,
+                                        vol_(ig, jg, kg)));
+          }
+
+          // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             mainDiagonal(ip, jp, kp).AddViscousJacobian(
                 state_(ig, jg, kg), fAreaI_(ig, jg, kg),
@@ -2007,9 +2042,12 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
   //                 implicit solver
 
   // loop over all physical j-faces
-  for (auto kp = 0, kg = numGhosts_; kg < fAreaJ_.NumK() - numGhosts_; kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jg < fAreaJ_.NumJ() - numGhosts_; jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ig < fAreaJ_.NumI() - numGhosts_; ig++, ip++) {
+  for (auto kp = 0, kg = numGhosts_; kg < fAreaJ_.NumK() - numGhosts_;
+       kg++, kp++) {
+    for (auto jp = 0, jg = numGhosts_; jg < fAreaJ_.NumJ() - numGhosts_;
+         jg++, jp++) {
+      for (auto ip = 0, ig = numGhosts_; ig < fAreaJ_.NumI() - numGhosts_;
+           ig++, ip++) {
         // Get velocity at face
         auto state =
             FaceReconCentral(state_(ig, jg - 1, kg),
@@ -2050,26 +2088,26 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
         // at right boundary there is no right cell to add to
         if (jg < fAreaJ_.NumJ() - numGhosts_ - 1) {
           this->AddToResidual(tempViscFlux *
-                                this->FAreaMagJ(ig, jg, kg),
-                                ip, jp, kp);
+                              this->FAreaMagJ(ig, jg, kg),
+                              ip, jp, kp);
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-	  // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
-	  specRadius_(ip, jp, kp).AddToFlowVariable(2.0 *
-	      state_(ig, jg, kg).ViscCellSpectralRadius(fAreaJ_(ig, jg, kg),
-							      fAreaJ_(ig, jg + 1, kg),
-							      eqnState, suth,
-							      vol_(ig, jg, kg), turb));
-	  if (inp.IsTurbulent()) {
-	    // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
-	    specRadius_(ip, jp, kp).AddToTurbVariable(2.0 *
-		  turb->ViscSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
-		 		    fAreaJ_(ig, jg + 1, kg), eqnState, suth,
-				    vol_(ig, jg, kg)));
-	  }
+          // factor 2 because visc spectral radius is not halved (Blazek 6.53)
+          specRadius_(ip, jp, kp).AddToFlowVariable(
+              2.0 * state_(ig, jg, kg).ViscCellSpectralRadius(
+                  fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg + 1, kg), eqnState, suth,
+                  vol_(ig, jg, kg), turb));
 
-	  // if using block matrix on main diagonal, calculate flux jacobian
+          if (inp.IsTurbulent()) {
+            // factor 2 because visc spectral radius is not halved (Blazek 6.53)
+            specRadius_(ip, jp, kp).AddToTurbVariable(
+                2.0 * turb->ViscSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
+                                        fAreaJ_(ig, jg + 1, kg), eqnState, suth,
+                                        vol_(ig, jg, kg)));
+          }
+
+          // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             mainDiagonal(ip, jp, kp).AddViscousJacobian(
                 state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
@@ -2167,9 +2205,12 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
   //                 implicit solver
 
   // loop over all physical k-faces
-  for (auto kp = 0, kg = numGhosts_; kg < fAreaK_.NumK() - numGhosts_; kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jg < fAreaK_.NumJ() - numGhosts_; jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ig < fAreaK_.NumI() - numGhosts_; ig++, ip++) {
+  for (auto kp = 0, kg = numGhosts_; kg < fAreaK_.NumK() - numGhosts_;
+       kg++, kp++) {
+    for (auto jp = 0, jg = numGhosts_; jg < fAreaK_.NumJ() - numGhosts_;
+         jg++, jp++) {
+      for (auto ip = 0, ig = numGhosts_; ig < fAreaK_.NumI() - numGhosts_;
+           ig++, ip++) {
         // Get state at face
         auto state =
             FaceReconCentral(state_(ig, jg, kg - 1),
@@ -2210,26 +2251,26 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
         // at right boundary there is no right cell to add to
         if (kg < fAreaK_.NumK() - numGhosts_ - 1) {
           this->AddToResidual(tempViscFlux *
-                                this->FAreaMagK(ig, jg, kg),
-                                ip, jp, kp);
+                              this->FAreaMagK(ig, jg, kg),
+                              ip, jp, kp);
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-	  // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
-	  specRadius_(ip, jp, kp).AddToFlowVariable(2.0 *
-	      state_(ig, jg, kg).ViscCellSpectralRadius(fAreaK_(ig, jg, kg),
-							      fAreaK_(ig, jg, kg + 1),
-							      eqnState, suth,
-							      vol_(ig, jg, kg), turb));
-	  if (inp.IsTurbulent()) {
-	    // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
-	    specRadius_(ip, jp, kp).AddToTurbVariable(2.0 *
-		  turb->ViscSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
-		 		    fAreaK_(ig, jg, kg + 1), eqnState, suth,
-				    vol_(ig, jg, kg)));
-	  }
+          // factor 2 because visc spectral radius is not halved (Blazek 6.53)
+          specRadius_(ip, jp, kp).AddToFlowVariable(
+              2.0 * state_(ig, jg, kg).ViscCellSpectralRadius(
+                  fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg + 1), eqnState, suth,
+                  vol_(ig, jg, kg), turb));
+          
+          if (inp.IsTurbulent()) {
+            // factor 2 because visc spectral radius is not halved (Blazek 6.53)
+            specRadius_(ip, jp, kp).AddToTurbVariable(
+                2.0 * turb->ViscSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
+                                        fAreaK_(ig, jg, kg + 1), eqnState, suth,
+                                        vol_(ig, jg, kg)));
+          }
 
-	  // if using block matrix on main diagonal, calculate flux jacobian
+          // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             mainDiagonal(ip, jp, kp).AddViscousJacobian(
                 state_(ig, jg, kg), fAreaK_(ig, jg, kg),
@@ -5409,7 +5450,7 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
 /*Member function to receive and unpack procBlock state data. This is used to
  * gather the solution on the ROOT processor to write out the solution. */
 void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
-				 const MPI_Datatype &MPI_uncoupledScalar) {
+                                 const MPI_Datatype &MPI_uncoupledScalar) {
   // MPI_cellData -- MPI data type for cell data
   // MPI_uncoupledScalar -- MPI data type for uncoupledScalar
 
@@ -5455,9 +5496,9 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
  * This is used to gather the solution on the ROOT processor to write out the
  * solution. */
 void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
-			       const MPI_Datatype &MPI_uncoupledScalar) const {
+                               const MPI_Datatype &MPI_uncoupledScalar) const {
   // MPI_cellData -- MPI data type for cell data
-  // MPI_uncoupledScalar -- MPI data type for uncoupledScalar  
+  // MPI_uncoupledScalar -- MPI data type for uncoupledScalar
 
   // determine size of buffer to send
   auto sendBufSize = 0;
@@ -5559,7 +5600,7 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
 
     // assign cell variables without ghost cells
     blk1.specRadius_.Insert(0, iMax1, 0, jMax, 0, kMax,
-			    specRadius_.Slice(0, iMax1, 0, jMax, 0, kMax));
+                            specRadius_.Slice(0, iMax1, 0, jMax, 0, kMax));
     blk1.dt_.Insert(0, iMax1, 0, jMax, 0, kMax,
                     dt_.Slice(0, iMax1, 0, jMax, 0, kMax));
     blk1.residual_.Insert(0, iMax1, 0, jMax, 0, kMax,
@@ -5595,8 +5636,8 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
 
     // assign cell variables without ghost cells
     blk2.specRadius_.Insert(0, iMax2, 0, jMax, 0, kMax,
-			    specRadius_.Slice(iMinP2, iMaxP2, 0, jMax, 0,
-					      kMax));
+                            specRadius_.Slice(iMinP2, iMaxP2, 0, jMax, 0,
+                                              kMax));
     blk2.dt_.Insert(0, iMax2, 0, jMax, 0, kMax,
                     dt_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
     blk2.residual_.Insert(0, iMax2, 0, jMax, 0, kMax,
@@ -5671,7 +5712,7 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
 
     // assign cell variables without ghost cells
     blk1.specRadius_.Insert(0, iMax, 0, jMax1, 0, kMax,
-			    specRadius_.Slice(0, iMax, 0, jMax1, 0, kMax));
+                            specRadius_.Slice(0, iMax, 0, jMax1, 0, kMax));
     blk1.dt_.Insert(0, iMax, 0, jMax1, 0, kMax,
                     dt_.Slice(0, iMax, 0, jMax1, 0, kMax));
     blk1.residual_.Insert(0, iMax, 0, jMax1, 0, kMax,
@@ -5707,8 +5748,8 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
 
     // assign cell variables without ghost cells
     blk2.specRadius_.Insert(0, iMax, 0, jMax2, 0, kMax,
-			    specRadius_.Slice(0, iMax, jMinP2, jMaxP2, 0,
-					      kMax));
+                            specRadius_.Slice(0, iMax, jMinP2, jMaxP2, 0,
+                                              kMax));
     blk2.dt_.Insert(0, iMax, 0, jMax2, 0, kMax,
                     dt_.Slice(0, iMax, jMinP2, jMaxP2, 0, kMax));
     blk2.residual_.Insert(0, iMax, 0, jMax2, 0, kMax,
@@ -5783,7 +5824,7 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
 
     // assign cell variables without ghost cells
     blk1.specRadius_.Insert(0, iMax, 0, jMax, 0, kMax1,
-			    specRadius_.Slice(0, iMax, 0, jMax, 0, kMax1));
+                            specRadius_.Slice(0, iMax, 0, jMax, 0, kMax1));
     blk1.dt_.Insert(0, iMax, 0, jMax, 0, kMax1,
                     dt_.Slice(0, iMax, 0, jMax, 0, kMax1));
     blk1.residual_.Insert(0, iMax, 0, jMax, 0, kMax1,
@@ -5819,8 +5860,8 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
 
     // assign cell variables without ghost cells
     blk2.specRadius_.Insert(0, iMax, 0, jMax, 0, kMax2,
-			    specRadius_.Slice(0, iMax, 0, jMax, kMinP2,
-					      kMaxP2));
+                            specRadius_.Slice(0, iMax, 0, jMax, kMinP2,
+                                              kMaxP2));
     blk2.dt_.Insert(0, iMax, 0, jMax, 0, kMax2,
                     dt_.Slice(0, iMax, 0, jMax, kMinP2, kMaxP2));
     blk2.residual_.Insert(0, iMax, 0, jMax, 0, kMax2,
@@ -5883,7 +5924,8 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 
     const auto iMaxUG = blk.NumI() + 2 * blk.numGhosts_ - 1;
     const auto iMaxU = blk.NumI() - 1;
-    const auto iMaxLG = this->NumI() + numGhosts_ - 1;  // don't copy upper ghosts
+    // don't copy upper ghosts
+    const auto iMaxLG = this->NumI() + numGhosts_ - 1;
     const auto iMaxL = this->NumI() - 1;
 
     const auto iMinUG = numGhosts_;
@@ -5904,8 +5946,8 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 
     // assign cell variables without ghost cells
     newBlk.specRadius_.Insert(0, iMaxL, 0, jMax, 0, kMax,
-			      specRadius_.Slice(0, iMaxL, 0, jMax, 0,
-						kMax));
+                              specRadius_.Slice(0, iMaxL, 0, jMax, 0,
+                                                kMax));
     newBlk.dt_.Insert(0, iMaxL, 0, jMax, 0, kMax,
                       dt_.Slice(0, iMaxL, 0, jMax, 0, kMax));
     newBlk.residual_.Insert(0, iMaxL, 0, jMax, 0, kMax,
@@ -5941,7 +5983,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 
     // assign cell variables without ghost cells
     newBlk.specRadius_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
-			      blk.specRadius_.Slice(0, iMaxU, 0, jMax, 0,
+                              blk.specRadius_.Slice(0, iMaxU, 0, jMax, 0,
                                                     kMax));
     newBlk.dt_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
                       blk.dt_.Slice(0, iMaxU, 0, jMax, 0, kMax));
@@ -5985,7 +6027,8 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 
     const auto jMaxUG = blk.NumJ() + 2 * blk.numGhosts_ - 1;
     const auto jMaxU = blk.NumJ() - 1;
-    const auto jMaxLG = this->NumJ() + numGhosts_ - 1;  // don't copy upper ghosts
+    // don't copy upper ghosts
+    const auto jMaxLG = this->NumJ() + numGhosts_ - 1;
     const auto jMaxL = this->NumJ() - 1;
 
     const auto jMinUG = numGhosts_;
@@ -6006,8 +6049,8 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 
     // assign cell variables without ghost cells
     newBlk.specRadius_.Insert(0, iMax, 0, jMaxL, 0, kMax,
-			      specRadius_.Slice(0, iMax, 0, jMaxL, 0,
-						kMax));
+                              specRadius_.Slice(0, iMax, 0, jMaxL, 0,
+                                                kMax));
     newBlk.dt_.Insert(0, iMax, 0, jMaxL, 0, kMax,
                       dt_.Slice(0, iMax, 0, jMaxL, 0, kMax));
     newBlk.residual_.Insert(0, iMax, 0, jMaxL, 0, kMax,
@@ -6043,7 +6086,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 
     // assign cell variables without ghost cells
     newBlk.specRadius_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
-			      blk.specRadius_.Slice(0, iMax, 0, jMaxU, 0,
+                              blk.specRadius_.Slice(0, iMax, 0, jMaxU, 0,
                                                     kMax));
     newBlk.dt_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
                       blk.dt_.Slice(0, iMax, 0, jMaxU, 0, kMax));
@@ -6087,7 +6130,8 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 
     const auto kMaxUG = blk.NumK() + 2 * blk.numGhosts_ - 1;
     const auto kMaxU = blk.NumK() - 1;
-    const auto kMaxLG = this->NumK() + numGhosts_ - 1;  // don't copy upper ghosts
+    // don't copy upper ghosts
+    const auto kMaxLG = this->NumK() + numGhosts_ - 1;
     const auto kMaxL = this->NumK() - 1;
 
     const auto kMinUG = numGhosts_;
@@ -6108,8 +6152,8 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 
     // assign cell variables without ghost cells
     newBlk.specRadius_.Insert(0, iMax, 0, jMax, 0, kMaxL,
-			      specRadius_.Slice(0, iMax, 0, jMax, 0,
-						kMaxL));
+                              specRadius_.Slice(0, iMax, 0, jMax, 0,
+                                                kMaxL));
     newBlk.dt_.Insert(0, iMax, 0, jMax, 0, kMaxL,
                       dt_.Slice(0, iMax, 0, jMax, 0, kMaxL));
     newBlk.residual_.Insert(0, iMax, 0, jMax, 0, kMaxL,
@@ -6145,7 +6189,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 
     // assign cell variables without ghost cells
     newBlk.specRadius_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
-			      blk.specRadius_.Slice(0, iMax, 0, jMax, 0,
+                              blk.specRadius_.Slice(0, iMax, 0, jMax, 0,
                                                     kMaxU));
     newBlk.dt_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
                       blk.dt_.Slice(0, iMax, 0, jMax, 0, kMaxU));
@@ -6562,7 +6606,7 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
 void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
                              const idealGas &eos,
                              const unique_ptr<turbModel> &turb,
-			     const input &inp,
+                             const input &inp,
                              multiArray3d<fluxJacobian> &mainDiagonal) {
   // grads -- gradients (vel, temp, tke, omega)
   // suth -- sutherland's law for viscosity
@@ -6585,15 +6629,15 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
         this->SubtractFromResidual(src * (vol_(ig, jg, kg)),
                                    ip, jp, kp);
 
-	// add source spectral radius for turbulence equations
+        // add source spectral radius for turbulence equations
         specRadius_(ip, jp, kp).SubtractFromTurbVariable(
-	    turb->SrcSpecRad(state_(ig, jg, kg), suth, vol_(ig, jg, kg)));
+            turb->SrcSpecRad(state_(ig, jg, kg), suth, vol_(ig, jg, kg)));
 
-	// add contribution of source spectral radius to flux jacobian
-	if (inp.IsBlockMatrix()) {
-	  mainDiagonal(ip, jp, kp).AddTurbSourceJacobian(
-	     state_(ig, jg, kg), suth, vol_(ig, jg, kg), turb);
-	}
+        // add contribution of source spectral radius to flux jacobian
+        if (inp.IsBlockMatrix()) {
+          mainDiagonal(ip, jp, kp).AddTurbSourceJacobian(
+              state_(ig, jg, kg), suth, vol_(ig, jg, kg), turb);
+        }
       }
     }
   }
@@ -6790,17 +6834,17 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   vector<multiArray3d<genArray>> du(blocks.size());
   for (auto bb = 0; bb < static_cast<int>(blocks.size()); bb++) {
     du[bb] = blocks[bb].InitializeMatrixUpdate(inp, solDeltaMmN[bb],
-					       solDeltaNm1[bb], mainDiagonal[bb]);
+                                               solDeltaNm1[bb],
+                                               mainDiagonal[bb]);
   }
-  
-  
+
   // Solve Ax=b with supported solver
   if (inp.MatrixSolver() == "lusgs") {
     // calculate order by hyperplanes for each block
     vector<vector<vector3d<int>>> reorder(blocks.size());
     for (auto bb = 0; bb < static_cast<int>(blocks.size()); bb++) {
       reorder[bb] = HyperplaneReorder(blocks[bb].NumI(), blocks[bb].NumJ(),
-				      blocks[bb].NumK());
+                      blocks[bb].NumK());
     }
 
     // start sweeps through domain
@@ -6810,34 +6854,33 @@ double ImplicitUpdate(vector<procBlock> &blocks,
 
       // forward lu-sgs sweep
       for (auto bb = 0; bb < static_cast<int>(blocks.size()); bb++) {
-	blocks[bb].LUSGS_Forward(reorder[bb], du[bb], solDeltaMmN[bb],
-				 solDeltaNm1[bb], eos, inp, suth, turb,
-				 mainDiagonal[bb], ii);
+    blocks[bb].LUSGS_Forward(reorder[bb], du[bb], solDeltaMmN[bb],
+                 solDeltaNm1[bb], eos, inp, suth, turb,
+                 mainDiagonal[bb], ii);
       }
 
       // swap updates for ghost cells
       SwapImplicitUpdate(du, connections, rank, MPI_cellData, numG);
-	      
+
       // backward lu-sgs sweep
       for (auto bb =0; bb < static_cast<int>(blocks.size()); bb++) {
-	matrixError += blocks[bb].LUSGS_Backward(reorder[bb], du[bb],
-						 solDeltaMmN[bb],
-						 solDeltaNm1[bb], eos, inp,
-						 suth, turb, mainDiagonal[bb], ii);
+    matrixError += blocks[bb].LUSGS_Backward(reorder[bb], du[bb],
+                         solDeltaMmN[bb],
+                         solDeltaNm1[bb], eos, inp,
+                         suth, turb, mainDiagonal[bb], ii);
       }
     }
   } else if (inp.MatrixSolver() == "dplur") {
     for (auto ii = 0; ii < inp.MatrixSweeps(); ii++) {
       // swap updates for ghost cells
       SwapImplicitUpdate(du, connections, rank, MPI_cellData, numG);
-	      
+
       for (auto bb = 0; bb < static_cast<int>(blocks.size()); bb++) {
         // Calculate correction (du)
         matrixError += blocks[bb].DPLUR(du[bb], solDeltaMmN[bb],
                                         solDeltaNm1[bb], eos, inp, suth, turb,
                                         mainDiagonal[bb]);
       }
-
     }
   } else {
     cerr << "ERROR: Matrix solver " << inp.MatrixSolver() <<

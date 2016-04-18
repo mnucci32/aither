@@ -17,6 +17,7 @@
 #include <cmath>  // sqrt
 #include <string>
 #include <memory>
+#include <algorithm>  // max
 #include "fluxJacobian.hpp"
 #include "turbulence.hpp"    // turbModel
 #include "input.hpp"         // input
@@ -186,9 +187,9 @@ In the above equations the dissipation term L is held constant during
 differentiation. A represents the convective flux jacobian matrix.
  */
 squareMatrix RusanovFluxJacobian(const primVars &left, const primVars &right,
-				 const idealGas &eos,
-				 const vector3d<double> &areaNorm,
-				 const bool &positive) {
+                                 const idealGas &eos,
+                                 const vector3d<double> &areaNorm,
+                                 const bool &positive) {
   // left -- primative variables from left side
   // right -- primative variables from right side
   // eos -- ideal gas equation of state
@@ -197,9 +198,9 @@ squareMatrix RusanovFluxJacobian(const primVars &left, const primVars &right,
 
   // dot product of velocities with unit area vector
   const auto specRad = std::max(fabs(left.Velocity().DotProd(areaNorm)) +
-				left.SoS(eos),
-				fabs(right.Velocity().DotProd(areaNorm)) +
-				right.SoS(eos));
+                                left.SoS(eos),
+                                fabs(right.Velocity().DotProd(areaNorm)) +
+                                right.SoS(eos));
 
   // form dissipation matrix based on spectral radius
   squareMatrix dissipation(5);
@@ -208,9 +209,11 @@ squareMatrix RusanovFluxJacobian(const primVars &left, const primVars &right,
 
   // begin jacobian calculation
   const auto fluxJac = positive ?
-    InvFluxJacobian(left, eos, areaNorm) : InvFluxJacobian(right, eos, areaNorm);
+      InvFluxJacobian(left, eos, areaNorm) :
+      InvFluxJacobian(right, eos, areaNorm);
 
-  return positive ? 0.5 * (fluxJac + dissipation) : 0.5 * (fluxJac - dissipation);
+  return positive ? 0.5 * (fluxJac + dissipation) :
+      0.5 * (fluxJac - dissipation);
 }
 
 // function to calculate inviscid flux jacobian
@@ -226,7 +229,7 @@ squareMatrix InvFluxJacobian(const primVars &state,
   const auto phi = 0.5 * gammaMinusOne * state.Velocity().MagSq();
   const auto a1 = eqnState.Gamma() * state.Energy(eqnState) - phi;
   const auto a3 = eqnState.Gamma() - 2.0;
-  
+
   // begin jacobian calculation
   squareMatrix A(5);
 
@@ -284,9 +287,9 @@ In the above equations the Roe matrix Aroe is held constant during
 differentiation. A represents the convective flux jacobian matrix.
  */
 squareMatrix ApproxRoeFluxJacobian(const primVars &left, const primVars &right,
-				   const idealGas &eos,
-				   const vector3d<double> &areaNorm,
-				   const bool &positive) {
+                                   const idealGas &eos,
+                                   const vector3d<double> &areaNorm,
+                                   const bool &positive) {
   // left -- primative variables from left side
   // right -- primative variables from right side
   // eos -- ideal gas equation of state
@@ -300,18 +303,19 @@ squareMatrix ApproxRoeFluxJacobian(const primVars &left, const primVars &right,
   const auto Aroe = InvFluxJacobian(roeAvg, eos, areaNorm);
 
   // compute convective flux jacobian
-  const auto fluxJac = positive ?
-    InvFluxJacobian(left, eos, areaNorm) : InvFluxJacobian(right, eos, areaNorm);
+  const auto fluxJac = positive ? InvFluxJacobian(left, eos, areaNorm) :
+      InvFluxJacobian(right, eos, areaNorm);
 
   return positive ? 0.5 * (fluxJac + Aroe) : 0.5 * (fluxJac - Aroe);
 }
 
 genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
-			    const unitVec3dMag<double> &fAreaL,
-			    const unitVec3dMag<double> &fAreaR,			    
-			    const double &vol, const idealGas &eos,
-			    const sutherland &suth, const unique_ptr<turbModel> &turb,
-			    const input &inp, const bool &positive) {
+                            const unitVec3dMag<double> &fAreaL,
+                            const unitVec3dMag<double> &fAreaR,
+                            const double &vol, const idealGas &eos,
+                            const sutherland &suth,
+                            const unique_ptr<turbModel> &turb,
+                            const input &inp, const bool &positive) {
   // state -- primative variables at off diagonal
   // update -- conserved variable update at off diagonal
   // fAreaL -- face area vector on off diagonal boundary
@@ -328,14 +332,15 @@ genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
 
   // calculate updated convective flux
   const auto fluxChange = ConvectiveFluxUpdate(state, stateUpdate, eos,
-					       fAreaL.UnitVector());
+                                               fAreaL.UnitVector());
 
   // can't use stored cell spectral radius b/c it has contribuitons from i, j, k
-  const uncoupledScalar specRad(state.CellSpectralRadius(fAreaL, fAreaR, eos, suth,
-							 vol, turb, inp.IsViscous()),
-				turb->SpectralRadius(state, fAreaL, fAreaR, eos, suth,
-						     vol, false));
-  
+  const uncoupledScalar specRad(state.CellSpectralRadius(fAreaL, fAreaR, eos,
+                                                         suth, vol, turb,
+                                                         inp.IsViscous()),
+                                turb->SpectralRadius(state, fAreaL, fAreaR, eos,
+                                                     suth, vol, false));
+
   return positive ?
     0.5 * (fAreaL.Mag() * fluxChange + specRad.ArrayMult(update)) :
     0.5 * (fAreaL.Mag() * fluxChange - specRad.ArrayMult(update));
@@ -343,14 +348,13 @@ genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
 
 
 genArray RoeOffDiagonal(const primVars &left, const primVars &right,
-			const genArray &update,
-			const unitVec3dMag<double> &fAreaL,
-			const unitVec3dMag<double> &fAreaR,			
-			const double &vol,
-			const idealGas &eos, const sutherland &suth,
-			const unique_ptr<turbModel> &turb,
-			const input &inp,
-			const bool &positive) {
+                        const genArray &update,
+                        const unitVec3dMag<double> &fAreaL,
+                        const unitVec3dMag<double> &fAreaR,
+                        const double &vol, const idealGas &eos,
+                        const sutherland &suth,
+                        const unique_ptr<turbModel> &turb,
+                        const input &inp, const bool &positive) {
   // left -- primative variables at left side
   // right -- primative variables at right side
   // update -- conserved variable update at off diagonal
@@ -369,8 +373,9 @@ genArray RoeOffDiagonal(const primVars &left, const primVars &right,
   const auto oldFlux = RoeFlux(left, right, eos, areaNorm);
 
   // calculate updated Roe flux
-  const auto stateUpdate = positive ? left.UpdateWithConsVars(eos, update, turb) :
-    right.UpdateWithConsVars(eos, update, turb);
+  const auto stateUpdate = positive ?
+      left.UpdateWithConsVars(eos, update, turb) :
+      right.UpdateWithConsVars(eos, update, turb);
 
   const auto newFlux = positive ?
     RoeFlux(stateUpdate, right, eos, areaNorm) :
@@ -382,30 +387,35 @@ genArray RoeOffDiagonal(const primVars &left, const primVars &right,
   if (inp.IsViscous()) {
     const auto offState = positive ? left : right;
 
-    specRad.AddToFlowVariable(offState.ViscCellSpectralRadius(fAreaL, fAreaR, eos, suth,
-							      vol, turb));
+    specRad.AddToFlowVariable(
+        offState.ViscCellSpectralRadius(fAreaL, fAreaR, eos, suth, vol, turb));
 
     // jac = ApproxTSLJacobian(offState, eos, suth, areaNorm, 1.0, turb);
-    
+
     if (inp.IsTurbulent()) {
-      specRad.AddToTurbVariable(turb->ViscSpecRad(offState, fAreaL, fAreaR, eos, suth, vol));
+      specRad.AddToTurbVariable(turb->ViscSpecRad(offState, fAreaL, fAreaR, eos,
+                                                  suth, vol));
     }
   }
 
-  // const auto invFluxJac = RusanovFluxJacobian(left, right, eos, areaNorm, positive);
+  // const auto invFluxJac = RusanovFluxJacobian(left, right, eos, areaNorm,
+  //                                             positive);
 
-  
+
   // don't need 0.5 factor on roe flux because RoeFlux function already does it
   return positive ?
-    fAreaL.Mag() * ((newFlux - oldFlux).ConvertToGenArray()) + 0.5 * specRad.ArrayMult(update) :
-    fAreaL.Mag() * ((newFlux - oldFlux).ConvertToGenArray()) - 0.5 * specRad.ArrayMult(update);
+    fAreaL.Mag() * ((newFlux - oldFlux).ConvertToGenArray()) +
+      0.5 * specRad.ArrayMult(update) :
+    fAreaL.Mag() * ((newFlux - oldFlux).ConvertToGenArray()) -
+      0.5 * specRad.ArrayMult(update);
     // fAreaL.Mag() * invFluxJac.VecMult(update) + 0.5 * specRadArr * update :
     // fAreaL.Mag() * invFluxJac.VecMult(update) - 0.5 * specRadArr * update;
 }
 
 // change of variable matrix going frim primative to conservative variables
 // from Dwight
-squareMatrix DelPrimativeDelConservative(const primVars &state, const idealGas &eos) {
+squareMatrix DelPrimativeDelConservative(const primVars &state,
+                                         const idealGas &eos) {
   // state -- primative variables
   // eos -- equation of state
 
@@ -442,8 +452,9 @@ squareMatrix DelPrimativeDelConservative(const primVars &state, const idealGas &
 // approximate thin shear layer jacobian following implementation in Dwight.
 // does not use any gradients
 squareMatrix ApproxTSLJacobian(const primVars &state, const idealGas &eos,
-			       const sutherland &suth, const vector3d<double> &area,
-			       const double &dist, const unique_ptr<turbModel> &turb) {
+                               const sutherland &suth,
+                               const vector3d<double> &area, const double &dist,
+                               const unique_ptr<turbModel> &turb) {
   // state -- primative variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
@@ -460,7 +471,7 @@ squareMatrix ApproxTSLJacobian(const primVars &state, const idealGas &eos,
   // assign first column
   jacobian(4, 0) = -eos.Conductivity(mu + mut) * state.Temperature(eos) /
     ((mu + mut) * state.Rho());
-  
+
   // assign second column
   jacobian(1, 1) = (1.0 / 3.0) * area.X() * area.X() + 1.0;
   jacobian(1, 2) = (1.0 / 3.0) * area.X() * area.Y();
@@ -470,21 +481,21 @@ squareMatrix ApproxTSLJacobian(const primVars &state, const idealGas &eos,
   // assign third column
   jacobian(2, 1) = (1.0 / 3.0) * area.Y() * area.X();
   jacobian(2, 2) = (1.0 / 3.0) * area.Y() * area.Y() + 1.0;
-  jacobian(2, 3) = (1.0 / 3.0) * area.Y() * area.Z();  
+  jacobian(2, 3) = (1.0 / 3.0) * area.Y() * area.Z();
   jacobian(2, 4) = (1.0 / 3.0) * area.Y() * velNorm + state.V();
 
   // assign fourth column
   jacobian(3, 1) = (1.0 / 3.0) * area.Z() * area.X();
   jacobian(3, 2) = (1.0 / 3.0) * area.Z() * area.Y();
-  jacobian(3, 3) = (1.0 / 3.0) * area.Z() * area.Z() + 1.0;  
+  jacobian(3, 3) = (1.0 / 3.0) * area.Z() * area.Z() + 1.0;
   jacobian(3, 4) = (1.0 / 3.0) * area.Z() * velNorm + state.W();
 
-  // assign fifth column  
+  // assign fifth column
   jacobian(4, 4) = eos.Conductivity(mu + mut) / ((mu + mut) * state.Rho());
 
   jacobian *= (mu + mut) / dist;
 
   const auto delPrimDelCons = DelPrimativeDelConservative(state, eos);
-  
+
   return jacobian.MatMult(delPrimDelCons);
 }

@@ -185,7 +185,7 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
   // divided differences to base limiter on; eps must be listed to left of
   // primVars
   const auto r = (EPS + (primDW1 - primUW1) * dPlus) /
-      (EPS + (primUW1 - primUW2) * dMinus);  
+      (EPS + (primUW1 - primUW2) * dMinus);
 
   primVars limiter;
   primVars invLimiter;
@@ -772,8 +772,8 @@ direction. A1 and A2 are the two face areas in that direction. Vn is the
 cell velocity normal to that direction. SoS is the speed of sound at the cell
  */
 double primVars::InvCellSpectralRadius(const unitVec3dMag<double> &fAreaL,
-				       const unitVec3dMag<double> &fAreaR,
-				       const idealGas &eqnState) const {
+                                       const unitVec3dMag<double> &fAreaR,
+                                       const idealGas &eqnState) const {
   // fAreaL -- face area of lower face in either i, j, or k direction
   // fAreaR -- face area of upper face in either i, j, or k direction
   // eqnState -- equation of state
@@ -838,21 +838,21 @@ double primVars::CellSpectralRadius(
   // vol -- cell volume
   // turb -- turbulence model
   // isViscous -- flag that is true if simulation is viscous
-  
+
   auto specRad = this->InvCellSpectralRadius(fAreaL, fAreaR, eqnState);
 
   if (isViscous) {
     // factor 2 2 because viscous spectral radius is not halved (Blazek 6.53)
-    specRad += 2.0 * this->ViscCellSpectralRadius(fAreaL, fAreaR, eqnState, suth,
-						  vol, turb);
+    specRad += 2.0 * this->ViscCellSpectralRadius(fAreaL, fAreaR, eqnState,
+                                                  suth, vol, turb);
   }
   return specRad;
 }
 
 
 // function to calculate the Roe averaged state
-primVars RoeAveragedState(const primVars &left, const primVars &right, const idealGas &eos) {
-
+primVars RoeAveragedState(const primVars &left, const primVars &right,
+                          const idealGas &eos) {
   // compute Rho averaged quantities
   // density ratio
   const auto denRatio = sqrt(right.Rho() / left.Rho());

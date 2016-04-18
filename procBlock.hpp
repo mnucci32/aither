@@ -226,7 +226,8 @@ class procBlock {
     return fCenterK_(ii, jj, kk);
   }
 
-  uncoupledScalar SpectralRadius(const int &ii, const int &jj, const int &kk) const {
+  uncoupledScalar SpectralRadius(const int &ii, const int &jj,
+                                 const int &kk) const {
     return specRadius_(ii, jj, kk);
   }
   double Dt(const int &ii, const int &jj, const int &kk) const {
@@ -295,20 +296,21 @@ class procBlock {
                                         const int &) const;
   void InvertDiagonal(multiArray3d<fluxJacobian> &, const input &) const;
 
-  multiArray3d<genArray> InitializeMatrixUpdate(const input &,
-						const multiArray3d<genArray> &,
-						const multiArray3d<genArray> &,
-						const multiArray3d<fluxJacobian> &) const;
+  multiArray3d<genArray> InitializeMatrixUpdate(
+      const input &, const multiArray3d<genArray> &,
+      const multiArray3d<genArray> &, const multiArray3d<fluxJacobian> &) const;
   void LUSGS_Forward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
-		     const multiArray3d<genArray> &, const multiArray3d<genArray> &,
-		     const idealGas &, const input &, const sutherland &,
-		     const unique_ptr<turbModel> &,
-		     const multiArray3d<fluxJacobian> &, const int &) const;
+                     const multiArray3d<genArray> &,
+                     const multiArray3d<genArray> &,
+                     const idealGas &, const input &, const sutherland &,
+                     const unique_ptr<turbModel> &,
+                     const multiArray3d<fluxJacobian> &, const int &) const;
   double LUSGS_Backward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
-			const multiArray3d<genArray> &, const multiArray3d<genArray> &,
-			const idealGas &, const input &, const sutherland &,
-			const unique_ptr<turbModel> &,
-			const multiArray3d<fluxJacobian> &, const int &) const;
+                        const multiArray3d<genArray> &,
+                        const multiArray3d<genArray> &,
+                        const idealGas &, const input &, const sutherland &,
+                        const unique_ptr<turbModel> &,
+                        const multiArray3d<fluxJacobian> &, const int &) const;
 
   double DPLUR(multiArray3d<genArray> &,
                const multiArray3d<genArray> &, const multiArray3d<genArray> &,
@@ -386,7 +388,8 @@ void ExplicitUpdate(vector<procBlock> &, const input &, const idealGas &,
                     const unique_ptr<turbModel> &, const int &, genArray &,
                     resid &);
 double ImplicitUpdate(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
-                      const input &, const idealGas &, const double &, const sutherland &,
+                      const input &, const idealGas &, const double &,
+                      const sutherland &,
                       const vector<multiArray3d<genArray>> &,
                       const vector<multiArray3d<genArray>> &,
                       vector<multiArray3d<genArray>> &,

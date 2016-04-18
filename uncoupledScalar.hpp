@@ -58,7 +58,7 @@ class uncoupledScalar {
   void AddToTurbVariable(const double &s) {turbVar_ += s;}
   void SubtractFromFlowVariable(const double &s) {flowVar_ -= s;}
   void SubtractFromTurbVariable(const double &s) {turbVar_ -= s;}
-  
+
   void Zero() {
     flowVar_ = 0.0;
     turbVar_ = 0.0;
@@ -132,19 +132,23 @@ uncoupledScalar & uncoupledScalar::operator/=(const uncoupledScalar &other) {
   return *this;
 }
 
-inline const uncoupledScalar operator+(uncoupledScalar lhs, const uncoupledScalar &rhs) {
+inline const uncoupledScalar operator+(uncoupledScalar lhs,
+                                       const uncoupledScalar &rhs) {
   return lhs += rhs;
 }
 
-inline const uncoupledScalar operator-(uncoupledScalar lhs, const uncoupledScalar &rhs) {
+inline const uncoupledScalar operator-(uncoupledScalar lhs,
+                                       const uncoupledScalar &rhs) {
   return lhs -= rhs;
 }
 
-inline const uncoupledScalar operator*(uncoupledScalar lhs, const uncoupledScalar &rhs) {
+inline const uncoupledScalar operator*(uncoupledScalar lhs,
+                                       const uncoupledScalar &rhs) {
   return lhs *= rhs;
 }
 
-inline const uncoupledScalar operator/(uncoupledScalar lhs, const uncoupledScalar &rhs) {
+inline const uncoupledScalar operator/(uncoupledScalar lhs,
+                                       const uncoupledScalar &rhs) {
   return lhs /= rhs;
 }
 
