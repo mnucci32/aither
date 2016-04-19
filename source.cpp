@@ -45,16 +45,17 @@ ostream &operator<<(ostream &os, const source &src) {
 
 // Member function to calculate the source terms for the turbulence equations
 double source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
-                         const primVars &state, const gradients &grads,
-                         const sutherland &suth, const idealGas &eqnState,
-                         const double &wallDist, const int &ii, const int &jj,
-                         const int &kk) {
+			   const primVars &state, const gradients &grads,
+			   const sutherland &suth, const idealGas &eqnState,
+			   const double &wallDist, const double &vol,
+			   const int &ii, const int &jj, const int &kk) {
   // turb -- turbulence model
   // state -- primative variables
   // grads -- gradients
   // suth -- sutherland's law for viscosity
   // eqnState -- equation of state
   // wallDist -- distance to nearest viscous wall
+  // vol -- cell volume
   // ii -- cell i-location to calculate source terms at
   // jj -- cell j-location to calculate source terms at
   // kk -- cell k-location to calculate source terms at
@@ -68,7 +69,7 @@ double source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
   auto ksrc = 0.0;
   auto wsrc = 0.0;
   auto srcJacSpecRad = turb->CalcTurbSrc(state, vGrad, kGrad, wGrad, suth,
-                                         eqnState, wallDist, ksrc, wsrc);
+                                         eqnState, wallDist, vol, ksrc, wsrc);
 
   // assign turbulent source terms
   data_[5] = ksrc;

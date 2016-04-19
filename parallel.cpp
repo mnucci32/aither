@@ -197,7 +197,8 @@ void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
                      MPI_Datatype &MPI_procBlockInts,
                      MPI_Datatype &MPI_interblock,
                      MPI_Datatype &MPI_DOUBLE_5INT,
-                     MPI_Datatype &MPI_vec3dMag) {
+                     MPI_Datatype &MPI_vec3dMag,
+		     MPI_Datatype &MPI_uncoupledScalar) {
   // MPI_vec3d -- output MPI_Datatype for a vector3d<double>
   // MPI_cellData -- output MPI_Datatype for primVars or genArray
   // MPI_procBlockInts -- output MPI_Datatype for 14 INTs (14 INTs in procBlock
@@ -205,7 +206,8 @@ void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
   // MPI_interblock -- output MPI_Datatype to send interblock class
   // MPI_DOUBLE_5INT -- output MPI_Datatype for a double followed by 5 ints
   // MPI_vec3dMag -- output MPI_Datatype for a unitVect3dMag<double>
-
+  // MPI_uncoupledScalar -- output MPI_Datatype for a uncoupledScalar
+  
   // create vector3d<double> MPI datatype
   MPI_Type_contiguous(3, MPI_DOUBLE, &MPI_vec3d);
   MPI_Type_commit(&MPI_vec3d);
@@ -214,6 +216,10 @@ void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
   MPI_Type_contiguous(4, MPI_DOUBLE, &MPI_vec3dMag);
   MPI_Type_commit(&MPI_vec3dMag);
 
+  // create uncoupledScalar MPI datatype
+  MPI_Type_contiguous(2, MPI_DOUBLE, &MPI_uncoupledScalar);
+  MPI_Type_commit(&MPI_uncoupledScalar);
+  
   // create MPI datatype for states (primVars), residuals (genArray), etc
   MPI_Type_contiguous(NUMVARS, MPI_DOUBLE, &MPI_cellData);
 
@@ -296,7 +302,8 @@ void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
                       MPI_Datatype &MPI_procBlockInts,
                       MPI_Datatype &MPI_interblock,
                       MPI_Datatype &MPI_DOUBLE_5INT,
-                      MPI_Datatype &MPI_vec3dMag) {
+                      MPI_Datatype &MPI_vec3dMag,
+		      MPI_Datatype &MPI_uncoupledScalar) {
   // MPI_vec3d -- output MPI_Datatype for a vector3d<double>
   // MPI_cellData -- output MPI_Datatype for primVars or genArray
   // MPI_procBlockInts -- output MPI_Datatype for 14 INTs (14 INTs in procBlock
@@ -304,7 +311,8 @@ void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
   // MPI_interblock -- output MPI_Datatype to send interblock class
   // MPI_DOUBLE_5INT -- output MPI_Datatype for a double followed by 5 ints
   // MPI_vec3dMag -- output MPI_Datatype for a unitVect3dMag<double>
-
+  // MPI_uncoupledScalar -- output MPI_Datatype for a uncoupledScalar
+  
   // free vector3d<double> MPI datatype
   MPI_Type_free(&MPI_vec3d);
 
@@ -314,6 +322,9 @@ void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
   // free MPI datatype for states (primVars), residuals (genArray), etc
   MPI_Type_free(&MPI_cellData);
 
+  // free MPI datatype for uncoupledScalar
+  MPI_Type_free(&MPI_uncoupledScalar);
+  
   // free MPI datatype for all the integers in the procBlock class
   MPI_Type_free(&MPI_procBlockInts);
 
@@ -389,7 +400,8 @@ This is used to get all the data on the ROOT processor to write out results.
 */
 void GetProcBlocks(vector<procBlock> &blocks,
                    const vector<procBlock> &localBlocks, const int &rank,
-                   const MPI_Datatype &MPI_cellData) {
+                   const MPI_Datatype &MPI_cellData,
+		   const MPI_Datatype &MPI_uncoupledScalar) {
   // blocks -- full vector of all procBlocks. This is only used on ROOT
   // processor, all other processors just need a dummy variable to call the
   // function
@@ -397,6 +409,7 @@ void GetProcBlocks(vector<procBlock> &blocks,
   // rank -- processor rank. Used to determine if process should send or
   // receive
   // MPI_cellData -- MPI_Datatype used for primVars and genArray transmission
+  // MPI_uncoupledScalar -- MPI_Datatype used for uncoupledScalar transmission
 
   //--------------------------------------------------------------------------
   //                                      ROOT
@@ -410,7 +423,7 @@ void GetProcBlocks(vector<procBlock> &blocks,
         // state vector
         blocks[ii] = localBlocks[blocks[ii].LocalPosition()];
       } else {  // recv data from sending processors
-        blocks[ii].RecvUnpackSolMPI(MPI_cellData);
+        blocks[ii].RecvUnpackSolMPI(MPI_cellData, MPI_uncoupledScalar);
       }
     }
     //-------------------------------------------------------------------------
@@ -434,7 +447,7 @@ void GetProcBlocks(vector<procBlock> &blocks,
         }
       }
 
-      localBlocks[localPos_[minGlobal]].PackSendSolMPI(MPI_cellData);
+      localBlocks[localPos_[minGlobal]].PackSendSolMPI(MPI_cellData, MPI_uncoupledScalar);
       localPos_.erase(localPos_.begin() + minGlobal);
     }
   }

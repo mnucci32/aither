@@ -107,13 +107,17 @@ class primVars {
                            const idealGas &);
   void LimitTurb(const unique_ptr<turbModel> &);
 
-  double CellSpectralRadius(const unitVec3dMag<double> &,
-                            const unitVec3dMag<double> &,
-                            const idealGas &) const;
+  double InvCellSpectralRadius(const unitVec3dMag<double> &,
+                               const unitVec3dMag<double> &,
+                               const idealGas &) const;
   double ViscCellSpectralRadius(const unitVec3dMag<double> &,
                                 const unitVec3dMag<double> &, const idealGas &,
                                 const sutherland &, const double &,
                                 const unique_ptr<turbModel> &) const;
+  double CellSpectralRadius(const unitVec3dMag<double> &,
+                            const unitVec3dMag<double> &, const idealGas &,
+                            const sutherland &, const double &,
+                            const unique_ptr<turbModel> &, const bool &) const;
 
   // operator overloads for addition and subtraction of states
   inline primVars & operator+=(const primVars &);
@@ -216,7 +220,7 @@ genArray primVars::ConsVars(const idealGas &eqnState) const {
               data_[0] * data_[1],
               data_[0] * data_[2],
               data_[0] * data_[3],
-              data_[0] * (*this).Energy(eqnState),
+              data_[0] * this->Energy(eqnState),
               data_[0] * data_[5],
               data_[0] * data_[6]);
   return cv;
@@ -326,5 +330,7 @@ inline const primVars operator/(const double &lhs, primVars rhs) {
 }
 
 ostream &operator<<(ostream &os, const primVars &);
+
+primVars RoeAveragedState(const primVars&, const primVars&, const idealGas&);
 
 #endif

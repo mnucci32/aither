@@ -105,6 +105,32 @@ double turbModel::CrossDiffusion(const primVars &state,
   return state.Rho() / state.Omega() * kGrad.DotProd(wGrad);
 }
 
+// member function to calculate the spectral radius of the turbulence equations
+double turbModel::SpectralRadius(const primVars &state,
+                                 const unitVec3dMag<double> &fAreaL,
+                                 const unitVec3dMag<double> &fAreaR,
+                                 const idealGas &eos, const sutherland &suth,
+                                 const double &vol, const bool &addSrc) const {
+  // state -- primative variables
+  // fAreaL -- area at left face
+  // fAreaR -- area at right face
+  // eos -- equation of state
+  // suth -- sutherland's law for viscosity
+  // vol -- cell volume
+  // addSrc -- flag to determine if source jacobian spectral radius should be
+  //           included
+
+  auto specRad = this->InviscidSpecRad(state, fAreaL, fAreaR);
+  // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
+  specRad += 2.0 * this->ViscSpecRad(state, fAreaL, fAreaR, eos, suth, vol);
+  if (addSrc) {
+    // minus sign because source terms are on RHS
+    specRad -= this->SrcSpecRad(state, suth, vol);
+  }
+
+  return specRad;
+}
+
 // -------------------------------------------------------------------------
 // member functions for the turbNone class
 
@@ -119,14 +145,14 @@ double turbNone::CalcTurbSrc(const primVars &state,
                              const vector3d<double> &kGrad,
                              const vector3d<double> &wGrad,
                              const sutherland &suth, const idealGas &eos,
-                             const double &wallDist, double &ksrc,
-                             double &wsrc) const {
+                             const double &wallDist, const double &vol,
+                             double &ksrc, double &wsrc) const {
   // set k and omega source terms to zero
   ksrc = 0.0;
   wsrc = 0.0;
 
   // return source jacobian spectral radius
-  return this->SrcSpecRad(state, suth);
+  return this->SrcSpecRad(state, suth, vol);
 }
 
 // ---------------------------------------------------------------------
@@ -232,8 +258,8 @@ double turbKWWilcox::CalcTurbSrc(const primVars &state,
                                  const vector3d<double> &kGrad,
                                  const vector3d<double> &wGrad,
                                  const sutherland &suth, const idealGas &eos,
-                                 const double &wallDist, double &ksrc,
-                                 double &wsrc) const {
+                                 const double &wallDist, const double &vol,
+                                 double &ksrc, double &wsrc) const {
   // state -- primative variables
   // velGrad -- velocity gradient
   // kGrad -- tke gradient
@@ -269,7 +295,7 @@ double turbKWWilcox::CalcTurbSrc(const primVars &state,
   wsrc = omgProd - omgDest + omgCd;
 
   // return spectral radius of source jacobian
-  return this->SrcSpecRad(state, suth);
+  return this->SrcSpecRad(state, suth, vol);
 }
 
 // member function to calculate the eddy viscosity, and the molecular diffusion
@@ -313,12 +339,14 @@ double turbKWWilcox::EddyViscAndMolecDiffCoeff(const primVars &state,
    always larger than beta, this eigenvalue is used
 */
 double turbKWWilcox::SrcSpecRad(const primVars &state,
-                                const sutherland &suth) const {
+                                const sutherland &suth,
+                                const double &vol) const {
   // state -- primative variables
   // suth -- sutherland's law for viscosity
+  // vol -- cell volume
 
   // return spectral radius scaled for nondimensional equations
-  return -2.0 * betaStar_ * state.Omega() * suth.InvNondimScaling();
+  return -2.0 * betaStar_ * state.Omega() * vol * suth.InvNondimScaling();
 }
 
 // member function to calculate inviscid spectral radius
@@ -450,8 +478,8 @@ double turbKWSst::CalcTurbSrc(const primVars &state,
                               const vector3d<double> &kGrad,
                               const vector3d<double> &wGrad,
                               const sutherland &suth, const idealGas &eos,
-                              const double &wallDist, double &ksrc,
-                              double &wsrc) const {
+                              const double &wallDist, const double &vol,
+                              double &ksrc, double &wsrc) const {
   // state -- primative variables
   // velGrad -- velocity gradient
   // kGrad -- tke gradient
@@ -459,6 +487,7 @@ double turbKWSst::CalcTurbSrc(const primVars &state,
   // suth -- sutherland's law
   // eos -- equation of state
   // wallDist -- distance to nearest viscous wall
+  // vol -- cell volume
   // ksrc -- source term for tke equation
   // wsrc -- source term for omega equation
 
@@ -502,7 +531,7 @@ double turbKWSst::CalcTurbSrc(const primVars &state,
   wsrc = omgProd - omgDest + omgCd;
 
   // return spectral radius of source jacobian
-  return this->SrcSpecRad(state, suth);
+  return this->SrcSpecRad(state, suth, vol);
 }
 
 // member function to calculate the eddy viscosity, and the molecular diffusion
@@ -554,12 +583,13 @@ double turbKWSst::EddyViscAndMolecDiffCoeff(const primVars &state,
    always larger than beta, this eigenvalue is used
 */
 double turbKWSst::SrcSpecRad(const primVars &state,
-                             const sutherland &suth) const {
+                             const sutherland &suth,
+                             const double &vol) const {
   // state -- primative variables
   // suth -- sutherland's law for viscosity
 
   // return spectral radius scaled for nondimensional equations
-  return -2.0 * betaStar_ * state.Omega() * suth.InvNondimScaling();
+  return -2.0 * betaStar_ * state.Omega() * vol * suth.InvNondimScaling();
 }
 
 // member function to calculate inviscid spectral radius

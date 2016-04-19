@@ -23,6 +23,7 @@
 #include <string>          // string
 #include <memory>          // unique_ptr
 #include "vector3d.hpp"
+#include "uncoupledScalar.hpp"
 
 using std::vector;
 using std::string;
@@ -39,6 +40,7 @@ class sutherland;
 class turbModel;
 class input;
 class genArray;
+class squareMatrix;
 
 // This class holds the flux jacobians for the flow and turbulence equations.
 // In the LU-SGS method the jacobians are scalars.
@@ -52,6 +54,8 @@ class fluxJacobian {
   fluxJacobian(const double &flow, const double &turb) :
       flowJacobian_(flow), turbJacobian_(turb) {}
   fluxJacobian() : fluxJacobian(0.0, 0.0) {}
+  explicit fluxJacobian(const uncoupledScalar &specRad) :
+      fluxJacobian(specRad.FlowVariable(), specRad.TurbVariable()) {}
   fluxJacobian(const primVars &, const unitVec3dMag<double> &,
                const unitVec3dMag<double> &, const idealGas &,
                const sutherland &, const double &,
@@ -220,5 +224,34 @@ inline const fluxJacobian operator/(const double &lhs, fluxJacobian rhs) {
 }
 
 ostream &operator<<(ostream &os, const fluxJacobian &);
+
+squareMatrix RusanovFluxJacobian(const primVars &, const primVars &,
+                                 const idealGas &, const vector3d<double> &,
+                                 const bool &);
+squareMatrix InvFluxJacobian(const primVars &, const idealGas &,
+                             const vector3d<double> &);
+squareMatrix ApproxRoeFluxJacobian(const primVars &, const primVars &,
+                                   const idealGas &, const vector3d<double> &,
+                                   const bool &);
+genArray RusanovOffDiagonal(const primVars &, const genArray &,
+                            const unitVec3dMag<double> &,
+                            const unitVec3dMag<double> &,
+                            const double &, const idealGas &,
+                            const sutherland &,
+                            const unique_ptr<turbModel> &,
+                            const input &, const bool &);
+genArray RoeOffDiagonal(const primVars &, const primVars &, const genArray &,
+                        const unitVec3dMag<double> &,
+                        const unitVec3dMag<double> &,
+                        const double &, const idealGas &, const sutherland &,
+                        const unique_ptr<turbModel> &, const input &,
+                        const bool &);
+
+squareMatrix DelPrimativeDelConservative(const primVars &, const idealGas &);
+
+squareMatrix ApproxTSLJacobian(const primVars &, const idealGas &,
+                               const sutherland &,
+                               const vector3d<double> &, const double &,
+                               const unique_ptr<turbModel> &);
 
 #endif

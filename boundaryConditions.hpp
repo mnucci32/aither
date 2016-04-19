@@ -202,7 +202,7 @@ class boundaryConditions {
   void ResizeVecs(const int&);
   void ResizeVecs(const int&, const int&, const int&);
 
-  string GetBCName(const int, const int, const int, const string&) const;
+  string GetBCName(const int&, const int&, const int&, const string&) const;
 
   void AssignFromInput(const int&, const vector<string>&);
 
@@ -308,6 +308,9 @@ class interblock {
   bool TestPatchMatch(const patch&, const patch&);
   void GetAddressesMPI(MPI_Aint (&)[11])const;
 
+  void FirstSliceIndices(int&, int&, int&, int&, int&, int&, const int&) const;
+  void SecondSliceIndices(int&, int&, int&, int&, int&, int&, const int&) const;
+
   // Destructor
   ~interblock() noexcept {}
 };
@@ -388,5 +391,9 @@ ostream & operator<< (ostream &os, const boundarySurface&);
 ostream & operator<< (ostream &os, const patch&);
 ostream & operator<< (ostream &os, const decomposition&);
 ostream & operator<< (ostream &os, const interblock&);
+
+
+vector3d<int> GetSwapLoc(const int &, const int &, const int &,
+                         const interblock &, const bool &);
 
 #endif

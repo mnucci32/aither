@@ -14,8 +14,9 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include <time.h>    // strftime
+#include <chrono>    // timing capability
 #include <iostream>  // cout
+#include <iomanip>   // put_time
 #include <fstream>   // ifstream
 #include <cstdlib>   // exit()
 #include <sstream>   // istringstream
@@ -35,6 +36,8 @@ using std::cerr;
 using std::istringstream;
 using std::istream_iterator;
 using std::unique_ptr;
+using std::stoi;
+using std::stod;
 
 // constructor for input class
 // initialize vector to have length of number of acceptable inputs to the code
@@ -71,7 +74,8 @@ input::input(const string &name) : simName_(name), vars_(35) {
   cflMax_ = 1.0;
   cflStep_ = 0.0;
   cflStart_ = 1.0;
-  invFluxJac_ = "laxFriedrichs";  // default is approximate roe flux
+  invFluxJac_ = "rusanov";  // default is approximate rusanov which is used
+                            // with lusgs
   dualTimeCFL_ = -1.0;  // default value of -1; negative value means dual time
                        // stepping is not used
   inviscidFlux_ = "roe";  // default value is roe flux
@@ -154,16 +158,9 @@ string trim(const string &s, const string &whitespace = " \t") {
 
 // function to print the time
 void PrintTime() {
-  time_t rawtime;
-  struct tm timeinfo;
-
-  time(&rawtime);
-  localtime_r(&rawtime, &timeinfo);
-
-  constexpr auto kBufLen = 100;  // hard coded max buffer length
-  char buffer[kBufLen];
-  strftime(buffer, kBufLen, "%c", &timeinfo);
-  cout << buffer << endl;
+  auto now = std::chrono::high_resolution_clock::now();
+  auto nowOut = std::chrono::high_resolution_clock::to_time_t(now);
+  cout << std::put_time(std::localtime(&nowOut), "%c") << endl;
 }
 
 // function to read the input file and return the data as a member of the input
@@ -182,8 +179,7 @@ void input::ReadInput(const int &rank) {
   }
 
   // open input file
-  ifstream inFile;
-  inFile.open(simName_, ios::in);
+  ifstream inFile(simName_, ios::in);
   if (inFile.fail()) {
     cerr << "ERROR: Error in input::ReadInput(). Input file " << simName_
          << " did not open correctly!!!" << endl;
@@ -599,6 +595,15 @@ bool input::IsTurbulent() const {
   }
 }
 
+// member function to determine if solution should use a block matrix
+bool input::IsBlockMatrix() const {
+  if (this->IsImplicit() && matrixSolver_ == "bdplur") {
+    return true;
+  } else {
+    return false;
+  }
+}
+
 string input::OrderOfAccuracy() const {
   if (kappa_ == -2.0) {
     return "first";
@@ -659,3 +664,7 @@ double input::ViscousCFLCoefficient() const {
   return coeff;
 }
 
+bool input::MatrixRequiresInitialization() const {
+  // initialize matrix if using DPLUR, or if using LUSGS with more than one sweep
+  return (matrixSolver_ == "dplur" || matrixSweeps_ > 1) ? true : false;    
+}

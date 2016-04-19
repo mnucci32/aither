@@ -105,44 +105,6 @@ class geomSlice {
   ~geomSlice() noexcept {}
 };
 
-class stateSlice {
-  multiArray3d<primVars> state_;  // cell states
-
-  int parBlock_;  // parent block number
-
- public:
-  // constructors
-  stateSlice();
-  stateSlice(const int &, const int &, const int &, const int &);
-
-  stateSlice(const procBlock &, const int &, const int &, const int &,
-             const int &, const int &, const int &, const bool = false,
-             const bool = false, const bool = false);
-
-  // move constructor and assignment operator
-  stateSlice(stateSlice&&) noexcept = default;
-  stateSlice& operator=(stateSlice&&) noexcept = default;
-
-  // copy constructor and assignment operator
-  stateSlice(const stateSlice&) = default;
-  stateSlice& operator=(const stateSlice&) = default;
-
-  // member functions
-  int NumCells() const { return state_.Size(); }
-  int NumI() const { return state_.NumI(); }
-  int NumJ() const { return state_.NumJ(); }
-  int NumK() const { return state_.NumK(); }
-  int ParentBlock() const { return parBlock_; }
-
-  primVars State(const int &ii, const int &jj, const int &kk) const {
-    return state_(ii, jj, kk);
-  }
-
-  void PackSwapUnpackMPI(const interblock &, const MPI_Datatype &, const int &);
-
-  // destructor
-  ~stateSlice() noexcept {}
-};
 
 // function definitions
 

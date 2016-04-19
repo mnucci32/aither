@@ -71,14 +71,20 @@ class turbModel {
                         const vector3d<double> &kGrad,
                         const vector3d<double> &wGrad) const;
 
+  double SpectralRadius(const primVars &state,
+                        const unitVec3dMag<double> &fAreaL,
+                        const unitVec3dMag<double> &fAreaR,
+                        const idealGas &eos, const sutherland &suth,
+                        const double &vol, const bool &addSrc) const;
+
   // abstract functions
   virtual double CalcTurbSrc(const primVars &state,
                              const tensor<double> &velGrad,
                              const vector3d<double> &kGrad,
                              const vector3d<double> &wGrad,
                              const sutherland &suth, const idealGas &eos,
-                             const double &wallDist, double &ksrc,
-                             double &wsrc) const = 0;
+                             const double &wallDist, const double &vol,
+                             double &ksrc, double &wsrc) const = 0;
   virtual double EddyVisc(const primVars &state,
                           const tensor<double> &vGrad,
                           const sutherland &suth, const double &f2) const = 0;
@@ -93,7 +99,8 @@ class turbModel {
                                            double &sigmaW) const = 0;
   virtual double WallBeta() const = 0;
   virtual double SrcSpecRad(const primVars &state,
-                            const sutherland &suth) const = 0;
+                            const sutherland &suth,
+                            const double &vol) const = 0;
   virtual double InviscidSpecRad(const primVars &state,
                                  const unitVec3dMag<double> &fAreaL,
                                  const unitVec3dMag<double> &fAreaR)
@@ -129,10 +136,11 @@ class turbNone : public turbModel {
                      const vector3d<double> &kGrad,
                      const vector3d<double> &wGrad,
                      const sutherland &suth, const idealGas &eos,
-                     const double &wallDist, double &ksrc,
-                     double &wsrc) const override;
+                     const double &wallDist, const double &vol,
+                     double &ksrc, double &wsrc) const override;
   double SrcSpecRad(const primVars &state,
-                    const sutherland &suth) const override {return 0.0;}
+                    const sutherland &suth,
+                    const double &vol) const override {return 0.0;}
   double InviscidSpecRad(const primVars &state,
                          const unitVec3dMag<double> &fAreaL,
                          const unitVec3dMag<double> &fAreaR) const override
@@ -201,7 +209,7 @@ class turbKWWilcox : public turbModel {
   double CalcTurbSrc(const primVars &, const tensor<double> &,
                      const vector3d<double> &, const vector3d<double> &,
                      const sutherland &, const idealGas &, const double &,
-                     double &, double &) const override;
+                     const double &, double &, double &) const override;
   double EddyVisc(const primVars&, const tensor<double> &,
                   const sutherland &, const double &) const override;
   double EddyViscAndMolecDiffCoeff(const primVars &, const tensor<double> &,
@@ -210,7 +218,8 @@ class turbKWWilcox : public turbModel {
                                    const idealGas &, const double &,
                                    double &, double &) const override;
 
-  double SrcSpecRad(const primVars &, const sutherland &) const override;
+  double SrcSpecRad(const primVars &, const sutherland &,
+                    const double &) const override;
   double InviscidSpecRad(const primVars &,
                          const unitVec3dMag<double> &,
                          const unitVec3dMag<double> &) const override;
@@ -280,7 +289,7 @@ class turbKWSst : public turbModel {
   double CalcTurbSrc(const primVars &, const tensor<double> &,
                      const vector3d<double> &, const vector3d<double> &,
                      const sutherland &, const idealGas &, const double &,
-                     double &, double &) const override;
+                     const double &, double &, double &) const override;
   double EddyVisc(const primVars &, const tensor<double> &,
                   const sutherland &, const double &) const override;
   double EddyViscAndMolecDiffCoeff(const primVars &, const tensor<double> &,
@@ -289,7 +298,8 @@ class turbKWSst : public turbModel {
                                    const idealGas &, const double &,
                                    double &, double &) const override;
 
-  double SrcSpecRad(const primVars &, const sutherland &) const override;
+  double SrcSpecRad(const primVars &, const sutherland &,
+                    const double &) const override;
   double InviscidSpecRad(const primVars &,
                          const unitVec3dMag<double> &,
                          const unitVec3dMag<double> &) const override;

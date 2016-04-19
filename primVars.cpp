@@ -50,7 +50,7 @@ primVars::primVars(const genArray &a, const bool &prim,
     data_[1] = a[1] / a[0];
     data_[2] = a[2] / a[0];
     data_[3] = a[3] / a[0];
-    double energy = a[4] / a[0];
+    const auto energy = a[4] / a[0];
     data_[4] =
         eqnState.PressFromEnergy(data_[0], energy, this->Velocity().Mag());
     data_[5] = a[5] / a[0];
@@ -167,24 +167,24 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
                                   const primVars &primDW1, const double &kappa,
                                   const string &lim, const double &uw,
                                   const double &uw2, const double &dw) const {
-  // primUW2 is the upwind cell furthest from the face at which the primative is
-  // being reconstructed.
-  // primUW1 is the upwind cell nearest to the face at which the primative is
-  // being reconstructed.
-  // primDW1 is the downwind cell.
-  // kappa is the parameter that determines which scheme is implemented
-  // uw is length of upwind cell
-  // uw2 is length of furthest upwind cell
-  // dw is length of downwind cell
+  // primUW2 -- upwind cell furthest from the face at which the primative is
+  //            being reconstructed.
+  // primUW1 -- upwind cell nearest to the face at which the primative is
+  //            being reconstructed.
+  // primDW1 -- downwind cell.
+  // kappa -- parameter that determines which scheme is implemented
+  // uw -- length of upwind cell
+  // uw2 -- length of furthest upwind cell
+  // dw -- length of downwind cell
 
-  const primVars primUW1 = *this;
+  const auto primUW1 = *this;
 
   const auto dPlus = (uw + uw) / (uw + dw);
   const auto dMinus = (uw + uw) / (uw + uw2);
 
   // divided differences to base limiter on; eps must be listed to left of
   // primVars
-  const primVars r = (EPS + (primDW1 - primUW1) * dPlus) /
+  const auto r = (EPS + (primDW1 - primUW1) * dPlus) /
       (EPS + (primUW1 - primUW2) * dMinus);
 
   primVars limiter;
@@ -200,11 +200,12 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
     invLimiter = limiter / r;
   } else {
     cerr << "ERROR: Limiter " << lim << " is not recognized!" << endl;
+    exit(1);
   }
 
   // calculate reconstructed state at face using MUSCL method with limiter
   return primUW1 + 0.25 * ((primUW1 - primUW2) * dMinus) *
-      ((1.0 - kappa) * limiter + (1.0 + kappa) * r * invLimiter);
+    ((1.0 - kappa) * limiter + (1.0 + kappa) * r * invLimiter);
 }
 
 // member function to calculate minmod limiter
@@ -240,7 +241,7 @@ primVars primVars::LimiterMinmod(const primVars &upwind,
 primVars primVars::LimiterVanAlbada(const primVars &r) const {
   // r -- ratio of divided differences
 
-  primVars limiter = (r + r * r) / (1 + r * r);
+  auto limiter = (r + r * r) / (1 + r * r);
   // if value is negative, return zero
   for (auto ii = 0; ii < NUMVARS; ii++) {
     limiter.data_[ii] = max(0.0, limiter.data_[ii]);
@@ -302,22 +303,20 @@ primVars primVars::GetGhostState(const string &bcType,
   // bordering the boundary
 
   // set ghost state equal to boundary state to start
-  primVars ghostState = (*this);
+  auto ghostState = (*this);
 
   // check to see that ghost layer corresponds to allowable number
   if (!(layer == 1 || layer == 2)) {
     cerr << "ERROR: Error in primVars::GetGhostState. Requesting ghost state "
             "at a ghost layer " << layer << ". Please choose either 1 or 2"
          << endl;
-    exit(0);
+    exit(1);
   }
 
   // face area vector (should always point out of domain)
   // at lower surface normal should point out of domain for ghost cell calc
   const auto normArea =
       (surf == "il" || surf == "jl" || surf == "kl") ? -1.0 * areaVec : areaVec;
-
-  auto normVelCellCenter = 0.0;
 
   // slip wall boundary condition
   // ----------------------------------------------------------------------
@@ -327,7 +326,7 @@ primVars primVars::GetGhostState(const string &bcType,
                                // boundary face, density and pressure stay equal
                                // to the boundary cell
     const auto stateVel = this->Velocity();
-    normVelCellCenter = stateVel.DotProd(normArea);
+    const auto normVelCellCenter = stateVel.DotProd(normArea);
 
     // for a slip wall the velocity of the boundary cell center is reflected
     // across the boundary face to get the velocity at the ghost cell center
@@ -527,7 +526,7 @@ primVars primVars::GetGhostState(const string &bcType,
            << endl;
       cerr << "Interior state: " << (*this) << endl;
       cerr << "Ghost state: " << ghostState << endl;
-      exit(0);
+      exit(1);
     }
 
     if (layer == 2) {  // extrapolate to get ghost state at 2nd layer
@@ -672,7 +671,7 @@ primVars primVars::GetGhostState(const string &bcType,
     cerr << "ERROR: Error in primVars::GetGhostState ghost state for BC type "
          << bcType << " is not supported!" << endl;
     cerr << "surface is " << surf << endl;
-    exit(0);
+    exit(1);
   }
 
   return ghostState;
@@ -696,9 +695,10 @@ primVars primVars::UpdateWithConsVars(const idealGas &eqnState,
 
 bool primVars::IsZero() const {
   auto nonzero = false;
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    if (data_[ii] != 0.0) {
+  for (auto &var : data_) {
+    if (var != 0.0) {
       nonzero = true;
+      break;
     }
   }
   return !nonzero;
@@ -771,9 +771,9 @@ In the above equation L is the spectral radius in either the i, j, or k
 direction. A1 and A2 are the two face areas in that direction. Vn is the
 cell velocity normal to that direction. SoS is the speed of sound at the cell
  */
-double primVars::CellSpectralRadius(const unitVec3dMag<double> &fAreaL,
-                                    const unitVec3dMag<double> &fAreaR,
-                                    const idealGas &eqnState) const {
+double primVars::InvCellSpectralRadius(const unitVec3dMag<double> &fAreaL,
+                                       const unitVec3dMag<double> &fAreaR,
+                                       const idealGas &eqnState) const {
   // fAreaL -- face area of lower face in either i, j, or k direction
   // fAreaR -- face area of upper face in either i, j, or k direction
   // eqnState -- equation of state
@@ -808,7 +808,7 @@ double primVars::ViscCellSpectralRadius(
   // fAreaR -- face area of upper face in either i, j, or k direction
   // eqnState -- equation of state
   // suth -- method to the temperature varying visosity and Prandtl number
-  // (Sutherland's law)
+  //         (Sutherland's law)
   // vol -- cell volume
   // turb -- turbulence model
 
@@ -824,4 +824,52 @@ double primVars::ViscCellSpectralRadius(
 
   // return viscous spectral radius
   return maxTerm * viscTerm * fMag * fMag / vol;
+}
+
+double primVars::CellSpectralRadius(
+    const unitVec3dMag<double> &fAreaL, const unitVec3dMag<double> &fAreaR,
+    const idealGas &eqnState, const sutherland &suth, const double &vol,
+    const unique_ptr<turbModel> &turb, const bool &isViscous) const {
+  // fAreaL -- face area of lower face in either i, j, or k direction
+  // fAreaR -- face area of upper face in either i, j, or k direction
+  // eqnState -- equation of state
+  // suth -- method to the temperature varying visosity and Prandtl number
+  //         (Sutherland's law)
+  // vol -- cell volume
+  // turb -- turbulence model
+  // isViscous -- flag that is true if simulation is viscous
+
+  auto specRad = this->InvCellSpectralRadius(fAreaL, fAreaR, eqnState);
+
+  if (isViscous) {
+    // factor 2 2 because viscous spectral radius is not halved (Blazek 6.53)
+    specRad += 2.0 * this->ViscCellSpectralRadius(fAreaL, fAreaR, eqnState,
+                                                  suth, vol, turb);
+  }
+  return specRad;
+}
+
+
+// function to calculate the Roe averaged state
+primVars RoeAveragedState(const primVars &left, const primVars &right,
+                          const idealGas &eos) {
+  // compute Rho averaged quantities
+  // density ratio
+  const auto denRatio = sqrt(right.Rho() / left.Rho());
+  // Roe averaged density
+  const auto rhoR = left.Rho() * denRatio;
+  // Roe averaged velocities - u, v, w
+  const auto uR = (left.U() + denRatio * right.U()) / (1.0 + denRatio);
+  const auto vR = (left.V() + denRatio * right.V()) / (1.0 + denRatio);
+  const auto wR = (left.W() + denRatio * right.W()) / (1.0 + denRatio);
+
+  // Roe averaged pressure
+  const auto pR = (left.P() + denRatio * right.P()) / (1.0 + denRatio);
+
+  // Roe averaged tke
+  const auto kR = (left.Tke() + denRatio * right.Tke()) / (1.0 + denRatio);
+  // Roe averaged specific dissipation (omega)
+  const auto omR = (left.Omega() + denRatio * right.Omega()) / (1.0 + denRatio);
+
+  return primVars(rhoR, uR, vR, wR, pR, kR, omR);
 }
