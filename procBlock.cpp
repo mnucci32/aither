@@ -932,8 +932,7 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
         mainDiagonal(ip, jp, kp) += diagVolTime;
 
         // invert main diagonal
-        mainDiagonal(ip, jp, kp) =
-            mainDiagonal(ip, jp, kp).Inverse(inp.IsTurbulent());
+        mainDiagonal(ip, jp, kp).Inverse(inp.IsTurbulent());
       }
     }
   }
@@ -1067,14 +1066,14 @@ For viscous simulations, the viscous contribution to the spectral radius K is
 used, and everything else remains the same.
  */
 void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
-			      multiArray3d<genArray> &x,
-			      const multiArray3d<genArray> &solTimeMmN,
-			      const multiArray3d<genArray> &solDeltaNm1,
-			      const idealGas &eqnState, const input &inp,
-			      const sutherland &suth,
-			      const unique_ptr<turbModel> &turb,
-			      const multiArray3d<fluxJacobian> &aInv,
-			      const int &sweep) const {
+                              multiArray3d<genArray> &x,
+                              const multiArray3d<genArray> &solTimeMmN,
+                              const multiArray3d<genArray> &solDeltaNm1,
+                              const idealGas &eqnState, const input &inp,
+                              const sutherland &suth,
+                              const unique_ptr<turbModel> &turb,
+                              const multiArray3d<fluxJacobian> &aInv,
+                              const int &sweep) const {
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // x -- correction - added to solution at time n to get to time n+1 (assumed
   //      to be zero to start)
@@ -1191,10 +1190,10 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // normal at lower boundaries needs to be reversed, so add instead
     // of subtract L
     x(ig, jg, kg) = aInv(ip, jp, kp).ArrayMult(-thetaInv *
-                                                 residual_(ip, jp, kp) -
-                                                 solDeltaNm1(ip, jp, kp) -
-                                                 solTimeMmN(ip, jp, kp) +
-                                                 L - U);
+                                               residual_(ip, jp, kp) -
+                                               solDeltaNm1(ip, jp, kp) -
+                                               solTimeMmN(ip, jp, kp) +
+                                               L - U);
   }  // end forward sweep
 }
 

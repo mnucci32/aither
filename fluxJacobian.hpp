@@ -24,6 +24,7 @@
 #include <memory>          // unique_ptr
 #include "vector3d.hpp"
 #include "uncoupledScalar.hpp"
+#include "matrix.hpp"
 
 using std::vector;
 using std::string;
@@ -40,19 +41,18 @@ class sutherland;
 class turbModel;
 class input;
 class genArray;
-class squareMatrix;
 
 // This class holds the flux jacobians for the flow and turbulence equations.
 // In the LU-SGS method the jacobians are scalars.
 
 class fluxJacobian {
-  double flowJacobian_;
-  double turbJacobian_;
+  squareMatrix flowJacobian_;
+  squareMatrix turbJacobian_;
 
  public:
   // constructors
-  fluxJacobian(const double &flow, const double &turb) :
-      flowJacobian_(flow), turbJacobian_(turb) {}
+  fluxJacobian(const double &flow, const double &turb);
+  fluxJacobian(const int &flowSize, const int &turbSize);
   fluxJacobian() : fluxJacobian(0.0, 0.0) {}
   explicit fluxJacobian(const uncoupledScalar &specRad) :
       fluxJacobian(specRad.FlowVariable(), specRad.TurbVariable()) {}
@@ -70,8 +70,8 @@ class fluxJacobian {
   fluxJacobian& operator=(const fluxJacobian&) = default;
 
   // member functions
-  double FlowJacobian() const { return flowJacobian_; }
-  double TurbulenceJacobian() const { return turbJacobian_; }
+  squareMatrix FlowJacobian() const { return flowJacobian_; }
+  squareMatrix TurbulenceJacobian() const { return turbJacobian_; }
 
   void AddInviscidJacobian(const primVars &, const unitVec3dMag<double> &,
                            const unitVec3dMag<double> &, const idealGas &,
@@ -84,13 +84,13 @@ class fluxJacobian {
                              const double &, const unique_ptr<turbModel> &);
 
   void Zero() {
-    flowJacobian_ = 0.0;
-    turbJacobian_ = 0.0;
+    flowJacobian_.Zero();
+    turbJacobian_.Zero();
   }
 
   genArray ArrayMult(genArray) const;
-
-  fluxJacobian Inverse(const bool &) const;
+  bool IsScalar() const;
+  void Inverse(const bool &);
 
   inline fluxJacobian & operator+=(const fluxJacobian &);
   inline fluxJacobian & operator-=(const fluxJacobian &);

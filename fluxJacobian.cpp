@@ -23,7 +23,6 @@
 #include "input.hpp"         // input
 #include "primVars.hpp"      // primVars
 #include "genArray.hpp"      // genArray
-#include "matrix.hpp"        // squareMatrix
 #include "inviscidFlux.hpp"  // ConvectiveFluxUpdate
 
 using std::cout;
@@ -34,6 +33,21 @@ using std::string;
 using std:: unique_ptr;
 
 // constructor
+// if constructed with two doubles, create scalar squareMatrix
+fluxJacobian::fluxJacobian(const double &flow, const double &turb) {
+  flowJacobian_ = squareMatrix(1);
+  flowJacobian_ += flow;
+
+  turbJacobian_ = squareMatrix(1);
+  turbJacobian_ += turb;
+}
+
+// if constructed with two intss, create scalar squareMatrix with given size
+fluxJacobian::fluxJacobian(const int &flowSize, const int &turbSize) {
+  flowJacobian_ = squareMatrix(flowSize);
+  turbJacobian_ = squareMatrix(turbSize);
+}
+
 fluxJacobian::fluxJacobian(const primVars &state,
                            const unitVec3dMag<double> &fAreaL,
                            const unitVec3dMag<double> &fAreaR,
@@ -53,8 +67,8 @@ fluxJacobian::fluxJacobian(const primVars &state,
   //                 implicit matrix
 
   // initialize jacobians
-  flowJacobian_ = 0.0;
-  turbJacobian_ = 0.0;
+  flowJacobian_ = squareMatrix(1);
+  turbJacobian_ = squareMatrix(1);
 
   const auto isTurbulent = inp.IsTurbulent();
 
@@ -140,27 +154,33 @@ void fluxJacobian::AddTurbSourceJacobian(const primVars &state,
 
 // member function to multiply the flux jacobians with a genArray
 genArray fluxJacobian::ArrayMult(genArray arr) const {
-  arr[0] *= flowJacobian_;
-  arr[1] *= flowJacobian_;
-  arr[2] *= flowJacobian_;
-  arr[3] *= flowJacobian_;
-  arr[4] *= flowJacobian_;
+  if (this->IsScalar()) {
+    arr[0] *= flowJacobian_(0, 0);
+    arr[1] *= flowJacobian_(0, 0);
+    arr[2] *= flowJacobian_(0, 0);
+    arr[3] *= flowJacobian_(0, 0);
+    arr[4] *= flowJacobian_(0, 0);
 
-  arr[5] *= turbJacobian_;
-  arr[6] *= turbJacobian_;
-
+    arr[5] *= turbJacobian_(0, 0);
+    arr[6] *= turbJacobian_(0, 0);
+  } else {
+    arr = flowJacobian_.ArrayMult(arr);
+    arr = turbJacobian_.ArrayMult(arr, NUMFLOWVARS);
+  }
   return arr;
 }
 
+bool fluxJacobian::IsScalar() const {
+  return (flowJacobian_.Size() > 1) ? false : true;
+}
+
 // function to take the inverse of a flux jacobian
-fluxJacobian fluxJacobian::Inverse(const bool &isTurbulent) const {
-  auto inv = *this;
-  inv.flowJacobian_ = 1.0 / inv.flowJacobian_;
+void fluxJacobian::Inverse(const bool &isTurbulent) {
+  flowJacobian_.Inverse();
 
   if (isTurbulent) {
-    inv.turbJacobian_ = 1.0 / inv.turbJacobian_;
+    turbJacobian_.Inverse();
   }
-  return inv;
 }
 
 // non-member functions
@@ -408,8 +428,8 @@ genArray RoeOffDiagonal(const primVars &left, const primVars &right,
       0.5 * specRad.ArrayMult(update) :
     fAreaL.Mag() * ((newFlux - oldFlux).ConvertToGenArray()) -
       0.5 * specRad.ArrayMult(update);
-    // fAreaL.Mag() * invFluxJac.VecMult(update) + 0.5 * specRadArr * update :
-    // fAreaL.Mag() * invFluxJac.VecMult(update) - 0.5 * specRadArr * update;
+    // fAreaL.Mag() * invFluxJac.ArrayMult(update) + 0.5 * specRadArr * update :
+    // fAreaL.Mag() * invFluxJac.ArrayMult(update) - 0.5 * specRadArr * update;
 }
 
 // change of variable matrix going frim primative to conservative variables
