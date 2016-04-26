@@ -332,9 +332,10 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
 
           // if using a block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
-            mainDiagonal(ip, jp, kp).AddInviscidJacobian(
-                state_(ig, jg, kg), fAreaI_(ig, jg, kg),
-                fAreaI_(ig + 1, jg, kg), eqnState, turb, inp.IsTurbulent());
+            // fluxJacobian fluxJac;
+            // fluxJac.RusanovFluxJacobian(state_(ig - 1, jg, kg), state_(ig, jg, kg),
+            //                             eqnState, fAreaI_(ig, jg, kg), true, inp);
+            // mainDiagonal(ip, jp, kp) += fluxJac;
           }
         }
       }
@@ -450,10 +451,10 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
-            mainDiagonal(ip, jp, kp).AddInviscidJacobian(
-                state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
-                fAreaJ_(ig, jg + 1, kg), eqnState, turb,
-                inp.IsTurbulent());
+            // mainDiagonal(ip, jp, kp).AddInviscidJacobian(
+            //     state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
+            //     fAreaJ_(ig, jg + 1, kg), eqnState, turb,
+            //     inp.IsTurbulent());
           }
         }
       }
@@ -570,10 +571,10 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
-            mainDiagonal(ip, jp, kp).AddInviscidJacobian(
-                state_(ig, jg, kg), fAreaK_(ig, jg, kg),
-                fAreaK_(ig, jg, kg + 1), eqnState, turb,
-                inp.IsTurbulent());
+            // mainDiagonal(ip, jp, kp).AddInviscidJacobian(
+            //     state_(ig, jg, kg), fAreaK_(ig, jg, kg),
+            //     fAreaK_(ig, jg, kg + 1), eqnState, turb,
+            //     inp.IsTurbulent());
           }
         }
       }
@@ -1944,10 +1945,10 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
-            mainDiagonal(ip, jp, kp).AddViscousJacobian(
-                state_(ig, jg, kg), fAreaI_(ig, jg, kg),
-                fAreaI_(ig + 1, jg, kg), eqnState, suth,
-                vol_(ig, jg, kg), turb, inp.IsTurbulent());
+            // mainDiagonal(ip, jp, kp).AddViscousJacobian(
+            //     state_(ig, jg, kg), fAreaI_(ig, jg, kg),
+            //     fAreaI_(ig + 1, jg, kg), eqnState, suth,
+            //     vol_(ig, jg, kg), turb, inp.IsTurbulent());
           }
         }
       }
@@ -2108,10 +2109,10 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
-            mainDiagonal(ip, jp, kp).AddViscousJacobian(
-                state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
-                fAreaJ_(ig, jg + 1, kg), eqnState, suth,
-                vol_(ig, jg, kg), turb, inp.IsTurbulent());
+            // mainDiagonal(ip, jp, kp).AddViscousJacobian(
+            //     state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
+            //     fAreaJ_(ig, jg + 1, kg), eqnState, suth,
+            //     vol_(ig, jg, kg), turb, inp.IsTurbulent());
           }
         }
       }
@@ -2271,10 +2272,10 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
-            mainDiagonal(ip, jp, kp).AddViscousJacobian(
-                state_(ig, jg, kg), fAreaK_(ig, jg, kg),
-                fAreaK_(ig, jg, kg + 1), eqnState, suth,
-                vol_(ig, jg, kg), turb, inp.IsTurbulent());
+            // mainDiagonal(ip, jp, kp).AddViscousJacobian(
+            //     state_(ig, jg, kg), fAreaK_(ig, jg, kg),
+            //     fAreaK_(ig, jg, kg + 1), eqnState, suth,
+            //     vol_(ig, jg, kg), turb, inp.IsTurbulent());
           }
         }
       }
@@ -6634,8 +6635,8 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
 
         // add contribution of source spectral radius to flux jacobian
         if (inp.IsBlockMatrix()) {
-          mainDiagonal(ip, jp, kp).AddTurbSourceJacobian(
-              state_(ig, jg, kg), suth, vol_(ig, jg, kg), turb);
+          // mainDiagonal(ip, jp, kp).AddTurbSourceJacobian(
+          //     state_(ig, jg, kg), suth, vol_(ig, jg, kg), turb);
         }
       }
     }

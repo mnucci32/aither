@@ -549,14 +549,23 @@ void input::CalcCFL(const int &i) {
   }
 }
 
+// member function to determine number of turbulence equations
+int input::NumTurbEquations() const {
+  auto numEqns = 0;
+  if (this->IsTurbulent()) {
+    numEqns = 2;
+  }
+  return numEqns;
+}
+
 // member function to determine number of equations to solver for
 int input::NumEquations() const {
   auto numEqns = 0;
   if ((equationSet_ == "euler") ||
       (equationSet_ == "navierStokes")) {
-    numEqns = 5;
+    numEqns = this->NumFlowEquations();
   } else if (equationSet_ == "rans") {
-    numEqns = 7;
+    numEqns = this->NumFlowEquations() + this->NumTurbEquations();
   } else {
     cerr << "ERROR: Equations set is not recognized. Cannot determine number "
             "of equations!" << endl;

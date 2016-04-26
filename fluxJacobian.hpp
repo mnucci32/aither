@@ -56,10 +56,6 @@ class fluxJacobian {
   fluxJacobian() : fluxJacobian(0.0, 0.0) {}
   explicit fluxJacobian(const uncoupledScalar &specRad) :
       fluxJacobian(specRad.FlowVariable(), specRad.TurbVariable()) {}
-  fluxJacobian(const primVars &, const unitVec3dMag<double> &,
-               const unitVec3dMag<double> &, const idealGas &,
-               const sutherland &, const double &,
-               const unique_ptr<turbModel> &, const input &, const bool &);
 
   // move constructor and assignment operator
   fluxJacobian(fluxJacobian&&) noexcept = default;
@@ -73,15 +69,21 @@ class fluxJacobian {
   squareMatrix FlowJacobian() const { return flowJacobian_; }
   squareMatrix TurbulenceJacobian() const { return turbJacobian_; }
 
-  void AddInviscidJacobian(const primVars &, const unitVec3dMag<double> &,
-                           const unitVec3dMag<double> &, const idealGas &,
-                           const unique_ptr<turbModel> &, const bool &);
-  void AddViscousJacobian(const primVars &, const unitVec3dMag<double> &,
-                          const unitVec3dMag<double> &, const idealGas &,
-                          const sutherland &, const double &,
-                          const unique_ptr<turbModel> &, const bool &);
-  void AddTurbSourceJacobian(const primVars &, const sutherland &,
-                             const double &, const unique_ptr<turbModel> &);
+  void RusanovFluxJacobian(const primVars &, const primVars &,
+                           const idealGas &, const vector3d<double> &,
+                           const bool &, const input &);
+  void InvFluxJacobian(const primVars &, const idealGas &,
+                       const vector3d<double> &, const input &);
+  void ApproxRoeFluxJacobian(const primVars &, const primVars &,
+                             const idealGas &, const vector3d<double> &,
+                             const bool &, const input &);
+  void DelPrimativeDelConservative(const primVars &, const idealGas &,
+                                   const input &);
+
+  void ApproxTSLJacobian(const primVars &, const idealGas &,
+                         const sutherland &,
+                         const vector3d<double> &, const double &,
+                         const unique_ptr<turbModel> &, const input &);
 
   void Zero() {
     flowJacobian_.Zero();
@@ -225,14 +227,6 @@ inline const fluxJacobian operator/(const double &lhs, fluxJacobian rhs) {
 
 ostream &operator<<(ostream &os, const fluxJacobian &);
 
-squareMatrix RusanovFluxJacobian(const primVars &, const primVars &,
-                                 const idealGas &, const vector3d<double> &,
-                                 const bool &);
-squareMatrix InvFluxJacobian(const primVars &, const idealGas &,
-                             const vector3d<double> &);
-squareMatrix ApproxRoeFluxJacobian(const primVars &, const primVars &,
-                                   const idealGas &, const vector3d<double> &,
-                                   const bool &);
 genArray RusanovOffDiagonal(const primVars &, const genArray &,
                             const unitVec3dMag<double> &,
                             const unitVec3dMag<double> &,
@@ -247,11 +241,5 @@ genArray RoeOffDiagonal(const primVars &, const primVars &, const genArray &,
                         const unique_ptr<turbModel> &, const input &,
                         const bool &);
 
-squareMatrix DelPrimativeDelConservative(const primVars &, const idealGas &);
-
-squareMatrix ApproxTSLJacobian(const primVars &, const idealGas &,
-                               const sutherland &,
-                               const vector3d<double> &, const double &,
-                               const unique_ptr<turbModel> &);
 
 #endif
