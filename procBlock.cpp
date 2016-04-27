@@ -320,15 +320,15 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
                                      ip, jp, kp);
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-          specRadius_(ip, jp, kp).AddToFlowVariable(
-              state_(ig, jg, kg).InvCellSpectralRadius(fAreaI_(ig, jg, kg),
-                                                       fAreaI_(ig + 1, jg, kg),
-                                                       eqnState));
-          if (inp.IsTurbulent()) {
-            specRadius_(ip, jp, kp).AddToTurbVariable(
-                turb->InviscidSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
-                                      fAreaI_(ig + 1, jg, kg)));
-          }
+          const auto invSpecRad = state_(ig, jg, kg).InvCellSpectralRadius(
+              fAreaI_(ig, jg, kg), fAreaI_(ig + 1, jg, kg), eqnState);
+
+          const auto turbInvSpecRad = inp.IsTurbulent() ?
+              turb->InviscidSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
+                                    fAreaI_(ig + 1, jg, kg)): 0.0;
+
+          const uncoupledScalar specRad(invSpecRad, turbInvSpecRad);
+          specRadius_(ip, jp, kp) += specRad;
 
           // if using a block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
@@ -336,6 +336,8 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
             // fluxJac.RusanovFluxJacobian(state_(ig - 1, jg, kg), state_(ig, jg, kg),
             //                             eqnState, fAreaI_(ig, jg, kg), true, inp);
             // mainDiagonal(ip, jp, kp) += fluxJac;
+          } else {
+            mainDiagonal(ip, jp, kp) += fluxJacobian(specRad);
           }
         }
       }
@@ -439,15 +441,15 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-          specRadius_(ip, jp, kp).AddToFlowVariable(
-              state_(ig, jg, kg).InvCellSpectralRadius(fAreaJ_(ig, jg, kg),
-                                                       fAreaJ_(ig, jg + 1, kg),
-                                                       eqnState));
-          if (inp.IsTurbulent()) {
-            specRadius_(ip, jp, kp).AddToTurbVariable(
-                turb->InviscidSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
-                                      fAreaJ_(ig, jg + 1, kg)));
-          }
+          const auto invSpecRad = state_(ig, jg, kg).InvCellSpectralRadius(
+              fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg + 1, kg), eqnState);
+
+          const auto turbInvSpecRad = inp.IsTurbulent() ?
+              turb->InviscidSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
+                                    fAreaJ_(ig, jg + 1, kg)): 0.0;
+
+          const uncoupledScalar specRad(invSpecRad, turbInvSpecRad);
+          specRadius_ += specRad;
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
@@ -455,6 +457,8 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
             //     state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
             //     fAreaJ_(ig, jg + 1, kg), eqnState, turb,
             //     inp.IsTurbulent());
+          } else {
+            mainDiagonal(ip, jp, kp) += fluxJacobian(specRad);
           }
         }
       }
@@ -559,15 +563,15 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-          specRadius_(ip, jp, kp).AddToFlowVariable(
-              state_(ig, jg, kg).InvCellSpectralRadius(fAreaK_(ig, jg, kg),
-                                                       fAreaK_(ig, jg, kg + 1),
-                                                       eqnState));
-          if (inp.IsTurbulent()) {
-            specRadius_(ip, jp, kp).AddToTurbVariable(
-                turb->InviscidSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
-                                      fAreaK_(ig + 1, jg, kg + 1)));
-          }
+          const auto invSpecRad = state_(ig, jg, kg).InvCellSpectralRadius(
+              fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg + 1), eqnState);
+
+          const auto turbInvSpecRad = inp.IsTurbulent() ?
+              turb->InviscidSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
+                                    fAreaK_(ig + 1, jg, kg + 1)) : 0.0;
+
+          const uncoupledScalar specRad(invSpecRad, turbInvSpecRad);
+          specRadius_(ip, jp, kp) += specRad;
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
@@ -575,6 +579,8 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
             //     state_(ig, jg, kg), fAreaK_(ig, jg, kg),
             //     fAreaK_(ig, jg, kg + 1), eqnState, turb,
             //     inp.IsTurbulent());
+          } else {
+            mainDiagonal(ip, jp, kp) += fluxJacobian(specRad);
           }
         }
       }
@@ -920,12 +926,6 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
           // equal to volume / tau
           diagVolTime += specRadius_(ip, jp, kp).FlowVariable() /
               inp.DualTimeCFL();
-        }
-
-        // if not using a block matrix on diagonal, construct from
-        // spectral radii
-        if (!inp.IsBlockMatrix()) {
-          mainDiagonal(ip, jp, kp) = fluxJacobian(specRadius_(ip, jp, kp));
         }
 
         // add volume and time term
@@ -1877,6 +1877,8 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
   // mainDiagonal -- main diagonal of LHS used to store flux jacobians for
   //                 implicit solver
 
+  const auto viscCoeff = inp.ViscousCFLCoefficient();
+  
   // loop over all physical i-faces
   for (auto kp = 0, kg = numGhosts_; kg < fAreaI_.NumK() - numGhosts_;
        kg++, kp++) {
@@ -1929,19 +1931,19 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-          // factor 2 because visc spectral radius is not halved (Blazek 6.53)
-          specRadius_(ip, jp, kp).AddToFlowVariable(
-              2.0 * state_(ig, jg, kg).ViscCellSpectralRadius(
+          const auto viscSpecRad =
+              state_(ig, jg, kg).ViscCellSpectralRadius(
                   fAreaI_(ig, jg, kg), fAreaI_(ig + 1, jg, kg), eqnState, suth,
-                  vol_(ig, jg, kg), turb));
+                  vol_(ig, jg, kg), turb);
 
-          if (inp.IsTurbulent()) {
-            // factor 2 because visc spectral radius is not halved (Blazek 6.53)
-            specRadius_(ip, jp, kp).AddToTurbVariable(
-                2.0 * turb->ViscSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
-                                        fAreaI_(ig + 1, jg, kg), eqnState, suth,
-                                        vol_(ig, jg, kg)));
-          }
+          const auto turbViscSpecRad = inp.IsTurbulent() ?
+              turb->ViscSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
+                                fAreaI_(ig + 1, jg, kg), eqnState, suth,
+                                vol_(ig, jg, kg)) : 0.0;
+
+          const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
+          specRadius_(ip, jp, kp) += specRad * viscCoeff;
+
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
@@ -1949,6 +1951,9 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
             //     state_(ig, jg, kg), fAreaI_(ig, jg, kg),
             //     fAreaI_(ig + 1, jg, kg), eqnState, suth,
             //     vol_(ig, jg, kg), turb, inp.IsTurbulent());
+          } else {
+            // factor 2 because visc spectral radius is not halved (Blazek 6.53)
+            mainDiagonal(ip, jp, kp) += fluxJacobian(2.0 * specRad);
           }
         }
       }
@@ -2041,6 +2046,8 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
   // mainDiagonal -- main diagonal of LHS used to store flux jacobians for
   //                 implicit solver
 
+  const auto viscCoeff = inp.ViscousCFLCoefficient();
+
   // loop over all physical j-faces
   for (auto kp = 0, kg = numGhosts_; kg < fAreaJ_.NumK() - numGhosts_;
        kg++, kp++) {
@@ -2093,19 +2100,19 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-          // factor 2 because visc spectral radius is not halved (Blazek 6.53)
-          specRadius_(ip, jp, kp).AddToFlowVariable(
-              2.0 * state_(ig, jg, kg).ViscCellSpectralRadius(
+          const auto viscSpecRad =
+              state_(ig, jg, kg).ViscCellSpectralRadius(
                   fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg + 1, kg), eqnState, suth,
-                  vol_(ig, jg, kg), turb));
+                  vol_(ig, jg, kg), turb);
 
-          if (inp.IsTurbulent()) {
-            // factor 2 because visc spectral radius is not halved (Blazek 6.53)
-            specRadius_(ip, jp, kp).AddToTurbVariable(
-                2.0 * turb->ViscSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
-                                        fAreaJ_(ig, jg + 1, kg), eqnState, suth,
-                                        vol_(ig, jg, kg)));
-          }
+          const auto turbViscSpecRad = inp.IsTurbulent() ?
+              turb->ViscSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
+                                fAreaJ_(ig, jg + 1, kg), eqnState, suth,
+                                vol_(ig, jg, kg)) : 0.0;
+
+          const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
+          specRadius_(ip, jp, kp) += specRad * viscCoeff;
+
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
@@ -2113,6 +2120,9 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
             //     state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
             //     fAreaJ_(ig, jg + 1, kg), eqnState, suth,
             //     vol_(ig, jg, kg), turb, inp.IsTurbulent());
+          } else {
+            // factor 2 because visc spectral radius is not halved (Blazek 6.53)
+            mainDiagonal(ip, jp, kp) += fluxJacobian(2.0 * specRad);
           }
         }
       }
@@ -2204,6 +2214,8 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
   // mainDiagonal -- main diagonal of LHS used to store flux jacobians for
   //                 implicit solver
 
+  const auto viscCoeff = inp.ViscousCFLCoefficient();
+
   // loop over all physical k-faces
   for (auto kp = 0, kg = numGhosts_; kg < fAreaK_.NumK() - numGhosts_;
        kg++, kp++) {
@@ -2256,19 +2268,19 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-          // factor 2 because visc spectral radius is not halved (Blazek 6.53)
-          specRadius_(ip, jp, kp).AddToFlowVariable(
-              2.0 * state_(ig, jg, kg).ViscCellSpectralRadius(
+          const auto viscSpecRad =
+              state_(ig, jg, kg).ViscCellSpectralRadius(
                   fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg + 1), eqnState, suth,
-                  vol_(ig, jg, kg), turb));
-          
-          if (inp.IsTurbulent()) {
-            // factor 2 because visc spectral radius is not halved (Blazek 6.53)
-            specRadius_(ip, jp, kp).AddToTurbVariable(
-                2.0 * turb->ViscSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
-                                        fAreaK_(ig, jg, kg + 1), eqnState, suth,
-                                        vol_(ig, jg, kg)));
-          }
+                  vol_(ig, jg, kg), turb);
+
+          const auto turbViscSpecRad = inp.IsTurbulent() ?
+              turb->ViscSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
+                                fAreaK_(ig, jg, kg + 1), eqnState, suth,
+                                vol_(ig, jg, kg)) : 0.0;
+
+          const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
+          specRadius_(ip, jp, kp) += specRad * viscCoeff;
+
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
@@ -2276,6 +2288,9 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
             //     state_(ig, jg, kg), fAreaK_(ig, jg, kg),
             //     fAreaK_(ig, jg, kg + 1), eqnState, suth,
             //     vol_(ig, jg, kg), turb, inp.IsTurbulent());
+          } else {
+            // factor 2 because visc spectral radius is not halved (Blazek 6.53)
+            mainDiagonal(ip, jp, kp) += fluxJacobian(2.0 * specRad);
           }
         }
       }
@@ -6630,13 +6645,17 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
                                    ip, jp, kp);
 
         // add source spectral radius for turbulence equations
-        specRadius_(ip, jp, kp).SubtractFromTurbVariable(
-            turb->SrcSpecRad(state_(ig, jg, kg), suth, vol_(ig, jg, kg)));
+        const auto srcSpecRad = turb->SrcSpecRad(state_(ig, jg, kg), suth,
+                                                 vol_(ig, jg, kg));
+        specRadius_(ip, jp, kp).SubtractFromTurbVariable(srcSpecRad);
 
         // add contribution of source spectral radius to flux jacobian
         if (inp.IsBlockMatrix()) {
           // mainDiagonal(ip, jp, kp).AddTurbSourceJacobian(
           //     state_(ig, jg, kg), suth, vol_(ig, jg, kg), turb);
+        } else {
+          const uncoupledScalar srcJac(0.0, srcSpecRad);
+          mainDiagonal(ip, jp, kp) -= fluxJacobian(srcJac);
         }
       }
     }
