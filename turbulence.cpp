@@ -131,6 +131,23 @@ double turbModel::SpectralRadius(const primVars &state,
   return specRad;
 }
 
+// member function to calculate inviscid spectral radius
+// df_dq = [vel (dot) area   0
+//                0          vel (dot) area]
+double turbModel::InviscidSpecRad(const primVars &state,
+                                  const unitVec3dMag<double> &fAreaL,
+                                  const unitVec3dMag<double> &fAreaR) const {
+  // state -- primative variables
+  // fAreaL -- face area for left face
+  // fAreaR -- face area for right face
+
+  auto normAvg = (0.5 * (fAreaL.UnitVector() +
+                         fAreaR.UnitVector())).Normalize();
+  auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
+  return state.Velocity().DotProd(normAvg) * fMag;
+}
+
+
 // -------------------------------------------------------------------------
 // member functions for the turbNone class
 
@@ -325,8 +342,8 @@ double turbKWWilcox::EddyViscAndMolecDiffCoeff(const primVars &state,
   sigmaK = sigmaStar_;
   sigmaW = sigma_;
 
-  // return eddy viscosity without limiter, scaled for nondimensional equations
-  return this->EddyViscNoLim(state) * suth.NondimScaling();
+  // return eddy viscosity, scaled for nondimensional equations
+  return this->EddyVisc(state, velGrad, suth, 0.0) * suth.NondimScaling();
 }
 
 /* member function to calculate the spectral radius of the source jacobian
@@ -347,21 +364,6 @@ double turbKWWilcox::SrcSpecRad(const primVars &state,
 
   // return spectral radius scaled for nondimensional equations
   return -2.0 * betaStar_ * state.Omega() * vol * suth.InvNondimScaling();
-}
-
-// member function to calculate inviscid spectral radius
-// df_dq = [vel (dot) area   0
-//                0          vel (dot) area]
-double turbKWWilcox::InviscidSpecRad(const primVars &state,
-                                     const unitVec3dMag<double> &fAreaL,
-                                     const unitVec3dMag<double> &fAreaR) const {
-  // state -- primative variables
-  // fAreaL -- face area for left face
-  // fAreaR -- face area for right face
-  auto normAvg = (0.5 * (fAreaL.UnitVector() +
-                         fAreaR.UnitVector())).Normalize();
-  auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
-  return state.Velocity().DotProd(normAvg) * fMag;
 }
 
 // member function to calculate viscous spectral radius
@@ -592,21 +594,6 @@ double turbKWSst::SrcSpecRad(const primVars &state,
   return -2.0 * betaStar_ * state.Omega() * vol * suth.InvNondimScaling();
 }
 
-// member function to calculate inviscid spectral radius
-// df_dq = [vel (dot) area   0
-//                0          vel (dot) area]
-double turbKWSst::InviscidSpecRad(const primVars &state,
-                                  const unitVec3dMag<double> &fAreaL,
-                                  const unitVec3dMag<double> &fAreaR) const {
-  // state -- primative variables
-  // fAreaL -- face area for left face
-  // fAreaR -- face area for right face
-
-  auto normAvg = (0.5 * (fAreaL.UnitVector() +
-                         fAreaR.UnitVector())).Normalize();
-  auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
-  return state.Velocity().DotProd(normAvg) * fMag;
-}
 
 // member function to calculate viscous spectral radius
 // dfv_dq = [ (area / vol) * (nu + sigmaStar * nut)    0
