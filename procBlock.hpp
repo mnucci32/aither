@@ -28,10 +28,11 @@
 #include "multiArray3d.hpp"        // multiArray3d
 #include "tensor.hpp"              // tensor
 #include "primVars.hpp"            // primVars
-#include "genArray.hpp"              // genArray
+#include "genArray.hpp"            // genArray
 #include "boundaryConditions.hpp"  // interblock, patch
 #include "macros.hpp"
 #include "kdtree.hpp"              // kdtree
+#include "uncoupledScalar.hpp"     // uncoupledScalar
 
 using std::vector;
 using std::string;
@@ -50,7 +51,6 @@ class viscousFlux;
 class input;
 class gradients;
 class geomSlice;
-class stateSlice;
 class source;
 class turbModel;
 class plot3dBlock;
@@ -71,8 +71,8 @@ class procBlock {
   multiArray3d<vector3d<double>> fCenterJ_;  // coordinates of j-face centers
   multiArray3d<vector3d<double>> fCenterK_;  // coordinates of k-face centers
 
+  multiArray3d<uncoupledScalar> specRadius_;  // maximum wave speed for cell
   multiArray3d<double> vol_;  // cell volume
-  multiArray3d<double> avgWaveSpeed_;  // maximum wave speed for cell
   multiArray3d<double> dt_;  // cell time step
   multiArray3d<double> wallDist_;  // distance to nearest viscous wall
 
@@ -120,7 +120,7 @@ class procBlock {
                       const int &);
 
   void CalcSrcTerms(const gradients &, const sutherland &, const idealGas &,
-                    const unique_ptr<turbModel> &,
+                    const unique_ptr<turbModel> &, const input &,
                     multiArray3d<fluxJacobian> &);
 
   void AddToResidual(const inviscidFlux &, const int &, const int &,
@@ -151,9 +151,13 @@ class procBlock {
 
   // member functions
   int NumCells() const { return residual_.Size(); }
+  int NumCellsGhosts() const { return state_.Size(); }
   int NumI() const { return residual_.NumI(); }
   int NumJ() const { return residual_.NumJ(); }
   int NumK() const { return residual_.NumK(); }
+  int NumIG() const { return state_.NumI(); }
+  int NumJG() const { return state_.NumJ(); }
+  int NumKG() const { return state_.NumK(); }
   int NumGhosts() const { return numGhosts_; }
   int ParentBlock() const { return parBlock_; }
   int LocalPosition() const { return localPos_; }
@@ -165,6 +169,10 @@ class procBlock {
   primVars State(const int &ii, const int &jj, const int &kk) const {
     return state_(ii, jj, kk);
   }
+
+  multiArray3d<primVars> SliceState(const int &, const int &, const int &,
+                                    const int &, const int &,
+                                    const int &) const;
 
   multiArray3d<genArray> GetCopyConsVars(const idealGas &) const;
 
@@ -218,8 +226,9 @@ class procBlock {
     return fCenterK_(ii, jj, kk);
   }
 
-  double AvgWaveSpeed(const int &ii, const int &jj, const int &kk) const {
-    return avgWaveSpeed_(ii, jj, kk);
+  uncoupledScalar SpectralRadius(const int &ii, const int &jj,
+                                 const int &kk) const {
+    return specRadius_(ii, jj, kk);
   }
   double Dt(const int &ii, const int &jj, const int &kk) const {
     return dt_(ii, jj, kk);
@@ -237,7 +246,7 @@ class procBlock {
   }
 
   void CalcBlockTimeStep(const input &, const double &);
-  void UpdateBlock(const input &, const int &, const idealGas &, const double &,
+  void UpdateBlock(const input &, const idealGas &, const double &,
                    const sutherland &, const multiArray3d<genArray> &,
                    const multiArray3d<genArray> &,
                    const unique_ptr<turbModel> &, const int &, genArray &,
@@ -285,8 +294,25 @@ class procBlock {
   multiArray3d<genArray> SolTimeMMinusN(const multiArray3d<genArray> &,
                                         const idealGas &, const input &,
                                         const int &) const;
+  void InvertDiagonal(multiArray3d<fluxJacobian> &, const input &) const;
 
-  double LUSGS(const vector<vector3d<int>> &, multiArray3d<genArray> &,
+  multiArray3d<genArray> InitializeMatrixUpdate(
+      const input &, const multiArray3d<genArray> &,
+      const multiArray3d<genArray> &, const multiArray3d<fluxJacobian> &) const;
+  void LUSGS_Forward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
+                     const multiArray3d<genArray> &,
+                     const multiArray3d<genArray> &,
+                     const idealGas &, const input &, const sutherland &,
+                     const unique_ptr<turbModel> &,
+                     const multiArray3d<fluxJacobian> &, const int &) const;
+  double LUSGS_Backward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
+                        const multiArray3d<genArray> &,
+                        const multiArray3d<genArray> &,
+                        const idealGas &, const input &, const sutherland &,
+                        const unique_ptr<turbModel> &,
+                        const multiArray3d<fluxJacobian> &, const int &) const;
+
+  double DPLUR(multiArray3d<genArray> &,
                const multiArray3d<genArray> &, const multiArray3d<genArray> &,
                const idealGas &, const input &, const sutherland &,
                const unique_ptr<turbModel> &,
@@ -299,21 +325,22 @@ class procBlock {
 
   vector<bool> PutGeomSlice(const geomSlice &, interblock &, const int &,
                             const int &);
-  void PutStateSlice(const stateSlice &, const interblock &, const int &,
-                     const int &);
+  void PutStateSlice(const multiArray3d<primVars> &, const interblock &,
+                     const int &, const int &);
 
   procBlock Split(const string &, const int &, const int &,
                   vector<boundarySurface> &);
   void Join(const procBlock &, const string &, vector<boundarySurface> &);
 
-  void SwapSliceMPI(const interblock &, const int &, const MPI_Datatype &);
+  void SwapStateSlice(const interblock &, procBlock &);
+  void SwapStateSliceMPI(const interblock &, const int &, const MPI_Datatype &);
 
   void PackSendGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
                        const MPI_Datatype &) const;
   void RecvUnpackGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
                          const MPI_Datatype &);
-  void PackSendSolMPI(const MPI_Datatype &) const;
-  void RecvUnpackSolMPI(const MPI_Datatype &);
+  void PackSendSolMPI(const MPI_Datatype &, const MPI_Datatype &) const;
+  void RecvUnpackSolMPI(const MPI_Datatype &, const MPI_Datatype &);
 
   // destructor
   ~procBlock() noexcept {}
@@ -342,9 +369,7 @@ vector3d<double> CalcScalarGradGG(
     const vector3d<double> &, const vector3d<double> &,
     const vector3d<double> &, const double &);
 
-vector3d<int> GetSwapLoc(const int &, const int &, const int &,
-                         const interblock &, const bool &);
-void SwapSlice(interblock &, procBlock &, procBlock &, const bool &);
+void SwapGeomSlice(interblock &, procBlock &, procBlock &);
 
 void GetBoundaryConditions(vector<procBlock> &, const input &, const idealGas &,
                            const sutherland &, const unique_ptr<turbModel> &,
@@ -357,6 +382,25 @@ void CalcWallDistance(vector<procBlock> &, const kdtree &);
 vector<multiArray3d<genArray>> GetCopyConsVars(const vector<procBlock> &,
                                                const idealGas &);
 
+void ExplicitUpdate(vector<procBlock> &, const input &, const idealGas &,
+                    const double &, const sutherland &,
+                    const vector<multiArray3d<genArray>> &,
+                    const unique_ptr<turbModel> &, const int &, genArray &,
+                    resid &);
+double ImplicitUpdate(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
+                      const input &, const idealGas &, const double &,
+                      const sutherland &,
+                      const vector<multiArray3d<genArray>> &,
+                      const vector<multiArray3d<genArray>> &,
+                      vector<multiArray3d<genArray>> &,
+                      const unique_ptr<turbModel> &,
+                      const int &, genArray &, resid &,
+                      const vector<interblock> &, const int &,
+                      const MPI_Datatype &);
+
+void SwapImplicitUpdate(vector<multiArray3d<genArray>> &,
+                        const vector<interblock> &, const int &,
+                        const MPI_Datatype &, const int &);
 #endif
 
 

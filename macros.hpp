@@ -19,8 +19,12 @@
 #define MACROSHEADERDEF  // define the macro
 
 #define NUMVARS 7
+#define NUMFLOWVARS 5
 #define EPS 1.0e-30
 #define ROOTP 0
 #define DEFAULTWALLDIST 1.0e10
+#define MAJORVERSION 0
+#define MINORVERSION 2
+#define PATCHNUMBER 0
 
 #endif

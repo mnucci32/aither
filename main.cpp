@@ -16,10 +16,16 @@
 
 #include <iostream>      // cout, cerr, endl
 #include <vector>        // stl vector
-#include <cfenv>         // exceptions
-#include <ctime>         // clock
+#include <chrono>        // clock
 #include <string>        // stl string
 #include <memory>        // unique_ptr
+
+#ifdef __linux__
+#include <cfenv>         // exceptions
+#elif __APPLE__
+#include <xmmintrin.h>
+#endif
+
 #include "plot3d.hpp"
 #include "vector3d.hpp"
 #include "input.hpp"
@@ -41,8 +47,6 @@ using std::cout;
 using std::cerr;
 using std::endl;
 using std::vector;
-using std::clock_t;
-using std::clock;
 
 int main(int argc, char *argv[]) {
   // Initialize MPI and make calls to get number
@@ -58,17 +62,23 @@ int main(int argc, char *argv[]) {
   auto subversion = 0;
   MPI_Get_version(&version, &subversion);
   if ( rank == ROOTP ) {
-    cout << "Code compiled on " << __DATE__ << " at " << __TIME__ << endl;
+    cout << "Aither version " << MAJORVERSION << "." << MINORVERSION << "."
+         << PATCHNUMBER << endl;
+    cout << "Compiled on " << __DATE__ << " at " << __TIME__ << endl;
     cout << "Using MPI Version " << version << "." << subversion << endl;
     cout << "Using " << numProcs << " processors" << endl;
   }
   MPI_Barrier(MPI_COMM_WORLD);
 
   // Start clock to time simulation
-  auto start = clock();
+  const auto start = std::chrono::high_resolution_clock::now();
 
   // Enable exceptions so code won't run with NANs
+#ifdef __linux__
   feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
+#elif __APPLE__
+  _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_INVALID);
+#endif
 
   // Name of input file is the second argument (the executable being the first)
   string inputFile = argv[1];
@@ -85,23 +95,23 @@ int main(int argc, char *argv[]) {
   inputVars.ReadInput(rank);
 
   // Determine number of ghost cells
-  auto numGhost = 2;
+  const auto numGhost = 2;
 
   // Get equation of state
-  idealGas eos(inputVars.Gamma(), inputVars.R());
+  const idealGas eos(inputVars.Gamma(), inputVars.R());
 
   // Initialize sutherland's law for viscosity
-  sutherland suth(inputVars.TRef(), inputVars.RRef(), inputVars.LRef(),
-                  inputVars.PRef(), inputVars.VelRef(), eos);
+  const sutherland suth(inputVars.TRef(), inputVars.RRef(), inputVars.LRef(),
+                        inputVars.PRef(), inputVars.VelRef(), eos);
 
   // Initialize state vector with nondimensional variables
   // Get reference speed of sound
-  auto aRef = eos.SoS(inputVars.PRef(), inputVars.RRef());
-  primVars state;
+  const auto aRef = eos.SoS(inputVars.PRef(), inputVars.RRef());
+  primVars state(0.0);
   state.NondimensionalInitialize(eos, aRef, inputVars, suth);
 
   // Get turbulence model
-  auto turb = inputVars.AssignTurbulenceModel();
+  const auto turb = inputVars.AssignTurbulenceModel();
 
   vector<plot3dBlock> mesh;
   vector<interblock> connections;
@@ -142,8 +152,8 @@ int main(int argc, char *argv[]) {
 
     // Swap geometry for interblock BCs
     for (auto ii = 0; ii < static_cast<int>(connections.size()); ii++) {
-      SwapSlice(connections[ii], stateBlocks[connections[ii].BlockFirst()],
-                stateBlocks[connections[ii].BlockSecond()], true);
+      SwapGeomSlice(connections[ii], stateBlocks[connections[ii].BlockFirst()],
+                    stateBlocks[connections[ii].BlockSecond()]);
     }
     // Get ghost cell edge data
     for (auto ll = 0; ll < static_cast<int>(mesh.size()); ll++) {
@@ -159,9 +169,10 @@ int main(int argc, char *argv[]) {
 
   // Set MPI datatypes
   MPI_Datatype MPI_vec3d, MPI_cellData, MPI_procBlockInts,
-      MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag;
+    MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag, MPI_uncoupledScalar;
   SetDataTypesMPI(MPI_vec3d, MPI_cellData, MPI_procBlockInts,
-                  MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag);
+                  MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag,
+                  MPI_uncoupledScalar);
 
   // Send number of procBlocks to all processors
   SendNumProcBlocks(decomp.NumBlocksOnAllProc(), numProcBlock);
@@ -184,7 +195,7 @@ int main(int argc, char *argv[]) {
   //-----------------------------------------------------------------------
   // wall distance calculation
 
-  auto wallStart = clock();
+  const auto wallStart = std::chrono::high_resolution_clock::now();
 
   if (rank == ROOTP) {
     cout << "Starting wall distance calculation..." << endl;
@@ -195,9 +206,10 @@ int main(int argc, char *argv[]) {
   kdtree tree(viscFaces);
 
   if (rank == ROOTP) {
-    auto kdDuration = (clock() - wallStart) /
-        static_cast<double> (CLOCKS_PER_SEC);
-    cout << "K-d tree complete after " << kdDuration << " seconds" << endl;
+    const auto kdEnd = std::chrono::high_resolution_clock::now();
+    const std::chrono::duration<double> kdDuration = kdEnd - wallStart;
+    cout << "K-d tree complete after " << kdDuration.count() << " seconds"
+         << endl;
   }
 
   if (tree.Size() > 0) {
@@ -206,33 +218,33 @@ int main(int argc, char *argv[]) {
 
   MPI_Barrier(MPI_COMM_WORLD);
   if (rank == ROOTP) {
-    auto wallDuration = (clock() - wallStart) /
-        static_cast<double> (CLOCKS_PER_SEC);
-    cout << "Wall distance calculation finished after " << wallDuration
+    const auto wallEnd = std::chrono::high_resolution_clock::now();
+    const std::chrono::duration<double> wallDuration = wallEnd - wallStart;
+    cout << "Wall distance calculation finished after " << wallDuration.count()
          << " seconds" << endl << endl;
   }
 
   //-----------------------------------------------------------------------
-
-  // Column matrix of zeros
-  genArray initial(0.0);
-
   // Preallocate vectors for old solution
   // Outermost vector for blocks, genArray for variables in cell
   vector<multiArray3d<genArray>> solTimeN(numProcBlock);
   vector<multiArray3d<genArray>> solDeltaNm1(numProcBlock);
+  vector<multiArray3d<genArray>> solDeltaMmN(numProcBlock);
+  // Allocate array for flux jacobian
+  vector<multiArray3d<fluxJacobian>> mainDiagonal(numProcBlock);
 
-  // Initialize residual variables
-  genArray residL2(0.0);  // l2 norm residuals
   genArray residL2First(0.0);  // l2 norm residuals to normalize by
-  resid residLinf;  // linf residuals
-  // matrix inversion residual (only for implicit runs)
-  auto matrixResid = 0.0;
 
   // Send/recv solutions - necessary to get wall distances
-  GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData);
+  GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData,
+                MPI_uncoupledScalar);
 
+  ofstream resFile;
   if (rank == ROOTP) {
+    // Open residual file
+    resFile.open(inputVars.SimNameRoot() + ".resid", ios::out);
+
+
     // Write out cell centers grid file
     WriteCellCenter(inputVars.GridName(), stateBlocks, decomp,
                     inputVars.LRef());
@@ -261,78 +273,47 @@ int main(int argc, char *argv[]) {
                             connections, rank, MPI_cellData);
 
       // Loop over number of blocks
-      for (auto bb = 0; bb < static_cast<int>(localStateBlocks.size());
-            bb++) {
-        // Allocate array for flux jacobian
-        multiArray3d<fluxJacobian> mainDiagonal(
-            localStateBlocks[bb].NumI(), localStateBlocks[bb].NumJ(),
-            localStateBlocks[bb].NumK());
+      for (auto bb = 0; bb < numProcBlock; bb++) {
+        // Get solution at time M - N if implicit
+        if (inputVars.IsImplicit()) {
+          solDeltaMmN[bb] = localStateBlocks[bb].SolTimeMMinusN(
+              solTimeN[bb], eos, inputVars, mm);
+          if (nn == 0 && mm == 0) {
+            // At first iteration, resize array for old solution
+            solDeltaNm1[bb].ClearResize(localStateBlocks[bb].NumI(),
+                                        localStateBlocks[bb].NumJ(),
+                                        localStateBlocks[bb].NumK());
+            mainDiagonal[bb].ClearResize(localStateBlocks[bb].NumI(),
+                                         localStateBlocks[bb].NumJ(),
+                                         localStateBlocks[bb].NumK());
+          }
+        }
 
         // Calculate residual (RHS)
         localStateBlocks[bb].CalcResidual(suth, eos, inputVars, turb,
-                                          mainDiagonal);
+                                          mainDiagonal[bb]);
 
         // Calculate the time step to use in the simulation
         // (either user specified or derived from CFL)
         localStateBlocks[bb].CalcBlockTimeStep(inputVars, aRef);
+      }
 
-        // If implicit get old solution, reorder block, and use linear solver
-        if (inputVars.IsImplicit()) {
-          // At first iteration, resize array for old solution
-          if (nn == 0 && mm == 0) {
-            solDeltaNm1[bb].ClearResize(solTimeN[bb].NumI(),
-                                        solTimeN[bb].NumJ(),
-                                        solTimeN[bb].NumK());
-          }
+      // Initialize residual variables
+      genArray residL2(0.0);  // l2 norm residuals
+      resid residLinf;  // linf residuals
+      auto matrixResid = 0.0;
+      if (inputVars.IsImplicit()) {
+        matrixResid = ImplicitUpdate(localStateBlocks, mainDiagonal,
+                                     inputVars, eos, aRef, suth, solTimeN,
+                                     solDeltaMmN, solDeltaNm1, turb, mm,
+                                     residL2, residLinf, connections, rank,
+                                     MPI_cellData);
+      } else {  // explicit time integration
+        ExplicitUpdate(localStateBlocks, inputVars, eos, aRef, suth, solTimeN,
+                       turb, mm, residL2, residLinf);
+      }
 
-          // Get term for solution at time m minus solution at time n
-          multiArray3d<genArray> solTimeMmN =
-              localStateBlocks[bb].SolTimeMMinusN(solTimeN[bb], eos, inputVars,
-                                                  mm);
-
-          // Reorder block (by hyperplanes) for lusgs
-          auto reorder = HyperplaneReorder(localStateBlocks[bb].NumI(),
-                                           localStateBlocks[bb].NumJ(),
-                                           localStateBlocks[bb].NumK());
-
-          // Reserve space for correction du
-          multiArray3d<genArray> du(localStateBlocks[bb].NumI(),
-                                    localStateBlocks[bb].NumJ(),
-                                    localStateBlocks[bb].NumK(), initial);
-
-          // Calculate correction (du)
-          matrixResid += localStateBlocks[bb].LUSGS(reorder, du, solTimeMmN,
-                                                    solDeltaNm1[bb], eos,
-                                                    inputVars, suth, turb,
-                                                    mainDiagonal);
-
-          // Update solution
-          localStateBlocks[bb].UpdateBlock(inputVars, inputVars.IsImplicit(),
-                                           eos, aRef, suth, du, solTimeN[bb],
-                                           turb, mm, residL2, residLinf);
-
-          // Assign time n to time n-1 at end of nonlinear iterations
-          if (inputVars.TimeIntegration() == "bdf2" &&
-              mm == inputVars.NonlinearIterations() - 1 ) {
-            solDeltaNm1[bb] =
-                localStateBlocks[bb].DeltaNMinusOne(solTimeN[bb], eos,
-                                                    inputVars.Theta(),
-                                                    inputVars.Zeta());
-          }
-        } else {  // explicit
-          // Update solution
-          // not used in explicit update
-          multiArray3d<genArray> dummyCorrection(1, 1, 1);
-          localStateBlocks[bb].UpdateBlock(inputVars, inputVars.IsImplicit(),
-                                           eos, aRef, suth, dummyCorrection,
-                                           solTimeN[bb], turb, mm, residL2,
-                                           residLinf);
-        }
-
-        // Zero residuals and wave speed
-        localStateBlocks[bb].ResetResidWS();
-      }  // loop for blocks ---------------------------------------------------
-
+      // ----------------------------------------------------------------------
       // Get residuals from all processors
       residL2.GlobalReduceMPI(rank, inputVars.NumEquations());
       residLinf.GlobalReduceMPI(rank, MPI_DOUBLE_5INT, MPI_MAX_LINF);
@@ -348,27 +329,21 @@ int main(int argc, char *argv[]) {
 
       if (rank == ROOTP) {
         // Finish calculation of L2 norm of residual
-        for ( int cc = 0; cc < inputVars.NumEquations(); cc++ ) {
-          residL2[cc] = sqrt(residL2[cc]);
-        }
+        residL2.SquareRoot();
+
         // Finish calculation of matrix residual
         matrixResid = sqrt(matrixResid/(totalCells * inputVars.NumEquations()));
 
         // Print out run information
         WriteResiduals(inputVars, residL2First, residL2, residLinf, matrixResid,
-                       nn, mm);
+                       nn, mm, resFile);
       }
-
-      // Reset residuals
-      residL2.Zero();
-      residLinf.Zero();
-      matrixResid = 0.0;
     }  // loop for nonlinear iterations ---------------------------------------
-
 
     if ((nn+1) % inputVars.OutputFrequency() == 0) {  // write out function file
       // Send/recv solutions
-      GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData);
+      GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData,
+                    MPI_uncoupledScalar);
 
       if (rank == ROOTP) {
         cout << "writing out function file at iteration " << nn << endl;
@@ -377,21 +352,24 @@ int main(int argc, char *argv[]) {
         WriteRes(inputVars.SimNameRoot(), (nn+1), inputVars.OutputFrequency());
       }
     }
-  }  // loop for time ----------------------------------------------------------
-
+  }  // loop for time step -----------------------------------------------------
 
   if (rank == ROOTP) {
-    cout << endl;
-    cout << "Program Complete" << endl;
+    // close residual file
+    resFile.close();
+
+    cout << endl << "Program Complete" << endl;
     PrintTime();
 
-    auto duration = (clock() - start) / static_cast<double> (CLOCKS_PER_SEC);
-    cout << "Total Time: " << duration << " seconds" << endl;
+    const auto simEnd = std::chrono::high_resolution_clock::now();
+    const std::chrono::duration<double> duration = simEnd - start;
+    cout << "Total Time: " << duration.count() << " seconds" << endl;
   }
 
   // Free datatypes previously created
   FreeDataTypesMPI(MPI_vec3d, MPI_cellData, MPI_procBlockInts,
-                   MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag);
+                   MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag,
+                   MPI_uncoupledScalar);
 
   MPI_Finalize();
 

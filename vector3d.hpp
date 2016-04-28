@@ -88,12 +88,12 @@ class vector3d {
     return lhs /= s;
   }
 
-  // assignment of data_ members
+  // assignment of data members
   void SetX(const T &val) { data_[0] = val; }
   void SetY(const T &val) { data_[1] = val; }
   void SetZ(const T &val) { data_[2] = val; }
 
-  // access of data_ members
+  // access of data members
   T X() const { return data_[0]; }
   T Y() const { return data_[1]; }
   T Z() const { return data_[2]; }
@@ -331,13 +331,13 @@ vector3d<T> vector3d<T>::CrossProd(const vector3d<T>&v2) const {
 // Function to calculate the magnitude of the vector
 template <typename T>
 T vector3d<T>::Mag() const {
-  return sqrt(data_[0] * data_[0] + data_[1] * data_[1] + data_[2] * data_[2]);
+  return sqrt(this->MagSq());
 }
 
 // Function to calculate the square of the magnitude of the vector
 template <typename T>
 T vector3d<T>::MagSq() const {
-  return data_[0] * data_[0] + data_[1] * data_[1] + data_[2] * data_[2];
+  return this->DotProd(*this);
 }
 
 // Function to sum the elements in the vector

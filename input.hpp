@@ -23,6 +23,7 @@
 #include <memory>                   // unique_ptr
 #include "vector3d.hpp"
 #include "boundaryConditions.hpp"
+#include "macros.hpp"
 
 using std::vector;
 using std::string;
@@ -126,7 +127,8 @@ class input {
   string MatrixSolver() const {return matrixSolver_;}
   int MatrixSweeps() const {return matrixSweeps_;}
   double MatrixRelaxation() const {return matrixRelaxation_;}
-
+  bool MatrixRequiresInitialization() const;
+  
   double Theta() const {return timeIntTheta_;}
   double Zeta() const {return timeIntZeta_;}
 
@@ -160,12 +162,15 @@ class input {
 
   int NumVars() const {return vars_.size();}
   int NumEquations() const;
+  int NumFlowEquations() const {return NUMFLOWVARS;}
+  int NumTurbEquations() const;
 
   void ReadInput(const int &);
 
   bool IsImplicit() const;
   bool IsViscous() const;
   bool IsTurbulent() const;
+  bool IsBlockMatrix() const;
 
   string OrderOfAccuracy() const;
 

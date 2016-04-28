@@ -38,7 +38,7 @@ geomSlice::geomSlice() {
   vol_ = multiArray3d<double>(1, 1, 1);
 }
 
-// constructor -- initialize state_ vector with dummy variables
+// constructor -- initialize state vector with dummy variables
 geomSlice::geomSlice(const int &li, const int &lj, const int &lk,
                      const int &pblk) {
   // li -- size of direction i (cell)
@@ -184,137 +184,6 @@ geomSlice::geomSlice(const procBlock &blk, const int &is, const int &ie,
                                                      ks + k + 1);
           }
         }
-      }
-    }
-  }
-}
-
-// constructors for stateSlice class
-stateSlice::stateSlice() {
-  parBlock_ = 0;
-  state_ = multiArray3d<primVars>(1, 1, 1);
-}
-// constructor -- initialize state vector with dummy variables
-stateSlice::stateSlice(const int &li, const int &lj, const int &lk,
-                       const int &pblk) {
-  // li -- size of direction i
-  // lj -- size of direction j
-  // lk -- size of direction k
-  // pblk -- parent block that slice is coming from
-
-  parBlock_ = pblk;
-  state_ = multiArray3d<primVars>(li, lj, lk);
-}
-
-/*Member function to pack a stateslice into a buffer, swap it with its
- * interblock partner, and then unpack it into a stateslice.*/
-void stateSlice::PackSwapUnpackMPI(const interblock &inter,
-                                   const MPI_Datatype &MPI_cellData,
-                                   const int &rank) {
-  // inter -- interblock boundary for the swap
-  // MPI_cellData -- MPI datatype to pass cell state_ data
-  // rank -- processor rank
-
-  // swap with mpi_send_recv_replace
-  // pack data into buffer, but first get size
-  auto bufSize = 0;
-  auto tempSize = 0;
-  MPI_Pack_size(this->NumCells(), MPI_cellData, MPI_COMM_WORLD,
-                &tempSize);  // add size for states
-  bufSize += tempSize;
-  // add size for ints in class stateSlice, and 3 ints for multiArray3d dims
-  MPI_Pack_size(4, MPI_INT, MPI_COMM_WORLD,
-                &tempSize);
-  bufSize += tempSize;
-
-  auto *buffer = new char[bufSize];  // allocate buffer to pack data into
-
-  // pack data into buffer
-  auto numI = this->NumI();
-  auto numJ = this->NumJ();
-  auto numK = this->NumK();
-  auto position = 0;
-  MPI_Pack(&numI, 1, MPI_INT, buffer, bufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&numJ, 1, MPI_INT, buffer, bufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&numK, 1, MPI_INT, buffer, bufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&state_(0, 0, 0), this->NumCells(), MPI_cellData, buffer,
-           bufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&parBlock_, 1, MPI_INT, buffer, bufSize, &position,
-           MPI_COMM_WORLD);
-
-  MPI_Status status;
-  if (rank == inter.RankFirst()) {  // send/recv with second entry in interblock
-    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankSecond(), 1,
-                         inter.RankSecond(), 1, MPI_COMM_WORLD, &status);
-  } else {  // send/recv with first entry in interblock
-    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankFirst(), 1,
-                         inter.RankFirst(), 1, MPI_COMM_WORLD, &status);
-  }
-
-  // put slice back into stateSlice
-  position = 0;
-  MPI_Unpack(buffer, bufSize, &position, &numI, 1, MPI_INT,
-             MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &numJ, 1, MPI_INT,
-             MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &numK, 1, MPI_INT,
-             MPI_COMM_WORLD);
-  // resize slice
-  state_.SameSizeResize(numI, numJ, numK);
-
-  MPI_Unpack(buffer, bufSize, &position, &state_(0, 0, 0),
-             this->NumCells(), MPI_cellData, MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &parBlock_, 1, MPI_INT,
-             MPI_COMM_WORLD);
-
-  delete[] buffer;
-}
-
-
-/* constructor to get a slice (portion) of the states of a procBlock. The
-state slice remains in the orientation of its parent block unless
-the revI, revJ, or revK flags are activated to reverse either the i, j, or k
-directions respectively. This function essentially cuts out a portion
-of a procBlock and returns a stateSlice with that portion of the block states.
-*/
-stateSlice::stateSlice(const procBlock &blk, const int &is, const int &ie,
-                       const int &js, const int &je, const int &ks,
-                       const int &ke, const bool revI, const bool revJ,
-                       const bool revK) {
-  // blk -- procBlock to get slice from
-  // is -- starting i-cell index for slice
-  // ie -- ending i-cell index for slice
-  // js -- starting j-cell index for slice
-  // je -- ending j-cell index for slice
-  // ks -- starting k-cell index for slice
-  // ke -- ending k-cell index for slice
-  // revI -- flag to reverse i direction of indices (default false)
-  // revJ -- flag to reverse j direction of indices (default false)
-  // revK -- flag to reverse k direction of indices (default false)
-
-  // allocate dimensions
-  const auto numI = ie - is + 1;
-  const auto numJ = je - js + 1;
-  const auto numK = ke - ks + 1;
-  parBlock_ = blk.ParentBlock();
-
-  // allocate size for vectors
-  state_ = multiArray3d<primVars>(numI, numJ, numK);
-
-  // loop over all cells in slice and populate
-  for (auto kk = 0; kk < state_.NumK(); kk++) {
-    for (auto jj = 0; jj < state_.NumJ(); jj++) {
-      for (auto ii = 0; ii < state_.NumI(); ii++) {
-        // determine if direction needs to be reversed
-        auto k = revK ? numK - 1 - kk : kk;
-        auto j = revJ ? numJ - 1 - jj : jj;
-        auto i = revI ? numI - 1 - ii : ii;
-
-        // assign cell variables
-        state_(ii, jj, kk) = blk.State(is + i, js + j, ks + k);
       }
     }
   }

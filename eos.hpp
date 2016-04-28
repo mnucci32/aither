@@ -71,10 +71,10 @@ class idealGas {
 
   double Temperature(const double &pressure, const double &rho) const;
 
-  // nondimensional version (R=1/gamma_)
+  // nondimensional version (R=1/gamma)
   double Conductivity(const double &mu) const {
     return mu / (this->Prandtl() * (gamma_ - 1.0) );}
-  // Nondimensional version (R=1/gamma_)
+  // Nondimensional version (R=1/gamma)
   double TurbConductivity(const double &eddyVisc, const double &prt) const {
     return eddyVisc / ( prt * (gamma_ - 1.0) );}
   double DensityTP(const double &temp, const double &press) const {

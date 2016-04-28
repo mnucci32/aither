@@ -18,11 +18,24 @@
 #include <iostream>  // cout
 #include <cmath>
 #include "genArray.hpp"
+#include "uncoupledScalar.hpp"
 #include "mpi.h"
 
 using std::cout;
 using std::endl;
 using std::cerr;
+
+// constructor
+genArray::genArray(const uncoupledScalar &a) {
+  data_[0] = a.FlowVariable();
+  data_[1] = a.FlowVariable();
+  data_[2] = a.FlowVariable();
+  data_[3] = a.FlowVariable();
+  data_[4] = a.FlowVariable();
+
+  data_[5] = a.TurbVariable();
+  data_[6] = a.TurbVariable();  
+}
 
 // ------------------------------------------------------------------
 // functions for genArray class
@@ -49,6 +62,13 @@ double genArray::Sum() {
     sum += val;
   }
   return sum;
+}
+
+// member function to square root each element
+void genArray::SquareRoot() {
+  for (auto &val : data_) {
+    val = sqrt(val);
+  }
 }
 
 // member function to sum the residuals from all processors

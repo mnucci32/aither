@@ -61,11 +61,10 @@ void WriteCellCenter(const string &gridName, const vector<procBlock> &vars,
   auto recombVars = Recombine(vars, decomp);
 
   // open binary output file
-  ofstream outFile;
-  string fEnd = "_center";
-  string fPostfix = ".xyz";
-  auto writeName = gridName + fEnd + fPostfix;
-  outFile.open(writeName, ios::out | ios::binary);
+  const string fEnd = "_center";
+  const string fPostfix = ".xyz";
+  const auto writeName = gridName + fEnd + fPostfix;
+  ofstream outFile(writeName, ios::out | ios::binary);
 
   // check to see if file opened correctly
   if (outFile.fail()) {
@@ -127,17 +126,16 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
               const decomposition &decomp, const input &inp,
               const unique_ptr<turbModel> &turb) {
   // define reference speed of sound
-  auto refSoS = eqnState.SoS(inp.PRef(), inp.RRef());
+  const auto refSoS = eqnState.SoS(inp.PRef(), inp.RRef());
 
   auto recombVars = Recombine(vars, decomp);
 
   // open binary plot3d function file
-  ofstream outFile;
-  string fEnd = "_center";
-  string fPostfix = ".fun";
-  auto writeName = inp.SimNameRoot() + "_" + to_string(solIter) + fEnd +
+  const string fEnd = "_center";
+  const string fPostfix = ".fun";
+  const auto writeName = inp.SimNameRoot() + "_" + to_string(solIter) + fEnd +
       fPostfix;
-  outFile.open(writeName, ios::out | ios::binary);
+  ofstream outFile(writeName, ios::out | ios::binary);
 
   // check to see if file opened correctly
   if (outFile.fail()) {
@@ -175,110 +173,110 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
       // store nondimensional variable in dumArr for a given block in order.
       // i.e. var1 var2 var3 etc
       if (vv == 0) {  // density
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  recombVars[ll].State(ii.g, jj.g, kk.g).Rho();
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  recombVars[ll].State(ig, jg, kg).Rho();
             }
           }
         }
       } else if (vv == 1) {  // vel-x
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  recombVars[ll].State(ii.g, jj.g, kk.g).U();
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  recombVars[ll].State(ig, jg, kg).U();
             }
           }
         }
       } else if (vv == 2) {  // vel-y
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  recombVars[ll].State(ii.g, jj.g, kk.g).V();
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  recombVars[ll].State(ig, jg, kg).V();
             }
           }
         }
       } else if (vv == 3) {  // vel-z
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  recombVars[ll].State(ii.g, jj.g, kk.g).W();
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  recombVars[ll].State(ig, jg, kg).W();
             }
           }
         }
       } else if (vv == 4) {  // pressure
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  recombVars[ll].State(ii.g, jj.g, kk.g).P();
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  recombVars[ll].State(ig, jg, kg).P();
             }
           }
         }
       } else if (vv == 5) {  // mach
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              vector3d<double> vel =
-                  recombVars[ll].State(ii.g, jj.g, kk.g).Velocity();
-              dumArr(ii.p, jj.p, kk.p) = vel.Mag() /
-                  eqnState.SoS(recombVars[ll].State(ii.g, jj.g, kk.g).P(),
-                               recombVars[ll].State(ii.g, jj.g, kk.g).Rho());
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              const auto vel =
+                  recombVars[ll].State(ig, jg, kg).Velocity();
+              dumArr(ip, jp, kp) = vel.Mag() /
+                  eqnState.SoS(recombVars[ll].State(ig, jg, kg).P(),
+                               recombVars[ll].State(ig, jg, kg).Rho());
             }
           }
         }
       } else if (vv == 6) {  // speed of sound
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  eqnState.SoS(recombVars[ll].State(ii.g, jj.g, kk.g).P(),
-                               recombVars[ll].State(ii.g, jj.g, kk.g).Rho());
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  eqnState.SoS(recombVars[ll].State(ig, jg, kg).P(),
+                               recombVars[ll].State(ig, jg, kg).Rho());
             }
           }
         }
       } else if (vv == 7) {  // time step - no ghost cells
-        for (int kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (int jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (int ii = 0; ii < recombVars[ll].NumI(); ii++) {
+	for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
+          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
+            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].Dt(ii, jj, kk);
             }
           }
         }
       } else if (vv == 8) {  // temperature
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  recombVars[ll].State(ii.g, jj.g, kk.g).Temperature(eqnState);
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  recombVars[ll].State(ig, jg, kg).Temperature(eqnState);
             }
           }
         }
@@ -302,52 +300,52 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
           }
         }
       } else if (vv == 11) {  // viscosity ratio
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  turb->EddyViscNoLim(recombVars[ll].State(ii.g, jj.g, kk.g)) /
-                  suth.Viscosity(recombVars[ll].State(ii.g, jj.g, kk.g).
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  turb->EddyViscNoLim(recombVars[ll].State(ig, jg, kg)) /
+                  suth.Viscosity(recombVars[ll].State(ig, jg, kg).
                                  Temperature(eqnState));
             }
           }
         }
       } else if (vv == 12) {  // tke
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  recombVars[ll].State(ii.g, jj.g, kk.g).Tke();
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  recombVars[ll].State(ig, jg, kg).Tke();
             }
           }
         }
       } else if (vv == 13) {  // omega
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  recombVars[ll].State(ii.g, jj.g, kk.g).Omega();
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  recombVars[ll].State(ig, jg, kg).Omega();
             }
           }
         }
       } else if (vv == 14) {  // wall distance
-        for (struct {int p; int g;} kk = {0, recombVars[ll].NumGhosts()};
-             kk.p < recombVars[ll].NumK(); kk.g++, kk.p++) {
-          for (struct {int p; int g;} jj = {0, recombVars[ll].NumGhosts()};
-               jj.p < recombVars[ll].NumJ(); jj.g++, jj.p++) {
-            for (struct {int p; int g;} ii = {0, recombVars[ll].NumGhosts()};
-                 ii.p < recombVars[ll].NumI(); ii.g++, ii.p++) {
-              dumArr(ii.p, jj.p, kk.p) =
-                  recombVars[ll].WallDist(ii.g, jj.g, kk.g);
+        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
+             kp < recombVars[ll].NumK(); kg++, kp++) {
+          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
+               jp < recombVars[ll].NumJ(); jg++, jp++) {
+            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
+                 ip < recombVars[ll].NumI(); ig++, ip++) {
+              dumArr(ip, jp, kp) =
+                  recombVars[ll].WallDist(ig, jg, kg);
             }
           }
         }
@@ -404,14 +402,10 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
 // function to write out results file for ensight
 void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
   // open results file
-  ofstream resFile;
-  string fResPostfix = ".res";
-  string fPostfix = ".fun";
-  string fEnd = "_center";
-  auto resName = gridName + fEnd + fResPostfix;
-  resFile.open(resName, ios::out);
-
-  auto writeName = gridName + "_*" + fEnd + fPostfix;
+  const string fResPostfix = ".res";
+  const string fEnd = "_center";
+  const auto resName = gridName + fEnd + fResPostfix;
+  ofstream resFile(resName, ios::out);
 
   // check to see if file opened correctly
   if (resFile.fail()) {
@@ -419,6 +413,9 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
          << endl;
     exit(0);
   }
+
+  const string fPostFix = ".fun";
+  const auto writeName = gridName + "_*" + fEnd + fPostFix;
 
   // write number of scalars and number of vectors
   constexpr auto numScalar = VAROUT;
@@ -468,9 +465,53 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
 }
 
 // function to write out residual information
-void WriteResiduals(const input &inp, genArray &residL2First, genArray &residL2,
-                    const resid &residLinf, const double &matrixResid,
-                    const int &nn, const int &mm) {
+void WriteResiduals(const input &inp, genArray &residL2First,
+                    const genArray &residL2, const resid &residLinf,
+                    const double &matrixResid, const int &nn, const int &mm,
+                    ostream &resFile) {
+  // if first iteration write headers to residual file
+  if (nn == 0 && mm == 0) {
+    PrintHeaders(inp, resFile);
+  }
+
+  // write out column headers every 100 iterations to standard out
+  if (nn % 100 == 0 && mm == 0) {
+    PrintHeaders(inp, cout);
+  }
+
+  // print residuals to standard out
+  PrintResiduals(inp, residL2First, residL2, residLinf, matrixResid, nn, mm,
+                 cout);
+  // print residuals to residual file
+  PrintResiduals(inp, residL2First, residL2, residLinf, matrixResid, nn, mm,
+                 resFile);
+}
+
+void PrintHeaders(const input &inp, ostream &os) {
+  // write out column headers
+  os << std::left << setw(7) << "Step" << setw(8) << "NL-Iter";
+  if (inp.Dt() > 0.0) {
+    os << std::left << setw(12) << "Time-Step";
+  } else if (inp.CFL() > 0.0) {
+    os << std::left << setw(12) << "CFL";
+  }
+  os << std::left << setw(12) << "Res-Mass" << setw(12)
+     << "Res-Mom-X" << setw(12) << "Res-Mom-Y" << setw(12) << "Res-Mom-Z"
+     << setw(12) << "Res-Energy";
+  if (inp.IsTurbulent()) {
+    os << std::left << setw(12) << "Res-Tke" << setw(12) << "Res-Omega";
+  }
+  os << std::left << setw(8) << "Max-Eqn" << setw(8)
+     << "Max-Blk" << setw(8) << "Max-I" << setw(8)
+     << "Max-J" << setw(8) << "Max-K" << setw(12) << "Max-Res"
+     << setw(12) << "Res-Matrix" << endl;
+}
+
+// function to write out residual information
+void PrintResiduals(const input &inp, genArray &residL2First,
+                    const genArray &residL2, const resid &residLinf,
+                    const double &matrixResid, const int &nn, const int &mm,
+                    ostream &os) {
   // determine normalization
   if (nn == 0 && mm == 0) {  // if at first iteration, normalize by itself
     residL2First = residL2;
@@ -484,50 +525,30 @@ void WriteResiduals(const input &inp, genArray &residL2First, genArray &residL2,
   }
 
   // normalize residuals
-  residL2 = (residL2 + EPS) / (residL2First + EPS);
+  const auto resNormL2 = (residL2 + EPS) / (residL2First + EPS);
 
-  // write out column headers every 100 iterations
-  if (nn % 100 == 0 && mm == 0) {
-    cout << std::left << setw(7) << "Step" << setw(8) << "NL-Iter";
-    if (inp.Dt() > 0.0) {
-      cout << std::left << setw(12) << "Time-Step";
-    } else if (inp.CFL() > 0.0) {
-      cout << std::left << setw(12) << "CFL";
-    }
-    cout << std::left << setw(12) << "Res-Mass" << setw(12)
-         << "Res-Mom-X" << setw(12) << "Res-Mom-Y" << setw(12) << "Res-Mom-Z"
-         << setw(12) << "Res-Energy";
-    if (inp.IsTurbulent()) {
-      cout << std::left << setw(12) << "Res-Tke" << setw(12) << "Res-Omega";
-    }
-    cout << std::left << setw(8) << "Max-Eqn" << setw(8)
-         << "Max-Blk" << setw(8) << "Max-I" << setw(8)
-         << "Max-J" << setw(8) << "Max-K" << setw(12) << "Max-Res"
-         << setw(12) << "Res-Matrix" << endl;
-  }
-
-  cout << std::left << setw(7) << nn << setw(8) << mm;
+  os << std::left << setw(7) << nn << setw(8) << mm;
   if (inp.Dt() > 0.0) {
-    cout << std::left << setw(12) << setprecision(4) << std::scientific
-         << inp.Dt();
+    os << std::left << setw(12) << setprecision(4) << std::scientific
+       << inp.Dt();
   } else if (inp.CFL() > 0.0) {
-    cout << std::left << setw(12) << setprecision(4) << std::scientific
-         << inp.CFL();
+    os << std::left << setw(12) << setprecision(4) << std::scientific
+       << inp.CFL();
   }
-  cout << std::left << setw(12) << residL2[0] << setw(12) << residL2[1]
-       << setw(12) << residL2[2] << setw(12) << residL2[3] << setw(12)
-       << residL2[4];
+  os << std::left << setw(12) << resNormL2[0] << setw(12) << resNormL2[1]
+     << setw(12) << resNormL2[2] << setw(12) << resNormL2[3] << setw(12)
+     << resNormL2[4];
   if (inp.IsTurbulent()) {
-    cout << std::left << setw(12) << residL2[5] << setw(12) << residL2[6];
+    os << std::left << setw(12) << resNormL2[5] << setw(12) << resNormL2[6];
   }
-  cout.unsetf(std::ios::fixed | std::ios::scientific);
-  cout << std::left << setw(8) << residLinf.Eqn() << setw(8)
-       << residLinf.Block() << setw(8) << residLinf.ILoc() << setw(8)
-       << residLinf.JLoc() << setw(8) << residLinf.KLoc() << setw(12)
-       << setprecision(4) << std::scientific << residLinf.Linf() << setw(12)
-       << matrixResid << endl;
+  os.unsetf(std::ios::fixed | std::ios::scientific);
+  os << std::left << setw(8) << residLinf.Eqn() << setw(8)
+     << residLinf.Block() << setw(8) << residLinf.ILoc() << setw(8)
+     << residLinf.JLoc() << setw(8) << residLinf.KLoc() << setw(12)
+     << setprecision(4) << std::scientific << residLinf.Linf() << setw(12)
+     << matrixResid << endl;
 
-  cout.unsetf(std::ios::fixed | std::ios::scientific);
+  os.unsetf(std::ios::fixed | std::ios::scientific);
 }
 
 /*Function to take in a vector of split procBlocks and return a vector of joined

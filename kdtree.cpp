@@ -15,8 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <iostream>     // cout
-#include <cstdlib>      // exit()
-#include <algorithm>    // sort
+#include <algorithm>    // nth_element
 #include <limits>       // numeric_limits
 #include <vector>       // vector
 #include "kdtree.hpp"
@@ -88,36 +87,16 @@ void kdtree::BuildKdtree(const int &start, const int &end,
   // top portion of vector, and all other elements in bottom
   // portion. This is necessary because median calculation does
   // not sort the data
-
   // start is at median, so use next index down
-  auto pTop = start + 1;
-  // end is just past the last value, so use index up
-  auto pBot = end - 1;
-
-  while (pTop <= pBot) {
-    // if inside this conditional, point found belongs in top
-    // portion of vector, so just increment index and move on
-    if (nodes_[pTop][dim] <= median) {
-      pTop++;
-    } else {
-      // if inside this conditional, point from top index
-      // belongs on bottom
-
-      // while loop is used to find a point from bottom index
-      // that belongs on top
-      while (nodes_[pBot][dim] > median && pTop < pBot) {
-        pBot--;
-      }
-
-      // swap points so point from top belonging on bottom,
-      // and point from bottom belonging on top are in correct place
-      std::swap(nodes_[pTop], nodes_[pBot]);
-      pBot--;
-    }
-  }
+  const auto splitIndex = std::partition(nodes_.begin() + start + 1,
+                                         nodes_.begin() + end,
+                                         [&median, &dim]
+                                         (const vector3d<double> &p1)
+                                         {return p1[dim] <= median;});
 
   // record split index as index of right branch
-  right_[start] = pTop;
+  // std::partition returns iterator to 2nd partition which is right side
+  right_[start] = splitIndex - nodes_.begin();
 
   // recursively build left and right branches
   this->BuildKdtree(start + 1, right_[start], depth + 1);  // left

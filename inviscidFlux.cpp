@@ -161,45 +161,32 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   // areaNorm -- norm area vector of face
 
   // compute Rho averaged quantities
-  // density ratio
-  const auto denRatio = sqrt(right.Rho() / left.Rho());
-  // Roe averaged density
-  const auto rhoR = left.Rho() * denRatio;
-  // Roe averaged velocities - u, v, w
-  const auto uR = (left.U() + denRatio * right.U()) / (1.0 + denRatio);
-  const auto vR = (left.V() + denRatio * right.V()) / (1.0 + denRatio);
-  const auto wR = (left.W() + denRatio * right.W()) / (1.0 + denRatio);
-  // Roe averaged total enthalpy
-  const auto hR = (left.Enthalpy(eqnState) + denRatio *
-                   right.Enthalpy(eqnState)) / (1.0 + denRatio);
-  // Roe averaged speed of sound
-  const auto aR = sqrt((eqnState.Gamma() - 1.0) *
-                       (hR - 0.5 * (uR * uR + vR * vR + wR * wR)));
-  // Roe averaged tke
-  const auto kR = (left.Tke() + denRatio * right.Tke()) / (1.0 + denRatio);
-  // Roe averaged specific dissipation (omega)
-  const auto omR = (left.Omega() + denRatio * right.Omega()) / (1.0 + denRatio);
+  // Roe averaged state
+  const auto roe = RoeAveragedState(left, right, eqnState);
 
-  // Roe averaged face normal velocity
-  const vector3d<double> velR(uR, vR, wR);
+  // Roe averaged total enthalpy
+  const auto hR = roe.Enthalpy(eqnState);
+
+  // Roe averaged speed of sound
+  const auto aR = roe.SoS(eqnState);
 
   // Roe velocity dotted with normalized area vector
-  const auto velRSum = velR.DotProd(areaNorm);
+  const auto velRSum = roe.Velocity().DotProd(areaNorm);
+
+  // Delta between right and left states
+  const auto delta = right - left;
 
   // normal velocity difference between left and right states
-  const auto normVelDiff = right.Velocity().DotProd(areaNorm) -
-      left.Velocity().DotProd(areaNorm);
+  const auto normVelDiff = delta.Velocity().DotProd(areaNorm);
 
   // calculate wave strengths (Cr - Cl)
-  double waveStrength[NUMVARS - 1] = {
-    ((right.P() - left.P()) - rhoR * aR * normVelDiff) / (2.0 * aR * aR),
-    (right.Rho() - left.Rho()) - (right.P() - left.P()) / (aR * aR),
-    ((right.P() - left.P()) + rhoR * aR * normVelDiff) / (2.0 * aR * aR),
-    rhoR,
-    rhoR * (right.Tke() - left.Tke()) + kR * (right.Rho() - left.Rho()) -
-    (right.P() - left.P()) * kR / (aR * aR),
-    rhoR * (right.Omega() - left.Omega()) + omR * (right.Rho() - left.Rho()) -
-    (right.P() - left.P()) * omR / (aR * aR)};
+  const double waveStrength[NUMVARS - 1] = {
+    (delta.P() - roe.Rho() * aR * normVelDiff) / (2.0 * aR * aR),
+    delta.Rho() - delta.P() / (aR * aR),
+    (delta.P() + roe.Rho() * aR * normVelDiff) / (2.0 * aR * aR),
+    roe.Rho(),
+    roe.Rho() * delta.Tke() + roe.Tke() * delta.Rho() - delta.P() * roe.Tke() / (aR * aR),
+    roe.Rho() * delta.Omega() + roe.Omega() * delta.Rho() - delta.P() * roe.Omega() / (aR * aR)};
 
   // calculate absolute value of wave speeds (L)
   double waveSpeed[NUMVARS - 1] = {
@@ -225,28 +212,27 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
 
   // calculate right eigenvectors (T)
   // calculate eigenvector due to left acoustic wave
-  const genArray lAcousticEigV(1.0, uR - aR * areaNorm.X(),
-                               vR - aR * areaNorm.Y(), wR - aR * areaNorm.Z(),
-                               hR - aR * velRSum, kR, omR);
+  const genArray lAcousticEigV(1.0, roe.U() - aR * areaNorm.X(),
+                               roe.V() - aR * areaNorm.Y(), roe.W() - aR * areaNorm.Z(),
+                               hR - aR * velRSum, roe.Tke(), roe.Omega());
 
   // calculate eigenvector due to entropy wave
-  const genArray entropyEigV(1.0, uR, vR, wR,
-                             0.5 * (uR * uR + vR * vR + wR * wR),
+  const genArray entropyEigV(1.0, roe.U(), roe.V(), roe.W(),
+                             0.5 * roe.Velocity().MagSq(),
                              0.0, 0.0);
 
   // calculate eigenvector due to right acoustic wave
-  const genArray rAcousticEigV(1.0, uR + aR * areaNorm.X(),
-                               vR + aR * areaNorm.Y(), wR + aR * areaNorm.Z(),
-                               hR + aR * velRSum, kR, omR);
+  const genArray rAcousticEigV(1.0, roe.U() + aR * areaNorm.X(),
+                               roe.V() + aR * areaNorm.Y(), roe.W() + aR * areaNorm.Z(),
+                               hR + aR * velRSum, roe.Tke(), roe.Omega());
 
   // calculate eigenvector due to shear wave
   const genArray shearEigV(0.0,
-                           (right.U() - left.U()) - normVelDiff * areaNorm.X(),
-                           (right.V() - left.V()) - normVelDiff * areaNorm.Y(),
-                           (right.W() - left.W()) - normVelDiff * areaNorm.Z(),
-                           uR * (right.U() - left.U()) +
-                           vR * (right.V() - left.V()) +
-                           wR * (right.W() - left.W()) - velRSum * normVelDiff,
+                           delta.U() - normVelDiff * areaNorm.X(),
+                           delta.V() - normVelDiff * areaNorm.Y(),
+                           delta.W() - normVelDiff * areaNorm.Z(),
+                           roe.Velocity().DotProd(delta.Velocity()) -
+                           velRSum * normVelDiff,
                            0.0, 0.0);
 
   // calculate eigenvector due to turbulent equation 1
@@ -288,6 +274,33 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   return leftFlux;
 }
 
+
+inviscidFlux RusanovFlux(const primVars &left, const primVars &right,
+                         const idealGas &eqnState,
+                         const vector3d<double> &areaNorm,
+			 const bool &positive) {
+  // left -- primative variables from left
+  // right -- primative variables from right
+  // eqnState -- equation of state
+  // areaNorm -- norm area vector of face
+  // positive -- flag that is positive to add spectral radius
+
+  // calculate maximum spectral radius
+  const auto leftSpecRad = fabs(left.Velocity().DotProd(areaNorm))
+    + left.SoS(eqnState);
+  const auto rightSpecRad = fabs(right.Velocity().DotProd(areaNorm))
+    + right.SoS(eqnState);
+  const auto fac = positive ? -1.0 : 1.0;
+  const auto specRad = fac * max(leftSpecRad, rightSpecRad);
+  
+  // calculate left/right physical flux
+  inviscidFlux leftFlux(left, eqnState, areaNorm);
+  inviscidFlux rightFlux(right, eqnState, areaNorm);
+
+  return 0.5 * (leftFlux + rightFlux - specRad);
+}
+
+
 /* Member function to calculate the Roe flux, given the left and right
  * convective fluxes as well as the dissipation term.
 */
@@ -299,593 +312,6 @@ void inviscidFlux::RoeFlux(const inviscidFlux &right, const genArray &diss) {
     data_[ii] = 0.5 * (data_[ii] + right.data_[ii] - diss[ii]);
   }
 }
-
-// function to calculate approximate Roe flux jacobians -- NOT USED in LUSGS
-// method
-void ApproxRoeFluxJacobian(const primVars &left, const primVars &right,
-                           const idealGas &eqnState,
-                           const vector3d<double> &areaNorm, double &maxWS,
-                           squareMatrix &dF_dUl, squareMatrix &dF_dUr) {
-  // left --> primative variables from left side
-  // right --> primative variables from right side
-  // eqnStat --> ideal gas equation of state
-  // areaNorm --> face unit area vector
-  // maxWS --> maximum wave speed
-  // dF_dUl --> dF/dUl, derivative of the Roe flux wrt the left state
-  // (conservative variables)
-  // dF_dUr --> dF/dUlr, derivative of the Roe flux wrt the right state
-  // (conservative variables)
-
-  // check to see that output matricies are correct size
-  if ((dF_dUl.Size() != 5) || (dF_dUr.Size() != 5)) {
-    cerr << "ERROR: Input matricies to RoeFLuxJacobian function are not the "
-            "correct size!" << endl;
-  }
-
-  // compute Rho averaged quantities
-  const auto denRatio = sqrt(right.Rho() / left.Rho());
-  const auto uR = (left.U() + denRatio * right.U()) /
-      (1.0 + denRatio);  // Roe averaged u-velocity
-  const auto vR = (left.V() + denRatio * right.V()) /
-      (1.0 + denRatio);  // Roe averaged v-velocity
-  const auto wR = (left.W() + denRatio * right.W()) /
-      (1.0 + denRatio);  // Roe averaged w-velocity
-  const auto hR = (left.Enthalpy(eqnState) + denRatio *
-                   right.Enthalpy(eqnState)) /
-      (1.0 + denRatio);  // Roe averaged total enthalpy
-  // Roe averaged speed of sound
-  const auto aR = sqrt((eqnState.Gamma() - 1.0) *
-                       (hR - 0.5 * (uR * uR + vR * vR + wR * wR)));
-  // Roe averaged face normal velocity
-  const vector3d<double> velR(uR, vR, wR);
-
-  // dot product of velocities (Roe, left, right) with unit area vector
-  const auto velRNorm = velR.DotProd(areaNorm);
-  const auto velLeftNorm = left.Velocity().DotProd(areaNorm);
-  const auto velRightNorm = right.Velocity().DotProd(areaNorm);
-
-  // calculate diagonal eigenvalue matrix |lambda|
-  squareMatrix lambda(5);
-  lambda.Zero();
-  lambda.SetData(0, 0, fabs(velRNorm - aR));
-  lambda.SetData(1, 1, fabs(velRNorm));
-  lambda.SetData(2, 2, fabs(velRNorm + aR));
-  lambda.SetData(3, 3, fabs(velRNorm));
-  lambda.SetData(4, 4, fabs(velRNorm));
-
-  // calculate Roe jacobian matrix A
-  // contribution due to normal velocity eigenvalues
-  squareMatrix A(5);
-
-  // column zero
-  A.SetData(0, 0,
-            1.0 - 0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR));
-  A.SetData(
-      1, 0,
-      -(1.0 + 0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR)) * uR +
-          velRNorm * areaNorm.X());
-  A.SetData(
-      2, 0,
-      -(1.0 + 0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR)) * vR +
-          velRNorm * areaNorm.Y());
-  A.SetData(
-      3, 0,
-      -(1.0 + 0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR)) * wR +
-          velRNorm * areaNorm.Z());
-  A.SetData(4, 0,
-            velRNorm * velRNorm -
-                0.5 * velR.MagSq() * (1.0 + 0.5 * (eqnState.Gamma() - 1.0) *
-                                                velR.MagSq() / (aR * aR)));
-
-  // column one
-  A.SetData(0, 1, (eqnState.Gamma() - 1.0) / (aR * aR) * uR);
-  A.SetData(1, 1, (eqnState.Gamma() - 1.0) / (aR * aR) * uR * uR + 1.0 -
-                      areaNorm.X() * areaNorm.X());
-  A.SetData(2, 1, (eqnState.Gamma() - 1.0) / (aR * aR) * vR * uR -
-                      areaNorm.Y() * areaNorm.X());
-  A.SetData(3, 1, (eqnState.Gamma() - 1.0) / (aR * aR) * wR * uR -
-                      areaNorm.Z() * areaNorm.X());
-  A.SetData(
-      4, 1,
-      (1.0 + 0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR)) * uR -
-          velRNorm * areaNorm.X());
-
-  // column two
-  A.SetData(0, 2, (eqnState.Gamma() - 1.0) / (aR * aR) * vR);
-  A.SetData(1, 2, (eqnState.Gamma() - 1.0) / (aR * aR) * uR * vR -
-                      areaNorm.X() * areaNorm.Y());
-  A.SetData(2, 2, (eqnState.Gamma() - 1.0) / (aR * aR) * vR * vR + 1.0 -
-                      areaNorm.Y() * areaNorm.Y());
-  A.SetData(3, 2, (eqnState.Gamma() - 1.0) / (aR * aR) * wR * vR -
-                      areaNorm.Z() * areaNorm.Y());
-  A.SetData(
-      4, 2,
-      (1.0 + 0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR)) * vR -
-          velRNorm * areaNorm.Y());
-
-  // column three
-  A.SetData(0, 3, (eqnState.Gamma() - 1.0) / (aR * aR) * wR);
-  A.SetData(1, 3, (eqnState.Gamma() - 1.0) / (aR * aR) * uR * wR -
-                      areaNorm.X() * areaNorm.Z());
-  A.SetData(2, 3, (eqnState.Gamma() - 1.0) / (aR * aR) * vR * wR -
-                      areaNorm.Y() * areaNorm.Z());
-  A.SetData(3, 3, (eqnState.Gamma() - 1.0) / (aR * aR) * wR * wR + 1.0 -
-                      areaNorm.Z() * areaNorm.Z());
-  A.SetData(
-      4, 3,
-      (1.0 + 0.5 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR)) * wR -
-          velRNorm * areaNorm.Z());
-
-  // column four
-  A.SetData(0, 4, -(eqnState.Gamma() - 1.0) / (aR * aR));
-  A.SetData(1, 4, -(eqnState.Gamma() - 1.0) / (aR * aR) * uR);
-  A.SetData(2, 4, -(eqnState.Gamma() - 1.0) / (aR * aR) * vR);
-  A.SetData(3, 4, -(eqnState.Gamma() - 1.0) / (aR * aR) * wR);
-  A.SetData(4, 4,
-            -(eqnState.Gamma() - 1.0) / (aR * aR) * velR.MagSq() / (aR * aR));
-
-  A = fabs(velRNorm) * A;
-
-  // contribution due to u - c wave
-  squareMatrix temp(5);
-
-  // column zero
-  temp.SetData(0, 0,
-               0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) +
-                   0.5 * velRNorm / aR);
-  temp.SetData(1, 0,
-               (uR - aR * areaNorm.X()) *
-                   (0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) +
-                    0.5 * velRNorm / aR));
-  temp.SetData(2, 0,
-               (vR - aR * areaNorm.Y()) *
-                   (0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) +
-                    0.5 * velRNorm / aR));
-  temp.SetData(3, 0,
-               (wR - aR * areaNorm.Z()) *
-                   (0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) +
-                    0.5 * velRNorm / aR));
-  temp.SetData(4, 0,
-               (hR - velRNorm * aR * areaNorm.X()) *
-                   (0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) +
-                    0.5 * velRNorm / aR));
-
-  // column one
-  temp.SetData(0, 1, -(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR -
-                         areaNorm.X() / (2.0 * aR));
-  temp.SetData(1, 1, (uR - aR * areaNorm.X()) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR -
-                          areaNorm.X() / (2.0 * aR)));
-  temp.SetData(2, 1, (vR - aR * areaNorm.Y()) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR -
-                          areaNorm.X() / (2.0 * aR)));
-  temp.SetData(3, 1, (wR - aR * areaNorm.Z()) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR -
-                          areaNorm.X() / (2.0 * aR)));
-  temp.SetData(4, 1, (hR - aR * velRNorm) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR -
-                          areaNorm.X() / (2.0 * aR)));
-
-  // column two
-  temp.SetData(0, 2, -(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR -
-                         areaNorm.Y() / (2.0 * aR));
-  temp.SetData(1, 2, (uR - aR * areaNorm.X()) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR -
-                          areaNorm.Y() / (2.0 * aR)));
-  temp.SetData(2, 2, (vR - aR * areaNorm.Y()) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR -
-                          areaNorm.Y() / (2.0 * aR)));
-  temp.SetData(3, 2, (wR - aR * areaNorm.Z()) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR -
-                          areaNorm.Y() / (2.0 * aR)));
-  temp.SetData(4, 2, (hR - aR * velRNorm) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR -
-                          areaNorm.Y() / (2.0 * aR)));
-
-  // column three
-  temp.SetData(0, 3, -(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR -
-                         areaNorm.Z() / (2.0 * aR));
-  temp.SetData(1, 3, (uR - aR * areaNorm.X()) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR -
-                          areaNorm.Z() / (2.0 * aR)));
-  temp.SetData(2, 3, (vR - aR * areaNorm.Y()) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR -
-                          areaNorm.Z() / (2.0 * aR)));
-  temp.SetData(3, 3, (wR - aR * areaNorm.Z()) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR -
-                          areaNorm.Z() / (2.0 * aR)));
-  temp.SetData(4, 3, (hR - aR * velRNorm) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR -
-                          areaNorm.Z() / (2.0 * aR)));
-
-  // column four
-  temp.SetData(0, 4, (eqnState.Gamma() - 1.0) / (2.0 * aR * aR));
-  temp.SetData(1, 4, (uR - aR * areaNorm.X()) * (eqnState.Gamma() - 1.0) /
-                         (2.0 * aR * aR));
-  temp.SetData(2, 4, (vR - aR * areaNorm.Y()) * (eqnState.Gamma() - 1.0) /
-                         (2.0 * aR * aR));
-  temp.SetData(3, 4, (wR - aR * areaNorm.Z()) * (eqnState.Gamma() - 1.0) /
-                         (2.0 * aR * aR));
-  temp.SetData(
-      4, 4, (hR - aR * velRNorm) * (eqnState.Gamma() - 1.0) / (2.0 * aR * aR));
-
-  A = A + (fabs(velRNorm - aR) * temp);
-
-  // contribution due to u + c wave
-
-  // column zero
-  temp.SetData(0, 0,
-               0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) -
-                   0.5 * velRNorm / aR);
-  temp.SetData(1, 0,
-               (uR + aR * areaNorm.X()) *
-                   (0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) -
-                    0.5 * velRNorm / aR));
-  temp.SetData(2, 0,
-               (vR + aR * areaNorm.Y()) *
-                   (0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) -
-                    0.5 * velRNorm / aR));
-  temp.SetData(3, 0,
-               (wR + aR * areaNorm.Z()) *
-                   (0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) -
-                    0.5 * velRNorm / aR));
-  temp.SetData(4, 0,
-               (hR + velRNorm * aR * areaNorm.X()) *
-                   (0.25 * (eqnState.Gamma() - 1.0) * velR.MagSq() / (aR * aR) -
-                    0.5 * velRNorm / aR));
-
-  // column one
-  temp.SetData(0, 1, -(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR +
-                         areaNorm.X() / (2.0 * aR));
-  temp.SetData(1, 1, (uR + aR * areaNorm.X()) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR +
-                          areaNorm.X() / (2.0 * aR)));
-  temp.SetData(2, 1, (vR + aR * areaNorm.Y()) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR +
-                          areaNorm.X() / (2.0 * aR)));
-  temp.SetData(3, 1, (wR + aR * areaNorm.Z()) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR +
-                          areaNorm.X() / (2.0 * aR)));
-  temp.SetData(4, 1, (hR + aR * velRNorm) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * uR +
-                          areaNorm.X() / (2.0 * aR)));
-
-  // column two
-  temp.SetData(0, 2, -(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR +
-                         areaNorm.Y() / (2.0 * aR));
-  temp.SetData(1, 2, (uR + aR * areaNorm.X()) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR +
-                          areaNorm.Y() / (2.0 * aR)));
-  temp.SetData(2, 2, (vR + aR * areaNorm.Y()) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR +
-                          areaNorm.Y() / (2.0 * aR)));
-  temp.SetData(3, 2, (wR + aR * areaNorm.Z()) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR +
-                          areaNorm.Y() / (2.0 * aR)));
-  temp.SetData(4, 2, (hR + aR * velRNorm) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * vR +
-                          areaNorm.Y() / (2.0 * aR)));
-
-  // column three
-  temp.SetData(0, 3, -(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR +
-                         areaNorm.Z() / (2.0 * aR));
-  temp.SetData(1, 3, (uR + aR * areaNorm.X()) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR +
-                          areaNorm.Z() / (2.0 * aR)));
-  temp.SetData(2, 3, (vR + aR * areaNorm.Y()) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR +
-                          areaNorm.Z() / (2.0 * aR)));
-  temp.SetData(3, 3, (wR + aR * areaNorm.Z()) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR +
-                          areaNorm.Z() / (2.0 * aR)));
-  temp.SetData(4, 3, (hR + aR * velRNorm) *
-                         (-(eqnState.Gamma() - 1.0) / (2.0 * aR * aR) * wR +
-                          areaNorm.Z() / (2.0 * aR)));
-
-  // column four
-  temp.SetData(0, 4, (eqnState.Gamma() - 1.0) / (2.0 * aR * aR));
-  temp.SetData(1, 4, (uR + aR * areaNorm.X()) * (eqnState.Gamma() - 1.0) /
-                         (2.0 * aR * aR));
-  temp.SetData(2, 4, (vR + aR * areaNorm.Y()) * (eqnState.Gamma() - 1.0) /
-                         (2.0 * aR * aR));
-  temp.SetData(3, 4, (wR + aR * areaNorm.Z()) * (eqnState.Gamma() - 1.0) /
-                         (2.0 * aR * aR));
-  temp.SetData(
-      4, 4, (hR + aR * velRNorm) * (eqnState.Gamma() - 1.0) / (2.0 * aR * aR));
-
-  A = A + (fabs(velRNorm + aR) * temp);
-
-  // begin jacobian calculation
-
-  // derivative of Roe flux wrt left conservative variables
-  dF_dUl.Zero();
-
-  // column zero
-  dF_dUl.SetData(0, 0, 0.0);
-  dF_dUl.SetData(1, 0, 0.5 * (eqnState.Gamma() - 1.0) *
-                               left.Velocity().MagSq() * areaNorm.X() -
-                           left.U() * velLeftNorm);
-  dF_dUl.SetData(2, 0, 0.5 * (eqnState.Gamma() - 1.0) *
-                               left.Velocity().MagSq() * areaNorm.Y() -
-                           left.V() * velLeftNorm);
-  dF_dUl.SetData(3, 0, 0.5 * (eqnState.Gamma() - 1.0) *
-                               left.Velocity().MagSq() * areaNorm.Z() -
-                           left.W() * velLeftNorm);
-  dF_dUl.SetData(4, 0,
-                 (0.5 * (eqnState.Gamma() - 1.0) * left.Velocity().MagSq() -
-                  left.Enthalpy(eqnState)) *
-                     velLeftNorm);
-
-  // column one
-  dF_dUl.SetData(1, 0, areaNorm.X());
-  dF_dUl.SetData(1, 1, left.U() * areaNorm.X() -
-                           (eqnState.Gamma() - 1.0) * left.U() * areaNorm.X() +
-                           velLeftNorm);
-  dF_dUl.SetData(1, 2, left.V() * areaNorm.X() -
-                           (eqnState.Gamma() - 1.0) * left.U() * areaNorm.Y());
-  dF_dUl.SetData(1, 3, left.W() * areaNorm.X() -
-                           (eqnState.Gamma() - 1.0) * left.U() * areaNorm.Z());
-  dF_dUl.SetData(1, 4, left.Enthalpy(eqnState) * areaNorm.X() -
-                           (eqnState.Gamma() - 1.0) * left.U() * velLeftNorm);
-
-  // column two
-  dF_dUl.SetData(2, 0, areaNorm.Y());
-  dF_dUl.SetData(2, 1, left.U() * areaNorm.Y() -
-                           (eqnState.Gamma() - 1.0) * left.V() * areaNorm.X());
-  dF_dUl.SetData(2, 2, left.V() * areaNorm.Y() -
-                           (eqnState.Gamma() - 1.0) * left.V() * areaNorm.Y() +
-                           velLeftNorm);
-  dF_dUl.SetData(2, 3, left.W() * areaNorm.Y() -
-                           (eqnState.Gamma() - 1.0) * left.V() * areaNorm.Z());
-  dF_dUl.SetData(2, 4, left.Enthalpy(eqnState) * areaNorm.Y() -
-                           (eqnState.Gamma() - 1.0) * left.V() * velLeftNorm);
-
-  // column three
-  dF_dUl.SetData(3, 0, areaNorm.Z());
-  dF_dUl.SetData(3, 1, left.U() * areaNorm.Z() -
-                           (eqnState.Gamma() - 1.0) * left.W() * areaNorm.X());
-  dF_dUl.SetData(3, 2, left.V() * areaNorm.Z() -
-                           (eqnState.Gamma() - 1.0) * left.W() * areaNorm.Y());
-  dF_dUl.SetData(3, 3, left.W() * areaNorm.Z() -
-                           (eqnState.Gamma() - 1.0) * left.W() * areaNorm.Z() +
-                           velLeftNorm);
-  dF_dUl.SetData(3, 4, left.Enthalpy(eqnState) * areaNorm.Z() -
-                           (eqnState.Gamma() - 1.0) * left.W() * velLeftNorm);
-
-  // column four
-  dF_dUl.SetData(4, 0, 0.0);
-  dF_dUl.SetData(4, 1, (eqnState.Gamma() - 1.0) * areaNorm.X());
-  dF_dUl.SetData(4, 2, (eqnState.Gamma() - 1.0) * areaNorm.Y());
-  dF_dUl.SetData(4, 3, (eqnState.Gamma() - 1.0) * areaNorm.Z());
-  dF_dUl.SetData(4, 4, eqnState.Gamma() * velLeftNorm);
-
-  dF_dUl = 0.5 * (dF_dUl + A);
-
-  // Compute derivative of flux wrt right conservative variables
-
-  dF_dUr.Zero();
-
-  // calculate flux derivatives
-  // column zero
-  dF_dUr.SetData(0, 0, 0.0);
-  dF_dUr.SetData(1, 0, 0.5 * (eqnState.Gamma() - 1.0) *
-                               right.Velocity().MagSq() * areaNorm.X() -
-                           right.U() * velRightNorm);
-  dF_dUr.SetData(2, 0, 0.5 * (eqnState.Gamma() - 1.0) *
-                               right.Velocity().MagSq() * areaNorm.Y() -
-                           right.V() * velRightNorm);
-  dF_dUr.SetData(3, 0, 0.5 * (eqnState.Gamma() - 1.0) *
-                               right.Velocity().MagSq() * areaNorm.Z() -
-                           right.W() * velRightNorm);
-  dF_dUr.SetData(4, 0,
-                 (0.5 * (eqnState.Gamma() - 1.0) * right.Velocity().MagSq() -
-                  right.Enthalpy(eqnState)) *
-                     velRightNorm);
-
-  // column one
-  dF_dUr.SetData(1, 0, areaNorm.X());
-  dF_dUr.SetData(1, 1, right.U() * areaNorm.X() -
-                           (eqnState.Gamma() - 1.0) * right.U() * areaNorm.X() +
-                           velRightNorm);
-  dF_dUr.SetData(1, 2, right.V() * areaNorm.X() -
-                           (eqnState.Gamma() - 1.0) * right.U() * areaNorm.Y());
-  dF_dUr.SetData(1, 3, right.W() * areaNorm.X() -
-                           (eqnState.Gamma() - 1.0) * right.U() * areaNorm.Z());
-  dF_dUr.SetData(1, 4, right.Enthalpy(eqnState) * areaNorm.X() -
-                           (eqnState.Gamma() - 1.0) * right.U() * velRightNorm);
-
-  // column two
-  dF_dUr.SetData(2, 0, areaNorm.Y());
-  dF_dUr.SetData(2, 1, right.U() * areaNorm.Y() -
-                           (eqnState.Gamma() - 1.0) * right.V() * areaNorm.X());
-  dF_dUr.SetData(2, 2, right.V() * areaNorm.Y() -
-                           (eqnState.Gamma() - 1.0) * right.V() * areaNorm.Y() +
-                           velRightNorm);
-  dF_dUr.SetData(2, 3, right.W() * areaNorm.Y() -
-                           (eqnState.Gamma() - 1.0) * right.V() * areaNorm.Z());
-  dF_dUr.SetData(2, 4, right.Enthalpy(eqnState) * areaNorm.Y() -
-                           (eqnState.Gamma() - 1.0) * right.V() * velRightNorm);
-
-  // column three
-  dF_dUr.SetData(3, 0, areaNorm.Z());
-  dF_dUr.SetData(3, 1, right.U() * areaNorm.Z() -
-                           (eqnState.Gamma() - 1.0) * right.W() * areaNorm.X());
-  dF_dUr.SetData(3, 2, right.V() * areaNorm.Z() -
-                           (eqnState.Gamma() - 1.0) * right.W() * areaNorm.Y());
-  dF_dUr.SetData(3, 3, right.W() * areaNorm.Z() -
-                           (eqnState.Gamma() - 1.0) * right.W() * areaNorm.Z() +
-                           velRightNorm);
-  dF_dUr.SetData(3, 4, right.Enthalpy(eqnState) * areaNorm.Z() -
-                           (eqnState.Gamma() - 1.0) * right.W() * velRightNorm);
-
-  // column four
-  dF_dUr.SetData(4, 0, 0.0);
-  dF_dUr.SetData(4, 1, (eqnState.Gamma() - 1.0) * areaNorm.X());
-  dF_dUr.SetData(4, 2, (eqnState.Gamma() - 1.0) * areaNorm.Y());
-  dF_dUr.SetData(4, 3, (eqnState.Gamma() - 1.0) * areaNorm.Z());
-  dF_dUr.SetData(4, 4, eqnState.Gamma() * velRightNorm);
-
-  dF_dUr = 0.5 * (dF_dUr - A);
-}
-
-// //function to calculate Lax-Friedrichs flux jacobians
-// void LaxFriedrichsFluxJacobian( const primVars &left, const primVars &right,
-// const idealGas &eqnState, const vector3d<double>& areaVec,
-// double &specRadL, double &specRadR, squareMatrix &dF_dUl, squareMatrix
-// &dF_dUr){
-
-//   //left --> primative variables from left side
-//   //right --> primative variables from right side
-//   //eqnStat --> ideal gas equation of state
-//   //areaVec --> face area vector
-//   //maxWS --> maximum wave speed
-//   //dF_dUl --> dF/dUl, derivative of the Roe flux wrt the left state
-// (conservative variables)
-//   //dF_dUr --> dF/dUlr, derivative of the Roe flux wrt the right state
-// (conservative variables)
-
-//   //check to see that output matricies are correct size
-//   if( (dF_dUl.Size() != 5) || (dF_dUr.Size() != 5)){
-//     cerr << "ERROR: Input matricies to LaxFreidrichsFLuxJacobian function are
-// not the correct size!" << endl;
-//   }
-
-//   vector3d<double> areaNorm = areaVec / areaVec.Mag();  //normalize area
-// vector to unit vector
-
-//   //dot product of velocities with unit area vector
-//   double maxWS = ConvSpecRad(areaNorm, left, right, eqnState);
-
-//   double velLeftNorm = left.Velocity().DotProd(areaNorm);
-//   double velRightNorm = right.Velocity().DotProd(areaNorm);
-
-//   //calculate spectral radii
-//   specRadL = maxWS;
-//   specRadR = maxWS;
-
-//   //form spectral radii identity matrices
-//   squareMatrix dissLeft(5);
-//   dissLeft.Identity();
-//   dissLeft = specRadL * dissLeft;
-
-//   squareMatrix dissRight(5);
-//   dissRight.Identity();
-//   dissRight = specRadR * dissRight;
-
-//   //begin jacobian calculation
-
-//   dF_dUl.Zero();
-//   dF_dUr.Zero();
-
-//   //calculate flux derivatives wrt left state
-//   //column zero
-//   dF_dUl.SetData(0, 0, 0.0);
-//   dF_dUl.SetData(1, 0, 0.5 * (eqnState.Gamma() - 1.0) *
-// left.Velocity().MagSq() * areaNorm.X() - left.U() * velLeftNorm);
-//   dF_dUl.SetData(2, 0, 0.5 * (eqnState.Gamma() - 1.0) *
-// left.Velocity().MagSq() * areaNorm.Y() - left.V() * velLeftNorm);
-//   dF_dUl.SetData(3, 0, 0.5 * (eqnState.Gamma() - 1.0) *
-// left.Velocity().MagSq() * areaNorm.Z() - left.W() * velLeftNorm);
-//   dF_dUl.SetData(4, 0, (0.5 * (eqnState.Gamma() - 1.0) *
-// left.Velocity().MagSq() - left.Enthalpy(eqnState)) * velLeftNorm);
-
-//   //column one
-//   dF_dUl.SetData(0, 1, areaNorm.X());
-//   dF_dUl.SetData(1, 1, left.U() * areaNorm.X() - (eqnState.Gamma() - 1.0) *
-// left.U() * areaNorm.X() + velLeftNorm);
-//   dF_dUl.SetData(2, 1, left.V() * areaNorm.X() - (eqnState.Gamma() - 1.0) *
-// left.U() * areaNorm.Y());
-//   dF_dUl.SetData(3, 1, left.W() * areaNorm.X() - (eqnState.Gamma() - 1.0) *
-// left.U() * areaNorm.Z());
-//   dF_dUl.SetData(4, 1, left.Enthalpy(eqnState) * areaNorm.X() -
-// (eqnState.Gamma() - 1.0) * left.U() * velLeftNorm);
-
-//   //column two
-//   dF_dUl.SetData(0, 2, areaNorm.Y());
-//   dF_dUl.SetData(1, 2, left.U() * areaNorm.Y() - (eqnState.Gamma() - 1.0) *
-// left.V() * areaNorm.X());
-//   dF_dUl.SetData(2, 2, left.V() * areaNorm.Y() - (eqnState.Gamma() - 1.0) *
-// left.V() * areaNorm.Y() + velLeftNorm);
-//   dF_dUl.SetData(3, 2, left.W() * areaNorm.Y() - (eqnState.Gamma() - 1.0) *
-// left.V() * areaNorm.Z());
-//   dF_dUl.SetData(4, 2, left.Enthalpy(eqnState) * areaNorm.Y() -
-// (eqnState.Gamma() - 1.0) * left.V() * velLeftNorm);
-
-//   //column three
-//   dF_dUl.SetData(0, 3, areaNorm.Z());
-//   dF_dUl.SetData(1, 3, left.U() * areaNorm.Z() - (eqnState.Gamma() - 1.0) *
-// left.W() * areaNorm.X());
-//   dF_dUl.SetData(2, 3, left.V() * areaNorm.Z() - (eqnState.Gamma() - 1.0) *
-// left.W() * areaNorm.Y());
-//   dF_dUl.SetData(3, 3, left.W() * areaNorm.Z() - (eqnState.Gamma() - 1.0) *
-// left.W() * areaNorm.Z() + velLeftNorm);
-//   dF_dUl.SetData(4, 3, left.Enthalpy(eqnState) * areaNorm.Z() -
-// (eqnState.Gamma() - 1.0) * left.W() * velLeftNorm);
-
-//   //column four
-//   dF_dUl.SetData(0, 4, 0.0);
-//   dF_dUl.SetData(1, 4, (eqnState.Gamma() - 1.0) * areaNorm.X());
-//   dF_dUl.SetData(2, 4, (eqnState.Gamma() - 1.0) * areaNorm.Y());
-//   dF_dUl.SetData(3, 4, (eqnState.Gamma() - 1.0) * areaNorm.Z());
-//   dF_dUl.SetData(4, 4, eqnState.Gamma() * velLeftNorm);
-
-//   dF_dUl = 0.5 * (dF_dUl + dissLeft);
-
-//   //calculate flux derivatives wrt right state
-//   //column zero
-//   dF_dUr.SetData(0, 0, 0.0);
-//   dF_dUr.SetData(1, 0, 0.5 * (eqnState.Gamma() - 1.0) *
-// right.Velocity().MagSq() * areaNorm.X() - right.U() * velRightNorm);
-//   dF_dUr.SetData(2, 0, 0.5 * (eqnState.Gamma() - 1.0) *
-// right.Velocity().MagSq() * areaNorm.Y() - right.V() * velRightNorm);
-//   dF_dUr.SetData(3, 0, 0.5 * (eqnState.Gamma() - 1.0) *
-// right.Velocity().MagSq() * areaNorm.Z() - right.W() * velRightNorm);
-//   dF_dUr.SetData(4, 0, (0.5 * (eqnState.Gamma() - 1.0) *
-// right.Velocity().MagSq() - right.Enthalpy(eqnState)) * velRightNorm);
-
-//   //column one
-//   dF_dUr.SetData(0, 1, areaNorm.X());
-//   dF_dUr.SetData(1, 1, right.U() * areaNorm.X() - (eqnState.Gamma() - 1.0) *
-// right.U() * areaNorm.X() + velRightNorm);
-//   dF_dUr.SetData(2, 1, right.V() * areaNorm.X() - (eqnState.Gamma() - 1.0) *
-// right.U() * areaNorm.Y());
-//   dF_dUr.SetData(3, 1, right.W() * areaNorm.X() - (eqnState.Gamma() - 1.0) *
-// right.U() * areaNorm.Z());
-//   dF_dUr.SetData(4, 1, right.Enthalpy(eqnState) * areaNorm.X() -
-// (eqnState.Gamma() - 1.0) * right.U() * velRightNorm);
-
-//   //column two
-//   dF_dUr.SetData(0, 2, areaNorm.Y());
-//   dF_dUr.SetData(1, 2, right.U() * areaNorm.Y() - (eqnState.Gamma() - 1.0) *
-// right.V() * areaNorm.X());
-//   dF_dUr.SetData(2, 2, right.V() * areaNorm.Y() - (eqnState.Gamma() - 1.0) *
-// right.V() * areaNorm.Y() + velRightNorm);
-//   dF_dUr.SetData(3, 2, right.W() * areaNorm.Y() - (eqnState.Gamma() - 1.0) *
-// right.V() * areaNorm.Z());
-//   dF_dUr.SetData(4, 2, right.Enthalpy(eqnState) * areaNorm.Y() -
-// (eqnState.Gamma() - 1.0) * right.V() * velRightNorm);
-
-//   //column three
-//   dF_dUr.SetData(0, 3, areaNorm.Z());
-//   dF_dUr.SetData(1, 3, right.U() * areaNorm.Z() - (eqnState.Gamma() - 1.0) *
-// right.W() * areaNorm.X());
-//   dF_dUr.SetData(2, 3, right.V() * areaNorm.Z() - (eqnState.Gamma() - 1.0) *
-// right.W() * areaNorm.Y());
-//   dF_dUr.SetData(3, 3, right.W() * areaNorm.Z() - (eqnState.Gamma() - 1.0) *
-// right.W() * areaNorm.Z() + velRightNorm);
-//   dF_dUr.SetData(4, 3, right.Enthalpy(eqnState) * areaNorm.Z() -
-// (eqnState.Gamma() - 1.0) * right.W() * velRightNorm);
-
-//   //column four
-//   dF_dUr.SetData(0, 4, 0.0);
-//   dF_dUr.SetData(1, 4, (eqnState.Gamma() - 1.0) * areaNorm.X());
-//   dF_dUr.SetData(2, 4, (eqnState.Gamma() - 1.0) * areaNorm.Y());
-//   dF_dUr.SetData(3, 4, (eqnState.Gamma() - 1.0) * areaNorm.Z());
-//   dF_dUr.SetData(4, 4, eqnState.Gamma() * velRightNorm);
-
-//   dF_dUr = 0.5 * (dF_dUr - dissRight);
-
-// }
 
 // non-member functions
 // -----------------------------------------------------------
