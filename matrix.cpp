@@ -173,13 +173,13 @@ void squareMatrix::Identity() {
 }
 
 // member function to do matrix/vector multplication
-genArray squareMatrix::VecMult(const genArray &vec) const {
+genArray squareMatrix::ArrayMult(const genArray &vec, const int pos) const {
   // vec -- vector to multiply with
-  
+
   genArray product(0.0);
   for (auto rr = 0; rr < size_; rr++) {
     for (auto cc = 0; cc < size_; cc++) {
-      product[rr] += (*this)(rr, cc) * vec[cc];
+      product[rr] += (*this)(rr, cc) * vec[pos + cc];
     }
   }
   return product;

@@ -23,6 +23,7 @@
 #include <memory>                   // unique_ptr
 #include "vector3d.hpp"
 #include "boundaryConditions.hpp"
+#include "macros.hpp"
 
 using std::vector;
 using std::string;
@@ -161,6 +162,8 @@ class input {
 
   int NumVars() const {return vars_.size();}
   int NumEquations() const;
+  int NumFlowEquations() const {return NUMFLOWVARS;}
+  int NumTurbEquations() const;
 
   void ReadInput(const int &);
 
@@ -168,7 +171,7 @@ class input {
   bool IsViscous() const;
   bool IsTurbulent() const;
   bool IsBlockMatrix() const;
-  
+
   string OrderOfAccuracy() const;
 
   double FarfieldTurbIntensity() const {return farfieldTurbInten_;}

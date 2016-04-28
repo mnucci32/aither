@@ -24,6 +24,7 @@
 #include <memory>          // unique_ptr
 #include "vector3d.hpp"
 #include "uncoupledScalar.hpp"
+#include "matrix.hpp"
 
 using std::vector;
 using std::string;
@@ -40,26 +41,21 @@ class sutherland;
 class turbModel;
 class input;
 class genArray;
-class squareMatrix;
 
 // This class holds the flux jacobians for the flow and turbulence equations.
 // In the LU-SGS method the jacobians are scalars.
 
 class fluxJacobian {
-  double flowJacobian_;
-  double turbJacobian_;
+  squareMatrix flowJacobian_;
+  squareMatrix turbJacobian_;
 
  public:
   // constructors
-  fluxJacobian(const double &flow, const double &turb) :
-      flowJacobian_(flow), turbJacobian_(turb) {}
+  fluxJacobian(const double &flow, const double &turb);
+  fluxJacobian(const int &flowSize, const int &turbSize);
   fluxJacobian() : fluxJacobian(0.0, 0.0) {}
   explicit fluxJacobian(const uncoupledScalar &specRad) :
       fluxJacobian(specRad.FlowVariable(), specRad.TurbVariable()) {}
-  fluxJacobian(const primVars &, const unitVec3dMag<double> &,
-               const unitVec3dMag<double> &, const idealGas &,
-               const sutherland &, const double &,
-               const unique_ptr<turbModel> &, const input &, const bool &);
 
   // move constructor and assignment operator
   fluxJacobian(fluxJacobian&&) noexcept = default;
@@ -70,27 +66,38 @@ class fluxJacobian {
   fluxJacobian& operator=(const fluxJacobian&) = default;
 
   // member functions
-  double FlowJacobian() const { return flowJacobian_; }
-  double TurbulenceJacobian() const { return turbJacobian_; }
+  squareMatrix FlowJacobian() const { return flowJacobian_; }
+  squareMatrix TurbulenceJacobian() const { return turbJacobian_; }
 
-  void AddInviscidJacobian(const primVars &, const unitVec3dMag<double> &,
-                           const unitVec3dMag<double> &, const idealGas &,
-                           const unique_ptr<turbModel> &, const bool &);
-  void AddViscousJacobian(const primVars &, const unitVec3dMag<double> &,
-                          const unitVec3dMag<double> &, const idealGas &,
-                          const sutherland &, const double &,
-                          const unique_ptr<turbModel> &, const bool &);
-  void AddTurbSourceJacobian(const primVars &, const sutherland &,
-                             const double &, const unique_ptr<turbModel> &);
+  void AddToFlowJacobian(const squareMatrix &jac) {flowJacobian_ += jac;}
+  void AddToTurbJacobian(const squareMatrix &jac) {turbJacobian_ += jac;}
+  void SubtractFromFlowJacobian(const squareMatrix &jac) {flowJacobian_ -= jac;}
+  void SubtractFromTurbJacobian(const squareMatrix &jac) {turbJacobian_ -= jac;}
+
+  void RusanovFluxJacobian(const primVars &, const primVars &,
+                           const idealGas &, const vector3d<double> &,
+                           const bool &, const input &);
+  void InvFluxJacobian(const primVars &, const idealGas &,
+                       const vector3d<double> &, const input &);
+  void ApproxRoeFluxJacobian(const primVars &, const primVars &,
+                             const idealGas &, const vector3d<double> &,
+                             const bool &, const input &);
+  void DelPrimativeDelConservative(const primVars &, const idealGas &,
+                                   const input &);
+
+  void ApproxTSLJacobian(const primVars &, const idealGas &,
+                         const sutherland &,
+                         const vector3d<double> &, const double &,
+                         const unique_ptr<turbModel> &, const input &);
 
   void Zero() {
-    flowJacobian_ = 0.0;
-    turbJacobian_ = 0.0;
+    flowJacobian_.Zero();
+    turbJacobian_.Zero();
   }
 
   genArray ArrayMult(genArray) const;
-
-  fluxJacobian Inverse(const bool &) const;
+  bool IsScalar() const;
+  void Inverse(const bool &);
 
   inline fluxJacobian & operator+=(const fluxJacobian &);
   inline fluxJacobian & operator-=(const fluxJacobian &);
@@ -225,14 +232,6 @@ inline const fluxJacobian operator/(const double &lhs, fluxJacobian rhs) {
 
 ostream &operator<<(ostream &os, const fluxJacobian &);
 
-squareMatrix RusanovFluxJacobian(const primVars &, const primVars &,
-                                 const idealGas &, const vector3d<double> &,
-                                 const bool &);
-squareMatrix InvFluxJacobian(const primVars &, const idealGas &,
-                             const vector3d<double> &);
-squareMatrix ApproxRoeFluxJacobian(const primVars &, const primVars &,
-                                   const idealGas &, const vector3d<double> &,
-                                   const bool &);
 genArray RusanovOffDiagonal(const primVars &, const genArray &,
                             const unitVec3dMag<double> &,
                             const unitVec3dMag<double> &,
@@ -247,11 +246,5 @@ genArray RoeOffDiagonal(const primVars &, const primVars &, const genArray &,
                         const unique_ptr<turbModel> &, const input &,
                         const bool &);
 
-squareMatrix DelPrimativeDelConservative(const primVars &, const idealGas &);
-
-squareMatrix ApproxTSLJacobian(const primVars &, const idealGas &,
-                               const sutherland &,
-                               const vector3d<double> &, const double &,
-                               const unique_ptr<turbModel> &);
 
 #endif

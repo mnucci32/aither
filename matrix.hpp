@@ -61,8 +61,8 @@ class squareMatrix {
   void Zero();
   void Identity();
   squareMatrix MatMult(const squareMatrix &) const;
-  genArray VecMult(const genArray &) const;
-  
+  genArray ArrayMult(const genArray &, const int = 0) const;
+
   // operator overloads
   double & operator()(const int &r, const int &c) {
     return data_[this->GetLoc(r, c)];
