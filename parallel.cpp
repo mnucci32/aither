@@ -366,10 +366,10 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
   //                                  ROOT
   //------------------------------------------------------------------------
   if (rank == ROOTP) {  // may have to pack and send data
-    for (auto ii = 0; ii < static_cast<int>(blocks.size());
-         ii++) {                        // loop over ALL blocks
-      if (blocks[ii].Rank() == ROOTP) {  // no need to send data because it is
-                                        // already on ROOT processor
+    // loop over ALL blocks
+    for (auto ii = 0; ii < static_cast<int>(blocks.size()); ii++) {
+      // no need to send data because it is already on root processor
+      if (blocks[ii].Rank() == ROOTP) {
         localBlocks[blocks[ii].LocalPosition()] = blocks[ii];
       } else {  // send data to receiving processors
         // pack and send procBlock
@@ -401,7 +401,7 @@ This is used to get all the data on the ROOT processor to write out results.
 void GetProcBlocks(vector<procBlock> &blocks,
                    const vector<procBlock> &localBlocks, const int &rank,
                    const MPI_Datatype &MPI_cellData,
-		   const MPI_Datatype &MPI_uncoupledScalar) {
+                   const MPI_Datatype &MPI_uncoupledScalar) {
   // blocks -- full vector of all procBlocks. This is only used on ROOT
   // processor, all other processors just need a dummy variable to call the
   // function

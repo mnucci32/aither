@@ -32,6 +32,7 @@
 #include "resid.hpp"
 #include "uncoupledScalar.hpp"
 #include "fluxJacobian.hpp"
+#include "kdtree.hpp"
 
 using std::cout;
 using std::endl;
@@ -46,8 +47,9 @@ using std::unique_ptr;
 procBlock::procBlock(const primVars &inputState, const plot3dBlock &blk,
                      const int &numBlk, const int &numG,
                      const boundaryConditions &bound, const int &pos,
-                     const int &r, const int &lpos) {
-  // inputState -- state_ to initialize block with (primative)
+                     const int &r, const int &lpos, const input &inp,
+                     const idealGas &eos, const sutherland &suth) {
+  // inputState -- state to initialize block with (primative)
   // blk -- plot3d block of which this procBlock is a subset of
   // numBlk -- the block number of blk (the parent block)
   // numG -- number of ghost cells
@@ -79,16 +81,45 @@ procBlock::procBlock(const primVars &inputState, const plot3dBlock &blk,
   fCenterJ_ = PadWithGhosts(blk.FaceCenterJ(), numGhosts_);
   fCenterK_ = PadWithGhosts(blk.FaceCenterK(), numGhosts_);
 
-  wallDist_ = multiArray3d<double>(blk.NumI() - 1 + 2.0 * numGhosts_,
-                                   blk.NumJ() - 1 + 2.0 * numGhosts_,
-                                   blk.NumK() - 1 + 2.0 * numGhosts_,
-                                   DEFAULTWALLDIST);
+  wallDist_ = {blk.NumI() - 1 + 2 * numGhosts_,
+               blk.NumJ() - 1 + 2 * numGhosts_,
+               blk.NumK() - 1 + 2 * numGhosts_, DEFAULTWALLDIST};
 
-  specRadius_ = multiArray3d<uncoupledScalar>(blk.NumI() - 1, blk.NumJ() - 1,
-                                              blk.NumK() - 1);
-  dt_ = multiArray3d<double>(blk.NumI() - 1, blk.NumJ() - 1, blk.NumK() - 1);
-  residual_ = multiArray3d<genArray>(blk.NumI() - 1, blk.NumJ() - 1,
-                                     blk.NumK() - 1);
+  specRadius_ = {blk.NumI() - 1, blk.NumJ() - 1, blk.NumK() - 1};
+  dt_ = {blk.NumI() - 1, blk.NumJ() - 1, blk.NumK() - 1};
+  residual_ = {blk.NumI() - 1, blk.NumJ() - 1, blk.NumK() - 1};
+
+  const auto inputTemperature = inputState.Temperature(eos);
+  temperature_ = {blk.NumI() - 1 + 2 * numGhosts_,
+                  blk.NumJ() - 1 + 2 * numGhosts_,
+                  blk.NumK() - 1 + 2 * numGhosts_, inputTemperature};
+
+  auto inputViscosity = 0.0;
+  if (inp.IsViscous()) {
+    inputViscosity = suth.Viscosity(inputTemperature);
+    viscosity_ = {blk.NumI() - 1 + 2 * numGhosts_,
+                  blk.NumJ() - 1 + 2 * numGhosts_,
+                  blk.NumK() - 1 + 2 * numGhosts_, inputViscosity};
+  } else {
+    viscosity_ = {1, 1, 1, inputViscosity};
+  }
+
+  if (inp.IsTurbulent()) {
+    eddyViscosity_ = {blk.NumI() - 1 + 2 * numGhosts_,
+                      blk.NumJ() - 1 + 2 * numGhosts_,
+                      blk.NumK() - 1 + 2 * numGhosts_,
+                      inp.FarfieldEddyViscRatio() * inputViscosity};
+    f1_ = {blk.NumI() - 1 + 2 * numGhosts_,
+           blk.NumJ() - 1 + 2 * numGhosts_,
+           blk.NumK() - 1 + 2 * numGhosts_, 1.0};
+    f2_ = {blk.NumI() - 1 + 2 * numGhosts_,
+           blk.NumJ() - 1 + 2 * numGhosts_,
+           blk.NumK() - 1 + 2 * numGhosts_, 0.0};
+  } else {
+    eddyViscosity_ = {1, 1, 1, 0.0};
+    f1_ = {1, 1, 1, 0.0};
+    f2_ = {1, 1, 1, 0.0};
+  }
 }
 
 // constructor -- allocate space for procBlock
@@ -106,33 +137,29 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   globalPos_ = 0;
   localPos_ = 0;
 
-  bc_ = boundaryConditions();
+  bc_ = {};
 
   // pad stored variable vectors with ghost cells
-  state_ = multiArray3d<primVars>(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG);
-  center_ = multiArray3d<vector3d<double>>(ni + 2 * numG, nj + 2 * numG,
-                                            nk + 2 * numG);
-  fAreaI_ = multiArray3d<unitVec3dMag<double>>(ni + 2 * numG + 1,
-                                                nj + 2 * numG, nk + 2 * numG);
-  fAreaJ_ = multiArray3d<unitVec3dMag<double>>(ni + 2 * numG,
-                                                nj + 2 * numG + 1,
-                                                nk + 2 * numG);
-  fAreaK_ = multiArray3d<unitVec3dMag<double>>(ni + 2 * numG,
-                                                nj + 2 * numG,
-                                                nk + 2 * numG + 1);
-  fCenterI_ = multiArray3d<vector3d<double>>(ni + 2 * numG + 1, nj + 2 * numG,
-                                              nk + 2 * numG);
-  fCenterJ_ = multiArray3d<vector3d<double>>(ni + 2 * numG, nj + 2 * numG + 1,
-                                              nk + 2 * numG);
-  fCenterK_ = multiArray3d<vector3d<double>>(ni + 2 * numG, nj + 2 * numG,
-                                              nk + 2 * numG + 1);
-  residual_ = multiArray3d<genArray>(ni, nj, nk);
-  vol_ = multiArray3d<double>(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG);
-  wallDist_ = multiArray3d<double>(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG,
-                                   DEFAULTWALLDIST);
+  state_(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG);
+  center_(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG);
+  fAreaI_(ni + 2 * numG + 1, nj + 2 * numG, nk + 2 * numG);
+  fAreaJ_(ni + 2 * numG, nj + 2 * numG + 1, nk + 2 * numG);
+  fAreaK_(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG + 1);
+  fCenterI_(ni + 2 * numG + 1, nj + 2 * numG, nk + 2 * numG);
+  fCenterJ_(ni + 2 * numG, nj + 2 * numG + 1, nk + 2 * numG);
+  fCenterK_(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG + 1);
+  residual_(ni, nj, nk);
+  vol_(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG);
+  wallDist_ = {ni + 2 * numG, nj + 2 * numG, nk + 2 * numG, DEFAULTWALLDIST};
 
-  specRadius_ = multiArray3d<uncoupledScalar>(ni, nj, nk);
-  dt_ = multiArray3d<double>(ni, nj, nk);
+  specRadius_(ni, nj, nk);
+  dt_(ni, nj, nk);
+
+  temperature_(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG);
+  viscosity_(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG);
+  eddyViscosity_(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG);
+  f1_(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG);
+  f2_(ni + 2 * numG, nj + 2 * numG, nk + 2 * numG);
 }
 
 // member function to add a member of the inviscid flux class to the residual
@@ -1878,7 +1905,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
   //                 implicit solver
 
   const auto viscCoeff = inp.ViscousCFLCoefficient();
-  
+
   // loop over all physical i-faces
   for (auto kp = 0, kg = numGhosts_; kg < fAreaI_.NumK() - numGhosts_;
        kg++, kp++) {
@@ -6968,3 +6995,12 @@ multiArray3d<primVars> procBlock::SliceState(const int &is, const int &ie,
   return state_.Slice(is, ie, js, je, ks, ke);
 }
 
+void procBlock::UpdateAuxillaryVariables(const idealGas &eos,
+                                         const sutherland &suth,
+                                         const input &inp, const int &ii,
+                                         const int &jj, const int &kk) {
+  temperature_(ii, jj, kk) = state_(ii, jj, kk).Temperature(eos);
+  if (inp.IsViscous()) {
+    viscosity_(ii, jj, kk) = suth.Viscosity(temperature_(ii, jj, kk));
+  }
+}

@@ -27,15 +27,15 @@ using std::cerr;
 geomSlice::geomSlice() {
   parBlock_ = 0;
 
-  center_ = multiArray3d<vector3d<double>>(1, 1, 1);
-  fAreaI_ = multiArray3d<unitVec3dMag<double>>(1, 1, 1);
+  center_(1, 1, 1);
+  fAreaI_(1, 1, 1);
   fAreaJ_ = fAreaI_;
   fAreaK_ = fAreaI_;
-  fCenterI_ = multiArray3d<vector3d<double>>(1, 1, 1);
+  fCenterI_(1, 1, 1);
   fCenterJ_ = fCenterI_;
   fCenterK_ = fCenterI_;
 
-  vol_ = multiArray3d<double>(1, 1, 1);
+  vol_(1, 1, 1);
 }
 
 // constructor -- initialize state vector with dummy variables
@@ -48,15 +48,15 @@ geomSlice::geomSlice(const int &li, const int &lj, const int &lk,
 
   parBlock_ = pblk;
 
-  center_ = multiArray3d<vector3d<double>>(li, lj, lk);
-  fAreaI_ = multiArray3d<unitVec3dMag<double>> (li + 1, lj, lk);
-  fAreaJ_ = multiArray3d<unitVec3dMag<double>> (li, lj + 1, lk);
-  fAreaK_ = multiArray3d<unitVec3dMag<double>> (li, lj, lk + 1);
-  fCenterI_ = multiArray3d<vector3d<double>> (li + 1, lj, lk);
-  fCenterJ_ = multiArray3d<vector3d<double>> (li, lj + 1, lk);
-  fCenterK_ = multiArray3d<vector3d<double>> (li, lj, lk + 1);
+  center_(li, lj, lk);
+  fAreaI_(li + 1, lj, lk);
+  fAreaJ_(li, lj + 1, lk);
+  fAreaK_(li, lj, lk + 1);
+  fCenterI_(li + 1, lj, lk);
+  fCenterJ_(li, lj + 1, lk);
+  fCenterK_(li, lj, lk + 1);
 
-  vol_ = multiArray3d<double>(li, lj, lk);
+  vol_(li, lj, lk);
 }
 
 /* constructor to get a slice (portion) of the geometry of a procBlock. The
@@ -86,14 +86,14 @@ geomSlice::geomSlice(const procBlock &blk, const int &is, const int &ie,
   parBlock_ = blk.ParentBlock();
 
   // allocate size for vectors
-  center_ = multiArray3d<vector3d<double>>(numI, numJ, numK);
-  fAreaI_ = multiArray3d<unitVec3dMag<double>>(numI + 1, numJ, numK);
-  fAreaJ_ = multiArray3d<unitVec3dMag<double>>(numI, numJ + 1, numK);
-  fAreaK_ = multiArray3d<unitVec3dMag<double>>(numI, numJ, numK + 1);
-  fCenterI_ = multiArray3d<vector3d<double>>(numI + 1, numJ, numK);
-  fCenterJ_ = multiArray3d<vector3d<double>>(numI, numJ + 1, numK);
-  fCenterK_ = multiArray3d<vector3d<double>>(numI, numJ, numK + 1);
-  vol_ = multiArray3d<double>(numI, numJ, numK);
+  center_(numI, numJ, numK);
+  fAreaI_(numI + 1, numJ, numK);
+  fAreaJ_(numI, numJ + 1, numK);
+  fAreaK_(numI, numJ, numK + 1);
+  fCenterI_(numI + 1, numJ, numK);
+  fCenterJ_(numI, numJ + 1, numK);
+  fCenterK_(numI, numJ, numK + 1);
+  vol_(numI, numJ, numK);
 
   // loop over all cells in slice and populate
   for (auto kk = 0; kk < vol_.NumK(); kk++) {

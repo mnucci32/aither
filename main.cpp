@@ -146,7 +146,8 @@ int main(int argc, char *argv[]) {
     for (auto ll = 0; ll < static_cast<int>(mesh.size()); ll++) {
       stateBlocks[ll] = procBlock(state, mesh[ll], decomp.ParentBlock(ll),
                                   numGhost, bcs[ll], ll, decomp.Rank(ll),
-                                  decomp.LocalPosition(ll) );
+                                  decomp.LocalPosition(ll), inputVars, eos,
+                                  suth);
       stateBlocks[ll].AssignGhostCellsGeom();
     }
 

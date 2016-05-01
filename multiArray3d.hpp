@@ -51,10 +51,10 @@ class multiArray3d {
  public:
   // constructor
   multiArray3d(const int &ii, const int &jj, const int &kk, const T &init) :
-      data_(vector<T>(ii * jj * kk, init)),
+      data_(ii * jj * kk, init),
       numI_(ii), numJ_(jj), numK_(kk) {}
   multiArray3d(const int &ii, const int &jj, const int &kk) :
-      data_(vector<T>(ii * jj * kk)),
+      data_(ii * jj * kk),
       numI_(ii), numJ_(jj), numK_(kk) {}
   multiArray3d() : multiArray3d(1, 1, 1) {}
 

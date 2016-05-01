@@ -31,7 +31,6 @@
 #include "genArray.hpp"            // genArray
 #include "boundaryConditions.hpp"  // interblock, patch
 #include "macros.hpp"
-#include "kdtree.hpp"              // kdtree
 #include "uncoupledScalar.hpp"     // uncoupledScalar
 
 using std::vector;
@@ -56,6 +55,7 @@ class turbModel;
 class plot3dBlock;
 class resid;
 class fluxJacobian;
+class kdtree;
 
 class procBlock {
   multiArray3d<primVars> state_;  // primative variables at cell center
@@ -75,6 +75,13 @@ class procBlock {
   multiArray3d<double> vol_;  // cell volume
   multiArray3d<double> dt_;  // cell time step
   multiArray3d<double> wallDist_;  // distance to nearest viscous wall
+
+  // auxillary variables
+  multiArray3d<double> temperature_;
+  multiArray3d<double> viscosity_;
+  multiArray3d<double> eddyViscosity_;
+  multiArray3d<double> f1_;
+  multiArray3d<double> f2_;
 
   boundaryConditions bc_;  // boundary conditions for block
 
@@ -134,10 +141,15 @@ class procBlock {
   void SubtractFromResidual(const source &, const int &, const int &,
                             const int &);
 
+  void UpdateAuxillaryVariables(const idealGas &, const sutherland &,
+                                const input &, const int &, const int &,
+                                const int &);
+
  public:
   // constructors
   procBlock(const primVars &, const plot3dBlock &, const int &, const int &,
-            const boundaryConditions &, const int &, const int &, const int &);
+            const boundaryConditions &, const int &, const int &, const int &,
+            const input &, const idealGas &, const sutherland &);
   procBlock(const int &, const int &, const int &, const int &);
   procBlock() : procBlock(1, 1, 1, 0) {}
 
@@ -243,6 +255,22 @@ class procBlock {
   double Residual(const int &ii, const int &jj, const int &kk,
                   const int &a) const {
     return residual_(ii, jj, kk)[a];
+  }
+
+  double Temperature(const int &ii, const int &jj, const int &kk) const {
+    return temperature_(ii, jj, kk);
+  }
+  double Viscosity(const int &ii, const int &jj, const int &kk) const {
+    return viscosity_(ii, jj, kk);
+  }
+  double EddyViscosity(const int &ii, const int &jj, const int &kk) const {
+    return eddyViscosity_(ii, jj, kk);
+  }
+  double F1(const int &ii, const int &jj, const int &kk) const {
+    return f1_(ii, jj, kk);
+  }
+  double F2(const int &ii, const int &jj, const int &kk) const {
+    return f2_(ii, jj, kk);
   }
 
   void CalcBlockTimeStep(const input &, const double &);
