@@ -29,21 +29,21 @@ using std::string;
 // constructor
 gradients::gradients() {
   // default to 1 face
-  velocityI_(1, 1, 1);
-  velocityJ_(1, 1, 1);
-  velocityK_(1, 1, 1);
+  velocityI_ = {1, 1, 1};
+  velocityJ_ = {1, 1, 1};
+  velocityK_ = {1, 1, 1};
 
-  temperatureI_(1, 1, 1);
-  temperatureJ_(1, 1, 1);
-  temperatureK_(1, 1, 1);
+  temperatureI_ = {1, 1, 1};
+  temperatureJ_ = {1, 1, 1};
+  temperatureK_ = {1, 1, 1};
 
-  tkeI_(1, 1, 1);
-  tkeJ_(1, 1, 1);
-  tkeK_(1, 1, 1);
+  tkeI_ = {1, 1, 1};
+  tkeJ_ = {1, 1, 1};
+  tkeK_ = {1, 1, 1};
 
-  omegaI_(1, 1, 1);
-  omegaJ_(1, 1, 1);
-  omegaK_(1, 1, 1);
+  omegaI_ = {1, 1, 1};
+  omegaJ_ = {1, 1, 1};
+  omegaK_ = {1, 1, 1};
 }
 
 // alternate constructor to calculate gradients from state variables
@@ -55,32 +55,32 @@ gradients::gradients(const bool &turbFlag, const procBlock &blk,
   // eos -- equation of state
 
   // size vectors for input procBlock
-  velocityI_(blk.NumI() + 1, blk.NumJ(), blk.NumK());
-  velocityJ_(blk.NumI(), blk.NumJ() + 1, blk.NumK());
-  velocityK_(blk.NumI(), blk.NumJ(), blk.NumK() + 1);
+  velocityI_ = {blk.NumI() + 1, blk.NumJ(), blk.NumK()};
+  velocityJ_ = {blk.NumI(), blk.NumJ() + 1, blk.NumK()};
+  velocityK_ = {blk.NumI(), blk.NumJ(), blk.NumK() + 1};
 
-  temperatureI_(blk.NumI() + 1, blk.NumJ(), blk.NumK());
-  temperatureJ_(blk.NumI(), blk.NumJ() + 1, blk.NumK());
-  temperatureK_(blk.NumI(), blk.NumJ(), blk.NumK() + 1);
+  temperatureI_ = {blk.NumI() + 1, blk.NumJ(), blk.NumK()};
+  temperatureJ_ = {blk.NumI(), blk.NumJ() + 1, blk.NumK()};
+  temperatureK_ = {blk.NumI(), blk.NumJ(), blk.NumK() + 1};
 
   // if flow is not turbulent, don't need tke and omega gradients so they can be
   // set to a minimum size
   if (turbFlag) {
-    tkeI_(blk.NumI() + 1, blk.NumJ(), blk.NumK());
-    tkeJ_(blk.NumI(), blk.NumJ() + 1, blk.NumK());
-    tkeK_(blk.NumI(), blk.NumJ(), blk.NumK() + 1);
+    tkeI_ = {blk.NumI() + 1, blk.NumJ(), blk.NumK()};
+    tkeJ_ = {blk.NumI(), blk.NumJ() + 1, blk.NumK()};
+    tkeK_ = {blk.NumI(), blk.NumJ(), blk.NumK() + 1};
 
-    omegaI_(blk.NumI() + 1, blk.NumJ(), blk.NumK());
-    omegaJ_(blk.NumI(), blk.NumJ() + 1, blk.NumK());
-    omegaK_(blk.NumI(), blk.NumJ(), blk.NumK() + 1);
+    omegaI_ = {blk.NumI() + 1, blk.NumJ(), blk.NumK()};
+    omegaJ_ = {blk.NumI(), blk.NumJ() + 1, blk.NumK()};
+    omegaK_ = {blk.NumI(), blk.NumJ(), blk.NumK() + 1};
   } else {
-    tkeI_(1, 1, 1);
-    tkeJ_(1, 1, 1);
-    tkeK_(1, 1, 1);
+    tkeI_ = {1, 1, 1};
+    tkeJ_ = {1, 1, 1};
+    tkeK_ = {1, 1, 1};
 
-    omegaI_(1, 1, 1);
-    omegaJ_(1, 1, 1);
-    omegaK_(1, 1, 1);
+    omegaI_ = {1, 1, 1};
+    omegaJ_ = {1, 1, 1};
+    omegaK_ = {1, 1, 1};
   }
 
   // loop over i-faces and calculate gradients
