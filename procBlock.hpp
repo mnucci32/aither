@@ -76,6 +76,12 @@ class procBlock {
   multiArray3d<double> dt_;  // cell time step
   multiArray3d<double> wallDist_;  // distance to nearest viscous wall
 
+  // gradients
+  multiArray3d<tensor<double>> velocityGrad_;
+  multiArray3d<vector3d<double>> temperatureGrad_;
+  multiArray3d<vector3d<double>> tkeGrad_;
+  multiArray3d<vector3d<double>> omegaGrad_;
+
   // auxillary variables
   multiArray3d<double> temperature_;
   multiArray3d<double> viscosity_;
@@ -91,6 +97,9 @@ class procBlock {
   int localPos_;  // position on local processor
   int globalPos_;  // global position of procBlock in decomposed vector of
                    // procBlocks
+  bool isViscous_;
+  bool isTurbulent_;
+
 
   // private member functions
   void CalcInvFluxI(const idealGas &, const input &,
@@ -150,8 +159,9 @@ class procBlock {
   procBlock(const primVars &, const plot3dBlock &, const int &, const int &,
             const boundaryConditions &, const int &, const int &, const int &,
             const input &, const idealGas &, const sutherland &);
-  procBlock(const int &, const int &, const int &, const int &);
-  procBlock() : procBlock(1, 1, 1, 0) {}
+  procBlock(const int &, const int &, const int &, const int &, const bool &,
+            const bool &);
+  procBlock() : procBlock(1, 1, 1, 0, false, false) {}
 
   // move constructor and assignment operator
   procBlock(procBlock&&) noexcept = default;
@@ -256,6 +266,21 @@ class procBlock {
                   const int &a) const {
     return residual_(ii, jj, kk)[a];
   }
+
+  tensor<double> VelGrad(const int &ii, const int &jj, const int &kk) const {
+    return velocityGrad_(ii, jj, kk);
+  }
+  vector3d<double> TempGrad(const int &ii, const int &jj, const int &kk) const {
+    return temperatureGrad_(ii, jj, kk);
+  }
+  vector3d<double> TkeGrad(const int &ii, const int &jj, const int &kk) const {
+    return tkeGrad_(ii, jj, kk);
+  }
+  vector3d<double> OmegaGrad(const int &ii, const int &jj,
+                             const int &kk) const {
+    return omegaGrad_(ii, jj, kk);
+  }
+
 
   double Temperature(const int &ii, const int &jj, const int &kk) const {
     return temperature_(ii, jj, kk);
@@ -367,8 +392,10 @@ class procBlock {
                        const MPI_Datatype &) const;
   void RecvUnpackGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
                          const MPI_Datatype &);
-  void PackSendSolMPI(const MPI_Datatype &, const MPI_Datatype &) const;
-  void RecvUnpackSolMPI(const MPI_Datatype &, const MPI_Datatype &);
+  void PackSendSolMPI(const MPI_Datatype &, const MPI_Datatype &,
+                      const MPI_Datatype &, const MPI_Datatype &) const;
+  void RecvUnpackSolMPI(const MPI_Datatype &, const MPI_Datatype &,
+                        const MPI_Datatype &, const MPI_Datatype &);
 
   // destructor
   ~procBlock() noexcept {}
@@ -382,15 +409,15 @@ T FaceReconCentral(const T &, const T &, const vector3d<double> &,
 template <typename T>
 multiArray3d<T> PadWithGhosts(const multiArray3d<T> &, const int &);
 
-tensor<double> CalcVelGradGG(const vector3d<double> &, const vector3d<double> &,
-                             const vector3d<double> &, const vector3d<double> &,
-                             const vector3d<double> &, const vector3d<double> &,
-                             const vector3d<double> &, const vector3d<double> &,
-                             const vector3d<double> &, const vector3d<double> &,
-                             const vector3d<double> &, const vector3d<double> &,
-                             const double &);
+tensor<double> VectorGradGG(const vector3d<double> &, const vector3d<double> &,
+                            const vector3d<double> &, const vector3d<double> &,
+                            const vector3d<double> &, const vector3d<double> &,
+                            const vector3d<double> &, const vector3d<double> &,
+                            const vector3d<double> &, const vector3d<double> &,
+                            const vector3d<double> &, const vector3d<double> &,
+                            const double &);
 
-vector3d<double> CalcScalarGradGG(
+vector3d<double> ScalarGradGG(
     const double &, const double &, const double &, const double &,
     const double &, const double &, const vector3d<double> &,
     const vector3d<double> &, const vector3d<double> &,
