@@ -388,7 +388,7 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
           const auto invSpecRad = state_(ig, jg, kg).InvCellSpectralRadius(
               fAreaI_(ig, jg, kg), fAreaI_(ig + 1, jg, kg), eqnState);
 
-          const auto turbInvSpecRad = inp.IsTurbulent() ?
+          const auto turbInvSpecRad = isTurbulent_ ?
               turb->InviscidSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
                                     fAreaI_(ig + 1, jg, kg)): 0.0;
 
@@ -509,7 +509,7 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
           const auto invSpecRad = state_(ig, jg, kg).InvCellSpectralRadius(
               fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg + 1, kg), eqnState);
 
-          const auto turbInvSpecRad = inp.IsTurbulent() ?
+          const auto turbInvSpecRad = isTurbulent_ ?
               turb->InviscidSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
                                     fAreaJ_(ig, jg + 1, kg)): 0.0;
 
@@ -631,7 +631,7 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
           const auto invSpecRad = state_(ig, jg, kg).InvCellSpectralRadius(
               fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg + 1), eqnState);
 
-          const auto turbInvSpecRad = inp.IsTurbulent() ?
+          const auto turbInvSpecRad = isTurbulent_ ?
               turb->InviscidSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
                                     fAreaK_(ig, jg, kg + 1)) : 0.0;
 
@@ -998,7 +998,7 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
         mainDiagonal(ip, jp, kp) += diagVolTime;
 
         // invert main diagonal
-        mainDiagonal(ip, jp, kp).Inverse(inp.IsTurbulent());
+        mainDiagonal(ip, jp, kp).Inverse(isTurbulent_);
       }
     }
   }
@@ -1995,7 +1995,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                   fAreaI_(ig, jg, kg), fAreaI_(ig + 1, jg, kg), eqnState, suth,
                   vol_(ig, jg, kg), turb);
 
-          const auto turbViscSpecRad = inp.IsTurbulent() ?
+          const auto turbViscSpecRad = isTurbulent_ ?
               turb->ViscSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
                                 fAreaI_(ig + 1, jg, kg), eqnState, suth,
                                 vol_(ig, jg, kg)) : 0.0;
@@ -2164,7 +2164,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                   fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg + 1, kg), eqnState, suth,
                   vol_(ig, jg, kg), turb);
 
-          const auto turbViscSpecRad = inp.IsTurbulent() ?
+          const auto turbViscSpecRad = isTurbulent_ ?
               turb->ViscSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
                                 fAreaJ_(ig, jg + 1, kg), eqnState, suth,
                                 vol_(ig, jg, kg)) : 0.0;
@@ -2332,7 +2332,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                   fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg + 1), eqnState, suth,
                   vol_(ig, jg, kg), turb);
 
-          const auto turbViscSpecRad = inp.IsTurbulent() ?
+          const auto turbViscSpecRad = isTurbulent_ ?
               turb->ViscSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
                                 fAreaK_(ig, jg, kg + 1), eqnState, suth,
                                 vol_(ig, jg, kg)) : 0.0;
