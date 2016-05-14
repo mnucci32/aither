@@ -514,7 +514,7 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
                                     fAreaJ_(ig, jg + 1, kg)): 0.0;
 
           const uncoupledScalar specRad(invSpecRad, turbInvSpecRad);
-          specRadius_ += specRad;
+          specRadius_(ip, jp, kp) += specRad;
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
