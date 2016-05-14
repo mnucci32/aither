@@ -633,7 +633,7 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
 
           const auto turbInvSpecRad = inp.IsTurbulent() ?
               turb->InviscidSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
-                                    fAreaK_(ig + 1, jg, kg + 1)) : 0.0;
+                                    fAreaK_(ig, jg, kg + 1)) : 0.0;
 
           const uncoupledScalar specRad(invSpecRad, turbInvSpecRad);
           specRadius_(ip, jp, kp) += specRad;
