@@ -319,6 +319,7 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state, const idealGas &eos,
   const auto velNorm = state.Velocity().DotProd(area);
 
   // assign first column
+  // DEBUG - should be conductivity + turb conductivity?
   flowJacobian_(4, 0) = -eos.Conductivity(mu + mut) * state.Temperature(eos) /
     ((mu + mut) * state.Rho());
 

@@ -109,8 +109,8 @@ class turbModel {
                                            const vector3d<double> &kGrad,
                                            const vector3d<double> &wGrad,
                                            const sutherland &suth,
-                                           const double &wallDist,
                                            const double &mu,
+                                           const double &wallDist,
                                            double &sigmaK,
                                            double &sigmaW) const = 0;
   virtual void Print() const = 0;
@@ -146,7 +146,7 @@ class turbNone : public turbModel {
                                    const vector3d<double> &kGrad,
                                    const vector3d<double> &wGrad,
                                    const sutherland &suth,
-                                   const double &wallDist, const double &mu,
+                                   const double &mu, const double &wallDist,
                                    double &sigmaK,
                                    double &sigmaW) const override {return 0.0;}
   double EddyViscNoLim(const primVars &state) const override {return 0.0;}
