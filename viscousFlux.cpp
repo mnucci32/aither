@@ -59,7 +59,7 @@ viscousFlux::viscousFlux(
     const idealGas &eqnState, const vector3d<double> &tGrad,
     const vector3d<double> &normArea, const vector3d<double> &tkeGrad,
     const vector3d<double> &omegaGrad, const unique_ptr<turbModel> &turb,
-    const primVars &state, const double &wallDist) {
+    const primVars &state, const double &lamVisc, const double &wallDist) {
   // velGrad -- velocity gradient tensor
   // suth -- method to get viscosity (Sutherland's law)
   // eqnState -- equation of state
@@ -69,10 +69,11 @@ viscousFlux::viscousFlux(
   // omegaGrad -- omega gradient
   // turb -- turbulence model
   // state -- primative variables at face
+  // lamVisc -- laminar viscosity
   // wallDist -- distance to nearest viscous wall
 
-  // get laminar viscosity
-  const auto mu = suth.EffectiveViscosity(state.Temperature(eqnState));
+  // get laminar viscosity with nondimensional normalization
+  const auto mu = suth.NondimScaling() * lamVisc;
 
   // get turbulent eddy viscosity and molecular diffusion coefficient for
   // turbulence equations
@@ -117,232 +118,6 @@ ostream &operator<<(ostream &os, viscousFlux &flux) {
   return os;
 }
 
-// function to calculate the thin shear layer flux jacobian -- NOT USED in LUSGS
-// formulation
-// void CalcTSLFluxJac(const double &mu, const double &eddyVisc,
-//                     const idealGas &eqnState, const vector3d<double> &normArea,
-//                     const primVars &left, const primVars &right,
-//                     const double &dist, squareMatrix &dFv_dUl,
-//                     squareMatrix &dFv_dUr, const sutherland &suth,
-//                     const double &prt) {
-//   // mu -- dynamic viscosity
-//   // eddyVisc -- turbulent eddy viscosity
-//   // eqnState -- equation of state
-//   // normArea -- unit area vector of face
-//   // left -- left state (primative)
-//   // right -- right state (primative)
-//   // dist -- distance from centroid of left cell to centroid of right cell
-//   // dFv_dUl -- flux jacobian of viscous flux with respect to left state
-//   // dFV_dUr -- flux jacobian of viscous flux with respect to right state
-//   // suth -- method to get viscosity as a function of temperature
-
-//   // check to make sure square matrices are of correct size
-//   if (dFv_dUl.Size() != 5 || dFv_dUr.Size() != 5) {
-//     cerr << "ERROR: Error in viscousFlux.cpp:CalcTSLFluxJac. Problem with thin "
-//             "shear layer viscous jacobian calculation. The input jacobian "
-//             "matrices are not of the correct size!" << endl;
-//     exit(0);
-//   }
-
-//   // get velocity at face
-//   const auto vel = 0.5 * (right.Velocity() + left.Velocity());
-
-//   // calculate thin shear layer velocity gradients
-//   const auto velGradTSL = CalcVelGradTSL(left, right, normArea, dist);
-
-//   // calculate bulk viscosity
-//   const auto lambda = suth.Lambda(mu + eddyVisc);
-
-//   // calculate shear stress at face
-//   const auto velGradTrace = velGradTSL.Trace();
-//   const auto tau = lambda * velGradTrace * normArea +
-//       (mu + eddyVisc) * (velGradTSL.MatMult(normArea) +
-//                          velGradTSL.Transpose().MatMult(normArea));
-
-//   // calculate coefficients (from Blazek)
-//   const auto theta = normArea.MagSq();
-//   const auto thetaX = (4.0 / 3.0) * normArea.X() * normArea.X() +
-//       normArea.Y() * normArea.Y() + normArea.Z() * normArea.Z();
-//   const auto thetaY = normArea.X() * normArea.X() +
-//       (4.0 / 3.0) * normArea.Y() * normArea.Y() +
-//       normArea.Z() * normArea.Z();
-//   const auto thetaZ = normArea.X() * normArea.X() + normArea.Y() *
-//       normArea.Y() + (4.0 / 3.0) * normArea.Z() * normArea.Z();
-
-//   const auto etaX = (1.0 / 3.0) * normArea.Y() * normArea.Z();
-//   const auto etaY = (1.0 / 3.0) * normArea.X() * normArea.Z();
-//   const auto etaZ = (1.0 / 3.0) * normArea.X() * normArea.Y();
-
-//   const auto piX = vel.X() * thetaX + vel.Y() * etaZ + vel.Z() * etaY;
-//   const auto piY = vel.X() * etaZ + vel.Y() * thetaY + vel.Z() * etaX;
-//   const auto piZ = vel.X() * etaY + vel.Y() * etaX + vel.Z() * thetaZ;
-
-//   const auto phiRhoL = -1.0 * (eqnState.Conductivity(mu) +
-//                                eqnState.TurbConductivity(eddyVisc, prt)) *
-//       left.Temperature(eqnState) / ((mu + eddyVisc) * left.Rho());
-//   const auto phiRhoR = -1.0 * (eqnState.Conductivity(mu) +
-//                                eqnState.TurbConductivity(eddyVisc, prt)) *
-//       right.Temperature(eqnState) /
-//       ((mu + eddyVisc) * right.Rho());
-
-//   const auto phiPressL = (eqnState.Conductivity(mu) +
-//                           eqnState.TurbConductivity(eddyVisc, prt)) /
-//       ((mu + eddyVisc) * left.Rho());
-//   const auto phiPressR = (eqnState.Conductivity(mu) +
-//                           eqnState.TurbConductivity(eddyVisc, prt)) /
-//       ((mu + eddyVisc) * right.Rho());
-
-//   // calculate matrix - derivative of left primative vars wrt left conservative
-//   // vars
-//   squareMatrix dWl_dUl(5);
-//   dWl_dUl.Zero();
-
-//   // column 0
-//   dWl_dUl.SetData(0, 0, 1.0);
-//   dWl_dUl.SetData(1, 0, -1.0 * left.U() / left.Rho());
-//   dWl_dUl.SetData(2, 0, -1.0 * left.V() / left.Rho());
-//   dWl_dUl.SetData(3, 0, -1.0 * left.W() / left.Rho());
-//   dWl_dUl.SetData(4, 0,
-//                   0.5 * (eqnState.Gamma() - 1.0) * left.Velocity().MagSq());
-
-//   // column 1
-//   dWl_dUl.SetData(1, 1, 1.0 / left.Rho());
-//   dWl_dUl.SetData(4, 1, -1.0 * (eqnState.Gamma() - 1.0) * left.U());
-
-//   // column 2
-//   dWl_dUl.SetData(2, 2, 1.0 / left.Rho());
-//   dWl_dUl.SetData(4, 2, -1.0 * (eqnState.Gamma() - 1.0) * left.V());
-
-//   // column 3
-//   dWl_dUl.SetData(3, 3, 1.0 / left.Rho());
-//   dWl_dUl.SetData(4, 3, -1.0 * (eqnState.Gamma() - 1.0) * left.W());
-
-//   // column 4
-//   dWl_dUl.SetData(4, 4, eqnState.Gamma() - 1.0);
-
-//   //-------------------------------------------------------------------------
-//   // calculate matrix - derivative of right primative vars wrt right
-//   // conservative vars
-//   squareMatrix dWr_dUr(5);
-//   dWr_dUr.Zero();
-
-//   // column 0
-//   dWr_dUr.SetData(0, 0, 1.0);
-//   dWr_dUr.SetData(1, 0, -1.0 * right.U() / right.Rho());
-//   dWr_dUr.SetData(2, 0, -1.0 * right.V() / right.Rho());
-//   dWr_dUr.SetData(3, 0, -1.0 * right.W() / right.Rho());
-//   dWr_dUr.SetData(4, 0,
-//                   0.5 * (eqnState.Gamma() - 1.0) * right.Velocity().MagSq());
-
-//   // column 1
-//   dWr_dUr.SetData(1, 1, 1.0 / right.Rho());
-//   dWr_dUr.SetData(4, 1, -1.0 * (eqnState.Gamma() - 1.0) * right.U());
-
-//   // column 2
-//   dWr_dUr.SetData(2, 2, 1.0 / right.Rho());
-//   dWr_dUr.SetData(4, 2, -1.0 * (eqnState.Gamma() - 1.0) * right.V());
-
-//   // column 3
-//   dWr_dUr.SetData(3, 3, 1.0 / right.Rho());
-//   dWr_dUr.SetData(4, 3, -1.0 * (eqnState.Gamma() - 1.0) * right.W());
-
-//   // column 4
-//   dWr_dUr.SetData(4, 4, eqnState.Gamma() - 1.0);
-
-//   //------------------------------------------------------------------------
-//   // calculate matrix - derivative of viscous flux wrt left primative vars
-//   // column 0
-//   dFv_dUl.SetData(0, 0, 0.0);
-//   dFv_dUl.SetData(1, 0, 0.0);
-//   dFv_dUl.SetData(2, 0, 0.0);
-//   dFv_dUl.SetData(3, 0, 0.0);
-//   dFv_dUl.SetData(4, 0, phiRhoL * theta);
-
-//   // column 1
-//   dFv_dUl.SetData(0, 1, 0.0);
-//   dFv_dUl.SetData(1, 1, thetaX);
-//   dFv_dUl.SetData(2, 1, etaZ);
-//   dFv_dUl.SetData(3, 1, etaY);
-//   dFv_dUl.SetData(4, 1, -0.5 * (dist / (mu + eddyVisc)) * tau.X() + piX);
-
-//   // column 2
-//   dFv_dUl.SetData(0, 2, 0.0);
-//   dFv_dUl.SetData(1, 2, etaZ);
-//   dFv_dUl.SetData(2, 2, thetaY);
-//   dFv_dUl.SetData(3, 2, etaX);
-//   dFv_dUl.SetData(4, 2, -0.5 * (dist / (mu + eddyVisc)) * tau.Y() + piY);
-
-//   // column 3
-//   dFv_dUl.SetData(0, 3, 0.0);
-//   dFv_dUl.SetData(1, 3, etaY);
-//   dFv_dUl.SetData(2, 3, etaX);
-//   dFv_dUl.SetData(3, 3, thetaZ);
-//   dFv_dUl.SetData(4, 3, -0.5 * (dist / (mu + eddyVisc)) * tau.Z() + piZ);
-
-//   // column 4
-//   dFv_dUl.SetData(0, 4, 0.0);
-//   dFv_dUl.SetData(1, 4, 0.0);
-//   dFv_dUl.SetData(2, 4, 0.0);
-//   dFv_dUl.SetData(3, 4, 0.0);
-//   dFv_dUl.SetData(4, 4, phiPressL * theta);
-
-//   dFv_dUl = -1.0 * ((mu + eddyVisc) / dist) * dFv_dUl;
-
-//   //-----------------------------------------------------------------------
-//   // calculate matrix - derivative of viscous flux wrt right primative vars
-//   // column 0
-//   dFv_dUr.SetData(0, 0, 0.0);
-//   dFv_dUr.SetData(1, 0, 0.0);
-//   dFv_dUr.SetData(2, 0, 0.0);
-//   dFv_dUr.SetData(3, 0, 0.0);
-//   dFv_dUr.SetData(4, 0, phiRhoR * theta);
-
-//   // column 1
-//   dFv_dUr.SetData(0, 1, 0.0);
-//   dFv_dUr.SetData(1, 1, thetaX);
-//   dFv_dUr.SetData(2, 1, etaZ);
-//   dFv_dUr.SetData(3, 1, etaY);
-//   dFv_dUr.SetData(4, 1, 0.5 * (dist / (mu + eddyVisc)) * tau.X() + piX);
-
-//   // column 2
-//   dFv_dUr.SetData(0, 2, 0.0);
-//   dFv_dUr.SetData(1, 2, etaZ);
-//   dFv_dUr.SetData(2, 2, thetaY);
-//   dFv_dUr.SetData(3, 2, etaX);
-//   dFv_dUr.SetData(4, 2, 0.5 * (dist / (mu + eddyVisc)) * tau.Y() + piY);
-
-//   // column 3
-//   dFv_dUr.SetData(0, 3, 0.0);
-//   dFv_dUr.SetData(1, 3, etaY);
-//   dFv_dUr.SetData(2, 3, etaX);
-//   dFv_dUr.SetData(3, 3, thetaZ);
-//   dFv_dUr.SetData(4, 3, 0.5 * (dist / (mu + eddyVisc)) * tau.Z() + piZ);
-
-//   // column 4
-//   dFv_dUr.SetData(0, 4, 0.0);
-//   dFv_dUr.SetData(1, 4, 0.0);
-//   dFv_dUr.SetData(2, 4, 0.0);
-//   dFv_dUr.SetData(3, 4, 0.0);
-//   dFv_dUr.SetData(4, 4, phiPressR * theta);
-
-//   dFv_dUr = ((mu + eddyVisc) / dist) * dFv_dUr;
-
-//   // multiply by dW_dU to get flux jacobian derivative wrt conservative
-//   // variables
-//   dFv_dUl = dFv_dUl * dWl_dUl;
-//   dFv_dUr = dFv_dUr * dWr_dUr;
-
-//   // calculate spectral radius
-//   const auto faceState = 0.5 * (left + right);
-//   dFv_dUl.Identity();
-//   dFv_dUr.Identity();
-//   const auto specRad = (mu + eddyVisc) * eqnState.Gamma() /
-//       (eqnState.Prandtl() * faceState.Rho() * dist);
-
-//   // add or subtract spectral radius to flux jacobian
-//   dFv_dUl = -1.0 * specRad * dFv_dUl;
-//   dFv_dUr = specRad * dFv_dUr;
-// }
 
 // function to calculate the velocity gradients at a cell face using the Thin
 // Shear Layer approximation

@@ -1997,6 +1997,13 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                                             center_(ig, jg, kg),
                                             fCenterI_(ig, jg, kg));
 
+        // Get viscosity at face
+        const auto mu = FaceReconCentral(viscosity_(ig - 1, jg, kg),
+                                         viscosity_(ig, jg, kg),
+                                         center_(ig - 1, jg, kg),
+                                         center_(ig, jg, kg),
+                                         fCenterI_(ig, jg, kg));
+
         // calculate viscous flux
         vector3d<double> tkeGrad, omegaGrad;
         if (inp.IsTurbulent()) {
@@ -2007,7 +2014,8 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                                        eqnState,
                                        grads.TempGradI(ip, jp, kp),
                                        this->FAreaUnitI(ig, jg, kg),
-                                       tkeGrad, omegaGrad, turb, state, wDist);
+                                       tkeGrad, omegaGrad, turb, state, mu,
+                                       wDist);
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
@@ -2166,6 +2174,13 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                                             center_(ig, jg, kg),
                                             fCenterJ_(ig, jg, kg));
 
+        // Get wall distance at face
+        const auto mu = FaceReconCentral(viscosity_(ig, jg - 1, kg),
+                                         viscosity_(ig, jg, kg),
+                                         center_(ig, jg - 1, kg),
+                                         center_(ig, jg, kg),
+                                         fCenterJ_(ig, jg, kg));
+
         // calculate viscous flux
         vector3d<double> tkeGrad, omegaGrad;
         if (inp.IsTurbulent()) {
@@ -2176,7 +2191,8 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                                        eqnState,
                                        grads.TempGradJ(ip, jp, kp),
                                        this->FAreaUnitJ(ig, jg, kg),
-                                       tkeGrad, omegaGrad, turb, state, wDist);
+                                       tkeGrad, omegaGrad, turb, state, mu,
+                                       wDist);
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
@@ -2334,6 +2350,13 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                                             center_(ig, jg, kg),
                                             fCenterK_(ig, jg, kg));
 
+        // Get wall distance at face
+        const auto mu = FaceReconCentral(viscosity_(ig, jg, kg - 1),
+                                         viscosity_(ig, jg, kg),
+                                         center_(ig, jg, kg - 1),
+                                         center_(ig, jg, kg),
+                                         fCenterK_(ig, jg, kg));
+
         // calculate viscous flux
         vector3d<double> tkeGrad, omegaGrad;
         if (inp.IsTurbulent()) {
@@ -2344,7 +2367,8 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                                        eqnState,
                                        grads.TempGradK(ip, jp, kp),
                                        this->FAreaUnitK(ig, jg, kg),
-                                       tkeGrad, omegaGrad, turb, state, wDist);
+                                       tkeGrad, omegaGrad, turb, state, mu,
+                                       wDist);
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
