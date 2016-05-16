@@ -80,7 +80,7 @@ viscousFlux::viscousFlux(
   auto tkeCoeff = 0.0;
   auto omgCoeff = 0.0;
   const auto mut = turb->EddyViscAndMolecDiffCoeff(state, velGrad, tkeGrad,
-                                                   omegaGrad, suth, eqnState,
+                                                   omegaGrad, suth, mu,
                                                    wallDist, tkeCoeff,
                                                    omgCoeff);
 

@@ -69,9 +69,9 @@ class source {
   double SrcOmg() const { return data_[6]; }
 
   double CalcTurbSrc(const unique_ptr<turbModel> &, const primVars &,
-		     const gradients &, const sutherland &,
-		     const idealGas &, const double &, const double &,
-		     const int &, const int &, const int &);
+                     const gradients &, const sutherland &,
+                     const double &, const double &, const double &,
+                     const int &, const int &, const int &);
 
   inline source & operator+=(const source &);
   inline source & operator-=(const source &);

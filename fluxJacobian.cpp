@@ -401,7 +401,7 @@ genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
   const uncoupledScalar specRad(state.CellSpectralRadius(fAreaL, fAreaR, eos,
                                                          suth, vol, mu, turb,
                                                          isViscous),
-                                turb->SpectralRadius(state, fAreaL, fAreaR, eos,
+                                turb->SpectralRadius(state, fAreaL, fAreaR, mu,
                                                      suth, vol, false));
 
   return positive ?
@@ -460,8 +460,8 @@ genArray RoeOffDiagonal(const primVars &left, const primVars &right,
                                         turb));
 
     if (isTurbulent) {
-      specRad.AddToTurbVariable(turb->ViscSpecRad(offState, fAreaL, fAreaR, eos,
-                                                  suth, vol));
+      specRad.AddToTurbVariable(turb->ViscSpecRad(offState, fAreaL, fAreaR,
+                                                  offMu, suth, vol));
     }
   }
 

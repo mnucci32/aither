@@ -2041,8 +2041,8 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
 
           const auto turbViscSpecRad = isTurbulent_ ?
               turb->ViscSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
-                                fAreaI_(ig + 1, jg, kg), eqnState, suth,
-                                vol_(ig, jg, kg)) : 0.0;
+                                fAreaI_(ig + 1, jg, kg), viscosity_(ig, jg, kg),
+                                suth, vol_(ig, jg, kg)) : 0.0;
 
           const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
           specRadius_(ip, jp, kp) += specRad * viscCoeff;
@@ -2218,8 +2218,8 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
 
           const auto turbViscSpecRad = isTurbulent_ ?
               turb->ViscSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
-                                fAreaJ_(ig, jg + 1, kg), eqnState, suth,
-                                vol_(ig, jg, kg)) : 0.0;
+                                fAreaJ_(ig, jg + 1, kg), viscosity_(ig, jg, kg),
+                                suth, vol_(ig, jg, kg)) : 0.0;
 
           const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
           specRadius_(ip, jp, kp) += specRad * viscCoeff;
@@ -2394,8 +2394,8 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
 
           const auto turbViscSpecRad = isTurbulent_ ?
               turb->ViscSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
-                                fAreaK_(ig, jg, kg + 1), eqnState, suth,
-                                vol_(ig, jg, kg)) : 0.0;
+                                fAreaK_(ig, jg, kg + 1), viscosity_(ig, jg, kg),
+                                suth, vol_(ig, jg, kg)) : 0.0;
 
           const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
           specRadius_(ip, jp, kp) += specRad * viscCoeff;
@@ -7289,9 +7289,10 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
         // calculate turbulent source terms
         source src;
         const auto srcJac = src.CalcTurbSrc(turb, state_(ig, jg, kg),
-                                            grads, suth, eos,
+                                            grads, suth,
                                             wallDist_(ig, jg, kg),
-                                            vol_(ig, jg, kg), ip, jp, kp);
+                                            vol_(ig, jg, kg),
+                                            viscosity_(ig, jg, kg), ip, jp, kp);
 
         // add source terms to residual
         // subtract because residual is initially on opposite side of equation
