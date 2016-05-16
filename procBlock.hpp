@@ -150,9 +150,6 @@ class procBlock {
   void SubtractFromResidual(const source &, const int &, const int &,
                             const int &);
 
-  void UpdateAuxillaryVariables(const idealGas &, const sutherland &,
-                                const input &, const int &, const int &,
-                                const int &);
 
  public:
   // constructors
@@ -185,6 +182,8 @@ class procBlock {
   int LocalPosition() const { return localPos_; }
   int Rank() const { return rank_; }
   int GlobalPos() const { return globalPos_; }
+  bool IsViscous() const { return isViscous_; }
+  bool IsTurbulent() const { return isTurbulent_; }
 
   boundaryConditions BC() const { return bc_; }
 
@@ -286,7 +285,7 @@ class procBlock {
     return temperature_(ii, jj, kk);
   }
   double Viscosity(const int &ii, const int &jj, const int &kk) const {
-    return viscosity_(ii, jj, kk);
+    return isViscous_ ? viscosity_(ii, jj, kk) : 0.0;
   }
   double EddyViscosity(const int &ii, const int &jj, const int &kk) const {
     return eddyViscosity_(ii, jj, kk);
@@ -375,6 +374,8 @@ class procBlock {
   bool AtCorner(const int &, const int &, const int &, const bool &) const;
   bool AtEdge(const int &, const int &, const int &, const bool &,
               string &) const;
+  bool AtEdgeInclusive(const int &, const int &, const int &, const bool &,
+                       string &) const;
 
   vector<bool> PutGeomSlice(const geomSlice &, interblock &, const int &,
                             const int &);
@@ -396,6 +397,9 @@ class procBlock {
                       const MPI_Datatype &, const MPI_Datatype &) const;
   void RecvUnpackSolMPI(const MPI_Datatype &, const MPI_Datatype &,
                         const MPI_Datatype &, const MPI_Datatype &);
+
+  void UpdateAuxillaryVariables(const idealGas &, const sutherland &,
+                                const bool = true);
 
   // destructor
   ~procBlock() noexcept {}

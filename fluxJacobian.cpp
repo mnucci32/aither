@@ -374,19 +374,20 @@ ostream &operator<<(ostream &os, fluxJacobian &jacobian) {
 genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
                             const unitVec3dMag<double> &fAreaL,
                             const unitVec3dMag<double> &fAreaR,
-                            const double &vol, const idealGas &eos,
-                            const sutherland &suth,
+                            const double &vol, const double &mu,
+                            const idealGas &eos, const sutherland &suth,
                             const unique_ptr<turbModel> &turb,
-                            const input &inp, const bool &positive) {
+                            const bool &isViscous, const bool &positive) {
   // state -- primative variables at off diagonal
   // update -- conserved variable update at off diagonal
   // fAreaL -- face area vector on off diagonal boundary
   // fAreaR -- face area vector opposite off diagonal boundary
   // vol -- cell volume
+  // mu -- laminar viscosity
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
   // turb -- turbulence model
-  // inp -- input variables
+  // isViscous -- flag to determine if simulation is viscous
   // positive -- flag to determine whether to add or subtract dissipation
 
   // calculate updated state
@@ -398,8 +399,8 @@ genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
 
   // can't use stored cell spectral radius b/c it has contribuitons from i, j, k
   const uncoupledScalar specRad(state.CellSpectralRadius(fAreaL, fAreaR, eos,
-                                                         suth, vol, turb,
-                                                         inp.IsViscous()),
+                                                         suth, vol, mu, turb,
+                                                         isViscous),
                                 turb->SpectralRadius(state, fAreaL, fAreaR, eos,
                                                      suth, vol, false));
 
@@ -413,20 +414,25 @@ genArray RoeOffDiagonal(const primVars &left, const primVars &right,
                         const genArray &update,
                         const unitVec3dMag<double> &fAreaL,
                         const unitVec3dMag<double> &fAreaR,
-                        const double &vol, const idealGas &eos,
+                        const double &vol, const double &muL,
+                        const double &muR, const idealGas &eos,
                         const sutherland &suth,
                         const unique_ptr<turbModel> &turb,
-                        const input &inp, const bool &positive) {
+                        const bool &isViscous, const bool &isTurbulent,
+                        const bool &positive) {
   // left -- primative variables at left side
   // right -- primative variables at right side
   // update -- conserved variable update at off diagonal
   // fAreaL -- face area vector on off diagonal boundary
   // fAreaR -- face area vector opposite off diagonal boundary
   // vol -- cell volume
+  // muL -- laminar viscosity at left side
+  // muR -- laminar viscosity at right side
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
   // turb -- turbulence model
-  // inp -- input variables
+  // isViscous -- flag to determine if simulation is viscous
+  // isTurbulent -- flag to determine if simulation is turbulent
   // positive -- flag to determine whether to add or subtract dissipation
 
   const auto areaNorm = fAreaL.UnitVector();
@@ -445,13 +451,15 @@ genArray RoeOffDiagonal(const primVars &left, const primVars &right,
 
   // add contribution for viscous terms
   uncoupledScalar specRad(0.0, 0.0);
-  if (inp.IsViscous()) {
-    const auto offState = positive ? left : right;
+  if (isViscous) {
+    const auto & offState = positive ? left : right;
+    const auto & offMu = positive ? muL : muR;
 
     specRad.AddToFlowVariable(
-        offState.ViscCellSpectralRadius(fAreaL, fAreaR, eos, suth, vol, turb));
+        offState.ViscCellSpectralRadius(fAreaL, fAreaR, eos, suth, vol, offMu,
+                                        turb));
 
-    if (inp.IsTurbulent()) {
+    if (isTurbulent) {
       specRad.AddToTurbVariable(turb->ViscSpecRad(offState, fAreaL, fAreaR, eos,
                                                   suth, vol));
     }

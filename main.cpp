@@ -182,6 +182,10 @@ int main(int argc, char *argv[]) {
   // Send procBlocks to appropriate processor
   auto localStateBlocks = SendProcBlocks(stateBlocks, rank, numProcBlock,
                                          MPI_cellData, MPI_vec3d, MPI_vec3dMag);
+  // Update auxillary variables (temperature, viscosity, etc)
+  for (auto ll = 0; ll < static_cast<int>(localStateBlocks.size()); ll++) {
+    localStateBlocks[ll].UpdateAuxillaryVariables(eos, suth, false);
+  }
 
   // Send connections to all processors
   SendConnections(connections, MPI_interblock);
