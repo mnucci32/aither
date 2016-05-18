@@ -48,7 +48,6 @@ class sutherland;
 class inviscidFlux;
 class viscousFlux;
 class input;
-class gradients;
 class geomSlice;
 class source;
 class turbModel;
@@ -113,13 +112,13 @@ class procBlock {
                     multiArray3d<fluxJacobian> &);
 
   void CalcViscFluxI(const sutherland &, const idealGas &, const input &,
-                     const gradients &, const unique_ptr<turbModel> &,
+                     const unique_ptr<turbModel> &,
                      multiArray3d<fluxJacobian> &);
   void CalcViscFluxJ(const sutherland &, const idealGas &, const input &,
-                     const gradients &, const unique_ptr<turbModel> &,
+                     const unique_ptr<turbModel> &,
                      multiArray3d<fluxJacobian> &);
   void CalcViscFluxK(const sutherland &, const idealGas &, const input &,
-                     const gradients &, const unique_ptr<turbModel> &,
+                     const unique_ptr<turbModel> &,
                      multiArray3d<fluxJacobian> &);
 
   void CalcCellDt(const int &, const int &, const int &, const double &);
@@ -135,9 +134,8 @@ class procBlock {
                       const int &, const int &, const int &, const int &,
                       const int &);
 
-  void CalcSrcTerms(const gradients &, const sutherland &, const idealGas &,
-                    const unique_ptr<turbModel> &, const input &,
-                    multiArray3d<fluxJacobian> &);
+  void CalcSrcTerms(const sutherland &, const unique_ptr<turbModel> &,
+                    const input &, multiArray3d<fluxJacobian> &);
 
   void AddToResidual(const inviscidFlux &, const int &, const int &,
                      const int &);
@@ -309,6 +307,7 @@ class procBlock {
                     multiArray3d<fluxJacobian> &);
 
   void ResetResidWS();
+  void ResetGradients();
   void CleanResizeVecs(const int &, const int &, const int &);
 
   void AssignGhostCellsGeom();
@@ -328,15 +327,15 @@ class procBlock {
                                    const sutherland &,
                                    const unique_ptr<turbModel> &);
 
-  void CalcGradsI(const int &, const int &, const int &, const idealGas &,
-                  const bool &, tensor<double> &, vector3d<double> &,
-                  vector3d<double> &, vector3d<double> &) const;
-  void CalcGradsJ(const int &, const int &, const int &, const idealGas &,
-                  const bool &, tensor<double> &, vector3d<double> &,
-                  vector3d<double> &, vector3d<double> &) const;
-  void CalcGradsK(const int &, const int &, const int &, const idealGas &,
-                  const bool &, tensor<double> &, vector3d<double> &,
-                  vector3d<double> &, vector3d<double> &) const;
+  void CalcGradsI(const int &, const int &, const int &,
+                  tensor<double> &, vector3d<double> &, vector3d<double> &,
+                  vector3d<double> &) const;
+  void CalcGradsJ(const int &, const int &, const int &,
+                  tensor<double> &, vector3d<double> &, vector3d<double> &,
+                  vector3d<double> &) const;
+  void CalcGradsK(const int &, const int &, const int &,
+                  tensor<double> &, vector3d<double> &, vector3d<double> &,
+                  vector3d<double> &) const;
 
   void CalcWallDistance(const kdtree &);
 

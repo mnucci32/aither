@@ -26,7 +26,6 @@
 #include "viscousFlux.hpp"         // viscousFlux
 #include "input.hpp"               // inputVars
 #include "turbulence.hpp"
-#include "gradients.hpp"
 #include "slices.hpp"
 #include "source.hpp"
 #include "resid.hpp"
@@ -862,6 +861,17 @@ void procBlock::ResetResidWS() {
   residual_.Zero(genArray(0.0));
   specRadius_.Zero(uncoupledScalar(0.0, 0.0));
 }
+
+// member function to reset the gradients back to zero after an
+// iteration. This is done because the gradients are accumulated over many
+// function calls.
+void procBlock::ResetGradients() {
+  velocityGrad_.Zero(tensor<double>());
+  temperatureGrad_.Zero(vector3d<double>(0.0, 0.0, 0.0));
+  tkeGrad_.Zero(vector3d<double>(0.0, 0.0, 0.0));
+  omegaGrad_.Zero(vector3d<double>(0.0, 0.0, 0.0));
+}
+
 
 /* Member function to add the cell volume divided by the cell time step to the
 main diagonal of the time m minus time n term.
@@ -1959,7 +1969,7 @@ touches 15 cells. The gradient calculation with this stencil uses the "edge"
 ghost cells, but not the "corner" ghost cells.
 */
 void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
-                              const input &inp, const gradients &grads,
+                              const input &inp,
                               const unique_ptr<turbModel> &turb,
                               multiArray3d<fluxJacobian> &mainDiagonal) {
   // suth -- method to get viscosity as a function of temperature (Sutherland's
@@ -1973,6 +1983,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
   //                 implicit solver
 
   const auto viscCoeff = inp.ViscousCFLCoefficient();
+  constexpr auto sixth = 1.0 / 6.0;
 
   // loop over all physical i-faces
   for (auto kp = 0, kg = numGhosts_; kg < fAreaI_.NumK() - numGhosts_;
@@ -2004,15 +2015,13 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                                          center_(ig, jg, kg),
                                          fCenterI_(ig, jg, kg));
 
+        // calculate gradients
+        tensor<double> velGrad;
+        vector3d<double> tempGrad, tkeGrad, omegaGrad;
+        CalcGradsI(ig, jg, kg, velGrad, tempGrad, tkeGrad, omegaGrad);
+
         // calculate viscous flux
-        vector3d<double> tkeGrad, omegaGrad;
-        if (inp.IsTurbulent()) {
-          tkeGrad = grads.TkeGradI(ip, jp, kp);
-          omegaGrad = grads.OmegaGradI(ip, jp, kp);
-        }
-        const viscousFlux tempViscFlux(grads.VelGradI(ip, jp, kp), suth,
-                                       eqnState,
-                                       grads.TempGradI(ip, jp, kp),
+        const viscousFlux tempViscFlux(velGrad, suth, eqnState, tempGrad,
                                        this->FAreaUnitI(ig, jg, kg),
                                        tkeGrad, omegaGrad, turb, state, mu,
                                        wDist);
@@ -2025,12 +2034,28 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           this->SubtractFromResidual(tempViscFlux *
                                      this->FAreaMagI(ig, jg, kg),
                                      ip - 1, jp, kp);
+
+          // store gradients
+          velocityGrad_(ip - 1, jp, kp) += sixth * velGrad;
+          temperatureGrad_(ip - 1, jp, kp) += sixth * tempGrad;
+          if (isTurbulent_) {
+            tkeGrad_(ip - 1, jp, kp) += sixth * tkeGrad;
+            omegaGrad_(ip - 1, jp, kp) += sixth * omegaGrad;
+          }
         }
         // at right boundary there is no right cell to add to
         if (ig < fAreaI_.NumI() - numGhosts_ - 1) {
           this->AddToResidual(tempViscFlux *
                               this->FAreaMagI(ig, jg, kg),
                               ip, jp, kp);
+
+          // store gradients
+          velocityGrad_(ip, jp, kp) += sixth * velGrad;
+          temperatureGrad_(ip, jp, kp) += sixth * tempGrad;
+          if (isTurbulent_) {
+            tkeGrad_(ip, jp, kp) += sixth * tkeGrad;
+            omegaGrad_(ip, jp, kp) += sixth * omegaGrad;
+          }
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
@@ -2136,7 +2161,7 @@ faces in a cell touches 15 cells. The gradient calculation with this stencil use
 the "edge" ghost cells, but not the "corner" ghost cells.
 */
 void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
-                              const input &inp, const gradients &grads,
+                              const input &inp,
                               const unique_ptr<turbModel> &turb,
                               multiArray3d<fluxJacobian> &mainDiagonal) {
   // suth -- method to get viscosity as a function of temperature (Sutherland's
@@ -2150,6 +2175,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
   //                 implicit solver
 
   const auto viscCoeff = inp.ViscousCFLCoefficient();
+  constexpr auto sixth = 1.0 / 6.0;
 
   // loop over all physical j-faces
   for (auto kp = 0, kg = numGhosts_; kg < fAreaJ_.NumK() - numGhosts_;
@@ -2159,12 +2185,11 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
       for (auto ip = 0, ig = numGhosts_; ig < fAreaJ_.NumI() - numGhosts_;
            ig++, ip++) {
         // Get velocity at face
-        auto state =
-            FaceReconCentral(state_(ig, jg - 1, kg),
-                             state_(ig, jg, kg),
-                             center_(ig, jg - 1, kg),
-                             center_(ig, jg, kg),
-                             fCenterJ_(ig, jg, kg));
+        auto state = FaceReconCentral(state_(ig, jg - 1, kg),
+                                      state_(ig, jg, kg),
+                                      center_(ig, jg - 1, kg),
+                                      center_(ig, jg, kg),
+                                      fCenterJ_(ig, jg, kg));
         state.LimitTurb(turb);
 
         // Get wall distance at face
@@ -2181,15 +2206,13 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                                          center_(ig, jg, kg),
                                          fCenterJ_(ig, jg, kg));
 
+        // calculate gradients
+        tensor<double> velGrad;
+        vector3d<double> tempGrad, tkeGrad, omegaGrad;
+        CalcGradsJ(ig, jg, kg, velGrad, tempGrad, tkeGrad, omegaGrad);
+
         // calculate viscous flux
-        vector3d<double> tkeGrad, omegaGrad;
-        if (inp.IsTurbulent()) {
-          tkeGrad = grads.TkeGradJ(ip, jp, kp);
-          omegaGrad = grads.OmegaGradJ(ip, jp, kp);
-        }
-        const viscousFlux tempViscFlux(grads.VelGradJ(ip, jp, kp), suth,
-                                       eqnState,
-                                       grads.TempGradJ(ip, jp, kp),
+        const viscousFlux tempViscFlux(velGrad, suth, eqnState, tempGrad,
                                        this->FAreaUnitJ(ig, jg, kg),
                                        tkeGrad, omegaGrad, turb, state, mu,
                                        wDist);
@@ -2202,12 +2225,28 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           this->SubtractFromResidual(tempViscFlux *
                                      this->FAreaMagJ(ig, jg, kg),
                                      ip, jp - 1, kp);
+
+          // store gradients
+          velocityGrad_(ip, jp - 1, kp) += sixth * velGrad;
+          temperatureGrad_(ip, jp - 1, kp) += sixth * tempGrad;
+          if (isTurbulent_) {
+            tkeGrad_(ip, jp - 1, kp) += sixth * tkeGrad;
+            omegaGrad_(ip, jp - 1, kp) += sixth * omegaGrad;
+          }
         }
         // at right boundary there is no right cell to add to
         if (jg < fAreaJ_.NumJ() - numGhosts_ - 1) {
           this->AddToResidual(tempViscFlux *
                               this->FAreaMagJ(ig, jg, kg),
                               ip, jp, kp);
+
+          // store gradients
+          velocityGrad_(ip, jp, kp) += sixth * velGrad;
+          temperatureGrad_(ip, jp, kp) += sixth * tempGrad;
+          if (isTurbulent_) {
+            tkeGrad_(ip, jp, kp) += sixth * tkeGrad;
+            omegaGrad_(ip, jp, kp) += sixth * omegaGrad;
+          }
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
@@ -2312,7 +2351,7 @@ faces in a cell touches 15 cells. The gradient calculation with this stencil use
 the "edge" ghost cells, but not the "corner" ghost cells.
 */
 void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
-                              const input &inp, const gradients &grads,
+                              const input &inp,
                               const unique_ptr<turbModel> &turb,
                               multiArray3d<fluxJacobian> &mainDiagonal) {
   // suth -- method to get viscosity as a function of temperature (Sutherland's
@@ -2326,6 +2365,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
   //                 implicit solver
 
   const auto viscCoeff = inp.ViscousCFLCoefficient();
+  constexpr auto sixth = 1.0 / 6.0;
 
   // loop over all physical k-faces
   for (auto kp = 0, kg = numGhosts_; kg < fAreaK_.NumK() - numGhosts_;
@@ -2358,14 +2398,12 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                                          fCenterK_(ig, jg, kg));
 
         // calculate viscous flux
-        vector3d<double> tkeGrad, omegaGrad;
-        if (inp.IsTurbulent()) {
-          tkeGrad = grads.TkeGradK(ip, jp, kp);
-          omegaGrad = grads.OmegaGradK(ip, jp, kp);
-        }
-        const viscousFlux tempViscFlux(grads.VelGradK(ip, jp, kp), suth,
-                                       eqnState,
-                                       grads.TempGradK(ip, jp, kp),
+        tensor<double> velGrad;
+        vector3d<double> tempGrad, tkeGrad, omegaGrad;
+        CalcGradsK(ig, jg, kg, velGrad, tempGrad, tkeGrad, omegaGrad);
+
+        // calculate viscous flux
+        const viscousFlux tempViscFlux(velGrad, suth, eqnState, tempGrad,
                                        this->FAreaUnitK(ig, jg, kg),
                                        tkeGrad, omegaGrad, turb, state, mu,
                                        wDist);
@@ -2378,12 +2416,28 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           this->SubtractFromResidual(tempViscFlux *
                                      this->FAreaMagK(ig, jg, kg),
                                      ip, jp, kp - 1);
+
+          // store gradients
+          velocityGrad_(ip, jp, kp - 1) += sixth * velGrad;
+          temperatureGrad_(ip, jp, kp - 1) += sixth * tempGrad;
+          if (isTurbulent_) {
+            tkeGrad_(ip, jp, kp - 1) += sixth * tkeGrad;
+            omegaGrad_(ip, jp, kp - 1) += sixth * omegaGrad;
+          }
         }
         // at right boundary there is no right cell to add to
         if (kg < fAreaK_.NumK() - numGhosts_ - 1) {
           this->AddToResidual(tempViscFlux *
                               this->FAreaMagK(ig, jg, kg),
                               ip, jp, kp);
+
+          // store gradients
+          velocityGrad_(ip, jp, kp) += sixth * velGrad;
+          temperatureGrad_(ip, jp, kp) += sixth * tempGrad;
+          if (isTurbulent_) {
+            tkeGrad_(ip, jp, kp) += sixth * tkeGrad;
+            omegaGrad_(ip, jp, kp) += sixth * omegaGrad;
+          }
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
@@ -6893,15 +6947,12 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 }
 
 void procBlock::CalcGradsI(const int &ii, const int &jj, const int &kk,
-                           const idealGas &eqnState, const bool &turbFlag,
                            tensor<double> &velGrad, vector3d<double> &tGrad,
                            vector3d<double> &tkeGrad,
                            vector3d<double> &omegaGrad) const {
   // ii -- i-index for face (including ghosts)
   // jj -- j-index for face (including ghosts)
   // kk -- k-index for face (including ghosts)
-  // eqnState -- equation of state
-  // turbFlag -- flag to determine if simulation is turbulent
   // velGrad -- tensor to store velocity gradient
   // tGrad -- vector3d to store temperature gradient
   // tkeGrad -- vector3d to store tke gradient
@@ -6951,30 +7002,30 @@ void procBlock::CalcGradsI(const int &ii, const int &jj, const int &kk,
                          ail, aiu, ajl, aju, akl, aku, vol);
 
   // calculate average temperature on j and k faces of alternate control volume
-  const auto tju = 0.25 * (state_(ii - 1, jj, kk).Temperature(eqnState) +
-                           state_(ii, jj, kk).Temperature(eqnState) +
-                           state_(ii, jj + 1, kk).Temperature(eqnState) +
-                           state_(ii - 1, jj + 1, kk).Temperature(eqnState));
-  const auto tjl = 0.25 * (state_(ii - 1, jj, kk).Temperature(eqnState) +
-                           state_(ii, jj, kk).Temperature(eqnState) +
-                           state_(ii, jj - 1, kk).Temperature(eqnState) +
-                           state_(ii - 1, jj - 1, kk).Temperature(eqnState));
+  const auto tju = 0.25 * (temperature_(ii - 1, jj, kk) +
+                           temperature_(ii, jj, kk) +
+                           temperature_(ii, jj + 1, kk) +
+                           temperature_(ii - 1, jj + 1, kk));
+  const auto tjl = 0.25 * (temperature_(ii - 1, jj, kk) +
+                           temperature_(ii, jj, kk) +
+                           temperature_(ii, jj - 1, kk) +
+                           temperature_(ii - 1, jj - 1, kk));
 
-  const auto tku = 0.25 * (state_(ii - 1, jj, kk).Temperature(eqnState) +
-                           state_(ii, jj, kk).Temperature(eqnState) +
-                           state_(ii, jj, kk + 1).Temperature(eqnState) +
-                           state_(ii - 1, jj, kk + 1).Temperature(eqnState));
-  const auto tkl = 0.25 * (state_(ii - 1, jj, kk).Temperature(eqnState) +
-                           state_(ii, jj, kk).Temperature(eqnState) +
-                           state_(ii, jj, kk - 1).Temperature(eqnState) +
-                           state_(ii - 1, jj, kk - 1).Temperature(eqnState));
+  const auto tku = 0.25 * (temperature_(ii - 1, jj, kk) +
+                           temperature_(ii, jj, kk) +
+                           temperature_(ii, jj, kk + 1) +
+                           temperature_(ii - 1, jj, kk + 1));
+  const auto tkl = 0.25 * (temperature_(ii - 1, jj, kk) +
+                           temperature_(ii, jj, kk) +
+                           temperature_(ii, jj, kk - 1) +
+                           temperature_(ii - 1, jj, kk - 1));
 
   // Get temperature gradient at face
-  tGrad = ScalarGradGG(state_(ii - 1, jj, kk).Temperature(eqnState),
-                       state_(ii, jj, kk).Temperature(eqnState), tjl, tju,
+  tGrad = ScalarGradGG(temperature_(ii - 1, jj, kk),
+                       temperature_(ii, jj, kk), tjl, tju,
                        tkl, tku, ail, aiu, ajl, aju, akl, aku, vol);
 
-  if (turbFlag) {
+  if (isTurbulent_) {
     // calculate average tke on j and k faces of alternate control volume
     const auto tkeju = 0.25 *
         (state_(ii - 1, jj, kk).Tke() + state_(ii, jj, kk).Tke() +
@@ -7018,15 +7069,12 @@ void procBlock::CalcGradsI(const int &ii, const int &jj, const int &kk,
 }
 
 void procBlock::CalcGradsJ(const int &ii, const int &jj, const int &kk,
-                           const idealGas &eqnState, const bool &turbFlag,
                            tensor<double> &velGrad, vector3d<double> &tGrad,
                            vector3d<double> &tkeGrad,
                            vector3d<double> &omegaGrad) const {
   // ii -- i-index for face (including ghosts)
   // jj -- j-index for face (including ghosts)
   // kk -- k-index for face (including ghosts)
-  // eqnState -- equation of state
-  // turbFlag -- flag to determine if simulation is turbulent
   // velGrad -- tensor to store velocity gradient
   // tGrad -- vector3d to store temperature gradient
   // tkeGrad -- vector3d to store tke gradient
@@ -7076,31 +7124,30 @@ void procBlock::CalcGradsJ(const int &ii, const int &jj, const int &kk,
                          ajl, aju, akl, aku, vol);
 
   // calculate average temperature on i and k faces of alternate control volume
-  const auto tiu = 0.25 * (state_(ii, jj - 1, kk).Temperature(eqnState) +
-                           state_(ii, jj, kk).Temperature(eqnState) +
-                           state_(ii + 1, jj, kk).Temperature(eqnState) +
-                           state_(ii + 1, jj - 1, kk).Temperature(eqnState));
-  const auto til = 0.25 * (state_(ii, jj - 1, kk).Temperature(eqnState) +
-                           state_(ii, jj, kk).Temperature(eqnState) +
-                           state_(ii - 1, jj, kk).Temperature(eqnState) +
-                           state_(ii - 1, jj - 1, kk).Temperature(eqnState));
+  const auto tiu = 0.25 * (temperature_(ii, jj - 1, kk) +
+                           temperature_(ii, jj, kk) +
+                           temperature_(ii + 1, jj, kk) +
+                           temperature_(ii + 1, jj - 1, kk));
+  const auto til = 0.25 * (temperature_(ii, jj - 1, kk) +
+                           temperature_(ii, jj, kk) +
+                           temperature_(ii - 1, jj, kk) +
+                           temperature_(ii - 1, jj - 1, kk));
 
-  const auto tku = 0.25 * (state_(ii, jj - 1, kk).Temperature(eqnState) +
-                           state_(ii, jj, kk).Temperature(eqnState) +
-                           state_(ii, jj, kk + 1).Temperature(eqnState) +
-                           state_(ii, jj - 1, kk + 1).Temperature(eqnState));
-  const auto tkl = 0.25 * (state_(ii, jj - 1, kk).Temperature(eqnState) +
-                           state_(ii, jj, kk).Temperature(eqnState) +
-                           state_(ii, jj, kk - 1).Temperature(eqnState) +
-                           state_(ii, jj - 1, kk - 1).Temperature(eqnState));
+  const auto tku = 0.25 * (temperature_(ii, jj - 1, kk) +
+                           temperature_(ii, jj, kk) +
+                           temperature_(ii, jj, kk + 1) +
+                           temperature_(ii, jj - 1, kk + 1));
+  const auto tkl = 0.25 * (temperature_(ii, jj - 1, kk) +
+                           temperature_(ii, jj, kk) +
+                           temperature_(ii, jj, kk - 1) +
+                           temperature_(ii, jj - 1, kk - 1));
 
   // Get temperature gradient at face
-  tGrad = ScalarGradGG(til, tiu,
-                       state_(ii, jj - 1, kk).Temperature(eqnState),
-                       state_(ii, jj, kk).Temperature(eqnState), tkl, tku,
+  tGrad = ScalarGradGG(til, tiu, temperature_(ii, jj - 1, kk),
+                       temperature_(ii, jj, kk), tkl, tku,
                        ail, aiu, ajl, aju, akl, aku, vol);
 
-  if (turbFlag) {
+  if (isTurbulent_) {
     // calculate average tke on i and k faces of alternate control volume
     const auto tkeiu = 0.25 *
         (state_(ii, jj - 1, kk).Tke() + state_(ii, jj, kk).Tke() +
@@ -7144,15 +7191,12 @@ void procBlock::CalcGradsJ(const int &ii, const int &jj, const int &kk,
 }
 
 void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
-                           const idealGas &eqnState, const bool &turbFlag,
                            tensor<double> &velGrad, vector3d<double> &tGrad,
                            vector3d<double> &tkeGrad,
                            vector3d<double> &omegaGrad) const {
   // ii -- i-index for face (including ghosts)
   // jj -- j-index for face (including ghosts)
   // kk -- k-index for face (including ghosts)
-  // eqnState -- equation of state
-  // turbFlag -- flag to determine if simulation is turbulent
   // velGrad -- tensor to store velocity gradient
   // tGrad -- vector3d to store temperature gradient
   // tkeGrad -- vector3d to store tke gradient
@@ -7202,31 +7246,30 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
                          akl, aku, vol);
 
   // calculate average temperature on i and j faces of alternate control volume
-  const auto tiu = 0.25 * (state_(ii, jj, kk - 1).Temperature(eqnState) +
-                           state_(ii, jj, kk).Temperature(eqnState) +
-                           state_(ii + 1, jj, kk).Temperature(eqnState) +
-                           state_(ii + 1, jj, kk - 1).Temperature(eqnState));
-  const auto til = 0.25 * (state_(ii, jj, kk - 1).Temperature(eqnState) +
-                           state_(ii, jj, kk).Temperature(eqnState) +
-                           state_(ii - 1, jj, kk).Temperature(eqnState) +
-                           state_(ii - 1, jj, kk - 1).Temperature(eqnState));
+  const auto tiu = 0.25 * (temperature_(ii, jj, kk - 1) +
+                           temperature_(ii, jj, kk) +
+                           temperature_(ii + 1, jj, kk) +
+                           temperature_(ii + 1, jj, kk - 1));
+  const auto til = 0.25 * (temperature_(ii, jj, kk - 1) +
+                           temperature_(ii, jj, kk) +
+                           temperature_(ii - 1, jj, kk) +
+                           temperature_(ii - 1, jj, kk - 1));
 
-  const auto tju = 0.25 * (state_(ii, jj, kk - 1).Temperature(eqnState) +
-                           state_(ii, jj, kk).Temperature(eqnState) +
-                           state_(ii, jj, kk + 1).Temperature(eqnState) +
-                           state_(ii, jj + 1, kk - 1).Temperature(eqnState));
-  const auto tjl = 0.25 * (state_(ii, jj, kk - 1).Temperature(eqnState) +
-                           state_(ii, jj, kk).Temperature(eqnState) +
-                           state_(ii, jj - 1, kk).Temperature(eqnState) +
-                           state_(ii, jj - 1, kk - 1).Temperature(eqnState));
+  const auto tju = 0.25 * (temperature_(ii, jj, kk - 1) +
+                           temperature_(ii, jj, kk) +
+                           temperature_(ii, jj, kk + 1) +
+                           temperature_(ii, jj + 1, kk - 1));
+  const auto tjl = 0.25 * (temperature_(ii, jj, kk - 1) +
+                           temperature_(ii, jj, kk) +
+                           temperature_(ii, jj - 1, kk) +
+                           temperature_(ii, jj - 1, kk - 1));
 
   // Get temperature gradient at face
-  tGrad = ScalarGradGG(til, tiu, tjl, tju,
-                       state_(ii, jj, kk - 1).Temperature(eqnState),
-                       state_(ii, jj, kk).Temperature(eqnState), ail, aiu,
+  tGrad = ScalarGradGG(til, tiu, tjl, tju, temperature_(ii, jj, kk - 1),
+                       temperature_(ii, jj, kk), ail, aiu,
                        ajl, aju, akl, aku, vol);
 
-  if (turbFlag) {
+  if (isTurbulent_) {
     // calculate average tke on i and j faces of alternate control volume
     const auto tkeiu = 0.25 *
         (state_(ii, jj, kk - 1).Tke() + state_(ii, jj, kk).Tke() +
@@ -7270,14 +7313,11 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
 }
 
 // Member function to calculate the source terms and add them to the residual
-void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
-                             const idealGas &eos,
+void procBlock::CalcSrcTerms(const sutherland &suth,
                              const unique_ptr<turbModel> &turb,
                              const input &inp,
                              multiArray3d<fluxJacobian> &mainDiagonal) {
-  // grads -- gradients (vel, temp, tke, omega)
   // suth -- sutherland's law for viscosity
-  // eos -- equation of state
   // turb -- turbulence model
   // mainDiagonal -- main diagonal of LHS used to store flux jacobians for
   //                 implicit solver
@@ -7289,10 +7329,13 @@ void procBlock::CalcSrcTerms(const gradients &grads, const sutherland &suth,
         // calculate turbulent source terms
         source src;
         const auto srcJac = src.CalcTurbSrc(turb, state_(ig, jg, kg),
-                                            grads, suth,
+                                            velocityGrad_(ip, jp, kp),
+                                            temperatureGrad_(ip, jp, kp),
+                                            tkeGrad_(ip, jp, kp),
+                                            omegaGrad_(ip, jp, kp), suth,
                                             wallDist_(ig, jg, kg),
                                             vol_(ig, jg, kg),
-                                            viscosity_(ig, jg, kg), ip, jp, kp);
+                                            viscosity_(ig, jg, kg));
 
         // add source terms to residual
         // subtract because residual is initially on opposite side of equation
@@ -7420,17 +7463,14 @@ void procBlock::CalcResidual(const sutherland &suth, const idealGas &eos,
     // Update temperature and viscosity
     this->UpdateAuxillaryVariables(eos, suth);
 
-    // Calculate gradients
-    gradients grads(inp.IsTurbulent(), *this, eos);
-
     // Calculate viscous fluxes
-    this->CalcViscFluxI(suth, eos, inp, grads, turb, mainDiagonal);
-    this->CalcViscFluxJ(suth, eos, inp, grads, turb, mainDiagonal);
-    this->CalcViscFluxK(suth, eos, inp, grads, turb, mainDiagonal);
+    this->CalcViscFluxI(suth, eos, inp, turb, mainDiagonal);
+    this->CalcViscFluxJ(suth, eos, inp, turb, mainDiagonal);
+    this->CalcViscFluxK(suth, eos, inp, turb, mainDiagonal);
 
     // If turblent, calculate source terms
     if (isTurbulent_) {
-      this->CalcSrcTerms(grads, suth, eos, turb, inp, mainDiagonal);
+      this->CalcSrcTerms(suth, turb, inp, mainDiagonal);
     }
   } else {
     // Update temperature
@@ -7472,6 +7512,7 @@ void ExplicitUpdate(vector<procBlock> &blocks,
     blocks[bb].UpdateBlock(inp, eos, aRef, suth, du, solTimeN[bb],
                                      turb, mm, residL2, residLinf);
     blocks[bb].ResetResidWS();
+    blocks[bb].ResetGradients();
   }
 }
 
@@ -7582,8 +7623,9 @@ double ImplicitUpdate(vector<procBlock> &blocks,
                                                   inp.Theta(), inp.Zeta());
     }
 
-    // Zero residuals, wave speed, flux jacobians, and update
+    // Zero residuals, wave speed, flux jacobians, gradients, and update
     blocks[bb].ResetResidWS();
+    blocks[bb].ResetGradients();
     mainDiagonal[bb].Zero(fluxJacobian(0.0, 0.0));
   }
 

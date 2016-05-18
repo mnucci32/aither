@@ -37,7 +37,6 @@
 #include "genArray.hpp"
 #include "parallel.hpp"
 #include "turbulence.hpp"
-#include "gradients.hpp"
 #include "resid.hpp"
 #include "multiArray3d.hpp"
 #include "kdtree.hpp"

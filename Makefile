@@ -1,4 +1,4 @@
-OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o procBlock.o output.o matrix.o parallel.o slices.o turbulence.o gradients.o inviscidFlux.o viscousFlux.o source.o resid.o kdtree.o genArray.o fluxJacobian.o uncoupledScalar.o
+OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o procBlock.o output.o matrix.o parallel.o slices.o turbulence.o inviscidFlux.o viscousFlux.o source.o resid.o kdtree.o genArray.o fluxJacobian.o uncoupledScalar.o
 CC = mpic++
 DEBUG = -ggdb -pg
 OPTIM = -O3 -march=native
@@ -13,7 +13,7 @@ $(CODENAME) : $(OBJS)
 plot3d.o : plot3d.cpp plot3d.hpp vector3d.hpp multiArray3d.hpp
 	$(CC) $(CFLAGS) plot3d.cpp
 
-main.o : main.cpp plot3d.hpp vector3d.hpp input.hpp procBlock.hpp eos.hpp primVars.hpp boundaryConditions.hpp inviscidFlux.hpp tensor.hpp viscousFlux.hpp output.hpp parallel.hpp turbulence.hpp gradients.hpp resid.hpp multiArray3d.hpp genArray.hpp fluxJacobian.hpp
+main.o : main.cpp plot3d.hpp vector3d.hpp input.hpp procBlock.hpp eos.hpp primVars.hpp boundaryConditions.hpp inviscidFlux.hpp tensor.hpp viscousFlux.hpp output.hpp parallel.hpp turbulence.hpp resid.hpp multiArray3d.hpp genArray.hpp fluxJacobian.hpp
 	$(CC) $(CFLAGS) main.cpp
 
 input.o : input.cpp input.hpp boundaryConditions.hpp
@@ -55,11 +55,8 @@ genArray.o : genArray.cpp genArray.hpp macros.hpp
 turbulence.o : turbulence.cpp turbulence.hpp
 	$(CC) $(CFLAGS) turbulence.cpp
 
-source.o : source.cpp source.hpp macros.hpp turbulence.hpp primVars.hpp gradients.hpp
+source.o : source.cpp source.hpp macros.hpp turbulence.hpp primVars.hpp
 	$(CC) $(CFLAGS) source.cpp
-
-gradients.o : gradients.cpp gradients.hpp primVars.hpp vector3d.hpp tensor.hpp procBlock.hpp
-	$(CC) $(CFLAGS) gradients.cpp
 
 resid.o : resid.cpp resid.hpp
 	$(CC) $(CFLAGS) resid.cpp
