@@ -50,8 +50,8 @@ double source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
                            const vector3d<double> &tGrad,
                            const vector3d<double> &tkeGrad,
                            const vector3d<double> &omegaGrad,
-                           const sutherland &suth, const double &wallDist,
-                           const double &vol, const double &mu) {
+                           const sutherland &suth, const double &vol,
+                           const double &mut, const double &f1) {
   // turb -- turbulence model
   // state -- primative variables
   // velGrad -- velocity gradient
@@ -59,15 +59,15 @@ double source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
   // tkeGrad -- tke gradient
   // omegaGrad -- omega gradient
   // suth -- sutherland's law for viscosity
-  // wallDist -- distance to nearest viscous wall
   // vol -- cell volume
-  // mu -- laminar viscosity
+  // mut -- turbulent viscosity
+  // f1 -- first blending coefficient
 
   // calculate turbulent source terms
   auto ksrc = 0.0;
   auto wsrc = 0.0;
   auto srcJacSpecRad = turb->CalcTurbSrc(state, velGrad, tkeGrad, omegaGrad,
-                                         suth, wallDist, vol, mu, ksrc, wsrc);
+                                         suth, vol, mut, f1, ksrc, wsrc);
 
   // assign turbulent source terms
   data_[5] = ksrc;

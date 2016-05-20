@@ -54,7 +54,7 @@ class viscousFlux {
               const vector3d<double>&, const vector3d<double>&,
               const vector3d<double>&, const vector3d<double>&,
               const unique_ptr<turbModel>&, const primVars&,
-              const double&, const double&);
+              const double&, const double&, const double&);
 
   // move constructor and assignment operator
   viscousFlux(viscousFlux&&) noexcept = default;

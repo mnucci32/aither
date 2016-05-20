@@ -115,10 +115,10 @@ procBlock::procBlock(const primVars &inputState, const plot3dBlock &blk,
   if (isTurbulent_) {
     tkeGrad_ = {numI, numJ, numK};
     omegaGrad_ = {numI, numJ, numK};
-    eddyViscosity_ = {numI, numJ, numK,
+    eddyViscosity_ = {numIG, numJG, numKG,
                       inp.FarfieldEddyViscRatio() * inputViscosity};
-    f1_ = {numI, numJ, numK, 1.0};
-    f2_ = {numI, numJ, numK, 0.0};
+    f1_ = {numIG, numJG, numKG, 1.0};
+    f2_ = {numIG, numJG, numKG, 0.0};
   } else {
     tkeGrad_ = {1, 1, 1};
     omegaGrad_ = {1, 1, 1};
@@ -187,9 +187,9 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   if (isTurbulent_) {
     tkeGrad_ = {ni, nj, nk};
     omegaGrad_ = {ni, nj, nk};
-    eddyViscosity_ = {ni, nj, nk};
-    f1_ = {ni, nj, nk};
-    f2_ = {ni, nj, nk};
+    eddyViscosity_ = {numIG, numJG, numKG};
+    f1_ = {numIG, numJG, numKG};
+    f2_ = {numIG, numJG, numKG};
   } else {
     tkeGrad_ = {1, 1, 1};
     omegaGrad_ = {1, 1, 1};
@@ -872,6 +872,14 @@ void procBlock::ResetGradients() {
   omegaGrad_.Zero(vector3d<double>(0.0, 0.0, 0.0));
 }
 
+// member function to reset the turbulence variables back to zero after an
+// iteration. This is done because these variables are accumulated over many
+// function calls.
+void procBlock::ResetTurbVars() {
+  eddyViscosity_.Zero(0.0);
+  f1_.Zero(0.0);
+  f2_.Zero(0.0);
+}
 
 /* Member function to add the cell volume divided by the cell time step to the
 main diagonal of the time m minus time n term.
@@ -1189,6 +1197,8 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
                               fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
                               vol_(ig - 1, jg, kg),
                               this->Viscosity(ig - 1, jg, kg),
+                              this->EddyViscosity(ig - 1, jg, kg),
+                              this->F1(ig - 1, jg, kg),
                               eqnState, suth, turb, isViscous_, true);
     }
 
@@ -1202,6 +1212,8 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
                               fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
                               vol_(ig, jg - 1, kg),
                               this->Viscosity(ig, jg - 1, kg),
+                              this->EddyViscosity(ig, jg - 1, kg),
+                              this->F1(ig, jg - 1, kg),
                               eqnState, suth, turb, isViscous_, true);
     }
 
@@ -1215,6 +1227,8 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
                               fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
                               vol_(ig, jg, kg - 1),
                               this->Viscosity(ig, jg, kg - 1),
+                              this->EddyViscosity(ig, jg, kg - 1),
+                              this->F1(ig, jg, kg - 1),
                               eqnState, suth, turb, isViscous_, true);
     }
 
@@ -1235,6 +1249,8 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
                                 fAreaI_(ig + 2, jg, kg),
                                 vol_(ig + 1, jg, kg),
                                 this->Viscosity(ig + 1, jg, kg),
+                                this->EddyViscosity(ig + 1, jg, kg),
+                                this->F1(ig + 1, jg, kg),
                                 eqnState, suth, turb, isViscous_, false);
       }
 
@@ -1249,6 +1265,8 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
                                 fAreaJ_(ig, jg + 2, kg),
                                 vol_(ig, jg + 1, kg),
                                 this->Viscosity(ig, jg + 1, kg),
+                                this->EddyViscosity(ig, jg + 1, kg),
+                                this->F1(ig, jg + 1, kg),
                                 eqnState, suth, turb, isViscous_, false);
       }
 
@@ -1263,6 +1281,8 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
                                 fAreaK_(ig, jg, kg + 2),
                                 vol_(ig, jg, kg + 1),
                                 this->Viscosity(ig, jg, kg + 1),
+                                this->EddyViscosity(ig, jg, kg + 1),
+                                this->F1(ig, jg, kg + 1),
                                 eqnState, suth, turb, isViscous_, false);
       }
     }
@@ -1329,6 +1349,8 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
                               fAreaI_(ig + 1, jg, kg), fAreaI_(ig + 2, jg, kg),
                               vol_(ig + 1, jg, kg),
                               this->Viscosity(ig + 1, jg, kg),
+                              this->EddyViscosity(ig + 1, jg, kg),
+                              this->F1(ig + 1, jg, kg),
                               eqnState, suth, turb, isViscous_, false);
     }
 
@@ -1342,6 +1364,8 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
                               fAreaJ_(ig, jg + 1, kg), fAreaJ_(ig, jg + 2, kg),
                               vol_(ig, jg + 1, kg),
                               this->Viscosity(ig, jg + 1, kg),
+                              this->EddyViscosity(ig, jg + 1, kg),
+                              this->F1(ig, jg + 1, kg),
                               eqnState, suth, turb, isViscous_, false);
     }
 
@@ -1355,6 +1379,8 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
                               fAreaK_(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 2),
                               vol_(ig, jg, kg + 1),
                               this->Viscosity(ig, jg, kg + 1),
+                              this->EddyViscosity(ig, jg, kg + 1),
+                              this->F1(ig, jg, kg + 1),
                               eqnState, suth, turb, isViscous_, false);
     }
 
@@ -1374,6 +1400,8 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
                                 fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
                                 vol_(ig - 1, jg, kg),
                                 this->Viscosity(ig - 1, jg, kg),
+                                this->EddyViscosity(ig - 1, jg, kg),
+                                this->F1(ig - 1, jg, kg),
                                 eqnState, suth, turb, isViscous_, true);
       }
 
@@ -1387,6 +1415,8 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
                                 fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
                                 vol_(ig, jg - 1, kg),
                                 this->Viscosity(ig, jg - 1, kg),
+                                this->EddyViscosity(ig, jg - 1, kg),
+                                this->F1(ig, jg - 1, kg),
                                 eqnState, suth, turb, isViscous_, true);
       }
 
@@ -1400,6 +1430,8 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
                                 fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
                                 vol_(ig, jg, kg - 1),
                                 this->Viscosity(ig, jg, kg - 1),
+                                this->EddyViscosity(ig, jg, kg - 1),
+                                this->F1(ig, jg, kg - 1),
                                 eqnState, suth, turb, isViscous_, true);
       }
     }
@@ -1469,6 +1501,8 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                                    fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
                                    vol_(ig - 1, jg, kg),
                                    this->Viscosity(ig - 1, jg, kg),
+                                   this->EddyViscosity(ig - 1, jg, kg),
+                                   this->F1(ig - 1, jg, kg),
                                    eqnState, suth, turb, isViscous_, true);
           } else if (inp.InvFluxJac() == "approximateRoe") {
             offDiagonal +=
@@ -1477,6 +1511,10 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                                fAreaI_(ig - 1, jg, kg), vol_(ig - 1, jg, kg),
                                this->Viscosity(ig - 1, jg, kg),
                                this->Viscosity(ig, jg, kg),
+                               this->EddyViscosity(ig - 1, jg, kg),
+                               this->EddyViscosity(ig, jg, kg),
+                               this->F1(ig - 1, jg, kg),
+                               this->F1(ig, jg, kg),
                                eqnState, suth, turb, isViscous_, isTurbulent_,
                                true);
           } else {
@@ -1499,6 +1537,8 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                                    fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
                                    vol_(ig, jg - 1, kg),
                                    this->Viscosity(ig, jg - 1, kg),
+                                   this->EddyViscosity(ig, jg - 1, kg),
+                                   this->F1(ig, jg - 1, kg),
                                    eqnState, suth, turb, isViscous_, true);
           } else if (inp.InvFluxJac() == "approximateRoe") {
             offDiagonal +=
@@ -1507,6 +1547,10 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                                fAreaJ_(ig, jg - 1, kg), vol_(ig, jg - 1, kg),
                                this->Viscosity(ig, jg - 1 , kg),
                                this->Viscosity(ig, jg, kg),
+                               this->EddyViscosity(ig, jg - 1 , kg),
+                               this->EddyViscosity(ig, jg, kg),
+                               this->F1(ig, jg - 1 , kg),
+                               this->F1(ig, jg, kg),
                                eqnState, suth, turb, isViscous_, isTurbulent_,
                                true);
           } else {
@@ -1529,6 +1573,8 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                                    fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
                                    vol_(ig, jg, kg - 1),
                                    this->Viscosity(ig, jg, kg - 1),
+                                   this->EddyViscosity(ig, jg, kg - 1),
+                                   this->F1(ig, jg, kg - 1),
                                    eqnState, suth, turb, isViscous_, true);
           } else if (inp.InvFluxJac() == "approximateRoe") {
             offDiagonal +=
@@ -1538,6 +1584,10 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                                vol_(ig, jg, kg - 1),
                                this->Viscosity(ig, jg, kg - 1),
                                this->Viscosity(ig, jg, kg),
+                               this->EddyViscosity(ig, jg, kg - 1),
+                               this->EddyViscosity(ig, jg, kg),
+                               this->F1(ig, jg, kg - 1),
+                               this->F1(ig, jg, kg),
                                eqnState, suth, turb, isViscous_, isTurbulent_,
                                true);
           } else {
@@ -1561,6 +1611,8 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                                    fAreaI_(ig + 2, jg, kg),
                                    vol_(ig + 1, jg, kg),
                                    this->Viscosity(ig + 1, jg, kg),
+                                   this->EddyViscosity(ig + 1, jg, kg),
+                                   this->F1(ig + 1, jg, kg),
                                    eqnState, suth, turb, isViscous_, false);
           } else if (inp.InvFluxJac() == "approximateRoe") {
             offDiagonal -=
@@ -1570,6 +1622,10 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                                vol_(ig + 1, jg, kg),
                                this->Viscosity(ig + 1, jg, kg),
                                this->Viscosity(ig, jg, kg),
+                               this->EddyViscosity(ig + 1, jg, kg),
+                               this->EddyViscosity(ig, jg, kg),
+                               this->F1(ig + 1, jg, kg),
+                               this->F1(ig, jg, kg),
                                eqnState, suth, turb, isViscous_, isTurbulent_,
                                false);
           } else {
@@ -1593,6 +1649,8 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                                    fAreaJ_(ig, jg + 2, kg),
                                    vol_(ig, jg + 1, kg),
                                    this->Viscosity(ig, jg + 1, kg),
+                                   this->EddyViscosity(ig, jg + 1, kg),
+                                   this->F1(ig, jg + 1, kg),
                                    eqnState, suth, turb, isViscous_, false);
           } else if (inp.InvFluxJac() == "approximateRoe") {
             offDiagonal -=
@@ -1602,6 +1660,10 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                                vol_(ig, jg + 1, kg),
                                this->Viscosity(ig, jg + 1, kg),
                                this->Viscosity(ig, jg, kg),
+                               this->EddyViscosity(ig, jg + 1, kg),
+                               this->EddyViscosity(ig, jg, kg),
+                               this->F1(ig, jg + 1, kg),
+                               this->F1(ig, jg, kg),
                                eqnState, suth, turb, isViscous_, isTurbulent_,
                                false);
           } else {
@@ -1625,6 +1687,8 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                                    fAreaK_(ig, jg, kg + 2),
                                    vol_(ig, jg, kg + 1),
                                    this->Viscosity(ig, jg, kg + 1),
+                                   this->EddyViscosity(ig, jg, kg + 1),
+                                   this->F1(ig, jg, kg + 1),
                                    eqnState, suth, turb, isViscous_, false);
           } else if (inp.InvFluxJac() == "approximateRoe") {
             offDiagonal -=
@@ -1634,6 +1698,10 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                                vol_(ig, jg, kg + 1),
                                this->Viscosity(ig, jg, kg + 1),
                                this->Viscosity(ig, jg, kg),
+                               this->EddyViscosity(ig, jg, kg + 1),
+                               this->EddyViscosity(ig, jg, kg),
+                               this->F1(ig, jg, kg + 1),
+                               this->F1(ig, jg, kg),
                                eqnState, suth, turb, isViscous_, isTurbulent_,
                                false);
           } else {
@@ -2020,11 +2088,20 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
         vector3d<double> tempGrad, tkeGrad, omegaGrad;
         CalcGradsI(ig, jg, kg, velGrad, tempGrad, tkeGrad, omegaGrad);
 
+        // calculate turbulent eddy viscosity and blending coefficients
+        auto f1 = 0.0;
+        auto f2 = 0.0;
+        auto mut = 0.0;
+        if (isTurbulent_) {
+          turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
+                                    wDist, suth, mut, f1, f2);
+        }
+
         // calculate viscous flux
         const viscousFlux tempViscFlux(velGrad, suth, eqnState, tempGrad,
                                        this->FAreaUnitI(ig, jg, kg),
                                        tkeGrad, omegaGrad, turb, state, mu,
-                                       wDist);
+                                       mut, f1);
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
@@ -2041,6 +2118,9 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           if (isTurbulent_) {
             tkeGrad_(ip - 1, jp, kp) += sixth * tkeGrad;
             omegaGrad_(ip - 1, jp, kp) += sixth * omegaGrad;
+            eddyViscosity_(ig - 1, jg, kg) += sixth * mut;
+            f1_(ig - 1, jg, kg) += sixth * f1;
+            f2_(ig - 1, jg, kg) += sixth * f2;
           }
         }
         // at right boundary there is no right cell to add to
@@ -2055,6 +2135,9 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           if (isTurbulent_) {
             tkeGrad_(ip, jp, kp) += sixth * tkeGrad;
             omegaGrad_(ip, jp, kp) += sixth * omegaGrad;
+            eddyViscosity_(ig, jg, kg) += sixth * mut;
+            f1_(ig, jg, kg) += sixth * f1;
+            f2_(ig, jg, kg) += sixth * f2;
           }
 
           // calculate component of wave speed. This is done on a cell by cell
@@ -2062,12 +2145,15 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           const auto viscSpecRad =
               state_(ig, jg, kg).ViscCellSpectralRadius(
                   fAreaI_(ig, jg, kg), fAreaI_(ig + 1, jg, kg), eqnState, suth,
-                  vol_(ig, jg, kg), this->Viscosity(ig, jg, kg), turb);
+                  vol_(ig, jg, kg), viscosity_(ig, jg, kg),
+                  this->EddyViscosity(ig, jg, kg), turb);
 
           const auto turbViscSpecRad = isTurbulent_ ?
               turb->ViscSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
                                 fAreaI_(ig + 1, jg, kg), viscosity_(ig, jg, kg),
-                                suth, vol_(ig, jg, kg)) : 0.0;
+                                suth, vol_(ig, jg, kg),
+                                eddyViscosity_(ig, jg, kg), f1_(ig, jg, kg))
+              : 0.0;
 
           const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
           specRadius_(ip, jp, kp) += specRad * viscCoeff;
@@ -2211,11 +2297,20 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
         vector3d<double> tempGrad, tkeGrad, omegaGrad;
         CalcGradsJ(ig, jg, kg, velGrad, tempGrad, tkeGrad, omegaGrad);
 
+        // calculate turbulent eddy viscosity and blending coefficients
+        auto f1 = 0.0;
+        auto f2 = 0.0;
+        auto mut = 0.0;
+        if (isTurbulent_) {
+          turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
+                                    wDist, suth, mut, f1, f2);
+        }
+
         // calculate viscous flux
         const viscousFlux tempViscFlux(velGrad, suth, eqnState, tempGrad,
                                        this->FAreaUnitJ(ig, jg, kg),
                                        tkeGrad, omegaGrad, turb, state, mu,
-                                       wDist);
+                                       mut, f1);
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
@@ -2232,6 +2327,9 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           if (isTurbulent_) {
             tkeGrad_(ip, jp - 1, kp) += sixth * tkeGrad;
             omegaGrad_(ip, jp - 1, kp) += sixth * omegaGrad;
+            eddyViscosity_(ig, jg - 1, kg) += sixth * mut;
+            f1_(ig, jg - 1, kg) += sixth * f1;
+            f2_(ig, jg - 1, kg) += sixth * f2;
           }
         }
         // at right boundary there is no right cell to add to
@@ -2246,6 +2344,9 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           if (isTurbulent_) {
             tkeGrad_(ip, jp, kp) += sixth * tkeGrad;
             omegaGrad_(ip, jp, kp) += sixth * omegaGrad;
+            eddyViscosity_(ig, jg, kg) += sixth * mut;
+            f1_(ig, jg, kg) += sixth * f1;
+            f2_(ig, jg, kg) += sixth * f2;
           }
 
           // calculate component of wave speed. This is done on a cell by cell
@@ -2253,12 +2354,15 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           const auto viscSpecRad =
               state_(ig, jg, kg).ViscCellSpectralRadius(
                   fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg + 1, kg), eqnState, suth,
-                  vol_(ig, jg, kg), this->Viscosity(ig, jg, kg), turb);
+                  vol_(ig, jg, kg), viscosity_(ig, jg, kg),
+                  this->EddyViscosity(ig, jg, kg), turb);
 
           const auto turbViscSpecRad = isTurbulent_ ?
               turb->ViscSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
                                 fAreaJ_(ig, jg + 1, kg), viscosity_(ig, jg, kg),
-                                suth, vol_(ig, jg, kg)) : 0.0;
+                                suth, vol_(ig, jg, kg),
+                                eddyViscosity_(ig, jg, kg), f1_(ig, jg, kg))
+              : 0.0;
 
           const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
           specRadius_(ip, jp, kp) += specRad * viscCoeff;
@@ -2402,11 +2506,20 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
         vector3d<double> tempGrad, tkeGrad, omegaGrad;
         CalcGradsK(ig, jg, kg, velGrad, tempGrad, tkeGrad, omegaGrad);
 
+        // calculate turbulent eddy viscosity and blending coefficients
+        auto f1 = 0.0;
+        auto f2 = 0.0;
+        auto mut = 0.0;
+        if (isTurbulent_) {
+          turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
+                                    wDist, suth, mut, f1, f2);
+        }
+
         // calculate viscous flux
         const viscousFlux tempViscFlux(velGrad, suth, eqnState, tempGrad,
                                        this->FAreaUnitK(ig, jg, kg),
                                        tkeGrad, omegaGrad, turb, state, mu,
-                                       wDist);
+                                       mut, f1);
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
@@ -2423,6 +2536,9 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           if (isTurbulent_) {
             tkeGrad_(ip, jp, kp - 1) += sixth * tkeGrad;
             omegaGrad_(ip, jp, kp - 1) += sixth * omegaGrad;
+            eddyViscosity_(ig, jg, kg - 1) += sixth * mut;
+            f1_(ig, jg, kg - 1) += sixth * f1;
+            f2_(ig, jg, kg - 1) += sixth * f2;
           }
         }
         // at right boundary there is no right cell to add to
@@ -2437,6 +2553,9 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           if (isTurbulent_) {
             tkeGrad_(ip, jp, kp) += sixth * tkeGrad;
             omegaGrad_(ip, jp, kp) += sixth * omegaGrad;
+            eddyViscosity_(ig, jg, kg) += sixth * mut;
+            f1_(ig, jg, kg) += sixth * f1;
+            f2_(ig, jg, kg) += sixth * f2;
           }
 
           // calculate component of wave speed. This is done on a cell by cell
@@ -2444,12 +2563,15 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           const auto viscSpecRad =
               state_(ig, jg, kg).ViscCellSpectralRadius(
                   fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg + 1), eqnState, suth,
-                  vol_(ig, jg, kg), this->Viscosity(ig, jg, kg), turb);
+                  vol_(ig, jg, kg), viscosity_(ig, jg, kg),
+                  this->EddyViscosity(ig, jg, kg), turb);
 
           const auto turbViscSpecRad = isTurbulent_ ?
               turb->ViscSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
                                 fAreaK_(ig, jg, kg + 1), viscosity_(ig, jg, kg),
-                                suth, vol_(ig, jg, kg)) : 0.0;
+                                suth, vol_(ig, jg, kg),
+                                eddyViscosity_(ig, jg, kg), f1_(ig, jg, kg))
+              : 0.0;
 
           const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
           specRadius_(ip, jp, kp) += specRad * viscCoeff;
@@ -5706,9 +5828,9 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
   if (isTurbulent_) {
     tkeGrad_.ClearResize(numI, numJ, numK);
     omegaGrad_.ClearResize(numI, numJ, numK);
-    eddyViscosity_.ClearResize(numI, numJ, numK);
-    f1_.ClearResize(numI, numJ, numK);
-    f2_.ClearResize(numI, numK, numK);
+    eddyViscosity_.ClearResize(ig, jg, kg);
+    f1_.ClearResize(ig, jg, kg);
+    f2_.ClearResize(ig, jg, kg);
   }
 }
 
@@ -5969,6 +6091,15 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
       blk1.viscosity_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
                              viscosity_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
     }
+    if (isTurbulent_) {
+      blk1.eddyViscosity_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
+                                 eddyViscosity_.Slice(0, iMaxG1, 0, jMaxG,
+                                                      0, kMaxG));
+      blk1.f1_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
+                      f1_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
+      blk1.f2_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
+                      f2_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
+    }
 
     // assign cell variables without ghost cells
     blk1.specRadius_.Insert(0, iMax1, 0, jMax, 0, kMax,
@@ -5986,13 +6117,6 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                                                           kMax));
     }
     if (isTurbulent_) {
-      blk1.eddyViscosity_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                                 eddyViscosity_.Slice(0, iMax1, 0, jMax, 0,
-                                                      kMax));
-      blk1.f1_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                      f1_.Slice(0, iMax1, 0, jMax, 0, kMax));
-      blk1.f2_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                      f2_.Slice(0, iMax1, 0, jMax, 0, kMax));
       blk1.tkeGrad_.Insert(0, iMax1, 0, jMax, 0, kMax,
                            tkeGrad_.Slice(0, iMax1, 0, jMax, 0, kMax));
       blk1.omegaGrad_.Insert(0, iMax1, 0, jMax, 0, kMax,
@@ -6034,6 +6158,15 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                              viscosity_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0,
                                               kMaxG));
     }
+    if (isTurbulent_) {
+      blk2.eddyViscosity_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
+                                 eddyViscosity_.Slice(iMinPG2, iMaxPG2, 0,
+                                                      jMaxG, 0, kMaxG));
+      blk2.f1_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
+                      f1_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
+      blk2.f2_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
+                      f2_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
+    }
 
     // assign cell variables without ghost cells
     blk2.specRadius_.Insert(0, iMax2, 0, jMax, 0, kMax,
@@ -6052,13 +6185,6 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                                                           jMax, 0, kMax));
     }
     if (isTurbulent_) {
-      blk2.eddyViscosity_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                                 eddyViscosity_.Slice(iMinP2, iMaxP2, 0, jMax,
-                                                      0, kMax));
-      blk2.f1_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                      f1_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
-      blk2.f2_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                      f2_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
       blk2.tkeGrad_.Insert(0, iMax2, 0, jMax, 0, kMax,
                            tkeGrad_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
       blk2.omegaGrad_.Insert(0, iMax2, 0, jMax, 0, kMax,
@@ -6141,6 +6267,15 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
       blk1.viscosity_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
                              viscosity_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
     }
+    if (isTurbulent_) {
+      blk1.eddyViscosity_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
+                                 eddyViscosity_.Slice(0, iMaxG, 0, jMaxG1, 0,
+                                                      kMaxG));
+      blk1.f1_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
+                      f1_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
+      blk1.f2_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
+                      f2_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
+    }
 
     // assign cell variables without ghost cells
     blk1.specRadius_.Insert(0, iMax, 0, jMax1, 0, kMax,
@@ -6158,13 +6293,6 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                                                           0, kMax));
     }
     if (isTurbulent_) {
-      blk1.eddyViscosity_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                                 eddyViscosity_.Slice(0, iMax, 0, jMax1, 0,
-                                                      kMax));
-      blk1.f1_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                      f1_.Slice(0, iMax, 0, jMax1, 0, kMax));
-      blk1.f2_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                      f2_.Slice(0, iMax, 0, jMax1, 0, kMax));
       blk1.tkeGrad_.Insert(0, iMax, 0, jMax1, 0, kMax,
                            tkeGrad_.Slice(0, iMax, 0, jMax1, 0, kMax));
       blk1.omegaGrad_.Insert(0, iMax, 0, jMax1, 0, kMax,
@@ -6206,6 +6334,15 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                              viscosity_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0,
                                               kMaxG));
     }
+    if (isTurbulent_) {
+      blk2.eddyViscosity_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
+                                 eddyViscosity_.Slice(0, iMaxG, jMinPG2,
+                                                      jMaxPG2, 0, kMaxG));
+      blk2.f1_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
+                      f1_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0, kMaxG));
+      blk2.f2_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
+                      f2_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0, kMaxG));
+    }
 
     // assign cell variables without ghost cells
     blk2.specRadius_.Insert(0, iMax, 0, jMax2, 0, kMax,
@@ -6224,13 +6361,6 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                                                           jMaxP2, 0, kMax));
     }
     if (isTurbulent_) {
-      blk2.eddyViscosity_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                                 eddyViscosity_.Slice(0, iMax, jMinP2, jMaxP2,
-                                                      0, kMax));
-      blk2.f1_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                      f1_.Slice(0, iMax, jMinP2, jMaxP2, 0, kMax));
-      blk2.f2_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                      f2_.Slice(0, iMax, jMinP2, jMaxP2, 0, kMax));
       blk2.tkeGrad_.Insert(0, iMax, 0, jMax2, 0, kMax,
                            tkeGrad_.Slice(0, iMax, jMinP2, jMaxP2, 0, kMax));
       blk2.omegaGrad_.Insert(0, iMax, 0, jMax2, 0, kMax,
@@ -6313,6 +6443,15 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
       blk1.viscosity_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
                              viscosity_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
     }
+    if (isTurbulent_) {
+      blk1.eddyViscosity_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
+                                 eddyViscosity_.Slice(0, iMaxG, 0, jMaxG, 0,
+                                                      kMaxG1));
+      blk1.f1_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
+                      f1_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
+      blk1.f2_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
+                      f2_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
+    }
 
     // assign cell variables without ghost cells
     blk1.specRadius_.Insert(0, iMax, 0, jMax, 0, kMax1,
@@ -6330,13 +6469,6 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                                                           0, kMax1));
     }
     if (isTurbulent_) {
-      blk1.eddyViscosity_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                                 eddyViscosity_.Slice(0, iMax, 0, jMax, 0,
-                                                      kMax1));
-      blk1.f1_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                      f1_.Slice(0, iMax, 0, jMax, 0, kMax1));
-      blk1.f2_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                      f2_.Slice(0, iMax, 0, jMax, 0, kMax1));
       blk1.tkeGrad_.Insert(0, iMax, 0, jMax, 0, kMax1,
                            tkeGrad_.Slice(0, iMax, 0, jMax, 0, kMax1));
       blk1.omegaGrad_.Insert(0, iMax, 0, jMax, 0, kMax1,
@@ -6378,6 +6510,15 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                              viscosity_.Slice(0, iMaxG, 0, jMaxG, kMinPG2,
                                               kMaxPG2));
     }
+    if (isTurbulent_) {
+      blk2.eddyViscosity_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
+                                 eddyViscosity_.Slice(0, iMaxG, 0, jMaxG,
+                                                      kMinPG2, kMaxPG2));
+      blk2.f1_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
+                      f1_.Slice(0, iMaxG, 0, jMaxG, kMinPG2, kMaxPG2));
+      blk2.f2_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
+                      f2_.Slice(0, iMaxG, 0, jMaxG, kMinPG2, kMaxPG2));
+    }
 
     // assign cell variables without ghost cells
     blk2.specRadius_.Insert(0, iMax, 0, jMax, 0, kMax2,
@@ -6396,13 +6537,6 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
                                                           kMinP2, kMaxP2));
     }
     if (isTurbulent_) {
-      blk2.eddyViscosity_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                                 eddyViscosity_.Slice(0, iMax, 0, jMax,
-                                                      kMinP2, kMaxP2));
-      blk2.f1_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                      f1_.Slice(0, iMax, 0, jMax, kMinP2, kMaxP2));
-      blk2.f2_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                      f2_.Slice(0, iMax, 0, jMax, kMinP2, kMaxP2));
       blk2.tkeGrad_.Insert(0, iMax, 0, jMax, 0, kMax2,
                            tkeGrad_.Slice(0, iMax, 0, jMax, kMinP2, kMaxP2));
       blk2.omegaGrad_.Insert(0, iMax, 0, jMax, 0, kMax2,
@@ -6494,6 +6628,15 @@ void procBlock::Join(const procBlock &blk, const string &dir,
       newBlk.viscosity_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG,
                                viscosity_.Slice(0, iMaxLG, 0, jMaxG, 0, kMaxG));
     }
+    if (isTurbulent_) {
+      newBlk.eddyViscosity_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG,
+                                   eddyViscosity_.Slice(0, iMaxLG, 0, jMaxG,
+                                                        0, kMaxG));
+      newBlk.f1_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG,
+                        f1_.Slice(0, iMaxLG, 0, jMaxG, 0, kMaxG));
+      newBlk.f2_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG,
+                        f2_.Slice(0, iMaxLG, 0, jMaxG, 0, kMaxG));
+    }
 
     // assign cell variables without ghost cells
     newBlk.specRadius_.Insert(0, iMaxL, 0, jMax, 0, kMax,
@@ -6512,15 +6655,8 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                                                             jMax, 0, kMax));
     }
     if (isTurbulent_) {
-      newBlk.eddyViscosity_.Insert(0, iMaxL, 0, jMax, 0, kMax,
-                                   eddyViscosity_.Slice(0, iMaxL, 0, jMax, 0,
-                                                        kMax));
-      newBlk.f1_.Insert(0, iMaxL, 0, jMax, 0, kMax,
-                        f1_.Slice(0, iMaxL, 0, jMax, 0, kMax));
-      newBlk.f2_.Insert(0, iMaxL, 0, jMax, 0, kMax,
-                        f2_.Slice(0, iMaxL, 0, jMax, 0, kMax));
       newBlk.tkeGrad_.Insert(0, iMaxL, 0, jMax, 0, kMax,
-                             tkeGrad_.Slice(0, iMaxL, 0, jMax, 0, kMax));
+                             tkeGrad_.Slice(0, iMaxL, 0, jMax, 0, kMaxG));
       newBlk.omegaGrad_.Insert(0, iMaxL, 0, jMax, 0, kMax,
                                omegaGrad_.Slice(0, iMaxL, 0, jMax, 0, kMax));
     }
@@ -6560,6 +6696,15 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                                blk.viscosity_.Slice(iMinUG, iMaxUG, 0, jMaxG, 0,
                                                     kMaxG));
     }
+    if (isTurbulent_) {
+      newBlk.eddyViscosity_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG, 0, kMaxG,
+                                   blk.eddyViscosity_.Slice(iMinUG, iMaxUG, 0,
+                                                            jMaxG, 0, kMaxG));
+      newBlk.f1_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG, 0, kMaxG,
+                        blk.f1_.Slice(iMinUG, iMaxUG, 0, jMaxG, 0, kMaxG));
+      newBlk.f2_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG, 0, kMaxG,
+                        blk.f2_.Slice(iMinUG, iMaxUG, 0, jMaxG, 0, kMaxG));
+    }
 
     // assign cell variables without ghost cells
     newBlk.specRadius_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
@@ -6579,13 +6724,6 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                                                                 kMax));
     }
     if (isTurbulent_) {
-      newBlk.eddyViscosity_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
-                                   blk.eddyViscosity_.Slice(0, iMaxU, 0,
-                                                            jMax, 0, kMax));
-      newBlk.f1_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
-                        blk.f1_.Slice(0, iMaxU, 0, jMax, 0, kMax));
-      newBlk.f2_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
-                        blk.f2_.Slice(0, iMaxU, 0, jMax, 0, kMax));
       newBlk.tkeGrad_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
                              blk.tkeGrad_.Slice(0, iMaxU, 0, jMax, 0, kMax));
       newBlk.omegaGrad_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
@@ -6655,6 +6793,15 @@ void procBlock::Join(const procBlock &blk, const string &dir,
       newBlk.viscosity_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG,
                                viscosity_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG));
     }
+    if (isTurbulent_) {
+      newBlk.eddyViscosity_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG,
+                                   eddyViscosity_.Slice(0, iMaxG, 0, jMaxLG, 0,
+                                                        kMaxG));
+      newBlk.f1_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG,
+                        f1_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG));
+      newBlk.f2_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG,
+                        f2_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG));
+    }
 
     // assign cell variables without ghost cells
     newBlk.specRadius_.Insert(0, iMax, 0, jMaxL, 0, kMax,
@@ -6673,13 +6820,6 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                                                             jMaxL, 0, kMax));
     }
     if (isTurbulent_) {
-      newBlk.eddyViscosity_.Insert(0, iMax, 0, jMaxL, 0, kMax,
-                                   eddyViscosity_.Slice(0, iMax, 0, jMaxL, 0,
-                                                        kMax));
-      newBlk.f1_.Insert(0, iMax, 0, jMaxL, 0, kMax,
-                        f1_.Slice(0, iMax, 0, jMaxL, 0, kMax));
-      newBlk.f2_.Insert(0, iMax, 0, jMaxL, 0, kMax,
-                        f2_.Slice(0, iMax, 0, jMaxL, 0, kMax));
       newBlk.tkeGrad_.Insert(0, iMax, 0, jMaxL, 0, kMax,
                              tkeGrad_.Slice(0, iMax, 0, jMaxL, 0, kMax));
       newBlk.omegaGrad_.Insert(0, iMax, 0, jMaxL, 0, kMax,
@@ -6722,6 +6862,15 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                                blk.viscosity_.Slice(0, iMaxG, jMinUG, jMaxUG, 0,
                                                     kMaxG));
     }
+    if (isTurbulent_) {
+      newBlk.eddyViscosity_.Insert(0, iMaxG, jMaxLG + 1, jMaxG, 0, kMaxG,
+                                   blk.eddyViscosity_.Slice(0, iMaxG, jMinUG,
+                                                            jMaxUG, 0, kMaxG));
+      newBlk.f1_.Insert(0, iMaxG, jMaxLG + 1, jMaxG, 0, kMaxG,
+                        blk.f1_.Slice(0, iMaxG, jMinUG, jMaxUG, 0, kMaxG));
+      newBlk.f2_.Insert(0, iMaxG, jMaxLG + 1, jMaxG, 0, kMaxG,
+                        blk.f2_.Slice(0, iMaxG, jMinUG, jMaxUG, 0, kMaxG));
+    }
 
     // assign cell variables without ghost cells
     newBlk.specRadius_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
@@ -6741,13 +6890,6 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                                                              jMaxU, 0, kMax));
     }
     if (isTurbulent_) {
-      newBlk.eddyViscosity_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
-                                   blk.eddyViscosity_.Slice(0, iMax, 0, jMaxU,
-                                                            0, kMax));
-      newBlk.f1_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
-                        blk.f1_.Slice(0, iMax, 0, jMaxU, 0, kMax));
-      newBlk.f2_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
-                        blk.f2_.Slice(0, iMax, 0, jMaxU, 0, kMax));
       newBlk.tkeGrad_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
                              blk.tkeGrad_.Slice(0, iMax, 0, jMaxU, 0, kMax));
       newBlk.omegaGrad_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
@@ -6818,6 +6960,15 @@ void procBlock::Join(const procBlock &blk, const string &dir,
       newBlk.viscosity_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG,
                                viscosity_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxLG));
     }
+    if (isTurbulent_) {
+      newBlk.eddyViscosity_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG,
+                                   eddyViscosity_.Slice(0, iMaxG, 0, jMaxG, 0,
+                                                        kMaxLG));
+      newBlk.f1_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG,
+                        f1_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxLG));
+      newBlk.f2_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG,
+                        f2_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxLG));
+    }
 
     // assign cell variables without ghost cells
     newBlk.specRadius_.Insert(0, iMax, 0, jMax, 0, kMaxL,
@@ -6836,13 +6987,6 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                                                             0, kMaxL));
     }
     if (isTurbulent_) {
-      newBlk.eddyViscosity_.Insert(0, iMax, 0, jMax, 0, kMaxL,
-                                   eddyViscosity_.Slice(0, iMax, 0, jMax, 0,
-                                                        kMaxL));
-      newBlk.f1_.Insert(0, iMax, 0, jMax, 0, kMaxL,
-                        f1_.Slice(0, iMax, 0, jMax, 0, kMaxL));
-      newBlk.f2_.Insert(0, iMax, 0, jMax, 0, kMaxL,
-                        f2_.Slice(0, iMax, 0, jMax, 0, kMaxL));
       newBlk.tkeGrad_.Insert(0, iMax, 0, jMax, 0, kMaxL,
                              tkeGrad_.Slice(0, iMax, 0, jMax, 0, kMaxL));
       newBlk.omegaGrad_.Insert(0, iMax, 0, jMax, 0, kMaxL,
@@ -6884,6 +7028,15 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                                blk.viscosity_.Slice(0, iMaxG, 0, jMaxG, kMinUG,
                                                     kMaxUG));
     }
+    if (isTurbulent_) {
+      newBlk.eddyViscosity_.Insert(0, iMaxG, 0, jMaxG, kMaxLG + 1, kMaxG,
+                                   blk.eddyViscosity_.Slice(0, iMaxG, 0, jMaxG,
+                                                            kMinUG, kMaxUG));
+      newBlk.f1_.Insert(0, iMaxG, 0, jMaxG, kMaxLG + 1, kMaxG,
+                        blk.f1_.Slice(0, iMaxG, 0, jMaxG, kMinUG, kMaxUG));
+      newBlk.f2_.Insert(0, iMaxG, 0, jMaxG, kMaxLG + 1, kMaxG,
+                        blk.f2_.Slice(0, iMaxG, 0, jMaxG, kMinUG, kMaxUG));
+    }
 
     // assign cell variables without ghost cells
     newBlk.specRadius_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
@@ -6903,13 +7056,6 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                                                                 kMaxU));
     }
     if (isTurbulent_) {
-      newBlk.eddyViscosity_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
-                                   blk.eddyViscosity_.Slice(0, iMax, 0, jMax, 0,
-                                                            kMaxU));
-      newBlk.f1_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
-                        blk.f1_.Slice(0, iMax, 0, jMax, 0, kMaxU));
-      newBlk.f2_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
-                        blk.f2_.Slice(0, iMax, 0, jMax, 0, kMaxU));
       newBlk.tkeGrad_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
                              blk.tkeGrad_.Slice(0, iMax, 0, jMax, 0, kMaxU));
       newBlk.omegaGrad_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
@@ -7333,9 +7479,9 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
                                             temperatureGrad_(ip, jp, kp),
                                             tkeGrad_(ip, jp, kp),
                                             omegaGrad_(ip, jp, kp), suth,
-                                            wallDist_(ig, jg, kg),
                                             vol_(ig, jg, kg),
-                                            viscosity_(ig, jg, kg));
+                                            eddyViscosity_(ig, jg, kg),
+                                            f1_(ig, jg, kg));
 
         // add source terms to residual
         // subtract because residual is initially on opposite side of equation
@@ -7449,6 +7595,15 @@ void procBlock::CalcResidual(const sutherland &suth, const idealGas &eos,
                              const input &inp,
                              const unique_ptr<turbModel> &turb,
                              multiArray3d<fluxJacobian> &mainDiagonal) {
+  // Zero spectral radii, residuals, gradients, turbulence variables
+  this->ResetResidWS();
+  if (isViscous_) {
+    this->ResetGradients();
+    if (isTurbulent_) {
+      this->ResetTurbVars();
+    }
+  }
+
   // Calculate inviscid fluxes
   this->CalcInvFluxI(eos, inp, turb, mainDiagonal);
   this->CalcInvFluxJ(eos, inp, turb, mainDiagonal);
@@ -7511,8 +7666,6 @@ void ExplicitUpdate(vector<procBlock> &blocks,
   for (auto bb = 0; bb < static_cast<int>(blocks.size()); bb++) {
     blocks[bb].UpdateBlock(inp, eos, aRef, suth, du, solTimeN[bb],
                                      turb, mm, residL2, residLinf);
-    blocks[bb].ResetResidWS();
-    blocks[bb].ResetGradients();
   }
 }
 
@@ -7624,8 +7777,6 @@ double ImplicitUpdate(vector<procBlock> &blocks,
     }
 
     // Zero residuals, wave speed, flux jacobians, gradients, and update
-    blocks[bb].ResetResidWS();
-    blocks[bb].ResetGradients();
     mainDiagonal[bb].Zero(fluxJacobian(0.0, 0.0));
   }
 

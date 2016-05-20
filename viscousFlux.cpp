@@ -59,7 +59,8 @@ viscousFlux::viscousFlux(
     const idealGas &eqnState, const vector3d<double> &tGrad,
     const vector3d<double> &normArea, const vector3d<double> &tkeGrad,
     const vector3d<double> &omegaGrad, const unique_ptr<turbModel> &turb,
-    const primVars &state, const double &lamVisc, const double &wallDist) {
+    const primVars &state, const double &lamVisc, const double &turbVisc,
+    const double &f1) {
   // velGrad -- velocity gradient tensor
   // suth -- method to get viscosity (Sutherland's law)
   // eqnState -- equation of state
@@ -70,19 +71,16 @@ viscousFlux::viscousFlux(
   // turb -- turbulence model
   // state -- primative variables at face
   // lamVisc -- laminar viscosity
-  // wallDist -- distance to nearest viscous wall
+  // turbVisc -- turbulent viscosity
+  // f1 -- first blending coefficient
 
-  // get laminar viscosity with nondimensional normalization
+  // get viscosity with nondimensional normalization
   const auto mu = suth.NondimScaling() * lamVisc;
+  const auto mut = suth.NondimScaling() * turbVisc;
 
-  // get turbulent eddy viscosity and molecular diffusion coefficient for
-  // turbulence equations
-  auto tkeCoeff = 0.0;
-  auto omgCoeff = 0.0;
-  const auto mut = turb->EddyViscAndMolecDiffCoeff(state, velGrad, tkeGrad,
-                                                   omegaGrad, suth, mu,
-                                                   wallDist, tkeCoeff,
-                                                   omgCoeff);
+  // get molecular diffusion coefficients for turbulence equations
+  const auto tkeCoeff = turb->SigmaK(f1);
+  const auto omgCoeff = turb->SigmaW(f1);
 
   // get 2nd coefficient of viscosity assuming bulk viscosity is 0 (Stoke's)
   const auto lambda = suth.Lambda(mu + mut);
@@ -100,8 +98,12 @@ viscousFlux::viscousFlux(
       tGrad.DotProd(normArea);
 
   // turbulence viscous flux
-  data_[4] = (mu + tkeCoeff * mut) * tkeGrad.DotProd(normArea);
-  data_[5] = (mu + omgCoeff * mut) * omegaGrad.DotProd(normArea);
+  // some turbulence models use the unlimited eddy viscosity for the
+  // turbulence viscous flux instead of the limited eddy viscosity
+  const auto mutt = turb->UseUnlimitedEddyVisc() ?
+      suth.NondimScaling() * turb->EddyViscNoLim(state) : mut;
+  data_[4] = (mu + tkeCoeff * mutt) * tkeGrad.DotProd(normArea);
+  data_[5] = (mu + omgCoeff * mutt) * omegaGrad.DotProd(normArea);
 }
 
 // non-member functions

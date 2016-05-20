@@ -306,7 +306,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             for (auto ip = 0, ig = recombVars[ll].NumGhosts();
                  ip < recombVars[ll].NumI(); ig++, ip++) {
               dumArr(ip, jp, kp) = recombVars[ll].IsTurbulent() ?
-                  turb->EddyViscNoLim(recombVars[ll].State(ig, jg, kg)) /
+                  recombVars[ll].EddyViscosity(ig, jg, kg) /
                   recombVars[ll].Viscosity(ig, jg, kg)
                   : 0.0;
             }

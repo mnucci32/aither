@@ -286,13 +286,13 @@ class procBlock {
     return isViscous_ ? viscosity_(ii, jj, kk) : 0.0;
   }
   double EddyViscosity(const int &ii, const int &jj, const int &kk) const {
-    return eddyViscosity_(ii, jj, kk);
+    return isTurbulent_ ? eddyViscosity_(ii, jj, kk) : 0.0;
   }
   double F1(const int &ii, const int &jj, const int &kk) const {
-    return f1_(ii, jj, kk);
+    return isTurbulent_ ? f1_(ii, jj, kk) : 0.0;
   }
   double F2(const int &ii, const int &jj, const int &kk) const {
-    return f2_(ii, jj, kk);
+    return isTurbulent_ ? f2_(ii, jj, kk) : 0.0;
   }
 
   void CalcBlockTimeStep(const input &, const double &);
@@ -308,6 +308,7 @@ class procBlock {
 
   void ResetResidWS();
   void ResetGradients();
+  void ResetTurbVars();
   void CleanResizeVecs(const int &, const int &, const int &);
 
   void AssignGhostCellsGeom();
