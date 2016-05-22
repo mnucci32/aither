@@ -96,15 +96,23 @@ void SwapImplicitUpdate(vector<multiArray3d<genArray>> &,
 void SwapTurbVars(vector<procBlock> &, const vector<interblock> &, const int &,
                   const int &);
 
-void ResidualAndTimeStep(vector<procBlock> &,
-                         vector<multiArray3d<fluxJacobian>> &,
-                         const sutherland &, const idealGas &, const input &,
-                         const unique_ptr<turbModel> &, const double &,
-                         const vector<interblock> &, const int &, const int &);
+void CalcResidual(vector<procBlock> &,
+                  vector<multiArray3d<fluxJacobian>> &,
+                  const sutherland &, const idealGas &, const input &,
+                  const unique_ptr<turbModel> &,
+                  const vector<interblock> &, const int &, const int &);
+
+void CalcTimeStep(vector<procBlock> &, const input &, const double &);
+
+void GetSolMMinusN(vector<multiArray3d<genArray>> &, const vector<procBlock> &,
+                   const vector<multiArray3d<genArray>> &,
+                   const idealGas &, const input &, const int &);
 
 // function to reorder block by hyperplanes
 vector<vector3d<int>> HyperplaneReorder(const int &, const int &, const int &);
 
+void ResizeArrays(const vector<procBlock> &, vector<multiArray3d<genArray>> &,
+                  vector<multiArray3d<fluxJacobian>> &);
 
 // ---------------------------------------------------------------------------
 // inline function definitions

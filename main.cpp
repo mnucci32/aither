@@ -278,27 +278,24 @@ int main(int argc, char *argv[]) {
       GetBoundaryConditions(localStateBlocks, inputVars, eos, suth, turb,
                             connections, rank, MPI_cellData);
 
-      // Loop over number of blocks
-      for (auto bb = 0; bb < numProcBlock; bb++) {
+
+      if (inputVars.IsImplicit()) {
         // Get solution at time M - N if implicit
-        if (inputVars.IsImplicit()) {
-          solDeltaMmN[bb] = localStateBlocks[bb].SolTimeMMinusN(
-              solTimeN[bb], eos, inputVars, mm);
-          if (nn == 0 && mm == 0) {
-            // At first iteration, resize array for old solution
-            solDeltaNm1[bb].ClearResize(localStateBlocks[bb].NumI(),
-                                        localStateBlocks[bb].NumJ(),
-                                        localStateBlocks[bb].NumK());
-            mainDiagonal[bb].ClearResize(localStateBlocks[bb].NumI(),
-                                         localStateBlocks[bb].NumJ(),
-                                         localStateBlocks[bb].NumK());
-          }
+        GetSolMMinusN(solDeltaMmN, localStateBlocks, solTimeN, eos,
+                      inputVars, mm);
+
+        if (nn == 0 && mm == 0) {
+          // At first iteration, resize array for old solution and jacobian
+          ResizeArrays(localStateBlocks, solDeltaNm1, mainDiagonal);
         }
       }
 
-      // Calculate residual (RHS) and time step
-      ResidualAndTimeStep(localStateBlocks, mainDiagonal, suth, eos,
-                          inputVars, turb, aRef, connections, rank, numGhost);
+      // Calculate residual (RHS)
+      CalcResidual(localStateBlocks, mainDiagonal, suth, eos, inputVars,
+                   turb, connections, rank, numGhost);
+
+      // Calculate time step
+      CalcTimeStep(localStateBlocks, inputVars, aRef);
 
       // Initialize residual variables
       genArray residL2(0.0);  // l2 norm residuals
@@ -342,7 +339,8 @@ int main(int argc, char *argv[]) {
       }
     }  // loop for nonlinear iterations ---------------------------------------
 
-    if ((nn+1) % inputVars.OutputFrequency() == 0) {  // write out function file
+    // write out function file
+    if ((nn + 1) % inputVars.OutputFrequency() == 0) {
       // Send/recv solutions
       GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData,
                     MPI_uncoupledScalar, MPI_vec3d, MPI_tensorDouble);

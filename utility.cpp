@@ -598,20 +598,18 @@ void SwapTurbVars(vector<procBlock> &states,
 }
 
 
-void ResidualAndTimeStep(vector<procBlock> &states,
-                         vector<multiArray3d<fluxJacobian>> &mainDiagonal,
-                         const sutherland &suth, const idealGas &eos,
-                         const input &inp, const unique_ptr<turbModel> &turb,
-                         const double &aRef,
-                         const vector<interblock> &connections, const int &rank,
-                         const int &numGhosts) {
+void CalcResidual(vector<procBlock> &states,
+                  vector<multiArray3d<fluxJacobian>> &mainDiagonal,
+                  const sutherland &suth, const idealGas &eos,
+                  const input &inp, const unique_ptr<turbModel> &turb,
+                  const vector<interblock> &connections, const int &rank,
+                  const int &numGhosts) {
   // states -- vector of all procBlocks on processor
   // mainDiagonal -- main diagonal of A matrix for implicit solve
   // suth -- sutherland's law for viscosity
   // eos -- equation of state
   // inp -- input variables
   // turb -- turbulence model
-  // aRef -- reference speed of sound
   // connections -- interblock boundary conditions
   // rank -- processor rank
   // numGhosts -- number of layers of ghost cells
@@ -630,12 +628,20 @@ void ResidualAndTimeStep(vector<procBlock> &states,
       states[bb].CalcSrcTerms(suth, turb, inp, mainDiagonal[bb]);
     }
   }
+}
+
+void CalcTimeStep(vector<procBlock> &states, const input &inp,
+                  const double &aRef) {
+  // states -- vector of all procBlocks on processor
+  // inp -- input variables
+  // aRef -- reference speed of sound
 
   for (auto bb = 0; bb < static_cast<int>(states.size()); bb++) {
     // calculate time step
     states[bb].CalcBlockTimeStep(inp, aRef);
   }
 }
+
 
 // function to reorder the block by hyperplanes
 /*A hyperplane is a plane of i+j+k=constant within an individual block. The
@@ -664,4 +670,35 @@ vector<vector3d<int>> HyperplaneReorder(const int &imax, const int &jmax,
   }
 
   return reorder;
+}
+
+void GetSolMMinusN(vector<multiArray3d<genArray>> &solMMinusN,
+                   const vector<procBlock> &states,
+                   const vector<multiArray3d<genArray>> &solN,
+                   const idealGas &eos, const input &inp, const int &mm) {
+  // solMMinusN -- solution at time m minus solution at time n
+  // solN -- solution at time n
+  // eos -- equation of state
+  // inp -- input variables
+  // mm -- nonlinear iteration
+
+  for (auto bb = 0; bb < static_cast<int>(solMMinusN.size()); bb++) {
+    solMMinusN[bb] = states[bb].SolTimeMMinusN(solN[bb], eos, inp, mm);
+  }
+}
+
+
+void ResizeArrays(const vector<procBlock> &states,
+                  vector<multiArray3d<genArray>> &sol,
+                  vector<multiArray3d<fluxJacobian>> &jac) {
+  // states -- all states on processor
+  // sol -- vector of solutions to be resized
+  // jac -- vector of flux jacobians to be resized
+
+  for (auto bb = 0; bb < static_cast<int>(states.size()); bb++) {
+    sol[bb].ClearResize(states[bb].NumI(), states[bb].NumJ(),
+                        states[bb].NumK());
+    jac[bb].ClearResize(states[bb].NumI(), states[bb].NumJ(),
+                        states[bb].NumK());
+  }
 }
