@@ -134,9 +134,6 @@ class procBlock {
                       const int &, const int &, const int &, const int &,
                       const int &);
 
-  void CalcSrcTerms(const sutherland &, const unique_ptr<turbModel> &,
-                    const input &, multiArray3d<fluxJacobian> &);
-
   void AddToResidual(const inviscidFlux &, const int &, const int &,
                      const int &);
   void AddToResidual(const viscousFlux &, const int &, const int &,
@@ -302,9 +299,12 @@ class procBlock {
                    const unique_ptr<turbModel> &, const int &, genArray &,
                    resid &);
 
-  void CalcResidual(const sutherland &, const idealGas &, const input &,
-                    const unique_ptr<turbModel> &,
-                    multiArray3d<fluxJacobian> &);
+  void CalcResidualNoSource(const sutherland &, const idealGas &,
+                            const input &,
+                            const unique_ptr<turbModel> &,
+                            multiArray3d<fluxJacobian> &);
+  void CalcSrcTerms(const sutherland &, const unique_ptr<turbModel> &,
+                    const input &, multiArray3d<fluxJacobian> &);
 
   void ResetResidWS();
   void ResetGradients();
@@ -388,6 +388,8 @@ class procBlock {
 
   void SwapStateSlice(const interblock &, procBlock &);
   void SwapStateSliceMPI(const interblock &, const int &, const MPI_Datatype &);
+  void SwapTurbSlice(const interblock &, procBlock &);
+  void SwapTurbSliceMPI(const interblock &, const int &);
 
   void PackSendGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
                        const MPI_Datatype &) const;
@@ -460,6 +462,15 @@ double ImplicitUpdate(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
 void SwapImplicitUpdate(vector<multiArray3d<genArray>> &,
                         const vector<interblock> &, const int &,
                         const MPI_Datatype &, const int &);
+void SwapTurbVars(vector<procBlock> &, const vector<interblock> &, const int &,
+                  const int &);
+
+void ResidualAndTimeStep(vector<procBlock> &,
+                         vector<multiArray3d<fluxJacobian>> &,
+                         const sutherland &, const idealGas &, const input &,
+                         const unique_ptr<turbModel> &, const double &,
+                         const vector<interblock> &, const int &, const int &);
+
 #endif
 
 

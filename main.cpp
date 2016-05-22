@@ -293,15 +293,11 @@ int main(int argc, char *argv[]) {
                                          localStateBlocks[bb].NumK());
           }
         }
-
-        // Calculate residual (RHS)
-        localStateBlocks[bb].CalcResidual(suth, eos, inputVars, turb,
-                                          mainDiagonal[bb]);
-
-        // Calculate the time step to use in the simulation
-        // (either user specified or derived from CFL)
-        localStateBlocks[bb].CalcBlockTimeStep(inputVars, aRef);
       }
+
+      // Calculate residual (RHS) and time step
+      ResidualAndTimeStep(localStateBlocks, mainDiagonal, suth, eos,
+                          inputVars, turb, aRef, connections, rank, numGhost);
 
       // Initialize residual variables
       genArray residL2(0.0);  // l2 norm residuals

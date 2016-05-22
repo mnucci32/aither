@@ -4639,6 +4639,16 @@ void procBlock::SwapStateSlice(const interblock &inter, procBlock &blk) {
   state_.SwapSlice(inter, blk.state_, numGhosts_, blk.NumGhosts());
 }
 
+void procBlock::SwapTurbSlice(const interblock &inter, procBlock &blk) {
+  // inter -- interblock boundary information
+  // blk -- second block involved in interblock boundary
+
+  eddyViscosity_.SwapSlice(inter, blk.eddyViscosity_, numGhosts_,
+                           blk.NumGhosts());
+  f1_.SwapSlice(inter, blk.f1_, numGhosts_, blk.NumGhosts());
+  f2_.SwapSlice(inter, blk.f2_, numGhosts_, blk.NumGhosts());
+}
+
 
 /* Function to swap slice using MPI. This is similar to the SwapSlice
 function, but is called when the neighboring procBlocks are on different
@@ -4652,6 +4662,16 @@ void procBlock::SwapStateSliceMPI(const interblock &inter, const int &rank,
 
   state_.SwapSliceMPI(inter, rank, MPI_cellData, numGhosts_);
 }
+
+void procBlock::SwapTurbSliceMPI(const interblock &inter, const int &rank) {
+  // inter -- interblock boundary information
+  // rank -- processor rank
+
+  eddyViscosity_.SwapSliceMPI(inter, rank, MPI_DOUBLE, numGhosts_, 1);
+  f1_.SwapSliceMPI(inter, rank, MPI_DOUBLE, numGhosts_, 2);
+  f2_.SwapSliceMPI(inter, rank, MPI_DOUBLE, numGhosts_, 3);
+}
+
 
 /* Function to populate ghost cells with proper cell states for inviscid flow
 calculation. This function operates on the entire grid and uses interblock
@@ -7590,11 +7610,13 @@ void procBlock::CalcWallDistance(const kdtree &tree) {
   }
 }
 
-// member function to calculate the residual (LHS)
-void procBlock::CalcResidual(const sutherland &suth, const idealGas &eos,
-                             const input &inp,
-                             const unique_ptr<turbModel> &turb,
-                             multiArray3d<fluxJacobian> &mainDiagonal) {
+// member function to calculate the residual (RHS) excluding any contributions
+// from source terms
+void procBlock::CalcResidualNoSource(const sutherland &suth,
+                                     const idealGas &eos,
+                                     const input &inp,
+                                     const unique_ptr<turbModel> &turb,
+                                     multiArray3d<fluxJacobian> &mainDiagonal) {
   // Zero spectral radii, residuals, gradients, turbulence variables
   this->ResetResidWS();
   if (isViscous_) {
@@ -7623,10 +7645,6 @@ void procBlock::CalcResidual(const sutherland &suth, const idealGas &eos,
     this->CalcViscFluxJ(suth, eos, inp, turb, mainDiagonal);
     this->CalcViscFluxK(suth, eos, inp, turb, mainDiagonal);
 
-    // If turblent, calculate source terms
-    if (isTurbulent_) {
-      this->CalcSrcTerms(suth, turb, inp, mainDiagonal);
-    }
   } else {
     // Update temperature
     this->UpdateAuxillaryVariables(eos, suth);
@@ -7839,3 +7857,74 @@ void procBlock::UpdateAuxillaryVariables(const idealGas &eos,
     }
   }
 }
+
+void SwapTurbVars(vector<procBlock> &states,
+                  const vector<interblock> &connections, const int &rank,
+                  const int &numGhosts) {
+  // states -- vector of all procBlocks in the solution domain
+  // connections -- interblock boundary conditions
+  // rank -- processor rank
+  // numGhosts -- number of ghost cells
+
+  // loop over all connections and swap interblock updates when necessary
+  for (auto ii = 0; ii < static_cast<int>(connections.size()); ii++) {
+    if (connections[ii].RankFirst() == rank &&
+        connections[ii].RankSecond() == rank) {
+      // both sides of interblock are on this processor, swap w/o mpi
+      states[connections[ii].LocalBlockFirst()].SwapTurbSlice(
+          connections[ii], states[connections[ii].LocalBlockSecond()]);
+    } else if (connections[ii].RankFirst() == rank) {
+      // rank matches rank of first side of interblock, swap over mpi
+      states[connections[ii].LocalBlockFirst()].SwapTurbSliceMPI(
+          connections[ii], rank);
+
+    } else if (connections[ii].RankSecond() == rank) {
+      // rank matches rank of second side of interblock, swap over mpi
+      states[connections[ii].LocalBlockSecond()].SwapTurbSliceMPI(
+          connections[ii], rank);
+    }
+    // if rank doesn't match either side of interblock, then do nothing and
+    // move on to the next interblock
+  }
+}
+
+
+void ResidualAndTimeStep(vector<procBlock> &states,
+                         vector<multiArray3d<fluxJacobian>> &mainDiagonal,
+                         const sutherland &suth, const idealGas &eos,
+                         const input &inp, const unique_ptr<turbModel> &turb,
+                         const double &aRef,
+                         const vector<interblock> &connections, const int &rank,
+                         const int &numGhosts) {
+  // states -- vector of all procBlocks on processor
+  // mainDiagonal -- main diagonal of A matrix for implicit solve
+  // suth -- sutherland's law for viscosity
+  // eos -- equation of state
+  // inp -- input variables
+  // turb -- turbulence model
+  // aRef -- reference speed of sound
+  // connections -- interblock boundary conditions
+  // rank -- processor rank
+  // numGhosts -- number of layers of ghost cells
+
+  for (auto bb = 0; bb < static_cast<int>(states.size()); bb++) {
+    // calculate residual
+    states[bb].CalcResidualNoSource(suth, eos, inp, turb, mainDiagonal[bb]);
+  }
+
+  if (inp.IsTurbulent()) {
+    // swap turbulence varibles calculated during residual calculation
+    SwapTurbVars(states, connections, rank, numGhosts);
+
+    for (auto bb = 0; bb < static_cast<int>(states.size()); bb++) {
+      // calculate residual
+      states[bb].CalcSrcTerms(suth, turb, inp, mainDiagonal[bb]);
+    }
+  }
+
+  for (auto bb = 0; bb < static_cast<int>(states.size()); bb++) {
+    // calculate time step
+    states[bb].CalcBlockTimeStep(inp, aRef);
+  }
+}
+
