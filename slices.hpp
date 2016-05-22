@@ -52,8 +52,8 @@ class geomSlice {
 
  public:
   // constructors
-  geomSlice();
   geomSlice(const int &, const int &, const int &, const int &);
+  geomSlice() : geomSlice(1, 1, 1, 0) {}
   geomSlice(const procBlock &, const int &, const int &, const int &,
             const int &, const int &, const int &, const bool = false,
             const bool = false, const bool = false);

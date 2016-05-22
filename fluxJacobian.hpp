@@ -85,7 +85,8 @@ class fluxJacobian {
   void DelPrimativeDelConservative(const primVars &, const idealGas &,
                                    const input &);
 
-  void ApproxTSLJacobian(const primVars &, const idealGas &,
+  void ApproxTSLJacobian(const primVars &, const double &, const double &,
+                         const double &, const idealGas &,
                          const sutherland &,
                          const vector3d<double> &, const double &,
                          const unique_ptr<turbModel> &, const input &);
@@ -235,16 +236,19 @@ ostream &operator<<(ostream &os, const fluxJacobian &);
 genArray RusanovOffDiagonal(const primVars &, const genArray &,
                             const unitVec3dMag<double> &,
                             const unitVec3dMag<double> &,
+                            const double &, const double &, const double &,
                             const double &, const idealGas &,
                             const sutherland &,
                             const unique_ptr<turbModel> &,
-                            const input &, const bool &);
+                            const bool &, const bool &);
 genArray RoeOffDiagonal(const primVars &, const primVars &, const genArray &,
                         const unitVec3dMag<double> &,
                         const unitVec3dMag<double> &,
+                        const double &, const double &, const double &,
+                        const double &, const double &, const double &,
                         const double &, const idealGas &, const sutherland &,
-                        const unique_ptr<turbModel> &, const input &,
-                        const bool &);
+                        const unique_ptr<turbModel> &, const bool &,
+                        const bool &, const bool &);
 
 
 #endif

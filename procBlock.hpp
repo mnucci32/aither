@@ -31,7 +31,6 @@
 #include "genArray.hpp"            // genArray
 #include "boundaryConditions.hpp"  // interblock, patch
 #include "macros.hpp"
-#include "kdtree.hpp"              // kdtree
 #include "uncoupledScalar.hpp"     // uncoupledScalar
 
 using std::vector;
@@ -49,13 +48,13 @@ class sutherland;
 class inviscidFlux;
 class viscousFlux;
 class input;
-class gradients;
 class geomSlice;
 class source;
 class turbModel;
 class plot3dBlock;
 class resid;
 class fluxJacobian;
+class kdtree;
 
 class procBlock {
   multiArray3d<primVars> state_;  // primative variables at cell center
@@ -76,6 +75,19 @@ class procBlock {
   multiArray3d<double> dt_;  // cell time step
   multiArray3d<double> wallDist_;  // distance to nearest viscous wall
 
+  // gradients
+  multiArray3d<tensor<double>> velocityGrad_;
+  multiArray3d<vector3d<double>> temperatureGrad_;
+  multiArray3d<vector3d<double>> tkeGrad_;
+  multiArray3d<vector3d<double>> omegaGrad_;
+
+  // auxillary variables
+  multiArray3d<double> temperature_;
+  multiArray3d<double> viscosity_;
+  multiArray3d<double> eddyViscosity_;
+  multiArray3d<double> f1_;
+  multiArray3d<double> f2_;
+
   boundaryConditions bc_;  // boundary conditions for block
 
   int numGhosts_;  // number of layers of ghost cells surrounding block
@@ -84,6 +96,9 @@ class procBlock {
   int localPos_;  // position on local processor
   int globalPos_;  // global position of procBlock in decomposed vector of
                    // procBlocks
+  bool isViscous_;
+  bool isTurbulent_;
+
 
   // private member functions
   void CalcInvFluxI(const idealGas &, const input &,
@@ -97,13 +112,13 @@ class procBlock {
                     multiArray3d<fluxJacobian> &);
 
   void CalcViscFluxI(const sutherland &, const idealGas &, const input &,
-                     const gradients &, const unique_ptr<turbModel> &,
+                     const unique_ptr<turbModel> &,
                      multiArray3d<fluxJacobian> &);
   void CalcViscFluxJ(const sutherland &, const idealGas &, const input &,
-                     const gradients &, const unique_ptr<turbModel> &,
+                     const unique_ptr<turbModel> &,
                      multiArray3d<fluxJacobian> &);
   void CalcViscFluxK(const sutherland &, const idealGas &, const input &,
-                     const gradients &, const unique_ptr<turbModel> &,
+                     const unique_ptr<turbModel> &,
                      multiArray3d<fluxJacobian> &);
 
   void CalcCellDt(const int &, const int &, const int &, const double &);
@@ -119,10 +134,6 @@ class procBlock {
                       const int &, const int &, const int &, const int &,
                       const int &);
 
-  void CalcSrcTerms(const gradients &, const sutherland &, const idealGas &,
-                    const unique_ptr<turbModel> &, const input &,
-                    multiArray3d<fluxJacobian> &);
-
   void AddToResidual(const inviscidFlux &, const int &, const int &,
                      const int &);
   void AddToResidual(const viscousFlux &, const int &, const int &,
@@ -134,12 +145,15 @@ class procBlock {
   void SubtractFromResidual(const source &, const int &, const int &,
                             const int &);
 
+
  public:
   // constructors
   procBlock(const primVars &, const plot3dBlock &, const int &, const int &,
-            const boundaryConditions &, const int &, const int &, const int &);
-  procBlock(const int &, const int &, const int &, const int &);
-  procBlock() : procBlock(1, 1, 1, 0) {}
+            const boundaryConditions &, const int &, const int &, const int &,
+            const input &, const idealGas &, const sutherland &);
+  procBlock(const int &, const int &, const int &, const int &, const bool &,
+            const bool &);
+  procBlock() : procBlock(1, 1, 1, 0, false, false) {}
 
   // move constructor and assignment operator
   procBlock(procBlock&&) noexcept = default;
@@ -163,6 +177,8 @@ class procBlock {
   int LocalPosition() const { return localPos_; }
   int Rank() const { return rank_; }
   int GlobalPos() const { return globalPos_; }
+  bool IsViscous() const { return isViscous_; }
+  bool IsTurbulent() const { return isTurbulent_; }
 
   boundaryConditions BC() const { return bc_; }
 
@@ -245,6 +261,37 @@ class procBlock {
     return residual_(ii, jj, kk)[a];
   }
 
+  tensor<double> VelGrad(const int &ii, const int &jj, const int &kk) const {
+    return velocityGrad_(ii, jj, kk);
+  }
+  vector3d<double> TempGrad(const int &ii, const int &jj, const int &kk) const {
+    return temperatureGrad_(ii, jj, kk);
+  }
+  vector3d<double> TkeGrad(const int &ii, const int &jj, const int &kk) const {
+    return tkeGrad_(ii, jj, kk);
+  }
+  vector3d<double> OmegaGrad(const int &ii, const int &jj,
+                             const int &kk) const {
+    return omegaGrad_(ii, jj, kk);
+  }
+
+
+  double Temperature(const int &ii, const int &jj, const int &kk) const {
+    return temperature_(ii, jj, kk);
+  }
+  double Viscosity(const int &ii, const int &jj, const int &kk) const {
+    return isViscous_ ? viscosity_(ii, jj, kk) : 0.0;
+  }
+  double EddyViscosity(const int &ii, const int &jj, const int &kk) const {
+    return isTurbulent_ ? eddyViscosity_(ii, jj, kk) : 0.0;
+  }
+  double F1(const int &ii, const int &jj, const int &kk) const {
+    return isTurbulent_ ? f1_(ii, jj, kk) : 0.0;
+  }
+  double F2(const int &ii, const int &jj, const int &kk) const {
+    return isTurbulent_ ? f2_(ii, jj, kk) : 0.0;
+  }
+
   void CalcBlockTimeStep(const input &, const double &);
   void UpdateBlock(const input &, const idealGas &, const double &,
                    const sutherland &, const multiArray3d<genArray> &,
@@ -252,11 +299,16 @@ class procBlock {
                    const unique_ptr<turbModel> &, const int &, genArray &,
                    resid &);
 
-  void CalcResidual(const sutherland &, const idealGas &, const input &,
-                    const unique_ptr<turbModel> &,
-                    multiArray3d<fluxJacobian> &);
+  void CalcResidualNoSource(const sutherland &, const idealGas &,
+                            const input &,
+                            const unique_ptr<turbModel> &,
+                            multiArray3d<fluxJacobian> &);
+  void CalcSrcTerms(const sutherland &, const unique_ptr<turbModel> &,
+                    const input &, multiArray3d<fluxJacobian> &);
 
   void ResetResidWS();
+  void ResetGradients();
+  void ResetTurbVars();
   void CleanResizeVecs(const int &, const int &, const int &);
 
   void AssignGhostCellsGeom();
@@ -276,15 +328,15 @@ class procBlock {
                                    const sutherland &,
                                    const unique_ptr<turbModel> &);
 
-  void CalcGradsI(const int &, const int &, const int &, const idealGas &,
-                  const bool &, tensor<double> &, vector3d<double> &,
-                  vector3d<double> &, vector3d<double> &) const;
-  void CalcGradsJ(const int &, const int &, const int &, const idealGas &,
-                  const bool &, tensor<double> &, vector3d<double> &,
-                  vector3d<double> &, vector3d<double> &) const;
-  void CalcGradsK(const int &, const int &, const int &, const idealGas &,
-                  const bool &, tensor<double> &, vector3d<double> &,
-                  vector3d<double> &, vector3d<double> &) const;
+  void CalcGradsI(const int &, const int &, const int &,
+                  tensor<double> &, vector3d<double> &, vector3d<double> &,
+                  vector3d<double> &) const;
+  void CalcGradsJ(const int &, const int &, const int &,
+                  tensor<double> &, vector3d<double> &, vector3d<double> &,
+                  vector3d<double> &) const;
+  void CalcGradsK(const int &, const int &, const int &,
+                  tensor<double> &, vector3d<double> &, vector3d<double> &,
+                  vector3d<double> &) const;
 
   void CalcWallDistance(const kdtree &);
 
@@ -322,6 +374,8 @@ class procBlock {
   bool AtCorner(const int &, const int &, const int &, const bool &) const;
   bool AtEdge(const int &, const int &, const int &, const bool &,
               string &) const;
+  bool AtEdgeInclusive(const int &, const int &, const int &, const bool &,
+                       string &) const;
 
   vector<bool> PutGeomSlice(const geomSlice &, interblock &, const int &,
                             const int &);
@@ -334,13 +388,20 @@ class procBlock {
 
   void SwapStateSlice(const interblock &, procBlock &);
   void SwapStateSliceMPI(const interblock &, const int &, const MPI_Datatype &);
+  void SwapTurbSlice(const interblock &, procBlock &);
+  void SwapTurbSliceMPI(const interblock &, const int &);
 
   void PackSendGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
                        const MPI_Datatype &) const;
   void RecvUnpackGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
                          const MPI_Datatype &);
-  void PackSendSolMPI(const MPI_Datatype &, const MPI_Datatype &) const;
-  void RecvUnpackSolMPI(const MPI_Datatype &, const MPI_Datatype &);
+  void PackSendSolMPI(const MPI_Datatype &, const MPI_Datatype &,
+                      const MPI_Datatype &, const MPI_Datatype &) const;
+  void RecvUnpackSolMPI(const MPI_Datatype &, const MPI_Datatype &,
+                        const MPI_Datatype &, const MPI_Datatype &);
+
+  void UpdateAuxillaryVariables(const idealGas &, const sutherland &,
+                                const bool = true);
 
   // destructor
   ~procBlock() noexcept {}
@@ -354,15 +415,15 @@ T FaceReconCentral(const T &, const T &, const vector3d<double> &,
 template <typename T>
 multiArray3d<T> PadWithGhosts(const multiArray3d<T> &, const int &);
 
-tensor<double> CalcVelGradGG(const vector3d<double> &, const vector3d<double> &,
-                             const vector3d<double> &, const vector3d<double> &,
-                             const vector3d<double> &, const vector3d<double> &,
-                             const vector3d<double> &, const vector3d<double> &,
-                             const vector3d<double> &, const vector3d<double> &,
-                             const vector3d<double> &, const vector3d<double> &,
-                             const double &);
+tensor<double> VectorGradGG(const vector3d<double> &, const vector3d<double> &,
+                            const vector3d<double> &, const vector3d<double> &,
+                            const vector3d<double> &, const vector3d<double> &,
+                            const vector3d<double> &, const vector3d<double> &,
+                            const vector3d<double> &, const vector3d<double> &,
+                            const vector3d<double> &, const vector3d<double> &,
+                            const double &);
 
-vector3d<double> CalcScalarGradGG(
+vector3d<double> ScalarGradGG(
     const double &, const double &, const double &, const double &,
     const double &, const double &, const vector3d<double> &,
     const vector3d<double> &, const vector3d<double> &,
@@ -401,6 +462,15 @@ double ImplicitUpdate(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
 void SwapImplicitUpdate(vector<multiArray3d<genArray>> &,
                         const vector<interblock> &, const int &,
                         const MPI_Datatype &, const int &);
+void SwapTurbVars(vector<procBlock> &, const vector<interblock> &, const int &,
+                  const int &);
+
+void ResidualAndTimeStep(vector<procBlock> &,
+                         vector<multiArray3d<fluxJacobian>> &,
+                         const sutherland &, const idealGas &, const input &,
+                         const unique_ptr<turbModel> &, const double &,
+                         const vector<interblock> &, const int &, const int &);
+
 #endif
 
 

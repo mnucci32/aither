@@ -261,7 +261,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
           }
         }
       } else if (vv == 7) {  // time step - no ghost cells
-	for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
+        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
           for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
             for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].Dt(ii, jj, kk);
@@ -275,8 +275,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
                jp < recombVars[ll].NumJ(); jg++, jp++) {
             for (auto ip = 0, ig = recombVars[ll].NumGhosts();
                  ip < recombVars[ll].NumI(); ig++, ip++) {
-              dumArr(ip, jp, kp) =
-                  recombVars[ll].State(ig, jg, kg).Temperature(eqnState);
+              dumArr(ip, jp, kp) = recombVars[ll].Temperature(ig, jg, kg);
             }
           }
         }
@@ -306,10 +305,10 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
                jp < recombVars[ll].NumJ(); jg++, jp++) {
             for (auto ip = 0, ig = recombVars[ll].NumGhosts();
                  ip < recombVars[ll].NumI(); ig++, ip++) {
-              dumArr(ip, jp, kp) =
-                  turb->EddyViscNoLim(recombVars[ll].State(ig, jg, kg)) /
-                  suth.Viscosity(recombVars[ll].State(ig, jg, kg).
-                                 Temperature(eqnState));
+              dumArr(ip, jp, kp) = recombVars[ll].IsTurbulent() ?
+                  recombVars[ll].EddyViscosity(ig, jg, kg) /
+                  recombVars[ll].Viscosity(ig, jg, kg)
+                  : 0.0;
             }
           }
         }

@@ -43,7 +43,7 @@ class genArray {
   genArray() : genArray(0.0, 0.0, 0.0, 0.0, 0.0) {}
   explicit genArray(const double &a) : genArray(a, a, a, a, a, a, a) {}
   explicit genArray(const uncoupledScalar &a);
-  
+
   // member functions
   void Zero();
   double Sum();

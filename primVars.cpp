@@ -803,6 +803,7 @@ comes from Blazek.
 double primVars::ViscCellSpectralRadius(
     const unitVec3dMag<double> &fAreaL, const unitVec3dMag<double> &fAreaR,
     const idealGas &eqnState, const sutherland &suth, const double &vol,
+    const double &mu, const double &mut,
     const unique_ptr<turbModel> &turb) const {
   // fAreaL -- face area of lower face in either i, j, or k direction
   // fAreaR -- face area of upper face in either i, j, or k direction
@@ -810,17 +811,17 @@ double primVars::ViscCellSpectralRadius(
   // suth -- method to the temperature varying visosity and Prandtl number
   //         (Sutherland's law)
   // vol -- cell volume
+  // mu -- laminar viscosity
+  // mut -- turbulent viscosity
   // turb -- turbulence model
 
   // average area magnitude
   const auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
   const auto maxTerm = max(4.0 / (3.0 * this->Rho()),
                            eqnState.Gamma() / this->Rho());
-  // viscosity at cell center
-  const auto mu = suth.Viscosity(this->Temperature(eqnState));
+  // viscous term
   const auto viscTerm = suth.NondimScaling() *
-      (mu / eqnState.Prandtl() +
-       turb->EddyViscNoLim(*this) / turb->TurbPrandtlNumber());
+      (mu / eqnState.Prandtl() +  mut / turb->TurbPrandtlNumber());
 
   // return viscous spectral radius
   return maxTerm * viscTerm * fMag * fMag / vol;
@@ -829,13 +830,16 @@ double primVars::ViscCellSpectralRadius(
 double primVars::CellSpectralRadius(
     const unitVec3dMag<double> &fAreaL, const unitVec3dMag<double> &fAreaR,
     const idealGas &eqnState, const sutherland &suth, const double &vol,
-    const unique_ptr<turbModel> &turb, const bool &isViscous) const {
+    const double &mu, const double &mut, const unique_ptr<turbModel> &turb,
+    const bool &isViscous) const {
   // fAreaL -- face area of lower face in either i, j, or k direction
   // fAreaR -- face area of upper face in either i, j, or k direction
   // eqnState -- equation of state
   // suth -- method to the temperature varying visosity and Prandtl number
   //         (Sutherland's law)
   // vol -- cell volume
+  // mu -- laminar viscosity
+  // mut -- turbulent viscosity
   // turb -- turbulence model
   // isViscous -- flag that is true if simulation is viscous
 
@@ -844,7 +848,7 @@ double primVars::CellSpectralRadius(
   if (isViscous) {
     // factor 2 2 because viscous spectral radius is not halved (Blazek 6.53)
     specRad += 2.0 * this->ViscCellSpectralRadius(fAreaL, fAreaR, eqnState,
-                                                  suth, vol, turb);
+                                                  suth, vol, mu, mut, turb);
   }
   return specRad;
 }

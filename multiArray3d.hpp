@@ -51,10 +51,10 @@ class multiArray3d {
  public:
   // constructor
   multiArray3d(const int &ii, const int &jj, const int &kk, const T &init) :
-      data_(vector<T>(ii * jj * kk, init)),
+      data_(ii * jj * kk, init),
       numI_(ii), numJ_(jj), numK_(kk) {}
   multiArray3d(const int &ii, const int &jj, const int &kk) :
-      data_(vector<T>(ii * jj * kk)),
+      data_(ii * jj * kk),
       numI_(ii), numJ_(jj), numK_(kk) {}
   multiArray3d() : multiArray3d(1, 1, 1) {}
 
@@ -79,7 +79,7 @@ class multiArray3d {
   void PutSlice(const multiArray3d<T> &, const interblock &, const int &,
                 const int &);
   void SwapSliceMPI(const interblock&, const int&, const MPI_Datatype&,
-                    const int&);
+                    const int&, const int = 1);
   void SwapSlice(const interblock&, multiArray3d<T>&, const int&,
                       const int&);
 
@@ -89,7 +89,8 @@ class multiArray3d {
   void GrowJ();
   void GrowK();
 
-  void PackSwapUnpackMPI(const interblock &, const MPI_Datatype &, const int &);
+  void PackSwapUnpackMPI(const interblock &, const MPI_Datatype &, const int &,
+                         const int = 1);
 
   T GetElem(const int &ii, const int &jj, const int &kk) const;
 
@@ -593,17 +594,18 @@ void multiArray3d<T>::PutSlice(const multiArray3d<T> &array,
  * interblock partner, and then unpack it into an array.*/
 template <typename T>
 void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
-                                        const MPI_Datatype &MPI_cellData,
-                                        const int &rank) {
+                                        const MPI_Datatype &MPI_arrData,
+                                        const int &rank, const int tag) {
   // inter -- interblock boundary for the swap
-  // MPI_cellData -- MPI datatype to pass data type in array
+  // MPI_arrData -- MPI datatype to pass data type in array
   // rank -- processor rank
+  // tag -- id to send data with (default 1)
 
   // swap with mpi_send_recv_replace
   // pack data into buffer, but first get size
   auto bufSize = 0;
   auto tempSize = 0;
-  MPI_Pack_size(this->Size(), MPI_cellData, MPI_COMM_WORLD,
+  MPI_Pack_size(this->Size(), MPI_arrData, MPI_COMM_WORLD,
                 &tempSize);  // add size for states
   bufSize += tempSize;
   // add size for 3 ints for multiArray3d dims
@@ -624,16 +626,16 @@ void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
            MPI_COMM_WORLD);
   MPI_Pack(&numK, 1, MPI_INT, buffer, bufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&data_[0], this->Size(), MPI_cellData, buffer,
+  MPI_Pack(&data_[0], this->Size(), MPI_arrData, buffer,
            bufSize, &position, MPI_COMM_WORLD);
 
   MPI_Status status;
   if (rank == inter.RankFirst()) {  // send/recv with second entry in interblock
-    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankSecond(), 1,
-                         inter.RankSecond(), 1, MPI_COMM_WORLD, &status);
+    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankSecond(), tag,
+                         inter.RankSecond(), tag, MPI_COMM_WORLD, &status);
   } else {  // send/recv with first entry in interblock
-    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankFirst(), 1,
-                         inter.RankFirst(), 1, MPI_COMM_WORLD, &status);
+    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankFirst(), tag,
+                         inter.RankFirst(), tag, MPI_COMM_WORLD, &status);
   }
 
   // put slice back into multiArray3d
@@ -648,7 +650,7 @@ void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
   this->SameSizeResize(numI, numJ, numK);
 
   MPI_Unpack(buffer, bufSize, &position, &data_[0],
-             this->Size(), MPI_cellData, MPI_COMM_WORLD);
+             this->Size(), MPI_arrData, MPI_COMM_WORLD);
 
   delete[] buffer;
 }
@@ -659,12 +661,13 @@ processors.
 */
 template <typename T>
 void multiArray3d<T>::SwapSliceMPI(const interblock &inter, const int &rank,
-                             const MPI_Datatype &MPI_cellData,
-                             const int &numGhosts) {
+                                   const MPI_Datatype &MPI_arrData,
+                                   const int &numGhosts, const int tag) {
   // inter -- interblock boundary information
   // rank -- processor rank
-  // MPI_cellData -- MPI datatype for passing primVars, genArray
+  // MPI_arrData -- MPI datatype for passing data in *this
   // numGhosts -- number of ghost cells
+  // tag -- id for MPI swap (default 1)
 
   // Get indices for slice coming from block to swap
   auto is = 0;
@@ -689,7 +692,7 @@ void multiArray3d<T>::SwapSliceMPI(const interblock &inter, const int &rank,
   auto slice = this->Slice(is, ie, js, je, ks, ke);
 
   // swap state slices with partner block
-  slice.PackSwapUnpackMPI(inter, MPI_cellData, rank);
+  slice.PackSwapUnpackMPI(inter, MPI_arrData, rank, tag);
 
   // change interblocks to work with slice and ghosts
   auto interAdj = inter;
