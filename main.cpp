@@ -41,6 +41,7 @@
 #include "multiArray3d.hpp"
 #include "kdtree.hpp"
 #include "fluxJacobian.hpp"
+#include "utility.hpp"
 
 using std::cout;
 using std::cerr;
