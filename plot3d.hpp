@@ -92,7 +92,5 @@ class plot3dBlock {
 // function declarations
 vector<plot3dBlock> ReadP3dGrid(const string &, const double &, double &);
 
-// function to reorder block by hyperplanes
-vector<vector3d<int>> HyperplaneReorder(const int &, const int &, const int &);
 
 #endif

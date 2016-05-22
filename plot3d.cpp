@@ -514,34 +514,6 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, const double &LRef,
   return mesh;
 }
 
-// function to reorder the block by hyperplanes
-/*A hyperplane is a plane of i+j+k=constant within an individual block. The
-LUSGS solver must sweep along these hyperplanes to avoid
-calculating a flux jacobian. Ex. The solver must visit all points on hyperplane
-1 before visiting any points on hyperplane 2.
-*/
-vector<vector3d<int>> HyperplaneReorder(const int &imax, const int &jmax,
-                                        const int &kmax) {
-  // total number of hyperplanes in a given block
-  const auto numPlanes = imax + jmax + kmax - 2;
-  vector<vector3d<int>> reorder;
-  reorder.reserve(imax * jmax * kmax);
-
-  for (auto pp = 0; pp < numPlanes; pp++) {
-    for (auto kk = 0; kk < kmax; kk++) {
-      for (auto jj = 0; jj < jmax; jj++) {
-        for (auto ii = 0; ii < imax; ii++) {
-          if (ii + jj + kk == pp) {  // if sum of ii, jj, and kk equals pp than
-                                     // point is on hyperplane pp
-            reorder.push_back(vector3d<int>(ii, jj, kk));
-          }
-        }
-      }
-    }
-  }
-
-  return reorder;
-}
 
 /* Member function to split a plot3dBlock along a plane defined by a direction
 and an index.

@@ -409,67 +409,8 @@ class procBlock {
 
 // function definitions
 template <typename T>
-T FaceReconCentral(const T &, const T &, const vector3d<double> &,
-                   const vector3d<double> &, const vector3d<double> &);
-
-template <typename T>
 multiArray3d<T> PadWithGhosts(const multiArray3d<T> &, const int &);
 
-tensor<double> VectorGradGG(const vector3d<double> &, const vector3d<double> &,
-                            const vector3d<double> &, const vector3d<double> &,
-                            const vector3d<double> &, const vector3d<double> &,
-                            const vector3d<double> &, const vector3d<double> &,
-                            const vector3d<double> &, const vector3d<double> &,
-                            const vector3d<double> &, const vector3d<double> &,
-                            const double &);
-
-vector3d<double> ScalarGradGG(
-    const double &, const double &, const double &, const double &,
-    const double &, const double &, const vector3d<double> &,
-    const vector3d<double> &, const vector3d<double> &,
-    const vector3d<double> &, const vector3d<double> &,
-    const vector3d<double> &, const double &);
-
-void SwapGeomSlice(interblock &, procBlock &, procBlock &);
-
-void GetBoundaryConditions(vector<procBlock> &, const input &, const idealGas &,
-                           const sutherland &, const unique_ptr<turbModel> &,
-                           vector<interblock> &, const int &,
-                           const MPI_Datatype &);
-
-vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &);
-void CalcWallDistance(vector<procBlock> &, const kdtree &);
-
-vector<multiArray3d<genArray>> GetCopyConsVars(const vector<procBlock> &,
-                                               const idealGas &);
-
-void ExplicitUpdate(vector<procBlock> &, const input &, const idealGas &,
-                    const double &, const sutherland &,
-                    const vector<multiArray3d<genArray>> &,
-                    const unique_ptr<turbModel> &, const int &, genArray &,
-                    resid &);
-double ImplicitUpdate(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
-                      const input &, const idealGas &, const double &,
-                      const sutherland &,
-                      const vector<multiArray3d<genArray>> &,
-                      const vector<multiArray3d<genArray>> &,
-                      vector<multiArray3d<genArray>> &,
-                      const unique_ptr<turbModel> &,
-                      const int &, genArray &, resid &,
-                      const vector<interblock> &, const int &,
-                      const MPI_Datatype &);
-
-void SwapImplicitUpdate(vector<multiArray3d<genArray>> &,
-                        const vector<interblock> &, const int &,
-                        const MPI_Datatype &, const int &);
-void SwapTurbVars(vector<procBlock> &, const vector<interblock> &, const int &,
-                  const int &);
-
-void ResidualAndTimeStep(vector<procBlock> &,
-                         vector<multiArray3d<fluxJacobian>> &,
-                         const sutherland &, const idealGas &, const input &,
-                         const unique_ptr<turbModel> &, const double &,
-                         const vector<interblock> &, const int &, const int &);
 
 #endif
 
