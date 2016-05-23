@@ -111,7 +111,8 @@ void GetSolMMinusN(vector<multiArray3d<genArray>> &, const vector<procBlock> &,
 // function to reorder block by hyperplanes
 vector<vector3d<int>> HyperplaneReorder(const int &, const int &, const int &);
 
-void ResizeArrays(const vector<procBlock> &, vector<multiArray3d<genArray>> &,
+void ResizeArrays(const vector<procBlock> &, const input &,
+                  vector<multiArray3d<genArray>> &,
                   vector<multiArray3d<fluxJacobian>> &);
 
 // ---------------------------------------------------------------------------

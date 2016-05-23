@@ -14,8 +14,8 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
+#include <iostream>        // cout
 #include <cmath>  // sqrt
-#include <string>
 #include <memory>
 #include <algorithm>  // max
 #include "fluxJacobian.hpp"
@@ -29,8 +29,7 @@ using std::cout;
 using std::endl;
 using std::cerr;
 using std::vector;
-using std::string;
-using std:: unique_ptr;
+using std::unique_ptr;
 
 // constructor
 // if constructed with two doubles, create scalar squareMatrix
@@ -125,7 +124,7 @@ void fluxJacobian::RusanovFluxJacobian(const primVars &left,
       this->InvFluxJacobian(right, eos, areaNorm, inp);
 
 
-  // compute turbulent jacobian if necessary
+  // compute turbulent dissipation if necessary
   if (inp.IsTurbulent()) {
     dissipation.turbJacobian_.Identity();
 
@@ -321,31 +320,35 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
   const auto mut = suth.NondimScaling() * turbVisc;
   const auto velNorm = state.Velocity().DotProd(area);
 
+  constexpr auto third = 1.0 / 3.0;
+
   // assign first column
-  // DEBUG - should be conductivity + turb conductivity?
-  flowJacobian_(4, 0) = -eos.Conductivity(mu + mut) * state.Temperature(eos) /
-    ((mu + mut) * state.Rho());
+  flowJacobian_(4, 0) = -(eos.Conductivity(mu) +
+                          eos.TurbConductivity(mut, turb->TurbPrandtlNumber()))
+      * state.Temperature(eos) / ((mu + mut) * state.Rho());
 
   // assign second column
-  flowJacobian_(1, 1) = (1.0 / 3.0) * area.X() * area.X() + 1.0;
-  flowJacobian_(1, 2) = (1.0 / 3.0) * area.X() * area.Y();
-  flowJacobian_(1, 3) = (1.0 / 3.0) * area.X() * area.Z();
-  flowJacobian_(1, 4) = (1.0 / 3.0) * area.X() * velNorm + state.U();
+  flowJacobian_(1, 1) = third * area.X() * area.X() + 1.0;
+  flowJacobian_(1, 2) = third * area.X() * area.Y();
+  flowJacobian_(1, 3) = third * area.X() * area.Z();
+  flowJacobian_(1, 4) = third * area.X() * velNorm + state.U();
 
   // assign third column
-  flowJacobian_(2, 1) = (1.0 / 3.0) * area.Y() * area.X();
-  flowJacobian_(2, 2) = (1.0 / 3.0) * area.Y() * area.Y() + 1.0;
-  flowJacobian_(2, 3) = (1.0 / 3.0) * area.Y() * area.Z();
-  flowJacobian_(2, 4) = (1.0 / 3.0) * area.Y() * velNorm + state.V();
+  flowJacobian_(2, 1) = third * area.Y() * area.X();
+  flowJacobian_(2, 2) = third * area.Y() * area.Y() + 1.0;
+  flowJacobian_(2, 3) = third * area.Y() * area.Z();
+  flowJacobian_(2, 4) = third * area.Y() * velNorm + state.V();
 
   // assign fourth column
-  flowJacobian_(3, 1) = (1.0 / 3.0) * area.Z() * area.X();
-  flowJacobian_(3, 2) = (1.0 / 3.0) * area.Z() * area.Y();
-  flowJacobian_(3, 3) = (1.0 / 3.0) * area.Z() * area.Z() + 1.0;
-  flowJacobian_(3, 4) = (1.0 / 3.0) * area.Z() * velNorm + state.W();
+  flowJacobian_(3, 1) = third * area.Z() * area.X();
+  flowJacobian_(3, 2) = third * area.Z() * area.Y();
+  flowJacobian_(3, 3) = third * area.Z() * area.Z() + 1.0;
+  flowJacobian_(3, 4) = third * area.Z() * velNorm + state.W();
 
   // assign fifth column
-  flowJacobian_(4, 4) = eos.Conductivity(mu + mut) / ((mu + mut) * state.Rho());
+  flowJacobian_(4, 4) = (eos.Conductivity(mu) +
+                         eos.TurbConductivity(mut, turb->TurbPrandtlNumber()))
+      / ((mu + mut) * state.Rho());
 
   flowJacobian_ *= (mu + mut) / dist;
 

@@ -18,21 +18,15 @@
                                // execute these lines of code
 #define FLUXJACOBIANHEADERDEF  // define the macro
 
-#include <iostream>        // cout
 #include <vector>          // vector
-#include <string>          // string
 #include <memory>          // unique_ptr
 #include "vector3d.hpp"
 #include "uncoupledScalar.hpp"
 #include "matrix.hpp"
 
 using std::vector;
-using std::string;
-using std::cout;
-using std::endl;
-using std::cerr;
 using std::ostream;
-using std:: unique_ptr;
+using std::unique_ptr;
 
 // forward class declarations
 class primVars;

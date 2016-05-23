@@ -377,7 +377,20 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
         if (ig > numGhosts_) {
           this->AddToResidual(tempFlux * this->FAreaMagI(ig, jg, kg),
                               ip - 1, jp, kp);
+
+          // if using a block matrix on main diagonal, accumulate flux jacobian
+          if (inp.IsBlockMatrix()) {
+            fluxJacobian fluxJac;
+            fluxJac.RusanovFluxJacobian(state_(ig - 1, jg, kg),
+                                        state_(ig, jg, kg), eqnState,
+                                        this->FAreaUnitI(ig, jg, kg), true,
+                                        inp);
+
+            mainDiagonal(ip - 1, jp, kp) += fluxJac *
+                this->FAreaMagI(ig, jg, kg);
+          }
         }
+
         // at right boundary there is no right cell to add to
         if (ig < fAreaI_.NumI() - numGhosts_ - 1) {
           this->SubtractFromResidual(tempFlux *
@@ -395,12 +408,15 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
           const uncoupledScalar specRad(invSpecRad, turbInvSpecRad);
           specRadius_(ip, jp, kp) += specRad;
 
-          // if using a block matrix on main diagonal, calculate flux jacobian
+          // if using a block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
-            // fluxJacobian fluxJac;
-            // fluxJac.RusanovFluxJacobian(state_(ig - 1, jg, kg), state_(ig, jg, kg),
-            //                             eqnState, fAreaI_(ig, jg, kg), true, inp);
-            // mainDiagonal(ip, jp, kp) += fluxJac;
+            fluxJacobian fluxJac;
+            fluxJac.RusanovFluxJacobian(state_(ig - 1, jg, kg),
+                                        state_(ig, jg, kg), eqnState,
+                                        this->FAreaUnitI(ig, jg, kg), false,
+                                        inp);
+
+            mainDiagonal(ip, jp, kp) -= fluxJac * this->FAreaMagI(ig, jg, kg);
           } else {
             mainDiagonal(ip, jp, kp) += fluxJacobian(specRad);
           }
@@ -497,6 +513,18 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
         if (jg > numGhosts_) {
           this->AddToResidual(tempFlux * this->FAreaMagJ(ig, jg, kg),
                               ip, jp - 1, kp);
+
+          // if using block matrix on main diagonal, calculate flux jacobian
+          if (inp.IsBlockMatrix()) {
+            fluxJacobian fluxJac;
+            fluxJac.RusanovFluxJacobian(state_(ig, jg - 1, kg),
+                                        state_(ig, jg, kg), eqnState,
+                                        this->FAreaUnitJ(ig, jg, kg), true,
+                                        inp);
+
+            mainDiagonal(ip, jp - 1, kp) += fluxJac *
+                this->FAreaMagJ(ig, jg, kg);
+          }
         }
         // at right boundary no right cell to add to
         if (jg < fAreaJ_.NumJ() - numGhosts_ - 1) {
@@ -518,10 +546,13 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
-            // mainDiagonal(ip, jp, kp).AddInviscidJacobian(
-            //     state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
-            //     fAreaJ_(ig, jg + 1, kg), eqnState, turb,
-            //     inp.IsTurbulent());
+            fluxJacobian fluxJac;
+            fluxJac.RusanovFluxJacobian(state_(ig, jg - 1, kg),
+                                        state_(ig, jg, kg), eqnState,
+                                        this->FAreaUnitJ(ig, jg, kg), false,
+                                        inp);
+
+            mainDiagonal(ip, jp, kp) -= fluxJac * this->FAreaMagJ(ig, jg, kg);
           } else {
             mainDiagonal(ip, jp, kp) += fluxJacobian(specRad);
           }
@@ -619,6 +650,18 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
           this->AddToResidual(tempFlux *
                               this->FAreaMagK(ig, jg, kg),
                               ip, jp, kp - 1);
+
+          // if using block matrix on main diagonal, calculate flux jacobian
+          if (inp.IsBlockMatrix()) {
+            fluxJacobian fluxJac;
+            fluxJac.RusanovFluxJacobian(state_(ig, jg, kg - 1),
+                                        state_(ig, jg, kg), eqnState,
+                                        this->FAreaUnitK(ig, jg, kg), true,
+                                        inp);
+
+            mainDiagonal(ip, jp, kp - 1) += fluxJac *
+                this->FAreaMagK(ig, jg, kg);
+          }
         }
         // at right boundary no right cell to add to
         if (kg < fAreaK_.NumK() - numGhosts_ - 1) {
@@ -640,10 +683,13 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
-            // mainDiagonal(ip, jp, kp).AddInviscidJacobian(
-            //     state_(ig, jg, kg), fAreaK_(ig, jg, kg),
-            //     fAreaK_(ig, jg, kg + 1), eqnState, turb,
-            //     inp.IsTurbulent());
+            fluxJacobian fluxJac;
+            fluxJac.RusanovFluxJacobian(state_(ig, jg, kg - 1),
+                                        state_(ig, jg, kg), eqnState,
+                                        this->FAreaUnitK(ig, jg, kg), false,
+                                        inp);
+
+            mainDiagonal(ip, jp, kp) -= fluxJac * this->FAreaMagK(ig, jg, kg);
           } else {
             mainDiagonal(ip, jp, kp) += fluxJacobian(specRad);
           }

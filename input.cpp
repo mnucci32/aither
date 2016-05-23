@@ -606,7 +606,8 @@ bool input::IsTurbulent() const {
 
 // member function to determine if solution should use a block matrix
 bool input::IsBlockMatrix() const {
-  if (this->IsImplicit() && matrixSolver_ == "bdplur") {
+  if (this->IsImplicit() && (matrixSolver_ == "bdplur" ||
+                             matrixSolver_ == "blusgs")) {
     return true;
   } else {
     return false;

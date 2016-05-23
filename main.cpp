@@ -286,7 +286,7 @@ int main(int argc, char *argv[]) {
 
         if (nn == 0 && mm == 0) {
           // At first iteration, resize array for old solution and jacobian
-          ResizeArrays(localStateBlocks, solDeltaNm1, mainDiagonal);
+          ResizeArrays(localStateBlocks, inputVars, solDeltaNm1, mainDiagonal);
         }
       }
 

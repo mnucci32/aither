@@ -464,7 +464,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   }
 
   // Solve Ax=b with supported solver
-  if (inp.MatrixSolver() == "lusgs") {
+  if (inp.MatrixSolver() == "lusgs" || inp.MatrixSolver() == "blusgs") {
     // calculate order by hyperplanes for each block
     vector<vector<vector3d<int>>> reorder(blocks.size());
     for (auto bb = 0; bb < static_cast<int>(blocks.size()); bb++) {
@@ -495,7 +495,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
                          suth, turb, mainDiagonal[bb], ii);
       }
     }
-  } else if (inp.MatrixSolver() == "dplur") {
+  } else if (inp.MatrixSolver() == "dplur" || inp.MatrixSolver() == "bdplur") {
     for (auto ii = 0; ii < inp.MatrixSweeps(); ii++) {
       // swap updates for ghost cells
       SwapImplicitUpdate(du, connections, rank, MPI_cellData, numG);
@@ -510,7 +510,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   } else {
     cerr << "ERROR: Matrix solver " << inp.MatrixSolver() <<
         " is not recognized!" << endl;
-    cerr << "Please choose lusgs or dplur." << endl;
+    cerr << "Please choose lusgs, blusgs, dplur, or bdplur." << endl;
     exit(1);
   }
 
@@ -688,7 +688,7 @@ void GetSolMMinusN(vector<multiArray3d<genArray>> &solMMinusN,
 }
 
 
-void ResizeArrays(const vector<procBlock> &states,
+void ResizeArrays(const vector<procBlock> &states, const input &inp,
                   vector<multiArray3d<genArray>> &sol,
                   vector<multiArray3d<fluxJacobian>> &jac) {
   // states -- all states on processor
@@ -698,7 +698,22 @@ void ResizeArrays(const vector<procBlock> &states,
   for (auto bb = 0; bb < static_cast<int>(states.size()); bb++) {
     sol[bb].ClearResize(states[bb].NumI(), states[bb].NumJ(),
                         states[bb].NumK());
+
+    const auto fluxJac = inp.IsBlockMatrix() ?
+        fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations()) :
+        fluxJacobian(1, 1);
+
     jac[bb].ClearResize(states[bb].NumI(), states[bb].NumJ(),
-                        states[bb].NumK());
+                        states[bb].NumK(), fluxJac);
   }
 }
+
+
+
+
+
+
+
+
+
+
