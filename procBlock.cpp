@@ -1985,6 +1985,15 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                                        tkeGrad, omegaGrad, turb, state, mu,
                                        mut, f1);
 
+        // if using block matrix on main diagonal, calculate flux jacobian
+        fluxJacobian fluxJac;
+        if (inp.IsBlockMatrix()) {
+          fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
+                                    this->FAreaUnitI(ig, jg, kg), wDist,
+                                    turb, inp);
+        }
+
+
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
         // fluxes, so sign is reversed
@@ -2003,6 +2012,12 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
             eddyViscosity_(ig - 1, jg, kg) += sixth * mut;
             f1_(ig - 1, jg, kg) += sixth * f1;
             f2_(ig - 1, jg, kg) += sixth * f2;
+          }
+
+          // if using block matrix on main diagonal, accumulate flux jacobian
+          if (inp.IsBlockMatrix()) {
+            mainDiagonal(ip - 1, jp, kp) -= fluxJac *
+                this->FAreaMagI(ig, jg, kg);
           }
         }
         // at right boundary there is no right cell to add to
@@ -2041,12 +2056,9 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           specRadius_(ip, jp, kp) += specRad * viscCoeff;
 
 
-          // if using block matrix on main diagonal, calculate flux jacobian
+          // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
-            // mainDiagonal(ip, jp, kp).AddViscousJacobian(
-            //     state_(ig, jg, kg), fAreaI_(ig, jg, kg),
-            //     fAreaI_(ig + 1, jg, kg), eqnState, suth,
-            //     vol_(ig, jg, kg), turb, inp.IsTurbulent());
+            mainDiagonal(ip, jp, kp) += fluxJac * this->FAreaMagI(ig, jg, kg);
           } else {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
             mainDiagonal(ip, jp, kp) += fluxJacobian(2.0 * specRad);
@@ -2194,6 +2206,15 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                                        tkeGrad, omegaGrad, turb, state, mu,
                                        mut, f1);
 
+        // if using block matrix on main diagonal, calculate flux jacobian
+        fluxJacobian fluxJac;
+        if (inp.IsBlockMatrix()) {
+          fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
+                                    this->FAreaUnitJ(ig, jg, kg), wDist,
+                                    turb, inp);
+        }
+
+
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
         // fluxes, so sign is reversed
@@ -2212,6 +2233,12 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
             eddyViscosity_(ig, jg - 1, kg) += sixth * mut;
             f1_(ig, jg - 1, kg) += sixth * f1;
             f2_(ig, jg - 1, kg) += sixth * f2;
+          }
+
+          // if using block matrix on main diagonal, accumulate flux jacobian
+          if (inp.IsBlockMatrix()) {
+            mainDiagonal(ip, jp - 1, kp) -= fluxJac *
+                this->FAreaMagJ(ig, jg, kg);
           }
         }
         // at right boundary there is no right cell to add to
@@ -2250,12 +2277,9 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           specRadius_(ip, jp, kp) += specRad * viscCoeff;
 
 
-          // if using block matrix on main diagonal, calculate flux jacobian
+          // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
-            // mainDiagonal(ip, jp, kp).AddViscousJacobian(
-            //     state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
-            //     fAreaJ_(ig, jg + 1, kg), eqnState, suth,
-            //     vol_(ig, jg, kg), turb, inp.IsTurbulent());
+            mainDiagonal(ip, jp, kp) += fluxJac * this->FAreaMagJ(ig, jg, kg);
           } else {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
             mainDiagonal(ip, jp, kp) += fluxJacobian(2.0 * specRad);
@@ -2403,6 +2427,15 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                                        tkeGrad, omegaGrad, turb, state, mu,
                                        mut, f1);
 
+        // if using block matrix on main diagonal, calculate flux jacobian
+        fluxJacobian fluxJac;
+        if (inp.IsBlockMatrix()) {
+          fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
+                                    this->FAreaUnitK(ig, jg, kg), wDist,
+                                    turb, inp);
+        }
+
+
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
         // fluxes, so sign is reversed
@@ -2421,6 +2454,12 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
             eddyViscosity_(ig, jg, kg - 1) += sixth * mut;
             f1_(ig, jg, kg - 1) += sixth * f1;
             f2_(ig, jg, kg - 1) += sixth * f2;
+          }
+
+          // if using block matrix on main diagonal, accumulate flux jacobian
+          if (inp.IsBlockMatrix()) {
+            mainDiagonal(ip, jp, kp - 1) -= fluxJac *
+                this->FAreaMagK(ig, jg, kg);
           }
         }
         // at right boundary there is no right cell to add to
@@ -2459,12 +2498,9 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           specRadius_(ip, jp, kp) += specRad * viscCoeff;
 
 
-          // if using block matrix on main diagonal, calculate flux jacobian
+          // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
-            // mainDiagonal(ip, jp, kp).AddViscousJacobian(
-            //     state_(ig, jg, kg), fAreaK_(ig, jg, kg),
-            //     fAreaK_(ig, jg, kg + 1), eqnState, suth,
-            //     vol_(ig, jg, kg), turb, inp.IsTurbulent());
+            mainDiagonal(ip, jp, kp) += fluxJac * this->FAreaMagK(ig, jg, kg);
           } else {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
             mainDiagonal(ip, jp, kp) += fluxJacobian(2.0 * specRad);
