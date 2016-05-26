@@ -493,3 +493,33 @@ genArray RoeOffDiagonal(const primVars &left, const primVars &right,
       0.5 * specRad.ArrayMult(update);
 }
 
+void fluxJacobian::MultiplyOnDiagonal(const double &val,
+                                      const bool &isTurbulent) {
+  // val -- value to multiply along diagonal
+  // isTurbulent -- flag identifiying if simulation is turbulent
+
+  for (auto ii = 0; ii < flowJacobian_.Size(); ii++) {
+    flowJacobian_(ii, ii) *= val;
+  }
+
+  if (isTurbulent) {
+    for (auto ii = 0; ii < turbJacobian_.Size(); ii++) {
+      turbJacobian_(ii, ii) *= val;
+    }
+  }
+}
+
+void fluxJacobian::AddOnDiagonal(const double &val, const bool &isTurbulent) {
+  // val -- value to multiply along diagonal
+  // isTurbulent -- flag identifiying if simulation is turbulent
+
+  for (auto ii = 0; ii < flowJacobian_.Size(); ii++) {
+    flowJacobian_(ii, ii) += val;
+  }
+
+  if (isTurbulent) {
+    for (auto ii = 0; ii < turbJacobian_.Size(); ii++) {
+      turbJacobian_(ii, ii) += val;
+    }
+  }
+}

@@ -68,6 +68,9 @@ class fluxJacobian {
   void SubtractFromFlowJacobian(const squareMatrix &jac) {flowJacobian_ -= jac;}
   void SubtractFromTurbJacobian(const squareMatrix &jac) {turbJacobian_ -= jac;}
 
+  void MultiplyOnDiagonal(const double &, const bool &);
+  void AddOnDiagonal(const double &, const bool &);
+
   void RusanovFluxJacobian(const primVars &, const primVars &,
                            const idealGas &, const vector3d<double> &,
                            const bool &, const input &);

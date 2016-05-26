@@ -1059,8 +1059,9 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
         }
 
         // add volume and time term
-        mainDiagonal(ip, jp, kp) *= inp.MatrixRelaxation();
-        mainDiagonal(ip, jp, kp) += diagVolTime;
+        mainDiagonal(ip, jp, kp).MultiplyOnDiagonal(inp.MatrixRelaxation(),
+                                                    isTurbulent_);
+        mainDiagonal(ip, jp, kp).AddOnDiagonal(diagVolTime, isTurbulent_);
 
         // invert main diagonal
         mainDiagonal(ip, jp, kp).Inverse(isTurbulent_);
