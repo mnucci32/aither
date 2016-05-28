@@ -20,6 +20,7 @@
 #include "turbulence.hpp"
 #include "primVars.hpp"  // primVars
 #include "eos.hpp"       // sutherland
+#include "matrix.hpp"    // squareMatrix
 
 using std::cout;
 using std::endl;
@@ -161,20 +162,26 @@ void turbNone::Print() const {
 }
 
 // member function to calculate turbulence source terms
-double turbNone::CalcTurbSrc(const primVars &state,
-                             const tensor<double> &velGrad,
-                             const vector3d<double> &kGrad,
-                             const vector3d<double> &wGrad,
-                             const sutherland &suth, const double &vol,
-                             const double &turbVisc, const double &f1,
-                             double &ksrc, double &wsrc) const {
+squareMatrix turbNone::CalcTurbSrc(const primVars &state,
+                                   const tensor<double> &velGrad,
+                                   const vector3d<double> &kGrad,
+                                   const vector3d<double> &wGrad,
+                                   const sutherland &suth, const double &vol,
+                                   const double &turbVisc, const double &f1,
+                                   double &ksrc, double &wsrc) const {
   // set k and omega source terms to zero
   ksrc = 0.0;
   wsrc = 0.0;
 
   // return source jacobian spectral radius
-  return this->SrcSpecRad(state, suth, vol);
+  return this->TurbSrcJac(state, 0.0, suth);
 }
+
+squareMatrix turbNone::TurbSrcJac(const primVars &state, const double &beta,
+                                  const sutherland &suth) const {
+  return squareMatrix(2);
+}
+
 
 // ---------------------------------------------------------------------
 // K-Omega Wilcox member functions
@@ -273,14 +280,15 @@ double turbKWWilcox::OmegaTilda(const primVars &state,
 }
 
 // member function to calculate turbulence source terms and return source
-// spectral radius
-double turbKWWilcox::CalcTurbSrc(const primVars &state,
-                                 const tensor<double> &velGrad,
-                                 const vector3d<double> &kGrad,
-                                 const vector3d<double> &wGrad,
-                                 const sutherland &suth, const double &vol,
-                                 const double &mut, const double &f1,
-                                 double &ksrc, double &wsrc) const {
+// jacobian
+squareMatrix turbKWWilcox::CalcTurbSrc(const primVars &state,
+                                       const tensor<double> &velGrad,
+                                       const vector3d<double> &kGrad,
+                                       const vector3d<double> &wGrad,
+                                       const sutherland &suth,
+                                       const double &vol,
+                                       const double &mut, const double &f1,
+                                       double &ksrc, double &wsrc) const {
   // state -- primative variables
   // velGrad -- velocity gradient
   // kGrad -- tke gradient
@@ -297,8 +305,9 @@ double turbKWWilcox::CalcTurbSrc(const primVars &state,
       this->TkeDestruction(state);
 
   // calculate omega destruction
-  const auto omgDest = suth.InvNondimScaling() *
-      this->Beta(state, velGrad, suth) * this->OmegaDestruction(state);
+  const auto beta = this->Beta(state, velGrad, suth);
+  const auto omgDest = suth.InvNondimScaling() * beta *
+      this->OmegaDestruction(state);
 
   // calculate tke production
   const auto tkeProd = suth.NondimScaling() *
@@ -315,8 +324,8 @@ double turbKWWilcox::CalcTurbSrc(const primVars &state,
   ksrc = tkeProd - tkeDest;
   wsrc = omgProd - omgDest + omgCd;
 
-  // return spectral radius of source jacobian
-  return this->SrcSpecRad(state, suth, vol);
+  // return source jacobian
+  return this->TurbSrcJac(state, beta, suth);
 }
 
 // member function to calculate the eddy viscosity, and the blending
@@ -367,6 +376,21 @@ double turbKWWilcox::SrcSpecRad(const primVars &state,
 
   // return spectral radius scaled for nondimensional equations
   return -2.0 * betaStar_ * state.Omega() * vol * suth.InvNondimScaling();
+}
+
+squareMatrix turbKWWilcox::TurbSrcJac(const primVars &state,
+                                      const double &beta,
+                                      const sutherland &suth) const {
+  // state -- primative variables
+  // beta -- destruction coefficient for omega equation
+  // suth -- sutherland's law for viscosity
+
+  squareMatrix jac(2);
+  jac(0, 0) = -2.0 * betaStar_ * state.Omega() * suth.InvNondimScaling();
+  jac(1, 1) = -2.0 * beta * state.Omega() * suth.InvNondimScaling();
+
+  // return jacobian scaled for nondimensional equations
+  return jac;
 }
 
 // member function to calculate viscous spectral radius
@@ -478,15 +502,14 @@ double turbKWSst::Alpha3(const primVars &state, const double &wallDist,
       (cdkw * wallDist * wallDist);
 }
 
-// member function to calculate turbulence source terms and source spectral
-// radius
-double turbKWSst::CalcTurbSrc(const primVars &state,
-                              const tensor<double> &velGrad,
-                              const vector3d<double> &kGrad,
-                              const vector3d<double> &wGrad,
-                              const sutherland &suth, const double &vol,
-                              const double &mut, const double &f1,
-                              double &ksrc, double &wsrc) const {
+// member function to calculate turbulence source terms and source jacobian
+squareMatrix turbKWSst::CalcTurbSrc(const primVars &state,
+                                    const tensor<double> &velGrad,
+                                    const vector3d<double> &kGrad,
+                                    const vector3d<double> &wGrad,
+                                    const sutherland &suth, const double &vol,
+                                    const double &mut, const double &f1,
+                                    double &ksrc, double &wsrc) const {
   // state -- primative variables
   // velGrad -- velocity gradient
   // kGrad -- tke gradient
@@ -532,7 +555,7 @@ double turbKWSst::CalcTurbSrc(const primVars &state,
   wsrc = omgProd - omgDest + omgCd;
 
   // return spectral radius of source jacobian
-  return this->SrcSpecRad(state, suth, vol);
+  return this->TurbSrcJac(state, beta, suth);
 }
 
 // member function to calculate the eddy viscosity, and the blending
@@ -587,6 +610,21 @@ double turbKWSst::SrcSpecRad(const primVars &state,
 
   // return spectral radius scaled for nondimensional equations
   return -2.0 * betaStar_ * state.Omega() * vol * suth.InvNondimScaling();
+}
+
+squareMatrix turbKWSst::TurbSrcJac(const primVars &state,
+                                   const double &beta,
+                                   const sutherland &suth) const {
+  // state -- primative variables
+  // beta -- destruction coefficient for omega equation
+  // suth -- sutherland's law for viscosity
+
+  squareMatrix jac(2);
+  jac(0, 0) = -2.0 * betaStar_ * state.Omega() * suth.InvNondimScaling();
+  jac(1, 1) = -2.0 * beta * state.Omega() * suth.InvNondimScaling();
+
+  // return jacobian scaled for nondimensional equations
+  return jac;
 }
 
 

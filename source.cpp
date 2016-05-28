@@ -24,6 +24,7 @@
 #include "primVars.hpp"
 #include "vector3d.hpp"
 #include "tensor.hpp"
+#include "matrix.hpp"
 
 using std::cout;
 using std::endl;
@@ -45,13 +46,14 @@ ostream &operator<<(ostream &os, const source &src) {
 }
 
 // Member function to calculate the source terms for the turbulence equations
-double source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
-                           const primVars &state, const tensor<double> &velGrad,
-                           const vector3d<double> &tGrad,
-                           const vector3d<double> &tkeGrad,
-                           const vector3d<double> &omegaGrad,
-                           const sutherland &suth, const double &vol,
-                           const double &mut, const double &f1) {
+squareMatrix source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
+                                 const primVars &state,
+                                 const tensor<double> &velGrad,
+                                 const vector3d<double> &tGrad,
+                                 const vector3d<double> &tkeGrad,
+                                 const vector3d<double> &omegaGrad,
+                                 const sutherland &suth, const double &vol,
+                                 const double &mut, const double &f1) {
   // turb -- turbulence model
   // state -- primative variables
   // velGrad -- velocity gradient
@@ -66,13 +68,13 @@ double source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
   // calculate turbulent source terms
   auto ksrc = 0.0;
   auto wsrc = 0.0;
-  auto srcJacSpecRad = turb->CalcTurbSrc(state, velGrad, tkeGrad, omegaGrad,
-                                         suth, vol, mut, f1, ksrc, wsrc);
+  auto srcJac = turb->CalcTurbSrc(state, velGrad, tkeGrad, omegaGrad, suth, vol,
+                                  mut, f1, ksrc, wsrc);
 
   // assign turbulent source terms
   data_[5] = ksrc;
   data_[6] = wsrc;
 
-  // return spectral radius of source jacobian
-  return srcJacSpecRad;
+  // return source jacobian
+  return srcJac;
 }

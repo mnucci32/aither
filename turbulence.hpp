@@ -34,6 +34,7 @@ using std::string;
 class primVars;
 class sutherland;
 class idealGas;
+class squareMatrix;
 
 class turbModel {
   const string eddyViscMethod_;
@@ -99,14 +100,14 @@ class turbModel {
                         const double & f1, const bool &addSrc) const;
 
   // abstract functions
-  virtual double CalcTurbSrc(const primVars &state,
-                             const tensor<double> &velGrad,
-                             const vector3d<double> &kGrad,
-                             const vector3d<double> &wGrad,
-                             const sutherland &suth,
-                             const double &vol,
-                             const double &mut, const double &f1,
-                             double &ksrc, double &wsrc) const = 0;
+  virtual squareMatrix CalcTurbSrc(const primVars &state,
+                                   const tensor<double> &velGrad,
+                                   const vector3d<double> &kGrad,
+                                   const vector3d<double> &wGrad,
+                                   const sutherland &suth,
+                                   const double &vol,
+                                   const double &mut, const double &f1,
+                                   double &ksrc, double &wsrc) const = 0;
   virtual void EddyViscAndBlending(const primVars &state,
                                    const tensor<double> &vGrad,
                                    const vector3d<double> &kGrad,
@@ -116,6 +117,9 @@ class turbModel {
                                    const sutherland &suth,
                                    double &mut, double &f1,
                                    double &f2) const = 0;
+  virtual squareMatrix TurbSrcJac(const primVars &state,
+                                  const double &beta,
+                                  const sutherland &suth) const = 0;
 
   virtual void Print() const = 0;
 
@@ -138,12 +142,12 @@ class turbNone : public turbModel {
   turbNone& operator=(const turbNone&) = default;
 
   // member functions
-  double CalcTurbSrc(const primVars &state, const tensor<double> &velGrad,
-                     const vector3d<double> &kGrad,
-                     const vector3d<double> &wGrad,
-                     const sutherland &suth, const double &vol,
-                     const double &mut, const double &f1, double &ksrc,
-                     double &wsrc) const override;
+  squareMatrix CalcTurbSrc(const primVars &state, const tensor<double> &velGrad,
+                           const vector3d<double> &kGrad,
+                           const vector3d<double> &wGrad,
+                           const sutherland &suth, const double &vol,
+                           const double &mut, const double &f1, double &ksrc,
+                           double &wsrc) const override;
   void EddyViscAndBlending(const primVars &state,
                            const tensor<double> &vGrad,
                            const vector3d<double> &kGrad,
@@ -159,6 +163,9 @@ class turbNone : public turbModel {
                          const unitVec3dMag<double> &fAreaR) const override {
     return 0.0;
   }
+
+  squareMatrix TurbSrcJac(const primVars &state, const double &beta,
+                          const sutherland &suth) const override;
 
   double TkeMin() const override {return 0.0;}
   double OmegaMin() const override {return 0.0;}
@@ -202,11 +209,11 @@ class turbKWWilcox : public turbModel {
   turbKWWilcox& operator=(const turbKWWilcox&) = default;
 
   // member functions
-  double CalcTurbSrc(const primVars &, const tensor<double> &,
-                     const vector3d<double> &, const vector3d<double> &,
-                     const sutherland &, const double &,
-                     const double &, const double &, double &,
-                     double &) const override;
+  squareMatrix CalcTurbSrc(const primVars &, const tensor<double> &,
+                           const vector3d<double> &, const vector3d<double> &,
+                           const sutherland &, const double &,
+                           const double &, const double &, double &,
+                           double &) const override;
   double EddyVisc(const primVars&, const tensor<double> &,
                   const sutherland &, const double &) const override;
   void EddyViscAndBlending(const primVars &, const tensor<double> &,
@@ -224,6 +231,8 @@ class turbKWWilcox : public turbModel {
                      const double &, const sutherland &,
                      const double &, const double &,
                      const double &) const override;
+  squareMatrix TurbSrcJac(const primVars &, const double &,
+                          const sutherland &) const override;
 
   double TurbPrandtlNumber() const override {return prt_;}
   double WallBeta() const override {return beta0_;}
@@ -285,11 +294,11 @@ class turbKWSst : public turbModel {
   turbKWSst& operator=(const turbKWSst&) = default;
 
   // member functions
-  double CalcTurbSrc(const primVars &, const tensor<double> &,
-                     const vector3d<double> &, const vector3d<double> &,
-                     const sutherland &, const double &,
-                     const double &, const double &, double &,
-                     double &) const override;
+  squareMatrix CalcTurbSrc(const primVars &, const tensor<double> &,
+                           const vector3d<double> &, const vector3d<double> &,
+                           const sutherland &, const double &,
+                           const double &, const double &, double &,
+                           double &) const override;
   double EddyVisc(const primVars &, const tensor<double> &,
                   const sutherland &, const double &) const override;
   void EddyViscAndBlending(const primVars &, const tensor<double> &,
@@ -307,6 +316,8 @@ class turbKWSst : public turbModel {
                      const double &, const sutherland &,
                      const double &, const double &,
                      const double &) const override;
+  squareMatrix TurbSrcJac(const primVars &, const double &,
+                          const sutherland &) const override;
 
   double WallBeta() const override {return beta1_;}
   double TurbPrandtlNumber() const override {return prt_;}

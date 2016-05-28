@@ -52,10 +52,10 @@ matrix.o : matrix.cpp matrix.hpp macros.hpp genArray.hpp
 genArray.o : genArray.cpp genArray.hpp macros.hpp
 	$(CC) $(CFLAGS) genArray.cpp
 
-turbulence.o : turbulence.cpp turbulence.hpp
+turbulence.o : turbulence.cpp turbulence.hpp matrix.hpp vector3d.hpp tensor.hpp primVars.hpp eos.hpp
 	$(CC) $(CFLAGS) turbulence.cpp
 
-source.o : source.cpp source.hpp macros.hpp turbulence.hpp primVars.hpp
+source.o : source.cpp source.hpp macros.hpp turbulence.hpp primVars.hpp matrix.hpp
 	$(CC) $(CFLAGS) source.cpp
 
 resid.o : resid.cpp resid.hpp

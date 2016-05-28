@@ -7300,16 +7300,17 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
                                    ip, jp, kp);
 
         // add source spectral radius for turbulence equations
-        const auto srcSpecRad = turb->SrcSpecRad(state_(ig, jg, kg), suth,
-                                                 vol_(ig, jg, kg));
-        specRadius_(ip, jp, kp).SubtractFromTurbVariable(srcSpecRad);
+        // subtract because residual is initially on opposite side of equation
+        const auto turbSpecRad = turb->SrcSpecRad(state_(ig, jg, kg), suth,
+                                                  vol_(ig, jg, kg));
+        specRadius_(ip, jp, kp).SubtractFromTurbVariable(turbSpecRad);
 
         // add contribution of source spectral radius to flux jacobian
         if (inp.IsBlockMatrix()) {
-          // mainDiagonal(ip, jp, kp).AddTurbSourceJacobian(
-          //     state_(ig, jg, kg), suth, vol_(ig, jg, kg), turb);
+          mainDiagonal(ip, jp, kp).SubtractFromTurbJacobian(srcJac *
+                                                            vol_(ig, jg, kg));
         } else {
-          const uncoupledScalar srcJacScalar(0.0, srcJac);
+          const uncoupledScalar srcJacScalar(0.0, turbSpecRad);
           mainDiagonal(ip, jp, kp) -= fluxJacobian(srcJacScalar);
         }
       }

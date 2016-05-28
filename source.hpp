@@ -43,6 +43,7 @@ using std::unique_ptr;
 class primVars;
 class turbModel;
 class sutherland;
+class squareMatrix;
 
 class source {
   double data_[NUMVARS];  // source variables at cell center
@@ -68,11 +69,11 @@ class source {
   double SrcTke() const { return data_[5]; }
   double SrcOmg() const { return data_[6]; }
 
-  double CalcTurbSrc(const unique_ptr<turbModel> &, const primVars &,
-                     const tensor<double> &, const vector3d<double> &,
-                     const vector3d<double> &, const vector3d<double> &,
-                     const sutherland &, const double &, const double &,
-                     const double &);
+  squareMatrix CalcTurbSrc(const unique_ptr<turbModel> &, const primVars &,
+                           const tensor<double> &, const vector3d<double> &,
+                           const vector3d<double> &, const vector3d<double> &,
+                           const sutherland &, const double &, const double &,
+                           const double &);
 
   inline source & operator+=(const source &);
   inline source & operator-=(const source &);
