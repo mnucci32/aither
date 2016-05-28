@@ -108,7 +108,7 @@ ostream &operator<<(ostream &os, const squareMatrix &);
 
 // operator overload for addition
 squareMatrix & squareMatrix::operator+=(const squareMatrix &mat) {
-  for (auto ii = 0; ii < static_cast<int>(mat.data_.size()); ii++) {
+  for (auto ii = 0U; ii < mat.data_.size(); ii++) {
     data_[ii] += mat.data_[ii];
   }
   return *this;
@@ -116,7 +116,7 @@ squareMatrix & squareMatrix::operator+=(const squareMatrix &mat) {
 
 // operator overload for subtraction
 squareMatrix & squareMatrix::operator-=(const squareMatrix &mat) {
-  for (auto ii = 0; ii < static_cast<int>(mat.data_.size()); ii++) {
+  for (auto ii = 0U; ii < mat.data_.size(); ii++) {
     data_[ii] -= mat.data_[ii];
   }
   return *this;
@@ -124,7 +124,7 @@ squareMatrix & squareMatrix::operator-=(const squareMatrix &mat) {
 
 // operator overload for elementwise multiplication
 squareMatrix & squareMatrix::operator*=(const squareMatrix &mat) {
-  for (auto ii = 0; ii < static_cast<int>(mat.data_.size()); ii++) {
+  for (auto ii = 0U; ii < mat.data_.size(); ii++) {
     data_[ii] *= mat.data_[ii];
   }
   return *this;
@@ -132,7 +132,7 @@ squareMatrix & squareMatrix::operator*=(const squareMatrix &mat) {
 
 // operator overload for elementwise multiplication
 squareMatrix & squareMatrix::operator/=(const squareMatrix &mat) {
-  for (auto ii = 0; ii < static_cast<int>(mat.data_.size()); ii++) {
+  for (auto ii = 0U; ii < mat.data_.size(); ii++) {
     data_[ii] /= mat.data_[ii];
   }
   return *this;

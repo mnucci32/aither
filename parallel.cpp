@@ -63,7 +63,7 @@ decomposition ManualDecomposition(vector<plot3dBlock> &grid,
   cout << "Using manual grid decomposition." << endl;
 
   decomposition decomp(grid.size(), numProc);
-  for (auto ii = 1; ii < static_cast<int>(grid.size()); ii++) {
+  for (auto ii = 1U; ii < grid.size(); ii++) {
     decomp.SendToProc(ii, ROOTP, ii);  // send block from ROOT to processor
   }
 
@@ -129,7 +129,7 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid,
       auto newBcs = bcs[blk].Split(dir, ind, blk, newBlk, altSurf);
       bcs.push_back(newBcs);
 
-      for (auto ii = 0; ii < static_cast<int>(altSurf.size()); ii++) {
+      for (auto ii = 0U; ii < altSurf.size(); ii++) {
         bcs[altSurf[ii].PartnerBlock()].DependentSplit(
             altSurf[ii], grid[blk], grid[altSurf[ii].PartnerBlock()],
             altSurf[ii].PartnerBlock(), dir, ind, blk, newBlk);
@@ -375,7 +375,7 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
   //------------------------------------------------------------------------
   if (rank == ROOTP) {  // may have to pack and send data
     // loop over ALL blocks
-    for (auto ii = 0; ii < static_cast<int>(blocks.size()); ii++) {
+    for (auto ii = 0U; ii < blocks.size(); ii++) {
       // no need to send data because it is already on root processor
       if (blocks[ii].Rank() == ROOTP) {
         localBlocks[blocks[ii].LocalPosition()] = blocks[ii];
@@ -427,8 +427,7 @@ void GetProcBlocks(vector<procBlock> &blocks,
   //                                      ROOT
   //--------------------------------------------------------------------------
   if (rank == ROOTP) {  // may have to recv and unpack data
-    for (auto ii = 0; ii < static_cast<int>(blocks.size());
-         ii++) {                        // loop over ALL blocks
+    for (auto ii = 0U; ii < blocks.size(); ii++) {  // loop over ALL blocks
       if (blocks[ii].Rank() == ROOTP) {  // no need to recv data because it is
                                         // already on ROOT processor
         // assign local state block to global state block in order of local
@@ -445,15 +444,15 @@ void GetProcBlocks(vector<procBlock> &blocks,
   } else {  // pack and send data (non-root)
     // get vector of local positions
     vector<int> localPos_(localBlocks.size());
-    for (auto ii = 0; ii < static_cast<int>(localPos_.size()); ii++) {
+    for (auto ii = 0U; ii < localPos_.size(); ii++) {
       localPos_[ii] = localBlocks[ii].LocalPosition();
     }
 
-    for (auto ii = 0; ii < static_cast<int>(localBlocks.size()); ii++) {
+    for (auto ii = 0U; ii < localBlocks.size(); ii++) {
       // need to send data in order of global position, not local position to
       // prevent deadlock
       auto minGlobal = 0;
-      for (auto jj = 0; jj < static_cast<int>(localPos_.size()); jj++) {
+      for (auto jj = 0U; jj < localPos_.size(); jj++) {
         if (localBlocks[localPos_[jj]].GlobalPos() <
             localBlocks[minGlobal].GlobalPos()) {
           minGlobal = jj;
@@ -526,7 +525,7 @@ double decomposition::IdealLoad(const vector<plot3dBlock> &grid) const {
   // grid -- vector of plot3dBlocks containing entire grid
 
   auto totalCells = 0;
-  for (auto ii = 0; ii < static_cast<int>(grid.size()); ii++) {
+  for (auto ii = 0U; ii < grid.size(); ii++) {
     totalCells += grid[ii].NumCells();
   }
 
@@ -541,7 +540,7 @@ double decomposition::MaxLoad(const vector<plot3dBlock> &grid) const {
   // decomposition)
 
   vector<int> load(numProcs_, 0);
-  for (auto ii = 0; ii < static_cast<int>(grid.size()); ii++) {
+  for (auto ii = 0U; ii < grid.size(); ii++) {
     load[rank_[ii]] += grid[ii].NumCells();
   }
 
@@ -555,7 +554,7 @@ double decomposition::MinLoad(const vector<plot3dBlock> &grid) const {
   // decomposition)
 
   vector<int> load(numProcs_, 0);
-  for (auto ii = 0; ii < static_cast<int>(grid.size()); ii++) {
+  for (auto ii = 0U; ii < grid.size(); ii++) {
     load[rank_[ii]] += grid[ii].NumCells();
   }
 
@@ -571,7 +570,7 @@ int decomposition::MostOverloadedProc(const vector<plot3dBlock> &grid,
   // overload -- how much the processor is overloaded by
 
   vector<int> load(numProcs_, 0);
-  for (auto ii = 0; ii < static_cast<int>(grid.size()); ii++) {
+  for (auto ii = 0U; ii < grid.size(); ii++) {
     load[rank_[ii]] += grid[ii].NumCells();
   }
 
@@ -588,7 +587,7 @@ int decomposition::MostUnderloadedProc(const vector<plot3dBlock> &grid,
   // underload -- how much processor is underloaded by
 
   vector<int> load(numProcs_, 0);
-  for (auto ii = 0; ii < static_cast<int>(grid.size()); ii++) {
+  for (auto ii = 0U; ii < grid.size(); ii++) {
     load[rank_[ii]] += grid[ii].NumCells();
   }
 
@@ -601,7 +600,7 @@ int decomposition::NumBlocksOnProc(const int &a) const {
   // a -- processor rank_ to find number of blocks on
 
   auto num = 0;
-  for (auto ii = 0; ii < static_cast<int>(rank_.size()); ii++) {
+  for (auto ii = 0U; ii < rank_.size(); ii++) {
     if (rank_[ii] == a) {
       num++;
     }
@@ -612,7 +611,7 @@ int decomposition::NumBlocksOnProc(const int &a) const {
 /*Member function to return the number of blocks on all processors.*/
 vector<int> decomposition::NumBlocksOnAllProc() const {
   vector<int> num(numProcs_, 0);
-  for (auto ii = 0; ii < static_cast<int>(rank_.size()); ii++) {
+  for (auto ii = 0U; ii < rank_.size(); ii++) {
     num[rank_[ii]]++;
   }
   return num;
@@ -637,7 +636,7 @@ void decomposition::SendToProc(const int &blk, const int &fromProc,
 
   // all procBlocks on same processor with a local position higher than oldPos
   // should be moved down one
-  for (auto ii = 0; ii < static_cast<int>(localPos_.size()); ii++) {
+  for (auto ii = 0U; ii < localPos_.size(); ii++) {
     if (rank_[ii] == fromProc &&
         localPos_[ii] > oldPos) {  // procBlock is on given processor
                                    // and in "higher" position than the
@@ -697,7 +696,7 @@ double decomposition::ProcLoad(const vector<plot3dBlock> &grid,
   // proc -- rank of processor to calculate load for
 
   auto load = 0;
-  for (auto ii = 0; ii < static_cast<int>(grid.size()); ii++) {
+  for (auto ii = 0U; ii < grid.size(); ii++) {
     if (rank_[ii] == proc) {
       load += grid[ii].NumCells();
     }
@@ -740,7 +739,7 @@ int decomposition::SendWholeOrSplit(const vector<plot3dBlock> &grid,
 
   // find out if there is a block that can be sent that would improve both
   // ratios
-  for (auto ii = 0; ii < static_cast<int>(grid.size()); ii++) {
+  for (auto ii = 0U; ii < grid.size(); ii++) {
     if (rank_[ii] == send) {
       auto newSendRatio = fabs(
           1.0 - (sendLoad - static_cast<double>(grid[ii].NumCells())) / ideal);
@@ -756,7 +755,7 @@ int decomposition::SendWholeOrSplit(const vector<plot3dBlock> &grid,
 
   // find out which block to split - largest
   auto bSize = 0;
-  for (auto ii = 0; ii < static_cast<int>(grid.size()); ii++) {
+  for (auto ii = 0U; ii < grid.size(); ii++) {
     if (rank_[ii] == send) {
       if (grid[ii].NumCells() > bSize) {
         blk = ii;
@@ -808,7 +807,7 @@ int decomposition::SendWholeOrSplit(const vector<plot3dBlock> &grid,
 
 void decomposition::PrintDiagnostics(const vector<plot3dBlock> &grid) const {
   cout << "Decomposition for " << numProcs_ << " processors" << endl;
-  for (auto ii = 0; ii < static_cast<int>(rank_.size()); ii++) {
+  for (auto ii = 0U; ii < rank_.size(); ii++) {
     cout << "Block: " << ii << "; Rank: " << rank_[ii]
          << ", Parent Block: " << parBlock_[ii]
          << ", Local Position: " << localPos_[ii]
@@ -818,7 +817,7 @@ void decomposition::PrintDiagnostics(const vector<plot3dBlock> &grid) const {
          << ", Num Cells: " << grid[ii].NumCells() << endl;
   }
   cout << "Split History" << endl;
-  for (auto ii = 0; ii < static_cast<int>(splitHistBlkLow_.size()); ii++) {
+  for (auto ii = 0U; ii < splitHistBlkLow_.size(); ii++) {
     cout << "Split Number: " << ii
          << "; Lower Index: " << splitHistBlkLow_[ii]
          << ", Upper Index: " << splitHistBlkUp_[ii]

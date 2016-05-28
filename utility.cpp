@@ -250,7 +250,7 @@ void SwapGeomSlice(interblock &inter, procBlock &blk1, procBlock &blk2) {
                                           blk1.NumGhosts());
 
   // if an interblock border needs to be updated, update
-  for (auto ii = 0; ii < static_cast<int>(adjEdge1.size()); ii++) {
+  for (auto ii = 0U; ii < adjEdge1.size(); ii++) {
     if (adjEdge1[ii]) {
       inter.UpdateBorderFirst(ii);
     }
@@ -279,12 +279,12 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
   // MPI_cellData -- data type to pass primVars, genArray
 
   // loop over all blocks and assign inviscid ghost cells
-  for (auto ii = 0; ii < static_cast<int>(states.size()); ii++) {
+  for (auto ii = 0U; ii < states.size(); ii++) {
     states[ii].AssignInviscidGhostCells(inp, eos, suth, turb);
   }
 
   // loop over connections and swap ghost cells where needed
-  for (auto ii = 0; ii < static_cast<int>(connections.size()); ii++) {
+  for (auto ii = 0U; ii < connections.size(); ii++) {
     if (connections[ii].RankFirst() == rank &&
         connections[ii].RankSecond() == rank) {  // both sides of interblock
                                                   // are on this processor, swap
@@ -309,7 +309,7 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
   }
 
   // loop over all blocks and get ghost cell edge data
-  for (auto ii = 0; ii < static_cast<int>(states.size()); ii++) {
+  for (auto ii = 0U; ii < states.size(); ii++) {
     states[ii].AssignInviscidGhostCellsEdge(inp, eos, suth, turb);
   }
 }
@@ -322,13 +322,13 @@ vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &blks) {
   // get vector of BCs
   vector<boundaryConditions> bcs;
   bcs.reserve(blks.size());
-  for (auto ii = 0; ii < static_cast<int>(blks.size()); ii++) {
+  for (auto ii = 0U; ii < blks.size(); ii++) {
     bcs.push_back(blks[ii].BC());
   }
 
   // determine number of faces with viscous wall BC
   auto nFaces = 0;
-  for (auto ii = 0; ii < static_cast<int>(bcs.size()); ii++) {
+  for (auto ii = 0U; ii < bcs.size(); ii++) {
     nFaces += bcs[ii].NumViscousFaces();
   }
 
@@ -339,7 +339,7 @@ vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &blks) {
   const auto numG = blks[0].NumGhosts();  // number of ghost cells
 
   // store viscous face centers
-  for (auto aa = 0; aa < static_cast<int>(bcs.size()); aa++) {  // loop over BCs
+  for (auto aa = 0U; aa < bcs.size(); aa++) {  // loop over BCs
     for (auto bb = 0; bb < bcs[aa].NumSurfaces(); bb++) {  // loop over surfaces
       if (bcs[aa].GetBCTypes(bb) == "viscousWall") {
         // only store face center if surface is viscous wall
@@ -399,7 +399,7 @@ vector<multiArray3d<genArray>> GetCopyConsVars(const vector<procBlock> &blocks,
                                                const idealGas &eos) {
   vector<multiArray3d<genArray>> consVars(blocks.size());
 
-  for (auto ii = 0; ii < static_cast<int>(blocks.size()); ii++) {
+  for (auto ii = 0U; ii < blocks.size(); ii++) {
     consVars[ii] = blocks[ii].GetCopyConsVars(eos);
   }
   return consVars;
@@ -414,7 +414,7 @@ void ExplicitUpdate(vector<procBlock> &blocks,
   // create dummy update (not used in explicit update)
   multiArray3d<genArray> du(1, 1, 1);
   // loop over all blocks: update and reset residuals / wave speed
-  for (auto bb = 0; bb < static_cast<int>(blocks.size()); bb++) {
+  for (auto bb = 0U; bb < blocks.size(); bb++) {
     blocks[bb].UpdateBlock(inp, eos, aRef, suth, du, solTimeN[bb],
                                      turb, mm, residL2, residLinf);
   }
@@ -451,13 +451,13 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   const auto numG = blocks[0].NumGhosts();
 
   // add volume and time term and calculate inverse of main diagonal
-  for (auto bb = 0; bb < static_cast<int>(blocks.size()); bb++) {
+  for (auto bb = 0U; bb < blocks.size(); bb++) {
     blocks[bb].InvertDiagonal(mainDiagonal[bb], inp);
   }
 
   // initialize matrix update
   vector<multiArray3d<genArray>> du(blocks.size());
-  for (auto bb = 0; bb < static_cast<int>(blocks.size()); bb++) {
+  for (auto bb = 0U; bb < blocks.size(); bb++) {
     du[bb] = blocks[bb].InitializeMatrixUpdate(inp, solDeltaMmN[bb],
                                                solDeltaNm1[bb],
                                                mainDiagonal[bb]);
@@ -467,7 +467,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   if (inp.MatrixSolver() == "lusgs" || inp.MatrixSolver() == "blusgs") {
     // calculate order by hyperplanes for each block
     vector<vector<vector3d<int>>> reorder(blocks.size());
-    for (auto bb = 0; bb < static_cast<int>(blocks.size()); bb++) {
+    for (auto bb = 0U; bb < blocks.size(); bb++) {
       reorder[bb] = HyperplaneReorder(blocks[bb].NumI(), blocks[bb].NumJ(),
                       blocks[bb].NumK());
     }
@@ -478,7 +478,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
       SwapImplicitUpdate(du, connections, rank, MPI_cellData, numG);
 
       // forward lu-sgs sweep
-      for (auto bb = 0; bb < static_cast<int>(blocks.size()); bb++) {
+      for (auto bb = 0U; bb < blocks.size(); bb++) {
     blocks[bb].LUSGS_Forward(reorder[bb], du[bb], solDeltaMmN[bb],
                  solDeltaNm1[bb], eos, inp, suth, turb,
                  mainDiagonal[bb], ii);
@@ -488,7 +488,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
       SwapImplicitUpdate(du, connections, rank, MPI_cellData, numG);
 
       // backward lu-sgs sweep
-      for (auto bb =0; bb < static_cast<int>(blocks.size()); bb++) {
+      for (auto bb = 0U; bb < blocks.size(); bb++) {
     matrixError += blocks[bb].LUSGS_Backward(reorder[bb], du[bb],
                          solDeltaMmN[bb],
                          solDeltaNm1[bb], eos, inp,
@@ -500,7 +500,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
       // swap updates for ghost cells
       SwapImplicitUpdate(du, connections, rank, MPI_cellData, numG);
 
-      for (auto bb = 0; bb < static_cast<int>(blocks.size()); bb++) {
+      for (auto bb = 0U; bb < blocks.size(); bb++) {
         // Calculate correction (du)
         matrixError += blocks[bb].DPLUR(du[bb], solDeltaMmN[bb],
                                         solDeltaNm1[bb], eos, inp, suth, turb,
@@ -515,7 +515,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   }
 
   // Update blocks and reset residuals and wave speeds
-  for (auto bb = 0; bb < static_cast<int>(blocks.size()); bb++) {
+  for (auto bb = 0U; bb < blocks.size(); bb++) {
     // Update solution
     blocks[bb].UpdateBlock(inp, eos, aRef, suth, du[bb], solTimeN[bb],
                            turb, mm, residL2, residLinf);
@@ -545,7 +545,7 @@ void SwapImplicitUpdate(vector<multiArray3d<genArray>> &du,
   // numGhosts -- number of ghost cells
 
   // loop over all connections and swap interblock updates when necessary
-  for (auto ii = 0; ii < static_cast<int>(connections.size()); ii++) {
+  for (auto ii = 0U; ii < connections.size(); ii++) {
     if (connections[ii].RankFirst() == rank &&
         connections[ii].RankSecond() == rank) {
       // both sides of interblock are on this processor, swap w/o mpi
@@ -576,7 +576,7 @@ void SwapTurbVars(vector<procBlock> &states,
   // numGhosts -- number of ghost cells
 
   // loop over all connections and swap interblock updates when necessary
-  for (auto ii = 0; ii < static_cast<int>(connections.size()); ii++) {
+  for (auto ii = 0U; ii < connections.size(); ii++) {
     if (connections[ii].RankFirst() == rank &&
         connections[ii].RankSecond() == rank) {
       // both sides of interblock are on this processor, swap w/o mpi
@@ -614,7 +614,7 @@ void CalcResidual(vector<procBlock> &states,
   // rank -- processor rank
   // numGhosts -- number of layers of ghost cells
 
-  for (auto bb = 0; bb < static_cast<int>(states.size()); bb++) {
+  for (auto bb = 0U; bb < states.size(); bb++) {
     // calculate residual
     states[bb].CalcResidualNoSource(suth, eos, inp, turb, mainDiagonal[bb]);
   }
@@ -623,7 +623,7 @@ void CalcResidual(vector<procBlock> &states,
     // swap turbulence varibles calculated during residual calculation
     SwapTurbVars(states, connections, rank, numGhosts);
 
-    for (auto bb = 0; bb < static_cast<int>(states.size()); bb++) {
+    for (auto bb = 0U; bb < states.size(); bb++) {
       // calculate residual
       states[bb].CalcSrcTerms(suth, turb, inp, mainDiagonal[bb]);
     }
@@ -636,7 +636,7 @@ void CalcTimeStep(vector<procBlock> &states, const input &inp,
   // inp -- input variables
   // aRef -- reference speed of sound
 
-  for (auto bb = 0; bb < static_cast<int>(states.size()); bb++) {
+  for (auto bb = 0U; bb < states.size(); bb++) {
     // calculate time step
     states[bb].CalcBlockTimeStep(inp, aRef);
   }
@@ -682,7 +682,7 @@ void GetSolMMinusN(vector<multiArray3d<genArray>> &solMMinusN,
   // inp -- input variables
   // mm -- nonlinear iteration
 
-  for (auto bb = 0; bb < static_cast<int>(solMMinusN.size()); bb++) {
+  for (auto bb = 0U; bb < solMMinusN.size(); bb++) {
     solMMinusN[bb] = states[bb].SolTimeMMinusN(solN[bb], eos, inp, mm);
   }
 }
@@ -695,7 +695,7 @@ void ResizeArrays(const vector<procBlock> &states, const input &inp,
   // sol -- vector of solutions to be resized
   // jac -- vector of flux jacobians to be resized
 
-  for (auto bb = 0; bb < static_cast<int>(states.size()); bb++) {
+  for (auto bb = 0U; bb < states.size(); bb++) {
     sol[bb].ClearResize(states[bb].NumI(), states[bb].NumJ(),
                         states[bb].NumK());
 

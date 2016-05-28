@@ -143,7 +143,7 @@ int main(int argc, char *argv[]) {
 
     // Initialize the whole mesh with one state and assign ghost cells geometry
     stateBlocks.resize(mesh.size());
-    for (auto ll = 0; ll < static_cast<int>(mesh.size()); ll++) {
+    for (auto ll = 0U; ll < mesh.size(); ll++) {
       stateBlocks[ll] = procBlock(state, mesh[ll], decomp.ParentBlock(ll),
                                   numGhost, bcs[ll], ll, decomp.Rank(ll),
                                   decomp.LocalPosition(ll), inputVars, eos,
@@ -152,12 +152,12 @@ int main(int argc, char *argv[]) {
     }
 
     // Swap geometry for interblock BCs
-    for (auto ii = 0; ii < static_cast<int>(connections.size()); ii++) {
+    for (auto ii = 0U; ii < connections.size(); ii++) {
       SwapGeomSlice(connections[ii], stateBlocks[connections[ii].BlockFirst()],
                     stateBlocks[connections[ii].BlockSecond()]);
     }
     // Get ghost cell edge data
-    for (auto ll = 0; ll < static_cast<int>(mesh.size()); ll++) {
+    for (auto ll = 0U; ll < mesh.size(); ll++) {
       stateBlocks[ll].AssignGhostCellsGeomEdge();
     }
 
@@ -183,7 +183,7 @@ int main(int argc, char *argv[]) {
   auto localStateBlocks = SendProcBlocks(stateBlocks, rank, numProcBlock,
                                          MPI_cellData, MPI_vec3d, MPI_vec3dMag);
   // Update auxillary variables (temperature, viscosity, etc)
-  for (auto ll = 0; ll < static_cast<int>(localStateBlocks.size()); ll++) {
+  for (auto ll = 0U; ll < localStateBlocks.size(); ll++) {
     localStateBlocks[ll].UpdateAuxillaryVariables(eos, suth, false);
   }
 

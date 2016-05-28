@@ -585,7 +585,7 @@ int SplitBlockNumber(const vector<procBlock> &vars, const decomposition &decomp,
   // Get block dimensions (both lower and upper extents)
   vector<pair<vector3d<int>, vector3d<int>>> blkDims(vars.size());
   vector3d<int> initialLower(0, 0, 0);
-  for (auto bb = 0; bb < static_cast<int>(blkDims.size()); bb++) {
+  for (auto bb = 0U; bb < blkDims.size(); bb++) {
     vector3d<int> dims(vars[bb].NumI(), vars[bb].NumJ(), vars[bb].NumK());
     blkDims[bb].first = initialLower;
     blkDims[bb].second = dims;

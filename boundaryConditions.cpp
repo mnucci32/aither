@@ -341,7 +341,7 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
   vector<int> surfaceNums;  // surface number of interblock
 
   // loop over all blocks
-  for (auto ii = 0; ii < static_cast<int>(bc.size()); ii++) {
+  for (auto ii = 0U; ii < bc.size(); ii++) {
     // Loop over number of surfaces in block
     for (auto jj = 0; jj < bc[ii].NumSurfaces(); jj++) {
       // If boundary condition is interblock, store data
@@ -363,11 +363,10 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
   // Loop over isolated interblocks
   // ii counts by two because after a pair is found, that data is swapped
   // to ii+1. This allows the next search to avoid the matched pair
-  for (auto ii = 0; ii < static_cast<int>(isolatedInterblocks.size());
+  for (auto ii = 0U; ii < isolatedInterblocks.size();
        ii += 2) {
     // Loop over possible matches
-    for (auto jj = ii + 1; jj <
-             static_cast<int>(isolatedInterblocks.size()); jj++) {
+    for (auto jj = ii + 1U; jj < isolatedInterblocks.size(); jj++) {
       // Blocks and boundary surfaces between interblocks match
       // blocks between interblock BCs match
       if (isolatedInterblocks[ii].PartnerBlock() == numRankPos[jj][0] &&
@@ -1070,13 +1069,13 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
     // Delete unnecessary boundaries and change number of surfaces in i,j,k
     // to appropriate number
-    for (auto ii = 0; ii < static_cast<int>(del1.size()); ii++) {
+    for (auto ii = 0U; ii < del1.size(); ii++) {
       bound1.surfs_.erase(bound1.surfs_.begin() + del1[ii]);
       bound1.numSurfI_ -= del1I;
       bound1.numSurfJ_ -= del1J;
       bound1.numSurfK_ -= del1K;
     }
-    for (auto ii = 0; ii < static_cast<int>(del2.size()); ii++) {
+    for (auto ii = 0U; ii < del2.size(); ii++) {
       bound2.surfs_.erase(bound2.surfs_.begin() + del2[ii]);
       bound2.numSurfI_ -= del2I;
       bound2.numSurfJ_ -= del2J;
@@ -1186,13 +1185,13 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
     // Delete unnecessary boundaries - and set number of surfaces (i, j, k)
     // to appropriate number
-    for (auto ii = 0; ii < static_cast<int>(del1.size()); ii++) {
+    for (auto ii = 0U; ii < del1.size(); ii++) {
       bound1.surfs_.erase(bound1.surfs_.begin() + del1[ii]);
       bound1.numSurfI_ -= del1I;
       bound1.numSurfJ_ -= del1J;
       bound1.numSurfK_ -= del1K;
     }
-    for (auto ii = 0; ii < static_cast<int>(del2.size()); ii++) {
+    for (auto ii = 0U; ii < del2.size(); ii++) {
       bound2.surfs_.erase(bound2.surfs_.begin() + del2[ii]);
       bound2.numSurfI_ -= del2I;
       bound2.numSurfJ_ -= del2J;
@@ -1301,12 +1300,12 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
     // Delete unnecessary boundaries and set surface numbers (i,j,k) to
     // appropriate value
-    for (auto ii = 0; ii < static_cast<int>(del1.size()); ii++) {
+    for (auto ii = 0U; ii < del1.size(); ii++) {
       bound1.surfs_.erase(bound1.surfs_.begin() + del1[ii]);
       bound1.numSurfI_ -= del1I;
       bound1.numSurfJ_ -= del1J;
     }
-    for (auto ii = 0; ii < static_cast<int>(del2.size()); ii++) {
+    for (auto ii = 0U; ii < del2.size(); ii++) {
       bound2.surfs_.erase(bound2.surfs_.begin() + del2[ii]);
       bound2.numSurfI_ -= del2I;
       bound2.numSurfJ_ -= del2J;
@@ -2097,7 +2096,7 @@ void boundaryConditions::PackBC(char *(&sendBuffer), const int &sendBufSize,
   // get string lengths for each boundary_ condition to be sent, so processors
   // unpacking know how much data to unpack for each string
   vector<int> strLength(this->NumSurfaces());
-  for (auto jj = 0; jj < static_cast<int>(strLength.size()); jj++) {
+  for (auto jj = 0U; jj < strLength.size(); jj++) {
     // +1 for c_str end character
     strLength[jj] = this->GetBCTypes(jj).size() + 1;
   }
@@ -2155,7 +2154,7 @@ void boundaryConditions::UnpackBC(char *(&recvBuffer), const int &recvBufSize,
   MPI_Unpack(recvBuffer, recvBufSize, &position, &strLength[0],
              strLength.size(), MPI_INT, MPI_COMM_WORLD);  // unpack string sizes
   // unpack boundary condition names
-  for (auto jj = 0; jj < static_cast<int>(strLength.size()); jj++) {
+  for (auto jj = 0U; jj < strLength.size(); jj++) {
     auto *nameBuf = new char[strLength[jj]];  // allocate buffer to store BC
                                               // name
     MPI_Unpack(recvBuffer, recvBufSize, &position, &nameBuf[0], strLength[jj],
