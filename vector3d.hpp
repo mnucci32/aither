@@ -107,6 +107,7 @@ class vector3d {
   T Distance(const vector3d<T>&) const;
   T DistSq(const vector3d<T>&) const;
   vector3d<T> Normalize() const;
+  void Zero();
 
   // destructor
   ~vector3d() noexcept {}
@@ -364,6 +365,15 @@ template <typename T>
 vector3d<T> vector3d<T>::Normalize() const {
   return (*this) / this->Mag();
 }
+
+// Function to zero out a vector
+template <typename T>
+void vector3d<T>::Zero() {
+  for (auto &val : data_) {
+    val = 0;
+  }
+}
+
 
 // -----------------------------------------------------------------
 // Functions for unitVec3dMag class

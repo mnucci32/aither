@@ -64,7 +64,7 @@ resid.o : resid.cpp resid.hpp
 kdtree.o : kdtree.cpp kdtree.hpp vector3d.hpp
 	$(CC) $(CFLAGS) kdtree.cpp
 
-fluxJacobian.o : fluxJacobian.cpp fluxJacobian.hpp turbulence.hpp vector3d.hpp primVars.hpp eos.hpp input.hpp genArray.hpp matrix.hpp inviscidFlux.hpp uncoupledScalar.hpp
+fluxJacobian.o : fluxJacobian.cpp fluxJacobian.hpp turbulence.hpp vector3d.hpp primVars.hpp eos.hpp input.hpp genArray.hpp matrix.hpp inviscidFlux.hpp uncoupledScalar.hpp tensor.hpp utility.hpp
 	$(CC) $(CFLAGS) fluxJacobian.cpp
 
 uncoupledScalar.o : uncoupledScalar.cpp uncoupledScalar.hpp genArray.hpp

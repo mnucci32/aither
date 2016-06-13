@@ -413,7 +413,7 @@ void ExplicitUpdate(vector<procBlock> &blocks,
                     genArray &residL2, resid &residLinf) {
   // create dummy update (not used in explicit update)
   multiArray3d<genArray> du(1, 1, 1);
-  // loop over all blocks: update and reset residuals / wave speed
+  // loop over all blocks and update
   for (auto bb = 0U; bb < blocks.size(); bb++) {
     blocks[bb].UpdateBlock(inp, eos, aRef, suth, du, solTimeN[bb],
                                      turb, mm, residL2, residLinf);
@@ -469,7 +469,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
     vector<vector<vector3d<int>>> reorder(blocks.size());
     for (auto bb = 0U; bb < blocks.size(); bb++) {
       reorder[bb] = HyperplaneReorder(blocks[bb].NumI(), blocks[bb].NumJ(),
-                      blocks[bb].NumK());
+                                      blocks[bb].NumK());
     }
 
     // start sweeps through domain
@@ -479,9 +479,9 @@ double ImplicitUpdate(vector<procBlock> &blocks,
 
       // forward lu-sgs sweep
       for (auto bb = 0U; bb < blocks.size(); bb++) {
-    blocks[bb].LUSGS_Forward(reorder[bb], du[bb], solDeltaMmN[bb],
-                 solDeltaNm1[bb], eos, inp, suth, turb,
-                 mainDiagonal[bb], ii);
+        blocks[bb].LUSGS_Forward(reorder[bb], du[bb], solDeltaMmN[bb],
+                                 solDeltaNm1[bb], eos, inp, suth, turb,
+                                 mainDiagonal[bb], ii);
       }
 
       // swap updates for ghost cells
@@ -489,10 +489,11 @@ double ImplicitUpdate(vector<procBlock> &blocks,
 
       // backward lu-sgs sweep
       for (auto bb = 0U; bb < blocks.size(); bb++) {
-    matrixError += blocks[bb].LUSGS_Backward(reorder[bb], du[bb],
-                         solDeltaMmN[bb],
-                         solDeltaNm1[bb], eos, inp,
-                         suth, turb, mainDiagonal[bb], ii);
+        matrixError += blocks[bb].LUSGS_Backward(reorder[bb], du[bb],
+                                                 solDeltaMmN[bb],
+                                                 solDeltaNm1[bb], eos, inp,
+                                                 suth, turb, mainDiagonal[bb],
+                                                 ii);
       }
     }
   } else if (inp.MatrixSolver() == "dplur" || inp.MatrixSolver() == "bdplur") {
@@ -514,7 +515,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
     exit(1);
   }
 
-  // Update blocks and reset residuals and wave speeds
+  // Update blocks and reset main diagonal
   for (auto bb = 0U; bb < blocks.size(); bb++) {
     // Update solution
     blocks[bb].UpdateBlock(inp, eos, aRef, suth, du[bb], solTimeN[bb],
@@ -527,8 +528,8 @@ double ImplicitUpdate(vector<procBlock> &blocks,
                                                   inp.Theta(), inp.Zeta());
     }
 
-    // Zero residuals, wave speed, flux jacobians, gradients, and update
-    mainDiagonal[bb].Zero(fluxJacobian(0.0, 0.0));
+    // zero flux jacobians
+    mainDiagonal[bb].Zero();
   }
 
   return matrixError;
@@ -624,7 +625,7 @@ void CalcResidual(vector<procBlock> &states,
     SwapTurbVars(states, connections, rank, numGhosts);
 
     for (auto bb = 0U; bb < states.size(); bb++) {
-      // calculate residual
+      // calculate source terms for residual
       states[bb].CalcSrcTerms(suth, turb, inp, mainDiagonal[bb]);
     }
   }
@@ -709,7 +710,16 @@ void ResizeArrays(const vector<procBlock> &states, const input &inp,
 }
 
 
+vector3d<double> TauNormal(const tensor<double> &velGrad,
+                           const vector3d<double> &area, const double &mu,
+                           const double &mut, const sutherland &suth) {
+  // get 2nd coefficient of viscosity assuming bulk viscosity is 0 (Stoke's)
+  const auto lambda = suth.Lambda(mu + mut);
 
+  // wall shear stress
+  return lambda * velGrad.Trace() * area + (mu + mut) *
+      (velGrad.MatMult(area) + velGrad.Transpose().MatMult(area));
+}
 
 
 

@@ -84,6 +84,7 @@ class multiArray3d {
                       const int&);
 
   void Zero(const T&);
+  void Zero();  
 
   void GrowI();
   void GrowJ();
@@ -525,6 +526,15 @@ void multiArray3d<T>::Zero(const T &zero) {
     val = zero;
   }
 }
+
+// member function to "zero out" the container with an available "Zero" function
+template <typename T>
+void multiArray3d<T>::Zero() {
+  for (auto &val : data_) {
+    val.Zero();
+  }
+}
+
 
 // operation overload for << - allows use of cout, cerr, etc.
 template <typename T>

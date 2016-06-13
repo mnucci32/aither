@@ -21,6 +21,7 @@
 #include <vector>          // vector
 #include <memory>          // unique_ptr
 #include "vector3d.hpp"
+#include "tensor.hpp"
 #include "uncoupledScalar.hpp"
 #include "matrix.hpp"
 
@@ -47,6 +48,8 @@ class fluxJacobian {
   // constructors
   fluxJacobian(const double &flow, const double &turb);
   fluxJacobian(const int &flowSize, const int &turbSize);
+  fluxJacobian(const squareMatrix &flow, const squareMatrix &turb)
+      : flowJacobian_(flow), turbJacobian_(turb) {}
   fluxJacobian() : fluxJacobian(0.0, 0.0) {}
   explicit fluxJacobian(const uncoupledScalar &specRad) :
       fluxJacobian(specRad.FlowVariable(), specRad.TurbVariable()) {}
@@ -86,7 +89,8 @@ class fluxJacobian {
                          const double &, const idealGas &,
                          const sutherland &,
                          const vector3d<double> &, const double &,
-                         const unique_ptr<turbModel> &, const input &);
+                         const unique_ptr<turbModel> &, const input &,
+                         const bool &, const tensor<double> &);
 
   void Zero() {
     flowJacobian_.Zero();
@@ -228,7 +232,7 @@ inline const fluxJacobian operator/(const double &lhs, fluxJacobian rhs) {
   return rhs;
 }
 
-ostream &operator<<(ostream &os, const fluxJacobian &);
+ostream &operator<<(ostream &os, const fluxJacobian &jacobian);
 
 genArray RusanovOffDiagonal(const primVars &, const genArray &,
                             const unitVec3dMag<double> &,

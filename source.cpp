@@ -68,8 +68,8 @@ squareMatrix source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
   // calculate turbulent source terms
   auto ksrc = 0.0;
   auto wsrc = 0.0;
-  auto srcJac = turb->CalcTurbSrc(state, velGrad, tkeGrad, omegaGrad, suth, vol,
-                                  mut, f1, ksrc, wsrc);
+  const auto srcJac = turb->CalcTurbSrc(state, velGrad, tkeGrad, omegaGrad,
+                                        suth, vol, mut, f1, ksrc, wsrc);
 
   // assign turbulent source terms
   data_[5] = ksrc;

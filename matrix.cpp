@@ -176,10 +176,22 @@ void squareMatrix::Identity() {
 genArray squareMatrix::ArrayMult(const genArray &vec, const int pos) const {
   // vec -- vector to multiply with
 
-  genArray product(0.0);
+  auto product = vec;
+
+  // zero out portion of genArray that will be written over
+  if (pos == 0) {
+    for (auto ii = 0; ii < NUMFLOWVARS; ii++) {
+      product[ii] = 0.0;
+    }
+  } else {
+    for (auto ii = pos; ii < NUMVARS; ii++) {
+      product[ii] = 0.0;
+    }
+  }
+
   for (auto rr = 0; rr < size_; rr++) {
     for (auto cc = 0; cc < size_; cc++) {
-      product[rr] += (*this)(rr, cc) * vec[pos + cc];
+      product[pos + rr] += (*this)(rr, cc) * vec[pos + cc];
     }
   }
   return product;

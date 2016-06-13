@@ -115,6 +115,8 @@ void ResizeArrays(const vector<procBlock> &, const input &,
                   vector<multiArray3d<genArray>> &,
                   vector<multiArray3d<fluxJacobian>> &);
 
+vector3d<double> TauNormal(const tensor<double> &, const vector3d<double> &,
+                           const double &, const double &, const sutherland &);
 // ---------------------------------------------------------------------------
 // inline function definitions
 

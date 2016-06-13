@@ -24,6 +24,7 @@
 #include "primVars.hpp"      // primVars
 #include "genArray.hpp"      // genArray
 #include "inviscidFlux.hpp"  // ConvectiveFluxUpdate
+#include "utility.hpp"       // TauNormal
 
 using std::cout;
 using std::endl;
@@ -304,7 +305,8 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
                                      const vector3d<double> &area,
                                      const double &dist,
                                      const unique_ptr<turbModel> &turb,
-                                     const input &inp) {
+                                     const input &inp, const bool &left,
+                                     const tensor<double> &vGrad) {
   // state -- primative variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
@@ -312,6 +314,8 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
   // dist -- distance from cell center to cell center
   // turb --  turbulence model
   // inp -- input variables
+  // left -- flag that is positive if using left state
+  // vGrad -- velocity gradient
 
   flowJacobian_ = squareMatrix(inp.NumFlowEquations());
   turbJacobian_ = squareMatrix(inp.NumTurbEquations());
@@ -319,6 +323,10 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
   const auto mu = suth.NondimScaling() * lamVisc;
   const auto mut = suth.NondimScaling() * turbVisc;
   const auto velNorm = state.Velocity().DotProd(area);
+
+  const auto tauNorm = TauNormal(vGrad, area, mu, mut, suth);
+
+  const auto fac = left ? -1.0 : 1.0;
 
   constexpr auto third = 1.0 / 3.0;
 
@@ -331,27 +339,36 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
   flowJacobian_(1, 1) = third * area.X() * area.X() + 1.0;
   flowJacobian_(1, 2) = third * area.X() * area.Y();
   flowJacobian_(1, 3) = third * area.X() * area.Z();
-  flowJacobian_(1, 4) = third * area.X() * velNorm + state.U();
+  flowJacobian_(1, 4) = fac * 0.5 * dist / (mu + mut) * tauNorm.X() +
+      third * area.X() * velNorm + state.U();
 
   // assign third column
   flowJacobian_(2, 1) = third * area.Y() * area.X();
   flowJacobian_(2, 2) = third * area.Y() * area.Y() + 1.0;
   flowJacobian_(2, 3) = third * area.Y() * area.Z();
-  flowJacobian_(2, 4) = third * area.Y() * velNorm + state.V();
+  flowJacobian_(2, 4) = fac * 0.5 * dist / (mu + mut) * tauNorm.Y() +
+      third * area.Y() * velNorm + state.V();
 
   // assign fourth column
   flowJacobian_(3, 1) = third * area.Z() * area.X();
   flowJacobian_(3, 2) = third * area.Z() * area.Y();
   flowJacobian_(3, 3) = third * area.Z() * area.Z() + 1.0;
-  flowJacobian_(3, 4) = third * area.Z() * velNorm + state.W();
+  flowJacobian_(3, 4) = fac * 0.5 * dist / (mu + mut) * tauNorm.Z() +
+      third * area.Z() * velNorm + state.W();
 
   // assign fifth column
   flowJacobian_(4, 4) = (eos.Conductivity(mu) +
                          eos.TurbConductivity(mut, turb->TurbPrandtlNumber()))
       / ((mu + mut) * state.Rho());
 
-  flowJacobian_ *= (mu + mut) / dist;
+  // DEBUG
+  flowJacobian_ *= fac * (mu + mut) / dist;
+  squareMatrix I(5);
+  I.Identity();
+  I *= 1.0;
+  flowJacobian_ *= I;
 
+  
   fluxJacobian prim2Cons;
   prim2Cons.DelPrimativeDelConservative(state, eos, inp);
 
@@ -361,7 +378,7 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
   if (inp.IsTurbulent()) {
     turbJacobian_(0, 0) = mu + turb->SigmaK(f1) * mut;
     turbJacobian_(1, 1) = mu + turb->SigmaW(f1) * mut;
-    turbJacobian_ *= 1.0 / dist;
+    turbJacobian_ *= fac / dist;
 
     turbJacobian_ = turbJacobian_.MatMult(prim2Cons.turbJacobian_);
   }
@@ -370,13 +387,11 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
 
 // non-member functions
 // ----------------------------------------------------------------------------
-// operator overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, fluxJacobian &jacobian) {
+ostream &operator<<(ostream &os, const fluxJacobian &jacobian) {
   os << jacobian.FlowJacobian() << endl;
   os << jacobian.TurbulenceJacobian() << endl;
   return os;
 }
-
 
 genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
                             const unitVec3dMag<double> &fAreaL,

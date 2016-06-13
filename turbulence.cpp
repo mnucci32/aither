@@ -353,7 +353,7 @@ void turbKWWilcox::EddyViscAndBlending(const primVars &state,
   f1 = 1.0;
   f2 = 0.0;
 
-  // return eddy viscosity, scaled for nondimensional equations
+  // return eddy viscosity
   mut = this->EddyVisc(state, velGrad, suth, f2);
 }
 

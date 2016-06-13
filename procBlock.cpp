@@ -781,17 +781,14 @@ void procBlock::UpdateBlock(const input &inputVars, const idealGas &eos,
       for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
         // explicit euler time integration
         if (inputVars.TimeIntegration() == "explicitEuler") {
-          this->ExplicitEulerTimeAdvance(eos, turb, ig, jg, kg,
-                                         ip, jp, kp);
+          this->ExplicitEulerTimeAdvance(eos, turb, ig, jg, kg, ip, jp, kp);
         // 4-stage runge-kutta method (explicit)
         } else if (inputVars.TimeIntegration() == "rk4") {
           // advance 1 RK stage
           this->RK4TimeAdvance(consVars(ip, jp, kp), eos, turb,
-                               ig, jg, kg,
-                               ip, jp, kp, rr);
+                               ig, jg, kg, ip, jp, kp, rr);
         } else if (inputVars.IsImplicit()) {  // if implicit use update (du)
-          this->ImplicitTimeAdvance(du(ig, jg, kg), eos, turb,
-                                    ig, jg, kg);
+          this->ImplicitTimeAdvance(du(ig, jg, kg), eos, turb, ig, jg, kg);
         } else {
           cerr << "ERROR: Time integration scheme " <<
               inputVars.TimeIntegration() << " is not recognized!" << endl;
@@ -905,18 +902,18 @@ void procBlock::RK4TimeAdvance(const genArray &currState,
 // iteration. This is done because the residual and wave
 // speed are accumulated over many function calls.
 void procBlock::ResetResidWS() {
-  residual_.Zero(genArray(0.0));
-  specRadius_.Zero(uncoupledScalar(0.0, 0.0));
+  residual_.Zero();
+  specRadius_.Zero();
 }
 
 // member function to reset the gradients back to zero after an
 // iteration. This is done because the gradients are accumulated over many
 // function calls.
 void procBlock::ResetGradients() {
-  velocityGrad_.Zero(tensor<double>());
-  temperatureGrad_.Zero(vector3d<double>(0.0, 0.0, 0.0));
-  tkeGrad_.Zero(vector3d<double>(0.0, 0.0, 0.0));
-  omegaGrad_.Zero(vector3d<double>(0.0, 0.0, 0.0));
+  velocityGrad_.Zero();
+  temperatureGrad_.Zero();
+  tkeGrad_.Zero();
+  omegaGrad_.Zero();
 }
 
 // member function to reset the turbulence variables back to zero after an
@@ -976,8 +973,7 @@ multiArray3d<genArray> procBlock::SolTimeMMinusN(
       for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
           const auto diagVolTime = (vol_(ig, jg, kg) * (1.0 + inp.Zeta()))
               / (dt_(ip, jp, kp) * inp.Theta());
-          mMinusN(ip, jp, kp) =
-              diagVolTime * (m(ip, jp, kp) - n(ip, jp, kp));
+          mMinusN(ip, jp, kp) = diagVolTime * (m(ip, jp, kp) - n(ip, jp, kp));
         }
       }
     }
@@ -1063,7 +1059,6 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
                                                     isTurbulent_);
         mainDiagonal(ip, jp, kp).AddOnDiagonal(diagVolTime, isTurbulent_);
 
-        // invert main diagonal
         mainDiagonal(ip, jp, kp).Inverse(isTurbulent_);
       }
     }
@@ -1986,14 +1981,9 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                                        tkeGrad, omegaGrad, turb, state, mu,
                                        mut, f1);
 
-        // if using block matrix on main diagonal, calculate flux jacobian
-        fluxJacobian fluxJac;
-        if (inp.IsBlockMatrix()) {
-          fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
-                                    this->FAreaUnitI(ig, jg, kg), wDist,
-                                    turb, inp);
-        }
-
+        // calculate center to center distance
+        const auto c2cDist = this->Center(ig, jg, kg).Distance(
+            this->Center(ig + 1, jg, kg));
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
@@ -2017,8 +2007,16 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
-            mainDiagonal(ip - 1, jp, kp) -= fluxJac *
-                this->FAreaMagI(ig, jg, kg);
+            // DEBUG
+            // using mu, mut, and f1 at face
+            fluxJacobian fluxJac;
+            fluxJac.ApproxTSLJacobian(state_(ig - 1, jg, kg), mu, mut, f1,
+                                      eqnState, suth,
+                                      this->FAreaUnitI(ig, jg, kg), c2cDist,
+                                      turb, inp, true, velGrad);
+            fluxJac *= this->FAreaMagI(ig, jg, kg);
+
+            mainDiagonal(ip - 1, jp, kp) -= fluxJac;
           }
         }
         // at right boundary there is no right cell to add to
@@ -2044,13 +2042,12 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
               state_(ig, jg, kg).ViscCellSpectralRadius(
                   fAreaI_(ig, jg, kg), fAreaI_(ig + 1, jg, kg), eqnState, suth,
                   vol_(ig, jg, kg), viscosity_(ig, jg, kg),
-                  this->EddyViscosity(ig, jg, kg), turb);
+                  mut, turb);
 
           const auto turbViscSpecRad = isTurbulent_ ?
               turb->ViscSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
                                 fAreaI_(ig + 1, jg, kg), viscosity_(ig, jg, kg),
-                                suth, vol_(ig, jg, kg),
-                                eddyViscosity_(ig, jg, kg), f1_(ig, jg, kg))
+                                suth, vol_(ig, jg, kg), mut, f1)
               : 0.0;
 
           const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
@@ -2059,7 +2056,16 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
-            mainDiagonal(ip, jp, kp) += fluxJac * this->FAreaMagI(ig, jg, kg);
+            // DEBUG
+            // using mu, mut, and f1 at face
+            fluxJacobian fluxJac;
+            fluxJac.ApproxTSLJacobian(state_(ig, jg, kg), mu,
+                                      mut, f1, eqnState, suth,
+                                      this->FAreaUnitI(ig, jg, kg), c2cDist,
+                                      turb, inp, false, velGrad);
+            fluxJac *= this->FAreaMagI(ig, jg, kg);
+
+            mainDiagonal(ip, jp, kp) += fluxJac;
           } else {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
             mainDiagonal(ip, jp, kp) += fluxJacobian(2.0 * specRad);
@@ -2207,13 +2213,9 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                                        tkeGrad, omegaGrad, turb, state, mu,
                                        mut, f1);
 
-        // if using block matrix on main diagonal, calculate flux jacobian
-        fluxJacobian fluxJac;
-        if (inp.IsBlockMatrix()) {
-          fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
-                                    this->FAreaUnitJ(ig, jg, kg), wDist,
-                                    turb, inp);
-        }
+        // calculate center to center distance
+        const auto c2cDist = this->Center(ig, jg, kg).Distance(
+            this->Center(ig, jg + 1, kg));
 
 
         // area vector points from left to right, so add to left cell, subtract
@@ -2238,8 +2240,16 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
-            mainDiagonal(ip, jp - 1, kp) -= fluxJac *
-                this->FAreaMagJ(ig, jg, kg);
+            // DEBUG
+            // using mu, mut, and f1 at face
+            fluxJacobian fluxJac;
+            fluxJac.ApproxTSLJacobian(state_(ig, jg - 1, kg), mu, mut, f1,
+                                      eqnState, suth,
+                                      this->FAreaUnitJ(ig, jg, kg), c2cDist,
+                                      turb, inp, true, velGrad);
+            fluxJac *= this->FAreaMagJ(ig, jg, kg);
+
+            mainDiagonal(ip, jp - 1, kp) -= fluxJac;
           }
         }
         // at right boundary there is no right cell to add to
@@ -2264,14 +2274,12 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           const auto viscSpecRad =
               state_(ig, jg, kg).ViscCellSpectralRadius(
                   fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg + 1, kg), eqnState, suth,
-                  vol_(ig, jg, kg), viscosity_(ig, jg, kg),
-                  this->EddyViscosity(ig, jg, kg), turb);
+                  vol_(ig, jg, kg), viscosity_(ig, jg, kg), mut, turb);
 
           const auto turbViscSpecRad = isTurbulent_ ?
               turb->ViscSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
                                 fAreaJ_(ig, jg + 1, kg), viscosity_(ig, jg, kg),
-                                suth, vol_(ig, jg, kg),
-                                eddyViscosity_(ig, jg, kg), f1_(ig, jg, kg))
+                                suth, vol_(ig, jg, kg), mut, f1)
               : 0.0;
 
           const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
@@ -2280,7 +2288,16 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
-            mainDiagonal(ip, jp, kp) += fluxJac * this->FAreaMagJ(ig, jg, kg);
+            // DEBUG
+            // using mu, mut, and f1 at face
+            fluxJacobian fluxJac;
+            fluxJac.ApproxTSLJacobian(state_(ig, jg, kg), mu,
+                                      mut, f1, eqnState, suth,
+                                      this->FAreaUnitJ(ig, jg, kg), c2cDist,
+                                      turb, inp, false, velGrad);
+            fluxJac *= this->FAreaMagJ(ig, jg, kg);
+
+            mainDiagonal(ip, jp, kp) += fluxJac;
           } else {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
             mainDiagonal(ip, jp, kp) += fluxJacobian(2.0 * specRad);
@@ -2428,13 +2445,9 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                                        tkeGrad, omegaGrad, turb, state, mu,
                                        mut, f1);
 
-        // if using block matrix on main diagonal, calculate flux jacobian
-        fluxJacobian fluxJac;
-        if (inp.IsBlockMatrix()) {
-          fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
-                                    this->FAreaUnitK(ig, jg, kg), wDist,
-                                    turb, inp);
-        }
+        // calculate center to center distance
+        const auto c2cDist = this->Center(ig, jg, kg).Distance(
+            this->Center(ig, jg, kg + 1));
 
 
         // area vector points from left to right, so add to left cell, subtract
@@ -2459,8 +2472,16 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
-            mainDiagonal(ip, jp, kp - 1) -= fluxJac *
-                this->FAreaMagK(ig, jg, kg);
+            // DEBUG
+            // using mu, mut, and f1 at face
+            fluxJacobian fluxJac;
+            fluxJac.ApproxTSLJacobian(state_(ig, jg, kg - 1), mu, mut, f1,
+                                      eqnState, suth,
+                                      this->FAreaUnitK(ig, jg, kg), c2cDist,
+                                      turb, inp, true, velGrad);
+            fluxJac *= this->FAreaMagK(ig, jg, kg);
+
+            mainDiagonal(ip, jp, kp - 1) -= fluxJac;
           }
         }
         // at right boundary there is no right cell to add to
@@ -2486,13 +2507,12 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
               state_(ig, jg, kg).ViscCellSpectralRadius(
                   fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg + 1), eqnState, suth,
                   vol_(ig, jg, kg), viscosity_(ig, jg, kg),
-                  this->EddyViscosity(ig, jg, kg), turb);
+                  mut, turb);
 
           const auto turbViscSpecRad = isTurbulent_ ?
               turb->ViscSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
                                 fAreaK_(ig, jg, kg + 1), viscosity_(ig, jg, kg),
-                                suth, vol_(ig, jg, kg),
-                                eddyViscosity_(ig, jg, kg), f1_(ig, jg, kg))
+                                suth, vol_(ig, jg, kg), mut, f1)
               : 0.0;
 
           const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
@@ -2501,7 +2521,16 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
-            mainDiagonal(ip, jp, kp) += fluxJac * this->FAreaMagK(ig, jg, kg);
+            // DEBUG
+            // using mu, mut, and f1 at face
+            fluxJacobian fluxJac;
+            fluxJac.ApproxTSLJacobian(state_(ig, jg, kg), mu,
+                                      mut, f1, eqnState, suth,
+                                      this->FAreaUnitK(ig, jg, kg), c2cDist,
+                                      turb, inp, false, velGrad);
+            fluxJac *= this->FAreaMagK(ig, jg, kg);
+
+            mainDiagonal(ip, jp, kp) += fluxJac;
           } else {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
             mainDiagonal(ip, jp, kp) += fluxJacobian(2.0 * specRad);
