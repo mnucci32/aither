@@ -485,21 +485,22 @@ double turbKWSst::BlendedCoeff(const double &coeff1, const double &coeff2,
 double turbKWSst::Alpha1(const primVars &state, const sutherland &suth,
                          const double &wallDist) const {
   return suth.NondimScaling() * sqrt(state.Tke()) /
-      (betaStar_ * state.Omega() * wallDist);
+      (betaStar_ * state.Omega() * (wallDist + EPS));
 }
 
 // member function to calculate blending term
 double turbKWSst::Alpha2(const primVars &state, const sutherland &suth,
                          const double &mu, const double &wallDist) const {
   return suth.NondimScaling() * suth.NondimScaling() *
-      500.0 * mu / (wallDist * wallDist * state.Rho() * state.Omega());
+      500.0 * mu / ((wallDist + EPS) * (wallDist + EPS) * state.Rho() *
+                    state.Omega());
 }
 
 // member function to calculate blending term
 double turbKWSst::Alpha3(const primVars &state, const double &wallDist,
                          const double &cdkw) const {
   return 4.0 * state.Rho() * sigmaW2_ * state.Tke() /
-      (cdkw * wallDist * wallDist);
+      (cdkw * (wallDist + EPS) * (wallDist + EPS));
 }
 
 // member function to calculate turbulence source terms and source jacobian

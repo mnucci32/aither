@@ -185,6 +185,7 @@ int main(int argc, char *argv[]) {
   // Update auxillary variables (temperature, viscosity, etc)
   for (auto ll = 0U; ll < localStateBlocks.size(); ll++) {
     localStateBlocks[ll].UpdateAuxillaryVariables(eos, suth, false);
+    localStateBlocks[ll].UpdateUnlimTurbEddyVisc(turb, false);
   }
 
   // Send connections to all processors

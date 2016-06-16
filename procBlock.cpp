@@ -7356,7 +7356,10 @@ void procBlock::CalcWallDistance(const kdtree &tree) {
   for (auto kk = 0; kk < wallDist_.NumK(); kk++) {
     for (auto jj = 0; jj < wallDist_.NumJ(); jj++) {
       for (auto ii = 0; ii < wallDist_.NumI(); ii++) {
-        wallDist_(ii, jj, kk) =
+        // ghost cells should have negative wall distance so that wall distance
+        // at viscous face will be 0 during flux calculation
+        auto fac = this->IsPhysical(ii, jj, kk, true) ? 1.0 : -1.0;
+        wallDist_(ii, jj, kk) = fac *
             tree.NearestNeighbor(center_(ii, jj, kk), neighbor);
       }
     }
@@ -7431,3 +7434,18 @@ void procBlock::UpdateAuxillaryVariables(const idealGas &eos,
   }
 }
 
+void procBlock::UpdateUnlimTurbEddyVisc(const unique_ptr<turbModel> &turb,
+                                        const bool &includeGhosts) {
+  if (isTurbulent_) {
+    for (auto kg = 0; kg < this->NumKG(); kg++) {
+      for (auto jg = 0; jg < this->NumJG(); jg++) {
+        for (auto ig = 0; ig < this->NumIG(); ig++) {
+          if (!this->AtCorner(ig, jg, kg, true) &&
+              (includeGhosts || this->IsPhysical(ig, jg, kg, true))) {
+            eddyViscosity_(ig, jg, kg) = turb->EddyViscNoLim(state_(ig, jg, kg));
+          }
+        }
+      }
+    }
+  }
+}

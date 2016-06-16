@@ -402,6 +402,7 @@ class procBlock {
 
   void UpdateAuxillaryVariables(const idealGas &, const sutherland &,
                                 const bool = true);
+  void UpdateUnlimTurbEddyVisc(const unique_ptr<turbModel> &, const bool &);
 
   // destructor
   ~procBlock() noexcept {}

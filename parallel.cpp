@@ -108,7 +108,8 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid,
   auto idealLoad = decomp.IdealLoad(grid);
   auto count = 0;
 
-  while (decomp.MaxLoad(grid) / idealLoad > 1.1 && count < numProc * 10) {
+  const auto maxSplits = numProc * 10;
+  while (decomp.MaxLoad(grid) / idealLoad > 1.1 && count < maxSplits) {
     auto loaded = 0.0;
     auto ol = decomp.MostOverloadedProc(grid, loaded);
     auto ul = decomp.MostUnderloadedProc(grid, loaded);
@@ -144,7 +145,7 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid,
     count++;
   }
 
-  if (count == numProc * 10 - 1) {
+  if (count == maxSplits - 1) {
     cout << "WARNING: Maximum number of splits in decomposition has been "
             "reached." << endl;
   }

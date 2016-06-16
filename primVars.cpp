@@ -298,7 +298,8 @@ primVars primVars::GetGhostState(const string &bcType,
   // suth -- sutherland model for viscosity
   // turb -- turbulence model
   // layer -- layer of ghost cell to return (first (closest) or second
-  // (farthest))
+  //          (farthest))
+
   // the instance of primVars being acted upon should be the interior cell
   // bordering the boundary
 
