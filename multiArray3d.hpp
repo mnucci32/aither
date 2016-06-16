@@ -194,7 +194,7 @@ T multiArray3d<T>::GetElem(const int &ii, const int &jj, const int &kk) const {
     cerr << "Tried to access " << ii << ", " << jj << ", " << kk << endl;
     cerr << "Maximum locations are " << numI_ - 1 << ", " << numJ_ - 1 << ", "
          << numK_ - 1 << endl;
-    exit(0);
+    exit(1);
   }
 }
 
@@ -411,7 +411,7 @@ multiArray3d<T> multiArray3d<T>::Slice(const int &is, const int &ie,
          << "boundaries " << is << ", " << ie << ", " << js << ", " << je
          << ", " << ks << ", " << ke << " from array with dimensions " <<
         numI_ << ", " << numJ_ << ", " << numK_ << endl;
-    exit(0);
+    exit(1);
   }
 
   multiArray3d<T> array(ie - is + 1, je - js + 1, ke - ks + 1);
@@ -450,7 +450,7 @@ void multiArray3d<T>::Insert(const int &is, const int &ie, const int &js,
         ", " << array.numK_ << endl;
     cerr << "Size of location is " << ie - is + 1 << ", " << je - js + 1 <<
         ", " << ke - ks + 1 << endl;
-    exit(0);
+    exit(1);
   }
 
   // s is for index of sliced array, p is for index of parent array
@@ -512,7 +512,7 @@ void multiArray3d<T>::SameSizeResize(const int &ii, const int&jj,
     cerr << "ERROR: Error in multiArray3d<T>::SameSizeResize. Attempting to "
          << "resize array of " << this->Size() << " cells to " <<
         ii * jj * kk << " cells." << endl;
-    exit(0);
+    exit(1);
   }
     numI_ = ii;
     numJ_ = jj;
@@ -573,7 +573,7 @@ void multiArray3d<T>::PutSlice(const multiArray3d<T> &array,
          << inter.Dir2EndFirst() - inter.Dir2StartFirst() << ", " << d3 << endl;
     cerr << "Direction I, J, K of multiArray3d<T> to insert: " << array.NumI()
          << ", " << array.NumJ() << ", " << array.NumK() << endl;
-    exit(0);
+    exit(1);
   }
 
   // adjust insertion indices if patch borders another interblock on the same
@@ -695,7 +695,7 @@ void multiArray3d<T>::SwapSliceMPI(const interblock &inter, const int &rank,
   } else {
     cerr << "ERROR: Error in procBlock::SwapSliceMPI(). Processor rank does "
             "not match either of interblock ranks!" << endl;
-    exit(0);
+    exit(1);
   }
 
   // get local state slice to swap

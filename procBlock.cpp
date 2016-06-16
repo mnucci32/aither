@@ -6496,7 +6496,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
     }
     if (isTurbulent_) {
       newBlk.tkeGrad_.Insert(0, iMaxL, 0, jMax, 0, kMax,
-                             tkeGrad_.Slice(0, iMaxL, 0, jMax, 0, kMaxG));
+                             tkeGrad_.Slice(0, iMaxL, 0, jMax, 0, kMax));
       newBlk.omegaGrad_.Insert(0, iMaxL, 0, jMax, 0, kMax,
                                omegaGrad_.Slice(0, iMaxL, 0, jMax, 0, kMax));
     }

@@ -363,11 +363,6 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
 
   // DEBUG
   flowJacobian_ *= fac * (mu + mut) / dist;
-  squareMatrix I(5);
-  I.Identity();
-  I *= 1.0;
-  flowJacobian_ *= I;
-
   
   fluxJacobian prim2Cons;
   prim2Cons.DelPrimativeDelConservative(state, eos, inp);
