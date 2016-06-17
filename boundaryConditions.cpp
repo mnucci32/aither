@@ -162,7 +162,7 @@ void boundaryConditions::BordersInterblock(const int &ii,
          << "Given index does not point to an interblock boundarySurface!"
          << endl;
     cerr << surf << endl;
-    exit(0);
+    exit(1);
   }
 
   // Initialize array of bools to false (does not border interblock)
@@ -735,7 +735,7 @@ void interblock::UpdateBorderFirst(const int &a) {
     cerr << "ERROR: Error in interblock::UpdateBorderFirst(). "
          << "Position to update is out of range. Choose between 0-3. "
          << "Position input was " << a << endl;
-    exit(0);
+    exit(1);
   }
 }
 
@@ -759,7 +759,7 @@ void interblock::UpdateBorderSecond(const int &a) {
     cerr << "ERROR: Error in interblock::UpdateBorderSecond(). "
          << "Position to update is out of range. Choose between 0-3. "
          << "Position input was " << a << endl;
-    exit(0);
+    exit(1);
   }
 }
 
@@ -824,7 +824,7 @@ void interblock::FirstSliceIndices(int &is1, int &ie1, int &js1, int &je1,
   } else {
     cerr << "ERROR: Error in interblock::FirstSliceIndices(). Surface boundary "
          << this->BoundaryFirst() << " is not recognized!" << endl;
-    exit(0);
+    exit(1);
   }
 }
 
@@ -890,7 +890,7 @@ void interblock::SecondSliceIndices(int &is2, int &ie2, int &js2, int &je2,
     cerr << "ERROR: Error in interblock::SecondSliceIndices(). " <<
         "Surface boundary " << this->BoundarySecond() <<
         " is not recognized!" << endl;
-    exit(0);
+    exit(1);
   }
 }
 
@@ -1314,7 +1314,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
   } else {
     cerr << "ERROR: Error in boundaryCondition::Split(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
-    exit(0);
+    exit(1);
   }
 
   (*this) = bound1;     // assign lower split to (*this)
@@ -1378,7 +1378,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
           cerr << "ERROR: Error in boundaryConditions::DependentSplit(). "
                   "Direction " << dir << " is not recognized." << endl;
           cerr << "Please choose i, j, or k." << endl;
-          exit(0);
+          exit(1);
         }
 
       } else if (match.Orientation() == 2) {  // D1/D2 swapped
@@ -1400,7 +1400,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
           cerr << "ERROR: Error in boundaryConditions::DependentSplit(). "
                   "Direction " << dir << " is not recognized." << endl;
           cerr << "Please choose i, j, or k." << endl;
-          exit(0);
+          exit(1);
         }
 
       } else if (match.Orientation() == 3) {  // D1 reversed
@@ -1423,7 +1423,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
           cerr << "ERROR: Error in boundaryConditions::DependentSplit(). "
                   "Direction " << dir << " is not recognized." << endl;
           cerr << "Please choose i, j, or k." << endl;
-          exit(0);
+          exit(1);
         }
 
       } else if (match.Orientation() == 4) {  // D1/D2 swapped, D1 reversed
@@ -1446,7 +1446,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
           cerr << "ERROR: Error in boundaryConditions::DependentSplit(). "
                   "Direction " << dir << " is not recognized." << endl;
           cerr << "Please choose i, j, or k." << endl;
-          exit(0);
+          exit(1);
         }
 
       } else if (match.Orientation() == 5) {  // D1/D2 swapped, D2 reversed
@@ -1469,7 +1469,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
           cerr << "ERROR: Error in boundaryConditions::DependentSplit(). "
                   "Direction " << dir << " is not recognized." << endl;
           cerr << "Please choose i, j, or k." << endl;
-          exit(0);
+          exit(1);
         }
 
       } else if (match.Orientation() == 6) {  // D2 reversed
@@ -1492,7 +1492,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
           cerr << "ERROR: Error in boundaryConditions::DependentSplit(). "
                   "Direction " << dir << " is not recognized." << endl;
           cerr << "Please choose i, j, or k." << endl;
-          exit(0);
+          exit(1);
         }
 
       } else if (match.Orientation() == 7) {  // D1/D2 swapped and reversed
@@ -1516,7 +1516,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
           cerr << "ERROR: Error in boundaryConditions::DependentSplit(). "
                   "Direction " << dir << " is not recognized." << endl;
           cerr << "Please choose i, j, or k." << endl;
-          exit(0);
+          exit(1);
         }
 
       } else {  // D1/D2 reversed (orientation 8)
@@ -1540,7 +1540,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
           cerr << "ERROR: Error in boundaryConditions::DependentSplit(). "
                   "Direction " << dir << " is not recognized." << endl;
           cerr << "Please choose i, j, or k." << endl;
-          exit(0);
+          exit(1);
         }
       }
 
@@ -1935,7 +1935,7 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
   } else {
     cerr << "ERROR: Error in procBlock::Join(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
-    exit(0);
+    exit(1);
   }
 
   aSurf = alteredSurf;
@@ -2057,7 +2057,7 @@ patch::patch(const int &bound, const int &b, const int &d1s, const int &d1e,
     cerr << "ERROR: Error in patch::patch(). Boundary surface " << bound
          << " is not recognized!" << endl;
     cerr << "Choose an integer between 1-6." << endl;
-    exit(0);
+    exit(1);
   }
 }
 
@@ -2218,7 +2218,7 @@ int boundarySurface::SurfaceType() const {
     cerr << "ERROR: Error in boundarySurface::SurfaceType(). Surface is "
             "defined incorrectly, it is neither an i, j, or k surface." << endl;
     cerr << (*this) << endl;
-    exit(0);
+    exit(1);
   }
 
   return surf;
@@ -2231,7 +2231,7 @@ int boundarySurface::PartnerBlock() const {
   if (bcType_ != "interblock") {
     cerr << "ERROR: Partner blocks are only associated with interblock "
             "boundaries. Current boundary_ is " << bcType_ << endl;
-    exit(0);
+    exit(1);
   }
 
   const auto subtract = this->PartnerSurface() * 1000;
@@ -2245,7 +2245,7 @@ int boundarySurface::PartnerSurface() const {
   if (bcType_ != "interblock") {
     cerr << "ERROR: Partner blocks are only associated with interblock "
             "boundaries. Current boundary_ is " << bcType_ << endl;
-    exit(0);
+    exit(1);
   }
 
   auto surf = 0;
@@ -2266,7 +2266,7 @@ int boundarySurface::PartnerSurface() const {
     cerr << "ERROR: Error in boundarySurface::PartnerSurface(). Tag does not "
             "fit in range. Tag must be between 1000 and 6999." << endl;
     cerr << (*this) << endl;
-    exit(0);
+    exit(1);
   }
 
   return surf;
@@ -2408,7 +2408,7 @@ void boundarySurface::UpdateTagForSplitJoin(const int &nBlk) {
   if (bcType_ != "interblock") {
     cerr << "ERROR: Only tags associated with interblock boundaries need to be "
             "updated. Current boundary_ is " << bcType_ << endl;
-    exit(0);
+    exit(1);
   }
 
   data_[6] = this->PartnerSurface() * 1000 + nBlk;
@@ -2535,7 +2535,7 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind,
   } else {
     cerr << "ERROR: Error in boundarySurface::Split(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
-    exit(0);
+    exit(1);
   }
 
   (*this) = surf1;  // return lower surface as (*this)
@@ -2588,7 +2588,7 @@ bool boundarySurface::SplitDirectionIsReversed(const string &dir,
   } else {
     cerr << "ERROR: Error in boundarySurface::SplitDirectionIsReversed(). "
             "Direction " << dir << " does not match i, j, or k!" << endl;
-    exit(0);
+    exit(1);
   }
 
   return isReversed;
@@ -2639,7 +2639,7 @@ vector3d<int> GetSwapLoc(const int &l1, const int &l2, const int &l3,
     } else {
       cerr << "ERROR: Error in procBlock:GetSwapLoc(). Boundary direction "
            << inter.Direction3First() << " is not recognized!" << endl;
-      exit(0);
+      exit(1);
     }
   //--------------------------------------------------------------------------
   // need to use orientation for second in pair
@@ -2746,7 +2746,7 @@ vector3d<int> GetSwapLoc(const int &l1, const int &l2, const int &l3,
     } else {
       cerr << "ERROR: Error in procBlock.cpp:GetSwapLoc(). Boundary surface of "
            << inter.Direction3Second() << " is not recognized!" << endl;
-      exit(0);
+      exit(1);
     }
   }
 

@@ -105,7 +105,7 @@ multiArray3d<double> plot3dBlock::Volume() const {
           cerr << "ERROR: Negative volume in PLOT3D block!!!" << endl;
           cerr << "i-dim = " << ii << ", j-dim = " << jj
                << ", k-dim = " << kk << endl;
-          exit(0);
+          exit(1);
         }
       }
     }
@@ -205,7 +205,7 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaI() const {
                << endl;
           cerr << "Vectors to opposite diagonals are : " << xac << " and "
                << xbd << endl;
-          exit(0);
+          exit(1);
         }
       }
     }
@@ -296,7 +296,7 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaJ() const {
                << ", k-dim = " << kk << endl;
           cerr << "Vectors to opposite diagonals are : " << xac << " and "
                << xbd << endl;
-          exit(0);
+          exit(1);
         }
       }
     }
@@ -388,7 +388,7 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaK() const {
                << ", k-dim = " << kk << endl;
           cerr << "Vectors to opposite diagonals are : " << xac << " and "
                << xbd << endl;
-          exit(0);
+          exit(1);
         }
       }
     }
@@ -442,7 +442,7 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, const double &LRef,
   if (fName.fail()) {
     cerr << "ERROR: Error in plot3d.cpp:ReadP3dGrid(). Grid file " << readName
          << " did not open correctly!!!" << endl;
-    exit(0);
+    exit(1);
   }
 
   // read the number of plot3d blocks in the file
@@ -547,7 +547,7 @@ void plot3dBlock::Split(const string &dir, const int &ind, plot3dBlock &blk1,
   } else {
     cerr << "ERROR: Error in plot3dBlock::Split(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
-    exit(0);
+    exit(1);
   }
 }
 
@@ -592,6 +592,6 @@ void plot3dBlock::Join(const plot3dBlock &blk, const string &dir) {
   } else {
     cerr << "ERROR: Error in plot3dBlock::Join(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
-    exit(0);
+    exit(1);
   }
 }

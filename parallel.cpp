@@ -55,7 +55,7 @@ decomposition ManualDecomposition(vector<plot3dBlock> &grid,
          << "number of blocks in the grid. This grid has " << grid.size()
          << " blocks and the simulation is using " << numProc << " processors."
          << endl;
-    exit(0);
+    exit(1);
   }
 
   cout << "--------------------------------------------------------------------"
