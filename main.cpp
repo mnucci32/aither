@@ -135,7 +135,7 @@ int main(int argc, char *argv[]) {
     } else {
       cerr << "ERROR: Domain decomposition method " << inputVars.DecompMethod()
            << " is not recognized!" << endl;
-      exit(0);
+      exit(1);
     }
 
     // Get interblock BCs
