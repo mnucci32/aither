@@ -746,7 +746,7 @@ void procBlock::CalcBlockTimeStep(const input &inputVars, const double &aRef) {
           this->CalcCellDt(ii, jj, kk, inputVars.CFL());
         } else {
           cerr << "ERROR: Neither dt or cfl was specified!" << endl;
-          exit(1);
+          exit(EXIT_FAILURE);
         }
       }
     }
@@ -1564,7 +1564,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
             cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux " <<
                 "jacobian method  of " << inp.InvFluxJac() <<
                 " is not recognized!" << endl;
-            exit(1);
+            exit(EXIT_FAILURE);
           }
         }
 
@@ -1600,7 +1600,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
             cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux " <<
                 "jacobian method  of " << inp.InvFluxJac() <<
                 " is not recognized!" << endl;
-            exit(1);
+            exit(EXIT_FAILURE);
           }
         }
 
@@ -1637,7 +1637,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
             cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux " <<
                 "jacobian method  of " << inp.InvFluxJac() <<
                 " is not recognized!" << endl;
-            exit(1);
+            exit(EXIT_FAILURE);
           }
         }
 
@@ -1675,7 +1675,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
             cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux " <<
                 "jacobian method  of " << inp.InvFluxJac() <<
                 " is not recognized!" << endl;
-            exit(1);
+            exit(EXIT_FAILURE);
           }
         }
 
@@ -1713,7 +1713,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
             cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux " <<
                 "jacobian method  of " << inp.InvFluxJac() <<
                 " is not recognized!" << endl;
-            exit(1);
+            exit(EXIT_FAILURE);
           }
         }
 
@@ -1751,7 +1751,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
             cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux " <<
                 "jacobian method  of " << inp.InvFluxJac() <<
                 " is not recognized!" << endl;
-            exit(1);
+            exit(EXIT_FAILURE);
           }
         }
 
@@ -4606,7 +4606,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
          << inter.Dir2EndFirst() - inter.Dir2StartFirst() << ", " << d3 << endl;
     cerr << "Direction I, J, K of geomSlice: " << slice.NumI() << ", "
          << slice.NumJ() << ", " << slice.NumK() << endl;
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
   // adjust insertion indices if patch borders another interblock on the same
@@ -4677,7 +4677,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
               cerr << "ERROR: Error in procBlock::PutGeomSlice(). Ghost cell "
                       "edge direction does not match interblock direction 1 or "
                       "2." << endl;
-              exit(1);
+              exit(EXIT_FAILURE);
             }
           }
 
@@ -5390,7 +5390,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
                     "face quantities because behavior for interface with "
                     "boundary pair " << inter.BoundaryFirst() << ", "
                  << inter.BoundarySecond() << " is not defined." << endl;
-            exit(1);
+            exit(EXIT_FAILURE);
           }
         }
       }
@@ -6414,7 +6414,7 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
   } else {
     cerr << "ERROR: Error in procBlock::Split(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 }
 
@@ -6928,7 +6928,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
   } else {
     cerr << "ERROR: Error in procBlock::Join(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 }
 

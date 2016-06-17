@@ -70,7 +70,7 @@ void WriteCellCenter(const string &gridName, const vector<procBlock> &vars,
   if (outFile.fail()) {
     cerr << "ERROR: Grid file " << writeName << " did not open correctly!!!"
          << endl;
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
   // write number of blocks to file
@@ -141,7 +141,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
   if (outFile.fail()) {
     cerr << "ERROR: Function file " << writeName << " did not open correctly!!!"
          << endl;
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
   // write number of blocks to file
@@ -351,7 +351,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
       } else {
         cerr << "ERROR: Variable to write to function file is not defined!"
              << endl;
-        exit(1);
+        exit(EXIT_FAILURE);
       }
 
       // write out dimensional variables -- loop over block length
@@ -410,7 +410,7 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
   if (resFile.fail()) {
     cerr << "ERROR: Results file " << resName << " did not open correctly!!!"
          << endl;
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
   const string fPostFix = ".fun";

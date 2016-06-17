@@ -183,7 +183,7 @@ void input::ReadInput(const int &rank) {
   if (inFile.fail()) {
     cerr << "ERROR: Error in input::ReadInput(). Input file " << simName_
          << " did not open correctly!!!" << endl;
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
   string line = "";
@@ -322,7 +322,7 @@ void input::ReadInput(const int &rank) {
                    << this->Kappa()
                    << " is not valid! Choose a value between -1.0 and 1.0."
                    << endl;
-              exit(1);
+              exit(EXIT_FAILURE);
             }
             continue;
           } else if (ii == 12 && readingBCs == 0) {
@@ -634,7 +634,7 @@ unique_ptr<turbModel> input::AssignTurbulenceModel() const {
   } else {
     cerr << "ERROR: Error in input::AssignTurbulenceModel(). Turbulence model "
          << turbModel_ << " is not recognized!" << endl;
-    exit(1);
+    exit(EXIT_FAILURE);
   }
   return turb;
 }

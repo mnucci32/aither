@@ -62,7 +62,7 @@ void squareMatrix::Inverse() {
     if ((*this)(r, cPivot) == 0.0) {
       cerr << "ERROR: Singular matrix in Gauss-Jordan elimination! Matrix (mid "
               "inversion) is" << endl << *this << endl;
-      exit(1);
+      exit(EXIT_FAILURE);
     }
     auto normFactor = 1.0 / (*this)(r, cPivot);
     this->RowMultiply(r, cPivot, normFactor);  // only multiply entries from

@@ -200,7 +200,7 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
     invLimiter = limiter / r;
   } else {
     cerr << "ERROR: Limiter " << lim << " is not recognized!" << endl;
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
   // calculate reconstructed state at face using MUSCL method with limiter
@@ -311,7 +311,7 @@ primVars primVars::GetGhostState(const string &bcType,
     cerr << "ERROR: Error in primVars::GetGhostState. Requesting ghost state "
             "at a ghost layer " << layer << ". Please choose either 1 or 2"
          << endl;
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
   // face area vector (should always point out of domain)
@@ -527,7 +527,7 @@ primVars primVars::GetGhostState(const string &bcType,
            << endl;
       cerr << "Interior state: " << (*this) << endl;
       cerr << "Ghost state: " << ghostState << endl;
-      exit(1);
+      exit(EXIT_FAILURE);
     }
 
     if (layer == 2) {  // extrapolate to get ghost state at 2nd layer
@@ -672,7 +672,7 @@ primVars primVars::GetGhostState(const string &bcType,
     cerr << "ERROR: Error in primVars::GetGhostState ghost state for BC type "
          << bcType << " is not supported!" << endl;
     cerr << "surface is " << surf << endl;
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
   return ghostState;

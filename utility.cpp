@@ -512,7 +512,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
     cerr << "ERROR: Matrix solver " << inp.MatrixSolver() <<
         " is not recognized!" << endl;
     cerr << "Please choose lusgs, blusgs, dplur, or bdplur." << endl;
-    exit(1);
+    exit(EXIT_FAILURE);
   }
 
   // Update blocks and reset main diagonal
