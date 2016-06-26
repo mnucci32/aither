@@ -930,20 +930,20 @@ int boundaryConditions::BlockDimK() const {
 }
 
 /* Member function to split boundary_ conditions along a given direction at a
-   given
-   index. The calling instance retains the lower portion of the split, and the
-   returned instance is the upper portion. */
+   given index. The calling instance retains the lower portion of the split,
+   and the returned instance is the upper portion. */
 boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
                                              const int &numBlk,
                                              const int &newBlkNum,
                                              vector<boundarySurface> &aSurf) {
   // dir -- direction to split it (i, j, k)
   // ind -- index of cell to split at
-  // (this index is the last cell that remains in the lower split)
+  //        (this index is the last cell that remains in the lower split)
   // numBlk -- block_ number that (*this) is assocatied with
   // newBlkNum -- block_ number for upper split
   // aSurf -- vector of any interblocks that are split,
-  // because their partners will need to be altered for the split as well
+  //          because their partners will need to be altered for the split as
+  //          well
 
   // +1 because boundaries (in boundaryConditions) start at 1, not 0
   const auto indNG = ind + 1;
@@ -1003,7 +1003,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           // At upper i surface, lower bc is now interface
           // upper surface matches with lower surface
           const auto tag = 1000 + newBlkNum;
-          bound1.surfs_[ii].bcType_ = "interblock";  // bcType_
+          bound1.surfs_[ii].bcType_ = "interblock";  // bcType
           bound1.surfs_[ii].data_[0] = indNG;        // imin
           bound1.surfs_[ii].data_[1] = indNG;        // imax
           bound1.surfs_[ii].data_[6] = tag;          // tag
@@ -1034,7 +1034,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
         }
       } else {  // j-surface or k-surface
         // At j/k surface, if bc is interblock, store boundarySurface
-        // because partner block_ BC will need to be updated
+        // because partner block BC will need to be updated
         if (this->GetBCTypes(ii) == "interblock") {
           alteredSurf.push_back(this->GetSurface(ii));
         }
@@ -1069,18 +1069,23 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
     // Delete unnecessary boundaries and change number of surfaces in i,j,k
     // to appropriate number
-    for (auto ii = 0U; ii < del1.size(); ii++) {
+
+    // need to delete from bottom of vector so indices are preserved
+    // need to cast to int because value must be negative for termination
+    for (auto ii = static_cast<int>(del1.size()) - 1; ii >= 0; --ii) {
       bound1.surfs_.erase(bound1.surfs_.begin() + del1[ii]);
-      bound1.numSurfI_ -= del1I;
-      bound1.numSurfJ_ -= del1J;
-      bound1.numSurfK_ -= del1K;
     }
-    for (auto ii = 0U; ii < del2.size(); ii++) {
+    bound1.numSurfI_ -= del1I;
+    bound1.numSurfJ_ -= del1J;
+    bound1.numSurfK_ -= del1K;
+
+    for (auto ii = static_cast<int>(del2.size()) - 1; ii >= 0; --ii) {
       bound2.surfs_.erase(bound2.surfs_.begin() + del2[ii]);
-      bound2.numSurfI_ -= del2I;
-      bound2.numSurfJ_ -= del2J;
-      bound2.numSurfK_ -= del2K;
     }
+    bound2.numSurfI_ -= del2I;
+    bound2.numSurfJ_ -= del2J;
+    bound2.numSurfK_ -= del2K;
+
   } else if (dir == "j") {  // split along j-plane
     // Initialize deletion numbers to 0
     auto del1I = 0;
@@ -1141,7 +1146,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           numInterU++;
 
           // At upper j surface, upper bc is same as original, but indices
-          // are adjusted for new block_ size
+          // are adjusted for new block size
           bound2.surfs_[ii].data_[2] = this->GetJMax(ii) - indNG + 1;  // jmin
           bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - indNG + 1;  // jmax
 
@@ -1185,18 +1190,23 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
     // Delete unnecessary boundaries - and set number of surfaces (i, j, k)
     // to appropriate number
-    for (auto ii = 0U; ii < del1.size(); ii++) {
+
+    // need to delete from bottom of vector so indices are preserved
+    // need to cast to int because value must be negative for termination
+    for (auto ii = static_cast<int>(del1.size()) - 1; ii >= 0; --ii) {
       bound1.surfs_.erase(bound1.surfs_.begin() + del1[ii]);
-      bound1.numSurfI_ -= del1I;
-      bound1.numSurfJ_ -= del1J;
-      bound1.numSurfK_ -= del1K;
     }
-    for (auto ii = 0U; ii < del2.size(); ii++) {
+    bound1.numSurfI_ -= del1I;
+    bound1.numSurfJ_ -= del1J;
+    bound1.numSurfK_ -= del1K;
+
+    for (auto ii = static_cast<int>(del2.size()) - 1; ii >= 0; --ii) {
       bound2.surfs_.erase(bound2.surfs_.begin() + del2[ii]);
-      bound2.numSurfI_ -= del2I;
-      bound2.numSurfJ_ -= del2J;
-      bound2.numSurfK_ -= del2K;
     }
+    bound2.numSurfI_ -= del2I;
+    bound2.numSurfJ_ -= del2J;
+    bound2.numSurfK_ -= del2K;
+
   } else if (dir == "k") {  // split along k-plane
     // Initialize deletion numbers to 0
     auto del1I = 0;
@@ -1300,17 +1310,23 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
     // Delete unnecessary boundaries and set surface numbers (i,j,k) to
     // appropriate value
-    for (auto ii = 0U; ii < del1.size(); ii++) {
+
+    // need to delete from bottom of vector so indices are preserved
+    // need to cast to int because value must be negative for termination
+    for (auto ii = static_cast<int>(del1.size()) - 1; ii >= 0; --ii) {
       bound1.surfs_.erase(bound1.surfs_.begin() + del1[ii]);
-      bound1.numSurfI_ -= del1I;
-      bound1.numSurfJ_ -= del1J;
     }
-    for (auto ii = 0U; ii < del2.size(); ii++) {
+    bound1.numSurfI_ -= del1I;
+    bound1.numSurfJ_ -= del1J;
+    bound1.numSurfK_ -= del1K;
+
+    for (auto ii = static_cast<int>(del2.size()) - 1; ii >= 0; --ii) {
       bound2.surfs_.erase(bound2.surfs_.begin() + del2[ii]);
-      bound2.numSurfI_ -= del2I;
-      bound2.numSurfJ_ -= del2J;
-      bound2.numSurfK_ -= del2K;
     }
+    bound2.numSurfI_ -= del2I;
+    bound2.numSurfJ_ -= del2J;
+    bound2.numSurfK_ -= del2K;
+
   } else {
     cerr << "ERROR: Error in boundaryCondition::Split(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;

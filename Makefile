@@ -1,6 +1,6 @@
 OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o procBlock.o output.o matrix.o parallel.o slices.o turbulence.o inviscidFlux.o viscousFlux.o source.o resid.o kdtree.o genArray.o fluxJacobian.o uncoupledScalar.o utility.o
 CC = mpic++
-DEBUG = -ggdb -pg
+DEBUG = -O0 -ggdb -pg
 OPTIM = -O3 -march=native
 PROF = -O3 -march=native -pg
 CODENAME = aither

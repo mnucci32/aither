@@ -7325,7 +7325,7 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
 
         // add source terms to residual
         // subtract because residual is initially on opposite side of equation
-        this->SubtractFromResidual(src * (vol_(ig, jg, kg)),
+        this->SubtractFromResidual(src * vol_(ig, jg, kg),
                                    ip, jp, kp);
 
         // add source spectral radius for turbulence equations
