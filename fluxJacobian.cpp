@@ -417,7 +417,7 @@ genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
   const auto fluxChange = ConvectiveFluxUpdate(state, stateUpdate, eos,
                                                fAreaL.UnitVector());
 
-  // can't use stored cell spectral radius b/c it has contribuitons from i, j, k
+  // can't use stored cell spectral radius b/c it has contributions from i, j, k
   const uncoupledScalar specRad(state.CellSpectralRadius(fAreaL, fAreaR, eos,
                                                          suth, vol, mu, mut,
                                                          turb, isViscous),

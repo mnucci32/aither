@@ -17,6 +17,7 @@
 #include <cmath>  // sqrt
 #include <string>
 #include <memory>
+#include <algorithm>  // max
 #include "inviscidFlux.hpp"
 #include "eos.hpp"
 #include "primVars.hpp"
@@ -185,8 +186,10 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
     delta.Rho() - delta.P() / (aR * aR),
     (delta.P() + roe.Rho() * aR * normVelDiff) / (2.0 * aR * aR),
     roe.Rho(),
-    roe.Rho() * delta.Tke() + roe.Tke() * delta.Rho() - delta.P() * roe.Tke() / (aR * aR),
-    roe.Rho() * delta.Omega() + roe.Omega() * delta.Rho() - delta.P() * roe.Omega() / (aR * aR)};
+    roe.Rho() * delta.Tke() + roe.Tke() * delta.Rho() - delta.P() * roe.Tke()
+    / (aR * aR),
+    roe.Rho() * delta.Omega() + roe.Omega() * delta.Rho() -
+    delta.P() * roe.Omega() / (aR * aR)};
 
   // calculate absolute value of wave speeds (L)
   double waveSpeed[NUMVARS - 1] = {
@@ -213,7 +216,8 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   // calculate right eigenvectors (T)
   // calculate eigenvector due to left acoustic wave
   const genArray lAcousticEigV(1.0, roe.U() - aR * areaNorm.X(),
-                               roe.V() - aR * areaNorm.Y(), roe.W() - aR * areaNorm.Z(),
+                               roe.V() - aR * areaNorm.Y(),
+                               roe.W() - aR * areaNorm.Z(),
                                hR - aR * velRSum, roe.Tke(), roe.Omega());
 
   // calculate eigenvector due to entropy wave
@@ -223,7 +227,8 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
 
   // calculate eigenvector due to right acoustic wave
   const genArray rAcousticEigV(1.0, roe.U() + aR * areaNorm.X(),
-                               roe.V() + aR * areaNorm.Y(), roe.W() + aR * areaNorm.Z(),
+                               roe.V() + aR * areaNorm.Y(),
+                               roe.W() + aR * areaNorm.Z(),
                                hR + aR * velRSum, roe.Tke(), roe.Omega());
 
   // calculate eigenvector due to shear wave
@@ -292,7 +297,7 @@ inviscidFlux RusanovFlux(const primVars &left, const primVars &right,
     + right.SoS(eqnState);
   const auto fac = positive ? -1.0 : 1.0;
   const auto specRad = fac * max(leftSpecRad, rightSpecRad);
-  
+
   // calculate left/right physical flux
   inviscidFlux leftFlux(left, eqnState, areaNorm);
   inviscidFlux rightFlux(right, eqnState, areaNorm);
@@ -349,7 +354,7 @@ genArray ConvectiveFluxUpdate(const primVars &state,
   const inviscidFlux newFlux(stateUpdate, eqnState, normArea);
 
   // calculate difference in flux
-  inviscidFlux dFlux = newFlux - oldFlux;
+  const auto dFlux = newFlux - oldFlux;
 
   return dFlux.ConvertToGenArray();
 }

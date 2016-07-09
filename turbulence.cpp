@@ -149,7 +149,7 @@ double turbModel::InviscidSpecRad(const primVars &state,
   auto normAvg = (0.5 * (fAreaL.UnitVector() +
                          fAreaR.UnitVector())).Normalize();
   auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
-  return state.Velocity().DotProd(normAvg) * fMag;
+  return fabs(state.Velocity().DotProd(normAvg)) * fMag;
 }
 
 
@@ -310,11 +310,13 @@ squareMatrix turbKWWilcox::CalcTurbSrc(const primVars &state,
       this->OmegaDestruction(state);
 
   // calculate tke production
-  const auto tkeProd = suth.NondimScaling() *
+  auto tkeProd = suth.NondimScaling() *
       this->ReynoldsStressDDotVelGrad(state, velGrad, suth, mut);
+  tkeProd = max(tkeProd, 0.0);
 
   // calculate omega production
-  const auto omgProd = gamma_ * state.Omega() / state.Tke() * tkeProd;
+  auto omgProd = gamma_ * state.Omega() / state.Tke() * tkeProd;
+  omgProd = max(omgProd, 0.0);
 
   // calculate omega cross diffusion
   const auto omgCd = suth.NondimScaling() * this->SigmaD(kGrad, wGrad) *
@@ -538,13 +540,14 @@ squareMatrix turbKWSst::CalcTurbSrc(const primVars &state,
       this->OmegaDestruction(state);
 
   // calculate tke production
-  const auto tkeProd =
-      min(suth.NondimScaling() *
-          this->ReynoldsStressDDotVelGrad(state, velGrad, suth, mut),
-          kProd2Dest_ * tkeDest);
+  auto tkeProd = min(suth.NondimScaling() *
+                     this->ReynoldsStressDDotVelGrad(state, velGrad, suth, mut),
+                     kProd2Dest_ * tkeDest);
+  tkeProd = max(tkeProd, 0.0);
 
   // calculate omega production
-  const auto omgProd = gamma * state.Rho() / mut * tkeProd;
+  auto omgProd = gamma * state.Rho() / mut * tkeProd;
+  omgProd = max(omgProd, 0.0);
 
   // calculate omega cross diffusion
   // Using CDkw instead of whole cross diffusion term

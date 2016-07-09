@@ -156,7 +156,7 @@ class unitVec3dMag {
     return *this;
   }
 
-  // access of data_ members
+  // access of data members
   vector3d<T> UnitVector() const { return unitVec_; }
   T X() const { return unitVec_.X(); }
   T Y() const { return unitVec_.Y(); }
@@ -466,7 +466,7 @@ inline const unitVec3dMag<T> operator/(const T &lhs, unitVec3dMag<T> rhs) {
 
 template <typename T>
 ostream &operator<<(ostream &os, const unitVec3dMag<T> &v) {
-  os << v.Vector() << ", " << v.Mag();
+  os << v.UnitVector() << ", " << v.Mag();
   return os;
 }
 
