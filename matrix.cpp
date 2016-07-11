@@ -15,6 +15,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <cstdlib>  // exit()
+#include <cmath>  // fabs
 #include <iostream>  // cout
 #include <algorithm>  // swap
 #include "matrix.hpp"
@@ -25,7 +26,6 @@ using std::endl;
 using std::cerr;
 using std::copy;
 using std::swap_ranges;
-using std::fabs;
 
 // member function to swap rows of matrix
 void squareMatrix::SwapRows(const int &r1, const int &r2) {

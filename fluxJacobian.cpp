@@ -203,8 +203,8 @@ void fluxJacobian::InvFluxJacobian(const primVars &state,
 
   // turbulent jacobian here
   if (inp.IsTurbulent()) {
-    turbJacobian_(0, 0) = velNorm;
-    turbJacobian_(1, 1) = velNorm;
+    turbJacobian_(0, 0) = fabs(velNorm);
+    turbJacobian_(1, 1) = fabs(velNorm);
   }
 }
 
@@ -363,7 +363,7 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
 
   // DEBUG
   flowJacobian_ *= fac * (mu + mut) / dist;
-  
+
   fluxJacobian prim2Cons;
   prim2Cons.DelPrimativeDelConservative(state, eos, inp);
 

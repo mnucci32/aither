@@ -158,8 +158,8 @@ string trim(const string &s, const string &whitespace = " \t") {
 
 // function to print the time
 void PrintTime() {
-  auto now = std::chrono::high_resolution_clock::now();
-  auto nowOut = std::chrono::high_resolution_clock::to_time_t(now);
+  auto now = std::chrono::system_clock::now();
+  auto nowOut = std::chrono::system_clock::to_time_t(now);
   cout << std::put_time(std::localtime(&nowOut), "%c") << endl;
 }
 

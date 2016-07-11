@@ -1054,6 +1054,9 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
               inp.DualTimeCFL();
         }
 
+        // DEBUG
+        // mainDiagonal(ip, jp, kp) *= fluxJacobian(1.0, 2.0);
+        
         // add volume and time term
         mainDiagonal(ip, jp, kp).MultiplyOnDiagonal(inp.MatrixRelaxation(),
                                                     isTurbulent_);

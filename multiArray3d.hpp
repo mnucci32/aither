@@ -141,32 +141,60 @@ class multiArray3d {
   // arithmetic with a type that is not *this or the type *this is holding
   // used for example to multiply with a double if *this is a
   // multiArray3d<vector3d<double>>
-  template <typename TT>
-  inline multiArray3d<T> & operator+=(const TT &);
-  template <typename TT>
-  inline multiArray3d<T> & operator-=(const TT &);
-  template <typename TT>
-  inline multiArray3d<T> & operator*=(const TT &);
-  template <typename TT>
-  inline multiArray3d<T> & operator/=(const TT &);
 
   template <typename TT>
-  inline multiArray3d<T> operator+(const TT &s) const {
+  multiArray3d<T> & operator+=(const TT &scalar) {
+    for (auto &val : data_) {
+      val += scalar;
+    }
+    return *this;
+  }
+
+  template <typename TT>
+  multiArray3d<T> & operator-=(const TT &scalar) {
+    for (auto &val : data_) {
+      val -= scalar;
+    }
+    return *this;
+  }
+
+  template <typename TT>
+  multiArray3d<T> & operator*=(const TT &scalar) {
+    for (auto &val : data_) {
+      val *= scalar;
+    }
+    return *this;
+  }
+
+  template <typename TT>
+  multiArray3d<T> & operator/=(const TT &scalar) {
+    for (auto &val : data_) {
+      val /= scalar;
+    }
+    return *this;
+  }
+
+  template <typename TT>
+  multiArray3d<T> operator+(
+      std::enable_if_t<!std::is_same<T, TT>::value, TT> const &s) const {
     auto lhs = *this;
     return lhs += s;
   }
   template <typename TT>
-  inline multiArray3d<T> operator-(const TT &s) const {
+  multiArray3d<T> operator-(
+      std::enable_if_t<!std::is_same<T, TT>::value, TT> const &s) const {
     auto lhs = *this;
     return lhs -= s;
   }
   template <typename TT>
-  inline multiArray3d<T> operator*(const TT &s) const {
+  multiArray3d<T> operator*(
+      std::enable_if_t<!std::is_same<T, TT>::value, TT> const &s) const {
     auto lhs = *this;
     return lhs *= s;
   }
   template <typename TT>
-  inline multiArray3d<T> operator/(const TT &s) const {
+  multiArray3d<T> operator/(
+      std::enable_if_t<!std::is_same<T, TT>::value, TT> const &s) const {
     auto lhs = *this;
     return lhs /= s;
   }
@@ -326,42 +354,6 @@ inline const multiArray3d<T> operator/(const T &lhs, multiArray3d<T> rhs) {
 
 // ----------------------------------------------------------------
 // operator overloads type that is not *this, or the type *this is holding
-
-// operator overload for addition
-template <typename T> template <typename TT>
-multiArray3d<T> & multiArray3d<T>::operator+=(const TT &scalar) {
-  for (auto &val : data_) {
-    val += scalar;
-  }
-  return *this;
-}
-
-// operator overload for subtraction with a scalar
-template <typename T> template <typename TT>
-multiArray3d<T> & multiArray3d<T>::operator-=(const TT &scalar) {
-  for (auto &val : data_) {
-    val -= scalar;
-  }
-  return *this;
-}
-
-// operator overload for elementwise multiplication
-template <typename T> template <typename TT>
-multiArray3d<T> & multiArray3d<T>::operator*=(const TT &scalar) {
-  for (auto &val : data_) {
-    val *= scalar;
-  }
-  return *this;
-}
-
-// operator overload for elementwise division
-template <typename T> template <typename TT>
-multiArray3d<T> & multiArray3d<T>::operator/=(const TT &scalar) {
-  for (auto &val : data_) {
-    val /= scalar;
-  }
-  return *this;
-}
 
 template <typename T, typename TT>
 inline const multiArray3d<T> operator+(const TT &lhs, multiArray3d<T> rhs) {

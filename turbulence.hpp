@@ -45,8 +45,8 @@ class turbModel {
   explicit turbModel(const string &meth) : eddyViscMethod_(meth) {}
 
   // move constructor and assignment operator
-  turbModel(turbModel&&) noexcept = default;
-  turbModel& operator=(turbModel&&) noexcept = default;
+  turbModel(turbModel&&) = default;
+  turbModel& operator=(turbModel&&) = default;
 
   // copy constructor and assignment operator
   turbModel(const turbModel&) = default;
@@ -135,7 +135,7 @@ class turbNone : public turbModel {
 
   // move constructor and assignment operator
   turbNone(turbNone &&model) noexcept : turbModel(std::move(model)) {}
-  turbNone& operator=(turbNone&&) noexcept = default;
+  turbNone& operator=(turbNone&&) = default;
 
   // copy constructor and assignment operator
   turbNone(const turbNone &model) : turbModel(model) {}
@@ -202,7 +202,7 @@ class turbKWWilcox : public turbModel {
 
   // move constructor and assignment operator
   turbKWWilcox(turbKWWilcox &&model) noexcept : turbModel(std::move(model)) {}
-  turbKWWilcox& operator=(turbKWWilcox&&) noexcept = default;
+  turbKWWilcox& operator=(turbKWWilcox&&) = default;
 
   // copy constructor and assignment operator
   turbKWWilcox(const turbKWWilcox &model) : turbModel(model) {}
@@ -287,7 +287,7 @@ class turbKWSst : public turbModel {
 
   // move constructor and assignment operator
   turbKWSst(turbKWSst &&model) noexcept : turbModel(std::move(model)) {}
-  turbKWSst& operator=(turbKWSst&&) noexcept = default;
+  turbKWSst& operator=(turbKWSst&&) = default;
 
   // copy constructor and assignment operator
   turbKWSst(const turbKWSst &model) : turbModel(model) {}
@@ -353,5 +353,7 @@ class turbKWSst : public turbModel {
 
 
 // function declarations
+
+
 
 #endif

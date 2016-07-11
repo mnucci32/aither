@@ -371,7 +371,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             } else if (vv == 4) {  // pressure
               dumDouble = dumDouble * inp.RRef() * refSoS * refSoS;
             } else if (vv == 5) {  // mach is already nondimensional
-              dumDouble = dumDouble;
+              // do nothing
             } else if (vv == 6) {  // speed of sound
               dumDouble = dumDouble * refSoS;
             } else if (vv == 7) {  // time step
