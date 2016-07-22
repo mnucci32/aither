@@ -69,9 +69,17 @@ class turbModel {
   virtual double SrcSpecRad(const primVars &state,
                             const sutherland &suth,
                             const double &vol) const {return 0.0;}
+  virtual squareMatrix InviscidJacobian(const primVars &state,
+                                        const unitVec3dMag<double> &fArea,
+                                        const bool &positive) const;
   virtual double InviscidSpecRad(const primVars &state,
                                  const unitVec3dMag<double> &fAreaL,
                                  const unitVec3dMag<double> &fAreaR) const;
+  virtual squareMatrix ViscousJacobian(const primVars &state,
+                                       const unitVec3dMag<double> &fArea,
+                                       const double &mu, const sutherland &suth,
+                                       const double &dist, const double &mut,
+                                       const double &f1) const;
   virtual double ViscSpecRad(const primVars &state,
                              const unitVec3dMag<double> &fAreaL,
                              const unitVec3dMag<double> &fAreaR,
@@ -119,7 +127,8 @@ class turbModel {
                                    double &f2) const = 0;
   virtual squareMatrix TurbSrcJac(const primVars &state,
                                   const double &beta,
-                                  const sutherland &suth) const = 0;
+                                  const sutherland &suth,
+                                  const double &vol) const = 0;
 
   virtual void Print() const = 0;
 
@@ -163,9 +172,13 @@ class turbNone : public turbModel {
                          const unitVec3dMag<double> &fAreaR) const override {
     return 0.0;
   }
-
+  squareMatrix InviscidJacobian(const primVars &state,
+                                const unitVec3dMag<double> &fArea,
+                                const bool &positive) const override;
+  
   squareMatrix TurbSrcJac(const primVars &state, const double &beta,
-                          const sutherland &suth) const override;
+                          const sutherland &suth,
+                          const double &vol) const override;
 
   double TkeMin() const override {return 0.0;}
   double OmegaMin() const override {return 0.0;}
@@ -225,6 +238,11 @@ class turbKWWilcox : public turbModel {
   bool UseUnlimitedEddyVisc() const override {return true;}
   double SrcSpecRad(const primVars &, const sutherland &,
                     const double &) const override;
+  squareMatrix ViscousJacobian(const primVars &,
+                               const unitVec3dMag<double> &,
+                               const double &, const sutherland &,
+                               const double &, const double &,
+                               const double &) const override;
   double ViscSpecRad(const primVars &,
                      const unitVec3dMag<double> &,
                      const unitVec3dMag<double> &,
@@ -232,7 +250,7 @@ class turbKWWilcox : public turbModel {
                      const double &, const double &,
                      const double &) const override;
   squareMatrix TurbSrcJac(const primVars &, const double &,
-                          const sutherland &) const override;
+                          const sutherland &, const double &) const override;
 
   double TurbPrandtlNumber() const override {return prt_;}
   double WallBeta() const override {return beta0_;}
@@ -310,6 +328,11 @@ class turbKWSst : public turbModel {
 
   double SrcSpecRad(const primVars &, const sutherland &,
                     const double &) const override;
+  squareMatrix ViscousJacobian(const primVars &,
+                               const unitVec3dMag<double> &,
+                               const double &, const sutherland &,
+                               const double &, const double &,
+                               const double &) const override;
   double ViscSpecRad(const primVars &,
                      const unitVec3dMag<double> &,
                      const unitVec3dMag<double> &,
@@ -317,7 +340,7 @@ class turbKWSst : public turbModel {
                      const double &, const double &,
                      const double &) const override;
   squareMatrix TurbSrcJac(const primVars &, const double &,
-                          const sutherland &) const override;
+                          const sutherland &, const double &) const override;
 
   double WallBeta() const override {return beta1_;}
   double TurbPrandtlNumber() const override {return prt_;}

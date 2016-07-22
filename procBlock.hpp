@@ -179,7 +179,7 @@ class procBlock {
   int GlobalPos() const { return globalPos_; }
   bool IsViscous() const { return isViscous_; }
   bool IsTurbulent() const { return isTurbulent_; }
-
+  
   boundaryConditions BC() const { return bc_; }
 
   primVars State(const int &ii, const int &jj, const int &kk) const {
@@ -274,7 +274,6 @@ class procBlock {
                              const int &kk) const {
     return omegaGrad_(ii, jj, kk);
   }
-
 
   double Temperature(const int &ii, const int &jj, const int &kk) const {
     return temperature_(ii, jj, kk);
@@ -404,6 +403,9 @@ class procBlock {
                                 const bool = true);
   void UpdateUnlimTurbEddyVisc(const unique_ptr<turbModel> &, const bool &);
 
+  double ProjC2CDist(const int &, const int &, const int &,
+                     const string &) const;
+  
   // destructor
   ~procBlock() noexcept {}
 };

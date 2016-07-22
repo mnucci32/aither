@@ -196,3 +196,13 @@ genArray squareMatrix::ArrayMult(const genArray &vec, const int pos) const {
   }
   return product;
 }
+
+// member function to find maximum absolute value on diagonal
+// this can be used to find the spectral radius of a diagoanl matrix
+double squareMatrix::MaxAbsOnDiagonal() const {
+  auto maxVal = 0.0;
+  for (auto ii = 0; ii < size_; ii++) {
+    maxVal = std::max(fabs((*this)(ii, ii)), maxVal);
+  }
+  return maxVal;
+}

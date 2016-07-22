@@ -393,6 +393,7 @@ genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
                             const unitVec3dMag<double> &fAreaR,
                             const double &vol, const double &mu,
                             const double &mut, const double &f1,
+                            const double &dist,
                             const idealGas &eos, const sutherland &suth,
                             const unique_ptr<turbModel> &turb,
                             const bool &isViscous, const bool &positive) {
@@ -404,6 +405,7 @@ genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
   // mu -- laminar viscosity
   // mut -- turbulent viscosity
   // f1 -- first blending coefficient
+  // dist -- distance from cell center to cell center across face on diagonal
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
   // turb -- turbulence model
@@ -417,14 +419,27 @@ genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
   const auto fluxChange = ConvectiveFluxUpdate(state, stateUpdate, eos,
                                                fAreaL.UnitVector());
 
+  // DEBUG
   // can't use stored cell spectral radius b/c it has contributions from i, j, k
+  // const uncoupledScalar specRad(state.CellSpectralRadius(fAreaL, fAreaR, eos,
+  //                                                        suth, vol, mu, mut,
+  //                                                        turb, isViscous),
+  //                               turb->SpectralRadius(state, fAreaL, fAreaR, mu,
+  //                                                    suth, vol, mut, f1,
+  //                                                    false));
+
+  // DEBUG
+  auto turbSpecRad =
+      turb->InviscidJacobian(state, fAreaL, !positive).MaxAbsOnDiagonal();
+  turbSpecRad += turb->ViscousJacobian(
+      state, fAreaL, mu, suth, dist, mut, f1).MaxAbsOnDiagonal();
+  
   const uncoupledScalar specRad(state.CellSpectralRadius(fAreaL, fAreaR, eos,
                                                          suth, vol, mu, mut,
                                                          turb, isViscous),
-                                turb->SpectralRadius(state, fAreaL, fAreaR, mu,
-                                                     suth, vol, mut, f1,
-                                                     false));
+                                turbSpecRad);
 
+  // DEBUG
   return positive ?
     0.5 * (fAreaL.Mag() * fluxChange + specRad.ArrayMult(update)) :
     0.5 * (fAreaL.Mag() * fluxChange - specRad.ArrayMult(update));

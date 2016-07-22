@@ -1238,13 +1238,16 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // from it
     if (this->IsPhysical(ip - 1, jp, kp, false) ||
         bc_.GetBCName(ip, jp, kp, "il") == "interblock") {
+      // calculate projected center to center distance along face area
+      const auto projDist = this->ProjC2CDist(ig, jg, kg, "i");
+
       // update L matrix
       L += RusanovOffDiagonal(state_(ig - 1, jg, kg), x(ig - 1 , jg, kg),
                               fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
                               vol_(ig - 1, jg, kg),
                               this->Viscosity(ig - 1, jg, kg),
                               this->EddyViscosity(ig - 1, jg, kg),
-                              this->F1(ig - 1, jg, kg),
+                              this->F1(ig - 1, jg, kg), projDist,
                               eqnState, suth, turb, isViscous_, true);
     }
 
@@ -1253,13 +1256,16 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // from it
     if (this->IsPhysical(ip, jp - 1, kp, false) ||
         bc_.GetBCName(ip, jp, kp, "jl") == "interblock") {
+      // calculate projected center to center distance along face area
+      const auto projDist = this->ProjC2CDist(ig, jg, kg, "j");
+
       // update L matrix
       L += RusanovOffDiagonal(state_(ig, jg - 1, kg), x(ig, jg - 1, kg),
                               fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
                               vol_(ig, jg - 1, kg),
                               this->Viscosity(ig, jg - 1, kg),
                               this->EddyViscosity(ig, jg - 1, kg),
-                              this->F1(ig, jg - 1, kg),
+                              this->F1(ig, jg - 1, kg), projDist,
                               eqnState, suth, turb, isViscous_, true);
     }
 
@@ -1268,13 +1274,16 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // from it
     if (this->IsPhysical(ip, jp, kp - 1, false) ||
         bc_.GetBCName(ip, jp, kp, "kl") == "interblock") {
+      // calculate projected center to center distance along face area
+      const auto projDist = this->ProjC2CDist(ig, jg, kg, "k");
+
       // update L matrix
       L += RusanovOffDiagonal(state_(ig, jg, kg - 1), x(ig, jg, kg - 1),
                               fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
                               vol_(ig, jg, kg - 1),
                               this->Viscosity(ig, jg, kg - 1),
                               this->EddyViscosity(ig, jg, kg - 1),
-                              this->F1(ig, jg, kg - 1),
+                              this->F1(ig, jg, kg - 1), projDist,
                               eqnState, suth, turb, isViscous_, true);
     }
 
@@ -1289,6 +1298,9 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       // from it
       if (this->IsPhysical(ip + 1, jp, kp, false) ||
           bc_.GetBCName(ip + 1, jp, kp, "iu") == "interblock") {
+        // calculate projected center to center distance along face area
+        const auto projDist = this->ProjC2CDist(ig + 1, jg, kg, "i");
+
         // update U matrix
         U += RusanovOffDiagonal(state_(ig + 1, jg, kg), x(ig + 1 , jg, kg),
                                 fAreaI_(ig + 1, jg, kg),
@@ -1296,7 +1308,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
                                 vol_(ig + 1, jg, kg),
                                 this->Viscosity(ig + 1, jg, kg),
                                 this->EddyViscosity(ig + 1, jg, kg),
-                                this->F1(ig + 1, jg, kg),
+                                this->F1(ig + 1, jg, kg), projDist,
                                 eqnState, suth, turb, isViscous_, false);
       }
 
@@ -1305,6 +1317,9 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       // from it
       if (this->IsPhysical(ip, jp + 1, kp, false) ||
           bc_.GetBCName(ip, jp + 1, kp, "ju") == "interblock") {
+        // calculate projected center to center distance along face area
+        const auto projDist = this->ProjC2CDist(ig, jg + 1, kg, "j");
+
         // update U matrix
         U += RusanovOffDiagonal(state_(ig, jg + 1, kg), x(ig, jg + 1, kg),
                                 fAreaJ_(ig, jg + 1, kg),
@@ -1312,7 +1327,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
                                 vol_(ig, jg + 1, kg),
                                 this->Viscosity(ig, jg + 1, kg),
                                 this->EddyViscosity(ig, jg + 1, kg),
-                                this->F1(ig, jg + 1, kg),
+                                this->F1(ig, jg + 1, kg), projDist,
                                 eqnState, suth, turb, isViscous_, false);
       }
 
@@ -1321,6 +1336,9 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       // from it
       if (this->IsPhysical(ip, jp, kp + 1, false) ||
           bc_.GetBCName(ip, jp, kp + 1, "ku") == "interblock") {
+        // calculate projected center to center distance along face area
+        const auto projDist = this->ProjC2CDist(ig, jg, kg + 1, "k");
+
         // update U matrix
         U += RusanovOffDiagonal(state_(ig, jg, kg + 1), x(ig, jg, kg + 1),
                                 fAreaK_(ig, jg, kg + 1),
@@ -1328,7 +1346,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
                                 vol_(ig, jg, kg + 1),
                                 this->Viscosity(ig, jg, kg + 1),
                                 this->EddyViscosity(ig, jg, kg + 1),
-                                this->F1(ig, jg, kg + 1),
+                                this->F1(ig, jg, kg + 1), projDist,
                                 eqnState, suth, turb, isViscous_, false);
       }
     }
@@ -1390,13 +1408,16 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
     // from it
     if (this->IsPhysical(ip + 1, jp, kp, false) ||
         bc_.GetBCName(ip + 1, jp, kp, "iu") == "interblock") {
+      // calculate projected center to center distance along face area
+      const auto projDist = this->ProjC2CDist(ig + 1, jg, kg, "i");
+
       // update U matrix
       U += RusanovOffDiagonal(state_(ig + 1, jg, kg), x(ig + 1, jg, kg),
                               fAreaI_(ig + 1, jg, kg), fAreaI_(ig + 2, jg, kg),
                               vol_(ig + 1, jg, kg),
                               this->Viscosity(ig + 1, jg, kg),
                               this->EddyViscosity(ig + 1, jg, kg),
-                              this->F1(ig + 1, jg, kg),
+                              this->F1(ig + 1, jg, kg), projDist,
                               eqnState, suth, turb, isViscous_, false);
     }
 
@@ -1405,13 +1426,16 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
     // from it
     if (this->IsPhysical(ip, jp + 1, kp, false) ||
         bc_.GetBCName(ip, jp + 1, kp, "ju") == "interblock") {
+      // calculate projected center to center distance along face area
+      const auto projDist = this->ProjC2CDist(ig, jg + 1, kg, "j");
+
       // update U matrix
       U += RusanovOffDiagonal(state_(ig, jg + 1, kg), x(ig, jg + 1, kg),
                               fAreaJ_(ig, jg + 1, kg), fAreaJ_(ig, jg + 2, kg),
                               vol_(ig, jg + 1, kg),
                               this->Viscosity(ig, jg + 1, kg),
                               this->EddyViscosity(ig, jg + 1, kg),
-                              this->F1(ig, jg + 1, kg),
+                              this->F1(ig, jg + 1, kg), projDist,
                               eqnState, suth, turb, isViscous_, false);
     }
 
@@ -1420,13 +1444,16 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
     // from it
     if (this->IsPhysical(ip, jp, kp + 1, false) ||
         bc_.GetBCName(ip, jp, kp + 1, "ku") == "interblock") {
+      // calculate projected center to center distance along face area
+      const auto projDist = this->ProjC2CDist(ig, jg, kg + 1, "k");
+
       // update U matrix
       U += RusanovOffDiagonal(state_(ig, jg, kg + 1), x(ig, jg, kg + 1),
                               fAreaK_(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 2),
                               vol_(ig, jg, kg + 1),
                               this->Viscosity(ig, jg, kg + 1),
                               this->EddyViscosity(ig, jg, kg + 1),
-                              this->F1(ig, jg, kg + 1),
+                              this->F1(ig, jg, kg + 1), projDist,
                               eqnState, suth, turb, isViscous_, false);
     }
 
@@ -1441,13 +1468,16 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       // from it
       if (this->IsPhysical(ip - 1, jp, kp, false) ||
           bc_.GetBCName(ip, jp, kp, "il") == "interblock") {
+        // calculate projected center to center distance along face area
+        const auto projDist = this->ProjC2CDist(ig, jg, kg, "i");
+
         // update U matrix
         L += RusanovOffDiagonal(state_(ig - 1, jg, kg), x(ig - 1, jg, kg),
                                 fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
                                 vol_(ig - 1, jg, kg),
                                 this->Viscosity(ig - 1, jg, kg),
                                 this->EddyViscosity(ig - 1, jg, kg),
-                                this->F1(ig - 1, jg, kg),
+                                this->F1(ig - 1, jg, kg), projDist,
                                 eqnState, suth, turb, isViscous_, true);
       }
 
@@ -1456,13 +1486,16 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       // from it
       if (this->IsPhysical(ip, jp - 1, kp, false) ||
           bc_.GetBCName(ip, jp, kp, "jl") == "interblock") {
+        // calculate projected center to center distance along face area
+        const auto projDist = this->ProjC2CDist(ig, jg, kg, "j");
+
         // update U matrix
         L += RusanovOffDiagonal(state_(ig, jg - 1, kg), x(ig, jg - 1, kg),
                                 fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
                                 vol_(ig, jg - 1, kg),
                                 this->Viscosity(ig, jg - 1, kg),
                                 this->EddyViscosity(ig, jg - 1, kg),
-                                this->F1(ig, jg - 1, kg),
+                                this->F1(ig, jg - 1, kg), projDist,
                                 eqnState, suth, turb, isViscous_, true);
       }
 
@@ -1471,13 +1504,16 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       // from it
       if (this->IsPhysical(ip, jp, kp - 1, false) ||
           bc_.GetBCName(ip, jp, kp, "kl") == "interblock") {
+        // calculate projected center to center distance along face area
+        const auto projDist = this->ProjC2CDist(ig, jg, kg, "k");
+
         // update U matrix
         L += RusanovOffDiagonal(state_(ig, jg, kg - 1), x(ig, jg, kg - 1),
                                 fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
                                 vol_(ig, jg, kg - 1),
                                 this->Viscosity(ig, jg, kg - 1),
                                 this->EddyViscosity(ig, jg, kg - 1),
-                                this->F1(ig, jg, kg - 1),
+                                this->F1(ig, jg, kg - 1), projDist,
                                 eqnState, suth, turb, isViscous_, true);
       }
     }
@@ -1542,13 +1578,16 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
             bc_.GetBCName(ip, jp, kp, "il") == "interblock") {
           // update off diagonal
           if (inp.InvFluxJac() == "rusanov") {
+            // calculate projected center to center distance
+            const auto projDist = this->ProjC2CDist(ig, jg, kg, "i");
+
             offDiagonal +=
                 RusanovOffDiagonal(state_(ig - 1, jg, kg), xold(ig - 1, jg, kg),
                                    fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
                                    vol_(ig - 1, jg, kg),
                                    this->Viscosity(ig - 1, jg, kg),
                                    this->EddyViscosity(ig - 1, jg, kg),
-                                   this->F1(ig - 1, jg, kg),
+                                   this->F1(ig - 1, jg, kg), projDist,
                                    eqnState, suth, turb, isViscous_, true);
           } else if (inp.InvFluxJac() == "approximateRoe") {
             offDiagonal +=
@@ -1578,13 +1617,16 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
             bc_.GetBCName(ip, jp, kp, "jl") == "interblock") {
           // update off diagonal
           if (inp.InvFluxJac() == "rusanov") {
+            // calculate projected center to center distance
+            const auto projDist = this->ProjC2CDist(ig, jg, kg, "j");
+
             offDiagonal +=
                 RusanovOffDiagonal(state_(ig, jg - 1, kg), xold(ig, jg - 1, kg),
                                    fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
                                    vol_(ig, jg - 1, kg),
                                    this->Viscosity(ig, jg - 1, kg),
                                    this->EddyViscosity(ig, jg - 1, kg),
-                                   this->F1(ig, jg - 1, kg),
+                                   this->F1(ig, jg - 1, kg), projDist,
                                    eqnState, suth, turb, isViscous_, true);
           } else if (inp.InvFluxJac() == "approximateRoe") {
             offDiagonal +=
@@ -1614,13 +1656,16 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
             bc_.GetBCName(ip, jp, kp, "kl") == "interblock") {
           // update off diagonal
           if (inp.InvFluxJac() == "rusanov") {
+            // calculate projected center to center distance
+            const auto projDist = this->ProjC2CDist(ig, jg, kg, "k");
+
             offDiagonal +=
                 RusanovOffDiagonal(state_(ig, jg, kg - 1), xold(ig, jg, kg - 1),
                                    fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
                                    vol_(ig, jg, kg - 1),
                                    this->Viscosity(ig, jg, kg - 1),
                                    this->EddyViscosity(ig, jg, kg - 1),
-                                   this->F1(ig, jg, kg - 1),
+                                   this->F1(ig, jg, kg - 1), projDist,
                                    eqnState, suth, turb, isViscous_, true);
           } else if (inp.InvFluxJac() == "approximateRoe") {
             offDiagonal +=
@@ -1651,6 +1696,9 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
             bc_.GetBCName(ip + 1, jp, kp, "iu") == "interblock") {
           // update off diagonal
           if (inp.InvFluxJac() == "rusanov") {
+            // calculate projected center to center distance
+            const auto projDist = this->ProjC2CDist(ig + 1, jg, kg, "i");
+
             offDiagonal -=
                 RusanovOffDiagonal(state_(ig + 1, jg, kg), xold(ig + 1, jg, kg),
                                    fAreaI_(ig + 1, jg, kg),
@@ -1658,7 +1706,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                                    vol_(ig + 1, jg, kg),
                                    this->Viscosity(ig + 1, jg, kg),
                                    this->EddyViscosity(ig + 1, jg, kg),
-                                   this->F1(ig + 1, jg, kg),
+                                   this->F1(ig + 1, jg, kg), projDist,
                                    eqnState, suth, turb, isViscous_, false);
           } else if (inp.InvFluxJac() == "approximateRoe") {
             offDiagonal -=
@@ -1689,6 +1737,9 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
             bc_.GetBCName(ip, jp + 1, kp, "ju") == "interblock") {
           // update off diagonal
           if (inp.InvFluxJac() == "rusanov") {
+            // calculate projected center to center distance
+            const auto projDist = this->ProjC2CDist(ig, jg + 1, kg, "j");
+
             offDiagonal -=
                 RusanovOffDiagonal(state_(ig, jg + 1, kg), xold(ig, jg + 1, kg),
                                    fAreaJ_(ig, jg + 1, kg),
@@ -1696,7 +1747,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                                    vol_(ig, jg + 1, kg),
                                    this->Viscosity(ig, jg + 1, kg),
                                    this->EddyViscosity(ig, jg + 1, kg),
-                                   this->F1(ig, jg + 1, kg),
+                                   this->F1(ig, jg + 1, kg), projDist,
                                    eqnState, suth, turb, isViscous_, false);
           } else if (inp.InvFluxJac() == "approximateRoe") {
             offDiagonal -=
@@ -1727,6 +1778,9 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
             bc_.GetBCName(ip, jp, kp + 1, "ku") == "interblock") {
           // update off diagonal
           if (inp.InvFluxJac() == "rusanov") {
+            // calculate projected center to center distance
+            const auto projDist = this->ProjC2CDist(ig, jg, kg + 1, "k");
+
             offDiagonal -=
                 RusanovOffDiagonal(state_(ig, jg, kg + 1), xold(ig, jg, kg + 1),
                                    fAreaK_(ig, jg, kg + 1),
@@ -1734,7 +1788,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
                                    vol_(ig, jg, kg + 1),
                                    this->Viscosity(ig, jg, kg + 1),
                                    this->EddyViscosity(ig, jg, kg + 1),
-                                   this->F1(ig, jg, kg + 1),
+                                   this->F1(ig, jg, kg + 1), projDist,
                                    eqnState, suth, turb, isViscous_, false);
           } else if (inp.InvFluxJac() == "approximateRoe") {
             offDiagonal -=
@@ -1984,9 +2038,8 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                                        tkeGrad, omegaGrad, turb, state, mu,
                                        mut, f1);
 
-        // calculate center to center distance
-        const auto c2cDist = this->Center(ig, jg, kg).Distance(
-            this->Center(ig + 1, jg, kg));
+        // calculate projected center to center distance
+        const auto c2cDist = this->ProjC2CDist(ig, jg, kg, "i");
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
@@ -2216,9 +2269,8 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                                        tkeGrad, omegaGrad, turb, state, mu,
                                        mut, f1);
 
-        // calculate center to center distance
-        const auto c2cDist = this->Center(ig, jg, kg).Distance(
-            this->Center(ig, jg + 1, kg));
+        // calculate projected center to center distance
+        const auto c2cDist = this->ProjC2CDist(ig, jg, kg, "j");
 
 
         // area vector points from left to right, so add to left cell, subtract
@@ -2448,9 +2500,8 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                                        tkeGrad, omegaGrad, turb, state, mu,
                                        mut, f1);
 
-        // calculate center to center distance
-        const auto c2cDist = this->Center(ig, jg, kg).Distance(
-            this->Center(ig, jg, kg + 1));
+        // calculate projected center to center distance
+        const auto c2cDist = this->ProjC2CDist(ig, jg, kg, "k");
 
 
         // area vector points from left to right, so add to left cell, subtract
@@ -7339,8 +7390,7 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
 
         // add contribution of source spectral radius to flux jacobian
         if (inp.IsBlockMatrix()) {
-          mainDiagonal(ip, jp, kp).SubtractFromTurbJacobian(srcJac *
-                                                            vol_(ig, jg, kg));
+          mainDiagonal(ip, jp, kp).SubtractFromTurbJacobian(srcJac);
         } else {
           const uncoupledScalar srcJacScalar(0.0, turbSpecRad);
           mainDiagonal(ip, jp, kp) -= fluxJacobian(srcJacScalar);
@@ -7451,4 +7501,33 @@ void procBlock::UpdateUnlimTurbEddyVisc(const unique_ptr<turbModel> &turb,
       }
     }
   }
+}
+
+// member function to calculate the center to center distance across a cell face
+// projected along that face's area vector
+double procBlock::ProjC2CDist(const int &ig, const int &jg, const int &kg,
+                              const string &dir) const {
+  // ig -- cell face index in i-direction
+  // jg -- cell face index in j-direction
+  // kg -- cell face index in k-direction
+  // dir -- direction of face (i, j, or k)
+
+  auto projDist = 0.0;
+  // always subtract "higher" center from "lower" center because area vector
+  // points from lower to higher
+  if (dir == "i") {
+    const auto c2cVec = this->Center(ig, jg, kg) - this->Center(ig - 1, jg, kg);
+    projDist = c2cVec.DotProd(this->FAreaUnitI(ig, jg, kg));
+  } else if (dir == "j") {
+    const auto c2cVec = this->Center(ig, jg, kg) - this->Center(ig, jg - 1, kg);
+    projDist = c2cVec.DotProd(this->FAreaUnitJ(ig, jg, kg));
+  } else if (dir == "k") {
+    const auto c2cVec = this->Center(ig, jg, kg) - this->Center(ig, jg, kg - 1);
+    projDist = c2cVec.DotProd(this->FAreaUnitK(ig, jg, kg));
+  } else {
+    cerr << "ERROR: Error in procBlock::ProjC2CDist(). Direction " << dir
+         << " is not recognized. Please choose i, j, or k." << endl;
+    exit(EXIT_FAILURE);
+  }
+  return projDist;
 }
