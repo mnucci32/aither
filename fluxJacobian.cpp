@@ -416,7 +416,8 @@ genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
   const auto stateUpdate = state.UpdateWithConsVars(eos, update, turb);
 
   // calculate updated convective flux
-  const auto fluxChange = ConvectiveFluxUpdate(state, stateUpdate, eos,
+  // DEBUG -- removed const
+  auto fluxChange = ConvectiveFluxUpdate(state, stateUpdate, eos,
                                                fAreaL.UnitVector());
 
   // DEBUG
@@ -429,10 +430,12 @@ genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
   //                                                    false));
 
   // DEBUG
+  fluxChange[5] = 0.0;
+  fluxChange[6] = 0.0;
   auto turbSpecRad =
-      turb->InviscidJacobian(state, fAreaL, !positive).MaxAbsOnDiagonal();
+      turb->InviscidJacobian(state, fAreaL, positive).MaxAbsValOnDiagonal();
   turbSpecRad += turb->ViscousJacobian(
-      state, fAreaL, mu, suth, dist, mut, f1).MaxAbsOnDiagonal();
+      state, fAreaL, mu, suth, dist, mut, f1).MaxAbsValOnDiagonal();
   
   const uncoupledScalar specRad(state.CellSpectralRadius(fAreaL, fAreaR, eos,
                                                          suth, vol, mu, mut,
