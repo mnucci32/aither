@@ -370,13 +370,24 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
         const inviscidFlux tempFlux = RoeFlux(
             faceStateLower, faceStateUpper, eqnState,
             this->FAreaUnitI(ig, jg, kg));
-
+        
         // area vector points from left to right, so add to left cell, subtract
         // from right cell
         // at left boundary there is no left cell to add to
         if (ig > numGhosts_) {
           this->AddToResidual(tempFlux * this->FAreaMagI(ig, jg, kg),
                               ip - 1, jp, kp);
+
+          // DEBUG
+          // auto kk = 0;
+          // auto jj = (this->NumJ() == 136) ? 40 : 0;
+          // auto ii = (this->NumI() == 1) ? 0 : 40;
+          // if (ii == ip - 1 && jj == jp && kk == kp) {
+          //   cout << "adding i-flux is: " << tempFlux.RhoVelV() << endl;
+          //   cout << "adding i-flux area is: " << this->FAreaMagI(ig, jg, kg) << endl;
+          //   cout << "adding: " << tempFlux.RhoVelV() * this->FAreaMagI(ig, jg, kg) << endl;                        
+          // }
+
 
           // if using a block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
@@ -396,6 +407,18 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
           this->SubtractFromResidual(tempFlux *
                                      this->FAreaMagI(ig, jg, kg),
                                      ip, jp, kp);
+
+
+          // DEBUG
+          // auto kk = 0;
+          // auto jj = (this->NumJ() == 136) ? 40 : 0;
+          // auto ii = (this->NumI() == 1) ? 0 : 40;
+          // if (ii == ip && jj == jp && kk == kp) {
+          //   cout << "subtracting i-flux is: " << tempFlux.RhoVelV() << endl;
+          //   cout << "subtracting i-flux area is: " << this->FAreaMagI(ig, jg, kg) << endl;
+          //   cout << "subtracting: " << tempFlux.RhoVelV() * this->FAreaMagI(ig, jg, kg) << endl;
+          // }
+
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           const auto invSpecRad = state_(ig, jg, kg).InvCellSpectralRadius(
@@ -514,6 +537,17 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
           this->AddToResidual(tempFlux * this->FAreaMagJ(ig, jg, kg),
                               ip, jp - 1, kp);
 
+          // DEBUG
+          // auto kk = 0;
+          // auto jj = (this->NumJ() == 136) ? 40 : 0;
+          // auto ii = (this->NumI() == 1) ? 0 : 40;
+          // if (ii == ip && jj == jp - 1 && kk == kp) {
+          //   cout << "adding j-flux is: " << tempFlux.RhoVelV() << endl;
+          //   cout << "adding j-flux area is: " << this->FAreaMagJ(ig, jg, kg) << endl;
+          //   cout << "adding: " << tempFlux.RhoVelV() * this->FAreaMagJ(ig, jg, kg) << endl;
+          // }
+
+          
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
@@ -532,6 +566,17 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
                                      this->FAreaMagJ(ig, jg, kg),
                                      ip, jp, kp);
 
+          // DEBUG
+          // auto kk = 0;
+          // auto jj = (this->NumJ() == 136) ? 40 : 0;
+          // auto ii = (this->NumI() == 1) ? 0 : 40;
+          // if (ii == ip && jj == jp && kk == kp) {
+          //   cout << "subtractining j-flux is: " << tempFlux.RhoVelV() << endl;
+          //   cout << "subtracting j-flux area is: " << this->FAreaMagJ(ig, jg, kg) << endl;
+          //   cout << "subtracting: " << tempFlux.RhoVelV() * this->FAreaMagJ(ig, jg, kg) << endl;
+          // }
+
+          
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           const auto invSpecRad = state_(ig, jg, kg).InvCellSpectralRadius(
@@ -650,7 +695,17 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
           this->AddToResidual(tempFlux *
                               this->FAreaMagK(ig, jg, kg),
                               ip, jp, kp - 1);
+          // DEBUG
+          // auto kk = 0;
+          // auto jj = (this->NumJ() == 136) ? 40 : 0;
+          // auto ii = (this->NumI() == 1) ? 0 : 40;
+          // if (ii == ip && jj == jp && kk == kp - 1) {
+          //   cout << "adding k-flux is: " << tempFlux.RhoVelV() << endl;
+          //   cout << "adding k-flux area is: " << this->FAreaMagK(ig, jg, kg) << endl;
+          //   cout << "adding: " << tempFlux.RhoVelV() * this->FAreaMagK(ig, jg, kg) << endl;
+          // }
 
+          
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
@@ -669,6 +724,17 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
                                      this->FAreaMagK(ig, jg, kg),
                                      ip, jp, kp);
 
+          // DEBUG
+          // auto kk = 0;
+          // auto jj = (this->NumJ() == 136) ? 40 : 0;
+          // auto ii = (this->NumI() == 1) ? 0 : 40;
+          // if (ii == ip && jj == jp && kk == kp) {
+          //   cout << "subtracting k-flux is: " << tempFlux.RhoVelV() << endl;
+          //   cout << "subtracting k-flux area is: " << this->FAreaMagK(ig, jg, kg) << endl;
+          //   cout << "subtracting: " << tempFlux.RhoVelV() * this->FAreaMagK(ig, jg, kg) << endl;
+          // }
+
+          
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           const auto invSpecRad = state_(ig, jg, kg).InvCellSpectralRadius(
@@ -7273,7 +7339,7 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
 
   const auto vju = 0.25 *
       (state_(ii, jj, kk - 1).Velocity() + state_(ii, jj, kk).Velocity() +
-       state_(ii, jj, kk + 1).Velocity() +
+       state_(ii, jj + 1, kk).Velocity() +
        state_(ii, jj + 1, kk - 1).Velocity());
   const auto vjl = 0.25 *
       (state_(ii, jj, kk - 1).Velocity() + state_(ii, jj, kk).Velocity() +
@@ -7297,7 +7363,7 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
 
   const auto tju = 0.25 * (temperature_(ii, jj, kk - 1) +
                            temperature_(ii, jj, kk) +
-                           temperature_(ii, jj, kk + 1) +
+                           temperature_(ii, jj + 1, kk) +
                            temperature_(ii, jj + 1, kk - 1));
   const auto tjl = 0.25 * (temperature_(ii, jj, kk - 1) +
                            temperature_(ii, jj, kk) +
@@ -7320,7 +7386,7 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
 
     const auto tkeju = 0.25 *
         (state_(ii, jj, kk - 1).Tke() + state_(ii, jj, kk).Tke() +
-         state_(ii, jj, kk + 1).Tke() + state_(ii, jj + 1, kk - 1).Tke());
+         state_(ii, jj + 1, kk).Tke() + state_(ii, jj + 1, kk - 1).Tke());
     const auto tkejl = 0.25 *
         (state_(ii, jj, kk - 1).Tke() + state_(ii, jj, kk).Tke() +
          state_(ii, jj - 1, kk).Tke() + state_(ii, jj - 1, kk - 1).Tke());
@@ -7340,7 +7406,7 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
 
     const auto omgju = 0.25 *
         (state_(ii, jj, kk - 1).Omega() + state_(ii, jj, kk).Omega() +
-         state_(ii, jj, kk + 1).Omega() + state_(ii, jj + 1, kk - 1).Omega());
+         state_(ii, jj + 1, kk).Omega() + state_(ii, jj + 1, kk - 1).Omega());
     const auto omgjl = 0.25 *
         (state_(ii, jj, kk - 1).Omega() + state_(ii, jj, kk).Omega() +
          state_(ii, jj - 1, kk).Omega() + state_(ii, jj - 1, kk - 1).Omega());
@@ -7377,6 +7443,17 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
                                             eddyViscosity_(ig, jg, kg),
                                             f1_(ig, jg, kg));
 
+        // DEBUG
+        // auto kk = 0;
+        // auto jj = (this->NumJ() == 136) ? 40 : 0;
+        // auto ii = (this->NumI() == 1) ? 0 : 40;
+        // if (ii == ip && jj == jp && kk == kp) {
+        //   cout << "velGrad: " << velocityGrad_(ip, jp, kp) << endl;
+        //   cout << "mut: " << eddyViscosity_(ig, jg, kg) << endl;
+          // cout << "state: " << state_(ig, jg, kg) << endl;
+        // }
+
+        
         // add source terms to residual
         // subtract because residual is initially on opposite side of equation
         this->SubtractFromResidual(src * vol_(ig, jg, kg),
@@ -7443,8 +7520,7 @@ void procBlock::CalcResidualNoSource(const sutherland &suth,
   // If viscous change ghost cells and calculate viscous fluxes
   if (isViscous_) {
     // Determine ghost cell values for viscous fluxes
-    this->AssignViscousGhostCells(inp, eos, suth,
-                                  turb);
+    this->AssignViscousGhostCells(inp, eos, suth, turb);
 
     // Update temperature and viscosity
     this->UpdateAuxillaryVariables(eos, suth);

@@ -31,7 +31,7 @@
 #include <type_traits>  // is_arithmetic
 #include "vector3d.hpp"
 
-#define SIZE 9
+#define TENSORSIZE 9
 
 using std::ostream;
 using std::endl;
@@ -42,7 +42,7 @@ class tensor {
   static_assert(std::is_arithmetic<T>::value,
                 "tensor<T> requires an arithmetic type!");
 
-  T data_[SIZE];
+  T data_[TENSORSIZE];
 
  public:
   // constructor
@@ -136,7 +136,7 @@ class tensor {
 // operator overload for addition
 template <typename T>
 tensor<T> & tensor<T>::operator+=(const tensor<T> &ten) {
-  for (auto rr = 0; rr < SIZE; rr++) {
+  for (auto rr = 0; rr < TENSORSIZE; rr++) {
     data_[rr] += ten.data_[rr];
   }
   return *this;
@@ -145,7 +145,7 @@ tensor<T> & tensor<T>::operator+=(const tensor<T> &ten) {
 // operator overload for subtraction with a scalar
 template <typename T>
 tensor<T> & tensor<T>::operator-=(const tensor<T> &ten) {
-  for (auto rr = 0; rr < SIZE; rr++) {
+  for (auto rr = 0; rr < TENSORSIZE; rr++) {
     data_[rr] -= ten.data_[rr];
   }
   return *this;
@@ -154,7 +154,7 @@ tensor<T> & tensor<T>::operator-=(const tensor<T> &ten) {
 // operator overload for elementwise multiplication
 template <typename T>
 tensor<T> & tensor<T>::operator*=(const tensor<T> &ten) {
-  for (auto rr = 0; rr < SIZE; rr++) {
+  for (auto rr = 0; rr < TENSORSIZE; rr++) {
     data_[rr] *= ten.data_[rr];
   }
   return *this;
@@ -163,7 +163,7 @@ tensor<T> & tensor<T>::operator*=(const tensor<T> &ten) {
 // operator overload for elementwise division
 template <typename T>
 tensor<T> & tensor<T>::operator/=(const tensor<T> &ten) {
-  for (auto rr = 0; rr < SIZE; rr++) {
+  for (auto rr = 0; rr < TENSORSIZE; rr++) {
     data_[rr] /= ten.data_[rr];
   }
   return *this;
@@ -233,7 +233,7 @@ inline const tensor<T> operator+(const T &lhs, tensor<T> rhs) {
 
 template <typename T>
 inline const tensor<T> operator-(const T &lhs, tensor<T> rhs) {
-  for (auto rr = 0; rr < SIZE; rr++) {
+  for (auto rr = 0; rr < TENSORSIZE; rr++) {
     rhs.data_[rr] = lhs - rhs.data_[rr];
   }
   return rhs;
@@ -246,7 +246,7 @@ inline const tensor<T> operator*(const T &lhs, tensor<T> rhs) {
 
 template <typename T>
 inline const tensor<T> operator/(const T &lhs, tensor<T> rhs) {
-  for (auto rr = 0; rr < SIZE; rr++) {
+  for (auto rr = 0; rr < TENSORSIZE; rr++) {
     rhs.data_[rr] = lhs / rhs.data_[rr];
   }
   return rhs;
