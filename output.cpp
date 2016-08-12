@@ -36,8 +36,6 @@
 #include "resid.hpp"               // resid
 #include "genArray.hpp"            // genArray
 
-#define VAROUT 15
-
 using std::cout;
 using std::endl;
 using std::cerr;
@@ -149,7 +147,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
   outFile.write(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
 
   // write i, j, k, recombVars dimension for each block
-  auto numVars = VAROUT;  // number of variables to write out
+  auto numVars = inp.NumVarsOutput();  // number of variables to write out
 
   // loop over all blocks and write out imax, jmax, kmax, numVars
   for (auto ll = 0; ll < numBlks; ll++) {
@@ -169,10 +167,10 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
                                 recombVars[ll].NumK());
 
     // loop over the number of variables to write out
-    for (auto vv = 0; vv < numVars; vv++) {
+    for (auto &var : inp.OutputVariables()) {
       // store nondimensional variable in dumArr for a given block in order.
       // i.e. var1 var2 var3 etc
-      if (vv == 0) {  // density
+      if (var == "density") {
         for (auto kp = 0, kg = recombVars[ll].NumGhosts();
              kp < recombVars[ll].NumK(); kg++, kp++) {
           for (auto jp = 0, jg = recombVars[ll].NumGhosts();
@@ -184,7 +182,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (vv == 1) {  // vel-x
+      } else if (var == "vel-x") {
         for (auto kp = 0, kg = recombVars[ll].NumGhosts();
              kp < recombVars[ll].NumK(); kg++, kp++) {
           for (auto jp = 0, jg = recombVars[ll].NumGhosts();
@@ -196,7 +194,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (vv == 2) {  // vel-y
+      } else if (var == "vel-y") {
         for (auto kp = 0, kg = recombVars[ll].NumGhosts();
              kp < recombVars[ll].NumK(); kg++, kp++) {
           for (auto jp = 0, jg = recombVars[ll].NumGhosts();
@@ -208,7 +206,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (vv == 3) {  // vel-z
+      } else if (var == "vel-z") {
         for (auto kp = 0, kg = recombVars[ll].NumGhosts();
              kp < recombVars[ll].NumK(); kg++, kp++) {
           for (auto jp = 0, jg = recombVars[ll].NumGhosts();
@@ -220,7 +218,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (vv == 4) {  // pressure
+      } else if (var == "pressure") {
         for (auto kp = 0, kg = recombVars[ll].NumGhosts();
              kp < recombVars[ll].NumK(); kg++, kp++) {
           for (auto jp = 0, jg = recombVars[ll].NumGhosts();
@@ -232,7 +230,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (vv == 5) {  // mach
+      } else if (var == "mach") {
         for (auto kp = 0, kg = recombVars[ll].NumGhosts();
              kp < recombVars[ll].NumK(); kg++, kp++) {
           for (auto jp = 0, jg = recombVars[ll].NumGhosts();
@@ -247,7 +245,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (vv == 6) {  // speed of sound
+      } else if (var == "sos") {
         for (auto kp = 0, kg = recombVars[ll].NumGhosts();
              kp < recombVars[ll].NumK(); kg++, kp++) {
           for (auto jp = 0, jg = recombVars[ll].NumGhosts();
@@ -260,7 +258,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (vv == 7) {  // time step - no ghost cells
+      } else if (var == "dt") {  // time step - no ghost cells
         for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
           for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
             for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
@@ -268,7 +266,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (vv == 8) {  // temperature
+      } else if (var == "temperature") {
         for (auto kp = 0, kg = recombVars[ll].NumGhosts();
              kp < recombVars[ll].NumK(); kg++, kp++) {
           for (auto jp = 0, jg = recombVars[ll].NumGhosts();
@@ -279,7 +277,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (vv == 9) {  // processor rank
+      } else if (var == "rank") {
         for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
           for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
             for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
@@ -288,7 +286,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (vv == 10) {  // global position
+      } else if (var == "globalPosition") {
         for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
           for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
             for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
@@ -298,7 +296,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (vv == 11) {  // viscosity ratio
+      } else if (var == "viscosityRatio") {
         for (auto kp = 0, kg = recombVars[ll].NumGhosts();
              kp < recombVars[ll].NumK(); kg++, kp++) {
           for (auto jp = 0, jg = recombVars[ll].NumGhosts();
@@ -312,7 +310,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (vv == 12) {  // tke
+      } else if (var == "tke") {
         for (auto kp = 0, kg = recombVars[ll].NumGhosts();
              kp < recombVars[ll].NumK(); kg++, kp++) {
           for (auto jp = 0, jg = recombVars[ll].NumGhosts();
@@ -324,7 +322,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (vv == 13) {  // omega
+      } else if (var == "sdr") {  // omega (specific dissipation rate)
         for (auto kp = 0, kg = recombVars[ll].NumGhosts();
              kp < recombVars[ll].NumK(); kg++, kp++) {
           for (auto jp = 0, jg = recombVars[ll].NumGhosts();
@@ -336,7 +334,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (vv == 14) {  // wall distance
+      } else if (var == "wallDistance") {
         for (auto kp = 0, kg = recombVars[ll].NumGhosts();
              kp < recombVars[ll].NumK(); kg++, kp++) {
           for (auto jp = 0, jg = recombVars[ll].NumGhosts();
@@ -349,8 +347,8 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
           }
         }
       } else {
-        cerr << "ERROR: Variable to write to function file is not defined!"
-             << endl;
+        cerr << "ERROR: Variable " << var
+             << " to write to function file is not defined!" << endl;
         exit(EXIT_FAILURE);
       }
 
@@ -360,30 +358,28 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
           for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
             auto dumDouble = dumArr(ii, jj, kk);
 
-            if (vv == 0) {  // density
+            if (var == "density") {
               dumDouble = dumDouble * inp.RRef();
-            } else if (vv == 1) {  // velocity x
+            } else if (var == "vel-x") {
               dumDouble = dumDouble * refSoS;
-            } else if (vv == 2) {  // velocity y
+            } else if (var == "vel-y") {
               dumDouble = dumDouble * refSoS;
-            } else if (vv == 3) {  // velocity z
+            } else if (var == "vel-z") {
               dumDouble = dumDouble * refSoS;
-            } else if (vv == 4) {  // pressure
+            } else if (var == "pressure") {
               dumDouble = dumDouble * inp.RRef() * refSoS * refSoS;
-            } else if (vv == 5) {  // mach is already nondimensional
-              // do nothing
-            } else if (vv == 6) {  // speed of sound
+            } else if (var == "sos") {
               dumDouble = dumDouble * refSoS;
-            } else if (vv == 7) {  // time step
+            } else if (var == "dt") {
               dumDouble = dumDouble / refSoS * inp.LRef();
-            } else if (vv == 8) {  // temperature
+            } else if (var == "temperature") {
               dumDouble = dumDouble * inp.TRef();
-            } else if (vv == 12) {  // tke
+            } else if (var == "tke") {
               dumDouble = dumDouble * refSoS * refSoS;
-            } else if (vv == 13) {  // omega
+            } else if (var == "sdr") {
               dumDouble = dumDouble * refSoS * refSoS * inp.RRef() /
                   suth.MuRef();
-            } else if (vv == 14) {  // wall distance
+            } else if (var == "wallDistance") {
               dumDouble = dumDouble * inp.LRef();
             }
             outFile.write(reinterpret_cast<char *>(&dumDouble),
@@ -399,13 +395,15 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
 }
 
 // function to write out results file for ensight
-void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
+void WriteRes(const input &inp, const int &iter) {
   // open results file
   const string fResPostfix = ".res";
   const string fEnd = "_center";
-  const auto resName = gridName + fEnd + fResPostfix;
+  const auto resName = inp.SimNameRoot() + fEnd + fResPostfix;
   ofstream resFile(resName, ios::out);
 
+  const auto outFreq = inp.OutputFrequency();
+  
   // check to see if file opened correctly
   if (resFile.fail()) {
     cerr << "ERROR: Results file " << resName << " did not open correctly!!!"
@@ -414,15 +412,21 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
   }
 
   const string fPostFix = ".fun";
-  const auto writeName = gridName + "_*" + fEnd + fPostFix;
+  const auto writeName = inp.SimNameRoot() + "_*" + fEnd + fPostFix;
 
+  const auto outputVars = inp.OutputVariables();
+  const auto hasVelVector = outputVars.find("vel-x") != outputVars.end() &&
+      outputVars.find("vel-y") != outputVars.end() &&
+      outputVars.find("vel-z") != outputVars.end();
+      
+  
   // write number of scalars and number of vectors
-  constexpr auto numScalar = VAROUT;
-  auto numVector = 1;
+  const auto numScalar = inp.NumVarsOutput();
+  auto numVector = hasVelVector ? 1 : 0;
   resFile << numScalar << "     " << numVector << "     " << 0 << endl;
 
   // write number of time points that there is solution data at
-  auto numTime = iter / outFreq;
+  auto numTime = iter / outFreq + 1;
   resFile << numTime << endl;
 
   // Write solution times or iteration numbers
@@ -441,24 +445,30 @@ void WriteRes(const string &gridName, const int &iter, const int &outFreq) {
   // Write starting iteration and iteration increment
   resFile << outFreq << "  " << outFreq << endl;
 
-  // Write out variables
-  resFile << writeName << " F 0001 density" << endl;
-  resFile << writeName << " F 0002 Vx" << endl;
-  resFile << writeName << " F 0003 Vy" << endl;
-  resFile << writeName << " F 0004 Vz" << endl;
-  resFile << writeName << " F 0005 pressure" << endl;
-  resFile << writeName << " F 0006 mach" << endl;
-  resFile << writeName << " F 0007 sos" << endl;
-  resFile << writeName << " F 0008 dt" << endl;
-  resFile << writeName << " F 0009 temperature" << endl;
-  resFile << writeName << " F 0010 procRank" << endl;
-  resFile << writeName << " F 0011 procBlockID" << endl;
-  resFile << writeName << " F 0012 viscRatio" << endl;
-  resFile << writeName << " F 0013 tke" << endl;
-  resFile << writeName << " F 0014 omega" << endl;
-  resFile << writeName << " F 0015 wallDistance" << endl;
-  resFile << writeName << " F 0002 0003 0004 velocity" << endl;
+  // Write out scalar variables
+  vector3d<int> vectorIndices(0, 0, 0);
+  auto nvar = 1;
+  for (auto &var : outputVars) {
+    resFile << writeName << " F " << std::setfill('0') << setw(4) << nvar
+            << " " << var << "\n";
+    if (var == "vel-x") {
+      vectorIndices.SetX(nvar);
+    } else if (var == "vel-y") {
+      vectorIndices.SetY(nvar);
+    } else if (var == "vel-z") {
+      vectorIndices.SetZ(nvar);
+    }
+    nvar++;
+  }
 
+  // Write out vector variables
+  if (hasVelVector) {
+    resFile << writeName << " F " << std::setfill('0') << setw(4)
+            << vectorIndices.X() << " " << std::setfill('0') << setw(4)
+            << vectorIndices.Y() << " " << std::setfill('0') << setw(4)
+            << vectorIndices.Z() << " velocity\n";
+  }
+  
   // Close results file
   resFile.close();
 }

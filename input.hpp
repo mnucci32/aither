@@ -20,6 +20,7 @@
 
 #include <vector>                   // vector
 #include <string>                   // string
+#include <set>                      // set
 #include <memory>                   // unique_ptr
 #include "vector3d.hpp"
 #include "boundaryConditions.hpp"
@@ -27,6 +28,7 @@
 
 using std::vector;
 using std::string;
+using std::set;
 using std::unique_ptr;
 
 // forward class declaration
@@ -38,9 +40,9 @@ class input {
   double dt_;  // time step
   int iterations_;  // number of iterations
 
-  // variable names that are regcognized by the input file
-  vector<string> vars_;
-                        // parser
+  // variable names that are regcognized by the input file parser
+  set<string> vars_;
+
   double pRef_;  // reference pressure
   double rRef_;  // reference density
   double lRef_;  // reference length
@@ -75,6 +77,8 @@ class input {
   string turbModel_;  // turbulence model
   double farfieldTurbInten_;  // turbulence intensity at farfield
   double farfieldEddyViscRatio_;  // eddy viscosity ratio at farfield
+
+  set<string> outputVariables_;  // variables to output
 
  public:
   // constructor
@@ -121,6 +125,7 @@ class input {
   string Limiter() const {return limiter_;}
 
   int OutputFrequency() const {return outputFrequency_;}
+  set<string> OutputVariables() const {return outputVariables_;}
 
   string EquationSet() const {return equationSet_;}
 
@@ -158,9 +163,8 @@ class input {
   string DecompMethod() const {return decompMethod_;}
   string TurbulenceModel() const {return turbModel_;}
 
-  string Vars(const int &ind) const {return vars_[ind];}
-
   int NumVars() const {return vars_.size();}
+  int NumVarsOutput() const {return outputVariables_.size();}
   int NumEquations() const;
   int NumFlowEquations() const {return NUMFLOWVARS;}
   int NumTurbEquations() const;

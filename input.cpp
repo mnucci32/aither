@@ -41,7 +41,7 @@ using std::stod;
 
 // constructor for input class
 // initialize vector to have length of number of acceptable inputs to the code
-input::input(const string &name) : simName_(name), vars_(35) {
+input::input(const string &name) : simName_(name) {
   // default values for each variable
   gName_ = "";
   dt_ = -1.0;
@@ -92,45 +92,44 @@ input::input(const string &name) : simName_(name), vars_(35) {
   farfieldTurbInten_ = 0.01;
   farfieldEddyViscRatio_ = 10.0;
 
+  // default to primative variables
+  outputVariables_ = {"density", "vel-x", "vel-y", "vel-z", "pressure"};
+
   // keywords in the input file that the parser is looking for to define
   // variables
-  vars_[0] = "gridName:";
-  vars_[1] = "timeStep:";
-  vars_[2] = "iterations:";
-  vars_[3] = "pressureRef:";
-  vars_[4] = "densityRef:";
-  vars_[5] = "lengthRef:";
-  vars_[6] = "gamma:";
-  vars_[7] = "gasConstant:";
-  vars_[8] = "velocity:";
-  vars_[9] = "timeIntegration:";
-  vars_[10] = "cfl:";
-  vars_[11] = "faceReconstruction:";
-  vars_[12] = "limiter:";
-  vars_[13] = "outputFrequency:";
-  vars_[14] = "equationSet:";
-  vars_[15] = "temperatureRef:";
-  vars_[16] = "matrixSolver:";
-  vars_[17] = "matrixSweeps:";
-  vars_[18] = "matrixRelaxation:";
-  vars_[19] = "timeIntTheta:";
-  vars_[20] = "timeIntZeta:";
-  vars_[21] = "nonlinearIterations:";
-  vars_[22] = "cflMax:";
-  vars_[23] = "cflStep:";
-  vars_[24] = "cflStart:";
-  vars_[25] = "inviscidFluxJacobian:";
-  vars_[26] = "dualTimeCFL:";
-  vars_[27] = "inviscidFlux:";
-  vars_[28] = "stagnationInlet:";
-  vars_[29] = "pressureOutlet:";
-  vars_[30] = "decompositionMethod:";
-  vars_[31] = "turbulenceModel:";
-  vars_[32] = "farfieldTurbulenceIntensity:";
-  vars_[33] = "farfieldEddyViscosityRatio:";
-
-  // boundary conditions should be listed last
-  vars_[vars_.size() - 1] = "boundaryConditions:";
+  vars_ = {"gridName:",
+           "timeStep:",
+           "iterations:",
+           "pressureRef:",
+           "densityRef:",
+           "lengthRef:",
+           "gamma:",
+           "gasConstant:",
+           "velocity:",
+           "timeIntegration:",
+           "faceReconstruction:",
+           "limiter:",
+           "outputFrequency:",
+           "equationSet:",
+           "temperatureRef:",
+           "matrixSolver:",
+           "matrixSweeps:",
+           "matrixRelaxation:",
+           "nonlinearIterations:",
+           "cflMax:",
+           "cflStep:",
+           "cflStart:",
+           "inviscidFluxJacobian:",
+           "dualTimeCFL:",
+           "inviscidFlux:",
+           "stagnationInlet:",
+           "pressureOutlet:",
+           "decompositionMethod:",
+           "turbulenceModel:",
+           "farfieldTurbulenceIntensity:",
+           "farfieldEddyViscosityRatio:",
+           "outputVariables:",
+           "boundaryConditions:"};
 }
 
 // function to trim leading and trailing whitespace from a string, and also
@@ -210,319 +209,297 @@ void input::ReadInput(const int &rank) {
     // search to see if first token corresponds to any keywords
     // line must contain at least 2 tokens (keyword and value)
     if (tokens.size() >= 2) {
-      for (auto ii = 0; ii < this->NumVars();
-           ii++) {  // loop over all input variables and see if they match
-                    // keywords
+      auto key = tokens[0];
+      // if first token matches a keyword or reading boundary condtions
+      if (vars_.find(key) != vars_.end() || readingBCs > 0) {
+        // if not yet reading BCs (readingBCs == 0), set variable in input
+        // class to corresponding value and print assignment to std out
+        if (key == "gridName:") {
+          gName_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << " " << this->GridName() << endl;
+          }
+        } else if (key == "timeStep:") {
+          dt_ = stod(tokens[1]);  // double variable (stod)
+          if (rank == ROOTP) {
+            cout << key << " " << this->Dt() << endl;
+          }
+        } else if (key == "iterations:") {
+          iterations_ = stoi(tokens[1]);
+          if (rank == ROOTP) {
+            cout << key << " " << this->Iterations() << endl;
+          }
+        } else if (key == "pressureRef:") {
+          pRef_ = stod(tokens[1]);  // double variable (stod)
+          if (rank == ROOTP) {
+            cout << key << " " << this->PRef() << endl;
+          }
+        } else if (key == "densityRef:") {
+          rRef_ = stod(tokens[1]);  // double variable (stod)
+          if (rank == ROOTP) {
+            cout << key << " " << this->RRef() << endl;
+          }
+        } else if (key == "lengthRef:") {
+          lRef_ = stod(tokens[1]);  // double variable (stod)
+          if (rank == ROOTP) {
+            cout << key << " " << this->LRef() << endl;
+          }
+        } else if (key == "gamma:") {
+          gamma_ = stod(tokens[1]);  // double variable (stod)
+          if (rank == ROOTP) {
+            cout << key << " " << this->Gamma() << endl;
+          }
+        } else if (key == "gasConstant:") {
+          gasConst_ = stod(tokens[1]);  // double variable (stod)
+          if (rank == ROOTP) {
+            cout << key << " " << this->R() << endl;
+          }
+        } else if (key == "velocity:") {
+          temp.SetX(stod(tokens[1]));  // double variable (stod)
+          temp.SetY(stod(tokens[2]));
+          temp.SetZ(stod(tokens[3]));
+          velRef_ = temp;
+          if (rank == ROOTP) {
+            cout << key << " " << this->VelRef() << endl;
+          }
+        } else if (key == "timeIntegration:") {
+          timeIntegration_ = tokens[1];
+          if (this->TimeIntegration() == "implicitEuler") {
+            timeIntTheta_ = 1.0;
+            timeIntZeta_ = 0.0;
+          } else if (this->TimeIntegration() == "crankNicholson") {
+            timeIntTheta_ = 0.5;
+            timeIntZeta_ = 0.0;
+          } else if (this->TimeIntegration() == "bdf2") {
+            timeIntTheta_ = 1.0;
+            timeIntZeta_ = 0.5;
+          }
 
-        if (tokens[0] == this->Vars(ii) ||
-            readingBCs > 0) {  // if first token matches a keyword or reading
-                               // boundary conditions
+          if (rank == ROOTP) {
+            cout << key << " " << this->TimeIntegration()
+                 << endl;
+          }
+        } else if (key == "faceReconstruction:") {
+          if (tokens[1] == "upwind") {
+            kappa_ = -1.0;
+          } else if (tokens[1] == "fromm") {
+            kappa_ = 0.0;
+          } else if (tokens[1] == "quick") {
+            kappa_ = 0.5;
+          } else if (tokens[1] == "central") {
+            kappa_ = 1.0;
+          } else if (tokens[1] == "thirdOrder") {
+            kappa_ = 1.0 / 3.0;
+          } else if (tokens[1] == "constant") {
+            kappa_ = -2.0;
+          } else {
+            // if string is not recognized, set kappa to number input
+            kappa_ = stod(tokens[1]);
+          }
 
-          // if not yet reading BCs (readingBCs == 0), set variable in input
-          // class to corresponding value and print assignment to std out
-          if (ii == 0 && readingBCs == 0) {
-            gName_ = tokens[1];
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->GridName() << endl;
+          if (rank == ROOTP) {
+            cout << key << " " << tokens[1]
+                 << " kappa = " << this->Kappa() << endl;
+          }
+          if ((this->Kappa() < -1.0) || (this->Kappa() > 1.0)) {
+            cerr << "ERROR: Error in input::ReadInput(). Kappa value of "
+                 << this->Kappa()
+                 << " is not valid! Choose a value between -1.0 and 1.0."
+                 << endl;
+            exit(EXIT_FAILURE);
+          }
+        } else if (key == "limiter:") {
+          limiter_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << " " << this->Limiter() << endl;
+          }
+        } else if (key == "outputFrequency:") {
+          outputFrequency_ = stoi(tokens[1]);
+          if (rank == ROOTP) {
+            cout << key << " " << this->OutputFrequency()
+                 << endl;
+          }
+        } else if (key == "equationSet:") {
+          equationSet_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << " " << this->EquationSet() << endl;
+          }
+        } else if (key == "temperatureRef:") {
+          tRef_ = stod(tokens[1]);  // double variable (stod)
+          if (rank == ROOTP) {
+            cout << key << " " << this->TRef() << endl;
+          }
+        } else if (key == "matrixSolver:") {
+          matrixSolver_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << " " << this->MatrixSolver() << endl;
+          }
+        } else if (key == "matrixSweeps:") {
+          matrixSweeps_ = stoi(tokens[1]);
+          if (rank == ROOTP) {
+            cout << key << " " << this->MatrixSweeps() << endl;
+          }
+        } else if (key == "matrixRelaxation:") {
+          matrixRelaxation_ =
+              stod(tokens[1]);  // double variable (stod)
+          if (rank == ROOTP) {
+            cout << key << " " << this->MatrixRelaxation()
+                 << endl;
+          }
+        } else if (key == "nonlinearIterations:") {
+          nonlinearIterations_ = stoi(tokens[1]);
+          if (rank == ROOTP) {
+            cout << key << " " << this->NonlinearIterations()
+                 << endl;
+          }
+        } else if (key == "cflMax:") {
+          cflMax_ = stod(tokens[1]);  // double  (stod)
+          if (rank == ROOTP) {
+            cout << key << " " << this->CFLMax() << endl;
+          }
+        } else if (key == "cflStep:") {
+          cflStep_ = stod(tokens[1]);  // double (stod)
+          if (rank == ROOTP) {
+            cout << key << " " << this->CFLStep() << endl;
+          }
+        } else if (key == "cflStart:") {
+          cflStart_ = stod(tokens[1]);  // double variable (stod)
+          if (rank == ROOTP) {
+            cout << key << " " << this->CFLStart() << endl;
+          }
+        } else if (key == "inviscidFluxJacobian:") {
+          invFluxJac_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << " " << this->InvFluxJac() << endl;
+          }
+        } else if (key == "dualTimeCFL:") {
+          dualTimeCFL_ = stod(tokens[1]);  // double variable (stod)
+          if (rank == ROOTP) {
+            cout << key << " " << this->DualTimeCFL() << endl;
+          }
+        } else if (key == "inviscidFlux:") {
+          inviscidFlux_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << " " << this->InviscidFlux() << endl;
+          }
+        } else if (key == "stagnationInlet:") {
+          stagInletProps_[0] = stoi(tokens[1]);  // tag
+          stagInletProps_[1] = stod(tokens[2]);  // stag pressure
+          stagInletProps_[2] = stod(tokens[3]);  // stag temp
+          stagInletProps_[3] = stod(tokens[4]);  // dir-x
+          stagInletProps_[4] = stod(tokens[5]);  // dir-y
+          stagInletProps_[5] = stod(tokens[6]);  // dir-z
+          if (rank == ROOTP) {
+            cout << key << " " << this->StagInletTag() << " "
+                 << this->StagInletP0() << " " << this->StagInletT0()
+                 << " " << this->StagInletDx() << " "
+                 << this->StagInletDy() << " " << this->StagInletDz()
+                 << endl;
+          }
+        } else if (key == "pressureOutlet:") {
+          pressureOutlet_[0] = stoi(tokens[1]);  // tag
+          pressureOutlet_[1] = stod(tokens[2]);  // outlet pressure
+          if (rank == ROOTP) {
+            cout << key << " " << this->PressureOutletTag()
+                 << " " << this->PressureOutletP() << endl;
+          }
+        } else if (key == "decompositionMethod:") {
+          decompMethod_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << " " << this->DecompMethod() << endl;
+          }
+        } else if (key == "turbulenceModel:") {
+          turbModel_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << " " << this->TurbulenceModel()
+                 << endl;
+          }
+        } else if (key == "farfieldTurbulenceIntensity:") {
+          farfieldTurbInten_ = stod(tokens[1]);  // double (stod)
+          if (rank == ROOTP) {
+            cout << key << " " << this->FarfieldTurbIntensity()
+                 << endl;
+          }
+        } else if (key == "farfieldEddyViscosityRatio:") {
+          farfieldEddyViscRatio_ = stod(tokens[1]);  // double (stod)
+          if (rank == ROOTP) {
+            cout << key << " " << this->FarfieldEddyViscRatio()
+                 << endl;
+          }
+        } else if (key == "outputVariables:") {
+          // clear default variables from set
+          outputVariables_.clear();
+          for (auto &vars : tokens) {
+            if (vars != key) {  // don't add keyword
+              outputVariables_.insert(vars);
             }
-            continue;
-          } else if (ii == 1 && readingBCs == 0) {
-            dt_ = stod(tokens[1]);  // double variable (stod)
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->Dt() << endl;
+          }
+          if (rank == ROOTP) {
+            cout << key << " ";
+            for (auto &vars : outputVariables_) {
+              if (vars != key) {  // don't print keyword
+                cout << vars << " ";
+              }
             }
-            continue;
-          } else if (ii == 2 && readingBCs == 0) {
-            iterations_ = stoi(tokens[1]);
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->Iterations() << endl;
-            }
-            continue;
-          } else if (ii == 3 && readingBCs == 0) {
-            pRef_ = stod(tokens[1]);  // double variable (stod)
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->PRef() << endl;
-            }
-            continue;
-          } else if (ii == 4 && readingBCs == 0) {
-            rRef_ = stod(tokens[1]);  // double variable (stod)
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->RRef() << endl;
-            }
-            continue;
-          } else if (ii == 5 && readingBCs == 0) {
-            lRef_ = stod(tokens[1]);  // double variable (stod)
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->LRef() << endl;
-            }
-            continue;
-          } else if (ii == 6 && readingBCs == 0) {
-            gamma_ = stod(tokens[1]);  // double variable (stod)
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->Gamma() << endl;
-            }
-            continue;
-          } else if (ii == 7 && readingBCs == 0) {
-            gasConst_ = stod(tokens[1]);  // double variable (stod)
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->R() << endl;
-            }
-            continue;
-          } else if (ii == 8 && readingBCs == 0) {
-            temp.SetX(stod(tokens[1]));  // double variable (stod)
-            temp.SetY(stod(tokens[2]));
-            temp.SetZ(stod(tokens[3]));
-            velRef_ = temp;
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->VelRef() << endl;
-            }
-            continue;
-          } else if (ii == 9 && readingBCs == 0) {
-            timeIntegration_ = tokens[1];
-            if (this->TimeIntegration() == "implicitEuler") {
-              timeIntTheta_ = 1.0;
-              timeIntZeta_ = 0.0;
-            } else if (this->TimeIntegration() == "crankNicholson") {
-              timeIntTheta_ = 0.5;
-              timeIntZeta_ = 0.0;
-            } else if (this->TimeIntegration() == "bdf2") {
-              timeIntTheta_ = 1.0;
-              timeIntZeta_ = 0.5;
-            }
-
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->TimeIntegration()
-                   << endl;
-            }
-            continue;
-          } else if (ii == 11 && readingBCs == 0) {
-            if (tokens[1] == "upwind") {
-              kappa_ = -1.0;
-            } else if (tokens[1] == "fromm") {
-              kappa_ = 0.0;
-            } else if (tokens[1] == "quick") {
-              kappa_ = 0.5;
-            } else if (tokens[1] == "central") {
-              kappa_ = 1.0;
-            } else if (tokens[1] == "thirdOrder") {
-              kappa_ = 1.0 / 3.0;
-            } else if (tokens[1] == "constant") {
-              kappa_ = -2.0;
-            } else {
-              // if string is not recognized, set kappa to number input
-              kappa_ = stod(tokens[1]);
-            }
-
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << tokens[1]
-                   << " kappa = " << this->Kappa() << endl;
-            }
-            if ((this->Kappa() < -1.0) || (this->Kappa() > 1.0)) {
-              cerr << "ERROR: Error in input::ReadInput(). Kappa value of "
-                   << this->Kappa()
-                   << " is not valid! Choose a value between -1.0 and 1.0."
-                   << endl;
-              exit(EXIT_FAILURE);
-            }
-            continue;
-          } else if (ii == 12 && readingBCs == 0) {
-            limiter_ = tokens[1];
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->Limiter() << endl;
-            }
-            continue;
-          } else if (ii == 13 && readingBCs == 0) {
-            outputFrequency_ = stoi(tokens[1]);
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->OutputFrequency()
-                   << endl;
-            }
-            continue;
-          } else if (ii == 14 && readingBCs == 0) {
-            equationSet_ = tokens[1];
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->EquationSet() << endl;
-            }
-            continue;
-          } else if (ii == 15 && readingBCs == 0) {
-            tRef_ = stod(tokens[1]);  // double variable (stod)
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->TRef() << endl;
-            }
-            continue;
-          } else if (ii == 16 && readingBCs == 0) {
-            matrixSolver_ = tokens[1];
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->MatrixSolver() << endl;
-            }
-            continue;
-          } else if (ii == 17 && readingBCs == 0) {
-            matrixSweeps_ = stoi(tokens[1]);
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->MatrixSweeps() << endl;
-            }
-            continue;
-          } else if (ii == 18 && readingBCs == 0) {
-            matrixRelaxation_ =
-                stod(tokens[1]);  // double variable (stod)
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->MatrixRelaxation()
-                   << endl;
-            }
-            continue;
-          } else if (ii == 21 && readingBCs == 0) {
-            nonlinearIterations_ = stoi(tokens[1]);
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->NonlinearIterations()
-                   << endl;
-            }
-            continue;
-          } else if (ii == 22 && readingBCs == 0) {
-            cflMax_ = stod(tokens[1]);  // double  (stod)
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->CFLMax() << endl;
-            }
-            continue;
-          } else if (ii == 23 && readingBCs == 0) {
-            cflStep_ = stod(tokens[1]);  // double (stod)
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->CFLStep() << endl;
-            }
-            continue;
-          } else if (ii == 24 && readingBCs == 0) {
-            cflStart_ = stod(tokens[1]);  // double variable (stod)
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->CFLStart() << endl;
-            }
-            continue;
-          } else if (ii == 25 && readingBCs == 0) {
-            invFluxJac_ = tokens[1];
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->InvFluxJac() << endl;
-            }
-          } else if (ii == 26 && readingBCs == 0) {
-            dualTimeCFL_ = stod(tokens[1]);  // double variable (stod)
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->DualTimeCFL() << endl;
-            }
-            continue;
-          } else if (ii == 27 && readingBCs == 0) {
-            inviscidFlux_ = tokens[1];
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->InviscidFlux() << endl;
-            }
-          } else if (ii == 28 && readingBCs == 0) {
-            stagInletProps_[0] = stoi(tokens[1]);  // tag
-            stagInletProps_[1] = stod(tokens[2]);  // stag pressure
-            stagInletProps_[2] = stod(tokens[3]);  // stag temp
-            stagInletProps_[3] = stod(tokens[4]);  // dir-x
-            stagInletProps_[4] = stod(tokens[5]);  // dir-y
-            stagInletProps_[5] = stod(tokens[6]);  // dir-z
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->StagInletTag() << " "
-                   << this->StagInletP0() << " " << this->StagInletT0()
-                   << " " << this->StagInletDx() << " "
-                   << this->StagInletDy() << " " << this->StagInletDz()
-                   << endl;
-            }
-          } else if (ii == 29 && readingBCs == 0) {
-            pressureOutlet_[0] = stoi(tokens[1]);  // tag
-            pressureOutlet_[1] = stod(tokens[2]);  // outlet pressure
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->PressureOutletTag()
-                   << " " << this->PressureOutletP() << endl;
-            }
-          } else if (ii == 30 && readingBCs == 0) {
-            decompMethod_ = tokens[1];
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->DecompMethod() << endl;
-            }
-            continue;
-          } else if (ii == 31 && readingBCs == 0) {
-            turbModel_ = tokens[1];
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->TurbulenceModel()
-                   << endl;
-            }
-            continue;
-          } else if (ii == 32 && readingBCs == 0) {
-            farfieldTurbInten_ = stod(tokens[1]);  // double (stod)
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->FarfieldTurbIntensity()
-                   << endl;
-            }
-            continue;
-          } else if (ii == 33 && readingBCs == 0) {
-            farfieldEddyViscRatio_ = stod(tokens[1]);  // double (stod)
-            if (rank == ROOTP) {
-              cout << this->Vars(ii) << " " << this->FarfieldEddyViscRatio()
-                   << endl;
-            }
-            continue;
+            cout << endl;
+          }
 
           // reading BCs
           // -------------------------------------------------------------
-          } else if (ii == this->NumVars() - 1 || readingBCs > 0) {
-            // read in boundary conditions and assign to boundaryConditions
-            // class
-            if (readingBCs == 0) {  // variable read must be number of blocks if
-                                    // first line of BCs
-              numBCBlks = stoi(tokens[1]);
-              tempBC.resize(numBCBlks);  // resize vector holding BCs to correct
-                                         // number of blocks
-              readingBCs++;
-              lEnd++;
-            } else if (readingBCs == lEnd) {  // variables must be number of i,
-                                              // j, k surfaces for each block
-              // set number of i, j, k surfaces and resize vectors
-              tempBC[blk].ResizeVecs(stoi(tokens[0]),
-                                     stoi(tokens[1]),
-                                     stoi(tokens[2]));
+        } else if (key == "boundaryConditions:" || readingBCs > 0) {
+          // read in boundary conditions and assign to boundaryConditions
+          // class
+          if (readingBCs == 0) {  // variable read must be number of blocks if
+            // first line of BCs
+            numBCBlks = stoi(tokens[1]);
+            tempBC.resize(numBCBlks);  // resize vector holding BCs to correct
+            // number of blocks
+            readingBCs++;
+            lEnd++;
+          } else if (readingBCs == lEnd) {  // variables must be number of i,
+            // j, k surfaces for each block
+            // set number of i, j, k surfaces and resize vectors
+            tempBC[blk].ResizeVecs(stoi(tokens[0]), stoi(tokens[1]),
+                                   stoi(tokens[2]));
 
-              // set total number of surfaces
-              numSurf = stoi(tokens[0]) + stoi(tokens[1]) +
-                        stoi(tokens[2]);
+            // set total number of surfaces
+            numSurf = stoi(tokens[0]) + stoi(tokens[1]) + stoi(tokens[2]);
 
-              lEnd += (numSurf +
-                       1);  // set new target for when block data is finished
-              readingBCs++;
+            // set new target for when block data is finished
+            lEnd += (numSurf + 1);
+            readingBCs++;
 
-            } else {  // assign BC block variables
-              tempBC[blk].AssignFromInput(surfCounter, tokens);
+          } else {  // assign BC block variables
+            tempBC[blk].AssignFromInput(surfCounter, tokens);
 
-              surfCounter++;
-              if (surfCounter == numSurf) {  // at end of block data, increment
-                                             // block index, reset surface
-                                             // counter
-                blk++;
-                surfCounter = 0;
-              }
-
-              readingBCs++;
+            surfCounter++;
+            if (surfCounter == numSurf) {  // at end of block data, increment
+              // block index, reset surface
+              // counter
+              blk++;
+              surfCounter = 0;
             }
 
-            // if block counter reaches number of blocks, BCs are finished (b/c
-            // counter starts at 0), so assign BCs and write them out
-            if (blk == numBCBlks) {
-              bc_ = tempBC;
-              if (rank == ROOTP) {
-                cout << this->Vars(this->NumVars() - 1) << " "
-                     << this->NumBC() << endl << endl;
-                for (auto ll = 0; ll < this->NumBC(); ll++) {
-                  cout << "Block: " << ll << endl;
-                  cout << this->BC(ll) << endl;
-                }
+            readingBCs++;
+          }
+
+          // if block counter reaches number of blocks, BCs are finished (b/c
+          // counter starts at 0), so assign BCs and write them out
+          if (blk == numBCBlks) {
+            bc_ = tempBC;
+            if (rank == ROOTP) {
+              cout << key << " " << this->NumBC() << endl << endl;
+              for (auto ll = 0; ll < this->NumBC(); ll++) {
+                cout << "Block: " << ll << endl;
+                cout << this->BC(ll) << endl;
               }
             }
-
-            break;
           }
         }
       }
-    } else {  // if there aren't 2 or more tokens just skip line
-      continue;
     }
-  }
+  }  // if there aren't 2 or more tokens just skip line
+
 
   // input file sanity checks
   this->CheckNonlinearIterations();
