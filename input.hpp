@@ -184,6 +184,7 @@ class input {
   unique_ptr<turbModel> AssignTurbulenceModel() const;
 
   void CheckNonlinearIterations();
+  void CheckOutputVariables();
 
   double ViscousCFLCoefficient() const;
 

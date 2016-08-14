@@ -123,7 +123,6 @@ ostream &operator<<(ostream &os, viscousFlux &flux) {
 
 // function to calculate the velocity gradients at a cell face using the Thin
 // Shear Layer approximation
-// NOT USED in LUSGS formulation
 tensor<double> CalcVelGradTSL(const primVars &left, const primVars &right,
                               const vector3d<double> &normArea,
                               const double &dist) {

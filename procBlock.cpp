@@ -922,8 +922,11 @@ void procBlock::ImplicitTimeAdvance(const genArray &du,
   // jj -- j-location of cell (with ghosts)
   // kk -- k-location of cell (with ghosts)
 
+  // DEBUG
+  genArray fac = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
+  
   // calculate updated state (primative variables)
-  state_(ii, jj, kk) = state_(ii, jj, kk).UpdateWithConsVars(eqnState, du,
+  state_(ii, jj, kk) = state_(ii, jj, kk).UpdateWithConsVars(eqnState, du * fac,
                                                              turb);
 }
 

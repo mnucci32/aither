@@ -54,8 +54,7 @@ input::input(const string &name) : simName_(name) {
   velRef_.SetX(1.0);
   velRef_.SetY(0.0);
   velRef_.SetZ(0.0);
-  vector<boundaryConditions> dummy(1);
-  bc_ = dummy;
+  bc_ = vector<boundaryConditions>(1);
   timeIntegration_ = "explicitEuler";
   cfl_ = -1.0;
   kappa_ = -2.0;  // default to value outside of range to tell if higher
@@ -503,6 +502,7 @@ void input::ReadInput(const int &rank) {
 
   // input file sanity checks
   this->CheckNonlinearIterations();
+  this->CheckOutputVariables();
 
   if (rank == ROOTP) {
     cout << endl;
@@ -638,6 +638,32 @@ void input::CheckNonlinearIterations() {
     nonlinearIterations_ = 1;
   }
 }
+
+// member function to check validity of the requested output variables
+void input::CheckOutputVariables() {
+  for (auto &var : outputVariables_) {
+    if (!this->IsTurbulent()) {  // can't have turbulent varibles output
+      if (var == "tke" || var == "sdr" || var == "viscosityRatio" ||
+          var.find("tkeGrad_") != string::npos ||
+          var.find("sdrGrad_") != string::npos || var == "resid_tke" ||
+          var == "resid_sdr") {
+        cerr << "WARNING: Variable " << var <<
+            " is not available for laminar simulations." << endl;
+        outputVariables_.erase(var);
+      }
+
+      if (!this->IsViscous()) {  // can't have viscous variables output
+        if (var.find("velGrad_") != string::npos
+            || var.find("tempGrad_") != string::npos) {
+          cerr << "WARNING: Variable " << var <<
+              " is not available for inviscid simulations." << endl;
+          outputVariables_.erase(var);
+        }
+      }
+    }
+  }
+}
+
 
 // member function to calculate the coefficient used to scale the viscous
 // spectral radius in the time step calculation

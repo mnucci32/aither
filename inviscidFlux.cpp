@@ -194,11 +194,11 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   // calculate absolute value of wave speeds (L)
   double waveSpeed[NUMVARS - 1] = {
     fabs(velRSum - aR),  // left moving acoustic wave speed
-    fabs(velRSum),  // entropy wave speed
+    fabs(velRSum),       // entropy wave speed
     fabs(velRSum + aR),  // right moving acoustic wave speed
-    fabs(velRSum),  // shear wave speed
-    fabs(velRSum),  // turbulent eqn 1 (k) wave speed
-    fabs(velRSum)};  // turbulent eqn 2 (omega) wave speed
+    fabs(velRSum),       // shear wave speed
+    fabs(velRSum),       // turbulent eqn 1 (k) wave speed
+    fabs(velRSum)};      // turbulent eqn 2 (omega) wave speed
 
   // calculate entropy fix (Harten) and adjust wave speeds if necessary
   // default setting for entropy fix to kick in
@@ -212,7 +212,7 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
     waveSpeed[2] = 0.5 * (waveSpeed[2] * waveSpeed[2] /
                           entropyFix + entropyFix);
   }
-
+  
   // calculate right eigenvectors (T)
   // calculate eigenvector due to left acoustic wave
   const genArray lAcousticEigV(1.0, roe.U() - aR * areaNorm.X(),
@@ -249,24 +249,18 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   // calculate dissipation term ( eigenvector * wave speed * wave strength)
   genArray dissipation(0.0);
   for (auto ii = 0; ii < NUMVARS; ii++) {
-    dissipation[ii] =
-        waveSpeed[0] * waveStrength[0] *
-            lAcousticEigV[ii]  // contribution from left acoustic wave
-        +
-        waveSpeed[1] * waveStrength[1] *
-            entropyEigV[ii]  // contribution from entropy wave
-        +
-        waveSpeed[2] * waveStrength[2] *
-            rAcousticEigV[ii]  // contribution from right acoustic wave
-        +
-        waveSpeed[3] * waveStrength[3] *
-            shearEigV[ii]  // contribution from shear wave
-        +
-        waveSpeed[4] * waveStrength[4] *
-            tkeEigV[ii]  // contribution from turbulent wave 1
-        +
-        waveSpeed[5] * waveStrength[5] *
-            omgEigV[ii];  // contribution from turbulent wave 2
+    // contribution from left acoustic wave
+    // contribution from entropy wave
+    // contribution from right acoustic wave
+    // contribution from shear wave
+    // contribution from turbulent wave 1
+    // contribution from turbulent wave 2
+    dissipation[ii] = waveSpeed[0] * waveStrength[0] * lAcousticEigV[ii] +
+        waveSpeed[1] * waveStrength[1] * entropyEigV[ii] +
+        waveSpeed[2] * waveStrength[2] * rAcousticEigV[ii] +
+        waveSpeed[3] * waveStrength[3] * shearEigV[ii] +
+        waveSpeed[4] * waveStrength[4] * tkeEigV[ii] +
+        waveSpeed[5] * waveStrength[5] * omgEigV[ii];
   }
 
   // calculate left/right physical flux
