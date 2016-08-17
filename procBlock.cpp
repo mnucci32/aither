@@ -394,11 +394,9 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
             fluxJacobian fluxJac;
             fluxJac.RusanovFluxJacobian(state_(ig - 1, jg, kg),
                                         state_(ig, jg, kg), eqnState,
-                                        this->FAreaUnitI(ig, jg, kg), true,
-                                        inp);
-
-            mainDiagonal(ip - 1, jp, kp) += fluxJac *
-                this->FAreaMagI(ig, jg, kg);
+                                        this->FAreaI(ig, jg, kg), true,
+                                        inp, turb);
+            mainDiagonal(ip - 1, jp, kp) += fluxJac;
           }
         }
 
@@ -436,10 +434,9 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
             fluxJacobian fluxJac;
             fluxJac.RusanovFluxJacobian(state_(ig - 1, jg, kg),
                                         state_(ig, jg, kg), eqnState,
-                                        this->FAreaUnitI(ig, jg, kg), false,
-                                        inp);
-
-            mainDiagonal(ip, jp, kp) -= fluxJac * this->FAreaMagI(ig, jg, kg);
+                                        this->FAreaI(ig, jg, kg), false,
+                                        inp, turb);
+            mainDiagonal(ip, jp, kp) -= fluxJac;
           } else {
             mainDiagonal(ip, jp, kp) += fluxJacobian(specRad);
           }
@@ -553,11 +550,9 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
             fluxJacobian fluxJac;
             fluxJac.RusanovFluxJacobian(state_(ig, jg - 1, kg),
                                         state_(ig, jg, kg), eqnState,
-                                        this->FAreaUnitJ(ig, jg, kg), true,
-                                        inp);
-
-            mainDiagonal(ip, jp - 1, kp) += fluxJac *
-                this->FAreaMagJ(ig, jg, kg);
+                                        this->FAreaJ(ig, jg, kg), true,
+                                        inp, turb);
+            mainDiagonal(ip, jp - 1, kp) += fluxJac;
           }
         }
         // at right boundary no right cell to add to
@@ -594,10 +589,9 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
             fluxJacobian fluxJac;
             fluxJac.RusanovFluxJacobian(state_(ig, jg - 1, kg),
                                         state_(ig, jg, kg), eqnState,
-                                        this->FAreaUnitJ(ig, jg, kg), false,
-                                        inp);
-
-            mainDiagonal(ip, jp, kp) -= fluxJac * this->FAreaMagJ(ig, jg, kg);
+                                        this->FAreaJ(ig, jg, kg), false,
+                                        inp, turb);
+            mainDiagonal(ip, jp, kp) -= fluxJac;
           } else {
             mainDiagonal(ip, jp, kp) += fluxJacobian(specRad);
           }
@@ -711,11 +705,9 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
             fluxJacobian fluxJac;
             fluxJac.RusanovFluxJacobian(state_(ig, jg, kg - 1),
                                         state_(ig, jg, kg), eqnState,
-                                        this->FAreaUnitK(ig, jg, kg), true,
-                                        inp);
-
-            mainDiagonal(ip, jp, kp - 1) += fluxJac *
-                this->FAreaMagK(ig, jg, kg);
+                                        this->FAreaK(ig, jg, kg), true,
+                                        inp, turb);
+            mainDiagonal(ip, jp, kp - 1) += fluxJac;
           }
         }
         // at right boundary no right cell to add to
@@ -752,10 +744,9 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
             fluxJacobian fluxJac;
             fluxJac.RusanovFluxJacobian(state_(ig, jg, kg - 1),
                                         state_(ig, jg, kg), eqnState,
-                                        this->FAreaUnitK(ig, jg, kg), false,
-                                        inp);
-
-            mainDiagonal(ip, jp, kp) -= fluxJac * this->FAreaMagK(ig, jg, kg);
+                                        this->FAreaK(ig, jg, kg), false,
+                                        inp, turb);
+            mainDiagonal(ip, jp, kp) -= fluxJac;
           } else {
             mainDiagonal(ip, jp, kp) += fluxJacobian(specRad);
           }
@@ -1124,6 +1115,12 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
         }
 
         // DEBUG
+        // squareMatrix ftemp(5);
+        // ftemp.Identity();
+        // squareMatrix ttemp(2);
+        // ttemp.Identity();
+        // ttemp *= 1.0e3;
+        // mainDiagonal(ip, jp, kp) *= fluxJacobian(ftemp, ttemp);
         // mainDiagonal(ip, jp, kp) *= fluxJacobian(1.0, 1.05);
         
         // add volume and time term
@@ -2137,10 +2134,8 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
             fluxJacobian fluxJac;
             fluxJac.ApproxTSLJacobian(state_(ig - 1, jg, kg), mu, mut, f1,
                                       eqnState, suth,
-                                      this->FAreaUnitI(ig, jg, kg), c2cDist,
+                                      this->FAreaI(ig, jg, kg), c2cDist,
                                       turb, inp, true, velGrad);
-            fluxJac *= this->FAreaMagI(ig, jg, kg);
-
             mainDiagonal(ip - 1, jp, kp) -= fluxJac;
           }
         }
@@ -2186,10 +2181,8 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
             fluxJacobian fluxJac;
             fluxJac.ApproxTSLJacobian(state_(ig, jg, kg), mu,
                                       mut, f1, eqnState, suth,
-                                      this->FAreaUnitI(ig, jg, kg), c2cDist,
+                                      this->FAreaI(ig, jg, kg), c2cDist,
                                       turb, inp, false, velGrad);
-            fluxJac *= this->FAreaMagI(ig, jg, kg);
-
             mainDiagonal(ip, jp, kp) += fluxJac;
           } else {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
@@ -2369,10 +2362,8 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
             fluxJacobian fluxJac;
             fluxJac.ApproxTSLJacobian(state_(ig, jg - 1, kg), mu, mut, f1,
                                       eqnState, suth,
-                                      this->FAreaUnitJ(ig, jg, kg), c2cDist,
+                                      this->FAreaJ(ig, jg, kg), c2cDist,
                                       turb, inp, true, velGrad);
-            fluxJac *= this->FAreaMagJ(ig, jg, kg);
-
             mainDiagonal(ip, jp - 1, kp) -= fluxJac;
           }
         }
@@ -2417,10 +2408,8 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
             fluxJacobian fluxJac;
             fluxJac.ApproxTSLJacobian(state_(ig, jg, kg), mu,
                                       mut, f1, eqnState, suth,
-                                      this->FAreaUnitJ(ig, jg, kg), c2cDist,
+                                      this->FAreaJ(ig, jg, kg), c2cDist,
                                       turb, inp, false, velGrad);
-            fluxJac *= this->FAreaMagJ(ig, jg, kg);
-
             mainDiagonal(ip, jp, kp) += fluxJac;
           } else {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
@@ -2600,10 +2589,8 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
             fluxJacobian fluxJac;
             fluxJac.ApproxTSLJacobian(state_(ig, jg, kg - 1), mu, mut, f1,
                                       eqnState, suth,
-                                      this->FAreaUnitK(ig, jg, kg), c2cDist,
+                                      this->FAreaK(ig, jg, kg), c2cDist,
                                       turb, inp, true, velGrad);
-            fluxJac *= this->FAreaMagK(ig, jg, kg);
-
             mainDiagonal(ip, jp, kp - 1) -= fluxJac;
           }
         }
@@ -2649,10 +2636,8 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
             fluxJacobian fluxJac;
             fluxJac.ApproxTSLJacobian(state_(ig, jg, kg), mu,
                                       mut, f1, eqnState, suth,
-                                      this->FAreaUnitK(ig, jg, kg), c2cDist,
+                                      this->FAreaK(ig, jg, kg), c2cDist,
                                       turb, inp, false, velGrad);
-            fluxJac *= this->FAreaMagK(ig, jg, kg);
-
             mainDiagonal(ip, jp, kp) += fluxJac;
           } else {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)

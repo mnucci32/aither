@@ -138,23 +138,47 @@ double turbModel::SpectralRadius(const primVars &state,
 
 // member function to calculate inviscid flux jacobian
 // v = vel (dot) area
-// df_dq = [v +/- v     0   ]
-//         [   0     v +/- v]
+// df_dq = [v +/- |v|     0     ]
+//         [   0       v +/- |v|]
 squareMatrix turbModel::InviscidJacobian(const primVars &state,
                                          const unitVec3dMag<double> &fArea,
                                          const bool &positive) const {
   // state -- primative variables at face
   // fArea -- face area
-  // positive -- flag to determine whether to add/subtract spectral radius
+  // positive -- flag to determine whether to add/subtract dissipation
+
+  return positive ? 0.5 * (this->InviscidConvJacobian(state, fArea) +
+                           this->InviscidDissJacobian(state, fArea)) :
+      0.5 * (this->InviscidConvJacobian(state, fArea) -
+             this->InviscidDissJacobian(state, fArea));
+}
+
+squareMatrix turbModel::InviscidConvJacobian(
+    const primVars &state, const unitVec3dMag<double> &fArea) const {
+  // state -- primative variables at face
+  // fArea -- face area
 
   const auto velNorm = state.Velocity().DotProd(fArea.UnitVector());
-  const auto diag = positive ? 0.5 * (velNorm + fabs(velNorm))
-      : 0.5 * (velNorm - fabs(velNorm));
+  const auto diag = velNorm * fArea.Mag();
   squareMatrix jacobian(2);
-  jacobian(0, 0) = diag * fArea.Mag();
-  jacobian(1, 1) = diag * fArea.Mag();
+  jacobian(0, 0) = diag;
+  jacobian(1, 1) = diag;
   return jacobian;
 }
+
+squareMatrix turbModel::InviscidDissJacobian(
+    const primVars &state, const unitVec3dMag<double> &fArea) const {
+  // state -- primative variables at face
+  // fArea -- face area
+
+  const auto velNorm = state.Velocity().DotProd(fArea.UnitVector());
+  const auto diag = fabs(velNorm) * fArea.Mag();
+  squareMatrix jacobian(2);
+  jacobian(0, 0) = diag;
+  jacobian(1, 1) = diag;
+  return jacobian;
+}
+
 
 // member function to calculate inviscid spectral radius
 // df_dq = [vel (dot) area   0
@@ -228,6 +252,22 @@ squareMatrix turbNone::InviscidJacobian(const primVars &state,
   // state -- primative variables at face
   // fArea -- face area
   // positive -- flag to determine whether to add/subtract spectral radius
+
+  return squareMatrix();
+}
+
+squareMatrix turbNone::InviscidConvJacobian(
+    const primVars &state, const unitVec3dMag<double> &fArea) const {
+  // state -- primative variables at face
+  // fArea -- face area
+
+  return squareMatrix();
+}
+
+squareMatrix turbNone::InviscidDissJacobian(
+    const primVars &state, const unitVec3dMag<double> &fArea) const {
+  // state -- primative variables at face
+  // fArea -- face area
 
   return squareMatrix();
 }

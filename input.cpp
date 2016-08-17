@@ -641,7 +641,7 @@ void input::CheckNonlinearIterations() {
 
 // member function to check validity of the requested output variables
 void input::CheckOutputVariables() {
-  for (auto &var : outputVariables_) {
+  for (auto var : outputVariables_) {
     if (!this->IsTurbulent()) {  // can't have turbulent varibles output
       if (var == "tke" || var == "sdr" || var == "viscosityRatio" ||
           var.find("tkeGrad_") != string::npos ||

@@ -72,6 +72,10 @@ class turbModel {
   virtual squareMatrix InviscidJacobian(const primVars &state,
                                         const unitVec3dMag<double> &fArea,
                                         const bool &positive) const;
+  virtual squareMatrix InviscidConvJacobian(
+      const primVars &state, const unitVec3dMag<double> &fArea) const;
+  virtual squareMatrix InviscidDissJacobian(
+      const primVars &state, const unitVec3dMag<double> &fArea) const;
   virtual double InviscidSpecRad(const primVars &state,
                                  const unitVec3dMag<double> &fAreaL,
                                  const unitVec3dMag<double> &fAreaR) const;
@@ -175,7 +179,10 @@ class turbNone : public turbModel {
   squareMatrix InviscidJacobian(const primVars &state,
                                 const unitVec3dMag<double> &fArea,
                                 const bool &positive) const override;
-  
+  squareMatrix InviscidConvJacobian(
+      const primVars &state, const unitVec3dMag<double> &fArea) const override;
+  squareMatrix InviscidDissJacobian(
+      const primVars &state, const unitVec3dMag<double> &fArea) const override;
   squareMatrix TurbSrcJac(const primVars &state, const double &beta,
                           const sutherland &suth,
                           const double &vol) const override;

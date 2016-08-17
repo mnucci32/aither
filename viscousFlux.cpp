@@ -22,6 +22,7 @@
 #include "primVars.hpp"    // primVars
 #include "turbulence.hpp"  // turbModel
 #include "matrix.hpp"      // squareMatrix
+#include "utility.hpp"     // TauNormal
 
 using std::cout;
 using std::endl;
@@ -82,12 +83,8 @@ viscousFlux::viscousFlux(
   const auto tkeCoeff = turb->SigmaK(f1);
   const auto omgCoeff = turb->SigmaW(f1);
 
-  // get 2nd coefficient of viscosity assuming bulk viscosity is 0 (Stoke's)
-  const auto lambda = suth.Lambda(mu + mut);
-
   // wall shear stress
-  const auto tau = lambda * velGrad.Trace() * normArea + (mu + mut) *
-      (velGrad.MatMult(normArea) + velGrad.Transpose().MatMult(normArea));
+  const auto tau = TauNormal(velGrad, normArea, mut, mut, suth);
 
   data_[0] = tau.X();
   data_[1] = tau.Y();

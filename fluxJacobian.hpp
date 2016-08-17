@@ -75,20 +75,23 @@ class fluxJacobian {
   void AddOnDiagonal(const double &, const bool &);
 
   void RusanovFluxJacobian(const primVars &, const primVars &,
-                           const idealGas &, const vector3d<double> &,
-                           const bool &, const input &);
+                           const idealGas &, const unitVec3dMag<double> &,
+                           const bool &, const input &,
+                           const unique_ptr<turbModel> &);
   void InvFluxJacobian(const primVars &, const idealGas &,
-                       const vector3d<double> &, const input &);
+                       const unitVec3dMag<double> &, const input &,
+                       const unique_ptr<turbModel> &);
   void ApproxRoeFluxJacobian(const primVars &, const primVars &,
-                             const idealGas &, const vector3d<double> &,
-                             const bool &, const input &);
+                             const idealGas &, const unitVec3dMag<double> &,
+                             const bool &, const input &,
+                             const unique_ptr<turbModel> &);
   void DelPrimativeDelConservative(const primVars &, const idealGas &,
                                    const input &);
 
   void ApproxTSLJacobian(const primVars &, const double &, const double &,
                          const double &, const idealGas &,
                          const sutherland &,
-                         const vector3d<double> &, const double &,
+                         const unitVec3dMag<double> &, const double &,
                          const unique_ptr<turbModel> &, const input &,
                          const bool &, const tensor<double> &);
 
