@@ -92,7 +92,7 @@ input::input(const string &name) : simName_(name) {
   farfieldEddyViscRatio_ = 10.0;
 
   // default to primative variables
-  outputVariables_ = {"density", "vel-x", "vel-y", "vel-z", "pressure"};
+  outputVariables_ = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
 
   // keywords in the input file that the parser is looking for to define
   // variables

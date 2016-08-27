@@ -182,7 +182,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (var == "vel-x") {
+      } else if (var == "vel_x") {
         for (auto kp = 0, kg = recombVars[ll].NumGhosts();
              kp < recombVars[ll].NumK(); kg++, kp++) {
           for (auto jp = 0, jg = recombVars[ll].NumGhosts();
@@ -194,7 +194,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (var == "vel-y") {
+      } else if (var == "vel_y") {
         for (auto kp = 0, kg = recombVars[ll].NumGhosts();
              kp < recombVars[ll].NumK(); kg++, kp++) {
           for (auto jp = 0, jg = recombVars[ll].NumGhosts();
@@ -206,7 +206,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (var == "vel-z") {
+      } else if (var == "vel_z") {
         for (auto kp = 0, kg = recombVars[ll].NumGhosts();
              kp < recombVars[ll].NumK(); kg++, kp++) {
           for (auto jp = 0, jg = recombVars[ll].NumGhosts();
@@ -498,7 +498,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (var == "resid_mom-x") {
+      } else if (var == "resid_mom_x") {
         for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
           for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
             for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
@@ -506,7 +506,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (var == "resid_mom-y") {
+      } else if (var == "resid_mom_y") {
         for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
           for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
             for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
@@ -514,7 +514,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             }
           }
         }
-      } else if (var == "resid_mom-z") {
+      } else if (var == "resid_mom_z") {
         for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
           for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
             for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
@@ -560,11 +560,11 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
 
             if (var == "density") {
               dumDouble *= inp.RRef();
-            } else if (var == "vel-x") {
+            } else if (var == "vel_x") {
               dumDouble *= refSoS;
-            } else if (var == "vel-y") {
+            } else if (var == "vel_y") {
               dumDouble *= refSoS;
-            } else if (var == "vel-z") {
+            } else if (var == "vel_z") {
               dumDouble *= refSoS;
             } else if (var == "pressure") {
               dumDouble *= inp.RRef() * refSoS * refSoS;
@@ -591,7 +591,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
                   (suth.MuRef() * inp.LRef());
             } else if (var == "resid_mass") {
               dumDouble *= inp.RRef() * refSoS * inp.LRef() * inp.LRef();
-            } else if (var.find("resid_mom-") != string::npos) {
+            } else if (var.find("resid_mom_") != string::npos) {
               dumDouble *= inp.RRef() * refSoS * refSoS * inp.LRef() *
                   inp.LRef();
             } else if (var == "resid_energy") {
@@ -638,9 +638,9 @@ void WriteRes(const input &inp, const int &iter) {
   const auto writeName = inp.SimNameRoot() + "_*" + fEnd + fPostFix;
 
   const auto outputVars = inp.OutputVariables();
-  const auto hasVelVector = outputVars.find("vel-x") != outputVars.end() &&
-      outputVars.find("vel-y") != outputVars.end() &&
-      outputVars.find("vel-z") != outputVars.end();
+  const auto hasVelVector = outputVars.find("vel_x") != outputVars.end() &&
+      outputVars.find("vel_y") != outputVars.end() &&
+      outputVars.find("vel_z") != outputVars.end();
       
   
   // write number of scalars and number of vectors
@@ -674,11 +674,11 @@ void WriteRes(const input &inp, const int &iter) {
   for (auto &var : outputVars) {
     resFile << writeName << " F " << std::setfill('0') << setw(4) << nvar
             << " " << var << "\n";
-    if (var == "vel-x") {
+    if (var == "vel_x") {
       vectorIndices.SetX(nvar);
-    } else if (var == "vel-y") {
+    } else if (var == "vel_y") {
       vectorIndices.SetY(nvar);
-    } else if (var == "vel-z") {
+    } else if (var == "vel_z") {
       vectorIndices.SetZ(nvar);
     }
     nvar++;
