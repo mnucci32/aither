@@ -14,14 +14,15 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include <chrono>    // timing capability
-#include <iostream>  // cout
-#include <iomanip>   // put_time
-#include <fstream>   // ifstream
-#include <cstdlib>   // exit()
-#include <sstream>   // istringstream
-#include <iterator>  // istring_iterator
-#include <memory>    // make_unique
+#include <chrono>     // timing capability
+#include <iostream>   // cout
+#include <iomanip>    // put_time
+#include <fstream>    // ifstream
+#include <cstdlib>    // exit()
+#include <sstream>    // istringstream
+#include <iterator>   // istring_iterator
+#include <memory>     // make_unique
+#include <algorithm>  // min
 #include <string>
 #include <vector>
 #include "input.hpp"
@@ -275,8 +276,7 @@ void input::ReadInput(const int &rank) {
           }
 
           if (rank == ROOTP) {
-            cout << key << " " << this->TimeIntegration()
-                 << endl;
+            cout << key << " " << this->TimeIntegration() << endl;
           }
         } else if (key == "faceReconstruction:") {
           if (tokens[1] == "upwind") {
@@ -315,8 +315,7 @@ void input::ReadInput(const int &rank) {
         } else if (key == "outputFrequency:") {
           outputFrequency_ = stoi(tokens[1]);
           if (rank == ROOTP) {
-            cout << key << " " << this->OutputFrequency()
-                 << endl;
+            cout << key << " " << this->OutputFrequency() << endl;
           }
         } else if (key == "equationSet:") {
           equationSet_ = tokens[1];
@@ -342,14 +341,12 @@ void input::ReadInput(const int &rank) {
           matrixRelaxation_ =
               stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->MatrixRelaxation()
-                 << endl;
+            cout << key << " " << this->MatrixRelaxation() << endl;
           }
         } else if (key == "nonlinearIterations:") {
           nonlinearIterations_ = stoi(tokens[1]);
           if (rank == ROOTP) {
-            cout << key << " " << this->NonlinearIterations()
-                 << endl;
+            cout << key << " " << this->NonlinearIterations() << endl;
           }
         } else if (key == "cflMax:") {
           cflMax_ = stod(tokens[1]);  // double  (stod)
@@ -392,8 +389,7 @@ void input::ReadInput(const int &rank) {
             cout << key << " " << this->StagInletTag() << " "
                  << this->StagInletP0() << " " << this->StagInletT0()
                  << " " << this->StagInletDx() << " "
-                 << this->StagInletDy() << " " << this->StagInletDz()
-                 << endl;
+                 << this->StagInletDy() << " " << this->StagInletDz() << endl;
           }
         } else if (key == "pressureOutlet:") {
           pressureOutlet_[0] = stoi(tokens[1]);  // tag
@@ -410,20 +406,17 @@ void input::ReadInput(const int &rank) {
         } else if (key == "turbulenceModel:") {
           turbModel_ = tokens[1];
           if (rank == ROOTP) {
-            cout << key << " " << this->TurbulenceModel()
-                 << endl;
+            cout << key << " " << this->TurbulenceModel() << endl;
           }
         } else if (key == "farfieldTurbulenceIntensity:") {
           farfieldTurbInten_ = stod(tokens[1]);  // double (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->FarfieldTurbIntensity()
-                 << endl;
+            cout << key << " " << this->FarfieldTurbIntensity() << endl;
           }
         } else if (key == "farfieldEddyViscosityRatio:") {
           farfieldEddyViscRatio_ = stod(tokens[1]);  // double (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->FarfieldEddyViscRatio()
-                 << endl;
+            cout << key << " " << this->FarfieldEddyViscRatio() << endl;
           }
         } else if (key == "outputVariables:") {
           // clear default variables from set
@@ -443,8 +436,8 @@ void input::ReadInput(const int &rank) {
             cout << endl;
           }
 
-          // reading BCs
-          // -------------------------------------------------------------
+        // reading BCs
+        // -------------------------------------------------------------
         } else if (key == "boundaryConditions:" || readingBCs > 0) {
           // read in boundary conditions and assign to boundaryConditions
           // class
@@ -487,7 +480,7 @@ void input::ReadInput(const int &rank) {
           if (blk == numBCBlks) {
             bc_ = tempBC;
             if (rank == ROOTP) {
-              cout << key << " " << this->NumBC() << endl << endl;
+              cout << "boundaryConditions: " << this->NumBC() << endl;
               for (auto ll = 0; ll < this->NumBC(); ll++) {
                 cout << "Block: " << ll << endl;
                 cout << this->BC(ll) << endl;
@@ -503,6 +496,7 @@ void input::ReadInput(const int &rank) {
   // input file sanity checks
   this->CheckNonlinearIterations();
   this->CheckOutputVariables();
+  this->CheckTurbulenceModel();
 
   if (rank == ROOTP) {
     cout << endl;
@@ -513,17 +507,10 @@ void input::ReadInput(const int &rank) {
   }
 }
 
-// member function to calculate the cfl_ value for the step from the starting,
+// member function to calculate the cfl value for the step from the starting,
 // ending, and step values
-void input::CalcCFL(const int &i) {
-  if (i == 0) {  // first time step
-    cfl_ = cflStart_;
-  } else if (cflStart_ + i * cflStep_ >
-             cflMax_) {  // if calculated value is higher than max, set to max
-    cfl_ = cflMax_;
-  } else {
-    cfl_ = cflStart_ + i * cflStep_;
-  }
+void input::CalcCFL(const int &ii) {
+  cfl_ = std::min(cflStart_ + ii * cflStep_, cflMax_);
 }
 
 // member function to determine number of turbulence equations
@@ -661,6 +648,20 @@ void input::CheckOutputVariables() {
         }
       }
     }
+  }
+}
+
+// member function to check that turbulence model makes sense with equation set
+void input::CheckTurbulenceModel() const {
+  if (equationSet_ == "rans" && turbModel_ == "none") {
+    cerr << "ERROR: If solving RANS equations, must specify turbulence model!"
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+  if (equationSet_ != "rans" && turbModel_ != "none") {
+    cerr << "ERROR: Turbulence models are only valid for the RANS equation set!"
+         << endl;
+    exit(EXIT_FAILURE);
   }
 }
 

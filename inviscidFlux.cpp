@@ -290,7 +290,7 @@ inviscidFlux RusanovFlux(const primVars &left, const primVars &right,
   const auto rightSpecRad = fabs(right.Velocity().DotProd(areaNorm))
     + right.SoS(eqnState);
   const auto fac = positive ? -1.0 : 1.0;
-  const auto specRad = fac * max(leftSpecRad, rightSpecRad);
+  const auto specRad = fac * std::max(leftSpecRad, rightSpecRad);
 
   // calculate left/right physical flux
   inviscidFlux leftFlux(left, eqnState, areaNorm);

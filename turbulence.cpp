@@ -107,12 +107,13 @@ double turbModel::CrossDiffusion(const primVars &state,
 }
 
 // member function to calculate the spectral radius of the turbulence equations
-double turbModel::SpectralRadius(const primVars &state,
-                                 const unitVec3dMag<double> &fAreaL,
-                                 const unitVec3dMag<double> &fAreaR,
-                                 const double &mu, const sutherland &suth,
-                                 const double &vol, const double &mut,
-                                 const double &f1, const bool &addSrc) const {
+double turbModel::CellSpectralRadius(const primVars &state,
+                                     const unitVec3dMag<double> &fAreaL,
+                                     const unitVec3dMag<double> &fAreaR,
+                                     const double &mu, const sutherland &suth,
+                                     const double &vol, const double &mut,
+                                     const double &f1,
+                                     const bool &addSrc) const {
   // state -- primative variables
   // fAreaL -- area at left face
   // fAreaR -- area at right face
@@ -124,10 +125,10 @@ double turbModel::SpectralRadius(const primVars &state,
   // addSrc -- flag to determine if source jacobian spectral radius should be
   //           included
 
-  auto specRad = this->InviscidSpecRad(state, fAreaL, fAreaR);
+  auto specRad = this->InviscidCellSpecRad(state, fAreaL, fAreaR);
   // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
-  specRad += 2.0 * this->ViscSpecRad(state, fAreaL, fAreaR, mu, suth, vol,
-                                     mut, f1);
+  specRad += 2.0 * this->ViscCellSpecRad(state, fAreaL, fAreaR, mu, suth, vol,
+                                         mut, f1);
   if (addSrc) {
     // minus sign because source terms are on RHS
     specRad -= this->SrcSpecRad(state, suth, vol);
@@ -135,6 +136,27 @@ double turbModel::SpectralRadius(const primVars &state,
 
   return specRad;
 }
+
+double turbModel::FaceSpectralRadius(const primVars &state,
+                                     const unitVec3dMag<double> &fArea,
+                                     const double &mu, const sutherland &suth,
+                                     const double &dist, const double &mut,
+                                     const double &f1,
+                                     const bool &positive) const {
+  // state -- primative variables
+  // fArea -- face area
+  // mu -- laminar viscosity
+  // suth -- sutherland's law for viscosity
+  // dist -- distance from cell center to cell center
+  // mut -- turbulent viscosity
+  // f1 -- first blending coefficient
+  // positive -- flag to add or subtract inviscid dissipation
+
+  auto specRad = this->InviscidFaceSpecRad(state, fArea, positive);
+  specRad += this->ViscFaceSpecRad(state, fArea, mu, suth, dist, mut, f1);
+  return specRad;
+}
+
 
 // member function to calculate inviscid flux jacobian
 // v = vel (dot) area
@@ -183,9 +205,9 @@ squareMatrix turbModel::InviscidDissJacobian(
 // member function to calculate inviscid spectral radius
 // df_dq = [vel (dot) area   0
 //                0          vel (dot) area]
-double turbModel::InviscidSpecRad(const primVars &state,
-                                  const unitVec3dMag<double> &fAreaL,
-                                  const unitVec3dMag<double> &fAreaR) const {
+double turbModel::InviscidCellSpecRad(const primVars &state,
+                                      const unitVec3dMag<double> &fAreaL,
+                                      const unitVec3dMag<double> &fAreaR) const {
   // state -- primative variables
   // fAreaL -- face area for left face
   // fAreaR -- face area for right face
@@ -194,6 +216,20 @@ double turbModel::InviscidSpecRad(const primVars &state,
                          fAreaR.UnitVector())).Normalize();
   auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
   return fabs(state.Velocity().DotProd(normAvg)) * fMag;
+}
+
+double turbModel::InviscidFaceSpecRad(const primVars &state,
+                                      const unitVec3dMag<double> &fArea,
+                                      const bool &positive) const {
+  // state -- primative variables
+  // fArea -- face area
+  // positive -- add or subtract dissipation term
+
+  const auto velNorm = state.Velocity().DotProd(fArea.UnitVector());
+  // DEBUG
+  // return 0.5 * fArea.Mag() + fabs(velNorm);
+  return positive ? 0.5 * fArea.Mag() * fabs(velNorm + fabs(velNorm)) :
+      0.5 * fArea.Mag() * fabs(velNorm - fabs(velNorm));
 }
 
 // member function to calculate viscous flux jacobian for models with no
@@ -517,12 +553,12 @@ squareMatrix turbKWWilcox::ViscousJacobian(const primVars &state,
 // member function to calculate viscous spectral radius
 // dfv_dq = [ (area / vol) * (nu + sigmaStar * nut)    0
 //                           0                (area / vol) * (nu + sigma * nut)]
-double turbKWWilcox::ViscSpecRad(const primVars &state,
-                                 const unitVec3dMag<double> &fAreaL,
-                                 const unitVec3dMag<double> &fAreaR,
-                                 const double &mu, const sutherland &suth,
-                                 const double &vol, const double &mut,
-                                 const double &f1) const {
+double turbKWWilcox::ViscCellSpecRad(const primVars &state,
+                                     const unitVec3dMag<double> &fAreaL,
+                                     const unitVec3dMag<double> &fAreaR,
+                                     const double &mu, const sutherland &suth,
+                                     const double &vol, const double &mut,
+                                     const double &f1) const {
   // state -- primative variables
   // fAreaL -- face area for left face
   // fAreaR -- face area for right face
@@ -538,6 +574,25 @@ double turbKWWilcox::ViscSpecRad(const primVars &state,
   return suth.NondimScaling() * fMag * fMag / (vol * state.Rho()) *
       (mu + this->SigmaK(f1) * this->EddyViscNoLim(state));
 }
+
+double turbKWWilcox::ViscFaceSpecRad(const primVars &state,
+                                     const unitVec3dMag<double> &fArea,
+                                     const double &mu, const sutherland &suth,
+                                     const double &dist, const double &mut,
+                                     const double &f1) const {
+  // state -- primative variables
+  // fArea -- face area
+  // mu -- laminar viscosity
+  // suth -- sutherland's law for viscosity
+  // dist -- distance from cell center to cell center
+  // mut -- turbulent viscosity
+  // f1 -- first blending coefficient
+
+  // Wilcox method uses unlimited eddy viscosity
+  return suth.NondimScaling() * fArea.Mag() / (dist * state.Rho()) *
+      (mu + this->SigmaK(f1) * this->EddyViscNoLim(state));
+}
+
 
 // member function to print out turbulence variables
 void turbKWWilcox::Print() const {
@@ -762,7 +817,7 @@ squareMatrix turbKWSst::ViscousJacobian(const primVars &state,
                                         const double &dist, const double &mut,
                                         const double &f1) const {
   // state -- primative variables
-  // fAreaL -- face area for left face
+  // fArea -- face area
   // mu -- laminar viscosity
   // suth -- sutherland's law for viscosity
   // dist -- distance from cell center to cell center across face
@@ -781,12 +836,12 @@ squareMatrix turbKWSst::ViscousJacobian(const primVars &state,
 // member function to calculate viscous spectral radius
 // dfv_dq = [ (area / vol) * (nu + sigmaStar * nut)    0
 //                           0                (area / vol) * (nu + sigma * nut)]
-double turbKWSst::ViscSpecRad(const primVars &state,
-                              const unitVec3dMag<double> &fAreaL,
-                              const unitVec3dMag<double> &fAreaR,
-                              const double &mu, const sutherland &suth,
-                              const double &vol, const double &mut,
-                              const double &f1) const {
+double turbKWSst::ViscCellSpecRad(const primVars &state,
+                                  const unitVec3dMag<double> &fAreaL,
+                                  const unitVec3dMag<double> &fAreaR,
+                                  const double &mu, const sutherland &suth,
+                                  const double &vol, const double &mut,
+                                  const double &f1) const {
   // state -- primative variables
   // fAreaL -- face area for left face
   // fAreaR -- face area for right face
@@ -799,6 +854,23 @@ double turbKWSst::ViscSpecRad(const primVars &state,
   const auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
 
   return suth.NondimScaling() * fMag * fMag / (vol * state.Rho()) *
+      (mu + this->SigmaK(f1) * mut);
+}
+
+double turbKWSst::ViscFaceSpecRad(const primVars &state,
+                                  const unitVec3dMag<double> &fArea,
+                                  const double &mu, const sutherland &suth,
+                                  const double &dist, const double &mut,
+                                  const double &f1) const {
+  // state -- primative variables
+  // fArea -- face area
+  // mu -- laminar viscosity
+  // suth -- sutherland's law for viscosity
+  // dist -- distance from cell center to cell center
+  // mut -- turbulent viscosity
+  // f1 -- first blending coefficient
+
+  return suth.NondimScaling() * fArea.Mag() / (dist * state.Rho()) *
       (mu + this->SigmaK(f1) * mut);
 }
 

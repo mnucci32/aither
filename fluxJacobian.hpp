@@ -74,8 +74,8 @@ class fluxJacobian {
   void MultiplyOnDiagonal(const double &, const bool &);
   void AddOnDiagonal(const double &, const bool &);
 
-  void RusanovFluxJacobian(const primVars &, const primVars &,
-                           const idealGas &, const unitVec3dMag<double> &,
+  void RusanovFluxJacobian(const primVars &, const idealGas &,
+                           const unitVec3dMag<double> &,
                            const bool &, const input &,
                            const unique_ptr<turbModel> &);
   void InvFluxJacobian(const primVars &, const idealGas &,
@@ -239,17 +239,14 @@ ostream &operator<<(ostream &os, const fluxJacobian &jacobian);
 
 genArray RusanovOffDiagonal(const primVars &, const genArray &,
                             const unitVec3dMag<double> &,
-                            const unitVec3dMag<double> &,
                             const double &, const double &, const double &,
-                            const double &, const double &, const idealGas &,
+                            const double &, const idealGas &,
                             const sutherland &,
                             const unique_ptr<turbModel> &,
                             const bool &, const bool &);
 genArray RoeOffDiagonal(const primVars &, const primVars &, const genArray &,
-                        const unitVec3dMag<double> &,
-                        const unitVec3dMag<double> &,
-                        const double &, const double &, const double &,
-                        const double &, const double &, const double &,
+                        const unitVec3dMag<double> &, const double &,
+                        const double &, const double &,
                         const double &, const idealGas &, const sutherland &,
                         const unique_ptr<turbModel> &, const bool &,
                         const bool &, const bool &);

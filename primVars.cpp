@@ -790,6 +790,16 @@ double primVars::InvCellSpectralRadius(const unitVec3dMag<double> &fAreaL,
          fMag;
 }
 
+double primVars::InvFaceSpectralRadius(const unitVec3dMag<double> &fArea,
+                                       const idealGas &eqnState) const {
+  // fArea -- face area
+  // eqnState -- equation of state
+
+  // return spectral radius
+  return 0.5 * fArea.Mag() * (fabs(this->Velocity().DotProd(fArea.UnitVector()))
+                              + this->SoS(eqnState));
+}
+
 /*Function to calculate the viscous spectral radius for one direction (i, j, or
 k).
 
@@ -828,6 +838,30 @@ double primVars::ViscCellSpectralRadius(
   return maxTerm * viscTerm * fMag * fMag / vol;
 }
 
+double primVars::ViscFaceSpectralRadius(
+    const unitVec3dMag<double> &fArea,
+    const idealGas &eqnState, const sutherland &suth, const double &dist,
+    const double &mu, const double &mut,
+    const unique_ptr<turbModel> &turb) const {
+  // fArea -- face area
+  // eqnState -- equation of state
+  // suth -- method to the temperature varying visosity and Prandtl number
+  //         (Sutherland's law)
+  // dist -- distacne from cell center to cell center
+  // mu -- laminar viscosity
+  // mut -- turbulent viscosity
+  // turb -- turbulence model
+
+  const auto maxTerm = max(4.0 / (3.0 * this->Rho()),
+                           eqnState.Gamma() / this->Rho());
+  // viscous term
+  const auto viscTerm = suth.NondimScaling() *
+      (mu / eqnState.Prandtl() +  mut / turb->TurbPrandtlNumber());
+
+  // return viscous spectral radius
+  return fArea.Mag() / dist * maxTerm * viscTerm;
+}
+
 double primVars::CellSpectralRadius(
     const unitVec3dMag<double> &fAreaL, const unitVec3dMag<double> &fAreaR,
     const idealGas &eqnState, const sutherland &suth, const double &vol,
@@ -850,6 +884,29 @@ double primVars::CellSpectralRadius(
     // factor 2 2 because viscous spectral radius is not halved (Blazek 6.53)
     specRad += 2.0 * this->ViscCellSpectralRadius(fAreaL, fAreaR, eqnState,
                                                   suth, vol, mu, mut, turb);
+  }
+  return specRad;
+}
+
+double primVars::FaceSpectralRadius(const unitVec3dMag<double> &fArea,
+    const idealGas &eqnState, const sutherland &suth, const double &dist,
+    const double &mu, const double &mut, const unique_ptr<turbModel> &turb,
+    const bool &isViscous) const {
+  // fAreaL -- face area
+  // eqnState -- equation of state
+  // suth -- method to the temperature varying visosity and Prandtl number
+  //         (Sutherland's law)
+  // dist -- distance from cell center to cell center
+  // mu -- laminar viscosity
+  // mut -- turbulent viscosity
+  // turb -- turbulence model
+  // isViscous -- flag that is true if simulation is viscous
+
+  auto specRad = this->InvFaceSpectralRadius(fArea, eqnState);
+
+  if (isViscous) {
+    specRad += this->ViscFaceSpectralRadius(fArea, eqnState, suth, dist, mu,
+                                            mut, turb);
   }
   return specRad;
 }

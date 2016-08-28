@@ -76,20 +76,29 @@ class turbModel {
       const primVars &state, const unitVec3dMag<double> &fArea) const;
   virtual squareMatrix InviscidDissJacobian(
       const primVars &state, const unitVec3dMag<double> &fArea) const;
-  virtual double InviscidSpecRad(const primVars &state,
-                                 const unitVec3dMag<double> &fAreaL,
-                                 const unitVec3dMag<double> &fAreaR) const;
+  virtual double InviscidCellSpecRad(const primVars &state,
+                                     const unitVec3dMag<double> &fAreaL,
+                                     const unitVec3dMag<double> &fAreaR) const;
+  virtual double InviscidFaceSpecRad(const primVars &state,
+                                     const unitVec3dMag<double> &fArea,
+                                     const bool &positive) const;
   virtual squareMatrix ViscousJacobian(const primVars &state,
                                        const unitVec3dMag<double> &fArea,
                                        const double &mu, const sutherland &suth,
                                        const double &dist, const double &mut,
                                        const double &f1) const;
-  virtual double ViscSpecRad(const primVars &state,
-                             const unitVec3dMag<double> &fAreaL,
-                             const unitVec3dMag<double> &fAreaR,
-                             const double &mu, const sutherland &suth,
-                             const double &vol, const double &mut,
-                             const double &f1) const {return 0.0;}
+  virtual double ViscCellSpecRad(const primVars &state,
+                                 const unitVec3dMag<double> &fAreaL,
+                                 const unitVec3dMag<double> &fAreaR,
+                                 const double &mu, const sutherland &suth,
+                                 const double &vol, const double &mut,
+                                 const double &f1) const {return 0.0;}
+  virtual double ViscFaceSpecRad(const primVars &state,
+                                 const unitVec3dMag<double> &fArea,
+                                 const double &mu, const sutherland &suth,
+                                 const double &dist, const double &mut,
+                                 const double &f1) const {return 0.0;}
+
   tensor<double> BoussinesqReynoldsStress(const primVars &state,
                                           const tensor<double> &velGrad,
                                           const sutherland &suth,
@@ -104,12 +113,17 @@ class turbModel {
                         const vector3d<double> &kGrad,
                         const vector3d<double> &wGrad) const;
 
-  double SpectralRadius(const primVars &state,
-                        const unitVec3dMag<double> &fAreaL,
-                        const unitVec3dMag<double> &fAreaR,
-                        const double &mu, const sutherland &suth,
-                        const double &vol, const double &mut,
-                        const double & f1, const bool &addSrc) const;
+  double CellSpectralRadius(const primVars &state,
+                            const unitVec3dMag<double> &fAreaL,
+                            const unitVec3dMag<double> &fAreaR,
+                            const double &mu, const sutherland &suth,
+                            const double &vol, const double &mut,
+                            const double & f1, const bool &addSrc) const;
+  double FaceSpectralRadius(const primVars &state,
+                            const unitVec3dMag<double> &fArea,
+                            const double &mu, const sutherland &suth,
+                            const double &dist, const double &mut,
+                            const double & f1, const bool &positive) const;
 
   // abstract functions
   virtual squareMatrix CalcTurbSrc(const primVars &state,
@@ -171,11 +185,17 @@ class turbNone : public turbModel {
                            double &mut, double &f1,
                            double &f2) const override {}
   double EddyViscNoLim(const primVars &state) const override {return 0.0;}
-  double InviscidSpecRad(const primVars &state,
-                         const unitVec3dMag<double> &fAreaL,
-                         const unitVec3dMag<double> &fAreaR) const override {
+  double InviscidCellSpecRad(
+      const primVars &state, const unitVec3dMag<double> &fAreaL,
+      const unitVec3dMag<double> &fAreaR) const override {
     return 0.0;
   }
+  double InviscidFaceSpecRad(const primVars &state,
+                             const unitVec3dMag<double> &fArea,
+                             const bool &postive) const override {
+    return 0.0;
+  }
+
   squareMatrix InviscidJacobian(const primVars &state,
                                 const unitVec3dMag<double> &fArea,
                                 const bool &positive) const override;
@@ -250,12 +270,18 @@ class turbKWWilcox : public turbModel {
                                const double &, const sutherland &,
                                const double &, const double &,
                                const double &) const override;
-  double ViscSpecRad(const primVars &,
-                     const unitVec3dMag<double> &,
-                     const unitVec3dMag<double> &,
-                     const double &, const sutherland &,
-                     const double &, const double &,
-                     const double &) const override;
+  double ViscCellSpecRad(const primVars &,
+                         const unitVec3dMag<double> &,
+                         const unitVec3dMag<double> &,
+                         const double &, const sutherland &,
+                         const double &, const double &,
+                         const double &) const override;
+  double ViscFaceSpecRad(const primVars &,
+                         const unitVec3dMag<double> &,
+                         const double &, const sutherland &,
+                         const double &, const double &,
+                         const double &) const override;
+
   squareMatrix TurbSrcJac(const primVars &, const double &,
                           const sutherland &, const double &) const override;
 
@@ -340,12 +366,18 @@ class turbKWSst : public turbModel {
                                const double &, const sutherland &,
                                const double &, const double &,
                                const double &) const override;
-  double ViscSpecRad(const primVars &,
-                     const unitVec3dMag<double> &,
-                     const unitVec3dMag<double> &,
-                     const double &, const sutherland &,
-                     const double &, const double &,
-                     const double &) const override;
+  double ViscCellSpecRad(const primVars &,
+                         const unitVec3dMag<double> &,
+                         const unitVec3dMag<double> &,
+                         const double &, const sutherland &,
+                         const double &, const double &,
+                         const double &) const override;
+  double ViscFaceSpecRad(const primVars &,
+                         const unitVec3dMag<double> &,
+                         const double &, const sutherland &,
+                         const double &, const double &,
+                         const double &) const override;
+
   squareMatrix TurbSrcJac(const primVars &, const double &,
                           const sutherland &, const double &) const override;
 

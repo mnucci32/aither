@@ -185,6 +185,7 @@ class input {
 
   void CheckNonlinearIterations();
   void CheckOutputVariables();
+  void CheckTurbulenceModel() const;
 
   double ViscousCFLCoefficient() const;
 

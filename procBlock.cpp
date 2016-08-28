@@ -367,9 +367,9 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
               inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU);
         }
         // calculate Roe flux at face
-        const inviscidFlux tempFlux = RoeFlux(
-            faceStateLower, faceStateUpper, eqnState,
-            this->FAreaUnitI(ig, jg, kg));
+        const inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper,
+                                              eqnState,
+                                              this->FAreaUnitI(ig, jg, kg));
         
         // area vector points from left to right, so add to left cell, subtract
         // from right cell
@@ -378,22 +378,10 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
           this->AddToResidual(tempFlux * this->FAreaMagI(ig, jg, kg),
                               ip - 1, jp, kp);
 
-          // DEBUG
-          // auto kk = 0;
-          // auto jj = (this->NumJ() == 136) ? 40 : 0;
-          // auto ii = (this->NumI() == 1) ? 0 : 40;
-          // if (ii == ip - 1 && jj == jp && kk == kp) {
-          //   cout << "adding i-flux is: " << tempFlux.RhoVelV() << endl;
-          //   cout << "adding i-flux area is: " << this->FAreaMagI(ig, jg, kg) << endl;
-          //   cout << "adding: " << tempFlux.RhoVelV() * this->FAreaMagI(ig, jg, kg) << endl;                        
-          // }
-
-
           // if using a block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
-            fluxJac.RusanovFluxJacobian(state_(ig - 1, jg, kg),
-                                        state_(ig, jg, kg), eqnState,
+            fluxJac.RusanovFluxJacobian(faceStateLower, eqnState,
                                         this->FAreaI(ig, jg, kg), true,
                                         inp, turb);
             mainDiagonal(ip - 1, jp, kp) += fluxJac;
@@ -406,25 +394,14 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
                                      this->FAreaMagI(ig, jg, kg),
                                      ip, jp, kp);
 
-
-          // DEBUG
-          // auto kk = 0;
-          // auto jj = (this->NumJ() == 136) ? 40 : 0;
-          // auto ii = (this->NumI() == 1) ? 0 : 40;
-          // if (ii == ip && jj == jp && kk == kp) {
-          //   cout << "subtracting i-flux is: " << tempFlux.RhoVelV() << endl;
-          //   cout << "subtracting i-flux area is: " << this->FAreaMagI(ig, jg, kg) << endl;
-          //   cout << "subtracting: " << tempFlux.RhoVelV() * this->FAreaMagI(ig, jg, kg) << endl;
-          // }
-
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           const auto invSpecRad = state_(ig, jg, kg).InvCellSpectralRadius(
               fAreaI_(ig, jg, kg), fAreaI_(ig + 1, jg, kg), eqnState);
 
           const auto turbInvSpecRad = isTurbulent_ ?
-              turb->InviscidSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
-                                    fAreaI_(ig + 1, jg, kg)): 0.0;
+              turb->InviscidCellSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
+                                        fAreaI_(ig + 1, jg, kg)): 0.0;
 
           const uncoupledScalar specRad(invSpecRad, turbInvSpecRad);
           specRadius_(ip, jp, kp) += specRad;
@@ -432,8 +409,7 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
           // if using a block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
-            fluxJac.RusanovFluxJacobian(state_(ig - 1, jg, kg),
-                                        state_(ig, jg, kg), eqnState,
+            fluxJac.RusanovFluxJacobian(faceStateUpper, eqnState,
                                         this->FAreaI(ig, jg, kg), false,
                                         inp, turb);
             mainDiagonal(ip, jp, kp) -= fluxJac;
@@ -534,22 +510,10 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
           this->AddToResidual(tempFlux * this->FAreaMagJ(ig, jg, kg),
                               ip, jp - 1, kp);
 
-          // DEBUG
-          // auto kk = 0;
-          // auto jj = (this->NumJ() == 136) ? 40 : 0;
-          // auto ii = (this->NumI() == 1) ? 0 : 40;
-          // if (ii == ip && jj == jp - 1 && kk == kp) {
-          //   cout << "adding j-flux is: " << tempFlux.RhoVelV() << endl;
-          //   cout << "adding j-flux area is: " << this->FAreaMagJ(ig, jg, kg) << endl;
-          //   cout << "adding: " << tempFlux.RhoVelV() * this->FAreaMagJ(ig, jg, kg) << endl;
-          // }
-
-          
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
-            fluxJac.RusanovFluxJacobian(state_(ig, jg - 1, kg),
-                                        state_(ig, jg, kg), eqnState,
+            fluxJac.RusanovFluxJacobian(faceStateLower, eqnState,
                                         this->FAreaJ(ig, jg, kg), true,
                                         inp, turb);
             mainDiagonal(ip, jp - 1, kp) += fluxJac;
@@ -560,17 +524,6 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
           this->SubtractFromResidual(tempFlux *
                                      this->FAreaMagJ(ig, jg, kg),
                                      ip, jp, kp);
-
-          // DEBUG
-          // auto kk = 0;
-          // auto jj = (this->NumJ() == 136) ? 40 : 0;
-          // auto ii = (this->NumI() == 1) ? 0 : 40;
-          // if (ii == ip && jj == jp && kk == kp) {
-          //   cout << "subtractining j-flux is: " << tempFlux.RhoVelV() << endl;
-          //   cout << "subtracting j-flux area is: " << this->FAreaMagJ(ig, jg, kg) << endl;
-          //   cout << "subtracting: " << tempFlux.RhoVelV() * this->FAreaMagJ(ig, jg, kg) << endl;
-          // }
-
           
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
@@ -578,8 +531,8 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
               fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg + 1, kg), eqnState);
 
           const auto turbInvSpecRad = isTurbulent_ ?
-              turb->InviscidSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
-                                    fAreaJ_(ig, jg + 1, kg)): 0.0;
+              turb->InviscidCellSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
+                                        fAreaJ_(ig, jg + 1, kg)): 0.0;
 
           const uncoupledScalar specRad(invSpecRad, turbInvSpecRad);
           specRadius_(ip, jp, kp) += specRad;
@@ -587,8 +540,7 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
-            fluxJac.RusanovFluxJacobian(state_(ig, jg - 1, kg),
-                                        state_(ig, jg, kg), eqnState,
+            fluxJac.RusanovFluxJacobian(faceStateUpper, eqnState,
                                         this->FAreaJ(ig, jg, kg), false,
                                         inp, turb);
             mainDiagonal(ip, jp, kp) -= fluxJac;
@@ -689,22 +641,11 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
           this->AddToResidual(tempFlux *
                               this->FAreaMagK(ig, jg, kg),
                               ip, jp, kp - 1);
-          // DEBUG
-          // auto kk = 0;
-          // auto jj = (this->NumJ() == 136) ? 40 : 0;
-          // auto ii = (this->NumI() == 1) ? 0 : 40;
-          // if (ii == ip && jj == jp && kk == kp - 1) {
-          //   cout << "adding k-flux is: " << tempFlux.RhoVelV() << endl;
-          //   cout << "adding k-flux area is: " << this->FAreaMagK(ig, jg, kg) << endl;
-          //   cout << "adding: " << tempFlux.RhoVelV() * this->FAreaMagK(ig, jg, kg) << endl;
-          // }
-
           
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
-            fluxJac.RusanovFluxJacobian(state_(ig, jg, kg - 1),
-                                        state_(ig, jg, kg), eqnState,
+            fluxJac.RusanovFluxJacobian(faceStateLower, eqnState,
                                         this->FAreaK(ig, jg, kg), true,
                                         inp, turb);
             mainDiagonal(ip, jp, kp - 1) += fluxJac;
@@ -716,25 +657,14 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
                                      this->FAreaMagK(ig, jg, kg),
                                      ip, jp, kp);
 
-          // DEBUG
-          // auto kk = 0;
-          // auto jj = (this->NumJ() == 136) ? 40 : 0;
-          // auto ii = (this->NumI() == 1) ? 0 : 40;
-          // if (ii == ip && jj == jp && kk == kp) {
-          //   cout << "subtracting k-flux is: " << tempFlux.RhoVelV() << endl;
-          //   cout << "subtracting k-flux area is: " << this->FAreaMagK(ig, jg, kg) << endl;
-          //   cout << "subtracting: " << tempFlux.RhoVelV() * this->FAreaMagK(ig, jg, kg) << endl;
-          // }
-
-          
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           const auto invSpecRad = state_(ig, jg, kg).InvCellSpectralRadius(
               fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg + 1), eqnState);
 
           const auto turbInvSpecRad = isTurbulent_ ?
-              turb->InviscidSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
-                                    fAreaK_(ig, jg, kg + 1)) : 0.0;
+              turb->InviscidCellSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
+                                        fAreaK_(ig, jg, kg + 1)) : 0.0;
 
           const uncoupledScalar specRad(invSpecRad, turbInvSpecRad);
           specRadius_(ip, jp, kp) += specRad;
@@ -742,8 +672,7 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
-            fluxJac.RusanovFluxJacobian(state_(ig, jg, kg - 1),
-                                        state_(ig, jg, kg), eqnState,
+            fluxJac.RusanovFluxJacobian(faceStateUpper, eqnState,
                                         this->FAreaK(ig, jg, kg), false,
                                         inp, turb);
             mainDiagonal(ip, jp, kp) -= fluxJac;
@@ -775,9 +704,9 @@ void procBlock::CalcCellDt(const int &ii, const int &jj, const int &kk,
   // cfl -- cfl number
 
   // use nondimensional time
-  dt_(ii, jj, kk) = cfl * (vol_(ii + numGhosts_, jj + numGhosts_,
-                                kk + numGhosts_) /
-                           specRadius_(ii, jj, kk).FlowVariable());
+  dt_(ii, jj, kk) = cfl *
+      (vol_(ii + numGhosts_, jj + numGhosts_, kk + numGhosts_) /
+       specRadius_(ii, jj, kk).Max());
 }
 
 /* Member function to calculate the time step for all cells in the procBlock. If
@@ -904,8 +833,8 @@ void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState,
 void procBlock::ImplicitTimeAdvance(const genArray &du,
                                     const idealGas &eqnState,
                                     const unique_ptr<turbModel> &turb,
-                                    const int &ii,
-                                    const int &jj, const int &kk) {
+                                    const int &ii, const int &jj,
+                                    const int &kk) {
   // du -- update for a specific cell (to move from time n to n+1)
   // eqnState -- equation of state
   // turb -- turbulence model
@@ -913,11 +842,8 @@ void procBlock::ImplicitTimeAdvance(const genArray &du,
   // jj -- j-location of cell (with ghosts)
   // kk -- k-location of cell (with ghosts)
 
-  // DEBUG
-  genArray fac = {1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0};
-  
   // calculate updated state (primative variables)
-  state_(ii, jj, kk) = state_(ii, jj, kk).UpdateWithConsVars(eqnState, du * fac,
+  state_(ii, jj, kk) = state_(ii, jj, kk).UpdateWithConsVars(eqnState, du,
                                                              turb);
 }
 
@@ -1110,7 +1036,7 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
             (dt_(ip, jp, kp) * inp.Theta());
         if (inp.DualTimeCFL() > 0.0) {  // use dual time stepping
           // equal to volume / tau
-          diagVolTime += specRadius_(ip, jp, kp).FlowVariable() /
+          diagVolTime += specRadius_(ip, jp, kp).Max() /
               inp.DualTimeCFL();
         }
 
@@ -1122,6 +1048,10 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
         // ttemp *= 1.0e3;
         // mainDiagonal(ip, jp, kp) *= fluxJacobian(ftemp, ttemp);
         // mainDiagonal(ip, jp, kp) *= fluxJacobian(1.0, 1.05);
+        // cout << "specRad: " << specRadius_(ip, jp, kp).FlowVariable() << endl;
+        // cout << mainDiagonal(ip, jp, kp) << endl;
+
+
         
         // add volume and time term
         mainDiagonal(ip, jp, kp).MultiplyOnDiagonal(inp.MatrixRelaxation(),
@@ -1309,8 +1239,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
 
       // update L matrix
       L += RusanovOffDiagonal(state_(ig - 1, jg, kg), x(ig - 1 , jg, kg),
-                              fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
-                              vol_(ig - 1, jg, kg),
+                              fAreaI_(ig, jg, kg),
                               this->Viscosity(ig - 1, jg, kg),
                               this->EddyViscosity(ig - 1, jg, kg),
                               this->F1(ig - 1, jg, kg), projDist,
@@ -1327,8 +1256,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
 
       // update L matrix
       L += RusanovOffDiagonal(state_(ig, jg - 1, kg), x(ig, jg - 1, kg),
-                              fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
-                              vol_(ig, jg - 1, kg),
+                              fAreaJ_(ig, jg, kg),
                               this->Viscosity(ig, jg - 1, kg),
                               this->EddyViscosity(ig, jg - 1, kg),
                               this->F1(ig, jg - 1, kg), projDist,
@@ -1345,8 +1273,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
 
       // update L matrix
       L += RusanovOffDiagonal(state_(ig, jg, kg - 1), x(ig, jg, kg - 1),
-                              fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
-                              vol_(ig, jg, kg - 1),
+                              fAreaK_(ig, jg, kg),
                               this->Viscosity(ig, jg, kg - 1),
                               this->EddyViscosity(ig, jg, kg - 1),
                               this->F1(ig, jg, kg - 1), projDist,
@@ -1370,8 +1297,6 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
         // update U matrix
         U += RusanovOffDiagonal(state_(ig + 1, jg, kg), x(ig + 1 , jg, kg),
                                 fAreaI_(ig + 1, jg, kg),
-                                fAreaI_(ig + 2, jg, kg),
-                                vol_(ig + 1, jg, kg),
                                 this->Viscosity(ig + 1, jg, kg),
                                 this->EddyViscosity(ig + 1, jg, kg),
                                 this->F1(ig + 1, jg, kg), projDist,
@@ -1389,8 +1314,6 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
         // update U matrix
         U += RusanovOffDiagonal(state_(ig, jg + 1, kg), x(ig, jg + 1, kg),
                                 fAreaJ_(ig, jg + 1, kg),
-                                fAreaJ_(ig, jg + 2, kg),
-                                vol_(ig, jg + 1, kg),
                                 this->Viscosity(ig, jg + 1, kg),
                                 this->EddyViscosity(ig, jg + 1, kg),
                                 this->F1(ig, jg + 1, kg), projDist,
@@ -1408,8 +1331,6 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
         // update U matrix
         U += RusanovOffDiagonal(state_(ig, jg, kg + 1), x(ig, jg, kg + 1),
                                 fAreaK_(ig, jg, kg + 1),
-                                fAreaK_(ig, jg, kg + 2),
-                                vol_(ig, jg, kg + 1),
                                 this->Viscosity(ig, jg, kg + 1),
                                 this->EddyViscosity(ig, jg, kg + 1),
                                 this->F1(ig, jg, kg + 1), projDist,
@@ -1479,8 +1400,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
 
       // update U matrix
       U += RusanovOffDiagonal(state_(ig + 1, jg, kg), x(ig + 1, jg, kg),
-                              fAreaI_(ig + 1, jg, kg), fAreaI_(ig + 2, jg, kg),
-                              vol_(ig + 1, jg, kg),
+                              fAreaI_(ig + 1, jg, kg),
                               this->Viscosity(ig + 1, jg, kg),
                               this->EddyViscosity(ig + 1, jg, kg),
                               this->F1(ig + 1, jg, kg), projDist,
@@ -1497,8 +1417,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
 
       // update U matrix
       U += RusanovOffDiagonal(state_(ig, jg + 1, kg), x(ig, jg + 1, kg),
-                              fAreaJ_(ig, jg + 1, kg), fAreaJ_(ig, jg + 2, kg),
-                              vol_(ig, jg + 1, kg),
+                              fAreaJ_(ig, jg + 1, kg),
                               this->Viscosity(ig, jg + 1, kg),
                               this->EddyViscosity(ig, jg + 1, kg),
                               this->F1(ig, jg + 1, kg), projDist,
@@ -1515,8 +1434,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
 
       // update U matrix
       U += RusanovOffDiagonal(state_(ig, jg, kg + 1), x(ig, jg, kg + 1),
-                              fAreaK_(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 2),
-                              vol_(ig, jg, kg + 1),
+                              fAreaK_(ig, jg, kg + 1),
                               this->Viscosity(ig, jg, kg + 1),
                               this->EddyViscosity(ig, jg, kg + 1),
                               this->F1(ig, jg, kg + 1), projDist,
@@ -1539,8 +1457,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
 
         // update U matrix
         L += RusanovOffDiagonal(state_(ig - 1, jg, kg), x(ig - 1, jg, kg),
-                                fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
-                                vol_(ig - 1, jg, kg),
+                                fAreaI_(ig, jg, kg),
                                 this->Viscosity(ig - 1, jg, kg),
                                 this->EddyViscosity(ig - 1, jg, kg),
                                 this->F1(ig - 1, jg, kg), projDist,
@@ -1557,8 +1474,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
 
         // update U matrix
         L += RusanovOffDiagonal(state_(ig, jg - 1, kg), x(ig, jg - 1, kg),
-                                fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
-                                vol_(ig, jg - 1, kg),
+                                fAreaJ_(ig, jg, kg),
                                 this->Viscosity(ig, jg - 1, kg),
                                 this->EddyViscosity(ig, jg - 1, kg),
                                 this->F1(ig, jg - 1, kg), projDist,
@@ -1575,8 +1491,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
 
         // update U matrix
         L += RusanovOffDiagonal(state_(ig, jg, kg - 1), x(ig, jg, kg - 1),
-                                fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
-                                vol_(ig, jg, kg - 1),
+                                fAreaK_(ig, jg, kg),
                                 this->Viscosity(ig, jg, kg - 1),
                                 this->EddyViscosity(ig, jg, kg - 1),
                                 this->F1(ig, jg, kg - 1), projDist,
@@ -1642,15 +1557,14 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // contribution from it
         if (this->IsPhysical(ip - 1, jp, kp, false) ||
             bc_.GetBCName(ip, jp, kp, "il") == "interblock") {
+          // calculate projected center to center distance
+          const auto projDist = this->ProjC2CDist(ig, jg, kg, "i");
+
           // update off diagonal
           if (inp.InvFluxJac() == "rusanov") {
-            // calculate projected center to center distance
-            const auto projDist = this->ProjC2CDist(ig, jg, kg, "i");
-
             offDiagonal +=
                 RusanovOffDiagonal(state_(ig - 1, jg, kg), xold(ig - 1, jg, kg),
-                                   fAreaI_(ig, jg, kg), fAreaI_(ig - 1, jg, kg),
-                                   vol_(ig - 1, jg, kg),
+                                   fAreaI_(ig, jg, kg),
                                    this->Viscosity(ig - 1, jg, kg),
                                    this->EddyViscosity(ig - 1, jg, kg),
                                    this->F1(ig - 1, jg, kg), projDist,
@@ -1659,13 +1573,9 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
             offDiagonal +=
                 RoeOffDiagonal(state_(ig - 1, jg, kg), state_(ig, jg, kg),
                                xold(ig - 1, jg, kg), fAreaI_(ig, jg, kg),
-                               fAreaI_(ig - 1, jg, kg), vol_(ig - 1, jg, kg),
-                               this->Viscosity(ig - 1, jg, kg),
-                               this->Viscosity(ig, jg, kg),
+                               projDist, this->Viscosity(ig - 1, jg, kg),
                                this->EddyViscosity(ig - 1, jg, kg),
-                               this->EddyViscosity(ig, jg, kg),
                                this->F1(ig - 1, jg, kg),
-                               this->F1(ig, jg, kg),
                                eqnState, suth, turb, isViscous_, isTurbulent_,
                                true);
           } else {
@@ -1681,15 +1591,14 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // constribution from it
         if (this->IsPhysical(ip, jp - 1, kp, false) ||
             bc_.GetBCName(ip, jp, kp, "jl") == "interblock") {
+          // calculate projected center to center distance
+          const auto projDist = this->ProjC2CDist(ig, jg, kg, "j");
+
           // update off diagonal
           if (inp.InvFluxJac() == "rusanov") {
-            // calculate projected center to center distance
-            const auto projDist = this->ProjC2CDist(ig, jg, kg, "j");
-
             offDiagonal +=
                 RusanovOffDiagonal(state_(ig, jg - 1, kg), xold(ig, jg - 1, kg),
-                                   fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg - 1, kg),
-                                   vol_(ig, jg - 1, kg),
+                                   fAreaJ_(ig, jg, kg),
                                    this->Viscosity(ig, jg - 1, kg),
                                    this->EddyViscosity(ig, jg - 1, kg),
                                    this->F1(ig, jg - 1, kg), projDist,
@@ -1698,13 +1607,9 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
             offDiagonal +=
                 RoeOffDiagonal(state_(ig, jg - 1, kg), state_(ig, jg, kg),
                                xold(ig, jg - 1, kg), fAreaJ_(ig, jg, kg),
-                               fAreaJ_(ig, jg - 1, kg), vol_(ig, jg - 1, kg),
-                               this->Viscosity(ig, jg - 1 , kg),
-                               this->Viscosity(ig, jg, kg),
+                               projDist, this->Viscosity(ig, jg - 1 , kg),
                                this->EddyViscosity(ig, jg - 1 , kg),
-                               this->EddyViscosity(ig, jg, kg),
                                this->F1(ig, jg - 1 , kg),
-                               this->F1(ig, jg, kg),
                                eqnState, suth, turb, isViscous_, isTurbulent_,
                                true);
           } else {
@@ -1720,15 +1625,14 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // contribution from it
         if (this->IsPhysical(ip, jp, kp - 1, false) ||
             bc_.GetBCName(ip, jp, kp, "kl") == "interblock") {
+          // calculate projected center to center distance
+          const auto projDist = this->ProjC2CDist(ig, jg, kg, "k");
+
           // update off diagonal
           if (inp.InvFluxJac() == "rusanov") {
-            // calculate projected center to center distance
-            const auto projDist = this->ProjC2CDist(ig, jg, kg, "k");
-
             offDiagonal +=
                 RusanovOffDiagonal(state_(ig, jg, kg - 1), xold(ig, jg, kg - 1),
-                                   fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
-                                   vol_(ig, jg, kg - 1),
+                                   fAreaK_(ig, jg, kg),
                                    this->Viscosity(ig, jg, kg - 1),
                                    this->EddyViscosity(ig, jg, kg - 1),
                                    this->F1(ig, jg, kg - 1), projDist,
@@ -1736,15 +1640,10 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           } else if (inp.InvFluxJac() == "approximateRoe") {
             offDiagonal +=
                 RoeOffDiagonal(state_(ig, jg, kg - 1), state_(ig, jg, kg),
-                               xold(ig, jg, kg - 1),
-                               fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg - 1),
-                               vol_(ig, jg, kg - 1),
-                               this->Viscosity(ig, jg, kg - 1),
-                               this->Viscosity(ig, jg, kg),
+                               xold(ig, jg, kg - 1), fAreaK_(ig, jg, kg),
+                               projDist, this->Viscosity(ig, jg, kg - 1),
                                this->EddyViscosity(ig, jg, kg - 1),
-                               this->EddyViscosity(ig, jg, kg),
                                this->F1(ig, jg, kg - 1),
-                               this->F1(ig, jg, kg),
                                eqnState, suth, turb, isViscous_, isTurbulent_,
                                true);
           } else {
@@ -1760,16 +1659,14 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // contribution from it
         if (this->IsPhysical(ip + 1, jp, kp, false) ||
             bc_.GetBCName(ip + 1, jp, kp, "iu") == "interblock") {
+          // calculate projected center to center distance
+          const auto projDist = this->ProjC2CDist(ig + 1, jg, kg, "i");
+
           // update off diagonal
           if (inp.InvFluxJac() == "rusanov") {
-            // calculate projected center to center distance
-            const auto projDist = this->ProjC2CDist(ig + 1, jg, kg, "i");
-
             offDiagonal -=
                 RusanovOffDiagonal(state_(ig + 1, jg, kg), xold(ig + 1, jg, kg),
                                    fAreaI_(ig + 1, jg, kg),
-                                   fAreaI_(ig + 2, jg, kg),
-                                   vol_(ig + 1, jg, kg),
                                    this->Viscosity(ig + 1, jg, kg),
                                    this->EddyViscosity(ig + 1, jg, kg),
                                    this->F1(ig + 1, jg, kg), projDist,
@@ -1777,15 +1674,10 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           } else if (inp.InvFluxJac() == "approximateRoe") {
             offDiagonal -=
                 RoeOffDiagonal(state_(ig + 1, jg, kg), state_(ig, jg, kg),
-                               xold(ig + 1, jg, kg),
-                               fAreaI_(ig + 1, jg, kg), fAreaI_(ig + 2, jg, kg),
-                               vol_(ig + 1, jg, kg),
-                               this->Viscosity(ig + 1, jg, kg),
-                               this->Viscosity(ig, jg, kg),
+                               xold(ig + 1, jg, kg), fAreaI_(ig + 1, jg, kg),
+                               projDist, this->Viscosity(ig + 1, jg, kg),
                                this->EddyViscosity(ig + 1, jg, kg),
-                               this->EddyViscosity(ig, jg, kg),
                                this->F1(ig + 1, jg, kg),
-                               this->F1(ig, jg, kg),
                                eqnState, suth, turb, isViscous_, isTurbulent_,
                                false);
           } else {
@@ -1801,16 +1693,14 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // contribution from it
         if (this->IsPhysical(ip, jp + 1, kp, false) ||
             bc_.GetBCName(ip, jp + 1, kp, "ju") == "interblock") {
+          // calculate projected center to center distance
+          const auto projDist = this->ProjC2CDist(ig, jg + 1, kg, "j");
+
           // update off diagonal
           if (inp.InvFluxJac() == "rusanov") {
-            // calculate projected center to center distance
-            const auto projDist = this->ProjC2CDist(ig, jg + 1, kg, "j");
-
             offDiagonal -=
                 RusanovOffDiagonal(state_(ig, jg + 1, kg), xold(ig, jg + 1, kg),
                                    fAreaJ_(ig, jg + 1, kg),
-                                   fAreaJ_(ig, jg + 2, kg),
-                                   vol_(ig, jg + 1, kg),
                                    this->Viscosity(ig, jg + 1, kg),
                                    this->EddyViscosity(ig, jg + 1, kg),
                                    this->F1(ig, jg + 1, kg), projDist,
@@ -1818,15 +1708,10 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           } else if (inp.InvFluxJac() == "approximateRoe") {
             offDiagonal -=
                 RoeOffDiagonal(state_(ig, jg + 1, kg), state_(ig, jg, kg),
-                               xold(ig, jg + 1, kg),
-                               fAreaJ_(ig, jg + 1, kg), fAreaJ_(ig, jg + 2, kg),
-                               vol_(ig, jg + 1, kg),
-                               this->Viscosity(ig, jg + 1, kg),
-                               this->Viscosity(ig, jg, kg),
+                               xold(ig, jg + 1, kg), fAreaJ_(ig, jg + 1, kg),
+                               projDist, this->Viscosity(ig, jg + 1, kg),
                                this->EddyViscosity(ig, jg + 1, kg),
-                               this->EddyViscosity(ig, jg, kg),
                                this->F1(ig, jg + 1, kg),
-                               this->F1(ig, jg, kg),
                                eqnState, suth, turb, isViscous_, isTurbulent_,
                                false);
           } else {
@@ -1842,16 +1727,14 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // contribution from it
         if (this->IsPhysical(ip, jp, kp + 1, false) ||
             bc_.GetBCName(ip, jp, kp + 1, "ku") == "interblock") {
+          // calculate projected center to center distance
+          const auto projDist = this->ProjC2CDist(ig, jg, kg + 1, "k");
+
           // update off diagonal
           if (inp.InvFluxJac() == "rusanov") {
-            // calculate projected center to center distance
-            const auto projDist = this->ProjC2CDist(ig, jg, kg + 1, "k");
-
             offDiagonal -=
                 RusanovOffDiagonal(state_(ig, jg, kg + 1), xold(ig, jg, kg + 1),
                                    fAreaK_(ig, jg, kg + 1),
-                                   fAreaK_(ig, jg, kg + 2),
-                                   vol_(ig, jg, kg + 1),
                                    this->Viscosity(ig, jg, kg + 1),
                                    this->EddyViscosity(ig, jg, kg + 1),
                                    this->F1(ig, jg, kg + 1), projDist,
@@ -1859,15 +1742,10 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           } else if (inp.InvFluxJac() == "approximateRoe") {
             offDiagonal -=
                 RoeOffDiagonal(state_(ig, jg, kg + 1), state_(ig, jg, kg),
-                               xold(ig, jg, kg + 1),
-                               fAreaK_(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 2),
-                               vol_(ig, jg, kg + 1),
-                               this->Viscosity(ig, jg, kg + 1),
-                               this->Viscosity(ig, jg, kg),
+                               xold(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 1),
+                               projDist, this->Viscosity(ig, jg, kg + 1),
                                this->EddyViscosity(ig, jg, kg + 1),
-                               this->EddyViscosity(ig, jg, kg),
                                this->F1(ig, jg, kg + 1),
-                               this->F1(ig, jg, kg),
                                eqnState, suth, turb, isViscous_, isTurbulent_,
                                false);
           } else {
@@ -2062,12 +1940,11 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
       for (auto ip = 0, ig = numGhosts_; ig < fAreaI_.NumI() - numGhosts_;
            ig++, ip++) {
         // Get state at face
-        auto state =
-            FaceReconCentral(state_(ig - 1, jg, kg),
-                             state_(ig, jg, kg),
-                             center_(ig - 1, jg, kg),
-                             center_(ig, jg, kg),
-                             fCenterI_(ig, jg, kg));
+        auto state = FaceReconCentral(state_(ig - 1, jg, kg),
+                                      state_(ig, jg, kg),
+                                      center_(ig - 1, jg, kg),
+                                      center_(ig, jg, kg),
+                                      fCenterI_(ig, jg, kg));
         state.LimitTurb(turb);
 
         // Get wall distance at face
@@ -2132,8 +2009,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
             // DEBUG
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
-            fluxJac.ApproxTSLJacobian(state_(ig - 1, jg, kg), mu, mut, f1,
-                                      eqnState, suth,
+            fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
                                       this->FAreaI(ig, jg, kg), c2cDist,
                                       turb, inp, true, velGrad);
             mainDiagonal(ip - 1, jp, kp) -= fluxJac;
@@ -2161,26 +2037,24 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           const auto viscSpecRad =
               state_(ig, jg, kg).ViscCellSpectralRadius(
                   fAreaI_(ig, jg, kg), fAreaI_(ig + 1, jg, kg), eqnState, suth,
-                  vol_(ig, jg, kg), viscosity_(ig, jg, kg),
-                  mut, turb);
+                  vol_(ig, jg, kg), viscosity_(ig, jg, kg), mut, turb);
 
           const auto turbViscSpecRad = isTurbulent_ ?
-              turb->ViscSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
-                                fAreaI_(ig + 1, jg, kg), viscosity_(ig, jg, kg),
-                                suth, vol_(ig, jg, kg), mut, f1)
+              turb->ViscCellSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
+                                    fAreaI_(ig + 1, jg, kg),
+                                    viscosity_(ig, jg, kg),
+                                    suth, vol_(ig, jg, kg), mut, f1)
               : 0.0;
 
           const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
           specRadius_(ip, jp, kp) += specRad * viscCoeff;
-
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
             // DEBUG
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
-            fluxJac.ApproxTSLJacobian(state_(ig, jg, kg), mu,
-                                      mut, f1, eqnState, suth,
+            fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
                                       this->FAreaI(ig, jg, kg), c2cDist,
                                       turb, inp, false, velGrad);
             mainDiagonal(ip, jp, kp) += fluxJac;
@@ -2360,8 +2234,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
             // DEBUG
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
-            fluxJac.ApproxTSLJacobian(state_(ig, jg - 1, kg), mu, mut, f1,
-                                      eqnState, suth,
+            fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
                                       this->FAreaJ(ig, jg, kg), c2cDist,
                                       turb, inp, true, velGrad);
             mainDiagonal(ip, jp - 1, kp) -= fluxJac;
@@ -2392,9 +2265,10 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                   vol_(ig, jg, kg), viscosity_(ig, jg, kg), mut, turb);
 
           const auto turbViscSpecRad = isTurbulent_ ?
-              turb->ViscSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
-                                fAreaJ_(ig, jg + 1, kg), viscosity_(ig, jg, kg),
-                                suth, vol_(ig, jg, kg), mut, f1)
+              turb->ViscCellSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
+                                    fAreaJ_(ig, jg + 1, kg),
+                                    viscosity_(ig, jg, kg),
+                                    suth, vol_(ig, jg, kg), mut, f1)
               : 0.0;
 
           const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
@@ -2406,8 +2280,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
             // DEBUG
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
-            fluxJac.ApproxTSLJacobian(state_(ig, jg, kg), mu,
-                                      mut, f1, eqnState, suth,
+            fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
                                       this->FAreaJ(ig, jg, kg), c2cDist,
                                       turb, inp, false, velGrad);
             mainDiagonal(ip, jp, kp) += fluxJac;
@@ -2587,8 +2460,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
             // DEBUG
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
-            fluxJac.ApproxTSLJacobian(state_(ig, jg, kg - 1), mu, mut, f1,
-                                      eqnState, suth,
+            fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
                                       this->FAreaK(ig, jg, kg), c2cDist,
                                       turb, inp, true, velGrad);
             mainDiagonal(ip, jp, kp - 1) -= fluxJac;
@@ -2620,22 +2492,21 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                   mut, turb);
 
           const auto turbViscSpecRad = isTurbulent_ ?
-              turb->ViscSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
-                                fAreaK_(ig, jg, kg + 1), viscosity_(ig, jg, kg),
-                                suth, vol_(ig, jg, kg), mut, f1)
+              turb->ViscCellSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
+                                    fAreaK_(ig, jg, kg + 1),
+                                    viscosity_(ig, jg, kg),
+                                    suth, vol_(ig, jg, kg), mut, f1)
               : 0.0;
 
           const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
           specRadius_(ip, jp, kp) += specRad * viscCoeff;
-
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
             // DEBUG
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
-            fluxJac.ApproxTSLJacobian(state_(ig, jg, kg), mu,
-                                      mut, f1, eqnState, suth,
+            fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
                                       this->FAreaK(ig, jg, kg), c2cDist,
                                       turb, inp, false, velGrad);
             mainDiagonal(ip, jp, kp) += fluxJac;
@@ -7431,17 +7302,6 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
                                             eddyViscosity_(ig, jg, kg),
                                             f1_(ig, jg, kg));
 
-        // DEBUG
-        // auto kk = 0;
-        // auto jj = (this->NumJ() == 136) ? 40 : 0;
-        // auto ii = (this->NumI() == 1) ? 0 : 40;
-        // if (ii == ip && jj == jp && kk == kp) {
-        //   cout << "velGrad: " << velocityGrad_(ip, jp, kp) << endl;
-        //   cout << "mut: " << eddyViscosity_(ig, jg, kg) << endl;
-          // cout << "state: " << state_(ig, jg, kg) << endl;
-        // }
-
-        
         // add source terms to residual
         // subtract because residual is initially on opposite side of equation
         this->SubtractFromResidual(src * vol_(ig, jg, kg),

@@ -84,7 +84,7 @@ viscousFlux::viscousFlux(
   const auto omgCoeff = turb->SigmaW(f1);
 
   // wall shear stress
-  const auto tau = TauNormal(velGrad, normArea, mut, mut, suth);
+  const auto tau = TauNormal(velGrad, normArea, mu, mut, suth);
 
   data_[0] = tau.X();
   data_[1] = tau.Y();
