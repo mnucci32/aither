@@ -117,21 +117,14 @@ int squareMatrix::FindMaxInCol(const int &c, const int &start,
 
 
 // operator overload for multiplication
+// using cache efficient implimentation
 squareMatrix squareMatrix::MatMult(const squareMatrix &s2) const {
-  // check to see that matrix dimensions are the same
-  if (size_ != s2.size_) {
-    cerr << "ERROR: Cannot multiply matrices, dimensions do not agree." << endl;
-  }
-
-  auto s1 = *this;
-
+  squareMatrix s1(s2.Size());
   for (auto cc = 0; cc < s2.Size(); cc++) {
     for (auto rr = 0; rr < s2.Size(); rr++) {
-      auto newVal = 0.0;
       for (auto ii = 0; ii < s2.Size(); ii++) {
-        newVal += (*this)(rr, ii) * s2(ii, cc);
+        s1(rr, cc) += (*this)(rr, cc) * s2(cc, ii);
       }
-      s1(rr, cc) = newVal;
     }
   }
   return s1;

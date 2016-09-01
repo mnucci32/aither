@@ -44,6 +44,11 @@ class tensor {
 
   T data_[TENSORSIZE];
 
+  // private member functions
+  int GetLoc(const int &rr, const int &cc) const {
+    return cc + rr * this->Size();
+  }
+
  public:
   // constructor
   tensor(const T &a, const T &b, const T &c, const T &d, const T &e,
@@ -65,6 +70,14 @@ class tensor {
 
   // member functions
   // operator overloads
+  T& operator()(const int &rr, const int &cc) {
+    return data_[this->GetLoc(rr, cc)];
+  }
+  const T& operator()(const int &rr, const int &cc) const {
+    return data_[this->GetLoc(rr, cc)];
+  }
+
+
   inline tensor<T> & operator+=(const tensor<T> &);
   inline tensor<T> & operator-=(const tensor<T> &);
   inline tensor<T> & operator*=(const tensor<T> &);
@@ -128,7 +141,8 @@ class tensor {
   T DoubleDotTrans(const tensor<T> &) const;
   void Identity();
   void Zero();
-
+  int Size() const {return 3;}
+  
   // destructor
   ~tensor() noexcept {}
 };
@@ -253,40 +267,17 @@ inline const tensor<T> operator/(const T &lhs, tensor<T> rhs) {
 }
 
 // function for matrix multiplication
+// using more cache efficient method
 template <typename T>
 tensor<T> tensor<T>::MatMult(const tensor &v2) const {
   tensor<T> temp;
-
-  temp.data_[0] = data_[0] * v2.data_[0] +
-                  data_[1] * v2.data_[3] +
-                  data_[2] * v2.data_[6];
-  temp.data_[1] = data_[0] * v2.data_[1] +
-                  data_[1] * v2.data_[4] +
-                  data_[2] * v2.data_[7];
-  temp.data_[2] = data_[0] * v2.data_[2] +
-                  data_[1] * v2.data_[5] +
-                  data_[2] * v2.data_[8];
-
-  temp.data_[3] = data_[3] * v2.data_[0] +
-                  data_[4] * v2.data_[3] +
-                  data_[5] * v2.data_[6];
-  temp.data_[4] = data_[3] * v2.data_[1] +
-                  data_[4] * v2.data_[4] +
-                  data_[5] * v2.data_[7];
-  temp.data_[5] = data_[3] * v2.data_[2] +
-                  data_[4] * v2.data_[5] +
-                  data_[5] * v2.data_[8];
-
-  temp.data_[6] = data_[6] * v2.data_[0] +
-                  data_[7] * v2.data_[3] +
-                  data_[8] * v2.data_[6];
-  temp.data_[7] = data_[6] * v2.data_[1] +
-                  data_[7] * v2.data_[4] +
-                  data_[8] * v2.data_[7];
-  temp.data_[8] = data_[6] * v2.data_[2] +
-                  data_[7] * v2.data_[5] +
-                  data_[8] * v2.data_[8];
-
+  for (auto cc = 0; cc < v2.Size(); cc++) {
+    for (auto rr = 0; rr < v2.Size(); rr++) {
+      for (auto ii = 0; ii < v2.Size(); ii++) {
+        temp(rr, ii) += (*this)(rr, cc) * v2(cc, ii);
+      }
+    }
+  }
   return temp;
 }
 
