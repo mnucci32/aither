@@ -17,6 +17,7 @@
 #include <iostream>        // cout
 #include <cmath>  // sqrt
 #include <memory>
+#include <string>
 #include <algorithm>  // max
 #include "fluxJacobian.hpp"
 #include "turbulence.hpp"    // turbModel
@@ -30,6 +31,7 @@ using std::cout;
 using std::endl;
 using std::cerr;
 using std::vector;
+using std::string;
 using std::unique_ptr;
 
 // constructor
@@ -406,13 +408,15 @@ ostream &operator<<(ostream &os, const fluxJacobian &jacobian) {
   return os;
 }
 
-genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
-                            const unitVec3dMag<double> &fArea, const double &mu,
-                            const double &mut, const double &f1,
-                            const double &dist,
-                            const idealGas &eos, const sutherland &suth,
-                            const unique_ptr<turbModel> &turb,
-                            const bool &isViscous, const bool &positive) {
+genArray RusanovScalarOffDiagonal(const primVars &state,
+                                  const genArray &update,
+                                  const unitVec3dMag<double> &fArea,
+                                  const double &mu,
+                                  const double &mut, const double &f1,
+                                  const double &dist,
+                                  const idealGas &eos, const sutherland &suth,
+                                  const unique_ptr<turbModel> &turb,
+                                  const bool &isViscous, const bool &positive) {
   // state -- primative variables at off diagonal
   // update -- conserved variable update at off diagonal
   // fArea -- face area vector on off diagonal boundary
@@ -450,12 +454,102 @@ genArray RusanovOffDiagonal(const primVars &state, const genArray &update,
     fluxChange - specRad.ArrayMult(update);
 }
 
+genArray RusanovBlockOffDiagonal(const primVars &state,
+                                 const genArray &update,
+                                 const unitVec3dMag<double> &fArea,
+                                 const double &mu,
+                                 const double &mut, const double &f1,
+                                 const double &dist,
+                                 const idealGas &eos, const sutherland &suth,
+                                 const unique_ptr<turbModel> &turb,
+                                 const input &inp, const bool &positive,
+                                 const tensor<double> &vGrad) {
+  // state -- primative variables at off diagonal
+  // update -- conserved variable update at off diagonal
+  // fArea -- face area vector on off diagonal boundary
+  // mu -- laminar viscosity
+  // mut -- turbulent viscosity
+  // f1 -- first blending coefficient
+  // dist -- distance from cell center to cell center across face on diagonal
+  // eos -- equation of state
+  // suth -- sutherland's law for viscosity
+  // turb -- turbulence model
+  // inp -- input variables
+  // positive -- flag to determine whether to add or subtract dissipation
+  // vGrad -- velocity gradient
+
+  fluxJacobian jacobian(inp.NumFlowEquations(), inp.NumTurbEquations());
+
+  // calculate inviscid jacobian
+  jacobian.RusanovFluxJacobian(state, eos, fArea, positive, inp, turb);
+
+  // add viscous contribution
+  fluxJacobian viscJac(inp.NumFlowEquations(), inp.NumTurbEquations());
+  if (inp.IsViscous()) {
+    viscJac.ApproxTSLJacobian(state, mu, mut, f1, eos, suth, fArea, dist, turb,
+                              inp, positive, vGrad);
+  }
+  jacobian -= viscJac;
+
+  return jacobian.ArrayMult(update);
+}
+
+
+genArray OffDiagonal(const primVars &offDiag, const primVars &diag,
+                     const genArray &update,
+                     const unitVec3dMag<double> &fArea, const double &mu,
+                     const double &mut, const double &f1,
+                     const double &dist, const tensor<double> &vGrad,
+                     const idealGas &eos, const sutherland &suth,
+                     const unique_ptr<turbModel> &turb,
+                     const input &inp, const bool &positive) {
+  // offDiag -- primative variables at off diagonal
+  // diag -- primative variables at diagonal
+  // update -- conserved variable update at off diagonal
+  // fArea -- face area vector on off diagonal boundary
+  // mu -- laminar viscosity
+  // mut -- turbulent viscosity
+  // f1 -- first blending coefficient
+  // dist -- distance from cell center to cell center across face on diagonal
+  // vGrad -- velocity gradient
+  // eos -- equation of state
+  // suth -- sutherland's law for viscosity
+  // turb -- turbulence model
+  // input -- input variables
+  // positive -- flag to determine whether to add or subtract dissipation
+
+  genArray offDiagonal(0.0);
+
+  if (inp.InvFluxJac() == "rusanov") {
+    if (inp.IsBlockMatrix()) {
+      offDiagonal = RusanovBlockOffDiagonal(offDiag, update, fArea, mu, mut, f1,
+                                            dist, eos, suth, turb, inp,
+                                            positive, vGrad);
+    } else {
+      offDiagonal = RusanovScalarOffDiagonal(offDiag, update, fArea, mu, mut,
+                                             f1, dist, eos, suth, turb,
+                                             inp.IsViscous(), positive);
+    }
+  } else if (inp.InvFluxJac() == "approximateRoe") {
+    // always use block off diagonal for Roe method
+    offDiagonal = RoeOffDiagonal(offDiag, diag, update, fArea, mu, mut, f1,
+                                 dist, eos, suth, turb, inp.IsViscous(),
+                                 inp.IsTurbulent(), positive);
+  } else {
+    cerr << "ERROR: Error in OffDiagonal(), inviscid flux jacobian method of "
+         << inp.InvFluxJac() << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  return offDiagonal;
+}
+
 
 genArray RoeOffDiagonal(const primVars &offDiag, const primVars &diag,
                         const genArray &update,
                         const unitVec3dMag<double> &fArea,
-                        const double &dist, const double &mu,
-                        const double &mut, const double &f1,
+                        const double &mu, const double &mut,
+                        const double &dist, const double &f1,
                         const idealGas &eos,
                         const sutherland &suth,
                         const unique_ptr<turbModel> &turb,
@@ -477,7 +571,10 @@ genArray RoeOffDiagonal(const primVars &offDiag, const primVars &diag,
   // positive -- flag to determine whether to add or subtract dissipation
 
   // DEBUG -- if positive, mu, mut, f1 should be from "left" side
+  // REDO -- redo this whole function to not use the flux change and instead
+  // calculate the matrix jacobian and multiply with the update
 
+  
   const auto areaNorm = fArea.UnitVector();
 
   // calculate Roe flux with old variables

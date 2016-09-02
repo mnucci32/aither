@@ -237,19 +237,37 @@ inline const fluxJacobian operator/(const double &lhs, fluxJacobian rhs) {
 
 ostream &operator<<(ostream &os, const fluxJacobian &jacobian);
 
-genArray RusanovOffDiagonal(const primVars &, const genArray &,
-                            const unitVec3dMag<double> &,
-                            const double &, const double &, const double &,
-                            const double &, const idealGas &,
-                            const sutherland &,
-                            const unique_ptr<turbModel> &,
-                            const bool &, const bool &);
+genArray RusanovScalarOffDiagonal(const primVars &, const genArray &,
+                                  const unitVec3dMag<double> &,
+                                  const double &, const double &,
+                                  const double &, const double &,
+                                  const idealGas &,
+                                  const sutherland &,
+                                  const unique_ptr<turbModel> &,
+                                  const bool &, const bool &);
+genArray RusanovBlockOffDiagonal(const primVars &, const genArray &,
+                                 const unitVec3dMag<double> &,
+                                 const double &, const double &,
+                                 const double &, const double &,
+                                 const idealGas &,
+                                 const sutherland &,
+                                 const unique_ptr<turbModel> &,
+                                 const input &, const bool &,
+                                 const tensor<double> &);
+
 genArray RoeOffDiagonal(const primVars &, const primVars &, const genArray &,
                         const unitVec3dMag<double> &, const double &,
                         const double &, const double &,
                         const double &, const idealGas &, const sutherland &,
                         const unique_ptr<turbModel> &, const bool &,
                         const bool &, const bool &);
+
+genArray OffDiagonal(const primVars &, const primVars &, const genArray &,
+                     const unitVec3dMag<double> &, const double &,
+                     const double &, const double &, const double &,
+                     const tensor<double> &, const idealGas &,
+                     const sutherland &, const unique_ptr<turbModel> &,
+                     const input &, const bool &);
 
 
 #endif

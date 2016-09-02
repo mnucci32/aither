@@ -1238,12 +1238,13 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       const auto projDist = this->ProjC2CDist(ig, jg, kg, "i");
 
       // update L matrix
-      L += RusanovOffDiagonal(state_(ig - 1, jg, kg), x(ig - 1 , jg, kg),
-                              fAreaI_(ig, jg, kg),
-                              this->Viscosity(ig - 1, jg, kg),
-                              this->EddyViscosity(ig - 1, jg, kg),
-                              this->F1(ig - 1, jg, kg), projDist,
-                              eqnState, suth, turb, isViscous_, true);
+      L += OffDiagonal(state_(ig - 1, jg, kg), state_(ig, jg, kg),
+                       x(ig - 1 , jg, kg), fAreaI_(ig, jg, kg),
+                       this->Viscosity(ig - 1, jg, kg),
+                       this->EddyViscosity(ig - 1, jg, kg),
+                       this->F1(ig - 1, jg, kg), projDist,
+                       this->VelGrad(ip - 1, jp, kp),
+                       eqnState, suth, turb, inp, true);
     }
 
     // -----------------------------------------------------------------------
@@ -1255,12 +1256,13 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       const auto projDist = this->ProjC2CDist(ig, jg, kg, "j");
 
       // update L matrix
-      L += RusanovOffDiagonal(state_(ig, jg - 1, kg), x(ig, jg - 1, kg),
-                              fAreaJ_(ig, jg, kg),
-                              this->Viscosity(ig, jg - 1, kg),
-                              this->EddyViscosity(ig, jg - 1, kg),
-                              this->F1(ig, jg - 1, kg), projDist,
-                              eqnState, suth, turb, isViscous_, true);
+      L += OffDiagonal(state_(ig, jg - 1, kg), state_(ig, jg, kg),
+                       x(ig, jg - 1, kg), fAreaJ_(ig, jg, kg),
+                       this->Viscosity(ig, jg - 1, kg),
+                       this->EddyViscosity(ig, jg - 1, kg),
+                       this->F1(ig, jg - 1, kg), projDist,
+                       this->VelGrad(ip, jp - 1, kp),
+                       eqnState, suth, turb, inp, true);
     }
 
     // -----------------------------------------------------------------------
@@ -1272,12 +1274,13 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       const auto projDist = this->ProjC2CDist(ig, jg, kg, "k");
 
       // update L matrix
-      L += RusanovOffDiagonal(state_(ig, jg, kg - 1), x(ig, jg, kg - 1),
-                              fAreaK_(ig, jg, kg),
-                              this->Viscosity(ig, jg, kg - 1),
-                              this->EddyViscosity(ig, jg, kg - 1),
-                              this->F1(ig, jg, kg - 1), projDist,
-                              eqnState, suth, turb, isViscous_, true);
+      L += OffDiagonal(state_(ig, jg, kg - 1), state_(ig, jg, kg),
+                       x(ig, jg, kg - 1), fAreaK_(ig, jg, kg),
+                       this->Viscosity(ig, jg, kg - 1),
+                       this->EddyViscosity(ig, jg, kg - 1),
+                       this->F1(ig, jg, kg - 1), projDist,
+                       this->VelGrad(ip, jp, kp - 1),
+                       eqnState, suth, turb, inp, true);
     }
 
 
@@ -1295,12 +1298,13 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
         const auto projDist = this->ProjC2CDist(ig + 1, jg, kg, "i");
 
         // update U matrix
-        U += RusanovOffDiagonal(state_(ig + 1, jg, kg), x(ig + 1 , jg, kg),
-                                fAreaI_(ig + 1, jg, kg),
-                                this->Viscosity(ig + 1, jg, kg),
-                                this->EddyViscosity(ig + 1, jg, kg),
-                                this->F1(ig + 1, jg, kg), projDist,
-                                eqnState, suth, turb, isViscous_, false);
+        U += OffDiagonal(state_(ig + 1, jg, kg), state_(ig, jg, kg),
+                         x(ig + 1 , jg, kg), fAreaI_(ig + 1, jg, kg),
+                         this->Viscosity(ig + 1, jg, kg),
+                         this->EddyViscosity(ig + 1, jg, kg),
+                         this->F1(ig + 1, jg, kg), projDist,
+                         this->VelGrad(ip + 1, jp, kp),
+                         eqnState, suth, turb, inp, false);
       }
 
       // -----------------------------------------------------------------------
@@ -1312,12 +1316,13 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
         const auto projDist = this->ProjC2CDist(ig, jg + 1, kg, "j");
 
         // update U matrix
-        U += RusanovOffDiagonal(state_(ig, jg + 1, kg), x(ig, jg + 1, kg),
-                                fAreaJ_(ig, jg + 1, kg),
-                                this->Viscosity(ig, jg + 1, kg),
-                                this->EddyViscosity(ig, jg + 1, kg),
-                                this->F1(ig, jg + 1, kg), projDist,
-                                eqnState, suth, turb, isViscous_, false);
+        U += OffDiagonal(state_(ig, jg + 1, kg), state_(ig, jg, kg),
+                         x(ig, jg + 1, kg), fAreaJ_(ig, jg + 1, kg),
+                         this->Viscosity(ig, jg + 1, kg),
+                         this->EddyViscosity(ig, jg + 1, kg),
+                         this->F1(ig, jg + 1, kg), projDist,
+                         this->VelGrad(ip, jp + 1, kp),
+                         eqnState, suth, turb, inp, false);
       }
 
       // -----------------------------------------------------------------------
@@ -1329,12 +1334,13 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
         const auto projDist = this->ProjC2CDist(ig, jg, kg + 1, "k");
 
         // update U matrix
-        U += RusanovOffDiagonal(state_(ig, jg, kg + 1), x(ig, jg, kg + 1),
-                                fAreaK_(ig, jg, kg + 1),
-                                this->Viscosity(ig, jg, kg + 1),
-                                this->EddyViscosity(ig, jg, kg + 1),
-                                this->F1(ig, jg, kg + 1), projDist,
-                                eqnState, suth, turb, isViscous_, false);
+        U += OffDiagonal(state_(ig, jg, kg + 1), state_(ig, jg, kg),
+                         x(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 1),
+                         this->Viscosity(ig, jg, kg + 1),
+                         this->EddyViscosity(ig, jg, kg + 1),
+                         this->F1(ig, jg, kg + 1), projDist,
+                         this->VelGrad(ip, jp, kp + 1),
+                         eqnState, suth, turb, inp, false);
       }
     }
     // -----------------------------------------------------------------------
@@ -1399,12 +1405,13 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       const auto projDist = this->ProjC2CDist(ig + 1, jg, kg, "i");
 
       // update U matrix
-      U += RusanovOffDiagonal(state_(ig + 1, jg, kg), x(ig + 1, jg, kg),
-                              fAreaI_(ig + 1, jg, kg),
-                              this->Viscosity(ig + 1, jg, kg),
-                              this->EddyViscosity(ig + 1, jg, kg),
-                              this->F1(ig + 1, jg, kg), projDist,
-                              eqnState, suth, turb, isViscous_, false);
+      U += OffDiagonal(state_(ig + 1, jg, kg), state_(ig, jg, kg),
+                       x(ig + 1, jg, kg), fAreaI_(ig + 1, jg, kg),
+                       this->Viscosity(ig + 1, jg, kg),
+                       this->EddyViscosity(ig + 1, jg, kg),
+                       this->F1(ig + 1, jg, kg), projDist,
+                       this->VelGrad(ip + 1, jp, kp),
+                       eqnState, suth, turb, inp, false);
     }
 
     // -----------------------------------------------------------------------
@@ -1416,12 +1423,13 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       const auto projDist = this->ProjC2CDist(ig, jg + 1, kg, "j");
 
       // update U matrix
-      U += RusanovOffDiagonal(state_(ig, jg + 1, kg), x(ig, jg + 1, kg),
-                              fAreaJ_(ig, jg + 1, kg),
-                              this->Viscosity(ig, jg + 1, kg),
-                              this->EddyViscosity(ig, jg + 1, kg),
-                              this->F1(ig, jg + 1, kg), projDist,
-                              eqnState, suth, turb, isViscous_, false);
+      U += OffDiagonal(state_(ig, jg + 1, kg), state_(ig, jg, kg),
+                       x(ig, jg + 1, kg), fAreaJ_(ig, jg + 1, kg),
+                       this->Viscosity(ig, jg + 1, kg),
+                       this->EddyViscosity(ig, jg + 1, kg),
+                       this->F1(ig, jg + 1, kg), projDist,
+                       this->VelGrad(ip, jp + 1, kp),
+                       eqnState, suth, turb, inp, false);
     }
 
     // -----------------------------------------------------------------------
@@ -1433,12 +1441,13 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       const auto projDist = this->ProjC2CDist(ig, jg, kg + 1, "k");
 
       // update U matrix
-      U += RusanovOffDiagonal(state_(ig, jg, kg + 1), x(ig, jg, kg + 1),
-                              fAreaK_(ig, jg, kg + 1),
-                              this->Viscosity(ig, jg, kg + 1),
-                              this->EddyViscosity(ig, jg, kg + 1),
-                              this->F1(ig, jg, kg + 1), projDist,
-                              eqnState, suth, turb, isViscous_, false);
+      U += OffDiagonal(state_(ig, jg, kg + 1), state_(ig, jg, kg),
+                       x(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 1),
+                       this->Viscosity(ig, jg, kg + 1),
+                       this->EddyViscosity(ig, jg, kg + 1),
+                       this->F1(ig, jg, kg + 1), projDist,
+                       this->VelGrad(ip, jp, kp + 1),
+                       eqnState, suth, turb, inp, false);
     }
 
 
@@ -1456,12 +1465,13 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
         const auto projDist = this->ProjC2CDist(ig, jg, kg, "i");
 
         // update U matrix
-        L += RusanovOffDiagonal(state_(ig - 1, jg, kg), x(ig - 1, jg, kg),
-                                fAreaI_(ig, jg, kg),
-                                this->Viscosity(ig - 1, jg, kg),
-                                this->EddyViscosity(ig - 1, jg, kg),
-                                this->F1(ig - 1, jg, kg), projDist,
-                                eqnState, suth, turb, isViscous_, true);
+        L += OffDiagonal(state_(ig - 1, jg, kg), state_(ig, jg, kg),
+                         x(ig - 1, jg, kg), fAreaI_(ig, jg, kg),
+                         this->Viscosity(ig - 1, jg, kg),
+                         this->EddyViscosity(ig - 1, jg, kg),
+                         this->F1(ig - 1, jg, kg), projDist,
+                         this->VelGrad(ip - 1, jp, kp),
+                         eqnState, suth, turb, inp, true);
       }
 
       // -----------------------------------------------------------------------
@@ -1473,12 +1483,13 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
         const auto projDist = this->ProjC2CDist(ig, jg, kg, "j");
 
         // update U matrix
-        L += RusanovOffDiagonal(state_(ig, jg - 1, kg), x(ig, jg - 1, kg),
-                                fAreaJ_(ig, jg, kg),
-                                this->Viscosity(ig, jg - 1, kg),
-                                this->EddyViscosity(ig, jg - 1, kg),
-                                this->F1(ig, jg - 1, kg), projDist,
-                                eqnState, suth, turb, isViscous_, true);
+        L += OffDiagonal(state_(ig, jg - 1, kg), state_(ig, jg, kg),
+                         x(ig, jg - 1, kg), fAreaJ_(ig, jg, kg),
+                         this->Viscosity(ig, jg - 1, kg),
+                         this->EddyViscosity(ig, jg - 1, kg),
+                         this->F1(ig, jg - 1, kg), projDist,
+                         this->VelGrad(ip, jp - 1, kp),
+                         eqnState, suth, turb, inp, true);
       }
 
       // -----------------------------------------------------------------------
@@ -1490,12 +1501,13 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
         const auto projDist = this->ProjC2CDist(ig, jg, kg, "k");
 
         // update U matrix
-        L += RusanovOffDiagonal(state_(ig, jg, kg - 1), x(ig, jg, kg - 1),
-                                fAreaK_(ig, jg, kg),
-                                this->Viscosity(ig, jg, kg - 1),
-                                this->EddyViscosity(ig, jg, kg - 1),
-                                this->F1(ig, jg, kg - 1), projDist,
-                                eqnState, suth, turb, isViscous_, true);
+        L += OffDiagonal(state_(ig, jg, kg - 1), state_(ig, jg, kg),
+                         x(ig, jg, kg - 1), fAreaK_(ig, jg, kg),
+                         this->Viscosity(ig, jg, kg - 1),
+                         this->EddyViscosity(ig, jg, kg - 1),
+                         this->F1(ig, jg, kg - 1), projDist,
+                         this->VelGrad(ip, jp, kp - 1),
+                         eqnState, suth, turb, inp, true);
       }
     }
     // -----------------------------------------------------------------------
@@ -1561,29 +1573,13 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           const auto projDist = this->ProjC2CDist(ig, jg, kg, "i");
 
           // update off diagonal
-          if (inp.InvFluxJac() == "rusanov") {
-            offDiagonal +=
-                RusanovOffDiagonal(state_(ig - 1, jg, kg), xold(ig - 1, jg, kg),
-                                   fAreaI_(ig, jg, kg),
-                                   this->Viscosity(ig - 1, jg, kg),
-                                   this->EddyViscosity(ig - 1, jg, kg),
-                                   this->F1(ig - 1, jg, kg), projDist,
-                                   eqnState, suth, turb, isViscous_, true);
-          } else if (inp.InvFluxJac() == "approximateRoe") {
-            offDiagonal +=
-                RoeOffDiagonal(state_(ig - 1, jg, kg), state_(ig, jg, kg),
-                               xold(ig - 1, jg, kg), fAreaI_(ig, jg, kg),
-                               projDist, this->Viscosity(ig - 1, jg, kg),
-                               this->EddyViscosity(ig - 1, jg, kg),
-                               this->F1(ig - 1, jg, kg),
-                               eqnState, suth, turb, isViscous_, isTurbulent_,
-                               true);
-          } else {
-            cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux " <<
-                "jacobian method  of " << inp.InvFluxJac() <<
-                " is not recognized!" << endl;
-            exit(EXIT_FAILURE);
-          }
+          offDiagonal += OffDiagonal(state_(ig - 1, jg, kg), state_(ig, jg, kg),
+                                     xold(ig - 1, jg, kg), fAreaI_(ig, jg, kg),
+                                     this->Viscosity(ig - 1, jg, kg),
+                                     this->EddyViscosity(ig - 1, jg, kg),
+                                     this->F1(ig - 1, jg, kg), projDist,
+                                     this->VelGrad(ip - 1, jp, kp),
+                                     eqnState, suth, turb, inp, true);
         }
 
         // --------------------------------------------------------------
@@ -1595,29 +1591,13 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           const auto projDist = this->ProjC2CDist(ig, jg, kg, "j");
 
           // update off diagonal
-          if (inp.InvFluxJac() == "rusanov") {
-            offDiagonal +=
-                RusanovOffDiagonal(state_(ig, jg - 1, kg), xold(ig, jg - 1, kg),
-                                   fAreaJ_(ig, jg, kg),
-                                   this->Viscosity(ig, jg - 1, kg),
-                                   this->EddyViscosity(ig, jg - 1, kg),
-                                   this->F1(ig, jg - 1, kg), projDist,
-                                   eqnState, suth, turb, isViscous_, true);
-          } else if (inp.InvFluxJac() == "approximateRoe") {
-            offDiagonal +=
-                RoeOffDiagonal(state_(ig, jg - 1, kg), state_(ig, jg, kg),
-                               xold(ig, jg - 1, kg), fAreaJ_(ig, jg, kg),
-                               projDist, this->Viscosity(ig, jg - 1 , kg),
-                               this->EddyViscosity(ig, jg - 1 , kg),
-                               this->F1(ig, jg - 1 , kg),
-                               eqnState, suth, turb, isViscous_, isTurbulent_,
-                               true);
-          } else {
-            cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux " <<
-                "jacobian method  of " << inp.InvFluxJac() <<
-                " is not recognized!" << endl;
-            exit(EXIT_FAILURE);
-          }
+          offDiagonal += OffDiagonal(state_(ig, jg - 1, kg), state_(ig, jg, kg),
+                                     xold(ig, jg - 1, kg), fAreaJ_(ig, jg, kg),
+                                     this->Viscosity(ig, jg - 1 , kg),
+                                     this->EddyViscosity(ig, jg - 1 , kg),
+                                     this->F1(ig, jg - 1 , kg), projDist,
+                                     this->VelGrad(ip, jp - 1, kp),
+                                     eqnState, suth, turb, inp, true);
         }
 
         // --------------------------------------------------------------
@@ -1629,29 +1609,13 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           const auto projDist = this->ProjC2CDist(ig, jg, kg, "k");
 
           // update off diagonal
-          if (inp.InvFluxJac() == "rusanov") {
-            offDiagonal +=
-                RusanovOffDiagonal(state_(ig, jg, kg - 1), xold(ig, jg, kg - 1),
-                                   fAreaK_(ig, jg, kg),
-                                   this->Viscosity(ig, jg, kg - 1),
-                                   this->EddyViscosity(ig, jg, kg - 1),
-                                   this->F1(ig, jg, kg - 1), projDist,
-                                   eqnState, suth, turb, isViscous_, true);
-          } else if (inp.InvFluxJac() == "approximateRoe") {
-            offDiagonal +=
-                RoeOffDiagonal(state_(ig, jg, kg - 1), state_(ig, jg, kg),
-                               xold(ig, jg, kg - 1), fAreaK_(ig, jg, kg),
-                               projDist, this->Viscosity(ig, jg, kg - 1),
-                               this->EddyViscosity(ig, jg, kg - 1),
-                               this->F1(ig, jg, kg - 1),
-                               eqnState, suth, turb, isViscous_, isTurbulent_,
-                               true);
-          } else {
-            cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux " <<
-                "jacobian method  of " << inp.InvFluxJac() <<
-                " is not recognized!" << endl;
-            exit(EXIT_FAILURE);
-          }
+          offDiagonal += OffDiagonal(state_(ig, jg, kg - 1), state_(ig, jg, kg),
+                                     xold(ig, jg, kg - 1), fAreaK_(ig, jg, kg),
+                                     this->Viscosity(ig, jg, kg - 1),
+                                     this->EddyViscosity(ig, jg, kg - 1),
+                                     this->F1(ig, jg, kg - 1), projDist,
+                                     this->VelGrad(ip, jp, kp - 1),
+                                     eqnState, suth, turb, inp, true);
         }
 
         // --------------------------------------------------------------
@@ -1663,29 +1627,14 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           const auto projDist = this->ProjC2CDist(ig + 1, jg, kg, "i");
 
           // update off diagonal
-          if (inp.InvFluxJac() == "rusanov") {
-            offDiagonal -=
-                RusanovOffDiagonal(state_(ig + 1, jg, kg), xold(ig + 1, jg, kg),
-                                   fAreaI_(ig + 1, jg, kg),
-                                   this->Viscosity(ig + 1, jg, kg),
-                                   this->EddyViscosity(ig + 1, jg, kg),
-                                   this->F1(ig + 1, jg, kg), projDist,
-                                   eqnState, suth, turb, isViscous_, false);
-          } else if (inp.InvFluxJac() == "approximateRoe") {
-            offDiagonal -=
-                RoeOffDiagonal(state_(ig + 1, jg, kg), state_(ig, jg, kg),
-                               xold(ig + 1, jg, kg), fAreaI_(ig + 1, jg, kg),
-                               projDist, this->Viscosity(ig + 1, jg, kg),
-                               this->EddyViscosity(ig + 1, jg, kg),
-                               this->F1(ig + 1, jg, kg),
-                               eqnState, suth, turb, isViscous_, isTurbulent_,
-                               false);
-          } else {
-            cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux " <<
-                "jacobian method  of " << inp.InvFluxJac() <<
-                " is not recognized!" << endl;
-            exit(EXIT_FAILURE);
-          }
+          offDiagonal -= OffDiagonal(state_(ig + 1, jg, kg), state_(ig, jg, kg),
+                                     xold(ig + 1, jg, kg),
+                                     fAreaI_(ig + 1, jg, kg),
+                                     this->Viscosity(ig + 1, jg, kg),
+                                     this->EddyViscosity(ig + 1, jg, kg),
+                                     this->F1(ig + 1, jg, kg), projDist,
+                                     this->VelGrad(ip + 1, jp, kp),
+                                     eqnState, suth, turb, inp, false);
         }
 
         // --------------------------------------------------------------
@@ -1697,29 +1646,14 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           const auto projDist = this->ProjC2CDist(ig, jg + 1, kg, "j");
 
           // update off diagonal
-          if (inp.InvFluxJac() == "rusanov") {
-            offDiagonal -=
-                RusanovOffDiagonal(state_(ig, jg + 1, kg), xold(ig, jg + 1, kg),
-                                   fAreaJ_(ig, jg + 1, kg),
-                                   this->Viscosity(ig, jg + 1, kg),
-                                   this->EddyViscosity(ig, jg + 1, kg),
-                                   this->F1(ig, jg + 1, kg), projDist,
-                                   eqnState, suth, turb, isViscous_, false);
-          } else if (inp.InvFluxJac() == "approximateRoe") {
-            offDiagonal -=
-                RoeOffDiagonal(state_(ig, jg + 1, kg), state_(ig, jg, kg),
-                               xold(ig, jg + 1, kg), fAreaJ_(ig, jg + 1, kg),
-                               projDist, this->Viscosity(ig, jg + 1, kg),
-                               this->EddyViscosity(ig, jg + 1, kg),
-                               this->F1(ig, jg + 1, kg),
-                               eqnState, suth, turb, isViscous_, isTurbulent_,
-                               false);
-          } else {
-            cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux " <<
-                "jacobian method  of " << inp.InvFluxJac() <<
-                " is not recognized!" << endl;
-            exit(EXIT_FAILURE);
-          }
+          offDiagonal -= OffDiagonal(state_(ig, jg + 1, kg), state_(ig, jg, kg),
+                                     xold(ig, jg + 1, kg),
+                                     fAreaJ_(ig, jg + 1, kg),
+                                     this->Viscosity(ig, jg + 1, kg),
+                                     this->EddyViscosity(ig, jg + 1, kg),
+                                     this->F1(ig, jg + 1, kg), projDist,
+                                     this->VelGrad(ip, jp + 1, kp),
+                                     eqnState, suth, turb, inp, false);
         }
 
         // --------------------------------------------------------------
@@ -1731,29 +1665,14 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
           const auto projDist = this->ProjC2CDist(ig, jg, kg + 1, "k");
 
           // update off diagonal
-          if (inp.InvFluxJac() == "rusanov") {
-            offDiagonal -=
-                RusanovOffDiagonal(state_(ig, jg, kg + 1), xold(ig, jg, kg + 1),
-                                   fAreaK_(ig, jg, kg + 1),
-                                   this->Viscosity(ig, jg, kg + 1),
-                                   this->EddyViscosity(ig, jg, kg + 1),
-                                   this->F1(ig, jg, kg + 1), projDist,
-                                   eqnState, suth, turb, isViscous_, false);
-          } else if (inp.InvFluxJac() == "approximateRoe") {
-            offDiagonal -=
-                RoeOffDiagonal(state_(ig, jg, kg + 1), state_(ig, jg, kg),
-                               xold(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 1),
-                               projDist, this->Viscosity(ig, jg, kg + 1),
-                               this->EddyViscosity(ig, jg, kg + 1),
-                               this->F1(ig, jg, kg + 1),
-                               eqnState, suth, turb, isViscous_, isTurbulent_,
-                               false);
-          } else {
-            cerr << "ERROR: Error in procBlock::DPLUR, inviscid flux " <<
-                "jacobian method  of " << inp.InvFluxJac() <<
-                " is not recognized!" << endl;
-            exit(EXIT_FAILURE);
-          }
+          offDiagonal -= OffDiagonal(state_(ig, jg, kg + 1), state_(ig, jg, kg),
+                                     xold(ig, jg, kg + 1),
+                                     fAreaK_(ig, jg, kg + 1),
+                                     this->Viscosity(ig, jg, kg + 1),
+                                     this->EddyViscosity(ig, jg, kg + 1),
+                                     this->F1(ig, jg, kg + 1), projDist,
+                                     this->VelGrad(ip, jp, kp + 1),
+                                     eqnState, suth, turb, inp, false);
         }
 
         // --------------------------------------------------------------
