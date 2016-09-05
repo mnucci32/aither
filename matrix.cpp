@@ -30,8 +30,8 @@ using std::swap_ranges;
 // member function to swap rows of matrix
 void squareMatrix::SwapRows(const int &r1, const int &r2) {
   if (r1 != r2) {
-    for (auto ii = 0; ii < size_; ii++) {
-      std::swap(data_[this->GetLoc(ii, r1)], data_[this->GetLoc(ii, r2)]);
+    for (auto cc = 0; cc < size_; cc++) {
+      std::swap((*this)(r1, cc), (*this)(r2, cc));
     }
   }
 }
@@ -106,7 +106,7 @@ int squareMatrix::FindMaxInCol(const int &c, const int &start,
                                const int &end) const {
   auto maxVal = 0.0;
   auto maxRow = 0;
-  for (auto ii = start; ii < end + 1; ii++) {
+  for (auto ii = start; ii <= end; ii++) {
     if (fabs((*this)(ii, c)) > maxVal) {
       maxVal = fabs((*this)(ii, c));
       maxRow = ii;
@@ -123,7 +123,7 @@ squareMatrix squareMatrix::MatMult(const squareMatrix &s2) const {
   for (auto cc = 0; cc < s2.Size(); cc++) {
     for (auto rr = 0; rr < s2.Size(); rr++) {
       for (auto ii = 0; ii < s2.Size(); ii++) {
-        s1(rr, cc) += (*this)(rr, cc) * s2(cc, ii);
+        s1(rr, ii) += (*this)(rr, cc) * s2(cc, ii);
       }
     }
   }
@@ -134,11 +134,11 @@ squareMatrix squareMatrix::MatMult(const squareMatrix &s2) const {
 ostream &operator<<(ostream &os, const squareMatrix &m) {
   for (auto rr = 0; rr < m.Size(); rr++) {
     for (auto cc = 0; cc < m.Size(); cc++) {
-      cout << m(rr, cc);
+      os << m(rr, cc);
       if (cc != (m.Size() - 1)) {
-        cout << ", ";
+        os << ", ";
       } else {
-        cout << endl;
+        os << endl;
       }
     }
   }

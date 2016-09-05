@@ -35,7 +35,7 @@ class squareMatrix {
 
   // private member functions
   int GetLoc(const int &r, const int &c) const {
-    return c + r * size_;
+    return r * size_ + c;
   }
 
  public:
