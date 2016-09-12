@@ -39,8 +39,6 @@ using std::max;
 using std::min;
 using std::unique_ptr;
 
-
-
 /* Function to calculate the gradient of a vector at the cell center using the
 Green-Gauss method
 

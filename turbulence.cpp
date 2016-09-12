@@ -546,7 +546,7 @@ squareMatrix turbKWWilcox::ViscousJacobian(const primVars &state,
       (mu + this->SigmaK(f1) * this->EddyViscNoLim(state));
   jacobian(1, 1) = fArea.Mag() * suth.NondimScaling() / (dist * state.Rho()) *
       (mu + this->SigmaW(f1) * this->EddyViscNoLim(state));
-  
+
   return jacobian;
 }
 

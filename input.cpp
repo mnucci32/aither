@@ -52,9 +52,7 @@ input::input(const string &name) : simName_(name) {
   lRef_ = 1.0;
   gamma_ = 1.4;
   gasConst_ = 287.058;
-  velRef_.SetX(1.0);
-  velRef_.SetY(0.0);
-  velRef_.SetZ(0.0);
+  velRef_ = {1.0, 0.0, 0.0};
   bc_ = vector<boundaryConditions>(1);
   timeIntegration_ = "explicitEuler";
   cfl_ = -1.0;
@@ -186,7 +184,6 @@ void input::ReadInput(const int &rank) {
   }
 
   string line = "";
-  vector3d<double> temp;
   auto readingBCs = 0;
   auto blk = 0;
   auto surfCounter = 0;
@@ -255,10 +252,9 @@ void input::ReadInput(const int &rank) {
             cout << key << " " << this->R() << endl;
           }
         } else if (key == "velocity:") {
-          temp.SetX(stod(tokens[1]));  // double variable (stod)
-          temp.SetY(stod(tokens[2]));
-          temp.SetZ(stod(tokens[3]));
-          velRef_ = temp;
+          velRef_.SetX(stod(tokens[1]));  // double variable (stod)
+          velRef_.SetY(stod(tokens[2]));
+          velRef_.SetZ(stod(tokens[3]));
           if (rank == ROOTP) {
             cout << key << " " << this->VelRef() << endl;
           }
@@ -679,8 +675,8 @@ double input::ViscousCFLCoefficient() const {
 }
 
 bool input::MatrixRequiresInitialization() const {
-  // initialize matrix if using DPLUR / BDPLUR, or if using LUSGS with more
-  // than one sweep
+  // initialize matrix if using DPLUR / BDPLUR, or if using LUSGS / BLUSGS with
+  // more than one sweep
   return (matrixSolver_ == "dplur" || matrixSolver_ == "bdplur" ||
           matrixSweeps_ > 1) ? true : false;
 }

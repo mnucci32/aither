@@ -65,7 +65,7 @@ genArray fluxJacobian::ArrayMult(genArray arr) const {
     arr[6] *= turbJacobian_(0, 0);
   } else {
     arr = flowJacobian_.ArrayMult(arr);
-    arr = turbJacobian_.ArrayMult(arr, NUMFLOWVARS);
+    arr = turbJacobian_.ArrayMult(arr, flowJacobian_.Size());
   }
   return arr;
 }
@@ -110,9 +110,8 @@ void fluxJacobian::RusanovFluxJacobian(const primVars &state,
   // inp -- input variables
   // turb -- turbulence model
 
-  // dot product of velocities with area vector (with magnitude)
-  const auto specRad = 0.5 * area.Mag() *
-      fabs(state.Velocity().DotProd(area.UnitVector())) + state.SoS(eos);
+  // face inviscid spectral radius
+  const auto specRad = state.InvFaceSpectralRadius(area, eos);
 
   // form dissipation matrix based on spectral radius
   fluxJacobian dissipation(inp.NumFlowEquations(), inp.NumTurbEquations());
@@ -124,10 +123,23 @@ void fluxJacobian::RusanovFluxJacobian(const primVars &state,
 
   // compute turbulent dissipation if necessary
   if (inp.IsTurbulent()) {
+    // multiply by 0.5 b/c averaging with convection matrix
     dissipation.turbJacobian_ = 0.5 * turb->InviscidDissJacobian(state, area);
   }
 
   positive ? (*this) += dissipation : (*this) -= dissipation;
+
+  // DEBUG
+  // auto orig = turbJacobian_(0, 0);
+  // turbJacobian_.Identity();
+  // auto fac = positive ? 1.0 : -1.0;
+  // turbJacobian_ *= fac * turb->InviscidFaceSpecRad(state, area, positive);
+  // auto scalar = turbJacobian_(0, 0);
+  // if (orig != scalar) {
+  //   cout << "orig: " << orig << "   scalar: " << scalar << endl;
+  //   exit(EXIT_FAILURE);
+  // }
+  
 }
 
 // function to calculate inviscid flux jacobian
@@ -197,11 +209,12 @@ void fluxJacobian::InvFluxJacobian(const primVars &state,
   flowJacobian_(3, 4) = gammaMinusOne * area.UnitVector().Z();
   flowJacobian_(4, 4) = eqnState.Gamma() * velNorm;
 
-  // multiply by 0.5 b/c 2 faces per i, j, k direction
+  // multiply by 0.5 b/c averaging with dissipation matrix
   flowJacobian_ *= 0.5 * area.Mag();
-  
+
   // turbulent jacobian here
   if (inp.IsTurbulent()) {
+    // multiply by 0.5 b/c averaging with dissipation matrix
     turbJacobian_ = 0.5 * turb->InviscidConvJacobian(state, area);
   }
 }
@@ -372,30 +385,43 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
   // diag *= 1.0e3;
   // flowJacobian_ *= diag;
 
-  auto specRad = std::max(4.0 / (3.0 * state.Rho()), eos.Gamma() / state.Rho());
-  specRad *= (mu / eos.Prandtl() + mut / turb->TurbPrandtlNumber());
-  specRad *= area.Mag() / dist;
+  // auto specRad = std::max(4.0 / (3.0 * state.Rho()), eos.Gamma() / state.Rho());
+  // specRad *= (mu / eos.Prandtl() + mut / turb->TurbPrandtlNumber());
+  // specRad *= area.Mag() / dist;
   // flowJacobian_(0, 0) = 0.0;
   // fac = left ? 1.0 : 1.0;
+
   
   fluxJacobian prim2Cons;
   prim2Cons.DelPrimativeDelConservative(state, eos, inp);
-  flowJacobian_ = fac * flowJacobian_.MatMult(prim2Cons.flowJacobian_);
+  // DEBUG
+  flowJacobian_ = flowJacobian_.MatMult(prim2Cons.flowJacobian_);
+
   
   // flowJacobian_(0, 0) = fac * specRad;
   // flowJacobian_ *= 0.5;
   // flowJacobian_.Identity();
-  // flowJacobian_ *= fac * specRad;
-
+  // flowJacobian_ *= specRad;
+  // flowJacobian_(0, 0) = 0.0;
+  
   // cout << "specRad: " << specRad << endl;
   // cout << "TSL Jacobian: " << flowJacobian_ << endl << endl;
   
   // calculate turbulent jacobian if necessary
   if (inp.IsTurbulent()) {
-    turbJacobian_ = turb->ViscousJacobian(state, area, mu, suth, dist, mut, f1);
+    turbJacobian_ = turb->ViscousJacobian(state, area, lamVisc, suth, dist,
+                                          turbVisc, f1);
     // Don't need to multiply by prim2Cons b/c jacobian is already wrt
     // conservative variables
-    turbJacobian_ *= fac;
+    // DEBUG
+    auto tfac = left ? -1.0 : 1.0;
+    turbJacobian_ *= 1.0 * tfac;
+    // if (turbJacobian_(0, 0) < 0.0 || turbJacobian_(1, 1) < 0.0) {
+    //   cout << "Turb Visc Jacobian is negative!\n" << turbJacobian_ << endl;
+    //   exit(EXIT_FAILURE);
+    // }
+    // turbJacobian_.Identity();
+    // turbJacobian_ *= tfac * turb->ViscFaceSpecRad(state, area, lamVisc, suth, dist, turbVisc, f1);
   }
 }
 
@@ -448,6 +474,7 @@ genArray RusanovScalarOffDiagonal(const primVars &state,
                                 turb->FaceSpectralRadius(state, fArea, mu, suth,
                                                          dist, mut, f1,
                                                          positive));
+
   // DEBUG
   return positive ?
     fluxChange + specRad.ArrayMult(update) :
@@ -484,13 +511,25 @@ genArray RusanovBlockOffDiagonal(const primVars &state,
   jacobian.RusanovFluxJacobian(state, eos, fArea, positive, inp, turb);
 
   // add viscous contribution
-  fluxJacobian viscJac(inp.NumFlowEquations(), inp.NumTurbEquations());
   if (inp.IsViscous()) {
+    fluxJacobian viscJac(inp.NumFlowEquations(), inp.NumTurbEquations());
     viscJac.ApproxTSLJacobian(state, mu, mut, f1, eos, suth, fArea, dist, turb,
                               inp, positive, vGrad);
+    // DEBUG -= or += depending on positive?
+    //  positive ? jacobian -= tmp : jacobian += tmp;
+    positive ? jacobian -= viscJac : jacobian += viscJac;
+    // positive ? jacobian += viscJac : jacobian -= viscJac;
+    // jacobian -= viscJac;
   }
-  jacobian -= viscJac;
 
+  // DEBUG
+  // squareMatrix tjac(2);
+  // tjac.Identity();
+  // tjac *= turb->FaceSpectralRadius(state, fArea, mu, suth, dist, mut, f1,
+  //                                  positive);
+  // // tjac *= 0.01;
+  // fluxJacobian tmp(jacobian.FlowJacobian(), tjac);
+  // return tmp.ArrayMult(update);
   return jacobian.ArrayMult(update);
 }
 
@@ -531,10 +570,11 @@ genArray OffDiagonal(const primVars &offDiag, const primVars &diag,
                                              inp.IsViscous(), positive);
     }
   } else if (inp.InvFluxJac() == "approximateRoe") {
-    // always use block off diagonal for Roe method
-    offDiagonal = RoeOffDiagonal(offDiag, diag, update, fArea, mu, mut, f1,
-                                 dist, eos, suth, turb, inp.IsViscous(),
-                                 inp.IsTurbulent(), positive);
+    // always use flux change off diagonal with roe method
+    offDiagonal = RoeOffDiagonal(offDiag, diag, update, fArea, mu, mut,
+                                 f1, dist, eos, suth, turb,
+                                 inp.IsViscous(), inp.IsTurbulent(),
+                                 positive);
   } else {
     cerr << "ERROR: Error in OffDiagonal(), inviscid flux jacobian method of "
          << inp.InvFluxJac() << " is not recognized!" << endl;
@@ -573,7 +613,6 @@ genArray RoeOffDiagonal(const primVars &offDiag, const primVars &diag,
   // DEBUG -- if positive, mu, mut, f1 should be from "left" side
   // REDO -- redo this whole function to not use the flux change and instead
   // calculate the matrix jacobian and multiply with the update
-
   
   const auto areaNorm = fArea.UnitVector();
 
@@ -585,7 +624,7 @@ genArray RoeOffDiagonal(const primVars &offDiag, const primVars &diag,
 
   const auto newFlux = positive ?
     RoeFlux(stateUpdate, diag, eos, areaNorm) :
-    RoeFlux(offDiag, stateUpdate, eos, areaNorm);
+    RoeFlux(diag, stateUpdate, eos, areaNorm);
 
   // don't need 0.5 factor on roe flux because RoeFlux function already does it
   const auto fluxChange = fArea.Mag() * (newFlux - oldFlux).ConvertToGenArray();

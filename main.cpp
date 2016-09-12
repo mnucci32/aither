@@ -265,6 +265,8 @@ int main(int argc, char *argv[]) {
   // ----------------------- Start Main Loop ------------------------------
   // ----------------------------------------------------------------------
   for (auto nn = 0; nn < inputVars.Iterations(); nn++) {   // loop over time
+    MPI_Barrier(MPI_COMM_WORLD);
+
     // Calculate cfl number
     inputVars.CalcCFL(nn);
 

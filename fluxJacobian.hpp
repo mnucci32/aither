@@ -63,8 +63,8 @@ class fluxJacobian {
   fluxJacobian& operator=(const fluxJacobian&) = default;
 
   // member functions
-  squareMatrix FlowJacobian() const { return flowJacobian_; }
-  squareMatrix TurbulenceJacobian() const { return turbJacobian_; }
+  squareMatrix FlowJacobian() const {return flowJacobian_;}
+  squareMatrix TurbulenceJacobian() const {return turbJacobian_;}
 
   void AddToFlowJacobian(const squareMatrix &jac) {flowJacobian_ += jac;}
   void AddToTurbJacobian(const squareMatrix &jac) {turbJacobian_ += jac;}
@@ -255,10 +255,12 @@ genArray RusanovBlockOffDiagonal(const primVars &, const genArray &,
                                  const input &, const bool &,
                                  const tensor<double> &);
 
-genArray RoeOffDiagonal(const primVars &, const primVars &, const genArray &,
+genArray RoeOffDiagonal(const primVars &, const primVars &,
+                        const genArray &,
                         const unitVec3dMag<double> &, const double &,
                         const double &, const double &,
-                        const double &, const idealGas &, const sutherland &,
+                        const double &, const idealGas &,
+                        const sutherland &,
                         const unique_ptr<turbModel> &, const bool &,
                         const bool &, const bool &);
 
