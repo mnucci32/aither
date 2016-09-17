@@ -1,7 +1,7 @@
 #This is the input file
-#
+
 gridName: viscousFlatPlate
-#
+
 #solver parameters
 equationSet: navierStokes
 timeIntegration: implicitEuler
@@ -11,16 +11,17 @@ faceReconstruction: thirdOrder
 limiter: none
 iterations: 25000
 outputFrequency: 1000
-#
+outputVariables: density vel_x vel_y vel_z pressure mach velGrad_ux velGrad_uy velGrad_uz
+
 #reference conditions
 pressureRef: 101300.0
 densityRef: 1.2256
 temperatureRef: 288.0
 velocity: 68.0, 0.0, 0.0
-#
+
 matrixSolver: lusgs
 matrixRelaxation: 1.0
-#
+
 #---------------------------------------------------------------------------#
 #Boundary Conditions
 # bc imin imax jmin jmax kmin kmax tag
