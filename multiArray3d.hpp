@@ -51,10 +51,10 @@ class multiArray3d {
  public:
   // constructor
   multiArray3d(const int &ii, const int &jj, const int &kk, const T &init) :
-      data_(vector<T>(ii * jj * kk, init)),
+      data_(ii * jj * kk, init),
       numI_(ii), numJ_(jj), numK_(kk) {}
   multiArray3d(const int &ii, const int &jj, const int &kk) :
-      data_(vector<T>(ii * jj * kk)),
+      data_(ii * jj * kk),
       numI_(ii), numJ_(jj), numK_(kk) {}
   multiArray3d() : multiArray3d(1, 1, 1) {}
 
@@ -79,17 +79,19 @@ class multiArray3d {
   void PutSlice(const multiArray3d<T> &, const interblock &, const int &,
                 const int &);
   void SwapSliceMPI(const interblock&, const int&, const MPI_Datatype&,
-                    const int&);
+                    const int&, const int = 1);
   void SwapSlice(const interblock&, multiArray3d<T>&, const int&,
                       const int&);
 
   void Zero(const T&);
+  void Zero();  
 
   void GrowI();
   void GrowJ();
   void GrowK();
 
-  void PackSwapUnpackMPI(const interblock &, const MPI_Datatype &, const int &);
+  void PackSwapUnpackMPI(const interblock &, const MPI_Datatype &, const int &,
+                         const int = 1);
 
   T GetElem(const int &ii, const int &jj, const int &kk) const;
 
@@ -139,32 +141,60 @@ class multiArray3d {
   // arithmetic with a type that is not *this or the type *this is holding
   // used for example to multiply with a double if *this is a
   // multiArray3d<vector3d<double>>
-  template <typename TT>
-  inline multiArray3d<T> & operator+=(const TT &);
-  template <typename TT>
-  inline multiArray3d<T> & operator-=(const TT &);
-  template <typename TT>
-  inline multiArray3d<T> & operator*=(const TT &);
-  template <typename TT>
-  inline multiArray3d<T> & operator/=(const TT &);
 
   template <typename TT>
-  inline multiArray3d<T> operator+(const TT &s) const {
+  multiArray3d<T> & operator+=(const TT &scalar) {
+    for (auto &val : data_) {
+      val += scalar;
+    }
+    return *this;
+  }
+
+  template <typename TT>
+  multiArray3d<T> & operator-=(const TT &scalar) {
+    for (auto &val : data_) {
+      val -= scalar;
+    }
+    return *this;
+  }
+
+  template <typename TT>
+  multiArray3d<T> & operator*=(const TT &scalar) {
+    for (auto &val : data_) {
+      val *= scalar;
+    }
+    return *this;
+  }
+
+  template <typename TT>
+  multiArray3d<T> & operator/=(const TT &scalar) {
+    for (auto &val : data_) {
+      val /= scalar;
+    }
+    return *this;
+  }
+
+  template <typename TT>
+  multiArray3d<T> operator+(
+      std::enable_if_t<!std::is_same<T, TT>::value, TT> const &s) const {
     auto lhs = *this;
     return lhs += s;
   }
   template <typename TT>
-  inline multiArray3d<T> operator-(const TT &s) const {
+  multiArray3d<T> operator-(
+      std::enable_if_t<!std::is_same<T, TT>::value, TT> const &s) const {
     auto lhs = *this;
     return lhs -= s;
   }
   template <typename TT>
-  inline multiArray3d<T> operator*(const TT &s) const {
+  multiArray3d<T> operator*(
+      std::enable_if_t<!std::is_same<T, TT>::value, TT> const &s) const {
     auto lhs = *this;
     return lhs *= s;
   }
   template <typename TT>
-  inline multiArray3d<T> operator/(const TT &s) const {
+  multiArray3d<T> operator/(
+      std::enable_if_t<!std::is_same<T, TT>::value, TT> const &s) const {
     auto lhs = *this;
     return lhs /= s;
   }
@@ -192,7 +222,7 @@ T multiArray3d<T>::GetElem(const int &ii, const int &jj, const int &kk) const {
     cerr << "Tried to access " << ii << ", " << jj << ", " << kk << endl;
     cerr << "Maximum locations are " << numI_ - 1 << ", " << numJ_ - 1 << ", "
          << numK_ - 1 << endl;
-    exit(0);
+    exit(1);
   }
 }
 
@@ -325,42 +355,6 @@ inline const multiArray3d<T> operator/(const T &lhs, multiArray3d<T> rhs) {
 // ----------------------------------------------------------------
 // operator overloads type that is not *this, or the type *this is holding
 
-// operator overload for addition
-template <typename T> template <typename TT>
-multiArray3d<T> & multiArray3d<T>::operator+=(const TT &scalar) {
-  for (auto &val : data_) {
-    val += scalar;
-  }
-  return *this;
-}
-
-// operator overload for subtraction with a scalar
-template <typename T> template <typename TT>
-multiArray3d<T> & multiArray3d<T>::operator-=(const TT &scalar) {
-  for (auto &val : data_) {
-    val -= scalar;
-  }
-  return *this;
-}
-
-// operator overload for elementwise multiplication
-template <typename T> template <typename TT>
-multiArray3d<T> & multiArray3d<T>::operator*=(const TT &scalar) {
-  for (auto &val : data_) {
-    val *= scalar;
-  }
-  return *this;
-}
-
-// operator overload for elementwise division
-template <typename T> template <typename TT>
-multiArray3d<T> & multiArray3d<T>::operator/=(const TT &scalar) {
-  for (auto &val : data_) {
-    val /= scalar;
-  }
-  return *this;
-}
-
 template <typename T, typename TT>
 inline const multiArray3d<T> operator+(const TT &lhs, multiArray3d<T> rhs) {
   return rhs += lhs;
@@ -409,7 +403,7 @@ multiArray3d<T> multiArray3d<T>::Slice(const int &is, const int &ie,
          << "boundaries " << is << ", " << ie << ", " << js << ", " << je
          << ", " << ks << ", " << ke << " from array with dimensions " <<
         numI_ << ", " << numJ_ << ", " << numK_ << endl;
-    exit(0);
+    exit(1);
   }
 
   multiArray3d<T> array(ie - is + 1, je - js + 1, ke - ks + 1);
@@ -448,7 +442,7 @@ void multiArray3d<T>::Insert(const int &is, const int &ie, const int &js,
         ", " << array.numK_ << endl;
     cerr << "Size of location is " << ie - is + 1 << ", " << je - js + 1 <<
         ", " << ke - ks + 1 << endl;
-    exit(0);
+    exit(1);
   }
 
   // s is for index of sliced array, p is for index of parent array
@@ -510,7 +504,7 @@ void multiArray3d<T>::SameSizeResize(const int &ii, const int&jj,
     cerr << "ERROR: Error in multiArray3d<T>::SameSizeResize. Attempting to "
          << "resize array of " << this->Size() << " cells to " <<
         ii * jj * kk << " cells." << endl;
-    exit(0);
+    exit(1);
   }
     numI_ = ii;
     numJ_ = jj;
@@ -524,6 +518,15 @@ void multiArray3d<T>::Zero(const T &zero) {
     val = zero;
   }
 }
+
+// member function to "zero out" the container with an available "Zero" function
+template <typename T>
+void multiArray3d<T>::Zero() {
+  for (auto &val : data_) {
+    val.Zero();
+  }
+}
+
 
 // operation overload for << - allows use of cout, cerr, etc.
 template <typename T>
@@ -562,7 +565,7 @@ void multiArray3d<T>::PutSlice(const multiArray3d<T> &array,
          << inter.Dir2EndFirst() - inter.Dir2StartFirst() << ", " << d3 << endl;
     cerr << "Direction I, J, K of multiArray3d<T> to insert: " << array.NumI()
          << ", " << array.NumJ() << ", " << array.NumK() << endl;
-    exit(0);
+    exit(1);
   }
 
   // adjust insertion indices if patch borders another interblock on the same
@@ -593,17 +596,18 @@ void multiArray3d<T>::PutSlice(const multiArray3d<T> &array,
  * interblock partner, and then unpack it into an array.*/
 template <typename T>
 void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
-                                        const MPI_Datatype &MPI_cellData,
-                                        const int &rank) {
+                                        const MPI_Datatype &MPI_arrData,
+                                        const int &rank, const int tag) {
   // inter -- interblock boundary for the swap
-  // MPI_cellData -- MPI datatype to pass data type in array
+  // MPI_arrData -- MPI datatype to pass data type in array
   // rank -- processor rank
+  // tag -- id to send data with (default 1)
 
   // swap with mpi_send_recv_replace
   // pack data into buffer, but first get size
   auto bufSize = 0;
   auto tempSize = 0;
-  MPI_Pack_size(this->Size(), MPI_cellData, MPI_COMM_WORLD,
+  MPI_Pack_size(this->Size(), MPI_arrData, MPI_COMM_WORLD,
                 &tempSize);  // add size for states
   bufSize += tempSize;
   // add size for 3 ints for multiArray3d dims
@@ -624,16 +628,16 @@ void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
            MPI_COMM_WORLD);
   MPI_Pack(&numK, 1, MPI_INT, buffer, bufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&data_[0], this->Size(), MPI_cellData, buffer,
+  MPI_Pack(&data_[0], this->Size(), MPI_arrData, buffer,
            bufSize, &position, MPI_COMM_WORLD);
 
   MPI_Status status;
   if (rank == inter.RankFirst()) {  // send/recv with second entry in interblock
-    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankSecond(), 1,
-                         inter.RankSecond(), 1, MPI_COMM_WORLD, &status);
+    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankSecond(), tag,
+                         inter.RankSecond(), tag, MPI_COMM_WORLD, &status);
   } else {  // send/recv with first entry in interblock
-    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankFirst(), 1,
-                         inter.RankFirst(), 1, MPI_COMM_WORLD, &status);
+    MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankFirst(), tag,
+                         inter.RankFirst(), tag, MPI_COMM_WORLD, &status);
   }
 
   // put slice back into multiArray3d
@@ -648,7 +652,7 @@ void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
   this->SameSizeResize(numI, numJ, numK);
 
   MPI_Unpack(buffer, bufSize, &position, &data_[0],
-             this->Size(), MPI_cellData, MPI_COMM_WORLD);
+             this->Size(), MPI_arrData, MPI_COMM_WORLD);
 
   delete[] buffer;
 }
@@ -659,12 +663,13 @@ processors.
 */
 template <typename T>
 void multiArray3d<T>::SwapSliceMPI(const interblock &inter, const int &rank,
-                             const MPI_Datatype &MPI_cellData,
-                             const int &numGhosts) {
+                                   const MPI_Datatype &MPI_arrData,
+                                   const int &numGhosts, const int tag) {
   // inter -- interblock boundary information
   // rank -- processor rank
-  // MPI_cellData -- MPI datatype for passing primVars, genArray
+  // MPI_arrData -- MPI datatype for passing data in *this
   // numGhosts -- number of ghost cells
+  // tag -- id for MPI swap (default 1)
 
   // Get indices for slice coming from block to swap
   auto is = 0;
@@ -682,14 +687,14 @@ void multiArray3d<T>::SwapSliceMPI(const interblock &inter, const int &rank,
   } else {
     cerr << "ERROR: Error in procBlock::SwapSliceMPI(). Processor rank does "
             "not match either of interblock ranks!" << endl;
-    exit(0);
+    exit(1);
   }
 
   // get local state slice to swap
   auto slice = this->Slice(is, ie, js, je, ks, ke);
 
   // swap state slices with partner block
-  slice.PackSwapUnpackMPI(inter, MPI_cellData, rank);
+  slice.PackSwapUnpackMPI(inter, MPI_arrData, rank, tag);
 
   // change interblocks to work with slice and ghosts
   auto interAdj = inter;

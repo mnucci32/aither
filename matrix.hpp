@@ -35,7 +35,7 @@ class squareMatrix {
 
   // private member functions
   int GetLoc(const int &r, const int &c) const {
-    return c + r * size_;
+    return r * size_ + c;
   }
 
  public:
@@ -62,7 +62,8 @@ class squareMatrix {
   void Identity();
   squareMatrix MatMult(const squareMatrix &) const;
   genArray ArrayMult(const genArray &, const int = 0) const;
-
+  double MaxAbsValOnDiagonal() const;
+  
   // operator overloads
   double & operator()(const int &r, const int &c) {
     return data_[this->GetLoc(r, c)];
@@ -108,7 +109,7 @@ ostream &operator<<(ostream &os, const squareMatrix &);
 
 // operator overload for addition
 squareMatrix & squareMatrix::operator+=(const squareMatrix &mat) {
-  for (auto ii = 0; ii < static_cast<int>(mat.data_.size()); ii++) {
+  for (auto ii = 0U; ii < mat.data_.size(); ii++) {
     data_[ii] += mat.data_[ii];
   }
   return *this;
@@ -116,7 +117,7 @@ squareMatrix & squareMatrix::operator+=(const squareMatrix &mat) {
 
 // operator overload for subtraction
 squareMatrix & squareMatrix::operator-=(const squareMatrix &mat) {
-  for (auto ii = 0; ii < static_cast<int>(mat.data_.size()); ii++) {
+  for (auto ii = 0U; ii < mat.data_.size(); ii++) {
     data_[ii] -= mat.data_[ii];
   }
   return *this;
@@ -124,7 +125,7 @@ squareMatrix & squareMatrix::operator-=(const squareMatrix &mat) {
 
 // operator overload for elementwise multiplication
 squareMatrix & squareMatrix::operator*=(const squareMatrix &mat) {
-  for (auto ii = 0; ii < static_cast<int>(mat.data_.size()); ii++) {
+  for (auto ii = 0U; ii < mat.data_.size(); ii++) {
     data_[ii] *= mat.data_[ii];
   }
   return *this;
@@ -132,7 +133,7 @@ squareMatrix & squareMatrix::operator*=(const squareMatrix &mat) {
 
 // operator overload for elementwise multiplication
 squareMatrix & squareMatrix::operator/=(const squareMatrix &mat) {
-  for (auto ii = 0; ii < static_cast<int>(mat.data_.size()); ii++) {
+  for (auto ii = 0U; ii < mat.data_.size(); ii++) {
     data_[ii] /= mat.data_[ii];
   }
   return *this;

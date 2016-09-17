@@ -19,6 +19,7 @@
 #define UNCOUPLEDSCALARHEADERDEF  // define the macro
 
 #include <iostream>        // cout
+#include <algorithm>       // max
 
 using std::cout;
 using std::endl;
@@ -59,6 +60,9 @@ class uncoupledScalar {
   void SubtractFromFlowVariable(const double &s) {flowVar_ -= s;}
   void SubtractFromTurbVariable(const double &s) {turbVar_ -= s;}
 
+  double Max() const {return std::max(flowVar_, turbVar_);}
+  double Min() const {return std::min(flowVar_, turbVar_);}
+  
   void Zero() {
     flowVar_ = 0.0;
     turbVar_ = 0.0;

@@ -55,7 +55,7 @@ decomposition ManualDecomposition(vector<plot3dBlock> &grid,
          << "number of blocks in the grid. This grid has " << grid.size()
          << " blocks and the simulation is using " << numProc << " processors."
          << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 
   cout << "--------------------------------------------------------------------"
@@ -63,7 +63,7 @@ decomposition ManualDecomposition(vector<plot3dBlock> &grid,
   cout << "Using manual grid decomposition." << endl;
 
   decomposition decomp(grid.size(), numProc);
-  for (auto ii = 1; ii < static_cast<int>(grid.size()); ii++) {
+  for (auto ii = 1U; ii < grid.size(); ii++) {
     decomp.SendToProc(ii, ROOTP, ii);  // send block from ROOT to processor
   }
 
@@ -108,7 +108,8 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid,
   auto idealLoad = decomp.IdealLoad(grid);
   auto count = 0;
 
-  while (decomp.MaxLoad(grid) / idealLoad > 1.1 && count < numProc * 10) {
+  const auto maxSplits = numProc * 10;
+  while (decomp.MaxLoad(grid) / idealLoad > 1.1 && count < maxSplits) {
     auto loaded = 0.0;
     auto ol = decomp.MostOverloadedProc(grid, loaded);
     auto ul = decomp.MostUnderloadedProc(grid, loaded);
@@ -129,7 +130,7 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid,
       auto newBcs = bcs[blk].Split(dir, ind, blk, newBlk, altSurf);
       bcs.push_back(newBcs);
 
-      for (auto ii = 0; ii < static_cast<int>(altSurf.size()); ii++) {
+      for (auto ii = 0U; ii < altSurf.size(); ii++) {
         bcs[altSurf[ii].PartnerBlock()].DependentSplit(
             altSurf[ii], grid[blk], grid[altSurf[ii].PartnerBlock()],
             altSurf[ii].PartnerBlock(), dir, ind, blk, newBlk);
@@ -144,7 +145,7 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid,
     count++;
   }
 
-  if (count == numProc * 10 - 1) {
+  if (count == maxSplits - 1) {
     cout << "WARNING: Maximum number of splits in decomposition has been "
             "reached." << endl;
   }
@@ -198,16 +199,18 @@ void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
                      MPI_Datatype &MPI_interblock,
                      MPI_Datatype &MPI_DOUBLE_5INT,
                      MPI_Datatype &MPI_vec3dMag,
-		     MPI_Datatype &MPI_uncoupledScalar) {
+                     MPI_Datatype &MPI_uncoupledScalar,
+                     MPI_Datatype &MPI_tensorDouble) {
   // MPI_vec3d -- output MPI_Datatype for a vector3d<double>
   // MPI_cellData -- output MPI_Datatype for primVars or genArray
   // MPI_procBlockInts -- output MPI_Datatype for 14 INTs (14 INTs in procBlock
-  // class)
+  //                      class)
   // MPI_interblock -- output MPI_Datatype to send interblock class
   // MPI_DOUBLE_5INT -- output MPI_Datatype for a double followed by 5 ints
   // MPI_vec3dMag -- output MPI_Datatype for a unitVect3dMag<double>
   // MPI_uncoupledScalar -- output MPI_Datatype for a uncoupledScalar
-  
+  // MPI_tensorDouble -- output MPI_Datatype for a tensor<double>
+
   // create vector3d<double> MPI datatype
   MPI_Type_contiguous(3, MPI_DOUBLE, &MPI_vec3d);
   MPI_Type_commit(&MPI_vec3d);
@@ -219,7 +222,11 @@ void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
   // create uncoupledScalar MPI datatype
   MPI_Type_contiguous(2, MPI_DOUBLE, &MPI_uncoupledScalar);
   MPI_Type_commit(&MPI_uncoupledScalar);
-  
+
+  // create tensor<double> MPI datatype
+  MPI_Type_contiguous(9, MPI_DOUBLE, &MPI_tensorDouble);
+  MPI_Type_commit(&MPI_tensorDouble);
+
   // create MPI datatype for states (primVars), residuals (genArray), etc
   MPI_Type_contiguous(NUMVARS, MPI_DOUBLE, &MPI_cellData);
 
@@ -303,16 +310,18 @@ void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
                       MPI_Datatype &MPI_interblock,
                       MPI_Datatype &MPI_DOUBLE_5INT,
                       MPI_Datatype &MPI_vec3dMag,
-		      MPI_Datatype &MPI_uncoupledScalar) {
+                      MPI_Datatype &MPI_uncoupledScalar,
+                      MPI_Datatype &MPI_tensorDouble) {
   // MPI_vec3d -- output MPI_Datatype for a vector3d<double>
   // MPI_cellData -- output MPI_Datatype for primVars or genArray
   // MPI_procBlockInts -- output MPI_Datatype for 14 INTs (14 INTs in procBlock
-  // class)
+  //                      class)
   // MPI_interblock -- output MPI_Datatype to send interblock class
   // MPI_DOUBLE_5INT -- output MPI_Datatype for a double followed by 5 ints
   // MPI_vec3dMag -- output MPI_Datatype for a unitVect3dMag<double>
   // MPI_uncoupledScalar -- output MPI_Datatype for a uncoupledScalar
-  
+  // MPI_tensorDouble -- output MPI_Datatype for a tensor<double>
+
   // free vector3d<double> MPI datatype
   MPI_Type_free(&MPI_vec3d);
 
@@ -324,7 +333,7 @@ void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
 
   // free MPI datatype for uncoupledScalar
   MPI_Type_free(&MPI_uncoupledScalar);
-  
+
   // free MPI datatype for all the integers in the procBlock class
   MPI_Type_free(&MPI_procBlockInts);
 
@@ -349,12 +358,12 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
                                  const MPI_Datatype &MPI_vec3d,
                                  const MPI_Datatype &MPI_vec3dMag) {
   // blocks -- full vector of all procBlocks. This is only used on ROOT
-  // processor, all other processors just need a dummy variable to call the
-  // function
+  //           processor, all other processors just need a dummy variable to
+  //           call the function
   // rank -- processor rank. Used to determine if process should send or
-  // receive
+  //         receive
   // numProcBlock -- number of procBlocks that the processor should have. (All
-  // processors may give different values).
+  //                 processors may give different values).
   // MPI_cellData -- MPI_Datatype used for primVars and genArray transmission
   // MPI_vec3d -- MPI_Datatype used for vector3d<double>  transmission
   // MPI_vec3dMag -- MPI_Datatype used for unitVec3dMag<double>  transmission
@@ -366,10 +375,10 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
   //                                  ROOT
   //------------------------------------------------------------------------
   if (rank == ROOTP) {  // may have to pack and send data
-    for (auto ii = 0; ii < static_cast<int>(blocks.size());
-         ii++) {                        // loop over ALL blocks
-      if (blocks[ii].Rank() == ROOTP) {  // no need to send data because it is
-                                        // already on ROOT processor
+    // loop over ALL blocks
+    for (auto ii = 0U; ii < blocks.size(); ii++) {
+      // no need to send data because it is already on root processor
+      if (blocks[ii].Rank() == ROOTP) {
         localBlocks[blocks[ii].LocalPosition()] = blocks[ii];
       } else {  // send data to receiving processors
         // pack and send procBlock
@@ -401,29 +410,33 @@ This is used to get all the data on the ROOT processor to write out results.
 void GetProcBlocks(vector<procBlock> &blocks,
                    const vector<procBlock> &localBlocks, const int &rank,
                    const MPI_Datatype &MPI_cellData,
-		   const MPI_Datatype &MPI_uncoupledScalar) {
+                   const MPI_Datatype &MPI_uncoupledScalar,
+                   const MPI_Datatype &MPI_vec3d,
+                   const MPI_Datatype &MPI_tensorDouble) {
   // blocks -- full vector of all procBlocks. This is only used on ROOT
-  // processor, all other processors just need a dummy variable to call the
-  // function
+  //           processor, all other processors just need a dummy variable to
+  //           call the function
   // localBlocks -- procBlocks local to each processor. These are sent to ROOT
   // rank -- processor rank. Used to determine if process should send or
-  // receive
+  //         receive
   // MPI_cellData -- MPI_Datatype used for primVars and genArray transmission
   // MPI_uncoupledScalar -- MPI_Datatype used for uncoupledScalar transmission
+  // MPI_vec3d -- MPI_Datatype used for vector3d<double> transmission
+  // MPI_tensorDouble -- MPI_Datatype used for tensor<double> transmission
 
   //--------------------------------------------------------------------------
   //                                      ROOT
   //--------------------------------------------------------------------------
   if (rank == ROOTP) {  // may have to recv and unpack data
-    for (auto ii = 0; ii < static_cast<int>(blocks.size());
-         ii++) {                        // loop over ALL blocks
+    for (auto ii = 0U; ii < blocks.size(); ii++) {  // loop over ALL blocks
       if (blocks[ii].Rank() == ROOTP) {  // no need to recv data because it is
                                         // already on ROOT processor
         // assign local state block to global state block in order of local
         // state vector
         blocks[ii] = localBlocks[blocks[ii].LocalPosition()];
       } else {  // recv data from sending processors
-        blocks[ii].RecvUnpackSolMPI(MPI_cellData, MPI_uncoupledScalar);
+        blocks[ii].RecvUnpackSolMPI(MPI_cellData, MPI_uncoupledScalar,
+                                    MPI_vec3d, MPI_tensorDouble);
       }
     }
     //-------------------------------------------------------------------------
@@ -432,22 +445,25 @@ void GetProcBlocks(vector<procBlock> &blocks,
   } else {  // pack and send data (non-root)
     // get vector of local positions
     vector<int> localPos_(localBlocks.size());
-    for (auto ii = 0; ii < static_cast<int>(localPos_.size()); ii++) {
+    for (auto ii = 0U; ii < localPos_.size(); ii++) {
       localPos_[ii] = localBlocks[ii].LocalPosition();
     }
 
-    for (auto ii = 0; ii < static_cast<int>(localBlocks.size()); ii++) {
+    for (auto ii = 0U; ii < localBlocks.size(); ii++) {
       // need to send data in order of global position, not local position to
       // prevent deadlock
       auto minGlobal = 0;
-      for (auto jj = 0; jj < static_cast<int>(localPos_.size()); jj++) {
+      for (auto jj = 0U; jj < localPos_.size(); jj++) {
         if (localBlocks[localPos_[jj]].GlobalPos() <
             localBlocks[minGlobal].GlobalPos()) {
           minGlobal = jj;
         }
       }
 
-      localBlocks[localPos_[minGlobal]].PackSendSolMPI(MPI_cellData, MPI_uncoupledScalar);
+      localBlocks[localPos_[minGlobal]].PackSendSolMPI(MPI_cellData,
+                                                       MPI_uncoupledScalar,
+                                                       MPI_vec3d,
+                                                       MPI_tensorDouble);
       localPos_.erase(localPos_.begin() + minGlobal);
     }
   }
@@ -510,7 +526,7 @@ double decomposition::IdealLoad(const vector<plot3dBlock> &grid) const {
   // grid -- vector of plot3dBlocks containing entire grid
 
   auto totalCells = 0;
-  for (auto ii = 0; ii < static_cast<int>(grid.size()); ii++) {
+  for (auto ii = 0U; ii < grid.size(); ii++) {
     totalCells += grid[ii].NumCells();
   }
 
@@ -525,7 +541,7 @@ double decomposition::MaxLoad(const vector<plot3dBlock> &grid) const {
   // decomposition)
 
   vector<int> load(numProcs_, 0);
-  for (auto ii = 0; ii < static_cast<int>(grid.size()); ii++) {
+  for (auto ii = 0U; ii < grid.size(); ii++) {
     load[rank_[ii]] += grid[ii].NumCells();
   }
 
@@ -539,7 +555,7 @@ double decomposition::MinLoad(const vector<plot3dBlock> &grid) const {
   // decomposition)
 
   vector<int> load(numProcs_, 0);
-  for (auto ii = 0; ii < static_cast<int>(grid.size()); ii++) {
+  for (auto ii = 0U; ii < grid.size(); ii++) {
     load[rank_[ii]] += grid[ii].NumCells();
   }
 
@@ -555,7 +571,7 @@ int decomposition::MostOverloadedProc(const vector<plot3dBlock> &grid,
   // overload -- how much the processor is overloaded by
 
   vector<int> load(numProcs_, 0);
-  for (auto ii = 0; ii < static_cast<int>(grid.size()); ii++) {
+  for (auto ii = 0U; ii < grid.size(); ii++) {
     load[rank_[ii]] += grid[ii].NumCells();
   }
 
@@ -572,7 +588,7 @@ int decomposition::MostUnderloadedProc(const vector<plot3dBlock> &grid,
   // underload -- how much processor is underloaded by
 
   vector<int> load(numProcs_, 0);
-  for (auto ii = 0; ii < static_cast<int>(grid.size()); ii++) {
+  for (auto ii = 0U; ii < grid.size(); ii++) {
     load[rank_[ii]] += grid[ii].NumCells();
   }
 
@@ -585,7 +601,7 @@ int decomposition::NumBlocksOnProc(const int &a) const {
   // a -- processor rank_ to find number of blocks on
 
   auto num = 0;
-  for (auto ii = 0; ii < static_cast<int>(rank_.size()); ii++) {
+  for (auto ii = 0U; ii < rank_.size(); ii++) {
     if (rank_[ii] == a) {
       num++;
     }
@@ -596,7 +612,7 @@ int decomposition::NumBlocksOnProc(const int &a) const {
 /*Member function to return the number of blocks on all processors.*/
 vector<int> decomposition::NumBlocksOnAllProc() const {
   vector<int> num(numProcs_, 0);
-  for (auto ii = 0; ii < static_cast<int>(rank_.size()); ii++) {
+  for (auto ii = 0U; ii < rank_.size(); ii++) {
     num[rank_[ii]]++;
   }
   return num;
@@ -621,7 +637,7 @@ void decomposition::SendToProc(const int &blk, const int &fromProc,
 
   // all procBlocks on same processor with a local position higher than oldPos
   // should be moved down one
-  for (auto ii = 0; ii < static_cast<int>(localPos_.size()); ii++) {
+  for (auto ii = 0U; ii < localPos_.size(); ii++) {
     if (rank_[ii] == fromProc &&
         localPos_[ii] > oldPos) {  // procBlock is on given processor
                                    // and in "higher" position than the
@@ -681,7 +697,7 @@ double decomposition::ProcLoad(const vector<plot3dBlock> &grid,
   // proc -- rank of processor to calculate load for
 
   auto load = 0;
-  for (auto ii = 0; ii < static_cast<int>(grid.size()); ii++) {
+  for (auto ii = 0U; ii < grid.size(); ii++) {
     if (rank_[ii] == proc) {
       load += grid[ii].NumCells();
     }
@@ -724,7 +740,7 @@ int decomposition::SendWholeOrSplit(const vector<plot3dBlock> &grid,
 
   // find out if there is a block that can be sent that would improve both
   // ratios
-  for (auto ii = 0; ii < static_cast<int>(grid.size()); ii++) {
+  for (auto ii = 0U; ii < grid.size(); ii++) {
     if (rank_[ii] == send) {
       auto newSendRatio = fabs(
           1.0 - (sendLoad - static_cast<double>(grid[ii].NumCells())) / ideal);
@@ -740,7 +756,7 @@ int decomposition::SendWholeOrSplit(const vector<plot3dBlock> &grid,
 
   // find out which block to split - largest
   auto bSize = 0;
-  for (auto ii = 0; ii < static_cast<int>(grid.size()); ii++) {
+  for (auto ii = 0U; ii < grid.size(); ii++) {
     if (rank_[ii] == send) {
       if (grid[ii].NumCells() > bSize) {
         blk = ii;
@@ -792,7 +808,7 @@ int decomposition::SendWholeOrSplit(const vector<plot3dBlock> &grid,
 
 void decomposition::PrintDiagnostics(const vector<plot3dBlock> &grid) const {
   cout << "Decomposition for " << numProcs_ << " processors" << endl;
-  for (auto ii = 0; ii < static_cast<int>(rank_.size()); ii++) {
+  for (auto ii = 0U; ii < rank_.size(); ii++) {
     cout << "Block: " << ii << "; Rank: " << rank_[ii]
          << ", Parent Block: " << parBlock_[ii]
          << ", Local Position: " << localPos_[ii]
@@ -802,7 +818,7 @@ void decomposition::PrintDiagnostics(const vector<plot3dBlock> &grid) const {
          << ", Num Cells: " << grid[ii].NumCells() << endl;
   }
   cout << "Split History" << endl;
-  for (auto ii = 0; ii < static_cast<int>(splitHistBlkLow_.size()); ii++) {
+  for (auto ii = 0U; ii < splitHistBlkLow_.size(); ii++) {
     cout << "Split Number: " << ii
          << "; Lower Index: " << splitHistBlkLow_[ii]
          << ", Upper Index: " << splitHistBlkUp_[ii]

@@ -24,7 +24,7 @@
 #define ROOTP 0
 #define DEFAULTWALLDIST 1.0e10
 #define MAJORVERSION 0
-#define MINORVERSION 2
+#define MINORVERSION 3
 #define PATCHNUMBER 0
 
 #endif

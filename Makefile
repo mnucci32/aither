@@ -1,11 +1,11 @@
-OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o procBlock.o output.o matrix.o parallel.o slices.o turbulence.o gradients.o inviscidFlux.o viscousFlux.o source.o resid.o kdtree.o genArray.o fluxJacobian.o uncoupledScalar.o
+OBJS = main.o plot3d.o input.o boundaryConditions.o eos.o primVars.o procBlock.o output.o matrix.o parallel.o slices.o turbulence.o inviscidFlux.o viscousFlux.o source.o resid.o kdtree.o genArray.o fluxJacobian.o uncoupledScalar.o utility.o
 CC = mpic++
-DEBUG = -ggdb -pg
+DEBUG = -O0 -ggdb -pg
 OPTIM = -O3 -march=native
 PROF = -O3 -march=native -pg
 CODENAME = aither
-CFLAGS = -std=c++14 -Wall -c $(OPTIM)
-LFLAGS = -std=c++14 -Wall $(OPTIM) -o $(CODENAME)
+CFLAGS = -std=c++14 -Wall -pedantic -c $(OPTIM)
+LFLAGS = -std=c++14 -Wall -pedantic $(OPTIM) -o $(CODENAME)
 
 $(CODENAME) : $(OBJS)
 	$(CC) $(LFLAGS) $(OBJS)
@@ -13,7 +13,7 @@ $(CODENAME) : $(OBJS)
 plot3d.o : plot3d.cpp plot3d.hpp vector3d.hpp multiArray3d.hpp
 	$(CC) $(CFLAGS) plot3d.cpp
 
-main.o : main.cpp plot3d.hpp vector3d.hpp input.hpp procBlock.hpp eos.hpp primVars.hpp boundaryConditions.hpp inviscidFlux.hpp tensor.hpp viscousFlux.hpp output.hpp parallel.hpp turbulence.hpp gradients.hpp resid.hpp multiArray3d.hpp genArray.hpp
+main.o : main.cpp plot3d.hpp vector3d.hpp input.hpp procBlock.hpp eos.hpp primVars.hpp boundaryConditions.hpp inviscidFlux.hpp tensor.hpp viscousFlux.hpp output.hpp parallel.hpp turbulence.hpp resid.hpp multiArray3d.hpp genArray.hpp fluxJacobian.hpp utility.hpp
 	$(CC) $(CFLAGS) main.cpp
 
 input.o : input.cpp input.hpp boundaryConditions.hpp
@@ -22,7 +22,7 @@ input.o : input.cpp input.hpp boundaryConditions.hpp
 primVars.o : primVars.cpp primVars.hpp vector3d.hpp eos.hpp inviscidFlux.hpp boundaryConditions.hpp input.hpp macros.hpp genArray.hpp
 	$(CC) $(CFLAGS) primVars.cpp
 
-procBlock.o : procBlock.cpp procBlock.hpp vector3d.hpp plot3d.hpp eos.hpp primVars.hpp inviscidFlux.hpp input.hpp genArray.hpp viscousFlux.hpp boundaryConditions.hpp macros.hpp turbulence.hpp kdtree.hpp uncoupledScalar.hpp fluxJacobian.hpp
+procBlock.o : procBlock.cpp procBlock.hpp vector3d.hpp plot3d.hpp eos.hpp primVars.hpp inviscidFlux.hpp input.hpp genArray.hpp viscousFlux.hpp boundaryConditions.hpp macros.hpp turbulence.hpp kdtree.hpp uncoupledScalar.hpp fluxJacobian.hpp matrix.hpp utility.hpp
 	$(CC) $(CFLAGS) procBlock.cpp
 
 inviscidFlux.o : inviscidFlux.cpp vector3d.hpp eos.hpp primVars.hpp inviscidFlux.hpp input.hpp macros.hpp genArray.hpp turbulence.hpp matrix.hpp
@@ -52,14 +52,11 @@ matrix.o : matrix.cpp matrix.hpp macros.hpp genArray.hpp
 genArray.o : genArray.cpp genArray.hpp macros.hpp
 	$(CC) $(CFLAGS) genArray.cpp
 
-turbulence.o : turbulence.cpp turbulence.hpp
+turbulence.o : turbulence.cpp turbulence.hpp matrix.hpp vector3d.hpp tensor.hpp primVars.hpp eos.hpp
 	$(CC) $(CFLAGS) turbulence.cpp
 
-source.o : source.cpp source.hpp macros.hpp turbulence.hpp primVars.hpp gradients.hpp
+source.o : source.cpp source.hpp macros.hpp turbulence.hpp primVars.hpp matrix.hpp
 	$(CC) $(CFLAGS) source.cpp
-
-gradients.o : gradients.cpp gradients.hpp primVars.hpp vector3d.hpp tensor.hpp procBlock.hpp
-	$(CC) $(CFLAGS) gradients.cpp
 
 resid.o : resid.cpp resid.hpp
 	$(CC) $(CFLAGS) resid.cpp
@@ -67,11 +64,14 @@ resid.o : resid.cpp resid.hpp
 kdtree.o : kdtree.cpp kdtree.hpp vector3d.hpp
 	$(CC) $(CFLAGS) kdtree.cpp
 
-fluxJacobian.o : fluxJacobian.cpp fluxJacobian.hpp turbulence.hpp vector3d.hpp primVars.hpp eos.hpp input.hpp genArray.hpp matrix.hpp inviscidFlux.hpp uncoupledScalar.hpp
+fluxJacobian.o : fluxJacobian.cpp fluxJacobian.hpp turbulence.hpp vector3d.hpp primVars.hpp eos.hpp input.hpp genArray.hpp matrix.hpp inviscidFlux.hpp uncoupledScalar.hpp tensor.hpp utility.hpp
 	$(CC) $(CFLAGS) fluxJacobian.cpp
 
 uncoupledScalar.o : uncoupledScalar.cpp uncoupledScalar.hpp genArray.hpp
 	$(CC) $(CFLAGS) uncoupledScalar.cpp
+
+utility.o : utility.cpp utility.hpp genArray.hpp vector3d.hpp multiArray3d.hpp procBlock.hpp eos.hpp input.hpp turbulence.hpp slices.hpp fluxJacobian.hpp kdtree.hpp resid.hpp
+	$(CC) $(CFLAGS) utility.cpp
 
 clean:
 	rm *.o *~ $(CODENAME)

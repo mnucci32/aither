@@ -22,7 +22,9 @@
 #include "source.hpp"
 #include "turbulence.hpp"
 #include "primVars.hpp"
-#include "gradients.hpp"
+#include "vector3d.hpp"
+#include "tensor.hpp"
+#include "matrix.hpp"
 
 using std::cout;
 using std::endl;
@@ -44,37 +46,35 @@ ostream &operator<<(ostream &os, const source &src) {
 }
 
 // Member function to calculate the source terms for the turbulence equations
-double source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
-			   const primVars &state, const gradients &grads,
-			   const sutherland &suth, const idealGas &eqnState,
-			   const double &wallDist, const double &vol,
-			   const int &ii, const int &jj, const int &kk) {
+squareMatrix source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
+                                 const primVars &state,
+                                 const tensor<double> &velGrad,
+                                 const vector3d<double> &tGrad,
+                                 const vector3d<double> &tkeGrad,
+                                 const vector3d<double> &omegaGrad,
+                                 const sutherland &suth, const double &vol,
+                                 const double &mut, const double &f1) {
   // turb -- turbulence model
   // state -- primative variables
-  // grads -- gradients
+  // velGrad -- velocity gradient
+  // tGrad -- temperature gradient
+  // tkeGrad -- tke gradient
+  // omegaGrad -- omega gradient
   // suth -- sutherland's law for viscosity
-  // eqnState -- equation of state
-  // wallDist -- distance to nearest viscous wall
   // vol -- cell volume
-  // ii -- cell i-location to calculate source terms at
-  // jj -- cell j-location to calculate source terms at
-  // kk -- cell k-location to calculate source terms at
-
-  // get cell gradients
-  const auto vGrad = grads.VelGradCell(ii, jj, kk);
-  const auto kGrad = grads.TkeGradCell(ii, jj, kk);
-  const auto wGrad = grads.OmegaGradCell(ii, jj, kk);
+  // mut -- turbulent viscosity
+  // f1 -- first blending coefficient
 
   // calculate turbulent source terms
   auto ksrc = 0.0;
   auto wsrc = 0.0;
-  auto srcJacSpecRad = turb->CalcTurbSrc(state, vGrad, kGrad, wGrad, suth,
-                                         eqnState, wallDist, vol, ksrc, wsrc);
+  const auto srcJac = turb->CalcTurbSrc(state, velGrad, tkeGrad, omegaGrad,
+                                        suth, vol, mut, f1, ksrc, wsrc);
 
   // assign turbulent source terms
   data_[5] = ksrc;
   data_[6] = wsrc;
 
-  // return spectral radius of source jacobian
-  return srcJacSpecRad;
+  // return source jacobian
+  return srcJac;
 }

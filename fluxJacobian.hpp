@@ -18,21 +18,16 @@
                                // execute these lines of code
 #define FLUXJACOBIANHEADERDEF  // define the macro
 
-#include <iostream>        // cout
 #include <vector>          // vector
-#include <string>          // string
 #include <memory>          // unique_ptr
 #include "vector3d.hpp"
+#include "tensor.hpp"
 #include "uncoupledScalar.hpp"
 #include "matrix.hpp"
 
 using std::vector;
-using std::string;
-using std::cout;
-using std::endl;
-using std::cerr;
 using std::ostream;
-using std:: unique_ptr;
+using std::unique_ptr;
 
 // forward class declarations
 class primVars;
@@ -53,6 +48,8 @@ class fluxJacobian {
   // constructors
   fluxJacobian(const double &flow, const double &turb);
   fluxJacobian(const int &flowSize, const int &turbSize);
+  fluxJacobian(const squareMatrix &flow, const squareMatrix &turb)
+      : flowJacobian_(flow), turbJacobian_(turb) {}
   fluxJacobian() : fluxJacobian(0.0, 0.0) {}
   explicit fluxJacobian(const uncoupledScalar &specRad) :
       fluxJacobian(specRad.FlowVariable(), specRad.TurbVariable()) {}
@@ -66,29 +63,37 @@ class fluxJacobian {
   fluxJacobian& operator=(const fluxJacobian&) = default;
 
   // member functions
-  squareMatrix FlowJacobian() const { return flowJacobian_; }
-  squareMatrix TurbulenceJacobian() const { return turbJacobian_; }
+  squareMatrix FlowJacobian() const {return flowJacobian_;}
+  squareMatrix TurbulenceJacobian() const {return turbJacobian_;}
 
   void AddToFlowJacobian(const squareMatrix &jac) {flowJacobian_ += jac;}
   void AddToTurbJacobian(const squareMatrix &jac) {turbJacobian_ += jac;}
   void SubtractFromFlowJacobian(const squareMatrix &jac) {flowJacobian_ -= jac;}
   void SubtractFromTurbJacobian(const squareMatrix &jac) {turbJacobian_ -= jac;}
 
-  void RusanovFluxJacobian(const primVars &, const primVars &,
-                           const idealGas &, const vector3d<double> &,
-                           const bool &, const input &);
+  void MultiplyOnDiagonal(const double &, const bool &);
+  void AddOnDiagonal(const double &, const bool &);
+
+  void RusanovFluxJacobian(const primVars &, const idealGas &,
+                           const unitVec3dMag<double> &,
+                           const bool &, const input &,
+                           const unique_ptr<turbModel> &);
   void InvFluxJacobian(const primVars &, const idealGas &,
-                       const vector3d<double> &, const input &);
+                       const unitVec3dMag<double> &, const input &,
+                       const unique_ptr<turbModel> &);
   void ApproxRoeFluxJacobian(const primVars &, const primVars &,
-                             const idealGas &, const vector3d<double> &,
-                             const bool &, const input &);
+                             const idealGas &, const unitVec3dMag<double> &,
+                             const bool &, const input &,
+                             const unique_ptr<turbModel> &);
   void DelPrimativeDelConservative(const primVars &, const idealGas &,
                                    const input &);
 
-  void ApproxTSLJacobian(const primVars &, const idealGas &,
+  void ApproxTSLJacobian(const primVars &, const double &, const double &,
+                         const double &, const idealGas &,
                          const sutherland &,
-                         const vector3d<double> &, const double &,
-                         const unique_ptr<turbModel> &, const input &);
+                         const unitVec3dMag<double> &, const double &,
+                         const unique_ptr<turbModel> &, const input &,
+                         const bool &, const tensor<double> &);
 
   void Zero() {
     flowJacobian_.Zero();
@@ -230,21 +235,41 @@ inline const fluxJacobian operator/(const double &lhs, fluxJacobian rhs) {
   return rhs;
 }
 
-ostream &operator<<(ostream &os, const fluxJacobian &);
+ostream &operator<<(ostream &os, const fluxJacobian &jacobian);
 
-genArray RusanovOffDiagonal(const primVars &, const genArray &,
-                            const unitVec3dMag<double> &,
-                            const unitVec3dMag<double> &,
-                            const double &, const idealGas &,
-                            const sutherland &,
-                            const unique_ptr<turbModel> &,
-                            const input &, const bool &);
-genArray RoeOffDiagonal(const primVars &, const primVars &, const genArray &,
-                        const unitVec3dMag<double> &,
-                        const unitVec3dMag<double> &,
-                        const double &, const idealGas &, const sutherland &,
-                        const unique_ptr<turbModel> &, const input &,
-                        const bool &);
+genArray RusanovScalarOffDiagonal(const primVars &, const genArray &,
+                                  const unitVec3dMag<double> &,
+                                  const double &, const double &,
+                                  const double &, const double &,
+                                  const idealGas &,
+                                  const sutherland &,
+                                  const unique_ptr<turbModel> &,
+                                  const bool &, const bool &);
+genArray RusanovBlockOffDiagonal(const primVars &, const genArray &,
+                                 const unitVec3dMag<double> &,
+                                 const double &, const double &,
+                                 const double &, const double &,
+                                 const idealGas &,
+                                 const sutherland &,
+                                 const unique_ptr<turbModel> &,
+                                 const input &, const bool &,
+                                 const tensor<double> &);
+
+genArray RoeOffDiagonal(const primVars &, const primVars &,
+                        const genArray &,
+                        const unitVec3dMag<double> &, const double &,
+                        const double &, const double &,
+                        const double &, const idealGas &,
+                        const sutherland &,
+                        const unique_ptr<turbModel> &, const bool &,
+                        const bool &, const bool &);
+
+genArray OffDiagonal(const primVars &, const primVars &, const genArray &,
+                     const unitVec3dMag<double> &, const double &,
+                     const double &, const double &, const double &,
+                     const tensor<double> &, const idealGas &,
+                     const sutherland &, const unique_ptr<turbModel> &,
+                     const input &, const bool &);
 
 
 #endif

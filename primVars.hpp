@@ -110,14 +110,29 @@ class primVars {
   double InvCellSpectralRadius(const unitVec3dMag<double> &,
                                const unitVec3dMag<double> &,
                                const idealGas &) const;
+  double InvFaceSpectralRadius(const unitVec3dMag<double> &,
+                               const idealGas &) const;
+
   double ViscCellSpectralRadius(const unitVec3dMag<double> &,
                                 const unitVec3dMag<double> &, const idealGas &,
                                 const sutherland &, const double &,
+                                const double &, const double &,
                                 const unique_ptr<turbModel> &) const;
+  double ViscFaceSpectralRadius(const unitVec3dMag<double> &,
+                                const idealGas &,
+                                const sutherland &, const double &,
+                                const double &, const double &,
+                                const unique_ptr<turbModel> &) const;
+
   double CellSpectralRadius(const unitVec3dMag<double> &,
                             const unitVec3dMag<double> &, const idealGas &,
-                            const sutherland &, const double &,
-                            const unique_ptr<turbModel> &, const bool &) const;
+                            const sutherland &, const double &, const double &,
+                            const double &, const unique_ptr<turbModel> &,
+                            const bool &) const;
+  double FaceSpectralRadius(const unitVec3dMag<double> &, const idealGas &,
+                            const sutherland &, const double &, const double &,
+                            const double &, const unique_ptr<turbModel> &,
+                            const bool &) const;
 
   // operator overloads for addition and subtraction of states
   inline primVars & operator+=(const primVars &);
