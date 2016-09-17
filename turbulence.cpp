@@ -226,8 +226,8 @@ double turbModel::InviscidFaceSpecRad(const primVars &state,
   // positive -- add or subtract dissipation term
 
   const auto velNorm = state.Velocity().DotProd(fArea.UnitVector());
-  // DEBUG
-  // return 0.5 * fArea.Mag() + fabs(velNorm);
+  // returning absolute value because it is expected that spectral radius is
+  // positive
   return positive ? 0.5 * fArea.Mag() * fabs(velNorm + fabs(velNorm)) :
       0.5 * fArea.Mag() * fabs(velNorm - fabs(velNorm));
 }

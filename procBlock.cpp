@@ -845,14 +845,6 @@ void procBlock::ImplicitTimeAdvance(const genArray &du,
   // calculate updated state (primative variables)
   state_(ii, jj, kk) = state_(ii, jj, kk).UpdateWithConsVars(eqnState, du,
                                                              turb);
-  // DEBUG
-  // if (state_(ii, jj, kk).P() < 0.0) {
-  //   cout << "Negative pressure after update at: "
-  //        << ii << ", " << jj << ", " << kk
-  //        << "\nstate:\n" << state_(ii, jj, kk)
-  //        << "\nupdate:\n" << du << endl;
-  //   exit(EXIT_FAILURE);
-  // }
 }
 
 /*member function to advance the state_ vector to time n+1 using 4th order
@@ -1048,32 +1040,11 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
               inp.DualTimeCFL();
         }
 
-        // DEBUG
-        // squareMatrix ftemp(5);
-        // ftemp.Identity();
-        // squareMatrix ttemp(2);
-        // ttemp.Identity();
-        // ttemp *= 1.0e-1;
-        // mainDiagonal(ip, jp, kp) *= fluxJacobian(ftemp, ttemp);
-        // mainDiagonal(ip, jp, kp) *= fluxJacobian(1.0, 1.05);
-        // cout << "specRad: " << specRadius_(ip, jp, kp).FlowVariable() << endl;
-        // cout << mainDiagonal(ip, jp, kp) << endl;
-
-
-        
         // add volume and time term
         mainDiagonal(ip, jp, kp).MultiplyOnDiagonal(inp.MatrixRelaxation(),
                                                     isTurbulent_);
         mainDiagonal(ip, jp, kp).AddOnDiagonal(diagVolTime, isTurbulent_);
-
-        // DEBUG
-        // if (ip == 40 && jp == 0 && kp == 0) {
-        //   cout << "Main Diagonal:\n" << mainDiagonal(ip, jp, kp) << endl;
-        // }
         mainDiagonal(ip, jp, kp).Inverse(isTurbulent_);
-        // if (ip == 40 && jp == 0 && kp == 0) {
-        //   cout << "Inv Main Diagonal:\n" << mainDiagonal(ip, jp, kp) << endl;
-        // }
       }
     }
   }
@@ -1259,11 +1230,6 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
                        this->F1(ig - 1, jg, kg), projDist,
                        this->VelGrad(ip - 1, jp, kp),
                        eqnState, suth, turb, inp, true);
-
-      // // DEBUG
-      // if (ip == 40 && jp == 0 && kp == 0) {
-      //   cout << "Updating lower at i-face:\n" << L << endl;
-      // }
     }
 
     // -----------------------------------------------------------------------
@@ -1282,12 +1248,6 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
                        this->F1(ig, jg - 1, kg), projDist,
                        this->VelGrad(ip, jp - 1, kp),
                        eqnState, suth, turb, inp, true);
-
-      // // DEBUG
-      // if (ip == 40 && jp == 0 && kp == 0) {
-      //   cout << "Updating lower at j-face:\n" << L << endl;
-      // }
-
     }
 
     // -----------------------------------------------------------------------
@@ -1306,12 +1266,6 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
                        this->F1(ig, jg, kg - 1), projDist,
                        this->VelGrad(ip, jp, kp - 1),
                        eqnState, suth, turb, inp, true);
-
-      // // DEBUG
-      // if (ip == 40 && jp == 0 && kp == 0) {
-      //   cout << "Updating lower at k-face:\n" << L << endl;
-      // }
-
     }
 
 
@@ -1384,15 +1338,6 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
                                                solDeltaNm1(ip, jp, kp) -
                                                solTimeMmN(ip, jp, kp) +
                                                L - U);
-
-    // DEBUG
-    // if (ip == 40 && jp == 0 && kp == 0) {
-    //   cout << "Updating intermediate update:\n L:" << L << "\nU:\n" << U
-    //        << "\nresid:\n" << residual_(ip, jp, kp) << "\nupdate:\n"
-    //        << x(ig, jg, kg) << endl;
-    // }
-
-
   }  // end forward sweep
 }
 
@@ -1452,13 +1397,6 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
                        this->F1(ig + 1, jg, kg), projDist,
                        this->VelGrad(ip + 1, jp, kp),
                        eqnState, suth, turb, inp, false);
-
-
-      // // DEBUG
-      // if (ip == 40 && jp == 0 && kp == 0) {
-      //   cout << "Updating upper at i-face:\n" << U << endl;
-      // }
-
     }
 
     // -----------------------------------------------------------------------
@@ -1477,13 +1415,6 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
                        this->F1(ig, jg + 1, kg), projDist,
                        this->VelGrad(ip, jp + 1, kp),
                        eqnState, suth, turb, inp, false);
-
-
-      // // DEBUG
-      // if (ip == 40 && jp == 0 && kp == 0) {
-      //   cout << "Updating upper at j-face:\n" << U << endl;
-      // }
-
     }
 
     // -----------------------------------------------------------------------
@@ -1502,13 +1433,6 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
                        this->F1(ig, jg, kg + 1), projDist,
                        this->VelGrad(ip, jp, kp + 1),
                        eqnState, suth, turb, inp, false);
-
-
-      // // DEBUG
-      // if (ip == 40 && jp == 0 && kp == 0) {
-      //   cout << "Updating upper at k-face:\n" << U << endl;
-      // }
-
     }
 
 
@@ -1583,13 +1507,6 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
                                                  L - U);
     } else {
       x(ig, jg, kg) -= aInv(ip, jp, kp).ArrayMult(U);
-
-
-      // // DEBUG
-      // if (ip == 40 && jp == 0 && kp == 0) {
-      //   cout << "Updating update:\n U:" << U << "\nupdate:\n" << x(ig, jg, kg) << endl;
-      // }
-
     }
     const auto error = x(ig, jg, kg) - xold;
     l2Error += error * error;
@@ -1993,7 +1910,6 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
-            // DEBUG
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
             fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
@@ -2038,7 +1954,6 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
-            // DEBUG
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
             fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
@@ -2218,7 +2133,6 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
-            // DEBUG
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
             fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
@@ -2264,7 +2178,6 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
-            // DEBUG
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
             fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
@@ -2444,7 +2357,6 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
-            // DEBUG
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
             fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
@@ -2490,7 +2402,6 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
-            // DEBUG
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
             fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,

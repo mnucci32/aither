@@ -128,18 +128,6 @@ void fluxJacobian::RusanovFluxJacobian(const primVars &state,
   }
 
   positive ? (*this) += dissipation : (*this) -= dissipation;
-
-  // DEBUG
-  // auto orig = turbJacobian_(0, 0);
-  // turbJacobian_.Identity();
-  // auto fac = positive ? 1.0 : -1.0;
-  // turbJacobian_ *= fac * turb->InviscidFaceSpecRad(state, area, positive);
-  // auto scalar = turbJacobian_(0, 0);
-  // if (orig != scalar) {
-  //   cout << "orig: " << orig << "   scalar: " << scalar << endl;
-  //   exit(EXIT_FAILURE);
-  // }
-  
 }
 
 // function to calculate inviscid flux jacobian
@@ -338,8 +326,6 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
 
   const auto tauNorm = TauNormal(vGrad, area.UnitVector(), mu, mut, suth);
 
-  // DEBUG
-  // const auto fac = left ? -1.0 : 1.0;
   auto fac = left ? -1.0 : 1.0;
 
   constexpr auto third = 1.0 / 3.0;
@@ -378,50 +364,18 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
                          eos.TurbConductivity(mut, turb->TurbPrandtlNumber()))
       / ((mu + mut) * state.Rho());
 
-  // DEBUG
   flowJacobian_ *= area.Mag() * (mu + mut) / dist;
-  // squareMatrix diag(5);
-  // diag.Identity();
-  // diag *= 1.0e3;
-  // flowJacobian_ *= diag;
 
-  // auto specRad = std::max(4.0 / (3.0 * state.Rho()), eos.Gamma() / state.Rho());
-  // specRad *= (mu / eos.Prandtl() + mut / turb->TurbPrandtlNumber());
-  // specRad *= area.Mag() / dist;
-  // flowJacobian_(0, 0) = 0.0;
-  // fac = left ? 1.0 : 1.0;
-
-  
   fluxJacobian prim2Cons;
   prim2Cons.DelPrimativeDelConservative(state, eos, inp);
-  // DEBUG
   flowJacobian_ = flowJacobian_.MatMult(prim2Cons.flowJacobian_);
 
-  
-  // flowJacobian_(0, 0) = fac * specRad;
-  // flowJacobian_ *= 0.5;
-  // flowJacobian_.Identity();
-  // flowJacobian_ *= specRad;
-  // flowJacobian_(0, 0) = 0.0;
-  
-  // cout << "specRad: " << specRad << endl;
-  // cout << "TSL Jacobian: " << flowJacobian_ << endl << endl;
-  
   // calculate turbulent jacobian if necessary
   if (inp.IsTurbulent()) {
-    turbJacobian_ = turb->ViscousJacobian(state, area, lamVisc, suth, dist,
-                                          turbVisc, f1);
+    turbJacobian_ = fac * turb->ViscousJacobian(state, area, lamVisc, suth,
+                                                dist, turbVisc, f1);
     // Don't need to multiply by prim2Cons b/c jacobian is already wrt
     // conservative variables
-    // DEBUG
-    auto tfac = left ? -1.0 : 1.0;
-    turbJacobian_ *= 1.0 * tfac;
-    // if (turbJacobian_(0, 0) < 0.0 || turbJacobian_(1, 1) < 0.0) {
-    //   cout << "Turb Visc Jacobian is negative!\n" << turbJacobian_ << endl;
-    //   exit(EXIT_FAILURE);
-    // }
-    // turbJacobian_.Identity();
-    // turbJacobian_ *= tfac * turb->ViscFaceSpecRad(state, area, lamVisc, suth, dist, turbVisc, f1);
   }
 }
 
@@ -460,10 +414,9 @@ genArray RusanovScalarOffDiagonal(const primVars &state,
   const auto stateUpdate = state.UpdateWithConsVars(eos, update, turb);
 
   // calculate updated convective flux
-  // DEBUG -- removed const
   auto fluxChange = 0.5 * fArea.Mag() *
       ConvectiveFluxUpdate(state, stateUpdate, eos, fArea.UnitVector());
-  // DEBUG
+  // zero out turbulence quantities b/c spectral radius is like full jacobian
   fluxChange[5] = 0.0;
   fluxChange[6] = 0.0;
 
@@ -475,7 +428,6 @@ genArray RusanovScalarOffDiagonal(const primVars &state,
                                                          dist, mut, f1,
                                                          positive));
 
-  // DEBUG
   return positive ?
     fluxChange + specRad.ArrayMult(update) :
     fluxChange - specRad.ArrayMult(update);
@@ -515,21 +467,8 @@ genArray RusanovBlockOffDiagonal(const primVars &state,
     fluxJacobian viscJac(inp.NumFlowEquations(), inp.NumTurbEquations());
     viscJac.ApproxTSLJacobian(state, mu, mut, f1, eos, suth, fArea, dist, turb,
                               inp, positive, vGrad);
-    // DEBUG -= or += depending on positive?
-    //  positive ? jacobian -= tmp : jacobian += tmp;
     positive ? jacobian -= viscJac : jacobian += viscJac;
-    // positive ? jacobian += viscJac : jacobian -= viscJac;
-    // jacobian -= viscJac;
   }
-
-  // DEBUG
-  // squareMatrix tjac(2);
-  // tjac.Identity();
-  // tjac *= turb->FaceSpectralRadius(state, fArea, mu, suth, dist, mut, f1,
-  //                                  positive);
-  // // tjac *= 0.01;
-  // fluxJacobian tmp(jacobian.FlowJacobian(), tjac);
-  // return tmp.ArrayMult(update);
   return jacobian.ArrayMult(update);
 }
 
@@ -610,8 +549,7 @@ genArray RoeOffDiagonal(const primVars &offDiag, const primVars &diag,
   // isTurbulent -- flag to determine if simulation is turbulent
   // positive -- flag to determine whether to add or subtract dissipation
 
-  // DEBUG -- if positive, mu, mut, f1 should be from "left" side
-  // REDO -- redo this whole function to not use the flux change and instead
+  // DEBUG -- redo this whole function to not use the flux change and instead
   // calculate the matrix jacobian and multiply with the update
   
   const auto areaNorm = fArea.UnitVector();
