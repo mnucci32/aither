@@ -31,7 +31,7 @@
 #include <type_traits>  // is_arithmetic
 #include "vector3d.hpp"
 
-#define SIZE 9
+#define TENSORSIZE 9
 
 using std::ostream;
 using std::endl;
@@ -42,7 +42,12 @@ class tensor {
   static_assert(std::is_arithmetic<T>::value,
                 "tensor<T> requires an arithmetic type!");
 
-  T data_[SIZE];
+  T data_[TENSORSIZE];
+
+  // private member functions
+  int GetLoc(const int &rr, const int &cc) const {
+    return cc + rr * this->Size();
+  }
 
  public:
   // constructor
@@ -65,6 +70,14 @@ class tensor {
 
   // member functions
   // operator overloads
+  T& operator()(const int &rr, const int &cc) {
+    return data_[this->GetLoc(rr, cc)];
+  }
+  const T& operator()(const int &rr, const int &cc) const {
+    return data_[this->GetLoc(rr, cc)];
+  }
+
+
   inline tensor<T> & operator+=(const tensor<T> &);
   inline tensor<T> & operator-=(const tensor<T> &);
   inline tensor<T> & operator*=(const tensor<T> &);
@@ -128,7 +141,8 @@ class tensor {
   T DoubleDotTrans(const tensor<T> &) const;
   void Identity();
   void Zero();
-
+  int Size() const {return 3;}
+  
   // destructor
   ~tensor() noexcept {}
 };
@@ -136,7 +150,7 @@ class tensor {
 // operator overload for addition
 template <typename T>
 tensor<T> & tensor<T>::operator+=(const tensor<T> &ten) {
-  for (auto rr = 0; rr < SIZE; rr++) {
+  for (auto rr = 0; rr < TENSORSIZE; rr++) {
     data_[rr] += ten.data_[rr];
   }
   return *this;
@@ -145,7 +159,7 @@ tensor<T> & tensor<T>::operator+=(const tensor<T> &ten) {
 // operator overload for subtraction with a scalar
 template <typename T>
 tensor<T> & tensor<T>::operator-=(const tensor<T> &ten) {
-  for (auto rr = 0; rr < SIZE; rr++) {
+  for (auto rr = 0; rr < TENSORSIZE; rr++) {
     data_[rr] -= ten.data_[rr];
   }
   return *this;
@@ -154,7 +168,7 @@ tensor<T> & tensor<T>::operator-=(const tensor<T> &ten) {
 // operator overload for elementwise multiplication
 template <typename T>
 tensor<T> & tensor<T>::operator*=(const tensor<T> &ten) {
-  for (auto rr = 0; rr < SIZE; rr++) {
+  for (auto rr = 0; rr < TENSORSIZE; rr++) {
     data_[rr] *= ten.data_[rr];
   }
   return *this;
@@ -163,7 +177,7 @@ tensor<T> & tensor<T>::operator*=(const tensor<T> &ten) {
 // operator overload for elementwise division
 template <typename T>
 tensor<T> & tensor<T>::operator/=(const tensor<T> &ten) {
-  for (auto rr = 0; rr < SIZE; rr++) {
+  for (auto rr = 0; rr < TENSORSIZE; rr++) {
     data_[rr] /= ten.data_[rr];
   }
   return *this;
@@ -233,7 +247,7 @@ inline const tensor<T> operator+(const T &lhs, tensor<T> rhs) {
 
 template <typename T>
 inline const tensor<T> operator-(const T &lhs, tensor<T> rhs) {
-  for (auto rr = 0; rr < SIZE; rr++) {
+  for (auto rr = 0; rr < TENSORSIZE; rr++) {
     rhs.data_[rr] = lhs - rhs.data_[rr];
   }
   return rhs;
@@ -246,47 +260,24 @@ inline const tensor<T> operator*(const T &lhs, tensor<T> rhs) {
 
 template <typename T>
 inline const tensor<T> operator/(const T &lhs, tensor<T> rhs) {
-  for (auto rr = 0; rr < SIZE; rr++) {
+  for (auto rr = 0; rr < TENSORSIZE; rr++) {
     rhs.data_[rr] = lhs / rhs.data_[rr];
   }
   return rhs;
 }
 
 // function for matrix multiplication
+// using more cache efficient method
 template <typename T>
 tensor<T> tensor<T>::MatMult(const tensor &v2) const {
   tensor<T> temp;
-
-  temp.data_[0] = data_[0] * v2.data_[0] +
-                  data_[1] * v2.data_[3] +
-                  data_[2] * v2.data_[6];
-  temp.data_[1] = data_[0] * v2.data_[1] +
-                  data_[1] * v2.data_[4] +
-                  data_[2] * v2.data_[7];
-  temp.data_[2] = data_[0] * v2.data_[2] +
-                  data_[1] * v2.data_[5] +
-                  data_[2] * v2.data_[8];
-
-  temp.data_[3] = data_[3] * v2.data_[0] +
-                  data_[4] * v2.data_[3] +
-                  data_[5] * v2.data_[6];
-  temp.data_[4] = data_[3] * v2.data_[1] +
-                  data_[4] * v2.data_[4] +
-                  data_[5] * v2.data_[7];
-  temp.data_[5] = data_[3] * v2.data_[2] +
-                  data_[4] * v2.data_[5] +
-                  data_[5] * v2.data_[8];
-
-  temp.data_[6] = data_[6] * v2.data_[0] +
-                  data_[7] * v2.data_[3] +
-                  data_[8] * v2.data_[6];
-  temp.data_[7] = data_[6] * v2.data_[1] +
-                  data_[7] * v2.data_[4] +
-                  data_[8] * v2.data_[7];
-  temp.data_[8] = data_[6] * v2.data_[2] +
-                  data_[7] * v2.data_[5] +
-                  data_[8] * v2.data_[8];
-
+  for (auto cc = 0; cc < v2.Size(); cc++) {
+    for (auto rr = 0; rr < v2.Size(); rr++) {
+      for (auto ii = 0; ii < v2.Size(); ii++) {
+        temp(rr, ii) += (*this)(rr, cc) * v2(cc, ii);
+      }
+    }
+  }
   return temp;
 }
 

@@ -105,7 +105,7 @@ multiArray3d<double> plot3dBlock::Volume() const {
           cerr << "ERROR: Negative volume in PLOT3D block!!!" << endl;
           cerr << "i-dim = " << ii << ", j-dim = " << jj
                << ", k-dim = " << kk << endl;
-          exit(0);
+          exit(EXIT_FAILURE);
         }
       }
     }
@@ -205,7 +205,7 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaI() const {
                << endl;
           cerr << "Vectors to opposite diagonals are : " << xac << " and "
                << xbd << endl;
-          exit(0);
+          exit(EXIT_FAILURE);
         }
       }
     }
@@ -296,7 +296,7 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaJ() const {
                << ", k-dim = " << kk << endl;
           cerr << "Vectors to opposite diagonals are : " << xac << " and "
                << xbd << endl;
-          exit(0);
+          exit(EXIT_FAILURE);
         }
       }
     }
@@ -388,7 +388,7 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaK() const {
                << ", k-dim = " << kk << endl;
           cerr << "Vectors to opposite diagonals are : " << xac << " and "
                << xbd << endl;
-          exit(0);
+          exit(EXIT_FAILURE);
         }
       }
     }
@@ -442,7 +442,7 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, const double &LRef,
   if (fName.fail()) {
     cerr << "ERROR: Error in plot3d.cpp:ReadP3dGrid(). Grid file " << readName
          << " did not open correctly!!!" << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 
   // read the number of plot3d blocks in the file
@@ -514,34 +514,6 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, const double &LRef,
   return mesh;
 }
 
-// function to reorder the block by hyperplanes
-/*A hyperplane is a plane of i+j+k=constant within an individual block. The
-LUSGS solver must sweep along these hyperplanes to avoid
-calculating a flux jacobian. Ex. The solver must visit all points on hyperplane
-1 before visiting any points on hyperplane 2.
-*/
-vector<vector3d<int>> HyperplaneReorder(const int &imax, const int &jmax,
-                                        const int &kmax) {
-  // total number of hyperplanes in a given block
-  const auto numPlanes = imax + jmax + kmax - 2;
-  vector<vector3d<int>> reorder;
-  reorder.reserve(imax * jmax * kmax);
-
-  for (auto pp = 0; pp < numPlanes; pp++) {
-    for (auto kk = 0; kk < kmax; kk++) {
-      for (auto jj = 0; jj < jmax; jj++) {
-        for (auto ii = 0; ii < imax; ii++) {
-          if (ii + jj + kk == pp) {  // if sum of ii, jj, and kk equals pp than
-                                     // point is on hyperplane pp
-            reorder.push_back(vector3d<int>(ii, jj, kk));
-          }
-        }
-      }
-    }
-  }
-
-  return reorder;
-}
 
 /* Member function to split a plot3dBlock along a plane defined by a direction
 and an index.
@@ -575,7 +547,7 @@ void plot3dBlock::Split(const string &dir, const int &ind, plot3dBlock &blk1,
   } else {
     cerr << "ERROR: Error in plot3dBlock::Split(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 }
 
@@ -620,6 +592,6 @@ void plot3dBlock::Join(const plot3dBlock &blk, const string &dir) {
   } else {
     cerr << "ERROR: Error in plot3dBlock::Join(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 }

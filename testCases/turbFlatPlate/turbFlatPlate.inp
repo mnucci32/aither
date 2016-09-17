@@ -15,6 +15,7 @@ faceReconstruction: thirdOrder
 limiter: vanAlbada
 iterations: 25000
 outputFrequency: 1000
+outputVariables: density vel_x vel_y vel_z pressure mach tke sdr viscosityRatio wallDistance
 
 stagnationInlet: 1 117662.9 302.4 1.0 0.0 0.0
 pressureOutlet: 2 114426.9

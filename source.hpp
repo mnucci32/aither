@@ -28,6 +28,8 @@
 #include <iostream>
 #include <memory>
 #include "macros.hpp"
+#include "vector3d.hpp"
+#include "tensor.hpp"
 
 using std::vector;
 using std::string;
@@ -41,8 +43,7 @@ using std::unique_ptr;
 class primVars;
 class turbModel;
 class sutherland;
-class idealGas;
-class gradients;
+class squareMatrix;
 
 class source {
   double data_[NUMVARS];  // source variables at cell center
@@ -68,10 +69,11 @@ class source {
   double SrcTke() const { return data_[5]; }
   double SrcOmg() const { return data_[6]; }
 
-  double CalcTurbSrc(const unique_ptr<turbModel> &, const primVars &,
-		     const gradients &, const sutherland &,
-		     const idealGas &, const double &, const double &,
-		     const int &, const int &, const int &);
+  squareMatrix CalcTurbSrc(const unique_ptr<turbModel> &, const primVars &,
+                           const tensor<double> &, const vector3d<double> &,
+                           const vector3d<double> &, const vector3d<double> &,
+                           const sutherland &, const double &, const double &,
+                           const double &);
 
   inline source & operator+=(const source &);
   inline source & operator-=(const source &);

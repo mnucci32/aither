@@ -107,6 +107,7 @@ class vector3d {
   T Distance(const vector3d<T>&) const;
   T DistSq(const vector3d<T>&) const;
   vector3d<T> Normalize() const;
+  void Zero();
 
   // destructor
   ~vector3d() noexcept {}
@@ -155,7 +156,7 @@ class unitVec3dMag {
     return *this;
   }
 
-  // access of data_ members
+  // access of data members
   vector3d<T> UnitVector() const { return unitVec_; }
   T X() const { return unitVec_.X(); }
   T Y() const { return unitVec_.Y(); }
@@ -365,6 +366,15 @@ vector3d<T> vector3d<T>::Normalize() const {
   return (*this) / this->Mag();
 }
 
+// Function to zero out a vector
+template <typename T>
+void vector3d<T>::Zero() {
+  for (auto &val : data_) {
+    val = 0;
+  }
+}
+
+
 // -----------------------------------------------------------------
 // Functions for unitVec3dMag class
 // Function to calculate the dot product of two vectors
@@ -456,7 +466,7 @@ inline const unitVec3dMag<T> operator/(const T &lhs, unitVec3dMag<T> rhs) {
 
 template <typename T>
 ostream &operator<<(ostream &os, const unitVec3dMag<T> &v) {
-  os << v.Vector() << ", " << v.Mag();
+  os << v.UnitVector() << ", " << v.Mag();
   return os;
 }
 

@@ -17,6 +17,7 @@
 #include <cmath>  // sqrt
 #include <string>
 #include <memory>
+#include <algorithm>  // max
 #include "inviscidFlux.hpp"
 #include "eos.hpp"
 #include "primVars.hpp"
@@ -185,17 +186,19 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
     delta.Rho() - delta.P() / (aR * aR),
     (delta.P() + roe.Rho() * aR * normVelDiff) / (2.0 * aR * aR),
     roe.Rho(),
-    roe.Rho() * delta.Tke() + roe.Tke() * delta.Rho() - delta.P() * roe.Tke() / (aR * aR),
-    roe.Rho() * delta.Omega() + roe.Omega() * delta.Rho() - delta.P() * roe.Omega() / (aR * aR)};
+    roe.Rho() * delta.Tke() + roe.Tke() * delta.Rho() - delta.P() * roe.Tke()
+    / (aR * aR),
+    roe.Rho() * delta.Omega() + roe.Omega() * delta.Rho() -
+    delta.P() * roe.Omega() / (aR * aR)};
 
   // calculate absolute value of wave speeds (L)
   double waveSpeed[NUMVARS - 1] = {
     fabs(velRSum - aR),  // left moving acoustic wave speed
-    fabs(velRSum),  // entropy wave speed
+    fabs(velRSum),       // entropy wave speed
     fabs(velRSum + aR),  // right moving acoustic wave speed
-    fabs(velRSum),  // shear wave speed
-    fabs(velRSum),  // turbulent eqn 1 (k) wave speed
-    fabs(velRSum)};  // turbulent eqn 2 (omega) wave speed
+    fabs(velRSum),       // shear wave speed
+    fabs(velRSum),       // turbulent eqn 1 (k) wave speed
+    fabs(velRSum)};      // turbulent eqn 2 (omega) wave speed
 
   // calculate entropy fix (Harten) and adjust wave speeds if necessary
   // default setting for entropy fix to kick in
@@ -209,11 +212,12 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
     waveSpeed[2] = 0.5 * (waveSpeed[2] * waveSpeed[2] /
                           entropyFix + entropyFix);
   }
-
+  
   // calculate right eigenvectors (T)
   // calculate eigenvector due to left acoustic wave
   const genArray lAcousticEigV(1.0, roe.U() - aR * areaNorm.X(),
-                               roe.V() - aR * areaNorm.Y(), roe.W() - aR * areaNorm.Z(),
+                               roe.V() - aR * areaNorm.Y(),
+                               roe.W() - aR * areaNorm.Z(),
                                hR - aR * velRSum, roe.Tke(), roe.Omega());
 
   // calculate eigenvector due to entropy wave
@@ -223,7 +227,8 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
 
   // calculate eigenvector due to right acoustic wave
   const genArray rAcousticEigV(1.0, roe.U() + aR * areaNorm.X(),
-                               roe.V() + aR * areaNorm.Y(), roe.W() + aR * areaNorm.Z(),
+                               roe.V() + aR * areaNorm.Y(),
+                               roe.W() + aR * areaNorm.Z(),
                                hR + aR * velRSum, roe.Tke(), roe.Omega());
 
   // calculate eigenvector due to shear wave
@@ -244,24 +249,18 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   // calculate dissipation term ( eigenvector * wave speed * wave strength)
   genArray dissipation(0.0);
   for (auto ii = 0; ii < NUMVARS; ii++) {
-    dissipation[ii] =
-        waveSpeed[0] * waveStrength[0] *
-            lAcousticEigV[ii]  // contribution from left acoustic wave
-        +
-        waveSpeed[1] * waveStrength[1] *
-            entropyEigV[ii]  // contribution from entropy wave
-        +
-        waveSpeed[2] * waveStrength[2] *
-            rAcousticEigV[ii]  // contribution from right acoustic wave
-        +
-        waveSpeed[3] * waveStrength[3] *
-            shearEigV[ii]  // contribution from shear wave
-        +
-        waveSpeed[4] * waveStrength[4] *
-            tkeEigV[ii]  // contribution from turbulent wave 1
-        +
-        waveSpeed[5] * waveStrength[5] *
-            omgEigV[ii];  // contribution from turbulent wave 2
+    // contribution from left acoustic wave
+    // contribution from entropy wave
+    // contribution from right acoustic wave
+    // contribution from shear wave
+    // contribution from turbulent wave 1
+    // contribution from turbulent wave 2
+    dissipation[ii] = waveSpeed[0] * waveStrength[0] * lAcousticEigV[ii] +
+        waveSpeed[1] * waveStrength[1] * entropyEigV[ii] +
+        waveSpeed[2] * waveStrength[2] * rAcousticEigV[ii] +
+        waveSpeed[3] * waveStrength[3] * shearEigV[ii] +
+        waveSpeed[4] * waveStrength[4] * tkeEigV[ii] +
+        waveSpeed[5] * waveStrength[5] * omgEigV[ii];
   }
 
   // calculate left/right physical flux
@@ -291,8 +290,8 @@ inviscidFlux RusanovFlux(const primVars &left, const primVars &right,
   const auto rightSpecRad = fabs(right.Velocity().DotProd(areaNorm))
     + right.SoS(eqnState);
   const auto fac = positive ? -1.0 : 1.0;
-  const auto specRad = fac * max(leftSpecRad, rightSpecRad);
-  
+  const auto specRad = fac * std::max(leftSpecRad, rightSpecRad);
+
   // calculate left/right physical flux
   inviscidFlux leftFlux(left, eqnState, areaNorm);
   inviscidFlux rightFlux(right, eqnState, areaNorm);
@@ -349,7 +348,7 @@ genArray ConvectiveFluxUpdate(const primVars &state,
   const inviscidFlux newFlux(stateUpdate, eqnState, normArea);
 
   // calculate difference in flux
-  inviscidFlux dFlux = newFlux - oldFlux;
+  const auto dFlux = newFlux - oldFlux;
 
   return dFlux.ConvertToGenArray();
 }

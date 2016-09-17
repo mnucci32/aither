@@ -162,7 +162,7 @@ void boundaryConditions::BordersInterblock(const int &ii,
          << "Given index does not point to an interblock boundarySurface!"
          << endl;
     cerr << surf << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 
   // Initialize array of bools to false (does not border interblock)
@@ -341,7 +341,7 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
   vector<int> surfaceNums;  // surface number of interblock
 
   // loop over all blocks
-  for (auto ii = 0; ii < static_cast<int>(bc.size()); ii++) {
+  for (auto ii = 0U; ii < bc.size(); ii++) {
     // Loop over number of surfaces in block
     for (auto jj = 0; jj < bc[ii].NumSurfaces(); jj++) {
       // If boundary condition is interblock, store data
@@ -363,11 +363,10 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
   // Loop over isolated interblocks
   // ii counts by two because after a pair is found, that data is swapped
   // to ii+1. This allows the next search to avoid the matched pair
-  for (auto ii = 0; ii < static_cast<int>(isolatedInterblocks.size());
+  for (auto ii = 0U; ii < isolatedInterblocks.size();
        ii += 2) {
     // Loop over possible matches
-    for (auto jj = ii + 1; jj <
-             static_cast<int>(isolatedInterblocks.size()); jj++) {
+    for (auto jj = ii + 1U; jj < isolatedInterblocks.size(); jj++) {
       // Blocks and boundary surfaces between interblocks match
       // blocks between interblock BCs match
       if (isolatedInterblocks[ii].PartnerBlock() == numRankPos[jj][0] &&
@@ -736,7 +735,7 @@ void interblock::UpdateBorderFirst(const int &a) {
     cerr << "ERROR: Error in interblock::UpdateBorderFirst(). "
          << "Position to update is out of range. Choose between 0-3. "
          << "Position input was " << a << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 }
 
@@ -760,7 +759,7 @@ void interblock::UpdateBorderSecond(const int &a) {
     cerr << "ERROR: Error in interblock::UpdateBorderSecond(). "
          << "Position to update is out of range. Choose between 0-3. "
          << "Position input was " << a << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 }
 
@@ -825,7 +824,7 @@ void interblock::FirstSliceIndices(int &is1, int &ie1, int &js1, int &je1,
   } else {
     cerr << "ERROR: Error in interblock::FirstSliceIndices(). Surface boundary "
          << this->BoundaryFirst() << " is not recognized!" << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 }
 
@@ -891,7 +890,7 @@ void interblock::SecondSliceIndices(int &is2, int &ie2, int &js2, int &je2,
     cerr << "ERROR: Error in interblock::SecondSliceIndices(). " <<
         "Surface boundary " << this->BoundarySecond() <<
         " is not recognized!" << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 }
 
@@ -931,20 +930,20 @@ int boundaryConditions::BlockDimK() const {
 }
 
 /* Member function to split boundary_ conditions along a given direction at a
-   given
-   index. The calling instance retains the lower portion of the split, and the
-   returned instance is the upper portion. */
+   given index. The calling instance retains the lower portion of the split,
+   and the returned instance is the upper portion. */
 boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
                                              const int &numBlk,
                                              const int &newBlkNum,
                                              vector<boundarySurface> &aSurf) {
   // dir -- direction to split it (i, j, k)
   // ind -- index of cell to split at
-  // (this index is the last cell that remains in the lower split)
+  //        (this index is the last cell that remains in the lower split)
   // numBlk -- block_ number that (*this) is assocatied with
   // newBlkNum -- block_ number for upper split
   // aSurf -- vector of any interblocks that are split,
-  // because their partners will need to be altered for the split as well
+  //          because their partners will need to be altered for the split as
+  //          well
 
   // +1 because boundaries (in boundaryConditions) start at 1, not 0
   const auto indNG = ind + 1;
@@ -1004,7 +1003,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           // At upper i surface, lower bc is now interface
           // upper surface matches with lower surface
           const auto tag = 1000 + newBlkNum;
-          bound1.surfs_[ii].bcType_ = "interblock";  // bcType_
+          bound1.surfs_[ii].bcType_ = "interblock";  // bcType
           bound1.surfs_[ii].data_[0] = indNG;        // imin
           bound1.surfs_[ii].data_[1] = indNG;        // imax
           bound1.surfs_[ii].data_[6] = tag;          // tag
@@ -1035,7 +1034,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
         }
       } else {  // j-surface or k-surface
         // At j/k surface, if bc is interblock, store boundarySurface
-        // because partner block_ BC will need to be updated
+        // because partner block BC will need to be updated
         if (this->GetBCTypes(ii) == "interblock") {
           alteredSurf.push_back(this->GetSurface(ii));
         }
@@ -1070,18 +1069,23 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
     // Delete unnecessary boundaries and change number of surfaces in i,j,k
     // to appropriate number
-    for (auto ii = 0; ii < static_cast<int>(del1.size()); ii++) {
+
+    // need to delete from bottom of vector so indices are preserved
+    // need to cast to int because value must be negative for termination
+    for (auto ii = static_cast<int>(del1.size()) - 1; ii >= 0; --ii) {
       bound1.surfs_.erase(bound1.surfs_.begin() + del1[ii]);
-      bound1.numSurfI_ -= del1I;
-      bound1.numSurfJ_ -= del1J;
-      bound1.numSurfK_ -= del1K;
     }
-    for (auto ii = 0; ii < static_cast<int>(del2.size()); ii++) {
+    bound1.numSurfI_ -= del1I;
+    bound1.numSurfJ_ -= del1J;
+    bound1.numSurfK_ -= del1K;
+
+    for (auto ii = static_cast<int>(del2.size()) - 1; ii >= 0; --ii) {
       bound2.surfs_.erase(bound2.surfs_.begin() + del2[ii]);
-      bound2.numSurfI_ -= del2I;
-      bound2.numSurfJ_ -= del2J;
-      bound2.numSurfK_ -= del2K;
     }
+    bound2.numSurfI_ -= del2I;
+    bound2.numSurfJ_ -= del2J;
+    bound2.numSurfK_ -= del2K;
+
   } else if (dir == "j") {  // split along j-plane
     // Initialize deletion numbers to 0
     auto del1I = 0;
@@ -1142,7 +1146,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           numInterU++;
 
           // At upper j surface, upper bc is same as original, but indices
-          // are adjusted for new block_ size
+          // are adjusted for new block size
           bound2.surfs_[ii].data_[2] = this->GetJMax(ii) - indNG + 1;  // jmin
           bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - indNG + 1;  // jmax
 
@@ -1186,18 +1190,23 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
     // Delete unnecessary boundaries - and set number of surfaces (i, j, k)
     // to appropriate number
-    for (auto ii = 0; ii < static_cast<int>(del1.size()); ii++) {
+
+    // need to delete from bottom of vector so indices are preserved
+    // need to cast to int because value must be negative for termination
+    for (auto ii = static_cast<int>(del1.size()) - 1; ii >= 0; --ii) {
       bound1.surfs_.erase(bound1.surfs_.begin() + del1[ii]);
-      bound1.numSurfI_ -= del1I;
-      bound1.numSurfJ_ -= del1J;
-      bound1.numSurfK_ -= del1K;
     }
-    for (auto ii = 0; ii < static_cast<int>(del2.size()); ii++) {
+    bound1.numSurfI_ -= del1I;
+    bound1.numSurfJ_ -= del1J;
+    bound1.numSurfK_ -= del1K;
+
+    for (auto ii = static_cast<int>(del2.size()) - 1; ii >= 0; --ii) {
       bound2.surfs_.erase(bound2.surfs_.begin() + del2[ii]);
-      bound2.numSurfI_ -= del2I;
-      bound2.numSurfJ_ -= del2J;
-      bound2.numSurfK_ -= del2K;
     }
+    bound2.numSurfI_ -= del2I;
+    bound2.numSurfJ_ -= del2J;
+    bound2.numSurfK_ -= del2K;
+
   } else if (dir == "k") {  // split along k-plane
     // Initialize deletion numbers to 0
     auto del1I = 0;
@@ -1301,21 +1310,27 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
     // Delete unnecessary boundaries and set surface numbers (i,j,k) to
     // appropriate value
-    for (auto ii = 0; ii < static_cast<int>(del1.size()); ii++) {
+
+    // need to delete from bottom of vector so indices are preserved
+    // need to cast to int because value must be negative for termination
+    for (auto ii = static_cast<int>(del1.size()) - 1; ii >= 0; --ii) {
       bound1.surfs_.erase(bound1.surfs_.begin() + del1[ii]);
-      bound1.numSurfI_ -= del1I;
-      bound1.numSurfJ_ -= del1J;
     }
-    for (auto ii = 0; ii < static_cast<int>(del2.size()); ii++) {
+    bound1.numSurfI_ -= del1I;
+    bound1.numSurfJ_ -= del1J;
+    bound1.numSurfK_ -= del1K;
+
+    for (auto ii = static_cast<int>(del2.size()) - 1; ii >= 0; --ii) {
       bound2.surfs_.erase(bound2.surfs_.begin() + del2[ii]);
-      bound2.numSurfI_ -= del2I;
-      bound2.numSurfJ_ -= del2J;
-      bound2.numSurfK_ -= del2K;
     }
+    bound2.numSurfI_ -= del2I;
+    bound2.numSurfJ_ -= del2J;
+    bound2.numSurfK_ -= del2K;
+
   } else {
     cerr << "ERROR: Error in boundaryCondition::Split(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 
   (*this) = bound1;     // assign lower split to (*this)
@@ -1379,7 +1394,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
           cerr << "ERROR: Error in boundaryConditions::DependentSplit(). "
                   "Direction " << dir << " is not recognized." << endl;
           cerr << "Please choose i, j, or k." << endl;
-          exit(0);
+          exit(EXIT_FAILURE);
         }
 
       } else if (match.Orientation() == 2) {  // D1/D2 swapped
@@ -1401,7 +1416,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
           cerr << "ERROR: Error in boundaryConditions::DependentSplit(). "
                   "Direction " << dir << " is not recognized." << endl;
           cerr << "Please choose i, j, or k." << endl;
-          exit(0);
+          exit(EXIT_FAILURE);
         }
 
       } else if (match.Orientation() == 3) {  // D1 reversed
@@ -1424,7 +1439,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
           cerr << "ERROR: Error in boundaryConditions::DependentSplit(). "
                   "Direction " << dir << " is not recognized." << endl;
           cerr << "Please choose i, j, or k." << endl;
-          exit(0);
+          exit(EXIT_FAILURE);
         }
 
       } else if (match.Orientation() == 4) {  // D1/D2 swapped, D1 reversed
@@ -1447,7 +1462,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
           cerr << "ERROR: Error in boundaryConditions::DependentSplit(). "
                   "Direction " << dir << " is not recognized." << endl;
           cerr << "Please choose i, j, or k." << endl;
-          exit(0);
+          exit(EXIT_FAILURE);
         }
 
       } else if (match.Orientation() == 5) {  // D1/D2 swapped, D2 reversed
@@ -1470,7 +1485,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
           cerr << "ERROR: Error in boundaryConditions::DependentSplit(). "
                   "Direction " << dir << " is not recognized." << endl;
           cerr << "Please choose i, j, or k." << endl;
-          exit(0);
+          exit(EXIT_FAILURE);
         }
 
       } else if (match.Orientation() == 6) {  // D2 reversed
@@ -1493,7 +1508,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
           cerr << "ERROR: Error in boundaryConditions::DependentSplit(). "
                   "Direction " << dir << " is not recognized." << endl;
           cerr << "Please choose i, j, or k." << endl;
-          exit(0);
+          exit(EXIT_FAILURE);
         }
 
       } else if (match.Orientation() == 7) {  // D1/D2 swapped and reversed
@@ -1517,7 +1532,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
           cerr << "ERROR: Error in boundaryConditions::DependentSplit(). "
                   "Direction " << dir << " is not recognized." << endl;
           cerr << "Please choose i, j, or k." << endl;
-          exit(0);
+          exit(EXIT_FAILURE);
         }
 
       } else {  // D1/D2 reversed (orientation 8)
@@ -1541,7 +1556,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
           cerr << "ERROR: Error in boundaryConditions::DependentSplit(). "
                   "Direction " << dir << " is not recognized." << endl;
           cerr << "Please choose i, j, or k." << endl;
-          exit(0);
+          exit(EXIT_FAILURE);
         }
       }
 
@@ -1936,7 +1951,7 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
   } else {
     cerr << "ERROR: Error in procBlock::Join(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 
   aSurf = alteredSurf;
@@ -2058,7 +2073,7 @@ patch::patch(const int &bound, const int &b, const int &d1s, const int &d1e,
     cerr << "ERROR: Error in patch::patch(). Boundary surface " << bound
          << " is not recognized!" << endl;
     cerr << "Choose an integer between 1-6." << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 }
 
@@ -2097,7 +2112,7 @@ void boundaryConditions::PackBC(char *(&sendBuffer), const int &sendBufSize,
   // get string lengths for each boundary_ condition to be sent, so processors
   // unpacking know how much data to unpack for each string
   vector<int> strLength(this->NumSurfaces());
-  for (auto jj = 0; jj < static_cast<int>(strLength.size()); jj++) {
+  for (auto jj = 0U; jj < strLength.size(); jj++) {
     // +1 for c_str end character
     strLength[jj] = this->GetBCTypes(jj).size() + 1;
   }
@@ -2155,7 +2170,7 @@ void boundaryConditions::UnpackBC(char *(&recvBuffer), const int &recvBufSize,
   MPI_Unpack(recvBuffer, recvBufSize, &position, &strLength[0],
              strLength.size(), MPI_INT, MPI_COMM_WORLD);  // unpack string sizes
   // unpack boundary condition names
-  for (auto jj = 0; jj < static_cast<int>(strLength.size()); jj++) {
+  for (auto jj = 0U; jj < strLength.size(); jj++) {
     auto *nameBuf = new char[strLength[jj]];  // allocate buffer to store BC
                                               // name
     MPI_Unpack(recvBuffer, recvBufSize, &position, &nameBuf[0], strLength[jj],
@@ -2219,7 +2234,7 @@ int boundarySurface::SurfaceType() const {
     cerr << "ERROR: Error in boundarySurface::SurfaceType(). Surface is "
             "defined incorrectly, it is neither an i, j, or k surface." << endl;
     cerr << (*this) << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 
   return surf;
@@ -2232,7 +2247,7 @@ int boundarySurface::PartnerBlock() const {
   if (bcType_ != "interblock") {
     cerr << "ERROR: Partner blocks are only associated with interblock "
             "boundaries. Current boundary_ is " << bcType_ << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 
   const auto subtract = this->PartnerSurface() * 1000;
@@ -2246,7 +2261,7 @@ int boundarySurface::PartnerSurface() const {
   if (bcType_ != "interblock") {
     cerr << "ERROR: Partner blocks are only associated with interblock "
             "boundaries. Current boundary_ is " << bcType_ << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 
   auto surf = 0;
@@ -2267,7 +2282,7 @@ int boundarySurface::PartnerSurface() const {
     cerr << "ERROR: Error in boundarySurface::PartnerSurface(). Tag does not "
             "fit in range. Tag must be between 1000 and 6999." << endl;
     cerr << (*this) << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 
   return surf;
@@ -2409,7 +2424,7 @@ void boundarySurface::UpdateTagForSplitJoin(const int &nBlk) {
   if (bcType_ != "interblock") {
     cerr << "ERROR: Only tags associated with interblock boundaries need to be "
             "updated. Current boundary_ is " << bcType_ << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 
   data_[6] = this->PartnerSurface() * 1000 + nBlk;
@@ -2536,7 +2551,7 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind,
   } else {
     cerr << "ERROR: Error in boundarySurface::Split(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 
   (*this) = surf1;  // return lower surface as (*this)
@@ -2589,7 +2604,7 @@ bool boundarySurface::SplitDirectionIsReversed(const string &dir,
   } else {
     cerr << "ERROR: Error in boundarySurface::SplitDirectionIsReversed(). "
             "Direction " << dir << " does not match i, j, or k!" << endl;
-    exit(0);
+    exit(EXIT_FAILURE);
   }
 
   return isReversed;
@@ -2640,7 +2655,7 @@ vector3d<int> GetSwapLoc(const int &l1, const int &l2, const int &l3,
     } else {
       cerr << "ERROR: Error in procBlock:GetSwapLoc(). Boundary direction "
            << inter.Direction3First() << " is not recognized!" << endl;
-      exit(0);
+      exit(EXIT_FAILURE);
     }
   //--------------------------------------------------------------------------
   // need to use orientation for second in pair
@@ -2747,7 +2762,7 @@ vector3d<int> GetSwapLoc(const int &l1, const int &l2, const int &l3,
     } else {
       cerr << "ERROR: Error in procBlock.cpp:GetSwapLoc(). Boundary surface of "
            << inter.Direction3Second() << " is not recognized!" << endl;
-      exit(0);
+      exit(EXIT_FAILURE);
     }
   }
 
