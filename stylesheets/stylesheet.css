@@ -136,7 +136,7 @@ strong {
 img {
   position: relative;
   margin: 0 auto;
-  max-width: 739px;
+  max-width: 1200px;
   padding: 5px;
   margin: 10px 0 10px 0;
   border: 1px solid #ebebeb;
@@ -266,8 +266,8 @@ Full-Width Styles
 
 .inner {
   position: relative;
-  max-width: 640px;
-  padding: 20px 10px;
+  max-width: 1400px;
+  padding: 10px 10px;
   margin: 0 auto;
 }
 
@@ -368,7 +368,10 @@ Full-Width Styles
   background: #212121;
 }
 
-
+.center-image {
+  margin: 0 auto;
+  display: block;	      
+}
 
 /*******************************************************************************
 Small Device Styles

@@ -37,8 +37,8 @@ radii. Using this approximation makes the elements of the main diagonal scalars 
 jacobian approximations are shown below. 
 
 $$\frac{\partial F_i}{\partial W} = \left[ \begin{array}{cc}
-v_i n_i & 0 \\
-0 & v_i n_i
+0.5 \left(\left| v_i n_i \right| + v_i n_i \right) & 0 \\
+0 & 0.5 \left(\left| v_i n_i \right| + v_i n_i \right)
 \end{array} \right] \approx v_i n_i $$
 
 $$\frac{\partial F_v}{\partial W} = \left[ \begin{array}{cc}
