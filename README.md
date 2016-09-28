@@ -7,16 +7,15 @@ This code is for a 3D Navier-Stokes computational fluid dynamics solver. It is a
 The code is 2nd order accurate in space and time. Available explicit time integration methods are forward euler (1st order) and a minimum storage four stage Runge-Kutta method (2nd order). The implicit solver (LU-SGS, BLU-SGS, DPLUR, BDPLUR) is implemented for implicit time integration. Dual time stepping is implemented for time accuracy in the implicit solver. Available implicit time integrations methods come from the Beam and Warming family of methods and are the implicit euler (1st order), Crank-Nicholson (2nd order), and BDF2 (2nd order) methods. The code has been thoroughly commented. It has been made parallel using MPI. Currently the Wilcox K-Omega 2006 and SST 2003 turbulence models are available.
 
 ### To Do List
-* Add build system (autotools or cmake)
 * Add a library for matrix operations (Eigen and PETSc being considered)
 * Implement higher order state reconstruction for DES / Hybrid RANS/LES
 * Implement tubulence model for DES / Hybrid RANS/LES
 
 ### Dependencies
-Aither depends on an MPI implementation. OpenMPI and MPICH have both been used in the past. Currently Aither is developed with OpenMPI.
+Aither depends on an MPI implementation. OpenMPI and MPICH have both been used in the past. Currently Aither is developed with OpenMPI. Aither also requires a C++ compiler with C++14 support.
 
 ### How To compile
-Assuming you have a c++ compiler with c++14 support, just type 'make'.
+Just type 'make'.
 
 ### How To Run
 ```bash
