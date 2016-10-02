@@ -23,8 +23,8 @@
 #define EPS 1.0e-30
 #define ROOTP 0
 #define DEFAULTWALLDIST 1.0e10
-#define MAJORVERSION 0
-#define MINORVERSION 3
-#define PATCHNUMBER 0
+#define MAJORVERSION @aither_VERSION_MAJOR@
+#define MINORVERSION @aither_VERSION_MINOR@
+#define PATCHNUMBER @aither_VERSION_PATCH@
 
 #endif
