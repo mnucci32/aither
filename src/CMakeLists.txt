@@ -88,6 +88,7 @@ endif ()
 # determine if MPI_DIR has been set
 if (MPI_DIR)
    message (STATUS "Looking for MPI here: ${MPI_DIR}")
+   set (CMAKE_PREFIX_PATH ${MPI_DIR})
 endif ()
 
 # get mpi and link to all targets
