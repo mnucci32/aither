@@ -12,10 +12,22 @@ The code is 2nd order accurate in space and time. Available explicit time integr
 * Implement tubulence model for DES / Hybrid RANS/LES
 
 ### Dependencies
-Aither depends on an MPI implementation. OpenMPI and MPICH have both been used in the past. Currently Aither is developed with OpenMPI. Aither also requires a C++ compiler with C++14 support.
+* MPI - OpenMPI and MPICH have both been used in the past. Aither is currently developed with OpenMPI
+* C++ compiler with C++14 support
+* Cmake - Cmake only depends on a C++ compiler
 
 ### How To compile
-Just type 'make'.
+Aither is compiled and installed with the standard cmake process.
+
+<pre>
+```bash
+cmake -DCMAKE_INSTALL_PREFIX=/path/to/installation /path/to/source
+make
+make install
+```
+</pre>
+
+Cmake will automatically look for an MPI package. To specify a specific installation, set **-DMPI_DIR** to the MPI installation directory.
 
 ### How To Run
 ```bash
