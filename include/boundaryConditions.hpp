@@ -45,8 +45,10 @@ class boundarySurface {
 
  public:
   // Constructor
-  boundarySurface(const string&, const int&, const int&, const int&,
-                  const int&, const int&, const int&, const int&);
+  boundarySurface(const string &name, const int &imin, const int &imax,
+                  const int &jmin, const int &jmax, const int &kmin,
+                  const int &kmax, const int &tag) :
+      bcType_(name), data_{imin, imax, jmin, jmax, kmin, kmax, tag} {}
   boundarySurface() : boundarySurface("undefined", 0, 0, 0, 0, 0, 0, 0) {}
 
   // move constructor and assignment operator
@@ -120,9 +122,8 @@ class patch {
         const bool(&)[4]);
   patch(const boundarySurface &surf, const plot3dBlock &blk, const int &bNum,
         const bool (&border)[4], int r = 0, int l = 0) :
-      patch(surf.SurfaceType(), bNum, surf.IMin() - 1, surf.IMax() - 1,
-            surf.JMin() -1, surf.JMax() - 1, surf.KMin() - 1,
-            surf.KMax() - 1, blk, r, l, border) {}
+      patch(surf.SurfaceType(), bNum, surf.IMin(), surf.IMax(), surf.JMin(),
+            surf.JMax(), surf.KMin(), surf.KMax(), blk, r, l, border) {}
 
   // move constructor and assignment operator
   patch(patch&&) noexcept = default;

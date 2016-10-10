@@ -3313,12 +3313,12 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
   // loop over all boundary surfaces
   for (auto ii = 0; ii < bc_.NumSurfaces(); ii++) {
     // Get surface boundaries, and adjust them for ghost cells
-    const auto imin = bc_.GetIMin(ii) - 1 + numGhosts_;
-    const auto imax = bc_.GetIMax(ii) - 2 + numGhosts_;
-    const auto jmin = bc_.GetJMin(ii) - 1 + numGhosts_;
-    const auto jmax = bc_.GetJMax(ii) - 2 + numGhosts_;
-    const auto kmin = bc_.GetKMin(ii) - 1 + numGhosts_;
-    const auto kmax = bc_.GetKMax(ii) - 2 + numGhosts_;
+    const auto imin = bc_.GetIMin(ii) + numGhosts_;
+    const auto imax = bc_.GetIMax(ii) - 1 + numGhosts_;
+    const auto jmin = bc_.GetJMin(ii) + numGhosts_;
+    const auto jmax = bc_.GetJMax(ii) - 1 + numGhosts_;
+    const auto kmin = bc_.GetKMin(ii) + numGhosts_;
+    const auto kmax = bc_.GetKMax(ii) - 1 + numGhosts_;
 
     int g1, g2, i1, i2;  // indices for cells
     int bnd;  // indices for faces
@@ -3784,12 +3784,12 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
   // loop over all boundary surfaces
   for (auto ii = 0; ii < bc_.NumSurfaces(); ii++) {
     // Get surface boundaries, and adjust them for ghost cells
-    const auto imin = bc_.GetIMin(ii) - 1 + numGhosts_;
-    const auto imax = bc_.GetIMax(ii) - 2 + numGhosts_;
-    const auto jmin = bc_.GetJMin(ii) - 1 + numGhosts_;
-    const auto jmax = bc_.GetJMax(ii) - 2 + numGhosts_;
-    const auto kmin = bc_.GetKMin(ii) - 1 + numGhosts_;
-    const auto kmax = bc_.GetKMax(ii) - 2 + numGhosts_;
+    const auto imin = bc_.GetIMin(ii) + numGhosts_;
+    const auto imax = bc_.GetIMax(ii) - 1 + numGhosts_;
+    const auto jmin = bc_.GetJMin(ii) + numGhosts_;
+    const auto jmax = bc_.GetJMax(ii) - 1 + numGhosts_;
+    const auto kmin = bc_.GetKMin(ii) + numGhosts_;
+    const auto kmax = bc_.GetKMax(ii) - 1 + numGhosts_;
 
     int g1, g2, i1, i2;  // indices for cells
     int bnd;  // indices for faces

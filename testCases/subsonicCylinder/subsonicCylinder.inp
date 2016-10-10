@@ -29,15 +29,15 @@ matrixRelaxation: 1.0
 #Boundary Conditions
 # bc imin imax jmin jmax kmin kmax tag
 boundaryConditions: 1
-#Block   1  -- Indices: 33 2 41
+#Block   0  -- Size: 33 2 41
 3 2 2
 #i_surfaces
-   slipWall           1     1     1     2     1    41    3
-   pressureOutlet    33    33     1     2    21    41    1
-   stagnationInlet   33    33     1     2     1    21    2
+   slipWall           0     0     0     1     0    40    3
+   pressureOutlet    32    32     0     1    21    40    1
+   stagnationInlet   32    32     0     1     0    21    2
 #j_surfaces
-   slipWall           1    33     1     1     1    41    3
-   slipWall           1    33     2     2     1    41    3
+   slipWall           0    32     0     0     0    40    3
+   slipWall           0    32     1     1     0    40    3
 #k_surfaces
-   slipWall           1    33     1     2     1     1    3
-   slipWall           1    33     1     2    41    41    3
+   slipWall           0    32     0     1     0     0    3
+   slipWall           0    32     0     1    40    40    3
