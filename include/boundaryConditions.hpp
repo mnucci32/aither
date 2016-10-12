@@ -21,9 +21,11 @@
 
 /* This header contains the class boundaryConditions.
 
-This class stores the information needed to specify the boundary_ conditions for one block_. */
+This class stores the information needed to specify the boundary conditions for
+one block. */
 
 #include <vector>  // vector
+#include <array>   // array
 #include <string>  // string
 #include <iostream>  // ostream
 #include "mpi.h"  // parallelism
@@ -31,6 +33,7 @@ This class stores the information needed to specify the boundary_ conditions for
 
 using std::ostream;
 using std::vector;
+using std::array;
 using std::string;
 using std::cout;
 using std::endl;
@@ -394,7 +397,7 @@ ostream & operator<< (ostream &os, const decomposition&);
 ostream & operator<< (ostream &os, const interblock&);
 
 
-vector3d<int> GetSwapLoc(const int &, const int &, const int &,
+array<int, 3> GetSwapLoc(const int &, const int &, const int &,
                          const interblock &, const bool &);
 
 #endif

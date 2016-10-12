@@ -19,13 +19,11 @@ The code is 2nd order accurate in space and time. Available explicit time integr
 ### How To compile
 Aither is compiled and installed with the standard cmake process.
 
-<pre>
 ```bash
 cmake -DCMAKE_INSTALL_PREFIX=/path/to/installation /path/to/source
 make
 make install
 ```
-</pre>
 
 Cmake will automatically look for an MPI package. To specify a specific installation, set **-DMPI_DIR** to the MPI installation directory.
 

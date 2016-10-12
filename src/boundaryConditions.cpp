@@ -16,6 +16,7 @@
 
 #include <math.h>     // sqrt
 #include <iostream>   // cout
+#include <iomanip>    // setw
 #include <algorithm>  // max
 #include <string>     // string
 #include <vector>     // vector
@@ -112,7 +113,6 @@ string boundaryConditions::GetBCName(const int &i, const int &j, const int &k,
 
   // Determine which boundary condition should be applied
   for (auto nn = iStart; nn < iEnd; nn++) {
-    // Boundary mins and maxes start at 1 instead of 0, so 1 is subtracted
     // Determine which boundary given i, j, k coordinates apply to
     if ((i >= this->GetIMin(nn) && i <= this->GetIMax(nn) &&
          j >= this->GetJMin(nn) && j <= this->GetJMax(nn) &&
@@ -337,7 +337,7 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
   // Block number of bc, rank of block, local position on processor
   // (different from rankParPos because it holds block number instead
   // of parent block number)
-  vector<vector3d<int>> numRankPos;
+  vector<array<int, 3>> numRankPos;
   vector<int> surfaceNums;  // surface number of interblock
 
   // loop over all blocks
@@ -346,9 +346,10 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
     for (auto jj = 0; jj < bc[ii].NumSurfaces(); jj++) {
       // If boundary condition is interblock, store data
       if (bc[ii].GetBCTypes(jj) == "interblock") {
-        const vector3d<int> temp(ii, decomp.Rank(ii), decomp.LocalPosition(ii));
-        numRankPos.push_back(temp);  // block number of bc, rank, local position
-        // boundarySurface of bc
+        // block number of bc, rank, local position boundarySurface of bc
+        const array<int, 3> temp = {static_cast<int>(ii), decomp.Rank(ii),
+                                    decomp.LocalPosition(ii)};
+        numRankPos.push_back(temp);
         isolatedInterblocks.push_back(bc[ii].GetSurface(jj));
         surfaceNums.push_back(jj);
       }
@@ -1977,16 +1978,16 @@ patch::patch(const int &bound, const int &b, const int &d1s, const int &d1e,
              const int &d2s, const int &d2e, const int &d3s, const int &d3e,
              const plot3dBlock &blk, const int &r, const int &l,
              const bool (&border)[4]) {
-  // bound -- boundary_ number which patch is on (1-6)
-  // b -- parent block_ number
+  // bound -- boundary number which patch is on (1-6)
+  // b -- parent block number
   // d1s -- direction 1 starting index
   // d1e -- direction 1 ending index
   // d2s -- direction 2 starting index
   // d2e -- direction 2 ending index
   // d3s -- direction 3 surface index (constant surface that patch is on)
   // blk -- plot3dBlock that patch is on
-  // r -- rank_ of block_
-  // l -- local position of block_
+  // r -- rank of block
+  // l -- local position of block
   // border -- flags indicating if patch borders an interblock bc on sides 1/2
 
   boundary_ = bound;
@@ -2087,7 +2088,7 @@ ostream &operator<<(ostream &os, const patch &p) {
   os << "Origin: " << p.Origin() << endl;
   os << "Corner 1: " << p.Corner1() << endl;
   os << "Corner 2: " << p.Corner2() << endl;
-  os << "Corner 12: " << p.Corner12() << endl;
+  os << "Corner 1-2: " << p.Corner12() << endl;
 
   return os;
 }
@@ -2181,19 +2182,19 @@ int boundarySurface::SurfaceType() const {
   auto surf = 0;
 
   if (data_[0] == data_[1]) {  // i-surface
-    if (data_[1] == 1) {  // lower surface
+    if (data_[1] == 0) {  // lower surface
       surf = 1;
     } else {  // upper surface
       surf = 2;
     }
   } else if (data_[2] == data_[3]) {  // j-surface
-    if (data_[3] == 1) {  // lower surface
+    if (data_[3] == 0) {  // lower surface
       surf = 3;
     } else {  // upper surface
       surf = 4;
     }
   } else if (data_[4] == data_[5]) {  // k-surface
-    if (data_[5] == 1) {  // lower surface
+    if (data_[5] == 0) {  // lower surface
       surf = 5;
     } else {  // upper surface
       surf = 6;
@@ -2379,9 +2380,11 @@ ostream &operator<<(ostream &os, const boundarySurface &bcSurf) {
   // os -- ostream to print to
   // bcSurf -- boundarySurface to print
 
-  os << bcSurf.BCType() << "   " << bcSurf.IMin() << "   " << bcSurf.IMax()
-     << "   " << bcSurf.JMin() << "   " << bcSurf.JMax() << "   "
-     << bcSurf.KMin() << "   " << bcSurf.KMax() << "   " << bcSurf.Tag();
+  os << std::left << std::setw(24) << bcSurf.BCType() << std::right
+     << std::setw(5) << bcSurf.IMin() << std::setw(5) << bcSurf.IMax()
+     << std::setw(5) << bcSurf.JMin() << std::setw(5) << bcSurf.JMax()
+     << std::setw(5) << bcSurf.KMin() << std::setw(5) << bcSurf.KMax()
+     << std::setw(5) << bcSurf.Tag();
 
   return os;
 }
@@ -2560,8 +2563,8 @@ bool boundarySurface::SplitDirectionIsReversed(const string &dir,
                   orientation == 8)
                      ? true
                      : false;
-  } else if (this->Direction3() ==
-             dir) {  // split direction is direction 3 - no need to reverse
+  } else if (this->Direction3() == dir) {
+    // split direction is direction 3 - no need to reverse
     isReversed = false;
   } else {
     cerr << "ERROR: Error in boundarySurface::SplitDirectionIsReversed(). "
@@ -2572,18 +2575,18 @@ bool boundarySurface::SplitDirectionIsReversed(const string &dir,
   return isReversed;
 }
 
-/* Function to return a vector of location indicies for ghost cells at an
-interblock boundary. The vector is formatted as shown below:
+/* Function to return an array of location indicies for ghost cells at an
+interblock boundary. The array is formatted as shown below:
 
-  vector = [i j k]
+  array = [i j k]
 
-The vector will contain 3 entries corresponding to the i, j, and k locations of
+The array will contain 3 entries corresponding to the i, j, and k locations of
 either the first or second pair in the interblock, depending on what is
 specified in the 'first' variable. The indices returned will correspond to cell
 locations and will take into account the orientation of the patches that
 comprise the interblock with relation to each other.
 */
-vector3d<int> GetSwapLoc(const int &l1, const int &l2, const int &l3,
+array<int, 3> GetSwapLoc(const int &l1, const int &l2, const int &l3,
                          const interblock &inter, const bool &first) {
   // l1 -- index of direction 1 within slice to insert
   // l2 -- index of direction 2 within slice to insert
@@ -2591,8 +2594,8 @@ vector3d<int> GetSwapLoc(const int &l1, const int &l2, const int &l3,
   // inter -- interblock boundary condition
   // first -- flag for first or second block in interblock match
 
-  // preallocate vector to return
-  vector3d<int> loc;
+  // preallocate array to return
+  array<int, 3> loc = {0, 0, 0};
 
   if (first) {  // working on first in pair ------------------------------
     // first patch in pair is calculated using orientation 1

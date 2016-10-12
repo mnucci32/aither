@@ -156,7 +156,6 @@ int main(int argc, char *argv[]) {
       SwapGeomSlice(conn, stateBlocks[conn.BlockFirst()],
                     stateBlocks[conn.BlockSecond()]);
     }
-
     // Get ghost cell edge data
     for (auto &blocks : stateBlocks) {
       blocks.AssignGhostCellsGeomEdge();

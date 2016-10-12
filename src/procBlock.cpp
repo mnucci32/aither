@@ -2456,11 +2456,6 @@ void procBlock::AssignGhostCellsGeom() {
     const auto jmaxF = jmax + 1;
     const auto kmaxF = kmax + 1;
 
-    cout << imin << ", " << imax << ", " << jmin << ", " << jmax << ", " << kmin
-         << ", " << kmax << endl;
-    cout << bc_.GetSurface(ii) << endl;
-
-    
     int g1, g2, i1, i2;  // indices for cells
     int fg1, fg2, fi1, fi2, bnd;  // indices for faces
     if (bc_.GetSurfaceType(ii) == 2) {  // upper i-surface
@@ -3325,10 +3320,6 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
     const auto kmin = bc_.GetKMin(ii) + numGhosts_;
     const auto kmax = bc_.GetKMax(ii) - 1 + numGhosts_;
 
-    cout << imin << ", " << imax << ", " << jmin << ", " << jmax << ", " << kmin
-         << kmax << endl;
-    cout << bc_.GetSurface(ii) << endl;
-    
     int g1, g2, i1, i2;  // indices for cells
     int bnd;  // indices for faces
     if (bc_.GetSurfaceType(ii) == 2) {  // upper i-surface
@@ -3410,8 +3401,7 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
       auto boundaryStates = state_.Slice(imin, imax, i1, i1, kmin, kmax);
       const auto wDist = wallDist_.Slice(imin, imax, i1, i1, kmin, kmax);
       auto ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas,
-                                              wDist, surf, inp, eos, suth, turb,
-                                              1);
+                                        wDist, surf, inp, eos, suth, turb, 1);
 
       // assign state for first layer of ghost cells
       state_.Insert(imin, imax, g1, g1, kmin, kmax, ghostStates);
@@ -3446,8 +3436,7 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
       auto boundaryStates = state_.Slice(imin, imax, jmin, jmax, i1, i1);
       const auto wDist = wallDist_.Slice(imin, imax, jmin, jmax, i1, i1);
       auto ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas,
-                                              wDist, surf, inp, eos, suth, turb,
-                                              1);
+                                        wDist, surf, inp, eos, suth, turb, 1);
 
       // assign state for first layer of ghost cells
       state_.Insert(imin, imax, jmin, jmax, g1, g1, ghostStates);
