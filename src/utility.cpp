@@ -346,10 +346,10 @@ vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &blks) {
           const auto ii = (bcs[aa].GetSurfaceType(bb) % 2 == 0)
               ? blks[aa].NumI() + numG : numG;
 
-          for (auto jj = bcs[aa].GetJMin(bb) - 1 + numG;
-               jj < bcs[aa].GetJMax(bb) - 1 + numG; jj++) {
-            for (auto kk = bcs[aa].GetKMin(bb) - 1 + numG;
-                 kk < bcs[aa].GetKMax(bb) - 1 + numG; kk++) {
+          for (auto jj = bcs[aa].GetJMin(bb) + numG;
+               jj < bcs[aa].GetJMax(bb) + numG; jj++) {
+            for (auto kk = bcs[aa].GetKMin(bb) + numG;
+                 kk < bcs[aa].GetKMax(bb) + numG; kk++) {
               faceCenters.push_back(blks[aa].FCenterI(ii, jj, kk));
             }
           }
@@ -357,10 +357,10 @@ vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &blks) {
           const auto jj = (bcs[aa].GetSurfaceType(bb) % 2 == 0)
               ? blks[aa].NumJ() + numG : numG;
 
-          for (auto ii = bcs[aa].GetIMin(bb) - 1 + numG;
-               ii < bcs[aa].GetIMax(bb) - 1 + numG; ii++) {
-            for (auto kk = bcs[aa].GetKMin(bb) - 1 + numG;
-                 kk < bcs[aa].GetKMax(bb) - 1 + numG; kk++) {
+          for (auto ii = bcs[aa].GetIMin(bb) + numG;
+               ii < bcs[aa].GetIMax(bb) + numG; ii++) {
+            for (auto kk = bcs[aa].GetKMin(bb) + numG;
+                 kk < bcs[aa].GetKMax(bb) + numG; kk++) {
               faceCenters.push_back(blks[aa].FCenterJ(ii, jj, kk));
             }
           }
@@ -368,10 +368,10 @@ vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &blks) {
           const auto kk = (bcs[aa].GetSurfaceType(bb) % 2 == 0)
               ? blks[aa].NumK() + numG : numG;
 
-          for (auto ii = bcs[aa].GetIMin(bb) - 1 + numG;
-               ii < bcs[aa].GetIMax(bb) - 1 + numG; ii++) {
-            for (auto jj = bcs[aa].GetJMin(bb) - 1 + numG;
-                 jj < bcs[aa].GetJMax(bb) - 1 + numG; jj++) {
+          for (auto ii = bcs[aa].GetIMin(bb) + numG;
+               ii < bcs[aa].GetIMax(bb) + numG; ii++) {
+            for (auto jj = bcs[aa].GetJMin(bb) + numG;
+                 jj < bcs[aa].GetJMax(bb) + numG; jj++) {
               faceCenters.push_back(blks[aa].FCenterK(ii, jj, kk));
             }
           }

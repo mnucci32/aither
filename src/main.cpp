@@ -152,13 +152,14 @@ int main(int argc, char *argv[]) {
     }
 
     // Swap geometry for interblock BCs
-    for (auto ii = 0U; ii < connections.size(); ii++) {
-      SwapGeomSlice(connections[ii], stateBlocks[connections[ii].BlockFirst()],
-                    stateBlocks[connections[ii].BlockSecond()]);
+    for (auto &conn : connections) {
+      SwapGeomSlice(conn, stateBlocks[conn.BlockFirst()],
+                    stateBlocks[conn.BlockSecond()]);
     }
+
     // Get ghost cell edge data
-    for (auto ll = 0U; ll < mesh.size(); ll++) {
-      stateBlocks[ll].AssignGhostCellsGeomEdge();
+    for (auto &blocks : stateBlocks) {
+      blocks.AssignGhostCellsGeomEdge();
     }
 
     // Get face centers of faces with viscous wall BC

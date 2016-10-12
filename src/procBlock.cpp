@@ -2445,17 +2445,22 @@ void procBlock::AssignGhostCellsGeom() {
   // loop over all boundary surfaces
   for (auto ii = 0; ii < bc_.NumSurfaces(); ii++) {
     // Get surface boundaries, and adjust them for ghost cells
-    const auto imin = bc_.GetIMin(ii) - 1 + numGhosts_;
-    const auto imax = bc_.GetIMax(ii) - 2 + numGhosts_;
-    const auto jmin = bc_.GetJMin(ii) - 1 + numGhosts_;
-    const auto jmax = bc_.GetJMax(ii) - 2 + numGhosts_;
-    const auto kmin = bc_.GetKMin(ii) - 1 + numGhosts_;
-    const auto kmax = bc_.GetKMax(ii) - 2 + numGhosts_;
+    const auto imin = bc_.GetIMin(ii) + numGhosts_;
+    const auto imax = bc_.GetIMax(ii) - 1 + numGhosts_;
+    const auto jmin = bc_.GetJMin(ii) + numGhosts_;
+    const auto jmax = bc_.GetJMax(ii) - 1 + numGhosts_;
+    const auto kmin = bc_.GetKMin(ii) + numGhosts_;
+    const auto kmax = bc_.GetKMax(ii) - 1 + numGhosts_;
 
     const auto imaxF = imax + 1;
     const auto jmaxF = jmax + 1;
     const auto kmaxF = kmax + 1;
 
+    cout << imin << ", " << imax << ", " << jmin << ", " << jmax << ", " << kmin
+         << ", " << kmax << endl;
+    cout << bc_.GetSurface(ii) << endl;
+
+    
     int g1, g2, i1, i2;  // indices for cells
     int fg1, fg2, fi1, fi2, bnd;  // indices for faces
     if (bc_.GetSurfaceType(ii) == 2) {  // upper i-surface
@@ -3320,6 +3325,10 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
     const auto kmin = bc_.GetKMin(ii) + numGhosts_;
     const auto kmax = bc_.GetKMax(ii) - 1 + numGhosts_;
 
+    cout << imin << ", " << imax << ", " << jmin << ", " << jmax << ", " << kmin
+         << kmax << endl;
+    cout << bc_.GetSurface(ii) << endl;
+    
     int g1, g2, i1, i2;  // indices for cells
     int bnd;  // indices for faces
     if (bc_.GetSurfaceType(ii) == 2) {  // upper i-surface
@@ -3367,8 +3376,7 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
       auto boundaryStates = state_.Slice(i1, i1, jmin, jmax, kmin, kmax);
       const auto wDist = wallDist_.Slice(i1, i1, jmin, jmax, kmin, kmax);
       auto ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas,
-                                              wDist, surf, inp, eos, suth, turb,
-                                              1);
+                                        wDist, surf, inp, eos, suth, turb, 1);
 
       state_.Insert(g1, g1, jmin, jmax, kmin, kmax, ghostStates);
 
