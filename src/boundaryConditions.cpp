@@ -1023,8 +1023,8 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
           // At upper i surface, upper bc is same as original,
           // but indices are adjusted for new block_ size
-          bound2.surfs_[ii].data_[0] = this->GetIMax(ii) - indNG + 1;  // imin
-          bound2.surfs_[ii].data_[1] = this->GetIMax(ii) - indNG + 1;  // imax
+          bound2.surfs_[ii].data_[0] = this->GetIMax(ii) - indNG;  // imin
+          bound2.surfs_[ii].data_[1] = this->GetIMax(ii) - indNG;  // imax
 
           // At upper i surface, if bc is interblock, store boundarySurface
           // because partner block_ BC will need to be updated
@@ -1041,8 +1041,8 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
         // This surface is only present in the upper split
         if (this->GetIMin(ii) >= indNG) {
-          bound2.surfs_[ii].data_[0] = this->GetIMin(ii) - indNG + 1;  // imin
-          bound2.surfs_[ii].data_[1] = this->GetIMax(ii) - indNG + 1;  // imax
+          bound2.surfs_[ii].data_[0] = this->GetIMin(ii) - indNG;  // imin
+          bound2.surfs_[ii].data_[1] = this->GetIMax(ii) - indNG;  // imax
           // Can delete it from lower split
           del1.push_back(ii);
           if (ii >= this->NumSurfI() &&
@@ -1054,7 +1054,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
         } else if (this->GetIMax(ii) > indNG) {  // surf straddles the split
           bound1.surfs_[ii].data_[1] = indNG;       // imax
           bound2.surfs_[ii].data_[0] = 0;           // imin
-          bound2.surfs_[ii].data_[1] = this->GetIMax(ii) - indNG + 1;  // imax
+          bound2.surfs_[ii].data_[1] = this->GetIMax(ii) - indNG;  // imax
         } else {  // surf only present in the lower split - delete from upper
           del2.push_back(ii);
           if (ii >= this->NumSurfI() &&
@@ -1147,8 +1147,8 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
           // At upper j surface, upper bc is same as original, but indices
           // are adjusted for new block size
-          bound2.surfs_[ii].data_[2] = this->GetJMax(ii) - indNG + 1;  // jmin
-          bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - indNG + 1;  // jmax
+          bound2.surfs_[ii].data_[2] = this->GetJMax(ii) - indNG;  // jmin
+          bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - indNG;  // jmax
 
           // At upper j surface, if bc is interblock, store boundarySurface
           // because partner block_ BC will need to be updated
@@ -1164,8 +1164,8 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
         }
 
         if (this->GetJMin(ii) >= indNG) {  // surf is only in the upper split
-          bound2.surfs_[ii].data_[2] = this->GetJMin(ii) - indNG + 1;  // jmin
-          bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - indNG + 1;  // jmax
+          bound2.surfs_[ii].data_[2] = this->GetJMin(ii) - indNG;  // jmin
+          bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - indNG;  // jmax
           // can delete from lower split
           del1.push_back(ii);
           if (ii < this->NumSurfI()) {  // i-surface
@@ -1176,7 +1176,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
         } else if (this->GetJMax(ii) > indNG) {  // surf straddles the split
           bound1.surfs_[ii].data_[3] = indNG;       // jmax
           bound2.surfs_[ii].data_[2] = 0;           // jmin
-          bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - indNG + 1;  // jmax
+          bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - indNG;  // jmax
         } else {  // surface is only in the lower split - can delete from upper
           del2.push_back(ii);
           if (ii < this->NumSurfI()) {  // i-surface
@@ -1267,8 +1267,8 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
           // At upper k surface, upper bc is same as original,
           // but indices are adjusted for new block_ size
-          bound2.surfs_[ii].data_[4] = this->GetKMax(ii) - indNG + 1;  // kmin
-          bound2.surfs_[ii].data_[5] = this->GetKMax(ii) - indNG + 1;  // kmax
+          bound2.surfs_[ii].data_[4] = this->GetKMax(ii) - indNG;  // kmin
+          bound2.surfs_[ii].data_[5] = this->GetKMax(ii) - indNG;  // kmax
 
           // At upper k surface, if bc is interblock, store boundarySurface
           // because partner block_ BC will need to be updated
@@ -1284,8 +1284,8 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
         }
 
         if (this->GetKMin(ii) >= indNG) {  // surface is only in upper split
-          bound2.surfs_[ii].data_[4] = this->GetKMin(ii) - indNG + 1;  // kmin
-          bound2.surfs_[ii].data_[5] = this->GetKMax(ii) - indNG + 1;  // kmax
+          bound2.surfs_[ii].data_[4] = this->GetKMin(ii) - indNG;  // kmin
+          bound2.surfs_[ii].data_[5] = this->GetKMax(ii) - indNG;  // kmax
           // Can delete from lower surface
           del1.push_back(ii);
           if (ii < this->NumSurfI()) {  // i-surface
@@ -1296,7 +1296,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
         } else if (this->GetKMax(ii) > indNG) {  // surf straddles the split
           bound1.surfs_[ii].data_[5] = indNG;       // kmax
           bound2.surfs_[ii].data_[4] = 0;           // kmin
-          bound2.surfs_[ii].data_[5] = this->GetKMax(ii) - indNG + 1;  // kmax
+          bound2.surfs_[ii].data_[5] = this->GetKMax(ii) - indNG;  // kmax
         } else {  // surface is only in the lower split - can delete from upper
           del2.push_back(ii);
           if (ii < this->NumSurfI()) {  // i-surface
@@ -1646,8 +1646,8 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
 
         // adjust i coordinates for join
         const boundarySurface bcSurf(bc.GetBCTypes(ii),
-                                     bc.GetIMin(ii) + lowDimI - 1,
-                                     bc.GetIMax(ii) + lowDimI - 1,
+                                     bc.GetIMin(ii) + lowDimI,
+                                     bc.GetIMax(ii) + lowDimI,
                                      bc.GetJMin(ii),
                                      bc.GetJMax(ii), bc.GetKMin(ii),
                                      bc.GetKMax(ii),
@@ -1673,8 +1673,8 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
 
       // adjust i coordinates for join
       const boundarySurface bcSurf(bc.GetBCTypes(ii),
-                                   bc.GetIMin(ii) + lowDimI - 1,
-                                   bc.GetIMax(ii) + lowDimI - 1,
+                                   bc.GetIMin(ii) + lowDimI,
+                                   bc.GetIMax(ii) + lowDimI,
                                    bc.GetJMin(ii),
                                    bc.GetJMax(ii), bc.GetKMin(ii),
                                    bc.GetKMax(ii),
@@ -1699,8 +1699,8 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
 
       // adjust i coordinates for join
       const boundarySurface bcSurf(bc.GetBCTypes(ii),
-                                   bc.GetIMin(ii) + lowDimI - 1,
-                                   bc.GetIMax(ii) + lowDimI - 1,
+                                   bc.GetIMin(ii) + lowDimI,
+                                   bc.GetIMax(ii) + lowDimI,
                                    bc.GetJMin(ii),
                                    bc.GetJMax(ii), bc.GetKMin(ii),
                                    bc.GetKMax(ii),
@@ -1764,8 +1764,8 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
         // adjust j coordinates for join
         const boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii),
                                      bc.GetIMax(ii),
-                                     bc.GetJMin(ii) + lowDimJ - 1,
-                                     bc.GetJMax(ii) + lowDimJ - 1,
+                                     bc.GetJMin(ii) + lowDimJ,
+                                     bc.GetJMax(ii) + lowDimJ,
                                      bc.GetKMin(ii),
                                      bc.GetKMax(ii), bc.GetTag(ii));
 
@@ -1790,8 +1790,8 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       // adjust j coordinates for join
       const boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii),
                                    bc.GetIMax(ii),
-                                   bc.GetJMin(ii) + lowDimJ - 1,
-                                   bc.GetJMax(ii) + lowDimJ - 1, bc.GetKMin(ii),
+                                   bc.GetJMin(ii) + lowDimJ,
+                                   bc.GetJMax(ii) + lowDimJ, bc.GetKMin(ii),
                                    bc.GetKMax(ii), bc.GetTag(ii));
 
       newBC.surfs_[cc] = bcSurf;
@@ -1815,8 +1815,8 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       // adjust j coordinates for join
       const boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii),
                                     bc.GetIMax(ii),
-                                    bc.GetJMin(ii) + lowDimJ - 1,
-                                    bc.GetJMax(ii) + lowDimJ - 1,
+                                    bc.GetJMin(ii) + lowDimJ,
+                                    bc.GetJMax(ii) + lowDimJ,
                                     bc.GetKMin(ii),
                                     bc.GetKMax(ii), bc.GetTag(ii));
 
@@ -1880,8 +1880,8 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
         const boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii),
                                      bc.GetIMax(ii), bc.GetJMin(ii),
                                      bc.GetJMax(ii),
-                                     bc.GetKMin(ii) + lowDimK - 1,
-                                     bc.GetKMax(ii) + lowDimK - 1,
+                                     bc.GetKMin(ii) + lowDimK,
+                                     bc.GetKMax(ii) + lowDimK,
                                      bc.GetTag(ii));
 
         newBC.surfs_[cc] = bcSurf;
@@ -1906,8 +1906,8 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       const boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii),
                                    bc.GetIMax(ii),
                                    bc.GetJMin(ii), bc.GetJMax(ii),
-                                   bc.GetKMin(ii) + lowDimK - 1,
-                                   bc.GetKMax(ii) + lowDimK - 1, bc.GetTag(ii));
+                                   bc.GetKMin(ii) + lowDimK,
+                                   bc.GetKMax(ii) + lowDimK, bc.GetTag(ii));
 
       newBC.surfs_[cc] = bcSurf;
       cc++;
@@ -1931,8 +1931,8 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       const boundarySurface bcSurf(bc.GetBCTypes(ii), bc.GetIMin(ii),
                                    bc.GetIMax(ii),
                                    bc.GetJMin(ii), bc.GetJMax(ii),
-                                   bc.GetKMin(ii) + lowDimK - 1,
-                                   bc.GetKMax(ii) + lowDimK - 1, bc.GetTag(ii));
+                                   bc.GetKMin(ii) + lowDimK,
+                                   bc.GetKMax(ii) + lowDimK, bc.GetTag(ii));
 
       newBC.surfs_[cc] = bcSurf;
       cc++;
