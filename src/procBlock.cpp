@@ -370,7 +370,7 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
         const inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper,
                                               eqnState,
                                               this->FAreaUnitI(ig, jg, kg));
-        
+
         // area vector points from left to right, so add to left cell, subtract
         // from right cell
         // at left boundary there is no left cell to add to
@@ -413,7 +413,7 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
                                         this->FAreaI(ig, jg, kg), false,
                                         inp, turb);
             mainDiagonal(ip, jp, kp) -= fluxJac;
-          } else {
+          } else if (inp.IsImplicit()) {
             mainDiagonal(ip, jp, kp) += fluxJacobian(specRad);
           }
         }
@@ -544,7 +544,7 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
                                         this->FAreaJ(ig, jg, kg), false,
                                         inp, turb);
             mainDiagonal(ip, jp, kp) -= fluxJac;
-          } else {
+          } else if (inp.IsImplicit()) {
             mainDiagonal(ip, jp, kp) += fluxJacobian(specRad);
           }
         }
@@ -676,7 +676,7 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
                                         this->FAreaK(ig, jg, kg), false,
                                         inp, turb);
             mainDiagonal(ip, jp, kp) -= fluxJac;
-          } else {
+          } else if (inp.IsImplicit()) {
             mainDiagonal(ip, jp, kp) += fluxJacobian(specRad);
           }
         }
@@ -1960,7 +1960,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                                       this->FAreaI(ig, jg, kg), c2cDist,
                                       turb, inp, false, velGrad);
             mainDiagonal(ip, jp, kp) += fluxJac;
-          } else {
+          } else if (inp.IsImplicit()) {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
             mainDiagonal(ip, jp, kp) += fluxJacobian(2.0 * specRad);
           }
@@ -2184,7 +2184,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                                       this->FAreaJ(ig, jg, kg), c2cDist,
                                       turb, inp, false, velGrad);
             mainDiagonal(ip, jp, kp) += fluxJac;
-          } else {
+          } else if (inp.IsImplicit()) {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
             mainDiagonal(ip, jp, kp) += fluxJacobian(2.0 * specRad);
           }
@@ -2408,7 +2408,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                                       this->FAreaK(ig, jg, kg), c2cDist,
                                       turb, inp, false, velGrad);
             mainDiagonal(ip, jp, kp) += fluxJac;
-          } else {
+          } else if (inp.IsImplicit()) {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
             mainDiagonal(ip, jp, kp) += fluxJacobian(2.0 * specRad);
           }
@@ -7211,7 +7211,7 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
         // add contribution of source spectral radius to flux jacobian
         if (inp.IsBlockMatrix()) {
           mainDiagonal(ip, jp, kp).SubtractFromTurbJacobian(srcJac);
-        } else {
+        } else if (inp.IsImplicit()) {
           const uncoupledScalar srcJacScalar(0.0, turbSpecRad);
           mainDiagonal(ip, jp, kp) -= fluxJacobian(srcJacScalar);
         }
