@@ -35,8 +35,8 @@ matrix:
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -y libopencv-dev
-  - test -n $CC && unset $CC
-  - test -n $CXX && unset $CXX
+  - test -n $CC && unset CC
+  - test -n $CXX && unset CXX
 
 # build instructions
 script:
