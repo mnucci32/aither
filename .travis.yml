@@ -31,16 +31,18 @@ matrix:
             - clang-3.8
       env: COMPILER=clang++-3.8
 
-# recommended for using mpi
+# get mpi installed from source
 before_install:
   - sudo apt-get update -qq
   - sudo apt-get install -y libopencv-dev
   - test -n $CC && unset CC
   - test -n $CXX && unset CXX
-  - sh travis/install-mpi.sh $MPI
+  - bash travis/installOpenMPI
 
 # build instructions
 script:
   - mkdir build
   - cd build
-  - cmake -DCMAKE_CXX_COMPILER=$COMPILER -DCMAKE_BUILD_TYPE=release .. && make && make install
+  - cmake -DCMAKE_CXX_COMPILER=$COMPILER -DMPI_DIR=../openmpi -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX=aither ..
+  - make -j4
+  - make install
