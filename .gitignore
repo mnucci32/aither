@@ -18,6 +18,7 @@ aither
 *.res
 *.out
 *_center.xyz
+*.resid
 
 #Ignore blog files
 _site

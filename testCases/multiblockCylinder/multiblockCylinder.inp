@@ -33,24 +33,24 @@ boundaryConditions: 2
 #Block   0  -- Indices: 33 2 41
 3 2 2
 #i_surfaces
-   characteristic     1     1     1     2     1    21    3
-   characteristic     1     1     1     2    21    41    1
-   slipWall          33    33     1     2     1    41    2
+   characteristic     0     0     0     1     0    20    3
+   characteristic     0     0     0     1    20    40    1
+   slipWall          32    32     0     1     0    40    2
 #j_surfaces
-   slipWall           1    33     1     1     1    41    3
-   slipWall           1    33     2     2     1    41    3
+   slipWall           0    32     0     0     0    40    3
+   slipWall           0    32     1     1     0    40    3
 #k_surfaces
-   interblock         1    33     1     2    41    41    5001
-   interblock         1    33     1     2     1     1    6001
+   interblock         0    32     0     1    40    40    5001
+   interblock         0    32     0     1     0     0    6001
 #Block   1  -- Indices: 33 2 41
 3 2 2
 #i_surfaces
-   characteristic     1     1     1     2    21    41    3
-   characteristic     1     1     1     2     1    21    1
-   slipWall          33    33     1     2     1    41    2
+   characteristic     0     0     0     1    20    40    3
+   characteristic     0     0     0     1     0    20    1
+   slipWall          32    32     0     1     0    40    2
 #j_surfaces
-   slipWall           1    33     1     1     1    41    3
-   slipWall           1    33     2     2     1    41    3
+   slipWall           0    32     0     0     0    40    3
+   slipWall           0    32     1     1     0    40    3
 #k_surfaces
-   interblock         1    33     1     2     1     1    6000
-   interblock         1    33     1     2    41    41    5000
+   interblock         0    32     0     1     0     0    6000
+   interblock         0    32     0     1    40    40    5000

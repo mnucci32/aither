@@ -29,13 +29,13 @@ boundaryConditions: 1
 #Block   1  -- Indices: 61 33 2
 2 4 2
 #i_surfaces
-   characteristic     1     1     1    33     1     2     1
-   characteristic    61    61     1    33     1     2     2
+   characteristic     0     0     0    32     0     1     1
+   characteristic    60    60     0    32     0     1     2
 #j_surfaces
-   slipWall           1    21     1     1     1     2     0
-   slipWall          21    41     1     1     1     2     0
-   slipWall          41    61     1     1     1     2     0
-   slipWall           1    61    33    33     1     2     0
+   slipWall           0    20     0     0     0     1     0
+   slipWall          20    40     0     0     0     1     0
+   slipWall          40    60     0     0     0     1     0
+   slipWall           0    60    32    32     0     1     0
 #k_surfaces
-   slipWall           1    61     1    33     1     1     0
-   slipWall           1    61     1    33     2     2     0
+   slipWall           0    60     0    32     0     0     0
+   slipWall           0    60     0    32     1     1     0
