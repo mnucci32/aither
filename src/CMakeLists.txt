@@ -2,8 +2,8 @@ project (aither)
 
 # set version number
 set (aither_VERSION_MAJOR 0)
-set (aither_VERSION_MINOR 3)
-set (aither_VERSION_PATCH 1)
+set (aither_VERSION_MINOR 4)
+set (aither_VERSION_PATCH 0)
 
 message (STATUS "Cmake version ${CMAKE_VERSION}")
 message (STATUS "Configuring aither v${aither_VERSION_MAJOR}.${aither_VERSION_MINOR}.${aither_VERSION_PATCH}")
