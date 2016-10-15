@@ -37,7 +37,7 @@ before_install:
   - sudo apt-get install -y libopencv-dev
   - test -n $CC && unset CC
   - test -n $CXX && unset CXX
-  - bash travis/installOpenMPI
+  - bash travis/installMPI
 
 # build instructions
 script:
