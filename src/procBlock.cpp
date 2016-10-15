@@ -370,7 +370,7 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
         const inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper,
                                               eqnState,
                                               this->FAreaUnitI(ig, jg, kg));
-        
+
         // area vector points from left to right, so add to left cell, subtract
         // from right cell
         // at left boundary there is no left cell to add to
@@ -413,7 +413,7 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
                                         this->FAreaI(ig, jg, kg), false,
                                         inp, turb);
             mainDiagonal(ip, jp, kp) -= fluxJac;
-          } else {
+          } else if (inp.IsImplicit()) {
             mainDiagonal(ip, jp, kp) += fluxJacobian(specRad);
           }
         }
@@ -544,7 +544,7 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
                                         this->FAreaJ(ig, jg, kg), false,
                                         inp, turb);
             mainDiagonal(ip, jp, kp) -= fluxJac;
-          } else {
+          } else if (inp.IsImplicit()) {
             mainDiagonal(ip, jp, kp) += fluxJacobian(specRad);
           }
         }
@@ -676,7 +676,7 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
                                         this->FAreaK(ig, jg, kg), false,
                                         inp, turb);
             mainDiagonal(ip, jp, kp) -= fluxJac;
-          } else {
+          } else if (inp.IsImplicit()) {
             mainDiagonal(ip, jp, kp) += fluxJacobian(specRad);
           }
         }
@@ -1960,7 +1960,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                                       this->FAreaI(ig, jg, kg), c2cDist,
                                       turb, inp, false, velGrad);
             mainDiagonal(ip, jp, kp) += fluxJac;
-          } else {
+          } else if (inp.IsImplicit()) {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
             mainDiagonal(ip, jp, kp) += fluxJacobian(2.0 * specRad);
           }
@@ -2184,7 +2184,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                                       this->FAreaJ(ig, jg, kg), c2cDist,
                                       turb, inp, false, velGrad);
             mainDiagonal(ip, jp, kp) += fluxJac;
-          } else {
+          } else if (inp.IsImplicit()) {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
             mainDiagonal(ip, jp, kp) += fluxJacobian(2.0 * specRad);
           }
@@ -2408,7 +2408,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                                       this->FAreaK(ig, jg, kg), c2cDist,
                                       turb, inp, false, velGrad);
             mainDiagonal(ip, jp, kp) += fluxJac;
-          } else {
+          } else if (inp.IsImplicit()) {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
             mainDiagonal(ip, jp, kp) += fluxJacobian(2.0 * specRad);
           }
@@ -2445,12 +2445,12 @@ void procBlock::AssignGhostCellsGeom() {
   // loop over all boundary surfaces
   for (auto ii = 0; ii < bc_.NumSurfaces(); ii++) {
     // Get surface boundaries, and adjust them for ghost cells
-    const auto imin = bc_.GetIMin(ii) - 1 + numGhosts_;
-    const auto imax = bc_.GetIMax(ii) - 2 + numGhosts_;
-    const auto jmin = bc_.GetJMin(ii) - 1 + numGhosts_;
-    const auto jmax = bc_.GetJMax(ii) - 2 + numGhosts_;
-    const auto kmin = bc_.GetKMin(ii) - 1 + numGhosts_;
-    const auto kmax = bc_.GetKMax(ii) - 2 + numGhosts_;
+    const auto imin = bc_.GetIMin(ii) + numGhosts_;
+    const auto imax = bc_.GetIMax(ii) - 1 + numGhosts_;
+    const auto jmin = bc_.GetJMin(ii) + numGhosts_;
+    const auto jmax = bc_.GetJMax(ii) - 1 + numGhosts_;
+    const auto kmin = bc_.GetKMin(ii) + numGhosts_;
+    const auto kmax = bc_.GetKMax(ii) - 1 + numGhosts_;
 
     const auto imaxF = imax + 1;
     const auto jmaxF = jmax + 1;
@@ -3313,12 +3313,12 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
   // loop over all boundary surfaces
   for (auto ii = 0; ii < bc_.NumSurfaces(); ii++) {
     // Get surface boundaries, and adjust them for ghost cells
-    const auto imin = bc_.GetIMin(ii) - 1 + numGhosts_;
-    const auto imax = bc_.GetIMax(ii) - 2 + numGhosts_;
-    const auto jmin = bc_.GetJMin(ii) - 1 + numGhosts_;
-    const auto jmax = bc_.GetJMax(ii) - 2 + numGhosts_;
-    const auto kmin = bc_.GetKMin(ii) - 1 + numGhosts_;
-    const auto kmax = bc_.GetKMax(ii) - 2 + numGhosts_;
+    const auto imin = bc_.GetIMin(ii) + numGhosts_;
+    const auto imax = bc_.GetIMax(ii) - 1 + numGhosts_;
+    const auto jmin = bc_.GetJMin(ii) + numGhosts_;
+    const auto jmax = bc_.GetJMax(ii) - 1 + numGhosts_;
+    const auto kmin = bc_.GetKMin(ii) + numGhosts_;
+    const auto kmax = bc_.GetKMax(ii) - 1 + numGhosts_;
 
     int g1, g2, i1, i2;  // indices for cells
     int bnd;  // indices for faces
@@ -3367,8 +3367,7 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
       auto boundaryStates = state_.Slice(i1, i1, jmin, jmax, kmin, kmax);
       const auto wDist = wallDist_.Slice(i1, i1, jmin, jmax, kmin, kmax);
       auto ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas,
-                                              wDist, surf, inp, eos, suth, turb,
-                                              1);
+                                        wDist, surf, inp, eos, suth, turb, 1);
 
       state_.Insert(g1, g1, jmin, jmax, kmin, kmax, ghostStates);
 
@@ -3402,8 +3401,7 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
       auto boundaryStates = state_.Slice(imin, imax, i1, i1, kmin, kmax);
       const auto wDist = wallDist_.Slice(imin, imax, i1, i1, kmin, kmax);
       auto ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas,
-                                              wDist, surf, inp, eos, suth, turb,
-                                              1);
+                                        wDist, surf, inp, eos, suth, turb, 1);
 
       // assign state for first layer of ghost cells
       state_.Insert(imin, imax, g1, g1, kmin, kmax, ghostStates);
@@ -3438,8 +3436,7 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
       auto boundaryStates = state_.Slice(imin, imax, jmin, jmax, i1, i1);
       const auto wDist = wallDist_.Slice(imin, imax, jmin, jmax, i1, i1);
       auto ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas,
-                                              wDist, surf, inp, eos, suth, turb,
-                                              1);
+                                        wDist, surf, inp, eos, suth, turb, 1);
 
       // assign state for first layer of ghost cells
       state_.Insert(imin, imax, jmin, jmax, g1, g1, ghostStates);
@@ -3784,12 +3781,12 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
   // loop over all boundary surfaces
   for (auto ii = 0; ii < bc_.NumSurfaces(); ii++) {
     // Get surface boundaries, and adjust them for ghost cells
-    const auto imin = bc_.GetIMin(ii) - 1 + numGhosts_;
-    const auto imax = bc_.GetIMax(ii) - 2 + numGhosts_;
-    const auto jmin = bc_.GetJMin(ii) - 1 + numGhosts_;
-    const auto jmax = bc_.GetJMax(ii) - 2 + numGhosts_;
-    const auto kmin = bc_.GetKMin(ii) - 1 + numGhosts_;
-    const auto kmax = bc_.GetKMax(ii) - 2 + numGhosts_;
+    const auto imin = bc_.GetIMin(ii) + numGhosts_;
+    const auto imax = bc_.GetIMax(ii) - 1 + numGhosts_;
+    const auto jmin = bc_.GetJMin(ii) + numGhosts_;
+    const auto jmax = bc_.GetJMax(ii) - 1 + numGhosts_;
+    const auto kmin = bc_.GetKMin(ii) + numGhosts_;
+    const auto kmax = bc_.GetKMax(ii) - 1 + numGhosts_;
 
     int g1, g2, i1, i2;  // indices for cells
     int bnd;  // indices for faces
@@ -7214,7 +7211,7 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
         // add contribution of source spectral radius to flux jacobian
         if (inp.IsBlockMatrix()) {
           mainDiagonal(ip, jp, kp).SubtractFromTurbJacobian(srcJac);
-        } else {
+        } else if (inp.IsImplicit()) {
           const uncoupledScalar srcJacScalar(0.0, turbSpecRad);
           mainDiagonal(ip, jp, kp) -= fluxJacobian(srcJacScalar);
         }

@@ -38,12 +38,12 @@ boundaryConditions: 1
 #Block  0  -- Indices: 2 137 97
 2 2 3
 #i_surfaces
-   slipWall           2     2     1   137     1    97     0
-   slipWall           1     1     1   137     1    97     0
+   slipWall           1     1     0   136     0    96     0
+   slipWall           0     0     0   136     0    96     0
 #j_surfaces
-   stagnationInlet    1     2     1     1     1    97     1
-   pressureOutlet     1     2   137   137     1    97     2
+   stagnationInlet    0     1     0     0     0    96     1
+   pressureOutlet     0     1   136   136     0    96     2
 #k_surfaces
-   slipWall           1     2     1    25     1     1     0
-   viscousWall        1     2    25   137     1     1     3
-   pressureOutlet     1     2     1   137    97    97     4
+   slipWall           0     1     0    24     0     0     0
+   viscousWall        0     1    24   136     0     0     3
+   pressureOutlet     0     1     0   136    96    96     4

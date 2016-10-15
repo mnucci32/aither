@@ -26,11 +26,11 @@ boundaryConditions: 1
 #Block   1  -- Indices: 21 33 2
 2 2 2
 #i_surfaces
-   slipWall           1     1     1    33     1     2     0
-   slipWall           21     21     1    33     1     2     0
+   slipWall           0      0     0    32     0     1     0
+   slipWall          20     20     0    32     0     1     0
 #j_surfaces
-   supersonicInflow   1     21     1     1     1     2     0
-   supersonicOutflow  1     21    33    33     1     2     0
+   supersonicInflow   0     20     0     0     0     1     0
+   supersonicOutflow  0     20    32    32     0     1     0
 #k_surfaces
-   slipWall           1     21     1    33     1     1     0
-   slipWall           1     21     1    33     2     2     0
+   slipWall           0     20     0    32     0     0     0
+   slipWall           0     20     0    32     1     1     0

@@ -29,11 +29,11 @@ boundaryConditions: 1
 #Block   1  -- Indices: 65 65 2
 2 2 2
 #i_surfaces -------------------------------------------
-characteristic      1     1     1    65     1     2    0
-characteristic     65    65     1    65     1     2    0
+characteristic      0     0     0    64     0     1    0
+characteristic     64    64     0    64     0     1    0
 #j_surfaces -------------------------------------------
-viscousWall         1    65     1     1     1     2    0
-characteristic      1    65    65    65     1     2    0
+viscousWall         0    64     0     0     0     1    0
+characteristic      0    64    64    64     0     1    0
 #k_surfaces -------------------------------------------
-slipWall            1    65     1    65     1     1    0
-slipWall            1    65     1    65     2     2    0
+slipWall            0    64     0    64     0     0    0
+slipWall            0    64     0    64     1     1    0
