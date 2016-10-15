@@ -1,0 +1,45 @@
+language: cpp
+sudo: required
+dist: trusty
+
+# setup build matrix
+matrix:
+  include:
+    - compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-5
+      env: COMPILER=g++-5
+    - compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6
+      env: COMPILER=g++-6
+    - compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-trusty-3.8
+          packages:
+            - clang-3.8
+      env: COMPILER=clang++-3.8
+
+# recommended for using mpi
+before_install:
+  - sudo apt-get update -qq
+  - sudo apt-get install -y libopencv-dev
+  - test -n $CC && unset $CC
+  - test -n $CXX && unset $CXX
+
+# build instructions
+script:
+  - mkdir build
+  - cd build
+  - cmake -DCMAKE_CXX_COMPILER=$COMPILER -DCMAKE_BUILD_TYPE=release .. && make && make install
