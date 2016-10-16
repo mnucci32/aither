@@ -69,11 +69,11 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gcc; fi
   - test -n $CC && unset CC
   - test -n $CXX && unset CXX
-  - $CXX_COMPILER --version
+  - which $CXX_COMPILER
 
 # install mpi
 install:
-  - bash travis/installMPI
+  - travis_wait bash travis/installMPI
 
 # build instructions
 script:
