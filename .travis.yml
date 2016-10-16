@@ -5,6 +5,10 @@ branches:
     - master
     - develop
 
+cache:
+  directories:
+    - openmpi
+
 # setup build matrix
 matrix:
   include:
@@ -69,6 +73,7 @@ before_install:
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gcc; fi
   - test -n $CC && unset CC
   - test -n $CXX && unset CXX
+  - $CXX_COMPILER --version
 
 # install mpi
 install:
