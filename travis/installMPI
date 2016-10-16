@@ -5,8 +5,8 @@ wget https://www.open-mpi.org/software/ompi/v2.0/downloads/openmpi-2.0.1.tar.gz
 tar zxvf openmpi-2.0.1.tar.gz
 echo "Configuring and buidling OpenMPI"
 cd openmpi-2.0.1
-./configure --prefix=`pwd`/../openmpi > openmpi.configure
-make -j4 > openmpi.make
-make install > openmpi.install
+./configure --prefix=`pwd`/../openmpi &> openmpi.configure
+make -j4 &> openmpi.make
+make install &> openmpi.install
 cd ..
 
