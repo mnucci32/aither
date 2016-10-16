@@ -63,23 +63,29 @@ set_property (TARGET aither aitherStatic aitherShared PROPERTY CXX_STANDARD 14)
 set (CMAKE_CXX_STANDARD_REQUIRED ON)
 message (STATUS "Using C++14")
 
+# add compiler specific flags
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  message(STATUS "Changing stdlib for Clang")
+  set(COMPILER_SPEC_FLAGS "-stdlib=libc++")
+endif()
+
 # set additional c++ flags for all build types
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -pedantic -march=native -O3 -DNDEBUG")
-set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -Wall -pedantic -march=native")
-set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -Wall -pedantic -O0 -ggdb -pg")
+set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} -Wall -pedantic -march=native -O3 -DNDEBUG")
+set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${COMPILER_SPEC_FLAGS} -Wall -pedantic -march=native")
+set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${COMPILER_SPEC_FLAGS} -Wall -pedantic -O0 -ggdb -pg")
 # create profile build type
-set (CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS} -pg")
+set (CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} -pg")
 
 # set compiler flags based on release type
-if (CMAKE_BUILD_TYPE MATCHES release)
+if (CMAKE_BUILD_TYPE MATCHES "release")
    message (STATUS "C++ flags: " ${CMAKE_CXX_FLAGS_RELEASE})
-elseif (CMAKE_BUILD_TYPE MATCHES debug)
+elseif (CMAKE_BUILD_TYPE MATCHES "debug")
    message (STATUS "C++ flags: " ${CMAKE_CXX_FLAGS_DEBUG})
-elseif (CMAKE_BUILD_TYPE MATCHES profile)
+elseif (CMAKE_BUILD_TYPE MATCHES "profile")
    message (STATUS "C++ flags: " ${CMAKE_CXX_FLAGS_PROFILE})
-elseif (CMAKE_BUILD_TYPE MATCHES relwithdebinfo)
+elseif (CMAKE_BUILD_TYPE MATCHES "relwithdebinfo")
    message (STATUS "C++ flags: " ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
-elseif (CMAKE_BUILD_TYPE MATCHES minsizerel)
+elseif (CMAKE_BUILD_TYPE MATCHES "minsizerel")
    message (STATUS "C++ flags: " ${CMAKE_CXX_FLAGS_MINSIZEREL})
 else ()
    message (STATUS "C++ flags: " ${CMAKE_CXX_FLAGS})

@@ -1,0 +1,84 @@
+language: cpp
+
+branches:
+  only:
+    - master
+    - develop
+
+# setup build matrix
+matrix:
+  include:
+    - os: linux
+      dist: trusty
+      sudo: required
+      compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-5 gcc-5 libstdc++-5-dev
+      env:
+        - CXX_COMPILER=g++-5
+        - C_COMPILER=gcc-5
+    - os: linux
+      dist: trusty
+      sudo: required
+      compiler: gcc
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+          packages:
+            - g++-6 gcc-6 libstdc++-6-dev
+      env:
+        - CXX_COMPILER=g++-6
+        - C_COMPILER=gcc-6
+    - os: linux
+      dist: trusty
+      sudo: required
+      compiler: clang
+      addons:
+        apt:
+          sources:
+            - ubuntu-toolchain-r-test
+            - llvm-toolchain-trusty-3.8
+          packages:
+            - clang++-3.8 clang-3.8 libc++-dev libc++abi-dev
+      env:
+        - CXX_COMPILER=clang++-3.8
+        - C_COMPILER=clang-3.8
+    - os: osx
+      osx_image: xcode8
+      compiler: gcc
+      env:
+        - CXX_COMPILER=g++-6
+        - C_COMPILER=gcc-6
+    - os: osx
+      osx_image: xcode8
+      compiler: clang
+      env:
+        - CXX_COMPILER=clang++
+        - C_COMPILER=clang
+
+
+# upgrade packages
+before_install:
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get update -qq; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gcc; fi
+  - test -n $CC && unset CC
+  - test -n $CXX && unset CXX
+  - which $CXX_COMPILER
+
+# install mpi
+install:
+  - travis_wait bash travis/installMPI
+
+# build instructions
+script:
+  - mkdir build
+  - cd build
+  - cmake -G "Unix Makefiles" -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_C_COMPILER=$C_COMPILER -DMPI_DIR=../openmpi -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX=aither ..
+  - make -j4
+  - make install
