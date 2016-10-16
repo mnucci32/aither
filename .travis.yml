@@ -12,7 +12,8 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-5 gcc-5
-      env: COMPILER=g++-5
+      env: CXX_COMPILER=g++-5
+      env: CC_COMPILER=gcc-5
     - compiler: gcc
       addons:
         apt:
@@ -20,7 +21,8 @@ matrix:
             - ubuntu-toolchain-r-test
           packages:
             - g++-6 gcc-6
-      env: COMPILER=g++-6
+      env: CXX_COMPILER=g++-6
+      env: CC_COMPILER=gcc-6
     - compiler: clang
       addons:
         apt:
@@ -29,8 +31,9 @@ matrix:
             - llvm-toolchain-trusty-3.8
           packages:
             - clang++-3.8 clang-3.8
-      env: COMPILER=clang++-3.8
-
+      env: CXX_COMPILER=clang++-3.8
+      env: CC_COMPILER=clang-3.8
+      
 # get mpi installed from source
 before_install:
   - sudo apt-get update -qq
@@ -43,6 +46,6 @@ before_install:
 script:
   - mkdir build
   - cd build
-  - cmake -DCMAKE_CXX_COMPILER=$COMPILER -DMPI_DIR=../openmpi -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX=aither ..
+  - cmake -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_CC_COMPILER=$CC_COMPILER -DMPI_DIR=../openmpi -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX=aither ..
   - make -j4
   - make install
