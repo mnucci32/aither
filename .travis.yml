@@ -32,7 +32,7 @@ matrix:
             - ubuntu-toolchain-r-test
             - llvm-toolchain-trusty-3.8
           packages:
-            - clang++-3.8 clang-3.8
+            - clang++-3.8 clang-3.8 libc++-dev libc++abi-dev
       env:
         - CXX_COMPILER=clang++-3.8
         - C_COMPILER=clang-3.8
