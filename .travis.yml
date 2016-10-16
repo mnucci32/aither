@@ -13,7 +13,7 @@ matrix:
           packages:
             - g++-5 gcc-5
       env:
-	- CXX_COMPILER=g++-5
+        - CXX_COMPILER=g++-5
       	- C_COMPILER=gcc-5
     - compiler: gcc
       addons:
@@ -23,7 +23,7 @@ matrix:
           packages:
             - g++-6 gcc-6
       env:
-	- CXX_COMPILER=g++-6
+        - CXX_COMPILER=g++-6
       	- C_COMPILER=gcc-6
     - compiler: clang
       addons:
@@ -34,8 +34,8 @@ matrix:
           packages:
             - clang++-3.8 clang-3.8
       env:
-	- CXX_COMPILER=clang++-3.8
-      	- C_COMPILER=clang-3.8
+        - CXX_COMPILER=clang++-3.8
+        - C_COMPILER=clang-3.8
       
 # get mpi installed from source
 before_install:
