@@ -1,6 +1,6 @@
 # Accurate Implicit Three-dimensional Efficient RANS (AITHER)
 
-[![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=develop)](https://travis-ci.org/mnucci32/aither)
+[![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=master)](https://travis-ci.org/mnucci32/aither)
 
 ### About The code
 This code is for a 3D Navier-Stokes computational fluid dynamics solver. It is a cell centered, structured solver, using mulit-block structured grids in Plot3D format. It uses explicit and implicit time integration methods. It uses MUSCL extrapolation to reconstruct the primative variables from the cell centers to the cell faces. The code uses the Roe flux difference splitting scheme for the inviscid fluxes, and a central scheme for the viscous fluxes. It is second order accurate in both space and time.

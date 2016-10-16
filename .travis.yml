@@ -52,8 +52,8 @@ matrix:
       osx_image: xcode8
       compiler: gcc
       env:
-        - CXX_COMPILER=g++
-        - C_COMPILER=gcc
+        - CXX_COMPILER=g++-6
+        - C_COMPILER=gcc-6
     - os: osx
       osx_image: xcode8
       compiler: clang
