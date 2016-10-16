@@ -14,7 +14,7 @@ matrix:
             - g++-5 gcc-5
       env:
         - CXX_COMPILER=g++-5
-      	- C_COMPILER=gcc-5
+        - C_COMPILER=gcc-5
     - compiler: gcc
       addons:
         apt:
@@ -24,7 +24,7 @@ matrix:
             - g++-6 gcc-6
       env:
         - CXX_COMPILER=g++-6
-      	- C_COMPILER=gcc-6
+        - C_COMPILER=gcc-6
     - compiler: clang
       addons:
         apt:
