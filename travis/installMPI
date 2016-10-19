@@ -2,6 +2,7 @@
 
 if [ -d "openmpi" ]; then
     echo "Using cached OpenMPI"
+    ls
     ls openmpi/bin
 else
     echo "Downloading OpenMPI Source"
