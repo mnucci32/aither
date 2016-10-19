@@ -34,7 +34,8 @@ class regressionTest:
     location = "."
     runDirectory = "."
     aitherPath = "."
-
+    mpirunPath = "mpirun"
+    
     def __init__(self):
         self.location = os.getcwd()
         
@@ -56,6 +57,9 @@ class regressionTest:
     def SetAitherPath(self, path):
         self.aitherPath = path
 
+    def SetMpirunPath(self, path):
+        self.mpirunPath = path
+        
     def SetIgnoreIndices(self, ind):
         self.ignoreIndices = ind
         
@@ -103,7 +107,7 @@ class regressionTest:
         print("Current directory:", os.getcwd())
         print("Modifying input file...")
         self.ModifyInputFile()
-        cmd = "mpirun -np " + str(self.procs) + " " + self.aitherPath \
+        cmd = self.mpirunPath + " -np " + str(self.procs) + " " + self.aitherPath \
             + " " + self.caseName + ".inp > " + self.caseName + ".out"
         print(cmd)
         start = datetime.datetime.now()
@@ -138,6 +142,9 @@ def main():
     parser.add_option("-o", "--operatingSystem", action="store",
                       dest="operatingSystem", default="linux",
                       help="Operating system that tests will run on [linux/osx]")
+    parser.add_option("-m", "--mpirunPath", action="store",
+                      dest="mpirunPath", default="",
+                      help="Path to mpirun")
                       
     options, remainder = parser.parse_args()
 
@@ -165,6 +172,7 @@ def main():
     subCyl.SetNumberOfIterations(numIterations)
     subCyl.SetResiduals([1.5394e-1, 1.4989e-1, 1.5909e-1, 8.1415e-1, 1.5295e-1])
     subCyl.SetIgnoreIndices(3)
+    subCyl.SetMpirunPath(options.mpirunPath)
     
     # run regression case
     passed = subCyl.RunCase()   
@@ -184,6 +192,7 @@ def main():
     else:
         multiCyl.SetResiduals([2.3188e-1, 2.9621e-1, 4.5868e-1, 1.2813, 2.3009e-1])
     multiCyl.SetIgnoreIndices(3)
+    multiCyl.SetMpirunPath(options.mpirunPath)
     
     # run regression case
     passed = multiCyl.RunCase()
@@ -200,7 +209,8 @@ def main():
     supWedge.SetNumberOfIterations(numIterations)
     supWedge.SetResiduals([4.1813e-1, 4.2549e-1, 3.6525e-1, 3.8013e-1, 4.0998e-1])
     supWedge.SetIgnoreIndices(3)
-    
+    supWedge.SetMpirunPath(options.mpirunPath)
+        
     # run regression case
     passed = supWedge.RunCase()
     totalPass = totalPass and all(passed)
@@ -216,7 +226,8 @@ def main():
     transBump.SetNumberOfIterations(numIterations)
     transBump.SetResiduals([1.1839e-1, 6.8615e-2, 8.4925e-2, 1.0398, 9.9669e-2])        
     transBump.SetIgnoreIndices(3)
-    
+    transBump.SetMpirunPath(options.mpirunPath)
+
     # run regression case
     passed = transBump.RunCase()
     totalPass = totalPass and all(passed)
@@ -235,7 +246,8 @@ def main():
     else:
         viscPlate.SetResiduals([7.6469e-2, 2.4713e-1, 4.0108e-2, 9.8730e-1, 7.9237e-2])
     viscPlate.SetIgnoreIndices(3)
-    
+    viscPlate.SetMpirunPath(options.mpirunPath)
+
     # run regression case
     passed = viscPlate.RunCase()
     totalPass = totalPass and all(passed)        
@@ -256,7 +268,8 @@ def main():
         turbPlate.SetResiduals([3.9342e-2, 4.2745e-2, 1.0167, 7.4597e-2, 3.8149e-2,
                                 1.9104e-8, 1.1854e-5])
     turbPlate.SetIgnoreIndices(2)
-        
+    turbPlate.SetMpirunPath(options.mpirunPath)
+
     # run regression case
     passed = turbPlate.RunCase()
     totalPass = totalPass and all(passed)        
