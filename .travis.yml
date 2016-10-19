@@ -88,7 +88,7 @@ install:
 script:
   - mkdir build
   - cd build
-  - cmake -G "Unix Makefiles" -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_C_COMPILER=$C_COMPILER -DMPI_DIR=$MPI_DIR -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX=install ..
+  - cmake -G "Unix Makefiles" -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_C_COMPILER=$C_COMPILER -DMPI_DIR=$TRAVIS_BUILD_DIR/openmpi -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX=install ..
   - make -j4
   - make install
   - cd ../testCases
