@@ -20,8 +20,10 @@ densityRef: 1.2256
 temperatureRef: 288.0
 velocity: 238.0, 0.0, 0.0
 
-matrixSolver: lusgs
+matrixSolver: dplur
+matrixSweeps: 4
 matrixRelaxation: 1.0
+
 #---------------------------------------------------------------------------#
 #Boundary Conditions
 # bc imin imax jmin jmax kmin kmax tag
