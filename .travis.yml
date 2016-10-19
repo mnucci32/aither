@@ -90,4 +90,4 @@ script:
   - make -j4
   - make install
   - cd ../testCases
-  - python3 regressionTests.py --aitherPath=../build/install/bin/aither --operatingSystem=$TRAVIS_OS_NAME --mpiBin=../openmpi/bin
+  - python3 regressionTests.py --aitherPath=../build/install/bin/aither --operatingSystem=$TRAVIS_OS_NAME --mpirunPath=../openmpi/bin/mpirun
