@@ -2,10 +2,6 @@
 
 if [ -f "openmpi/bin/mpirun" ]; then
     echo "Using cached OpenMPI"
-    ls openmpi
-    ls openmpi/bin
-    ls openmpi/include
-    ls openmpi/lib
 else
     echo "Downloading OpenMPI Source"
     wget https://www.open-mpi.org/software/ompi/v2.0/downloads/openmpi-2.0.1.tar.gz
@@ -15,7 +11,7 @@ else
     ./configure --prefix=`pwd`/../openmpi CC=$C_COMPILER CXX=$CXX_COMPILER &> openmpi.configure
     make -j4 &> openmpi.make
     make install &> openmpi.install
-    test -n $CC && unset CC
-    test -n $CXX && unset CXX
     cd ..
 fi
+test -n $CC && unset CC
+test -n $CXX && unset CXX
