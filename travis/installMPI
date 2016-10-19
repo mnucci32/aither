@@ -1,8 +1,9 @@
 #!/bin/bash
 
-if [ -d "openmpi" ]; then
+if [ -f "openmpi/bin/mpirun" ]; then
     echo "Using cached OpenMPI"
     ls
+    ls openmpi
     ls openmpi/bin
 else
     echo "Downloading OpenMPI Source"
