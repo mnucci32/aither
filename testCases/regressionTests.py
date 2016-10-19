@@ -34,6 +34,7 @@ class regressionTest:
     runDirectory = "."
     aitherPath = "."
     mpirunPath = "mpirun"
+    percentTolerance = 0.01
     
     def __init__(self):
         self.location = os.getcwd()
@@ -62,6 +63,9 @@ class regressionTest:
     def SetIgnoreIndices(self, ind):
         self.ignoreIndices = ind
         
+    def SetPercentTolerance(self, per):
+        self.percentTolerance = per
+
     def GoToRunDirectory(self):
         os.chdir(self.runDirectory)
     
@@ -83,7 +87,8 @@ class regressionTest:
         truthResids = self.residuals
         del truthResids[self.ignoreIndices]
         if (returnCode == 0):
-            passing = [resid == truthResids[ii] for ii, resid in enumerate(resids)]
+            passing = [abs(resid - truthResids[ii]) <= self.percentTolerance * truthResids[ii]
+                       for ii, resid in enumerate(resids)]
         else:
             passing = [False for ii in resids]
         return passing, resids
