@@ -59,17 +59,16 @@ matrix:
       env:
         - CXX_COMPILER=g++-6
         - C_COMPILER=gcc-6
-	- HOMEBREW_CC=gcc-6
-	- HOMEBREW_CXX=g++-6
+        - HOMEBREW_CC=gcc-6
+        - HOMEBREW_CXX=g++-6
     - os: osx
       osx_image: xcode8
       compiler: clang
       env:
         - CXX_COMPILER=clang++
         - C_COMPILER=clang
-	- HOMEBREW_CC=clang
-	- HOMEBREW_CXX=clang++
-
+        - HOMEBREW_CC=clang
+        - HOMEBREW_CXX=clang++
 
 # upgrade packages
 before_install:
