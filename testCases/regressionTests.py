@@ -18,7 +18,6 @@
 #   travis ci.
 
 import os
-import numpy as np
 import optparse
 import shutil
 import sys
@@ -69,11 +68,18 @@ class regressionTest:
     def ReturnToHomeDirectory(self):
         os.chdir(self.location)
         
-    def CompareResiduals(self, returnCode):
+    def GetTestCaseResiduals(self):
         fname = self.caseName + ".resid"
-        resids = np.genfromtxt(fname, skip_header=1)
-        resids = resids[-1,3:3+len(self.residuals)]
-        resids = np.delete(resids, self.ignoreIndices)
+        file = open(fname, "r")
+        lastLine = file.readlines()[-1]
+        file.close()
+        tokens = lastLine.split()
+        resids = [float(ii) for ii in tokens[3:3+len(self.residuals)]]
+        return resids
+
+    def CompareResiduals(self, returnCode):
+        resids = self.GetTestCaseResiduals()
+        del resids[self.ignoreIndices]
         truthResids = self.residuals
         del truthResids[self.ignoreIndices]
         if (returnCode == 0):
