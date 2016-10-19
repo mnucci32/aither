@@ -2,9 +2,6 @@
 
 if [ -f "openmpi/bin/mpirun" ]; then
     echo "Using cached OpenMPI"
-    ls
-    ls openmpi
-    ls openmpi/bin
 else
     echo "Downloading OpenMPI Source"
     wget https://www.open-mpi.org/software/ompi/v2.0/downloads/openmpi-2.0.1.tar.gz
