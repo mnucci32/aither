@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-16  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by

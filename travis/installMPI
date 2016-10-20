@@ -1,17 +1,29 @@
 #!/bin/bash
 
-if [ -d "openmpi" ]; then
-    echo "Using cached OpenMPI"
+if [ "$TRAVIS_OS_NAME" == "osx" ]; then
+    cd openmpi
+    ln -s /usr/local/bin .
+    ln -s /usr/local/include .
+    ln -s /usr/local/lib .
+    ln -s /usr/local/share .
+    ln -s /usr/local/etc .
 else
-    echo "Downloading OpenMPI Source"
-    wget https://www.open-mpi.org/software/ompi/v2.0/downloads/openmpi-2.0.1.tar.gz
-    tar zxf openmpi-2.0.1.tar.gz
-    echo "Configuring and building OpenMPI"
-    cd openmpi-2.0.1
-    ./configure --prefix=`pwd`/../openmpi CC=$C_COMPILER CXX=$CXX_COMPILER &> openmpi.configure
-    make -j4 &> openmpi.make
-    make install &> openmpi.install
+    if [ -f "openmpi/bin/mpirun" ] && [ -f "openmpi-2.0.1/config.log" ]; then
+	echo "Using cached OpenMPI"
+	echo "Configuring OpenMPI"
+	cd openmpi-2.0.1
+	./configure --prefix=$TRAVIS_BUILD_DIR/openmpi CC=$C_COMPILER CXX=$CXX_COMPILER &> openmpi.configure
+    else
+	echo "Downloading OpenMPI Source"
+	wget https://www.open-mpi.org/software/ompi/v2.0/downloads/openmpi-2.0.1.tar.gz
+	tar zxf openmpi-2.0.1.tar.gz
+	echo "Configuring and building OpenMPI"
+	cd openmpi-2.0.1
+	./configure --prefix=$TRAVIS_BUILD_DIR/openmpi CC=$C_COMPILER CXX=$CXX_COMPILER &> openmpi.configure
+	make -j4 &> openmpi.make
+	make install &> openmpi.install
+	cd ..
+    fi
     test -n $CC && unset CC
     test -n $CXX && unset CXX
-    cd ..
 fi
