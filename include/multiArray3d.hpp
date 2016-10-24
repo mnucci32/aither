@@ -42,21 +42,26 @@ class multiArray3d {
   int numI_;
   int numJ_;
   int numK_;
+  int numGhosts_;
 
   // private member functions
   int GetLoc1D(const int &ii, const int &jj, const int &kk) const {
-    return ii + jj * numI_ + kk * numI_ * numJ_;
+    return (ii + numGhosts_) + (jj + numGhosts_) * numI_ +
+        (kk + numGhosts_) * numI_ * numJ_;
   }
 
  public:
   // constructor
-  multiArray3d(const int &ii, const int &jj, const int &kk, const T &init) :
-      data_(ii * jj * kk, init),
-      numI_(ii), numJ_(jj), numK_(kk) {}
-  multiArray3d(const int &ii, const int &jj, const int &kk) :
-      data_(ii * jj * kk),
-      numI_(ii), numJ_(jj), numK_(kk) {}
-  multiArray3d() : multiArray3d(1, 1, 1) {}
+  multiArray3d(const int &ii, const int &jj, const int &kk, const int &ng,
+               const T &init) :
+      data_((ii + 2 * ng) * (jj + 2 * ng) * (kk + 2 * ng), init),
+      numI_(ii + 2 * ng), numJ_(jj + 2 * ng), numK_(kk + 2 * ng),
+      numGhosts_(ng) {}
+  multiArray3d(const int &ii, const int &jj, const int &kk, const int &ng) :
+      data_((ii + 2 * ng) * (jj + 2 * ng) * (kk + 2 * ng)),
+      numI_(ii + 2 * ng), numJ_(jj + 2 * ng), numK_(kk + 2 * ng),
+      numGhosts_(ng) {}
+  multiArray3d() : multiArray3d(1, 1, 1, 0) {}
 
   // move constructor and assignment operator
   multiArray3d(multiArray3d&&) noexcept = default;
@@ -67,24 +72,41 @@ class multiArray3d {
   multiArray3d& operator=(const multiArray3d&) = default;
 
   // member functions
-  int Size() const { return data_.size(); }
-  int NumI() const { return numI_; }
-  int NumJ() const { return numJ_; }
-  int NumK() const { return numK_; }
+  int Size() const {return data_.size();}
+  int NumI() const {return numI_;}
+  int NumJ() const {return numJ_;}
+  int NumK() const {return numK_;}
+  int NumINoGhosts() const {return numI_ - 2 * numGhosts_;}
+  int NumJNoGhosts() const {return numJ_ - 2 * numGhosts_;}
+  int NumKNoGhosts() const {return numK_ - 2 * numGhosts_;}
+  int GhostLayers() const {return numGhosts_;}
+  int StartI() const {return -numGhosts_;}
+  int StartJ() const {return -numGhosts_;}
+  int StartK() const {return -numGhosts_;}
+  int EndI() const {return numI_ - numGhosts_;}
+  int EndJ() const {return numJ_ - numGhosts_;}
+  int EndK() const {return numK_ - numGhosts_;}
+  int PhysStartI() const {return 0;}
+  int PhysStartJ() const {return 0;}
+  int PhysStartK() const {return 0;}
+  int PhysEndI() const {return this->NumINoGhosts();}
+  int PhysEndJ() const {return this->NumJNoGhosts();}
+  int PhysEndK() const {return this->NumKNoGhosts();}
+  int PhysicalSize() const {
+    return this->NumINoGhosts() * this->NumJNoGhosts() * this->NumKNoGhosts();
+  }
 
   multiArray3d<T> Slice(const int&, const int&, const int&, const int&,
                         const int&, const int&) const;
   void Insert(const int&, const int&, const int&, const int&, const int&,
               const int&, const multiArray3d<T>&);
-  void PutSlice(const multiArray3d<T> &, const interblock &, const int &,
-                const int &);
+  void PutSlice(const multiArray3d<T> &, const interblock &, const int &);
   void SwapSliceMPI(const interblock&, const int&, const MPI_Datatype&,
-                    const int&, const int = 1);
-  void SwapSlice(const interblock&, multiArray3d<T>&, const int&,
-                      const int&);
+                    const int = 1);
+  void SwapSlice(const interblock&, multiArray3d<T>&);
 
   void Zero(const T&);
-  void Zero();  
+  void Zero();
 
   void GrowI();
   void GrowJ();
@@ -199,14 +221,15 @@ class multiArray3d {
     return lhs /= s;
   }
 
-  void ClearResize(const int &ii, const int &jj, const int &kk) {
-    *this = multiArray3d<T>(ii, jj, kk);
+  void ClearResize(const int &ii, const int &jj, const int &kk, const int &ng) {
+    *this = multiArray3d<T>(ii, jj, kk, ng);
   }
-  void ClearResize(const int &ii, const int &jj, const int &kk, const T &val) {
-    *this = multiArray3d<T>(ii, jj, kk, val);
+  void ClearResize(const int &ii, const int &jj, const int &kk,
+                   const int &ng, const T &val) {
+    *this = multiArray3d<T>(ii, jj, kk, ng, val);
   }
 
-  void SameSizeResize(const int &ii, const int&jj, const int &kk);
+  void SameSizeResize(const int &ii, const int &jj, const int &kk);
 
   // destructor
   ~multiArray3d() noexcept {}
@@ -214,14 +237,15 @@ class multiArray3d {
 
 template <typename T>
 T multiArray3d<T>::GetElem(const int &ii, const int &jj, const int &kk) const {
-  if (ii < numI_ && jj < numJ_ && kk < numK_ && ii >= 0 && jj >= 0 && kk >= 0) {
+  if (ii < this->EndI() && jj < this->EndJ() && kk < this->Endk() &&
+      ii >= this->StartI() && jj >= this->StartJ() && kk >= this->StartK()) {
     return data_[this->GetLoc1D(ii, jj, kk)];
   } else {
     cerr << "ERROR: Tried to access location outside of bounds of "
          << "multiArray3d" << endl;
     cerr << "Tried to access " << ii << ", " << jj << ", " << kk << endl;
-    cerr << "Maximum locations are " << numI_ - 1 << ", " << numJ_ - 1 << ", "
-         << numK_ - 1 << endl;
+    cerr << "Maximum locations are " << this->EndI() - 1 << ", "
+         << this->EndJ() - 1 << ", " << this->EndK() - 1 << endl;
     exit(EXIT_FAILURE);
   }
 }
@@ -395,61 +419,63 @@ multiArray3d<T> multiArray3d<T>::Slice(const int &is, const int &ie,
 
   // check that slice bounds are within parent array and that end bounds are
   // greater than or equal to start bounds
-  if (!(ie <= numI_ && ie >= 0 && is <= numI_ && is >= 0 &&
-        je <= numJ_ && je >= 0 && js <= numJ_ && js >= 0 &&
-        ke <= numK_ && ke >= 0 && ks <= numK_ && ks >= 0 &&
+  if (!(ie <= this->EndI() && is >= this->StartI() &&
+        je <= this->EndJ() && js >= this->StartJ() &&
+        ke <= this->EndK() && ks >= this->StartK() &&
         ie >= is && je >= js && ke >= ks)) {
     cerr << "ERROR: Error in multiArray3d::Slice. Cannot take slice with "
          << "boundaries " << is << ", " << ie << ", " << js << ", " << je
-         << ", " << ks << ", " << ke << " from array with dimensions " <<
-        numI_ << ", " << numJ_ << ", " << numK_ << endl;
+         << ", " << ks << ", " << ke << endl << "from array with ranges "
+         << this->StartI() << ":" << this->EndI() << ", " << this->StartJ()
+         << ":" << this->EndJ() << ", " << this->StartK() << ":"
+         << this->EndK() << endl;
     exit(EXIT_FAILURE);
   }
 
-  multiArray3d<T> array(ie - is + 1, je - js + 1, ke - ks + 1);
+  multiArray3d<T> arr(ie - is + 1, je - js + 1, ke - ks + 1, 0);
 
 // s is for index of sliced array, p is for index of parent array
-  for (auto kks = 0, kkp = ks; kks < array.numK_; kks++, kkp++) {
-    for (auto jjs = 0, jjp = js; jjs < array.numJ_; jjs++, jjp++) {
-      for (auto iis = 0, iip = is; iis < array.numI_; iis++, iip++) {
-        array(iis, jjs, kks) = (*this)(iip, jjp, kkp);
+  for (int kks = arr.StartK(), kkp = ks; kks < arr.EndK(); kks++, kkp++) {
+    for (int jjs = arr.StartJ(), jjp = js; jjs < arr.EndJ(); jjs++, jjp++) {
+      for (int iis = arr.StartI(), iip = is; iis < arr.EndI(); iis++, iip++) {
+        arr(iis, jjs, kks) = (*this)(iip, jjp, kkp);
       }
     }
   }
-  return array;
+  return arr;
 }
 
 // member function to insert an array into this one
 template <typename T>
 void multiArray3d<T>::Insert(const int &is, const int &ie, const int &js,
                              const int &je, const int &ks, const int &ke,
-                             const multiArray3d<T> &array) {
+                             const multiArray3d<T> &arr) {
   // is -- starting i-index to insert slice (inclusive)
   // ie -- ending i-index to insert slice (inclusive)
   // js -- starting j-index to insert slice (inclusive)
   // je -- ending j-index to insert slice (inclusive)
   // ks -- starting k-index to insert slice (inclusive)
   // ke -- ending k-index to insert slice (inclusive)
-  // array -- array to insert into this one
+  // arr -- array to insert into this one
 
   // check that given array fits in given bounds and that end bounds are
   // greater than or equal to start bounds
-  if (ie - is + 1 != array.numI_ && je - js + 1 != array.numJ_ &&
-      ke - ks +1 != array.numK_ && ie < is && je < js && ke < ks) {
-    cerr << "ERROR: Error in multiArray3d::Insert. Bounds of given array " <<
+  if (ie - is + 1 != arr.NumI() && je - js + 1 != arr.NumJ() &&
+      ke - ks + 1 != arr.NumK() && ie < is && je < js && ke < ks) {
+    cerr << "ERROR: Error in multiArray3d::Insert. Size of given array " <<
         "does not match size of location given to insert array into!" << endl;
-    cerr << "Size of given array is " << array.numI_ << ", " << array.numJ_ <<
-        ", " << array.numK_ << endl;
+    cerr << "Size of given array is " << arr.NumI() << ", " << arr.NumJ()
+         << ", " << arr.NumK() << endl;
     cerr << "Size of location is " << ie - is + 1 << ", " << je - js + 1 <<
         ", " << ke - ks + 1 << endl;
     exit(EXIT_FAILURE);
   }
 
   // s is for index of sliced array, p is for index of parent array
-  for (auto kks = 0, kkp = ks; kks < array.numK_; kks++, kkp++) {
-    for (auto jjs = 0, jjp = js; jjs < array.numJ_; jjs++, jjp++) {
-      for (auto iis = 0, iip = is; iis < array.numI_; iis++, iip++) {
-        (*this)(iip, jjp, kkp) = array(iis, jjs, kks);
+  for (int kks = arr.StartK(), kkp = ks; kks < arr.EndK(); kks++, kkp++) {
+    for (int jjs = arr.StartJ(), jjp = js; jjs < arr.EndJ(); jjs++, jjp++) {
+      for (int iis = arr.StartI(), iip = is; iis < arr.EndI(); iis++, iip++) {
+        (*this)(iip, jjp, kkp) = arr(iis, jjs, kks);
       }
     }
   }
@@ -457,11 +483,12 @@ void multiArray3d<T>::Insert(const int &is, const int &ie, const int &js,
 
 template <typename T>
 void multiArray3d<T>::GrowI() {
-  multiArray3d<T> arr(numI_ + 1, numJ_, numK_);
-  for (auto kk = 0; kk < arr.numK_; kk++) {
-    for (auto jj = 0; jj < arr.numJ_; jj++) {
-      for (auto ii = 0; ii < arr.numI_; ii++) {
-        arr(ii, jj, kk) = (ii == arr.numI_ - 1) ? (*this)(ii - 1, jj, kk) :
+  multiArray3d<T> arr(this->NumINoGhosts() + 1, this->NumJNoGhosts(),
+                      this->NumKNoGhosts(), numGhosts_);
+  for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
+    for (auto jj = arr.StartJ(); jj < arr.EndJ(); jj++) {
+      for (auto ii = arr.StartI(); ii < arr.EndI(); ii++) {
+        arr(ii, jj, kk) = (ii == arr.EndI() - 1) ? (*this)(ii - 1, jj, kk) :
             (*this)(ii, jj, kk);
       }
     }
@@ -471,11 +498,12 @@ void multiArray3d<T>::GrowI() {
 
 template <typename T>
 void multiArray3d<T>::GrowJ() {
-  multiArray3d<T> arr(numI_, numJ_ + 1, numK_);
-  for (auto kk = 0; kk < arr.numK_; kk++) {
-    for (auto jj = 0; jj < arr.numJ_; jj++) {
-      for (auto ii = 0; ii < arr.numI_; ii++) {
-        arr(ii, jj, kk) = (jj == arr.numJ_ - 1) ? (*this)(ii, jj - 1, kk) :
+  multiArray3d<T> arr(this->NumINoGhosts(), this->NumJNoGhosts() + 1,
+                      this->NumKNoGhosts(), numGhosts_);
+  for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
+    for (auto jj = arr.StartJ(); jj < arr.EndJ(); jj++) {
+      for (auto ii = arr.StartI(); ii < arr.EndI(); ii++) {
+        arr(ii, jj, kk) = (jj == arr.EndJ() - 1) ? (*this)(ii, jj - 1, kk) :
             (*this)(ii, jj, kk);
       }
     }
@@ -485,11 +513,12 @@ void multiArray3d<T>::GrowJ() {
 
 template <typename T>
 void multiArray3d<T>::GrowK() {
-  multiArray3d<T> arr(numI_, numJ_, numK_ + 1);
-  for (auto kk = 0; kk < arr.numK_; kk++) {
-    for (auto jj = 0; jj < arr.numJ_; jj++) {
-      for (auto ii = 0; ii < arr.numI_; ii++) {
-        arr(ii, jj, kk) = (kk == arr.numK_ - 1) ? (*this)(ii, jj, kk - 1) :
+  multiArray3d<T> arr(this->NumINoGhosts(), this->NumJNoGhosts(),
+                      this->NumKNoGhosts() + 1, numGhosts_);
+  for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
+    for (auto jj = arr.StartJ(); jj < arr.EndJ(); jj++) {
+      for (auto ii = arr.StartI(); ii < arr.EndI(); ii++) {
+        arr(ii, jj, kk) = (kk == arr.EndK() - 1) ? (*this)(ii, jj, kk - 1) :
             (*this)(ii, jj, kk);
       }
     }
@@ -500,15 +529,15 @@ void multiArray3d<T>::GrowK() {
 template <typename T>
 void multiArray3d<T>::SameSizeResize(const int &ii, const int&jj,
                                      const int &kk) {
-  if (this->Size() != (ii * jj * kk)) {
+  if (this->PhysicalSize() != (ii * jj * kk)) {
     cerr << "ERROR: Error in multiArray3d<T>::SameSizeResize. Attempting to "
-         << "resize array of " << this->Size() << " cells to " <<
+         << "resize array of " << this->PhysicalSize() << " cells to " <<
         ii * jj * kk << " cells." << endl;
     exit(EXIT_FAILURE);
   }
-    numI_ = ii;
-    numJ_ = jj;
-    numK_ = kk;
+    numI_ = ii + 2 * numGhosts_;
+    numJ_ = jj + 2 * numGhosts_;
+    numK_ = kk + 2 * numGhosts_;
 }
 
 // member function to "zero out" the container with a supplied "zero"
@@ -530,15 +559,16 @@ void multiArray3d<T>::Zero() {
 
 // operation overload for << - allows use of cout, cerr, etc.
 template <typename T>
-ostream &operator<<(ostream &os, const multiArray3d<T> &array) {
-  os << "Size: " << array.NumI() << ", " << array.NumJ() << ", "
-     << array.NumK() << endl;
+ostream &operator<<(ostream &os, const multiArray3d<T> &arr) {
+  os << "Size: " << arr.NumI() << ", " << arr.NumJ() << ", "
+     << arr.NumK() << endl;
+  os << "Number of ghost layers: " << arr.GhostLayers() << endl;
 
-  for (auto kk = 0; kk < array.NumK(); kk++) {
-    for (auto jj = 0; jj < array.NumJ(); jj++) {
-      for (auto ii = 0; ii < array.NumI(); ii++) {
+  for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
+    for (auto jj = arr.StartJ(); jj < arr.EndJ(); jj++) {
+      for (auto ii = arr.StartI(); ii < arr.EndI(); ii++) {
         os << ii << ", " << jj << ", " << kk << ", " <<
-            array(ii, jj, kk) << endl;
+            arr(ii, jj, kk) << endl;
       }
     }
   }
@@ -547,12 +577,10 @@ ostream &operator<<(ostream &os, const multiArray3d<T> &array) {
 
 template <typename T>
 void multiArray3d<T>::PutSlice(const multiArray3d<T> &array,
-                               const interblock &inter, const int &d3,
-                               const int &numG) {
+                               const interblock &inter, const int &d3) {
   // array -- array to insert into *this
   // inter -- interblock data structure defining patches and orientation
-  // d3 -- distance of directioni normal to patch to insert
-  // numG -- number of ghost cells
+  // d3 -- distance of direction normal to patch to insert
 
   // check that number of cells to insert matches
   auto blkCell = (inter.Dir1EndFirst() - inter.Dir1StartFirst()) *
@@ -568,24 +596,22 @@ void multiArray3d<T>::PutSlice(const multiArray3d<T> &array,
     exit(EXIT_FAILURE);
   }
 
-  // adjust insertion indices if patch borders another interblock on the same
-  // surface of the block
-  auto adjS1 = (inter.Dir1StartInterBorderFirst()) ? numG : 0;
-  auto adjE1 = (inter.Dir1EndInterBorderFirst()) ? numG : 0;
-  auto adjS2 = (inter.Dir2StartInterBorderFirst()) ? numG : 0;
-  auto adjE2 = (inter.Dir2EndInterBorderFirst()) ? numG : 0;
-
   // loop over cells to insert
   for (auto l3 = 0; l3 < d3; l3++) {
-    for (auto l2 = adjS2;
-         l2 < (inter.Dir2EndFirst() - inter.Dir2StartFirst() - adjE2); l2++) {
-      for (auto l1 = adjS1;
-           l1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst() - adjE1); l1++) {
+    for (auto l2 = 0; l2 < inter.Dir2EndFirst() - inter.Dir2StartFirst();
+         l2++) {
+      for (auto l1 = 0; l1 < inter.Dir1EndFirst() - inter.Dir1StartFirst();
+           l1++) {
         // get acceptor and inserter indices
-        auto indA = GetSwapLoc(l1, l2, l3, inter, true);
-        auto indI = GetSwapLoc(l1, l2, l3, inter, false);
+        // when at lower surface (constant surface == 0), l3 should be modified
+        // to use negative indices for ghost cells
+        auto l3Mod = inter.ConstSurfaceFirst() == 0 ?
+            -array.GhostLayers() + l3 : l3;
+        auto indA = GetSwapLoc(l1, l2, l3Mod, inter, true);
+        l3Mod = inter.ConstSurfaceSecond() == 0 ? -numGhosts_ + l3 : l3;
+        auto indI = GetSwapLoc(l1, l2, l3Mod, inter, false);
 
-        // swap cell data
+        // assign cell data
         (*this)(indA[0], indA[1], indA[2]) = array(indI[0], indI[1], indI[2]);
       }
     }
@@ -593,7 +619,7 @@ void multiArray3d<T>::PutSlice(const multiArray3d<T> &array,
 }
 
 /*Member function to pack an array into a buffer, swap it with its
- * interblock partner, and then unpack it into an array.*/
+  interblock partner, and then unpack it into an array.*/
 template <typename T>
 void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
                                         const MPI_Datatype &MPI_arrData,
@@ -607,11 +633,11 @@ void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
   // pack data into buffer, but first get size
   auto bufSize = 0;
   auto tempSize = 0;
-  MPI_Pack_size(this->Size(), MPI_arrData, MPI_COMM_WORLD,
-                &tempSize);  // add size for states
+  // add size for states
+  MPI_Pack_size(this->Size(), MPI_arrData, MPI_COMM_WORLD, &tempSize);
   bufSize += tempSize;
-  // add size for 3 ints for multiArray3d dims
-  MPI_Pack_size(3, MPI_INT, MPI_COMM_WORLD,
+  // add size for 4 ints for multiArray3d dims and num ghosts
+  MPI_Pack_size(4, MPI_INT, MPI_COMM_WORLD,
                 &tempSize);
   bufSize += tempSize;
 
@@ -621,12 +647,15 @@ void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
   auto numI = this->NumI();
   auto numJ = this->NumJ();
   auto numK = this->NumK();
+  auto numGhosts = this->GhostLayers();
   auto position = 0;
   MPI_Pack(&numI, 1, MPI_INT, buffer, bufSize, &position,
            MPI_COMM_WORLD);
   MPI_Pack(&numJ, 1, MPI_INT, buffer, bufSize, &position,
            MPI_COMM_WORLD);
   MPI_Pack(&numK, 1, MPI_INT, buffer, bufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&numGhosts, 1, MPI_INT, buffer, bufSize, &position,
            MPI_COMM_WORLD);
   MPI_Pack(&data_[0], this->Size(), MPI_arrData, buffer,
            bufSize, &position, MPI_COMM_WORLD);
@@ -648,6 +677,8 @@ void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
              MPI_COMM_WORLD);
   MPI_Unpack(buffer, bufSize, &position, &numK, 1, MPI_INT,
              MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &numGhosts, 1, MPI_INT,
+             MPI_COMM_WORLD);
   // resize slice
   this->SameSizeResize(numI, numJ, numK);
 
@@ -658,17 +689,16 @@ void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
 }
 
 /* Function to swap slice using MPI. This is similar to the SwapSlice
-function, but is called when the neighboring procBlocks are on different
-processors.
+   function, but is called when the neighboring procBlocks are on different
+   processors.
 */
 template <typename T>
 void multiArray3d<T>::SwapSliceMPI(const interblock &inter, const int &rank,
                                    const MPI_Datatype &MPI_arrData,
-                                   const int &numGhosts, const int tag) {
+                                   const int tag) {
   // inter -- interblock boundary information
   // rank -- processor rank
   // MPI_arrData -- MPI datatype for passing data in *this
-  // numGhosts -- number of ghost cells
   // tag -- id for MPI swap (default 1)
 
   // Get indices for slice coming from block to swap
@@ -680,10 +710,10 @@ void multiArray3d<T>::SwapSliceMPI(const interblock &inter, const int &rank,
   auto ke = 0;
 
   if (rank == inter.RankFirst()) {  // local block is first in interblock
-    inter.FirstSliceIndices(is, ie, js, je, ks, ke, numGhosts);
+    inter.FirstSliceIndices(is, ie, js, je, ks, ke, numGhosts_);
   // local block is second in interblock
   } else if (rank == inter.RankSecond()) {
-    inter.SecondSliceIndices(is, ie, js, je, ks, ke, numGhosts);
+    inter.SecondSliceIndices(is, ie, js, je, ks, ke, numGhosts_);
   } else {
     cerr << "ERROR: Error in procBlock::SwapSliceMPI(). Processor rank does "
             "not match either of interblock ranks!" << endl;
@@ -701,14 +731,14 @@ void multiArray3d<T>::SwapSliceMPI(const interblock &inter, const int &rank,
 
   // block to insert into is first in interblock
   if (rank == inter.RankFirst()) {
-    interAdj.AdjustForSlice(true, numGhosts);
+    interAdj.AdjustForSlice(true, numGhosts_);
   } else {  // block to insert into is second in interblock, so pass swapped
             // version
-    interAdj.AdjustForSlice(false, numGhosts);
+    interAdj.AdjustForSlice(false, numGhosts_);
   }
 
   // insert state slice into procBlock
-  this->PutSlice(slice, interAdj, numGhosts, numGhosts);
+  this->PutSlice(slice, interAdj, numGhosts_);
 }
 
 /* Function to swap ghost cells between two blocks at an interblock
@@ -732,12 +762,9 @@ their partner block as if there were no separation in the grid.
 */
 template <typename T>
 void multiArray3d<T>::SwapSlice(const interblock &inter,
-                                multiArray3d<T> &array, const int &numG1,
-                                const int &numG2) {
+                                multiArray3d<T> &array) {
   // inter -- interblock boundary information
   // array -- second array involved in interblock boundary
-  // numG1 -- number of ghost cells in first array
-  // numG2 -- number of ghost cells in second array
 
   // Get indices for slice coming from first block to swap
   auto is1 = 0;
@@ -747,7 +774,7 @@ void multiArray3d<T>::SwapSlice(const interblock &inter,
   auto ks1 = 0;
   auto ke1 = 0;
 
-  inter.FirstSliceIndices(is1, ie1, js1, je1, ks1, ke1, numG1);
+  inter.FirstSliceIndices(is1, ie1, js1, je1, ks1, ke1, numGhosts_);
 
   // Get indices for slice coming from second block to swap
   auto is2 = 0;
@@ -757,7 +784,7 @@ void multiArray3d<T>::SwapSlice(const interblock &inter,
   auto ks2 = 0;
   auto ke2 = 0;
 
-  inter.SecondSliceIndices(is2, ie2, js2, je2, ks2, ke2, numG2);
+  inter.SecondSliceIndices(is2, ie2, js2, je2, ks2, ke2, array.GhostLayers());
 
   // get slices to swap
   auto slice1 = this->Slice(is1, ie1, js1, je1, ks1, ke1);
@@ -766,12 +793,12 @@ void multiArray3d<T>::SwapSlice(const interblock &inter,
   // change interblocks to work with slice and ghosts
   interblock inter1 = inter;
   interblock inter2 = inter;
-  inter1.AdjustForSlice(false, numG1);
-  inter2.AdjustForSlice(true, numG2);
+  inter1.AdjustForSlice(false, numGhosts_);
+  inter2.AdjustForSlice(true, array.GhostLayers());
 
   // put slices in proper blocks
-  this->PutSlice(slice2, inter2, numG2, numG2);
-  array.PutSlice(slice1, inter1, numG1, numG1);
+  this->PutSlice(slice2, inter2, array.GhostLayers());
+  array.PutSlice(slice1, inter1, numGhosts_);
 }
 
 

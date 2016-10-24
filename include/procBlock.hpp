@@ -124,15 +124,13 @@ class procBlock {
   void CalcCellDt(const int &, const int &, const int &, const double &);
 
   void ExplicitEulerTimeAdvance(const idealGas &, const unique_ptr<turbModel> &,
-                                const int &, const int &, const int &,
                                 const int &, const int &, const int &);
   void ImplicitTimeAdvance(const genArray &, const idealGas &,
                            const unique_ptr<turbModel> &, const int &,
                            const int &, const int &);
   void RK4TimeAdvance(const genArray &, const idealGas &,
                       const unique_ptr<turbModel> &, const int &, const int &,
-                      const int &, const int &, const int &, const int &,
-                      const int &);
+                      const int &, const int &);
 
   void AddToResidual(const inviscidFlux &, const int &, const int &,
                      const int &);
@@ -148,7 +146,7 @@ class procBlock {
 
  public:
   // constructors
-  procBlock(const primVars &, const plot3dBlock &, const int &, const int &,
+  procBlock(const primVars &, const plot3dBlock &, const int &,
             const boundaryConditions &, const int &, const int &, const int &,
             const input &, const idealGas &, const sutherland &);
   procBlock(const int &, const int &, const int &, const int &, const bool &,
@@ -308,7 +306,7 @@ class procBlock {
   void ResetResidWS();
   void ResetGradients();
   void ResetTurbVars();
-  void CleanResizeVecs(const int &, const int &, const int &);
+  void CleanResizeVecs(const int &, const int &, const int &, const int &);
 
   void AssignGhostCellsGeom();
   void AssignGhostCellsGeomEdge();
@@ -369,12 +367,10 @@ class procBlock {
                const unique_ptr<turbModel> &,
                const multiArray3d<fluxJacobian> &) const;
 
-  bool IsPhysical(const int &, const int &, const int &, const bool &) const;
-  bool AtCorner(const int &, const int &, const int &, const bool &) const;
-  bool AtEdge(const int &, const int &, const int &, const bool &,
-              string &) const;
-  bool AtEdgeInclusive(const int &, const int &, const int &, const bool &,
-                       string &) const;
+  bool IsPhysical(const int &, const int &, const int &) const;
+  bool AtCorner(const int &, const int &, const int &) const;
+  bool AtEdge(const int &, const int &, const int &, string &) const;
+  bool AtEdgeInclusive(const int &, const int &, const int &, string &) const;
 
   vector<bool> PutGeomSlice(const geomSlice &, interblock &, const int &,
                             const int &);

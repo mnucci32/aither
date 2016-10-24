@@ -164,7 +164,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
   // write out variables
   for (auto ll = 0; ll < numBlks; ll++) {  // loop over all blocks
     multiArray3d<double> dumArr(recombVars[ll].NumI(), recombVars[ll].NumJ(),
-                                recombVars[ll].NumK());
+                                recombVars[ll].NumK(), 0);
 
     // loop over the number of variables to write out
     for (auto &var : inp.OutputVariables()) {

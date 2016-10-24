@@ -94,9 +94,6 @@ int main(int argc, char *argv[]) {
   // Parse input file
   inputVars.ReadInput(rank);
 
-  // Determine number of ghost cells
-  const auto numGhost = 2;
-
   // Get equation of state
   const idealGas eos(inputVars.Gamma(), inputVars.R());
 
@@ -145,7 +142,7 @@ int main(int argc, char *argv[]) {
     stateBlocks.resize(mesh.size());
     for (auto ll = 0U; ll < mesh.size(); ll++) {
       stateBlocks[ll] = procBlock(state, mesh[ll], decomp.ParentBlock(ll),
-                                  numGhost, bcs[ll], ll, decomp.Rank(ll),
+                                  bcs[ll], ll, decomp.Rank(ll),
                                   decomp.LocalPosition(ll), inputVars, eos,
                                   suth);
       stateBlocks[ll].AssignGhostCellsGeom();
@@ -295,7 +292,7 @@ int main(int argc, char *argv[]) {
 
       // Calculate residual (RHS)
       CalcResidual(localStateBlocks, mainDiagonal, suth, eos, inputVars,
-                   turb, connections, rank, numGhost);
+                   turb, connections, rank);
 
       // Calculate time step
       CalcTimeStep(localStateBlocks, inputVars, aRef);

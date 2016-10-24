@@ -742,11 +742,13 @@ multiArray3d<primVars> GetGhostStates(
   // layer -- layer of ghost cell to return
   //          (1 closest to boundary, or 2 farthest)
 
-  multiArray3d<primVars> ghostStates(bndStates.NumI(), bndStates.NumJ(),
-                                     bndStates.NumK());
-  for (auto kk = 0; kk < bndStates.NumK(); kk++) {
-    for (auto jj = 0; jj < bndStates.NumJ(); jj++) {
-      for (auto ii = 0; ii < bndStates.NumI(); ii++) {
+  multiArray3d<primVars> ghostStates(bndStates.NumINoGhosts(),
+                                     bndStates.NumJNoGhosts(),
+                                     bndStates.NumKNoGhosts(),
+                                     bndStates.GhostLayers());
+  for (auto kk = bndStates.StartK(); kk < bndStates.EndK(); kk++) {
+    for (auto jj = bndStates.StartJ(); jj < bndStates.EndJ(); jj++) {
+      for (auto ii = bndStates.StartI(); ii < bndStates.EndI(); ii++) {
         ghostStates(ii, jj, kk) =
             bndStates(ii, jj, kk).
             GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),

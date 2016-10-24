@@ -593,7 +593,7 @@ void interblock::AdjustForSlice(const bool &blkFirst, const int &numG) {
   }
 
   // If at an upper surface, start block at upper boundary
-  // (after including ghosts), if at lower surface, start block_ at 0
+  // (after including ghosts), if at lower surface, start block at 0
   const auto blkStart = (this->BoundaryFirst() % 2 == 0)
       ? this->ConstSurfaceFirst() + numG : 0;
 
@@ -781,7 +781,7 @@ void interblock::FirstSliceIndices(int &is1, int &ie1, int &js1, int &je1,
   // is already at the interior cells when acounting for ghost cells
   // if at the lower boundary adjust the constant surface by the number of ghost
   // cells to get to the first interior cell
-  const auto upLowFac = (this->BoundaryFirst() % 2 == 0) ? 0 : numGhosts1;
+  const auto upLowFac = (this->BoundarySecond() % 2 == 0) ? 0 : -numGhosts1;
 
   if (this->BoundaryFirst() == 1 ||
       this->BoundaryFirst() == 2) {  // direction 3 is i
@@ -796,6 +796,7 @@ void interblock::FirstSliceIndices(int &is1, int &ie1, int &js1, int &je1,
     // direction 2 is k
     ks1 = this->Dir2StartFirst();
     ke1 = this->Dir2EndFirst() - 1 + 2 * numGhosts1;
+
   } else if (this->BoundaryFirst() == 3 ||
              this->BoundaryFirst() == 4) {  // direction 3 is j
     // extend min/maxes to cover ghost cells
@@ -809,6 +810,7 @@ void interblock::FirstSliceIndices(int &is1, int &ie1, int &js1, int &je1,
     // direction 2 is i
     is1 = this->Dir2StartFirst();
     ie1 = this->Dir2EndFirst() - 1 + 2 * numGhosts1;
+
   } else if (this->BoundaryFirst() == 5 ||
              this->BoundaryFirst() == 6) {  // direction 3 is k
     // extend min/maxes to cover ghost cells
@@ -822,6 +824,7 @@ void interblock::FirstSliceIndices(int &is1, int &ie1, int &js1, int &je1,
     // direction 2 is j
     js1 = this->Dir2StartFirst();
     je1 = this->Dir2EndFirst() - 1 + 2 * numGhosts1;
+
   } else {
     cerr << "ERROR: Error in interblock::FirstSliceIndices(). Surface boundary "
          << this->BoundaryFirst() << " is not recognized!" << endl;
@@ -846,7 +849,7 @@ void interblock::SecondSliceIndices(int &is2, int &ie2, int &js2, int &je2,
   // is already at the interior cells when acounting for ghost cells
   // if at the lower boundary adjust the constant surface by the number of ghost
   // cells to get to the first interior cell
-  const auto upLowFac = (this->BoundarySecond() % 2 == 0) ? 0 : numGhosts2;
+  const auto upLowFac = (this->BoundarySecond() % 2 == 0) ? 0 : -numGhosts2;
 
   if (this->BoundarySecond() == 1 ||
       this->BoundarySecond() == 2) {  // direction 3 is i

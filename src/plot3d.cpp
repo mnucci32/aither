@@ -47,7 +47,7 @@ D2 are the diagonal distances of the four base points.
 multiArray3d<double> plot3dBlock::Volume() const {
   // Allocate multiArray3d to store cell volumes in
   multiArray3d<double> vol(this->NumI() - 1, this->NumJ() - 1,
-                           this->NumK() - 1);
+                           this->NumK() - 1, 0);
 
   // Loop over all cells
   for (auto kk = 0; kk < vol.NumK(); kk++) {
@@ -118,9 +118,8 @@ multiArray3d<double> plot3dBlock::Volume() const {
 // the centroid of the hexahedron is the average of the 8 points that define it
 multiArray3d<vector3d<double>> plot3dBlock::Centroid() const {
   // Allocate multiArray3d to store cell centroids in
-  multiArray3d<vector3d<double>> centroid(this->NumI() - 1,
-                                           this->NumJ() - 1,
-                                           this->NumK() - 1);
+  multiArray3d<vector3d<double>> centroid(this->NumI() - 1, this->NumJ() - 1,
+                                          this->NumK() - 1, 0);
 
   // loop over all cells
   for (auto kk = 0; kk < centroid.NumK(); kk++) {
@@ -173,7 +172,7 @@ to C. The normal vector points in the direction of increasing i.
 multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaI() const {
   // Allocate multiArray3d to store cell face areas
   multiArray3d<unitVec3dMag<double>> fArea(this->NumI(), this->NumJ() - 1,
-                                            this->NumK() - 1);
+                                           this->NumK() - 1, 0);
 
   // loop over all i-faces
   for (auto kk = 0; kk < fArea.NumK(); kk++) {
@@ -219,9 +218,8 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaI() const {
 // that comprise it
 multiArray3d<vector3d<double>> plot3dBlock::FaceCenterI() const {
   // Allocate multiArray3d to store cell face centers
-  multiArray3d<vector3d<double>> fCenter(this->NumI(),
-                                         this->NumJ() - 1,
-                                         this->NumK() - 1);
+  multiArray3d<vector3d<double>> fCenter(this->NumI(), this->NumJ() - 1,
+                                         this->NumK() - 1, 0);
   // loop over all i-faces
   for (auto kk = 0; kk < fCenter.NumK(); kk++) {
     for (auto jj = 0; jj < fCenter.NumJ(); jj++) {
@@ -264,7 +262,7 @@ to C. The normal points in the direction of increasing j.
 multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaJ() const {
   // Allocate multiArray3d to store cell face areas
   multiArray3d<unitVec3dMag<double>> fArea(this->NumI() - 1, this->NumJ(),
-                                           this->NumK() - 1);
+                                           this->NumK() - 1, 0);
 
   // loop over all j-faces
   for (auto kk = 0; kk < fArea.NumK(); kk++) {
@@ -310,9 +308,9 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaJ() const {
 // the face center is calculated as the average of the 4 points that comprise it
 multiArray3d<vector3d<double>> plot3dBlock::FaceCenterJ() const {
   // Allocate multiArray3d to store cell face centers
-  multiArray3d<vector3d<double>> fCenter(this->NumI() - 1,
-                                          this->NumJ(),
-                                          this->NumK() - 1);
+  multiArray3d<vector3d<double>> fCenter(this->NumI() - 1, this->NumJ(),
+                                         this->NumK() - 1, 0);
+
   // loop over all j-faces
   for (auto kk = 0; kk < fCenter.NumK(); kk++) {
     for (auto jj = 0; jj < fCenter.NumJ(); jj++) {
@@ -355,9 +353,9 @@ to C. The normal vector points in the direction of increasing k.
 */
 multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaK() const {
   // Allocate multiArray3d to store cell face areas
-  multiArray3d<unitVec3dMag<double>> fArea(this->NumI() - 1,
-                                            this->NumJ() - 1,
-                                            this->NumK());
+  multiArray3d<unitVec3dMag<double>> fArea(this->NumI() - 1, this->NumJ() - 1,
+                                           this->NumK(), 0);
+
   // loop over all k-faces
   for (auto kk = 0; kk < fArea.NumK(); kk++) {
     for (auto jj = 0; jj < fArea.NumJ(); jj++) {
@@ -402,9 +400,9 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaK() const {
 // the face center is calculated as the average of the 4 points that comprise it
 multiArray3d<vector3d<double>> plot3dBlock::FaceCenterK() const {
   // Allocate multiArray3d to store cell face centers
-  multiArray3d<vector3d<double>> fCenter(this->NumI() - 1,
-                                          this->NumJ() - 1,
-                                          this->NumK());
+  multiArray3d<vector3d<double>> fCenter(this->NumI() - 1, this->NumJ() - 1,
+                                         this->NumK(), 0);
+
   // loop over all k-faces
   for (auto kk = 0; kk < fCenter.NumK(); kk++) {
     for (auto jj = 0; jj < fCenter.NumJ(); jj++) {
@@ -484,7 +482,7 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, const double &LRef,
   mesh.reserve(numBlks);
 
   for (auto ii = 0; ii < numBlks; ii++) {
-    multiArray3d<vector3d<double>> coordinates(vecI[ii], vecJ[ii], vecK[ii]);
+    multiArray3d<vector3d<double>> coordinates(vecI[ii], vecJ[ii], vecK[ii], 0);
 
     for (auto jj = 0; jj < coordinates.Size(); jj++) {
       fName.read(reinterpret_cast<char *>(&tempDouble), sizeof(tempDouble));

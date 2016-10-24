@@ -34,15 +34,15 @@ geomSlice::geomSlice(const int &li, const int &lj, const int &lk,
 
   parBlock_ = pblk;
 
-  center_ = {li, lj, lk};
-  fAreaI_ = {li + 1, lj, lk};
-  fAreaJ_ = {li, lj + 1, lk};
-  fAreaK_ = {li, lj, lk + 1};
-  fCenterI_ = {li + 1, lj, lk};
-  fCenterJ_ = {li, lj + 1, lk};
-  fCenterK_ = {li, lj, lk + 1};
+  center_ = {li, lj, lk, 0};
+  fAreaI_ = {li + 1, lj, lk, 0};
+  fAreaJ_ = {li, lj + 1, lk, 0};
+  fAreaK_ = {li, lj, lk + 1, 0};
+  fCenterI_ = {li + 1, lj, lk, 0};
+  fCenterJ_ = {li, lj + 1, lk, 0};
+  fCenterK_ = {li, lj, lk + 1, 0};
 
-  vol_ = {li, lj, lk};
+  vol_ = {li, lj, lk, 0};
 }
 
 /* constructor to get a slice (portion) of the geometry of a procBlock. The
@@ -72,19 +72,19 @@ geomSlice::geomSlice(const procBlock &blk, const int &is, const int &ie,
   parBlock_ = blk.ParentBlock();
 
   // allocate size for vectors
-  center_ = {numI, numJ, numK};
-  fAreaI_ = {numI + 1, numJ, numK};
-  fAreaJ_ = {numI, numJ + 1, numK};
-  fAreaK_ = {numI, numJ, numK + 1};
-  fCenterI_ = {numI + 1, numJ, numK};
-  fCenterJ_ = {numI, numJ + 1, numK};
-  fCenterK_ = {numI, numJ, numK + 1};
-  vol_ = {numI, numJ, numK};
+  center_ = {numI, numJ, numK, 0};
+  fAreaI_ = {numI + 1, numJ, numK, 0};
+  fAreaJ_ = {numI, numJ + 1, numK, 0};
+  fAreaK_ = {numI, numJ, numK + 1, 0};
+  fCenterI_ = {numI + 1, numJ, numK, 0};
+  fCenterJ_ = {numI, numJ + 1, numK, 0};
+  fCenterK_ = {numI, numJ, numK + 1, 0};
+  vol_ = {numI, numJ, numK, 0};
 
   // loop over all cells in slice and populate
-  for (auto kk = 0; kk < vol_.NumK(); kk++) {
-    for (auto jj = 0; jj < vol_.NumJ(); jj++) {
-      for (auto ii = 0; ii < vol_.NumI(); ii++) {
+  for (auto kk = vol_.StartK(); kk < vol_.EndK(); kk++) {
+    for (auto jj = vol_.StartJ(); jj < vol_.EndJ(); jj++) {
+      for (auto ii = vol_.StartI(); ii < vol_.EndI(); ii++) {
         // determine if direction needs to be reversed
         auto k = revK ? numK - 1 - kk : kk;
         auto kFac = revK ? -1.0 : 1.0;

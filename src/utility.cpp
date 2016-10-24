@@ -410,7 +410,7 @@ void ExplicitUpdate(vector<procBlock> &blocks,
                     const unique_ptr<turbModel> &turb, const int &mm,
                     genArray &residL2, resid &residLinf) {
   // create dummy update (not used in explicit update)
-  multiArray3d<genArray> du(1, 1, 1);
+  multiArray3d<genArray> du(1, 1, 1, 0);
   // loop over all blocks and update
   for (auto bb = 0U; bb < blocks.size(); bb++) {
     blocks[bb].UpdateBlock(inp, eos, aRef, suth, du, solTimeN[bb],
@@ -549,16 +549,16 @@ void SwapImplicitUpdate(vector<multiArray3d<genArray>> &du,
         connections[ii].RankSecond() == rank) {
       // both sides of interblock are on this processor, swap w/o mpi
       du[connections[ii].LocalBlockFirst()].SwapSlice(connections[ii],
-                du[connections[ii].LocalBlockSecond()], numGhosts, numGhosts);
+                du[connections[ii].LocalBlockSecond()]);
     } else if (connections[ii].RankFirst() == rank) {
       // rank matches rank of first side of interblock, swap over mpi
       du[connections[ii].LocalBlockFirst()]
-          .SwapSliceMPI(connections[ii], rank, MPI_cellData, numGhosts);
+          .SwapSliceMPI(connections[ii], rank, MPI_cellData);
 
     } else if (connections[ii].RankSecond() == rank) {
       // rank matches rank of second side of interblock, swap over mpi
       du[connections[ii].LocalBlockSecond()]
-          .SwapSliceMPI(connections[ii], rank, MPI_cellData, numGhosts);
+          .SwapSliceMPI(connections[ii], rank, MPI_cellData);
     }
     // if rank doesn't match either side of interblock, then do nothing and
     // move on to the next interblock
@@ -601,8 +601,7 @@ void CalcResidual(vector<procBlock> &states,
                   vector<multiArray3d<fluxJacobian>> &mainDiagonal,
                   const sutherland &suth, const idealGas &eos,
                   const input &inp, const unique_ptr<turbModel> &turb,
-                  const vector<interblock> &connections, const int &rank,
-                  const int &numGhosts) {
+                  const vector<interblock> &connections, const int &rank) {
   // states -- vector of all procBlocks on processor
   // mainDiagonal -- main diagonal of A matrix for implicit solve
   // suth -- sutherland's law for viscosity
@@ -611,7 +610,6 @@ void CalcResidual(vector<procBlock> &states,
   // turb -- turbulence model
   // connections -- interblock boundary conditions
   // rank -- processor rank
-  // numGhosts -- number of layers of ghost cells
 
   for (auto bb = 0U; bb < states.size(); bb++) {
     // calculate residual
@@ -620,7 +618,7 @@ void CalcResidual(vector<procBlock> &states,
 
   if (inp.IsTurbulent()) {
     // swap turbulence varibles calculated during residual calculation
-    SwapTurbVars(states, connections, rank, numGhosts);
+    SwapTurbVars(states, connections, rank, inp.NumberGhostLayers());
 
     for (auto bb = 0U; bb < states.size(); bb++) {
       // calculate source terms for residual
@@ -696,14 +694,14 @@ void ResizeArrays(const vector<procBlock> &states, const input &inp,
 
   for (auto bb = 0U; bb < states.size(); bb++) {
     sol[bb].ClearResize(states[bb].NumI(), states[bb].NumJ(),
-                        states[bb].NumK());
+                        states[bb].NumK(), 0);
 
     const auto fluxJac = inp.IsBlockMatrix() ?
         fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations()) :
         fluxJacobian(1, 1);
 
     jac[bb].ClearResize(states[bb].NumI(), states[bb].NumJ(),
-                        states[bb].NumK(), fluxJac);
+                        states[bb].NumK(), 0, fluxJac);
   }
 }
 
