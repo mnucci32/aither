@@ -96,16 +96,24 @@ class multiArray3d {
     return this->NumINoGhosts() * this->NumJNoGhosts() * this->NumKNoGhosts();
   }
 
-  multiArray3d<T> Slice(const int&, const int&, const int&, const int&,
-                        const int&, const int&) const;
-  void Insert(const int&, const int&, const int&, const int&, const int&,
-              const int&, const multiArray3d<T>&);
-  void PutSlice(const multiArray3d<T> &, const interblock &, const int &);
-  void SwapSliceMPI(const interblock&, const int&, const MPI_Datatype&,
-                    const int = 1);
-  void SwapSlice(const interblock&, multiArray3d<T>&);
+  // provide begin and end so std::begin and std::end can be used
+  // use lower case to conform with std::begin, std::end
+  auto begin() noexcept {return data_.begin();}
+  const auto begin() const noexcept {return data_.begin();}
+  auto end() noexcept {return data_.end();}
+  const auto end() const noexcept {return data_.end();}
 
-  void Zero(const T&);
+  multiArray3d<T> Slice(const int &, const int &, const int &, const int &,
+                        const int &, const int &) const;
+  void Insert(const int &, const int &, const int &, const int &, const int &,
+              const int &, const multiArray3d<T> &);
+  void Fill(const multiArray3d<T> &);
+  void PutSlice(const multiArray3d<T> &, const interblock &, const int &);
+  void SwapSliceMPI(const interblock &, const int &, const MPI_Datatype &,
+                    const int = 1);
+  void SwapSlice(const interblock &, multiArray3d<T> &);
+
+  void Zero(const T &);
   void Zero();
 
   void GrowI();
@@ -230,6 +238,8 @@ class multiArray3d {
   }
 
   void SameSizeResize(const int &ii, const int &jj, const int &kk);
+  void SameSizeResizeGhosts(const int &ii, const int &jj, const int &kk,
+                            const int &ng);
 
   // destructor
   ~multiArray3d() noexcept {}
@@ -481,6 +491,32 @@ void multiArray3d<T>::Insert(const int &is, const int &ie, const int &js,
   }
 }
 
+// member function to fill this array with data from a provided one
+// the size of the provided array must be identical to this array
+// the data can now be accessed with the i, j, k indices from *this
+// if this is not wanted SameSizeResize or SameSizeResizeGhosts can be used
+template <typename T>
+void multiArray3d<T>::Fill(const multiArray3d<T> &arr) {
+  // arr -- array to insert into this one
+
+  // check that given array is same size
+  if (this->Size() != arr.Size()) {
+    cerr << "ERROR: Error in multiArray3d::Fill. Size of given array " <<
+        "does not match size of array to fill!" << endl;
+    cerr << "Size of given array is " << arr.NumI() << ", " << arr.NumJ()
+         << ", " << arr.NumK() << endl;
+    cerr << "With " << arr.GhostLayers() << " ghost cell layers" << endl;
+    cerr << "Resulting in a total size of " << arr.Size() << endl;
+    cerr << "Size of array to fill is " << numI_ << ", " << numJ_ <<
+        ", " << numK_ << endl;
+    cerr << "With " << numGhosts_ << " ghost cell layers" << endl;
+    cerr << "Resulting in a total size of " << this->Size() << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  *this = arr;
+}
+
 template <typename T>
 void multiArray3d<T>::GrowI() {
   multiArray3d<T> arr(this->NumINoGhosts() + 1, this->NumJNoGhosts(),
@@ -535,10 +571,26 @@ void multiArray3d<T>::SameSizeResize(const int &ii, const int&jj,
         ii * jj * kk << " cells." << endl;
     exit(EXIT_FAILURE);
   }
-    numI_ = ii + 2 * numGhosts_;
-    numJ_ = jj + 2 * numGhosts_;
-    numK_ = kk + 2 * numGhosts_;
+  numI_ = ii + 2 * numGhosts_;
+  numJ_ = jj + 2 * numGhosts_;
+  numK_ = kk + 2 * numGhosts_;
 }
+
+template <typename T>
+void multiArray3d<T>::SameSizeResizeGhosts(const int &ii, const int&jj,
+                                           const int &kk, const int &ng) {
+  if (this->Size() != ((ii + 2 * ng) * (jj + 2 * ng) * (kk + 2 * ng))) {
+    cerr << "ERROR: Error in multiArray3d<T>::SameSizeResizeGhosts. Attempting "
+         << "to resize array of " << this->Size() << " cells to " <<
+        (ii + 2 * ng) * (jj + 2 * ng) * (kk + 2 * ng) << " cells." << endl;
+    exit(EXIT_FAILURE);
+  }
+  numI_ = ii;
+  numJ_ = jj;
+  numK_ = kk;
+  numGhosts_ = ng;
+}
+
 
 // member function to "zero out" the container with a supplied "zero"
 template <typename T>

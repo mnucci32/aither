@@ -4439,7 +4439,8 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
           // at a block edge -- possible need to adjust interblock
           string edgeDir;
           if (this->AtEdge(indB[0], indB[1], indB[2], edgeDir)) {
-            int dir1, dir2;
+            auto dir1 = 0;
+            auto dir2 = 0;
             if (inter.Direction1First() == "i") {
               dir1 = 0;  // direction 1 is i
               dir2 = 1;  // direction 2 is j
@@ -5305,23 +5306,23 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
            MPI_COMM_WORLD);
   MPI_Pack(&isTurbulent_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&state_(0, 0, 0), state_.Size(), MPI_cellData, sendBuffer,
+  MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_cellData, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&center_(0, 0, 0), center_.Size(), MPI_vec3d, sendBuffer,
+  MPI_Pack(&(*std::begin(center_)), center_.Size(), MPI_vec3d, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&fAreaI_(0, 0, 0), fAreaI_.Size(), MPI_vec3dMag,
+  MPI_Pack(&(*std::begin(fAreaI_)), fAreaI_.Size(), MPI_vec3dMag,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&fAreaJ_(0, 0, 0), fAreaJ_.Size(), MPI_vec3dMag,
+  MPI_Pack(&(*std::begin(fAreaJ_)), fAreaJ_.Size(), MPI_vec3dMag,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&fAreaK_(0, 0, 0), fAreaK_.Size(), MPI_vec3dMag,
+  MPI_Pack(&(*std::begin(fAreaK_)), fAreaK_.Size(), MPI_vec3dMag,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&fCenterI_(0, 0, 0), fCenterI_.Size(), MPI_vec3d,
+  MPI_Pack(&(*std::begin(fCenterI_)), fCenterI_.Size(), MPI_vec3d,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&fCenterJ_(0, 0, 0), fCenterJ_.Size(), MPI_vec3d,
+  MPI_Pack(&(*std::begin(fCenterJ_)), fCenterJ_.Size(), MPI_vec3d,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&fCenterK_(0, 0, 0), fCenterK_.Size(), MPI_vec3d,
+  MPI_Pack(&(*std::begin(fCenterK_)), fCenterK_.Size(), MPI_vec3d,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&vol_(0, 0, 0), vol_.Size(), MPI_DOUBLE, sendBuffer,
+  MPI_Pack(&(*std::begin(vol_)), vol_.Size(), MPI_DOUBLE, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
 
   // pack boundary condition data
@@ -5356,7 +5357,7 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
   MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, ROOTP, 2, MPI_COMM_WORLD,
            &status);
 
-  int numI, numJ, numK;
+  auto numI = 0, numJ = 0, numK = 0;
   // unpack procBlock INTs
   auto position = 0;
   MPI_Unpack(recvBuffer, recvBufSize, &position, &numI, 1,
@@ -5386,31 +5387,31 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
   this->CleanResizeVecs(numI, numJ, numK, numGhosts_);
 
   // unpack vector data into allocated vectors
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &state_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(state_)),
              state_.Size(), MPI_cellData,
              MPI_COMM_WORLD);  // unpack states
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &center_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(center_)),
              center_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack cell centers
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &fAreaI_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fAreaI_)),
              fAreaI_.Size(), MPI_vec3dMag,
              MPI_COMM_WORLD);  // unpack face area I
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &fAreaJ_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fAreaJ_)),
              fAreaJ_.Size(), MPI_vec3dMag,
              MPI_COMM_WORLD);  // unpack face area J
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &fAreaK_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fAreaK_)),
              fAreaK_.Size(), MPI_vec3dMag,
              MPI_COMM_WORLD);  // unpack face area K
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &fCenterI_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fCenterI_)),
              fCenterI_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack face center_ I
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &fCenterJ_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fCenterJ_)),
              fCenterJ_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack face center_ J
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &fCenterK_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fCenterK_)),
              fCenterK_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack face center_ K
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &vol_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(vol_)),
              vol_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack volumes
 
@@ -5495,51 +5496,51 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
 
   // unpack vector data into allocated vectors
   auto position = 0;
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &state_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(state_)),
              state_.Size(), MPI_cellData,
              MPI_COMM_WORLD);  // unpack states
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &residual_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(residual_)),
              residual_.Size(), MPI_cellData,
              MPI_COMM_WORLD);  // unpack residuals
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &dt_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(dt_)),
              dt_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack time steps
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &wallDist_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(wallDist_)),
              wallDist_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack wall distance
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &specRadius_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(specRadius_)),
              specRadius_.Size(), MPI_uncoupledScalar,
              MPI_COMM_WORLD);  // unpack average wave speeds
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &temperature_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(temperature_)),
              temperature_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack temperature
 
   if (isViscous_) {
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &viscosity_(0, 0, 0),
+    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(viscosity_)),
                viscosity_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack viscosity
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &velocityGrad_(0, 0, 0),
-               velocityGrad_.Size(), MPI_tensorDouble,
-               MPI_COMM_WORLD);  // unpack velocity gradient
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &temperatureGrad_(0, 0, 0),
-               temperatureGrad_.Size(), MPI_vec3d,
-               MPI_COMM_WORLD);  // unpack temperature gradient
+    MPI_Unpack(recvBuffer, recvBufSize, &position,
+               &(*std::begin(velocityGrad_)), velocityGrad_.Size(),
+               MPI_tensorDouble, MPI_COMM_WORLD);  // unpack velocity gradient
+    MPI_Unpack(recvBuffer, recvBufSize, &position,
+               &(*std::begin(temperatureGrad_)), temperatureGrad_.Size(),
+               MPI_vec3d, MPI_COMM_WORLD);  // unpack temperature gradient
   }
 
   if (isTurbulent_) {
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &eddyViscosity_(0, 0, 0),
-               eddyViscosity_.Size(), MPI_DOUBLE,
-               MPI_COMM_WORLD);  // unpack eddy viscosity
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &f1_(0, 0, 0),
+    MPI_Unpack(recvBuffer, recvBufSize, &position,
+               &(*std::begin(eddyViscosity_)), eddyViscosity_.Size(),
+               MPI_DOUBLE, MPI_COMM_WORLD);  // unpack eddy viscosity
+    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(f1_)),
                f1_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack blending variable f1
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &f2_(0, 0, 0),
+    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(f2_)),
                f2_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack blending variable f2
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &tkeGrad_(0, 0, 0),
+    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(tkeGrad_)),
                tkeGrad_.Size(), MPI_vec3d,
                MPI_COMM_WORLD);  // unpack tke gradient
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &omegaGrad_(0, 0, 0),
+    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(omegaGrad_)),
                omegaGrad_.Size(), MPI_vec3d,
                MPI_COMM_WORLD);  // unpack omega gradient
   }
@@ -5617,38 +5618,39 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
 
   // pack data to send into buffer
   auto position = 0;
-  MPI_Pack(&state_(0, 0, 0), state_.Size(), MPI_cellData, sendBuffer,
+  MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_cellData, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&residual_(0, 0, 0), residual_.Size(), MPI_cellData,
+  MPI_Pack(&(*std::begin(residual_)), residual_.Size(), MPI_cellData,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&dt_(0, 0, 0), dt_.Size(), MPI_DOUBLE, sendBuffer,
+  MPI_Pack(&(*std::begin(dt_)), dt_.Size(), MPI_DOUBLE, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&wallDist_(0, 0, 0), wallDist_.Size(), MPI_DOUBLE,
+  MPI_Pack(&(*std::begin(wallDist_)), wallDist_.Size(), MPI_DOUBLE,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&specRadius_(0, 0, 0), specRadius_.Size(), MPI_uncoupledScalar,
+  MPI_Pack(&(*std::begin(specRadius_)), specRadius_.Size(), MPI_uncoupledScalar,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&temperature_(0, 0, 0), temperature_.Size(), MPI_DOUBLE,
+  MPI_Pack(&(*std::begin(temperature_)), temperature_.Size(), MPI_DOUBLE,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
 
   if (isViscous_) {
-    MPI_Pack(&viscosity_(0, 0, 0), viscosity_.Size(), MPI_DOUBLE,
+    MPI_Pack(&(*std::begin(viscosity_)), viscosity_.Size(), MPI_DOUBLE,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-    MPI_Pack(&velocityGrad_(0, 0, 0), velocityGrad_.Size(), MPI_tensorDouble,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-    MPI_Pack(&temperatureGrad_(0, 0, 0), temperatureGrad_.Size(), MPI_vec3d,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+    MPI_Pack(&(*std::begin(velocityGrad_)), velocityGrad_.Size(),
+             MPI_tensorDouble, sendBuffer, sendBufSize, &position,
+             MPI_COMM_WORLD);
+    MPI_Pack(&(*std::begin(temperatureGrad_)), temperatureGrad_.Size(),
+             MPI_vec3d, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
 
   if (isTurbulent_) {
-    MPI_Pack(&eddyViscosity_(0, 0, 0), eddyViscosity_.Size(), MPI_DOUBLE,
+    MPI_Pack(&(*std::begin(eddyViscosity_)), eddyViscosity_.Size(), MPI_DOUBLE,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-    MPI_Pack(&f1_(0, 0, 0), f1_.Size(), MPI_DOUBLE,
+    MPI_Pack(&(*std::begin(f1_)), f1_.Size(), MPI_DOUBLE,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-    MPI_Pack(&f2_(0, 0, 0), f2_.Size(), MPI_DOUBLE,
+    MPI_Pack(&(*std::begin(f2_)), f2_.Size(), MPI_DOUBLE,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-    MPI_Pack(&tkeGrad_(0, 0, 0), tkeGrad_.Size(), MPI_vec3d,
+    MPI_Pack(&(*std::begin(tkeGrad_)), tkeGrad_.Size(), MPI_vec3d,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-    MPI_Pack(&omegaGrad_(0, 0, 0), omegaGrad_.Size(), MPI_vec3d,
+    MPI_Pack(&(*std::begin(omegaGrad_)), omegaGrad_.Size(), MPI_vec3d,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
 
@@ -5686,163 +5688,211 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
     blk1.parBlock_ = parBlock_;
     blk2.parBlock_ = parBlock_;
 
-    // indices for lower block
-    const auto iMaxG1 = numI1 + 2 * numGhosts_ - 1;
-    const auto iMax1 = numI1 - 1;
-
-    // indices for upper block
-    const auto iMaxG2 = numI2 + 2 * numGhosts_ - 1;
-    const auto iMax2 = numI2 - 1;
-
-    const auto iMaxPG2 = this->NumI() + 2 * numGhosts_ - 1;
-    const auto iMinPG2 = ind;
-    const auto iMaxP2 = this->NumI() - 1;
-    const auto iMinP2 = ind + numGhosts_;
-
-    // indices common to both blocks
-    const auto jMaxG = this->NumJ() + 2 * numGhosts_ - 1;
-    const auto jMax = this->NumJ() - 1;
-    const auto kMaxG = this->NumK() + 2 * numGhosts_ - 1;
-    const auto kMax = this->NumK() - 1;
-
     // ------------------------------------------------------------------
     // assign variables for lower split
     // assign cell variables with ghost cells
-    blk1.state_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
-                       state_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
-    blk1.vol_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
-                     vol_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
-    blk1.center_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
-                        center_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
-    blk1.wallDist_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
-                          wallDist_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
-    blk1.temperature_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
-                             temperature_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
+    blk1.state_.Fill(state_.Slice(state_.StartI(), blk1.state_.EndI(),
+                                  state_.StartJ(), state_.EndJ(),
+                                  state_.StartK(), state_.EndK()));
+    blk1.vol_.Fill(vol_.Slice(vol_.StartI(), blk1.vol_.EndI(),
+                              vol_.StartJ(), vol_.EndJ(),
+                              vol_.StartK(), vol_.EndK()));
+    blk1.center_.Fill(center_.Slice(center_.StartI(), blk1.center_.EndI(),
+                                    center_.StartJ(), center_.EndJ(),
+                                    center_.StartK(), center_.EndK()));
+    blk1.wallDist_.Fill(wallDist_.Slice(wallDist_.StartI(), blk1.wallDist_.EndI(),
+                                        wallDist_.StartJ(), wallDist_.EndJ(),
+                                        wallDist_.StartK(), wallDist_.EndK()));
+    blk1.temperature_.Fill(temperature_.Slice(temperature_.StartI(),
+                                              blk1.temperature_.EndI(),
+                                              temperature_.StartJ(),
+                                              temperature_.EndJ(),
+                                              temperature_.StartK(),
+                                              temperature_.EndK()));
     if (isViscous_) {
-      blk1.viscosity_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
-                             viscosity_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
+      blk1.viscosity_.Fill(viscosity_.Slice(viscosity_.StartI(),
+                                            blk1.viscosity_.EndI(),
+                                            viscosity_.StartJ(),
+                                            viscosity_.EndJ(),
+                                            viscosity_.StartK(),
+                                            viscosity_.EndK()));
     }
     if (isTurbulent_) {
-      blk1.eddyViscosity_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
-                                 eddyViscosity_.Slice(0, iMaxG1, 0, jMaxG,
-                                                      0, kMaxG));
-      blk1.f1_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
-                      f1_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
-      blk1.f2_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
-                      f2_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
+      blk1.eddyViscosity_.Fill(eddyViscosity_.Slice(eddyViscosity_.StartI(),
+                                                    blk1.eddyViscosity_.EndI(),
+                                                    eddyViscosity_.StartJ(),
+                                                    eddyViscosity_.EndJ(),
+                                                    eddyViscosity_.StartK(),
+                                                    eddyViscosity_.EndK()));
+      blk1.f1_.Fill(f1_.Slice(f1_.StartI(), blk1.f1_.EndI(),
+                              f1_.StartJ(), f1_.EndJ(),
+                              f1_.StartK(), f1_.EndK()));
+      blk1.f2_.Fill(f2_.Slice(f2_.StartI(), blk1.f2_.EndI(),
+                              f2_.StartJ(), f2_.EndJ(),
+                              f2_.StartK(), f2_.EndK()));
     }
 
     // assign cell variables without ghost cells
-    blk1.specRadius_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                            specRadius_.Slice(0, iMax1, 0, jMax, 0, kMax));
-    blk1.dt_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                    dt_.Slice(0, iMax1, 0, jMax, 0, kMax));
-    blk1.residual_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                          residual_.Slice(0, iMax1, 0, jMax, 0, kMax));
+    blk1.specRadius_.Fill(specRadius_.Slice(specRadius_.StartI(),
+                                            blk1.specRadius_.EndI(),
+                                            specRadius_.StartJ(),
+                                            specRadius_.EndJ(),
+                                            specRadius_.StartK(),
+                                            specRadius_.EndK()));
+    blk1.dt_.Fill(dt_.Slice(dt_.StartI(), blk1.dt_.EndI(),
+                            dt_.StartJ(), dt_.EndJ(),
+                            dt_.StartK(), dt_.EndK()));
+    blk1.residual_.Fill(residual_.Slice(residual_.StartI(), blk1.residual_.EndI(),
+                                        residual_.StartJ(), residual_.EndJ(),
+                                        residual_.StartK(), residual_.EndK()));
     if (isViscous_) {
-      blk1.velocityGrad_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                                velocityGrad_.Slice(0, iMax1, 0, jMax, 0,
-                                                    kMax));
-      blk1.temperatureGrad_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                                   temperatureGrad_.Slice(0, iMax1, 0, jMax, 0,
-                                                          kMax));
+      blk1.velocityGrad_.Fill(velocityGrad_.Slice(velocityGrad_.StartI(),
+                                                  blk1.velocityGrad_.EndI(),
+                                                  velocityGrad_.StartJ(),
+                                                  velocityGrad_.EndJ(),
+                                                  velocityGrad_.StartK(),
+                                                  velocityGrad_.EndK()));
+      blk1.temperatureGrad_.Fill(temperatureGrad_.Slice(temperatureGrad_.StartI(),
+                                                        blk1.temperatureGrad_.EndI(),
+                                                        temperatureGrad_.StartJ(),
+                                                        temperatureGrad_.EndJ(),
+                                                        temperatureGrad_.StartK(),
+                                                        temperatureGrad_.EndK()));
     }
     if (isTurbulent_) {
-      blk1.tkeGrad_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                           tkeGrad_.Slice(0, iMax1, 0, jMax, 0, kMax));
-      blk1.omegaGrad_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                           omegaGrad_.Slice(0, iMax1, 0, jMax, 0, kMax));
+      blk1.tkeGrad_.Fill(tkeGrad_.Slice(tkeGrad_.StartI(), blk1.tkeGrad_.EndI(),
+                                        tkeGrad_.StartJ(), tkeGrad_.EndJ(),
+                                        tkeGrad_.StartK(), tkeGrad_.EndK()));
+      blk1.omegaGrad_.Fill(omegaGrad_.Slice(omegaGrad_.StartI(),
+                                            blk1.omegaGrad_.EndI(),
+                                            omegaGrad_.StartJ(),
+                                            omegaGrad_.EndJ(),
+                                            omegaGrad_.StartK(),
+                                            omegaGrad_.EndK()));
     }
 
     // assign face variables
-    blk1.fAreaI_.Insert(0, iMaxG1 + 1, 0, jMaxG, 0, kMaxG,
-                        fAreaI_.Slice(0, iMaxG1 + 1, 0, jMaxG, 0, kMaxG));
-    blk1.fAreaJ_.Insert(0, iMaxG1, 0, jMaxG + 1, 0, kMaxG,
-                        fAreaJ_.Slice(0, iMaxG1, 0, jMaxG + 1, 0, kMaxG));
-    blk1.fAreaK_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG + 1,
-                        fAreaK_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG + 1));
+    blk1.fAreaI_.Fill(fAreaI_.Slice(fAreaI_.StartI(), blk1.fAreaI_.EndI(),
+                                    fAreaI_.StartJ(), fAreaI_.EndJ(),
+                                    fAreaI_.StartK(), fAreaI_.EndK()));
+    blk1.fAreaJ_.Fill(fAreaJ_.Slice(fAreaJ_.StartI(), blk1.fAreaJ_.EndI(),
+                                    fAreaJ_.StartJ(), fAreaJ_.EndJ(),
+                                    fAreaK_.StartK(), fAreaJ_.EndK()));
+    blk1.fAreaK_.Fill(fAreaK_.Slice(fAreaK_.StartI(), blk1.fAreaK_.EndI(),
+                                    fAreaK_.StartJ(), fAreaK_.EndJ(),
+                                    fAreaK_.StartK(), fAreaK_.EndK()));
 
-    blk1.fCenterI_.Insert(0, iMaxG1 + 1, 0, jMaxG, 0, kMaxG,
-                        fCenterI_.Slice(0, iMaxG1 + 1, 0, jMaxG, 0, kMaxG));
-    blk1.fCenterJ_.Insert(0, iMaxG1, 0, jMaxG + 1, 0, kMaxG,
-                        fCenterJ_.Slice(0, iMaxG1, 0, jMaxG + 1, 0, kMaxG));
-    blk1.fCenterK_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG + 1,
-                        fCenterK_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG + 1));
+    blk1.fCenterI_.Fill(fCenterI_.Slice(fCenterI_.StartI(), blk1.fCenterI_.EndI(),
+                                        fCenterI_.StartJ(), fCenterI_.EndJ(),
+                                        fCenterI_.StartK(), fCenterI_.EndK()));
+    blk1.fCenterJ_.Fill(fCenterJ_.Slice(fCenterJ_.StartI(), blk1.fCenterJ_.EndI(),
+                                        fCenterJ_.StartJ(), fCenterJ_.EndJ(),
+                                        fCenterJ_.StartK(), fCenterJ_.EndK()));
+    blk1.fCenterK_.Fill(fCenterK_.Slice(fCenterK_.StartI(), blk1.fCenterK_.EndI(),
+                                        fCenterK_.StartJ(), fCenterK_.EndJ(),
+                                        fCenterK_.StartK(), fCenterK_.EndK()));
 
     // ------------------------------------------------------------------
     // assign variables for upper split
     // assign cell variables with ghost cells
-    blk2.state_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
-                       state_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
-    blk2.vol_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
-                       vol_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
-    blk2.center_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
-                       center_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
-    blk2.wallDist_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
-                          wallDist_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0,
-                                          kMaxG));
-    blk2.temperature_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
-                             temperature_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0,
-                                                kMaxG));
+    blk2.state_.Fill(state_.Slice(ind, state_.EndI(),
+                                  state_.StartJ(), state_.EndJ(),
+                                  state_.StartK(), state_.EndK()));
+    blk2.vol_.Fill(vol_.Slice(ind, vol_.EndI(),
+                              vol_.StartJ(), vol_.EndJ(),
+                              vol_.StartK(), vol_.EndK()));
+    blk2.center_.Fill(center_.Slice(ind, center_.EndI(),
+                                    center_.StartJ(), center_.EndJ(),
+                                    center_.StartK(), center_.EndK()));
+    blk2.wallDist_.Fill(wallDist_.Slice(ind, wallDist_.EndI(),
+                                        wallDist_.StartJ(), wallDist_.EndJ(),
+                                        wallDist_.StartK(), wallDist_.EndK()));
+    blk2.temperature_.Fill(temperature_.Slice(ind,
+                                              temperature_.EndI(),
+                                              temperature_.StartJ(),
+                                              temperature_.EndJ(),
+                                              temperature_.StartK(),
+                                              temperature_.EndK()));
     if (isViscous_) {
-      blk2.viscosity_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
-                             viscosity_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0,
-                                              kMaxG));
+      blk2.viscosity_.Fill(viscosity_.Slice(ind,
+                                            viscosity_.EndI(),
+                                            viscosity_.StartJ(),
+                                            viscosity_.EndJ(),
+                                            viscosity_.StartK(),
+                                            viscosity_.EndK()));
     }
     if (isTurbulent_) {
-      blk2.eddyViscosity_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
-                                 eddyViscosity_.Slice(iMinPG2, iMaxPG2, 0,
-                                                      jMaxG, 0, kMaxG));
-      blk2.f1_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
-                      f1_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
-      blk2.f2_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
-                      f2_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
+      blk2.eddyViscosity_.Fill(eddyViscosity_.Slice(ind,
+                                                    eddyViscosity_.EndI(),
+                                                    eddyViscosity_.StartJ(),
+                                                    eddyViscosity_.EndJ(),
+                                                    eddyViscosity_.StartK(),
+                                                    eddyViscosity_.EndK()));
+      blk2.f1_.Fill(f1_.Slice(ind, f1_.EndI(),
+                              f1_.StartJ(), f1_.EndJ(),
+                              f1_.StartK(), f1_.EndK()));
+      blk2.f2_.Fill(f2_.Slice(ind, f2_.EndI(),
+                              f2_.StartJ(), f2_.EndJ(),
+                              f2_.StartK(), f2_.EndK()));
     }
 
     // assign cell variables without ghost cells
-    blk2.specRadius_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                            specRadius_.Slice(iMinP2, iMaxP2, 0, jMax, 0,
-                                              kMax));
-    blk2.dt_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                    dt_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
-    blk2.residual_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                          residual_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
+    blk2.specRadius_.Fill(specRadius_.Slice(ind, specRadius_.EndI(),
+                                            specRadius_.StartJ(),
+                                            specRadius_.EndJ(),
+                                            specRadius_.StartK(),
+                                            specRadius_.EndK()));
+    blk2.dt_.Fill(dt_.Slice(ind, dt_.EndI(),
+                            dt_.StartJ(), dt_.EndJ(),
+                            dt_.StartK(), dt_.EndK()));
+    blk2.residual_.Fill(residual_.Slice(ind, residual_.EndI(),
+                                        residual_.StartJ(), residual_.EndJ(),
+                                        residual_.StartK(), residual_.EndK()));
     if (isViscous_) {
-      blk2.velocityGrad_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                                velocityGrad_.Slice(iMinP2, iMaxP2, 0, jMax, 0,
-                                                    kMax));
-      blk2.temperatureGrad_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                                   temperatureGrad_.Slice(iMinP2, iMaxP2, 0,
-                                                          jMax, 0, kMax));
+      blk2.velocityGrad_.Fill(velocityGrad_.Slice(ind,
+                                                  velocityGrad_.EndI(),
+                                                  velocityGrad_.StartJ(),
+                                                  velocityGrad_.EndJ(),
+                                                  velocityGrad_.StartK(),
+                                                  velocityGrad_.EndK()));
+      blk2.temperatureGrad_.Fill(temperatureGrad_.Slice(ind,
+                                                        temperatureGrad_.EndI(),
+                                                        temperatureGrad_.StartJ(),
+                                                        temperatureGrad_.EndJ(),
+                                                        temperatureGrad_.StartK(),
+                                                        temperatureGrad_.EndK()));
     }
     if (isTurbulent_) {
-      blk2.tkeGrad_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                           tkeGrad_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
-      blk2.omegaGrad_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                             omegaGrad_.Slice(iMinP2, iMaxP2, 0, jMax, 0,
-                                              kMax));
+      blk2.tkeGrad_.Fill(tkeGrad_.Slice(ind, tkeGrad_.EndI(),
+                                        tkeGrad_.StartJ(), tkeGrad_.EndJ(),
+                                        tkeGrad_.StartK(), tkeGrad_.EndK()));
+      blk2.omegaGrad_.Fill(omegaGrad_.Slice(ind, omegaGrad_.EndI(),
+                                            omegaGrad_.StartJ(),
+                                            omegaGrad_.EndJ(),
+                                            omegaGrad_.StartK(),
+                                            omegaGrad_.EndK()));
     }
 
     // assign face variables
-    blk2.fAreaI_.Insert(0, iMaxG2 + 1, 0, jMaxG, 0, kMaxG,
-                        fAreaI_.Slice(iMinPG2, iMaxPG2 + 1, 0, jMaxG, 0,
-                                      kMaxG));
-    blk2.fAreaJ_.Insert(0, iMaxG2, 0, jMaxG + 1, 0, kMaxG,
-                        fAreaJ_.Slice(iMinPG2, iMaxPG2, 0, jMaxG + 1, 0,
-                                      kMaxG));
-    blk2.fAreaK_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG + 1,
-                        fAreaK_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0,
-                                      kMaxG + 1));
+    blk2.fAreaI_.Fill(fAreaI_.Slice(ind, fAreaI_.EndI(),
+                                    fAreaI_.StartJ(), fAreaI_.EndJ(),
+                                    fAreaI_.StartK(), fAreaI_.EndK()));
+    blk2.fAreaJ_.Fill(fAreaJ_.Slice(ind, fAreaJ_.EndI(),
+                                    fAreaJ_.StartJ(), fAreaJ_.EndJ(),
+                                    fAreaJ_.StartK(), fAreaJ_.EndK()));
+    blk2.fAreaK_.Fill(fAreaK_.Slice(ind, fAreaK_.EndI(),
+                                    fAreaK_.StartJ(), fAreaK_.EndJ(),
+                                    fAreaK_.StartK(), fAreaK_.EndK()));
 
-    blk2.fCenterI_.Insert(0, iMaxG2 + 1, 0, jMaxG, 0, kMaxG,
-                          fCenterI_.Slice(iMinPG2, iMaxPG2 + 1, 0, jMaxG, 0,
-                                          kMaxG));
-    blk2.fCenterJ_.Insert(0, iMaxG2, 0, jMaxG + 1, 0, kMaxG,
-                          fCenterJ_.Slice(iMinPG2, iMaxPG2, 0, jMaxG + 1, 0,
-                                          kMaxG));
-    blk2.fCenterK_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG + 1,
-                          fCenterK_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0,
-                                          kMaxG + 1));
+    blk2.fCenterI_.Fill(fCenterI_.Slice(ind, fCenterI_.EndI(),
+                                        fCenterI_.StartJ(), fCenterI_.EndJ(),
+                                        fCenterI_.StartK(), fCenterI_.EndK()));
+    blk2.fCenterJ_.Fill(fCenterJ_.Slice(ind, fCenterJ_.EndI(),
+                                        fCenterJ_.StartJ(), fCenterJ_.EndJ(),
+                                        fCenterJ_.StartK(), fCenterJ_.EndK()));
+    blk2.fCenterK_.Fill(fCenterK_.Slice(ind, fCenterK_.EndI(),
+                                        fCenterK_.StartJ(), fCenterK_.EndJ(),
+                                        fCenterK_.StartK(), fCenterK_.EndK()));
 
     // assign boundary conditions
     blk1.bc_ = bound1;
@@ -5850,7 +5900,8 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
     blk2.bc_ = bound2;
     return blk2;
 
-  } else if (dir == "j") {  // split along j-plane
+    // ------------------------------------------------------------------------
+  } else if (dir == "j") {  // split along j-plane ----------------------------
     const auto numJ2 = this->NumJ() - ind;
     const auto numJ1 = this->NumJ() - numJ2;
 
