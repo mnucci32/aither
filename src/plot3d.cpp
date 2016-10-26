@@ -521,32 +521,8 @@ void plot3dBlock::Split(const string &dir, const int &ind, plot3dBlock &blk1,
   // dir -- plane to split along, either i, j, or k
   // ind -- index (face) to split at (w/o counting ghost cells)
 
-  if (dir == "i") {  // split along i-plane
-    blk1 = plot3dBlock(coords_.Slice(0, ind,
-                                     0, coords_.NumJ() - 1,
-                                     0, coords_.NumK() - 1));
-    blk2 = plot3dBlock(coords_.Slice(ind, coords_.NumI() - 1,
-                                     0, coords_.NumJ() - 1,
-                                     0, coords_.NumK() - 1));
-  } else if (dir == "j") {  // split along j-plane
-    blk1 = plot3dBlock(coords_.Slice(0, coords_.NumI() - 1,
-                                     0, ind,
-                                     0, coords_.NumK() - 1));
-    blk2 = plot3dBlock(coords_.Slice(0, coords_.NumI() - 1,
-                                     ind, coords_.NumJ() - 1,
-                                     0, coords_.NumK() - 1));
-  } else if (dir == "k") {  // split along k-plane
-    blk1 = plot3dBlock(coords_.Slice(0, coords_.NumI() - 1,
-                                     0, coords_.NumJ() - 1,
-                                     0, ind));
-    blk2 = plot3dBlock(coords_.Slice(0, coords_.NumI() - 1,
-                                     0, coords_.NumJ() - 1,
-                                     ind, coords_.NumK() - 1));
-  } else {
-    cerr << "ERROR: Error in plot3dBlock::Split(). Direction " << dir
-         << " is not recognized! Choose either i, j, or k." << endl;
-    exit(EXIT_FAILURE);
-  }
+  blk1 = plot3dBlock(coords_.Slice(dir, 0, ind));
+  blk2 = plot3dBlock(coords_.Slice(dir, ind, coords_.EndI()));
 }
 
 /* Member function to join a plot3dBlock along a plane defined by a direction.

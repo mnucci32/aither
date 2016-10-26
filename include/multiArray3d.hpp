@@ -426,28 +426,28 @@ multiArray3d<T> multiArray3d<T>::Slice(const int &is, const int &ie,
                                        const int &js, const int &je,
                                        const int &ks, const int &ke) const {
   // is -- starting i-index to take slice (inclusive)
-  // ie -- ending i-index to take slice (inclusive)
+  // ie -- ending i-index to take slice (exclusive)
   // js -- starting j-index to take slice (inclusive)
-  // je -- ending j-index to take slice (inclusive)
+  // je -- ending j-index to take slice (exclusive)
   // ks -- starting k-index to take slice (inclusive)
-  // ke -- ending k-index to take slice (inclusive)
+  // ke -- ending k-index to take slice (exclusive)
 
   // check that slice bounds are within parent array and that end bounds are
   // greater than or equal to start bounds
-  if (!(ie <= this->EndI() && is >= this->StartI() &&
-        je <= this->EndJ() && js >= this->StartJ() &&
-        ke <= this->EndK() && ks >= this->StartK() &&
-        ie >= is && je >= js && ke >= ks)) {
+  if (!(ie < this->EndI() && is >= this->StartI() &&
+        je < this->EndJ() && js >= this->StartJ() &&
+        ke < this->EndK() && ks >= this->StartK() &&
+        ie > is && je > js && ke > ks)) {
     cerr << "ERROR: Error in multiArray3d::Slice. Cannot take slice with "
          << "boundaries " << is << ", " << ie << ", " << js << ", " << je
-         << ", " << ks << ", " << ke << endl << "from array with ranges "
-         << this->StartI() << ":" << this->EndI() << ", " << this->StartJ()
-         << ":" << this->EndJ() << ", " << this->StartK() << ":"
-         << this->EndK() << endl;
+         << ", " << ks << ", " << ke << endl << "from array with ranges ["
+         << this->StartI() << ":" << this->EndI() << "), [" << this->StartJ()
+         << ":" << this->EndJ() << "), [" << this->StartK() << ":"
+         << this->EndK() << ")" << endl;
     exit(EXIT_FAILURE);
   }
 
-  multiArray3d<T> arr(ie - is + 1, je - js + 1, ke - ks + 1, 0);
+  multiArray3d<T> arr(ie - is, je - js, ke - ks, 0);
 
 // s is for index of sliced array, p is for index of parent array
   for (int kks = arr.StartK(), kkp = ks; kks < arr.EndK(); kks++, kkp++) {
