@@ -26,6 +26,7 @@
 
 #include <iostream>  // ostream
 #include <vector>    // vector
+#include <string>    // string
 #include "mpi.h"
 #include "vector3d.hpp"
 #include "boundaryConditions.hpp"  // interblock
@@ -35,6 +36,7 @@ using std::endl;
 using std::cout;
 using std::cerr;
 using std::vector;
+using std::string;
 
 template <typename T>
 class multiArray3d {
@@ -104,6 +106,9 @@ class multiArray3d {
   const auto end() const noexcept {return data_.end();}
 
   multiArray3d<T> Slice(const int &, const int &, const int &, const int &,
+                        const int &, const int &) const;
+  multiArray3d<T> Slice(const string &, const int &, const int &) const;
+  multiArray3d<T> Slice(const string &, const int &, const int &,
                         const int &, const int &) const;
   void Insert(const int &, const int &, const int &, const int &, const int &,
               const int &, const multiArray3d<T> &);
@@ -455,6 +460,46 @@ multiArray3d<T> multiArray3d<T>::Slice(const int &is, const int &ie,
   return arr;
 }
 
+// member function to return a slice of the array
+// overload to slice in only one direction
+template <typename T>
+multiArray3d<T> multiArray3d<T>::Slice(const string &dir, const int &start,
+                                       const int &end) const {
+  if (dir == "i") {
+    return this->Slice(start, end, this->StartJ(), this->EndJ(), this->StartK(),
+                       this->EndK());
+  } else if (dir == "j") {
+    return this->Slice(this->StartI(), this->EndI(), start, end, this->StartK(),
+                       this->EndK());
+  } else if (dir == "k") {
+    return this->Slice(this->StartI(), this->EndI(), this->StartJ(),
+                       this->EndJ(), start, end);
+  } else {
+    cerr << "ERROR: Error in multiArray3d::Slice, direction " << dir
+         << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+// member function to return a slice of the array
+// overload to slice line out of array
+template <typename T>
+multiArray3d<T> multiArray3d<T>::Slice(const string &dir, const int &dirStart,
+                                       const int &dirEnd, const int &d2Ind,
+                                       const int &d3Ind) const {
+  if (dir == "i") {  // d2 = j, d3 = k
+    return this->Slice(dirStart, dirEnd, d2Ind, d2Ind, d3Ind, d3Ind);
+  } else if (dir == "j") {  // d2 = k, d3 = i
+    return this->Slice(d3Ind, d3Ind, dirStart, dirEnd, d2Ind, d2Ind);
+  } else if (dir == "k") {  // d2 = i, d3 = j
+    return this->Slice(d2Ind, d2Ind, d3Ind, d3Ind, dirStart, dirEnd);
+  } else {
+    cerr << "ERROR: Error in multiArray3d::Slice, direction " << dir
+         << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
 // member function to insert an array into this one
 template <typename T>
 void multiArray3d<T>::Insert(const int &is, const int &ie, const int &js,
@@ -514,7 +559,7 @@ void multiArray3d<T>::Fill(const multiArray3d<T> &arr) {
     exit(EXIT_FAILURE);
   }
 
-  *this = arr;
+  data_ = arr.data_;
 }
 
 template <typename T>

@@ -5676,588 +5676,143 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
   auto bound1 = bc_;
   auto bound2 = bound1.Split(dir, ind, parBlock_, num, alteredSurf);
 
+  auto numI1 = 0, numI2 = 0;
+  auto numJ1 = 0, numJ2 = 0;
+  auto numK1 = 0, numK2 = 0;
   if (dir == "i") {  // split along i-plane
-    const auto numI2 = this->NumI() - ind;
-    const auto numI1 = this->NumI() - numI2;
-
-    procBlock blk1(numI1, this->NumJ(), this->NumK(), numGhosts_, isViscous_,
-                   isTurbulent_);
-    procBlock blk2(numI2, this->NumJ(), this->NumK(), numGhosts_, isViscous_,
-                   isTurbulent_);
-
-    blk1.parBlock_ = parBlock_;
-    blk2.parBlock_ = parBlock_;
-
-    // ------------------------------------------------------------------
-    // assign variables for lower split
-    // assign cell variables with ghost cells
-    blk1.state_.Fill(state_.Slice(state_.StartI(), blk1.state_.EndI(),
-                                  state_.StartJ(), state_.EndJ(),
-                                  state_.StartK(), state_.EndK()));
-    blk1.vol_.Fill(vol_.Slice(vol_.StartI(), blk1.vol_.EndI(),
-                              vol_.StartJ(), vol_.EndJ(),
-                              vol_.StartK(), vol_.EndK()));
-    blk1.center_.Fill(center_.Slice(center_.StartI(), blk1.center_.EndI(),
-                                    center_.StartJ(), center_.EndJ(),
-                                    center_.StartK(), center_.EndK()));
-    blk1.wallDist_.Fill(wallDist_.Slice(wallDist_.StartI(), blk1.wallDist_.EndI(),
-                                        wallDist_.StartJ(), wallDist_.EndJ(),
-                                        wallDist_.StartK(), wallDist_.EndK()));
-    blk1.temperature_.Fill(temperature_.Slice(temperature_.StartI(),
-                                              blk1.temperature_.EndI(),
-                                              temperature_.StartJ(),
-                                              temperature_.EndJ(),
-                                              temperature_.StartK(),
-                                              temperature_.EndK()));
-    if (isViscous_) {
-      blk1.viscosity_.Fill(viscosity_.Slice(viscosity_.StartI(),
-                                            blk1.viscosity_.EndI(),
-                                            viscosity_.StartJ(),
-                                            viscosity_.EndJ(),
-                                            viscosity_.StartK(),
-                                            viscosity_.EndK()));
-    }
-    if (isTurbulent_) {
-      blk1.eddyViscosity_.Fill(eddyViscosity_.Slice(eddyViscosity_.StartI(),
-                                                    blk1.eddyViscosity_.EndI(),
-                                                    eddyViscosity_.StartJ(),
-                                                    eddyViscosity_.EndJ(),
-                                                    eddyViscosity_.StartK(),
-                                                    eddyViscosity_.EndK()));
-      blk1.f1_.Fill(f1_.Slice(f1_.StartI(), blk1.f1_.EndI(),
-                              f1_.StartJ(), f1_.EndJ(),
-                              f1_.StartK(), f1_.EndK()));
-      blk1.f2_.Fill(f2_.Slice(f2_.StartI(), blk1.f2_.EndI(),
-                              f2_.StartJ(), f2_.EndJ(),
-                              f2_.StartK(), f2_.EndK()));
-    }
-
-    // assign cell variables without ghost cells
-    blk1.specRadius_.Fill(specRadius_.Slice(specRadius_.StartI(),
-                                            blk1.specRadius_.EndI(),
-                                            specRadius_.StartJ(),
-                                            specRadius_.EndJ(),
-                                            specRadius_.StartK(),
-                                            specRadius_.EndK()));
-    blk1.dt_.Fill(dt_.Slice(dt_.StartI(), blk1.dt_.EndI(),
-                            dt_.StartJ(), dt_.EndJ(),
-                            dt_.StartK(), dt_.EndK()));
-    blk1.residual_.Fill(residual_.Slice(residual_.StartI(), blk1.residual_.EndI(),
-                                        residual_.StartJ(), residual_.EndJ(),
-                                        residual_.StartK(), residual_.EndK()));
-    if (isViscous_) {
-      blk1.velocityGrad_.Fill(velocityGrad_.Slice(velocityGrad_.StartI(),
-                                                  blk1.velocityGrad_.EndI(),
-                                                  velocityGrad_.StartJ(),
-                                                  velocityGrad_.EndJ(),
-                                                  velocityGrad_.StartK(),
-                                                  velocityGrad_.EndK()));
-      blk1.temperatureGrad_.Fill(temperatureGrad_.Slice(temperatureGrad_.StartI(),
-                                                        blk1.temperatureGrad_.EndI(),
-                                                        temperatureGrad_.StartJ(),
-                                                        temperatureGrad_.EndJ(),
-                                                        temperatureGrad_.StartK(),
-                                                        temperatureGrad_.EndK()));
-    }
-    if (isTurbulent_) {
-      blk1.tkeGrad_.Fill(tkeGrad_.Slice(tkeGrad_.StartI(), blk1.tkeGrad_.EndI(),
-                                        tkeGrad_.StartJ(), tkeGrad_.EndJ(),
-                                        tkeGrad_.StartK(), tkeGrad_.EndK()));
-      blk1.omegaGrad_.Fill(omegaGrad_.Slice(omegaGrad_.StartI(),
-                                            blk1.omegaGrad_.EndI(),
-                                            omegaGrad_.StartJ(),
-                                            omegaGrad_.EndJ(),
-                                            omegaGrad_.StartK(),
-                                            omegaGrad_.EndK()));
-    }
-
-    // assign face variables
-    blk1.fAreaI_.Fill(fAreaI_.Slice(fAreaI_.StartI(), blk1.fAreaI_.EndI(),
-                                    fAreaI_.StartJ(), fAreaI_.EndJ(),
-                                    fAreaI_.StartK(), fAreaI_.EndK()));
-    blk1.fAreaJ_.Fill(fAreaJ_.Slice(fAreaJ_.StartI(), blk1.fAreaJ_.EndI(),
-                                    fAreaJ_.StartJ(), fAreaJ_.EndJ(),
-                                    fAreaK_.StartK(), fAreaJ_.EndK()));
-    blk1.fAreaK_.Fill(fAreaK_.Slice(fAreaK_.StartI(), blk1.fAreaK_.EndI(),
-                                    fAreaK_.StartJ(), fAreaK_.EndJ(),
-                                    fAreaK_.StartK(), fAreaK_.EndK()));
-
-    blk1.fCenterI_.Fill(fCenterI_.Slice(fCenterI_.StartI(), blk1.fCenterI_.EndI(),
-                                        fCenterI_.StartJ(), fCenterI_.EndJ(),
-                                        fCenterI_.StartK(), fCenterI_.EndK()));
-    blk1.fCenterJ_.Fill(fCenterJ_.Slice(fCenterJ_.StartI(), blk1.fCenterJ_.EndI(),
-                                        fCenterJ_.StartJ(), fCenterJ_.EndJ(),
-                                        fCenterJ_.StartK(), fCenterJ_.EndK()));
-    blk1.fCenterK_.Fill(fCenterK_.Slice(fCenterK_.StartI(), blk1.fCenterK_.EndI(),
-                                        fCenterK_.StartJ(), fCenterK_.EndJ(),
-                                        fCenterK_.StartK(), fCenterK_.EndK()));
-
-    // ------------------------------------------------------------------
-    // assign variables for upper split
-    // assign cell variables with ghost cells
-    blk2.state_.Fill(state_.Slice(ind, state_.EndI(),
-                                  state_.StartJ(), state_.EndJ(),
-                                  state_.StartK(), state_.EndK()));
-    blk2.vol_.Fill(vol_.Slice(ind, vol_.EndI(),
-                              vol_.StartJ(), vol_.EndJ(),
-                              vol_.StartK(), vol_.EndK()));
-    blk2.center_.Fill(center_.Slice(ind, center_.EndI(),
-                                    center_.StartJ(), center_.EndJ(),
-                                    center_.StartK(), center_.EndK()));
-    blk2.wallDist_.Fill(wallDist_.Slice(ind, wallDist_.EndI(),
-                                        wallDist_.StartJ(), wallDist_.EndJ(),
-                                        wallDist_.StartK(), wallDist_.EndK()));
-    blk2.temperature_.Fill(temperature_.Slice(ind,
-                                              temperature_.EndI(),
-                                              temperature_.StartJ(),
-                                              temperature_.EndJ(),
-                                              temperature_.StartK(),
-                                              temperature_.EndK()));
-    if (isViscous_) {
-      blk2.viscosity_.Fill(viscosity_.Slice(ind,
-                                            viscosity_.EndI(),
-                                            viscosity_.StartJ(),
-                                            viscosity_.EndJ(),
-                                            viscosity_.StartK(),
-                                            viscosity_.EndK()));
-    }
-    if (isTurbulent_) {
-      blk2.eddyViscosity_.Fill(eddyViscosity_.Slice(ind,
-                                                    eddyViscosity_.EndI(),
-                                                    eddyViscosity_.StartJ(),
-                                                    eddyViscosity_.EndJ(),
-                                                    eddyViscosity_.StartK(),
-                                                    eddyViscosity_.EndK()));
-      blk2.f1_.Fill(f1_.Slice(ind, f1_.EndI(),
-                              f1_.StartJ(), f1_.EndJ(),
-                              f1_.StartK(), f1_.EndK()));
-      blk2.f2_.Fill(f2_.Slice(ind, f2_.EndI(),
-                              f2_.StartJ(), f2_.EndJ(),
-                              f2_.StartK(), f2_.EndK()));
-    }
-
-    // assign cell variables without ghost cells
-    blk2.specRadius_.Fill(specRadius_.Slice(ind, specRadius_.EndI(),
-                                            specRadius_.StartJ(),
-                                            specRadius_.EndJ(),
-                                            specRadius_.StartK(),
-                                            specRadius_.EndK()));
-    blk2.dt_.Fill(dt_.Slice(ind, dt_.EndI(),
-                            dt_.StartJ(), dt_.EndJ(),
-                            dt_.StartK(), dt_.EndK()));
-    blk2.residual_.Fill(residual_.Slice(ind, residual_.EndI(),
-                                        residual_.StartJ(), residual_.EndJ(),
-                                        residual_.StartK(), residual_.EndK()));
-    if (isViscous_) {
-      blk2.velocityGrad_.Fill(velocityGrad_.Slice(ind,
-                                                  velocityGrad_.EndI(),
-                                                  velocityGrad_.StartJ(),
-                                                  velocityGrad_.EndJ(),
-                                                  velocityGrad_.StartK(),
-                                                  velocityGrad_.EndK()));
-      blk2.temperatureGrad_.Fill(temperatureGrad_.Slice(ind,
-                                                        temperatureGrad_.EndI(),
-                                                        temperatureGrad_.StartJ(),
-                                                        temperatureGrad_.EndJ(),
-                                                        temperatureGrad_.StartK(),
-                                                        temperatureGrad_.EndK()));
-    }
-    if (isTurbulent_) {
-      blk2.tkeGrad_.Fill(tkeGrad_.Slice(ind, tkeGrad_.EndI(),
-                                        tkeGrad_.StartJ(), tkeGrad_.EndJ(),
-                                        tkeGrad_.StartK(), tkeGrad_.EndK()));
-      blk2.omegaGrad_.Fill(omegaGrad_.Slice(ind, omegaGrad_.EndI(),
-                                            omegaGrad_.StartJ(),
-                                            omegaGrad_.EndJ(),
-                                            omegaGrad_.StartK(),
-                                            omegaGrad_.EndK()));
-    }
-
-    // assign face variables
-    blk2.fAreaI_.Fill(fAreaI_.Slice(ind, fAreaI_.EndI(),
-                                    fAreaI_.StartJ(), fAreaI_.EndJ(),
-                                    fAreaI_.StartK(), fAreaI_.EndK()));
-    blk2.fAreaJ_.Fill(fAreaJ_.Slice(ind, fAreaJ_.EndI(),
-                                    fAreaJ_.StartJ(), fAreaJ_.EndJ(),
-                                    fAreaJ_.StartK(), fAreaJ_.EndK()));
-    blk2.fAreaK_.Fill(fAreaK_.Slice(ind, fAreaK_.EndI(),
-                                    fAreaK_.StartJ(), fAreaK_.EndJ(),
-                                    fAreaK_.StartK(), fAreaK_.EndK()));
-
-    blk2.fCenterI_.Fill(fCenterI_.Slice(ind, fCenterI_.EndI(),
-                                        fCenterI_.StartJ(), fCenterI_.EndJ(),
-                                        fCenterI_.StartK(), fCenterI_.EndK()));
-    blk2.fCenterJ_.Fill(fCenterJ_.Slice(ind, fCenterJ_.EndI(),
-                                        fCenterJ_.StartJ(), fCenterJ_.EndJ(),
-                                        fCenterJ_.StartK(), fCenterJ_.EndK()));
-    blk2.fCenterK_.Fill(fCenterK_.Slice(ind, fCenterK_.EndI(),
-                                        fCenterK_.StartJ(), fCenterK_.EndJ(),
-                                        fCenterK_.StartK(), fCenterK_.EndK()));
-
-    // assign boundary conditions
-    blk1.bc_ = bound1;
-    (*this) = blk1;
-    blk2.bc_ = bound2;
-    return blk2;
-
-    // ------------------------------------------------------------------------
-  } else if (dir == "j") {  // split along j-plane ----------------------------
-    const auto numJ2 = this->NumJ() - ind;
-    const auto numJ1 = this->NumJ() - numJ2;
-
-    procBlock blk1(this->NumI(), numJ1, this->NumK(), numGhosts_, isViscous_,
-                   isTurbulent_);
-    procBlock blk2(this->NumI(), numJ2, this->NumK(), numGhosts_, isViscous_,
-                   isTurbulent_);
-
-    blk1.parBlock_ = parBlock_;
-    blk2.parBlock_ = parBlock_;
-
-    // indices for lower block
-    const auto jMaxG1 = numJ1 + 2 * numGhosts_ - 1;
-    const auto jMax1 = numJ1 - 1;
-
-    // indices for upper block
-    const auto jMaxG2 = numJ2 + 2 * numGhosts_ - 1;
-    const auto jMax2 = numJ2 - 1;
-
-    const auto jMaxPG2 = this->NumJ() + 2 * numGhosts_ - 1;
-    const auto jMinPG2 = ind;
-    const auto jMaxP2 = this->NumJ() - 1;
-    const auto jMinP2 = ind + numGhosts_;
-
-    // indices common to both blocks
-    const auto iMaxG = this->NumI() + 2 * numGhosts_ - 1;
-    const auto iMax = this->NumI() - 1;
-    const auto kMaxG = this->NumK() + 2 * numGhosts_ - 1;
-    const auto kMax = this->NumK() - 1;
-
-    // ------------------------------------------------------------------
-    // assign variables for lower split
-    // assign cell variables with ghost cells
-    blk1.state_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
-                       state_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
-    blk1.vol_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
-                     vol_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
-    blk1.center_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
-                        center_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
-    blk1.wallDist_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
-                          wallDist_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
-    blk1.temperature_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
-                             temperature_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
-    if (isViscous_) {
-      blk1.viscosity_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
-                             viscosity_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
-    }
-    if (isTurbulent_) {
-      blk1.eddyViscosity_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
-                                 eddyViscosity_.Slice(0, iMaxG, 0, jMaxG1, 0,
-                                                      kMaxG));
-      blk1.f1_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
-                      f1_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
-      blk1.f2_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
-                      f2_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
-    }
-
-    // assign cell variables without ghost cells
-    blk1.specRadius_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                            specRadius_.Slice(0, iMax, 0, jMax1, 0, kMax));
-    blk1.dt_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                    dt_.Slice(0, iMax, 0, jMax1, 0, kMax));
-    blk1.residual_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                          residual_.Slice(0, iMax, 0, jMax1, 0, kMax));
-    if (isViscous_) {
-      blk1.velocityGrad_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                                velocityGrad_.Slice(0, iMax, 0, jMax1, 0,
-                                                    kMax));
-      blk1.temperatureGrad_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                                   temperatureGrad_.Slice(0, iMax, 0, jMax1,
-                                                          0, kMax));
-    }
-    if (isTurbulent_) {
-      blk1.tkeGrad_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                           tkeGrad_.Slice(0, iMax, 0, jMax1, 0, kMax));
-      blk1.omegaGrad_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                             omegaGrad_.Slice(0, iMax, 0, jMax1, 0, kMax));
-    }
-
-    // assign face variables
-    blk1.fAreaI_.Insert(0, iMaxG + 1, 0, jMaxG1, 0, kMaxG,
-                        fAreaI_.Slice(0, iMaxG + 1, 0, jMaxG1, 0, kMaxG));
-    blk1.fAreaJ_.Insert(0, iMaxG, 0, jMaxG1 + 1, 0, kMaxG,
-                        fAreaJ_.Slice(0, iMaxG, 0, jMaxG1 + 1, 0, kMaxG));
-    blk1.fAreaK_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG + 1,
-                        fAreaK_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG + 1));
-
-    blk1.fCenterI_.Insert(0, iMaxG + 1, 0, jMaxG1, 0, kMaxG,
-                        fCenterI_.Slice(0, iMaxG + 1, 0, jMaxG1, 0, kMaxG));
-    blk1.fCenterJ_.Insert(0, iMaxG, 0, jMaxG1 + 1, 0, kMaxG,
-                        fCenterJ_.Slice(0, iMaxG, 0, jMaxG1 + 1, 0, kMaxG));
-    blk1.fCenterK_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG + 1,
-                        fCenterK_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG + 1));
-
-    // ------------------------------------------------------------------
-    // assign variables for upper split
-    // assign cell variables with ghost cells
-    blk2.state_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
-                       state_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0, kMaxG));
-    blk2.vol_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
-                       vol_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0, kMaxG));
-    blk2.center_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
-                       center_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0, kMaxG));
-    blk2.wallDist_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
-                          wallDist_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0,
-                                          kMaxG));
-    blk2.temperature_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
-                             temperature_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0,
-                                                kMaxG));
-    if (isViscous_) {
-      blk2.viscosity_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
-                             viscosity_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0,
-                                              kMaxG));
-    }
-    if (isTurbulent_) {
-      blk2.eddyViscosity_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
-                                 eddyViscosity_.Slice(0, iMaxG, jMinPG2,
-                                                      jMaxPG2, 0, kMaxG));
-      blk2.f1_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
-                      f1_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0, kMaxG));
-      blk2.f2_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
-                      f2_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0, kMaxG));
-    }
-
-    // assign cell variables without ghost cells
-    blk2.specRadius_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                            specRadius_.Slice(0, iMax, jMinP2, jMaxP2, 0,
-                                              kMax));
-    blk2.dt_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                    dt_.Slice(0, iMax, jMinP2, jMaxP2, 0, kMax));
-    blk2.residual_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                          residual_.Slice(0, iMax, jMinP2, jMaxP2, 0, kMax));
-    if (isViscous_) {
-      blk2.velocityGrad_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                                velocityGrad_.Slice(0, iMax, jMinP2, jMaxP2, 0,
-                                                    kMax));
-      blk2.temperatureGrad_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                                   temperatureGrad_.Slice(0, iMax, jMinP2,
-                                                          jMaxP2, 0, kMax));
-    }
-    if (isTurbulent_) {
-      blk2.tkeGrad_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                           tkeGrad_.Slice(0, iMax, jMinP2, jMaxP2, 0, kMax));
-      blk2.omegaGrad_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                             omegaGrad_.Slice(0, iMax, jMinP2, jMaxP2, 0,
-                                              kMax));
-    }
-
-    // assign face variables
-    blk2.fAreaI_.Insert(0, iMaxG + 1, 0, jMaxG2, 0, kMaxG,
-                        fAreaI_.Slice(0, iMaxG + 1, jMinPG2, jMaxPG2, 0,
-                                      kMaxG));
-    blk2.fAreaJ_.Insert(0, iMaxG, 0, jMaxG2 + 1, 0, kMaxG,
-                        fAreaJ_.Slice(0, iMaxG, jMinPG2, jMaxPG2 + 1, 0,
-                                      kMaxG));
-    blk2.fAreaK_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG + 1,
-                        fAreaK_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0,
-                                      kMaxG + 1));
-
-    blk2.fCenterI_.Insert(0, iMaxG + 1, 0, jMaxG2, 0, kMaxG,
-                          fCenterI_.Slice(0, iMaxG + 1, jMinPG2, jMaxPG2, 0,
-                                          kMaxG));
-    blk2.fCenterJ_.Insert(0, iMaxG, 0, jMaxG2 + 1, 0, kMaxG,
-                          fCenterJ_.Slice(0, iMaxG, jMinPG2, jMaxPG2 + 1, 0,
-                                          kMaxG));
-    blk2.fCenterK_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG + 1,
-                          fCenterK_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0,
-                                          kMaxG + 1));
-
-    // assign boundary conditions
-    blk1.bc_ = bound1;
-    (*this) = blk1;
-    blk2.bc_ = bound2;
-    return blk2;
-
+    numI2 = this->NumI() - ind;
+    numI1 = this->NumI() - numI2;
+    numJ2 = this->NumJ();
+    numJ1 = this->NumJ();
+    numK2 = this->NumK();
+    numK1 = this->NumK();
+  } else if (dir == "j") {  // split along j-plane
+    numI2 = this->NumI();
+    numI1 = this->NumI();
+    numJ2 = this->NumJ() - ind;
+    numJ1 = this->NumJ() - numJ2;
+    numK2 = this->NumK();
+    numK1 = this->NumK();
   } else if (dir == "k") {  // split along k-plane
-    const auto numK2 = this->NumK() - ind;
-    const auto numK1 = this->NumK() - numK2;
-
-    procBlock blk1(this->NumI(), this->NumJ(), numK1, numGhosts_, isViscous_,
-                   isTurbulent_);
-    procBlock blk2(this->NumI(), this->NumJ(), numK2, numGhosts_, isViscous_,
-                   isTurbulent_);
-
-    blk1.parBlock_ = parBlock_;
-    blk2.parBlock_ = parBlock_;
-
-    // indices for lower block
-    const auto kMaxG1 = numK1 + 2 * numGhosts_ - 1;
-    const auto kMax1 = numK1 - 1;
-
-    // indices for upper block
-    const auto kMaxG2 = numK2 + 2 * numGhosts_ - 1;
-    const auto kMax2 = numK2 - 1;
-
-    const auto kMaxPG2 = this->NumK() + 2 * numGhosts_ - 1;
-    const auto kMinPG2 = ind;
-    const auto kMaxP2 = this->NumK() - 1;
-    const auto kMinP2 = ind + numGhosts_;
-
-    // indices common to both blocks
-    const auto iMaxG = this->NumI() + 2 * numGhosts_ - 1;
-    const auto iMax = this->NumI() - 1;
-    const auto jMaxG = this->NumJ() + 2 * numGhosts_ - 1;
-    const auto jMax = this->NumJ() - 1;
-
-    // ------------------------------------------------------------------
-    // assign variables for lower split
-    // assign cell variables with ghost cells
-    blk1.state_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
-                       state_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
-    blk1.vol_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
-                     vol_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
-    blk1.center_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
-                        center_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
-    blk1.wallDist_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
-                          wallDist_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
-    blk1.temperature_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
-                             temperature_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
-    if (isViscous_) {
-      blk1.viscosity_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
-                             viscosity_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
-    }
-    if (isTurbulent_) {
-      blk1.eddyViscosity_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
-                                 eddyViscosity_.Slice(0, iMaxG, 0, jMaxG, 0,
-                                                      kMaxG1));
-      blk1.f1_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
-                      f1_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
-      blk1.f2_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
-                      f2_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
-    }
-
-    // assign cell variables without ghost cells
-    blk1.specRadius_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                            specRadius_.Slice(0, iMax, 0, jMax, 0, kMax1));
-    blk1.dt_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                    dt_.Slice(0, iMax, 0, jMax, 0, kMax1));
-    blk1.residual_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                          residual_.Slice(0, iMax, 0, jMax, 0, kMax1));
-    if (isViscous_) {
-      blk1.velocityGrad_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                                velocityGrad_.Slice(0, iMax, 0, jMax, 0,
-                                                    kMax1));
-      blk1.temperatureGrad_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                                   temperatureGrad_.Slice(0, iMax, 0, jMax,
-                                                          0, kMax1));
-    }
-    if (isTurbulent_) {
-      blk1.tkeGrad_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                           tkeGrad_.Slice(0, iMax, 0, jMax, 0, kMax1));
-      blk1.omegaGrad_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                             omegaGrad_.Slice(0, iMax, 0, jMax, 0, kMax1));
-    }
-
-    // assign face variables
-    blk1.fAreaI_.Insert(0, iMaxG + 1, 0, jMaxG, 0, kMaxG1,
-                        fAreaI_.Slice(0, iMaxG + 1, 0, jMaxG, 0, kMaxG1));
-    blk1.fAreaJ_.Insert(0, iMaxG, 0, jMaxG + 1, 0, kMaxG1,
-                        fAreaJ_.Slice(0, iMaxG, 0, jMaxG + 1, 0, kMaxG1));
-    blk1.fAreaK_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1 + 1,
-                        fAreaK_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1 + 1));
-
-    blk1.fCenterI_.Insert(0, iMaxG + 1, 0, jMaxG, 0, kMaxG1,
-                        fCenterI_.Slice(0, iMaxG + 1, 0, jMaxG, 0, kMaxG1));
-    blk1.fCenterJ_.Insert(0, iMaxG, 0, jMaxG + 1, 0, kMaxG1,
-                        fCenterJ_.Slice(0, iMaxG, 0, jMaxG + 1, 0, kMaxG1));
-    blk1.fCenterK_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1 + 1,
-                        fCenterK_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1 + 1));
-
-    // ------------------------------------------------------------------
-    // assign variables for upper split
-    // assign cell variables with ghost cells
-    blk2.state_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
-                       state_.Slice(0, iMaxG, 0, jMaxG, kMinPG2, kMaxPG2));
-    blk2.vol_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
-                       vol_.Slice(0, iMaxG, 0, jMaxG, kMinPG2, kMaxPG2));
-    blk2.center_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
-                       center_.Slice(0, iMaxG, 0, jMaxG, kMinPG2, kMaxPG2));
-    blk2.wallDist_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
-                          wallDist_.Slice(0, iMaxG, 0, jMaxG, kMinPG2,
-                                          kMaxPG2));
-    blk2.temperature_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
-                             temperature_.Slice(0, iMaxG, 0, jMaxG, kMinPG2,
-                                                kMaxPG2));
-    if (isViscous_) {
-      blk2.viscosity_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
-                             viscosity_.Slice(0, iMaxG, 0, jMaxG, kMinPG2,
-                                              kMaxPG2));
-    }
-    if (isTurbulent_) {
-      blk2.eddyViscosity_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
-                                 eddyViscosity_.Slice(0, iMaxG, 0, jMaxG,
-                                                      kMinPG2, kMaxPG2));
-      blk2.f1_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
-                      f1_.Slice(0, iMaxG, 0, jMaxG, kMinPG2, kMaxPG2));
-      blk2.f2_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
-                      f2_.Slice(0, iMaxG, 0, jMaxG, kMinPG2, kMaxPG2));
-    }
-
-    // assign cell variables without ghost cells
-    blk2.specRadius_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                            specRadius_.Slice(0, iMax, 0, jMax, kMinP2,
-                                              kMaxP2));
-    blk2.dt_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                    dt_.Slice(0, iMax, 0, jMax, kMinP2, kMaxP2));
-    blk2.residual_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                          residual_.Slice(0, iMax, 0, jMax, kMinP2, kMaxP2));
-    if (isViscous_) {
-      blk2.velocityGrad_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                                velocityGrad_.Slice(0, iMax, 0, jMax, kMinP2,
-                                                    kMaxP2));
-      blk2.temperatureGrad_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                                   temperatureGrad_.Slice(0, iMax, 0, jMax,
-                                                          kMinP2, kMaxP2));
-    }
-    if (isTurbulent_) {
-      blk2.tkeGrad_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                           tkeGrad_.Slice(0, iMax, 0, jMax, kMinP2, kMaxP2));
-      blk2.omegaGrad_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                             omegaGrad_.Slice(0, iMax, 0, jMax, kMinP2,
-                                              kMaxP2));
-    }
-
-    // assign face variables
-    blk2.fAreaI_.Insert(0, iMaxG + 1, 0, jMaxG, 0, kMaxG2,
-                        fAreaI_.Slice(0, iMaxG + 1, 0, jMaxG, kMinPG2,
-                                      kMaxPG2));
-    blk2.fAreaJ_.Insert(0, iMaxG, 0, jMaxG + 1, 0, kMaxG2,
-                        fAreaJ_.Slice(0, iMaxG, 0, jMaxG + 1, kMinPG2,
-                                      kMaxPG2));
-    blk2.fAreaK_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2 + 1,
-                        fAreaK_.Slice(0, iMaxG, 0, jMaxG, kMinPG2,
-                                      kMaxPG2 + 1));
-
-    blk2.fCenterI_.Insert(0, iMaxG + 1, 0, jMaxG, 0, kMaxG2,
-                          fCenterI_.Slice(0, iMaxG + 1, 0, jMaxG, kMinPG2,
-                                          kMaxPG2));
-    blk2.fCenterJ_.Insert(0, iMaxG, 0, jMaxG + 1, 0, kMaxG2,
-                          fCenterJ_.Slice(0, iMaxG, 0, jMaxG + 1, kMinPG2,
-                                          kMaxPG2));
-    blk2.fCenterK_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2 + 1,
-                          fCenterK_.Slice(0, iMaxG, 0, jMaxG, kMinPG2,
-                                          kMaxPG2 + 1));
-
-    // assign boundary conditions
-    blk1.bc_ = bound1;
-    (*this) = blk1;
-    blk2.bc_ = bound2;
-    return blk2;
-
+    numI2 = this->NumI();
+    numI1 = this->NumI();
+    numJ2 = this->NumJ();
+    numJ1 = this->NumJ();
+    numK2 = this->NumK() - ind;
+    numK1 = this->NumK() - numK2;
   } else {
     cerr << "ERROR: Error in procBlock::Split(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
     exit(EXIT_FAILURE);
   }
+
+  procBlock blk1(numI1, numJ1, numK1, numGhosts_, isViscous_, isTurbulent_);
+  procBlock blk2(numI2, numJ2, numK2, numGhosts_, isViscous_, isTurbulent_);
+
+  blk1.parBlock_ = parBlock_;
+  blk2.parBlock_ = parBlock_;
+
+  // ------------------------------------------------------------------
+  // assign variables for lower split
+  // assign cell variables with ghost cells
+  blk1.state_.Fill(state_.Slice(dir, state_.StartI(), blk1.state_.EndI()));
+  blk1.vol_.Fill(vol_.Slice(dir, vol_.StartI(), blk1.vol_.EndI()));
+  blk1.center_.Fill(center_.Slice(dir, center_.StartI(), blk1.center_.EndI()));
+  blk1.wallDist_.Fill(wallDist_.Slice(dir, wallDist_.StartI(),
+                                      blk1.wallDist_.EndI()));
+  blk1.temperature_.Fill(temperature_.Slice(dir, temperature_.StartI(),
+                                            blk1.temperature_.EndI()));
+  if (isViscous_) {
+    blk1.viscosity_.Fill(viscosity_.Slice(dir, viscosity_.StartI(),
+                                          blk1.viscosity_.EndI()));
+  }
+  if (isTurbulent_) {
+    blk1.eddyViscosity_.Fill(
+        eddyViscosity_.Slice(dir, eddyViscosity_.StartI(),
+                             blk1.eddyViscosity_.EndI()));
+    blk1.f1_.Fill(f1_.Slice(dir, f1_.StartI(), blk1.f1_.EndI()));
+    blk1.f2_.Fill(f2_.Slice(dir, f2_.StartI(), blk1.f2_.EndI()));
+  }
+
+  // assign cell variables without ghost cells
+  blk1.specRadius_.Fill(specRadius_.Slice(dir, specRadius_.StartI(),
+                                          blk1.specRadius_.EndI()));
+  blk1.dt_.Fill(dt_.Slice(dir, dt_.StartI(), blk1.dt_.EndI()));
+  blk1.residual_.Fill(residual_.Slice(dir, residual_.StartI(),
+                                      blk1.residual_.EndI()));
+  if (isViscous_) {
+    blk1.velocityGrad_.Fill(velocityGrad_.Slice(dir, velocityGrad_.StartI(),
+                                                blk1.velocityGrad_.EndI()));
+    blk1.temperatureGrad_.Fill(
+        temperatureGrad_.Slice(dir, temperatureGrad_.StartI(),
+                               blk1.temperatureGrad_.EndI()));
+  }
+  if (isTurbulent_) {
+    blk1.tkeGrad_.Fill(tkeGrad_.Slice(dir, tkeGrad_.StartI(),
+                                      blk1.tkeGrad_.EndI()));
+    blk1.omegaGrad_.Fill(omegaGrad_.Slice(dir, omegaGrad_.StartI(),
+                                          blk1.omegaGrad_.EndI()));
+  }
+
+  // assign face variables
+  blk1.fAreaI_.Fill(fAreaI_.Slice(dir, fAreaI_.StartI(), blk1.fAreaI_.EndI()));
+  blk1.fAreaJ_.Fill(fAreaJ_.Slice(dir, fAreaJ_.StartI(), blk1.fAreaJ_.EndI()));
+  blk1.fAreaK_.Fill(fAreaK_.Slice(dir, fAreaK_.StartI(), blk1.fAreaK_.EndI()));
+
+  blk1.fCenterI_.Fill(fCenterI_.Slice(dir, fCenterI_.StartI(),
+                                      blk1.fCenterI_.EndI()));
+  blk1.fCenterJ_.Fill(fCenterJ_.Slice(dir, fCenterJ_.StartI(),
+                                      blk1.fCenterJ_.EndI()));
+  blk1.fCenterK_.Fill(fCenterK_.Slice(dir, fCenterK_.StartI(),
+                                      blk1.fCenterK_.EndI()));
+
+  // ------------------------------------------------------------------
+  // assign variables for upper split
+  // assign cell variables with ghost cells
+  blk2.state_.Fill(state_.Slice(dir, ind, state_.EndI()));
+  blk2.vol_.Fill(vol_.Slice(dir, ind, vol_.EndI()));
+  blk2.center_.Fill(center_.Slice(dir, ind, center_.EndI()));
+  blk2.wallDist_.Fill(wallDist_.Slice(dir, ind, wallDist_.EndI()));
+  blk2.temperature_.Fill(temperature_.Slice(dir, ind, temperature_.EndI()));
+  if (isViscous_) {
+    blk2.viscosity_.Fill(viscosity_.Slice(dir, ind, viscosity_.EndI()));
+  }
+  if (isTurbulent_) {
+    blk2.eddyViscosity_.Fill(eddyViscosity_.Slice(dir, ind,
+                                                  eddyViscosity_.EndI()));
+    blk2.f1_.Fill(f1_.Slice(dir, ind, f1_.EndI()));
+    blk2.f2_.Fill(f2_.Slice(dir, ind, f2_.EndI()));
+  }
+
+  // assign cell variables without ghost cells
+  blk2.specRadius_.Fill(specRadius_.Slice(dir, ind, specRadius_.EndI()));
+  blk2.dt_.Fill(dt_.Slice(dir, ind, dt_.EndI()));
+  blk2.residual_.Fill(residual_.Slice(dir, ind, residual_.EndI()));
+  if (isViscous_) {
+    blk2.velocityGrad_.Fill(velocityGrad_.Slice(dir, ind,
+                                                velocityGrad_.EndI()));
+    blk2.temperatureGrad_.Fill(
+        temperatureGrad_.Slice(dir, ind, temperatureGrad_.EndI()));
+  }
+  if (isTurbulent_) {
+    blk2.tkeGrad_.Fill(tkeGrad_.Slice(dir, ind, tkeGrad_.EndI()));
+    blk2.omegaGrad_.Fill(omegaGrad_.Slice(dir, ind, omegaGrad_.EndI()));
+  }
+
+  // assign face variables
+  blk2.fAreaI_.Fill(fAreaI_.Slice(dir, ind, fAreaI_.EndI()));
+  blk2.fAreaJ_.Fill(fAreaJ_.Slice(dir, ind, fAreaJ_.EndI()));
+  blk2.fAreaK_.Fill(fAreaK_.Slice(dir, ind, fAreaK_.EndI()));
+
+  blk2.fCenterI_.Fill(fCenterI_.Slice(dir, ind, fCenterI_.EndI()));
+  blk2.fCenterJ_.Fill(fCenterJ_.Slice(dir, ind, fCenterJ_.EndI()));
+  blk2.fCenterK_.Fill(fCenterK_.Slice(dir, ind, fCenterK_.EndI()));
+
+  // assign boundary conditions
+  blk1.bc_ = bound1;
+  (*this) = blk1;
+  blk2.bc_ = bound2;
+  return blk2;
 }
 
 /* Member function to join a procBlock along a plane defined by a direction.
