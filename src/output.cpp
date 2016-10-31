@@ -87,17 +87,13 @@ void WriteCellCenter(const string &gridName, const vector<procBlock> &vars,
 
   // write out x, y, z coordinates of cell centers
   for (auto ll = 0; ll < numBlks; ll++) {  // loop over all blocks
-    auto maxi = recombVars[ll].NumI();
-    auto maxj = recombVars[ll].NumJ();
-    auto maxk = recombVars[ll].NumK();
-
     for (auto nn = 0; nn < 3; nn++) {  // loop over dimensions (3)
-      for (auto kk = recombVars[ll].NumGhosts();
-           kk < maxk + recombVars[ll].NumGhosts(); kk++) {
-        for (auto jj = recombVars[ll].NumGhosts();
-             jj < maxj + recombVars[ll].NumGhosts(); jj++) {
-          for (auto ii = recombVars[ll].NumGhosts();
-               ii < maxi + recombVars[ll].NumGhosts(); ii++) {
+      for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+           kk++) {
+        for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+             jj++) {
+          for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+               ii++) {
             // get the cell center coordinates (dimensionalized)
             auto dumVec = recombVars[ll].Center(ii, jj, kk) * LRef;
 
@@ -171,125 +167,128 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
       // store nondimensional variable in dumArr for a given block in order.
       // i.e. var1 var2 var3 etc
       if (var == "density") {
-        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
-             kp < recombVars[ll].NumK(); kg++, kp++) {
-          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
-               jp < recombVars[ll].NumJ(); jg++, jp++) {
-            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
-                 ip < recombVars[ll].NumI(); ig++, ip++) {
-              dumArr(ip, jp, kp) =
-                  recombVars[ll].State(ig, jg, kg).Rho();
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
+              dumArr(ii, jj, kk) = recombVars[ll].State(ii, jj, kk).Rho();
             }
           }
         }
       } else if (var == "vel_x") {
-        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
-             kp < recombVars[ll].NumK(); kg++, kp++) {
-          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
-               jp < recombVars[ll].NumJ(); jg++, jp++) {
-            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
-                 ip < recombVars[ll].NumI(); ig++, ip++) {
-              dumArr(ip, jp, kp) =
-                  recombVars[ll].State(ig, jg, kg).U();
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
+              dumArr(ii, jj, kk) = recombVars[ll].State(ii, jj, kk).U();
             }
           }
         }
       } else if (var == "vel_y") {
-        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
-             kp < recombVars[ll].NumK(); kg++, kp++) {
-          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
-               jp < recombVars[ll].NumJ(); jg++, jp++) {
-            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
-                 ip < recombVars[ll].NumI(); ig++, ip++) {
-              dumArr(ip, jp, kp) =
-                  recombVars[ll].State(ig, jg, kg).V();
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
+              dumArr(ii, jj, kk) = recombVars[ll].State(ii, jj, kk).V();
             }
           }
         }
       } else if (var == "vel_z") {
-        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
-             kp < recombVars[ll].NumK(); kg++, kp++) {
-          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
-               jp < recombVars[ll].NumJ(); jg++, jp++) {
-            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
-                 ip < recombVars[ll].NumI(); ig++, ip++) {
-              dumArr(ip, jp, kp) =
-                  recombVars[ll].State(ig, jg, kg).W();
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
+              dumArr(ii, jj, kk) = recombVars[ll].State(ii, jj, kk).W();
             }
           }
         }
       } else if (var == "pressure") {
-        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
-             kp < recombVars[ll].NumK(); kg++, kp++) {
-          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
-               jp < recombVars[ll].NumJ(); jg++, jp++) {
-            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
-                 ip < recombVars[ll].NumI(); ig++, ip++) {
-              dumArr(ip, jp, kp) =
-                  recombVars[ll].State(ig, jg, kg).P();
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
+              dumArr(ii, jj, kk) = recombVars[ll].State(ii, jj, kk).P();
             }
           }
         }
       } else if (var == "mach") {
-        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
-             kp < recombVars[ll].NumK(); kg++, kp++) {
-          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
-               jp < recombVars[ll].NumJ(); jg++, jp++) {
-            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
-                 ip < recombVars[ll].NumI(); ig++, ip++) {
-              const auto vel =
-                  recombVars[ll].State(ig, jg, kg).Velocity();
-              dumArr(ip, jp, kp) = vel.Mag() /
-                  eqnState.SoS(recombVars[ll].State(ig, jg, kg).P(),
-                               recombVars[ll].State(ig, jg, kg).Rho());
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
+              const auto vel = recombVars[ll].State(ii, jj, kk).Velocity();
+              dumArr(ii, jj, kk) = vel.Mag() /
+                  eqnState.SoS(recombVars[ll].State(ii, jj, kk).P(),
+                               recombVars[ll].State(ii, jj, kk).Rho());
             }
           }
         }
       } else if (var == "sos") {
-        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
-             kp < recombVars[ll].NumK(); kg++, kp++) {
-          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
-               jp < recombVars[ll].NumJ(); jg++, jp++) {
-            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
-                 ip < recombVars[ll].NumI(); ig++, ip++) {
-              dumArr(ip, jp, kp) =
-                  eqnState.SoS(recombVars[ll].State(ig, jg, kg).P(),
-                               recombVars[ll].State(ig, jg, kg).Rho());
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
+              dumArr(ii, jj, kk) =
+                  eqnState.SoS(recombVars[ll].State(ii, jj, kk).P(),
+                               recombVars[ll].State(ii, jj, kk).Rho());
             }
           }
         }
-      } else if (var == "dt") {  // time step - no ghost cells
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+      } else if (var == "dt") {  // time step
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].Dt(ii, jj, kk);
             }
           }
         }
       } else if (var == "temperature") {
-        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
-             kp < recombVars[ll].NumK(); kg++, kp++) {
-          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
-               jp < recombVars[ll].NumJ(); jg++, jp++) {
-            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
-                 ip < recombVars[ll].NumI(); ig++, ip++) {
-              dumArr(ip, jp, kp) = recombVars[ll].Temperature(ig, jg, kg);
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
+              dumArr(ii, jj, kk) = recombVars[ll].Temperature(ii, jj, kk);
             }
           }
         }
       } else if (var == "rank") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = vars[SplitBlockNumber(recombVars, decomp, ll,
                                                          ii, jj, kk)].Rank();
             }
           }
         }
       } else if (var == "globalPosition") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) =
                   vars[SplitBlockNumber(recombVars, decomp, ll,
                                         ii, jj, kk)].GlobalPos();
@@ -297,251 +296,323 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
           }
         }
       } else if (var == "viscosityRatio") {
-        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
-             kp < recombVars[ll].NumK(); kg++, kp++) {
-          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
-               jp < recombVars[ll].NumJ(); jg++, jp++) {
-            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
-                 ip < recombVars[ll].NumI(); ig++, ip++) {
-              dumArr(ip, jp, kp) = recombVars[ll].IsTurbulent() ?
-                  recombVars[ll].EddyViscosity(ig, jg, kg) /
-                  recombVars[ll].Viscosity(ig, jg, kg)
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
+              dumArr(ii, jj, kk) = recombVars[ll].IsTurbulent() ?
+                  recombVars[ll].EddyViscosity(ii, jj, kk) /
+                  recombVars[ll].Viscosity(ii, jj, kk)
                   : 0.0;
             }
           }
         }
       } else if (var == "tke") {
-        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
-             kp < recombVars[ll].NumK(); kg++, kp++) {
-          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
-               jp < recombVars[ll].NumJ(); jg++, jp++) {
-            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
-                 ip < recombVars[ll].NumI(); ig++, ip++) {
-              dumArr(ip, jp, kp) =
-                  recombVars[ll].State(ig, jg, kg).Tke();
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
+              dumArr(ii, jj, kk) = recombVars[ll].State(ii, jj, kk).Tke();
             }
           }
         }
       } else if (var == "sdr") {  // omega (specific dissipation rate)
-        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
-             kp < recombVars[ll].NumK(); kg++, kp++) {
-          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
-               jp < recombVars[ll].NumJ(); jg++, jp++) {
-            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
-                 ip < recombVars[ll].NumI(); ig++, ip++) {
-              dumArr(ip, jp, kp) =
-                  recombVars[ll].State(ig, jg, kg).Omega();
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
+              dumArr(ii, jj, kk) = recombVars[ll].State(ii, jj, kk).Omega();
             }
           }
         }
       } else if (var == "wallDistance") {
-        for (auto kp = 0, kg = recombVars[ll].NumGhosts();
-             kp < recombVars[ll].NumK(); kg++, kp++) {
-          for (auto jp = 0, jg = recombVars[ll].NumGhosts();
-               jp < recombVars[ll].NumJ(); jg++, jp++) {
-            for (auto ip = 0, ig = recombVars[ll].NumGhosts();
-                 ip < recombVars[ll].NumI(); ig++, ip++) {
-              dumArr(ip, jp, kp) =
-                  recombVars[ll].WallDist(ig, jg, kg);
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
+              dumArr(ii, jj, kk) = recombVars[ll].WallDist(ii, jj, kk);
             }
           }
         }
       } else if (var == "velGrad_ux") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].VelGrad(ii, jj, kk).XX();
             }
           }
         }
       } else if (var == "velGrad_vx") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].VelGrad(ii, jj, kk).XY();
             }
           }
         }
       } else if (var == "velGrad_wx") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].VelGrad(ii, jj, kk).XZ();
             }
           }
         }
       } else if (var == "velGrad_uy") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].VelGrad(ii, jj, kk).YX();
             }
           }
         }
       } else if (var == "velGrad_vy") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].VelGrad(ii, jj, kk).YY();
             }
           }
         }
       } else if (var == "velGrad_wy") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].VelGrad(ii, jj, kk).YZ();
             }
           }
         }
       } else if (var == "velGrad_uz") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].VelGrad(ii, jj, kk).ZX();
             }
           }
         }
       } else if (var == "velGrad_vz") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].VelGrad(ii, jj, kk).ZY();
             }
           }
         }
       } else if (var == "velGrad_wz") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].VelGrad(ii, jj, kk).ZZ();
             }
           }
         }
       } else if (var == "tempGrad_x") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].TempGrad(ii, jj, kk).X();
             }
           }
         }
       } else if (var == "tempGrad_y") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].TempGrad(ii, jj, kk).Y();
             }
           }
         }
       } else if (var == "tempGrad_z") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].TempGrad(ii, jj, kk).Z();
             }
           }
         }
       } else if (var == "tkeGrad_x") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].TkeGrad(ii, jj, kk).X();
             }
           }
         }
       } else if (var == "tkeGrad_y") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].TkeGrad(ii, jj, kk).Y();
             }
           }
         }
       } else if (var == "tkeGrad_z") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].TkeGrad(ii, jj, kk).Z();
             }
           }
         }
       } else if (var == "sdrGrad_x") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].OmegaGrad(ii, jj, kk).X();
             }
           }
         }
       } else if (var == "sdrGrad_y") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].OmegaGrad(ii, jj, kk).Y();
             }
           }
         }
       } else if (var == "sdrGrad_z") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].OmegaGrad(ii, jj, kk).Z();
             }
           }
         }
       } else if (var == "resid_mass") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].Residual(ii, jj, kk, 0);
             }
           }
         }
       } else if (var == "resid_mom_x") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].Residual(ii, jj, kk, 1);
             }
           }
         }
       } else if (var == "resid_mom_y") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].Residual(ii, jj, kk, 2);
             }
           }
         }
       } else if (var == "resid_mom_z") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].Residual(ii, jj, kk, 3);
             }
           }
         }
       } else if (var == "resid_energy") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].Residual(ii, jj, kk, 4);
             }
           }
         }
       } else if (var == "resid_tke") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].Residual(ii, jj, kk, 5);
             }
           }
         }
       } else if (var == "resid_sdr") {
-        for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-          for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-            for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
               dumArr(ii, jj, kk) = recombVars[ll].Residual(ii, jj, kk, 6);
             }
           }
@@ -553,9 +624,12 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
       }
 
       // write out dimensional variables -- loop over block length
-      for (auto kk = 0; kk < recombVars[ll].NumK(); kk++) {
-        for (auto jj = 0; jj < recombVars[ll].NumJ(); jj++) {
-          for (auto ii = 0; ii < recombVars[ll].NumI(); ii++) {
+        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
+             kk++) {
+          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
+               jj++) {
+            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
+                 ii++) {
             auto dumDouble = dumArr(ii, jj, kk);
 
             if (var == "density") {
@@ -626,7 +700,7 @@ void WriteRes(const input &inp, const int &iter) {
   ofstream resFile(resName, ios::out);
 
   const auto outFreq = inp.OutputFrequency();
-  
+
   // check to see if file opened correctly
   if (resFile.fail()) {
     cerr << "ERROR: Results file " << resName << " did not open correctly!!!"
@@ -691,7 +765,7 @@ void WriteRes(const input &inp, const int &iter) {
             << vectorIndices.Y() << " " << std::setfill('0') << setw(4)
             << vectorIndices.Z() << " velocity\n";
   }
-  
+
   // Close results file
   resFile.close();
 }

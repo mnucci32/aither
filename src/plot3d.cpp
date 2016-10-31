@@ -521,8 +521,8 @@ void plot3dBlock::Split(const string &dir, const int &ind, plot3dBlock &blk1,
   // dir -- plane to split along, either i, j, or k
   // ind -- index (face) to split at (w/o counting ghost cells)
 
-  blk1 = plot3dBlock(coords_.Slice(dir, 0, ind));
-  blk2 = plot3dBlock(coords_.Slice(dir, ind, coords_.EndI()));
+  blk1 = plot3dBlock(coords_.Slice(dir, {coords_.Start(dir), ind}));
+  blk2 = plot3dBlock(coords_.Slice(dir, {ind, coords_.End(dir)}));
 }
 
 /* Member function to join a plot3dBlock along a plane defined by a direction.
@@ -530,42 +530,27 @@ The calling instance will be the lower portion of the joined block,
 and the input instance will be the upper portion of the joined block.
 */
 void plot3dBlock::Join(const plot3dBlock &blk, const string &dir) {
+  auto iTot = this->NumI();
+  auto jTot = this->NumJ();
+  auto kTot = this->NumK();
+
   if (dir == "i") {
-    int newNumI = this->NumI() + blk.NumI() - 1;
-
-    plot3dBlock newBlk(newNumI, this->NumJ(), this->NumK());
-
-    newBlk.coords_.Insert(0, this->NumI(), 0, this->NumJ(), 0,
-                          this->NumK(), coords_);
-
-    newBlk.coords_.Insert(this->NumI(), newNumI, 0, this->NumJ(), 0,
-                          this->NumK(), blk.coords_);
-    (*this) = newBlk;
+    iTot += blk.NumI() - 1;
   } else if (dir == "j") {
-    int newNumJ = this->NumJ() + blk.NumJ() - 1;
-
-    plot3dBlock newBlk(this->NumI(), newNumJ, this->NumK());
-
-    newBlk.coords_.Insert(0, this->NumI(), 0, this->NumJ(), 0,
-                          this->NumK(), coords_);
-
-    newBlk.coords_.Insert(0, this->NumI(), this->NumJ(), newNumJ, 0,
-                          this->NumK(), blk.coords_);
-    (*this) = newBlk;
+    jTot += blk.NumJ() - 1;
   } else if (dir == "k") {
-    int newNumK = this->NumK() + blk.NumK() - 1;
-
-    plot3dBlock newBlk(this->NumI(), this->NumJ(), newNumK);
-
-    newBlk.coords_.Insert(0, this->NumI(), 0, this->NumJ(), 0,
-                          this->NumK(), coords_);
-
-    newBlk.coords_.Insert(0, this->NumI(), 0, this->NumJ(), this->NumK(),
-                          newNumK, blk.coords_);
-    (*this) = newBlk;
+    ktot += blk.NumK() - 1;
   } else {
     cerr << "ERROR: Error in plot3dBlock::Join(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
     exit(EXIT_FAILURE);
   }
+
+  plot3dBlock newBlk(iTot, jTot, kTot);
+
+  newBlk.coords_.Insert(dir, {coords_.Start(dir), coords_.End(dir)}, coords_);
+
+  newBlk.coords_.Insert(dir, {coords_.End(dir), newBlk.coords_.End(dir)},
+                        blk.coords_);
+  (*this) = newBlk;
 }

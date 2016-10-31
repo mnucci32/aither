@@ -23,6 +23,7 @@
 #include "boundaryConditions.hpp"
 #include "vector3d.hpp"  // vector3d
 #include "plot3d.hpp"  // plot3dBlock
+#include "multiArray3d.hpp"  // range
 
 using std::cout;
 using std::endl;
@@ -84,25 +85,25 @@ void boundaryConditions::ResizeVecs(const int &i, const int &j, const int &k) {
 // Member function to return the boundary condition type given the
 // i,j,k face coordinates and the surface type
 string boundaryConditions::GetBCName(const int &i, const int &j, const int &k,
-                                     const string &surf) const {
+                                     const int &surf) const {
   // ii -- i coordinate
   // jj -- j coordinate
   // kk -- k coordinate
-  // surf -- boundary condition surface
+  // surf -- boundary condition surface type [1-6]
 
   auto iStart = 0;
   auto iEnd = 0;
 
   // i-surfaces search between 0 and number of i-surfaces
-  if (surf == "il" || surf == "iu") {
+  if (surf == 1 || surf == 2) {
     iStart = 0;
     iEnd = this->NumSurfI();
     // j-surfaces search between end of i-surfaces and end of j-surfaces
-  } else if (surf == "jl" || surf == "ju") {
+  } else if (surf == 3 || surf == 4) {
     iStart = this->NumSurfI();
     iEnd = iStart + this->NumSurfJ();
     // k-surfaces search between end of j-surfaces and end of k-surfaces
-  } else if (surf == "kl" || surf == "ku") {
+  } else if (surf == 5 || surf == 6) {
     iStart = this->NumSurfI() + this->NumSurfJ();
     iEnd = iStart + this->NumSurfK();
   } else {
@@ -317,6 +318,22 @@ void interblock::SwapOrder() {
   } else if (orientation_ == 5) {
     orientation_ = 4;
   }
+}
+
+range interblock::Dir1RangeFirst() const {
+  return {d1Start_[0], d1End_[0]};
+}
+
+range interblock::Dir1RangeSecond() const {
+  return {d1Start_[1], d1End_[1]};
+}
+
+range interblock::Dir2RangeFirst() const {
+  return {d2Start_[0], d2End_[0]};
+}
+
+range interblock::Dir2RangeSecond() const {
+  return {d2Start_[1], d2End_[1]};
 }
 
 /* Function to go through the boundary conditions and pair the interblock
@@ -2376,6 +2393,48 @@ int boundarySurface::NumFaces() const {
     nFaces = (this->IMax() - this->IMin()) * (this->JMax() - this->JMin());
   }
   return nFaces;
+}
+
+range boundarySurface::RangeI() const {
+  return (data_[0] == data_[1]) ? data_[0] : {data_[0], data_[1]};
+}
+
+range boundarySurface::RangeJ() const {
+  return (data_[2] == data_[3]) ? data_[2] : {data_[2], data_[3]};
+}
+
+range boundarySurface::RangeK() const {
+  return (data_[4] == data_[5]) ? data_[4] : {data_[4], data_[5]};
+}
+
+range boundarySurface::RangeDir1() const {
+  if (this->Direction1() == "i") {
+    return this->RangeI();
+  } else if (this->Direction1() == "j") {
+    return this->RangeJ();
+  } else {
+    return this->RangeK();
+  }
+}
+
+range boundarySurface::RangeDir2() const {
+  if (this->Direction2() == "i") {
+    return this->RangeI();
+  } else if (this->Direction2() == "j") {
+    return this->RangeJ();
+  } else {
+    return this->RangeK();
+  }
+}
+
+range boundarySurface::RangeDir3() const {
+  if (this->Direction3() == "i") {
+    return this->RangeI();
+  } else if (this->Direction3() == "j") {
+    return this->RangeJ();
+  } else {
+    return this->RangeK();
+  }
 }
 
 // operator overload for << - allows use of cout, cerr, etc.

@@ -38,6 +38,40 @@ using std::cerr;
 using std::vector;
 using std::string;
 
+class range {
+  int start_;
+  int end_;
+
+ public:
+  // constructors
+  range(const int &s, const int &e) : start_(s), end_(e) {}
+  range(const int &ind) : range(ind, ind + 1) {}
+
+  // member functions
+  int Start() const {return start_;}
+  int End() const {return end_;}
+  int Size() const {return end_ - start_;}
+  bool IsInside(const range &r) const {
+    return start_ >= r.start_ && start_ < r.end_ && end_ > r.start_ &&
+        end_ <= r.end_;
+  }
+  bool IsValid() const {
+    return end_ > start_;
+  }
+  void GrowStart() {start_++;}
+  void GrowEnd() {end_++;}
+  void ShrinkStart() {start_--;}
+  void ShrinkEnd() {end_--;}
+
+  // destructor
+  ~range() noexcept {}
+};
+
+ostream &operator<<(ostream &os, const range &r) {
+  os << "[" << r.Start() << ":" << r.End() << ")";
+}
+
+
 template <typename T>
 class multiArray3d {
   vector<T> data_;
@@ -88,15 +122,27 @@ class multiArray3d {
   int EndI() const {return numI_ - numGhosts_;}
   int EndJ() const {return numJ_ - numGhosts_;}
   int EndK() const {return numK_ - numGhosts_;}
+  int Start(const string &) const;
+  int End(const string &) const;
+
   int PhysStartI() const {return 0;}
   int PhysStartJ() const {return 0;}
   int PhysStartK() const {return 0;}
   int PhysEndI() const {return this->NumINoGhosts();}
   int PhysEndJ() const {return this->NumJNoGhosts();}
   int PhysEndK() const {return this->NumKNoGhosts();}
+  int PhysStart(const string &) const;
+  int PhysEnd(const string &) const;
+
   int PhysicalSize() const {
     return this->NumINoGhosts() * this->NumJNoGhosts() * this->NumKNoGhosts();
   }
+  range RangeI() const {return {this->StartI(), this->EndI()};}
+  range RangeJ() const {return {this->StartJ(), this->EndJ()};}
+  range RangeK() const {return {this->StartK(), this->EndK()};}
+  range PhysRangeI() const {return {this->PhysStartI(), this->PhysEndI()};}
+  range PhysRangeJ() const {return {this->PhysStartJ(), this->PhysEndJ()};}
+  range PhysRangeK() const {return {this->PhysStartK(), this->PhysEndK()};}
 
   // provide begin and end so std::begin and std::end can be used
   // use lower case to conform with std::begin, std::end
@@ -105,13 +151,25 @@ class multiArray3d {
   auto end() noexcept {return data_.end();}
   const auto end() const noexcept {return data_.end();}
 
-  multiArray3d<T> Slice(const int &, const int &, const int &, const int &,
-                        const int &, const int &) const;
-  multiArray3d<T> Slice(const string &, const int &, const int &) const;
-  multiArray3d<T> Slice(const string &, const int &, const int &,
-                        const int &, const int &) const;
-  void Insert(const int &, const int &, const int &, const int &, const int &,
-              const int &, const multiArray3d<T> &);
+  multiArray3d<T> Slice(const range &, const range &, const range &) const;
+  multiArray3d<T> Slice(const string &, const range &,
+                        const bool = false) const;
+  multiArray3d<T> Slice(const string &, int, int, const bool = false,
+                        const string = "cell", const bool = false,
+                        const bool = false) const;
+  multiArray3d<T> Slice(const string &, int, range, range,
+                        const string = "cell", const int = 0) const;
+
+  void Insert(const range &, const range &, const range &,
+              const multiArray3d<T> &);
+  void Insert(const string &, const range &, const multiArray3d<T> &,
+              const bool = false);
+  void Insert(const string &, int, int, const multiArray3d<T> &,
+              const bool = false, const string = "cell", const bool = false,
+              const bool = false);
+  void Insert(const string &, int, range, range, const multiArray3d<T> &,
+              const string = "cell", const int = 0);
+
   void Fill(const multiArray3d<T> &);
   void PutSlice(const multiArray3d<T> &, const interblock &, const int &);
   void SwapSliceMPI(const interblock &, const int &, const MPI_Datatype &,
@@ -121,9 +179,9 @@ class multiArray3d {
   void Zero(const T &);
   void Zero();
 
-  void GrowI();
-  void GrowJ();
-  void GrowK();
+  multiArray3d<T> GrowI() const;
+  multiArray3d<T> GrowJ() const;
+  multiArray3d<T> GrowK() const;
 
   void PackSwapUnpackMPI(const interblock &, const MPI_Datatype &, const int &,
                          const int = 1);
@@ -142,6 +200,31 @@ class multiArray3d {
   }
   const T& operator()(const int &ind) const {
     return data_[ind];
+  }
+  T& operator()(const string &dir, const int &d1, const int &d2, const int &d3) {
+    if (dir == "i") {  // direction 1 is i
+      return data_[this->GetLoc1D(d1, d2, d3)];
+    } else if (dir == "j") {  // direction 1 is j
+      return data_[this->GetLoc1D(d3, d1, d2)];
+    } else if (dir == "k") {  // direction 1 is k
+      return data_[this->GetLoc1D(d2, d3, d1)];
+    } else {
+      cerr << "ERROR: Direction " << dir << " is not recognized!" << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+  const T& operator()(const string &dir, const int &d1, const int &d2,
+                      const int &d3) const {
+    if (dir == "i") {  // direction 1 is i
+      return data_[this->GetLoc1D(d1, d2, d3)];
+    } else if (dir == "j") {  // direction 1 is j
+      return data_[this->GetLoc1D(d3, d1, d2)];
+    } else if (dir == "k") {  // direction 1 is k
+      return data_[this->GetLoc1D(d2, d3, d1)];
+    } else {
+      cerr << "ERROR: Direction " << dir << " is not recognized!" << endl;
+      exit(EXIT_FAILURE);
+    }
   }
 
   // arithmetic with same type
@@ -249,6 +332,70 @@ class multiArray3d {
   // destructor
   ~multiArray3d() noexcept {}
 };
+
+// ---------------------------------------------------------------------------
+// member function definitions
+
+template <typename T>
+int multiArray3d<T>::Start(const string &dir) const {
+  if (dir == "i") {
+    return this->StartI();
+  } else if (dir == "j") {
+    return this->StartJ();
+  } else if (dir == "k") {
+    return this->StartK();
+  } else {
+    cerr << "ERROR: Error in multiArray3d::Start. Direction " << dir
+         << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+template <typename T>
+int multiArray3d<T>::End(const string &dir) const {
+  if (dir == "i") {
+    return this->EndI();
+  } else if (dir == "j") {
+    return this->EndJ();
+  } else if (dir == "k") {
+    return this->EndK();
+  } else {
+    cerr << "ERROR: Error in multiArray3d::End. Direction " << dir
+         << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+template <typename T>
+int multiArray3d<T>::PhysStart(const string &dir) const {
+  if (dir == "i") {
+    return this->PhysStartI();
+  } else if (dir == "j") {
+    return this->PhysStartJ();
+  } else if (dir == "k") {
+    return this->PhysStartK();
+  } else {
+    cerr << "ERROR: Error in multiArray3d::PhysStart. Direction " << dir
+         << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+template <typename T>
+int multiArray3d<T>::PhysEnd(const string &dir) const {
+  if (dir == "i") {
+    return this->PhysEndI();
+  } else if (dir == "j") {
+    return this->PhysEndJ();
+  } else if (dir == "k") {
+    return this->PhysEndK();
+  } else {
+    cerr << "ERROR: Error in multiArray3d::PhysEnd. Direction " << dir
+         << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
 
 template <typename T>
 T multiArray3d<T>::GetElem(const int &ii, const int &jj, const int &kk) const {
@@ -422,37 +569,33 @@ inline const multiArray3d<T> operator/(const TT &lhs, multiArray3d<T> rhs) {
 
 // member function to return a slice of the array
 template <typename T>
-multiArray3d<T> multiArray3d<T>::Slice(const int &is, const int &ie,
-                                       const int &js, const int &je,
-                                       const int &ks, const int &ke) const {
-  // is -- starting i-index to take slice (inclusive)
-  // ie -- ending i-index to take slice (exclusive)
-  // js -- starting j-index to take slice (inclusive)
-  // je -- ending j-index to take slice (exclusive)
-  // ks -- starting k-index to take slice (inclusive)
-  // ke -- ending k-index to take slice (exclusive)
+multiArray3d<T> multiArray3d<T>::Slice(const range &ir, const range &jr,
+                                       const range &kr) const {
+  // ir -- i-index range to take slice [inclusive, exclusive)
+  // jr -- j-index range to take slice [inclusive, exclusive)
+  // kr -- k-index range to take slice [inclusive, exclusive)
 
   // check that slice bounds are within parent array and that end bounds are
   // greater than or equal to start bounds
-  if (!(ie < this->EndI() && is >= this->StartI() &&
-        je < this->EndJ() && js >= this->StartJ() &&
-        ke < this->EndK() && ks >= this->StartK() &&
-        ie > is && je > js && ke > ks)) {
+  if (!ir.IsInside(this->RangeI()) || !jr.IsInside(this->RangeJ()) ||
+      !kr.IsInside(this->RangeK()) || !ir.IsValid() || !jr.IsValid() ||
+      !kr.IsValid()) {
     cerr << "ERROR: Error in multiArray3d::Slice. Cannot take slice with "
-         << "boundaries " << is << ", " << ie << ", " << js << ", " << je
-         << ", " << ks << ", " << ke << endl << "from array with ranges ["
-         << this->StartI() << ":" << this->EndI() << "), [" << this->StartJ()
-         << ":" << this->EndJ() << "), [" << this->StartK() << ":"
-         << this->EndK() << ")" << endl;
+         << "boundaries " << ir << ", " << jr << ", " << kr << endl
+         << "from array with ranges " << this->RangeI() << ", "
+         << this->RangeJ() << ", " << this->RangeK() << endl;
     exit(EXIT_FAILURE);
   }
 
-  multiArray3d<T> arr(ie - is, je - js, ke - ks, 0);
+  multiArray3d<T> arr(ir.Size(), jr.Size(), kr.Size(), 0);
 
 // s is for index of sliced array, p is for index of parent array
-  for (int kks = arr.StartK(), kkp = ks; kks < arr.EndK(); kks++, kkp++) {
-    for (int jjs = arr.StartJ(), jjp = js; jjs < arr.EndJ(); jjs++, jjp++) {
-      for (int iis = arr.StartI(), iip = is; iis < arr.EndI(); iis++, iip++) {
+  for (int kks = arr.StartK(), kkp = kr.Start(); kks < arr.EndK();
+       kks++, kkp++) {
+    for (int jjs = arr.StartJ(), jjp = jr.Start(); jjs < arr.EndJ();
+         jjs++, jjp++) {
+      for (int iis = arr.StartI(), iip = ir.Start(); iis < arr.EndI();
+           iis++, iip++) {
         arr(iis, jjs, kks) = (*this)(iip, jjp, kkp);
       }
     }
@@ -463,17 +606,27 @@ multiArray3d<T> multiArray3d<T>::Slice(const int &is, const int &ie,
 // member function to return a slice of the array
 // overload to slice in only one direction
 template <typename T>
-multiArray3d<T> multiArray3d<T>::Slice(const string &dir, const int &start,
-                                       const int &end) const {
+multiArray3d<T> multiArray3d<T>::Slice(const string &dir,
+                                       const range &dirRange,
+                                       const bool physOnly) const {
   if (dir == "i") {
-    return this->Slice(start, end, this->StartJ(), this->EndJ(), this->StartK(),
-                       this->EndK());
+    if (physOnly) {
+      return this->Slice(dirRange, this->PhysRangeJ(), this->PhysRangeK());
+    } else {
+      return this->Slice(dirRange, this->RangeJ(), this->RangeK());
+    }
   } else if (dir == "j") {
-    return this->Slice(this->StartI(), this->EndI(), start, end, this->StartK(),
-                       this->EndK());
+    if (physOnly) {
+      return this->Slice(this->PhysRangeI(), dirRange, this->PhysRangeK());
+    } else {
+      return this->Slice(this->RangeI(), dirRange, this->RangeK());
+    }
   } else if (dir == "k") {
-    return this->Slice(this->StartI(), this->EndI(), this->StartJ(),
-                       this->EndJ(), start, end);
+    if (physOnly) {
+      return this->Slice(this->PhysRangeI(), this->PhysRangeJ(), dirRange);
+    } else {
+      return this->Slice(this->RangeI(), this->RangeJ(), dirRange);
+    }
   } else {
     cerr << "ERROR: Error in multiArray3d::Slice, direction " << dir
          << " is not recognized!" << endl;
@@ -484,15 +637,94 @@ multiArray3d<T> multiArray3d<T>::Slice(const string &dir, const int &start,
 // member function to return a slice of the array
 // overload to slice line out of array
 template <typename T>
-multiArray3d<T> multiArray3d<T>::Slice(const string &dir, const int &dirStart,
-                                       const int &dirEnd, const int &d2Ind,
-                                       const int &d3Ind) const {
+multiArray3d<T> multiArray3d<T>::Slice(const string &dir, int d2Ind,
+                                       int d3Ind, const bool physOnly,
+                                       const string id, const bool upper2,
+                                       const bool upper3) const {
   if (dir == "i") {  // d2 = j, d3 = k
-    return this->Slice(dirStart, dirEnd, d2Ind, d2Ind, d3Ind, d3Ind);
+    if (upper2 && id == "j") {
+      d2Ind++;
+    } else if (upper3 && id == "k") {
+      d3Ind++;
+    }
+
+    if (physOnly) {
+      return this->Slice(this->PhysRangeI(), d2Ind, d3Ind);
+    } else {
+      return this->Slice(this->RangeI(), d2Ind, d3Ind);
+    }
   } else if (dir == "j") {  // d2 = k, d3 = i
-    return this->Slice(d3Ind, d3Ind, dirStart, dirEnd, d2Ind, d2Ind);
+    if (upper2 && id == "k") {
+      d2Ind++;
+    } else if (upper3 && id == "i") {
+      d3Ind++;
+    }
+
+    if (physOnly) {
+      return this->Slice(d3Ind, this->PhysRangeJ(), d2Ind);
+    } else {
+      return this->Slice(d3Ind, this->RangeJ(), d2Ind);
+    }
   } else if (dir == "k") {  // d2 = i, d3 = j
-    return this->Slice(d2Ind, d2Ind, d3Ind, d3Ind, dirStart, dirEnd);
+    if (upper2 && id == "i") {
+      d2Ind++;
+    } else if (upper3 && id == "j") {
+      d3Ind++;
+    }
+
+    if (physOnly) {
+      return this->Slice(d2Ind, d3Ind, this->PhysRangeK());
+    } else {
+      return this->Slice(d2Ind, d3Ind, this->RangeK());
+    }
+  } else {
+    cerr << "ERROR: Error in multiArray3d::Slice, direction " << dir
+         << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+// overload to slice in only one direction
+template <typename T>
+multiArray3d<T> multiArray3d<T>::Slice(const string &dir, int dirInd,
+                                       range dir1, range dir2,
+                                       const string id, const int type) const {
+  // dir -- normal direction of planar slice
+  // dirInd -- index in normal direction
+  // dir1 -- range of direction 1 (direction 3 is normal to slice)
+  // dir2 -- range of direction 2 (direction 3 is normal to slice)
+  // id -- id of array being sliced (i, j, k for faces, cell for cells)
+
+  if (dir == "i") {  // d1 = j, d2 = k
+    if (type == 2 && id == "i") {  // upper i-surface & i normal
+      dirInd++;
+    }
+    if (id == "j") {
+      dir1.GrowEnd();
+    } else if (id == "k") {
+      dir2.GrowEnd();
+    }
+    return this->Slice(dirInd, dir1, dir2);
+  } else if (dir == "j") {  // d1 = k, d2 = i
+    if (type == 4 && id == "j") {  // upper j-surface & j normal
+      dirInd++;
+    }
+    if (id == "k") {
+      dir1.GrowEnd();
+    } else if (id == "i") {
+      dir2.GrowEnd();
+    }
+    return this->Slice(dir2, dirInd, dir1);
+  } else if (dir == "k") {  // d1 = i, d2 = j
+    if (type == 6 && id == "j") {  // upper k-surface & k normal
+      dirInd++;
+    }
+    if (id == "i") {
+      dir1.GrowEnd();
+    } else if (id == "j") {
+      dir2.GrowEnd();
+    }
+    return this->Slice(dir1, dir2, dirInd);
   } else {
     cerr << "ERROR: Error in multiArray3d::Slice, direction " << dir
          << " is not recognized!" << endl;
@@ -502,37 +734,172 @@ multiArray3d<T> multiArray3d<T>::Slice(const string &dir, const int &dirStart,
 
 // member function to insert an array into this one
 template <typename T>
-void multiArray3d<T>::Insert(const int &is, const int &ie, const int &js,
-                             const int &je, const int &ks, const int &ke,
+void multiArray3d<T>::Insert(const range &ir, const range &jr, const range &kr,
                              const multiArray3d<T> &arr) {
-  // is -- starting i-index to insert slice (inclusive)
-  // ie -- ending i-index to insert slice (inclusive)
-  // js -- starting j-index to insert slice (inclusive)
-  // je -- ending j-index to insert slice (inclusive)
-  // ks -- starting k-index to insert slice (inclusive)
-  // ke -- ending k-index to insert slice (inclusive)
+  // ir -- i-index range to take slice [inclusive, exclusive)
+  // jr -- j-index range to take slice [inclusive, exclusive)
+  // kr -- k-index range to take slice [inclusive, exclusive)
   // arr -- array to insert into this one
 
-  // check that given array fits in given bounds and that end bounds are
-  // greater than or equal to start bounds
-  if (ie - is + 1 != arr.NumI() && je - js + 1 != arr.NumJ() &&
-      ke - ks + 1 != arr.NumK() && ie < is && je < js && ke < ks) {
-    cerr << "ERROR: Error in multiArray3d::Insert. Size of given array " <<
-        "does not match size of location given to insert array into!" << endl;
-    cerr << "Size of given array is " << arr.NumI() << ", " << arr.NumJ()
-         << ", " << arr.NumK() << endl;
-    cerr << "Size of location is " << ie - is + 1 << ", " << je - js + 1 <<
-        ", " << ke - ks + 1 << endl;
+  // check that given array fits in given bounds, given bounds fit in this,
+  // sizes match, and that bounds are valid
+  if (!arr.RangeI().IsInside(ir) || !arr.RangeJ().IsInside(jr) ||
+      !arr.RangeK().IsInside(kr) || !ir.IsInside(this->RangeI()) ||
+      !jr.IsInside(this->RangeJ()) || !kr.IsInside(this->RangeK()) ||
+      ir.Size() != arr.RangeI().Size() || jr.Size() != arr.RangeJ().Size() ||
+      kr.Size() != arr.RangeK().Size() ||
+      !ir.IsValid() || !jr.IsValid() || !kr.IsValid()) {
+    cerr << "ERROR: Error in multiArray3d::Insert. Given array does not fit in "
+         << "given bounds" << endl
+         << "Given bounds: " << ir << ", " << jr << ", " << kr << endl
+         << "Bounds of array being inserted: " << arr.RangeI() << ", "
+         << arr.RangeJ() << ", " << arr.RangeK() << endl;
+         << "Bounds of array accepting data: " << this->RangeI() << ", "
+         << this->RangeJ() << ", " << this->RangeK() << endl;
     exit(EXIT_FAILURE);
   }
 
   // s is for index of sliced array, p is for index of parent array
-  for (int kks = arr.StartK(), kkp = ks; kks < arr.EndK(); kks++, kkp++) {
-    for (int jjs = arr.StartJ(), jjp = js; jjs < arr.EndJ(); jjs++, jjp++) {
-      for (int iis = arr.StartI(), iip = is; iis < arr.EndI(); iis++, iip++) {
+  for (int kks = arr.StartK(), kkp = kr.Start(); kks < arr.EndK();
+       kks++, kkp++) {
+    for (int jjs = arr.StartJ(), jjp = jr.Start(); jjs < arr.EndJ();
+         jjs++, jjp++) {
+      for (int iis = arr.StartI(), iip = ii.Start(); iis < arr.EndI();
+           iis++, iip++) {
         (*this)(iip, jjp, kkp) = arr(iis, jjs, kks);
       }
     }
+  }
+}
+
+// overload to insert in only one direction
+template <typename T>
+multiArray3d<T> multiArray3d<T>::Insert(const string &dir,
+                                        const range &dirRange,
+                                        const multiArray3d<T> &arr,
+                                        const bool physOnly) const {
+  if (dir == "i") {
+    if (physOnly) {
+      return this->Insert(dirRange, this->PhysRangeJ(), this->PhysRangeK(),
+                          arr);
+    } else {
+      return this->Insert(dirRange, this->RangeJ(), this->RangeK(), arr);
+    }
+  } else if (dir == "j") {
+    if (physOnly) {
+      return this->Insert(this->PhysRangeI(), dirRange, this->PhysRangeK(),
+                          arr);
+    } else {
+      return this->Insert(this->RangeI(), dirRange, this->RangeK(), arr);
+    }
+  } else if (dir == "k") {
+    if (physOnly) {
+      return this->Insert(this->PhysRangeI(), this->PhysRangeJ(), dirRange,
+                          arr);
+    } else {
+      return this->Insert(this->RangeI(), this->RangeJ(), dirRange, arr);
+    }
+  } else {
+    cerr << "ERROR: Error in multiArray3d::Insert, direction " << dir
+         << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+// overload to insert line into array
+template <typename T>
+multiArray3d<T> multiArray3d<T>::Insert(const string &dir, int d2Ind, int d3Ind,
+                                        const multiArray3d<T> &arr,
+                                        const bool physOnly, const string id,
+                                        const bool upper2,
+                                        const bool upper3) const {
+  if (dir == "i") {  // d2 = j, d3 = k
+    if (upper2 && id == "j") {
+      d2Ind++;
+    } else if (upper3 && id == "k") {
+      d3Ind++;
+    }
+
+    if (physOnly) {
+      return this->Insert(this->PhysRangeI(), d2Ind, d3Ind, arr);
+    } else {
+      return this->Insert(this->RangeI(), d2Ind, d3Ind, arr);
+    }
+  } else if (dir == "j") {  // d2 = k, d3 = i
+    if (upper2 && id == "k") {
+      d2Ind++;
+    } else if (upper3 && id == "i") {
+      d3Ind++;
+    }
+
+    if (physOnly) {
+      return this->Insert(d3Ind, this->PhysRangeJ(), d2Ind, arr);
+    } else {
+      return this->Insert(d3Ind, this->RangeJ(), d2Ind, arr);
+    }
+  } else if (dir == "k") {  // d2 = i, d3 = j
+    if (upper2 && id == "i") {
+      d2Ind++;
+    } else if (upper3 && id == "j") {
+      d3Ind++;
+    }
+
+    if (physOnly) {
+      return this->Insert(d2Ind, d3Ind, this->PhysRangeK(), arr);
+    } else {
+      return this->Insert(d2Ind, d3Ind, this->RangeK(), arr);
+    }
+  } else {
+    cerr << "ERROR: Error in multiArray3d::Insert, direction " << dir
+         << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+multiArray3d<T> multiArray3d<T>::Insert(const string &dir, int dirInd,
+                                        range dir1, range dir2,
+                                        const multiArray3d<T> &arr,
+                                        const string id, const int type) const {
+  // dir -- normal direction of planar slice
+  // dirInd -- index in normal direction
+  // dir1 -- range of direction 1 (direction 3 is normal to slice)
+  // dir2 -- range of direction 2 (direction 3 is normal to slice)
+  // arr -- array to insert
+  
+  if (dir == "i") {  // d1 = j, d2 = k
+    if (type == 2 && id == "i") {  // upper i-surface & i normal
+      dirInd++;
+    }
+    if (id == "j") {
+      dir1.GrowEnd();
+    } else if (id == "k") {
+      dir2.GrowEnd();
+    }
+    return this->Insert(dirInd, dir1, dir2, arr);
+  } else if (dir == "j") {  // d1 = k, d2 = i
+    if (type == 4 && id == "j") {  // upper j-surface & j normal
+      dirInd++;
+    }
+    if (id == "k") {
+      dir1.GrowEnd();
+    } else if (id == "i") {
+      dir2.GrowEnd();
+    }
+    return this->Insert(dir2, dirInd, dir1, arr);
+  } else if (dir == "k") {  // d1 = i, d2 = j
+    if (type == 6 && id == "j") {  // upper k-surface & k normal
+      dirInd++;
+    }
+    if (id == "i") {
+      dir1.GrowEnd();
+    } else if (id == "j") {
+      dir2.GrowEnd();
+    }
+    return this->Insert(dir1, dir2, dirInd, arr);
+  } else {
+    cerr << "ERROR: Error in multiArray3d::Insert, direction " << dir
+         << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
   }
 }
 
@@ -563,7 +930,7 @@ void multiArray3d<T>::Fill(const multiArray3d<T> &arr) {
 }
 
 template <typename T>
-void multiArray3d<T>::GrowI() {
+multiArray3d<T> multiArray3d<T>::GrowI() const {
   multiArray3d<T> arr(this->NumINoGhosts() + 1, this->NumJNoGhosts(),
                       this->NumKNoGhosts(), numGhosts_);
   for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
@@ -574,11 +941,11 @@ void multiArray3d<T>::GrowI() {
       }
     }
   }
-  *this = arr;
+  return arr;
 }
 
 template <typename T>
-void multiArray3d<T>::GrowJ() {
+multiArray3d<T> multiArray3d<T>::GrowJ() const {
   multiArray3d<T> arr(this->NumINoGhosts(), this->NumJNoGhosts() + 1,
                       this->NumKNoGhosts(), numGhosts_);
   for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
@@ -589,11 +956,11 @@ void multiArray3d<T>::GrowJ() {
       }
     }
   }
-  *this = arr;
+  return arr;
 }
 
 template <typename T>
-void multiArray3d<T>::GrowK() {
+multiArray3d<T> multiArray3d<T>::GrowK() {
   multiArray3d<T> arr(this->NumINoGhosts(), this->NumJNoGhosts(),
                       this->NumKNoGhosts() + 1, numGhosts_);
   for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
@@ -604,7 +971,7 @@ void multiArray3d<T>::GrowK() {
       }
     }
   }
-  *this = arr;
+  return arr;
 }
 
 template <typename T>
@@ -680,14 +1047,13 @@ void multiArray3d<T>::PutSlice(const multiArray3d<T> &array,
   // d3 -- distance of direction normal to patch to insert
 
   // check that number of cells to insert matches
-  auto blkCell = (inter.Dir1EndFirst() - inter.Dir1StartFirst()) *
-      (inter.Dir2EndFirst() - inter.Dir2StartFirst()) * d3;
+  auto blkCell = inter.Dir1LenFirst() * inter.Dir2LenFirst() * d3;
   if (blkCell != array.Size()) {
     cerr << "ERROR: Error in multiArray3d<T>::PutSlice(). Number of cells "
             "being inserted does not match designated space to insert." << endl;
     cerr << "Direction 1, 2, 3 of multiArray3d<T> to insert into: "
-         << inter.Dir1EndFirst() - inter.Dir1StartFirst() << ", "
-         << inter.Dir2EndFirst() - inter.Dir2StartFirst() << ", " << d3 << endl;
+         << inter.Dir1LenFirst() << ", " << inter.Dir2LenFirst() << ", "
+         << d3 << endl;
     cerr << "Direction I, J, K of multiArray3d<T> to insert: " << array.NumI()
          << ", " << array.NumJ() << ", " << array.NumK() << endl;
     exit(EXIT_FAILURE);
@@ -695,10 +1061,8 @@ void multiArray3d<T>::PutSlice(const multiArray3d<T> &array,
 
   // loop over cells to insert
   for (auto l3 = 0; l3 < d3; l3++) {
-    for (auto l2 = 0; l2 < inter.Dir2EndFirst() - inter.Dir2StartFirst();
-         l2++) {
-      for (auto l1 = 0; l1 < inter.Dir1EndFirst() - inter.Dir1StartFirst();
-           l1++) {
+    for (auto l2 = 0; l2 < inter.Dir2LenFirst(); l2++) {
+      for (auto l1 = 0; l1 < inter.Dir1LenFirst(); l1++) {
         // get acceptor and inserter indices
         // when at lower surface (constant surface == 0), l3 should be modified
         // to use negative indices for ghost cells

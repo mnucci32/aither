@@ -283,7 +283,7 @@ subsonicOutflow, supersonicInflow, supersonicOutflow
 */
 primVars primVars::GetGhostState(const string &bcType,
                                  const vector3d<double> &areaVec,
-                                 const double &wallDist, const string &surf,
+                                 const double &wallDist, const int &surf,
                                  const input &inputVars,
                                  const idealGas &eqnState,
                                  const sutherland &suth,
@@ -291,7 +291,7 @@ primVars primVars::GetGhostState(const string &bcType,
                                  const int layer) const {
   // bcType -- type of boundary condition to supply ghost cell for
   // areaVec -- unit area vector of boundary face
-  // surf -- i, j, k surface of boundary
+  // surf -- surface type [1-6]
   // wallDist -- distance from cell center to nearest wall boundary
   // inputVar -- all input variables
   // eqnState -- equation of state
@@ -306,18 +306,9 @@ primVars primVars::GetGhostState(const string &bcType,
   // set ghost state equal to boundary state to start
   auto ghostState = (*this);
 
-  // check to see that ghost layer corresponds to allowable number
-  if (!(layer == 1 || layer == 2)) {
-    cerr << "ERROR: Error in primVars::GetGhostState. Requesting ghost state "
-            "at a ghost layer " << layer << ". Please choose either 1 or 2"
-         << endl;
-    exit(EXIT_FAILURE);
-  }
-
   // face area vector (should always point out of domain)
   // at lower surface normal should point out of domain for ghost cell calc
-  const auto normArea =
-      (surf == "il" || surf == "jl" || surf == "kl") ? -1.0 * areaVec : areaVec;
+  const auto normArea = (surf % 2 == 1) ? -1.0 * areaVec : areaVec;
 
   // slip wall boundary condition
   // ----------------------------------------------------------------------
@@ -376,8 +367,8 @@ primVars primVars::GetGhostState(const string &bcType,
 
       ghostState.data_[6] = 2.0 * wWall - this->Omega();
 
-      if (layer == 2) {
-        ghostState.data_[6] = (2.0 * ghostState.data_[6] - wWall);
+      if (layer > 1) {
+        ghostState.data_[6] = layer * ghostState.data_[6] - wWall;
       }
     }
 
@@ -408,8 +399,8 @@ primVars primVars::GetGhostState(const string &bcType,
                                      eqnState);
     }
 
-    if (layer == 2) {  // extrapolate to get ghost state at 2nd layer
-      ghostState = 2.0 * ghostState - (*this);
+    if (layer > 1) {  // extrapolate to get ghost state at deeper layers
+      ghostState = layer * ghostState - (*this);
 
       // assign farfield conditions to turbulence variables
       if (inputVars.IsTurbulent()) {
@@ -432,8 +423,8 @@ primVars primVars::GetGhostState(const string &bcType,
     // numerical bcs for density, velocity -- equal to boundary cell
     // numerical bcs for turbulence variables
 
-    if (layer == 2) {  // extrapolate to get ghost state at 2nd layer
-      ghostState = 2.0 * ghostState - (*this);
+    if (layer > 1) {  // extrapolate to get ghost state at deeper layers
+      ghostState = layer * ghostState - (*this);
     }
 
   // characteristic boundary condition
@@ -530,8 +521,8 @@ primVars primVars::GetGhostState(const string &bcType,
       exit(EXIT_FAILURE);
     }
 
-    if (layer == 2) {  // extrapolate to get ghost state at 2nd layer
-      ghostState = 2.0 * ghostState - (*this);
+    if (layer > 1) {  // extrapolate to get ghost state at deeper layers
+      ghostState = layer * ghostState - (*this);
 
       // assign farfield conditions to turbulence variables
       if (inputVars.IsTurbulent()) {
@@ -572,8 +563,8 @@ primVars primVars::GetGhostState(const string &bcType,
   // interior (zeroth order extrapolation)
   } else if (bcType == "supersonicOutflow") {
     // do nothing and return boundary state -- numerical BCs for all
-    if (layer == 2) {  // extrapolate to get ghost state at 2nd layer
-      ghostState = 2.0 * ghostState - (*this);
+    if (layer > 1) {  // extrapolate to get ghost state at deeper layers
+      ghostState = layer * ghostState - (*this);
     }
 
   // stagnation inlet boundary condition
@@ -617,8 +608,8 @@ primVars primVars::GetGhostState(const string &bcType,
                                      eqnState);
     }
 
-    if (layer == 2) {  // extrapolate to get ghost state at 2nd layer
-      ghostState = 2.0 * ghostState - (*this);
+    if (layer > 1) {  // extrapolate to get ghost state at deeper layers
+      ghostState = layer * ghostState - (*this);
 
       // assign farfield conditions to turbulence variables
       if (inputVars.IsTurbulent()) {
@@ -655,8 +646,8 @@ primVars primVars::GetGhostState(const string &bcType,
 
     // numerical bcs for turbulence variables
 
-    if (layer == 2) {  // extrapolate to get ghost state at 2nd layer
-      ghostState = 2.0 * ghostState - (*this);
+    if (layer > 1) {  // extrapolate to get ghost state at deeper layers
+      ghostState = layer * ghostState - (*this);
     }
 
   // interblock boundary condition
@@ -671,7 +662,7 @@ primVars primVars::GetGhostState(const string &bcType,
   } else {
     cerr << "ERROR: Error in primVars::GetGhostState ghost state for BC type "
          << bcType << " is not supported!" << endl;
-    cerr << "surface is " << surf << endl;
+    cerr << "surface is " << surf << " and layer is " << layer << endl;
     exit(EXIT_FAILURE);
   }
 
@@ -728,13 +719,13 @@ void primVars::ApplyFarfieldTurbBC(const vector3d<double> &vel,
 multiArray3d<primVars> GetGhostStates(
     const multiArray3d<primVars> &bndStates, const string &bcName,
     const multiArray3d<unitVec3dMag<double>> &faceAreas,
-    const multiArray3d<double> &wDist, const string &surf,
+    const multiArray3d<double> &wDist, const int &surf,
     const input &inp, const idealGas &eos, const sutherland &suth,
     const unique_ptr<turbModel> &turb, const int layer) {
   // bndStates -- states at cells adjacent to boundary
   // bcName -- boundary condition type
   // faceAreas -- face areas of boundary
-  // surf -- boundary surface type
+  // surf -- boundary surface type [1-6]
   // inp -- input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
