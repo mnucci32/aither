@@ -803,43 +803,43 @@ void interblock::FirstSliceIndices(int &is1, int &ie1, int &js1, int &je1,
       this->BoundaryFirst() == 2) {  // direction 3 is i
     // extend min/maxes to cover ghost cells
     is1 = this->ConstSurfaceFirst() + upLowFac;
-    ie1 = is1 + numGhosts1 - 1;
+    ie1 = is1 + numGhosts1;
 
     // direction 1 is j
     js1 = this->Dir1StartFirst();
-    je1 = this->Dir1EndFirst() - 1 + 2 * numGhosts1;
+    je1 = this->Dir1EndFirst() + numGhosts1;
 
     // direction 2 is k
     ks1 = this->Dir2StartFirst();
-    ke1 = this->Dir2EndFirst() - 1 + 2 * numGhosts1;
+    ke1 = this->Dir2EndFirst() + numGhosts1;
 
   } else if (this->BoundaryFirst() == 3 ||
              this->BoundaryFirst() == 4) {  // direction 3 is j
     // extend min/maxes to cover ghost cells
     js1 = this->ConstSurfaceFirst() + upLowFac;
-    je1 = js1 + numGhosts1 - 1;
+    je1 = js1 + numGhosts1;
 
     // direction 1 is k
     ks1 = this->Dir1StartFirst();
-    ke1 = this->Dir1EndFirst() - 1 + 2 * numGhosts1;
+    ke1 = this->Dir1EndFirst() + numGhosts1;
 
     // direction 2 is i
     is1 = this->Dir2StartFirst();
-    ie1 = this->Dir2EndFirst() - 1 + 2 * numGhosts1;
+    ie1 = this->Dir2EndFirst() + numGhosts1;
 
   } else if (this->BoundaryFirst() == 5 ||
              this->BoundaryFirst() == 6) {  // direction 3 is k
     // extend min/maxes to cover ghost cells
     ks1 = this->ConstSurfaceFirst() + upLowFac;
-    ke1 = ks1 + numGhosts1 - 1;
+    ke1 = ks1 + numGhosts1;
 
     // direction 1 is i
     is1 = this->Dir1StartFirst();
-    ie1 = this->Dir1EndFirst() - 1 + 2 * numGhosts1;
+    ie1 = this->Dir1EndFirst() + numGhosts1;
 
     // direction 2 is j
     js1 = this->Dir2StartFirst();
-    je1 = this->Dir2EndFirst() - 1 + 2 * numGhosts1;
+    je1 = this->Dir2EndFirst() + numGhosts1;
 
   } else {
     cerr << "ERROR: Error in interblock::FirstSliceIndices(). Surface boundary "
@@ -871,41 +871,44 @@ void interblock::SecondSliceIndices(int &is2, int &ie2, int &js2, int &je2,
       this->BoundarySecond() == 2) {  // direction 3 is i
     // extend min/maxes to cover ghost cells
     is2 = this->ConstSurfaceSecond() + upLowFac;
-    ie2 = is2 + numGhosts2 - 1;
+    ie2 = is2 + numGhosts2;
 
     // direction 1 is j
     js2 = this->Dir1StartSecond();
-    je2 = this->Dir1EndSecond() - 1 + 2 * numGhosts2;
+    je2 = this->Dir1EndSecond() + numGhosts2;
 
     // direction 2 is k
     ks2 = this->Dir2StartSecond();
-    ke2 = this->Dir2EndSecond() - 1 + 2 * numGhosts2;
+    ke2 = this->Dir2EndSecond() + numGhosts2;
+
   } else if (this->BoundarySecond() == 3 ||
              this->BoundarySecond() == 4) {  // direction 3 is j
     // extend min/maxes to cover ghost cells
     js2 = this->ConstSurfaceSecond() + upLowFac;
-    je2 = js2 + numGhosts2 - 1;
+    je2 = js2 + numGhosts2;
 
     // direction 1 is k
     ks2 = this->Dir1StartSecond();
-    ke2 = this->Dir1EndSecond() - 1 + 2 * numGhosts2;
+    ke2 = this->Dir1EndSecond() + numGhosts2;
 
     // direction 2 is i
     is2 = this->Dir2StartSecond();
-    ie2 = this->Dir2EndSecond() - 1 + 2 * numGhosts2;
+    ie2 = this->Dir2EndSecond() + numGhosts2;
+
   } else if (this->BoundarySecond() == 5 ||
              this->BoundarySecond() == 6) {  // direction 3 is k
     // extend min/maxes to cover ghost cells
     ks2 = this->ConstSurfaceSecond() + upLowFac;
-    ke2 = ks2 + numGhosts2 - 1;
+    ke2 = ks2 + numGhosts2;
 
     // direction 1 is i
     is2 = this->Dir1StartSecond();
-    ie2 = this->Dir1EndSecond() - 1 + 2 * numGhosts2;
+    ie2 = this->Dir1EndSecond() + numGhosts2;
 
     // direction 2 is j
     js2 = this->Dir2StartSecond();
-    je2 = this->Dir2EndSecond() - 1 + 2 * numGhosts2;
+    je2 = this->Dir2EndSecond() + numGhosts2;
+
   } else {
     cerr << "ERROR: Error in interblock::SecondSliceIndices(). " <<
         "Surface boundary " << this->BoundarySecond() <<
