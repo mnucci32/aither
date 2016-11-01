@@ -23,7 +23,6 @@
 #include "boundaryConditions.hpp"
 #include "vector3d.hpp"  // vector3d
 #include "plot3d.hpp"  // plot3dBlock
-#include "multiArray3d.hpp"  // range
 
 using std::cout;
 using std::endl;
@@ -2396,15 +2395,15 @@ int boundarySurface::NumFaces() const {
 }
 
 range boundarySurface::RangeI() const {
-  return (data_[0] == data_[1]) ? data_[0] : {data_[0], data_[1]};
+  return (data_[0] == data_[1]) ? data_[0] : range{data_[0], data_[1]};
 }
 
 range boundarySurface::RangeJ() const {
-  return (data_[2] == data_[3]) ? data_[2] : {data_[2], data_[3]};
+  return (data_[2] == data_[3]) ? data_[2] : range{data_[2], data_[3]};
 }
 
 range boundarySurface::RangeK() const {
-  return (data_[4] == data_[5]) ? data_[4] : {data_[4], data_[5]};
+  return (data_[4] == data_[5]) ? data_[4] : range{data_[4], data_[5]};
 }
 
 range boundarySurface::RangeDir1() const {

@@ -30,6 +30,7 @@
 #include "mpi.h"
 #include "vector3d.hpp"
 #include "boundaryConditions.hpp"  // interblock
+#include "range.hpp"  // range
 
 using std::ostream;
 using std::endl;
@@ -37,40 +38,6 @@ using std::cout;
 using std::cerr;
 using std::vector;
 using std::string;
-
-class range {
-  int start_;
-  int end_;
-
- public:
-  // constructors
-  range(const int &s, const int &e) : start_(s), end_(e) {}
-  range(const int &ind) : range(ind, ind + 1) {}
-
-  // member functions
-  int Start() const {return start_;}
-  int End() const {return end_;}
-  int Size() const {return end_ - start_;}
-  bool IsInside(const range &r) const {
-    return start_ >= r.start_ && start_ < r.end_ && end_ > r.start_ &&
-        end_ <= r.end_;
-  }
-  bool IsValid() const {
-    return end_ > start_;
-  }
-  void GrowStart() {start_++;}
-  void GrowEnd() {end_++;}
-  void ShrinkStart() {start_--;}
-  void ShrinkEnd() {end_--;}
-
-  // destructor
-  ~range() noexcept {}
-};
-
-ostream &operator<<(ostream &os, const range &r) {
-  os << "[" << r.Start() << ":" << r.End() << ")";
-}
-
 
 template <typename T>
 class multiArray3d {
@@ -754,7 +721,7 @@ void multiArray3d<T>::Insert(const range &ir, const range &jr, const range &kr,
          << "Given bounds: " << ir << ", " << jr << ", " << kr << endl
          << "Bounds of array being inserted: " << arr.RangeI() << ", "
          << arr.RangeJ() << ", " << arr.RangeK() << endl;
-         << "Bounds of array accepting data: " << this->RangeI() << ", "
+    cerr << "Bounds of array accepting data: " << this->RangeI() << ", "
          << this->RangeJ() << ", " << this->RangeK() << endl;
     exit(EXIT_FAILURE);
   }
@@ -764,7 +731,7 @@ void multiArray3d<T>::Insert(const range &ir, const range &jr, const range &kr,
        kks++, kkp++) {
     for (int jjs = arr.StartJ(), jjp = jr.Start(); jjs < arr.EndJ();
          jjs++, jjp++) {
-      for (int iis = arr.StartI(), iip = ii.Start(); iis < arr.EndI();
+      for (int iis = arr.StartI(), iip = ir.Start(); iis < arr.EndI();
            iis++, iip++) {
         (*this)(iip, jjp, kkp) = arr(iis, jjs, kks);
       }
@@ -774,10 +741,9 @@ void multiArray3d<T>::Insert(const range &ir, const range &jr, const range &kr,
 
 // overload to insert in only one direction
 template <typename T>
-multiArray3d<T> multiArray3d<T>::Insert(const string &dir,
-                                        const range &dirRange,
-                                        const multiArray3d<T> &arr,
-                                        const bool physOnly) const {
+void multiArray3d<T>::Insert(const string &dir, const range &dirRange,
+                             const multiArray3d<T> &arr,
+                             const bool physOnly) {
   if (dir == "i") {
     if (physOnly) {
       return this->Insert(dirRange, this->PhysRangeJ(), this->PhysRangeK(),
@@ -808,11 +774,10 @@ multiArray3d<T> multiArray3d<T>::Insert(const string &dir,
 
 // overload to insert line into array
 template <typename T>
-multiArray3d<T> multiArray3d<T>::Insert(const string &dir, int d2Ind, int d3Ind,
-                                        const multiArray3d<T> &arr,
-                                        const bool physOnly, const string id,
-                                        const bool upper2,
-                                        const bool upper3) const {
+void multiArray3d<T>::Insert(const string &dir, int d2Ind, int d3Ind,
+                             const multiArray3d<T> &arr,
+                             const bool physOnly, const string id,
+                             const bool upper2, const bool upper3) {
   if (dir == "i") {  // d2 = j, d3 = k
     if (upper2 && id == "j") {
       d2Ind++;
@@ -856,16 +821,16 @@ multiArray3d<T> multiArray3d<T>::Insert(const string &dir, int d2Ind, int d3Ind,
   }
 }
 
-multiArray3d<T> multiArray3d<T>::Insert(const string &dir, int dirInd,
-                                        range dir1, range dir2,
-                                        const multiArray3d<T> &arr,
-                                        const string id, const int type) const {
+template <typename T>
+void multiArray3d<T>::Insert(const string &dir, int dirInd, range dir1,
+                             range dir2, const multiArray3d<T> &arr,
+                             const string id, const int type) {
   // dir -- normal direction of planar slice
   // dirInd -- index in normal direction
   // dir1 -- range of direction 1 (direction 3 is normal to slice)
   // dir2 -- range of direction 2 (direction 3 is normal to slice)
   // arr -- array to insert
-  
+
   if (dir == "i") {  // d1 = j, d2 = k
     if (type == 2 && id == "i") {  // upper i-surface & i normal
       dirInd++;
@@ -960,7 +925,7 @@ multiArray3d<T> multiArray3d<T>::GrowJ() const {
 }
 
 template <typename T>
-multiArray3d<T> multiArray3d<T>::GrowK() {
+multiArray3d<T> multiArray3d<T>::GrowK() const {
   multiArray3d<T> arr(this->NumINoGhosts(), this->NumJNoGhosts(),
                       this->NumKNoGhosts() + 1, numGhosts_);
   for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
@@ -1182,7 +1147,7 @@ void multiArray3d<T>::SwapSliceMPI(const interblock &inter, const int &rank,
   }
 
   // get local state slice to swap
-  auto slice = this->Slice(is, ie, js, je, ks, ke);
+  auto slice = this->Slice({is, ie}, {js, je}, {ks, ke});
 
   // swap state slices with partner block
   slice.PackSwapUnpackMPI(inter, MPI_arrData, rank, tag);
@@ -1248,8 +1213,8 @@ void multiArray3d<T>::SwapSlice(const interblock &inter,
   inter.SecondSliceIndices(is2, ie2, js2, je2, ks2, ke2, array.GhostLayers());
 
   // get slices to swap
-  auto slice1 = this->Slice(is1, ie1, js1, je1, ks1, ke1);
-  auto slice2 = array.Slice(is2, ie2, js2, je2, ks2, ke2);
+  auto slice1 = this->Slice({is1, ie1}, {js1, je1}, {ks1, ke1});
+  auto slice2 = array.Slice({is2, ie2}, {js2, je2}, {ks2, ke2});
 
   // change interblocks to work with slice and ghosts
   interblock inter1 = inter;

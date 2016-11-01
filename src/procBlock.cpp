@@ -1188,7 +1188,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // if i lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii - 1, jj, kk) ||
-        bc_.GetBCName(ii, jj, kk, "il") == "interblock") {
+        bc_.GetBCName(ii, jj, kk, 1) == "interblock") {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
 
@@ -1206,7 +1206,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // if j lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii, jj - 1, kk) ||
-        bc_.GetBCName(ii, jj, kk, "jl") == "interblock") {
+        bc_.GetBCName(ii, jj, kk, 3) == "interblock") {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
@@ -1224,7 +1224,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // if k lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii, jj, kk - 1) ||
-        bc_.GetBCName(ii, jj, kk, "kl") == "interblock") {
+        bc_.GetBCName(ii, jj, kk, 5) == "interblock") {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
 
@@ -1248,7 +1248,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       // if i upper cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii + 1, jj, kk) ||
-          bc_.GetBCName(ii + 1, jj, kk, "iu") == "interblock") {
+          bc_.GetBCName(ii + 1, jj, kk, 2) == "interblock") {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
 
@@ -1266,7 +1266,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       // if j upper cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii, jj + 1, kk) ||
-          bc_.GetBCName(ii, jj + 1, kk, "ju") == "interblock") {
+          bc_.GetBCName(ii, jj + 1, kk, 4) == "interblock") {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
 
@@ -1284,7 +1284,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       // if k lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii, jj, kk + 1) ||
-          bc_.GetBCName(ii, jj, kk + 1, "ku") == "interblock") {
+          bc_.GetBCName(ii, jj, kk + 1, 6) == "interblock") {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
 
@@ -1351,7 +1351,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
     // if i upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii + 1, jj, kk) ||
-        bc_.GetBCName(ii + 1, jj, kk, "iu") == "interblock") {
+        bc_.GetBCName(ii + 1, jj, kk, 2) == "interblock") {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
 
@@ -1369,7 +1369,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
     // if j upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii, jj + 1, kk) ||
-        bc_.GetBCName(ii, jj + 1, kk, "ju") == "interblock") {
+        bc_.GetBCName(ii, jj + 1, kk, 4) == "interblock") {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
 
@@ -1387,7 +1387,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
     // if k upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii, jj, kk + 1) ||
-        bc_.GetBCName(ii, jj, kk + 1, "ku") == "interblock") {
+        bc_.GetBCName(ii, jj, kk + 1, 6) == "interblock") {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
 
@@ -1411,7 +1411,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       // if i lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii - 1, jj, kk) ||
-          bc_.GetBCName(ii, jj, kk, "il") == "interblock") {
+          bc_.GetBCName(ii, jj, kk, 1) == "interblock") {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
 
@@ -1429,7 +1429,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       // if j lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii, jj - 1, kk) ||
-          bc_.GetBCName(ii, jj, kk, "jl") == "interblock") {
+          bc_.GetBCName(ii, jj, kk, 3) == "interblock") {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
@@ -1447,7 +1447,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       // if k lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii, jj, kk - 1) ||
-          bc_.GetBCName(ii, jj, kk, "kl") == "interblock") {
+          bc_.GetBCName(ii, jj, kk, 5) == "interblock") {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
 
@@ -1519,7 +1519,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if i lower diagonal cell is in physical location there is a
         // contribution from it
         if (this->IsPhysical(ii - 1, jj, kk) ||
-            bc_.GetBCName(ii, jj, kk, "il") == "interblock") {
+            bc_.GetBCName(ii, jj, kk, 1) == "interblock") {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
 
@@ -1537,7 +1537,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if j lower diagonal cell is in physical location there is a
         // constribution from it
         if (this->IsPhysical(ii, jj - 1, kk) ||
-            bc_.GetBCName(ii, jj, kk, "jl") == "interblock") {
+            bc_.GetBCName(ii, jj, kk, 3) == "interblock") {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
@@ -1555,7 +1555,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if k lower diagonal cell is in physical location there is a
         // contribution from it
         if (this->IsPhysical(ii, jj, kk - 1) ||
-            bc_.GetBCName(ii, jj, kk, "kl") == "interblock") {
+            bc_.GetBCName(ii, jj, kk, 5) == "interblock") {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
 
@@ -1573,7 +1573,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if i upper diagonal cell is in physical location there is a
         // contribution from it
         if (this->IsPhysical(ii + 1, jj, kk) ||
-            bc_.GetBCName(ii + 1, jj, kk, "iu") == "interblock") {
+            bc_.GetBCName(ii + 1, jj, kk, 2) == "interblock") {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
 
@@ -1592,7 +1592,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if j upper diagonal cell is in physical location there is a
         // contribution from it
         if (this->IsPhysical(ii, jj + 1, kk) ||
-            bc_.GetBCName(ii, jj + 1, kk, "ju") == "interblock") {
+            bc_.GetBCName(ii, jj + 1, kk, 4) == "interblock") {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
 
@@ -1611,7 +1611,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if k upper diagonal cell is in physical location there is a
         // contribution from it
         if (this->IsPhysical(ii, jj, kk + 1) ||
-            bc_.GetBCName(ii, jj, kk + 1, "ku") == "interblock") {
+            bc_.GetBCName(ii, jj, kk + 1, 6) == "interblock") {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
 
@@ -1708,7 +1708,7 @@ multiArray3d<T> PadWithGhosts(const multiArray3d<T> &var,
   // initialize added array
   multiArray3d<T> padBlk(var.NumI(), var.NumJ(), var.NumK(), numGhosts);
 
-  padBlk.Insert(0, var.NumI() - 1, 0, var.NumJ() - 1, 0, var.NumK() - 1, var);
+  padBlk.Insert(var.RangeI(), var.RangeJ(), var.RangeK(), var);
   return padBlk;
 }
 
@@ -2659,14 +2659,14 @@ void procBlock::AssignGhostCellsGeomEdge() {
           // get distance to move centroids & face centers
           multiArray3d<vector3d<double>> dist2Move;
           if (dir == "i") {  // i-line, dir2 = j
-            dist2Move = fCenterJ_(dir, pCellD2, pCellD3, true, "j", upper2, upper3)
-                - fCenterJ_(dir, gCellD2, pCellD3, true, "j", upper2, upper3);
+            dist2Move = fCenterJ_.Slice(dir, pCellD2, pCellD3, true, "j", upper2, upper3)
+                - fCenterJ_.Slice(dir, gCellD2, pCellD3, true, "j", upper2, upper3);
           } else if (dir == "j") {  // j-line, dir2 = k
-            dist2Move = fCenterK_(dir, pCellD2, pCellD3, true, "k", upper2, upper3)
-                - fCenterK_(dir, gCellD2, pCellD3, true, "k", upper2, upper3);
+            dist2Move = fCenterK_.Slice(dir, pCellD2, pCellD3, true, "k", upper2, upper3)
+                - fCenterK_.Slice(dir, gCellD2, pCellD3, true, "k", upper2, upper3);
           } else {  // k-line, dir2 = i
-            dist2Move = fCenterI_(dir, pCellD2, pCellD3, true, "i", upper2, upper3)
-                - fCenterI_(dir, gCellD2, pCellD3, true, "i", upper2, upper3);
+            dist2Move = fCenterI_.Slice(dir, pCellD2, pCellD3, true, "i", upper2, upper3)
+                - fCenterI_.Slice(dir, gCellD2, pCellD3, true, "i", upper2, upper3);
           }
 
           // assign centroids
@@ -2767,7 +2767,7 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
         if (bcName == "viscousWall") {bcName = "slipWall";}
 
         // get face areas on boundary
-        multiArray3d<unitVec3dMag> faceAreas;
+        multiArray3d<unitVec3dMag<double>> faceAreas;
         if (dir == "i") {  // i-surface, dir1 = j, dir2 = k --------------------
           faceAreas = this->fAreaI_.Slice(bnd, r1, r2);
         } else if (dir == "j") {  // j-surface, dir1 = k, dir2 = i -------------
@@ -2901,7 +2901,7 @@ void procBlock::AssignInviscidGhostCellsEdge(
           for (auto d1 = 0; d1 <= max1; d1++) {
             string bc_2 = "undefined";
             string bc_3 = "undefined";
-            unitVec3dMag fArea2, fArea3;
+            vector3d<double> fArea2, fArea3;
             if (dir == "i") {
               // boundary conditions at corner
               bc_2 = bc_.GetBCName(d1, cFaceD2_2, cFaceD2_3, surf2);
@@ -2911,8 +2911,8 @@ void procBlock::AssignInviscidGhostCellsEdge(
               if (bc_3 == "viscousWall") {bc_3 = "slipWall";}
 
               // get face area
-              fArea2 = this->FAreaUnitJ(dir, d1, cFaceD2_2, gCellD3);
-              fArea3 = this->FAreaUnitK(dir, d1, gCellD2, cFaceD3_3);
+              fArea2 = fAreaJ_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
+              fArea3 = fAreaK_(dir, d1, gCellD2, cFaceD3_3).UnitVector();
 
             } else if (dir == "j") {
               // boundary conditions at corner
@@ -2923,8 +2923,8 @@ void procBlock::AssignInviscidGhostCellsEdge(
               if (bc_3 == "viscousWall") {bc_3 = "slipWall";}
 
               // get face area
-              fArea2 = this->FAreaUnitK(dir, d1, cFaceD2_2, gCellD3);
-              fArea3 = this->FAreaUnitI(dir, d1, gCellD2, cFaceD3_3);
+              fArea2 = fAreaK_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
+              fArea3 = fAreaI_(dir, d1, gCellD2, cFaceD3_3).UnitVector();
 
             } else {
               // boundary conditions at corner
@@ -2935,8 +2935,8 @@ void procBlock::AssignInviscidGhostCellsEdge(
               if (bc_3 == "viscousWall") {bc_3 = "slipWall";}
 
               // get face area
-              fArea2 = this->FAreaUnitI(dir, d1, cFaceD2_2, gCellD3);
-              fArea3 = this->FAreaUnitJ(dir, d1, gCellD2, cFaceD3_3);
+              fArea2 = fAreaI_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
+              fArea3 = fAreaJ_(dir, d1, gCellD2, cFaceD3_3).UnitVector();
             }
 
             // get wall distance
@@ -3024,7 +3024,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
         const string bcName = "viscousWall";
 
         // get face areas on boundary
-        multiArray3d<unitVec3dMag> faceAreas;
+        multiArray3d<unitVec3dMag<double>> faceAreas;
         if (dir == "i") {  // i-surface, dir1 = j, dir2 = k --------------------
           faceAreas = this->fAreaI_.Slice(bnd, r1, r2);
         } else if (dir == "j") {  // j-surface, dir1 = k, dir2 = i -------------
@@ -3159,15 +3159,15 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
           for (auto d1 = 0; d1 <= max1; d1++) {
             string bc_2 = "undefined";
             string bc_3 = "undefined";
-            unitVec3dMag fArea2, fArea3;
+            vector3d<double> fArea2, fArea3;
             if (dir == "i") {
               // boundary conditions at corner
               bc_2 = bc_.GetBCName(d1, cFaceD2_2, cFaceD2_3, surf2);
               bc_3 = bc_.GetBCName(d1, cFaceD3_2, cFaceD3_3, surf3);
 
               // get face area
-              fArea2 = this->FAreaUnitJ(dir, d1, cFaceD2_2, gCellD3);
-              fArea3 = this->FAreaUnitK(dir, d1, gCellD2, cFaceD3_3);
+              fArea2 = fAreaJ_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
+              fArea3 = fAreaK_(dir, d1, gCellD2, cFaceD3_3).UnitVector();
 
             } else if (dir == "j") {
               // boundary conditions at corner
@@ -3175,8 +3175,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
               bc_3 = bc_.GetBCName(cFaceD3_3, d1, cFaceD3_2, surf3);
 
               // get face area
-              fArea2 = this->FAreaUnitK(dir, d1, cFaceD2_2, gCellD3);
-              fArea3 = this->FAreaUnitI(dir, d1, gCellD2, cFaceD3_3);
+              fArea2 = fAreaK_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
+              fArea3 = fAreaI_(dir, d1, gCellD2, cFaceD3_3).UnitVector();
 
             } else {
               // boundary conditions at corner
@@ -3184,8 +3184,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
               bc_3 = bc_.GetBCName(cFaceD3_2, cFaceD3_3, d1, surf3);
 
               // get face area
-              fArea2 = this->FAreaUnitI(dir, d1, cFaceD2_2, gCellD3);
-              fArea3 = this->FAreaUnitJ(dir, d1, gCellD2, cFaceD3_3);
+              fArea2 = fAreaI_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
+              fArea3 = fAreaJ_(dir, d1, gCellD2, cFaceD3_3).UnitVector();
             }
 
             // get wall distance
@@ -4951,7 +4951,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
       viscosity_.Slice(dir, {viscosity_.Start(dir), viscosity_.PhysEnd(dir)}));
   }
   if (isTurbulent_) {
-    newBlk.eddyViscosity_.Insert(dir, {eddyViscosity_Start(dir),
+    newBlk.eddyViscosity_.Insert(dir, {eddyViscosity_.Start(dir),
             eddyViscosity_.PhysEnd(dir)},
       eddyViscosity_.Slice(
           dir, {eddyViscosity_.Start(dir), eddyViscosity_.PhysEnd(dir)}));
@@ -5117,7 +5117,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                                 blk.fAreaK_.End(dir)}));
 
   newBlk.fCenterI_.Insert(dir, {fCenterI_.PhysEnd(dir),
-          newBlk.fCenterI_.End(dir)}
+          newBlk.fCenterI_.End(dir)},
     blk.fCenterI_.Slice(dir, {blk.fCenterI_.PhysStart(dir),
             blk.fCenterI_.End(dir)}));
 
@@ -5556,7 +5556,7 @@ void procBlock::CalcWallDistance(const kdtree &tree) {
   // loop over cells, including ghosts
   for (auto kk = wallDist_.StartK(); kk < wallDist_.EndK(); kk++) {
     for (auto jj = wallDist_.StartJ(); jj < wallDist_.EndJ(); jj++) {
-      for (auto ii = wallDist_StartI(); ii < wallDist_.EndI(); ii++) {
+      for (auto ii = wallDist_.StartI(); ii < wallDist_.EndI(); ii++) {
         // ghost cells should have negative wall distance so that wall distance
         // at viscous face will be 0 during flux calculation
         auto fac = this->IsPhysical(ii, jj, kk) ? 1.0 : -1.0;
@@ -5613,7 +5613,7 @@ multiArray3d<primVars> procBlock::SliceState(const int &is, const int &ie,
                                              const int &js, const int &je,
                                              const int &ks,
                                              const int &ke) const {
-  return state_.Slice(is, ie, js, je, ks, ke);
+  return state_.Slice({is, ie}, {js, je}, {ks, ke});
 }
 
 void procBlock::UpdateAuxillaryVariables(const idealGas &eos,

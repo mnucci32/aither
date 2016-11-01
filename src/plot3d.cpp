@@ -539,7 +539,7 @@ void plot3dBlock::Join(const plot3dBlock &blk, const string &dir) {
   } else if (dir == "j") {
     jTot += blk.NumJ() - 1;
   } else if (dir == "k") {
-    ktot += blk.NumK() - 1;
+    kTot += blk.NumK() - 1;
   } else {
     cerr << "ERROR: Error in plot3dBlock::Join(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;

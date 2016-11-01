@@ -30,6 +30,7 @@ one block. */
 #include <iostream>  // ostream
 #include "mpi.h"  // parallelism
 #include "vector3d.hpp"
+#include "range.hpp"
 
 using std::ostream;
 using std::vector;
@@ -40,7 +41,6 @@ using std::endl;
 
 // forward class declaration
 class plot3dBlock;
-class range;
 
 class boundarySurface {
   string bcType_;    // boundary condition name for surface
