@@ -683,7 +683,7 @@ multiArray3d<T> multiArray3d<T>::Slice(const string &dir, int dirInd,
     }
     return this->Slice(dir2, dirInd, dir1);
   } else if (dir == "k") {  // d1 = i, d2 = j
-    if (type == 6 && id == "j") {  // upper k-surface & k normal
+    if (type == 6 && id == "k") {  // upper k-surface & k normal
       dirInd++;
     }
     if (id == "i") {
@@ -708,11 +708,9 @@ void multiArray3d<T>::Insert(const range &ir, const range &jr, const range &kr,
   // kr -- k-index range to take slice [inclusive, exclusive)
   // arr -- array to insert into this one
 
-  // check that given array fits in given bounds, given bounds fit in this,
-  // sizes match, and that bounds are valid
-  if (!arr.RangeI().IsInside(ir) || !arr.RangeJ().IsInside(jr) ||
-      !arr.RangeK().IsInside(kr) || !ir.IsInside(this->RangeI()) ||
-      !jr.IsInside(this->RangeJ()) || !kr.IsInside(this->RangeK()) ||
+  // check that given bounds fit in this, sizes match, and that bounds are valid
+  if (!ir.IsInside(this->RangeI()) || !jr.IsInside(this->RangeJ()) ||
+      !kr.IsInside(this->RangeK()) ||
       ir.Size() != arr.RangeI().Size() || jr.Size() != arr.RangeJ().Size() ||
       kr.Size() != arr.RangeK().Size() ||
       !ir.IsValid() || !jr.IsValid() || !kr.IsValid()) {
@@ -852,7 +850,7 @@ void multiArray3d<T>::Insert(const string &dir, int dirInd, range dir1,
     }
     return this->Insert(dir2, dirInd, dir1, arr);
   } else if (dir == "k") {  // d1 = i, d2 = j
-    if (type == 6 && id == "j") {  // upper k-surface & k normal
+    if (type == 6 && id == "k") {  // upper k-surface & k normal
       dirInd++;
     }
     if (id == "i") {

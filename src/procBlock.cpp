@@ -2478,8 +2478,8 @@ void procBlock::AssignGhostCellsGeom() {
                            fCenterK_.Slice(iCell, r1, r2) + dist2Move.GrowK());
 
         } else if (dir == "j") {  // j-surface, dir1 = k, dir2 = i -------------
-          dist2Move = fCenterJ_.Slice(bnd, r1, r2) -
-              fCenterJ_.Slice(iFace, r1, r2);
+          dist2Move = fCenterJ_.Slice(r2, bnd, r1) -
+              fCenterJ_.Slice(r2, iFace, r1);
 
           // alter distance to move if block is not wide enough
           if (this->NumJ() < numGhosts_ && this->NumJ() < layer) {
@@ -2498,8 +2498,8 @@ void procBlock::AssignGhostCellsGeom() {
                            fCenterK_.Slice(r2, iCell, r1) + dist2Move.GrowK());
 
         } else {  // k-surface, dir1 = i, dir2 = j -----------------------------
-          dist2Move = fCenterK_.Slice(bnd, r1, r2) -
-              fCenterK_.Slice(iFace, r1, r2);
+          dist2Move = fCenterK_.Slice(r1, r2, bnd) -
+              fCenterK_.Slice(r1, r2, iFace);
 
           // alter distance to move if block is not wide enough
           if (this->NumK() < numGhosts_ && this->NumK() < layer) {
@@ -2597,10 +2597,10 @@ void procBlock::AssignGhostCellsGeomEdge() {
 
           // cell indices (g-ghost at current layer, p-ghost at previous layer)
           const auto pCellD2 = upper2 ? max2 + layer2 - 2 : layer2 - 1;
-          const auto gCellD2 = upper2 ? pCellD2 + layer2 : pCellD2 - layer2;
+          const auto gCellD2 = upper2 ? pCellD2 + 1 : pCellD2 - 1;
 
           const auto pCellD3 = upper3 ? max3 + layer3 - 2 : layer3 - 1;
-          const auto gCellD3 = upper3 ? pCellD3 + layer3 : pCellD3 - layer3;
+          const auto gCellD3 = upper3 ? pCellD3 + 1 : pCellD3 - 1;
 
           if (layer2 == layer3) {  // need to average
             // assign volumes
@@ -2746,14 +2746,14 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
         gCell = r3.Start() + layer - 1;
         iCell = r3.Start() - layer;
         aCell = r3.Start();  // adjacent cell to bnd regardless of ghost layer
-        if (iCell < this->Start(dir)) iCell = this->Start(dir);
+        if (iCell < this->Start(dir)) {iCell = this->Start(dir);}
 
         bnd = r3.Start();
       } else {  // lower surface
         gCell = r3.Start() - layer;
         iCell = r3.Start() + layer - 1;
         aCell = r3.Start();  // adjacent cell to bnd regardless of ghost layer
-        if (iCell >= this->End(dir)) iCell = this->End(dir) - 1;
+        if (iCell >= this->End(dir)) {iCell = this->End(dir) - 1;}
 
         bnd = r3.Start();
       }
@@ -2877,10 +2877,10 @@ void procBlock::AssignInviscidGhostCellsEdge(
 
           // cell indices (g-ghost at current layer, p-ghost at previous layer)
           const auto pCellD2 = upper2 ? max2 + layer2 - 2 : layer2 - 1;
-          const auto gCellD2 = upper2 ? pCellD2 + layer2 : pCellD2 - layer2;
+          const auto gCellD2 = upper2 ? pCellD2 + 1 : pCellD2 - 1;
 
           const auto pCellD3 = upper3 ? max3 + layer3 - 2 : layer3 - 1;
-          const auto gCellD3 = upper3 ? pCellD3 + layer3 : pCellD3 - layer3;
+          const auto gCellD3 = upper3 ? pCellD3 + 1 : pCellD3 - 1;
 
           // surface types of surfaces forming edge
           const auto surf2 = upper2 ? surfStart + 1 : surfStart;
@@ -3135,10 +3135,10 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
 
           // cell indices (g-ghost at current layer, p-ghost at previous layer)
           const auto pCellD2 = upper2 ? max2 + layer2 - 2 : layer2 - 1;
-          const auto gCellD2 = upper2 ? pCellD2 + layer2 : pCellD2 - layer2;
+          const auto gCellD2 = upper2 ? pCellD2 + 1 : pCellD2 - 1;
 
           const auto pCellD3 = upper3 ? max3 + layer3 - 2 : layer3 - 1;
-          const auto gCellD3 = upper3 ? pCellD3 + layer3 : pCellD3 - layer3;
+          const auto gCellD3 = upper3 ? pCellD3 + 1 : pCellD3 - 1;
 
           // surface types of surfaces forming edge
           const auto surf2 = upper2 ? surfStart + 1 : surfStart;
