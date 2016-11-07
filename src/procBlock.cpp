@@ -2596,10 +2596,10 @@ void procBlock::AssignGhostCellsGeomEdge() {
           const auto upper3 = cc % 2 == 1;
 
           // cell indices (g-ghost at current layer, p-ghost at previous layer)
-          const auto pCellD2 = upper2 ? max2 + layer2 - 2 : layer2 - 1;
+          const auto pCellD2 = upper2 ? max2 + layer2 - 2 : 1 - layer2;
           const auto gCellD2 = upper2 ? pCellD2 + 1 : pCellD2 - 1;
 
-          const auto pCellD3 = upper3 ? max3 + layer3 - 2 : layer3 - 1;
+          const auto pCellD3 = upper3 ? max3 + layer3 - 2 : 1 - layer3;
           const auto gCellD3 = upper3 ? pCellD3 + 1 : pCellD3 - 1;
 
           if (layer2 == layer3) {  // need to average
@@ -2745,7 +2745,7 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
       if (surfType % 2 == 0) {  // upper surface
         gCell = r3.Start() + layer - 1;
         iCell = r3.Start() - layer;
-        aCell = r3.Start();  // adjacent cell to bnd regardless of ghost layer
+        aCell = r3.Start() - 1;  // adjacent cell to bnd regardless of ghost layer
         if (iCell < this->Start(dir)) {iCell = this->Start(dir);}
 
         bnd = r3.Start();
@@ -2876,10 +2876,10 @@ void procBlock::AssignInviscidGhostCellsEdge(
           const auto upper3 = cc % 2 == 1;
 
           // cell indices (g-ghost at current layer, p-ghost at previous layer)
-          const auto pCellD2 = upper2 ? max2 + layer2 - 2 : layer2 - 1;
+          const auto pCellD2 = upper2 ? max2 + layer2 - 2 : 1 - layer2;
           const auto gCellD2 = upper2 ? pCellD2 + 1 : pCellD2 - 1;
 
-          const auto pCellD3 = upper3 ? max3 + layer3 - 2 : layer3 - 1;
+          const auto pCellD3 = upper3 ? max3 + layer3 - 2 : 1 - layer3;
           const auto gCellD3 = upper3 ? pCellD3 + 1 : pCellD3 - 1;
 
           // surface types of surfaces forming edge
@@ -3005,7 +3005,7 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
       if (surfType % 2 == 0) {  // upper surface
         gCell = r3.Start() + layer - 1;
         iCell = r3.Start() - layer;
-        aCell = r3.Start();  // adjacent cell to bnd regardless of ghost layer
+        aCell = r3.Start() - 1;  // adjacent cell to bnd regardless of ghost layer
         if (iCell < this->Start(dir)) iCell = this->Start(dir);
 
         bnd = r3.Start();
@@ -3134,10 +3134,10 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
           const auto upper3 = cc % 2 == 1;
 
           // cell indices (g-ghost at current layer, p-ghost at previous layer)
-          const auto pCellD2 = upper2 ? max2 + layer2 - 2 : layer2 - 1;
+          const auto pCellD2 = upper2 ? max2 + layer2 - 2 : 1 - layer2;
           const auto gCellD2 = upper2 ? pCellD2 + 1 : pCellD2 - 1;
 
-          const auto pCellD3 = upper3 ? max3 + layer3 - 2 : layer3 - 1;
+          const auto pCellD3 = upper3 ? max3 + layer3 - 2 : 1 - layer3;
           const auto gCellD3 = upper3 ? pCellD3 + 1 : pCellD3 - 1;
 
           // surface types of surfaces forming edge
@@ -5619,14 +5619,14 @@ multiArray3d<primVars> procBlock::SliceState(const int &is, const int &ie,
 void procBlock::UpdateAuxillaryVariables(const idealGas &eos,
                                          const sutherland &suth,
                                          const bool includeGhosts) {
-  for (auto kg = 0; kg < this->NumKG(); kg++) {
-    for (auto jg = 0; jg < this->NumJG(); jg++) {
-      for (auto ig = 0; ig < this->NumIG(); ig++) {
-        if (!this->AtCorner(ig, jg, kg) &&
-            (includeGhosts || this->IsPhysical(ig, jg, kg))) {
-          temperature_(ig, jg, kg) = state_(ig, jg, kg).Temperature(eos);
+  for (auto kk = temperature_.StartK(); kk < temperature_.EndK(); kk++) {
+    for (auto jj = temperature_.StartJ(); jj < temperature_.EndJ(); jj++) {
+      for (auto ii = temperature_.StartI(); ii < temperature_.EndI(); ii++) {
+        if (!this->AtCorner(ii, jj, kk) &&
+            (includeGhosts || this->IsPhysical(ii, jj, kk))) {
+          temperature_(ii, jj, kk) = state_(ii, jj, kk).Temperature(eos);
           if (isViscous_) {
-            viscosity_(ig, jg, kg) = suth.Viscosity(temperature_(ig, jg, kg));
+            viscosity_(ii, jj, kk) = suth.Viscosity(temperature_(ii, jj, kk));
           }
         }
       }

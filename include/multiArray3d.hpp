@@ -994,7 +994,7 @@ ostream &operator<<(ostream &os, const multiArray3d<T> &arr) {
   for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
     for (auto jj = arr.StartJ(); jj < arr.EndJ(); jj++) {
       for (auto ii = arr.StartI(); ii < arr.EndI(); ii++) {
-        os << ii << ", " << jj << ", " << kk << ", " <<
+        os << ii << ", " << jj << ", " << kk << ": " <<
             arr(ii, jj, kk) << endl;
       }
     }
