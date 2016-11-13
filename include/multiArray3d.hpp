@@ -1027,13 +1027,8 @@ void multiArray3d<T>::PutSlice(const multiArray3d<T> &array,
     for (auto l2 = 0; l2 < inter.Dir2LenFirst(); l2++) {
       for (auto l1 = 0; l1 < inter.Dir1LenFirst(); l1++) {
         // get acceptor and inserter indices
-        // when at lower surface (constant surface == 0), l3 should be modified
-        // to use negative indices for ghost cells
-        auto l3Mod = inter.ConstSurfaceFirst() == 0 ?
-            -array.GhostLayers() + l3 : l3;
-        auto indA = GetSwapLoc(l1, l2, l3Mod, inter, true);
-        l3Mod = inter.ConstSurfaceSecond() == 0 ? -numGhosts_ + l3 : l3;
-        auto indI = GetSwapLoc(l1, l2, l3Mod, inter, false);
+        auto indA = GetSwapLoc(l1, l2, l3, numGhosts_, inter, true);
+        auto indI = GetSwapLoc(l1, l2, l3, array.numGhosts_, inter, false);
 
         // assign cell data
         (*this)(indA[0], indA[1], indA[2]) = array(indI[0], indI[1], indI[2]);
@@ -1126,12 +1121,9 @@ void multiArray3d<T>::SwapSliceMPI(const interblock &inter, const int &rank,
   // tag -- id for MPI swap (default 1)
 
   // Get indices for slice coming from block to swap
-  auto is = 0;
-  auto ie = 0;
-  auto js = 0;
-  auto je = 0;
-  auto ks = 0;
-  auto ke = 0;
+  auto is = 0, ie = 0;
+  auto js = 0, je = 0;
+  auto ks = 0, ke = 0;
 
   if (rank == inter.RankFirst()) {  // local block is first in interblock
     inter.FirstSliceIndices(is, ie, js, je, ks, ke, numGhosts_);
@@ -1191,22 +1183,16 @@ void multiArray3d<T>::SwapSlice(const interblock &inter,
   // array -- second array involved in interblock boundary
 
   // Get indices for slice coming from first block to swap
-  auto is1 = 0;
-  auto ie1 = 0;
-  auto js1 = 0;
-  auto je1 = 0;
-  auto ks1 = 0;
-  auto ke1 = 0;
+  auto is1 = 0, ie1 = 0;
+  auto js1 = 0, je1 = 0;
+  auto ks1 = 0, ke1 = 0;
 
   inter.FirstSliceIndices(is1, ie1, js1, je1, ks1, ke1, numGhosts_);
 
   // Get indices for slice coming from second block to swap
-  auto is2 = 0;
-  auto ie2 = 0;
-  auto js2 = 0;
-  auto je2 = 0;
-  auto ks2 = 0;
-  auto ke2 = 0;
+  auto is2 = 0, ie2 = 0;
+  auto js2 = 0, je2 = 0;
+  auto ks2 = 0, ke2 = 0;
 
   inter.SecondSliceIndices(is2, ie2, js2, je2, ks2, ke2, array.GhostLayers());
 

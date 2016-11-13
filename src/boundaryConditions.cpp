@@ -609,22 +609,22 @@ void interblock::AdjustForSlice(const bool &blkFirst, const int &numG) {
   }
 
   // If at an upper surface, start block at upper boundary
-  // (after including ghosts), if at lower surface, start block at 0
+  // if at lower surface, start block at last ghost layer
   const auto blkStart = (this->BoundaryFirst() % 2 == 0)
-      ? this->ConstSurfaceFirst() + numG : 0;
+      ? this->ConstSurfaceFirst() : -numG;
 
   constSurf_[1] = 0;  // slice always starts at 0
   constSurf_[0] = blkStart;
   // Adjust direction 1 start and end for ghost cells
-  d1End_[1] =
-      this->Dir1EndSecond() - this->Dir1StartSecond() + 2 * numG;
-  d1End_[0] = this->Dir1EndFirst() + 2 * numG;
+  d1End_[1] = this->Dir1EndSecond() - this->Dir1StartSecond() + 2 * numG;
+  d1End_[0] = this->Dir1EndFirst() + numG;
   d1Start_[1] = 0;  // slice always starts at 0
+  d1Start_[0] = this->Dir1StartFirst() - numG;
   // Adjust direction 2 start and end for ghost cells
-  d2End_[1] =
-      this->Dir2EndSecond() - this->Dir2StartSecond() + 2 * numG;
-  d2End_[0] = this->Dir2EndFirst() + 2 * numG;
+  d2End_[1] = this->Dir2EndSecond() - this->Dir2StartSecond() + 2 * numG;
+  d2End_[0] = this->Dir2EndFirst() + numG;
   d2Start_[1] = 0;  // slice always starts at 0
+  d2Start_[0] = this->Dir2StartFirst() - numG;
 }
 
 // Member function to get the addresses of an interblock to create
@@ -793,11 +793,11 @@ void interblock::FirstSliceIndices(int &is1, int &ie1, int &js1, int &je1,
   // ke1 -- ending k index for first slice
   // numGhosts1 -- number of ghost cells in first slice
 
-  // if at upper boundary no need to adjust for ghost cells as constant surface
+  // if at lower boundary no need to adjust for ghost cells as constant surface
   // is already at the interior cells when acounting for ghost cells
-  // if at the lower boundary adjust the constant surface by the number of ghost
-  // cells to get to the first interior cell
-  const auto upLowFac = (this->BoundarySecond() % 2 == 0) ? 0 : -numGhosts1;
+  // if at the upper boundary adjust the constant surface by the number of ghost
+  // cells to get to the nth interior cell
+  const auto upLowFac = (this->BoundaryFirst() % 2 == 0) ? -numGhosts1 : 0;
 
   if (this->BoundaryFirst() == 1 ||
       this->BoundaryFirst() == 2) {  // direction 3 is i
@@ -806,11 +806,11 @@ void interblock::FirstSliceIndices(int &is1, int &ie1, int &js1, int &je1,
     ie1 = is1 + numGhosts1;
 
     // direction 1 is j
-    js1 = this->Dir1StartFirst();
+    js1 = this->Dir1StartFirst() - numGhosts1;
     je1 = this->Dir1EndFirst() + numGhosts1;
 
     // direction 2 is k
-    ks1 = this->Dir2StartFirst();
+    ks1 = this->Dir2StartFirst() - numGhosts1;
     ke1 = this->Dir2EndFirst() + numGhosts1;
 
   } else if (this->BoundaryFirst() == 3 ||
@@ -820,11 +820,11 @@ void interblock::FirstSliceIndices(int &is1, int &ie1, int &js1, int &je1,
     je1 = js1 + numGhosts1;
 
     // direction 1 is k
-    ks1 = this->Dir1StartFirst();
+    ks1 = this->Dir1StartFirst() - numGhosts1;
     ke1 = this->Dir1EndFirst() + numGhosts1;
 
     // direction 2 is i
-    is1 = this->Dir2StartFirst();
+    is1 = this->Dir2StartFirst() - numGhosts1;
     ie1 = this->Dir2EndFirst() + numGhosts1;
 
   } else if (this->BoundaryFirst() == 5 ||
@@ -834,11 +834,11 @@ void interblock::FirstSliceIndices(int &is1, int &ie1, int &js1, int &je1,
     ke1 = ks1 + numGhosts1;
 
     // direction 1 is i
-    is1 = this->Dir1StartFirst();
+    is1 = this->Dir1StartFirst() - numGhosts1;
     ie1 = this->Dir1EndFirst() + numGhosts1;
 
     // direction 2 is j
-    js1 = this->Dir2StartFirst();
+    js1 = this->Dir2StartFirst() - numGhosts1;
     je1 = this->Dir2EndFirst() + numGhosts1;
 
   } else {
@@ -861,11 +861,11 @@ void interblock::SecondSliceIndices(int &is2, int &ie2, int &js2, int &je2,
   // ke2 -- ending k index for second slice
   // numGhosts2 -- number of ghost cells in second slice
 
-  // if at upper boundary no need to adjust for ghost cells as constant surface
+  // if at lower boundary no need to adjust for ghost cells as constant surface
   // is already at the interior cells when acounting for ghost cells
-  // if at the lower boundary adjust the constant surface by the number of ghost
-  // cells to get to the first interior cell
-  const auto upLowFac = (this->BoundarySecond() % 2 == 0) ? 0 : -numGhosts2;
+  // if at the upper boundary adjust the constant surface by the number of ghost
+  // cells to get to the nth interior cell
+  const auto upLowFac = (this->BoundarySecond() % 2 == 0) ? -numGhosts2 : 0;
 
   if (this->BoundarySecond() == 1 ||
       this->BoundarySecond() == 2) {  // direction 3 is i
@@ -874,11 +874,11 @@ void interblock::SecondSliceIndices(int &is2, int &ie2, int &js2, int &je2,
     ie2 = is2 + numGhosts2;
 
     // direction 1 is j
-    js2 = this->Dir1StartSecond();
+    js2 = this->Dir1StartSecond() - numGhosts2;
     je2 = this->Dir1EndSecond() + numGhosts2;
 
     // direction 2 is k
-    ks2 = this->Dir2StartSecond();
+    ks2 = this->Dir2StartSecond() - numGhosts2;
     ke2 = this->Dir2EndSecond() + numGhosts2;
 
   } else if (this->BoundarySecond() == 3 ||
@@ -888,11 +888,11 @@ void interblock::SecondSliceIndices(int &is2, int &ie2, int &js2, int &je2,
     je2 = js2 + numGhosts2;
 
     // direction 1 is k
-    ks2 = this->Dir1StartSecond();
+    ks2 = this->Dir1StartSecond() - numGhosts2;
     ke2 = this->Dir1EndSecond() + numGhosts2;
 
     // direction 2 is i
-    is2 = this->Dir2StartSecond();
+    is2 = this->Dir2StartSecond() - numGhosts2;
     ie2 = this->Dir2EndSecond() + numGhosts2;
 
   } else if (this->BoundarySecond() == 5 ||
@@ -902,11 +902,11 @@ void interblock::SecondSliceIndices(int &is2, int &ie2, int &js2, int &je2,
     ke2 = ks2 + numGhosts2;
 
     // direction 1 is i
-    is2 = this->Dir1StartSecond();
+    is2 = this->Dir1StartSecond() - numGhosts2;
     ie2 = this->Dir1EndSecond() + numGhosts2;
 
     // direction 2 is j
-    js2 = this->Dir2StartSecond();
+    js2 = this->Dir2StartSecond() - numGhosts2;
     je2 = this->Dir2EndSecond() + numGhosts2;
 
   } else {
@@ -2651,10 +2651,12 @@ locations and will take into account the orientation of the patches that
 comprise the interblock with relation to each other.
 */
 array<int, 3> GetSwapLoc(const int &l1, const int &l2, const int &l3,
-                         const interblock &inter, const bool &first) {
+                         const int &numGhosts, const interblock &inter,
+                         const bool &first) {
   // l1 -- index of direction 1 within slice to insert
   // l2 -- index of direction 2 within slice to insert
   // l3 -- index of direction 3 within slice to insert
+  // numGhosts -- number of layers of ghost cells
   // inter -- interblock boundary condition
   // first -- flag for first or second block in interblock match
 
@@ -2667,19 +2669,19 @@ array<int, 3> GetSwapLoc(const int &l1, const int &l2, const int &l3,
       // get direction 1 length
       loc[1] = inter.Dir1StartFirst() + l1;  // direction 1 is j
       loc[2] = inter.Dir2StartFirst() + l2;  // direction 2 is k
-      loc[0] = inter.ConstSurfaceFirst() +
+      loc[0] = inter.IsLowerFirst() ? l3 - numGhosts : inter.ConstSurfaceFirst() +
                l3;  // add l3 to get to ghost cells (cell index instead of face)
     } else if (inter.Direction3First() == "j") {  // j-patch
       // get direction 1 length
       loc[2] = inter.Dir1StartFirst() + l1;  // direction 1 is k
       loc[0] = inter.Dir2StartFirst() + l2;  // direction 2 is i
-      loc[1] = inter.ConstSurfaceFirst() +
+      loc[1] = inter.IsLowerFirst() ? l3 - numGhosts : inter.ConstSurfaceFirst() +
                l3;  // add l3 to get to ghost cells (cell index instead of face)
     } else if (inter.Direction3First() == "k") {  // k-patch
       // get direction 1 length
       loc[0] = inter.Dir1StartFirst() + l1;  // direction 1 is i
       loc[1] = inter.Dir2StartFirst() + l2;  // direction 2 is j
-      loc[2] = inter.ConstSurfaceFirst() +
+      loc[2] = inter.IsLowerFirst() ? l3 - numGhosts : inter.ConstSurfaceFirst() +
                l3;  // add l3 to get to ghost cells (cell index instead of face)
     } else {
       cerr << "ERROR: Error in procBlock:GetSwapLoc(). Boundary direction "
@@ -2719,7 +2721,9 @@ array<int, 3> GetSwapLoc(const int &l1, const int &l2, const int &l3,
       }
 
       // calculate index for all ghost layers
-      loc[0] = inter.ConstSurfaceSecond() + l3;  // add l3 to get to ghost cells
+      // add l3 to get to ghost cells
+      loc[0] = inter.IsLowerSecond() ? l3 - numGhosts :
+          inter.ConstSurfaceSecond() + l3;
 
     //-------------------------------------------------------------------------
     } else if (inter.Direction3Second() == "j") {  // j-patch
@@ -2752,7 +2756,9 @@ array<int, 3> GetSwapLoc(const int &l1, const int &l2, const int &l3,
       }
 
       // calculate index for all ghost layers
-      loc[1] = inter.ConstSurfaceSecond() + l3;  // add l3 to get to ghost cells
+      // add l3 to get to ghost cells
+      loc[1] = inter.IsLowerSecond() ? l3 - numGhosts :
+          inter.ConstSurfaceSecond() + l3;
 
     //------------------------------------------------------------------------
     } else if (inter.Direction3Second() == "k") {  // k-patch
@@ -2785,7 +2791,9 @@ array<int, 3> GetSwapLoc(const int &l1, const int &l2, const int &l3,
       }
 
       // calculate index for all ghost layers
-      loc[2] = inter.ConstSurfaceSecond() + l3;  // add l3 to get to ghost cells
+      // add l3 to get to ghost cells
+      loc[2] = inter.IsLowerSecond() ? l3 - numGhosts :
+          inter.ConstSurfaceSecond() + l3;
 
     //--------------------------------------------------------------------------
     } else {

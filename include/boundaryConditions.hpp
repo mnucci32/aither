@@ -317,6 +317,9 @@ class interblock {
   int ConstSurfaceFirst() const {return constSurf_[0];}
   int ConstSurfaceSecond() const {return constSurf_[1];}
 
+  bool IsLowerFirst() const {return constSurf_[0] == 0;}
+  bool IsLowerSecond() const {return constSurf_[1] == 0;}
+
   bool Dir1StartInterBorderFirst() const {return interblockBorder_[0];}
   bool Dir1EndInterBorderFirst() const {return interblockBorder_[1];}
   bool Dir2StartInterBorderFirst() const {return interblockBorder_[2];}
@@ -427,7 +430,7 @@ ostream & operator<< (ostream &os, const decomposition&);
 ostream & operator<< (ostream &os, const interblock&);
 
 
-array<int, 3> GetSwapLoc(const int &, const int &, const int &,
+array<int, 3> GetSwapLoc(const int &, const int &, const int &, const int &,
                          const interblock &, const bool &);
 
 #endif

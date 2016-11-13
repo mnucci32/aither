@@ -406,8 +406,7 @@ class procBlock {
   bool AtEdge(const int &, const int &, const int &, string &) const;
   bool AtEdgeInclusive(const int &, const int &, const int &, string &) const;
 
-  vector<bool> PutGeomSlice(const geomSlice &, interblock &, const int &,
-                            const int &);
+  vector<bool> PutGeomSlice(const geomSlice &, interblock &, const int &);
   void PutStateSlice(const multiArray3d<primVars> &, const interblock &,
                      const int &, const int &);
 

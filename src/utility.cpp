@@ -211,27 +211,21 @@ void SwapGeomSlice(interblock &inter, procBlock &blk1, procBlock &blk2) {
   // blk2 -- second block involved in interblock boundary
 
   // Get indices for slice coming from first block to swap
-  auto is1 = 0;
-  auto ie1 = 0;
-  auto js1 = 0;
-  auto je1 = 0;
-  auto ks1 = 0;
-  auto ke1 = 0;
+  auto is1 = 0, ie1 = 0;
+  auto js1 = 0, je1 = 0;
+  auto ks1 = 0, ke1 = 0;
 
   inter.FirstSliceIndices(is1, ie1, js1, je1, ks1, ke1, blk1.NumGhosts());
 
   // Get indices for slice coming from second block to swap
-  auto is2 = 0;
-  auto ie2 = 0;
-  auto js2 = 0;
-  auto je2 = 0;
-  auto ks2 = 0;
-  auto ke2 = 0;
+  auto is2 = 0, ie2 = 0;
+  auto js2 = 0, je2 = 0;
+  auto ks2 = 0, ke2 = 0;
 
   inter.SecondSliceIndices(is2, ie2, js2, je2, ks2, ke2, blk2.NumGhosts());
 
-  const auto geom1 = geomSlice(blk1, is1, ie1, js1, je1, ks1, ke1);
-  const auto geom2 = geomSlice(blk2, is2, ie2, js2, je2, ks2, ke2);
+  const auto geom1 = geomSlice(blk1, {is1, ie1}, {js1, je1}, {ks1, ke1});
+  const auto geom2 = geomSlice(blk2, {is2, ie2}, {js2, je2}, {ks2, ke2});
 
   // change interblocks to work with slice and ghosts
   interblock inter1 = inter;
@@ -242,10 +236,8 @@ void SwapGeomSlice(interblock &inter, procBlock &blk1, procBlock &blk2) {
   // put slices in proper blocks
   // return vector determining if any of the 4 edges of the interblock need to
   // be updated for a "t" intersection
-  const auto adjEdge1 = blk1.PutGeomSlice(geom2, inter2, blk2.NumGhosts(),
-                                          blk2.NumGhosts());
-  const auto adjEdge2 = blk2.PutGeomSlice(geom1, inter1, blk1.NumGhosts(),
-                                          blk1.NumGhosts());
+  const auto adjEdge1 = blk1.PutGeomSlice(geom2, inter2, blk2.NumGhosts());
+  const auto adjEdge2 = blk2.PutGeomSlice(geom1, inter1, blk1.NumGhosts());
 
   // if an interblock border needs to be updated, update
   for (auto ii = 0U; ii < adjEdge1.size(); ii++) {

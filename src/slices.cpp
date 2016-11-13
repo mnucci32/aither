@@ -18,6 +18,7 @@
 #include "slices.hpp"
 #include "procBlock.hpp"
 #include "boundaryConditions.hpp"  // interblock
+#include "range.hpp"  // range
 
 using std::cout;
 using std::endl;
@@ -51,24 +52,21 @@ the revI, revJ, or revK flags are activated to reverse either the i, j, or k
 directions respectively. This function essentially cuts out a portion
 of a procBlock and returns a geomSlice with that portion of the block geometry.
 */
-geomSlice::geomSlice(const procBlock &blk, const int &is, const int &ie,
-                    const int &js, const int &je, const int &ks, const int &ke,
-                    const bool revI, const bool revJ, const bool revK) {
+geomSlice::geomSlice(const procBlock &blk, const range &ir, const range &jr,
+                     const range &kr, const bool revI, const bool revJ,
+                     const bool revK) {
   // blk -- procBlock to extract slice from
-  // is -- starting i-cell index for slice
-  // ie -- ending i-cell index for slice
-  // js -- starting j-cell index for slice
-  // je -- ending j-cell index for slice
-  // ks -- starting k-cell index for slice
-  // ke -- ending k-cell index for slice
+  // ir -- range for i-direction
+  // jr -- range for j-direction
+  // kr -- range for k-direction
   // revI -- flag to reverse i direction of indices (default false)
   // revJ -- flag to reverse j direction of indices (default false)
   // revK -- flag to reverse k direction of indices (default false)
 
   // allocate dimensions
-  const auto numI = ie - is + 1;
-  const auto numJ = je - js + 1;
-  const auto numK = ke - ks + 1;
+  const auto numI = ir.Size();
+  const auto numJ = jr.Size();
+  const auto numK = kr.Size();
   parBlock_ = blk.ParentBlock();
 
   // allocate size for vectors
@@ -82,9 +80,9 @@ geomSlice::geomSlice(const procBlock &blk, const int &is, const int &ie,
   vol_ = {numI, numJ, numK, 0};
 
   // loop over all cells in slice and populate
-  for (auto kk = vol_.StartK(); kk < vol_.EndK(); kk++) {
-    for (auto jj = vol_.StartJ(); jj < vol_.EndJ(); jj++) {
-      for (auto ii = vol_.StartI(); ii < vol_.EndI(); ii++) {
+  for (auto kk = vol_.StartK(), ks = kr.Start(); kk < vol_.EndK(); kk++) {
+    for (auto jj = vol_.StartJ(), js = jr.Start(); jj < vol_.EndJ(); jj++) {
+      for (auto ii = vol_.StartI(), is = ir.Start(); ii < vol_.EndI(); ii++) {
         // determine if direction needs to be reversed
         auto k = revK ? numK - 1 - kk : kk;
         auto kFac = revK ? -1.0 : 1.0;

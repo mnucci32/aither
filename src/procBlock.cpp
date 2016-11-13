@@ -575,6 +575,7 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
   // mainDiagonal -- main diagonal of LHS to store flux jacobians for implicit
   //                 solver
 
+
   // loop over all physical k-faces
   for (auto kk = fAreaK_.PhysStartK(); kk < fAreaK_.PhysEndK(); kk++) {
     for (auto jj = fAreaK_.PhysStartJ(); jj < fAreaK_.PhysEndJ(); jj++) {
@@ -3455,12 +3456,11 @@ boundary conditions and should be ignored. Subsequently, the interblock should b
 updated so that in the future this cell is not inserted.
 */
 vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
-                                     const int &d3, const int &numG) {
+                                     const int &d3) {
   // slice -- geomSlice to insert int procBlock
   // inter -- interblock data structure describing the patches and their
   // orientation
   // d3 -- distance of direction normal to patch to insert
-  // numG -- number of ghost cells
 
   // check that number of cells to insert matches
   const auto blkCell = (inter.Dir1EndFirst() - inter.Dir1StartFirst()) *
@@ -3478,10 +3478,10 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
   // adjust insertion indices if patch borders another interblock on the same
   // surface of the block
-  const auto adjS1 = (inter.Dir1StartInterBorderFirst()) ? numG : 0;
-  const auto adjE1 = (inter.Dir1EndInterBorderFirst()) ? numG : 0;
-  const auto adjS2 = (inter.Dir2StartInterBorderFirst()) ? numG : 0;
-  const auto adjE2 = (inter.Dir2EndInterBorderFirst()) ? numG : 0;
+  const auto adjS1 = (inter.Dir1StartInterBorderFirst()) ? numGhosts_ : 0;
+  const auto adjE1 = (inter.Dir1EndInterBorderFirst()) ? numGhosts_ : 0;
+  const auto adjS2 = (inter.Dir2StartInterBorderFirst()) ? numGhosts_ : 0;
+  const auto adjE2 = (inter.Dir2EndInterBorderFirst()) ? numGhosts_ : 0;
   vector<bool> adjEdge(4, false);  // initialize all return values to false
 
   // determine if area direction needs to be reversed
@@ -3501,16 +3501,16 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
       for (auto l1 = adjS1;
            l1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst() - adjE1); l1++) {
         // get block and slice indices
-        const auto indB = GetSwapLoc(l1, l2, l3, inter, true);
-        const auto indS = GetSwapLoc(l1, l2, l3, inter, false);
+        const auto indB = GetSwapLoc(l1, l2, l3, numGhosts_, inter, true);
+        const auto indS = GetSwapLoc(l1, l2, l3, slice.GhostLayers(), inter, false);
 
         // don't overwrite with garbage from partner block that hasn't recieved
         // its ghost value yet (needed at "t" intersection)
         if (slice.Vol(indS[0], indS[1], indS[2]) == 0.0) {
           // find out if on edge, if so save edge
           // at a block edge -- possible need to adjust interblock
-          string edgeDir;
-          if (this->AtEdge(indB[0], indB[1], indB[2], edgeDir)) {
+          string edgeDir = "undefined";
+          if (this->AtEdgeInclusive(indB[0], indB[1], indB[2], edgeDir)) {
             auto dir1 = 0;
             auto dir2 = 0;
             if (inter.Direction1First() == "i") {
@@ -3545,6 +3545,11 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
               cerr << "ERROR: Error in procBlock::PutGeomSlice(). Ghost cell "
                       "edge direction does not match interblock direction 1 or "
                       "2." << endl;
+              cerr << "Edge direction is " << edgeDir << ", direction 1 is "
+                   << inter.Direction1First() << ", and direction 2 is "
+                   << inter.Direction2First() << endl;
+              cerr << "Location is: " << indB[0] << ", " << indB[1] << ", "
+                   << indB[2] << endl;
               exit(EXIT_FAILURE);
             }
           }
