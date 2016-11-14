@@ -521,7 +521,7 @@ void plot3dBlock::Split(const string &dir, const int &ind, plot3dBlock &blk1,
   // dir -- plane to split along, either i, j, or k
   // ind -- index (face) to split at (w/o counting ghost cells)
 
-  blk1 = plot3dBlock(coords_.Slice(dir, {coords_.Start(dir), ind}));
+  blk1 = plot3dBlock(coords_.Slice(dir, {coords_.Start(dir), ind + 1}));
   blk2 = plot3dBlock(coords_.Slice(dir, {ind, coords_.End(dir)}));
 }
 

@@ -4910,18 +4910,26 @@ void procBlock::Join(const procBlock &blk, const string &dir,
   auto jTot = this->NumJ();
   auto kTot = this->NumK();
 
+  // for face variables, boundary face is duplicated in lower/upper splits
+  // start upper block one index later to avoid duplication
+  auto iFaceFac = 0;
+  auto jFaceFac = 0;
+  auto kFaceFac = 0;
+
   if (dir == "i") {
     iTot += blk.NumI();
+    iFaceFac = 1;
   } else if (dir == "j") {
     jTot += blk.NumJ();
+    jFaceFac = 1;
   } else if (dir == "k") {
     kTot += blk.NumK();
+    kFaceFac = 1;
   } else {
     cerr << "ERROR: Error in procBlock::Join(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
     exit(EXIT_FAILURE);
   }
-
 
   procBlock newBlk(iTot, jTot, kTot, numGhosts_, isViscous_, isTurbulent_);
 
@@ -4930,6 +4938,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 
   // assign variables from lower block -----------------------------
   // assign cell variables with ghost cells
+
   newBlk.state_.Insert(dir, {state_.Start(dir), state_.PhysEnd(dir)},
                        state_.Slice(dir, {state_.Start(dir),
                                state_.PhysEnd(dir)}));
@@ -5110,30 +5119,33 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 
   // assign face variables
   newBlk.fAreaI_.Insert(dir, {fAreaI_.PhysEnd(dir), newBlk.fAreaI_.End(dir)},
-                        blk.fAreaI_.Slice(dir, {blk.fAreaI_.PhysStart(dir),
-                                blk.fAreaI_.End(dir)}));
+                        blk.fAreaI_.Slice(dir,
+                                          {blk.fAreaI_.PhysStart(dir) + iFaceFac,
+                                                blk.fAreaI_.End(dir)}));
 
   newBlk.fAreaJ_.Insert(dir, {fAreaJ_.PhysEnd(dir), newBlk.fAreaJ_.End(dir)},
-                        blk.fAreaJ_.Slice(dir, {blk.fAreaJ_.PhysStart(dir),
-                                blk.fAreaJ_.End(dir)}));
+                        blk.fAreaJ_.Slice(dir,
+                                          {blk.fAreaJ_.PhysStart(dir) + jFaceFac,
+                                                blk.fAreaJ_.End(dir)}));
 
   newBlk.fAreaK_.Insert(dir, {fAreaK_.PhysEnd(dir), newBlk.fAreaK_.End(dir)},
-                        blk.fAreaK_.Slice(dir, {blk.fAreaK_.PhysStart(dir),
-                                blk.fAreaK_.End(dir)}));
+                        blk.fAreaK_.Slice(dir,
+                                          {blk.fAreaK_.PhysStart(dir) + kFaceFac,
+                                                blk.fAreaK_.End(dir)}));
 
   newBlk.fCenterI_.Insert(dir, {fCenterI_.PhysEnd(dir),
           newBlk.fCenterI_.End(dir)},
-    blk.fCenterI_.Slice(dir, {blk.fCenterI_.PhysStart(dir),
+    blk.fCenterI_.Slice(dir, {blk.fCenterI_.PhysStart(dir) + iFaceFac,
             blk.fCenterI_.End(dir)}));
 
   newBlk.fCenterJ_.Insert(dir, {fCenterJ_.PhysEnd(dir),
           newBlk.fCenterJ_.End(dir)},
-    blk.fCenterJ_.Slice(dir, {blk.fCenterJ_.PhysStart(dir),
+    blk.fCenterJ_.Slice(dir, {blk.fCenterJ_.PhysStart(dir) + jFaceFac,
             blk.fCenterJ_.End(dir)}));
 
   newBlk.fCenterK_.Insert(dir, {fCenterK_.PhysEnd(dir),
           newBlk.fCenterK_.End(dir)},
-    blk.fCenterK_.Slice(dir, {blk.fCenterK_.PhysStart(dir),
+    blk.fCenterK_.Slice(dir, {blk.fCenterK_.PhysStart(dir) + kFaceFac,
             blk.fCenterK_.End(dir)}));
 
   *this = newBlk;

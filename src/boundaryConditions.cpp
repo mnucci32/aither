@@ -380,8 +380,7 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
   // Loop over isolated interblocks
   // ii counts by two because after a pair is found, that data is swapped
   // to ii+1. This allows the next search to avoid the matched pair
-  for (auto ii = 0U; ii < isolatedInterblocks.size();
-       ii += 2) {
+  for (auto ii = 0U; ii < isolatedInterblocks.size(); ii += 2) {
     // Loop over possible matches
     for (auto jj = ii + 1U; jj < isolatedInterblocks.size(); jj++) {
       // Blocks and boundary surfaces between interblocks match

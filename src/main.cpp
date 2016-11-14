@@ -248,10 +248,8 @@ int main(int argc, char *argv[]) {
     // Open residual file
     resFile.open(inputVars.SimNameRoot() + ".resid", ios::out);
 
-
     // Write out cell centers grid file
-    WriteCellCenter(inputVars.GridName(), stateBlocks, decomp,
-                    inputVars.LRef());
+    WriteCellCenter(inputVars.GridName(), stateBlocks, decomp, inputVars.LRef());
 
     // Write out initial results
     WriteFun(stateBlocks, eos, suth, 0, decomp, inputVars, turb);
