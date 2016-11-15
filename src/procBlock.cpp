@@ -3463,14 +3463,13 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
   // d3 -- distance of direction normal to patch to insert
 
   // check that number of cells to insert matches
-  const auto blkCell = (inter.Dir1EndFirst() - inter.Dir1StartFirst()) *
-      (inter.Dir2EndFirst() - inter.Dir2StartFirst()) * d3;
+  const auto blkCell = inter.Dir1LenFirst() * inter.Dir2LenFirst() * d3;
   if (blkCell != slice.NumCells()) {
     cerr << "ERROR: Error in procBlock::PutGeomSlice(). Number of cells being "
             "inserted does not match designated space to insert to." << endl;
     cerr << "Direction 1, 2, 3 of procBlock: "
-         << inter.Dir1EndFirst() - inter.Dir1StartFirst() << ", "
-         << inter.Dir2EndFirst() - inter.Dir2StartFirst() << ", " << d3 << endl;
+         << inter.Dir1LenFirst() << ", " << inter.Dir2LenFirst() << ", " << d3
+         << endl;
     cerr << "Direction I, J, K of geomSlice: " << slice.NumI() << ", "
          << slice.NumJ() << ", " << slice.NumK() << endl;
     exit(EXIT_FAILURE);
@@ -3482,8 +3481,8 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
   const auto adjE1 = (inter.Dir1EndInterBorderFirst()) ? numGhosts_ : 0;
   const auto adjS2 = (inter.Dir2StartInterBorderFirst()) ? numGhosts_ : 0;
   const auto adjE2 = (inter.Dir2EndInterBorderFirst()) ? numGhosts_ : 0;
-  vector<bool> adjEdge(4, false);  // initialize all return values to false
 
+  vector<bool> adjEdge(4, false);  // initialize all return values to false
   // determine if area direction needs to be reversed
   const auto aFac3 = ((inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0)
       ? -1.0 : 1.0;
@@ -3496,10 +3495,8 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
   // loop over cells to insert
   for (auto l3 = 0; l3 < d3; l3++) {
-    for (auto l2 = adjS2;
-         l2 < (inter.Dir2EndFirst() - inter.Dir2StartFirst() - adjE2); l2++) {
-      for (auto l1 = adjS1;
-           l1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst() - adjE1); l1++) {
+    for (auto l2 = adjS2; l2 < inter.Dir2LenFirst() - adjE2; l2++) {
+      for (auto l1 = adjS1; l1 < inter.Dir1LenFirst() - adjE1; l1++) {
         // get block and slice indices
         const auto indB = GetSwapLoc(l1, l2, l3, numGhosts_, inter, true);
         const auto indS = GetSwapLoc(l1, l2, l3, slice.GhostLayers(), inter, false);
@@ -3557,8 +3554,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
         // volume is not 0, ok to overwrite variables
         } else {
           // swap cell data
-          vol_(indB[0], indB[1], indB[2]) = slice.Vol(indS[0], indS[1],
-                                                      indS[2]);
+          vol_(indB[0], indB[1], indB[2]) = slice.Vol(indS[0], indS[1], indS[2]);
           center_(indB[0], indB[1], indB[2]) = slice.Center(indS[0], indS[1],
                                                             indS[2]);
 

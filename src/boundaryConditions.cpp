@@ -603,6 +603,7 @@ bool interblock::TestPatchMatch(const patch &p1, const patch &p2) {
 void interblock::AdjustForSlice(const bool &blkFirst, const int &numG) {
   // blkFirst -- boolean that is true if block to insert into is first
   // numG -- number of ghost cells in block
+
   if (!blkFirst) {      // block to insert into is second, swap order
     this->SwapOrder();  // have block be first entry, slice second
   }

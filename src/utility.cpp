@@ -258,13 +258,13 @@ boundaries to pass the correct data between grid blocks.
 void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
                            const idealGas &eos, const sutherland &suth,
                            const unique_ptr<turbModel> &turb,
-                           vector<interblock> &connections, const int &rank,
+                           vector<interblock> &conn, const int &rank,
                            const MPI_Datatype &MPI_cellData) {
   // states -- vector of all procBlocks in the solution domain
   // inp -- all input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
-  // connections -- vector of interblock connections
+  // conn -- vector of interblock connections
   // rank -- processor rank
   // MPI_cellData -- data type to pass primVars, genArray
 
@@ -274,25 +274,19 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
   }
 
   // loop over connections and swap ghost cells where needed
-  for (auto ii = 0U; ii < connections.size(); ii++) {
-    if (connections[ii].RankFirst() == rank &&
-        connections[ii].RankSecond() == rank) {  // both sides of interblock
-                                                  // are on this processor, swap
-                                                  // w/o mpi
-      states[connections[ii].LocalBlockFirst()]
-          .SwapStateSlice(connections[ii],
-                          states[connections[ii].LocalBlockSecond()]);
-    } else if (connections[ii].RankFirst() ==
-               rank) {  // rank matches rank of first side of interblock,
-                         // swap over mpi
-      states[connections[ii].LocalBlockFirst()]
-          .SwapStateSliceMPI(connections[ii], rank, MPI_cellData);
-
-    } else if (connections[ii].RankSecond() ==
-               rank) {  // rank matches rank of second side of interblock,
-                         // swap over mpi
-      states[connections[ii].LocalBlockSecond()]
-          .SwapStateSliceMPI(connections[ii], rank, MPI_cellData);
+  for (auto ii = 0U; ii < conn.size(); ii++) {
+    if (conn[ii].RankFirst() == rank && conn[ii].RankSecond() == rank) {
+      // both sides of interblock on this processor, swap w/o mpi
+      states[conn[ii].LocalBlockFirst()].SwapStateSlice(
+          conn[ii], states[conn[ii].LocalBlockSecond()]);
+    } else if (conn[ii].RankFirst() == rank) {
+      // rank matches rank of first side of interblock, swap over mpi
+      states[conn[ii].LocalBlockFirst()].SwapStateSliceMPI(conn[ii], rank,
+                                                           MPI_cellData);
+    } else if (conn[ii].RankSecond() == rank) {
+      // rank matches rank of second side of interblock, swap over mpi
+      states[conn[ii].LocalBlockSecond()].SwapStateSliceMPI(conn[ii], rank,
+                                                            MPI_cellData);
     }
     // if rank doesn't match either side of interblock, then do nothing and
     // move on to the next interblock
@@ -526,31 +520,27 @@ double ImplicitUpdate(vector<procBlock> &blocks,
 }
 
 void SwapImplicitUpdate(vector<multiArray3d<genArray>> &du,
-                        const vector<interblock> &connections, const int &rank,
+                        const vector<interblock> &conn, const int &rank,
                         const MPI_Datatype &MPI_cellData,
                         const int &numGhosts) {
   // du -- implicit update in conservative variables
-  // connections -- interblock boundary conditions
+  // conn -- interblock boundary conditions
   // rank -- processor rank
   // MPI_cellData -- datatype to pass primVars or genArray
   // numGhosts -- number of ghost cells
 
   // loop over all connections and swap interblock updates when necessary
-  for (auto ii = 0U; ii < connections.size(); ii++) {
-    if (connections[ii].RankFirst() == rank &&
-        connections[ii].RankSecond() == rank) {
+  for (auto ii = 0U; ii < conn.size(); ii++) {
+    if (conn[ii].RankFirst() == rank && conn[ii].RankSecond() == rank) {
       // both sides of interblock are on this processor, swap w/o mpi
-      du[connections[ii].LocalBlockFirst()].SwapSlice(connections[ii],
-                du[connections[ii].LocalBlockSecond()]);
-    } else if (connections[ii].RankFirst() == rank) {
+      du[conn[ii].LocalBlockFirst()].SwapSlice(conn[ii],
+                                               du[conn[ii].LocalBlockSecond()]);
+    } else if (conn[ii].RankFirst() == rank) {
       // rank matches rank of first side of interblock, swap over mpi
-      du[connections[ii].LocalBlockFirst()]
-          .SwapSliceMPI(connections[ii], rank, MPI_cellData);
-
-    } else if (connections[ii].RankSecond() == rank) {
+      du[conn[ii].LocalBlockFirst()].SwapSliceMPI(conn[ii], rank, MPI_cellData);
+    } else if (conn[ii].RankSecond() == rank) {
       // rank matches rank of second side of interblock, swap over mpi
-      du[connections[ii].LocalBlockSecond()]
-          .SwapSliceMPI(connections[ii], rank, MPI_cellData);
+      du[conn[ii].LocalBlockSecond()].SwapSliceMPI(conn[ii], rank, MPI_cellData);
     }
     // if rank doesn't match either side of interblock, then do nothing and
     // move on to the next interblock
@@ -559,29 +549,25 @@ void SwapImplicitUpdate(vector<multiArray3d<genArray>> &du,
 
 
 void SwapTurbVars(vector<procBlock> &states,
-                  const vector<interblock> &connections, const int &rank,
+                  const vector<interblock> &conn, const int &rank,
                   const int &numGhosts) {
   // states -- vector of all procBlocks in the solution domain
-  // connections -- interblock boundary conditions
+  // conn -- interblock boundary conditions
   // rank -- processor rank
   // numGhosts -- number of ghost cells
 
   // loop over all connections and swap interblock updates when necessary
-  for (auto ii = 0U; ii < connections.size(); ii++) {
-    if (connections[ii].RankFirst() == rank &&
-        connections[ii].RankSecond() == rank) {
+  for (auto ii = 0U; ii < conn.size(); ii++) {
+    if (conn[ii].RankFirst() == rank && conn[ii].RankSecond() == rank) {
       // both sides of interblock are on this processor, swap w/o mpi
-      states[connections[ii].LocalBlockFirst()].SwapTurbSlice(
-          connections[ii], states[connections[ii].LocalBlockSecond()]);
-    } else if (connections[ii].RankFirst() == rank) {
+      states[conn[ii].LocalBlockFirst()].SwapTurbSlice(
+          conn[ii], states[conn[ii].LocalBlockSecond()]);
+    } else if (conn[ii].RankFirst() == rank) {
       // rank matches rank of first side of interblock, swap over mpi
-      states[connections[ii].LocalBlockFirst()].SwapTurbSliceMPI(
-          connections[ii], rank);
-
-    } else if (connections[ii].RankSecond() == rank) {
+      states[conn[ii].LocalBlockFirst()].SwapTurbSliceMPI(conn[ii], rank);
+    } else if (conn[ii].RankSecond() == rank) {
       // rank matches rank of second side of interblock, swap over mpi
-      states[connections[ii].LocalBlockSecond()].SwapTurbSliceMPI(
-          connections[ii], rank);
+      states[conn[ii].LocalBlockSecond()].SwapTurbSliceMPI(conn[ii], rank);
     }
     // if rank doesn't match either side of interblock, then do nothing and
     // move on to the next interblock

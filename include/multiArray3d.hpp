@@ -1022,10 +1022,17 @@ void multiArray3d<T>::PutSlice(const multiArray3d<T> &array,
     exit(EXIT_FAILURE);
   }
 
+  // adjust insertion indices if patch borders another interblock on the same
+  // surface of the block
+  const auto adjS1 = (inter.Dir1StartInterBorderFirst()) ? numGhosts_ : 0;
+  const auto adjE1 = (inter.Dir1EndInterBorderFirst()) ? numGhosts_ : 0;
+  const auto adjS2 = (inter.Dir2StartInterBorderFirst()) ? numGhosts_ : 0;
+  const auto adjE2 = (inter.Dir2EndInterBorderFirst()) ? numGhosts_ : 0;
+
   // loop over cells to insert
   for (auto l3 = 0; l3 < d3; l3++) {
-    for (auto l2 = 0; l2 < inter.Dir2LenFirst(); l2++) {
-      for (auto l1 = 0; l1 < inter.Dir1LenFirst(); l1++) {
+    for (auto l2 = adjS2; l2 < inter.Dir2LenFirst() - adjE2; l2++) {
+      for (auto l1 = adjS1; l1 < inter.Dir1LenFirst() - adjE1; l1++) {
         // get acceptor and inserter indices
         auto indA = GetSwapLoc(l1, l2, l3, numGhosts_, inter, true);
         auto indI = GetSwapLoc(l1, l2, l3, array.numGhosts_, inter, false);
@@ -1125,10 +1132,9 @@ void multiArray3d<T>::SwapSliceMPI(const interblock &inter, const int &rank,
   auto js = 0, je = 0;
   auto ks = 0, ke = 0;
 
-  if (rank == inter.RankFirst()) {  // local block is first in interblock
+  if (rank == inter.RankFirst()) {  // local block first in interblock
     inter.FirstSliceIndices(is, ie, js, je, ks, ke, numGhosts_);
-  // local block is second in interblock
-  } else if (rank == inter.RankSecond()) {
+  } else if (rank == inter.RankSecond()) {  // local block second in interblock
     inter.SecondSliceIndices(is, ie, js, je, ks, ke, numGhosts_);
   } else {
     cerr << "ERROR: Error in procBlock::SwapSliceMPI(). Processor rank does "
@@ -1145,6 +1151,7 @@ void multiArray3d<T>::SwapSliceMPI(const interblock &inter, const int &rank,
   // change interblocks to work with slice and ghosts
   auto interAdj = inter;
 
+  // change interblocks to work with slice and ghosts
   // block to insert into is first in interblock
   if (rank == inter.RankFirst()) {
     interAdj.AdjustForSlice(true, numGhosts_);
@@ -1152,6 +1159,7 @@ void multiArray3d<T>::SwapSliceMPI(const interblock &inter, const int &rank,
             // version
     interAdj.AdjustForSlice(false, numGhosts_);
   }
+
 
   // insert state slice into procBlock
   this->PutSlice(slice, interAdj, numGhosts_);
