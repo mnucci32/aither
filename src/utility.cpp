@@ -306,64 +306,55 @@ vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &blks) {
   // get vector of BCs
   vector<boundaryConditions> bcs;
   bcs.reserve(blks.size());
-  for (auto ii = 0U; ii < blks.size(); ii++) {
-    bcs.push_back(blks[ii].BC());
+  for (auto &blk : blks) {
+    bcs.push_back(blk.BC());
   }
 
   // determine number of faces with viscous wall BC
   auto nFaces = 0;
-  for (auto ii = 0U; ii < bcs.size(); ii++) {
-    nFaces += bcs[ii].NumViscousFaces();
+  for (auto &bc : bcs) {
+    nFaces += bc.NumViscousFaces();
   }
 
   // allocate vector for face centers
   vector<vector3d<double>> faceCenters;
   faceCenters.reserve(nFaces);
 
-  const auto numG = blks[0].NumGhosts();  // number of ghost cells
-
   // store viscous face centers
-  for (auto aa = 0U; aa < bcs.size(); aa++) {  // loop over BCs
-    for (auto bb = 0; bb < bcs[aa].NumSurfaces(); bb++) {  // loop over surfaces
-      if (bcs[aa].GetBCTypes(bb) == "viscousWall") {
+  auto aa = 0;
+  for (auto &bc : bcs) {  // loop over BCs for each block
+    for (auto bb = 0; bb < bc.NumSurfaces(); bb++) {  // loop over surfaces
+      if (bc.GetBCTypes(bb) == "viscousWall") {
         // only store face center if surface is viscous wall
 
-        if (bcs[aa].GetSurfaceType(bb) <= 2) {  // i-surface
-          const auto ii = (bcs[aa].GetSurfaceType(bb) % 2 == 0)
-              ? blks[aa].NumI() + numG : numG;
+        if (bc.GetSurfaceType(bb) <= 2) {  // i-surface
+          const auto ii = bc.GetIMin(bb);  // imin and imax are the same
 
-          for (auto jj = bcs[aa].GetJMin(bb) + numG;
-               jj < bcs[aa].GetJMax(bb) + numG; jj++) {
-            for (auto kk = bcs[aa].GetKMin(bb) + numG;
-                 kk < bcs[aa].GetKMax(bb) + numG; kk++) {
+          for (auto jj = bc.GetJMin(bb); jj < bc.GetJMax(bb); jj++) {
+            for (auto kk = bc.GetKMin(bb); kk < bc.GetKMax(bb); kk++) {
               faceCenters.push_back(blks[aa].FCenterI(ii, jj, kk));
             }
           }
-        } else if (bcs[aa].GetSurfaceType(bb) <= 4) {  // j-surface
-          const auto jj = (bcs[aa].GetSurfaceType(bb) % 2 == 0)
-              ? blks[aa].NumJ() + numG : numG;
+        } else if (bc.GetSurfaceType(bb) <= 4) {  // j-surface
+          const auto jj = bc.GetJMin(bb);  // jmin and jmax are the same
 
-          for (auto ii = bcs[aa].GetIMin(bb) + numG;
-               ii < bcs[aa].GetIMax(bb) + numG; ii++) {
-            for (auto kk = bcs[aa].GetKMin(bb) + numG;
-                 kk < bcs[aa].GetKMax(bb) + numG; kk++) {
+          for (auto ii = bc.GetIMin(bb); ii < bc.GetIMax(bb); ii++) {
+            for (auto kk = bc.GetKMin(bb); kk < bc.GetKMax(bb); kk++) {
               faceCenters.push_back(blks[aa].FCenterJ(ii, jj, kk));
             }
           }
         } else {  // k-surface
-          const auto kk = (bcs[aa].GetSurfaceType(bb) % 2 == 0)
-              ? blks[aa].NumK() + numG : numG;
+          const auto kk = bc.GetKMin(bb);  // kmin and kmax are the same
 
-          for (auto ii = bcs[aa].GetIMin(bb) + numG;
-               ii < bcs[aa].GetIMax(bb) + numG; ii++) {
-            for (auto jj = bcs[aa].GetJMin(bb) + numG;
-                 jj < bcs[aa].GetJMax(bb) + numG; jj++) {
+          for (auto ii = bc.GetIMin(bb); ii < bc.GetIMax(bb); ii++) {
+            for (auto jj = bc.GetJMin(bb); jj < bc.GetJMax(bb); jj++) {
               faceCenters.push_back(blks[aa].FCenterK(ii, jj, kk));
             }
           }
         }
       }
     }
+    aa++;
   }
   return faceCenters;
 }
