@@ -682,7 +682,7 @@ bool input::MatrixRequiresInitialization() const {
 }
 
 int input::NumberGhostLayers() const {
-  if (kappa_ == -2.0) {
+  if (this->OrderOfAccuracy() == "first") {
     return 1;
   } else {
     return 2;
