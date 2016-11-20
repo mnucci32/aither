@@ -535,6 +535,7 @@ inline const multiArray3d<T> operator/(const TT &lhs, multiArray3d<T> rhs) {
 }
 
 // member function to return a slice of the array
+// this is the main slice function that all other overloaded slice functions call
 template <typename T>
 multiArray3d<T> multiArray3d<T>::Slice(const range &ir, const range &jr,
                                        const range &kr) const {
@@ -554,16 +555,14 @@ multiArray3d<T> multiArray3d<T>::Slice(const range &ir, const range &jr,
     exit(EXIT_FAILURE);
   }
 
+  // slices always have 0 ghost cells
   multiArray3d<T> arr(ir.Size(), jr.Size(), kr.Size(), 0);
 
-// s is for index of sliced array, p is for index of parent array
-  for (int kks = arr.StartK(), kkp = kr.Start(); kks < arr.EndK();
-       kks++, kkp++) {
-    for (int jjs = arr.StartJ(), jjp = jr.Start(); jjs < arr.EndJ();
-         jjs++, jjp++) {
-      for (int iis = arr.StartI(), iip = ir.Start(); iis < arr.EndI();
-           iis++, iip++) {
-        arr(iis, jjs, kks) = (*this)(iip, jjp, kkp);
+  // s is for index of sliced array, p is for index of parent array
+  for (int ks = arr.StartK(), kp = kr.Start(); ks < arr.EndK(); ks++, kp++) {
+    for (int js = arr.StartJ(), jp = jr.Start(); js < arr.EndJ(); js++, jp++) {
+      for (int is = arr.StartI(), ip = ir.Start(); is < arr.EndI(); is++, ip++) {
+        arr(is, js, ks) = (*this)(ip, jp, kp);
       }
     }
   }
@@ -571,11 +570,19 @@ multiArray3d<T> multiArray3d<T>::Slice(const range &ir, const range &jr,
 }
 
 // member function to return a slice of the array
-// overload to slice in only one direction
+// Overload to slice only in one direction. Given a 3D array, this slice returns
+// a plane with normal direction dir, or a smaller 3D array where the direction
+// dir is sliced over dirRange. It also has the ability to include or ignore
+// ghost cells in its planar slices
 template <typename T>
 multiArray3d<T> multiArray3d<T>::Slice(const string &dir,
                                        const range &dirRange,
                                        const bool physOnly) const {
+  // dir -- direction of slice
+  // dirRange -- range of slice in direction given
+  // phsOnly -- flag to only include physical cells in the two directions that
+  //            are not specified as dir
+
   if (dir == "i") {
     if (physOnly) {
       return this->Slice(dirRange, this->PhysRangeJ(), this->PhysRangeK());
@@ -608,6 +615,16 @@ multiArray3d<T> multiArray3d<T>::Slice(const string &dir, int d2Ind,
                                        int d3Ind, const bool physOnly,
                                        const string id, const bool upper2,
                                        const bool upper3) const {
+  // dir -- direction of line slice (direction 1)
+  // d2Ind -- index of direction 2
+  // d3Ind -- index of direction 3
+  // physOnly -- flag to only include physical cells in line slice
+  // id -- type of multiArray3d being sliced: cell, i, j, or k
+  //       d2Ind and d3Ind are supplied as cell indices, but may need to be
+  //       altered if the array is storing i, j, or k face data
+  // upper2 -- flag to determine if direction 2 is at upper index
+  // upper3 -- flag to determine if direction 3 is at upper index
+
   if (dir == "i") {  // d2 = j, d3 = k
     if (upper2 && id == "j") {
       d2Ind++;
@@ -651,7 +668,10 @@ multiArray3d<T> multiArray3d<T>::Slice(const string &dir, int d2Ind,
   }
 }
 
-// overload to slice in only one direction
+// overload to slice plane out of array
+// Identical to previous slice overload, but more general in that in can slice
+// over a subset of direction 2 & 3. This is useful to slice out a plane that
+// borders a boundary condition patch.
 template <typename T>
 multiArray3d<T> multiArray3d<T>::Slice(const string &dir, int dirInd,
                                        range dir1, range dir2,
@@ -661,6 +681,7 @@ multiArray3d<T> multiArray3d<T>::Slice(const string &dir, int dirInd,
   // dir1 -- range of direction 1 (direction 3 is normal to slice)
   // dir2 -- range of direction 2 (direction 3 is normal to slice)
   // id -- id of array being sliced (i, j, k for faces, cell for cells)
+  // type -- surface type of dir
 
   if (dir == "i") {  // d1 = j, d2 = k
     if (type == 2 && id == "i") {  // upper i-surface & i normal
@@ -700,6 +721,8 @@ multiArray3d<T> multiArray3d<T>::Slice(const string &dir, int dirInd,
 }
 
 // member function to insert an array into this one
+// this is the main insert funciton that all other overloaded insert functions
+// call
 template <typename T>
 void multiArray3d<T>::Insert(const range &ir, const range &jr, const range &kr,
                              const multiArray3d<T> &arr) {
@@ -725,41 +748,44 @@ void multiArray3d<T>::Insert(const range &ir, const range &jr, const range &kr,
   }
 
   // s is for index of sliced array, p is for index of parent array
-  for (int kks = arr.StartK(), kkp = kr.Start(); kks < arr.EndK();
-       kks++, kkp++) {
-    for (int jjs = arr.StartJ(), jjp = jr.Start(); jjs < arr.EndJ();
-         jjs++, jjp++) {
-      for (int iis = arr.StartI(), iip = ir.Start(); iis < arr.EndI();
-           iis++, iip++) {
-        (*this)(iip, jjp, kkp) = arr(iis, jjs, kks);
+  for (int ks = arr.StartK(), kp = kr.Start(); ks < arr.EndK(); ks++, kp++) {
+    for (int js = arr.StartJ(), jp = jr.Start(); js < arr.EndJ(); js++, jp++) {
+      for (int is = arr.StartI(), ip = ir.Start(); is < arr.EndI(); is++, ip++) {
+        (*this)(ip, jp, kp) = arr(is, js, ks);
       }
     }
   }
 }
 
-// overload to insert in only one direction
+// Overload to insert only in one direction. Given a 3D array, this inserts a
+// plane with normal direction dir, or a smaller 3D array where the direction
+// dir is inserted over dirRange. It also has the ability to include or ignore
+// ghost cells in its planar inserts
 template <typename T>
 void multiArray3d<T>::Insert(const string &dir, const range &dirRange,
                              const multiArray3d<T> &arr,
                              const bool physOnly) {
+  // dir -- direction of slice to insert
+  // dirRange -- range to insert slice into in direction given
+  // arr -- array to insert
+  // phsOnly -- flag to only include physical cells in the two directions that
+  //            are not specified as dir
+
   if (dir == "i") {
     if (physOnly) {
-      return this->Insert(dirRange, this->PhysRangeJ(), this->PhysRangeK(),
-                          arr);
+      return this->Insert(dirRange, this->PhysRangeJ(), this->PhysRangeK(), arr);
     } else {
       return this->Insert(dirRange, this->RangeJ(), this->RangeK(), arr);
     }
   } else if (dir == "j") {
     if (physOnly) {
-      return this->Insert(this->PhysRangeI(), dirRange, this->PhysRangeK(),
-                          arr);
+      return this->Insert(this->PhysRangeI(), dirRange, this->PhysRangeK(), arr);
     } else {
       return this->Insert(this->RangeI(), dirRange, this->RangeK(), arr);
     }
   } else if (dir == "k") {
     if (physOnly) {
-      return this->Insert(this->PhysRangeI(), this->PhysRangeJ(), dirRange,
-                          arr);
+      return this->Insert(this->PhysRangeI(), this->PhysRangeJ(), dirRange, arr);
     } else {
       return this->Insert(this->RangeI(), this->RangeJ(), dirRange, arr);
     }
@@ -776,6 +802,16 @@ void multiArray3d<T>::Insert(const string &dir, int d2Ind, int d3Ind,
                              const multiArray3d<T> &arr,
                              const bool physOnly, const string id,
                              const bool upper2, const bool upper3) {
+  // dir -- direction of line slice to insert (direction 1)
+  // d2Ind -- index of direction 2 to insert into
+  // d3Ind -- index of direction 3 to insert into
+  // physOnly -- flag to only include physical cells in line insert
+  // id -- type of multiArray3d being sliced: cell, i, j, or k
+  //       d2Ind and d3Ind are supplied as cell indices, but may need to be
+  //       altered if the array is storing i, j, or k face data
+  // upper2 -- flag to determine if direction 2 is at upper index
+  // upper3 -- flag to determine if direction 3 is at upper index
+
   if (dir == "i") {  // d2 = j, d3 = k
     if (upper2 && id == "j") {
       d2Ind++;
@@ -819,6 +855,10 @@ void multiArray3d<T>::Insert(const string &dir, int d2Ind, int d3Ind,
   }
 }
 
+// overload to insert plane into array
+// Identical to previous insert overload, but more general in that in can insert
+// over a subset of direction 2 & 3. This is useful to insert into a plane that
+// borders a boundary condition patch.
 template <typename T>
 void multiArray3d<T>::Insert(const string &dir, int dirInd, range dir1,
                              range dir2, const multiArray3d<T> &arr,
@@ -828,6 +868,8 @@ void multiArray3d<T>::Insert(const string &dir, int dirInd, range dir1,
   // dir1 -- range of direction 1 (direction 3 is normal to slice)
   // dir2 -- range of direction 2 (direction 3 is normal to slice)
   // arr -- array to insert
+  // id -- id of array being inserted into (i, j, k for faces, cell for cells)
+  // type -- surface type of dir
 
   if (dir == "i") {  // d1 = j, d2 = k
     if (type == 2 && id == "i") {  // upper i-surface & i normal
@@ -994,8 +1036,7 @@ ostream &operator<<(ostream &os, const multiArray3d<T> &arr) {
   for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
     for (auto jj = arr.StartJ(); jj < arr.EndJ(); jj++) {
       for (auto ii = arr.StartI(); ii < arr.EndI(); ii++) {
-        os << ii << ", " << jj << ", " << kk << ": " <<
-            arr(ii, jj, kk) << endl;
+        os << ii << ", " << jj << ", " << kk << ": " << arr(ii, jj, kk) << endl;
       }
     }
   }
@@ -1159,7 +1200,6 @@ void multiArray3d<T>::SwapSliceMPI(const interblock &inter, const int &rank,
             // version
     interAdj.AdjustForSlice(false, numGhosts_);
   }
-
 
   // insert state slice into procBlock
   this->PutSlice(slice, interAdj, numGhosts_);
