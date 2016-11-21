@@ -2408,13 +2408,14 @@ void procBlock::AssignGhostCellsGeom() {
       const auto dir = bc_.Direction3(ii);
       const auto surfType = bc_.GetSurfaceType(ii);
 
-      auto gCell = 0, iCell = 0;           // indices for cells
+      auto gCell = 0, iCell = 0, aCell = 0;           // indices for cells
       auto gFace = 0, iFace = 0, bnd = 0;  // indices for faces
       // adjust interior indices to be in physical range in case block is only a
       // couple of cells thick
       if (surfType % 2 == 0) {  // upper surface
         gCell = r3.Start() + layer - 1;
         iCell = r3.Start() - layer;
+        aCell = r3.Start() - 1;  // adjacent cell to bnd regardless of ghost layer
         if (iCell < this->Start(dir)) {iCell = this->Start(dir);}
 
         gFace = r3.Start() + layer;
@@ -2428,6 +2429,7 @@ void procBlock::AssignGhostCellsGeom() {
 
         gFace = r3.Start() - layer;
         bnd = r3.Start();
+        aCell = r3.Start();  // adjacent cell to bnd regardless of ghost layer
         iFace = r3.Start() + layer;
         if (iFace > this->End(dir)) {iFace = this->End(dir);}
       }
@@ -2442,15 +2444,15 @@ void procBlock::AssignGhostCellsGeom() {
 
         // assign face areas for layer
         fAreaI_.Insert(dir, gCell, r1, r2,
-                       fAreaI_.Slice(dir, iFace, r1, r2, "i", surfType),
+                       fAreaI_.Slice(dir, iCell, r1, r2, "i", surfType),
                        "i", surfType);
 
         fAreaJ_.Insert(dir, gCell, r1, r2,
-                       fAreaJ_.Slice(dir, iFace, r1, r2, "j", surfType),
+                       fAreaJ_.Slice(dir, iCell, r1, r2, "j", surfType),
                        "j", surfType);
 
         fAreaK_.Insert(dir, gCell, r1, r2,
-                       fAreaK_.Slice(dir, iFace, r1, r2, "k", surfType),
+                       fAreaK_.Slice(dir, iCell, r1, r2, "k", surfType),
                        "k", surfType);
 
         // Assign cell centroid, and face centers
@@ -2473,10 +2475,10 @@ void procBlock::AssignGhostCellsGeom() {
                            fCenterI_.Slice(bnd, r1, r2) + dist2Move);
 
           fCenterJ_.Insert(gCell, r1, r2,
-                           fCenterJ_.Slice(iCell, r1, r2) + dist2Move.GrowJ());
+                           fCenterJ_.Slice(aCell, r1, r2) + dist2Move.GrowJ());
 
           fCenterK_.Insert(gCell, r1, r2,
-                           fCenterK_.Slice(iCell, r1, r2) + dist2Move.GrowK());
+                           fCenterK_.Slice(aCell, r1, r2) + dist2Move.GrowK());
 
         } else if (dir == "j") {  // j-surface, dir1 = k, dir2 = i -------------
           dist2Move = fCenterJ_.Slice(r2, bnd, r1) -
@@ -2490,13 +2492,13 @@ void procBlock::AssignGhostCellsGeom() {
 
           // Assign face centers
           fCenterI_.Insert(r2, gCell, r1,
-                           fCenterI_.Slice(r2, iCell, r1) + dist2Move.GrowI());
+                           fCenterI_.Slice(r2, aCell, r1) + dist2Move.GrowI());
 
           fCenterJ_.Insert(r2, gFace, r1,
                            fCenterJ_.Slice(r2, bnd, r1) + dist2Move);
 
           fCenterK_.Insert(r2, gCell, r1,
-                           fCenterK_.Slice(r2, iCell, r1) + dist2Move.GrowK());
+                           fCenterK_.Slice(r2, aCell, r1) + dist2Move.GrowK());
 
         } else {  // k-surface, dir1 = i, dir2 = j -----------------------------
           dist2Move = fCenterK_.Slice(r1, r2, bnd) -
@@ -2510,10 +2512,10 @@ void procBlock::AssignGhostCellsGeom() {
 
           // Assign face centers
           fCenterI_.Insert(r1, r2, gCell,
-                           fCenterI_.Slice(r1, r2, iCell) + dist2Move.GrowI());
+                           fCenterI_.Slice(r1, r2, aCell) + dist2Move.GrowI());
 
           fCenterJ_.Insert(r1, r2, gCell,
-                           fCenterJ_.Slice(r1, r2, iCell) + dist2Move.GrowJ());
+                           fCenterJ_.Slice(r1, r2, aCell) + dist2Move.GrowJ());
 
           fCenterK_.Insert(r1, r2, gFace,
                            fCenterK_.Slice(r1, r2, bnd) + dist2Move);
@@ -2521,7 +2523,7 @@ void procBlock::AssignGhostCellsGeom() {
 
         // assign cell centroid
         center_.Insert(dir, gCell, r1, r2,
-                       center_.Slice(dir, iCell, r1, r2) + dist2Move);
+                       center_.Slice(dir, aCell, r1, r2) + dist2Move);
       }
 
       // fill ghost cell edge lines with geometric values
@@ -2660,14 +2662,14 @@ void procBlock::AssignGhostCellsGeomEdge() {
           // get distance to move centroids & face centers
           multiArray3d<vector3d<double>> dist2Move;
           if (dir == "i") {  // i-line, dir2 = j
-            dist2Move = fCenterJ_.Slice(dir, pCellD2, pCellD3, true, "j", upper2, upper3)
-                - fCenterJ_.Slice(dir, gCellD2, pCellD3, true, "j", upper2, upper3);
+            dist2Move = fCenterJ_.Slice(dir, gCellD2, pCellD3, true, "j", upper2, upper3)
+                - fCenterJ_.Slice(dir, pCellD2, pCellD3, true, "j", upper2, upper3);
           } else if (dir == "j") {  // j-line, dir2 = k
-            dist2Move = fCenterK_.Slice(dir, pCellD2, pCellD3, true, "k", upper2, upper3)
-                - fCenterK_.Slice(dir, gCellD2, pCellD3, true, "k", upper2, upper3);
+            dist2Move = fCenterK_.Slice(dir, gCellD2, pCellD3, true, "k", upper2, upper3)
+                - fCenterK_.Slice(dir, pCellD2, pCellD3, true, "k", upper2, upper3);
           } else {  // k-line, dir2 = i
-            dist2Move = fCenterI_.Slice(dir, pCellD2, pCellD3, true, "i", upper2, upper3)
-                - fCenterI_.Slice(dir, gCellD2, pCellD3, true, "i", upper2, upper3);
+            dist2Move = fCenterI_.Slice(dir, gCellD2, pCellD3, true, "i", upper2, upper3)
+                - fCenterI_.Slice(dir, pCellD2, pCellD3, true, "i", upper2, upper3);
           }
 
           // assign centroids
@@ -5695,3 +5697,48 @@ double procBlock::ProjC2CDist(const int &ii, const int &jj, const int &kk,
   return projDist;
 }
 
+// member function to write the contents of a given variable to a given file
+void procBlock::DumpToFile(const string &var, const string &fName) const {
+  // var -- variable name to write out
+  // fname -- file name
+
+  ofstream outFile(fName, ios::out);
+  // check to see if file opened correctly
+  if (outFile.fail()) {
+    cerr << "ERROR: File " << fName << " did not open correctly!!!" << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  if (var == "volume") {
+    outFile << vol_ << endl;
+  } else if (var == "faceAreaI") {
+    outFile << fAreaI_ << endl;
+  } else if (var == "faceAreaJ") {
+    outFile << fAreaJ_ << endl;
+  } else if (var == "faceAreaK") {
+    outFile << fAreaK_ << endl;
+  } else if (var == "center") {
+    outFile << center_ << endl;
+  } else if (var == "faceCenterI") {
+    outFile << fCenterI_ << endl;
+  } else if (var == "faceCenterJ") {
+    outFile << fCenterJ_ << endl;
+  } else if (var == "faceCenterK") {
+    outFile << fCenterK_ << endl;
+  } else if (var == "state") {
+    outFile << state_ << endl;
+  } else if (var == "residual") {
+    outFile << residual_ << endl;
+  } else if (var == "velocityGradient") {
+    outFile << velocityGrad_ << endl;
+  } else if (var == "temperatureGradient") {
+    outFile << temperatureGrad_ << endl;
+  } else {
+    cerr << "ERROR: Error in procBlock::DumpToFile(). Variable " << var
+         << " is not supported!" << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  // close file
+  outFile.close();
+}

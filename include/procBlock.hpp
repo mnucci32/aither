@@ -435,6 +435,7 @@ class procBlock {
   double ProjC2CDist(const int &, const int &, const int &,
                      const string &) const;
 
+  void DumpToFile(const string &, const string &) const;
 
   // destructor
   ~procBlock() noexcept {}

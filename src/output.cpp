@@ -715,8 +715,7 @@ void WriteRes(const input &inp, const int &iter) {
   const auto hasVelVector = outputVars.find("vel_x") != outputVars.end() &&
       outputVars.find("vel_y") != outputVars.end() &&
       outputVars.find("vel_z") != outputVars.end();
-      
-  
+
   // write number of scalars and number of vectors
   const auto numScalar = inp.NumVarsOutput();
   auto numVector = hasVelVector ? 1 : 0;

@@ -276,7 +276,6 @@ int main(int argc, char *argv[]) {
       GetBoundaryConditions(localStateBlocks, inputVars, eos, suth, turb,
                             connections, rank, MPI_cellData);
 
-
       if (inputVars.IsImplicit()) {
         // Get solution at time M - N if implicit
         GetSolMMinusN(solDeltaMmN, localStateBlocks, solTimeN, eos,
