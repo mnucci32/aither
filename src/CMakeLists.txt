@@ -40,6 +40,7 @@ set(sources
   plot3d.cpp
   primVars.cpp
   procBlock.cpp
+  range.cpp
   resid.cpp
   slices.cpp
   source.cpp

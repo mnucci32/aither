@@ -133,7 +133,7 @@ class input {
   int MatrixSweeps() const {return matrixSweeps_;}
   double MatrixRelaxation() const {return matrixRelaxation_;}
   bool MatrixRequiresInitialization() const;
-  
+
   double Theta() const {return timeIntTheta_;}
   double Zeta() const {return timeIntZeta_;}
 
@@ -188,6 +188,8 @@ class input {
   void CheckTurbulenceModel() const;
 
   double ViscousCFLCoefficient() const;
+
+  int NumberGhostLayers() const;
 
   // destructor
   ~input() noexcept {}

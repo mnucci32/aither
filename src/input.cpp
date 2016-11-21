@@ -680,3 +680,11 @@ bool input::MatrixRequiresInitialization() const {
   return (matrixSolver_ == "dplur" || matrixSolver_ == "bdplur" ||
           matrixSweeps_ > 1) ? true : false;
 }
+
+int input::NumberGhostLayers() const {
+  if (this->OrderOfAccuracy() == "first") {
+    return 1;
+  } else {
+    return 2;
+  }
+}

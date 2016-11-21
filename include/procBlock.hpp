@@ -124,15 +124,13 @@ class procBlock {
   void CalcCellDt(const int &, const int &, const int &, const double &);
 
   void ExplicitEulerTimeAdvance(const idealGas &, const unique_ptr<turbModel> &,
-                                const int &, const int &, const int &,
                                 const int &, const int &, const int &);
   void ImplicitTimeAdvance(const genArray &, const idealGas &,
                            const unique_ptr<turbModel> &, const int &,
                            const int &, const int &);
   void RK4TimeAdvance(const genArray &, const idealGas &,
                       const unique_ptr<turbModel> &, const int &, const int &,
-                      const int &, const int &, const int &, const int &,
-                      const int &);
+                      const int &, const int &);
 
   void AddToResidual(const inviscidFlux &, const int &, const int &,
                      const int &);
@@ -148,7 +146,7 @@ class procBlock {
 
  public:
   // constructors
-  procBlock(const primVars &, const plot3dBlock &, const int &, const int &,
+  procBlock(const primVars &, const plot3dBlock &, const int &,
             const boundaryConditions &, const int &, const int &, const int &,
             const input &, const idealGas &, const sutherland &);
   procBlock(const int &, const int &, const int &, const int &, const bool &,
@@ -172,6 +170,40 @@ class procBlock {
   int NumIG() const { return state_.NumI(); }
   int NumJG() const { return state_.NumJ(); }
   int NumKG() const { return state_.NumK(); }
+
+  int StartI() const { return residual_.StartI(); }
+  int StartJ() const { return residual_.StartJ(); }
+  int StartK() const { return residual_.StartK(); }
+  int StartIG() const { return state_.StartI(); }
+  int StartJG() const { return state_.StartJ(); }
+  int StartKG() const { return state_.StartK(); }
+  int EndI() const { return residual_.EndI(); }
+  int EndJ() const { return residual_.EndJ(); }
+  int EndK() const { return residual_.EndK(); }
+  int EndIG() const { return state_.EndI(); }
+  int EndJG() const { return state_.EndJ(); }
+  int EndKG() const { return state_.EndK(); }
+
+  int Start(const string &dir) const {
+    if (dir == "i") return this->StartI();
+    else if (dir == "j") return this->StartJ();
+    else if (dir == "k") return this->StartK();
+    else {
+      cerr << "ERROR: direction " << dir << " not recognized!" << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  int End(const string &dir) const {
+    if (dir == "i") return this->EndI();
+    else if (dir == "j") return this->EndJ();
+    else if (dir == "k") return this->EndK();
+    else {
+      cerr << "ERROR: direction " << dir << " not recognized!" << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+
   int NumGhosts() const { return numGhosts_; }
   int ParentBlock() const { return parBlock_; }
   int LocalPosition() const { return localPos_; }
@@ -179,7 +211,7 @@ class procBlock {
   int GlobalPos() const { return globalPos_; }
   bool IsViscous() const { return isViscous_; }
   bool IsTurbulent() const { return isTurbulent_; }
-  
+
   boundaryConditions BC() const { return bc_; }
 
   primVars State(const int &ii, const int &jj, const int &kk) const {
@@ -308,7 +340,7 @@ class procBlock {
   void ResetResidWS();
   void ResetGradients();
   void ResetTurbVars();
-  void CleanResizeVecs(const int &, const int &, const int &);
+  void CleanResizeVecs(const int &, const int &, const int &, const int &);
 
   void AssignGhostCellsGeom();
   void AssignGhostCellsGeomEdge();
@@ -369,15 +401,12 @@ class procBlock {
                const unique_ptr<turbModel> &,
                const multiArray3d<fluxJacobian> &) const;
 
-  bool IsPhysical(const int &, const int &, const int &, const bool &) const;
-  bool AtCorner(const int &, const int &, const int &, const bool &) const;
-  bool AtEdge(const int &, const int &, const int &, const bool &,
-              string &) const;
-  bool AtEdgeInclusive(const int &, const int &, const int &, const bool &,
-                       string &) const;
+  bool IsPhysical(const int &, const int &, const int &) const;
+  bool AtCorner(const int &, const int &, const int &) const;
+  bool AtEdge(const int &, const int &, const int &, string &) const;
+  bool AtEdgeInclusive(const int &, const int &, const int &, string &) const;
 
-  vector<bool> PutGeomSlice(const geomSlice &, interblock &, const int &,
-                            const int &);
+  vector<bool> PutGeomSlice(const geomSlice &, interblock &, const int &);
   void PutStateSlice(const multiArray3d<primVars> &, const interblock &,
                      const int &, const int &);
 
@@ -405,7 +434,9 @@ class procBlock {
 
   double ProjC2CDist(const int &, const int &, const int &,
                      const string &) const;
-  
+
+  void DumpToFile(const string &, const string &) const;
+
   // destructor
   ~procBlock() noexcept {}
 };

@@ -94,9 +94,6 @@ int main(int argc, char *argv[]) {
   // Parse input file
   inputVars.ReadInput(rank);
 
-  // Determine number of ghost cells
-  const auto numGhost = 2;
-
   // Get equation of state
   const idealGas eos(inputVars.Gamma(), inputVars.R());
 
@@ -145,7 +142,7 @@ int main(int argc, char *argv[]) {
     stateBlocks.resize(mesh.size());
     for (auto ll = 0U; ll < mesh.size(); ll++) {
       stateBlocks[ll] = procBlock(state, mesh[ll], decomp.ParentBlock(ll),
-                                  numGhost, bcs[ll], ll, decomp.Rank(ll),
+                                  bcs[ll], ll, decomp.Rank(ll),
                                   decomp.LocalPosition(ll), inputVars, eos,
                                   suth);
       stateBlocks[ll].AssignGhostCellsGeom();
@@ -251,10 +248,8 @@ int main(int argc, char *argv[]) {
     // Open residual file
     resFile.open(inputVars.SimNameRoot() + ".resid", ios::out);
 
-
     // Write out cell centers grid file
-    WriteCellCenter(inputVars.GridName(), stateBlocks, decomp,
-                    inputVars.LRef());
+    WriteCellCenter(inputVars.GridName(), stateBlocks, decomp, inputVars.LRef());
 
     // Write out initial results
     WriteFun(stateBlocks, eos, suth, 0, decomp, inputVars, turb);
@@ -281,7 +276,6 @@ int main(int argc, char *argv[]) {
       GetBoundaryConditions(localStateBlocks, inputVars, eos, suth, turb,
                             connections, rank, MPI_cellData);
 
-
       if (inputVars.IsImplicit()) {
         // Get solution at time M - N if implicit
         GetSolMMinusN(solDeltaMmN, localStateBlocks, solTimeN, eos,
@@ -295,7 +289,7 @@ int main(int argc, char *argv[]) {
 
       // Calculate residual (RHS)
       CalcResidual(localStateBlocks, mainDiagonal, suth, eos, inputVars,
-                   turb, connections, rank, numGhost);
+                   turb, connections, rank);
 
       // Calculate time step
       CalcTimeStep(localStateBlocks, inputVars, aRef);

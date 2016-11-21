@@ -100,7 +100,7 @@ void CalcResidual(vector<procBlock> &,
                   vector<multiArray3d<fluxJacobian>> &,
                   const sutherland &, const idealGas &, const input &,
                   const unique_ptr<turbModel> &,
-                  const vector<interblock> &, const int &, const int &);
+                  const vector<interblock> &, const int &);
 
 void CalcTimeStep(vector<procBlock> &, const input &, const double &);
 

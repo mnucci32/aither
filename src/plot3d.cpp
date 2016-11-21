@@ -47,7 +47,7 @@ D2 are the diagonal distances of the four base points.
 multiArray3d<double> plot3dBlock::Volume() const {
   // Allocate multiArray3d to store cell volumes in
   multiArray3d<double> vol(this->NumI() - 1, this->NumJ() - 1,
-                           this->NumK() - 1);
+                           this->NumK() - 1, 0);
 
   // Loop over all cells
   for (auto kk = 0; kk < vol.NumK(); kk++) {
@@ -118,9 +118,8 @@ multiArray3d<double> plot3dBlock::Volume() const {
 // the centroid of the hexahedron is the average of the 8 points that define it
 multiArray3d<vector3d<double>> plot3dBlock::Centroid() const {
   // Allocate multiArray3d to store cell centroids in
-  multiArray3d<vector3d<double>> centroid(this->NumI() - 1,
-                                           this->NumJ() - 1,
-                                           this->NumK() - 1);
+  multiArray3d<vector3d<double>> centroid(this->NumI() - 1, this->NumJ() - 1,
+                                          this->NumK() - 1, 0);
 
   // loop over all cells
   for (auto kk = 0; kk < centroid.NumK(); kk++) {
@@ -173,7 +172,7 @@ to C. The normal vector points in the direction of increasing i.
 multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaI() const {
   // Allocate multiArray3d to store cell face areas
   multiArray3d<unitVec3dMag<double>> fArea(this->NumI(), this->NumJ() - 1,
-                                            this->NumK() - 1);
+                                           this->NumK() - 1, 0);
 
   // loop over all i-faces
   for (auto kk = 0; kk < fArea.NumK(); kk++) {
@@ -219,9 +218,8 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaI() const {
 // that comprise it
 multiArray3d<vector3d<double>> plot3dBlock::FaceCenterI() const {
   // Allocate multiArray3d to store cell face centers
-  multiArray3d<vector3d<double>> fCenter(this->NumI(),
-                                         this->NumJ() - 1,
-                                         this->NumK() - 1);
+  multiArray3d<vector3d<double>> fCenter(this->NumI(), this->NumJ() - 1,
+                                         this->NumK() - 1, 0);
   // loop over all i-faces
   for (auto kk = 0; kk < fCenter.NumK(); kk++) {
     for (auto jj = 0; jj < fCenter.NumJ(); jj++) {
@@ -264,7 +262,7 @@ to C. The normal points in the direction of increasing j.
 multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaJ() const {
   // Allocate multiArray3d to store cell face areas
   multiArray3d<unitVec3dMag<double>> fArea(this->NumI() - 1, this->NumJ(),
-                                           this->NumK() - 1);
+                                           this->NumK() - 1, 0);
 
   // loop over all j-faces
   for (auto kk = 0; kk < fArea.NumK(); kk++) {
@@ -310,9 +308,9 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaJ() const {
 // the face center is calculated as the average of the 4 points that comprise it
 multiArray3d<vector3d<double>> plot3dBlock::FaceCenterJ() const {
   // Allocate multiArray3d to store cell face centers
-  multiArray3d<vector3d<double>> fCenter(this->NumI() - 1,
-                                          this->NumJ(),
-                                          this->NumK() - 1);
+  multiArray3d<vector3d<double>> fCenter(this->NumI() - 1, this->NumJ(),
+                                         this->NumK() - 1, 0);
+
   // loop over all j-faces
   for (auto kk = 0; kk < fCenter.NumK(); kk++) {
     for (auto jj = 0; jj < fCenter.NumJ(); jj++) {
@@ -355,9 +353,9 @@ to C. The normal vector points in the direction of increasing k.
 */
 multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaK() const {
   // Allocate multiArray3d to store cell face areas
-  multiArray3d<unitVec3dMag<double>> fArea(this->NumI() - 1,
-                                            this->NumJ() - 1,
-                                            this->NumK());
+  multiArray3d<unitVec3dMag<double>> fArea(this->NumI() - 1, this->NumJ() - 1,
+                                           this->NumK(), 0);
+
   // loop over all k-faces
   for (auto kk = 0; kk < fArea.NumK(); kk++) {
     for (auto jj = 0; jj < fArea.NumJ(); jj++) {
@@ -402,9 +400,9 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaK() const {
 // the face center is calculated as the average of the 4 points that comprise it
 multiArray3d<vector3d<double>> plot3dBlock::FaceCenterK() const {
   // Allocate multiArray3d to store cell face centers
-  multiArray3d<vector3d<double>> fCenter(this->NumI() - 1,
-                                          this->NumJ() - 1,
-                                          this->NumK());
+  multiArray3d<vector3d<double>> fCenter(this->NumI() - 1, this->NumJ() - 1,
+                                         this->NumK(), 0);
+
   // loop over all k-faces
   for (auto kk = 0; kk < fCenter.NumK(); kk++) {
     for (auto jj = 0; jj < fCenter.NumJ(); jj++) {
@@ -484,7 +482,7 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, const double &LRef,
   mesh.reserve(numBlks);
 
   for (auto ii = 0; ii < numBlks; ii++) {
-    multiArray3d<vector3d<double>> coordinates(vecI[ii], vecJ[ii], vecK[ii]);
+    multiArray3d<vector3d<double>> coordinates(vecI[ii], vecJ[ii], vecK[ii], 0);
 
     for (auto jj = 0; jj < coordinates.Size(); jj++) {
       fName.read(reinterpret_cast<char *>(&tempDouble), sizeof(tempDouble));
@@ -523,32 +521,8 @@ void plot3dBlock::Split(const string &dir, const int &ind, plot3dBlock &blk1,
   // dir -- plane to split along, either i, j, or k
   // ind -- index (face) to split at (w/o counting ghost cells)
 
-  if (dir == "i") {  // split along i-plane
-    blk1 = plot3dBlock(coords_.Slice(0, ind,
-                                     0, coords_.NumJ() - 1,
-                                     0, coords_.NumK() - 1));
-    blk2 = plot3dBlock(coords_.Slice(ind, coords_.NumI() - 1,
-                                     0, coords_.NumJ() - 1,
-                                     0, coords_.NumK() - 1));
-  } else if (dir == "j") {  // split along j-plane
-    blk1 = plot3dBlock(coords_.Slice(0, coords_.NumI() - 1,
-                                     0, ind,
-                                     0, coords_.NumK() - 1));
-    blk2 = plot3dBlock(coords_.Slice(0, coords_.NumI() - 1,
-                                     ind, coords_.NumJ() - 1,
-                                     0, coords_.NumK() - 1));
-  } else if (dir == "k") {  // split along k-plane
-    blk1 = plot3dBlock(coords_.Slice(0, coords_.NumI() - 1,
-                                     0, coords_.NumJ() - 1,
-                                     0, ind));
-    blk2 = plot3dBlock(coords_.Slice(0, coords_.NumI() - 1,
-                                     0, coords_.NumJ() - 1,
-                                     ind, coords_.NumK() - 1));
-  } else {
-    cerr << "ERROR: Error in plot3dBlock::Split(). Direction " << dir
-         << " is not recognized! Choose either i, j, or k." << endl;
-    exit(EXIT_FAILURE);
-  }
+  blk1 = plot3dBlock(coords_.Slice(dir, {coords_.Start(dir), ind + 1}));
+  blk2 = plot3dBlock(coords_.Slice(dir, {ind, coords_.End(dir)}));
 }
 
 /* Member function to join a plot3dBlock along a plane defined by a direction.
@@ -556,42 +530,27 @@ The calling instance will be the lower portion of the joined block,
 and the input instance will be the upper portion of the joined block.
 */
 void plot3dBlock::Join(const plot3dBlock &blk, const string &dir) {
+  auto iTot = this->NumI();
+  auto jTot = this->NumJ();
+  auto kTot = this->NumK();
+
   if (dir == "i") {
-    int newNumI = this->NumI() + blk.NumI() - 1;
-
-    plot3dBlock newBlk(newNumI, this->NumJ(), this->NumK());
-
-    newBlk.coords_.Insert(0, this->NumI(), 0, this->NumJ(), 0,
-                          this->NumK(), coords_);
-
-    newBlk.coords_.Insert(this->NumI(), newNumI, 0, this->NumJ(), 0,
-                          this->NumK(), blk.coords_);
-    (*this) = newBlk;
+    iTot += blk.NumI() - 1;
   } else if (dir == "j") {
-    int newNumJ = this->NumJ() + blk.NumJ() - 1;
-
-    plot3dBlock newBlk(this->NumI(), newNumJ, this->NumK());
-
-    newBlk.coords_.Insert(0, this->NumI(), 0, this->NumJ(), 0,
-                          this->NumK(), coords_);
-
-    newBlk.coords_.Insert(0, this->NumI(), this->NumJ(), newNumJ, 0,
-                          this->NumK(), blk.coords_);
-    (*this) = newBlk;
+    jTot += blk.NumJ() - 1;
   } else if (dir == "k") {
-    int newNumK = this->NumK() + blk.NumK() - 1;
-
-    plot3dBlock newBlk(this->NumI(), this->NumJ(), newNumK);
-
-    newBlk.coords_.Insert(0, this->NumI(), 0, this->NumJ(), 0,
-                          this->NumK(), coords_);
-
-    newBlk.coords_.Insert(0, this->NumI(), 0, this->NumJ(), this->NumK(),
-                          newNumK, blk.coords_);
-    (*this) = newBlk;
+    kTot += blk.NumK() - 1;
   } else {
     cerr << "ERROR: Error in plot3dBlock::Join(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
     exit(EXIT_FAILURE);
   }
+
+  plot3dBlock newBlk(iTot, jTot, kTot);
+
+  newBlk.coords_.Insert(dir, {coords_.Start(dir), coords_.End(dir)}, coords_);
+
+  newBlk.coords_.Insert(dir, {coords_.End(dir), newBlk.coords_.End(dir)},
+                        blk.coords_);
+  (*this) = newBlk;
 }

@@ -30,6 +30,7 @@ one block. */
 #include <iostream>  // ostream
 #include "mpi.h"  // parallelism
 #include "vector3d.hpp"
+#include "range.hpp"
 
 using std::ostream;
 using std::vector;
@@ -83,6 +84,13 @@ class boundarySurface {
   int Min1() const;
   int Min2() const;
   int NumFaces() const;
+
+  range RangeI() const;
+  range RangeJ() const;
+  range RangeK() const;
+  range RangeDir1() const;
+  range RangeDir2() const;
+  range RangeDir3() const;
 
   int PartnerBlock() const;
   int PartnerSurface() const;
@@ -203,10 +211,21 @@ class boundaryConditions {
   int BlockDimJ() const;
   int BlockDimK() const;
 
+  range RangeI(const int &a) const {return surfs_[a].RangeI();}
+  range RangeJ(const int &a) const {return surfs_[a].RangeJ();}
+  range RangeK(const int &a) const {return surfs_[a].RangeK();}
+  range RangeDir1(const int &a) const {return surfs_[a].RangeDir1();}
+  range RangeDir2(const int &a) const {return surfs_[a].RangeDir2();}
+  range RangeDir3(const int &a) const {return surfs_[a].RangeDir3();}
+
+  string Direction1(const int &a) const {return surfs_[a].Direction1();}
+  string Direction2(const int &a) const {return surfs_[a].Direction2();}
+  string Direction3(const int &a) const {return surfs_[a].Direction3();}
+
   void ResizeVecs(const int&);
   void ResizeVecs(const int&, const int&, const int&);
 
-  string GetBCName(const int&, const int&, const int&, const string&) const;
+  string GetBCName(const int&, const int&, const int&, const int&) const;
 
   void AssignFromInput(const int&, const vector<string>&);
 
@@ -278,14 +297,28 @@ class interblock {
   int Dir1EndFirst() const {return d1End_[0];}
   int Dir1EndSecond() const {return d1End_[1];}
 
+  int Dir1LenFirst() const {return d1End_[0] - d1Start_[0];}
+  int Dir1LenSecond() const {return d1End_[1] - d1Start_[1];}
+
   int Dir2StartFirst() const {return d2Start_[0];}
   int Dir2StartSecond() const {return d2Start_[1];}
 
   int Dir2EndFirst() const {return d2End_[0];}
   int Dir2EndSecond() const {return d2End_[1];}
 
+  int Dir2LenFirst() const {return d2End_[0] - d2Start_[0];}
+  int Dir2LenSecond() const {return d2End_[1] - d2Start_[1];}
+
+  range Dir1RangeFirst() const;
+  range Dir1RangeSecond() const;
+  range Dir2RangeFirst() const;
+  range Dir2RangeSecond() const;
+
   int ConstSurfaceFirst() const {return constSurf_[0];}
   int ConstSurfaceSecond() const {return constSurf_[1];}
+
+  bool IsLowerFirst() const {return constSurf_[0] == 0;}
+  bool IsLowerSecond() const {return constSurf_[1] == 0;}
 
   bool Dir1StartInterBorderFirst() const {return interblockBorder_[0];}
   bool Dir1EndInterBorderFirst() const {return interblockBorder_[1];}
@@ -397,7 +430,7 @@ ostream & operator<< (ostream &os, const decomposition&);
 ostream & operator<< (ostream &os, const interblock&);
 
 
-array<int, 3> GetSwapLoc(const int &, const int &, const int &,
+array<int, 3> GetSwapLoc(const int &, const int &, const int &, const int &,
                          const interblock &, const bool &);
 
 #endif
