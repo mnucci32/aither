@@ -2408,30 +2408,31 @@ void procBlock::AssignGhostCellsGeom() {
       const auto dir = bc_.Direction3(ii);
       const auto surfType = bc_.GetSurfaceType(ii);
 
-      auto gCell = 0, iCell = 0, aCell = 0;           // indices for cells
-      auto gFace = 0, iFace = 0, bnd = 0;  // indices for faces
+      // 'g' indicates ghost, 'p' indicates previous, 'i' indicates interior
+      auto gCell = 0, iCell = 0, pCell = 0, piCell = 0;    // indices for cells
+      auto iFace = 0, piFace = 0;                          // indices for faces
       // adjust interior indices to be in physical range in case block is only a
       // couple of cells thick
       if (surfType % 2 == 0) {  // upper surface
         gCell = r3.Start() + layer - 1;
         iCell = r3.Start() - layer;
-        aCell = r3.Start() - 1;  // adjacent cell to bnd regardless of ghost layer
+        pCell = gCell - 1;  // ghost cell for previous layer
         if (iCell < this->Start(dir)) {iCell = this->Start(dir);}
+        piCell = iCell + 1;
 
-        gFace = r3.Start() + layer;
-        bnd = r3.Start();
         iFace = r3.Start() - layer;
         if (iFace < this->Start(dir)) {iFace = this->Start(dir);}
+        piFace = iFace + 1;
       } else {  // lower surface
         gCell = r3.Start() - layer;
         iCell = r3.Start() + layer - 1;
+        pCell = gCell + 1;  // ghost cell for previous layer
         if (iCell >= this->End(dir)) {iCell = this->End(dir) - 1;}
+        piCell = iCell - 1;
 
-        gFace = r3.Start() - layer;
-        bnd = r3.Start();
-        aCell = r3.Start();  // adjacent cell to bnd regardless of ghost layer
         iFace = r3.Start() + layer;
         if (iFace > this->End(dir)) {iFace = this->End(dir);}
+        piFace = iFace - 1;
       }
 
       // -----------------------------------------------------------------------
@@ -2455,75 +2456,44 @@ void procBlock::AssignGhostCellsGeom() {
                        fAreaK_.Slice(dir, iCell, r1, r2, "k", surfType),
                        "k", surfType);
 
-        // Assign cell centroid, and face centers
-
         // centroid / face centers are moved interior cell width in the boundary
         // normal direction
-        multiArray3d<vector3d<double>> dist2Move;
-        if (dir == "i") {  // i-surface, dir1 = j, dir2 = k --------------------
-          dist2Move = fCenterI_.Slice(bnd, r1, r2) -
+        multiArray3d<vector3d<double>> distF2F;
+        if (dir == "i") {  // i-surface, dir1 = j, dir2 = k
+          distF2F = fCenterI_.Slice(piFace, r1, r2) -
               fCenterI_.Slice(iFace, r1, r2);
-
-          // alter distance to move if block is not wide enough
-          if (this->NumI() < numGhosts_ && this->NumI() < layer) {
-            dist2Move *= static_cast<double>(layer) /
-                static_cast<double>(this->NumI());
-          }
-
-          // Assign face centers
-          fCenterI_.Insert(gFace, r1, r2,
-                           fCenterI_.Slice(bnd, r1, r2) + dist2Move);
-
-          fCenterJ_.Insert(gCell, r1, r2,
-                           fCenterJ_.Slice(aCell, r1, r2) + dist2Move.GrowJ());
-
-          fCenterK_.Insert(gCell, r1, r2,
-                           fCenterK_.Slice(aCell, r1, r2) + dist2Move.GrowK());
-
-        } else if (dir == "j") {  // j-surface, dir1 = k, dir2 = i -------------
-          dist2Move = fCenterJ_.Slice(r2, bnd, r1) -
+        } else if (dir == "j") {  // j-surface, dir1 = k, dir2 = i
+          distF2F = fCenterJ_.Slice(r2, piFace, r1) -
               fCenterJ_.Slice(r2, iFace, r1);
-
-          // alter distance to move if block is not wide enough
-          if (this->NumJ() < numGhosts_ && this->NumJ() < layer) {
-            dist2Move *= static_cast<double>(layer) /
-                static_cast<double>(this->NumJ());
-          }
-
-          // Assign face centers
-          fCenterI_.Insert(r2, gCell, r1,
-                           fCenterI_.Slice(r2, aCell, r1) + dist2Move.GrowI());
-
-          fCenterJ_.Insert(r2, gFace, r1,
-                           fCenterJ_.Slice(r2, bnd, r1) + dist2Move);
-
-          fCenterK_.Insert(r2, gCell, r1,
-                           fCenterK_.Slice(r2, aCell, r1) + dist2Move.GrowK());
-
-        } else {  // k-surface, dir1 = i, dir2 = j -----------------------------
-          dist2Move = fCenterK_.Slice(r1, r2, bnd) -
+        } else {  // k-surface, dir1 = i, dir2 = j
+          distF2F = fCenterK_.Slice(r1, r2, piFace) -
               fCenterK_.Slice(r1, r2, iFace);
-
-          // alter distance to move if block is not wide enough
-          if (this->NumK() < numGhosts_ && this->NumK() < layer) {
-            dist2Move *= static_cast<double>(layer) /
-                static_cast<double>(this->NumK());
-          }
-
-          // Assign face centers
-          fCenterI_.Insert(r1, r2, gCell,
-                           fCenterI_.Slice(r1, r2, aCell) + dist2Move.GrowI());
-
-          fCenterJ_.Insert(r1, r2, gCell,
-                           fCenterJ_.Slice(r1, r2, aCell) + dist2Move.GrowJ());
-
-          fCenterK_.Insert(r1, r2, gFace,
-                           fCenterK_.Slice(r1, r2, bnd) + dist2Move);
         }
+
+        // for first ghost layer, use face distance because previous interior
+        // cell is undefined
+        const auto distC2C = (layer > 1) ? center_.Slice(dir, piCell, r1, r2) -
+            center_.Slice(dir, iCell, r1, r2) : distF2F;
+
+        // Assign cell centroid, and face centers
+        fCenterI_.Insert(dir, gCell, r1, r2,
+                         ((dir != "i") ? distC2C.GrowI() : distF2F) +
+                         fCenterI_.Slice(dir, pCell, r1, r2, "i", surfType),
+                         "i", surfType);
+
+        fCenterJ_.Insert(dir, gCell, r1, r2,
+                         ((dir != "j") ? distC2C.GrowJ() : distF2F) +
+                         fCenterJ_.Slice(dir, pCell, r1, r2, "j", surfType),
+                         "j", surfType);
+
+        fCenterK_.Insert(dir, gCell, r1, r2,
+                         ((dir != "k") ? distC2C.GrowK() : distF2F) +
+                         fCenterK_.Slice(dir, pCell, r1, r2, "k", surfType),
+                         "k", surfType);
 
         // assign cell centroid
         center_.Insert(dir, gCell, r1, r2,
-                       center_.Slice(dir, aCell, r1, r2) + dist2Move);
+                       center_.Slice(dir, pCell, r1, r2) + distC2C);
       }
 
       // fill ghost cell edge lines with geometric values
@@ -2541,7 +2511,7 @@ Assumes AssignGhostCellsGeom has already been run.
           |____|____|____|____|____|____|____|____|
          K| G2 | G1 | X  | X  | X  | X  | X  | X  |
          ^|____|____|____|____|____|____|____|____|
-         || G2 | G1 | X  | X  | X  | X  | X  | X  |
+         || G2 | G1 | X  | X**| X  | X  | X  | X  |
          ||____|____|____|____|____|____|____|____|
          e| G2 | G1 | X* | X  | X  | X  | X  | X  |
           |____|____|____|____|____|____|____|____|
@@ -2558,11 +2528,11 @@ corner location (X*) there are 4 edge ghost cells that need to be filled. The
 axes on the side of the diagram indicate the coordinates of the edge ghost cells
 (1, 2) as well as the coordinates of the adjacent regualar ghost cells (e).
 
-The values at edge cell 1,1 are the average of the values at the two ghost cells
-it touches at level "e". The values at edge cells 1,2 and 2,1 are identical to
-the values of the ghost cells they tough at level "e". The values at edge cell
-2,2 are the average of the values at the two (1,2 & 2,1) edge ghost cells it
-touches.
+The values at edge cell 1,1 are mirrored from the values at either of the two
+ghost cells it touches at level "e". The values at edge cells 1,2 and 2,1 are
+identical to the values of the ghost cells they tough at level "e". The values
+at edge cell 2,2 are mirrored from either of the two directions because both will
+result in the same geometric values. The values should be the same as (X**).
 */
 void procBlock::AssignGhostCellsGeomEdge() {
   // loop over directions i, j, k
@@ -2598,97 +2568,93 @@ void procBlock::AssignGhostCellsGeomEdge() {
           const auto upper2 = cc > 1;
           const auto upper3 = cc % 2 == 1;
 
-          // cell indices (g-ghost at current layer, p-ghost at previous layer)
+          // cell indices (g-ghost at current layer, p-ghost at previous layer,
+          // i-interior cell)
           const auto pCellD2 = upper2 ? max2 + layer2 - 2 : 1 - layer2;
           const auto gCellD2 = upper2 ? pCellD2 + 1 : pCellD2 - 1;
+          const auto iCellD2 = upper2 ? max2 - layer2 : layer2 - 1;
 
           const auto pCellD3 = upper3 ? max3 + layer3 - 2 : 1 - layer3;
           const auto gCellD3 = upper3 ? pCellD3 + 1 : pCellD3 - 1;
 
-          if (layer2 == layer3) {  // need to average
-            // assign volumes
-            vol_.Insert(dir, gCellD2, gCellD3, 0.5 *
-                        (vol_.Slice(dir, pCellD2, gCellD3, true) +
-                         vol_.Slice(dir, gCellD2, pCellD3, true)), true);
+          // values come from direction 2
+          // assign volumes
+          vol_.Insert(dir, gCellD2, gCellD3,
+                      vol_.Slice(dir, iCellD2, gCellD3, true), true);
 
-            // assign face areas
-            fAreaI_.Insert(dir, gCellD2, gCellD3, 0.5 *
-                           (fAreaI_.Slice(dir, pCellD2, gCellD3, true, "i", upper2, upper3) +
-                            fAreaI_.Slice(dir, gCellD2, pCellD3, true, "i", upper2, upper3)),
-                           true, "i", upper2, upper3);
-            fAreaJ_.Insert(dir, gCellD2, gCellD3, 0.5 *
-                           (fAreaJ_.Slice(dir, pCellD2, gCellD3, true, "j", upper2, upper3) +
-                            fAreaJ_.Slice(dir, gCellD2, pCellD3, true, "j", upper2, upper3)),
-                           true, "j", upper2, upper3);
-            fAreaK_.Insert(dir, gCellD2, gCellD3, 0.5 *
-                           (fAreaK_.Slice(dir, pCellD2, gCellD3, true, "k", upper2, upper3) +
-                            fAreaK_.Slice(dir, gCellD2, pCellD3, true, "k", upper2, upper3)),
-                           true, "k", upper2, upper3);
-
-          } else if (layer2 > layer3) {  // values come from direction 3
-            // assign volumes
-            vol_.Insert(dir, gCellD2, gCellD3,
-                        vol_.Slice(dir, gCellD2, pCellD3, true), true);
-
-            // assign face areas
-            fAreaI_.Insert(dir, gCellD2, gCellD3,
-                           fAreaI_.Slice(dir, gCellD2, pCellD3, true, "i", upper2, upper3),
-                           true, "i", upper2, upper3);
-            fAreaJ_.Insert(dir, gCellD2, gCellD3,
-                           fAreaJ_.Slice(dir, gCellD2, pCellD3, true, "j", upper2, upper3),
-                           true, "j", upper2, upper3);
-            fAreaK_.Insert(dir, gCellD2, gCellD3,
-                           fAreaK_.Slice(dir, gCellD2, pCellD3, true, "k", upper2, upper3),
-                           true, "k", upper2, upper3);
-
-          } else {  // values come from direction 2
-            // assign volumes
-            vol_.Insert(dir, gCellD2, gCellD3,
-                        vol_.Slice(dir, pCellD2, gCellD3, true), true);
-
-            // assign face areas
-            fAreaI_.Insert(dir, gCellD2, gCellD3,
-                           fAreaI_.Slice(dir, pCellD2, gCellD3, true, "i", upper2, upper3),
-                           true, "i", upper2, upper3);
-            fAreaJ_.Insert(dir, gCellD2, gCellD3,
-                           fAreaJ_.Slice(dir, pCellD2, gCellD3, true, "j", upper2, upper3),
-                           true, "j", upper2, upper3);
-            fAreaK_.Insert(dir, gCellD2, gCellD3,
-                           fAreaK_.Slice(dir, pCellD2, gCellD3, true, "k", upper2, upper3),
-                           true, "k", upper2, upper3);
-          }
-
+          // assign face areas
+          fAreaI_.Insert(dir, gCellD2, gCellD3,
+                         fAreaI_.Slice(dir, iCellD2, gCellD3, true, "i", upper2, upper3),
+                         true, "i", upper2, upper3);
+          fAreaJ_.Insert(dir, gCellD2, gCellD3,
+                         fAreaJ_.Slice(dir, iCellD2, gCellD3, true, "j", upper2, upper3),
+                         true, "j", upper2, upper3);
+          fAreaK_.Insert(dir, gCellD2, gCellD3,
+                         fAreaK_.Slice(dir, iCellD2, gCellD3, true, "k", upper2, upper3),
+                         true, "k", upper2, upper3);
 
           // get distance to move centroids & face centers
-          multiArray3d<vector3d<double>> dist2Move;
+          multiArray3d<vector3d<double>> distF2F;
           if (dir == "i") {  // i-line, dir2 = j
-            dist2Move = fCenterJ_.Slice(dir, gCellD2, pCellD3, true, "j", upper2, upper3)
+            distF2F = fCenterJ_.Slice(dir, gCellD2, pCellD3, true, "j", upper2, upper3)
                 - fCenterJ_.Slice(dir, pCellD2, pCellD3, true, "j", upper2, upper3);
           } else if (dir == "j") {  // j-line, dir2 = k
-            dist2Move = fCenterK_.Slice(dir, gCellD2, pCellD3, true, "k", upper2, upper3)
+            distF2F = fCenterK_.Slice(dir, gCellD2, pCellD3, true, "k", upper2, upper3)
                 - fCenterK_.Slice(dir, pCellD2, pCellD3, true, "k", upper2, upper3);
           } else {  // k-line, dir2 = i
-            dist2Move = fCenterI_.Slice(dir, gCellD2, pCellD3, true, "i", upper2, upper3)
+            distF2F = fCenterI_.Slice(dir, gCellD2, pCellD3, true, "i", upper2, upper3)
                 - fCenterI_.Slice(dir, pCellD2, pCellD3, true, "i", upper2, upper3);
           }
 
+          const auto distC2C = center_.Slice(dir, gCellD2, pCellD3, true) -
+              center_.Slice(dir, pCellD2, pCellD3, true);
+
           // assign centroids
-          center_.Insert(dir, gCellD2, gCellD3, dist2Move +
+          center_.Insert(dir, gCellD2, gCellD3, distC2C +
                          center_.Slice(dir, pCellD2, gCellD3, true), true);
 
           // assign face centers
-          fCenterI_.Insert(dir, gCellD2, gCellD3,
-                           (dir == "i") ? dist2Move.GrowI() : dist2Move +
+          // use lambda to get distance to move for i, j, k face data
+          // when face id matches direction 2, distF2F is used, otherwise
+          // distC2C is used
+          auto distI = [&dir, &distF2F, &distC2C] () {
+            if (dir == "i") {
+              return distC2C.GrowI();
+            } else if (dir == "j") {
+              return distC2C;
+            } else {
+              return distF2F;
+            }
+          };
+          fCenterI_.Insert(dir, gCellD2, gCellD3, distI() +
                            fCenterI_.Slice(dir, pCellD2, gCellD3, true, "i",
-                                           upper2, upper3),
+                                             upper2, upper3),
                            true, "i", upper2, upper3);
-          fCenterJ_.Insert(dir, gCellD2, gCellD3,
-                           (dir == "j") ? dist2Move.GrowJ() : dist2Move +
+
+          auto distJ = [&dir, &distF2F, &distC2C] () {
+            if (dir == "i") {
+              return distF2F;
+            } else if (dir == "j") {
+              return distC2C.GrowJ();
+            } else {
+              return distC2C;
+            }
+          };
+          fCenterJ_.Insert(dir, gCellD2, gCellD3, distJ() +
                            fCenterJ_.Slice(dir, pCellD2, gCellD3, true, "j",
                                            upper2, upper3),
                            true, "j", upper2, upper3);
-          fCenterK_.Insert(dir, gCellD2, gCellD3,
-                           (dir == "k") ? dist2Move.GrowK() : dist2Move +
+
+          auto distK = [&dir, &distF2F, &distC2C] () {
+            if (dir == "i") {
+              return distC2C;
+            } else if (dir == "j") {
+              return distF2F;
+            } else {
+              return distC2C.GrowK();
+            }
+          };
+          fCenterK_.Insert(dir, gCellD2, gCellD3, distK() +
                            fCenterK_.Slice(dir, pCellD2, gCellD3, true, "k",
                                            upper2, upper3),
                            true, "k", upper2, upper3);
@@ -2771,11 +2737,11 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
 
         // get face areas on boundary
         multiArray3d<unitVec3dMag<double>> faceAreas;
-        if (dir == "i") {  // i-surface, dir1 = j, dir2 = k --------------------
+        if (dir == "i") {  // i-surface, dir1 = j, dir2 = k
           faceAreas = this->fAreaI_.Slice(bnd, r1, r2);
-        } else if (dir == "j") {  // j-surface, dir1 = k, dir2 = i -------------
+        } else if (dir == "j") {  // j-surface, dir1 = k, dir2 = i
           faceAreas = this->fAreaJ_.Slice(r2, bnd, r1);
-        } else {  // k-surface, dir1 = i, dir2 = j -----------------------------
+        } else {  // k-surface, dir1 = i, dir2 = j
           faceAreas = this->fAreaK_.Slice(r1, r2, bnd);
         }
 

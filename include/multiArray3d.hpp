@@ -684,7 +684,7 @@ multiArray3d<T> multiArray3d<T>::Slice(const string &dir, int dirInd,
   // type -- surface type of dir
 
   if (dir == "i") {  // d1 = j, d2 = k
-    if (type == 2 && id == "i") {  // upper i-surface & i normal
+    if (type == 2 && id == "i") {  // upper i-surface & i face data
       dirInd++;
     }
     if (id == "j") {
@@ -694,7 +694,7 @@ multiArray3d<T> multiArray3d<T>::Slice(const string &dir, int dirInd,
     }
     return this->Slice(dirInd, dir1, dir2);
   } else if (dir == "j") {  // d1 = k, d2 = i
-    if (type == 4 && id == "j") {  // upper j-surface & j normal
+    if (type == 4 && id == "j") {  // upper j-surface & j face data
       dirInd++;
     }
     if (id == "k") {
@@ -704,7 +704,7 @@ multiArray3d<T> multiArray3d<T>::Slice(const string &dir, int dirInd,
     }
     return this->Slice(dir2, dirInd, dir1);
   } else if (dir == "k") {  // d1 = i, d2 = j
-    if (type == 6 && id == "k") {  // upper k-surface & k normal
+    if (type == 6 && id == "k") {  // upper k-surface & k face data
       dirInd++;
     }
     if (id == "i") {

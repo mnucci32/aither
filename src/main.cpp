@@ -154,8 +154,8 @@ int main(int argc, char *argv[]) {
                     stateBlocks[conn.BlockSecond()]);
     }
     // Get ghost cell edge data
-    for (auto &blocks : stateBlocks) {
-      blocks.AssignGhostCellsGeomEdge();
+    for (auto &block : stateBlocks) {
+      block.AssignGhostCellsGeomEdge();
     }
 
     // Get face centers of faces with viscous wall BC
