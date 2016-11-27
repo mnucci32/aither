@@ -2,11 +2,16 @@
 
 if [ "$TRAVIS_OS_NAME" == "osx" ]; then
     cd openmpi
-    ln -s /usr/local/bin .
-    ln -s /usr/local/include .
-    ln -s /usr/local/lib .
-    ln -s /usr/local/share .
-    ln -s /usr/local/etc .
+    if [ -f "bin/mpirun" ]; then
+	echo "Using cached OpenMPI"
+    else
+	echo "Linking to OpenMPI in /usr/local"
+	ln -s /usr/local/bin .
+	ln -s /usr/local/include .
+	ln -s /usr/local/lib .
+	ln -s /usr/local/share .
+	ln -s /usr/local/etc .
+    fi
 else
     if [ -f "openmpi/bin/mpirun" ] && [ -f "openmpi-2.0.1/config.log" ]; then
 	echo "Using cached OpenMPI"
