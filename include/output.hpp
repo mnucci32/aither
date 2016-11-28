@@ -58,6 +58,7 @@ void WriteFun(const vector<procBlock> &, const idealGas &,
               const sutherland &, const int &, const decomposition &,
               const input &, const unique_ptr<turbModel> &);
 void WriteRes(const input &, const int &);
+void WriteMeta(const input &, const int &);
 
 void WriteResiduals(const input &, genArray &, const genArray &, const resid &,
                     const double &, const int &, const int &, ostream &);

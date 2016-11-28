@@ -253,7 +253,7 @@ int main(int argc, char *argv[]) {
 
     // Write out initial results
     WriteFun(stateBlocks, eos, suth, 0, decomp, inputVars, turb);
-    WriteRes(inputVars, 0);
+    WriteMeta(inputVars, 0);
   }
 
   // ----------------------------------------------------------------------
@@ -346,7 +346,7 @@ int main(int argc, char *argv[]) {
         cout << "writing out function file at iteration " << nn << endl;
         // Write out function file
         WriteFun(stateBlocks, eos, suth, (nn+1), decomp, inputVars, turb);
-        WriteRes(inputVars, (nn+1));
+        WriteMeta(inputVars, (nn+1));
       }
     }
   }  // loop for time step -----------------------------------------------------
