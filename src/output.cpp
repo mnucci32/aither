@@ -769,6 +769,53 @@ void WriteRes(const input &inp, const int &iter) {
   resFile.close();
 }
 
+
+// function to write out plot3d meta data for Paraview
+void WriteMeta(const input &inp, const int &iter) {
+  // open meta file
+  const string fMetaPostfix = ".p3d";
+  const string fEnd = "_center";
+  const auto metaName = inp.SimNameRoot() + fEnd + fMetaPostfix;
+  ofstream metaFile(metaName, ios::out);
+
+  const auto gridName = inp.SimNameRoot() + fEnd + ".xyz";
+  const auto funName = inp.SimNameRoot() + "_" + to_string(iter) + fEnd + ".fun";
+
+  // check to see if file opened correctly
+  if (metaFile.fail()) {
+    cerr << "ERROR: Results file " << metaName << " did not open correctly!!!"
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  const auto outputVars = inp.OutputVariables();
+
+  // write to meta file
+  metaFile << "{" << endl;
+  metaFile << "\"auto-detect-format\" : true," << endl;
+  metaFile << "\"format\" : \"binary\"," << endl;
+  metaFile << "\"language\" : \"C\"," << endl;
+  metaFile << "\"filenames\" : [{ \"time\" : " << iter << ", \"xyz\" : \""
+           << gridName << "\", \"function\" : \"" << funName << "\" }]," << endl;
+
+  // Write out scalar variables
+  auto numVar = 0U;
+  metaFile << "\"function-names\" : [ ";
+  for (auto &var : outputVars) {
+    metaFile << "\"" << var << "\"";
+    if (numVar < outputVars.size() - 1) {
+      metaFile << ", ";
+    }
+    numVar++;
+  }
+  metaFile << " ]" << endl;
+  metaFile << "}" << endl;
+
+  // Close results file
+  metaFile.close();
+}
+
+
 // function to write out residual information
 void WriteResiduals(const input &inp, genArray &residL2First,
                     const genArray &residL2, const resid &residLinf,
