@@ -11,5 +11,6 @@
 *.p3d
 
 #Ignore blog files
-_site
-.sass_cache
+.sass-cache/
+_site/
+
