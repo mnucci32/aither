@@ -1,10 +1,28 @@
 # Site settings
-title: Aither
+title: Aither CFD
 url: http://mnucci32.github.io/aither
 twitter_username: aitherCFD
 github_username: mnucci32
+email: mnucci@protonmail.com
 
-exclude: [aither, testCases]
+description: An open source structured multi-block CFD code.
 
-# Build settings
+exclude:
+  - aither
+  - testCases
+  - src
+  - include
+  - Gemfile
+  - Gemfile.lock
+
 markdown: kramdown
+kramdown:
+  input: GFM
+
+theme: minima
+
+disqus:
+  shortname: aither
+
+gems:
+  - jekyll-feed
