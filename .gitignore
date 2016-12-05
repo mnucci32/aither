@@ -1,17 +1,6 @@
-#Ignore compiled object files
-*.o
-
 #Ignore temporary copy files
 *~
 \#*
-
-#Ignore valgrind and gprof output
-gmon.out
-callgrind.out.*
-cachegrind.out.*
-
-#Ignore compiled executable
-aither
 
 #Ignore results files
 *.fun
@@ -19,6 +8,7 @@ aither
 *.out
 *_center.xyz
 *.resid
+*.p3d
 
 #Ignore blog files
 _site
