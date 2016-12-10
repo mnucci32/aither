@@ -197,5 +197,8 @@ class input {
 
 // function declarations
 void PrintTime();
+vector<string> Tokenize(string, const string &, const unsigned int = 0);
+string Trim(const string &, const string & = " \t");
+vector3d<double> ReadVector(string);
 
 #endif

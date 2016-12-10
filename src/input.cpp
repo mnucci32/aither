@@ -95,44 +95,44 @@ input::input(const string &name) : simName_(name) {
 
   // keywords in the input file that the parser is looking for to define
   // variables
-  vars_ = {"gridName:",
-           "timeStep:",
-           "iterations:",
-           "pressureRef:",
-           "densityRef:",
-           "lengthRef:",
-           "gamma:",
-           "gasConstant:",
-           "velocity:",
-           "timeIntegration:",
-           "faceReconstruction:",
-           "limiter:",
-           "outputFrequency:",
-           "equationSet:",
-           "temperatureRef:",
-           "matrixSolver:",
-           "matrixSweeps:",
-           "matrixRelaxation:",
-           "nonlinearIterations:",
-           "cflMax:",
-           "cflStep:",
-           "cflStart:",
-           "inviscidFluxJacobian:",
-           "dualTimeCFL:",
-           "inviscidFlux:",
-           "stagnationInlet:",
-           "pressureOutlet:",
-           "decompositionMethod:",
-           "turbulenceModel:",
-           "farfieldTurbulenceIntensity:",
-           "farfieldEddyViscosityRatio:",
-           "outputVariables:",
-           "boundaryConditions:"};
+  vars_ = {"gridName",
+           "timeStep",
+           "iterations",
+           "pressureRef",
+           "densityRef",
+           "lengthRef",
+           "gamma",
+           "gasConstant",
+           "velocity",
+           "timeIntegration",
+           "faceReconstruction",
+           "limiter",
+           "outputFrequency",
+           "equationSet",
+           "temperatureRef",
+           "matrixSolver",
+           "matrixSweeps",
+           "matrixRelaxation",
+           "nonlinearIterations",
+           "cflMax",
+           "cflStep",
+           "cflStart",
+           "inviscidFluxJacobian",
+           "dualTimeCFL",
+           "inviscidFlux",
+           "stagnationInlet",
+           "pressureOutlet",
+           "decompositionMethod",
+           "turbulenceModel",
+           "farfieldTurbulenceIntensity",
+           "farfieldEddyViscosityRatio",
+           "outputVariables",
+           "boundaryConditions"};
 }
 
 // function to trim leading and trailing whitespace from a string, and also
 // remove data after a comment
-string trim(const string &s, const string &whitespace = " \t") {
+string Trim(const string &s, const string &whitespace) {
   const string comment = "#";  // # is comment character for input file
 
   if (s.empty()) {
@@ -151,6 +151,45 @@ string trim(const string &s, const string &whitespace = " \t") {
 
     return temp.substr(0, tempRange);
   }
+}
+
+// function to tokenize a string based on a given character
+vector<string> Tokenize(string str, const string &delimiter,
+                        const unsigned int maxTokens) {
+  // str -- string to tokenize
+  // delimiter -- string to use as delimiter
+  // maxTokens -- maximum number of tokens (if 0 (default), no max)
+
+  vector<string> tokens;
+  auto reachedMax = false;
+  auto pos = str.find(delimiter);
+  while (pos != string::npos && !reachedMax) {
+    auto token = str.substr(0, pos);
+    tokens.push_back(Trim(token));
+    // treat consecutive delimiters as single delimiter
+    auto end = str.find_first_not_of(delimiter, pos);
+    str.erase(0, end);
+    if (maxTokens > 0 && maxTokens == tokens.size() - 1) {
+      reachedMax = true;
+    }
+    pos = str.find(delimiter);
+  }
+  tokens.push_back(Trim(str));
+  return tokens;
+}
+
+// function to read vector data from string
+vector3d<double> ReadVector(string str) {
+  auto start = str.find("[");
+  auto end = str.find("]");
+  auto vec = str.substr(start + 1, end - 1);  // +/-1 to ignore []
+  auto tokens = Tokenize(vec, ",");
+  if (tokens.size() != 3) {
+    cerr << "ERROR. Expected three components for vector, found "
+         << tokens.size() << endl;
+    cerr << "Vector string was " << vec << endl;
+  }
+  return {stod(tokens[0]), stod(tokens[1]), stod(tokens[2])};
 }
 
 // function to print the time
@@ -193,72 +232,68 @@ void input::ReadInput(const int &rank) {
   auto numSurf = 0;
 
   while (getline(inFile, line)) {  // while there are still lines in the input
-                                   // file, execute loop
+    // file, execute loop
 
     // remove leading and trailing whitespace and ignore comments
-    line = trim(line);
+    line = Trim(line);
 
-    // split line into words
-    istringstream buf(line);
-    istream_iterator<string> beg(buf), end;
-    vector<string> tokens(beg, end);
+    if (line.length() > 0) {  // only proceed if line has data
+      // split line at variable separator
+      auto tokens = Tokenize(line, ":", 2);
 
-    // search to see if first token corresponds to any keywords
-    // line must contain at least 2 tokens (keyword and value)
-    if (tokens.size() >= 2) {
+      // search to see if first token corresponds to any keywords
       auto key = tokens[0];
+
       // if first token matches a keyword or reading boundary condtions
       if (vars_.find(key) != vars_.end() || readingBCs > 0) {
         // if not yet reading BCs (readingBCs == 0), set variable in input
         // class to corresponding value and print assignment to std out
-        if (key == "gridName:") {
+        if (key == "gridName") {
           gName_ = tokens[1];
           if (rank == ROOTP) {
-            cout << key << " " << this->GridName() << endl;
+            cout << key << ": " << this->GridName() << endl;
           }
-        } else if (key == "timeStep:") {
+        } else if (key == "timeStep") {
           dt_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->Dt() << endl;
+            cout << key << ": " << this->Dt() << endl;
           }
-        } else if (key == "iterations:") {
+        } else if (key == "iterations") {
           iterations_ = stoi(tokens[1]);
           if (rank == ROOTP) {
-            cout << key << " " << this->Iterations() << endl;
+            cout << key << ": " << this->Iterations() << endl;
           }
-        } else if (key == "pressureRef:") {
+        } else if (key == "pressureRef") {
           pRef_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->PRef() << endl;
+            cout << key << ": " << this->PRef() << endl;
           }
-        } else if (key == "densityRef:") {
+        } else if (key == "densityRef") {
           rRef_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->RRef() << endl;
+            cout << key << ": " << this->RRef() << endl;
           }
-        } else if (key == "lengthRef:") {
+        } else if (key == "lengthRef") {
           lRef_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->LRef() << endl;
+            cout << key << ": " << this->LRef() << endl;
           }
-        } else if (key == "gamma:") {
+        } else if (key == "gamma") {
           gamma_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->Gamma() << endl;
+            cout << key << ": " << this->Gamma() << endl;
           }
-        } else if (key == "gasConstant:") {
+        } else if (key == "gasConstant") {
           gasConst_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->R() << endl;
+            cout << key << ": " << this->R() << endl;
           }
-        } else if (key == "velocity:") {
-          velRef_.SetX(stod(tokens[1]));  // double variable (stod)
-          velRef_.SetY(stod(tokens[2]));
-          velRef_.SetZ(stod(tokens[3]));
+        } else if (key == "velocity") {
+          velRef_ = ReadVector(tokens[1]);
           if (rank == ROOTP) {
-            cout << key << " " << this->VelRef() << endl;
+            cout << key << ": " << this->VelRef() << endl;
           }
-        } else if (key == "timeIntegration:") {
+        } else if (key == "timeIntegration") {
           timeIntegration_ = tokens[1];
           if (this->TimeIntegration() == "implicitEuler") {
             timeIntTheta_ = 1.0;
@@ -272,9 +307,9 @@ void input::ReadInput(const int &rank) {
           }
 
           if (rank == ROOTP) {
-            cout << key << " " << this->TimeIntegration() << endl;
+            cout << key << ": " << this->TimeIntegration() << endl;
           }
-        } else if (key == "faceReconstruction:") {
+        } else if (key == "faceReconstruction") {
           if (tokens[1] == "upwind") {
             kappa_ = -1.0;
           } else if (tokens[1] == "fromm") {
@@ -293,7 +328,7 @@ void input::ReadInput(const int &rank) {
           }
 
           if (rank == ROOTP) {
-            cout << key << " " << tokens[1]
+            cout << key << ": " << tokens[1]
                  << " kappa = " << this->Kappa() << endl;
           }
           if ((this->Kappa() < -1.0) || (this->Kappa() > 1.0)) {
@@ -303,78 +338,78 @@ void input::ReadInput(const int &rank) {
                  << endl;
             exit(EXIT_FAILURE);
           }
-        } else if (key == "limiter:") {
+        } else if (key == "limiter") {
           limiter_ = tokens[1];
           if (rank == ROOTP) {
-            cout << key << " " << this->Limiter() << endl;
+            cout << key << ": " << this->Limiter() << endl;
           }
-        } else if (key == "outputFrequency:") {
+        } else if (key == "outputFrequency") {
           outputFrequency_ = stoi(tokens[1]);
           if (rank == ROOTP) {
-            cout << key << " " << this->OutputFrequency() << endl;
+            cout << key << ": " << this->OutputFrequency() << endl;
           }
-        } else if (key == "equationSet:") {
+        } else if (key == "equationSet") {
           equationSet_ = tokens[1];
           if (rank == ROOTP) {
-            cout << key << " " << this->EquationSet() << endl;
+            cout << key << ": " << this->EquationSet() << endl;
           }
-        } else if (key == "temperatureRef:") {
+        } else if (key == "temperatureRef") {
           tRef_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->TRef() << endl;
+            cout << key << ": " << this->TRef() << endl;
           }
-        } else if (key == "matrixSolver:") {
+        } else if (key == "matrixSolver") {
           matrixSolver_ = tokens[1];
           if (rank == ROOTP) {
-            cout << key << " " << this->MatrixSolver() << endl;
+            cout << key << ": " << this->MatrixSolver() << endl;
           }
-        } else if (key == "matrixSweeps:") {
+        } else if (key == "matrixSweeps") {
           matrixSweeps_ = stoi(tokens[1]);
           if (rank == ROOTP) {
-            cout << key << " " << this->MatrixSweeps() << endl;
+            cout << key << ": " << this->MatrixSweeps() << endl;
           }
-        } else if (key == "matrixRelaxation:") {
+        } else if (key == "matrixRelaxation") {
           matrixRelaxation_ =
               stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->MatrixRelaxation() << endl;
+            cout << key << ": " << this->MatrixRelaxation() << endl;
           }
-        } else if (key == "nonlinearIterations:") {
+        } else if (key == "nonlinearIterations") {
           nonlinearIterations_ = stoi(tokens[1]);
           if (rank == ROOTP) {
-            cout << key << " " << this->NonlinearIterations() << endl;
+            cout << key << ": " << this->NonlinearIterations() << endl;
           }
-        } else if (key == "cflMax:") {
+        } else if (key == "cflMax") {
           cflMax_ = stod(tokens[1]);  // double  (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->CFLMax() << endl;
+            cout << key << ": " << this->CFLMax() << endl;
           }
-        } else if (key == "cflStep:") {
+        } else if (key == "cflStep") {
           cflStep_ = stod(tokens[1]);  // double (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->CFLStep() << endl;
+            cout << key << ": " << this->CFLStep() << endl;
           }
-        } else if (key == "cflStart:") {
+        } else if (key == "cflStart") {
           cflStart_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->CFLStart() << endl;
+            cout << key << ": " << this->CFLStart() << endl;
           }
-        } else if (key == "inviscidFluxJacobian:") {
+        } else if (key == "inviscidFluxJacobian") {
           invFluxJac_ = tokens[1];
           if (rank == ROOTP) {
-            cout << key << " " << this->InvFluxJac() << endl;
+            cout << key << ": " << this->InvFluxJac() << endl;
           }
-        } else if (key == "dualTimeCFL:") {
+        } else if (key == "dualTimeCFL") {
           dualTimeCFL_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->DualTimeCFL() << endl;
+            cout << key << ": " << this->DualTimeCFL() << endl;
           }
-        } else if (key == "inviscidFlux:") {
+        } else if (key == "inviscidFlux") {
           inviscidFlux_ = tokens[1];
           if (rank == ROOTP) {
-            cout << key << " " << this->InviscidFlux() << endl;
+            cout << key << ": " << this->InviscidFlux() << endl;
           }
-        } else if (key == "stagnationInlet:") {
+        } else if (key == "stagnationInlet") {
           stagInletProps_[0] = stoi(tokens[1]);  // tag
           stagInletProps_[1] = stod(tokens[2]);  // stag pressure
           stagInletProps_[2] = stod(tokens[3]);  // stag temp
@@ -382,61 +417,57 @@ void input::ReadInput(const int &rank) {
           stagInletProps_[4] = stod(tokens[5]);  // dir-y
           stagInletProps_[5] = stod(tokens[6]);  // dir-z
           if (rank == ROOTP) {
-            cout << key << " " << this->StagInletTag() << " "
+            cout << key << ": " << this->StagInletTag() << " "
                  << this->StagInletP0() << " " << this->StagInletT0()
                  << " " << this->StagInletDx() << " "
                  << this->StagInletDy() << " " << this->StagInletDz() << endl;
           }
-        } else if (key == "pressureOutlet:") {
+        } else if (key == "pressureOutlet") {
           pressureOutlet_[0] = stoi(tokens[1]);  // tag
           pressureOutlet_[1] = stod(tokens[2]);  // outlet pressure
           if (rank == ROOTP) {
-            cout << key << " " << this->PressureOutletTag()
+            cout << key << ": " << this->PressureOutletTag()
                  << " " << this->PressureOutletP() << endl;
           }
-        } else if (key == "decompositionMethod:") {
+        } else if (key == "decompositionMethod") {
           decompMethod_ = tokens[1];
           if (rank == ROOTP) {
-            cout << key << " " << this->DecompMethod() << endl;
+            cout << key << ": " << this->DecompMethod() << endl;
           }
-        } else if (key == "turbulenceModel:") {
+        } else if (key == "turbulenceModel") {
           turbModel_ = tokens[1];
           if (rank == ROOTP) {
-            cout << key << " " << this->TurbulenceModel() << endl;
+            cout << key << ": " << this->TurbulenceModel() << endl;
           }
-        } else if (key == "farfieldTurbulenceIntensity:") {
+        } else if (key == "farfieldTurbulenceIntensity") {
           farfieldTurbInten_ = stod(tokens[1]);  // double (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->FarfieldTurbIntensity() << endl;
+            cout << key << ": " << this->FarfieldTurbIntensity() << endl;
           }
-        } else if (key == "farfieldEddyViscosityRatio:") {
+        } else if (key == "farfieldEddyViscosityRatio") {
           farfieldEddyViscRatio_ = stod(tokens[1]);  // double (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->FarfieldEddyViscRatio() << endl;
+            cout << key << ": " << this->FarfieldEddyViscRatio() << endl;
           }
-        } else if (key == "outputVariables:") {
+        } else if (key == "outputVariables") {
           // clear default variables from set
           outputVariables_.clear();
-          for (auto &vars : tokens) {
-            if (vars != key) {  // don't add keyword
-              outputVariables_.insert(vars);
-            }
+          auto specifiedVars = Tokenize(tokens[1], ",");
+          for (auto &vars : specifiedVars) {
+            outputVariables_.insert(vars);
           }
           if (rank == ROOTP) {
-            cout << key << " ";
+            cout << key << ": ";
             for (auto &vars : outputVariables_) {
-              if (vars != key) {  // don't print keyword
-                cout << vars << " ";
-              }
+              cout << vars << " ";
             }
             cout << endl;
           }
 
-        // reading BCs
-        // -------------------------------------------------------------
-        } else if (key == "boundaryConditions:" || readingBCs > 0) {
-          // read in boundary conditions and assign to boundaryConditions
-          // class
+          // reading BCs
+          // -------------------------------------------------------------
+        } else if (key == "boundaryConditions" || readingBCs > 0) {
+          // read in boundary conditions and assign to boundaryConditions class
           if (readingBCs == 0) {  // variable read must be number of blocks if
             // first line of BCs
             numBCBlks = stoi(tokens[1]);
@@ -447,6 +478,8 @@ void input::ReadInput(const int &rank) {
           } else if (readingBCs == lEnd) {  // variables must be number of i,
             // j, k surfaces for each block
             // set number of i, j, k surfaces and resize vectors
+            // boundary conditions are space delimited
+            tokens = Tokenize(line, " ");
             tempBC[blk].ResizeVecs(stoi(tokens[0]), stoi(tokens[1]),
                                    stoi(tokens[2]));
 
@@ -458,6 +491,8 @@ void input::ReadInput(const int &rank) {
             readingBCs++;
 
           } else {  // assign BC block variables
+            // boundary conditions are space delimited
+            tokens = Tokenize(line, " ");
             tempBC[blk].AssignFromInput(surfCounter, tokens);
 
             surfCounter++;
@@ -486,7 +521,7 @@ void input::ReadInput(const int &rank) {
         }
       }
     }
-  }  // if there aren't 2 or more tokens just skip line
+  }
 
 
   // input file sanity checks
