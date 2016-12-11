@@ -207,6 +207,7 @@ string Trim(const string &, const string & = " \t");
 vector3d<double> ReadVector(const string &);
 icState ReadICState(string &);
 vector<icState> ReadICList(ifstream &, string &);
+vector<string> ReadStringList(ifstream &, string &);
 string RemoveTrailing(const string &, const string &);
 
 #endif

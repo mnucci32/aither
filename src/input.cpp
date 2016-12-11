@@ -340,6 +340,49 @@ vector<icState> ReadICList(ifstream &inFile, string &str) {
   return icList;
 }
 
+// function to read a list of strings
+// used for output variable specification
+vector<string> ReadStringList(ifstream &inFile, string &str) {
+  vector<string> strList;
+  auto openList = false;
+  do {
+    auto start = openList ? 0 : str.find("<");
+    auto listOpened = str.find("<") == string::npos ? false : true;
+    auto end = str.find(">");
+    openList = (end == string::npos) ? true : false;
+
+    // test for argument on current line
+    // if < or > is alone on a line, should not look for icState
+    auto argPos = str.find_first_not_of(" \t,");
+    if (argPos != string::npos) {  // there is an argument in current line
+      string list;
+      if (listOpened && openList) {  // list opened on current line, remains open
+        list = str.substr(start + 1, end);
+      } else if (listOpened && !openList) {  // list opened/closed on current line
+        list = str.substr(start + 1, end - 1);  // +/- 1 to ignore <>
+      } else if (!listOpened && openList) {  // list was open and remains open
+        list = str.substr(start, end);
+      } else {  // list was open and is now closed
+        list = str.substr(start, end - 1);
+      }
+
+      // tokenize all arguments on current line and add to vector
+      auto args = Tokenize(list, ",");
+      for (auto &arg : args) {
+        strList.push_back(arg);
+      }
+    }
+
+    if (openList) {
+      getline(inFile, str);
+      str = Trim(str);
+    }
+  } while (openList);
+
+  return strList;
+}
+
+
 // function to print the time
 void PrintTime() {
   auto now = std::chrono::system_clock::now();
@@ -600,14 +643,25 @@ void input::ReadInput(const int &rank) {
         } else if (key == "outputVariables") {
           // clear default variables from set
           outputVariables_.clear();
-          auto specifiedVars = Tokenize(tokens[1], ",");
+          auto specifiedVars = ReadStringList(inFile, tokens[1]);
           for (auto &vars : specifiedVars) {
             outputVariables_.insert(vars);
           }
           if (rank == ROOTP) {
-            cout << key << ": ";
+            cout << key << ": <";
+            auto count = 0U;
+            auto numChars = 0U;
             for (auto &vars : outputVariables_) {
-              cout << vars << " ";
+              if (count == outputVariables_.size() - 1) {
+                cout << vars << ">" << endl;
+              } else {
+                cout << vars << ", ";
+                numChars += vars.length();
+                if (numChars >= 50) {  // if more than 50 chars, go to next line
+                  cout << endl << "                  ";
+                }
+              }
+              count++;
             }
             cout << endl;
           }
