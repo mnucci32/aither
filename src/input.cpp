@@ -27,6 +27,7 @@
 #include <vector>
 #include "input.hpp"
 #include "turbulence.hpp"
+#include "inputStates.hpp"
 #include "macros.hpp"
 
 using std::cout;
@@ -127,6 +128,7 @@ input::input(const string &name) : simName_(name) {
            "farfieldTurbulenceIntensity",
            "farfieldEddyViscosityRatio",
            "outputVariables",
+           "initialConditions",
            "boundaryConditions"};
 }
 
@@ -179,7 +181,7 @@ vector<string> Tokenize(string str, const string &delimiter,
 }
 
 // function to read vector data from string
-vector3d<double> ReadVector(string str) {
+vector3d<double> ReadVector(const string &str) {
   auto start = str.find("[");
   auto end = str.find("]");
   auto vec = str.substr(start + 1, end - 1);  // +/-1 to ignore []
@@ -188,8 +190,154 @@ vector3d<double> ReadVector(string str) {
     cerr << "ERROR. Expected three components for vector, found "
          << tokens.size() << endl;
     cerr << "Vector string was " << vec << endl;
+    exit(EXIT_FAILURE);
   }
   return {stod(tokens[0]), stod(tokens[1]), stod(tokens[2])};
+}
+
+// function to remove delimiter if it is last character
+string RemoveTrailing(const string &str, const string &delimiter) {
+  auto pos = str.rfind(delimiter);
+  return (pos == str.length() - 1) ? str.substr(0, pos - 1) : str;
+}
+
+// function to read initial condition state from string
+icState ReadICState(string &str) {
+  auto start = str.find("(");
+  auto end = str.find(")");
+  auto state = str.substr(start + 1, end - 1);  // +/-1 to ignore ()
+  auto id = str.substr(0, start);
+  if (id != "icState") {
+    cerr << "ERROR. Initial condition specifier " << id << " is not recognized!"
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+  auto tokens = Tokenize(state, ";");
+
+  // erase portion used so multiple states in same string can easily be found
+  str.erase(0, end);
+
+  // paramter counters
+  auto tagCount = 0;
+  auto pressureCount = 0;
+  auto densityCount = 0;
+  auto velocityCount = 0;
+  auto tiCount = 0;
+  auto evrCount = 0;
+
+  auto tag = 0;
+  auto pressure = 0.0;
+  auto density = 0.0;
+  vector3d<double> velocity = {0.0, 0.0, 0.0};
+  auto turbIntensity = 0.0;
+  auto eddyViscRatio = 0.0;
+  for (auto &token : tokens) {
+    auto param = Tokenize(token, "=");
+    if (param.size() != 2) {
+      cerr << "ERROR. Problem with initial condition parameter " << token << endl;
+      exit(EXIT_FAILURE);
+    }
+
+    if (param[0] == "pressure") {
+      pressure = stod(RemoveTrailing(param[1], ","));
+      pressureCount++;
+    } else if (param[0] == "density") {
+      density = stod(RemoveTrailing(param[1], ","));
+      densityCount++;
+    } else if (param[0] == "velocity") {
+      velocity = ReadVector(RemoveTrailing(param[1], ","));
+      velocityCount++;
+    } else if (param[0] == "turbulenceIntensity") {
+      turbIntensity = stod(RemoveTrailing(param[1], ","));
+      tiCount++;
+    } else if (param[0] == "eddyViscosityRatio") {
+      eddyViscRatio = stod(RemoveTrailing(param[1], ","));
+      evrCount++;
+    } else if (param[0] == "tag") {
+      tag = stoi(RemoveTrailing(param[1], ","));
+      tagCount++;
+    } else {
+      cerr << "ERROR. Initial condition specifier " << param[0]
+           << " is not recognized!" << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  // sanity checks
+  // required variables
+  if (pressureCount != 1 || densityCount != 1 || velocityCount != 1) {
+    cerr << "ERROR. For initial condition state pressure, density, and "
+         << "velocity must be specified, and only specified once." << endl;
+    exit(EXIT_FAILURE);
+  }
+  // optional variables
+  if (tagCount > 1 || tiCount > 1 || evrCount > 1 || tiCount != evrCount) {
+    cerr << "ERROR. For initial condition state tag, turbulenceIntensity, and "
+         << "eddyViscosityRatio can only be specified once." << endl;
+    cerr << "If either turbulenceIntensity or eddyViscosityRatio is specified "
+         << "the other must be as well." << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  if (tagCount == 1) {
+    if (tiCount == 1) {
+      return icState(velocity, density, pressure, turbIntensity, eddyViscRatio, tag);
+    } else {
+      return icState(velocity, density, pressure, tag);
+    }
+  } else {
+    if (tiCount == 1) {
+      return icState(velocity, density, pressure, turbIntensity, eddyViscRatio);
+    } else {
+      return icState(velocity, density, pressure);
+    }
+  }
+}
+
+// function to read initial condition state from string
+vector<icState> ReadICList(ifstream &inFile, string &str) {
+  vector<icState> icList;
+  auto openList = false;
+  do {
+    auto start = openList ? 0 : str.find("<");
+    auto listOpened = str.find("<") == string::npos ? false : true;
+    auto end = str.find(">");
+    openList = (end == string::npos) ? true : false;
+
+    // test for state on current line
+    // if < or > is alone on a line, should not look for icState
+    auto statePos = str.find("icState");
+    if (statePos != string::npos) {  // there is a state in current line
+      string list;
+      if (listOpened && openList) {  // list opened on current line, remains open
+        list = str.substr(start + 1, end);
+      } else if (listOpened && !openList) {  // list opened/closed on current line
+        list = str.substr(start + 1, end - 1);  // +/- 1 to ignore <>
+      } else if (!listOpened && openList) {  // list was open and remains open
+        list = str.substr(start, end);
+      } else {  // list was open and is now closed
+        list = str.substr(start, end - 1);
+      }
+
+      auto ic = ReadICState(list);
+      icList.push_back(ic);
+
+      auto nextState = list.find("icState");
+      while (nextState != string::npos) {  // there are more states to read
+        list.erase(0, nextState);  // remove commas separating states
+        ic = ReadICState(list);
+        icList.push_back(ic);
+        nextState = list.find("icState");
+      }
+    }
+
+    if (openList) {
+      getline(inFile, str);
+      str = Trim(str);
+    }
+  } while (openList);
+
+  return icList;
 }
 
 // function to print the time
@@ -462,6 +610,20 @@ void input::ReadInput(const int &rank) {
               cout << vars << " ";
             }
             cout << endl;
+          }
+
+        } else if (key == "initialConditions") {
+          ics_ = ReadICList(inFile, tokens[1]);
+          if (rank == ROOTP) {
+            cout << key << ": <";
+            for (auto ii = 0U; ii < ics_.size(); ++ii) {
+              cout << ics_[ii];
+              if (ii == ics_.size() - 1) {
+                cout << ">" << endl;
+              } else {
+                cout << "," << endl << "                    ";
+              }
+            }
           }
 
           // reading BCs

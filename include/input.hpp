@@ -22,14 +22,17 @@
 #include <string>                   // string
 #include <set>                      // set
 #include <memory>                   // unique_ptr
+#include <fstream>                  // ifstream
 #include "vector3d.hpp"
 #include "boundaryConditions.hpp"
+#include "inputStates.hpp"
 #include "macros.hpp"
 
 using std::vector;
 using std::string;
 using std::set;
 using std::unique_ptr;
+using std::ifstream;
 
 // forward class declaration
 class turbModel;
@@ -79,6 +82,8 @@ class input {
   double farfieldEddyViscRatio_;  // eddy viscosity ratio at farfield
 
   set<string> outputVariables_;  // variables to output
+
+  vector<icState> ics_;  // initial conditions
 
  public:
   // constructor
@@ -199,6 +204,9 @@ class input {
 void PrintTime();
 vector<string> Tokenize(string, const string &, const unsigned int = 0);
 string Trim(const string &, const string & = " \t");
-vector3d<double> ReadVector(string);
+vector3d<double> ReadVector(const string &);
+icState ReadICState(string &);
+vector<icState> ReadICList(ifstream &, string &);
+string RemoveTrailing(const string &, const string &);
 
 #endif
