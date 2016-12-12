@@ -22,7 +22,6 @@
 #include <string>                   // string
 #include <set>                      // set
 #include <memory>                   // unique_ptr
-#include <fstream>                  // ifstream
 #include "vector3d.hpp"
 #include "boundaryConditions.hpp"
 #include "inputStates.hpp"
@@ -32,7 +31,6 @@ using std::vector;
 using std::string;
 using std::set;
 using std::unique_ptr;
-using std::ifstream;
 
 // forward class declaration
 class turbModel;
@@ -84,6 +82,7 @@ class input {
   set<string> outputVariables_;  // variables to output
 
   vector<icState> ics_;  // initial conditions
+  vector<unique_ptr<inputState>> bcStates_;  // information for boundary conditions
 
  public:
   // constructor
@@ -202,12 +201,5 @@ class input {
 
 // function declarations
 void PrintTime();
-vector<string> Tokenize(string, const string &, const unsigned int = 0);
-string Trim(const string &, const string & = " \t");
-vector3d<double> ReadVector(const string &);
-icState ReadICState(string &);
-vector<icState> ReadICList(ifstream &, string &);
-vector<string> ReadStringList(ifstream &, string &);
-string RemoveTrailing(const string &, const string &);
 
 #endif
