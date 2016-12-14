@@ -146,7 +146,7 @@ class procBlock {
 
  public:
   // constructors
-  procBlock(const primVars &, const plot3dBlock &, const int &,
+  procBlock(const double &, const plot3dBlock &, const int &,
             const boundaryConditions &, const int &, const int &, const int &,
             const input &, const idealGas &, const sutherland &);
   procBlock(const int &, const int &, const int &, const int &, const bool &,

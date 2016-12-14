@@ -34,6 +34,7 @@ using std::unique_ptr;
 
 // forward class declaration
 class turbModel;
+class idealGas;
 
 class input {
   string simName_;  // simulation name
@@ -47,9 +48,9 @@ class input {
   double pRef_;  // reference pressure
   double rRef_;  // reference density
   double lRef_;  // reference length
+  vector3d<double> vRef_;  // reference velocity
   double gamma_;  // ratio of specific heats
   double gasConst_;  // gas constant of fluid
-  vector3d<double> velRef_;  // reference velocity
   vector<boundaryConditions> bc_;  // vector of boundary conditions for each
                                   // block
   string timeIntegration_;  // time integration method
@@ -72,12 +73,8 @@ class input {
   string invFluxJac_;  // inviscid flux jacobian
   double dualTimeCFL_;  // cfl_ number for dual time
   string inviscidFlux_;  // scheme for inviscid flux calculation
-  double stagInletProps_[6];  // vector of stagnation inlet properties
-  double pressureOutlet_[2];  // vector of pressure outlet properties
   string decompMethod_;  // method of decomposition for parallel problems
   string turbModel_;  // turbulence model
-  double farfieldTurbInten_;  // turbulence intensity at farfield
-  double farfieldEddyViscRatio_;  // eddy viscosity ratio at farfield
 
   set<string> outputVariables_;  // variables to output
 
@@ -109,11 +106,11 @@ class input {
   double RRef() const {return rRef_;}
   double LRef() const {return lRef_;}
   double TRef() const {return tRef_;}
+  vector3d<double> VelRef() const {return vRef_;}
+  double ARef(const idealGas &) const;
 
   double Gamma() const {return gamma_;}
   double R() const {return gasConst_;}
-
-  vector3d<double> VelRef() const {return velRef_;}
 
   boundaryConditions BC(const int &ind) const {return bc_[ind];}
   vector<boundaryConditions> AllBC() const {return bc_;}
@@ -153,17 +150,6 @@ class input {
 
   string InviscidFlux() const {return inviscidFlux_;}
 
-  int StagInletTag() const {return static_cast<int> (stagInletProps_[0]);}
-  double StagInletP0() const {return stagInletProps_[1];}
-  double StagInletT0() const {return stagInletProps_[2];}
-  double StagInletDx() const {return stagInletProps_[3];}
-  double StagInletDy() const {return stagInletProps_[4];}
-  double StagInletDz() const {return stagInletProps_[5];}
-
-  int PressureOutletTag() const {
-    return static_cast<int> (pressureOutlet_[0]);}
-  double PressureOutletP() const {return pressureOutlet_[1];}
-
   string DecompMethod() const {return decompMethod_;}
   string TurbulenceModel() const {return turbModel_;}
 
@@ -182,9 +168,6 @@ class input {
 
   string OrderOfAccuracy() const;
 
-  double FarfieldTurbIntensity() const {return farfieldTurbInten_;}
-  double FarfieldEddyViscRatio() const {return farfieldEddyViscRatio_;}
-
   unique_ptr<turbModel> AssignTurbulenceModel() const;
 
   void CheckNonlinearIterations();
@@ -194,6 +177,9 @@ class input {
   double ViscousCFLCoefficient() const;
 
   int NumberGhostLayers() const;
+
+  icState ICStateForBlock(const int &) const;
+  const unique_ptr<inputState> & BCData(const int &) const;
 
   // destructor
   ~input() noexcept {}

@@ -31,8 +31,12 @@ ostream &operator<<(ostream &os, const inputState &state) {
 void icState::Print(ostream &os) const {
   os << "icState(tag=" << this->Tag() << "; pressure=" << this->Pressure()
      << "; density=" << this->Density() << "; velocity=[" << this->Velocity()
-     << "]; turbulenceIntensity=" << this->TurbulenceIntensity()
-     << "; eddyViscosityRatio=" << this->EddyViscosityRatio() << ")";
+     << "]";
+  if (this->SpecifiedTurbulence()) {
+    os << "; turbulenceIntensity=" << this->TurbulenceIntensity()
+       << "; eddyViscosityRatio=" << this->EddyViscosityRatio();
+  }
+  os << ")";
 }
 
 ostream &operator<<(ostream &os, const icState &state) {
@@ -43,8 +47,12 @@ ostream &operator<<(ostream &os, const icState &state) {
 void characteristic::Print(ostream &os) const {
   os << "characteristic(tag=" << this->Tag() << "; pressure=" << this->Pressure()
      << "; density=" << this->Density() << "; velocity=[" << this->Velocity()
-     << "]; turbulenceIntensity=" << this->TurbulenceIntensity()
-     << "; eddyViscosityRatio=" << this->EddyViscosityRatio() << ")";
+     << "]";
+  if (this->SpecifiedTurbulence()) {
+    os << "; turbulenceIntensity=" << this->TurbulenceIntensity()
+       << "; eddyViscosityRatio=" << this->EddyViscosityRatio();
+  }
+  os << ")";
 }
 ostream &operator<<(ostream &os, const characteristic &bc) {
   bc.Print(os);
@@ -54,9 +62,12 @@ ostream &operator<<(ostream &os, const characteristic &bc) {
 void stagnationInlet::Print(ostream &os) const {
   os << "stagnationInlet(tag=" << this->Tag() << "; p0="
      << this->StagnationPressure() << "; t0=" << this->StagnationTemperature()
-     << "; direction=[" << this->Direction() << "]; turbulenceIntensity="
-     << this->TurbulenceIntensity() << "; eddyViscosityRatio="
-     << this->EddyViscosityRatio() << ")";
+     << "; direction=[" << this->Direction() << "]";
+  if (this->SpecifiedTurbulence()) {
+    os << "; turbulenceIntensity=" << this->TurbulenceIntensity()
+       << "; eddyViscosityRatio=" << this->EddyViscosityRatio();
+  }
+  os << ")";
 }
 
 ostream &operator<<(ostream &os, const stagnationInlet &bc) {
@@ -77,9 +88,12 @@ ostream &operator<<(ostream &os, const pressureOutlet &bc) {
 void supersonicInflow::Print(ostream &os) const {
   os << "supersonicInflow(tag=" << this->Tag() << "; pressure="
      << this->Pressure() << "; density=" << this->Density() << "; velocity=["
-     << this->Velocity() << "]; turbulenceIntensity="
-     << this->TurbulenceIntensity() << "; eddyViscosityRatio="
-     << this->EddyViscosityRatio() << ")";
+     << this->Velocity() << "]";
+  if (this->SpecifiedTurbulence()) {
+    os << "; turbulenceIntensity=" << this->TurbulenceIntensity()
+       << "; eddyViscosityRatio=" << this->EddyViscosityRatio();
+  }
+  os << ")";
 }
 
 ostream &operator<<(ostream &os, const supersonicInflow &bc) {
@@ -99,9 +113,12 @@ ostream &operator<<(ostream &os, const subsonicOutflow &bc) {
 
 void subsonicInflow::Print(ostream &os) const {
   os << "subsonicInflow(tag=" << this->Tag() << "; density=" << this->Density()
-     << "; velocity=[" << this->Velocity() << "]; turbulenceIntensity="
-     << this->TurbulenceIntensity() << "; eddyViscosityRatio="
-     << this->EddyViscosityRatio() << ")";
+     << "; velocity=[" << this->Velocity() << "]";
+  if (this->SpecifiedTurbulence()) {
+    os << "; turbulenceIntensity=" << this->TurbulenceIntensity()
+       << "; eddyViscosityRatio=" << this->EddyViscosityRatio();
+  }
+  os << ")";
 }
 
 ostream &operator<<(ostream &os, const subsonicInflow &bc) {
@@ -114,6 +131,8 @@ void viscousWall::Print(ostream &os) const {
      << "]";
   if (this->IsIsothermal()) {
     os << "; temperature=" << this->Temperature();
+  } else if (specifiedHeatFlux_) {
+    os << "; heatFlux=" << this->HeatFlux();
   }
   os << ")";
 }
@@ -217,10 +236,6 @@ icState::icState(string &str, const string name) {
   auto tiCount = 0;
   auto evrCount = 0;
 
-  // set default values for optional parameters
-  turbIntensity_ = 0.0;
-  eddyViscRatio_ = 0.0;
-
   for (auto &token : tokens) {
     auto param = Tokenize(token, "=");
     if (param.size() != 2) {
@@ -238,6 +253,7 @@ icState::icState(string &str, const string name) {
       velocity_ = ReadVector(RemoveTrailing(param[1], ","));
       velocityCount++;
     } else if (param[0] == "turbulenceIntensity") {
+      this->SetSpecifiedTurbulence();
       turbIntensity_ = stod(RemoveTrailing(param[1], ","));
       tiCount++;
     } else if (param[0] == "eddyViscosityRatio") {
@@ -299,10 +315,6 @@ stagnationInlet::stagnationInlet(string &str) {
   auto tiCount = 0;
   auto evrCount = 0;
 
-  // set default values for optional parameters
-  turbIntensity_ = 0.0;
-  eddyViscRatio_ = 0.0;
-
   for (auto &token : tokens) {
     auto param = Tokenize(token, "=");
     if (param.size() != 2) {
@@ -320,6 +332,7 @@ stagnationInlet::stagnationInlet(string &str) {
       direction_ = ReadVector(RemoveTrailing(param[1], ","));
       directionCount++;
     } else if (param[0] == "turbulenceIntensity") {
+      this->SetSpecifiedTurbulence();
       turbIntensity_ = stod(RemoveTrailing(param[1], ","));
       tiCount++;
     } else if (param[0] == "eddyViscosityRatio") {
@@ -424,10 +437,6 @@ subsonicInflow::subsonicInflow(string &str) {
   auto tiCount = 0;
   auto evrCount = 0;
 
-  // set default values for optional parameters
-  turbIntensity_ = 0.0;
-  eddyViscRatio_ = 0.0;
-
   for (auto &token : tokens) {
     auto param = Tokenize(token, "=");
     if (param.size() != 2) {
@@ -442,6 +451,7 @@ subsonicInflow::subsonicInflow(string &str) {
       velocity_ = ReadVector(RemoveTrailing(param[1], ","));
       velocityCount++;
     } else if (param[0] == "turbulenceIntensity") {
+      this->SetSpecifiedTurbulence();
       turbIntensity_ = stod(RemoveTrailing(param[1], ","));
       tiCount++;
     } else if (param[0] == "eddyViscosityRatio") {
@@ -494,10 +504,7 @@ viscousWall::viscousWall(string &str) {
   auto tagCount = 0;
   auto velocityCount = 0;
   auto temperatureCount = 0;
-
-  // set default values for optional parameters
-  velocity_ = {0.0, 0.0, 0.0};
-  temperature_ = 0.0;
+  auto heatFluxCount = 0;
 
   for (auto &token : tokens) {
     auto param = Tokenize(token, "=");
@@ -510,8 +517,13 @@ viscousWall::viscousWall(string &str) {
       velocity_ = ReadVector(RemoveTrailing(param[1], ","));
       velocityCount++;
     } else if (param[0] == "temperature") {
-      temperature_ = stoi(RemoveTrailing(param[1], ","));
+      specifiedTemperature_ = true;
+      temperature_ = stod(RemoveTrailing(param[1], ","));
       temperatureCount++;
+    } else if (param[0] == "heatFlux") {
+      specifiedHeatFlux_ = true;
+      heatFlux_ = stod(RemoveTrailing(param[1], ","));
+      heatFluxCount++;
     } else if (param[0] == "tag") {
       this->SetTag(stoi(RemoveTrailing(param[1], ",")));
       tagCount++;
@@ -530,9 +542,14 @@ viscousWall::viscousWall(string &str) {
     exit(EXIT_FAILURE);
   }
   // optional variables
-  if (velocityCount > 1 || temperatureCount > 1) {
-    cerr << "ERROR. For viscousWall, velocity and temperature can only be "
-         << "specified once." << endl;
+  if (velocityCount > 1 || temperatureCount > 1 || heatFluxCount > 1) {
+    cerr << "ERROR. For viscousWall, velocity, heatFlux, and temperature can "
+         << "only be specified once." << endl;
+    exit(EXIT_FAILURE);
+  }
+  if (specifiedHeatFlux_ && specifiedTemperature_) {
+    cerr << "ERROR. For viscousWall can only specify temperature OR heatFlux."
+         << endl;
     exit(EXIT_FAILURE);
   }
 }

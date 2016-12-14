@@ -34,6 +34,7 @@ using std::vector;
 using std::ifstream;
 using std::unique_ptr;
 
+// this is an abstract base class
 class inputState {
   int tag_;
 
@@ -51,9 +52,23 @@ class inputState {
   inputState& operator=(const inputState&) = default;
 
   // member functions
-  const int & Tag() const {return tag_;}
+  const int Tag() const {return tag_;}
   void SetTag(const int &t) {tag_ = t;}
+
   virtual void Print(ostream &os) const = 0;  // abstract base class
+  virtual const vector3d<double> Velocity() const {return {0, 0, 0};}
+  virtual const double Density() const {return 0;}
+  virtual const double Pressure() const {return 0;}
+  virtual const double TurbulenceIntensity() const {return 0;}
+  virtual const double EddyViscosityRatio() const {return 0;}
+  virtual const vector3d<double> Direction() const {return {0, 0, 0};}
+  virtual const double StagnationPressure() const {return 0;}
+  virtual const double StagnationTemperature() const {return 0;}
+  virtual const double Temperature() const {return 0;}
+  virtual const double HeatFlux() const {return 0;}
+  virtual bool IsIsothermal() const {return false;}
+  virtual bool IsAdiabatic() const {return false;}
+  virtual bool IsConstantHeatFlux() const {return false;}
 
   // destructor
   virtual ~inputState() noexcept {}
@@ -64,11 +79,13 @@ class icState : public inputState {
   vector3d<double> velocity_;
   double density_;
   double pressure_;
-  double turbIntensity_;
-  double eddyViscRatio_;
+  double turbIntensity_ = 0.01;       // default values
+  double eddyViscRatio_ = 10.0;
+  bool specifiedTurbulence_ = false;
 
  public:
   // constructor
+  icState() : velocity_{0.0, 0.0, 0.0}, density_(0.0), pressure_(0.0) {}
   explicit icState(string &str, const string name = "icState");
 
   // move constructor and assignment operator
@@ -80,11 +97,13 @@ class icState : public inputState {
   icState& operator=(const icState&) = default;
 
   // Member functions
-  const vector3d<double> & Velocity() const {return velocity_;}
-  const double & Density() const {return density_;}
-  const double & Pressure() const {return pressure_;}
-  const double & TurbulenceIntensity() const {return turbIntensity_;}
-  const double & EddyViscosityRatio() const {return eddyViscRatio_;}
+  const vector3d<double> Velocity() const override {return velocity_;}
+  const double Density() const override {return density_;}
+  const double Pressure() const override {return pressure_;}
+  const double TurbulenceIntensity() const override {return turbIntensity_;}
+  const double EddyViscosityRatio() const override {return eddyViscRatio_;}
+  const bool SpecifiedTurbulence() const {return specifiedTurbulence_;}
+  void SetSpecifiedTurbulence() {specifiedTurbulence_ = true;}
   void Print(ostream &os) const override;
 
   // Destructor
@@ -119,6 +138,7 @@ class stagnationInlet : public inputState {
   double t0_;
   double turbIntensity_;
   double eddyViscRatio_;
+  bool specifiedTurbulence_;
 
  public:
   // constructor
@@ -133,11 +153,13 @@ class stagnationInlet : public inputState {
   stagnationInlet& operator=(const stagnationInlet&) = default;
 
   // Member functions
-  const vector3d<double> & Direction() const {return direction_;}
-  const double & StagnationPressure() const {return p0_;}
-  const double & StagnationTemperature() const {return t0_;}
-  const double & TurbulenceIntensity() const {return turbIntensity_;}
-  const double & EddyViscosityRatio() const {return eddyViscRatio_;}
+  const vector3d<double> Direction() const override {return direction_;}
+  const double StagnationPressure() const override {return p0_;}
+  const double StagnationTemperature() const override {return t0_;}
+  const double TurbulenceIntensity() const override {return turbIntensity_;}
+  const double EddyViscosityRatio() const override {return eddyViscRatio_;}
+  const bool SpecifiedTurbulence() const {return specifiedTurbulence_;}
+  void SetSpecifiedTurbulence() {specifiedTurbulence_ = true;}
   void Print(ostream &os) const override;
 
   // Destructor
@@ -161,7 +183,7 @@ class pressureOutlet : public inputState {
   pressureOutlet& operator=(const pressureOutlet&) = default;
 
   // Member functions
-  const double & Pressure() const {return pressure_;}
+  const double Pressure() const override {return pressure_;}
   void Print(ostream &os) const override;
 
   // Destructor
@@ -219,6 +241,7 @@ class subsonicInflow : public inputState {
   double density_;
   double turbIntensity_;
   double eddyViscRatio_;
+  bool specifiedTurbulence_;
 
  public:
   // constructor
@@ -233,10 +256,12 @@ class subsonicInflow : public inputState {
   subsonicInflow& operator=(const subsonicInflow&) = default;
 
   // Member functions
-  const vector3d<double> & Velocity() const {return velocity_;}
-  const double & Density() const {return density_;}
-  const double & TurbulenceIntensity() const {return turbIntensity_;}
-  const double & EddyViscosityRatio() const {return eddyViscRatio_;}
+  const vector3d<double> Velocity() const override {return velocity_;}
+  const double Density() const override {return density_;}
+  const double TurbulenceIntensity() const override {return turbIntensity_;}
+  const double EddyViscosityRatio() const override {return eddyViscRatio_;}
+  const bool SpecifiedTurbulence() const {return specifiedTurbulence_;}
+  void SetSpecifiedTurbulence() {specifiedTurbulence_ = true;}
   void Print(ostream &os) const override;
 
   // Destructor
@@ -245,8 +270,12 @@ class subsonicInflow : public inputState {
 
 
 class viscousWall : public inputState {
-  vector3d<double> velocity_;
-  double temperature_;
+  // default conditions for stationary adiabatic wall
+  vector3d<double> velocity_ = {0.0, 0.0, 0.0};
+  double temperature_ = 0.0;
+  double heatFlux_ = 0.0;
+  bool specifiedTemperature_ = false;
+  bool specifiedHeatFlux_ = false;
 
  public:
   // constructor
@@ -261,9 +290,18 @@ class viscousWall : public inputState {
   viscousWall& operator=(const viscousWall&) = default;
 
   // Member functions
-  const vector3d<double> & Velocity() const {return velocity_;}
-  const double & Temperature() const {return temperature_;}
-  bool IsIsothermal() const {return (temperature_ == 0.0) ? true : false;}
+  const vector3d<double> Velocity() const override {return velocity_;}
+  const double Temperature() const override {return temperature_;}
+  const double HeatFlux() const override {return heatFlux_;}
+  bool IsIsothermal() const override {
+    return specifiedTemperature_ ? true : false;
+  }
+  bool IsAdiabatic() const override {
+    return (!specifiedTemperature_ && heatFlux_ == 0.0) ? true : false;
+  }
+  bool IsConstantHeatFlux() const override {
+    return (specifiedHeatFlux_ && heatFlux_ != 0.0) ? true : false;
+  }
   void Print(ostream &os) const override;
 
   // Destructor

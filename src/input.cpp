@@ -28,6 +28,7 @@
 #include "input.hpp"
 #include "turbulence.hpp"
 #include "inputStates.hpp"
+#include "eos.hpp"
 #include "macros.hpp"
 
 using std::cout;
@@ -51,9 +52,9 @@ input::input(const string &name) : simName_(name) {
   pRef_ = -1.0;
   rRef_ = -1.0;
   lRef_ = 1.0;
+  vRef_ = {1.0, 0.0, 0.0};
   gamma_ = 1.4;
   gasConst_ = 287.058;
-  velRef_ = {1.0, 0.0, 0.0};
   bc_ = vector<boundaryConditions>(1);
   timeIntegration_ = "explicitEuler";
   cfl_ = -1.0;
@@ -78,18 +79,8 @@ input::input(const string &name) : simName_(name) {
   dualTimeCFL_ = -1.0;  // default value of -1; negative value means dual time
                        // stepping is not used
   inviscidFlux_ = "roe";  // default value is roe flux
-  stagInletProps_[0] = 0.0;
-  stagInletProps_[1] = 0.0;
-  stagInletProps_[2] = 0.0;
-  stagInletProps_[3] = 0.0;
-  stagInletProps_[4] = 0.0;
-  stagInletProps_[5] = 0.0;
-  pressureOutlet_[0] = 0.0;
-  pressureOutlet_[1] = 0.0;
   decompMethod_ = "cubic";  // default is cubic decomposition
   turbModel_ = "none";  // default turbulence model is none
-  farfieldTurbInten_ = 0.01;
-  farfieldEddyViscRatio_ = 10.0;
 
   // default to primative variables
   outputVariables_ = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
@@ -102,6 +93,7 @@ input::input(const string &name) : simName_(name) {
            "pressureRef",
            "densityRef",
            "lengthRef",
+           "velocityRef",
            "gamma",
            "gasConstant",
            "velocity",
@@ -121,12 +113,8 @@ input::input(const string &name) : simName_(name) {
            "inviscidFluxJacobian",
            "dualTimeCFL",
            "inviscidFlux",
-           "stagnationInlet",
-           "pressureOutlet",
            "decompositionMethod",
            "turbulenceModel",
-           "farfieldTurbulenceIntensity",
-           "farfieldEddyViscosityRatio",
            "outputVariables",
            "initialConditions",
            "boundaryStates",
@@ -219,6 +207,11 @@ void input::ReadInput(const int &rank) {
           if (rank == ROOTP) {
             cout << key << ": " << this->LRef() << endl;
           }
+        } else if (key == "velocityRef") {
+          vRef_ = ReadVector(tokens[1]);
+          if (rank == ROOTP) {
+            cout << key << ": " << this->LRef() << endl;
+          }
         } else if (key == "gamma") {
           gamma_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
@@ -228,11 +221,6 @@ void input::ReadInput(const int &rank) {
           gasConst_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
             cout << key << ": " << this->R() << endl;
-          }
-        } else if (key == "velocity") {
-          velRef_ = ReadVector(tokens[1]);
-          if (rank == ROOTP) {
-            cout << key << ": " << this->VelRef() << endl;
           }
         } else if (key == "timeIntegration") {
           timeIntegration_ = tokens[1];
@@ -350,26 +338,6 @@ void input::ReadInput(const int &rank) {
           if (rank == ROOTP) {
             cout << key << ": " << this->InviscidFlux() << endl;
           }
-        } else if (key == "stagnationInlet") {
-          stagInletProps_[0] = stoi(tokens[1]);  // tag
-          stagInletProps_[1] = stod(tokens[2]);  // stag pressure
-          stagInletProps_[2] = stod(tokens[3]);  // stag temp
-          stagInletProps_[3] = stod(tokens[4]);  // dir-x
-          stagInletProps_[4] = stod(tokens[5]);  // dir-y
-          stagInletProps_[5] = stod(tokens[6]);  // dir-z
-          if (rank == ROOTP) {
-            cout << key << ": " << this->StagInletTag() << " "
-                 << this->StagInletP0() << " " << this->StagInletT0()
-                 << " " << this->StagInletDx() << " "
-                 << this->StagInletDy() << " " << this->StagInletDz() << endl;
-          }
-        } else if (key == "pressureOutlet") {
-          pressureOutlet_[0] = stoi(tokens[1]);  // tag
-          pressureOutlet_[1] = stod(tokens[2]);  // outlet pressure
-          if (rank == ROOTP) {
-            cout << key << ": " << this->PressureOutletTag()
-                 << " " << this->PressureOutletP() << endl;
-          }
         } else if (key == "decompositionMethod") {
           decompMethod_ = tokens[1];
           if (rank == ROOTP) {
@@ -379,16 +347,6 @@ void input::ReadInput(const int &rank) {
           turbModel_ = tokens[1];
           if (rank == ROOTP) {
             cout << key << ": " << this->TurbulenceModel() << endl;
-          }
-        } else if (key == "farfieldTurbulenceIntensity") {
-          farfieldTurbInten_ = stod(tokens[1]);  // double (stod)
-          if (rank == ROOTP) {
-            cout << key << ": " << this->FarfieldTurbIntensity() << endl;
-          }
-        } else if (key == "farfieldEddyViscosityRatio") {
-          farfieldEddyViscRatio_ = stod(tokens[1]);  // double (stod)
-          if (rank == ROOTP) {
-            cout << key << ": " << this->FarfieldEddyViscRatio() << endl;
           }
         } else if (key == "outputVariables") {
           // clear default variables from set
@@ -700,4 +658,49 @@ int input::NumberGhostLayers() const {
   } else {
     return 2;
   }
+}
+
+// member function to get the initial condition state for a given parent block
+icState input::ICStateForBlock(const int &block) const {
+  icState blockIC;
+  auto foundExactMatch = false;
+  auto foundDefaultMatch = false;
+
+  // exact match trumps default
+  for (auto &ic : ics_) {
+    if (ic.Tag() == -1 && !foundExactMatch) {
+      blockIC = ic;
+      foundDefaultMatch = true;
+    } else if (ic.Tag() == block) {
+      blockIC = ic;
+      foundExactMatch = true;
+    }
+  }
+
+  // sanity check -- must specify default or exact match
+  if (!foundDefaultMatch && !foundExactMatch) {
+    cerr << "ERROR. Did not find default or specified initial condition state "
+         << "for block " << block << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  return blockIC;
+}
+
+// member function to return boundary condition data index for a given tag
+const unique_ptr<inputState> & input::BCData(const int &tag) const {
+  for (auto &bcData : bcStates_) {
+    if (bcData->Tag() == tag) {
+      return bcData;
+    }
+  }
+
+  // if function doesn't return, tag not found
+  cerr << "ERROR. Could not find data for boundary condition tag " << tag << endl;
+  exit(EXIT_FAILURE);
+}
+
+// member function to return reference speed of sound
+double input::ARef(const idealGas &eos) const {
+  return eos.SoS(pRef_, rRef_);
 }
