@@ -32,6 +32,7 @@ set(sources
   fluxJacobian.cpp
   genArray.cpp
   input.cpp
+  inputStates.cpp
   inviscidFlux.cpp
   kdtree.cpp
   matrix.cpp

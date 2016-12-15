@@ -64,20 +64,24 @@ primVars::primVars(const genArray &a, const bool &prim,
 // member function to initialize a state with nondimensional values
 void primVars::NondimensionalInitialize(const idealGas &eos, const double &aRef,
                                         const input &inp,
-                                        const sutherland &suth) {
-  data_[0] = 1.0;
-  data_[4] = 1.0 / eos.Gamma();
+                                        const sutherland &suth,
+                                        const int &parBlock) {
+  // get initial condition state for parent block
+  auto ic = inp.ICStateForBlock(parBlock);
 
-  data_[1] = inp.VelRef().X() / aRef;
-  data_[2] = inp.VelRef().Y() / aRef;
-  data_[3] = inp.VelRef().Z() / aRef;
+  data_[0] = ic.Density() / inp.RRef();
+  data_[4] = ic.Pressure() / (inp.PRef() * eos.Gamma());
+
+  data_[1] = ic.Velocity().X() / aRef;
+  data_[2] = ic.Velocity().Y() / aRef;
+  data_[3] = ic.Velocity().Z() / aRef;
 
   if (inp.IsTurbulent()) {
     // Initialize turbulence quantities based off of specified turublence
     // intensity and eddy viscosity ratio. This is the default for
     // STAR-CCM+
-    this->ApplyFarfieldTurbBC(this->Velocity(), inp.FarfieldTurbIntensity(),
-                                inp.FarfieldEddyViscRatio(), suth, eos);
+    this->ApplyFarfieldTurbBC(this->Velocity(), ic.TurbulenceIntensity(),
+                              ic.EddyViscosityRatio(), suth, eos);
   } else {
     data_[5] = 0.0;
     data_[6] = 0.0;
@@ -284,7 +288,7 @@ subsonicOutflow, supersonicInflow, supersonicOutflow
 primVars primVars::GetGhostState(const string &bcType,
                                  const vector3d<double> &areaVec,
                                  const double &wallDist, const int &surf,
-                                 const input &inputVars,
+                                 const input &inputVars, const int &tag,
                                  const idealGas &eqnState,
                                  const sutherland &suth,
                                  const unique_ptr<turbModel> &turb,
@@ -294,6 +298,7 @@ primVars primVars::GetGhostState(const string &bcType,
   // surf -- surface type [1-6]
   // wallDist -- distance from cell center to nearest wall boundary
   // inputVar -- all input variables
+  // tag -- boundary condition tag
   // eqnState -- equation of state
   // suth -- sutherland model for viscosity
   // turb -- turbulence model
@@ -322,10 +327,7 @@ primVars primVars::GetGhostState(const string &bcType,
 
     // for a slip wall the velocity of the boundary cell center is reflected
     // across the boundary face to get the velocity at the ghost cell center
-    const vector3d<double> ghostVel(
-        stateVel.X() - 2.0 * normArea.X() * normVelCellCenter,
-        stateVel.Y() - 2.0 * normArea.Y() * normVelCellCenter,
-        stateVel.Z() - 2.0 * normArea.Z() * normVelCellCenter);
+    const auto ghostVel = stateVel - 2.0 * normArea * normVelCellCenter;
 
     ghostState.data_[1] = ghostVel.X();
     ghostState.data_[2] = ghostVel.Y();
@@ -341,12 +343,13 @@ primVars primVars::GetGhostState(const string &bcType,
   } else if (bcType == "viscousWall") {  // for viscous wall velocity at face
                                        // should be 0.0, density and pressure
                                        // stay equal to the boundary cell
-    const auto stateVel = this->Velocity();
+    const auto & bcData = inputVars.BCData(tag);
+
+    const auto aRef = inputVars.ARef(eqnState);
 
     // ghost cell velocity at cell center is set to opposite of velocity at
     // boundary cell center so that velocity at face will be zero
-    const vector3d<double> ghostVel(-1.0 * stateVel.X(), -1.0 * stateVel.Y(),
-                                    -1.0 * stateVel.Z());
+    const auto ghostVel = bcData->Velocity() / aRef - this->Velocity();
 
     ghostState.data_[1] = ghostVel.X();
     ghostState.data_[2] = ghostVel.Y();
@@ -380,11 +383,13 @@ primVars primVars::GetGhostState(const string &bcType,
   // better options
   // set velocity and density to freestream values
   } else if (bcType == "subsonicInflow") {
-    const auto sos = eqnState.SoS(inputVars.PRef(), inputVars.RRef());
-    // nondimensionalize velocity
-    const auto ghostVel = inputVars.VelRef() / sos;
+    const auto & bcData = inputVars.BCData(tag);
 
-    ghostState.data_[0] = 1.0;
+    // nondimensionalize velocity
+    const auto aRef = inputVars.ARef(eqnState);
+    const auto ghostVel = bcData->Velocity() / aRef;
+
+    ghostState.data_[0] = bcData->Density() / inputVars.RRef();
     ghostState.data_[1] = ghostVel.X();
     ghostState.data_[2] = ghostVel.Y();
     ghostState.data_[3] = ghostVel.Z();
@@ -394,8 +399,8 @@ primVars primVars::GetGhostState(const string &bcType,
     // assign farfield conditions to turbulence variables
     if (inputVars.IsTurbulent()) {
       ghostState.ApplyFarfieldTurbBC(ghostVel,
-                                     inputVars.FarfieldTurbIntensity(),
-                                     inputVars.FarfieldEddyViscRatio(), suth,
+                                     bcData->TurbulenceIntensity(),
+                                     bcData->EddyViscosityRatio(), suth,
                                      eqnState);
     }
 
@@ -405,8 +410,8 @@ primVars primVars::GetGhostState(const string &bcType,
       // assign farfield conditions to turbulence variables
       if (inputVars.IsTurbulent()) {
         ghostState.ApplyFarfieldTurbBC(ghostVel,
-                                       inputVars.FarfieldTurbIntensity(),
-                                       inputVars.FarfieldEddyViscRatio(), suth,
+                                       bcData->TurbulenceIntensity(),
+                                       bcData->EddyViscosityRatio(), suth,
                                        eqnState);
       }
     }
@@ -418,7 +423,9 @@ primVars primVars::GetGhostState(const string &bcType,
   // this is a primative implementation, pressureOutlet or characteristic are
   // better options
   } else if (bcType == "subsonicOutflow") {  // set pressure to freestream value
-    ghostState.data_[4] = 1.0 / eqnState.Gamma();
+    const auto & bcData = inputVars.BCData(tag);
+    ghostState.data_[4] = bcData->Pressure() /
+        (inputVars.PRef() * eqnState.Gamma());
 
     // numerical bcs for density, velocity -- equal to boundary cell
     // numerical bcs for turbulence variables
@@ -435,10 +442,13 @@ primVars primVars::GetGhostState(const string &bcType,
   // characteristics that need to be specified at the boundary (subsonic vs
   // supersonic)
   } else if (bcType == "characteristic") {
+    const auto & bcData = inputVars.BCData(tag);
     // freestream variables
-    const auto freeSoS = eqnState.SoS(inputVars.PRef(), inputVars.RRef());
-    const auto freeVel = inputVars.VelRef() / freeSoS;
-    const primVars freeState(1.0, 1.0 / eqnState.Gamma(), freeVel);
+    const auto freeSoS = inputVars.ARef(eqnState);
+    const auto freeVel = bcData->Velocity() / freeSoS;
+    const primVars freeState(bcData->Density() / inputVars.RRef(),
+                             bcData->Pressure() / (inputVars.PRef() * eqnState.Gamma()),
+                             freeVel);
 
     // internal variables
     const auto velIntNorm = this->Velocity().DotProd(normArea);
@@ -454,8 +464,8 @@ primVars primVars::GetGhostState(const string &bcType,
       // assign farfield conditions to turbulence variables
       if (inputVars.IsTurbulent()) {
         ghostState.ApplyFarfieldTurbBC(freeVel,
-                                       inputVars.FarfieldTurbIntensity(),
-                                       inputVars.FarfieldEddyViscRatio(), suth,
+                                       bcData->TurbulenceIntensity(),
+                                       bcData->EddyViscosityRatio(), suth,
                                        eqnState);
       }
 
@@ -473,10 +483,10 @@ primVars primVars::GetGhostState(const string &bcType,
 
       // plus characteristic
       ghostState.data_[4] = 0.5 * (freeState.P() + this->P() -
-                 rhoSoSInt * normArea.DotProd(velDiff));
+                                   rhoSoSInt * normArea.DotProd(velDiff));
       // minus characteristic
       ghostState.data_[0] = freeState.Rho() + (ghostState.P() - freeState.P()) /
-                                                  (SoSInt * SoSInt);
+          (SoSInt * SoSInt);
       ghostState.data_[1] = freeState.U() -
           normArea.X() * (freeState.P() - ghostState.P()) / rhoSoSInt;
       ghostState.data_[2] = freeState.V() -
@@ -487,8 +497,8 @@ primVars primVars::GetGhostState(const string &bcType,
       // assign farfield conditions to turbulence variables
       if (inputVars.IsTurbulent()) {
         ghostState.ApplyFarfieldTurbBC(freeVel,
-                                       inputVars.FarfieldTurbIntensity(),
-                                       inputVars.FarfieldEddyViscRatio(), suth,
+                                       bcData->TurbulenceIntensity(),
+                                       bcData->EddyViscosityRatio(), suth,
                                        eqnState);
       }
 
@@ -502,14 +512,11 @@ primVars primVars::GetGhostState(const string &bcType,
       ghostState.data_[0] =
           this->Rho() + (ghostState.P() - this->P()) / (SoSInt * SoSInt);
       ghostState.data_[1] = this->U() + normArea.X() *
-                                              (this->P() - ghostState.P()) /
-                                              rhoSoSInt;
+          (this->P() - ghostState.P()) / rhoSoSInt;
       ghostState.data_[2] = this->V() + normArea.Y() *
-                                              (this->P() - ghostState.P()) /
-                                              rhoSoSInt;
+          (this->P() - ghostState.P()) / rhoSoSInt;
       ghostState.data_[3] = this->W() + normArea.Z() *
-                                              (this->P() - ghostState.P()) /
-                                              rhoSoSInt;
+          (this->P() - ghostState.P()) / rhoSoSInt;
 
       // numerical bcs for turbulence variables
 
@@ -527,8 +534,8 @@ primVars primVars::GetGhostState(const string &bcType,
       // assign farfield conditions to turbulence variables
       if (inputVars.IsTurbulent()) {
         ghostState.ApplyFarfieldTurbBC(freeVel,
-                                       inputVars.FarfieldTurbIntensity(),
-                                       inputVars.FarfieldEddyViscRatio(), suth,
+                                       bcData->TurbulenceIntensity(),
+                                       bcData->EddyViscosityRatio(), suth,
                                        eqnState);
       }
     }
@@ -538,22 +545,24 @@ primVars primVars::GetGhostState(const string &bcType,
   // this boundary condition enforces the entire state as the specified
   // freestream state
   } else if (bcType == "supersonicInflow") {
+    const auto & bcData = inputVars.BCData(tag);
     // physical boundary conditions - fix everything
-    const auto sos = eqnState.SoS(inputVars.PRef(), inputVars.RRef());
+    const auto aRef = inputVars.ARef(eqnState);
     // nondimensional velocity
-    const auto vel = inputVars.VelRef() / sos;
+    const auto vel = bcData->Velocity() / aRef;
 
-    ghostState.data_[0] = 1.0;  // nondimensional density
+    ghostState.data_[0] = bcData->Density() / inputVars.RRef();
     ghostState.data_[1] = vel.X();
     ghostState.data_[2] = vel.Y();
     ghostState.data_[3] = vel.Z();
-    ghostState.data_[4] = 1.0 / eqnState.Gamma();  // nondimensional pressure
+    ghostState.data_[4] = bcData->Pressure() /
+        (inputVars.PRef() * eqnState.Gamma());
 
     // assign farfield conditions to turbulence variables
     if (inputVars.IsTurbulent()) {
       ghostState.ApplyFarfieldTurbBC(vel,
-                                     inputVars.FarfieldTurbIntensity(),
-                                     inputVars.FarfieldEddyViscRatio(), suth,
+                                     bcData->TurbulenceIntensity(),
+                                     bcData->EddyViscosityRatio(), suth,
                                      eqnState);
     }
 
@@ -572,6 +581,8 @@ primVars primVars::GetGhostState(const string &bcType,
   // this boundary condition is appropriate for subsonic flow. It is
   // particularly well suited for internal flows. Implementation from Blazek
   } else if (bcType == "stagnationInlet") {
+    const auto & bcData = inputVars.BCData(tag);
+
     const auto g = eqnState.Gamma() - 1.0;
     // calculate outgoing riemann invarient
     const auto rNeg = this->Velocity().DotProd(normArea) -
@@ -586,25 +597,25 @@ primVars primVars::GetGhostState(const string &bcType,
     const auto sosB = -1.0 * rNeg * g / (g * cosTheta * cosTheta + 2.0) *
         (1.0 + cosTheta * sqrt((g * cosTheta * cosTheta + 2.0) *
                                stagSoSsq / (g * rNeg * rNeg) - 0.5 * g));
-    const auto tb = inputVars.StagInletT0() /
+    const auto tb = bcData->StagnationTemperature() /
         inputVars.TRef() * (sosB * sosB / stagSoSsq);
     const auto aRef = eqnState.SoS(inputVars.PRef(), inputVars.RRef());
-    const auto pb = inputVars.StagInletP0() / (inputVars.RRef() * aRef * aRef) *
-        pow(sosB * sosB / stagSoSsq, eqnState.Gamma() / g);
-    const auto vbMag = sqrt(2.0 / g * (inputVars.StagInletT0() /
+    const auto pb = bcData->StagnationPressure() / (inputVars.RRef() * aRef * aRef)
+        * pow(sosB * sosB / stagSoSsq, eqnState.Gamma() / g);
+    const auto vbMag = sqrt(2.0 / g * (bcData->StagnationTemperature() /
                                        inputVars.TRef() - tb));
 
     ghostState.data_[0] = eqnState.DensityTP(tb, pb);
-    ghostState.data_[1] = vbMag * inputVars.StagInletDx();
-    ghostState.data_[2] = vbMag * inputVars.StagInletDy();
-    ghostState.data_[3] = vbMag * inputVars.StagInletDz();
+    ghostState.data_[1] = vbMag * bcData->Direction().X();
+    ghostState.data_[2] = vbMag * bcData->Direction().Y();
+    ghostState.data_[3] = vbMag * bcData->Direction().Z();
     ghostState.data_[4] = pb;
 
     // assign farfield conditions to turbulence variables
     if (inputVars.IsTurbulent()) {
-      ghostState.ApplyFarfieldTurbBC(inputVars.VelRef() / aRef,
-                                     inputVars.FarfieldTurbIntensity(),
-                                     inputVars.FarfieldEddyViscRatio(), suth,
+      ghostState.ApplyFarfieldTurbBC(ghostState.Velocity(),
+                                     bcData->TurbulenceIntensity(),
+                                     bcData->EddyViscosityRatio(), suth,
                                      eqnState);
     }
 
@@ -613,9 +624,9 @@ primVars primVars::GetGhostState(const string &bcType,
 
       // assign farfield conditions to turbulence variables
       if (inputVars.IsTurbulent()) {
-        ghostState.ApplyFarfieldTurbBC(inputVars.VelRef() / aRef,
-                                       inputVars.FarfieldTurbIntensity(),
-                                       inputVars.FarfieldEddyViscRatio(), suth,
+        ghostState.ApplyFarfieldTurbBC(ghostState.Velocity(),
+                                       bcData->TurbulenceIntensity(),
+                                       bcData->EddyViscosityRatio(), suth,
                                        eqnState);
       }
     }
@@ -625,11 +636,12 @@ primVars primVars::GetGhostState(const string &bcType,
   // this boundary condition is appropriate for subsonic flow. Implementation
   // from Blazek
   } else if (bcType == "pressureOutlet") {
+    const auto & bcData = inputVars.BCData(tag);
+
     // reference speed of sound
-    const auto aRef = eqnState.SoS(inputVars.PRef(), inputVars.RRef());
+    const auto aRef = inputVars.ARef(eqnState);
     // nondimensional pressure from input file
-    const auto pb = inputVars.PressureOutletP() /
-                (inputVars.RRef() * aRef * aRef);
+    const auto pb = bcData->Pressure() / (inputVars.RRef() * aRef * aRef);
 
     const auto SoSInt = this->SoS(eqnState);
     const auto rhoSoSInt = this->Rho() * SoSInt;
@@ -720,13 +732,14 @@ multiArray3d<primVars> GetGhostStates(
     const multiArray3d<primVars> &bndStates, const string &bcName,
     const multiArray3d<unitVec3dMag<double>> &faceAreas,
     const multiArray3d<double> &wDist, const int &surf,
-    const input &inp, const idealGas &eos, const sutherland &suth,
+    const input &inp, const int &tag, const idealGas &eos, const sutherland &suth,
     const unique_ptr<turbModel> &turb, const int layer) {
   // bndStates -- states at cells adjacent to boundary
   // bcName -- boundary condition type
   // faceAreas -- face areas of boundary
   // surf -- boundary surface type [1-6]
   // inp -- input variables
+  // tag -- boundary condition tag
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
   // turb -- turbulence model
@@ -743,7 +756,8 @@ multiArray3d<primVars> GetGhostStates(
         ghostStates(ii, jj, kk) =
             bndStates(ii, jj, kk).
             GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),
-                          wDist(ii, jj, kk), surf, inp, eos, suth, turb, layer);
+                          wDist(ii, jj, kk), surf, inp, tag, eos, suth, turb,
+                          layer);
       }
     }
   }

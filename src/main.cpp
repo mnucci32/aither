@@ -101,11 +101,8 @@ int main(int argc, char *argv[]) {
   const sutherland suth(inputVars.TRef(), inputVars.RRef(), inputVars.LRef(),
                         inputVars.PRef(), inputVars.VelRef(), eos);
 
-  // Initialize state vector with nondimensional variables
   // Get reference speed of sound
-  const auto aRef = eos.SoS(inputVars.PRef(), inputVars.RRef());
-  primVars state(0.0);
-  state.NondimensionalInitialize(eos, aRef, inputVars, suth);
+  const auto aRef = inputVars.ARef(eos);
 
   // Get turbulence model
   const auto turb = inputVars.AssignTurbulenceModel();
@@ -138,10 +135,10 @@ int main(int argc, char *argv[]) {
     // Get interblock BCs
     connections = GetInterblockBCs(bcs, mesh, decomp);
 
-    // Initialize the whole mesh with one state and assign ghost cells geometry
+    // Initialize the whole mesh with ICs and assign ghost cells geometry
     stateBlocks.resize(mesh.size());
     for (auto ll = 0U; ll < mesh.size(); ll++) {
-      stateBlocks[ll] = procBlock(state, mesh[ll], decomp.ParentBlock(ll),
+      stateBlocks[ll] = procBlock(aRef, mesh[ll], decomp.ParentBlock(ll),
                                   bcs[ll], ll, decomp.Rank(ll),
                                   decomp.LocalPosition(ll), inputVars, eos,
                                   suth);

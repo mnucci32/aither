@@ -88,7 +88,7 @@ class primVars {
   double Omega() const { return data_[6]; }
 
   void NondimensionalInitialize(const idealGas&, const double&, const input&,
-                                const sutherland&);
+                                const sutherland&, const int&);
   bool IsZero() const;
 
   inline vector3d<double> Velocity() const;
@@ -186,7 +186,7 @@ class primVars {
   // member function to return the state of the appropriate ghost cell
   primVars GetGhostState(const string &, const vector3d<double> &,
                          const double &, const int &, const input &,
-                         const idealGas &, const sutherland &,
+                         const int &, const idealGas &, const sutherland &,
                          const unique_ptr<turbModel> &, const int = 1) const;
 
   // destructor
@@ -197,7 +197,7 @@ class primVars {
 multiArray3d<primVars> GetGhostStates(
     const multiArray3d<primVars> &, const string &,
     const multiArray3d<unitVec3dMag<double>> &, const multiArray3d<double> &,
-    const int &, const input &, const idealGas &, const sutherland &,
+    const int &, const input &, const int &, const idealGas &, const sutherland &,
     const unique_ptr<turbModel> &, const int = 1);
 
 // member function to calculate temperature from conserved variables and

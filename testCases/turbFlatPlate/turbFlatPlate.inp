@@ -15,7 +15,7 @@ faceReconstruction: thirdOrder
 limiter: vanAlbada
 iterations: 25000
 outputFrequency: 1000
-outputVariables: density vel_x vel_y vel_z pressure mach tke sdr viscosityRatio wallDistance
+outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach, tke, sdr, viscosityRatio, wallDistance>
 
 stagnationInlet: 1 117662.9 302.4 1.0 0.0 0.0
 pressureOutlet: 2 114426.9
@@ -24,12 +24,18 @@ pressureOutlet: 2 114426.9
 pressureRef: 114426.9
 densityRef: 1.329
 temperatureRef: 300.0
-velocity: 69.438, 0.0, 0.0
+velocityRef: [69.438, 0.0, 0.0]
+
+initialConditions: <icState(tag=-1; pressure=114426.9; density=1.329; velocity=[69.438, 0, 0])>
 
 matrixSolver: lusgs
 matrixRelaxation: 1.0
 
 turbulenceModel: kOmegaWilcox2006
+
+boundaryStates: <stagnationInlet(tag=1; p0=117662.9; t0=302.4; direction=[1, 0, 0]),
+                 pressureOutlet(tag=2; pressure=114426.9),
+		 viscousWall(tag=3)>
 
 #---------------------------------------------------------------------------#
 #Boundary Conditions
@@ -46,4 +52,4 @@ boundaryConditions: 1
 #k_surfaces
    slipWall           0     1     0    24     0     0     0
    viscousWall        0     1    24   136     0     0     3
-   pressureOutlet     0     1     0   136    96    96     4
+   pressureOutlet     0     1     0   136    96    96     2

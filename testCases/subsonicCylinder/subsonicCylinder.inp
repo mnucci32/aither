@@ -11,19 +11,21 @@ faceReconstruction: thirdOrder
 limiter: none
 iterations: 5000
 outputFrequency: 1000
-outputVariables: density vel_x vel_y vel_z pressure mach
-
-stagnationInlet: 1 102010.0 288.58 1.0 0.0 0.0
-pressureOutlet: 2 101300.0
+outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach>
 
 #reference conditions
 pressureRef: 101300.0
 densityRef: 1.2256
 temperatureRef: 288.0
-velocity: 34.017, 0.0, 0.0
+velocityRef: [34.017, 0.0, 0.0]
+
+initialConditions: <icState(tag=-1; pressure=101300; density=1.2256; velocity=[34.017, 0.0, 0.0])>
 
 matrixSolver: lusgs
 matrixRelaxation: 1.0
+
+boundaryStates: <stagnationInlet(tag=2; p0=102010; t0=288.58; direction=[1, 0, 0]),
+                 pressureOutlet(tag=1; pressure=101300)>
 
 #---------------------------------------------------------------------------#
 #Boundary Conditions

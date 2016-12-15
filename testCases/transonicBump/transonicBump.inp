@@ -12,17 +12,21 @@ faceReconstruction: upwind
 limiter: vanAlbada
 iterations: 2000
 outputFrequency: 500
-outputVariables: density vel_x vel_y vel_z pressure mach
+outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach>
 
 #reference conditions
 pressureRef: 101300.0
 densityRef: 1.2256
 temperatureRef: 288.0
-velocity: 238.0, 0.0, 0.0
+velocityRef: [238.0, 0.0, 0.0]
+
+initialConditions: <icState(tag=-1; pressure=101300; density=1.2256; velocity=[238, 0, 0])>
 
 matrixSolver: dplur
 matrixSweeps: 4
 matrixRelaxation: 1.0
+
+boundaryStates: <characteristic(tag=1; pressure=101300; density=1.2256; velocity=[238, 0, 0])>
 
 #---------------------------------------------------------------------------#
 #Boundary Conditions
@@ -32,7 +36,7 @@ boundaryConditions: 1
 2 4 2
 #i_surfaces
    characteristic     0     0     0    32     0     1     1
-   characteristic    60    60     0    32     0     1     2
+   characteristic    60    60     0    32     0     1     1
 #j_surfaces
    slipWall           0    20     0     0     0     1     0
    slipWall          20    40     0     0     0     1     0
