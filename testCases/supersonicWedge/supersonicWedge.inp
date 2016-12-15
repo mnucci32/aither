@@ -11,13 +11,17 @@ faceReconstruction: thirdOrder
 limiter: vanAlbada
 iterations: 5000
 outputFrequency: 1000
-outputVariables: density vel_x vel_y vel_z pressure mach
+outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach>
 
 #reference conditions
 pressureRef: 101300.0
 densityRef: 1.2256
 temperatureRef: 288.0
-velocity: 852.4, 0.0, 0.0
+velocityRef: [852.4, 0.0, 0.0]
+
+initialConditions: <icState(tag=-1; pressure=101300; density=1.2256; velocity=[852.4, 0, 0])>
+
+boundaryStates: <supersonicInflow(tag=1; pressure=101300; density=1.2256; velocity=[852.4, 0, 0])>
 
 #---------------------------------------------------------------------------#
 #Boundary Conditions
@@ -29,8 +33,8 @@ boundaryConditions: 1
    slipWall           0      0     0    32     0     1     0
    slipWall          20     20     0    32     0     1     0
 #j_surfaces
-   supersonicInflow   0     20     0     0     0     1     0
-   supersonicOutflow  0     20    32    32     0     1     0
+   supersonicInflow   0     20     0     0     0     1     1
+   supersonicOutflow  0     20    32    32     0     1     2
 #k_surfaces
    slipWall           0     20     0    32     0     0     0
    slipWall           0     20     0    32     1     1     0
