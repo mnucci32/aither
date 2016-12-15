@@ -274,10 +274,10 @@ def main():
     turbPlate.SetNumberOfIterations(numIterations)
     if (options.operatingSystem == "linux"):
         turbPlate.SetResiduals([4.1174e-2, 4.2731e-2, 1.0641, 8.3686e-2, 3.9585e-2,
-                                2.9546e-8, 1.1416e-5])
+                                4.5098e-8, 1.1416e-5])
     else:
         turbPlate.SetResiduals([3.9338e-2, 4.2745e-2, 1.0167, 7.4604e-2, 3.8146e-2,
-                                2.7633e-8, 1.1583e-5])
+                                24.7610e-8, 1.1583e-5])
     turbPlate.SetIgnoreIndices(2)
     turbPlate.SetMpirunPath(options.mpirunPath)
 

@@ -778,7 +778,7 @@ void WriteMeta(const input &inp, const int &iter) {
   const auto metaName = inp.SimNameRoot() + fEnd + fMetaPostfix;
   ofstream metaFile(metaName, ios::out);
 
-  const auto gridName = inp.SimNameRoot() + fEnd + ".xyz";
+  const auto gridName = inp.GridName() + fEnd + ".xyz";
   const auto funName = inp.SimNameRoot() + "_" + to_string(iter) + fEnd + ".fun";
 
   // check to see if file opened correctly

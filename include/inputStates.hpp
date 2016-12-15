@@ -136,9 +136,9 @@ class stagnationInlet : public inputState {
   vector3d<double> direction_;
   double p0_;
   double t0_;
-  double turbIntensity_;
-  double eddyViscRatio_;
-  bool specifiedTurbulence_;
+  double turbIntensity_ = 0.01;  // default values
+  double eddyViscRatio_ = 10.0;
+  bool specifiedTurbulence_ = false;
 
  public:
   // constructor
@@ -239,9 +239,9 @@ class subsonicOutflow : public pressureOutlet {
 class subsonicInflow : public inputState {
   vector3d<double> velocity_;
   double density_;
-  double turbIntensity_;
-  double eddyViscRatio_;
-  bool specifiedTurbulence_;
+  double turbIntensity_ = 0.01;  // default values
+  double eddyViscRatio_ = 10.0;
+  bool specifiedTurbulence_ = false;
 
  public:
   // constructor
