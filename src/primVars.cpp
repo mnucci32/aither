@@ -355,7 +355,22 @@ primVars primVars::GetGhostState(const string &bcType,
     ghostState.data_[2] = ghostVel.Y();
     ghostState.data_[3] = ghostVel.Z();
 
-    // numerical BCs for rho and pressure, same as boundary state
+    if (bcData->IsIsothermal()) {
+      const auto tWall = 2.0 * (bcData->Temperature() / inputVars.TRef())
+          - this->Temperature(eqnState);
+      ghostState.data_[0] = eqnState.DensityTP(tWall, ghostState.P());
+    } else if (bcData->IsConstantHeatFlux()) {
+      // don't need turbulent contribution because eddy viscosity is 0 at wall
+      const auto mu = suth.EffectiveViscosity(this->Temperature(eqnState));
+      const auto kappa = eqnState.Conductivity(mu);
+      // 2x wall distance as gradient length
+      // must nondimensionalize heat flux
+      const auto tWall = this->Temperature(eqnState) -
+          (bcData->HeatFlux() * pow(aRef / inputVars.LRef(), 3.0)) /
+          kappa * 2.0 * wallDist;
+      ghostState.data_[0] = eqnState.DensityTP(tWall, ghostState.P());
+    }  // default is adiabatic
+    // numerical BCs for pressure, same as boundary state
 
     // turbulence bcs
     // tke at cell center is set to opposite of tke at boundary cell center
