@@ -323,7 +323,7 @@ ostream &operator<<(ostream &, const viscousWall &);
 
 
 vector<string> Tokenize(string, const string &, const unsigned int = 0);
-string Trim(const string &, const string & = " \t");
+string Trim(const string &, const string & = " \t\r\n");
 vector3d<double> ReadVector(const string &);
 vector<icState> ReadICList(ifstream &, string &);
 vector<string> ReadStringList(ifstream &, string &);

@@ -160,9 +160,7 @@ string Trim(const string &s, const string &whitespace) {
 
     // find index of first comment character
     const auto tempComment = temp.find(comment);
-    const auto tempRange = tempComment - 0;  // find range of string to return
-
-    return temp.substr(0, tempRange);
+    return temp.substr(0, tempComment);
   }
 }
 
@@ -199,9 +197,10 @@ string RemoveTrailing(const string &str, const string &delimiter) {
 
 // function to read vector data from string
 vector3d<double> ReadVector(const string &str) {
-  auto start = str.find("[");
-  auto end = str.find("]");
-  auto vec = str.substr(start + 1, end - 1);  // +/-1 to ignore []
+  const auto start = str.find("[") + 1;
+  const auto end = str.find("]") - 1;
+  const auto range = end - start + 1;  // +/-1 to ignore []
+  auto vec = str.substr(start, range);
   auto tokens = Tokenize(vec, ",");
   if (tokens.size() != 3) {
     cerr << "ERROR. Expected three components for vector, found "
@@ -214,10 +213,11 @@ vector3d<double> ReadVector(const string &str) {
 
 // construct initial condition from string
 icState::icState(string &str, const string name) {
-  auto start = str.find("(");
-  auto end = str.find(")");
-  auto state = str.substr(start + 1, end - 1);  // +/-1 to ignore ()
-  auto id = str.substr(0, start);
+  const auto start = str.find("(") + 1;
+  const auto end = str.find(")") - 1;
+  const auto range = end - start + 1;  // +/-1 to ignore ()
+  auto state = str.substr(start, range);
+  const auto id = str.substr(0, start - 1);
   if (id != name) {
     cerr << "ERROR. State condition specifier " << id << " is not recognized!"
          << endl;
@@ -293,10 +293,11 @@ icState::icState(string &str, const string name) {
 
 // construct stagnation inlet from string
 stagnationInlet::stagnationInlet(string &str) {
-  auto start = str.find("(");
-  auto end = str.find(")");
-  auto state = str.substr(start + 1, end - 1);  // +/-1 to ignore ()
-  auto id = str.substr(0, start);
+  const auto start = str.find("(") + 1;
+  const auto end = str.find(")") - 1;
+  const auto range = end - start + 1;  // +/-1 to ignore ()
+  auto state = str.substr(start, range);
+  const auto id = str.substr(0, start - 1);
   if (id != "stagnationInlet") {
     cerr << "ERROR. State condition specifier " << id << " is not recognized!"
          << endl;
@@ -367,10 +368,11 @@ stagnationInlet::stagnationInlet(string &str) {
 
 // construct pressureOutlet from string
 pressureOutlet::pressureOutlet(string &str, const string name) {
-  auto start = str.find("(");
-  auto end = str.find(")");
-  auto state = str.substr(start + 1, end - 1);  // +/-1 to ignore ()
-  auto id = str.substr(0, start);
+  const auto start = str.find("(") + 1;
+  const auto end = str.find(")") - 1;
+  const auto range = end - start + 1;  // +/-1 to ignore ()
+  auto state = str.substr(start, range);
+  const auto id = str.substr(0, start - 1);
   if (id != name) {
     cerr << "ERROR. State condition specifier " << id << " is not recognized!"
          << endl;
@@ -416,10 +418,11 @@ pressureOutlet::pressureOutlet(string &str, const string name) {
 
 // construct subsonic inflow from string
 subsonicInflow::subsonicInflow(string &str) {
-  auto start = str.find("(");
-  auto end = str.find(")");
-  auto state = str.substr(start + 1, end - 1);  // +/-1 to ignore ()
-  auto id = str.substr(0, start);
+  const auto start = str.find("(") + 1;
+  const auto end = str.find(")") - 1;
+  const auto range = end - start + 1;  // +/-1 to ignore ()
+  auto state = str.substr(start, range);
+  const auto id = str.substr(0, start - 1);
   if (id != "subsonicInflow") {
     cerr << "ERROR. State condition specifier " << id << " is not recognized!"
          << endl;
@@ -486,10 +489,11 @@ subsonicInflow::subsonicInflow(string &str) {
 
 // construct viscousWall from string
 viscousWall::viscousWall(string &str) {
-  auto start = str.find("(");
-  auto end = str.find(")");
-  auto state = str.substr(start + 1, end - 1);  // +/-1 to ignore ()
-  auto id = str.substr(0, start);
+  const auto start = str.find("(") + 1;
+  const auto end = str.find(")") - 1;
+  const auto range = end - start + 1;  // +/-1 to ignore ()
+  auto state = str.substr(start, range);
+  const auto id = str.substr(0, start - 1);
   if (id != "viscousWall") {
     cerr << "ERROR. State condition specifier " << id << " is not recognized!"
          << endl;
@@ -568,9 +572,9 @@ vector<icState> ReadICList(ifstream &inFile, string &str) {
   vector<icState> icList;
   auto openList = false;
   do {
-    auto start = openList ? 0 : str.find("<");
-    auto listOpened = str.find("<") == string::npos ? false : true;
-    auto end = str.find(">");
+    const auto start = openList ? 0 : str.find("<");
+    const auto listOpened = str.find("<") == string::npos ? false : true;
+    const auto end = str.find(">");
     openList = (end == string::npos) ? true : false;
 
     // test for state on current line
@@ -579,13 +583,15 @@ vector<icState> ReadICList(ifstream &inFile, string &str) {
     if (statePos != string::npos) {  // there is a state in current line
       string list;
       if (listOpened && openList) {  // list opened on current line, remains open
-        list = str.substr(start + 1, end);
+        list = str.substr(start + 1, string::npos);
       } else if (listOpened && !openList) {  // list opened/closed on current line
-        list = str.substr(start + 1, end - 1);  // +/- 1 to ignore <>
+        const auto range = end - start - 1;
+        list = str.substr(start + 1, range);  // +/- 1 to ignore <>
       } else if (!listOpened && openList) {  // list was open and remains open
-        list = str.substr(start, end);
+        list = str.substr(start, string::npos);
       } else {  // list was open and is now closed
-        list = str.substr(start, end - 1);
+        const auto range = end - start;
+        list = str.substr(start, range);
       }
 
       icState ic(list);
@@ -677,13 +683,15 @@ vector<unique_ptr<inputState>> ReadBCList(ifstream &inFile, string &str) {
     if (bcPos != string::npos) {  // there is a state in current line
       string list;
       if (listOpened && openList) {  // list opened on current line, remains open
-        list = str.substr(start + 1, end);
+        list = str.substr(start + 1, string::npos);
       } else if (listOpened && !openList) {  // list opened/closed on current line
-        list = str.substr(start + 1, end - 1);  // +/- 1 to ignore <>
+        const auto range = end - start - 1;
+        list = str.substr(start + 1, range);  // +/- 1 to ignore <>
       } else if (!listOpened && openList) {  // list was open and remains open
-        list = str.substr(start, end);
+        list = str.substr(start, string::npos);
       } else {  // list was open and is now closed
-        list = str.substr(start, end - 1);
+        const auto range = end - start;
+        list = str.substr(start, range);
       }
 
       AddBCToList(type, bcList, list);
@@ -722,13 +730,15 @@ vector<string> ReadStringList(ifstream &inFile, string &str) {
     if (argPos != string::npos) {  // there is an argument in current line
       string list;
       if (listOpened && openList) {  // list opened on current line, remains open
-        list = str.substr(start + 1, end);
+        list = str.substr(start + 1, string::npos);
       } else if (listOpened && !openList) {  // list opened/closed on current line
-        list = str.substr(start + 1, end - 1);  // +/- 1 to ignore <>
+        const auto range = end - start - 1;
+        list = str.substr(start + 1, range);  // +/- 1 to ignore <>
       } else if (!listOpened && openList) {  // list was open and remains open
-        list = str.substr(start, end);
+        list = str.substr(start, string::npos);
       } else {  // list was open and is now closed
-        list = str.substr(start, end - 1);
+        const auto range = end - start;
+        list = str.substr(start, range);
       }
 
       // tokenize all arguments on current line and add to vector
