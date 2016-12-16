@@ -153,6 +153,10 @@ string Trim(const string &s, const string &whitespace) {
   } else {
     // find index of first non whitespace character
     const auto sBegin = s.find_first_not_of(whitespace);
+    if (sBegin == string::npos) {
+      return "";  // string is only whitespace
+    }
+
     // find index of last non whitespace character
     const auto sEnd = s.find_last_not_of(whitespace);
     const auto sRange = sEnd - sBegin + 1;  // range to trim string to
