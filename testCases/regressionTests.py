@@ -61,7 +61,7 @@ class regressionTest:
         self.mpirunPath = path
         
     def SetIgnoreIndices(self, ind):
-        self.ignoreIndices = ind
+        self.ignoreIndices.append(ind)
         
     def SetPercentTolerance(self, per):
         self.percentTolerance = per
@@ -208,7 +208,24 @@ def main():
     # run regression case
     passed = multiCyl.RunCase()
     totalPass = totalPass and all(passed)
+
+    # ------------------------------------------------------------------
+    # sod shock tube
+    # laminar, inviscid, bdf2
+    shockTube = regressionTest()
+    shockTube.SetRegressionCase("shockTube")
+    shockTube.SetAitherPath(options.aitherPath)
+    shockTube.SetRunDirectory("shockTube")
+    shockTube.SetNumberOfProcessors(1)
+    shockTube.SetNumberOfIterations(numIterations)
+    shockTube.SetResiduals([2.1410e-1, 1.7614e-1, 1.0e0, 1.0e0, 1.0397e-1])
+    shockTube.SetIgnoreIndices([3, 4])
+    shockTube.SetMpirunPath(options.mpirunPath)
     
+    # run regression case
+    passed = shockTube.RunCase()   
+    totalPass = totalPass and all(passed)
+        
     # ------------------------------------------------------------------
     # supersonic wedge
     # laminar, inviscid, explicit euler
