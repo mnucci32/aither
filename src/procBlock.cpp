@@ -332,10 +332,10 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
         primVars faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
-        if (inp.OrderOfAccuracy() == "first") {
+        if (inp.UsingConstantReconstruction()) {
           faceStateLower = state_(ii - 1, jj, kk).FaceReconConst();
           faceStateUpper = state_(ii, jj, kk).FaceReconConst();
-        } else {  // second order accuracy -- use MUSCL extrapolation
+        } else if (inp.UsingMUSCLReconstruction()) {  // second order accuracy
           // length of second upwind, first upwind, and downwind cells in
           // i-direction
           const auto upwind2L = fCenterI_(ii - 1, jj, kk).
@@ -361,7 +361,17 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
           faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
               state_(ii + 1, jj, kk), state_(ii - 1, jj, kk),
               inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU);
+        } else {  // using higher order reconstruction (weno)
+
+
+          faceStateLower = state_(ii - 1, jj, kk).FaceReconWENO(
+              state_(ii - 2, jj, kk), state_(ii - 3, jj, kk), state_(ii, jj, kk),
+              state_(ii + 1, jj, kk));
+          faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
+              state_(ii + 1, jj, kk), state_(ii + 2, jj, kk), state_(ii - 1, jj, kk),
+              state_(ii - 2, jj, kk));
         }
+
         // calculate Roe flux at face
         const inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper,
                                               eqnState,
@@ -460,10 +470,10 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
         primVars faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
-        if (inp.OrderOfAccuracy() == "first") {
+        if (inp.UsingConstantReconstruction()) {
           faceStateLower = state_(ii, jj - 1, kk).FaceReconConst();
           faceStateUpper = state_(ii, jj, kk).FaceReconConst();
-        } else {  // second order accuracy -- use MUSCL extrapolation
+        } else if (inp.UsingMUSCLReconstruction()) {  // second order accuracy
           // length of second upwind, first upwind, and downwind cells in
           // j-direction
           const auto upwind2L = fCenterJ_(ii, jj - 1, kk).
@@ -489,6 +499,14 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
           faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
               state_(ii, jj + 1, kk), state_(ii, jj - 1, kk),
               inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU);
+        } else {  // using higher order reconstruction (weno)
+
+          faceStateLower = state_(ii, jj - 1, kk).FaceReconWENO(
+              state_(ii, jj - 2, kk), state_(ii, jj - 3, kk), state_(ii, jj, kk),
+              state_(ii, jj + 1, kk));
+          faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
+              state_(ii, jj + 1, kk), state_(ii, jj + 2, kk), state_(ii, jj - 1, kk),
+              state_(ii, jj - 2, kk));
         }
 
         // calculate Roe flux at face
@@ -589,10 +607,10 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
         primVars faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
-        if (inp.OrderOfAccuracy() == "first") {
+        if (inp.UsingConstantReconstruction()) {
           faceStateLower = state_(ii, jj, kk - 1).FaceReconConst();
           faceStateUpper = state_(ii, jj, kk).FaceReconConst();
-        } else {  // second order accuracy -- use MUSCL extrapolation
+        } else if (inp.UsingMUSCLReconstruction()) {  // second order accuracy
           // length of second upwind, first upwind, and downwind cells in
           // j-direction
           const auto upwind2L = fCenterK_(ii, jj, kk - 1).
@@ -618,6 +636,16 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
           faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
               state_(ii, jj, kk + 1), state_(ii, jj, kk - 1),
               inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU);
+        } else {  // using higher order reconstruction (weno)
+
+
+
+          faceStateLower = state_(ii, jj, kk - 1).FaceReconWENO(
+              state_(ii, jj, kk - 2), state_(ii, jj, kk - 3), state_(ii, jj, kk),
+              state_(ii, jj, kk + 1));
+          faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
+              state_(ii, jj, kk + 1), state_(ii, jj, kk + 2), state_(ii, jj, kk - 1),
+              state_(ii, jj, kk - 2));
         }
 
         // calculate Roe flux at face

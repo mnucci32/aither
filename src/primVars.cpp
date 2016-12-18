@@ -212,6 +212,16 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
     ((1.0 - kappa) * limiter + (1.0 + kappa) * r * invLimiter);
 }
 
+// member function for higher order reconstruction via weno
+primVars primVars::FaceReconWENO(const primVars &upwind2,
+                                 const primVars &upwind3,
+                                 const primVars &downwind1,
+                                 const primVars &downwind2) const {
+  // DEBUG
+  return *this;
+}
+
+
 // member function to calculate minmod limiter
 primVars primVars::LimiterMinmod(const primVars &upwind,
                                  const primVars &downwind,
