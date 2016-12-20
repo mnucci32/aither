@@ -217,8 +217,48 @@ primVars primVars::FaceReconWENO(const primVars &upwind2,
                                  const primVars &upwind3,
                                  const primVars &downwind1,
                                  const primVars &downwind2) const {
-  // DEBUG
-  return *this;
+  constexpr auto third = 1.0 / 3.0;
+  constexpr auto sixth = 1.0 / 6.0;
+  constexpr auto fiveSixth = 5.0 / 6.0;
+  constexpr auto sevenSixth = 7.0 / 6.0;
+  constexpr auto elevenSixth = 11.0 / 6.0;
+
+  const auto stencil1 = third * upwind3 - sevenSixth * upwind2 +
+      elevenSixth * (*this);
+  const auto stencil2 = -sixth * upwind2 + fiveSixth * (*this) +
+      third * downwind1;
+  const auto stencil3 = third * (*this) + fiveSixth * downwind1 -
+      sixth * downwind2;
+
+  // linear weights
+  constexpr auto lw1 = 0.1;
+  constexpr auto lw2 = 0.6;
+  constexpr auto lw3 = 0.3;
+
+  // calculate smoothness indicators
+  constexpr auto sm1 = 13.0 / 12.0;
+  constexpr auto sm2 = 0.25;
+
+  const auto smooth1 = sm1 * (upwind3 - 2.0 * upwind2 + (*this)).Squared() +
+      sm2 * (upwind3 - 4.0 * upwind2 + 3.0 * (*this)).Squared();
+  const auto smooth2 = sm1 * (upwind2 - 2.0 * (*this) + downwind1).Squared() +
+      sm2 * (upwind2 - downwind1).Squared();
+  const auto smooth3 = sm1 * ((*this) - 2.0 * downwind1 + downwind2).Squared() +
+      sm2 * (3.0 * (*this) - 4.0 * downwind1 + downwind2).Squared();
+
+  // calculate nonlinear weights
+  constexpr auto eps = 1.0e-6;
+  const auto nlw1 = lw1 / (eps + smooth1).Squared();
+  const auto nlw2 = lw2 / (eps + smooth2).Squared();
+  const auto nlw3 = lw3 / (eps + smooth3).Squared();
+  // normalize weights
+  const auto sum_nlw = nlw1 + nlw2 + nlw3;
+  const auto nlw1_norm = nlw1 / sum_nlw;
+  const auto nlw2_norm = nlw2 / sum_nlw;
+  const auto nlw3_norm = nlw3 / sum_nlw;
+
+  // return weighted contribution of each stencil
+  return nlw1_norm * stencil1 + nlw2_norm * stencil2 + nlw3_norm * stencil3;
 }
 
 
@@ -966,4 +1006,9 @@ primVars RoeAveragedState(const primVars &left, const primVars &right,
   const auto omR = (left.Omega() + denRatio * right.Omega()) / (1.0 + denRatio);
 
   return primVars(rhoR, uR, vR, wR, pR, kR, omR);
+}
+
+// return element by element squared values
+primVars primVars::Squared() const {
+  return (*this) * (*this);
 }

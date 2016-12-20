@@ -90,6 +90,7 @@ class primVars {
   void NondimensionalInitialize(const idealGas&, const double&, const input&,
                                 const sutherland&, const int&);
   bool IsZero() const;
+  primVars Squared() const;
 
   inline vector3d<double> Velocity() const;
 
