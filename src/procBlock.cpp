@@ -332,44 +332,44 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
         primVars faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
-        if (inp.UsingConstantReconstruction()) {
+        if (inp.OrderOfAccuracy() == "first") {
           faceStateLower = state_(ii - 1, jj, kk).FaceReconConst();
           faceStateUpper = state_(ii, jj, kk).FaceReconConst();
-        } else if (inp.UsingMUSCLReconstruction()) {  // second order accuracy
-          // length of second upwind, first upwind, and downwind cells in
-          // i-direction
-          const auto upwind2L = fCenterI_(ii - 1, jj, kk).
+        } else {  // second order accuracy
+          // length of cells in computational stencil
+          const auto minus2 = fCenterI_(ii - 1, jj, kk).
               Distance(fCenterI_(ii - 2, jj, kk));
-          const auto upwindL = fCenterI_(ii, jj, kk).
+          const auto minus1 = fCenterI_(ii, jj, kk).
               Distance(fCenterI_(ii - 1, jj, kk));
-          const auto downwindL = fCenterI_(ii, jj, kk).
+          const auto plus1 = fCenterI_(ii, jj, kk).
               Distance(fCenterI_(ii + 1, jj, kk));
-
-          faceStateLower = state_(ii - 1, jj, kk).FaceReconMUSCL(
-              state_(ii - 2, jj, kk), state_(ii, jj, kk),
-              inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL);
-
-          // length of second upwind, first upwind, and downwind cells in
-          // i-direction
-          const auto upwind2U = fCenterI_(ii + 1, jj, kk).
+          const auto plus2 = fCenterI_(ii + 1, jj, kk).
               Distance(fCenterI_(ii + 2, jj, kk));
-          const auto upwindU = fCenterI_(ii, jj, kk).
-              Distance(fCenterI_(ii + 1, jj, kk));
-          const auto downwindU = fCenterI_(ii, jj, kk).
-              Distance(fCenterI_(ii - 1, jj, kk));
 
-          faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
-              state_(ii + 1, jj, kk), state_(ii - 1, jj, kk),
-              inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU);
-        } else {  // using higher order reconstruction (weno)
+          if (inp.UsingMUSCLReconstruction()) {
+            faceStateLower = state_(ii - 1, jj, kk).FaceReconMUSCL(
+                state_(ii - 2, jj, kk), state_(ii, jj, kk),
+                inp.Kappa(), inp.Limiter(), minus1, minus2, plus1);
 
+            faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
+                state_(ii + 1, jj, kk), state_(ii - 1, jj, kk),
+                inp.Kappa(), inp.Limiter(), plus1, plus2, minus1);
+          } else {  // using higher order reconstruction (weno)
+            // get additional cell lengths
+            const auto minus3 = fCenterI_(ii - 2, jj, kk).
+                Distance(fCenterI_(ii - 3, jj, kk));
+            const auto plus3 = fCenterI_(ii + 2, jj, kk).
+                Distance(fCenterI_(ii + 3, jj, kk));
 
-          faceStateLower = state_(ii - 1, jj, kk).FaceReconWENO(
-              state_(ii - 2, jj, kk), state_(ii - 3, jj, kk), state_(ii, jj, kk),
-              state_(ii + 1, jj, kk));
-          faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
-              state_(ii + 1, jj, kk), state_(ii + 2, jj, kk), state_(ii - 1, jj, kk),
-              state_(ii - 2, jj, kk));
+            faceStateLower = state_(ii - 1, jj, kk).FaceReconWENO(
+                state_(ii - 2, jj, kk), state_(ii - 3, jj, kk),
+                state_(ii, jj, kk), state_(ii + 1, jj, kk), minus1, minus2,
+                minus3, plus1, plus2);
+            faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
+                state_(ii + 1, jj, kk), state_(ii + 2, jj, kk),
+                state_(ii - 1, jj, kk), state_(ii - 2, jj, kk), plus1, plus2,
+                plus3, minus1, minus2);
+          }
         }
 
         // calculate Roe flux at face
@@ -470,43 +470,45 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
         primVars faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
-        if (inp.UsingConstantReconstruction()) {
+        if (inp.OrderOfAccuracy() == "first") {
           faceStateLower = state_(ii, jj - 1, kk).FaceReconConst();
           faceStateUpper = state_(ii, jj, kk).FaceReconConst();
-        } else if (inp.UsingMUSCLReconstruction()) {  // second order accuracy
-          // length of second upwind, first upwind, and downwind cells in
-          // j-direction
-          const auto upwind2L = fCenterJ_(ii, jj - 1, kk).
+        } else {  // second order accuracy
+          // length of cells in computational stencil
+          const auto minus2 = fCenterJ_(ii, jj - 1, kk).
               Distance(fCenterJ_(ii, jj - 2, kk));
-          const auto upwindL = fCenterJ_(ii, jj, kk).
+          const auto minus1 = fCenterJ_(ii, jj, kk).
               Distance(fCenterJ_(ii, jj - 1, kk));
-          const auto downwindL = fCenterJ_(ii, jj, kk).
+          const auto plus1 = fCenterJ_(ii, jj, kk).
               Distance(fCenterJ_(ii, jj + 1, kk));
-
-          faceStateLower = state_(ii, jj - 1, kk).FaceReconMUSCL(
-              state_(ii, jj - 2, kk), state_(ii, jj, kk),
-              inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL);
-
-          // length of second upwind, first upwind, and downwind cells in
-          // j-direction
-          const auto upwind2U = fCenterJ_(ii, jj + 1, kk).
+          const auto plus2 = fCenterJ_(ii, jj + 1, kk).
               Distance(fCenterJ_(ii, jj + 2, kk));
-          const auto upwindU = fCenterJ_(ii, jj, kk).
-              Distance(fCenterJ_(ii, jj + 1, kk));
-          const auto downwindU = fCenterJ_(ii, jj, kk).
-              Distance(fCenterJ_(ii, jj - 1, kk));
 
-          faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
+          if (inp.UsingMUSCLReconstruction()) {
+            faceStateLower = state_(ii, jj - 1, kk).FaceReconMUSCL(
+                state_(ii, jj - 2, kk), state_(ii, jj, kk),
+                inp.Kappa(), inp.Limiter(), minus1, minus2, plus1);
+
+            faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
               state_(ii, jj + 1, kk), state_(ii, jj - 1, kk),
-              inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU);
-        } else {  // using higher order reconstruction (weno)
+              inp.Kappa(), inp.Limiter(), plus1, plus2, minus1);
+          } else {  // using higher order reconstruction (weno)
+            // get additional cell lenghths
+            const auto minus3 = fCenterJ_(ii, jj - 2, kk).
+                Distance(fCenterJ_(ii, jj - 3, kk));
+            const auto plus3 = fCenterJ_(ii, jj + 2, kk).
+                Distance(fCenterJ_(ii, jj + 3, kk));
 
-          faceStateLower = state_(ii, jj - 1, kk).FaceReconWENO(
-              state_(ii, jj - 2, kk), state_(ii, jj - 3, kk), state_(ii, jj, kk),
-              state_(ii, jj + 1, kk));
-          faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
-              state_(ii, jj + 1, kk), state_(ii, jj + 2, kk), state_(ii, jj - 1, kk),
-              state_(ii, jj - 2, kk));
+            faceStateLower = state_(ii, jj - 1, kk).FaceReconWENO(
+                state_(ii, jj - 2, kk), state_(ii, jj - 3, kk),
+                state_(ii, jj, kk), state_(ii, jj + 1, kk), minus1, minus2,
+                minus3, plus1, plus2);
+
+            faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
+                state_(ii, jj + 1, kk), state_(ii, jj + 2, kk),
+                state_(ii, jj - 1, kk), state_(ii, jj - 2, kk), plus1, plus2,
+                plus3, minus1, minus2);
+          }
         }
 
         // calculate Roe flux at face
@@ -607,45 +609,45 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
         primVars faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
-        if (inp.UsingConstantReconstruction()) {
+        if (inp.OrderOfAccuracy() == "first") {
           faceStateLower = state_(ii, jj, kk - 1).FaceReconConst();
           faceStateUpper = state_(ii, jj, kk).FaceReconConst();
-        } else if (inp.UsingMUSCLReconstruction()) {  // second order accuracy
-          // length of second upwind, first upwind, and downwind cells in
-          // j-direction
-          const auto upwind2L = fCenterK_(ii, jj, kk - 1).
+        } else {  // second order accuracy
+          // length of cells in computational stencil
+          const auto minus2 = fCenterK_(ii, jj, kk - 1).
               Distance(fCenterK_(ii, jj, kk - 2));
-          const auto upwindL = fCenterK_(ii, jj, kk).
+          const auto minus1 = fCenterK_(ii, jj, kk).
               Distance(fCenterK_(ii, jj, kk - 1));
-          const auto downwindL = fCenterK_(ii, jj, kk).
+          const auto plus1 = fCenterK_(ii, jj, kk).
               Distance(fCenterK_(ii, jj, kk + 1));
-
-          faceStateLower = state_(ii, jj, kk - 1).FaceReconMUSCL(
-              state_(ii, jj, kk - 2), state_(ii, jj, kk),
-              inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL);
-
-          // length of second upwind, first upwind, and downwind cells in
-          // j-direction
-          const auto upwind2U = fCenterK_(ii, jj, kk + 1).
+          const auto plus2 = fCenterK_(ii, jj, kk + 1).
               Distance(fCenterK_(ii, jj, kk + 2));
-          const auto upwindU = fCenterK_(ii, jj, kk).
-              Distance(fCenterK_(ii, jj, kk + 1));
-          const auto downwindU = fCenterK_(ii, jj, kk).
-              Distance(fCenterK_(ii, jj, kk - 1));
 
-          faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
-              state_(ii, jj, kk + 1), state_(ii, jj, kk - 1),
-              inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU);
-        } else {  // using higher order reconstruction (weno)
+          if (inp.UsingMUSCLReconstruction()) {
+            faceStateLower = state_(ii, jj, kk - 1).FaceReconMUSCL(
+                state_(ii, jj, kk - 2), state_(ii, jj, kk),
+                inp.Kappa(), inp.Limiter(), minus1, minus2, plus1);
 
+            faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
+                state_(ii, jj, kk + 1), state_(ii, jj, kk - 1),
+                inp.Kappa(), inp.Limiter(), plus1, plus2, minus1);
+          } else {  // using higher order reconstruction (weno)
+            // get additional cell lengths
+            const auto minus3 = fCenterK_(ii, jj, kk - 2).
+                Distance(fCenterK_(ii, jj, kk - 3));
+            const auto plus3 = fCenterK_(ii, jj, kk + 2).
+                Distance(fCenterK_(ii, jj, kk + 3));
 
+            faceStateLower = state_(ii, jj, kk - 1).FaceReconWENO(
+                state_(ii, jj, kk - 2), state_(ii, jj, kk - 3),
+                state_(ii, jj, kk), state_(ii, jj, kk + 1), minus1, minus2,
+                minus3, plus1, plus2);
 
-          faceStateLower = state_(ii, jj, kk - 1).FaceReconWENO(
-              state_(ii, jj, kk - 2), state_(ii, jj, kk - 3), state_(ii, jj, kk),
-              state_(ii, jj, kk + 1));
-          faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
-              state_(ii, jj, kk + 1), state_(ii, jj, kk + 2), state_(ii, jj, kk - 1),
-              state_(ii, jj, kk - 2));
+            faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
+                state_(ii, jj, kk + 1), state_(ii, jj, kk + 2),
+                state_(ii, jj, kk - 1), state_(ii, jj, kk - 2), plus1, plus2,
+                plus3, minus1, minus2);
+          }
         }
 
         // calculate Roe flux at face

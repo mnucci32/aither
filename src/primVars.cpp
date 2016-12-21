@@ -216,7 +216,9 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
 primVars primVars::FaceReconWENO(const primVars &upwind2,
                                  const primVars &upwind3,
                                  const primVars &downwind1,
-                                 const primVars &downwind2) const {
+                                 const primVars &downwind2, const double &uw1,
+                                 const double &uw2, const double &uw3,
+                                 const double &dw1, const double &dw2) const {
   constexpr auto third = 1.0 / 3.0;
   constexpr auto sixth = 1.0 / 6.0;
   constexpr auto fiveSixth = 5.0 / 6.0;
