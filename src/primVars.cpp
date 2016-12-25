@@ -250,17 +250,17 @@ primVars primVars::FaceReconWENO(const primVars &upwind2,
 
   // calculate nonlinear weights
   constexpr auto eps = 1.0e-6;
-  const auto nlw1 = lw1 / (eps + smooth1).Squared();
-  const auto nlw2 = lw2 / (eps + smooth2).Squared();
-  const auto nlw3 = lw3 / (eps + smooth3).Squared();
+  auto nlw1 = lw1 / (eps + smooth1).Squared();
+  auto nlw2 = lw2 / (eps + smooth2).Squared();
+  auto nlw3 = lw3 / (eps + smooth3).Squared();
   // normalize weights
   const auto sum_nlw = nlw1 + nlw2 + nlw3;
-  const auto nlw1_norm = nlw1 / sum_nlw;
-  const auto nlw2_norm = nlw2 / sum_nlw;
-  const auto nlw3_norm = nlw3 / sum_nlw;
+  nlw1 /= sum_nlw;
+  nlw2 /= sum_nlw;
+  nlw3 /= sum_nlw;
 
   // return weighted contribution of each stencil
-  return nlw1_norm * stencil1 + nlw2_norm * stencil2 + nlw3_norm * stencil3;
+  return nlw1 * stencil1 + nlw2 * stencil2 + nlw3 * stencil3;
 }
 
 
