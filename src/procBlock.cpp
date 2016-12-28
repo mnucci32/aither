@@ -1840,27 +1840,67 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
   for (auto kk = fAreaI_.PhysStartK(); kk < fAreaI_.PhysEndK(); kk++) {
     for (auto jj = fAreaI_.PhysStartJ(); jj < fAreaI_.PhysEndJ(); jj++) {
       for (auto ii = fAreaI_.PhysStartI(); ii < fAreaI_.PhysEndI(); ii++) {
-        // Get state at face
-        auto state = FaceReconCentral(state_(ii - 1, jj, kk),
+        primVars state;
+        auto wDist = 0.0;
+        auto mu = 0.0;
+
+        if (inp.ViscousFaceReconstruction() == "central") {
+          // Get state at face
+          state = FaceReconCentral(state_(ii - 1, jj, kk),
+                                   state_(ii, jj, kk),
+                                   center_(ii - 1, jj, kk),
+                                   center_(ii, jj, kk),
+                                   fCenterI_(ii, jj, kk));
+          state.LimitTurb(turb);
+
+          // Get wall distance at face
+          wDist = FaceReconCentral(wallDist_(ii - 1, jj, kk),
+                                   wallDist_(ii, jj, kk),
+                                   center_(ii - 1, jj, kk),
+                                   center_(ii, jj, kk),
+                                   fCenterI_(ii, jj, kk));
+
+          // Get viscosity at face
+          mu = FaceReconCentral(viscosity_(ii - 1, jj, kk),
+                                viscosity_(ii, jj, kk),
+                                center_(ii - 1, jj, kk),
+                                center_(ii, jj, kk),
+                                fCenterI_(ii, jj, kk));
+        } else {  // use 4th order reconstruction
+          // Get state at face
+          state = FaceReconCentral4th(state_(ii - 2, jj, kk),
+                                      state_(ii - 1, jj, kk),
                                       state_(ii, jj, kk),
+                                      state_(ii + 1, jj, kk),
+                                      center_(ii - 2, jj, kk),
                                       center_(ii - 1, jj, kk),
                                       center_(ii, jj, kk),
+                                      center_(ii + 1, jj, kk),
                                       fCenterI_(ii, jj, kk));
-        state.LimitTurb(turb);
+          state.LimitTurb(turb);
 
-        // Get wall distance at face
-        const auto wDist = FaceReconCentral(wallDist_(ii - 1, jj, kk),
-                                            wallDist_(ii, jj, kk),
-                                            center_(ii - 1, jj, kk),
-                                            center_(ii, jj, kk),
-                                            fCenterI_(ii, jj, kk));
+          // Get wall distance at face
+          wDist = FaceReconCentral4th(wallDist_(ii - 2, jj, kk),
+                                      wallDist_(ii - 1, jj, kk),
+                                      wallDist_(ii, jj, kk),
+                                      wallDist_(ii + 1, jj, kk),
+                                      center_(ii - 2, jj, kk),
+                                      center_(ii - 1, jj, kk),
+                                      center_(ii, jj, kk),
+                                      center_(ii + 1, jj, kk),
+                                      fCenterI_(ii, jj, kk));
 
-        // Get viscosity at face
-        const auto mu = FaceReconCentral(viscosity_(ii - 1, jj, kk),
-                                         viscosity_(ii, jj, kk),
-                                         center_(ii - 1, jj, kk),
-                                         center_(ii, jj, kk),
-                                         fCenterI_(ii, jj, kk));
+          // Get viscosity at face
+          mu = FaceReconCentral4th(viscosity_(ii - 2, jj, kk),
+                                   viscosity_(ii - 1, jj, kk),
+                                   viscosity_(ii, jj, kk),
+                                   viscosity_(ii + 1, jj, kk),
+                                   center_(ii - 2, jj, kk),
+                                   center_(ii - 1, jj, kk),
+                                   center_(ii, jj, kk),
+                                   center_(ii + 1, jj, kk),
+                                   fCenterI_(ii, jj, kk));
+        }
 
         // calculate gradients
         tensor<double> velGrad;
@@ -2059,27 +2099,67 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
   for (auto kk = fAreaJ_.PhysStartK(); kk < fAreaJ_.PhysEndK(); kk++) {
     for (auto jj = fAreaJ_.PhysStartJ(); jj < fAreaJ_.PhysEndJ(); jj++) {
       for (auto ii = fAreaJ_.PhysStartI(); ii < fAreaJ_.PhysEndI(); ii++) {
-        // Get velocity at face
-        auto state = FaceReconCentral(state_(ii, jj - 1, kk),
+        primVars state;
+        auto wDist = 0.0;
+        auto mu = 0.0;
+
+        if (inp.ViscousFaceReconstruction() == "central") {
+          // Get velocity at face
+          state = FaceReconCentral(state_(ii, jj - 1, kk),
+                                   state_(ii, jj, kk),
+                                   center_(ii, jj - 1, kk),
+                                   center_(ii, jj, kk),
+                                   fCenterJ_(ii, jj, kk));
+          state.LimitTurb(turb);
+
+          // Get wall distance at face
+          wDist = FaceReconCentral(wallDist_(ii, jj - 1, kk),
+                                   wallDist_(ii, jj, kk),
+                                   center_(ii, jj - 1, kk),
+                                   center_(ii, jj, kk),
+                                   fCenterJ_(ii, jj, kk));
+
+          // Get wall distance at face
+          mu = FaceReconCentral(viscosity_(ii, jj - 1, kk),
+                                viscosity_(ii, jj, kk),
+                                center_(ii, jj - 1, kk),
+                                center_(ii, jj, kk),
+                                fCenterJ_(ii, jj, kk));
+        } else {  // use 4th order reconstruction
+          // Get velocity at face
+          state = FaceReconCentral4th(state_(ii, jj - 2, kk),
+                                      state_(ii, jj - 1, kk),
                                       state_(ii, jj, kk),
+                                      state_(ii, jj + 1, kk),
+                                      center_(ii, jj - 2, kk),
                                       center_(ii, jj - 1, kk),
                                       center_(ii, jj, kk),
+                                      center_(ii, jj + 1, kk),
                                       fCenterJ_(ii, jj, kk));
-        state.LimitTurb(turb);
+          state.LimitTurb(turb);
 
-        // Get wall distance at face
-        const auto wDist = FaceReconCentral(wallDist_(ii, jj - 1, kk),
-                                            wallDist_(ii, jj, kk),
-                                            center_(ii, jj - 1, kk),
-                                            center_(ii, jj, kk),
-                                            fCenterJ_(ii, jj, kk));
+          // Get wall distance at face
+          wDist = FaceReconCentral4th(wallDist_(ii, jj - 2, kk),
+                                      wallDist_(ii, jj - 1, kk),
+                                      wallDist_(ii, jj, kk),
+                                      wallDist_(ii, jj + 1, kk),
+                                      center_(ii, jj - 2, kk),
+                                      center_(ii, jj - 1, kk),
+                                      center_(ii, jj, kk),
+                                      center_(ii, jj + 1, kk),
+                                      fCenterJ_(ii, jj, kk));
 
-        // Get wall distance at face
-        const auto mu = FaceReconCentral(viscosity_(ii, jj - 1, kk),
-                                         viscosity_(ii, jj, kk),
-                                         center_(ii, jj - 1, kk),
-                                         center_(ii, jj, kk),
-                                         fCenterJ_(ii, jj, kk));
+          // Get wall distance at face
+          mu = FaceReconCentral4th(viscosity_(ii, jj - 2, kk),
+                                   viscosity_(ii, jj - 1, kk),
+                                   viscosity_(ii, jj, kk),
+                                   viscosity_(ii, jj + 1, kk),
+                                   center_(ii, jj - 2, kk),
+                                   center_(ii, jj - 1, kk),
+                                   center_(ii, jj, kk),
+                                   center_(ii, jj + 1, kk),
+                                   fCenterJ_(ii, jj, kk));
+        }
 
         // calculate gradients
         tensor<double> velGrad;
@@ -2279,27 +2359,67 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
   for (auto kk = fAreaK_.PhysStartK(); kk < fAreaK_.PhysEndK(); kk++) {
     for (auto jj = fAreaK_.PhysStartJ(); jj < fAreaK_.PhysEndJ(); jj++) {
       for (auto ii = fAreaK_.PhysStartI(); ii < fAreaK_.PhysEndI(); ii++) {
-        // Get state at face
-        auto state = FaceReconCentral(state_(ii, jj, kk - 1),
+        primVars state;
+        auto wDist = 0.0;
+        auto mu = 0.0;
+
+        if (inp.ViscousFaceReconstruction() == "central") {
+          // Get state at face
+          state = FaceReconCentral(state_(ii, jj, kk - 1),
+                                   state_(ii, jj, kk),
+                                   center_(ii, jj, kk - 1),
+                                   center_(ii, jj, kk),
+                                   fCenterK_(ii, jj, kk));
+          state.LimitTurb(turb);
+
+          // Get wall distance at face
+          wDist = FaceReconCentral(wallDist_(ii, jj, kk - 1),
+                                   wallDist_(ii, jj, kk),
+                                   center_(ii, jj, kk - 1),
+                                   center_(ii, jj, kk),
+                                   fCenterK_(ii, jj, kk));
+
+          // Get wall distance at face
+          mu = FaceReconCentral(viscosity_(ii, jj, kk - 1),
+                                viscosity_(ii, jj, kk),
+                                center_(ii, jj, kk - 1),
+                                center_(ii, jj, kk),
+                                fCenterK_(ii, jj, kk));
+        } else {  // use 4th order reconstruction
+          // Get state at face
+          state = FaceReconCentral4th(state_(ii, jj, kk - 2),
+                                      state_(ii, jj, kk - 1),
                                       state_(ii, jj, kk),
+                                      state_(ii, jj, kk + 1),
+                                      center_(ii, jj, kk - 2),
                                       center_(ii, jj, kk - 1),
                                       center_(ii, jj, kk),
+                                      center_(ii, jj, kk + 1),
                                       fCenterK_(ii, jj, kk));
-        state.LimitTurb(turb);
+          state.LimitTurb(turb);
 
-        // Get wall distance at face
-        const auto wDist = FaceReconCentral(wallDist_(ii, jj, kk - 1),
-                                            wallDist_(ii, jj, kk),
-                                            center_(ii, jj, kk - 1),
-                                            center_(ii, jj, kk),
-                                            fCenterK_(ii, jj, kk));
+          // Get wall distance at face
+          wDist = FaceReconCentral4th(wallDist_(ii, jj, kk - 2),
+                                      wallDist_(ii, jj, kk - 1),
+                                      wallDist_(ii, jj, kk),
+                                      wallDist_(ii, jj, kk + 1),
+                                      center_(ii, jj, kk - 2),
+                                      center_(ii, jj, kk - 1),
+                                      center_(ii, jj, kk),
+                                      center_(ii, jj, kk + 1),
+                                      fCenterK_(ii, jj, kk));
 
-        // Get wall distance at face
-        const auto mu = FaceReconCentral(viscosity_(ii, jj, kk - 1),
-                                         viscosity_(ii, jj, kk),
-                                         center_(ii, jj, kk - 1),
-                                         center_(ii, jj, kk),
-                                         fCenterK_(ii, jj, kk));
+          // Get wall distance at face
+          mu = FaceReconCentral4th(viscosity_(ii, jj, kk - 2),
+                                   viscosity_(ii, jj, kk - 1),
+                                   viscosity_(ii, jj, kk),
+                                   viscosity_(ii, jj, kk + 1),
+                                   center_(ii, jj, kk - 2),
+                                   center_(ii, jj, kk - 1),
+                                   center_(ii, jj, kk),
+                                   center_(ii, jj, kk + 1),
+                                   fCenterK_(ii, jj, kk));
+        }
 
         // calculate viscous flux
         tensor<double> velGrad;

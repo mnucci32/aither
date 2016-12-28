@@ -59,6 +59,7 @@ input::input(const string &name) : simName_(name) {
   timeIntegration_ = "explicitEuler";
   cfl_ = -1.0;
   faceReconstruction_ = "constant";
+  viscousFaceReconstruction_ = "central";
   kappa_ = -2.0;  // default to value outside of range to tell if higher
                   // order or constant method should be used
   limiter_ = "none";
@@ -100,6 +101,7 @@ input::input(const string &name) : simName_(name) {
            "velocity",
            "timeIntegration",
            "faceReconstruction",
+           "viscousFaceReconstruction",
            "limiter",
            "outputFrequency",
            "equationSet",
@@ -266,6 +268,21 @@ void input::ReadInput(const int &rank) {
 
           if (rank == ROOTP) {
             cout << key << ": " << this->FaceReconstruction() << endl;
+          }
+        } else if (key == "viscousFaceReconstruction") {
+          if (tokens[1] == "central") {
+            viscousFaceReconstruction_ = tokens[1];
+          } else if (tokens[1] == "centralFourth") {
+            viscousFaceReconstruction_ = tokens[1];
+          } else {
+            // face reconstruction method not recognized
+            cerr << "ERROR: Error in input::ReadInput(). Viscous face "
+                 << "reconstruction method " << tokens[1] << " is not recognized!";
+                exit(EXIT_FAILURE);
+          }
+
+          if (rank == ROOTP) {
+            cout << key << ": " << this->ViscousFaceReconstruction() << endl;
           }
         } else if (key == "limiter") {
           limiter_ = tokens[1];
