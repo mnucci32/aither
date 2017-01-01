@@ -211,14 +211,14 @@ def main():
 
     # ------------------------------------------------------------------
     # sod shock tube
-    # laminar, inviscid, bdf2
+    # laminar, inviscid, bdf2, weno
     shockTube = regressionTest()
     shockTube.SetRegressionCase("shockTube")
     shockTube.SetAitherPath(options.aitherPath)
     shockTube.SetRunDirectory("shockTube")
     shockTube.SetNumberOfProcessors(1)
     shockTube.SetNumberOfIterations(numIterations)
-    shockTube.SetResiduals([2.1410e-1, 1.7614e-1, 1.0e0, 1.0e0, 1.0397e-1])
+    shockTube.SetResiduals([4.8536e-1, 4.3789e-1, 1.0e0, 1.0e0, 2.5841e-1])
     shockTube.SetIgnoreIndices([3, 4])
     shockTube.SetMpirunPath(options.mpirunPath)
     

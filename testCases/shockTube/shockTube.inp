@@ -8,8 +8,7 @@ timeIntegration: bdf2
 nonlinearIterations: 5
 timeStep: 4.868e-6
 dualTimeCFL: 1000
-faceReconstruction: thirdOrder
-limiter: vanAlbada
+faceReconstruction: weno
 iterations: 100
 outputFrequency: 100
 outputVariables: <density, vel_x, vel_y, vel_z, pressure, temperature, mach>
@@ -29,25 +28,25 @@ matrixRelaxation: 1.0
 
 #---------------------------------------------------------------------------#
 boundaryConditions: 2
-# Block 0 -- Dimensions: 2 x 2 x 501
+# Block 0 -- Dimensions: 2 x 2 x 51
 2 2 2
 # i-surfaces
-  slipWall                0    0    0    1    0  500     1
-  slipWall                1    1    0    1    0  500     1
+  slipWall                0    0    0    1    0   50     1
+  slipWall                1    1    0    1    0   50     1
 # j-surfaces
-  slipWall                0    1    0    0    0  500     1
-  slipWall                0    1    1    1    0  500     1
+  slipWall                0    1    0    0    0   50     1
+  slipWall                0    1    1    1    0   50     1
 # k-surfaces
-  interblock              0    1    0    1  500  500  5001
+  interblock              0    1    0    1   50   50  5001
   slipWall                0    1    0    1    0    0     1
-# Block 1 -- Dimensions: 2 x 2 x 501
+# Block 1 -- Dimensions: 2 x 2 x 51
 2 2 2
 # i-surfaces
-  slipWall                0    0    0    1    0  500     1
-  slipWall                1    1    0    1    0  500     1
+  slipWall                0    0    0    1    0   50     1
+  slipWall                1    1    0    1    0   50     1
 # j-surfaces
-  slipWall                0    1    0    0    0  500     1
-  slipWall                0    1    1    1    0  500     1
+  slipWall                0    1    0    0    0   50     1
+  slipWall                0    1    1    1    0   50     1
 # k-surfaces
   interblock              0    1    0    1    0    0  6000
-  slipWall                0    1    0    1  500  500     1
+  slipWall                0    1    0    1   50   50     1
