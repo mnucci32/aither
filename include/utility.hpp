@@ -176,11 +176,9 @@ T FaceReconCentral4th(const T &varU2, const T &varU1, const T &varD1,
   const auto upRatio1 = up2face1 / cen2cen1;
   const auto upRatio2 = up2face2 / cen2cen2;
 
-  constexpr auto weight = 7.0 / 8.0;
-
   // reconstruct with central difference
-  return weight * (varD1 * upRatio1 + varU1 * (1.0 - upRatio1)) +
-      (1.0 - weight) * (varD2 * upRatio2 + varU2 * (1.0 - upRatio2));
+  return 4.0 / 3.0 * (varD1 * upRatio1 + varU1 * (1.0 - upRatio1)) -
+      1.0 / 6.0 * (varD2 * upRatio2 + varU2 * (1.0 - upRatio2));
 }
 
 
