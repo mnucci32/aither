@@ -45,6 +45,11 @@ class resid;
 template <typename T>
 inline T FaceReconCentral(const T &, const T &, const vector3d<double> &,
                           const vector3d<double> &, const vector3d<double> &);
+template <typename T>
+inline T FaceReconCentral4th(const T &, const T &, const T &, const T&,
+                             const vector3d<double> &, const vector3d<double> &,
+                             const vector3d<double> &, const vector3d<double> &,
+                             const vector3d<double> &);
 
 tensor<double> VectorGradGG(const vector3d<double> &, const vector3d<double> &,
                             const vector3d<double> &, const vector3d<double> &,
@@ -141,6 +146,39 @@ T FaceReconCentral(const T &varU, const T &varD, const vector3d<double> &pU,
 
   // reconstruct with central difference
   return varD * upRatio + varU * (1.0 - upRatio);
+}
+
+// function to reconstruct cell variables to the face using central
+// differences (4th order)
+template <typename T>
+T FaceReconCentral4th(const T &varU2, const T &varU1, const T &varD1,
+                      const T &varD2, const vector3d<double> &pU2,
+                      const vector3d<double> &pU1, const vector3d<double> &pD1,
+                      const vector3d<double> &pD2, const vector3d<double> &pF) {
+  // varU2 -- variable at the cell center of the second upwind cell
+  // varU1 -- variable at the cell center of the first upwind cell
+  // varD1 -- variable at the cell center of the first downwind cell
+  // varD2 -- variable at the cell center of the second downwind cell
+  // pU2 -- position of the cell center of the second upwind cell
+  // pU1 -- position of the cell center of the first upwind cell
+  // pD1 -- position of the cell center of the first downwind cell
+  // pD2 -- position of the cell center of the second downwind cell
+  // pF -- position of the face center of the face on which the reconstruction
+  // is happening
+
+  // distance from cell center to cell center
+  const auto cen2cen1 = pU1.Distance(pD1);
+  const auto cen2cen2 = pU2.Distance(pD2);
+  // distance from upwind cell center to cell face
+  const auto up2face1 = pU1.Distance(pF);
+  const auto up2face2 = pU2.Distance(pF);
+  // ratio of distance from upwind cell center to cell face to center to center
+  const auto upRatio1 = up2face1 / cen2cen1;
+  const auto upRatio2 = up2face2 / cen2cen2;
+
+  // reconstruct with central difference
+  return 4.0 / 3.0 * (varD1 * upRatio1 + varU1 * (1.0 - upRatio1)) -
+      1.0 / 6.0 * (varD2 * upRatio2 + varU2 * (1.0 - upRatio2));
 }
 
 

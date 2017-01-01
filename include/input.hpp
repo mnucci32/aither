@@ -56,6 +56,7 @@ class input {
   string timeIntegration_;  // time integration method
   double cfl_;  // cfl number for local time stepping
   string faceReconstruction_;  // face reconstruction method
+  string viscousFaceReconstruction_;  // face reconstruction for viscous flux
   double kappa_;  // kappa paramenter for MUSCL face reconstruction
   string limiter_;  // limiter to use in higher order calculations
   int outputFrequency_;  // how often to output results
@@ -124,6 +125,7 @@ class input {
 
   double Kappa() const {return kappa_;}
   string FaceReconstruction() const {return faceReconstruction_;}
+  string ViscousFaceReconstruction() const {return viscousFaceReconstruction_;}
   bool UsingConstantReconstruction() const {
     return faceReconstruction_ == "constant";
   }
