@@ -91,6 +91,7 @@ class primVars {
                                 const sutherland&, const int&);
   bool IsZero() const;
   primVars Squared() const;
+  primVars Abs() const;
 
   inline vector3d<double> Velocity() const;
 

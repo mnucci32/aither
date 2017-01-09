@@ -248,11 +248,28 @@ primVars primVars::FaceReconWENO(const primVars &upwind2,
   const auto smooth3 = sm1 * ((*this) - 2.0 * downwind1 + downwind2).Squared() +
       sm2 * (3.0 * (*this) - 4.0 * downwind1 + downwind2).Squared();
 
+  const auto tau5 = (smooth1 - smooth3).Abs();
+
+  
+  
+  // DEBUG
+  // const auto smooth1 = (upwind3 - 4.0 * upwind2 + 3.0 * (*this)).Squared();
+  // const auto smooth2 = (upwind2 - downwind1).Squared();
+  // const auto smooth3 = (3.0 * (*this) - 4.0 * downwind1 + downwind2).Squared();  
+  
   // calculate nonlinear weights
-  constexpr auto eps = 1.0e-6;
-  auto nlw1 = lw1 / (eps + smooth1).Squared();
-  auto nlw2 = lw2 / (eps + smooth2).Squared();
-  auto nlw3 = lw3 / (eps + smooth3).Squared();
+  // constexpr auto eps = 1.0e-6;
+  // auto nlw1 = lw1 / (eps + smooth1).Squared();
+  // auto nlw2 = lw2 / (eps + smooth2).Squared();
+  // auto nlw3 = lw3 / (eps + smooth3).Squared();
+
+
+  // using weno-z weights with q = 1
+  constexpr auto eps = 1.0e-40;
+  auto nlw1 = lw1 * (1.0 + tau5 / (eps + smooth1));
+  auto nlw2 = lw2 * (1.0 + tau5 / (eps + smooth2));
+  auto nlw3 = lw3 * (1.0 + tau5 / (eps + smooth3));
+
   // normalize weights
   const auto sum_nlw = nlw1 + nlw2 + nlw3;
   nlw1 /= sum_nlw;
@@ -1013,4 +1030,13 @@ primVars RoeAveragedState(const primVars &left, const primVars &right,
 // return element by element squared values
 primVars primVars::Squared() const {
   return (*this) * (*this);
+}
+
+// return element by element absolute value
+primVars primVars::Abs() const {
+  auto abs = *this;
+  for (auto &val : abs.data_) {
+    val = fabs(val);
+  }
+  return abs;
 }
