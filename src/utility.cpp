@@ -17,8 +17,10 @@
 #include <iostream>               // cout, cerr, endl
 #include <algorithm>              // max, min
 #include <vector>
+#include <array>
 #include <string>
 #include <memory>
+#include <numeric>
 #include "utility.hpp"
 #include "procBlock.hpp"
 #include "eos.hpp"                 // idealGas
@@ -38,6 +40,7 @@ using std::string;
 using std::max;
 using std::min;
 using std::unique_ptr;
+using std::array;
 
 /* Function to calculate the gradient of a vector at the cell center using the
 Green-Gauss method
@@ -686,9 +689,52 @@ vector3d<double> TauNormal(const tensor<double> &velGrad,
       (velGrad.MatMult(area) + velGrad.Transpose().MatMult(area));
 }
 
+// This function calculates the coefficients for three third order accurate
+// reconstructions used in a 5th order WENO scheme. This follows the formula
+// 2.20 from ICASE report No 97-65 by Shu.
+array<double, 3> WenoCoeff(const array<double, 5> &cellWidth, const int &degree,
+                           const int & rr) {
+  constexpr auto ii = 2;
+  array<double, 3> coeffs = {0.0, 0.0, 0.0};
 
+  for (auto jj = 0; jj < coeffs.size(); ++jj) {
+    for (auto mm = jj + 1; mm <= degree + 1; ++mm) {
+      auto numer = 0.0;
+      auto denom = 1.0;
+      for (auto ll = 0; ll <= degree + 1; ++ll) {
+        // calculate numerator
+        if (ll != mm) {
+          auto numProd = 1.0;
+          for (auto qq = 0; qq <= degree + 1; ++qq) {
+            if (qq != mm && qq != ll) {
+              numProd *= StencilWidth(cellWidth, ii - rr + qq, ii + 1);
+            }
+          }
+          numer += numProd;
 
+          // calculate denominator
+          denom *= StencilWidth(cellWidth, ii - rr + ll, ii - rr + mm);
+        }
+      }
+      coeffs[jj] += numer / denom;
+    }
+    coeffs[jj] *= cellWidth[ii - rr + jj];
+  }
+  return coeffs;
+}
 
+template <typename T>
+double StencilWidth(const T &cellWidth, const int &start, const int &end) {
+  auto width = 0.0;
+  if (end > start) {
+    width = std::accumulate(std::begin(cellWidth) + start,
+                            std::begin(cellWidth) + end, 0.0);
+  } else if (start > end) {  // width is negative
+    width = -1.0 * std::accumulate(std::begin(cellWidth) + end,
+                                   std::begin(cellWidth) + start, 0.0);
+  }
+  return width;
+}
 
 
 

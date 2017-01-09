@@ -16,6 +16,7 @@
 
 #include <iostream>
 #include <vector>
+#include <array>
 #include <string>
 #include <memory>
 #include <cmath>
@@ -23,6 +24,7 @@
 #include "primVars.hpp"
 #include "input.hpp"               // input
 #include "turbulence.hpp"          // turbModel
+#include "utility.hpp"
 
 using std::cout;
 using std::endl;
@@ -219,18 +221,21 @@ primVars primVars::FaceReconWENO(const primVars &upwind2,
                                  const primVars &downwind2, const double &uw1,
                                  const double &uw2, const double &uw3,
                                  const double &dw1, const double &dw2) const {
-  constexpr auto third = 1.0 / 3.0;
-  constexpr auto sixth = 1.0 / 6.0;
-  constexpr auto fiveSixth = 5.0 / 6.0;
-  constexpr auto sevenSixth = 7.0 / 6.0;
-  constexpr auto elevenSixth = 11.0 / 6.0;
+  // DEBUG
+  const array<double, 5> cellWidth = {uw3, uw2, uw1, dw1, dw2};
 
-  const auto stencil1 = third * upwind3 - sevenSixth * upwind2 +
-      elevenSixth * (*this);
-  const auto stencil2 = -sixth * upwind2 + fiveSixth * (*this) +
-      third * downwind1;
-  const auto stencil3 = third * (*this) + fiveSixth * downwind1 -
-      sixth * downwind2;
+  constexpr auto degree = 2;
+  auto coeffs = WenoCoeff(cellWidth, degree, 2);
+  const auto stencil1 = coeffs[0] * upwind3 + coeffs[1] * upwind2 +
+      coeffs[2] * (*this);
+
+  coeffs = WenoCoeff(cellWidth, degree, 1);
+  const auto stencil2 = coeffs[0] * upwind2 + coeffs[1] * (*this) +
+      coeffs[2] * downwind1;
+
+  coeffs = WenoCoeff(cellWidth, degree, 0);
+  const auto stencil3 = coeffs[0] * (*this) + coeffs[1] * downwind1 +
+      coeffs[2] * downwind2;
 
   // linear weights
   constexpr auto lw1 = 0.1;
@@ -250,8 +255,6 @@ primVars primVars::FaceReconWENO(const primVars &upwind2,
 
   const auto tau5 = (smooth1 - smooth3).Abs();
 
-  
-  
   // DEBUG
   // const auto smooth1 = (upwind3 - 4.0 * upwind2 + 3.0 * (*this)).Squared();
   // const auto smooth2 = (upwind2 - downwind1).Squared();

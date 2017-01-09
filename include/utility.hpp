@@ -19,6 +19,7 @@
 #define UTILITYHEADERDEF  // define the macro
 
 #include <vector>                  // vector
+#include <array>
 #include <memory>
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"            // vector3d
@@ -122,6 +123,11 @@ void ResizeArrays(const vector<procBlock> &, const input &,
 
 vector3d<double> TauNormal(const tensor<double> &, const vector3d<double> &,
                            const double &, const double &, const sutherland &);
+
+array<double, 3> WenoCoeff(const array<double, 5> &, const int &, const int &);
+template <typename T>
+double StencilWidth(const T &, const int &, const int &);
+
 // ---------------------------------------------------------------------------
 // inline function definitions
 
