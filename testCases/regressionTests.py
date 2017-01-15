@@ -218,7 +218,7 @@ def main():
     shockTube.SetRunDirectory("shockTube")
     shockTube.SetNumberOfProcessors(1)
     shockTube.SetNumberOfIterations(numIterations)
-    shockTube.SetResiduals([4.8536e-1, 4.3789e-1, 1.0e0, 1.0e0, 2.5841e-1])
+    shockTube.SetResiduals([5.1672e-1, 4.7082e-1, 1.0e0, 1.0e0, 2.8167e-1])
     shockTube.SetIgnoreIndices([3, 4])
     shockTube.SetMpirunPath(options.mpirunPath)
     
