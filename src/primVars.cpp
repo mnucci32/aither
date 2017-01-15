@@ -16,6 +16,7 @@
 
 #include <iostream>
 #include <vector>
+#include <array>
 #include <string>
 #include <memory>
 #include <cmath>
@@ -23,6 +24,7 @@
 #include "primVars.hpp"
 #include "input.hpp"               // input
 #include "turbulence.hpp"          // turbModel
+#include "utility.hpp"
 
 using std::cout;
 using std::endl;
@@ -211,6 +213,84 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
   return primUW1 + 0.25 * ((primUW1 - primUW2) * dMinus) *
     ((1.0 - kappa) * limiter + (1.0 + kappa) * r * invLimiter);
 }
+
+// member function for higher order reconstruction via weno
+primVars primVars::FaceReconWENO(const primVars &upwind2,
+                                 const primVars &upwind3,
+                                 const primVars &downwind1,
+                                 const primVars &downwind2, const double &uw1,
+                                 const double &uw2, const double &uw3,
+                                 const double &dw1, const double &dw2) const {
+  // get candidate smaller stencils
+  const vector<double> cellWidth = {uw3, uw2, uw1, dw1, dw2};
+
+  constexpr auto degree = 2;
+  constexpr auto up1Loc = 2;
+  const auto coeffs0 = LagrangeCoeff(cellWidth, degree, 2, up1Loc);
+  const auto stencil0 = coeffs0[0] * upwind3 + coeffs0[1] * upwind2 +
+      coeffs0[2] * (*this);
+
+  const auto coeffs1 = LagrangeCoeff(cellWidth, degree, 1, up1Loc);
+  const auto stencil1 = coeffs1[0] * upwind2 + coeffs1[1] * (*this) +
+      coeffs1[2] * downwind1;
+
+  const auto coeffs2 = LagrangeCoeff(cellWidth, degree, 0, up1Loc);
+  const auto stencil2 = coeffs2[0] * (*this) + coeffs2[1] * downwind1 +
+      coeffs2[2] * downwind2;
+
+  // get coefficients for large stencil
+  const auto fullCoeffs = LagrangeCoeff(cellWidth, 4, 2, up1Loc);
+
+  // linear weights
+  const auto lw0 = fullCoeffs[0] / coeffs0[0];
+  const auto lw1 = fullCoeffs[4] / coeffs2[2];
+  const auto lw2 = 1.0 - lw0 - lw1;
+
+  // calculate smoothness indicators
+  // constexpr auto sm1 = 13.0 / 12.0;
+  // constexpr auto sm2 = 0.25;
+
+  // const auto smooth0 = sm1 * (upwind3 - 2.0 * upwind2 + (*this)).Squared() +
+  //     sm2 * (upwind3 - 4.0 * upwind2 + 3.0 * (*this)).Squared();
+  // const auto smooth1 = sm1 * (upwind2 - 2.0 * (*this) + downwind1).Squared() +
+  //     sm2 * (upwind2 - downwind1).Squared();
+  // const auto smooth2 = sm1 * ((*this) - 2.0 * downwind1 + downwind2).Squared() +
+  //     sm2 * (3.0 * (*this) - 4.0 * downwind1 + downwind2).Squared();
+
+  const auto beta0 = Beta0(uw3, uw2, uw1, upwind3, upwind2, (*this));
+  const auto beta1 = Beta1(uw2, uw1, dw1, upwind2, (*this), downwind1);
+  const auto beta2 = Beta2(uw1, dw1, dw2, (*this), downwind1, downwind2);
+
+  const auto tau5 = (beta0 - beta2).Abs();
+
+  // DEBUG
+  // const auto smooth1 = (upwind3 - 4.0 * upwind2 + 3.0 * (*this)).Squared();
+  // const auto smooth2 = (upwind2 - downwind1).Squared();
+  // const auto smooth3 = (3.0 * (*this) - 4.0 * downwind1 + downwind2).Squared();  
+
+  // calculate nonlinear weights
+  // constexpr auto eps = 1.0e-6;
+  // auto nlw1 = lw1 / (eps + smooth1).Squared();
+  // auto nlw2 = lw2 / (eps + smooth2).Squared();
+  // auto nlw3 = lw3 / (eps + smooth3).Squared();
+
+
+  // using weno-z weights with q = 1
+  constexpr auto eps = 1.0e-40;
+  auto nlw0 = lw0 * (1.0 + tau5 / (eps + beta0));
+  auto nlw1 = lw1 * (1.0 + tau5 / (eps + beta1));
+  auto nlw2 = lw2 * (1.0 + tau5 / (eps + beta2));
+
+  // normalize weights
+  const auto sum_nlw = nlw0 + nlw1 + nlw2;
+  nlw0 /= sum_nlw;
+  nlw1 /= sum_nlw;
+  nlw2 /= sum_nlw;
+
+  // return weighted contribution of each stencil
+  return nlw0 * stencil0 + nlw1 * stencil1 + nlw2 * stencil2;
+}
+
 
 // member function to calculate minmod limiter
 primVars primVars::LimiterMinmod(const primVars &upwind,
@@ -956,4 +1036,18 @@ primVars RoeAveragedState(const primVars &left, const primVars &right,
   const auto omR = (left.Omega() + denRatio * right.Omega()) / (1.0 + denRatio);
 
   return primVars(rhoR, uR, vR, wR, pR, kR, omR);
+}
+
+// return element by element squared values
+primVars primVars::Squared() const {
+  return (*this) * (*this);
+}
+
+// return element by element absolute value
+primVars primVars::Abs() const {
+  auto abs = *this;
+  for (auto &val : abs.data_) {
+    val = fabs(val);
+  }
+  return abs;
 }

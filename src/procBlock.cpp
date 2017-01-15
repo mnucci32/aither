@@ -335,33 +335,43 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
         if (inp.OrderOfAccuracy() == "first") {
           faceStateLower = state_(ii - 1, jj, kk).FaceReconConst();
           faceStateUpper = state_(ii, jj, kk).FaceReconConst();
-        } else {  // second order accuracy -- use MUSCL extrapolation
-          // length of second upwind, first upwind, and downwind cells in
-          // i-direction
-          const auto upwind2L = fCenterI_(ii - 1, jj, kk).
+        } else {  // second order accuracy
+          // length of cells in computational stencil
+          const auto minus2 = fCenterI_(ii - 1, jj, kk).
               Distance(fCenterI_(ii - 2, jj, kk));
-          const auto upwindL = fCenterI_(ii, jj, kk).
+          const auto minus1 = fCenterI_(ii, jj, kk).
               Distance(fCenterI_(ii - 1, jj, kk));
-          const auto downwindL = fCenterI_(ii, jj, kk).
+          const auto plus1 = fCenterI_(ii, jj, kk).
               Distance(fCenterI_(ii + 1, jj, kk));
-
-          faceStateLower = state_(ii - 1, jj, kk).FaceReconMUSCL(
-              state_(ii - 2, jj, kk), state_(ii, jj, kk),
-              inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL);
-
-          // length of second upwind, first upwind, and downwind cells in
-          // i-direction
-          const auto upwind2U = fCenterI_(ii + 1, jj, kk).
+          const auto plus2 = fCenterI_(ii + 1, jj, kk).
               Distance(fCenterI_(ii + 2, jj, kk));
-          const auto upwindU = fCenterI_(ii, jj, kk).
-              Distance(fCenterI_(ii + 1, jj, kk));
-          const auto downwindU = fCenterI_(ii, jj, kk).
-              Distance(fCenterI_(ii - 1, jj, kk));
 
-          faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
-              state_(ii + 1, jj, kk), state_(ii - 1, jj, kk),
-              inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU);
+          if (inp.UsingMUSCLReconstruction()) {
+            faceStateLower = state_(ii - 1, jj, kk).FaceReconMUSCL(
+                state_(ii - 2, jj, kk), state_(ii, jj, kk),
+                inp.Kappa(), inp.Limiter(), minus1, minus2, plus1);
+
+            faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
+                state_(ii + 1, jj, kk), state_(ii - 1, jj, kk),
+                inp.Kappa(), inp.Limiter(), plus1, plus2, minus1);
+          } else {  // using higher order reconstruction (weno)
+            // get additional cell lengths
+            const auto minus3 = fCenterI_(ii - 2, jj, kk).
+                Distance(fCenterI_(ii - 3, jj, kk));
+            const auto plus3 = fCenterI_(ii + 2, jj, kk).
+                Distance(fCenterI_(ii + 3, jj, kk));
+
+            faceStateLower = state_(ii - 1, jj, kk).FaceReconWENO(
+                state_(ii - 2, jj, kk), state_(ii - 3, jj, kk),
+                state_(ii, jj, kk), state_(ii + 1, jj, kk), minus1, minus2,
+                minus3, plus1, plus2);
+            faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
+                state_(ii + 1, jj, kk), state_(ii + 2, jj, kk),
+                state_(ii - 1, jj, kk), state_(ii - 2, jj, kk), plus1, plus2,
+                plus3, minus1, minus2);
+          }
         }
+
         // calculate Roe flux at face
         const inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper,
                                               eqnState,
@@ -463,32 +473,42 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
         if (inp.OrderOfAccuracy() == "first") {
           faceStateLower = state_(ii, jj - 1, kk).FaceReconConst();
           faceStateUpper = state_(ii, jj, kk).FaceReconConst();
-        } else {  // second order accuracy -- use MUSCL extrapolation
-          // length of second upwind, first upwind, and downwind cells in
-          // j-direction
-          const auto upwind2L = fCenterJ_(ii, jj - 1, kk).
+        } else {  // second order accuracy
+          // length of cells in computational stencil
+          const auto minus2 = fCenterJ_(ii, jj - 1, kk).
               Distance(fCenterJ_(ii, jj - 2, kk));
-          const auto upwindL = fCenterJ_(ii, jj, kk).
+          const auto minus1 = fCenterJ_(ii, jj, kk).
               Distance(fCenterJ_(ii, jj - 1, kk));
-          const auto downwindL = fCenterJ_(ii, jj, kk).
+          const auto plus1 = fCenterJ_(ii, jj, kk).
               Distance(fCenterJ_(ii, jj + 1, kk));
-
-          faceStateLower = state_(ii, jj - 1, kk).FaceReconMUSCL(
-              state_(ii, jj - 2, kk), state_(ii, jj, kk),
-              inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL);
-
-          // length of second upwind, first upwind, and downwind cells in
-          // j-direction
-          const auto upwind2U = fCenterJ_(ii, jj + 1, kk).
+          const auto plus2 = fCenterJ_(ii, jj + 1, kk).
               Distance(fCenterJ_(ii, jj + 2, kk));
-          const auto upwindU = fCenterJ_(ii, jj, kk).
-              Distance(fCenterJ_(ii, jj + 1, kk));
-          const auto downwindU = fCenterJ_(ii, jj, kk).
-              Distance(fCenterJ_(ii, jj - 1, kk));
 
-          faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
+          if (inp.UsingMUSCLReconstruction()) {
+            faceStateLower = state_(ii, jj - 1, kk).FaceReconMUSCL(
+                state_(ii, jj - 2, kk), state_(ii, jj, kk),
+                inp.Kappa(), inp.Limiter(), minus1, minus2, plus1);
+
+            faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
               state_(ii, jj + 1, kk), state_(ii, jj - 1, kk),
-              inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU);
+              inp.Kappa(), inp.Limiter(), plus1, plus2, minus1);
+          } else {  // using higher order reconstruction (weno)
+            // get additional cell lenghths
+            const auto minus3 = fCenterJ_(ii, jj - 2, kk).
+                Distance(fCenterJ_(ii, jj - 3, kk));
+            const auto plus3 = fCenterJ_(ii, jj + 2, kk).
+                Distance(fCenterJ_(ii, jj + 3, kk));
+
+            faceStateLower = state_(ii, jj - 1, kk).FaceReconWENO(
+                state_(ii, jj - 2, kk), state_(ii, jj - 3, kk),
+                state_(ii, jj, kk), state_(ii, jj + 1, kk), minus1, minus2,
+                minus3, plus1, plus2);
+
+            faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
+                state_(ii, jj + 1, kk), state_(ii, jj + 2, kk),
+                state_(ii, jj - 1, kk), state_(ii, jj - 2, kk), plus1, plus2,
+                plus3, minus1, minus2);
+          }
         }
 
         // calculate Roe flux at face
@@ -592,32 +612,42 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
         if (inp.OrderOfAccuracy() == "first") {
           faceStateLower = state_(ii, jj, kk - 1).FaceReconConst();
           faceStateUpper = state_(ii, jj, kk).FaceReconConst();
-        } else {  // second order accuracy -- use MUSCL extrapolation
-          // length of second upwind, first upwind, and downwind cells in
-          // j-direction
-          const auto upwind2L = fCenterK_(ii, jj, kk - 1).
+        } else {  // second order accuracy
+          // length of cells in computational stencil
+          const auto minus2 = fCenterK_(ii, jj, kk - 1).
               Distance(fCenterK_(ii, jj, kk - 2));
-          const auto upwindL = fCenterK_(ii, jj, kk).
+          const auto minus1 = fCenterK_(ii, jj, kk).
               Distance(fCenterK_(ii, jj, kk - 1));
-          const auto downwindL = fCenterK_(ii, jj, kk).
+          const auto plus1 = fCenterK_(ii, jj, kk).
               Distance(fCenterK_(ii, jj, kk + 1));
-
-          faceStateLower = state_(ii, jj, kk - 1).FaceReconMUSCL(
-              state_(ii, jj, kk - 2), state_(ii, jj, kk),
-              inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL);
-
-          // length of second upwind, first upwind, and downwind cells in
-          // j-direction
-          const auto upwind2U = fCenterK_(ii, jj, kk + 1).
+          const auto plus2 = fCenterK_(ii, jj, kk + 1).
               Distance(fCenterK_(ii, jj, kk + 2));
-          const auto upwindU = fCenterK_(ii, jj, kk).
-              Distance(fCenterK_(ii, jj, kk + 1));
-          const auto downwindU = fCenterK_(ii, jj, kk).
-              Distance(fCenterK_(ii, jj, kk - 1));
 
-          faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
-              state_(ii, jj, kk + 1), state_(ii, jj, kk - 1),
-              inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU);
+          if (inp.UsingMUSCLReconstruction()) {
+            faceStateLower = state_(ii, jj, kk - 1).FaceReconMUSCL(
+                state_(ii, jj, kk - 2), state_(ii, jj, kk),
+                inp.Kappa(), inp.Limiter(), minus1, minus2, plus1);
+
+            faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
+                state_(ii, jj, kk + 1), state_(ii, jj, kk - 1),
+                inp.Kappa(), inp.Limiter(), plus1, plus2, minus1);
+          } else {  // using higher order reconstruction (weno)
+            // get additional cell lengths
+            const auto minus3 = fCenterK_(ii, jj, kk - 2).
+                Distance(fCenterK_(ii, jj, kk - 3));
+            const auto plus3 = fCenterK_(ii, jj, kk + 2).
+                Distance(fCenterK_(ii, jj, kk + 3));
+
+            faceStateLower = state_(ii, jj, kk - 1).FaceReconWENO(
+                state_(ii, jj, kk - 2), state_(ii, jj, kk - 3),
+                state_(ii, jj, kk), state_(ii, jj, kk + 1), minus1, minus2,
+                minus3, plus1, plus2);
+
+            faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
+                state_(ii, jj, kk + 1), state_(ii, jj, kk + 2),
+                state_(ii, jj, kk - 1), state_(ii, jj, kk - 2), plus1, plus2,
+                plus3, minus1, minus2);
+          }
         }
 
         // calculate Roe flux at face
@@ -1810,27 +1840,56 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
   for (auto kk = fAreaI_.PhysStartK(); kk < fAreaI_.PhysEndK(); kk++) {
     for (auto jj = fAreaI_.PhysStartJ(); jj < fAreaI_.PhysEndJ(); jj++) {
       for (auto ii = fAreaI_.PhysStartI(); ii < fAreaI_.PhysEndI(); ii++) {
-        // Get state at face
-        auto state = FaceReconCentral(state_(ii - 1, jj, kk),
+        primVars state;
+        auto wDist = 0.0;
+        auto mu = 0.0;
+
+        if (inp.ViscousFaceReconstruction() == "central") {
+          // get cell widths
+          const vector<double> cellWidth = {
+            fCenterI_(ii,     jj, kk).Distance(fCenterI_(ii - 1, jj, kk)),
+            fCenterI_(ii + 1, jj, kk).Distance(fCenterI_(ii,     jj, kk))};
+
+          // Get state at face
+          state = FaceReconCentral(state_(ii - 1, jj, kk),
+                                   state_(ii, jj, kk), cellWidth);
+          state.LimitTurb(turb);
+
+          // Get wall distance at face
+          wDist = FaceReconCentral(wallDist_(ii - 1, jj, kk),
+                                   wallDist_(ii, jj, kk), cellWidth);
+
+          // Get viscosity at face
+          mu = FaceReconCentral(viscosity_(ii - 1, jj, kk),
+                                viscosity_(ii, jj, kk), cellWidth);
+
+        } else {  // use 4th order reconstruction
+          // get cell widths
+          const vector<double> cellWidth = {
+            fCenterI_(ii - 1, jj, kk).Distance(fCenterI_(ii - 2, jj, kk)),
+            fCenterI_(ii,     jj, kk).Distance(fCenterI_(ii - 1, jj, kk)),
+            fCenterI_(ii + 1, jj, kk).Distance(fCenterI_(ii,     jj, kk)),
+            fCenterI_(ii + 2, jj, kk).Distance(fCenterI_(ii + 1, jj, kk))};
+
+          // Get state at face
+          state = FaceReconCentral4th(state_(ii - 2, jj, kk),
+                                      state_(ii - 1, jj, kk),
                                       state_(ii, jj, kk),
-                                      center_(ii - 1, jj, kk),
-                                      center_(ii, jj, kk),
-                                      fCenterI_(ii, jj, kk));
-        state.LimitTurb(turb);
+                                      state_(ii + 1, jj, kk), cellWidth);
+          state.LimitTurb(turb);
 
-        // Get wall distance at face
-        const auto wDist = FaceReconCentral(wallDist_(ii - 1, jj, kk),
-                                            wallDist_(ii, jj, kk),
-                                            center_(ii - 1, jj, kk),
-                                            center_(ii, jj, kk),
-                                            fCenterI_(ii, jj, kk));
+          // Get wall distance at face
+          wDist = FaceReconCentral4th(wallDist_(ii - 2, jj, kk),
+                                      wallDist_(ii - 1, jj, kk),
+                                      wallDist_(ii, jj, kk),
+                                      wallDist_(ii + 1, jj, kk), cellWidth);
 
-        // Get viscosity at face
-        const auto mu = FaceReconCentral(viscosity_(ii - 1, jj, kk),
-                                         viscosity_(ii, jj, kk),
-                                         center_(ii - 1, jj, kk),
-                                         center_(ii, jj, kk),
-                                         fCenterI_(ii, jj, kk));
+          // Get viscosity at face
+          mu = FaceReconCentral4th(viscosity_(ii - 2, jj, kk),
+                                   viscosity_(ii - 1, jj, kk),
+                                   viscosity_(ii, jj, kk),
+                                   viscosity_(ii + 1, jj, kk), cellWidth);
+        }
 
         // calculate gradients
         tensor<double> velGrad;
@@ -2029,27 +2088,56 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
   for (auto kk = fAreaJ_.PhysStartK(); kk < fAreaJ_.PhysEndK(); kk++) {
     for (auto jj = fAreaJ_.PhysStartJ(); jj < fAreaJ_.PhysEndJ(); jj++) {
       for (auto ii = fAreaJ_.PhysStartI(); ii < fAreaJ_.PhysEndI(); ii++) {
-        // Get velocity at face
-        auto state = FaceReconCentral(state_(ii, jj - 1, kk),
+        primVars state;
+        auto wDist = 0.0;
+        auto mu = 0.0;
+
+        if (inp.ViscousFaceReconstruction() == "central") {
+          // get cell widths
+          const vector<double> cellWidth = {
+            fCenterJ_(ii, jj,     kk).Distance(fCenterJ_(ii, jj - 1, kk)),
+            fCenterJ_(ii, jj + 1, kk).Distance(fCenterJ_(ii, jj,     kk))};
+
+          // Get velocity at face
+          state = FaceReconCentral(state_(ii, jj - 1, kk),
+                                   state_(ii, jj, kk), cellWidth);
+          state.LimitTurb(turb);
+
+          // Get wall distance at face
+          wDist = FaceReconCentral(wallDist_(ii, jj - 1, kk),
+                                   wallDist_(ii, jj, kk), cellWidth);
+
+          // Get wall distance at face
+          mu = FaceReconCentral(viscosity_(ii, jj - 1, kk),
+                                viscosity_(ii, jj, kk), cellWidth);
+
+        } else {  // use 4th order reconstruction
+          // get cell widths
+          const vector<double> cellWidth = {
+            fCenterJ_(ii, jj - 1, kk).Distance(fCenterJ_(ii, jj - 2, kk)),
+            fCenterJ_(ii, jj,     kk).Distance(fCenterJ_(ii, jj - 1, kk)),
+            fCenterJ_(ii, jj + 1, kk).Distance(fCenterJ_(ii, jj,     kk)),
+            fCenterJ_(ii, jj + 2, kk).Distance(fCenterJ_(ii, jj + 1, kk))};
+
+          // Get velocity at face
+          state = FaceReconCentral4th(state_(ii, jj - 2, kk),
+                                      state_(ii, jj - 1, kk),
                                       state_(ii, jj, kk),
-                                      center_(ii, jj - 1, kk),
-                                      center_(ii, jj, kk),
-                                      fCenterJ_(ii, jj, kk));
-        state.LimitTurb(turb);
+                                      state_(ii, jj + 1, kk), cellWidth);
+          state.LimitTurb(turb);
 
-        // Get wall distance at face
-        const auto wDist = FaceReconCentral(wallDist_(ii, jj - 1, kk),
-                                            wallDist_(ii, jj, kk),
-                                            center_(ii, jj - 1, kk),
-                                            center_(ii, jj, kk),
-                                            fCenterJ_(ii, jj, kk));
+          // Get wall distance at face
+          wDist = FaceReconCentral4th(wallDist_(ii, jj - 2, kk),
+                                      wallDist_(ii, jj - 1, kk),
+                                      wallDist_(ii, jj, kk),
+                                      wallDist_(ii, jj + 1, kk), cellWidth);
 
-        // Get wall distance at face
-        const auto mu = FaceReconCentral(viscosity_(ii, jj - 1, kk),
-                                         viscosity_(ii, jj, kk),
-                                         center_(ii, jj - 1, kk),
-                                         center_(ii, jj, kk),
-                                         fCenterJ_(ii, jj, kk));
+          // Get wall distance at face
+          mu = FaceReconCentral4th(viscosity_(ii, jj - 2, kk),
+                                   viscosity_(ii, jj - 1, kk),
+                                   viscosity_(ii, jj, kk),
+                                   viscosity_(ii, jj + 1, kk), cellWidth);
+        }
 
         // calculate gradients
         tensor<double> velGrad;
@@ -2249,27 +2337,56 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
   for (auto kk = fAreaK_.PhysStartK(); kk < fAreaK_.PhysEndK(); kk++) {
     for (auto jj = fAreaK_.PhysStartJ(); jj < fAreaK_.PhysEndJ(); jj++) {
       for (auto ii = fAreaK_.PhysStartI(); ii < fAreaK_.PhysEndI(); ii++) {
-        // Get state at face
-        auto state = FaceReconCentral(state_(ii, jj, kk - 1),
+        primVars state;
+        auto wDist = 0.0;
+        auto mu = 0.0;
+
+        if (inp.ViscousFaceReconstruction() == "central") {
+          // get cell widths
+          const vector<double> cellWidth = {
+            fCenterK_(ii, jj, kk    ).Distance(fCenterK_(ii, jj, kk - 1)),
+            fCenterK_(ii, jj, kk + 1).Distance(fCenterK_(ii, jj, kk))};
+
+          // Get state at face
+          state = FaceReconCentral(state_(ii, jj, kk - 1),
+                                   state_(ii, jj, kk), cellWidth);
+          state.LimitTurb(turb);
+
+          // Get wall distance at face
+          wDist = FaceReconCentral(wallDist_(ii, jj, kk - 1),
+                                   wallDist_(ii, jj, kk), cellWidth);
+
+          // Get wall distance at face
+          mu = FaceReconCentral(viscosity_(ii, jj, kk - 1),
+                                viscosity_(ii, jj, kk), cellWidth);
+
+        } else {  // use 4th order reconstruction
+          // get cell widths
+          const vector<double> cellWidth = {
+            fCenterK_(ii, jj, kk - 1).Distance(fCenterK_(ii, jj, kk - 2)),
+            fCenterK_(ii, jj, kk    ).Distance(fCenterK_(ii, jj, kk - 1)),
+            fCenterK_(ii, jj, kk + 1).Distance(fCenterK_(ii, jj, kk)),
+            fCenterK_(ii, jj, kk + 2).Distance(fCenterK_(ii, jj, kk + 1))};
+
+          // Get state at face
+          state = FaceReconCentral4th(state_(ii, jj, kk - 2),
+                                      state_(ii, jj, kk - 1),
                                       state_(ii, jj, kk),
-                                      center_(ii, jj, kk - 1),
-                                      center_(ii, jj, kk),
-                                      fCenterK_(ii, jj, kk));
-        state.LimitTurb(turb);
+                                      state_(ii, jj, kk + 1), cellWidth);
+          state.LimitTurb(turb);
 
-        // Get wall distance at face
-        const auto wDist = FaceReconCentral(wallDist_(ii, jj, kk - 1),
-                                            wallDist_(ii, jj, kk),
-                                            center_(ii, jj, kk - 1),
-                                            center_(ii, jj, kk),
-                                            fCenterK_(ii, jj, kk));
+          // Get wall distance at face
+          wDist = FaceReconCentral4th(wallDist_(ii, jj, kk - 2),
+                                      wallDist_(ii, jj, kk - 1),
+                                      wallDist_(ii, jj, kk),
+                                      wallDist_(ii, jj, kk + 1), cellWidth);
 
-        // Get wall distance at face
-        const auto mu = FaceReconCentral(viscosity_(ii, jj, kk - 1),
-                                         viscosity_(ii, jj, kk),
-                                         center_(ii, jj, kk - 1),
-                                         center_(ii, jj, kk),
-                                         fCenterK_(ii, jj, kk));
+          // Get wall distance at face
+          mu = FaceReconCentral4th(viscosity_(ii, jj, kk - 2),
+                                   viscosity_(ii, jj, kk - 1),
+                                   viscosity_(ii, jj, kk),
+                                   viscosity_(ii, jj, kk + 1), cellWidth);
+        }
 
         // calculate viscous flux
         tensor<double> velGrad;

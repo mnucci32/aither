@@ -58,6 +58,8 @@ input::input(const string &name) : simName_(name) {
   bc_ = vector<boundaryConditions>(1);
   timeIntegration_ = "explicitEuler";
   cfl_ = -1.0;
+  faceReconstruction_ = "constant";
+  viscousFaceReconstruction_ = "central";
   kappa_ = -2.0;  // default to value outside of range to tell if higher
                   // order or constant method should be used
   limiter_ = "none";
@@ -99,6 +101,7 @@ input::input(const string &name) : simName_(name) {
            "velocity",
            "timeIntegration",
            "faceReconstruction",
+           "viscousFaceReconstruction",
            "limiter",
            "outputFrequency",
            "equationSet",
@@ -240,32 +243,46 @@ void input::ReadInput(const int &rank) {
           }
         } else if (key == "faceReconstruction") {
           if (tokens[1] == "upwind") {
+            faceReconstruction_ = tokens[1];
             kappa_ = -1.0;
           } else if (tokens[1] == "fromm") {
+            faceReconstruction_ = tokens[1];
             kappa_ = 0.0;
           } else if (tokens[1] == "quick") {
+            faceReconstruction_ = tokens[1];
             kappa_ = 0.5;
           } else if (tokens[1] == "central") {
+            faceReconstruction_ = tokens[1];
             kappa_ = 1.0;
           } else if (tokens[1] == "thirdOrder") {
+            faceReconstruction_ = tokens[1];
             kappa_ = 1.0 / 3.0;
-          } else if (tokens[1] == "constant") {
-            kappa_ = -2.0;
+          } else if (tokens[1] == "constant" || tokens[1] == "weno") {
+            faceReconstruction_ = tokens[1];
           } else {
-            // if string is not recognized, set kappa to number input
-            kappa_ = stod(tokens[1]);
+            // face reconstruction method not recognized
+            cerr << "ERROR: Error in input::ReadInput(). Face reconstruction "
+                 << "method " << tokens[1] << " is not recognized!";
+                exit(EXIT_FAILURE);
           }
 
           if (rank == ROOTP) {
-            cout << key << ": " << tokens[1]
-                 << " kappa = " << this->Kappa() << endl;
+            cout << key << ": " << this->FaceReconstruction() << endl;
           }
-          if ((this->Kappa() < -1.0) || (this->Kappa() > 1.0)) {
-            cerr << "ERROR: Error in input::ReadInput(). Kappa value of "
-                 << this->Kappa()
-                 << " is not valid! Choose a value between -1.0 and 1.0."
-                 << endl;
-            exit(EXIT_FAILURE);
+        } else if (key == "viscousFaceReconstruction") {
+          if (tokens[1] == "central") {
+            viscousFaceReconstruction_ = tokens[1];
+          } else if (tokens[1] == "centralFourth") {
+            viscousFaceReconstruction_ = tokens[1];
+          } else {
+            // face reconstruction method not recognized
+            cerr << "ERROR: Error in input::ReadInput(). Viscous face "
+                 << "reconstruction method " << tokens[1] << " is not recognized!";
+                exit(EXIT_FAILURE);
+          }
+
+          if (rank == ROOTP) {
+            cout << key << ": " << this->ViscousFaceReconstruction() << endl;
           }
         } else if (key == "limiter") {
           limiter_ = tokens[1];
@@ -546,11 +563,21 @@ bool input::IsBlockMatrix() const {
 }
 
 string input::OrderOfAccuracy() const {
-  if (kappa_ == -2.0) {
+  if (this->UsingConstantReconstruction()) {
     return "first";
   } else {
     return "second";
   }
+}
+
+bool input::UsingMUSCLReconstruction() const {
+  auto muscl = false;
+  if (faceReconstruction_ == "upwind" || faceReconstruction_ == "fromm" ||
+      faceReconstruction_ == "quick" || faceReconstruction_ == "central" ||
+      faceReconstruction_ == "thirdOrder") {
+    muscl = true;
+  }
+  return muscl;
 }
 
 unique_ptr<turbModel> input::AssignTurbulenceModel() const {
@@ -653,10 +680,16 @@ bool input::MatrixRequiresInitialization() const {
 }
 
 int input::NumberGhostLayers() const {
-  if (this->OrderOfAccuracy() == "first") {
+  if (this->UsingConstantReconstruction()) {
     return 1;
-  } else {
+  } else if (this->UsingMUSCLReconstruction()) {
     return 2;
+  } else if (this->UsingHigherOrderReconstruction()) {
+    return 3;
+  } else {
+    cerr << "ERROR: Problem with face reconstruction. Not using any of the "
+         << "supported methods!" << endl;
+    exit(EXIT_FAILURE);
   }
 }
 

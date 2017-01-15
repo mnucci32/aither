@@ -90,6 +90,8 @@ class primVars {
   void NondimensionalInitialize(const idealGas&, const double&, const input&,
                                 const sutherland&, const int&);
   bool IsZero() const;
+  primVars Squared() const;
+  primVars Abs() const;
 
   inline vector3d<double> Velocity() const;
 
@@ -176,6 +178,11 @@ class primVars {
   primVars FaceReconMUSCL(const primVars &, const primVars &, const double &,
                           const string &, const double &,
                           const double &, const double &) const;
+
+  // calculate face reconstruction using 5th order weno scheme
+  primVars FaceReconWENO(const primVars &, const primVars &, const primVars &,
+                         const primVars &, const double &, const double &,
+                         const double &, const double &, const double &) const;
 
   // member function to calculate Van Albada limiter function
   primVars LimiterVanAlbada(const primVars &) const;
