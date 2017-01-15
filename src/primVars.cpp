@@ -221,45 +221,53 @@ primVars primVars::FaceReconWENO(const primVars &upwind2,
                                  const primVars &downwind2, const double &uw1,
                                  const double &uw2, const double &uw3,
                                  const double &dw1, const double &dw2) const {
-  // DEBUG
-  const array<double, 5> cellWidth = {uw3, uw2, uw1, dw1, dw2};
+  // get candidate smaller stencils
+  const vector<double> cellWidth = {uw3, uw2, uw1, dw1, dw2};
 
   constexpr auto degree = 2;
-  auto coeffs = WenoCoeff(cellWidth, degree, 2);
-  const auto stencil1 = coeffs[0] * upwind3 + coeffs[1] * upwind2 +
-      coeffs[2] * (*this);
+  constexpr auto up1Loc = 2;
+  const auto coeffs0 = LagrangeCoeff(cellWidth, degree, 2, up1Loc);
+  const auto stencil0 = coeffs0[0] * upwind3 + coeffs0[1] * upwind2 +
+      coeffs0[2] * (*this);
 
-  coeffs = WenoCoeff(cellWidth, degree, 1);
-  const auto stencil2 = coeffs[0] * upwind2 + coeffs[1] * (*this) +
-      coeffs[2] * downwind1;
+  const auto coeffs1 = LagrangeCoeff(cellWidth, degree, 1, up1Loc);
+  const auto stencil1 = coeffs1[0] * upwind2 + coeffs1[1] * (*this) +
+      coeffs1[2] * downwind1;
 
-  coeffs = WenoCoeff(cellWidth, degree, 0);
-  const auto stencil3 = coeffs[0] * (*this) + coeffs[1] * downwind1 +
-      coeffs[2] * downwind2;
+  const auto coeffs2 = LagrangeCoeff(cellWidth, degree, 0, up1Loc);
+  const auto stencil2 = coeffs2[0] * (*this) + coeffs2[1] * downwind1 +
+      coeffs2[2] * downwind2;
+
+  // get coefficients for large stencil
+  const auto fullCoeffs = LagrangeCoeff(cellWidth, 4, 2, up1Loc);
 
   // linear weights
-  constexpr auto lw1 = 0.1;
-  constexpr auto lw2 = 0.6;
-  constexpr auto lw3 = 0.3;
+  const auto lw0 = fullCoeffs[0] / coeffs0[0];
+  const auto lw1 = fullCoeffs[4] / coeffs2[2];
+  const auto lw2 = 1.0 - lw0 - lw1;
 
   // calculate smoothness indicators
-  constexpr auto sm1 = 13.0 / 12.0;
-  constexpr auto sm2 = 0.25;
+  // constexpr auto sm1 = 13.0 / 12.0;
+  // constexpr auto sm2 = 0.25;
 
-  const auto smooth1 = sm1 * (upwind3 - 2.0 * upwind2 + (*this)).Squared() +
-      sm2 * (upwind3 - 4.0 * upwind2 + 3.0 * (*this)).Squared();
-  const auto smooth2 = sm1 * (upwind2 - 2.0 * (*this) + downwind1).Squared() +
-      sm2 * (upwind2 - downwind1).Squared();
-  const auto smooth3 = sm1 * ((*this) - 2.0 * downwind1 + downwind2).Squared() +
-      sm2 * (3.0 * (*this) - 4.0 * downwind1 + downwind2).Squared();
+  // const auto smooth0 = sm1 * (upwind3 - 2.0 * upwind2 + (*this)).Squared() +
+  //     sm2 * (upwind3 - 4.0 * upwind2 + 3.0 * (*this)).Squared();
+  // const auto smooth1 = sm1 * (upwind2 - 2.0 * (*this) + downwind1).Squared() +
+  //     sm2 * (upwind2 - downwind1).Squared();
+  // const auto smooth2 = sm1 * ((*this) - 2.0 * downwind1 + downwind2).Squared() +
+  //     sm2 * (3.0 * (*this) - 4.0 * downwind1 + downwind2).Squared();
 
-  const auto tau5 = (smooth1 - smooth3).Abs();
+  const auto beta0 = Beta0(uw3, uw2, uw1, upwind3, upwind2, (*this));
+  const auto beta1 = Beta1(uw2, uw1, dw1, upwind2, (*this), downwind1);
+  const auto beta2 = Beta2(uw1, dw1, dw2, (*this), downwind1, downwind2);
+
+  const auto tau5 = (beta0 - beta2).Abs();
 
   // DEBUG
   // const auto smooth1 = (upwind3 - 4.0 * upwind2 + 3.0 * (*this)).Squared();
   // const auto smooth2 = (upwind2 - downwind1).Squared();
   // const auto smooth3 = (3.0 * (*this) - 4.0 * downwind1 + downwind2).Squared();  
-  
+
   // calculate nonlinear weights
   // constexpr auto eps = 1.0e-6;
   // auto nlw1 = lw1 / (eps + smooth1).Squared();
@@ -269,18 +277,18 @@ primVars primVars::FaceReconWENO(const primVars &upwind2,
 
   // using weno-z weights with q = 1
   constexpr auto eps = 1.0e-40;
-  auto nlw1 = lw1 * (1.0 + tau5 / (eps + smooth1));
-  auto nlw2 = lw2 * (1.0 + tau5 / (eps + smooth2));
-  auto nlw3 = lw3 * (1.0 + tau5 / (eps + smooth3));
+  auto nlw0 = lw0 * (1.0 + tau5 / (eps + beta0));
+  auto nlw1 = lw1 * (1.0 + tau5 / (eps + beta1));
+  auto nlw2 = lw2 * (1.0 + tau5 / (eps + beta2));
 
   // normalize weights
-  const auto sum_nlw = nlw1 + nlw2 + nlw3;
+  const auto sum_nlw = nlw0 + nlw1 + nlw2;
+  nlw0 /= sum_nlw;
   nlw1 /= sum_nlw;
   nlw2 /= sum_nlw;
-  nlw3 /= sum_nlw;
 
   // return weighted contribution of each stencil
-  return nlw1 * stencil1 + nlw2 * stencil2 + nlw3 * stencil3;
+  return nlw0 * stencil0 + nlw1 * stencil1 + nlw2 * stencil2;
 }
 
 

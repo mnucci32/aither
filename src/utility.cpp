@@ -17,7 +17,6 @@
 #include <iostream>               // cout, cerr, endl
 #include <algorithm>              // max, min
 #include <vector>
-#include <array>
 #include <string>
 #include <memory>
 #include <numeric>
@@ -31,6 +30,7 @@
 #include "fluxJacobian.hpp"
 #include "kdtree.hpp"
 #include "resid.hpp"
+#include "primVars.hpp"
 
 using std::cout;
 using std::endl;
@@ -692,10 +692,14 @@ vector3d<double> TauNormal(const tensor<double> &velGrad,
 // This function calculates the coefficients for three third order accurate
 // reconstructions used in a 5th order WENO scheme. This follows the formula
 // 2.20 from ICASE report No 97-65 by Shu.
-array<double, 3> WenoCoeff(const array<double, 5> &cellWidth, const int &degree,
-                           const int & rr) {
-  constexpr auto ii = 2;
-  array<double, 3> coeffs = {0.0, 0.0, 0.0};
+vector<double> LagrangeCoeff(const vector<double> &cellWidth, const int &degree,
+                             const int & rr, const int &ii) {
+  // cellWidth -- vector of cell widths in stencil
+  // degree -- degree of polynomial to use in reconstruction
+  // rr -- number of cells to left of reconstruction location - 1
+  // ii -- location of the first upwind cell width in the cellWidth vector
+
+  vector<double> coeffs(degree + 1, 0.0);
 
   for (auto jj = 0; jj < coeffs.size(); ++jj) {
     for (auto mm = jj + 1; mm <= degree + 1; ++mm) {
@@ -736,5 +740,39 @@ double StencilWidth(const T &cellWidth, const int &start, const int &end) {
   return width;
 }
 
+primVars BetaIntegral(const primVars &deriv1, const primVars &deriv2,
+                      const double &dx, const double &x) {
+  return (deriv1.Squared() * x + deriv1 * deriv2 * x * x +
+          deriv2.Squared() * pow(x, 3.0) / 3.0) * dx +
+      deriv2.Squared() * x * pow(dx, 3.0);
+}
 
+primVars BetaIntegral(const primVars &deriv1, const primVars &deriv2,
+                      const double &dx, const double &xl, const double &xh) {
+  return BetaIntegral(deriv1, deriv2, dx, xh) -
+      BetaIntegral(deriv1, deriv2, dx, xl);
+}
 
+primVars Beta0(const double &x_0, const double &x_1, const double &x_2,
+               const primVars &y_0, const primVars &y_1, const primVars &y_2) {
+  const auto deriv2nd = Derivative2nd(x_0, x_1, x_2, y_0, y_1, y_2);
+  const auto deriv1st = (y_2 - y_1) / (0.5 * (x_2 + x_1)) + 0.5 * x_2 * deriv2nd;
+
+  return BetaIntegral(deriv1st, deriv2nd, x_2, -0.5 * x_2, 0.5 * x_2);
+}
+
+primVars Beta1(const double &x_0, const double &x_1, const double &x_2,
+               const primVars &y_0, const primVars &y_1, const primVars &y_2) {
+  const auto deriv2nd = Derivative2nd(x_0, x_1, x_2, y_0, y_1, y_2);
+  const auto deriv1st = (y_2 - y_1) / (0.5 * (x_2 + x_1)) - 0.5 * x_1 * deriv2nd;
+
+  return BetaIntegral(deriv1st, deriv2nd, x_1, -0.5 * x_1, 0.5 * x_1);
+}
+
+primVars Beta2(const double &x_0, const double &x_1, const double &x_2,
+               const primVars &y_0, const primVars &y_1, const primVars &y_2) {
+  const auto deriv2nd = Derivative2nd(x_0, x_1, x_2, y_0, y_1, y_2);
+  const auto deriv1st = (y_1 - y_0) / (0.5 * (x_1 + x_0)) - 0.5 * x_0 * deriv2nd;
+
+  return BetaIntegral(deriv1st, deriv2nd, x_0, -0.5 * x_0, 0.5 * x_0);
+}

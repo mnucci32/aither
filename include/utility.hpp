@@ -19,7 +19,6 @@
 #define UTILITYHEADERDEF  // define the macro
 
 #include <vector>                  // vector
-#include <array>
 #include <memory>
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"            // vector3d
@@ -40,17 +39,14 @@ class turbModel;
 class fluxJacobian;
 class kdtree;
 class resid;
-
+class primVars;
 
 // function definitions
 template <typename T>
-inline T FaceReconCentral(const T &, const T &, const vector3d<double> &,
-                          const vector3d<double> &, const vector3d<double> &);
+inline T FaceReconCentral(const T &, const T &, const vector<double> &);
 template <typename T>
 inline T FaceReconCentral4th(const T &, const T &, const T &, const T&,
-                             const vector3d<double> &, const vector3d<double> &,
-                             const vector3d<double> &, const vector3d<double> &,
-                             const vector3d<double> &);
+                             const vector<double> &);
 
 tensor<double> VectorGradGG(const vector3d<double> &, const vector3d<double> &,
                             const vector3d<double> &, const vector3d<double> &,
@@ -124,9 +120,25 @@ void ResizeArrays(const vector<procBlock> &, const input &,
 vector3d<double> TauNormal(const tensor<double> &, const vector3d<double> &,
                            const double &, const double &, const sutherland &);
 
-array<double, 3> WenoCoeff(const array<double, 5> &, const int &, const int &);
+vector<double> LagrangeCoeff(const vector<double> &, const int &, const int &,
+                             const int &);
 template <typename T>
 double StencilWidth(const T &, const int &, const int &);
+
+template <typename T>
+T Derivative2nd(const double &, const double &, const double &,
+                const T &, const T &, const T &);
+
+primVars Beta0(const double &, const double &, const double &,
+               const primVars &, const primVars &, const primVars &);
+primVars Beta1(const double &, const double &, const double &,
+               const primVars &, const primVars &, const primVars &);
+primVars Beta2(const double &, const double &, const double &,
+               const primVars &, const primVars &, const primVars &);
+primVars BetaIntegral(const primVars &, const primVars &, const double &,
+                      const double &);
+primVars BetaIntegral(const primVars &, const primVars &, const double &,
+                      const double &, const double &);
 
 // ---------------------------------------------------------------------------
 // inline function definitions
@@ -134,59 +146,45 @@ double StencilWidth(const T &, const int &, const int &);
 // function to reconstruct cell variables to the face using central
 // differences
 template <typename T>
-T FaceReconCentral(const T &varU, const T &varD, const vector3d<double> &pU,
-                   const vector3d<double> &pD, const vector3d<double> &pF) {
+T FaceReconCentral(const T &varU, const T &varD,
+                   const vector<double> &cellWidth) {
   // varU -- variable at the cell center of the upwind cell
   // varD -- variable at the cell center of the downwind cell
-  // pU -- position of the cell center of the upwind cell
-  // pD -- position of the cell center of the downwind cell
-  // pF -- position of the face center of the face on which the reconstruction
-  // is happening
+  // cellWidth -- width of cells in stencil
 
-  // distance from cell center to cell center
-  const auto cen2cen = pU.Distance(pD);
-  // distance from upwind cell center to cell face
-  const auto up2face = pU.Distance(pF);
-  // ratio of distance from upwind cell center to cell face to center to center
-  const auto upRatio = up2face / cen2cen;
+  // get coefficients
+  const auto coeffs = LagrangeCoeff(cellWidth, 1, 0, 0);
 
   // reconstruct with central difference
-  return varD * upRatio + varU * (1.0 - upRatio);
+  return coeffs[0] * varD + coeffs[1] * varU;
 }
 
 // function to reconstruct cell variables to the face using central
 // differences (4th order)
 template <typename T>
 T FaceReconCentral4th(const T &varU2, const T &varU1, const T &varD1,
-                      const T &varD2, const vector3d<double> &pU2,
-                      const vector3d<double> &pU1, const vector3d<double> &pD1,
-                      const vector3d<double> &pD2, const vector3d<double> &pF) {
+                      const T &varD2, const vector<double> &cellWidth) {
   // varU2 -- variable at the cell center of the second upwind cell
   // varU1 -- variable at the cell center of the first upwind cell
   // varD1 -- variable at the cell center of the first downwind cell
   // varD2 -- variable at the cell center of the second downwind cell
-  // pU2 -- position of the cell center of the second upwind cell
-  // pU1 -- position of the cell center of the first upwind cell
-  // pD1 -- position of the cell center of the first downwind cell
-  // pD2 -- position of the cell center of the second downwind cell
-  // pF -- position of the face center of the face on which the reconstruction
-  // is happening
+  // cellWidth -- width of cells in stencil
 
-  // distance from cell center to cell center
-  const auto cen2cen1 = pU1.Distance(pD1);
-  const auto cen2cen2 = pU2.Distance(pD2);
-  // distance from upwind cell center to cell face
-  const auto up2face1 = pU1.Distance(pF);
-  const auto up2face2 = pU2.Distance(pF);
-  // ratio of distance from upwind cell center to cell face to center to center
-  const auto upRatio1 = up2face1 / cen2cen1;
-  const auto upRatio2 = up2face2 / cen2cen2;
+  // get coefficients
+  const auto coeffs = LagrangeCoeff(cellWidth, 3, 1, 1);
 
   // reconstruct with central difference
-  return 4.0 / 3.0 * (varD1 * upRatio1 + varU1 * (1.0 - upRatio1)) -
-      1.0 / 6.0 * (varD2 * upRatio2 + varU2 * (1.0 - upRatio2));
+  return coeffs[0] * varU2 + coeffs[1] * varU1 + coeffs[2] * varD1 +
+      coeffs[3] * varD2;
 }
 
+template <typename T>
+T Derivative2nd(const double &x_0, const double &x_1, const double &x_2,
+                const T &y_0, const T &y_1, const T &y_2) {
+  const auto fwdDiff1stOrder = (y_2 - y_1) / (0.5 * (x_2 + x_1));
+  const auto bckDiff1stOrder = (y_1 - y_0) / (0.5 * (x_1 + x_0));
+  return (fwdDiff1stOrder - bckDiff1stOrder) / (0.25 * (x_2 + x_0) + 0.5 * x_1);
+}
 
 #endif
 

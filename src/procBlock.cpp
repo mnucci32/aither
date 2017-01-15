@@ -1845,61 +1845,50 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
         auto mu = 0.0;
 
         if (inp.ViscousFaceReconstruction() == "central") {
+          // get cell widths
+          const vector<double> cellWidth = {
+            fCenterI_(ii,     jj, kk).Distance(fCenterI_(ii - 1, jj, kk)),
+            fCenterI_(ii + 1, jj, kk).Distance(fCenterI_(ii,     jj, kk))};
+
           // Get state at face
           state = FaceReconCentral(state_(ii - 1, jj, kk),
-                                   state_(ii, jj, kk),
-                                   center_(ii - 1, jj, kk),
-                                   center_(ii, jj, kk),
-                                   fCenterI_(ii, jj, kk));
+                                   state_(ii, jj, kk), cellWidth);
           state.LimitTurb(turb);
 
           // Get wall distance at face
           wDist = FaceReconCentral(wallDist_(ii - 1, jj, kk),
-                                   wallDist_(ii, jj, kk),
-                                   center_(ii - 1, jj, kk),
-                                   center_(ii, jj, kk),
-                                   fCenterI_(ii, jj, kk));
+                                   wallDist_(ii, jj, kk), cellWidth);
 
           // Get viscosity at face
           mu = FaceReconCentral(viscosity_(ii - 1, jj, kk),
-                                viscosity_(ii, jj, kk),
-                                center_(ii - 1, jj, kk),
-                                center_(ii, jj, kk),
-                                fCenterI_(ii, jj, kk));
+                                viscosity_(ii, jj, kk), cellWidth);
+
         } else {  // use 4th order reconstruction
+          // get cell widths
+          const vector<double> cellWidth = {
+            fCenterI_(ii - 1, jj, kk).Distance(fCenterI_(ii - 2, jj, kk)),
+            fCenterI_(ii,     jj, kk).Distance(fCenterI_(ii - 1, jj, kk)),
+            fCenterI_(ii + 1, jj, kk).Distance(fCenterI_(ii,     jj, kk)),
+            fCenterI_(ii + 2, jj, kk).Distance(fCenterI_(ii + 1, jj, kk))};
+
           // Get state at face
           state = FaceReconCentral4th(state_(ii - 2, jj, kk),
                                       state_(ii - 1, jj, kk),
                                       state_(ii, jj, kk),
-                                      state_(ii + 1, jj, kk),
-                                      center_(ii - 2, jj, kk),
-                                      center_(ii - 1, jj, kk),
-                                      center_(ii, jj, kk),
-                                      center_(ii + 1, jj, kk),
-                                      fCenterI_(ii, jj, kk));
+                                      state_(ii + 1, jj, kk), cellWidth);
           state.LimitTurb(turb);
 
           // Get wall distance at face
           wDist = FaceReconCentral4th(wallDist_(ii - 2, jj, kk),
                                       wallDist_(ii - 1, jj, kk),
                                       wallDist_(ii, jj, kk),
-                                      wallDist_(ii + 1, jj, kk),
-                                      center_(ii - 2, jj, kk),
-                                      center_(ii - 1, jj, kk),
-                                      center_(ii, jj, kk),
-                                      center_(ii + 1, jj, kk),
-                                      fCenterI_(ii, jj, kk));
+                                      wallDist_(ii + 1, jj, kk), cellWidth);
 
           // Get viscosity at face
           mu = FaceReconCentral4th(viscosity_(ii - 2, jj, kk),
                                    viscosity_(ii - 1, jj, kk),
                                    viscosity_(ii, jj, kk),
-                                   viscosity_(ii + 1, jj, kk),
-                                   center_(ii - 2, jj, kk),
-                                   center_(ii - 1, jj, kk),
-                                   center_(ii, jj, kk),
-                                   center_(ii + 1, jj, kk),
-                                   fCenterI_(ii, jj, kk));
+                                   viscosity_(ii + 1, jj, kk), cellWidth);
         }
 
         // calculate gradients
@@ -2104,61 +2093,50 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
         auto mu = 0.0;
 
         if (inp.ViscousFaceReconstruction() == "central") {
+          // get cell widths
+          const vector<double> cellWidth = {
+            fCenterJ_(ii, jj,     kk).Distance(fCenterJ_(ii, jj - 1, kk)),
+            fCenterJ_(ii, jj + 1, kk).Distance(fCenterJ_(ii, jj,     kk))};
+
           // Get velocity at face
           state = FaceReconCentral(state_(ii, jj - 1, kk),
-                                   state_(ii, jj, kk),
-                                   center_(ii, jj - 1, kk),
-                                   center_(ii, jj, kk),
-                                   fCenterJ_(ii, jj, kk));
+                                   state_(ii, jj, kk), cellWidth);
           state.LimitTurb(turb);
 
           // Get wall distance at face
           wDist = FaceReconCentral(wallDist_(ii, jj - 1, kk),
-                                   wallDist_(ii, jj, kk),
-                                   center_(ii, jj - 1, kk),
-                                   center_(ii, jj, kk),
-                                   fCenterJ_(ii, jj, kk));
+                                   wallDist_(ii, jj, kk), cellWidth);
 
           // Get wall distance at face
           mu = FaceReconCentral(viscosity_(ii, jj - 1, kk),
-                                viscosity_(ii, jj, kk),
-                                center_(ii, jj - 1, kk),
-                                center_(ii, jj, kk),
-                                fCenterJ_(ii, jj, kk));
+                                viscosity_(ii, jj, kk), cellWidth);
+
         } else {  // use 4th order reconstruction
+          // get cell widths
+          const vector<double> cellWidth = {
+            fCenterJ_(ii, jj - 1, kk).Distance(fCenterJ_(ii, jj - 2, kk)),
+            fCenterJ_(ii, jj,     kk).Distance(fCenterJ_(ii, jj - 1, kk)),
+            fCenterJ_(ii, jj + 1, kk).Distance(fCenterJ_(ii, jj,     kk)),
+            fCenterJ_(ii, jj + 2, kk).Distance(fCenterJ_(ii, jj + 1, kk))};
+
           // Get velocity at face
           state = FaceReconCentral4th(state_(ii, jj - 2, kk),
                                       state_(ii, jj - 1, kk),
                                       state_(ii, jj, kk),
-                                      state_(ii, jj + 1, kk),
-                                      center_(ii, jj - 2, kk),
-                                      center_(ii, jj - 1, kk),
-                                      center_(ii, jj, kk),
-                                      center_(ii, jj + 1, kk),
-                                      fCenterJ_(ii, jj, kk));
+                                      state_(ii, jj + 1, kk), cellWidth);
           state.LimitTurb(turb);
 
           // Get wall distance at face
           wDist = FaceReconCentral4th(wallDist_(ii, jj - 2, kk),
                                       wallDist_(ii, jj - 1, kk),
                                       wallDist_(ii, jj, kk),
-                                      wallDist_(ii, jj + 1, kk),
-                                      center_(ii, jj - 2, kk),
-                                      center_(ii, jj - 1, kk),
-                                      center_(ii, jj, kk),
-                                      center_(ii, jj + 1, kk),
-                                      fCenterJ_(ii, jj, kk));
+                                      wallDist_(ii, jj + 1, kk), cellWidth);
 
           // Get wall distance at face
           mu = FaceReconCentral4th(viscosity_(ii, jj - 2, kk),
                                    viscosity_(ii, jj - 1, kk),
                                    viscosity_(ii, jj, kk),
-                                   viscosity_(ii, jj + 1, kk),
-                                   center_(ii, jj - 2, kk),
-                                   center_(ii, jj - 1, kk),
-                                   center_(ii, jj, kk),
-                                   center_(ii, jj + 1, kk),
-                                   fCenterJ_(ii, jj, kk));
+                                   viscosity_(ii, jj + 1, kk), cellWidth);
         }
 
         // calculate gradients
@@ -2364,61 +2342,50 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
         auto mu = 0.0;
 
         if (inp.ViscousFaceReconstruction() == "central") {
+          // get cell widths
+          const vector<double> cellWidth = {
+            fCenterK_(ii, jj, kk    ).Distance(fCenterK_(ii, jj, kk - 1)),
+            fCenterK_(ii, jj, kk + 1).Distance(fCenterK_(ii, jj, kk))};
+
           // Get state at face
           state = FaceReconCentral(state_(ii, jj, kk - 1),
-                                   state_(ii, jj, kk),
-                                   center_(ii, jj, kk - 1),
-                                   center_(ii, jj, kk),
-                                   fCenterK_(ii, jj, kk));
+                                   state_(ii, jj, kk), cellWidth);
           state.LimitTurb(turb);
 
           // Get wall distance at face
           wDist = FaceReconCentral(wallDist_(ii, jj, kk - 1),
-                                   wallDist_(ii, jj, kk),
-                                   center_(ii, jj, kk - 1),
-                                   center_(ii, jj, kk),
-                                   fCenterK_(ii, jj, kk));
+                                   wallDist_(ii, jj, kk), cellWidth);
 
           // Get wall distance at face
           mu = FaceReconCentral(viscosity_(ii, jj, kk - 1),
-                                viscosity_(ii, jj, kk),
-                                center_(ii, jj, kk - 1),
-                                center_(ii, jj, kk),
-                                fCenterK_(ii, jj, kk));
+                                viscosity_(ii, jj, kk), cellWidth);
+
         } else {  // use 4th order reconstruction
+          // get cell widths
+          const vector<double> cellWidth = {
+            fCenterK_(ii, jj, kk - 1).Distance(fCenterK_(ii, jj, kk - 2)),
+            fCenterK_(ii, jj, kk    ).Distance(fCenterK_(ii, jj, kk - 1)),
+            fCenterK_(ii, jj, kk + 1).Distance(fCenterK_(ii, jj, kk)),
+            fCenterK_(ii, jj, kk + 2).Distance(fCenterK_(ii, jj, kk + 1))};
+
           // Get state at face
           state = FaceReconCentral4th(state_(ii, jj, kk - 2),
                                       state_(ii, jj, kk - 1),
                                       state_(ii, jj, kk),
-                                      state_(ii, jj, kk + 1),
-                                      center_(ii, jj, kk - 2),
-                                      center_(ii, jj, kk - 1),
-                                      center_(ii, jj, kk),
-                                      center_(ii, jj, kk + 1),
-                                      fCenterK_(ii, jj, kk));
+                                      state_(ii, jj, kk + 1), cellWidth);
           state.LimitTurb(turb);
 
           // Get wall distance at face
           wDist = FaceReconCentral4th(wallDist_(ii, jj, kk - 2),
                                       wallDist_(ii, jj, kk - 1),
                                       wallDist_(ii, jj, kk),
-                                      wallDist_(ii, jj, kk + 1),
-                                      center_(ii, jj, kk - 2),
-                                      center_(ii, jj, kk - 1),
-                                      center_(ii, jj, kk),
-                                      center_(ii, jj, kk + 1),
-                                      fCenterK_(ii, jj, kk));
+                                      wallDist_(ii, jj, kk + 1), cellWidth);
 
           // Get wall distance at face
           mu = FaceReconCentral4th(viscosity_(ii, jj, kk - 2),
                                    viscosity_(ii, jj, kk - 1),
                                    viscosity_(ii, jj, kk),
-                                   viscosity_(ii, jj, kk + 1),
-                                   center_(ii, jj, kk - 2),
-                                   center_(ii, jj, kk - 1),
-                                   center_(ii, jj, kk),
-                                   center_(ii, jj, kk + 1),
-                                   fCenterK_(ii, jj, kk));
+                                   viscosity_(ii, jj, kk + 1), cellWidth);
         }
 
         // calculate viscous flux
