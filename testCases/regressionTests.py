@@ -83,9 +83,9 @@ class regressionTest:
 
     def CompareResiduals(self, returnCode):
         resids = self.GetTestCaseResiduals()
-        del resids[self.ignoreIndices]
+        for ii in self.ignoreIndices del resids[ii]
         truthResids = self.residuals
-        del truthResids[self.ignoreIndices]
+        for ii in self.ignoreIndices del truthResids[ii]
         if (returnCode == 0):
             passing = [abs(resid - truthResids[ii]) <= self.percentTolerance * truthResids[ii]
                        for ii, resid in enumerate(resids)]

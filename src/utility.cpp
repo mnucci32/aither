@@ -701,7 +701,7 @@ vector<double> LagrangeCoeff(const vector<double> &cellWidth, const int &degree,
 
   vector<double> coeffs(degree + 1, 0.0);
 
-  for (auto jj = 0; jj < coeffs.size(); ++jj) {
+  for (auto jj = 0U; jj < coeffs.size(); ++jj) {
     for (auto mm = jj + 1; mm <= degree + 1; ++mm) {
       auto numer = 0.0;
       auto denom = 1.0;
