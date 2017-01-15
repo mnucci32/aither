@@ -120,8 +120,8 @@ void ResizeArrays(const vector<procBlock> &, const input &,
 vector3d<double> TauNormal(const tensor<double> &, const vector3d<double> &,
                            const double &, const double &, const sutherland &);
 
-vector<double> LagrangeCoeff(const vector<double> &, const int &, const int &,
-                             const int &);
+vector<double> LagrangeCoeff(const vector<double> &, const unsigned int &,
+                             const int &, const int &);
 template <typename T>
 double StencilWidth(const T &, const int &, const int &);
 

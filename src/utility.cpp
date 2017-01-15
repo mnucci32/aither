@@ -692,7 +692,8 @@ vector3d<double> TauNormal(const tensor<double> &velGrad,
 // This function calculates the coefficients for three third order accurate
 // reconstructions used in a 5th order WENO scheme. This follows the formula
 // 2.20 from ICASE report No 97-65 by Shu.
-vector<double> LagrangeCoeff(const vector<double> &cellWidth, const int &degree,
+vector<double> LagrangeCoeff(const vector<double> &cellWidth,
+                             const unsigned int &degree,
                              const int & rr, const int &ii) {
   // cellWidth -- vector of cell widths in stencil
   // degree -- degree of polynomial to use in reconstruction
@@ -705,11 +706,11 @@ vector<double> LagrangeCoeff(const vector<double> &cellWidth, const int &degree,
     for (auto mm = jj + 1; mm <= degree + 1; ++mm) {
       auto numer = 0.0;
       auto denom = 1.0;
-      for (auto ll = 0; ll <= degree + 1; ++ll) {
+      for (auto ll = 0U; ll <= degree + 1; ++ll) {
         // calculate numerator
         if (ll != mm) {
           auto numProd = 1.0;
-          for (auto qq = 0; qq <= degree + 1; ++qq) {
+          for (auto qq = 0U; qq <= degree + 1; ++qq) {
             if (qq != mm && qq != ll) {
               numProd *= StencilWidth(cellWidth, ii - rr + qq, ii + 1);
             }
