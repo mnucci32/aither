@@ -222,7 +222,8 @@ def main():
     shockTube.SetNumberOfProcessors(1)
     shockTube.SetNumberOfIterations(numIterations)
     shockTube.SetResiduals([5.1672e-1, 4.7082e-1, 1.0e0, 1.0e0, 2.8167e-1])
-    shockTube.SetIgnoreIndices([3, 4])
+    shockTube.SetIgnoreIndices(3)
+    shockTube.SetIgnoreIndices(4)
     shockTube.SetMpirunPath(options.mpirunPath)
     
     # run regression case
