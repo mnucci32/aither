@@ -221,12 +221,9 @@ def main():
     shockTube.SetRunDirectory("shockTube")
     shockTube.SetNumberOfProcessors(1)
     shockTube.SetNumberOfIterations(numIterations)
-    if (options.operatingSystem == "linux"):
-        shockTube.SetResiduals([5.0503e-1, 4.4569e-1, 1.0e0, 1.0e0, 7.3478e-1])
-    else:
-        shockTube.SetResiduals([5.0503e-1, 4.4569e-1, 1.0e0, 1.0e0, 2.6181e-1])
+    shockTube.SetResiduals([5.0503e-1, 4.4569e-1, 1.0e0, 1.0e0, 2.6181e-1])
+    shockTube.SetIgnoreIndices(2)
     shockTube.SetIgnoreIndices(3)
-    shockTube.SetIgnoreIndices(4)
     shockTube.SetMpirunPath(options.mpirunPath)
     
     # run regression case
