@@ -88,7 +88,7 @@ class regressionTest:
         for ii in range(0, len(testResids)):
             if ii not in self.ignoreIndices:
                 resids.append(testResids[ii])
-                truthResids.append(self.residual[ii])
+                truthResids.append(self.residuals[ii])
         if (returnCode == 0):
             passing = [abs(resid - truthResids[ii]) <= self.percentTolerance * truthResids[ii]
                        for ii, resid in enumerate(resids)]
