@@ -63,7 +63,7 @@ class squareMatrix {
   squareMatrix MatMult(const squareMatrix &) const;
   genArray ArrayMult(const genArray &, const int = 0) const;
   double MaxAbsValOnDiagonal() const;
-  
+
   // operator overloads
   double & operator()(const int &r, const int &c) {
     return data_[this->GetLoc(r, c)];

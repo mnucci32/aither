@@ -41,8 +41,8 @@ class plot3dBlock {
   explicit plot3dBlock(const multiArray3d<vector3d<double>> &coordinates) :
       coords_(coordinates) {}
   plot3dBlock(const int &ii, const int &jj, const int &kk) :
-      coords_(ii, jj, kk) {}
-  plot3dBlock() : coords_(1, 1, 1) {}
+      coords_(ii, jj, kk, 0) {}
+  plot3dBlock() : coords_(1, 1, 1, 0) {}
 
   // move constructor and assignment operator
   plot3dBlock(plot3dBlock&&) noexcept = default;

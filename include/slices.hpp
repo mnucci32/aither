@@ -37,6 +37,7 @@ using std::cerr;
 // forward class declaration
 class procBlock;
 class interblock;
+class range;
 
 class geomSlice {
   multiArray3d<vector3d<double>> center_;  // coordinates of cell center_
@@ -54,9 +55,8 @@ class geomSlice {
   // constructors
   geomSlice(const int &, const int &, const int &, const int &);
   geomSlice() : geomSlice(1, 1, 1, 0) {}
-  geomSlice(const procBlock &, const int &, const int &, const int &,
-            const int &, const int &, const int &, const bool = false,
-            const bool = false, const bool = false);
+  geomSlice(const procBlock &, const range &, const range &, const range &,
+            const bool = false, const bool = false, const bool = false);
 
   // move constructor and assignment operator
   geomSlice(geomSlice&&) noexcept = default;
@@ -71,6 +71,7 @@ class geomSlice {
   int NumI() const { return vol_.NumI(); }
   int NumJ() const { return vol_.NumJ(); }
   int NumK() const { return vol_.NumK(); }
+  int GhostLayers() const { return vol_.GhostLayers(); }
   int ParentBlock() const { return parBlock_; }
 
   double Vol(const int &ii, const int &jj, const int &kk) const {

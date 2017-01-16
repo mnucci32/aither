@@ -11,16 +11,21 @@ faceReconstruction: thirdOrder
 limiter: none
 iterations: 25000
 outputFrequency: 1000
-outputVariables: density vel_x vel_y vel_z pressure mach velGrad_ux velGrad_uy velGrad_uz
+outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach, velGrad_ux, velGrad_uy, velGrad_uz>
 
 #reference conditions
 pressureRef: 101300.0
 densityRef: 1.2256
 temperatureRef: 288.0
-velocity: 68.0, 0.0, 0.0
+velocityRef: [68.0, 0.0, 0.0]
+
+initialConditions: <icState(tag=-1; pressure=101300; density=1.2256; velocity=[68, 0, 0])>
 
 matrixSolver: lusgs
 matrixRelaxation: 1.0
+
+boundaryStates: <characteristic(tag=1; pressure=101300; density=1.2256; velocity=[68, 0, 0]),
+                 viscousWall(tag=2)>
 
 #---------------------------------------------------------------------------#
 #Boundary Conditions
@@ -29,11 +34,11 @@ boundaryConditions: 1
 #Block   1  -- Indices: 65 65 2
 2 2 2
 #i_surfaces -------------------------------------------
-characteristic      0     0     0    64     0     1    0
-characteristic     64    64     0    64     0     1    0
+characteristic      0     0     0    64     0     1    1
+characteristic     64    64     0    64     0     1    1
 #j_surfaces -------------------------------------------
-viscousWall         0    64     0     0     0     1    0
-characteristic      0    64    64    64     0     1    0
+viscousWall         0    64     0     0     0     1    2
+characteristic      0    64    64    64     0     1    1
 #k_surfaces -------------------------------------------
 slipWall            0    64     0    64     0     0    0
 slipWall            0    64     0    64     1     1    0

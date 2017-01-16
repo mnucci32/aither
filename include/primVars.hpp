@@ -88,8 +88,10 @@ class primVars {
   double Omega() const { return data_[6]; }
 
   void NondimensionalInitialize(const idealGas&, const double&, const input&,
-                                const sutherland&);
+                                const sutherland&, const int&);
   bool IsZero() const;
+  primVars Squared() const;
+  primVars Abs() const;
 
   inline vector3d<double> Velocity() const;
 
@@ -177,6 +179,12 @@ class primVars {
                           const string &, const double &,
                           const double &, const double &) const;
 
+  // calculate face reconstruction using 5th order weno scheme
+  primVars FaceReconWENO(const primVars &, const primVars &, const primVars &,
+                         const primVars &, const double &, const double &,
+                         const double &, const double &, const double &,
+                         const bool &) const;
+
   // member function to calculate Van Albada limiter function
   primVars LimiterVanAlbada(const primVars &) const;
   primVars LimiterMinmod(const primVars &, const primVars &,
@@ -185,8 +193,8 @@ class primVars {
 
   // member function to return the state of the appropriate ghost cell
   primVars GetGhostState(const string &, const vector3d<double> &,
-                         const double &, const string &, const input &,
-                         const idealGas &, const sutherland &,
+                         const double &, const int &, const input &,
+                         const int &, const idealGas &, const sutherland &,
                          const unique_ptr<turbModel> &, const int = 1) const;
 
   // destructor
@@ -197,7 +205,7 @@ class primVars {
 multiArray3d<primVars> GetGhostStates(
     const multiArray3d<primVars> &, const string &,
     const multiArray3d<unitVec3dMag<double>> &, const multiArray3d<double> &,
-    const string &, const input &, const idealGas &, const sutherland &,
+    const int &, const input &, const int &, const idealGas &, const sutherland &,
     const unique_ptr<turbModel> &, const int = 1);
 
 // member function to calculate temperature from conserved variables and

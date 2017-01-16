@@ -44,21 +44,22 @@ using std::min;
 using std::unique_ptr;
 
 // constructors for procBlock class
-procBlock::procBlock(const primVars &inputState, const plot3dBlock &blk,
-                     const int &numBlk, const int &numG,
-                     const boundaryConditions &bound, const int &pos,
-                     const int &r, const int &lpos, const input &inp,
-                     const idealGas &eos, const sutherland &suth) {
-  // inputState -- state to initialize block with (primative)
+procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
+                     const int &numBlk, const boundaryConditions &bound,
+                     const int &pos, const int &r, const int &lpos,
+                     const input &inp, const idealGas &eos,
+                     const sutherland &suth) {
   // blk -- plot3d block of which this procBlock is a subset of
   // numBlk -- the block number of blk (the parent block)
-  // numG -- number of ghost cells
   // bound -- boundary conditions for block
   // pos -- global position of block, an identifying number unique to this block
   // r -- processor rank_ that procBlock should be on
   // lpos -- local position of block on processor
+  // inp -- input variables
+  // eos -- equation of state
+  // suth -- sutherland's law for viscosity
 
-  numGhosts_ = numG;
+  numGhosts_ = inp.NumberGhostLayers();
   parBlock_ = numBlk;
 
   rank_ = r;
@@ -70,18 +71,21 @@ procBlock::procBlock(const primVars &inputState, const plot3dBlock &blk,
   isViscous_ = inp.IsViscous();
   isTurbulent_ = inp.IsTurbulent();
 
-  // dimensions for multiArray3d located at cell centers with ghost cells
-  const auto numIG = blk.NumI() - 1 + 2 * numGhosts_;
-  const auto numJG = blk.NumJ() - 1 + 2 * numGhosts_;
-  const auto numKG = blk.NumK() - 1 + 2 * numGhosts_;
+  // get nondimensional state for initialization
+  primVars inputState;
+  inputState.NondimensionalInitialize(eos, aRef, inp, suth, parBlock_);
+
+  // get initial condition state for parent block
+  auto ic = inp.ICStateForBlock(parBlock_);
+
   // dimensions for multiArray3d located at cell centers
   const auto numI = blk.NumI() - 1;
   const auto numJ = blk.NumJ() - 1;
   const auto numK = blk.NumK() - 1;
 
   // pad stored variable vectors with ghost cells
-  state_ = PadWithGhosts(multiArray3d<primVars>(numI, numJ, numK, inputState),
-                         numGhosts_);
+  state_ = PadWithGhosts(multiArray3d<primVars>(numI, numJ, numK, 0,
+                                                inputState), numGhosts_);
 
   vol_ = PadWithGhosts(blk.Volume(), numGhosts_);
   center_ = PadWithGhosts(blk.Centroid(), numGhosts_);
@@ -92,40 +96,40 @@ procBlock::procBlock(const primVars &inputState, const plot3dBlock &blk,
   fCenterJ_ = PadWithGhosts(blk.FaceCenterJ(), numGhosts_);
   fCenterK_ = PadWithGhosts(blk.FaceCenterK(), numGhosts_);
 
-  wallDist_ = {numIG, numJG, numKG, DEFAULTWALLDIST};
+  wallDist_ = {numI, numJ, numK, numGhosts_, DEFAULTWALLDIST};
 
-  specRadius_ = {numI, numJ, numK};
-  dt_ = {numI, numJ, numK};
-  residual_ = {numI, numJ, numK};
+  specRadius_ = {numI, numJ, numK, 0};
+  dt_ = {numI, numJ, numK, 0};
+  residual_ = {numI, numJ, numK, 0};
 
   const auto inputTemperature = inputState.Temperature(eos);
-  temperature_ = {numIG, numJG, numKG, inputTemperature};
+  temperature_ = {numI, numJ, numK, numGhosts_, inputTemperature};
 
   auto inputViscosity = 0.0;
   if (isViscous_) {
-    velocityGrad_ = {numI, numJ, numK};
-    temperatureGrad_ = {numI, numJ, numK};
+    velocityGrad_ = {numI, numJ, numK, 0};
+    temperatureGrad_ = {numI, numJ, numK, 0};
     inputViscosity = suth.Viscosity(inputTemperature);
-    viscosity_ = {numIG, numJG, numKG, inputViscosity};
+    viscosity_ = {numI, numJ, numK, numGhosts_, inputViscosity};
   } else {
-    velocityGrad_ = {1, 1, 1};
-    temperatureGrad_ = {1, 1, 1};
-    viscosity_ = {1, 1, 1};
+    velocityGrad_ = {1, 1, 1, 0};
+    temperatureGrad_ = {1, 1, 1, 0};
+    viscosity_ = {1, 1, 1, 0};
   }
 
   if (isTurbulent_) {
-    tkeGrad_ = {numI, numJ, numK};
-    omegaGrad_ = {numI, numJ, numK};
-    eddyViscosity_ = {numIG, numJG, numKG,
-                      inp.FarfieldEddyViscRatio() * inputViscosity};
-    f1_ = {numIG, numJG, numKG, 1.0};
-    f2_ = {numIG, numJG, numKG, 0.0};
+    tkeGrad_ = {numI, numJ, numK, 0};
+    omegaGrad_ = {numI, numJ, numK, 0};
+    eddyViscosity_ = {numI, numJ, numK, numGhosts_,
+                      ic.EddyViscosityRatio() * inputViscosity};
+    f1_ = {numI, numJ, numK, numGhosts_, 1.0};
+    f2_ = {numI, numJ, numK, numGhosts_, 0.0};
   } else {
-    tkeGrad_ = {1, 1, 1};
-    omegaGrad_ = {1, 1, 1};
-    eddyViscosity_ = {1, 1, 1, 0.0};
-    f1_ = {1, 1, 1, 0.0};
-    f2_ = {1, 1, 1, 0.0};
+    tkeGrad_ = {1, 1, 1, 0};
+    omegaGrad_ = {1, 1, 1, 0};
+    eddyViscosity_ = {1, 1, 1, 0, 0.0};
+    f1_ = {1, 1, 1, 0, 0.0};
+    f2_ = {1, 1, 1, 0, 0.0};
   }
 }
 
@@ -152,51 +156,46 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   isViscous_ = isViscous;
   isTurbulent_ = isTurbulent;
 
-  // dimensions including ghost cells
-  const auto numIG = ni + 2 * numG;
-  const auto numJG = nj + 2 * numG;
-  const auto numKG = nk + 2 * numG;
-
   // pad stored variable vectors with ghost cells
-  state_ = {numIG, numJG, numKG};
-  center_ = {numIG, numJG, numKG};
-  fAreaI_ = {numIG + 1, numJG, numKG};
-  fAreaJ_ = {numIG, numJG + 1, numKG};
-  fAreaK_ = {numIG, numJG, numKG + 1};
-  fCenterI_ = {numIG + 1, numJG, numKG};
-  fCenterJ_ = {numIG, numJG + 1, numKG};
-  fCenterK_ = {numIG, numJG, numKG + 1};
-  residual_ = {ni, nj, nk};
-  vol_ = {numIG, numJG, numKG};
-  wallDist_ = {numIG, numJG, numKG, DEFAULTWALLDIST};
+  state_ = {ni, nj, nk, numGhosts_};
+  center_ = {ni, nj, nk, numGhosts_};
+  fAreaI_ = {ni + 1, nj, nk, numGhosts_};
+  fAreaJ_ = {ni, nj + 1, nk, numGhosts_};
+  fAreaK_ = {ni, nj, nk + 1, numGhosts_};
+  fCenterI_ = {ni + 1, nj, nk, numGhosts_};
+  fCenterJ_ = {ni, nj + 1, nk, numGhosts_};
+  fCenterK_ = {ni, nj, nk + 1, numGhosts_};
+  residual_ = {ni, nj, nk, 0};
+  vol_ = {ni, nj, nk, numGhosts_};
+  wallDist_ = {ni, nj, nk, numGhosts_, DEFAULTWALLDIST};
 
-  specRadius_ = {ni, nj, nk};
-  dt_ = {ni, nj, nk};
+  specRadius_ = {ni, nj, nk, 0};
+  dt_ = {ni, nj, nk, 0};
 
-  temperature_ = {numIG, numJG, numKG};
+  temperature_ = {ni, nj, nk, numGhosts_};
 
   if (isViscous_) {
-    velocityGrad_ = {ni, nj, nk};
-    temperatureGrad_ = {ni, nj, nk};
-    viscosity_ = {numIG, numJG, numKG};
+    velocityGrad_ = {ni, nj, nk, 0};
+    temperatureGrad_ = {ni, nj, nk, 0};
+    viscosity_ = {ni, nj, nk, numGhosts_};
   } else {
-    velocityGrad_ = {1, 1, 1};
-    temperatureGrad_ = {1, 1, 1};
-    viscosity_ = {1, 1, 1};
+    velocityGrad_ = {1, 1, 1, 0};
+    temperatureGrad_ = {1, 1, 1, 0};
+    viscosity_ = {1, 1, 1, 0};
   }
 
   if (isTurbulent_) {
-    tkeGrad_ = {ni, nj, nk};
-    omegaGrad_ = {ni, nj, nk};
-    eddyViscosity_ = {numIG, numJG, numKG};
-    f1_ = {numIG, numJG, numKG};
-    f2_ = {numIG, numJG, numKG};
+    tkeGrad_ = {ni, nj, nk, 0};
+    omegaGrad_ = {ni, nj, nk, 0};
+    eddyViscosity_ = {ni, nj, nk, numGhosts_};
+    f1_ = {ni, nj, nk, numGhosts_};
+    f2_ = {ni, nj, nk, numGhosts_};
   } else {
-    tkeGrad_ = {1, 1, 1};
-    omegaGrad_ = {1, 1, 1};
-    eddyViscosity_ = {1, 1, 1};
-    f1_ = {1, 1, 1};
-    f2_ = {1, 1, 1};
+    tkeGrad_ = {1, 1, 1, 0};
+    omegaGrad_ = {1, 1, 1, 0};
+    eddyViscosity_ = {1, 1, 1, 0};
+    f1_ = {1, 1, 1, 0};
+    f2_ = {1, 1, 1, 0};
   }
 }
 
@@ -327,94 +326,102 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
 
 
   // loop over all physical i-faces
-  for (auto kp = 0, kg = numGhosts_; kg < fAreaI_.NumK() - numGhosts_;
-       kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jg < fAreaI_.NumJ() - numGhosts_;
-         jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ig < fAreaI_.NumI() - numGhosts_;
-           ig++, ip++) {
+  for (auto kk = fAreaI_.PhysStartK(); kk < fAreaI_.PhysEndK(); kk++) {
+    for (auto jj = fAreaI_.PhysStartJ(); jj < fAreaI_.PhysEndJ(); jj++) {
+      for (auto ii = fAreaI_.PhysStartI(); ii < fAreaI_.PhysEndI(); ii++) {
         primVars faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
-          faceStateLower = state_(ig - 1, jg, kg).FaceReconConst();
-          faceStateUpper = state_(ig, jg, kg).FaceReconConst();
-        } else {  // second order accuracy -- use MUSCL extrapolation
-          // length of second upwind, first upwind, and downwind cells in
-          // i-direction
-          const auto upwind2L = fCenterI_(ig - 1, jg, kg).
-              Distance(fCenterI_(ig - 2, jg, kg));
-          const auto upwindL = fCenterI_(ig, jg, kg).
-              Distance(fCenterI_(ig - 1, jg, kg));
-          const auto downwindL = fCenterI_(ig, jg, kg).
-              Distance(fCenterI_(ig + 1, jg, kg));
+          faceStateLower = state_(ii - 1, jj, kk).FaceReconConst();
+          faceStateUpper = state_(ii, jj, kk).FaceReconConst();
+        } else {  // second order accuracy
+          // length of cells in computational stencil
+          const auto minus2 = fCenterI_(ii - 1, jj, kk).
+              Distance(fCenterI_(ii - 2, jj, kk));
+          const auto minus1 = fCenterI_(ii, jj, kk).
+              Distance(fCenterI_(ii - 1, jj, kk));
+          const auto plus1 = fCenterI_(ii, jj, kk).
+              Distance(fCenterI_(ii + 1, jj, kk));
+          const auto plus2 = fCenterI_(ii + 1, jj, kk).
+              Distance(fCenterI_(ii + 2, jj, kk));
 
-          faceStateLower = state_(ig - 1, jg, kg).FaceReconMUSCL(
-              state_(ig - 2, jg, kg), state_(ig, jg, kg),
-              inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL);
+          if (inp.UsingMUSCLReconstruction()) {
+            faceStateLower = state_(ii - 1, jj, kk).FaceReconMUSCL(
+                state_(ii - 2, jj, kk), state_(ii, jj, kk),
+                inp.Kappa(), inp.Limiter(), minus1, minus2, plus1);
 
-          // length of second upwind, first upwind, and downwind cells in
-          // i-direction
-          const auto upwind2U = fCenterI_(ig + 1, jg, kg).
-              Distance(fCenterI_(ig + 2, jg, kg));
-          const auto upwindU = fCenterI_(ig, jg, kg).
-              Distance(fCenterI_(ig + 1, jg, kg));
-          const auto downwindU = fCenterI_(ig, jg, kg).
-              Distance(fCenterI_(ig - 1, jg, kg));
+            faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
+                state_(ii + 1, jj, kk), state_(ii - 1, jj, kk),
+                inp.Kappa(), inp.Limiter(), plus1, plus2, minus1);
+          } else {  // using higher order reconstruction (weno, wenoz)
+            // get additional cell lengths
+            const auto minus3 = fCenterI_(ii - 2, jj, kk).
+                Distance(fCenterI_(ii - 3, jj, kk));
+            const auto plus3 = fCenterI_(ii + 2, jj, kk).
+                Distance(fCenterI_(ii + 3, jj, kk));
 
-          faceStateUpper = state_(ig, jg, kg).FaceReconMUSCL(
-              state_(ig + 1, jg, kg), state_(ig - 1, jg, kg),
-              inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU);
+            faceStateLower = state_(ii - 1, jj, kk).FaceReconWENO(
+                state_(ii - 2, jj, kk), state_(ii - 3, jj, kk),
+                state_(ii, jj, kk), state_(ii + 1, jj, kk), minus1, minus2,
+                minus3, plus1, plus2, inp.IsWenoZ());
+
+            faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
+                state_(ii + 1, jj, kk), state_(ii + 2, jj, kk),
+                state_(ii - 1, jj, kk), state_(ii - 2, jj, kk), plus1, plus2,
+                plus3, minus1, minus2, inp.IsWenoZ());
+          }
         }
+
         // calculate Roe flux at face
         const inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper,
                                               eqnState,
-                                              this->FAreaUnitI(ig, jg, kg));
+                                              this->FAreaUnitI(ii, jj, kk));
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell
         // at left boundary there is no left cell to add to
-        if (ig > numGhosts_) {
-          this->AddToResidual(tempFlux * this->FAreaMagI(ig, jg, kg),
-                              ip - 1, jp, kp);
+        if (ii > fAreaI_.PhysStartI()) {
+          this->AddToResidual(tempFlux * this->FAreaMagI(ii, jj, kk),
+                              ii - 1, jj, kk);
 
           // if using a block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
             fluxJac.RusanovFluxJacobian(faceStateLower, eqnState,
-                                        this->FAreaI(ig, jg, kg), true,
+                                        this->FAreaI(ii, jj, kk), true,
                                         inp, turb);
-            mainDiagonal(ip - 1, jp, kp) += fluxJac;
+            mainDiagonal(ii - 1, jj, kk) += fluxJac;
           }
         }
 
         // at right boundary there is no right cell to add to
-        if (ig < fAreaI_.NumI() - numGhosts_ - 1) {
+        if (ii < fAreaI_.PhysEndI() - 1) {
           this->SubtractFromResidual(tempFlux *
-                                     this->FAreaMagI(ig, jg, kg),
-                                     ip, jp, kp);
+                                     this->FAreaMagI(ii, jj, kk),
+                                     ii, jj, kk);
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-          const auto invSpecRad = state_(ig, jg, kg).InvCellSpectralRadius(
-              fAreaI_(ig, jg, kg), fAreaI_(ig + 1, jg, kg), eqnState);
+          const auto invSpecRad = state_(ii, jj, kk).InvCellSpectralRadius(
+              fAreaI_(ii, jj, kk), fAreaI_(ii + 1, jj, kk), eqnState);
 
           const auto turbInvSpecRad = isTurbulent_ ?
-              turb->InviscidCellSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
-                                        fAreaI_(ig + 1, jg, kg)): 0.0;
+              turb->InviscidCellSpecRad(state_(ii, jj, kk), fAreaI_(ii, jj, kk),
+                                        fAreaI_(ii + 1, jj, kk)): 0.0;
 
           const uncoupledScalar specRad(invSpecRad, turbInvSpecRad);
-          specRadius_(ip, jp, kp) += specRad;
+          specRadius_(ii, jj, kk) += specRad;
 
           // if using a block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
             fluxJac.RusanovFluxJacobian(faceStateUpper, eqnState,
-                                        this->FAreaI(ig, jg, kg), false,
+                                        this->FAreaI(ii, jj, kk), false,
                                         inp, turb);
-            mainDiagonal(ip, jp, kp) -= fluxJac;
+            mainDiagonal(ii, jj, kk) -= fluxJac;
           } else if (inp.IsImplicit()) {
-            mainDiagonal(ip, jp, kp) += fluxJacobian(specRad);
+            mainDiagonal(ii, jj, kk) += fluxJacobian(specRad);
           }
         }
       }
@@ -458,94 +465,101 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
   //                 solver
 
   // loop over all physical j-faces
-  for (auto kp = 0, kg = numGhosts_; kg < fAreaJ_.NumK() - numGhosts_;
-       kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jg < fAreaJ_.NumJ() - numGhosts_;
-         jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ig < fAreaJ_.NumI() - numGhosts_;
-           ig++, ip++) {
+  for (auto kk = fAreaJ_.PhysStartK(); kk < fAreaJ_.PhysEndK(); kk++) {
+    for (auto jj = fAreaJ_.PhysStartJ(); jj < fAreaJ_.PhysEndJ(); jj++) {
+      for (auto ii = fAreaJ_.PhysStartI(); ii < fAreaJ_.PhysEndI(); ii++) {
         primVars faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
-          faceStateLower = state_(ig, jg - 1, kg).FaceReconConst();
-          faceStateUpper = state_(ig, jg, kg).FaceReconConst();
-        } else {  // second order accuracy -- use MUSCL extrapolation
-          // length of second upwind, first upwind, and downwind cells in
-          // j-direction
-          const auto upwind2L = fCenterJ_(ig, jg - 1, kg).
-              Distance(fCenterJ_(ig, jg - 2, kg));
-          const auto upwindL = fCenterJ_(ig, jg, kg).
-              Distance(fCenterJ_(ig, jg - 1, kg));
-          const auto downwindL = fCenterJ_(ig, jg, kg).
-              Distance(fCenterJ_(ig, jg + 1, kg));
+          faceStateLower = state_(ii, jj - 1, kk).FaceReconConst();
+          faceStateUpper = state_(ii, jj, kk).FaceReconConst();
+        } else {  // second order accuracy
+          // length of cells in computational stencil
+          const auto minus2 = fCenterJ_(ii, jj - 1, kk).
+              Distance(fCenterJ_(ii, jj - 2, kk));
+          const auto minus1 = fCenterJ_(ii, jj, kk).
+              Distance(fCenterJ_(ii, jj - 1, kk));
+          const auto plus1 = fCenterJ_(ii, jj, kk).
+              Distance(fCenterJ_(ii, jj + 1, kk));
+          const auto plus2 = fCenterJ_(ii, jj + 1, kk).
+              Distance(fCenterJ_(ii, jj + 2, kk));
 
-          faceStateLower = state_(ig, jg - 1, kg).FaceReconMUSCL(
-              state_(ig, jg - 2, kg), state_(ig, jg, kg),
-              inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL);
+          if (inp.UsingMUSCLReconstruction()) {
+            faceStateLower = state_(ii, jj - 1, kk).FaceReconMUSCL(
+                state_(ii, jj - 2, kk), state_(ii, jj, kk),
+                inp.Kappa(), inp.Limiter(), minus1, minus2, plus1);
 
-          // length of second upwind, first upwind, and downwind cells in
-          // j-direction
-          const auto upwind2U = fCenterJ_(ig, jg + 1, kg).
-              Distance(fCenterJ_(ig, jg + 2, kg));
-          const auto upwindU = fCenterJ_(ig, jg, kg).
-              Distance(fCenterJ_(ig, jg + 1, kg));
-          const auto downwindU = fCenterJ_(ig, jg, kg).
-              Distance(fCenterJ_(ig, jg - 1, kg));
+            faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
+              state_(ii, jj + 1, kk), state_(ii, jj - 1, kk),
+              inp.Kappa(), inp.Limiter(), plus1, plus2, minus1);
+          } else {  // using higher order reconstruction (weno, wenoz)
+            // get additional cell lenghths
+            const auto minus3 = fCenterJ_(ii, jj - 2, kk).
+                Distance(fCenterJ_(ii, jj - 3, kk));
+            const auto plus3 = fCenterJ_(ii, jj + 2, kk).
+                Distance(fCenterJ_(ii, jj + 3, kk));
 
-          faceStateUpper = state_(ig, jg, kg).FaceReconMUSCL(
-              state_(ig, jg + 1, kg), state_(ig, jg - 1, kg),
-              inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU);
+            faceStateLower = state_(ii, jj - 1, kk).FaceReconWENO(
+                state_(ii, jj - 2, kk), state_(ii, jj - 3, kk),
+                state_(ii, jj, kk), state_(ii, jj + 1, kk), minus1, minus2,
+                minus3, plus1, plus2, inp.IsWenoZ());
+
+            faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
+                state_(ii, jj + 1, kk), state_(ii, jj + 2, kk),
+                state_(ii, jj - 1, kk), state_(ii, jj - 2, kk), plus1, plus2,
+                plus3, minus1, minus2, inp.IsWenoZ());
+          }
         }
 
         // calculate Roe flux at face
         const inviscidFlux tempFlux = RoeFlux(
             faceStateLower, faceStateUpper, eqnState,
-            this->FAreaUnitJ(ig, jg, kg));
+            this->FAreaUnitJ(ii, jj, kk));
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell
         // at left boundary no left cell to add to
-        if (jg > numGhosts_) {
-          this->AddToResidual(tempFlux * this->FAreaMagJ(ig, jg, kg),
-                              ip, jp - 1, kp);
+        if (jj > fAreaJ_.PhysStartJ()) {
+          this->AddToResidual(tempFlux * this->FAreaMagJ(ii, jj, kk),
+                              ii, jj - 1, kk);
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
             fluxJac.RusanovFluxJacobian(faceStateLower, eqnState,
-                                        this->FAreaJ(ig, jg, kg), true,
+                                        this->FAreaJ(ii, jj, kk), true,
                                         inp, turb);
-            mainDiagonal(ip, jp - 1, kp) += fluxJac;
+            mainDiagonal(ii, jj - 1, kk) += fluxJac;
           }
         }
         // at right boundary no right cell to add to
-        if (jg < fAreaJ_.NumJ() - numGhosts_ - 1) {
+        if (jj < fAreaJ_.PhysEndJ() - 1) {
           this->SubtractFromResidual(tempFlux *
-                                     this->FAreaMagJ(ig, jg, kg),
-                                     ip, jp, kp);
-          
+                                     this->FAreaMagJ(ii, jj, kk),
+                                     ii, jj, kk);
+
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-          const auto invSpecRad = state_(ig, jg, kg).InvCellSpectralRadius(
-              fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg + 1, kg), eqnState);
+          const auto invSpecRad = state_(ii, jj, kk).InvCellSpectralRadius(
+              fAreaJ_(ii, jj, kk), fAreaJ_(ii, jj + 1, kk), eqnState);
 
           const auto turbInvSpecRad = isTurbulent_ ?
-              turb->InviscidCellSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
-                                        fAreaJ_(ig, jg + 1, kg)): 0.0;
+              turb->InviscidCellSpecRad(state_(ii, jj, kk), fAreaJ_(ii, jj, kk),
+                                        fAreaJ_(ii, jj + 1, kk)): 0.0;
 
           const uncoupledScalar specRad(invSpecRad, turbInvSpecRad);
-          specRadius_(ip, jp, kp) += specRad;
+          specRadius_(ii, jj, kk) += specRad;
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
             fluxJac.RusanovFluxJacobian(faceStateUpper, eqnState,
-                                        this->FAreaJ(ig, jg, kg), false,
+                                        this->FAreaJ(ii, jj, kk), false,
                                         inp, turb);
-            mainDiagonal(ip, jp, kp) -= fluxJac;
+            mainDiagonal(ii, jj, kk) -= fluxJac;
           } else if (inp.IsImplicit()) {
-            mainDiagonal(ip, jp, kp) += fluxJacobian(specRad);
+            mainDiagonal(ii, jj, kk) += fluxJacobian(specRad);
           }
         }
       }
@@ -588,96 +602,104 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
   // mainDiagonal -- main diagonal of LHS to store flux jacobians for implicit
   //                 solver
 
+
   // loop over all physical k-faces
-  for (auto kp = 0, kg = numGhosts_; kg < fAreaK_.NumK() - numGhosts_;
-       kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jg < fAreaK_.NumJ() - numGhosts_;
-         jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ig < fAreaK_.NumI() - numGhosts_;
-           ig++, ip++) {
+  for (auto kk = fAreaK_.PhysStartK(); kk < fAreaK_.PhysEndK(); kk++) {
+    for (auto jj = fAreaK_.PhysStartJ(); jj < fAreaK_.PhysEndJ(); jj++) {
+      for (auto ii = fAreaK_.PhysStartI(); ii < fAreaK_.PhysEndI(); ii++) {
         primVars faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
-          faceStateLower = state_(ig, jg, kg - 1).FaceReconConst();
-          faceStateUpper = state_(ig, jg, kg).FaceReconConst();
-        } else {  // second order accuracy -- use MUSCL extrapolation
-          // length of second upwind, first upwind, and downwind cells in
-          // j-direction
-          const auto upwind2L = fCenterK_(ig, jg, kg - 1).
-              Distance(fCenterK_(ig, jg, kg - 2));
-          const auto upwindL = fCenterK_(ig, jg, kg).
-              Distance(fCenterK_(ig, jg, kg - 1));
-          const auto downwindL = fCenterK_(ig, jg, kg).
-              Distance(fCenterK_(ig, jg, kg + 1));
+          faceStateLower = state_(ii, jj, kk - 1).FaceReconConst();
+          faceStateUpper = state_(ii, jj, kk).FaceReconConst();
+        } else {  // second order accuracy
+          // length of cells in computational stencil
+          const auto minus2 = fCenterK_(ii, jj, kk - 1).
+              Distance(fCenterK_(ii, jj, kk - 2));
+          const auto minus1 = fCenterK_(ii, jj, kk).
+              Distance(fCenterK_(ii, jj, kk - 1));
+          const auto plus1 = fCenterK_(ii, jj, kk).
+              Distance(fCenterK_(ii, jj, kk + 1));
+          const auto plus2 = fCenterK_(ii, jj, kk + 1).
+              Distance(fCenterK_(ii, jj, kk + 2));
 
-          faceStateLower = state_(ig, jg, kg - 1).FaceReconMUSCL(
-              state_(ig, jg, kg - 2), state_(ig, jg, kg),
-              inp.Kappa(), inp.Limiter(), upwindL, upwind2L, downwindL);
+          if (inp.UsingMUSCLReconstruction()) {
+            faceStateLower = state_(ii, jj, kk - 1).FaceReconMUSCL(
+                state_(ii, jj, kk - 2), state_(ii, jj, kk),
+                inp.Kappa(), inp.Limiter(), minus1, minus2, plus1);
 
-          // length of second upwind, first upwind, and downwind cells in
-          // j-direction
-          const auto upwind2U = fCenterK_(ig, jg, kg + 1).
-              Distance(fCenterK_(ig, jg, kg + 2));
-          const auto upwindU = fCenterK_(ig, jg, kg).
-              Distance(fCenterK_(ig, jg, kg + 1));
-          const auto downwindU = fCenterK_(ig, jg, kg).
-              Distance(fCenterK_(ig, jg, kg - 1));
+            faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
+                state_(ii, jj, kk + 1), state_(ii, jj, kk - 1),
+                inp.Kappa(), inp.Limiter(), plus1, plus2, minus1);
+          } else {  // using higher order reconstruction (weno, wenoz)
+            // get additional cell lengths
+            const auto minus3 = fCenterK_(ii, jj, kk - 2).
+                Distance(fCenterK_(ii, jj, kk - 3));
+            const auto plus3 = fCenterK_(ii, jj, kk + 2).
+                Distance(fCenterK_(ii, jj, kk + 3));
 
-          faceStateUpper = state_(ig, jg, kg).FaceReconMUSCL(
-              state_(ig, jg, kg + 1), state_(ig, jg, kg - 1),
-              inp.Kappa(), inp.Limiter(), upwindU, upwind2U, downwindU);
+            faceStateLower = state_(ii, jj, kk - 1).FaceReconWENO(
+                state_(ii, jj, kk - 2), state_(ii, jj, kk - 3),
+                state_(ii, jj, kk), state_(ii, jj, kk + 1), minus1, minus2,
+                minus3, plus1, plus2, inp.IsWenoZ());
+
+            faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
+                state_(ii, jj, kk + 1), state_(ii, jj, kk + 2),
+                state_(ii, jj, kk - 1), state_(ii, jj, kk - 2), plus1, plus2,
+                plus3, minus1, minus2, inp.IsWenoZ());
+          }
         }
 
         // calculate Roe flux at face
         const inviscidFlux tempFlux = RoeFlux(
             faceStateLower, faceStateUpper, eqnState,
-            this->FAreaUnitK(ig, jg, kg));
+            this->FAreaUnitK(ii, jj, kk));
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell
         // at left boundary no left cell to add to
-        if (kg > numGhosts_) {
+        if (kk > fAreaK_.PhysStartK()) {
           this->AddToResidual(tempFlux *
-                              this->FAreaMagK(ig, jg, kg),
-                              ip, jp, kp - 1);
-          
+                              this->FAreaMagK(ii, jj, kk),
+                              ii, jj, kk - 1);
+
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
             fluxJac.RusanovFluxJacobian(faceStateLower, eqnState,
-                                        this->FAreaK(ig, jg, kg), true,
+                                        this->FAreaK(ii, jj, kk), true,
                                         inp, turb);
-            mainDiagonal(ip, jp, kp - 1) += fluxJac;
+            mainDiagonal(ii, jj, kk - 1) += fluxJac;
           }
         }
         // at right boundary no right cell to add to
-        if (kg < fAreaK_.NumK() - numGhosts_ - 1) {
+        if (kk < fAreaK_.PhysEndK() - 1) {
           this->SubtractFromResidual(tempFlux *
-                                     this->FAreaMagK(ig, jg, kg),
-                                     ip, jp, kp);
+                                     this->FAreaMagK(ii, jj, kk),
+                                     ii, jj, kk);
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-          const auto invSpecRad = state_(ig, jg, kg).InvCellSpectralRadius(
-              fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg + 1), eqnState);
+          const auto invSpecRad = state_(ii, jj, kk).InvCellSpectralRadius(
+              fAreaK_(ii, jj, kk), fAreaK_(ii, jj, kk + 1), eqnState);
 
           const auto turbInvSpecRad = isTurbulent_ ?
-              turb->InviscidCellSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
-                                        fAreaK_(ig, jg, kg + 1)) : 0.0;
+              turb->InviscidCellSpecRad(state_(ii, jj, kk), fAreaK_(ii, jj, kk),
+                                        fAreaK_(ii, jj, kk + 1)) : 0.0;
 
           const uncoupledScalar specRad(invSpecRad, turbInvSpecRad);
-          specRadius_(ip, jp, kp) += specRad;
+          specRadius_(ii, jj, kk) += specRad;
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
             fluxJacobian fluxJac;
             fluxJac.RusanovFluxJacobian(faceStateUpper, eqnState,
-                                        this->FAreaK(ig, jg, kg), false,
+                                        this->FAreaK(ii, jj, kk), false,
                                         inp, turb);
-            mainDiagonal(ip, jp, kp) -= fluxJac;
+            mainDiagonal(ii, jj, kk) -= fluxJac;
           } else if (inp.IsImplicit()) {
-            mainDiagonal(ip, jp, kp) += fluxJacobian(specRad);
+            mainDiagonal(ii, jj, kk) += fluxJacobian(specRad);
           }
         }
       }
@@ -704,9 +726,7 @@ void procBlock::CalcCellDt(const int &ii, const int &jj, const int &kk,
   // cfl -- cfl number
 
   // use nondimensional time
-  dt_(ii, jj, kk) = cfl *
-      (vol_(ii + numGhosts_, jj + numGhosts_, kk + numGhosts_) /
-       specRadius_(ii, jj, kk).Max());
+  dt_(ii, jj, kk) = cfl * (vol_(ii, jj, kk) / specRadius_(ii, jj, kk).Max());
 }
 
 /* Member function to calculate the time step for all cells in the procBlock. If
@@ -762,33 +782,32 @@ void procBlock::UpdateBlock(const input &inputVars, const idealGas &eos,
   // linf -- l-infinity norm of residual
 
   // loop over all physical cells
-  for (auto kp = 0, kg = numGhosts_; kp < this->NumK(); kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jp < this->NumJ(); jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
+  for (auto kk = 0; kk < this->NumK(); kk++) {
+    for (auto jj = 0; jj < this->NumJ(); jj++) {
+      for (auto ii = 0; ii < this->NumI(); ii++) {
         // explicit euler time integration
         if (inputVars.TimeIntegration() == "explicitEuler") {
-          this->ExplicitEulerTimeAdvance(eos, turb, ig, jg, kg, ip, jp, kp);
+          this->ExplicitEulerTimeAdvance(eos, turb, ii, jj, kk);
         // 4-stage runge-kutta method (explicit)
         } else if (inputVars.TimeIntegration() == "rk4") {
           // advance 1 RK stage
-          this->RK4TimeAdvance(consVars(ip, jp, kp), eos, turb,
-                               ig, jg, kg, ip, jp, kp, rr);
+          this->RK4TimeAdvance(consVars(ii, jj, kk), eos, turb, ii, jj, kk, rr);
         } else if (inputVars.IsImplicit()) {  // if implicit use update (du)
-          this->ImplicitTimeAdvance(du(ig, jg, kg), eos, turb, ig, jg, kg);
+          this->ImplicitTimeAdvance(du(ii, jj, kk), eos, turb, ii, jj, kk);
         } else {
           cerr << "ERROR: Time integration scheme " <<
               inputVars.TimeIntegration() << " is not recognized!" << endl;
         }
 
         // accumulate l2 norm of residual
-        l2 = l2 + residual_(ip, jp, kp) * residual_(ip, jp, kp);
+        l2 = l2 + residual_(ii, jj, kk) * residual_(ii, jj, kk);
 
         // if any residual is larger than previous residual, a new linf
         // residual is found
         for (auto ll = 0; ll < NUMVARS; ll++) {
-          if (this->Residual(ip, jp, kp, ll) > linf.Linf()) {
-            linf.UpdateMax(this->Residual(ip, jp, kp, ll),
-                           parBlock_, ip, jp, kp, ll + 1);
+          if (this->Residual(ii, jj, kk, ll) > linf.Linf()) {
+            linf.UpdateMax(this->Residual(ii, jj, kk, ll),
+                           parBlock_, ii, jj, kk, ll + 1);
           }
         }
       }
@@ -807,25 +826,21 @@ residual.
  */
 void procBlock::ExplicitEulerTimeAdvance(const idealGas &eqnState,
                                          const unique_ptr<turbModel> &turb,
-                                         const int &ig, const int &jg,
-                                         const int &kg, const int &ip,
-                                         const int &jp, const int &kp) {
+                                         const int &ii, const int &jj,
+                                         const int &kk) {
   // eqnState -- equation of state
   // turb -- turbulence model
-  // ig -- i-location of cell (including ghost cells)
-  // jg -- j-location of cell (including ghost cells)
-  // kg -- k-location of cell (including ghost cells)
-  // ip -- i-location of cell (without ghost cells)
-  // jp -- j-location of cell (without ghost cells)
-  // kp -- k-location of cell (without ghost cells)
+  // ii -- i-location of cell
+  // jj -- j-location of cell
+  // kk -- k-location of cell
 
   // Get conserved variables for current state (time n)
-  auto consVars = state_(ig, jg, kg).ConsVars(eqnState);
+  auto consVars = state_(ii, jj, kk).ConsVars(eqnState);
   // calculate updated conserved variables
-  consVars -= dt_(ip, jp, kp) / vol_(ig, jg, kg) * residual_(ip, jp, kp);
+  consVars -= dt_(ii, jj, kk) / vol_(ii, jj, kk) * residual_(ii, jj, kk);
 
   // calculate updated primative variables and update state
-  state_(ig, jg, kg) = primVars(consVars, false, eqnState, turb);
+  state_(ii, jj, kk) = primVars(consVars, false, eqnState, turb);
 }
 
 // member function to advance the state vector to time n+1 (for implicit
@@ -838,9 +853,9 @@ void procBlock::ImplicitTimeAdvance(const genArray &du,
   // du -- update for a specific cell (to move from time n to n+1)
   // eqnState -- equation of state
   // turb -- turbulence model
-  // ii -- i-location of cell (with ghosts)
-  // jj -- j-location of cell (with ghosts)
-  // kk -- k-location of cell (with ghosts)
+  // ii -- i-location of cell
+  // jj -- j-location of cell
+  // kk -- k-location of cell
 
   // calculate updated state (primative variables)
   state_(ii, jj, kk) = state_(ii, jj, kk).UpdateWithConsVars(eqnState, du,
@@ -859,29 +874,25 @@ coefficient, and R is the cell's residual.
 void procBlock::RK4TimeAdvance(const genArray &currState,
                                const idealGas &eqnState,
                                const unique_ptr<turbModel> &turb,
-                               const int &ig, const int &jg, const int &kg,
-                               const int &ip, const int &jp, const int &kp,
+                               const int &ii, const int &jj, const int &kk,
                                const int &rk) {
   // currState -- current state (including steps within RK4) (primative)
   // eqnState -- equation of state
   // turb -- turbulence model
-  // ig -- i-location of cell (including ghost cells)
-  // jg -- j-location of cell (including ghost cells)
-  // kg -- k-location of cell (including ghost cells)
-  // ip -- i-location of cell (without ghost cells)
-  // jp -- j-location of cell (without ghost cells)
-  // kp -- k-location of cell (without ghost cells)
+  // ii -- i-location of cell (including ghost cells)
+  // jj -- j-location of cell (including ghost cells)
+  // kk -- k-location of cell (including ghost cells)
   // rk -- runge-kutta step number
 
   // runge-kutta step coefficients (low storage 4 step)
   const double alpha[4] = {0.25, 1.0 / 3.0, 0.5, 1.0};
 
   // update conserved variables
-  auto consVars = currState - dt_(ip, jp, kp) / vol_(ig, jg, kg) *
-      alpha[rk] * residual_(ip, jp, kp);
+  auto consVars = currState - dt_(ii, jj, kk) / vol_(ii, jj, kk) *
+      alpha[rk] * residual_(ii, jj, kk);
 
   // calculate updated primative variables
-  state_(ig, jg, kg) = primVars(consVars, false, eqnState, turb);
+  state_(ii, jj, kk) = primVars(consVars, false, eqnState, turb);
 }
 
 // member function to reset the residual and wave speed back to zero after an
@@ -947,19 +958,19 @@ multiArray3d<genArray> procBlock::SolTimeMMinusN(
   // mm -- nonlinear iteration number
 
   // initialize a vector to hold the returned values to zero
-  multiArray3d<genArray> mMinusN(n.NumI(), n.NumJ(), n.NumK());
+  multiArray3d<genArray> mMinusN(n.NumI(), n.NumJ(), n.NumK(), 0);
 
   // if mm is 0, then solution at time m and solution at time n is the same
   if (mm != 0) {
     auto m = this->GetCopyConsVars(eos);
 
     // loop over all physical cells
-  for (auto kp = 0, kg = numGhosts_; kp < this->NumK(); kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jp < this->NumJ(); jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
-          const auto diagVolTime = (vol_(ig, jg, kg) * (1.0 + inp.Zeta()))
-              / (dt_(ip, jp, kp) * inp.Theta());
-          mMinusN(ip, jp, kp) = diagVolTime * (m(ip, jp, kp) - n(ip, jp, kp));
+  for (auto kk = 0; kk < this->NumK(); kk++) {
+    for (auto jj = 0; jj < this->NumJ(); jj++) {
+      for (auto ii = 0; ii < this->NumI(); ii++) {
+          const auto diagVolTime = (vol_(ii, jj, kk) * (1.0 + inp.Zeta()))
+              / (dt_(ii, jj, kk) * inp.Theta());
+          mMinusN(ii, jj, kk) = diagVolTime * (m(ii, jj, kk) - n(ii, jj, kk));
         }
       }
     }
@@ -1006,17 +1017,18 @@ multiArray3d<genArray> procBlock::DeltaNMinusOne(
   // zeta -- Beam & Warming coefficient zeta for time integration
 
   // Solution at time n minus solution at time n-1
-  multiArray3d<genArray> solDeltaNm1(this->NumI(), this->NumJ(), this->NumK());
+  multiArray3d<genArray> solDeltaNm1(this->NumI(), this->NumJ(), this->NumK(),
+                                     0);
 
   // loop over physical cells
-  for (auto kp = 0, kg = numGhosts_; kp < this->NumK(); kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jp < this->NumJ(); jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
-        const auto diagVolTime = (vol_(ig, jg, kg) * zeta) /
-            (dt_(ip, jp, kp) * theta);
-        solDeltaNm1(ip, jp, kp) = diagVolTime *
-            (state_(ig, jg, kg).ConsVars(eqnState) -
-             solTimeN(ip, jp, kp));
+  for (auto kk = 0; kk < this->NumK(); kk++) {
+    for (auto jj = 0; jj < this->NumJ(); jj++) {
+      for (auto ii = 0; ii < this->NumI(); ii++) {
+        const auto diagVolTime = (vol_(ii, jj, kk) * zeta) /
+            (dt_(ii, jj, kk) * theta);
+        solDeltaNm1(ii, jj, kk) = diagVolTime *
+            (state_(ii, jj, kk).ConsVars(eqnState) -
+             solTimeN(ii, jj, kk));
       }
     }
   }
@@ -1029,22 +1041,22 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
   // inp -- input variables
 
   // loop over physical cells
-  for (auto kp = 0, kg = numGhosts_; kp < this->NumK(); kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jp < this->NumJ(); jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
-        auto diagVolTime = (vol_(ig, jg, kg) * (1.0 + inp.Zeta())) /
-            (dt_(ip, jp, kp) * inp.Theta());
+  for (auto kk = 0; kk < this->NumK(); kk++) {
+    for (auto jj = 0; jj < this->NumJ(); jj++) {
+      for (auto ii = 0; ii < this->NumI(); ii++) {
+        auto diagVolTime = (vol_(ii, jj, kk) * (1.0 + inp.Zeta())) /
+            (dt_(ii, jj, kk) * inp.Theta());
         if (inp.DualTimeCFL() > 0.0) {  // use dual time stepping
           // equal to volume / tau
-          diagVolTime += specRadius_(ip, jp, kp).Max() /
+          diagVolTime += specRadius_(ii, jj, kk).Max() /
               inp.DualTimeCFL();
         }
 
         // add volume and time term
-        mainDiagonal(ip, jp, kp).MultiplyOnDiagonal(inp.MatrixRelaxation(),
+        mainDiagonal(ii, jj, kk).MultiplyOnDiagonal(inp.MatrixRelaxation(),
                                                     isTurbulent_);
-        mainDiagonal(ip, jp, kp).AddOnDiagonal(diagVolTime, isTurbulent_);
-        mainDiagonal(ip, jp, kp).Inverse(isTurbulent_);
+        mainDiagonal(ii, jj, kk).AddOnDiagonal(diagVolTime, isTurbulent_);
+        mainDiagonal(ii, jj, kk).Inverse(isTurbulent_);
       }
     }
   }
@@ -1057,14 +1069,14 @@ multiArray3d<genArray> procBlock::GetCopyConsVars(
     const idealGas &eqnState) const {
   // initialize array to proper size (no ghost cells)
   multiArray3d<genArray> consVars(this->NumI(), this->NumJ(),
-                                  this->NumK());
+                                  this->NumK(), 0);
 
   // loop over physical cells
-  for (auto kp = 0, kg = numGhosts_; kp < this->NumK(); kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jp < this->NumJ(); jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
+  for (auto kk = 0; kk < this->NumK(); kk++) {
+    for (auto jj = 0; jj < this->NumJ(); jj++) {
+      for (auto ii = 0; ii < this->NumI(); ii++) {
         // convert state to conservative variables
-        consVars(ip, jp, kp) = state_(ig, jg, kg).ConsVars(eqnState);
+        consVars(ii, jj, kk) = state_(ii, jj, kk).ConsVars(eqnState);
       }
     }
   }
@@ -1201,15 +1213,11 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
 
   //--------------------------------------------------------------------
   // forward sweep over all physical cells
-  for (auto ii = 0; ii < this->NumCells(); ii++) {
+  for (auto nn = 0; nn < this->NumCells(); nn++) {
     // indices for variables without ghost cells
-    const auto ip = reorder[ii].X();
-    const auto jp = reorder[ii].Y();
-    const auto kp = reorder[ii].Z();
-    // indices for variables with ghost cells
-    const auto ig = reorder[ii].X() + numGhosts_;
-    const auto jg = reorder[ii].Y() + numGhosts_;
-    const auto kg = reorder[ii].Z() + numGhosts_;
+    const auto ii = reorder[nn].X();
+    const auto jj = reorder[nn].Y();
+    const auto kk = reorder[nn].Z();
 
     // initialize term for contribution from lower/upper triangular matrix
     genArray L(0.0);
@@ -1217,54 +1225,54 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
 
     // if i lower diagonal cell is in physical location there is a contribution
     // from it
-    if (this->IsPhysical(ip - 1, jp, kp, false) ||
-        bc_.GetBCName(ip, jp, kp, "il") == "interblock") {
+    if (this->IsPhysical(ii - 1, jj, kk) ||
+        bc_.GetBCName(ii, jj, kk, 1) == "interblock") {
       // calculate projected center to center distance along face area
-      const auto projDist = this->ProjC2CDist(ig, jg, kg, "i");
+      const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
 
       // update L matrix
-      L += OffDiagonal(state_(ig - 1, jg, kg), state_(ig, jg, kg),
-                       x(ig - 1 , jg, kg), fAreaI_(ig, jg, kg),
-                       this->Viscosity(ig - 1, jg, kg),
-                       this->EddyViscosity(ig - 1, jg, kg),
-                       this->F1(ig - 1, jg, kg), projDist,
-                       this->VelGrad(ip - 1, jp, kp),
+      L += OffDiagonal(state_(ii - 1, jj, kk), state_(ii, jj, kk),
+                       x(ii - 1 , jj, kk), fAreaI_(ii, jj, kk),
+                       this->Viscosity(ii - 1, jj, kk),
+                       this->EddyViscosity(ii - 1, jj, kk),
+                       this->F1(ii - 1, jj, kk), projDist,
+                       this->VelGrad(ii - 1, jj, kk),
                        eqnState, suth, turb, inp, true);
     }
 
     // -----------------------------------------------------------------------
     // if j lower diagonal cell is in physical location there is a contribution
     // from it
-    if (this->IsPhysical(ip, jp - 1, kp, false) ||
-        bc_.GetBCName(ip, jp, kp, "jl") == "interblock") {
+    if (this->IsPhysical(ii, jj - 1, kk) ||
+        bc_.GetBCName(ii, jj, kk, 3) == "interblock") {
       // calculate projected center to center distance along face area
-      const auto projDist = this->ProjC2CDist(ig, jg, kg, "j");
+      const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
       // update L matrix
-      L += OffDiagonal(state_(ig, jg - 1, kg), state_(ig, jg, kg),
-                       x(ig, jg - 1, kg), fAreaJ_(ig, jg, kg),
-                       this->Viscosity(ig, jg - 1, kg),
-                       this->EddyViscosity(ig, jg - 1, kg),
-                       this->F1(ig, jg - 1, kg), projDist,
-                       this->VelGrad(ip, jp - 1, kp),
+      L += OffDiagonal(state_(ii, jj - 1, kk), state_(ii, jj, kk),
+                       x(ii, jj - 1, kk), fAreaJ_(ii, jj, kk),
+                       this->Viscosity(ii, jj - 1, kk),
+                       this->EddyViscosity(ii, jj - 1, kk),
+                       this->F1(ii, jj - 1, kk), projDist,
+                       this->VelGrad(ii, jj - 1, kk),
                        eqnState, suth, turb, inp, true);
     }
 
     // -----------------------------------------------------------------------
     // if k lower diagonal cell is in physical location there is a contribution
     // from it
-    if (this->IsPhysical(ip, jp, kp - 1, false) ||
-        bc_.GetBCName(ip, jp, kp, "kl") == "interblock") {
+    if (this->IsPhysical(ii, jj, kk - 1) ||
+        bc_.GetBCName(ii, jj, kk, 5) == "interblock") {
       // calculate projected center to center distance along face area
-      const auto projDist = this->ProjC2CDist(ig, jg, kg, "k");
+      const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
 
       // update L matrix
-      L += OffDiagonal(state_(ig, jg, kg - 1), state_(ig, jg, kg),
-                       x(ig, jg, kg - 1), fAreaK_(ig, jg, kg),
-                       this->Viscosity(ig, jg, kg - 1),
-                       this->EddyViscosity(ig, jg, kg - 1),
-                       this->F1(ig, jg, kg - 1), projDist,
-                       this->VelGrad(ip, jp, kp - 1),
+      L += OffDiagonal(state_(ii, jj, kk - 1), state_(ii, jj, kk),
+                       x(ii, jj, kk - 1), fAreaK_(ii, jj, kk),
+                       this->Viscosity(ii, jj, kk - 1),
+                       this->EddyViscosity(ii, jj, kk - 1),
+                       this->F1(ii, jj, kk - 1), projDist,
+                       this->VelGrad(ii, jj, kk - 1),
                        eqnState, suth, turb, inp, true);
     }
 
@@ -1277,54 +1285,54 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       // -----------------------------------------------------------------------
       // if i upper cell is in physical location there is a contribution
       // from it
-      if (this->IsPhysical(ip + 1, jp, kp, false) ||
-          bc_.GetBCName(ip + 1, jp, kp, "iu") == "interblock") {
+      if (this->IsPhysical(ii + 1, jj, kk) ||
+          bc_.GetBCName(ii + 1, jj, kk, 2) == "interblock") {
         // calculate projected center to center distance along face area
-        const auto projDist = this->ProjC2CDist(ig + 1, jg, kg, "i");
+        const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
 
         // update U matrix
-        U += OffDiagonal(state_(ig + 1, jg, kg), state_(ig, jg, kg),
-                         x(ig + 1 , jg, kg), fAreaI_(ig + 1, jg, kg),
-                         this->Viscosity(ig + 1, jg, kg),
-                         this->EddyViscosity(ig + 1, jg, kg),
-                         this->F1(ig + 1, jg, kg), projDist,
-                         this->VelGrad(ip + 1, jp, kp),
+        U += OffDiagonal(state_(ii + 1, jj, kk), state_(ii, jj, kk),
+                         x(ii + 1 , jj, kk), fAreaI_(ii + 1, jj, kk),
+                         this->Viscosity(ii + 1, jj, kk),
+                         this->EddyViscosity(ii + 1, jj, kk),
+                         this->F1(ii + 1, jj, kk), projDist,
+                         this->VelGrad(ii + 1, jj, kk),
                          eqnState, suth, turb, inp, false);
       }
 
       // -----------------------------------------------------------------------
       // if j upper cell is in physical location there is a contribution
       // from it
-      if (this->IsPhysical(ip, jp + 1, kp, false) ||
-          bc_.GetBCName(ip, jp + 1, kp, "ju") == "interblock") {
+      if (this->IsPhysical(ii, jj + 1, kk) ||
+          bc_.GetBCName(ii, jj + 1, kk, 4) == "interblock") {
         // calculate projected center to center distance along face area
-        const auto projDist = this->ProjC2CDist(ig, jg + 1, kg, "j");
+        const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
 
         // update U matrix
-        U += OffDiagonal(state_(ig, jg + 1, kg), state_(ig, jg, kg),
-                         x(ig, jg + 1, kg), fAreaJ_(ig, jg + 1, kg),
-                         this->Viscosity(ig, jg + 1, kg),
-                         this->EddyViscosity(ig, jg + 1, kg),
-                         this->F1(ig, jg + 1, kg), projDist,
-                         this->VelGrad(ip, jp + 1, kp),
+        U += OffDiagonal(state_(ii, jj + 1, kk), state_(ii, jj, kk),
+                         x(ii, jj + 1, kk), fAreaJ_(ii, jj + 1, kk),
+                         this->Viscosity(ii, jj + 1, kk),
+                         this->EddyViscosity(ii, jj + 1, kk),
+                         this->F1(ii, jj + 1, kk), projDist,
+                         this->VelGrad(ii, jj + 1, kk),
                          eqnState, suth, turb, inp, false);
       }
 
       // -----------------------------------------------------------------------
       // if k lower cell is in physical location there is a contribution
       // from it
-      if (this->IsPhysical(ip, jp, kp + 1, false) ||
-          bc_.GetBCName(ip, jp, kp + 1, "ku") == "interblock") {
+      if (this->IsPhysical(ii, jj, kk + 1) ||
+          bc_.GetBCName(ii, jj, kk + 1, 6) == "interblock") {
         // calculate projected center to center distance along face area
-        const auto projDist = this->ProjC2CDist(ig, jg, kg + 1, "k");
+        const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
 
         // update U matrix
-        U += OffDiagonal(state_(ig, jg, kg + 1), state_(ig, jg, kg),
-                         x(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 1),
-                         this->Viscosity(ig, jg, kg + 1),
-                         this->EddyViscosity(ig, jg, kg + 1),
-                         this->F1(ig, jg, kg + 1), projDist,
-                         this->VelGrad(ip, jp, kp + 1),
+        U += OffDiagonal(state_(ii, jj, kk + 1), state_(ii, jj, kk),
+                         x(ii, jj, kk + 1), fAreaK_(ii, jj, kk + 1),
+                         this->Viscosity(ii, jj, kk + 1),
+                         this->EddyViscosity(ii, jj, kk + 1),
+                         this->F1(ii, jj, kk + 1), projDist,
+                         this->VelGrad(ii, jj, kk + 1),
                          eqnState, suth, turb, inp, false);
       }
     }
@@ -1333,10 +1341,10 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // calculate intermediate update
     // normal at lower boundaries needs to be reversed, so add instead
     // of subtract L
-    x(ig, jg, kg) = aInv(ip, jp, kp).ArrayMult(-thetaInv *
-                                               residual_(ip, jp, kp) -
-                                               solDeltaNm1(ip, jp, kp) -
-                                               solTimeMmN(ip, jp, kp) +
+    x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(-thetaInv *
+                                               residual_(ii, jj, kk) -
+                                               solDeltaNm1(ii, jj, kk) -
+                                               solTimeMmN(ii, jj, kk) +
                                                L - U);
   }  // end forward sweep
 }
@@ -1367,15 +1375,11 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
   genArray l2Error(0.0);
 
   // backward sweep over all physical cells
-  for (auto ii = this->NumCells() - 1; ii >= 0; ii--) {
+  for (auto nn = this->NumCells() - 1; nn >= 0; nn--) {
     // indices for variables without ghost cells
-    const auto ip = reorder[ii].X();
-    const auto jp = reorder[ii].Y();
-    const auto kp = reorder[ii].Z();
-    // indices for variables with ghost cells
-    const auto ig = reorder[ii].X() + numGhosts_;
-    const auto jg = reorder[ii].Y() + numGhosts_;
-    const auto kg = reorder[ii].Z() + numGhosts_;
+    const auto ii = reorder[nn].X();
+    const auto jj = reorder[nn].Y();
+    const auto kk = reorder[nn].Z();
 
     // initialize term for contribution from upper/lower triangular matrix
     genArray U(0.0);
@@ -1384,54 +1388,54 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
     // -----------------------------------------------------------------------
     // if i upper diagonal cell is in physical location there is a contribution
     // from it
-    if (this->IsPhysical(ip + 1, jp, kp, false) ||
-        bc_.GetBCName(ip + 1, jp, kp, "iu") == "interblock") {
+    if (this->IsPhysical(ii + 1, jj, kk) ||
+        bc_.GetBCName(ii + 1, jj, kk, 2) == "interblock") {
       // calculate projected center to center distance along face area
-      const auto projDist = this->ProjC2CDist(ig + 1, jg, kg, "i");
+      const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
 
       // update U matrix
-      U += OffDiagonal(state_(ig + 1, jg, kg), state_(ig, jg, kg),
-                       x(ig + 1, jg, kg), fAreaI_(ig + 1, jg, kg),
-                       this->Viscosity(ig + 1, jg, kg),
-                       this->EddyViscosity(ig + 1, jg, kg),
-                       this->F1(ig + 1, jg, kg), projDist,
-                       this->VelGrad(ip + 1, jp, kp),
+      U += OffDiagonal(state_(ii + 1, jj, kk), state_(ii, jj, kk),
+                       x(ii + 1, jj, kk), fAreaI_(ii + 1, jj, kk),
+                       this->Viscosity(ii + 1, jj, kk),
+                       this->EddyViscosity(ii + 1, jj, kk),
+                       this->F1(ii + 1, jj, kk), projDist,
+                       this->VelGrad(ii + 1, jj, kk),
                        eqnState, suth, turb, inp, false);
     }
 
     // -----------------------------------------------------------------------
     // if j upper diagonal cell is in physical location there is a contribution
     // from it
-    if (this->IsPhysical(ip, jp + 1, kp, false) ||
-        bc_.GetBCName(ip, jp + 1, kp, "ju") == "interblock") {
+    if (this->IsPhysical(ii, jj + 1, kk) ||
+        bc_.GetBCName(ii, jj + 1, kk, 4) == "interblock") {
       // calculate projected center to center distance along face area
-      const auto projDist = this->ProjC2CDist(ig, jg + 1, kg, "j");
+      const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
 
       // update U matrix
-      U += OffDiagonal(state_(ig, jg + 1, kg), state_(ig, jg, kg),
-                       x(ig, jg + 1, kg), fAreaJ_(ig, jg + 1, kg),
-                       this->Viscosity(ig, jg + 1, kg),
-                       this->EddyViscosity(ig, jg + 1, kg),
-                       this->F1(ig, jg + 1, kg), projDist,
-                       this->VelGrad(ip, jp + 1, kp),
+      U += OffDiagonal(state_(ii, jj + 1, kk), state_(ii, jj, kk),
+                       x(ii, jj + 1, kk), fAreaJ_(ii, jj + 1, kk),
+                       this->Viscosity(ii, jj + 1, kk),
+                       this->EddyViscosity(ii, jj + 1, kk),
+                       this->F1(ii, jj + 1, kk), projDist,
+                       this->VelGrad(ii, jj + 1, kk),
                        eqnState, suth, turb, inp, false);
     }
 
     // -----------------------------------------------------------------------
     // if k upper diagonal cell is in physical location there is a contribution
     // from it
-    if (this->IsPhysical(ip, jp, kp + 1, false) ||
-        bc_.GetBCName(ip, jp, kp + 1, "ku") == "interblock") {
+    if (this->IsPhysical(ii, jj, kk + 1) ||
+        bc_.GetBCName(ii, jj, kk + 1, 6) == "interblock") {
       // calculate projected center to center distance along face area
-      const auto projDist = this->ProjC2CDist(ig, jg, kg + 1, "k");
+      const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
 
       // update U matrix
-      U += OffDiagonal(state_(ig, jg, kg + 1), state_(ig, jg, kg),
-                       x(ig, jg, kg + 1), fAreaK_(ig, jg, kg + 1),
-                       this->Viscosity(ig, jg, kg + 1),
-                       this->EddyViscosity(ig, jg, kg + 1),
-                       this->F1(ig, jg, kg + 1), projDist,
-                       this->VelGrad(ip, jp, kp + 1),
+      U += OffDiagonal(state_(ii, jj, kk + 1), state_(ii, jj, kk),
+                       x(ii, jj, kk + 1), fAreaK_(ii, jj, kk + 1),
+                       this->Viscosity(ii, jj, kk + 1),
+                       this->EddyViscosity(ii, jj, kk + 1),
+                       this->F1(ii, jj, kk + 1), projDist,
+                       this->VelGrad(ii, jj, kk + 1),
                        eqnState, suth, turb, inp, false);
     }
 
@@ -1444,71 +1448,71 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       // -----------------------------------------------------------------------
       // if i lower cell is in physical location there is a contribution
       // from it
-      if (this->IsPhysical(ip - 1, jp, kp, false) ||
-          bc_.GetBCName(ip, jp, kp, "il") == "interblock") {
+      if (this->IsPhysical(ii - 1, jj, kk) ||
+          bc_.GetBCName(ii, jj, kk, 1) == "interblock") {
         // calculate projected center to center distance along face area
-        const auto projDist = this->ProjC2CDist(ig, jg, kg, "i");
+        const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
 
         // update U matrix
-        L += OffDiagonal(state_(ig - 1, jg, kg), state_(ig, jg, kg),
-                         x(ig - 1, jg, kg), fAreaI_(ig, jg, kg),
-                         this->Viscosity(ig - 1, jg, kg),
-                         this->EddyViscosity(ig - 1, jg, kg),
-                         this->F1(ig - 1, jg, kg), projDist,
-                         this->VelGrad(ip - 1, jp, kp),
+        L += OffDiagonal(state_(ii - 1, jj, kk), state_(ii, jj, kk),
+                         x(ii - 1, jj, kk), fAreaI_(ii, jj, kk),
+                         this->Viscosity(ii - 1, jj, kk),
+                         this->EddyViscosity(ii - 1, jj, kk),
+                         this->F1(ii - 1, jj, kk), projDist,
+                         this->VelGrad(ii - 1, jj, kk),
                          eqnState, suth, turb, inp, true);
       }
 
       // -----------------------------------------------------------------------
       // if j lower cell is in physical location there is a contribution
       // from it
-      if (this->IsPhysical(ip, jp - 1, kp, false) ||
-          bc_.GetBCName(ip, jp, kp, "jl") == "interblock") {
+      if (this->IsPhysical(ii, jj - 1, kk) ||
+          bc_.GetBCName(ii, jj, kk, 3) == "interblock") {
         // calculate projected center to center distance along face area
-        const auto projDist = this->ProjC2CDist(ig, jg, kg, "j");
+        const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
         // update U matrix
-        L += OffDiagonal(state_(ig, jg - 1, kg), state_(ig, jg, kg),
-                         x(ig, jg - 1, kg), fAreaJ_(ig, jg, kg),
-                         this->Viscosity(ig, jg - 1, kg),
-                         this->EddyViscosity(ig, jg - 1, kg),
-                         this->F1(ig, jg - 1, kg), projDist,
-                         this->VelGrad(ip, jp - 1, kp),
+        L += OffDiagonal(state_(ii, jj - 1, kk), state_(ii, jj, kk),
+                         x(ii, jj - 1, kk), fAreaJ_(ii, jj, kk),
+                         this->Viscosity(ii, jj - 1, kk),
+                         this->EddyViscosity(ii, jj - 1, kk),
+                         this->F1(ii, jj - 1, kk), projDist,
+                         this->VelGrad(ii, jj - 1, kk),
                          eqnState, suth, turb, inp, true);
       }
 
       // -----------------------------------------------------------------------
       // if k lower cell is in physical location there is a contribution
       // from it
-      if (this->IsPhysical(ip, jp, kp - 1, false) ||
-          bc_.GetBCName(ip, jp, kp, "kl") == "interblock") {
+      if (this->IsPhysical(ii, jj, kk - 1) ||
+          bc_.GetBCName(ii, jj, kk, 5) == "interblock") {
         // calculate projected center to center distance along face area
-        const auto projDist = this->ProjC2CDist(ig, jg, kg, "k");
+        const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
 
         // update U matrix
-        L += OffDiagonal(state_(ig, jg, kg - 1), state_(ig, jg, kg),
-                         x(ig, jg, kg - 1), fAreaK_(ig, jg, kg),
-                         this->Viscosity(ig, jg, kg - 1),
-                         this->EddyViscosity(ig, jg, kg - 1),
-                         this->F1(ig, jg, kg - 1), projDist,
-                         this->VelGrad(ip, jp, kp - 1),
+        L += OffDiagonal(state_(ii, jj, kk - 1), state_(ii, jj, kk),
+                         x(ii, jj, kk - 1), fAreaK_(ii, jj, kk),
+                         this->Viscosity(ii, jj, kk - 1),
+                         this->EddyViscosity(ii, jj, kk - 1),
+                         this->F1(ii, jj, kk - 1), projDist,
+                         this->VelGrad(ii, jj, kk - 1),
                          eqnState, suth, turb, inp, true);
       }
     }
     // -----------------------------------------------------------------------
 
     // calculate update
-    auto xold = x(ig, jg, kg);
+    auto xold = x(ii, jj, kk);
     if (sweep > 0 || inp.MatrixRequiresInitialization()) {
-      x(ig, jg, kg) = aInv(ip, jp, kp).ArrayMult(-thetaInv *
-                                                 residual_(ip, jp, kp) -
-                                                 solDeltaNm1(ip, jp, kp) -
-                                                 solTimeMmN(ip, jp, kp) +
+      x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(-thetaInv *
+                                                 residual_(ii, jj, kk) -
+                                                 solDeltaNm1(ii, jj, kk) -
+                                                 solTimeMmN(ii, jj, kk) +
                                                  L - U);
     } else {
-      x(ig, jg, kg) -= aInv(ip, jp, kp).ArrayMult(U);
+      x(ii, jj, kk) -= aInv(ii, jj, kk).ArrayMult(U);
     }
-    const auto error = x(ig, jg, kg) - xold;
+    const auto error = x(ii, jj, kk) - xold;
     l2Error += error * error;
   }  // end backward sweep
 
@@ -1543,133 +1547,133 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
   // copy old update
   const auto xold = x;
 
-  for (auto kp = 0, kg = numGhosts_; kp < this->NumK(); kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jp < this->NumJ(); jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
+  for (auto kk = 0; kk < this->NumK(); kk++) {
+    for (auto jj = 0; jj < this->NumJ(); jj++) {
+      for (auto ii = 0; ii < this->NumI(); ii++) {
         // calculate off diagonal terms - initialize to zero
         genArray offDiagonal(0.0);
 
         // -------------------------------------------------------------
         // if i lower diagonal cell is in physical location there is a
         // contribution from it
-        if (this->IsPhysical(ip - 1, jp, kp, false) ||
-            bc_.GetBCName(ip, jp, kp, "il") == "interblock") {
+        if (this->IsPhysical(ii - 1, jj, kk) ||
+            bc_.GetBCName(ii, jj, kk, 1) == "interblock") {
           // calculate projected center to center distance
-          const auto projDist = this->ProjC2CDist(ig, jg, kg, "i");
+          const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
 
           // update off diagonal
-          offDiagonal += OffDiagonal(state_(ig - 1, jg, kg), state_(ig, jg, kg),
-                                     xold(ig - 1, jg, kg), fAreaI_(ig, jg, kg),
-                                     this->Viscosity(ig - 1, jg, kg),
-                                     this->EddyViscosity(ig - 1, jg, kg),
-                                     this->F1(ig - 1, jg, kg), projDist,
-                                     this->VelGrad(ip - 1, jp, kp),
+          offDiagonal += OffDiagonal(state_(ii - 1, jj, kk), state_(ii, jj, kk),
+                                     xold(ii - 1, jj, kk), fAreaI_(ii, jj, kk),
+                                     this->Viscosity(ii - 1, jj, kk),
+                                     this->EddyViscosity(ii - 1, jj, kk),
+                                     this->F1(ii - 1, jj, kk), projDist,
+                                     this->VelGrad(ii - 1, jj, kk),
                                      eqnState, suth, turb, inp, true);
         }
 
         // --------------------------------------------------------------
         // if j lower diagonal cell is in physical location there is a
         // constribution from it
-        if (this->IsPhysical(ip, jp - 1, kp, false) ||
-            bc_.GetBCName(ip, jp, kp, "jl") == "interblock") {
+        if (this->IsPhysical(ii, jj - 1, kk) ||
+            bc_.GetBCName(ii, jj, kk, 3) == "interblock") {
           // calculate projected center to center distance
-          const auto projDist = this->ProjC2CDist(ig, jg, kg, "j");
+          const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
           // update off diagonal
-          offDiagonal += OffDiagonal(state_(ig, jg - 1, kg), state_(ig, jg, kg),
-                                     xold(ig, jg - 1, kg), fAreaJ_(ig, jg, kg),
-                                     this->Viscosity(ig, jg - 1 , kg),
-                                     this->EddyViscosity(ig, jg - 1 , kg),
-                                     this->F1(ig, jg - 1 , kg), projDist,
-                                     this->VelGrad(ip, jp - 1, kp),
+          offDiagonal += OffDiagonal(state_(ii, jj - 1, kk), state_(ii, jj, kk),
+                                     xold(ii, jj - 1, kk), fAreaJ_(ii, jj, kk),
+                                     this->Viscosity(ii, jj - 1 , kk),
+                                     this->EddyViscosity(ii, jj - 1 , kk),
+                                     this->F1(ii, jj - 1 , kk), projDist,
+                                     this->VelGrad(ii, jj - 1, kk),
                                      eqnState, suth, turb, inp, true);
         }
 
         // --------------------------------------------------------------
         // if k lower diagonal cell is in physical location there is a
         // contribution from it
-        if (this->IsPhysical(ip, jp, kp - 1, false) ||
-            bc_.GetBCName(ip, jp, kp, "kl") == "interblock") {
+        if (this->IsPhysical(ii, jj, kk - 1) ||
+            bc_.GetBCName(ii, jj, kk, 5) == "interblock") {
           // calculate projected center to center distance
-          const auto projDist = this->ProjC2CDist(ig, jg, kg, "k");
+          const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
 
           // update off diagonal
-          offDiagonal += OffDiagonal(state_(ig, jg, kg - 1), state_(ig, jg, kg),
-                                     xold(ig, jg, kg - 1), fAreaK_(ig, jg, kg),
-                                     this->Viscosity(ig, jg, kg - 1),
-                                     this->EddyViscosity(ig, jg, kg - 1),
-                                     this->F1(ig, jg, kg - 1), projDist,
-                                     this->VelGrad(ip, jp, kp - 1),
+          offDiagonal += OffDiagonal(state_(ii, jj, kk - 1), state_(ii, jj, kk),
+                                     xold(ii, jj, kk - 1), fAreaK_(ii, jj, kk),
+                                     this->Viscosity(ii, jj, kk - 1),
+                                     this->EddyViscosity(ii, jj, kk - 1),
+                                     this->F1(ii, jj, kk - 1), projDist,
+                                     this->VelGrad(ii, jj, kk - 1),
                                      eqnState, suth, turb, inp, true);
         }
 
         // --------------------------------------------------------------
         // if i upper diagonal cell is in physical location there is a
         // contribution from it
-        if (this->IsPhysical(ip + 1, jp, kp, false) ||
-            bc_.GetBCName(ip + 1, jp, kp, "iu") == "interblock") {
+        if (this->IsPhysical(ii + 1, jj, kk) ||
+            bc_.GetBCName(ii + 1, jj, kk, 2) == "interblock") {
           // calculate projected center to center distance
-          const auto projDist = this->ProjC2CDist(ig + 1, jg, kg, "i");
+          const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
 
           // update off diagonal
-          offDiagonal -= OffDiagonal(state_(ig + 1, jg, kg), state_(ig, jg, kg),
-                                     xold(ig + 1, jg, kg),
-                                     fAreaI_(ig + 1, jg, kg),
-                                     this->Viscosity(ig + 1, jg, kg),
-                                     this->EddyViscosity(ig + 1, jg, kg),
-                                     this->F1(ig + 1, jg, kg), projDist,
-                                     this->VelGrad(ip + 1, jp, kp),
+          offDiagonal -= OffDiagonal(state_(ii + 1, jj, kk), state_(ii, jj, kk),
+                                     xold(ii + 1, jj, kk),
+                                     fAreaI_(ii + 1, jj, kk),
+                                     this->Viscosity(ii + 1, jj, kk),
+                                     this->EddyViscosity(ii + 1, jj, kk),
+                                     this->F1(ii + 1, jj, kk), projDist,
+                                     this->VelGrad(ii + 1, jj, kk),
                                      eqnState, suth, turb, inp, false);
         }
 
         // --------------------------------------------------------------
         // if j upper diagonal cell is in physical location there is a
         // contribution from it
-        if (this->IsPhysical(ip, jp + 1, kp, false) ||
-            bc_.GetBCName(ip, jp + 1, kp, "ju") == "interblock") {
+        if (this->IsPhysical(ii, jj + 1, kk) ||
+            bc_.GetBCName(ii, jj + 1, kk, 4) == "interblock") {
           // calculate projected center to center distance
-          const auto projDist = this->ProjC2CDist(ig, jg + 1, kg, "j");
+          const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
 
           // update off diagonal
-          offDiagonal -= OffDiagonal(state_(ig, jg + 1, kg), state_(ig, jg, kg),
-                                     xold(ig, jg + 1, kg),
-                                     fAreaJ_(ig, jg + 1, kg),
-                                     this->Viscosity(ig, jg + 1, kg),
-                                     this->EddyViscosity(ig, jg + 1, kg),
-                                     this->F1(ig, jg + 1, kg), projDist,
-                                     this->VelGrad(ip, jp + 1, kp),
+          offDiagonal -= OffDiagonal(state_(ii, jj + 1, kk), state_(ii, jj, kk),
+                                     xold(ii, jj + 1, kk),
+                                     fAreaJ_(ii, jj + 1, kk),
+                                     this->Viscosity(ii, jj + 1, kk),
+                                     this->EddyViscosity(ii, jj + 1, kk),
+                                     this->F1(ii, jj + 1, kk), projDist,
+                                     this->VelGrad(ii, jj + 1, kk),
                                      eqnState, suth, turb, inp, false);
         }
 
         // --------------------------------------------------------------
         // if k upper diagonal cell is in physical location there is a
         // contribution from it
-        if (this->IsPhysical(ip, jp, kp + 1, false) ||
-            bc_.GetBCName(ip, jp, kp + 1, "ku") == "interblock") {
+        if (this->IsPhysical(ii, jj, kk + 1) ||
+            bc_.GetBCName(ii, jj, kk + 1, 6) == "interblock") {
           // calculate projected center to center distance
-          const auto projDist = this->ProjC2CDist(ig, jg, kg + 1, "k");
+          const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
 
           // update off diagonal
-          offDiagonal -= OffDiagonal(state_(ig, jg, kg + 1), state_(ig, jg, kg),
-                                     xold(ig, jg, kg + 1),
-                                     fAreaK_(ig, jg, kg + 1),
-                                     this->Viscosity(ig, jg, kg + 1),
-                                     this->EddyViscosity(ig, jg, kg + 1),
-                                     this->F1(ig, jg, kg + 1), projDist,
-                                     this->VelGrad(ip, jp, kp + 1),
+          offDiagonal -= OffDiagonal(state_(ii, jj, kk + 1), state_(ii, jj, kk),
+                                     xold(ii, jj, kk + 1),
+                                     fAreaK_(ii, jj, kk + 1),
+                                     this->Viscosity(ii, jj, kk + 1),
+                                     this->EddyViscosity(ii, jj, kk + 1),
+                                     this->F1(ii, jj, kk + 1), projDist,
+                                     this->VelGrad(ii, jj, kk + 1),
                                      eqnState, suth, turb, inp, false);
         }
 
         // --------------------------------------------------------------
 
         // calculate update
-        x(ig, jg, kg) = aInv(ip, jp, kp).ArrayMult(
-            -thetaInv * residual_(ip, jp, kp)
-            - solDeltaNm1(ip, jp, kp) - solTimeMmN(ip, jp, kp)
+        x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(
+            -thetaInv * residual_(ii, jj, kk)
+            - solDeltaNm1(ii, jj, kk) - solTimeMmN(ii, jj, kk)
             + offDiagonal);
 
         // calculate matrix error
-        const auto error = x(ig, jg, kg) - xold(ig, jg, kg);
+        const auto error = x(ii, jj, kk) - xold(ii, jj, kk);
         l2Error += error * error;
       }
     }
@@ -1687,19 +1691,19 @@ multiArray3d<genArray> procBlock::InitializeMatrixUpdate(const input &inp,
   // aInv -- inverse of main diagonal
 
   // allocate multiarray for update
-  multiArray3d<genArray> x(this->NumIG(), this->NumJG(), this->NumKG(),
+  multiArray3d<genArray> x(this->NumI(), this->NumJ(), this->NumK(), numGhosts_,
                            genArray(0.0));
 
   if (inp.MatrixRequiresInitialization()) {
     const auto thetaInv = 1.0 / inp.Theta();
 
-    for (auto kp = 0, kg = numGhosts_; kp < this->NumK(); kg++, kp++) {
-      for (auto jp = 0, jg = numGhosts_; jp < this->NumJ(); jg++, jp++) {
-        for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
+    for (auto kk = 0; kk < this->NumK(); kk++) {
+      for (auto jj = 0; jj < this->NumJ(); jj++) {
+        for (auto ii = 0; ii < this->NumI(); ii++) {
           // calculate update
-          x(ig, jg, kg) = aInv(ip, jp, kp).ArrayMult(
-              -thetaInv * residual_(ip, jp, kp) -
-              solDeltaNm1(ip, jp, kp) - solTimeMmN(ip, jp, kp));
+          x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(
+              -thetaInv * residual_(ii, jj, kk) -
+              solDeltaNm1(ii, jj, kk) - solTimeMmN(ii, jj, kk));
         }
       }
     }
@@ -1740,12 +1744,9 @@ multiArray3d<T> PadWithGhosts(const multiArray3d<T> &var,
   // numGhosts -- number of layers of ghost cells to pad var with
 
   // initialize added array
-  multiArray3d<T> padBlk(var.NumI() + 2 * numGhosts, var.NumJ() + 2 * numGhosts,
-                         var.NumK() + 2 * numGhosts);
+  multiArray3d<T> padBlk(var.NumI(), var.NumJ(), var.NumK(), numGhosts);
 
-  padBlk.Insert(numGhosts, padBlk.NumI() - numGhosts - 1,
-                numGhosts, padBlk.NumJ() - numGhosts - 1,
-                numGhosts, padBlk.NumK() - numGhosts - 1, var);
+  padBlk.Insert(var.RangeI(), var.RangeJ(), var.RangeK(), var);
   return padBlk;
 }
 
@@ -1837,38 +1838,64 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
   constexpr auto sixth = 1.0 / 6.0;
 
   // loop over all physical i-faces
-  for (auto kp = 0, kg = numGhosts_; kg < fAreaI_.NumK() - numGhosts_;
-       kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jg < fAreaI_.NumJ() - numGhosts_;
-         jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ig < fAreaI_.NumI() - numGhosts_;
-           ig++, ip++) {
-        // Get state at face
-        auto state = FaceReconCentral(state_(ig - 1, jg, kg),
-                                      state_(ig, jg, kg),
-                                      center_(ig - 1, jg, kg),
-                                      center_(ig, jg, kg),
-                                      fCenterI_(ig, jg, kg));
-        state.LimitTurb(turb);
+  for (auto kk = fAreaI_.PhysStartK(); kk < fAreaI_.PhysEndK(); kk++) {
+    for (auto jj = fAreaI_.PhysStartJ(); jj < fAreaI_.PhysEndJ(); jj++) {
+      for (auto ii = fAreaI_.PhysStartI(); ii < fAreaI_.PhysEndI(); ii++) {
+        primVars state;
+        auto wDist = 0.0;
+        auto mu = 0.0;
 
-        // Get wall distance at face
-        const auto wDist = FaceReconCentral(wallDist_(ig - 1, jg, kg),
-                                            wallDist_(ig, jg, kg),
-                                            center_(ig - 1, jg, kg),
-                                            center_(ig, jg, kg),
-                                            fCenterI_(ig, jg, kg));
+        if (inp.ViscousFaceReconstruction() == "central") {
+          // get cell widths
+          const vector<double> cellWidth = {
+            fCenterI_(ii,     jj, kk).Distance(fCenterI_(ii - 1, jj, kk)),
+            fCenterI_(ii + 1, jj, kk).Distance(fCenterI_(ii,     jj, kk))};
 
-        // Get viscosity at face
-        const auto mu = FaceReconCentral(viscosity_(ig - 1, jg, kg),
-                                         viscosity_(ig, jg, kg),
-                                         center_(ig - 1, jg, kg),
-                                         center_(ig, jg, kg),
-                                         fCenterI_(ig, jg, kg));
+          // Get state at face
+          state = FaceReconCentral(state_(ii - 1, jj, kk),
+                                   state_(ii, jj, kk), cellWidth);
+          state.LimitTurb(turb);
+
+          // Get wall distance at face
+          wDist = FaceReconCentral(wallDist_(ii - 1, jj, kk),
+                                   wallDist_(ii, jj, kk), cellWidth);
+
+          // Get viscosity at face
+          mu = FaceReconCentral(viscosity_(ii - 1, jj, kk),
+                                viscosity_(ii, jj, kk), cellWidth);
+
+        } else {  // use 4th order reconstruction
+          // get cell widths
+          const vector<double> cellWidth = {
+            fCenterI_(ii - 1, jj, kk).Distance(fCenterI_(ii - 2, jj, kk)),
+            fCenterI_(ii,     jj, kk).Distance(fCenterI_(ii - 1, jj, kk)),
+            fCenterI_(ii + 1, jj, kk).Distance(fCenterI_(ii,     jj, kk)),
+            fCenterI_(ii + 2, jj, kk).Distance(fCenterI_(ii + 1, jj, kk))};
+
+          // Get state at face
+          state = FaceReconCentral4th(state_(ii - 2, jj, kk),
+                                      state_(ii - 1, jj, kk),
+                                      state_(ii, jj, kk),
+                                      state_(ii + 1, jj, kk), cellWidth);
+          state.LimitTurb(turb);
+
+          // Get wall distance at face
+          wDist = FaceReconCentral4th(wallDist_(ii - 2, jj, kk),
+                                      wallDist_(ii - 1, jj, kk),
+                                      wallDist_(ii, jj, kk),
+                                      wallDist_(ii + 1, jj, kk), cellWidth);
+
+          // Get viscosity at face
+          mu = FaceReconCentral4th(viscosity_(ii - 2, jj, kk),
+                                   viscosity_(ii - 1, jj, kk),
+                                   viscosity_(ii, jj, kk),
+                                   viscosity_(ii + 1, jj, kk), cellWidth);
+        }
 
         // calculate gradients
         tensor<double> velGrad;
         vector3d<double> tempGrad, tkeGrad, omegaGrad;
-        CalcGradsI(ig, jg, kg, velGrad, tempGrad, tkeGrad, omegaGrad);
+        CalcGradsI(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
 
         // calculate turbulent eddy viscosity and blending coefficients
         auto f1 = 0.0;
@@ -1881,31 +1908,31 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
 
         // calculate viscous flux
         const viscousFlux tempViscFlux(velGrad, suth, eqnState, tempGrad,
-                                       this->FAreaUnitI(ig, jg, kg),
+                                       this->FAreaUnitI(ii, jj, kk),
                                        tkeGrad, omegaGrad, turb, state, mu,
                                        mut, f1);
 
         // calculate projected center to center distance
-        const auto c2cDist = this->ProjC2CDist(ig, jg, kg, "i");
+        const auto c2cDist = this->ProjC2CDist(ii, jj, kk, "i");
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
         // fluxes, so sign is reversed
         // at left boundary there is no left cell to add to
-        if (ig > numGhosts_) {
+        if (ii > fAreaI_.PhysStartI()) {
           this->SubtractFromResidual(tempViscFlux *
-                                     this->FAreaMagI(ig, jg, kg),
-                                     ip - 1, jp, kp);
+                                     this->FAreaMagI(ii, jj, kk),
+                                     ii - 1, jj, kk);
 
           // store gradients
-          velocityGrad_(ip - 1, jp, kp) += sixth * velGrad;
-          temperatureGrad_(ip - 1, jp, kp) += sixth * tempGrad;
+          velocityGrad_(ii - 1, jj, kk) += sixth * velGrad;
+          temperatureGrad_(ii - 1, jj, kk) += sixth * tempGrad;
           if (isTurbulent_) {
-            tkeGrad_(ip - 1, jp, kp) += sixth * tkeGrad;
-            omegaGrad_(ip - 1, jp, kp) += sixth * omegaGrad;
-            eddyViscosity_(ig - 1, jg, kg) += sixth * mut;
-            f1_(ig - 1, jg, kg) += sixth * f1;
-            f2_(ig - 1, jg, kg) += sixth * f2;
+            tkeGrad_(ii - 1, jj, kk) += sixth * tkeGrad;
+            omegaGrad_(ii - 1, jj, kk) += sixth * omegaGrad;
+            eddyViscosity_(ii - 1, jj, kk) += sixth * mut;
+            f1_(ii - 1, jj, kk) += sixth * f1;
+            f2_(ii - 1, jj, kk) += sixth * f2;
           }
 
           // if using block matrix on main diagonal, accumulate flux jacobian
@@ -1913,56 +1940,56 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
             fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
-                                      this->FAreaI(ig, jg, kg), c2cDist,
+                                      this->FAreaI(ii, jj, kk), c2cDist,
                                       turb, inp, true, velGrad);
-            mainDiagonal(ip - 1, jp, kp) -= fluxJac;
+            mainDiagonal(ii - 1, jj, kk) -= fluxJac;
           }
         }
         // at right boundary there is no right cell to add to
-        if (ig < fAreaI_.NumI() - numGhosts_ - 1) {
+        if (ii < fAreaI_.PhysEndI() - 1) {
           this->AddToResidual(tempViscFlux *
-                              this->FAreaMagI(ig, jg, kg),
-                              ip, jp, kp);
+                              this->FAreaMagI(ii, jj, kk),
+                              ii, jj, kk);
 
           // store gradients
-          velocityGrad_(ip, jp, kp) += sixth * velGrad;
-          temperatureGrad_(ip, jp, kp) += sixth * tempGrad;
+          velocityGrad_(ii, jj, kk) += sixth * velGrad;
+          temperatureGrad_(ii, jj, kk) += sixth * tempGrad;
           if (isTurbulent_) {
-            tkeGrad_(ip, jp, kp) += sixth * tkeGrad;
-            omegaGrad_(ip, jp, kp) += sixth * omegaGrad;
-            eddyViscosity_(ig, jg, kg) += sixth * mut;
-            f1_(ig, jg, kg) += sixth * f1;
-            f2_(ig, jg, kg) += sixth * f2;
+            tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
+            omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
+            eddyViscosity_(ii, jj, kk) += sixth * mut;
+            f1_(ii, jj, kk) += sixth * f1;
+            f2_(ii, jj, kk) += sixth * f2;
           }
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           const auto viscSpecRad =
-              state_(ig, jg, kg).ViscCellSpectralRadius(
-                  fAreaI_(ig, jg, kg), fAreaI_(ig + 1, jg, kg), eqnState, suth,
-                  vol_(ig, jg, kg), viscosity_(ig, jg, kg), mut, turb);
+              state_(ii, jj, kk).ViscCellSpectralRadius(
+                  fAreaI_(ii, jj, kk), fAreaI_(ii + 1, jj, kk), eqnState, suth,
+                  vol_(ii, jj, kk), viscosity_(ii, jj, kk), mut, turb);
 
           const auto turbViscSpecRad = isTurbulent_ ?
-              turb->ViscCellSpecRad(state_(ig, jg, kg), fAreaI_(ig, jg, kg),
-                                    fAreaI_(ig + 1, jg, kg),
-                                    viscosity_(ig, jg, kg),
-                                    suth, vol_(ig, jg, kg), mut, f1)
+              turb->ViscCellSpecRad(state_(ii, jj, kk), fAreaI_(ii, jj, kk),
+                                    fAreaI_(ii + 1, jj, kk),
+                                    viscosity_(ii, jj, kk),
+                                    suth, vol_(ii, jj, kk), mut, f1)
               : 0.0;
 
           const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
-          specRadius_(ip, jp, kp) += specRad * viscCoeff;
+          specRadius_(ii, jj, kk) += specRad * viscCoeff;
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
             fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
-                                      this->FAreaI(ig, jg, kg), c2cDist,
+                                      this->FAreaI(ii, jj, kk), c2cDist,
                                       turb, inp, false, velGrad);
-            mainDiagonal(ip, jp, kp) += fluxJac;
+            mainDiagonal(ii, jj, kk) += fluxJac;
           } else if (inp.IsImplicit()) {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
-            mainDiagonal(ip, jp, kp) += fluxJacobian(2.0 * specRad);
+            mainDiagonal(ii, jj, kk) += fluxJacobian(2.0 * specRad);
           }
         }
       }
@@ -2059,38 +2086,64 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
   constexpr auto sixth = 1.0 / 6.0;
 
   // loop over all physical j-faces
-  for (auto kp = 0, kg = numGhosts_; kg < fAreaJ_.NumK() - numGhosts_;
-       kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jg < fAreaJ_.NumJ() - numGhosts_;
-         jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ig < fAreaJ_.NumI() - numGhosts_;
-           ig++, ip++) {
-        // Get velocity at face
-        auto state = FaceReconCentral(state_(ig, jg - 1, kg),
-                                      state_(ig, jg, kg),
-                                      center_(ig, jg - 1, kg),
-                                      center_(ig, jg, kg),
-                                      fCenterJ_(ig, jg, kg));
-        state.LimitTurb(turb);
+  for (auto kk = fAreaJ_.PhysStartK(); kk < fAreaJ_.PhysEndK(); kk++) {
+    for (auto jj = fAreaJ_.PhysStartJ(); jj < fAreaJ_.PhysEndJ(); jj++) {
+      for (auto ii = fAreaJ_.PhysStartI(); ii < fAreaJ_.PhysEndI(); ii++) {
+        primVars state;
+        auto wDist = 0.0;
+        auto mu = 0.0;
 
-        // Get wall distance at face
-        const auto wDist = FaceReconCentral(wallDist_(ig, jg - 1, kg),
-                                            wallDist_(ig, jg, kg),
-                                            center_(ig, jg - 1, kg),
-                                            center_(ig, jg, kg),
-                                            fCenterJ_(ig, jg, kg));
+        if (inp.ViscousFaceReconstruction() == "central") {
+          // get cell widths
+          const vector<double> cellWidth = {
+            fCenterJ_(ii, jj,     kk).Distance(fCenterJ_(ii, jj - 1, kk)),
+            fCenterJ_(ii, jj + 1, kk).Distance(fCenterJ_(ii, jj,     kk))};
 
-        // Get wall distance at face
-        const auto mu = FaceReconCentral(viscosity_(ig, jg - 1, kg),
-                                         viscosity_(ig, jg, kg),
-                                         center_(ig, jg - 1, kg),
-                                         center_(ig, jg, kg),
-                                         fCenterJ_(ig, jg, kg));
+          // Get velocity at face
+          state = FaceReconCentral(state_(ii, jj - 1, kk),
+                                   state_(ii, jj, kk), cellWidth);
+          state.LimitTurb(turb);
+
+          // Get wall distance at face
+          wDist = FaceReconCentral(wallDist_(ii, jj - 1, kk),
+                                   wallDist_(ii, jj, kk), cellWidth);
+
+          // Get wall distance at face
+          mu = FaceReconCentral(viscosity_(ii, jj - 1, kk),
+                                viscosity_(ii, jj, kk), cellWidth);
+
+        } else {  // use 4th order reconstruction
+          // get cell widths
+          const vector<double> cellWidth = {
+            fCenterJ_(ii, jj - 1, kk).Distance(fCenterJ_(ii, jj - 2, kk)),
+            fCenterJ_(ii, jj,     kk).Distance(fCenterJ_(ii, jj - 1, kk)),
+            fCenterJ_(ii, jj + 1, kk).Distance(fCenterJ_(ii, jj,     kk)),
+            fCenterJ_(ii, jj + 2, kk).Distance(fCenterJ_(ii, jj + 1, kk))};
+
+          // Get velocity at face
+          state = FaceReconCentral4th(state_(ii, jj - 2, kk),
+                                      state_(ii, jj - 1, kk),
+                                      state_(ii, jj, kk),
+                                      state_(ii, jj + 1, kk), cellWidth);
+          state.LimitTurb(turb);
+
+          // Get wall distance at face
+          wDist = FaceReconCentral4th(wallDist_(ii, jj - 2, kk),
+                                      wallDist_(ii, jj - 1, kk),
+                                      wallDist_(ii, jj, kk),
+                                      wallDist_(ii, jj + 1, kk), cellWidth);
+
+          // Get wall distance at face
+          mu = FaceReconCentral4th(viscosity_(ii, jj - 2, kk),
+                                   viscosity_(ii, jj - 1, kk),
+                                   viscosity_(ii, jj, kk),
+                                   viscosity_(ii, jj + 1, kk), cellWidth);
+        }
 
         // calculate gradients
         tensor<double> velGrad;
         vector3d<double> tempGrad, tkeGrad, omegaGrad;
-        CalcGradsJ(ig, jg, kg, velGrad, tempGrad, tkeGrad, omegaGrad);
+        CalcGradsJ(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
 
         // calculate turbulent eddy viscosity and blending coefficients
         auto f1 = 0.0;
@@ -2103,32 +2156,32 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
 
         // calculate viscous flux
         const viscousFlux tempViscFlux(velGrad, suth, eqnState, tempGrad,
-                                       this->FAreaUnitJ(ig, jg, kg),
+                                       this->FAreaUnitJ(ii, jj, kk),
                                        tkeGrad, omegaGrad, turb, state, mu,
                                        mut, f1);
 
         // calculate projected center to center distance
-        const auto c2cDist = this->ProjC2CDist(ig, jg, kg, "j");
+        const auto c2cDist = this->ProjC2CDist(ii, jj, kk, "j");
 
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
         // fluxes, so sign is reversed
         // at left boundary there is no left cell to add to
-        if (jg > numGhosts_) {
+        if (jj > fAreaJ_.PhysStartJ()) {
           this->SubtractFromResidual(tempViscFlux *
-                                     this->FAreaMagJ(ig, jg, kg),
-                                     ip, jp - 1, kp);
+                                     this->FAreaMagJ(ii, jj, kk),
+                                     ii, jj - 1, kk);
 
           // store gradients
-          velocityGrad_(ip, jp - 1, kp) += sixth * velGrad;
-          temperatureGrad_(ip, jp - 1, kp) += sixth * tempGrad;
+          velocityGrad_(ii, jj - 1, kk) += sixth * velGrad;
+          temperatureGrad_(ii, jj - 1, kk) += sixth * tempGrad;
           if (isTurbulent_) {
-            tkeGrad_(ip, jp - 1, kp) += sixth * tkeGrad;
-            omegaGrad_(ip, jp - 1, kp) += sixth * omegaGrad;
-            eddyViscosity_(ig, jg - 1, kg) += sixth * mut;
-            f1_(ig, jg - 1, kg) += sixth * f1;
-            f2_(ig, jg - 1, kg) += sixth * f2;
+            tkeGrad_(ii, jj - 1, kk) += sixth * tkeGrad;
+            omegaGrad_(ii, jj - 1, kk) += sixth * omegaGrad;
+            eddyViscosity_(ii, jj - 1, kk) += sixth * mut;
+            f1_(ii, jj - 1, kk) += sixth * f1;
+            f2_(ii, jj - 1, kk) += sixth * f2;
           }
 
           // if using block matrix on main diagonal, accumulate flux jacobian
@@ -2136,44 +2189,44 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
             fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
-                                      this->FAreaJ(ig, jg, kg), c2cDist,
+                                      this->FAreaJ(ii, jj, kk), c2cDist,
                                       turb, inp, true, velGrad);
-            mainDiagonal(ip, jp - 1, kp) -= fluxJac;
+            mainDiagonal(ii, jj - 1, kk) -= fluxJac;
           }
         }
         // at right boundary there is no right cell to add to
-        if (jg < fAreaJ_.NumJ() - numGhosts_ - 1) {
+        if (jj < fAreaJ_.PhysEndJ() - 1) {
           this->AddToResidual(tempViscFlux *
-                              this->FAreaMagJ(ig, jg, kg),
-                              ip, jp, kp);
+                              this->FAreaMagJ(ii, jj, kk),
+                              ii, jj, kk);
 
           // store gradients
-          velocityGrad_(ip, jp, kp) += sixth * velGrad;
-          temperatureGrad_(ip, jp, kp) += sixth * tempGrad;
+          velocityGrad_(ii, jj, kk) += sixth * velGrad;
+          temperatureGrad_(ii, jj, kk) += sixth * tempGrad;
           if (isTurbulent_) {
-            tkeGrad_(ip, jp, kp) += sixth * tkeGrad;
-            omegaGrad_(ip, jp, kp) += sixth * omegaGrad;
-            eddyViscosity_(ig, jg, kg) += sixth * mut;
-            f1_(ig, jg, kg) += sixth * f1;
-            f2_(ig, jg, kg) += sixth * f2;
+            tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
+            omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
+            eddyViscosity_(ii, jj, kk) += sixth * mut;
+            f1_(ii, jj, kk) += sixth * f1;
+            f2_(ii, jj, kk) += sixth * f2;
           }
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           const auto viscSpecRad =
-              state_(ig, jg, kg).ViscCellSpectralRadius(
-                  fAreaJ_(ig, jg, kg), fAreaJ_(ig, jg + 1, kg), eqnState, suth,
-                  vol_(ig, jg, kg), viscosity_(ig, jg, kg), mut, turb);
+              state_(ii, jj, kk).ViscCellSpectralRadius(
+                  fAreaJ_(ii, jj, kk), fAreaJ_(ii, jj + 1, kk), eqnState, suth,
+                  vol_(ii, jj, kk), viscosity_(ii, jj, kk), mut, turb);
 
           const auto turbViscSpecRad = isTurbulent_ ?
-              turb->ViscCellSpecRad(state_(ig, jg, kg), fAreaJ_(ig, jg, kg),
-                                    fAreaJ_(ig, jg + 1, kg),
-                                    viscosity_(ig, jg, kg),
-                                    suth, vol_(ig, jg, kg), mut, f1)
+              turb->ViscCellSpecRad(state_(ii, jj, kk), fAreaJ_(ii, jj, kk),
+                                    fAreaJ_(ii, jj + 1, kk),
+                                    viscosity_(ii, jj, kk),
+                                    suth, vol_(ii, jj, kk), mut, f1)
               : 0.0;
 
           const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
-          specRadius_(ip, jp, kp) += specRad * viscCoeff;
+          specRadius_(ii, jj, kk) += specRad * viscCoeff;
 
 
           // if using block matrix on main diagonal, accumulate flux jacobian
@@ -2181,12 +2234,12 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
             fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
-                                      this->FAreaJ(ig, jg, kg), c2cDist,
+                                      this->FAreaJ(ii, jj, kk), c2cDist,
                                       turb, inp, false, velGrad);
-            mainDiagonal(ip, jp, kp) += fluxJac;
+            mainDiagonal(ii, jj, kk) += fluxJac;
           } else if (inp.IsImplicit()) {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
-            mainDiagonal(ip, jp, kp) += fluxJacobian(2.0 * specRad);
+            mainDiagonal(ii, jj, kk) += fluxJacobian(2.0 * specRad);
           }
         }
       }
@@ -2282,39 +2335,64 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
   constexpr auto sixth = 1.0 / 6.0;
 
   // loop over all physical k-faces
-  for (auto kp = 0, kg = numGhosts_; kg < fAreaK_.NumK() - numGhosts_;
-       kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jg < fAreaK_.NumJ() - numGhosts_;
-         jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ig < fAreaK_.NumI() - numGhosts_;
-           ig++, ip++) {
-        // Get state at face
-        auto state =
-            FaceReconCentral(state_(ig, jg, kg - 1),
-                             state_(ig, jg, kg),
-                             center_(ig, jg, kg - 1),
-                             center_(ig, jg, kg),
-                             fCenterK_(ig, jg, kg));
-        state.LimitTurb(turb);
+  for (auto kk = fAreaK_.PhysStartK(); kk < fAreaK_.PhysEndK(); kk++) {
+    for (auto jj = fAreaK_.PhysStartJ(); jj < fAreaK_.PhysEndJ(); jj++) {
+      for (auto ii = fAreaK_.PhysStartI(); ii < fAreaK_.PhysEndI(); ii++) {
+        primVars state;
+        auto wDist = 0.0;
+        auto mu = 0.0;
 
-        // Get wall distance at face
-        const auto wDist = FaceReconCentral(wallDist_(ig, jg, kg - 1),
-                                            wallDist_(ig, jg, kg),
-                                            center_(ig, jg, kg - 1),
-                                            center_(ig, jg, kg),
-                                            fCenterK_(ig, jg, kg));
+        if (inp.ViscousFaceReconstruction() == "central") {
+          // get cell widths
+          const vector<double> cellWidth = {
+            fCenterK_(ii, jj, kk    ).Distance(fCenterK_(ii, jj, kk - 1)),
+            fCenterK_(ii, jj, kk + 1).Distance(fCenterK_(ii, jj, kk))};
 
-        // Get wall distance at face
-        const auto mu = FaceReconCentral(viscosity_(ig, jg, kg - 1),
-                                         viscosity_(ig, jg, kg),
-                                         center_(ig, jg, kg - 1),
-                                         center_(ig, jg, kg),
-                                         fCenterK_(ig, jg, kg));
+          // Get state at face
+          state = FaceReconCentral(state_(ii, jj, kk - 1),
+                                   state_(ii, jj, kk), cellWidth);
+          state.LimitTurb(turb);
+
+          // Get wall distance at face
+          wDist = FaceReconCentral(wallDist_(ii, jj, kk - 1),
+                                   wallDist_(ii, jj, kk), cellWidth);
+
+          // Get wall distance at face
+          mu = FaceReconCentral(viscosity_(ii, jj, kk - 1),
+                                viscosity_(ii, jj, kk), cellWidth);
+
+        } else {  // use 4th order reconstruction
+          // get cell widths
+          const vector<double> cellWidth = {
+            fCenterK_(ii, jj, kk - 1).Distance(fCenterK_(ii, jj, kk - 2)),
+            fCenterK_(ii, jj, kk    ).Distance(fCenterK_(ii, jj, kk - 1)),
+            fCenterK_(ii, jj, kk + 1).Distance(fCenterK_(ii, jj, kk)),
+            fCenterK_(ii, jj, kk + 2).Distance(fCenterK_(ii, jj, kk + 1))};
+
+          // Get state at face
+          state = FaceReconCentral4th(state_(ii, jj, kk - 2),
+                                      state_(ii, jj, kk - 1),
+                                      state_(ii, jj, kk),
+                                      state_(ii, jj, kk + 1), cellWidth);
+          state.LimitTurb(turb);
+
+          // Get wall distance at face
+          wDist = FaceReconCentral4th(wallDist_(ii, jj, kk - 2),
+                                      wallDist_(ii, jj, kk - 1),
+                                      wallDist_(ii, jj, kk),
+                                      wallDist_(ii, jj, kk + 1), cellWidth);
+
+          // Get wall distance at face
+          mu = FaceReconCentral4th(viscosity_(ii, jj, kk - 2),
+                                   viscosity_(ii, jj, kk - 1),
+                                   viscosity_(ii, jj, kk),
+                                   viscosity_(ii, jj, kk + 1), cellWidth);
+        }
 
         // calculate viscous flux
         tensor<double> velGrad;
         vector3d<double> tempGrad, tkeGrad, omegaGrad;
-        CalcGradsK(ig, jg, kg, velGrad, tempGrad, tkeGrad, omegaGrad);
+        CalcGradsK(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
 
         // calculate turbulent eddy viscosity and blending coefficients
         auto f1 = 0.0;
@@ -2327,32 +2405,32 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
 
         // calculate viscous flux
         const viscousFlux tempViscFlux(velGrad, suth, eqnState, tempGrad,
-                                       this->FAreaUnitK(ig, jg, kg),
+                                       this->FAreaUnitK(ii, jj, kk),
                                        tkeGrad, omegaGrad, turb, state, mu,
                                        mut, f1);
 
         // calculate projected center to center distance
-        const auto c2cDist = this->ProjC2CDist(ig, jg, kg, "k");
+        const auto c2cDist = this->ProjC2CDist(ii, jj, kk, "k");
 
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell but viscous fluxes are subtracted from inviscid
         // fluxes, so sign is reversed
         // at left boundary there is no left cell to add to
-        if (kg > numGhosts_) {
+        if (kk > fAreaK_.PhysStartK()) {
           this->SubtractFromResidual(tempViscFlux *
-                                     this->FAreaMagK(ig, jg, kg),
-                                     ip, jp, kp - 1);
+                                     this->FAreaMagK(ii, jj, kk),
+                                     ii, jj, kk - 1);
 
           // store gradients
-          velocityGrad_(ip, jp, kp - 1) += sixth * velGrad;
-          temperatureGrad_(ip, jp, kp - 1) += sixth * tempGrad;
+          velocityGrad_(ii, jj, kk - 1) += sixth * velGrad;
+          temperatureGrad_(ii, jj, kk - 1) += sixth * tempGrad;
           if (isTurbulent_) {
-            tkeGrad_(ip, jp, kp - 1) += sixth * tkeGrad;
-            omegaGrad_(ip, jp, kp - 1) += sixth * omegaGrad;
-            eddyViscosity_(ig, jg, kg - 1) += sixth * mut;
-            f1_(ig, jg, kg - 1) += sixth * f1;
-            f2_(ig, jg, kg - 1) += sixth * f2;
+            tkeGrad_(ii, jj, kk - 1) += sixth * tkeGrad;
+            omegaGrad_(ii, jj, kk - 1) += sixth * omegaGrad;
+            eddyViscosity_(ii, jj, kk - 1) += sixth * mut;
+            f1_(ii, jj, kk - 1) += sixth * f1;
+            f2_(ii, jj, kk - 1) += sixth * f2;
           }
 
           // if using block matrix on main diagonal, accumulate flux jacobian
@@ -2360,57 +2438,57 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
             fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
-                                      this->FAreaK(ig, jg, kg), c2cDist,
+                                      this->FAreaK(ii, jj, kk), c2cDist,
                                       turb, inp, true, velGrad);
-            mainDiagonal(ip, jp, kp - 1) -= fluxJac;
+            mainDiagonal(ii, jj, kk - 1) -= fluxJac;
           }
         }
         // at right boundary there is no right cell to add to
-        if (kg < fAreaK_.NumK() - numGhosts_ - 1) {
+        if (kk < fAreaK_.PhysEndK() - 1) {
           this->AddToResidual(tempViscFlux *
-                              this->FAreaMagK(ig, jg, kg),
-                              ip, jp, kp);
+                              this->FAreaMagK(ii, jj, kk),
+                              ii, jj, kk);
 
           // store gradients
-          velocityGrad_(ip, jp, kp) += sixth * velGrad;
-          temperatureGrad_(ip, jp, kp) += sixth * tempGrad;
+          velocityGrad_(ii, jj, kk) += sixth * velGrad;
+          temperatureGrad_(ii, jj, kk) += sixth * tempGrad;
           if (isTurbulent_) {
-            tkeGrad_(ip, jp, kp) += sixth * tkeGrad;
-            omegaGrad_(ip, jp, kp) += sixth * omegaGrad;
-            eddyViscosity_(ig, jg, kg) += sixth * mut;
-            f1_(ig, jg, kg) += sixth * f1;
-            f2_(ig, jg, kg) += sixth * f2;
+            tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
+            omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
+            eddyViscosity_(ii, jj, kk) += sixth * mut;
+            f1_(ii, jj, kk) += sixth * f1;
+            f2_(ii, jj, kk) += sixth * f2;
           }
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
           const auto viscSpecRad =
-              state_(ig, jg, kg).ViscCellSpectralRadius(
-                  fAreaK_(ig, jg, kg), fAreaK_(ig, jg, kg + 1), eqnState, suth,
-                  vol_(ig, jg, kg), viscosity_(ig, jg, kg),
+              state_(ii, jj, kk).ViscCellSpectralRadius(
+                  fAreaK_(ii, jj, kk), fAreaK_(ii, jj, kk + 1), eqnState, suth,
+                  vol_(ii, jj, kk), viscosity_(ii, jj, kk),
                   mut, turb);
 
           const auto turbViscSpecRad = isTurbulent_ ?
-              turb->ViscCellSpecRad(state_(ig, jg, kg), fAreaK_(ig, jg, kg),
-                                    fAreaK_(ig, jg, kg + 1),
-                                    viscosity_(ig, jg, kg),
-                                    suth, vol_(ig, jg, kg), mut, f1)
+              turb->ViscCellSpecRad(state_(ii, jj, kk), fAreaK_(ii, jj, kk),
+                                    fAreaK_(ii, jj, kk + 1),
+                                    viscosity_(ii, jj, kk),
+                                    suth, vol_(ii, jj, kk), mut, f1)
               : 0.0;
 
           const uncoupledScalar specRad(viscSpecRad, turbViscSpecRad);
-          specRadius_(ip, jp, kp) += specRad * viscCoeff;
+          specRadius_(ii, jj, kk) += specRad * viscCoeff;
 
           // if using block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
             // using mu, mut, and f1 at face
             fluxJacobian fluxJac;
             fluxJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, suth,
-                                      this->FAreaK(ig, jg, kg), c2cDist,
+                                      this->FAreaK(ii, jj, kk), c2cDist,
                                       turb, inp, false, velGrad);
-            mainDiagonal(ip, jp, kp) += fluxJac;
+            mainDiagonal(ii, jj, kk) += fluxJac;
           } else if (inp.IsImplicit()) {
             // factor 2 because visc spectral radius is not halved (Blazek 6.53)
-            mainDiagonal(ip, jp, kp) += fluxJacobian(2.0 * specRad);
+            mainDiagonal(ii, jj, kk) += fluxJacobian(2.0 * specRad);
           }
         }
       }
@@ -2442,417 +2520,110 @@ values. G1 represents the first layer of ghost cells and G2 represents the
 second layer.
 */
 void procBlock::AssignGhostCellsGeom() {
-  // loop over all boundary surfaces
-  for (auto ii = 0; ii < bc_.NumSurfaces(); ii++) {
-    // Get surface boundaries, and adjust them for ghost cells
-    const auto imin = bc_.GetIMin(ii) + numGhosts_;
-    const auto imax = bc_.GetIMax(ii) - 1 + numGhosts_;
-    const auto jmin = bc_.GetJMin(ii) + numGhosts_;
-    const auto jmax = bc_.GetJMax(ii) - 1 + numGhosts_;
-    const auto kmin = bc_.GetKMin(ii) + numGhosts_;
-    const auto kmax = bc_.GetKMax(ii) - 1 + numGhosts_;
+  // loop over all layers of ghost cells
+  for (auto layer = 1; layer <= numGhosts_; layer++) {
+    // loop over all boundary surfaces
+    for (auto ii = 0; ii < bc_.NumSurfaces(); ii++) {
+      // get ranges for boundary surface
+      const auto r1 = bc_.RangeDir1(ii);
+      const auto r2 = bc_.RangeDir2(ii);
+      const auto r3 = bc_.RangeDir3(ii);
 
-    const auto imaxF = imax + 1;
-    const auto jmaxF = jmax + 1;
-    const auto kmaxF = kmax + 1;
+      const auto dir = bc_.Direction3(ii);
+      const auto surfType = bc_.GetSurfaceType(ii);
 
-    int g1, g2, i1, i2;  // indices for cells
-    int fg1, fg2, fi1, fi2, bnd;  // indices for faces
-    if (bc_.GetSurfaceType(ii) == 2) {  // upper i-surface
-      g2 = imax + 2;
-      g1 = imax + 1;
-      i1 = imax;
-      i2 = imax - 1;
+      // 'g' indicates ghost, 'p' indicates previous, 'i' indicates interior
+      auto gCell = 0, iCell = 0, pCell = 0, piCell = 0;    // indices for cells
+      auto iFace = 0, piFace = 0;                          // indices for faces
+      // adjust interior indices to be in physical range in case block is only a
+      // couple of cells thick
+      if (surfType % 2 == 0) {  // upper surface
+        gCell = r3.Start() + layer - 1;
+        iCell = r3.Start() - layer;
+        pCell = gCell - 1;  // ghost cell for previous layer
+        if (iCell < this->Start(dir)) {iCell = this->Start(dir);}
+        piCell = iCell + 1;
 
-      fg2 = imax + 3;
-      fg1 = imax + 2;
-      bnd = imax + 1;
-      fi1 = imax;
-      fi2 = imax - 1;
-    } else if (bc_.GetSurfaceType(ii) == 4) {  // upper j-surface
-      g2 = jmax + 2;
-      g1 = jmax + 1;
-      i1 = jmax;
-      i2 = jmax - 1;
+        iFace = r3.Start() - layer;
+        if (iFace < this->Start(dir)) {iFace = this->Start(dir);}
+        piFace = iFace + 1;
+      } else {  // lower surface
+        gCell = r3.Start() - layer;
+        iCell = r3.Start() + layer - 1;
+        pCell = gCell + 1;  // ghost cell for previous layer
+        if (iCell >= this->End(dir)) {iCell = this->End(dir) - 1;}
+        piCell = iCell - 1;
 
-      fg2 = jmax + 3;
-      fg1 = jmax + 2;
-      bnd = jmax + 1;
-      fi1 = jmax;
-      fi2 = jmax - 1;
-    } else if (bc_.GetSurfaceType(ii) == 6) {  // upper k-surface
-      g2 = kmax + 2;
-      g1 = kmax + 1;
-      i1 = kmax;
-      i2 = kmax - 1;
-
-      fg2 = kmax + 3;
-      fg1 = kmax + 2;
-      bnd = kmax + 1;
-      fi1 = kmax;
-      fi2 = kmax - 1;
-    } else {  // lower surface
-      g2 = 0;
-      g1 = 1;
-      i1 = 2;
-      i2 = 3;
-
-      fg2 = 0;
-      fg1 = 1;
-      bnd = 2;
-      fi1 = 3;
-      fi2 = 4;
-    }
-
-    //-----------------------------------------------------------------------
-    // Assign ghost geometry for i-surfaces
-    // -----------------------------------------------------------------------
-    // only supply geometry values for non interblock BCs
-    // for interblock do nothing
-    if ((bc_.GetSurfaceType(ii) == 1 || bc_.GetSurfaceType(ii) == 2) &&
-        bc_.GetBCTypes(ii) != "interblock") {
-      // assign volume for first layer of ghost cells
-      vol_.Insert(g1, g1, jmin, jmax, kmin, kmax,
-                  vol_.Slice(i1, i1, jmin, jmax, kmin, kmax));
-
-      // assign volume for second layer of ghost cells
-      // one cell thick - use one cell for both ghost cells
-      if (this->NumI() < 2) {
-        vol_.Insert(g2, g2, jmin, jmax, kmin, kmax,
-                    vol_.Slice(i1, i1, jmin, jmax, kmin, kmax));
-      } else {
-        vol_.Insert(g2, g2, jmin, jmax, kmin, kmax,
-                    vol_.Slice(i2, i2, jmin, jmax, kmin, kmax));
+        iFace = r3.Start() + layer;
+        if (iFace > this->End(dir)) {iFace = this->End(dir);}
+        piFace = iFace - 1;
       }
 
-      // assign face areas for first layer
-      fAreaI_.Insert(fg1, fg1, jmin, jmax, kmin, kmax,
-                     fAreaI_.Slice(fi1, fi1, jmin, jmax, kmin, kmax));
+      // -----------------------------------------------------------------------
+      // only supply geometry values for non interblock BCs
+      // for interblock do nothing
+      if (bc_.GetBCTypes(ii) != "interblock") {
+        // assign volume for layer of ghost cells
+        vol_.Insert(dir, gCell, r1, r2,
+                    vol_.Slice(dir, iCell, r1, r2));
 
-      fAreaJ_.Insert(g1, g1, jmin, jmaxF, kmin, kmax,
-                     fAreaJ_.Slice(i1, i1, jmin, jmaxF, kmin, kmax));
+        // assign face areas for layer
+        fAreaI_.Insert(dir, gCell, r1, r2,
+                       fAreaI_.Slice(dir, iCell, r1, r2, "i", surfType),
+                       "i", surfType);
 
-      fAreaK_.Insert(g1, g1, jmin, jmax, kmin, kmaxF,
-                     fAreaK_.Slice(i1, i1, jmin, jmax, kmin, kmaxF));
+        fAreaJ_.Insert(dir, gCell, r1, r2,
+                       fAreaJ_.Slice(dir, iCell, r1, r2, "j", surfType),
+                       "j", surfType);
 
-      // assign face areas for second layer
-      // one cell thick - use one cell for both ghost cells
-      if (this->NumI() < 2) {
-        fAreaI_.Insert(fg2, fg2, jmin, jmax, kmin, kmax,
-                       fAreaI_.Slice(fi1, fi1, jmin, jmax, kmin, kmax));
+        fAreaK_.Insert(dir, gCell, r1, r2,
+                       fAreaK_.Slice(dir, iCell, r1, r2, "k", surfType),
+                       "k", surfType);
 
-        fAreaJ_.Insert(g2, g2, jmin, jmaxF, kmin, kmax,
-                       fAreaJ_.Slice(i1, i1, jmin, jmaxF, kmin, kmax));
+        // centroid / face centers are moved interior cell width in the boundary
+        // normal direction
+        multiArray3d<vector3d<double>> distF2F;
+        if (dir == "i") {  // i-surface, dir1 = j, dir2 = k
+          distF2F = fCenterI_.Slice(piFace, r1, r2) -
+              fCenterI_.Slice(iFace, r1, r2);
+        } else if (dir == "j") {  // j-surface, dir1 = k, dir2 = i
+          distF2F = fCenterJ_.Slice(r2, piFace, r1) -
+              fCenterJ_.Slice(r2, iFace, r1);
+        } else {  // k-surface, dir1 = i, dir2 = j
+          distF2F = fCenterK_.Slice(r1, r2, piFace) -
+              fCenterK_.Slice(r1, r2, iFace);
+        }
 
-        fAreaK_.Insert(g2, g2, jmin, jmax, kmin, kmaxF,
-                       fAreaK_.Slice(i1, i1, jmin, jmax, kmin, kmaxF));
-      } else {
-        fAreaI_.Insert(fg2, fg2, jmin, jmax, kmin, kmax,
-                       fAreaI_.Slice(fi2, fi2, jmin, jmax, kmin, kmax));
+        // for first ghost layer, use face distance because previous interior
+        // cell is undefined
+        const auto distC2C = (layer > 1) ? center_.Slice(dir, piCell, r1, r2) -
+            center_.Slice(dir, iCell, r1, r2) : distF2F;
 
-        fAreaJ_.Insert(g2, g2, jmin, jmaxF, kmin, kmax,
-                       fAreaJ_.Slice(i2, i2, jmin, jmaxF, kmin, kmax));
+        // Assign cell centroid, and face centers
+        fCenterI_.Insert(dir, gCell, r1, r2,
+                         ((dir != "i") ? distC2C.GrowI() : distF2F) +
+                         fCenterI_.Slice(dir, pCell, r1, r2, "i", surfType),
+                         "i", surfType);
 
-        fAreaK_.Insert(g2, g2, jmin, jmax, kmin, kmaxF,
-                       fAreaK_.Slice(i2, i2, jmin, jmax, kmin, kmaxF));
+        fCenterJ_.Insert(dir, gCell, r1, r2,
+                         ((dir != "j") ? distC2C.GrowJ() : distF2F) +
+                         fCenterJ_.Slice(dir, pCell, r1, r2, "j", surfType),
+                         "j", surfType);
+
+        fCenterK_.Insert(dir, gCell, r1, r2,
+                         ((dir != "k") ? distC2C.GrowK() : distF2F) +
+                         fCenterK_.Slice(dir, pCell, r1, r2, "k", surfType),
+                         "k", surfType);
+
+        // assign cell centroid
+        center_.Insert(dir, gCell, r1, r2,
+                       center_.Slice(dir, pCell, r1, r2) + distC2C);
       }
 
-      // Assign cell centroid, and face centers
-
-      // centroid is moved interior cell width in the boundary normal
-      // direction
-      multiArray3d<vector3d<double>> dist2Move =
-          fCenterI_.Slice(bnd, bnd, jmin, jmax, kmin, kmax)
-          - fCenterI_.Slice(fi1, fi1, jmin, jmax, kmin, kmax);
-      multiArray3d<vector3d<double>> dist2MoveJ = dist2Move;
-      multiArray3d<vector3d<double>> dist2MoveK = dist2Move;
-      dist2MoveJ.GrowJ();
-      dist2MoveK.GrowK();
-
-      // first layer of ghost cells
-      center_.Insert(g1, g1, jmin, jmax, kmin, kmax,
-                     center_.Slice(i1, i1, jmin, jmax, kmin, kmax)
-                     + dist2Move);
-
-      // Assign face centers
-      fCenterI_.Insert(fg1, fg1, jmin, jmax, kmin, kmax,
-                       fCenterI_.Slice(bnd, bnd, jmin, jmax, kmin, kmax)
-                       + dist2Move);
-
-      fCenterJ_.Insert(g1, g1, jmin, jmaxF, kmin, kmax,
-                       fCenterJ_.Slice(i1, i1, jmin, jmaxF, kmin, kmax)
-                       + dist2MoveJ);
-
-      fCenterK_.Insert(g1, g1, jmin, jmax, kmin, kmaxF,
-                       fCenterK_.Slice(i1, i1, jmin, jmax, kmin, kmaxF)
-                       + dist2MoveK);
-
-      // second layer of ghost cells
-      // one cell thick - use one cell for both ghost cells
-      if (this->NumI() < 2) {
-        dist2Move *= 2.0;
-        dist2MoveJ *= 2.0;
-        dist2MoveK *= 2.0;
-      } else {
-        dist2Move =
-            fCenterI_.Slice(bnd, bnd, jmin, jmax, kmin, kmax)
-            - fCenterI_.Slice(fi2, fi2, jmin, jmax, kmin, kmax);
-        dist2MoveJ = dist2Move;
-        dist2MoveK = dist2Move;
-        dist2MoveJ.GrowJ();
-        dist2MoveK.GrowK();
-      }
-
-      center_.Insert(g2, g2, jmin, jmax, kmin, kmax,
-                     center_.Slice(i1, i1, jmin, jmax, kmin, kmax)
-                     + dist2Move);
-
-      fCenterI_.Insert(fg2, fg2, jmin, jmax, kmin, kmax,
-                       fCenterI_.Slice(bnd, bnd, jmin, jmax, kmin, kmax)
-                       + dist2Move);
-
-      fCenterJ_.Insert(g2, g2, jmin, jmaxF, kmin, kmax,
-                       fCenterJ_.Slice(i1, i1, jmin, jmaxF, kmin, kmax)
-                       + dist2MoveJ);
-
-      fCenterK_.Insert(g2, g2, jmin, jmax, kmin, kmaxF,
-                       fCenterK_.Slice(i1, i1, jmin, jmax, kmin, kmaxF)
-                       + dist2MoveK);
-
-    //-----------------------------------------------------------------------
-    // Assign ghost geometry for j-surfaces
-    // -----------------------------------------------------------------------
-    // only supply geometry values for non interblock BCs
-    // for interblock do nothing
-    } else if ((bc_.GetSurfaceType(ii) == 3 || bc_.GetSurfaceType(ii) == 4) &&
-               bc_.GetBCTypes(ii) != "interblock") {
-      // assign volume for first layer of ghost cells
-      vol_.Insert(imin, imax, g1, g1, kmin, kmax,
-                  vol_.Slice(imin, imax, i1, i1, kmin, kmax));
-
-      // assign volume for second layer of ghost cells
-      // one cell thick - use one cell for both ghost cells
-      if (this->NumJ() < 2) {
-        vol_.Insert(imin, imax, g2, g2, kmin, kmax,
-                    vol_.Slice(imin, imax, i1, i1, kmin, kmax));
-      } else {
-        vol_.Insert(imin, imax, g2, g2, kmin, kmax,
-                    vol_.Slice(imin, imax, i2, i2, kmin, kmax));
-      }
-
-      // assign face areas for first layer
-      fAreaI_.Insert(imin, imaxF, g1, g1, kmin, kmax,
-                     fAreaI_.Slice(imin, imaxF, i1, i1, kmin, kmax));
-
-      fAreaJ_.Insert(imin, imax, fg1, fg1, kmin, kmax,
-                     fAreaJ_.Slice(imin, imax, fi1, fi1, kmin, kmax));
-
-      fAreaK_.Insert(imin, imax, g1, g1, kmin, kmaxF,
-                     fAreaK_.Slice(imin, imax, i1, i1, kmin, kmaxF));
-
-      // assign face areas for second layer
-      // one cell thick - use one cell for both ghost cells
-      if (this->NumJ() < 2) {
-        fAreaI_.Insert(imin, imaxF, g2, g2, kmin, kmax,
-                       fAreaI_.Slice(imin, imaxF, i1, i1, kmin, kmax));
-
-        fAreaJ_.Insert(imin, imax, fg2, fg2, kmin, kmax,
-                       fAreaJ_.Slice(imin, imax, fi1, fi1, kmin, kmax));
-
-        fAreaK_.Insert(imin, imax, g2, g2, kmin, kmaxF,
-                       fAreaK_.Slice(imin, imax, i1, i1, kmin, kmaxF));
-      } else {
-        fAreaI_.Insert(imin, imaxF, g2, g2, kmin, kmax,
-                       fAreaI_.Slice(imin, imaxF, i2, i2, kmin, kmax));
-
-        fAreaJ_.Insert(imin, imax, fg2, fg2, kmin, kmax,
-                       fAreaJ_.Slice(imin, imax, fi2, fi2, kmin, kmax));
-
-        fAreaK_.Insert(imin, imax, g2, g2, kmin, kmaxF,
-                       fAreaK_.Slice(imin, imax, i2, i2, kmin, kmaxF));
-      }
-
-      // Assign cell centroid, and face centers
-
-      // centroid is moved interior cell width in the boundary normal
-      // direction
-      multiArray3d<vector3d<double>> dist2Move =
-          fCenterJ_.Slice(imin, imax, bnd, bnd, kmin, kmax)
-          - fCenterJ_.Slice(imin, imax, fi1, fi1, kmin, kmax);
-      multiArray3d<vector3d<double>> dist2MoveI = dist2Move;
-      multiArray3d<vector3d<double>> dist2MoveK = dist2Move;
-      dist2MoveI.GrowI();
-      dist2MoveK.GrowK();
-
-      // first layer of ghost cells
-      center_.Insert(imin, imax, g1, g1, kmin, kmax,
-                     center_.Slice(imin, imax, i1, i1, kmin, kmax)
-                     + dist2Move);
-
-      // Assign face centers
-      fCenterI_.Insert(imin, imaxF, g1, g1, kmin, kmax,
-                       fCenterI_.Slice(imin, imaxF, i1, i1, kmin, kmax)
-                       + dist2MoveI);
-
-      fCenterJ_.Insert(imin, imax, fg1, fg1, kmin, kmax,
-                       fCenterJ_.Slice(imin, imax, bnd, bnd, kmin, kmax)
-                       + dist2Move);
-
-      fCenterK_.Insert(imin, imax, g1, g1, kmin, kmaxF,
-                       fCenterK_.Slice(imin, imax, i1, i1, kmin, kmaxF)
-                       + dist2MoveK);
-
-      // second layer of ghost cells
-      // one cell thick - use one cell for both ghost cells
-      if (this->NumJ() < 2) {
-        dist2Move *= 2.0;
-        dist2MoveI *= 2.0;
-        dist2MoveK *= 2.0;
-      } else {
-        dist2Move =
-            fCenterJ_.Slice(imin, imax, bnd, bnd, kmin, kmax)
-            - fCenterJ_.Slice(imin, imax, fi2, fi2, kmin, kmax);
-        dist2MoveI = dist2Move;
-        dist2MoveK = dist2Move;
-        dist2MoveI.GrowI();
-        dist2MoveK.GrowK();
-      }
-
-      center_.Insert(imin, imax, g2, g2, kmin, kmax,
-                     center_.Slice(imin, imax, i1, i1, kmin, kmax)
-                     + dist2Move);
-
-      fCenterI_.Insert(imin, imaxF, g2, g2, kmin, kmax,
-                       fCenterI_.Slice(imin, imaxF, i1, i1, kmin, kmax)
-                       + dist2MoveI);
-
-      fCenterJ_.Insert(imin, imax, fg2, fg2, kmin, kmax,
-                       fCenterJ_.Slice(imin, imax, bnd, bnd, kmin, kmax)
-                       + dist2Move);
-
-      fCenterK_.Insert(imin, imax, g2, g2, kmin, kmaxF,
-                       fCenterK_.Slice(imin, imax, i1, i1, kmin, kmaxF)
-                       + dist2MoveK);
-
-    //-----------------------------------------------------------------------
-    // Assign ghost geometry for k-surfaces
-    // -----------------------------------------------------------------------
-    // only supply geometry values for non interblock BCs
-    // for interblock do nothing
-    } else if ((bc_.GetSurfaceType(ii) == 5 || bc_.GetSurfaceType(ii) == 6) &&
-               bc_.GetBCTypes(ii) != "interblock") {
-      // assign volume for first layer of ghost cells
-      vol_.Insert(imin, imax, jmin, jmax, g1, g1,
-                  vol_.Slice(imin, imax, jmin, jmax, i1, i1));
-
-      // assign volume for second layer of ghost cells
-      // one cell thick - use one cell for both ghost cells
-      if (this->NumK() < 2) {
-        vol_.Insert(imin, imax, jmin, jmax, g2, g2,
-                    vol_.Slice(imin, imax, jmin, jmax, i1, i1));
-      } else {
-        vol_.Insert(imin, imax, jmin, jmax, g2, g2,
-                    vol_.Slice(imin, imax, jmin, jmax, i2, i2));
-      }
-
-      // assign face areas for first layer
-      fAreaI_.Insert(imin, imaxF, jmin, jmax, g1, g1,
-                     fAreaI_.Slice(imin, imaxF, jmin, jmax, i1, i1));
-
-      fAreaJ_.Insert(imin, imax, jmin, jmaxF, g1, g1,
-                     fAreaJ_.Slice(imin, imax, jmin, jmaxF, i1, i1));
-
-      fAreaK_.Insert(imin, imax, jmin, jmax, fg1, fg1,
-                     fAreaK_.Slice(imin, imax, jmin, jmax, fi1, fi1));
-
-      // assign face areas for second layer
-      // one cell thick - use one cell for both ghost cells
-      if (this->NumK() < 2) {
-        fAreaI_.Insert(imin, imaxF, jmin, jmax, g2, g2,
-                       fAreaI_.Slice(imin, imaxF, jmin, jmax, i1, i1));
-
-        fAreaJ_.Insert(imin, imax, jmin, jmaxF, g2, g2,
-                       fAreaJ_.Slice(imin, imax, jmin, jmaxF, i1, i1));
-
-        fAreaK_.Insert(imin, imax, jmin, jmax, fg2, fg2,
-                       fAreaK_.Slice(imin, imax, jmin, jmax, fi1, fi1));
-      } else {
-        fAreaI_.Insert(imin, imaxF, jmin, jmax, g2, g2,
-                       fAreaI_.Slice(imin, imaxF, jmin, jmax, i2, i2));
-
-        fAreaJ_.Insert(imin, imax, jmin, jmaxF, g2, g2,
-                       fAreaJ_.Slice(imin, imax, jmin, jmaxF, i2, i2));
-
-        fAreaK_.Insert(imin, imax, jmin, jmax, fg2, fg2,
-                       fAreaK_.Slice(imin, imax, jmin, jmax, fi2, fi2));
-      }
-
-      // Assign cell centroid, and face centers
-
-      // centroid is moved interior cell width in the boundary normal
-      // direction
-      multiArray3d<vector3d<double>> dist2Move =
-          fCenterK_.Slice(imin, imax, jmin, jmax, bnd, bnd)
-          - fCenterK_.Slice(imin, imax, jmin, jmax, fi1, fi1);
-      multiArray3d<vector3d<double>> dist2MoveI = dist2Move;
-      multiArray3d<vector3d<double>> dist2MoveJ = dist2Move;
-      dist2MoveI.GrowI();
-      dist2MoveJ.GrowJ();
-
-      // first layer of ghost cells
-      center_.Insert(imin, imax, jmin, jmax, g1, g1,
-                     center_.Slice(imin, imax, jmin, jmax, i1, i1)
-                     + dist2Move);
-
-      // Assign face centers
-      fCenterI_.Insert(imin, imaxF, jmin, jmax, g1, g1,
-                       fCenterI_.Slice(imin, imaxF, jmin, jmax, i1, i1)
-                       + dist2MoveI);
-
-      fCenterJ_.Insert(imin, imax, jmin, jmaxF, g1, g1,
-                       fCenterJ_.Slice(imin, imax, jmin, jmaxF, i1, i1)
-                       + dist2MoveJ);
-
-      fCenterK_.Insert(imin, imax, jmin, jmax, fg1, fg1,
-                       fCenterK_.Slice(imin, imax, jmin, jmax, bnd, bnd)
-                       + dist2Move);
-
-      // second layer of ghost cells
-      // one cell thick - use one cell for both ghost cells
-      if (this->NumK() < 2) {
-        dist2Move *= 2.0;
-        dist2MoveI *= 2.0;
-        dist2MoveJ *= 2.0;
-      } else {
-        dist2Move =
-            fCenterK_.Slice(imin, imax, jmin, jmax, bnd, bnd)
-            - fCenterK_.Slice(imin, imax, jmin, jmax, fi2, fi2);
-        dist2MoveI = dist2Move;
-        dist2MoveJ = dist2Move;
-        dist2MoveI.GrowI();
-        dist2MoveJ.GrowJ();
-      }
-
-      center_.Insert(imin, imax, jmin, jmax, g2, g2,
-                     center_.Slice(imin, imax, jmin, jmax, i1, i1)
-                     + dist2Move);
-
-      fCenterI_.Insert(imin, imaxF, jmin, jmax, g2, g2,
-                       fCenterI_.Slice(imin, imaxF, jmin, jmax, i1, i1)
-                       + dist2MoveI);
-
-      fCenterJ_.Insert(imin, imax, jmin, jmaxF, g2, g2,
-                       fCenterJ_.Slice(imin, imax, jmin, jmaxF, i1, i1)
-                       + dist2MoveJ);
-
-      fCenterK_.Insert(imin, imax, jmin, jmax, fg2, fg2,
-                       fCenterK_.Slice(imin, imax, jmin, jmax, bnd, bnd)
-                       + dist2Move);
+      // fill ghost cell edge lines with geometric values
+      // (*this).AssignGhostCellsGeomEdge();
     }
   }
-
-  // fill ghost cell edge lines with geometric values
-  // (*this).AssignGhostCellsGeomEdge();
 }
 
 /* Member function to assign geometric quantities such as volume, face area,
@@ -2864,7 +2635,7 @@ Assumes AssignGhostCellsGeom has already been run.
           |____|____|____|____|____|____|____|____|
          K| G2 | G1 | X  | X  | X  | X  | X  | X  |
          ^|____|____|____|____|____|____|____|____|
-         || G2 | G1 | X  | X  | X  | X  | X  | X  |
+         || G2 | G1 | X  | X**| X  | X  | X  | X  |
          ||____|____|____|____|____|____|____|____|
          e| G2 | G1 | X* | X  | X  | X  | X  | X  |
           |____|____|____|____|____|____|____|____|
@@ -2881,401 +2652,139 @@ corner location (X*) there are 4 edge ghost cells that need to be filled. The
 axes on the side of the diagram indicate the coordinates of the edge ghost cells
 (1, 2) as well as the coordinates of the adjacent regualar ghost cells (e).
 
-The values at edge cell 1,1 are the average of the values at the two ghost cells
-it touches at level "e". The values at edge cells 1,2 and 2,1 are identical to
-the values of the ghost cells they tough at level "e". The values at edge cell
-2,2 are the average of the values at the two (1,2 & 2,1) edge ghost cells it
-touches.
+The values at edge cell 1,1 are mirrored from the values at either of the two
+ghost cells it touches at level "e". The values at edge cells 1,2 and 2,1 are
+identical to the values of the ghost cells they tough at level "e". The values
+at edge cell 2,2 are mirrored from either of the two directions because both will
+result in the same geometric values. The values should be the same as (X**).
 */
 void procBlock::AssignGhostCellsGeomEdge() {
-  // ------------------------------------------------------------------------
-  // loop over 4 edges that run in i-direction
-  for (auto cc = 0; cc < 4; cc++) {
-    // cc = 0 -> jl/kl
-    // cc = 1 -> jl/ku
-    // cc = 2 -> ju/kl
-    // cc = 3 -> ju/ku
+  // loop over directions i, j, k
+  for (auto dd = 0; dd < 3; dd++) {
+    string dir = "";
+    auto max2 = 0, max3 = 0;
+    if (dd == 0) {
+      dir = "i";
+      max2 = this->NumJ();
+      max3 = this->NumK();
+    } else if (dd == 1) {
+      dir = "j";
+      max2 = this->NumK();
+      max3 = this->NumI();
+    } else {
+      dir = "k";
+      max2 = this->NumI();
+      max3 = this->NumJ();
+    }
 
-    // cell indices
-    const auto imin = numGhosts_;
-    const auto imax = this->NumI() + numGhosts_ - 1;
+    // direction 1 is direction of line of cells, directions 2/3 are next in
+    // cyclic order
+    // loop over layer2, and layer3
+    for (auto layer3 = 1; layer3 <= numGhosts_; layer3++) {
+      for (auto layer2 = 1; layer2 <= numGhosts_; layer2++) {
+        // loop over 4 edges that run in direction 1
+        for (auto cc = 0; cc < 4; cc++) {
+          // cc = 0 -> dir2-l/dir3-l
+          // cc = 1 -> dir2-l/dir3-u
+          // cc = 2 -> dir2-u/dir3-l
+          // cc = 3 -> dir2-u/dir3-u
 
-    const auto jp = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_ - 1;
-    const auto jg1 = (cc <= 1) ? jp - 1 : jp + 1;
-    const auto jg2 = (cc <= 1) ? jp - 2 : jp + 2;
+          const auto upper2 = cc > 1;
+          const auto upper3 = cc % 2 == 1;
 
-    const auto kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ - 1;
-    const auto kg1 = (cc % 2 == 0) ? kp - 1 : kp + 1;
-    const auto kg2 = (cc % 2 == 0) ? kp - 2 : kp + 2;
+          // cell indices (g-ghost at current layer, p-ghost at previous layer,
+          // i-interior cell)
+          const auto pCellD2 = upper2 ? max2 + layer2 - 2 : 1 - layer2;
+          const auto gCellD2 = upper2 ? pCellD2 + 1 : pCellD2 - 1;
+          const auto iCellD2 = upper2 ? max2 - layer2 : layer2 - 1;
 
-    // face indices
-    // these only change from cell indices for upper edges
-    // these should only be used for accessing faces in their corresponding
-    // direction - i.e. jpF should only be used to access fAreaJ, or fCenterJ
-    const auto imaxF = this->NumI() + numGhosts_;
+          const auto pCellD3 = upper3 ? max3 + layer3 - 2 : 1 - layer3;
+          const auto gCellD3 = upper3 ? pCellD3 + 1 : pCellD3 - 1;
 
-    const auto jpF = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_;
-    const auto jiF = (cc <= 1) ? jpF + 1 : jpF - 1;
-    const auto jg1F = (cc <= 1) ? jpF - 1 : jpF + 1;
-    const auto jg2F = (cc <= 1) ? jpF - 2 : jpF + 2;
+          // values come from direction 2
+          // assign volumes
+          vol_.Insert(dir, gCellD2, gCellD3,
+                      vol_.Slice(dir, iCellD2, gCellD3, true), true);
 
-    const auto kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
-    const auto kg1F = (cc % 2 == 0) ? kpF - 1 : kpF + 1;
-    const auto kg2F = (cc % 2 == 0) ? kpF - 2 : kpF + 2;
+          // assign face areas
+          fAreaI_.Insert(dir, gCellD2, gCellD3,
+                         fAreaI_.Slice(dir, iCellD2, gCellD3, true, "i", upper2, upper3),
+                         true, "i", upper2, upper3);
+          fAreaJ_.Insert(dir, gCellD2, gCellD3,
+                         fAreaJ_.Slice(dir, iCellD2, gCellD3, true, "j", upper2, upper3),
+                         true, "j", upper2, upper3);
+          fAreaK_.Insert(dir, gCellD2, gCellD3,
+                         fAreaK_.Slice(dir, iCellD2, gCellD3, true, "k", upper2, upper3),
+                         true, "k", upper2, upper3);
 
-    // Assign volumes
-    vol_.Insert(imin, imax, jg1, jg1, kg1, kg1, 0.5 *
-                (vol_.Slice(imin, imax, jp, jp, kg1, kg1) +
-                 vol_.Slice(imin, imax, jg1, jg1, kp, kp)));
-    vol_.Insert(imin, imax, jg1, jg1, kg2, kg2,
-                vol_.Slice(imin, imax, jp, jp, kg2, kg2));
-    vol_.Insert(imin, imax, jg2, jg2, kg1, kg1,
-                vol_.Slice(imin, imax, jg2, jg2, kp, kp));
-    vol_.Insert(imin, imax, jg2, jg2, kg2, kg2, 0.5 *
-                (vol_.Slice(imin, imax, jg1, jg1, kg2, kg2) +
-                 vol_.Slice(imin, imax, jg2, jg2, kg1, kg1)));
+          // get distance to move centroids & face centers
+          multiArray3d<vector3d<double>> distF2F;
+          if (dir == "i") {  // i-line, dir2 = j
+            distF2F = fCenterJ_.Slice(dir, gCellD2, pCellD3, true, "j", upper2, upper3)
+                - fCenterJ_.Slice(dir, pCellD2, pCellD3, true, "j", upper2, upper3);
+          } else if (dir == "j") {  // j-line, dir2 = k
+            distF2F = fCenterK_.Slice(dir, gCellD2, pCellD3, true, "k", upper2, upper3)
+                - fCenterK_.Slice(dir, pCellD2, pCellD3, true, "k", upper2, upper3);
+          } else {  // k-line, dir2 = i
+            distF2F = fCenterI_.Slice(dir, gCellD2, pCellD3, true, "i", upper2, upper3)
+                - fCenterI_.Slice(dir, pCellD2, pCellD3, true, "i", upper2, upper3);
+          }
 
-    // Assign face areas
-    fAreaI_.Insert(imin, imaxF, jg1, jg1, kg1, kg1, 0.5 *
-                   (fAreaI_.Slice(imin, imaxF, jp, jp, kg1, kg1) +
-                    fAreaI_.Slice(imin, imaxF, jg1, jg1, kp, kp)));
-    fAreaJ_.Insert(imin, imax, jg1F, jg1F, kg1, kg1, 0.5 *
-                   (fAreaJ_.Slice(imin, imax, jpF, jpF, kg1, kg1) +
-                    fAreaJ_.Slice(imin, imax, jg1F, jg1F, kp, kp)));
-    fAreaK_.Insert(imin, imax, jg1, jg1, kg1F, kg1F, 0.5 *
-                   (fAreaK_.Slice(imin, imax, jp, jp, kg1F, kg1F) +
-                    fAreaK_.Slice(imin, imax, jg1, jg1, kpF, kpF)));
+          const auto distC2C = center_.Slice(dir, gCellD2, pCellD3, true) -
+              center_.Slice(dir, pCellD2, pCellD3, true);
 
-    fAreaI_.Insert(imin, imaxF, jg1, jg1, kg2, kg2,
-                   fAreaI_.Slice(imin, imaxF, jp, jp, kg2, kg2));
-    fAreaJ_.Insert(imin, imax, jg1F, jg1F, kg2, kg2,
-                   fAreaJ_.Slice(imin, imax, jpF, jpF, kg2, kg2));
-    fAreaK_.Insert(imin, imax, jg1, jg1, kg2F, kg2F,
-                   fAreaK_.Slice(imin, imax, jp, jp, kg2F, kg2F));
+          // assign centroids
+          center_.Insert(dir, gCellD2, gCellD3, distC2C +
+                         center_.Slice(dir, pCellD2, gCellD3, true), true);
 
-    fAreaI_.Insert(imin, imaxF, jg2, jg2, kg1, kg1,
-                   fAreaI_.Slice(imin, imaxF, jg2, jg2, kp, kp));
-    fAreaJ_.Insert(imin, imax, jg2F, jg2F, kg1, kg1,
-                   fAreaJ_.Slice(imin, imax, jg2F, jg2F, kp, kp));
-    fAreaK_.Insert(imin, imax, jg2, jg2, kg1F, kg1F,
-                   fAreaK_.Slice(imin, imax, jg2, jg2, kpF, kpF));
+          // assign face centers
+          // use lambda to get distance to move for i, j, k face data
+          // when face id matches direction 2, distF2F is used, otherwise
+          // distC2C is used
+          auto distI = [&dir, &distF2F, &distC2C] () {
+            if (dir == "i") {
+              return distC2C.GrowI();
+            } else if (dir == "j") {
+              return distC2C;
+            } else {
+              return distF2F;
+            }
+          };
+          fCenterI_.Insert(dir, gCellD2, gCellD3, distI() +
+                           fCenterI_.Slice(dir, pCellD2, gCellD3, true, "i",
+                                             upper2, upper3),
+                           true, "i", upper2, upper3);
 
-    fAreaI_.Insert(imin, imaxF, jg2, jg2, kg2, kg2, 0.5 *
-                   (fAreaI_.Slice(imin, imaxF, jg1, jg1, kg2, kg2) +
-                    fAreaI_.Slice(imin, imaxF, jg2, jg2, kg1, kg1)));
-    fAreaJ_.Insert(imin, imax, jg2F, jg2F, kg2, kg2, 0.5 *
-                   (fAreaJ_.Slice(imin, imax, jg1F, jg1F, kg2, kg2) +
-                    fAreaJ_.Slice(imin, imax, jg2F, jg2F, kg1, kg1)));
-    fAreaK_.Insert(imin, imax, jg2, jg2, kg2F, kg2F, 0.5 *
-                   (fAreaK_.Slice(imin, imax, jg1, jg1, kg2F, kg2F) +
-                    fAreaK_.Slice(imin, imax, jg2, jg2, kg1F, kg1F)));
+          auto distJ = [&dir, &distF2F, &distC2C] () {
+            if (dir == "i") {
+              return distF2F;
+            } else if (dir == "j") {
+              return distC2C.GrowJ();
+            } else {
+              return distC2C;
+            }
+          };
+          fCenterJ_.Insert(dir, gCellD2, gCellD3, distJ() +
+                           fCenterJ_.Slice(dir, pCellD2, gCellD3, true, "j",
+                                           upper2, upper3),
+                           true, "j", upper2, upper3);
 
-    // Assign centroids
-    multiArray3d<vector3d<double>> dist2MoveJ =
-        fCenterJ_.Slice(imin, imax, jpF, jpF, kp, kp) -
-        fCenterJ_.Slice(imin, imax, jiF, jiF, kp, kp);
-
-    center_.Insert(imin, imax, jg1, jg1, kg1, kg1, dist2MoveJ +
-                   center_.Slice(imin, imax, jp, jp, kg1, kg1));
-    center_.Insert(imin, imax, jg1, jg1, kg2, kg2, dist2MoveJ +
-                   center_.Slice(imin, imax, jp, jp, kg2, kg2));
-    center_.Insert(imin, imax, jg2, jg2, kg1, kg1, dist2MoveJ +
-                   center_.Slice(imin, imax, jg1, jg1, kg1, kg1));
-    center_.Insert(imin, imax, jg2, jg2, kg2, kg2, dist2MoveJ +
-                   center_.Slice(imin, imax, jg1, jg1, kg2, kg2));
-
-    // Assign face centers
-    multiArray3d<vector3d<double>> dist2MoveJf =
-        fCenterJ_.Slice(imin, imaxF, jpF, jpF, kp, kp) -
-        fCenterJ_.Slice(imin, imaxF, jiF, jiF, kp, kp);
-
-    fCenterI_.Insert(imin, imaxF, jg1, jg1, kg1, kg1, dist2MoveJf +
-                     fCenterI_.Slice(imin, imaxF, jp, jp, kg1, kg1));
-    fCenterJ_.Insert(imin, imax, jg1F, jg1F, kg1, kg1, dist2MoveJ +
-                     fCenterJ_.Slice(imin, imax, jpF, jpF, kg1, kg1));
-    fCenterK_.Insert(imin, imax, jg1, jg1, kg1F, kg1F, dist2MoveJ +
-                    fCenterK_.Slice(imin, imax, jp, jp, kg1F, kg1F));
-
-    fCenterI_.Insert(imin, imaxF, jg1, jg1, kg2, kg2, dist2MoveJf +
-                   fCenterI_.Slice(imin, imaxF, jp, jp, kg2, kg2));
-    fCenterJ_.Insert(imin, imax, jg1F, jg1F, kg2, kg2, dist2MoveJ +
-                   fCenterJ_.Slice(imin, imax, jpF, jpF, kg2, kg2));
-    fCenterK_.Insert(imin, imax, jg1, jg1, kg2F, kg2F, dist2MoveJ +
-                   fCenterK_.Slice(imin, imax, jp, jp, kg2F, kg2F));
-
-    fCenterI_.Insert(imin, imaxF, jg2, jg2, kg1, kg1, dist2MoveJf +
-                   fCenterI_.Slice(imin, imaxF, jg1, jg1, kg1, kg1));
-    fCenterJ_.Insert(imin, imax, jg2F, jg2F, kg1, kg1, dist2MoveJ +
-                   fCenterJ_.Slice(imin, imax, jg1F, jg1F, kg1, kg1));
-    fCenterK_.Insert(imin, imax, jg2, jg2, kg1F, kg1F, dist2MoveJ +
-                   fCenterK_.Slice(imin, imax, jg1, jg1, kg1F, kg1F));
-
-    fCenterI_.Insert(imin, imaxF, jg2, jg2, kg2, kg2, dist2MoveJf +
-                     fCenterI_.Slice(imin, imaxF, jg1, jg1, kg2, kg2));
-    fCenterJ_.Insert(imin, imax, jg2F, jg2F, kg2, kg2, dist2MoveJ +
-                     fCenterJ_.Slice(imin, imax, jg1F, jg1F, kg2, kg2));
-    fCenterK_.Insert(imin, imax, jg2, jg2, kg2F, kg2F, dist2MoveJ +
-                    fCenterK_.Slice(imin, imax, jg1, jg1, kg2F, kg2F));
-  }
-
-  // ------------------------------------------------------------------------
-  // loop over 4 edges that run in j-direction
-  for (auto cc = 0; cc < 4; cc++) {
-    // cc = 0 -> il/kl
-    // cc = 1 -> il/ku
-    // cc = 2 -> iu/kl
-    // cc = 3 -> iu/ku
-
-    // cell indices
-    const auto jmin = numGhosts_;
-    const auto jmax = this->NumJ() + numGhosts_ - 1;
-
-    const auto ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ - 1;
-    const auto ig1 = (cc <= 1) ? ip - 1 : ip + 1;
-    const auto ig2 = (cc <= 1) ? ip - 2 : ip + 2;
-
-    const auto kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ - 1;
-    const auto kg1 = (cc % 2 == 0) ? kp - 1 : kp + 1;
-    const auto kg2 = (cc % 2 == 0) ? kp - 2 : kp + 2;
-
-    // face indices
-    // these only change from cell indices for upper edges
-    // these should only be used for accessing faces in their corresponding
-    // direction - i.e. ipF should only be used to access fAreaI, or fCenterI
-    const auto jmaxF = this->NumJ() + numGhosts_;
-
-    const auto ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
-    const auto iiF = (cc <= 1) ? ipF + 1 : ipF - 1;
-    const auto ig1F = (cc <= 1) ? ipF - 1 : ipF + 1;
-    const auto ig2F = (cc <= 1) ? ipF - 2 : ipF + 2;
-
-    const auto kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
-    const auto kg1F = (cc % 2 == 0) ? kpF - 1 : kpF + 1;
-    const auto kg2F = (cc % 2 == 0) ? kpF - 2 : kpF + 2;
-
-    // Assign volumes
-    vol_.Insert(ig1, ig1, jmin, jmax, kg1, kg1, 0.5 *
-                (vol_.Slice(ip, ip, jmin, jmax, kg1, kg1) +
-                 vol_.Slice(ig1, ig1, jmin, jmax, kp, kp)));
-    vol_.Insert(ig1, ig1, jmin, jmax, kg2, kg2,
-                vol_.Slice(ip, ip, jmin, jmax, kg2, kg2));
-    vol_.Insert(ig2, ig2, jmin, jmax, kg1, kg1,
-                vol_.Slice(ig2, ig2, jmin, jmax, kp, kp));
-    vol_.Insert(ig2, ig2, jmin, jmax, kg2, kg2, 0.5 *
-                (vol_.Slice(ig1, ig1, jmin, jmax, kg2, kg2) +
-                 vol_.Slice(ig2, ig2, jmin, jmax, kg1, kg1)));
-
-    // Assign face areas
-    fAreaI_.Insert(ig1F, ig1F, jmin, jmax, kg1, kg1, 0.5 *
-                   (fAreaI_.Slice(ipF, ipF, jmin, jmax, kg1, kg1) +
-                    fAreaI_.Slice(ig1F, ig1F, jmin, jmax, kp, kp)));
-    fAreaJ_.Insert(ig1, ig1, jmin, jmaxF, kg1, kg1, 0.5 *
-                   (fAreaJ_.Slice(ip, ip, jmin, jmaxF, kg1, kg1) +
-                    fAreaJ_.Slice(ig1, ig1, jmin, jmaxF, kp, kp)));
-    fAreaK_.Insert(ig1, ig1, jmin, jmax, kg1F, kg1F, 0.5 *
-                   (fAreaK_.Slice(ip, ip, jmin, jmax, kg1F, kg1F) +
-                    fAreaK_.Slice(ig1, ig1, jmin, jmax, kpF, kpF)));
-
-    fAreaI_.Insert(ig1F, ig1F, jmin, jmax, kg2, kg2,
-                   fAreaI_.Slice(ipF, ipF, jmin, jmax, kg2, kg2));
-    fAreaJ_.Insert(ig1, ig1, jmin, jmaxF, kg2, kg2,
-                   fAreaJ_.Slice(ip, ip, jmin, jmaxF, kg2, kg2));
-    fAreaK_.Insert(ig1, ig1, jmin, jmax, kg2F, kg2F,
-                   fAreaK_.Slice(ip, ip, jmin, jmax, kg2F, kg2F));
-
-    fAreaI_.Insert(ig2F, ig2F, jmin, jmax, kg1, kg1,
-                   fAreaI_.Slice(ig2F, ig2F, jmin, jmax, kp, kp));
-    fAreaJ_.Insert(ig2, ig2, jmin, jmaxF, kg1, kg1,
-                   fAreaJ_.Slice(ig2, ig2, jmin, jmaxF, kp, kp));
-    fAreaK_.Insert(ig2, ig2, jmin, jmax, kg1F, kg1F,
-                   fAreaK_.Slice(ig2, ig2, jmin, jmax, kpF, kpF));
-
-    fAreaI_.Insert(ig2F, ig2F, jmin, jmax, kg2, kg2, 0.5 *
-                   (fAreaI_.Slice(ig1F, ig1F, jmin, jmax, kg2, kg2) +
-                    fAreaI_.Slice(ig2F, ig2F, jmin, jmax, kg1, kg1)));
-    fAreaJ_.Insert(ig2, ig2, jmin, jmaxF, kg2, kg2, 0.5 *
-                   (fAreaJ_.Slice(ig1, ig1, jmin, jmaxF, kg2, kg2) +
-                    fAreaJ_.Slice(ig2, ig2, jmin, jmaxF, kg1, kg1)));
-    fAreaK_.Insert(ig2, ig2, jmin, jmax, kg2F, kg2F, 0.5 *
-                   (fAreaK_.Slice(ig1, ig1, jmin, jmax, kg2F, kg2F) +
-                    fAreaK_.Slice(ig2, ig2, jmin, jmax, kg1F, kg1F)));
-
-    // Assign centroids
-    multiArray3d<vector3d<double>> dist2MoveI =
-        fCenterI_.Slice(ipF, ipF, jmin, jmax, kp, kp) -
-        fCenterI_.Slice(iiF, iiF, jmin, jmax, kp, kp);
-
-    center_.Insert(ig1, ig1, jmin, jmax, kg1, kg1, dist2MoveI +
-                   center_.Slice(ip, ip, jmin, jmax, kg1, kg1));
-    center_.Insert(ig1, ig1, jmin, jmax, kg2, kg2, dist2MoveI +
-                   center_.Slice(ip, ip, jmin, jmax, kg2, kg2));
-    center_.Insert(ig2, ig2, jmin, jmax, kg1, kg1, dist2MoveI +
-                   center_.Slice(ig1, ig1, jmin, jmax, kg1, kg1));
-    center_.Insert(ig2, ig2, jmin, jmax, kg2, kg2, dist2MoveI +
-                   center_.Slice(ig1, ig1, jmin, jmax, kg2, kg2));
-
-    // Assign face centers
-    multiArray3d<vector3d<double>> dist2MoveIf =
-        fCenterI_.Slice(ipF, ipF, jmin, jmaxF, kp, kp) -
-        fCenterI_.Slice(iiF, iiF, jmin, jmaxF, kp, kp);
-
-    fCenterI_.Insert(ig1F, ig1F, jmin, jmax, kg1, kg1, dist2MoveI +
-                     fCenterI_.Slice(ipF, ipF, jmin, jmax, kg1, kg1));
-    fCenterJ_.Insert(ig1, ig1, jmin, jmaxF, kg1, kg1, dist2MoveIf +
-                     fCenterJ_.Slice(ip, ip, jmin, jmaxF, kg1, kg1));
-    fCenterK_.Insert(ig1, ig1, jmin, jmax, kg1F, kg1F, dist2MoveI +
-                    fCenterK_.Slice(ip, ip, jmin, jmax, kg1F, kg1F));
-
-    fCenterI_.Insert(ig1F, ig1F, jmin, jmax, kg2, kg2, dist2MoveI +
-                   fCenterI_.Slice(ipF, ipF, jmin, jmax, kg2, kg2));
-    fCenterJ_.Insert(ig1, ig1, jmin, jmaxF, kg2, kg2, dist2MoveIf +
-                   fCenterJ_.Slice(ip, ip, jmin, jmaxF, kg2, kg2));
-    fCenterK_.Insert(ig1, ig1, jmin, jmax, kg2F, kg2F, dist2MoveI +
-                   fCenterK_.Slice(ip, ip, jmin, jmax, kg2F, kg2F));
-
-    fCenterI_.Insert(ig2F, ig2F, jmin, jmax, kg1, kg1, dist2MoveI +
-                   fCenterI_.Slice(ig1F, ig1F, jmin, jmax, kg1, kg1));
-    fCenterJ_.Insert(ig2, ig2, jmin, jmaxF, kg1, kg1, dist2MoveIf +
-                   fCenterJ_.Slice(ig1, ig1, jmin, jmaxF, kg1, kg1));
-    fCenterK_.Insert(ig2, ig2, jmin, jmax, kg1F, kg1F, dist2MoveI +
-                   fCenterK_.Slice(ig1, ig1, jmin, jmax, kg1F, kg1F));
-
-    fCenterI_.Insert(ig2F, ig2F, jmin, jmax, kg2, kg2, dist2MoveI +
-                     fCenterI_.Slice(ig1F, ig1F, jmin, jmaxF, kg2, kg2));
-    fCenterJ_.Insert(ig2, ig2, jmin, jmaxF, kg2, kg2, dist2MoveIf +
-                     fCenterJ_.Slice(ig1, ig1, jmin, jmaxF, kg2, kg2));
-    fCenterK_.Insert(ig2, ig2, jmin, jmax, kg2F, kg2F, dist2MoveI +
-                    fCenterK_.Slice(ig1, ig1, jmin, jmax, kg2F, kg2F));
-  }
-
-  // ------------------------------------------------------------------------
-  // loop over 4 edges that run in k-direction
-  for (auto cc = 0; cc < 4; cc++) {
-    // cc = 0 -> il/jl
-    // cc = 1 -> il/ju
-    // cc = 2 -> iu/jl
-    // cc = 3 -> iu/ju
-
-    // cell indices
-    const auto kmin = numGhosts_;
-    const auto kmax = this->NumK() + numGhosts_ - 1;
-
-    const auto ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ - 1;
-    const auto ig1 = (cc <= 1) ? ip - 1 : ip + 1;
-    const auto ig2 = (cc <= 1) ? ip - 2 : ip + 2;
-
-    const auto jp = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_ - 1;
-    const auto jg1 = (cc % 2 == 0) ? jp - 1 : jp + 1;
-    const auto jg2 = (cc % 2 == 0) ? jp - 2 : jp + 2;
-
-    // face indices
-    // these only change from cell indices for upper edges
-    // these should only be used for accessing faces in their corresponding
-    // direction - i.e. ipF should only be used to access fAreaI, or fCenterI
-    const auto kmaxF = this->NumK() + numGhosts_;
-
-    const auto ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
-    const auto iiF = (cc <= 1) ? ipF + 1 : ipF - 1;
-    const auto ig1F = (cc <= 1) ? ipF - 1 : ipF + 1;
-    const auto ig2F = (cc <= 1) ? ipF - 2 : ipF + 2;
-
-    const auto jpF = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_;
-    const auto jg1F = (cc % 2 == 0) ? jpF - 1 : jpF + 1;
-    const auto jg2F = (cc % 2 == 0) ? jpF - 2 : jpF + 2;
-
-    // Assign volumes
-    vol_.Insert(ig1, ig1, jg1, jg1, kmin, kmax, 0.5 *
-                (vol_.Slice(ip, ip, jg1, jg1, kmin, kmax) +
-                 vol_.Slice(ig1, ig1, jp, jp, kmin, kmax)));
-    vol_.Insert(ig1, ig1, jg2, jg2, kmin, kmax,
-                vol_.Slice(ip, ip, jg2, jg2, kmin, kmax));
-    vol_.Insert(ig2, ig2, jg1, jg1, kmin, kmax,
-                vol_.Slice(ig2, ig2, jp, jp, kmin, kmax));
-    vol_.Insert(ig2, ig2, jg2, jg2, kmin, kmax, 0.5 *
-                (vol_.Slice(ig1, ig1, jg2, jg2, kmin, kmax) +
-                 vol_.Slice(ig2, ig2, jg1, jg1, kmin, kmax)));
-
-    // Assign face areas
-    fAreaI_.Insert(ig1F, ig1F, jg1, jg1, kmin, kmax, 0.5 *
-                   (fAreaI_.Slice(ipF, ipF, jg1, jg1, kmin, kmax) +
-                    fAreaI_.Slice(ig1F, ig1F, jp, jp, kmin, kmax)));
-    fAreaJ_.Insert(ig1, ig1, jg1F, jg1F, kmin, kmax, 0.5 *
-                   (fAreaJ_.Slice(ip, ip, jg1F, jg1F, kmin, kmax) +
-                    fAreaJ_.Slice(ig1, ig1, jpF, jpF, kmin, kmax)));
-    fAreaK_.Insert(ig1, ig1, jg1, jg1, kmin, kmaxF, 0.5 *
-                   (fAreaK_.Slice(ip, ip, jg1, jg1, kmin, kmaxF) +
-                    fAreaK_.Slice(ig1, ig1, jp, jp, kmin, kmaxF)));
-
-    fAreaI_.Insert(ig1F, ig1F, jg2, jg2, kmin, kmax,
-                   fAreaI_.Slice(ipF, ipF, jg2, jg2, kmin, kmax));
-    fAreaJ_.Insert(ig1, ig1, jg2F, jg2F, kmin, kmax,
-                   fAreaJ_.Slice(ip, ip, jg2F, jg2F, kmin, kmax));
-    fAreaK_.Insert(ig1, ig1, jg2, jg2, kmin, kmaxF,
-                   fAreaK_.Slice(ip, ip, jg2, jg2, kmin, kmaxF));
-
-    fAreaI_.Insert(ig2F, ig2F, jg1, jg1, kmin, kmax,
-                   fAreaI_.Slice(ig2F, ig2F, jp, jp, kmin, kmax));
-    fAreaJ_.Insert(ig2, ig2, jg1F, jg1F, kmin, kmax,
-                   fAreaJ_.Slice(ig2, ig2, jpF, jpF, kmin, kmax));
-    fAreaK_.Insert(ig2, ig2, jg1, jg1, kmin, kmaxF,
-                   fAreaK_.Slice(ig2, ig2, jp, jp, kmin, kmaxF));
-
-    fAreaI_.Insert(ig2F, ig2F, jg2, jg2, kmin, kmax, 0.5 *
-                   (fAreaI_.Slice(ig1F, ig1F, jg2, jg2, kmin, kmax) +
-                    fAreaI_.Slice(ig2F, ig2F, jg1, jg1, kmin, kmax)));
-    fAreaJ_.Insert(ig2, ig2, jg2F, jg2F, kmin, kmax, 0.5 *
-                   (fAreaJ_.Slice(ig1, ig1, jg2F, jg2F, kmin, kmax) +
-                    fAreaJ_.Slice(ig2, ig2, jg1F, jg1F, kmin, kmax)));
-    fAreaK_.Insert(ig2, ig2, jg2, jg2, kmin, kmaxF, 0.5 *
-                   (fAreaK_.Slice(ig1, ig1, jg2, jg2, kmin, kmaxF) +
-                    fAreaK_.Slice(ig2, ig2, jg1, jg1, kmin, kmaxF)));
-
-    // Assign centroids
-    multiArray3d<vector3d<double>> dist2MoveI =
-        fCenterI_.Slice(ipF, ipF, jp, jp, kmin, kmax) -
-        fCenterI_.Slice(iiF, iiF, jp, jp, kmin, kmax);
-
-    center_.Insert(ig1, ig1, jg1, jg1, kmin, kmax, dist2MoveI +
-                   center_.Slice(ip, ip, jg1, jg1, kmin, kmax));
-    center_.Insert(ig1, ig1, jg2, jg2, kmin, kmax, dist2MoveI +
-                   center_.Slice(ip, ip, jg2, jg2, kmin, kmax));
-    center_.Insert(ig2, ig2, jg1, jg1, kmin, kmax, dist2MoveI +
-                   center_.Slice(ig1, ig1, jg1, jg1, kmin, kmax));
-    center_.Insert(ig2, ig2, jg2, jg2, kmin, kmax, dist2MoveI +
-                   center_.Slice(ig1, ig1, jg2, jg2, kmin, kmax));
-
-    // Assign face centers
-    multiArray3d<vector3d<double>> dist2MoveIf =
-        fCenterI_.Slice(ipF, ipF, jp, jp, kmin, kmaxF) -
-        fCenterI_.Slice(iiF, iiF, jp, jp, kmin, kmaxF);
-
-    fCenterI_.Insert(ig1F, ig1F, jg1, jg1, kmin, kmax, dist2MoveI +
-                     fCenterI_.Slice(ipF, ipF, jg1, jg1, kmin, kmax));
-    fCenterJ_.Insert(ig1, ig1, jg1F, jg1F, kmin, kmax, dist2MoveI +
-                     fCenterJ_.Slice(ip, ip, jg1F, jg1F, kmin, kmax));
-    fCenterK_.Insert(ig1, ig1, jg1, jg1, kmin, kmaxF, dist2MoveIf +
-                    fCenterK_.Slice(ip, ip, jg1, jg1, kmin, kmaxF));
-
-    fCenterI_.Insert(ig1F, ig1F, jg2, jg2, kmin, kmax, dist2MoveI +
-                   fCenterI_.Slice(ipF, ipF, jg2, jg2, kmin, kmax));
-    fCenterJ_.Insert(ig1, ig1, jg2F, jg2F, kmin, kmax, dist2MoveI +
-                   fCenterJ_.Slice(ip, ip, jg2F, jg2F, kmin, kmax));
-    fCenterK_.Insert(ig1, ig1, jg2, jg2, kmin, kmaxF, dist2MoveIf +
-                   fCenterK_.Slice(ip, ip, jg2, jg2, kmin, kmaxF));
-
-    fCenterI_.Insert(ig2F, ig2F, jg1, jg1, kmin, kmax, dist2MoveI +
-                   fCenterI_.Slice(ig1F, ig1F, jg1, jg1, kmin, kmax));
-    fCenterJ_.Insert(ig2, ig2, jg1F, jg1F, kmin, kmax, dist2MoveI +
-                   fCenterJ_.Slice(ig1, ig1, jg1F, jg1F, kmin, kmax));
-    fCenterK_.Insert(ig2, ig2, jg1, jg1, kmin, kmaxF, dist2MoveIf +
-                   fCenterK_.Slice(ig1, ig1, jg1, jg1, kmin, kmaxF));
-
-    fCenterI_.Insert(ig2F, ig2F, jg2, jg2, kmin, kmax, dist2MoveI +
-                     fCenterI_.Slice(ig1F, ig1F, jg2, jg2, kmin, kmax));
-    fCenterJ_.Insert(ig2, ig2, jg2F, jg2F, kmin, kmax, dist2MoveI +
-                     fCenterJ_.Slice(ig1, ig1, jg2F, jg2F, kmin, kmax));
-    fCenterK_.Insert(ig2, ig2, jg2, jg2, kmin, kmaxF, dist2MoveIf +
-                    fCenterK_.Slice(ig1, ig1, jg2, jg2, kmin, kmaxF));
+          auto distK = [&dir, &distF2F, &distC2C] () {
+            if (dir == "i") {
+              return distC2C;
+            } else if (dir == "j") {
+              return distF2F;
+            } else {
+              return distC2C.GrowK();
+            }
+          };
+          fCenterK_.Insert(dir, gCellD2, gCellD3, distK() +
+                           fCenterK_.Slice(dir, pCellD2, gCellD3, true, "k",
+                                           upper2, upper3),
+                           true, "k", upper2, upper3);
+        }
+      }
+    }
   }
 }
 
@@ -3310,154 +2819,71 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
   // suth -- sutherland's law for viscosity
   // turb -- turbulence model
 
-  // loop over all boundary surfaces
-  for (auto ii = 0; ii < bc_.NumSurfaces(); ii++) {
-    // Get surface boundaries, and adjust them for ghost cells
-    const auto imin = bc_.GetIMin(ii) + numGhosts_;
-    const auto imax = bc_.GetIMax(ii) - 1 + numGhosts_;
-    const auto jmin = bc_.GetJMin(ii) + numGhosts_;
-    const auto jmax = bc_.GetJMax(ii) - 1 + numGhosts_;
-    const auto kmin = bc_.GetKMin(ii) + numGhosts_;
-    const auto kmax = bc_.GetKMax(ii) - 1 + numGhosts_;
+  // loop over all layers of ghost cells
+  for (auto layer = 1; layer <= numGhosts_; layer++) {
+    // loop over all boundary surfaces
+    for (auto ii = 0; ii < bc_.NumSurfaces(); ii++) {
+      // get ranges for boundary surface
+      const auto r1 = bc_.RangeDir1(ii);
+      const auto r2 = bc_.RangeDir2(ii);
+      const auto r3 = bc_.RangeDir3(ii);
 
-    int g1, g2, i1, i2;  // indices for cells
-    int bnd;  // indices for faces
-    if (bc_.GetSurfaceType(ii) == 2) {  // upper i-surface
-      g2 = imax + 2;
-      g1 = imax + 1;
-      i1 = imax;
-      i2 = imax - 1;
+      const auto dir = bc_.Direction3(ii);
+      const auto surfType = bc_.GetSurfaceType(ii);
+      const auto tag = bc_.GetTag(ii);
 
-      bnd = imax + 1;
-    } else if (bc_.GetSurfaceType(ii) == 4) {  // upper j-surface
-      g2 = jmax + 2;
-      g1 = jmax + 1;
-      i1 = jmax;
-      i2 = jmax - 1;
+      auto gCell = 0, iCell = 0, aCell = 0;           // indices for cells
+      auto bnd = 0;                                   // indices for faces
+      // adjust interior indices to be in physical range in case block is only a
+      // couple of cells thick
+      if (surfType % 2 == 0) {  // upper surface
+        gCell = r3.Start() + layer - 1;
+        iCell = r3.Start() - layer;
+        aCell = r3.Start() - 1;  // adjacent cell to bnd regardless of ghost layer
+        if (iCell < this->Start(dir)) {iCell = this->Start(dir);}
 
-      bnd = jmax + 1;
-    } else if (bc_.GetSurfaceType(ii) == 6) {  // upper k-surface
-      g2 = kmax + 2;
-      g1 = kmax + 1;
-      i1 = kmax;
-      i2 = kmax - 1;
+        bnd = r3.Start();
+      } else {  // lower surface
+        gCell = r3.Start() - layer;
+        iCell = r3.Start() + layer - 1;
+        aCell = r3.Start();  // adjacent cell to bnd regardless of ghost layer
+        if (iCell >= this->End(dir)) {iCell = this->End(dir) - 1;}
 
-      bnd = kmax + 1;
-    } else {  // lower surface
-      g2 = 0;
-      g1 = 1;
-      i1 = 2;
-      i2 = 3;
-
-      bnd = 2;
-    }
-
-    //-----------------------------------------------------------------------
-    // Assign ghost cells for i-surfaces
-    // -----------------------------------------------------------------------
-    // only supply cell values for non interblock BCs
-    // for interblock do nothing
-    if ((bc_.GetSurfaceType(ii) == 1 || bc_.GetSurfaceType(ii) == 2) &&
-        bc_.GetBCTypes(ii) != "interblock") {
-      const string surf = (bc_.GetSurfaceType(ii) == 1) ? "il" : "iu";
-      const string bcName = (bc_.GetBCTypes(ii) == "viscousWall") ? "slipWall" :
-          bc_.GetBCTypes(ii);
-      // assign state for first layer of ghost cells
-      const auto faceAreas = fAreaI_.Slice(bnd, bnd, jmin, jmax, kmin, kmax);
-      auto boundaryStates = state_.Slice(i1, i1, jmin, jmax, kmin, kmax);
-      const auto wDist = wallDist_.Slice(i1, i1, jmin, jmax, kmin, kmax);
-      auto ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas,
-                                        wDist, surf, inp, eos, suth, turb, 1);
-
-      state_.Insert(g1, g1, jmin, jmax, kmin, kmax, ghostStates);
-
-      // assign state for second layer of ghost cells
-      // one cell thick - use one cell for both ghost cells
-      if (this->NumI() < 2) {
-        state_.Insert(g2, g2, jmin, jmax, kmin, kmax, ghostStates);
-      } else {
-        // if slipWall reflect 2nd interior state instead of extrapolation
-        if (bcName == "slipWall") {
-          boundaryStates = state_.Slice(i2, i2, jmin, jmax, kmin, kmax);
-        }
-        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
-                                     surf, inp, eos, suth, turb, 2);
-
-        state_.Insert(g2, g2, jmin, jmax, kmin, kmax, ghostStates);
+        bnd = r3.Start();
       }
 
-    //-----------------------------------------------------------------------
-    // Assign ghost cells for j-surfaces
-    // -----------------------------------------------------------------------
-    // only supply cell values for non interblock BCs
-    // for interblock do nothing
-    } else if ((bc_.GetSurfaceType(ii) == 3 || bc_.GetSurfaceType(ii) == 4) &&
-               bc_.GetBCTypes(ii) != "interblock") {
-      const string surf = (bc_.GetSurfaceType(ii) == 3) ? "jl" : "ju";
-      const string bcName = (bc_.GetBCTypes(ii) == "viscousWall") ? "slipWall" :
-          bc_.GetBCTypes(ii);
-      // assign state for first layer of ghost cells
-      const auto faceAreas = fAreaJ_.Slice(imin, imax, bnd, bnd, kmin, kmax);
-      auto boundaryStates = state_.Slice(imin, imax, i1, i1, kmin, kmax);
-      const auto wDist = wallDist_.Slice(imin, imax, i1, i1, kmin, kmax);
-      auto ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas,
-                                        wDist, surf, inp, eos, suth, turb, 1);
+      // -----------------------------------------------------------------------
+      // only supply cell values for non interblock BCs
+      // for interblock do nothing
+      if (bc_.GetBCTypes(ii) != "interblock") {
+        // get boundary condtion type (no viscous walls in invicid BCs)
+        auto bcName = bc_.GetBCTypes(ii);
+        if (bcName == "viscousWall") {bcName = "slipWall";}
 
-      // assign state for first layer of ghost cells
-      state_.Insert(imin, imax, g1, g1, kmin, kmax, ghostStates);
-
-      // assign state for second layer of ghost cells
-      // one cell thick - use one cell for both ghost cells
-      if (this->NumJ() < 2) {
-        state_.Insert(imin, imax, g2, g2, kmin, kmax, ghostStates);
-      } else {
-        // if slipWall reflect 2nd interior state instead of extrapolation
-        if (bcName == "slipWall") {
-          boundaryStates = state_.Slice(imin, imax, i2, i2, kmin, kmax);
+        // get face areas on boundary
+        multiArray3d<unitVec3dMag<double>> faceAreas;
+        if (dir == "i") {  // i-surface, dir1 = j, dir2 = k
+          faceAreas = this->fAreaI_.Slice(bnd, r1, r2);
+        } else if (dir == "j") {  // j-surface, dir1 = k, dir2 = i
+          faceAreas = this->fAreaJ_.Slice(r2, bnd, r1);
+        } else {  // k-surface, dir1 = i, dir2 = j
+          faceAreas = this->fAreaK_.Slice(r1, r2, bnd);
         }
-        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
-                                     surf, inp, eos, suth, turb, 2);
 
-        state_.Insert(imin, imax, g2, g2, kmin, kmax, ghostStates);
-      }
+        const auto wDist = wallDist_.Slice(dir, aCell, r1, r2);
 
-    //-----------------------------------------------------------------------
-    // Assign ghost cells for k-surfaces
-    // -----------------------------------------------------------------------
-    // only supply cell values for non interblock BCs
-    // for interblock do nothing
-    } else if ((bc_.GetSurfaceType(ii) == 5 || bc_.GetSurfaceType(ii) == 6) &&
-               bc_.GetBCTypes(ii) != "interblock") {
-      const string surf = (bc_.GetSurfaceType(ii) == 5) ? "kl" : "ku";
-      const string bcName = (bc_.GetBCTypes(ii) == "viscousWall") ? "slipWall" :
-          bc_.GetBCTypes(ii);
-      // assign state for first layer of ghost cells
-      const auto faceAreas = fAreaK_.Slice(imin, imax, jmin, jmax, bnd, bnd);
-      auto boundaryStates = state_.Slice(imin, imax, jmin, jmax, i1, i1);
-      const auto wDist = wallDist_.Slice(imin, imax, jmin, jmax, i1, i1);
-      auto ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas,
-                                        wDist, surf, inp, eos, suth, turb, 1);
+        // if slipWall reflect interior state instead of extrapolation
+        const auto boundaryStates = (bcName == "slipWall") ?
+            state_.Slice(dir, iCell, r1, r2) : state_.Slice(dir, aCell, r1, r2);
 
-      // assign state for first layer of ghost cells
-      state_.Insert(imin, imax, jmin, jmax, g1, g1, ghostStates);
+        const auto ghostStates = GetGhostStates(boundaryStates, bcName,
+                                                faceAreas, wDist, surfType, inp,
+                                                tag, eos, suth, turb, layer);
 
-      // assign state for second layer of ghost cells
-      // one cell thick - use one cell for both ghost cells
-      if (this->NumK() < 2) {
-        state_.Insert(imin, imax, jmin, jmax, g2, g2, ghostStates);
-      } else {
-        // if slipWall reflect 2nd interior state instead of extrapolation
-        if (bcName == "slipWall") {
-          boundaryStates = state_.Slice(imin, imax, jmin, jmax, i2, i2);
-        }
-        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
-                                     surf, inp, eos, suth, turb, 2);
-
-        state_.Insert(imin, imax, jmin, jmax, g2, g2, ghostStates);
+        state_.Insert(dir, gCell, r1, r2, ghostStates);
       }
     }
   }
-
   // assign values to edge ghost cells
   // (*this).AssignInviscidGhostCellsEdge(inp, eos, suth);
 }
@@ -3504,262 +2930,152 @@ void procBlock::AssignInviscidGhostCellsEdge(
   // suth -- sutherland's law for viscosity
   // turb -- turbulence model
 
-  // ------------------------------------------------------------------------
-  // loop over 4 edges that run in i-direction
-  for (auto cc = 0; cc < 4; cc++) {
-    // cc = 0 -> jl/kl
-    // cc = 1 -> jl/ku
-    // cc = 2 -> ju/kl
-    // cc = 3 -> ju/ku
-
-    // cell indices
-    const auto imin = numGhosts_;
-    const auto imax = this->NumI() + numGhosts_ - 1;
-
-    const auto jp = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_ - 1;
-    const auto ji1 = (cc <= 1) ? jp + 1 : jp - 1;
-    const auto jg1 = (cc <= 1) ? jp - 1 : jp + 1;
-    const auto jg2 = (cc <= 1) ? jp - 2 : jp + 2;
-
-    const auto kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ - 1;
-    const auto ki1 = (cc % 2 == 0) ? kp + 1 : kp - 1;
-    const auto kg1 = (cc % 2 == 0) ? kp - 1 : kp + 1;
-    const auto kg2 = (cc % 2 == 0) ? kp - 2 : kp + 2;
-
-    // surface types of surfaces forming edge
-    const string surfJ = (cc <= 1) ? "jl" : "ju";
-    const string surfK = (cc % 2 == 0) ? "kl" : "ku";
-
-    // face indices
-    // these only change from cell indices for upper edges
-    // these should only be used for accessing faces in their corresponding
-    // direction - i.e. jpF should only be used to access fAreaJ, or fCenterJ
-    const auto jpF = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_;
-    const auto kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
-
-    for (auto ii = imin; ii <= imax; ii++) {
-      // boundary conditions at corner
-      auto bc_J = bc_.GetBCName(ii - numGhosts_, jpF - numGhosts_,
-                                kp - numGhosts_, surfJ);
-      if (bc_J == "viscousWall") {
-        bc_J = "slipWall";
-      }
-      auto bc_K = bc_.GetBCName(ii - numGhosts_, jp - numGhosts_,
-                                kpF - numGhosts_, surfK);
-      if (bc_K == "viscousWall") {
-        bc_K = "slipWall";
-      }
-
-      // Assign states
-      // j surface is a wall, but k surface is not - extend wall bc
-      if (bc_J == "slipWall" && bc_K != "slipWall") {
-        state_(ii, jg1, kg1) = state_(ii, jp, kg1).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg1), wallDist_(ii, jp, kg1),
-            surfJ, inp, eos, suth, turb, 1);
-        state_(ii, jg1, kg2) = state_(ii, jp, kg2).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg2), wallDist_(ii, jp, kg2),
-            surfJ, inp, eos, suth, turb, 1);
-        state_(ii, jg2, kg1) = state_(ii, jg1, ki1).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg1), wallDist_(ii, jg1, ki1),
-            surfJ, inp, eos, suth, turb, 2);
-        state_(ii, jg2, kg2) = state_(ii, jg2, ki1).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg2), wallDist_(ii, jg2, ki1),
-            surfJ, inp, eos, suth, turb, 2);
-        // k surface is a wall, but j surface is not - extend wall bc
-      } else if (bc_J != "slipWall" && bc_K == "slipWall") {
-        state_(ii, jg1, kg1) = state_(ii, jg1, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg1, kpF), wallDist_(ii, jg1, kp),
-            surfK, inp, eos, suth, turb, 1);
-        state_(ii, jg2, kg1) = state_(ii, jg2, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg2, kpF), wallDist_(ii, jg2, kp),
-            surfK, inp, eos, suth, turb, 1);
-        state_(ii, jg1, kg2) = state_(ii, ji1, kg1).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg1, kpF), wallDist_(ii, ji1, kg1),
-            surfK, inp, eos, suth, turb, 2);
-        state_(ii, jg2, kg2) = state_(ii, ji1, kg2).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg2, kpF), wallDist_(ii, ji1, kg2),
-            surfK, inp, eos, suth, turb, 2);
-      } else {  // both surfaces or neither are walls - proceed as normal
-        state_(ii, jg1, kg1) = 0.5 * (state_(ii, jp, kg1) +
-                                      state_(ii, jg1, kp));
-        state_(ii, jg1, kg2) = state_(ii, jp, kg2);
-        state_(ii, jg2, kg1) = state_(ii, jg2, kp);
-        state_(ii, jg2, kg2) = 0.5 * (state_(ii, jg1, kg2) +
-                                      state_(ii, jg2, kg1));
-      }
+  // loop over directions i, j, k
+  for (auto dd = 0; dd < 3; dd++) {
+    string dir = "";
+    auto max1 = 0, max2 = 0, max3 = 0, surfStart = 0;
+    if (dd == 0) {
+      dir = "i";
+      max1 = this->NumI();
+      max2 = this->NumJ();
+      max3 = this->NumK();
+      surfStart = 1;
+    } else if (dd == 1) {
+      dir = "j";
+      max1 = this->NumJ();
+      max2 = this->NumK();
+      max3 = this->NumI();
+      surfStart = 3;
+    } else {
+      dir = "k";
+      max1 = this->NumK();
+      max2 = this->NumI();
+      max3 = this->NumJ();
+      surfStart = 5;
     }
-  }
 
-  // ------------------------------------------------------------------------
-  // loop over 4 edges that run in j-direction
-  for (auto cc = 0; cc < 4; cc++) {
-    // cc = 0 -> il/kl
-    // cc = 1 -> il/ku
-    // cc = 2 -> iu/kl
-    // cc = 3 -> iu/ku
+    // direction 1 is direction of line of cells, directions 2/3 are next in
+    // cyclic order
+    // loop over layer2, and layer3
+    for (auto layer3 = 1; layer3 <= numGhosts_; layer3++) {
+      for (auto layer2 = 1; layer2 <= numGhosts_; layer2++) {
+        // loop over 4 edges that run in direction 1
+        for (auto cc = 0; cc < 4; cc++) {
+          // cc = 0 -> dir2-l/dir3-l
+          // cc = 1 -> dir2-l/dir3-u
+          // cc = 2 -> dir2-u/dir3-l
+          // cc = 3 -> dir2-u/dir3-u
 
-    // cell indices
-    const auto jmin = numGhosts_;
-    const auto jmax = this->NumJ() + numGhosts_ - 1;
+          const auto upper2 = cc > 1;
+          const auto upper3 = cc % 2 == 1;
 
-    const auto ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ - 1;
-    const auto ii1 = (cc <= 1) ? ip + 1 : ip - 1;
-    const auto ig1 = (cc <= 1) ? ip - 1 : ip + 1;
-    const auto ig2 = (cc <= 1) ? ip - 2 : ip + 2;
+          // cell indices (g-ghost at current layer, p-ghost at previous layer)
+          const auto pCellD2 = upper2 ? max2 + layer2 - 2 : 1 - layer2;
+          const auto gCellD2 = upper2 ? pCellD2 + 1 : pCellD2 - 1;
 
-    const auto kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ - 1;
-    const auto ki1 = (cc % 2 == 0) ? kp + 1 : kp - 1;
-    const auto kg1 = (cc % 2 == 0) ? kp - 1 : kp + 1;
-    const auto kg2 = (cc % 2 == 0) ? kp - 2 : kp + 2;
+          const auto pCellD3 = upper3 ? max3 + layer3 - 2 : 1 - layer3;
+          const auto gCellD3 = upper3 ? pCellD3 + 1 : pCellD3 - 1;
 
-    // surface types of surfaces forming edge
-    const string surfI = (cc <= 1) ? "il" : "iu";
-    const string surfK = (cc % 2 == 0) ? "kl" : "ku";
+          // surface types of surfaces forming edge
+          const auto surf2 = upper2 ? surfStart + 1 : surfStart;
+          const auto surf3 = upper3 ? surfStart + 1 : surfStart;
 
-    // face indices
-    // these only change from cell indices for upper edges
-    // these should only be used for accessing faces in their corresponding
-    // direction - i.e. ipF should only be used to access fAreaI, or fCenterI
-    const auto ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
-    const auto kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
+          // face indices at corner
+          // these only change from cell indices for upper edges
+          // use these to access face quantities when direction 2 is same as face
+          // type -- i.e. to access fAreaJ if J is direction 2
+          const auto cFaceD2_2 = upper2 ? max2 : 0;
+          const auto cFaceD2_3 = upper3 ? max3 - 1 : 0;
+          // use these to access face quantities when direction 3 is same as face
+          // type -- i.e. to access fAreaK if K is direction 3
+          const auto cFaceD3_2 = upper2 ? max2 - 1: 0;
+          const auto cFaceD3_3 = upper3 ? max3 : 0;
 
-    // Assign states
-    for (auto jj = jmin; jj <= jmax; jj++) {
-      // boundary conditions at corner
-      auto bc_I = bc_.GetBCName(ipF - numGhosts_, jj - numGhosts_,
-                                kp - numGhosts_, surfI);
-      if (bc_I == "viscousWall") {
-        bc_I = "slipWall";
-      }
-      auto bc_K = bc_.GetBCName(ip - numGhosts_, jj - numGhosts_,
-                                kpF - numGhosts_, surfK);
-      if (bc_K == "viscousWall") {
-        bc_K = "slipWall";
-      }
+          // loop over edge
+          for (auto d1 = 0; d1 <= max1; d1++) {
+            string bc_2 = "undefined";
+            string bc_3 = "undefined";
+            auto tag2 = 0, tag3 = 0;
+            vector3d<double> fArea2, fArea3;
+            if (dir == "i") {
+              // boundary conditions at corner
+              bc_2 = bc_.GetBCName(d1, cFaceD2_2, cFaceD2_3, surf2);
+              if (bc_2 == "viscousWall") {bc_2 = "slipWall";}
 
-      // Assign states
-      // i surface is a wall, but k surface is not - extend wall bc
-      if (bc_I == "slipWall" && bc_K != "slipWall") {
-        state_(ig1, jj, kg1) = state_(ip, jj, kg1).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg1), wallDist_(ip, jj, kg1),
-            surfI, inp, eos, suth, turb, 1);
-        state_(ig1, jj, kg2) = state_(ip, jj, kg2).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg2), wallDist_(ip, jj, kg2),
-            surfI, inp, eos, suth, turb, 1);
-        state_(ig2, jj, kg1) = state_(ig1, jj, ki1).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg1), wallDist_(ig1, jj, ki1),
-            surfI, inp, eos, suth, turb, 2);
-        state_(ig2, jj, kg2) = state_(ig2, jj, ki1).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg2), wallDist_(ig2, jj, ki1),
-            surfI, inp, eos, suth, turb, 2);
-        // k surface is a wall, but i surface is not - extend wall bc
-      } else if (bc_I != "slipWall" && bc_K == "slipWall") {
-        state_(ig1, jj, kg1) = state_(ig1, jj, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ig1, jj, kpF), wallDist_(ig1, jj, kp),
-            surfK, inp, eos, suth, turb, 1);
-        state_(ig2, jj, kg1) = state_(ig2, jj, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ig2, jj, kpF), wallDist_(ig2, jj, kp),
-            surfK, inp, eos, suth, turb, 1);
-        state_(ig1, jj, kg2) = state_(ii1, jj, kg1).GetGhostState(
-            bc_K, this->FAreaUnitK(ig1, jj, kpF), wallDist_(ii1, jj, kg1),
-            surfK, inp, eos, suth, turb, 2);
-        state_(ig2, jj, kg2) = state_(ii1, jj, kg2).GetGhostState(
-            bc_K, this->FAreaUnitK(ig2, jj, kpF), wallDist_(ii1, jj, kg2),
-            surfK, inp, eos, suth, turb, 2);
-      } else {  // both surfaces or neither are walls - proceed as normal
-        state_(ig1, jj, kg1) = 0.5 * (state_(ip, jj, kg1) +
-                                      state_(ig1, jj, kp));
-        state_(ig1, jj, kg2) = state_(ip, jj, kg2);
-        state_(ig2, jj, kg1) = state_(ig2, jj, kp);
-        state_(ig2, jj, kg2) = 0.5 * (state_(ig1, jj, kg2) +
-                                      state_(ig2, jj, kg1));
-      }
-    }
-  }
+              bc_3 = bc_.GetBCName(d1, cFaceD3_2, cFaceD3_3, surf3);
+              if (bc_3 == "viscousWall") {bc_3 = "slipWall";}
 
-  // ------------------------------------------------------------------------
-  // loop over 4 edges that run in k-direction
-  for (auto cc = 0; cc < 4; cc++) {
-    // cc = 0 -> il/jl
-    // cc = 1 -> il/ju
-    // cc = 2 -> iu/jl
-    // cc = 3 -> iu/ju
+              // get tags at corners
+              tag2 = bc_.GetBCTag(d1, cFaceD2_2, cFaceD2_3, surf2);
+              tag3 = bc_.GetBCTag(d1, cFaceD3_2, cFaceD3_3, surf3);
 
-    // cell indices
-    const auto kmin = numGhosts_;
-    const auto kmax = this->NumK() + numGhosts_ - 1;
+              // get face area
+              fArea2 = fAreaJ_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
+              fArea3 = fAreaK_(dir, d1, gCellD2, cFaceD3_3).UnitVector();
 
-    const auto ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ - 1;
-    const auto ii1 = (cc <= 1) ? ip + 1 : ip - 1;
-    const auto ig1 = (cc <= 1) ? ip - 1 : ip + 1;
-    const auto ig2 = (cc <= 1) ? ip - 2 : ip + 2;
+            } else if (dir == "j") {
+              // boundary conditions at corner
+              bc_2 = bc_.GetBCName(cFaceD2_3, d1, cFaceD2_2, surf2);
+              if (bc_2 == "viscousWall") {bc_2 = "slipWall";}
 
-    const auto jp = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_ - 1;
-    const auto ji1 = (cc % 2 == 0) ? jp + 1 : jp - 1;
-    const auto jg1 = (cc % 2 == 0) ? jp - 1 : jp + 1;
-    const auto jg2 = (cc % 2 == 0) ? jp - 2 : jp + 2;
+              bc_3 = bc_.GetBCName(cFaceD3_3, d1, cFaceD3_2, surf3);
+              if (bc_3 == "viscousWall") {bc_3 = "slipWall";}
 
-    // surface types of surfaces forming edge
-    const string surfI = (cc <= 1) ? "il" : "iu";
-    const string surfJ = (cc % 2 == 0) ? "jl" : "ju";
+              // get tags at corners
+              tag2 = bc_.GetBCTag(cFaceD2_3, d1, cFaceD2_2, surf2);
+              tag3 = bc_.GetBCTag(cFaceD3_3, d1, cFaceD3_2, surf3);
 
-    // face indices
-    // these only change from cell indices for upper edges
-    // these should only be used for accessing faces in their corresponding
-    // direction - i.e. ipF should only be used to access fAreaI, or fCenterI
-    const auto ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
-    const auto jpF = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_;
+              // get face area
+              fArea2 = fAreaK_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
+              fArea3 = fAreaI_(dir, d1, gCellD2, cFaceD3_3).UnitVector();
 
-    // Assign states
-    for (auto kk = kmin; kk <= kmax; kk++) {
-      // boundary conditions at corner
-      auto bc_I = bc_.GetBCName(ipF - numGhosts_, jp - numGhosts_,
-                                kk - numGhosts_, surfI);
-      if (bc_I == "viscousWall") {
-        bc_I = "slipWall";
-      }
-      auto bc_J = bc_.GetBCName(ip - numGhosts_, jpF - numGhosts_,
-                                kk - numGhosts_, surfJ);
-      if (bc_J == "viscousWall") {
-        bc_J = "slipWall";
-      }
+            } else {
+              // boundary conditions at corner
+              bc_2 = bc_.GetBCName(cFaceD2_2, cFaceD2_3, d1, surf2);
+              if (bc_2 == "viscousWall") {bc_2 = "slipWall";}
 
-      // Assign states
-      // i surface is a wall, but j surface is not - extend wall bc
-      if (bc_I == "slipWall" && bc_J != "slipWall") {
-        state_(ig1, jg1, kk) = state_(ip, jg1, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg1, kk), wallDist_(ip, jg1, kk),
-            surfI, inp, eos, suth, turb, 1);
-        state_(ig1, jg2, kk) = state_(ip, jg2, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg2, kk), wallDist_(ip, jg2, kk),
-            surfI, inp, eos, suth, turb, 1);
-        state_(ig2, jg1, kk) = state_(ig1, ji1, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg1, kk), wallDist_(ig1, ji1, kk),
-            surfI, inp, eos, suth, turb, 2);
-        state_(ig2, jg2, kk) = state_(ig2, ji1, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg2, kk), wallDist_(ig2, ji1, kk),
-            surfI, inp, eos, suth, turb, 2);
-        // j surface is a wall, but i surface is not - extend wall bc
-      } else if (bc_I != "slipWall" && bc_J == "slipWall") {
-        state_(ig1, jg1, kk) = state_(ig1, jp, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig1, jpF, kk), wallDist_(ig1, jp, kk),
-            surfJ, inp, eos, suth, turb, 1);
-        state_(ig2, jg1, kk) = state_(ig2, jp, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig2, jpF, kk), wallDist_(ig2, jp, kk),
-            surfJ, inp, eos, suth, turb, 1);
-        state_(ig1, jg2, kk) = state_(ii1, jg1, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig1, jpF, kk), wallDist_(ii1, jg1, kk),
-            surfJ, inp, eos, suth, turb, 2);
-        state_(ig2, jg2, kk) = state_(ii1, jg2, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig2, jpF, kk), wallDist_(ii1, jg2, kk),
-            surfJ, inp, eos, suth, turb, 2);
-      } else {  // both surfaces or neither are walls - proceed as normal
-        state_(ig1, jg1, kk) = 0.5 * (state_(ip, jg1, kk) +
-                                      state_(ig1, jp, kk));
-        state_(ig1, jg2, kk) = state_(ip, jg2, kk);
-        state_(ig2, jg1, kk) = state_(ig2, jp, kk);
-        state_(ig2, jg2, kk) = 0.5 * (state_(ig1, jg2, kk) +
-                                      state_(ig2, jg1, kk));
+              bc_3 = bc_.GetBCName(cFaceD3_2, cFaceD3_3, d1, surf3);
+              if (bc_3 == "viscousWall") {bc_3 = "slipWall";}
+
+              // get tags at corners
+              tag2 = bc_.GetBCTag(cFaceD2_2, cFaceD2_3, d1, surf2);
+              tag3 = bc_.GetBCTag(cFaceD3_2, cFaceD3_3, d1, surf3);
+
+              // get face area
+              fArea2 = fAreaI_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
+              fArea3 = fAreaJ_(dir, d1, gCellD2, cFaceD3_3).UnitVector();
+            }
+
+            // get wall distance
+            const auto wDist2 = wallDist_(dir, d1, cFaceD3_2, gCellD3);
+            const auto wDist3 = wallDist_(dir, d1, gCellD2, cFaceD2_3);
+
+            // assign states -------------------------------------------------
+            // surface-2 is a wall, but surface-3 is not - extend wall bc
+            if (bc_2 == "slipWall" && bc_3 != "slipWall") {
+              state_(dir, d1, gCellD2, gCellD3) =
+                  state_(dir, d1, pCellD2, gCellD3).GetGhostState(
+                      bc_2, fArea2, wDist2, surf2, inp, tag2, eos, suth, turb,
+                      layer2);
+              // surface-3 is a wall, but surface-2 is not - extend wall bc
+            } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
+              state_(dir, d1, gCellD2, gCellD3) =
+                  state_(dir, d1, gCellD2, pCellD3).GetGhostState(
+                      bc_3, fArea3, wDist3, surf3, inp, tag3, eos, suth, turb,
+                      layer3);
+            } else {  // both surfaces or neither are walls - proceed as normal
+              if (layer2 == layer3) {  // need to average
+                state_(dir, d1, gCellD2, gCellD3) = 0.5 *
+                    (state_(dir, d1, pCellD2, gCellD3) +
+                     state_(dir, d1, gCellD2, pCellD3));
+              } else if (layer2 > layer3) {  // values come from direction 3
+                state_(dir, d1, gCellD2, gCellD3) = state_(dir, d1, gCellD2, pCellD3);
+              } else {  // values come from direction 2
+                state_(dir, d1, gCellD2, gCellD3) = state_(dir, d1, pCellD2, gCellD3);
+              }
+            }
+          }
+        }
       }
     }
   }
@@ -3778,145 +3094,70 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
   // suth -- sutherland's law for viscosity
   // turb -- turbulence model
 
-  // loop over all boundary surfaces
-  for (auto ii = 0; ii < bc_.NumSurfaces(); ii++) {
-    // Get surface boundaries, and adjust them for ghost cells
-    const auto imin = bc_.GetIMin(ii) + numGhosts_;
-    const auto imax = bc_.GetIMax(ii) - 1 + numGhosts_;
-    const auto jmin = bc_.GetJMin(ii) + numGhosts_;
-    const auto jmax = bc_.GetJMax(ii) - 1 + numGhosts_;
-    const auto kmin = bc_.GetKMin(ii) + numGhosts_;
-    const auto kmax = bc_.GetKMax(ii) - 1 + numGhosts_;
+  // loop over all layers of ghost cells
+  for (auto layer = 1; layer <= numGhosts_; layer++) {
+    // loop over all boundary surfaces
+    for (auto ii = 0; ii < bc_.NumSurfaces(); ii++) {
+      // get ranges for boundary surface
+      const auto r1 = bc_.RangeDir1(ii);
+      const auto r2 = bc_.RangeDir2(ii);
+      const auto r3 = bc_.RangeDir3(ii);
 
-    int g1, g2, i1, i2;  // indices for cells
-    int bnd;  // indices for faces
-    if (bc_.GetSurfaceType(ii) == 2) {  // upper i-surface
-      g2 = imax + 2;
-      g1 = imax + 1;
-      i1 = imax;
-      i2 = imax - 1;
+      const auto dir = bc_.Direction3(ii);
+      const auto surfType = bc_.GetSurfaceType(ii);
+      const auto tag = bc_.GetTag(ii);
 
-      bnd = imax + 1;
-    } else if (bc_.GetSurfaceType(ii) == 4) {  // upper j-surface
-      g2 = jmax + 2;
-      g1 = jmax + 1;
-      i1 = jmax;
-      i2 = jmax - 1;
+      auto gCell = 0, iCell = 0, aCell = 0;           // indices for cells
+      auto bnd = 0;                                   // indices for faces
+      // adjust interior indices to be in physical range in case block is only a
+      // couple of cells thick
+      if (surfType % 2 == 0) {  // upper surface
+        gCell = r3.Start() + layer - 1;
+        iCell = r3.Start() - layer;
+        aCell = r3.Start() - 1;  // adjacent cell to bnd regardless of ghost layer
+        if (iCell < this->Start(dir)) iCell = this->Start(dir);
 
-      bnd = jmax + 1;
-    } else if (bc_.GetSurfaceType(ii) == 6) {  // upper k-surface
-      g2 = kmax + 2;
-      g1 = kmax + 1;
-      i1 = kmax;
-      i2 = kmax - 1;
+        bnd = r3.Start();
+      } else {  // lower surface
+        gCell = r3.Start() - layer;
+        iCell = r3.Start() + layer - 1;
+        aCell = r3.Start();  // adjacent cell to bnd regardless of ghost layer
+        if (iCell >= this->End(dir)) iCell = this->End(dir) - 1;
 
-      bnd = kmax + 1;
-    } else {  // lower surface
-      g2 = 0;
-      g1 = 1;
-      i1 = 2;
-      i2 = 3;
-
-      bnd = 2;
-    }
-
-    //-----------------------------------------------------------------------
-    // Assign ghost cells for i-surfaces
-    // -----------------------------------------------------------------------
-    // only overwrite cell values for viscous walls
-    if ((bc_.GetSurfaceType(ii) == 1 || bc_.GetSurfaceType(ii) == 2) &&
-        bc_.GetBCTypes(ii) == "viscousWall") {
-      const string surf = (bc_.GetSurfaceType(ii) == 1) ? "il" : "iu";
-      const string bcName = "viscousWall";
-      // assign state for first layer of ghost cells
-      const auto faceAreas = fAreaI_.Slice(bnd, bnd, jmin, jmax, kmin, kmax);
-      auto boundaryStates = state_.Slice(i1, i1, jmin, jmax, kmin, kmax);
-      const auto wDist = wallDist_.Slice(i1, i1, jmin, jmax, kmin, kmax);
-      auto ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas,
-                                              wDist, surf, inp, eos, suth, turb,
-                                              1);
-
-      state_.Insert(g1, g1, jmin, jmax, kmin, kmax, ghostStates);
-
-      // assign state for second layer of ghost cells
-      // one cell thick - use one cell for both ghost cells
-      if (this->NumI() < 2) {
-        state_.Insert(g2, g2, jmin, jmax, kmin, kmax, ghostStates);
-      } else {
-        boundaryStates = state_.Slice(i2, i2, jmin, jmax, kmin, kmax);
-        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
-                                     surf, inp, eos, suth, turb, 2);
-
-        state_.Insert(g2, g2, jmin, jmax, kmin, kmax, ghostStates);
+        bnd = r3.Start();
       }
 
-    //-----------------------------------------------------------------------
-    // Assign ghost cells for j-surfaces
-    // -----------------------------------------------------------------------
-    // only overwrite cell values for viscous walls
-    } else if ((bc_.GetSurfaceType(ii) == 3 || bc_.GetSurfaceType(ii) == 4) &&
-               bc_.GetBCTypes(ii) == "viscousWall") {
-      const string surf = (bc_.GetSurfaceType(ii) == 3) ? "jl" : "ju";
-      const string bcName = "viscousWall";
-      // assign state for first layer of ghost cells
-      const auto faceAreas = fAreaJ_.Slice(imin, imax, bnd, bnd, kmin, kmax);
-      auto boundaryStates = state_.Slice(imin, imax, i1, i1, kmin, kmax);
-      const auto wDist = wallDist_.Slice(imin, imax, i1, i1, kmin, kmax);
-      auto ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas,
-                                              wDist, surf, inp, eos, suth, turb,
-                                              1);
+      // -----------------------------------------------------------------------
+      // only overwrite cell values for viscous walls
+      if (bc_.GetBCTypes(ii) == "viscousWall") {
+        const string bcName = "viscousWall";
 
-      // assign state for first layer of ghost cells
-      state_.Insert(imin, imax, g1, g1, kmin, kmax, ghostStates);
+        // get face areas on boundary
+        multiArray3d<unitVec3dMag<double>> faceAreas;
+        if (dir == "i") {  // i-surface, dir1 = j, dir2 = k --------------------
+          faceAreas = this->fAreaI_.Slice(bnd, r1, r2);
+        } else if (dir == "j") {  // j-surface, dir1 = k, dir2 = i -------------
+          faceAreas = this->fAreaJ_.Slice(r2, bnd, r1);
+        } else {  // k-surface, dir1 = i, dir2 = j -----------------------------
+          faceAreas = this->fAreaK_.Slice(r1, r2, bnd);
+        }
 
-      // assign state for second layer of ghost cells
-      // one cell thick - use one cell for both ghost cells
-      if (this->NumJ() < 2) {
-        state_.Insert(imin, imax, g2, g2, kmin, kmax, ghostStates);
-      } else {
-        boundaryStates = state_.Slice(imin, imax, i2, i2, kmin, kmax);
-        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
-                                     surf, inp, eos, suth, turb, 2);
+        const auto wDist = wallDist_.Slice(dir, aCell, r1, r2);
 
-        state_.Insert(imin, imax, g2, g2, kmin, kmax, ghostStates);
-      }
+        // get interior boundary states and ghost states
+        const auto boundaryStates = state_.Slice(dir, iCell, r1, r2);
+        const auto ghostStates = GetGhostStates(boundaryStates, bcName,
+                                                faceAreas, wDist, surfType, inp,
+                                                tag, eos, suth, turb, layer);
 
-    //-----------------------------------------------------------------------
-    // Assign ghost cells for k-surfaces
-    // -----------------------------------------------------------------------
-    // only overwrite cell values for viscous walls
-    } else if ((bc_.GetSurfaceType(ii) == 5 || bc_.GetSurfaceType(ii) == 6) &&
-               bc_.GetBCTypes(ii) == "viscousWall") {
-      const string surf = (bc_.GetSurfaceType(ii) == 5) ? "kl" : "ku";
-      const string bcName = "viscousWall";
-      // assign state for first layer of ghost cells
-      const auto faceAreas = fAreaK_.Slice(imin, imax, jmin, jmax, bnd, bnd);
-      auto boundaryStates = state_.Slice(imin, imax, jmin, jmax, i1, i1);
-      const auto wDist = wallDist_.Slice(imin, imax, jmin, jmax, i1, i1);
-      auto ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas,
-                                              wDist, surf, inp, eos, suth, turb,
-                                              1);
-
-      // assign state for first layer of ghost cells
-      state_.Insert(imin, imax, jmin, jmax, g1, g1, ghostStates);
-
-      // assign state for second layer of ghost cells
-      // one cell thick - use one cell for both ghost cells
-      if (this->NumK() < 2) {
-        state_.Insert(imin, imax, jmin, jmax, g2, g2, ghostStates);
-      } else {
-        boundaryStates = state_.Slice(imin, imax, jmin, jmax, i2, i2);
-        ghostStates = GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
-                                     surf, inp, eos, suth, turb, 2);
-
-        state_.Insert(imin, imax, jmin, jmax, g2, g2, ghostStates);
+        state_.Insert(dir, gCell, r1, r2, ghostStates);
       }
     }
   }
-
   // Assign edge ghost cells
   this->AssignViscousGhostCellsEdge(inp, eos, suth, turb);
 }
+
 
 /* Member function to assign values to ghost cells located on the 12 block edges
 for the viscous flux calculation. Assumes AssignViscousGhostCells has already
@@ -3962,251 +3203,147 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
   // suth -- sutherland's law for viscosity
   // turb -- turbulence model
 
-  // ------------------------------------------------------------------------
-  // loop over 4 edges that run in i-direction
-  for (auto cc = 0; cc < 4; cc++) {
-    // cc = 0 -> jl/kl
-    // cc = 1 -> jl/ku
-    // cc = 2 -> ju/kl
-    // cc = 3 -> ju/ku
-
-    // cell indices
-    const auto imin = numGhosts_;
-    const auto imax = this->NumI() + numGhosts_ - 1;
-
-    const auto jp = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_ - 1;
-    const auto ji1 = (cc <= 1) ? jp + 1 : jp - 1;
-    const auto jg1 = (cc <= 1) ? jp - 1 : jp + 1;
-    const auto jg2 = (cc <= 1) ? jp - 2 : jp + 2;
-
-    const auto kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ - 1;
-    const auto ki1 = (cc % 2 == 0) ? kp + 1 : kp - 1;
-    const auto kg1 = (cc % 2 == 0) ? kp - 1 : kp + 1;
-    const auto kg2 = (cc % 2 == 0) ? kp - 2 : kp + 2;
-
-    // surface types of surfaces forming edge
-    const string surfJ = (cc <= 1) ? "jl" : "ju";
-    const string surfK = (cc % 2 == 0) ? "kl" : "ku";
-
-    // face indices
-    // these only change from cell indices for upper edges
-    // these should only be used for accessing faces in their corresponding
-    // direction - i.e. jpF should only be used to access fAreaJ, or fCenterJ
-    const auto jpF = (cc <= 1) ? numGhosts_ : this->NumJ() + numGhosts_;
-    const auto kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
-
-    for (auto ii = imin; ii <= imax; ii++) {
-      // boundary conditions at corner
-      const auto bc_J = bc_.GetBCName(ii - numGhosts_, jpF - numGhosts_,
-                                      kp - numGhosts_, surfJ);
-      const auto bc_K = bc_.GetBCName(ii - numGhosts_, jp - numGhosts_,
-                                      kpF - numGhosts_, surfK);
-
-      // Assign states
-      // j surface is a wall, but k surface is not - extend wall bc
-      if (bc_J == "viscousWall" && bc_K != "viscousWall") {
-        state_(ii, jg1, kg1) = state_(ii, jp, kg1).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg1), wallDist_(ii, jp, kg1),
-            surfJ, inp, eos, suth, turb, 1);
-        state_(ii, jg1, kg2) = state_(ii, jp, kg2).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg2), wallDist_(ii, jp, kg2),
-            surfJ, inp, eos, suth, turb, 1);
-        state_(ii, jg2, kg1) = state_(ii, jg1, ki1).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg1), wallDist_(ii, jg1, ki1),
-            surfJ, inp, eos, suth, turb, 2);
-        state_(ii, jg2, kg2) = state_(ii, jg2, ki1).GetGhostState(
-            bc_J, this->FAreaUnitJ(ii, jpF, kg2), wallDist_(ii, jg2, ki1),
-            surfJ, inp, eos, suth, turb, 2);
-        // k surface is a wall, but j surface is not - extend wall bc
-      } else if (bc_J != "viscousWall" && bc_K == "viscousWall") {
-        state_(ii, jg1, kg1) = state_(ii, jg1, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg1, kpF), wallDist_(ii, jg1, kp),
-            surfK, inp, eos, suth, turb, 1);
-        state_(ii, jg2, kg1) = state_(ii, jg2, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg2, kpF), wallDist_(ii, jg2, kp),
-            surfK, inp, eos, suth, turb, 1);
-        state_(ii, jg1, kg2) = state_(ii, ji1, kg1).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg1, kpF), wallDist_(ii, ji1, kg1),
-            surfK, inp, eos, suth, turb, 2);
-        state_(ii, jg2, kg2) = state_(ii, ji1, kg2).GetGhostState(
-            bc_K, this->FAreaUnitK(ii, jg2, kpF), wallDist_(ii, ji1, kg2),
-            surfK, inp, eos, suth, turb, 2);
-      // both surfaces are walls - proceed as normal
-      } else if (bc_J == "viscousWall" && bc_K == "viscousWall") {
-        state_(ii, jg1, kg1) = 0.5 * (state_(ii, jp, kg1) +
-                                      state_(ii, jg1, kp));
-        state_(ii, jg1, kg2) = state_(ii, jp, kg2);
-        state_(ii, jg2, kg1) = state_(ii, jg2, kp);
-        state_(ii, jg2, kg2) = 0.5 * (state_(ii, jg1, kg2) +
-                                      state_(ii, jg2, kg1));
-      }
-      // if neither surfaces are walls, do nothing
+  // loop over directions i, j, k
+  for (auto dd = 0; dd < 3; dd++) {
+    string dir = "";
+    auto max1 = 0, max2 = 0, max3 = 0, surfStart = 0;
+    if (dd == 0) {
+      dir = "i";
+      max1 = this->NumI();
+      max2 = this->NumJ();
+      max3 = this->NumK();
+      surfStart = 1;
+    } else if (dd == 1) {
+      dir = "j";
+      max1 = this->NumJ();
+      max2 = this->NumK();
+      max3 = this->NumI();
+      surfStart = 3;
+    } else {
+      dir = "k";
+      max1 = this->NumK();
+      max2 = this->NumI();
+      max3 = this->NumJ();
+      surfStart = 5;
     }
-  }
 
-  // ------------------------------------------------------------------------
-  // loop over 4 edges that run in j-direction
-  for (auto cc = 0; cc < 4; cc++) {
-    // cc = 0 -> il/kl
-    // cc = 1 -> il/ku
-    // cc = 2 -> iu/kl
-    // cc = 3 -> iu/ku
+    // direction 1 is direction of line of cells, directions 2/3 are next in
+    // cyclic order
+    // loop over layer2, and layer3
+    for (auto layer3 = 1; layer3 <= numGhosts_; layer3++) {
+      for (auto layer2 = 1; layer2 <= numGhosts_; layer2++) {
+        // loop over 4 edges that run in direction 1
+        for (auto cc = 0; cc < 4; cc++) {
+          // cc = 0 -> dir2-l/dir3-l
+          // cc = 1 -> dir2-l/dir3-u
+          // cc = 2 -> dir2-u/dir3-l
+          // cc = 3 -> dir2-u/dir3-u
 
-    // cell indices
-    const auto jmin = numGhosts_;
-    const auto jmax = this->NumJ() + numGhosts_ - 1;
+          const auto upper2 = cc > 1;
+          const auto upper3 = cc % 2 == 1;
 
-    const auto ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ - 1;
-    const auto ii1 = (cc <= 1) ? ip + 1 : ip - 1;
-    const auto ig1 = (cc <= 1) ? ip - 1 : ip + 1;
-    const auto ig2 = (cc <= 1) ? ip - 2 : ip + 2;
+          // cell indices (g-ghost at current layer, p-ghost at previous layer)
+          const auto pCellD2 = upper2 ? max2 + layer2 - 2 : 1 - layer2;
+          const auto gCellD2 = upper2 ? pCellD2 + 1 : pCellD2 - 1;
 
-    const auto kp = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_ - 1;
-    const auto ki1 = (cc % 2 == 0) ? kp + 1 : kp - 1;
-    const auto kg1 = (cc % 2 == 0) ? kp - 1 : kp + 1;
-    const auto kg2 = (cc % 2 == 0) ? kp - 2 : kp + 2;
+          const auto pCellD3 = upper3 ? max3 + layer3 - 2 : 1 - layer3;
+          const auto gCellD3 = upper3 ? pCellD3 + 1 : pCellD3 - 1;
 
-    // surface types of surfaces forming edge
-    const string surfI = (cc <= 1) ? "il" : "iu";
-    const string surfK = (cc % 2 == 0) ? "kl" : "ku";
+          // surface types of surfaces forming edge
+          const auto surf2 = upper2 ? surfStart + 1 : surfStart;
+          const auto surf3 = upper3 ? surfStart + 1 : surfStart;
 
-    // face indices
-    // these only change from cell indices for upper edges
-    // these should only be used for accessing faces in their corresponding
-    // direction - i.e. ipF should only be used to access fAreaI, or fCenterI
-    const auto ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
-    const auto kpF = (cc % 2 == 0) ? numGhosts_ : this->NumK() + numGhosts_;
+          // face indices at corner
+          // these only change from cell indices for upper edges
+          // use these to access face quantities when direction 2 is same as face
+          // type -- i.e. to access fAreaJ if J is direction 2
+          const auto cFaceD2_2 = upper2 ? max2 : 0;
+          const auto cFaceD2_3 = upper3 ? max3 - 1 : 0;
+          // use these to access face quantities when direction 3 is same as face
+          // type -- i.e. to access fAreaK if K is direction 3
+          const auto cFaceD3_2 = upper2 ? max2 - 1: 0;
+          const auto cFaceD3_3 = upper3 ? max3 : 0;
 
-    // Assign states
-    for (auto jj = jmin; jj <= jmax; jj++) {
-      // boundary conditions at corner
-      const auto bc_I = bc_.GetBCName(ipF - numGhosts_, jj - numGhosts_,
-                                      kp - numGhosts_, surfI);
-      const auto bc_K = bc_.GetBCName(ip - numGhosts_, jj - numGhosts_,
-                                      kpF - numGhosts_, surfK);
+          // loop over edge
+          for (auto d1 = 0; d1 <= max1; d1++) {
+            string bc_2 = "undefined";
+            string bc_3 = "undefined";
+            auto tag2 = 0, tag3 = 0;
+            vector3d<double> fArea2, fArea3;
+            if (dir == "i") {
+              // boundary conditions at corner
+              bc_2 = bc_.GetBCName(d1, cFaceD2_2, cFaceD2_3, surf2);
+              bc_3 = bc_.GetBCName(d1, cFaceD3_2, cFaceD3_3, surf3);
 
-      // Assign states
-      // i surface is a wall, but k surface is not - extend wall bc
-      if (bc_I == "viscousWall" && bc_K != "viscousWall") {
-        state_(ig1, jj, kg1) = state_(ip, jj, kg1).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg1), wallDist_(ip, jj, kg1),
-            surfI, inp, eos, suth, turb, 1);
-        state_(ig1, jj, kg2) = state_(ip, jj, kg2).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg2), wallDist_(ip, jj, kg2),
-            surfI, inp, eos, suth, turb, 1);
-        state_(ig2, jj, kg1) = state_(ig1, jj, ki1).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg1), wallDist_(ig1, jj, ki1),
-            surfI, inp, eos, suth, turb, 2);
-        state_(ig2, jj, kg2) = state_(ig2, jj, ki1).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jj, kg2), wallDist_(ig2, jj, ki1),
-            surfI, inp, eos, suth, turb, 2);
-        // k surface is a wall, but i surface is not - extend wall bc
-      } else if (bc_I != "viscousWall" && bc_K == "viscousWall") {
-        state_(ig1, jj, kg1) = state_(ig1, jj, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ig1, jj, kpF), wallDist_(ig1, jj, kp),
-            surfK, inp, eos, suth, turb, 1);
-        state_(ig2, jj, kg1) = state_(ig2, jj, kp).GetGhostState(
-            bc_K, this->FAreaUnitK(ig2, jj, kpF), wallDist_(ig2, jj, kp),
-            surfK, inp, eos, suth, turb, 1);
-        state_(ig1, jj, kg2) = state_(ii1, jj, kg1).GetGhostState(
-            bc_K, this->FAreaUnitK(ig1, jj, kpF), wallDist_(ii1, jj, kg1),
-            surfK, inp, eos, suth, turb, 2);
-        state_(ig2, jj, kg2) = state_(ii1, jj, kg2).GetGhostState(
-            bc_K, this->FAreaUnitK(ig2, jj, kpF), wallDist_(ii1, jj, kg2),
-            surfK, inp, eos, suth, turb, 2);
-      // both surfaces are walls - proceed as normal
-      } else if (bc_I == "viscousWall" && bc_K == "viscousWall") {
-        state_(ig1, jj, kg1) = 0.5 * (state_(ip, jj, kg1) +
-                                      state_(ig1, jj, kp));
-        state_(ig1, jj, kg2) = state_(ip, jj, kg2);
-        state_(ig2, jj, kg1) = state_(ig2, jj, kp);
-        state_(ig2, jj, kg2) = 0.5 * (state_(ig1, jj, kg2) +
-                                      state_(ig2, jj, kg1));
+              // get tags at corner
+              tag2 = bc_.GetBCTag(d1, cFaceD2_2, cFaceD2_3, surf2);
+              tag3 = bc_.GetBCTag(d1, cFaceD3_2, cFaceD3_3, surf3);
+
+              // get face area
+              fArea2 = fAreaJ_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
+              fArea3 = fAreaK_(dir, d1, gCellD2, cFaceD3_3).UnitVector();
+
+            } else if (dir == "j") {
+              // boundary conditions at corner
+              bc_2 = bc_.GetBCName(cFaceD2_3, d1, cFaceD2_2, surf2);
+              bc_3 = bc_.GetBCName(cFaceD3_3, d1, cFaceD3_2, surf3);
+
+              // get tags at corner
+              tag2 = bc_.GetBCTag(cFaceD2_3, d1, cFaceD2_2, surf2);
+              tag3 = bc_.GetBCTag(cFaceD3_3, d1, cFaceD3_2, surf3);
+
+              // get face area
+              fArea2 = fAreaK_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
+              fArea3 = fAreaI_(dir, d1, gCellD2, cFaceD3_3).UnitVector();
+
+            } else {
+              // boundary conditions at corner
+              bc_2 = bc_.GetBCName(cFaceD2_2, cFaceD2_3, d1, surf2);
+              bc_3 = bc_.GetBCName(cFaceD3_2, cFaceD3_3, d1, surf3);
+
+              // get tags at corner
+              tag2 = bc_.GetBCTag(cFaceD2_2, cFaceD2_3, d1, surf2);
+              tag3 = bc_.GetBCTag(cFaceD3_2, cFaceD3_3, d1, surf3);
+
+              // get face area
+              fArea2 = fAreaI_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
+              fArea3 = fAreaJ_(dir, d1, gCellD2, cFaceD3_3).UnitVector();
+            }
+
+            // get wall distance
+            const auto wDist2 = wallDist_(dir, d1, cFaceD3_2, gCellD3);
+            const auto wDist3 = wallDist_(dir, d1, gCellD2, cFaceD2_3);
+
+
+            // assign states -------------------------------------------------
+            // surface-2 is a wall, but surface-3 is not - extend wall bc
+            if (bc_2 == "slipWall" && bc_3 != "slipWall") {
+              state_(dir, d1, gCellD2, gCellD3) =
+                  state_(dir, d1, pCellD2, gCellD3).GetGhostState(
+                      bc_2, fArea2, wDist2, surf2, inp, tag2, eos, suth, turb,
+                      layer2);
+              // surface-3 is a wall, but surface-2 is not - extend wall bc
+            } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
+              state_(dir, d1, gCellD2, gCellD3) =
+                  state_(dir, d1, gCellD2, pCellD3).GetGhostState(
+                      bc_3, fArea3, wDist3, surf3, inp, tag3, eos, suth, turb,
+                      layer3);
+              // both surfaces are walls - proceed as normal
+            } else if (bc_2 == "viscousWall" && bc_3 == "viscousWall") {
+              if (layer2 == layer3) {  // need to average
+                state_(dir, d1, gCellD2, gCellD3) = 0.5 *
+                    (state_(dir, d1, pCellD2, gCellD3) +
+                     state_(dir, d1, gCellD2, pCellD3));
+              } else if (layer2 > layer3) {  // values come from direction 3
+                state_(dir, d1, gCellD2, gCellD3) = state_(dir, d1, gCellD2, pCellD3);
+              } else {  // values come from direction 2
+                state_(dir, d1, gCellD2, gCellD3) = state_(dir, d1, pCellD2, gCellD3);
+              }
+            }
+            // if neither surfaces are walls, do nothing
+          }
+        }
       }
-      // if neither surfaces are walls, do nothing
-    }
-  }
-
-  // ------------------------------------------------------------------------
-  // loop over 4 edges that run in k-direction
-  for (auto cc = 0; cc < 4; cc++) {
-    // cc = 0 -> il/jl
-    // cc = 1 -> il/ju
-    // cc = 2 -> iu/jl
-    // cc = 3 -> iu/ju
-
-    // cell indices
-    const auto kmin = numGhosts_;
-    const auto kmax = this->NumK() + numGhosts_ - 1;
-
-    const auto ip = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_ - 1;
-    const auto ii1 = (cc <= 1) ? ip + 1 : ip - 1;
-    const auto ig1 = (cc <= 1) ? ip - 1 : ip + 1;
-    const auto ig2 = (cc <= 1) ? ip - 2 : ip + 2;
-
-    const auto jp = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_ - 1;
-    const auto ji1 = (cc % 2 == 0) ? jp + 1 : jp - 1;
-    const auto jg1 = (cc % 2 == 0) ? jp - 1 : jp + 1;
-    const auto jg2 = (cc % 2 == 0) ? jp - 2 : jp + 2;
-
-    // surface types of surfaces forming edge
-    const string surfI = (cc <= 1) ? "il" : "iu";
-    const string surfJ = (cc % 2 == 0) ? "jl" : "ju";
-
-    // face indices
-    // these only change from cell indices for upper edges
-    // these should only be used for accessing faces in their corresponding
-    // direction - i.e. ipF should only be used to access fAreaI, or fCenterI
-    const auto ipF = (cc <= 1) ? numGhosts_ : this->NumI() + numGhosts_;
-    const auto jpF = (cc % 2 == 0) ? numGhosts_ : this->NumJ() + numGhosts_;
-
-    // Assign states
-    for (auto kk = kmin; kk <= kmax; kk++) {
-      // boundary conditions at corner
-      const auto bc_I = bc_.GetBCName(ipF - numGhosts_, jp - numGhosts_,
-                                      kk - numGhosts_, surfI);
-      const auto bc_J = bc_.GetBCName(ip - numGhosts_, jpF - numGhosts_,
-                                      kk - numGhosts_, surfJ);
-
-      // Assign states
-      // i surface is a wall, but j surface is not - extend wall bc
-      if (bc_I == "viscousWall" && bc_J != "viscousWall") {
-        state_(ig1, jg1, kk) = state_(ip, jg1, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg1, kk), wallDist_(ip, jg1, kk),
-            surfI, inp, eos, suth, turb, 1);
-        state_(ig1, jg2, kk) = state_(ip, jg2, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg2, kk), wallDist_(ip, jg2, kk),
-            surfI, inp, eos, suth, turb, 1);
-        state_(ig2, jg1, kk) = state_(ig1, ji1, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg1, kk), wallDist_(ig1, ji1, kk),
-            surfI, inp, eos, suth, turb, 2);
-        state_(ig2, jg2, kk) = state_(ig2, ji1, kk).GetGhostState(
-            bc_I, this->FAreaUnitI(ipF, jg2, kk), wallDist_(ig2, ji1, kk),
-            surfI, inp, eos, suth, turb, 2);
-        // j surface is a wall, but i surface is not - extend wall bc
-      } else if (bc_I != "viscousWall" && bc_J == "viscousWall") {
-        state_(ig1, jg1, kk) = state_(ig1, jp, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig1, jpF, kk), wallDist_(ig1, jp, kk),
-            surfJ, inp, eos, suth, turb, 1);
-        state_(ig2, jg1, kk) = state_(ig2, jp, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig2, jpF, kk), wallDist_(ig2, jp, kk),
-            surfJ, inp, eos, suth, turb, 1);
-        state_(ig1, jg2, kk) = state_(ii1, jg1, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig1, jpF, kk), wallDist_(ii1, jg1, kk),
-            surfJ, inp, eos, suth, turb, 2);
-        state_(ig2, jg2, kk) = state_(ii1, jg2, kk).GetGhostState(
-            bc_J, this->FAreaUnitJ(ig2, jpF, kk), wallDist_(ii1, jg2, kk),
-            surfJ, inp, eos, suth, turb, 2);
-      // both surfaces are walls - proceed as normal
-      } else if (bc_I == "viscousWall" && bc_J == "viscousWall") {
-        state_(ig1, jg1, kk) = 0.5 * (state_(ip, jg1, kk) +
-                                      state_(ig1, jp, kk));
-        state_(ig1, jg2, kk) = state_(ip, jg2, kk);
-        state_(ig2, jg1, kk) = state_(ig2, jp, kk);
-        state_(ig2, jg2, kk) = 0.5 * (state_(ig1, jg2, kk) +
-                                      state_(ig2, jg1, kk));
-      }
-      // if neither surfaces are walls, do nothing
     }
   }
 }
@@ -4215,25 +3352,18 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
 It takes in an i, j, k cell location and returns a boolean indicating
 if the given i, j, k location corresponds to a physical cell location.
  */
-bool procBlock::IsPhysical(const int &ii, const int &jj, const int &kk,
-                           const bool &includeGhost) const {
+bool procBlock::IsPhysical(const int &ii, const int &jj, const int &kk) const {
   // ii -- i index of location to test
   // jj -- j index of location to test
   // kk -- k index of location to test
-  // includeGhost -- flag to determine if inputs include ghost cells or not
 
   auto isPhysical = true;
 
-  const auto offset = includeGhost ? numGhosts_ : 0;
-
   // if any of (i, j, & k) are outside of the limits of physical cells, location
   // is non-physical
-  if ((ii < offset ||
-       ii > this->NumI() - 1 + offset) ||
-      (jj < offset ||
-       jj > this->NumJ() - 1 + offset) ||
-      (kk < offset ||
-       kk > this->NumK() - 1 + offset)) {
+  if ((ii < 0 || ii >= this->NumI()) ||
+      (jj < 0 || jj >= this->NumJ()) ||
+      (kk < 0 || kk >= this->NumK())) {
     isPhysical = false;
   }
 
@@ -4246,8 +3376,7 @@ if the given i, j, k location corresponds to a corner location. Corner locations
 are not used at all. This function is NOT USED in the code but is useful
 for debugging purposes.
  */
-bool procBlock::AtCorner(const int &ii, const int &jj, const int &kk,
-                         const bool &includeGhost) const {
+bool procBlock::AtCorner(const int &ii, const int &jj, const int &kk) const {
   // ii -- i index of location to test
   // jj -- j index of location to test
   // kk -- k index of location to test
@@ -4255,16 +3384,11 @@ bool procBlock::AtCorner(const int &ii, const int &jj, const int &kk,
 
   auto atCorner = false;
 
-  const auto offset = includeGhost ? numGhosts_ : 0;
-
   // if all (i, j, & k) are outside of the limits of physical cells, location is
   // a corner location
-  if ((ii < offset ||
-       ii > this->NumI() - 1 + offset) &&
-      (jj < offset ||
-       jj > this->NumJ() - 1 + offset) &&
-      (kk < offset ||
-       kk > this->NumK() - 1 + offset)) {
+  if ((ii < 0 || ii > this->NumI() - 1) &&
+      (jj < 0 || jj > this->NumJ() - 1) &&
+      (kk < 0 || kk > this->NumK() - 1)) {
     atCorner = true;
   }
 
@@ -4277,33 +3401,30 @@ if the given i, j, k location corresponds to a edge location. Edge locations are
 used in the gradient calculations.
  */
 bool procBlock::AtEdge(const int &ii, const int &jj, const int &kk,
-                       const bool &includeGhost, string &dir) const {
+                       string &dir) const {
   // ii -- i index of location to test
   // jj -- j index of location to test
   // kk -- k index of location to test
-  // includeGhost -- flag to determine if inputs include ghost cells or not
   // dir -- direction that edge runs in
 
   auto atEdge = false;
 
-  const auto offset = includeGhost ? numGhosts_ : 0;
-
   // at i-edge - i in physical cell range, j/k at first level of ghost cells
-  if ((ii >= offset && ii < this->NumI() + offset) &&
-      (jj == offset - 1 || jj == this->NumJ() + offset) &&
-      (kk == offset - 1 || kk == this->NumK() + offset)) {
+  if ((ii >= 0 && ii < this->NumI()) &&
+      (jj == -1 || jj == this->NumJ()) &&
+      (kk == -1 || kk == this->NumK())) {
     atEdge = true;
     dir = "i";
   // at j-edge - j in physical cell range, i/k at first level of ghost cells
-  } else if ((ii == offset - 1 || ii == this->NumI() + offset) &&
-             (jj >= offset && jj < this->NumJ() + offset) &&
-             (kk == offset - 1 || kk == this->NumK() + offset)) {
+  } else if ((ii == -1 || ii == this->NumI()) &&
+             (jj >= 0 && jj < this->NumJ()) &&
+             (kk == -1 || kk == this->NumK())) {
     atEdge = true;
     dir = "j";
   // at k-edge - k in physical cell range, i/j at first level of ghost cells
-  } else if ((ii == offset - 1 || ii == this->NumI() + offset) &&
-             (jj == offset - 1 || jj == this->NumJ() + offset) &&
-             (kk >= offset && kk < this->NumK() + offset)) {
+  } else if ((ii == -1 || ii == this->NumI()) &&
+             (jj == -1 || jj == this->NumJ()) &&
+             (kk >= 0 && kk < this->NumK())) {
     atEdge = true;
     dir = "k";
   }
@@ -4325,33 +3446,30 @@ bool procBlock::AtEdge(const int &ii, const int &jj, const int &kk,
    
 */
 bool procBlock::AtEdgeInclusive(const int &ii, const int &jj, const int &kk,
-                                const bool &includeGhost, string &dir) const {
+                                string &dir) const {
   // ii -- i index of location to test
   // jj -- j index of location to test
   // kk -- k index of location to test
-  // includeGhost -- flag to determine if inputs include ghost cells or not
   // dir -- direction that edge runs in
 
   auto atEdge = false;
 
-  const auto offset = includeGhost ? numGhosts_ : 0;
-
   // at i-edge - i in physical cell range, j/k in ghost cells
-  if ((ii >= offset && ii < this->NumI() + offset) &&
-      (jj < offset || jj >= this->NumJ() + offset) &&
-      (kk < offset || kk >= this->NumK() + offset)) {
+  if ((ii >= 0 && ii < this->NumI()) &&
+      (jj < 0 || jj >= this->NumJ()) &&
+      (kk < 0 || kk >= this->NumK())) {
     atEdge = true;
     dir = "i";
   // at j-edge - j in physical cell range, i/k in ghost cells
-  } else if ((ii < offset || ii >= this->NumI() + offset) &&
-             (jj >= offset && jj < this->NumJ() + offset) &&
-             (kk < offset || kk >= this->NumK() + offset)) {
+  } else if ((ii < 0 || ii >= this->NumI()) &&
+             (jj >= 0 && jj < this->NumJ()) &&
+             (kk < 0 || kk >= this->NumK())) {
     atEdge = true;
     dir = "j";
   // at k-edge - k in physical cell range, i/j in ghost cells
-  } else if ((ii < offset || ii >= this->NumI() + offset) &&
-             (jj < offset || jj >= this->NumJ() + offset) &&
-             (kk >= offset && kk < this->NumK() + offset)) {
+  } else if ((ii < 0 || ii >= this->NumI()) &&
+             (jj < 0 || jj >= this->NumJ()) &&
+             (kk >= 0 && kk < this->NumK())) {
     atEdge = true;
     dir = "k";
   }
@@ -4383,17 +3501,16 @@ void procBlock::SwapStateSlice(const interblock &inter, procBlock &blk) {
   // inter -- interblock boundary information
   // blk -- second block involved in interblock boundary
 
-  state_.SwapSlice(inter, blk.state_, numGhosts_, blk.NumGhosts());
+  state_.SwapSlice(inter, blk.state_);
 }
 
 void procBlock::SwapTurbSlice(const interblock &inter, procBlock &blk) {
   // inter -- interblock boundary information
   // blk -- second block involved in interblock boundary
 
-  eddyViscosity_.SwapSlice(inter, blk.eddyViscosity_, numGhosts_,
-                           blk.NumGhosts());
-  f1_.SwapSlice(inter, blk.f1_, numGhosts_, blk.NumGhosts());
-  f2_.SwapSlice(inter, blk.f2_, numGhosts_, blk.NumGhosts());
+  eddyViscosity_.SwapSlice(inter, blk.eddyViscosity_);
+  f1_.SwapSlice(inter, blk.f1_);
+  f2_.SwapSlice(inter, blk.f2_);
 }
 
 
@@ -4407,16 +3524,16 @@ void procBlock::SwapStateSliceMPI(const interblock &inter, const int &rank,
   // rank -- processor rank
   // MPI_cellData -- MPI datatype for passing primVars, genArray
 
-  state_.SwapSliceMPI(inter, rank, MPI_cellData, numGhosts_);
+  state_.SwapSliceMPI(inter, rank, MPI_cellData);
 }
 
 void procBlock::SwapTurbSliceMPI(const interblock &inter, const int &rank) {
   // inter -- interblock boundary information
   // rank -- processor rank
 
-  eddyViscosity_.SwapSliceMPI(inter, rank, MPI_DOUBLE, numGhosts_, 1);
-  f1_.SwapSliceMPI(inter, rank, MPI_DOUBLE, numGhosts_, 2);
-  f2_.SwapSliceMPI(inter, rank, MPI_DOUBLE, numGhosts_, 3);
+  eddyViscosity_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 1);
+  f1_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 2);
+  f2_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 3);
 }
 
 
@@ -4462,22 +3579,20 @@ boundary conditions and should be ignored. Subsequently, the interblock should b
 updated so that in the future this cell is not inserted.
 */
 vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
-                                     const int &d3, const int &numG) {
+                                     const int &d3) {
   // slice -- geomSlice to insert int procBlock
   // inter -- interblock data structure describing the patches and their
   // orientation
   // d3 -- distance of direction normal to patch to insert
-  // numG -- number of ghost cells
 
   // check that number of cells to insert matches
-  const auto blkCell = (inter.Dir1EndFirst() - inter.Dir1StartFirst()) *
-      (inter.Dir2EndFirst() - inter.Dir2StartFirst()) * d3;
+  const auto blkCell = inter.Dir1LenFirst() * inter.Dir2LenFirst() * d3;
   if (blkCell != slice.NumCells()) {
     cerr << "ERROR: Error in procBlock::PutGeomSlice(). Number of cells being "
             "inserted does not match designated space to insert to." << endl;
     cerr << "Direction 1, 2, 3 of procBlock: "
-         << inter.Dir1EndFirst() - inter.Dir1StartFirst() << ", "
-         << inter.Dir2EndFirst() - inter.Dir2StartFirst() << ", " << d3 << endl;
+         << inter.Dir1LenFirst() << ", " << inter.Dir2LenFirst() << ", " << d3
+         << endl;
     cerr << "Direction I, J, K of geomSlice: " << slice.NumI() << ", "
          << slice.NumJ() << ", " << slice.NumK() << endl;
     exit(EXIT_FAILURE);
@@ -4485,12 +3600,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
   // adjust insertion indices if patch borders another interblock on the same
   // surface of the block
-  const auto adjS1 = (inter.Dir1StartInterBorderFirst()) ? numG : 0;
-  const auto adjE1 = (inter.Dir1EndInterBorderFirst()) ? numG : 0;
-  const auto adjS2 = (inter.Dir2StartInterBorderFirst()) ? numG : 0;
-  const auto adjE2 = (inter.Dir2EndInterBorderFirst()) ? numG : 0;
-  vector<bool> adjEdge(4, false);  // initialize all return values to false
+  const auto adjS1 = (inter.Dir1StartInterBorderFirst()) ? numGhosts_ : 0;
+  const auto adjE1 = (inter.Dir1EndInterBorderFirst()) ? numGhosts_ : 0;
+  const auto adjS2 = (inter.Dir2StartInterBorderFirst()) ? numGhosts_ : 0;
+  const auto adjE2 = (inter.Dir2EndInterBorderFirst()) ? numGhosts_ : 0;
 
+  vector<bool> adjEdge(4, false);  // initialize all return values to false
   // determine if area direction needs to be reversed
   const auto aFac3 = ((inter.BoundaryFirst() + inter.BoundarySecond()) % 2 == 0)
       ? -1.0 : 1.0;
@@ -4503,22 +3618,21 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
   // loop over cells to insert
   for (auto l3 = 0; l3 < d3; l3++) {
-    for (auto l2 = adjS2;
-         l2 < (inter.Dir2EndFirst() - inter.Dir2StartFirst() - adjE2); l2++) {
-      for (auto l1 = adjS1;
-           l1 < (inter.Dir1EndFirst() - inter.Dir1StartFirst() - adjE1); l1++) {
+    for (auto l2 = adjS2; l2 < inter.Dir2LenFirst() - adjE2; l2++) {
+      for (auto l1 = adjS1; l1 < inter.Dir1LenFirst() - adjE1; l1++) {
         // get block and slice indices
-        const auto indB = GetSwapLoc(l1, l2, l3, inter, true);
-        const auto indS = GetSwapLoc(l1, l2, l3, inter, false);
+        const auto indB = GetSwapLoc(l1, l2, l3, numGhosts_, inter, true);
+        const auto indS = GetSwapLoc(l1, l2, l3, slice.GhostLayers(), inter, false);
 
         // don't overwrite with garbage from partner block that hasn't recieved
         // its ghost value yet (needed at "t" intersection)
         if (slice.Vol(indS[0], indS[1], indS[2]) == 0.0) {
           // find out if on edge, if so save edge
           // at a block edge -- possible need to adjust interblock
-          string edgeDir;
-          if (this->AtEdge(indB[0], indB[1], indB[2], true, edgeDir)) {
-            int dir1, dir2;
+          string edgeDir = "undefined";
+          if (this->AtEdgeInclusive(indB[0], indB[1], indB[2], edgeDir)) {
+            auto dir1 = 0;
+            auto dir2 = 0;
             if (inter.Direction1First() == "i") {
               dir1 = 0;  // direction 1 is i
               dir2 = 1;  // direction 2 is j
@@ -4551,6 +3665,11 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
               cerr << "ERROR: Error in procBlock::PutGeomSlice(). Ghost cell "
                       "edge direction does not match interblock direction 1 or "
                       "2." << endl;
+              cerr << "Edge direction is " << edgeDir << ", direction 1 is "
+                   << inter.Direction1First() << ", and direction 2 is "
+                   << inter.Direction2First() << endl;
+              cerr << "Location is: " << indB[0] << ", " << indB[1] << ", "
+                   << indB[2] << endl;
               exit(EXIT_FAILURE);
             }
           }
@@ -4558,8 +3677,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
         // volume is not 0, ok to overwrite variables
         } else {
           // swap cell data
-          vol_(indB[0], indB[1], indB[2]) = slice.Vol(indS[0], indS[1],
-                                                      indS[2]);
+          vol_(indB[0], indB[1], indB[2]) = slice.Vol(indS[0], indS[1], indS[2]);
           center_(indB[0], indB[1], indB[2]) = slice.Center(indS[0], indS[1],
                                                             indS[2]);
 
@@ -5288,7 +4406,7 @@ void procBlock::PutStateSlice(const multiArray3d<primVars> &slice,
   // d3 -- distance of direction normal to patch to insert
   // numG -- number of ghost cells
 
-  state_.PutSlice(slice, inter, d3, numG);
+  state_.PutSlice(slice, inter, d3);
 }
 
 /*Member function to pack and send procBlock geometry data to appropriate
@@ -5384,23 +4502,23 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
            MPI_COMM_WORLD);
   MPI_Pack(&isTurbulent_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&state_(0, 0, 0), state_.Size(), MPI_cellData, sendBuffer,
+  MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_cellData, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&center_(0, 0, 0), center_.Size(), MPI_vec3d, sendBuffer,
+  MPI_Pack(&(*std::begin(center_)), center_.Size(), MPI_vec3d, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&fAreaI_(0, 0, 0), fAreaI_.Size(), MPI_vec3dMag,
+  MPI_Pack(&(*std::begin(fAreaI_)), fAreaI_.Size(), MPI_vec3dMag,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&fAreaJ_(0, 0, 0), fAreaJ_.Size(), MPI_vec3dMag,
+  MPI_Pack(&(*std::begin(fAreaJ_)), fAreaJ_.Size(), MPI_vec3dMag,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&fAreaK_(0, 0, 0), fAreaK_.Size(), MPI_vec3dMag,
+  MPI_Pack(&(*std::begin(fAreaK_)), fAreaK_.Size(), MPI_vec3dMag,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&fCenterI_(0, 0, 0), fCenterI_.Size(), MPI_vec3d,
+  MPI_Pack(&(*std::begin(fCenterI_)), fCenterI_.Size(), MPI_vec3d,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&fCenterJ_(0, 0, 0), fCenterJ_.Size(), MPI_vec3d,
+  MPI_Pack(&(*std::begin(fCenterJ_)), fCenterJ_.Size(), MPI_vec3d,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&fCenterK_(0, 0, 0), fCenterK_.Size(), MPI_vec3d,
+  MPI_Pack(&(*std::begin(fCenterK_)), fCenterK_.Size(), MPI_vec3d,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&vol_(0, 0, 0), vol_.Size(), MPI_DOUBLE, sendBuffer,
+  MPI_Pack(&(*std::begin(vol_)), vol_.Size(), MPI_DOUBLE, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
 
   // pack boundary condition data
@@ -5435,7 +4553,7 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
   MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, ROOTP, 2, MPI_COMM_WORLD,
            &status);
 
-  int numI, numJ, numK;
+  auto numI = 0, numJ = 0, numK = 0;
   // unpack procBlock INTs
   auto position = 0;
   MPI_Unpack(recvBuffer, recvBufSize, &position, &numI, 1,
@@ -5462,34 +4580,34 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
 
   // clean and resize the vectors in the class to
-  this->CleanResizeVecs(numI, numJ, numK);
+  this->CleanResizeVecs(numI, numJ, numK, numGhosts_);
 
   // unpack vector data into allocated vectors
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &state_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(state_)),
              state_.Size(), MPI_cellData,
              MPI_COMM_WORLD);  // unpack states
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &center_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(center_)),
              center_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack cell centers
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &fAreaI_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fAreaI_)),
              fAreaI_.Size(), MPI_vec3dMag,
              MPI_COMM_WORLD);  // unpack face area I
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &fAreaJ_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fAreaJ_)),
              fAreaJ_.Size(), MPI_vec3dMag,
              MPI_COMM_WORLD);  // unpack face area J
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &fAreaK_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fAreaK_)),
              fAreaK_.Size(), MPI_vec3dMag,
              MPI_COMM_WORLD);  // unpack face area K
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &fCenterI_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fCenterI_)),
              fCenterI_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack face center_ I
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &fCenterJ_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fCenterJ_)),
              fCenterJ_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack face center_ J
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &fCenterK_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fCenterK_)),
              fCenterK_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack face center_ K
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &vol_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(vol_)),
              vol_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack volumes
 
@@ -5502,49 +4620,45 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
 /*Member function to zero and resize the vectors in a procBlock to their
  * appropriate size given the i, j, and k dimensions.*/
 void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
-                                const int &numK) {
+                                const int &numK, const int &numGhosts) {
   // numI -- i-dimension to resize to (no ghosts)
   // numJ -- j-dimension to resize to (no ghosts)
   // numK -- k-dimension to resize to (no ghosts)
+  // numGhosts -- number of ghost cells
 
-  // indices for variables with ghost cells
-  const auto ig = numI + 2 * numGhosts_;
-  const auto jg = numJ + 2 * numGhosts_;
-  const auto kg = numK + 2 * numGhosts_;
+  state_.ClearResize(numI, numJ, numK, numGhosts);
+  center_.ClearResize(numI, numJ, numK, numGhosts);
+  vol_.ClearResize(numI, numJ, numK, numGhosts);
 
-  state_.ClearResize(ig, jg, kg);
-  center_.ClearResize(ig, jg, kg);
-  vol_.ClearResize(ig, jg, kg);
+  fCenterI_.ClearResize(numI + 1, numJ, numK, numGhosts);
+  fAreaI_.ClearResize(numI + 1, numJ, numK, numGhosts);
 
-  fCenterI_.ClearResize(ig + 1, jg, kg);
-  fAreaI_.ClearResize(ig + 1, jg, kg);
+  fCenterJ_.ClearResize(numI, numJ + 1, numK, numGhosts);
+  fAreaJ_.ClearResize(numI, numJ + 1, numK, numGhosts);
 
-  fCenterJ_.ClearResize(ig, jg + 1, kg);
-  fAreaJ_.ClearResize(ig, jg + 1, kg);
+  fCenterK_.ClearResize(numI, numJ, numK + 1, numGhosts);
+  fAreaK_.ClearResize(numI, numJ, numK + 1, numGhosts);
 
-  fCenterK_.ClearResize(ig, jg, kg + 1);
-  fAreaK_.ClearResize(ig, jg, kg + 1);
+  wallDist_.ClearResize(numI, numJ, numK, numGhosts, DEFAULTWALLDIST);
 
-  wallDist_.ClearResize(ig, jg, kg, DEFAULTWALLDIST);
+  residual_.ClearResize(numI, numJ, numK, 0);
+  specRadius_.ClearResize(numI, numJ, numK, 0);
+  dt_.ClearResize(numI, numJ, numK, 0);
 
-  residual_.ClearResize(numI, numJ, numK);
-  specRadius_.ClearResize(numI, numJ, numK);
-  dt_.ClearResize(numI, numJ, numK);
-
-  temperature_.ClearResize(ig, jg, kg);
+  temperature_.ClearResize(numI, numJ, numK, numGhosts);
 
   if (isViscous_) {
-    velocityGrad_.ClearResize(numI, numJ, numK);
-    temperatureGrad_.ClearResize(numI, numJ, numK);
-    viscosity_.ClearResize(ig, jg, kg);
+    velocityGrad_.ClearResize(numI, numJ, numK, 0);
+    temperatureGrad_.ClearResize(numI, numJ, numK, 0);
+    viscosity_.ClearResize(numI, numJ, numK, numGhosts);
   }
 
   if (isTurbulent_) {
-    tkeGrad_.ClearResize(numI, numJ, numK);
-    omegaGrad_.ClearResize(numI, numJ, numK);
-    eddyViscosity_.ClearResize(ig, jg, kg);
-    f1_.ClearResize(ig, jg, kg);
-    f2_.ClearResize(ig, jg, kg);
+    tkeGrad_.ClearResize(numI, numJ, numK, 0);
+    omegaGrad_.ClearResize(numI, numJ, numK, 0);
+    eddyViscosity_.ClearResize(numI, numJ, numK, numGhosts);
+    f1_.ClearResize(numI, numJ, numK, numGhosts);
+    f2_.ClearResize(numI, numJ, numK, numGhosts);
   }
 }
 
@@ -5578,51 +4692,51 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
 
   // unpack vector data into allocated vectors
   auto position = 0;
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &state_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(state_)),
              state_.Size(), MPI_cellData,
              MPI_COMM_WORLD);  // unpack states
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &residual_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(residual_)),
              residual_.Size(), MPI_cellData,
              MPI_COMM_WORLD);  // unpack residuals
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &dt_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(dt_)),
              dt_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack time steps
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &wallDist_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(wallDist_)),
              wallDist_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack wall distance
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &specRadius_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(specRadius_)),
              specRadius_.Size(), MPI_uncoupledScalar,
              MPI_COMM_WORLD);  // unpack average wave speeds
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &temperature_(0, 0, 0),
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(temperature_)),
              temperature_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack temperature
 
   if (isViscous_) {
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &viscosity_(0, 0, 0),
+    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(viscosity_)),
                viscosity_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack viscosity
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &velocityGrad_(0, 0, 0),
-               velocityGrad_.Size(), MPI_tensorDouble,
-               MPI_COMM_WORLD);  // unpack velocity gradient
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &temperatureGrad_(0, 0, 0),
-               temperatureGrad_.Size(), MPI_vec3d,
-               MPI_COMM_WORLD);  // unpack temperature gradient
+    MPI_Unpack(recvBuffer, recvBufSize, &position,
+               &(*std::begin(velocityGrad_)), velocityGrad_.Size(),
+               MPI_tensorDouble, MPI_COMM_WORLD);  // unpack velocity gradient
+    MPI_Unpack(recvBuffer, recvBufSize, &position,
+               &(*std::begin(temperatureGrad_)), temperatureGrad_.Size(),
+               MPI_vec3d, MPI_COMM_WORLD);  // unpack temperature gradient
   }
 
   if (isTurbulent_) {
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &eddyViscosity_(0, 0, 0),
-               eddyViscosity_.Size(), MPI_DOUBLE,
-               MPI_COMM_WORLD);  // unpack eddy viscosity
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &f1_(0, 0, 0),
+    MPI_Unpack(recvBuffer, recvBufSize, &position,
+               &(*std::begin(eddyViscosity_)), eddyViscosity_.Size(),
+               MPI_DOUBLE, MPI_COMM_WORLD);  // unpack eddy viscosity
+    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(f1_)),
                f1_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack blending variable f1
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &f2_(0, 0, 0),
+    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(f2_)),
                f2_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack blending variable f2
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &tkeGrad_(0, 0, 0),
+    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(tkeGrad_)),
                tkeGrad_.Size(), MPI_vec3d,
                MPI_COMM_WORLD);  // unpack tke gradient
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &omegaGrad_(0, 0, 0),
+    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(omegaGrad_)),
                omegaGrad_.Size(), MPI_vec3d,
                MPI_COMM_WORLD);  // unpack omega gradient
   }
@@ -5700,38 +4814,39 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
 
   // pack data to send into buffer
   auto position = 0;
-  MPI_Pack(&state_(0, 0, 0), state_.Size(), MPI_cellData, sendBuffer,
+  MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_cellData, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&residual_(0, 0, 0), residual_.Size(), MPI_cellData,
+  MPI_Pack(&(*std::begin(residual_)), residual_.Size(), MPI_cellData,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&dt_(0, 0, 0), dt_.Size(), MPI_DOUBLE, sendBuffer,
+  MPI_Pack(&(*std::begin(dt_)), dt_.Size(), MPI_DOUBLE, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&wallDist_(0, 0, 0), wallDist_.Size(), MPI_DOUBLE,
+  MPI_Pack(&(*std::begin(wallDist_)), wallDist_.Size(), MPI_DOUBLE,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&specRadius_(0, 0, 0), specRadius_.Size(), MPI_uncoupledScalar,
+  MPI_Pack(&(*std::begin(specRadius_)), specRadius_.Size(), MPI_uncoupledScalar,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-  MPI_Pack(&temperature_(0, 0, 0), temperature_.Size(), MPI_DOUBLE,
+  MPI_Pack(&(*std::begin(temperature_)), temperature_.Size(), MPI_DOUBLE,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
 
   if (isViscous_) {
-    MPI_Pack(&viscosity_(0, 0, 0), viscosity_.Size(), MPI_DOUBLE,
+    MPI_Pack(&(*std::begin(viscosity_)), viscosity_.Size(), MPI_DOUBLE,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-    MPI_Pack(&velocityGrad_(0, 0, 0), velocityGrad_.Size(), MPI_tensorDouble,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-    MPI_Pack(&temperatureGrad_(0, 0, 0), temperatureGrad_.Size(), MPI_vec3d,
-             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+    MPI_Pack(&(*std::begin(velocityGrad_)), velocityGrad_.Size(),
+             MPI_tensorDouble, sendBuffer, sendBufSize, &position,
+             MPI_COMM_WORLD);
+    MPI_Pack(&(*std::begin(temperatureGrad_)), temperatureGrad_.Size(),
+             MPI_vec3d, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
 
   if (isTurbulent_) {
-    MPI_Pack(&eddyViscosity_(0, 0, 0), eddyViscosity_.Size(), MPI_DOUBLE,
+    MPI_Pack(&(*std::begin(eddyViscosity_)), eddyViscosity_.Size(), MPI_DOUBLE,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-    MPI_Pack(&f1_(0, 0, 0), f1_.Size(), MPI_DOUBLE,
+    MPI_Pack(&(*std::begin(f1_)), f1_.Size(), MPI_DOUBLE,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-    MPI_Pack(&f2_(0, 0, 0), f2_.Size(), MPI_DOUBLE,
+    MPI_Pack(&(*std::begin(f2_)), f2_.Size(), MPI_DOUBLE,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-    MPI_Pack(&tkeGrad_(0, 0, 0), tkeGrad_.Size(), MPI_vec3d,
+    MPI_Pack(&(*std::begin(tkeGrad_)), tkeGrad_.Size(), MPI_vec3d,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-    MPI_Pack(&omegaGrad_(0, 0, 0), omegaGrad_.Size(), MPI_vec3d,
+    MPI_Pack(&(*std::begin(omegaGrad_)), omegaGrad_.Size(), MPI_vec3d,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
 
@@ -5757,539 +4872,148 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
   auto bound1 = bc_;
   auto bound2 = bound1.Split(dir, ind, parBlock_, num, alteredSurf);
 
+  auto numI1 = 0, numI2 = 0;
+  auto numJ1 = 0, numJ2 = 0;
+  auto numK1 = 0, numK2 = 0;
   if (dir == "i") {  // split along i-plane
-    const auto numI2 = this->NumI() - ind;
-    const auto numI1 = this->NumI() - numI2;
-
-    procBlock blk1(numI1, this->NumJ(), this->NumK(), numGhosts_, isViscous_,
-                   isTurbulent_);
-    procBlock blk2(numI2, this->NumJ(), this->NumK(), numGhosts_, isViscous_,
-                   isTurbulent_);
-
-    blk1.parBlock_ = parBlock_;
-    blk2.parBlock_ = parBlock_;
-
-    // indices for lower block
-    const auto iMaxG1 = numI1 + 2 * numGhosts_ - 1;
-    const auto iMax1 = numI1 - 1;
-
-    // indices for upper block
-    const auto iMaxG2 = numI2 + 2 * numGhosts_ - 1;
-    const auto iMax2 = numI2 - 1;
-
-    const auto iMaxPG2 = this->NumI() + 2 * numGhosts_ - 1;
-    const auto iMinPG2 = ind;
-    const auto iMaxP2 = this->NumI() - 1;
-    const auto iMinP2 = ind + numGhosts_;
-
-    // indices common to both blocks
-    const auto jMaxG = this->NumJ() + 2 * numGhosts_ - 1;
-    const auto jMax = this->NumJ() - 1;
-    const auto kMaxG = this->NumK() + 2 * numGhosts_ - 1;
-    const auto kMax = this->NumK() - 1;
-
-    // ------------------------------------------------------------------
-    // assign variables for lower split
-    // assign cell variables with ghost cells
-    blk1.state_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
-                       state_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
-    blk1.vol_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
-                     vol_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
-    blk1.center_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
-                        center_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
-    blk1.wallDist_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
-                          wallDist_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
-    blk1.temperature_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
-                             temperature_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
-    if (isViscous_) {
-      blk1.viscosity_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
-                             viscosity_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
-    }
-    if (isTurbulent_) {
-      blk1.eddyViscosity_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
-                                 eddyViscosity_.Slice(0, iMaxG1, 0, jMaxG,
-                                                      0, kMaxG));
-      blk1.f1_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
-                      f1_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
-      blk1.f2_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG,
-                      f2_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG));
-    }
-
-    // assign cell variables without ghost cells
-    blk1.specRadius_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                            specRadius_.Slice(0, iMax1, 0, jMax, 0, kMax));
-    blk1.dt_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                    dt_.Slice(0, iMax1, 0, jMax, 0, kMax));
-    blk1.residual_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                          residual_.Slice(0, iMax1, 0, jMax, 0, kMax));
-    if (isViscous_) {
-      blk1.velocityGrad_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                                velocityGrad_.Slice(0, iMax1, 0, jMax, 0,
-                                                    kMax));
-      blk1.temperatureGrad_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                                   temperatureGrad_.Slice(0, iMax1, 0, jMax, 0,
-                                                          kMax));
-    }
-    if (isTurbulent_) {
-      blk1.tkeGrad_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                           tkeGrad_.Slice(0, iMax1, 0, jMax, 0, kMax));
-      blk1.omegaGrad_.Insert(0, iMax1, 0, jMax, 0, kMax,
-                           omegaGrad_.Slice(0, iMax1, 0, jMax, 0, kMax));
-    }
-
-    // assign face variables
-    blk1.fAreaI_.Insert(0, iMaxG1 + 1, 0, jMaxG, 0, kMaxG,
-                        fAreaI_.Slice(0, iMaxG1 + 1, 0, jMaxG, 0, kMaxG));
-    blk1.fAreaJ_.Insert(0, iMaxG1, 0, jMaxG + 1, 0, kMaxG,
-                        fAreaJ_.Slice(0, iMaxG1, 0, jMaxG + 1, 0, kMaxG));
-    blk1.fAreaK_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG + 1,
-                        fAreaK_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG + 1));
-
-    blk1.fCenterI_.Insert(0, iMaxG1 + 1, 0, jMaxG, 0, kMaxG,
-                        fCenterI_.Slice(0, iMaxG1 + 1, 0, jMaxG, 0, kMaxG));
-    blk1.fCenterJ_.Insert(0, iMaxG1, 0, jMaxG + 1, 0, kMaxG,
-                        fCenterJ_.Slice(0, iMaxG1, 0, jMaxG + 1, 0, kMaxG));
-    blk1.fCenterK_.Insert(0, iMaxG1, 0, jMaxG, 0, kMaxG + 1,
-                        fCenterK_.Slice(0, iMaxG1, 0, jMaxG, 0, kMaxG + 1));
-
-    // ------------------------------------------------------------------
-    // assign variables for upper split
-    // assign cell variables with ghost cells
-    blk2.state_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
-                       state_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
-    blk2.vol_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
-                       vol_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
-    blk2.center_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
-                       center_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
-    blk2.wallDist_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
-                          wallDist_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0,
-                                          kMaxG));
-    blk2.temperature_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
-                             temperature_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0,
-                                                kMaxG));
-    if (isViscous_) {
-      blk2.viscosity_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
-                             viscosity_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0,
-                                              kMaxG));
-    }
-    if (isTurbulent_) {
-      blk2.eddyViscosity_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
-                                 eddyViscosity_.Slice(iMinPG2, iMaxPG2, 0,
-                                                      jMaxG, 0, kMaxG));
-      blk2.f1_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
-                      f1_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
-      blk2.f2_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG,
-                      f2_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0, kMaxG));
-    }
-
-    // assign cell variables without ghost cells
-    blk2.specRadius_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                            specRadius_.Slice(iMinP2, iMaxP2, 0, jMax, 0,
-                                              kMax));
-    blk2.dt_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                    dt_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
-    blk2.residual_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                          residual_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
-    if (isViscous_) {
-      blk2.velocityGrad_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                                velocityGrad_.Slice(iMinP2, iMaxP2, 0, jMax, 0,
-                                                    kMax));
-      blk2.temperatureGrad_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                                   temperatureGrad_.Slice(iMinP2, iMaxP2, 0,
-                                                          jMax, 0, kMax));
-    }
-    if (isTurbulent_) {
-      blk2.tkeGrad_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                           tkeGrad_.Slice(iMinP2, iMaxP2, 0, jMax, 0, kMax));
-      blk2.omegaGrad_.Insert(0, iMax2, 0, jMax, 0, kMax,
-                             omegaGrad_.Slice(iMinP2, iMaxP2, 0, jMax, 0,
-                                              kMax));
-    }
-
-    // assign face variables
-    blk2.fAreaI_.Insert(0, iMaxG2 + 1, 0, jMaxG, 0, kMaxG,
-                        fAreaI_.Slice(iMinPG2, iMaxPG2 + 1, 0, jMaxG, 0,
-                                      kMaxG));
-    blk2.fAreaJ_.Insert(0, iMaxG2, 0, jMaxG + 1, 0, kMaxG,
-                        fAreaJ_.Slice(iMinPG2, iMaxPG2, 0, jMaxG + 1, 0,
-                                      kMaxG));
-    blk2.fAreaK_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG + 1,
-                        fAreaK_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0,
-                                      kMaxG + 1));
-
-    blk2.fCenterI_.Insert(0, iMaxG2 + 1, 0, jMaxG, 0, kMaxG,
-                          fCenterI_.Slice(iMinPG2, iMaxPG2 + 1, 0, jMaxG, 0,
-                                          kMaxG));
-    blk2.fCenterJ_.Insert(0, iMaxG2, 0, jMaxG + 1, 0, kMaxG,
-                          fCenterJ_.Slice(iMinPG2, iMaxPG2, 0, jMaxG + 1, 0,
-                                          kMaxG));
-    blk2.fCenterK_.Insert(0, iMaxG2, 0, jMaxG, 0, kMaxG + 1,
-                          fCenterK_.Slice(iMinPG2, iMaxPG2, 0, jMaxG, 0,
-                                          kMaxG + 1));
-
-    // assign boundary conditions
-    blk1.bc_ = bound1;
-    (*this) = blk1;
-    blk2.bc_ = bound2;
-    return blk2;
-
+    numI2 = this->NumI() - ind;
+    numI1 = this->NumI() - numI2;
+    numJ2 = this->NumJ();
+    numJ1 = this->NumJ();
+    numK2 = this->NumK();
+    numK1 = this->NumK();
   } else if (dir == "j") {  // split along j-plane
-    const auto numJ2 = this->NumJ() - ind;
-    const auto numJ1 = this->NumJ() - numJ2;
-
-    procBlock blk1(this->NumI(), numJ1, this->NumK(), numGhosts_, isViscous_,
-                   isTurbulent_);
-    procBlock blk2(this->NumI(), numJ2, this->NumK(), numGhosts_, isViscous_,
-                   isTurbulent_);
-
-    blk1.parBlock_ = parBlock_;
-    blk2.parBlock_ = parBlock_;
-
-    // indices for lower block
-    const auto jMaxG1 = numJ1 + 2 * numGhosts_ - 1;
-    const auto jMax1 = numJ1 - 1;
-
-    // indices for upper block
-    const auto jMaxG2 = numJ2 + 2 * numGhosts_ - 1;
-    const auto jMax2 = numJ2 - 1;
-
-    const auto jMaxPG2 = this->NumJ() + 2 * numGhosts_ - 1;
-    const auto jMinPG2 = ind;
-    const auto jMaxP2 = this->NumJ() - 1;
-    const auto jMinP2 = ind + numGhosts_;
-
-    // indices common to both blocks
-    const auto iMaxG = this->NumI() + 2 * numGhosts_ - 1;
-    const auto iMax = this->NumI() - 1;
-    const auto kMaxG = this->NumK() + 2 * numGhosts_ - 1;
-    const auto kMax = this->NumK() - 1;
-
-    // ------------------------------------------------------------------
-    // assign variables for lower split
-    // assign cell variables with ghost cells
-    blk1.state_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
-                       state_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
-    blk1.vol_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
-                     vol_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
-    blk1.center_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
-                        center_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
-    blk1.wallDist_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
-                          wallDist_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
-    blk1.temperature_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
-                             temperature_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
-    if (isViscous_) {
-      blk1.viscosity_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
-                             viscosity_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
-    }
-    if (isTurbulent_) {
-      blk1.eddyViscosity_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
-                                 eddyViscosity_.Slice(0, iMaxG, 0, jMaxG1, 0,
-                                                      kMaxG));
-      blk1.f1_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
-                      f1_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
-      blk1.f2_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG,
-                      f2_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG));
-    }
-
-    // assign cell variables without ghost cells
-    blk1.specRadius_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                            specRadius_.Slice(0, iMax, 0, jMax1, 0, kMax));
-    blk1.dt_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                    dt_.Slice(0, iMax, 0, jMax1, 0, kMax));
-    blk1.residual_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                          residual_.Slice(0, iMax, 0, jMax1, 0, kMax));
-    if (isViscous_) {
-      blk1.velocityGrad_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                                velocityGrad_.Slice(0, iMax, 0, jMax1, 0,
-                                                    kMax));
-      blk1.temperatureGrad_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                                   temperatureGrad_.Slice(0, iMax, 0, jMax1,
-                                                          0, kMax));
-    }
-    if (isTurbulent_) {
-      blk1.tkeGrad_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                           tkeGrad_.Slice(0, iMax, 0, jMax1, 0, kMax));
-      blk1.omegaGrad_.Insert(0, iMax, 0, jMax1, 0, kMax,
-                             omegaGrad_.Slice(0, iMax, 0, jMax1, 0, kMax));
-    }
-
-    // assign face variables
-    blk1.fAreaI_.Insert(0, iMaxG + 1, 0, jMaxG1, 0, kMaxG,
-                        fAreaI_.Slice(0, iMaxG + 1, 0, jMaxG1, 0, kMaxG));
-    blk1.fAreaJ_.Insert(0, iMaxG, 0, jMaxG1 + 1, 0, kMaxG,
-                        fAreaJ_.Slice(0, iMaxG, 0, jMaxG1 + 1, 0, kMaxG));
-    blk1.fAreaK_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG + 1,
-                        fAreaK_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG + 1));
-
-    blk1.fCenterI_.Insert(0, iMaxG + 1, 0, jMaxG1, 0, kMaxG,
-                        fCenterI_.Slice(0, iMaxG + 1, 0, jMaxG1, 0, kMaxG));
-    blk1.fCenterJ_.Insert(0, iMaxG, 0, jMaxG1 + 1, 0, kMaxG,
-                        fCenterJ_.Slice(0, iMaxG, 0, jMaxG1 + 1, 0, kMaxG));
-    blk1.fCenterK_.Insert(0, iMaxG, 0, jMaxG1, 0, kMaxG + 1,
-                        fCenterK_.Slice(0, iMaxG, 0, jMaxG1, 0, kMaxG + 1));
-
-    // ------------------------------------------------------------------
-    // assign variables for upper split
-    // assign cell variables with ghost cells
-    blk2.state_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
-                       state_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0, kMaxG));
-    blk2.vol_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
-                       vol_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0, kMaxG));
-    blk2.center_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
-                       center_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0, kMaxG));
-    blk2.wallDist_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
-                          wallDist_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0,
-                                          kMaxG));
-    blk2.temperature_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
-                             temperature_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0,
-                                                kMaxG));
-    if (isViscous_) {
-      blk2.viscosity_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
-                             viscosity_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0,
-                                              kMaxG));
-    }
-    if (isTurbulent_) {
-      blk2.eddyViscosity_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
-                                 eddyViscosity_.Slice(0, iMaxG, jMinPG2,
-                                                      jMaxPG2, 0, kMaxG));
-      blk2.f1_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
-                      f1_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0, kMaxG));
-      blk2.f2_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG,
-                      f2_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0, kMaxG));
-    }
-
-    // assign cell variables without ghost cells
-    blk2.specRadius_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                            specRadius_.Slice(0, iMax, jMinP2, jMaxP2, 0,
-                                              kMax));
-    blk2.dt_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                    dt_.Slice(0, iMax, jMinP2, jMaxP2, 0, kMax));
-    blk2.residual_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                          residual_.Slice(0, iMax, jMinP2, jMaxP2, 0, kMax));
-    if (isViscous_) {
-      blk2.velocityGrad_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                                velocityGrad_.Slice(0, iMax, jMinP2, jMaxP2, 0,
-                                                    kMax));
-      blk2.temperatureGrad_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                                   temperatureGrad_.Slice(0, iMax, jMinP2,
-                                                          jMaxP2, 0, kMax));
-    }
-    if (isTurbulent_) {
-      blk2.tkeGrad_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                           tkeGrad_.Slice(0, iMax, jMinP2, jMaxP2, 0, kMax));
-      blk2.omegaGrad_.Insert(0, iMax, 0, jMax2, 0, kMax,
-                             omegaGrad_.Slice(0, iMax, jMinP2, jMaxP2, 0,
-                                              kMax));
-    }
-
-    // assign face variables
-    blk2.fAreaI_.Insert(0, iMaxG + 1, 0, jMaxG2, 0, kMaxG,
-                        fAreaI_.Slice(0, iMaxG + 1, jMinPG2, jMaxPG2, 0,
-                                      kMaxG));
-    blk2.fAreaJ_.Insert(0, iMaxG, 0, jMaxG2 + 1, 0, kMaxG,
-                        fAreaJ_.Slice(0, iMaxG, jMinPG2, jMaxPG2 + 1, 0,
-                                      kMaxG));
-    blk2.fAreaK_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG + 1,
-                        fAreaK_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0,
-                                      kMaxG + 1));
-
-    blk2.fCenterI_.Insert(0, iMaxG + 1, 0, jMaxG2, 0, kMaxG,
-                          fCenterI_.Slice(0, iMaxG + 1, jMinPG2, jMaxPG2, 0,
-                                          kMaxG));
-    blk2.fCenterJ_.Insert(0, iMaxG, 0, jMaxG2 + 1, 0, kMaxG,
-                          fCenterJ_.Slice(0, iMaxG, jMinPG2, jMaxPG2 + 1, 0,
-                                          kMaxG));
-    blk2.fCenterK_.Insert(0, iMaxG, 0, jMaxG2, 0, kMaxG + 1,
-                          fCenterK_.Slice(0, iMaxG, jMinPG2, jMaxPG2, 0,
-                                          kMaxG + 1));
-
-    // assign boundary conditions
-    blk1.bc_ = bound1;
-    (*this) = blk1;
-    blk2.bc_ = bound2;
-    return blk2;
-
+    numI2 = this->NumI();
+    numI1 = this->NumI();
+    numJ2 = this->NumJ() - ind;
+    numJ1 = this->NumJ() - numJ2;
+    numK2 = this->NumK();
+    numK1 = this->NumK();
   } else if (dir == "k") {  // split along k-plane
-    const auto numK2 = this->NumK() - ind;
-    const auto numK1 = this->NumK() - numK2;
-
-    procBlock blk1(this->NumI(), this->NumJ(), numK1, numGhosts_, isViscous_,
-                   isTurbulent_);
-    procBlock blk2(this->NumI(), this->NumJ(), numK2, numGhosts_, isViscous_,
-                   isTurbulent_);
-
-    blk1.parBlock_ = parBlock_;
-    blk2.parBlock_ = parBlock_;
-
-    // indices for lower block
-    const auto kMaxG1 = numK1 + 2 * numGhosts_ - 1;
-    const auto kMax1 = numK1 - 1;
-
-    // indices for upper block
-    const auto kMaxG2 = numK2 + 2 * numGhosts_ - 1;
-    const auto kMax2 = numK2 - 1;
-
-    const auto kMaxPG2 = this->NumK() + 2 * numGhosts_ - 1;
-    const auto kMinPG2 = ind;
-    const auto kMaxP2 = this->NumK() - 1;
-    const auto kMinP2 = ind + numGhosts_;
-
-    // indices common to both blocks
-    const auto iMaxG = this->NumI() + 2 * numGhosts_ - 1;
-    const auto iMax = this->NumI() - 1;
-    const auto jMaxG = this->NumJ() + 2 * numGhosts_ - 1;
-    const auto jMax = this->NumJ() - 1;
-
-    // ------------------------------------------------------------------
-    // assign variables for lower split
-    // assign cell variables with ghost cells
-    blk1.state_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
-                       state_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
-    blk1.vol_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
-                     vol_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
-    blk1.center_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
-                        center_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
-    blk1.wallDist_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
-                          wallDist_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
-    blk1.temperature_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
-                             temperature_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
-    if (isViscous_) {
-      blk1.viscosity_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
-                             viscosity_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
-    }
-    if (isTurbulent_) {
-      blk1.eddyViscosity_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
-                                 eddyViscosity_.Slice(0, iMaxG, 0, jMaxG, 0,
-                                                      kMaxG1));
-      blk1.f1_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
-                      f1_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
-      blk1.f2_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1,
-                      f2_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1));
-    }
-
-    // assign cell variables without ghost cells
-    blk1.specRadius_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                            specRadius_.Slice(0, iMax, 0, jMax, 0, kMax1));
-    blk1.dt_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                    dt_.Slice(0, iMax, 0, jMax, 0, kMax1));
-    blk1.residual_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                          residual_.Slice(0, iMax, 0, jMax, 0, kMax1));
-    if (isViscous_) {
-      blk1.velocityGrad_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                                velocityGrad_.Slice(0, iMax, 0, jMax, 0,
-                                                    kMax1));
-      blk1.temperatureGrad_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                                   temperatureGrad_.Slice(0, iMax, 0, jMax,
-                                                          0, kMax1));
-    }
-    if (isTurbulent_) {
-      blk1.tkeGrad_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                           tkeGrad_.Slice(0, iMax, 0, jMax, 0, kMax1));
-      blk1.omegaGrad_.Insert(0, iMax, 0, jMax, 0, kMax1,
-                             omegaGrad_.Slice(0, iMax, 0, jMax, 0, kMax1));
-    }
-
-    // assign face variables
-    blk1.fAreaI_.Insert(0, iMaxG + 1, 0, jMaxG, 0, kMaxG1,
-                        fAreaI_.Slice(0, iMaxG + 1, 0, jMaxG, 0, kMaxG1));
-    blk1.fAreaJ_.Insert(0, iMaxG, 0, jMaxG + 1, 0, kMaxG1,
-                        fAreaJ_.Slice(0, iMaxG, 0, jMaxG + 1, 0, kMaxG1));
-    blk1.fAreaK_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1 + 1,
-                        fAreaK_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1 + 1));
-
-    blk1.fCenterI_.Insert(0, iMaxG + 1, 0, jMaxG, 0, kMaxG1,
-                        fCenterI_.Slice(0, iMaxG + 1, 0, jMaxG, 0, kMaxG1));
-    blk1.fCenterJ_.Insert(0, iMaxG, 0, jMaxG + 1, 0, kMaxG1,
-                        fCenterJ_.Slice(0, iMaxG, 0, jMaxG + 1, 0, kMaxG1));
-    blk1.fCenterK_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG1 + 1,
-                        fCenterK_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxG1 + 1));
-
-    // ------------------------------------------------------------------
-    // assign variables for upper split
-    // assign cell variables with ghost cells
-    blk2.state_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
-                       state_.Slice(0, iMaxG, 0, jMaxG, kMinPG2, kMaxPG2));
-    blk2.vol_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
-                       vol_.Slice(0, iMaxG, 0, jMaxG, kMinPG2, kMaxPG2));
-    blk2.center_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
-                       center_.Slice(0, iMaxG, 0, jMaxG, kMinPG2, kMaxPG2));
-    blk2.wallDist_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
-                          wallDist_.Slice(0, iMaxG, 0, jMaxG, kMinPG2,
-                                          kMaxPG2));
-    blk2.temperature_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
-                             temperature_.Slice(0, iMaxG, 0, jMaxG, kMinPG2,
-                                                kMaxPG2));
-    if (isViscous_) {
-      blk2.viscosity_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
-                             viscosity_.Slice(0, iMaxG, 0, jMaxG, kMinPG2,
-                                              kMaxPG2));
-    }
-    if (isTurbulent_) {
-      blk2.eddyViscosity_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
-                                 eddyViscosity_.Slice(0, iMaxG, 0, jMaxG,
-                                                      kMinPG2, kMaxPG2));
-      blk2.f1_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
-                      f1_.Slice(0, iMaxG, 0, jMaxG, kMinPG2, kMaxPG2));
-      blk2.f2_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2,
-                      f2_.Slice(0, iMaxG, 0, jMaxG, kMinPG2, kMaxPG2));
-    }
-
-    // assign cell variables without ghost cells
-    blk2.specRadius_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                            specRadius_.Slice(0, iMax, 0, jMax, kMinP2,
-                                              kMaxP2));
-    blk2.dt_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                    dt_.Slice(0, iMax, 0, jMax, kMinP2, kMaxP2));
-    blk2.residual_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                          residual_.Slice(0, iMax, 0, jMax, kMinP2, kMaxP2));
-    if (isViscous_) {
-      blk2.velocityGrad_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                                velocityGrad_.Slice(0, iMax, 0, jMax, kMinP2,
-                                                    kMaxP2));
-      blk2.temperatureGrad_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                                   temperatureGrad_.Slice(0, iMax, 0, jMax,
-                                                          kMinP2, kMaxP2));
-    }
-    if (isTurbulent_) {
-      blk2.tkeGrad_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                           tkeGrad_.Slice(0, iMax, 0, jMax, kMinP2, kMaxP2));
-      blk2.omegaGrad_.Insert(0, iMax, 0, jMax, 0, kMax2,
-                             omegaGrad_.Slice(0, iMax, 0, jMax, kMinP2,
-                                              kMaxP2));
-    }
-
-    // assign face variables
-    blk2.fAreaI_.Insert(0, iMaxG + 1, 0, jMaxG, 0, kMaxG2,
-                        fAreaI_.Slice(0, iMaxG + 1, 0, jMaxG, kMinPG2,
-                                      kMaxPG2));
-    blk2.fAreaJ_.Insert(0, iMaxG, 0, jMaxG + 1, 0, kMaxG2,
-                        fAreaJ_.Slice(0, iMaxG, 0, jMaxG + 1, kMinPG2,
-                                      kMaxPG2));
-    blk2.fAreaK_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2 + 1,
-                        fAreaK_.Slice(0, iMaxG, 0, jMaxG, kMinPG2,
-                                      kMaxPG2 + 1));
-
-    blk2.fCenterI_.Insert(0, iMaxG + 1, 0, jMaxG, 0, kMaxG2,
-                          fCenterI_.Slice(0, iMaxG + 1, 0, jMaxG, kMinPG2,
-                                          kMaxPG2));
-    blk2.fCenterJ_.Insert(0, iMaxG, 0, jMaxG + 1, 0, kMaxG2,
-                          fCenterJ_.Slice(0, iMaxG, 0, jMaxG + 1, kMinPG2,
-                                          kMaxPG2));
-    blk2.fCenterK_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxG2 + 1,
-                          fCenterK_.Slice(0, iMaxG, 0, jMaxG, kMinPG2,
-                                          kMaxPG2 + 1));
-
-    // assign boundary conditions
-    blk1.bc_ = bound1;
-    (*this) = blk1;
-    blk2.bc_ = bound2;
-    return blk2;
-
+    numI2 = this->NumI();
+    numI1 = this->NumI();
+    numJ2 = this->NumJ();
+    numJ1 = this->NumJ();
+    numK2 = this->NumK() - ind;
+    numK1 = this->NumK() - numK2;
   } else {
     cerr << "ERROR: Error in procBlock::Split(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
     exit(EXIT_FAILURE);
   }
+
+  procBlock blk1(numI1, numJ1, numK1, numGhosts_, isViscous_, isTurbulent_);
+  procBlock blk2(numI2, numJ2, numK2, numGhosts_, isViscous_, isTurbulent_);
+
+  blk1.parBlock_ = parBlock_;
+  blk2.parBlock_ = parBlock_;
+
+  // ------------------------------------------------------------------
+  // assign variables for lower split
+  // assign cell variables with ghost cells
+  blk1.state_.Fill(state_.Slice(dir, {state_.Start(dir),
+            blk1.state_.End(dir)}));
+  blk1.vol_.Fill(vol_.Slice(dir, {vol_.Start(dir), blk1.vol_.End(dir)}));
+  blk1.center_.Fill(center_.Slice(dir, {center_.Start(dir),
+            blk1.center_.End(dir)}));
+  blk1.wallDist_.Fill(wallDist_.Slice(dir, {wallDist_.Start(dir),
+            blk1.wallDist_.End(dir)}));
+  blk1.temperature_.Fill(temperature_.Slice(dir, {temperature_.Start(dir),
+            blk1.temperature_.End(dir)}));
+  if (isViscous_) {
+    blk1.viscosity_.Fill(viscosity_.Slice(dir, {viscosity_.Start(dir),
+              blk1.viscosity_.End(dir)}));
+  }
+  if (isTurbulent_) {
+    blk1.eddyViscosity_.Fill(
+        eddyViscosity_.Slice(dir, {eddyViscosity_.Start(dir),
+                blk1.eddyViscosity_.End(dir)}));
+    blk1.f1_.Fill(f1_.Slice(dir, {f1_.Start(dir), blk1.f1_.End(dir)}));
+    blk1.f2_.Fill(f2_.Slice(dir, {f2_.Start(dir), blk1.f2_.End(dir)}));
+  }
+
+  // assign cell variables without ghost cells
+  blk1.specRadius_.Fill(specRadius_.Slice(dir, {specRadius_.Start(dir),
+            blk1.specRadius_.End(dir)}));
+  blk1.dt_.Fill(dt_.Slice(dir, {dt_.Start(dir), blk1.dt_.End(dir)}));
+  blk1.residual_.Fill(residual_.Slice(dir, {residual_.Start(dir),
+            blk1.residual_.End(dir)}));
+  if (isViscous_) {
+    blk1.velocityGrad_.Fill(velocityGrad_.Slice(dir, {velocityGrad_.Start(dir),
+              blk1.velocityGrad_.End(dir)}));
+    blk1.temperatureGrad_.Fill(
+        temperatureGrad_.Slice(dir, {temperatureGrad_.Start(dir),
+                blk1.temperatureGrad_.End(dir)}));
+  }
+  if (isTurbulent_) {
+    blk1.tkeGrad_.Fill(tkeGrad_.Slice(dir, {tkeGrad_.Start(dir),
+              blk1.tkeGrad_.End(dir)}));
+    blk1.omegaGrad_.Fill(omegaGrad_.Slice(dir, {omegaGrad_.Start(dir),
+              blk1.omegaGrad_.End(dir)}));
+  }
+
+  // assign face variables
+  blk1.fAreaI_.Fill(fAreaI_.Slice(dir, {fAreaI_.Start(dir),
+            blk1.fAreaI_.End(dir)}));
+  blk1.fAreaJ_.Fill(fAreaJ_.Slice(dir, {fAreaJ_.Start(dir),
+            blk1.fAreaJ_.End(dir)}));
+  blk1.fAreaK_.Fill(fAreaK_.Slice(dir, {fAreaK_.Start(dir),
+            blk1.fAreaK_.End(dir)}));
+
+  blk1.fCenterI_.Fill(fCenterI_.Slice(dir, {fCenterI_.Start(dir),
+            blk1.fCenterI_.End(dir)}));
+  blk1.fCenterJ_.Fill(fCenterJ_.Slice(dir, {fCenterJ_.Start(dir),
+            blk1.fCenterJ_.End(dir)}));
+  blk1.fCenterK_.Fill(fCenterK_.Slice(dir, {fCenterK_.Start(dir) ,
+            blk1.fCenterK_.End(dir)}));
+
+  // ------------------------------------------------------------------
+  // assign variables for upper split
+  // assign cell variables with ghost cells
+  blk2.state_.Fill(state_.Slice(dir, {ind, state_.End(dir)}));
+  blk2.vol_.Fill(vol_.Slice(dir, {ind, vol_.End(dir)}));
+  blk2.center_.Fill(center_.Slice(dir, {ind, center_.End(dir)}));
+  blk2.wallDist_.Fill(wallDist_.Slice(dir, {ind, wallDist_.End(dir)}));
+  blk2.temperature_.Fill(temperature_.Slice(dir, {ind, temperature_.End(dir)}));
+  if (isViscous_) {
+    blk2.viscosity_.Fill(viscosity_.Slice(dir, {ind, viscosity_.End(dir)}));
+  }
+  if (isTurbulent_) {
+    blk2.eddyViscosity_.Fill(eddyViscosity_.Slice(dir, {ind,
+              eddyViscosity_.End(dir)}));
+    blk2.f1_.Fill(f1_.Slice(dir, {ind, f1_.End(dir)}));
+    blk2.f2_.Fill(f2_.Slice(dir, {ind, f2_.End(dir)}));
+  }
+
+  // assign cell variables without ghost cells
+  blk2.specRadius_.Fill(specRadius_.Slice(dir, {ind, specRadius_.End(dir)}));
+  blk2.dt_.Fill(dt_.Slice(dir, {ind, dt_.End(dir)}));
+  blk2.residual_.Fill(residual_.Slice(dir, {ind, residual_.End(dir)}));
+  if (isViscous_) {
+    blk2.velocityGrad_.Fill(velocityGrad_.Slice(dir, {ind,
+              velocityGrad_.End(dir)}));
+    blk2.temperatureGrad_.Fill(
+        temperatureGrad_.Slice(dir, {ind, temperatureGrad_.End(dir)}));
+  }
+  if (isTurbulent_) {
+    blk2.tkeGrad_.Fill(tkeGrad_.Slice(dir, {ind, tkeGrad_.End(dir)}));
+    blk2.omegaGrad_.Fill(omegaGrad_.Slice(dir, {ind, omegaGrad_.End(dir)}));
+  }
+
+  // assign face variables
+  blk2.fAreaI_.Fill(fAreaI_.Slice(dir, {ind, fAreaI_.End(dir)}));
+  blk2.fAreaJ_.Fill(fAreaJ_.Slice(dir, {ind, fAreaJ_.End(dir)}));
+  blk2.fAreaK_.Fill(fAreaK_.Slice(dir, {ind, fAreaK_.End(dir)}));
+
+  blk2.fCenterI_.Fill(fCenterI_.Slice(dir, {ind, fCenterI_.End(dir)}));
+  blk2.fCenterJ_.Fill(fCenterJ_.Slice(dir, {ind, fCenterJ_.End(dir)}));
+  blk2.fCenterK_.Fill(fCenterK_.Slice(dir, {ind, fCenterK_.End(dir)}));
+
+  // assign boundary conditions
+  blk1.bc_ = bound1;
+  (*this) = blk1;
+  blk2.bc_ = bound2;
+  return blk2;
 }
 
 /* Member function to join a procBlock along a plane defined by a direction.
@@ -6301,509 +5025,249 @@ void procBlock::Join(const procBlock &blk, const string &dir,
   // alteredSurf -- vector of surfaces whose partners will need to be altered
   // after this split
 
-  if (dir == "i") {  // --------------------------------------------------
-    procBlock newBlk(this->NumI() + blk.NumI(), this->NumJ(), this->NumK(),
-                     numGhosts_, isViscous_, isTurbulent_);
+  auto iTot = this->NumI();
+  auto jTot = this->NumJ();
+  auto kTot = this->NumK();
 
-    // cell indices
-    const auto iMax = this->NumI() + blk.NumI() - 1;
-    const auto jMax = this->NumJ() - 1;
-    const auto kMax = this->NumK() - 1;
+  // for face variables, boundary face is duplicated in lower/upper splits
+  // start upper block one index later to avoid duplication
+  auto iFaceFac = 0;
+  auto jFaceFac = 0;
+  auto kFaceFac = 0;
 
-    const auto iMaxG = iMax + 2 * numGhosts_ - 1;
-    const auto jMaxG = jMax + 2 * numGhosts_ - 1;
-    const auto kMaxG = kMax + 2 * numGhosts_ - 1;
-
-    const auto iMaxUG = blk.NumI() + 2 * blk.numGhosts_ - 1;
-    const auto iMaxU = blk.NumI() - 1;
-    // don't copy upper ghosts
-    const auto iMaxLG = this->NumI() + numGhosts_ - 1;
-    const auto iMaxL = this->NumI() - 1;
-
-    const auto iMinUG = numGhosts_;
-
-    newBlk.bc_ = bc_;
-    newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
-
-    // assign variables from lower block -----------------------------
-    // assign cell variables with ghost cells
-    newBlk.state_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG,
-                         state_.Slice(0, iMaxLG, 0, jMaxG, 0, kMaxG));
-    newBlk.vol_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG,
-                       vol_.Slice(0, iMaxLG, 0, jMaxG, 0, kMaxG));
-    newBlk.center_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG,
-                          center_.Slice(0, iMaxLG, 0, jMaxG, 0, kMaxG));
-    newBlk.wallDist_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG,
-                            wallDist_.Slice(0, iMaxLG, 0, jMaxG, 0, kMaxG));
-    newBlk.temperature_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG,
-                               temperature_.Slice(0, iMaxLG, 0, jMaxG, 0,
-                                                  kMaxG));
-    if (isViscous_) {
-      newBlk.viscosity_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG,
-                               viscosity_.Slice(0, iMaxLG, 0, jMaxG, 0, kMaxG));
-    }
-    if (isTurbulent_) {
-      newBlk.eddyViscosity_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG,
-                                   eddyViscosity_.Slice(0, iMaxLG, 0, jMaxG,
-                                                        0, kMaxG));
-      newBlk.f1_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG,
-                        f1_.Slice(0, iMaxLG, 0, jMaxG, 0, kMaxG));
-      newBlk.f2_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG,
-                        f2_.Slice(0, iMaxLG, 0, jMaxG, 0, kMaxG));
-    }
-
-    // assign cell variables without ghost cells
-    newBlk.specRadius_.Insert(0, iMaxL, 0, jMax, 0, kMax,
-                              specRadius_.Slice(0, iMaxL, 0, jMax, 0,
-                                                kMax));
-    newBlk.dt_.Insert(0, iMaxL, 0, jMax, 0, kMax,
-                      dt_.Slice(0, iMaxL, 0, jMax, 0, kMax));
-    newBlk.residual_.Insert(0, iMaxL, 0, jMax, 0, kMax,
-                            residual_.Slice(0, iMaxL, 0, jMax, 0, kMax));
-    if (isViscous_) {
-      newBlk.velocityGrad_.Insert(0, iMaxL, 0, jMax, 0, kMax,
-                                  velocityGrad_.Slice(0, iMaxL, 0, jMax, 0,
-                                                      kMax));
-      newBlk.temperatureGrad_.Insert(0, iMaxL, 0, jMax, 0, kMax,
-                                     temperatureGrad_.Slice(0, iMaxL, 0,
-                                                            jMax, 0, kMax));
-    }
-    if (isTurbulent_) {
-      newBlk.tkeGrad_.Insert(0, iMaxL, 0, jMax, 0, kMax,
-                             tkeGrad_.Slice(0, iMaxL, 0, jMax, 0, kMax));
-      newBlk.omegaGrad_.Insert(0, iMaxL, 0, jMax, 0, kMax,
-                               omegaGrad_.Slice(0, iMaxL, 0, jMax, 0, kMax));
-    }
-
-    // assign face variables
-    newBlk.fAreaI_.Insert(0, iMaxLG + 1, 0, jMaxG, 0, kMaxG,
-                        fAreaI_.Slice(0, iMaxLG + 1, 0, jMaxG, 0, kMaxG));
-    newBlk.fAreaJ_.Insert(0, iMaxLG, 0, jMaxG + 1, 0, kMaxG,
-                        fAreaJ_.Slice(0, iMaxLG, 0, jMaxG + 1, 0, kMaxG));
-    newBlk.fAreaK_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG + 1,
-                        fAreaK_.Slice(0, iMaxLG, 0, jMaxG, 0, kMaxG + 1));
-
-    newBlk.fCenterI_.Insert(0, iMaxLG + 1, 0, jMaxG, 0, kMaxG,
-                        fCenterI_.Slice(0, iMaxLG + 1, 0, jMaxG, 0, kMaxG));
-    newBlk.fCenterJ_.Insert(0, iMaxLG, 0, jMaxG + 1, 0, kMaxG,
-                        fCenterJ_.Slice(0, iMaxLG, 0, jMaxG + 1, 0, kMaxG));
-    newBlk.fCenterK_.Insert(0, iMaxLG, 0, jMaxG, 0, kMaxG + 1,
-                        fCenterK_.Slice(0, iMaxLG, 0, jMaxG, 0, kMaxG + 1));
-
-    // assign variables from upper block -----------------------------
-    // assign cell variables with ghost cells
-    newBlk.state_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG, 0, kMaxG,
-                         blk.state_.Slice(iMinUG, iMaxUG, 0, jMaxG, 0, kMaxG));
-    newBlk.vol_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG, 0, kMaxG,
-                       blk.vol_.Slice(iMinUG, iMaxUG, 0, jMaxG, 0, kMaxG));
-    newBlk.center_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG, 0, kMaxG,
-                          blk.center_.Slice(iMinUG, iMaxUG, 0, jMaxG, 0,
-                                            kMaxG));
-    newBlk.wallDist_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG, 0, kMaxG,
-                            blk.wallDist_.Slice(iMinUG, iMaxUG, 0, jMaxG, 0,
-                                                kMaxG));
-    newBlk.temperature_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG, 0, kMaxG,
-                               blk.temperature_.Slice(iMinUG, iMaxUG, 0, jMaxG,
-                                                      0, kMaxG));
-    if (isViscous_) {
-      newBlk.viscosity_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG, 0, kMaxG,
-                               blk.viscosity_.Slice(iMinUG, iMaxUG, 0, jMaxG, 0,
-                                                    kMaxG));
-    }
-    if (isTurbulent_) {
-      newBlk.eddyViscosity_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG, 0, kMaxG,
-                                   blk.eddyViscosity_.Slice(iMinUG, iMaxUG, 0,
-                                                            jMaxG, 0, kMaxG));
-      newBlk.f1_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG, 0, kMaxG,
-                        blk.f1_.Slice(iMinUG, iMaxUG, 0, jMaxG, 0, kMaxG));
-      newBlk.f2_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG, 0, kMaxG,
-                        blk.f2_.Slice(iMinUG, iMaxUG, 0, jMaxG, 0, kMaxG));
-    }
-
-    // assign cell variables without ghost cells
-    newBlk.specRadius_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
-                              blk.specRadius_.Slice(0, iMaxU, 0, jMax, 0,
-                                                    kMax));
-    newBlk.dt_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
-                      blk.dt_.Slice(0, iMaxU, 0, jMax, 0, kMax));
-    newBlk.residual_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
-                            blk.residual_.Slice(0, iMaxU, 0, jMax, 0, kMax));
-    if (isViscous_) {
-      newBlk.velocityGrad_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
-                                  blk.velocityGrad_.Slice(0, iMaxU, 0, jMax,
-                                                          0, kMax));
-      newBlk.temperatureGrad_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
-                                     blk.temperatureGrad_.Slice(0, iMaxU, 0,
-                                                                jMax, 0,
-                                                                kMax));
-    }
-    if (isTurbulent_) {
-      newBlk.tkeGrad_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
-                             blk.tkeGrad_.Slice(0, iMaxU, 0, jMax, 0, kMax));
-      newBlk.omegaGrad_.Insert(iMaxL + 1, iMax, 0, jMax, 0, kMax,
-                               blk.omegaGrad_.Slice(0, iMaxU, 0, jMax, 0,
-                                                    kMax));
-    }
-
-    // assign face variables
-    newBlk.fAreaI_.Insert(iMaxLG + 1, iMaxG + 1, 0, jMaxG, 0, kMaxG,
-                        blk.fAreaI_.Slice(iMinUG, iMaxUG + 1, 0, jMaxG, 0,
-                                          kMaxG));
-    newBlk.fAreaJ_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG + 1, 0, kMaxG,
-                        blk.fAreaJ_.Slice(iMinUG, iMaxUG, 0, jMaxG + 1, 0,
-                                          kMaxG));
-    newBlk.fAreaK_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG, 0, kMaxG + 1,
-                        blk.fAreaK_.Slice(iMinUG, iMaxUG, 0, jMaxG, 0,
-                                          kMaxG + 1));
-
-    newBlk.fCenterI_.Insert(iMaxLG + 1, iMaxG + 1, 0, jMaxG, 0, kMaxG,
-                        blk.fCenterI_.Slice(iMinUG, iMaxUG + 1, 0, jMaxG, 0,
-                                            kMaxG));
-    newBlk.fCenterJ_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG + 1, 0, kMaxG,
-                        blk.fCenterJ_.Slice(iMinUG, iMaxUG, 0, jMaxG + 1, 0,
-                                            kMaxG));
-    newBlk.fCenterK_.Insert(iMaxLG + 1, iMaxG, 0, jMaxG, 0, kMaxG + 1,
-                        blk.fCenterK_.Slice(iMinUG, iMaxUG, 0, jMaxG, 0,
-                                            kMaxG + 1));
-
-    *this = newBlk;
-  } else if (dir == "j") {  // -----------------------------------------
-    procBlock newBlk(this->NumI(), this->NumJ() + blk.NumJ(), this->NumK(),
-                     numGhosts_, isViscous_, isTurbulent_);
-
-    // cell indices
-    const auto iMax = this->NumI() - 1;
-    const auto jMax = this->NumJ() + blk.NumJ() - 1;
-    const auto kMax = this->NumK() - 1;
-
-    const auto iMaxG = iMax + 2 * numGhosts_ - 1;
-    const auto jMaxG = jMax + 2 * numGhosts_ - 1;
-    const auto kMaxG = kMax + 2 * numGhosts_ - 1;
-
-    const auto jMaxUG = blk.NumJ() + 2 * blk.numGhosts_ - 1;
-    const auto jMaxU = blk.NumJ() - 1;
-    // don't copy upper ghosts
-    const auto jMaxLG = this->NumJ() + numGhosts_ - 1;
-    const auto jMaxL = this->NumJ() - 1;
-
-    const auto jMinUG = numGhosts_;
-
-    newBlk.bc_ = bc_;
-    newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
-
-    // assign variables from lower block -----------------------------
-    // assign cell variables with ghost cells
-    newBlk.state_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG,
-                         state_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG));
-    newBlk.vol_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG,
-                       vol_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG));
-    newBlk.center_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG,
-                          center_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG));
-    newBlk.wallDist_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG,
-                            wallDist_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG));
-    newBlk.temperature_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG,
-                            temperature_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG));
-    if (isViscous_) {
-      newBlk.viscosity_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG,
-                               viscosity_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG));
-    }
-    if (isTurbulent_) {
-      newBlk.eddyViscosity_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG,
-                                   eddyViscosity_.Slice(0, iMaxG, 0, jMaxLG, 0,
-                                                        kMaxG));
-      newBlk.f1_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG,
-                        f1_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG));
-      newBlk.f2_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG,
-                        f2_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG));
-    }
-
-    // assign cell variables without ghost cells
-    newBlk.specRadius_.Insert(0, iMax, 0, jMaxL, 0, kMax,
-                              specRadius_.Slice(0, iMax, 0, jMaxL, 0,
-                                                kMax));
-    newBlk.dt_.Insert(0, iMax, 0, jMaxL, 0, kMax,
-                      dt_.Slice(0, iMax, 0, jMaxL, 0, kMax));
-    newBlk.residual_.Insert(0, iMax, 0, jMaxL, 0, kMax,
-                            residual_.Slice(0, iMax, 0, jMaxL, 0, kMax));
-    if (isViscous_) {
-      newBlk.velocityGrad_.Insert(0, iMax, 0, jMaxL, 0, kMax,
-                                  velocityGrad_.Slice(0, iMax, 0, jMaxL,
-                                                      0, kMax));
-      newBlk.temperatureGrad_.Insert(0, iMax, 0, jMaxL, 0, kMax,
-                                     temperatureGrad_.Slice(0, iMax, 0,
-                                                            jMaxL, 0, kMax));
-    }
-    if (isTurbulent_) {
-      newBlk.tkeGrad_.Insert(0, iMax, 0, jMaxL, 0, kMax,
-                             tkeGrad_.Slice(0, iMax, 0, jMaxL, 0, kMax));
-      newBlk.omegaGrad_.Insert(0, iMax, 0, jMaxL, 0, kMax,
-                               omegaGrad_.Slice(0, iMax, 0, jMaxL, 0, kMax));
-    }
-
-    // assign face variables
-    newBlk.fAreaI_.Insert(0, iMaxG + 1, 0, jMaxLG, 0, kMaxG,
-                        fAreaI_.Slice(0, iMaxG + 1, 0, jMaxLG, 0, kMaxG));
-    newBlk.fAreaJ_.Insert(0, iMaxG, 0, jMaxLG + 1, 0, kMaxG,
-                        fAreaJ_.Slice(0, iMaxG, 0, jMaxLG + 1, 0, kMaxG));
-    newBlk.fAreaK_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG + 1,
-                        fAreaK_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG + 1));
-
-    newBlk.fCenterI_.Insert(0, iMaxG + 1, 0, jMaxLG, 0, kMaxG,
-                        fCenterI_.Slice(0, iMaxG + 1, 0, jMaxLG, 0, kMaxG));
-    newBlk.fCenterJ_.Insert(0, iMaxG, 0, jMaxLG + 1, 0, kMaxG,
-                        fCenterJ_.Slice(0, iMaxG, 0, jMaxLG + 1, 0, kMaxG));
-    newBlk.fCenterK_.Insert(0, iMaxG, 0, jMaxLG, 0, kMaxG + 1,
-                        fCenterK_.Slice(0, iMaxG, 0, jMaxLG, 0, kMaxG + 1));
-
-    // assign variables from upper block -----------------------------
-    // assign cell variables with ghost cells
-    newBlk.state_.Insert(0, iMaxG, jMaxLG + 1, jMaxG, 0, kMaxG,
-                         blk.state_.Slice(0, iMaxG, jMinUG, jMaxUG, 0, kMaxG));
-    newBlk.vol_.Insert(0, iMaxG, jMaxLG + 1, jMaxG, 0, kMaxG,
-                       blk.vol_.Slice(0, iMaxG, jMinUG, jMaxUG, 0, kMaxG));
-    newBlk.center_.Insert(0, iMaxG, jMaxLG + 1, jMaxG, 0, kMaxG,
-                          blk.center_.Slice(0, iMaxG, jMinUG, jMaxUG, 0,
-                                            kMaxG));
-    newBlk.wallDist_.Insert(0, iMaxG, jMaxLG + 1, jMaxG, 0, kMaxG,
-                            blk.wallDist_.Slice(0, iMaxG, jMinUG, jMaxUG, 0,
-                                                kMaxG));
-    newBlk.temperature_.Insert(0, iMaxG, jMaxLG + 1, jMaxG, 0, kMaxG,
-                               blk.temperature_.Slice(0, iMaxG, jMinUG,
-                                                      jMaxUG, 0,
-                                                      kMaxG));
-    if (isViscous_) {
-      newBlk.viscosity_.Insert(0, iMaxG, jMaxLG + 1, jMaxG, 0, kMaxG,
-                               blk.viscosity_.Slice(0, iMaxG, jMinUG, jMaxUG, 0,
-                                                    kMaxG));
-    }
-    if (isTurbulent_) {
-      newBlk.eddyViscosity_.Insert(0, iMaxG, jMaxLG + 1, jMaxG, 0, kMaxG,
-                                   blk.eddyViscosity_.Slice(0, iMaxG, jMinUG,
-                                                            jMaxUG, 0, kMaxG));
-      newBlk.f1_.Insert(0, iMaxG, jMaxLG + 1, jMaxG, 0, kMaxG,
-                        blk.f1_.Slice(0, iMaxG, jMinUG, jMaxUG, 0, kMaxG));
-      newBlk.f2_.Insert(0, iMaxG, jMaxLG + 1, jMaxG, 0, kMaxG,
-                        blk.f2_.Slice(0, iMaxG, jMinUG, jMaxUG, 0, kMaxG));
-    }
-
-    // assign cell variables without ghost cells
-    newBlk.specRadius_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
-                              blk.specRadius_.Slice(0, iMax, 0, jMaxU, 0,
-                                                    kMax));
-    newBlk.dt_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
-                      blk.dt_.Slice(0, iMax, 0, jMaxU, 0, kMax));
-    newBlk.residual_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
-                            blk.residual_.Slice(0, iMax, 0, jMaxU, 0, kMax));
-
-    if (isViscous_) {
-      newBlk.velocityGrad_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
-                                  blk.velocityGrad_.Slice(0, iMax, 0, jMaxU,
-                                                          0, kMax));
-      newBlk.temperatureGrad_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
-                                  blk.temperatureGrad_.Slice(0, iMax, 0,
-                                                             jMaxU, 0, kMax));
-    }
-    if (isTurbulent_) {
-      newBlk.tkeGrad_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
-                             blk.tkeGrad_.Slice(0, iMax, 0, jMaxU, 0, kMax));
-      newBlk.omegaGrad_.Insert(0, iMax, jMaxL + 1, jMax, 0, kMax,
-                               blk.omegaGrad_.Slice(0, iMax, 0, jMaxU, 0,
-                                                    kMax));
-    }
-
-    // assign face variables
-    newBlk.fAreaI_.Insert(0, iMaxG + 1, jMaxLG + 1, jMaxG, 0, kMaxG,
-                        blk.fAreaI_.Slice(0, iMaxG + 1, jMinUG, jMaxUG, 0,
-                                          kMaxG));
-    newBlk.fAreaJ_.Insert(0, iMaxG, jMaxLG + 1, jMaxG + 1, 0, kMaxG,
-                        blk.fAreaJ_.Slice(0, iMaxG, jMinUG, jMaxUG + 1, 0,
-                                          kMaxG));
-    newBlk.fAreaK_.Insert(0, iMaxG, jMaxLG + 1, jMaxG, 0, kMaxG + 1,
-                        blk.fAreaK_.Slice(0, iMaxG, jMinUG, jMaxUG, 0,
-                                          kMaxG + 1));
-
-    newBlk.fCenterI_.Insert(0, iMaxG + 1, jMaxLG + 1, jMaxG, 0, kMaxG,
-                        blk.fCenterI_.Slice(0, iMaxG + 1, jMinUG, jMaxUG, 0,
-                                            kMaxG));
-    newBlk.fCenterJ_.Insert(0, iMaxG, jMaxLG + 1, jMaxG + 1, 0, kMaxG,
-                        blk.fCenterJ_.Slice(0, iMaxG, jMinUG, jMaxUG + 1, 0,
-                                            kMaxG));
-    newBlk.fCenterK_.Insert(0, iMaxG, jMaxLG + 1, jMaxG, 0, kMaxG + 1,
-                        blk.fCenterK_.Slice(0, iMaxG, jMinUG, jMaxUG, 0,
-                                            kMaxG + 1));
-
-    *this = newBlk;
-  } else if (dir == "k") {  // ----------------------------------------------
-    procBlock newBlk(this->NumI(), this->NumJ(), this->NumK() + blk.NumK(),
-                     numGhosts_, isViscous_, isTurbulent_);
-
-    // cell indices
-    const auto iMax = this->NumI() - 1;
-    const auto jMax = this->NumJ() - 1;
-    const auto kMax = this->NumK() + blk.NumK() - 1;
-
-    const auto iMaxG = iMax + 2 * numGhosts_ - 1;
-    const auto jMaxG = jMax + 2 * numGhosts_ - 1;
-    const auto kMaxG = kMax + 2 * numGhosts_ - 1;
-
-    const auto kMaxUG = blk.NumK() + 2 * blk.numGhosts_ - 1;
-    const auto kMaxU = blk.NumK() - 1;
-    // don't copy upper ghosts
-    const auto kMaxLG = this->NumK() + numGhosts_ - 1;
-    const auto kMaxL = this->NumK() - 1;
-
-    const auto kMinUG = numGhosts_;
-
-    newBlk.bc_ = bc_;
-    newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
-
-    // assign variables from lower block -----------------------------
-    // assign cell variables with ghost cells
-    newBlk.state_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG,
-                         state_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxLG));
-    newBlk.vol_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG,
-                       vol_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxLG));
-    newBlk.center_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG,
-                          center_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxLG));
-    newBlk.wallDist_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG,
-                            wallDist_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxLG));
-    newBlk.temperature_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG,
-                               temperature_.Slice(0, iMaxG, 0, jMaxG, 0,
-                                                  kMaxLG));
-    if (isViscous_) {
-      newBlk.viscosity_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG,
-                               viscosity_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxLG));
-    }
-    if (isTurbulent_) {
-      newBlk.eddyViscosity_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG,
-                                   eddyViscosity_.Slice(0, iMaxG, 0, jMaxG, 0,
-                                                        kMaxLG));
-      newBlk.f1_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG,
-                        f1_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxLG));
-      newBlk.f2_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG,
-                        f2_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxLG));
-    }
-
-    // assign cell variables without ghost cells
-    newBlk.specRadius_.Insert(0, iMax, 0, jMax, 0, kMaxL,
-                              specRadius_.Slice(0, iMax, 0, jMax, 0,
-                                                kMaxL));
-    newBlk.dt_.Insert(0, iMax, 0, jMax, 0, kMaxL,
-                      dt_.Slice(0, iMax, 0, jMax, 0, kMaxL));
-    newBlk.residual_.Insert(0, iMax, 0, jMax, 0, kMaxL,
-                            residual_.Slice(0, iMax, 0, jMax, 0, kMaxL));
-    if (isViscous_) {
-      newBlk.velocityGrad_.Insert(0, iMax, 0, jMax, 0, kMaxL,
-                                  velocityGrad_.Slice(0, iMax, 0, jMax, 0,
-                                                      kMaxL));
-      newBlk.temperatureGrad_.Insert(0, iMax, 0, jMax, 0, kMaxL,
-                                     temperatureGrad_.Slice(0, iMax, 0, jMax,
-                                                            0, kMaxL));
-    }
-    if (isTurbulent_) {
-      newBlk.tkeGrad_.Insert(0, iMax, 0, jMax, 0, kMaxL,
-                             tkeGrad_.Slice(0, iMax, 0, jMax, 0, kMaxL));
-      newBlk.omegaGrad_.Insert(0, iMax, 0, jMax, 0, kMaxL,
-                               omegaGrad_.Slice(0, iMax, 0, jMax, 0, kMaxL));
-    }
-
-    // assign face variables
-    newBlk.fAreaI_.Insert(0, iMaxG + 1, 0, jMaxG, 0, kMaxLG,
-                        fAreaI_.Slice(0, iMaxG + 1, 0, jMaxG, 0, kMaxLG));
-    newBlk.fAreaJ_.Insert(0, iMaxG, 0, jMaxG + 1, 0, kMaxLG,
-                        fAreaJ_.Slice(0, iMaxG, 0, jMaxG + 1, 0, kMaxLG));
-    newBlk.fAreaK_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG + 1,
-                        fAreaK_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxLG + 1));
-
-    newBlk.fCenterI_.Insert(0, iMaxG + 1, 0, jMaxG, 0, kMaxLG,
-                        fCenterI_.Slice(0, iMaxG + 1, 0, jMaxG, 0, kMaxLG));
-    newBlk.fCenterJ_.Insert(0, iMaxG, 0, jMaxG + 1, 0, kMaxLG,
-                        fCenterJ_.Slice(0, iMaxG, 0, jMaxG + 1, 0, kMaxLG));
-    newBlk.fCenterK_.Insert(0, iMaxG, 0, jMaxG, 0, kMaxLG + 1,
-                        fCenterK_.Slice(0, iMaxG, 0, jMaxG, 0, kMaxLG + 1));
-
-    // assign variables from upper block -----------------------------
-    // assign cell variables with ghost cells
-    newBlk.state_.Insert(0, iMaxG, 0, jMaxG, kMaxLG + 1, kMaxG,
-                         blk.state_.Slice(0, iMaxG, 0, jMaxG, kMinUG, kMaxUG));
-    newBlk.vol_.Insert(0, iMaxG, 0, jMaxG, kMaxLG + 1, kMaxG,
-                       blk.vol_.Slice(0, iMaxG, 0, jMaxG, kMinUG, kMaxUG));
-    newBlk.center_.Insert(0, iMaxG, 0, jMaxG, kMaxLG + 1, kMaxG,
-                          blk.center_.Slice(0, iMaxG, 0, jMaxG, kMinUG,
-                                            kMaxUG));
-    newBlk.wallDist_.Insert(0, iMaxG, 0, jMaxG, kMaxLG + 1, kMaxG,
-                            blk.wallDist_.Slice(0, iMaxG, 0, jMaxG, kMinUG,
-                                                kMaxUG));
-    newBlk.temperature_.Insert(0, iMaxG, 0, jMaxG, kMaxLG + 1, kMaxG,
-                               blk.temperature_.Slice(0, iMaxG, 0, jMaxG,
-                                                      kMinUG, kMaxUG));
-    if (isViscous_) {
-      newBlk.viscosity_.Insert(0, iMaxG, 0, jMaxG, kMaxLG + 1, kMaxG,
-                               blk.viscosity_.Slice(0, iMaxG, 0, jMaxG, kMinUG,
-                                                    kMaxUG));
-    }
-    if (isTurbulent_) {
-      newBlk.eddyViscosity_.Insert(0, iMaxG, 0, jMaxG, kMaxLG + 1, kMaxG,
-                                   blk.eddyViscosity_.Slice(0, iMaxG, 0, jMaxG,
-                                                            kMinUG, kMaxUG));
-      newBlk.f1_.Insert(0, iMaxG, 0, jMaxG, kMaxLG + 1, kMaxG,
-                        blk.f1_.Slice(0, iMaxG, 0, jMaxG, kMinUG, kMaxUG));
-      newBlk.f2_.Insert(0, iMaxG, 0, jMaxG, kMaxLG + 1, kMaxG,
-                        blk.f2_.Slice(0, iMaxG, 0, jMaxG, kMinUG, kMaxUG));
-    }
-
-    // assign cell variables without ghost cells
-    newBlk.specRadius_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
-                              blk.specRadius_.Slice(0, iMax, 0, jMax, 0,
-                                                    kMaxU));
-    newBlk.dt_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
-                      blk.dt_.Slice(0, iMax, 0, jMax, 0, kMaxU));
-    newBlk.residual_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
-                            blk.residual_.Slice(0, iMax, 0, jMax, 0, kMaxU));
-    if (isViscous_) {
-      newBlk.velocityGrad_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
-                                  blk.velocityGrad_.Slice(0, iMax, 0, jMax, 0,
-                                                          kMaxU));
-      newBlk.temperatureGrad_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
-                                     blk.temperatureGrad_.Slice(0, iMax, 0,
-                                                                jMax, 0,
-                                                                kMaxU));
-    }
-    if (isTurbulent_) {
-      newBlk.tkeGrad_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
-                             blk.tkeGrad_.Slice(0, iMax, 0, jMax, 0, kMaxU));
-      newBlk.omegaGrad_.Insert(0, iMax, 0, jMax, kMaxL + 1, kMax,
-                               blk.omegaGrad_.Slice(0, iMax, 0, jMax, 0,
-                                                    kMaxU));
-    }
-
-    // assign face variables
-    newBlk.fAreaI_.Insert(0, iMaxG + 1, 0, jMaxG, kMaxLG + 1, kMaxG,
-                        blk.fAreaI_.Slice(0, iMaxG + 1, 0, jMaxG, kMinUG,
-                                          kMaxUG));
-    newBlk.fAreaJ_.Insert(0, iMaxG, 0, jMaxG + 1, kMaxLG + 1, kMaxG,
-                        blk.fAreaJ_.Slice(0, iMaxG, 0, jMaxG + 1, kMinUG,
-                                          kMaxUG));
-    newBlk.fAreaK_.Insert(0, iMaxG, 0, jMaxG, kMaxLG + 1, kMaxG + 1,
-                        blk.fAreaK_.Slice(0, iMaxG, 0, jMaxG, kMinUG,
-                                          kMaxUG + 1));
-
-    newBlk.fCenterI_.Insert(0, iMaxG + 1, 0, jMaxG, kMaxLG + 1, kMaxG,
-                        blk.fCenterI_.Slice(0, iMaxG + 1, 0, jMaxG, kMinUG,
-                                            kMaxUG));
-    newBlk.fCenterJ_.Insert(0, iMaxG, 0, jMaxG + 1, kMaxLG + 1, kMaxG,
-                        blk.fCenterJ_.Slice(0, iMaxG, 0, jMaxG + 1, kMinUG,
-                                            kMaxUG));
-    newBlk.fCenterK_.Insert(0, iMaxG, 0, jMaxG, kMaxLG + 1, kMaxG + 1,
-                        blk.fCenterK_.Slice(0, iMaxG, 0, jMaxG, kMinUG,
-                                            kMaxUG + 1));
-
-    *this = newBlk;
+  if (dir == "i") {
+    iTot += blk.NumI();
+    iFaceFac = 1;
+  } else if (dir == "j") {
+    jTot += blk.NumJ();
+    jFaceFac = 1;
+  } else if (dir == "k") {
+    kTot += blk.NumK();
+    kFaceFac = 1;
   } else {
     cerr << "ERROR: Error in procBlock::Join(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
     exit(EXIT_FAILURE);
   }
+
+  procBlock newBlk(iTot, jTot, kTot, numGhosts_, isViscous_, isTurbulent_);
+
+  newBlk.bc_ = bc_;
+  newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
+
+  // assign variables from lower block -----------------------------
+  // assign cell variables with ghost cells
+
+  newBlk.state_.Insert(dir, {state_.Start(dir), state_.PhysEnd(dir)},
+                       state_.Slice(dir, {state_.Start(dir),
+                               state_.PhysEnd(dir)}));
+
+  newBlk.vol_.Insert(dir, {vol_.Start(dir), vol_.PhysEnd(dir)},
+                     vol_.Slice(dir, {vol_.Start(dir), vol_.PhysEnd(dir)}));
+
+  newBlk.center_.Insert(dir, {center_.Start(dir), center_.PhysEnd(dir)},
+                        center_.Slice(dir, {center_.Start(dir),
+                                center_.PhysEnd(dir)}));
+
+  newBlk.wallDist_.Insert(dir, {wallDist_.Start(dir), wallDist_.PhysEnd(dir)},
+                          wallDist_.Slice(dir, {wallDist_.Start(dir),
+                                  wallDist_.PhysEnd(dir)}));
+
+  newBlk.temperature_.Insert(dir, {temperature_.Start(dir),
+          temperature_.PhysEnd(dir)},
+    temperature_.Slice(dir, {temperature_.Start(dir),
+            temperature_.PhysEnd(dir)}));
+
+  if (isViscous_) {
+    newBlk.viscosity_.Insert(dir, {viscosity_.Start(dir),
+            viscosity_.PhysEnd(dir)},
+      viscosity_.Slice(dir, {viscosity_.Start(dir), viscosity_.PhysEnd(dir)}));
+  }
+  if (isTurbulent_) {
+    newBlk.eddyViscosity_.Insert(dir, {eddyViscosity_.Start(dir),
+            eddyViscosity_.PhysEnd(dir)},
+      eddyViscosity_.Slice(
+          dir, {eddyViscosity_.Start(dir), eddyViscosity_.PhysEnd(dir)}));
+
+    newBlk.f1_.Insert(dir, {f1_.Start(dir), f1_.PhysEnd(dir)},
+                      f1_.Slice(dir, {f1_.Start(dir), f1_.PhysEnd(dir)}));
+    newBlk.f2_.Insert(dir, {f2_.Start(dir), f2_.PhysEnd(dir)},
+                      f2_.Slice(dir, {f2_.Start(dir), f2_.PhysEnd(dir)}));
+  }
+
+  // assign cell variables without ghost cells
+  newBlk.specRadius_.Insert(dir, {specRadius_.Start(dir),
+          specRadius_.PhysEnd(dir)},
+    specRadius_.Slice(dir, {specRadius_.Start(dir), specRadius_.PhysEnd(dir)}));
+
+  newBlk.dt_.Insert(dir, {dt_.Start(dir), dt_.PhysEnd(dir)},
+                    dt_.Slice(dir, {dt_.Start(dir), dt_.PhysEnd(dir)}));
+
+  newBlk.residual_.Insert(dir, {residual_.Start(dir), residual_.PhysEnd(dir)},
+                          residual_.Slice(dir, {residual_.Start(dir),
+                                  residual_.PhysEnd(dir)}));
+
+  if (isViscous_) {
+    newBlk.velocityGrad_.Insert(dir, {velocityGrad_.Start(dir),
+            velocityGrad_.PhysEnd(dir)},
+      velocityGrad_.Slice(dir, {velocityGrad_.Start(dir),
+              velocityGrad_.PhysEnd(dir)}));
+
+    newBlk.temperatureGrad_.Insert(dir, {temperatureGrad_.Start(dir),
+            temperatureGrad_.PhysEnd(dir)},
+      temperatureGrad_.Slice(dir, {temperatureGrad_.Start(dir),
+              temperatureGrad_.PhysEnd(dir)}));
+  }
+  if (isTurbulent_) {
+    newBlk.tkeGrad_.Insert(dir, {tkeGrad_.Start(dir), tkeGrad_.PhysEnd(dir)},
+                           tkeGrad_.Slice(dir, {tkeGrad_.Start(dir),
+                                   tkeGrad_.PhysEnd(dir)}));
+
+    newBlk.omegaGrad_.Insert(dir, {omegaGrad_.Start(dir),
+            omegaGrad_.PhysEnd(dir)},
+      omegaGrad_.Slice(dir, {omegaGrad_.Start(dir), omegaGrad_.PhysEnd(dir)}));
+  }
+
+  // assign face variables
+  newBlk.fAreaI_.Insert(dir, {fAreaI_.Start(dir), fAreaI_.PhysEnd(dir)},
+                        fAreaI_.Slice(dir, {fAreaI_.Start(dir),
+                                fAreaI_.PhysEnd(dir)}));
+
+  newBlk.fAreaJ_.Insert(dir, {fAreaJ_.Start(dir), fAreaJ_.PhysEnd(dir)},
+                        fAreaJ_.Slice(dir, {fAreaJ_.Start(dir),
+                                fAreaJ_.PhysEnd(dir)}));
+
+  newBlk.fAreaK_.Insert(dir, {fAreaK_.Start(dir), fAreaK_.PhysEnd(dir)},
+                        fAreaK_.Slice(dir, {fAreaK_.Start(dir),
+                                fAreaK_.PhysEnd(dir)}));
+
+  newBlk.fCenterI_.Insert(dir, {fCenterI_.Start(dir), fCenterI_.PhysEnd(dir)},
+                          fCenterI_.Slice(dir, {fCenterI_.Start(dir),
+                                  fCenterI_.PhysEnd(dir)}));
+
+  newBlk.fCenterJ_.Insert(dir, {fCenterJ_.Start(dir), fCenterJ_.PhysEnd(dir)},
+                          fCenterJ_.Slice(dir, {fCenterJ_.Start(dir),
+                                  fCenterJ_.PhysEnd(dir)}));
+
+  newBlk.fCenterK_.Insert(dir, {fCenterK_.Start(dir), fCenterK_.PhysEnd(dir)},
+                          fCenterK_.Slice(dir, {fCenterK_.Start(dir),
+                                  fCenterK_.PhysEnd(dir)}));
+
+  // assign variables from upper block -------------------------------------
+  // assign cell variables with ghost cells
+  newBlk.state_.Insert(dir, {state_.PhysEnd(dir), newBlk.state_.End(dir)},
+                       blk.state_.Slice(dir, {blk.state_.PhysStart(dir),
+                               blk.state_.End(dir)}));
+
+  newBlk.vol_.Insert(dir, {vol_.PhysEnd(dir), newBlk.vol_.End(dir)},
+                     blk.vol_.Slice(dir, {blk.vol_.PhysStart(dir),
+                             blk.vol_.End(dir)}));
+
+  newBlk.center_.Insert(dir, {center_.PhysEnd(dir), newBlk.center_.End(dir)},
+                        blk.center_.Slice(dir, {blk.center_.PhysStart(dir),
+                                blk.center_.End(dir)}));
+
+  newBlk.wallDist_.Insert(dir, {wallDist_.PhysEnd(dir),
+          newBlk.wallDist_.End(dir)},
+    blk.wallDist_.Slice(dir, {blk.wallDist_.PhysStart(dir),
+            blk.wallDist_.End(dir)}));
+
+  newBlk.temperature_.Insert(dir, {temperature_.PhysEnd(dir),
+          newBlk.temperature_.End(dir)},
+    blk.temperature_.Slice(dir, {blk.temperature_.PhysStart(dir),
+            blk.temperature_.End(dir)}));
+
+  if (isViscous_) {
+    newBlk.viscosity_.Insert(dir, {viscosity_.PhysEnd(dir),
+            newBlk.viscosity_.End(dir)},
+      blk.viscosity_.Slice(dir, {blk.viscosity_.PhysStart(dir),
+              blk.viscosity_.End(dir)}));
+  }
+  if (isTurbulent_) {
+    newBlk.eddyViscosity_.Insert(dir, {eddyViscosity_.PhysEnd(dir),
+            newBlk.eddyViscosity_.End(dir)},
+      blk.eddyViscosity_.Slice(dir, {blk.eddyViscosity_.PhysStart(dir),
+              blk.eddyViscosity_.End(dir)}));
+
+    newBlk.f1_.Insert(dir, {f1_.PhysEnd(dir), newBlk.f1_.End(dir)},
+                      blk.f1_.Slice(dir, {blk.f1_.PhysStart(dir),
+                              blk.f1_.End(dir)}));
+
+    newBlk.f2_.Insert(dir, {f2_.PhysEnd(dir), newBlk.f2_.End(dir)},
+                      blk.f2_.Slice(dir, {blk.f2_.PhysStart(dir),
+                              blk.f2_.End(dir)}));
+  }
+
+  // assign cell variables without ghost cells
+  newBlk.specRadius_.Insert(dir, {specRadius_.PhysEnd(dir),
+          newBlk.specRadius_.End(dir)},
+    blk.specRadius_.Slice(dir, {blk.specRadius_.PhysStart(dir),
+            blk.specRadius_.End(dir)}));
+
+  newBlk.dt_.Insert(dir, {dt_.PhysEnd(dir), newBlk.dt_.End(dir)},
+                    blk.dt_.Slice(dir, {blk.dt_.PhysStart(dir),
+                            blk.dt_.End(dir)}));
+
+  newBlk.residual_.Insert(dir, {residual_.PhysEnd(dir),
+          newBlk.residual_.End(dir)},
+    blk.residual_.Slice(dir, {blk.residual_.PhysStart(dir),
+            blk.residual_.End(dir)}));
+
+  if (isViscous_) {
+    newBlk.velocityGrad_.Insert(dir, {velocityGrad_.PhysEnd(dir),
+            newBlk.velocityGrad_.End(dir)},
+      blk.velocityGrad_.Slice(dir, {blk.velocityGrad_.PhysStart(dir),
+              blk.velocityGrad_.End(dir)}));
+
+    newBlk.temperatureGrad_.Insert(dir, {temperatureGrad_.PhysEnd(dir),
+            newBlk.temperatureGrad_.End(dir)},
+      blk.temperatureGrad_.Slice(dir, {blk.temperatureGrad_.PhysStart(dir),
+              blk.temperatureGrad_.End(dir)}));
+  }
+  if (isTurbulent_) {
+    newBlk.tkeGrad_.Insert(dir, {tkeGrad_.PhysEnd(dir),
+            newBlk.tkeGrad_.End(dir)},
+      blk.tkeGrad_.Slice(dir, {blk.tkeGrad_.PhysStart(dir),
+              blk.tkeGrad_.End(dir)}));
+
+    newBlk.omegaGrad_.Insert(dir, {omegaGrad_.PhysEnd(dir),
+            newBlk.omegaGrad_.End(dir)},
+      blk.omegaGrad_.Slice(dir, {blk.omegaGrad_.PhysStart(dir),
+              blk.omegaGrad_.End(dir)}));
+  }
+
+  // assign face variables
+  newBlk.fAreaI_.Insert(dir, {fAreaI_.PhysEnd(dir), newBlk.fAreaI_.End(dir)},
+                        blk.fAreaI_.Slice(dir,
+                                          {blk.fAreaI_.PhysStart(dir) + iFaceFac,
+                                                blk.fAreaI_.End(dir)}));
+
+  newBlk.fAreaJ_.Insert(dir, {fAreaJ_.PhysEnd(dir), newBlk.fAreaJ_.End(dir)},
+                        blk.fAreaJ_.Slice(dir,
+                                          {blk.fAreaJ_.PhysStart(dir) + jFaceFac,
+                                                blk.fAreaJ_.End(dir)}));
+
+  newBlk.fAreaK_.Insert(dir, {fAreaK_.PhysEnd(dir), newBlk.fAreaK_.End(dir)},
+                        blk.fAreaK_.Slice(dir,
+                                          {blk.fAreaK_.PhysStart(dir) + kFaceFac,
+                                                blk.fAreaK_.End(dir)}));
+
+  newBlk.fCenterI_.Insert(dir, {fCenterI_.PhysEnd(dir),
+          newBlk.fCenterI_.End(dir)},
+    blk.fCenterI_.Slice(dir, {blk.fCenterI_.PhysStart(dir) + iFaceFac,
+            blk.fCenterI_.End(dir)}));
+
+  newBlk.fCenterJ_.Insert(dir, {fCenterJ_.PhysEnd(dir),
+          newBlk.fCenterJ_.End(dir)},
+    blk.fCenterJ_.Slice(dir, {blk.fCenterJ_.PhysStart(dir) + jFaceFac,
+            blk.fCenterJ_.End(dir)}));
+
+  newBlk.fCenterK_.Insert(dir, {fCenterK_.PhysEnd(dir),
+          newBlk.fCenterK_.End(dir)},
+    blk.fCenterK_.Slice(dir, {blk.fCenterK_.PhysStart(dir) + kFaceFac,
+            blk.fCenterK_.End(dir)}));
+
+  *this = newBlk;
 }
 
 void procBlock::CalcGradsI(const int &ii, const int &jj, const int &kk,
@@ -7183,37 +5647,37 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
   //                 implicit solver
 
   // loop over all physical cells - no ghost cells needed for source terms
-  for (auto kp = 0, kg = numGhosts_; kp < this->NumK(); kg++, kp++) {
-    for (auto jp = 0, jg = numGhosts_; jp < this->NumJ(); jg++, jp++) {
-      for (auto ip = 0, ig = numGhosts_; ip < this->NumI(); ig++, ip++) {
+  for (auto kk = 0; kk < this->NumK(); kk++) {
+    for (auto jj = 0; jj < this->NumJ(); jj++) {
+      for (auto ii = 0; ii < this->NumI(); ii++) {
         // calculate turbulent source terms
         source src;
-        const auto srcJac = src.CalcTurbSrc(turb, state_(ig, jg, kg),
-                                            velocityGrad_(ip, jp, kp),
-                                            temperatureGrad_(ip, jp, kp),
-                                            tkeGrad_(ip, jp, kp),
-                                            omegaGrad_(ip, jp, kp), suth,
-                                            vol_(ig, jg, kg),
-                                            eddyViscosity_(ig, jg, kg),
-                                            f1_(ig, jg, kg));
+        const auto srcJac = src.CalcTurbSrc(turb, state_(ii, jj, kk),
+                                            velocityGrad_(ii, jj, kk),
+                                            temperatureGrad_(ii, jj, kk),
+                                            tkeGrad_(ii, jj, kk),
+                                            omegaGrad_(ii, jj, kk), suth,
+                                            vol_(ii, jj, kk),
+                                            eddyViscosity_(ii, jj, kk),
+                                            f1_(ii, jj, kk));
 
         // add source terms to residual
         // subtract because residual is initially on opposite side of equation
-        this->SubtractFromResidual(src * vol_(ig, jg, kg),
-                                   ip, jp, kp);
+        this->SubtractFromResidual(src * vol_(ii, jj, kk),
+                                   ii, jj, kk);
 
         // add source spectral radius for turbulence equations
         // subtract because residual is initially on opposite side of equation
-        const auto turbSpecRad = turb->SrcSpecRad(state_(ig, jg, kg), suth,
-                                                  vol_(ig, jg, kg));
-        specRadius_(ip, jp, kp).SubtractFromTurbVariable(turbSpecRad);
+        const auto turbSpecRad = turb->SrcSpecRad(state_(ii, jj, kk), suth,
+                                                  vol_(ii, jj, kk));
+        specRadius_(ii, jj, kk).SubtractFromTurbVariable(turbSpecRad);
 
         // add contribution of source spectral radius to flux jacobian
         if (inp.IsBlockMatrix()) {
-          mainDiagonal(ip, jp, kp).SubtractFromTurbJacobian(srcJac);
+          mainDiagonal(ii, jj, kk).SubtractFromTurbJacobian(srcJac);
         } else if (inp.IsImplicit()) {
           const uncoupledScalar srcJacScalar(0.0, turbSpecRad);
-          mainDiagonal(ip, jp, kp) -= fluxJacobian(srcJacScalar);
+          mainDiagonal(ii, jj, kk) -= fluxJacobian(srcJacScalar);
         }
       }
     }
@@ -7226,12 +5690,12 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
 void procBlock::CalcWallDistance(const kdtree &tree) {
   vector3d<double> neighbor;
   // loop over cells, including ghosts
-  for (auto kk = 0; kk < wallDist_.NumK(); kk++) {
-    for (auto jj = 0; jj < wallDist_.NumJ(); jj++) {
-      for (auto ii = 0; ii < wallDist_.NumI(); ii++) {
+  for (auto kk = wallDist_.StartK(); kk < wallDist_.EndK(); kk++) {
+    for (auto jj = wallDist_.StartJ(); jj < wallDist_.EndJ(); jj++) {
+      for (auto ii = wallDist_.StartI(); ii < wallDist_.EndI(); ii++) {
         // ghost cells should have negative wall distance so that wall distance
         // at viscous face will be 0 during flux calculation
-        auto fac = this->IsPhysical(ii, jj, kk, true) ? 1.0 : -1.0;
+        auto fac = this->IsPhysical(ii, jj, kk) ? 1.0 : -1.0;
         wallDist_(ii, jj, kk) = fac *
             tree.NearestNeighbor(center_(ii, jj, kk), neighbor);
       }
@@ -7285,20 +5749,20 @@ multiArray3d<primVars> procBlock::SliceState(const int &is, const int &ie,
                                              const int &js, const int &je,
                                              const int &ks,
                                              const int &ke) const {
-  return state_.Slice(is, ie, js, je, ks, ke);
+  return state_.Slice({is, ie}, {js, je}, {ks, ke});
 }
 
 void procBlock::UpdateAuxillaryVariables(const idealGas &eos,
                                          const sutherland &suth,
                                          const bool includeGhosts) {
-  for (auto kg = 0; kg < this->NumKG(); kg++) {
-    for (auto jg = 0; jg < this->NumJG(); jg++) {
-      for (auto ig = 0; ig < this->NumIG(); ig++) {
-        if (!this->AtCorner(ig, jg, kg, true) &&
-            (includeGhosts || this->IsPhysical(ig, jg, kg, true))) {
-          temperature_(ig, jg, kg) = state_(ig, jg, kg).Temperature(eos);
+  for (auto kk = temperature_.StartK(); kk < temperature_.EndK(); kk++) {
+    for (auto jj = temperature_.StartJ(); jj < temperature_.EndJ(); jj++) {
+      for (auto ii = temperature_.StartI(); ii < temperature_.EndI(); ii++) {
+        if (!this->AtCorner(ii, jj, kk) &&
+            (includeGhosts || this->IsPhysical(ii, jj, kk))) {
+          temperature_(ii, jj, kk) = state_(ii, jj, kk).Temperature(eos);
           if (isViscous_) {
-            viscosity_(ig, jg, kg) = suth.Viscosity(temperature_(ig, jg, kg));
+            viscosity_(ii, jj, kk) = suth.Viscosity(temperature_(ii, jj, kk));
           }
         }
       }
@@ -7309,12 +5773,15 @@ void procBlock::UpdateAuxillaryVariables(const idealGas &eos,
 void procBlock::UpdateUnlimTurbEddyVisc(const unique_ptr<turbModel> &turb,
                                         const bool &includeGhosts) {
   if (isTurbulent_) {
-    for (auto kg = 0; kg < this->NumKG(); kg++) {
-      for (auto jg = 0; jg < this->NumJG(); jg++) {
-        for (auto ig = 0; ig < this->NumIG(); ig++) {
-          if (!this->AtCorner(ig, jg, kg, true) &&
-              (includeGhosts || this->IsPhysical(ig, jg, kg, true))) {
-            eddyViscosity_(ig, jg, kg) = turb->EddyViscNoLim(state_(ig, jg, kg));
+    for (auto kk = eddyViscosity_.StartK(); kk < eddyViscosity_.EndK(); kk++) {
+      for (auto jj = eddyViscosity_.StartJ(); jj < eddyViscosity_.EndJ();
+           jj++) {
+        for (auto ii = eddyViscosity_.StartI(); ii < eddyViscosity_.EndI();
+             ii++) {
+          if (!this->AtCorner(ii, jj, kk) &&
+              (includeGhosts || this->IsPhysical(ii, jj, kk))) {
+            eddyViscosity_(ii, jj, kk) =
+                turb->EddyViscNoLim(state_(ii, jj, kk));
           }
         }
       }
@@ -7324,29 +5791,75 @@ void procBlock::UpdateUnlimTurbEddyVisc(const unique_ptr<turbModel> &turb,
 
 // member function to calculate the center to center distance across a cell face
 // projected along that face's area vector
-double procBlock::ProjC2CDist(const int &ig, const int &jg, const int &kg,
+double procBlock::ProjC2CDist(const int &ii, const int &jj, const int &kk,
                               const string &dir) const {
-  // ig -- cell face index in i-direction
-  // jg -- cell face index in j-direction
-  // kg -- cell face index in k-direction
+  // ii -- cell face index in i-direction
+  // jj -- cell face index in j-direction
+  // kk -- cell face index in k-direction
   // dir -- direction of face (i, j, or k)
 
   auto projDist = 0.0;
   // always subtract "higher" center from "lower" center because area vector
   // points from lower to higher
   if (dir == "i") {
-    const auto c2cVec = this->Center(ig, jg, kg) - this->Center(ig - 1, jg, kg);
-    projDist = c2cVec.DotProd(this->FAreaUnitI(ig, jg, kg));
+    const auto c2cVec = this->Center(ii, jj, kk) - this->Center(ii - 1, jj, kk);
+    projDist = c2cVec.DotProd(this->FAreaUnitI(ii, jj, kk));
   } else if (dir == "j") {
-    const auto c2cVec = this->Center(ig, jg, kg) - this->Center(ig, jg - 1, kg);
-    projDist = c2cVec.DotProd(this->FAreaUnitJ(ig, jg, kg));
+    const auto c2cVec = this->Center(ii, jj, kk) - this->Center(ii, jj - 1, kk);
+    projDist = c2cVec.DotProd(this->FAreaUnitJ(ii, jj, kk));
   } else if (dir == "k") {
-    const auto c2cVec = this->Center(ig, jg, kg) - this->Center(ig, jg, kg - 1);
-    projDist = c2cVec.DotProd(this->FAreaUnitK(ig, jg, kg));
+    const auto c2cVec = this->Center(ii, jj, kk) - this->Center(ii, jj, kk - 1);
+    projDist = c2cVec.DotProd(this->FAreaUnitK(ii, jj, kk));
   } else {
     cerr << "ERROR: Error in procBlock::ProjC2CDist(). Direction " << dir
          << " is not recognized. Please choose i, j, or k." << endl;
     exit(EXIT_FAILURE);
   }
   return projDist;
+}
+
+// member function to write the contents of a given variable to a given file
+void procBlock::DumpToFile(const string &var, const string &fName) const {
+  // var -- variable name to write out
+  // fname -- file name
+
+  ofstream outFile(fName, ios::out);
+  // check to see if file opened correctly
+  if (outFile.fail()) {
+    cerr << "ERROR: File " << fName << " did not open correctly!!!" << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  if (var == "volume") {
+    outFile << vol_ << endl;
+  } else if (var == "faceAreaI") {
+    outFile << fAreaI_ << endl;
+  } else if (var == "faceAreaJ") {
+    outFile << fAreaJ_ << endl;
+  } else if (var == "faceAreaK") {
+    outFile << fAreaK_ << endl;
+  } else if (var == "center") {
+    outFile << center_ << endl;
+  } else if (var == "faceCenterI") {
+    outFile << fCenterI_ << endl;
+  } else if (var == "faceCenterJ") {
+    outFile << fCenterJ_ << endl;
+  } else if (var == "faceCenterK") {
+    outFile << fCenterK_ << endl;
+  } else if (var == "state") {
+    outFile << state_ << endl;
+  } else if (var == "residual") {
+    outFile << residual_ << endl;
+  } else if (var == "velocityGradient") {
+    outFile << velocityGrad_ << endl;
+  } else if (var == "temperatureGradient") {
+    outFile << temperatureGrad_ << endl;
+  } else {
+    cerr << "ERROR: Error in procBlock::DumpToFile(). Variable " << var
+         << " is not supported!" << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  // close file
+  outFile.close();
 }

@@ -94,9 +94,6 @@ int main(int argc, char *argv[]) {
   // Parse input file
   inputVars.ReadInput(rank);
 
-  // Determine number of ghost cells
-  const auto numGhost = 2;
-
   // Get equation of state
   const idealGas eos(inputVars.Gamma(), inputVars.R());
 
@@ -104,11 +101,8 @@ int main(int argc, char *argv[]) {
   const sutherland suth(inputVars.TRef(), inputVars.RRef(), inputVars.LRef(),
                         inputVars.PRef(), inputVars.VelRef(), eos);
 
-  // Initialize state vector with nondimensional variables
   // Get reference speed of sound
-  const auto aRef = eos.SoS(inputVars.PRef(), inputVars.RRef());
-  primVars state(0.0);
-  state.NondimensionalInitialize(eos, aRef, inputVars, suth);
+  const auto aRef = inputVars.ARef(eos);
 
   // Get turbulence model
   const auto turb = inputVars.AssignTurbulenceModel();
@@ -141,11 +135,11 @@ int main(int argc, char *argv[]) {
     // Get interblock BCs
     connections = GetInterblockBCs(bcs, mesh, decomp);
 
-    // Initialize the whole mesh with one state and assign ghost cells geometry
+    // Initialize the whole mesh with ICs and assign ghost cells geometry
     stateBlocks.resize(mesh.size());
     for (auto ll = 0U; ll < mesh.size(); ll++) {
-      stateBlocks[ll] = procBlock(state, mesh[ll], decomp.ParentBlock(ll),
-                                  numGhost, bcs[ll], ll, decomp.Rank(ll),
+      stateBlocks[ll] = procBlock(aRef, mesh[ll], decomp.ParentBlock(ll),
+                                  bcs[ll], ll, decomp.Rank(ll),
                                   decomp.LocalPosition(ll), inputVars, eos,
                                   suth);
       stateBlocks[ll].AssignGhostCellsGeom();
@@ -157,8 +151,8 @@ int main(int argc, char *argv[]) {
                     stateBlocks[conn.BlockSecond()]);
     }
     // Get ghost cell edge data
-    for (auto &blocks : stateBlocks) {
-      blocks.AssignGhostCellsGeomEdge();
+    for (auto &block : stateBlocks) {
+      block.AssignGhostCellsGeomEdge();
     }
 
     // Get face centers of faces with viscous wall BC
@@ -251,14 +245,12 @@ int main(int argc, char *argv[]) {
     // Open residual file
     resFile.open(inputVars.SimNameRoot() + ".resid", ios::out);
 
-
     // Write out cell centers grid file
-    WriteCellCenter(inputVars.GridName(), stateBlocks, decomp,
-                    inputVars.LRef());
+    WriteCellCenter(inputVars.GridName(), stateBlocks, decomp, inputVars.LRef());
 
     // Write out initial results
     WriteFun(stateBlocks, eos, suth, 0, decomp, inputVars, turb);
-    WriteRes(inputVars, 0);
+    WriteMeta(inputVars, 0);
   }
 
   // ----------------------------------------------------------------------
@@ -281,7 +273,6 @@ int main(int argc, char *argv[]) {
       GetBoundaryConditions(localStateBlocks, inputVars, eos, suth, turb,
                             connections, rank, MPI_cellData);
 
-
       if (inputVars.IsImplicit()) {
         // Get solution at time M - N if implicit
         GetSolMMinusN(solDeltaMmN, localStateBlocks, solTimeN, eos,
@@ -295,7 +286,7 @@ int main(int argc, char *argv[]) {
 
       // Calculate residual (RHS)
       CalcResidual(localStateBlocks, mainDiagonal, suth, eos, inputVars,
-                   turb, connections, rank, numGhost);
+                   turb, connections, rank);
 
       // Calculate time step
       CalcTimeStep(localStateBlocks, inputVars, aRef);
@@ -352,7 +343,7 @@ int main(int argc, char *argv[]) {
         cout << "writing out function file at iteration " << nn << endl;
         // Write out function file
         WriteFun(stateBlocks, eos, suth, (nn+1), decomp, inputVars, turb);
-        WriteRes(inputVars, (nn+1));
+        WriteMeta(inputVars, (nn+1));
       }
     }
   }  // loop for time step -----------------------------------------------------

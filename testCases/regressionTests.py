@@ -61,7 +61,7 @@ class regressionTest:
         self.mpirunPath = path
         
     def SetIgnoreIndices(self, ind):
-        self.ignoreIndices = ind
+        self.ignoreIndices.append(ind)
         
     def SetPercentTolerance(self, per):
         self.percentTolerance = per
@@ -82,10 +82,13 @@ class regressionTest:
         return resids
 
     def CompareResiduals(self, returnCode):
-        resids = self.GetTestCaseResiduals()
-        del resids[self.ignoreIndices]
-        truthResids = self.residuals
-        del truthResids[self.ignoreIndices]
+        testResids = self.GetTestCaseResiduals()
+        resids = []
+        truthResids = []
+        for ii in range(0, len(testResids)):
+            if ii not in self.ignoreIndices:
+                resids.append(testResids[ii])
+                truthResids.append(self.residuals[ii])
         if (returnCode == 0):
             passing = [abs(resid - truthResids[ii]) <= self.percentTolerance * truthResids[ii]
                        for ii, resid in enumerate(resids)]
@@ -208,7 +211,25 @@ def main():
     # run regression case
     passed = multiCyl.RunCase()
     totalPass = totalPass and all(passed)
+
+    # ------------------------------------------------------------------
+    # sod shock tube
+    # laminar, inviscid, bdf2, weno
+    shockTube = regressionTest()
+    shockTube.SetRegressionCase("shockTube")
+    shockTube.SetAitherPath(options.aitherPath)
+    shockTube.SetRunDirectory("shockTube")
+    shockTube.SetNumberOfProcessors(1)
+    shockTube.SetNumberOfIterations(numIterations)
+    shockTube.SetResiduals([5.0503e-1, 4.4569e-1, 1.0e0, 1.0e0, 2.6181e-1])
+    shockTube.SetIgnoreIndices(2)
+    shockTube.SetIgnoreIndices(3)
+    shockTube.SetMpirunPath(options.mpirunPath)
     
+    # run regression case
+    passed = shockTube.RunCase()   
+    totalPass = totalPass and all(passed)
+        
     # ------------------------------------------------------------------
     # supersonic wedge
     # laminar, inviscid, explicit euler
@@ -253,9 +274,9 @@ def main():
     viscPlate.SetNumberOfProcessors(maxProcs)
     viscPlate.SetNumberOfIterations(numIterations)
     if (options.operatingSystem == "linux"):
-        viscPlate.SetResiduals([7.7263e-2, 2.4712e-1, 5.6412e-2, 1.0228, 7.9361e-2])
+        viscPlate.SetResiduals([7.7265e-2, 2.4712e-1, 5.6413e-2, 1.0228, 7.9363e-2])
     else:
-        viscPlate.SetResiduals([7.6469e-2, 2.4713e-1, 4.0108e-2, 9.8730e-1, 7.9237e-2])
+        viscPlate.SetResiduals([7.6468e-2, 2.4713e-1, 4.0109e-2, 9.8730e-1, 7.9237e-2])
     viscPlate.SetIgnoreIndices(3)
     viscPlate.SetMpirunPath(options.mpirunPath)
 
@@ -273,11 +294,11 @@ def main():
     turbPlate.SetNumberOfProcessors(maxProcs)
     turbPlate.SetNumberOfIterations(numIterations)
     if (options.operatingSystem == "linux"):
-        turbPlate.SetResiduals([4.1179e-2, 4.2731e-2, 1.0641, 8.3675e-2, 3.9588e-2,
-                                2.0420e-8, 1.1659e-5])
+        turbPlate.SetResiduals([4.1174e-2, 4.2731e-2, 1.0641, 8.3686e-2, 3.9585e-2,
+                                4.5098e-8, 1.1416e-5])
     else:
-        turbPlate.SetResiduals([3.9342e-2, 4.2745e-2, 1.0167, 7.4597e-2, 3.8149e-2,
-                                1.9104e-8, 1.1854e-5])
+        turbPlate.SetResiduals([3.9338e-2, 4.2745e-2, 1.0167, 7.4604e-2, 3.8146e-2,
+                                4.7610e-8, 1.1583e-5])
     turbPlate.SetIgnoreIndices(2)
     turbPlate.SetMpirunPath(options.mpirunPath)
 

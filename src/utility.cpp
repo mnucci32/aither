@@ -19,6 +19,7 @@
 #include <vector>
 #include <string>
 #include <memory>
+#include <numeric>
 #include "utility.hpp"
 #include "procBlock.hpp"
 #include "eos.hpp"                 // idealGas
@@ -29,6 +30,7 @@
 #include "fluxJacobian.hpp"
 #include "kdtree.hpp"
 #include "resid.hpp"
+#include "primVars.hpp"
 
 using std::cout;
 using std::endl;
@@ -38,6 +40,7 @@ using std::string;
 using std::max;
 using std::min;
 using std::unique_ptr;
+using std::array;
 
 /* Function to calculate the gradient of a vector at the cell center using the
 Green-Gauss method
@@ -211,27 +214,21 @@ void SwapGeomSlice(interblock &inter, procBlock &blk1, procBlock &blk2) {
   // blk2 -- second block involved in interblock boundary
 
   // Get indices for slice coming from first block to swap
-  auto is1 = 0;
-  auto ie1 = 0;
-  auto js1 = 0;
-  auto je1 = 0;
-  auto ks1 = 0;
-  auto ke1 = 0;
+  auto is1 = 0, ie1 = 0;
+  auto js1 = 0, je1 = 0;
+  auto ks1 = 0, ke1 = 0;
 
   inter.FirstSliceIndices(is1, ie1, js1, je1, ks1, ke1, blk1.NumGhosts());
 
   // Get indices for slice coming from second block to swap
-  auto is2 = 0;
-  auto ie2 = 0;
-  auto js2 = 0;
-  auto je2 = 0;
-  auto ks2 = 0;
-  auto ke2 = 0;
+  auto is2 = 0, ie2 = 0;
+  auto js2 = 0, je2 = 0;
+  auto ks2 = 0, ke2 = 0;
 
   inter.SecondSliceIndices(is2, ie2, js2, je2, ks2, ke2, blk2.NumGhosts());
 
-  const auto geom1 = geomSlice(blk1, is1, ie1, js1, je1, ks1, ke1);
-  const auto geom2 = geomSlice(blk2, is2, ie2, js2, je2, ks2, ke2);
+  const auto geom1 = geomSlice(blk1, {is1, ie1}, {js1, je1}, {ks1, ke1});
+  const auto geom2 = geomSlice(blk2, {is2, ie2}, {js2, je2}, {ks2, ke2});
 
   // change interblocks to work with slice and ghosts
   interblock inter1 = inter;
@@ -242,10 +239,8 @@ void SwapGeomSlice(interblock &inter, procBlock &blk1, procBlock &blk2) {
   // put slices in proper blocks
   // return vector determining if any of the 4 edges of the interblock need to
   // be updated for a "t" intersection
-  const auto adjEdge1 = blk1.PutGeomSlice(geom2, inter2, blk2.NumGhosts(),
-                                          blk2.NumGhosts());
-  const auto adjEdge2 = blk2.PutGeomSlice(geom1, inter1, blk1.NumGhosts(),
-                                          blk1.NumGhosts());
+  const auto adjEdge1 = blk1.PutGeomSlice(geom2, inter2, blk2.NumGhosts());
+  const auto adjEdge2 = blk2.PutGeomSlice(geom1, inter1, blk1.NumGhosts());
 
   // if an interblock border needs to be updated, update
   for (auto ii = 0U; ii < adjEdge1.size(); ii++) {
@@ -266,13 +261,13 @@ boundaries to pass the correct data between grid blocks.
 void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
                            const idealGas &eos, const sutherland &suth,
                            const unique_ptr<turbModel> &turb,
-                           vector<interblock> &connections, const int &rank,
+                           vector<interblock> &conn, const int &rank,
                            const MPI_Datatype &MPI_cellData) {
   // states -- vector of all procBlocks in the solution domain
   // inp -- all input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
-  // connections -- vector of interblock connections
+  // conn -- vector of interblock connections
   // rank -- processor rank
   // MPI_cellData -- data type to pass primVars, genArray
 
@@ -282,25 +277,19 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
   }
 
   // loop over connections and swap ghost cells where needed
-  for (auto ii = 0U; ii < connections.size(); ii++) {
-    if (connections[ii].RankFirst() == rank &&
-        connections[ii].RankSecond() == rank) {  // both sides of interblock
-                                                  // are on this processor, swap
-                                                  // w/o mpi
-      states[connections[ii].LocalBlockFirst()]
-          .SwapStateSlice(connections[ii],
-                          states[connections[ii].LocalBlockSecond()]);
-    } else if (connections[ii].RankFirst() ==
-               rank) {  // rank matches rank of first side of interblock,
-                         // swap over mpi
-      states[connections[ii].LocalBlockFirst()]
-          .SwapStateSliceMPI(connections[ii], rank, MPI_cellData);
-
-    } else if (connections[ii].RankSecond() ==
-               rank) {  // rank matches rank of second side of interblock,
-                         // swap over mpi
-      states[connections[ii].LocalBlockSecond()]
-          .SwapStateSliceMPI(connections[ii], rank, MPI_cellData);
+  for (auto ii = 0U; ii < conn.size(); ii++) {
+    if (conn[ii].RankFirst() == rank && conn[ii].RankSecond() == rank) {
+      // both sides of interblock on this processor, swap w/o mpi
+      states[conn[ii].LocalBlockFirst()].SwapStateSlice(
+          conn[ii], states[conn[ii].LocalBlockSecond()]);
+    } else if (conn[ii].RankFirst() == rank) {
+      // rank matches rank of first side of interblock, swap over mpi
+      states[conn[ii].LocalBlockFirst()].SwapStateSliceMPI(conn[ii], rank,
+                                                           MPI_cellData);
+    } else if (conn[ii].RankSecond() == rank) {
+      // rank matches rank of second side of interblock, swap over mpi
+      states[conn[ii].LocalBlockSecond()].SwapStateSliceMPI(conn[ii], rank,
+                                                            MPI_cellData);
     }
     // if rank doesn't match either side of interblock, then do nothing and
     // move on to the next interblock
@@ -320,64 +309,55 @@ vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &blks) {
   // get vector of BCs
   vector<boundaryConditions> bcs;
   bcs.reserve(blks.size());
-  for (auto ii = 0U; ii < blks.size(); ii++) {
-    bcs.push_back(blks[ii].BC());
+  for (auto &blk : blks) {
+    bcs.push_back(blk.BC());
   }
 
   // determine number of faces with viscous wall BC
   auto nFaces = 0;
-  for (auto ii = 0U; ii < bcs.size(); ii++) {
-    nFaces += bcs[ii].NumViscousFaces();
+  for (auto &bc : bcs) {
+    nFaces += bc.NumViscousFaces();
   }
 
   // allocate vector for face centers
   vector<vector3d<double>> faceCenters;
   faceCenters.reserve(nFaces);
 
-  const auto numG = blks[0].NumGhosts();  // number of ghost cells
-
   // store viscous face centers
-  for (auto aa = 0U; aa < bcs.size(); aa++) {  // loop over BCs
-    for (auto bb = 0; bb < bcs[aa].NumSurfaces(); bb++) {  // loop over surfaces
-      if (bcs[aa].GetBCTypes(bb) == "viscousWall") {
+  auto aa = 0;
+  for (auto &bc : bcs) {  // loop over BCs for each block
+    for (auto bb = 0; bb < bc.NumSurfaces(); bb++) {  // loop over surfaces
+      if (bc.GetBCTypes(bb) == "viscousWall") {
         // only store face center if surface is viscous wall
 
-        if (bcs[aa].GetSurfaceType(bb) <= 2) {  // i-surface
-          const auto ii = (bcs[aa].GetSurfaceType(bb) % 2 == 0)
-              ? blks[aa].NumI() + numG : numG;
+        if (bc.GetSurfaceType(bb) <= 2) {  // i-surface
+          const auto ii = bc.GetIMin(bb);  // imin and imax are the same
 
-          for (auto jj = bcs[aa].GetJMin(bb) + numG;
-               jj < bcs[aa].GetJMax(bb) + numG; jj++) {
-            for (auto kk = bcs[aa].GetKMin(bb) + numG;
-                 kk < bcs[aa].GetKMax(bb) + numG; kk++) {
+          for (auto jj = bc.GetJMin(bb); jj < bc.GetJMax(bb); jj++) {
+            for (auto kk = bc.GetKMin(bb); kk < bc.GetKMax(bb); kk++) {
               faceCenters.push_back(blks[aa].FCenterI(ii, jj, kk));
             }
           }
-        } else if (bcs[aa].GetSurfaceType(bb) <= 4) {  // j-surface
-          const auto jj = (bcs[aa].GetSurfaceType(bb) % 2 == 0)
-              ? blks[aa].NumJ() + numG : numG;
+        } else if (bc.GetSurfaceType(bb) <= 4) {  // j-surface
+          const auto jj = bc.GetJMin(bb);  // jmin and jmax are the same
 
-          for (auto ii = bcs[aa].GetIMin(bb) + numG;
-               ii < bcs[aa].GetIMax(bb) + numG; ii++) {
-            for (auto kk = bcs[aa].GetKMin(bb) + numG;
-                 kk < bcs[aa].GetKMax(bb) + numG; kk++) {
+          for (auto ii = bc.GetIMin(bb); ii < bc.GetIMax(bb); ii++) {
+            for (auto kk = bc.GetKMin(bb); kk < bc.GetKMax(bb); kk++) {
               faceCenters.push_back(blks[aa].FCenterJ(ii, jj, kk));
             }
           }
         } else {  // k-surface
-          const auto kk = (bcs[aa].GetSurfaceType(bb) % 2 == 0)
-              ? blks[aa].NumK() + numG : numG;
+          const auto kk = bc.GetKMin(bb);  // kmin and kmax are the same
 
-          for (auto ii = bcs[aa].GetIMin(bb) + numG;
-               ii < bcs[aa].GetIMax(bb) + numG; ii++) {
-            for (auto jj = bcs[aa].GetJMin(bb) + numG;
-                 jj < bcs[aa].GetJMax(bb) + numG; jj++) {
+          for (auto ii = bc.GetIMin(bb); ii < bc.GetIMax(bb); ii++) {
+            for (auto jj = bc.GetJMin(bb); jj < bc.GetJMax(bb); jj++) {
               faceCenters.push_back(blks[aa].FCenterK(ii, jj, kk));
             }
           }
         }
       }
     }
+    aa++;
   }
   return faceCenters;
 }
@@ -410,7 +390,7 @@ void ExplicitUpdate(vector<procBlock> &blocks,
                     const unique_ptr<turbModel> &turb, const int &mm,
                     genArray &residL2, resid &residLinf) {
   // create dummy update (not used in explicit update)
-  multiArray3d<genArray> du(1, 1, 1);
+  multiArray3d<genArray> du(1, 1, 1, 0);
   // loop over all blocks and update
   for (auto bb = 0U; bb < blocks.size(); bb++) {
     blocks[bb].UpdateBlock(inp, eos, aRef, suth, du, solTimeN[bb],
@@ -534,31 +514,27 @@ double ImplicitUpdate(vector<procBlock> &blocks,
 }
 
 void SwapImplicitUpdate(vector<multiArray3d<genArray>> &du,
-                        const vector<interblock> &connections, const int &rank,
+                        const vector<interblock> &conn, const int &rank,
                         const MPI_Datatype &MPI_cellData,
                         const int &numGhosts) {
   // du -- implicit update in conservative variables
-  // connections -- interblock boundary conditions
+  // conn -- interblock boundary conditions
   // rank -- processor rank
   // MPI_cellData -- datatype to pass primVars or genArray
   // numGhosts -- number of ghost cells
 
   // loop over all connections and swap interblock updates when necessary
-  for (auto ii = 0U; ii < connections.size(); ii++) {
-    if (connections[ii].RankFirst() == rank &&
-        connections[ii].RankSecond() == rank) {
+  for (auto ii = 0U; ii < conn.size(); ii++) {
+    if (conn[ii].RankFirst() == rank && conn[ii].RankSecond() == rank) {
       // both sides of interblock are on this processor, swap w/o mpi
-      du[connections[ii].LocalBlockFirst()].SwapSlice(connections[ii],
-                du[connections[ii].LocalBlockSecond()], numGhosts, numGhosts);
-    } else if (connections[ii].RankFirst() == rank) {
+      du[conn[ii].LocalBlockFirst()].SwapSlice(conn[ii],
+                                               du[conn[ii].LocalBlockSecond()]);
+    } else if (conn[ii].RankFirst() == rank) {
       // rank matches rank of first side of interblock, swap over mpi
-      du[connections[ii].LocalBlockFirst()]
-          .SwapSliceMPI(connections[ii], rank, MPI_cellData, numGhosts);
-
-    } else if (connections[ii].RankSecond() == rank) {
+      du[conn[ii].LocalBlockFirst()].SwapSliceMPI(conn[ii], rank, MPI_cellData);
+    } else if (conn[ii].RankSecond() == rank) {
       // rank matches rank of second side of interblock, swap over mpi
-      du[connections[ii].LocalBlockSecond()]
-          .SwapSliceMPI(connections[ii], rank, MPI_cellData, numGhosts);
+      du[conn[ii].LocalBlockSecond()].SwapSliceMPI(conn[ii], rank, MPI_cellData);
     }
     // if rank doesn't match either side of interblock, then do nothing and
     // move on to the next interblock
@@ -567,29 +543,25 @@ void SwapImplicitUpdate(vector<multiArray3d<genArray>> &du,
 
 
 void SwapTurbVars(vector<procBlock> &states,
-                  const vector<interblock> &connections, const int &rank,
+                  const vector<interblock> &conn, const int &rank,
                   const int &numGhosts) {
   // states -- vector of all procBlocks in the solution domain
-  // connections -- interblock boundary conditions
+  // conn -- interblock boundary conditions
   // rank -- processor rank
   // numGhosts -- number of ghost cells
 
   // loop over all connections and swap interblock updates when necessary
-  for (auto ii = 0U; ii < connections.size(); ii++) {
-    if (connections[ii].RankFirst() == rank &&
-        connections[ii].RankSecond() == rank) {
+  for (auto ii = 0U; ii < conn.size(); ii++) {
+    if (conn[ii].RankFirst() == rank && conn[ii].RankSecond() == rank) {
       // both sides of interblock are on this processor, swap w/o mpi
-      states[connections[ii].LocalBlockFirst()].SwapTurbSlice(
-          connections[ii], states[connections[ii].LocalBlockSecond()]);
-    } else if (connections[ii].RankFirst() == rank) {
+      states[conn[ii].LocalBlockFirst()].SwapTurbSlice(
+          conn[ii], states[conn[ii].LocalBlockSecond()]);
+    } else if (conn[ii].RankFirst() == rank) {
       // rank matches rank of first side of interblock, swap over mpi
-      states[connections[ii].LocalBlockFirst()].SwapTurbSliceMPI(
-          connections[ii], rank);
-
-    } else if (connections[ii].RankSecond() == rank) {
+      states[conn[ii].LocalBlockFirst()].SwapTurbSliceMPI(conn[ii], rank);
+    } else if (conn[ii].RankSecond() == rank) {
       // rank matches rank of second side of interblock, swap over mpi
-      states[connections[ii].LocalBlockSecond()].SwapTurbSliceMPI(
-          connections[ii], rank);
+      states[conn[ii].LocalBlockSecond()].SwapTurbSliceMPI(conn[ii], rank);
     }
     // if rank doesn't match either side of interblock, then do nothing and
     // move on to the next interblock
@@ -601,8 +573,7 @@ void CalcResidual(vector<procBlock> &states,
                   vector<multiArray3d<fluxJacobian>> &mainDiagonal,
                   const sutherland &suth, const idealGas &eos,
                   const input &inp, const unique_ptr<turbModel> &turb,
-                  const vector<interblock> &connections, const int &rank,
-                  const int &numGhosts) {
+                  const vector<interblock> &connections, const int &rank) {
   // states -- vector of all procBlocks on processor
   // mainDiagonal -- main diagonal of A matrix for implicit solve
   // suth -- sutherland's law for viscosity
@@ -611,7 +582,6 @@ void CalcResidual(vector<procBlock> &states,
   // turb -- turbulence model
   // connections -- interblock boundary conditions
   // rank -- processor rank
-  // numGhosts -- number of layers of ghost cells
 
   for (auto bb = 0U; bb < states.size(); bb++) {
     // calculate residual
@@ -620,7 +590,7 @@ void CalcResidual(vector<procBlock> &states,
 
   if (inp.IsTurbulent()) {
     // swap turbulence varibles calculated during residual calculation
-    SwapTurbVars(states, connections, rank, numGhosts);
+    SwapTurbVars(states, connections, rank, inp.NumberGhostLayers());
 
     for (auto bb = 0U; bb < states.size(); bb++) {
       // calculate source terms for residual
@@ -696,14 +666,14 @@ void ResizeArrays(const vector<procBlock> &states, const input &inp,
 
   for (auto bb = 0U; bb < states.size(); bb++) {
     sol[bb].ClearResize(states[bb].NumI(), states[bb].NumJ(),
-                        states[bb].NumK());
+                        states[bb].NumK(), 0);
 
     const auto fluxJac = inp.IsBlockMatrix() ?
         fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations()) :
         fluxJacobian(1, 1);
 
     jac[bb].ClearResize(states[bb].NumI(), states[bb].NumJ(),
-                        states[bb].NumK(), fluxJac);
+                        states[bb].NumK(), 0, fluxJac);
   }
 }
 
@@ -719,9 +689,91 @@ vector3d<double> TauNormal(const tensor<double> &velGrad,
       (velGrad.MatMult(area) + velGrad.Transpose().MatMult(area));
 }
 
+// This function calculates the coefficients for three third order accurate
+// reconstructions used in a 5th order WENO scheme. This follows the formula
+// 2.20 from ICASE report No 97-65 by Shu.
+vector<double> LagrangeCoeff(const vector<double> &cellWidth,
+                             const unsigned int &degree,
+                             const int & rr, const int &ii) {
+  // cellWidth -- vector of cell widths in stencil
+  // degree -- degree of polynomial to use in reconstruction
+  // rr -- number of cells to left of reconstruction location - 1
+  // ii -- location of the first upwind cell width in the cellWidth vector
 
+  vector<double> coeffs(degree + 1, 0.0);
 
+  for (auto jj = 0U; jj < coeffs.size(); ++jj) {
+    for (auto mm = jj + 1; mm <= degree + 1; ++mm) {
+      auto numer = 0.0;
+      auto denom = 1.0;
+      for (auto ll = 0U; ll <= degree + 1; ++ll) {
+        // calculate numerator
+        if (ll != mm) {
+          auto numProd = 1.0;
+          for (auto qq = 0U; qq <= degree + 1; ++qq) {
+            if (qq != mm && qq != ll) {
+              numProd *= StencilWidth(cellWidth, ii - rr + qq, ii + 1);
+            }
+          }
+          numer += numProd;
 
+          // calculate denominator
+          denom *= StencilWidth(cellWidth, ii - rr + ll, ii - rr + mm);
+        }
+      }
+      coeffs[jj] += numer / denom;
+    }
+    coeffs[jj] *= cellWidth[ii - rr + jj];
+  }
+  return coeffs;
+}
 
+template <typename T>
+double StencilWidth(const T &cellWidth, const int &start, const int &end) {
+  auto width = 0.0;
+  if (end > start) {
+    width = std::accumulate(std::begin(cellWidth) + start,
+                            std::begin(cellWidth) + end, 0.0);
+  } else if (start > end) {  // width is negative
+    width = -1.0 * std::accumulate(std::begin(cellWidth) + end,
+                                   std::begin(cellWidth) + start, 0.0);
+  }
+  return width;
+}
 
+primVars BetaIntegral(const primVars &deriv1, const primVars &deriv2,
+                      const double &dx, const double &x) {
+  return (deriv1.Squared() * x + deriv1 * deriv2 * x * x +
+          deriv2.Squared() * pow(x, 3.0) / 3.0) * dx +
+      deriv2.Squared() * x * pow(dx, 3.0);
+}
 
+primVars BetaIntegral(const primVars &deriv1, const primVars &deriv2,
+                      const double &dx, const double &xl, const double &xh) {
+  return BetaIntegral(deriv1, deriv2, dx, xh) -
+      BetaIntegral(deriv1, deriv2, dx, xl);
+}
+
+primVars Beta0(const double &x_0, const double &x_1, const double &x_2,
+               const primVars &y_0, const primVars &y_1, const primVars &y_2) {
+  const auto deriv2nd = Derivative2nd(x_0, x_1, x_2, y_0, y_1, y_2);
+  const auto deriv1st = (y_2 - y_1) / (0.5 * (x_2 + x_1)) + 0.5 * x_2 * deriv2nd;
+
+  return BetaIntegral(deriv1st, deriv2nd, x_2, -0.5 * x_2, 0.5 * x_2);
+}
+
+primVars Beta1(const double &x_0, const double &x_1, const double &x_2,
+               const primVars &y_0, const primVars &y_1, const primVars &y_2) {
+  const auto deriv2nd = Derivative2nd(x_0, x_1, x_2, y_0, y_1, y_2);
+  const auto deriv1st = (y_2 - y_1) / (0.5 * (x_2 + x_1)) - 0.5 * x_1 * deriv2nd;
+
+  return BetaIntegral(deriv1st, deriv2nd, x_1, -0.5 * x_1, 0.5 * x_1);
+}
+
+primVars Beta2(const double &x_0, const double &x_1, const double &x_2,
+               const primVars &y_0, const primVars &y_1, const primVars &y_2) {
+  const auto deriv2nd = Derivative2nd(x_0, x_1, x_2, y_0, y_1, y_2);
+  const auto deriv1st = (y_1 - y_0) / (0.5 * (x_1 + x_0)) - 0.5 * x_0 * deriv2nd;
+
+  return BetaIntegral(deriv1st, deriv2nd, x_0, -0.5 * x_0, 0.5 * x_0);
+}

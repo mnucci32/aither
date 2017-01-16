@@ -32,6 +32,7 @@ set(sources
   fluxJacobian.cpp
   genArray.cpp
   input.cpp
+  inputStates.cpp
   inviscidFlux.cpp
   kdtree.cpp
   matrix.cpp
@@ -40,6 +41,7 @@ set(sources
   plot3d.cpp
   primVars.cpp
   procBlock.cpp
+  range.cpp
   resid.cpp
   slices.cpp
   source.cpp

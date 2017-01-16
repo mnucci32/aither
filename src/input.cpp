@@ -27,6 +27,8 @@
 #include <vector>
 #include "input.hpp"
 #include "turbulence.hpp"
+#include "inputStates.hpp"
+#include "eos.hpp"
 #include "macros.hpp"
 
 using std::cout;
@@ -50,12 +52,14 @@ input::input(const string &name) : simName_(name) {
   pRef_ = -1.0;
   rRef_ = -1.0;
   lRef_ = 1.0;
+  vRef_ = {1.0, 0.0, 0.0};
   gamma_ = 1.4;
   gasConst_ = 287.058;
-  velRef_ = {1.0, 0.0, 0.0};
   bc_ = vector<boundaryConditions>(1);
   timeIntegration_ = "explicitEuler";
   cfl_ = -1.0;
+  faceReconstruction_ = "constant";
+  viscousFaceReconstruction_ = "central";
   kappa_ = -2.0;  // default to value outside of range to tell if higher
                   // order or constant method should be used
   limiter_ = "none";
@@ -77,80 +81,47 @@ input::input(const string &name) : simName_(name) {
   dualTimeCFL_ = -1.0;  // default value of -1; negative value means dual time
                        // stepping is not used
   inviscidFlux_ = "roe";  // default value is roe flux
-  stagInletProps_[0] = 0.0;
-  stagInletProps_[1] = 0.0;
-  stagInletProps_[2] = 0.0;
-  stagInletProps_[3] = 0.0;
-  stagInletProps_[4] = 0.0;
-  stagInletProps_[5] = 0.0;
-  pressureOutlet_[0] = 0.0;
-  pressureOutlet_[1] = 0.0;
   decompMethod_ = "cubic";  // default is cubic decomposition
   turbModel_ = "none";  // default turbulence model is none
-  farfieldTurbInten_ = 0.01;
-  farfieldEddyViscRatio_ = 10.0;
 
   // default to primative variables
   outputVariables_ = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
 
   // keywords in the input file that the parser is looking for to define
   // variables
-  vars_ = {"gridName:",
-           "timeStep:",
-           "iterations:",
-           "pressureRef:",
-           "densityRef:",
-           "lengthRef:",
-           "gamma:",
-           "gasConstant:",
-           "velocity:",
-           "timeIntegration:",
-           "faceReconstruction:",
-           "limiter:",
-           "outputFrequency:",
-           "equationSet:",
-           "temperatureRef:",
-           "matrixSolver:",
-           "matrixSweeps:",
-           "matrixRelaxation:",
-           "nonlinearIterations:",
-           "cflMax:",
-           "cflStep:",
-           "cflStart:",
-           "inviscidFluxJacobian:",
-           "dualTimeCFL:",
-           "inviscidFlux:",
-           "stagnationInlet:",
-           "pressureOutlet:",
-           "decompositionMethod:",
-           "turbulenceModel:",
-           "farfieldTurbulenceIntensity:",
-           "farfieldEddyViscosityRatio:",
-           "outputVariables:",
-           "boundaryConditions:"};
-}
-
-// function to trim leading and trailing whitespace from a string, and also
-// remove data after a comment
-string trim(const string &s, const string &whitespace = " \t") {
-  const string comment = "#";  // # is comment character for input file
-
-  if (s.empty()) {
-    return "";  // string is empty
-  } else {
-    // find index of first non whitespace character
-    const auto sBegin = s.find_first_not_of(whitespace);
-    // find index of last non whitespace character
-    const auto sEnd = s.find_last_not_of(whitespace);
-    const auto sRange = sEnd - sBegin + 1;  // range to trim string to
-    auto temp = s.substr(sBegin, sRange);
-
-    // find index of first comment character
-    const auto tempComment = temp.find(comment);
-    const auto tempRange = tempComment - 0;  // find range of string to return
-
-    return temp.substr(0, tempRange);
-  }
+  vars_ = {"gridName",
+           "timeStep",
+           "iterations",
+           "pressureRef",
+           "densityRef",
+           "lengthRef",
+           "velocityRef",
+           "gamma",
+           "gasConstant",
+           "velocity",
+           "timeIntegration",
+           "faceReconstruction",
+           "viscousFaceReconstruction",
+           "limiter",
+           "outputFrequency",
+           "equationSet",
+           "temperatureRef",
+           "matrixSolver",
+           "matrixSweeps",
+           "matrixRelaxation",
+           "nonlinearIterations",
+           "cflMax",
+           "cflStep",
+           "cflStart",
+           "inviscidFluxJacobian",
+           "dualTimeCFL",
+           "inviscidFlux",
+           "decompositionMethod",
+           "turbulenceModel",
+           "outputVariables",
+           "initialConditions",
+           "boundaryStates",
+           "boundaryConditions"};
 }
 
 // function to print the time
@@ -193,72 +164,68 @@ void input::ReadInput(const int &rank) {
   auto numSurf = 0;
 
   while (getline(inFile, line)) {  // while there are still lines in the input
-                                   // file, execute loop
+    // file, execute loop
 
     // remove leading and trailing whitespace and ignore comments
-    line = trim(line);
+    line = Trim(line);
 
-    // split line into words
-    istringstream buf(line);
-    istream_iterator<string> beg(buf), end;
-    vector<string> tokens(beg, end);
+    if (line.length() > 0) {  // only proceed if line has data
+      // split line at variable separator
+      auto tokens = Tokenize(line, ":", 2);
 
-    // search to see if first token corresponds to any keywords
-    // line must contain at least 2 tokens (keyword and value)
-    if (tokens.size() >= 2) {
+      // search to see if first token corresponds to any keywords
       auto key = tokens[0];
+
       // if first token matches a keyword or reading boundary condtions
       if (vars_.find(key) != vars_.end() || readingBCs > 0) {
         // if not yet reading BCs (readingBCs == 0), set variable in input
         // class to corresponding value and print assignment to std out
-        if (key == "gridName:") {
+        if (key == "gridName") {
           gName_ = tokens[1];
           if (rank == ROOTP) {
-            cout << key << " " << this->GridName() << endl;
+            cout << key << ": " << this->GridName() << endl;
           }
-        } else if (key == "timeStep:") {
+        } else if (key == "timeStep") {
           dt_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->Dt() << endl;
+            cout << key << ": " << this->Dt() << endl;
           }
-        } else if (key == "iterations:") {
+        } else if (key == "iterations") {
           iterations_ = stoi(tokens[1]);
           if (rank == ROOTP) {
-            cout << key << " " << this->Iterations() << endl;
+            cout << key << ": " << this->Iterations() << endl;
           }
-        } else if (key == "pressureRef:") {
+        } else if (key == "pressureRef") {
           pRef_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->PRef() << endl;
+            cout << key << ": " << this->PRef() << endl;
           }
-        } else if (key == "densityRef:") {
+        } else if (key == "densityRef") {
           rRef_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->RRef() << endl;
+            cout << key << ": " << this->RRef() << endl;
           }
-        } else if (key == "lengthRef:") {
+        } else if (key == "lengthRef") {
           lRef_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->LRef() << endl;
+            cout << key << ": " << this->LRef() << endl;
           }
-        } else if (key == "gamma:") {
+        } else if (key == "velocityRef") {
+          vRef_ = ReadVector(tokens[1]);
+          if (rank == ROOTP) {
+            cout << key << ": " << this->LRef() << endl;
+          }
+        } else if (key == "gamma") {
           gamma_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->Gamma() << endl;
+            cout << key << ": " << this->Gamma() << endl;
           }
-        } else if (key == "gasConstant:") {
+        } else if (key == "gasConstant") {
           gasConst_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->R() << endl;
+            cout << key << ": " << this->R() << endl;
           }
-        } else if (key == "velocity:") {
-          velRef_.SetX(stod(tokens[1]));  // double variable (stod)
-          velRef_.SetY(stod(tokens[2]));
-          velRef_.SetZ(stod(tokens[3]));
-          if (rank == ROOTP) {
-            cout << key << " " << this->VelRef() << endl;
-          }
-        } else if (key == "timeIntegration:") {
+        } else if (key == "timeIntegration") {
           timeIntegration_ = tokens[1];
           if (this->TimeIntegration() == "implicitEuler") {
             timeIntTheta_ = 1.0;
@@ -272,171 +239,189 @@ void input::ReadInput(const int &rank) {
           }
 
           if (rank == ROOTP) {
-            cout << key << " " << this->TimeIntegration() << endl;
+            cout << key << ": " << this->TimeIntegration() << endl;
           }
-        } else if (key == "faceReconstruction:") {
+        } else if (key == "faceReconstruction") {
           if (tokens[1] == "upwind") {
+            faceReconstruction_ = tokens[1];
             kappa_ = -1.0;
           } else if (tokens[1] == "fromm") {
+            faceReconstruction_ = tokens[1];
             kappa_ = 0.0;
           } else if (tokens[1] == "quick") {
+            faceReconstruction_ = tokens[1];
             kappa_ = 0.5;
           } else if (tokens[1] == "central") {
+            faceReconstruction_ = tokens[1];
             kappa_ = 1.0;
           } else if (tokens[1] == "thirdOrder") {
+            faceReconstruction_ = tokens[1];
             kappa_ = 1.0 / 3.0;
-          } else if (tokens[1] == "constant") {
-            kappa_ = -2.0;
+          } else if (tokens[1] == "constant" || tokens[1] == "weno" ||
+                     tokens[1] == "wenoZ") {
+            faceReconstruction_ = tokens[1];
           } else {
-            // if string is not recognized, set kappa to number input
-            kappa_ = stod(tokens[1]);
+            // face reconstruction method not recognized
+            cerr << "ERROR: Error in input::ReadInput(). Face reconstruction "
+                 << "method " << tokens[1] << " is not recognized!";
+                exit(EXIT_FAILURE);
           }
 
           if (rank == ROOTP) {
-            cout << key << " " << tokens[1]
-                 << " kappa = " << this->Kappa() << endl;
+            cout << key << ": " << this->FaceReconstruction() << endl;
           }
-          if ((this->Kappa() < -1.0) || (this->Kappa() > 1.0)) {
-            cerr << "ERROR: Error in input::ReadInput(). Kappa value of "
-                 << this->Kappa()
-                 << " is not valid! Choose a value between -1.0 and 1.0."
-                 << endl;
-            exit(EXIT_FAILURE);
+        } else if (key == "viscousFaceReconstruction") {
+          if (tokens[1] == "central") {
+            viscousFaceReconstruction_ = tokens[1];
+          } else if (tokens[1] == "centralFourth") {
+            viscousFaceReconstruction_ = tokens[1];
+          } else {
+            // face reconstruction method not recognized
+            cerr << "ERROR: Error in input::ReadInput(). Viscous face "
+                 << "reconstruction method " << tokens[1] << " is not recognized!";
+                exit(EXIT_FAILURE);
           }
-        } else if (key == "limiter:") {
+
+          if (rank == ROOTP) {
+            cout << key << ": " << this->ViscousFaceReconstruction() << endl;
+          }
+        } else if (key == "limiter") {
           limiter_ = tokens[1];
           if (rank == ROOTP) {
-            cout << key << " " << this->Limiter() << endl;
+            cout << key << ": " << this->Limiter() << endl;
           }
-        } else if (key == "outputFrequency:") {
+        } else if (key == "outputFrequency") {
           outputFrequency_ = stoi(tokens[1]);
           if (rank == ROOTP) {
-            cout << key << " " << this->OutputFrequency() << endl;
+            cout << key << ": " << this->OutputFrequency() << endl;
           }
-        } else if (key == "equationSet:") {
+        } else if (key == "equationSet") {
           equationSet_ = tokens[1];
           if (rank == ROOTP) {
-            cout << key << " " << this->EquationSet() << endl;
+            cout << key << ": " << this->EquationSet() << endl;
           }
-        } else if (key == "temperatureRef:") {
+        } else if (key == "temperatureRef") {
           tRef_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->TRef() << endl;
+            cout << key << ": " << this->TRef() << endl;
           }
-        } else if (key == "matrixSolver:") {
+        } else if (key == "matrixSolver") {
           matrixSolver_ = tokens[1];
           if (rank == ROOTP) {
-            cout << key << " " << this->MatrixSolver() << endl;
+            cout << key << ": " << this->MatrixSolver() << endl;
           }
-        } else if (key == "matrixSweeps:") {
+        } else if (key == "matrixSweeps") {
           matrixSweeps_ = stoi(tokens[1]);
           if (rank == ROOTP) {
-            cout << key << " " << this->MatrixSweeps() << endl;
+            cout << key << ": " << this->MatrixSweeps() << endl;
           }
-        } else if (key == "matrixRelaxation:") {
+        } else if (key == "matrixRelaxation") {
           matrixRelaxation_ =
               stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->MatrixRelaxation() << endl;
+            cout << key << ": " << this->MatrixRelaxation() << endl;
           }
-        } else if (key == "nonlinearIterations:") {
+        } else if (key == "nonlinearIterations") {
           nonlinearIterations_ = stoi(tokens[1]);
           if (rank == ROOTP) {
-            cout << key << " " << this->NonlinearIterations() << endl;
+            cout << key << ": " << this->NonlinearIterations() << endl;
           }
-        } else if (key == "cflMax:") {
+        } else if (key == "cflMax") {
           cflMax_ = stod(tokens[1]);  // double  (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->CFLMax() << endl;
+            cout << key << ": " << this->CFLMax() << endl;
           }
-        } else if (key == "cflStep:") {
+        } else if (key == "cflStep") {
           cflStep_ = stod(tokens[1]);  // double (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->CFLStep() << endl;
+            cout << key << ": " << this->CFLStep() << endl;
           }
-        } else if (key == "cflStart:") {
+        } else if (key == "cflStart") {
           cflStart_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->CFLStart() << endl;
+            cout << key << ": " << this->CFLStart() << endl;
           }
-        } else if (key == "inviscidFluxJacobian:") {
+        } else if (key == "inviscidFluxJacobian") {
           invFluxJac_ = tokens[1];
           if (rank == ROOTP) {
-            cout << key << " " << this->InvFluxJac() << endl;
+            cout << key << ": " << this->InvFluxJac() << endl;
           }
-        } else if (key == "dualTimeCFL:") {
+        } else if (key == "dualTimeCFL") {
           dualTimeCFL_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
-            cout << key << " " << this->DualTimeCFL() << endl;
+            cout << key << ": " << this->DualTimeCFL() << endl;
           }
-        } else if (key == "inviscidFlux:") {
+        } else if (key == "inviscidFlux") {
           inviscidFlux_ = tokens[1];
           if (rank == ROOTP) {
-            cout << key << " " << this->InviscidFlux() << endl;
+            cout << key << ": " << this->InviscidFlux() << endl;
           }
-        } else if (key == "stagnationInlet:") {
-          stagInletProps_[0] = stoi(tokens[1]);  // tag
-          stagInletProps_[1] = stod(tokens[2]);  // stag pressure
-          stagInletProps_[2] = stod(tokens[3]);  // stag temp
-          stagInletProps_[3] = stod(tokens[4]);  // dir-x
-          stagInletProps_[4] = stod(tokens[5]);  // dir-y
-          stagInletProps_[5] = stod(tokens[6]);  // dir-z
-          if (rank == ROOTP) {
-            cout << key << " " << this->StagInletTag() << " "
-                 << this->StagInletP0() << " " << this->StagInletT0()
-                 << " " << this->StagInletDx() << " "
-                 << this->StagInletDy() << " " << this->StagInletDz() << endl;
-          }
-        } else if (key == "pressureOutlet:") {
-          pressureOutlet_[0] = stoi(tokens[1]);  // tag
-          pressureOutlet_[1] = stod(tokens[2]);  // outlet pressure
-          if (rank == ROOTP) {
-            cout << key << " " << this->PressureOutletTag()
-                 << " " << this->PressureOutletP() << endl;
-          }
-        } else if (key == "decompositionMethod:") {
+        } else if (key == "decompositionMethod") {
           decompMethod_ = tokens[1];
           if (rank == ROOTP) {
-            cout << key << " " << this->DecompMethod() << endl;
+            cout << key << ": " << this->DecompMethod() << endl;
           }
-        } else if (key == "turbulenceModel:") {
+        } else if (key == "turbulenceModel") {
           turbModel_ = tokens[1];
           if (rank == ROOTP) {
-            cout << key << " " << this->TurbulenceModel() << endl;
+            cout << key << ": " << this->TurbulenceModel() << endl;
           }
-        } else if (key == "farfieldTurbulenceIntensity:") {
-          farfieldTurbInten_ = stod(tokens[1]);  // double (stod)
-          if (rank == ROOTP) {
-            cout << key << " " << this->FarfieldTurbIntensity() << endl;
-          }
-        } else if (key == "farfieldEddyViscosityRatio:") {
-          farfieldEddyViscRatio_ = stod(tokens[1]);  // double (stod)
-          if (rank == ROOTP) {
-            cout << key << " " << this->FarfieldEddyViscRatio() << endl;
-          }
-        } else if (key == "outputVariables:") {
+        } else if (key == "outputVariables") {
           // clear default variables from set
           outputVariables_.clear();
-          for (auto &vars : tokens) {
-            if (vars != key) {  // don't add keyword
-              outputVariables_.insert(vars);
-            }
+          auto specifiedVars = ReadStringList(inFile, tokens[1]);
+          for (auto &vars : specifiedVars) {
+            outputVariables_.insert(vars);
           }
           if (rank == ROOTP) {
-            cout << key << " ";
+            cout << key << ": <";
+            auto count = 0U;
+            auto numChars = 0U;
             for (auto &vars : outputVariables_) {
-              if (vars != key) {  // don't print keyword
-                cout << vars << " ";
+              if (count == outputVariables_.size() - 1) {
+                cout << vars << ">" << endl;
+              } else {
+                cout << vars << ", ";
+                numChars += vars.length();
+                if (numChars >= 50) {  // if more than 50 chars, go to next line
+                  cout << endl << "                  ";
+                }
               }
+              count++;
             }
             cout << endl;
           }
+        } else if (key == "initialConditions") {
+          ics_ = ReadICList(inFile, tokens[1]);
+          if (rank == ROOTP) {
+            cout << key << ": <";
+            for (auto ii = 0U; ii < ics_.size(); ++ii) {
+              cout << ics_[ii];
+              if (ii == ics_.size() - 1) {
+                cout << ">" << endl;
+              } else {
+                cout << "," << endl << "                    ";
+              }
+            }
+          }
+        } else if (key == "boundaryStates") {
+          bcStates_ = ReadBCList(inFile, tokens[1]);
+          if (rank == ROOTP) {
+            cout << key << ": <";
+            for (auto ii = 0U; ii < bcStates_.size(); ++ii) {
+              cout << *bcStates_[ii];
+              if (ii == bcStates_.size() - 1) {
+                cout << ">" << endl;
+              } else {
+                cout << "," << endl << "                 ";
+              }
+            }
+          }
 
-        // reading BCs
-        // -------------------------------------------------------------
-        } else if (key == "boundaryConditions:" || readingBCs > 0) {
-          // read in boundary conditions and assign to boundaryConditions
-          // class
+          // reading BCs
+          // -------------------------------------------------------------
+        } else if (key == "boundaryConditions" || readingBCs > 0) {
+          // read in boundary conditions and assign to boundaryConditions class
           if (readingBCs == 0) {  // variable read must be number of blocks if
             // first line of BCs
             numBCBlks = stoi(tokens[1]);
@@ -447,6 +432,8 @@ void input::ReadInput(const int &rank) {
           } else if (readingBCs == lEnd) {  // variables must be number of i,
             // j, k surfaces for each block
             // set number of i, j, k surfaces and resize vectors
+            // boundary conditions are space delimited
+            tokens = Tokenize(line, " ");
             tempBC[blk].ResizeVecs(stoi(tokens[0]), stoi(tokens[1]),
                                    stoi(tokens[2]));
 
@@ -458,6 +445,8 @@ void input::ReadInput(const int &rank) {
             readingBCs++;
 
           } else {  // assign BC block variables
+            // boundary conditions are space delimited
+            tokens = Tokenize(line, " ");
             tempBC[blk].AssignFromInput(surfCounter, tokens);
 
             surfCounter++;
@@ -486,7 +475,7 @@ void input::ReadInput(const int &rank) {
         }
       }
     }
-  }  // if there aren't 2 or more tokens just skip line
+  }
 
 
   // input file sanity checks
@@ -575,11 +564,21 @@ bool input::IsBlockMatrix() const {
 }
 
 string input::OrderOfAccuracy() const {
-  if (kappa_ == -2.0) {
+  if (this->UsingConstantReconstruction()) {
     return "first";
   } else {
     return "second";
   }
+}
+
+bool input::UsingMUSCLReconstruction() const {
+  auto muscl = false;
+  if (faceReconstruction_ == "upwind" || faceReconstruction_ == "fromm" ||
+      faceReconstruction_ == "quick" || faceReconstruction_ == "central" ||
+      faceReconstruction_ == "thirdOrder") {
+    muscl = true;
+  }
+  return muscl;
 }
 
 unique_ptr<turbModel> input::AssignTurbulenceModel() const {
@@ -679,4 +678,63 @@ bool input::MatrixRequiresInitialization() const {
   // more than one sweep
   return (matrixSolver_ == "dplur" || matrixSolver_ == "bdplur" ||
           matrixSweeps_ > 1) ? true : false;
+}
+
+int input::NumberGhostLayers() const {
+  if (this->UsingConstantReconstruction()) {
+    return 1;
+  } else if (this->UsingMUSCLReconstruction()) {
+    return 2;
+  } else if (this->UsingHigherOrderReconstruction()) {
+    return 3;
+  } else {
+    cerr << "ERROR: Problem with face reconstruction. Not using any of the "
+         << "supported methods!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+// member function to get the initial condition state for a given parent block
+icState input::ICStateForBlock(const int &block) const {
+  icState blockIC;
+  auto foundExactMatch = false;
+  auto foundDefaultMatch = false;
+
+  // exact match trumps default
+  for (auto &ic : ics_) {
+    if (ic.Tag() == -1 && !foundExactMatch) {
+      blockIC = ic;
+      foundDefaultMatch = true;
+    } else if (ic.Tag() == block) {
+      blockIC = ic;
+      foundExactMatch = true;
+    }
+  }
+
+  // sanity check -- must specify default or exact match
+  if (!foundDefaultMatch && !foundExactMatch) {
+    cerr << "ERROR. Did not find default or specified initial condition state "
+         << "for block " << block << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  return blockIC;
+}
+
+// member function to return boundary condition data index for a given tag
+const unique_ptr<inputState> & input::BCData(const int &tag) const {
+  for (auto &bcData : bcStates_) {
+    if (bcData->Tag() == tag) {
+      return bcData;
+    }
+  }
+
+  // if function doesn't return, tag not found
+  cerr << "ERROR. Could not find data for boundary condition tag " << tag << endl;
+  exit(EXIT_FAILURE);
+}
+
+// member function to return reference speed of sound
+double input::ARef(const idealGas &eos) const {
+  return eos.SoS(pRef_, rRef_);
 }
