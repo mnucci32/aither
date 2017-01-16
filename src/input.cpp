@@ -257,7 +257,8 @@ void input::ReadInput(const int &rank) {
           } else if (tokens[1] == "thirdOrder") {
             faceReconstruction_ = tokens[1];
             kappa_ = 1.0 / 3.0;
-          } else if (tokens[1] == "constant" || tokens[1] == "weno") {
+          } else if (tokens[1] == "constant" || tokens[1] == "weno" ||
+                     tokens[1] == "wenoZ") {
             faceReconstruction_ = tokens[1];
           } else {
             // face reconstruction method not recognized

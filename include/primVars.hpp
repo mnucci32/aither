@@ -182,7 +182,8 @@ class primVars {
   // calculate face reconstruction using 5th order weno scheme
   primVars FaceReconWENO(const primVars &, const primVars &, const primVars &,
                          const primVars &, const double &, const double &,
-                         const double &, const double &, const double &) const;
+                         const double &, const double &, const double &,
+                         const bool &) const;
 
   // member function to calculate Van Albada limiter function
   primVars LimiterVanAlbada(const primVars &) const;

@@ -131,7 +131,7 @@ class input {
   }
   bool UsingMUSCLReconstruction() const;
   bool UsingHigherOrderReconstruction() const {
-    return faceReconstruction_ == "weno";
+    return faceReconstruction_ == "weno" || faceReconstruction_ == "wenoZ";
   }
 
   string Limiter() const {return limiter_;}
@@ -191,6 +191,8 @@ class input {
 
   icState ICStateForBlock(const int &) const;
   const unique_ptr<inputState> & BCData(const int &) const;
+
+  bool IsWenoZ() const {return this->FaceReconstruction() == "wenoZ";}
 
   // destructor
   ~input() noexcept {}

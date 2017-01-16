@@ -354,7 +354,7 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
             faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
                 state_(ii + 1, jj, kk), state_(ii - 1, jj, kk),
                 inp.Kappa(), inp.Limiter(), plus1, plus2, minus1);
-          } else {  // using higher order reconstruction (weno)
+          } else {  // using higher order reconstruction (weno, wenoz)
             // get additional cell lengths
             const auto minus3 = fCenterI_(ii - 2, jj, kk).
                 Distance(fCenterI_(ii - 3, jj, kk));
@@ -364,11 +364,12 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
             faceStateLower = state_(ii - 1, jj, kk).FaceReconWENO(
                 state_(ii - 2, jj, kk), state_(ii - 3, jj, kk),
                 state_(ii, jj, kk), state_(ii + 1, jj, kk), minus1, minus2,
-                minus3, plus1, plus2);
+                minus3, plus1, plus2, inp.IsWenoZ());
+
             faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
                 state_(ii + 1, jj, kk), state_(ii + 2, jj, kk),
                 state_(ii - 1, jj, kk), state_(ii - 2, jj, kk), plus1, plus2,
-                plus3, minus1, minus2);
+                plus3, minus1, minus2, inp.IsWenoZ());
           }
         }
 
@@ -492,7 +493,7 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
             faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
               state_(ii, jj + 1, kk), state_(ii, jj - 1, kk),
               inp.Kappa(), inp.Limiter(), plus1, plus2, minus1);
-          } else {  // using higher order reconstruction (weno)
+          } else {  // using higher order reconstruction (weno, wenoz)
             // get additional cell lenghths
             const auto minus3 = fCenterJ_(ii, jj - 2, kk).
                 Distance(fCenterJ_(ii, jj - 3, kk));
@@ -502,12 +503,12 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
             faceStateLower = state_(ii, jj - 1, kk).FaceReconWENO(
                 state_(ii, jj - 2, kk), state_(ii, jj - 3, kk),
                 state_(ii, jj, kk), state_(ii, jj + 1, kk), minus1, minus2,
-                minus3, plus1, plus2);
+                minus3, plus1, plus2, inp.IsWenoZ());
 
             faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
                 state_(ii, jj + 1, kk), state_(ii, jj + 2, kk),
                 state_(ii, jj - 1, kk), state_(ii, jj - 2, kk), plus1, plus2,
-                plus3, minus1, minus2);
+                plus3, minus1, minus2, inp.IsWenoZ());
           }
         }
 
@@ -631,7 +632,7 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
             faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
                 state_(ii, jj, kk + 1), state_(ii, jj, kk - 1),
                 inp.Kappa(), inp.Limiter(), plus1, plus2, minus1);
-          } else {  // using higher order reconstruction (weno)
+          } else {  // using higher order reconstruction (weno, wenoz)
             // get additional cell lengths
             const auto minus3 = fCenterK_(ii, jj, kk - 2).
                 Distance(fCenterK_(ii, jj, kk - 3));
@@ -641,12 +642,12 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
             faceStateLower = state_(ii, jj, kk - 1).FaceReconWENO(
                 state_(ii, jj, kk - 2), state_(ii, jj, kk - 3),
                 state_(ii, jj, kk), state_(ii, jj, kk + 1), minus1, minus2,
-                minus3, plus1, plus2);
+                minus3, plus1, plus2, inp.IsWenoZ());
 
             faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
                 state_(ii, jj, kk + 1), state_(ii, jj, kk + 2),
                 state_(ii, jj, kk - 1), state_(ii, jj, kk - 2), plus1, plus2,
-                plus3, minus1, minus2);
+                plus3, minus1, minus2, inp.IsWenoZ());
           }
         }
 

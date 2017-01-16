@@ -220,7 +220,8 @@ primVars primVars::FaceReconWENO(const primVars &upwind2,
                                  const primVars &downwind1,
                                  const primVars &downwind2, const double &uw1,
                                  const double &uw2, const double &uw3,
-                                 const double &dw1, const double &dw2) const {
+                                 const double &dw1, const double &dw2,
+                                 const bool &isWenoZ) const {
   // get candidate smaller stencils
   const vector<double> cellWidth = {uw3, uw2, uw1, dw1, dw2};
 
@@ -246,40 +247,26 @@ primVars primVars::FaceReconWENO(const primVars &upwind2,
   const auto lw1 = fullCoeffs[4] / coeffs2[2];
   const auto lw2 = 1.0 - lw0 - lw1;
 
-  // calculate smoothness indicators
-  // constexpr auto sm1 = 13.0 / 12.0;
-  // constexpr auto sm2 = 0.25;
-
-  // const auto smooth0 = sm1 * (upwind3 - 2.0 * upwind2 + (*this)).Squared() +
-  //     sm2 * (upwind3 - 4.0 * upwind2 + 3.0 * (*this)).Squared();
-  // const auto smooth1 = sm1 * (upwind2 - 2.0 * (*this) + downwind1).Squared() +
-  //     sm2 * (upwind2 - downwind1).Squared();
-  // const auto smooth2 = sm1 * ((*this) - 2.0 * downwind1 + downwind2).Squared() +
-  //     sm2 * (3.0 * (*this) - 4.0 * downwind1 + downwind2).Squared();
-
   const auto beta0 = Beta0(uw3, uw2, uw1, upwind3, upwind2, (*this));
   const auto beta1 = Beta1(uw2, uw1, dw1, upwind2, (*this), downwind1);
   const auto beta2 = Beta2(uw1, dw1, dw2, (*this), downwind1, downwind2);
 
-  const auto tau5 = (beta0 - beta2).Abs();
-
-  // DEBUG
-  // const auto smooth1 = (upwind3 - 4.0 * upwind2 + 3.0 * (*this)).Squared();
-  // const auto smooth2 = (upwind2 - downwind1).Squared();
-  // const auto smooth3 = (3.0 * (*this) - 4.0 * downwind1 + downwind2).Squared();  
-
   // calculate nonlinear weights
-  // constexpr auto eps = 1.0e-6;
-  // auto nlw1 = lw1 / (eps + smooth1).Squared();
-  // auto nlw2 = lw2 / (eps + smooth2).Squared();
-  // auto nlw3 = lw3 / (eps + smooth3).Squared();
-
-
-  // using weno-z weights with q = 1
-  constexpr auto eps = 1.0e-40;
-  auto nlw0 = lw0 * (1.0 + tau5 / (eps + beta0));
-  auto nlw1 = lw1 * (1.0 + tau5 / (eps + beta1));
-  auto nlw2 = lw2 * (1.0 + tau5 / (eps + beta2));
+  primVars nlw0, nlw1, nlw2;
+  if (isWenoZ) {
+    // using weno-z weights with q = 2
+    const auto tau5 = (beta0 - beta2).Abs();
+    constexpr auto eps = 1.0e-40;
+    nlw0 = lw0 * (1.0 + (tau5 / (eps + beta0)).Squared());
+    nlw1 = lw1 * (1.0 + (tau5 / (eps + beta1)).Squared());
+    nlw2 = lw2 * (1.0 + (tau5 / (eps + beta2)).Squared());
+  } else {  // standard WENO
+    // calculate nonlinear weights
+    constexpr auto eps = 1.0e-6;
+    nlw0 = lw0 / (eps + beta0).Squared();
+    nlw1 = lw1 / (eps + beta1).Squared();
+    nlw2 = lw2 / (eps + beta2).Squared();
+  }
 
   // normalize weights
   const auto sum_nlw = nlw0 + nlw1 + nlw2;
