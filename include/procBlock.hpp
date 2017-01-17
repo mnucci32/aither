@@ -70,6 +70,10 @@ class procBlock {
   multiArray3d<vector3d<double>> fCenterJ_;  // coordinates of j-face centers
   multiArray3d<vector3d<double>> fCenterK_;  // coordinates of k-face centers
 
+  multiArray3d<double> cellWidthI_;  // i-width of cell
+  multiArray3d<double> cellWidthJ_;  // j-width of cell
+  multiArray3d<double> cellWidthK_;  // k-width of cell
+
   multiArray3d<uncoupledScalar> specRadius_;  // maximum wave speed for cell
   multiArray3d<double> vol_;  // cell volume
   multiArray3d<double> dt_;  // cell time step
@@ -274,6 +278,16 @@ class procBlock {
     return fCenterK_(ii, jj, kk);
   }
 
+  double CellWidthI(const int &ii, const int &jj, const int &kk) const {
+    return cellWidthI_(ii, jj, kk);
+  }
+  double CellWidthJ(const int &ii, const int &jj, const int &kk) const {
+    return cellWidthJ_(ii, jj, kk);
+  }
+  double CellWidthK(const int &ii, const int &jj, const int &kk) const {
+    return cellWidthK_(ii, jj, kk);
+  }
+
   uncoupledScalar SpectralRadius(const int &ii, const int &jj,
                                  const int &kk) const {
     return specRadius_(ii, jj, kk);
@@ -436,6 +450,8 @@ class procBlock {
                      const string &) const;
 
   void DumpToFile(const string &, const string &) const;
+
+  void CalcCellWidths();
 
   // destructor
   ~procBlock() noexcept {}
