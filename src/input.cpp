@@ -98,7 +98,6 @@ input::input(const string &name) : simName_(name) {
            "velocityRef",
            "gamma",
            "gasConstant",
-           "velocity",
            "timeIntegration",
            "faceReconstruction",
            "viscousFaceReconstruction",
@@ -213,7 +212,7 @@ void input::ReadInput(const int &rank) {
         } else if (key == "velocityRef") {
           vRef_ = ReadVector(tokens[1]);
           if (rank == ROOTP) {
-            cout << key << ": " << this->LRef() << endl;
+            cout << key << ": [" << this->VelRef() << "]" << endl;
           }
         } else if (key == "gamma") {
           gamma_ = stod(tokens[1]);  // double variable (stod)
