@@ -568,12 +568,48 @@ void SwapTurbVars(vector<procBlock> &states,
   }
 }
 
+void SwapGradients(vector<procBlock> &states,
+                   const vector<interblock> &conn, const int &rank,
+                   const MPI_Datatype &MPI_tensorDouble,
+                   const MPI_Datatype &MPI_vec3d,
+                   const int &numGhosts) {
+  // states -- vector of all procBlocks in the solution domain
+  // conn -- interblock boundary conditions
+  // rank -- processor rank
+  // MPI_tensorDouble -- MPI datatype for tensor<double>
+  // MPI_vec3d -- MPI datatype for vector3d<double>
+  // numGhosts -- number of ghost cells
+
+  // loop over all connections and swap interblock updates when necessary
+  for (auto ii = 0U; ii < conn.size(); ii++) {
+    if (conn[ii].RankFirst() == rank && conn[ii].RankSecond() == rank) {
+      // both sides of interblock are on this processor, swap w/o mpi
+      states[conn[ii].LocalBlockFirst()].SwapGradientSlice(
+          conn[ii], states[conn[ii].LocalBlockSecond()]);
+    } else if (conn[ii].RankFirst() == rank) {
+      // rank matches rank of first side of interblock, swap over mpi
+      states[conn[ii].LocalBlockFirst()].SwapGradientSliceMPI(conn[ii], rank,
+                                                              MPI_tensorDouble,
+                                                              MPI_vec3d);
+    } else if (conn[ii].RankSecond() == rank) {
+      // rank matches rank of second side of interblock, swap over mpi
+      states[conn[ii].LocalBlockSecond()].SwapGradientSliceMPI(conn[ii], rank,
+                                                               MPI_tensorDouble,
+                                                               MPI_vec3d);
+    }
+    // if rank doesn't match either side of interblock, then do nothing and
+    // move on to the next interblock
+  }
+}
+
 
 void CalcResidual(vector<procBlock> &states,
                   vector<multiArray3d<fluxJacobian>> &mainDiagonal,
                   const sutherland &suth, const idealGas &eos,
                   const input &inp, const unique_ptr<turbModel> &turb,
-                  const vector<interblock> &connections, const int &rank) {
+                  const vector<interblock> &connections, const int &rank,
+                  const MPI_Datatype &MPI_tensorDouble,
+                  const MPI_Datatype &MPI_vec3d) {
   // states -- vector of all procBlocks on processor
   // mainDiagonal -- main diagonal of A matrix for implicit solve
   // suth -- sutherland's law for viscosity
@@ -582,14 +618,19 @@ void CalcResidual(vector<procBlock> &states,
   // turb -- turbulence model
   // connections -- interblock boundary conditions
   // rank -- processor rank
+  // MPI_tensorDouble -- MPI datatype for tensor<double>
+  // MPI_vec3d -- MPI datatype for vector3d<double>
 
   for (auto bb = 0U; bb < states.size(); bb++) {
     // calculate residual
     states[bb].CalcResidualNoSource(suth, eos, inp, turb, mainDiagonal[bb]);
   }
+  // swap gradients calculated during residual calculation
+  SwapGradients(states, connections, rank, MPI_tensorDouble, MPI_vec3d,
+                inp.NumberGhostLayers());
 
   if (inp.IsTurbulent()) {
-    // swap turbulence varibles calculated during residual calculation
+    // swap turbulence variables calculated during residual calculation
     SwapTurbVars(states, connections, rank, inp.NumberGhostLayers());
 
     for (auto bb = 0U; bb < states.size(); bb++) {

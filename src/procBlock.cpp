@@ -111,8 +111,8 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
 
   auto inputViscosity = 0.0;
   if (isViscous_) {
-    velocityGrad_ = {numI, numJ, numK, 0};
-    temperatureGrad_ = {numI, numJ, numK, 0};
+    velocityGrad_ = {numI, numJ, numK, numGhosts_};
+    temperatureGrad_ = {numI, numJ, numK, numGhosts_};
     inputViscosity = suth.Viscosity(inputTemperature);
     viscosity_ = {numI, numJ, numK, numGhosts_, inputViscosity};
   } else {
@@ -122,8 +122,8 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
   }
 
   if (isTurbulent_) {
-    tkeGrad_ = {numI, numJ, numK, 0};
-    omegaGrad_ = {numI, numJ, numK, 0};
+    tkeGrad_ = {numI, numJ, numK, numGhosts_};
+    omegaGrad_ = {numI, numJ, numK, numGhosts_};
     eddyViscosity_ = {numI, numJ, numK, numGhosts_,
                       ic.EddyViscosityRatio() * inputViscosity};
     f1_ = {numI, numJ, numK, numGhosts_, 1.0};
@@ -176,15 +176,15 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   cellWidthI_ = {1, 1, 1, 0};
   cellWidthJ_ = {1, 1, 1, 0};
   cellWidthK_ = {1, 1, 1, 0};
-  
+
   specRadius_ = {ni, nj, nk, 0};
   dt_ = {ni, nj, nk, 0};
 
   temperature_ = {ni, nj, nk, numGhosts_};
 
   if (isViscous_) {
-    velocityGrad_ = {ni, nj, nk, 0};
-    temperatureGrad_ = {ni, nj, nk, 0};
+    velocityGrad_ = {ni, nj, nk, numGhosts_};
+    temperatureGrad_ = {ni, nj, nk, numGhosts_};
     viscosity_ = {ni, nj, nk, numGhosts_};
   } else {
     velocityGrad_ = {1, 1, 1, 0};
@@ -193,8 +193,8 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   }
 
   if (isTurbulent_) {
-    tkeGrad_ = {ni, nj, nk, 0};
-    omegaGrad_ = {ni, nj, nk, 0};
+    tkeGrad_ = {ni, nj, nk, numGhosts_};
+    omegaGrad_ = {ni, nj, nk, numGhosts_};
     eddyViscosity_ = {ni, nj, nk, numGhosts_};
     f1_ = {ni, nj, nk, numGhosts_};
     f2_ = {ni, nj, nk, numGhosts_};
@@ -3488,6 +3488,20 @@ void procBlock::SwapTurbSlice(const interblock &inter, procBlock &blk) {
   f2_.SwapSlice(inter, blk.f2_);
 }
 
+void procBlock::SwapGradientSlice(const interblock &inter, procBlock &blk) {
+  // inter -- interblock boundary information
+  // blk -- second block involved in interblock boundary
+
+  if (isViscous_) {
+    velocityGrad_.SwapSlice(inter, blk.velocityGrad_);
+    temperatureGrad_.SwapSlice(inter, blk.temperatureGrad_);
+  }
+  if (isTurbulent_) {
+    tkeGrad_.SwapSlice(inter, blk.tkeGrad_);
+    omegaGrad_.SwapSlice(inter, blk.omegaGrad_);
+  }
+}
+
 
 /* Function to swap slice using MPI. This is similar to the SwapSlice
 function, but is called when the neighboring procBlocks are on different
@@ -3509,6 +3523,22 @@ void procBlock::SwapTurbSliceMPI(const interblock &inter, const int &rank) {
   eddyViscosity_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 1);
   f1_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 2);
   f2_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 3);
+}
+
+void procBlock::SwapGradientSliceMPI(const interblock &inter, const int &rank,
+                                     const MPI_Datatype &MPI_tensorDouble,
+                                     const MPI_Datatype &MPI_vec3d) {
+  // inter -- interblock boundary information
+  // rank -- processor rank
+
+  if (isViscous_) {
+    velocityGrad_.SwapSliceMPI(inter, rank, MPI_tensorDouble, 1);
+    temperatureGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 2);
+  }
+  if (isTurbulent_) {
+    tkeGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 3);
+    omegaGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 4);
+  }
 }
 
 
