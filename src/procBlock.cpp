@@ -839,8 +839,7 @@ void procBlock::ImplicitTimeAdvance(const genArray &du,
   // kk -- k-location of cell
 
   // calculate updated state (primative variables)
-  state_(ii, jj, kk) = state_(ii, jj, kk).UpdateWithConsVars(eqnState, du,
-                                                             turb);
+  state_(ii, jj, kk) = state_(ii, jj, kk).UpdateWithConsVars(eqnState, du, turb);
 }
 
 /*member function to advance the state_ vector to time n+1 using 4th order
@@ -3626,8 +3625,8 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
     for (auto l2 = adjS2; l2 < inter.Dir2LenFirst() - adjE2; l2++) {
       for (auto l1 = adjS1; l1 < inter.Dir1LenFirst() - adjE1; l1++) {
         // get block and slice indices
-        const auto indB = GetSwapLoc(l1, l2, l3, numGhosts_, inter, true);
-        const auto indS = GetSwapLoc(l1, l2, l3, slice.GhostLayers(), inter, false);
+        const auto indB = GetSwapLoc(l1, l2, l3, numGhosts_, inter, d3, true);
+        auto indS = GetSwapLoc(l1, l2, l3, slice.GhostLayers(), inter, d3, false);
 
         // don't overwrite with garbage from partner block that hasn't recieved
         // its ghost value yet (needed at "t" intersection)
@@ -3688,6 +3687,23 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
           //-------------------------------------------------------------------
           // swap face data
+
+          // if lower/lower or upper/upper, direction 3 must be reversed
+          // for face indices direction 3 should also be incremented one when
+          // accessing direction 3 face data, and then decremented to access
+          // direction 1/2 face data
+          auto fac3 = 1;
+          if (inter.IsLowerLowerOrUpperUpper()) {
+            fac3 = -1;
+            if (inter.Direction3Second() == "i") {
+              indS[0]++;
+            } else if (inter.Direction3Second() == "j") {
+              indS[1]++;
+            } else {
+              indS[2]++;
+            }
+          }
+
           // both patches i, i to i, j to j, k to k
           if (inter.Direction3First() == "i" &&
               inter.Direction3Second() == "i") {
@@ -3699,9 +3715,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterI_(indB[0] + 1, indB[1], indB[2]) =
-                  slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+                  slice.FCenterI(indS[0] + fac3, indS[1], indS[2]);
               fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac3 *
-                  slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
+                  slice.FAreaI(indS[0] + fac3, indS[1], indS[2]);
+            }
+            if (inter.IsLowerLowerOrUpperUpper()) {
+              indS[0]--;
             }
 
             // swap face data for direction 1
@@ -3776,9 +3795,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
-                  slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+                  slice.FCenterJ(indS[0], indS[1] + fac3, indS[2]);
               fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac3 *
-                  slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
+                  slice.FAreaJ(indS[0], indS[1] + fac3, indS[2]);
+            }
+            if (inter.IsLowerLowerOrUpperUpper()) {
+              indS[1]--;
             }
 
             // swap face data for direction 1
@@ -3853,9 +3875,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterK_(indB[0], indB[1], indB[2] + 1) =
-                  slice.FCenterK(indS[0], indS[1], indS[2] + 1);
+                  slice.FCenterK(indS[0], indS[1], indS[2] + fac3);
               fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac3 *
-                  slice.FAreaK(indS[0], indS[1], indS[2] + 1);
+                  slice.FAreaK(indS[0], indS[1], indS[2] + fac3);
+            }
+            if (inter.IsLowerLowerOrUpperUpper()) {
+              indS[2]--;
             }
 
             // swap face data for direction 1
@@ -3930,9 +3955,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterI_(indB[0] + 1, indB[1], indB[2]) =
-                  slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+                  slice.FCenterJ(indS[0], indS[1] + fac3, indS[2]);
               fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac3 *
-                  slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
+                  slice.FAreaJ(indS[0], indS[1] + fac3, indS[2]);
+            }
+            if (inter.IsLowerLowerOrUpperUpper()) {
+              indS[1]--;
             }
 
             // swap face data for direction 1
@@ -4007,9 +4035,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterI_(indB[0] + 1, indB[1], indB[2]) =
-                  slice.FCenterK(indS[0], indS[1], indS[2] + 1);
+                  slice.FCenterK(indS[0], indS[1], indS[2] + fac3);
               fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac3 *
-                  slice.FAreaK(indS[0], indS[1], indS[2] + 1);
+                  slice.FAreaK(indS[0], indS[1], indS[2] + fac3);
+            }
+            if (inter.IsLowerLowerOrUpperUpper()) {
+              indS[2]--;
             }
 
             // swap face data for direction 1
@@ -4084,9 +4115,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
-                  slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+                  slice.FCenterI(indS[0] + fac3, indS[1], indS[2]);
               fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac3 *
-                  slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
+                  slice.FAreaI(indS[0] + fac3, indS[1], indS[2]);
+            }
+            if (inter.IsLowerLowerOrUpperUpper()) {
+              indS[0]--;
             }
 
             // swap face data for direction 1
@@ -4162,9 +4196,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
-                  slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+                  slice.FCenterJ(indS[0], indS[1], indS[2] + fac3);
               fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac3 *
-                  slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
+                  slice.FAreaJ(indS[0], indS[1], indS[2] + fac3);
+            }
+            if (inter.IsLowerLowerOrUpperUpper()) {
+              indS[2]--;
             }
 
             // swap face data for direction 1
@@ -4239,9 +4276,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterK_(indB[0], indB[1], indB[2] + 1) =
-                  slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+                  slice.FCenterI(indS[0] + fac3, indS[1], indS[2]);
               fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac3 *
-                  slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
+                  slice.FAreaI(indS[0] + fac3, indS[1], indS[2]);
+            }
+            if (inter.IsLowerLowerOrUpperUpper()) {
+              indS[0]--;
             }
 
             // swap face data for direction 1
@@ -4316,9 +4356,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterK_(indB[0], indB[1], indB[2] + 1) =
-                  slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+                  slice.FCenterJ(indS[0], indS[1] + fac3, indS[2]);
               fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac3 *
-                  slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
+                  slice.FAreaJ(indS[0], indS[1] + fac3, indS[2]);
+            }
+            if (inter.IsLowerLowerOrUpperUpper()) {
+              indS[1]--;
             }
 
             // swap face data for direction 1
@@ -4393,7 +4436,6 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
       }
     }
   }
-
   return adjEdge;
 }
 

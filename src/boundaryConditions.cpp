@@ -187,18 +187,18 @@ void boundaryConditions::AssignFromInput(const int &surfCounter,
 }
 
 /* Member function to determine of what sides of a boundary condition surface
-   it borders an interblock boundary. This is necessary to complete the ghost cell
+   border another boundarySurface. This is necessary to complete the ghost cell
    swap properly. The function alters an array of 4 bools, which return true if
    the boundary surface borders an interblock on the side that they represent.
    The order of the 4 bools is as follows [direction 1 start, direction 1 end,
    direction 2 start, direction 2 end].*/
-void boundaryConditions::BordersInterblock(const int &ii,
-                                           bool (&border)[4]) const {
+void boundaryConditions::BordersSurface(const int &ii,
+                                        bool (&border)[4]) const {
   // ii -- index of surface to test for border matches
   // border -- array of bools to show if boundarySurface is bordered
-  // by an interblock on any of its 4 sides
+  // by another boundarySurface on any of its 4 sides
 
-  // Get surface to test for interblock borders
+  // Get surface to test for borders
   const auto surf = this->GetSurface(ii);
 
   // Check that given boundarySurface is interblock
@@ -210,7 +210,7 @@ void boundaryConditions::BordersInterblock(const int &ii,
     exit(EXIT_FAILURE);
   }
 
-  // Initialize array of bools to false (does not border interblock)
+  // Initialize array of bools to false (does not border surface)
   border[0] = false;
   border[1] = false;
   border[2] = false;
@@ -219,10 +219,8 @@ void boundaryConditions::BordersInterblock(const int &ii,
   // Loop over all surfaces in boundary conditions
   for (auto jj = 0; jj < this->NumSurfaces(); jj++) {
     const auto possibleBorder = this->GetSurface(jj);
-    // If possible border is an interblock and of same surface type,
-    // test for border match
-    if (possibleBorder.BCType() == "interblock" &&
-        possibleBorder.SurfaceType() == surf.SurfaceType()) {
+    // If possible border is of same surface type, test for border match
+    if (possibleBorder.SurfaceType() == surf.SurfaceType()) {
       // borders on direction 1 start side
       if (surf.Min1() == possibleBorder.Max1()) {
         border[0] = true;
@@ -272,18 +270,18 @@ ostream &operator<<(ostream &os, const interblock &bc) {
   os << "Direction 3 Constant Surface: " << bc.ConstSurfaceFirst() << ", "
      << bc.ConstSurfaceSecond() << endl;
 
-  os << "Direction 1 Start Borders Interblock: "
+  os << "Direction 1 Start Borders Surface: "
      << bc.Dir1StartInterBorderFirst() << ", "
      << bc.Dir1StartInterBorderSecond() << endl;
 
-  os << "Direction 1 End Borders Interblock: " << bc.Dir1EndInterBorderFirst()
+  os << "Direction 1 End Borders Surface: " << bc.Dir1EndInterBorderFirst()
      << ", " << bc.Dir1EndInterBorderSecond() << endl;
 
-  os << "Direction 2 Start Borders Interblock: "
+  os << "Direction 2 Start Borders Surface: "
      << bc.Dir2StartInterBorderFirst() << ", "
      << bc.Dir2StartInterBorderSecond() << endl;
 
-  os << "Direction 2 End Borders Interblock: " << bc.Dir2EndInterBorderFirst()
+  os << "Direction 2 End Borders Surface: " << bc.Dir2EndInterBorderFirst()
      << ", " << bc.Dir2EndInterBorderSecond() << endl;
 
   os << "Orientation: " << bc.Orientation() << endl;
@@ -325,14 +323,14 @@ interblock::interblock(const patch &p1, const patch &p2) {
   constSurf_[0] = p1.ConstSurface();
   constSurf_[1] = p2.ConstSurface();
 
-  interblockBorder_[0] = p1.Dir1StartInterBorder();
-  interblockBorder_[1] = p1.Dir1EndInterBorder();
-  interblockBorder_[2] = p1.Dir2StartInterBorder();
-  interblockBorder_[3] = p1.Dir2EndInterBorder();
-  interblockBorder_[4] = p2.Dir1StartInterBorder();
-  interblockBorder_[5] = p2.Dir1EndInterBorder();
-  interblockBorder_[6] = p2.Dir2StartInterBorder();
-  interblockBorder_[7] = p2.Dir2EndInterBorder();
+  patchBorder_[0] = p1.Dir1StartInterBorder();
+  patchBorder_[1] = p1.Dir1EndInterBorder();
+  patchBorder_[2] = p1.Dir2StartInterBorder();
+  patchBorder_[3] = p1.Dir2EndInterBorder();
+  patchBorder_[4] = p2.Dir1StartInterBorder();
+  patchBorder_[5] = p2.Dir1EndInterBorder();
+  patchBorder_[6] = p2.Dir2StartInterBorder();
+  patchBorder_[7] = p2.Dir2EndInterBorder();
 
   orientation_ = 0;  // default value (real values 1-8)
 }
@@ -350,10 +348,10 @@ void interblock::SwapOrder() {
   swap(d2End_[0], d2End_[1]);
   swap(constSurf_[0], constSurf_[1]);
 
-  swap(interblockBorder_[0], interblockBorder_[4]);
-  swap(interblockBorder_[1], interblockBorder_[5]);
-  swap(interblockBorder_[2], interblockBorder_[6]);
-  swap(interblockBorder_[3], interblockBorder_[7]);
+  swap(patchBorder_[0], patchBorder_[4]);
+  swap(patchBorder_[1], patchBorder_[5]);
+  swap(patchBorder_[2], patchBorder_[6]);
+  swap(patchBorder_[3], patchBorder_[7]);
 
   // If orientation is 4 or 5, needs to be swapped because direction
   // 1/2 are swapped and only one direction is reversed
@@ -433,17 +431,17 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
       if (isolatedInterblocks[ii].PartnerBlock() == numRankPos[jj][0] &&
           isolatedInterblocks[ii].PartnerSurface() ==
               isolatedInterblocks[jj].SurfaceType()) {
-        // Determine if surface borders any other interblocks
+        // Determine if surface borders any other surfaces
         bool border[4] = {false, false, false, false};
-        bc[numRankPos[ii][0]].BordersInterblock(surfaceNums[ii], border);
+        bc[numRankPos[ii][0]].BordersSurface(surfaceNums[ii], border);
 
         // Get current patch
         const patch cPatch(isolatedInterblocks[ii], grid[numRankPos[ii][0]],
                            numRankPos[ii][0], border, numRankPos[ii][1],
                            numRankPos[ii][2]);
 
-        // Determine if surface borders any other interblocks
-        bc[numRankPos[jj][0]].BordersInterblock(surfaceNums[jj], border);
+        // Determine if surface borders any other surfaces
+        bc[numRankPos[jj][0]].BordersSurface(surfaceNums[jj], border);
 
         // Get new patch (possible match)
         const patch nPatch(isolatedInterblocks[jj], grid[numRankPos[jj][0]],
@@ -685,7 +683,7 @@ void interblock::GetAddressesMPI(MPI_Aint (&disp)[11]) const {
   MPI_Get_address(&d2Start_[0], &disp[6]);
   MPI_Get_address(&d2End_[0], &disp[7]);
   MPI_Get_address(&constSurf_[0], &disp[8]);
-  MPI_Get_address(&interblockBorder_[0], &disp[9]);
+  MPI_Get_address(&patchBorder_[0], &disp[9]);
   MPI_Get_address(&orientation_, &disp[10]);
 }
 
@@ -788,11 +786,11 @@ string interblock::Direction3Second() const {
    first PutGeomSlice ghost cell exchange to locate a "t" intersection of blocks
    and ensure that they are treated properly. */
 void interblock::UpdateBorderFirst(const int &a) {
-  // a -- position in interblockBorder_ to update (0-3) -
+  // a -- position in patchBorder_ to update (0-3) -
   // (dir 1 start, dir1 end, dir2 start, dir2 end)
 
   if (a >= 0 && a <= 3) {
-    interblockBorder_[a] = true;
+    patchBorder_[a] = true;
   } else {
     cerr << "ERROR: Error in interblock::UpdateBorderFirst(). "
          << "Position to update is out of range. Choose between 0-3. "
@@ -812,11 +810,11 @@ void interblock::UpdateBorderFirst(const int &a) {
    ensure
    that they are treated properly. */
 void interblock::UpdateBorderSecond(const int &a) {
-  // a -- position in interblockBorder_ to update (0-3) -
+  // a -- position in patchBorder_ to update (0-3) -
   // (dir 1 start, dir1 end, dir2 start, dir2 end)
 
   if (a >= 0 && a <= 3) {
-    interblockBorder_[a + 4] = true;
+    patchBorder_[a + 4] = true;
   } else {
     cerr << "ERROR: Error in interblock::UpdateBorderSecond(). "
          << "Position to update is out of range. Choose between 0-3. "
@@ -2034,10 +2032,10 @@ patch::patch() {
   constSurf_ = 0;
   rank_ = 0;
   localBlock_ = 0;
-  interblockBorder_[0] = false;
-  interblockBorder_[1] = false;
-  interblockBorder_[2] = false;
-  interblockBorder_[3] = false;
+  patchBorder_[0] = false;
+  patchBorder_[1] = false;
+  patchBorder_[2] = false;
+  patchBorder_[3] = false;
 }
 
 // constructor with arguements passed
@@ -2061,10 +2059,10 @@ patch::patch(const int &bound, const int &b, const int &d1s, const int &d1e,
   block_ = b;
   rank_ = r;
   localBlock_ = l;
-  interblockBorder_[0] = border[0];
-  interblockBorder_[1] = border[1];
-  interblockBorder_[2] = border[2];
-  interblockBorder_[3] = border[3];
+  patchBorder_[0] = border[0];
+  patchBorder_[1] = border[1];
+  patchBorder_[2] = border[2];
+  patchBorder_[3] = border[3];
 
   if (bound == 1 || bound == 2) {  // patch on i-surface - dir1 = j, dir2 = k
     d1Start_ = d2s;
@@ -2697,12 +2695,13 @@ comprise the interblock with relation to each other.
 */
 array<int, 3> GetSwapLoc(const int &l1, const int &l2, const int &l3,
                          const int &numGhosts, const interblock &inter,
-                         const bool &first) {
+                         const int &d3, const bool &first) {
   // l1 -- index of direction 1 within slice to insert
   // l2 -- index of direction 2 within slice to insert
   // l3 -- index of direction 3 within slice to insert
   // numGhosts -- number of layers of ghost cells
   // inter -- interblock boundary condition
+  // d3 -- length of normal direction of interblock
   // first -- flag for first or second block in interblock match
 
   // preallocate array to return
@@ -2767,8 +2766,14 @@ array<int, 3> GetSwapLoc(const int &l1, const int &l2, const int &l3,
 
       // calculate index for all ghost layers
       // add l3 to get to ghost cells
-      loc[0] = inter.IsLowerSecond() ? l3 - numGhosts :
-          inter.ConstSurfaceSecond() + l3;
+      // if lower/lower or upper/upper, need to reverse direction 3
+      if (inter.IsLowerLowerOrUpperUpper()) {
+        loc[0] = inter.IsLowerSecond() ? d3 - l3 - 1:
+            inter.ConstSurfaceSecond() + d3 - l3 - 1;
+      } else {
+        loc[0] = inter.IsLowerSecond() ? l3 - numGhosts :
+            inter.ConstSurfaceSecond() + l3;
+      }
 
     //-------------------------------------------------------------------------
     } else if (inter.Direction3Second() == "j") {  // j-patch
@@ -2802,8 +2807,15 @@ array<int, 3> GetSwapLoc(const int &l1, const int &l2, const int &l3,
 
       // calculate index for all ghost layers
       // add l3 to get to ghost cells
-      loc[1] = inter.IsLowerSecond() ? l3 - numGhosts :
-          inter.ConstSurfaceSecond() + l3;
+      // if lower/lower or upper/upper, need to reverse direction 3
+      if (inter.IsLowerLowerOrUpperUpper()) {
+        loc[1] = inter.IsLowerSecond() ? d3 - l3 - 1:
+            inter.ConstSurfaceSecond() + d3 - l3 - 1;
+      } else {
+        loc[1] = inter.IsLowerSecond() ? l3 - numGhosts :
+            inter.ConstSurfaceSecond() + l3;
+      }
+
 
     //------------------------------------------------------------------------
     } else if (inter.Direction3Second() == "k") {  // k-patch
@@ -2837,8 +2849,15 @@ array<int, 3> GetSwapLoc(const int &l1, const int &l2, const int &l3,
 
       // calculate index for all ghost layers
       // add l3 to get to ghost cells
-      loc[2] = inter.IsLowerSecond() ? l3 - numGhosts :
-          inter.ConstSurfaceSecond() + l3;
+      // if lower/lower or upper/upper, need to reverse direction 3
+      if (inter.IsLowerLowerOrUpperUpper()) {
+        loc[2] = inter.IsLowerSecond() ? d3 - l3 - 1:
+            inter.ConstSurfaceSecond() + d3 - l3 - 1;
+      } else {
+        loc[2] = inter.IsLowerSecond() ? l3 - numGhosts :
+            inter.ConstSurfaceSecond() + l3;
+      }
+
 
     //--------------------------------------------------------------------------
     } else {
