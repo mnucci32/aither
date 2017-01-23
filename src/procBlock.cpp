@@ -4695,14 +4695,14 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
   temperature_.ClearResize(numI, numJ, numK, numGhosts);
 
   if (isViscous_) {
-    velocityGrad_.ClearResize(numI, numJ, numK, 0);
-    temperatureGrad_.ClearResize(numI, numJ, numK, 0);
+    velocityGrad_.ClearResize(numI, numJ, numK, numGhosts);
+    temperatureGrad_.ClearResize(numI, numJ, numK, numGhosts);
     viscosity_.ClearResize(numI, numJ, numK, numGhosts);
   }
 
   if (isTurbulent_) {
-    tkeGrad_.ClearResize(numI, numJ, numK, 0);
-    omegaGrad_.ClearResize(numI, numJ, numK, 0);
+    tkeGrad_.ClearResize(numI, numJ, numK, numGhosts);
+    omegaGrad_.ClearResize(numI, numJ, numK, numGhosts);
     eddyViscosity_.ClearResize(numI, numJ, numK, numGhosts);
     f1_.ClearResize(numI, numJ, numK, numGhosts);
     f2_.ClearResize(numI, numJ, numK, numGhosts);
