@@ -6,7 +6,7 @@ if [ "$TRAVIS_OS_NAME" == "osx" ]; then
 	echo "Using cached OpenMPI"
     else
 	echo "Installing OpenMPI with homebrew"
-        HOMEBREW_TEMP=$TRAVIS_BUILD_DIR/openmpi
+        export HOMEBREW_PREFIX=$TRAVIS_BUILD_DIR/openmpi
         brew install open-mpi
     fi
 else
