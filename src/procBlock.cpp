@@ -111,8 +111,8 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
 
   auto inputViscosity = 0.0;
   if (isViscous_) {
-    velocityGrad_ = {numI, numJ, numK, 0};
-    temperatureGrad_ = {numI, numJ, numK, 0};
+    velocityGrad_ = {numI, numJ, numK, numGhosts_};
+    temperatureGrad_ = {numI, numJ, numK, numGhosts_};
     inputViscosity = suth.Viscosity(inputTemperature);
     viscosity_ = {numI, numJ, numK, numGhosts_, inputViscosity};
   } else {
@@ -122,8 +122,8 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
   }
 
   if (isTurbulent_) {
-    tkeGrad_ = {numI, numJ, numK, 0};
-    omegaGrad_ = {numI, numJ, numK, 0};
+    tkeGrad_ = {numI, numJ, numK, numGhosts_};
+    omegaGrad_ = {numI, numJ, numK, numGhosts_};
     eddyViscosity_ = {numI, numJ, numK, numGhosts_,
                       ic.EddyViscosityRatio() * inputViscosity};
     f1_ = {numI, numJ, numK, numGhosts_, 1.0};
@@ -176,15 +176,15 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   cellWidthI_ = {1, 1, 1, 0};
   cellWidthJ_ = {1, 1, 1, 0};
   cellWidthK_ = {1, 1, 1, 0};
-  
+
   specRadius_ = {ni, nj, nk, 0};
   dt_ = {ni, nj, nk, 0};
 
   temperature_ = {ni, nj, nk, numGhosts_};
 
   if (isViscous_) {
-    velocityGrad_ = {ni, nj, nk, 0};
-    temperatureGrad_ = {ni, nj, nk, 0};
+    velocityGrad_ = {ni, nj, nk, numGhosts_};
+    temperatureGrad_ = {ni, nj, nk, numGhosts_};
     viscosity_ = {ni, nj, nk, numGhosts_};
   } else {
     velocityGrad_ = {1, 1, 1, 0};
@@ -193,8 +193,8 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   }
 
   if (isTurbulent_) {
-    tkeGrad_ = {ni, nj, nk, 0};
-    omegaGrad_ = {ni, nj, nk, 0};
+    tkeGrad_ = {ni, nj, nk, numGhosts_};
+    omegaGrad_ = {ni, nj, nk, numGhosts_};
     eddyViscosity_ = {ni, nj, nk, numGhosts_};
     f1_ = {ni, nj, nk, numGhosts_};
     f2_ = {ni, nj, nk, numGhosts_};
@@ -839,8 +839,7 @@ void procBlock::ImplicitTimeAdvance(const genArray &du,
   // kk -- k-location of cell
 
   // calculate updated state (primative variables)
-  state_(ii, jj, kk) = state_(ii, jj, kk).UpdateWithConsVars(eqnState, du,
-                                                             turb);
+  state_(ii, jj, kk) = state_(ii, jj, kk).UpdateWithConsVars(eqnState, du, turb);
 }
 
 /*member function to advance the state_ vector to time n+1 using 4th order
@@ -3488,6 +3487,20 @@ void procBlock::SwapTurbSlice(const interblock &inter, procBlock &blk) {
   f2_.SwapSlice(inter, blk.f2_);
 }
 
+void procBlock::SwapGradientSlice(const interblock &inter, procBlock &blk) {
+  // inter -- interblock boundary information
+  // blk -- second block involved in interblock boundary
+
+  if (isViscous_) {
+    velocityGrad_.SwapSlice(inter, blk.velocityGrad_);
+    temperatureGrad_.SwapSlice(inter, blk.temperatureGrad_);
+  }
+  if (isTurbulent_) {
+    tkeGrad_.SwapSlice(inter, blk.tkeGrad_);
+    omegaGrad_.SwapSlice(inter, blk.omegaGrad_);
+  }
+}
+
 
 /* Function to swap slice using MPI. This is similar to the SwapSlice
 function, but is called when the neighboring procBlocks are on different
@@ -3509,6 +3522,22 @@ void procBlock::SwapTurbSliceMPI(const interblock &inter, const int &rank) {
   eddyViscosity_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 1);
   f1_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 2);
   f2_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 3);
+}
+
+void procBlock::SwapGradientSliceMPI(const interblock &inter, const int &rank,
+                                     const MPI_Datatype &MPI_tensorDouble,
+                                     const MPI_Datatype &MPI_vec3d) {
+  // inter -- interblock boundary information
+  // rank -- processor rank
+
+  if (isViscous_) {
+    velocityGrad_.SwapSliceMPI(inter, rank, MPI_tensorDouble, 1);
+    temperatureGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 2);
+  }
+  if (isTurbulent_) {
+    tkeGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 3);
+    omegaGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 4);
+  }
 }
 
 
@@ -3596,8 +3625,8 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
     for (auto l2 = adjS2; l2 < inter.Dir2LenFirst() - adjE2; l2++) {
       for (auto l1 = adjS1; l1 < inter.Dir1LenFirst() - adjE1; l1++) {
         // get block and slice indices
-        const auto indB = GetSwapLoc(l1, l2, l3, numGhosts_, inter, true);
-        const auto indS = GetSwapLoc(l1, l2, l3, slice.GhostLayers(), inter, false);
+        const auto indB = GetSwapLoc(l1, l2, l3, numGhosts_, inter, d3, true);
+        auto indS = GetSwapLoc(l1, l2, l3, slice.GhostLayers(), inter, d3, false);
 
         // don't overwrite with garbage from partner block that hasn't recieved
         // its ghost value yet (needed at "t" intersection)
@@ -3658,6 +3687,23 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
           //-------------------------------------------------------------------
           // swap face data
+
+          // if lower/lower or upper/upper, direction 3 must be reversed
+          // for face indices direction 3 should also be incremented one when
+          // accessing direction 3 face data, and then decremented to access
+          // direction 1/2 face data
+          auto fac3 = 1;
+          if (inter.IsLowerLowerOrUpperUpper()) {
+            fac3 = -1;
+            if (inter.Direction3Second() == "i") {
+              indS[0]++;
+            } else if (inter.Direction3Second() == "j") {
+              indS[1]++;
+            } else {
+              indS[2]++;
+            }
+          }
+
           // both patches i, i to i, j to j, k to k
           if (inter.Direction3First() == "i" &&
               inter.Direction3Second() == "i") {
@@ -3669,9 +3715,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterI_(indB[0] + 1, indB[1], indB[2]) =
-                  slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+                  slice.FCenterI(indS[0] + fac3, indS[1], indS[2]);
               fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac3 *
-                  slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
+                  slice.FAreaI(indS[0] + fac3, indS[1], indS[2]);
+            }
+            if (inter.IsLowerLowerOrUpperUpper()) {
+              indS[0]--;
             }
 
             // swap face data for direction 1
@@ -3746,9 +3795,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
-                  slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+                  slice.FCenterJ(indS[0], indS[1] + fac3, indS[2]);
               fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac3 *
-                  slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
+                  slice.FAreaJ(indS[0], indS[1] + fac3, indS[2]);
+            }
+            if (inter.IsLowerLowerOrUpperUpper()) {
+              indS[1]--;
             }
 
             // swap face data for direction 1
@@ -3823,9 +3875,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterK_(indB[0], indB[1], indB[2] + 1) =
-                  slice.FCenterK(indS[0], indS[1], indS[2] + 1);
+                  slice.FCenterK(indS[0], indS[1], indS[2] + fac3);
               fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac3 *
-                  slice.FAreaK(indS[0], indS[1], indS[2] + 1);
+                  slice.FAreaK(indS[0], indS[1], indS[2] + fac3);
+            }
+            if (inter.IsLowerLowerOrUpperUpper()) {
+              indS[2]--;
             }
 
             // swap face data for direction 1
@@ -3900,9 +3955,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterI_(indB[0] + 1, indB[1], indB[2]) =
-                  slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+                  slice.FCenterJ(indS[0], indS[1] + fac3, indS[2]);
               fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac3 *
-                  slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
+                  slice.FAreaJ(indS[0], indS[1] + fac3, indS[2]);
+            }
+            if (inter.IsLowerLowerOrUpperUpper()) {
+              indS[1]--;
             }
 
             // swap face data for direction 1
@@ -3977,9 +4035,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterI_(indB[0] + 1, indB[1], indB[2]) =
-                  slice.FCenterK(indS[0], indS[1], indS[2] + 1);
+                  slice.FCenterK(indS[0], indS[1], indS[2] + fac3);
               fAreaI_(indB[0] + 1, indB[1], indB[2]) = aFac3 *
-                  slice.FAreaK(indS[0], indS[1], indS[2] + 1);
+                  slice.FAreaK(indS[0], indS[1], indS[2] + fac3);
+            }
+            if (inter.IsLowerLowerOrUpperUpper()) {
+              indS[2]--;
             }
 
             // swap face data for direction 1
@@ -4054,9 +4115,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
-                  slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+                  slice.FCenterI(indS[0] + fac3, indS[1], indS[2]);
               fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac3 *
-                  slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
+                  slice.FAreaI(indS[0] + fac3, indS[1], indS[2]);
+            }
+            if (inter.IsLowerLowerOrUpperUpper()) {
+              indS[0]--;
             }
 
             // swap face data for direction 1
@@ -4132,9 +4196,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterJ_(indB[0], indB[1] + 1, indB[2]) =
-                  slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+                  slice.FCenterJ(indS[0], indS[1], indS[2] + fac3);
               fAreaJ_(indB[0], indB[1] + 1, indB[2]) = aFac3 *
-                  slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
+                  slice.FAreaJ(indS[0], indS[1], indS[2] + fac3);
+            }
+            if (inter.IsLowerLowerOrUpperUpper()) {
+              indS[2]--;
             }
 
             // swap face data for direction 1
@@ -4209,9 +4276,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterK_(indB[0], indB[1], indB[2] + 1) =
-                  slice.FCenterI(indS[0] + 1, indS[1], indS[2]);
+                  slice.FCenterI(indS[0] + fac3, indS[1], indS[2]);
               fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac3 *
-                  slice.FAreaI(indS[0] + 1, indS[1], indS[2]);
+                  slice.FAreaI(indS[0] + fac3, indS[1], indS[2]);
+            }
+            if (inter.IsLowerLowerOrUpperUpper()) {
+              indS[0]--;
             }
 
             // swap face data for direction 1
@@ -4286,9 +4356,12 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 
             if (l3 == (d3 - 1)) {  // at end of direction 3 line
               fCenterK_(indB[0], indB[1], indB[2] + 1) =
-                  slice.FCenterJ(indS[0], indS[1] + 1, indS[2]);
+                  slice.FCenterJ(indS[0], indS[1] + fac3, indS[2]);
               fAreaK_(indB[0], indB[1], indB[2] + 1) = aFac3 *
-                  slice.FAreaJ(indS[0], indS[1] + 1, indS[2]);
+                  slice.FAreaJ(indS[0], indS[1] + fac3, indS[2]);
+            }
+            if (inter.IsLowerLowerOrUpperUpper()) {
+              indS[1]--;
             }
 
             // swap face data for direction 1
@@ -4363,7 +4436,6 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
       }
     }
   }
-
   return adjEdge;
 }
 
@@ -4623,14 +4695,14 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
   temperature_.ClearResize(numI, numJ, numK, numGhosts);
 
   if (isViscous_) {
-    velocityGrad_.ClearResize(numI, numJ, numK, 0);
-    temperatureGrad_.ClearResize(numI, numJ, numK, 0);
+    velocityGrad_.ClearResize(numI, numJ, numK, numGhosts);
+    temperatureGrad_.ClearResize(numI, numJ, numK, numGhosts);
     viscosity_.ClearResize(numI, numJ, numK, numGhosts);
   }
 
   if (isTurbulent_) {
-    tkeGrad_.ClearResize(numI, numJ, numK, 0);
-    omegaGrad_.ClearResize(numI, numJ, numK, 0);
+    tkeGrad_.ClearResize(numI, numJ, numK, numGhosts);
+    omegaGrad_.ClearResize(numI, numJ, numK, numGhosts);
     eddyViscosity_.ClearResize(numI, numJ, numK, numGhosts);
     f1_.ClearResize(numI, numJ, numK, numGhosts);
     f2_.ClearResize(numI, numJ, numK, numGhosts);

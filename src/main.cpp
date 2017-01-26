@@ -287,7 +287,7 @@ int main(int argc, char *argv[]) {
 
       // Calculate residual (RHS)
       CalcResidual(localStateBlocks, mainDiagonal, suth, eos, inputVars,
-                   turb, connections, rank);
+                   turb, connections, rank, MPI_tensorDouble, MPI_vec3d);
 
       // Calculate time step
       CalcTimeStep(localStateBlocks, inputVars, aRef);

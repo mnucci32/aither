@@ -432,6 +432,9 @@ class procBlock {
   void SwapStateSliceMPI(const interblock &, const int &, const MPI_Datatype &);
   void SwapTurbSlice(const interblock &, procBlock &);
   void SwapTurbSliceMPI(const interblock &, const int &);
+  void SwapGradientSlice(const interblock &, procBlock &);
+  void SwapGradientSliceMPI(const interblock &, const int &,
+                            const MPI_Datatype &, const MPI_Datatype &);
 
   void PackSendGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
                        const MPI_Datatype &) const;

@@ -97,12 +97,15 @@ void SwapImplicitUpdate(vector<multiArray3d<genArray>> &,
                         const MPI_Datatype &, const int &);
 void SwapTurbVars(vector<procBlock> &, const vector<interblock> &, const int &,
                   const int &);
+void SwapGradients(vector<procBlock> &, const vector<interblock> &, const int &,
+                   const MPI_Datatype &, const MPI_Datatype &, const int &);
 
 void CalcResidual(vector<procBlock> &,
                   vector<multiArray3d<fluxJacobian>> &,
                   const sutherland &, const idealGas &, const input &,
                   const unique_ptr<turbModel> &,
-                  const vector<interblock> &, const int &);
+                  const vector<interblock> &, const int &, const MPI_Datatype &,
+                  const MPI_Datatype &);
 
 void CalcTimeStep(vector<procBlock> &, const input &, const double &);
 
