@@ -6,8 +6,10 @@ if [ "$TRAVIS_OS_NAME" == "osx" ]; then
 	echo "Using cached OpenMPI"
     else
 	echo "Installing OpenMPI with homebrew"
-        export HOMEBREW_PREFIX=$TRAVIS_BUILD_DIR/openmpi
         brew install open-mpi
+	ln -s /usr/local/bin bin
+	ln -s /usr/local/lib lib
+	ln -s /usr/local/include include
     fi
 else
     if [ -f "openmpi/bin/mpirun" ] && [ -f "openmpi-2.0.1/config.log" ]; then
