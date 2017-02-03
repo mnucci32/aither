@@ -146,7 +146,9 @@ class input {
   set<string> OutputVariables() const {return outputVariables_;}
 
   bool WriteOutput(const int &nn) const {return (nn + 1) % outputFrequency_ == 0;}
-  bool WriteRestart(const int &nn) const {return (nn + 1) % restartFrequency_ == 0;}
+  bool WriteRestart(const int &nn) const {
+    return (restartFrequency_ == 0) ? false : (nn + 1) % restartFrequency_ == 0;
+  }
 
   string EquationSet() const {return equationSet_;}
 

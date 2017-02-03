@@ -359,7 +359,8 @@ int main(int argc, char *argv[]) {
       if (rank == ROOTP && inputVars.WriteRestart(nn)) {
         cout << "writing out restart file at iteration " << nn << endl;
         // Write out restart file
-        WriteRestart(stateBlocks, eos, suth, (nn+1), decomp, inputVars);
+        WriteRestart(stateBlocks, eos, suth, (nn+1), decomp, inputVars,
+                     residL2First);
       }
     }
   }  // loop for time step -----------------------------------------------------

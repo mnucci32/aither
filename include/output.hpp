@@ -64,7 +64,7 @@ void WriteMeta(const input &, const int &);
 
 void WriteRestart(const vector<procBlock> &, const idealGas &,
                   const sutherland &, const int &, const decomposition &,
-                  const input &);
+                  const input &, const genArray &);
 
 
 void WriteResiduals(const input &, genArray &, const genArray &, const resid &,

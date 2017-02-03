@@ -289,7 +289,8 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
 // function to write out variables in function file format
 void WriteRestart(const vector<procBlock> &splitVars, const idealGas &eqnState,
                   const sutherland &suth, const int &solIter,
-                  const decomposition &decomp, const input &inp) {
+                  const decomposition &decomp, const input &inp,
+                  const genArray &residL2First) {
   // recombine blocks into original structure
   auto vars = Recombine(splitVars, decomp);
 
@@ -309,12 +310,14 @@ void WriteRestart(const vector<procBlock> &splitVars, const idealGas &eqnState,
   auto numSols = inp.IsMultilevelInTime() ? 2 : 1;
   outFile.write(reinterpret_cast<char *>(&numSols), sizeof(numSols));
 
-  // DEBUG
+  // write number of equations
+  auto numEqns = inp.NumEquations();
+  outFile.write(reinterpret_cast<char *>(&numEqns), sizeof(numEqns));
+
   // write residual values
+  outFile.write(const_cast<char *>(reinterpret_cast<const char *>(&residL2First)),
+                sizeof(residL2First));
 
-
-
-  
   // variables to write to restart file
   vector<string> restartVars = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
   if (inp.IsTurbulent()) {
