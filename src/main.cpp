@@ -357,6 +357,7 @@ int main(int argc, char *argv[]) {
         WriteMeta(inputVars, (nn+1));
       }
       if (rank == ROOTP && inputVars.WriteRestart(nn)) {
+        cout << "writing out restart file at iteration " << nn << endl;
         // Write out restart file
         WriteRestart(stateBlocks, eos, suth, (nn+1), decomp, inputVars);
       }

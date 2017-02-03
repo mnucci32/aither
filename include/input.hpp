@@ -123,6 +123,7 @@ class input {
   int NumBC() const {return bc_.size();}
 
   string TimeIntegration() const {return timeIntegration_;}
+  bool IsMultilevelInTime() const {return timeIntegration_ == "bdf2";}
 
   double CFL() const {return cfl_;}
   void CalcCFL(const int &i);

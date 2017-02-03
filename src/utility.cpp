@@ -500,8 +500,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
                            turb, mm, residL2, residLinf);
 
     // Assign time n to time n-1 at end of nonlinear iterations
-    if (inp.TimeIntegration() == "bdf2" &&
-        mm == inp.NonlinearIterations() - 1 ) {
+    if (inp.IsMultilevelInTime() && mm == inp.NonlinearIterations() - 1) {
       solDeltaNm1[bb] = blocks[bb].DeltaNMinusOne(solTimeN[bb], eos,
                                                   inp.Theta(), inp.Zeta());
     }

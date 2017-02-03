@@ -305,10 +305,15 @@ void WriteRestart(const vector<procBlock> &splitVars, const idealGas &eqnState,
     exit(EXIT_FAILURE);
   }
 
-  // DEBUG
   // write number of time steps contained in file
+  auto numSols = inp.IsMultilevelInTime() ? 2 : 1;
+  outFile.write(reinterpret_cast<char *>(&numSols), sizeof(numSols));
 
+  // DEBUG
   // write residual values
+
+
+
   
   // variables to write to restart file
   vector<string> restartVars = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
