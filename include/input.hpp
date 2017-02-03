@@ -38,6 +38,7 @@ class idealGas;
 
 class input {
   string simName_;  // simulation name
+  string restartName_;  // restart file name
   string gName_;  // grid file name
   double dt_;  // time step
   int iterations_;  // number of iterations
@@ -77,6 +78,7 @@ class input {
   string inviscidFlux_;  // scheme for inviscid flux calculation
   string decompMethod_;  // method of decomposition for parallel problems
   string turbModel_;  // turbulence model
+  int restartFrequency_;  // how often to output restart data
 
   set<string> outputVariables_;  // variables to output
 
@@ -85,7 +87,7 @@ class input {
 
  public:
   // constructor
-  explicit input(const string &);
+  input(const string &, const string &);
 
   // move constructor and assignment operator
   input(input&&) noexcept = default;
@@ -98,6 +100,8 @@ class input {
   // member functions
   string SimName() const {return simName_;}
   string SimNameRoot() const;
+  string RestartName() const {return restartName_;}
+  bool IsRestart() const {return restartName_ != "none";}
   string GridName() const {return gName_;}
 
   double Dt() const {return dt_;}
@@ -137,7 +141,11 @@ class input {
   string Limiter() const {return limiter_;}
 
   int OutputFrequency() const {return outputFrequency_;}
+  int RestartFrequency() const {return restartFrequency_;}
   set<string> OutputVariables() const {return outputVariables_;}
+
+  bool WriteOutput(const int &nn) const {return (nn + 1) % outputFrequency_ == 0;}
+  bool WriteRestart(const int &nn) const {return (nn + 1) % restartFrequency_ == 0;}
 
   string EquationSet() const {return equationSet_;}
 

@@ -80,14 +80,24 @@ int main(int argc, char *argv[]) {
   _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_INVALID);
 #endif
 
+  // Check command line inputs
   // Name of input file is the second argument (the executable being the first)
+  if (rank == ROOTP && !(argc == 2 || argc == 3)) {
+    cerr << "USAGE: <mpirun -np n> aither inputFile.inp <restartFile.rst>" << endl;
+    cerr << "       Arguments in <> are optional." << endl;
+    cerr << "       If not invoked with mpirun, 1 processor will be used." << endl;
+    cerr << "       If no restart file specified, none will be used." << endl;
+    exit(EXIT_FAILURE);
+  }
   string inputFile = argv[1];
+  string restartFile = (argc == 3) ? argv[2] : "none";
 
-  // Broadcast input file name to all names for portability
+  // Broadcast input/restart file names to all processors for portability
   BroadcastString(inputFile);
+  BroadcastString(restartFile);
 
   auto totalCells = 0.0;
-  input inputVars(inputFile);
+  input inputVars(inputFile, restartFile);
   decomposition decomp;
   auto numProcBlock = 0;
 
@@ -335,16 +345,20 @@ int main(int argc, char *argv[]) {
     }  // loop for nonlinear iterations ---------------------------------------
 
     // write out function file
-    if ((nn + 1) % inputVars.OutputFrequency() == 0) {
+    if (inputVars.WriteOutput(nn) || inputVars.WriteRestart(nn)) {
       // Send/recv solutions
       GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData,
                     MPI_uncoupledScalar, MPI_vec3d, MPI_tensorDouble);
 
-      if (rank == ROOTP) {
+      if (rank == ROOTP && inputVars.WriteOutput(nn)) {
         cout << "writing out function file at iteration " << nn << endl;
         // Write out function file
         WriteFun(stateBlocks, eos, suth, (nn+1), decomp, inputVars, turb);
         WriteMeta(inputVars, (nn+1));
+      }
+      if (rank == ROOTP && inputVars.WriteRestart(nn)) {
+        // Write out restart file
+        WriteRestart(stateBlocks, eos, suth, (nn+1), decomp, inputVars);
       }
     }
   }  // loop for time step -----------------------------------------------------
@@ -368,5 +382,5 @@ int main(int argc, char *argv[]) {
 
   MPI_Finalize();
 
-  return 0;
+  return EXIT_SUCCESS;
 }

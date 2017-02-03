@@ -71,22 +71,10 @@ void WriteCellCenter(const string &gridName, const vector<procBlock> &vars,
     exit(EXIT_FAILURE);
   }
 
-  // write number of blocks to file
-  auto numBlks = static_cast<int>(recombVars.size());
-  outFile.write(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
-
-  // write i, j, k dimension for each block
-  for (auto ll = 0; ll < numBlks; ll++) {  // loop over all blocks
-    auto dumInt = recombVars[ll].NumI();
-    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-    dumInt = recombVars[ll].NumJ();
-    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-    dumInt = recombVars[ll].NumK();
-    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-  }
+  WriteBlockDims(outFile, recombVars);
 
   // write out x, y, z coordinates of cell centers
-  for (auto ll = 0; ll < numBlks; ll++) {  // loop over all blocks
+  for (auto ll = 0U; ll < recombVars.size(); ll++) {  // loop over all blocks
     for (auto nn = 0; nn < 3; nn++) {  // loop over dimensions (3)
       for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
            kk++) {
@@ -119,9 +107,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
               const sutherland &suth, const int &solIter,
               const decomposition &decomp, const input &inp,
               const unique_ptr<turbModel> &turb) {
-  // define reference speed of sound
-  const auto refSoS = eqnState.SoS(inp.PRef(), inp.RRef());
-
+  // recombine blocks into original structure
   auto recombVars = Recombine(vars, decomp);
 
   // open binary plot3d function file
@@ -138,549 +124,158 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
     exit(EXIT_FAILURE);
   }
 
-  // write number of blocks to file
-  auto numBlks = static_cast<int>(recombVars.size());
-  outFile.write(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
+  WriteBlockDims(outFile, recombVars, inp.NumVarsOutput());
 
-  // write i, j, k, recombVars dimension for each block
-  auto numVars = inp.NumVarsOutput();  // number of variables to write out
-
-  // loop over all blocks and write out imax, jmax, kmax, numVars
-  for (auto ll = 0; ll < numBlks; ll++) {
-    auto dumInt = recombVars[ll].NumI();
-    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-    dumInt = recombVars[ll].NumJ();
-    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-    dumInt = recombVars[ll].NumK();
-    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
-
-    outFile.write(reinterpret_cast<char *>(&numVars), sizeof(numVars));
-  }
+  // define reference speed of sound
+  const auto refSoS = inp.ARef(eqnState);
 
   // write out variables
-  for (auto ll = 0; ll < numBlks; ll++) {  // loop over all blocks
-    multiArray3d<double> dumArr(recombVars[ll].NumI(), recombVars[ll].NumJ(),
-                                recombVars[ll].NumK(), 0);
-
+  for (auto ll = 0U; ll < recombVars.size(); ll++) {  // loop over all blocks
     // loop over the number of variables to write out
     for (auto &var : inp.OutputVariables()) {
-      // store nondimensional variable in dumArr for a given block in order.
-      // i.e. var1 var2 var3 etc
-      if (var == "density") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].State(ii, jj, kk).Rho();
-            }
-          }
-        }
-      } else if (var == "vel_x") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].State(ii, jj, kk).U();
-            }
-          }
-        }
-      } else if (var == "vel_y") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].State(ii, jj, kk).V();
-            }
-          }
-        }
-      } else if (var == "vel_z") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].State(ii, jj, kk).W();
-            }
-          }
-        }
-      } else if (var == "pressure") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].State(ii, jj, kk).P();
-            }
-          }
-        }
-      } else if (var == "mach") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              const auto vel = recombVars[ll].State(ii, jj, kk).Velocity();
-              dumArr(ii, jj, kk) = vel.Mag() /
-                  eqnState.SoS(recombVars[ll].State(ii, jj, kk).P(),
-                               recombVars[ll].State(ii, jj, kk).Rho());
-            }
-          }
-        }
-      } else if (var == "sos") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) =
-                  eqnState.SoS(recombVars[ll].State(ii, jj, kk).P(),
-                               recombVars[ll].State(ii, jj, kk).Rho());
-            }
-          }
-        }
-      } else if (var == "dt") {  // time step
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].Dt(ii, jj, kk);
-            }
-          }
-        }
-      } else if (var == "temperature") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].Temperature(ii, jj, kk);
-            }
-          }
-        }
-      } else if (var == "rank") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = vars[SplitBlockNumber(recombVars, decomp, ll,
-                                                         ii, jj, kk)].Rank();
-            }
-          }
-        }
-      } else if (var == "globalPosition") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) =
-                  vars[SplitBlockNumber(recombVars, decomp, ll,
-                                        ii, jj, kk)].GlobalPos();
-            }
-          }
-        }
-      } else if (var == "viscosityRatio") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].IsTurbulent() ?
+      // write out dimensional variables -- loop over physical cells
+      for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK(); kk++) {
+        for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ(); jj++) {
+          for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI(); ii++) {
+            auto value = 0.0;
+            if (var == "density") {
+              value = recombVars[ll].State(ii, jj, kk).Rho();
+              value *= inp.RRef();
+            } else if (var == "vel_x") {
+              value = recombVars[ll].State(ii, jj, kk).U();
+              value *= refSoS;
+            } else if (var == "vel_y") {
+              value = recombVars[ll].State(ii, jj, kk).V();
+              value *= refSoS;
+            } else if (var == "vel_z") {
+              value = recombVars[ll].State(ii, jj, kk).W();
+              value *= refSoS;
+            } else if (var == "pressure") {
+              value = recombVars[ll].State(ii, jj, kk).P();
+              value *= inp.RRef() * refSoS * refSoS;
+            } else if (var == "mach") {
+              auto vel = recombVars[ll].State(ii, jj, kk).Velocity();
+              value = vel.Mag() / recombVars[ll].State(ii, jj, kk).SoS(eqnState);
+            } else if (var == "sos") {
+              value = recombVars[ll].State(ii, jj, kk).SoS(eqnState);
+              value *= refSoS;
+            } else if (var == "dt") {
+              value = recombVars[ll].Dt(ii, jj, kk);
+              value /= refSoS * inp.LRef();
+            } else if (var == "temperature") {
+              value = recombVars[ll].Temperature(ii, jj, kk);
+              value *= inp.TRef();
+            } else if (var == "rank") {
+              value = vars[SplitBlockNumber(recombVars, decomp,
+                                            ll, ii, jj, kk)].Rank();
+            } else if (var == "globalPosition") {
+              value = vars[SplitBlockNumber(recombVars, decomp,
+                                            ll, ii, jj, kk)].GlobalPos();
+            } else if (var == "viscosityRatio") {
+              value = recombVars[ll].IsTurbulent() ?
                   recombVars[ll].EddyViscosity(ii, jj, kk) /
                   recombVars[ll].Viscosity(ii, jj, kk)
                   : 0.0;
-            }
-          }
-        }
-      } else if (var == "tke") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].State(ii, jj, kk).Tke();
-            }
-          }
-        }
-      } else if (var == "sdr") {  // omega (specific dissipation rate)
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].State(ii, jj, kk).Omega();
-            }
-          }
-        }
-      } else if (var == "wallDistance") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].WallDist(ii, jj, kk);
-            }
-          }
-        }
-      } else if (var == "velGrad_ux") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].VelGrad(ii, jj, kk).XX();
-            }
-          }
-        }
-      } else if (var == "velGrad_vx") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].VelGrad(ii, jj, kk).XY();
-            }
-          }
-        }
-      } else if (var == "velGrad_wx") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].VelGrad(ii, jj, kk).XZ();
-            }
-          }
-        }
-      } else if (var == "velGrad_uy") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].VelGrad(ii, jj, kk).YX();
-            }
-          }
-        }
-      } else if (var == "velGrad_vy") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].VelGrad(ii, jj, kk).YY();
-            }
-          }
-        }
-      } else if (var == "velGrad_wy") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].VelGrad(ii, jj, kk).YZ();
-            }
-          }
-        }
-      } else if (var == "velGrad_uz") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].VelGrad(ii, jj, kk).ZX();
-            }
-          }
-        }
-      } else if (var == "velGrad_vz") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].VelGrad(ii, jj, kk).ZY();
-            }
-          }
-        }
-      } else if (var == "velGrad_wz") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].VelGrad(ii, jj, kk).ZZ();
-            }
-          }
-        }
-      } else if (var == "tempGrad_x") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].TempGrad(ii, jj, kk).X();
-            }
-          }
-        }
-      } else if (var == "tempGrad_y") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].TempGrad(ii, jj, kk).Y();
-            }
-          }
-        }
-      } else if (var == "tempGrad_z") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].TempGrad(ii, jj, kk).Z();
-            }
-          }
-        }
-      } else if (var == "tkeGrad_x") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].TkeGrad(ii, jj, kk).X();
-            }
-          }
-        }
-      } else if (var == "tkeGrad_y") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].TkeGrad(ii, jj, kk).Y();
-            }
-          }
-        }
-      } else if (var == "tkeGrad_z") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].TkeGrad(ii, jj, kk).Z();
-            }
-          }
-        }
-      } else if (var == "sdrGrad_x") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].OmegaGrad(ii, jj, kk).X();
-            }
-          }
-        }
-      } else if (var == "sdrGrad_y") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].OmegaGrad(ii, jj, kk).Y();
-            }
-          }
-        }
-      } else if (var == "sdrGrad_z") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].OmegaGrad(ii, jj, kk).Z();
-            }
-          }
-        }
-      } else if (var == "resid_mass") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].Residual(ii, jj, kk, 0);
-            }
-          }
-        }
-      } else if (var == "resid_mom_x") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].Residual(ii, jj, kk, 1);
-            }
-          }
-        }
-      } else if (var == "resid_mom_y") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].Residual(ii, jj, kk, 2);
-            }
-          }
-        }
-      } else if (var == "resid_mom_z") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].Residual(ii, jj, kk, 3);
-            }
-          }
-        }
-      } else if (var == "resid_energy") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].Residual(ii, jj, kk, 4);
-            }
-          }
-        }
-      } else if (var == "resid_tke") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].Residual(ii, jj, kk, 5);
-            }
-          }
-        }
-      } else if (var == "resid_sdr") {
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-              dumArr(ii, jj, kk) = recombVars[ll].Residual(ii, jj, kk, 6);
-            }
-          }
-        }
-      } else {
-        cerr << "ERROR: Variable " << var
-             << " to write to function file is not defined!" << endl;
-        exit(EXIT_FAILURE);
-      }
-
-      // write out dimensional variables -- loop over block length
-        for (auto kk = recombVars[ll].StartK(); kk < recombVars[ll].EndK();
-             kk++) {
-          for (auto jj = recombVars[ll].StartJ(); jj < recombVars[ll].EndJ();
-               jj++) {
-            for (auto ii = recombVars[ll].StartI(); ii < recombVars[ll].EndI();
-                 ii++) {
-            auto dumDouble = dumArr(ii, jj, kk);
-
-            if (var == "density") {
-              dumDouble *= inp.RRef();
-            } else if (var == "vel_x") {
-              dumDouble *= refSoS;
-            } else if (var == "vel_y") {
-              dumDouble *= refSoS;
-            } else if (var == "vel_z") {
-              dumDouble *= refSoS;
-            } else if (var == "pressure") {
-              dumDouble *= inp.RRef() * refSoS * refSoS;
-            } else if (var == "sos") {
-              dumDouble *= refSoS;
-            } else if (var == "dt") {
-              dumDouble /= refSoS * inp.LRef();
-            } else if (var == "temperature") {
-              dumDouble *= inp.TRef();
             } else if (var == "tke") {
-              dumDouble *= refSoS * refSoS;
+              value = recombVars[ll].State(ii, jj, kk).Tke();
+              value *= refSoS * refSoS;
             } else if (var == "sdr") {
-              dumDouble *= refSoS * refSoS * inp.RRef() / suth.MuRef();
+              value = recombVars[ll].State(ii, jj, kk).Omega();
+              value *= refSoS * refSoS * inp.RRef() / suth.MuRef();
             } else if (var == "wallDistance") {
-              dumDouble *= inp.LRef();
-            } else if (var.find("velGrad_") != string::npos) {
-              dumDouble *= refSoS / inp.LRef();
-            } else if (var.find("tempGrad_") != string::npos) {
-              dumDouble *= inp.TRef() / inp.LRef();
-            } else if (var.find("tkeGrad_") != string::npos) {
-              dumDouble *= refSoS * refSoS / inp.LRef();
-            } else if (var.find("sdrGrad_") != string::npos) {
-              dumDouble *= refSoS * refSoS * inp.RRef() /
+              value = recombVars[ll].WallDist(ii, jj, kk);
+              value *= inp.LRef();
+            } else if (var == "velGrad_ux") {
+              value = recombVars[ll].VelGrad(ii, jj, kk).XX();
+              value *= refSoS / inp.LRef();
+            } else if (var == "velGrad_vx") {
+              value = recombVars[ll].VelGrad(ii, jj, kk).XY();
+              value *= refSoS / inp.LRef();
+            } else if (var == "velGrad_wx") {
+              value = recombVars[ll].VelGrad(ii, jj, kk).XZ();
+              value *= refSoS / inp.LRef();
+            } else if (var == "velGrad_uy") {
+              value = recombVars[ll].VelGrad(ii, jj, kk).YX();
+              value *= refSoS / inp.LRef();
+            } else if (var == "velGrad_vy") {
+              value = recombVars[ll].VelGrad(ii, jj, kk).YY();
+              value *= refSoS / inp.LRef();
+            } else if (var == "velGrad_wy") {
+              value = recombVars[ll].VelGrad(ii, jj, kk).YZ();
+              value *= refSoS / inp.LRef();
+            } else if (var == "velGrad_uz") {
+              value = recombVars[ll].VelGrad(ii, jj, kk).ZX();
+              value *= refSoS / inp.LRef();
+            } else if (var == "velGrad_vz") {
+              value = recombVars[ll].VelGrad(ii, jj, kk).ZY();
+              value *= refSoS / inp.LRef();
+            } else if (var == "velGrad_wz") {
+              value = recombVars[ll].VelGrad(ii, jj, kk).ZZ();
+              value *= refSoS / inp.LRef();
+            } else if (var == "tempGrad_x") {
+              value = recombVars[ll].TempGrad(ii, jj, kk).X();
+              value *= inp.TRef() / inp.LRef();
+            } else if (var == "tempGrad_y") {
+              value = recombVars[ll].TempGrad(ii, jj, kk).Y();
+              value *= inp.TRef() / inp.LRef();
+            } else if (var == "tempGrad_z") {
+              value = recombVars[ll].TempGrad(ii, jj, kk).Z();
+              value *= inp.TRef() / inp.LRef();
+            } else if (var == "tkeGrad_x") {
+              value = recombVars[ll].TkeGrad(ii, jj, kk).X();
+              value *= refSoS * refSoS / inp.LRef();
+            } else if (var == "tkeGrad_y") {
+              value = recombVars[ll].TkeGrad(ii, jj, kk).Y();
+              value *= refSoS * refSoS / inp.LRef();
+            } else if (var == "tkeGrad_z") {
+              value = recombVars[ll].TkeGrad(ii, jj, kk).Z();
+              value *= refSoS * refSoS / inp.LRef();
+            } else if (var == "omegaGrad_x") {
+              value = recombVars[ll].OmegaGrad(ii, jj, kk).X();
+              value *= refSoS * refSoS * inp.RRef() /
+                  (suth.MuRef() * inp.LRef());
+            } else if (var == "omegaGrad_y") {
+              value = recombVars[ll].OmegaGrad(ii, jj, kk).Y();
+              value *= refSoS * refSoS * inp.RRef() /
+                  (suth.MuRef() * inp.LRef());
+            } else if (var == "omegaGrad_z") {
+              value = recombVars[ll].OmegaGrad(ii, jj, kk).Z();
+              value *= refSoS * refSoS * inp.RRef() /
                   (suth.MuRef() * inp.LRef());
             } else if (var == "resid_mass") {
-              dumDouble *= inp.RRef() * refSoS * inp.LRef() * inp.LRef();
-            } else if (var.find("resid_mom_") != string::npos) {
-              dumDouble *= inp.RRef() * refSoS * refSoS * inp.LRef() *
+              value = recombVars[ll].Residual(ii, jj, kk, 0);
+              value *= inp.RRef() * refSoS * inp.LRef() * inp.LRef();
+            } else if (var == "resid_mom_x") {
+              value = recombVars[ll].Residual(ii, jj, kk, 1);
+              value *= inp.RRef() * refSoS * refSoS * inp.LRef() *
+                  inp.LRef();
+            } else if (var == "resid_mom_y") {
+              value = recombVars[ll].Residual(ii, jj, kk, 2);
+              value *= inp.RRef() * refSoS * refSoS * inp.LRef() *
+                  inp.LRef();
+            } else if (var == "resid_mom_z") {
+              value = recombVars[ll].Residual(ii, jj, kk, 3);
+              value *= inp.RRef() * refSoS * refSoS * inp.LRef() *
                   inp.LRef();
             } else if (var == "resid_energy") {
-              dumDouble *= inp.RRef() * pow(refSoS, 3.0) * inp.LRef() *
+              value = recombVars[ll].Residual(ii, jj, kk, 4);
+              value *= inp.RRef() * pow(refSoS, 3.0) * inp.LRef() *
                   inp.LRef();
             } else if (var == "resid_tke") {
-              dumDouble *= inp.RRef() * pow(refSoS, 3.0) * inp.LRef() *
+              value = recombVars[ll].Residual(ii, jj, kk, 5);
+              value *= inp.RRef() * pow(refSoS, 3.0) * inp.LRef() *
                   inp.LRef();
             } else if (var == "resid_sdr") {
-              dumDouble *= inp.RRef() * inp.RRef() * pow(refSoS, 4.0) *
+              value = recombVars[ll].Residual(ii, jj, kk, 6);
+              value *= inp.RRef() * inp.RRef() * pow(refSoS, 4.0) *
                   inp.LRef() * inp.LRef() / suth.MuRef();
+            } else {
+              cerr << "ERROR: Variable " << var
+                   << " to write to function file is not defined!" << endl;
+              exit(EXIT_FAILURE);
             }
 
-            outFile.write(reinterpret_cast<char *>(&dumDouble),
-                          sizeof(dumDouble));
+            outFile.write(reinterpret_cast<char *>(&value), sizeof(value));
           }
         }
       }
@@ -690,6 +285,112 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
   // close plot3d function file
   outFile.close();
 }
+
+// function to write out variables in function file format
+void WriteRestart(const vector<procBlock> &splitVars, const idealGas &eqnState,
+                  const sutherland &suth, const int &solIter,
+                  const decomposition &decomp, const input &inp) {
+  // recombine blocks into original structure
+  auto vars = Recombine(splitVars, decomp);
+
+  // open binary restart file
+  const string fPostfix = ".rst";
+  const auto writeName = inp.SimNameRoot() + "_" + to_string(solIter) + fPostfix;
+  ofstream outFile(writeName, ios::out | ios::binary);
+
+  // check to see if file opened correctly
+  if (outFile.fail()) {
+    cerr << "ERROR: Restart file " << writeName << " did not open correctly!!!"
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  // DEBUG
+  // write number of time steps contained in file
+
+  // write residual values
+  
+  // variables to write to restart file
+  vector<string> restartVars = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
+  if (inp.IsTurbulent()) {
+    restartVars.push_back("tke");
+    restartVars.push_back("sdr");
+  }
+
+  WriteBlockDims(outFile, vars, restartVars.size());
+
+  // define reference speed of sound
+  const auto refSoS = inp.ARef(eqnState);
+
+  // write out variables
+  for (auto ll = 0U; ll < vars.size(); ll++) {  // loop over all blocks
+    // loop over the number of variables to write out
+    for (auto &var : restartVars) {
+      // write out dimensional variables -- loop over physical cells
+      for (auto kk = vars[ll].StartK(); kk < vars[ll].EndK(); kk++) {
+        for (auto jj = vars[ll].StartJ(); jj < vars[ll].EndJ(); jj++) {
+          for (auto ii = vars[ll].StartI(); ii < vars[ll].EndI(); ii++) {
+            auto value = 0.0;
+            if (var == "density") {
+              value = vars[ll].State(ii, jj, kk).Rho();
+              value *= inp.RRef();
+            } else if (var == "vel_x") {
+              value = vars[ll].State(ii, jj, kk).U();
+              value *= refSoS;
+            } else if (var == "vel_y") {
+              value = vars[ll].State(ii, jj, kk).V();
+              value *= refSoS;
+            } else if (var == "vel_z") {
+              value = vars[ll].State(ii, jj, kk).W();
+              value *= refSoS;
+            } else if (var == "pressure") {
+              value = vars[ll].State(ii, jj, kk).P();
+              value *= inp.RRef() * refSoS * refSoS;
+            } else if (var == "tke") {
+              value = vars[ll].State(ii, jj, kk).Tke();
+              value *= refSoS * refSoS;
+            } else if (var == "sdr") {
+              value = vars[ll].State(ii, jj, kk).Omega();
+              value *= refSoS * refSoS * inp.RRef() / suth.MuRef();
+            } else {
+              cerr << "ERROR: Variable " << var
+                   << " to write to restart file is not defined!" << endl;
+              exit(EXIT_FAILURE);
+            }
+
+            outFile.write(reinterpret_cast<char *>(&value), sizeof(value));
+          }
+        }
+      }
+    }
+  }
+
+  // close restart file
+  outFile.close();
+}
+
+
+void WriteBlockDims(ofstream &outFile, const vector<procBlock> &vars,
+                    int numVars) {
+  // write number of blocks to file
+  auto numBlks = static_cast<int>(vars.size());
+  outFile.write(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
+
+  // loop over all blocks and write out imax, jmax, kmax, numVars
+  for (auto ll = 0; ll < numBlks; ll++) {
+    auto dumInt = vars[ll].NumI();
+    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
+    dumInt = vars[ll].NumJ();
+    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
+    dumInt = vars[ll].NumK();
+    outFile.write(reinterpret_cast<char *>(&dumInt), sizeof(dumInt));
+
+    if (numVars > 0) {
+      outFile.write(reinterpret_cast<char *>(&numVars), sizeof(numVars));
+    }
+  }
+}
+
 
 // function to write out results file for ensight
 void WriteRes(const input &inp, const int &iter) {

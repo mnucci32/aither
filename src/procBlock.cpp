@@ -71,10 +71,6 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
   isViscous_ = inp.IsViscous();
   isTurbulent_ = inp.IsTurbulent();
 
-  // get nondimensional state for initialization
-  primVars inputState;
-  inputState.NondimensionalInitialize(eos, aRef, inp, suth, parBlock_);
-
   // get initial condition state for parent block
   auto ic = inp.ICStateForBlock(parBlock_);
 
@@ -82,6 +78,10 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
   const auto numI = blk.NumI() - 1;
   const auto numJ = blk.NumJ() - 1;
   const auto numK = blk.NumK() - 1;
+
+  // get nondimensional state for initialization
+  primVars inputState;
+  inputState.NondimensionalInitialize(eos, aRef, inp, suth, parBlock_);
 
   // pad stored variable vectors with ghost cells
   state_ = PadWithGhosts(multiArray3d<primVars>(numI, numJ, numK, 0,
