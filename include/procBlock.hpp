@@ -37,6 +37,7 @@ using std::vector;
 using std::string;
 using std::ios;
 using std::ofstream;
+using std::ifstream;
 using std::cout;
 using std::endl;
 using std::cerr;
@@ -453,8 +454,10 @@ class procBlock {
                      const string &) const;
 
   void DumpToFile(const string &, const string &) const;
-
   void CalcCellWidths();
+  void ReadFromRestart(ifstream &, const input &, const idealGas &,
+                       const sutherland &, const unique_ptr<turbModel> &,
+                       const vector<string> &);
 
   // destructor
   ~procBlock() noexcept {}

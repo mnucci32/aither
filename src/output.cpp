@@ -332,12 +332,12 @@ void WriteRestart(const vector<procBlock> &splitVars, const idealGas &eqnState,
 
   // write out variables
   for (auto ll = 0U; ll < vars.size(); ll++) {  // loop over all blocks
-    // loop over the number of variables to write out
-    for (auto &var : restartVars) {
-      // write out dimensional variables -- loop over physical cells
-      for (auto kk = vars[ll].StartK(); kk < vars[ll].EndK(); kk++) {
-        for (auto jj = vars[ll].StartJ(); jj < vars[ll].EndJ(); jj++) {
-          for (auto ii = vars[ll].StartI(); ii < vars[ll].EndI(); ii++) {
+    // write out dimensional variables -- loop over physical cells
+    for (auto kk = vars[ll].StartK(); kk < vars[ll].EndK(); kk++) {
+      for (auto jj = vars[ll].StartJ(); jj < vars[ll].EndJ(); jj++) {
+        for (auto ii = vars[ll].StartI(); ii < vars[ll].EndI(); ii++) {
+          // loop over the number of variables to write out
+          for (auto &var : restartVars) {
             auto value = 0.0;
             if (var == "density") {
               value = vars[ll].State(ii, jj, kk).Rho();
@@ -376,6 +376,76 @@ void WriteRestart(const vector<procBlock> &splitVars, const idealGas &eqnState,
   // close restart file
   outFile.close();
 }
+
+void ReadRestart(vector<procBlock> &vars, const string &restartName,
+                 const input &inp, const idealGas &eos, const sutherland &suth,
+                 const unique_ptr<turbModel> &turb, genArray &residL2First) {
+  // open binary plot3d grid file
+  ifstream fName;
+  fName.open(restartName, ios::in | ios::binary);
+
+  // check to see if file opened correctly
+  if (fName.fail()) {
+    cerr << "ERROR: Error in ReadRestart(). Restart file " << restartName
+         << " did not open correctly!!!" << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  // read the number of time levels in file
+  cout << "Reading restart file..." << endl;
+  auto numSols = 0;
+  fName.read(reinterpret_cast<char *>(&numSols), sizeof(numSols));
+  cout << "Number of time levels: " << numSols << endl;
+
+  // read the number of equations
+  auto numEqns = 0;
+  fName.read(reinterpret_cast<char *>(&numEqns), sizeof(numEqns));
+  cout << "Number of equations: " << numEqns << endl;
+
+  // read the residuals to normalize by
+  fName.read(reinterpret_cast<char *>(&residL2First), sizeof(residL2First));
+
+  // read the number of blocks
+  auto numBlks = 0;
+  fName.read(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
+  if (numBlks != static_cast<int>(vars.size())) {
+    cerr << "ERROR: Number of blocks in restart file does not match grid!"
+         << endl;
+  }
+
+  // read the block sizes and check for match with grid
+  for (auto ii = 0; ii < numBlks; ii++) {
+    auto numI = 0, numJ = 0, numK = 0, numVars = 0;
+    fName.read(reinterpret_cast<char *>(&numI), sizeof(numI));
+    fName.read(reinterpret_cast<char *>(&numJ), sizeof(numJ));
+    fName.read(reinterpret_cast<char *>(&numK), sizeof(numK));
+    fName.read(reinterpret_cast<char *>(&numVars), sizeof(numVars));
+    if (numI != vars[ii].NumI() || numJ != vars[ii].NumJ() ||
+        numK != vars[ii].NumK() || numVars != numEqns) {
+      cerr << "ERROR: Problem with restart file. Block size does not match "
+           << "grid, or number of variables in block does not match number of "
+           << "equations!" << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  // variables to read from restart file
+  vector<string> restartVars = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
+  if (numEqns == 7) {
+    restartVars.push_back("tke");
+    restartVars.push_back("sdr");
+  }
+
+  // loop over blocks and initialize
+  for (auto &block : vars) {
+    block.ReadFromRestart(fName, inp, eos, suth, turb, restartVars);
+  }
+
+  // close restart file
+  fName.close();
+}
+
+
 
 
 void WriteBlockDims(ofstream &outFile, const vector<procBlock> &vars,
@@ -574,10 +644,11 @@ void PrintResiduals(const input &inp, genArray &residL2First,
                     const double &matrixResid, const int &nn, const int &mm,
                     ostream &os) {
   // determine normalization
-  if (nn == 0 && mm == 0) {  // if at first iteration, normalize by itself
+  // if at first iteration and not restart, normalize by itself
+  if (nn == 0 && mm == 0 && !inp.IsRestart()) {
     residL2First = residL2;
   // if within first 5 iterations reset normalization
-  } else if ((nn < 5) && mm == 0) {
+  } else if ((nn < 5) && mm == 0 && !inp.IsRestart()) {
     for (auto cc = 0; cc < NUMVARS; cc++) {
       if (residL2[cc] > residL2First[cc]) {
         residL2First[cc] = residL2[cc];

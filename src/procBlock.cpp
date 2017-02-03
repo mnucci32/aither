@@ -42,6 +42,7 @@ using std::string;
 using std::max;
 using std::min;
 using std::unique_ptr;
+using std::ifstream;
 
 // constructors for procBlock class
 procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
@@ -5933,4 +5934,56 @@ void procBlock::CalcCellWidths() {
       }
     }
   }
+}
+
+
+void procBlock::ReadFromRestart(ifstream &resFile, const input &inp,
+                                const idealGas &eos, const sutherland &suth,
+                                const unique_ptr<turbModel> &turb,
+                                const vector<string> &restartVars) {
+  // define reference speed of sound
+  const auto refSoS = inp.ARef(eos);
+
+  // read the primative variables
+    // write out dimensional variables -- loop over physical cells
+    for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
+      for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
+        for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
+          genArray value;
+          // loop over the number of variables to read
+          for (auto &var : restartVars) {
+            if (var == "density") {
+              resFile.read(reinterpret_cast<char *>(&value[0]), sizeof(value[0]));
+              value[0] /= inp.RRef();
+            } else if (var == "vel_x") {
+              resFile.read(reinterpret_cast<char *>(&value[1]), sizeof(value[1]));
+              value[1] /= refSoS;
+            } else if (var == "vel_y") {
+              resFile.read(reinterpret_cast<char *>(&value[2]), sizeof(value[2]));
+              value[2] /= refSoS;
+            } else if (var == "vel_z") {
+              resFile.read(reinterpret_cast<char *>(&value[3]), sizeof(value[3]));
+              value[3] /= refSoS;
+            } else if (var == "pressure") {
+              resFile.read(reinterpret_cast<char *>(&value[4]), sizeof(value[4]));
+              value[4] /= inp.RRef() * refSoS * refSoS;
+            } else if (var == "tke") {
+              resFile.read(reinterpret_cast<char *>(&value[5]), sizeof(value[5]));
+              value[5] /= refSoS * refSoS;
+            } else if (var == "sdr") {
+              resFile.read(reinterpret_cast<char *>(&value[6]), sizeof(value[6]));
+              value[6] /= refSoS * refSoS * inp.RRef() / suth.MuRef();
+            } else {
+              cerr << "ERROR: Variable " << var
+                   << " to read from restart file is not defined!" << endl;
+              exit(EXIT_FAILURE);
+            }
+          }
+          state_(ii, jj, kk) = primVars(value, true, eos, turb);
+        }
+      }
+    }
+
+    // Update temperature and viscosity
+    this->UpdateAuxillaryVariables(eos, suth, false);
 }

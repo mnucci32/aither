@@ -121,6 +121,7 @@ int main(int argc, char *argv[]) {
   vector<interblock> connections;
   vector<procBlock> stateBlocks;
   vector<vector3d<double>> viscFaces;
+  genArray residL2First(0.0);  // l2 norm residuals to normalize by
 
   if (rank == ROOTP) {
     cout << "Number of equations: " << inputVars.NumEquations() << endl << endl;
@@ -153,6 +154,11 @@ int main(int argc, char *argv[]) {
                                   decomp.LocalPosition(ll), inputVars, eos,
                                   suth);
       stateBlocks[ll].AssignGhostCellsGeom();
+    }
+    // if restart, get data from restart file
+    if (inputVars.IsRestart()) {
+      ReadRestart(stateBlocks, restartFile, inputVars, eos, suth, turb,
+                  residL2First);
     }
 
     // Swap geometry for interblock BCs
@@ -244,8 +250,6 @@ int main(int argc, char *argv[]) {
   vector<multiArray3d<genArray>> solDeltaMmN(numProcBlock);
   // Allocate array for flux jacobian
   vector<multiArray3d<fluxJacobian>> mainDiagonal(numProcBlock);
-
-  genArray residL2First(0.0);  // l2 norm residuals to normalize by
 
   // Send/recv solutions - necessary to get wall distances
   GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData,
