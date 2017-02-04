@@ -79,6 +79,7 @@ class input {
   string decompMethod_;  // method of decomposition for parallel problems
   string turbModel_;  // turbulence model
   int restartFrequency_;  // how often to output restart data
+  int iterationStart_;  // starting number for iterations
 
   set<string> outputVariables_;  // variables to output
 
@@ -107,6 +108,8 @@ class input {
   double Dt() const {return dt_;}
 
   int Iterations() const {return iterations_;}
+  void SetIterationStart(const int &nn) {iterationStart_ = nn;}
+  int IterationStart() const {return iterationStart_;}
 
   double PRef() const {return pRef_;}
   double RRef() const {return rRef_;}

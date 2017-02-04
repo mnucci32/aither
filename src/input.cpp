@@ -85,6 +85,7 @@ input::input(const string &name, const string &resName) : simName_(name),
   decompMethod_ = "cubic";  // default is cubic decomposition
   turbModel_ = "none";  // default turbulence model is none
   restartFrequency_ = 0;  // default to not write restarts
+  iterationStart_ = 0;  // default to start from iteration zero
 
   // default to primative variables
   outputVariables_ = {"density", "vel_x", "vel_y", "vel_z", "pressure"};

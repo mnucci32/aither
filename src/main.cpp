@@ -258,20 +258,30 @@ int main(int argc, char *argv[]) {
   ofstream resFile;
   if (rank == ROOTP) {
     // Open residual file
-    resFile.open(inputVars.SimNameRoot() + ".resid", ios::out);
+    if (inputVars.IsRestart()) {
+      resFile.open(inputVars.SimNameRoot() + ".resid", ios::app);
+    } else {
+      resFile.open(inputVars.SimNameRoot() + ".resid", ios::out);
+    }
+    if (resFile.fail()) {
+      cerr << "ERROR: Could not open residual file!" << endl;
+      exit(EXIT_FAILURE);
+    }
 
     // Write out cell centers grid file
     WriteCellCenter(inputVars.GridName(), stateBlocks, decomp, inputVars.LRef());
 
     // Write out initial results
-    WriteFun(stateBlocks, eos, suth, 0, decomp, inputVars, turb);
-    WriteMeta(inputVars, 0);
+    WriteFun(stateBlocks, eos, suth, inputVars.IterationStart(), decomp,
+             inputVars, turb);
+    WriteMeta(inputVars, inputVars.IterationStart());
   }
 
   // ----------------------------------------------------------------------
   // ----------------------- Start Main Loop ------------------------------
   // ----------------------------------------------------------------------
-  for (auto nn = 0; nn < inputVars.Iterations(); nn++) {   // loop over time
+  // loop over time
+  for (auto nn = 0; nn < inputVars.Iterations(); nn++) {
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Calculate cfl number
@@ -344,7 +354,7 @@ int main(int argc, char *argv[]) {
 
         // Print out run information
         WriteResiduals(inputVars, residL2First, residL2, residLinf, matrixResid,
-                       nn, mm, resFile);
+                       nn + inputVars.IterationStart(), mm, resFile);
       }
     }  // loop for nonlinear iterations ---------------------------------------
 
@@ -355,16 +365,19 @@ int main(int argc, char *argv[]) {
                     MPI_uncoupledScalar, MPI_vec3d, MPI_tensorDouble);
 
       if (rank == ROOTP && inputVars.WriteOutput(nn)) {
-        cout << "writing out function file at iteration " << nn << endl;
+        cout << "writing out function file at iteration "
+             << nn + inputVars.IterationStart()<< endl;
         // Write out function file
-        WriteFun(stateBlocks, eos, suth, (nn+1), decomp, inputVars, turb);
-        WriteMeta(inputVars, (nn+1));
+        WriteFun(stateBlocks, eos, suth, (nn + inputVars.IterationStart() + 1),
+                 decomp, inputVars, turb);
+        WriteMeta(inputVars, (nn + inputVars.IterationStart() + 1));
       }
       if (rank == ROOTP && inputVars.WriteRestart(nn)) {
-        cout << "writing out restart file at iteration " << nn << endl;
+        cout << "writing out restart file at iteration "
+             << nn + inputVars.IterationStart()<< endl;
         // Write out restart file
-        WriteRestart(stateBlocks, eos, suth, (nn+1), decomp, inputVars,
-                     residL2First);
+        WriteRestart(stateBlocks, eos, suth, (nn + inputVars.IterationStart() +1),
+                     decomp, inputVars, residL2First);
       }
     }
   }  // loop for time step -----------------------------------------------------

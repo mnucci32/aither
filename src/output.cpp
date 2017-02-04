@@ -310,6 +310,10 @@ void WriteRestart(const vector<procBlock> &splitVars, const idealGas &eqnState,
   auto numSols = inp.IsMultilevelInTime() ? 2 : 1;
   outFile.write(reinterpret_cast<char *>(&numSols), sizeof(numSols));
 
+  // write iteration number
+  outFile.write(const_cast<char *>(reinterpret_cast<const char *>(&solIter)),
+                sizeof(solIter));
+
   // write number of equations
   auto numEqns = inp.NumEquations();
   outFile.write(reinterpret_cast<char *>(&numEqns), sizeof(numEqns));
@@ -378,11 +382,10 @@ void WriteRestart(const vector<procBlock> &splitVars, const idealGas &eqnState,
 }
 
 void ReadRestart(vector<procBlock> &vars, const string &restartName,
-                 const input &inp, const idealGas &eos, const sutherland &suth,
+                 input &inp, const idealGas &eos, const sutherland &suth,
                  const unique_ptr<turbModel> &turb, genArray &residL2First) {
   // open binary plot3d grid file
-  ifstream fName;
-  fName.open(restartName, ios::in | ios::binary);
+  ifstream fName(restartName, ios::in | ios::binary);
 
   // check to see if file opened correctly
   if (fName.fail()) {
@@ -396,6 +399,17 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
   auto numSols = 0;
   fName.read(reinterpret_cast<char *>(&numSols), sizeof(numSols));
   cout << "Number of time levels: " << numSols << endl;
+
+  if (inp.IsMultilevelInTime() && numSols != 2) {
+    cerr << "WARNING: Using multilevel time integration scheme, but only one "
+         << "time level found in restart file" << endl;
+  }
+
+  // iteration number
+  auto iterNum = 0;
+  fName.read(reinterpret_cast<char *>(&iterNum), sizeof(iterNum));
+  cout << "Data from iteration: " << iterNum << endl;
+  inp.SetIterationStart(iterNum);
 
   // read the number of equations
   auto numEqns = 0;
@@ -437,12 +451,19 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
   }
 
   // loop over blocks and initialize
+  cout << "Reading solution from time n..." << endl;
   for (auto &block : vars) {
     block.ReadFromRestart(fName, inp, eos, suth, turb, restartVars);
   }
 
+  if (numSols == 2) {
+    cout << "Reading solution from time n-1..." << endl;
+    
+  }
+
   // close restart file
   fName.close();
+  cout << "Done with restart file" << endl << endl;
 }
 
 

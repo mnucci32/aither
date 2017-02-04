@@ -65,7 +65,7 @@ void WriteMeta(const input &, const int &);
 void WriteRestart(const vector<procBlock> &, const idealGas &,
                   const sutherland &, const int &, const decomposition &,
                   const input &, const genArray &);
-void ReadRestart(vector<procBlock> &, const string &, const input &,
+void ReadRestart(vector<procBlock> &, const string &, input &,
                  const idealGas &, const sutherland &,
                  const unique_ptr<turbModel> &, genArray &);
 
