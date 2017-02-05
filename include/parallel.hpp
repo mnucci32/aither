@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-16  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <string>                  // string
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"
+#include "multiArray3d.hpp"
 
 using std::vector;
 using std::string;
@@ -42,6 +43,7 @@ class plot3dBlock;
 class interblock;
 class decomposition;
 class resid;
+class genArray;
 
 // function definitions
 decomposition ManualDecomposition(vector<plot3dBlock>&,
