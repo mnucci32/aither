@@ -12,7 +12,6 @@ The code is 2nd order accurate in space and time. Available explicit time integr
 * Add SST-DES turbulence model
 * Add WALE and Smagorinsky subgrid scale models for LES
 * Add Couette flow regression test for isothermal wall, moving wall, periodic boundary conditions
-* Add restart capability
 * Add wall functions for turbulence models
 * Add multigrid scheme for improved convergence
 
