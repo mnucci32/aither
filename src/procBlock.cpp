@@ -6014,11 +6014,10 @@ void procBlock::CalcCellWidths() {
 }
 
 
-void procBlock::ReadFromRestart(ifstream &resFile, const input &inp,
+void procBlock::ReadSolFromRestart(ifstream &resFile, const input &inp,
                                 const idealGas &eos, const sutherland &suth,
                                 const unique_ptr<turbModel> &turb,
-                                const vector<string> &restartVars,
-                                const bool &isMultiLevel) {
+                                   const vector<string> &restartVars) {
   // define reference speed of sound
   const auto refSoS = inp.ARef(eos);
 
@@ -6064,46 +6063,52 @@ void procBlock::ReadFromRestart(ifstream &resFile, const input &inp,
 
     // Update temperature and viscosity
     this->UpdateAuxillaryVariables(eos, suth, false);
+}
 
-    if (isMultiLevel) {
-      // data is conserved variables
-      // read dimensional variables -- loop over physical cells
-      for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
-        for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
-          for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
-            genArray value;
-            // loop over the number of variables to read
-            for (auto &var : restartVars) {
-              if (var == "density") {
-                resFile.read(reinterpret_cast<char *>(&value[0]), sizeof(value[0]));
-                value[0] /= inp.RRef();
-              } else if (var == "vel_x") {  // conserved var is rho-u
-                resFile.read(reinterpret_cast<char *>(&value[1]), sizeof(value[1]));
-                value[1] /= refSoS * inp.RRef();
-              } else if (var == "vel_y") {  // conserved var is rho-v
-                resFile.read(reinterpret_cast<char *>(&value[2]), sizeof(value[2]));
-                value[2] /= refSoS * inp.RRef();
-              } else if (var == "vel_z") {  // conserved var is rho-w
-                resFile.read(reinterpret_cast<char *>(&value[3]), sizeof(value[3]));
-                value[3] /= refSoS * inp.RRef();
-              } else if (var == "pressure") {  // conserved var is rho-E
-                resFile.read(reinterpret_cast<char *>(&value[4]), sizeof(value[4]));
-                value[4] /= inp.RRef() * refSoS * refSoS;
-              } else if (var == "tke") {  // conserved var is rho-tke
-                resFile.read(reinterpret_cast<char *>(&value[5]), sizeof(value[5]));
-                value[5] /= refSoS * refSoS * inp.RRef();
-              } else if (var == "sdr") {  // conserved var is rho-sdr
-                resFile.read(reinterpret_cast<char *>(&value[6]), sizeof(value[6]));
-                value[6] /= refSoS * refSoS * inp.RRef() *inp.RRef() / suth.MuRef();
-              } else {
-                cerr << "ERROR: Variable " << var
-                     << " to read from restart file is not defined!" << endl;
-                exit(EXIT_FAILURE);
-              }
-            }
-            consVarsNm1_(ii, jj, kk) = value;
+void procBlock::ReadSolNm1FromRestart(ifstream &resFile, const input &inp,
+                                      const idealGas &eos, const sutherland &suth,
+                                      const unique_ptr<turbModel> &turb,
+                                      const vector<string> &restartVars) {
+  // define reference speed of sound
+  const auto refSoS = inp.ARef(eos);
+
+  // data is conserved variables
+  // read dimensional variables -- loop over physical cells
+  for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
+    for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
+      for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
+        genArray value;
+        // loop over the number of variables to read
+        for (auto &var : restartVars) {
+          if (var == "density") {
+            resFile.read(reinterpret_cast<char *>(&value[0]), sizeof(value[0]));
+            value[0] /= inp.RRef();
+          } else if (var == "vel_x") {  // conserved var is rho-u
+            resFile.read(reinterpret_cast<char *>(&value[1]), sizeof(value[1]));
+            value[1] /= refSoS * inp.RRef();
+          } else if (var == "vel_y") {  // conserved var is rho-v
+            resFile.read(reinterpret_cast<char *>(&value[2]), sizeof(value[2]));
+            value[2] /= refSoS * inp.RRef();
+          } else if (var == "vel_z") {  // conserved var is rho-w
+            resFile.read(reinterpret_cast<char *>(&value[3]), sizeof(value[3]));
+            value[3] /= refSoS * inp.RRef();
+          } else if (var == "pressure") {  // conserved var is rho-E
+            resFile.read(reinterpret_cast<char *>(&value[4]), sizeof(value[4]));
+            value[4] /= inp.RRef() * refSoS * refSoS;
+          } else if (var == "tke") {  // conserved var is rho-tke
+            resFile.read(reinterpret_cast<char *>(&value[5]), sizeof(value[5]));
+            value[5] /= refSoS * refSoS * inp.RRef();
+          } else if (var == "sdr") {  // conserved var is rho-sdr
+            resFile.read(reinterpret_cast<char *>(&value[6]), sizeof(value[6]));
+            value[6] /= refSoS * refSoS * inp.RRef() *inp.RRef() / suth.MuRef();
+          } else {
+            cerr << "ERROR: Variable " << var
+                 << " to read from restart file is not defined!" << endl;
+            exit(EXIT_FAILURE);
           }
         }
+        consVarsNm1_(ii, jj, kk) = value;
       }
     }
+  }
 }

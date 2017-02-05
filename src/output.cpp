@@ -498,12 +498,14 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
 
   // loop over blocks and initialize
   cout << "Reading solution from time n..." << endl;
+  for (auto &block : vars) {
+    block.ReadSolFromRestart(fName, inp, eos, suth, turb, restartVars);
+  }
   if (inp.IsMultilevelInTime() && numSols == 2) {
     cout << "Reading solution from time n-1..." << endl;
-  }
-  for (auto &block : vars) {
-    block.ReadFromRestart(fName, inp, eos, suth, turb, restartVars,
-                          (inp.IsMultilevelInTime() && numSols == 2));
+    for (auto &block : vars) {
+      block.ReadSolNm1FromRestart(fName, inp, eos, suth, turb, restartVars);
+    }
   }
 
   // close restart file

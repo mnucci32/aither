@@ -467,9 +467,12 @@ class procBlock {
 
   void DumpToFile(const string &, const string &) const;
   void CalcCellWidths();
-  void ReadFromRestart(ifstream &, const input &, const idealGas &,
-                       const sutherland &, const unique_ptr<turbModel> &,
-                       const vector<string> &, const bool &);
+  void ReadSolFromRestart(ifstream &, const input &, const idealGas &,
+                          const sutherland &, const unique_ptr<turbModel> &,
+                          const vector<string> &);
+  void ReadSolNm1FromRestart(ifstream &, const input &, const idealGas &,
+                          const sutherland &, const unique_ptr<turbModel> &,
+                          const vector<string> &);
 
   // destructor
   ~procBlock() noexcept {}
