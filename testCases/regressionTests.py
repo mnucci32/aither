@@ -35,7 +35,9 @@ class regressionTest:
     aitherPath = "."
     mpirunPath = "mpirun"
     percentTolerance = 0.01
-    
+    isRestart = False
+    restartFile = "none"
+
     def __init__(self):
         self.location = os.getcwd()
         
@@ -68,7 +70,13 @@ class regressionTest:
 
     def GoToRunDirectory(self):
         os.chdir(self.runDirectory)
-    
+
+    def SetRestart(self, resFlag):
+        self.isRestart = resFlag
+
+    def SetRestartFile(self, resFile):
+        self.restartFile = resFile
+        
     def ReturnToHomeDirectory(self):
         os.chdir(self.location)
         
@@ -121,8 +129,13 @@ class regressionTest:
         print("Current directory:", os.getcwd())
         print("Modifying input file...")
         self.ModifyInputFile()
-        cmd = self.mpirunPath + " -np " + str(self.procs) + " " + self.aitherPath \
-            + " " + self.caseName + ".inp > " + self.caseName + ".out"
+        if self.isRestart:
+            cmd = self.mpirunPath + " -np " + str(self.procs) + " " + self.aitherPath \
+                  + " " + self.caseName + ".inp " + self.restartFile + " > " + self.caseName \
+                  + ".out"
+        else:
+            cmd = self.mpirunPath + " -np " + str(self.procs) + " " + self.aitherPath \
+                  + " " + self.caseName + ".inp > " + self.caseName + ".out"
         print(cmd)
         start = datetime.datetime.now()
         process = subprocess.Popen(cmd, shell=True)
@@ -169,6 +182,7 @@ def main():
         maxProcs = 1
         
     numIterations = 100
+    numIterationsRestart = 50
     totalPass = True
     
     # ------------------------------------------------------------------
@@ -228,6 +242,18 @@ def main():
     
     # run regression case
     passed = shockTube.RunCase()   
+    totalPass = totalPass and all(passed)
+        
+    # ------------------------------------------------------------------
+    # sod shock tube restart
+    # laminar, inviscid, bdf2, weno
+    shockTubeRestart = shockTube
+    shockTubeRestart.SetNumberOfIterations(numIterationsRestart)
+    shockTubeRestart.SetRestart(True)
+    shockTubeRestart.SetRestartFile("shockTube_50.rst")
+
+    # run regression case
+    passed = shockTubeRestart.RunCase()   
     totalPass = totalPass and all(passed)
         
     # ------------------------------------------------------------------
