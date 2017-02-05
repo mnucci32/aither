@@ -377,6 +377,52 @@ void WriteRestart(const vector<procBlock> &splitVars, const idealGas &eqnState,
     }
   }
 
+  // write out 2nd solution
+  if (numSols == 2) {
+    // these variables are conserved variables
+    for (auto ll = 0U; ll < vars.size(); ll++) {  // loop over all blocks
+      // write out dimensional variables -- loop over physical cells
+      for (auto kk = vars[ll].StartK(); kk < vars[ll].EndK(); kk++) {
+        for (auto jj = vars[ll].StartJ(); jj < vars[ll].EndJ(); jj++) {
+          for (auto ii = vars[ll].StartI(); ii < vars[ll].EndI(); ii++) {
+            // loop over the number of variables to write out
+            for (auto &var : restartVars) {
+              auto value = 0.0;
+              if (var == "density") {
+                value = vars[ll].ConsVarsNm1(ii, jj, kk)[0];
+                value *= inp.RRef();
+              } else if (var == "vel_x") {  // conserved var is rho-u
+                value = vars[ll].ConsVarsNm1(ii, jj, kk)[1];
+                value *= refSoS * inp.RRef();
+              } else if (var == "vel_y") {  // conserved var is rho-v
+                value = vars[ll].ConsVarsNm1(ii, jj, kk)[2];
+                value *= refSoS * inp.RRef();
+              } else if (var == "vel_z") {  // conserved var is rho-w
+                value = vars[ll].ConsVarsNm1(ii, jj, kk)[3];
+                value *= refSoS * inp.RRef();
+              } else if (var == "pressure") {  // conserved var is rho-E
+                value = vars[ll].ConsVarsNm1(ii, jj, kk)[4];
+                value *= refSoS * refSoS * inp.RRef();
+              } else if (var == "tke") {  // conserved var is rho-tke
+                value = vars[ll].ConsVarsNm1(ii, jj, kk)[5];
+                value *= refSoS * refSoS * inp.RRef();
+              } else if (var == "sdr") {  // conserved var is rho-sdr
+                value = vars[ll].ConsVarsNm1(ii, jj, kk)[6];
+                value *= refSoS * refSoS * inp.RRef() * inp.RRef() / suth.MuRef();
+              } else {
+                cerr << "ERROR: Variable " << var
+                     << " to write to restart file is not defined!" << endl;
+                exit(EXIT_FAILURE);
+              }
+
+              outFile.write(reinterpret_cast<char *>(&value), sizeof(value));
+            }
+          }
+        }
+      }
+    }
+  }
+
   // close restart file
   outFile.close();
 }
@@ -452,13 +498,12 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
 
   // loop over blocks and initialize
   cout << "Reading solution from time n..." << endl;
-  for (auto &block : vars) {
-    block.ReadFromRestart(fName, inp, eos, suth, turb, restartVars);
-  }
-
-  if (numSols == 2) {
+  if (inp.IsMultilevelInTime() && numSols == 2) {
     cout << "Reading solution from time n-1..." << endl;
-    
+  }
+  for (auto &block : vars) {
+    block.ReadFromRestart(fName, inp, eos, suth, turb, restartVars,
+                          (inp.IsMultilevelInTime() && numSols == 2));
   }
 
   // close restart file

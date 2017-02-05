@@ -29,6 +29,7 @@
 #include "boundaryConditions.hpp"  // interblock
 #include "resid.hpp"               // resid
 #include "macros.hpp"
+#include "genArray.hpp"
 
 using std::max_element;
 using std::min_element;
@@ -444,27 +445,27 @@ void GetProcBlocks(vector<procBlock> &blocks,
     //-------------------------------------------------------------------------
   } else {  // pack and send data (non-root)
     // get vector of local positions
-    vector<int> localPos_(localBlocks.size());
-    for (auto ii = 0U; ii < localPos_.size(); ii++) {
-      localPos_[ii] = localBlocks[ii].LocalPosition();
+    vector<int> localPos(localBlocks.size());
+    for (auto ii = 0U; ii < localPos.size(); ii++) {
+      localPos[ii] = localBlocks[ii].LocalPosition();
     }
 
     for (auto ii = 0U; ii < localBlocks.size(); ii++) {
       // need to send data in order of global position, not local position to
       // prevent deadlock
       auto minGlobal = 0;
-      for (auto jj = 0U; jj < localPos_.size(); jj++) {
-        if (localBlocks[localPos_[jj]].GlobalPos() <
+      for (auto jj = 0U; jj < localPos.size(); jj++) {
+        if (localBlocks[localPos[jj]].GlobalPos() <
             localBlocks[minGlobal].GlobalPos()) {
           minGlobal = jj;
         }
       }
 
-      localBlocks[localPos_[minGlobal]].PackSendSolMPI(MPI_cellData,
-                                                       MPI_uncoupledScalar,
-                                                       MPI_vec3d,
-                                                       MPI_tensorDouble);
-      localPos_.erase(localPos_.begin() + minGlobal);
+      localBlocks[localPos[minGlobal]].PackSendSolMPI(MPI_cellData,
+                                                      MPI_uncoupledScalar,
+                                                      MPI_vec3d,
+                                                      MPI_tensorDouble);
+      localPos.erase(localPos.begin() + minGlobal);
     }
   }
 }

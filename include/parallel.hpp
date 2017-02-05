@@ -26,6 +26,7 @@
 #include <string>                  // string
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"
+#include "multiArray3d.hpp"
 
 using std::vector;
 using std::string;
@@ -42,6 +43,7 @@ class plot3dBlock;
 class interblock;
 class decomposition;
 class resid;
+class genArray;
 
 // function definitions
 decomposition ManualDecomposition(vector<plot3dBlock>&,

@@ -59,6 +59,8 @@ class kdtree;
 
 class procBlock {
   multiArray3d<primVars> state_;  // primative variables at cell center
+  multiArray3d<genArray> consVarsN_;  // conserved variables at time n
+  multiArray3d<genArray> consVarsNm1_;  // conserved variables at time n-1
 
   multiArray3d<genArray> residual_;  // cell residual
 
@@ -222,12 +224,27 @@ class procBlock {
   primVars State(const int &ii, const int &jj, const int &kk) const {
     return state_(ii, jj, kk);
   }
+  genArray ConsVarsN(const int &ii, const int &jj, const int &kk) const {
+    return consVarsN_(ii, jj, kk);
+  }
+  genArray ConsVarsNm1(const int &ii, const int &jj, const int &kk) const {
+    return consVarsNm1_(ii, jj, kk);
+  }
 
   multiArray3d<primVars> SliceState(const int &, const int &, const int &,
                                     const int &, const int &,
                                     const int &) const;
 
-  multiArray3d<genArray> GetCopyConsVars(const idealGas &) const;
+  void AssignSolToTimeN(const idealGas &);
+  void AssignSolToTimeNm1();
+  double SolDeltaNCoeff(const int &, const int &, const int &,
+                        const input &) const;
+  double SolDeltaNm1Coeff(const int &, const int &, const int &,
+                          const input &) const;
+  genArray SolDeltaMmN(const int &, const int &, const int &, const input &,
+                       const idealGas &) const;
+  genArray SolDeltaNm1(const int &, const int &, const int &,
+                       const input &) const;
 
   double Vol(const int &ii, const int &jj, const int &kk) const {
     return vol_(ii, jj, kk);
@@ -341,7 +358,6 @@ class procBlock {
   void CalcBlockTimeStep(const input &, const double &);
   void UpdateBlock(const input &, const idealGas &, const double &,
                    const sutherland &, const multiArray3d<genArray> &,
-                   const multiArray3d<genArray> &,
                    const unique_ptr<turbModel> &, const int &, genArray &,
                    resid &);
 
@@ -395,23 +411,18 @@ class procBlock {
   void InvertDiagonal(multiArray3d<fluxJacobian> &, const input &) const;
 
   multiArray3d<genArray> InitializeMatrixUpdate(
-      const input &, const multiArray3d<genArray> &,
-      const multiArray3d<genArray> &, const multiArray3d<fluxJacobian> &) const;
+      const input &, const idealGas &eos,
+      const multiArray3d<fluxJacobian> &) const;
   void LUSGS_Forward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
-                     const multiArray3d<genArray> &,
-                     const multiArray3d<genArray> &,
                      const idealGas &, const input &, const sutherland &,
                      const unique_ptr<turbModel> &,
                      const multiArray3d<fluxJacobian> &, const int &) const;
   double LUSGS_Backward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
-                        const multiArray3d<genArray> &,
-                        const multiArray3d<genArray> &,
                         const idealGas &, const input &, const sutherland &,
                         const unique_ptr<turbModel> &,
                         const multiArray3d<fluxJacobian> &, const int &) const;
 
   double DPLUR(multiArray3d<genArray> &,
-               const multiArray3d<genArray> &, const multiArray3d<genArray> &,
                const idealGas &, const input &, const sutherland &,
                const unique_ptr<turbModel> &,
                const multiArray3d<fluxJacobian> &) const;
@@ -457,7 +468,7 @@ class procBlock {
   void CalcCellWidths();
   void ReadFromRestart(ifstream &, const input &, const idealGas &,
                        const sutherland &, const unique_ptr<turbModel> &,
-                       const vector<string> &);
+                       const vector<string> &, const bool &);
 
   // destructor
   ~procBlock() noexcept {}

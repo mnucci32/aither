@@ -192,6 +192,7 @@ int main(int argc, char *argv[]) {
   // Send procBlocks to appropriate processor
   auto localStateBlocks = SendProcBlocks(stateBlocks, rank, numProcBlock,
                                          MPI_cellData, MPI_vec3d, MPI_vec3dMag);
+
   // Update auxillary variables (temperature, viscosity, etc), cell widths
   for (auto ll = 0U; ll < localStateBlocks.size(); ll++) {
     localStateBlocks[ll].UpdateAuxillaryVariables(eos, suth, false);
@@ -243,13 +244,11 @@ int main(int argc, char *argv[]) {
   }
 
   //-----------------------------------------------------------------------
-  // Preallocate vectors for old solution
-  // Outermost vector for blocks, genArray for variables in cell
-  vector<multiArray3d<genArray>> solTimeN(numProcBlock);
-  vector<multiArray3d<genArray>> solDeltaNm1(numProcBlock);
-  vector<multiArray3d<genArray>> solDeltaMmN(numProcBlock);
   // Allocate array for flux jacobian
   vector<multiArray3d<fluxJacobian>> mainDiagonal(numProcBlock);
+  if (inputVars.IsImplicit()) {
+    ResizeArrays(localStateBlocks, inputVars, mainDiagonal);
+  }
 
   // Send/recv solutions - necessary to get wall distances
   GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData,
@@ -289,7 +288,10 @@ int main(int argc, char *argv[]) {
 
     // Store time-n solution, for time integration methods that require it
     if (inputVars.IsImplicit() || inputVars.TimeIntegration() == "rk4") {
-      solTimeN = GetCopyConsVars(localStateBlocks, eos);
+      AssignSolToTimeN(localStateBlocks, eos);
+      if (!inputVars.IsRestart()) {
+        AssignSolToTimeNm1(localStateBlocks);
+      }
     }
 
     // loop over nonlinear iterations
@@ -297,17 +299,6 @@ int main(int argc, char *argv[]) {
       // Get boundary conditions for all blocks
       GetBoundaryConditions(localStateBlocks, inputVars, eos, suth, turb,
                             connections, rank, MPI_cellData);
-
-      if (inputVars.IsImplicit()) {
-        // Get solution at time M - N if implicit
-        GetSolMMinusN(solDeltaMmN, localStateBlocks, solTimeN, eos,
-                      inputVars, mm);
-
-        if (nn == 0 && mm == 0) {
-          // At first iteration, resize array for old solution and jacobian
-          ResizeArrays(localStateBlocks, inputVars, solDeltaNm1, mainDiagonal);
-        }
-      }
 
       // Calculate residual (RHS)
       CalcResidual(localStateBlocks, mainDiagonal, suth, eos, inputVars,
@@ -322,13 +313,12 @@ int main(int argc, char *argv[]) {
       auto matrixResid = 0.0;
       if (inputVars.IsImplicit()) {
         matrixResid = ImplicitUpdate(localStateBlocks, mainDiagonal,
-                                     inputVars, eos, aRef, suth, solTimeN,
-                                     solDeltaMmN, solDeltaNm1, turb, mm,
+                                     inputVars, eos, aRef, suth, turb, mm,
                                      residL2, residLinf, connections, rank,
                                      MPI_cellData);
       } else {  // explicit time integration
-        ExplicitUpdate(localStateBlocks, inputVars, eos, aRef, suth, solTimeN,
-                       turb, mm, residL2, residLinf);
+        ExplicitUpdate(localStateBlocks, inputVars, eos, aRef, suth, turb, mm,
+                       residL2, residLinf);
       }
 
       // ----------------------------------------------------------------------
@@ -376,7 +366,7 @@ int main(int argc, char *argv[]) {
         cout << "writing out restart file at iteration "
              << nn + inputVars.IterationStart()<< endl;
         // Write out restart file
-        WriteRestart(stateBlocks, eos, suth, (nn + inputVars.IterationStart() +1),
+        WriteRestart(stateBlocks, eos, suth, (nn + inputVars.IterationStart() + 1),
                      decomp, inputVars, residL2First);
       }
     }

@@ -30,6 +30,7 @@ It also writes out a master file in Ensight format to name the Plot3D functions.
 #include <vector>        // vector
 #include <string>        // string
 #include <memory>        // unique_ptr
+#include "multiArray3d.hpp"
 
 using std::vector;
 using std::string;

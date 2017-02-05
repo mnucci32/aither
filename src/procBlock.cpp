@@ -87,6 +87,16 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
   // pad stored variable vectors with ghost cells
   state_ = PadWithGhosts(multiArray3d<primVars>(numI, numJ, numK, 0,
                                                 inputState), numGhosts_);
+  if (inp.IsImplicit() || inp.TimeIntegration() == "rk4") {
+    consVarsN_ = {numI, numJ, numK, 0, genArray(0.0)};
+  } else {
+    consVarsN_ = {1, 1, 1, 0};
+  }
+  if (inp.IsMultilevelInTime()) {
+    consVarsNm1_ = {numI, numJ, numK, 0, genArray(0.0)};
+  } else {
+    consVarsNm1_ = {1, 1, 1, 0};
+  }
 
   vol_ = PadWithGhosts(blk.Volume(), numGhosts_);
   center_ = PadWithGhosts(blk.Centroid(), numGhosts_);
@@ -749,7 +759,6 @@ void procBlock::UpdateBlock(const input &inputVars, const idealGas &eos,
                             const double &aRef,
                             const sutherland &suth,
                             const multiArray3d<genArray> &du,
-                            const multiArray3d<genArray> &consVars,
                             const unique_ptr<turbModel> &turb,
                             const int &rr, genArray &l2, resid &linf) {
   // inputVars -- all input variables
@@ -757,23 +766,22 @@ void procBlock::UpdateBlock(const input &inputVars, const idealGas &eos,
   // aRef -- reference speed of sound (for nondimensionalization)
   // suth -- sutherland's law for viscosity
   // du -- updates to conservative variables (only used in implicit solver)
-  // consVars -- conservative variables to updated (used in RK4)
   // turb -- turbulence model
   // rr -- nonlinear iteration number
   // l2 -- l-2 norm of residual
   // linf -- l-infinity norm of residual
 
   // loop over all physical cells
-  for (auto kk = 0; kk < this->NumK(); kk++) {
-    for (auto jj = 0; jj < this->NumJ(); jj++) {
-      for (auto ii = 0; ii < this->NumI(); ii++) {
+  for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
+    for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
+      for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
         // explicit euler time integration
         if (inputVars.TimeIntegration() == "explicitEuler") {
           this->ExplicitEulerTimeAdvance(eos, turb, ii, jj, kk);
         // 4-stage runge-kutta method (explicit)
         } else if (inputVars.TimeIntegration() == "rk4") {
           // advance 1 RK stage
-          this->RK4TimeAdvance(consVars(ii, jj, kk), eos, turb, ii, jj, kk, rr);
+          this->RK4TimeAdvance(consVarsN_(ii, jj, kk), eos, turb, ii, jj, kk, rr);
         } else if (inputVars.IsImplicit()) {  // if implicit use update (du)
           this->ImplicitTimeAdvance(du(ii, jj, kk), eos, turb, ii, jj, kk);
         } else {
@@ -930,34 +938,57 @@ The above equation shows that the time m minus time n term (FD(Un)) requires a
 (1+zeta)V/(t*theta) term multiplied by it. That is the purpose of this
 function.
 */
-multiArray3d<genArray> procBlock::SolTimeMMinusN(
-    const multiArray3d<genArray> &n, const idealGas &eos, const input &inp,
-    const int &mm) const {
-  // n -- solution for block at time n
-  // eos -- equation of state
-  // inp -- input variables
-  // mm -- nonlinear iteration number
+// multiArray3d<genArray> procBlock::SolTimeMMinusN(
+//     const multiArray3d<genArray> &n, const idealGas &eos, const input &inp,
+//     const int &mm) const {
+//   // n -- solution for block at time n
+//   // eos -- equation of state
+//   // inp -- input variables
+//   // mm -- nonlinear iteration number
 
-  // initialize a vector to hold the returned values to zero
-  multiArray3d<genArray> mMinusN(n.NumI(), n.NumJ(), n.NumK(), 0);
+//   // initialize a vector to hold the returned values to zero
+//   multiArray3d<genArray> mMinusN(n.NumI(), n.NumJ(), n.NumK(), 0);
 
-  // if mm is 0, then solution at time m and solution at time n is the same
-  if (mm != 0) {
-    auto m = this->GetCopyConsVars(eos);
+//   // if mm is 0, then solution at time m and solution at time n is the same
+//   if (mm != 0) {
+//     auto m = this->GetCopyConsVars(eos);
 
-    // loop over all physical cells
-  for (auto kk = 0; kk < this->NumK(); kk++) {
-    for (auto jj = 0; jj < this->NumJ(); jj++) {
-      for (auto ii = 0; ii < this->NumI(); ii++) {
-          const auto diagVolTime = (vol_(ii, jj, kk) * (1.0 + inp.Zeta()))
-              / (dt_(ii, jj, kk) * inp.Theta());
-          mMinusN(ii, jj, kk) = diagVolTime * (m(ii, jj, kk) - n(ii, jj, kk));
-        }
-      }
-    }
-  }
+//     // loop over all physical cells
+//     for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
+//       for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
+//         for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
+//           const auto diagVolTime = (vol_(ii, jj, kk) * (1.0 + inp.Zeta()))
+//               / (dt_(ii, jj, kk) * inp.Theta());
+//           mMinusN(ii, jj, kk) = diagVolTime * (m(ii, jj, kk) - n(ii, jj, kk));
+//         }
+//       }
+//     }
+//   }
 
-  return mMinusN;
+//   return mMinusN;
+// }
+
+
+double procBlock::SolDeltaNCoeff(const int &ii, const int &jj, const int &kk,
+                                 const input &inp) const {
+  return (vol_(ii, jj, kk) * (1.0 + inp.Zeta())) / (dt_(ii, jj, kk) * inp.Theta());
+}
+
+genArray procBlock::SolDeltaMmN(const int &ii, const int &jj, const int &kk,
+                                const input &inp, const idealGas &eos) const {
+  const auto coeff = this->SolDeltaNCoeff(ii, jj, kk, inp);
+  return coeff * (state_(ii, jj, kk).ConsVars(eos) - consVarsN_(ii, jj, kk));
+}
+
+double procBlock::SolDeltaNm1Coeff(const int &ii, const int &jj, const int &kk,
+                                   const input &inp) const {
+  return (vol_(ii, jj, kk) * inp.Zeta()) / (dt_(ii, jj, kk) * inp.Theta());
+}
+
+genArray procBlock::SolDeltaNm1(const int &ii, const int &jj, const int &kk,
+                                const input &inp) const {
+  const auto coeff = this->SolDeltaNm1Coeff(ii, jj, kk, inp);
+  return coeff * (consVarsN_(ii, jj, kk) - consVarsNm1_(ii, jj, kk));
 }
 
 /* Member function to calculate the delta n-1 term for the implicit bdf2 solver.
@@ -989,32 +1020,31 @@ function.
 This function is supposed to be run at the end of a time step when the data stored
 in *this has been updated to the next time step.
 */
-multiArray3d<genArray> procBlock::DeltaNMinusOne(
-    const multiArray3d<genArray> &solTimeN, const idealGas &eqnState,
-    const double &theta, const double &zeta) const {
-  // solTimeN -- The solution at time n
-  // eqnState -- equation of state
-  // theta -- Beam & Warming coefficient theta for time integration
-  // zeta -- Beam & Warming coefficient zeta for time integration
+// multiArray3d<genArray> procBlock::DeltaNMinusOne(
+//     const multiArray3d<genArray> &solTimeN, const idealGas &eqnState,
+//     const double &theta, const double &zeta) const {
+//   // solTimeN -- The solution at time n
+//   // eqnState -- equation of state
+//   // theta -- Beam & Warming coefficient theta for time integration
+//   // zeta -- Beam & Warming coefficient zeta for time integration
 
-  // Solution at time n minus solution at time n-1
-  multiArray3d<genArray> solDeltaNm1(this->NumI(), this->NumJ(), this->NumK(),
-                                     0);
+//   // Solution at time n minus solution at time n-1
+//   multiArray3d<genArray> solDeltaNm1(this->NumI(), this->NumJ(), this->NumK(), 0);
 
-  // loop over physical cells
-  for (auto kk = 0; kk < this->NumK(); kk++) {
-    for (auto jj = 0; jj < this->NumJ(); jj++) {
-      for (auto ii = 0; ii < this->NumI(); ii++) {
-        const auto diagVolTime = (vol_(ii, jj, kk) * zeta) /
-            (dt_(ii, jj, kk) * theta);
-        solDeltaNm1(ii, jj, kk) = diagVolTime *
-            (state_(ii, jj, kk).ConsVars(eqnState) -
-             solTimeN(ii, jj, kk));
-      }
-    }
-  }
-  return solDeltaNm1;
-}
+//   // loop over physical cells
+//   for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
+//     for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
+//       for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
+//         const auto diagVolTime = (vol_(ii, jj, kk) * zeta) /
+//             (dt_(ii, jj, kk) * theta);
+//         solDeltaNm1(ii, jj, kk) = diagVolTime *
+//             (state_(ii, jj, kk).ConsVars(eqnState) -
+//              solTimeN(ii, jj, kk));
+//       }
+//     }
+//   }
+//   return solDeltaNm1;
+// }
 
 void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
                                const input &inp) const {
@@ -1043,26 +1073,25 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
   }
 }
 
-// Member function to return a copy of the conserved variables. This is useful
-// for "saving" the solution at a specific time.
-// It is used in the implicit solver.
-multiArray3d<genArray> procBlock::GetCopyConsVars(
-    const idealGas &eqnState) const {
-  // initialize array to proper size (no ghost cells)
-  multiArray3d<genArray> consVars(this->NumI(), this->NumJ(),
-                                  this->NumK(), 0);
-
+// assign current solution held in state_ to time n solution held in consVarsN_
+void procBlock::AssignSolToTimeN(const idealGas &eos) {
   // loop over physical cells
-  for (auto kk = 0; kk < this->NumK(); kk++) {
-    for (auto jj = 0; jj < this->NumJ(); jj++) {
-      for (auto ii = 0; ii < this->NumI(); ii++) {
+  for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
+    for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
+      for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
         // convert state to conservative variables
-        consVars(ii, jj, kk) = state_(ii, jj, kk).ConsVars(eqnState);
+        consVarsN_(ii, jj, kk) = state_(ii, jj, kk).ConsVars(eos);
       }
     }
   }
-  return consVars;
 }
+
+// assign current solution held in consVarsN_ to time n-1 solution held in
+// consVarsNm1_
+void procBlock::AssignSolToTimeNm1() {
+  consVarsNm1_ = consVarsN_;
+}
+
 
 /* Member function to calculate update to solution implicitly using Lower-Upper
 Symmetric Gauss Seidel (LUSGS) method.
@@ -1171,8 +1200,6 @@ used, and everything else remains the same.
  */
 void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
                               multiArray3d<genArray> &x,
-                              const multiArray3d<genArray> &solTimeMmN,
-                              const multiArray3d<genArray> &solDeltaNm1,
                               const idealGas &eqnState, const input &inp,
                               const sutherland &suth,
                               const unique_ptr<turbModel> &turb,
@@ -1181,8 +1208,6 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // x -- correction - added to solution at time n to get to time n+1 (assumed
   //      to be zero to start)
-  // solTimeMmn -- solution at time m minus n
-  // solDeltaNm1 -- solution at time n minus solution at time n-1
   // eqnState -- equation of state
   // inp -- all input variables
   // suth -- method to get temperature varying viscosity (Sutherland's law)
@@ -1318,22 +1343,21 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       }
     }
     // -----------------------------------------------------------------------
+    const auto solDeltaNm1 = this->SolDeltaNm1(ii, jj, kk, inp);
+    const auto solDeltaMmN = this->SolDeltaMmN(ii, jj, kk, inp, eqnState);
 
     // calculate intermediate update
     // normal at lower boundaries needs to be reversed, so add instead
     // of subtract L
     x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(-thetaInv *
                                                residual_(ii, jj, kk) -
-                                               solDeltaNm1(ii, jj, kk) -
-                                               solTimeMmN(ii, jj, kk) +
+                                               solDeltaNm1 - solDeltaMmN +
                                                L - U);
   }  // end forward sweep
 }
 
 double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
                                  multiArray3d<genArray> &x,
-                                 const multiArray3d<genArray> &solTimeMmN,
-                                 const multiArray3d<genArray> &solDeltaNm1,
                                  const idealGas &eqnState, const input &inp,
                                  const sutherland &suth,
                                  const unique_ptr<turbModel> &turb,
@@ -1342,8 +1366,6 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
   // reorder -- order of cells to visit (this should be ordered in hyperplanes)
   // x -- correction - added to solution at time n to get to time n+1 (assumed
   //      to be zero to start)
-  // solTimeMmn -- solution at time m minus n
-  // solDeltaNm1 -- solution at time n minus solution at time n-1
   // eqnState -- equation of state
   // inp -- all input variables
   // suth -- method to get temperature varying viscosity (Sutherland's law)
@@ -1481,14 +1503,15 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       }
     }
     // -----------------------------------------------------------------------
+    const auto solDeltaNm1 = this->SolDeltaNm1(ii, jj, kk, inp);
+    const auto solDeltaMmN = this->SolDeltaMmN(ii, jj, kk, inp, eqnState);
 
     // calculate update
     auto xold = x(ii, jj, kk);
     if (sweep > 0 || inp.MatrixRequiresInitialization()) {
       x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(-thetaInv *
                                                  residual_(ii, jj, kk) -
-                                                 solDeltaNm1(ii, jj, kk) -
-                                                 solTimeMmN(ii, jj, kk) +
+                                                 solDeltaNm1 - solDeltaMmN +
                                                  L - U);
     } else {
       x(ii, jj, kk) -= aInv(ii, jj, kk).ArrayMult(U);
@@ -1504,16 +1527,12 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
 /* Member function to calculate the implicit update via the DP-LUR method
  */
 double procBlock::DPLUR(multiArray3d<genArray> &x,
-                        const multiArray3d<genArray> &solTimeMmN,
-                        const multiArray3d<genArray> &solDeltaNm1,
                         const idealGas &eqnState, const input &inp,
                         const sutherland &suth,
                         const unique_ptr<turbModel> &turb,
                         const multiArray3d<fluxJacobian> &aInv) const {
   // x -- correction - added to solution at time n to get to time n+1 (assumed
   //                   to be zero to start)
-  // solTimeMmn -- solution at time m minus n
-  // solDeltaNm1 -- solution at time n minus solution at time n-1
   // eqnState -- equation of state
   // inp -- all input variables
   // suth -- method to get temperature varying viscosity (Sutherland's law)
@@ -1646,11 +1665,12 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         }
 
         // --------------------------------------------------------------
+        const auto solDeltaNm1 = this->SolDeltaNm1(ii, jj, kk, inp);
+        const auto solDeltaMmN = this->SolDeltaMmN(ii, jj, kk, inp, eqnState);
 
         // calculate update
         x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(
-            -thetaInv * residual_(ii, jj, kk)
-            - solDeltaNm1(ii, jj, kk) - solTimeMmN(ii, jj, kk)
+            -thetaInv * residual_(ii, jj, kk) - solDeltaNm1 - solDeltaMmN
             + offDiagonal);
 
         // calculate matrix error
@@ -1663,12 +1683,10 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
   return l2Error.Sum();
 }
 
-multiArray3d<genArray> procBlock::InitializeMatrixUpdate(const input &inp,
-       const multiArray3d<genArray> &solTimeMmN,
-       const multiArray3d<genArray> &solDeltaNm1,
+multiArray3d<genArray> procBlock::InitializeMatrixUpdate(
+    const input &inp, const idealGas &eos,
        const multiArray3d<fluxJacobian> &aInv) const {
-  // solTimeMmn -- solution at time m minus n
-  // solDeltaNm1 -- solution at time n minus solution at time n-1
+  // inp -- input variables
   // aInv -- inverse of main diagonal
 
   // allocate multiarray for update
@@ -1678,13 +1696,14 @@ multiArray3d<genArray> procBlock::InitializeMatrixUpdate(const input &inp,
   if (inp.MatrixRequiresInitialization()) {
     const auto thetaInv = 1.0 / inp.Theta();
 
-    for (auto kk = 0; kk < this->NumK(); kk++) {
-      for (auto jj = 0; jj < this->NumJ(); jj++) {
-        for (auto ii = 0; ii < this->NumI(); ii++) {
+    for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
+      for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
+        for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
           // calculate update
           x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(
               -thetaInv * residual_(ii, jj, kk) -
-              solDeltaNm1(ii, jj, kk) - solTimeMmN(ii, jj, kk));
+              this->SolDeltaNm1(ii, jj, kk, inp) -
+              this->SolDeltaMmN(ii, jj, kk, inp, eos));
         }
       }
     }
@@ -5940,12 +5959,13 @@ void procBlock::CalcCellWidths() {
 void procBlock::ReadFromRestart(ifstream &resFile, const input &inp,
                                 const idealGas &eos, const sutherland &suth,
                                 const unique_ptr<turbModel> &turb,
-                                const vector<string> &restartVars) {
+                                const vector<string> &restartVars,
+                                const bool &isMultiLevel) {
   // define reference speed of sound
   const auto refSoS = inp.ARef(eos);
 
   // read the primative variables
-    // write out dimensional variables -- loop over physical cells
+    // read dimensional variables -- loop over physical cells
     for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
       for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
         for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
@@ -5986,4 +6006,46 @@ void procBlock::ReadFromRestart(ifstream &resFile, const input &inp,
 
     // Update temperature and viscosity
     this->UpdateAuxillaryVariables(eos, suth, false);
+
+    if (isMultiLevel) {
+      // data is conserved variables
+      // read dimensional variables -- loop over physical cells
+      for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
+        for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
+          for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
+            genArray value;
+            // loop over the number of variables to read
+            for (auto &var : restartVars) {
+              if (var == "density") {
+                resFile.read(reinterpret_cast<char *>(&value[0]), sizeof(value[0]));
+                value[0] /= inp.RRef();
+              } else if (var == "vel_x") {  // conserved var is rho-u
+                resFile.read(reinterpret_cast<char *>(&value[1]), sizeof(value[1]));
+                value[1] /= refSoS * inp.RRef();
+              } else if (var == "vel_y") {  // conserved var is rho-v
+                resFile.read(reinterpret_cast<char *>(&value[2]), sizeof(value[2]));
+                value[2] /= refSoS * inp.RRef();
+              } else if (var == "vel_z") {  // conserved var is rho-w
+                resFile.read(reinterpret_cast<char *>(&value[3]), sizeof(value[3]));
+                value[3] /= refSoS * inp.RRef();
+              } else if (var == "pressure") {  // conserved var is rho-E
+                resFile.read(reinterpret_cast<char *>(&value[4]), sizeof(value[4]));
+                value[4] /= inp.RRef() * refSoS * refSoS;
+              } else if (var == "tke") {  // conserved var is rho-tke
+                resFile.read(reinterpret_cast<char *>(&value[5]), sizeof(value[5]));
+                value[5] /= refSoS * refSoS * inp.RRef();
+              } else if (var == "sdr") {  // conserved var is rho-sdr
+                resFile.read(reinterpret_cast<char *>(&value[6]), sizeof(value[6]));
+                value[6] /= refSoS * refSoS * inp.RRef() *inp.RRef() / suth.MuRef();
+              } else {
+                cerr << "ERROR: Variable " << var
+                     << " to read from restart file is not defined!" << endl;
+                exit(EXIT_FAILURE);
+              }
+            }
+            consVarsNm1_(ii, jj, kk) = value;
+          }
+        }
+      }
+    }
 }
