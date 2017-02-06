@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-16  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -37,6 +37,7 @@ using std::vector;
 using std::string;
 using std::ios;
 using std::ofstream;
+using std::ifstream;
 using std::cout;
 using std::endl;
 using std::cerr;
@@ -58,6 +59,8 @@ class kdtree;
 
 class procBlock {
   multiArray3d<primVars> state_;  // primative variables at cell center
+  multiArray3d<genArray> consVarsN_;  // conserved variables at time n
+  multiArray3d<genArray> consVarsNm1_;  // conserved variables at time n-1
 
   multiArray3d<genArray> residual_;  // cell residual
 
@@ -69,6 +72,10 @@ class procBlock {
   multiArray3d<vector3d<double>> fCenterI_;  // coordinates of i-face centers
   multiArray3d<vector3d<double>> fCenterJ_;  // coordinates of j-face centers
   multiArray3d<vector3d<double>> fCenterK_;  // coordinates of k-face centers
+
+  multiArray3d<double> cellWidthI_;  // i-width of cell
+  multiArray3d<double> cellWidthJ_;  // j-width of cell
+  multiArray3d<double> cellWidthK_;  // k-width of cell
 
   multiArray3d<uncoupledScalar> specRadius_;  // maximum wave speed for cell
   multiArray3d<double> vol_;  // cell volume
@@ -98,7 +105,8 @@ class procBlock {
                    // procBlocks
   bool isViscous_;
   bool isTurbulent_;
-
+  bool storeTimeN_;
+  bool isMultiLevelTime_;
 
   // private member functions
   void CalcInvFluxI(const idealGas &, const input &,
@@ -150,8 +158,8 @@ class procBlock {
             const boundaryConditions &, const int &, const int &, const int &,
             const input &, const idealGas &, const sutherland &);
   procBlock(const int &, const int &, const int &, const int &, const bool &,
-            const bool &);
-  procBlock() : procBlock(1, 1, 1, 0, false, false) {}
+            const bool &, const bool &, const bool &);
+  procBlock() : procBlock(1, 1, 1, 0, false, false, false, false) {}
 
   // move constructor and assignment operator
   procBlock(procBlock&&) noexcept = default;
@@ -217,12 +225,27 @@ class procBlock {
   primVars State(const int &ii, const int &jj, const int &kk) const {
     return state_(ii, jj, kk);
   }
+  genArray ConsVarsN(const int &ii, const int &jj, const int &kk) const {
+    return consVarsN_(ii, jj, kk);
+  }
+  genArray ConsVarsNm1(const int &ii, const int &jj, const int &kk) const {
+    return consVarsNm1_(ii, jj, kk);
+  }
 
   multiArray3d<primVars> SliceState(const int &, const int &, const int &,
                                     const int &, const int &,
                                     const int &) const;
 
-  multiArray3d<genArray> GetCopyConsVars(const idealGas &) const;
+  void AssignSolToTimeN(const idealGas &);
+  void AssignSolToTimeNm1();
+  double SolDeltaNCoeff(const int &, const int &, const int &,
+                        const input &) const;
+  double SolDeltaNm1Coeff(const int &, const int &, const int &,
+                          const input &) const;
+  genArray SolDeltaMmN(const int &, const int &, const int &, const input &,
+                       const idealGas &) const;
+  genArray SolDeltaNm1(const int &, const int &, const int &,
+                       const input &) const;
 
   double Vol(const int &ii, const int &jj, const int &kk) const {
     return vol_(ii, jj, kk);
@@ -272,6 +295,16 @@ class procBlock {
   }
   vector3d<double> FCenterK(const int &ii, const int &jj, const int &kk) const {
     return fCenterK_(ii, jj, kk);
+  }
+
+  double CellWidthI(const int &ii, const int &jj, const int &kk) const {
+    return cellWidthI_(ii, jj, kk);
+  }
+  double CellWidthJ(const int &ii, const int &jj, const int &kk) const {
+    return cellWidthJ_(ii, jj, kk);
+  }
+  double CellWidthK(const int &ii, const int &jj, const int &kk) const {
+    return cellWidthK_(ii, jj, kk);
   }
 
   uncoupledScalar SpectralRadius(const int &ii, const int &jj,
@@ -326,7 +359,6 @@ class procBlock {
   void CalcBlockTimeStep(const input &, const double &);
   void UpdateBlock(const input &, const idealGas &, const double &,
                    const sutherland &, const multiArray3d<genArray> &,
-                   const multiArray3d<genArray> &,
                    const unique_ptr<turbModel> &, const int &, genArray &,
                    resid &);
 
@@ -380,23 +412,18 @@ class procBlock {
   void InvertDiagonal(multiArray3d<fluxJacobian> &, const input &) const;
 
   multiArray3d<genArray> InitializeMatrixUpdate(
-      const input &, const multiArray3d<genArray> &,
-      const multiArray3d<genArray> &, const multiArray3d<fluxJacobian> &) const;
+      const input &, const idealGas &eos,
+      const multiArray3d<fluxJacobian> &) const;
   void LUSGS_Forward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
-                     const multiArray3d<genArray> &,
-                     const multiArray3d<genArray> &,
                      const idealGas &, const input &, const sutherland &,
                      const unique_ptr<turbModel> &,
                      const multiArray3d<fluxJacobian> &, const int &) const;
   double LUSGS_Backward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
-                        const multiArray3d<genArray> &,
-                        const multiArray3d<genArray> &,
                         const idealGas &, const input &, const sutherland &,
                         const unique_ptr<turbModel> &,
                         const multiArray3d<fluxJacobian> &, const int &) const;
 
   double DPLUR(multiArray3d<genArray> &,
-               const multiArray3d<genArray> &, const multiArray3d<genArray> &,
                const idealGas &, const input &, const sutherland &,
                const unique_ptr<turbModel> &,
                const multiArray3d<fluxJacobian> &) const;
@@ -418,6 +445,9 @@ class procBlock {
   void SwapStateSliceMPI(const interblock &, const int &, const MPI_Datatype &);
   void SwapTurbSlice(const interblock &, procBlock &);
   void SwapTurbSliceMPI(const interblock &, const int &);
+  void SwapGradientSlice(const interblock &, procBlock &);
+  void SwapGradientSliceMPI(const interblock &, const int &,
+                            const MPI_Datatype &, const MPI_Datatype &);
 
   void PackSendGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
                        const MPI_Datatype &) const;
@@ -436,6 +466,13 @@ class procBlock {
                      const string &) const;
 
   void DumpToFile(const string &, const string &) const;
+  void CalcCellWidths();
+  void ReadSolFromRestart(ifstream &, const input &, const idealGas &,
+                          const sutherland &, const unique_ptr<turbModel> &,
+                          const vector<string> &);
+  void ReadSolNm1FromRestart(ifstream &, const input &, const idealGas &,
+                          const sutherland &, const unique_ptr<turbModel> &,
+                          const vector<string> &);
 
   // destructor
   ~procBlock() noexcept {}

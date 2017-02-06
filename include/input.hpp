@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-16  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@ class idealGas;
 
 class input {
   string simName_;  // simulation name
+  string restartName_;  // restart file name
   string gName_;  // grid file name
   double dt_;  // time step
   int iterations_;  // number of iterations
@@ -77,6 +78,8 @@ class input {
   string inviscidFlux_;  // scheme for inviscid flux calculation
   string decompMethod_;  // method of decomposition for parallel problems
   string turbModel_;  // turbulence model
+  int restartFrequency_;  // how often to output restart data
+  int iterationStart_;  // starting number for iterations
 
   set<string> outputVariables_;  // variables to output
 
@@ -85,7 +88,7 @@ class input {
 
  public:
   // constructor
-  explicit input(const string &);
+  input(const string &, const string &);
 
   // move constructor and assignment operator
   input(input&&) noexcept = default;
@@ -98,11 +101,15 @@ class input {
   // member functions
   string SimName() const {return simName_;}
   string SimNameRoot() const;
+  string RestartName() const {return restartName_;}
+  bool IsRestart() const {return restartName_ != "none";}
   string GridName() const {return gName_;}
 
   double Dt() const {return dt_;}
 
   int Iterations() const {return iterations_;}
+  void SetIterationStart(const int &nn) {iterationStart_ = nn;}
+  int IterationStart() const {return iterationStart_;}
 
   double PRef() const {return pRef_;}
   double RRef() const {return rRef_;}
@@ -119,6 +126,7 @@ class input {
   int NumBC() const {return bc_.size();}
 
   string TimeIntegration() const {return timeIntegration_;}
+  bool IsMultilevelInTime() const {return timeIntegration_ == "bdf2";}
 
   double CFL() const {return cfl_;}
   void CalcCFL(const int &i);
@@ -137,7 +145,13 @@ class input {
   string Limiter() const {return limiter_;}
 
   int OutputFrequency() const {return outputFrequency_;}
+  int RestartFrequency() const {return restartFrequency_;}
   set<string> OutputVariables() const {return outputVariables_;}
+
+  bool WriteOutput(const int &nn) const {return (nn + 1) % outputFrequency_ == 0;}
+  bool WriteRestart(const int &nn) const {
+    return (restartFrequency_ == 0) ? false : (nn + 1) % restartFrequency_ == 0;
+  }
 
   string EquationSet() const {return equationSet_;}
 

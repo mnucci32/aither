@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-16  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@ It also writes out a master file in Ensight format to name the Plot3D functions.
 #include <vector>        // vector
 #include <string>        // string
 #include <memory>        // unique_ptr
+#include "multiArray3d.hpp"
 
 using std::vector;
 using std::string;
@@ -52,6 +53,8 @@ class input;
 class turbModel;
 
 // function definitions
+void WriteBlockDims(ofstream &, const vector<procBlock> &, int = 0);
+
 void WriteCellCenter(const string &, const vector<procBlock> &,
                      const decomposition &, const double &);
 void WriteFun(const vector<procBlock> &, const idealGas &,
@@ -59,6 +62,13 @@ void WriteFun(const vector<procBlock> &, const idealGas &,
               const input &, const unique_ptr<turbModel> &);
 void WriteRes(const input &, const int &);
 void WriteMeta(const input &, const int &);
+
+void WriteRestart(const vector<procBlock> &, const idealGas &,
+                  const sutherland &, const int &, const decomposition &,
+                  const input &, const genArray &);
+void ReadRestart(vector<procBlock> &, const string &, input &,
+                 const idealGas &, const sutherland &,
+                 const unique_ptr<turbModel> &, genArray &);
 
 void WriteResiduals(const input &, genArray &, const genArray &, const resid &,
                     const double &, const int &, const int &, ostream &);

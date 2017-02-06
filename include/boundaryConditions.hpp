@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-16  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -113,8 +113,8 @@ class patch {
   // Coordinates of direction 1 zero, direction 2 max
   vector3d<double> corner2_;
   vector3d<double> corner12_;    // coordinates of direction 1/2 max
-  // Array of booleans for 4 sides of patch (1 if borders an interblock)
-  bool interblockBorder_[4];
+  // Array of booleans for 4 sides of patch (1 if borders another patch)
+  bool patchBorder_[4];
   int boundary_;                 // boundary number (1-6)
   int block_;                    // parent block number
   int d1Start_;                  // direction 1 start index
@@ -158,10 +158,10 @@ class patch {
   int ConstSurface() const {return constSurf_;}
   int Rank() const {return rank_;}
   int LocalBlock() const {return localBlock_;}
-  bool Dir1StartInterBorder() const {return interblockBorder_[0];}
-  bool Dir1EndInterBorder() const {return interblockBorder_[1];}
-  bool Dir2StartInterBorder() const {return interblockBorder_[2];}
-  bool Dir2EndInterBorder() const {return interblockBorder_[3];}
+  bool Dir1StartInterBorder() const {return patchBorder_[0];}
+  bool Dir1EndInterBorder() const {return patchBorder_[1];}
+  bool Dir2StartInterBorder() const {return patchBorder_[2];}
+  bool Dir2EndInterBorder() const {return patchBorder_[3];}
 
   // Destructor
   ~patch() noexcept {}
@@ -237,7 +237,7 @@ class boundaryConditions {
                       const int&, const int&, const int&);
   void Join(const boundaryConditions&, const string&, vector<boundarySurface>&);
 
-  void BordersInterblock(const int&, bool (&)[4]) const;
+  void BordersSurface(const int&, bool (&)[4]) const;
 
   void PackBC(char*(&), const int&, int&) const;
   void UnpackBC(char*(&), const int&, int&);
@@ -252,13 +252,13 @@ class interblock {
   int rank_[2];               // processor location of boundaries
   int block_[2];              // block_ numbers (global)
   int localBlock_[2];         // local (on processor) block_ numbers
-  int boundary_[2];           // boundary_ numbers
+  int boundary_[2];           // boundary numbers
   int d1Start_[2];            // first direction start numbers for surface
   int d1End_[2];              // first direction end numbers for surface
   int d2Start_[2];            // second direction start numbers for surface
   int d2End_[2];              // second direction end numbers for surface
   int constSurf_[2];          // index of direction 3
-  bool interblockBorder_[8];  // borders interblock on sides of patch
+  bool patchBorder_[8];  // borders another patch on sides of patch
   // Defines how patches are oriented relative to one another (1-8)
   int orientation_;
 
@@ -266,7 +266,7 @@ class interblock {
   // Constructor
   interblock() : rank_{0, 0}, block_{0, 0}, localBlock_{0, 0}, boundary_{0, 0},
     d1Start_{0, 0}, d1End_{0, 0}, d2Start_{0, 0}, d2End_{0, 0},
-    constSurf_{0, 0}, interblockBorder_{false, false, false, false, false,
+    constSurf_{0, 0}, patchBorder_{false, false, false, false, false,
                             false, false, false}, orientation_(0) {}
 
   interblock(const patch&, const patch&);
@@ -321,14 +321,14 @@ class interblock {
   bool IsLowerFirst() const {return constSurf_[0] == 0;}
   bool IsLowerSecond() const {return constSurf_[1] == 0;}
 
-  bool Dir1StartInterBorderFirst() const {return interblockBorder_[0];}
-  bool Dir1EndInterBorderFirst() const {return interblockBorder_[1];}
-  bool Dir2StartInterBorderFirst() const {return interblockBorder_[2];}
-  bool Dir2EndInterBorderFirst() const {return interblockBorder_[3];}
-  bool Dir1StartInterBorderSecond() const {return interblockBorder_[4];}
-  bool Dir1EndInterBorderSecond() const {return interblockBorder_[5];}
-  bool Dir2StartInterBorderSecond() const {return interblockBorder_[6];}
-  bool Dir2EndInterBorderSecond() const {return interblockBorder_[7];}
+  bool Dir1StartInterBorderFirst() const {return patchBorder_[0];}
+  bool Dir1EndInterBorderFirst() const {return patchBorder_[1];}
+  bool Dir2StartInterBorderFirst() const {return patchBorder_[2];}
+  bool Dir2EndInterBorderFirst() const {return patchBorder_[3];}
+  bool Dir1StartInterBorderSecond() const {return patchBorder_[4];}
+  bool Dir1EndInterBorderSecond() const {return patchBorder_[5];}
+  bool Dir2StartInterBorderSecond() const {return patchBorder_[6];}
+  bool Dir2EndInterBorderSecond() const {return patchBorder_[7];}
 
   int Orientation() const {return orientation_;}
 
@@ -348,6 +348,10 @@ class interblock {
 
   void FirstSliceIndices(int&, int&, int&, int&, int&, int&, const int&) const;
   void SecondSliceIndices(int&, int&, int&, int&, int&, int&, const int&) const;
+
+  bool IsLowerLowerOrUpperUpper() const {
+    return (boundary_[0] + boundary_[1]) % 2 == 0;
+  }
 
   // Destructor
   ~interblock() noexcept {}
@@ -432,6 +436,6 @@ ostream & operator<< (ostream &os, const interblock&);
 
 
 array<int, 3> GetSwapLoc(const int &, const int &, const int &, const int &,
-                         const interblock &, const bool &);
+                         const interblock &, const int &, const bool &);
 
 #endif

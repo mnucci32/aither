@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-16  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -371,30 +371,28 @@ void CalcWallDistance(vector<procBlock> &localBlocks, const kdtree &tree) {
   }
 }
 
-// function to take in a vector of procBlocks and return a vector of the
-// conservative variable states
-vector<multiArray3d<genArray>> GetCopyConsVars(const vector<procBlock> &blocks,
-                                               const idealGas &eos) {
-  vector<multiArray3d<genArray>> consVars(blocks.size());
-
-  for (auto ii = 0U; ii < blocks.size(); ii++) {
-    consVars[ii] = blocks[ii].GetCopyConsVars(eos);
+void AssignSolToTimeN(vector<procBlock> &blocks, const idealGas &eos) {
+  for (auto &block : blocks) {
+    block.AssignSolToTimeN(eos);
   }
-  return consVars;
+}
+
+void AssignSolToTimeNm1(vector<procBlock> &blocks) {
+  for (auto &block : blocks) {
+    block.AssignSolToTimeNm1();
+  }
 }
 
 void ExplicitUpdate(vector<procBlock> &blocks,
                     const input &inp, const idealGas &eos,
                     const double &aRef, const sutherland &suth,
-                    const vector<multiArray3d<genArray>> &solTimeN,
                     const unique_ptr<turbModel> &turb, const int &mm,
                     genArray &residL2, resid &residLinf) {
   // create dummy update (not used in explicit update)
   multiArray3d<genArray> du(1, 1, 1, 0);
   // loop over all blocks and update
   for (auto bb = 0U; bb < blocks.size(); bb++) {
-    blocks[bb].UpdateBlock(inp, eos, aRef, suth, du, solTimeN[bb],
-                                     turb, mm, residL2, residLinf);
+    blocks[bb].UpdateBlock(inp, eos, aRef, suth, du, turb, mm, residL2, residLinf);
   }
 }
 
@@ -403,9 +401,6 @@ double ImplicitUpdate(vector<procBlock> &blocks,
                       vector<multiArray3d<fluxJacobian>> &mainDiagonal,
                       const input &inp, const idealGas &eos,
                       const double &aRef, const sutherland &suth,
-                      const vector<multiArray3d<genArray>> &solTimeN,
-                      const vector<multiArray3d<genArray>> &solDeltaMmN,
-                      vector<multiArray3d<genArray>> &solDeltaNm1,
                       const unique_ptr<turbModel> &turb, const int &mm,
                       genArray &residL2, resid &residLinf,
                       const vector<interblock> &connections, const int &rank,
@@ -415,9 +410,6 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   // inp -- input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
-  // solTimeN -- solution at time N
-  // solDeltaMmN -- solution at time M minus solution at time N
-  // solDeltaNm1 -- solution at time N minus 1
   // turb -- turbulence model
   // mm -- nonlinear iteration
   // residL2 -- L2 residual
@@ -436,9 +428,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   // initialize matrix update
   vector<multiArray3d<genArray>> du(blocks.size());
   for (auto bb = 0U; bb < blocks.size(); bb++) {
-    du[bb] = blocks[bb].InitializeMatrixUpdate(inp, solDeltaMmN[bb],
-                                               solDeltaNm1[bb],
-                                               mainDiagonal[bb]);
+    du[bb] = blocks[bb].InitializeMatrixUpdate(inp, eos, mainDiagonal[bb]);
   }
 
   // Solve Ax=b with supported solver
@@ -457,8 +447,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
 
       // forward lu-sgs sweep
       for (auto bb = 0U; bb < blocks.size(); bb++) {
-        blocks[bb].LUSGS_Forward(reorder[bb], du[bb], solDeltaMmN[bb],
-                                 solDeltaNm1[bb], eos, inp, suth, turb,
+        blocks[bb].LUSGS_Forward(reorder[bb], du[bb], eos, inp, suth, turb,
                                  mainDiagonal[bb], ii);
       }
 
@@ -467,9 +456,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
 
       // backward lu-sgs sweep
       for (auto bb = 0U; bb < blocks.size(); bb++) {
-        matrixError += blocks[bb].LUSGS_Backward(reorder[bb], du[bb],
-                                                 solDeltaMmN[bb],
-                                                 solDeltaNm1[bb], eos, inp,
+        matrixError += blocks[bb].LUSGS_Backward(reorder[bb], du[bb], eos, inp,
                                                  suth, turb, mainDiagonal[bb],
                                                  ii);
       }
@@ -481,8 +468,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
 
       for (auto bb = 0U; bb < blocks.size(); bb++) {
         // Calculate correction (du)
-        matrixError += blocks[bb].DPLUR(du[bb], solDeltaMmN[bb],
-                                        solDeltaNm1[bb], eos, inp, suth, turb,
+        matrixError += blocks[bb].DPLUR(du[bb], eos, inp, suth, turb,
                                         mainDiagonal[bb]);
       }
     }
@@ -496,14 +482,12 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   // Update blocks and reset main diagonal
   for (auto bb = 0U; bb < blocks.size(); bb++) {
     // Update solution
-    blocks[bb].UpdateBlock(inp, eos, aRef, suth, du[bb], solTimeN[bb],
-                           turb, mm, residL2, residLinf);
+    blocks[bb].UpdateBlock(inp, eos, aRef, suth, du[bb], turb, mm, residL2,
+                           residLinf);
 
     // Assign time n to time n-1 at end of nonlinear iterations
-    if (inp.TimeIntegration() == "bdf2" &&
-        mm == inp.NonlinearIterations() - 1 ) {
-      solDeltaNm1[bb] = blocks[bb].DeltaNMinusOne(solTimeN[bb], eos,
-                                                  inp.Theta(), inp.Zeta());
+    if (inp.IsMultilevelInTime() && mm == inp.NonlinearIterations() - 1) {
+      blocks[bb].AssignSolToTimeNm1();
     }
 
     // zero flux jacobians
@@ -568,12 +552,48 @@ void SwapTurbVars(vector<procBlock> &states,
   }
 }
 
+void SwapGradients(vector<procBlock> &states,
+                   const vector<interblock> &conn, const int &rank,
+                   const MPI_Datatype &MPI_tensorDouble,
+                   const MPI_Datatype &MPI_vec3d,
+                   const int &numGhosts) {
+  // states -- vector of all procBlocks in the solution domain
+  // conn -- interblock boundary conditions
+  // rank -- processor rank
+  // MPI_tensorDouble -- MPI datatype for tensor<double>
+  // MPI_vec3d -- MPI datatype for vector3d<double>
+  // numGhosts -- number of ghost cells
+
+  // loop over all connections and swap interblock updates when necessary
+  for (auto ii = 0U; ii < conn.size(); ii++) {
+    if (conn[ii].RankFirst() == rank && conn[ii].RankSecond() == rank) {
+      // both sides of interblock are on this processor, swap w/o mpi
+      states[conn[ii].LocalBlockFirst()].SwapGradientSlice(
+          conn[ii], states[conn[ii].LocalBlockSecond()]);
+    } else if (conn[ii].RankFirst() == rank) {
+      // rank matches rank of first side of interblock, swap over mpi
+      states[conn[ii].LocalBlockFirst()].SwapGradientSliceMPI(conn[ii], rank,
+                                                              MPI_tensorDouble,
+                                                              MPI_vec3d);
+    } else if (conn[ii].RankSecond() == rank) {
+      // rank matches rank of second side of interblock, swap over mpi
+      states[conn[ii].LocalBlockSecond()].SwapGradientSliceMPI(conn[ii], rank,
+                                                               MPI_tensorDouble,
+                                                               MPI_vec3d);
+    }
+    // if rank doesn't match either side of interblock, then do nothing and
+    // move on to the next interblock
+  }
+}
+
 
 void CalcResidual(vector<procBlock> &states,
                   vector<multiArray3d<fluxJacobian>> &mainDiagonal,
                   const sutherland &suth, const idealGas &eos,
                   const input &inp, const unique_ptr<turbModel> &turb,
-                  const vector<interblock> &connections, const int &rank) {
+                  const vector<interblock> &connections, const int &rank,
+                  const MPI_Datatype &MPI_tensorDouble,
+                  const MPI_Datatype &MPI_vec3d) {
   // states -- vector of all procBlocks on processor
   // mainDiagonal -- main diagonal of A matrix for implicit solve
   // suth -- sutherland's law for viscosity
@@ -582,14 +602,19 @@ void CalcResidual(vector<procBlock> &states,
   // turb -- turbulence model
   // connections -- interblock boundary conditions
   // rank -- processor rank
+  // MPI_tensorDouble -- MPI datatype for tensor<double>
+  // MPI_vec3d -- MPI datatype for vector3d<double>
 
   for (auto bb = 0U; bb < states.size(); bb++) {
     // calculate residual
     states[bb].CalcResidualNoSource(suth, eos, inp, turb, mainDiagonal[bb]);
   }
+  // swap gradients calculated during residual calculation
+  SwapGradients(states, connections, rank, MPI_tensorDouble, MPI_vec3d,
+                inp.NumberGhostLayers());
 
   if (inp.IsTurbulent()) {
-    // swap turbulence varibles calculated during residual calculation
+    // swap turbulence variables calculated during residual calculation
     SwapTurbVars(states, connections, rank, inp.NumberGhostLayers());
 
     for (auto bb = 0U; bb < states.size(); bb++) {
@@ -641,39 +666,35 @@ vector<vector3d<int>> HyperplaneReorder(const int &imax, const int &jmax,
   return reorder;
 }
 
-void GetSolMMinusN(vector<multiArray3d<genArray>> &solMMinusN,
-                   const vector<procBlock> &states,
-                   const vector<multiArray3d<genArray>> &solN,
-                   const idealGas &eos, const input &inp, const int &mm) {
-  // solMMinusN -- solution at time m minus solution at time n
-  // solN -- solution at time n
-  // eos -- equation of state
-  // inp -- input variables
-  // mm -- nonlinear iteration
+// void GetSolMMinusN(vector<multiArray3d<genArray>> &solMMinusN,
+//                    const vector<procBlock> &states,
+//                    const vector<multiArray3d<genArray>> &solN,
+//                    const idealGas &eos, const input &inp, const int &mm) {
+//   // solMMinusN -- solution at time m minus solution at time n
+//   // solN -- solution at time n
+//   // eos -- equation of state
+//   // inp -- input variables
+//   // mm -- nonlinear iteration
 
-  for (auto bb = 0U; bb < solMMinusN.size(); bb++) {
-    solMMinusN[bb] = states[bb].SolTimeMMinusN(solN[bb], eos, inp, mm);
-  }
-}
+//   for (auto bb = 0U; bb < solMMinusN.size(); bb++) {
+//     solMMinusN[bb] = states[bb].SolTimeMMinusN(solN[bb], eos, inp, mm);
+//   }
+// }
 
 
 void ResizeArrays(const vector<procBlock> &states, const input &inp,
-                  vector<multiArray3d<genArray>> &sol,
                   vector<multiArray3d<fluxJacobian>> &jac) {
   // states -- all states on processor
   // sol -- vector of solutions to be resized
   // jac -- vector of flux jacobians to be resized
 
+  const auto fluxJac = inp.IsBlockMatrix() ?
+      fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations()) :
+      fluxJacobian(1, 1);
+
   for (auto bb = 0U; bb < states.size(); bb++) {
-    sol[bb].ClearResize(states[bb].NumI(), states[bb].NumJ(),
-                        states[bb].NumK(), 0);
-
-    const auto fluxJac = inp.IsBlockMatrix() ?
-        fluxJacobian(inp.NumFlowEquations(), inp.NumTurbEquations()) :
-        fluxJacobian(1, 1);
-
-    jac[bb].ClearResize(states[bb].NumI(), states[bb].NumJ(),
-                        states[bb].NumK(), 0, fluxJac);
+    jac[bb].ClearResize(states[bb].NumI(), states[bb].NumJ(), states[bb].NumK(),
+                        0, fluxJac);
   }
 }
 

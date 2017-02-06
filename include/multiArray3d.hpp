@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-16  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -1075,8 +1075,8 @@ void multiArray3d<T>::PutSlice(const multiArray3d<T> &array,
     for (auto l2 = adjS2; l2 < inter.Dir2LenFirst() - adjE2; l2++) {
       for (auto l1 = adjS1; l1 < inter.Dir1LenFirst() - adjE1; l1++) {
         // get acceptor and inserter indices
-        auto indA = GetSwapLoc(l1, l2, l3, numGhosts_, inter, true);
-        auto indI = GetSwapLoc(l1, l2, l3, array.numGhosts_, inter, false);
+        auto indA = GetSwapLoc(l1, l2, l3, numGhosts_, inter, d3, true);
+        auto indI = GetSwapLoc(l1, l2, l3, array.numGhosts_, inter, d3, false);
 
         // assign cell data
         (*this)(indA[0], indA[1], indA[2]) = array(indI[0], indI[1], indI[2]);

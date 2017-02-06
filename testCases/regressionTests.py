@@ -1,5 +1,5 @@
 #   This file is part of aither.
-#   Copyright (C) 2015-16  Michael Nucci (michael.nucci@gmail.com)
+#   Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
 #
 #   Aither is free software: you can redistribute it and/or modify
 #   it under the terms of the GNU General Public License as published by
@@ -35,7 +35,9 @@ class regressionTest:
     aitherPath = "."
     mpirunPath = "mpirun"
     percentTolerance = 0.01
-    
+    isRestart = False
+    restartFile = "none"
+
     def __init__(self):
         self.location = os.getcwd()
         
@@ -68,7 +70,13 @@ class regressionTest:
 
     def GoToRunDirectory(self):
         os.chdir(self.runDirectory)
-    
+
+    def SetRestart(self, resFlag):
+        self.isRestart = resFlag
+
+    def SetRestartFile(self, resFile):
+        self.restartFile = resFile
+        
     def ReturnToHomeDirectory(self):
         os.chdir(self.location)
         
@@ -121,8 +129,13 @@ class regressionTest:
         print("Current directory:", os.getcwd())
         print("Modifying input file...")
         self.ModifyInputFile()
-        cmd = self.mpirunPath + " -np " + str(self.procs) + " " + self.aitherPath \
-            + " " + self.caseName + ".inp > " + self.caseName + ".out"
+        if self.isRestart:
+            cmd = self.mpirunPath + " -np " + str(self.procs) + " " + self.aitherPath \
+                  + " " + self.caseName + ".inp " + self.restartFile + " > " + self.caseName \
+                  + ".out"
+        else:
+            cmd = self.mpirunPath + " -np " + str(self.procs) + " " + self.aitherPath \
+                  + " " + self.caseName + ".inp > " + self.caseName + ".out"
         print(cmd)
         start = datetime.datetime.now()
         process = subprocess.Popen(cmd, shell=True)
@@ -169,6 +182,7 @@ def main():
         maxProcs = 1
         
     numIterations = 100
+    numIterationsRestart = 50
     totalPass = True
     
     # ------------------------------------------------------------------
@@ -231,6 +245,18 @@ def main():
     totalPass = totalPass and all(passed)
         
     # ------------------------------------------------------------------
+    # sod shock tube restart
+    # laminar, inviscid, bdf2, weno
+    shockTubeRestart = shockTube
+    shockTubeRestart.SetNumberOfIterations(numIterationsRestart)
+    shockTubeRestart.SetRestart(True)
+    shockTubeRestart.SetRestartFile("shockTube_50.rst")
+
+    # run regression case
+    passed = shockTubeRestart.RunCase()   
+    totalPass = totalPass and all(passed)
+        
+    # ------------------------------------------------------------------
     # supersonic wedge
     # laminar, inviscid, explicit euler
     supWedge = regressionTest()
@@ -286,7 +312,7 @@ def main():
 
     # ------------------------------------------------------------------
     # turbulent flat plate
-    # laminar, viscous, lu-sgs, k-w wilcox
+    # viscous, lu-sgs, k-w wilcox
     turbPlate = regressionTest()
     turbPlate.SetRegressionCase("turbFlatPlate")
     turbPlate.SetAitherPath(options.aitherPath)
@@ -305,7 +331,29 @@ def main():
     # run regression case
     passed = turbPlate.RunCase()
     totalPass = totalPass and all(passed)        
-        
+
+    # ------------------------------------------------------------------
+    # rae2822
+    # turbulent, k-w sst, c-grid
+    rae2822 = regressionTest()
+    rae2822.SetRegressionCase("rae2822")
+    rae2822.SetAitherPath(options.aitherPath)
+    rae2822.SetRunDirectory("rae2822")
+    rae2822.SetNumberOfProcessors(maxProcs)
+    rae2822.SetNumberOfIterations(numIterations)
+    if (options.operatingSystem == "linux"):
+        rae2822.SetResiduals([6.3790e-1, 1.0466, 6.1588e-1, 4.8859e-1, 5.8718e-1,
+                              2.5317e-5, 4.3633e-5])
+    else:
+        rae2822.SetResiduals([6.3495e-1, 1.0553, 6.2108e-1, 6.0576e-1, 5.8816e-1,
+                              2.5315e-5, 4.3783e-5])
+    rae2822.SetIgnoreIndices(3)
+    rae2822.SetMpirunPath(options.mpirunPath)
+
+    # run regression case
+    passed = rae2822.RunCase()
+    totalPass = totalPass and all(passed)        
+    
     # ------------------------------------------------------------------
     # regression test overall pass/fail
     # ------------------------------------------------------------------

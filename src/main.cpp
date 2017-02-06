@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-16  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -80,14 +80,24 @@ int main(int argc, char *argv[]) {
   _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_INVALID);
 #endif
 
+  // Check command line inputs
   // Name of input file is the second argument (the executable being the first)
+  if (rank == ROOTP && !(argc == 2 || argc == 3)) {
+    cerr << "USAGE: <mpirun -np n> aither inputFile.inp <restartFile.rst>" << endl;
+    cerr << "       Arguments in <> are optional." << endl;
+    cerr << "       If not invoked with mpirun, 1 processor will be used." << endl;
+    cerr << "       If no restart file specified, none will be used." << endl;
+    exit(EXIT_FAILURE);
+  }
   string inputFile = argv[1];
+  string restartFile = (argc == 3) ? argv[2] : "none";
 
-  // Broadcast input file name to all names for portability
+  // Broadcast input/restart file names to all processors for portability
   BroadcastString(inputFile);
+  BroadcastString(restartFile);
 
   auto totalCells = 0.0;
-  input inputVars(inputFile);
+  input inputVars(inputFile, restartFile);
   decomposition decomp;
   auto numProcBlock = 0;
 
@@ -111,6 +121,7 @@ int main(int argc, char *argv[]) {
   vector<interblock> connections;
   vector<procBlock> stateBlocks;
   vector<vector3d<double>> viscFaces;
+  genArray residL2First(0.0);  // l2 norm residuals to normalize by
 
   if (rank == ROOTP) {
     cout << "Number of equations: " << inputVars.NumEquations() << endl << endl;
@@ -144,6 +155,11 @@ int main(int argc, char *argv[]) {
                                   suth);
       stateBlocks[ll].AssignGhostCellsGeom();
     }
+    // if restart, get data from restart file
+    if (inputVars.IsRestart()) {
+      ReadRestart(stateBlocks, restartFile, inputVars, eos, suth, turb,
+                  residL2First);
+    }
 
     // Swap geometry for interblock BCs
     for (auto &conn : connections) {
@@ -176,10 +192,12 @@ int main(int argc, char *argv[]) {
   // Send procBlocks to appropriate processor
   auto localStateBlocks = SendProcBlocks(stateBlocks, rank, numProcBlock,
                                          MPI_cellData, MPI_vec3d, MPI_vec3dMag);
-  // Update auxillary variables (temperature, viscosity, etc)
+
+  // Update auxillary variables (temperature, viscosity, etc), cell widths
   for (auto ll = 0U; ll < localStateBlocks.size(); ll++) {
     localStateBlocks[ll].UpdateAuxillaryVariables(eos, suth, false);
     localStateBlocks[ll].UpdateUnlimTurbEddyVisc(turb, false);
+    localStateBlocks[ll].CalcCellWidths();
   }
 
   // Send connections to all processors
@@ -226,15 +244,11 @@ int main(int argc, char *argv[]) {
   }
 
   //-----------------------------------------------------------------------
-  // Preallocate vectors for old solution
-  // Outermost vector for blocks, genArray for variables in cell
-  vector<multiArray3d<genArray>> solTimeN(numProcBlock);
-  vector<multiArray3d<genArray>> solDeltaNm1(numProcBlock);
-  vector<multiArray3d<genArray>> solDeltaMmN(numProcBlock);
   // Allocate array for flux jacobian
   vector<multiArray3d<fluxJacobian>> mainDiagonal(numProcBlock);
-
-  genArray residL2First(0.0);  // l2 norm residuals to normalize by
+  if (inputVars.IsImplicit()) {
+    ResizeArrays(localStateBlocks, inputVars, mainDiagonal);
+  }
 
   // Send/recv solutions - necessary to get wall distances
   GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData,
@@ -243,20 +257,30 @@ int main(int argc, char *argv[]) {
   ofstream resFile;
   if (rank == ROOTP) {
     // Open residual file
-    resFile.open(inputVars.SimNameRoot() + ".resid", ios::out);
+    if (inputVars.IsRestart()) {
+      resFile.open(inputVars.SimNameRoot() + ".resid", ios::app);
+    } else {
+      resFile.open(inputVars.SimNameRoot() + ".resid", ios::out);
+    }
+    if (resFile.fail()) {
+      cerr << "ERROR: Could not open residual file!" << endl;
+      exit(EXIT_FAILURE);
+    }
 
     // Write out cell centers grid file
     WriteCellCenter(inputVars.GridName(), stateBlocks, decomp, inputVars.LRef());
 
     // Write out initial results
-    WriteFun(stateBlocks, eos, suth, 0, decomp, inputVars, turb);
-    WriteMeta(inputVars, 0);
+    WriteFun(stateBlocks, eos, suth, inputVars.IterationStart(), decomp,
+             inputVars, turb);
+    WriteMeta(inputVars, inputVars.IterationStart());
   }
 
   // ----------------------------------------------------------------------
   // ----------------------- Start Main Loop ------------------------------
   // ----------------------------------------------------------------------
-  for (auto nn = 0; nn < inputVars.Iterations(); nn++) {   // loop over time
+  // loop over time
+  for (auto nn = 0; nn < inputVars.Iterations(); nn++) {
     MPI_Barrier(MPI_COMM_WORLD);
 
     // Calculate cfl number
@@ -264,7 +288,10 @@ int main(int argc, char *argv[]) {
 
     // Store time-n solution, for time integration methods that require it
     if (inputVars.IsImplicit() || inputVars.TimeIntegration() == "rk4") {
-      solTimeN = GetCopyConsVars(localStateBlocks, eos);
+      AssignSolToTimeN(localStateBlocks, eos);
+      if (!inputVars.IsRestart() && nn == 0) {
+        AssignSolToTimeNm1(localStateBlocks);
+      }
     }
 
     // loop over nonlinear iterations
@@ -273,20 +300,9 @@ int main(int argc, char *argv[]) {
       GetBoundaryConditions(localStateBlocks, inputVars, eos, suth, turb,
                             connections, rank, MPI_cellData);
 
-      if (inputVars.IsImplicit()) {
-        // Get solution at time M - N if implicit
-        GetSolMMinusN(solDeltaMmN, localStateBlocks, solTimeN, eos,
-                      inputVars, mm);
-
-        if (nn == 0 && mm == 0) {
-          // At first iteration, resize array for old solution and jacobian
-          ResizeArrays(localStateBlocks, inputVars, solDeltaNm1, mainDiagonal);
-        }
-      }
-
       // Calculate residual (RHS)
       CalcResidual(localStateBlocks, mainDiagonal, suth, eos, inputVars,
-                   turb, connections, rank);
+                   turb, connections, rank, MPI_tensorDouble, MPI_vec3d);
 
       // Calculate time step
       CalcTimeStep(localStateBlocks, inputVars, aRef);
@@ -297,13 +313,12 @@ int main(int argc, char *argv[]) {
       auto matrixResid = 0.0;
       if (inputVars.IsImplicit()) {
         matrixResid = ImplicitUpdate(localStateBlocks, mainDiagonal,
-                                     inputVars, eos, aRef, suth, solTimeN,
-                                     solDeltaMmN, solDeltaNm1, turb, mm,
+                                     inputVars, eos, aRef, suth, turb, mm,
                                      residL2, residLinf, connections, rank,
                                      MPI_cellData);
       } else {  // explicit time integration
-        ExplicitUpdate(localStateBlocks, inputVars, eos, aRef, suth, solTimeN,
-                       turb, mm, residL2, residLinf);
+        ExplicitUpdate(localStateBlocks, inputVars, eos, aRef, suth, turb, mm,
+                       residL2, residLinf);
       }
 
       // ----------------------------------------------------------------------
@@ -329,21 +344,30 @@ int main(int argc, char *argv[]) {
 
         // Print out run information
         WriteResiduals(inputVars, residL2First, residL2, residLinf, matrixResid,
-                       nn, mm, resFile);
+                       nn + inputVars.IterationStart(), mm, resFile);
       }
     }  // loop for nonlinear iterations ---------------------------------------
 
     // write out function file
-    if ((nn + 1) % inputVars.OutputFrequency() == 0) {
+    if (inputVars.WriteOutput(nn) || inputVars.WriteRestart(nn)) {
       // Send/recv solutions
       GetProcBlocks(stateBlocks, localStateBlocks, rank, MPI_cellData,
                     MPI_uncoupledScalar, MPI_vec3d, MPI_tensorDouble);
 
-      if (rank == ROOTP) {
-        cout << "writing out function file at iteration " << nn << endl;
+      if (rank == ROOTP && inputVars.WriteOutput(nn)) {
+        cout << "writing out function file at iteration "
+             << nn + inputVars.IterationStart()<< endl;
         // Write out function file
-        WriteFun(stateBlocks, eos, suth, (nn+1), decomp, inputVars, turb);
-        WriteMeta(inputVars, (nn+1));
+        WriteFun(stateBlocks, eos, suth, (nn + inputVars.IterationStart() + 1),
+                 decomp, inputVars, turb);
+        WriteMeta(inputVars, (nn + inputVars.IterationStart() + 1));
+      }
+      if (rank == ROOTP && inputVars.WriteRestart(nn)) {
+        cout << "writing out restart file at iteration "
+             << nn + inputVars.IterationStart()<< endl;
+        // Write out restart file
+        WriteRestart(stateBlocks, eos, suth, (nn + inputVars.IterationStart() + 1),
+                     decomp, inputVars, residL2First);
       }
     }
   }  // loop for time step -----------------------------------------------------
@@ -367,5 +391,5 @@ int main(int argc, char *argv[]) {
 
   MPI_Finalize();
 
-  return 0;
+  return EXIT_SUCCESS;
 }

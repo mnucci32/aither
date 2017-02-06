@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-16  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -44,7 +44,8 @@ using std::stod;
 
 // constructor for input class
 // initialize vector to have length of number of acceptable inputs to the code
-input::input(const string &name) : simName_(name) {
+input::input(const string &name, const string &resName) : simName_(name),
+                                                          restartName_(resName) {
   // default values for each variable
   gName_ = "";
   dt_ = -1.0;
@@ -83,6 +84,8 @@ input::input(const string &name) : simName_(name) {
   inviscidFlux_ = "roe";  // default value is roe flux
   decompMethod_ = "cubic";  // default is cubic decomposition
   turbModel_ = "none";  // default turbulence model is none
+  restartFrequency_ = 0;  // default to not write restarts
+  iterationStart_ = 0;  // default to start from iteration zero
 
   // default to primative variables
   outputVariables_ = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
@@ -98,12 +101,12 @@ input::input(const string &name) : simName_(name) {
            "velocityRef",
            "gamma",
            "gasConstant",
-           "velocity",
            "timeIntegration",
            "faceReconstruction",
            "viscousFaceReconstruction",
            "limiter",
            "outputFrequency",
+           "restartFrequency",
            "equationSet",
            "temperatureRef",
            "matrixSolver",
@@ -213,7 +216,7 @@ void input::ReadInput(const int &rank) {
         } else if (key == "velocityRef") {
           vRef_ = ReadVector(tokens[1]);
           if (rank == ROOTP) {
-            cout << key << ": " << this->LRef() << endl;
+            cout << key << ": [" << this->VelRef() << "]" << endl;
           }
         } else if (key == "gamma") {
           gamma_ = stod(tokens[1]);  // double variable (stod)
@@ -294,6 +297,11 @@ void input::ReadInput(const int &rank) {
           outputFrequency_ = stoi(tokens[1]);
           if (rank == ROOTP) {
             cout << key << ": " << this->OutputFrequency() << endl;
+          }
+        } else if (key == "restartFrequency") {
+          restartFrequency_ = stoi(tokens[1]);
+          if (rank == ROOTP) {
+            cout << key << ": " << this->RestartFrequency() << endl;
           }
         } else if (key == "equationSet") {
           equationSet_ = tokens[1];

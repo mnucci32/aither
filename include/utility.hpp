@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-16  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -73,21 +73,16 @@ void GetBoundaryConditions(vector<procBlock> &, const input &, const idealGas &,
 vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &);
 void CalcWallDistance(vector<procBlock> &, const kdtree &);
 
-vector<multiArray3d<genArray>> GetCopyConsVars(const vector<procBlock> &,
-                                               const idealGas &);
+void AssignSolToTimeN(vector<procBlock> &, const idealGas &);
+void AssignSolToTimeNm1(vector<procBlock> &);
 
 void ExplicitUpdate(vector<procBlock> &, const input &, const idealGas &,
                     const double &, const sutherland &,
-                    const vector<multiArray3d<genArray>> &,
                     const unique_ptr<turbModel> &, const int &, genArray &,
                     resid &);
 double ImplicitUpdate(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
                       const input &, const idealGas &, const double &,
-                      const sutherland &,
-                      const vector<multiArray3d<genArray>> &,
-                      const vector<multiArray3d<genArray>> &,
-                      vector<multiArray3d<genArray>> &,
-                      const unique_ptr<turbModel> &,
+                      const sutherland &, const unique_ptr<turbModel> &,
                       const int &, genArray &, resid &,
                       const vector<interblock> &, const int &,
                       const MPI_Datatype &);
@@ -97,24 +92,26 @@ void SwapImplicitUpdate(vector<multiArray3d<genArray>> &,
                         const MPI_Datatype &, const int &);
 void SwapTurbVars(vector<procBlock> &, const vector<interblock> &, const int &,
                   const int &);
+void SwapGradients(vector<procBlock> &, const vector<interblock> &, const int &,
+                   const MPI_Datatype &, const MPI_Datatype &, const int &);
 
 void CalcResidual(vector<procBlock> &,
                   vector<multiArray3d<fluxJacobian>> &,
                   const sutherland &, const idealGas &, const input &,
                   const unique_ptr<turbModel> &,
-                  const vector<interblock> &, const int &);
+                  const vector<interblock> &, const int &, const MPI_Datatype &,
+                  const MPI_Datatype &);
 
 void CalcTimeStep(vector<procBlock> &, const input &, const double &);
 
-void GetSolMMinusN(vector<multiArray3d<genArray>> &, const vector<procBlock> &,
-                   const vector<multiArray3d<genArray>> &,
-                   const idealGas &, const input &, const int &);
+// void GetSolMMinusN(vector<multiArray3d<genArray>> &, const vector<procBlock> &,
+//                    const vector<multiArray3d<genArray>> &,
+//                    const idealGas &, const input &, const int &);
 
 // function to reorder block by hyperplanes
 vector<vector3d<int>> HyperplaneReorder(const int &, const int &, const int &);
 
 void ResizeArrays(const vector<procBlock> &, const input &,
-                  vector<multiArray3d<genArray>> &,
                   vector<multiArray3d<fluxJacobian>> &);
 
 vector3d<double> TauNormal(const tensor<double> &, const vector3d<double> &,

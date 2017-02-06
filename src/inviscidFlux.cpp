@@ -1,5 +1,5 @@
 /*  This file is part of aither.
-    Copyright (C) 2015-16  Michael Nucci (michael.nucci@gmail.com)
+    Copyright (C) 2015-17  Michael Nucci (michael.nucci@gmail.com)
 
     Aither is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
@@ -316,7 +316,7 @@ void inviscidFlux::RoeFlux(const inviscidFlux &right, const genArray &diss) {
 // -----------------------------------------------------------
 
 // operator overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, inviscidFlux &flux) {
+ostream &operator<<(ostream &os, const inviscidFlux &flux) {
   os << flux.RhoVel() << endl;
   os << flux.RhoVelU() << endl;
   os << flux.RhoVelV() << endl;
