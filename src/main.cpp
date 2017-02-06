@@ -289,7 +289,7 @@ int main(int argc, char *argv[]) {
     // Store time-n solution, for time integration methods that require it
     if (inputVars.IsImplicit() || inputVars.TimeIntegration() == "rk4") {
       AssignSolToTimeN(localStateBlocks, eos);
-      if (!inputVars.IsRestart()) {
+      if (!inputVars.IsRestart() && nn == 0) {
         AssignSolToTimeNm1(localStateBlocks);
       }
     }
