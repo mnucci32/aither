@@ -71,6 +71,8 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
 
   isViscous_ = inp.IsViscous();
   isTurbulent_ = inp.IsTurbulent();
+  storeTimeN_ = (inp.IsImplicit() || inp.TimeIntegration() == "rk4");
+  isMultiLevelTime_ = inp.IsMultilevelInTime();
 
   // get initial condition state for parent block
   auto ic = inp.ICStateForBlock(parBlock_);
@@ -87,12 +89,12 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
   // pad stored variable vectors with ghost cells
   state_ = PadWithGhosts(multiArray3d<primVars>(numI, numJ, numK, 0,
                                                 inputState), numGhosts_);
-  if (inp.IsImplicit() || inp.TimeIntegration() == "rk4") {
+  if (storeTimeN_) {
     consVarsN_ = {numI, numJ, numK, 0, genArray(0.0)};
   } else {
     consVarsN_ = {1, 1, 1, 0};
   }
-  if (inp.IsMultilevelInTime()) {
+  if (isMultiLevelTime_) {
     consVarsNm1_ = {numI, numJ, numK, 0, genArray(0.0)};
   } else {
     consVarsNm1_ = {1, 1, 1, 0};
@@ -151,7 +153,8 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
 // constructor -- allocate space for procBlock
 procBlock::procBlock(const int &ni, const int &nj, const int &nk,
                      const int &numG, const bool &isViscous,
-                     const bool &isTurbulent) {
+                     const bool &isTurbulent, const bool &storeTimeN,
+                     const bool &isMultiLevelInTime) {
   // ni -- i-dimension (cell)
   // nj -- j-dimension (cell)
   // nk -- k-dimension (cell)
@@ -170,9 +173,21 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
 
   isViscous_ = isViscous;
   isTurbulent_ = isTurbulent;
+  storeTimeN_ = storeTimeN;
+  isMultiLevelTime_ = isMultiLevelInTime;
 
   // pad stored variable vectors with ghost cells
   state_ = {ni, nj, nk, numGhosts_};
+  if (storeTimeN) {
+    consVarsN_ = {ni, nj, nk, 0};
+  } else {
+    consVarsN_ = {1, 1, 1, 0};
+  }
+  if (isMultiLevelTime_) {
+    consVarsNm1_ = {ni, nj, nk, 0};
+  } else {
+    consVarsNm1_ = {1, 1, 1, 0};
+  }
   center_ = {ni, nj, nk, numGhosts_};
   fAreaI_ = {ni + 1, nj, nk, numGhosts_};
   fAreaJ_ = {ni, nj + 1, nk, numGhosts_};
@@ -4492,11 +4507,14 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
   MPI_Pack_size(8, MPI_INT, MPI_COMM_WORLD,
                 &tempSize);  // add size for ints in class procBlock
   sendBufSize += tempSize;
-  MPI_Pack_size(2, MPI_CXX_BOOL, MPI_COMM_WORLD,
+  MPI_Pack_size(4, MPI_CXX_BOOL, MPI_COMM_WORLD,
                 &tempSize);  // add size for bools in class procBlock
   sendBufSize += tempSize;
   MPI_Pack_size(state_.Size(), MPI_cellData, MPI_COMM_WORLD,
                 &tempSize);  // add size for states
+  sendBufSize += tempSize;
+  MPI_Pack_size(consVarsNm1_.Size(), MPI_cellData, MPI_COMM_WORLD,
+                &tempSize);  // add size for solution n-1
   sendBufSize += tempSize;
   MPI_Pack_size(center_.Size(), MPI_vec3d, MPI_COMM_WORLD,
                 &tempSize);  // add size for cell centers
@@ -4511,13 +4529,13 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
                 &tempSize);  // add size for face area K
   sendBufSize += tempSize;
   MPI_Pack_size(fCenterI_.Size(), MPI_vec3d, MPI_COMM_WORLD,
-                &tempSize);  // add size for face center_ I
+                &tempSize);  // add size for face center I
   sendBufSize += tempSize;
   MPI_Pack_size(fCenterJ_.Size(), MPI_vec3d, MPI_COMM_WORLD,
-                &tempSize);  // add size for face center_ J
+                &tempSize);  // add size for face center J
   sendBufSize += tempSize;
   MPI_Pack_size(fCenterK_.Size(), MPI_vec3d, MPI_COMM_WORLD,
-                &tempSize);  // add size for face center_ K
+                &tempSize);  // add size for face center K
   sendBufSize += tempSize;
   MPI_Pack_size(vol_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                 &tempSize);  // add size for volumes
@@ -4569,8 +4587,16 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
            MPI_COMM_WORLD);
   MPI_Pack(&isTurbulent_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
+  MPI_Pack(&storeTimeN_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize,
+           &position, MPI_COMM_WORLD);
+  MPI_Pack(&isMultiLevelTime_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize,
+           &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_cellData, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
+  if (isMultiLevelTime_) {
+    MPI_Pack(&(*std::begin(consVarsNm1_)), consVarsNm1_.Size(), MPI_cellData,
+             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  }
   MPI_Pack(&(*std::begin(center_)), center_.Size(), MPI_vec3d, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(fAreaI_)), fAreaI_.Size(), MPI_vec3dMag,
@@ -4645,6 +4671,10 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
   MPI_Unpack(recvBuffer, recvBufSize, &position, &isTurbulent_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &storeTimeN_, 1,
+             MPI_CXX_BOOL, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &isMultiLevelTime_, 1,
+             MPI_CXX_BOOL, MPI_COMM_WORLD);
 
   // clean and resize the vectors in the class to
   this->CleanResizeVecs(numI, numJ, numK, numGhosts_);
@@ -4653,6 +4683,11 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(state_)),
              state_.Size(), MPI_cellData,
              MPI_COMM_WORLD);  // unpack states
+  if (isMultiLevelTime_) {
+    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(consVarsNm1_)),
+               consVarsNm1_.Size(), MPI_cellData,
+               MPI_COMM_WORLD);  // unpack sol n-1
+  }
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(center_)),
              center_.Size(), MPI_vec3d,
              MPI_COMM_WORLD);  // unpack cell centers
@@ -4694,6 +4729,12 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
   // numGhosts -- number of ghost cells
 
   state_.ClearResize(numI, numJ, numK, numGhosts);
+  if (storeTimeN_) {
+    consVarsN_.ClearResize(numI, numJ, numK, 0);
+  }
+  if (isMultiLevelTime_) {
+    consVarsNm1_.ClearResize(numI, numJ, numK, 0);
+  }
   center_.ClearResize(numI, numJ, numK, numGhosts);
   vol_.ClearResize(numI, numJ, numK, numGhosts);
 
@@ -4762,6 +4803,11 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(state_)),
              state_.Size(), MPI_cellData,
              MPI_COMM_WORLD);  // unpack states
+  if (isMultiLevelTime_) {
+    MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(consVarsNm1_)),
+               consVarsNm1_.Size(), MPI_cellData,
+               MPI_COMM_WORLD);  // unpack states
+  }
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(residual_)),
              residual_.Size(), MPI_cellData,
              MPI_COMM_WORLD);  // unpack residuals
@@ -4829,6 +4875,11 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
   MPI_Pack_size(state_.Size(), MPI_cellData, MPI_COMM_WORLD,
                 &tempSize);  // add size for states
   sendBufSize += tempSize;
+  if (isMultiLevelTime_) {
+    MPI_Pack_size(consVarsNm1_.Size(), MPI_cellData, MPI_COMM_WORLD,
+                  &tempSize);  // add size for sol n-1
+    sendBufSize += tempSize;
+  }
   MPI_Pack_size(residual_.Size(), MPI_cellData, MPI_COMM_WORLD,
                 &tempSize);  // add size for residuals
   sendBufSize += tempSize;
@@ -4883,6 +4934,10 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
   auto position = 0;
   MPI_Pack(&(*std::begin(state_)), state_.Size(), MPI_cellData, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
+  if (isMultiLevelTime_) {
+    MPI_Pack(&(*std::begin(consVarsNm1_)), consVarsNm1_.Size(), MPI_cellData,
+             sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  }
   MPI_Pack(&(*std::begin(residual_)), residual_.Size(), MPI_cellData,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(dt_)), dt_.Size(), MPI_DOUBLE, sendBuffer,
@@ -4969,8 +5024,10 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
     exit(EXIT_FAILURE);
   }
 
-  procBlock blk1(numI1, numJ1, numK1, numGhosts_, isViscous_, isTurbulent_);
-  procBlock blk2(numI2, numJ2, numK2, numGhosts_, isViscous_, isTurbulent_);
+  procBlock blk1(numI1, numJ1, numK1, numGhosts_, isViscous_, isTurbulent_,
+                 storeTimeN_, isMultiLevelTime_);
+  procBlock blk2(numI2, numJ2, numK2, numGhosts_, isViscous_, isTurbulent_,
+                 storeTimeN_, isMultiLevelTime_);
 
   blk1.parBlock_ = parBlock_;
   blk2.parBlock_ = parBlock_;
@@ -5117,7 +5174,8 @@ void procBlock::Join(const procBlock &blk, const string &dir,
     exit(EXIT_FAILURE);
   }
 
-  procBlock newBlk(iTot, jTot, kTot, numGhosts_, isViscous_, isTurbulent_);
+  procBlock newBlk(iTot, jTot, kTot, numGhosts_, isViscous_, isTurbulent_,
+                   storeTimeN_, isMultiLevelTime_);
 
   newBlk.bc_ = bc_;
   newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
@@ -5956,11 +6014,10 @@ void procBlock::CalcCellWidths() {
 }
 
 
-void procBlock::ReadFromRestart(ifstream &resFile, const input &inp,
+void procBlock::ReadSolFromRestart(ifstream &resFile, const input &inp,
                                 const idealGas &eos, const sutherland &suth,
                                 const unique_ptr<turbModel> &turb,
-                                const vector<string> &restartVars,
-                                const bool &isMultiLevel) {
+                                   const vector<string> &restartVars) {
   // define reference speed of sound
   const auto refSoS = inp.ARef(eos);
 
@@ -6006,46 +6063,52 @@ void procBlock::ReadFromRestart(ifstream &resFile, const input &inp,
 
     // Update temperature and viscosity
     this->UpdateAuxillaryVariables(eos, suth, false);
+}
 
-    if (isMultiLevel) {
-      // data is conserved variables
-      // read dimensional variables -- loop over physical cells
-      for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
-        for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
-          for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
-            genArray value;
-            // loop over the number of variables to read
-            for (auto &var : restartVars) {
-              if (var == "density") {
-                resFile.read(reinterpret_cast<char *>(&value[0]), sizeof(value[0]));
-                value[0] /= inp.RRef();
-              } else if (var == "vel_x") {  // conserved var is rho-u
-                resFile.read(reinterpret_cast<char *>(&value[1]), sizeof(value[1]));
-                value[1] /= refSoS * inp.RRef();
-              } else if (var == "vel_y") {  // conserved var is rho-v
-                resFile.read(reinterpret_cast<char *>(&value[2]), sizeof(value[2]));
-                value[2] /= refSoS * inp.RRef();
-              } else if (var == "vel_z") {  // conserved var is rho-w
-                resFile.read(reinterpret_cast<char *>(&value[3]), sizeof(value[3]));
-                value[3] /= refSoS * inp.RRef();
-              } else if (var == "pressure") {  // conserved var is rho-E
-                resFile.read(reinterpret_cast<char *>(&value[4]), sizeof(value[4]));
-                value[4] /= inp.RRef() * refSoS * refSoS;
-              } else if (var == "tke") {  // conserved var is rho-tke
-                resFile.read(reinterpret_cast<char *>(&value[5]), sizeof(value[5]));
-                value[5] /= refSoS * refSoS * inp.RRef();
-              } else if (var == "sdr") {  // conserved var is rho-sdr
-                resFile.read(reinterpret_cast<char *>(&value[6]), sizeof(value[6]));
-                value[6] /= refSoS * refSoS * inp.RRef() *inp.RRef() / suth.MuRef();
-              } else {
-                cerr << "ERROR: Variable " << var
-                     << " to read from restart file is not defined!" << endl;
-                exit(EXIT_FAILURE);
-              }
-            }
-            consVarsNm1_(ii, jj, kk) = value;
+void procBlock::ReadSolNm1FromRestart(ifstream &resFile, const input &inp,
+                                      const idealGas &eos, const sutherland &suth,
+                                      const unique_ptr<turbModel> &turb,
+                                      const vector<string> &restartVars) {
+  // define reference speed of sound
+  const auto refSoS = inp.ARef(eos);
+
+  // data is conserved variables
+  // read dimensional variables -- loop over physical cells
+  for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
+    for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
+      for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
+        genArray value;
+        // loop over the number of variables to read
+        for (auto &var : restartVars) {
+          if (var == "density") {
+            resFile.read(reinterpret_cast<char *>(&value[0]), sizeof(value[0]));
+            value[0] /= inp.RRef();
+          } else if (var == "vel_x") {  // conserved var is rho-u
+            resFile.read(reinterpret_cast<char *>(&value[1]), sizeof(value[1]));
+            value[1] /= refSoS * inp.RRef();
+          } else if (var == "vel_y") {  // conserved var is rho-v
+            resFile.read(reinterpret_cast<char *>(&value[2]), sizeof(value[2]));
+            value[2] /= refSoS * inp.RRef();
+          } else if (var == "vel_z") {  // conserved var is rho-w
+            resFile.read(reinterpret_cast<char *>(&value[3]), sizeof(value[3]));
+            value[3] /= refSoS * inp.RRef();
+          } else if (var == "pressure") {  // conserved var is rho-E
+            resFile.read(reinterpret_cast<char *>(&value[4]), sizeof(value[4]));
+            value[4] /= inp.RRef() * refSoS * refSoS;
+          } else if (var == "tke") {  // conserved var is rho-tke
+            resFile.read(reinterpret_cast<char *>(&value[5]), sizeof(value[5]));
+            value[5] /= refSoS * refSoS * inp.RRef();
+          } else if (var == "sdr") {  // conserved var is rho-sdr
+            resFile.read(reinterpret_cast<char *>(&value[6]), sizeof(value[6]));
+            value[6] /= refSoS * refSoS * inp.RRef() *inp.RRef() / suth.MuRef();
+          } else {
+            cerr << "ERROR: Variable " << var
+                 << " to read from restart file is not defined!" << endl;
+            exit(EXIT_FAILURE);
           }
         }
+        consVarsNm1_(ii, jj, kk) = value;
       }
     }
+  }
 }

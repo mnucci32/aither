@@ -105,7 +105,8 @@ class procBlock {
                    // procBlocks
   bool isViscous_;
   bool isTurbulent_;
-
+  bool storeTimeN_;
+  bool isMultiLevelTime_;
 
   // private member functions
   void CalcInvFluxI(const idealGas &, const input &,
@@ -157,8 +158,8 @@ class procBlock {
             const boundaryConditions &, const int &, const int &, const int &,
             const input &, const idealGas &, const sutherland &);
   procBlock(const int &, const int &, const int &, const int &, const bool &,
-            const bool &);
-  procBlock() : procBlock(1, 1, 1, 0, false, false) {}
+            const bool &, const bool &, const bool &);
+  procBlock() : procBlock(1, 1, 1, 0, false, false, false, false) {}
 
   // move constructor and assignment operator
   procBlock(procBlock&&) noexcept = default;
@@ -466,9 +467,12 @@ class procBlock {
 
   void DumpToFile(const string &, const string &) const;
   void CalcCellWidths();
-  void ReadFromRestart(ifstream &, const input &, const idealGas &,
-                       const sutherland &, const unique_ptr<turbModel> &,
-                       const vector<string> &, const bool &);
+  void ReadSolFromRestart(ifstream &, const input &, const idealGas &,
+                          const sutherland &, const unique_ptr<turbModel> &,
+                          const vector<string> &);
+  void ReadSolNm1FromRestart(ifstream &, const input &, const idealGas &,
+                          const sutherland &, const unique_ptr<turbModel> &,
+                          const vector<string> &);
 
   // destructor
   ~procBlock() noexcept {}
