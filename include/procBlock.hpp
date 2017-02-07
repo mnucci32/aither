@@ -23,6 +23,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <algorithm>
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"            // vector3d
 #include "multiArray3d.hpp"        // multiArray3d
@@ -305,6 +306,14 @@ class procBlock {
   }
   double CellWidthK(const int &ii, const int &jj, const int &kk) const {
     return cellWidthK_(ii, jj, kk);
+  }
+  double MaxCellWidth(const int &ii, const int &jj, const int &kk) const {
+    return std::max(std::max(cellWidthI_(ii, jj, kk), cellWidthJ_(ii, jj, kk)),
+                    cellWidthK_(ii, jj, kk));
+  }
+  double MinCellWidth(const int &ii, const int &jj, const int &kk) const {
+    return std::min(std::min(cellWidthI_(ii, jj, kk), cellWidthJ_(ii, jj, kk)),
+                    cellWidthK_(ii, jj, kk));
   }
 
   uncoupledScalar SpectralRadius(const int &ii, const int &jj,

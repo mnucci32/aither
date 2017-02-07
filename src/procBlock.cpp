@@ -953,37 +953,6 @@ The above equation shows that the time m minus time n term (FD(Un)) requires a
 (1+zeta)V/(t*theta) term multiplied by it. That is the purpose of this
 function.
 */
-// multiArray3d<genArray> procBlock::SolTimeMMinusN(
-//     const multiArray3d<genArray> &n, const idealGas &eos, const input &inp,
-//     const int &mm) const {
-//   // n -- solution for block at time n
-//   // eos -- equation of state
-//   // inp -- input variables
-//   // mm -- nonlinear iteration number
-
-//   // initialize a vector to hold the returned values to zero
-//   multiArray3d<genArray> mMinusN(n.NumI(), n.NumJ(), n.NumK(), 0);
-
-//   // if mm is 0, then solution at time m and solution at time n is the same
-//   if (mm != 0) {
-//     auto m = this->GetCopyConsVars(eos);
-
-//     // loop over all physical cells
-//     for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
-//       for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
-//         for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
-//           const auto diagVolTime = (vol_(ii, jj, kk) * (1.0 + inp.Zeta()))
-//               / (dt_(ii, jj, kk) * inp.Theta());
-//           mMinusN(ii, jj, kk) = diagVolTime * (m(ii, jj, kk) - n(ii, jj, kk));
-//         }
-//       }
-//     }
-//   }
-
-//   return mMinusN;
-// }
-
-
 double procBlock::SolDeltaNCoeff(const int &ii, const int &jj, const int &kk,
                                  const input &inp) const {
   return (vol_(ii, jj, kk) * (1.0 + inp.Zeta())) / (dt_(ii, jj, kk) * inp.Theta());
@@ -1005,61 +974,6 @@ genArray procBlock::SolDeltaNm1(const int &ii, const int &jj, const int &kk,
   const auto coeff = this->SolDeltaNm1Coeff(ii, jj, kk, inp);
   return coeff * (consVarsN_(ii, jj, kk) - consVarsNm1_(ii, jj, kk));
 }
-
-/* Member function to calculate the delta n-1 term for the implicit bdf2 solver.
-
-dU/dt = V/t * [ ((1 + zeta) * FD - zeta * BD) / ((1 + theta) * FD )] * Un = -Rn
-
-The above equation shows the governing equations written in the Beam & Warming
-format for time integration. U is the vector of conserved variables
-where n represents the time step. Theta and zeta are Beam & Warming parameters,
-t is the time step, V is the cell volume, and R is the residual.
-FD and BD are the forward and backward difference operators respectively. These
-opererators operate in the time domain. For example FD(U) =
-Un+1 - Un and BD(U) = Un - Un-1. Solving the above equation for FD(Qn) we get
-the following:
-
-FD(Un) = (-t * Rn - t * theta * FD(Rn) + zeta * V * FD(Un-1)) / ((1 + zeta) * V)
-
-FD(Rn) requires us to know the residual at time n+1, but this is unknown. To
-bypass this difficulty we linearize the residual using a Taylor series
-expansion about time n. Rn+1 = Rn + J*FD(Un) where J is the flux jacobian dR/dU.
-Rearranging the above equation we get the following:
-
-[J + (1+zeta)*V/(t*theta)] * FD(Un) = -Rn/theta + zeta*V/(t*theta) * FD(Un-1)
-
-The above equation shows that the time n minus time n-1 term (FD(Un-1)) requires
-a zeta*V/(t*theta) term multiplied by it. That is the purpose of this
-function.
-
-This function is supposed to be run at the end of a time step when the data stored
-in *this has been updated to the next time step.
-*/
-// multiArray3d<genArray> procBlock::DeltaNMinusOne(
-//     const multiArray3d<genArray> &solTimeN, const idealGas &eqnState,
-//     const double &theta, const double &zeta) const {
-//   // solTimeN -- The solution at time n
-//   // eqnState -- equation of state
-//   // theta -- Beam & Warming coefficient theta for time integration
-//   // zeta -- Beam & Warming coefficient zeta for time integration
-
-//   // Solution at time n minus solution at time n-1
-//   multiArray3d<genArray> solDeltaNm1(this->NumI(), this->NumJ(), this->NumK(), 0);
-
-//   // loop over physical cells
-//   for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
-//     for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
-//       for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
-//         const auto diagVolTime = (vol_(ii, jj, kk) * zeta) /
-//             (dt_(ii, jj, kk) * theta);
-//         solDeltaNm1(ii, jj, kk) = diagVolTime *
-//             (state_(ii, jj, kk).ConsVars(eqnState) -
-//              solTimeN(ii, jj, kk));
-//       }
-//     }
-//   }
-//   return solDeltaNm1;
-// }
 
 void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
                                const input &inp) const {

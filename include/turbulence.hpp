@@ -24,6 +24,7 @@
 #include <math.h>  // sqrt
 #include <vector>  // vector
 #include <string>  // string
+#include <algorithm>
 #include "vector3d.hpp"  // vector3d
 #include "tensor.hpp"  // tensor
 
@@ -98,7 +99,6 @@ class turbModel {
                                  const double &mu, const sutherland &suth,
                                  const double &dist, const double &mut,
                                  const double &f1) const {return 0.0;}
-
   tensor<double> BoussinesqReynoldsStress(const primVars &state,
                                           const tensor<double> &velGrad,
                                           const sutherland &suth,
@@ -146,7 +146,8 @@ class turbModel {
   virtual squareMatrix TurbSrcJac(const primVars &state,
                                   const double &beta,
                                   const sutherland &suth,
-                                  const double &vol) const = 0;
+                                  const double &vol,
+                                  const double &lenScale = 1.0) const = 0;
 
   virtual void Print() const = 0;
 
@@ -205,7 +206,8 @@ class turbNone : public turbModel {
       const primVars &state, const unitVec3dMag<double> &fArea) const override;
   squareMatrix TurbSrcJac(const primVars &state, const double &beta,
                           const sutherland &suth,
-                          const double &vol) const override;
+                          const double &vol,
+                          const double &lenScale = 1.0) const override;
 
   double TkeMin() const override {return 0.0;}
   double OmegaMin() const override {return 0.0;}
@@ -283,10 +285,13 @@ class turbKWWilcox : public turbModel {
                          const double &) const override;
 
   squareMatrix TurbSrcJac(const primVars &, const double &,
-                          const sutherland &, const double &) const override;
+                          const sutherland &, const double &,
+                          const double & = 1.0) const override;
 
   double TurbPrandtlNumber() const override {return prt_;}
   double WallBeta() const override {return beta0_;}
+
+  double TurbLengthScale(const primVars &state) const;
 
   double Gamma() const {return gamma_;}
   double BetaStar() const {return betaStar_;}
@@ -320,11 +325,8 @@ class turbKWSst : public turbModel {
   const double kProd2Dest_ = 10.0;
 
   // private member functions
-  double CDkw(const primVars &, const vector3d<double> &,
-              const vector3d<double> &) const;
   double F1(const double &, const double &, const double &) const;
   double F2(const double &, const double &) const;
-  double BlendedCoeff(const double &, const double &, const double &) const;
   double Alpha1(const primVars &, const sutherland &, const double &) const;
   double Alpha2(const primVars &, const sutherland &, const double &,
                 const double &) const;
@@ -345,6 +347,9 @@ class turbKWSst : public turbModel {
   turbKWSst& operator=(const turbKWSst&) = default;
 
   // member functions
+  double BlendedCoeff(const double &, const double &, const double &) const;
+  double CDkw(const primVars &, const vector3d<double> &,
+              const vector3d<double> &) const;
   virtual squareMatrix CalcTurbSrc(const primVars &, const tensor<double> &,
                                    const vector3d<double> &,
                                    const vector3d<double> &,
@@ -381,7 +386,8 @@ class turbKWSst : public turbModel {
 
   virtual squareMatrix TurbSrcJac(const primVars &, const double &,
                                   const sutherland &,
-                                  const double &) const override;
+                                  const double &,
+                                  const double & = 1.0) const override;
 
   double WallBeta() const override {return beta1_;}
   double TurbPrandtlNumber() const override {return prt_;}
@@ -398,6 +404,8 @@ class turbKWSst : public turbModel {
 
   double A1() const {return a1_;}
   double BetaStar() const {return betaStar_;}
+  double TkeProd2DestRatio() const {return kProd2Dest_;}
+  double TurbLengthScale(const primVars &state) const;
 
   // use coefficients from 1 because they are smaller
   // this is used for TSL flux jacobian, so smaller will help increase
@@ -417,8 +425,15 @@ class turbKWSst : public turbModel {
 
 
 class turbSstDes : public turbKWSst {
+  const double cdes1_ = 0.78;
+  const double cdes2_ = 0.61;
+
   // private member functions
-  double DesLengthScale();
+  double HybridLengthScale(const primVars &state, const double &width,
+                           const double &cdes, const double &f1) const {
+    return std::min(this->TurbLengthScale(state), cdes * width);
+  }
+  double TkeDestruction(const primVars &state, const double &lenScale) const;
 
  public:
   // constructor
@@ -444,7 +459,16 @@ class turbSstDes : public turbKWSst {
                     const double &) const override;
 
   squareMatrix TurbSrcJac(const primVars &, const double &,
-                          const sutherland &, const double &) const override;
+                          const sutherland &, const double &,
+                          const double &) const override;
+
+  double CDes1() const {return cdes1_;}
+  double CDes2() const {return cdes2_;}
+  double CDes(const double &f1) const {
+    return this->BlendedCoeff(cdes1_, cdes2_, f1);
+  }
+
+  void Print() const override;
 
   // destructor
   ~turbSstDes() noexcept {}
