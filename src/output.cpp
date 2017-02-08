@@ -35,6 +35,7 @@
 #include "boundaryConditions.hpp"  // decomposition
 #include "resid.hpp"               // resid
 #include "genArray.hpp"            // genArray
+#include "utility.hpp"
 
 using std::cout;
 using std::endl;
@@ -501,10 +502,17 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
   for (auto &block : vars) {
     block.ReadSolFromRestart(fName, inp, eos, suth, turb, restartVars);
   }
-  if (inp.IsMultilevelInTime() && numSols == 2) {
-    cout << "Reading solution from time n-1..." << endl;
-    for (auto &block : vars) {
-      block.ReadSolNm1FromRestart(fName, inp, eos, suth, turb, restartVars);
+  if (inp.IsMultilevelInTime()) {
+    if (numSols == 2) {
+      cout << "Reading solution from time n-1..." << endl;
+      for (auto &block : vars) {
+        block.ReadSolNm1FromRestart(fName, inp, eos, suth, turb, restartVars);
+      }
+    } else {
+      cerr << "WARNING: Using multilevel time integration scheme, but only one "
+           << "time level found in restart file" << endl;
+      // assign solution at time n to n-1
+      AssignSolToTimeNm1(vars);
     }
   }
 
