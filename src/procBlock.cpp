@@ -5690,6 +5690,7 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
     for (auto jj = 0; jj < this->NumJ(); jj++) {
       for (auto ii = 0; ii < this->NumI(); ii++) {
         // calculate turbulent source terms
+        const auto phi = turb->UsePhi() ? this->MaxCellWidth(ii, jj, kk) : 1.0;
         source src;
         const auto srcJac = src.CalcTurbSrc(turb, state_(ii, jj, kk),
                                             velocityGrad_(ii, jj, kk),
@@ -5698,7 +5699,8 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
                                             omegaGrad_(ii, jj, kk), suth,
                                             vol_(ii, jj, kk),
                                             eddyViscosity_(ii, jj, kk),
-                                            f1_(ii, jj, kk));
+                                            f1_(ii, jj, kk), f2_(ii, jj, kk),
+                                            phi);
 
         // add source terms to residual
         // subtract because residual is initially on opposite side of equation
@@ -5708,7 +5710,7 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
         // add source spectral radius for turbulence equations
         // subtract because residual is initially on opposite side of equation
         const auto turbSpecRad = turb->SrcSpecRad(state_(ii, jj, kk), suth,
-                                                  vol_(ii, jj, kk));
+                                                  vol_(ii, jj, kk), phi);
         specRadius_(ii, jj, kk).SubtractFromTurbVariable(turbSpecRad);
 
         // add contribution of source spectral radius to flux jacobian

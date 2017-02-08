@@ -598,6 +598,8 @@ unique_ptr<turbModel> input::AssignTurbulenceModel() const {
     turb = unique_ptr<turbModel>{std::make_unique<turbKWWilcox>()};
   } else if (turbModel_ == "sst2003") {
     turb = unique_ptr<turbModel>{std::make_unique<turbKWSst>()};
+  } else if (turbModel_ == "sstdes") {
+    turb = unique_ptr<turbModel>{std::make_unique<turbSstDes>()};
   } else {
     cerr << "ERROR: Error in input::AssignTurbulenceModel(). Turbulence model "
          << turbModel_ << " is not recognized!" << endl;

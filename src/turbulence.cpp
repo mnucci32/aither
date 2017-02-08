@@ -82,9 +82,10 @@ double turbModel::ReynoldsStressDDotVelGrad(const primVars &state,
 
 // member function for destruction of tke
 // Dk = rho * k * w
-double turbModel::TkeDestruction(const primVars &state) const {
+double turbModel::TkeDestruction(const primVars &state,
+                                 const double &phi) const {
   // state -- primative variables
-  return state.Rho() * state.Tke() * state.Omega();
+  return state.Rho() * state.Tke() * state.Omega() * phi;
 }
 
 // member function for destruction of omega
@@ -267,6 +268,7 @@ squareMatrix turbNone::CalcTurbSrc(const primVars &state,
                                    const vector3d<double> &wGrad,
                                    const sutherland &suth, const double &vol,
                                    const double &turbVisc, const double &f1,
+                                   const double &f2, const double &width,
                                    double &ksrc, double &wsrc) const {
   // set k and omega source terms to zero
   ksrc = 0.0;
@@ -279,7 +281,7 @@ squareMatrix turbNone::CalcTurbSrc(const primVars &state,
 squareMatrix turbNone::TurbSrcJac(const primVars &state, const double &beta,
                                   const sutherland &suth,
                                   const double &vol,
-                                  const double &lenScale) const {
+                                  const double &phi) const {
   return squareMatrix();
 }
 
@@ -414,6 +416,7 @@ squareMatrix turbKWWilcox::CalcTurbSrc(const primVars &state,
                                        const sutherland &suth,
                                        const double &vol,
                                        const double &mut, const double &f1,
+                                       const double &f2, const double &width,
                                        double &ksrc, double &wsrc) const {
   // state -- primative variables
   // velGrad -- velocity gradient
@@ -497,7 +500,7 @@ void turbKWWilcox::EddyViscAndBlending(const primVars &state,
 */
 double turbKWWilcox::SrcSpecRad(const primVars &state,
                                 const sutherland &suth,
-                                const double &vol) const {
+                                const double &vol, const double &phi) const {
   // state -- primative variables
   // suth -- sutherland's law for viscosity
   // vol -- cell volume
@@ -510,12 +513,12 @@ squareMatrix turbKWWilcox::TurbSrcJac(const primVars &state,
                                       const double &beta,
                                       const sutherland &suth,
                                       const double &vol,
-                                      const double &lenScale) const {
+                                      const double &phi) const {
   // state -- primative variables
   // beta -- destruction coefficient for omega equation
   // suth -- sutherland's law for viscosity
   // vol -- cell volume
-  // lenScale -- turbulence length scale (not used)
+  // phi -- factor to reduce tke destruction for des
 
   squareMatrix jac(2);
   jac(0, 0) = -2.0 * betaStar_ * state.Omega() * vol * suth.InvNondimScaling();
@@ -692,6 +695,7 @@ squareMatrix turbKWSst::CalcTurbSrc(const primVars &state,
                                     const vector3d<double> &wGrad,
                                     const sutherland &suth, const double &vol,
                                     const double &mut, const double &f1,
+                                    const double &f2, const double &width,
                                     double &ksrc, double &wsrc) const {
   // state -- primative variables
   // velGrad -- velocity gradient
@@ -788,7 +792,7 @@ void turbKWSst::EddyViscAndBlending(const primVars &state,
 */
 double turbKWSst::SrcSpecRad(const primVars &state,
                              const sutherland &suth,
-                             const double &vol) const {
+                             const double &vol, const double &phi) const {
   // state -- primative variables
   // suth -- sutherland's law for viscosity
 
@@ -800,15 +804,16 @@ squareMatrix turbKWSst::TurbSrcJac(const primVars &state,
                                    const double &beta,
                                    const sutherland &suth,
                                    const double &vol,
-                                   const double &lenScale) const {
+                                   const double &phi) const {
   // state -- primative variables
   // beta -- destruction coefficient for omega equation
   // suth -- sutherland's law for viscosity
   // vol -- cell volume
-  // lenScale -- turbulence length scale (not used)
+  // phi -- factor to reduce tke destruction for des
 
   squareMatrix jac(2);
-  jac(0, 0) = -2.0 * betaStar_ * state.Omega() * vol * suth.InvNondimScaling();
+  jac(0, 0) = -2.0 * betaStar_ * state.Omega() * phi * vol *
+      suth.InvNondimScaling();
   jac(1, 1) = -2.0 * beta * state.Omega() * vol * suth.InvNondimScaling();
 
   // return jacobian scaled for nondimensional equations
@@ -837,7 +842,7 @@ squareMatrix turbKWSst::ViscousJacobian(const primVars &state,
       (mu + this->SigmaK(f1) * mut);
   jacobian(1, 1) = fArea.Mag() * suth.NondimScaling() / (dist * state.Rho()) *
       (mu + this->SigmaW(f1) * mut);
-  
+
   return jacobian;
 }
 
@@ -905,6 +910,11 @@ void turbKWSst::Print() const {
   cout << "Gamma2: " << gamma2_ << endl;
 }
 
+double turbSstDes::Phi(const primVars &state, const double &cdes,
+                       const double &width, const double &f2) const {
+  return std::max((1.0 - f2) * this->TurbLengthScale(state) / (cdes * width),
+                  1.0);
+}
 
 // member function to calculate turbulence source terms and source jacobian
 squareMatrix turbSstDes::CalcTurbSrc(const primVars &state,
@@ -913,6 +923,7 @@ squareMatrix turbSstDes::CalcTurbSrc(const primVars &state,
                                      const vector3d<double> &wGrad,
                                      const sutherland &suth, const double &vol,
                                      const double &mut, const double &f1,
+                                     const double &f2, const double &width,
                                      double &ksrc, double &wsrc) const {
   // state -- primative variables
   // velGrad -- velocity gradient
@@ -934,10 +945,8 @@ squareMatrix turbSstDes::CalcTurbSrc(const primVars &state,
   const auto cdes = this->BlendedCoeff(cdes1_, cdes2_, f1);
 
   // calculate tke destruction
-  const auto lengthScale = this->HybridLengthScale(state, pow(vol, 1.0 / 3.0),
-                                                   cdes, f1);
-  const auto tkeDest = suth.InvNondimScaling() *
-      this->TkeDestruction(state, lengthScale);
+  const auto phi = this->Phi(state, cdes, width, f2);
+  const auto tkeDest = suth.InvNondimScaling() * this->TkeDestruction(state, phi);
 
   // calculate omega destruction
   const auto omgDest = suth.InvNondimScaling() * beta *
@@ -963,42 +972,20 @@ squareMatrix turbSstDes::CalcTurbSrc(const primVars &state,
   wsrc = omgProd - omgDest + omgCd;
 
   // return spectral radius of source jacobian
-  return this->TurbSrcJac(state, beta, suth, vol, lengthScale);
+  return this->TurbSrcJac(state, beta, suth, vol, phi);
 }
 
-double turbSstDes::TkeDestruction(const primVars &state,
-                                  const double &lenScale) const {
-  return state.Rho() * pow(state.Tke(), 1.5) / lenScale;
-}
-
-squareMatrix turbSstDes::TurbSrcJac(const primVars &state,
-                                    const double &beta,
-                                    const sutherland &suth,
-                                    const double &vol,
-                                    const double &lengthScale) const {
-  // state -- primative variables
-  // beta -- destruction coefficient for omega equation
-  // suth -- sutherland's law for viscosity
-  // vol -- cell volume
-  // lengthScale -- hybrid turbulent length scale
-
-  squareMatrix jac(2);
-  jac(0, 0) = -1.5 * sqrt(state.Tke()) / lengthScale * vol *
-      suth.InvNondimScaling();
-  jac(1, 1) = -2.0 * beta * state.Omega() * vol * suth.InvNondimScaling();
-
-  // return jacobian scaled for nondimensional equations
-  return jac;
-}
 
 double turbSstDes::SrcSpecRad(const primVars &state,
                               const sutherland &suth,
-                              const double &vol) const {
+                              const double &vol, const double &phi) const {
   // state -- primative variables
   // suth -- sutherland's law for viscosity
 
   // return spectral radius scaled for nondimensional equations
-  return -2.0 * this->BetaStar() * state.Omega() * vol * suth.InvNondimScaling();
+  auto beta = this->Beta2();  // using beta2 b/c it is larger than beta1
+  auto jac = this->TurbSrcJac(state, beta, suth, vol, phi);
+  return -1.0 * jac.MaxAbsValOnDiagonal();
 }
 
 
