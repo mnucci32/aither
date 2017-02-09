@@ -287,9 +287,9 @@ int main(int argc, char *argv[]) {
     inputVars.CalcCFL(nn);
 
     // Store time-n solution, for time integration methods that require it
-    if (inputVars.IsImplicit() || inputVars.TimeIntegration() == "rk4") {
+    if (inputVars.NeedToStoreTimeN()) {
       AssignSolToTimeN(localStateBlocks, eos);
-      if (!inputVars.IsRestart() && nn == 0) {
+      if (!inputVars.IsRestart() && inputVars.IsMultilevelInTime() && nn == 0) {
         AssignSolToTimeNm1(localStateBlocks);
       }
     }

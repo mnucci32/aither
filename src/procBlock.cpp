@@ -71,7 +71,7 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
 
   isViscous_ = inp.IsViscous();
   isTurbulent_ = inp.IsTurbulent();
-  storeTimeN_ = (inp.IsImplicit() || inp.TimeIntegration() == "rk4");
+  storeTimeN_ = inp.NeedToStoreTimeN();
   isMultiLevelTime_ = inp.IsMultilevelInTime();
 
   // get initial condition state for parent block

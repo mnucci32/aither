@@ -127,6 +127,9 @@ class input {
 
   string TimeIntegration() const {return timeIntegration_;}
   bool IsMultilevelInTime() const {return timeIntegration_ == "bdf2";}
+  bool NeedToStoreTimeN() const {
+    return this->IsImplicit() || this->TimeIntegration() == "rk4";
+  }
 
   double CFL() const {return cfl_;}
   void CalcCFL(const int &i);
