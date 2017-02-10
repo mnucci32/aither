@@ -971,8 +971,12 @@ double procBlock::SolDeltaNm1Coeff(const int &ii, const int &jj, const int &kk,
 
 genArray procBlock::SolDeltaNm1(const int &ii, const int &jj, const int &kk,
                                 const input &inp) const {
-  const auto coeff = this->SolDeltaNm1Coeff(ii, jj, kk, inp);
-  return coeff * (consVarsN_(ii, jj, kk) - consVarsNm1_(ii, jj, kk));
+  if (isMultiLevelTime_) {
+    const auto coeff = this->SolDeltaNm1Coeff(ii, jj, kk, inp);
+    return coeff * (consVarsN_(ii, jj, kk) - consVarsNm1_(ii, jj, kk));
+  } else {
+    return genArray(0.0);
+  }
 }
 
 void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
