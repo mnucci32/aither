@@ -25,21 +25,19 @@ import datetime
 import subprocess
 
 class regressionTest:
-    caseName = "none"
-    iterations = 100
-    procs = 1
-    residuals = [1.0, 1.0, 1.0, 1.0, 1.0]
-    ignoreIndices = []
-    location = "."
-    runDirectory = "."
-    aitherPath = "."
-    mpirunPath = "mpirun"
-    percentTolerance = 0.01
-    isRestart = False
-    restartFile = "none"
-
     def __init__(self):
+        self.caseName = "none"
+        self.iterations = 100
+        self.procs = 1
+        self.residuals = [1.0, 1.0, 1.0, 1.0, 1.0]
+        self.ignoreIndices = []
         self.location = os.getcwd()
+        self.runDirectory = "."
+        self.aitherPath = "aither"
+        self.mpirunPath = "mpirun"
+        self.percentTolerance = 0.01
+        self.isRestart = False
+        self.restartFile = "none"
         
     def SetRegressionCase(self, name):
         self.caseName = name
