@@ -157,7 +157,8 @@ class procBlock {
   // constructors
   procBlock(const double &, const plot3dBlock &, const int &,
             const boundaryConditions &, const int &, const int &, const int &,
-            const input &, const idealGas &, const sutherland &);
+            const input &, const idealGas &, const sutherland &,
+            const unique_ptr<turbModel> &);
   procBlock(const int &, const int &, const int &, const int &, const bool &,
             const bool &, const bool &, const bool &);
   procBlock() : procBlock(1, 1, 1, 0, false, false, false, false) {}

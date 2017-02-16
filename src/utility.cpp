@@ -261,7 +261,7 @@ boundaries to pass the correct data between grid blocks.
 void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
                            const idealGas &eos, const sutherland &suth,
                            const unique_ptr<turbModel> &turb,
-                           vector<interblock> &conn, const int &rank,
+                           vector<interblock> &connections, const int &rank,
                            const MPI_Datatype &MPI_cellData) {
   // states -- vector of all procBlocks in the solution domain
   // inp -- all input variables
@@ -272,32 +272,30 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
   // MPI_cellData -- data type to pass primVars, genArray
 
   // loop over all blocks and assign inviscid ghost cells
-  for (auto ii = 0U; ii < states.size(); ii++) {
-    states[ii].AssignInviscidGhostCells(inp, eos, suth, turb);
+  for (auto &state : states) {
+    state.AssignInviscidGhostCells(inp, eos, suth, turb);
   }
 
   // loop over connections and swap ghost cells where needed
-  for (auto ii = 0U; ii < conn.size(); ii++) {
-    if (conn[ii].RankFirst() == rank && conn[ii].RankSecond() == rank) {
+  for (auto &conn : connections) {
+    if (conn.RankFirst() == rank && conn.RankSecond() == rank) {
       // both sides of interblock on this processor, swap w/o mpi
-      states[conn[ii].LocalBlockFirst()].SwapStateSlice(
-          conn[ii], states[conn[ii].LocalBlockSecond()]);
-    } else if (conn[ii].RankFirst() == rank) {
+      states[conn.LocalBlockFirst()].SwapStateSlice(
+          conn, states[conn.LocalBlockSecond()]);
+    } else if (conn.RankFirst() == rank) {
       // rank matches rank of first side of interblock, swap over mpi
-      states[conn[ii].LocalBlockFirst()].SwapStateSliceMPI(conn[ii], rank,
-                                                           MPI_cellData);
-    } else if (conn[ii].RankSecond() == rank) {
+      states[conn.LocalBlockFirst()].SwapStateSliceMPI(conn, rank, MPI_cellData);
+    } else if (conn.RankSecond() == rank) {
       // rank matches rank of second side of interblock, swap over mpi
-      states[conn[ii].LocalBlockSecond()].SwapStateSliceMPI(conn[ii], rank,
-                                                            MPI_cellData);
+      states[conn.LocalBlockSecond()].SwapStateSliceMPI(conn, rank, MPI_cellData);
     }
     // if rank doesn't match either side of interblock, then do nothing and
     // move on to the next interblock
   }
 
   // loop over all blocks and get ghost cell edge data
-  for (auto ii = 0U; ii < states.size(); ii++) {
-    states[ii].AssignInviscidGhostCellsEdge(inp, eos, suth, turb);
+  for (auto &state : states) {
+    state.AssignInviscidGhostCellsEdge(inp, eos, suth, turb);
   }
 }
 
@@ -391,8 +389,8 @@ void ExplicitUpdate(vector<procBlock> &blocks,
   // create dummy update (not used in explicit update)
   multiArray3d<genArray> du(1, 1, 1, 0);
   // loop over all blocks and update
-  for (auto bb = 0U; bb < blocks.size(); bb++) {
-    blocks[bb].UpdateBlock(inp, eos, aRef, suth, du, turb, mm, residL2, residLinf);
+  for (auto &block : blocks) {
+    block.UpdateBlock(inp, eos, aRef, suth, du, turb, mm, residL2, residLinf);
   }
 }
 
@@ -498,7 +496,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
 }
 
 void SwapImplicitUpdate(vector<multiArray3d<genArray>> &du,
-                        const vector<interblock> &conn, const int &rank,
+                        const vector<interblock> &connections, const int &rank,
                         const MPI_Datatype &MPI_cellData,
                         const int &numGhosts) {
   // du -- implicit update in conservative variables
@@ -508,17 +506,16 @@ void SwapImplicitUpdate(vector<multiArray3d<genArray>> &du,
   // numGhosts -- number of ghost cells
 
   // loop over all connections and swap interblock updates when necessary
-  for (auto ii = 0U; ii < conn.size(); ii++) {
-    if (conn[ii].RankFirst() == rank && conn[ii].RankSecond() == rank) {
+  for (auto &conn : connections) {
+    if (conn.RankFirst() == rank && conn.RankSecond() == rank) {
       // both sides of interblock are on this processor, swap w/o mpi
-      du[conn[ii].LocalBlockFirst()].SwapSlice(conn[ii],
-                                               du[conn[ii].LocalBlockSecond()]);
-    } else if (conn[ii].RankFirst() == rank) {
+      du[conn.LocalBlockFirst()].SwapSlice(conn, du[conn.LocalBlockSecond()]);
+    } else if (conn.RankFirst() == rank) {
       // rank matches rank of first side of interblock, swap over mpi
-      du[conn[ii].LocalBlockFirst()].SwapSliceMPI(conn[ii], rank, MPI_cellData);
-    } else if (conn[ii].RankSecond() == rank) {
+      du[conn.LocalBlockFirst()].SwapSliceMPI(conn, rank, MPI_cellData);
+    } else if (conn.RankSecond() == rank) {
       // rank matches rank of second side of interblock, swap over mpi
-      du[conn[ii].LocalBlockSecond()].SwapSliceMPI(conn[ii], rank, MPI_cellData);
+      du[conn.LocalBlockSecond()].SwapSliceMPI(conn, rank, MPI_cellData);
     }
     // if rank doesn't match either side of interblock, then do nothing and
     // move on to the next interblock
@@ -527,7 +524,7 @@ void SwapImplicitUpdate(vector<multiArray3d<genArray>> &du,
 
 
 void SwapTurbVars(vector<procBlock> &states,
-                  const vector<interblock> &conn, const int &rank,
+                  const vector<interblock> &connections, const int &rank,
                   const int &numGhosts) {
   // states -- vector of all procBlocks in the solution domain
   // conn -- interblock boundary conditions
@@ -535,17 +532,17 @@ void SwapTurbVars(vector<procBlock> &states,
   // numGhosts -- number of ghost cells
 
   // loop over all connections and swap interblock updates when necessary
-  for (auto ii = 0U; ii < conn.size(); ii++) {
-    if (conn[ii].RankFirst() == rank && conn[ii].RankSecond() == rank) {
+  for (auto &conn : connections) {
+    if (conn.RankFirst() == rank && conn.RankSecond() == rank) {
       // both sides of interblock are on this processor, swap w/o mpi
-      states[conn[ii].LocalBlockFirst()].SwapTurbSlice(
-          conn[ii], states[conn[ii].LocalBlockSecond()]);
-    } else if (conn[ii].RankFirst() == rank) {
+      states[conn.LocalBlockFirst()].SwapTurbSlice(
+          conn, states[conn.LocalBlockSecond()]);
+    } else if (conn.RankFirst() == rank) {
       // rank matches rank of first side of interblock, swap over mpi
-      states[conn[ii].LocalBlockFirst()].SwapTurbSliceMPI(conn[ii], rank);
-    } else if (conn[ii].RankSecond() == rank) {
+      states[conn.LocalBlockFirst()].SwapTurbSliceMPI(conn, rank);
+    } else if (conn.RankSecond() == rank) {
       // rank matches rank of second side of interblock, swap over mpi
-      states[conn[ii].LocalBlockSecond()].SwapTurbSliceMPI(conn[ii], rank);
+      states[conn.LocalBlockSecond()].SwapTurbSliceMPI(conn, rank);
     }
     // if rank doesn't match either side of interblock, then do nothing and
     // move on to the next interblock
@@ -553,7 +550,7 @@ void SwapTurbVars(vector<procBlock> &states,
 }
 
 void SwapGradients(vector<procBlock> &states,
-                   const vector<interblock> &conn, const int &rank,
+                   const vector<interblock> &connections, const int &rank,
                    const MPI_Datatype &MPI_tensorDouble,
                    const MPI_Datatype &MPI_vec3d,
                    const int &numGhosts) {
@@ -565,21 +562,21 @@ void SwapGradients(vector<procBlock> &states,
   // numGhosts -- number of ghost cells
 
   // loop over all connections and swap interblock updates when necessary
-  for (auto ii = 0U; ii < conn.size(); ii++) {
-    if (conn[ii].RankFirst() == rank && conn[ii].RankSecond() == rank) {
+  for (auto &conn : connections) {
+    if (conn.RankFirst() == rank && conn.RankSecond() == rank) {
       // both sides of interblock are on this processor, swap w/o mpi
-      states[conn[ii].LocalBlockFirst()].SwapGradientSlice(
-          conn[ii], states[conn[ii].LocalBlockSecond()]);
-    } else if (conn[ii].RankFirst() == rank) {
+      states[conn.LocalBlockFirst()].SwapGradientSlice(
+          conn, states[conn.LocalBlockSecond()]);
+    } else if (conn.RankFirst() == rank) {
       // rank matches rank of first side of interblock, swap over mpi
-      states[conn[ii].LocalBlockFirst()].SwapGradientSliceMPI(conn[ii], rank,
-                                                              MPI_tensorDouble,
-                                                              MPI_vec3d);
-    } else if (conn[ii].RankSecond() == rank) {
+      states[conn.LocalBlockFirst()].SwapGradientSliceMPI(conn, rank,
+                                                          MPI_tensorDouble,
+                                                          MPI_vec3d);
+    } else if (conn.RankSecond() == rank) {
       // rank matches rank of second side of interblock, swap over mpi
-      states[conn[ii].LocalBlockSecond()].SwapGradientSliceMPI(conn[ii], rank,
-                                                               MPI_tensorDouble,
-                                                               MPI_vec3d);
+      states[conn.LocalBlockSecond()].SwapGradientSliceMPI(conn, rank,
+                                                           MPI_tensorDouble,
+                                                           MPI_vec3d);
     }
     // if rank doesn't match either side of interblock, then do nothing and
     // move on to the next interblock
@@ -614,9 +611,37 @@ void CalcResidual(vector<procBlock> &states,
                 inp.NumberGhostLayers());
 
   if (inp.IsTurbulent()) {
+    // DEBUG
+    if (rank == 0) {
+      // cout << "before swap" << endl;
+      // cout << "block size: " << states[0].NumI() << ", " << states[0].NumJ()
+      //      << ", " << states[0].NumK() << endl;
+      // cout << "parent block: " << states[0].ParentBlock() << endl;
+      // cout << "first ghost: " << states[0].EddyViscosity(-1, 41, 0) << endl;
+      // cout << "interior 1: " << states[0].EddyViscosity(0, 41, 0) << endl;
+      // cout << "interior 2: " << states[0].EddyViscosity(1, 41, 0) << endl;
+      // cout << "interior 20: " << states[0].EddyViscosity(20, 41, 0) << endl;
+      // states[0].DumpToFile("velocityGradient", "mut_before3.dat");
+    } else {
+      // states[1].DumpToFile("velocityGradient", "mut_before2.dat");
+    }
+    
     // swap turbulence variables calculated during residual calculation
     SwapTurbVars(states, connections, rank, inp.NumberGhostLayers());
 
+    // DEBUG
+    if (rank == 0) {
+      // cout << "after swap" << endl;
+      // cout << "first ghost: " << states[0].EddyViscosity(-1, 41, 0) << endl;
+      // cout << "interior 1: " << states[0].EddyViscosity(0, 41, 0) << endl;
+      // cout << "interior 2: " << states[0].EddyViscosity(1, 41, 0) << endl;
+      // cout << "interior 20: " << states[0].EddyViscosity(20, 41, 0) << endl;
+      // states[0].DumpToFile("velocityGradient", "mut_after3.dat");
+    } else {
+      // states[1].DumpToFile("velocityGradient", "mut_after2.dat");
+    }
+
+    
     for (auto bb = 0U; bb < states.size(); bb++) {
       // calculate source terms for residual
       states[bb].CalcSrcTerms(suth, turb, inp, mainDiagonal[bb]);
@@ -630,15 +655,15 @@ void CalcTimeStep(vector<procBlock> &states, const input &inp,
   // inp -- input variables
   // aRef -- reference speed of sound
 
-  for (auto bb = 0U; bb < states.size(); bb++) {
+  for (auto &state : states) {
     // calculate time step
-    states[bb].CalcBlockTimeStep(inp, aRef);
+    state.CalcBlockTimeStep(inp, aRef);
   }
 }
 
 
 // function to reorder the block by hyperplanes
-/*A hyperplane is a plane of i+j+k=constant within an individual block. The
+/* A hyperplane is a plane of i+j+k=constant within an individual block. The
 LUSGS solver must sweep along these hyperplanes to avoid
 calculating a flux jacobian. Ex. The solver must visit all points on hyperplane
 1 before visiting any points on hyperplane 2.
@@ -665,22 +690,6 @@ vector<vector3d<int>> HyperplaneReorder(const int &imax, const int &jmax,
 
   return reorder;
 }
-
-// void GetSolMMinusN(vector<multiArray3d<genArray>> &solMMinusN,
-//                    const vector<procBlock> &states,
-//                    const vector<multiArray3d<genArray>> &solN,
-//                    const idealGas &eos, const input &inp, const int &mm) {
-//   // solMMinusN -- solution at time m minus solution at time n
-//   // solN -- solution at time n
-//   // eos -- equation of state
-//   // inp -- input variables
-//   // mm -- nonlinear iteration
-
-//   for (auto bb = 0U; bb < solMMinusN.size(); bb++) {
-//     solMMinusN[bb] = states[bb].SolTimeMMinusN(solN[bb], eos, inp, mm);
-//   }
-// }
-
 
 void ResizeArrays(const vector<procBlock> &states, const input &inp,
                   vector<multiArray3d<fluxJacobian>> &jac) {

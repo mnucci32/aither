@@ -393,6 +393,7 @@ void input::ReadInput(const int &rank) {
                 numChars += vars.length();
                 if (numChars >= 50) {  // if more than 50 chars, go to next line
                   cout << endl << "                  ";
+                  numChars = 0U;
                 }
               }
               count++;

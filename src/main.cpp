@@ -152,7 +152,7 @@ int main(int argc, char *argv[]) {
       stateBlocks[ll] = procBlock(aRef, mesh[ll], decomp.ParentBlock(ll),
                                   bcs[ll], ll, decomp.Rank(ll),
                                   decomp.LocalPosition(ll), inputVars, eos,
-                                  suth);
+                                  suth, turb);
       stateBlocks[ll].AssignGhostCellsGeom();
     }
     // if restart, get data from restart file

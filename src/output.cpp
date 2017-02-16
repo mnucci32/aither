@@ -177,6 +177,12 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
                   recombVars[ll].EddyViscosity(ii, jj, kk) /
                   recombVars[ll].Viscosity(ii, jj, kk)
                   : 0.0;
+            } else if (var == "turbulentViscosity") {
+              value = recombVars[ll].EddyViscosity(ii, jj, kk);
+              value *= suth.MuRef();
+            } else if (var == "viscosity") {
+              value = recombVars[ll].Viscosity(ii, jj, kk);
+              value *= suth.MuRef();
             } else if (var == "tke") {
               value = recombVars[ll].State(ii, jj, kk).Tke();
               value *= refSoS * refSoS;

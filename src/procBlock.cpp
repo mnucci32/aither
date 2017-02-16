@@ -49,7 +49,7 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
                      const int &numBlk, const boundaryConditions &bound,
                      const int &pos, const int &r, const int &lpos,
                      const input &inp, const idealGas &eos,
-                     const sutherland &suth) {
+                     const sutherland &suth, const unique_ptr<turbModel> &turb) {
   // blk -- plot3d block of which this procBlock is a subset of
   // numBlk -- the block number of blk (the parent block)
   // bound -- boundary conditions for block
@@ -59,6 +59,7 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
   // inp -- input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
+  // turb -- turbulence model
 
   numGhosts_ = inp.NumberGhostLayers();
   parBlock_ = numBlk;
@@ -84,7 +85,7 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
 
   // get nondimensional state for initialization
   primVars inputState;
-  inputState.NondimensionalInitialize(eos, aRef, inp, suth, parBlock_);
+  inputState.NondimensionalInitialize(eos, aRef, inp, suth, parBlock_, turb);
 
   // pad stored variable vectors with ghost cells
   state_ = PadWithGhosts(multiArray3d<primVars>(numI, numJ, numK, 0,
@@ -4653,6 +4654,7 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
   if (isMultiLevelTime_) {
     consVarsNm1_.ClearResize(numI, numJ, numK, 0);
   }
+
   center_.ClearResize(numI, numJ, numK, numGhosts);
   vol_.ClearResize(numI, numJ, numK, numGhosts);
 
@@ -5819,10 +5821,8 @@ void procBlock::UpdateUnlimTurbEddyVisc(const unique_ptr<turbModel> &turb,
                                         const bool &includeGhosts) {
   if (isTurbulent_) {
     for (auto kk = eddyViscosity_.StartK(); kk < eddyViscosity_.EndK(); kk++) {
-      for (auto jj = eddyViscosity_.StartJ(); jj < eddyViscosity_.EndJ();
-           jj++) {
-        for (auto ii = eddyViscosity_.StartI(); ii < eddyViscosity_.EndI();
-             ii++) {
+      for (auto jj = eddyViscosity_.StartJ(); jj < eddyViscosity_.EndJ(); jj++) {
+        for (auto ii = eddyViscosity_.StartI(); ii < eddyViscosity_.EndI(); ii++) {
           if (!this->AtCorner(ii, jj, kk) &&
               (includeGhosts || this->IsPhysical(ii, jj, kk))) {
             eddyViscosity_(ii, jj, kk) =
@@ -5899,6 +5899,10 @@ void procBlock::DumpToFile(const string &var, const string &fName) const {
     outFile << velocityGrad_ << endl;
   } else if (var == "temperatureGradient") {
     outFile << temperatureGrad_ << endl;
+  } else if (var == "viscosity") {
+    outFile << viscosity_ << endl;
+  } else if (var == "eddyViscosity") {
+    outFile << eddyViscosity_ << endl;
   } else {
     cerr << "ERROR: Error in procBlock::DumpToFile(). Variable " << var
          << " is not supported!" << endl;
