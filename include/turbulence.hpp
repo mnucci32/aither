@@ -294,7 +294,7 @@ class turbKWWilcox : public turbModel {
   double TurbPrandtlNumber() const override {return prt_;}
   double WallBeta() const override {return beta0_;}
 
-  double TurbLengthScale(const primVars &state) const;
+  double TurbLengthScale(const primVars &state, const sutherland &) const;
 
   double Gamma() const {return gamma_;}
   double BetaStar() const {return betaStar_;}
@@ -409,7 +409,7 @@ class turbKWSst : public turbModel {
   double A1() const {return a1_;}
   double BetaStar() const {return betaStar_;}
   double TkeProd2DestRatio() const {return kProd2Dest_;}
-  double TurbLengthScale(const primVars &state) const;
+  double TurbLengthScale(const primVars &state, const sutherland &) const;
 
   // use coefficients from 1 because they are smaller
   // this is used for TSL flux jacobian, so smaller will help increase
@@ -434,7 +434,7 @@ class turbSstDes : public turbKWSst {
 
   // private member functions
   double Phi(const primVars &state, const double &cdes, const double &width,
-             const double &f2) const;
+             const double &f2, const sutherland &suth) const;
 
  public:
   // constructor

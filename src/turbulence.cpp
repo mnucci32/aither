@@ -599,8 +599,9 @@ double turbKWWilcox::ViscFaceSpecRad(const primVars &state,
       (mu + this->SigmaK(f1) * this->EddyViscNoLim(state));
 }
 
-double turbKWWilcox::TurbLengthScale(const primVars &state) const {
-  return sqrt(state.Tke()) / (betaStar_ * state.Omega());
+double turbKWWilcox::TurbLengthScale(const primVars &state,
+                                     const sutherland &suth) const {
+  return sqrt(state.Tke()) / (betaStar_ * state.Omega()) * suth.NondimScaling();
 }
 
 // member function to print out turbulence variables
@@ -887,8 +888,9 @@ double turbKWSst::ViscFaceSpecRad(const primVars &state,
       (mu + this->SigmaK(f1) * mut);
 }
 
-double turbKWSst::TurbLengthScale(const primVars &state) const {
-  return sqrt(state.Tke()) / (betaStar_ * state.Omega());
+double turbKWSst::TurbLengthScale(const primVars &state,
+                                  const sutherland &suth) const {
+  return sqrt(state.Tke()) / (betaStar_ * state.Omega()) * suth.NondimScaling();
 }
 
 // member function to print out turbulence variables
@@ -911,9 +913,10 @@ void turbKWSst::Print() const {
 }
 
 double turbSstDes::Phi(const primVars &state, const double &cdes,
-                       const double &width, const double &f2) const {
-  return std::max((1.0 - f2) * this->TurbLengthScale(state) / (cdes * width),
-                  1.0);
+                       const double &width, const double &f2,
+                       const sutherland &suth) const {
+  return std::max((1.0 - f2) * this->TurbLengthScale(state, suth) /
+                  (cdes * width), 1.0);
 }
 
 // member function to calculate turbulence source terms and source jacobian
@@ -945,7 +948,7 @@ squareMatrix turbSstDes::CalcTurbSrc(const primVars &state,
   const auto cdes = this->BlendedCoeff(cdes1_, cdes2_, f1);
 
   // calculate tke destruction
-  const auto phi = this->Phi(state, cdes, width, f2);
+  const auto phi = this->Phi(state, cdes, width, f2, suth);
   const auto tkeDest = suth.InvNondimScaling() * this->TkeDestruction(state, phi);
 
   // calculate omega destruction

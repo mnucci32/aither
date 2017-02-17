@@ -189,6 +189,10 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
             } else if (var == "sdr") {
               value = recombVars[ll].State(ii, jj, kk).Omega();
               value *= refSoS * refSoS * inp.RRef() / suth.MuRef();
+            } else if (var == "f1") {
+              value = recombVars[ll].F1(ii, jj, kk);
+            } else if (var == "f2") {
+              value = recombVars[ll].F2(ii, jj, kk);
             } else if (var == "wallDistance") {
               value = recombVars[ll].WallDist(ii, jj, kk);
               value *= inp.LRef();
