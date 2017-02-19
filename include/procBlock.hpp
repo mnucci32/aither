@@ -442,6 +442,8 @@ class procBlock {
   bool AtCorner(const int &, const int &, const int &) const;
   bool AtEdge(const int &, const int &, const int &, string &) const;
   bool AtEdgeInclusive(const int &, const int &, const int &, string &) const;
+  bool AtGhostNonEdge(const int &, const int &, const int &, string &,
+                      int &) const;
 
   vector<bool> PutGeomSlice(const geomSlice &, interblock &, const int &);
   void PutStateSlice(const multiArray3d<primVars> &, const interblock &,
@@ -455,6 +457,8 @@ class procBlock {
   void SwapStateSliceMPI(const interblock &, const int &, const MPI_Datatype &);
   void SwapTurbSlice(const interblock &, procBlock &);
   void SwapTurbSliceMPI(const interblock &, const int &);
+  void SwapWallDistSlice(const interblock &, procBlock &);
+  void SwapWallDistSliceMPI(const interblock &, const int &);
   void SwapGradientSlice(const interblock &, procBlock &);
   void SwapGradientSliceMPI(const interblock &, const int &,
                             const MPI_Datatype &, const MPI_Datatype &);
@@ -477,13 +481,9 @@ class procBlock {
 
   void DumpToFile(const string &, const string &) const;
   void CalcCellWidths();
-  void ReadSolFromRestart(ifstream &, const input &, const idealGas &,
-                          const sutherland &, const unique_ptr<turbModel> &,
-                          const vector<string> &);
-  void ReadSolNm1FromRestart(ifstream &, const input &, const idealGas &,
-                          const sutherland &, const unique_ptr<turbModel> &,
-                          const vector<string> &);
-
+  void GetStatesFromRestart(const multiArray3d<primVars> &);
+  void GetSolNm1FromRestart(const multiArray3d<genArray> &);
+  
   // destructor
   ~procBlock() noexcept {}
 };

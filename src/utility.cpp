@@ -583,6 +583,31 @@ void SwapGradients(vector<procBlock> &states,
   }
 }
 
+void SwapWallDist(vector<procBlock> &states,
+                  const vector<interblock> &connections, const int &rank,
+                  const int &numGhosts) {
+  // states -- vector of all procBlocks in the solution domain
+  // conn -- interblock boundary conditions
+  // rank -- processor rank
+  // numGhosts -- number of ghost cells
+
+  // loop over all connections and swap interblock updates when necessary
+  for (auto &conn : connections) {
+    if (conn.RankFirst() == rank && conn.RankSecond() == rank) {
+      // both sides of interblock are on this processor, swap w/o mpi
+      states[conn.LocalBlockFirst()].SwapWallDistSlice(
+          conn, states[conn.LocalBlockSecond()]);
+    } else if (conn.RankFirst() == rank) {
+      // rank matches rank of first side of interblock, swap over mpi
+      states[conn.LocalBlockFirst()].SwapWallDistSliceMPI(conn, rank);
+    } else if (conn.RankSecond() == rank) {
+      // rank matches rank of second side of interblock, swap over mpi
+      states[conn.LocalBlockSecond()].SwapWallDistSliceMPI(conn, rank);
+    }
+    // if rank doesn't match either side of interblock, then do nothing and
+    // move on to the next interblock
+  }
+}
 
 void CalcResidual(vector<procBlock> &states,
                   vector<multiArray3d<fluxJacobian>> &mainDiagonal,
@@ -611,37 +636,9 @@ void CalcResidual(vector<procBlock> &states,
                 inp.NumberGhostLayers());
 
   if (inp.IsTurbulent()) {
-    // DEBUG
-    if (rank == 0) {
-      // cout << "before swap" << endl;
-      // cout << "block size: " << states[0].NumI() << ", " << states[0].NumJ()
-      //      << ", " << states[0].NumK() << endl;
-      // cout << "parent block: " << states[0].ParentBlock() << endl;
-      // cout << "first ghost: " << states[0].EddyViscosity(-1, 41, 0) << endl;
-      // cout << "interior 1: " << states[0].EddyViscosity(0, 41, 0) << endl;
-      // cout << "interior 2: " << states[0].EddyViscosity(1, 41, 0) << endl;
-      // cout << "interior 20: " << states[0].EddyViscosity(20, 41, 0) << endl;
-      // states[0].DumpToFile("velocityGradient", "mut_before3.dat");
-    } else {
-      // states[1].DumpToFile("velocityGradient", "mut_before2.dat");
-    }
-    
     // swap turbulence variables calculated during residual calculation
     SwapTurbVars(states, connections, rank, inp.NumberGhostLayers());
 
-    // DEBUG
-    if (rank == 0) {
-      // cout << "after swap" << endl;
-      // cout << "first ghost: " << states[0].EddyViscosity(-1, 41, 0) << endl;
-      // cout << "interior 1: " << states[0].EddyViscosity(0, 41, 0) << endl;
-      // cout << "interior 2: " << states[0].EddyViscosity(1, 41, 0) << endl;
-      // cout << "interior 20: " << states[0].EddyViscosity(20, 41, 0) << endl;
-      // states[0].DumpToFile("velocityGradient", "mut_after3.dat");
-    } else {
-      // states[1].DumpToFile("velocityGradient", "mut_after2.dat");
-    }
-
-    
     for (auto bb = 0U; bb < states.size(); bb++) {
       // calculate source terms for residual
       states[bb].CalcSrcTerms(suth, turb, inp, mainDiagonal[bb]);

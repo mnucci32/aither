@@ -65,8 +65,11 @@ class plot3dBlock {
   int NumI() const { return coords_.NumI(); }
   int NumJ() const { return coords_.NumJ(); }
   int NumK() const { return coords_.NumK(); }
+  int NumCellsI() const { return coords_.NumI() - 1; }
+  int NumCellsJ() const { return coords_.NumJ() - 1; }
+  int NumCellsK() const { return coords_.NumK() - 1; }
   int NumCells() const {
-    return (coords_.NumI() - 1) * (coords_.NumJ() - 1) * (coords_.NumK() - 1);
+    return this->NumCellsI() * this->NumCellsJ() * this->NumCellsK();
   }
   double X(const int &ii, const int &jj, const int &kk) const {
     return coords_(ii, jj, kk)[0];
