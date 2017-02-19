@@ -33,6 +33,6 @@ Cmake will automatically look for an MPI package. To specify a specific installa
 
 ### How To Run
 ```bash
-mpirun -np 1 aither inputFile.inp <restartFile.rst> >outputFile.out 2>errorFile.err &
+mpirun -np 1 aither inputFile.inp [restartFile.rst] >outputFile.out 2>errorFile.err &
 ```
 The restart file argument is optional.

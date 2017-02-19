@@ -82,9 +82,10 @@ double turbModel::ReynoldsStressDDotVelGrad(const primVars &state,
 
 // member function for destruction of tke
 // Dk = rho * k * w
-double turbModel::TkeDestruction(const primVars &state) const {
+double turbModel::TkeDestruction(const primVars &state,
+                                 const double &phi) const {
   // state -- primative variables
-  return state.Rho() * state.Tke() * state.Omega();
+  return state.Rho() * state.Tke() * state.Omega() * phi;
 }
 
 // member function for destruction of omega
@@ -267,6 +268,7 @@ squareMatrix turbNone::CalcTurbSrc(const primVars &state,
                                    const vector3d<double> &wGrad,
                                    const sutherland &suth, const double &vol,
                                    const double &turbVisc, const double &f1,
+                                   const double &f2, const double &width,
                                    double &ksrc, double &wsrc) const {
   // set k and omega source terms to zero
   ksrc = 0.0;
@@ -278,7 +280,8 @@ squareMatrix turbNone::CalcTurbSrc(const primVars &state,
 
 squareMatrix turbNone::TurbSrcJac(const primVars &state, const double &beta,
                                   const sutherland &suth,
-                                  const double &vol) const {
+                                  const double &vol,
+                                  const double &phi) const {
   return squareMatrix();
 }
 
@@ -413,6 +416,7 @@ squareMatrix turbKWWilcox::CalcTurbSrc(const primVars &state,
                                        const sutherland &suth,
                                        const double &vol,
                                        const double &mut, const double &f1,
+                                       const double &f2, const double &width,
                                        double &ksrc, double &wsrc) const {
   // state -- primative variables
   // velGrad -- velocity gradient
@@ -496,7 +500,7 @@ void turbKWWilcox::EddyViscAndBlending(const primVars &state,
 */
 double turbKWWilcox::SrcSpecRad(const primVars &state,
                                 const sutherland &suth,
-                                const double &vol) const {
+                                const double &vol, const double &phi) const {
   // state -- primative variables
   // suth -- sutherland's law for viscosity
   // vol -- cell volume
@@ -508,11 +512,13 @@ double turbKWWilcox::SrcSpecRad(const primVars &state,
 squareMatrix turbKWWilcox::TurbSrcJac(const primVars &state,
                                       const double &beta,
                                       const sutherland &suth,
-                                      const double &vol) const {
+                                      const double &vol,
+                                      const double &phi) const {
   // state -- primative variables
   // beta -- destruction coefficient for omega equation
   // suth -- sutherland's law for viscosity
   // vol -- cell volume
+  // phi -- factor to reduce tke destruction for des
 
   squareMatrix jac(2);
   jac(0, 0) = -2.0 * betaStar_ * state.Omega() * vol * suth.InvNondimScaling();
@@ -593,6 +599,10 @@ double turbKWWilcox::ViscFaceSpecRad(const primVars &state,
       (mu + this->SigmaK(f1) * this->EddyViscNoLim(state));
 }
 
+double turbKWWilcox::TurbLengthScale(const primVars &state,
+                                     const sutherland &suth) const {
+  return sqrt(state.Tke()) / (betaStar_ * state.Omega()) * suth.NondimScaling();
+}
 
 // member function to print out turbulence variables
 void turbKWWilcox::Print() const {
@@ -686,6 +696,7 @@ squareMatrix turbKWSst::CalcTurbSrc(const primVars &state,
                                     const vector3d<double> &wGrad,
                                     const sutherland &suth, const double &vol,
                                     const double &mut, const double &f1,
+                                    const double &f2, const double &width,
                                     double &ksrc, double &wsrc) const {
   // state -- primative variables
   // velGrad -- velocity gradient
@@ -782,7 +793,7 @@ void turbKWSst::EddyViscAndBlending(const primVars &state,
 */
 double turbKWSst::SrcSpecRad(const primVars &state,
                              const sutherland &suth,
-                             const double &vol) const {
+                             const double &vol, const double &phi) const {
   // state -- primative variables
   // suth -- sutherland's law for viscosity
 
@@ -793,14 +804,17 @@ double turbKWSst::SrcSpecRad(const primVars &state,
 squareMatrix turbKWSst::TurbSrcJac(const primVars &state,
                                    const double &beta,
                                    const sutherland &suth,
-                                   const double &vol) const {
+                                   const double &vol,
+                                   const double &phi) const {
   // state -- primative variables
   // beta -- destruction coefficient for omega equation
   // suth -- sutherland's law for viscosity
   // vol -- cell volume
+  // phi -- factor to reduce tke destruction for des
 
   squareMatrix jac(2);
-  jac(0, 0) = -2.0 * betaStar_ * state.Omega() * vol * suth.InvNondimScaling();
+  jac(0, 0) = -2.0 * betaStar_ * state.Omega() * phi * vol *
+      suth.InvNondimScaling();
   jac(1, 1) = -2.0 * beta * state.Omega() * vol * suth.InvNondimScaling();
 
   // return jacobian scaled for nondimensional equations
@@ -829,7 +843,7 @@ squareMatrix turbKWSst::ViscousJacobian(const primVars &state,
       (mu + this->SigmaK(f1) * mut);
   jacobian(1, 1) = fArea.Mag() * suth.NondimScaling() / (dist * state.Rho()) *
       (mu + this->SigmaW(f1) * mut);
-  
+
   return jacobian;
 }
 
@@ -874,6 +888,11 @@ double turbKWSst::ViscFaceSpecRad(const primVars &state,
       (mu + this->SigmaK(f1) * mut);
 }
 
+double turbKWSst::TurbLengthScale(const primVars &state,
+                                  const sutherland &suth) const {
+  return sqrt(state.Tke()) / (betaStar_ * state.Omega()) * suth.NondimScaling();
+}
+
 // member function to print out turbulence variables
 void turbKWSst::Print() const {
   cout << "Eddy Viscosity Method: " << this->EddyViscMethod() << endl;
@@ -891,4 +910,106 @@ void turbKWSst::Print() const {
   cout << "Sigma W2: " << sigmaW2_ << endl;
   cout << "Beta2: " << beta2_ << endl;
   cout << "Gamma2: " << gamma2_ << endl;
+}
+
+double turbSstDes::Phi(const primVars &state, const double &cdes,
+                       const double &width, const double &f2,
+                       const sutherland &suth) const {
+  return std::max((1.0 - f2) * this->TurbLengthScale(state, suth) /
+                  (cdes * width), 1.0);
+}
+
+// member function to calculate turbulence source terms and source jacobian
+squareMatrix turbSstDes::CalcTurbSrc(const primVars &state,
+                                     const tensor<double> &velGrad,
+                                     const vector3d<double> &kGrad,
+                                     const vector3d<double> &wGrad,
+                                     const sutherland &suth, const double &vol,
+                                     const double &mut, const double &f1,
+                                     const double &f2, const double &width,
+                                     double &ksrc, double &wsrc) const {
+  // state -- primative variables
+  // velGrad -- velocity gradient
+  // kGrad -- tke gradient
+  // wGrad -- omega gradient
+  // suth -- sutherland's law
+  // vol -- cell volume
+  // mut -- turbulent viscosity
+  // f1 -- first blending coefficient
+  // ksrc -- source term for tke equation
+  // wsrc -- source term for omega equation
+
+  // calculate cross diffusion coefficient
+  const auto cdkw = this->CDkw(state, kGrad, wGrad);
+
+  // calculate blended coefficients
+  const auto gamma = this->BlendedCoeff(this->Gamma1(), this->Gamma2(), f1);
+  const auto beta = this->BlendedCoeff(this->Beta1(), this->Beta2(), f1);
+  const auto cdes = this->BlendedCoeff(cdes1_, cdes2_, f1);
+
+  // calculate tke destruction
+  const auto phi = this->Phi(state, cdes, width, f2, suth);
+  const auto tkeDest = suth.InvNondimScaling() * this->TkeDestruction(state, phi);
+
+  // calculate omega destruction
+  const auto omgDest = suth.InvNondimScaling() * beta *
+      this->OmegaDestruction(state);
+
+  // calculate tke production
+  auto tkeProd = min(suth.NondimScaling() *
+                     this->ReynoldsStressDDotVelGrad(state, velGrad, suth, mut),
+                     this->TkeProd2DestRatio() * tkeDest);
+  tkeProd = max(tkeProd, 0.0);
+
+  // calculate omega production
+  auto omgProd = gamma * state.Rho() / mut * tkeProd;
+  omgProd = max(omgProd, 0.0);
+
+  // calculate omega cross diffusion
+  // Using CDkw instead of whole cross diffusion term
+  // Both Loci/CHEM and SU2 use this implementation
+  const auto omgCd = suth.NondimScaling() * (1.0 - f1) * cdkw;
+
+  // assign source term values
+  ksrc = tkeProd - tkeDest;
+  wsrc = omgProd - omgDest + omgCd;
+
+  // return spectral radius of source jacobian
+  return this->TurbSrcJac(state, beta, suth, vol, phi);
+}
+
+
+double turbSstDes::SrcSpecRad(const primVars &state,
+                              const sutherland &suth,
+                              const double &vol, const double &phi) const {
+  // state -- primative variables
+  // suth -- sutherland's law for viscosity
+
+  // return spectral radius scaled for nondimensional equations
+  auto beta = this->Beta2();  // using beta2 b/c it is larger than beta1
+  auto jac = this->TurbSrcJac(state, beta, suth, vol, phi);
+  return -1.0 * jac.MaxAbsValOnDiagonal();
+}
+
+
+// member function to print out turbulence variables
+void turbSstDes::Print() const {
+  cout << "Eddy Viscosity Method: " << this->EddyViscMethod() << endl;
+  cout << "A1: " << this->A1() << endl;
+  cout << "Beta*: " << this->BetaStar() << endl;
+  cout << "Turbulent Prandtl Number: " << this->TurbPrandtlNumber() << endl;
+  cout << "Production to Destruction Ratio: " << this->TkeProd2DestRatio()
+       << endl;
+
+  cout << "Sigma K1: " << this->SigmaK1() << endl;
+  cout << "Sigma W1: " << this->SigmaW1() << endl;
+  cout << "Beta1: " << this->Beta1() << endl;
+  cout << "Gamma1: " << this->Gamma1() << endl;
+  cout << "CDES1: " << this->CDes1() << endl;
+
+  cout << "Sigma K2: " << this->SigmaK2() << endl;
+  cout << "Sigma W2: " << this->SigmaW2() << endl;
+  cout << "Beta2: " << this->Beta2() << endl;
+  cout << "Gamma2: " << this->Gamma2() << endl;
+  cout << "CDES2: " << this->CDes2() << endl;
 }

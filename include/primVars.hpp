@@ -88,7 +88,8 @@ class primVars {
   double Omega() const { return data_[6]; }
 
   void NondimensionalInitialize(const idealGas&, const double&, const input&,
-                                const sutherland&, const int&);
+                                const sutherland&, const int&,
+                                const unique_ptr<turbModel> &);
   bool IsZero() const;
   primVars Squared() const;
   primVars Abs() const;
@@ -106,7 +107,7 @@ class primVars {
 
   void ApplyFarfieldTurbBC(const vector3d<double> &, const double &,
                            const double &, const sutherland &,
-                           const idealGas &);
+                           const idealGas &, const unique_ptr<turbModel> &);
   void LimitTurb(const unique_ptr<turbModel> &);
 
   double InvCellSpectralRadius(const unitVec3dMag<double> &,

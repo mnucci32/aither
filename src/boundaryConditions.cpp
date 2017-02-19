@@ -23,6 +23,7 @@
 #include "boundaryConditions.hpp"
 #include "vector3d.hpp"  // vector3d
 #include "plot3d.hpp"  // plot3dBlock
+#include "parallel.hpp"  // decomposition
 
 using std::cout;
 using std::endl;

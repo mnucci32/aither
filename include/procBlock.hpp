@@ -23,6 +23,7 @@
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <algorithm>
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"            // vector3d
 #include "multiArray3d.hpp"        // multiArray3d
@@ -156,7 +157,8 @@ class procBlock {
   // constructors
   procBlock(const double &, const plot3dBlock &, const int &,
             const boundaryConditions &, const int &, const int &, const int &,
-            const input &, const idealGas &, const sutherland &);
+            const input &, const idealGas &, const sutherland &,
+            const unique_ptr<turbModel> &);
   procBlock(const int &, const int &, const int &, const int &, const bool &,
             const bool &, const bool &, const bool &);
   procBlock() : procBlock(1, 1, 1, 0, false, false, false, false) {}
@@ -306,6 +308,14 @@ class procBlock {
   double CellWidthK(const int &ii, const int &jj, const int &kk) const {
     return cellWidthK_(ii, jj, kk);
   }
+  double MaxCellWidth(const int &ii, const int &jj, const int &kk) const {
+    return std::max(std::max(cellWidthI_(ii, jj, kk), cellWidthJ_(ii, jj, kk)),
+                    cellWidthK_(ii, jj, kk));
+  }
+  double MinCellWidth(const int &ii, const int &jj, const int &kk) const {
+    return std::min(std::min(cellWidthI_(ii, jj, kk), cellWidthJ_(ii, jj, kk)),
+                    cellWidthK_(ii, jj, kk));
+  }
 
   uncoupledScalar SpectralRadius(const int &ii, const int &jj,
                                  const int &kk) const {
@@ -432,6 +442,8 @@ class procBlock {
   bool AtCorner(const int &, const int &, const int &) const;
   bool AtEdge(const int &, const int &, const int &, string &) const;
   bool AtEdgeInclusive(const int &, const int &, const int &, string &) const;
+  bool AtGhostNonEdge(const int &, const int &, const int &, string &,
+                      int &) const;
 
   vector<bool> PutGeomSlice(const geomSlice &, interblock &, const int &);
   void PutStateSlice(const multiArray3d<primVars> &, const interblock &,
@@ -445,6 +457,8 @@ class procBlock {
   void SwapStateSliceMPI(const interblock &, const int &, const MPI_Datatype &);
   void SwapTurbSlice(const interblock &, procBlock &);
   void SwapTurbSliceMPI(const interblock &, const int &);
+  void SwapWallDistSlice(const interblock &, procBlock &);
+  void SwapWallDistSliceMPI(const interblock &, const int &);
   void SwapGradientSlice(const interblock &, procBlock &);
   void SwapGradientSliceMPI(const interblock &, const int &,
                             const MPI_Datatype &, const MPI_Datatype &);
@@ -467,13 +481,9 @@ class procBlock {
 
   void DumpToFile(const string &, const string &) const;
   void CalcCellWidths();
-  void ReadSolFromRestart(ifstream &, const input &, const idealGas &,
-                          const sutherland &, const unique_ptr<turbModel> &,
-                          const vector<string> &);
-  void ReadSolNm1FromRestart(ifstream &, const input &, const idealGas &,
-                          const sutherland &, const unique_ptr<turbModel> &,
-                          const vector<string> &);
-
+  void GetStatesFromRestart(const multiArray3d<primVars> &);
+  void GetSolNm1FromRestart(const multiArray3d<genArray> &);
+  
   // destructor
   ~procBlock() noexcept {}
 };
