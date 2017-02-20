@@ -1,8 +1,8 @@
 # Accurate Implicit Three-dimensional Efficient RANS (AITHER)
 
-Master Build Status: [![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=master)](https://travis-ci.org/mnucci32/aither)
+Master: [![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=master)](https://travis-ci.org/mnucci32/aither)
 <br>
-Develop Build Status: [![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=develop)](https://travis-ci.org/mnucci32/aither)
+Develop: [![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=develop)](https://travis-ci.org/mnucci32/aither)
 
 ### About The code
 This code is for a 3D Navier-Stokes computational fluid dynamics solver. It is a cell centered, structured solver,
