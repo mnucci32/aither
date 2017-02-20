@@ -514,7 +514,7 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
   // loop over blocks and initialize
   cout << "Reading solution from time n..." << endl;
   vector<multiArray3d<primVars>> solN(numBlks);
-  for (auto ii = 0U; ii < static_cast<int>(solN.size()); ++ii) {
+  for (auto ii = 0U; ii < solN.size(); ++ii) {
     solN[ii] = ReadSolFromRestart(fName, inp, eos, suth, turb, restartVars,
                                   gridSizes[ii].X(), gridSizes[ii].Y(),
                                   gridSizes[ii].Z());
@@ -531,7 +531,7 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
     if (numSols == 2) {
       cout << "Reading solution from time n-1..." << endl;
       vector<multiArray3d<genArray>> solNm1(numBlks);
-      for (auto ii = 0U; ii < static_cast<int>(solNm1.size()); ++ii) {
+      for (auto ii = 0U; ii < solNm1.size(); ++ii) {
         solNm1[ii] = ReadSolNm1FromRestart(fName, inp, eos, suth, turb,
                                            restartVars, gridSizes[ii].X(),
                                            gridSizes[ii].Y(), gridSizes[ii].Z());

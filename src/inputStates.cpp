@@ -748,7 +748,6 @@ vector<string> ReadStringList(ifstream &inFile, string &str) {
       // tokenize all arguments on current line and add to vector
       auto args = Tokenize(list, ",");
       for (auto &arg : args) {
-        cout << arg << endl;
         strList.push_back(arg);
       }
     }

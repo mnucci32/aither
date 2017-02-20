@@ -154,8 +154,8 @@ void decomposition::DecompArray(vector<multiArray3d<T>> &arr) const {
     auto lower = this->SplitHistBlkLower(ii);
     auto upper = this->SplitHistBlkUpper(ii);
     auto dir = this->SplitHistDir(ii);
-    auto lowerArray = arr[lower].Slice(dir, {arr[lower].Start(dir), ind});
-    auto upperArray = arr[lower].Slice(dir, {ind - 1, arr[lower].End(dir)});
+    auto lowerArray = arr[lower].Slice(dir, {arr[lower].Start(dir), ind + 1});
+    auto upperArray = arr[lower].Slice(dir, {ind, arr[lower].End(dir)});
 
     arr[lower] = lowerArray;
     arr[upper] = upperArray;
