@@ -49,7 +49,7 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
                      const int &numBlk, const boundaryConditions &bound,
                      const int &pos, const int &r, const int &lpos,
                      const input &inp, const idealGas &eos,
-                     const sutherland &suth) {
+                     const sutherland &suth, const unique_ptr<turbModel> &turb) {
   // blk -- plot3d block of which this procBlock is a subset of
   // numBlk -- the block number of blk (the parent block)
   // bound -- boundary conditions for block
@@ -59,6 +59,7 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
   // inp -- input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
+  // turb -- turbulence model
 
   numGhosts_ = inp.NumberGhostLayers();
   parBlock_ = numBlk;
@@ -71,7 +72,7 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
 
   isViscous_ = inp.IsViscous();
   isTurbulent_ = inp.IsTurbulent();
-  storeTimeN_ = (inp.IsImplicit() || inp.TimeIntegration() == "rk4");
+  storeTimeN_ = inp.NeedToStoreTimeN();
   isMultiLevelTime_ = inp.IsMultilevelInTime();
 
   // get initial condition state for parent block
@@ -84,7 +85,7 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
 
   // get nondimensional state for initialization
   primVars inputState;
-  inputState.NondimensionalInitialize(eos, aRef, inp, suth, parBlock_);
+  inputState.NondimensionalInitialize(eos, aRef, inp, suth, parBlock_, turb);
 
   // pad stored variable vectors with ghost cells
   state_ = PadWithGhosts(multiArray3d<primVars>(numI, numJ, numK, 0,
@@ -953,37 +954,6 @@ The above equation shows that the time m minus time n term (FD(Un)) requires a
 (1+zeta)V/(t*theta) term multiplied by it. That is the purpose of this
 function.
 */
-// multiArray3d<genArray> procBlock::SolTimeMMinusN(
-//     const multiArray3d<genArray> &n, const idealGas &eos, const input &inp,
-//     const int &mm) const {
-//   // n -- solution for block at time n
-//   // eos -- equation of state
-//   // inp -- input variables
-//   // mm -- nonlinear iteration number
-
-//   // initialize a vector to hold the returned values to zero
-//   multiArray3d<genArray> mMinusN(n.NumI(), n.NumJ(), n.NumK(), 0);
-
-//   // if mm is 0, then solution at time m and solution at time n is the same
-//   if (mm != 0) {
-//     auto m = this->GetCopyConsVars(eos);
-
-//     // loop over all physical cells
-//     for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
-//       for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
-//         for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
-//           const auto diagVolTime = (vol_(ii, jj, kk) * (1.0 + inp.Zeta()))
-//               / (dt_(ii, jj, kk) * inp.Theta());
-//           mMinusN(ii, jj, kk) = diagVolTime * (m(ii, jj, kk) - n(ii, jj, kk));
-//         }
-//       }
-//     }
-//   }
-
-//   return mMinusN;
-// }
-
-
 double procBlock::SolDeltaNCoeff(const int &ii, const int &jj, const int &kk,
                                  const input &inp) const {
   return (vol_(ii, jj, kk) * (1.0 + inp.Zeta())) / (dt_(ii, jj, kk) * inp.Theta());
@@ -1002,64 +972,13 @@ double procBlock::SolDeltaNm1Coeff(const int &ii, const int &jj, const int &kk,
 
 genArray procBlock::SolDeltaNm1(const int &ii, const int &jj, const int &kk,
                                 const input &inp) const {
-  const auto coeff = this->SolDeltaNm1Coeff(ii, jj, kk, inp);
-  return coeff * (consVarsN_(ii, jj, kk) - consVarsNm1_(ii, jj, kk));
+  if (isMultiLevelTime_) {
+    const auto coeff = this->SolDeltaNm1Coeff(ii, jj, kk, inp);
+    return coeff * (consVarsN_(ii, jj, kk) - consVarsNm1_(ii, jj, kk));
+  } else {
+    return genArray(0.0);
+  }
 }
-
-/* Member function to calculate the delta n-1 term for the implicit bdf2 solver.
-
-dU/dt = V/t * [ ((1 + zeta) * FD - zeta * BD) / ((1 + theta) * FD )] * Un = -Rn
-
-The above equation shows the governing equations written in the Beam & Warming
-format for time integration. U is the vector of conserved variables
-where n represents the time step. Theta and zeta are Beam & Warming parameters,
-t is the time step, V is the cell volume, and R is the residual.
-FD and BD are the forward and backward difference operators respectively. These
-opererators operate in the time domain. For example FD(U) =
-Un+1 - Un and BD(U) = Un - Un-1. Solving the above equation for FD(Qn) we get
-the following:
-
-FD(Un) = (-t * Rn - t * theta * FD(Rn) + zeta * V * FD(Un-1)) / ((1 + zeta) * V)
-
-FD(Rn) requires us to know the residual at time n+1, but this is unknown. To
-bypass this difficulty we linearize the residual using a Taylor series
-expansion about time n. Rn+1 = Rn + J*FD(Un) where J is the flux jacobian dR/dU.
-Rearranging the above equation we get the following:
-
-[J + (1+zeta)*V/(t*theta)] * FD(Un) = -Rn/theta + zeta*V/(t*theta) * FD(Un-1)
-
-The above equation shows that the time n minus time n-1 term (FD(Un-1)) requires
-a zeta*V/(t*theta) term multiplied by it. That is the purpose of this
-function.
-
-This function is supposed to be run at the end of a time step when the data stored
-in *this has been updated to the next time step.
-*/
-// multiArray3d<genArray> procBlock::DeltaNMinusOne(
-//     const multiArray3d<genArray> &solTimeN, const idealGas &eqnState,
-//     const double &theta, const double &zeta) const {
-//   // solTimeN -- The solution at time n
-//   // eqnState -- equation of state
-//   // theta -- Beam & Warming coefficient theta for time integration
-//   // zeta -- Beam & Warming coefficient zeta for time integration
-
-//   // Solution at time n minus solution at time n-1
-//   multiArray3d<genArray> solDeltaNm1(this->NumI(), this->NumJ(), this->NumK(), 0);
-
-//   // loop over physical cells
-//   for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
-//     for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
-//       for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
-//         const auto diagVolTime = (vol_(ii, jj, kk) * zeta) /
-//             (dt_(ii, jj, kk) * theta);
-//         solDeltaNm1(ii, jj, kk) = diagVolTime *
-//             (state_(ii, jj, kk).ConsVars(eqnState) -
-//              solTimeN(ii, jj, kk));
-//       }
-//     }
-//   }
-//   return solDeltaNm1;
-// }
 
 void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
                                const input &inp) const {
@@ -3486,6 +3405,64 @@ bool procBlock::AtEdgeInclusive(const int &ii, const int &jj, const int &kk,
   return atEdge;
 }
 
+// returns true if the given indices are for a regular ghost cell, and not an
+// edge ghost cell or physical cell. Also returns surface type of ghost cell
+bool procBlock::AtGhostNonEdge(const int &ii, const int &jj, const int &kk,
+                               string &dir, int &type) const {
+  // ii -- i index of location to test
+  // jj -- j index of location to test
+  // kk -- k index of location to test
+  // dir -- direction that edge runs in
+
+  auto atGhost = false;
+
+  // at il ghost cells - i in ghost cell range, j/k in physical cells
+  if (ii >= this->StartIG() && ii < this->StartI() &&
+      jj >= this->StartJG() && jj < this->EndJG() &&
+      kk >= this->StartKG() && kk < this->EndKG()) {
+    atGhost = true;
+    dir = "il";
+    type = 1;
+  // at jl - j in ghost cell range, i/k in physical cells
+  } else if (jj >= this->StartJG() && jj < this->StartJ() &&
+             ii >= this->StartIG() && ii < this->EndIG() &&
+             kk >= this->StartKG() && kk < this->EndKG()) {
+    atGhost = true;
+    dir = "jl";
+    type = 3;
+  // at kl - k in ghost cell range, i/j in physical cells
+  } else if (kk >= this->StartKG() && kk < this->StartK() &&
+             jj >= this->StartJG() && jj < this->EndJG() &&
+             ii >= this->StartIG() && ii < this->EndIG()) {
+    atGhost = true;
+    dir = "kl";
+    type = 5;
+  // at iu ghost cells - i in ghost cell range, j/k in physical cells
+  } else if (ii >= this->EndI() && ii < this->EndIG() &&
+             jj >= this->StartJG() && jj < this->EndJG() &&
+             kk >= this->StartKG() && kk < this->EndKG()) {
+    atGhost = true;
+    dir = "iu";
+    type = 2;
+  // at ju - j in ghost cell range, i/k in physical cells
+  } else if (jj >= this->EndJ() && jj < this->EndJG() &&
+             ii >= this->StartIG() && ii < this->EndIG() &&
+             kk >= this->StartKG() && kk < this->EndKG()) {
+    atGhost = true;
+    dir = "ju";
+    type = 4;
+  // at ku - k in ghost cell range, i/j in physical cells
+  } else if (kk >= this->EndK() && kk < this->EndKG() &&
+             jj >= this->StartJG() && jj < this->EndJG() &&
+             ii >= this->StartIG() && ii < this->EndIG()) {
+    atGhost = true;
+    dir = "ku";
+    type = 6;
+  }
+  
+  return atGhost;
+}
+
 
 /* Function to swap ghost cells between two blocks at an interblock
 boundary. Slices are removed from the physical cells (extending into ghost cells
@@ -3520,6 +3497,13 @@ void procBlock::SwapTurbSlice(const interblock &inter, procBlock &blk) {
   eddyViscosity_.SwapSlice(inter, blk.eddyViscosity_);
   f1_.SwapSlice(inter, blk.f1_);
   f2_.SwapSlice(inter, blk.f2_);
+}
+
+void procBlock::SwapWallDistSlice(const interblock &inter, procBlock &blk) {
+  // inter -- interblock boundary information
+  // blk -- second block involved in interblock boundary
+
+  wallDist_.SwapSlice(inter, blk.eddyViscosity_);
 }
 
 void procBlock::SwapGradientSlice(const interblock &inter, procBlock &blk) {
@@ -3557,6 +3541,13 @@ void procBlock::SwapTurbSliceMPI(const interblock &inter, const int &rank) {
   eddyViscosity_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 1);
   f1_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 2);
   f2_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 3);
+}
+
+void procBlock::SwapWallDistSliceMPI(const interblock &inter, const int &rank) {
+  // inter -- interblock boundary information
+  // rank -- processor rank
+
+  wallDist_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 1);
 }
 
 void procBlock::SwapGradientSliceMPI(const interblock &inter, const int &rank,
@@ -4735,6 +4726,7 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
   if (isMultiLevelTime_) {
     consVarsNm1_.ClearResize(numI, numJ, numK, 0);
   }
+
   center_.ClearResize(numI, numJ, numK, numGhosts);
   vol_.ClearResize(numI, numJ, numK, numGhosts);
 
@@ -5776,6 +5768,7 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
     for (auto jj = 0; jj < this->NumJ(); jj++) {
       for (auto ii = 0; ii < this->NumI(); ii++) {
         // calculate turbulent source terms
+        const auto phi = turb->UsePhi() ? this->MaxCellWidth(ii, jj, kk) : 1.0;
         source src;
         const auto srcJac = src.CalcTurbSrc(turb, state_(ii, jj, kk),
                                             velocityGrad_(ii, jj, kk),
@@ -5784,7 +5777,8 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
                                             omegaGrad_(ii, jj, kk), suth,
                                             vol_(ii, jj, kk),
                                             eddyViscosity_(ii, jj, kk),
-                                            f1_(ii, jj, kk));
+                                            f1_(ii, jj, kk), f2_(ii, jj, kk),
+                                            phi);
 
         // add source terms to residual
         // subtract because residual is initially on opposite side of equation
@@ -5794,7 +5788,7 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
         // add source spectral radius for turbulence equations
         // subtract because residual is initially on opposite side of equation
         const auto turbSpecRad = turb->SrcSpecRad(state_(ii, jj, kk), suth,
-                                                  vol_(ii, jj, kk));
+                                                  vol_(ii, jj, kk), phi);
         specRadius_(ii, jj, kk).SubtractFromTurbVariable(turbSpecRad);
 
         // add contribution of source spectral radius to flux jacobian
@@ -5814,15 +5808,57 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
 // all cell centers
 void procBlock::CalcWallDistance(const kdtree &tree) {
   vector3d<double> neighbor;
+  string surf = "none";
+  auto type = 0;
   // loop over cells, including ghosts
   for (auto kk = wallDist_.StartK(); kk < wallDist_.EndK(); kk++) {
     for (auto jj = wallDist_.StartJ(); jj < wallDist_.EndJ(); jj++) {
       for (auto ii = wallDist_.StartI(); ii < wallDist_.EndI(); ii++) {
-        // ghost cells should have negative wall distance so that wall distance
-        // at viscous face will be 0 during flux calculation
-        auto fac = this->IsPhysical(ii, jj, kk) ? 1.0 : -1.0;
-        wallDist_(ii, jj, kk) = fac *
-            tree.NearestNeighbor(center_(ii, jj, kk), neighbor);
+        // ghost cells across viscous boundaries should have negative wall
+        // distance so that wall distance at viscous face will be 0 during flux
+        // calculation
+        if (this->IsPhysical(ii, jj, kk)) {
+          wallDist_(ii, jj, kk) = tree.NearestNeighbor(center_(ii, jj, kk),
+                                                       neighbor);
+        } else if (this->AtGhostNonEdge(ii, jj, kk, surf, type)) {
+          if (type == 1) {
+            auto bcType = bc_.GetBCName(this->StartI(), jj, kk, type);
+            auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
+            wallDist_(ii, jj, kk) = fac *
+                tree.NearestNeighbor(center_(this->StartI(), jj, kk),
+                                     neighbor);
+          } else if (type == 2) {
+            auto bcType = bc_.GetBCName(this->EndI(), jj, kk, type);
+            auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
+            wallDist_(ii, jj, kk) = fac *
+                tree.NearestNeighbor(center_(this->EndI() - 1, jj, kk),
+                                     neighbor);
+          } else if (type == 3) {
+            auto bcType = bc_.GetBCName(ii, this->StartJ(), kk, type);
+            auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
+            wallDist_(ii, jj, kk) = fac *
+                tree.NearestNeighbor(center_(ii, this->StartJ(), kk),
+                                     neighbor);
+          } else if (type == 4) {
+            auto bcType = bc_.GetBCName(ii, this->EndJ(), kk, type);
+            auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
+            wallDist_(ii, jj, kk) = fac *
+                tree.NearestNeighbor(center_(ii, this->EndJ() - 1, kk),
+                                     neighbor);
+          } else if (type == 5) {
+            auto bcType = bc_.GetBCName(ii, jj, this->StartK(), type);
+            auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
+            wallDist_(ii, jj, kk) = fac *
+                tree.NearestNeighbor(center_(ii, jj, this->StartK()),
+                                     neighbor);
+          } else if (type == 6) {
+            auto bcType = bc_.GetBCName(ii, jj, this->EndK(), type);
+            auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
+            wallDist_(ii, jj, kk) = fac *
+                tree.NearestNeighbor(center_(ii, jj, this->EndK() - 1),
+                                     neighbor);
+          }
+        }
       }
     }
   }
@@ -5899,10 +5935,8 @@ void procBlock::UpdateUnlimTurbEddyVisc(const unique_ptr<turbModel> &turb,
                                         const bool &includeGhosts) {
   if (isTurbulent_) {
     for (auto kk = eddyViscosity_.StartK(); kk < eddyViscosity_.EndK(); kk++) {
-      for (auto jj = eddyViscosity_.StartJ(); jj < eddyViscosity_.EndJ();
-           jj++) {
-        for (auto ii = eddyViscosity_.StartI(); ii < eddyViscosity_.EndI();
-             ii++) {
+      for (auto jj = eddyViscosity_.StartJ(); jj < eddyViscosity_.EndJ(); jj++) {
+        for (auto ii = eddyViscosity_.StartI(); ii < eddyViscosity_.EndI(); ii++) {
           if (!this->AtCorner(ii, jj, kk) &&
               (includeGhosts || this->IsPhysical(ii, jj, kk))) {
             eddyViscosity_(ii, jj, kk) =
@@ -5979,6 +6013,10 @@ void procBlock::DumpToFile(const string &var, const string &fName) const {
     outFile << velocityGrad_ << endl;
   } else if (var == "temperatureGradient") {
     outFile << temperatureGrad_ << endl;
+  } else if (var == "viscosity") {
+    outFile << viscosity_ << endl;
+  } else if (var == "eddyViscosity") {
+    outFile << eddyViscosity_ << endl;
   } else {
     cerr << "ERROR: Error in procBlock::DumpToFile(). Variable " << var
          << " is not supported!" << endl;
@@ -6014,101 +6052,10 @@ void procBlock::CalcCellWidths() {
 }
 
 
-void procBlock::ReadSolFromRestart(ifstream &resFile, const input &inp,
-                                const idealGas &eos, const sutherland &suth,
-                                const unique_ptr<turbModel> &turb,
-                                   const vector<string> &restartVars) {
-  // define reference speed of sound
-  const auto refSoS = inp.ARef(eos);
-
-  // read the primative variables
-    // read dimensional variables -- loop over physical cells
-    for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
-      for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
-        for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
-          genArray value;
-          // loop over the number of variables to read
-          for (auto &var : restartVars) {
-            if (var == "density") {
-              resFile.read(reinterpret_cast<char *>(&value[0]), sizeof(value[0]));
-              value[0] /= inp.RRef();
-            } else if (var == "vel_x") {
-              resFile.read(reinterpret_cast<char *>(&value[1]), sizeof(value[1]));
-              value[1] /= refSoS;
-            } else if (var == "vel_y") {
-              resFile.read(reinterpret_cast<char *>(&value[2]), sizeof(value[2]));
-              value[2] /= refSoS;
-            } else if (var == "vel_z") {
-              resFile.read(reinterpret_cast<char *>(&value[3]), sizeof(value[3]));
-              value[3] /= refSoS;
-            } else if (var == "pressure") {
-              resFile.read(reinterpret_cast<char *>(&value[4]), sizeof(value[4]));
-              value[4] /= inp.RRef() * refSoS * refSoS;
-            } else if (var == "tke") {
-              resFile.read(reinterpret_cast<char *>(&value[5]), sizeof(value[5]));
-              value[5] /= refSoS * refSoS;
-            } else if (var == "sdr") {
-              resFile.read(reinterpret_cast<char *>(&value[6]), sizeof(value[6]));
-              value[6] /= refSoS * refSoS * inp.RRef() / suth.MuRef();
-            } else {
-              cerr << "ERROR: Variable " << var
-                   << " to read from restart file is not defined!" << endl;
-              exit(EXIT_FAILURE);
-            }
-          }
-          state_(ii, jj, kk) = primVars(value, true, eos, turb);
-        }
-      }
-    }
-
-    // Update temperature and viscosity
-    this->UpdateAuxillaryVariables(eos, suth, false);
+void procBlock::GetStatesFromRestart(const multiArray3d<primVars> &restart) {
+  state_.Insert(restart.RangeI(), restart.RangeJ(), restart.RangeK(), restart);
 }
 
-void procBlock::ReadSolNm1FromRestart(ifstream &resFile, const input &inp,
-                                      const idealGas &eos, const sutherland &suth,
-                                      const unique_ptr<turbModel> &turb,
-                                      const vector<string> &restartVars) {
-  // define reference speed of sound
-  const auto refSoS = inp.ARef(eos);
-
-  // data is conserved variables
-  // read dimensional variables -- loop over physical cells
-  for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
-    for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
-      for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
-        genArray value;
-        // loop over the number of variables to read
-        for (auto &var : restartVars) {
-          if (var == "density") {
-            resFile.read(reinterpret_cast<char *>(&value[0]), sizeof(value[0]));
-            value[0] /= inp.RRef();
-          } else if (var == "vel_x") {  // conserved var is rho-u
-            resFile.read(reinterpret_cast<char *>(&value[1]), sizeof(value[1]));
-            value[1] /= refSoS * inp.RRef();
-          } else if (var == "vel_y") {  // conserved var is rho-v
-            resFile.read(reinterpret_cast<char *>(&value[2]), sizeof(value[2]));
-            value[2] /= refSoS * inp.RRef();
-          } else if (var == "vel_z") {  // conserved var is rho-w
-            resFile.read(reinterpret_cast<char *>(&value[3]), sizeof(value[3]));
-            value[3] /= refSoS * inp.RRef();
-          } else if (var == "pressure") {  // conserved var is rho-E
-            resFile.read(reinterpret_cast<char *>(&value[4]), sizeof(value[4]));
-            value[4] /= inp.RRef() * refSoS * refSoS;
-          } else if (var == "tke") {  // conserved var is rho-tke
-            resFile.read(reinterpret_cast<char *>(&value[5]), sizeof(value[5]));
-            value[5] /= refSoS * refSoS * inp.RRef();
-          } else if (var == "sdr") {  // conserved var is rho-sdr
-            resFile.read(reinterpret_cast<char *>(&value[6]), sizeof(value[6]));
-            value[6] /= refSoS * refSoS * inp.RRef() *inp.RRef() / suth.MuRef();
-          } else {
-            cerr << "ERROR: Variable " << var
-                 << " to read from restart file is not defined!" << endl;
-            exit(EXIT_FAILURE);
-          }
-        }
-        consVarsNm1_(ii, jj, kk) = value;
-      }
-    }
-  }
+void procBlock::GetSolNm1FromRestart(const multiArray3d<genArray> &restart) {
+  consVarsNm1_ = restart;
 }

@@ -36,6 +36,7 @@ using std::vector;
 using std::string;
 using std::ios;
 using std::ofstream;
+using std::ifstream;
 using std::cout;
 using std::endl;
 using std::cerr;
@@ -51,6 +52,7 @@ class sutherland;
 class resid;
 class input;
 class turbModel;
+class primVars;
 
 // function definitions
 void WriteBlockDims(ofstream &, const vector<procBlock> &, int = 0);
@@ -66,9 +68,21 @@ void WriteMeta(const input &, const int &);
 void WriteRestart(const vector<procBlock> &, const idealGas &,
                   const sutherland &, const int &, const decomposition &,
                   const input &, const genArray &);
-void ReadRestart(vector<procBlock> &, const string &, input &,
-                 const idealGas &, const sutherland &,
-                 const unique_ptr<turbModel> &, genArray &);
+void ReadRestart(vector<procBlock> &, const string &, const decomposition &,
+                 input &, const idealGas &, const sutherland &,
+                 const unique_ptr<turbModel> &, genArray &,
+                 const vector<vector3d<int>> &);
+
+multiArray3d<primVars> ReadSolFromRestart(ifstream &, const input &,
+                                          const idealGas&, const sutherland &,
+                                          const unique_ptr<turbModel> &,
+                                          const vector<string> &, const int &,
+                                          const int &, const int &);
+multiArray3d<genArray> ReadSolNm1FromRestart(ifstream &, const input &,
+                                             const idealGas&, const sutherland &,
+                                             const unique_ptr<turbModel> &,
+                                             const vector<string> &, const int &,
+                                             const int &, const int &);
 
 void WriteResiduals(const input &, genArray &, const genArray &, const resid &,
                     const double &, const int &, const int &, ostream &);

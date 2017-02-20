@@ -25,21 +25,19 @@ import datetime
 import subprocess
 
 class regressionTest:
-    caseName = "none"
-    iterations = 100
-    procs = 1
-    residuals = [1.0, 1.0, 1.0, 1.0, 1.0]
-    ignoreIndices = []
-    location = "."
-    runDirectory = "."
-    aitherPath = "."
-    mpirunPath = "mpirun"
-    percentTolerance = 0.01
-    isRestart = False
-    restartFile = "none"
-
     def __init__(self):
+        self.caseName = "none"
+        self.iterations = 100
+        self.procs = 1
+        self.residuals = [1.0, 1.0, 1.0, 1.0, 1.0]
+        self.ignoreIndices = []
         self.location = os.getcwd()
+        self.runDirectory = "."
+        self.aitherPath = "aither"
+        self.mpirunPath = "mpirun"
+        self.percentTolerance = 0.01
+        self.isRestart = False
+        self.restartFile = "none"
         
     def SetRegressionCase(self, name):
         self.caseName = name
@@ -342,11 +340,11 @@ def main():
     rae2822.SetNumberOfProcessors(maxProcs)
     rae2822.SetNumberOfIterations(numIterations)
     if (options.operatingSystem == "linux"):
-        rae2822.SetResiduals([6.3790e-1, 1.0466, 6.1588e-1, 4.8859e-1, 5.8718e-1,
-                              2.5317e-5, 4.3633e-5])
+        rae2822.SetResiduals([6.3720e-1, 1.0432, 6.1385e-1, 4.8859e-1, 5.8621e-1,
+                              2.5389e-5, 4.6321e-5])
     else:
-        rae2822.SetResiduals([6.3495e-1, 1.0553, 6.2108e-1, 6.0576e-1, 5.8816e-1,
-                              2.5315e-5, 4.3783e-5])
+        rae2822.SetResiduals([6.3424e-1, 1.0518, 6.1904e-1, 6.0576e-1, 5.8718e-1,
+                              2.5387e-5, 4.6450e-5])
     rae2822.SetIgnoreIndices(3)
     rae2822.SetMpirunPath(options.mpirunPath)
 

@@ -73,7 +73,7 @@ class source {
                            const tensor<double> &, const vector3d<double> &,
                            const vector3d<double> &, const vector3d<double> &,
                            const sutherland &, const double &, const double &,
-                           const double &);
+                           const double &, const double &, const double &);
 
   inline source & operator+=(const source &);
   inline source & operator-=(const source &);

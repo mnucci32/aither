@@ -179,8 +179,8 @@ vector<string> Tokenize(string str, const string &delimiter,
   auto reachedMax = false;
   auto pos = str.find(delimiter);
   while (pos != string::npos && !reachedMax) {
-    auto token = str.substr(0, pos);
-    tokens.push_back(Trim(token));
+    auto token = Trim(str.substr(0, pos));
+    if (!token.empty()) {tokens.push_back(token);}
     // treat consecutive delimiters as single delimiter
     auto end = str.find_first_not_of(delimiter, pos);
     str.erase(0, end);
@@ -189,7 +189,8 @@ vector<string> Tokenize(string str, const string &delimiter,
     }
     pos = str.find(delimiter);
   }
-  tokens.push_back(Trim(str));
+  auto token = Trim(str);
+  if (!token.empty()) {tokens.push_back(token);}
   return tokens;
 }
 
@@ -729,8 +730,7 @@ vector<string> ReadStringList(ifstream &inFile, string &str) {
     openList = (end == string::npos) ? true : false;
 
     // test for argument on current line
-    // if < or > is alone on a line, should not look for icState
-    auto argPos = str.find_first_not_of(" \t,");
+    auto argPos = str.find_first_not_of(" \t\r\n,");
     if (argPos != string::npos) {  // there is an argument in current line
       string list;
       if (listOpened && openList) {  // list opened on current line, remains open

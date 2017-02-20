@@ -32,9 +32,10 @@
 #include "procBlock.hpp"           // procBlock
 #include "inviscidFlux.hpp"        // inviscidFlux
 #include "input.hpp"               // inputVars
-#include "boundaryConditions.hpp"  // decomposition
+#include "parallel.hpp"            // decomposition
 #include "resid.hpp"               // resid
 #include "genArray.hpp"            // genArray
+#include "utility.hpp"
 
 using std::cout;
 using std::endl;
@@ -176,12 +177,22 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
                   recombVars[ll].EddyViscosity(ii, jj, kk) /
                   recombVars[ll].Viscosity(ii, jj, kk)
                   : 0.0;
+            } else if (var == "turbulentViscosity") {
+              value = recombVars[ll].EddyViscosity(ii, jj, kk);
+              value *= suth.MuRef();
+            } else if (var == "viscosity") {
+              value = recombVars[ll].Viscosity(ii, jj, kk);
+              value *= suth.MuRef();
             } else if (var == "tke") {
               value = recombVars[ll].State(ii, jj, kk).Tke();
               value *= refSoS * refSoS;
             } else if (var == "sdr") {
               value = recombVars[ll].State(ii, jj, kk).Omega();
               value *= refSoS * refSoS * inp.RRef() / suth.MuRef();
+            } else if (var == "f1") {
+              value = recombVars[ll].F1(ii, jj, kk);
+            } else if (var == "f2") {
+              value = recombVars[ll].F2(ii, jj, kk);
             } else if (var == "wallDistance") {
               value = recombVars[ll].WallDist(ii, jj, kk);
               value *= inp.LRef();
@@ -428,9 +439,10 @@ void WriteRestart(const vector<procBlock> &splitVars, const idealGas &eqnState,
 }
 
 void ReadRestart(vector<procBlock> &vars, const string &restartName,
-                 input &inp, const idealGas &eos, const sutherland &suth,
-                 const unique_ptr<turbModel> &turb, genArray &residL2First) {
-  // open binary plot3d grid file
+                 const decomposition & decomp, input &inp, const idealGas &eos,
+                 const sutherland &suth, const unique_ptr<turbModel> &turb,
+                 genArray &residL2First, const vector<vector3d<int>> &gridSizes) {
+  // open binary restart file
   ifstream fName(restartName, ios::in | ios::binary);
 
   // check to see if file opened correctly
@@ -468,9 +480,12 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
   // read the number of blocks
   auto numBlks = 0;
   fName.read(reinterpret_cast<char *>(&numBlks), sizeof(numBlks));
-  if (numBlks != static_cast<int>(vars.size())) {
+  if (numBlks != static_cast<int>(gridSizes.size())) {
     cerr << "ERROR: Number of blocks in restart file does not match grid!"
          << endl;
+    cerr << "Found " << numBlks << " blocks in restart file and "
+         << gridSizes.size() << " blocks in grid." << endl;
+    exit(EXIT_FAILURE);
   }
 
   // read the block sizes and check for match with grid
@@ -480,8 +495,8 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
     fName.read(reinterpret_cast<char *>(&numJ), sizeof(numJ));
     fName.read(reinterpret_cast<char *>(&numK), sizeof(numK));
     fName.read(reinterpret_cast<char *>(&numVars), sizeof(numVars));
-    if (numI != vars[ii].NumI() || numJ != vars[ii].NumJ() ||
-        numK != vars[ii].NumK() || numVars != numEqns) {
+    if (numI != gridSizes[ii].X() || numJ != gridSizes[ii].Y() ||
+        numK != gridSizes[ii].Z() || numVars != numEqns) {
       cerr << "ERROR: Problem with restart file. Block size does not match "
            << "grid, or number of variables in block does not match number of "
            << "equations!" << endl;
@@ -498,13 +513,43 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
 
   // loop over blocks and initialize
   cout << "Reading solution from time n..." << endl;
-  for (auto &block : vars) {
-    block.ReadSolFromRestart(fName, inp, eos, suth, turb, restartVars);
+  vector<multiArray3d<primVars>> solN(numBlks);
+  for (auto ii = 0U; ii < solN.size(); ++ii) {
+    solN[ii] = ReadSolFromRestart(fName, inp, eos, suth, turb, restartVars,
+                                  gridSizes[ii].X(), gridSizes[ii].Y(),
+                                  gridSizes[ii].Z());
   }
-  if (inp.IsMultilevelInTime() && numSols == 2) {
-    cout << "Reading solution from time n-1..." << endl;
-    for (auto &block : vars) {
-      block.ReadSolNm1FromRestart(fName, inp, eos, suth, turb, restartVars);
+  // decompose solution
+  decomp.DecompArray(solN);
+
+  // assign to procBlocks
+  for (auto ii = 0U; ii < solN.size(); ++ii) {
+    vars[ii].GetStatesFromRestart(solN[ii]);
+  }
+
+  if (inp.IsMultilevelInTime()) {
+    if (numSols == 2) {
+      cout << "Reading solution from time n-1..." << endl;
+      vector<multiArray3d<genArray>> solNm1(numBlks);
+      for (auto ii = 0U; ii < solNm1.size(); ++ii) {
+        solNm1[ii] = ReadSolNm1FromRestart(fName, inp, eos, suth, turb,
+                                           restartVars, gridSizes[ii].X(),
+                                           gridSizes[ii].Y(), gridSizes[ii].Z());
+      }
+      // decompose solution
+      decomp.DecompArray(solNm1);
+
+      // assign to procBlocks
+      for (auto ii = 0U; ii < solNm1.size(); ++ii) {
+        vars[ii].GetSolNm1FromRestart(solNm1[ii]);
+      }
+
+    } else {
+      cerr << "WARNING: Using multilevel time integration scheme, but only one "
+           << "time level found in restart file" << endl;
+      // assign solution at time n to n-1
+      AssignSolToTimeN(vars, eos);
+      AssignSolToTimeNm1(vars);
     }
   }
 
@@ -512,8 +557,6 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
   fName.close();
   cout << "Done with restart file" << endl << endl;
 }
-
-
 
 
 void WriteBlockDims(ofstream &outFile, const vector<procBlock> &vars,
@@ -839,4 +882,111 @@ int SplitBlockNumber(const vector<procBlock> &vars, const decomposition &decomp,
   }
 
   return ind;  // cell was in uppermost split for given parent block
+}
+
+
+multiArray3d<primVars> ReadSolFromRestart(
+    ifstream &resFile, const input &inp, const idealGas &eos,
+    const sutherland &suth, const unique_ptr<turbModel> &turb,
+    const vector<string> &restartVars, const int &numI, const int &numJ,
+    const int &numK) {
+  // intialize multiArray3d
+  multiArray3d<primVars> sol(numI, numJ, numK, 0);
+
+  // define reference speed of sound
+  const auto refSoS = inp.ARef(eos);
+
+  // read the primative variables
+  // read dimensional variables -- loop over physical cells
+  for (auto kk = sol.StartK(); kk < sol.EndK(); kk++) {
+    for (auto jj = sol.StartJ(); jj < sol.EndJ(); jj++) {
+      for (auto ii = sol.StartI(); ii < sol.EndI(); ii++) {
+        genArray value;
+        // loop over the number of variables to read
+        for (auto &var : restartVars) {
+          if (var == "density") {
+            resFile.read(reinterpret_cast<char *>(&value[0]), sizeof(value[0]));
+            value[0] /= inp.RRef();
+          } else if (var == "vel_x") {
+            resFile.read(reinterpret_cast<char *>(&value[1]), sizeof(value[1]));
+            value[1] /= refSoS;
+          } else if (var == "vel_y") {
+            resFile.read(reinterpret_cast<char *>(&value[2]), sizeof(value[2]));
+            value[2] /= refSoS;
+          } else if (var == "vel_z") {
+            resFile.read(reinterpret_cast<char *>(&value[3]), sizeof(value[3]));
+            value[3] /= refSoS;
+          } else if (var == "pressure") {
+            resFile.read(reinterpret_cast<char *>(&value[4]), sizeof(value[4]));
+            value[4] /= inp.RRef() * refSoS * refSoS;
+          } else if (var == "tke") {
+            resFile.read(reinterpret_cast<char *>(&value[5]), sizeof(value[5]));
+            value[5] /= refSoS * refSoS;
+          } else if (var == "sdr") {
+            resFile.read(reinterpret_cast<char *>(&value[6]), sizeof(value[6]));
+            value[6] /= refSoS * refSoS * inp.RRef() / suth.MuRef();
+          } else {
+            cerr << "ERROR: Variable " << var
+                 << " to read from restart file is not defined!" << endl;
+            exit(EXIT_FAILURE);
+          }
+        }
+        sol(ii, jj, kk) = primVars(value, true, eos, turb);
+      }
+    }
+  }
+  return sol;
+}
+
+multiArray3d<genArray> ReadSolNm1FromRestart(
+    ifstream &resFile, const input &inp, const idealGas &eos,
+    const sutherland &suth, const unique_ptr<turbModel> &turb,
+    const vector<string> &restartVars, const int &numI, const int &numJ,
+    const int &numK) {
+  // intialize multiArray3d
+  multiArray3d<genArray> sol(numI, numJ, numK, 0);
+
+  // define reference speed of sound
+  const auto refSoS = inp.ARef(eos);
+
+  // data is conserved variables
+  // read dimensional variables -- loop over physical cells
+  for (auto kk = sol.StartK(); kk < sol.EndK(); kk++) {
+    for (auto jj = sol.StartJ(); jj < sol.EndJ(); jj++) {
+      for (auto ii = sol.StartI(); ii < sol.EndI(); ii++) {
+        genArray value;
+        // loop over the number of variables to read
+        for (auto &var : restartVars) {
+          if (var == "density") {
+            resFile.read(reinterpret_cast<char *>(&value[0]), sizeof(value[0]));
+            value[0] /= inp.RRef();
+          } else if (var == "vel_x") {  // conserved var is rho-u
+            resFile.read(reinterpret_cast<char *>(&value[1]), sizeof(value[1]));
+            value[1] /= refSoS * inp.RRef();
+          } else if (var == "vel_y") {  // conserved var is rho-v
+            resFile.read(reinterpret_cast<char *>(&value[2]), sizeof(value[2]));
+            value[2] /= refSoS * inp.RRef();
+          } else if (var == "vel_z") {  // conserved var is rho-w
+            resFile.read(reinterpret_cast<char *>(&value[3]), sizeof(value[3]));
+            value[3] /= refSoS * inp.RRef();
+          } else if (var == "pressure") {  // conserved var is rho-E
+            resFile.read(reinterpret_cast<char *>(&value[4]), sizeof(value[4]));
+            value[4] /= inp.RRef() * refSoS * refSoS;
+          } else if (var == "tke") {  // conserved var is rho-tke
+            resFile.read(reinterpret_cast<char *>(&value[5]), sizeof(value[5]));
+            value[5] /= refSoS * refSoS * inp.RRef();
+          } else if (var == "sdr") {  // conserved var is rho-sdr
+            resFile.read(reinterpret_cast<char *>(&value[6]), sizeof(value[6]));
+            value[6] /= refSoS * refSoS * inp.RRef() *inp.RRef() / suth.MuRef();
+          } else {
+            cerr << "ERROR: Variable " << var
+                 << " to read from restart file is not defined!" << endl;
+            exit(EXIT_FAILURE);
+          }
+        }
+        sol(ii, jj, kk) = value;
+      }
+    }
+  }
+  return sol;
 }

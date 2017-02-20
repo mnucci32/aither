@@ -599,11 +599,11 @@ int decomposition::MostUnderloadedProc(const vector<plot3dBlock> &grid,
 
 /*Member function to return the number of blocks on a given processor.*/
 int decomposition::NumBlocksOnProc(const int &a) const {
-  // a -- processor rank_ to find number of blocks on
+  // a -- processor rank to find number of blocks on
 
   auto num = 0;
-  for (auto ii = 0U; ii < rank_.size(); ii++) {
-    if (rank_[ii] == a) {
+  for (auto &rank : rank_) {
+    if (rank == a) {
       num++;
     }
   }
@@ -613,11 +613,12 @@ int decomposition::NumBlocksOnProc(const int &a) const {
 /*Member function to return the number of blocks on all processors.*/
 vector<int> decomposition::NumBlocksOnAllProc() const {
   vector<int> num(numProcs_, 0);
-  for (auto ii = 0U; ii < rank_.size(); ii++) {
-    num[rank_[ii]]++;
+  for (auto &rank : rank_) {
+    num[rank]++;
   }
   return num;
 }
+
 
 /*Member function to send a block to a given processor*/
 void decomposition::SendToProc(const int &blk, const int &fromProc,
@@ -716,11 +717,11 @@ double decomposition::LoadRatio(const vector<plot3dBlock> &grid,
   return fabs(1.0 - load / ideal);
 }
 
-/*Member function to determine whether to send a whole block or a split block
+/* Member function to determine whether to send a whole block or a split block
 from a given processor. If it is determined to send a split block, the index of
-the
-split is returned, and the direction string is changed to the appropriate value.
-If a whole block is to be sent, the index returned is -1.*/
+the split is returned, and the direction string is changed to the appropriate
+value. If a whole block is to be sent, the index returned is -1.
+*/
 int decomposition::SendWholeOrSplit(const vector<plot3dBlock> &grid,
                                     const int &send, const int &recv, int &blk,
                                     string &dir) const {
@@ -773,15 +774,15 @@ int decomposition::SendWholeOrSplit(const vector<plot3dBlock> &grid,
       grid[blk].NumK() >= grid[blk].NumI()) {
     dir = "k";
     // -1 to get cell sizes
-    planeSize = (grid[blk].NumJ() - 1) * (grid[blk].NumI() - 1);
+    planeSize = grid[blk].NumCellsJ() * grid[blk].NumCellsI();
     splitLen = grid[blk].NumK();
   } else if (grid[blk].NumJ() >= grid[blk].NumI()) {
     dir = "j";
-    planeSize = (grid[blk].NumK() - 1) * (grid[blk].NumI() - 1);
+    planeSize = grid[blk].NumCellsK() * grid[blk].NumCellsI();
     splitLen = grid[blk].NumJ();
   } else {
     dir = "i";
-    planeSize = (grid[blk].NumJ() - 1) * (grid[blk].NumK() - 1);
+    planeSize = grid[blk].NumCellsJ() * grid[blk].NumCellsK();
     splitLen = grid[blk].NumI();
   }
 
@@ -806,6 +807,7 @@ int decomposition::SendWholeOrSplit(const vector<plot3dBlock> &grid,
 
   return ind;
 }
+
 
 void decomposition::PrintDiagnostics(const vector<plot3dBlock> &grid) const {
   cout << "Decomposition for " << numProcs_ << " processors" << endl;

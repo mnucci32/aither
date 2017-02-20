@@ -1124,7 +1124,7 @@ void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
            MPI_COMM_WORLD);
   MPI_Pack(&numGhosts, 1, MPI_INT, buffer, bufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&data_[0], this->Size(), MPI_arrData, buffer,
+  MPI_Pack(&(*std::begin(data_)), this->Size(), MPI_arrData, buffer,
            bufSize, &position, MPI_COMM_WORLD);
 
   MPI_Status status;
@@ -1149,7 +1149,7 @@ void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
   // resize slice
   this->SameSizeResize(numI, numJ, numK);
 
-  MPI_Unpack(buffer, bufSize, &position, &data_[0],
+  MPI_Unpack(buffer, bufSize, &position, &(*std::begin(data_)),
              this->Size(), MPI_arrData, MPI_COMM_WORLD);
 
   delete[] buffer;
