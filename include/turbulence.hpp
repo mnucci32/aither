@@ -125,8 +125,6 @@ class turbModel {
                             const double &mu, const sutherland &suth,
                             const double &dist, const double &mut,
                             const double & f1, const bool &positive) const;
-
-  // abstract functions
   virtual squareMatrix CalcTurbSrc(const primVars &state,
                                    const tensor<double> &velGrad,
                                    const vector3d<double> &kGrad,
@@ -135,7 +133,14 @@ class turbModel {
                                    const double &vol,
                                    const double &mut, const double &f1,
                                    const double &f2, const double &width,
-                                   double &ksrc, double &wsrc) const = 0;
+                                   double &ksrc, double &wsrc) const;
+  virtual squareMatrix TurbSrcJac(const primVars &state,
+                                  const double &beta,
+                                  const sutherland &suth,
+                                  const double &vol,
+                                  const double &phi = 1.0) const;
+
+  // abstract functions (need one for abstract base class)
   virtual void EddyViscAndBlending(const primVars &state,
                                    const tensor<double> &vGrad,
                                    const vector3d<double> &kGrad,
@@ -145,12 +150,6 @@ class turbModel {
                                    const sutherland &suth,
                                    double &mut, double &f1,
                                    double &f2) const = 0;
-  virtual squareMatrix TurbSrcJac(const primVars &state,
-                                  const double &beta,
-                                  const sutherland &suth,
-                                  const double &vol,
-                                  const double &phi = 1.0) const = 0;
-
   virtual void Print() const = 0;
 
   // destructor
@@ -172,13 +171,6 @@ class turbNone : public turbModel {
   turbNone& operator=(const turbNone&) = default;
 
   // member functions
-  squareMatrix CalcTurbSrc(const primVars &state, const tensor<double> &velGrad,
-                           const vector3d<double> &kGrad,
-                           const vector3d<double> &wGrad,
-                           const sutherland &suth, const double &vol,
-                           const double &mut, const double &f1, const double &f2,
-                           const double &width, double &ksrc,
-                           double &wsrc) const override;
   void EddyViscAndBlending(const primVars &state,
                            const tensor<double> &vGrad,
                            const vector3d<double> &kGrad,
@@ -207,10 +199,6 @@ class turbNone : public turbModel {
       const primVars &state, const unitVec3dMag<double> &fArea) const override;
   squareMatrix InviscidDissJacobian(
       const primVars &state, const unitVec3dMag<double> &fArea) const override;
-  squareMatrix TurbSrcJac(const primVars &state, const double &beta,
-                          const sutherland &suth,
-                          const double &vol,
-                          const double &phi = 1.0) const override;
 
   double TkeMin() const override {return 0.0;}
   double OmegaMin() const override {return 0.0;}
@@ -471,6 +459,46 @@ class turbSstDes : public turbKWSst {
   // destructor
   ~turbSstDes() noexcept {}
 };
+
+
+class turbWale : public turbModel {
+  const double cw_ = 0.544;
+
+  // private member functions
+
+ public:
+  // constructor
+  turbWale() : turbModel() {}
+  explicit turbWale(const string &meth) : turbModel(meth) {}
+
+  // move constructor and assignment operator
+  turbWale(turbWale &&model) noexcept : turbModel(std::move(model)) {}
+  turbWale& operator=(turbWale&&) = default;
+
+  // copy constructor and assignment operator
+  turbWale(const turbWale &model) : turbModel(model) {}
+  turbWale& operator=(const turbWale&) = default;
+
+  double EddyVisc(const primVars &state, const tensor<double> &vGrad,
+                  const sutherland &suth, const double &f2) const override;
+
+  void EddyViscAndBlending(const primVars &state, const tensor<double> &vGrad,
+                           const vector3d<double> &kGrad,
+                           const vector3d<double> &wGrad,
+                           const double &mu, const double &wallDist,
+                           const sutherland &suth, double &mut, double &f1,
+                           double &f2) const override {
+    mut = this->EddyVisc(state, vGrad, suth, f2);
+  }
+
+  double Cw() const {return cw_;}
+  void Print() const override;
+
+  // destructor
+  ~turbWale() noexcept {}
+};
+
+
 
 // function declarations
 

@@ -510,7 +510,7 @@ void input::CalcCFL(const int &ii) {
 // member function to determine number of turbulence equations
 int input::NumTurbEquations() const {
   auto numEqns = 0;
-  if (this->IsTurbulent()) {
+  if (this->IsRANS()) {
     numEqns = 2;
   }
   return numEqns;
@@ -519,8 +519,9 @@ int input::NumTurbEquations() const {
 // member function to determine number of equations to solver for
 int input::NumEquations() const {
   auto numEqns = 0;
-  if ((equationSet_ == "euler") ||
-      (equationSet_ == "navierStokes")) {
+  if (equationSet_ == "euler" ||
+      equationSet_ == "navierStokes" ||
+      equationSet_ == "largeEddySimulation") {
     numEqns = this->NumFlowEquations();
   } else if (equationSet_ == "rans") {
     numEqns = this->NumFlowEquations() + this->NumTurbEquations();
@@ -546,7 +547,8 @@ bool input::IsImplicit() const {
 // member function to determine of method is vicous or inviscid
 bool input::IsViscous() const {
   if (equationSet_ == "navierStokes" ||
-      equationSet_ == "rans") {
+      equationSet_ == "rans" ||
+      equationSet_ == "largeEddySimulation") {
     return true;
   } else {
     return false;
@@ -555,11 +557,16 @@ bool input::IsViscous() const {
 
 // member function to determine of method is turbulent
 bool input::IsTurbulent() const {
-  if (equationSet_ == "rans") {
+  if (equationSet_ == "rans" || equationSet_ == "largeEddySimulation") {
     return true;
   } else {
     return false;
   }
+}
+
+// member function to determine if simulation is RANS
+bool input::IsRANS() const {
+  return (equationSet_ == "rans") ? true : false;
 }
 
 // member function to determine if solution should use a block matrix
@@ -601,6 +608,8 @@ unique_ptr<turbModel> input::AssignTurbulenceModel() const {
     turb = unique_ptr<turbModel>{std::make_unique<turbKWSst>()};
   } else if (turbModel_ == "sstdes") {
     turb = unique_ptr<turbModel>{std::make_unique<turbSstDes>()};
+  } else if (turbModel_ == "wale") {
+    turb = unique_ptr<turbModel>{std::make_unique<turbWale>()};
   } else {
     cerr << "ERROR: Error in input::AssignTurbulenceModel(). Turbulence model "
          << turbModel_ << " is not recognized!" << endl;
@@ -634,39 +643,49 @@ void input::CheckNonlinearIterations() {
 
 // member function to check validity of the requested output variables
 void input::CheckOutputVariables() {
-  for (auto var : outputVariables_) {
-    if (!this->IsTurbulent()) {  // can't have turbulent varibles output
-      if (var == "tke" || var == "sdr" || var == "viscosityRatio" ||
-          var.find("tkeGrad_") != string::npos ||
+  for (auto &var : outputVariables_) {
+    if (!this->IsRANS()) {  // can't have RANS variables output
+      if (var == "tke" || var == "sdr" || var.find("tkeGrad_") != string::npos ||
           var.find("sdrGrad_") != string::npos || var == "resid_tke" ||
-          var == "resid_sdr") {
+          var == "resid_sdr" || var == "f1" || var == "f2") {
+        cerr << "WARNING: Variable " << var <<
+            " is not available for non-RANS simulations." << endl;
+        outputVariables_.erase(var);
+      }
+    }
+
+    if (!this->IsTurbulent()) {  // can't have turbulent variables output
+      if (var == "viscosityRatio" || var == "turbulentViscosity") {
         cerr << "WARNING: Variable " << var <<
             " is not available for laminar simulations." << endl;
         outputVariables_.erase(var);
       }
+    }
 
-      if (!this->IsViscous()) {  // can't have viscous variables output
-        if (var.find("velGrad_") != string::npos
-            || var.find("tempGrad_") != string::npos) {
-          cerr << "WARNING: Variable " << var <<
-              " is not available for inviscid simulations." << endl;
-          outputVariables_.erase(var);
-        }
+    if (!this->IsViscous()) {  // can't have viscous variables output
+      if (var.find("velGrad_") != string::npos
+          || var.find("tempGrad_") != string::npos || var == "viscosity") {
+        cerr << "WARNING: Variable " << var <<
+            " is not available for inviscid simulations." << endl;
+        outputVariables_.erase(var);
       }
     }
   }
 }
 
+
 // member function to check that turbulence model makes sense with equation set
 void input::CheckTurbulenceModel() const {
-  if (equationSet_ == "rans" && turbModel_ == "none") {
-    cerr << "ERROR: If solving RANS equations, must specify turbulence model!"
-         << endl;
+  if ((equationSet_ == "rans" || equationSet_ == "largeEddySimulation")
+      && turbModel_ == "none") {
+    cerr << "ERROR: If solving RANS or LES equations, must specify turbulence "
+         << "model!" << endl;
     exit(EXIT_FAILURE);
   }
-  if (equationSet_ != "rans" && turbModel_ != "none") {
-    cerr << "ERROR: Turbulence models are only valid for the RANS equation set!"
-         << endl;
+  if (!(equationSet_ == "rans" || equationSet_ == "largeEddySimulation")
+       && turbModel_ != "none") {
+    cerr << "ERROR: Turbulence models are only valid for the RANS and LES "
+         << "equation sets!" << endl;
     exit(EXIT_FAILURE);
   }
 }
@@ -692,17 +711,21 @@ bool input::MatrixRequiresInitialization() const {
 }
 
 int input::NumberGhostLayers() const {
+  auto layers = 0;
   if (this->UsingConstantReconstruction()) {
-    return 1;
+    layers = 1;
   } else if (this->UsingMUSCLReconstruction()) {
-    return 2;
+    layers = 2;
   } else if (this->UsingHigherOrderReconstruction()) {
-    return 3;
+    layers = 3;
   } else {
     cerr << "ERROR: Problem with face reconstruction. Not using any of the "
          << "supported methods!" << endl;
     exit(EXIT_FAILURE);
   }
+
+  auto viscLayers = (this->ViscousFaceReconstruction() == "centralFourth") ? 2 : 1;
+  return std::max(layers, viscLayers);
 }
 
 // member function to get the initial condition state for a given parent block

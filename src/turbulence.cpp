@@ -253,23 +253,15 @@ squareMatrix turbModel::ViscousJacobian(const primVars &state,
   return squareMatrix();
 }
 
-// -------------------------------------------------------------------------
-// member functions for the turbNone class
-
-// member function to print out turbulence variables
-void turbNone::Print() const {
-  cout << "No Turbulence Model" << endl;
-}
-
 // member function to calculate turbulence source terms
-squareMatrix turbNone::CalcTurbSrc(const primVars &state,
-                                   const tensor<double> &velGrad,
-                                   const vector3d<double> &kGrad,
-                                   const vector3d<double> &wGrad,
-                                   const sutherland &suth, const double &vol,
-                                   const double &turbVisc, const double &f1,
-                                   const double &f2, const double &width,
-                                   double &ksrc, double &wsrc) const {
+squareMatrix turbModel::CalcTurbSrc(const primVars &state,
+                                    const tensor<double> &velGrad,
+                                    const vector3d<double> &kGrad,
+                                    const vector3d<double> &wGrad,
+                                    const sutherland &suth, const double &vol,
+                                    const double &turbVisc, const double &f1,
+                                    const double &f2, const double &width,
+                                    double &ksrc, double &wsrc) const {
   // set k and omega source terms to zero
   ksrc = 0.0;
   wsrc = 0.0;
@@ -278,11 +270,19 @@ squareMatrix turbNone::CalcTurbSrc(const primVars &state,
   return this->TurbSrcJac(state, 0.0, suth, vol);
 }
 
-squareMatrix turbNone::TurbSrcJac(const primVars &state, const double &beta,
-                                  const sutherland &suth,
-                                  const double &vol,
-                                  const double &phi) const {
+squareMatrix turbModel::TurbSrcJac(const primVars &state, const double &beta,
+                                   const sutherland &suth,
+                                   const double &vol,
+                                   const double &phi) const {
   return squareMatrix();
+}
+
+// -------------------------------------------------------------------------
+// member functions for the turbNone class
+
+// member function to print out turbulence variables
+void turbNone::Print() const {
+  cout << "No Turbulence Model" << endl;
 }
 
 squareMatrix turbNone::InviscidJacobian(const primVars &state,
@@ -1012,4 +1012,22 @@ void turbSstDes::Print() const {
   cout << "Beta2: " << this->Beta2() << endl;
   cout << "Gamma2: " << this->Gamma2() << endl;
   cout << "CDES2: " << this->CDes2() << endl;
+}
+
+// member function to print out turbulence variables
+void turbWale::Print() const {
+  cout << "Eddy Viscosity Method: " << this->EddyViscMethod() << endl;
+  cout << "Cw: " << this->Cw() << endl;
+}
+
+// member function to determine eddy viscosity
+double turbWale::EddyVisc(const primVars &state, const tensor<double> &vGrad,
+                          const sutherland &suth, const double &f2) const {
+  // state -- primative variables
+  // vGrad -- velocity gradient
+  // suth -- sutherland's law for viscosity
+  // f2 -- SST blending coefficient (not used in Wilcox K-W)
+
+  // DEBUG -- change this
+  return 0.0;
 }

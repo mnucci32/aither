@@ -192,6 +192,7 @@ class input {
   bool IsImplicit() const;
   bool IsViscous() const;
   bool IsTurbulent() const;
+  bool IsRANS() const;
   bool IsBlockMatrix() const;
 
   string OrderOfAccuracy() const;
