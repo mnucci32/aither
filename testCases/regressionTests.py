@@ -340,11 +340,11 @@ def main():
     rae2822.SetNumberOfProcessors(maxProcs)
     rae2822.SetNumberOfIterations(numIterations)
     if (options.operatingSystem == "linux"):
-        rae2822.SetResiduals([6.3720e-1, 1.0432, 6.1385e-1, 4.8859e-1, 5.8621e-1,
-                              2.5389e-5, 4.6321e-5])
+        rae2822.SetResiduals([5.0196e-1, 1.2895, 4.6389e-1, 1.1253, 4.5099e-1,
+                              1.1526e-7, 1.9755e-5])
     else:
-        rae2822.SetResiduals([6.3424e-1, 1.0518, 6.1904e-1, 6.0576e-1, 5.8718e-1,
-                              2.5387e-5, 4.6450e-5])
+        rae2822.SetResiduals([5.0068e-1, 1.3217, 4.6498e-1, 1.0488, 4.5354e-1,
+                              1.2176e-7, 2.0138e-5])
     rae2822.SetIgnoreIndices(3)
     rae2822.SetMpirunPath(options.mpirunPath)
 

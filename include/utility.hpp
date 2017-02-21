@@ -94,8 +94,9 @@ void SwapTurbVars(vector<procBlock> &, const vector<interblock> &, const int &,
                   const int &);
 void SwapWallDist(vector<procBlock> &, const vector<interblock> &, const int &,
                   const int &);
-void SwapGradients(vector<procBlock> &, const vector<interblock> &, const int &,
-                   const MPI_Datatype &, const MPI_Datatype &, const int &);
+void SwapEddyViscAndGradients(vector<procBlock> &, const vector<interblock> &,
+                              const int &, const MPI_Datatype &,
+                              const MPI_Datatype &, const int &);
 
 void CalcResidual(vector<procBlock> &,
                   vector<multiArray3d<fluxJacobian>> &,
