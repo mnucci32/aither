@@ -509,11 +509,7 @@ void input::CalcCFL(const int &ii) {
 
 // member function to determine number of turbulence equations
 int input::NumTurbEquations() const {
-  auto numEqns = 0;
-  if (this->IsRANS()) {
-    numEqns = 2;
-  }
-  return numEqns;
+  return (this->IsRANS()) ? 2 : 0;
 }
 
 // member function to determine number of equations to solver for
@@ -523,7 +519,7 @@ int input::NumEquations() const {
       equationSet_ == "navierStokes" ||
       equationSet_ == "largeEddySimulation") {
     numEqns = this->NumFlowEquations();
-  } else if (equationSet_ == "rans") {
+  } else if (this->IsRANS()) {
     numEqns = this->NumFlowEquations() + this->NumTurbEquations();
   } else {
     cerr << "ERROR: Equations set is not recognized. Cannot determine number "
@@ -546,9 +542,7 @@ bool input::IsImplicit() const {
 
 // member function to determine of method is vicous or inviscid
 bool input::IsViscous() const {
-  if (equationSet_ == "navierStokes" ||
-      equationSet_ == "rans" ||
-      equationSet_ == "largeEddySimulation") {
+  if (equationSet_ == "navierStokes" || this->IsTurbulent()) {
     return true;
   } else {
     return false;
@@ -557,7 +551,7 @@ bool input::IsViscous() const {
 
 // member function to determine of method is turbulent
 bool input::IsTurbulent() const {
-  if (equationSet_ == "rans" || equationSet_ == "largeEddySimulation") {
+  if (this->IsRANS() || this->IsLES()) {
     return true;
   } else {
     return false;
@@ -567,6 +561,11 @@ bool input::IsTurbulent() const {
 // member function to determine if simulation is RANS
 bool input::IsRANS() const {
   return (equationSet_ == "rans") ? true : false;
+}
+
+// member function to determine if simulation is LES
+bool input::IsLES() const {
+  return (equationSet_ == "largeEddySimulation") ? true : false;
 }
 
 // member function to determine if solution should use a block matrix
@@ -676,14 +675,12 @@ void input::CheckOutputVariables() {
 
 // member function to check that turbulence model makes sense with equation set
 void input::CheckTurbulenceModel() const {
-  if ((equationSet_ == "rans" || equationSet_ == "largeEddySimulation")
-      && turbModel_ == "none") {
+  if (this->IsTurbulent() && turbModel_ == "none") {
     cerr << "ERROR: If solving RANS or LES equations, must specify turbulence "
          << "model!" << endl;
     exit(EXIT_FAILURE);
   }
-  if (!(equationSet_ == "rans" || equationSet_ == "largeEddySimulation")
-       && turbModel_ != "none") {
+  if (!this->IsTurbulent() && turbModel_ != "none") {
     cerr << "ERROR: Turbulence models are only valid for the RANS and LES "
          << "equation sets!" << endl;
     exit(EXIT_FAILURE);
