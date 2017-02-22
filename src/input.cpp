@@ -642,7 +642,8 @@ void input::CheckNonlinearIterations() {
 
 // member function to check validity of the requested output variables
 void input::CheckOutputVariables() {
-  for (auto &var : outputVariables_) {
+  auto oVars = outputVariables_;
+  for (auto &var : oVars) {
     if (!this->IsRANS()) {  // can't have RANS variables output
       if (var == "tke" || var == "sdr" || var.find("tkeGrad_") != string::npos ||
           var.find("sdrGrad_") != string::npos || var == "resid_tke" ||

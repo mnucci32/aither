@@ -39,6 +39,11 @@ double turbModel::EddyViscNoLim(const primVars &state) const {
   return state.Rho() * state.Tke() / state.Omega();
 }
 
+// member function to return mean strain rate
+tensor<double> turbModel::MeanStrainRate(const tensor<double> &vGrad) const {
+  return 0.5 * (vGrad + vGrad.Transpose());
+}
+
 /* member function to calculate the Reynolds stress tensor using the Boussinesq
    approximation.
 
@@ -318,11 +323,13 @@ squareMatrix turbNone::InviscidDissJacobian(
 // limiter
 double turbKWWilcox::EddyVisc(const primVars &state,
                               const tensor<double> &vGrad,
-                              const sutherland &suth, const double &f2) const {
+                              const sutherland &suth, const double &f2,
+                              const double &length) const {
   // state -- primative variables
   // vGrad -- velocity gradient
   // suth -- sutherland's law for viscosity
   // f2 -- SST blending coefficient (not used in Wilcox K-W)
+  // length -- length scale (not used in Wilcox K-W)
   return state.Rho() * state.Tke() / this->OmegaTilda(state, vGrad, suth);
 }
 
@@ -468,6 +475,7 @@ void turbKWWilcox::EddyViscAndBlending(const primVars &state,
                                        const double &mu,
                                        const double &wallDist,
                                        const sutherland &suth,
+                                       const double &length,
                                        double &mut, double &f1,
                                        double &f2) const {
   // state -- primative variables
@@ -477,6 +485,7 @@ void turbKWWilcox::EddyViscAndBlending(const primVars &state,
   // mu -- laminar viscosity
   // walldist -- distance to nearest viscous wall
   // suth -- sutherland's law for viscosity
+  // length -- cell length scale
   // mut -- turbulent eddy viscosity
   // f1 -- first blending coefficient
   // f2 -- second blending coefficient
@@ -485,7 +494,7 @@ void turbKWWilcox::EddyViscAndBlending(const primVars &state,
   f2 = 0.0;
 
   // return eddy viscosity
-  mut = this->EddyVisc(state, velGrad, suth, f2);
+  mut = this->EddyVisc(state, velGrad, suth, f2, length);
 }
 
 
@@ -622,13 +631,15 @@ void turbKWWilcox::Print() const {
 
 // member function for eddy viscosity with limiter
 double turbKWSst::EddyVisc(const primVars &state, const tensor<double> &vGrad,
-                           const sutherland &suth, const double &f2) const {
+                           const sutherland &suth, const double &f2,
+                           const double &length) const {
   // state -- primative variables
   // vGrad -- velocity gradient
   // suth -- sutherland's law for viscosity
   // f2 -- SST blending coefficient
+  // length -- length scale (not used for SST)
 
-  const auto strainRate = 0.5 * (vGrad + vGrad.Transpose());
+  const auto strainRate = this->MeanStrainRate(vGrad);
 
   // using DoubleDotTrans for speed
   // both tensors are symmetric so result is the same
@@ -756,6 +767,7 @@ void turbKWSst::EddyViscAndBlending(const primVars &state,
                                     const double &mu,
                                     const double &wallDist,
                                     const sutherland &suth,
+                                    const double &length,
                                     double &mut, double &f1,
                                     double &f2) const {
   // state -- primative variables
@@ -765,6 +777,7 @@ void turbKWSst::EddyViscAndBlending(const primVars &state,
   // mu -- laminar viscosity
   // walldist -- distance to nearest viscous wall
   // suth -- sutherland's law for viscosity
+  // length -- length scale
   // mut -- turbulent eddy viscosity
   // f1 -- first blending coefficient
   // f2 -- second blending coefficient
@@ -778,7 +791,7 @@ void turbKWSst::EddyViscAndBlending(const primVars &state,
   f2 = this->F2(alpha1, alpha2);
 
   // return limited eddy viscosity
-  mut = this->EddyVisc(state, velGrad, suth, f2);
+  mut = this->EddyVisc(state, velGrad, suth, f2, length);
 }
 
 
@@ -1022,12 +1035,32 @@ void turbWale::Print() const {
 
 // member function to determine eddy viscosity
 double turbWale::EddyVisc(const primVars &state, const tensor<double> &vGrad,
-                          const sutherland &suth, const double &f2) const {
+                          const sutherland &suth, const double &f2,
+                          const double &length) const {
   // state -- primative variables
   // vGrad -- velocity gradient
   // suth -- sutherland's law for viscosity
-  // f2 -- SST blending coefficient (not used in Wilcox K-W)
+  // f2 -- SST blending coefficient (not used in WALE)
+  // length -- cell length
 
-  // DEBUG -- change this
-  return 0.0;
+  const auto strainRate = this->MeanStrainRate(vGrad);
+  const auto sigmaD = this->SigmaD(vGrad);
+  const auto sigmaDDoubleDot = sigmaD.DoubleDotTrans(sigmaD);
+
+  const auto velGradTerm = pow(sigmaDDoubleDot, 1.5) /
+      (pow(strainRate.DoubleDotTrans(strainRate), 2.5) +
+       pow(sigmaDDoubleDot, 1.25) + EPS);
+
+  const auto lengthScale = pow(cw_ * length, 2.0);
+
+  return lengthScale * velGradTerm;
+}
+
+tensor<double> turbWale::SigmaD(const tensor<double> &vGrad) const {
+  const auto vGradSq = vGrad.MatMult(vGrad);
+
+  tensor<double> I;
+  I.Identity();
+
+  return 0.5 * (vGradSq + vGradSq.Transpose()) - 1.0 / 3.0 * I * vGradSq.Trace();
 }

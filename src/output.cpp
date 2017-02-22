@@ -335,7 +335,7 @@ void WriteRestart(const vector<procBlock> &splitVars, const idealGas &eqnState,
 
   // variables to write to restart file
   vector<string> restartVars = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
-  if (inp.IsTurbulent()) {
+  if (inp.IsRANS()) {
     restartVars.push_back("tke");
     restartVars.push_back("sdr");
   }
@@ -740,7 +740,7 @@ void PrintHeaders(const input &inp, ostream &os) {
   os << std::left << setw(12) << "Res-Mass" << setw(12)
      << "Res-Mom-X" << setw(12) << "Res-Mom-Y" << setw(12) << "Res-Mom-Z"
      << setw(12) << "Res-Energy";
-  if (inp.IsTurbulent()) {
+  if (inp.IsRANS()) {
     os << std::left << setw(12) << "Res-Tke" << setw(12) << "Res-Omega";
   }
   os << std::left << setw(8) << "Max-Eqn" << setw(8)
@@ -781,7 +781,7 @@ void PrintResiduals(const input &inp, genArray &residL2First,
   os << std::left << setw(12) << resNormL2[0] << setw(12) << resNormL2[1]
      << setw(12) << resNormL2[2] << setw(12) << resNormL2[3] << setw(12)
      << resNormL2[4];
-  if (inp.IsTurbulent()) {
+  if (inp.IsRANS()) {
     os << std::left << setw(12) << resNormL2[5] << setw(12) << resNormL2[6];
   }
   os.unsetf(std::ios::fixed | std::ios::scientific);
