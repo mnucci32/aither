@@ -72,6 +72,7 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
 
   isViscous_ = inp.IsViscous();
   isTurbulent_ = inp.IsTurbulent();
+  isRANS_ = inp.IsRANS();
   storeTimeN_ = inp.NeedToStoreTimeN();
   isMultiLevelTime_ = inp.IsMultilevelInTime();
 
@@ -136,16 +137,20 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
   }
 
   if (isTurbulent_) {
-    tkeGrad_ = {numI, numJ, numK, numGhosts_};
-    omegaGrad_ = {numI, numJ, numK, numGhosts_};
     eddyViscosity_ = {numI, numJ, numK, numGhosts_,
                       ic.EddyViscosityRatio() * inputViscosity};
+  } else {
+    eddyViscosity_ = {1, 1, 1, 0, 0.0};
+  }
+
+  if (isRANS_) {
+    tkeGrad_ = {numI, numJ, numK, numGhosts_};
+    omegaGrad_ = {numI, numJ, numK, numGhosts_};
     f1_ = {numI, numJ, numK, numGhosts_, 1.0};
     f2_ = {numI, numJ, numK, numGhosts_, 0.0};
   } else {
     tkeGrad_ = {1, 1, 1, 0};
     omegaGrad_ = {1, 1, 1, 0};
-    eddyViscosity_ = {1, 1, 1, 0, 0.0};
     f1_ = {1, 1, 1, 0, 0.0};
     f2_ = {1, 1, 1, 0, 0.0};
   }
@@ -154,8 +159,8 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
 // constructor -- allocate space for procBlock
 procBlock::procBlock(const int &ni, const int &nj, const int &nk,
                      const int &numG, const bool &isViscous,
-                     const bool &isTurbulent, const bool &storeTimeN,
-                     const bool &isMultiLevelInTime) {
+                     const bool &isTurbulent, const bool &isRANS,
+                     const bool &storeTimeN, const bool &isMultiLevelInTime) {
   // ni -- i-dimension (cell)
   // nj -- j-dimension (cell)
   // nk -- k-dimension (cell)
@@ -174,6 +179,7 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
 
   isViscous_ = isViscous;
   isTurbulent_ = isTurbulent;
+  isRANS_ = isRANS;
   storeTimeN_ = storeTimeN;
   isMultiLevelTime_ = isMultiLevelInTime;
 
@@ -220,15 +226,19 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   }
 
   if (isTurbulent_) {
+    eddyViscosity_ = {ni, nj, nk, numGhosts_};
+  } else {
+    eddyViscosity_ = {1, 1, 1, 0};
+  }
+
+  if (isRANS_) {
     tkeGrad_ = {ni, nj, nk, numGhosts_};
     omegaGrad_ = {ni, nj, nk, numGhosts_};
-    eddyViscosity_ = {ni, nj, nk, numGhosts_};
     f1_ = {ni, nj, nk, numGhosts_};
     f2_ = {ni, nj, nk, numGhosts_};
   } else {
     tkeGrad_ = {1, 1, 1, 0};
     omegaGrad_ = {1, 1, 1, 0};
-    eddyViscosity_ = {1, 1, 1, 0};
     f1_ = {1, 1, 1, 0};
     f2_ = {1, 1, 1, 0};
   }
@@ -432,7 +442,7 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
           const auto invSpecRad = state_(ii, jj, kk).InvCellSpectralRadius(
               fAreaI_(ii, jj, kk), fAreaI_(ii + 1, jj, kk), eqnState);
 
-          const auto turbInvSpecRad = isTurbulent_ ?
+          const auto turbInvSpecRad = isRANS_ ?
               turb->InviscidCellSpecRad(state_(ii, jj, kk), fAreaI_(ii, jj, kk),
                                         fAreaI_(ii + 1, jj, kk)): 0.0;
 
@@ -561,7 +571,7 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
           const auto invSpecRad = state_(ii, jj, kk).InvCellSpectralRadius(
               fAreaJ_(ii, jj, kk), fAreaJ_(ii, jj + 1, kk), eqnState);
 
-          const auto turbInvSpecRad = isTurbulent_ ?
+          const auto turbInvSpecRad = isRANS_ ?
               turb->InviscidCellSpecRad(state_(ii, jj, kk), fAreaJ_(ii, jj, kk),
                                         fAreaJ_(ii, jj + 1, kk)): 0.0;
 
@@ -692,7 +702,7 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
           const auto invSpecRad = state_(ii, jj, kk).InvCellSpectralRadius(
               fAreaK_(ii, jj, kk), fAreaK_(ii, jj, kk + 1), eqnState);
 
-          const auto turbInvSpecRad = isTurbulent_ ?
+          const auto turbInvSpecRad = isRANS_ ?
               turb->InviscidCellSpecRad(state_(ii, jj, kk), fAreaK_(ii, jj, kk),
                                         fAreaK_(ii, jj, kk + 1)) : 0.0;
 
@@ -914,8 +924,10 @@ void procBlock::ResetResidWS() {
 void procBlock::ResetGradients() {
   velocityGrad_.Zero();
   temperatureGrad_.Zero();
-  tkeGrad_.Zero();
-  omegaGrad_.Zero();
+  if (isRANS_) {
+    tkeGrad_.Zero();
+    omegaGrad_.Zero();
+  }
 }
 
 // member function to reset the turbulence variables back to zero after an
@@ -923,8 +935,10 @@ void procBlock::ResetGradients() {
 // function calls.
 void procBlock::ResetTurbVars() {
   eddyViscosity_.Zero(0.0);
-  f1_.Zero(0.0);
-  f2_.Zero(0.0);
+  if (isRANS_) {
+    f1_.Zero(0.0);
+    f2_.Zero(0.0);
+  }
 }
 
 /* Member function to add the cell volume divided by the cell time step to the
@@ -999,9 +1013,9 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
 
         // add volume and time term
         mainDiagonal(ii, jj, kk).MultiplyOnDiagonal(inp.MatrixRelaxation(),
-                                                    isTurbulent_);
-        mainDiagonal(ii, jj, kk).AddOnDiagonal(diagVolTime, isTurbulent_);
-        mainDiagonal(ii, jj, kk).Inverse(isTurbulent_);
+                                                    isRANS_);
+        mainDiagonal(ii, jj, kk).AddOnDiagonal(diagVolTime, isRANS_);
+        mainDiagonal(ii, jj, kk).Inverse(isRANS_);
       }
     }
   }
@@ -1829,13 +1843,17 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
         vector3d<double> tempGrad, tkeGrad, omegaGrad;
         CalcGradsI(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
 
+
         // calculate turbulent eddy viscosity and blending coefficients
         auto f1 = 0.0;
         auto f2 = 0.0;
         auto mut = 0.0;
         if (isTurbulent_) {
+          // calculate length scale
+          const auto lengthScale = 0.5 * (cellWidthI_(ii - 1, jj, kk),
+                                          cellWidthI_(ii, jj, kk));
           turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
-                                    wDist, suth, mut, f1, f2);
+                                    wDist, suth, lengthScale, mut, f1, f2);
         }
 
         // calculate viscous flux
@@ -1860,11 +1878,13 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           velocityGrad_(ii - 1, jj, kk) += sixth * velGrad;
           temperatureGrad_(ii - 1, jj, kk) += sixth * tempGrad;
           if (isTurbulent_) {
-            tkeGrad_(ii - 1, jj, kk) += sixth * tkeGrad;
-            omegaGrad_(ii - 1, jj, kk) += sixth * omegaGrad;
             eddyViscosity_(ii - 1, jj, kk) += sixth * mut;
-            f1_(ii - 1, jj, kk) += sixth * f1;
-            f2_(ii - 1, jj, kk) += sixth * f2;
+            if (isRANS_) {
+              tkeGrad_(ii - 1, jj, kk) += sixth * tkeGrad;
+              omegaGrad_(ii - 1, jj, kk) += sixth * omegaGrad;
+              f1_(ii - 1, jj, kk) += sixth * f1;
+              f2_(ii - 1, jj, kk) += sixth * f2;
+            }
           }
 
           // if using block matrix on main diagonal, accumulate flux jacobian
@@ -1887,11 +1907,13 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           velocityGrad_(ii, jj, kk) += sixth * velGrad;
           temperatureGrad_(ii, jj, kk) += sixth * tempGrad;
           if (isTurbulent_) {
-            tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
-            omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
             eddyViscosity_(ii, jj, kk) += sixth * mut;
-            f1_(ii, jj, kk) += sixth * f1;
-            f2_(ii, jj, kk) += sixth * f2;
+            if (isRANS_) {
+              tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
+              omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
+              f1_(ii, jj, kk) += sixth * f1;
+              f2_(ii, jj, kk) += sixth * f2;
+            }
           }
 
           // calculate component of wave speed. This is done on a cell by cell
@@ -1901,7 +1923,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                   fAreaI_(ii, jj, kk), fAreaI_(ii + 1, jj, kk), eqnState, suth,
                   vol_(ii, jj, kk), viscosity_(ii, jj, kk), mut, turb);
 
-          const auto turbViscSpecRad = isTurbulent_ ?
+          const auto turbViscSpecRad = isRANS_ ?
               turb->ViscCellSpecRad(state_(ii, jj, kk), fAreaI_(ii, jj, kk),
                                     fAreaI_(ii + 1, jj, kk),
                                     viscosity_(ii, jj, kk),
@@ -2080,8 +2102,11 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
         auto f2 = 0.0;
         auto mut = 0.0;
         if (isTurbulent_) {
+          // calculate length scale
+          const auto lengthScale = 0.5 * (cellWidthJ_(ii, jj - 1, kk),
+                                          cellWidthJ_(ii, jj, kk));
           turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
-                                    wDist, suth, mut, f1, f2);
+                                    wDist, suth, lengthScale, mut, f1, f2);
         }
 
         // calculate viscous flux
@@ -2107,11 +2132,13 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           velocityGrad_(ii, jj - 1, kk) += sixth * velGrad;
           temperatureGrad_(ii, jj - 1, kk) += sixth * tempGrad;
           if (isTurbulent_) {
-            tkeGrad_(ii, jj - 1, kk) += sixth * tkeGrad;
-            omegaGrad_(ii, jj - 1, kk) += sixth * omegaGrad;
             eddyViscosity_(ii, jj - 1, kk) += sixth * mut;
-            f1_(ii, jj - 1, kk) += sixth * f1;
-            f2_(ii, jj - 1, kk) += sixth * f2;
+            if (isRANS_) {
+              tkeGrad_(ii, jj - 1, kk) += sixth * tkeGrad;
+              omegaGrad_(ii, jj - 1, kk) += sixth * omegaGrad;
+              f1_(ii, jj - 1, kk) += sixth * f1;
+              f2_(ii, jj - 1, kk) += sixth * f2;
+            }
           }
 
           // if using block matrix on main diagonal, accumulate flux jacobian
@@ -2134,11 +2161,13 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           velocityGrad_(ii, jj, kk) += sixth * velGrad;
           temperatureGrad_(ii, jj, kk) += sixth * tempGrad;
           if (isTurbulent_) {
-            tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
-            omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
             eddyViscosity_(ii, jj, kk) += sixth * mut;
-            f1_(ii, jj, kk) += sixth * f1;
-            f2_(ii, jj, kk) += sixth * f2;
+            if (isRANS_) {
+              tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
+              omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
+              f1_(ii, jj, kk) += sixth * f1;
+              f2_(ii, jj, kk) += sixth * f2;
+            }
           }
 
           // calculate component of wave speed. This is done on a cell by cell
@@ -2148,7 +2177,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                   fAreaJ_(ii, jj, kk), fAreaJ_(ii, jj + 1, kk), eqnState, suth,
                   vol_(ii, jj, kk), viscosity_(ii, jj, kk), mut, turb);
 
-          const auto turbViscSpecRad = isTurbulent_ ?
+          const auto turbViscSpecRad = isRANS_ ?
               turb->ViscCellSpecRad(state_(ii, jj, kk), fAreaJ_(ii, jj, kk),
                                     fAreaJ_(ii, jj + 1, kk),
                                     viscosity_(ii, jj, kk),
@@ -2327,8 +2356,11 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
         auto f2 = 0.0;
         auto mut = 0.0;
         if (isTurbulent_) {
+          // calculate length scale
+          const auto lengthScale = 0.5 * (cellWidthK_(ii, jj, kk - 1),
+                                          cellWidthK_(ii, jj, kk));
           turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
-                                    wDist, suth, mut, f1, f2);
+                                    wDist, suth, lengthScale, mut, f1, f2);
         }
 
         // calculate viscous flux
@@ -2354,11 +2386,13 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           velocityGrad_(ii, jj, kk - 1) += sixth * velGrad;
           temperatureGrad_(ii, jj, kk - 1) += sixth * tempGrad;
           if (isTurbulent_) {
-            tkeGrad_(ii, jj, kk - 1) += sixth * tkeGrad;
-            omegaGrad_(ii, jj, kk - 1) += sixth * omegaGrad;
             eddyViscosity_(ii, jj, kk - 1) += sixth * mut;
-            f1_(ii, jj, kk - 1) += sixth * f1;
-            f2_(ii, jj, kk - 1) += sixth * f2;
+            if (isRANS_) {
+              tkeGrad_(ii, jj, kk - 1) += sixth * tkeGrad;
+              omegaGrad_(ii, jj, kk - 1) += sixth * omegaGrad;
+              f1_(ii, jj, kk - 1) += sixth * f1;
+              f2_(ii, jj, kk - 1) += sixth * f2;
+            }
           }
 
           // if using block matrix on main diagonal, accumulate flux jacobian
@@ -2381,11 +2415,13 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           velocityGrad_(ii, jj, kk) += sixth * velGrad;
           temperatureGrad_(ii, jj, kk) += sixth * tempGrad;
           if (isTurbulent_) {
-            tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
-            omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
             eddyViscosity_(ii, jj, kk) += sixth * mut;
-            f1_(ii, jj, kk) += sixth * f1;
-            f2_(ii, jj, kk) += sixth * f2;
+            if (isRANS_) {
+              tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
+              omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
+              f1_(ii, jj, kk) += sixth * f1;
+              f2_(ii, jj, kk) += sixth * f2;
+            }
           }
 
           // calculate component of wave speed. This is done on a cell by cell
@@ -2396,7 +2432,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                   vol_(ii, jj, kk), viscosity_(ii, jj, kk),
                   mut, turb);
 
-          const auto turbViscSpecRad = isTurbulent_ ?
+          const auto turbViscSpecRad = isRANS_ ?
               turb->ViscCellSpecRad(state_(ii, jj, kk), fAreaK_(ii, jj, kk),
                                     fAreaK_(ii, jj, kk + 1),
                                     viscosity_(ii, jj, kk),
@@ -3494,7 +3530,6 @@ void procBlock::SwapTurbSlice(const interblock &inter, procBlock &blk) {
   // inter -- interblock boundary information
   // blk -- second block involved in interblock boundary
 
-  eddyViscosity_.SwapSlice(inter, blk.eddyViscosity_);
   f1_.SwapSlice(inter, blk.f1_);
   f2_.SwapSlice(inter, blk.f2_);
 }
@@ -3503,10 +3538,11 @@ void procBlock::SwapWallDistSlice(const interblock &inter, procBlock &blk) {
   // inter -- interblock boundary information
   // blk -- second block involved in interblock boundary
 
-  wallDist_.SwapSlice(inter, blk.eddyViscosity_);
+  wallDist_.SwapSlice(inter, blk.wallDist_);
 }
 
-void procBlock::SwapGradientSlice(const interblock &inter, procBlock &blk) {
+void procBlock::SwapEddyViscAndGradientSlice(const interblock &inter,
+                                             procBlock &blk) {
   // inter -- interblock boundary information
   // blk -- second block involved in interblock boundary
 
@@ -3515,6 +3551,9 @@ void procBlock::SwapGradientSlice(const interblock &inter, procBlock &blk) {
     temperatureGrad_.SwapSlice(inter, blk.temperatureGrad_);
   }
   if (isTurbulent_) {
+    eddyViscosity_.SwapSlice(inter, blk.eddyViscosity_);
+  }
+  if (isRANS_) {
     tkeGrad_.SwapSlice(inter, blk.tkeGrad_);
     omegaGrad_.SwapSlice(inter, blk.omegaGrad_);
   }
@@ -3538,7 +3577,6 @@ void procBlock::SwapTurbSliceMPI(const interblock &inter, const int &rank) {
   // inter -- interblock boundary information
   // rank -- processor rank
 
-  eddyViscosity_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 1);
   f1_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 2);
   f2_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 3);
 }
@@ -3550,9 +3588,9 @@ void procBlock::SwapWallDistSliceMPI(const interblock &inter, const int &rank) {
   wallDist_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 1);
 }
 
-void procBlock::SwapGradientSliceMPI(const interblock &inter, const int &rank,
-                                     const MPI_Datatype &MPI_tensorDouble,
-                                     const MPI_Datatype &MPI_vec3d) {
+void procBlock::SwapEddyViscAndGradientSliceMPI(
+    const interblock &inter, const int &rank,
+    const MPI_Datatype &MPI_tensorDouble, const MPI_Datatype &MPI_vec3d) {
   // inter -- interblock boundary information
   // rank -- processor rank
 
@@ -3561,6 +3599,9 @@ void procBlock::SwapGradientSliceMPI(const interblock &inter, const int &rank,
     temperatureGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 2);
   }
   if (isTurbulent_) {
+    eddyViscosity_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 1);
+  }
+  if (isRANS_) {
     tkeGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 3);
     omegaGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 4);
   }
@@ -4498,7 +4539,7 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
   MPI_Pack_size(8, MPI_INT, MPI_COMM_WORLD,
                 &tempSize);  // add size for ints in class procBlock
   sendBufSize += tempSize;
-  MPI_Pack_size(4, MPI_CXX_BOOL, MPI_COMM_WORLD,
+  MPI_Pack_size(5, MPI_CXX_BOOL, MPI_COMM_WORLD,
                 &tempSize);  // add size for bools in class procBlock
   sendBufSize += tempSize;
   MPI_Pack_size(state_.Size(), MPI_cellData, MPI_COMM_WORLD,
@@ -4577,6 +4618,8 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
   MPI_Pack(&isViscous_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
   MPI_Pack(&isTurbulent_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&isRANS_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
   MPI_Pack(&storeTimeN_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize,
            &position, MPI_COMM_WORLD);
@@ -4661,6 +4704,8 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
   MPI_Unpack(recvBuffer, recvBufSize, &position, &isViscous_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
   MPI_Unpack(recvBuffer, recvBufSize, &position, &isTurbulent_, 1,
+             MPI_CXX_BOOL, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &isRANS_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
   MPI_Unpack(recvBuffer, recvBufSize, &position, &storeTimeN_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
@@ -4754,9 +4799,12 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
   }
 
   if (isTurbulent_) {
+    eddyViscosity_.ClearResize(numI, numJ, numK, numGhosts);
+  }
+
+  if (isRANS_) {
     tkeGrad_.ClearResize(numI, numJ, numK, numGhosts);
     omegaGrad_.ClearResize(numI, numJ, numK, numGhosts);
-    eddyViscosity_.ClearResize(numI, numJ, numK, numGhosts);
     f1_.ClearResize(numI, numJ, numK, numGhosts);
     f2_.ClearResize(numI, numJ, numK, numGhosts);
   }
@@ -4832,6 +4880,9 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
     MPI_Unpack(recvBuffer, recvBufSize, &position,
                &(*std::begin(eddyViscosity_)), eddyViscosity_.Size(),
                MPI_DOUBLE, MPI_COMM_WORLD);  // unpack eddy viscosity
+  }
+
+  if (isRANS_) {
     MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(f1_)),
                f1_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack blending variable f1
@@ -4904,6 +4955,9 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
     MPI_Pack_size(eddyViscosity_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                   &tempSize);  // add size for eddy viscosity
     sendBufSize += tempSize;
+  }
+
+  if (isRANS_) {
     MPI_Pack_size(f1_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                   &tempSize);  // add size for blending variable f1
     sendBufSize += tempSize;
@@ -4917,7 +4971,6 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
                   &tempSize);  // add size for omega gradient
     sendBufSize += tempSize;
   }
-
 
   auto *sendBuffer = new char[sendBufSize];  // allocate buffer to pack data
                                              // into
@@ -4954,6 +5007,9 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
   if (isTurbulent_) {
     MPI_Pack(&(*std::begin(eddyViscosity_)), eddyViscosity_.Size(), MPI_DOUBLE,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  }
+
+  if (isRANS_) {
     MPI_Pack(&(*std::begin(f1_)), f1_.Size(), MPI_DOUBLE,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
     MPI_Pack(&(*std::begin(f2_)), f2_.Size(), MPI_DOUBLE,
@@ -5017,9 +5073,9 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
   }
 
   procBlock blk1(numI1, numJ1, numK1, numGhosts_, isViscous_, isTurbulent_,
-                 storeTimeN_, isMultiLevelTime_);
+                 isRANS_, storeTimeN_, isMultiLevelTime_);
   procBlock blk2(numI2, numJ2, numK2, numGhosts_, isViscous_, isTurbulent_,
-                 storeTimeN_, isMultiLevelTime_);
+                 isRANS_, storeTimeN_, isMultiLevelTime_);
 
   blk1.parBlock_ = parBlock_;
   blk2.parBlock_ = parBlock_;
@@ -5044,6 +5100,8 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
     blk1.eddyViscosity_.Fill(
         eddyViscosity_.Slice(dir, {eddyViscosity_.Start(dir),
                 blk1.eddyViscosity_.End(dir)}));
+  }
+  if (isRANS_) {
     blk1.f1_.Fill(f1_.Slice(dir, {f1_.Start(dir), blk1.f1_.End(dir)}));
     blk1.f2_.Fill(f2_.Slice(dir, {f2_.Start(dir), blk1.f2_.End(dir)}));
   }
@@ -5061,7 +5119,7 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
         temperatureGrad_.Slice(dir, {temperatureGrad_.Start(dir),
                 blk1.temperatureGrad_.End(dir)}));
   }
-  if (isTurbulent_) {
+  if (isRANS_) {
     blk1.tkeGrad_.Fill(tkeGrad_.Slice(dir, {tkeGrad_.Start(dir),
               blk1.tkeGrad_.End(dir)}));
     blk1.omegaGrad_.Fill(omegaGrad_.Slice(dir, {omegaGrad_.Start(dir),
@@ -5097,6 +5155,8 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
   if (isTurbulent_) {
     blk2.eddyViscosity_.Fill(eddyViscosity_.Slice(dir, {ind,
               eddyViscosity_.End(dir)}));
+  }
+  if (isRANS_) {
     blk2.f1_.Fill(f1_.Slice(dir, {ind, f1_.End(dir)}));
     blk2.f2_.Fill(f2_.Slice(dir, {ind, f2_.End(dir)}));
   }
@@ -5111,7 +5171,7 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
     blk2.temperatureGrad_.Fill(
         temperatureGrad_.Slice(dir, {ind, temperatureGrad_.End(dir)}));
   }
-  if (isTurbulent_) {
+  if (isRANS_) {
     blk2.tkeGrad_.Fill(tkeGrad_.Slice(dir, {ind, tkeGrad_.End(dir)}));
     blk2.omegaGrad_.Fill(omegaGrad_.Slice(dir, {ind, omegaGrad_.End(dir)}));
   }
@@ -5167,7 +5227,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
   }
 
   procBlock newBlk(iTot, jTot, kTot, numGhosts_, isViscous_, isTurbulent_,
-                   storeTimeN_, isMultiLevelTime_);
+                   isRANS_, storeTimeN_, isMultiLevelTime_);
 
   newBlk.bc_ = bc_;
   newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
@@ -5205,7 +5265,8 @@ void procBlock::Join(const procBlock &blk, const string &dir,
             eddyViscosity_.PhysEnd(dir)},
       eddyViscosity_.Slice(
           dir, {eddyViscosity_.Start(dir), eddyViscosity_.PhysEnd(dir)}));
-
+  }
+  if (isRANS_) {
     newBlk.f1_.Insert(dir, {f1_.Start(dir), f1_.PhysEnd(dir)},
                       f1_.Slice(dir, {f1_.Start(dir), f1_.PhysEnd(dir)}));
     newBlk.f2_.Insert(dir, {f2_.Start(dir), f2_.PhysEnd(dir)},
@@ -5235,7 +5296,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
       temperatureGrad_.Slice(dir, {temperatureGrad_.Start(dir),
               temperatureGrad_.PhysEnd(dir)}));
   }
-  if (isTurbulent_) {
+  if (isRANS_) {
     newBlk.tkeGrad_.Insert(dir, {tkeGrad_.Start(dir), tkeGrad_.PhysEnd(dir)},
                            tkeGrad_.Slice(dir, {tkeGrad_.Start(dir),
                                    tkeGrad_.PhysEnd(dir)}));
@@ -5305,7 +5366,8 @@ void procBlock::Join(const procBlock &blk, const string &dir,
             newBlk.eddyViscosity_.End(dir)},
       blk.eddyViscosity_.Slice(dir, {blk.eddyViscosity_.PhysStart(dir),
               blk.eddyViscosity_.End(dir)}));
-
+  }
+  if (isRANS_) {
     newBlk.f1_.Insert(dir, {f1_.PhysEnd(dir), newBlk.f1_.End(dir)},
                       blk.f1_.Slice(dir, {blk.f1_.PhysStart(dir),
                               blk.f1_.End(dir)}));
@@ -5341,7 +5403,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
       blk.temperatureGrad_.Slice(dir, {blk.temperatureGrad_.PhysStart(dir),
               blk.temperatureGrad_.End(dir)}));
   }
-  if (isTurbulent_) {
+  if (isRANS_) {
     newBlk.tkeGrad_.Insert(dir, {tkeGrad_.PhysEnd(dir),
             newBlk.tkeGrad_.End(dir)},
       blk.tkeGrad_.Slice(dir, {blk.tkeGrad_.PhysStart(dir),
@@ -5466,7 +5528,7 @@ void procBlock::CalcGradsI(const int &ii, const int &jj, const int &kk,
                        temperature_(ii, jj, kk), tjl, tju,
                        tkl, tku, ail, aiu, ajl, aju, akl, aku, vol);
 
-  if (isTurbulent_) {
+  if (isRANS_) {
     // calculate average tke on j and k faces of alternate control volume
     const auto tkeju = 0.25 *
         (state_(ii - 1, jj, kk).Tke() + state_(ii, jj, kk).Tke() +
@@ -5588,7 +5650,7 @@ void procBlock::CalcGradsJ(const int &ii, const int &jj, const int &kk,
                        temperature_(ii, jj, kk), tkl, tku,
                        ail, aiu, ajl, aju, akl, aku, vol);
 
-  if (isTurbulent_) {
+  if (isRANS_) {
     // calculate average tke on i and k faces of alternate control volume
     const auto tkeiu = 0.25 *
         (state_(ii, jj - 1, kk).Tke() + state_(ii, jj, kk).Tke() +
@@ -5710,7 +5772,7 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
                        temperature_(ii, jj, kk), ail, aiu,
                        ajl, aju, akl, aku, vol);
 
-  if (isTurbulent_) {
+  if (isRANS_) {
     // calculate average tke on i and j faces of alternate control volume
     const auto tkeiu = 0.25 *
         (state_(ii, jj, kk - 1).Tke() + state_(ii, jj, kk).Tke() +

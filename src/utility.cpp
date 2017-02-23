@@ -549,11 +549,12 @@ void SwapTurbVars(vector<procBlock> &states,
   }
 }
 
-void SwapGradients(vector<procBlock> &states,
-                   const vector<interblock> &connections, const int &rank,
-                   const MPI_Datatype &MPI_tensorDouble,
-                   const MPI_Datatype &MPI_vec3d,
-                   const int &numGhosts) {
+void SwapEddyViscAndGradients(vector<procBlock> &states,
+                              const vector<interblock> &connections,
+                              const int &rank,
+                              const MPI_Datatype &MPI_tensorDouble,
+                              const MPI_Datatype &MPI_vec3d,
+                              const int &numGhosts) {
   // states -- vector of all procBlocks in the solution domain
   // conn -- interblock boundary conditions
   // rank -- processor rank
@@ -565,18 +566,16 @@ void SwapGradients(vector<procBlock> &states,
   for (auto &conn : connections) {
     if (conn.RankFirst() == rank && conn.RankSecond() == rank) {
       // both sides of interblock are on this processor, swap w/o mpi
-      states[conn.LocalBlockFirst()].SwapGradientSlice(
+      states[conn.LocalBlockFirst()].SwapEddyViscAndGradientSlice(
           conn, states[conn.LocalBlockSecond()]);
     } else if (conn.RankFirst() == rank) {
       // rank matches rank of first side of interblock, swap over mpi
-      states[conn.LocalBlockFirst()].SwapGradientSliceMPI(conn, rank,
-                                                          MPI_tensorDouble,
-                                                          MPI_vec3d);
+      states[conn.LocalBlockFirst()].SwapEddyViscAndGradientSliceMPI(
+          conn, rank, MPI_tensorDouble, MPI_vec3d);
     } else if (conn.RankSecond() == rank) {
       // rank matches rank of second side of interblock, swap over mpi
-      states[conn.LocalBlockSecond()].SwapGradientSliceMPI(conn, rank,
-                                                           MPI_tensorDouble,
-                                                           MPI_vec3d);
+      states[conn.LocalBlockSecond()].SwapEddyViscAndGradientSliceMPI(
+          conn, rank, MPI_tensorDouble, MPI_vec3d);
     }
     // if rank doesn't match either side of interblock, then do nothing and
     // move on to the next interblock
@@ -631,11 +630,11 @@ void CalcResidual(vector<procBlock> &states,
     // calculate residual
     states[bb].CalcResidualNoSource(suth, eos, inp, turb, mainDiagonal[bb]);
   }
-  // swap gradients calculated during residual calculation
-  SwapGradients(states, connections, rank, MPI_tensorDouble, MPI_vec3d,
-                inp.NumberGhostLayers());
+  // swap mut & gradients calculated during residual calculation
+  SwapEddyViscAndGradients(states, connections, rank, MPI_tensorDouble,
+                           MPI_vec3d, inp.NumberGhostLayers());
 
-  if (inp.IsTurbulent()) {
+  if (inp.IsRANS()) {
     // swap turbulence variables calculated during residual calculation
     SwapTurbVars(states, connections, rank, inp.NumberGhostLayers());
 

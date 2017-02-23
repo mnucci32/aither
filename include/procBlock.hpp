@@ -106,6 +106,7 @@ class procBlock {
                    // procBlocks
   bool isViscous_;
   bool isTurbulent_;
+  bool isRANS_;
   bool storeTimeN_;
   bool isMultiLevelTime_;
 
@@ -160,8 +161,8 @@ class procBlock {
             const input &, const idealGas &, const sutherland &,
             const unique_ptr<turbModel> &);
   procBlock(const int &, const int &, const int &, const int &, const bool &,
-            const bool &, const bool &, const bool &);
-  procBlock() : procBlock(1, 1, 1, 0, false, false, false, false) {}
+            const bool &, const bool &, const bool &, const bool &);
+  procBlock() : procBlock(1, 1, 1, 0, false, false, false, false, false) {}
 
   // move constructor and assignment operator
   procBlock(procBlock&&) noexcept = default;
@@ -214,15 +215,16 @@ class procBlock {
     }
   }
 
-  int NumGhosts() const { return numGhosts_; }
-  int ParentBlock() const { return parBlock_; }
-  int LocalPosition() const { return localPos_; }
-  int Rank() const { return rank_; }
-  int GlobalPos() const { return globalPos_; }
-  bool IsViscous() const { return isViscous_; }
-  bool IsTurbulent() const { return isTurbulent_; }
+  int NumGhosts() const {return numGhosts_;}
+  int ParentBlock() const {return parBlock_;}
+  int LocalPosition() const {return localPos_;}
+  int Rank() const {return rank_;}
+  int GlobalPos() const {return globalPos_;}
+  bool IsViscous() const {return isViscous_;}
+  bool IsTurbulent() const {return isTurbulent_;}
+  bool IsRANS() const {return isRANS_;}
 
-  boundaryConditions BC() const { return bc_; }
+  boundaryConditions BC() const {return bc_;}
 
   primVars State(const int &ii, const int &jj, const int &kk) const {
     return state_(ii, jj, kk);
@@ -360,10 +362,10 @@ class procBlock {
     return isTurbulent_ ? eddyViscosity_(ii, jj, kk) : 0.0;
   }
   double F1(const int &ii, const int &jj, const int &kk) const {
-    return isTurbulent_ ? f1_(ii, jj, kk) : 0.0;
+    return isRANS_ ? f1_(ii, jj, kk) : 0.0;
   }
   double F2(const int &ii, const int &jj, const int &kk) const {
-    return isTurbulent_ ? f2_(ii, jj, kk) : 0.0;
+    return isRANS_ ? f2_(ii, jj, kk) : 0.0;
   }
 
   void CalcBlockTimeStep(const input &, const double &);
@@ -459,9 +461,10 @@ class procBlock {
   void SwapTurbSliceMPI(const interblock &, const int &);
   void SwapWallDistSlice(const interblock &, procBlock &);
   void SwapWallDistSliceMPI(const interblock &, const int &);
-  void SwapGradientSlice(const interblock &, procBlock &);
-  void SwapGradientSliceMPI(const interblock &, const int &,
-                            const MPI_Datatype &, const MPI_Datatype &);
+  void SwapEddyViscAndGradientSlice(const interblock &, procBlock &);
+  void SwapEddyViscAndGradientSliceMPI(const interblock &, const int &,
+                                       const MPI_Datatype &,
+                                       const MPI_Datatype &);
 
   void PackSendGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
                        const MPI_Datatype &) const;

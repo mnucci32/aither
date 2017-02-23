@@ -79,7 +79,7 @@ void primVars::NondimensionalInitialize(const idealGas &eos, const double &aRef,
   data_[2] = ic.Velocity().Y() / aRef;
   data_[3] = ic.Velocity().Z() / aRef;
 
-  if (inp.IsTurbulent()) {
+  if (inp.IsRANS()) {
     // Initialize turbulence quantities based off of specified turublence
     // intensity and eddy viscosity ratio. This is the default for
     // STAR-CCM+
@@ -443,7 +443,7 @@ primVars primVars::GetGhostState(const string &bcType,
     // turbulence bcs
     // tke at cell center is set to opposite of tke at boundary cell center
     // so that tke at face will be zero
-    if (inputVars.IsTurbulent()) {
+    if (inputVars.IsRANS()) {
       ghostState.data_[5] = -1.0 * this->Tke();
 
       const auto nuW = suth.Viscosity(this->Temperature(eqnState))
@@ -480,7 +480,7 @@ primVars primVars::GetGhostState(const string &bcType,
     // numerical bc for pressure, same as boundary state
 
     // assign farfield conditions to turbulence variables
-    if (inputVars.IsTurbulent()) {
+    if (inputVars.IsRANS()) {
       ghostState.ApplyFarfieldTurbBC(ghostVel,
                                      bcData->TurbulenceIntensity(),
                                      bcData->EddyViscosityRatio(), suth,
@@ -491,7 +491,7 @@ primVars primVars::GetGhostState(const string &bcType,
       ghostState = layer * ghostState - (*this);
 
       // assign farfield conditions to turbulence variables
-      if (inputVars.IsTurbulent()) {
+      if (inputVars.IsRANS()) {
         ghostState.ApplyFarfieldTurbBC(ghostVel,
                                        bcData->TurbulenceIntensity(),
                                        bcData->EddyViscosityRatio(), suth,
@@ -545,7 +545,7 @@ primVars primVars::GetGhostState(const string &bcType,
       ghostState = freeState;
 
       // assign farfield conditions to turbulence variables
-      if (inputVars.IsTurbulent()) {
+      if (inputVars.IsRANS()) {
         ghostState.ApplyFarfieldTurbBC(freeVel,
                                        bcData->TurbulenceIntensity(),
                                        bcData->EddyViscosityRatio(), suth,
@@ -578,7 +578,7 @@ primVars primVars::GetGhostState(const string &bcType,
           normArea.Z() * (freeState.P() - ghostState.P()) / rhoSoSInt;
 
       // assign farfield conditions to turbulence variables
-      if (inputVars.IsTurbulent()) {
+      if (inputVars.IsRANS()) {
         ghostState.ApplyFarfieldTurbBC(freeVel,
                                        bcData->TurbulenceIntensity(),
                                        bcData->EddyViscosityRatio(), suth,
@@ -615,7 +615,7 @@ primVars primVars::GetGhostState(const string &bcType,
       ghostState = layer * ghostState - (*this);
 
       // assign farfield conditions to turbulence variables
-      if (inputVars.IsTurbulent()) {
+      if (inputVars.IsRANS()) {
         ghostState.ApplyFarfieldTurbBC(freeVel,
                                        bcData->TurbulenceIntensity(),
                                        bcData->EddyViscosityRatio(), suth,
@@ -642,7 +642,7 @@ primVars primVars::GetGhostState(const string &bcType,
         (inputVars.PRef() * eqnState.Gamma());
 
     // assign farfield conditions to turbulence variables
-    if (inputVars.IsTurbulent()) {
+    if (inputVars.IsRANS()) {
       ghostState.ApplyFarfieldTurbBC(vel,
                                      bcData->TurbulenceIntensity(),
                                      bcData->EddyViscosityRatio(), suth,
@@ -695,7 +695,7 @@ primVars primVars::GetGhostState(const string &bcType,
     ghostState.data_[4] = pb;
 
     // assign farfield conditions to turbulence variables
-    if (inputVars.IsTurbulent()) {
+    if (inputVars.IsRANS()) {
       ghostState.ApplyFarfieldTurbBC(ghostState.Velocity(),
                                      bcData->TurbulenceIntensity(),
                                      bcData->EddyViscosityRatio(), suth,
@@ -706,7 +706,7 @@ primVars primVars::GetGhostState(const string &bcType,
       ghostState = layer * ghostState - (*this);
 
       // assign farfield conditions to turbulence variables
-      if (inputVars.IsTurbulent()) {
+      if (inputVars.IsRANS()) {
         ghostState.ApplyFarfieldTurbBC(ghostState.Velocity(),
                                        bcData->TurbulenceIntensity(),
                                        bcData->EddyViscosityRatio(), suth,

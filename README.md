@@ -23,7 +23,6 @@ the Wilcox K-Omega 2006 and SST 2003 turbulence models are available. For detatc
 turbulence model is available. 
 
 ### To Do List
-* Add WALE and Smagorinsky subgrid scale models for LES
 * Add Couette flow regression test for isothermal wall, moving wall, periodic boundary conditions
 * Add wall functions for turbulence models
 * Add multigrid scheme for improved convergence
