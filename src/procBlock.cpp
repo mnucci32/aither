@@ -3538,7 +3538,7 @@ void procBlock::SwapWallDistSlice(const interblock &inter, procBlock &blk) {
   // inter -- interblock boundary information
   // blk -- second block involved in interblock boundary
 
-  wallDist_.SwapSlice(inter, blk.eddyViscosity_);
+  wallDist_.SwapSlice(inter, blk.wallDist_);
 }
 
 void procBlock::SwapEddyViscAndGradientSlice(const interblock &inter,

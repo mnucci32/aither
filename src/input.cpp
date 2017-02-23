@@ -686,6 +686,14 @@ void input::CheckTurbulenceModel() const {
          << "equation sets!" << endl;
     exit(EXIT_FAILURE);
   }
+  if (this->IsRANS() && turbModel_ == "wale") {
+    cerr << "ERROR: Equation set is RANS, but turbulence model is not!" << endl;
+    exit(EXIT_FAILURE);
+  }
+  if (this->IsTurbulent() && !this->IsRANS() && turbModel_ != "wale") {
+    cerr << "ERROR: Equation set is LES, but turbulence model is not!" << endl;
+    exit(EXIT_FAILURE);
+  }
 }
 
 
