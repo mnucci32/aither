@@ -343,8 +343,8 @@ def main():
         rae2822.SetResiduals([5.0196e-1, 1.2895, 4.6389e-1, 1.1253, 4.5099e-1,
                               1.1526e-7, 1.9755e-5])
     else:
-        rae2822.SetResiduals([5.0068e-1, 1.3217, 4.6498e-1, 1.0488, 4.5354e-1,
-                              1.2176e-7, 2.0138e-5])
+        rae2822.SetResiduals([5.0069e-1, 1.3219, 4.6502e-1, 9.1543e-1, 4.5357e-1,
+                              1.1694e-7, 2.0139e-5])
     rae2822.SetIgnoreIndices(3)
     rae2822.SetMpirunPath(options.mpirunPath)
 
