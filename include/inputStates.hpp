@@ -69,6 +69,9 @@ class inputState {
   virtual bool IsIsothermal() const {return false;}
   virtual bool IsAdiabatic() const {return false;}
   virtual bool IsConstantHeatFlux() const {return false;}
+  virtual const double Rotation() const {return 0;}
+  virtual const vector3d<double> Translation() const {return {0, 0, 0};}
+  virtual const vector3d<double> Axis() const {return {0, 0, 0};}
 
   // destructor
   virtual ~inputState() noexcept {}
@@ -309,6 +312,40 @@ class viscousWall : public inputState {
 };
 
 
+class periodic : public inputState {
+  vector3d<double> translation_ = {0.0, 0.0, 0.0};
+  vector3d<double> axis_ = {0.0, 0.0, 0.0};
+  double rotation_ = 0.0;
+
+ public:
+  // constructor
+  explicit periodic(string &str);
+
+  // move constructor and assignment operator
+  periodic(periodic&&) noexcept = default;
+  periodic& operator=(periodic&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  periodic(const periodic&) = default;
+  periodic& operator=(const periodic&) = default;
+
+  // Member functions
+  bool IsTranslation() const {
+    return translation_ != vector3d<double>(0.0, 0.0, 0.0);
+  }
+  bool IsRotation() const {
+    return axis_ != vector3d<double>(0.0, 0.0, 0.0);
+  }
+  const vector3d<double> Translation() const override {return translation_;}
+  const vector3d<double> Axis() const override {return axis_;}
+  const double Rotation() const override {return rotation_;}
+  void Print(ostream &os) const override;
+
+  // Destructor
+  virtual ~periodic() noexcept {}
+};
+
+
 
 // function declarations
 ostream &operator<<(ostream &, const inputState &);
@@ -320,6 +357,7 @@ ostream &operator<<(ostream &, const supersonicInflow &);
 ostream &operator<<(ostream &, const subsonicOutflow &);
 ostream &operator<<(ostream &, const subsonicInflow &);
 ostream &operator<<(ostream &, const viscousWall &);
+ostream &operator<<(ostream &, const periodic &);
 
 
 vector<string> Tokenize(string, const string &, const unsigned int = 0);
