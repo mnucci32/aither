@@ -20,10 +20,9 @@ time accuracy in the implicit solver. Available implicit time integrations metho
 Warming family of methods and are the implicit euler (1st order), Crank-Nicholson (2nd order), and BDF2
 (2nd order) methods. The code has been thoroughly commented. It has been made parallel using MPI. For RANS simulations 
 the Wilcox K-Omega 2006 and SST 2003 turbulence models are available. For detatched eddy simulations, the SST-DES
-turbulence model is available. 
+turbulence model is available. For large eddy simulations, the WALE subgrid scale model is available.
 
 ### To Do List
-* Add Couette flow regression test for isothermal wall, moving wall, periodic boundary conditions
 * Add wall functions for turbulence models
 * Add multigrid scheme for improved convergence
 

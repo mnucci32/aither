@@ -1006,8 +1006,8 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
   // dir -- direction to split it (i, j, k)
   // ind -- index of cell to split at
   //        (this index is the last cell that remains in the lower split)
-  // numBlk -- block_ number that (*this) is assocatied with
-  // newBlkNum -- block_ number for upper split
+  // numBlk -- block number that (*this) is assocatied with
+  // newBlkNum -- block number for upper split
   // aSurf -- vector of any interblocks that are split,
   //          because their partners will need to be altered for the split as
   //          well
@@ -1417,11 +1417,11 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
   // surf -- boundarySurface of partner block_
   // part -- plot3dBlock that surf is assigned to
   // self -- plot3dBlock that (*this) is assigned to
-  // sblk -- block_ number of self
+  // sblk -- block number of self
   // dir -- direction that partner split was in
   // ind -- index of split
-  // lblk -- lower block_ number in partner split
-  // ublk -- upper block_ number in partner split
+  // lblk -- lower block number in partner split
+  // ublk -- upper block number in partner split
 
   // dummy value used because interblock is only used to test for match
   bool border[4] = {false, false, false, false};
@@ -1620,7 +1620,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
 
       // split matched surface
       auto split = false;  // flag to tell if surface was split (or just if
-                           // block_ number updated)
+                           // block number updated)
       const auto upSurf = lowSurf.Split(candDir, candInd, lblk, ublk, split,
                                         match.Orientation());
 
@@ -2517,43 +2517,40 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind,
                                        bool &split, int orientation) {
   // dir -- direction to split the surface in
   // ind -- index at which to split the surface
-  // lBlk -- lower block_ number of split
-  // uBlk -- upper block_ number of split
-  // split -- flag to determine whether block_ was split or just tag updated, if
+  // lBlk -- lower block number of split
+  // uBlk -- upper block number of split
+  // split -- flag to determine whether block was split or just tag updated, if
   // no split, upper surface returned is meaningless
   // orientation -- if called from DependentSplit, orientation of partner split
-
-  const auto indNG = ind;
 
   auto surf1 = (*this);  // lower surface
   auto surf2 = (*this);  // upper surface
 
   split = true;  // initialize split flag
   // flag to determine if the split direction is reversed - used to determine
-  // which block_ should match lower/upper surfaces
+  // which block should match lower/upper surfaces
   // surf1 and surf2 have same orientation, so if reversed for 1, reversed for 2
   const auto isReversed = surf1.SplitDirectionIsReversed(dir, orientation);
 
   if (dir == "i") {  // split along i-plane
-    if (this->SurfaceType() == 1 || this->SurfaceType() == 2 ||
-        indNG <= 0) {
+    if (this->SurfaceType() == 1 || this->SurfaceType() == 2 || ind <= 0) {
       // cannot split an i-surface along i-plane, just update block
       surf1.UpdateTagForSplitJoin(uBlk);
       split = false;
     } else {  // j or k surface
-      if (this->IMin() >= indNG) {
+      if (this->IMin() >= ind) {
         // this surface is only present in the upper split
-        surf1.data_[0] = this->IMin() - indNG + 1 + this->IMin();  // imin
-        surf1.data_[1] = this->IMax() - indNG + 1 + this->IMin();  // imax
+        surf1.data_[0] = this->IMin() - ind + 1 + this->IMin();  // imin
+        surf1.data_[1] = this->IMax() - ind + 1 + this->IMin();  // imax
         isReversed ? surf1.UpdateTagForSplitJoin(lBlk)
                    : surf1.UpdateTagForSplitJoin(uBlk);
         split = false;
-      } else if (this->IMax() >= indNG) {  // this surface straddles the split
-        surf2.data_[0] = indNG;  // imin
+      } else if (this->IMax() > ind) {  // this surface straddles the split
+        surf2.data_[0] = ind;  // imin
         isReversed ? surf2.UpdateTagForSplitJoin(lBlk)
                    : surf2.UpdateTagForSplitJoin(uBlk);
 
-        surf1.data_[1] = indNG;  // imax
+        surf1.data_[1] = ind;  // imax
         isReversed ? surf1.UpdateTagForSplitJoin(uBlk)
                    : surf1.UpdateTagForSplitJoin(lBlk);
       } else {  // this surface is only present in the lower split
@@ -2564,25 +2561,24 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind,
     }
 
   } else if (dir == "j") {  // split along j-plane
-    if (this->SurfaceType() == 3 || this->SurfaceType() == 4 ||
-        indNG <= 0) {
+    if (this->SurfaceType() == 3 || this->SurfaceType() == 4 || ind <= 0) {
       // cannot split a j-surface along j-plane, just update block
       surf1.UpdateTagForSplitJoin(uBlk);
       split = false;
     } else {  // i or k surface
-      if (this->JMin() >= indNG) {
+      if (this->JMin() >= ind) {
         // this surface is only present in the upper split
-        surf1.data_[2] = this->JMin() - indNG + 1 + this->JMin();  // jmin
-        surf1.data_[3] = this->JMax() - indNG + 1 + this->JMin();  // jmax
+        surf1.data_[2] = this->JMin() - ind + 1 + this->JMin();  // jmin
+        surf1.data_[3] = this->JMax() - ind + 1 + this->JMin();  // jmax
         isReversed ? surf1.UpdateTagForSplitJoin(lBlk)
                    : surf1.UpdateTagForSplitJoin(uBlk);
         split = false;
-      } else if (this->JMax() >= indNG) {  // this surface straddles the split
-        surf2.data_[2] = indNG;  // jmin
+      } else if (this->JMax() > ind) {  // this surface straddles the split
+        surf2.data_[2] = ind;  // jmin
         isReversed ? surf2.UpdateTagForSplitJoin(lBlk)
                    : surf2.UpdateTagForSplitJoin(uBlk);
 
-        surf1.data_[3] = indNG;  // jmax
+        surf1.data_[3] = ind;  // jmax
         isReversed ? surf1.UpdateTagForSplitJoin(uBlk)
                    : surf1.UpdateTagForSplitJoin(lBlk);
       } else {  // this surface is only present in the lower split
@@ -2593,25 +2589,23 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind,
     }
 
   } else if (dir == "k") {  // split along k-plane
-    if (this->SurfaceType() == 5 || this->SurfaceType() == 6 ||
-        indNG <= 0) {
+    if (this->SurfaceType() == 5 || this->SurfaceType() == 6 || ind <= 0) {
       // cannot split a k-surface along k-plane, just update block
       surf1.UpdateTagForSplitJoin(uBlk);
       split = false;
     } else {  // i or j surface
-      if (this->KMin() >=
-          indNG) {  // this surface is only present in the upper split
-        surf1.data_[4] = this->KMin() - indNG + 1 + this->KMin();  // kmin
-        surf1.data_[5] = this->KMax() - indNG + 1 + this->KMin();  // kmax
+      if (this->KMin() >= ind) {  // surface only present in the upper split
+        surf1.data_[4] = this->KMin() - ind + 1 + this->KMin();  // kmin
+        surf1.data_[5] = this->KMax() - ind + 1 + this->KMin();  // kmax
         isReversed ? surf1.UpdateTagForSplitJoin(lBlk)
                    : surf1.UpdateTagForSplitJoin(uBlk);
         split = false;
-      } else if (this->KMax() >= indNG) {  // this surface straddles the split
-        surf2.data_[4] = indNG;  // kmin
+      } else if (this->KMax() > ind) {  // this surface straddles the split
+        surf2.data_[4] = ind;  // kmin
         isReversed ? surf2.UpdateTagForSplitJoin(lBlk)
                    : surf2.UpdateTagForSplitJoin(uBlk);
 
-        surf1.data_[5] = indNG;  // kmax
+        surf1.data_[5] = ind;  // kmax
         isReversed ? surf1.UpdateTagForSplitJoin(uBlk)
                    : surf1.UpdateTagForSplitJoin(lBlk);
       } else {  // this surface is only present in the lower split

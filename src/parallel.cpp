@@ -136,6 +136,7 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid,
             altSurf[ii], grid[blk], grid[altSurf[ii].PartnerBlock()],
             altSurf[ii].PartnerBlock(), dir, ind, blk, newBlk);
       }
+
       // reassign split grid
       grid[blk] = lBlk;
 
