@@ -1180,7 +1180,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // if i lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii - 1, jj, kk) ||
-        bc_.BCIsConnection(ii - 1, jj, kk, 1)) {
+        bc_.BCIsConnection(ii, jj, kk, 1)) {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
 
@@ -1198,7 +1198,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // if j lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii, jj - 1, kk) ||
-        bc_.BCIsConnection(ii, jj - 1, kk, 3)) {
+        bc_.BCIsConnection(ii, jj, kk, 3)) {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
@@ -1216,7 +1216,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // if k lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii, jj, kk - 1) ||
-        bc_.BCIsConnection(ii, jj, kk - 1, 5)) {
+        bc_.BCIsConnection(ii, jj, kk, 5)) {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
 
@@ -1400,7 +1400,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       // if i lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii - 1, jj, kk) ||
-          bc_.BCIsConnection(ii - 1, jj, kk, 1)) {
+          bc_.BCIsConnection(ii, jj, kk, 1)) {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
 
@@ -1418,7 +1418,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       // if j lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii, jj - 1, kk) ||
-          bc_.BCIsConnection(ii, jj - 1, kk, 3)) {
+          bc_.BCIsConnection(ii, jj, kk, 3)) {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
@@ -1436,7 +1436,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       // if k lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii, jj, kk - 1) ||
-          bc_.BCIsConnection(ii, jj, kk - 1, 5)) {
+          bc_.BCIsConnection(ii, jj, kk, 5)) {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
 
@@ -1505,7 +1505,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if i lower diagonal cell is in physical location there is a
         // contribution from it
         if (this->IsPhysical(ii - 1, jj, kk) ||
-            bc_.BCIsConnection(ii - 1, jj, kk, 1)) {
+            bc_.BCIsConnection(ii, jj, kk, 1)) {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
 
@@ -1523,7 +1523,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if j lower diagonal cell is in physical location there is a
         // constribution from it
         if (this->IsPhysical(ii, jj - 1, kk) ||
-            bc_.BCIsConnection(ii, jj - 1, kk, 3)) {
+            bc_.BCIsConnection(ii, jj, kk, 3)) {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
@@ -1541,7 +1541,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if k lower diagonal cell is in physical location there is a
         // contribution from it
         if (this->IsPhysical(ii, jj, kk - 1) ||
-            bc_.BCIsConnection(ii, jj, kk - 1, 5)) {
+            bc_.BCIsConnection(ii, jj, kk, 5)) {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
 
@@ -2526,7 +2526,7 @@ void procBlock::AssignGhostCellsGeom() {
       // -----------------------------------------------------------------------
       // only supply geometry values for non connection BCs
       // for connection do nothing
-      if (bc_.IsConnection(ii)) {
+      if (!bc_.IsConnection(ii)) {
         // assign volume for layer of ghost cells
         vol_.Insert(dir, gCell, r1, r2,
                     vol_.Slice(dir, iCell, r1, r2));
@@ -2819,7 +2819,7 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
       // -----------------------------------------------------------------------
       // only supply cell values for non connection BCs
       // for connection do nothing
-      if (bc_.IsConnection(ii)) {
+      if (!bc_.IsConnection(ii)) {
         // get boundary condtion type (no viscous walls in invicid BCs)
         auto bcName = bc_.GetBCTypes(ii);
         if (bcName == "viscousWall") {bcName = "slipWall";}
