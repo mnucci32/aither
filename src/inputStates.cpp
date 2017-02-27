@@ -142,6 +142,21 @@ ostream &operator<<(ostream &os, const viscousWall &bc) {
   return os;
 }
 
+void periodic::Print(ostream &os) const {
+  os << "periodic(tag=" << this->Tag();
+  if (this->IsTranslation()) {
+    os << "; translation=[" << this->Translation() << "]";
+  } else if (this->IsRotation()) {
+    os << "; axis=[" << this->Axis() << "]; rotation=" << this->Rotation();
+  }
+  os << ")";
+}
+
+ostream &operator<<(ostream &os, const periodic &bc) {
+  bc.Print(os);
+  return os;
+}
+
 
 // function to trim leading and trailing whitespace from a string, and also
 // remove data after a comment
@@ -562,6 +577,88 @@ viscousWall::viscousWall(string &str) {
     exit(EXIT_FAILURE);
   }
 }
+
+// construct periodic from string
+periodic::periodic(string &str) {
+  const auto start = str.find("(") + 1;
+  const auto end = str.find(")") - 1;
+  const auto range = end - start + 1;  // +/-1 to ignore ()
+  auto state = str.substr(start, range);
+  const auto id = str.substr(0, start - 1);
+  if (id != "periodic") {
+    cerr << "ERROR. State condition specifier " << id << " is not recognized!"
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+  auto tokens = Tokenize(state, ";");
+
+  // erase portion used so multiple states in same string can easily be found
+  str.erase(0, end);
+
+  // parameter counters
+  auto tagCount = 0;
+  auto translationCount = 0;
+  auto axisCount = 0;
+  auto rotationCount = 0;
+  auto specifiedTranslation = false;
+  auto specifiedAxis = false;
+  auto specifiedRotation = false;
+
+  for (auto &token : tokens) {
+    auto param = Tokenize(token, "=");
+    if (param.size() != 2) {
+      cerr << "ERROR. Problem with state condition parameter " << token << endl;
+      exit(EXIT_FAILURE);
+    }
+
+    if (param[0] == "translation") {
+      translation_ = ReadVector(RemoveTrailing(param[1], ","));
+      specifiedTranslation = true;
+      translationCount++;
+    } else if (param[0] == "axis") {
+      axis_ = ReadVector(RemoveTrailing(param[1], ","));
+      specifiedAxis = true;
+      axisCount++;
+    } else if (param[0] == "rotation") {
+      rotation_ = stod(RemoveTrailing(param[1], ","));
+      specifiedRotation = true;
+      rotationCount++;
+    } else if (param[0] == "tag") {
+      this->SetTag(stoi(RemoveTrailing(param[1], ",")));
+      tagCount++;
+    } else {
+      cerr << "ERROR. periodic specifier " << param[0]
+           << " is not recognized!" << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  // sanity checks
+  // required variables
+  if (tagCount != 1) {
+    cerr << "ERROR. For periodic tag must be specified, and only specified "
+         << "once." << endl;
+    exit(EXIT_FAILURE);
+  }
+  // optional variables
+  if (translationCount > 1 || axisCount > 1 || rotationCount > 1) {
+    cerr << "ERROR. For periodic, translation, axis, and rotation can "
+         << "only be specified once." << endl;
+    exit(EXIT_FAILURE);
+  }
+  if (specifiedTranslation && (specifiedAxis || specifiedRotation)) {
+    cerr << "ERROR. For periodic can only specify translation OR rotation."
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+  if ((specifiedAxis && !specifiedRotation) ||
+      (!specifiedAxis && specifiedRotation)) {
+    cerr << "ERROR. For periodic rotation, must specify axis and rotation."
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
 
 void CheckICTags(const vector<icState> &ics, const int &tag) {
   for (auto &ic : ics) {

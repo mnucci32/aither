@@ -185,7 +185,7 @@ vector3d<double> ScalarGradGG(
   return temp;
 }
 
-/* Function to swap ghost cell geometry between two blocks at an interblock
+/* Function to swap ghost cell geometry between two blocks at an connection
 boundary. Slices are removed from the physical cells (extending into ghost cells
 at the edges) of one block and inserted into the ghost cells of its partner
 block. The reverse is also true. The slices are taken in the coordinate system
@@ -201,17 +201,17 @@ Ui-3/2   Ui-1/2   |    Uj+1/2    Uj+3/2  Ui-3/2    Ui-1/2  |    Uj+1/2    Uj+3/2
                   |                                        |
 
 The above diagram shows the resulting values after the ghost cell swap. The
-logic ensures that the ghost cells at the interblock boundary exactly match
+logic ensures that the ghost cells at the connection boundary exactly match
 their partner block as if there were no separation in the grid.
 
 Only 3 faces at each ghost cell need to be swapped (i.e. the lower face for Ui
 is the upper face for Ui-1). At the end of a line (i-line, j-line or k-line),
 both the upper and lower faces need to be swapped.
 */
-void SwapGeomSlice(interblock &inter, procBlock &blk1, procBlock &blk2) {
-  // inter -- interblock boundary information
-  // blk1 -- first block involved in interblock boundary
-  // blk2 -- second block involved in interblock boundary
+void SwapGeomSlice(connection &inter, procBlock &blk1, procBlock &blk2) {
+  // inter -- connection boundary information
+  // blk1 -- first block involved in connection boundary
+  // blk2 -- second block involved in connection boundary
 
   // Get indices for slice coming from first block to swap
   auto is1 = 0, ie1 = 0;
@@ -230,19 +230,19 @@ void SwapGeomSlice(interblock &inter, procBlock &blk1, procBlock &blk2) {
   const auto geom1 = geomSlice(blk1, {is1, ie1}, {js1, je1}, {ks1, ke1});
   const auto geom2 = geomSlice(blk2, {is2, ie2}, {js2, je2}, {ks2, ke2});
 
-  // change interblocks to work with slice and ghosts
-  interblock inter1 = inter;
-  interblock inter2 = inter;
+  // change connections to work with slice and ghosts
+  connection inter1 = inter;
+  connection inter2 = inter;
   inter1.AdjustForSlice(false, blk1.NumGhosts());
   inter2.AdjustForSlice(true, blk2.NumGhosts());
 
   // put slices in proper blocks
-  // return vector determining if any of the 4 edges of the interblock need to
+  // return vector determining if any of the 4 edges of the connection need to
   // be updated for a "t" intersection
   const auto adjEdge1 = blk1.PutGeomSlice(geom2, inter2, blk2.NumGhosts());
   const auto adjEdge2 = blk2.PutGeomSlice(geom1, inter1, blk1.NumGhosts());
 
-  // if an interblock border needs to be updated, update
+  // if an connection border needs to be updated, update
   for (auto ii = 0U; ii < adjEdge1.size(); ii++) {
     if (adjEdge1[ii]) {
       inter.UpdateBorderFirst(ii);
@@ -255,19 +255,19 @@ void SwapGeomSlice(interblock &inter, procBlock &blk1, procBlock &blk2) {
 
 
 /* Function to populate ghost cells with proper cell states for inviscid flow
-calculation. This function operates on the entire grid and uses interblock
+calculation. This function operates on the entire grid and uses connection
 boundaries to pass the correct data between grid blocks.
 */
 void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
                            const idealGas &eos, const sutherland &suth,
                            const unique_ptr<turbModel> &turb,
-                           vector<interblock> &connections, const int &rank,
+                           vector<connection> &connections, const int &rank,
                            const MPI_Datatype &MPI_cellData) {
   // states -- vector of all procBlocks in the solution domain
   // inp -- all input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
-  // conn -- vector of interblock connections
+  // connections -- vector of connection boundary types
   // rank -- processor rank
   // MPI_cellData -- data type to pass primVars, genArray
 
@@ -279,18 +279,18 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
   // loop over connections and swap ghost cells where needed
   for (auto &conn : connections) {
     if (conn.RankFirst() == rank && conn.RankSecond() == rank) {
-      // both sides of interblock on this processor, swap w/o mpi
+      // both sides of connection on this processor, swap w/o mpi
       states[conn.LocalBlockFirst()].SwapStateSlice(
           conn, states[conn.LocalBlockSecond()]);
     } else if (conn.RankFirst() == rank) {
-      // rank matches rank of first side of interblock, swap over mpi
+      // rank matches rank of first side of connection, swap over mpi
       states[conn.LocalBlockFirst()].SwapStateSliceMPI(conn, rank, MPI_cellData);
     } else if (conn.RankSecond() == rank) {
-      // rank matches rank of second side of interblock, swap over mpi
+      // rank matches rank of second side of connection, swap over mpi
       states[conn.LocalBlockSecond()].SwapStateSliceMPI(conn, rank, MPI_cellData);
     }
-    // if rank doesn't match either side of interblock, then do nothing and
-    // move on to the next interblock
+    // if rank doesn't match either side of connection, then do nothing and
+    // move on to the next connection
   }
 
   // loop over all blocks and get ghost cell edge data
@@ -401,7 +401,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
                       const double &aRef, const sutherland &suth,
                       const unique_ptr<turbModel> &turb, const int &mm,
                       genArray &residL2, resid &residLinf,
-                      const vector<interblock> &connections, const int &rank,
+                      const vector<connection> &connections, const int &rank,
                       const MPI_Datatype &MPI_cellData) {
   // blocks -- vector of procBlocks on current processor
   // mainDiagonal -- main diagonal of A matrix for all blocks on processor
@@ -496,115 +496,115 @@ double ImplicitUpdate(vector<procBlock> &blocks,
 }
 
 void SwapImplicitUpdate(vector<multiArray3d<genArray>> &du,
-                        const vector<interblock> &connections, const int &rank,
+                        const vector<connection> &connections, const int &rank,
                         const MPI_Datatype &MPI_cellData,
                         const int &numGhosts) {
   // du -- implicit update in conservative variables
-  // conn -- interblock boundary conditions
+  // conn -- connection boundary conditions
   // rank -- processor rank
   // MPI_cellData -- datatype to pass primVars or genArray
   // numGhosts -- number of ghost cells
 
-  // loop over all connections and swap interblock updates when necessary
+  // loop over all connections and swap connection updates when necessary
   for (auto &conn : connections) {
     if (conn.RankFirst() == rank && conn.RankSecond() == rank) {
-      // both sides of interblock are on this processor, swap w/o mpi
+      // both sides of connection are on this processor, swap w/o mpi
       du[conn.LocalBlockFirst()].SwapSlice(conn, du[conn.LocalBlockSecond()]);
     } else if (conn.RankFirst() == rank) {
-      // rank matches rank of first side of interblock, swap over mpi
+      // rank matches rank of first side of connection, swap over mpi
       du[conn.LocalBlockFirst()].SwapSliceMPI(conn, rank, MPI_cellData);
     } else if (conn.RankSecond() == rank) {
-      // rank matches rank of second side of interblock, swap over mpi
+      // rank matches rank of second side of connection, swap over mpi
       du[conn.LocalBlockSecond()].SwapSliceMPI(conn, rank, MPI_cellData);
     }
-    // if rank doesn't match either side of interblock, then do nothing and
-    // move on to the next interblock
+    // if rank doesn't match either side of connection, then do nothing and
+    // move on to the next connection
   }
 }
 
 
 void SwapTurbVars(vector<procBlock> &states,
-                  const vector<interblock> &connections, const int &rank,
+                  const vector<connection> &connections, const int &rank,
                   const int &numGhosts) {
   // states -- vector of all procBlocks in the solution domain
-  // conn -- interblock boundary conditions
+  // conn -- connection boundary conditions
   // rank -- processor rank
   // numGhosts -- number of ghost cells
 
-  // loop over all connections and swap interblock updates when necessary
+  // loop over all connections and swap connection updates when necessary
   for (auto &conn : connections) {
     if (conn.RankFirst() == rank && conn.RankSecond() == rank) {
-      // both sides of interblock are on this processor, swap w/o mpi
+      // both sides of connection are on this processor, swap w/o mpi
       states[conn.LocalBlockFirst()].SwapTurbSlice(
           conn, states[conn.LocalBlockSecond()]);
     } else if (conn.RankFirst() == rank) {
-      // rank matches rank of first side of interblock, swap over mpi
+      // rank matches rank of first side of connection, swap over mpi
       states[conn.LocalBlockFirst()].SwapTurbSliceMPI(conn, rank);
     } else if (conn.RankSecond() == rank) {
-      // rank matches rank of second side of interblock, swap over mpi
+      // rank matches rank of second side of connection, swap over mpi
       states[conn.LocalBlockSecond()].SwapTurbSliceMPI(conn, rank);
     }
-    // if rank doesn't match either side of interblock, then do nothing and
-    // move on to the next interblock
+    // if rank doesn't match either side of connection, then do nothing and
+    // move on to the next connection
   }
 }
 
 void SwapEddyViscAndGradients(vector<procBlock> &states,
-                              const vector<interblock> &connections,
+                              const vector<connection> &connections,
                               const int &rank,
                               const MPI_Datatype &MPI_tensorDouble,
                               const MPI_Datatype &MPI_vec3d,
                               const int &numGhosts) {
   // states -- vector of all procBlocks in the solution domain
-  // conn -- interblock boundary conditions
+  // conn -- connection boundary conditions
   // rank -- processor rank
   // MPI_tensorDouble -- MPI datatype for tensor<double>
   // MPI_vec3d -- MPI datatype for vector3d<double>
   // numGhosts -- number of ghost cells
 
-  // loop over all connections and swap interblock updates when necessary
+  // loop over all connections and swap connection updates when necessary
   for (auto &conn : connections) {
     if (conn.RankFirst() == rank && conn.RankSecond() == rank) {
-      // both sides of interblock are on this processor, swap w/o mpi
+      // both sides of connection are on this processor, swap w/o mpi
       states[conn.LocalBlockFirst()].SwapEddyViscAndGradientSlice(
           conn, states[conn.LocalBlockSecond()]);
     } else if (conn.RankFirst() == rank) {
-      // rank matches rank of first side of interblock, swap over mpi
+      // rank matches rank of first side of connection, swap over mpi
       states[conn.LocalBlockFirst()].SwapEddyViscAndGradientSliceMPI(
           conn, rank, MPI_tensorDouble, MPI_vec3d);
     } else if (conn.RankSecond() == rank) {
-      // rank matches rank of second side of interblock, swap over mpi
+      // rank matches rank of second side of connection, swap over mpi
       states[conn.LocalBlockSecond()].SwapEddyViscAndGradientSliceMPI(
           conn, rank, MPI_tensorDouble, MPI_vec3d);
     }
-    // if rank doesn't match either side of interblock, then do nothing and
-    // move on to the next interblock
+    // if rank doesn't match either side of connection, then do nothing and
+    // move on to the next connection
   }
 }
 
 void SwapWallDist(vector<procBlock> &states,
-                  const vector<interblock> &connections, const int &rank,
+                  const vector<connection> &connections, const int &rank,
                   const int &numGhosts) {
   // states -- vector of all procBlocks in the solution domain
-  // conn -- interblock boundary conditions
+  // conn -- connection boundary conditions
   // rank -- processor rank
   // numGhosts -- number of ghost cells
 
-  // loop over all connections and swap interblock updates when necessary
+  // loop over all connections and swap connection updates when necessary
   for (auto &conn : connections) {
     if (conn.RankFirst() == rank && conn.RankSecond() == rank) {
-      // both sides of interblock are on this processor, swap w/o mpi
+      // both sides of connection are on this processor, swap w/o mpi
       states[conn.LocalBlockFirst()].SwapWallDistSlice(
           conn, states[conn.LocalBlockSecond()]);
     } else if (conn.RankFirst() == rank) {
-      // rank matches rank of first side of interblock, swap over mpi
+      // rank matches rank of first side of connection, swap over mpi
       states[conn.LocalBlockFirst()].SwapWallDistSliceMPI(conn, rank);
     } else if (conn.RankSecond() == rank) {
-      // rank matches rank of second side of interblock, swap over mpi
+      // rank matches rank of second side of connection, swap over mpi
       states[conn.LocalBlockSecond()].SwapWallDistSliceMPI(conn, rank);
     }
-    // if rank doesn't match either side of interblock, then do nothing and
-    // move on to the next interblock
+    // if rank doesn't match either side of connection, then do nothing and
+    // move on to the next connection
   }
 }
 
@@ -612,7 +612,7 @@ void CalcResidual(vector<procBlock> &states,
                   vector<multiArray3d<fluxJacobian>> &mainDiagonal,
                   const sutherland &suth, const idealGas &eos,
                   const input &inp, const unique_ptr<turbModel> &turb,
-                  const vector<interblock> &connections, const int &rank,
+                  const vector<connection> &connections, const int &rank,
                   const MPI_Datatype &MPI_tensorDouble,
                   const MPI_Datatype &MPI_vec3d) {
   // states -- vector of all procBlocks on processor
@@ -621,7 +621,7 @@ void CalcResidual(vector<procBlock> &states,
   // eos -- equation of state
   // inp -- input variables
   // turb -- turbulence model
-  // connections -- interblock boundary conditions
+  // connections -- connection boundary conditions
   // rank -- processor rank
   // MPI_tensorDouble -- MPI datatype for tensor<double>
   // MPI_vec3d -- MPI datatype for vector3d<double>

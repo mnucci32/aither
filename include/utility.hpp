@@ -63,11 +63,11 @@ vector3d<double> ScalarGradGG(
     const vector3d<double> &, const vector3d<double> &,
     const vector3d<double> &, const double &);
 
-void SwapGeomSlice(interblock &, procBlock &, procBlock &);
+void SwapGeomSlice(connection &, procBlock &, procBlock &);
 
 void GetBoundaryConditions(vector<procBlock> &, const input &, const idealGas &,
                            const sutherland &, const unique_ptr<turbModel> &,
-                           vector<interblock> &, const int &,
+                           vector<connection> &, const int &,
                            const MPI_Datatype &);
 
 vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &);
@@ -84,17 +84,17 @@ double ImplicitUpdate(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
                       const input &, const idealGas &, const double &,
                       const sutherland &, const unique_ptr<turbModel> &,
                       const int &, genArray &, resid &,
-                      const vector<interblock> &, const int &,
+                      const vector<connection> &, const int &,
                       const MPI_Datatype &);
 
 void SwapImplicitUpdate(vector<multiArray3d<genArray>> &,
-                        const vector<interblock> &, const int &,
+                        const vector<connection> &, const int &,
                         const MPI_Datatype &, const int &);
-void SwapTurbVars(vector<procBlock> &, const vector<interblock> &, const int &,
+void SwapTurbVars(vector<procBlock> &, const vector<connection> &, const int &,
                   const int &);
-void SwapWallDist(vector<procBlock> &, const vector<interblock> &, const int &,
+void SwapWallDist(vector<procBlock> &, const vector<connection> &, const int &,
                   const int &);
-void SwapEddyViscAndGradients(vector<procBlock> &, const vector<interblock> &,
+void SwapEddyViscAndGradients(vector<procBlock> &, const vector<connection> &,
                               const int &, const MPI_Datatype &,
                               const MPI_Datatype &, const int &);
 
@@ -102,7 +102,7 @@ void CalcResidual(vector<procBlock> &,
                   vector<multiArray3d<fluxJacobian>> &,
                   const sutherland &, const idealGas &, const input &,
                   const unique_ptr<turbModel> &,
-                  const vector<interblock> &, const int &, const MPI_Datatype &,
+                  const vector<connection> &, const int &, const MPI_Datatype &,
                   const MPI_Datatype &);
 
 void CalcTimeStep(vector<procBlock> &, const input &, const double &);

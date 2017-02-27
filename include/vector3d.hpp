@@ -60,6 +60,7 @@ class vector3d {
   T& operator[](const int &a) { return data_[a]; }
 
   bool operator==(const vector3d<T>&) const;
+  bool operator!=(const vector3d<T> &v1) const {return !(*this == v1);}
 
   inline vector3d<T> & operator+=(const vector3d<T> &);
   inline vector3d<T> & operator-=(const vector3d<T> &);
@@ -138,6 +139,7 @@ class unitVec3dMag {
   // member functions
   // operator overloads
   bool operator==(const unitVec3dMag<T>&) const;
+  bool operator!=(const unitVec3dMag<T> &v1) const {return !(*this == v1);}
 
   inline unitVec3dMag<T> & operator+=(const unitVec3dMag<T> &);
   inline unitVec3dMag<T> & operator-=(const unitVec3dMag<T> &);

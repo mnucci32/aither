@@ -745,11 +745,11 @@ primVars primVars::GetGhostState(const string &bcType,
       ghostState = layer * ghostState - (*this);
     }
 
-  // interblock boundary condition
+  // connection boundary condition
   // --------------------------------------------------------------------------
   // this boundary condition is appropriate for point matched interfaces between
   // physical blocks or processor blocks
-  } else if (bcType == "interblock") {
+  } else if (bcType == "interblock" || "periodic") {
     // do nothing -- assign interior state to ghost state (already done)
     // for second layer of ghost cells interior state should be 2nd interior
     // cell
