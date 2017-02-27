@@ -190,7 +190,7 @@ void boundaryConditions::AssignFromInput(const int &surfCounter,
 /* Member function to determine of what sides of a boundary condition surface
    border another boundarySurface. This is necessary to complete the ghost cell
    swap properly. The function alters an array of 4 bools, which return true if
-   the boundary surface borders an interblock on the side that they represent.
+   the boundary surface borders an connection on the side that they represent.
    The order of the 4 bools is as follows [direction 1 start, direction 1 end,
    direction 2 start, direction 2 end].*/
 void boundaryConditions::BordersSurface(const int &ii,
@@ -202,10 +202,10 @@ void boundaryConditions::BordersSurface(const int &ii,
   // Get surface to test for borders
   const auto surf = this->GetSurface(ii);
 
-  // Check that given boundarySurface is interblock
-  if (surf.BCType() != "interblock") {
-    cerr << "ERROR: Error in boundaryConditions::BordersInterblock(). "
-         << "Given index does not point to an interblock boundarySurface!"
+  // Check that given boundarySurface is connection
+  if (!surf.IsConnection()) {
+    cerr << "ERROR: Error in boundaryConditions::BordersSurface(). "
+         << "Given index does not point to an connection boundarySurface!"
          << endl;
     cerr << surf << endl;
     exit(EXIT_FAILURE);
@@ -243,9 +243,9 @@ void boundaryConditions::BordersSurface(const int &ii,
 }
 
 // Operator overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, const interblock &bc) {
+ostream &operator<<(ostream &os, const connection &bc) {
   // os -- ostream to print to
-  // bc -- interblock to print
+  // bc -- connection to print
 
   os << "Ranks: " << bc.RankFirst() << ", " << bc.RankSecond() << endl;
   os << "Blocks: " << bc.BlockFirst() << ", " << bc.BlockSecond() << endl;
@@ -290,13 +290,13 @@ ostream &operator<<(ostream &os, const interblock &bc) {
   return os;
 }
 
-// Constructor to take in two patches and fill an interblock.
+// Constructor to take in two patches and fill a connection.
 // The orientation is left at the default value 0.
-interblock::interblock(const patch &p1, const patch &p2) {
+connection::connection(const patch &p1, const patch &p2) {
   // p1 -- patch 1
   // p2 -- patch 2
 
-  // Fill interblock
+  // Fill connection
   rank_[0] = p1.Rank();
   rank_[1] = p2.Rank();
 
@@ -336,9 +336,9 @@ interblock::interblock(const patch &p1, const patch &p2) {
   orientation_ = 0;  // default value (real values 1-8)
 }
 
-// Function to swap the order of an interblock so the 2nd entry
+// Function to swap the order of an connection so the 2nd entry
 // in the pair will be the first, and vice versa
-void interblock::SwapOrder() {
+void connection::SwapOrder() {
   swap(rank_[0], rank_[1]);
   swap(block_[0], block_[1]);
   swap(localBlock_[0], localBlock_[1]);
@@ -363,81 +363,81 @@ void interblock::SwapOrder() {
   }
 }
 
-range interblock::Dir1RangeFirst() const {
+range connection::Dir1RangeFirst() const {
   return {d1Start_[0], d1End_[0]};
 }
 
-range interblock::Dir1RangeSecond() const {
+range connection::Dir1RangeSecond() const {
   return {d1Start_[1], d1End_[1]};
 }
 
-range interblock::Dir2RangeFirst() const {
+range connection::Dir2RangeFirst() const {
   return {d2Start_[0], d2End_[0]};
 }
 
-range interblock::Dir2RangeSecond() const {
+range connection::Dir2RangeSecond() const {
   return {d2Start_[1], d2End_[1]};
 }
 
-/* Function to go through the boundary conditions and pair the interblock
+/* Function to go through the boundary conditions and pair the connection
    BCs together and determine their orientation.*/
-vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
+vector<connection> GetConnectionBCs(const vector<boundaryConditions> &bc,
                                     const vector<plot3dBlock> &grid,
                                     const decomposition &decomp) {
   // bc -- vector of boundaryConditions for all blocks
   // grid -- vector of plot3Dblocks for entire computational mesh
   // decomp -- decomposition of grid onto processors
 
-  // Isolate only the interblock BCs and their associated data
+  // Isolate only the connection BCs and their associated data
   // from all of the BCs
-  // Outer vector for each interblock BC, inner vector for
-  // information about interblock
-  vector<boundarySurface> isolatedInterblocks;
+  // Outer vector for each connection BC, inner vector for
+  // information about connection
+  vector<boundarySurface> isolatedConnections;
 
   // Block number of bc, rank of block, local position on processor
   // (different from rankParPos because it holds block number instead
   // of parent block number)
   vector<array<int, 3>> numRankPos;
-  vector<int> surfaceNums;  // surface number of interblock
+  vector<int> surfaceNums;  // surface number of connection
 
   // loop over all blocks
   for (auto ii = 0U; ii < bc.size(); ii++) {
     // Loop over number of surfaces in block
     for (auto jj = 0; jj < bc[ii].NumSurfaces(); jj++) {
-      // If boundary condition is interblock, store data
-      if (bc[ii].GetBCTypes(jj) == "interblock") {
+      // If boundary condition is connection, store data
+      if (bc[ii].IsConnection(jj)) {
         // block number of bc, rank, local position boundarySurface of bc
         const array<int, 3> temp = {static_cast<int>(ii), decomp.Rank(ii),
                                     decomp.LocalPosition(ii)};
         numRankPos.push_back(temp);
-        isolatedInterblocks.push_back(bc[ii].GetSurface(jj));
+        isolatedConnections.push_back(bc[ii].GetSurface(jj));
         surfaceNums.push_back(jj);
       }
     }
   }
 
   // ----------------------------------------------------------------------
-  // Intialize vector of interblocks to return
-  // Size is halved because each interblock pairs with another
-  vector<interblock> connections(isolatedInterblocks.size() / 2);
+  // Intialize vector of connections to return
+  // Size is halved because each connection pairs with another
+  vector<connection> connections(isolatedConnections.size() / 2);
 
-  // Loop over isolated interblocks
+  // Loop over isolated connections
   // ii counts by two because after a pair is found, that data is swapped
   // to ii+1. This allows the next search to avoid the matched pair
-  for (auto ii = 0U; ii < isolatedInterblocks.size(); ii += 2) {
+  for (auto ii = 0U; ii < isolatedConnections.size(); ii += 2) {
     // Loop over possible matches
-    for (auto jj = ii + 1U; jj < isolatedInterblocks.size(); jj++) {
-      // Blocks and boundary surfaces between interblocks match
-      // blocks between interblock BCs match
-      if (isolatedInterblocks[ii].PartnerBlock() == numRankPos[jj][0] &&
-          isolatedInterblocks[ii].PartnerSurface() ==
-              isolatedInterblocks[jj].SurfaceType()) {
+    for (auto jj = ii + 1U; jj < isolatedConnections.size(); jj++) {
+      // Blocks and boundary surfaces between connections match
+      // blocks between connection BCs match
+      if (isolatedConnections[ii].PartnerBlock() == numRankPos[jj][0] &&
+          isolatedConnections[ii].PartnerSurface() ==
+              isolatedConnections[jj].SurfaceType()) {
         // Determine if surface borders any other surfaces
         bool border[4] = {false, false, false, false};
         bc[numRankPos[ii][0]].BordersSurface(surfaceNums[ii], border);
 
         // Get current patch
-        const patch cPatch(isolatedInterblocks[ii], grid[numRankPos[ii][0]],
+        const patch cPatch(isolatedConnections[ii], grid[numRankPos[ii][0]],
                            numRankPos[ii][0], border, numRankPos[ii][1],
                            numRankPos[ii][2]);
 
@@ -445,21 +445,21 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
         bc[numRankPos[jj][0]].BordersSurface(surfaceNums[jj], border);
 
         // Get new patch (possible match)
-        const patch nPatch(isolatedInterblocks[jj], grid[numRankPos[jj][0]],
+        const patch nPatch(isolatedConnections[jj], grid[numRankPos[jj][0]],
                            numRankPos[jj][0], border, numRankPos[jj][1],
                            numRankPos[jj][2]);
 
         // Test for match
-        interblock match(cPatch, nPatch);
+        connection match(cPatch, nPatch);
         if (match.TestPatchMatch(cPatch, nPatch)) {  // match found
-          connections[ii / 2] = match;               // store interblock pair
+          connections[ii / 2] = match;               // store connection pair
 
-          // Swap matched interblock BC to top portion of vector so
+          // Swap matched connection BC to top portion of vector so
           // it is not searched again
-          swap(isolatedInterblocks[jj], isolatedInterblocks[ii + 1]);
+          swap(isolatedConnections[jj], isolatedConnections[ii + 1]);
           swap(numRankPos[jj], numRankPos[ii + 1]);
           swap(surfaceNums[jj], surfaceNums[ii + 1]);
-          break;  // exit innermost loop and search for next interblock match
+          break;  // exit innermost loop and search for next connection match
         }
       }
     }
@@ -469,7 +469,7 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
 }
 
 /* Function to take in two patches and return if they are matched. If there is a
-   match it uses the patches to modify the given interblock to contain the
+   match it uses the patches to modify the given connection to contain the
    information on this match.
 
    Each patch is on a constant i, j, or k surface and is a 4 sided rectangle.
@@ -477,7 +477,7 @@ vector<interblock> GetInterblockBCs(const vector<boundaryConditions> &bc,
    up with the vertexes on the other patch. Only 3 vertexes need to match, so
    only 3 are tested for. If there is a match the patches can be oriented in
    8 different ways with respect to each other. The orientation is stored in the
-   interblock that is modified.
+   connection that is modified.
 
                          Patch 1                       Patch 2 Description
                      __________________           __________________
@@ -545,7 +545,7 @@ D1 is j, and D2 is k. On a constant j-patch, D1 is k, and D2 is i, etc. O is the
 origin which is always at the minimim of D1 and D2 on the patch. C1 is the corner
 where D1 is at a max, and D2 is zero. C2 is the corner where D2 is at a max, and
 D1 is zero. C12 is the corner where both D1 and D2 are at a max.*/
-bool interblock::TestPatchMatch(const patch &p1, const patch &p2) {
+bool connection::TestPatchMatch(const patch &p1, const patch &p2) {
   // p1 -- first patch
   // p2 -- second patch
 
@@ -643,8 +643,8 @@ bool interblock::TestPatchMatch(const patch &p1, const patch &p2) {
   return match;
 }
 
-/* Member function to adjust the interblock for use with a geomSlice */
-void interblock::AdjustForSlice(const bool &blkFirst, const int &numG) {
+/* Member function to adjust the connection for use with a geomSlice */
+void connection::AdjustForSlice(const bool &blkFirst, const int &numG) {
   // blkFirst -- boolean that is true if block to insert into is first
   // numG -- number of ghost cells in block
 
@@ -671,9 +671,9 @@ void interblock::AdjustForSlice(const bool &blkFirst, const int &numG) {
   d2Start_[0] = this->Dir2StartFirst() - numG;
 }
 
-// Member function to get the addresses of an interblock to create
+// Member function to get the addresses of an connection to create
 // an MPI_Datatype
-void interblock::GetAddressesMPI(MPI_Aint (&disp)[11]) const {
+void connection::GetAddressesMPI(MPI_Aint (&disp)[11]) const {
   // Get addresses of each field
   MPI_Get_address(&rank_[0], &disp[0]);
   MPI_Get_address(&block_[0], &disp[1]);
@@ -689,8 +689,8 @@ void interblock::GetAddressesMPI(MPI_Aint (&disp)[11]) const {
 }
 
 // Function to return which direction (i,j,k) is direction 1 in the
-// first partner in the interblock
-string interblock::Direction1First() const {
+// first partner in the connection
+string connection::Direction1First() const {
   string dir = "";
   if (this->BoundaryFirst() <= 2) {  // dir 3 is i, dir 1 is j, dir 2 is k
     dir = "j";
@@ -704,8 +704,8 @@ string interblock::Direction1First() const {
 }
 
 // Function to return which direction (i,j,k) is direction 1 in the second
-// partner in the interblock
-string interblock::Direction1Second() const {
+// partner in the connection
+string connection::Direction1Second() const {
   string dir = "";
   if (this->BoundarySecond() <= 2) {  // dir 3 is i, dir 1 is j, dir 2 is k
     dir = "j";
@@ -719,8 +719,8 @@ string interblock::Direction1Second() const {
 }
 
 // Function to return which direction (i,j,k) is direction 2 in the first
-// partner in the interblock
-string interblock::Direction2First() const {
+// partner in the connection
+string connection::Direction2First() const {
   string dir = "";
   if (this->BoundaryFirst() <= 2) {  // dir 3 is i, dir 1 is j, dir 2 is k
     dir = "k";
@@ -734,8 +734,8 @@ string interblock::Direction2First() const {
 }
 
 // Function to return which direction (i,j,k) is direction 2 in the second
-// partner in the interblock
-string interblock::Direction2Second() const {
+// partner in the connection
+string connection::Direction2Second() const {
   string dir = "";
   if (this->BoundarySecond() <= 2) {  // dir 3 is i, dir 1 is j, dir 2 is k
     dir = "k";
@@ -749,8 +749,8 @@ string interblock::Direction2Second() const {
 }
 
 // function to return which direction (i,j,k) is direction 3 in the first
-// partner in the interblock
-string interblock::Direction3First() const {
+// partner in the connection
+string connection::Direction3First() const {
   string dir = "";
   if (this->BoundaryFirst() <= 2) {  // dir 3 is i, dir 1 is j, dir 2 is k
     dir = "i";
@@ -764,8 +764,8 @@ string interblock::Direction3First() const {
 }
 
 // Function to return which direction (i,j,k) is direction 3 in the second
-// partner in the interblock
-string interblock::Direction3Second() const {
+// partner in the connection
+string connection::Direction3Second() const {
   string dir = "";
   if (this->BoundarySecond() <= 2) {  // dir 3 is i, dir 1 is j, dir 2 is k
     dir = "i";
@@ -778,46 +778,46 @@ string interblock::Direction3Second() const {
   return dir;
 }
 
-/* Member function to update the interblock border matching portion of the first
-   partner in an interblock. An index between 1-4 representing the 4 sides of
+/* Member function to update the connection border matching portion of the first
+   partner in an connection. An index between 1-4 representing the 4 sides of
    the
-   interblock surface are passed to the function, and it ensures that the
-   interblockBorder variable at that position reads true. This is used during
+   connection surface are passed to the function, and it ensures that the
+   connectionBorder variable at that position reads true. This is used during
    the
    first PutGeomSlice ghost cell exchange to locate a "t" intersection of blocks
    and ensure that they are treated properly. */
-void interblock::UpdateBorderFirst(const int &a) {
+void connection::UpdateBorderFirst(const int &a) {
   // a -- position in patchBorder_ to update (0-3) -
   // (dir 1 start, dir1 end, dir2 start, dir2 end)
 
   if (a >= 0 && a <= 3) {
     patchBorder_[a] = true;
   } else {
-    cerr << "ERROR: Error in interblock::UpdateBorderFirst(). "
+    cerr << "ERROR: Error in connection::UpdateBorderFirst(). "
          << "Position to update is out of range. Choose between 0-3. "
          << "Position input was " << a << endl;
     exit(EXIT_FAILURE);
   }
 }
 
-/* Member function to update the interblock border matching portion of the
+/* Member function to update the connection border matching portion of the
    second
-   partner in an interblock. An index between 1-4 representing the 4 sides of
+   partner in an connection. An index between 1-4 representing the 4 sides of
    the
-   interblock surface are passed to the function, and it ensures that the
-   interblockBorder variable at that position reads true. This is used during
+   connection surface are passed to the function, and it ensures that the
+   connectionBorder variable at that position reads true. This is used during
    the first
    PutGeomSlice ghost cell exchange to locate a "t" intersection of blocks and
    ensure
    that they are treated properly. */
-void interblock::UpdateBorderSecond(const int &a) {
+void connection::UpdateBorderSecond(const int &a) {
   // a -- position in patchBorder_ to update (0-3) -
   // (dir 1 start, dir1 end, dir2 start, dir2 end)
 
   if (a >= 0 && a <= 3) {
     patchBorder_[a + 4] = true;
   } else {
-    cerr << "ERROR: Error in interblock::UpdateBorderSecond(). "
+    cerr << "ERROR: Error in connection::UpdateBorderSecond(). "
          << "Position to update is out of range. Choose between 0-3. "
          << "Position input was " << a << endl;
     exit(EXIT_FAILURE);
@@ -825,8 +825,8 @@ void interblock::UpdateBorderSecond(const int &a) {
 }
 
 // member function to get the indices of a slice for purposes of swapping
-// for the first block in an interblock
-void interblock::FirstSliceIndices(int &is1, int &ie1, int &js1, int &je1,
+// for the first block in an connection
+void connection::FirstSliceIndices(int &is1, int &ie1, int &js1, int &je1,
                                    int &ks1, int &ke1,
                                    const int &numGhosts1) const {
   // is1 -- starting i index for first slice
@@ -886,15 +886,15 @@ void interblock::FirstSliceIndices(int &is1, int &ie1, int &js1, int &je1,
     je1 = this->Dir2EndFirst() + numGhosts1;
 
   } else {
-    cerr << "ERROR: Error in interblock::FirstSliceIndices(). Surface boundary "
+    cerr << "ERROR: Error in connection::FirstSliceIndices(). Surface boundary "
          << this->BoundaryFirst() << " is not recognized!" << endl;
     exit(EXIT_FAILURE);
   }
 }
 
 // member function to get the indices of a slice for purposes of swapping
-// for the first block in an interblock
-void interblock::SecondSliceIndices(int &is2, int &ie2, int &js2, int &je2,
+// for the first block in an connection
+void connection::SecondSliceIndices(int &is2, int &ie2, int &js2, int &je2,
                                     int &ks2, int &ke2,
                                     const int &numGhosts2) const {
   // is2 -- starting i index for second slice
@@ -954,7 +954,7 @@ void interblock::SecondSliceIndices(int &is2, int &ie2, int &js2, int &je2,
     je2 = this->Dir2EndSecond() + numGhosts2;
 
   } else {
-    cerr << "ERROR: Error in interblock::SecondSliceIndices(). " <<
+    cerr << "ERROR: Error in connection::SecondSliceIndices(). " <<
         "Surface boundary " << this->BoundarySecond() <<
         " is not recognized!" << endl;
     exit(EXIT_FAILURE);
@@ -996,7 +996,7 @@ int boundaryConditions::BlockDimK() const {
   return dim;
 }
 
-/* Member function to split boundary_ conditions along a given direction at a
+/* Member function to split boundary conditions along a given direction at a
    given index. The calling instance retains the lower portion of the split,
    and the returned instance is the upper portion. */
 boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
@@ -1008,7 +1008,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
   //        (this index is the last cell that remains in the lower split)
   // numBlk -- block number that (*this) is assocatied with
   // newBlkNum -- block number for upper split
-  // aSurf -- vector of any interblocks that are split,
+  // aSurf -- vector of any connections that are split,
   //          because their partners will need to be altered for the split as
   //          well
 
@@ -1092,16 +1092,16 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           bound2.surfs_[ii].data_[0] = this->GetIMax(ii) - indNG;  // imin
           bound2.surfs_[ii].data_[1] = this->GetIMax(ii) - indNG;  // imax
 
-          // At upper i surface, if bc is interblock, store boundarySurface
-          // because partner block_ BC will need to be updated
-          if (this->GetBCTypes(ii) == "interblock") {
+          // At upper i surface, if bc is connection, store boundarySurface
+          // because partner block BC will need to be updated
+          if (this->IsConnection(ii)) {
             alteredSurf.push_back(this->GetSurface(ii));
           }
         }
       } else {  // j-surface or k-surface
-        // At j/k surface, if bc is interblock, store boundarySurface
+        // At j/k surface, if bc is connection, store boundarySurface
         // because partner block BC will need to be updated
-        if (this->GetBCTypes(ii) == "interblock") {
+        if (this->IsConnection(ii)) {
           alteredSurf.push_back(this->GetSurface(ii));
         }
 
@@ -1216,16 +1216,16 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           bound2.surfs_[ii].data_[2] = this->GetJMax(ii) - indNG;  // jmin
           bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - indNG;  // jmax
 
-          // At upper j surface, if bc is interblock, store boundarySurface
-          // because partner block_ BC will need to be updated
-          if (this->GetBCTypes(ii) == "interblock") {
+          // At upper j surface, if bc is connection, store boundarySurface
+          // because partner block BC will need to be updated
+          if (this->IsConnection(ii)) {
             alteredSurf.push_back(this->GetSurface(ii));
           }
         }
       } else {  // i-surface or k-surface
-        // At i/k surface, if bc is interblock, store boundarySurface
+        // At i/k surface, if bc is connection, store boundarySurface
         // because partner block BC will need to be updated
-        if (this->GetBCTypes(ii) == "interblock") {
+        if (this->IsConnection(ii)) {
           alteredSurf.push_back(this->GetSurface(ii));
         }
 
@@ -1336,16 +1336,16 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           bound2.surfs_[ii].data_[4] = this->GetKMax(ii) - indNG;  // kmin
           bound2.surfs_[ii].data_[5] = this->GetKMax(ii) - indNG;  // kmax
 
-          // At upper k surface, if bc is interblock, store boundarySurface
-          // because partner block_ BC will need to be updated
-          if (this->GetBCTypes(ii) == "interblock") {
+          // At upper k surface, if bc is connection, store boundarySurface
+          // because partner block BC will need to be updated
+          if (this->IsConnection(ii)) {
             alteredSurf.push_back(this->GetSurface(ii));
           }
         }
       } else {  // i-surface or j-surface
-        // At i/j surface, if bc is interblock, store boundarySurface because
-        // partner block_ BC will need to be updated
-        if (this->GetBCTypes(ii) == "interblock") {
+        // At i/j surface, if bc is connection, store boundarySurface because
+        // partner block BC will need to be updated
+        if (this->IsConnection(ii)) {
           alteredSurf.push_back(this->GetSurface(ii));
         }
 
@@ -1405,9 +1405,9 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 }
 
 /* Member function to split the surfaces of a boundaryCondtions accordingly when
-   one of its interblock partners has been altered. The interblock partner may
+   one of its connection partners has been altered. The connection partner may
    have been split, its block_ number updated, or both. In order to correctly
-   match up the dependents of the interblock must be updated for the split.*/
+   match up the dependents of the connection must be updated for the split.*/
 void boundaryConditions::DependentSplit(const boundarySurface &surf,
                                         const plot3dBlock &part,
                                         const plot3dBlock &self,
@@ -1423,7 +1423,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
   // lblk -- lower block number in partner split
   // ublk -- upper block number in partner split
 
-  // dummy value used because interblock is only used to test for match
+  // dummy value used because connection is only used to test for match
   bool border[4] = {false, false, false, false};
 
   const patch partner(surf, part, lblk, border);  // create patch for partner
@@ -1433,7 +1433,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
     // create patch for candidate match
     const patch candidate(this->GetSurface(ii), self, sblk, border);
 
-    interblock match(candidate, partner);
+    connection match(candidate, partner);
     if (match.TestPatchMatch(candidate, partner)) {  // match found
       auto lowSurf = this->GetSurface(ii);  // get match surface
 
@@ -1655,7 +1655,7 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
                               vector<boundarySurface> &aSurf) {
   // bc -- boundary_ condition (upper) to join
   // dir -- direction of join plane
-  // aSurf -- vector of interblocks whose partners will need to be altered by
+  // aSurf -- vector of connections whose partners will need to be altered by
   // the join
 
   vector<boundarySurface> alteredSurf;  // initialize vector of boundary_
@@ -1704,9 +1704,9 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
     // insert all i upper surfaces from upper bc
     for (auto ii = 0; ii < bc.NumSurfI(); ii++) {
       if (bc.GetSurface(ii).SurfaceType() == 2) {  // upper i surface
-        // at upper i surface, if bc is interblock, store boundarySurface
+        // at upper i surface, if bc is connection, store boundarySurface
         // because partner block BC will need to be updated
-        if (bc.GetBCTypes(ii) == "interblock") {
+        if (bc.IsConnection(ii)) {
           alteredSurf.push_back(bc.GetSurface(ii));
         }
 
@@ -1731,9 +1731,9 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       cc++;
     }
     for (auto ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++) {
-      // at j surface for upper block, if bc is interblock, store
+      // at j surface for upper block, if bc is connection, store
       // boundarySurface because partner block BC will need to be updated
-      if (bc.GetBCTypes(ii) == "interblock") {
+      if (bc.IsConnection(ii)) {
         alteredSurf.push_back(bc.GetSurface(ii));
       }
 
@@ -1757,9 +1757,9 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       cc++;
     }
     for (auto ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++) {
-      // at k surface for upper block, if bc is interblock, store
+      // at k surface for upper block, if bc is connection, store
       // boundarySurface because partner block BC will need to be updated
-      if (bc.GetBCTypes(ii) == "interblock") {
+      if (bc.IsConnection(ii)) {
         alteredSurf.push_back(bc.GetSurface(ii));
       }
 
@@ -1821,9 +1821,9 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
     // insert all j upper surfaces from upper bc
     for (auto ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++) {
       if (bc.GetSurface(ii).SurfaceType() == 4) {  // upper j surface
-        // at j upper surface for upper block, if bc is interblock, store
+        // at j upper surface for upper block, if bc is connection, store
         // boundarySurface because partner block BC will need to be updated
-        if (bc.GetBCTypes(ii) == "interblock") {
+        if (bc.IsConnection(ii)) {
           alteredSurf.push_back(bc.GetSurface(ii));
         }
 
@@ -1847,9 +1847,9 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       cc++;
     }
     for (auto ii = 0; ii < bc.NumSurfI(); ii++) {
-      // at i surface for upper block, if bc is interblock, store
+      // at i surface for upper block, if bc is connection, store
       // boundarySurface because partner block BC will need to be updated
-      if (bc.GetBCTypes(ii) == "interblock") {
+      if (bc.IsConnection(ii)) {
         alteredSurf.push_back(bc.GetSurface(ii));
       }
 
@@ -1872,9 +1872,9 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       cc++;
     }
     for (auto ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++) {
-      // at k surface for upper block, if bc is interblock, store
+      // at k surface for upper block, if bc is connection, store
       // boundarySurface because partner block BC will need to be updated
-      if (bc.GetBCTypes(ii) == "interblock") {
+      if (bc.IsConnection(ii)) {
         alteredSurf.push_back(bc.GetSurface(ii));
       }
 
@@ -1936,9 +1936,9 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
     // insert all k upper surfaces from upper bc
     for (auto ii = bc.NumSurfI() + bc.NumSurfJ(); ii < bc.NumSurfaces(); ii++) {
       if (bc.GetSurface(ii).SurfaceType() == 6) {  // upper k surface
-        // at upper k surface for upper block, if bc is interblock, store
+        // at upper k surface for upper block, if bc is connection, store
         // boundarySurface because partner block BC will need to be updated
-        if (bc.GetBCTypes(ii) == "interblock") {
+        if (bc.IsConnection(ii)) {
           alteredSurf.push_back(bc.GetSurface(ii));
         }
 
@@ -1962,9 +1962,9 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       cc++;
     }
     for (auto ii = 0; ii < bc.NumSurfI(); ii++) {
-      // at i surface for upper block_, if bc is interblock, store
+      // at i surface for upper block_, if bc is connection, store
       // boundarySurface because partner block_ BC will need to be updated
-      if (bc.GetBCTypes(ii) == "interblock") {
+      if (bc.IsConnection(ii)) {
         alteredSurf.push_back(bc.GetSurface(ii));
       }
 
@@ -1987,9 +1987,9 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       cc++;
     }
     for (auto ii = bc.NumSurfI(); ii < bc.NumSurfI() + bc.NumSurfJ(); ii++) {
-      // at j surface for upper block, if bc is interblock, store
+      // at j surface for upper block, if bc is connection, store
       // boundarySurface because partner block BC will need to be updated
-      if (bc.GetBCTypes(ii) == "interblock") {
+      if (bc.IsConnection(ii)) {
         alteredSurf.push_back(bc.GetSurface(ii));
       }
 
@@ -2054,7 +2054,7 @@ patch::patch(const int &bound, const int &b, const int &d1s, const int &d1e,
   // blk -- plot3dBlock that patch is on
   // r -- rank of block
   // l -- local position of block
-  // border -- flags indicating if patch borders an interblock bc on sides 1/2
+  // border -- flags indicating if patch borders an connection bc on sides 1/2
 
   boundary_ = bound;
   block_ = b;
@@ -2148,7 +2148,7 @@ ostream &operator<<(ostream &os, const patch &p) {
   os << "Direction 2 End: " << p.Dir2End() << endl;
   os << "Constant Surface: " << p.ConstSurface() << endl;
   os << "Rank: " << p.Rank() << endl;
-  os << "Borders Interblock: " << p.Dir1StartInterBorder() << ", "
+  os << "Borders Connection: " << p.Dir1StartInterBorder() << ", "
      << p.Dir1EndInterBorder() << ", " << p.Dir2StartInterBorder() << ", "
      << p.Dir2EndInterBorder() << endl;
   os << "Origin: " << p.Origin() << endl;
@@ -2275,13 +2275,13 @@ int boundarySurface::SurfaceType() const {
   return surf;
 }
 
-// member function to determine the partner block_ of an interblock
-// boundarySurface. The partner block_ is where the surface gets its ghost cells
+// member function to determine the partner block of an interblock
+// boundarySurface. The partner block is where the surface gets its ghost cells
 // from.
 int boundarySurface::PartnerBlock() const {
   if (bcType_ != "interblock") {
     cerr << "ERROR: Partner blocks are only associated with interblock "
-            "boundaries. Current boundary_ is " << bcType_ << endl;
+            "boundaries. Current boundary is " << bcType_ << endl;
     exit(EXIT_FAILURE);
   }
 
@@ -2295,7 +2295,7 @@ int boundarySurface::PartnerBlock() const {
 int boundarySurface::PartnerSurface() const {
   if (bcType_ != "interblock") {
     cerr << "ERROR: Partner blocks are only associated with interblock "
-            "boundaries. Current boundary_ is " << bcType_ << endl;
+            "boundaries. Current boundary is " << bcType_ << endl;
     exit(EXIT_FAILURE);
   }
 
@@ -2497,12 +2497,12 @@ ostream &operator<<(ostream &os, const boundarySurface &bcSurf) {
   return os;
 }
 
-// member funtion to updat the tag of an interblock to partner with the block_
+// member funtion to updat the tag of an interblock to partner with the block
 // input to the function
 void boundarySurface::UpdateTagForSplitJoin(const int &nBlk) {
   if (bcType_ != "interblock") {
     cerr << "ERROR: Only tags associated with interblock boundaries need to be "
-            "updated. Current boundary_ is " << bcType_ << endl;
+            "updated. Current boundary is " << bcType_ << endl;
     exit(EXIT_FAILURE);
   }
 
@@ -2626,7 +2626,7 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind,
 }
 
 /*member function to determine if the split direction is reversed. A "reversed"
-split direction occurs when the two patches that make an interblock have their
+split direction occurs when the two patches that make an connection have their
 split direction
 running in opposite directions.
           ______       ______
@@ -2678,26 +2678,26 @@ bool boundarySurface::SplitDirectionIsReversed(const string &dir,
 }
 
 /* Function to return an array of location indicies for ghost cells at an
-interblock boundary. The array is formatted as shown below:
+connection boundary. The array is formatted as shown below:
 
   array = [i j k]
 
 The array will contain 3 entries corresponding to the i, j, and k locations of
-either the first or second pair in the interblock, depending on what is
+either the first or second pair in the connection, depending on what is
 specified in the 'first' variable. The indices returned will correspond to cell
 locations and will take into account the orientation of the patches that
-comprise the interblock with relation to each other.
+comprise the connection with relation to each other.
 */
 array<int, 3> GetSwapLoc(const int &l1, const int &l2, const int &l3,
-                         const int &numGhosts, const interblock &inter,
+                         const int &numGhosts, const connection &inter,
                          const int &d3, const bool &first) {
   // l1 -- index of direction 1 within slice to insert
   // l2 -- index of direction 2 within slice to insert
   // l3 -- index of direction 3 within slice to insert
   // numGhosts -- number of layers of ghost cells
-  // inter -- interblock boundary condition
-  // d3 -- length of normal direction of interblock
-  // first -- flag for first or second block in interblock match
+  // inter -- connection boundary condition
+  // d3 -- length of normal direction of connection
+  // first -- flag for first or second block in connection match
 
   // preallocate array to return
   array<int, 3> loc = {0, 0, 0};

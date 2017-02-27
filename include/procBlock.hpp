@@ -30,7 +30,7 @@
 #include "tensor.hpp"              // tensor
 #include "primVars.hpp"            // primVars
 #include "genArray.hpp"            // genArray
-#include "boundaryConditions.hpp"  // interblock, patch
+#include "boundaryConditions.hpp"  // connection, patch
 #include "macros.hpp"
 #include "uncoupledScalar.hpp"     // uncoupledScalar
 
@@ -447,22 +447,22 @@ class procBlock {
   bool AtGhostNonEdge(const int &, const int &, const int &, string &,
                       int &) const;
 
-  vector<bool> PutGeomSlice(const geomSlice &, interblock &, const int &);
-  void PutStateSlice(const multiArray3d<primVars> &, const interblock &,
+  vector<bool> PutGeomSlice(const geomSlice &, connection &, const int &);
+  void PutStateSlice(const multiArray3d<primVars> &, const connection &,
                      const int &, const int &);
 
   procBlock Split(const string &, const int &, const int &,
                   vector<boundarySurface> &);
   void Join(const procBlock &, const string &, vector<boundarySurface> &);
 
-  void SwapStateSlice(const interblock &, procBlock &);
-  void SwapStateSliceMPI(const interblock &, const int &, const MPI_Datatype &);
-  void SwapTurbSlice(const interblock &, procBlock &);
-  void SwapTurbSliceMPI(const interblock &, const int &);
-  void SwapWallDistSlice(const interblock &, procBlock &);
-  void SwapWallDistSliceMPI(const interblock &, const int &);
-  void SwapEddyViscAndGradientSlice(const interblock &, procBlock &);
-  void SwapEddyViscAndGradientSliceMPI(const interblock &, const int &,
+  void SwapStateSlice(const connection &, procBlock &);
+  void SwapStateSliceMPI(const connection &, const int &, const MPI_Datatype &);
+  void SwapTurbSlice(const connection &, procBlock &);
+  void SwapTurbSliceMPI(const connection &, const int &);
+  void SwapWallDistSlice(const connection &, procBlock &);
+  void SwapWallDistSliceMPI(const connection &, const int &);
+  void SwapEddyViscAndGradientSlice(const connection &, procBlock &);
+  void SwapEddyViscAndGradientSliceMPI(const connection &, const int &,
                                        const MPI_Datatype &,
                                        const MPI_Datatype &);
 

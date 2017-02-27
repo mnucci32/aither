@@ -118,7 +118,7 @@ int main(int argc, char *argv[]) {
   const auto turb = inp.AssignTurbulenceModel();
 
   vector<plot3dBlock> mesh;
-  vector<interblock> connections;
+  vector<connection> connections;
   vector<procBlock> stateBlocks;
   vector<vector3d<double>> viscFaces;
   genArray residL2First(0.0);  // l2 norm residuals to normalize by
@@ -148,8 +148,8 @@ int main(int argc, char *argv[]) {
       exit(EXIT_FAILURE);
     }
 
-    // Get interblock BCs
-    connections = GetInterblockBCs(bcs, mesh, decomp);
+    // Get connection BCs
+    connections = GetConnectionBCs(bcs, mesh, decomp);
 
     // Initialize the whole mesh with ICs and assign ghost cells geometry
     stateBlocks.resize(mesh.size());
@@ -166,7 +166,7 @@ int main(int argc, char *argv[]) {
                   residL2First, gridSizes);
     }
 
-    // Swap geometry for interblock BCs
+    // Swap geometry for connection BCs
     for (auto &conn : connections) {
       SwapGeomSlice(conn, stateBlocks[conn.BlockFirst()],
                     stateBlocks[conn.BlockSecond()]);
@@ -185,10 +185,10 @@ int main(int argc, char *argv[]) {
 
   // Set MPI datatypes
   MPI_Datatype MPI_vec3d, MPI_cellData, MPI_procBlockInts,
-      MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag, MPI_uncoupledScalar,
+      MPI_connection, MPI_DOUBLE_5INT, MPI_vec3dMag, MPI_uncoupledScalar,
       MPI_tensorDouble;
   SetDataTypesMPI(MPI_vec3d, MPI_cellData, MPI_procBlockInts,
-                  MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag,
+                  MPI_connection, MPI_DOUBLE_5INT, MPI_vec3dMag,
                   MPI_uncoupledScalar, MPI_tensorDouble);
 
   // Send number of procBlocks to all processors
@@ -205,7 +205,7 @@ int main(int argc, char *argv[]) {
   }
 
   // Send connections to all processors
-  SendConnections(connections, MPI_interblock);
+  SendConnections(connections, MPI_connection);
 
   // Broadcast viscous face centers to all processors
   BroadcastViscFaces(MPI_vec3d, viscFaces);
@@ -391,7 +391,7 @@ int main(int argc, char *argv[]) {
 
   // Free datatypes previously created
   FreeDataTypesMPI(MPI_vec3d, MPI_cellData, MPI_procBlockInts,
-                   MPI_interblock, MPI_DOUBLE_5INT, MPI_vec3dMag,
+                   MPI_connection, MPI_DOUBLE_5INT, MPI_vec3dMag,
                    MPI_uncoupledScalar, MPI_tensorDouble);
 
   MPI_Finalize();

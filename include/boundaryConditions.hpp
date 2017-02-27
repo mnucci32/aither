@@ -99,6 +99,9 @@ class boundarySurface {
   boundarySurface Split(const string&, const int&, const int&,
                         const int&, bool&, int = 0);
   bool SplitDirectionIsReversed(const string&, const int&) const;
+  bool IsConnection() const {
+    return bcType_ == "interblock" || bcType_ == "periodic";
+  }
 
   // Destructor
   ~boundarySurface() noexcept {}
@@ -207,6 +210,7 @@ class boundaryConditions {
   int GetSurfaceType(const int &a) const {return surfs_[a].SurfaceType();}
   boundarySurface GetSurface(const int &a) const {return surfs_[a];}
   int NumViscousFaces() const;
+  bool IsConnection(const int &a) const {return surfs_[a].IsConnection();}
 
   int BlockDimI() const;
   int BlockDimJ() const;
@@ -228,6 +232,11 @@ class boundaryConditions {
 
   string GetBCName(const int&, const int&, const int&, const int&) const;
   int GetBCTag(const int&, const int&, const int&, const int&) const;
+  bool BCIsConnection(const int &ii, const int &jj, const int &kk,
+                      const int &surf) const {
+    const auto name = this->GetBCName(ii, jj, kk, surf);
+    return name == "interblock" || name == "periodic";
+  }
 
   void AssignFromInput(const int&, const vector<string>&);
 
@@ -247,12 +256,12 @@ class boundaryConditions {
   ~boundaryConditions() noexcept {}
 };
 
-/* A class to store the necessary information for the interblock boundary_ conditions.
-   The data_ is stored in pairs, where each pair is patch on a boundary_ that is point matched. */
-class interblock {
+/* A class to store the necessary information for the connection boundary conditions.
+   The data is stored in pairs, where each pair is patch on a boundary that is point matched. */
+class connection {
   int rank_[2];               // processor location of boundaries
-  int block_[2];              // block_ numbers (global)
-  int localBlock_[2];         // local (on processor) block_ numbers
+  int block_[2];              // block numbers (global)
+  int localBlock_[2];         // local (on processor) block numbers
   int boundary_[2];           // boundary numbers
   int d1Start_[2];            // first direction start numbers for surface
   int d1End_[2];              // first direction end numbers for surface
@@ -265,20 +274,20 @@ class interblock {
 
  public:
   // Constructor
-  interblock() : rank_{0, 0}, block_{0, 0}, localBlock_{0, 0}, boundary_{0, 0},
-    d1Start_{0, 0}, d1End_{0, 0}, d2Start_{0, 0}, d2End_{0, 0},
-    constSurf_{0, 0}, patchBorder_{false, false, false, false, false,
-                            false, false, false}, orientation_(0) {}
+  connection() : rank_{0, 0}, block_{0, 0}, localBlock_{0, 0}, boundary_{0, 0},
+                 d1Start_{0, 0}, d1End_{0, 0}, d2Start_{0, 0}, d2End_{0, 0},
+                 constSurf_{0, 0}, patchBorder_{false, false, false, false, false,
+                                         false, false, false}, orientation_(0) {}
 
-  interblock(const patch&, const patch&);
+  connection(const patch&, const patch&);
 
   // move constructor and assignment operator
-  interblock(interblock&&) noexcept = default;
-  interblock& operator=(interblock&&) noexcept = default;
+  connection(connection&&) noexcept = default;
+  connection& operator=(connection&&) noexcept = default;
 
   // copy constructor and assignment operator
-  interblock(const interblock&) = default;
-  interblock& operator=(const interblock&) = default;
+  connection(const connection&) = default;
+  connection& operator=(const connection&) = default;
 
   // Member functions
   int RankFirst() const {return rank_[0];}
@@ -355,22 +364,22 @@ class interblock {
   }
 
   // Destructor
-  ~interblock() noexcept {}
+  ~connection() noexcept {}
 };
 
 
 // Function declarations
-vector<interblock> GetInterblockBCs(const vector<boundaryConditions>&,
+vector<connection> GetConnectionBCs(const vector<boundaryConditions>&,
                                     const vector<plot3dBlock>&,
                                     const decomposition&);
 
 ostream & operator<< (ostream &os, const boundaryConditions&);
 ostream & operator<< (ostream &os, const boundarySurface&);
 ostream & operator<< (ostream &os, const patch&);
-ostream & operator<< (ostream &os, const interblock&);
+ostream & operator<< (ostream &os, const connection&);
 
 
 array<int, 3> GetSwapLoc(const int &, const int &, const int &, const int &,
-                         const interblock &, const int &, const bool &);
+                         const connection &, const int &, const bool &);
 
 #endif

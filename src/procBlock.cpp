@@ -1180,7 +1180,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // if i lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii - 1, jj, kk) ||
-        bc_.GetBCName(ii, jj, kk, 1) == "interblock") {
+        bc_.BCIsConnection(ii - 1, jj, kk, 1)) {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
 
@@ -1198,7 +1198,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // if j lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii, jj - 1, kk) ||
-        bc_.GetBCName(ii, jj, kk, 3) == "interblock") {
+        bc_.BCIsConnection(ii, jj - 1, kk, 3)) {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
@@ -1216,7 +1216,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // if k lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii, jj, kk - 1) ||
-        bc_.GetBCName(ii, jj, kk, 5) == "interblock") {
+        bc_.BCIsConnection(ii, jj, kk - 1, 5)) {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
 
@@ -1240,7 +1240,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       // if i upper cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii + 1, jj, kk) ||
-          bc_.GetBCName(ii + 1, jj, kk, 2) == "interblock") {
+          bc_.BCIsConnection(ii + 1, jj, kk, 2)) {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
 
@@ -1258,7 +1258,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       // if j upper cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii, jj + 1, kk) ||
-          bc_.GetBCName(ii, jj + 1, kk, 4) == "interblock") {
+          bc_.BCIsConnection(ii, jj + 1, kk, 4)) {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
 
@@ -1276,7 +1276,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       // if k lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii, jj, kk + 1) ||
-          bc_.GetBCName(ii, jj, kk + 1, 6) == "interblock") {
+          bc_.BCIsConnection(ii, jj, kk + 1, 6)) {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
 
@@ -1340,7 +1340,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
     // if i upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii + 1, jj, kk) ||
-        bc_.GetBCName(ii + 1, jj, kk, 2) == "interblock") {
+        bc_.BCIsConnection(ii + 1, jj, kk, 2)) {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
 
@@ -1358,7 +1358,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
     // if j upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii, jj + 1, kk) ||
-        bc_.GetBCName(ii, jj + 1, kk, 4) == "interblock") {
+        bc_.BCIsConnection(ii, jj + 1, kk, 4)) {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
 
@@ -1376,7 +1376,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
     // if k upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii, jj, kk + 1) ||
-        bc_.GetBCName(ii, jj, kk + 1, 6) == "interblock") {
+        bc_.BCIsConnection(ii, jj, kk + 1, 6)) {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
 
@@ -1400,7 +1400,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       // if i lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii - 1, jj, kk) ||
-          bc_.GetBCName(ii, jj, kk, 1) == "interblock") {
+          bc_.BCIsConnection(ii - 1, jj, kk, 1)) {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
 
@@ -1418,7 +1418,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       // if j lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii, jj - 1, kk) ||
-          bc_.GetBCName(ii, jj, kk, 3) == "interblock") {
+          bc_.BCIsConnection(ii, jj - 1, kk, 3)) {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
@@ -1436,7 +1436,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       // if k lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii, jj, kk - 1) ||
-          bc_.GetBCName(ii, jj, kk, 5) == "interblock") {
+          bc_.BCIsConnection(ii, jj, kk - 1, 5)) {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
 
@@ -1505,7 +1505,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if i lower diagonal cell is in physical location there is a
         // contribution from it
         if (this->IsPhysical(ii - 1, jj, kk) ||
-            bc_.GetBCName(ii, jj, kk, 1) == "interblock") {
+            bc_.BCIsConnection(ii - 1, jj, kk, 1)) {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
 
@@ -1523,7 +1523,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if j lower diagonal cell is in physical location there is a
         // constribution from it
         if (this->IsPhysical(ii, jj - 1, kk) ||
-            bc_.GetBCName(ii, jj, kk, 3) == "interblock") {
+            bc_.BCIsConnection(ii, jj - 1, kk, 3)) {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
@@ -1541,7 +1541,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if k lower diagonal cell is in physical location there is a
         // contribution from it
         if (this->IsPhysical(ii, jj, kk - 1) ||
-            bc_.GetBCName(ii, jj, kk, 5) == "interblock") {
+            bc_.BCIsConnection(ii, jj, kk - 1, 5)) {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
 
@@ -1559,7 +1559,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if i upper diagonal cell is in physical location there is a
         // contribution from it
         if (this->IsPhysical(ii + 1, jj, kk) ||
-            bc_.GetBCName(ii + 1, jj, kk, 2) == "interblock") {
+            bc_.BCIsConnection(ii + 1, jj, kk, 2)) {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
 
@@ -1578,7 +1578,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if j upper diagonal cell is in physical location there is a
         // contribution from it
         if (this->IsPhysical(ii, jj + 1, kk) ||
-            bc_.GetBCName(ii, jj + 1, kk, 4) == "interblock") {
+            bc_.BCIsConnection(ii, jj + 1, kk, 4)) {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
 
@@ -1597,7 +1597,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if k upper diagonal cell is in physical location there is a
         // contribution from it
         if (this->IsPhysical(ii, jj, kk + 1) ||
-            bc_.GetBCName(ii, jj, kk + 1, 6) == "interblock") {
+            bc_.BCIsConnection(ii, jj, kk + 1, 6)) {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
 
@@ -2524,9 +2524,9 @@ void procBlock::AssignGhostCellsGeom() {
       }
 
       // -----------------------------------------------------------------------
-      // only supply geometry values for non interblock BCs
-      // for interblock do nothing
-      if (bc_.GetBCTypes(ii) != "interblock") {
+      // only supply geometry values for non connection BCs
+      // for connection do nothing
+      if (bc_.IsConnection(ii)) {
         // assign volume for layer of ghost cells
         vol_.Insert(dir, gCell, r1, r2,
                     vol_.Slice(dir, iCell, r1, r2));
@@ -2817,9 +2817,9 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
       }
 
       // -----------------------------------------------------------------------
-      // only supply cell values for non interblock BCs
-      // for interblock do nothing
-      if (bc_.GetBCTypes(ii) != "interblock") {
+      // only supply cell values for non connection BCs
+      // for connection do nothing
+      if (bc_.IsConnection(ii)) {
         // get boundary condtion type (no viscous walls in invicid BCs)
         auto bcName = bc_.GetBCTypes(ii);
         if (bcName == "viscousWall") {bcName = "slipWall";}
@@ -3500,7 +3500,7 @@ bool procBlock::AtGhostNonEdge(const int &ii, const int &jj, const int &kk,
 }
 
 
-/* Function to swap ghost cells between two blocks at an interblock
+/* Function to swap ghost cells between two blocks at an connection
 boundary. Slices are removed from the physical cells (extending into ghost cells
 at the edges) of one block and inserted into the ghost cells of its partner
 block. The reverse is also true. The slices are taken in the coordinate system
@@ -3516,35 +3516,35 @@ Ui-3/2   Ui-1/2   |    Uj+1/2    Uj+3/2  Ui-3/2    Ui-1/2  |    Uj+1/2    Uj+3/2
                   |                                        |
 
 The above diagram shows the resulting values after the ghost cell swap. The
-logic ensures that the ghost cells at the interblock boundary exactly match
+logic ensures that the ghost cells at the connection boundary exactly match
 their partner block as if there were no separation in the grid.
 */
-void procBlock::SwapStateSlice(const interblock &inter, procBlock &blk) {
-  // inter -- interblock boundary information
-  // blk -- second block involved in interblock boundary
+void procBlock::SwapStateSlice(const connection &inter, procBlock &blk) {
+  // inter -- connection boundary information
+  // blk -- second block involved in connection boundary
 
   state_.SwapSlice(inter, blk.state_);
 }
 
-void procBlock::SwapTurbSlice(const interblock &inter, procBlock &blk) {
-  // inter -- interblock boundary information
-  // blk -- second block involved in interblock boundary
+void procBlock::SwapTurbSlice(const connection &inter, procBlock &blk) {
+  // inter -- connection boundary information
+  // blk -- second block involved in connection boundary
 
   f1_.SwapSlice(inter, blk.f1_);
   f2_.SwapSlice(inter, blk.f2_);
 }
 
-void procBlock::SwapWallDistSlice(const interblock &inter, procBlock &blk) {
-  // inter -- interblock boundary information
-  // blk -- second block involved in interblock boundary
+void procBlock::SwapWallDistSlice(const connection &inter, procBlock &blk) {
+  // inter -- connection boundary information
+  // blk -- second block involved in connection boundary
 
   wallDist_.SwapSlice(inter, blk.wallDist_);
 }
 
-void procBlock::SwapEddyViscAndGradientSlice(const interblock &inter,
+void procBlock::SwapEddyViscAndGradientSlice(const connection &inter,
                                              procBlock &blk) {
-  // inter -- interblock boundary information
-  // blk -- second block involved in interblock boundary
+  // inter -- connection boundary information
+  // blk -- second block involved in connection boundary
 
   if (isViscous_) {
     velocityGrad_.SwapSlice(inter, blk.velocityGrad_);
@@ -3564,34 +3564,34 @@ void procBlock::SwapEddyViscAndGradientSlice(const interblock &inter,
 function, but is called when the neighboring procBlocks are on different
 processors.
 */
-void procBlock::SwapStateSliceMPI(const interblock &inter, const int &rank,
+void procBlock::SwapStateSliceMPI(const connection &inter, const int &rank,
                                   const MPI_Datatype &MPI_cellData) {
-  // inter -- interblock boundary information
+  // inter -- connection boundary information
   // rank -- processor rank
   // MPI_cellData -- MPI datatype for passing primVars, genArray
 
   state_.SwapSliceMPI(inter, rank, MPI_cellData);
 }
 
-void procBlock::SwapTurbSliceMPI(const interblock &inter, const int &rank) {
-  // inter -- interblock boundary information
+void procBlock::SwapTurbSliceMPI(const connection &inter, const int &rank) {
+  // inter -- connection boundary information
   // rank -- processor rank
 
   f1_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 2);
   f2_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 3);
 }
 
-void procBlock::SwapWallDistSliceMPI(const interblock &inter, const int &rank) {
-  // inter -- interblock boundary information
+void procBlock::SwapWallDistSliceMPI(const connection &inter, const int &rank) {
+  // inter -- connection boundary information
   // rank -- processor rank
 
   wallDist_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 1);
 }
 
 void procBlock::SwapEddyViscAndGradientSliceMPI(
-    const interblock &inter, const int &rank,
+    const connection &inter, const int &rank,
     const MPI_Datatype &MPI_tensorDouble, const MPI_Datatype &MPI_vec3d) {
-  // inter -- interblock boundary information
+  // inter -- connection boundary information
   // rank -- processor rank
 
   if (isViscous_) {
@@ -3609,11 +3609,11 @@ void procBlock::SwapEddyViscAndGradientSliceMPI(
 
 
 /* Member function to overwrite a section of a procBlock's geometry with a
-geomSlice. The function uses the orientation supplied in the interblock to
+geomSlice. The function uses the orientation supplied in the connection to
 orient the geomSlice relative to the procBlock. It assumes that the procBlock
-is listed first, and the geomSlice second in the interblock data structure.
+is listed first, and the geomSlice second in the connection data structure.
 It returns a vector of 4 bools that are returned true if one of the 4 edges
-of the interblock need to be updated because they border an interblock,
+of the connection need to be updated because they border an connection,
 creating a possible "t" intersection.
      __________     _________
     |       |  |   |  |      |
@@ -3628,8 +3628,8 @@ creating a possible "t" intersection.
 
 The block configuration shown above shows a "t"intersection. If blocks 0/1 are
 swapped first, block 1 gets all of its ghost cells including the edge cells
-(marked X) from block 0, but block 0 knows that the interblock swapping with
-block 1 borders another interblock (the one swapping with block 2), so it does
+(marked X) from block 0, but block 0 knows that the connection swapping with
+block 1 borders another connection (the one swapping with block 2), so it does
 not take the edge ghost cells from block 1. This is because the ghost cells that
 the edge of block 1 would supply will be supplied by the swap with block 2. If
 next, blocks 1/2 swap, block 1 now has garbage in its edge ghost cells. This is
@@ -3646,13 +3646,13 @@ block 0 are not overwritten with the garbage ghost cells from block 2. The way
 this is enforced is the following. Initially all ghost cell volumes are
 initialized to 0. Therefore, if a cell from a geomSlice with a volume of 0 is
 trying to be inserted into the procBlock, this cell has not been given its proper
-boundary conditions and should be ignored. Subsequently, the interblock should be
+boundary conditions and should be ignored. Subsequently, the connection should be
 updated so that in the future this cell is not inserted.
 */
-vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
+vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, connection &inter,
                                      const int &d3) {
   // slice -- geomSlice to insert int procBlock
-  // inter -- interblock data structure describing the patches and their
+  // inter -- connection data structure describing the patches and their
   // orientation
   // d3 -- distance of direction normal to patch to insert
 
@@ -3669,7 +3669,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
     exit(EXIT_FAILURE);
   }
 
-  // adjust insertion indices if patch borders another interblock on the same
+  // adjust insertion indices if patch borders another connection on the same
   // surface of the block
   const auto adjS1 = (inter.Dir1StartInterBorderFirst()) ? numGhosts_ : 0;
   const auto adjE1 = (inter.Dir1EndInterBorderFirst()) ? numGhosts_ : 0;
@@ -3699,7 +3699,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
         // its ghost value yet (needed at "t" intersection)
         if (slice.Vol(indS[0], indS[1], indS[2]) == 0.0) {
           // find out if on edge, if so save edge
-          // at a block edge -- possible need to adjust interblock
+          // at a block edge -- possible need to adjust connection
           string edgeDir = "undefined";
           if (this->AtEdgeInclusive(indB[0], indB[1], indB[2], edgeDir)) {
             auto dir1 = 0;
@@ -3716,7 +3716,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
             }
 
             // find out edge direction
-            // edge direction matches interblock direction 1
+            // edge direction matches connection direction 1
             if (edgeDir == inter.Direction1First()) {
               // adjust edge on lower dir2 side
               if (indB[dir2] < inter.Dir2StartFirst() + numGhosts_) {
@@ -3724,7 +3724,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
               } else {  // adjust edge on upper dir2 side
                 adjEdge[3] = true;
               }
-            // edge direction matches interblock direction 2
+            // edge direction matches connection direction 2
             } else if (edgeDir == inter.Direction2First()) {
               // adjust edge on lower dir1 side
               if (indB[dir1] < inter.Dir1StartFirst() + numGhosts_) {
@@ -3734,7 +3734,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
               }
             } else {
               cerr << "ERROR: Error in procBlock::PutGeomSlice(). Ghost cell "
-                      "edge direction does not match interblock direction 1 or "
+                      "edge direction does not match connection direction 1 or "
                       "2." << endl;
               cerr << "Edge direction is " << edgeDir << ", direction 1 is "
                    << inter.Direction1First() << ", and direction 2 is "
@@ -4507,15 +4507,15 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 }
 
 /* Member function to overwrite a section of a procBlock's states with a
-slice of states. The function uses the orientation supplied in the interblock to
+slice of states. The function uses the orientation supplied in the connection to
 orient the slice relative to the procBlock. It assumes that the procBlock
-is listed first, and the slice second in the interblock data structure.
+is listed first, and the slice second in the connection data structure.
 */
 void procBlock::PutStateSlice(const multiArray3d<primVars> &slice,
-                              const interblock &inter,
+                              const connection &inter,
                               const int &d3, const int &numG) {
   // slice -- slice to insert in procBlock
-  // inter -- interblock data structure defining the patches and their
+  // inter -- connection data structure defining the patches and their
   // orientation
   // d3 -- distance of direction normal to patch to insert
   // numG -- number of ghost cells

@@ -26,7 +26,7 @@
 #include "plot3d.hpp"              // plot3d
 #include "primVars.hpp"            // primVars
 #include "procBlock.hpp"           // procBlock
-#include "boundaryConditions.hpp"  // interblock
+#include "boundaryConditions.hpp"  // connection
 #include "resid.hpp"               // resid
 #include "macros.hpp"
 #include "genArray.hpp"
@@ -180,25 +180,25 @@ void SendNumProcBlocks(const vector<int> &loadBal, int &numProcBlock) {
               MPI_COMM_WORLD);
 }
 
-// function to send each processor the vector of interblocks it needs to compute
+// function to send each processor the vector of connections it needs to compute
 // its boundary conditions
-void SendConnections(vector<interblock> &connections,
-                     const MPI_Datatype &MPI_interblock) {
-  // first determine the number of interblocks and send that to all processors
+void SendConnections(vector<connection> &connections,
+                     const MPI_Datatype &MPI_connection) {
+  // first determine the number of connections and send that to all processors
   auto numCon = static_cast<int>(connections.size());
   MPI_Bcast(&numCon, 1, MPI_INT, ROOTP, MPI_COMM_WORLD);
 
-  connections.resize(numCon);  // allocate space to receive the interblocks
+  connections.resize(numCon);  // allocate space to receive the connections
 
-  // broadcast all interblocks to all processors
-  MPI_Bcast(&connections[0], connections.size(), MPI_interblock, ROOTP,
+  // broadcast all connections to all processors
+  MPI_Bcast(&connections[0], connections.size(), MPI_connection, ROOTP,
             MPI_COMM_WORLD);
 }
 
 /* Function to set custom MPI datatypes to allow for easier data transmission */
 void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
                      MPI_Datatype &MPI_procBlockInts,
-                     MPI_Datatype &MPI_interblock,
+                     MPI_Datatype &MPI_connection,
                      MPI_Datatype &MPI_DOUBLE_5INT,
                      MPI_Datatype &MPI_vec3dMag,
                      MPI_Datatype &MPI_uncoupledScalar,
@@ -207,7 +207,7 @@ void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
   // MPI_cellData -- output MPI_Datatype for primVars or genArray
   // MPI_procBlockInts -- output MPI_Datatype for 14 INTs (14 INTs in procBlock
   //                      class)
-  // MPI_interblock -- output MPI_Datatype to send interblock class
+  // MPI_connection -- output MPI_Datatype to send connection class
   // MPI_DOUBLE_5INT -- output MPI_Datatype for a double followed by 5 ints
   // MPI_vec3dMag -- output MPI_Datatype for a unitVect3dMag<double>
   // MPI_uncoupledScalar -- output MPI_Datatype for a uncoupledScalar
@@ -278,38 +278,38 @@ void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
 
   MPI_Type_commit(&MPI_DOUBLE_5INT);
 
-  // create MPI datatype for interblock class
+  // create MPI datatype for connection class
   int counts[11] = {2, 2, 2, 2, 2, 2,
                     2, 2, 2, 8, 1};  // number of entries per field
   MPI_Datatype types[11] = {MPI_INT, MPI_INT,    MPI_INT, MPI_INT,
                             MPI_INT, MPI_INT,    MPI_INT, MPI_INT,
                             MPI_INT, MPI_C_BOOL, MPI_INT};  // field types
   MPI_Aint disp[11], lowerBound, extent;
-  interblock inter;  // dummy interblock to get layout of class
+  connection inter;  // dummy connection to get layout of class
   inter.GetAddressesMPI(disp);
 
   // make addresses relative to first field
   for (auto ii = 10; ii >= 0; ii--) {
     disp[ii] -= disp[0];
   }
-  MPI_Type_create_struct(11, counts, disp, types, &MPI_interblock);
+  MPI_Type_create_struct(11, counts, disp, types, &MPI_connection);
 
   // check that datatype has the correct extent, if it doesn't change the extent
   // this is necessary to portably send an array of this type
-  MPI_Type_get_extent(MPI_interblock, &lowerBound, &extent);
+  MPI_Type_get_extent(MPI_connection, &lowerBound, &extent);
   if (extent != sizeof(inter)) {
-    auto temp = MPI_interblock;
-    MPI_Type_create_resized(temp, 0, sizeof(inter), &MPI_interblock);
+    auto temp = MPI_connection;
+    MPI_Type_create_resized(temp, 0, sizeof(inter), &MPI_connection);
     MPI_Type_free(&temp);
   }
 
-  MPI_Type_commit(&MPI_interblock);
+  MPI_Type_commit(&MPI_connection);
 }
 
 /* Function to free custom MPI datatypesn */
 void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
                       MPI_Datatype &MPI_procBlockInts,
-                      MPI_Datatype &MPI_interblock,
+                      MPI_Datatype &MPI_connection,
                       MPI_Datatype &MPI_DOUBLE_5INT,
                       MPI_Datatype &MPI_vec3dMag,
                       MPI_Datatype &MPI_uncoupledScalar,
@@ -318,7 +318,7 @@ void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
   // MPI_cellData -- output MPI_Datatype for primVars or genArray
   // MPI_procBlockInts -- output MPI_Datatype for 14 INTs (14 INTs in procBlock
   //                      class)
-  // MPI_interblock -- output MPI_Datatype to send interblock class
+  // MPI_connection -- output MPI_Datatype to send connection class
   // MPI_DOUBLE_5INT -- output MPI_Datatype for a double followed by 5 ints
   // MPI_vec3dMag -- output MPI_Datatype for a unitVect3dMag<double>
   // MPI_uncoupledScalar -- output MPI_Datatype for a uncoupledScalar
@@ -342,8 +342,8 @@ void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
   // free MPI datatype for a double followed by 5 ints
   MPI_Type_free(&MPI_DOUBLE_5INT);
 
-  // free MPI datatype for interblock class
-  MPI_Type_free(&MPI_interblock);
+  // free MPI datatype for connection class
+  MPI_Type_free(&MPI_connection);
 }
 
 /* Function to send procBlocks to their appropriate processor. This function is

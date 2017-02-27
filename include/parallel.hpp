@@ -40,7 +40,7 @@ using std::ostream;
 class boundaryConditions;
 class procBlock;
 class plot3dBlock;
-class interblock;
+class connection;
 class resid;
 class genArray;
 
@@ -120,7 +120,7 @@ decomposition CubicDecomposition(vector<plot3dBlock>&,
                                  vector<boundaryConditions>&, const int&);
 
 void SendNumProcBlocks(const vector<int>&, int&);
-void SendConnections(vector<interblock>&, const MPI_Datatype&);
+void SendConnections(vector<connection>&, const MPI_Datatype&);
 
 void SetDataTypesMPI(MPI_Datatype&, MPI_Datatype&, MPI_Datatype&, MPI_Datatype&,
                      MPI_Datatype&, MPI_Datatype&, MPI_Datatype&,

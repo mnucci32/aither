@@ -36,7 +36,7 @@ using std::cerr;
 
 // forward class declaration
 class procBlock;
-class interblock;
+class connection;
 class range;
 
 class geomSlice {
