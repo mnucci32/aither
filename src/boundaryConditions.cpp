@@ -395,8 +395,6 @@ vector<connection> GetConnectionBCs(const vector<boundaryConditions> &bc,
   vector<boundarySurface> isolatedConnections;
 
   // Block number of bc, rank of block, local position on processor
-  // (different from rankParPos because it holds block number instead
-  // of parent block number)
   vector<array<int, 3>> numRankPos;
   vector<int> surfaceNums;  // surface number of connection
 
@@ -552,19 +550,19 @@ bool connection::TestPatchMatch(const patch &p1, const patch &p2) {
   auto match = false;  // initialize match to false
 
   // Determine if there is a potential match by comparing origins
-  if (p1.Origin() == p2.Origin()) {  // origins match -----------------------
-    // If origin_ matches origin_, corner 1 can only be at corner 1 or 2
-    if (p1.Corner1() == p2.Corner1()) {  // corner 1s match
+  if (p1.Origin().CompareWithTol(p2.Origin())) {  // origins match ------------
+    // If origin matches origin, corner 1 can only be at corner 1 or 2
+    if (p1.Corner1().CompareWithTol(p2.Corner1())) {  // corner 1s match
       // If all 3 corners match, same orientation
-      if (p1.Corner2() == p2.Corner2()) {  // corner 2s match
+      if (p1.Corner2().CompareWithTol(p2.Corner2())) {  // corner 2s match
         orientation_ = 1;
         match = true;
       } else {  // no match
         return match;
       }
-    } else if (p1.Corner1() == p2.Corner2()) {  // corner 1 matches corner 2
+    } else if (p1.Corner1().CompareWithTol(p2.Corner2())) {  // match 1/2
       // If origins match and 1 matches 2, 2 must match 1
-      if (p1.Corner2() == p2.Corner1()) {  // corner 2 matches corner 1
+      if (p1.Corner2().CompareWithTol(p2.Corner1())) {  // corner 2 matches corner 1
         orientation_ = 2;
         match = true;
       } else {  // no match
@@ -573,19 +571,19 @@ bool connection::TestPatchMatch(const patch &p1, const patch &p2) {
     } else {  // no match
       return match;
     }
-  } else if (p1.Origin() == p2.Corner1()) {  // origin_ matches corner 1 -------
-    // If origin_ matches corner1_, corner 1 can only be at corner 12 or origin_
-    if (p1.Corner1() == p2.Origin()) {
+  } else if (p1.Origin().CompareWithTol(p2.Corner1())) {  // origin match corner 1
+    // If origin matches corner1, corner 1 can only be at corner 12 or origin
+    if (p1.Corner1().CompareWithTol(p2.Origin())) {
       // Corner 2 must match 12 for match
-      if (p1.Corner2() == p2.Corner12()) {
+      if (p1.Corner2().CompareWithTol(p2.Corner12())) {
         orientation_ = 3;
         match = true;
       } else {  // no match
         return match;
       }
-    } else if (p1.Corner1() == p2.Corner12()) {
-      // Corner 2 must match origin_ for match
-      if (p1.Corner2() == p2.Origin()) {
+    } else if (p1.Corner1().CompareWithTol(p2.Corner12())) {
+      // Corner 2 must match origin for match
+      if (p1.Corner2().CompareWithTol(p2.Origin())) {
         orientation_ = 4;
         match = true;
       } else {  // no match
@@ -594,19 +592,19 @@ bool connection::TestPatchMatch(const patch &p1, const patch &p2) {
     } else {  // no match
       return match;
     }
-  } else if (p1.Origin() == p2.Corner2()) {  // origin_ matches corner 2 ------
-    // If origin_ matches corner2_, corner 1 can only be at corner 12 or origin_
-    if (p1.Corner1() == p2.Origin()) {
+  } else if (p1.Origin().CompareWithTol(p2.Corner2())) {  // origin match corner 2
+    // If origin matches corner2, corner 1 can only be at corner 12 or origin
+    if (p1.Corner1().CompareWithTol(p2.Origin())) {
       // Corner 2 must match 12 for match
-      if (p1.Corner2() == p2.Corner12()) {
+      if (p1.Corner2().CompareWithTol(p2.Corner12())) {
         orientation_ = 5;
         match = true;
       } else {  // no match
         return match;
       }
-    } else if (p1.Corner1() == p2.Corner12()) {
+    } else if (p1.Corner1().CompareWithTol(p2.Corner12())) {
       // Corner 2 must match origin_ for match
-      if (p1.Corner2() == p2.Origin()) {
+      if (p1.Corner2().CompareWithTol(p2.Origin())) {
         orientation_ = 6;
         match = true;
       } else {  // no match
@@ -615,19 +613,19 @@ bool connection::TestPatchMatch(const patch &p1, const patch &p2) {
     } else {  // no match
       return match;
     }
-  } else if (p1.Origin() == p2.Corner12()) {  // origin_ matches opposite corner
-    // If origin matches corner12, corner 1 can only be at corner 1 or corner 2
-    if (p1.Corner1() == p2.Corner1()) {
+  } else if (p1.Origin().CompareWithTol(p2.Corner12())) {  // origin match 12
+    // If origin matches corner 12, corner 1 can only be at corner 1 or corner 2
+    if (p1.Corner1().CompareWithTol(p2.Corner1())) {
       // Corner 2 must match 2 for match
-      if (p1.Corner2() == p2.Corner2()) {
+      if (p1.Corner2().CompareWithTol(p2.Corner2())) {
         orientation_ = 7;
         match = true;
       } else {  // no match
         return match;
       }
-    } else if (p1.Corner1() == p2.Corner2()) {
+    } else if (p1.Corner1().CompareWithTol(p2.Corner2())) {
       // Corner 2 must match corner 1 for match
-      if (p1.Corner2() == p2.Corner2()) {
+      if (p1.Corner2().CompareWithTol(p2.Corner2())) {
         orientation_ = 8;
         match = true;
       } else {  // no match
@@ -888,6 +886,7 @@ void connection::FirstSliceIndices(int &is1, int &ie1, int &js1, int &je1,
   } else {
     cerr << "ERROR: Error in connection::FirstSliceIndices(). Surface boundary "
          << this->BoundaryFirst() << " is not recognized!" << endl;
+    cerr << "connection is: " << (*this) << endl;
     exit(EXIT_FAILURE);
   }
 }
