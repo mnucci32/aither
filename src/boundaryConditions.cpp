@@ -2193,7 +2193,8 @@ void patch::Translate(const vector3d<double> &translate) {
 // member function to transform patch based on given rotation
 // this is used for periodic boundaries
 void patch::Rotate(const vector3d<double> &axis, const double &rotation) {
-
+  cerr << "Rotate transformation is not currently supported!" << endl;
+  exit(EXIT_FAILURE);
 }
 
 

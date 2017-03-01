@@ -1,0 +1,45 @@
+#This is the input file
+
+gridName: couette
+
+#solver parameters
+equationSet: navierStokes
+timeIntegration: implicitEuler
+cflStart: 1.0e5
+cflMax: 1.0e5
+faceReconstruction: thirdOrder
+limiter: none
+iterations: 100000
+outputFrequency: 5000
+outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach, velGrad_ux, velGrad_uy, velGrad_uz,
+		  tempGrad_x, tempGrad_y, temperature, viscosity>
+restartFrequency: 5000
+
+#reference conditions
+pressureRef: 101300.0
+densityRef: 1.2256
+temperatureRef: 288.0
+velocityRef: [75.4, 0.0, 0.0]
+
+initialConditions: <icState(tag=-1; pressure=101300; density=1.2256; velocity=[75.4, 0, 0])>
+
+matrixSolver: lusgs
+matrixRelaxation: 1.0
+
+boundaryStates: <periodic(startTag=4; endTag=5; translation=[0.01, 0, 0]),
+                 viscousWall(tag=1; temperature=288),
+		 viscousWall(tag=2; temperature=289; velocity=[75.4, 0, 0])>
+
+#-------------------------------------------------------------
+boundaryConditions: 1
+# Block 0 -- Dimensions: 65 x 5 x 2
+2 2 2
+# i-surfaces
+  viscousWall             0    0    0    4    0    1     2
+  viscousWall            64   64    0    4    0    1     1
+# j-surfaces
+  periodic                0   64    0    0    0    1     4
+  periodic                0   64    4    4    0    1     5
+# k-surfaces
+  slipWall                0   64    0    4    0    0     3
+  slipWall                0   64    0    4    1    1     3
