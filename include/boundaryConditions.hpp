@@ -28,6 +28,7 @@ one block. */
 #include <array>   // array
 #include <string>  // string
 #include <iostream>  // ostream
+#include <memory>  // unique_ptr
 #include "mpi.h"  // parallelism
 #include "vector3d.hpp"
 #include "range.hpp"
@@ -38,10 +39,13 @@ using std::array;
 using std::string;
 using std::cout;
 using std::endl;
+using std::unique_ptr;
 
 // forward class declaration
 class plot3dBlock;
 class decomposition;
+class inputState;
+class input;
 
 class boundarySurface {
   string bcType_;    // boundary condition name for surface
@@ -107,9 +111,9 @@ class boundarySurface {
   ~boundarySurface() noexcept {}
 };
 
-/* A class to store the necessary information for the boundary_ condition patches.
-   A patch is a 2D surface on a block_ boundary_ that is assigned the same
-   boundary_ condition. */
+/* A class to store the necessary information for the boundary condition patches.
+   A patch is a 2D surface on a block boundary that is assigned the same
+   boundary condition. */
 class patch {
   vector3d<double> origin_;      // coordinates of patch origin
   // Coordinates of direction 1 max, direction 2 zero
@@ -128,17 +132,19 @@ class patch {
   int constSurf_;                // index of direction 3
   int rank_;                     // rank of block that patch belongs to
   int localBlock_;               // position of block on processor
+  string bcName_;                // name of bc on patch
 
  public:
   // Constructor
   patch();
   patch(const int&, const int&, const int&, const int&, const int&, const int&,
         const int&, const int&, const plot3dBlock&, const int&, const int&,
-        const bool(&)[4]);
+        const bool(&)[4], const string&);
   patch(const boundarySurface &surf, const plot3dBlock &blk, const int &bNum,
         const bool (&border)[4], int r = 0, int l = 0) :
       patch(surf.SurfaceType(), bNum, surf.IMin(), surf.IMax(), surf.JMin(),
-            surf.JMax(), surf.KMin(), surf.KMax(), blk, r, l, border) {}
+            surf.JMax(), surf.KMin(), surf.KMax(), blk, r, l, border,
+            surf.BCType()) {}
 
   // move constructor and assignment operator
   patch(patch&&) noexcept = default;
@@ -166,6 +172,10 @@ class patch {
   bool Dir1EndInterBorder() const {return patchBorder_[1];}
   bool Dir2StartInterBorder() const {return patchBorder_[2];}
   bool Dir2EndInterBorder() const {return patchBorder_[3];}
+  string BCType() const {return bcName_;}
+  void Transform(const unique_ptr<inputState> &);
+  void Translate(const vector3d<double> &);
+  void Rotate(const vector3d<double> &, const double &);
 
   // Destructor
   ~patch() noexcept {}
@@ -271,13 +281,15 @@ class connection {
   bool patchBorder_[8];  // borders another patch on sides of patch
   // Defines how patches are oriented relative to one another (1-8)
   int orientation_;
+  string bcName_;
 
  public:
   // Constructor
   connection() : rank_{0, 0}, block_{0, 0}, localBlock_{0, 0}, boundary_{0, 0},
                  d1Start_{0, 0}, d1End_{0, 0}, d2Start_{0, 0}, d2End_{0, 0},
                  constSurf_{0, 0}, patchBorder_{false, false, false, false, false,
-                                         false, false, false}, orientation_(0) {}
+                                         false, false, false}, orientation_(0),
+                 bcName_("undefined") {}
 
   connection(const patch&, const patch&);
 
@@ -341,6 +353,9 @@ class connection {
   bool Dir2EndInterBorderSecond() const {return patchBorder_[7];}
 
   int Orientation() const {return orientation_;}
+  string BCType() const {return bcName_;}
+  bool IsInterblock() const {return bcName_ == "interblock";}
+  bool IsPeriodic() const {return bcName_ == "periodic";}
 
   string Direction1First() const;
   string Direction2First() const;
@@ -371,7 +386,7 @@ class connection {
 // Function declarations
 vector<connection> GetConnectionBCs(const vector<boundaryConditions>&,
                                     const vector<plot3dBlock>&,
-                                    const decomposition&);
+                                    const decomposition&, const input&);
 
 ostream & operator<< (ostream &os, const boundaryConditions&);
 ostream & operator<< (ostream &os, const boundarySurface&);

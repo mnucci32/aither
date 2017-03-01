@@ -24,6 +24,8 @@
 #include "vector3d.hpp"  // vector3d
 #include "plot3d.hpp"  // plot3dBlock
 #include "parallel.hpp"  // decomposition
+#include "inputStates.hpp"  // inputState
+#include "input.hpp"  // input
 
 using std::cout;
 using std::endl;
@@ -334,6 +336,7 @@ connection::connection(const patch &p1, const patch &p2) {
   patchBorder_[7] = p2.Dir2EndInterBorder();
 
   orientation_ = 0;  // default value (real values 1-8)
+  bcName_ = (p1.BCType() == p2.BCType()) ? p1.BCType() : "unmatched";
 }
 
 // Function to swap the order of an connection so the 2nd entry
@@ -383,10 +386,12 @@ range connection::Dir2RangeSecond() const {
    BCs together and determine their orientation.*/
 vector<connection> GetConnectionBCs(const vector<boundaryConditions> &bc,
                                     const vector<plot3dBlock> &grid,
-                                    const decomposition &decomp) {
+                                    const decomposition &decomp,
+                                    const input &inp) {
   // bc -- vector of boundaryConditions for all blocks
   // grid -- vector of plot3Dblocks for entire computational mesh
   // decomp -- decomposition of grid onto processors
+  // inp -- input variables
 
   // Isolate only the connection BCs and their associated data
   // from all of the BCs
@@ -427,25 +432,42 @@ vector<connection> GetConnectionBCs(const vector<boundaryConditions> &bc,
     for (auto jj = ii + 1U; jj < isolatedConnections.size(); jj++) {
       // Blocks and boundary surfaces between connections match
       // blocks between connection BCs match
-      if (isolatedConnections[ii].PartnerBlock() == numRankPos[jj][0] &&
-          isolatedConnections[ii].PartnerSurface() ==
-              isolatedConnections[jj].SurfaceType()) {
+      // or both are periodic
+      if ((isolatedConnections[ii].PartnerBlock() == numRankPos[jj][0] &&
+           isolatedConnections[ii].PartnerSurface() ==
+           isolatedConnections[jj].SurfaceType()) ||
+          (isolatedConnections[ii].BCType() == "periodic" &&
+           isolatedConnections[jj].BCType() == "periodic")) {
         // Determine if surface borders any other surfaces
         bool border[4] = {false, false, false, false};
         bc[numRankPos[ii][0]].BordersSurface(surfaceNums[ii], border);
 
         // Get current patch
-        const patch cPatch(isolatedConnections[ii], grid[numRankPos[ii][0]],
-                           numRankPos[ii][0], border, numRankPos[ii][1],
-                           numRankPos[ii][2]);
+        patch cPatch(isolatedConnections[ii], grid[numRankPos[ii][0]],
+                     numRankPos[ii][0], border, numRankPos[ii][1],
+                     numRankPos[ii][2]);
+        if (cPatch.BCType() == "periodic") {
+          const auto &bcData = inp.BCData(isolatedConnections[ii].Tag());
+          if (bcData->StartTag() == isolatedConnections[ii].Tag()) {
+            // need to transform data if surface is startTag
+            cPatch.Transform(bcData);
+          }
+        }
 
         // Determine if surface borders any other surfaces
         bc[numRankPos[jj][0]].BordersSurface(surfaceNums[jj], border);
 
         // Get new patch (possible match)
-        const patch nPatch(isolatedConnections[jj], grid[numRankPos[jj][0]],
-                           numRankPos[jj][0], border, numRankPos[jj][1],
-                           numRankPos[jj][2]);
+        patch nPatch(isolatedConnections[jj], grid[numRankPos[jj][0]],
+                     numRankPos[jj][0], border, numRankPos[jj][1],
+                     numRankPos[jj][2]);
+        if (nPatch.BCType() == "periodic") {
+          const auto &bcData = inp.BCData(isolatedConnections[jj].Tag());
+          if (bcData->StartTag() == isolatedConnections[jj].Tag()) {
+            // need to transform data if surface is startTag
+            nPatch.Transform(bcData);
+          }
+        }
 
         // Test for match
         connection match(cPatch, nPatch);
@@ -548,6 +570,11 @@ bool connection::TestPatchMatch(const patch &p1, const patch &p2) {
   // p2 -- second patch
 
   auto match = false;  // initialize match to false
+
+  // test if bc types are the same
+  if (p1.BCType() != p2.BCType()) {
+    return match;
+  }
 
   // Determine if there is a potential match by comparing origins
   if (p1.Origin().CompareWithTol(p2.Origin())) {  // origins match ------------
@@ -2036,13 +2063,14 @@ patch::patch() {
   patchBorder_[1] = false;
   patchBorder_[2] = false;
   patchBorder_[3] = false;
+  bcName_ = "undefined";
 }
 
 // constructor with arguements passed
 patch::patch(const int &bound, const int &b, const int &d1s, const int &d1e,
              const int &d2s, const int &d2e, const int &d3s, const int &d3e,
              const plot3dBlock &blk, const int &r, const int &l,
-             const bool (&border)[4]) {
+             const bool (&border)[4], const string &name) {
   // bound -- boundary number which patch is on (1-6)
   // b -- parent block number
   // d1s -- direction 1 starting index
@@ -2054,6 +2082,7 @@ patch::patch(const int &bound, const int &b, const int &d1s, const int &d1e,
   // r -- rank of block
   // l -- local position of block
   // border -- flags indicating if patch borders an connection bc on sides 1/2
+  // name -- bc name
 
   boundary_ = bound;
   block_ = b;
@@ -2063,6 +2092,7 @@ patch::patch(const int &bound, const int &b, const int &d1s, const int &d1e,
   patchBorder_[1] = border[1];
   patchBorder_[2] = border[2];
   patchBorder_[3] = border[3];
+  bcName_ = name;
 
   if (bound == 1 || bound == 2) {  // patch on i-surface - dir1 = j, dir2 = k
     d1Start_ = d2s;
@@ -2134,11 +2164,45 @@ patch::patch(const int &bound, const int &b, const int &d1s, const int &d1e,
   }
 }
 
+// member function to transform patch based on given bc data
+// this is used for periodic boundaries
+void patch::Transform(const unique_ptr<inputState> &bcData) {
+  if (bcData->IsTranslation()) {
+    const auto translation = bcData->Translation();
+    this->Translate(translation);
+  } else if (bcData->IsRotation()) {
+    const auto axis = bcData->Axis();
+    const auto rotation = bcData->Rotation();
+    this->Rotate(axis, rotation);
+  } else {
+    cerr << "ERROR. BC data for transformation is not translation or rotation!"
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+// member function to transform patch based on given translation
+// this is used for periodic boundaries
+void patch::Translate(const vector3d<double> &translate) {
+  origin_ += translate;
+  corner1_ += translate;
+  corner2_ += translate;
+  corner12_ += translate;
+}
+
+// member function to transform patch based on given rotation
+// this is used for periodic boundaries
+void patch::Rotate(const vector3d<double> &axis, const double &rotation) {
+
+}
+
+
 // operator overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, const patch &p) {
   // os -- ostream to print to
   // p -- patch to print
 
+  os << "BC Type: " << p.BCType() << endl;
   os << "Boundary: " << p.Boundary() << endl;
   os << "Block: " << p.Block() << endl;
   os << "Direction 1 Start: " << p.Dir1Start() << endl;
@@ -2279,13 +2343,12 @@ int boundarySurface::SurfaceType() const {
 // from.
 int boundarySurface::PartnerBlock() const {
   if (bcType_ != "interblock") {
-    cerr << "ERROR: Partner blocks are only associated with interblock "
-            "boundaries. Current boundary is " << bcType_ << endl;
-    exit(EXIT_FAILURE);
+    // partner block only defined for interblock
+    return -1;
+  } else {
+    const auto subtract = this->PartnerSurface() * 1000;
+    return this->Tag() - subtract;
   }
-
-  const auto subtract = this->PartnerSurface() * 1000;
-  return this->Tag() - subtract;
 }
 
 // member function to determine the partner surface of an interblock
@@ -2293,33 +2356,32 @@ int boundarySurface::PartnerBlock() const {
 // cells from.
 int boundarySurface::PartnerSurface() const {
   if (bcType_ != "interblock") {
-    cerr << "ERROR: Partner blocks are only associated with interblock "
-            "boundaries. Current boundary is " << bcType_ << endl;
-    exit(EXIT_FAILURE);
-  }
-
-  auto surf = 0;
-
-  if (this->Tag() < 2000) {
-    surf = 1;  // i-lower surface
-  } else if (this->Tag() < 3000) {
-    surf = 2;  // i-upper surface
-  } else if (this->Tag() < 4000) {
-    surf = 3;  // j-lower surface
-  } else if (this->Tag() < 5000) {
-    surf = 4;  // j-upper surface
-  } else if (this->Tag() < 6000) {
-    surf = 5;  // k-lower surface
-  } else if (this->Tag() < 7000) {
-    surf = 6;  // k-upper surface
+    // partner surface only defined for interblock
+    return -1;
   } else {
-    cerr << "ERROR: Error in boundarySurface::PartnerSurface(). Tag does not "
-            "fit in range. Tag must be between 1000 and 6999." << endl;
-    cerr << (*this) << endl;
-    exit(EXIT_FAILURE);
-  }
+    auto surf = 0;
 
-  return surf;
+    if (this->Tag() < 2000) {
+      surf = 1;  // i-lower surface
+    } else if (this->Tag() < 3000) {
+      surf = 2;  // i-upper surface
+    } else if (this->Tag() < 4000) {
+      surf = 3;  // j-lower surface
+    } else if (this->Tag() < 5000) {
+      surf = 4;  // j-upper surface
+    } else if (this->Tag() < 6000) {
+      surf = 5;  // k-lower surface
+    } else if (this->Tag() < 7000) {
+      surf = 6;  // k-upper surface
+    } else {
+      cerr << "ERROR: Error in boundarySurface::PartnerSurface(). Tag does not "
+          "fit in range. Tag must be between 1000 and 6999." << endl;
+      cerr << (*this) << endl;
+      exit(EXIT_FAILURE);
+    }
+
+    return surf;
+  }
 }
 
 // member function to return a string corresponding to which direction (i,j,k)

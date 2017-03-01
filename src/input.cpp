@@ -764,7 +764,8 @@ icState input::ICStateForBlock(const int &block) const {
 // member function to return boundary condition data index for a given tag
 const unique_ptr<inputState> & input::BCData(const int &tag) const {
   for (auto &bcData : bcStates_) {
-    if (bcData->Tag() == tag) {
+    // for non-periodic bcs tag = startTag = endTag
+    if (bcData->Tag() == tag || bcData->EndTag() == tag) {
       return bcData;
     }
   }

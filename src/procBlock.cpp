@@ -2524,9 +2524,9 @@ void procBlock::AssignGhostCellsGeom() {
       }
 
       // -----------------------------------------------------------------------
-      // only supply geometry values for non connection BCs
-      // for connection do nothing
-      if (!bc_.IsConnection(ii)) {
+      // only supply geometry values for non interblock BCs (including periodic)
+      // for interblock do nothing
+      if (bc_.GetBCTypes(ii) != "interblock") {
         // assign volume for layer of ghost cells
         vol_.Insert(dir, gCell, r1, r2,
                     vol_.Slice(dir, iCell, r1, r2));

@@ -143,7 +143,7 @@ ostream &operator<<(ostream &os, const viscousWall &bc) {
 }
 
 void periodic::Print(ostream &os) const {
-  os << "periodic(tag=" << this->Tag();
+  os << "periodic(startTag=" << this->StartTag() << "; endTag=" << this->EndTag();
   if (this->IsTranslation()) {
     os << "; translation=[" << this->Translation() << "]";
   } else if (this->IsRotation()) {
@@ -596,7 +596,8 @@ periodic::periodic(string &str) {
   str.erase(0, end);
 
   // parameter counters
-  auto tagCount = 0;
+  auto startTagCount = 0;
+  auto endTagCount = 0;
   auto translationCount = 0;
   auto axisCount = 0;
   auto rotationCount = 0;
@@ -623,9 +624,12 @@ periodic::periodic(string &str) {
       rotation_ = stod(RemoveTrailing(param[1], ","));
       specifiedRotation = true;
       rotationCount++;
-    } else if (param[0] == "tag") {
+    } else if (param[0] == "startTag") {
       this->SetTag(stoi(RemoveTrailing(param[1], ",")));
-      tagCount++;
+      startTagCount++;
+    } else if (param[0] == "endTag") {
+      endTag_ = stoi(RemoveTrailing(param[1], ","));
+      endTagCount++;
     } else {
       cerr << "ERROR. periodic specifier " << param[0]
            << " is not recognized!" << endl;
@@ -635,9 +639,13 @@ periodic::periodic(string &str) {
 
   // sanity checks
   // required variables
-  if (tagCount != 1) {
-    cerr << "ERROR. For periodic tag must be specified, and only specified "
-         << "once." << endl;
+  if (startTagCount != 1 || endTagCount != 1) {
+    cerr << "ERROR. For periodic startTag and endTag must be specified, and "
+         << "only specified once." << endl;
+    exit(EXIT_FAILURE);
+  }
+  if (this->StartTag() == this->EndTag()) {
+    cerr << "ERROR. For periodic startTag and endTag must be unique." << endl;
     exit(EXIT_FAILURE);
   }
   // optional variables
@@ -750,6 +758,8 @@ void AddBCToList(const string &type, vector<unique_ptr<inputState>> &bcList,
     bc = unique_ptr<inputState>{std::make_unique<supersonicInflow>(list)};
   } else if (type == "viscousWall") {
     bc = unique_ptr<inputState>{std::make_unique<viscousWall>(list)};
+  } else if (type == "periodic") {
+    bc = unique_ptr<inputState>{std::make_unique<periodic>(list)};
   } else {
     cerr << "ERROR. BC state " << type << " is not recognized!" << endl;
     exit(EXIT_FAILURE);
@@ -770,7 +780,8 @@ void AddBCToList(const string &type, vector<unique_ptr<inputState>> &bcList,
 vector<unique_ptr<inputState>> ReadBCList(ifstream &inFile, string &str) {
   vector<unique_ptr<inputState>> bcList;
   vector<string> bcNames {"characteristic", "stagnationInlet", "pressureOutlet",
-        "subsonicInflow", "subsonicOutflow", "supersonicInflow", "viscousWall"};
+        "subsonicInflow", "subsonicOutflow", "supersonicInflow", "viscousWall",
+        "periodic"};
   auto openList = false;
   do {
     auto start = openList ? 0 : str.find("<");
