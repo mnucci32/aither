@@ -147,7 +147,8 @@ void periodic::Print(ostream &os) const {
   if (this->IsTranslation()) {
     os << "; translation=[" << this->Translation() << "]";
   } else if (this->IsRotation()) {
-    os << "; axis=[" << this->Axis() << "]; rotation=" << this->Rotation();
+    os << "; axis=[" << this->Axis() << "]; point=[" << this->Point()
+       << "]; rotation=" << this->Rotation();
   }
   os << ")";
 }
@@ -350,7 +351,7 @@ stagnationInlet::stagnationInlet(string &str) {
       t0_ = stod(RemoveTrailing(param[1], ","));
       t0Count++;
     } else if (param[0] == "direction") {
-      direction_ = ReadVector(RemoveTrailing(param[1], ","));
+      direction_ = ReadVector(RemoveTrailing(param[1], ",")).Normalize();
       directionCount++;
     } else if (param[0] == "turbulenceIntensity") {
       this->SetSpecifiedTurbulence();
@@ -600,9 +601,11 @@ periodic::periodic(string &str) {
   auto endTagCount = 0;
   auto translationCount = 0;
   auto axisCount = 0;
+  auto pointCount = 0;
   auto rotationCount = 0;
   auto specifiedTranslation = false;
   auto specifiedAxis = false;
+  auto specifiedPoint = false;
   auto specifiedRotation = false;
 
   for (auto &token : tokens) {
@@ -617,9 +620,13 @@ periodic::periodic(string &str) {
       specifiedTranslation = true;
       translationCount++;
     } else if (param[0] == "axis") {
-      axis_ = ReadVector(RemoveTrailing(param[1], ","));
+      axis_ = ReadVector(RemoveTrailing(param[1], ",")).Normalize();
       specifiedAxis = true;
       axisCount++;
+    } else if (param[0] == "point") {
+      point_ = ReadVector(RemoveTrailing(param[1], ","));
+      specifiedPoint = true;
+      pointCount++;
     } else if (param[0] == "rotation") {
       rotation_ = stod(RemoveTrailing(param[1], ","));
       specifiedRotation = true;
@@ -649,19 +656,22 @@ periodic::periodic(string &str) {
     exit(EXIT_FAILURE);
   }
   // optional variables
-  if (translationCount > 1 || axisCount > 1 || rotationCount > 1) {
-    cerr << "ERROR. For periodic, translation, axis, and rotation can "
+  if (translationCount > 1 || axisCount > 1 || rotationCount > 1 ||
+      pointCount > 1) {
+    cerr << "ERROR. For periodic, translation, axis, rotation, and point can "
          << "only be specified once." << endl;
     exit(EXIT_FAILURE);
   }
-  if (specifiedTranslation && (specifiedAxis || specifiedRotation)) {
+  if (specifiedTranslation &&
+      (specifiedAxis || specifiedRotation || specifiedPoint)) {
     cerr << "ERROR. For periodic can only specify translation OR rotation."
          << endl;
     exit(EXIT_FAILURE);
   }
-  if ((specifiedAxis && !specifiedRotation) ||
-      (!specifiedAxis && specifiedRotation)) {
-    cerr << "ERROR. For periodic rotation, must specify axis and rotation."
+  if ((specifiedAxis && !(specifiedRotation && specifiedPoint)) ||
+      (specifiedPoint && !(specifiedRotation && specifiedAxis)) ||
+      (specifiedRotation && !(specifiedAxis && specifiedPoint))) {
+    cerr << "ERROR. For periodic rotation must specify axis, point, & rotation."
          << endl;
     exit(EXIT_FAILURE);
   }

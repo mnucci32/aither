@@ -6,7 +6,7 @@ Develop: [![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=devel
 
 ### About The code
 This code is for a 3D Navier-Stokes computational fluid dynamics solver. It is a cell centered, structured solver,
-using mulit-block structured grids in Plot3D format. It uses explicit and implicit time integration methods.
+using multi-block structured grids in Plot3D format. It uses explicit and implicit time integration methods.
 It uses MUSCL extrapolation to reconstruct the primative variables from the cell centers to the cell faces for 2nd
 order accuracy. Higher order reconstruction is acheived with a 5th order WENO reconstruction for the inviscid fluxes,
 and a 4th order central reconstruction for the viscous fluxes. The code uses the Roe flux difference splitting scheme
@@ -24,6 +24,7 @@ turbulence model is available. For large eddy simulations, the WALE subgrid scal
 
 ### To Do List
 * Add wall functions for turbulence models
+* Add additional inviscid flux option (AUSM)
 * Add multigrid scheme for improved convergence
 
 ### Dependencies

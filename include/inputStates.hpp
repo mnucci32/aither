@@ -76,6 +76,7 @@ class inputState {
   virtual const double Rotation() const {return 0;}
   virtual const vector3d<double> Translation() const {return {0, 0, 0};}
   virtual const vector3d<double> Axis() const {return {0, 0, 0};}
+  virtual const vector3d<double> Point() const {return {0, 0, 0};}
 
   // destructor
   virtual ~inputState() noexcept {}
@@ -319,6 +320,7 @@ class viscousWall : public inputState {
 class periodic : public inputState {
   vector3d<double> translation_ = {0.0, 0.0, 0.0};
   vector3d<double> axis_ = {0.0, 0.0, 0.0};
+  vector3d<double> point_ = {0.0, 0.0, 0.0};
   double rotation_ = 0.0;
   int endTag_ = -1;
 
@@ -343,6 +345,7 @@ class periodic : public inputState {
   }
   const vector3d<double> Translation() const override {return translation_;}
   const vector3d<double> Axis() const override {return axis_;}
+  const vector3d<double> Point() const override {return point_;}
   const double Rotation() const override {return rotation_;}
   const int EndTag() const override {return endTag_;}
   void Print(ostream &os) const override;

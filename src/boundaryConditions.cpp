@@ -2175,8 +2175,9 @@ void patch::Transform(const unique_ptr<inputState> &bcData) {
     this->Translate(translation);
   } else if (bcData->IsRotation()) {
     const auto axis = bcData->Axis();
+    const auto point = bcData->Point();
     const auto rotation = bcData->Rotation();
-    this->Rotate(axis, rotation);
+    this->Rotate(axis, point, rotation);
   } else {
     cerr << "ERROR. BC data for transformation is not translation or rotation!"
          << endl;
@@ -2195,9 +2196,34 @@ void patch::Translate(const vector3d<double> &translate) {
 
 // member function to transform patch based on given rotation
 // this is used for periodic boundaries
-void patch::Rotate(const vector3d<double> &axis, const double &rotation) {
-  cerr << "Rotate transformation is not currently supported!" << endl;
-  exit(EXIT_FAILURE);
+void patch::Rotate(const vector3d<double> &axis, const vector3d<double> &point,
+                   const double &rotation) {
+  // lambda function to rotate given point
+  auto rotate = [&axis, &point, &rotation] (vector3d<double> &pr) {
+    auto p0 = pr;
+    pr[0] = (point[0] * (pow(axis[1], 2.) + pow(axis[2], 2.)) - axis[0] *
+             (point[1] * axis[1] + point[2] * axis[2] - axis.DotProd(p0))) *
+    (1. - cos(rotation)) + p0[0] * cos(rotation) +
+    (-point[2] * axis[1] + point[1] * axis[2] - axis[2] * p0[1] +
+     axis[1] * p0[2]) * sin(rotation);
+
+    pr[1] = (point[1] * (pow(axis[0], 2.) + pow(axis[2], 2.)) - axis[1] *
+             (point[0] * axis[0] + point[2] * axis[2] - axis.DotProd(p0))) *
+    (1. - cos(rotation)) + p0[1] * cos(rotation) +
+    (point[2] * axis[0] - point[0] * axis[2] + axis[2] * p0[0] -
+     axis[0] * p0[2]) * sin(rotation);
+
+    pr[2] = (point[2] * (pow(axis[0], 2.) + pow(axis[1], 2.)) - axis[2] *
+             (point[0] * axis[0] + point[1] * axis[1] - axis.DotProd(p0))) *
+    (1. - cos(rotation)) + p0[2] * cos(rotation) +
+    (-point[1] * axis[0] + point[0] * axis[1] - axis[1] * p0[0] +
+     axis[0] * p0[1]) * sin(rotation);
+  };
+
+  rotate(origin_);
+  rotate(corner1_);
+  rotate(corner2_);
+  rotate(corner12_);
 }
 
 

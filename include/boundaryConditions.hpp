@@ -175,7 +175,8 @@ class patch {
   string BCType() const {return bcName_;}
   void Transform(const unique_ptr<inputState> &);
   void Translate(const vector3d<double> &);
-  void Rotate(const vector3d<double> &, const double &);
+  void Rotate(const vector3d<double> &, const vector3d<double> &,
+              const double &);
 
   // Destructor
   ~patch() noexcept {}
