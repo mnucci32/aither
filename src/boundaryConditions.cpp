@@ -24,6 +24,8 @@
 #include "vector3d.hpp"  // vector3d
 #include "plot3d.hpp"  // plot3dBlock
 #include "parallel.hpp"  // decomposition
+#include "inputStates.hpp"  // inputState
+#include "input.hpp"  // input
 
 using std::cout;
 using std::endl;
@@ -247,6 +249,7 @@ ostream &operator<<(ostream &os, const connection &bc) {
   // os -- ostream to print to
   // bc -- connection to print
 
+  os << "Is Interblock: " << bc.IsInterblock() << endl;
   os << "Ranks: " << bc.RankFirst() << ", " << bc.RankSecond() << endl;
   os << "Blocks: " << bc.BlockFirst() << ", " << bc.BlockSecond() << endl;
 
@@ -334,6 +337,8 @@ connection::connection(const patch &p1, const patch &p2) {
   patchBorder_[7] = p2.Dir2EndInterBorder();
 
   orientation_ = 0;  // default value (real values 1-8)
+  isInterblock_ = (p1.BCType() == "interblock" && p2.BCType() == "interblock")
+      ? true : false;
 }
 
 // Function to swap the order of an connection so the 2nd entry
@@ -383,10 +388,12 @@ range connection::Dir2RangeSecond() const {
    BCs together and determine their orientation.*/
 vector<connection> GetConnectionBCs(const vector<boundaryConditions> &bc,
                                     const vector<plot3dBlock> &grid,
-                                    const decomposition &decomp) {
+                                    const decomposition &decomp,
+                                    const input &inp) {
   // bc -- vector of boundaryConditions for all blocks
   // grid -- vector of plot3Dblocks for entire computational mesh
   // decomp -- decomposition of grid onto processors
+  // inp -- input variables
 
   // Isolate only the connection BCs and their associated data
   // from all of the BCs
@@ -395,8 +402,6 @@ vector<connection> GetConnectionBCs(const vector<boundaryConditions> &bc,
   vector<boundarySurface> isolatedConnections;
 
   // Block number of bc, rank of block, local position on processor
-  // (different from rankParPos because it holds block number instead
-  // of parent block number)
   vector<array<int, 3>> numRankPos;
   vector<int> surfaceNums;  // surface number of connection
 
@@ -429,25 +434,42 @@ vector<connection> GetConnectionBCs(const vector<boundaryConditions> &bc,
     for (auto jj = ii + 1U; jj < isolatedConnections.size(); jj++) {
       // Blocks and boundary surfaces between connections match
       // blocks between connection BCs match
-      if (isolatedConnections[ii].PartnerBlock() == numRankPos[jj][0] &&
-          isolatedConnections[ii].PartnerSurface() ==
-              isolatedConnections[jj].SurfaceType()) {
+      // or both are periodic
+      if ((isolatedConnections[ii].PartnerBlock() == numRankPos[jj][0] &&
+           isolatedConnections[ii].PartnerSurface() ==
+           isolatedConnections[jj].SurfaceType()) ||
+          (isolatedConnections[ii].BCType() == "periodic" &&
+           isolatedConnections[jj].BCType() == "periodic")) {
         // Determine if surface borders any other surfaces
         bool border[4] = {false, false, false, false};
         bc[numRankPos[ii][0]].BordersSurface(surfaceNums[ii], border);
 
         // Get current patch
-        const patch cPatch(isolatedConnections[ii], grid[numRankPos[ii][0]],
-                           numRankPos[ii][0], border, numRankPos[ii][1],
-                           numRankPos[ii][2]);
+        patch cPatch(isolatedConnections[ii], grid[numRankPos[ii][0]],
+                     numRankPos[ii][0], border, numRankPos[ii][1],
+                     numRankPos[ii][2]);
+        if (cPatch.BCType() == "periodic") {
+          const auto &bcData = inp.BCData(isolatedConnections[ii].Tag());
+          if (bcData->StartTag() == isolatedConnections[ii].Tag()) {
+            // need to transform data if surface is startTag
+            cPatch.Transform(bcData);
+          }
+        }
 
         // Determine if surface borders any other surfaces
         bc[numRankPos[jj][0]].BordersSurface(surfaceNums[jj], border);
 
         // Get new patch (possible match)
-        const patch nPatch(isolatedConnections[jj], grid[numRankPos[jj][0]],
-                           numRankPos[jj][0], border, numRankPos[jj][1],
-                           numRankPos[jj][2]);
+        patch nPatch(isolatedConnections[jj], grid[numRankPos[jj][0]],
+                     numRankPos[jj][0], border, numRankPos[jj][1],
+                     numRankPos[jj][2]);
+        if (nPatch.BCType() == "periodic") {
+          const auto &bcData = inp.BCData(isolatedConnections[jj].Tag());
+          if (bcData->StartTag() == isolatedConnections[jj].Tag()) {
+            // need to transform data if surface is startTag
+            nPatch.Transform(bcData);
+          }
+        }
 
         // Test for match
         connection match(cPatch, nPatch);
@@ -551,20 +573,25 @@ bool connection::TestPatchMatch(const patch &p1, const patch &p2) {
 
   auto match = false;  // initialize match to false
 
+  // test if bc types are the same
+  if (p1.BCType() != p2.BCType()) {
+    return match;
+  }
+
   // Determine if there is a potential match by comparing origins
-  if (p1.Origin() == p2.Origin()) {  // origins match -----------------------
-    // If origin_ matches origin_, corner 1 can only be at corner 1 or 2
-    if (p1.Corner1() == p2.Corner1()) {  // corner 1s match
+  if (p1.Origin().CompareWithTol(p2.Origin())) {  // origins match ------------
+    // If origin matches origin, corner 1 can only be at corner 1 or 2
+    if (p1.Corner1().CompareWithTol(p2.Corner1())) {  // corner 1s match
       // If all 3 corners match, same orientation
-      if (p1.Corner2() == p2.Corner2()) {  // corner 2s match
+      if (p1.Corner2().CompareWithTol(p2.Corner2())) {  // corner 2s match
         orientation_ = 1;
         match = true;
       } else {  // no match
         return match;
       }
-    } else if (p1.Corner1() == p2.Corner2()) {  // corner 1 matches corner 2
+    } else if (p1.Corner1().CompareWithTol(p2.Corner2())) {  // match 1/2
       // If origins match and 1 matches 2, 2 must match 1
-      if (p1.Corner2() == p2.Corner1()) {  // corner 2 matches corner 1
+      if (p1.Corner2().CompareWithTol(p2.Corner1())) {  // corner 2 matches corner 1
         orientation_ = 2;
         match = true;
       } else {  // no match
@@ -573,19 +600,19 @@ bool connection::TestPatchMatch(const patch &p1, const patch &p2) {
     } else {  // no match
       return match;
     }
-  } else if (p1.Origin() == p2.Corner1()) {  // origin_ matches corner 1 -------
-    // If origin_ matches corner1_, corner 1 can only be at corner 12 or origin_
-    if (p1.Corner1() == p2.Origin()) {
+  } else if (p1.Origin().CompareWithTol(p2.Corner1())) {  // origin match corner 1
+    // If origin matches corner1, corner 1 can only be at corner 12 or origin
+    if (p1.Corner1().CompareWithTol(p2.Origin())) {
       // Corner 2 must match 12 for match
-      if (p1.Corner2() == p2.Corner12()) {
+      if (p1.Corner2().CompareWithTol(p2.Corner12())) {
         orientation_ = 3;
         match = true;
       } else {  // no match
         return match;
       }
-    } else if (p1.Corner1() == p2.Corner12()) {
-      // Corner 2 must match origin_ for match
-      if (p1.Corner2() == p2.Origin()) {
+    } else if (p1.Corner1().CompareWithTol(p2.Corner12())) {
+      // Corner 2 must match origin for match
+      if (p1.Corner2().CompareWithTol(p2.Origin())) {
         orientation_ = 4;
         match = true;
       } else {  // no match
@@ -594,19 +621,19 @@ bool connection::TestPatchMatch(const patch &p1, const patch &p2) {
     } else {  // no match
       return match;
     }
-  } else if (p1.Origin() == p2.Corner2()) {  // origin_ matches corner 2 ------
-    // If origin_ matches corner2_, corner 1 can only be at corner 12 or origin_
-    if (p1.Corner1() == p2.Origin()) {
+  } else if (p1.Origin().CompareWithTol(p2.Corner2())) {  // origin match corner 2
+    // If origin matches corner2, corner 1 can only be at corner 12 or origin
+    if (p1.Corner1().CompareWithTol(p2.Origin())) {
       // Corner 2 must match 12 for match
-      if (p1.Corner2() == p2.Corner12()) {
+      if (p1.Corner2().CompareWithTol(p2.Corner12())) {
         orientation_ = 5;
         match = true;
       } else {  // no match
         return match;
       }
-    } else if (p1.Corner1() == p2.Corner12()) {
+    } else if (p1.Corner1().CompareWithTol(p2.Corner12())) {
       // Corner 2 must match origin_ for match
-      if (p1.Corner2() == p2.Origin()) {
+      if (p1.Corner2().CompareWithTol(p2.Origin())) {
         orientation_ = 6;
         match = true;
       } else {  // no match
@@ -615,19 +642,19 @@ bool connection::TestPatchMatch(const patch &p1, const patch &p2) {
     } else {  // no match
       return match;
     }
-  } else if (p1.Origin() == p2.Corner12()) {  // origin_ matches opposite corner
-    // If origin matches corner12, corner 1 can only be at corner 1 or corner 2
-    if (p1.Corner1() == p2.Corner1()) {
+  } else if (p1.Origin().CompareWithTol(p2.Corner12())) {  // origin match 12
+    // If origin matches corner 12, corner 1 can only be at corner 1 or corner 2
+    if (p1.Corner1().CompareWithTol(p2.Corner1())) {
       // Corner 2 must match 2 for match
-      if (p1.Corner2() == p2.Corner2()) {
+      if (p1.Corner2().CompareWithTol(p2.Corner2())) {
         orientation_ = 7;
         match = true;
       } else {  // no match
         return match;
       }
-    } else if (p1.Corner1() == p2.Corner2()) {
+    } else if (p1.Corner1().CompareWithTol(p2.Corner2())) {
       // Corner 2 must match corner 1 for match
-      if (p1.Corner2() == p2.Corner2()) {
+      if (p1.Corner2().CompareWithTol(p2.Corner2())) {
         orientation_ = 8;
         match = true;
       } else {  // no match
@@ -673,7 +700,7 @@ void connection::AdjustForSlice(const bool &blkFirst, const int &numG) {
 
 // Member function to get the addresses of an connection to create
 // an MPI_Datatype
-void connection::GetAddressesMPI(MPI_Aint (&disp)[11]) const {
+void connection::GetAddressesMPI(MPI_Aint (&disp)[12]) const {
   // Get addresses of each field
   MPI_Get_address(&rank_[0], &disp[0]);
   MPI_Get_address(&block_[0], &disp[1]);
@@ -686,6 +713,7 @@ void connection::GetAddressesMPI(MPI_Aint (&disp)[11]) const {
   MPI_Get_address(&constSurf_[0], &disp[8]);
   MPI_Get_address(&patchBorder_[0], &disp[9]);
   MPI_Get_address(&orientation_, &disp[10]);
+  MPI_Get_address(&isInterblock_, &disp[11]);
 }
 
 // Function to return which direction (i,j,k) is direction 1 in the
@@ -888,6 +916,7 @@ void connection::FirstSliceIndices(int &is1, int &ie1, int &js1, int &je1,
   } else {
     cerr << "ERROR: Error in connection::FirstSliceIndices(). Surface boundary "
          << this->BoundaryFirst() << " is not recognized!" << endl;
+    cerr << "connection is: " << (*this) << endl;
     exit(EXIT_FAILURE);
   }
 }
@@ -1008,7 +1037,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
   //        (this index is the last cell that remains in the lower split)
   // numBlk -- block number that (*this) is assocatied with
   // newBlkNum -- block number for upper split
-  // aSurf -- vector of any connections that are split,
+  // aSurf -- vector of any interblocks that are split,
   //          because their partners will need to be altered for the split as
   //          well
 
@@ -1092,16 +1121,16 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           bound2.surfs_[ii].data_[0] = this->GetIMax(ii) - indNG;  // imin
           bound2.surfs_[ii].data_[1] = this->GetIMax(ii) - indNG;  // imax
 
-          // At upper i surface, if bc is connection, store boundarySurface
+          // At upper i surface, if bc is interblock, store boundarySurface
           // because partner block BC will need to be updated
-          if (this->IsConnection(ii)) {
+          if (this->GetBCTypes(ii) == "interblock") {
             alteredSurf.push_back(this->GetSurface(ii));
           }
         }
       } else {  // j-surface or k-surface
-        // At j/k surface, if bc is connection, store boundarySurface
+        // At j/k surface, if bc is interblock, store boundarySurface
         // because partner block BC will need to be updated
-        if (this->IsConnection(ii)) {
+        if (this->GetBCTypes(ii) == "interblock") {
           alteredSurf.push_back(this->GetSurface(ii));
         }
 
@@ -1216,16 +1245,16 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           bound2.surfs_[ii].data_[2] = this->GetJMax(ii) - indNG;  // jmin
           bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - indNG;  // jmax
 
-          // At upper j surface, if bc is connection, store boundarySurface
+          // At upper j surface, if bc is interblock, store boundarySurface
           // because partner block BC will need to be updated
-          if (this->IsConnection(ii)) {
+          if (this->GetBCTypes(ii) == "interblock") {
             alteredSurf.push_back(this->GetSurface(ii));
           }
         }
       } else {  // i-surface or k-surface
-        // At i/k surface, if bc is connection, store boundarySurface
+        // At i/k surface, if bc is interblock, store boundarySurface
         // because partner block BC will need to be updated
-        if (this->IsConnection(ii)) {
+        if (this->GetBCTypes(ii) == "interblock") {
           alteredSurf.push_back(this->GetSurface(ii));
         }
 
@@ -1332,20 +1361,20 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           numInterU++;
 
           // At upper k surface, upper bc is same as original,
-          // but indices are adjusted for new block_ size
+          // but indices are adjusted for new block size
           bound2.surfs_[ii].data_[4] = this->GetKMax(ii) - indNG;  // kmin
           bound2.surfs_[ii].data_[5] = this->GetKMax(ii) - indNG;  // kmax
 
-          // At upper k surface, if bc is connection, store boundarySurface
+          // At upper k surface, if bc is interblock, store boundarySurface
           // because partner block BC will need to be updated
-          if (this->IsConnection(ii)) {
+          if (this->GetBCTypes(ii) == "interblock") {
             alteredSurf.push_back(this->GetSurface(ii));
           }
         }
       } else {  // i-surface or j-surface
-        // At i/j surface, if bc is connection, store boundarySurface because
+        // At i/j surface, if bc is interblock, store boundarySurface because
         // partner block BC will need to be updated
-        if (this->IsConnection(ii)) {
+        if (this->GetBCTypes(ii) == "interblock") {
           alteredSurf.push_back(this->GetSurface(ii));
         }
 
@@ -1406,7 +1435,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
 /* Member function to split the surfaces of a boundaryCondtions accordingly when
    one of its connection partners has been altered. The connection partner may
-   have been split, its block_ number updated, or both. In order to correctly
+   have been split, its block number updated, or both. In order to correctly
    match up the dependents of the connection must be updated for the split.*/
 void boundaryConditions::DependentSplit(const boundarySurface &surf,
                                         const plot3dBlock &part,
@@ -1414,7 +1443,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
                                         const int &sblk, const string &dir,
                                         const int &ind, const int &lblk,
                                         const int &ublk) {
-  // surf -- boundarySurface of partner block_
+  // surf -- boundarySurface of partner block
   // part -- plot3dBlock that surf is assigned to
   // self -- plot3dBlock that (*this) is assigned to
   // sblk -- block number of self
@@ -1648,8 +1677,8 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
 }
 
 /* Member function to join 2 boundaryConditions. It assumes that the calling
-instance is the "lower" boundary_ condition and the input instance
-is the "upper" boundary_ condition.
+instance is the "lower" boundary condition and the input instance
+is the "upper" boundary condition.
 */
 void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
                               vector<boundarySurface> &aSurf) {
@@ -1658,12 +1687,12 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
   // aSurf -- vector of connections whose partners will need to be altered by
   // the join
 
-  vector<boundarySurface> alteredSurf;  // initialize vector of boundary_
+  vector<boundarySurface> alteredSurf;  // initialize vector of boundary
                                         // surfaces whose partners will need to
                                         // be altered by the join
 
   if (dir == "i") {  // split along i-plane
-    // total number of i surfaces in joined block_ will be equal to the lower i
+    // total number of i surfaces in joined block will be equal to the lower i
     // surfaces from lower bc plus the upper i surfaces from the upper bc
     auto numI = 0;
     for (auto ii = 0; ii < this->NumSurfI(); ii++) {
@@ -1677,7 +1706,7 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       }
     }
 
-    // total number of j surfaces in joined block_ will be equal to all j
+    // total number of j surfaces in joined block will be equal to all j
     // surfaces from lower bc plus the j surfaces from the upper bc that only
     // reside in the upper bc
     const auto numJ = this->NumSurfJ() + bc.NumSurfJ();
@@ -2037,13 +2066,14 @@ patch::patch() {
   patchBorder_[1] = false;
   patchBorder_[2] = false;
   patchBorder_[3] = false;
+  bcName_ = "undefined";
 }
 
 // constructor with arguements passed
 patch::patch(const int &bound, const int &b, const int &d1s, const int &d1e,
              const int &d2s, const int &d2e, const int &d3s, const int &d3e,
              const plot3dBlock &blk, const int &r, const int &l,
-             const bool (&border)[4]) {
+             const bool (&border)[4], const string &name) {
   // bound -- boundary number which patch is on (1-6)
   // b -- parent block number
   // d1s -- direction 1 starting index
@@ -2055,6 +2085,7 @@ patch::patch(const int &bound, const int &b, const int &d1s, const int &d1e,
   // r -- rank of block
   // l -- local position of block
   // border -- flags indicating if patch borders an connection bc on sides 1/2
+  // name -- bc name
 
   boundary_ = bound;
   block_ = b;
@@ -2064,6 +2095,7 @@ patch::patch(const int &bound, const int &b, const int &d1s, const int &d1e,
   patchBorder_[1] = border[1];
   patchBorder_[2] = border[2];
   patchBorder_[3] = border[3];
+  bcName_ = name;
 
   if (bound == 1 || bound == 2) {  // patch on i-surface - dir1 = j, dir2 = k
     d1Start_ = d2s;
@@ -2135,11 +2167,46 @@ patch::patch(const int &bound, const int &b, const int &d1s, const int &d1e,
   }
 }
 
+// member function to transform patch based on given bc data
+// this is used for periodic boundaries
+void patch::Transform(const unique_ptr<inputState> &bcData) {
+  if (bcData->IsTranslation()) {
+    const auto translation = bcData->Translation();
+    this->Translate(translation);
+  } else if (bcData->IsRotation()) {
+    const auto axis = bcData->Axis();
+    const auto rotation = bcData->Rotation();
+    this->Rotate(axis, rotation);
+  } else {
+    cerr << "ERROR. BC data for transformation is not translation or rotation!"
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+// member function to transform patch based on given translation
+// this is used for periodic boundaries
+void patch::Translate(const vector3d<double> &translate) {
+  origin_ += translate;
+  corner1_ += translate;
+  corner2_ += translate;
+  corner12_ += translate;
+}
+
+// member function to transform patch based on given rotation
+// this is used for periodic boundaries
+void patch::Rotate(const vector3d<double> &axis, const double &rotation) {
+  cerr << "Rotate transformation is not currently supported!" << endl;
+  exit(EXIT_FAILURE);
+}
+
+
 // operator overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, const patch &p) {
   // os -- ostream to print to
   // p -- patch to print
 
+  os << "BC Type: " << p.BCType() << endl;
   os << "Boundary: " << p.Boundary() << endl;
   os << "Block: " << p.Block() << endl;
   os << "Direction 1 Start: " << p.Dir1Start() << endl;
@@ -2280,13 +2347,12 @@ int boundarySurface::SurfaceType() const {
 // from.
 int boundarySurface::PartnerBlock() const {
   if (bcType_ != "interblock") {
-    cerr << "ERROR: Partner blocks are only associated with interblock "
-            "boundaries. Current boundary is " << bcType_ << endl;
-    exit(EXIT_FAILURE);
+    // partner block only defined for interblock
+    return -1;
+  } else {
+    const auto subtract = this->PartnerSurface() * 1000;
+    return this->Tag() - subtract;
   }
-
-  const auto subtract = this->PartnerSurface() * 1000;
-  return this->Tag() - subtract;
 }
 
 // member function to determine the partner surface of an interblock
@@ -2294,33 +2360,32 @@ int boundarySurface::PartnerBlock() const {
 // cells from.
 int boundarySurface::PartnerSurface() const {
   if (bcType_ != "interblock") {
-    cerr << "ERROR: Partner blocks are only associated with interblock "
-            "boundaries. Current boundary is " << bcType_ << endl;
-    exit(EXIT_FAILURE);
-  }
-
-  auto surf = 0;
-
-  if (this->Tag() < 2000) {
-    surf = 1;  // i-lower surface
-  } else if (this->Tag() < 3000) {
-    surf = 2;  // i-upper surface
-  } else if (this->Tag() < 4000) {
-    surf = 3;  // j-lower surface
-  } else if (this->Tag() < 5000) {
-    surf = 4;  // j-upper surface
-  } else if (this->Tag() < 6000) {
-    surf = 5;  // k-lower surface
-  } else if (this->Tag() < 7000) {
-    surf = 6;  // k-upper surface
+    // partner surface only defined for interblock
+    return -1;
   } else {
-    cerr << "ERROR: Error in boundarySurface::PartnerSurface(). Tag does not "
-            "fit in range. Tag must be between 1000 and 6999." << endl;
-    cerr << (*this) << endl;
-    exit(EXIT_FAILURE);
-  }
+    auto surf = 0;
 
-  return surf;
+    if (this->Tag() < 2000) {
+      surf = 1;  // i-lower surface
+    } else if (this->Tag() < 3000) {
+      surf = 2;  // i-upper surface
+    } else if (this->Tag() < 4000) {
+      surf = 3;  // j-lower surface
+    } else if (this->Tag() < 5000) {
+      surf = 4;  // j-upper surface
+    } else if (this->Tag() < 6000) {
+      surf = 5;  // k-lower surface
+    } else if (this->Tag() < 7000) {
+      surf = 6;  // k-upper surface
+    } else {
+      cerr << "ERROR: Error in boundarySurface::PartnerSurface(). Tag does not "
+          "fit in range. Tag must be between 1000 and 6999." << endl;
+      cerr << (*this) << endl;
+      exit(EXIT_FAILURE);
+    }
+
+    return surf;
+  }
 }
 
 // member function to return a string corresponding to which direction (i,j,k)

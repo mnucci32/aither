@@ -351,7 +351,24 @@ def main():
     # run regression case
     passed = rae2822.RunCase()
     totalPass = totalPass and all(passed)        
-    
+
+    # ------------------------------------------------------------------
+    # couette flow
+    # laminar, viscous, periodic bcs, moving wall, isothermal wall
+    couette = regressionTest()
+    couette.SetRegressionCase("couette")
+    couette.SetAitherPath(options.aitherPath)
+    couette.SetRunDirectory("couette")
+    couette.SetNumberOfProcessors(1)
+    couette.SetNumberOfIterations(numIterations)
+    couette.SetResiduals([1.1359e-1, 5.0726e-1, 7.3287e-2, 5.0139e-1, 2.2817e-1])
+    couette.SetIgnoreIndices(3)
+    couette.SetMpirunPath(options.mpirunPath)
+
+    # run regression case
+    passed = couette.RunCase()
+    totalPass = totalPass and all(passed)        
+
     # ------------------------------------------------------------------
     # regression test overall pass/fail
     # ------------------------------------------------------------------

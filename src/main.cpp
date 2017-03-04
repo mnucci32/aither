@@ -149,7 +149,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Get connection BCs
-    connections = GetConnectionBCs(bcs, mesh, decomp);
+    connections = GetConnectionBCs(bcs, mesh, decomp, inp);
 
     // Initialize the whole mesh with ICs and assign ghost cells geometry
     stateBlocks.resize(mesh.size());

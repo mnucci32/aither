@@ -54,7 +54,9 @@ class inputState {
   // member functions
   const int Tag() const {return tag_;}
   void SetTag(const int &t) {tag_ = t;}
+  const int StartTag() const {return this->Tag();}
 
+  virtual const int EndTag() const {return this->Tag();}
   virtual void Print(ostream &os) const = 0;  // abstract base class
   virtual const vector3d<double> Velocity() const {return {0, 0, 0};}
   virtual const double Density() const {return 0;}
@@ -69,6 +71,8 @@ class inputState {
   virtual bool IsIsothermal() const {return false;}
   virtual bool IsAdiabatic() const {return false;}
   virtual bool IsConstantHeatFlux() const {return false;}
+  virtual bool IsTranslation() const {return false;}
+  virtual bool IsRotation() const {return false;}
   virtual const double Rotation() const {return 0;}
   virtual const vector3d<double> Translation() const {return {0, 0, 0};}
   virtual const vector3d<double> Axis() const {return {0, 0, 0};}
@@ -316,6 +320,7 @@ class periodic : public inputState {
   vector3d<double> translation_ = {0.0, 0.0, 0.0};
   vector3d<double> axis_ = {0.0, 0.0, 0.0};
   double rotation_ = 0.0;
+  int endTag_ = -1;
 
  public:
   // constructor
@@ -330,15 +335,16 @@ class periodic : public inputState {
   periodic& operator=(const periodic&) = default;
 
   // Member functions
-  bool IsTranslation() const {
+  bool IsTranslation() const override {
     return translation_ != vector3d<double>(0.0, 0.0, 0.0);
   }
-  bool IsRotation() const {
+  bool IsRotation() const override {
     return axis_ != vector3d<double>(0.0, 0.0, 0.0);
   }
   const vector3d<double> Translation() const override {return translation_;}
   const vector3d<double> Axis() const override {return axis_;}
   const double Rotation() const override {return rotation_;}
+  const int EndTag() const override {return endTag_;}
   void Print(ostream &os) const override;
 
   // Destructor

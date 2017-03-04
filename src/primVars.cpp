@@ -417,7 +417,7 @@ primVars primVars::GetGhostState(const string &bcType,
 
     // ghost cell velocity at cell center is set to opposite of velocity at
     // boundary cell center so that velocity at face will be zero
-    const auto ghostVel = bcData->Velocity() / aRef - this->Velocity();
+    const auto ghostVel = 2.0 * bcData->Velocity() / aRef - this->Velocity();
 
     ghostState.data_[1] = ghostVel.X();
     ghostState.data_[2] = ghostVel.Y();
