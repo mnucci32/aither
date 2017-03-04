@@ -281,7 +281,7 @@ class connection {
   bool patchBorder_[8];  // borders another patch on sides of patch
   // Defines how patches are oriented relative to one another (1-8)
   int orientation_;
-  string bcName_;
+  bool isInterblock_;
 
  public:
   // Constructor
@@ -289,7 +289,7 @@ class connection {
                  d1Start_{0, 0}, d1End_{0, 0}, d2Start_{0, 0}, d2End_{0, 0},
                  constSurf_{0, 0}, patchBorder_{false, false, false, false, false,
                                          false, false, false}, orientation_(0),
-                 bcName_("undefined") {}
+                 isInterblock_(true) {}
 
   connection(const patch&, const patch&);
 
@@ -353,9 +353,7 @@ class connection {
   bool Dir2EndInterBorderSecond() const {return patchBorder_[7];}
 
   int Orientation() const {return orientation_;}
-  string BCType() const {return bcName_;}
-  bool IsInterblock() const {return bcName_ == "interblock";}
-  bool IsPeriodic() const {return bcName_ == "periodic";}
+  bool IsInterblock() const {return isInterblock_;}
 
   string Direction1First() const;
   string Direction2First() const;
@@ -369,7 +367,7 @@ class connection {
   void SwapOrder();
   void AdjustForSlice(const bool&, const int&);
   bool TestPatchMatch(const patch&, const patch&);
-  void GetAddressesMPI(MPI_Aint (&)[11])const;
+  void GetAddressesMPI(MPI_Aint (&)[12])const;
 
   void FirstSliceIndices(int&, int&, int&, int&, int&, int&, const int&) const;
   void SecondSliceIndices(int&, int&, int&, int&, int&, int&, const int&) const;

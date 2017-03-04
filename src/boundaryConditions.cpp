@@ -249,6 +249,7 @@ ostream &operator<<(ostream &os, const connection &bc) {
   // os -- ostream to print to
   // bc -- connection to print
 
+  os << "Is Interblock: " << bc.IsInterblock() << endl;
   os << "Ranks: " << bc.RankFirst() << ", " << bc.RankSecond() << endl;
   os << "Blocks: " << bc.BlockFirst() << ", " << bc.BlockSecond() << endl;
 
@@ -336,7 +337,8 @@ connection::connection(const patch &p1, const patch &p2) {
   patchBorder_[7] = p2.Dir2EndInterBorder();
 
   orientation_ = 0;  // default value (real values 1-8)
-  bcName_ = (p1.BCType() == p2.BCType()) ? p1.BCType() : "unmatched";
+  isInterblock_ = (p1.BCType() == "interblock" && p2.BCType() == "interblock")
+      ? true : false;
 }
 
 // Function to swap the order of an connection so the 2nd entry
@@ -469,11 +471,21 @@ vector<connection> GetConnectionBCs(const vector<boundaryConditions> &bc,
           }
         }
 
+        // DEBUG
+        cout << "cPatch" << endl;
+        cout << cPatch << endl;
+        cout << "nPatch" << endl;
+        cout << nPatch << endl;
+
+        
         // Test for match
         connection match(cPatch, nPatch);
         if (match.TestPatchMatch(cPatch, nPatch)) {  // match found
           connections[ii / 2] = match;               // store connection pair
 
+          // DEBUG
+          cout << "MATCH FOUND" << endl;
+          
           // Swap matched connection BC to top portion of vector so
           // it is not searched again
           swap(isolatedConnections[jj], isolatedConnections[ii + 1]);
@@ -698,7 +710,7 @@ void connection::AdjustForSlice(const bool &blkFirst, const int &numG) {
 
 // Member function to get the addresses of an connection to create
 // an MPI_Datatype
-void connection::GetAddressesMPI(MPI_Aint (&disp)[11]) const {
+void connection::GetAddressesMPI(MPI_Aint (&disp)[12]) const {
   // Get addresses of each field
   MPI_Get_address(&rank_[0], &disp[0]);
   MPI_Get_address(&block_[0], &disp[1]);
@@ -711,6 +723,7 @@ void connection::GetAddressesMPI(MPI_Aint (&disp)[11]) const {
   MPI_Get_address(&constSurf_[0], &disp[8]);
   MPI_Get_address(&patchBorder_[0], &disp[9]);
   MPI_Get_address(&orientation_, &disp[10]);
+  MPI_Get_address(&isInterblock_, &disp[11]);
 }
 
 // Function to return which direction (i,j,k) is direction 1 in the
@@ -1034,7 +1047,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
   //        (this index is the last cell that remains in the lower split)
   // numBlk -- block number that (*this) is assocatied with
   // newBlkNum -- block number for upper split
-  // aSurf -- vector of any connections that are split,
+  // aSurf -- vector of any interblocks that are split,
   //          because their partners will need to be altered for the split as
   //          well
 
@@ -1118,16 +1131,16 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           bound2.surfs_[ii].data_[0] = this->GetIMax(ii) - indNG;  // imin
           bound2.surfs_[ii].data_[1] = this->GetIMax(ii) - indNG;  // imax
 
-          // At upper i surface, if bc is connection, store boundarySurface
+          // At upper i surface, if bc is interblock, store boundarySurface
           // because partner block BC will need to be updated
-          if (this->IsConnection(ii)) {
+          if (this->GetBCTypes(ii) == "interblock") {
             alteredSurf.push_back(this->GetSurface(ii));
           }
         }
       } else {  // j-surface or k-surface
-        // At j/k surface, if bc is connection, store boundarySurface
+        // At j/k surface, if bc is interblock, store boundarySurface
         // because partner block BC will need to be updated
-        if (this->IsConnection(ii)) {
+        if (this->GetBCTypes(ii) == "interblock") {
           alteredSurf.push_back(this->GetSurface(ii));
         }
 
@@ -1242,16 +1255,16 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           bound2.surfs_[ii].data_[2] = this->GetJMax(ii) - indNG;  // jmin
           bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - indNG;  // jmax
 
-          // At upper j surface, if bc is connection, store boundarySurface
+          // At upper j surface, if bc is interblock, store boundarySurface
           // because partner block BC will need to be updated
-          if (this->IsConnection(ii)) {
+          if (this->GetBCTypes(ii) == "interblock") {
             alteredSurf.push_back(this->GetSurface(ii));
           }
         }
       } else {  // i-surface or k-surface
-        // At i/k surface, if bc is connection, store boundarySurface
+        // At i/k surface, if bc is interblock, store boundarySurface
         // because partner block BC will need to be updated
-        if (this->IsConnection(ii)) {
+        if (this->GetBCTypes(ii) == "interblock") {
           alteredSurf.push_back(this->GetSurface(ii));
         }
 
@@ -1358,20 +1371,20 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           numInterU++;
 
           // At upper k surface, upper bc is same as original,
-          // but indices are adjusted for new block_ size
+          // but indices are adjusted for new block size
           bound2.surfs_[ii].data_[4] = this->GetKMax(ii) - indNG;  // kmin
           bound2.surfs_[ii].data_[5] = this->GetKMax(ii) - indNG;  // kmax
 
-          // At upper k surface, if bc is connection, store boundarySurface
+          // At upper k surface, if bc is interblock, store boundarySurface
           // because partner block BC will need to be updated
-          if (this->IsConnection(ii)) {
+          if (this->GetBCTypes(ii) == "interblock") {
             alteredSurf.push_back(this->GetSurface(ii));
           }
         }
       } else {  // i-surface or j-surface
-        // At i/j surface, if bc is connection, store boundarySurface because
+        // At i/j surface, if bc is interblock, store boundarySurface because
         // partner block BC will need to be updated
-        if (this->IsConnection(ii)) {
+        if (this->GetBCTypes(ii) == "interblock") {
           alteredSurf.push_back(this->GetSurface(ii));
         }
 
@@ -1432,7 +1445,7 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
 /* Member function to split the surfaces of a boundaryCondtions accordingly when
    one of its connection partners has been altered. The connection partner may
-   have been split, its block_ number updated, or both. In order to correctly
+   have been split, its block number updated, or both. In order to correctly
    match up the dependents of the connection must be updated for the split.*/
 void boundaryConditions::DependentSplit(const boundarySurface &surf,
                                         const plot3dBlock &part,
@@ -1440,7 +1453,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
                                         const int &sblk, const string &dir,
                                         const int &ind, const int &lblk,
                                         const int &ublk) {
-  // surf -- boundarySurface of partner block_
+  // surf -- boundarySurface of partner block
   // part -- plot3dBlock that surf is assigned to
   // self -- plot3dBlock that (*this) is assigned to
   // sblk -- block number of self
@@ -1674,8 +1687,8 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
 }
 
 /* Member function to join 2 boundaryConditions. It assumes that the calling
-instance is the "lower" boundary_ condition and the input instance
-is the "upper" boundary_ condition.
+instance is the "lower" boundary condition and the input instance
+is the "upper" boundary condition.
 */
 void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
                               vector<boundarySurface> &aSurf) {
@@ -1684,12 +1697,12 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
   // aSurf -- vector of connections whose partners will need to be altered by
   // the join
 
-  vector<boundarySurface> alteredSurf;  // initialize vector of boundary_
+  vector<boundarySurface> alteredSurf;  // initialize vector of boundary
                                         // surfaces whose partners will need to
                                         // be altered by the join
 
   if (dir == "i") {  // split along i-plane
-    // total number of i surfaces in joined block_ will be equal to the lower i
+    // total number of i surfaces in joined block will be equal to the lower i
     // surfaces from lower bc plus the upper i surfaces from the upper bc
     auto numI = 0;
     for (auto ii = 0; ii < this->NumSurfI(); ii++) {
@@ -1703,7 +1716,7 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
       }
     }
 
-    // total number of j surfaces in joined block_ will be equal to all j
+    // total number of j surfaces in joined block will be equal to all j
     // surfaces from lower bc plus the j surfaces from the upper bc that only
     // reside in the upper bc
     const auto numJ = this->NumSurfJ() + bc.NumSurfJ();

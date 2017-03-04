@@ -279,17 +279,19 @@ void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
   MPI_Type_commit(&MPI_DOUBLE_5INT);
 
   // create MPI datatype for connection class
-  int counts[11] = {2, 2, 2, 2, 2, 2,
-                    2, 2, 2, 8, 1};  // number of entries per field
-  MPI_Datatype types[11] = {MPI_INT, MPI_INT,    MPI_INT, MPI_INT,
-                            MPI_INT, MPI_INT,    MPI_INT, MPI_INT,
-                            MPI_INT, MPI_C_BOOL, MPI_INT};  // field types
-  MPI_Aint disp[11], lowerBound, extent;
+  constexpr auto nFields = 12;
+  int counts[nFields] = {2, 2, 2, 2, 2, 2,
+                         2, 2, 2, 8, 1, 1};  // number of entries per field
+  // field types
+  MPI_Datatype types[nFields] = {MPI_INT, MPI_INT,    MPI_INT, MPI_INT,
+                                 MPI_INT, MPI_INT,    MPI_INT, MPI_INT,
+                                 MPI_INT, MPI_C_BOOL, MPI_INT, MPI_C_BOOL};
+  MPI_Aint disp[nFields], lowerBound, extent;
   connection inter;  // dummy connection to get layout of class
   inter.GetAddressesMPI(disp);
 
   // make addresses relative to first field
-  for (auto ii = 10; ii >= 0; ii--) {
+  for (auto ii = nFields - 1; ii >= 0; ii--) {
     disp[ii] -= disp[0];
   }
   MPI_Type_create_struct(11, counts, disp, types, &MPI_connection);

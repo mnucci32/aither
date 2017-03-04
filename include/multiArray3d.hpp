@@ -1160,10 +1160,10 @@ void multiArray3d<T>::PackSwapUnpackMPI(const connection &inter,
    processors.
 */
 template <typename T>
-void multiArray3d<T>::SwapSliceMPI(const connection &inter, const int &rank,
+void multiArray3d<T>::SwapSliceMPI(const connection &conn, const int &rank,
                                    const MPI_Datatype &MPI_arrData,
                                    const int tag) {
-  // inter -- connection boundary information
+  // conn -- connection boundary information
   // rank -- processor rank
   // MPI_arrData -- MPI datatype for passing data in *this
   // tag -- id for MPI swap (default 1)
@@ -1173,10 +1173,10 @@ void multiArray3d<T>::SwapSliceMPI(const connection &inter, const int &rank,
   auto js = 0, je = 0;
   auto ks = 0, ke = 0;
 
-  if (rank == inter.RankFirst()) {  // local block first in connection
-    inter.FirstSliceIndices(is, ie, js, je, ks, ke, numGhosts_);
-  } else if (rank == inter.RankSecond()) {  // local block second in connection
-    inter.SecondSliceIndices(is, ie, js, je, ks, ke, numGhosts_);
+  if (rank == conn.RankFirst()) {  // local block first in connection
+    conn.FirstSliceIndices(is, ie, js, je, ks, ke, numGhosts_);
+  } else if (rank == conn.RankSecond()) {  // local block second in connection
+    conn.SecondSliceIndices(is, ie, js, je, ks, ke, numGhosts_);
   } else {
     cerr << "ERROR: Error in procBlock::SwapSliceMPI(). Processor rank does "
             "not match either of connection ranks!" << endl;
@@ -1187,22 +1187,22 @@ void multiArray3d<T>::SwapSliceMPI(const connection &inter, const int &rank,
   auto slice = this->Slice({is, ie}, {js, je}, {ks, ke});
 
   // swap state slices with partner block
-  slice.PackSwapUnpackMPI(inter, MPI_arrData, rank, tag);
+  slice.PackSwapUnpackMPI(conn, MPI_arrData, rank, tag);
 
   // change connections to work with slice and ghosts
-  auto interAdj = inter;
+  auto connAdj = conn;
 
   // change connections to work with slice and ghosts
   // block to insert into is first in connection
-  if (rank == inter.RankFirst()) {
-    interAdj.AdjustForSlice(true, numGhosts_);
+  if (rank == conn.RankFirst()) {
+    connAdj.AdjustForSlice(true, numGhosts_);
   } else {  // block to insert into is second in connection, so pass swapped
             // version
-    interAdj.AdjustForSlice(false, numGhosts_);
+    connAdj.AdjustForSlice(false, numGhosts_);
   }
 
   // insert state slice into procBlock
-  this->PutSlice(slice, interAdj, numGhosts_);
+  this->PutSlice(slice, connAdj, numGhosts_);
 }
 
 /* Function to swap ghost cells between two blocks at an connection
@@ -1225,9 +1225,9 @@ logic ensures that the ghost cells at the connection boundary exactly match
 their partner block as if there were no separation in the grid.
 */
 template <typename T>
-void multiArray3d<T>::SwapSlice(const connection &inter,
+void multiArray3d<T>::SwapSlice(const connection &conn,
                                 multiArray3d<T> &array) {
-  // inter -- connection boundary information
+  // conn -- connection boundary information
   // array -- second array involved in connection boundary
 
   // Get indices for slice coming from first block to swap
@@ -1235,28 +1235,28 @@ void multiArray3d<T>::SwapSlice(const connection &inter,
   auto js1 = 0, je1 = 0;
   auto ks1 = 0, ke1 = 0;
 
-  inter.FirstSliceIndices(is1, ie1, js1, je1, ks1, ke1, numGhosts_);
+  conn.FirstSliceIndices(is1, ie1, js1, je1, ks1, ke1, numGhosts_);
 
   // Get indices for slice coming from second block to swap
   auto is2 = 0, ie2 = 0;
   auto js2 = 0, je2 = 0;
   auto ks2 = 0, ke2 = 0;
 
-  inter.SecondSliceIndices(is2, ie2, js2, je2, ks2, ke2, array.GhostLayers());
+  conn.SecondSliceIndices(is2, ie2, js2, je2, ks2, ke2, array.GhostLayers());
 
   // get slices to swap
   auto slice1 = this->Slice({is1, ie1}, {js1, je1}, {ks1, ke1});
   auto slice2 = array.Slice({is2, ie2}, {js2, je2}, {ks2, ke2});
 
   // change connections to work with slice and ghosts
-  connection inter1 = inter;
-  connection inter2 = inter;
-  inter1.AdjustForSlice(false, numGhosts_);
-  inter2.AdjustForSlice(true, array.GhostLayers());
+  connection conn1 = conn;
+  connection conn2 = conn;
+  conn1.AdjustForSlice(false, numGhosts_);
+  conn2.AdjustForSlice(true, array.GhostLayers());
 
   // put slices in proper blocks
-  this->PutSlice(slice2, inter2, array.GhostLayers());
-  array.PutSlice(slice1, inter1, numGhosts_);
+  this->PutSlice(slice2, conn2, array.GhostLayers());
+  array.PutSlice(slice1, conn1, numGhosts_);
 }
 
 
