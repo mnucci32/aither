@@ -471,21 +471,11 @@ vector<connection> GetConnectionBCs(const vector<boundaryConditions> &bc,
           }
         }
 
-        // DEBUG
-        cout << "cPatch" << endl;
-        cout << cPatch << endl;
-        cout << "nPatch" << endl;
-        cout << nPatch << endl;
-
-        
         // Test for match
         connection match(cPatch, nPatch);
         if (match.TestPatchMatch(cPatch, nPatch)) {  // match found
           connections[ii / 2] = match;               // store connection pair
 
-          // DEBUG
-          cout << "MATCH FOUND" << endl;
-          
           // Swap matched connection BC to top portion of vector so
           // it is not searched again
           swap(isolatedConnections[jj], isolatedConnections[ii + 1]);
