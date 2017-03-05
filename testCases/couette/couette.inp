@@ -9,11 +9,11 @@ cflStart: 1.0e5
 cflMax: 1.0e5
 faceReconstruction: thirdOrder
 limiter: none
-iterations: 100000
-outputFrequency: 5000
+iterations: 200000
+outputFrequency: 10000
 outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach, velGrad_ux, velGrad_uy, velGrad_uz,
 		  tempGrad_x, tempGrad_y, temperature, viscosity>
-restartFrequency: 5000
+restartFrequency: 10000
 
 #reference conditions
 pressureRef: 101300.0
