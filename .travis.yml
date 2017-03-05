@@ -73,12 +73,13 @@ matrix:
 # upgrade packages
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get update -qq; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -y python3; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -y python3 pip3; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gcc python3; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gcc python3 pip3; fi
   - test -n $CC && unset CC
   - test -n $CXX && unset CXX
   - which $CXX_COMPILER
+  - pip3 install --user cpp-coveralls
 
 # install mpi
 install:
@@ -93,3 +94,6 @@ script:
   - make install
   - cd ../testCases
   - python3 regressionTests.py --aitherPath=$TRAVIS_BUILD_DIR/build/install/bin/aither --operatingSystem=$TRAVIS_OS_NAME --mpirunPath=$TRAVIS_BUILD_DIR/openmpi/bin/mpirun
+
+after_success:
+  - coveralls
