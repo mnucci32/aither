@@ -1,8 +1,9 @@
 # Accurate Implicit Three-dimensional Efficient RANS (AITHER)
 
-Master: [![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=master)](https://travis-ci.org/mnucci32/aither)
-<br>
-Develop: [![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=develop)](https://travis-ci.org/mnucci32/aither)
+| Branch  | Build | Coverage |
+|---      |---    |---       |
+| Master  | [![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=master)](https://travis-ci.org/mnucci32/aither) | [![Coverage Status](https://coveralls.io/repos/github/mnucci32/aither/badge.svg?branch=master)](https://coveralls.io/github/mnucci32/aither?branch=master) |
+| Develop | [![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=develop)](https://travis-ci.org/mnucci32/aither) | [![Coverage Status](https://coveralls.io/repos/github/mnucci32/aither/badge.svg?branch=develop)](https://coveralls.io/github/mnucci32/aither?branch=develop) |
 
 ### About The code
 This code is for a 3D Navier-Stokes computational fluid dynamics solver. It is a cell centered, structured solver,
