@@ -108,4 +108,7 @@ after_success:
   - if [[ "$BUILD_TYPE" == "debug" ]]; then lcov --directory . --capture --rc lcov_branch_coverage=1 --output-file coverage.info; fi
   - if [[ "$BUILD_TYPE" == "debug" ]]; then lcov --remove coverage.info '/usr/*' '/Applications/*' '/Library/*' --rc lcov_branch_coverage=1 --output-file coverage.info; fi
   - if [[ "$BUILD_TYPE" == "debug" ]]; then lcov --rc lcov_branch_coverage=1 --list coverage.info; fi
-  - if [[ "$BUILD_TYPE" == "debug" ]]; then coveralls-lcov --verbose --repo-token $COVERALLS_TOKEN coverage.info; fi
+  - if [[ "$BUILD_TYPE" == "debug" ]]; then coveralls-lcov --verbose --repo-token=$COVERALLS_TOKEN --service-name=travis-ci coverage.info; fi
+
+notifications:
+  webhooks: https://coveralls.io/webhook?repo_token=$COVERALLS_TOKEN
