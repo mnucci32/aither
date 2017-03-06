@@ -23,6 +23,7 @@ import shutil
 import sys
 import datetime
 import subprocess
+import time
 
 class regressionTest:
     def __init__(self):
@@ -136,8 +137,16 @@ class regressionTest:
                   + " " + self.caseName + ".inp > " + self.caseName + ".out"
         print(cmd)
         start = datetime.datetime.now()
+        interval = start
         process = subprocess.Popen(cmd, shell=True)
-        returnCode = process.wait()
+        while process.poll() is None:
+            current = datetime.datetime.now()
+            if (current - interval).total_seconds() > 60.:
+                print("----- Run Time: %s -----" % (current - start))
+                interval = current
+            time.sleep(0.5)
+        returnCode = process.poll()
+        
         if (returnCode == 0):
             print("Simulation completed with no errors")
         else:

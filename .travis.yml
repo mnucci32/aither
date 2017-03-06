@@ -96,11 +96,14 @@ script:
   - make -j4
   - make install
   - cd ../testCases
-  - travis_wait 30 python3 regressionTests.py --aitherPath=$TRAVIS_BUILD_DIR/build/install/bin/aither --operatingSystem=$TRAVIS_OS_NAME --mpirunPath=$TRAVIS_BUILD_DIR/openmpi/bin/mpirun
+  - python3 regressionTests.py --aitherPath=$TRAVIS_BUILD_DIR/build/install/bin/aither --operatingSystem=$TRAVIS_OS_NAME --mpirunPath=$TRAVIS_BUILD_DIR/openmpi/bin/mpirun
   - cd ..
 
 after_success:
   - lcov --directory . --capture --output-file coverage.info
-  - lcov --remove coverage.info '/usr/*' --output-file coverage.info #filter out system code
+  - lcov --remove coverage.info '/usr/*' '/Applications/*' '/Library/*' --output-file coverage.info #filter out system code
   - lcov --list coverage.info
   - coveralls-lcov --repo-token $COVERALLS_TOKEN coverage.info
+
+notifications:
+  webhooks: https://coveralls.io/webhook?repo_token=${COVERALLS_TOKEN}
