@@ -93,7 +93,7 @@ install:
 before_script:
   - mkdir build
   - cd build
-  - lcov --directory . --zerocounters
+  - if [[ "$BUILD_TYPE" == "debug" ]]; then lcov --directory . --zerocounters; fi
 
 # build instructions
 script:
