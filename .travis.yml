@@ -26,6 +26,7 @@ matrix:
       env:
         - CXX_COMPILER=g++-5
         - C_COMPILER=gcc-5
+	- BUILD_TYPE=release
     - os: linux
       dist: trusty
       sudo: required
@@ -39,6 +40,7 @@ matrix:
       env:
         - CXX_COMPILER=g++-6
         - C_COMPILER=gcc-6
+	- BUILD_TYPE=debug
     - os: linux
       dist: trusty
       sudo: required
@@ -53,6 +55,7 @@ matrix:
       env:
         - CXX_COMPILER=clang++-3.8
         - C_COMPILER=clang-3.8
+	- BUILD_TYPE=release
     - os: osx
       osx_image: xcode8
       compiler: gcc
@@ -61,6 +64,7 @@ matrix:
         - C_COMPILER=gcc-6
         - HOMEBREW_CC=gcc-6
         - HOMEBREW_CXX=g++-6
+	- BUILD_TYPE=release
     - os: osx
       osx_image: xcode8
       compiler: clang
@@ -69,6 +73,7 @@ matrix:
         - C_COMPILER=clang
         - HOMEBREW_CC=clang
         - HOMEBREW_CXX=clang++
+	- BUILD_TYPE=release
 
 # upgrade packages
 before_install:
@@ -92,18 +97,15 @@ before_script:
 
 # build instructions
 script:
-  - cmake -G "Unix Makefiles" -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_C_COMPILER=$C_COMPILER -DMPI_DIR=$TRAVIS_BUILD_DIR/openmpi -DCMAKE_BUILD_TYPE=debug -DCMAKE_INSTALL_PREFIX=install ..
+  - cmake -G "Unix Makefiles" -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_C_COMPILER=$C_COMPILER -DMPI_DIR=$TRAVIS_BUILD_DIR/openmpi -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX=install ..
   - make -j4
   - make install
   - cd ../testCases
   - python3 regressionTests.py --aitherPath=$TRAVIS_BUILD_DIR/build/install/bin/aither --operatingSystem=$TRAVIS_OS_NAME --mpirunPath=$TRAVIS_BUILD_DIR/openmpi/bin/mpirun
-  - cd ..
+  - cd $TRAVIS_BUILD_DIR/build
 
 after_success:
-  - lcov --directory . --capture --output-file coverage.info
-  - lcov --remove coverage.info '/usr/*' '/Applications/*' '/Library/*' --output-file coverage.info #filter out system code
-  - lcov --list coverage.info
-  - coveralls-lcov --repo-token $COVERALLS_TOKEN coverage.info
-
-notifications:
-  webhooks: https://coveralls.io/webhook?repo_token=${COVERALLS_TOKEN}
+  - if [["$BUILD_TYPE" == "debug"]]; then lcov --directory . --capture --output-file coverage.info
+  - if [["$BUILD_TYPE" == "debug"]]; then lcov --remove coverage.info '/usr/*' '/Applications/*' '/Library/*' --output-file coverage.info #filter out system code
+  - if [["$BUILD_TYPE" == "debug"]]; then lcov --list coverage.info
+  - if [["$BUILD_TYPE" == "debug"]]; then coveralls-lcov --verbose --repo-token $COVERALLS_TOKEN coverage.info
