@@ -36,7 +36,7 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-6 gcc-6 libstdc++-6-dev
+            - g++-6 gcc-6 libstdc++-6-dev lcov
       env:
         - CXX_COMPILER=g++-6
         - C_COMPILER=gcc-6
@@ -78,9 +78,9 @@ matrix:
 # upgrade packages
 before_install:
   - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get update -qq; fi
-  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -y python3 lcov; fi
+  - if [[ "$TRAVIS_OS_NAME" == "linux" ]]; then sudo apt-get install -y python3; fi
   - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew update; fi
-  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gcc python3 lcov; fi
+  - if [[ "$TRAVIS_OS_NAME" == "osx" ]]; then brew install gcc python3; fi
   - test -n $CC && unset CC
   - test -n $CXX && unset CXX
   - which $CXX_COMPILER
@@ -109,6 +109,7 @@ after_success:
   - if [[ "$BUILD_TYPE" == "debug" ]]; then lcov --remove coverage.info '/usr/*' '/Applications/*' '/Library/*' --rc lcov_branch_coverage=1 --output-file coverage.info; fi
   - if [[ "$BUILD_TYPE" == "debug" ]]; then lcov --rc lcov_branch_coverage=1 --list coverage.info; fi
   - if [[ "$BUILD_TYPE" == "debug" ]]; then coveralls-lcov --verbose --repo-token=$COVERALLS_TOKEN --service-name=travis-ci coverage.info; fi
+  - if [[ "$BUILD_TYPE" == "debug" ]]; then bash <(curl -s https://codecov.io/bash) || echo "Codecov did not collect coverage reports"; fi
 
 notifications:
   webhooks: https://coveralls.io/webhook?repo_token=$COVERALLS_TOKEN
