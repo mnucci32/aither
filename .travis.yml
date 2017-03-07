@@ -84,7 +84,6 @@ before_install:
   - test -n $CC && unset CC
   - test -n $CXX && unset CXX
   - which $CXX_COMPILER
-  - gem install coveralls-lcov
 
 # install mpi
 install:
@@ -94,6 +93,9 @@ before_script:
   - mkdir build
   - cd build
   - if [[ "$BUILD_TYPE" == "debug" ]]; then lcov --directory . --zerocounters; fi
+  - if [[ "$BUILD_TYPE" == "debug" ]]; then ln -s /usr/bin/gcov-6 gcov; fi
+  - if [[ "$BUILD_TYPE" == "debug" ]]; then export PATH=$PWD:$PATH; fi
+  - if [[ "$BUILD_TYPE" == "debug" ]]; then gcov --version; fi
 
 # build instructions
 script:
@@ -108,8 +110,4 @@ after_success:
   - if [[ "$BUILD_TYPE" == "debug" ]]; then lcov --directory . --capture --rc lcov_branch_coverage=1 --output-file coverage.info; fi
   - if [[ "$BUILD_TYPE" == "debug" ]]; then lcov --remove coverage.info '/usr/*' '/Applications/*' '/Library/*' --rc lcov_branch_coverage=1 --output-file coverage.info; fi
   - if [[ "$BUILD_TYPE" == "debug" ]]; then lcov --rc lcov_branch_coverage=1 --list coverage.info; fi
-  - if [[ "$BUILD_TYPE" == "debug" ]]; then coveralls-lcov --verbose --repo-token=$COVERALLS_TOKEN --service-name=travis-ci coverage.info; fi
   - if [[ "$BUILD_TYPE" == "debug" ]]; then bash <(curl -s https://codecov.io/bash) || echo "Codecov did not collect coverage reports"; fi
-
-notifications:
-  webhooks: https://coveralls.io/webhook?repo_token=$COVERALLS_TOKEN
