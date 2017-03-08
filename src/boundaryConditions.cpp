@@ -993,12 +993,23 @@ void connection::SecondSliceIndices(int &is2, int &ie2, int &js2, int &je2,
 // member function to determine the number of faces with a viscous wall BC
 int boundaryConditions::NumViscousFaces() const {
   auto nFaces = 0;
-  for (auto ii = 0; ii < this->NumSurfaces(); ii++) {
-    if (this->GetBCTypes(ii) == "viscousWall") {
-      nFaces += surfs_[ii].NumFaces();
+  for (auto &surf : surfs_) {
+    if (surf.BCType() == "viscousWall") {
+      nFaces += surf.NumFaces();
     }
   }
   return nFaces;
+}
+
+// member function to determine the number of viscousWall boundarySurfaces
+int boundaryConditions::NumViscousSurfaces() const {
+  auto nSurfs = 0;
+  for (auto &surf : surfs_) {
+    if (surf.BCType() == "viscousWall") {
+      nSurfs++;
+    }
+  }
+  return nSurfs;
 }
 
 int boundaryConditions::BlockDimI() const {

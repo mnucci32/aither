@@ -55,10 +55,13 @@ class turbModel;
 class primVars;
 
 // function definitions
-void WriteBlockDims(ofstream &, const vector<procBlock> &, int = 0);
+template<typename T>
+void WriteBlockDims(ofstream &, const vector<T> &, int = 0);
 
 void WriteCellCenter(const string &, const vector<procBlock> &,
                      const decomposition &, const double &);
+void WriteWallFaceCenter(const string &, const vector<procBlock> &,
+                         const double &);
 void WriteFun(const vector<procBlock> &, const idealGas &,
               const sutherland &, const int &, const decomposition &,
               const input &, const unique_ptr<turbModel> &);

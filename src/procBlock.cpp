@@ -5975,6 +5975,20 @@ multiArray3d<primVars> procBlock::SliceState(const int &is, const int &ie,
   return state_.Slice({is, ie}, {js, je}, {ks, ke});
 }
 
+// member function to get a slice of the face centers of the cells on a
+// boundary
+multiArray3d<vector3d<double>> procBlock::SliceBoundaryCenters(
+    const int &surfInd) const {
+  const auto surf = bc_.GetSurface(surfInd);
+  if (surf.SurfaceType() <= 2) {  // i-surface
+    return fCenterI_.Slice(surf.RangeI(), surf.RangeJ(), surf.RangeK());
+  } else if (surf.SurfaceType() <= 4) {  // j-surface
+    return fCenterJ_.Slice(surf.RangeI(), surf.RangeJ(), surf.RangeK());
+  } else {  // k-surface
+    return fCenterK_.Slice(surf.RangeI(), surf.RangeJ(), surf.RangeK());
+  }
+}
+
 void procBlock::UpdateAuxillaryVariables(const idealGas &eos,
                                          const sutherland &suth,
                                          const bool includeGhosts) {

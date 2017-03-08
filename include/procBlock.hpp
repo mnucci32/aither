@@ -239,6 +239,7 @@ class procBlock {
   multiArray3d<primVars> SliceState(const int &, const int &, const int &,
                                     const int &, const int &,
                                     const int &) const;
+  multiArray3d<vector3d<double>> SliceBoundaryCenters(const int &) const;
 
   void AssignSolToTimeN(const idealGas &);
   void AssignSolToTimeNm1();

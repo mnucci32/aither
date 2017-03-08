@@ -98,9 +98,77 @@ void WriteCellCenter(const string &gridName, const vector<procBlock> &vars,
     }
   }
 
+  // DEBUG
+  WriteWallFaceCenter(gridName, recombVars, LRef);
+
   // close output file
   outFile.close();
 }
+
+// function to write out wall face centers of grid in plot3d format
+void WriteWallFaceCenter(const string &gridName, const vector<procBlock> &vars,
+                         const double &LRef) {
+  // open binary output file
+  const string fEnd = "_wall_center";
+  const string fPostfix = ".xyz";
+  const auto writeName = gridName + fEnd + fPostfix;
+  ofstream outFile(writeName, ios::out | ios::binary);
+
+  // check to see if file opened correctly
+  if (outFile.fail()) {
+    cerr << "ERROR: Grid file " << writeName << " did not open correctly!!!"
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  // get wall face centers
+  auto numWallSurfs = 0;
+  for (auto &var : vars) {
+    numWallSurfs += var.BC().NumViscousSurfaces();
+  }
+  vector<multiArray3d<vector3d<double>>> wallCenters;
+  wallCenters.reserve(numWallSurfs);
+
+  for (auto ii = 0U; ii < vars.size(); ++ii) {
+    const auto bc = vars[ii].BC();
+    for (auto jj = 0; jj < bc.NumSurfaces(); ++jj) {
+      if (bc.GetBCTypes(jj) == "viscousWall") {
+        auto wall = vars[ii].SliceBoundaryCenters(jj);
+        wallCenters.push_back(wall);
+      }
+    }
+  }
+
+  WriteBlockDims(outFile, wallCenters);
+
+  // write out x, y, z coordinates of cell centers
+  for (auto ll = 0U; ll < wallCenters.size(); ll++) {  // loop over all blocks
+    for (auto nn = 0; nn < 3; nn++) {  // loop over dimensions (3)
+      for (auto kk = wallCenters[ll].StartK(); kk < wallCenters[ll].EndK();
+           kk++) {
+        for (auto jj = wallCenters[ll].StartJ(); jj < wallCenters[ll].EndJ();
+             jj++) {
+          for (auto ii = wallCenters[ll].StartI(); ii < wallCenters[ll].EndI();
+               ii++) {
+            // get the cell center coordinates (dimensionalized)
+            auto dumVec = wallCenters[ll](ii, jj, kk) * LRef;
+
+            // for a given block, first write out all x coordinates, then all y
+            // coordinates, then all z coordinates
+            auto dumDouble = dumVec[nn];
+            // write to file
+            outFile.write(reinterpret_cast<char *>(&dumDouble),
+                          sizeof(dumDouble));
+          }
+        }
+      }
+    }
+  }
+
+  // close output file
+  outFile.close();
+}
+
 
 //----------------------------------------------------------------------
 // function to write out variables in function file format
@@ -558,8 +626,8 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
   cout << "Done with restart file" << endl << endl;
 }
 
-
-void WriteBlockDims(ofstream &outFile, const vector<procBlock> &vars,
+template<typename T>
+void WriteBlockDims(ofstream &outFile, const vector<T> &vars,
                     int numVars) {
   // write number of blocks to file
   auto numBlks = static_cast<int>(vars.size());
