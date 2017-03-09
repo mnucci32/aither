@@ -65,8 +65,12 @@ void WriteWallFaceCenter(const string &, const vector<procBlock> &,
 void WriteFun(const vector<procBlock> &, const idealGas &,
               const sutherland &, const int &, const decomposition &,
               const input &, const unique_ptr<turbModel> &);
+void WriteWallFun(const vector<procBlock> &, const idealGas &,
+                  const sutherland &, const int &, const input &,
+                  const unique_ptr<turbModel> &);
 void WriteRes(const input &, const int &);
 void WriteMeta(const input &, const int &);
+void WriteWallMeta(const input &, const int &);
 
 void WriteRestart(const vector<procBlock> &, const idealGas &,
                   const sutherland &, const int &, const decomposition &,

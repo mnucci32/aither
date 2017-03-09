@@ -82,6 +82,7 @@ class input {
   int iterationStart_;  // starting number for iterations
 
   set<string> outputVariables_;  // variables to output
+  set<string> wallOutputVariables_;  // wall variables to output
 
   vector<icState> ics_;  // initial conditions
   vector<unique_ptr<inputState>> bcStates_;  // information for boundary conditions
@@ -150,6 +151,7 @@ class input {
   int OutputFrequency() const {return outputFrequency_;}
   int RestartFrequency() const {return restartFrequency_;}
   set<string> OutputVariables() const {return outputVariables_;}
+  set<string> WallOutputVariables() const {return wallOutputVariables_;}
 
   bool WriteOutput(const int &nn) const {return (nn + 1) % outputFrequency_ == 0;}
   bool WriteRestart(const int &nn) const {
@@ -183,6 +185,7 @@ class input {
 
   int NumVars() const {return vars_.size();}
   int NumVarsOutput() const {return outputVariables_.size();}
+  int NumWallVarsOutput() const {return wallOutputVariables_.size();}
   int NumEquations() const;
   int NumFlowEquations() const {return NUMFLOWVARS;}
   int NumTurbEquations() const;
