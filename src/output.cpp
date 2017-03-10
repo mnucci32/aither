@@ -407,7 +407,6 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
 
   WriteBlockDims(outFile, wallSurfs, inp.NumWallVarsOutput());
 
-  // define reference speed of sound
   const auto refSoS = inp.ARef(eqnState);
 
   // write out variables
@@ -421,22 +420,42 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
           auto surf = bc.GetSurface(ll);
 
           // write out dimensional variables -- loop over physical cells
-          for (auto kk = surf.RangeK().Start(); kk < surf.RangeK().End(); 
+          for (auto kk = surf.RangeK().Start(); kk < surf.RangeK().End();
             kk++) {
-            for (auto jj = surf.RangeJ().Start(); jj < surf.RangeJ().End(); 
+            for (auto jj = surf.RangeJ().Start(); jj < surf.RangeJ().End();
               jj++) {
-              for (auto ii = surf.RangeI().Start(); ii < surf.RangeI().End(); 
+              for (auto ii = surf.RangeI().Start(); ii < surf.RangeI().End();
                 ii++) {
+                vector3d<double> area;
+                if (surf.SurfaceType() == 1) {  // il surface
+                  area = blk.FAreaUnitI(ii, jj, kk);
+                } else if (surf.SurfaceType() == 2) {  // iu surface
+                  area = blk.FAreaUnitI(ii + 1, jj, kk);
+                } else if (surf.SurfaceType() == 3) {  // jl surface
+                  area = blk.FAreaUnitJ(ii, jj, kk);
+                } else if (surf.SurfaceType() == 4) {  // ju surface
+                  area = blk.FAreaUnitJ(ii, jj + 1, kk);
+                } else if (surf.SurfaceType() == 5) {  // kl surface
+                  area = blk.FAreaUnitK(ii, jj, kk);
+                } else {  // ku surface
+                  area = blk.FAreaUnitK(ii, jj, kk + 1);
+                }
                 auto value = 0.0;
                 if (var == "yplus") {
-                  auto tauw = 1.0;
+                  auto mu = blk.Viscosity(ii, jj, kk) * suth.NondimScaling();
+                  auto mut = blk.EddyViscosity(ii, jj, kk) * suth.NondimScaling();
+                  auto tauw = TauNormal(blk.VelGrad(ii, jj, kk), area, mu, mut,
+                                        suth);
                   value = blk.WallDist(ii, jj, kk) *
-                          sqrt(blk.State(ii, jj, kk).Rho() * tauw) /
-                          blk.Viscosity(ii, jj, kk);
-                  value *= inp.RRef();
+                      sqrt(blk.State(ii, jj, kk).Rho() * tauw.Mag()) / mu;
                 } else if (var == "heatFlux") {
-                  value = blk.State(ii, jj, kk).U();
-                  value *= refSoS;
+                  auto mu = blk.Viscosity(ii, jj, kk) * suth.NondimScaling();
+                  auto mut = blk.EddyViscosity(ii, jj, kk) * suth.NondimScaling();
+                  auto k = eqnState.Conductivity(mu);
+                  auto kt = eqnState.TurbConductivity(mut,
+                                                      turb->TurbPrandtlNumber());
+                  value = (k + kt) * blk.TempGrad(ii, jj, kk).DotProd(area);
+                  value *= suth.MuRef() * refSoS * refSoS / inp.LRef();
                 } else {
                   cerr << "ERROR: Variable " << var
                        << " to write to wall function file is not defined!"

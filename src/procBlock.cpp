@@ -1841,7 +1841,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
         // calculate gradients
         tensor<double> velGrad;
         vector3d<double> tempGrad, tkeGrad, omegaGrad;
-        CalcGradsI(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
+        this->CalcGradsI(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
 
 
         // calculate turbulent eddy viscosity and blending coefficients
@@ -2095,7 +2095,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
         // calculate gradients
         tensor<double> velGrad;
         vector3d<double> tempGrad, tkeGrad, omegaGrad;
-        CalcGradsJ(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
+        this->CalcGradsJ(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
 
         // calculate turbulent eddy viscosity and blending coefficients
         auto f1 = 0.0;
@@ -2349,7 +2349,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
         // calculate viscous flux
         tensor<double> velGrad;
         vector3d<double> tempGrad, tkeGrad, omegaGrad;
-        CalcGradsK(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
+        this->CalcGradsK(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
 
         // calculate turbulent eddy viscosity and blending coefficients
         auto f1 = 0.0;
