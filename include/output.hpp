@@ -59,7 +59,7 @@ template<typename T>
 void WriteBlockDims(ofstream &, const vector<T> &, int = 0);
 
 void WriteCellCenter(const string &, const vector<procBlock> &,
-                     const decomposition &, const double &);
+                     const decomposition &, const input &);
 void WriteWallFaceCenter(const string &, const vector<procBlock> &,
                          const double &);
 void WriteFun(const vector<procBlock> &, const idealGas &,

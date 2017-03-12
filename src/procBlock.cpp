@@ -111,9 +111,9 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
   fCenterJ_ = PadWithGhosts(blk.FaceCenterJ(), numGhosts_);
   fCenterK_ = PadWithGhosts(blk.FaceCenterK(), numGhosts_);
 
-  cellWidthI_ = {1, 1, 1, 0};
-  cellWidthJ_ = {1, 1, 1, 0};
-  cellWidthK_ = {1, 1, 1, 0};
+  cellWidthI_ = {numI, numJ, numK, numGhosts_};
+  cellWidthJ_ = {numI, numJ, numK, numGhosts_};
+  cellWidthK_ = {numI, numJ, numK, numGhosts_};
 
   wallDist_ = {numI, numJ, numK, numGhosts_, DEFAULTWALLDIST};
 
@@ -206,9 +206,9 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   vol_ = {ni, nj, nk, numGhosts_};
   wallDist_ = {ni, nj, nk, numGhosts_, DEFAULTWALLDIST};
 
-  cellWidthI_ = {1, 1, 1, 0};
-  cellWidthJ_ = {1, 1, 1, 0};
-  cellWidthK_ = {1, 1, 1, 0};
+  cellWidthI_ = {ni, nj, nk, numGhosts_};
+  cellWidthJ_ = {ni, nj, nk, numGhosts_};
+  cellWidthK_ = {ni, nj, nk, numGhosts_};
 
   specRadius_ = {ni, nj, nk, 0};
   dt_ = {ni, nj, nk, 0};
@@ -4738,13 +4738,13 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
              MPI_COMM_WORLD);  // unpack face area K
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fCenterI_)),
              fCenterI_.Size(), MPI_vec3d,
-             MPI_COMM_WORLD);  // unpack face center_ I
+             MPI_COMM_WORLD);  // unpack face center I
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fCenterJ_)),
              fCenterJ_.Size(), MPI_vec3d,
-             MPI_COMM_WORLD);  // unpack face center_ J
+             MPI_COMM_WORLD);  // unpack face center J
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fCenterK_)),
              fCenterK_.Size(), MPI_vec3d,
-             MPI_COMM_WORLD);  // unpack face center_ K
+             MPI_COMM_WORLD);  // unpack face center K
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(vol_)),
              vol_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack volumes
@@ -4783,6 +4783,10 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
 
   fCenterK_.ClearResize(numI, numJ, numK + 1, numGhosts);
   fAreaK_.ClearResize(numI, numJ, numK + 1, numGhosts);
+
+  cellWidthI_.ClearResize(numI, numJ, numK, numGhosts, 0.0);
+  cellWidthJ_.ClearResize(numI, numJ, numK, numGhosts, 0.0);
+  cellWidthK_.ClearResize(numI, numJ, numK, numGhosts, 0.0);
 
   wallDist_.ClearResize(numI, numJ, numK, numGhosts, DEFAULTWALLDIST);
 
@@ -4854,6 +4858,15 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(dt_)),
              dt_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack time steps
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(cellWidthI_)),
+             cellWidthI_.Size(), MPI_DOUBLE,
+             MPI_COMM_WORLD);  // unpack cell width I
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(cellWidthJ_)),
+             cellWidthJ_.Size(), MPI_DOUBLE,
+             MPI_COMM_WORLD);  // unpack cell width J
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(cellWidthK_)),
+             cellWidthK_.Size(), MPI_DOUBLE,
+             MPI_COMM_WORLD);  // unpack cell width K                          
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(wallDist_)),
              wallDist_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack wall distance
@@ -4929,6 +4942,15 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
   MPI_Pack_size(dt_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                 &tempSize);  // add size for time steps
   sendBufSize += tempSize;
+  MPI_Pack_size(cellWidthI_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
+                &tempSize);  // add size for cell width I
+  sendBufSize += tempSize;
+  MPI_Pack_size(cellWidthJ_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
+                &tempSize);  // add size for cell width J
+  sendBufSize += tempSize;
+  MPI_Pack_size(cellWidthK_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
+                &tempSize);  // add size for cell width K
+  sendBufSize += tempSize;
   MPI_Pack_size(wallDist_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                 &tempSize);  // add size for wall distance
   sendBufSize += tempSize;
@@ -4987,6 +5009,12 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(dt_)), dt_.Size(), MPI_DOUBLE, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(cellWidthI_)), cellWidthI_.Size(), MPI_DOUBLE,
+           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(cellWidthJ_)), cellWidthJ_.Size(), MPI_DOUBLE,
+           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(cellWidthK_)), cellWidthK_.Size(), MPI_DOUBLE,
+           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);           
   MPI_Pack(&(*std::begin(wallDist_)), wallDist_.Size(), MPI_DOUBLE,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(specRadius_)), specRadius_.Size(), MPI_uncoupledScalar,
@@ -5088,6 +5116,12 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
   blk1.vol_.Fill(vol_.Slice(dir, {vol_.Start(dir), blk1.vol_.End(dir)}));
   blk1.center_.Fill(center_.Slice(dir, {center_.Start(dir),
             blk1.center_.End(dir)}));
+  blk1.cellWidthI_.Fill(cellWidthI_.Slice(dir, {cellWidthI_.Start(dir),
+            blk1.cellWidthI_.End(dir)}));
+  blk1.cellWidthJ_.Fill(cellWidthJ_.Slice(dir, {cellWidthJ_.Start(dir),
+            blk1.cellWidthJ_.End(dir)}));
+  blk1.cellWidthK_.Fill(cellWidthK_.Slice(dir, {cellWidthK_.Start(dir),
+            blk1.cellWidthK_.End(dir)}));                        
   blk1.wallDist_.Fill(wallDist_.Slice(dir, {wallDist_.Start(dir),
             blk1.wallDist_.End(dir)}));
   blk1.temperature_.Fill(temperature_.Slice(dir, {temperature_.Start(dir),
@@ -5147,6 +5181,9 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
   blk2.state_.Fill(state_.Slice(dir, {ind, state_.End(dir)}));
   blk2.vol_.Fill(vol_.Slice(dir, {ind, vol_.End(dir)}));
   blk2.center_.Fill(center_.Slice(dir, {ind, center_.End(dir)}));
+  blk2.cellWidthI_.Fill(cellWidthI_.Slice(dir, {ind, cellWidthI_.End(dir)}));
+  blk2.cellWidthJ_.Fill(cellWidthJ_.Slice(dir, {ind, cellWidthJ_.End(dir)}));
+  blk2.cellWidthK_.Fill(cellWidthK_.Slice(dir, {ind, cellWidthK_.End(dir)}));
   blk2.wallDist_.Fill(wallDist_.Slice(dir, {ind, wallDist_.End(dir)}));
   blk2.temperature_.Fill(temperature_.Slice(dir, {ind, temperature_.End(dir)}));
   if (isViscous_) {
@@ -5246,6 +5283,17 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                         center_.Slice(dir, {center_.Start(dir),
                                 center_.PhysEnd(dir)}));
 
+  newBlk.cellWidthI_.Insert(dir, {cellWidthI_.Start(dir), cellWidthI_.PhysEnd(dir)},
+                          cellWidthI_.Slice(dir, {cellWidthI_.Start(dir),
+                                  cellWidthI_.PhysEnd(dir)}));
+  newBlk.cellWidthJ_.Insert(dir, {cellWidthJ_.Start(dir), cellWidthJ_.PhysEnd(dir)},
+                          cellWidthJ_.Slice(dir, {cellWidthJ_.Start(dir),
+                                  cellWidthJ_.PhysEnd(dir)}));
+  newBlk.cellWidthK_.Insert(dir, {cellWidthK_.Start(dir), cellWidthK_.PhysEnd(dir)},
+                          cellWidthK_.Slice(dir, {cellWidthK_.Start(dir),
+                                  cellWidthK_.PhysEnd(dir)}));                                    
+
+
   newBlk.wallDist_.Insert(dir, {wallDist_.Start(dir), wallDist_.PhysEnd(dir)},
                           wallDist_.Slice(dir, {wallDist_.Start(dir),
                                   wallDist_.PhysEnd(dir)}));
@@ -5344,6 +5392,19 @@ void procBlock::Join(const procBlock &blk, const string &dir,
   newBlk.center_.Insert(dir, {center_.PhysEnd(dir), newBlk.center_.End(dir)},
                         blk.center_.Slice(dir, {blk.center_.PhysStart(dir),
                                 blk.center_.End(dir)}));
+
+  newBlk.cellWidthI_.Insert(dir, {cellWidthI_.PhysEnd(dir),
+          newBlk.cellWidthI_.End(dir)},
+    blk.cellWidthI_.Slice(dir, {blk.cellWidthI_.PhysStart(dir),
+            blk.cellWidthI_.End(dir)}));
+  newBlk.cellWidthJ_.Insert(dir, {cellWidthJ_.PhysEnd(dir),
+          newBlk.cellWidthJ_.End(dir)},
+    blk.cellWidthJ_.Slice(dir, {blk.cellWidthJ_.PhysStart(dir),
+            blk.cellWidthJ_.End(dir)}));
+  newBlk.cellWidthK_.Insert(dir, {cellWidthK_.PhysEnd(dir),
+          newBlk.cellWidthK_.End(dir)},
+    blk.cellWidthK_.Slice(dir, {blk.cellWidthK_.PhysStart(dir),
+            blk.cellWidthK_.End(dir)}));
 
   newBlk.wallDist_.Insert(dir, {wallDist_.PhysEnd(dir),
           newBlk.wallDist_.End(dir)},
@@ -6104,14 +6165,6 @@ void procBlock::DumpToFile(const string &var, const string &fName) const {
 }
 
 void procBlock::CalcCellWidths() {
-  // resize multiarrays
-  cellWidthI_.ClearResize(this->NumI(), this->NumJ(), this->NumK(),
-                          this->NumGhosts());
-  cellWidthJ_.ClearResize(this->NumI(), this->NumJ(), this->NumK(),
-                          this->NumGhosts());
-  cellWidthK_.ClearResize(this->NumI(), this->NumJ(), this->NumK(),
-                          this->NumGhosts());
-
   // loop over all cells
   for (auto kk = this->StartKG(); kk < this->EndKG(); ++kk) {
     for (auto jj = this->StartJG(); jj < this->EndJG(); ++jj) {

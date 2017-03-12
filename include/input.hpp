@@ -87,6 +87,12 @@ class input {
   vector<icState> ics_;  // initial conditions
   vector<unique_ptr<inputState>> bcStates_;  // information for boundary conditions
 
+  // private member functions
+  void CheckNonlinearIterations();
+  void CheckOutputVariables();
+  void CheckWallOutputVariables();
+  void CheckTurbulenceModel() const;
+
  public:
   // constructor
   input(const string &, const string &);
@@ -202,10 +208,6 @@ class input {
   string OrderOfAccuracy() const;
 
   unique_ptr<turbModel> AssignTurbulenceModel() const;
-
-  void CheckNonlinearIterations();
-  void CheckOutputVariables();
-  void CheckTurbulenceModel() const;
 
   double ViscousCFLCoefficient() const;
 

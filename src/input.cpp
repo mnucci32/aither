@@ -518,6 +518,7 @@ void input::ReadInput(const int &rank) {
   // input file sanity checks
   this->CheckNonlinearIterations();
   this->CheckOutputVariables();
+  this->CheckWallOutputVariables();
   this->CheckTurbulenceModel();
 
   if (rank == ROOTP) {
@@ -694,6 +695,20 @@ void input::CheckOutputVariables() {
       if (var.find("velGrad_") != string::npos
           || var.find("tempGrad_") != string::npos || var == "viscosity") {
         cerr << "WARNING: Variable " << var <<
+            " is not available for inviscid simulations." << endl;
+        outputVariables_.erase(var);
+      }
+    }
+  }
+}
+
+// member function to check validity of the requested output variables
+void input::CheckWallOutputVariables() {
+  auto oVars = wallOutputVariables_;
+  for (auto &var : oVars) {
+    if (!this->IsViscous()) {  // can't have viscous variables output
+      if (var == "yplus" || var == "heatFlux") {
+        cerr << "WARNING: Wall variable " << var <<
             " is not available for inviscid simulations." << endl;
         outputVariables_.erase(var);
       }
