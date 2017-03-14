@@ -31,12 +31,24 @@ using std::ios;
 
 // plot 3d block member functions
 
+// member function to calculate the centroid of a given cell
+vector3d<double> plot3dBlock::Centroid(const int &ii, const int &jj,
+                                       const int &kk) const {
+  // centroid is average of all coordinates forming cell
+  return 0.125 *
+         (coords_(ii, jj, kk) + coords_(ii + 1, jj, kk) +
+          coords_(ii, jj + 1, kk) + coords_(ii + 1, jj + 1, kk) +
+          coords_(ii, jj, kk + 1) + coords_(ii + 1, jj, kk + 1) +
+          coords_(ii, jj + 1, kk + 1) + coords_(ii + 1, jj + 1, kk + 1));
+}
+
 // plot3dBlock member function that calcualtes the volume of each cell
 /*
 All cells are assumed to be hexahedra. The 8 points that make up each hexahedron
-are used to split the cell into 3 pyramids. The area of each pyramid is then
-calculated and the volume of the 3 pyramids are summed to get the volume of the
-hexahedra. This method is outlined in Hirsch.
+are used to split the cell into 6 pyramids. The area of each pyramid is then
+calculated and the volume of the 6 pyramids are summed to get the volume of the
+hexahedra. The point of each pyramid is the centroid, and the six sides of the
+cell make up the six bases.
 
 Vp = Havg * (D1 (cross) D2))
 
@@ -53,58 +65,44 @@ multiArray3d<double> plot3dBlock::Volume() const {
   for (auto kk = 0; kk < vol.NumK(); kk++) {
     for (auto jj = 0; jj < vol.NumJ(); jj++) {
       for (auto ii = 0; ii < vol.NumI(); ii++) {
-        // baseline location
-        auto botStarAft = coords_(ii, jj, kk);
-        // up 1 in the i-direction
-        auto botStarFore = coords_(ii + 1, jj, kk);
-        // up 1 in the j-direction
-        auto botPortAft = coords_(ii, jj + 1, kk);
-        // up 1 in the i and j directions
-        auto botPortFore = coords_(ii + 1, jj + 1, kk);
-        // up 1 in the k direction
-        auto topStarAft = coords_(ii, jj, kk + 1);
-        // up 1 in the i and k directions
-        auto topStarFore = coords_(ii + 1, jj, kk + 1);
-        // up 1 in the j and k directions
-        auto topPortAft = coords_(ii, jj + 1, kk + 1);
-        // up 1 in the i, j, and k directions
-        auto topPortFore = coords_(ii + 1, jj + 1, kk + 1);
+        // get centroid
+        const auto centroid = this->Centroid(ii, jj, kk);
 
-        // Point of all three pyramids is located at the top, starboard, aft
-        // corner of the cell
-        // Calculate volume for pyramid 1 - quad face is bottom side
-        // xp is average vector from 4 base points to peak of pyramid
-        auto xp = 0.25 * ((botStarAft - topStarAft) +
-                          (botPortAft - topStarAft) +
-                          (botStarFore - topStarAft) +
-                          (botPortFore - topStarAft));
-        // vectors along diagonal of base
-        auto xac = botPortFore - botStarAft;
-        auto xbd = botStarFore - botPortAft;
-        auto pyramidVol = 1.0 / 6.0 * xp.DotProd(xac.CrossProd(xbd));
+        // calculate area of i-lower pyramid
+        vol(ii, jj, kk) += PyramidVolume(
+            centroid, coords_(ii, jj, kk), coords_(ii, jj, kk + 1),
+            coords_(ii, jj + 1, kk + 1), coords_(ii, jj + 1, kk));
 
-        // Calculate volume for pyramid2 - quad face is fore side
-        xp = 0.25 * ((botStarFore - topStarAft) + (botPortFore - topStarAft) +
-                     (topStarFore - topStarAft) + (topPortFore - topStarAft));
-        xac = topPortFore - botStarFore;
-        xbd = topStarFore - botPortFore;
-        pyramidVol += 1.0 / 6.0 * xp.DotProd(xac.CrossProd(xbd));
+        // calculate area of i-upper pyramid
+        vol(ii, jj, kk) += PyramidVolume(
+            centroid, coords_(ii + 1, jj, kk), coords_(ii + 1, jj + 1, kk),
+            coords_(ii + 1, jj + 1, kk + 1), coords_(ii + 1, jj, kk + 1));
 
-        // Calculate volume for pyramid3 - quad face is port side
-        xp = 0.25 * ((botPortFore - topStarAft) + (botPortAft - topStarAft) +
-                     (topPortFore - topStarAft) + (topPortAft - topStarAft));
-        xac = topPortFore - botPortAft;
-        xbd = botPortFore - topPortAft;
-        pyramidVol += 1.0 / 6.0 * xp.DotProd(xac.CrossProd(xbd));
+        // calculate area of j-lower pyramid
+        vol(ii, jj, kk) += PyramidVolume(
+            centroid, coords_(ii, jj, kk), coords_(ii + 1, jj, kk),
+            coords_(ii + 1, jj, kk + 1), coords_(ii, jj, kk + 1));
 
-        // Assign volume to appropriate location
-        vol(ii, jj, kk) = pyramidVol;
+        // calculate area of j-upper pyramid
+        vol(ii, jj, kk) += PyramidVolume(
+            centroid, coords_(ii, jj + 1, kk), coords_(ii, jj + 1, kk + 1),
+            coords_(ii + 1, jj + 1, kk + 1), coords_(ii + 1, jj + 1, kk));
+
+        // calculate area of k-lower pyramid
+        vol(ii, jj, kk) += PyramidVolume(
+            centroid, coords_(ii, jj, kk), coords_(ii, jj + 1, kk),
+            coords_(ii + 1, jj + 1, kk), coords_(ii + 1, jj, kk));
+
+        // calculate area of k-upper pyramid
+        vol(ii, jj, kk) += PyramidVolume(
+            centroid, coords_(ii, jj, kk + 1), coords_(ii + 1, jj, kk + 1),
+            coords_(ii + 1, jj + 1, kk + 1), coords_(ii, jj + 1, kk + 1));
 
         // Check for negative volumes
-        if (pyramidVol <= 0) {
+        if (vol(ii, jj, kk) <= 0) {
           cerr << "ERROR: Negative volume in PLOT3D block!!!" << endl;
           cerr << "i-dim = " << ii << ", j-dim = " << jj
-               << ", k-dim = " << kk << endl;
+               << ", k-dim = " << kk << ", vol = " << vol(ii, jj, kk) << endl;
           exit(EXIT_FAILURE);
         }
       }
@@ -125,27 +123,8 @@ multiArray3d<vector3d<double>> plot3dBlock::Centroid() const {
   for (auto kk = 0; kk < centroid.NumK(); kk++) {
     for (auto jj = 0; jj < centroid.NumJ(); jj++) {
       for (auto ii = 0; ii < centroid.NumI(); ii++) {
-        // baseline location
-        auto botStarAft = coords_(ii, jj, kk);
-        // up 1 in the i-direction
-        auto botStarFore = coords_(ii + 1, jj, kk);
-        // up 1 in the j-direction
-        auto botPortAft = coords_(ii, jj + 1, kk);
-        // up 1 in the i and j directions
-        auto botPortFore = coords_(ii + 1, jj + 1, kk);
-        // up 1 in the k direction
-        auto topStarAft = coords_(ii, jj, kk + 1);
-        // up 1 in the i and k directions
-        auto topStarFore = coords_(ii + 1, jj, kk + 1);
-        // up 1 in the j and k directions
-        auto topPortAft = coords_(ii, jj + 1, kk + 1);
-        // up 1 in the i, j, and k directions
-        auto topPortFore = coords_(ii + 1, jj + 1, kk + 1);
-
         // Calculate the centroid of the cell
-        centroid(ii, jj, kk) = (0.125 * (botStarAft + botStarFore + botPortAft +
-                                         botPortFore + topStarAft + topStarFore
-                                         + topPortAft + topPortFore));
+        centroid(ii, jj, kk) = this->Centroid(ii, jj, kk);
       }
     }
   }
@@ -178,20 +157,11 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaI() const {
   for (auto kk = 0; kk < fArea.NumK(); kk++) {
     for (auto jj = 0; jj < fArea.NumJ(); jj++) {
       for (auto ii = 0; ii < fArea.NumI(); ii++) {
-        // baseline location
-        auto botStarAft = coords_(ii, jj, kk);
-        // up 1 in the j-direction
-        auto botPortAft = coords_(ii, jj + 1, kk);
-        // up 1 in the k direction
-        auto topStarAft = coords_(ii, jj, kk + 1);
-        // up 1 in the j and k directions
-        auto topPortAft = coords_(ii, jj + 1, kk + 1);
-
         // Calculate area for face by taking 1/2 of the cross product between
         // opposite diagonals
         // vectors from opposite corners of face
-        auto xac = topPortAft - botStarAft;
-        auto xbd = botPortAft - topStarAft;
+        auto xac = coords_(ii, jj + 1, kk + 1) - coords_(ii, jj, kk);
+        auto xbd = coords_(ii, jj + 1, kk) - coords_(ii, jj, kk + 1);
 
         // area vector is calculated so that normal points nominally in
         // direction of increasing i-coordinate
@@ -209,7 +179,6 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaI() const {
       }
     }
   }
-
   return fArea;
 }
 
@@ -224,22 +193,13 @@ multiArray3d<vector3d<double>> plot3dBlock::FaceCenterI() const {
   for (auto kk = 0; kk < fCenter.NumK(); kk++) {
     for (auto jj = 0; jj < fCenter.NumJ(); jj++) {
       for (auto ii = 0; ii < fCenter.NumI(); ii++) {
-        // baseline location
-        auto botStarAft = coords_(ii, jj, kk);
-        // up 1 in the j-direction
-        auto botPortAft = coords_(ii, jj + 1, kk);
-        // up 1 in the k direction
-        auto topStarAft = coords_(ii, jj, kk + 1);
-        // up 1 in the j and k directions
-        auto topPortAft = coords_(ii, jj + 1, kk + 1);
-
         // Calculate face center by averaging four points that make up the face
-        fCenter(ii, jj, kk) = 0.25 *
-            (botStarAft + botPortAft + topStarAft + topPortAft);
+        fCenter(ii, jj, kk) =
+            0.25 * (coords_(ii, jj, kk) + coords_(ii, jj + 1, kk) +
+                    coords_(ii, jj, kk + 1) + coords_(ii, jj + 1, kk + 1));
       }
     }
   }
-
   return fCenter;
 }
 
@@ -268,20 +228,11 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaJ() const {
   for (auto kk = 0; kk < fArea.NumK(); kk++) {
     for (auto jj = 0; jj < fArea.NumJ(); jj++) {
       for (auto ii = 0; ii < fArea.NumI(); ii++) {
-        // baseline location
-        auto botStarAft = coords_(ii, jj, kk);
-        // up 1 in the i-direction
-        auto botStarFore = coords_(ii + 1, jj, kk);
-        // up 1 in the k direction
-        auto topStarAft = coords_(ii, jj, kk + 1);
-        // up 1 in the i and k directions
-        auto topStarFore = coords_(ii + 1, jj, kk + 1);
-
         // Calculate area for face by taking 1/2 of the cross product between
         // opposite diagonals
         // vectors from opposite corners of face
-        auto xac = topStarAft - botStarFore;
-        auto xbd = botStarAft - topStarFore;
+        auto xac = coords_(ii, jj, kk + 1) - coords_(ii + 1, jj, kk);
+        auto xbd = coords_(ii, jj, kk) - coords_(ii + 1, jj, kk + 1);
 
         // area vector is calculated so that normal nominally points in
         // direction of increasing j-coordinate
@@ -299,7 +250,6 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaJ() const {
       }
     }
   }
-
   return fArea;
 }
 
@@ -315,23 +265,14 @@ multiArray3d<vector3d<double>> plot3dBlock::FaceCenterJ() const {
   for (auto kk = 0; kk < fCenter.NumK(); kk++) {
     for (auto jj = 0; jj < fCenter.NumJ(); jj++) {
       for (auto ii = 0; ii < fCenter.NumI(); ii++) {
-        // baseline location
-        auto botStarAft = coords_(ii, jj, kk);
-        // up 1 in the i-direction
-        auto botStarFore = coords_(ii + 1, jj, kk);
-        // up 1 in the k direction
-        auto topStarAft = coords_(ii, jj, kk + 1);
-        // up 1 in the i and k directions
-        auto topStarFore = coords_(ii + 1, jj, kk + 1);
-
         // Calculate face center by averaging the four points that make up the
         // face
-        fCenter(ii, jj, kk) = 0.25 *
-            (botStarAft + botStarFore + topStarAft + topStarFore);
+        fCenter(ii, jj, kk) =
+            0.25 * (coords_(ii, jj, kk) + coords_(ii + 1, jj, kk) +
+                    coords_(ii, jj, kk + 1) + coords_(ii + 1, jj, kk + 1));
       }
     }
   }
-
   return fCenter;
 }
 
@@ -360,20 +301,11 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaK() const {
   for (auto kk = 0; kk < fArea.NumK(); kk++) {
     for (auto jj = 0; jj < fArea.NumJ(); jj++) {
       for (auto ii = 0; ii < fArea.NumI(); ii++) {
-        // baseline location
-        auto botStarAft = coords_(ii, jj, kk);
-        // up 1 in the i-direction
-        auto botStarFore = coords_(ii + 1, jj, kk);
-        // up 1 in the j-direction
-        auto botPortAft = coords_(ii, jj + 1, kk);
-        // up 1 in the i and j directions
-        auto botPortFore = coords_(ii + 1, jj + 1, kk);
-
         // Calculate area for face by taking 1/2 of the cross product between
         // opposite diagonals
         // vectors from opposite corners of face
-        auto xac = botPortAft - botStarFore;
-        auto xbd = botPortFore - botStarAft;
+        auto xac = coords_(ii, jj + 1, kk) - coords_(ii + 1, jj, kk);
+        auto xbd = coords_(ii + 1, jj + 1, kk) - coords_(ii, jj, kk);
 
         // area vector is calculated so that normal nominally points in
         // direction of increasing k-coordinate
@@ -391,7 +323,6 @@ multiArray3d<unitVec3dMag<double>> plot3dBlock::FaceAreaK() const {
       }
     }
   }
-
   return fArea;
 }
 
@@ -417,12 +348,12 @@ multiArray3d<vector3d<double>> plot3dBlock::FaceCenterK() const {
         auto botPortFore = coords_(ii + 1, jj + 1, kk);
 
         // Calculate face center by averaging four points that make up cell face
-        fCenter(ii, jj, kk) = 0.25 *
-            (botStarAft + botStarFore + botPortAft + botPortFore);
+        fCenter(ii, jj, kk) =
+            0.25 * (coords_(ii, jj, kk) + coords_(ii + 1, jj, kk) +
+                    coords_(ii, jj + 1, kk) + coords_(ii + 1, jj + 1, kk));
       }
     }
   }
-
   return fCenter;
 }
 
@@ -451,9 +382,7 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, const double &LRef,
 
   // read the number of i, j, k coordinates in each plot3d block
   cout << "Size of each block is..." << endl;
-  vector<int> vecI(numBlks, 0);
-  vector<int> vecJ(numBlks, 0);
-  vector<int> vecK(numBlks, 0);
+  vector<vector3d<int>> blkSize(numBlks);
   auto tempInt = 0;
   numCells = 0;
 
@@ -461,18 +390,19 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, const double &LRef,
   for (auto ii = 0; ii < numBlks; ii++) {
     cout << "Block Number: " << ii << "     ";
     fName.read(reinterpret_cast<char *>(&tempInt), sizeof(tempInt));
-    vecI[ii] = tempInt;
+    blkSize[ii][0] = tempInt;
     cout << "I-DIM: " << tempInt << "     ";
     fName.read(reinterpret_cast<char *>(&tempInt), sizeof(tempInt));
-    vecJ[ii] = tempInt;
+    blkSize[ii][1] = tempInt;
     cout << "J-DIM: " << tempInt << "     ";
     fName.read(reinterpret_cast<char *>(&tempInt), sizeof(tempInt));
-    vecK[ii] = tempInt;
+    blkSize[ii][2] = tempInt;
     cout << "K-DIM: " << tempInt << endl;
 
     // calculate total number of cells (subtract 1 because number of cells is 1
     // less than number of points)
-    numCells += (vecI[ii] - 1) * (vecJ[ii] - 1) * (vecK[ii] - 1);
+    numCells +=
+        (blkSize[ii][0] - 1) * (blkSize[ii][1] - 1) * (blkSize[ii][2] - 1);
   }
   cout << endl;
 
@@ -482,7 +412,8 @@ vector<plot3dBlock> ReadP3dGrid(const string &gridName, const double &LRef,
   mesh.reserve(numBlks);
 
   for (auto ii = 0; ii < numBlks; ii++) {
-    multiArray3d<vector3d<double>> coordinates(vecI[ii], vecJ[ii], vecK[ii], 0);
+    multiArray3d<vector3d<double>> coordinates(blkSize[ii][0], blkSize[ii][1],
+                                               blkSize[ii][2], 0);
 
     for (auto jj = 0; jj < coordinates.Size(); jj++) {
       fName.read(reinterpret_cast<char *>(&tempDouble), sizeof(tempDouble));
@@ -553,4 +484,14 @@ void plot3dBlock::Join(const plot3dBlock &blk, const string &dir) {
   newBlk.coords_.Insert(dir, {coords_.End(dir), newBlk.coords_.End(dir)},
                         blk.coords_);
   (*this) = newBlk;
+}
+
+double PyramidVolume(const vector3d<double> &p, const vector3d<double> &a,
+                     const vector3d<double> &b, const vector3d<double> &c,
+                     const vector3d<double> &d) {
+  auto xp = 0.25 * ((a - p) + (b - p) + (c - p) + (d - p));
+  // vectors along diagonal of base
+  auto xac = c - a;
+  auto xbd = d - b;
+  return 1.0 / 6.0 * xp.DotProd(xac.CrossProd(xbd));
 }

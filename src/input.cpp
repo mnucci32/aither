@@ -89,6 +89,7 @@ input::input(const string &name, const string &resName) : simName_(name),
 
   // default to primative variables
   outputVariables_ = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
+  wallOutputVariables_ = {};
 
   // keywords in the input file that the parser is looking for to define
   // variables
@@ -122,6 +123,7 @@ input::input(const string &name, const string &resName) : simName_(name),
            "decompositionMethod",
            "turbulenceModel",
            "outputVariables",
+           "wallOutputVariables",
            "initialConditions",
            "boundaryStates",
            "boundaryConditions"};
@@ -400,6 +402,32 @@ void input::ReadInput(const int &rank) {
             }
             cout << endl;
           }
+        } else if (key == "wallOutputVariables") {
+          // clear default variables from set
+          wallOutputVariables_.clear();
+          auto specifiedVars = ReadStringList(inFile, tokens[1]);
+          for (auto &vars : specifiedVars) {
+            wallOutputVariables_.insert(vars);
+          }
+          if (rank == ROOTP) {
+            cout << key << ": <";
+            auto count = 0U;
+            auto numChars = 0U;
+            for (auto &vars : wallOutputVariables_) {
+              if (count == wallOutputVariables_.size() - 1) {
+                cout << vars << ">" << endl;
+              } else {
+                cout << vars << ", ";
+                numChars += vars.length();
+                if (numChars >= 50) {  // if more than 50 chars, go to next line
+                  cout << endl << "                      ";
+                  numChars = 0U;
+                }
+              }
+              count++;
+            }
+            cout << endl;
+          }
         } else if (key == "initialConditions") {
           ics_ = ReadICList(inFile, tokens[1]);
           if (rank == ROOTP) {
@@ -490,6 +518,7 @@ void input::ReadInput(const int &rank) {
   // input file sanity checks
   this->CheckNonlinearIterations();
   this->CheckOutputVariables();
+  this->CheckWallOutputVariables();
   this->CheckTurbulenceModel();
 
   if (rank == ROOTP) {
@@ -666,6 +695,20 @@ void input::CheckOutputVariables() {
       if (var.find("velGrad_") != string::npos
           || var.find("tempGrad_") != string::npos || var == "viscosity") {
         cerr << "WARNING: Variable " << var <<
+            " is not available for inviscid simulations." << endl;
+        outputVariables_.erase(var);
+      }
+    }
+  }
+}
+
+// member function to check validity of the requested output variables
+void input::CheckWallOutputVariables() {
+  auto oVars = wallOutputVariables_;
+  for (auto &var : oVars) {
+    if (!this->IsViscous()) {  // can't have viscous variables output
+      if (var == "yplus" || var == "heatFlux") {
+        cerr << "WARNING: Wall variable " << var <<
             " is not available for inviscid simulations." << endl;
         outputVariables_.erase(var);
       }

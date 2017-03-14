@@ -90,6 +90,10 @@ class boundarySurface {
   int Min2() const;
   int NumFaces() const;
 
+  int NumI() const {return this->RangeI().Size();}
+  int NumJ() const {return this->RangeJ().Size();}
+  int NumK() const {return this->RangeK().Size();}
+
   range RangeI() const;
   range RangeJ() const;
   range RangeK() const;
@@ -221,6 +225,7 @@ class boundaryConditions {
   int GetSurfaceType(const int &a) const {return surfs_[a].SurfaceType();}
   boundarySurface GetSurface(const int &a) const {return surfs_[a];}
   int NumViscousFaces() const;
+  int NumViscousSurfaces() const;
   bool IsConnection(const int &a) const {return surfs_[a].IsConnection();}
 
   int BlockDimI() const;

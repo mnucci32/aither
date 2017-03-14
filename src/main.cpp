@@ -273,7 +273,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Write out cell centers grid file
-    WriteCellCenter(inp.GridName(), stateBlocks, decomp, inp.LRef());
+    WriteCellCenter(inp.GridName(), stateBlocks, decomp, inp);
 
     // Write out initial results
     WriteFun(stateBlocks, eos, suth, inp.IterationStart(), decomp,

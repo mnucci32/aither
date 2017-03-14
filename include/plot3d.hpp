@@ -62,6 +62,8 @@ class plot3dBlock {
   multiArray3d<vector3d<double>> FaceCenterJ() const;
   multiArray3d<vector3d<double>> FaceCenterK() const;
 
+  vector3d<double> Centroid(const int &, const int &, const int &) const;
+
   int NumI() const { return coords_.NumI(); }
   int NumJ() const { return coords_.NumJ(); }
   int NumK() const { return coords_.NumK(); }
@@ -94,6 +96,8 @@ class plot3dBlock {
 //-------------------------------------------------------------------------
 // function declarations
 vector<plot3dBlock> ReadP3dGrid(const string &, const double &, double &);
-
+double PyramidVolume(const vector3d<double> &, const vector3d<double> &,
+                     const vector3d<double> &, const vector3d<double> &,
+                     const vector3d<double> &);
 
 #endif
