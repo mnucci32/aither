@@ -403,6 +403,9 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
 
   WriteBlockDims(outFile, wallSurfs, inp.NumWallVarsOutput());
 
+  // define reference speed of sound
+  const auto refSoS = inp.ARef(eqnState);
+
   // write out variables
   for (auto &blk : vars) {  // loop over all blocks
     auto bc = blk.BC();
@@ -529,6 +532,10 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                   auto tauw = TauNormal(velGrad, area, muw, mutw, suth);
                   value = blk.WallDist(ii, jj, kk) *
                           sqrt(statew.Rho() * tauw.Mag()) / muw;
+                } else if (var == "shearStress") {
+                  auto tauw = TauNormal(velGrad, area, muw, mutw, suth);
+                  value = tauw.Mag();
+                  value *= suth.MuRef() * refSoS / inp.LRef();
                 } else if (var == "heatFlux") {
                   auto k = eqnState.Conductivity(muw);
                   auto kt =
