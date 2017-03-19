@@ -24,7 +24,7 @@ the Wilcox K-Omega 2006 and SST 2003 turbulence models are available. For detatc
 turbulence model is available. For large eddy simulations, the WALE subgrid scale model is available.
 
 ### To Do List
-* Add wall functions for turbulence models
+* Add thermally perfect gases
 * Add additional inviscid flux option (AUSM)
 * Add multigrid scheme for improved convergence
 

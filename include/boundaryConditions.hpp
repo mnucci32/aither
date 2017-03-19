@@ -126,7 +126,7 @@ class patch {
   vector3d<double> corner2_;
   vector3d<double> corner12_;    // coordinates of direction 1/2 max
   // Array of booleans for 4 sides of patch (1 if borders another patch)
-  bool patchBorder_[4];
+  array<bool, 4> patchBorder_;
   int boundary_;                 // boundary number (1-6)
   int block_;                    // parent block number
   int d1Start_;                  // direction 1 start index
@@ -143,9 +143,9 @@ class patch {
   patch();
   patch(const int&, const int&, const int&, const int&, const int&, const int&,
         const int&, const int&, const plot3dBlock&, const int&, const int&,
-        const bool(&)[4], const string&);
+        const array<bool, 4>&, const string&);
   patch(const boundarySurface &surf, const plot3dBlock &blk, const int &bNum,
-        const bool (&border)[4], int r = 0, int l = 0) :
+        const array<bool, 4> &border, int r = 0, int l = 0) :
       patch(surf.SurfaceType(), bNum, surf.IMin(), surf.IMax(), surf.JMin(),
             surf.JMax(), surf.KMin(), surf.KMax(), blk, r, l, border,
             surf.BCType()) {}
@@ -263,7 +263,7 @@ class boundaryConditions {
                       const int&, const int&, const int&);
   void Join(const boundaryConditions&, const string&, vector<boundarySurface>&);
 
-  void BordersSurface(const int&, bool (&)[4]) const;
+  void BordersSurface(const int&, array<bool, 4>&) const;
 
   void PackBC(char*(&), const int&, int&) const;
   void UnpackBC(char*(&), const int&, int&);
@@ -284,7 +284,7 @@ class connection {
   int d2Start_[2];            // second direction start numbers for surface
   int d2End_[2];              // second direction end numbers for surface
   int constSurf_[2];          // index of direction 3
-  bool patchBorder_[8];  // borders another patch on sides of patch
+  array<bool, 8> patchBorder_;  // borders another patch on sides of patch
   // Defines how patches are oriented relative to one another (1-8)
   int orientation_;
   bool isInterblock_;

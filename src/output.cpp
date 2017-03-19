@@ -532,14 +532,12 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                 if (var == "yplus") {
                   muw *= suth.NondimScaling();
                   mutw *= suth.NondimScaling();
-                  auto tauw = TauNormal(velGrad, area, muw, mutw, suth);
-                  auto taut = tauw - tauw.DotProd(area) * area;
+                  auto tauw = TauShear(velGrad, area, muw, mutw, suth);
                   value = blk.WallDist(ii, jj, kk) *
-                          sqrt(statew.Rho() * taut.Mag()) / muw;
+                          sqrt(statew.Rho() * tauw.Mag()) / muw;
                 } else if (var == "shearStress") {
-                  auto tauw = TauNormal(velGrad, area, muw, mutw, suth);
-                  auto taut = tauw - tauw.DotProd(area) * area;
-                  value = taut.Mag();
+                  auto tauw = TauShear(velGrad, area, muw, mutw, suth);
+                  value = tauw.Mag();
                   value *= suth.MuRef() * refSoS / inp.LRef();
                 } else if (var == "heatFlux") {
                   auto k = eqnState.Conductivity(muw);
@@ -547,6 +545,12 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                       eqnState.TurbConductivity(mutw, turb->TurbPrandtlNumber());
                   value = (k + kt) * tGrad.DotProd(area);
                   value *= suth.MuRef() * inp.TRef() / inp.LRef();
+                } else if (var == "frictionVelocity") {
+                  muw *= suth.NondimScaling();
+                  mutw *= suth.NondimScaling();
+                  auto tauw = TauShear(velGrad, area, muw, mutw, suth);
+                  value = sqrt(tauw.Mag() / statew.Rho());
+                  value *= refSoS;
                 } else if (var == "density") {
                   value = statew.Rho();
                   value *= inp.RRef();
