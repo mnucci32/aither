@@ -1,9 +1,9 @@
 # Accurate Implicit Three-dimensional Efficient RANS (AITHER)
 
-| Branch  | Build | Coverage |
-|---      |---    |---       |
-| Master  | [![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=master)](https://travis-ci.org/mnucci32/aither) | [![Coverage Status](https://codecov.io/github/mnucci32/aither/coverage.svg?branch=master)](https://codecov.io/github/mnucci32/aither?branch=master) |
-| Develop | [![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=develop)](https://travis-ci.org/mnucci32/aither) | [![Coverage Status](https://codecov.io/github/mnucci32/aither/coverage.svg?branch=develop)](https://codecov.io/github/mnucci32/aither?branch=develop) |
+| Branch  | Linux/macOS Build | Windows Build | Coverage |
+|---      |---    |---    |---    |
+| Master  | [![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=master)](https://travis-ci.org/mnucci32/aither) | [![Build status](https://ci.appveyor.com/api/projects/status/o7fc231lp9jxlsib/branch/master?svg=true)](https://ci.appveyor.com/project/mnucci32/aither/branch/master) | [![Coverage Status](https://codecov.io/github/mnucci32/aither/coverage.svg?branch=master)](https://codecov.io/github/mnucci32/aither?branch=master) |
+| Develop | [![Build Status](https://travis-ci.org/mnucci32/aither.svg?branch=develop)](https://travis-ci.org/mnucci32/aither) | [![Build status](https://ci.appveyor.com/api/projects/status/o7fc231lp9jxlsib/branch/develop?svg=true)](https://ci.appveyor.com/project/mnucci32/aither/branch/develop) | [![Coverage Status](https://codecov.io/github/mnucci32/aither/coverage.svg?branch=develop)](https://codecov.io/github/mnucci32/aither?branch=develop) |
 
 ### About The code
 This code is for a 3D Navier-Stokes computational fluid dynamics solver. It is a cell centered, structured solver,
