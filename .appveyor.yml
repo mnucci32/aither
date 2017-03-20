@@ -3,16 +3,19 @@ branches:
   only:
   - master
   - develop
-  - feature_wall_functions
 image: Visual Studio 2015
 configuration: release
 platform: x64
+environment:
+  PYTHON: C:\Python35-x64
+  PATH: C:\Program Files\Project\bin;C:\Program Files\Microsoft MPI\Bin;%PATH%
 build_script:
 - ps: >-
     powershell ci\appveyor\installMPI.ps1
 
     powershell ci\appveyor\buildAither.ps1
-
-    MPI_Env.cmd
 test_script:
-- ps: powershell ci\appveyor\runRegressionTests.ps1
+- cmd: >-
+    cd testCases
+
+    %PYTHON%\python.exe regressionTests.py --mpirunPath=mpiexec.exe --aitherPath=aither.exe
