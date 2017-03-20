@@ -1,14 +1,14 @@
-function InstallMPI($downloads) {
+function InstallMPI() {
     md mpi
     cd mpi
     # install MPI SDK and Runtime
     Write-Host "Installing Microsoft MPI SDK..."
-    appveyor DownloadFile http://download.microsoft.com/download/B/2/E/B2EB83FE-98C2-4156-834A-E1711E6884FB/msmpisdk.msi -FileName $downloads
-    Start-Process -FilePath msiexec.exe -ArgumentList "/quiet /qn /i $downloads\msmpisdk.msi" -Wait
+    appveyor DownloadFile http://download.microsoft.com/download/B/2/E/B2EB83FE-98C2-4156-834A-E1711E6884FB/msmpisdk.msi
+    Start-Process -FilePath msiexec.exe -ArgumentList "/quiet /qn /i msmpisdk.msi" -Wait
     Write-Host "Microsoft MPI SDK installation complete"
     Write-Host "Installing Microsoft MPI Runtime..."
-    appveyor DownloadFile http://download.microsoft.com/download/B/2/E/B2EB83FE-98C2-4156-834A-E1711E6884FB/MSMpiSetup.exe -FileName $downloads
-    Start-Process -FilePath $downloads\MSMpiSetup.exe -ArgumentList -unattend -Wait
+    appveyor DownloadFile http://download.microsoft.com/download/B/2/E/B2EB83FE-98C2-4156-834A-E1711E6884FB/MSMpiSetup.exe
+    Start-Process -FilePath MSMpiSetup.exe -ArgumentList -unattend -Wait
     # Get MPI environment variables
     $envfile = "MPI_Env.cmd"
     Write-Host "Saving Microsoft MPI environment variables to" $envfile
@@ -20,12 +20,12 @@ function InstallMPI($downloads) {
         if ($value) { Write-Host "$variable=$value" }
     }
     $stream.Close()
+    & $envfile
     cd ..
 }
 
 function main() {
-    $downloads = "C:\Downloads\MSMPI"
-    InstallMPI($downloads)
+    InstallMPI
 }
 
 main
