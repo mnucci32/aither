@@ -72,11 +72,23 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # set additional c++ flags for all build types
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} -Wall -pedantic -march=native -O3 -DNDEBUG")
+if (${CMAKE_SYSTEM_NAME} MATCHES "WINDOWS")
+   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} /Wall /O2 /DNDEBUG")
+else()
+   set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} -Wall -pedantic -march=native -O3 -DNDEBUG")
+endif()
+if (${CMAKE_SYSTEM_NAME} MATCHES "WINDOWS")
 set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${COMPILER_SPEC_FLAGS} -Wall -pedantic -march=native")
-set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${COMPILER_SPEC_FLAGS} -Wall -pedantic -O0 -ggdb -pg --coverage")
+   set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${COMPILER_SPEC_FLAGS} /Wall /Od /PROFILE")
+else()
+   set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${COMPILER_SPEC_FLAGS} -Wall -pedantic -O0 -ggdb -pg --coverage")
+endif()
 # create profile build type
-set (CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} -pg")
+if (${CMAKE_SYSTEM_NAME} MATCHES "WINDOWS")
+   set (CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} /PROFILE")
+else()
+   set (CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} -pg")
+endif()
 
 # set compiler flags based on release type
 if (CMAKE_BUILD_TYPE MATCHES "release")

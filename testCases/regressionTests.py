@@ -14,8 +14,8 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>. 
 #
-#   This script runs regression tests to test builds on linux and osx for
-#   travis ci.
+#   This script runs regression tests to test builds on linux and macOS for
+#   travis ci, and windows for appveyor
 
 import os
 import optparse
@@ -48,6 +48,9 @@ class regressionTest:
         
     def SetNumberOfProcessors(self, num):
         self.procs = num
+
+    def Processors(self):
+        return self.procs
         
     def SetResiduals(self, resid):
         self.residuals = resid
@@ -172,18 +175,20 @@ def main():
     # Set up options
     parser = optparse.OptionParser()
     parser.add_option("-a", "--aitherPath", action="store", dest="aitherPath",
-                      default="aither", help="Path to aither executable.")
+                      default="aither", 
+                      help="Path to aither executable. Default = aither")
     parser.add_option("-o", "--operatingSystem", action="store",
                       dest="operatingSystem", default="linux",
-                      help="Operating system that tests will run on [linux/osx]")
+                      help="Operating system that tests will run on [linux/macOS/windows]. Default = linux")
     parser.add_option("-m", "--mpirunPath", action="store",
-                      dest="mpirunPath", default="",
-                      help="Path to mpirun")
+                      dest="mpirunPath", default="mpirun",
+                      help="Path to mpirun. Default = mpirun")
                       
     options, remainder = parser.parse_args()
 
-    # travis osx images have 1 proc, ubuntu have 2
-    if (options.operatingSystem == "linux"):
+    # travis macOS images have 1 proc, ubuntu have 2
+    # appveyor windows images have 2 procs
+    if (options.operatingSystem == "linux" or options.operatingSystem == "windows"):
         maxProcs = 2
     else:
         maxProcs = 1
@@ -222,7 +227,7 @@ def main():
     multiCyl.SetRunDirectory("multiblockCylinder")
     multiCyl.SetNumberOfProcessors(maxProcs)
     multiCyl.SetNumberOfIterations(numIterations)
-    if (options.operatingSystem == "linux"):
+    if (multiCyl.Processors() == 2):
         multiCyl.SetResiduals([2.3188e-1, 2.9621e-1, 4.5868e-1, 1.2813, 2.3009e-1])
     else:
         multiCyl.SetResiduals([2.3188e-1, 2.9621e-1, 4.5868e-1, 1.2813, 2.3009e-1])
@@ -306,7 +311,7 @@ def main():
     viscPlate.SetRunDirectory("viscousFlatPlate")
     viscPlate.SetNumberOfProcessors(maxProcs)
     viscPlate.SetNumberOfIterations(numIterations)
-    if (options.operatingSystem == "linux"):
+    if (viscPlate.Processors() == 2):
         viscPlate.SetResiduals([7.7265e-2, 2.4712e-1, 5.6413e-2, 1.0228, 7.9363e-2])
     else:
         viscPlate.SetResiduals([7.6468e-2, 2.4713e-1, 4.0109e-2, 9.8730e-1, 7.9237e-2])
@@ -326,7 +331,7 @@ def main():
     turbPlate.SetRunDirectory("turbFlatPlate")
     turbPlate.SetNumberOfProcessors(maxProcs)
     turbPlate.SetNumberOfIterations(numIterations)
-    if (options.operatingSystem == "linux"):
+    if (turbPlate.Processors() == 2):
         turbPlate.SetResiduals([4.1174e-2, 4.2731e-2, 1.0641, 8.3686e-2, 3.9585e-2,
                                 4.5098e-8, 1.1416e-5])
     else:
@@ -348,7 +353,7 @@ def main():
     rae2822.SetRunDirectory("rae2822")
     rae2822.SetNumberOfProcessors(maxProcs)
     rae2822.SetNumberOfIterations(numIterations)
-    if (options.operatingSystem == "linux"):
+    if (rae2822.Processors() == 2):
         rae2822.SetResiduals([5.0196e-1, 1.2895, 4.6389e-1, 1.1253, 4.5099e-1,
                               1.1526e-7, 1.9755e-5])
     else:
