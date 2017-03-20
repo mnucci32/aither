@@ -9,8 +9,8 @@ configuration: release
 platform: x64
 build_script:
 - ps: >-
-    powershell ci\\appveyor\\installMPI.ps1
+    powershell ci\appveyor\installMPI.ps1
 
-    powershell ci\\appveyor\\buildAither.ps1
+    powershell ci\appveyor\buildAither.ps1
 test_script:
-- ps: powershell ci\\appveyor\\runRegressionTests.ps1
+- ps: powershell ci\appveyor\runRegressionTests.ps1
