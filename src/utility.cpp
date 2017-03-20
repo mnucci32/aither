@@ -715,6 +715,13 @@ vector3d<double> TauNormal(const tensor<double> &velGrad,
       (velGrad.MatMult(area) + velGrad.Transpose().MatMult(area));
 }
 
+vector3d<double> TauShear(const tensor<double> &velGrad,
+                          const vector3d<double> &area, const double &mu,
+                          const double &mut, const sutherland &suth) {
+  auto tauN = TauNormal(velGrad, area, mu, mut, suth);
+  return tauN - tauN.DotProd(area) * area;
+}
+
 // This function calculates the coefficients for three third order accurate
 // reconstructions used in a 5th order WENO scheme. This follows the formula
 // 2.20 from ICASE report No 97-65 by Shu.

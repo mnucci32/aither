@@ -196,7 +196,7 @@ void boundaryConditions::AssignFromInput(const int &surfCounter,
    The order of the 4 bools is as follows [direction 1 start, direction 1 end,
    direction 2 start, direction 2 end].*/
 void boundaryConditions::BordersSurface(const int &ii,
-                                        bool (&border)[4]) const {
+                                        array<bool, 4> &border) const {
   // ii -- index of surface to test for border matches
   // border -- array of bools to show if boundarySurface is bordered
   // by another boundarySurface on any of its 4 sides
@@ -441,7 +441,7 @@ vector<connection> GetConnectionBCs(const vector<boundaryConditions> &bc,
           (isolatedConnections[ii].BCType() == "periodic" &&
            isolatedConnections[jj].BCType() == "periodic")) {
         // Determine if surface borders any other surfaces
-        bool border[4] = {false, false, false, false};
+        array<bool, 4> border = {false, false, false, false};
         bc[numRankPos[ii][0]].BordersSurface(surfaceNums[ii], border);
 
         // Get current patch
@@ -1464,7 +1464,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
   // ublk -- upper block number in partner split
 
   // dummy value used because connection is only used to test for match
-  bool border[4] = {false, false, false, false};
+  array<bool, 4> border = {false, false, false, false};
 
   const patch partner(surf, part, lblk, border);  // create patch for partner
 
@@ -2084,7 +2084,7 @@ patch::patch() {
 patch::patch(const int &bound, const int &b, const int &d1s, const int &d1e,
              const int &d2s, const int &d2e, const int &d3s, const int &d3e,
              const plot3dBlock &blk, const int &r, const int &l,
-             const bool (&border)[4], const string &name) {
+             const array<bool, 4> &border, const string &name) {
   // bound -- boundary number which patch is on (1-6)
   // b -- parent block number
   // d1s -- direction 1 starting index

@@ -427,7 +427,7 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                 primVars statew;
                 tensor<double> velGrad;
                 vector3d<double> area, tGrad, kGrad, wGrad;
-                auto muw = 0.0, mutw = 0.0;
+                auto muw = 0.0, mutw = 0.0, tw = 0.0;
                 if (surf.SurfaceType() == 1) {  // il surface ----------------
                   area = blk.FAreaUnitI(ii, jj, kk);
                   blk.CalcGradsI(ii, jj, kk, velGrad, tGrad, kGrad, wGrad);
@@ -441,6 +441,8 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                                           cellWidth);
                   statew = FaceReconCentral(blk.State(ii - 1, jj, kk),
                                             blk.State(ii, jj, kk), cellWidth);
+                  tw = FaceReconCentral(blk.Temperature(ii - 1, jj, kk),
+                                        blk.Temperature(ii, jj, kk), cellWidth);
                 } else if (surf.SurfaceType() == 2) {  // iu surface ----------
                   area = blk.FAreaUnitI(ii + 1, jj, kk);
                   blk.CalcGradsI(ii + 1, jj, kk, velGrad, tGrad, kGrad, wGrad);
@@ -456,6 +458,9 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                   statew =
                       FaceReconCentral(blk.State(ii, jj, kk),
                                        blk.State(ii + 1, jj, kk), cellWidth);
+                  tw = FaceReconCentral(blk.Temperature(ii, jj, kk),
+                                        blk.Temperature(ii + 1, jj, kk),
+                                        cellWidth);
                 } else if (surf.SurfaceType() == 3) {  // jl surface ----------
                   area = blk.FAreaUnitJ(ii, jj, kk);
                   blk.CalcGradsJ(ii, jj, kk, velGrad, tGrad, kGrad, wGrad);
@@ -484,6 +489,9 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                   statew =
                       FaceReconCentral(blk.State(ii, jj, kk),
                                        blk.State(ii, jj + 1, kk), cellWidth);
+                  tw = FaceReconCentral(blk.Temperature(ii, jj, kk),
+                                        blk.Temperature(ii, jj + 1, kk),
+                                        cellWidth);
                 } else if (surf.SurfaceType() == 5) {  // kl surface ----------
                   area = blk.FAreaUnitK(ii, jj, kk);
                   blk.CalcGradsK(ii, jj, kk, velGrad, tGrad, kGrad, wGrad);
@@ -497,6 +505,8 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                                           cellWidth);
                   statew = FaceReconCentral(blk.State(ii, jj, kk - 1),
                                             blk.State(ii, jj, kk), cellWidth);
+                  tw = FaceReconCentral(blk.Temperature(ii, jj, kk - 1),
+                                        blk.Temperature(ii, jj, kk), cellWidth);
                 } else {  // ku surface ---------------------------------------
                   area = blk.FAreaUnitK(ii, jj, kk + 1);
                   blk.CalcGradsK(ii, jj, kk + 1, velGrad, tGrad, kGrad, wGrad);
@@ -512,6 +522,9 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                   statew =
                       FaceReconCentral(blk.State(ii, jj, kk),
                                        blk.State(ii, jj, kk + 1), cellWidth);
+                  tw = FaceReconCentral(blk.Temperature(ii, jj, kk),
+                                        blk.Temperature(ii, jj, kk + 1),
+                                        cellWidth);
                 }
 
                 // now calculate wall values with wall properties
@@ -519,14 +532,12 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                 if (var == "yplus") {
                   muw *= suth.NondimScaling();
                   mutw *= suth.NondimScaling();
-                  auto tauw = TauNormal(velGrad, area, muw, mutw, suth);
-                  auto taut = tauw - tauw.DotProd(area) * area;
+                  auto tauw = TauShear(velGrad, area, muw, mutw, suth);
                   value = blk.WallDist(ii, jj, kk) *
-                          sqrt(statew.Rho() * taut.Mag()) / muw;
+                          sqrt(statew.Rho() * tauw.Mag()) / muw;
                 } else if (var == "shearStress") {
-                  auto tauw = TauNormal(velGrad, area, muw, mutw, suth);
-                  auto taut = tauw - tauw.DotProd(area) * area;
-                  value = taut.Mag();
+                  auto tauw = TauShear(velGrad, area, muw, mutw, suth);
+                  value = tauw.Mag();
                   value *= suth.MuRef() * refSoS / inp.LRef();
                 } else if (var == "heatFlux") {
                   auto k = eqnState.Conductivity(muw);
@@ -534,6 +545,24 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                       eqnState.TurbConductivity(mutw, turb->TurbPrandtlNumber());
                   value = (k + kt) * tGrad.DotProd(area);
                   value *= suth.MuRef() * inp.TRef() / inp.LRef();
+                } else if (var == "frictionVelocity") {
+                  muw *= suth.NondimScaling();
+                  mutw *= suth.NondimScaling();
+                  auto tauw = TauShear(velGrad, area, muw, mutw, suth);
+                  value = sqrt(tauw.Mag() / statew.Rho());
+                  value *= refSoS;
+                } else if (var == "density") {
+                  value = statew.Rho();
+                  value *= inp.RRef();
+                } else if (var == "pressure") {
+                  value = statew.P();
+                  value *= inp.RRef() * refSoS * refSoS;
+                } else if (var == "temperature") {
+                  value = tw;
+                  value *= inp.TRef();
+                } else if (var == "viscosity") {
+                  value = muw;
+                  value *= suth.MuRef();
                 } else {
                   cerr << "ERROR: Variable " << var
                        << " to write to wall function file is not defined!"

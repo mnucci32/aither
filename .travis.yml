@@ -87,7 +87,7 @@ before_install:
 
 # install mpi
 install:
-  - bash travis/installMPI
+  - bash ci/travis/installMPI
 
 before_script:
   - mkdir build
