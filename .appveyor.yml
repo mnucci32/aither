@@ -12,5 +12,7 @@ build_script:
     powershell ci\appveyor\installMPI.ps1
 
     powershell ci\appveyor\buildAither.ps1
+
+    MPI_Env.cmd
 test_script:
 - ps: powershell ci\appveyor\runRegressionTests.ps1
