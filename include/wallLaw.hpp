@@ -18,22 +18,22 @@
 #define WALLLAWHEADERDEF
 
 /* This defines the classes for the turbulent wall law implementation */
+#include <memory>
 
 #include "vector3d.hpp"
 #include "tensor.hpp"
+
+using std::unique_ptr;
 
 // forward class declaration
 class primVars;
 class idealGas;
 class sutherland;
+class turbModel;
 
 class wallLaw {
   const double vonKarmen_;
   const double wallConst_;
-
-  // private member functions
-  double Gamma(const idealGas &, const double &, const double &) const;
-  double Beta() const {return 0.0;}
 
  public:
   // constructor
@@ -53,9 +53,14 @@ class wallLaw {
   double WallConstant() const {return wallConst_;}
   double WallShearStress(const primVars &, const vector3d<double> &,
                          const tensor<double> &, const idealGas &,
+                         const sutherland &, const double &, const double &,
+                         const double &) const;
+double IsothermalWallShearStress(const primVars &, const vector3d<double> &,
+                         const tensor<double> &, const vector3d<double> &,
+                         const idealGas &, const sutherland &, 
+                         const unique_ptr<turbModel> &,const double &,
                          const double &, const double &, const double &,
-                         const double &, const double &,
-                         const sutherland &) const;
+                         double &) const;
 
   // destructor
   ~wallLaw() noexcept {}
