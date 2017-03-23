@@ -49,18 +49,19 @@ class wallLaw {
   wallLaw& operator=(const wallLaw&) = default;
 
   // member functions
-  double VonKarmen() const {return vonKarmen_;}
-  double WallConstant() const {return wallConst_;}
-  double WallShearStress(const primVars &, const vector3d<double> &,
-                         const tensor<double> &, const idealGas &,
-                         const sutherland &, const double &, const double &,
-                         const double &) const;
-double IsothermalWallShearStress(const primVars &, const vector3d<double> &,
-                         const tensor<double> &, const vector3d<double> &,
-                         const idealGas &, const sutherland &, 
-                         const unique_ptr<turbModel> &,const double &,
-                         const double &, const double &, const double &,
-                         double &) const;
+  double VonKarmen() const { return vonKarmen_; }
+  double WallConstant() const { return wallConst_; }
+  vector3d<double> WallShearStress(const primVars &, const vector3d<double> &,
+                                   const tensor<double> &, const idealGas &,
+                                   const sutherland &,
+                                   const unique_ptr<turbModel> &,
+                                   const double &, const double &, double &,
+                                   double &) const;
+  vector3d<double> IsothermalWallShearStress(
+      const primVars &, const vector3d<double> &, const tensor<double> &,
+      const vector3d<double> &, const idealGas &, const sutherland &,
+      const unique_ptr<turbModel> &, const double &, const double &,
+      const double &, double &, double &, double &) const;
 
   // destructor
   ~wallLaw() noexcept {}

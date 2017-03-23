@@ -70,6 +70,7 @@ class turbModel {
                           const double &f2,
                           const double &length) const {return 0.0;}
   virtual double WallBeta() const {return 1.0;}
+  virtual double BetaStar() const {return 0.0;}
   virtual double SrcSpecRad(const primVars &state,
                             const sutherland &suth, const double &vol,
                             const double &phi = 1.0) const {return 0.0;}
@@ -288,7 +289,7 @@ class turbKWWilcox : public turbModel {
   double TurbLengthScale(const primVars &state, const sutherland &) const;
 
   double Gamma() const {return gamma_;}
-  double BetaStar() const {return betaStar_;}
+  double BetaStar() const override {return betaStar_;}
   double Sigma() const {return sigma_;}
   double SigmaStar() const {return sigmaStar_;}
   double SigmaD0() const {return sigmaD0_;}
@@ -399,7 +400,7 @@ class turbKWSst : public turbModel {
   double SigmaW2() const {return sigmaW2_;}
 
   double A1() const {return a1_;}
-  double BetaStar() const {return betaStar_;}
+  double BetaStar() const override {return betaStar_;}
   double TkeProd2DestRatio() const {return kProd2Dest_;}
   double TurbLengthScale(const primVars &state, const sutherland &) const;
 
