@@ -107,14 +107,6 @@ class viscousFlux {
 };
 
 // function definitions
-void CalcTSLFluxJac(const double&, const double&, const idealGas&,
-                    const vector3d<double>&, const primVars&, const primVars&,
-                    const double&, squareMatrix&, squareMatrix&,
-                    const sutherland&, const double&);
-
-tensor<double> CalcVelGradTSL(const primVars&, const primVars&,
-                              const vector3d<double>&, const double&);
-
 // operator overload for addition
 viscousFlux & viscousFlux::operator+=(const viscousFlux &arr) {
   for (auto rr = 0; rr < NUMVARS - 1; rr++) {

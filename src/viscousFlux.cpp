@@ -116,32 +116,3 @@ ostream &operator<<(ostream &os, viscousFlux &flux) {
   os << flux.MomO() << endl;
   return os;
 }
-
-
-// function to calculate the velocity gradients at a cell face using the Thin
-// Shear Layer approximation
-tensor<double> CalcVelGradTSL(const primVars &left, const primVars &right,
-                              const vector3d<double> &normArea,
-                              const double &dist) {
-  // left -- left state (primative)
-  // right -- right state (primative)
-  // normArea -- unit area vector of face
-  // dist -- distance between centroid of left cell and right cell
-
-  // calculate velocity derivatives
-  const auto velDeriv = (right.Velocity() - left.Velocity()) / dist;
-
-  // populate velocity gradient tensor
-  tensor<double> velGrad(
-      velDeriv.X() * normArea.X(),
-      velDeriv.Y() * normArea.X(),
-      velDeriv.Z() * normArea.X(),
-      velDeriv.X() * normArea.Y(),
-      velDeriv.Y() * normArea.Y(),
-      velDeriv.Z() * normArea.Y(),
-      velDeriv.X() * normArea.Z(),
-      velDeriv.Y() * normArea.Z(),
-      velDeriv.Z() * normArea.Z());
-
-  return velGrad;
-}

@@ -38,7 +38,7 @@ class wallLaw {
  public:
   // constructor
   wallLaw(const double &k, const double &c) : vonKarmen_(k), wallConst_(c) {}
-  wallLaw() : wallLaw(0.41, 5.1) {}
+  wallLaw() : wallLaw(0.41, 5.5) {}
   
   // move constructor and assignment operator
   wallLaw(wallLaw&&) = default;
@@ -52,16 +52,14 @@ class wallLaw {
   double VonKarmen() const { return vonKarmen_; }
   double WallConstant() const { return wallConst_; }
   vector3d<double> WallShearStress(const primVars &, const vector3d<double> &,
-                                   const tensor<double> &, const idealGas &,
-                                   const sutherland &,
+                                   const idealGas &, const sutherland &,
                                    const unique_ptr<turbModel> &,
-                                   const double &, const double &, double &,
-                                   double &) const;
+                                   const double &, double &, double &) const;
   vector3d<double> IsothermalWallShearStress(
       const primVars &, const vector3d<double> &, const tensor<double> &,
       const vector3d<double> &, const idealGas &, const sutherland &,
-      const unique_ptr<turbModel> &, const double &, const double &,
-      const double &, double &, double &, double &) const;
+      const unique_ptr<turbModel> &, const double &, const double &, double &,
+      double &, double &) const;
 
   // destructor
   ~wallLaw() noexcept {}

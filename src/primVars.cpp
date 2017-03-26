@@ -25,6 +25,7 @@
 #include "input.hpp"               // input
 #include "turbulence.hpp"          // turbModel
 #include "utility.hpp"
+#include "wallLaw.hpp"
 
 using std::cout;
 using std::endl;
@@ -444,27 +445,37 @@ primVars primVars::GetGhostState(const string &bcType,
     // tke at cell center is set to opposite of tke at boundary cell center
     // so that tke at face will be zero
     if (inputVars.IsRANS()) {
-      ghostState.data_[5] = -1.0 * this->Tke();
+      if (bcData->IsWallLaw()) {
+        wallLaw wl(bcData->VonKarmen(), bcData->WallConstant());
+        auto kWall = 0.0, wWall = 0.0;
+        auto tauW = wl.WallShearStress(*this, normArea, eqnState, suth, turb,
+                                       wallDist, kWall, wWall);
+        ghostState.data_[5] = 2.0 * kWall - this->Tke();
+        ghostState.data_[6] = 2.0 * wWall - this->Omega();
+      } else {
+        ghostState.data_[5] = -1.0 * this->Tke();
 
-      const auto nuW = suth.Viscosity(this->Temperature(eqnState))
-          / this->Rho();
-      const auto wWall = suth.NondimScaling() * suth.NondimScaling() *
-          60.0 * nuW / (wallDist * wallDist * turb->WallBeta());
+        const auto nuW =
+            suth.Viscosity(this->Temperature(eqnState)) / this->Rho();
+        const auto wWall = suth.NondimScaling() * suth.NondimScaling() * 60.0 *
+                           nuW / (wallDist * wallDist * turb->WallBeta());
 
-      ghostState.data_[6] = 2.0 * wWall - this->Omega();
+        ghostState.data_[6] = 2.0 * wWall - this->Omega();
 
-      if (layer > 1) {
-        ghostState.data_[6] = layer * ghostState.data_[6] - wWall;
+        if (layer > 1) {
+          ghostState.data_[6] = layer * ghostState.data_[6] - wWall;
+        }
       }
     }
 
-  // subsonic inflow boundary condition
-  // -------------------------------------------------------------------------
-  // this boundary condition enforces density and velocity as freestream inputs
-  // (constant) and extrapolates from the interior state to get pressure
-  // this is a primative implementation, stagnationInlet or characteristic are
-  // better options
-  // set velocity and density to freestream values
+    // subsonic inflow boundary condition
+    // -------------------------------------------------------------------------
+    // this boundary condition enforces density and velocity as freestream
+    // inputs
+    // (constant) and extrapolates from the interior state to get pressure
+    // this is a primative implementation, stagnationInlet or characteristic are
+    // better options
+    // set velocity and density to freestream values
   } else if (bcType == "subsonicInflow") {
     const auto & bcData = inputVars.BCData(tag);
 

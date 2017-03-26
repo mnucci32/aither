@@ -134,6 +134,10 @@ void viscousWall::Print(ostream &os) const {
   } else if (specifiedHeatFlux_) {
     os << "; heatFlux=" << this->HeatFlux();
   }
+  os << "; wallTreatment=" << wallTreatment_;
+  if (this->IsWallLaw()) {
+    os << "; vonKarmen=" << vonKarmen_ << "; wallConstant=" << wallConstant_;
+  }
   os << ")";
 }
 
@@ -530,6 +534,9 @@ viscousWall::viscousWall(string &str) {
   auto velocityCount = 0;
   auto temperatureCount = 0;
   auto heatFluxCount = 0;
+  auto wallTreatmentCount = 0;
+  auto vonKarmenCount = 0;
+  auto wallConstantCount = 0;
 
   for (auto &token : tokens) {
     auto param = Tokenize(token, "=");
@@ -549,6 +556,15 @@ viscousWall::viscousWall(string &str) {
       specifiedHeatFlux_ = true;
       heatFlux_ = stod(RemoveTrailing(param[1], ","));
       heatFluxCount++;
+    } else if (param[0] == "vonKarmen") {
+      vonKarmen_ = stod(RemoveTrailing(param[1], ","));
+      vonKarmenCount++;
+    } else if (param[0] == "wallConstant") {
+      wallConstant_ = stod(RemoveTrailing(param[1], ","));
+      wallConstantCount++;
+    } else if (param[0] == "wallTreatment") {
+      wallTreatment_ = RemoveTrailing(param[1], ",");
+      wallTreatmentCount++;
     } else if (param[0] == "tag") {
       this->SetTag(stoi(RemoveTrailing(param[1], ",")));
       tagCount++;
@@ -567,14 +583,22 @@ viscousWall::viscousWall(string &str) {
     exit(EXIT_FAILURE);
   }
   // optional variables
-  if (velocityCount > 1 || temperatureCount > 1 || heatFluxCount > 1) {
-    cerr << "ERROR. For viscousWall, velocity, heatFlux, and temperature can "
-         << "only be specified once." << endl;
+  if (velocityCount > 1 || temperatureCount > 1 || heatFluxCount > 1 ||
+      wallTreatmentCount > 1 || vonKarmenCount > 1 || wallConstantCount > 1) {
+    cerr << "ERROR. For viscousWall, velocity, heatFlux, temperature, "
+         << "wallTreatment, vonKarmen, and wallConstant can only be specified "
+         << "once." << endl;
     exit(EXIT_FAILURE);
   }
   if (specifiedHeatFlux_ && specifiedTemperature_) {
     cerr << "ERROR. For viscousWall can only specify temperature OR heatFlux."
          << endl;
+    exit(EXIT_FAILURE);
+  }
+  if (wallTreatment_ != "lowRe" && wallTreatment_ != "wallLaw") {
+    cerr << "ERROR. wallTreatment " << wallTreatment_ << " is not recognized!"
+         << endl;
+    cerr << "Choose lowRe or wallLaw" << endl;
     exit(EXIT_FAILURE);
   }
 }
