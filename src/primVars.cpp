@@ -446,10 +446,11 @@ primVars primVars::GetGhostState(const string &bcType,
     // so that tke at face will be zero
     if (inputVars.IsRANS()) {
       if (bcData->IsWallLaw()) {
-        wallLaw wl(bcData->VonKarmen(), bcData->WallConstant());
+        wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this,
+                   wallDist);
         auto kWall = 0.0, wWall = 0.0;
-        auto tauW = wl.WallShearStress(*this, normArea, eqnState, suth, turb,
-                                       wallDist, kWall, wWall);
+        auto tauW = wl.WallShearStress(normArea, eqnState, suth, turb,
+                                       bcData->HeatFlux(), kWall, wWall);
         ghostState.data_[5] = 2.0 * kWall - this->Tke();
         ghostState.data_[6] = 2.0 * wWall - this->Omega();
       } else {
