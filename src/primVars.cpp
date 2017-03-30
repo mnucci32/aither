@@ -413,59 +413,116 @@ primVars primVars::GetGhostState(const string &bcType,
                                        // should be 0.0, density and pressure
                                        // stay equal to the boundary cell
     const auto & bcData = inputVars.BCData(tag);
-
     const auto aRef = inputVars.ARef(eqnState);
 
     // ghost cell velocity at cell center is set to opposite of velocity at
     // boundary cell center so that velocity at face will be zero
-    const auto ghostVel = 2.0 * bcData->Velocity() / aRef - this->Velocity();
+    // only true for low-Re wall treatment
+    const auto velWall = bcData->Velocity() / aRef;
+    if (!bcData->IsWallLaw()) {
+      const auto ghostVel = 2.0 * velWall - this->Velocity();
+      ghostState.data_[1] = ghostVel.X();
+      ghostState.data_[2] = ghostVel.Y();
+      ghostState.data_[3] = ghostVel.Z();
+    }
 
-    ghostState.data_[1] = ghostVel.X();
-    ghostState.data_[2] = ghostVel.Y();
-    ghostState.data_[3] = ghostVel.Z();
+    if (bcData->IsIsothermal()) {  //-----------------------------------------
+      const auto tWall = bcData->Temperature() / inputVars.TRef();
+      // for wall law ghost velocity and turbulence variables calculated
+      // simultaneously
+      if (bcData->IsWallLaw()) {
+        wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
+                   inputVars.IsRANS());
+        auto kWall = 0.0, wWall = 0.0, qWall = 0.0, mutWall = 0.0;
+        auto gVel = wl.IsothermalBCs(normArea, velWall, eqnState, suth, turb,
+                                     tWall, qWall, kWall, wWall, mutWall);
+        ghostState.data_[1] = gVel.X();
+        ghostState.data_[2] = gVel.Y();
+        ghostState.data_[3] = gVel.Z();
 
-    if (bcData->IsIsothermal()) {
-      const auto tWall = 2.0 * (bcData->Temperature() / inputVars.TRef())
-          - this->Temperature(eqnState);
-      ghostState.data_[0] = eqnState.DensityTP(tWall, ghostState.P());
-    } else if (bcData->IsConstantHeatFlux()) {
-      // don't need turbulent contribution because eddy viscosity is 0 at wall
-      const auto mu = suth.EffectiveViscosity(this->Temperature(eqnState));
-      const auto kappa = eqnState.Conductivity(mu);
-      // 2x wall distance as gradient length
+        // use wall law heat flux to get ghost cell density
+        // need turbulent contribution because eddy viscosity is not 0 at wall
+        const auto mu = suth.EffectiveViscosity(tWall);
+        const auto kappa =
+            eqnState.Conductivity(mu) +
+            eqnState.TurbConductivity(mutWall, turb->TurbPrandtlNumber());
+        // 2x wall distance as gradient length
+        const auto tGhost = tWall - qWall / kappa * 2.0 * wallDist;
+        ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+
+        if (inputVars.IsRANS()) {
+          ghostState.data_[5] = 2.0 * kWall - this->Tke();
+          ghostState.data_[6] = 2.0 * wWall - this->Omega();
+        }
+      } else {  // low-Re wall treatment
+        const auto tGhost = 2.0 * tWall - this->Temperature(eqnState);
+        ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+      }
+    } else if (bcData->IsConstantHeatFlux()) {  //-----------------------------
       // must nondimensionalize heat flux
-      const auto tWall = this->Temperature(eqnState) -
-          (bcData->HeatFlux() * pow(aRef / inputVars.LRef(), 3.0)) /
-          kappa * 2.0 * wallDist;
-      ghostState.data_[0] = eqnState.DensityTP(tWall, ghostState.P());
-    }  // default is adiabatic
-    // numerical BCs for pressure, same as boundary state
+      const auto qWall = bcData->HeatFlux() * pow(aRef / inputVars.LRef(), 3.0);
+      if (bcData->IsWallLaw()) {
+        wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
+                   inputVars.IsRANS());
+        auto kWall = 0.0, wWall = 0.0, tWall = 0.0;
+        auto gVel = wl.HeatFluxBCs(normArea, velWall, eqnState, suth, turb,
+                                   qWall, tWall, kWall, wWall);
+        ghostState.data_[1] = gVel.X();
+        ghostState.data_[2] = gVel.Y();
+        ghostState.data_[3] = gVel.Z();
+
+        // use wall law wall temperature to get ghost cell density
+        const auto tGhost = 2.0 * tWall - this->Temperature(eqnState);
+        ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+
+        if (inputVars.IsRANS()) {
+          ghostState.data_[5] = 2.0 * kWall - this->Tke();
+          ghostState.data_[6] = 2.0 * wWall - this->Omega();
+        }
+      } else {  // low-Re wall treatment
+        // don't need turbulent contribution b/c eddy viscosity is 0 at wall
+        const auto mu = suth.EffectiveViscosity(this->Temperature(eqnState));
+        const auto kappa = eqnState.Conductivity(mu);
+        // 2x wall distance as gradient length
+        const auto tGhost =
+            this->Temperature(eqnState) - qWall / kappa * 2.0 * wallDist;
+        ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+        // numerical BCs for pressure, same as boundary state
+      }
+    } else {  // default is adiabatic -----------------------------------------
+      if (bcData->IsWallLaw()) {
+        wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
+                   inputVars.IsRANS());
+        auto kWall = 0.0, wWall = 0.0;
+        auto gVel = wl.AdiabaticBCs(normArea, velWall, eqnState, suth, turb,
+                                    kWall, wWall);
+        ghostState.data_[1] = gVel.X();
+        ghostState.data_[2] = gVel.Y();
+        ghostState.data_[3] = gVel.Z();
+
+        if (inputVars.IsRANS()) {
+          ghostState.data_[5] = 2.0 * kWall - this->Tke();
+          ghostState.data_[6] = 2.0 * wWall - this->Omega();
+        }
+      }
+      // numerical BCs for pressure, density - same as boundary state
+    }
 
     // turbulence bcs
-    // tke at cell center is set to opposite of tke at boundary cell center
-    // so that tke at face will be zero
-    if (inputVars.IsRANS()) {
-      if (bcData->IsWallLaw()) {
-        wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this,
-                   wallDist);
-        auto kWall = 0.0, wWall = 0.0;
-        auto tauW = wl.WallShearStress(normArea, eqnState, suth, turb,
-                                       bcData->HeatFlux(), kWall, wWall);
-        ghostState.data_[5] = 2.0 * kWall - this->Tke();
-        ghostState.data_[6] = 2.0 * wWall - this->Omega();
-      } else {
-        ghostState.data_[5] = -1.0 * this->Tke();
+    // for wall law, turbulence bcs are already calculated
+    if (inputVars.IsRANS() && !bcData->IsWallLaw()) {
+      // tke at cell center is set to opposite of tke at boundary cell center
+      // so that tke at face will be zero
+      ghostState.data_[5] = -1.0 * this->Tke();
 
-        const auto nuW =
-            suth.Viscosity(this->Temperature(eqnState)) / this->Rho();
-        const auto wWall = suth.NondimScaling() * suth.NondimScaling() * 60.0 *
-                           nuW / (wallDist * wallDist * turb->WallBeta());
+      const auto nuW =
+          suth.Viscosity(this->Temperature(eqnState)) / this->Rho();
+      const auto wWall = suth.NondimScaling() * suth.NondimScaling() * 60.0 *
+                         nuW / (wallDist * wallDist * turb->WallBeta());
+      ghostState.data_[6] = 2.0 * wWall - this->Omega();
 
-        ghostState.data_[6] = 2.0 * wWall - this->Omega();
-
-        if (layer > 1) {
-          ghostState.data_[6] = layer * ghostState.data_[6] - wWall;
-        }
+      if (layer > 1) {
+        ghostState.data_[6] = layer * ghostState.data_[6] - wWall;
       }
     }
 

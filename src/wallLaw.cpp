@@ -28,16 +28,18 @@ using std::endl;
 using std::cerr;
 
 // -------------------------------------------------------------------------
-vector3d<double> wallLaw::WallShearStress(const vector3d<double> &area,
-                                          const idealGas &eos,
-                                          const sutherland &suth,
-                                          const unique_ptr<turbModel> &turb,
-                                          const double &heatFluxW,
-                                          double &kWall, double &wWall) {
+vector3d<double> wallLaw::AdiabaticBCs(const vector3d<double> &area,
+                                       const vector3d<double> &velWall,
+                                       const idealGas &eos,
+                                       const sutherland &suth,
+                                       const unique_ptr<turbModel> &turb,
+                                       double &kWall, double &wWall) {
   // get tangential velocity
-  auto vel = state_.Velocity();
-  auto velTan = vel - vel.DotProd(area) * area;
-  auto velTanMag = velTan.Mag();
+  const auto vel = state_.Velocity() - velWall;
+  const auto velTan = vel - vel.DotProd(area) * area;
+  const auto velTanMag = velTan.Mag();
+
+  constexpr auto heatFluxW = 0.0;
 
   // get wall temperature from crocco-busemann equation
   this->CalcRecoveryFactor(eos);
@@ -66,20 +68,72 @@ vector3d<double> wallLaw::WallShearStress(const vector3d<double> &area,
   // calculate turbulent eddy viscosity from wall shear stress
   // use compressible form of equation (Nichols & Nelson 2004)
   // calculate turbulence variables from eddy viscosity
-  this->CalcTurbVars(turb, eos, suth, kWall, wWall);
+  if (isRANS_) {
+    this->CalcTurbVars(turb, eos, suth, kWall, wWall);
+  }
 
-  auto shearStressMag = this->ShearStressMag();
-  return shearStressMag * velTan / velTanMag;
+  return this->GhostVelocity(area);
 }
 
-vector3d<double> wallLaw::IsothermalWallShearStress(
-    const vector3d<double> &area, const idealGas &eos, const sutherland &suth,
-    const unique_ptr<turbModel> &turb, const double &tW, double &heatFluxW,
-    double &kWall, double &wWall) {
+vector3d<double> wallLaw::HeatFluxBCs(const vector3d<double> &area,
+                                      const vector3d<double> &velWall,
+                                      const idealGas &eos,
+                                      const sutherland &suth,
+                                      const unique_ptr<turbModel> &turb,
+                                      const double &heatFluxW, double &tWall,
+                                      double &kWall, double &wWall) {
   // get tangential velocity
-  auto vel = state_.Velocity();
-  auto velTan = vel - vel.DotProd(area) * area;
-  auto velTanMag = velTan.Mag();
+  const auto vel = state_.Velocity() - velWall;
+  const auto velTan = vel - vel.DotProd(area) * area;
+  const auto velTanMag = velTan.Mag();
+
+  // get wall temperature from crocco-busemann equation
+  this->CalcRecoveryFactor(eos);
+  
+  // set wall properties - guess wall temperature equals interior temperature
+  tWall = state_.Temperature(eos);
+  this->SetWallVars(tWall, eos, suth);
+
+  auto func = [&](const double &yplus) {
+    // calculate u* and u+ from y+
+    this->CalcVelocities(yplus, velTanMag);
+    // calculate wall temperature from croco-busemann
+    tWall = this->CalcWallTemperature(eos, heatFluxW);
+    this->SetWallVars(tWall, eos, suth);
+    this->UpdateGamma(eos);
+    this->UpdateConstants(heatFluxW);
+    // calculate y+ from White & Christoph
+    this->CalcYplusWhite();
+    // calculate root of y+ equation
+    return this->CalcYplusRoot(yplus);
+  };
+  
+  // iteratively solve for y+
+  FindRoot(func, 1.0e-5, 1.0e5, 1.0e-8);
+    
+  // calculate turbulent eddy viscosity from wall shear stress
+  // use compressible form of equation (Nichols & Nelson 2004)
+  // calculate turbulence variables from eddy viscosity
+  if (isRANS_) {
+    this->CalcTurbVars(turb, eos, suth, kWall, wWall);
+  }
+
+  return this->GhostVelocity(area);
+}
+
+
+vector3d<double> wallLaw::IsothermalBCs(const vector3d<double> &area,
+                                        const vector3d<double> &velWall,
+                                        const idealGas &eos,
+                                        const sutherland &suth,
+                                        const unique_ptr<turbModel> &turb,
+                                        const double &tW, double &heatFluxW,
+                                        double &kWall, double &wWall,
+                                        double &mutWall) {
+  // get tangential velocity
+  const auto vel = state_.Velocity() - velWall;
+  const auto velTan = vel - vel.DotProd(area) * area;
+  const auto velTanMag = velTan.Mag();
 
   // get wall properties
   this->CalcRecoveryFactor(eos);
@@ -105,10 +159,23 @@ vector3d<double> wallLaw::IsothermalWallShearStress(
   // calculate turbulent eddy viscosity from yplus
   // use compressible form of equation (Nichols & Nelson 2004)
   // calculate turbulence variables from eddy viscosity
-  this->CalcTurbVars(turb, eos, suth, kWall, wWall);
+  if (isRANS_) {
+    this->CalcTurbVars(turb, eos, suth, kWall, wWall);
+    mutWall = mutW_;
+  }
 
-  auto shearStressMag = this->ShearStressMag();
-  return shearStressMag * velTan / velTanMag;
+  return this->GhostVelocity(area);
+}
+
+vector3d<double> wallLaw::GhostVelocity(const vector3d<double> &area) const {
+  const auto shearStressMag = this->ShearStressMag();
+  const auto velInt = state_.Velocity();
+  const auto velIntNormal = velInt.DotProd(area) * area;
+  const auto velIntTan = velInt - velIntNormal;
+  // use 2x wall distance as gradient length
+  const auto velGhostTan =
+      shearStressMag / (muW_ + mutW_) * 2.0 * wallDist_ + velIntTan;
+  return velGhostTan - velIntNormal;
 }
 
 void wallLaw::UpdateGamma(const idealGas &eos) {
@@ -137,6 +204,14 @@ double wallLaw::CalcHeatFlux(const idealGas &eos) const {
   return tmp * (rhoW_ * tW_ * kW_ * uStar_) / muW_;
 }
 
+double wallLaw::CalcWallTemperature(const idealGas &eos,
+                                    const double &heatFluxW) const {
+  return state_.Temperature(eos) +
+         recoveryFactor_ * uStar_ * uStar_ * uplus_ * uplus_ /
+             (2.0 * eos.SpecificHeat() +
+              heatFluxW * muW_ / (rhoW_ * kW_ * uStar_));
+}
+
 void wallLaw::SetWallVars(const double &tW, const idealGas &eos,
                           const sutherland &suth) {
   tW_ = tW;
@@ -149,22 +224,21 @@ void wallLaw::SetWallVars(const double &tW, const idealGas &eos,
 
 double wallLaw::CalcYplusRoot(const double &yplus) const {
   constexpr auto sixth = 1.0 / 6.0;
-  auto ku = vonKarmen_ * uplus_;
+  const auto ku = vonKarmen_ * uplus_;
   return yplus - (uplus_ + yplusWhite_ -
                   yplus0_ * (1.0 + ku + 0.5 * ku * ku + sixth * pow(ku, 3.0)));
 }
 
-double wallLaw::EddyVisc(const idealGas &eos, const sutherland &suth) const {
-  auto dYplusWhite =
+void wallLaw::EddyVisc(const idealGas &eos, const sutherland &suth) {
+  const auto dYplusWhite =
       2.0 * yplusWhite_ * vonKarmen_ * sqrt(gamma_) / q_ *
       sqrt(std::max(1.0 - pow(2.0 * gamma_ * uplus_ - beta_, 2.0) / (q_ * q_),
                     0.0));
-  auto ku = vonKarmen_ * uplus_;
-  auto mutW = muW_ * (1.0 + dYplusWhite -
-                      vonKarmen_ * yplus0_ * (1.0 + ku + 0.5 * ku * ku)) -
-              suth.EffectiveViscosity(state_.Temperature(eos));
-  mutW = std::max(mutW, 0.0);
-  return mutW;
+  const auto ku = vonKarmen_ * uplus_;
+  mutW_ = muW_ * (1.0 + dYplusWhite -
+                  vonKarmen_ * yplus0_ * (1.0 + ku + 0.5 * ku * ku)) -
+          suth.EffectiveViscosity(state_.Temperature(eos));
+  mutW_ = std::max(mutW_, 0.0);
 }
 
 void wallLaw::CalcVelocities(const double &yplus, const double &u) {
@@ -175,16 +249,16 @@ void wallLaw::CalcVelocities(const double &yplus, const double &u) {
 
 void wallLaw::CalcTurbVars(const unique_ptr<turbModel> &turb,
                            const idealGas &eos, const sutherland &suth,
-                           double &kWall, double &wWall) const {
-  auto mutW = this->EddyVisc(eos, suth);
+                           double &kWall, double &wWall) {
+  this->EddyVisc(eos, suth);
   // calculate turbulence variables from eddy viscosity
   // DEBUG -- check nondimensionalization
   auto wi = 6.0 * muW_ / (turb->WallBeta() * rhoW_ * wallDist_ * wallDist_);
-  wi *= suth.NondimScaling() * suth.NondimScaling();
+  wi *= suth.NondimScaling();
   auto wo = uStar_ / (sqrt(turb->BetaStar()) * vonKarmen_ * wallDist_);
   wo *= suth.NondimScaling();
   wWall = sqrt(wi * wi + wo * wo);
-  kWall = wWall * mutW / state_.Rho();
+  kWall = wWall * mutW_ / state_.Rho();
 }
 
 void wallLaw::CalcRecoveryFactor(const idealGas &eos) {

@@ -32,6 +32,7 @@ class sutherland;
 class turbModel;
 
 class wallLaw {
+  const bool isRANS_;
   const double vonKarmen_;
   const double wallConst_;
   const double wallDist_;
@@ -48,6 +49,7 @@ class wallLaw {
   double tW_;
   double rhoW_;
   double muW_;
+  double mutW_;
   double kW_;
   double recoveryFactor_;
 
@@ -57,18 +59,22 @@ class wallLaw {
   void CalcYplusWhite();
   double CalcHeatFlux(const idealGas &) const;
   void SetWallVars(const double &, const idealGas &, const sutherland &);
-  double EddyVisc(const idealGas &, const sutherland &) const;
+  void EddyVisc(const idealGas &, const sutherland &);
   void CalcVelocities(const double &, const double &);
   void CalcTurbVars(const unique_ptr<turbModel> &, const idealGas &,
-                    const sutherland &, double &, double &) const;
+                    const sutherland &, double &, double &);
   double CalcYplusRoot(const double &) const;
   double ShearStressMag() const {return uStar_ * uStar_ * rhoW_;};
   void CalcRecoveryFactor(const idealGas &);
+  vector3d<double> GhostVelocity(const vector3d<double> &) const;
+  double CalcWallTemperature(const idealGas &, const double &) const;
 
  public:
   // constructor
-  wallLaw(const double &k, const double &c, const primVars &s, const double &d)
-      : vonKarmen_(k),
+  wallLaw(const double &k, const double &c, const primVars &s, const double &d,
+          const bool &isRANS)
+      : isRANS_(isRANS),
+        vonKarmen_(k),
         wallConst_(c),
         wallDist_(d),
         state_(s),
@@ -83,9 +89,10 @@ class wallLaw {
         tW_(0.0),
         rhoW_(0.0),
         muW_(0.0),
+        mutW_(0.0),
         kW_(0.0),
         recoveryFactor_(0.0) {}
-  
+
   // move constructor and assignment operator
   wallLaw(wallLaw&&) = default;
   wallLaw& operator=(wallLaw&&) = default;
@@ -97,16 +104,21 @@ class wallLaw {
   // member functions
   double VonKarmen() const { return vonKarmen_; }
   double WallConstant() const { return wallConst_; }
-  vector3d<double> WallShearStress(const vector3d<double> &, const idealGas &,
-                                   const sutherland &,
-                                   const unique_ptr<turbModel> &,
-                                   const double &, double &, double &);
-  vector3d<double> IsothermalWallShearStress(const vector3d<double> &,
-                                             const idealGas &,
-                                             const sutherland &,
-                                             const unique_ptr<turbModel> &,
-                                             const double &, double &, double &,
-                                             double &);
+  vector3d<double> AdiabaticBCs(const vector3d<double> &,
+                                const vector3d<double> &, const idealGas &,
+                                const sutherland &,
+                                const unique_ptr<turbModel> &, double &,
+                                double &);
+  vector3d<double> HeatFluxBCs(const vector3d<double> &,
+                               const vector3d<double> &, const idealGas &,
+                               const sutherland &,
+                               const unique_ptr<turbModel> &, const double &,
+                               double &, double &, double &);
+  vector3d<double> IsothermalBCs(const vector3d<double> &,
+                                 const vector3d<double> &, const idealGas &,
+                                 const sutherland &,
+                                 const unique_ptr<turbModel> &, const double &,
+                                 double &, double &, double &, double &);
 
   // destructor
   ~wallLaw() noexcept {}
