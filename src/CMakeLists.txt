@@ -49,6 +49,7 @@ set(sources
   uncoupledScalar.cpp
   utility.cpp
   viscousFlux.cpp
+  wallData.cpp
   wallLaw.cpp
   )
 
