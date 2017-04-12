@@ -436,9 +436,7 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                       blk.CellWidthI(ii, jj, kk)};
                   muw = FaceReconCentral(blk.Viscosity(ii - 1, jj, kk),
                                          blk.Viscosity(ii, jj, kk), cellWidth);
-                  mutw = FaceReconCentral(blk.EddyViscosity(ii - 1, jj, kk),
-                                          blk.EddyViscosity(ii, jj, kk),
-                                          cellWidth);
+                  mutw = blk.EddyViscosity(ii, jj, kk);
                   statew = FaceReconCentral(blk.State(ii - 1, jj, kk),
                                             blk.State(ii, jj, kk), cellWidth);
                   tw = FaceReconCentral(blk.Temperature(ii - 1, jj, kk),
@@ -452,9 +450,7 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                   muw = FaceReconCentral(blk.Viscosity(ii, jj, kk),
                                          blk.Viscosity(ii + 1, jj, kk),
                                          cellWidth);
-                  mutw = FaceReconCentral(blk.EddyViscosity(ii, jj, kk),
-                                          blk.EddyViscosity(ii + 1, jj, kk),
-                                          cellWidth);
+                  mutw = blk.EddyViscosity(ii, jj, kk);
                   statew =
                       FaceReconCentral(blk.State(ii, jj, kk),
                                        blk.State(ii + 1, jj, kk), cellWidth);
@@ -469,9 +465,7 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                       blk.CellWidthJ(ii, jj, kk)};
                   muw = FaceReconCentral(blk.Viscosity(ii, jj - 1, kk),
                                          blk.Viscosity(ii, jj, kk), cellWidth);
-                  mutw = FaceReconCentral(blk.EddyViscosity(ii, jj - 1, kk),
-                                          blk.EddyViscosity(ii, jj, kk),
-                                          cellWidth);
+                  mutw = blk.EddyViscosity(ii, jj, kk);
                   statew = FaceReconCentral(blk.State(ii, jj - 1, kk),
                                             blk.State(ii, jj, kk), cellWidth);
                 } else if (surf.SurfaceType() == 4) {  // ju surface ----------
@@ -483,9 +477,7 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                   muw = FaceReconCentral(blk.Viscosity(ii, jj, kk),
                                          blk.Viscosity(ii, jj + 1, kk),
                                          cellWidth);
-                  mutw = FaceReconCentral(blk.EddyViscosity(ii, jj, kk),
-                                          blk.EddyViscosity(ii, jj + 1, kk),
-                                          cellWidth);
+                  mutw = blk.EddyViscosity(ii, jj, kk);
                   statew =
                       FaceReconCentral(blk.State(ii, jj, kk),
                                        blk.State(ii, jj + 1, kk), cellWidth);
@@ -500,9 +492,7 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                       blk.CellWidthK(ii, jj, kk)};
                   muw = FaceReconCentral(blk.Viscosity(ii, jj, kk - 1),
                                          blk.Viscosity(ii, jj, kk), cellWidth);
-                  mutw = FaceReconCentral(blk.EddyViscosity(ii, jj, kk - 1),
-                                          blk.EddyViscosity(ii, jj, kk),
-                                          cellWidth);
+                  mutw = blk.EddyViscosity(ii, jj, kk);
                   statew = FaceReconCentral(blk.State(ii, jj, kk - 1),
                                             blk.State(ii, jj, kk), cellWidth);
                   tw = FaceReconCentral(blk.Temperature(ii, jj, kk - 1),
@@ -516,9 +506,7 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                   muw = FaceReconCentral(blk.Viscosity(ii, jj, kk),
                                          blk.Viscosity(ii, jj, kk + 1),
                                          cellWidth);
-                  mutw = FaceReconCentral(blk.EddyViscosity(ii, jj, kk),
-                                          blk.EddyViscosity(ii, jj, kk + 1),
-                                          cellWidth);
+                  mutw = blk.EddyViscosity(ii, jj, kk);
                   statew =
                       FaceReconCentral(blk.State(ii, jj, kk),
                                        blk.State(ii, jj, kk + 1), cellWidth);
@@ -532,17 +520,39 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                 if (var == "yplus") {
                   muw *= suth.NondimScaling();
                   mutw *= suth.NondimScaling();
+                  mutw += blk.State(ii, jj, kk - 1).Rho() *
+                          blk.State(ii, jj, kk - 1).Tke() /
+                          (blk.State(ii, jj, kk - 1).Omega() + 1.0e-30) *
+                          suth.NondimScaling();
+                  mutw *= 0.5;
+                  // cout << "mu, mut: " << muw << " " << mutw << endl;
+                  // mutw = 0.0;
                   auto tauw = TauShear(velGrad, area, muw, mutw, suth);
                   value = blk.WallDist(ii, jj, kk) *
                           sqrt(statew.Rho() * tauw.Mag()) / muw;
                 } else if (var == "shearStress") {
+                  mutw += blk.State(ii, jj, kk - 1).Rho() *
+                         blk.State(ii, jj, kk - 1).Tke() /
+                         (blk.State(ii, jj, kk - 1).Omega() + 1.0e-30);
+                  mutw *= 0.5;
+                  // mutw = 0.0;
                   auto tauw = TauShear(velGrad, area, muw, mutw, suth);
                   value = tauw.Mag();
                   value *= suth.MuRef() * refSoS / inp.LRef();
+                } else if (var == "viscosityRatio") {
+                  cout << "mut: " << mutw << " ";
+                  mutw += blk.State(ii, jj, kk - 1).Rho() *
+                          blk.State(ii, jj, kk - 1).Tke() /
+                          (blk.State(ii, jj, kk - 1).Omega() + 1.0e-30);
+                  mutw *= 0.5;
+                  cout << mutw << " " << blk.State(ii, jj, kk - 1).Tke() << " "
+                       << blk.State(ii, jj, kk).Tke() << " " << statew.Tke() 
+                       << endl;
+                  value = mutw / muw;
                 } else if (var == "heatFlux") {
                   auto k = eqnState.Conductivity(muw);
-                  auto kt =
-                      eqnState.TurbConductivity(mutw, turb->TurbPrandtlNumber());
+                  auto kt = eqnState.TurbConductivity(
+                      mutw, turb->TurbPrandtlNumber());
                   value = (k + kt) * tGrad.DotProd(area);
                   value *= suth.MuRef() * inp.TRef() / inp.LRef();
                 } else if (var == "frictionVelocity") {
@@ -563,6 +573,21 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                 } else if (var == "viscosity") {
                   value = muw;
                   value *= suth.MuRef();
+                } else if (var == "tke") {
+                  value = statew.Tke();
+                  value *= refSoS * refSoS;
+                } else if (var == "sdr") {
+                  value = statew.Omega();
+                  value *= refSoS * refSoS * inp.RRef() / suth.MuRef();
+                } else if (var == "vel_x") {
+                  value = statew.U();
+                  value *= refSoS;
+                } else if (var == "vel_y") {
+                  value = statew.V();
+                  value *= refSoS;
+                } else if (var == "vel_z") {
+                  value = statew.W();
+                  value *= refSoS;
                 } else {
                   cerr << "ERROR: Variable " << var
                        << " to write to wall function file is not defined!"

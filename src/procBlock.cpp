@@ -33,6 +33,8 @@
 #include "fluxJacobian.hpp"
 #include "kdtree.hpp"
 #include "utility.hpp"
+// DEBUG
+#include "wallLaw.hpp"
 
 using std::cout;
 using std::endl;
@@ -1850,7 +1852,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
         auto mut = 0.0;
         if (isTurbulent_) {
           // calculate length scale
-          const auto lengthScale = 0.5 * (cellWidthI_(ii - 1, jj, kk),
+          const auto lengthScale = 0.5 * (cellWidthI_(ii - 1, jj, kk) +
                                           cellWidthI_(ii, jj, kk));
           turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
                                     wDist, suth, lengthScale, mut, f1, f2);
@@ -2103,7 +2105,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
         auto mut = 0.0;
         if (isTurbulent_) {
           // calculate length scale
-          const auto lengthScale = 0.5 * (cellWidthJ_(ii, jj - 1, kk),
+          const auto lengthScale = 0.5 * (cellWidthJ_(ii, jj - 1, kk) +
                                           cellWidthJ_(ii, jj, kk));
           turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
                                     wDist, suth, lengthScale, mut, f1, f2);
@@ -2357,7 +2359,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
         auto mut = 0.0;
         if (isTurbulent_) {
           // calculate length scale
-          const auto lengthScale = 0.5 * (cellWidthK_(ii, jj, kk - 1),
+          const auto lengthScale = 0.5 * (cellWidthK_(ii, jj, kk - 1) +
                                           cellWidthK_(ii, jj, kk));
           turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
                                     wDist, suth, lengthScale, mut, f1, f2);

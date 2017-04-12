@@ -712,7 +712,7 @@ vector3d<double> TauNormal(const tensor<double> &velGrad,
 
   // wall shear stress
   return lambda * velGrad.Trace() * area + (mu + mut) *
-      (velGrad.MatMult(area) + velGrad.Transpose().MatMult(area));
+      (velGrad + velGrad.Transpose()).MatMult(area);
 }
 
 vector3d<double> TauShear(const tensor<double> &velGrad,

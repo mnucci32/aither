@@ -52,6 +52,7 @@ class wallLaw {
   double mutW_;
   double kW_;
   double recoveryFactor_;
+  double yplus_;
 
   // private member functions
   void UpdateConstants(const double &);
@@ -91,7 +92,8 @@ class wallLaw {
         muW_(0.0),
         mutW_(0.0),
         kW_(0.0),
-        recoveryFactor_(0.0) {}
+        recoveryFactor_(0.0),
+        yplus_(0.0) {}
 
   // move constructor and assignment operator
   wallLaw(wallLaw&&) = default;
@@ -108,7 +110,7 @@ class wallLaw {
                                 const vector3d<double> &, const idealGas &,
                                 const sutherland &,
                                 const unique_ptr<turbModel> &, double &,
-                                double &);
+                                double &, double &);
   vector3d<double> HeatFluxBCs(const vector3d<double> &,
                                const vector3d<double> &, const idealGas &,
                                const sutherland &,

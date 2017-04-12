@@ -33,7 +33,7 @@ vector3d<double> wallLaw::AdiabaticBCs(const vector3d<double> &area,
                                        const idealGas &eos,
                                        const sutherland &suth,
                                        const unique_ptr<turbModel> &turb,
-                                       double &kWall, double &wWall) {
+                                       double &kWall, double &wWall, double &rWall) {
   // get tangential velocity
   const auto vel = state_.Velocity() - velWall;
   const auto velTan = vel - vel.DotProd(area) * area;
@@ -43,12 +43,15 @@ vector3d<double> wallLaw::AdiabaticBCs(const vector3d<double> &area,
 
   // get wall temperature from crocco-busemann equation
   this->CalcRecoveryFactor(eos);
-  auto tW =
-      state_.Temperature(eos) /
-      (1.0 +
-       0.5 * (eos.Gamma() - 1.0) * recoveryFactor_ * velTanMag * velTanMag);
+  // this is correct form of crocco-busemann, typo in Nichols & Nelson (2004)
+  auto tW = state_.Temperature(eos) +
+            0.5 * recoveryFactor_ * velTanMag * velTanMag / eos.SpecificHeat();
   // set wall properties
   this->SetWallVars(tW, eos, suth);
+
+  auto print = true;
+  auto aRef = sqrt(eos.Gamma() * eos.GasConst() * 288.);
+  auto rRef = 1.2256;
 
   auto func = [&](const double &yplus) {
     // calculate u* and u+ from y+
@@ -58,13 +61,27 @@ vector3d<double> wallLaw::AdiabaticBCs(const vector3d<double> &area,
     this->UpdateConstants(heatFluxW);
     // calculate y+ from White & Christoph
     this->CalcYplusWhite();
+
+
+    if (print) {
+      cout << "gamma, u+, u, rho, y, mu, t, r: " << gamma_ << " "
+           << uplus_ << " " << velTanMag * aRef << " "
+           << rhoW_ * rRef << " " << wallDist_ << " " 
+           << muW_ * suth.MuRef() * suth.InvNondimScaling() << " "
+           << tW_ * 288. << " " << recoveryFactor_ << endl;
+      print = false;
+    }
+
+
+
     // calculate root of y+ equation
+    yplus_ = yplus;
     return this->CalcYplusRoot(yplus);
   };
-  
+
   // iteratively solve for y+
-  FindRoot(func, 1.0e-5, 1.0e5, 1.0e-8);
-    
+  FindRoot(func, 1.0e1, 1.0e4, 1.0e-8);
+
   // calculate turbulent eddy viscosity from wall shear stress
   // use compressible form of equation (Nichols & Nelson 2004)
   // calculate turbulence variables from eddy viscosity
@@ -72,6 +89,7 @@ vector3d<double> wallLaw::AdiabaticBCs(const vector3d<double> &area,
     this->CalcTurbVars(turb, eos, suth, kWall, wWall);
   }
 
+  rWall = rhoW_;
   return this->GhostVelocity(area);
 }
 
@@ -152,7 +170,7 @@ vector3d<double> wallLaw::IsothermalBCs(const vector3d<double> &area,
     // calculate root of y+ equation
     return this->CalcYplusRoot(yplus);
   };
-  
+
   // iteratively solve for y+
   FindRoot(func, 1.0e-5, 1.0e5, 1.0e-8);
   
@@ -172,9 +190,10 @@ vector3d<double> wallLaw::GhostVelocity(const vector3d<double> &area) const {
   const auto velInt = state_.Velocity();
   const auto velIntNormal = velInt.DotProd(area) * area;
   const auto velIntTan = velInt - velIntNormal;
+  const auto tanDir = velIntTan.Normalize();
   // use 2x wall distance as gradient length
   const auto velGhostTan =
-      shearStressMag / (muW_ + mutW_) * 2.0 * wallDist_ + velIntTan;
+      velIntTan - (shearStressMag / (muW_ + mutW_) * 2.0 * wallDist_) * tanDir;
   return velGhostTan - velIntNormal;
 }
 
@@ -243,8 +262,8 @@ void wallLaw::EddyVisc(const idealGas &eos, const sutherland &suth) {
 
 void wallLaw::CalcVelocities(const double &yplus, const double &u) {
   // calculate u* and u+ from y+
-  uStar_ = yplus * muW_ / (rhoW_ * wallDist_);
-  uplus_ = u / uStar_;
+  uplus_ = (wallDist_ * rhoW_ * u) / (muW_ * yplus);
+  uStar_ = u / uplus_;
 }
 
 void wallLaw::CalcTurbVars(const unique_ptr<turbModel> &turb,
@@ -252,13 +271,12 @@ void wallLaw::CalcTurbVars(const unique_ptr<turbModel> &turb,
                            double &kWall, double &wWall) {
   this->EddyVisc(eos, suth);
   // calculate turbulence variables from eddy viscosity
-  // DEBUG -- check nondimensionalization
   auto wi = 6.0 * muW_ / (turb->WallBeta() * rhoW_ * wallDist_ * wallDist_);
   wi *= suth.NondimScaling();
   auto wo = uStar_ / (sqrt(turb->BetaStar()) * vonKarmen_ * wallDist_);
   wo *= suth.NondimScaling();
   wWall = sqrt(wi * wi + wo * wo);
-  kWall = wWall * mutW_ / state_.Rho();
+  kWall = wWall * mutW_ / state_.Rho() * suth.InvNondimScaling();
 }
 
 void wallLaw::CalcRecoveryFactor(const idealGas &eos) {

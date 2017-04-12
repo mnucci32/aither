@@ -419,12 +419,10 @@ primVars primVars::GetGhostState(const string &bcType,
     // boundary cell center so that velocity at face will be zero
     // only true for low-Re wall treatment
     const auto velWall = bcData->Velocity() / aRef;
-    if (!bcData->IsWallLaw()) {
-      const auto ghostVel = 2.0 * velWall - this->Velocity();
-      ghostState.data_[1] = ghostVel.X();
-      ghostState.data_[2] = ghostVel.Y();
-      ghostState.data_[3] = ghostVel.Z();
-    }
+    const auto ghostVel = 2.0 * velWall - this->Velocity();
+    ghostState.data_[1] = ghostVel.X();
+    ghostState.data_[2] = ghostVel.Y();
+    ghostState.data_[3] = ghostVel.Z();
 
     if (bcData->IsIsothermal()) {  //-----------------------------------------
       const auto tWall = bcData->Temperature() / inputVars.TRef();
@@ -436,9 +434,9 @@ primVars primVars::GetGhostState(const string &bcType,
         auto kWall = 0.0, wWall = 0.0, qWall = 0.0, mutWall = 0.0;
         auto gVel = wl.IsothermalBCs(normArea, velWall, eqnState, suth, turb,
                                      tWall, qWall, kWall, wWall, mutWall);
-        ghostState.data_[1] = gVel.X();
-        ghostState.data_[2] = gVel.Y();
-        ghostState.data_[3] = gVel.Z();
+        // ghostState.data_[1] = gVel.X();
+        // ghostState.data_[2] = gVel.Y();
+        // ghostState.data_[3] = gVel.Z();
 
         // use wall law heat flux to get ghost cell density
         // need turbulent contribution because eddy viscosity is not 0 at wall
@@ -467,9 +465,9 @@ primVars primVars::GetGhostState(const string &bcType,
         auto kWall = 0.0, wWall = 0.0, tWall = 0.0;
         auto gVel = wl.HeatFluxBCs(normArea, velWall, eqnState, suth, turb,
                                    qWall, tWall, kWall, wWall);
-        ghostState.data_[1] = gVel.X();
-        ghostState.data_[2] = gVel.Y();
-        ghostState.data_[3] = gVel.Z();
+        // ghostState.data_[1] = gVel.X();
+        // ghostState.data_[2] = gVel.Y();
+        // ghostState.data_[3] = gVel.Z();
 
         // use wall law wall temperature to get ghost cell density
         const auto tGhost = 2.0 * tWall - this->Temperature(eqnState);
@@ -493,12 +491,14 @@ primVars primVars::GetGhostState(const string &bcType,
       if (bcData->IsWallLaw()) {
         wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
                    inputVars.IsRANS());
-        auto kWall = 0.0, wWall = 0.0;
+        auto kWall = 0.0, wWall = 0.0, rhoWall = 0.0;
         auto gVel = wl.AdiabaticBCs(normArea, velWall, eqnState, suth, turb,
-                                    kWall, wWall);
-        ghostState.data_[1] = gVel.X();
-        ghostState.data_[2] = gVel.Y();
-        ghostState.data_[3] = gVel.Z();
+                                    kWall, wWall, rhoWall);
+        // ghostState.data_[1] = gVel.X();
+        // ghostState.data_[2] = gVel.Y();
+        // ghostState.data_[3] = gVel.Z();
+
+        // ghostState.data_[0] = 2.0 * rhoWall - this->Rho();
 
         if (inputVars.IsRANS()) {
           ghostState.data_[5] = 2.0 * kWall - this->Tke();
@@ -901,10 +901,9 @@ multiArray3d<primVars> GetGhostStates(
   // layer -- layer of ghost cell to return
   //          (1 closest to boundary, or 2 farthest)
 
-  multiArray3d<primVars> ghostStates(bndStates.NumINoGhosts(),
-                                     bndStates.NumJNoGhosts(),
-                                     bndStates.NumKNoGhosts(),
-                                     bndStates.GhostLayers());
+  multiArray3d<primVars> ghostStates(
+      bndStates.NumINoGhosts(), bndStates.NumJNoGhosts(),
+      bndStates.NumKNoGhosts(), bndStates.GhostLayers());
   for (auto kk = bndStates.StartK(); kk < bndStates.EndK(); kk++) {
     for (auto jj = bndStates.StartJ(); jj < bndStates.EndJ(); jj++) {
       for (auto ii = bndStates.StartI(); ii < bndStates.EndI(); ii++) {
