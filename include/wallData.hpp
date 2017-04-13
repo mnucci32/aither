@@ -21,7 +21,9 @@
 */
 
 #include <vector>
+#include "multiArray3d.hpp"
 #include "inputStates.hpp"
+#include "boundaryConditions.hpp"
 #include "range.hpp"
 
 using std::vector;
@@ -30,30 +32,18 @@ class wallData {
   double inviscidForce_;
   double viscousForce_;
   viscousWall bcData_;
-  range i_;
-  range j_;
-  range k_;
+  boundarySurface surf_;
   struct wallVars;  // forward declaration
-  vector<wallVars> data_;
-
-  // private member functions
-  int GetLoc1D(const int &ii, const int &jj, const int &kk) const {
-    return (ii - i_.Start()) +
-           (jj - j_.Start()) * i_.Size() +
-           (kk - k_.Start()) * i_.Size() * j_.Size();
-  }
+  multiArray3d<wallVars> data_;
 
  public:
   // constructor
-  wallData(const range &ii, const range &jj, const range &kk,
-           const viscousWall &bc)
+  wallData(const boundarySurface &surf, const viscousWall &bc)
       : inviscidForce_(0.0),
         viscousForce_(0.0),
         bcData_(bc),
-        i_(ii),
-        j_(jj),
-        k_(kk),
-        data_(ii.Size() * jj.Size() * kk.Size()) {}
+        surf_(surf),
+        data_(surf.NumI(), surf.NumJ(), surf.NumK(), 0) {}
 
   // move constructor and assignment operator
   wallData(wallData &&) = default;
@@ -79,11 +69,11 @@ class wallData {
 
   // operator overloads
   wallVars &operator()(const int &ii, const int &jj, const int &kk) {
-    return data_[this->GetLoc1D(ii, jj, kk)];
+    return data_(ii - surf_.IMin(), jj - surf_.JMin(), kk - surf_.KMin());
    }
    const wallVars &operator()(const int &ii, const int &jj,
                               const int &kk) const {
-     return data_[this->GetLoc1D(ii, jj, kk)];
+     return data_(ii - surf_.IMin(), jj - surf_.JMin(), kk - surf_.KMin());
    }
 
    // destructor

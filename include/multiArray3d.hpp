@@ -64,7 +64,7 @@ class multiArray3d {
       data_((ii + 2 * ng) * (jj + 2 * ng) * (kk + 2 * ng)),
       numI_(ii + 2 * ng), numJ_(jj + 2 * ng), numK_(kk + 2 * ng),
       numGhosts_(ng) {}
-  multiArray3d() : multiArray3d(1, 1, 1, 0) {}
+  multiArray3d() : multiArray3d(0, 0, 0, 0) {}
 
   // move constructor and assignment operator
   multiArray3d(multiArray3d&&) noexcept = default;

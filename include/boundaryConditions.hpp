@@ -88,7 +88,7 @@ class boundarySurface {
   int Max2() const;
   int Min1() const;
   int Min2() const;
-  int NumFaces() const;
+  int NumFaces() const {return this->NumI() * this->NumJ() * this->NumK();}
 
   int NumI() const {return this->RangeI().Size();}
   int NumJ() const {return this->RangeJ().Size();}

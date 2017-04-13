@@ -2529,20 +2529,6 @@ int boundarySurface::Min2() const {
   return m;
 }
 
-// member function to return the number of faces this boundary surface is
-// applied to
-int boundarySurface::NumFaces() const {
-  auto nFaces = 0;
-  if (this->SurfaceType() <= 2) {  // i-surface
-    nFaces = (this->JMax() - this->JMin()) * (this->KMax() - this->KMin());
-  } else if (this->SurfaceType() <= 4) {  // j-surface
-    nFaces = (this->IMax() - this->IMin()) * (this->KMax() - this->KMin());
-  } else {  // k-surface
-    nFaces = (this->IMax() - this->IMin()) * (this->JMax() - this->JMin());
-  }
-  return nFaces;
-}
-
 range boundarySurface::RangeI() const {
   return (data_[0] == data_[1]) ? data_[0] : range{data_[0], data_[1]};
 }
