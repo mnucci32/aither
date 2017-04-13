@@ -775,25 +775,25 @@ auto FindBCPosition(const string &str, const vector<string> &names,
   return pos;
 }
 
-void AddBCToList(const string &type, vector<unique_ptr<inputState>> &bcList,
+void AddBCToList(const string &type, vector<shared_ptr<inputState>> &bcList,
                  string &list) {
-  unique_ptr<inputState> bc(nullptr);
+  shared_ptr<inputState> bc(nullptr);
   if (type == "characteristic") {
-    bc = unique_ptr<inputState>{std::make_unique<characteristic>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<characteristic>(list)};
   } else if (type == "stagnationInlet") {
-    bc = unique_ptr<inputState>{std::make_unique<stagnationInlet>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<stagnationInlet>(list)};
   } else if (type == "pressureOutlet") {
-    bc = unique_ptr<inputState>{std::make_unique<pressureOutlet>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<pressureOutlet>(list)};
   } else if (type == "subsonicInflow") {
-    bc = unique_ptr<inputState>{std::make_unique<subsonicInflow>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<subsonicInflow>(list)};
   } else if (type == "subsonicOutflow") {
-    bc = unique_ptr<inputState>{std::make_unique<subsonicOutflow>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<subsonicOutflow>(list)};
   } else if (type == "supersonicInflow") {
-    bc = unique_ptr<inputState>{std::make_unique<supersonicInflow>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<supersonicInflow>(list)};
   } else if (type == "viscousWall") {
-    bc = unique_ptr<inputState>{std::make_unique<viscousWall>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<viscousWall>(list)};
   } else if (type == "periodic") {
-    bc = unique_ptr<inputState>{std::make_unique<periodic>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<periodic>(list)};
   } else {
     cerr << "ERROR. BC state " << type << " is not recognized!" << endl;
     exit(EXIT_FAILURE);
@@ -811,8 +811,8 @@ void AddBCToList(const string &type, vector<unique_ptr<inputState>> &bcList,
 }
 
 // function to read boundary condition list from string
-vector<unique_ptr<inputState>> ReadBCList(ifstream &inFile, string &str) {
-  vector<unique_ptr<inputState>> bcList;
+vector<shared_ptr<inputState>> ReadBCList(ifstream &inFile, string &str) {
+  vector<shared_ptr<inputState>> bcList;
   vector<string> bcNames {"characteristic", "stagnationInlet", "pressureOutlet",
         "subsonicInflow", "subsonicOutflow", "supersonicInflow", "viscousWall",
         "periodic"};

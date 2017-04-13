@@ -2180,7 +2180,7 @@ patch::patch(const int &bound, const int &b, const int &d1s, const int &d1e,
 
 // member function to transform patch based on given bc data
 // this is used for periodic boundaries
-void patch::Transform(const unique_ptr<inputState> &bcData) {
+void patch::Transform(const shared_ptr<inputState> &bcData) {
   if (bcData->IsTranslation()) {
     const auto translation = bcData->Translation();
     this->Translate(translation);

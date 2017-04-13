@@ -39,7 +39,7 @@ using std::array;
 using std::string;
 using std::cout;
 using std::endl;
-using std::unique_ptr;
+using std::shared_ptr;
 
 // forward class declaration
 class plot3dBlock;
@@ -177,7 +177,7 @@ class patch {
   bool Dir2StartInterBorder() const {return patchBorder_[2];}
   bool Dir2EndInterBorder() const {return patchBorder_[3];}
   string BCType() const {return bcName_;}
-  void Transform(const unique_ptr<inputState> &);
+  void Transform(const shared_ptr<inputState> &);
   void Translate(const vector3d<double> &);
   void Rotate(const vector3d<double> &, const vector3d<double> &,
               const double &);

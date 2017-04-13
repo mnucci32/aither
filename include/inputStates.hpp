@@ -33,7 +33,7 @@ using std::string;
 using std::vector;
 using std::string;
 using std::ifstream;
-using std::unique_ptr;
+using std::shared_ptr;
 
 // this is an abstract base class
 class inputState {
@@ -295,6 +295,7 @@ class viscousWall : public inputState {
  public:
   // constructor
   explicit viscousWall(string &str);
+  viscousWall() : inputState() {}
 
   // move constructor and assignment operator
   viscousWall(viscousWall&&) noexcept = default;
@@ -386,10 +387,10 @@ string Trim(const string &, const string & = " \t\r\n");
 vector3d<double> ReadVector(const string &);
 vector<icState> ReadICList(ifstream &, string &);
 vector<string> ReadStringList(ifstream &, string &);
-vector<unique_ptr<inputState>> ReadBCList(ifstream &, string &);
+vector<shared_ptr<inputState>> ReadBCList(ifstream &, string &);
 string RemoveTrailing(const string &, const string &);
 auto FindBCPosition(const string &, const vector<string> &, string &);
-void AddBCToList(const string &, vector<unique_ptr<inputState>> &, string &);
+void AddBCToList(const string &, vector<shared_ptr<inputState>> &, string &);
 void CheckICTags(const vector<icState> &, const int &);
 
 #endif

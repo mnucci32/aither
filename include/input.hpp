@@ -31,6 +31,7 @@ using std::vector;
 using std::string;
 using std::set;
 using std::unique_ptr;
+using std::shared_ptr;
 
 // forward class declaration
 class turbModel;
@@ -85,7 +86,7 @@ class input {
   set<string> wallOutputVariables_;  // wall variables to output
 
   vector<icState> ics_;  // initial conditions
-  vector<unique_ptr<inputState>> bcStates_;  // information for boundary conditions
+  vector<shared_ptr<inputState>> bcStates_;  // information for boundary conditions
 
   // private member functions
   void CheckNonlinearIterations();
@@ -214,7 +215,7 @@ class input {
   int NumberGhostLayers() const;
 
   icState ICStateForBlock(const int &) const;
-  const unique_ptr<inputState> & BCData(const int &) const;
+  const shared_ptr<inputState> & BCData(const int &) const;
 
   bool IsWenoZ() const {return this->FaceReconstruction() == "wenoZ";}
 

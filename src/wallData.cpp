@@ -17,18 +17,6 @@
 #include "wallData.hpp"
 #include "vector3d.hpp"
 
-// structure to hold wall variables
-struct wallData::wallVars {
-  vector3d<double> shearStress_ = {0.0, 0.0, 0.0};
-  double heatFlux_ = 0.0;
-  double yplus_ = 0.0;
-  double temperature_ = 0.0;
-  double turbEddyVisc_ = 0.0;
-  double viscosity_ = 0.0;
-  double density_ = 0.0;
-  double frictionVelocity_ = 0.0;
-};
-
 // member functions
 vector3d<double> wallData::WallShearStress(const int &ii, const int &jj,
                                            const int &kk) const {

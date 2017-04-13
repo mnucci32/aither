@@ -33,6 +33,7 @@
 #include "boundaryConditions.hpp"  // connection, patch
 #include "macros.hpp"
 #include "uncoupledScalar.hpp"     // uncoupledScalar
+#include "wallData.hpp"
 
 using std::vector;
 using std::string;
@@ -97,6 +98,8 @@ class procBlock {
   multiArray3d<double> f2_;
 
   boundaryConditions bc_;  // boundary conditions for block
+
+  vector<wallData> wallData_;  // wall variables at viscous walls
 
   int numGhosts_;  // number of layers of ghost cells surrounding block
   int parBlock_;  // parent block number

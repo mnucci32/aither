@@ -33,8 +33,7 @@
 #include "fluxJacobian.hpp"
 #include "kdtree.hpp"
 #include "utility.hpp"
-// DEBUG
-#include "wallLaw.hpp"
+#include "wallData.hpp"
 
 using std::cout;
 using std::endl;
@@ -71,6 +70,13 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
   localPos_ = lpos;
 
   bc_ = bound;
+  for (auto ii = 0U; ii < bound.NumSurfaces(); ++ii) {
+    if (bound.GetBCTypes(ii) == "viscousWall") {
+      const auto surf = bound.GetSurface(ii);
+      const auto &bcData = inp.BCData(surf.Tag());
+      wallData_.push_back(wallData(surf, bcData));
+    }
+  }
 
   isViscous_ = inp.IsViscous();
   isTurbulent_ = inp.IsTurbulent();
@@ -96,12 +102,12 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
   if (storeTimeN_) {
     consVarsN_ = {numI, numJ, numK, 0, genArray(0.0)};
   } else {
-    consVarsN_ = {1, 1, 1, 0};
+    consVarsN_ = {0, 0, 0, 0};
   }
   if (isMultiLevelTime_) {
     consVarsNm1_ = {numI, numJ, numK, 0, genArray(0.0)};
   } else {
-    consVarsNm1_ = {1, 1, 1, 0};
+    consVarsNm1_ = {0, 0, 0, 0};
   }
 
   vol_ = PadWithGhosts(blk.Volume(), numGhosts_);
@@ -133,16 +139,16 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
     inputViscosity = suth.Viscosity(inputTemperature);
     viscosity_ = {numI, numJ, numK, numGhosts_, inputViscosity};
   } else {
-    velocityGrad_ = {1, 1, 1, 0};
-    temperatureGrad_ = {1, 1, 1, 0};
-    viscosity_ = {1, 1, 1, 0};
+    velocityGrad_ = {0, 0, 0, 0};
+    temperatureGrad_ = {0, 0, 0, 0};
+    viscosity_ = {0, 0, 0, 0};
   }
 
   if (isTurbulent_) {
     eddyViscosity_ = {numI, numJ, numK, numGhosts_,
                       ic.EddyViscosityRatio() * inputViscosity};
   } else {
-    eddyViscosity_ = {1, 1, 1, 0, 0.0};
+    eddyViscosity_ = {0, 0, 0, 0, 0.0};
   }
 
   if (isRANS_) {
@@ -151,10 +157,10 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
     f1_ = {numI, numJ, numK, numGhosts_, 1.0};
     f2_ = {numI, numJ, numK, numGhosts_, 0.0};
   } else {
-    tkeGrad_ = {1, 1, 1, 0};
-    omegaGrad_ = {1, 1, 1, 0};
-    f1_ = {1, 1, 1, 0, 0.0};
-    f2_ = {1, 1, 1, 0, 0.0};
+    tkeGrad_ = {0, 0, 0, 0};
+    omegaGrad_ = {0, 0, 0, 0};
+    f1_ = {0, 0, 0, 0, 0.0};
+    f2_ = {0, 0, 0, 0, 0.0};
   }
 }
 
@@ -178,6 +184,7 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   localPos_ = 0;
 
   bc_ = {};
+  wallData_ = {};
 
   isViscous_ = isViscous;
   isTurbulent_ = isTurbulent;
@@ -190,12 +197,12 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   if (storeTimeN) {
     consVarsN_ = {ni, nj, nk, 0};
   } else {
-    consVarsN_ = {1, 1, 1, 0};
+    consVarsN_ = {0, 0, 0, 0};
   }
   if (isMultiLevelTime_) {
     consVarsNm1_ = {ni, nj, nk, 0};
   } else {
-    consVarsNm1_ = {1, 1, 1, 0};
+    consVarsNm1_ = {0, 0, 0, 0};
   }
   center_ = {ni, nj, nk, numGhosts_};
   fAreaI_ = {ni + 1, nj, nk, numGhosts_};
@@ -222,15 +229,15 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
     temperatureGrad_ = {ni, nj, nk, numGhosts_};
     viscosity_ = {ni, nj, nk, numGhosts_};
   } else {
-    velocityGrad_ = {1, 1, 1, 0};
-    temperatureGrad_ = {1, 1, 1, 0};
-    viscosity_ = {1, 1, 1, 0};
+    velocityGrad_ = {0, 0, 0, 0};
+    temperatureGrad_ = {0, 0, 0, 0};
+    viscosity_ = {0, 0, 0, 0};
   }
 
   if (isTurbulent_) {
     eddyViscosity_ = {ni, nj, nk, numGhosts_};
   } else {
-    eddyViscosity_ = {1, 1, 1, 0};
+    eddyViscosity_ = {0, 0, 0, 0};
   }
 
   if (isRANS_) {
@@ -239,10 +246,10 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
     f1_ = {ni, nj, nk, numGhosts_};
     f2_ = {ni, nj, nk, numGhosts_};
   } else {
-    tkeGrad_ = {1, 1, 1, 0};
-    omegaGrad_ = {1, 1, 1, 0};
-    f1_ = {1, 1, 1, 0};
-    f2_ = {1, 1, 1, 0};
+    tkeGrad_ = {0, 0, 0, 0};
+    omegaGrad_ = {0, 0, 0, 0};
+    f1_ = {0, 0, 0, 0};
+    f2_ = {0, 0, 0, 0};
   }
 }
 
