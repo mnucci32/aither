@@ -2333,15 +2333,13 @@ void boundaryConditions::UnpackBC(char *(&recvBuffer), const int &recvBufSize,
              strLength.size(), MPI_INT, MPI_COMM_WORLD);  // unpack string sizes
   // unpack boundary condition names
   for (auto jj = 0U; jj < strLength.size(); jj++) {
-    auto *nameBuf = new char[strLength[jj]];  // allocate buffer to store BC
-                                              // name
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &nameBuf[0], strLength[jj],
+    // allocate buffer to store BC name
+    auto nameBuf = unique_ptr<char>(new char[strLength[jj]]);
+    MPI_Unpack(recvBuffer, recvBufSize, &position, nameBuf.get(), strLength[jj],
                MPI_CHAR, MPI_COMM_WORLD);  // unpack bc types
-    string bcName(nameBuf, strLength[jj] - 1);  // create string of bc name (-1
-                                                // to exclude c_str end
-                                                // character)
+    // create string of bc name (-1 to exclude c_str end character)
+    string bcName(nameBuf.get(), strLength[jj] - 1);
     surfs_[jj].bcType_ = bcName;
-    delete[] nameBuf;  // deallocate bc name buffer
   }
 }
 

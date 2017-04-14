@@ -4599,7 +4599,9 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
   sendBufSize += stringSize;
 
   // allocate buffer to pack data into
-  auto *sendBuffer = new char[sendBufSize];
+  // use unique_ptr to manage memory; use underlying pointer with MPI calls
+  auto unqSendBuffer = unique_ptr<char>(new char[sendBufSize]);
+  auto *sendBuffer = unqSendBuffer.get();
 
   const auto numI = this->NumI();
   const auto numJ = this->NumJ();
@@ -4663,8 +4665,6 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
   // send buffer to appropriate processor
   MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, rank_, 2,
            MPI_COMM_WORLD);
-
-  delete[] sendBuffer;  // deallocate buffer
 }
 
 void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
@@ -4683,7 +4683,10 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
                                                    // sending buffer was
                                                    // allocated with chars
 
-  auto *recvBuffer = new char[recvBufSize];  // allocate buffer of correct size
+  // allocate buffer of correct size
+  // use unique_ptr to manage memory; use underlying pointer with MPI
+  auto unqRecvBuffer = unique_ptr<char>(new char[recvBufSize]);
+  auto *recvBuffer = unqRecvBuffer.get();
 
   // receive message from ROOT
   MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, ROOTP, 2, MPI_COMM_WORLD,
@@ -4760,8 +4763,6 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
 
   // unpack boundary conditions
   bc_.UnpackBC(recvBuffer, recvBufSize, position);
-
-  delete[] recvBuffer;  // deallocate receiving buffer
 }
 
 /*Member function to zero and resize the vectors in a procBlock to their
@@ -4844,8 +4845,10 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
   MPI_Get_count(&status, MPI_CHAR, &recvBufSize);  // use MPI_CHAR because
                                                    // sending buffer was
                                                    // allocated with chars
-
-  auto *recvBuffer = new char[recvBufSize];  // allocate buffer of correct size
+  // allocate buffer of correct size
+  // use unique_ptr to manage memory; use underlying pointer for MPI calls
+  auto unqRecvBuffer = unique_ptr<char>(new char[recvBufSize]);
+  auto *recvBuffer = unqRecvBuffer.get();
 
   // receive message from non-ROOT
   MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, rank_,
@@ -4918,8 +4921,6 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
                omegaGrad_.Size(), MPI_vec3d,
                MPI_COMM_WORLD);  // unpack omega gradient
   }
-
-  delete[] recvBuffer;  // deallocate receiving buffer
 }
 
 /*Member function to pack and send procBlock state data to the ROOT proecessor.
@@ -5003,8 +5004,10 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
     sendBufSize += tempSize;
   }
 
-  auto *sendBuffer = new char[sendBufSize];  // allocate buffer to pack data
-                                             // into
+  // allocate buffer to pack data into
+  // use unique_ptr to manage memory; use underlying pointer for MPI calls
+  auto unqSendBuffer = unique_ptr<char>(new char[sendBufSize]);
+  auto *sendBuffer = unqSendBuffer.get();
 
   // pack data to send into buffer
   auto position = 0;
@@ -5060,8 +5063,6 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
   // send buffer to appropriate processor
   MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, ROOTP, globalPos_,
            MPI_COMM_WORLD);
-
-  delete[] sendBuffer;  // deallocate buffer
 }
 
 /* Member function to split a procBlock along a plane defined by a direction and

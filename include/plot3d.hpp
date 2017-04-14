@@ -42,7 +42,7 @@ class plot3dBlock {
       coords_(coordinates) {}
   plot3dBlock(const int &ii, const int &jj, const int &kk) :
       coords_(ii, jj, kk, 0) {}
-  plot3dBlock() : coords_(1, 1, 1, 0) {}
+  plot3dBlock() : coords_(0, 0, 0, 0) {}
 
   // move constructor and assignment operator
   plot3dBlock(plot3dBlock&&) noexcept = default;

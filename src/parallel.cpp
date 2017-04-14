@@ -483,17 +483,16 @@ void BroadcastString(string &str) {
   auto strSize = static_cast<int>(str.size() + 1);
   MPI_Bcast(&strSize, 1, MPI_INT, ROOTP,
             MPI_COMM_WORLD);  // broadcast string size
-
-  auto *buf = new char[strSize];  // allocate a char buffer of string size
-  snprintf(buf, strSize, "%s", str.c_str());  // copy string into buffer
-  MPI_Bcast(&buf[0], strSize, MPI_CHAR, ROOTP,
+  
+  // allocate a char buffer of string size
+  auto buf = unique_ptr<char>(new char[strSize]);
+  snprintf(buf.get(), strSize, "%s", str.c_str());  // copy string into buffer
+  MPI_Bcast(buf.get(), strSize, MPI_CHAR, ROOTP,
             MPI_COMM_WORLD);  // broadcast string as char
 
   // create new string and assign to old string
-  string newStr(buf, strSize - 1);  // -1 to not include c_str end character
+  string newStr(buf.get(), strSize - 1);  // -1 to not include c_str end character
   str = newStr;
-
-  delete[] buf;  // deallocate buffer
 }
 
 // constructor with arguements
