@@ -16,6 +16,7 @@
 
 #include "wallData.hpp"
 #include "vector3d.hpp"
+#include "input.hpp"
 
 // member functions
 vector3d<double> wallData::WallShearStress(const int &ii, const int &jj,
@@ -55,4 +56,69 @@ double wallData::WallDensity(const int &ii, const int &jj,
 double wallData::WallFrictionVelocity(const int &ii, const int &jj,
                                       const int &kk) const {
   return (*this)(ii, jj, kk).frictionVelocity_;
+}
+
+void wallData::PackWallData(char *(&sendBuffer), const int &sendBufSize,
+                            int &position,
+                            const MPI_Datatype &MPI_wallData) const {
+  // sendBuffer -- buffer to pack data into
+  // sendBufSize -- size of buffer
+  // position -- location within buffer
+
+  // pack force counters
+  MPI_Pack(&inviscidForce_, 1, MPI_DOUBLE, sendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&viscousForce_, 1, MPI_DOUBLE, sendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+
+  // pointer to bc data - remote processor can get data from input class
+
+  // pack boundarySurface
+  surf_.PackBoundarySurface(sendBuffer, sendBufSize, position);
+
+  // pack wall variables
+  MPI_Pack(&(*std::begin(data_)), data_.Size(), MPI_wallData, sendBuffer,
+           sendBufSize, &position, MPI_COMM_WORLD);
+}
+
+void wallData::PackSize(int &sendBufSize,
+                        const MPI_Datatype &MPI_wallData) const {
+  auto tempSize = 0;
+  // add sizes for force data
+  MPI_Pack_size(2, MPI_DOUBLE, MPI_COMM_WORLD, &tempSize);
+  sendBufSize += tempSize;
+  // 8 because iMin, iMax, jMin, jMax, kMin, kMax, tags, string sizes
+  MPI_Pack_size(8, MPI_INT, MPI_COMM_WORLD, &tempSize);
+  sendBufSize += tempSize;
+  // add size for bc types (+1 for c_str end character)
+  MPI_Pack_size(surf_.BCType().size() + 1, MPI_CHAR, MPI_COMM_WORLD, &tempSize);
+  sendBufSize += tempSize;
+
+  // add size for array of wallData
+  MPI_Pack_size(data_.Size(), MPI_wallData, MPI_COMM_WORLD, &tempSize);
+  sendBufSize += tempSize;
+}
+
+void wallData::UnpackWallData(char *(&recvBuffer), const int &recvBufSize,
+                              int &position, const MPI_Datatype &MPI_wallData,
+                              const input &inp) {
+  // recvBuffer -- buffer to unpack data from
+  // recvBufSize -- size of buffer
+  // position -- location within buffer
+
+  // unpack forces
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &inviscidForce_, 1, MPI_DOUBLE,
+             MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &viscousForce_, 1, MPI_DOUBLE,
+             MPI_COMM_WORLD);
+
+  // unpack BC surface
+  surf_.UnpackBoundarySurface(recvBuffer, recvBufSize, position);
+
+  // get bc data from tag
+  bcData_ = inp.BCData(surf_.Tag());
+
+  // unpack wall variables
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(data_)),
+             data_.Size(), MPI_wallData, MPI_COMM_WORLD);
 }

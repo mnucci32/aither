@@ -2271,14 +2271,6 @@ void boundaryConditions::PackBC(char *(&sendBuffer), const int &sendBufSize,
   // sendBufSize -- size of buffer
   // position -- location within buffer
 
-  // get string lengths for each boundary_ condition to be sent, so processors
-  // unpacking know how much data to unpack for each string
-  vector<int> strLength(this->NumSurfaces());
-  for (auto jj = 0U; jj < strLength.size(); jj++) {
-    // +1 for c_str end character
-    strLength[jj] = this->GetBCTypes(jj).size() + 1;
-  }
-
   // pack surface numbers
   MPI_Pack(&numSurfI_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
@@ -2286,20 +2278,10 @@ void boundaryConditions::PackBC(char *(&sendBuffer), const int &sendBufSize,
            MPI_COMM_WORLD);
   MPI_Pack(&numSurfK_, 1, MPI_INT, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
-  // pack non-string data from boundarySurface
-  for (auto jj = 0; jj < this->NumSurfaces(); jj++) {
-    MPI_Pack(&surfs_[jj].data_[0], 7, MPI_INT, sendBuffer, sendBufSize,
-             &position, MPI_COMM_WORLD);
-  }
-  // pack string size
-  MPI_Pack(&strLength[0], strLength.size(), MPI_INT, sendBuffer, sendBufSize,
-           &position, MPI_COMM_WORLD);
-  // pack boundary condtion names
-  for (auto jj = 0; jj < this->NumSurfaces(); jj++) {
-    MPI_Pack(surfs_[jj].bcType_.c_str(),
-             surfs_[jj].bcType_.size() + 1, MPI_CHAR, sendBuffer,
-             sendBufSize, &position,
-             MPI_COMM_WORLD);  // +1 for c_str end character
+
+  // pack boundary surfaces
+  for (auto &surf : surfs_) {
+    surf.PackBoundarySurface(sendBuffer, sendBufSize, position);
   }
 }
 
@@ -2320,27 +2302,62 @@ void boundaryConditions::UnpackBC(char *(&recvBuffer), const int &recvBufSize,
 
   // resize boundaryCondition
   this->ResizeVecs(this->NumSurfaces());
-  // allocate vector for string lengths
-  vector<int> strLength(this->NumSurfaces());
 
-  // unpack boundary condition surface data (non-string) into appropriate
-  // vectors
-  for (auto jj = 0; jj < this->NumSurfaces(); jj++) {
-    MPI_Unpack(recvBuffer, recvBufSize, &position, &surfs_[jj].data_[0],
-               7, MPI_INT, MPI_COMM_WORLD);  // unpack bc surfaces
+  // unpack boundary surfaces
+  for (auto &surf : surfs_) {
+    surf.UnpackBoundarySurface(recvBuffer, recvBufSize, position);
   }
-  MPI_Unpack(recvBuffer, recvBufSize, &position, &strLength[0],
-             strLength.size(), MPI_INT, MPI_COMM_WORLD);  // unpack string sizes
+}
+
+/*Member function to pack a boundarySurface into a buffer so that in can be
+ * sent with MPI.*/
+void boundarySurface::PackBoundarySurface(char *(&sendBuffer),
+                                          const int &sendBufSize,
+                                          int &position) const {
+  // sendBuffer -- buffer to pack data into
+  // sendBufSize -- size of buffer
+  // position -- location within buffer
+
+  // pack non-string data from boundarySurface
+  MPI_Pack(&data_[0], 7, MPI_INT, sendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+
+  // pack string size
+  auto strLength = bcType_.size() + 1;  // +1 for c_str end character
+  MPI_Pack(&strLength, 1, MPI_INT, sendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+  // pack boundary condtion name
+  // +1 for c_str end character
+  MPI_Pack(bcType_.c_str(), bcType_.size() + 1, MPI_CHAR, sendBuffer,
+           sendBufSize, &position, MPI_COMM_WORLD);
+}
+
+/*Member function to unpack data from a buffer into a boundarySurface. Used
+ * with MPI receive*/
+void boundarySurface::UnpackBoundarySurface(char *(&recvBuffer),
+                                           const int &recvBufSize,
+                                           int &position) {
+  // recvBuffer -- buffer to unpack data from
+  // recvBufSize -- size of buffer
+  // position -- location within buffer
+
+  // unpack boundary condition surface data (non-string)
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &data_[0], 7, MPI_INT,
+             MPI_COMM_WORLD);
+
+  // unpack string sizes
+  auto strLength = 0;
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &strLength, 1, MPI_INT,
+             MPI_COMM_WORLD);
+
   // unpack boundary condition names
-  for (auto jj = 0U; jj < strLength.size(); jj++) {
-    // allocate buffer to store BC name
-    auto nameBuf = unique_ptr<char>(new char[strLength[jj]]);
-    MPI_Unpack(recvBuffer, recvBufSize, &position, nameBuf.get(), strLength[jj],
-               MPI_CHAR, MPI_COMM_WORLD);  // unpack bc types
-    // create string of bc name (-1 to exclude c_str end character)
-    string bcName(nameBuf.get(), strLength[jj] - 1);
-    surfs_[jj].bcType_ = bcName;
-  }
+  // allocate buffer to store BC name
+  auto nameBuf = unique_ptr<char>(new char[strLength]);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, nameBuf.get(), strLength,
+             MPI_CHAR, MPI_COMM_WORLD);
+  // create string of bc name (-1 to exclude c_str end character)
+  string bcName(nameBuf.get(), strLength - 1);
+  bcType_ = bcName;
 }
 
 // member function to retrn the suface type of a boundarySurface. The surface

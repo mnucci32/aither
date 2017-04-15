@@ -202,7 +202,8 @@ void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
                      MPI_Datatype &MPI_DOUBLE_5INT,
                      MPI_Datatype &MPI_vec3dMag,
                      MPI_Datatype &MPI_uncoupledScalar,
-                     MPI_Datatype &MPI_tensorDouble) {
+                     MPI_Datatype &MPI_tensorDouble,
+                     MPI_Datatype &MPI_wallData) {
   // MPI_vec3d -- output MPI_Datatype for a vector3d<double>
   // MPI_cellData -- output MPI_Datatype for primVars or genArray
   // MPI_procBlockInts -- output MPI_Datatype for 14 INTs (14 INTs in procBlock
@@ -212,6 +213,7 @@ void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
   // MPI_vec3dMag -- output MPI_Datatype for a unitVect3dMag<double>
   // MPI_uncoupledScalar -- output MPI_Datatype for a uncoupledScalar
   // MPI_tensorDouble -- output MPI_Datatype for a tensor<double>
+  // MPI_wallData -- output MPI_Datatype for wallData class
 
   // create vector3d<double> MPI datatype
   MPI_Type_contiguous(3, MPI_DOUBLE, &MPI_vec3d);
@@ -228,6 +230,10 @@ void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
   // create tensor<double> MPI datatype
   MPI_Type_contiguous(9, MPI_DOUBLE, &MPI_tensorDouble);
   MPI_Type_commit(&MPI_tensorDouble);
+
+  // create wallData MPI datatype
+  MPI_Type_contiguous(10, MPI_DOUBLE, &MPI_wallData);
+  MPI_Type_commit(&MPI_wallData);
 
   // create MPI datatype for states (primVars), residuals (genArray), etc
   MPI_Type_contiguous(NUMVARS, MPI_DOUBLE, &MPI_cellData);
@@ -315,16 +321,17 @@ void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
                       MPI_Datatype &MPI_DOUBLE_5INT,
                       MPI_Datatype &MPI_vec3dMag,
                       MPI_Datatype &MPI_uncoupledScalar,
-                      MPI_Datatype &MPI_tensorDouble) {
-  // MPI_vec3d -- output MPI_Datatype for a vector3d<double>
-  // MPI_cellData -- output MPI_Datatype for primVars or genArray
-  // MPI_procBlockInts -- output MPI_Datatype for 14 INTs (14 INTs in procBlock
-  //                      class)
-  // MPI_connection -- output MPI_Datatype to send connection class
-  // MPI_DOUBLE_5INT -- output MPI_Datatype for a double followed by 5 ints
-  // MPI_vec3dMag -- output MPI_Datatype for a unitVect3dMag<double>
-  // MPI_uncoupledScalar -- output MPI_Datatype for a uncoupledScalar
-  // MPI_tensorDouble -- output MPI_Datatype for a tensor<double>
+                      MPI_Datatype &MPI_tensorDouble,
+                      MPI_Datatype &MPI_wallData) {
+  // MPI_vec3d -- MPI_Datatype for a vector3d<double>
+  // MPI_cellData -- MPI_Datatype for primVars or genArray
+  // MPI_procBlockInts -- MPI_Datatype for 14 INTs (14 INTs in procBlock class)
+  // MPI_connection -- MPI_Datatype to send connection class
+  // MPI_DOUBLE_5INT -- MPI_Datatype for a double followed by 5 ints
+  // MPI_vec3dMag -- MPI_Datatype for a unitVect3dMag<double>
+  // MPI_uncoupledScalar -- MPI_Datatype for a uncoupledScalar
+  // MPI_tensorDouble -- MPI_Datatype for a tensor<double>
+  // MPI_wallData -- MPI_Datatype for a wallData
 
   // free vector3d<double> MPI datatype
   MPI_Type_free(&MPI_vec3d);
@@ -346,6 +353,12 @@ void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
 
   // free MPI datatype for connection class
   MPI_Type_free(&MPI_connection);
+
+  // free MPI datatype for tensor<double> class
+  MPI_Type_free(&MPI_tensorDouble);
+
+  // free MPI datatype for wallData class
+  MPI_Type_free(&MPI_wallData);
 }
 
 /* Function to send procBlocks to their appropriate processor. This function is
@@ -360,7 +373,9 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
                                  const int &rank, const int &numProcBlock,
                                  const MPI_Datatype &MPI_cellData,
                                  const MPI_Datatype &MPI_vec3d,
-                                 const MPI_Datatype &MPI_vec3dMag) {
+                                 const MPI_Datatype &MPI_vec3dMag,
+                                 const MPI_Datatype &MPI_wallData,
+                                 const input &inp) {
   // blocks -- full vector of all procBlocks. This is only used on ROOT
   //           processor, all other processors just need a dummy variable to
   //           call the function
@@ -371,6 +386,8 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
   // MPI_cellData -- MPI_Datatype used for primVars and genArray transmission
   // MPI_vec3d -- MPI_Datatype used for vector3d<double>  transmission
   // MPI_vec3dMag -- MPI_Datatype used for unitVec3dMag<double>  transmission
+  // MPI_wallData -- MPI_Datatype used for wallData transmission
+  // input -- input variables
 
   // vector of procBlocks for each processor
   vector<procBlock> localBlocks(numProcBlock);
@@ -386,7 +403,8 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
         localBlocks[blocks[ii].LocalPosition()] = blocks[ii];
       } else {  // send data to receiving processors
         // pack and send procBlock
-        blocks[ii].PackSendGeomMPI(MPI_cellData, MPI_vec3d, MPI_vec3dMag);
+        blocks[ii].PackSendGeomMPI(MPI_cellData, MPI_vec3d, MPI_vec3dMag,
+                                   MPI_wallData);
       }
     }
     //--------------------------------------------------------------------------
@@ -396,7 +414,8 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
     for (auto ii = 0; ii < numProcBlock; ii++) {
       // recv and unpack procBlock
       procBlock tempBlock;
-      tempBlock.RecvUnpackGeomMPI(MPI_cellData, MPI_vec3d, MPI_vec3dMag);
+      tempBlock.RecvUnpackGeomMPI(MPI_cellData, MPI_vec3d, MPI_vec3dMag,
+                                  MPI_wallData, inp);
 
       // add procBlock to output vector
       localBlocks[tempBlock.LocalPosition()] = tempBlock;
@@ -416,7 +435,8 @@ void GetProcBlocks(vector<procBlock> &blocks,
                    const MPI_Datatype &MPI_cellData,
                    const MPI_Datatype &MPI_uncoupledScalar,
                    const MPI_Datatype &MPI_vec3d,
-                   const MPI_Datatype &MPI_tensorDouble) {
+                   const MPI_Datatype &MPI_tensorDouble,
+                   const MPI_Datatype &MPI_wallData, const input &inp) {
   // blocks -- full vector of all procBlocks. This is only used on ROOT
   //           processor, all other processors just need a dummy variable to
   //           call the function
@@ -427,6 +447,8 @@ void GetProcBlocks(vector<procBlock> &blocks,
   // MPI_uncoupledScalar -- MPI_Datatype used for uncoupledScalar transmission
   // MPI_vec3d -- MPI_Datatype used for vector3d<double> transmission
   // MPI_tensorDouble -- MPI_Datatype used for tensor<double> transmission
+  // MPI_wallData -- MPI_Datatype used for wallData transmission
+  // input -- input variables
 
   //--------------------------------------------------------------------------
   //                                      ROOT
@@ -440,7 +462,8 @@ void GetProcBlocks(vector<procBlock> &blocks,
         blocks[ii] = localBlocks[blocks[ii].LocalPosition()];
       } else {  // recv data from sending processors
         blocks[ii].RecvUnpackSolMPI(MPI_cellData, MPI_uncoupledScalar,
-                                    MPI_vec3d, MPI_tensorDouble);
+                                    MPI_vec3d, MPI_tensorDouble, MPI_wallData,
+                                    inp);
       }
     }
     //-------------------------------------------------------------------------
@@ -467,7 +490,8 @@ void GetProcBlocks(vector<procBlock> &blocks,
       localBlocks[localPos[minGlobal]].PackSendSolMPI(MPI_cellData,
                                                       MPI_uncoupledScalar,
                                                       MPI_vec3d,
-                                                      MPI_tensorDouble);
+                                                      MPI_tensorDouble,
+                                                      MPI_wallData);
       localPos.erase(localPos.begin() + minGlobal);
     }
   }

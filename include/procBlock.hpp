@@ -471,13 +471,16 @@ class procBlock {
                                        const MPI_Datatype &);
 
   void PackSendGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
-                       const MPI_Datatype &) const;
+                       const MPI_Datatype &, const MPI_Datatype &) const;
   void RecvUnpackGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
-                         const MPI_Datatype &);
+                         const MPI_Datatype &, const MPI_Datatype &,
+                         const input &);
   void PackSendSolMPI(const MPI_Datatype &, const MPI_Datatype &,
-                      const MPI_Datatype &, const MPI_Datatype &) const;
+                      const MPI_Datatype &, const MPI_Datatype &,
+                      const MPI_Datatype &) const;
   void RecvUnpackSolMPI(const MPI_Datatype &, const MPI_Datatype &,
-                        const MPI_Datatype &, const MPI_Datatype &);
+                        const MPI_Datatype &, const MPI_Datatype &,
+                        const MPI_Datatype &, const input &);
 
   void UpdateAuxillaryVariables(const idealGas &, const sutherland &,
                                 const bool = true);

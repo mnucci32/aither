@@ -22,6 +22,7 @@
 
 #include <vector>
 #include <memory>
+#include "mpi.h"
 #include "multiArray3d.hpp"
 #include "inputStates.hpp"
 #include "boundaryConditions.hpp"
@@ -29,6 +30,9 @@
 
 using std::vector;
 using std::shared_ptr;
+
+// forward declarations
+class input;
 
 class wallData {
   double inviscidForce_;
@@ -69,6 +73,11 @@ class wallData {
   double WallDensity(const int &ii, const int &jj, const int &kk) const;
   double WallFrictionVelocity(const int &ii, const int &jj,
                               const int &kk) const;
+
+  void PackWallData(char*(&), const int&, int&, const MPI_Datatype&) const;
+  void PackSize(int &, const MPI_Datatype &) const;
+  void UnpackWallData(char *(&), const int &, int &, const MPI_Datatype &,
+                      const input &);
 
   // operator overloads
   wallVars &operator()(const int &ii, const int &jj, const int &kk) {

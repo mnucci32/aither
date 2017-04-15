@@ -111,6 +111,9 @@ class boundarySurface {
     return bcType_ == "interblock" || bcType_ == "periodic";
   }
 
+  void PackBoundarySurface(char*(&), const int&, int&) const;
+  void UnpackBoundarySurface(char*(&), const int&, int&);
+
   // Destructor
   ~boundarySurface() noexcept {}
 };

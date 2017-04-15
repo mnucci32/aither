@@ -4536,10 +4536,12 @@ void procBlock::PutStateSlice(const multiArray3d<primVars> &slice,
  * processor. */
 void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
                                 const MPI_Datatype &MPI_vec3d,
-                                const MPI_Datatype &MPI_vec3dMag) const {
+                                const MPI_Datatype &MPI_vec3dMag,
+                                const MPI_Datatype &MPI_wallData) const {
   // MPI_cellData -- MPI data type for cell data
   // MPI_vec3d -- MPI data type for a vector3d
   // MPI_vec3dMag -- MPI data type for a unitVect3dMag
+  // MPI_vec3dMag -- MPI data type for a wallData
 
   // determine size of buffer to send
   auto sendBufSize = 0;
@@ -4597,6 +4599,10 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
     stringSize += tempSize;
   }
   sendBufSize += stringSize;
+
+  for (auto &wd : wallData_) {
+    wd.PackSize(sendBufSize, MPI_wallData);
+  }
 
   // allocate buffer to pack data into
   // use unique_ptr to manage memory; use underlying pointer with MPI calls
@@ -4662,6 +4668,11 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
   // pack boundary condition data
   bc_.PackBC(sendBuffer, sendBufSize, position);
 
+  // pack wall data
+  for (auto &wd : wallData_) {
+    wd.PackWallData(sendBuffer, sendBufSize, position, MPI_wallData);
+  }
+
   // send buffer to appropriate processor
   MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, rank_, 2,
            MPI_COMM_WORLD);
@@ -4669,10 +4680,14 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
 
 void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
                                   const MPI_Datatype &MPI_vec3d,
-                                  const MPI_Datatype &MPI_vec3dMag) {
+                                  const MPI_Datatype &MPI_vec3dMag,
+                                  const MPI_Datatype &MPI_wallData,
+                                  const input &inp) {
   // MPI_cellData -- MPI data type for cell data
   // MPI_vec3d -- MPI data type for a vector3d
   // MPI_vec3dMag -- MPI data type for a unitVect3dMag
+  // MPI_wallData --  MPI data type for a wallData
+  // input -- input variables
 
   MPI_Status status;  // allocate MPI_Status structure
 
@@ -4763,6 +4778,12 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
 
   // unpack boundary conditions
   bc_.UnpackBC(recvBuffer, recvBufSize, position);
+
+  // unpack wall data
+  wallData_.resize(bc_.NumViscousSurfaces());
+  for (auto &wd : wallData_) {
+    wd.UnpackWallData(recvBuffer, recvBufSize, position, MPI_wallData, inp);
+  }
 }
 
 /*Member function to zero and resize the vectors in a procBlock to their
@@ -4829,11 +4850,15 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
 void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
                                  const MPI_Datatype &MPI_uncoupledScalar,
                                  const MPI_Datatype &MPI_vec3d,
-                                 const MPI_Datatype &MPI_tensorDouble) {
+                                 const MPI_Datatype &MPI_tensorDouble,
+                                 const MPI_Datatype &MPI_wallData,
+                                 const input &inp) {
   // MPI_cellData -- MPI data type for cell data
   // MPI_uncoupledScalar -- MPI data type for uncoupledScalar
   // MPI_vec3d -- MPI data type for vector3d<double>
   // MPI_tensorDouble -- MPI data taype for tensor<double>
+  // MPI_wallData -- MPI data taype for wallData
+  // input -- input variables
 
   MPI_Status status;  // allocate MPI_Status structure
 
@@ -4921,6 +4946,12 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
                omegaGrad_.Size(), MPI_vec3d,
                MPI_COMM_WORLD);  // unpack omega gradient
   }
+
+  // unpack wall data
+  wallData_.resize(bc_.NumViscousSurfaces());
+  for (auto &wd : wallData_) {
+    wd.UnpackWallData(recvBuffer, recvBufSize, position, MPI_wallData, inp);
+  }
 }
 
 /*Member function to pack and send procBlock state data to the ROOT proecessor.
@@ -4929,11 +4960,13 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
 void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
                                const MPI_Datatype &MPI_uncoupledScalar,
                                const MPI_Datatype &MPI_vec3d,
-                               const MPI_Datatype &MPI_tensorDouble) const {
+                               const MPI_Datatype &MPI_tensorDouble,
+                               const MPI_Datatype &MPI_wallData) const {
   // MPI_cellData -- MPI data type for cell data
   // MPI_uncoupledScalar -- MPI data type for uncoupledScalar
   // MPI_vec3d -- MPI data type for vector3d<double>
   // MPI_tensorDouble -- MPI data taype for tensor<double>
+  // MPI_wallData -- MPI data taype for wallData
 
   // determine size of buffer to send
   auto sendBufSize = 0;
@@ -5004,6 +5037,10 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
     sendBufSize += tempSize;
   }
 
+  for (auto &wd : wallData_) {
+    wd.PackSize(sendBufSize, MPI_wallData);
+  }
+
   // allocate buffer to pack data into
   // use unique_ptr to manage memory; use underlying pointer for MPI calls
   auto unqSendBuffer = unique_ptr<char>(new char[sendBufSize]);
@@ -5058,6 +5095,11 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
     MPI_Pack(&(*std::begin(omegaGrad_)), omegaGrad_.Size(), MPI_vec3d,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  }
+
+  // pack wall data
+  for (auto &wd : wallData_) {
+    wd.PackWallData(sendBuffer, sendBufSize, position, MPI_wallData);
   }
 
   // send buffer to appropriate processor
