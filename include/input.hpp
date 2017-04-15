@@ -50,6 +50,7 @@ class input {
   double pRef_;  // reference pressure
   double rRef_;  // reference density
   double lRef_;  // reference length
+  double aRef_;  // reference speed of sound
   vector3d<double> vRef_;  // reference velocity
   double gamma_;  // ratio of specific heats
   double gasConst_;  // gas constant of fluid
@@ -124,17 +125,18 @@ class input {
   double LRef() const {return lRef_;}
   double TRef() const {return tRef_;}
   vector3d<double> VelRef() const {return vRef_;}
-  double ARef(const idealGas &) const;
+  double ARef() const {return aRef_;}
+  void NondimensionalizeStateData(const idealGas &);
 
-  double Gamma() const {return gamma_;}
-  double R() const {return gasConst_;}
+  double Gamma() const { return gamma_; }
+  double R() const { return gasConst_; }
 
-  boundaryConditions BC(const int &ind) const {return bc_[ind];}
-  vector<boundaryConditions> AllBC() const {return bc_;}
-  int NumBC() const {return bc_.size();}
+  boundaryConditions BC(const int &ind) const { return bc_[ind]; }
+  vector<boundaryConditions> AllBC() const { return bc_; }
+  int NumBC() const { return bc_.size(); }
 
-  string TimeIntegration() const {return timeIntegration_;}
-  bool IsMultilevelInTime() const {return timeIntegration_ == "bdf2";}
+  string TimeIntegration() const { return timeIntegration_; }
+  bool IsMultilevelInTime() const { return timeIntegration_ == "bdf2"; }
   bool NeedToStoreTimeN() const {
     return this->IsImplicit() || this->TimeIntegration() == "rk4";
   }

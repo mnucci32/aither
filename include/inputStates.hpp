@@ -38,6 +38,7 @@ using std::shared_ptr;
 // this is an abstract base class
 class inputState {
   int tag_;
+  bool nondimensional_ = false;
 
  public:
   // constructor
@@ -81,6 +82,10 @@ class inputState {
   virtual const double VonKarmen() const {return 0.0;}
   virtual const double WallConstant() const {return 0.0;}
   virtual bool IsWallLaw() const {return false;}
+  virtual void Nondimensionalize(const double &rRef, const double &tRef,
+                                 const double &lRef, const double &aRef) = 0;
+  bool IsNondimensional() const { return nondimensional_; }
+  void SetNondimensional(const bool &nd) {nondimensional_ = nd;}
 
     // destructor
     virtual ~inputState() noexcept {}
@@ -117,6 +122,8 @@ class icState : public inputState {
   const bool SpecifiedTurbulence() const {return specifiedTurbulence_;}
   void SetSpecifiedTurbulence() {specifiedTurbulence_ = true;}
   void Print(ostream &os) const override;
+  void Nondimensionalize(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) override;
 
   // Destructor
   virtual ~icState() noexcept {}
@@ -173,6 +180,8 @@ class stagnationInlet : public inputState {
   const bool SpecifiedTurbulence() const {return specifiedTurbulence_;}
   void SetSpecifiedTurbulence() {specifiedTurbulence_ = true;}
   void Print(ostream &os) const override;
+  void Nondimensionalize(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) override;
 
   // Destructor
   ~stagnationInlet() noexcept {}
@@ -197,6 +206,8 @@ class pressureOutlet : public inputState {
   // Member functions
   const double Pressure() const override {return pressure_;}
   void Print(ostream &os) const override;
+  void Nondimensionalize(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) override;
 
   // Destructor
   virtual ~pressureOutlet() noexcept {}
@@ -275,6 +286,8 @@ class subsonicInflow : public inputState {
   const bool SpecifiedTurbulence() const {return specifiedTurbulence_;}
   void SetSpecifiedTurbulence() {specifiedTurbulence_ = true;}
   void Print(ostream &os) const override;
+  void Nondimensionalize(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) override;
 
   // Destructor
   ~subsonicInflow() noexcept {}
@@ -324,6 +337,8 @@ class viscousWall : public inputState {
     return (specifiedHeatFlux_ && heatFlux_ != 0.0) ? true : false;
   }
   void Print(ostream &os) const override;
+  void Nondimensionalize(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) override;
 
   // Destructor
   virtual ~viscousWall() noexcept {}
@@ -362,11 +377,12 @@ class periodic : public inputState {
   const double Rotation() const override {return rotation_;}
   const int EndTag() const override {return endTag_;}
   void Print(ostream &os) const override;
+  void Nondimensionalize(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) override;
 
   // Destructor
   virtual ~periodic() noexcept {}
 };
-
 
 
 // function declarations

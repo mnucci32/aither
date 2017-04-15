@@ -53,6 +53,7 @@ input::input(const string &name, const string &resName) : simName_(name),
   pRef_ = -1.0;
   rRef_ = -1.0;
   lRef_ = 1.0;
+  aRef_ = 0.0;
   vRef_ = {1.0, 0.0, 0.0};
   gamma_ = 1.4;
   gasConst_ = 287.058;
@@ -818,7 +819,12 @@ const shared_ptr<inputState> & input::BCData(const int &tag) const {
   exit(EXIT_FAILURE);
 }
 
-// member function to return reference speed of sound
-double input::ARef(const idealGas &eos) const {
-  return eos.SoS(pRef_, rRef_);
+void input::NondimensionalizeStateData(const idealGas &eos) {
+  aRef_ = eos.SoS(pRef_, rRef_);
+  for (auto &state : bcStates_) {
+    state->Nondimensionalize(rRef_, tRef_, lRef_, aRef_);
+  }
+  for (auto &ic : ics_) {
+    ic.Nondimensionalize(rRef_, tRef_, lRef_, aRef_);
+  }
 }

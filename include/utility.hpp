@@ -78,14 +78,12 @@ void AssignSolToTimeN(vector<procBlock> &, const idealGas &);
 void AssignSolToTimeNm1(vector<procBlock> &);
 
 void ExplicitUpdate(vector<procBlock> &, const input &, const idealGas &,
-                    const double &, const sutherland &,
-                    const unique_ptr<turbModel> &, const int &, genArray &,
-                    resid &);
+                    const sutherland &, const unique_ptr<turbModel> &,
+                    const int &, genArray &, resid &);
 double ImplicitUpdate(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
-                      const input &, const idealGas &, const double &,
-                      const sutherland &, const unique_ptr<turbModel> &,
-                      const int &, genArray &, resid &,
-                      const vector<connection> &, const int &,
+                      const input &, const idealGas &, const sutherland &,
+                      const unique_ptr<turbModel> &, const int &, genArray &,
+                      resid &, const vector<connection> &, const int &,
                       const MPI_Datatype &);
 
 void SwapImplicitUpdate(vector<multiArray3d<genArray>> &,
@@ -106,7 +104,7 @@ void CalcResidual(vector<procBlock> &,
                   const vector<connection> &, const int &, const MPI_Datatype &,
                   const MPI_Datatype &);
 
-void CalcTimeStep(vector<procBlock> &, const input &, const double &);
+void CalcTimeStep(vector<procBlock> &, const input &);
 
 // void GetSolMMinusN(vector<multiArray3d<genArray>> &, const vector<procBlock> &,
 //                    const vector<multiArray3d<genArray>> &,

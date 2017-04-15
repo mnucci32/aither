@@ -316,6 +316,16 @@ icState::icState(string &str, const string name) {
   }
 }
 
+void icState::Nondimensionalize(const double &rRef, const double &tRef,
+                                const double &lRef, const double &aRef) {
+  if (!this->IsNondimensional()) {
+    velocity_ /= aRef;
+    density_ /= rRef;
+    pressure_ /= rRef * aRef * aRef;
+    this->SetNondimensional(true);
+  }
+}
+
 // construct stagnation inlet from string
 stagnationInlet::stagnationInlet(string &str) {
   const auto start = str.find("(") + 1;
@@ -391,6 +401,17 @@ stagnationInlet::stagnationInlet(string &str) {
   }
 }
 
+void stagnationInlet::Nondimensionalize(const double &rRef, const double &tRef,
+                                        const double &lRef,
+                                        const double &aRef) {
+  if (!this->IsNondimensional()) {
+    direction_.Normalize();
+    p0_ /= rRef * aRef * aRef;
+    t0_ /= tRef;
+    this->SetNondimensional(true);
+  }
+}
+
 // construct pressureOutlet from string
 pressureOutlet::pressureOutlet(string &str, const string name) {
   const auto start = str.find("(") + 1;
@@ -438,6 +459,14 @@ pressureOutlet::pressureOutlet(string &str, const string name) {
     cerr << "ERROR. For " << name << " pressure and tag must be specified, and "
          << "only specified once." << endl;
     exit(EXIT_FAILURE);
+  }
+}
+
+void pressureOutlet::Nondimensionalize(const double &rRef, const double &tRef,
+                                       const double &lRef, const double &aRef) {
+  if (!this->IsNondimensional()) {
+    pressure_ /= rRef * aRef * aRef;
+    this->SetNondimensional(true);
   }
 }
 
@@ -509,6 +538,15 @@ subsonicInflow::subsonicInflow(string &str) {
     cerr << "If either turbulenceIntensity or eddyViscosityRatio is specified "
          << "the other must be as well." << endl;
     exit(EXIT_FAILURE);
+  }
+}
+
+void subsonicInflow::Nondimensionalize(const double &rRef, const double &tRef,
+                                       const double &lRef, const double &aRef) {
+  if (!this->IsNondimensional()) {
+    velocity_ /= aRef;
+    density_ /= rRef;
+    this->SetNondimensional(true);
   }
 }
 
@@ -600,6 +638,16 @@ viscousWall::viscousWall(string &str) {
          << endl;
     cerr << "Choose lowRe or wallLaw" << endl;
     exit(EXIT_FAILURE);
+  }
+}
+
+void viscousWall::Nondimensionalize(const double &rRef, const double &tRef,
+                                    const double &lRef, const double &aRef) {
+  if (!this->IsNondimensional()) {
+    velocity_ /= aRef;
+    temperature_ /= tRef;
+    heatFlux_ /= pow(aRef / lRef, 3.0);
+    this->SetNondimensional(true);
   }
 }
 
@@ -701,6 +749,15 @@ periodic::periodic(string &str) {
   }
 }
 
+void periodic::Nondimensionalize(const double &rRef, const double &tRef,
+                                 const double &lRef, const double &aRef) {
+  if (!this->IsNondimensional()) {
+    translation_ /= lRef;
+    axis_.Normalize();
+    point_ /= lRef;
+    this->SetNondimensional(true);
+  }
+}
 
 void CheckICTags(const vector<icState> &ics, const int &tag) {
   for (auto &ic : ics) {

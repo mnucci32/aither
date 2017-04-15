@@ -87,8 +87,8 @@ class primVars {
   double Tke() const { return data_[5]; }
   double Omega() const { return data_[6]; }
 
-  void NondimensionalInitialize(const idealGas&, const double&, const input&,
-                                const sutherland&, const int&,
+  void NondimensionalInitialize(const idealGas &, const input &,
+                                const sutherland &, const int &,
                                 const unique_ptr<turbModel> &);
   bool IsZero() const;
   primVars Squared() const;

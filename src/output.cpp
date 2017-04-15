@@ -189,9 +189,6 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
 
   WriteBlockDims(outFile, recombVars, inp.NumVarsOutput());
 
-  // define reference speed of sound
-  const auto refSoS = inp.ARef(eqnState);
-
   // write out variables
   auto ll = 0;
   for (auto &blk : recombVars) {  // loop over all blocks
@@ -207,25 +204,25 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
               value *= inp.RRef();
             } else if (var == "vel_x") {
               value = blk.State(ii, jj, kk).U();
-              value *= refSoS;
+              value *= inp.ARef();
             } else if (var == "vel_y") {
               value = blk.State(ii, jj, kk).V();
-              value *= refSoS;
+              value *= inp.ARef();
             } else if (var == "vel_z") {
               value = blk.State(ii, jj, kk).W();
-              value *= refSoS;
+              value *= inp.ARef();
             } else if (var == "pressure") {
               value = blk.State(ii, jj, kk).P();
-              value *= inp.RRef() * refSoS * refSoS;
+              value *= inp.RRef() * inp.ARef() * inp.ARef();
             } else if (var == "mach") {
               auto vel = blk.State(ii, jj, kk).Velocity();
               value = vel.Mag() / blk.State(ii, jj, kk).SoS(eqnState);
             } else if (var == "sos") {
               value = blk.State(ii, jj, kk).SoS(eqnState);
-              value *= refSoS;
+              value *= inp.ARef();
             } else if (var == "dt") {
               value = blk.Dt(ii, jj, kk);
-              value /= refSoS * inp.LRef();
+              value /= inp.ARef() * inp.LRef();
             } else if (var == "temperature") {
               value = blk.Temperature(ii, jj, kk);
               value *= inp.TRef();
@@ -248,10 +245,10 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
               value *= suth.MuRef();
             } else if (var == "tke") {
               value = blk.State(ii, jj, kk).Tke();
-              value *= refSoS * refSoS;
+              value *= inp.ARef() * inp.ARef();
             } else if (var == "sdr") {
               value = blk.State(ii, jj, kk).Omega();
-              value *= refSoS * refSoS * inp.RRef() / suth.MuRef();
+              value *= inp.ARef() * inp.ARef() * inp.RRef() / suth.MuRef();
             } else if (var == "f1") {
               value = blk.F1(ii, jj, kk);
             } else if (var == "f2") {
@@ -261,31 +258,31 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
               value *= inp.LRef();
             } else if (var == "velGrad_ux") {
               value = blk.VelGrad(ii, jj, kk).XX();
-              value *= refSoS / inp.LRef();
+              value *= inp.ARef() / inp.LRef();
             } else if (var == "velGrad_vx") {
               value = blk.VelGrad(ii, jj, kk).XY();
-              value *= refSoS / inp.LRef();
+              value *= inp.ARef() / inp.LRef();
             } else if (var == "velGrad_wx") {
               value = blk.VelGrad(ii, jj, kk).XZ();
-              value *= refSoS / inp.LRef();
+              value *= inp.ARef() / inp.LRef();
             } else if (var == "velGrad_uy") {
               value = blk.VelGrad(ii, jj, kk).YX();
-              value *= refSoS / inp.LRef();
+              value *= inp.ARef() / inp.LRef();
             } else if (var == "velGrad_vy") {
               value = blk.VelGrad(ii, jj, kk).YY();
-              value *= refSoS / inp.LRef();
+              value *= inp.ARef() / inp.LRef();
             } else if (var == "velGrad_wy") {
               value = blk.VelGrad(ii, jj, kk).YZ();
-              value *= refSoS / inp.LRef();
+              value *= inp.ARef() / inp.LRef();
             } else if (var == "velGrad_uz") {
               value = blk.VelGrad(ii, jj, kk).ZX();
-              value *= refSoS / inp.LRef();
+              value *= inp.ARef() / inp.LRef();
             } else if (var == "velGrad_vz") {
               value = blk.VelGrad(ii, jj, kk).ZY();
-              value *= refSoS / inp.LRef();
+              value *= inp.ARef() / inp.LRef();
             } else if (var == "velGrad_wz") {
               value = blk.VelGrad(ii, jj, kk).ZZ();
-              value *= refSoS / inp.LRef();
+              value *= inp.ARef() / inp.LRef();
             } else if (var == "tempGrad_x") {
               value = blk.TempGrad(ii, jj, kk).X();
               value *= inp.TRef() / inp.LRef();
@@ -297,51 +294,51 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
               value *= inp.TRef() / inp.LRef();
             } else if (var == "tkeGrad_x") {
               value = blk.TkeGrad(ii, jj, kk).X();
-              value *= refSoS * refSoS / inp.LRef();
+              value *= inp.ARef() * inp.ARef() / inp.LRef();
             } else if (var == "tkeGrad_y") {
               value = blk.TkeGrad(ii, jj, kk).Y();
-              value *= refSoS * refSoS / inp.LRef();
+              value *= inp.ARef() * inp.ARef() / inp.LRef();
             } else if (var == "tkeGrad_z") {
               value = blk.TkeGrad(ii, jj, kk).Z();
-              value *= refSoS * refSoS / inp.LRef();
+              value *= inp.ARef() * inp.ARef() / inp.LRef();
             } else if (var == "omegaGrad_x") {
               value = blk.OmegaGrad(ii, jj, kk).X();
-              value *= refSoS * refSoS * inp.RRef() /
+              value *= inp.ARef() * inp.ARef() * inp.RRef() /
                   (suth.MuRef() * inp.LRef());
             } else if (var == "omegaGrad_y") {
               value = blk.OmegaGrad(ii, jj, kk).Y();
-              value *= refSoS * refSoS * inp.RRef() /
+              value *= inp.ARef() * inp.ARef() * inp.RRef() /
                   (suth.MuRef() * inp.LRef());
             } else if (var == "omegaGrad_z") {
               value = blk.OmegaGrad(ii, jj, kk).Z();
-              value *= refSoS * refSoS * inp.RRef() /
+              value *= inp.ARef() * inp.ARef() * inp.RRef() /
                   (suth.MuRef() * inp.LRef());
             } else if (var == "resid_mass") {
               value = blk.Residual(ii, jj, kk, 0);
-              value *= inp.RRef() * refSoS * inp.LRef() * inp.LRef();
+              value *= inp.RRef() * inp.ARef() * inp.LRef() * inp.LRef();
             } else if (var == "resid_mom_x") {
               value = blk.Residual(ii, jj, kk, 1);
-              value *= inp.RRef() * refSoS * refSoS * inp.LRef() *
+              value *= inp.RRef() * inp.ARef() * inp.ARef() * inp.LRef() *
                   inp.LRef();
             } else if (var == "resid_mom_y") {
               value = blk.Residual(ii, jj, kk, 2);
-              value *= inp.RRef() * refSoS * refSoS * inp.LRef() *
+              value *= inp.RRef() * inp.ARef() * inp.ARef() * inp.LRef() *
                   inp.LRef();
             } else if (var == "resid_mom_z") {
               value = blk.Residual(ii, jj, kk, 3);
-              value *= inp.RRef() * refSoS * refSoS * inp.LRef() *
+              value *= inp.RRef() * inp.ARef() * inp.ARef() * inp.LRef() *
                   inp.LRef();
             } else if (var == "resid_energy") {
               value = blk.Residual(ii, jj, kk, 4);
-              value *= inp.RRef() * pow(refSoS, 3.0) * inp.LRef() *
+              value *= inp.RRef() * pow(inp.ARef(), 3.0) * inp.LRef() *
                   inp.LRef();
             } else if (var == "resid_tke") {
               value = blk.Residual(ii, jj, kk, 5);
-              value *= inp.RRef() * pow(refSoS, 3.0) * inp.LRef() *
+              value *= inp.RRef() * pow(inp.ARef(), 3.0) * inp.LRef() *
                   inp.LRef();
             } else if (var == "resid_sdr") {
               value = blk.Residual(ii, jj, kk, 6);
-              value *= inp.RRef() * inp.RRef() * pow(refSoS, 4.0) *
+              value *= inp.RRef() * inp.RRef() * pow(inp.ARef(), 4.0) *
                   inp.LRef() * inp.LRef() / suth.MuRef();
             } else {
               cerr << "ERROR: Variable " << var
@@ -402,9 +399,6 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
   }
 
   WriteBlockDims(outFile, wallSurfs, inp.NumWallVarsOutput());
-
-  // define reference speed of sound
-  const auto refSoS = inp.ARef(eqnState);
 
   // write out variables
   for (auto &blk : vars) {  // loop over all blocks
@@ -538,7 +532,7 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                   // mutw = 0.0;
                   auto tauw = TauShear(velGrad, area, muw, mutw, suth);
                   value = tauw.Mag();
-                  value *= suth.MuRef() * refSoS / inp.LRef();
+                  value *= suth.MuRef() * inp.ARef() / inp.LRef();
                 } else if (var == "viscosityRatio") {
                   cout << "mut: " << mutw << " ";
                   mutw += blk.State(ii, jj, kk - 1).Rho() *
@@ -560,13 +554,13 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                   mutw *= suth.NondimScaling();
                   auto tauw = TauShear(velGrad, area, muw, mutw, suth);
                   value = sqrt(tauw.Mag() / statew.Rho());
-                  value *= refSoS;
+                  value *= inp.ARef();
                 } else if (var == "density") {
                   value = statew.Rho();
                   value *= inp.RRef();
                 } else if (var == "pressure") {
                   value = statew.P();
-                  value *= inp.RRef() * refSoS * refSoS;
+                  value *= inp.RRef() * inp.ARef() * inp.ARef();
                 } else if (var == "temperature") {
                   value = tw;
                   value *= inp.TRef();
@@ -575,19 +569,19 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                   value *= suth.MuRef();
                 } else if (var == "tke") {
                   value = statew.Tke();
-                  value *= refSoS * refSoS;
+                  value *= inp.ARef() * inp.ARef();
                 } else if (var == "sdr") {
                   value = statew.Omega();
-                  value *= refSoS * refSoS * inp.RRef() / suth.MuRef();
+                  value *= inp.ARef() * inp.ARef() * inp.RRef() / suth.MuRef();
                 } else if (var == "vel_x") {
                   value = statew.U();
-                  value *= refSoS;
+                  value *= inp.ARef();
                 } else if (var == "vel_y") {
                   value = statew.V();
-                  value *= refSoS;
+                  value *= inp.ARef();
                 } else if (var == "vel_z") {
                   value = statew.W();
-                  value *= refSoS;
+                  value *= inp.ARef();
                 } else {
                   cerr << "ERROR: Variable " << var
                        << " to write to wall function file is not defined!"
@@ -653,9 +647,6 @@ void WriteRestart(const vector<procBlock> &splitVars, const idealGas &eqnState,
 
   WriteBlockDims(outFile, vars, restartVars.size());
 
-  // define reference speed of sound
-  const auto refSoS = inp.ARef(eqnState);
-
   // write out variables
   for (auto &blk : vars) {  // loop over all blocks
     // write out dimensional variables -- loop over physical cells
@@ -670,22 +661,22 @@ void WriteRestart(const vector<procBlock> &splitVars, const idealGas &eqnState,
               value *= inp.RRef();
             } else if (var == "vel_x") {
               value = blk.State(ii, jj, kk).U();
-              value *= refSoS;
+              value *= inp.ARef();
             } else if (var == "vel_y") {
               value = blk.State(ii, jj, kk).V();
-              value *= refSoS;
+              value *= inp.ARef();
             } else if (var == "vel_z") {
               value = blk.State(ii, jj, kk).W();
-              value *= refSoS;
+              value *= inp.ARef();
             } else if (var == "pressure") {
               value = blk.State(ii, jj, kk).P();
-              value *= inp.RRef() * refSoS * refSoS;
+              value *= inp.RRef() * inp.ARef() * inp.ARef();
             } else if (var == "tke") {
               value = blk.State(ii, jj, kk).Tke();
-              value *= refSoS * refSoS;
+              value *= inp.ARef() * inp.ARef();
             } else if (var == "sdr") {
               value = blk.State(ii, jj, kk).Omega();
-              value *= refSoS * refSoS * inp.RRef() / suth.MuRef();
+              value *= inp.ARef() * inp.ARef() * inp.RRef() / suth.MuRef();
             } else {
               cerr << "ERROR: Variable " << var
                    << " to write to restart file is not defined!" << endl;
@@ -715,22 +706,22 @@ void WriteRestart(const vector<procBlock> &splitVars, const idealGas &eqnState,
                 value *= inp.RRef();
               } else if (var == "vel_x") {  // conserved var is rho-u
                 value = blk.ConsVarsNm1(ii, jj, kk)[1];
-                value *= refSoS * inp.RRef();
+                value *= inp.ARef() * inp.RRef();
               } else if (var == "vel_y") {  // conserved var is rho-v
                 value = blk.ConsVarsNm1(ii, jj, kk)[2];
-                value *= refSoS * inp.RRef();
+                value *= inp.ARef() * inp.RRef();
               } else if (var == "vel_z") {  // conserved var is rho-w
                 value = blk.ConsVarsNm1(ii, jj, kk)[3];
-                value *= refSoS * inp.RRef();
+                value *= inp.ARef() * inp.RRef();
               } else if (var == "pressure") {  // conserved var is rho-E
                 value = blk.ConsVarsNm1(ii, jj, kk)[4];
-                value *= refSoS * refSoS * inp.RRef();
+                value *= inp.ARef() * inp.ARef() * inp.RRef();
               } else if (var == "tke") {  // conserved var is rho-tke
                 value = blk.ConsVarsNm1(ii, jj, kk)[5];
-                value *= refSoS * refSoS * inp.RRef();
+                value *= inp.ARef() * inp.ARef() * inp.RRef();
               } else if (var == "sdr") {  // conserved var is rho-sdr
                 value = blk.ConsVarsNm1(ii, jj, kk)[6];
-                value *= refSoS * refSoS * inp.RRef() * inp.RRef() / suth.MuRef();
+                value *= inp.ARef() * inp.ARef() * inp.RRef() * inp.RRef() / suth.MuRef();
               } else {
                 cerr << "ERROR: Variable " << var
                      << " to write to restart file is not defined!" << endl;
@@ -1253,9 +1244,6 @@ multiArray3d<primVars> ReadSolFromRestart(
   // intialize multiArray3d
   multiArray3d<primVars> sol(numI, numJ, numK, 0);
 
-  // define reference speed of sound
-  const auto refSoS = inp.ARef(eos);
-
   // read the primative variables
   // read dimensional variables -- loop over physical cells
   for (auto kk = sol.StartK(); kk < sol.EndK(); kk++) {
@@ -1269,22 +1257,22 @@ multiArray3d<primVars> ReadSolFromRestart(
             value[0] /= inp.RRef();
           } else if (var == "vel_x") {
             resFile.read(reinterpret_cast<char *>(&value[1]), sizeof(value[1]));
-            value[1] /= refSoS;
+            value[1] /= inp.ARef();
           } else if (var == "vel_y") {
             resFile.read(reinterpret_cast<char *>(&value[2]), sizeof(value[2]));
-            value[2] /= refSoS;
+            value[2] /= inp.ARef();
           } else if (var == "vel_z") {
             resFile.read(reinterpret_cast<char *>(&value[3]), sizeof(value[3]));
-            value[3] /= refSoS;
+            value[3] /= inp.ARef();
           } else if (var == "pressure") {
             resFile.read(reinterpret_cast<char *>(&value[4]), sizeof(value[4]));
-            value[4] /= inp.RRef() * refSoS * refSoS;
+            value[4] /= inp.RRef() * inp.ARef() * inp.ARef();
           } else if (var == "tke") {
             resFile.read(reinterpret_cast<char *>(&value[5]), sizeof(value[5]));
-            value[5] /= refSoS * refSoS;
+            value[5] /= inp.ARef() * inp.ARef();
           } else if (var == "sdr") {
             resFile.read(reinterpret_cast<char *>(&value[6]), sizeof(value[6]));
-            value[6] /= refSoS * refSoS * inp.RRef() / suth.MuRef();
+            value[6] /= inp.ARef() * inp.ARef() * inp.RRef() / suth.MuRef();
           } else {
             cerr << "ERROR: Variable " << var
                  << " to read from restart file is not defined!" << endl;
@@ -1306,9 +1294,6 @@ multiArray3d<genArray> ReadSolNm1FromRestart(
   // intialize multiArray3d
   multiArray3d<genArray> sol(numI, numJ, numK, 0);
 
-  // define reference speed of sound
-  const auto refSoS = inp.ARef(eos);
-
   // data is conserved variables
   // read dimensional variables -- loop over physical cells
   for (auto kk = sol.StartK(); kk < sol.EndK(); kk++) {
@@ -1322,22 +1307,22 @@ multiArray3d<genArray> ReadSolNm1FromRestart(
             value[0] /= inp.RRef();
           } else if (var == "vel_x") {  // conserved var is rho-u
             resFile.read(reinterpret_cast<char *>(&value[1]), sizeof(value[1]));
-            value[1] /= refSoS * inp.RRef();
+            value[1] /= inp.ARef() * inp.RRef();
           } else if (var == "vel_y") {  // conserved var is rho-v
             resFile.read(reinterpret_cast<char *>(&value[2]), sizeof(value[2]));
-            value[2] /= refSoS * inp.RRef();
+            value[2] /= inp.ARef() * inp.RRef();
           } else if (var == "vel_z") {  // conserved var is rho-w
             resFile.read(reinterpret_cast<char *>(&value[3]), sizeof(value[3]));
-            value[3] /= refSoS * inp.RRef();
+            value[3] /= inp.ARef() * inp.RRef();
           } else if (var == "pressure") {  // conserved var is rho-E
             resFile.read(reinterpret_cast<char *>(&value[4]), sizeof(value[4]));
-            value[4] /= inp.RRef() * refSoS * refSoS;
+            value[4] /= inp.RRef() * inp.ARef() * inp.ARef();
           } else if (var == "tke") {  // conserved var is rho-tke
             resFile.read(reinterpret_cast<char *>(&value[5]), sizeof(value[5]));
-            value[5] /= refSoS * refSoS * inp.RRef();
+            value[5] /= inp.ARef() * inp.ARef() * inp.RRef();
           } else if (var == "sdr") {  // conserved var is rho-sdr
             resFile.read(reinterpret_cast<char *>(&value[6]), sizeof(value[6]));
-            value[6] /= refSoS * refSoS * inp.RRef() *inp.RRef() / suth.MuRef();
+            value[6] /= inp.ARef() * inp.ARef() * inp.RRef() *inp.RRef() / suth.MuRef();
           } else {
             cerr << "ERROR: Variable " << var
                  << " to read from restart file is not defined!" << endl;

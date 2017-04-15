@@ -46,11 +46,11 @@ using std::unique_ptr;
 using std::ifstream;
 
 // constructors for procBlock class
-procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
-                     const int &numBlk, const boundaryConditions &bound,
-                     const int &pos, const int &r, const int &lpos,
-                     const input &inp, const idealGas &eos,
-                     const sutherland &suth, const unique_ptr<turbModel> &turb) {
+procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
+                     const boundaryConditions &bound, const int &pos,
+                     const int &r, const int &lpos, const input &inp,
+                     const idealGas &eos, const sutherland &suth,
+                     const unique_ptr<turbModel> &turb) {
   // blk -- plot3d block of which this procBlock is a subset of
   // numBlk -- the block number of blk (the parent block)
   // bound -- boundary conditions for block
@@ -94,7 +94,7 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
 
   // get nondimensional state for initialization
   primVars inputState;
-  inputState.NondimensionalInitialize(eos, aRef, inp, suth, parBlock_, turb);
+  inputState.NondimensionalInitialize(eos, inp, suth, parBlock_, turb);
 
   // pad stored variable vectors with ghost cells
   state_ = PadWithGhosts(multiArray3d<primVars>(numI, numJ, numK, 0,
@@ -761,22 +761,21 @@ the time step is user specified assign that time step (after
 nondimensionalization) to dt variable. If time step is to be determined using CFL
 number, call function to do so.
 */
-void procBlock::CalcBlockTimeStep(const input &inputVars, const double &aRef) {
-  // inputVars -- all input variables
-  // aRef -- reference speed of sound (used for time non dimensionalization)
+void procBlock::CalcBlockTimeStep(const input &inp) {
+  // inp -- all input variables
 
   // loop over all physical cells - no ghost cells for dt variable
   for (auto kk = 0; kk < this->NumK(); kk++) {
     for (auto jj = 0; jj < this->NumJ(); jj++) {
       for (auto ii = 0; ii < this->NumI(); ii++) {
         // dt specified, use global time stepping
-        if (inputVars.Dt() > 0.0) {
+        if (inp.Dt() > 0.0) {
           // nondimensional time
-          dt_(ii, jj, kk) = inputVars.Dt() * aRef / inputVars.LRef();
+          dt_(ii, jj, kk) = inp.Dt() * inp.ARef() / inp.LRef();
 
         // cfl specified, use local time stepping
-        } else if (inputVars.CFL() > 0.0) {
-          this->CalcCellDt(ii, jj, kk, inputVars.CFL());
+        } else if (inp.CFL() > 0.0) {
+          this->CalcCellDt(ii, jj, kk, inp.CFL());
         } else {
           cerr << "ERROR: Neither dt or cfl was specified!" << endl;
           exit(EXIT_FAILURE);
@@ -791,14 +790,12 @@ explicit methods it calls the appropriate explicit method to update. For
 implicit methods it uses the correction du and calls the implicit updater.
 */
 void procBlock::UpdateBlock(const input &inputVars, const idealGas &eos,
-                            const double &aRef,
                             const sutherland &suth,
                             const multiArray3d<genArray> &du,
-                            const unique_ptr<turbModel> &turb,
-                            const int &rr, genArray &l2, resid &linf) {
+                            const unique_ptr<turbModel> &turb, const int &rr,
+                            genArray &l2, resid &linf) {
   // inputVars -- all input variables
   // eos -- equation of state
-  // aRef -- reference speed of sound (for nondimensionalization)
   // suth -- sutherland's law for viscosity
   // du -- updates to conservative variables (only used in implicit solver)
   // turb -- turbulence model

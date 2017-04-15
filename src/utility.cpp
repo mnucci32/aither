@@ -381,26 +381,23 @@ void AssignSolToTimeNm1(vector<procBlock> &blocks) {
   }
 }
 
-void ExplicitUpdate(vector<procBlock> &blocks,
-                    const input &inp, const idealGas &eos,
-                    const double &aRef, const sutherland &suth,
+void ExplicitUpdate(vector<procBlock> &blocks, const input &inp,
+                    const idealGas &eos, const sutherland &suth,
                     const unique_ptr<turbModel> &turb, const int &mm,
                     genArray &residL2, resid &residLinf) {
   // create dummy update (not used in explicit update)
   multiArray3d<genArray> du(1, 1, 1, 0);
   // loop over all blocks and update
   for (auto &block : blocks) {
-    block.UpdateBlock(inp, eos, aRef, suth, du, turb, mm, residL2, residLinf);
+    block.UpdateBlock(inp, eos, suth, du, turb, mm, residL2, residLinf);
   }
 }
-
 
 double ImplicitUpdate(vector<procBlock> &blocks,
                       vector<multiArray3d<fluxJacobian>> &mainDiagonal,
                       const input &inp, const idealGas &eos,
-                      const double &aRef, const sutherland &suth,
-                      const unique_ptr<turbModel> &turb, const int &mm,
-                      genArray &residL2, resid &residLinf,
+                      const sutherland &suth, const unique_ptr<turbModel> &turb,
+                      const int &mm, genArray &residL2, resid &residLinf,
                       const vector<connection> &connections, const int &rank,
                       const MPI_Datatype &MPI_cellData) {
   // blocks -- vector of procBlocks on current processor
@@ -480,7 +477,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   // Update blocks and reset main diagonal
   for (auto bb = 0U; bb < blocks.size(); bb++) {
     // Update solution
-    blocks[bb].UpdateBlock(inp, eos, aRef, suth, du[bb], turb, mm, residL2,
+    blocks[bb].UpdateBlock(inp, eos, suth, du[bb], turb, mm, residL2,
                            residLinf);
 
     // Assign time n to time n-1 at end of nonlinear iterations
@@ -645,15 +642,13 @@ void CalcResidual(vector<procBlock> &states,
   }
 }
 
-void CalcTimeStep(vector<procBlock> &states, const input &inp,
-                  const double &aRef) {
+void CalcTimeStep(vector<procBlock> &states, const input &inp) {
   // states -- vector of all procBlocks on processor
   // inp -- input variables
-  // aRef -- reference speed of sound
 
   for (auto &state : states) {
     // calculate time step
-    state.CalcBlockTimeStep(inp, aRef);
+    state.CalcBlockTimeStep(inp);
   }
 }
 

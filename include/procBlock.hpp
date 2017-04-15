@@ -159,9 +159,9 @@ class procBlock {
 
  public:
   // constructors
-  procBlock(const double &, const plot3dBlock &, const int &,
-            const boundaryConditions &, const int &, const int &, const int &,
-            const input &, const idealGas &, const sutherland &,
+  procBlock(const plot3dBlock &, const int &, const boundaryConditions &,
+            const int &, const int &, const int &, const input &,
+            const idealGas &, const sutherland &,
             const unique_ptr<turbModel> &);
   procBlock(const int &, const int &, const int &, const int &, const bool &,
             const bool &, const bool &, const bool &, const bool &);
@@ -343,17 +343,17 @@ class procBlock {
   }
 
   tensor<double> VelGrad(const int &ii, const int &jj, const int &kk) const {
-    return velocityGrad_(ii, jj, kk);
+    return isViscous_ ? velocityGrad_(ii, jj, kk) : tensor<double>(0.0);
   }
   vector3d<double> TempGrad(const int &ii, const int &jj, const int &kk) const {
-    return temperatureGrad_(ii, jj, kk);
+    return isViscous_ ? temperatureGrad_(ii, jj, kk) : vector3d<double>();
   }
   vector3d<double> TkeGrad(const int &ii, const int &jj, const int &kk) const {
-    return tkeGrad_(ii, jj, kk);
+    return isRANS_ ? tkeGrad_(ii, jj, kk) : vector3d<double>();
   }
   vector3d<double> OmegaGrad(const int &ii, const int &jj,
                              const int &kk) const {
-    return omegaGrad_(ii, jj, kk);
+    return isRANS_ ? omegaGrad_(ii, jj, kk) : vector3d<double>();
   }
 
   double Temperature(const int &ii, const int &jj, const int &kk) const {
@@ -372,9 +372,9 @@ class procBlock {
     return isRANS_ ? f2_(ii, jj, kk) : 0.0;
   }
 
-  void CalcBlockTimeStep(const input &, const double &);
-  void UpdateBlock(const input &, const idealGas &, const double &,
-                   const sutherland &, const multiArray3d<genArray> &,
+  void CalcBlockTimeStep(const input &);
+  void UpdateBlock(const input &, const idealGas &, const sutherland &,
+                   const multiArray3d<genArray> &,
                    const unique_ptr<turbModel> &, const int &, genArray &,
                    resid &);
 
