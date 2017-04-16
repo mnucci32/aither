@@ -4590,9 +4590,9 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
 
   auto stringSize = 0;
   for (auto jj = 0; jj < bc_.NumSurfaces(); jj++) {
-    MPI_Pack_size(
-        bc_.GetBCTypes(jj).size() + 1, MPI_CHAR, MPI_COMM_WORLD,
-        &tempSize);  // add size for bc_ types (+1 for c_str end character)
+    // add size for bc_ types (+1 for c_str end character)
+    MPI_Pack_size(bc_.GetBCTypes(jj).size() + 1, MPI_CHAR, MPI_COMM_WORLD,
+                  &tempSize);
     stringSize += tempSize;
   }
   sendBufSize += stringSize;
@@ -4691,9 +4691,8 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
   // probe message to get correct data size
   auto recvBufSize = 0;
   MPI_Probe(ROOTP, 2, MPI_COMM_WORLD, &status);
-  MPI_Get_count(&status, MPI_CHAR, &recvBufSize);  // use MPI_CHAR because
-                                                   // sending buffer was
-                                                   // allocated with chars
+  // use MPI_CHAR because sending buffer was allocated with chars
+  MPI_Get_count(&status, MPI_CHAR, &recvBufSize);
 
   // allocate buffer of correct size
   // use unique_ptr to manage memory; use underlying pointer with MPI

@@ -73,8 +73,8 @@ class wallData {
   double WallDensity(const int &ii, const int &jj, const int &kk) const;
   double WallFrictionVelocity(const int &ii, const int &jj,
                               const int &kk) const;
-
-  void PackWallData(char*(&), const int&, int&, const MPI_Datatype&) const;
+  int WallVarsSize() const {return data_.Size();}
+  void PackWallData(char *(&), const int &, int &, const MPI_Datatype &) const;
   void PackSize(int &, const MPI_Datatype &) const;
   void UnpackWallData(char *(&), const int &, int &, const MPI_Datatype &,
                       const input &);

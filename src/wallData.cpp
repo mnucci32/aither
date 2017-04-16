@@ -94,7 +94,7 @@ void wallData::PackSize(int &sendBufSize,
   MPI_Pack_size(surf_.BCType().size() + 1, MPI_CHAR, MPI_COMM_WORLD, &tempSize);
   sendBufSize += tempSize;
 
-  // add size for array of wallData
+  // add array of wallData
   MPI_Pack_size(data_.Size(), MPI_wallData, MPI_COMM_WORLD, &tempSize);
   sendBufSize += tempSize;
 }
@@ -114,11 +114,12 @@ void wallData::UnpackWallData(char *(&recvBuffer), const int &recvBufSize,
 
   // unpack BC surface
   surf_.UnpackBoundarySurface(recvBuffer, recvBufSize, position);
-
+  
   // get bc data from tag
   bcData_ = inp.BCData(surf_.Tag());
 
   // unpack wall variables
+  data_.ClearResize(surf_.NumI(), surf_.NumJ(), surf_.NumK(), 0);
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(data_)),
              data_.Size(), MPI_wallData, MPI_COMM_WORLD);
 }
