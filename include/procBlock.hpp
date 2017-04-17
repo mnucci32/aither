@@ -406,6 +406,11 @@ class procBlock {
   void AssignViscousGhostCellsEdge(const input &, const idealGas &,
                                    const sutherland &,
                                    const unique_ptr<turbModel> &);
+  multiArray3d<primVars> GetGhostStates(
+      const multiArray3d<primVars> &, const string &,
+      const multiArray3d<unitVec3dMag<double>> &, const multiArray3d<double> &,
+      const boundarySurface &, const input &, const idealGas &,
+      const sutherland &, const unique_ptr<turbModel> &, const int = 1);
 
   void CalcGradsI(const int &, const int &, const int &,
                   tensor<double> &, vector3d<double> &, vector3d<double> &,
@@ -493,7 +498,9 @@ class procBlock {
   void CalcCellWidths();
   void GetStatesFromRestart(const multiArray3d<primVars> &);
   void GetSolNm1FromRestart(const multiArray3d<genArray> &);
-  
+
+  int WallDataIndex(const boundarySurface &) const;
+
   // destructor
   ~procBlock() noexcept {}
 };

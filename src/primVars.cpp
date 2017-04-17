@@ -26,6 +26,7 @@
 #include "turbulence.hpp"          // turbModel
 #include "utility.hpp"
 #include "wallLaw.hpp"
+#include "wallData.hpp"
 
 using std::cout;
 using std::endl;
@@ -351,7 +352,6 @@ ____________________|___________
 Currently the following boundary conditions are supported: slipWall,
 viscousWall, characteristic, stagnationInlet, pressureOutlet, subsonicInflow,
 subsonicOutflow, supersonicInflow, supersonicOutflow
-
 */
 primVars primVars::GetGhostState(const string &bcType,
                                  const vector3d<double> &areaVec,
@@ -360,7 +360,7 @@ primVars primVars::GetGhostState(const string &bcType,
                                  const idealGas &eqnState,
                                  const sutherland &suth,
                                  const unique_ptr<turbModel> &turb,
-                                 const int layer) const {
+                                 wallVars &wVars, const int layer) const {
   // bcType -- type of boundary condition to supply ghost cell for
   // areaVec -- unit area vector of boundary face
   // surf -- surface type [1-6]
@@ -864,42 +864,6 @@ void primVars::ApplyFarfieldTurbBC(const vector3d<double> &vel,
   data_[6] = data_[0] * data_[5] /
       (viscRatio * suth.Viscosity(this->Temperature(eqnState)));
   this->LimitTurb(turb);
-}
-
-
-multiArray3d<primVars> GetGhostStates(
-    const multiArray3d<primVars> &bndStates, const string &bcName,
-    const multiArray3d<unitVec3dMag<double>> &faceAreas,
-    const multiArray3d<double> &wDist, const int &surf,
-    const input &inp, const int &tag, const idealGas &eos, const sutherland &suth,
-    const unique_ptr<turbModel> &turb, const int layer) {
-  // bndStates -- states at cells adjacent to boundary
-  // bcName -- boundary condition type
-  // faceAreas -- face areas of boundary
-  // surf -- boundary surface type [1-6]
-  // inp -- input variables
-  // tag -- boundary condition tag
-  // eos -- equation of state
-  // suth -- sutherland's law for viscosity
-  // turb -- turbulence model
-  // layer -- layer of ghost cell to return
-  //          (1 closest to boundary, or 2 farthest)
-
-  multiArray3d<primVars> ghostStates(
-      bndStates.NumINoGhosts(), bndStates.NumJNoGhosts(),
-      bndStates.NumKNoGhosts(), bndStates.GhostLayers());
-  for (auto kk = bndStates.StartK(); kk < bndStates.EndK(); kk++) {
-    for (auto jj = bndStates.StartJ(); jj < bndStates.EndJ(); jj++) {
-      for (auto ii = bndStates.StartI(); ii < bndStates.EndI(); ii++) {
-        ghostStates(ii, jj, kk) =
-            bndStates(ii, jj, kk).
-            GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),
-                          wDist(ii, jj, kk), surf, inp, tag, eos, suth, turb,
-                          layer);
-      }
-    }
-  }
-  return ghostStates;
 }
 
 void primVars::LimitTurb(const unique_ptr<turbModel> &turb) {

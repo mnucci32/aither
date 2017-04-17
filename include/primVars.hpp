@@ -51,6 +51,7 @@ using std::unique_ptr;
 // forward class declarations
 class input;
 class turbModel;
+struct wallVars;
 
 class primVars {
   double data_[NUMVARS];  // primative variables at cell center
@@ -196,19 +197,14 @@ class primVars {
   primVars GetGhostState(const string &, const vector3d<double> &,
                          const double &, const int &, const input &,
                          const int &, const idealGas &, const sutherland &,
-                         const unique_ptr<turbModel> &, const int = 1) const;
+                         const unique_ptr<turbModel> &, wallVars &,
+                         const int = 1) const;
 
   // destructor
   ~primVars() noexcept {}
 };
 
 // function definitions
-multiArray3d<primVars> GetGhostStates(
-    const multiArray3d<primVars> &, const string &,
-    const multiArray3d<unitVec3dMag<double>> &, const multiArray3d<double> &,
-    const int &, const input &, const int &, const idealGas &, const sutherland &,
-    const unique_ptr<turbModel> &, const int = 1);
-
 // member function to calculate temperature from conserved variables and
 // equation of state
 double primVars::Temperature(const idealGas &eqnState) const {

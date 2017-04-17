@@ -34,12 +34,23 @@ using std::shared_ptr;
 // forward declarations
 class input;
 
+// structure to hold wall variables
+struct wallVars {
+  vector3d<double> shearStress_ = {0.0, 0.0, 0.0};
+  double heatFlux_ = 0.0;
+  double yplus_ = 0.0;
+  double temperature_ = 0.0;
+  double turbEddyVisc_ = 0.0;
+  double viscosity_ = 0.0;
+  double density_ = 0.0;
+  double frictionVelocity_ = 0.0;
+};
+
 class wallData {
   double inviscidForce_;
   double viscousForce_;
   shared_ptr<inputState> bcData_;
   boundarySurface surf_;
-  struct wallVars;  // forward declaration
   multiArray3d<wallVars> data_;
 
  public:
@@ -78,31 +89,22 @@ class wallData {
   void PackSize(int &, const MPI_Datatype &) const;
   void UnpackWallData(char *(&), const int &, int &, const MPI_Datatype &,
                       const input &);
+  const boundarySurface & Surface() const {return surf_;}
 
   // operator overloads
-  wallVars &operator()(const int &ii, const int &jj, const int &kk) {
-    return data_(ii - surf_.IMin(), jj - surf_.JMin(), kk - surf_.KMin());
-   }
-   const wallVars &operator()(const int &ii, const int &jj,
-                              const int &kk) const {
-     return data_(ii - surf_.IMin(), jj - surf_.JMin(), kk - surf_.KMin());
-   }
+  wallVars &operator()(const int &ii, const int &jj, const int &kk,
+                       const bool &raw = false) {
+    return raw ? data_(ii, jj, kk)
+               : data_(ii - surf_.IMin(), jj - surf_.JMin(), kk - surf_.KMin());
+  }
+  const wallVars &operator()(const int &ii, const int &jj, const int &kk,
+                             const bool &raw = false) const {
+    return raw ? data_(ii, jj, kk)
+               : data_(ii - surf_.IMin(), jj - surf_.JMin(), kk - surf_.KMin());
+  }
 
-   // destructor
-   ~wallData() noexcept {}
-};
-
-
-// structure to hold wall variables
-struct wallData::wallVars {
-  vector3d<double> shearStress_ = {0.0, 0.0, 0.0};
-  double heatFlux_ = 0.0;
-  double yplus_ = 0.0;
-  double temperature_ = 0.0;
-  double turbEddyVisc_ = 0.0;
-  double viscosity_ = 0.0;
-  double density_ = 0.0;
-  double frictionVelocity_ = 0.0;
+  // destructor
+  ~wallData() noexcept {}
 };
 
 

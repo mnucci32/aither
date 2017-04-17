@@ -84,10 +84,15 @@ void boundaryConditions::ResizeVecs(const int &i, const int &j, const int &k) {
   surfs_.resize(i + j + k);
 }
 
+bool boundarySurface::operator==(const boundarySurface &surf) const {
+  return (surf.bcType_ == bcType_ && surf.data_ == data_) ? true : false;
+}
+
 // Member function to return the boundary condition type given the
 // i,j,k face coordinates and the surface type
-string boundaryConditions::GetBCName(const int &i, const int &j, const int &k,
-                                     const int &surf) const {
+boundarySurface boundaryConditions::GetBCSurface(const int &i, const int &j,
+                                                 const int &k,
+                                                 const int &surf) const {
   // ii -- i coordinate
   // jj -- j coordinate
   // kk -- k coordinate
@@ -112,7 +117,7 @@ string boundaryConditions::GetBCName(const int &i, const int &j, const int &k,
     cerr << "ERROR: Surface type " << surf << " is not recognized!" << endl;
   }
 
-  string bcName = "undefined";
+  boundarySurface surface;
 
   // Determine which boundary condition should be applied
   for (auto nn = iStart; nn < iEnd; nn++) {
@@ -120,58 +125,14 @@ string boundaryConditions::GetBCName(const int &i, const int &j, const int &k,
     if ((i >= this->GetIMin(nn) && i <= this->GetIMax(nn) &&
          j >= this->GetJMin(nn) && j <= this->GetJMax(nn) &&
          k >= this->GetKMin(nn) && k <= this->GetKMax(nn))) {
-      bcName = this->GetBCTypes(nn);
+      surface = this->GetSurface(nn);
       break;
     }
   }
 
-  return bcName;
+  return surface;
 }
 
-
-// Member function to return the boundary condition tag given the
-// i,j,k face coordinates and the surface type
-int boundaryConditions::GetBCTag(const int &i, const int &j, const int &k,
-                                 const int &surf) const {
-  // ii -- i coordinate
-  // jj -- j coordinate
-  // kk -- k coordinate
-  // surf -- boundary condition surface type [1-6]
-
-  auto iStart = 0;
-  auto iEnd = 0;
-
-  // i-surfaces search between 0 and number of i-surfaces
-  if (surf == 1 || surf == 2) {
-    iStart = 0;
-    iEnd = this->NumSurfI();
-    // j-surfaces search between end of i-surfaces and end of j-surfaces
-  } else if (surf == 3 || surf == 4) {
-    iStart = this->NumSurfI();
-    iEnd = iStart + this->NumSurfJ();
-    // k-surfaces search between end of j-surfaces and end of k-surfaces
-  } else if (surf == 5 || surf == 6) {
-    iStart = this->NumSurfI() + this->NumSurfJ();
-    iEnd = iStart + this->NumSurfK();
-  } else {
-    cerr << "ERROR: Surface type " << surf << " is not recognized!" << endl;
-  }
-
-  auto bcTag = -1;
-
-  // Determine which boundary condition should be applied
-  for (auto nn = iStart; nn < iEnd; nn++) {
-    // Determine which boundary given i, j, k coordinates apply to
-    if ((i >= this->GetIMin(nn) && i <= this->GetIMax(nn) &&
-         j >= this->GetJMin(nn) && j <= this->GetJMax(nn) &&
-         k >= this->GetKMin(nn) && k <= this->GetKMax(nn))) {
-      bcTag = this->GetTag(nn);
-      break;
-    }
-  }
-
-  return bcTag;
-}
 
 // Member function to fill one "row" of the vectors with data that has been
 // read in from the input file. This function is called from

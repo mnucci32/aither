@@ -114,6 +114,8 @@ class boundarySurface {
   void PackBoundarySurface(char*(&), const int&, int&) const;
   void UnpackBoundarySurface(char*(&), const int&, int&);
 
+  bool operator==(const boundarySurface &) const;
+
   // Destructor
   ~boundarySurface() noexcept {}
 };
@@ -249,8 +251,12 @@ class boundaryConditions {
   void ResizeVecs(const int&);
   void ResizeVecs(const int&, const int&, const int&);
 
-  string GetBCName(const int&, const int&, const int&, const int&) const;
-  int GetBCTag(const int&, const int&, const int&, const int&) const;
+  boundarySurface GetBCSurface(const int &, const int &, const int &,
+                               const int &) const;
+  string GetBCName(const int &ii, const int &jj, const int &kk,
+                   const int &surf) const {
+    return this->GetBCSurface(ii, jj, kk, surf).BCType();
+  }
   bool BCIsConnection(const int &ii, const int &jj, const int &kk,
                       const int &surf) const {
     const auto name = this->GetBCName(ii, jj, kk, surf);

@@ -2799,8 +2799,8 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
       const auto r3 = bc_.RangeDir3(ii);
 
       const auto dir = bc_.Direction3(ii);
-      const auto surfType = bc_.GetSurfaceType(ii);
-      const auto tag = bc_.GetTag(ii);
+      const auto surf = bc_.GetSurface(ii);
+      const auto surfType = surf.SurfaceType();
 
       auto gCell = 0, iCell = 0, aCell = 0;           // indices for cells
       auto bnd = 0;                                   // indices for faces
@@ -2846,9 +2846,9 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
         const auto boundaryStates = (bcName == "slipWall") ?
             state_.Slice(dir, iCell, r1, r2) : state_.Slice(dir, aCell, r1, r2);
 
-        const auto ghostStates = GetGhostStates(boundaryStates, bcName,
-                                                faceAreas, wDist, surfType, inp,
-                                                tag, eos, suth, turb, layer);
+        const auto ghostStates =
+            this->GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
+                                 surf, inp, eos, suth, turb, layer);
 
         state_.Insert(dir, gCell, r1, r2, ghostStates);
       }
@@ -2963,21 +2963,12 @@ void procBlock::AssignInviscidGhostCellsEdge(
 
           // loop over edge
           for (auto d1 = 0; d1 <= max1; d1++) {
-            string bc_2 = "undefined";
-            string bc_3 = "undefined";
-            auto tag2 = 0, tag3 = 0;
+            boundarySurface bcSurf_2, bcSurf_3;
             vector3d<double> fArea2, fArea3;
             if (dir == "i") {
               // boundary conditions at corner
-              bc_2 = bc_.GetBCName(d1, cFaceD2_2, cFaceD2_3, surf2);
-              if (bc_2 == "viscousWall") {bc_2 = "slipWall";}
-
-              bc_3 = bc_.GetBCName(d1, cFaceD3_2, cFaceD3_3, surf3);
-              if (bc_3 == "viscousWall") {bc_3 = "slipWall";}
-
-              // get tags at corners
-              tag2 = bc_.GetBCTag(d1, cFaceD2_2, cFaceD2_3, surf2);
-              tag3 = bc_.GetBCTag(d1, cFaceD3_2, cFaceD3_3, surf3);
+              bcSurf_2 = bc_.GetBCSurface(d1, cFaceD2_2, cFaceD2_3, surf2);
+              bcSurf_3 = bc_.GetBCSurface(d1, cFaceD3_2, cFaceD3_3, surf3);
 
               // get face area
               fArea2 = fAreaJ_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
@@ -2985,15 +2976,8 @@ void procBlock::AssignInviscidGhostCellsEdge(
 
             } else if (dir == "j") {
               // boundary conditions at corner
-              bc_2 = bc_.GetBCName(cFaceD2_3, d1, cFaceD2_2, surf2);
-              if (bc_2 == "viscousWall") {bc_2 = "slipWall";}
-
-              bc_3 = bc_.GetBCName(cFaceD3_3, d1, cFaceD3_2, surf3);
-              if (bc_3 == "viscousWall") {bc_3 = "slipWall";}
-
-              // get tags at corners
-              tag2 = bc_.GetBCTag(cFaceD2_3, d1, cFaceD2_2, surf2);
-              tag3 = bc_.GetBCTag(cFaceD3_3, d1, cFaceD3_2, surf3);
+              bcSurf_2 = bc_.GetBCSurface(cFaceD2_3, d1, cFaceD2_2, surf2);
+              bcSurf_3 = bc_.GetBCSurface(cFaceD3_3, d1, cFaceD3_2, surf3);
 
               // get face area
               fArea2 = fAreaK_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
@@ -3001,24 +2985,29 @@ void procBlock::AssignInviscidGhostCellsEdge(
 
             } else {
               // boundary conditions at corner
-              bc_2 = bc_.GetBCName(cFaceD2_2, cFaceD2_3, d1, surf2);
-              if (bc_2 == "viscousWall") {bc_2 = "slipWall";}
-
-              bc_3 = bc_.GetBCName(cFaceD3_2, cFaceD3_3, d1, surf3);
-              if (bc_3 == "viscousWall") {bc_3 = "slipWall";}
-
-              // get tags at corners
-              tag2 = bc_.GetBCTag(cFaceD2_2, cFaceD2_3, d1, surf2);
-              tag3 = bc_.GetBCTag(cFaceD3_2, cFaceD3_3, d1, surf3);
+              bcSurf_2 = bc_.GetBCSurface(cFaceD2_2, cFaceD2_3, d1, surf2);
+              bcSurf_3 = bc_.GetBCSurface(cFaceD3_2, cFaceD3_3, d1, surf3);
 
               // get face area
               fArea2 = fAreaI_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
               fArea3 = fAreaJ_(dir, d1, gCellD2, cFaceD3_3).UnitVector();
             }
 
+            // get bc type and tag
+            auto bc_2 = bcSurf_2.BCType();
+            if (bc_2 == "viscousWall") {bc_2 = "slipWall";}
+
+            auto bc_3 = bcSurf_3.BCType();
+            if (bc_3 == "viscousWall") {bc_3 = "slipWall";}
+
+            const auto tag2 = bcSurf_2.Tag();
+            const auto tag3 = bcSurf_3.Tag();
+
             // get wall distance
             const auto wDist2 = wallDist_(dir, d1, cFaceD3_2, gCellD3);
             const auto wDist3 = wallDist_(dir, d1, gCellD2, cFaceD2_3);
+
+            wallVars wVars;  // not used, only for calling GetGhostState
 
             // assign states -------------------------------------------------
             // surface-2 is a wall, but surface-3 is not - extend wall bc
@@ -3026,13 +3015,13 @@ void procBlock::AssignInviscidGhostCellsEdge(
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, pCellD2, gCellD3).GetGhostState(
                       bc_2, fArea2, wDist2, surf2, inp, tag2, eos, suth, turb,
-                      layer2);
+                      wVars, layer2);
               // surface-3 is a wall, but surface-2 is not - extend wall bc
             } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, gCellD2, pCellD3).GetGhostState(
                       bc_3, fArea3, wDist3, surf3, inp, tag3, eos, suth, turb,
-                      layer3);
+                      wVars, layer3);
             } else {  // both surfaces or neither are walls - proceed as normal
               if (layer2 == layer3) {  // need to average
                 state_(dir, d1, gCellD2, gCellD3) = 0.5 *
@@ -3074,8 +3063,8 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
       const auto r3 = bc_.RangeDir3(ii);
 
       const auto dir = bc_.Direction3(ii);
-      const auto surfType = bc_.GetSurfaceType(ii);
-      const auto tag = bc_.GetTag(ii);
+      const auto surf = bc_.GetSurface(ii);
+      const auto surfType = surf.SurfaceType();
 
       auto gCell = 0, iCell = 0, aCell = 0;           // indices for cells
       auto bnd = 0;                                   // indices for faces
@@ -3116,9 +3105,9 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
 
         // get interior boundary states and ghost states
         const auto boundaryStates = state_.Slice(dir, iCell, r1, r2);
-        const auto ghostStates = GetGhostStates(boundaryStates, bcName,
-                                                faceAreas, wDist, surfType, inp,
-                                                tag, eos, suth, turb, layer);
+        const auto ghostStates =
+            this->GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
+                                 surf, inp, eos, suth, turb, layer);
 
         state_.Insert(dir, gCell, r1, r2, ghostStates);
       }
@@ -3236,18 +3225,12 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
 
           // loop over edge
           for (auto d1 = 0; d1 <= max1; d1++) {
-            string bc_2 = "undefined";
-            string bc_3 = "undefined";
-            auto tag2 = 0, tag3 = 0;
+            boundarySurface bcSurf_2, bcSurf_3;
             vector3d<double> fArea2, fArea3;
             if (dir == "i") {
               // boundary conditions at corner
-              bc_2 = bc_.GetBCName(d1, cFaceD2_2, cFaceD2_3, surf2);
-              bc_3 = bc_.GetBCName(d1, cFaceD3_2, cFaceD3_3, surf3);
-
-              // get tags at corner
-              tag2 = bc_.GetBCTag(d1, cFaceD2_2, cFaceD2_3, surf2);
-              tag3 = bc_.GetBCTag(d1, cFaceD3_2, cFaceD3_3, surf3);
+              bcSurf_2 = bc_.GetBCSurface(d1, cFaceD2_2, cFaceD2_3, surf2);
+              bcSurf_3 = bc_.GetBCSurface(d1, cFaceD3_2, cFaceD3_3, surf3);
 
               // get face area
               fArea2 = fAreaJ_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
@@ -3255,12 +3238,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
 
             } else if (dir == "j") {
               // boundary conditions at corner
-              bc_2 = bc_.GetBCName(cFaceD2_3, d1, cFaceD2_2, surf2);
-              bc_3 = bc_.GetBCName(cFaceD3_3, d1, cFaceD3_2, surf3);
-
-              // get tags at corner
-              tag2 = bc_.GetBCTag(cFaceD2_3, d1, cFaceD2_2, surf2);
-              tag3 = bc_.GetBCTag(cFaceD3_3, d1, cFaceD3_2, surf3);
+              bcSurf_2 = bc_.GetBCSurface(cFaceD2_3, d1, cFaceD2_2, surf2);
+              bcSurf_3 = bc_.GetBCSurface(cFaceD3_3, d1, cFaceD3_2, surf3);
 
               // get face area
               fArea2 = fAreaK_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
@@ -3268,22 +3247,26 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
 
             } else {
               // boundary conditions at corner
-              bc_2 = bc_.GetBCName(cFaceD2_2, cFaceD2_3, d1, surf2);
-              bc_3 = bc_.GetBCName(cFaceD3_2, cFaceD3_3, d1, surf3);
-
-              // get tags at corner
-              tag2 = bc_.GetBCTag(cFaceD2_2, cFaceD2_3, d1, surf2);
-              tag3 = bc_.GetBCTag(cFaceD3_2, cFaceD3_3, d1, surf3);
+              bcSurf_2 = bc_.GetBCSurface(cFaceD2_2, cFaceD2_3, d1, surf2);
+              bcSurf_3 = bc_.GetBCSurface(cFaceD3_2, cFaceD3_3, d1, surf3);
 
               // get face area
               fArea2 = fAreaI_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
               fArea3 = fAreaJ_(dir, d1, gCellD2, cFaceD3_3).UnitVector();
             }
 
+            // get bc type and tag
+            const auto bc_2 = bcSurf_2.BCType();
+            const auto bc_3 = bcSurf_3.BCType();
+
+            const auto tag2 = bcSurf_2.Tag();
+            const auto tag3 = bcSurf_3.Tag();
+
             // get wall distance
             const auto wDist2 = wallDist_(dir, d1, cFaceD3_2, gCellD3);
             const auto wDist3 = wallDist_(dir, d1, gCellD2, cFaceD2_3);
 
+            wallVars wVars;  // not used, only for calling GetGhostState
 
             // assign states -------------------------------------------------
             // surface-2 is a wall, but surface-3 is not - extend wall bc
@@ -3291,13 +3274,13 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, pCellD2, gCellD3).GetGhostState(
                       bc_2, fArea2, wDist2, surf2, inp, tag2, eos, suth, turb,
-                      layer2);
+                      wVars, layer2);
               // surface-3 is a wall, but surface-2 is not - extend wall bc
             } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, gCellD2, pCellD3).GetGhostState(
                       bc_3, fArea3, wDist3, surf3, inp, tag3, eos, suth, turb,
-                      layer3);
+                      wVars, layer3);
               // both surfaces are walls - proceed as normal
             } else if (bc_2 == "viscousWall" && bc_3 == "viscousWall") {
               if (layer2 == layer3) {  // need to average
@@ -6131,6 +6114,63 @@ void procBlock::UpdateUnlimTurbEddyVisc(const unique_ptr<turbModel> &turb,
       }
     }
   }
+}
+
+multiArray3d<primVars> procBlock::GetGhostStates(
+    const multiArray3d<primVars> &bndStates, const string &bcName,
+    const multiArray3d<unitVec3dMag<double>> &faceAreas,
+    const multiArray3d<double> &wDist, const boundarySurface &surf,
+    const input &inp, const idealGas &eos, const sutherland &suth,
+    const unique_ptr<turbModel> &turb, const int layer) {
+  // bndStates -- states at cells adjacent to boundary
+  // bcName -- boundary condition type
+  // faceAreas -- face areas of boundary
+  // surf -- boundary surface
+  // inp -- input variables
+  // eos -- equation of state
+  // suth -- sutherland's law for viscosity
+  // turb -- turbulence model
+  // layer -- layer of ghost cell to return
+  //          (1 closest to boundary, or 2 farthest)
+
+  multiArray3d<primVars> ghostStates(
+      bndStates.NumINoGhosts(), bndStates.NumJNoGhosts(),
+      bndStates.NumKNoGhosts(), bndStates.GhostLayers());
+  for (auto kk = bndStates.StartK(); kk < bndStates.EndK(); kk++) {
+    for (auto jj = bndStates.StartJ(); jj < bndStates.EndJ(); jj++) {
+      for (auto ii = bndStates.StartI(); ii < bndStates.EndI(); ii++) {
+        const auto surfType = surf.SurfaceType();
+        const auto tag = surf.Tag();
+        wallVars wVars;
+        ghostStates(ii, jj, kk) =
+            bndStates(ii, jj, kk)
+                .GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),
+                               wDist(ii, jj, kk), surfType, inp, tag, eos, suth,
+                               turb, wVars, layer);
+        if (bcName == "viscousWall") {
+          const auto ind = this->WallDataIndex(surf);
+          wallData_[ind](ii, jj, kk, true) = wVars;
+        }
+      }
+    }
+  }
+  return ghostStates;
+}
+
+int procBlock::WallDataIndex(const boundarySurface &surf) const {
+  auto ind = -1;
+  for (auto ii = 0; ii < wallData_.size(); ++ii) {
+    if (surf == wallData_[ii].Surface()) {
+      ind = ii;
+      break;
+    }
+  }
+  if (ind < 0) {
+    cerr << "ERROR. Given boundary surface does not match any in wallData"
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+  return ind;
 }
 
 // member function to calculate the center to center distance across a cell face
