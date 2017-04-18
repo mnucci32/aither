@@ -1862,11 +1862,20 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                                     wDist, suth, lengthScale, mut, f1, f2);
         }
 
+
+        // DEBUG
+        // if wall law boundary, calc viscous flux w/ wall law variables
+        // if low Re boundary, store wall variables in wallData
+        // if not a viscousWall boundary, proceed as normal
+
+
+
+
         // calculate viscous flux
-        const viscousFlux tempViscFlux(velGrad, suth, eqnState, tempGrad,
-                                       this->FAreaUnitI(ii, jj, kk),
-                                       tkeGrad, omegaGrad, turb, state, mu,
-                                       mut, f1);
+        viscousFlux tempViscFlux;
+        tempViscFlux.CalcFlux(velGrad, suth, eqnState, tempGrad,
+                              this->FAreaUnitI(ii, jj, kk), tkeGrad, omegaGrad,
+                              turb, state, mu, mut, f1);
 
         // calculate projected center to center distance
         const auto c2cDist = this->ProjC2CDist(ii, jj, kk, "i");
@@ -2115,11 +2124,18 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                                     wDist, suth, lengthScale, mut, f1, f2);
         }
 
+
+        // DEBUG
+        // if wall law boundary, calc viscous flux w/ wall law variables
+        // if low Re boundary, store wall variables in wallData
+        // if not a viscousWall boundary, proceed as normal
+
+
         // calculate viscous flux
-        const viscousFlux tempViscFlux(velGrad, suth, eqnState, tempGrad,
-                                       this->FAreaUnitJ(ii, jj, kk),
-                                       tkeGrad, omegaGrad, turb, state, mu,
-                                       mut, f1);
+        viscousFlux tempViscFlux;
+        tempViscFlux.CalcFlux(velGrad, suth, eqnState, tempGrad,
+                              this->FAreaUnitJ(ii, jj, kk), tkeGrad, omegaGrad,
+                              turb, state, mu, mut, f1);
 
         // calculate projected center to center distance
         const auto c2cDist = this->ProjC2CDist(ii, jj, kk, "j");
@@ -2369,11 +2385,19 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                                     wDist, suth, lengthScale, mut, f1, f2);
         }
 
+
+        // DEBUG
+        // if wall law boundary, calc viscous flux w/ wall law variables
+        // if low Re boundary, store wall variables in wallData
+        // if not a viscousWall boundary, proceed as normal
+
+
+
         // calculate viscous flux
-        const viscousFlux tempViscFlux(velGrad, suth, eqnState, tempGrad,
-                                       this->FAreaUnitK(ii, jj, kk),
-                                       tkeGrad, omegaGrad, turb, state, mu,
-                                       mut, f1);
+        viscousFlux tempViscFlux;
+        tempViscFlux.CalcFlux(velGrad, suth, eqnState, tempGrad,
+                              this->FAreaUnitK(ii, jj, kk), tkeGrad, omegaGrad,
+                              turb, state, mu, mut, f1);
 
         // calculate projected center to center distance
         const auto c2cDist = this->ProjC2CDist(ii, jj, kk, "k");

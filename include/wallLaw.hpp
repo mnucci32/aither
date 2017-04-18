@@ -30,6 +30,7 @@ using std::unique_ptr;
 class idealGas;
 class sutherland;
 class turbModel;
+struct wallVars;
 
 class wallLaw {
   const bool isRANS_;
@@ -52,7 +53,6 @@ class wallLaw {
   double mutW_;
   double kW_;
   double recoveryFactor_;
-  double yplus_;
 
   // private member functions
   void UpdateConstants(const double &);
@@ -67,7 +67,6 @@ class wallLaw {
   double CalcYplusRoot(const double &) const;
   double ShearStressMag() const {return uStar_ * uStar_ * rhoW_;};
   void CalcRecoveryFactor(const idealGas &);
-  vector3d<double> GhostVelocity(const vector3d<double> &) const;
   double CalcWallTemperature(const idealGas &, const double &) const;
 
  public:
@@ -92,8 +91,7 @@ class wallLaw {
         muW_(0.0),
         mutW_(0.0),
         kW_(0.0),
-        recoveryFactor_(0.0),
-        yplus_(0.0) {}
+        recoveryFactor_(0.0) {}
 
   // move constructor and assignment operator
   wallLaw(wallLaw&&) = default;
@@ -106,21 +104,15 @@ class wallLaw {
   // member functions
   double VonKarmen() const { return vonKarmen_; }
   double WallConstant() const { return wallConst_; }
-  vector3d<double> AdiabaticBCs(const vector3d<double> &,
-                                const vector3d<double> &, const idealGas &,
-                                const sutherland &,
-                                const unique_ptr<turbModel> &, double &,
-                                double &, double &);
-  vector3d<double> HeatFluxBCs(const vector3d<double> &,
-                               const vector3d<double> &, const idealGas &,
-                               const sutherland &,
-                               const unique_ptr<turbModel> &, const double &,
-                               double &, double &, double &);
-  vector3d<double> IsothermalBCs(const vector3d<double> &,
-                                 const vector3d<double> &, const idealGas &,
-                                 const sutherland &,
-                                 const unique_ptr<turbModel> &, const double &,
-                                 double &, double &, double &, double &);
+  wallVars AdiabaticBCs(const vector3d<double> &, const vector3d<double> &,
+                        const idealGas &, const sutherland &,
+                        const unique_ptr<turbModel> &);
+  wallVars HeatFluxBCs(const vector3d<double> &, const vector3d<double> &,
+                       const idealGas &, const sutherland &,
+                       const unique_ptr<turbModel> &, const double &);
+  wallVars IsothermalBCs(const vector3d<double> &, const vector3d<double> &,
+                         const idealGas &, const sutherland &,
+                         const unique_ptr<turbModel> &, const double &);
 
   // destructor
   ~wallLaw() noexcept {}

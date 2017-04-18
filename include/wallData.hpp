@@ -44,6 +44,8 @@ struct wallVars {
   double viscosity_ = 0.0;
   double density_ = 0.0;
   double frictionVelocity_ = 0.0;
+  double tke_ = 0.0;
+  double sdr_ = 0.0;
 };
 
 class wallData {

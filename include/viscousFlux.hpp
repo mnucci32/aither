@@ -50,11 +50,6 @@ class viscousFlux {
  public:
   // constructors
   viscousFlux() : data_{0.0} {}
-  viscousFlux(const tensor<double>&, const sutherland&, const idealGas&,
-              const vector3d<double>&, const vector3d<double>&,
-              const vector3d<double>&, const vector3d<double>&,
-              const unique_ptr<turbModel>&, const primVars&,
-              const double&, const double&, const double&);
 
   // move constructor and assignment operator
   viscousFlux(viscousFlux&&) noexcept = default;
@@ -71,6 +66,17 @@ class viscousFlux {
   double Engy() const { return data_[3]; }
   double MomK() const { return data_[4]; }
   double MomO() const { return data_[5]; }
+
+  void CalcFlux(const tensor<double> &, const sutherland &, const idealGas &,
+                const vector3d<double> &, const vector3d<double> &,
+                const vector3d<double> &, const vector3d<double> &,
+                const unique_ptr<turbModel> &, const primVars &, const double &,
+                const double &, const double &);
+  void CalcWallLawFlux(const vector3d<double> &, const double &, const double &,
+                       const double &, const vector3d<double> &,
+                       const vector3d<double> &, const vector3d<double> &,
+                       const unique_ptr<turbModel> &, const primVars &,
+                       const double &);
 
   inline viscousFlux & operator+=(const viscousFlux &);
   inline viscousFlux & operator-=(const viscousFlux &);

@@ -55,13 +55,15 @@ In the above equation lambda is the bulk viscosity, velGradTrace is the trace of
 the velocity gradient, area is the normalized face area, mu is the dynamic
 viscosity, and velGrad is the velocity gradient tensor.
 */
-viscousFlux::viscousFlux(
-    const tensor<double> &velGrad, const sutherland &suth,
-    const idealGas &eqnState, const vector3d<double> &tGrad,
-    const vector3d<double> &normArea, const vector3d<double> &tkeGrad,
-    const vector3d<double> &omegaGrad, const unique_ptr<turbModel> &turb,
-    const primVars &state, const double &lamVisc, const double &turbVisc,
-    const double &f1) {
+void viscousFlux::CalcFlux(const tensor<double> &velGrad,
+                           const sutherland &suth, const idealGas &eqnState,
+                           const vector3d<double> &tGrad,
+                           const vector3d<double> &normArea,
+                           const vector3d<double> &tkeGrad,
+                           const vector3d<double> &omegaGrad,
+                           const unique_ptr<turbModel> &turb,
+                           const primVars &state, const double &lamVisc,
+                           const double &turbVisc, const double &f1) {
   // velGrad -- velocity gradient tensor
   // suth -- method to get viscosity (Sutherland's law)
   // eqnState -- equation of state
@@ -102,6 +104,43 @@ viscousFlux::viscousFlux(
   data_[4] = (mu + tkeCoeff * mutt) * tkeGrad.DotProd(normArea);
   data_[5] = (mu + omgCoeff * mutt) * omegaGrad.DotProd(normArea);
 }
+
+void viscousFlux::CalcWallLawFlux(const vector3d<double> &tauWall,
+                                  const double &qWall, const double &muWall,
+                                  const double &mutWall,
+                                  const vector3d<double> &normArea,
+                                  const vector3d<double> &tkeGrad,
+                                  const vector3d<double> &omegaGrad,
+                                  const unique_ptr<turbModel> &turb,
+                                  const primVars &state, const double &f1) {
+  // tauWall -- wall shear stress
+  // qWall -- wall heat flux
+  // muWall -- wall viscosity
+  // mutWall -- wall eddy viscosity
+  // normArea -- unit area vector of face
+  // tkeGrad -- tke gradient
+  // omegaGrad -- omega gradient
+  // turb -- turbulence model
+  // state -- primative variables at face
+  // f1 -- first blending coefficient
+
+  data_[0] = tauWall.X();
+  data_[1] = tauWall.Y();
+  data_[2] = tauWall.Z();
+  data_[3] = tauWall.DotProd(state.Velocity()) + qWall;
+
+  // turbulence viscous flux
+  // get molecular diffusion coefficients for turbulence equations
+  const auto tkeCoeff = turb->SigmaK(f1);
+  const auto omgCoeff = turb->SigmaW(f1);
+
+  // some turbulence models use the unlimited eddy viscosity for the
+  // turbulence viscous flux instead of the limited eddy viscosity
+  // for wall laws, eddy viscosity is prescribed
+  data_[4] = (muWall + tkeCoeff * mutWall) * tkeGrad.DotProd(normArea);
+  data_[5] = (muWall + omgCoeff * mutWall) * omegaGrad.DotProd(normArea);
+}
+
 
 // non-member functions
 // ----------------------------------------------------------------------------

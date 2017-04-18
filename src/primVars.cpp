@@ -429,26 +429,21 @@ primVars primVars::GetGhostState(const string &bcType,
       if (bcData->IsWallLaw()) {
         wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
                    inputVars.IsRANS());
-        auto kWall = 0.0, wWall = 0.0, qWall = 0.0, mutWall = 0.0;
-        auto gVel = wl.IsothermalBCs(normArea, velWall, eqnState, suth, turb,
-                                     tWall, qWall, kWall, wWall, mutWall);
-        // ghostState.data_[1] = gVel.X();
-        // ghostState.data_[2] = gVel.Y();
-        // ghostState.data_[3] = gVel.Z();
+        wVars =
+            wl.IsothermalBCs(normArea, velWall, eqnState, suth, turb, tWall);
 
         // use wall law heat flux to get ghost cell density
         // need turbulent contribution because eddy viscosity is not 0 at wall
-        const auto mu = suth.EffectiveViscosity(tWall);
-        const auto kappa =
-            eqnState.Conductivity(mu) +
-            eqnState.TurbConductivity(mutWall, turb->TurbPrandtlNumber());
+        const auto kappa = eqnState.Conductivity(wVars.viscosity_) +
+                           eqnState.TurbConductivity(wVars.turbEddyVisc_,
+                                                     turb->TurbPrandtlNumber());
         // 2x wall distance as gradient length
-        const auto tGhost = tWall - qWall / kappa * 2.0 * wallDist;
+        const auto tGhost = tWall - wVars.heatFlux_ / kappa * 2.0 * wallDist;
         ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
 
         if (inputVars.IsRANS()) {
-          ghostState.data_[5] = 2.0 * kWall - this->Tke();
-          ghostState.data_[6] = 2.0 * wWall - this->Omega();
+          ghostState.data_[5] = 2.0 * wVars.tke_ - this->Tke();
+          ghostState.data_[6] = 2.0 * wVars.sdr_ - this->Omega();
         }
       } else {  // low-Re wall treatment
         const auto tGhost = 2.0 * tWall - this->Temperature(eqnState);
@@ -460,20 +455,16 @@ primVars primVars::GetGhostState(const string &bcType,
       if (bcData->IsWallLaw()) {
         wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
                    inputVars.IsRANS());
-        auto kWall = 0.0, wWall = 0.0, tWall = 0.0;
-        auto gVel = wl.HeatFluxBCs(normArea, velWall, eqnState, suth, turb,
-                                   qWall, tWall, kWall, wWall);
-        // ghostState.data_[1] = gVel.X();
-        // ghostState.data_[2] = gVel.Y();
-        // ghostState.data_[3] = gVel.Z();
+        wVars = wl.HeatFluxBCs(normArea, velWall, eqnState, suth, turb, qWall);
 
         // use wall law wall temperature to get ghost cell density
-        const auto tGhost = 2.0 * tWall - this->Temperature(eqnState);
+        const auto tGhost =
+            2.0 * wVars.temperature_ - this->Temperature(eqnState);
         ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
 
         if (inputVars.IsRANS()) {
-          ghostState.data_[5] = 2.0 * kWall - this->Tke();
-          ghostState.data_[6] = 2.0 * wWall - this->Omega();
+          ghostState.data_[5] = 2.0 * wVars.tke_ - this->Tke();
+          ghostState.data_[6] = 2.0 * wVars.sdr_ - this->Omega();
         }
       } else {  // low-Re wall treatment
         // don't need turbulent contribution b/c eddy viscosity is 0 at wall
@@ -489,18 +480,13 @@ primVars primVars::GetGhostState(const string &bcType,
       if (bcData->IsWallLaw()) {
         wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
                    inputVars.IsRANS());
-        auto kWall = 0.0, wWall = 0.0, rhoWall = 0.0;
-        auto gVel = wl.AdiabaticBCs(normArea, velWall, eqnState, suth, turb,
-                                    kWall, wWall, rhoWall);
-        // ghostState.data_[1] = gVel.X();
-        // ghostState.data_[2] = gVel.Y();
-        // ghostState.data_[3] = gVel.Z();
+        wVars = wl.AdiabaticBCs(normArea, velWall, eqnState, suth, turb);
 
-        // ghostState.data_[0] = 2.0 * rhoWall - this->Rho();
+        // ghostState.data_[0] = 2.0 * wVars.density_ - this->Rho();
 
         if (inputVars.IsRANS()) {
-          ghostState.data_[5] = 2.0 * kWall - this->Tke();
-          ghostState.data_[6] = 2.0 * wWall - this->Omega();
+          ghostState.data_[5] = 2.0 * wVars.tke_ - this->Tke();
+          ghostState.data_[6] = 2.0 * wVars.sdr_ - this->Omega();
         }
       }
       // numerical BCs for pressure, density - same as boundary state
