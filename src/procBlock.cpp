@@ -1839,7 +1839,8 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           tempViscFlux.CalcWallLawFlux(
               wallData_[wallDataInd].WallShearStress(ii, jj, kk),
               wallData_[wallDataInd].WallHeatFlux(ii, jj, kk),
-              wallData_[wallDataInd].WallViscosity(ii, jj, kk), mut,
+              wallData_[wallDataInd].WallViscosity(ii, jj, kk),
+              wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk),
               wallData_[wallDataInd].WallVelocity(),
               this->FAreaUnitI(ii, jj, kk), tkeGrad, omegaGrad, turb);
         } else {  // not boundary, or low Re wall boundary
@@ -1903,6 +1904,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                                      : wallDist_(ii - 1, jj, kk);
             wVars.yplus_ = y * wVars.frictionVelocity_ * wVars.density_ /
                            (wVars.viscosity_ + wVars.turbEddyVisc_);
+            wallData_[wallDataInd](ii, jj, kk) = wVars;
           } else {
             // calculate viscous flux
             tempViscFlux.CalcFlux(velGrad, suth, eqnState, tempGrad,
@@ -2136,7 +2138,8 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           tempViscFlux.CalcWallLawFlux(
               wallData_[wallDataInd].WallShearStress(ii, jj, kk),
               wallData_[wallDataInd].WallHeatFlux(ii, jj, kk),
-              wallData_[wallDataInd].WallViscosity(ii, jj, kk), mut,
+              wallData_[wallDataInd].WallViscosity(ii, jj, kk),
+              wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk),
               wallData_[wallDataInd].WallVelocity(),
               this->FAreaUnitJ(ii, jj, kk), tkeGrad, omegaGrad, turb);
         } else {  // not boundary, or low Re wall boundary
@@ -2200,6 +2203,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                                      : wallDist_(ii, jj - 1, kk);
             wVars.yplus_ = y * wVars.frictionVelocity_ * wVars.density_ /
                            (wVars.viscosity_ + wVars.turbEddyVisc_);
+            wallData_[wallDataInd](ii, jj, kk) = wVars;
           } else {
             // calculate viscous flux
             tempViscFlux.CalcFlux(velGrad, suth, eqnState, tempGrad,
@@ -2434,7 +2438,8 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           tempViscFlux.CalcWallLawFlux(
               wallData_[wallDataInd].WallShearStress(ii, jj, kk),
               wallData_[wallDataInd].WallHeatFlux(ii, jj, kk),
-              wallData_[wallDataInd].WallViscosity(ii, jj, kk), mut,
+              wallData_[wallDataInd].WallViscosity(ii, jj, kk),
+              wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk),
               wallData_[wallDataInd].WallVelocity(),
               this->FAreaUnitK(ii, jj, kk), tkeGrad, omegaGrad, turb);
         } else {  // not boundary, or low Re wall boundary
@@ -2498,6 +2503,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                                      : wallDist_(ii, jj, kk - 1);
             wVars.yplus_ = y * wVars.frictionVelocity_ * wVars.density_ /
                            (wVars.viscosity_ + wVars.turbEddyVisc_);
+            wallData_[wallDataInd](ii, jj, kk) = wVars;
           } else {
             // calculate viscous flux
             tempViscFlux.CalcFlux(velGrad, suth, eqnState, tempGrad,
