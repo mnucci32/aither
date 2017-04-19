@@ -519,8 +519,6 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                           (blk.State(ii, jj, kk - 1).Omega() + 1.0e-30) *
                           suth.NondimScaling();
                   mutw *= 0.5;
-                  // cout << "mu, mut: " << muw << " " << mutw << endl;
-                  // mutw = 0.0;
                   auto tauw = TauShear(velGrad, area, muw, mutw, suth);
                   value = blk.WallDist(ii, jj, kk) *
                           sqrt(statew.Rho() * tauw.Mag()) / muw;
@@ -534,14 +532,10 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
                   value = tauw.Mag();
                   value *= suth.MuRef() * inp.ARef() / inp.LRef();
                 } else if (var == "viscosityRatio") {
-                  cout << "mut: " << mutw << " ";
                   mutw += blk.State(ii, jj, kk - 1).Rho() *
                           blk.State(ii, jj, kk - 1).Tke() /
                           (blk.State(ii, jj, kk - 1).Omega() + 1.0e-30);
                   mutw *= 0.5;
-                  cout << mutw << " " << blk.State(ii, jj, kk - 1).Tke() << " "
-                       << blk.State(ii, jj, kk).Tke() << " " << statew.Tke() 
-                       << endl;
                   value = mutw / muw;
                 } else if (var == "heatFlux") {
                   auto k = eqnState.Conductivity(muw);

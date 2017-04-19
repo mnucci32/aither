@@ -1795,87 +1795,121 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
   for (auto kk = fAreaI_.PhysStartK(); kk < fAreaI_.PhysEndK(); kk++) {
     for (auto jj = fAreaI_.PhysStartJ(); jj < fAreaI_.PhysEndJ(); jj++) {
       for (auto ii = fAreaI_.PhysStartI(); ii < fAreaI_.PhysEndI(); ii++) {
-        primVars state;
-        auto wDist = 0.0;
-        auto mu = 0.0;
-
-        if (inp.ViscousFaceReconstruction() == "central") {
-          // get cell widths
-          const vector<double> cellWidth = {cellWidthI_(ii - 1, jj, kk),
-                                            cellWidthI_(ii, jj, kk)};
-
-          // Get state at face
-          state = FaceReconCentral(state_(ii - 1, jj, kk),
-                                   state_(ii, jj, kk), cellWidth);
-          state.LimitTurb(turb);
-
-          // Get wall distance at face
-          wDist = FaceReconCentral(wallDist_(ii - 1, jj, kk),
-                                   wallDist_(ii, jj, kk), cellWidth);
-
-          // Get viscosity at face
-          mu = FaceReconCentral(viscosity_(ii - 1, jj, kk),
-                                viscosity_(ii, jj, kk), cellWidth);
-
-        } else {  // use 4th order reconstruction
-          // get cell widths
-          const vector<double> cellWidth = {cellWidthI_(ii - 2, jj, kk),
-                                            cellWidthI_(ii - 1, jj, kk),
-                                            cellWidthI_(ii, jj, kk),
-                                            cellWidthI_(ii + 1, jj, kk)};
-
-          // Get state at face
-          state = FaceReconCentral4th(state_(ii - 2, jj, kk),
-                                      state_(ii - 1, jj, kk),
-                                      state_(ii, jj, kk),
-                                      state_(ii + 1, jj, kk), cellWidth);
-          state.LimitTurb(turb);
-
-          // Get wall distance at face
-          wDist = FaceReconCentral4th(wallDist_(ii - 2, jj, kk),
-                                      wallDist_(ii - 1, jj, kk),
-                                      wallDist_(ii, jj, kk),
-                                      wallDist_(ii + 1, jj, kk), cellWidth);
-
-          // Get viscosity at face
-          mu = FaceReconCentral4th(viscosity_(ii - 2, jj, kk),
-                                   viscosity_(ii - 1, jj, kk),
-                                   viscosity_(ii, jj, kk),
-                                   viscosity_(ii + 1, jj, kk), cellWidth);
-        }
-
         // calculate gradients
         tensor<double> velGrad;
         vector3d<double> tempGrad, tkeGrad, omegaGrad;
         this->CalcGradsI(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
 
-
-        // calculate turbulent eddy viscosity and blending coefficients
+        // declare variables needed throughout function
+        primVars state;
         auto f1 = 0.0;
         auto f2 = 0.0;
+        auto mu = 0.0;
         auto mut = 0.0;
-        if (isTurbulent_) {
-          // calculate length scale
-          const auto lengthScale = 0.5 * (cellWidthI_(ii - 1, jj, kk) +
-                                          cellWidthI_(ii, jj, kk));
-          turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
-                                    wDist, suth, lengthScale, mut, f1, f2);
+        viscousFlux tempViscFlux;
+
+        // get surface info it at boundary
+        auto surfType = 0;
+        if (ii == fAreaI_.PhysStartI()) {
+          surfType = 1;
+        } else if (ii == fAreaI_.PhysEndI() - 1) {
+          surfType = 2;
+        }
+        const auto isBoundary = (surfType > 0) ? true : false;
+        auto isWallLawBoundary = false;
+        auto isLowReBoundary = false;
+        auto wallDataInd = 0;
+
+        if (isBoundary) {
+          // get boundary surface information
+          const auto surf = bc_.GetBCSurface(ii, jj, kk, surfType);
+          if (surf.BCType() == "viscousWall") {
+            wallDataInd = this->WallDataIndex(surf);
+            isWallLawBoundary = wallData_[wallDataInd].IsWallLaw();
+            isLowReBoundary = !isWallLawBoundary;
+          }
         }
 
+        if (isWallLawBoundary) {
+          // wall law wall boundary
+          f1 = 1.0;
+          f2 = 1.0;
+          mut = wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk) *
+                suth.InvNondimScaling();
+          tempViscFlux.CalcWallLawFlux(
+              wallData_[wallDataInd].WallShearStress(ii, jj, kk),
+              wallData_[wallDataInd].WallHeatFlux(ii, jj, kk),
+              wallData_[wallDataInd].WallViscosity(ii, jj, kk), mut,
+              wallData_[wallDataInd].WallVelocity(),
+              this->FAreaUnitI(ii, jj, kk), tkeGrad, omegaGrad, turb);
+        } else {  // not boundary, or low Re wall boundary
+          auto wDist = 0.0;
+          if (inp.ViscousFaceReconstruction() == "central") {
+            // get cell widths
+            const vector<double> cellWidth = {cellWidthI_(ii - 1, jj, kk),
+                                              cellWidthI_(ii, jj, kk)};
 
-        // DEBUG
-        // if wall law boundary, calc viscous flux w/ wall law variables
-        // if low Re boundary, store wall variables in wallData
-        // if not a viscousWall boundary, proceed as normal
+            // Get state at face
+            state = FaceReconCentral(state_(ii - 1, jj, kk), state_(ii, jj, kk),
+                                     cellWidth);
+            state.LimitTurb(turb);
 
+            // Get wall distance at face
+            wDist = FaceReconCentral(wallDist_(ii - 1, jj, kk),
+                                     wallDist_(ii, jj, kk), cellWidth);
 
+            // Get viscosity at face
+            mu = FaceReconCentral(viscosity_(ii - 1, jj, kk),
+                                  viscosity_(ii, jj, kk), cellWidth);
 
+          } else {  // use 4th order reconstruction
+            // get cell widths
+            const vector<double> cellWidth = {
+                cellWidthI_(ii - 2, jj, kk), cellWidthI_(ii - 1, jj, kk),
+                cellWidthI_(ii, jj, kk), cellWidthI_(ii + 1, jj, kk)};
 
-        // calculate viscous flux
-        viscousFlux tempViscFlux;
-        tempViscFlux.CalcFlux(velGrad, suth, eqnState, tempGrad,
-                              this->FAreaUnitI(ii, jj, kk), tkeGrad, omegaGrad,
-                              turb, state, mu, mut, f1);
+            // Get state at face
+            state = FaceReconCentral4th(
+                state_(ii - 2, jj, kk), state_(ii - 1, jj, kk),
+                state_(ii, jj, kk), state_(ii + 1, jj, kk), cellWidth);
+            state.LimitTurb(turb);
+
+            // Get wall distance at face
+            wDist = FaceReconCentral4th(
+                wallDist_(ii - 2, jj, kk), wallDist_(ii - 1, jj, kk),
+                wallDist_(ii, jj, kk), wallDist_(ii + 1, jj, kk), cellWidth);
+
+            // Get viscosity at face
+            mu = FaceReconCentral4th(
+                viscosity_(ii - 2, jj, kk), viscosity_(ii - 1, jj, kk),
+                viscosity_(ii, jj, kk), viscosity_(ii + 1, jj, kk), cellWidth);
+          }
+
+          // calculate turbulent eddy viscosity and blending coefficients
+          if (isTurbulent_) {
+            // calculate length scale
+            const auto lengthScale =
+                0.5 * (cellWidthI_(ii - 1, jj, kk) + cellWidthI_(ii, jj, kk));
+            turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
+                                      wDist, suth, lengthScale, mut, f1, f2);
+          }
+
+          if (isLowReBoundary) {
+            // calculate viscous flux
+            auto wVars = tempViscFlux.CalcWallFlux(
+                velGrad, suth, eqnState, tempGrad, this->FAreaUnitI(ii, jj, kk),
+                tkeGrad, omegaGrad, turb, state, mu, mut, f1);
+            auto y = (surfType == 1) ? wallDist_(ii, jj, kk)
+                                     : wallDist_(ii - 1, jj, kk);
+            wVars.yplus_ = y * wVars.frictionVelocity_ * wVars.density_ /
+                           (wVars.viscosity_ + wVars.turbEddyVisc_);
+          } else {
+            // calculate viscous flux
+            tempViscFlux.CalcFlux(velGrad, suth, eqnState, tempGrad,
+                                  this->FAreaUnitI(ii, jj, kk), tkeGrad,
+                                  omegaGrad, turb, state, mu, mut, f1);
+          }
+        }
 
         // calculate projected center to center distance
         const auto c2cDist = this->ProjC2CDist(ii, jj, kk, "i");
@@ -2058,84 +2092,121 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
   for (auto kk = fAreaJ_.PhysStartK(); kk < fAreaJ_.PhysEndK(); kk++) {
     for (auto jj = fAreaJ_.PhysStartJ(); jj < fAreaJ_.PhysEndJ(); jj++) {
       for (auto ii = fAreaJ_.PhysStartI(); ii < fAreaJ_.PhysEndI(); ii++) {
-        primVars state;
-        auto wDist = 0.0;
-        auto mu = 0.0;
-
-        if (inp.ViscousFaceReconstruction() == "central") {
-          // get cell widths
-          const vector<double> cellWidth = {cellWidthJ_(ii, jj - 1, kk),
-                                            cellWidthJ_(ii, jj, kk)};
-
-          // Get velocity at face
-          state = FaceReconCentral(state_(ii, jj - 1, kk),
-                                   state_(ii, jj, kk), cellWidth);
-          state.LimitTurb(turb);
-
-          // Get wall distance at face
-          wDist = FaceReconCentral(wallDist_(ii, jj - 1, kk),
-                                   wallDist_(ii, jj, kk), cellWidth);
-
-          // Get wall distance at face
-          mu = FaceReconCentral(viscosity_(ii, jj - 1, kk),
-                                viscosity_(ii, jj, kk), cellWidth);
-
-        } else {  // use 4th order reconstruction
-          // get cell widths
-          const vector<double> cellWidth = {cellWidthJ_(ii, jj - 2, kk),
-                                            cellWidthJ_(ii, jj - 1, kk),
-                                            cellWidthJ_(ii, jj, kk),
-                                            cellWidthJ_(ii, jj + 1, kk)};
-
-          // Get velocity at face
-          state = FaceReconCentral4th(state_(ii, jj - 2, kk),
-                                      state_(ii, jj - 1, kk),
-                                      state_(ii, jj, kk),
-                                      state_(ii, jj + 1, kk), cellWidth);
-          state.LimitTurb(turb);
-
-          // Get wall distance at face
-          wDist = FaceReconCentral4th(wallDist_(ii, jj - 2, kk),
-                                      wallDist_(ii, jj - 1, kk),
-                                      wallDist_(ii, jj, kk),
-                                      wallDist_(ii, jj + 1, kk), cellWidth);
-
-          // Get wall distance at face
-          mu = FaceReconCentral4th(viscosity_(ii, jj - 2, kk),
-                                   viscosity_(ii, jj - 1, kk),
-                                   viscosity_(ii, jj, kk),
-                                   viscosity_(ii, jj + 1, kk), cellWidth);
-        }
-
         // calculate gradients
         tensor<double> velGrad;
         vector3d<double> tempGrad, tkeGrad, omegaGrad;
         this->CalcGradsJ(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
 
-        // calculate turbulent eddy viscosity and blending coefficients
+        // declare variables needed throughout function
+        primVars state;
         auto f1 = 0.0;
         auto f2 = 0.0;
+        auto mu = 0.0;
         auto mut = 0.0;
-        if (isTurbulent_) {
-          // calculate length scale
-          const auto lengthScale = 0.5 * (cellWidthJ_(ii, jj - 1, kk) +
-                                          cellWidthJ_(ii, jj, kk));
-          turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
-                                    wDist, suth, lengthScale, mut, f1, f2);
+        viscousFlux tempViscFlux;
+
+        // get surface info if at boundary
+        auto surfType = 0;
+        if (jj == fAreaJ_.PhysStartJ()) {
+          surfType = 3;
+        } else if (jj == fAreaJ_.PhysEndJ() - 1) {
+          surfType = 4;
+        }
+        const auto isBoundary = (surfType > 0) ? true : false;
+        auto isWallLawBoundary = false;
+        auto isLowReBoundary = false;
+        auto wallDataInd = 0;
+
+        if (isBoundary) {
+          // get boundary surface information
+          const auto surf = bc_.GetBCSurface(ii, jj, kk, surfType);
+          if (surf.BCType() == "viscousWall") {
+            wallDataInd = this->WallDataIndex(surf);
+            isWallLawBoundary = wallData_[wallDataInd].IsWallLaw();
+            isLowReBoundary = !isWallLawBoundary;
+          }
         }
 
+        if (isWallLawBoundary) {
+          // wall law wall boundary
+          f1 = 1.0;
+          f2 = 1.0;
+          mut = wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk) *
+                suth.InvNondimScaling();
+          tempViscFlux.CalcWallLawFlux(
+              wallData_[wallDataInd].WallShearStress(ii, jj, kk),
+              wallData_[wallDataInd].WallHeatFlux(ii, jj, kk),
+              wallData_[wallDataInd].WallViscosity(ii, jj, kk), mut,
+              wallData_[wallDataInd].WallVelocity(),
+              this->FAreaUnitJ(ii, jj, kk), tkeGrad, omegaGrad, turb);
+        } else {  // not boundary, or low Re wall boundary
+          auto wDist = 0.0;
+          if (inp.ViscousFaceReconstruction() == "central") {
+            // get cell widths
+            const vector<double> cellWidth = {cellWidthJ_(ii, jj - 1, kk),
+                                              cellWidthJ_(ii, jj, kk)};
 
-        // DEBUG
-        // if wall law boundary, calc viscous flux w/ wall law variables
-        // if low Re boundary, store wall variables in wallData
-        // if not a viscousWall boundary, proceed as normal
+            // Get velocity at face
+            state = FaceReconCentral(state_(ii, jj - 1, kk), state_(ii, jj, kk),
+                                     cellWidth);
+            state.LimitTurb(turb);
 
+            // Get wall distance at face
+            wDist = FaceReconCentral(wallDist_(ii, jj - 1, kk),
+                                     wallDist_(ii, jj, kk), cellWidth);
 
-        // calculate viscous flux
-        viscousFlux tempViscFlux;
-        tempViscFlux.CalcFlux(velGrad, suth, eqnState, tempGrad,
-                              this->FAreaUnitJ(ii, jj, kk), tkeGrad, omegaGrad,
-                              turb, state, mu, mut, f1);
+            // Get wall distance at face
+            mu = FaceReconCentral(viscosity_(ii, jj - 1, kk),
+                                  viscosity_(ii, jj, kk), cellWidth);
+
+          } else {  // use 4th order reconstruction
+            // get cell widths
+            const vector<double> cellWidth = {
+                cellWidthJ_(ii, jj - 2, kk), cellWidthJ_(ii, jj - 1, kk),
+                cellWidthJ_(ii, jj, kk), cellWidthJ_(ii, jj + 1, kk)};
+
+            // Get velocity at face
+            state = FaceReconCentral4th(
+                state_(ii, jj - 2, kk), state_(ii, jj - 1, kk),
+                state_(ii, jj, kk), state_(ii, jj + 1, kk), cellWidth);
+            state.LimitTurb(turb);
+
+            // Get wall distance at face
+            wDist = FaceReconCentral4th(
+                wallDist_(ii, jj - 2, kk), wallDist_(ii, jj - 1, kk),
+                wallDist_(ii, jj, kk), wallDist_(ii, jj + 1, kk), cellWidth);
+
+            // Get wall distance at face
+            mu = FaceReconCentral4th(
+                viscosity_(ii, jj - 2, kk), viscosity_(ii, jj - 1, kk),
+                viscosity_(ii, jj, kk), viscosity_(ii, jj + 1, kk), cellWidth);
+          }
+
+          // calculate turbulent eddy viscosity and blending coefficients
+          if (isTurbulent_) {
+            // calculate length scale
+            const auto lengthScale =
+                0.5 * (cellWidthJ_(ii, jj - 1, kk) + cellWidthJ_(ii, jj, kk));
+            turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
+                                      wDist, suth, lengthScale, mut, f1, f2);
+          }
+
+          if (isLowReBoundary) {
+            // calculate viscous flux
+            auto wVars = tempViscFlux.CalcWallFlux(
+                velGrad, suth, eqnState, tempGrad, this->FAreaUnitJ(ii, jj, kk),
+                tkeGrad, omegaGrad, turb, state, mu, mut, f1);
+            auto y = (surfType == 3) ? wallDist_(ii, jj, kk)
+                                     : wallDist_(ii, jj - 1, kk);
+            wVars.yplus_ = y * wVars.frictionVelocity_ * wVars.density_ /
+                           (wVars.viscosity_ + wVars.turbEddyVisc_);
+          } else {
+            // calculate viscous flux
+            tempViscFlux.CalcFlux(velGrad, suth, eqnState, tempGrad,
+                                  this->FAreaUnitJ(ii, jj, kk), tkeGrad,
+                                  omegaGrad, turb, state, mu, mut, f1);
+          }
+        }
 
         // calculate projected center to center distance
         const auto c2cDist = this->ProjC2CDist(ii, jj, kk, "j");
@@ -2319,85 +2390,121 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
   for (auto kk = fAreaK_.PhysStartK(); kk < fAreaK_.PhysEndK(); kk++) {
     for (auto jj = fAreaK_.PhysStartJ(); jj < fAreaK_.PhysEndJ(); jj++) {
       for (auto ii = fAreaK_.PhysStartI(); ii < fAreaK_.PhysEndI(); ii++) {
-        primVars state;
-        auto wDist = 0.0;
-        auto mu = 0.0;
-
-        if (inp.ViscousFaceReconstruction() == "central") {
-          // get cell widths
-          const vector<double> cellWidth = {cellWidthK_(ii, jj, kk - 1),
-                                            cellWidthK_(ii, jj, kk)};
-
-          // Get state at face
-          state = FaceReconCentral(state_(ii, jj, kk - 1),
-                                   state_(ii, jj, kk), cellWidth);
-          state.LimitTurb(turb);
-
-          // Get wall distance at face
-          wDist = FaceReconCentral(wallDist_(ii, jj, kk - 1),
-                                   wallDist_(ii, jj, kk), cellWidth);
-
-          // Get wall distance at face
-          mu = FaceReconCentral(viscosity_(ii, jj, kk - 1),
-                                viscosity_(ii, jj, kk), cellWidth);
-
-        } else {  // use 4th order reconstruction
-          // get cell widths
-          const vector<double> cellWidth = {cellWidthK_(ii, jj, kk - 2),
-                                            cellWidthK_(ii, jj, kk - 1),
-                                            cellWidthK_(ii, jj, kk),
-                                            cellWidthK_(ii, jj, kk + 1)};
-
-          // Get state at face
-          state = FaceReconCentral4th(state_(ii, jj, kk - 2),
-                                      state_(ii, jj, kk - 1),
-                                      state_(ii, jj, kk),
-                                      state_(ii, jj, kk + 1), cellWidth);
-          state.LimitTurb(turb);
-
-          // Get wall distance at face
-          wDist = FaceReconCentral4th(wallDist_(ii, jj, kk - 2),
-                                      wallDist_(ii, jj, kk - 1),
-                                      wallDist_(ii, jj, kk),
-                                      wallDist_(ii, jj, kk + 1), cellWidth);
-
-          // Get wall distance at face
-          mu = FaceReconCentral4th(viscosity_(ii, jj, kk - 2),
-                                   viscosity_(ii, jj, kk - 1),
-                                   viscosity_(ii, jj, kk),
-                                   viscosity_(ii, jj, kk + 1), cellWidth);
-        }
-
-        // calculate viscous flux
+        // calculate gradients
         tensor<double> velGrad;
         vector3d<double> tempGrad, tkeGrad, omegaGrad;
         this->CalcGradsK(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
 
-        // calculate turbulent eddy viscosity and blending coefficients
+        // declare variables needed throughout function
+        primVars state;
         auto f1 = 0.0;
         auto f2 = 0.0;
+        auto mu = 0.0;
         auto mut = 0.0;
-        if (isTurbulent_) {
-          // calculate length scale
-          const auto lengthScale = 0.5 * (cellWidthK_(ii, jj, kk - 1) +
-                                          cellWidthK_(ii, jj, kk));
-          turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
-                                    wDist, suth, lengthScale, mut, f1, f2);
+        viscousFlux tempViscFlux;
+
+        // get surface info if at boundary
+        auto surfType = 0;
+        if (kk == fAreaK_.PhysStartK()) {
+          surfType = 5;
+        } else if (kk == fAreaK_.PhysEndK() - 1) {
+          surfType = 6;
+        }
+        const auto isBoundary = (surfType > 0) ? true : false;
+        auto isWallLawBoundary = false;
+        auto isLowReBoundary = false;
+        auto wallDataInd = 0;
+
+        if (isBoundary) {
+          // get boundary surface information
+          const auto surf = bc_.GetBCSurface(ii, jj, kk, surfType);
+          if (surf.BCType() == "viscousWall") {
+            wallDataInd = this->WallDataIndex(surf);
+            isWallLawBoundary = wallData_[wallDataInd].IsWallLaw();
+            isLowReBoundary = !isWallLawBoundary;
+          }
         }
 
+        if (isWallLawBoundary) {
+          // wall law wall boundary
+          f1 = 1.0;
+          f2 = 1.0;
+          mut = wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk) *
+                suth.InvNondimScaling();
+          tempViscFlux.CalcWallLawFlux(
+              wallData_[wallDataInd].WallShearStress(ii, jj, kk),
+              wallData_[wallDataInd].WallHeatFlux(ii, jj, kk),
+              wallData_[wallDataInd].WallViscosity(ii, jj, kk), mut,
+              wallData_[wallDataInd].WallVelocity(),
+              this->FAreaUnitK(ii, jj, kk), tkeGrad, omegaGrad, turb);
+        } else {  // not boundary, or low Re wall boundary
+          auto wDist = 0.0;
+          if (inp.ViscousFaceReconstruction() == "central") {
+            // get cell widths
+            const vector<double> cellWidth = {cellWidthK_(ii, jj, kk - 1),
+                                              cellWidthK_(ii, jj, kk)};
 
-        // DEBUG
-        // if wall law boundary, calc viscous flux w/ wall law variables
-        // if low Re boundary, store wall variables in wallData
-        // if not a viscousWall boundary, proceed as normal
+            // Get state at face
+            state = FaceReconCentral(state_(ii, jj, kk - 1), state_(ii, jj, kk),
+                                     cellWidth);
+            state.LimitTurb(turb);
 
+            // Get wall distance at face
+            wDist = FaceReconCentral(wallDist_(ii, jj, kk - 1),
+                                     wallDist_(ii, jj, kk), cellWidth);
 
+            // Get wall distance at face
+            mu = FaceReconCentral(viscosity_(ii, jj, kk - 1),
+                                  viscosity_(ii, jj, kk), cellWidth);
 
-        // calculate viscous flux
-        viscousFlux tempViscFlux;
-        tempViscFlux.CalcFlux(velGrad, suth, eqnState, tempGrad,
-                              this->FAreaUnitK(ii, jj, kk), tkeGrad, omegaGrad,
-                              turb, state, mu, mut, f1);
+          } else {  // use 4th order reconstruction
+            // get cell widths
+            const vector<double> cellWidth = {
+                cellWidthK_(ii, jj, kk - 2), cellWidthK_(ii, jj, kk - 1),
+                cellWidthK_(ii, jj, kk), cellWidthK_(ii, jj, kk + 1)};
+
+            // Get state at face
+            state = FaceReconCentral4th(
+                state_(ii, jj, kk - 2), state_(ii, jj, kk - 1),
+                state_(ii, jj, kk), state_(ii, jj, kk + 1), cellWidth);
+            state.LimitTurb(turb);
+
+            // Get wall distance at face
+            wDist = FaceReconCentral4th(
+                wallDist_(ii, jj, kk - 2), wallDist_(ii, jj, kk - 1),
+                wallDist_(ii, jj, kk), wallDist_(ii, jj, kk + 1), cellWidth);
+
+            // Get wall distance at face
+            mu = FaceReconCentral4th(
+                viscosity_(ii, jj, kk - 2), viscosity_(ii, jj, kk - 1),
+                viscosity_(ii, jj, kk), viscosity_(ii, jj, kk + 1), cellWidth);
+          }
+
+          // calculate turbulent eddy viscosity and blending coefficients
+          if (isTurbulent_) {
+            // calculate length scale
+            const auto lengthScale =
+                0.5 * (cellWidthK_(ii, jj, kk - 1) + cellWidthK_(ii, jj, kk));
+            turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
+                                      wDist, suth, lengthScale, mut, f1, f2);
+          }
+
+          if (isLowReBoundary) {
+            // calculate viscous flux
+            auto wVars = tempViscFlux.CalcWallFlux(
+                velGrad, suth, eqnState, tempGrad, this->FAreaUnitK(ii, jj, kk),
+                tkeGrad, omegaGrad, turb, state, mu, mut, f1);
+            auto y = (surfType == 5) ? wallDist_(ii, jj, kk)
+                                     : wallDist_(ii, jj, kk - 1);
+            wVars.yplus_ = y * wVars.frictionVelocity_ * wVars.density_ /
+                           (wVars.viscosity_ + wVars.turbEddyVisc_);
+          } else {
+            // calculate viscous flux
+            tempViscFlux.CalcFlux(velGrad, suth, eqnState, tempGrad,
+                                  this->FAreaUnitK(ii, jj, kk), tkeGrad,
+                                  omegaGrad, turb, state, mu, mut, f1);
+          }
+        }
 
         // calculate projected center to center distance
         const auto c2cDist = this->ProjC2CDist(ii, jj, kk, "k");
@@ -6192,6 +6299,7 @@ int procBlock::WallDataIndex(const boundarySurface &surf) const {
   if (ind < 0) {
     cerr << "ERROR. Given boundary surface does not match any in wallData"
          << endl;
+    cerr << "Given boundary surface is: " << endl << surf << endl;
     exit(EXIT_FAILURE);
   }
   return ind;

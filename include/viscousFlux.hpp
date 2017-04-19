@@ -32,7 +32,7 @@ using std::cout;
 using std::endl;
 using std::cerr;
 using std::ostream;
-using std:: unique_ptr;
+using std::unique_ptr;
 
 // forward class declarations
 class primVars;
@@ -40,6 +40,7 @@ class idealGas;
 class sutherland;
 class turbModel;
 class squareMatrix;
+struct wallVars;
 
 class viscousFlux {
   double data_[NUMVARS - 1];  // viscous flux for x-momentum equation
@@ -72,11 +73,16 @@ class viscousFlux {
                 const vector3d<double> &, const vector3d<double> &,
                 const unique_ptr<turbModel> &, const primVars &, const double &,
                 const double &, const double &);
+  wallVars CalcWallFlux(const tensor<double> &, const sutherland &,
+                        const idealGas &, const vector3d<double> &,
+                        const vector3d<double> &, const vector3d<double> &,
+                        const vector3d<double> &, const unique_ptr<turbModel> &,
+                        const primVars &, const double &, const double &,
+                        const double &);
   void CalcWallLawFlux(const vector3d<double> &, const double &, const double &,
                        const double &, const vector3d<double> &,
                        const vector3d<double> &, const vector3d<double> &,
-                       const unique_ptr<turbModel> &, const primVars &,
-                       const double &);
+                       const vector3d<double> &, const unique_ptr<turbModel> &);
 
   inline viscousFlux & operator+=(const viscousFlux &);
   inline viscousFlux & operator-=(const viscousFlux &);

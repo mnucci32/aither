@@ -85,7 +85,9 @@ void boundaryConditions::ResizeVecs(const int &i, const int &j, const int &k) {
 }
 
 bool boundarySurface::operator==(const boundarySurface &surf) const {
-  return (surf.bcType_ == bcType_ && surf.data_ == data_) ? true : false;
+  auto isEqualType = surf.bcType_ == bcType_;
+  auto isEqualData = std::equal(std::begin(data_), std::end(data_), surf.data_);
+  return isEqualType && isEqualData;
 }
 
 // Member function to return the boundary condition type given the

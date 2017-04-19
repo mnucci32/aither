@@ -62,6 +62,8 @@ class turbModel {
   virtual double OmegaMin() const {return 1.0e-20;}
   virtual double SigmaK(const double &f1) const {return 0.0;}
   virtual double SigmaW(const double &f1) const {return 0.0;}
+  virtual double WallSigmaK() const {return 0.0;}
+  virtual double WallSigmaW() const {return 0.0;}
   virtual bool UseUnlimitedEddyVisc() const {return false;}
   virtual bool UsePhi() const {return false;}
   virtual double EddyVisc(const primVars &state,
@@ -298,6 +300,8 @@ class turbKWWilcox : public turbModel {
 
   double SigmaK(const double &f1) const override {return this->SigmaStar();}
   double SigmaW(const double &f1) const override {return this->Sigma();}
+  double WallSigmaK() const override {return this->SigmaStar();}
+  double WallSigmaW() const override {return this->Sigma();}
 
   void Print() const override;
 
@@ -413,6 +417,8 @@ class turbKWSst : public turbModel {
   double SigmaW(const double &f1) const override {
     return this->BlendedCoeff(sigmaW1_, sigmaW2_, f1);
   }
+  double WallSigmaK() const override {return sigmaK1_;}
+  double WallSigmaW() const override {return sigmaW1_;}
 
   void Print() const override;
 

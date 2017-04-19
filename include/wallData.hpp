@@ -86,18 +86,21 @@ class wallData {
   double WallDensity(const int &ii, const int &jj, const int &kk) const;
   double WallFrictionVelocity(const int &ii, const int &jj,
                               const int &kk) const;
+  vector3d<double> WallVelocity() const {return bcData_->Velocity();}
   int WallVarsSize() const {return data_.Size();}
   void PackWallData(char *(&), const int &, int &, const MPI_Datatype &) const;
   void PackSize(int &, const MPI_Datatype &) const;
   void UnpackWallData(char *(&), const int &, int &, const MPI_Datatype &,
                       const input &);
   const boundarySurface & Surface() const {return surf_;}
+  bool IsWallLaw() const {return bcData_->IsWallLaw();}
 
-  // operator overloads
-  wallVars &operator()(const int &ii, const int &jj, const int &kk,
-                       const bool &raw = false) {
-    return raw ? data_(ii, jj, kk)
-               : data_(ii - surf_.IMin(), jj - surf_.JMin(), kk - surf_.KMin());
+    // operator overloads
+    wallVars &operator()(const int &ii, const int &jj, const int &kk,
+                         const bool &raw = false) {
+      return raw ? data_(ii, jj, kk)
+                 : data_(ii - surf_.IMin(), jj - surf_.JMin(),
+                         kk - surf_.KMin());
   }
   const wallVars &operator()(const int &ii, const int &jj, const int &kk,
                              const bool &raw = false) const {
