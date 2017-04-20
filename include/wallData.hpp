@@ -33,6 +33,7 @@ using std::shared_ptr;
 
 // forward declarations
 class input;
+class idealGas;
 
 // structure to hold wall variables
 struct wallVars {
@@ -74,6 +75,10 @@ class wallData {
   wallData &operator=(const wallData &) = default;
 
   // member functions
+  int NumI() const { return data_.NumI(); }
+  int NumJ() const { return data_.NumJ(); }
+  int NumK() const { return data_.NumK(); }
+  int Size() const { return data_.Size(); }
   double InviscidForce() const { return inviscidForce_; }
   double ViscousForce() const { return viscousForce_; }
   vector3d<double> WallShearStress(const int &ii, const int &jj,
@@ -84,6 +89,10 @@ class wallData {
   double WallEddyViscosity(const int &ii, const int &jj, const int &kk) const;
   double WallViscosity(const int &ii, const int &jj, const int &kk) const;
   double WallDensity(const int &ii, const int &jj, const int &kk) const;
+  double WallTke(const int &ii, const int &jj, const int &kk) const;
+  double WallSdr(const int &ii, const int &jj, const int &kk) const;
+  double WallPressure(const int &ii, const int &jj, const int &kk,
+                      const idealGas &eos) const;
   double WallFrictionVelocity(const int &ii, const int &jj,
                               const int &kk) const;
   vector3d<double> WallVelocity() const {return bcData_->Velocity();}

@@ -17,6 +17,7 @@
 #include "wallData.hpp"
 #include "vector3d.hpp"
 #include "input.hpp"
+#include "eos.hpp"
 
 // member functions
 vector3d<double> wallData::WallShearStress(const int &ii, const int &jj,
@@ -33,6 +34,14 @@ double wallData::Yplus(const int &ii, const int &jj, const int &kk) const {
   return (*this)(ii, jj, kk).yplus_;
 }
 
+double wallData::WallTke(const int &ii, const int &jj, const int &kk) const {
+  return (*this)(ii, jj, kk).tke_;
+}
+
+double wallData::WallSdr(const int &ii, const int &jj, const int &kk) const {
+  return (*this)(ii, jj, kk).sdr_;
+}
+
 double wallData::WallTemperature(const int &ii, const int &jj,
                                  const int &kk) const {
   return (*this)(ii, jj, kk).temperature_;
@@ -41,6 +50,12 @@ double wallData::WallTemperature(const int &ii, const int &jj,
 double wallData::WallEddyViscosity(const int &ii, const int &jj,
                                    const int &kk) const {
   return (*this)(ii, jj, kk).turbEddyVisc_;
+}
+
+double wallData::WallPressure(const int &ii, const int &jj, const int &kk,
+                              const idealGas &eos) const {
+  return eos.PressureRT(this->WallDensity(ii, jj, kk),
+                        this->WallTemperature(ii, jj, kk));
 }
 
 double wallData::WallViscosity(const int &ii, const int &jj,

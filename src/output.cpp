@@ -363,7 +363,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
 }
 
 // function to write out variables in function file format
-void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
+void WriteWallFun(const vector<procBlock> &vars, const idealGas &eos,
                   const sutherland &suth, const int &solIter, const input &inp,
                   const unique_ptr<turbModel> &turb) {
   // open binary plot3d function file
@@ -380,21 +380,17 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
     exit(EXIT_FAILURE);
   }
 
-  // get vector of wall surfaces
+  // get wall surfaces to write out dimensions
   auto numWallSurfs = 0;
-  for (auto &var : vars) {
-    numWallSurfs += var.BC().NumViscousSurfaces();
+  for (auto &blk : vars) {
+    numWallSurfs += blk.WallDataSize();
   }
   vector<boundarySurface> wallSurfs;
   wallSurfs.reserve(numWallSurfs);
-
-  for (auto &var : vars) {
-    const auto bc = var.BC();
-    for (auto jj = 0; jj < bc.NumSurfaces(); ++jj) {
-      if (bc.GetBCTypes(jj) == "viscousWall") {
-        auto surf = bc.GetSurface(jj);
-        wallSurfs.push_back(surf);
-      }
+  for (auto &blk : vars) {
+    for (auto jj = 0; jj < blk.WallDataSize(); ++jj) {
+      const auto surf = blk.WallSurface(jj);
+      wallSurfs.push_back(surf);
     }
   }
 
@@ -402,189 +398,60 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
 
   // write out variables
   for (auto &blk : vars) {  // loop over all blocks
-    auto bc = blk.BC();
     // loop over the number of variables to write out
     for (auto &var : inp.WallOutputVariables()) {
-      // loop over viscousWall boundaries
-      for (auto ll = 0; ll < bc.NumSurfaces(); ++ll) {
-        if (bc.GetBCTypes(ll) == "viscousWall") {
-          auto surf = bc.GetSurface(ll);
-
-          // write out dimensional variables -- loop over physical cells
-          for (auto kk = surf.RangeK().Start(); kk < surf.RangeK().End();
-               kk++) {
-            for (auto jj = surf.RangeJ().Start(); jj < surf.RangeJ().End();
-                 jj++) {
-              for (auto ii = surf.RangeI().Start(); ii < surf.RangeI().End();
-                   ii++) {
-                // get properties at wall
-                primVars statew;
-                tensor<double> velGrad;
-                vector3d<double> area, tGrad, kGrad, wGrad;
-                auto muw = 0.0, mutw = 0.0, tw = 0.0;
-                if (surf.SurfaceType() == 1) {  // il surface ----------------
-                  area = blk.FAreaUnitI(ii, jj, kk);
-                  blk.CalcGradsI(ii, jj, kk, velGrad, tGrad, kGrad, wGrad);
-                  const vector<double> cellWidth = {
-                      blk.CellWidthI(ii - 1, jj, kk), 
-                      blk.CellWidthI(ii, jj, kk)};
-                  muw = FaceReconCentral(blk.Viscosity(ii - 1, jj, kk),
-                                         blk.Viscosity(ii, jj, kk), cellWidth);
-                  mutw = blk.EddyViscosity(ii, jj, kk);
-                  statew = FaceReconCentral(blk.State(ii - 1, jj, kk),
-                                            blk.State(ii, jj, kk), cellWidth);
-                  tw = FaceReconCentral(blk.Temperature(ii - 1, jj, kk),
-                                        blk.Temperature(ii, jj, kk), cellWidth);
-                } else if (surf.SurfaceType() == 2) {  // iu surface ----------
-                  area = blk.FAreaUnitI(ii + 1, jj, kk);
-                  blk.CalcGradsI(ii + 1, jj, kk, velGrad, tGrad, kGrad, wGrad);
-                  const vector<double> cellWidth = {
-                      blk.CellWidthI(ii, jj, kk),
-                      blk.CellWidthI(ii + 1, jj, kk)};
-                  muw = FaceReconCentral(blk.Viscosity(ii, jj, kk),
-                                         blk.Viscosity(ii + 1, jj, kk),
-                                         cellWidth);
-                  mutw = blk.EddyViscosity(ii, jj, kk);
-                  statew =
-                      FaceReconCentral(blk.State(ii, jj, kk),
-                                       blk.State(ii + 1, jj, kk), cellWidth);
-                  tw = FaceReconCentral(blk.Temperature(ii, jj, kk),
-                                        blk.Temperature(ii + 1, jj, kk),
-                                        cellWidth);
-                } else if (surf.SurfaceType() == 3) {  // jl surface ----------
-                  area = blk.FAreaUnitJ(ii, jj, kk);
-                  blk.CalcGradsJ(ii, jj, kk, velGrad, tGrad, kGrad, wGrad);
-                  const vector<double> cellWidth = {
-                      blk.CellWidthJ(ii, jj - 1, kk),
-                      blk.CellWidthJ(ii, jj, kk)};
-                  muw = FaceReconCentral(blk.Viscosity(ii, jj - 1, kk),
-                                         blk.Viscosity(ii, jj, kk), cellWidth);
-                  mutw = blk.EddyViscosity(ii, jj, kk);
-                  statew = FaceReconCentral(blk.State(ii, jj - 1, kk),
-                                            blk.State(ii, jj, kk), cellWidth);
-                } else if (surf.SurfaceType() == 4) {  // ju surface ----------
-                  area = blk.FAreaUnitJ(ii, jj + 1, kk);
-                  blk.CalcGradsJ(ii, jj + 1, kk, velGrad, tGrad, kGrad, wGrad);
-                  const vector<double> cellWidth = {
-                      blk.CellWidthJ(ii, jj, kk),
-                      blk.CellWidthJ(ii, jj + 1, kk)};
-                  muw = FaceReconCentral(blk.Viscosity(ii, jj, kk),
-                                         blk.Viscosity(ii, jj + 1, kk),
-                                         cellWidth);
-                  mutw = blk.EddyViscosity(ii, jj, kk);
-                  statew =
-                      FaceReconCentral(blk.State(ii, jj, kk),
-                                       blk.State(ii, jj + 1, kk), cellWidth);
-                  tw = FaceReconCentral(blk.Temperature(ii, jj, kk),
-                                        blk.Temperature(ii, jj + 1, kk),
-                                        cellWidth);
-                } else if (surf.SurfaceType() == 5) {  // kl surface ----------
-                  area = blk.FAreaUnitK(ii, jj, kk);
-                  blk.CalcGradsK(ii, jj, kk, velGrad, tGrad, kGrad, wGrad);
-                  const vector<double> cellWidth = {
-                      blk.CellWidthK(ii, jj, kk - 1),
-                      blk.CellWidthK(ii, jj, kk)};
-                  muw = FaceReconCentral(blk.Viscosity(ii, jj, kk - 1),
-                                         blk.Viscosity(ii, jj, kk), cellWidth);
-                  mutw = blk.EddyViscosity(ii, jj, kk);
-                  statew = FaceReconCentral(blk.State(ii, jj, kk - 1),
-                                            blk.State(ii, jj, kk), cellWidth);
-                  tw = FaceReconCentral(blk.Temperature(ii, jj, kk - 1),
-                                        blk.Temperature(ii, jj, kk), cellWidth);
-                } else {  // ku surface ---------------------------------------
-                  area = blk.FAreaUnitK(ii, jj, kk + 1);
-                  blk.CalcGradsK(ii, jj, kk + 1, velGrad, tGrad, kGrad, wGrad);
-                  const vector<double> cellWidth = {
-                      blk.CellWidthK(ii, jj, kk),
-                      blk.CellWidthK(ii, jj, kk + 1)};
-                  muw = FaceReconCentral(blk.Viscosity(ii, jj, kk),
-                                         blk.Viscosity(ii, jj, kk + 1),
-                                         cellWidth);
-                  mutw = blk.EddyViscosity(ii, jj, kk);
-                  statew =
-                      FaceReconCentral(blk.State(ii, jj, kk),
-                                       blk.State(ii, jj, kk + 1), cellWidth);
-                  tw = FaceReconCentral(blk.Temperature(ii, jj, kk),
-                                        blk.Temperature(ii, jj, kk + 1),
-                                        cellWidth);
-                }
-
-                // now calculate wall values with wall properties
-                auto value = 0.0;
-                if (var == "yplus") {
-                  muw *= suth.NondimScaling();
-                  mutw *= suth.NondimScaling();
-                  mutw += blk.State(ii, jj, kk - 1).Rho() *
-                          blk.State(ii, jj, kk - 1).Tke() /
-                          (blk.State(ii, jj, kk - 1).Omega() + 1.0e-30) *
-                          suth.NondimScaling();
-                  mutw *= 0.5;
-                  auto tauw = TauShear(velGrad, area, muw, mutw, suth);
-                  value = blk.WallDist(ii, jj, kk) *
-                          sqrt(statew.Rho() * tauw.Mag()) / muw;
-                } else if (var == "shearStress") {
-                  mutw += blk.State(ii, jj, kk - 1).Rho() *
-                         blk.State(ii, jj, kk - 1).Tke() /
-                         (blk.State(ii, jj, kk - 1).Omega() + 1.0e-30);
-                  mutw *= 0.5;
-                  // mutw = 0.0;
-                  auto tauw = TauShear(velGrad, area, muw, mutw, suth);
-                  value = tauw.Mag();
-                  value *= suth.MuRef() * inp.ARef() / inp.LRef();
-                } else if (var == "viscosityRatio") {
-                  mutw += blk.State(ii, jj, kk - 1).Rho() *
-                          blk.State(ii, jj, kk - 1).Tke() /
-                          (blk.State(ii, jj, kk - 1).Omega() + 1.0e-30);
-                  mutw *= 0.5;
-                  value = mutw / muw;
-                } else if (var == "heatFlux") {
-                  auto k = eqnState.Conductivity(muw);
-                  auto kt = eqnState.TurbConductivity(
-                      mutw, turb->TurbPrandtlNumber());
-                  value = (k + kt) * tGrad.DotProd(area);
-                  value *= suth.MuRef() * inp.TRef() / inp.LRef();
-                } else if (var == "frictionVelocity") {
-                  muw *= suth.NondimScaling();
-                  mutw *= suth.NondimScaling();
-                  auto tauw = TauShear(velGrad, area, muw, mutw, suth);
-                  value = sqrt(tauw.Mag() / statew.Rho());
-                  value *= inp.ARef();
-                } else if (var == "density") {
-                  value = statew.Rho();
-                  value *= inp.RRef();
-                } else if (var == "pressure") {
-                  value = statew.P();
-                  value *= inp.RRef() * inp.ARef() * inp.ARef();
-                } else if (var == "temperature") {
-                  value = tw;
-                  value *= inp.TRef();
-                } else if (var == "viscosity") {
-                  value = muw;
-                  value *= suth.MuRef();
-                } else if (var == "tke") {
-                  value = statew.Tke();
-                  value *= inp.ARef() * inp.ARef();
-                } else if (var == "sdr") {
-                  value = statew.Omega();
-                  value *= inp.ARef() * inp.ARef() * inp.RRef() / suth.MuRef();
-                } else if (var == "vel_x") {
-                  value = statew.U();
-                  value *= inp.ARef();
-                } else if (var == "vel_y") {
-                  value = statew.V();
-                  value *= inp.ARef();
-                } else if (var == "vel_z") {
-                  value = statew.W();
-                  value *= inp.ARef();
-                } else {
-                  cerr << "ERROR: Variable " << var
-                       << " to write to wall function file is not defined!"
-                       << endl;
-                  exit(EXIT_FAILURE);
-                }
-
-                outFile.write(reinterpret_cast<char *>(&value), sizeof(value));
+      // loop over wall boundaries
+      for (auto ll = 0U; ll < blk.WallDataSize(); ++ll) {
+        const auto surf = blk.WallSurface(ll);
+        // write out dimensional variables -- loop over physical cells
+        for (auto kk = surf.RangeK().Start(); kk < surf.RangeK().End(); kk++) {
+          for (auto jj = surf.RangeJ().Start(); jj < surf.RangeJ().End();
+               jj++) {
+            for (auto ii = surf.RangeI().Start(); ii < surf.RangeI().End();
+                 ii++) {
+              // now calculate wall variables
+              auto value = 0.0;
+              if (var == "yplus") {
+                value = blk.WallYplus(ll, ii, jj, kk);
+              } else if (var == "shearStress") {
+                value = blk.WallShearStress(ll, ii, jj, kk).Mag();
+                value *= suth.InvNondimScaling() * suth.MuRef() * inp.ARef() /
+                         inp.LRef();
+              } else if (var == "viscosityRatio") {
+                value = blk.WallEddyVisc(ll, ii, jj, kk) /
+                        (blk.WallViscosity(ll, ii, jj, kk) + EPS);
+              } else if (var == "heatFlux") {
+                value = blk.WallHeatFlux(ll, ii, jj, kk);
+                value *= suth.MuRef() * inp.TRef() / inp.LRef();
+              } else if (var == "frictionVelocity") {
+                value = blk.WallFrictionVelocity(ll, ii, jj, kk);
+                value *= inp.ARef();
+              } else if (var == "density") {
+                value = blk.WallDensity(ll, ii, jj, kk);
+                value *= inp.RRef();
+              } else if (var == "pressure") {
+                value = blk.WallPressure(ll, ii, jj, kk, eos);
+                value *= inp.RRef() * inp.ARef() * inp.ARef();
+              } else if (var == "temperature") {
+                value = blk.WallTemperature(ll, ii, jj, kk);
+                value *= inp.TRef();
+              } else if (var == "viscosity") {
+                value = blk.WallViscosity(ll, ii, jj, kk);
+                value *= suth.MuRef();
+              } else if (var == "tke") {
+                value = blk.WallTke(ll, ii, jj, kk);
+                value *= inp.ARef() * inp.ARef();
+              } else if (var == "sdr") {
+                value = blk.WallSdr(ll, ii, jj, kk);
+                value *= inp.ARef() * inp.ARef() * inp.RRef() / suth.MuRef();
+              } else {
+                cerr << "ERROR: Variable " << var
+                     << " to write to wall function file is not defined!"
+                     << endl;
+                exit(EXIT_FAILURE);
               }
+
+              outFile.write(reinterpret_cast<char *>(&value), sizeof(value));
             }
           }
         }

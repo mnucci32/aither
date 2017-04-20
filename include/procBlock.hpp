@@ -500,6 +500,58 @@ class procBlock {
   void GetSolNm1FromRestart(const multiArray3d<genArray> &);
 
   int WallDataIndex(const boundarySurface &) const;
+  int WallDataSize() const {return wallData_.size();}
+  bool HasWallData() const {return this->WallDataSize() > 0;}
+  boundarySurface WallSurface(const int &ii) const {
+    return wallData_[ii].Surface();
+  }
+  int NumWallSurfI(const int &ii) const { return wallData_[ii].NumI(); }
+  int NumWallSurfJ(const int &ii) const { return wallData_[ii].NumJ(); }
+  int NumWallSurfK(const int &ii) const { return wallData_[ii].NumK(); }
+  double WallYplus(const int &ss, const int &ii, const int &jj,
+                   const int &kk) const {
+    return wallData_[ss].Yplus(ii, jj, kk);
+  }
+  double WallHeatFlux(const int &ss, const int &ii, const int &jj,
+                      const int &kk) const {
+    return wallData_[ss].WallHeatFlux(ii, jj, kk);
+  }
+  vector3d<double> WallShearStress(const int &ss, const int &ii, const int &jj,
+                                   const int &kk) const {
+    return wallData_[ss].WallShearStress(ii, jj, kk);
+  }
+  double WallTemperature(const int &ss, const int &ii, const int &jj,
+                         const int &kk) const {
+    return wallData_[ss].WallTemperature(ii, jj, kk);
+  }
+  double WallEddyVisc(const int &ss, const int &ii, const int &jj,
+                      const int &kk) const {
+    return wallData_[ss].WallEddyViscosity(ii, jj, kk);
+  }
+  double WallViscosity(const int &ss, const int &ii, const int &jj,
+                       const int &kk) const {
+    return wallData_[ss].WallViscosity(ii, jj, kk);
+  }
+  double WallDensity(const int &ss, const int &ii, const int &jj,
+                     const int &kk) const {
+    return wallData_[ss].WallDensity(ii, jj, kk);
+  }
+  double WallFrictionVelocity(const int &ss, const int &ii, const int &jj,
+                              const int &kk) const {
+    return wallData_[ss].WallFrictionVelocity(ii, jj, kk);
+  }
+  double WallPressure(const int &ss, const int &ii, const int &jj,
+                      const int &kk, const idealGas &eos) const {
+    return wallData_[ss].WallPressure(ii, jj, kk, eos);
+  }
+  double WallTke(const int &ss, const int &ii, const int &jj,
+                 const int &kk) const {
+    return wallData_[ss].WallTke(ii, jj, kk);
+  }
+  double WallSdr(const int &ss, const int &ii, const int &jj,
+                 const int &kk) const {
+    return wallData_[ss].WallSdr(ii, jj, kk);
+  }
 
   // destructor
   ~procBlock() noexcept {}

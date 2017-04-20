@@ -59,6 +59,7 @@ class idealGas {
   double Pressure(const double &rho, const double &specEn) const;
   double PressFromEnergy(const double &rho, const double &energy,
                          const double &vel) const;
+  double PressureRT(const double &rho, const double &temperature) const;
   double Density(const double &pressure, const double &specEn) const;
   double SpecEnergy(const double &pressure, const double &rho) const;
   double Energy(const double &specEn, const double &vel) const;
@@ -68,7 +69,6 @@ class idealGas {
   double Gamma() const {return gamma_;}
   double GasConst() const {return gasConst_;}
   double Prandtl() const {return (4.0 * gamma_) / (9.0 * gamma_ - 5.0);}
-
   double Temperature(const double &pressure, const double &rho) const;
 
   double SpecificHeat() const {return 1.0 / (gamma_ - 1.0);}
