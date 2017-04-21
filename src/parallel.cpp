@@ -232,7 +232,7 @@ void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
   MPI_Type_commit(&MPI_tensorDouble);
 
   // create wallData MPI datatype
-  MPI_Type_contiguous(10, MPI_DOUBLE, &MPI_wallData);
+  MPI_Type_contiguous(12, MPI_DOUBLE, &MPI_wallData);
   MPI_Type_commit(&MPI_wallData);
 
   // create MPI datatype for states (primVars), residuals (genArray), etc

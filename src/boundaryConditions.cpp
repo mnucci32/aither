@@ -1015,8 +1015,6 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
   //          because their partners will need to be altered for the split as
   //          well
 
-  const auto indNG = ind;
-
   auto bound1 = (*this);  // lower boundaryConditions
   auto bound2 = (*this);  // upper boundaryConditions
 
@@ -1073,8 +1071,8 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           // upper surface matches with lower surface
           const auto tag = 1000 + newBlkNum;
           bound1.surfs_[ii].bcType_ = "interblock";  // bcType
-          bound1.surfs_[ii].data_[0] = indNG;        // imin
-          bound1.surfs_[ii].data_[1] = indNG;        // imax
+          bound1.surfs_[ii].data_[0] = ind;        // imin
+          bound1.surfs_[ii].data_[1] = ind;        // imax
           bound1.surfs_[ii].data_[6] = tag;          // tag
 
           // There should only be one surface between the split blocks
@@ -1091,9 +1089,9 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           numInterU++;
 
           // At upper i surface, upper bc is same as original,
-          // but indices are adjusted for new block_ size
-          bound2.surfs_[ii].data_[0] = this->GetIMax(ii) - indNG;  // imin
-          bound2.surfs_[ii].data_[1] = this->GetIMax(ii) - indNG;  // imax
+          // but indices are adjusted for new block size
+          bound2.surfs_[ii].data_[0] = this->GetIMax(ii) - ind;  // imin
+          bound2.surfs_[ii].data_[1] = this->GetIMax(ii) - ind;  // imax
 
           // At upper i surface, if bc is interblock, store boundarySurface
           // because partner block BC will need to be updated
@@ -1109,9 +1107,9 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
         }
 
         // This surface is only present in the upper split
-        if (this->GetIMin(ii) >= indNG) {
-          bound2.surfs_[ii].data_[0] = this->GetIMin(ii) - indNG;  // imin
-          bound2.surfs_[ii].data_[1] = this->GetIMax(ii) - indNG;  // imax
+        if (this->GetIMin(ii) >= ind) {
+          bound2.surfs_[ii].data_[0] = this->GetIMin(ii) - ind;  // imin
+          bound2.surfs_[ii].data_[1] = this->GetIMax(ii) - ind;  // imax
           // Can delete it from lower split
           del1.push_back(ii);
           if (ii >= this->NumSurfI() &&
@@ -1120,10 +1118,10 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           } else {  // k-surface
             del1K++;
           }
-        } else if (this->GetIMax(ii) > indNG) {  // surf straddles the split
-          bound1.surfs_[ii].data_[1] = indNG;       // imax
+        } else if (this->GetIMax(ii) > ind) {  // surf straddles the split
+          bound1.surfs_[ii].data_[1] = ind;         // imax
           bound2.surfs_[ii].data_[0] = 0;           // imin
-          bound2.surfs_[ii].data_[1] = this->GetIMax(ii) - indNG;  // imax
+          bound2.surfs_[ii].data_[1] = this->GetIMax(ii) - ind;  // imax
         } else {  // surf only present in the lower split - delete from upper
           del2.push_back(ii);
           if (ii >= this->NumSurfI() &&
@@ -1198,8 +1196,8 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           // upper surface matches with lower
           const auto tag = 3000 + newBlkNum;
           bound1.surfs_[ii].bcType_ = "interblock";  // bctype
-          bound1.surfs_[ii].data_[2] = indNG;        // jmin
-          bound1.surfs_[ii].data_[3] = indNG;        // jmax
+          bound1.surfs_[ii].data_[2] = ind;        // jmin
+          bound1.surfs_[ii].data_[3] = ind;        // jmax
           bound1.surfs_[ii].data_[6] = tag;          // tag
 
           // There should only be one surface between the split blocks
@@ -1216,8 +1214,8 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
           // At upper j surface, upper bc is same as original, but indices
           // are adjusted for new block size
-          bound2.surfs_[ii].data_[2] = this->GetJMax(ii) - indNG;  // jmin
-          bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - indNG;  // jmax
+          bound2.surfs_[ii].data_[2] = this->GetJMax(ii) - ind;  // jmin
+          bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - ind;  // jmax
 
           // At upper j surface, if bc is interblock, store boundarySurface
           // because partner block BC will need to be updated
@@ -1232,9 +1230,9 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           alteredSurf.push_back(this->GetSurface(ii));
         }
 
-        if (this->GetJMin(ii) >= indNG) {  // surf is only in the upper split
-          bound2.surfs_[ii].data_[2] = this->GetJMin(ii) - indNG;  // jmin
-          bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - indNG;  // jmax
+        if (this->GetJMin(ii) >= ind) {  // surf is only in the upper split
+          bound2.surfs_[ii].data_[2] = this->GetJMin(ii) - ind;  // jmin
+          bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - ind;  // jmax
           // can delete from lower split
           del1.push_back(ii);
           if (ii < this->NumSurfI()) {  // i-surface
@@ -1242,10 +1240,10 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           } else {  // k-surface
             del1K++;
           }
-        } else if (this->GetJMax(ii) > indNG) {  // surf straddles the split
-          bound1.surfs_[ii].data_[3] = indNG;       // jmax
+        } else if (this->GetJMax(ii) > ind) {  // surf straddles the split
+          bound1.surfs_[ii].data_[3] = ind;       // jmax
           bound2.surfs_[ii].data_[2] = 0;           // jmin
-          bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - indNG;  // jmax
+          bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - ind;  // jmax
         } else {  // surface is only in the lower split - can delete from upper
           del2.push_back(ii);
           if (ii < this->NumSurfI()) {  // i-surface
@@ -1318,8 +1316,8 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           // upper surface matches with lower
           const auto tag = 5000 + newBlkNum;
           bound1.surfs_[ii].bcType_ = "interblock";  // bctype
-          bound1.surfs_[ii].data_[4] = indNG;        // kmin
-          bound1.surfs_[ii].data_[5] = indNG;        // kmax
+          bound1.surfs_[ii].data_[4] = ind;        // kmin
+          bound1.surfs_[ii].data_[5] = ind;        // kmax
           bound1.surfs_[ii].data_[6] = tag;          // tag
 
           // There should only be one surface between the split blocks
@@ -1336,8 +1334,8 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
 
           // At upper k surface, upper bc is same as original,
           // but indices are adjusted for new block size
-          bound2.surfs_[ii].data_[4] = this->GetKMax(ii) - indNG;  // kmin
-          bound2.surfs_[ii].data_[5] = this->GetKMax(ii) - indNG;  // kmax
+          bound2.surfs_[ii].data_[4] = this->GetKMax(ii) - ind;  // kmin
+          bound2.surfs_[ii].data_[5] = this->GetKMax(ii) - ind;  // kmax
 
           // At upper k surface, if bc is interblock, store boundarySurface
           // because partner block BC will need to be updated
@@ -1352,9 +1350,9 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           alteredSurf.push_back(this->GetSurface(ii));
         }
 
-        if (this->GetKMin(ii) >= indNG) {  // surface is only in upper split
-          bound2.surfs_[ii].data_[4] = this->GetKMin(ii) - indNG;  // kmin
-          bound2.surfs_[ii].data_[5] = this->GetKMax(ii) - indNG;  // kmax
+        if (this->GetKMin(ii) >= ind) {  // surface is only in upper split
+          bound2.surfs_[ii].data_[4] = this->GetKMin(ii) - ind;  // kmin
+          bound2.surfs_[ii].data_[5] = this->GetKMax(ii) - ind;  // kmax
           // Can delete from lower surface
           del1.push_back(ii);
           if (ii < this->NumSurfI()) {  // i-surface
@@ -1362,10 +1360,10 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
           } else {  // j-surface
             del1J++;
           }
-        } else if (this->GetKMax(ii) > indNG) {  // surf straddles the split
-          bound1.surfs_[ii].data_[5] = indNG;       // kmax
+        } else if (this->GetKMax(ii) > ind) {  // surf straddles the split
+          bound1.surfs_[ii].data_[5] = ind;       // kmax
           bound2.surfs_[ii].data_[4] = 0;           // kmin
-          bound2.surfs_[ii].data_[5] = this->GetKMax(ii) - indNG;  // kmax
+          bound2.surfs_[ii].data_[5] = this->GetKMax(ii) - ind;  // kmax
         } else {  // surface is only in the lower split - can delete from upper
           del2.push_back(ii);
           if (ii < this->NumSurfI()) {  // i-surface
@@ -2010,7 +2008,7 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
     (*this) = newBC;
 
   } else {
-    cerr << "ERROR: Error in procBlock::Join(). Direction " << dir
+    cerr << "ERROR: Error in boundaryConditions::Join(). Direction " << dir
          << " is not recognized! Choose either i, j, or k." << endl;
     exit(EXIT_FAILURE);
   }
@@ -2507,6 +2505,30 @@ int boundarySurface::Min2() const {
   return m;
 }
 
+int boundarySurface::Min(const string &dir) const {
+  auto ind = 0;
+  if (dir == "i") {
+    ind = this->IMin();
+  } else if (dir == "j") {
+    ind = this->JMin();
+  } else {
+    ind = this->KMin();
+  }
+  return ind;
+}
+
+int boundarySurface::Max(const string &dir) const {
+  auto ind = 0;
+  if (dir == "i") {
+    ind = this->IMax();
+  } else if (dir == "j") {
+    ind = this->JMax();
+  } else {
+    ind = this->KMax();
+  }
+  return ind;
+}
+
 range boundarySurface::RangeI() const {
   return (data_[0] == data_[1]) ? data_[0] : range{data_[0], data_[1]};
 }
@@ -2575,9 +2597,121 @@ void boundarySurface::UpdateTagForSplitJoin(const int &nBlk) {
   data_[6] = this->PartnerSurface() * 1000 + nBlk;
 }
 
-// member function to split a boundary_ surface. The calling instance retains
+// member function to split a boundarySurface. The calling instance retains
 // the lower portion of the split, and the returned instance retains the upper
-// portion
+// portion. This is used to split non-connections
+boundarySurface boundarySurface::Split(const string &dir, const int &ind,
+                                       bool &split, bool &low) {
+  // dir -- direction to split the surface in
+  // ind -- index at which to split the surface
+  // split -- flag to determine whether surface was split
+  // low -- flag that is true if unsplit surface is on lower side of split
+
+  auto lower = (*this);  // lower surface
+  auto upper = (*this);  // upper surface
+
+  // DEBUG -- remove boundaryCondition as friend class
+  // DEBUG -- check/redo dependantSplit if surface is only present in upper...
+
+  if (dir == "i" && this->Direction3() != "i") {
+    if (this->IMin() >= ind) {
+      // this surface is only present in the upper split
+      upper.data_[0] = this->IMin() - ind;  // imin
+      upper.data_[1] = this->IMax() - ind;  // imax
+      split = false;
+      low = false;
+      lower = boundarySurface();
+    } else if (this->IMax() > ind) {  // this surface straddles the split
+      upper.data_[0] = ind;  // imin
+      lower.data_[1] = ind;  // imax
+      split = true;
+    } else {  // this surface is only present in the lower split
+      upper = boundarySurface();
+      split = false;
+      low = true;
+    }
+  } else if (dir == "j" && this->Direction3() != "j") {
+    if (this->JMin() >= ind) {
+      // this surface is only present in the upper split
+      upper.data_[2] = this->JMin() - ind;  // jmin
+      upper.data_[3] = this->JMax() - ind;  // jmax
+      split = false;
+      low = false;
+      lower = boundarySurface();
+    } else if (this->JMax() > ind) {  // this surface straddles the split
+      upper.data_[2] = ind;  // jmin
+      lower.data_[3] = ind;  // jmax
+      split = true;
+    } else {  // this surface is only present in the lower split
+      upper = boundarySurface();
+      split = false;
+      low = true;
+    }
+  } else if (dir == "k" && this->Direction3() != "k") {
+    if (this->KMin() >= ind) {  // surface only present in the upper split
+      upper.data_[4] = this->KMin() - ind;  // kmin
+      upper.data_[5] = this->KMax() - ind;  // kmax
+      split = false;
+      low = false;
+      lower = boundarySurface();
+    } else if (this->KMax() > ind) {  // this surface straddles the split
+      upper.data_[4] = ind;  // kmin
+      lower.data_[5] = ind;  // kmax
+      split = true;
+    } else {  // this surface is only present in the lower split
+      upper = boundarySurface();
+      split = false;
+      low = true;
+    }
+  } else {  // not split; dir and surface dir are the same
+    split = false;
+    if (ind >= this->Ind3()) {
+      low = true;
+      upper = boundarySurface();
+    } else {
+      low = false;
+      lower = boundarySurface();
+    }
+  }
+
+  (*this) = lower;
+  return upper;
+}
+
+void boundarySurface::Join(const boundarySurface &upper, const string &dir,
+                           bool &joined) {
+  // can only join if surfaces are same direction and have same index, and
+  // bc type is the same, tag is the same, and lower max index equals upper
+  // min index
+  if (this->Direction3() == upper.Direction3() &&
+      this->Ind3() == upper.Ind3() && this->BCType() == upper.BCType() &&
+      this->Tag() == upper.Tag() && this->Max(dir) == upper.Min(dir)) {
+    // only join if the transverse (not dir 3 or split dir) ranges are equal
+    const auto transDirIs1 = this->Direction2() == dir;
+    const auto lowTransRange =
+        transDirIs1 ? this->RangeDir1() : this->RangeDir2();
+    const auto upTransRange =
+        transDirIs1 ? upper.RangeDir1() : upper.RangeDir2();
+    if (lowTransRange == upTransRange) {
+      if (dir == "i") {
+        data_[1] = upper.IMax();  // change imax
+      } else if (dir == "j") {
+        data_[3] = upper.JMax();  // change jmax
+      } else {
+        data_[5] = upper.KMax();  // change kmax
+      }
+      joined = true;
+    } else {
+      joined = false;
+    }
+  } else {
+    joined = false;
+  }
+}
+
+// member function to split a boundarySurface. The calling instance retains
+// the lower portion of the split, and the returned instance retains the upper
+// portion. This is used to split connections
 boundarySurface boundarySurface::Split(const string &dir, const int &ind,
                                        const int &lBlk, const int &uBlk,
                                        bool &split, int orientation) {
@@ -2586,7 +2720,7 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind,
   // lBlk -- lower block number of split
   // uBlk -- upper block number of split
   // split -- flag to determine whether block was split or just tag updated, if
-  // no split, upper surface returned is meaningless
+  //          no split, upper surface returned is meaningless
   // orientation -- if called from DependentSplit, orientation of partner split
 
   auto surf1 = (*this);  // lower surface

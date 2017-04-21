@@ -155,7 +155,8 @@ class procBlock {
                             const int &);
   void SubtractFromResidual(const source &, const int &, const int &,
                             const int &);
-
+  vector<wallData> SplitWallData(const string &, const int &);
+  void JoinWallData(const vector<wallData> &, const string &);
 
  public:
   // constructors

@@ -138,3 +138,66 @@ void wallData::UnpackWallData(char *(&recvBuffer), const int &recvBufSize,
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(data_)),
              data_.Size(), MPI_wallData, MPI_COMM_WORLD);
 }
+
+// Split wallData at given direction and index
+// The calling instance is modified to be the lower surface, and the upper
+// surface is returned. If the calling instance is not split, the split
+// boolean returns false and the returned wallData is garbage. The force
+// variables are not split.
+wallData wallData::Split(const string &dir, const int &ind, bool &split,
+                         bool &low) {
+  wallData upper = *this;
+  // split if necessary
+  auto upperSurf = surf_.Split(dir, ind, split, low);
+  if (split) {  // surface split; upper and lower valid
+    upper.surf_ = upperSurf;
+    upper.data_ = data_.Slice(dir, {ind, data_.End(dir)});
+    data_ = data_.Slice(dir, {data_.Start(dir), ind});
+  } else if (!low) {  // not split; upper is valid
+    *this = wallData();  // invalidate lower; upper already equals *this
+  } else {               // if not split and lower is valid, invalidate upper
+    upper = wallData();
+  }
+  return upper;
+}
+
+void wallData::Join(const wallData &upper, const string &dir, bool &joined) {
+  // join if possible
+  surf_.Join(upper.surf_, dir, joined);
+  if (joined) {
+    inviscidForce_ += upper.inviscidForce_;
+    viscousForce_ += upper.viscousForce_;
+
+    multiArray3d<wallVars> newVars(surf_.NumI(), surf_.NumJ(), surf_.NumK(), 0);
+    newVars.Insert(dir, {data_.Start(dir), data_.PhysEnd(dir)},
+                   data_.Slice(dir, {data_.Start(dir), data_.PhysEnd(dir)}));
+    newVars.Insert(dir, {data_.PhysEnd(dir), newVars.End(dir)},
+                   upper.data_.Slice(dir, {upper.data_.PhysStart(dir),
+                                           upper.data_.End(dir)}));
+    data_ = newVars;
+  }
+}
+
+void wallData::Print(ostream &os) const {
+  os << "Inviscid Force: " << inviscidForce_ << endl;
+  os << "Viscous Force: " << viscousForce_ << endl;
+  os << "BC Data: ";
+  bcData_->Print(os);
+  os << endl;
+  os << "BC Surface: " << surf_ << endl;
+  os << "Wall Data:" << endl;
+  os << data_ << endl;
+}
+
+ostream &operator<<(ostream &os, const wallData &wd) {
+  wd.Print(os);
+  return os;
+}
+
+ostream &operator<<(ostream &os, const wallVars &wv) {
+  os << wv.shearStress_ << "; " << wv.heatFlux_ << "; " << wv.yplus_ << "; "
+     << wv.temperature_ << "; " << wv.turbEddyVisc_ << "; " << wv.viscosity_
+     << "; " << wv.density_ << "; " << wv.frictionVelocity_ << "; " << wv.tke_
+     << "; " << wv.sdr_;
+  return os;
+}

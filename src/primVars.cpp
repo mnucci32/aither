@@ -444,6 +444,10 @@ primVars primVars::GetGhostState(const string &bcType,
         if (inputVars.IsRANS()) {
           ghostState.data_[5] = 2.0 * wVars.tke_ - this->Tke();
           ghostState.data_[6] = 2.0 * wVars.sdr_ - this->Omega();
+          if (layer > 1) {
+            ghostState.data_[5] = layer * ghostState.data_[5] - wVars.tke_;
+            ghostState.data_[6] = layer * ghostState.data_[6] - wVars.sdr_;
+          }
         }
       } else {  // low-Re wall treatment
         const auto tGhost = 2.0 * tWall - this->Temperature(eqnState);
@@ -465,6 +469,10 @@ primVars primVars::GetGhostState(const string &bcType,
         if (inputVars.IsRANS()) {
           ghostState.data_[5] = 2.0 * wVars.tke_ - this->Tke();
           ghostState.data_[6] = 2.0 * wVars.sdr_ - this->Omega();
+          if (layer > 1) {
+            ghostState.data_[5] = layer * ghostState.data_[5] - wVars.tke_;
+            ghostState.data_[6] = layer * ghostState.data_[6] - wVars.sdr_;
+          }
         }
       } else {  // low-Re wall treatment
         // don't need turbulent contribution b/c eddy viscosity is 0 at wall
@@ -482,11 +490,13 @@ primVars primVars::GetGhostState(const string &bcType,
                    inputVars.IsRANS());
         wVars = wl.AdiabaticBCs(normArea, velWall, eqnState, suth, turb);
 
-        // ghostState.data_[0] = 2.0 * wVars.density_ - this->Rho();
-
         if (inputVars.IsRANS()) {
           ghostState.data_[5] = 2.0 * wVars.tke_ - this->Tke();
           ghostState.data_[6] = 2.0 * wVars.sdr_ - this->Omega();
+          if (layer > 1) {
+            ghostState.data_[5] = layer * ghostState.data_[5] - wVars.tke_;
+            ghostState.data_[6] = layer * ghostState.data_[6] - wVars.sdr_;
+          }
         }
       }
       // numerical BCs for pressure, density - same as boundary state

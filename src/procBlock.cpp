@@ -5237,6 +5237,7 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
 
   auto bound1 = bc_;
   auto bound2 = bound1.Split(dir, ind, parBlock_, num, alteredSurf);
+  auto wd2 = this->SplitWallData(dir, ind);
 
   auto numI1 = 0, numI2 = 0;
   auto numJ1 = 0, numJ2 = 0;
@@ -5392,8 +5393,10 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
 
   // assign boundary conditions
   blk1.bc_ = bound1;
+  blk1.wallData_ = wallData_;
   (*this) = blk1;
   blk2.bc_ = bound2;
+  blk2.wallData_ = wd2;
   return blk2;
 }
 
@@ -5404,7 +5407,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
   // blk -- block to join with
   // dir -- plane to split along, either i, j, or k
   // alteredSurf -- vector of surfaces whose partners will need to be altered
-  // after this split
+  // after this join
 
   auto iTot = this->NumI();
   auto jTot = this->NumJ();
@@ -5436,6 +5439,8 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 
   newBlk.bc_ = bc_;
   newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
+  newBlk.wallData_ = wallData_;
+  newBlk.JoinWallData(blk.wallData_, dir);
 
   // assign variables from lower block -----------------------------
   // assign cell variables with ghost cells
@@ -6284,7 +6289,7 @@ multiArray3d<primVars> procBlock::GetGhostStates(
                 .GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),
                                wDist(ii, jj, kk), surfType, inp, tag, eos, suth,
                                turb, wVars, layer);
-        if (bcName == "viscousWall") {
+        if (bcName == "viscousWall" && layer == 1) {
           const auto ind = this->WallDataIndex(surf);
           wallData_[ind](ii, jj, kk, true) = wVars;
         }
@@ -6413,4 +6418,53 @@ void procBlock::GetStatesFromRestart(const multiArray3d<primVars> &restart) {
 
 void procBlock::GetSolNm1FromRestart(const multiArray3d<genArray> &restart) {
   consVarsNm1_ = restart;
+}
+
+// split all wallData in procBlock
+// The calling instance keeps the lower wallData in the split, and the upper
+// wallData is returned
+vector<wallData> procBlock::SplitWallData(const string &dir, const int &ind) {
+  vector<wallData> upper;
+  vector<int> delLower;
+  auto count = 0;
+  for (auto &lower : wallData_) {
+    auto split = false, low = false;
+    auto up = lower.Split(dir, ind, split, low);
+    if (split) {  // surface split; upper and lower are valid
+      upper.push_back(up);
+    } else if (!low) {  // not split; valid surface is upper
+      upper.push_back(up);
+      delLower.push_back(count);  // need to remove b/c lower is invalid
+    }
+    count++;
+  }
+
+  // delete lower wall data not in lower split in reverse
+  for (auto ii = static_cast<int>(delLower.size()) - 1; ii >= 0; --ii) {
+    wallData_.erase(std::begin(wallData_) + delLower[ii]);
+  }
+
+  return upper;
+}
+
+// Join all wallData in procBlock if possible. 
+void procBlock::JoinWallData(const vector<wallData> &upper, const string &dir) {
+  vector<int> joinedData;
+  for (auto ll = 0U; ll < wallData_.size(); ++ll) {
+    for (auto uu = 0U; uu < upper.size(); ++uu) {
+      auto joined = false;
+      wallData_[ll].Join(upper[uu], dir, joined);
+      if (joined) {  // if joined, don't need to add upper data
+        joinedData.push_back(uu);
+      }
+    }
+  }
+
+  // add in unjoined upper data
+  for (auto ii = 0; ii < static_cast<int>(upper.size()); ++ii) {
+    if (std::none_of(std::begin(joinedData), std::end(joinedData),
+                     [&ii](const int &val) { return ii == val; })) {
+      wallData_.push_back(upper[ii]);
+    }
+  }
 }

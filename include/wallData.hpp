@@ -103,13 +103,15 @@ class wallData {
                       const input &);
   const boundarySurface & Surface() const {return surf_;}
   bool IsWallLaw() const {return bcData_->IsWallLaw();}
+  wallData Split(const string &, const int &, bool &, bool &);
+  void Join(const wallData &, const string &, bool &);
+  void Print(ostream &) const;
 
-    // operator overloads
-    wallVars &operator()(const int &ii, const int &jj, const int &kk,
-                         const bool &raw = false) {
-      return raw ? data_(ii, jj, kk)
-                 : data_(ii - surf_.IMin(), jj - surf_.JMin(),
-                         kk - surf_.KMin());
+  // operator overloads
+  wallVars &operator()(const int &ii, const int &jj, const int &kk,
+                       const bool &raw = false) {
+    return raw ? data_(ii, jj, kk)
+               : data_(ii - surf_.IMin(), jj - surf_.JMin(), kk - surf_.KMin());
   }
   const wallVars &operator()(const int &ii, const int &jj, const int &kk,
                              const bool &raw = false) const {
@@ -121,5 +123,8 @@ class wallData {
   ~wallData() noexcept {}
 };
 
+// function definitions
+ostream &operator<<(ostream &os, const wallData &wd);
+ostream &operator<<(ostream &os, const wallVars &wv);
 
 #endif
