@@ -68,8 +68,6 @@ class boundarySurface {
   boundarySurface(const boundarySurface&) = default;
   boundarySurface& operator=(const boundarySurface&) = default;
 
-  friend class boundaryConditions;
-
   // Member functions
   string BCType() const {return bcType_;}
   int IMin() const {return data_[0];}

@@ -43,10 +43,7 @@ boundaryConditions::boundaryConditions(const int &i, const int &j,
   numSurfJ_ = j;
   numSurfK_ = k;
   const auto length = numSurfI_ + numSurfJ_ + numSurfK_;
-
-  boundarySurface bcSurf_;
-  vector<boundarySurface> dumVec(length, bcSurf_);
-  surfs_ = dumVec;
+  surfs_ = vector<boundarySurface>(length, boundarySurface());
 }
 
 // Operator overload for << - allows use of cout, cerr, etc.
@@ -999,6 +996,7 @@ int boundaryConditions::BlockDimK() const {
   return dim;
 }
 
+
 /* Member function to split boundary conditions along a given direction at a
    given index. The calling instance retains the lower portion of the split,
    and the returned instance is the upper portion. */
@@ -1009,400 +1007,128 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
   // dir -- direction to split it (i, j, k)
   // ind -- index of cell to split at
   //        (this index is the last cell that remains in the lower split)
-  // numBlk -- block number that (*this) is assocatied with
+  // numBlk -- block number that (*this) is associated with
   // newBlkNum -- block number for upper split
   // aSurf -- vector of any interblocks that are split,
-  //          because their partners will need to be altered for the split as
-  //          well
+  //          because their partners will need to be altered for the split too
 
-  auto bound1 = (*this);  // lower boundaryConditions
-  auto bound2 = (*this);  // upper boundaryConditions
-
-  // Initialize vector of surfaces that will be altered by this split
-  vector<boundarySurface> alteredSurf;
-
-  // If a surface in entirely on one side of the split, it should be removed
-  // from the other side - these variables keep track of the surfaces to remove
-  vector<int> del1, del2;
-  // Reserved for maximum number of deletions
-  del1.reserve(this->NumSurfaces());
-  // Reserved for maximum number of deletions
-  del2.reserve(this->NumSurfaces());
-
-  if (dir == "i") {  // split along i-plane
-    // Initialize deletion numbers to 0
-    auto del1I = 0;
-    auto del1J = 0;
-    auto del1K = 0;
-    auto del2I = 0;
-    auto del2J = 0;
-    auto del2K = 0;
-
-    auto numInterL = 0;
-    auto numInterU = 0;
-
-    // Loop over all surfaces
-    for (auto ii = 0; ii < this->NumSurfaces(); ii++) {
-      if (ii < this->NumSurfI()) {                      // i-surface
-        if (this->GetSurface(ii).SurfaceType() == 1) {  // lower i surface
-          // No change to lower bc at lower i surface
-
-          // At lower i surface, upper bc is now interface
-          // lower surface matches with upper surface
-          const auto tag = 2000 + numBlk;
-          bound2.surfs_[ii].bcType_ = "interblock";          // bcType
-          bound2.surfs_[ii].data_[0] = this->GetIMin(ii);  // imin
-          bound2.surfs_[ii].data_[1] = this->GetIMax(ii);  // imax
-          bound2.surfs_[ii].data_[6] = tag;                  // tag
-
-          // There should only be one surface between the split blocks
-          bound2.surfs_[ii].data_[2] = 0;                    // jmin
-          bound2.surfs_[ii].data_[3] = this->BlockDimJ();  // jmax
-          bound2.surfs_[ii].data_[4] = 0;                    // kmin
-          bound2.surfs_[ii].data_[5] = this->BlockDimK();  // kmax
-
-          if (numInterL > 0) {
-            del2.push_back(ii);
-            del2I++;
-          }
-          numInterL++;
-        } else {  // upper surface
-          // At upper i surface, lower bc is now interface
-          // upper surface matches with lower surface
-          const auto tag = 1000 + newBlkNum;
-          bound1.surfs_[ii].bcType_ = "interblock";  // bcType
-          bound1.surfs_[ii].data_[0] = ind;        // imin
-          bound1.surfs_[ii].data_[1] = ind;        // imax
-          bound1.surfs_[ii].data_[6] = tag;          // tag
-
-          // There should only be one surface between the split blocks
-          bound1.surfs_[ii].data_[2] = 0;                    // jmin
-          bound1.surfs_[ii].data_[3] = this->BlockDimJ();  // jmax
-          bound1.surfs_[ii].data_[4] = 0;                    // kmin
-          bound1.surfs_[ii].data_[5] = this->BlockDimK();  // kmax
-
-          if (numInterU > 0) {
-            del1.push_back(ii);
-            del1I++;
-          }
-
-          numInterU++;
-
-          // At upper i surface, upper bc is same as original,
-          // but indices are adjusted for new block size
-          bound2.surfs_[ii].data_[0] = this->GetIMax(ii) - ind;  // imin
-          bound2.surfs_[ii].data_[1] = this->GetIMax(ii) - ind;  // imax
-
-          // At upper i surface, if bc is interblock, store boundarySurface
-          // because partner block BC will need to be updated
-          if (this->GetBCTypes(ii) == "interblock") {
-            alteredSurf.push_back(this->GetSurface(ii));
-          }
-        }
-      } else {  // j-surface or k-surface
-        // At j/k surface, if bc is interblock, store boundarySurface
-        // because partner block BC will need to be updated
-        if (this->GetBCTypes(ii) == "interblock") {
-          alteredSurf.push_back(this->GetSurface(ii));
-        }
-
-        // This surface is only present in the upper split
-        if (this->GetIMin(ii) >= ind) {
-          bound2.surfs_[ii].data_[0] = this->GetIMin(ii) - ind;  // imin
-          bound2.surfs_[ii].data_[1] = this->GetIMax(ii) - ind;  // imax
-          // Can delete it from lower split
-          del1.push_back(ii);
-          if (ii >= this->NumSurfI() &&
-              ii < this->NumSurfI() + this->NumSurfJ()) {  // j-surface
-            del1J++;
-          } else {  // k-surface
-            del1K++;
-          }
-        } else if (this->GetIMax(ii) > ind) {  // surf straddles the split
-          bound1.surfs_[ii].data_[1] = ind;         // imax
-          bound2.surfs_[ii].data_[0] = 0;           // imin
-          bound2.surfs_[ii].data_[1] = this->GetIMax(ii) - ind;  // imax
-        } else {  // surf only present in the lower split - delete from upper
-          del2.push_back(ii);
-          if (ii >= this->NumSurfI() &&
-              ii < this->NumSurfI() + this->NumSurfJ()) {  // j-surface
-            del2J++;
-          } else {  // k-surface
-            del2K++;
-          }
-        }
-      }
-    }
-
-    // Delete unnecessary boundaries and change number of surfaces in i,j,k
-    // to appropriate number
-
-    // need to delete from bottom of vector so indices are preserved
-    // need to cast to int because value must be negative for termination
-    for (auto ii = static_cast<int>(del1.size()) - 1; ii >= 0; --ii) {
-      bound1.surfs_.erase(bound1.surfs_.begin() + del1[ii]);
-    }
-    bound1.numSurfI_ -= del1I;
-    bound1.numSurfJ_ -= del1J;
-    bound1.numSurfK_ -= del1K;
-
-    for (auto ii = static_cast<int>(del2.size()) - 1; ii >= 0; --ii) {
-      bound2.surfs_.erase(bound2.surfs_.begin() + del2[ii]);
-    }
-    bound2.numSurfI_ -= del2I;
-    bound2.numSurfJ_ -= del2J;
-    bound2.numSurfK_ -= del2K;
-
-  } else if (dir == "j") {  // split along j-plane
-    // Initialize deletion numbers to 0
-    auto del1I = 0;
-    auto del1J = 0;
-    auto del1K = 0;
-    auto del2I = 0;
-    auto del2J = 0;
-    auto del2K = 0;
-
-    auto numInterL = 0;
-    auto numInterU = 0;
-
-    // Loop over all surfaces
-    for (auto ii = 0; ii < this->NumSurfaces(); ii++) {
-      if (ii >= this->NumSurfI() &&
-          ii < this->NumSurfI() + this->NumSurfJ()) {  // j-surface
-        if (this->GetSurface(ii).SurfaceType() == 3) {   // lower j surface
-          // No change to lower bc at lower j surface
-
-          // At lower j surface, upper bc is now interface
-          // lower surface matches with upper surface
-          const auto tag = 4000 + numBlk;
-          bound2.surfs_[ii].bcType_ = "interblock";          // bctype
-          bound2.surfs_[ii].data_[2] = this->GetJMin(ii);  // jmin
-          bound2.surfs_[ii].data_[3] = this->GetJMax(ii);  // jmax
-          bound2.surfs_[ii].data_[6] = tag;                  // tag
-
-          // There should only be one surface between the split blocks
-          bound2.surfs_[ii].data_[0] = 0;                    // imin
-          bound2.surfs_[ii].data_[1] = this->BlockDimI();  // imax
-          bound2.surfs_[ii].data_[4] = 0;                    // kmin
-          bound2.surfs_[ii].data_[5] = this->BlockDimK();  // kmax
-
-          if (numInterL > 0) {
-            del2.push_back(ii);
-            del2J++;
-          }
-          numInterL++;
-        } else {
-          // At upper j surface, lower bc is now interface
-          // upper surface matches with lower
-          const auto tag = 3000 + newBlkNum;
-          bound1.surfs_[ii].bcType_ = "interblock";  // bctype
-          bound1.surfs_[ii].data_[2] = ind;        // jmin
-          bound1.surfs_[ii].data_[3] = ind;        // jmax
-          bound1.surfs_[ii].data_[6] = tag;          // tag
-
-          // There should only be one surface between the split blocks
-          bound1.surfs_[ii].data_[0] = 0;                    // imin
-          bound1.surfs_[ii].data_[1] = this->BlockDimI();  // imax
-          bound1.surfs_[ii].data_[4] = 0;                    // kmin
-          bound1.surfs_[ii].data_[5] = this->BlockDimK();  // kmax
-
-          if (numInterU > 0) {
-            del1.push_back(ii);
-            del1J++;
-          }
-          numInterU++;
-
-          // At upper j surface, upper bc is same as original, but indices
-          // are adjusted for new block size
-          bound2.surfs_[ii].data_[2] = this->GetJMax(ii) - ind;  // jmin
-          bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - ind;  // jmax
-
-          // At upper j surface, if bc is interblock, store boundarySurface
-          // because partner block BC will need to be updated
-          if (this->GetBCTypes(ii) == "interblock") {
-            alteredSurf.push_back(this->GetSurface(ii));
-          }
-        }
-      } else {  // i-surface or k-surface
-        // At i/k surface, if bc is interblock, store boundarySurface
-        // because partner block BC will need to be updated
-        if (this->GetBCTypes(ii) == "interblock") {
-          alteredSurf.push_back(this->GetSurface(ii));
-        }
-
-        if (this->GetJMin(ii) >= ind) {  // surf is only in the upper split
-          bound2.surfs_[ii].data_[2] = this->GetJMin(ii) - ind;  // jmin
-          bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - ind;  // jmax
-          // can delete from lower split
-          del1.push_back(ii);
-          if (ii < this->NumSurfI()) {  // i-surface
-            del1I++;
-          } else {  // k-surface
-            del1K++;
-          }
-        } else if (this->GetJMax(ii) > ind) {  // surf straddles the split
-          bound1.surfs_[ii].data_[3] = ind;       // jmax
-          bound2.surfs_[ii].data_[2] = 0;           // jmin
-          bound2.surfs_[ii].data_[3] = this->GetJMax(ii) - ind;  // jmax
-        } else {  // surface is only in the lower split - can delete from upper
-          del2.push_back(ii);
-          if (ii < this->NumSurfI()) {  // i-surface
-            del2I++;
-          } else {  // k-surface
-            del2K++;
-          }
-        }
-      }
-    }
-
-    // Delete unnecessary boundaries - and set number of surfaces (i, j, k)
-    // to appropriate number
-
-    // need to delete from bottom of vector so indices are preserved
-    // need to cast to int because value must be negative for termination
-    for (auto ii = static_cast<int>(del1.size()) - 1; ii >= 0; --ii) {
-      bound1.surfs_.erase(bound1.surfs_.begin() + del1[ii]);
-    }
-    bound1.numSurfI_ -= del1I;
-    bound1.numSurfJ_ -= del1J;
-    bound1.numSurfK_ -= del1K;
-
-    for (auto ii = static_cast<int>(del2.size()) - 1; ii >= 0; --ii) {
-      bound2.surfs_.erase(bound2.surfs_.begin() + del2[ii]);
-    }
-    bound2.numSurfI_ -= del2I;
-    bound2.numSurfJ_ -= del2J;
-    bound2.numSurfK_ -= del2K;
-
-  } else if (dir == "k") {  // split along k-plane
-    // Initialize deletion numbers to 0
-    auto del1I = 0;
-    auto del1J = 0;
-    auto del1K = 0;
-    auto del2I = 0;
-    auto del2J = 0;
-    auto del2K = 0;
-
-    auto numInterL = 0;
-    auto numInterU = 0;
-
-    // Loop over all surfaces
-    for (auto ii = 0; ii < this->NumSurfaces(); ii++) {
-      if (ii >= this->NumSurfI() + this->NumSurfJ()) {  // k-surface
-        if (this->GetSurface(ii).SurfaceType() == 5) {    // lower k surface
-          // No change to lower bc at lower k surface
-
-          // At lower k surface, upper bc is now interface
-          // lower surface matches with upper
-          const auto tag = 6000 + numBlk;
-          bound2.surfs_[ii].bcType_ = "interblock";          // bctype
-          bound2.surfs_[ii].data_[4] = this->GetKMin(ii);  // kmin
-          bound2.surfs_[ii].data_[5] = this->GetKMax(ii);  // kmax
-          bound2.surfs_[ii].data_[6] = tag;                  // tag
-
-          // There should only be one surface between the split blocks
-          bound2.surfs_[ii].data_[0] = 0;                    // imin
-          bound2.surfs_[ii].data_[1] = this->BlockDimI();  // imax
-          bound2.surfs_[ii].data_[2] = 0;                    // jmin
-          bound2.surfs_[ii].data_[3] = this->BlockDimJ();  // jmax
-
-          if (numInterL > 0) {
-            del2.push_back(ii);
-            del2K++;
-          }
-          numInterL++;
-        } else {
-          // At upper k surface, lower bc is now interface
-          // upper surface matches with lower
-          const auto tag = 5000 + newBlkNum;
-          bound1.surfs_[ii].bcType_ = "interblock";  // bctype
-          bound1.surfs_[ii].data_[4] = ind;        // kmin
-          bound1.surfs_[ii].data_[5] = ind;        // kmax
-          bound1.surfs_[ii].data_[6] = tag;          // tag
-
-          // There should only be one surface between the split blocks
-          bound1.surfs_[ii].data_[0] = 0;                    // imin
-          bound1.surfs_[ii].data_[1] = this->BlockDimI();  // imax
-          bound1.surfs_[ii].data_[2] = 0;                    // jmin
-          bound1.surfs_[ii].data_[3] = this->BlockDimJ();  // jmax
-
-          if (numInterU > 0) {
-            del1.push_back(ii);
-            del1K++;
-          }
-          numInterU++;
-
-          // At upper k surface, upper bc is same as original,
-          // but indices are adjusted for new block size
-          bound2.surfs_[ii].data_[4] = this->GetKMax(ii) - ind;  // kmin
-          bound2.surfs_[ii].data_[5] = this->GetKMax(ii) - ind;  // kmax
-
-          // At upper k surface, if bc is interblock, store boundarySurface
-          // because partner block BC will need to be updated
-          if (this->GetBCTypes(ii) == "interblock") {
-            alteredSurf.push_back(this->GetSurface(ii));
-          }
-        }
-      } else {  // i-surface or j-surface
-        // At i/j surface, if bc is interblock, store boundarySurface because
-        // partner block BC will need to be updated
-        if (this->GetBCTypes(ii) == "interblock") {
-          alteredSurf.push_back(this->GetSurface(ii));
-        }
-
-        if (this->GetKMin(ii) >= ind) {  // surface is only in upper split
-          bound2.surfs_[ii].data_[4] = this->GetKMin(ii) - ind;  // kmin
-          bound2.surfs_[ii].data_[5] = this->GetKMax(ii) - ind;  // kmax
-          // Can delete from lower surface
-          del1.push_back(ii);
-          if (ii < this->NumSurfI()) {  // i-surface
-            del1I++;
-          } else {  // j-surface
-            del1J++;
-          }
-        } else if (this->GetKMax(ii) > ind) {  // surf straddles the split
-          bound1.surfs_[ii].data_[5] = ind;       // kmax
-          bound2.surfs_[ii].data_[4] = 0;           // kmin
-          bound2.surfs_[ii].data_[5] = this->GetKMax(ii) - ind;  // kmax
-        } else {  // surface is only in the lower split - can delete from upper
-          del2.push_back(ii);
-          if (ii < this->NumSurfI()) {  // i-surface
-            del2I++;
-          } else {  // j-surface
-            del2J++;
-          }
-        }
-      }
-    }
-
-    // Delete unnecessary boundaries and set surface numbers (i,j,k) to
-    // appropriate value
-
-    // need to delete from bottom of vector so indices are preserved
-    // need to cast to int because value must be negative for termination
-    for (auto ii = static_cast<int>(del1.size()) - 1; ii >= 0; --ii) {
-      bound1.surfs_.erase(bound1.surfs_.begin() + del1[ii]);
-    }
-    bound1.numSurfI_ -= del1I;
-    bound1.numSurfJ_ -= del1J;
-    bound1.numSurfK_ -= del1K;
-
-    for (auto ii = static_cast<int>(del2.size()) - 1; ii >= 0; --ii) {
-      bound2.surfs_.erase(bound2.surfs_.begin() + del2[ii]);
-    }
-    bound2.numSurfI_ -= del2I;
-    bound2.numSurfJ_ -= del2J;
-    bound2.numSurfK_ -= del2K;
-
-  } else {
-    cerr << "ERROR: Error in boundaryCondition::Split(). Direction " << dir
-         << " is not recognized! Choose either i, j, or k." << endl;
-    exit(EXIT_FAILURE);
+  if (!(dir == "i" || dir == "j" || dir == "k")) {
+    cerr << "ERROR: Error in boundaryConditions::Split(). Direction " << dir
+         << " is not recognized. Choose i, j, or k" << endl;
   }
 
-  (*this) = bound1;     // assign lower split to (*this)
-  aSurf = alteredSurf;  // assign vector of altered surfaces
-  return bound2;
+  boundaryConditions lower(0, 0, 0);
+  boundaryConditions upper(0, 0, 0);
+
+  aSurf = vector<boundarySurface>(0);
+
+  auto insertedSplit = false;
+  for (auto &lowSurf : surfs_) {
+    auto surfDir = lowSurf.Direction3();
+
+    if (lowSurf.IsConnection()) {
+      aSurf.push_back(lowSurf);
+    }
+
+    // this block is only executed once, to insert the interface surface for the
+    // lower and upper splits
+    if (!insertedSplit && dir == surfDir) {  //---------------------------------
+      if (dir == "i") {
+        // For upper block, at lower i surface, bc is now interblock
+        // lower surface matches with upper surface
+        const auto upTag = 2000 + numBlk;
+        boundarySurface upSurf("interblock", 0, 0, 0, this->BlockDimJ(), 0,
+                               this->BlockDimK(), upTag);
+
+        // For lower block, at upper i surface, bc is now interblock
+        // upper surface matches with lower surface
+        const auto lowTag = 1000 + newBlkNum;
+        // There should only be one surface between the split blocks
+        boundarySurface lowerSurf("interblock", ind, ind, 0, this->BlockDimJ(),
+                                  0, this->BlockDimK(), lowTag);
+
+        lower.surfs_.push_back(lowerSurf);
+        lower.numSurfI_++;
+        upper.surfs_.push_back(upSurf);
+        upper.numSurfI_++;
+      } else if (dir == "j") {
+        // For upper block, at lower j surface, bc is now interblock
+        // lower surface matches with upper surface
+        const auto upTag = 4000 + numBlk;
+        boundarySurface upSurf("interblock", 0, this->BlockDimI(), 0, 0, 0,
+                               this->BlockDimK(), upTag);
+
+        // For lower block, at upper j surface, bc is now interblock
+        // upper surface matches with lower surface
+        const auto lowTag = 3000 + newBlkNum;
+        // There should only be one surface between the split blocks
+        boundarySurface lowerSurf("interblock", 0, this->BlockDimI(), ind, ind,
+                                  0, this->BlockDimK(), lowTag);
+
+        lower.surfs_.push_back(lowerSurf);
+        lower.numSurfJ_++;
+        upper.surfs_.push_back(upSurf);
+        upper.numSurfJ_++;
+      } else {
+        // For upper block, at lower k surface, bc is now interblock
+        // lower surface matches with upper surface
+        const auto upTag = 6000 + numBlk;
+        boundarySurface upSurf("interblock", 0, this->BlockDimI(), 0,
+                               this->BlockDimJ(), 0, 0, upTag);
+
+        // For lower block, at upper k surface, bc is now interblock
+        // upper surface matches with lower surface
+        const auto lowTag = 5000 + newBlkNum;
+        // There should only be one surface between the split blocks
+        boundarySurface lowerSurf("interblock", 0, this->BlockDimI(), 0,
+                                  this->BlockDimJ(), ind, ind, lowTag);
+
+        lower.surfs_.push_back(lowerSurf);
+        lower.numSurfK_++;
+        upper.surfs_.push_back(upSurf);
+        upper.numSurfK_++;
+      }
+      insertedSplit = true;
+    }  //-----------------------------------------------------------------------
+
+    auto split = false, low = false;
+    auto upSurf = lowSurf.Split(dir, ind, split, low);
+    if (split) {  // if split push split to lower/upper bcs
+      lower.surfs_.push_back(lowSurf);
+      upper.surfs_.push_back(upSurf);
+      if (surfDir == "i") {
+        lower.numSurfI_++;
+        upper.numSurfI_++;
+      } else if (surfDir == "j") {
+        lower.numSurfJ_++;
+        upper.numSurfJ_++;
+      } else {
+        lower.numSurfK_++;
+        upper.numSurfK_++;
+      }
+    } else if (low) {  // surface only on low side of split
+      lower.surfs_.push_back(lowSurf);
+      if (surfDir == "i") {
+        lower.numSurfI_++;
+      } else if (surfDir == "j") {
+        lower.numSurfJ_++;
+      } else {
+        lower.numSurfK_++;
+      }
+    } else {  // surface only on upper side of split
+      upper.surfs_.push_back(upSurf);
+      if (surfDir == "i") {
+        upper.numSurfI_++;
+      } else if (surfDir == "j") {
+        upper.numSurfJ_++;
+      } else {
+        upper.numSurfK_++;
+      }
+    }
+  }
+
+  (*this) = lower;
+  return upper;
 }
 
 /* Member function to split the surfaces of a boundaryCondtions accordingly when
@@ -2610,9 +2336,6 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind,
   auto lower = (*this);  // lower surface
   auto upper = (*this);  // upper surface
 
-  // DEBUG -- remove boundaryCondition as friend class
-  // DEBUG -- check/redo dependantSplit if surface is only present in upper...
-
   if (dir == "i" && this->Direction3() != "i") {
     if (this->IMin() >= ind) {
       // this surface is only present in the upper split
@@ -2622,7 +2345,8 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind,
       low = false;
       lower = boundarySurface();
     } else if (this->IMax() > ind) {  // this surface straddles the split
-      upper.data_[0] = ind;  // imin
+      upper.data_[0] = 0;                   // imin
+      upper.data_[1] = this->IMax() - ind;  // imax
       lower.data_[1] = ind;  // imax
       split = true;
     } else {  // this surface is only present in the lower split
@@ -2639,8 +2363,9 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind,
       low = false;
       lower = boundarySurface();
     } else if (this->JMax() > ind) {  // this surface straddles the split
-      upper.data_[2] = ind;  // jmin
-      lower.data_[3] = ind;  // jmax
+      upper.data_[2] = 0;                   // jmin
+      upper.data_[3] = this->JMax() - ind;  // jmax
+      lower.data_[3] = ind;                 // jmax
       split = true;
     } else {  // this surface is only present in the lower split
       upper = boundarySurface();
@@ -2655,7 +2380,8 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind,
       low = false;
       lower = boundarySurface();
     } else if (this->KMax() > ind) {  // this surface straddles the split
-      upper.data_[4] = ind;  // kmin
+      upper.data_[4] = 0;                   // kmin
+      upper.data_[5] = this->KMax() - ind;  // kmax
       lower.data_[5] = ind;  // kmax
       split = true;
     } else {  // this surface is only present in the lower split
@@ -2671,6 +2397,16 @@ boundarySurface boundarySurface::Split(const string &dir, const int &ind,
     } else {
       low = false;
       lower = boundarySurface();
+      if (dir == "i") {
+        upper.data_[0] = this->IMin() - ind;  // imin
+        upper.data_[1] = this->IMax() - ind;  // imax
+      } else if (dir == "j") {
+        upper.data_[2] = this->JMin() - ind;  // jmin
+        upper.data_[3] = this->JMax() - ind;  // jmax
+      } else {
+        upper.data_[4] = this->KMin() - ind;  // kmin
+        upper.data_[5] = this->KMax() - ind;  // kmax
+      }
     }
   }
 

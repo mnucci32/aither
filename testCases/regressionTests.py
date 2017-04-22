@@ -167,6 +167,8 @@ class regressionTest:
             
         print("Test Duration:",duration)
         print("---------- End Test:", self.caseName, "----------")
+        print("")
+        print("")
         self.ReturnToHomeDirectory()
         return passed
         
