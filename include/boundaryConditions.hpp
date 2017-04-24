@@ -105,8 +105,8 @@ class boundarySurface {
   int PartnerBlock() const;
   int PartnerSurface() const;
   void UpdateTagForSplitJoin(const int &);
-  boundarySurface Split(const string &, const int &, const int &, const int &,
-                        bool &, int = 0);
+  boundarySurface DependentSplit(const string &, const int &, const int &,
+                                 bool &, bool &);
   void Join(const boundarySurface &, const string &, bool &);
   boundarySurface Split(const string &, const int &, bool &, bool &);
   bool SplitDirectionIsReversed(const string &, const int &) const;

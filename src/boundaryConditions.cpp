@@ -1026,7 +1026,10 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
   for (auto &lowSurf : surfs_) {
     auto surfDir = lowSurf.Direction3();
 
-    if (lowSurf.IsConnection()) {
+    if (lowSurf.IsConnection() &&
+        (!(dir == "i" && lowSurf.SurfaceType() == 1) ||
+         !(dir == "j" && lowSurf.SurfaceType() == 3) ||
+         !(dir == "k" && lowSurf.SurfaceType() == 5))) {
       aSurf.push_back(lowSurf);
     }
 
@@ -1345,20 +1348,23 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
         }
       }
 
+      // partner block is either lblk or ublk, whichever is not equal to sblk
+      auto pblk = (sblk == lblk) ? ublk : lblk;
       // split matched surface
-      auto split = false;  // flag to tell if surface was split (or just if
-                           // block number updated)
-      const auto upSurf = lowSurf.Split(candDir, candInd, lblk, ublk, split,
-                                        match.Orientation());
+      auto split = false, low = false;
+      const auto upSurf =
+          lowSurf.DependentSplit(candDir, candInd, pblk, split, low);
 
-      // assign boundarySurface back into boundaryConditions, if surface wasn't
-      // split partner block was updated
-      surfs_[ii] = lowSurf;
+      // assign boundarySurface back into boundaryConditions, if surface
+      // wasn't split partner block was updated
+      if (split || low) {
+        surfs_[ii] = lowSurf;
+      }
 
       // if surface was split, insert it into the vector of boundarySurfaces and
       // adjust the surface numbers
-      if (split) {  // boundary_ surface was split, insert new surface into
-                    // boundary_ conditions
+      if (split || !low) {
+        // boundary surface was split, insert new surface into bcs
         surfs_.insert(surfs_.begin() + ii, upSurf);
         if (upSurf.SurfaceType() <= 2) {  // i-surface
           numSurfI_++;
@@ -1368,7 +1374,7 @@ void boundaryConditions::DependentSplit(const boundarySurface &surf,
           numSurfK_++;
         }
       }
-
+      
       break;
     }
   }
@@ -2448,123 +2454,33 @@ void boundarySurface::Join(const boundarySurface &upper, const string &dir,
 // member function to split a boundarySurface. The calling instance retains
 // the lower portion of the split, and the returned instance retains the upper
 // portion. This is used to split connections
-boundarySurface boundarySurface::Split(const string &dir, const int &ind,
-                                       const int &lBlk, const int &uBlk,
-                                       bool &split, int orientation) {
+boundarySurface boundarySurface::DependentSplit(const string &dir,
+                                                const int &ind, const int &pBlk,
+                                                bool &split, bool &low) {
   // dir -- direction to split the surface in
   // ind -- index at which to split the surface
-  // lBlk -- lower block number of split
-  // uBlk -- upper block number of split
+  // pBlk -- partner block number of split
   // split -- flag to determine whether block was split or just tag updated, if
   //          no split, upper surface returned is meaningless
-  // orientation -- if called from DependentSplit, orientation of partner split
+  // low -- flag to determine if unsplit surface is on lower side of split
 
-  auto surf1 = (*this);  // lower surface
-  auto surf2 = (*this);  // upper surface
+  auto upper = this->Split(dir, ind, split, low);
 
-  split = true;  // initialize split flag
-  // flag to determine if the split direction is reversed - used to determine
-  // which block should match lower/upper surfaces
-  // surf1 and surf2 have same orientation, so if reversed for 1, reversed for 2
-  const auto isReversed = surf1.SplitDirectionIsReversed(dir, orientation);
-
-  if (dir == "i") {  // split along i-plane
-    if (this->SurfaceType() == 1 || this->SurfaceType() == 2 || ind <= 0) {
-      // cannot split an i-surface along i-plane, just update block
-      surf1.UpdateTagForSplitJoin(uBlk);
-      split = false;
-    } else {  // j or k surface
-      if (this->IMin() >= ind) {
-        // this surface is only present in the upper split
-        surf1.data_[0] = this->IMin() - ind + 1 + this->IMin();  // imin
-        surf1.data_[1] = this->IMax() - ind + 1 + this->IMin();  // imax
-        isReversed ? surf1.UpdateTagForSplitJoin(lBlk)
-                   : surf1.UpdateTagForSplitJoin(uBlk);
-        split = false;
-      } else if (this->IMax() > ind) {  // this surface straddles the split
-        surf2.data_[0] = ind;  // imin
-        isReversed ? surf2.UpdateTagForSplitJoin(lBlk)
-                   : surf2.UpdateTagForSplitJoin(uBlk);
-
-        surf1.data_[1] = ind;  // imax
-        isReversed ? surf1.UpdateTagForSplitJoin(uBlk)
-                   : surf1.UpdateTagForSplitJoin(lBlk);
-      } else {  // this surface is only present in the lower split
-        isReversed ? surf1.UpdateTagForSplitJoin(uBlk)
-                   : surf1.UpdateTagForSplitJoin(lBlk);
-        split = false;
-      }
-    }
-
-  } else if (dir == "j") {  // split along j-plane
-    if (this->SurfaceType() == 3 || this->SurfaceType() == 4 || ind <= 0) {
-      // cannot split a j-surface along j-plane, just update block
-      surf1.UpdateTagForSplitJoin(uBlk);
-      split = false;
-    } else {  // i or k surface
-      if (this->JMin() >= ind) {
-        // this surface is only present in the upper split
-        surf1.data_[2] = this->JMin() - ind + 1 + this->JMin();  // jmin
-        surf1.data_[3] = this->JMax() - ind + 1 + this->JMin();  // jmax
-        isReversed ? surf1.UpdateTagForSplitJoin(lBlk)
-                   : surf1.UpdateTagForSplitJoin(uBlk);
-        split = false;
-      } else if (this->JMax() > ind) {  // this surface straddles the split
-        surf2.data_[2] = ind;  // jmin
-        isReversed ? surf2.UpdateTagForSplitJoin(lBlk)
-                   : surf2.UpdateTagForSplitJoin(uBlk);
-
-        surf1.data_[3] = ind;  // jmax
-        isReversed ? surf1.UpdateTagForSplitJoin(uBlk)
-                   : surf1.UpdateTagForSplitJoin(lBlk);
-      } else {  // this surface is only present in the lower split
-        isReversed ? surf1.UpdateTagForSplitJoin(uBlk)
-                   : surf1.UpdateTagForSplitJoin(lBlk);
-        split = false;
-      }
-    }
-
-  } else if (dir == "k") {  // split along k-plane
-    if (this->SurfaceType() == 5 || this->SurfaceType() == 6 || ind <= 0) {
-      // cannot split a k-surface along k-plane, just update block
-      surf1.UpdateTagForSplitJoin(uBlk);
-      split = false;
-    } else {  // i or j surface
-      if (this->KMin() >= ind) {  // surface only present in the upper split
-        surf1.data_[4] = this->KMin() - ind + 1 + this->KMin();  // kmin
-        surf1.data_[5] = this->KMax() - ind + 1 + this->KMin();  // kmax
-        isReversed ? surf1.UpdateTagForSplitJoin(lBlk)
-                   : surf1.UpdateTagForSplitJoin(uBlk);
-        split = false;
-      } else if (this->KMax() > ind) {  // this surface straddles the split
-        surf2.data_[4] = ind;  // kmin
-        isReversed ? surf2.UpdateTagForSplitJoin(lBlk)
-                   : surf2.UpdateTagForSplitJoin(uBlk);
-
-        surf1.data_[5] = ind;  // kmax
-        isReversed ? surf1.UpdateTagForSplitJoin(uBlk)
-                   : surf1.UpdateTagForSplitJoin(lBlk);
-      } else {  // this surface is only present in the lower split
-        isReversed ? surf1.UpdateTagForSplitJoin(uBlk)
-                   : surf1.UpdateTagForSplitJoin(lBlk);
-        split = false;
-      }
-    }
-
+  if (split) {
+    upper.UpdateTagForSplitJoin(pBlk);
+    this->UpdateTagForSplitJoin(pBlk);
+  } else if (low) {
+    this->UpdateTagForSplitJoin(pBlk);
   } else {
-    cerr << "ERROR: Error in boundarySurface::Split(). Direction " << dir
-         << " is not recognized! Choose either i, j, or k." << endl;
-    exit(EXIT_FAILURE);
+    upper.UpdateTagForSplitJoin(pBlk);
   }
 
-  (*this) = surf1;  // return lower surface as (*this)
-  return surf2;
+  return upper;
 }
 
 /*member function to determine if the split direction is reversed. A "reversed"
 split direction occurs when the two patches that make an connection have their
-split direction
-running in opposite directions.
+split direction running in opposite directions.
           ______       ______
          |      |   | |      |
          |   1  |  \/ |   2  |
@@ -2573,10 +2489,9 @@ split->  |______|     |______|
          |      |^    |      |
          |______||    |______|
 
-As you can see, the index for the split would be different in block_ 1 vs block_
+As you can see, the index for the split would be different in block 1 vs block
 2 because the direction of the increasing index is reversed. This situation is a
-"reversed" split
-direction. This function finds cases such as these.
+"reversed" split direction. This function finds cases such as these.
  */
 bool boundarySurface::SplitDirectionIsReversed(const string &dir,
                                                const int &orientation) const {
@@ -2586,17 +2501,16 @@ bool boundarySurface::SplitDirectionIsReversed(const string &dir,
   auto isReversed = false;
 
   // find out if split direction is 1, 2, or 3
-  if (this->Direction1() ==
-      dir) {  // split direction is direction 1 - reverse if dir 1 is reversed
-              // (relative to partner, taking into account D1/D2 swap)
+  if (this->Direction1() == dir) {
+    // split direction is direction 1 - reverse if dir 1 is reversed
+    // (relative to partner, taking into account D1/D2 swap)
     isReversed = (orientation == 3 || orientation == 5 || orientation == 7 ||
                   orientation == 8)
                      ? true
                      : false;
-  } else if (this->Direction2() == dir) {  // split direction is direction 2 -
-                                             // reverse if dir 2 is reversed
-                                             // (relative to partner, taking
-                                             // into account D1/D2 swap)
+  } else if (this->Direction2() == dir) {
+    // split direction is direction 2 - reverse if dir 2 is reversed
+    // (relative to partner, taking into account D1/D2 swap)
     isReversed = (orientation == 4 || orientation == 6 || orientation == 7 ||
                   orientation == 8)
                      ? true
@@ -2606,7 +2520,8 @@ bool boundarySurface::SplitDirectionIsReversed(const string &dir,
     isReversed = false;
   } else {
     cerr << "ERROR: Error in boundarySurface::SplitDirectionIsReversed(). "
-            "Direction " << dir << " does not match i, j, or k!" << endl;
+            "Direction "
+         << dir << " does not match i, j, or k!" << endl;
     exit(EXIT_FAILURE);
   }
 
