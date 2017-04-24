@@ -105,11 +105,14 @@ class boundarySurface {
   int PartnerBlock() const;
   int PartnerSurface() const;
   void UpdateTagForSplitJoin(const int &);
-  boundarySurface DependentSplit(const string &, const int &, const int &,
-                                 bool &, bool &);
+  boundarySurface DependentSplit(const string &, const int &, const int &, int,
+                                 int, bool &, bool &, const int &);
   void Join(const boundarySurface &, const string &, bool &);
-  boundarySurface Split(const string &, const int &, bool &, bool &);
+  boundarySurface Split(const string &, const int &, bool &, bool &,
+                        const bool = true);
   bool SplitDirectionIsReversed(const string &, const int &) const;
+  bool SplitCGridToHGrid(const string &, const int &, const int &,
+                         const int &) const;
   bool IsConnection() const {
     return bcType_ == "interblock" || bcType_ == "periodic";
   }
@@ -118,6 +121,7 @@ class boundarySurface {
   void UnpackBoundarySurface(char*(&), const int&, int&);
 
   bool operator==(const boundarySurface &) const;
+  bool operator!=(const boundarySurface &s) const { return !(*this == s); };
 
   // Destructor
   ~boundarySurface() noexcept {}

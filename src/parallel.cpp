@@ -124,10 +124,10 @@ decomposition CubicDecomposition(vector<plot3dBlock> &grid,
     } else {  // split/send
       auto newBlk = static_cast<int>(grid.size());
 
-      vector<boundarySurface> altSurf;
       plot3dBlock lBlk, uBlk;
       grid[blk].Split(dir, ind, lBlk, uBlk);
       grid.push_back(uBlk);
+      vector<boundarySurface> altSurf;
       auto newBcs = bcs[blk].Split(dir, ind, blk, newBlk, altSurf);
       bcs.push_back(newBcs);
 
