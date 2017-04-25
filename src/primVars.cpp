@@ -381,7 +381,8 @@ primVars primVars::GetGhostState(const string &bcType,
 
   // face area vector (should always point out of domain)
   // at lower surface normal should point out of domain for ghost cell calc
-  const auto normArea = (surf % 2 == 1) ? -1.0 * areaVec : areaVec;
+  const auto isLower = surf % 2 == 1;
+  const auto normArea = isLower? -1.0 * areaVec : areaVec;
 
   // slip wall boundary condition
   // ----------------------------------------------------------------------
@@ -429,8 +430,8 @@ primVars primVars::GetGhostState(const string &bcType,
       if (bcData->IsWallLaw()) {
         wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
                    inputVars.IsRANS());
-        wVars =
-            wl.IsothermalBCs(normArea, velWall, eqnState, suth, turb, tWall);
+        wVars = wl.IsothermalBCs(normArea, velWall, eqnState, suth, turb, tWall,
+                                 isLower);
 
         // use wall law heat flux to get ghost cell density
         // need turbulent contribution because eddy viscosity is not 0 at wall
@@ -459,7 +460,8 @@ primVars primVars::GetGhostState(const string &bcType,
       if (bcData->IsWallLaw()) {
         wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
                    inputVars.IsRANS());
-        wVars = wl.HeatFluxBCs(normArea, velWall, eqnState, suth, turb, qWall);
+        wVars = wl.HeatFluxBCs(normArea, velWall, eqnState, suth, turb, qWall,
+                               isLower);
 
         // use wall law wall temperature to get ghost cell density
         const auto tGhost =
@@ -488,7 +490,8 @@ primVars primVars::GetGhostState(const string &bcType,
       if (bcData->IsWallLaw()) {
         wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
                    inputVars.IsRANS());
-        wVars = wl.AdiabaticBCs(normArea, velWall, eqnState, suth, turb);
+        wVars =
+            wl.AdiabaticBCs(normArea, velWall, eqnState, suth, turb, isLower);
 
         if (inputVars.IsRANS()) {
           ghostState.data_[5] = 2.0 * wVars.tke_ - this->Tke();

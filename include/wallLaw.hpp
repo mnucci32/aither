@@ -106,13 +106,15 @@ class wallLaw {
   double WallConstant() const { return wallConst_; }
   wallVars AdiabaticBCs(const vector3d<double> &, const vector3d<double> &,
                         const idealGas &, const sutherland &,
-                        const unique_ptr<turbModel> &);
+                        const unique_ptr<turbModel> &, const bool &);
   wallVars HeatFluxBCs(const vector3d<double> &, const vector3d<double> &,
                        const idealGas &, const sutherland &,
-                       const unique_ptr<turbModel> &, const double &);
+                       const unique_ptr<turbModel> &, const double &,
+                       const bool &);
   wallVars IsothermalBCs(const vector3d<double> &, const vector3d<double> &,
                          const idealGas &, const sutherland &,
-                         const unique_ptr<turbModel> &, const double &);
+                         const unique_ptr<turbModel> &, const double &,
+                         const bool &);
 
   // destructor
   ~wallLaw() noexcept {}

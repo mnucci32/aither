@@ -32,7 +32,8 @@ using std::cerr;
 wallVars wallLaw::AdiabaticBCs(const vector3d<double> &area,
                                const vector3d<double> &velWall,
                                const idealGas &eos, const sutherland &suth,
-                               const unique_ptr<turbModel> &turb) {
+                               const unique_ptr<turbModel> &turb,
+                               const bool &isLower) {
   // initialize wallVars
   wallVars wVars;
   wVars.heatFlux_ = 0.0;
@@ -79,6 +80,9 @@ wallVars wallLaw::AdiabaticBCs(const vector3d<double> &area,
   wVars.turbEddyVisc_ = mutW_;
   wVars.frictionVelocity_ = uStar_;
   wVars.shearStress_ = this->ShearStressMag() * velTan / velTanMag;
+  if (!isLower) {
+    wVars.shearStress_ *= -1.0;
+  }
   return wVars;
 }
 
@@ -86,7 +90,7 @@ wallVars wallLaw::HeatFluxBCs(const vector3d<double> &area,
                               const vector3d<double> &velWall,
                               const idealGas &eos, const sutherland &suth,
                               const unique_ptr<turbModel> &turb,
-                              const double &heatFluxW) {
+                              const double &heatFluxW, const bool &isLower) {
   // initialize wallVars
   wallVars wVars;
   wVars.heatFlux_ = heatFluxW;
@@ -133,6 +137,9 @@ wallVars wallLaw::HeatFluxBCs(const vector3d<double> &area,
   wVars.turbEddyVisc_ = mutW_;
   wVars.frictionVelocity_ = uStar_;
   wVars.shearStress_ = this->ShearStressMag() * velTan / velTanMag;
+  if (!isLower) {
+    wVars.shearStress_ *= -1.0;
+  }
   return wVars;
 }
 
@@ -140,7 +147,7 @@ wallVars wallLaw::IsothermalBCs(const vector3d<double> &area,
                                 const vector3d<double> &velWall,
                                 const idealGas &eos, const sutherland &suth,
                                 const unique_ptr<turbModel> &turb,
-                                const double &tW) {
+                                const double &tW, const bool &isLower) {
   // initialize wallVars
   wallVars wVars;
   wVars.temperature_ = tW;
@@ -184,6 +191,9 @@ wallVars wallLaw::IsothermalBCs(const vector3d<double> &area,
   wVars.turbEddyVisc_ = mutW_;
   wVars.frictionVelocity_ = uStar_;
   wVars.shearStress_ = this->ShearStressMag() * velTan / velTanMag;
+  if (!isLower) {
+    wVars.shearStress_ *= -1.0;
+  }
   return wVars;
 }
 
