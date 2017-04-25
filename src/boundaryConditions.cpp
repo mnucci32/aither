@@ -1026,10 +1026,9 @@ boundaryConditions boundaryConditions::Split(const string &dir, const int &ind,
   for (auto &lowSurf : surfs_) {
     auto surfDir = lowSurf.Direction3();
 
-    if (lowSurf.IsConnection() &&
-        (!(dir == "i" && lowSurf.SurfaceType() == 1) ||
-         !(dir == "j" && lowSurf.SurfaceType() == 3) ||
-         !(dir == "k" && lowSurf.SurfaceType() == 5))) {
+    if (lowSurf.IsConnection() && !(dir == "i" && lowSurf.SurfaceType() == 1) &&
+        !(dir == "j" && lowSurf.SurfaceType() == 3) &&
+        !(dir == "k" && lowSurf.SurfaceType() == 5)) {
       aSurf.push_back(lowSurf);
     }
 
