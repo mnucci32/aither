@@ -1760,6 +1760,33 @@ void boundaryConditions::Join(const boundaryConditions &bc, const string &dir,
   }
 
   aSurf = alteredSurf;
+  this->Merge(dir);
+}
+
+void boundaryConditions::Merge(const string &dir) {
+  vector<int> del;
+  for (auto &surf1 : surfs_) {
+    auto ind = 0;
+    for (auto &surf2 : surfs_) {
+      auto joined = false;
+      surf1.Join(surf2, dir, joined);
+      if (joined) {
+        del.push_back(ind);
+        if (surf1.Direction3() == "i") {
+          numSurfI_--;
+        } else if (surf1.Direction3() == "j") {
+          numSurfJ_--;
+        } else {
+          numSurfK_--;
+        }
+      }
+      ind++;
+    }
+  }
+
+  for (auto ii = static_cast<int>(del.size()) - 1; ii >= 0; --ii) {
+    surfs_.erase(std::begin(surfs_) + del[ii]);
+  }
 }
 
 // constructor when passed no arguements
@@ -2459,7 +2486,8 @@ void boundarySurface::Join(const boundarySurface &upper, const string &dir,
   // min index
   if (this->Direction3() == upper.Direction3() &&
       this->Ind3() == upper.Ind3() && this->BCType() == upper.BCType() &&
-      this->Tag() == upper.Tag() && this->Max(dir) == upper.Min(dir)) {
+      this->Tag() == upper.Tag() && this->Max(dir) == upper.Min(dir) &&
+      *this != upper) {
     // only join if the transverse (not dir 3 or split dir) ranges are equal
     const auto transDirIs1 = this->Direction2() == dir;
     const auto lowTransRange =

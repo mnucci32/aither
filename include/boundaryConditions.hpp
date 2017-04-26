@@ -278,6 +278,7 @@ class boundaryConditions {
                       const plot3dBlock&, const int&, const string&,
                       const int&, const int&, const int&);
   void Join(const boundaryConditions&, const string&, vector<boundarySurface>&);
+  void Merge(const string &);
 
   void BordersSurface(const int&, array<bool, 4>&) const;
 
