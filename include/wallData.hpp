@@ -47,6 +47,8 @@ struct wallVars {
   double frictionVelocity_ = 0.0;
   double tke_ = 0.0;
   double sdr_ = 0.0;
+
+  bool SwitchToLowRe() const {return yplus_ < 10.;}
 };
 
 class wallData {
@@ -106,6 +108,10 @@ class wallData {
   wallData Split(const string &, const int &, bool &, bool &);
   void Join(const wallData &, const string &, bool &);
   void Print(ostream &) const;
+  bool SwitchToLowRe(const int &ii, const int &jj,
+                     const int &kk, const bool &raw = false) const {
+    return (*this)(ii, jj, kk, raw).SwitchToLowRe();
+  }
 
   // operator overloads
   wallVars &operator()(const int &ii, const int &jj, const int &kk,

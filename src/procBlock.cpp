@@ -1825,7 +1825,9 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           const auto surf = bc_.GetBCSurface(ii, jj, kk, surfType);
           if (surf.BCType() == "viscousWall") {
             wallDataInd = this->WallDataIndex(surf);
-            isWallLawBoundary = wallData_[wallDataInd].IsWallLaw();
+            isWallLawBoundary =
+                wallData_[wallDataInd].IsWallLaw() &&
+                !wallData_[wallDataInd].SwitchToLowRe(ii, jj, kk);
             isLowReBoundary = !isWallLawBoundary;
           }
         }
@@ -2124,7 +2126,9 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           const auto surf = bc_.GetBCSurface(ii, jj, kk, surfType);
           if (surf.BCType() == "viscousWall") {
             wallDataInd = this->WallDataIndex(surf);
-            isWallLawBoundary = wallData_[wallDataInd].IsWallLaw();
+            isWallLawBoundary =
+                wallData_[wallDataInd].IsWallLaw() &&
+                !wallData_[wallDataInd].SwitchToLowRe(ii, jj, kk);
             isLowReBoundary = !isWallLawBoundary;
           }
         }
@@ -2424,7 +2428,9 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           const auto surf = bc_.GetBCSurface(ii, jj, kk, surfType);
           if (surf.BCType() == "viscousWall") {
             wallDataInd = this->WallDataIndex(surf);
-            isWallLawBoundary = wallData_[wallDataInd].IsWallLaw();
+            isWallLawBoundary =
+                wallData_[wallDataInd].IsWallLaw() &&
+                !wallData_[wallDataInd].SwitchToLowRe(ii, jj, kk);
             isLowReBoundary = !isWallLawBoundary;
           }
         }

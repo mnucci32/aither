@@ -433,16 +433,22 @@ primVars primVars::GetGhostState(const string &bcType,
         wVars = wl.IsothermalBCs(normArea, velWall, eqnState, suth, turb, tWall,
                                  isLower);
 
-        // use wall law heat flux to get ghost cell density
-        // need turbulent contribution because eddy viscosity is not 0 at wall
-        const auto kappa = eqnState.Conductivity(wVars.viscosity_) +
-                           eqnState.TurbConductivity(wVars.turbEddyVisc_,
-                                                     turb->TurbPrandtlNumber());
-        // 2x wall distance as gradient length
-        const auto tGhost = tWall - wVars.heatFlux_ / kappa * 2.0 * wallDist;
-        ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+        if (wVars.SwitchToLowRe()) {
+          const auto tGhost = 2.0 * tWall - this->Temperature(eqnState);
+          ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+        } else {
+          // use wall law heat flux to get ghost cell density
+          // need turbulent contribution because eddy viscosity is not 0 at wall
+          const auto kappa =
+              eqnState.Conductivity(wVars.viscosity_) +
+              eqnState.TurbConductivity(wVars.turbEddyVisc_,
+                                        turb->TurbPrandtlNumber());
+          // 2x wall distance as gradient length
+          const auto tGhost = tWall - wVars.heatFlux_ / kappa * 2.0 * wallDist;
+          ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+        }
 
-        if (inputVars.IsRANS()) {
+        if (inputVars.IsRANS() && !wVars.SwitchToLowRe()) {
           ghostState.data_[5] = 2.0 * wVars.tke_ - this->Tke();
           ghostState.data_[6] = 2.0 * wVars.sdr_ - this->Omega();
           if (layer > 1) {
@@ -463,12 +469,23 @@ primVars primVars::GetGhostState(const string &bcType,
         wVars = wl.HeatFluxBCs(normArea, velWall, eqnState, suth, turb, qWall,
                                isLower);
 
-        // use wall law wall temperature to get ghost cell density
-        const auto tGhost =
-            2.0 * wVars.temperature_ - this->Temperature(eqnState);
-        ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+        if (wVars.SwitchToLowRe()) {
+          // don't need turbulent contribution b/c eddy viscosity is 0 at wall
+          const auto mu = suth.EffectiveViscosity(this->Temperature(eqnState));
+          const auto kappa = eqnState.Conductivity(mu);
+          // 2x wall distance as gradient length
+          const auto tGhost =
+              this->Temperature(eqnState) - qWall / kappa * 2.0 * wallDist;
+          ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
 
-        if (inputVars.IsRANS()) {
+        } else {
+          // use wall law wall temperature to get ghost cell density
+          const auto tGhost =
+              2.0 * wVars.temperature_ - this->Temperature(eqnState);
+          ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+        }
+
+        if (inputVars.IsRANS() && !wVars.SwitchToLowRe()) {
           ghostState.data_[5] = 2.0 * wVars.tke_ - this->Tke();
           ghostState.data_[6] = 2.0 * wVars.sdr_ - this->Omega();
           if (layer > 1) {
@@ -493,7 +510,7 @@ primVars primVars::GetGhostState(const string &bcType,
         wVars =
             wl.AdiabaticBCs(normArea, velWall, eqnState, suth, turb, isLower);
 
-        if (inputVars.IsRANS()) {
+        if (inputVars.IsRANS() && !wVars.SwitchToLowRe()) {
           ghostState.data_[5] = 2.0 * wVars.tke_ - this->Tke();
           ghostState.data_[6] = 2.0 * wVars.sdr_ - this->Omega();
           if (layer > 1) {
@@ -506,8 +523,9 @@ primVars primVars::GetGhostState(const string &bcType,
     }
 
     // turbulence bcs
-    // for wall law, turbulence bcs are already calculated
-    if (inputVars.IsRANS() && !bcData->IsWallLaw()) {
+    // for wall law, turbulence bcs are already calculated, unless low Re model
+    // should be used
+    if (inputVars.IsRANS() && (!bcData->IsWallLaw() || wVars.SwitchToLowRe())) {
       // tke at cell center is set to opposite of tke at boundary cell center
       // so that tke at face will be zero
       ghostState.data_[5] = -1.0 * this->Tke();
