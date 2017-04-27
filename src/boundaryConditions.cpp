@@ -2094,6 +2094,23 @@ void boundarySurface::UnpackBoundarySurface(char *(&recvBuffer),
   bcType_ = bcName;
 }
 
+void boundarySurface::IncrementDirection(const string &dir, const int &inc) {
+  if (dir == "i") {  // increment i-surface
+    data_[0] += inc;
+    data_[1] += inc;
+  } else if (dir == "j") {  // increment j-surface
+    data_[2] += inc;
+    data_[3] += inc;
+  } else if (dir == "k") {  // increment k-surface
+    data_[4] += inc;
+    data_[5] += inc;
+  } else {
+    cerr << "ERROR. In boundarySurface::IncrementDirection() direction " << dir
+         << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
 // member function to retrn the suface type of a boundarySurface. The surface
 // type is an integer from 1 to 6 representing the imin, imax, jmin, jmax, kmin,
 // or kmax surfaces respectively.

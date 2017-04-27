@@ -116,6 +116,7 @@ class boundarySurface {
   bool IsConnection() const {
     return bcType_ == "interblock" || bcType_ == "periodic";
   }
+  void IncrementDirection(const string &, const int &);
 
   void PackBoundarySurface(char*(&), const int&, int&) const;
   void UnpackBoundarySurface(char*(&), const int&, int&);

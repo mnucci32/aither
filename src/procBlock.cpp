@@ -5235,18 +5235,9 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
   // alteredSurf -- vector of surfaces whose partners will need to be altered
   //                after this split
 
-  cout << "SPLITTING" << endl;
-
   auto bound1 = bc_;
   auto bound2 = bound1.Split(dir, ind, parBlock_, num, alteredSurf);
   auto wd2 = this->SplitWallData(dir, ind);
-
-  cout << "original" << endl;
-  cout << bc_ << endl;
-  cout << "lower" << endl;
-  cout << bound1 << endl;
-  cout << "upper" << endl;
-  cout << bound2 << endl;
 
   auto numI1 = 0, numI2 = 0;
   auto numJ1 = 0, numJ2 = 0;

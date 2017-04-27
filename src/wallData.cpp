@@ -162,8 +162,12 @@ wallData wallData::Split(const string &dir, const int &ind, bool &split,
 }
 
 void wallData::Join(const wallData &upper, const string &dir, bool &joined) {
+  // modify upper surface to see if it is possible to join
+  auto upSurfMod = upper.surf_;
+  upSurfMod.IncrementDirection(dir, surf_.Max(dir));
+
   // join if possible
-  surf_.Join(upper.surf_, dir, joined);
+  surf_.Join(upSurfMod, dir, joined);
   if (joined) {
     inviscidForce_ += upper.inviscidForce_;
     viscousForce_ += upper.viscousForce_;
