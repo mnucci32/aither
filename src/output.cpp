@@ -437,7 +437,7 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eos,
                 value *= inp.TRef();
               } else if (var == "viscosity") {
                 value = blk.WallViscosity(ll, ii, jj, kk);
-                value *= suth.MuRef();
+                value *= suth.MuRef() * suth.InvNondimScaling();
               } else if (var == "tke") {
                 value = blk.WallTke(ll, ii, jj, kk);
                 value *= inp.ARef() * inp.ARef();
