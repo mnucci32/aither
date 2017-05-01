@@ -401,7 +401,7 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eos,
     // loop over the number of variables to write out
     for (auto &var : inp.WallOutputVariables()) {
       // loop over wall boundaries
-      for (auto ll = 0U; ll < blk.WallDataSize(); ++ll) {
+      for (auto ll = 0; ll < blk.WallDataSize(); ++ll) {
         const auto surf = blk.WallSurface(ll);
         // write out dimensional variables -- loop over physical cells
         for (auto kk = surf.RangeK().Start(); kk < surf.RangeK().End(); kk++) {
