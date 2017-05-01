@@ -49,6 +49,8 @@ set(sources
   uncoupledScalar.cpp
   utility.cpp
   viscousFlux.cpp
+  wallData.cpp
+  wallLaw.cpp
   )
 
 # create targets for executable and libraries

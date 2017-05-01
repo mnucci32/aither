@@ -59,6 +59,7 @@ class idealGas {
   double Pressure(const double &rho, const double &specEn) const;
   double PressFromEnergy(const double &rho, const double &energy,
                          const double &vel) const;
+  double PressureRT(const double &rho, const double &temperature) const;
   double Density(const double &pressure, const double &specEn) const;
   double SpecEnergy(const double &pressure, const double &rho) const;
   double Energy(const double &specEn, const double &vel) const;
@@ -68,15 +69,14 @@ class idealGas {
   double Gamma() const {return gamma_;}
   double GasConst() const {return gasConst_;}
   double Prandtl() const {return (4.0 * gamma_) / (9.0 * gamma_ - 5.0);}
-
   double Temperature(const double &pressure, const double &rho) const;
 
-  // nondimensional version (R=1/gamma)
+  double SpecificHeat() const {return 1.0 / (gamma_ - 1.0);}
   double Conductivity(const double &mu) const {
-    return mu / (this->Prandtl() * (gamma_ - 1.0) );}
-  // Nondimensional version (R=1/gamma)
+    return mu * this->SpecificHeat() / this->Prandtl();}
   double TurbConductivity(const double &eddyVisc, const double &prt) const {
-    return eddyVisc / ( prt * (gamma_ - 1.0) );}
+    return eddyVisc * this->SpecificHeat() / prt;}
+  // nondimensional version (R=1/gamma)
   double DensityTP(const double &temp, const double &press) const {
     return press * gamma_ / temp;}
 

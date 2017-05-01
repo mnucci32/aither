@@ -33,6 +33,7 @@
 #include "boundaryConditions.hpp"  // connection, patch
 #include "macros.hpp"
 #include "uncoupledScalar.hpp"     // uncoupledScalar
+#include "wallData.hpp"
 
 using std::vector;
 using std::string;
@@ -98,6 +99,8 @@ class procBlock {
 
   boundaryConditions bc_;  // boundary conditions for block
 
+  vector<wallData> wallData_;  // wall variables at viscous walls
+
   int numGhosts_;  // number of layers of ghost cells surrounding block
   int parBlock_;  // parent block number
   int rank_;  // processor rank
@@ -152,13 +155,14 @@ class procBlock {
                             const int &);
   void SubtractFromResidual(const source &, const int &, const int &,
                             const int &);
-
+  vector<wallData> SplitWallData(const string &, const int &);
+  void JoinWallData(const vector<wallData> &, const string &);
 
  public:
   // constructors
-  procBlock(const double &, const plot3dBlock &, const int &,
-            const boundaryConditions &, const int &, const int &, const int &,
-            const input &, const idealGas &, const sutherland &,
+  procBlock(const plot3dBlock &, const int &, const boundaryConditions &,
+            const int &, const int &, const int &, const input &,
+            const idealGas &, const sutherland &,
             const unique_ptr<turbModel> &);
   procBlock(const int &, const int &, const int &, const int &, const bool &,
             const bool &, const bool &, const bool &, const bool &);
@@ -340,17 +344,17 @@ class procBlock {
   }
 
   tensor<double> VelGrad(const int &ii, const int &jj, const int &kk) const {
-    return velocityGrad_(ii, jj, kk);
+    return isViscous_ ? velocityGrad_(ii, jj, kk) : tensor<double>(0.0);
   }
   vector3d<double> TempGrad(const int &ii, const int &jj, const int &kk) const {
-    return temperatureGrad_(ii, jj, kk);
+    return isViscous_ ? temperatureGrad_(ii, jj, kk) : vector3d<double>();
   }
   vector3d<double> TkeGrad(const int &ii, const int &jj, const int &kk) const {
-    return tkeGrad_(ii, jj, kk);
+    return isRANS_ ? tkeGrad_(ii, jj, kk) : vector3d<double>();
   }
   vector3d<double> OmegaGrad(const int &ii, const int &jj,
                              const int &kk) const {
-    return omegaGrad_(ii, jj, kk);
+    return isRANS_ ? omegaGrad_(ii, jj, kk) : vector3d<double>();
   }
 
   double Temperature(const int &ii, const int &jj, const int &kk) const {
@@ -369,9 +373,9 @@ class procBlock {
     return isRANS_ ? f2_(ii, jj, kk) : 0.0;
   }
 
-  void CalcBlockTimeStep(const input &, const double &);
-  void UpdateBlock(const input &, const idealGas &, const double &,
-                   const sutherland &, const multiArray3d<genArray> &,
+  void CalcBlockTimeStep(const input &);
+  void UpdateBlock(const input &, const idealGas &, const sutherland &,
+                   const multiArray3d<genArray> &,
                    const unique_ptr<turbModel> &, const int &, genArray &,
                    resid &);
 
@@ -403,6 +407,11 @@ class procBlock {
   void AssignViscousGhostCellsEdge(const input &, const idealGas &,
                                    const sutherland &,
                                    const unique_ptr<turbModel> &);
+  multiArray3d<primVars> GetGhostStates(
+      const multiArray3d<primVars> &, const string &,
+      const multiArray3d<unitVec3dMag<double>> &, const multiArray3d<double> &,
+      const boundarySurface &, const input &, const idealGas &,
+      const sutherland &, const unique_ptr<turbModel> &, const int = 1);
 
   void CalcGradsI(const int &, const int &, const int &,
                   tensor<double> &, vector3d<double> &, vector3d<double> &,
@@ -468,13 +477,16 @@ class procBlock {
                                        const MPI_Datatype &);
 
   void PackSendGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
-                       const MPI_Datatype &) const;
+                       const MPI_Datatype &, const MPI_Datatype &) const;
   void RecvUnpackGeomMPI(const MPI_Datatype &, const MPI_Datatype &,
-                         const MPI_Datatype &);
+                         const MPI_Datatype &, const MPI_Datatype &,
+                         const input &);
   void PackSendSolMPI(const MPI_Datatype &, const MPI_Datatype &,
-                      const MPI_Datatype &, const MPI_Datatype &) const;
+                      const MPI_Datatype &, const MPI_Datatype &,
+                      const MPI_Datatype &) const;
   void RecvUnpackSolMPI(const MPI_Datatype &, const MPI_Datatype &,
-                        const MPI_Datatype &, const MPI_Datatype &);
+                        const MPI_Datatype &, const MPI_Datatype &,
+                        const MPI_Datatype &, const input &);
 
   void UpdateAuxillaryVariables(const idealGas &, const sutherland &,
                                 const bool = true);
@@ -487,7 +499,61 @@ class procBlock {
   void CalcCellWidths();
   void GetStatesFromRestart(const multiArray3d<primVars> &);
   void GetSolNm1FromRestart(const multiArray3d<genArray> &);
-  
+
+  int WallDataIndex(const boundarySurface &) const;
+  int WallDataSize() const {return wallData_.size();}
+  bool HasWallData() const {return this->WallDataSize() > 0;}
+  boundarySurface WallSurface(const int &ii) const {
+    return wallData_[ii].Surface();
+  }
+  int NumWallSurfI(const int &ii) const { return wallData_[ii].NumI(); }
+  int NumWallSurfJ(const int &ii) const { return wallData_[ii].NumJ(); }
+  int NumWallSurfK(const int &ii) const { return wallData_[ii].NumK(); }
+  double WallYplus(const int &ss, const int &ii, const int &jj,
+                   const int &kk) const {
+    return wallData_[ss].Yplus(ii, jj, kk);
+  }
+  double WallHeatFlux(const int &ss, const int &ii, const int &jj,
+                      const int &kk) const {
+    return wallData_[ss].WallHeatFlux(ii, jj, kk);
+  }
+  vector3d<double> WallShearStress(const int &ss, const int &ii, const int &jj,
+                                   const int &kk) const {
+    return wallData_[ss].WallShearStress(ii, jj, kk);
+  }
+  double WallTemperature(const int &ss, const int &ii, const int &jj,
+                         const int &kk) const {
+    return wallData_[ss].WallTemperature(ii, jj, kk);
+  }
+  double WallEddyVisc(const int &ss, const int &ii, const int &jj,
+                      const int &kk) const {
+    return wallData_[ss].WallEddyViscosity(ii, jj, kk);
+  }
+  double WallViscosity(const int &ss, const int &ii, const int &jj,
+                       const int &kk) const {
+    return wallData_[ss].WallViscosity(ii, jj, kk);
+  }
+  double WallDensity(const int &ss, const int &ii, const int &jj,
+                     const int &kk) const {
+    return wallData_[ss].WallDensity(ii, jj, kk);
+  }
+  double WallFrictionVelocity(const int &ss, const int &ii, const int &jj,
+                              const int &kk) const {
+    return wallData_[ss].WallFrictionVelocity(ii, jj, kk);
+  }
+  double WallPressure(const int &ss, const int &ii, const int &jj,
+                      const int &kk, const idealGas &eos) const {
+    return wallData_[ss].WallPressure(ii, jj, kk, eos);
+  }
+  double WallTke(const int &ss, const int &ii, const int &jj,
+                 const int &kk) const {
+    return wallData_[ss].WallTke(ii, jj, kk);
+  }
+  double WallSdr(const int &ss, const int &ii, const int &jj,
+                 const int &kk) const {
+    return wallData_[ss].WallSdr(ii, jj, kk);
+  }
+
   // destructor
   ~procBlock() noexcept {}
 };

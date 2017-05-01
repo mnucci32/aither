@@ -189,9 +189,6 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
 
   WriteBlockDims(outFile, recombVars, inp.NumVarsOutput());
 
-  // define reference speed of sound
-  const auto refSoS = inp.ARef(eqnState);
-
   // write out variables
   auto ll = 0;
   for (auto &blk : recombVars) {  // loop over all blocks
@@ -207,25 +204,25 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
               value *= inp.RRef();
             } else if (var == "vel_x") {
               value = blk.State(ii, jj, kk).U();
-              value *= refSoS;
+              value *= inp.ARef();
             } else if (var == "vel_y") {
               value = blk.State(ii, jj, kk).V();
-              value *= refSoS;
+              value *= inp.ARef();
             } else if (var == "vel_z") {
               value = blk.State(ii, jj, kk).W();
-              value *= refSoS;
+              value *= inp.ARef();
             } else if (var == "pressure") {
               value = blk.State(ii, jj, kk).P();
-              value *= inp.RRef() * refSoS * refSoS;
+              value *= inp.RRef() * inp.ARef() * inp.ARef();
             } else if (var == "mach") {
               auto vel = blk.State(ii, jj, kk).Velocity();
               value = vel.Mag() / blk.State(ii, jj, kk).SoS(eqnState);
             } else if (var == "sos") {
               value = blk.State(ii, jj, kk).SoS(eqnState);
-              value *= refSoS;
+              value *= inp.ARef();
             } else if (var == "dt") {
               value = blk.Dt(ii, jj, kk);
-              value /= refSoS * inp.LRef();
+              value /= inp.ARef() * inp.LRef();
             } else if (var == "temperature") {
               value = blk.Temperature(ii, jj, kk);
               value *= inp.TRef();
@@ -248,10 +245,10 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
               value *= suth.MuRef();
             } else if (var == "tke") {
               value = blk.State(ii, jj, kk).Tke();
-              value *= refSoS * refSoS;
+              value *= inp.ARef() * inp.ARef();
             } else if (var == "sdr") {
               value = blk.State(ii, jj, kk).Omega();
-              value *= refSoS * refSoS * inp.RRef() / suth.MuRef();
+              value *= inp.ARef() * inp.ARef() * inp.RRef() / suth.MuRef();
             } else if (var == "f1") {
               value = blk.F1(ii, jj, kk);
             } else if (var == "f2") {
@@ -261,31 +258,31 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
               value *= inp.LRef();
             } else if (var == "velGrad_ux") {
               value = blk.VelGrad(ii, jj, kk).XX();
-              value *= refSoS / inp.LRef();
+              value *= inp.ARef() / inp.LRef();
             } else if (var == "velGrad_vx") {
               value = blk.VelGrad(ii, jj, kk).XY();
-              value *= refSoS / inp.LRef();
+              value *= inp.ARef() / inp.LRef();
             } else if (var == "velGrad_wx") {
               value = blk.VelGrad(ii, jj, kk).XZ();
-              value *= refSoS / inp.LRef();
+              value *= inp.ARef() / inp.LRef();
             } else if (var == "velGrad_uy") {
               value = blk.VelGrad(ii, jj, kk).YX();
-              value *= refSoS / inp.LRef();
+              value *= inp.ARef() / inp.LRef();
             } else if (var == "velGrad_vy") {
               value = blk.VelGrad(ii, jj, kk).YY();
-              value *= refSoS / inp.LRef();
+              value *= inp.ARef() / inp.LRef();
             } else if (var == "velGrad_wy") {
               value = blk.VelGrad(ii, jj, kk).YZ();
-              value *= refSoS / inp.LRef();
+              value *= inp.ARef() / inp.LRef();
             } else if (var == "velGrad_uz") {
               value = blk.VelGrad(ii, jj, kk).ZX();
-              value *= refSoS / inp.LRef();
+              value *= inp.ARef() / inp.LRef();
             } else if (var == "velGrad_vz") {
               value = blk.VelGrad(ii, jj, kk).ZY();
-              value *= refSoS / inp.LRef();
+              value *= inp.ARef() / inp.LRef();
             } else if (var == "velGrad_wz") {
               value = blk.VelGrad(ii, jj, kk).ZZ();
-              value *= refSoS / inp.LRef();
+              value *= inp.ARef() / inp.LRef();
             } else if (var == "tempGrad_x") {
               value = blk.TempGrad(ii, jj, kk).X();
               value *= inp.TRef() / inp.LRef();
@@ -297,51 +294,51 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
               value *= inp.TRef() / inp.LRef();
             } else if (var == "tkeGrad_x") {
               value = blk.TkeGrad(ii, jj, kk).X();
-              value *= refSoS * refSoS / inp.LRef();
+              value *= inp.ARef() * inp.ARef() / inp.LRef();
             } else if (var == "tkeGrad_y") {
               value = blk.TkeGrad(ii, jj, kk).Y();
-              value *= refSoS * refSoS / inp.LRef();
+              value *= inp.ARef() * inp.ARef() / inp.LRef();
             } else if (var == "tkeGrad_z") {
               value = blk.TkeGrad(ii, jj, kk).Z();
-              value *= refSoS * refSoS / inp.LRef();
+              value *= inp.ARef() * inp.ARef() / inp.LRef();
             } else if (var == "omegaGrad_x") {
               value = blk.OmegaGrad(ii, jj, kk).X();
-              value *= refSoS * refSoS * inp.RRef() /
+              value *= inp.ARef() * inp.ARef() * inp.RRef() /
                   (suth.MuRef() * inp.LRef());
             } else if (var == "omegaGrad_y") {
               value = blk.OmegaGrad(ii, jj, kk).Y();
-              value *= refSoS * refSoS * inp.RRef() /
+              value *= inp.ARef() * inp.ARef() * inp.RRef() /
                   (suth.MuRef() * inp.LRef());
             } else if (var == "omegaGrad_z") {
               value = blk.OmegaGrad(ii, jj, kk).Z();
-              value *= refSoS * refSoS * inp.RRef() /
+              value *= inp.ARef() * inp.ARef() * inp.RRef() /
                   (suth.MuRef() * inp.LRef());
             } else if (var == "resid_mass") {
               value = blk.Residual(ii, jj, kk, 0);
-              value *= inp.RRef() * refSoS * inp.LRef() * inp.LRef();
+              value *= inp.RRef() * inp.ARef() * inp.LRef() * inp.LRef();
             } else if (var == "resid_mom_x") {
               value = blk.Residual(ii, jj, kk, 1);
-              value *= inp.RRef() * refSoS * refSoS * inp.LRef() *
+              value *= inp.RRef() * inp.ARef() * inp.ARef() * inp.LRef() *
                   inp.LRef();
             } else if (var == "resid_mom_y") {
               value = blk.Residual(ii, jj, kk, 2);
-              value *= inp.RRef() * refSoS * refSoS * inp.LRef() *
+              value *= inp.RRef() * inp.ARef() * inp.ARef() * inp.LRef() *
                   inp.LRef();
             } else if (var == "resid_mom_z") {
               value = blk.Residual(ii, jj, kk, 3);
-              value *= inp.RRef() * refSoS * refSoS * inp.LRef() *
+              value *= inp.RRef() * inp.ARef() * inp.ARef() * inp.LRef() *
                   inp.LRef();
             } else if (var == "resid_energy") {
               value = blk.Residual(ii, jj, kk, 4);
-              value *= inp.RRef() * pow(refSoS, 3.0) * inp.LRef() *
+              value *= inp.RRef() * pow(inp.ARef(), 3.0) * inp.LRef() *
                   inp.LRef();
             } else if (var == "resid_tke") {
               value = blk.Residual(ii, jj, kk, 5);
-              value *= inp.RRef() * pow(refSoS, 3.0) * inp.LRef() *
+              value *= inp.RRef() * pow(inp.ARef(), 3.0) * inp.LRef() *
                   inp.LRef();
             } else if (var == "resid_sdr") {
               value = blk.Residual(ii, jj, kk, 6);
-              value *= inp.RRef() * inp.RRef() * pow(refSoS, 4.0) *
+              value *= inp.RRef() * inp.RRef() * pow(inp.ARef(), 4.0) *
                   inp.LRef() * inp.LRef() / suth.MuRef();
             } else {
               cerr << "ERROR: Variable " << var
@@ -366,7 +363,7 @@ void WriteFun(const vector<procBlock> &vars, const idealGas &eqnState,
 }
 
 // function to write out variables in function file format
-void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
+void WriteWallFun(const vector<procBlock> &vars, const idealGas &eos,
                   const sutherland &suth, const int &solIter, const input &inp,
                   const unique_ptr<turbModel> &turb) {
   // open binary plot3d function file
@@ -383,195 +380,78 @@ void WriteWallFun(const vector<procBlock> &vars, const idealGas &eqnState,
     exit(EXIT_FAILURE);
   }
 
-  // get vector of wall surfaces
+  // get wall surfaces to write out dimensions
   auto numWallSurfs = 0;
-  for (auto &var : vars) {
-    numWallSurfs += var.BC().NumViscousSurfaces();
+  for (auto &blk : vars) {
+    numWallSurfs += blk.WallDataSize();
   }
   vector<boundarySurface> wallSurfs;
   wallSurfs.reserve(numWallSurfs);
-
-  for (auto &var : vars) {
-    const auto bc = var.BC();
-    for (auto jj = 0; jj < bc.NumSurfaces(); ++jj) {
-      if (bc.GetBCTypes(jj) == "viscousWall") {
-        auto surf = bc.GetSurface(jj);
-        wallSurfs.push_back(surf);
-      }
+  for (auto &blk : vars) {
+    for (auto jj = 0; jj < blk.WallDataSize(); ++jj) {
+      const auto surf = blk.WallSurface(jj);
+      wallSurfs.push_back(surf);
     }
   }
 
   WriteBlockDims(outFile, wallSurfs, inp.NumWallVarsOutput());
 
-  // define reference speed of sound
-  const auto refSoS = inp.ARef(eqnState);
-
   // write out variables
   for (auto &blk : vars) {  // loop over all blocks
-    auto bc = blk.BC();
     // loop over the number of variables to write out
     for (auto &var : inp.WallOutputVariables()) {
-      // loop over viscousWall boundaries
-      for (auto ll = 0; ll < bc.NumSurfaces(); ++ll) {
-        if (bc.GetBCTypes(ll) == "viscousWall") {
-          auto surf = bc.GetSurface(ll);
-
-          // write out dimensional variables -- loop over physical cells
-          for (auto kk = surf.RangeK().Start(); kk < surf.RangeK().End();
-               kk++) {
-            for (auto jj = surf.RangeJ().Start(); jj < surf.RangeJ().End();
-                 jj++) {
-              for (auto ii = surf.RangeI().Start(); ii < surf.RangeI().End();
-                   ii++) {
-                // get properties at wall
-                primVars statew;
-                tensor<double> velGrad;
-                vector3d<double> area, tGrad, kGrad, wGrad;
-                auto muw = 0.0, mutw = 0.0, tw = 0.0;
-                if (surf.SurfaceType() == 1) {  // il surface ----------------
-                  area = blk.FAreaUnitI(ii, jj, kk);
-                  blk.CalcGradsI(ii, jj, kk, velGrad, tGrad, kGrad, wGrad);
-                  const vector<double> cellWidth = {
-                      blk.CellWidthI(ii - 1, jj, kk), 
-                      blk.CellWidthI(ii, jj, kk)};
-                  muw = FaceReconCentral(blk.Viscosity(ii - 1, jj, kk),
-                                         blk.Viscosity(ii, jj, kk), cellWidth);
-                  mutw = FaceReconCentral(blk.EddyViscosity(ii - 1, jj, kk),
-                                          blk.EddyViscosity(ii, jj, kk),
-                                          cellWidth);
-                  statew = FaceReconCentral(blk.State(ii - 1, jj, kk),
-                                            blk.State(ii, jj, kk), cellWidth);
-                  tw = FaceReconCentral(blk.Temperature(ii - 1, jj, kk),
-                                        blk.Temperature(ii, jj, kk), cellWidth);
-                } else if (surf.SurfaceType() == 2) {  // iu surface ----------
-                  area = blk.FAreaUnitI(ii + 1, jj, kk);
-                  blk.CalcGradsI(ii + 1, jj, kk, velGrad, tGrad, kGrad, wGrad);
-                  const vector<double> cellWidth = {
-                      blk.CellWidthI(ii, jj, kk),
-                      blk.CellWidthI(ii + 1, jj, kk)};
-                  muw = FaceReconCentral(blk.Viscosity(ii, jj, kk),
-                                         blk.Viscosity(ii + 1, jj, kk),
-                                         cellWidth);
-                  mutw = FaceReconCentral(blk.EddyViscosity(ii, jj, kk),
-                                          blk.EddyViscosity(ii + 1, jj, kk),
-                                          cellWidth);
-                  statew =
-                      FaceReconCentral(blk.State(ii, jj, kk),
-                                       blk.State(ii + 1, jj, kk), cellWidth);
-                  tw = FaceReconCentral(blk.Temperature(ii, jj, kk),
-                                        blk.Temperature(ii + 1, jj, kk),
-                                        cellWidth);
-                } else if (surf.SurfaceType() == 3) {  // jl surface ----------
-                  area = blk.FAreaUnitJ(ii, jj, kk);
-                  blk.CalcGradsJ(ii, jj, kk, velGrad, tGrad, kGrad, wGrad);
-                  const vector<double> cellWidth = {
-                      blk.CellWidthJ(ii, jj - 1, kk),
-                      blk.CellWidthJ(ii, jj, kk)};
-                  muw = FaceReconCentral(blk.Viscosity(ii, jj - 1, kk),
-                                         blk.Viscosity(ii, jj, kk), cellWidth);
-                  mutw = FaceReconCentral(blk.EddyViscosity(ii, jj - 1, kk),
-                                          blk.EddyViscosity(ii, jj, kk),
-                                          cellWidth);
-                  statew = FaceReconCentral(blk.State(ii, jj - 1, kk),
-                                            blk.State(ii, jj, kk), cellWidth);
-                } else if (surf.SurfaceType() == 4) {  // ju surface ----------
-                  area = blk.FAreaUnitJ(ii, jj + 1, kk);
-                  blk.CalcGradsJ(ii, jj + 1, kk, velGrad, tGrad, kGrad, wGrad);
-                  const vector<double> cellWidth = {
-                      blk.CellWidthJ(ii, jj, kk),
-                      blk.CellWidthJ(ii, jj + 1, kk)};
-                  muw = FaceReconCentral(blk.Viscosity(ii, jj, kk),
-                                         blk.Viscosity(ii, jj + 1, kk),
-                                         cellWidth);
-                  mutw = FaceReconCentral(blk.EddyViscosity(ii, jj, kk),
-                                          blk.EddyViscosity(ii, jj + 1, kk),
-                                          cellWidth);
-                  statew =
-                      FaceReconCentral(blk.State(ii, jj, kk),
-                                       blk.State(ii, jj + 1, kk), cellWidth);
-                  tw = FaceReconCentral(blk.Temperature(ii, jj, kk),
-                                        blk.Temperature(ii, jj + 1, kk),
-                                        cellWidth);
-                } else if (surf.SurfaceType() == 5) {  // kl surface ----------
-                  area = blk.FAreaUnitK(ii, jj, kk);
-                  blk.CalcGradsK(ii, jj, kk, velGrad, tGrad, kGrad, wGrad);
-                  const vector<double> cellWidth = {
-                      blk.CellWidthK(ii, jj, kk - 1),
-                      blk.CellWidthK(ii, jj, kk)};
-                  muw = FaceReconCentral(blk.Viscosity(ii, jj, kk - 1),
-                                         blk.Viscosity(ii, jj, kk), cellWidth);
-                  mutw = FaceReconCentral(blk.EddyViscosity(ii, jj, kk - 1),
-                                          blk.EddyViscosity(ii, jj, kk),
-                                          cellWidth);
-                  statew = FaceReconCentral(blk.State(ii, jj, kk - 1),
-                                            blk.State(ii, jj, kk), cellWidth);
-                  tw = FaceReconCentral(blk.Temperature(ii, jj, kk - 1),
-                                        blk.Temperature(ii, jj, kk), cellWidth);
-                } else {  // ku surface ---------------------------------------
-                  area = blk.FAreaUnitK(ii, jj, kk + 1);
-                  blk.CalcGradsK(ii, jj, kk + 1, velGrad, tGrad, kGrad, wGrad);
-                  const vector<double> cellWidth = {
-                      blk.CellWidthK(ii, jj, kk),
-                      blk.CellWidthK(ii, jj, kk + 1)};
-                  muw = FaceReconCentral(blk.Viscosity(ii, jj, kk),
-                                         blk.Viscosity(ii, jj, kk + 1),
-                                         cellWidth);
-                  mutw = FaceReconCentral(blk.EddyViscosity(ii, jj, kk),
-                                          blk.EddyViscosity(ii, jj, kk + 1),
-                                          cellWidth);
-                  statew =
-                      FaceReconCentral(blk.State(ii, jj, kk),
-                                       blk.State(ii, jj, kk + 1), cellWidth);
-                  tw = FaceReconCentral(blk.Temperature(ii, jj, kk),
-                                        blk.Temperature(ii, jj, kk + 1),
-                                        cellWidth);
-                }
-
-                // now calculate wall values with wall properties
-                auto value = 0.0;
-                if (var == "yplus") {
-                  muw *= suth.NondimScaling();
-                  mutw *= suth.NondimScaling();
-                  auto tauw = TauShear(velGrad, area, muw, mutw, suth);
-                  value = blk.WallDist(ii, jj, kk) *
-                          sqrt(statew.Rho() * tauw.Mag()) / muw;
-                } else if (var == "shearStress") {
-                  auto tauw = TauShear(velGrad, area, muw, mutw, suth);
-                  value = tauw.Mag();
-                  value *= suth.MuRef() * refSoS / inp.LRef();
-                } else if (var == "heatFlux") {
-                  auto k = eqnState.Conductivity(muw);
-                  auto kt =
-                      eqnState.TurbConductivity(mutw, turb->TurbPrandtlNumber());
-                  value = (k + kt) * tGrad.DotProd(area);
-                  value *= suth.MuRef() * inp.TRef() / inp.LRef();
-                } else if (var == "frictionVelocity") {
-                  muw *= suth.NondimScaling();
-                  mutw *= suth.NondimScaling();
-                  auto tauw = TauShear(velGrad, area, muw, mutw, suth);
-                  value = sqrt(tauw.Mag() / statew.Rho());
-                  value *= refSoS;
-                } else if (var == "density") {
-                  value = statew.Rho();
-                  value *= inp.RRef();
-                } else if (var == "pressure") {
-                  value = statew.P();
-                  value *= inp.RRef() * refSoS * refSoS;
-                } else if (var == "temperature") {
-                  value = tw;
-                  value *= inp.TRef();
-                } else if (var == "viscosity") {
-                  value = muw;
-                  value *= suth.MuRef();
-                } else {
-                  cerr << "ERROR: Variable " << var
-                       << " to write to wall function file is not defined!"
-                       << endl;
-                  exit(EXIT_FAILURE);
-                }
-
-                outFile.write(reinterpret_cast<char *>(&value), sizeof(value));
+      // loop over wall boundaries
+      for (auto ll = 0U; ll < blk.WallDataSize(); ++ll) {
+        const auto surf = blk.WallSurface(ll);
+        // write out dimensional variables -- loop over physical cells
+        for (auto kk = surf.RangeK().Start(); kk < surf.RangeK().End(); kk++) {
+          for (auto jj = surf.RangeJ().Start(); jj < surf.RangeJ().End();
+               jj++) {
+            for (auto ii = surf.RangeI().Start(); ii < surf.RangeI().End();
+                 ii++) {
+              // now calculate wall variables
+              auto value = 0.0;
+              if (var == "yplus") {
+                value = blk.WallYplus(ll, ii, jj, kk);
+              } else if (var == "shearStress") {
+                value = blk.WallShearStress(ll, ii, jj, kk).Mag();
+                value *= suth.InvNondimScaling() * suth.MuRef() * inp.ARef() /
+                         inp.LRef();
+              } else if (var == "viscosityRatio") {
+                value = blk.WallEddyVisc(ll, ii, jj, kk) /
+                        (blk.WallViscosity(ll, ii, jj, kk) + EPS);
+              } else if (var == "heatFlux") {
+                value = blk.WallHeatFlux(ll, ii, jj, kk);
+                value *= suth.MuRef() * inp.TRef() / inp.LRef();
+              } else if (var == "frictionVelocity") {
+                value = blk.WallFrictionVelocity(ll, ii, jj, kk);
+                value *= inp.ARef();
+              } else if (var == "density") {
+                value = blk.WallDensity(ll, ii, jj, kk);
+                value *= inp.RRef();
+              } else if (var == "pressure") {
+                value = blk.WallPressure(ll, ii, jj, kk, eos);
+                value *= inp.RRef() * inp.ARef() * inp.ARef();
+              } else if (var == "temperature") {
+                value = blk.WallTemperature(ll, ii, jj, kk);
+                value *= inp.TRef();
+              } else if (var == "viscosity") {
+                value = blk.WallViscosity(ll, ii, jj, kk);
+                value *= suth.MuRef() * suth.InvNondimScaling();
+              } else if (var == "tke") {
+                value = blk.WallTke(ll, ii, jj, kk);
+                value *= inp.ARef() * inp.ARef();
+              } else if (var == "sdr") {
+                value = blk.WallSdr(ll, ii, jj, kk);
+                value *= inp.ARef() * inp.ARef() * inp.RRef() / suth.MuRef();
+              } else {
+                cerr << "ERROR: Variable " << var
+                     << " to write to wall function file is not defined!"
+                     << endl;
+                exit(EXIT_FAILURE);
               }
+
+              outFile.write(reinterpret_cast<char *>(&value), sizeof(value));
             }
           }
         }
@@ -628,9 +508,6 @@ void WriteRestart(const vector<procBlock> &splitVars, const idealGas &eqnState,
 
   WriteBlockDims(outFile, vars, restartVars.size());
 
-  // define reference speed of sound
-  const auto refSoS = inp.ARef(eqnState);
-
   // write out variables
   for (auto &blk : vars) {  // loop over all blocks
     // write out dimensional variables -- loop over physical cells
@@ -645,22 +522,22 @@ void WriteRestart(const vector<procBlock> &splitVars, const idealGas &eqnState,
               value *= inp.RRef();
             } else if (var == "vel_x") {
               value = blk.State(ii, jj, kk).U();
-              value *= refSoS;
+              value *= inp.ARef();
             } else if (var == "vel_y") {
               value = blk.State(ii, jj, kk).V();
-              value *= refSoS;
+              value *= inp.ARef();
             } else if (var == "vel_z") {
               value = blk.State(ii, jj, kk).W();
-              value *= refSoS;
+              value *= inp.ARef();
             } else if (var == "pressure") {
               value = blk.State(ii, jj, kk).P();
-              value *= inp.RRef() * refSoS * refSoS;
+              value *= inp.RRef() * inp.ARef() * inp.ARef();
             } else if (var == "tke") {
               value = blk.State(ii, jj, kk).Tke();
-              value *= refSoS * refSoS;
+              value *= inp.ARef() * inp.ARef();
             } else if (var == "sdr") {
               value = blk.State(ii, jj, kk).Omega();
-              value *= refSoS * refSoS * inp.RRef() / suth.MuRef();
+              value *= inp.ARef() * inp.ARef() * inp.RRef() / suth.MuRef();
             } else {
               cerr << "ERROR: Variable " << var
                    << " to write to restart file is not defined!" << endl;
@@ -690,22 +567,22 @@ void WriteRestart(const vector<procBlock> &splitVars, const idealGas &eqnState,
                 value *= inp.RRef();
               } else if (var == "vel_x") {  // conserved var is rho-u
                 value = blk.ConsVarsNm1(ii, jj, kk)[1];
-                value *= refSoS * inp.RRef();
+                value *= inp.ARef() * inp.RRef();
               } else if (var == "vel_y") {  // conserved var is rho-v
                 value = blk.ConsVarsNm1(ii, jj, kk)[2];
-                value *= refSoS * inp.RRef();
+                value *= inp.ARef() * inp.RRef();
               } else if (var == "vel_z") {  // conserved var is rho-w
                 value = blk.ConsVarsNm1(ii, jj, kk)[3];
-                value *= refSoS * inp.RRef();
+                value *= inp.ARef() * inp.RRef();
               } else if (var == "pressure") {  // conserved var is rho-E
                 value = blk.ConsVarsNm1(ii, jj, kk)[4];
-                value *= refSoS * refSoS * inp.RRef();
+                value *= inp.ARef() * inp.ARef() * inp.RRef();
               } else if (var == "tke") {  // conserved var is rho-tke
                 value = blk.ConsVarsNm1(ii, jj, kk)[5];
-                value *= refSoS * refSoS * inp.RRef();
+                value *= inp.ARef() * inp.ARef() * inp.RRef();
               } else if (var == "sdr") {  // conserved var is rho-sdr
                 value = blk.ConsVarsNm1(ii, jj, kk)[6];
-                value *= refSoS * refSoS * inp.RRef() * inp.RRef() / suth.MuRef();
+                value *= inp.ARef() * inp.ARef() * inp.RRef() * inp.RRef() / suth.MuRef();
               } else {
                 cerr << "ERROR: Variable " << var
                      << " to write to restart file is not defined!" << endl;
@@ -1228,9 +1105,6 @@ multiArray3d<primVars> ReadSolFromRestart(
   // intialize multiArray3d
   multiArray3d<primVars> sol(numI, numJ, numK, 0);
 
-  // define reference speed of sound
-  const auto refSoS = inp.ARef(eos);
-
   // read the primative variables
   // read dimensional variables -- loop over physical cells
   for (auto kk = sol.StartK(); kk < sol.EndK(); kk++) {
@@ -1244,22 +1118,22 @@ multiArray3d<primVars> ReadSolFromRestart(
             value[0] /= inp.RRef();
           } else if (var == "vel_x") {
             resFile.read(reinterpret_cast<char *>(&value[1]), sizeof(value[1]));
-            value[1] /= refSoS;
+            value[1] /= inp.ARef();
           } else if (var == "vel_y") {
             resFile.read(reinterpret_cast<char *>(&value[2]), sizeof(value[2]));
-            value[2] /= refSoS;
+            value[2] /= inp.ARef();
           } else if (var == "vel_z") {
             resFile.read(reinterpret_cast<char *>(&value[3]), sizeof(value[3]));
-            value[3] /= refSoS;
+            value[3] /= inp.ARef();
           } else if (var == "pressure") {
             resFile.read(reinterpret_cast<char *>(&value[4]), sizeof(value[4]));
-            value[4] /= inp.RRef() * refSoS * refSoS;
+            value[4] /= inp.RRef() * inp.ARef() * inp.ARef();
           } else if (var == "tke") {
             resFile.read(reinterpret_cast<char *>(&value[5]), sizeof(value[5]));
-            value[5] /= refSoS * refSoS;
+            value[5] /= inp.ARef() * inp.ARef();
           } else if (var == "sdr") {
             resFile.read(reinterpret_cast<char *>(&value[6]), sizeof(value[6]));
-            value[6] /= refSoS * refSoS * inp.RRef() / suth.MuRef();
+            value[6] /= inp.ARef() * inp.ARef() * inp.RRef() / suth.MuRef();
           } else {
             cerr << "ERROR: Variable " << var
                  << " to read from restart file is not defined!" << endl;
@@ -1281,9 +1155,6 @@ multiArray3d<genArray> ReadSolNm1FromRestart(
   // intialize multiArray3d
   multiArray3d<genArray> sol(numI, numJ, numK, 0);
 
-  // define reference speed of sound
-  const auto refSoS = inp.ARef(eos);
-
   // data is conserved variables
   // read dimensional variables -- loop over physical cells
   for (auto kk = sol.StartK(); kk < sol.EndK(); kk++) {
@@ -1297,22 +1168,22 @@ multiArray3d<genArray> ReadSolNm1FromRestart(
             value[0] /= inp.RRef();
           } else if (var == "vel_x") {  // conserved var is rho-u
             resFile.read(reinterpret_cast<char *>(&value[1]), sizeof(value[1]));
-            value[1] /= refSoS * inp.RRef();
+            value[1] /= inp.ARef() * inp.RRef();
           } else if (var == "vel_y") {  // conserved var is rho-v
             resFile.read(reinterpret_cast<char *>(&value[2]), sizeof(value[2]));
-            value[2] /= refSoS * inp.RRef();
+            value[2] /= inp.ARef() * inp.RRef();
           } else if (var == "vel_z") {  // conserved var is rho-w
             resFile.read(reinterpret_cast<char *>(&value[3]), sizeof(value[3]));
-            value[3] /= refSoS * inp.RRef();
+            value[3] /= inp.ARef() * inp.RRef();
           } else if (var == "pressure") {  // conserved var is rho-E
             resFile.read(reinterpret_cast<char *>(&value[4]), sizeof(value[4]));
-            value[4] /= inp.RRef() * refSoS * refSoS;
+            value[4] /= inp.RRef() * inp.ARef() * inp.ARef();
           } else if (var == "tke") {  // conserved var is rho-tke
             resFile.read(reinterpret_cast<char *>(&value[5]), sizeof(value[5]));
-            value[5] /= refSoS * refSoS * inp.RRef();
+            value[5] /= inp.ARef() * inp.ARef() * inp.RRef();
           } else if (var == "sdr") {  // conserved var is rho-sdr
             resFile.read(reinterpret_cast<char *>(&value[6]), sizeof(value[6]));
-            value[6] /= refSoS * refSoS * inp.RRef() *inp.RRef() / suth.MuRef();
+            value[6] /= inp.ARef() * inp.ARef() * inp.RRef() *inp.RRef() / suth.MuRef();
           } else {
             cerr << "ERROR: Variable " << var
                  << " to read from restart file is not defined!" << endl;

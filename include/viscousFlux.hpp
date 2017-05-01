@@ -32,7 +32,7 @@ using std::cout;
 using std::endl;
 using std::cerr;
 using std::ostream;
-using std:: unique_ptr;
+using std::unique_ptr;
 
 // forward class declarations
 class primVars;
@@ -40,6 +40,7 @@ class idealGas;
 class sutherland;
 class turbModel;
 class squareMatrix;
+struct wallVars;
 
 class viscousFlux {
   double data_[NUMVARS - 1];  // viscous flux for x-momentum equation
@@ -50,11 +51,6 @@ class viscousFlux {
  public:
   // constructors
   viscousFlux() : data_{0.0} {}
-  viscousFlux(const tensor<double>&, const sutherland&, const idealGas&,
-              const vector3d<double>&, const vector3d<double>&,
-              const vector3d<double>&, const vector3d<double>&,
-              const unique_ptr<turbModel>&, const primVars&,
-              const double&, const double&, const double&);
 
   // move constructor and assignment operator
   viscousFlux(viscousFlux&&) noexcept = default;
@@ -71,6 +67,22 @@ class viscousFlux {
   double Engy() const { return data_[3]; }
   double MomK() const { return data_[4]; }
   double MomO() const { return data_[5]; }
+
+  void CalcFlux(const tensor<double> &, const sutherland &, const idealGas &,
+                const vector3d<double> &, const vector3d<double> &,
+                const vector3d<double> &, const vector3d<double> &,
+                const unique_ptr<turbModel> &, const primVars &, const double &,
+                const double &, const double &);
+  wallVars CalcWallFlux(const tensor<double> &, const sutherland &,
+                        const idealGas &, const vector3d<double> &,
+                        const vector3d<double> &, const vector3d<double> &,
+                        const vector3d<double> &, const unique_ptr<turbModel> &,
+                        const primVars &, const double &, const double &,
+                        const double &);
+  void CalcWallLawFlux(const vector3d<double> &, const double &, const double &,
+                       const double &, const vector3d<double> &,
+                       const vector3d<double> &, const vector3d<double> &,
+                       const vector3d<double> &, const unique_ptr<turbModel> &);
 
   inline viscousFlux & operator+=(const viscousFlux &);
   inline viscousFlux & operator-=(const viscousFlux &);
@@ -107,14 +119,6 @@ class viscousFlux {
 };
 
 // function definitions
-void CalcTSLFluxJac(const double&, const double&, const idealGas&,
-                    const vector3d<double>&, const primVars&, const primVars&,
-                    const double&, squareMatrix&, squareMatrix&,
-                    const sutherland&, const double&);
-
-tensor<double> CalcVelGradTSL(const primVars&, const primVars&,
-                              const vector3d<double>&, const double&);
-
 // operator overload for addition
 viscousFlux & viscousFlux::operator+=(const viscousFlux &arr) {
   for (auto rr = 0; rr < NUMVARS - 1; rr++) {

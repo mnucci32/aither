@@ -39,7 +39,7 @@ using std::array;
 using std::string;
 using std::cout;
 using std::endl;
-using std::unique_ptr;
+using std::shared_ptr;
 
 // forward class declaration
 class plot3dBlock;
@@ -68,8 +68,6 @@ class boundarySurface {
   boundarySurface(const boundarySurface&) = default;
   boundarySurface& operator=(const boundarySurface&) = default;
 
-  friend class boundaryConditions;
-
   // Member functions
   string BCType() const {return bcType_;}
   int IMin() const {return data_[0];}
@@ -88,11 +86,14 @@ class boundarySurface {
   int Max2() const;
   int Min1() const;
   int Min2() const;
-  int NumFaces() const;
+  int Ind3() const { return this->RangeDir3().Start(); }
+  int Min(const string &) const;
+  int Max(const string &) const;
+  int NumFaces() const { return this->NumI() * this->NumJ() * this->NumK(); }
 
-  int NumI() const {return this->RangeI().Size();}
-  int NumJ() const {return this->RangeJ().Size();}
-  int NumK() const {return this->RangeK().Size();}
+  int NumI() const { return this->RangeI().Size(); }
+  int NumJ() const { return this->RangeJ().Size(); }
+  int NumK() const { return this->RangeK().Size(); }
 
   range RangeI() const;
   range RangeJ() const;
@@ -103,13 +104,25 @@ class boundarySurface {
 
   int PartnerBlock() const;
   int PartnerSurface() const;
-  void UpdateTagForSplitJoin(const int&);
-  boundarySurface Split(const string&, const int&, const int&,
-                        const int&, bool&, int = 0);
-  bool SplitDirectionIsReversed(const string&, const int&) const;
+  void UpdateTagForSplitJoin(const int &);
+  boundarySurface DependentSplit(const string &, const int &, const int &, int,
+                                 int, bool &, bool &, const int &);
+  void Join(const boundarySurface &, const string &, bool &);
+  boundarySurface Split(const string &, const int &, bool &, bool &,
+                        const bool = true);
+  bool SplitDirectionIsReversed(const string &, const int &) const;
+  bool SplitCGridToHGrid(const string &, const int &, const int &,
+                         const int &) const;
   bool IsConnection() const {
     return bcType_ == "interblock" || bcType_ == "periodic";
   }
+  void IncrementDirection(const string &, const int &);
+
+  void PackBoundarySurface(char*(&), const int&, int&) const;
+  void UnpackBoundarySurface(char*(&), const int&, int&);
+
+  bool operator==(const boundarySurface &) const;
+  bool operator!=(const boundarySurface &s) const { return !(*this == s); };
 
   // Destructor
   ~boundarySurface() noexcept {}
@@ -177,7 +190,7 @@ class patch {
   bool Dir2StartInterBorder() const {return patchBorder_[2];}
   bool Dir2EndInterBorder() const {return patchBorder_[3];}
   string BCType() const {return bcName_;}
-  void Transform(const unique_ptr<inputState> &);
+  void Transform(const shared_ptr<inputState> &);
   void Translate(const vector3d<double> &);
   void Rotate(const vector3d<double> &, const vector3d<double> &,
               const double &);
@@ -246,8 +259,12 @@ class boundaryConditions {
   void ResizeVecs(const int&);
   void ResizeVecs(const int&, const int&, const int&);
 
-  string GetBCName(const int&, const int&, const int&, const int&) const;
-  int GetBCTag(const int&, const int&, const int&, const int&) const;
+  boundarySurface GetBCSurface(const int &, const int &, const int &,
+                               const int &) const;
+  string GetBCName(const int &ii, const int &jj, const int &kk,
+                   const int &surf) const {
+    return this->GetBCSurface(ii, jj, kk, surf).BCType();
+  }
   bool BCIsConnection(const int &ii, const int &jj, const int &kk,
                       const int &surf) const {
     const auto name = this->GetBCName(ii, jj, kk, surf);
@@ -262,6 +279,7 @@ class boundaryConditions {
                       const plot3dBlock&, const int&, const string&,
                       const int&, const int&, const int&);
   void Join(const boundaryConditions&, const string&, vector<boundarySurface>&);
+  void Merge(const string &);
 
   void BordersSurface(const int&, array<bool, 4>&) const;
 

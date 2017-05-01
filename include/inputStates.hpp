@@ -31,12 +31,14 @@ conditions and initial conditions.
 
 using std::string;
 using std::vector;
+using std::string;
 using std::ifstream;
-using std::unique_ptr;
+using std::shared_ptr;
 
 // this is an abstract base class
 class inputState {
   int tag_;
+  bool nondimensional_ = false;
 
  public:
   // constructor
@@ -77,9 +79,16 @@ class inputState {
   virtual const vector3d<double> Translation() const {return {0, 0, 0};}
   virtual const vector3d<double> Axis() const {return {0, 0, 0};}
   virtual const vector3d<double> Point() const {return {0, 0, 0};}
+  virtual const double VonKarmen() const {return 0.0;}
+  virtual const double WallConstant() const {return 0.0;}
+  virtual bool IsWallLaw() const {return false;}
+  virtual void Nondimensionalize(const double &rRef, const double &tRef,
+                                 const double &lRef, const double &aRef) = 0;
+  bool IsNondimensional() const { return nondimensional_; }
+  void SetNondimensional(const bool &nd) {nondimensional_ = nd;}
 
-  // destructor
-  virtual ~inputState() noexcept {}
+    // destructor
+    virtual ~inputState() noexcept {}
 };
 
 
@@ -113,6 +122,8 @@ class icState : public inputState {
   const bool SpecifiedTurbulence() const {return specifiedTurbulence_;}
   void SetSpecifiedTurbulence() {specifiedTurbulence_ = true;}
   void Print(ostream &os) const override;
+  void Nondimensionalize(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) override;
 
   // Destructor
   virtual ~icState() noexcept {}
@@ -169,6 +180,8 @@ class stagnationInlet : public inputState {
   const bool SpecifiedTurbulence() const {return specifiedTurbulence_;}
   void SetSpecifiedTurbulence() {specifiedTurbulence_ = true;}
   void Print(ostream &os) const override;
+  void Nondimensionalize(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) override;
 
   // Destructor
   ~stagnationInlet() noexcept {}
@@ -193,6 +206,8 @@ class pressureOutlet : public inputState {
   // Member functions
   const double Pressure() const override {return pressure_;}
   void Print(ostream &os) const override;
+  void Nondimensionalize(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) override;
 
   // Destructor
   virtual ~pressureOutlet() noexcept {}
@@ -271,6 +286,8 @@ class subsonicInflow : public inputState {
   const bool SpecifiedTurbulence() const {return specifiedTurbulence_;}
   void SetSpecifiedTurbulence() {specifiedTurbulence_ = true;}
   void Print(ostream &os) const override;
+  void Nondimensionalize(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) override;
 
   // Destructor
   ~subsonicInflow() noexcept {}
@@ -282,12 +299,16 @@ class viscousWall : public inputState {
   vector3d<double> velocity_ = {0.0, 0.0, 0.0};
   double temperature_ = 0.0;
   double heatFlux_ = 0.0;
+  double vonKarmen_ = 0.41;
+  double wallConstant_ = 5.5;
+  string wallTreatment_ = "lowRe";
   bool specifiedTemperature_ = false;
   bool specifiedHeatFlux_ = false;
 
  public:
   // constructor
   explicit viscousWall(string &str);
+  viscousWall() : inputState() {}
 
   // move constructor and assignment operator
   viscousWall(viscousWall&&) noexcept = default;
@@ -301,6 +322,11 @@ class viscousWall : public inputState {
   const vector3d<double> Velocity() const override {return velocity_;}
   const double Temperature() const override {return temperature_;}
   const double HeatFlux() const override {return heatFlux_;}
+  const double VonKarmen() const override {return vonKarmen_;}
+  const double WallConstant() const override {return wallConstant_;}
+  bool IsWallLaw() const override {
+    return (wallTreatment_ == "wallLaw") ? true : false;
+  }
   bool IsIsothermal() const override {
     return specifiedTemperature_ ? true : false;
   }
@@ -311,6 +337,8 @@ class viscousWall : public inputState {
     return (specifiedHeatFlux_ && heatFlux_ != 0.0) ? true : false;
   }
   void Print(ostream &os) const override;
+  void Nondimensionalize(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) override;
 
   // Destructor
   virtual ~viscousWall() noexcept {}
@@ -349,11 +377,12 @@ class periodic : public inputState {
   const double Rotation() const override {return rotation_;}
   const int EndTag() const override {return endTag_;}
   void Print(ostream &os) const override;
+  void Nondimensionalize(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) override;
 
   // Destructor
   virtual ~periodic() noexcept {}
 };
-
 
 
 // function declarations
@@ -374,10 +403,10 @@ string Trim(const string &, const string & = " \t\r\n");
 vector3d<double> ReadVector(const string &);
 vector<icState> ReadICList(ifstream &, string &);
 vector<string> ReadStringList(ifstream &, string &);
-vector<unique_ptr<inputState>> ReadBCList(ifstream &, string &);
+vector<shared_ptr<inputState>> ReadBCList(ifstream &, string &);
 string RemoveTrailing(const string &, const string &);
 auto FindBCPosition(const string &, const vector<string> &, string &);
-void AddBCToList(const string &, vector<unique_ptr<inputState>> &, string &);
+void AddBCToList(const string &, vector<shared_ptr<inputState>> &, string &);
 void CheckICTags(const vector<icState> &, const int &);
 
 #endif

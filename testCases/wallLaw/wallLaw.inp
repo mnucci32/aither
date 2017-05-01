@@ -1,0 +1,70 @@
+# grid name
+gridName: wallLaw
+
+# solver parameters
+decompositionMethod: cubic
+equationSet: rans
+timeIntegration: implicitEuler
+cflStart: 100000
+cflMax: 100000
+
+faceReconstruction: thirdOrder
+inviscidFlux: roe
+inviscidFluxJacobian: rusanov
+viscousFaceReconstruction: central
+limiter: minmod
+
+iterations: 2000
+outputFrequency: 500
+outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach, temperature, velGrad_wy, tempGrad_y, wallDistance,
+		  rank, viscosity, viscosityRatio>
+wallOutputVariables: <yplus, heatFlux, shearStress, frictionVelocity, density, pressure, temperature, viscosity,
+		      viscosityRatio, tke, sdr>
+restartFrequency: 1000
+
+gamma: 1.4
+gasConstant: 287.058
+
+# reference conditions
+pressureRef: 101325
+densityRef: 1.2256
+temperatureRef: 288
+lengthRef: 1
+velocityRef: [0, 0, 75]
+
+initialConditions: <icState(tag=-1; pressure=101325; density=1.2256; velocity=[0, 0, 75])>
+
+matrixSolver: blusgs
+matrixSweeps: 4
+matrixRelaxation: 1
+
+turbulenceModel: sst2003
+
+boundaryStates: <pressureOutlet(tag=5; pressure=101325),
+                 stagnationInlet(tag=4; p0=104799.63; t0=290.79; direction=[0, 0, 1]),
+                 viscousWall(tag=1; wallTreatment=wallLaw)>
+
+#-------------------------------------------------------------
+boundaryConditions: 2
+# Block 0 -- Dimensions: 3 x 31 x 51
+2 2 2
+# i-surfaces
+  slipWall                0    0    0   30    0   50     2
+  slipWall                2    2    0   30    0   50     2
+# j-surfaces
+  interblock              0    2   30   30    0   50  1001
+  stagnationInlet         0    2    0    0    0   50     4
+# k-surfaces
+  slipWall                0    2    0   30    0    0     3
+  pressureOutlet          0    2    0   30   50   50     5
+# Block 1 -- Dimensions: 45 x 3 x 51
+2 2 2
+# i-surfaces
+  interblock              0    0    0    2    0   50  4000
+  pressureOutlet         44   44    0    2    0   50     5
+# j-surfaces
+  slipWall                0   44    0    0    0   50     2
+  slipWall                0   44    2    2    0   50     2
+# k-surfaces
+  viscousWall             0   44    0    2    0    0     1
+  pressureOutlet          0   44    0    2   50   50     5

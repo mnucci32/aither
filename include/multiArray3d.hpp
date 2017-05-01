@@ -27,6 +27,7 @@
 #include <iostream>  // ostream
 #include <vector>    // vector
 #include <string>    // string
+#include <memory>    // unique_ptr
 #include "mpi.h"
 #include "vector3d.hpp"
 #include "boundaryConditions.hpp"  // connection
@@ -38,6 +39,7 @@ using std::cout;
 using std::cerr;
 using std::vector;
 using std::string;
+using std::unique_ptr;
 
 template <typename T>
 class multiArray3d {
@@ -64,7 +66,7 @@ class multiArray3d {
       data_((ii + 2 * ng) * (jj + 2 * ng) * (kk + 2 * ng)),
       numI_(ii + 2 * ng), numJ_(jj + 2 * ng), numK_(kk + 2 * ng),
       numGhosts_(ng) {}
-  multiArray3d() : multiArray3d(1, 1, 1, 0) {}
+  multiArray3d() : multiArray3d(0, 0, 0, 0) {}
 
   // move constructor and assignment operator
   multiArray3d(multiArray3d&&) noexcept = default;
@@ -1108,7 +1110,10 @@ void multiArray3d<T>::PackSwapUnpackMPI(const connection &inter,
                 &tempSize);
   bufSize += tempSize;
 
-  auto *buffer = new char[bufSize];  // allocate buffer to pack data into
+  // allocate buffer to pack data into
+  // use unique_ptr to manage memory; use underlying pointer for MPI calls
+  auto unqBuffer = unique_ptr<char>(new char[bufSize]);
+  auto *buffer = unqBuffer.get();  
 
   // pack data into buffer
   auto numI = this->NumI();
@@ -1151,8 +1156,6 @@ void multiArray3d<T>::PackSwapUnpackMPI(const connection &inter,
 
   MPI_Unpack(buffer, bufSize, &position, &(*std::begin(data_)),
              this->Size(), MPI_arrData, MPI_COMM_WORLD);
-
-  delete[] buffer;
 }
 
 /* Function to swap slice using MPI. This is similar to the SwapSlice

@@ -39,22 +39,22 @@ class regressionTest:
         self.percentTolerance = 0.01
         self.isRestart = False
         self.restartFile = "none"
-        
+
     def SetRegressionCase(self, name):
         self.caseName = name
-        
+
     def SetNumberOfIterations(self, num):
         self.iterations = num
-        
+
     def SetNumberOfProcessors(self, num):
         self.procs = num
 
     def Processors(self):
         return self.procs
-        
+
     def SetResiduals(self, resid):
         self.residuals = resid
-        
+
     def SetRunDirectory(self, path):
         self.runDirectory = path
 
@@ -63,10 +63,10 @@ class regressionTest:
 
     def SetMpirunPath(self, path):
         self.mpirunPath = path
-        
+
     def SetIgnoreIndices(self, ind):
         self.ignoreIndices.append(ind)
-        
+
     def SetPercentTolerance(self, per):
         self.percentTolerance = per
 
@@ -78,10 +78,10 @@ class regressionTest:
 
     def SetRestartFile(self, resFile):
         self.restartFile = resFile
-        
+
     def ReturnToHomeDirectory(self):
         os.chdir(self.location)
-        
+
     def GetTestCaseResiduals(self):
         fname = self.caseName + ".resid"
         file = open(fname, "r")
@@ -105,7 +105,7 @@ class regressionTest:
         else:
             passing = [False for ii in resids]
         return passing, resids
-        
+
     def GetResiduals(self):
         return self.residuals
         
@@ -123,7 +123,7 @@ class regressionTest:
                         fout.write("outputFrequency: " + str(self.iterations) + "\n")
                     else:
                         fout.write(line)
-                
+
     # modify the input file and run the test
     def RunCase(self):
         self.GoToRunDirectory()
@@ -149,28 +149,30 @@ class regressionTest:
                 interval = current
             time.sleep(0.5)
         returnCode = process.poll()
-        
+
         if (returnCode == 0):
             print("Simulation completed with no errors")
         else:
             print("ERROR: Simulation terminated with errors")
         duration = datetime.datetime.now() - start
-        
+
         # test residuals for pass/fail
         passed, resids = self.CompareResiduals(returnCode)
-        if (all(passed)):
+        if all(passed):
             print("All tests for", self.caseName, "passed!")
         else:
             print("Tests for", self.caseName, "failed!")
             print("Residuals should be:", self.GetResiduals())
-            print("Residuals are:", resids)        
-            
+            print("Residuals are:", resids)
+
         print("Test Duration:",duration)
         print("---------- End Test:", self.caseName, "----------")
+        print("")
+        print("")
         self.ReturnToHomeDirectory()
         return passed
-        
-        
+
+
 def main():
     # Set up options
     parser = optparse.OptionParser()
@@ -192,15 +194,15 @@ def main():
         maxProcs = 2
     else:
         maxProcs = 1
-        
+
     numIterations = 100
     numIterationsRestart = 50
     totalPass = True
-    
+
     # ------------------------------------------------------------------
     # Regression tests
     # ------------------------------------------------------------------
-    
+
     # ------------------------------------------------------------------
     # subsonic cylinder
     # laminar, inviscid, lu-sgs
@@ -213,11 +215,11 @@ def main():
     subCyl.SetResiduals([1.5394e-1, 1.4989e-1, 1.5909e-1, 8.1415e-1, 1.5295e-1])
     subCyl.SetIgnoreIndices(3)
     subCyl.SetMpirunPath(options.mpirunPath)
-    
+
     # run regression case
     passed = subCyl.RunCase()   
     totalPass = totalPass and all(passed)
-        
+
     # ------------------------------------------------------------------
     # multi-block subsonic cylinder
     # laminar, inviscid, lusgs, multi-block
@@ -233,7 +235,7 @@ def main():
         multiCyl.SetResiduals([2.3188e-1, 2.9621e-1, 4.5868e-1, 1.2813, 2.3009e-1])
     multiCyl.SetIgnoreIndices(3)
     multiCyl.SetMpirunPath(options.mpirunPath)
-    
+
     # run regression case
     passed = multiCyl.RunCase()
     totalPass = totalPass and all(passed)
@@ -251,11 +253,11 @@ def main():
     shockTube.SetIgnoreIndices(2)
     shockTube.SetIgnoreIndices(3)
     shockTube.SetMpirunPath(options.mpirunPath)
-    
+
     # run regression case
     passed = shockTube.RunCase()   
     totalPass = totalPass and all(passed)
-        
+
     # ------------------------------------------------------------------
     # sod shock tube restart
     # laminar, inviscid, bdf2, weno
@@ -267,7 +269,7 @@ def main():
     # run regression case
     passed = shockTubeRestart.RunCase()   
     totalPass = totalPass and all(passed)
-        
+
     # ------------------------------------------------------------------
     # supersonic wedge
     # laminar, inviscid, explicit euler
@@ -280,7 +282,7 @@ def main():
     supWedge.SetResiduals([4.1813e-1, 4.2549e-1, 3.6525e-1, 3.8013e-1, 4.0998e-1])
     supWedge.SetIgnoreIndices(3)
     supWedge.SetMpirunPath(options.mpirunPath)
-        
+
     # run regression case
     passed = supWedge.RunCase()
     totalPass = totalPass and all(passed)
@@ -294,14 +296,14 @@ def main():
     transBump.SetRunDirectory("transonicBump")
     transBump.SetNumberOfProcessors(1)
     transBump.SetNumberOfIterations(numIterations)
-    transBump.SetResiduals([1.1839e-1, 6.8615e-2, 8.4925e-2, 1.0398, 9.9669e-2])        
+    transBump.SetResiduals([1.1839e-1, 6.8615e-2, 8.4925e-2, 1.0398, 9.9669e-2])
     transBump.SetIgnoreIndices(3)
     transBump.SetMpirunPath(options.mpirunPath)
 
     # run regression case
     passed = transBump.RunCase()
     totalPass = totalPass and all(passed)
-        
+
     # ------------------------------------------------------------------
     # viscous flat plate
     # laminar, viscous, lu-sgs
@@ -320,7 +322,7 @@ def main():
 
     # run regression case
     passed = viscPlate.RunCase()
-    totalPass = totalPass and all(passed)        
+    totalPass = totalPass and all(passed)
 
     # ------------------------------------------------------------------
     # turbulent flat plate
@@ -342,7 +344,7 @@ def main():
 
     # run regression case
     passed = turbPlate.RunCase()
-    totalPass = totalPass and all(passed)        
+    totalPass = totalPass and all(passed)
 
     # ------------------------------------------------------------------
     # rae2822
@@ -364,7 +366,7 @@ def main():
 
     # run regression case
     passed = rae2822.RunCase()
-    totalPass = totalPass and all(passed)        
+    totalPass = totalPass and all(passed)
 
     # ------------------------------------------------------------------
     # couette flow
@@ -381,7 +383,29 @@ def main():
 
     # run regression case
     passed = couette.RunCase()
-    totalPass = totalPass and all(passed)        
+    totalPass = totalPass and all(passed)
+
+    # ------------------------------------------------------------------
+    # wall law
+    # wall law bc, turbulent, blusgs
+    wallLaw = regressionTest()
+    wallLaw.SetRegressionCase("wallLaw")
+    wallLaw.SetAitherPath(options.aitherPath)
+    wallLaw.SetRunDirectory("wallLaw")
+    wallLaw.SetNumberOfProcessors(maxProcs)
+    wallLaw.SetNumberOfIterations(numIterations)
+    if (wallLaw.Processors() == 2):
+        wallLaw.SetResiduals([4.8259e-1, 8.1172e-3, 5.5346e-2, 6.3374e-1, 4.9409e-1,
+                              3.7544e-3, 2.7150e-5])
+    else:
+        wallLaw.SetResiduals([4.8259e-1, 9.2094e-3, 5.5602e-2, 6.3401e-1, 4.9297e-1,
+                              3.7602e-3, 2.7220e-5])
+    wallLaw.SetIgnoreIndices(1)
+    wallLaw.SetMpirunPath(options.mpirunPath)
+
+    # run regression case
+    passed = wallLaw.RunCase()
+    totalPass = totalPass and all(passed)
 
     # ------------------------------------------------------------------
     # regression test overall pass/fail
@@ -392,7 +416,7 @@ def main():
     else:
         print("ERROR: Some tests failed")
         sys.exit(1)
-        
-    
+
+
 if __name__ == "__main__":
     main()

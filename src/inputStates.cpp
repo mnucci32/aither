@@ -134,6 +134,10 @@ void viscousWall::Print(ostream &os) const {
   } else if (specifiedHeatFlux_) {
     os << "; heatFlux=" << this->HeatFlux();
   }
+  os << "; wallTreatment=" << wallTreatment_;
+  if (this->IsWallLaw()) {
+    os << "; vonKarmen=" << vonKarmen_ << "; wallConstant=" << wallConstant_;
+  }
   os << ")";
 }
 
@@ -312,6 +316,16 @@ icState::icState(string &str, const string name) {
   }
 }
 
+void icState::Nondimensionalize(const double &rRef, const double &tRef,
+                                const double &lRef, const double &aRef) {
+  if (!this->IsNondimensional()) {
+    velocity_ /= aRef;
+    density_ /= rRef;
+    pressure_ /= rRef * aRef * aRef;
+    this->SetNondimensional(true);
+  }
+}
+
 // construct stagnation inlet from string
 stagnationInlet::stagnationInlet(string &str) {
   const auto start = str.find("(") + 1;
@@ -387,6 +401,17 @@ stagnationInlet::stagnationInlet(string &str) {
   }
 }
 
+void stagnationInlet::Nondimensionalize(const double &rRef, const double &tRef,
+                                        const double &lRef,
+                                        const double &aRef) {
+  if (!this->IsNondimensional()) {
+    direction_.Normalize();
+    p0_ /= rRef * aRef * aRef;
+    t0_ /= tRef;
+    this->SetNondimensional(true);
+  }
+}
+
 // construct pressureOutlet from string
 pressureOutlet::pressureOutlet(string &str, const string name) {
   const auto start = str.find("(") + 1;
@@ -434,6 +459,14 @@ pressureOutlet::pressureOutlet(string &str, const string name) {
     cerr << "ERROR. For " << name << " pressure and tag must be specified, and "
          << "only specified once." << endl;
     exit(EXIT_FAILURE);
+  }
+}
+
+void pressureOutlet::Nondimensionalize(const double &rRef, const double &tRef,
+                                       const double &lRef, const double &aRef) {
+  if (!this->IsNondimensional()) {
+    pressure_ /= rRef * aRef * aRef;
+    this->SetNondimensional(true);
   }
 }
 
@@ -508,6 +541,15 @@ subsonicInflow::subsonicInflow(string &str) {
   }
 }
 
+void subsonicInflow::Nondimensionalize(const double &rRef, const double &tRef,
+                                       const double &lRef, const double &aRef) {
+  if (!this->IsNondimensional()) {
+    velocity_ /= aRef;
+    density_ /= rRef;
+    this->SetNondimensional(true);
+  }
+}
+
 // construct viscousWall from string
 viscousWall::viscousWall(string &str) {
   const auto start = str.find("(") + 1;
@@ -530,6 +572,9 @@ viscousWall::viscousWall(string &str) {
   auto velocityCount = 0;
   auto temperatureCount = 0;
   auto heatFluxCount = 0;
+  auto wallTreatmentCount = 0;
+  auto vonKarmenCount = 0;
+  auto wallConstantCount = 0;
 
   for (auto &token : tokens) {
     auto param = Tokenize(token, "=");
@@ -549,6 +594,15 @@ viscousWall::viscousWall(string &str) {
       specifiedHeatFlux_ = true;
       heatFlux_ = stod(RemoveTrailing(param[1], ","));
       heatFluxCount++;
+    } else if (param[0] == "vonKarmen") {
+      vonKarmen_ = stod(RemoveTrailing(param[1], ","));
+      vonKarmenCount++;
+    } else if (param[0] == "wallConstant") {
+      wallConstant_ = stod(RemoveTrailing(param[1], ","));
+      wallConstantCount++;
+    } else if (param[0] == "wallTreatment") {
+      wallTreatment_ = RemoveTrailing(param[1], ",");
+      wallTreatmentCount++;
     } else if (param[0] == "tag") {
       this->SetTag(stoi(RemoveTrailing(param[1], ",")));
       tagCount++;
@@ -567,15 +621,33 @@ viscousWall::viscousWall(string &str) {
     exit(EXIT_FAILURE);
   }
   // optional variables
-  if (velocityCount > 1 || temperatureCount > 1 || heatFluxCount > 1) {
-    cerr << "ERROR. For viscousWall, velocity, heatFlux, and temperature can "
-         << "only be specified once." << endl;
+  if (velocityCount > 1 || temperatureCount > 1 || heatFluxCount > 1 ||
+      wallTreatmentCount > 1 || vonKarmenCount > 1 || wallConstantCount > 1) {
+    cerr << "ERROR. For viscousWall, velocity, heatFlux, temperature, "
+         << "wallTreatment, vonKarmen, and wallConstant can only be specified "
+         << "once." << endl;
     exit(EXIT_FAILURE);
   }
   if (specifiedHeatFlux_ && specifiedTemperature_) {
     cerr << "ERROR. For viscousWall can only specify temperature OR heatFlux."
          << endl;
     exit(EXIT_FAILURE);
+  }
+  if (wallTreatment_ != "lowRe" && wallTreatment_ != "wallLaw") {
+    cerr << "ERROR. wallTreatment " << wallTreatment_ << " is not recognized!"
+         << endl;
+    cerr << "Choose lowRe or wallLaw" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+void viscousWall::Nondimensionalize(const double &rRef, const double &tRef,
+                                    const double &lRef, const double &aRef) {
+  if (!this->IsNondimensional()) {
+    velocity_ /= aRef;
+    temperature_ /= tRef;
+    heatFlux_ /= pow(aRef / lRef, 3.0);
+    this->SetNondimensional(true);
   }
 }
 
@@ -677,6 +749,15 @@ periodic::periodic(string &str) {
   }
 }
 
+void periodic::Nondimensionalize(const double &rRef, const double &tRef,
+                                 const double &lRef, const double &aRef) {
+  if (!this->IsNondimensional()) {
+    translation_ /= lRef;
+    axis_.Normalize();
+    point_ /= lRef;
+    this->SetNondimensional(true);
+  }
+}
 
 void CheckICTags(const vector<icState> &ics, const int &tag) {
   for (auto &ic : ics) {
@@ -751,25 +832,25 @@ auto FindBCPosition(const string &str, const vector<string> &names,
   return pos;
 }
 
-void AddBCToList(const string &type, vector<unique_ptr<inputState>> &bcList,
+void AddBCToList(const string &type, vector<shared_ptr<inputState>> &bcList,
                  string &list) {
-  unique_ptr<inputState> bc(nullptr);
+  shared_ptr<inputState> bc(nullptr);
   if (type == "characteristic") {
-    bc = unique_ptr<inputState>{std::make_unique<characteristic>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<characteristic>(list)};
   } else if (type == "stagnationInlet") {
-    bc = unique_ptr<inputState>{std::make_unique<stagnationInlet>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<stagnationInlet>(list)};
   } else if (type == "pressureOutlet") {
-    bc = unique_ptr<inputState>{std::make_unique<pressureOutlet>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<pressureOutlet>(list)};
   } else if (type == "subsonicInflow") {
-    bc = unique_ptr<inputState>{std::make_unique<subsonicInflow>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<subsonicInflow>(list)};
   } else if (type == "subsonicOutflow") {
-    bc = unique_ptr<inputState>{std::make_unique<subsonicOutflow>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<subsonicOutflow>(list)};
   } else if (type == "supersonicInflow") {
-    bc = unique_ptr<inputState>{std::make_unique<supersonicInflow>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<supersonicInflow>(list)};
   } else if (type == "viscousWall") {
-    bc = unique_ptr<inputState>{std::make_unique<viscousWall>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<viscousWall>(list)};
   } else if (type == "periodic") {
-    bc = unique_ptr<inputState>{std::make_unique<periodic>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<periodic>(list)};
   } else {
     cerr << "ERROR. BC state " << type << " is not recognized!" << endl;
     exit(EXIT_FAILURE);
@@ -787,8 +868,8 @@ void AddBCToList(const string &type, vector<unique_ptr<inputState>> &bcList,
 }
 
 // function to read boundary condition list from string
-vector<unique_ptr<inputState>> ReadBCList(ifstream &inFile, string &str) {
-  vector<unique_ptr<inputState>> bcList;
+vector<shared_ptr<inputState>> ReadBCList(ifstream &inFile, string &str) {
+  vector<shared_ptr<inputState>> bcList;
   vector<string> bcNames {"characteristic", "stagnationInlet", "pressureOutlet",
         "subsonicInflow", "subsonicOutflow", "supersonicInflow", "viscousWall",
         "periodic"};

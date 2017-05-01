@@ -34,6 +34,11 @@ double idealGas::PressFromEnergy(const double &rho, const double &energy,
   return (gamma_ - 1.0) * rho * (energy - 0.5 * vel * vel);
 }
 
+double idealGas::PressureRT(const double &rho,
+                            const double &temperature) const {
+  return temperature * rho / gamma_;
+}
+
 double idealGas::Density(const double &pressure,
                          const double &specEn) const {
   return pressure / ((gamma_ - 1.0) * specEn);
