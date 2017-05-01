@@ -609,7 +609,7 @@ primVars primVars::GetGhostState(const string &bcType,
     const auto & bcData = inputVars.BCData(tag);
     // freestream variables
     const auto freeVel = bcData->Velocity();
-    const primVars freeState(bcData->Density(), bcData->Pressure(), freeVel);
+    const primVars freeState(bcData->Density(), freeVel, bcData->Pressure());
 
     // internal variables
     const auto velIntNorm = this->Velocity().DotProd(normArea);

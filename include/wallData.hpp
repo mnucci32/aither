@@ -34,6 +34,7 @@ using std::shared_ptr;
 // forward declarations
 class input;
 class idealGas;
+class primVars;
 
 // structure to hold wall variables
 struct wallVars {
@@ -98,7 +99,9 @@ class wallData {
   double WallFrictionVelocity(const int &ii, const int &jj,
                               const int &kk) const;
   vector3d<double> WallVelocity() const {return bcData_->Velocity();}
-  int WallVarsSize() const {return data_.Size();}
+  primVars WallState(const int &ii, const int &jj, const int &kk,
+                     const idealGas &eos) const;
+  int WallVarsSize() const { return data_.Size(); }
   void PackWallData(char *(&), const int &, int &, const MPI_Datatype &) const;
   void PackSize(int &, const MPI_Datatype &) const;
   void UnpackWallData(char *(&), const int &, int &, const MPI_Datatype &,

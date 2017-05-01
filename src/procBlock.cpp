@@ -1836,8 +1836,11 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           // wall law wall boundary
           f1 = 1.0;
           f2 = 1.0;
+          mu = wallData_[wallDataInd].WallViscosity(ii, jj, kk) *
+               suth.InvNondimScaling();
           mut = wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk) *
                 suth.InvNondimScaling();
+          state = wallData_[wallDataInd].WallState(ii, jj, kk, eqnState);
           tempViscFlux.CalcWallLawFlux(
               wallData_[wallDataInd].WallShearStress(ii, jj, kk),
               wallData_[wallDataInd].WallHeatFlux(ii, jj, kk),
@@ -2137,8 +2140,11 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           // wall law wall boundary
           f1 = 1.0;
           f2 = 1.0;
+          mu = wallData_[wallDataInd].WallViscosity(ii, jj, kk) *
+               suth.InvNondimScaling();
           mut = wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk) *
                 suth.InvNondimScaling();
+          state = wallData_[wallDataInd].WallState(ii, jj, kk, eqnState);
           tempViscFlux.CalcWallLawFlux(
               wallData_[wallDataInd].WallShearStress(ii, jj, kk),
               wallData_[wallDataInd].WallHeatFlux(ii, jj, kk),
@@ -2439,8 +2445,11 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           // wall law wall boundary
           f1 = 1.0;
           f2 = 1.0;
+          mu = wallData_[wallDataInd].WallViscosity(ii, jj, kk) *
+               suth.InvNondimScaling();
           mut = wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk) *
                 suth.InvNondimScaling();
+          state = wallData_[wallDataInd].WallState(ii, jj, kk, eqnState);
           tempViscFlux.CalcWallLawFlux(
               wallData_[wallDataInd].WallShearStress(ii, jj, kk),
               wallData_[wallDataInd].WallHeatFlux(ii, jj, kk),

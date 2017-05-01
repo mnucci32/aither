@@ -18,6 +18,7 @@
 #include "vector3d.hpp"
 #include "input.hpp"
 #include "eos.hpp"
+#include "primVars.hpp"
 
 // member functions
 vector3d<double> wallData::WallShearStress(const int &ii, const int &jj,
@@ -182,15 +183,22 @@ void wallData::Join(const wallData &upper, const string &dir, bool &joined) {
   }
 }
 
-void wallData::Print(ostream &os) const {
-  os << "Inviscid Force: " << inviscidForce_ << endl;
-  os << "Viscous Force: " << viscousForce_ << endl;
-  os << "BC Data: ";
-  bcData_->Print(os);
-  os << endl;
-  os << "BC Surface: " << surf_ << endl;
-  os << "Wall Data:" << endl;
-  os << data_ << endl;
+  primVars wallData::WallState(const int &ii, const int &jj, const int &kk,
+                     const idealGas &eos) const {
+    return primVars(this->WallDensity(ii, jj, kk), this->WallVelocity(),
+                    this->WallPressure(ii, jj, kk, eos),
+                    this->WallTke(ii, jj, kk), this->WallSdr(ii, jj, kk));
+  }
+
+  void wallData::Print(ostream &os) const {
+    os << "Inviscid Force: " << inviscidForce_ << endl;
+    os << "Viscous Force: " << viscousForce_ << endl;
+    os << "BC Data: ";
+    bcData_->Print(os);
+    os << endl;
+    os << "BC Surface: " << surf_ << endl;
+    os << "Wall Data:" << endl;
+    os << data_ << endl;
 }
 
 ostream &operator<<(ostream &os, const wallData &wd) {

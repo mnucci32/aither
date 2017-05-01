@@ -66,7 +66,10 @@ class primVars {
       : primVars(a, b, c, d, e, 0.0, 0.0) {}
   primVars() : primVars(0.0, 0.0, 0.0, 0.0, 0.0) {}
   explicit primVars(const double &a) : primVars(a, a, a, a, a, a, a) {}
-  primVars(const double &r, const double &p, const vector3d<double> &v)
+  primVars(const double &r, const vector3d<double> &v, const double &p,
+           const double &k, const double &w)
+      : primVars(r, v.X(), v.Y(), v.Z(), p, k, w) {}
+  primVars(const double &r, const vector3d<double> &v, const double &p)
       : primVars(r, v.X(), v.Y(), v.Z(), p) {}
   primVars(const genArray &, const bool &, const idealGas &,
            const unique_ptr<turbModel> &);
