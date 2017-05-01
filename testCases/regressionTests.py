@@ -393,13 +393,13 @@ def main():
     wallLaw.SetAitherPath(options.aitherPath)
     wallLaw.SetRunDirectory("wallLaw")
     wallLaw.SetNumberOfProcessors(maxProcs)
-    wallLaw.SetNumberOfIterations(numIterations)
+    wallLaw.SetNumberOfIterations(20)
     if (wallLaw.Processors() == 2):
-        wallLaw.SetResiduals([4.8259e-1, 8.1172e-3, 5.5346e-2, 6.3374e-1, 4.9409e-1,
-                              3.7544e-3, 2.7150e-5])
+        wallLaw.SetResiduals([8.5709e-01, 1.2341e-01, 1.4102e-01, 9.2940e-01,
+                              8.6223e-01, 6.0548e-02, 6.7626e-05])
     else:
-        wallLaw.SetResiduals([4.8259e-1, 9.2094e-3, 5.5602e-2, 6.3401e-1, 4.9297e-1,
-                              3.7602e-3, 2.7220e-5])
+        wallLaw.SetResiduals([8.4993e-01, 1.2039e-01, 1.3807e-01, 9.2928e-01,
+                              8.5502e-01, 6.0546e-02, 6.7616e-05])
     wallLaw.SetIgnoreIndices(1)
     wallLaw.SetMpirunPath(options.mpirunPath)
 

@@ -752,8 +752,11 @@ periodic::periodic(string &str) {
 void periodic::Nondimensionalize(const double &rRef, const double &tRef,
                                  const double &lRef, const double &aRef) {
   if (!this->IsNondimensional()) {
-    translation_ /= lRef;
-    axis_.Normalize();
+    if (this->IsTranslation()) {
+      translation_ /= lRef;
+    } else {
+      axis_.Normalize();
+    }
     point_ /= lRef;
     this->SetNondimensional(true);
   }

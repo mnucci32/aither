@@ -70,7 +70,7 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   localPos_ = lpos;
 
   bc_ = bound;
-  for (auto ii = 0U; ii < bound.NumSurfaces(); ++ii) {
+  for (auto ii = 0; ii < bound.NumSurfaces(); ++ii) {
     if (bound.GetBCTypes(ii) == "viscousWall") {
       const auto surf = bound.GetSurface(ii);
       const auto &bcData = inp.BCData(surf.Tag());
@@ -6316,7 +6316,7 @@ multiArray3d<primVars> procBlock::GetGhostStates(
 
 int procBlock::WallDataIndex(const boundarySurface &surf) const {
   auto ind = -1;
-  for (auto ii = 0; ii < wallData_.size(); ++ii) {
+  for (auto ii = 0U; ii < wallData_.size(); ++ii) {
     if (surf == wallData_[ii].Surface()) {
       ind = ii;
       break;
