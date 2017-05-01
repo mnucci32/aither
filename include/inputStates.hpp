@@ -31,12 +31,14 @@ conditions and initial conditions.
 
 using std::string;
 using std::vector;
+using std::string;
 using std::ifstream;
-using std::unique_ptr;
+using std::shared_ptr;
 
 // this is an abstract base class
 class inputState {
   int tag_;
+  bool nondimensional_ = false;
 
  public:
   // constructor
@@ -54,7 +56,9 @@ class inputState {
   // member functions
   const int Tag() const {return tag_;}
   void SetTag(const int &t) {tag_ = t;}
+  const int StartTag() const {return this->Tag();}
 
+  virtual const int EndTag() const {return this->Tag();}
   virtual void Print(ostream &os) const = 0;  // abstract base class
   virtual const vector3d<double> Velocity() const {return {0, 0, 0};}
   virtual const double Density() const {return 0;}
@@ -69,9 +73,22 @@ class inputState {
   virtual bool IsIsothermal() const {return false;}
   virtual bool IsAdiabatic() const {return false;}
   virtual bool IsConstantHeatFlux() const {return false;}
+  virtual bool IsTranslation() const {return false;}
+  virtual bool IsRotation() const {return false;}
+  virtual const double Rotation() const {return 0;}
+  virtual const vector3d<double> Translation() const {return {0, 0, 0};}
+  virtual const vector3d<double> Axis() const {return {0, 0, 0};}
+  virtual const vector3d<double> Point() const {return {0, 0, 0};}
+  virtual const double VonKarmen() const {return 0.0;}
+  virtual const double WallConstant() const {return 0.0;}
+  virtual bool IsWallLaw() const {return false;}
+  virtual void Nondimensionalize(const double &rRef, const double &tRef,
+                                 const double &lRef, const double &aRef) = 0;
+  bool IsNondimensional() const { return nondimensional_; }
+  void SetNondimensional(const bool &nd) {nondimensional_ = nd;}
 
-  // destructor
-  virtual ~inputState() noexcept {}
+    // destructor
+    virtual ~inputState() noexcept {}
 };
 
 
@@ -105,6 +122,8 @@ class icState : public inputState {
   const bool SpecifiedTurbulence() const {return specifiedTurbulence_;}
   void SetSpecifiedTurbulence() {specifiedTurbulence_ = true;}
   void Print(ostream &os) const override;
+  void Nondimensionalize(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) override;
 
   // Destructor
   virtual ~icState() noexcept {}
@@ -161,6 +180,8 @@ class stagnationInlet : public inputState {
   const bool SpecifiedTurbulence() const {return specifiedTurbulence_;}
   void SetSpecifiedTurbulence() {specifiedTurbulence_ = true;}
   void Print(ostream &os) const override;
+  void Nondimensionalize(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) override;
 
   // Destructor
   ~stagnationInlet() noexcept {}
@@ -185,6 +206,8 @@ class pressureOutlet : public inputState {
   // Member functions
   const double Pressure() const override {return pressure_;}
   void Print(ostream &os) const override;
+  void Nondimensionalize(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) override;
 
   // Destructor
   virtual ~pressureOutlet() noexcept {}
@@ -263,6 +286,8 @@ class subsonicInflow : public inputState {
   const bool SpecifiedTurbulence() const {return specifiedTurbulence_;}
   void SetSpecifiedTurbulence() {specifiedTurbulence_ = true;}
   void Print(ostream &os) const override;
+  void Nondimensionalize(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) override;
 
   // Destructor
   ~subsonicInflow() noexcept {}
@@ -274,12 +299,16 @@ class viscousWall : public inputState {
   vector3d<double> velocity_ = {0.0, 0.0, 0.0};
   double temperature_ = 0.0;
   double heatFlux_ = 0.0;
+  double vonKarmen_ = 0.41;
+  double wallConstant_ = 5.5;
+  string wallTreatment_ = "lowRe";
   bool specifiedTemperature_ = false;
   bool specifiedHeatFlux_ = false;
 
  public:
   // constructor
   explicit viscousWall(string &str);
+  viscousWall() : inputState() {}
 
   // move constructor and assignment operator
   viscousWall(viscousWall&&) noexcept = default;
@@ -293,6 +322,11 @@ class viscousWall : public inputState {
   const vector3d<double> Velocity() const override {return velocity_;}
   const double Temperature() const override {return temperature_;}
   const double HeatFlux() const override {return heatFlux_;}
+  const double VonKarmen() const override {return vonKarmen_;}
+  const double WallConstant() const override {return wallConstant_;}
+  bool IsWallLaw() const override {
+    return (wallTreatment_ == "wallLaw") ? true : false;
+  }
   bool IsIsothermal() const override {
     return specifiedTemperature_ ? true : false;
   }
@@ -303,11 +337,52 @@ class viscousWall : public inputState {
     return (specifiedHeatFlux_ && heatFlux_ != 0.0) ? true : false;
   }
   void Print(ostream &os) const override;
+  void Nondimensionalize(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) override;
 
   // Destructor
   virtual ~viscousWall() noexcept {}
 };
 
+
+class periodic : public inputState {
+  vector3d<double> translation_ = {0.0, 0.0, 0.0};
+  vector3d<double> axis_ = {0.0, 0.0, 0.0};
+  vector3d<double> point_ = {0.0, 0.0, 0.0};
+  double rotation_ = 0.0;
+  int endTag_ = -1;
+
+ public:
+  // constructor
+  explicit periodic(string &str);
+
+  // move constructor and assignment operator
+  periodic(periodic&&) noexcept = default;
+  periodic& operator=(periodic&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  periodic(const periodic&) = default;
+  periodic& operator=(const periodic&) = default;
+
+  // Member functions
+  bool IsTranslation() const override {
+    return translation_ != vector3d<double>(0.0, 0.0, 0.0);
+  }
+  bool IsRotation() const override {
+    return axis_ != vector3d<double>(0.0, 0.0, 0.0);
+  }
+  const vector3d<double> Translation() const override {return translation_;}
+  const vector3d<double> Axis() const override {return axis_;}
+  const vector3d<double> Point() const override {return point_;}
+  const double Rotation() const override {return rotation_;}
+  const int EndTag() const override {return endTag_;}
+  void Print(ostream &os) const override;
+  void Nondimensionalize(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) override;
+
+  // Destructor
+  virtual ~periodic() noexcept {}
+};
 
 
 // function declarations
@@ -320,6 +395,7 @@ ostream &operator<<(ostream &, const supersonicInflow &);
 ostream &operator<<(ostream &, const subsonicOutflow &);
 ostream &operator<<(ostream &, const subsonicInflow &);
 ostream &operator<<(ostream &, const viscousWall &);
+ostream &operator<<(ostream &, const periodic &);
 
 
 vector<string> Tokenize(string, const string &, const unsigned int = 0);
@@ -327,10 +403,10 @@ string Trim(const string &, const string & = " \t\r\n");
 vector3d<double> ReadVector(const string &);
 vector<icState> ReadICList(ifstream &, string &);
 vector<string> ReadStringList(ifstream &, string &);
-vector<unique_ptr<inputState>> ReadBCList(ifstream &, string &);
+vector<shared_ptr<inputState>> ReadBCList(ifstream &, string &);
 string RemoveTrailing(const string &, const string &);
 auto FindBCPosition(const string &, const vector<string> &, string &);
-void AddBCToList(const string &, vector<unique_ptr<inputState>> &, string &);
+void AddBCToList(const string &, vector<shared_ptr<inputState>> &, string &);
 void CheckICTags(const vector<icState> &, const int &);
 
 #endif

@@ -25,6 +25,8 @@
 #include "input.hpp"               // input
 #include "turbulence.hpp"          // turbModel
 #include "utility.hpp"
+#include "wallLaw.hpp"
+#include "wallData.hpp"
 
 using std::cout;
 using std::endl;
@@ -64,26 +66,26 @@ primVars::primVars(const genArray &a, const bool &prim,
 }
 
 // member function to initialize a state with nondimensional values
-void primVars::NondimensionalInitialize(const idealGas &eos, const double &aRef,
+void primVars::NondimensionalInitialize(const idealGas &eos,
                                         const input &inp,
                                         const sutherland &suth,
-                                        const int &parBlock) {
+                                        const int &parBlock,
+                                        const unique_ptr<turbModel> &turb) {
   // get initial condition state for parent block
   auto ic = inp.ICStateForBlock(parBlock);
 
-  data_[0] = ic.Density() / inp.RRef();
-  data_[4] = ic.Pressure() / (inp.PRef() * eos.Gamma());
-
-  data_[1] = ic.Velocity().X() / aRef;
-  data_[2] = ic.Velocity().Y() / aRef;
-  data_[3] = ic.Velocity().Z() / aRef;
-
-  if (inp.IsTurbulent()) {
+  data_[0] = ic.Density();
+  data_[1] = ic.Velocity().X();
+  data_[2] = ic.Velocity().Y();
+  data_[3] = ic.Velocity().Z();
+  data_[4] = ic.Pressure();
+  
+  if (inp.IsRANS()) {
     // Initialize turbulence quantities based off of specified turublence
     // intensity and eddy viscosity ratio. This is the default for
     // STAR-CCM+
     this->ApplyFarfieldTurbBC(this->Velocity(), ic.TurbulenceIntensity(),
-                              ic.EddyViscosityRatio(), suth, eos);
+                              ic.EddyViscosityRatio(), suth, eos, turb);
   } else {
     data_[5] = 0.0;
     data_[6] = 0.0;
@@ -350,7 +352,6 @@ ____________________|___________
 Currently the following boundary conditions are supported: slipWall,
 viscousWall, characteristic, stagnationInlet, pressureOutlet, subsonicInflow,
 subsonicOutflow, supersonicInflow, supersonicOutflow
-
 */
 primVars primVars::GetGhostState(const string &bcType,
                                  const vector3d<double> &areaVec,
@@ -359,7 +360,7 @@ primVars primVars::GetGhostState(const string &bcType,
                                  const idealGas &eqnState,
                                  const sutherland &suth,
                                  const unique_ptr<turbModel> &turb,
-                                 const int layer) const {
+                                 wallVars &wVars, const int layer) const {
   // bcType -- type of boundary condition to supply ghost cell for
   // areaVec -- unit area vector of boundary face
   // surf -- surface type [1-6]
@@ -380,7 +381,8 @@ primVars primVars::GetGhostState(const string &bcType,
 
   // face area vector (should always point out of domain)
   // at lower surface normal should point out of domain for ghost cell calc
-  const auto normArea = (surf % 2 == 1) ? -1.0 * areaVec : areaVec;
+  const auto isLower = surf % 2 == 1;
+  const auto normArea = isLower? -1.0 * areaVec : areaVec;
 
   // slip wall boundary condition
   // ----------------------------------------------------------------------
@@ -412,44 +414,126 @@ primVars primVars::GetGhostState(const string &bcType,
                                        // stay equal to the boundary cell
     const auto & bcData = inputVars.BCData(tag);
 
-    const auto aRef = inputVars.ARef(eqnState);
-
     // ghost cell velocity at cell center is set to opposite of velocity at
     // boundary cell center so that velocity at face will be zero
-    const auto ghostVel = bcData->Velocity() / aRef - this->Velocity();
-
+    // only true for low-Re wall treatment
+    const auto velWall = bcData->Velocity();
+    const auto ghostVel = 2.0 * velWall - this->Velocity();
     ghostState.data_[1] = ghostVel.X();
     ghostState.data_[2] = ghostVel.Y();
     ghostState.data_[3] = ghostVel.Z();
 
-    if (bcData->IsIsothermal()) {
-      const auto tWall = 2.0 * (bcData->Temperature() / inputVars.TRef())
-          - this->Temperature(eqnState);
-      ghostState.data_[0] = eqnState.DensityTP(tWall, ghostState.P());
-    } else if (bcData->IsConstantHeatFlux()) {
-      // don't need turbulent contribution because eddy viscosity is 0 at wall
-      const auto mu = suth.EffectiveViscosity(this->Temperature(eqnState));
-      const auto kappa = eqnState.Conductivity(mu);
-      // 2x wall distance as gradient length
+    if (bcData->IsIsothermal()) {  //-----------------------------------------
+      const auto tWall = bcData->Temperature();
+      // for wall law ghost velocity and turbulence variables calculated
+      // simultaneously
+      if (bcData->IsWallLaw()) {
+        wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
+                   inputVars.IsRANS());
+        wVars = wl.IsothermalBCs(normArea, velWall, eqnState, suth, turb, tWall,
+                                 isLower);
+
+        if (wVars.SwitchToLowRe()) {
+          const auto tGhost = 2.0 * tWall - this->Temperature(eqnState);
+          ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+        } else {
+          // use wall law heat flux to get ghost cell density
+          // need turbulent contribution because eddy viscosity is not 0 at wall
+          const auto kappa =
+              eqnState.Conductivity(wVars.viscosity_) +
+              eqnState.TurbConductivity(wVars.turbEddyVisc_,
+                                        turb->TurbPrandtlNumber());
+          // 2x wall distance as gradient length
+          const auto tGhost = tWall - wVars.heatFlux_ / kappa * 2.0 * wallDist;
+          ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+        }
+
+        if (inputVars.IsRANS() && !wVars.SwitchToLowRe()) {
+          ghostState.data_[5] = 2.0 * wVars.tke_ - this->Tke();
+          ghostState.data_[6] = 2.0 * wVars.sdr_ - this->Omega();
+          if (layer > 1) {
+            ghostState.data_[5] = layer * ghostState.data_[5] - wVars.tke_;
+            ghostState.data_[6] = layer * ghostState.data_[6] - wVars.sdr_;
+          }
+        }
+      } else {  // low-Re wall treatment
+        const auto tGhost = 2.0 * tWall - this->Temperature(eqnState);
+        ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+      }
+    } else if (bcData->IsConstantHeatFlux()) {  //-----------------------------
       // must nondimensionalize heat flux
-      const auto tWall = this->Temperature(eqnState) -
-          (bcData->HeatFlux() * pow(aRef / inputVars.LRef(), 3.0)) /
-          kappa * 2.0 * wallDist;
-      ghostState.data_[0] = eqnState.DensityTP(tWall, ghostState.P());
-    }  // default is adiabatic
-    // numerical BCs for pressure, same as boundary state
+      const auto qWall = bcData->HeatFlux();
+      if (bcData->IsWallLaw()) {
+        wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
+                   inputVars.IsRANS());
+        wVars = wl.HeatFluxBCs(normArea, velWall, eqnState, suth, turb, qWall,
+                               isLower);
+
+        if (wVars.SwitchToLowRe()) {
+          // don't need turbulent contribution b/c eddy viscosity is 0 at wall
+          const auto mu = suth.EffectiveViscosity(this->Temperature(eqnState));
+          const auto kappa = eqnState.Conductivity(mu);
+          // 2x wall distance as gradient length
+          const auto tGhost =
+              this->Temperature(eqnState) - qWall / kappa * 2.0 * wallDist;
+          ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+
+        } else {
+          // use wall law wall temperature to get ghost cell density
+          const auto tGhost =
+              2.0 * wVars.temperature_ - this->Temperature(eqnState);
+          ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+        }
+
+        if (inputVars.IsRANS() && !wVars.SwitchToLowRe()) {
+          ghostState.data_[5] = 2.0 * wVars.tke_ - this->Tke();
+          ghostState.data_[6] = 2.0 * wVars.sdr_ - this->Omega();
+          if (layer > 1) {
+            ghostState.data_[5] = layer * ghostState.data_[5] - wVars.tke_;
+            ghostState.data_[6] = layer * ghostState.data_[6] - wVars.sdr_;
+          }
+        }
+      } else {  // low-Re wall treatment
+        // don't need turbulent contribution b/c eddy viscosity is 0 at wall
+        const auto mu = suth.EffectiveViscosity(this->Temperature(eqnState));
+        const auto kappa = eqnState.Conductivity(mu);
+        // 2x wall distance as gradient length
+        const auto tGhost =
+            this->Temperature(eqnState) - qWall / kappa * 2.0 * wallDist;
+        ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+        // numerical BCs for pressure, same as boundary state
+      }
+    } else {  // default is adiabatic -----------------------------------------
+      if (bcData->IsWallLaw()) {
+        wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
+                   inputVars.IsRANS());
+        wVars =
+            wl.AdiabaticBCs(normArea, velWall, eqnState, suth, turb, isLower);
+
+        if (inputVars.IsRANS() && !wVars.SwitchToLowRe()) {
+          ghostState.data_[5] = 2.0 * wVars.tke_ - this->Tke();
+          ghostState.data_[6] = 2.0 * wVars.sdr_ - this->Omega();
+          if (layer > 1) {
+            ghostState.data_[5] = layer * ghostState.data_[5] - wVars.tke_;
+            ghostState.data_[6] = layer * ghostState.data_[6] - wVars.sdr_;
+          }
+        }
+      }
+      // numerical BCs for pressure, density - same as boundary state
+    }
 
     // turbulence bcs
-    // tke at cell center is set to opposite of tke at boundary cell center
-    // so that tke at face will be zero
-    if (inputVars.IsTurbulent()) {
+    // for wall law, turbulence bcs are already calculated, unless low Re model
+    // should be used
+    if (inputVars.IsRANS() && (!bcData->IsWallLaw() || wVars.SwitchToLowRe())) {
+      // tke at cell center is set to opposite of tke at boundary cell center
+      // so that tke at face will be zero
       ghostState.data_[5] = -1.0 * this->Tke();
 
-      const auto nuW = suth.Viscosity(this->Temperature(eqnState))
-          / this->Rho();
-      const auto wWall = suth.NondimScaling() * suth.NondimScaling() *
-          60.0 * nuW / (wallDist * wallDist * turb->WallBeta());
-
+      const auto nuW =
+          suth.Viscosity(this->Temperature(eqnState)) / this->Rho();
+      const auto wWall = suth.NondimScaling() * suth.NondimScaling() * 60.0 *
+                         nuW / (wallDist * wallDist * turb->WallBeta());
       ghostState.data_[6] = 2.0 * wWall - this->Omega();
 
       if (layer > 1) {
@@ -457,21 +541,20 @@ primVars primVars::GetGhostState(const string &bcType,
       }
     }
 
-  // subsonic inflow boundary condition
-  // -------------------------------------------------------------------------
-  // this boundary condition enforces density and velocity as freestream inputs
-  // (constant) and extrapolates from the interior state to get pressure
-  // this is a primative implementation, stagnationInlet or characteristic are
-  // better options
-  // set velocity and density to freestream values
+    // subsonic inflow boundary condition
+    // -------------------------------------------------------------------------
+    // this boundary condition enforces density and velocity as freestream
+    // inputs
+    // (constant) and extrapolates from the interior state to get pressure
+    // this is a primative implementation, stagnationInlet or characteristic are
+    // better options
+    // set velocity and density to freestream values
   } else if (bcType == "subsonicInflow") {
     const auto & bcData = inputVars.BCData(tag);
 
-    // nondimensionalize velocity
-    const auto aRef = inputVars.ARef(eqnState);
-    const auto ghostVel = bcData->Velocity() / aRef;
+    const auto ghostVel = bcData->Velocity();
 
-    ghostState.data_[0] = bcData->Density() / inputVars.RRef();
+    ghostState.data_[0] = bcData->Density();
     ghostState.data_[1] = ghostVel.X();
     ghostState.data_[2] = ghostVel.Y();
     ghostState.data_[3] = ghostVel.Z();
@@ -479,22 +562,22 @@ primVars primVars::GetGhostState(const string &bcType,
     // numerical bc for pressure, same as boundary state
 
     // assign farfield conditions to turbulence variables
-    if (inputVars.IsTurbulent()) {
+    if (inputVars.IsRANS()) {
       ghostState.ApplyFarfieldTurbBC(ghostVel,
                                      bcData->TurbulenceIntensity(),
                                      bcData->EddyViscosityRatio(), suth,
-                                     eqnState);
+                                     eqnState, turb);
     }
 
     if (layer > 1) {  // extrapolate to get ghost state at deeper layers
       ghostState = layer * ghostState - (*this);
 
       // assign farfield conditions to turbulence variables
-      if (inputVars.IsTurbulent()) {
+      if (inputVars.IsRANS()) {
         ghostState.ApplyFarfieldTurbBC(ghostVel,
                                        bcData->TurbulenceIntensity(),
                                        bcData->EddyViscosityRatio(), suth,
-                                       eqnState);
+                                       eqnState, turb);
       }
     }
 
@@ -506,8 +589,7 @@ primVars primVars::GetGhostState(const string &bcType,
   // better options
   } else if (bcType == "subsonicOutflow") {  // set pressure to freestream value
     const auto & bcData = inputVars.BCData(tag);
-    ghostState.data_[4] = bcData->Pressure() /
-        (inputVars.PRef() * eqnState.Gamma());
+    ghostState.data_[4] = bcData->Pressure();
 
     // numerical bcs for density, velocity -- equal to boundary cell
     // numerical bcs for turbulence variables
@@ -526,11 +608,8 @@ primVars primVars::GetGhostState(const string &bcType,
   } else if (bcType == "characteristic") {
     const auto & bcData = inputVars.BCData(tag);
     // freestream variables
-    const auto freeSoS = inputVars.ARef(eqnState);
-    const auto freeVel = bcData->Velocity() / freeSoS;
-    const primVars freeState(bcData->Density() / inputVars.RRef(),
-                             bcData->Pressure() / (inputVars.PRef() * eqnState.Gamma()),
-                             freeVel);
+    const auto freeVel = bcData->Velocity();
+    const primVars freeState(bcData->Density(), freeVel, bcData->Pressure());
 
     // internal variables
     const auto velIntNorm = this->Velocity().DotProd(normArea);
@@ -544,11 +623,11 @@ primVars primVars::GetGhostState(const string &bcType,
       ghostState = freeState;
 
       // assign farfield conditions to turbulence variables
-      if (inputVars.IsTurbulent()) {
+      if (inputVars.IsRANS()) {
         ghostState.ApplyFarfieldTurbBC(freeVel,
                                        bcData->TurbulenceIntensity(),
                                        bcData->EddyViscosityRatio(), suth,
-                                       eqnState);
+                                       eqnState, turb);
       }
 
     } else if (machInt >= 1.0 && velIntNorm >= 0.0) {  // supersonic outflow
@@ -577,11 +656,11 @@ primVars primVars::GetGhostState(const string &bcType,
           normArea.Z() * (freeState.P() - ghostState.P()) / rhoSoSInt;
 
       // assign farfield conditions to turbulence variables
-      if (inputVars.IsTurbulent()) {
+      if (inputVars.IsRANS()) {
         ghostState.ApplyFarfieldTurbBC(freeVel,
                                        bcData->TurbulenceIntensity(),
                                        bcData->EddyViscosityRatio(), suth,
-                                       eqnState);
+                                       eqnState, turb);
       }
 
     } else if (machInt < 1.0 && velIntNorm >= 0.0) {  // subsonic outflow
@@ -614,11 +693,11 @@ primVars primVars::GetGhostState(const string &bcType,
       ghostState = layer * ghostState - (*this);
 
       // assign farfield conditions to turbulence variables
-      if (inputVars.IsTurbulent()) {
+      if (inputVars.IsRANS()) {
         ghostState.ApplyFarfieldTurbBC(freeVel,
                                        bcData->TurbulenceIntensity(),
                                        bcData->EddyViscosityRatio(), suth,
-                                       eqnState);
+                                       eqnState, turb);
       }
     }
 
@@ -629,29 +708,26 @@ primVars primVars::GetGhostState(const string &bcType,
   } else if (bcType == "supersonicInflow") {
     const auto & bcData = inputVars.BCData(tag);
     // physical boundary conditions - fix everything
-    const auto aRef = inputVars.ARef(eqnState);
-    // nondimensional velocity
-    const auto vel = bcData->Velocity() / aRef;
+    const auto vel = bcData->Velocity();
 
-    ghostState.data_[0] = bcData->Density() / inputVars.RRef();
+    ghostState.data_[0] = bcData->Density();
     ghostState.data_[1] = vel.X();
     ghostState.data_[2] = vel.Y();
     ghostState.data_[3] = vel.Z();
-    ghostState.data_[4] = bcData->Pressure() /
-        (inputVars.PRef() * eqnState.Gamma());
+    ghostState.data_[4] = bcData->Pressure();
 
     // assign farfield conditions to turbulence variables
-    if (inputVars.IsTurbulent()) {
-      ghostState.ApplyFarfieldTurbBC(vel,
-                                     bcData->TurbulenceIntensity(),
+    if (inputVars.IsRANS()) {
+      ghostState.ApplyFarfieldTurbBC(vel, bcData->TurbulenceIntensity(),
                                      bcData->EddyViscosityRatio(), suth,
-                                     eqnState);
+                                     eqnState, turb);
     }
 
-  // supersonic outflow boundary condition
-  // --------------------------------------------------------------------------
-  // this boundary condition enforces the entire state as extrapolated from the
-  // interior (zeroth order extrapolation)
+    // supersonic outflow boundary condition
+    // --------------------------------------------------------------------------
+    // this boundary condition enforces the entire state as extrapolated from
+    // the
+    // interior (zeroth order extrapolation)
   } else if (bcType == "supersonicOutflow") {
     // do nothing and return boundary state -- numerical BCs for all
     if (layer > 1) {  // extrapolate to get ghost state at deeper layers
@@ -679,13 +755,10 @@ primVars primVars::GetGhostState(const string &bcType,
     const auto sosB = -1.0 * rNeg * g / (g * cosTheta * cosTheta + 2.0) *
         (1.0 + cosTheta * sqrt((g * cosTheta * cosTheta + 2.0) *
                                stagSoSsq / (g * rNeg * rNeg) - 0.5 * g));
-    const auto tb = bcData->StagnationTemperature() /
-        inputVars.TRef() * (sosB * sosB / stagSoSsq);
-    const auto aRef = eqnState.SoS(inputVars.PRef(), inputVars.RRef());
-    const auto pb = bcData->StagnationPressure() / (inputVars.RRef() * aRef * aRef)
-        * pow(sosB * sosB / stagSoSsq, eqnState.Gamma() / g);
-    const auto vbMag = sqrt(2.0 / g * (bcData->StagnationTemperature() /
-                                       inputVars.TRef() - tb));
+    const auto tb = bcData->StagnationTemperature() * (sosB * sosB / stagSoSsq);
+    const auto pb = bcData->StagnationPressure() *
+                    pow(sosB * sosB / stagSoSsq, eqnState.Gamma() / g);
+    const auto vbMag = sqrt(2.0 / g * (bcData->StagnationTemperature() - tb));
 
     ghostState.data_[0] = eqnState.DensityTP(tb, pb);
     ghostState.data_[1] = vbMag * bcData->Direction().X();
@@ -694,22 +767,22 @@ primVars primVars::GetGhostState(const string &bcType,
     ghostState.data_[4] = pb;
 
     // assign farfield conditions to turbulence variables
-    if (inputVars.IsTurbulent()) {
+    if (inputVars.IsRANS()) {
       ghostState.ApplyFarfieldTurbBC(ghostState.Velocity(),
                                      bcData->TurbulenceIntensity(),
                                      bcData->EddyViscosityRatio(), suth,
-                                     eqnState);
+                                     eqnState, turb);
     }
 
     if (layer > 1) {  // extrapolate to get ghost state at deeper layers
       ghostState = layer * ghostState - (*this);
 
       // assign farfield conditions to turbulence variables
-      if (inputVars.IsTurbulent()) {
+      if (inputVars.IsRANS()) {
         ghostState.ApplyFarfieldTurbBC(ghostState.Velocity(),
                                        bcData->TurbulenceIntensity(),
                                        bcData->EddyViscosityRatio(), suth,
-                                       eqnState);
+                                       eqnState, turb);
       }
     }
 
@@ -720,10 +793,8 @@ primVars primVars::GetGhostState(const string &bcType,
   } else if (bcType == "pressureOutlet") {
     const auto & bcData = inputVars.BCData(tag);
 
-    // reference speed of sound
-    const auto aRef = inputVars.ARef(eqnState);
     // nondimensional pressure from input file
-    const auto pb = bcData->Pressure() / (inputVars.RRef() * aRef * aRef);
+    const auto pb = bcData->Pressure();
 
     const auto SoSInt = this->SoS(eqnState);
     const auto rhoSoSInt = this->Rho() * SoSInt;
@@ -744,11 +815,11 @@ primVars primVars::GetGhostState(const string &bcType,
       ghostState = layer * ghostState - (*this);
     }
 
-  // interblock boundary condition
+  // connection boundary condition
   // --------------------------------------------------------------------------
   // this boundary condition is appropriate for point matched interfaces between
   // physical blocks or processor blocks
-  } else if (bcType == "interblock") {
+  } else if (bcType == "interblock" || "periodic") {
     // do nothing -- assign interior state to ghost state (already done)
     // for second layer of ghost cells interior state should be 2nd interior
     // cell
@@ -797,53 +868,19 @@ void primVars::ApplyFarfieldTurbBC(const vector3d<double> &vel,
                                    const double &turbInten,
                                    const double &viscRatio,
                                    const sutherland &suth,
-                                   const idealGas &eqnState) {
+                                   const idealGas &eqnState,
+                                   const unique_ptr<turbModel> &turb) {
   // vel -- reference velocity (nondimensionalized)
   // turbInten -- turbulence intensity at farfield
   // viscRatio -- eddy viscosity ratio at farfield
   // suth -- sutherland's law for viscosity
   // eqnState -- equation of state
+  // turb --  turbulence model
 
   data_[5] = 1.5 * pow(turbInten * vel.Mag(), 2.0);
   data_[6] = data_[0] * data_[5] /
       (viscRatio * suth.Viscosity(this->Temperature(eqnState)));
-}
-
-
-multiArray3d<primVars> GetGhostStates(
-    const multiArray3d<primVars> &bndStates, const string &bcName,
-    const multiArray3d<unitVec3dMag<double>> &faceAreas,
-    const multiArray3d<double> &wDist, const int &surf,
-    const input &inp, const int &tag, const idealGas &eos, const sutherland &suth,
-    const unique_ptr<turbModel> &turb, const int layer) {
-  // bndStates -- states at cells adjacent to boundary
-  // bcName -- boundary condition type
-  // faceAreas -- face areas of boundary
-  // surf -- boundary surface type [1-6]
-  // inp -- input variables
-  // tag -- boundary condition tag
-  // eos -- equation of state
-  // suth -- sutherland's law for viscosity
-  // turb -- turbulence model
-  // layer -- layer of ghost cell to return
-  //          (1 closest to boundary, or 2 farthest)
-
-  multiArray3d<primVars> ghostStates(bndStates.NumINoGhosts(),
-                                     bndStates.NumJNoGhosts(),
-                                     bndStates.NumKNoGhosts(),
-                                     bndStates.GhostLayers());
-  for (auto kk = bndStates.StartK(); kk < bndStates.EndK(); kk++) {
-    for (auto jj = bndStates.StartJ(); jj < bndStates.EndJ(); jj++) {
-      for (auto ii = bndStates.StartI(); ii < bndStates.EndI(); ii++) {
-        ghostStates(ii, jj, kk) =
-            bndStates(ii, jj, kk).
-            GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),
-                          wDist(ii, jj, kk), surf, inp, tag, eos, suth, turb,
-                          layer);
-      }
-    }
-  }
-  return ghostStates;
+  this->LimitTurb(turb);
 }
 
 void primVars::LimitTurb(const unique_ptr<turbModel> &turb) {

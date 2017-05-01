@@ -1,8 +1,8 @@
-#Ignore temporary copy files
+# Ignore temporary copy files
 *~
 \#*
 
-#Ignore results files
+# Ignore results files
 *.fun
 *.res
 *.out
@@ -10,7 +10,9 @@
 *.resid
 *.p3d
 
-#Ignore blog files
+# Ignore blog files
 .sass-cache/
 _site/
 
+# Ignore VS Code files
+.vscode/

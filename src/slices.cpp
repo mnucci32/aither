@@ -17,7 +17,6 @@
 #include <iostream>
 #include "slices.hpp"
 #include "procBlock.hpp"
-#include "boundaryConditions.hpp"  // interblock
 #include "range.hpp"  // range
 
 using std::cout;

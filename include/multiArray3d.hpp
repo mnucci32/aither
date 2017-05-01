@@ -27,9 +27,10 @@
 #include <iostream>  // ostream
 #include <vector>    // vector
 #include <string>    // string
+#include <memory>    // unique_ptr
 #include "mpi.h"
 #include "vector3d.hpp"
-#include "boundaryConditions.hpp"  // interblock
+#include "boundaryConditions.hpp"  // connection
 #include "range.hpp"  // range
 
 using std::ostream;
@@ -38,6 +39,7 @@ using std::cout;
 using std::cerr;
 using std::vector;
 using std::string;
+using std::unique_ptr;
 
 template <typename T>
 class multiArray3d {
@@ -64,7 +66,7 @@ class multiArray3d {
       data_((ii + 2 * ng) * (jj + 2 * ng) * (kk + 2 * ng)),
       numI_(ii + 2 * ng), numJ_(jj + 2 * ng), numK_(kk + 2 * ng),
       numGhosts_(ng) {}
-  multiArray3d() : multiArray3d(1, 1, 1, 0) {}
+  multiArray3d() : multiArray3d(0, 0, 0, 0) {}
 
   // move constructor and assignment operator
   multiArray3d(multiArray3d&&) noexcept = default;
@@ -138,10 +140,10 @@ class multiArray3d {
               const string = "cell", const int = 0);
 
   void Fill(const multiArray3d<T> &);
-  void PutSlice(const multiArray3d<T> &, const interblock &, const int &);
-  void SwapSliceMPI(const interblock &, const int &, const MPI_Datatype &,
+  void PutSlice(const multiArray3d<T> &, const connection &, const int &);
+  void SwapSliceMPI(const connection &, const int &, const MPI_Datatype &,
                     const int = 1);
-  void SwapSlice(const interblock &, multiArray3d<T> &);
+  void SwapSlice(const connection &, multiArray3d<T> &);
 
   void Zero(const T &);
   void Zero();
@@ -150,7 +152,7 @@ class multiArray3d {
   multiArray3d<T> GrowJ() const;
   multiArray3d<T> GrowK() const;
 
-  void PackSwapUnpackMPI(const interblock &, const MPI_Datatype &, const int &,
+  void PackSwapUnpackMPI(const connection &, const MPI_Datatype &, const int &,
                          const int = 1);
 
   T GetElem(const int &ii, const int &jj, const int &kk) const;
@@ -1045,9 +1047,9 @@ ostream &operator<<(ostream &os, const multiArray3d<T> &arr) {
 
 template <typename T>
 void multiArray3d<T>::PutSlice(const multiArray3d<T> &array,
-                               const interblock &inter, const int &d3) {
+                               const connection &inter, const int &d3) {
   // array -- array to insert into *this
-  // inter -- interblock data structure defining patches and orientation
+  // inter -- connection data structure defining patches and orientation
   // d3 -- distance of direction normal to patch to insert
 
   // check that number of cells to insert matches
@@ -1063,7 +1065,7 @@ void multiArray3d<T>::PutSlice(const multiArray3d<T> &array,
     exit(EXIT_FAILURE);
   }
 
-  // adjust insertion indices if patch borders another interblock on the same
+  // adjust insertion indices if patch borders another connection on the same
   // surface of the block
   const auto adjS1 = (inter.Dir1StartInterBorderFirst()) ? numGhosts_ : 0;
   const auto adjE1 = (inter.Dir1EndInterBorderFirst()) ? numGhosts_ : 0;
@@ -1086,12 +1088,12 @@ void multiArray3d<T>::PutSlice(const multiArray3d<T> &array,
 }
 
 /*Member function to pack an array into a buffer, swap it with its
-  interblock partner, and then unpack it into an array.*/
+  connection partner, and then unpack it into an array.*/
 template <typename T>
-void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
+void multiArray3d<T>::PackSwapUnpackMPI(const connection &inter,
                                         const MPI_Datatype &MPI_arrData,
                                         const int &rank, const int tag) {
-  // inter -- interblock boundary for the swap
+  // inter -- connection boundary for the swap
   // MPI_arrData -- MPI datatype to pass data type in array
   // rank -- processor rank
   // tag -- id to send data with (default 1)
@@ -1108,7 +1110,10 @@ void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
                 &tempSize);
   bufSize += tempSize;
 
-  auto *buffer = new char[bufSize];  // allocate buffer to pack data into
+  // allocate buffer to pack data into
+  // use unique_ptr to manage memory; use underlying pointer for MPI calls
+  auto unqBuffer = unique_ptr<char>(new char[bufSize]);
+  auto *buffer = unqBuffer.get();  
 
   // pack data into buffer
   auto numI = this->NumI();
@@ -1124,14 +1129,14 @@ void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
            MPI_COMM_WORLD);
   MPI_Pack(&numGhosts, 1, MPI_INT, buffer, bufSize, &position,
            MPI_COMM_WORLD);
-  MPI_Pack(&data_[0], this->Size(), MPI_arrData, buffer,
+  MPI_Pack(&(*std::begin(data_)), this->Size(), MPI_arrData, buffer,
            bufSize, &position, MPI_COMM_WORLD);
 
   MPI_Status status;
-  if (rank == inter.RankFirst()) {  // send/recv with second entry in interblock
+  if (rank == inter.RankFirst()) {  // send/recv with second entry in connection
     MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankSecond(), tag,
                          inter.RankSecond(), tag, MPI_COMM_WORLD, &status);
-  } else {  // send/recv with first entry in interblock
+  } else {  // send/recv with first entry in connection
     MPI_Sendrecv_replace(buffer, bufSize, MPI_PACKED, inter.RankFirst(), tag,
                          inter.RankFirst(), tag, MPI_COMM_WORLD, &status);
   }
@@ -1149,10 +1154,8 @@ void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
   // resize slice
   this->SameSizeResize(numI, numJ, numK);
 
-  MPI_Unpack(buffer, bufSize, &position, &data_[0],
+  MPI_Unpack(buffer, bufSize, &position, &(*std::begin(data_)),
              this->Size(), MPI_arrData, MPI_COMM_WORLD);
-
-  delete[] buffer;
 }
 
 /* Function to swap slice using MPI. This is similar to the SwapSlice
@@ -1160,10 +1163,10 @@ void multiArray3d<T>::PackSwapUnpackMPI(const interblock &inter,
    processors.
 */
 template <typename T>
-void multiArray3d<T>::SwapSliceMPI(const interblock &inter, const int &rank,
+void multiArray3d<T>::SwapSliceMPI(const connection &conn, const int &rank,
                                    const MPI_Datatype &MPI_arrData,
                                    const int tag) {
-  // inter -- interblock boundary information
+  // conn -- connection boundary information
   // rank -- processor rank
   // MPI_arrData -- MPI datatype for passing data in *this
   // tag -- id for MPI swap (default 1)
@@ -1173,13 +1176,13 @@ void multiArray3d<T>::SwapSliceMPI(const interblock &inter, const int &rank,
   auto js = 0, je = 0;
   auto ks = 0, ke = 0;
 
-  if (rank == inter.RankFirst()) {  // local block first in interblock
-    inter.FirstSliceIndices(is, ie, js, je, ks, ke, numGhosts_);
-  } else if (rank == inter.RankSecond()) {  // local block second in interblock
-    inter.SecondSliceIndices(is, ie, js, je, ks, ke, numGhosts_);
+  if (rank == conn.RankFirst()) {  // local block first in connection
+    conn.FirstSliceIndices(is, ie, js, je, ks, ke, numGhosts_);
+  } else if (rank == conn.RankSecond()) {  // local block second in connection
+    conn.SecondSliceIndices(is, ie, js, je, ks, ke, numGhosts_);
   } else {
     cerr << "ERROR: Error in procBlock::SwapSliceMPI(). Processor rank does "
-            "not match either of interblock ranks!" << endl;
+            "not match either of connection ranks!" << endl;
     exit(EXIT_FAILURE);
   }
 
@@ -1187,25 +1190,25 @@ void multiArray3d<T>::SwapSliceMPI(const interblock &inter, const int &rank,
   auto slice = this->Slice({is, ie}, {js, je}, {ks, ke});
 
   // swap state slices with partner block
-  slice.PackSwapUnpackMPI(inter, MPI_arrData, rank, tag);
+  slice.PackSwapUnpackMPI(conn, MPI_arrData, rank, tag);
 
-  // change interblocks to work with slice and ghosts
-  auto interAdj = inter;
+  // change connections to work with slice and ghosts
+  auto connAdj = conn;
 
-  // change interblocks to work with slice and ghosts
-  // block to insert into is first in interblock
-  if (rank == inter.RankFirst()) {
-    interAdj.AdjustForSlice(true, numGhosts_);
-  } else {  // block to insert into is second in interblock, so pass swapped
+  // change connections to work with slice and ghosts
+  // block to insert into is first in connection
+  if (rank == conn.RankFirst()) {
+    connAdj.AdjustForSlice(true, numGhosts_);
+  } else {  // block to insert into is second in connection, so pass swapped
             // version
-    interAdj.AdjustForSlice(false, numGhosts_);
+    connAdj.AdjustForSlice(false, numGhosts_);
   }
 
   // insert state slice into procBlock
-  this->PutSlice(slice, interAdj, numGhosts_);
+  this->PutSlice(slice, connAdj, numGhosts_);
 }
 
-/* Function to swap ghost cells between two blocks at an interblock
+/* Function to swap ghost cells between two blocks at an connection
 boundary. Slices are removed from the physical cells (extending into ghost cells
 at the edges) of one block and inserted into the ghost cells of its partner
 block. The reverse is also true. The slices are taken in the coordinate system
@@ -1221,42 +1224,42 @@ Ui-3/2   Ui-1/2   |    Uj+1/2    Uj+3/2  Ui-3/2    Ui-1/2  |    Uj+1/2    Uj+3/2
                   |                                        |
 
 The above diagram shows the resulting values after the ghost cell swap. The
-logic ensures that the ghost cells at the interblock boundary exactly match
+logic ensures that the ghost cells at the connection boundary exactly match
 their partner block as if there were no separation in the grid.
 */
 template <typename T>
-void multiArray3d<T>::SwapSlice(const interblock &inter,
+void multiArray3d<T>::SwapSlice(const connection &conn,
                                 multiArray3d<T> &array) {
-  // inter -- interblock boundary information
-  // array -- second array involved in interblock boundary
+  // conn -- connection boundary information
+  // array -- second array involved in connection boundary
 
   // Get indices for slice coming from first block to swap
   auto is1 = 0, ie1 = 0;
   auto js1 = 0, je1 = 0;
   auto ks1 = 0, ke1 = 0;
 
-  inter.FirstSliceIndices(is1, ie1, js1, je1, ks1, ke1, numGhosts_);
+  conn.FirstSliceIndices(is1, ie1, js1, je1, ks1, ke1, numGhosts_);
 
   // Get indices for slice coming from second block to swap
   auto is2 = 0, ie2 = 0;
   auto js2 = 0, je2 = 0;
   auto ks2 = 0, ke2 = 0;
 
-  inter.SecondSliceIndices(is2, ie2, js2, je2, ks2, ke2, array.GhostLayers());
+  conn.SecondSliceIndices(is2, ie2, js2, je2, ks2, ke2, array.GhostLayers());
 
   // get slices to swap
   auto slice1 = this->Slice({is1, ie1}, {js1, je1}, {ks1, ke1});
   auto slice2 = array.Slice({is2, ie2}, {js2, je2}, {ks2, ke2});
 
-  // change interblocks to work with slice and ghosts
-  interblock inter1 = inter;
-  interblock inter2 = inter;
-  inter1.AdjustForSlice(false, numGhosts_);
-  inter2.AdjustForSlice(true, array.GhostLayers());
+  // change connections to work with slice and ghosts
+  connection conn1 = conn;
+  connection conn2 = conn;
+  conn1.AdjustForSlice(false, numGhosts_);
+  conn2.AdjustForSlice(true, array.GhostLayers());
 
   // put slices in proper blocks
-  this->PutSlice(slice2, inter2, array.GhostLayers());
-  array.PutSlice(slice1, inter1, numGhosts_);
+  this->PutSlice(slice2, conn2, array.GhostLayers());
+  array.PutSlice(slice1, conn1, numGhosts_);
 }
 
 

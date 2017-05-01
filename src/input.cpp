@@ -53,6 +53,7 @@ input::input(const string &name, const string &resName) : simName_(name),
   pRef_ = -1.0;
   rRef_ = -1.0;
   lRef_ = 1.0;
+  aRef_ = 0.0;
   vRef_ = {1.0, 0.0, 0.0};
   gamma_ = 1.4;
   gasConst_ = 287.058;
@@ -89,6 +90,7 @@ input::input(const string &name, const string &resName) : simName_(name),
 
   // default to primative variables
   outputVariables_ = {"density", "vel_x", "vel_y", "vel_z", "pressure"};
+  wallOutputVariables_ = {};
 
   // keywords in the input file that the parser is looking for to define
   // variables
@@ -122,6 +124,7 @@ input::input(const string &name, const string &resName) : simName_(name),
            "decompositionMethod",
            "turbulenceModel",
            "outputVariables",
+           "wallOutputVariables",
            "initialConditions",
            "boundaryStates",
            "boundaryConditions"};
@@ -393,6 +396,33 @@ void input::ReadInput(const int &rank) {
                 numChars += vars.length();
                 if (numChars >= 50) {  // if more than 50 chars, go to next line
                   cout << endl << "                  ";
+                  numChars = 0U;
+                }
+              }
+              count++;
+            }
+            cout << endl;
+          }
+        } else if (key == "wallOutputVariables") {
+          // clear default variables from set
+          wallOutputVariables_.clear();
+          auto specifiedVars = ReadStringList(inFile, tokens[1]);
+          for (auto &vars : specifiedVars) {
+            wallOutputVariables_.insert(vars);
+          }
+          if (rank == ROOTP) {
+            cout << key << ": <";
+            auto count = 0U;
+            auto numChars = 0U;
+            for (auto &vars : wallOutputVariables_) {
+              if (count == wallOutputVariables_.size() - 1) {
+                cout << vars << ">" << endl;
+              } else {
+                cout << vars << ", ";
+                numChars += vars.length();
+                if (numChars >= 50) {  // if more than 50 chars, go to next line
+                  cout << endl << "                      ";
+                  numChars = 0U;
                 }
               }
               count++;
@@ -489,6 +519,7 @@ void input::ReadInput(const int &rank) {
   // input file sanity checks
   this->CheckNonlinearIterations();
   this->CheckOutputVariables();
+  this->CheckWallOutputVariables();
   this->CheckTurbulenceModel();
 
   if (rank == ROOTP) {
@@ -508,20 +539,17 @@ void input::CalcCFL(const int &ii) {
 
 // member function to determine number of turbulence equations
 int input::NumTurbEquations() const {
-  auto numEqns = 0;
-  if (this->IsTurbulent()) {
-    numEqns = 2;
-  }
-  return numEqns;
+  return (this->IsRANS()) ? 2 : 0;
 }
 
 // member function to determine number of equations to solver for
 int input::NumEquations() const {
   auto numEqns = 0;
-  if ((equationSet_ == "euler") ||
-      (equationSet_ == "navierStokes")) {
+  if (equationSet_ == "euler" ||
+      equationSet_ == "navierStokes" ||
+      equationSet_ == "largeEddySimulation") {
     numEqns = this->NumFlowEquations();
-  } else if (equationSet_ == "rans") {
+  } else if (this->IsRANS()) {
     numEqns = this->NumFlowEquations() + this->NumTurbEquations();
   } else {
     cerr << "ERROR: Equations set is not recognized. Cannot determine number "
@@ -544,8 +572,7 @@ bool input::IsImplicit() const {
 
 // member function to determine of method is vicous or inviscid
 bool input::IsViscous() const {
-  if (equationSet_ == "navierStokes" ||
-      equationSet_ == "rans") {
+  if (equationSet_ == "navierStokes" || this->IsTurbulent()) {
     return true;
   } else {
     return false;
@@ -554,11 +581,21 @@ bool input::IsViscous() const {
 
 // member function to determine of method is turbulent
 bool input::IsTurbulent() const {
-  if (equationSet_ == "rans") {
+  if (this->IsRANS() || this->IsLES()) {
     return true;
   } else {
     return false;
   }
+}
+
+// member function to determine if simulation is RANS
+bool input::IsRANS() const {
+  return (equationSet_ == "rans") ? true : false;
+}
+
+// member function to determine if simulation is LES
+bool input::IsLES() const {
+  return (equationSet_ == "largeEddySimulation") ? true : false;
 }
 
 // member function to determine if solution should use a block matrix
@@ -598,6 +635,10 @@ unique_ptr<turbModel> input::AssignTurbulenceModel() const {
     turb = unique_ptr<turbModel>{std::make_unique<turbKWWilcox>()};
   } else if (turbModel_ == "sst2003") {
     turb = unique_ptr<turbModel>{std::make_unique<turbKWSst>()};
+  } else if (turbModel_ == "sstdes") {
+    turb = unique_ptr<turbModel>{std::make_unique<turbSstDes>()};
+  } else if (turbModel_ == "wale") {
+    turb = unique_ptr<turbModel>{std::make_unique<turbWale>()};
   } else {
     cerr << "ERROR: Error in input::AssignTurbulenceModel(). Turbulence model "
          << turbModel_ << " is not recognized!" << endl;
@@ -631,39 +672,70 @@ void input::CheckNonlinearIterations() {
 
 // member function to check validity of the requested output variables
 void input::CheckOutputVariables() {
-  for (auto var : outputVariables_) {
-    if (!this->IsTurbulent()) {  // can't have turbulent varibles output
-      if (var == "tke" || var == "sdr" || var == "viscosityRatio" ||
-          var.find("tkeGrad_") != string::npos ||
+  auto oVars = outputVariables_;
+  for (auto &var : oVars) {
+    if (!this->IsRANS()) {  // can't have RANS variables output
+      if (var == "tke" || var == "sdr" || var.find("tkeGrad_") != string::npos ||
           var.find("sdrGrad_") != string::npos || var == "resid_tke" ||
-          var == "resid_sdr") {
+          var == "resid_sdr" || var == "f1" || var == "f2") {
+        cerr << "WARNING: Variable " << var <<
+            " is not available for non-RANS simulations." << endl;
+        outputVariables_.erase(var);
+      }
+    }
+
+    if (!this->IsTurbulent()) {  // can't have turbulent variables output
+      if (var == "viscosityRatio" || var == "turbulentViscosity") {
         cerr << "WARNING: Variable " << var <<
             " is not available for laminar simulations." << endl;
         outputVariables_.erase(var);
       }
+    }
 
-      if (!this->IsViscous()) {  // can't have viscous variables output
-        if (var.find("velGrad_") != string::npos
-            || var.find("tempGrad_") != string::npos) {
-          cerr << "WARNING: Variable " << var <<
-              " is not available for inviscid simulations." << endl;
-          outputVariables_.erase(var);
-        }
+    if (!this->IsViscous()) {  // can't have viscous variables output
+      if (var.find("velGrad_") != string::npos
+          || var.find("tempGrad_") != string::npos || var == "viscosity") {
+        cerr << "WARNING: Variable " << var <<
+            " is not available for inviscid simulations." << endl;
+        outputVariables_.erase(var);
       }
     }
   }
 }
 
+// member function to check validity of the requested output variables
+void input::CheckWallOutputVariables() {
+  auto oVars = wallOutputVariables_;
+  for (auto &var : oVars) {
+    if (!this->IsViscous()) {  // can't have viscous variables output
+      if (var == "yplus" || var == "heatFlux") {
+        cerr << "WARNING: Wall variable " << var <<
+            " is not available for inviscid simulations." << endl;
+        outputVariables_.erase(var);
+      }
+    }
+  }
+}
+
+
 // member function to check that turbulence model makes sense with equation set
 void input::CheckTurbulenceModel() const {
-  if (equationSet_ == "rans" && turbModel_ == "none") {
-    cerr << "ERROR: If solving RANS equations, must specify turbulence model!"
-         << endl;
+  if (this->IsTurbulent() && turbModel_ == "none") {
+    cerr << "ERROR: If solving RANS or LES equations, must specify turbulence "
+         << "model!" << endl;
     exit(EXIT_FAILURE);
   }
-  if (equationSet_ != "rans" && turbModel_ != "none") {
-    cerr << "ERROR: Turbulence models are only valid for the RANS equation set!"
-         << endl;
+  if (!this->IsTurbulent() && turbModel_ != "none") {
+    cerr << "ERROR: Turbulence models are only valid for the RANS and LES "
+         << "equation sets!" << endl;
+    exit(EXIT_FAILURE);
+  }
+  if (this->IsRANS() && turbModel_ == "wale") {
+    cerr << "ERROR: Equation set is RANS, but turbulence model is not!" << endl;
+    exit(EXIT_FAILURE);
+  }
+  if (this->IsTurbulent() && !this->IsRANS() && turbModel_ != "wale") {
+    cerr << "ERROR: Equation set is LES, but turbulence model is not!" << endl;
     exit(EXIT_FAILURE);
   }
 }
@@ -689,17 +761,21 @@ bool input::MatrixRequiresInitialization() const {
 }
 
 int input::NumberGhostLayers() const {
+  auto layers = 0;
   if (this->UsingConstantReconstruction()) {
-    return 1;
+    layers = 1;
   } else if (this->UsingMUSCLReconstruction()) {
-    return 2;
+    layers = 2;
   } else if (this->UsingHigherOrderReconstruction()) {
-    return 3;
+    layers = 3;
   } else {
     cerr << "ERROR: Problem with face reconstruction. Not using any of the "
          << "supported methods!" << endl;
     exit(EXIT_FAILURE);
   }
+
+  auto viscLayers = (this->ViscousFaceReconstruction() == "centralFourth") ? 2 : 1;
+  return std::max(layers, viscLayers);
 }
 
 // member function to get the initial condition state for a given parent block
@@ -730,9 +806,10 @@ icState input::ICStateForBlock(const int &block) const {
 }
 
 // member function to return boundary condition data index for a given tag
-const unique_ptr<inputState> & input::BCData(const int &tag) const {
+const shared_ptr<inputState> & input::BCData(const int &tag) const {
   for (auto &bcData : bcStates_) {
-    if (bcData->Tag() == tag) {
+    // for non-periodic bcs tag = startTag = endTag
+    if (bcData->Tag() == tag || bcData->EndTag() == tag) {
       return bcData;
     }
   }
@@ -742,7 +819,12 @@ const unique_ptr<inputState> & input::BCData(const int &tag) const {
   exit(EXIT_FAILURE);
 }
 
-// member function to return reference speed of sound
-double input::ARef(const idealGas &eos) const {
-  return eos.SoS(pRef_, rRef_);
+void input::NondimensionalizeStateData(const idealGas &eos) {
+  aRef_ = eos.SoS(pRef_, rRef_);
+  for (auto &state : bcStates_) {
+    state->Nondimensionalize(rRef_, tRef_, lRef_, aRef_);
+  }
+  for (auto &ic : ics_) {
+    ic.Nondimensionalize(rRef_, tRef_, lRef_, aRef_);
+  }
 }

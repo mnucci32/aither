@@ -75,10 +75,10 @@ bool fluxJacobian::IsScalar() const {
 }
 
 // function to take the inverse of a flux jacobian
-void fluxJacobian::Inverse(const bool &isTurbulent) {
+void fluxJacobian::Inverse(const bool &isRANS) {
   flowJacobian_.Inverse();
 
-  if (isTurbulent) {
+  if (isRANS) {
     turbJacobian_.Inverse();
   }
 }
@@ -122,7 +122,7 @@ void fluxJacobian::RusanovFluxJacobian(const primVars &state,
   this->InvFluxJacobian(state, eos, area, inp, turb);
 
   // compute turbulent dissipation if necessary
-  if (inp.IsTurbulent()) {
+  if (inp.IsRANS()) {
     // multiply by 0.5 b/c averaging with convection matrix
     dissipation.turbJacobian_ = 0.5 * turb->InviscidDissJacobian(state, area);
   }
@@ -201,7 +201,7 @@ void fluxJacobian::InvFluxJacobian(const primVars &state,
   flowJacobian_ *= 0.5 * area.Mag();
 
   // turbulent jacobian here
-  if (inp.IsTurbulent()) {
+  if (inp.IsRANS()) {
     // multiply by 0.5 b/c averaging with dissipation matrix
     turbJacobian_ = 0.5 * turb->InviscidConvJacobian(state, area);
   }
@@ -289,7 +289,7 @@ void fluxJacobian::DelPrimativeDelConservative(const primVars &state,
   flowJacobian_(4, 4) = gammaMinusOne;
 
   // turbulent jacobian here
-  if (inp.IsTurbulent()) {
+  if (inp.IsRANS()) {
     turbJacobian_(0, 0) = invRho;
     turbJacobian_(1, 1) = invRho;
   }
@@ -371,7 +371,7 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
   flowJacobian_ = flowJacobian_.MatMult(prim2Cons.flowJacobian_);
 
   // calculate turbulent jacobian if necessary
-  if (inp.IsTurbulent()) {
+  if (inp.IsRANS()) {
     turbJacobian_ = fac * turb->ViscousJacobian(state, area, lamVisc, suth,
                                                 dist, turbVisc, f1);
     // Don't need to multiply by prim2Cons b/c jacobian is already wrt
@@ -512,7 +512,7 @@ genArray OffDiagonal(const primVars &offDiag, const primVars &diag,
     // always use flux change off diagonal with roe method
     offDiagonal = RoeOffDiagonal(offDiag, diag, update, fArea, mu, mut,
                                  f1, dist, eos, suth, turb,
-                                 inp.IsViscous(), inp.IsTurbulent(),
+                                 inp.IsViscous(), inp.IsRANS(),
                                  positive);
   } else {
     cerr << "ERROR: Error in OffDiagonal(), inviscid flux jacobian method of "
@@ -532,7 +532,7 @@ genArray RoeOffDiagonal(const primVars &offDiag, const primVars &diag,
                         const idealGas &eos,
                         const sutherland &suth,
                         const unique_ptr<turbModel> &turb,
-                        const bool &isViscous, const bool &isTurbulent,
+                        const bool &isViscous, const bool &isRANS,
                         const bool &positive) {
   // offDiag -- primative variables at off diagonal
   // diag -- primative variables at diagonal
@@ -546,7 +546,7 @@ genArray RoeOffDiagonal(const primVars &offDiag, const primVars &diag,
   // suth -- sutherland's law for viscosity
   // turb -- turbulence model
   // isViscous -- flag to determine if simulation is viscous
-  // isTurbulent -- flag to determine if simulation is turbulent
+  // isRANS -- flag to determine if simulation is turbulent
   // positive -- flag to determine whether to add or subtract dissipation
 
   // DEBUG -- redo this whole function to not use the flux change and instead
@@ -574,7 +574,7 @@ genArray RoeOffDiagonal(const primVars &offDiag, const primVars &diag,
         offDiag.ViscFaceSpectralRadius(fArea, eos, suth, dist, mu,
                                         mut, turb));
 
-    if (isTurbulent) {
+    if (isRANS) {
       specRad.AddToTurbVariable(turb->ViscFaceSpecRad(offDiag, fArea, mu, suth,
                                                       dist, mut, f1));
     }
@@ -585,30 +585,30 @@ genArray RoeOffDiagonal(const primVars &offDiag, const primVars &diag,
 }
 
 void fluxJacobian::MultiplyOnDiagonal(const double &val,
-                                      const bool &isTurbulent) {
+                                      const bool &isRANS) {
   // val -- value to multiply along diagonal
-  // isTurbulent -- flag identifiying if simulation is turbulent
+  // isRANS -- flag identifiying if simulation is turbulent
 
   for (auto ii = 0; ii < flowJacobian_.Size(); ii++) {
     flowJacobian_(ii, ii) *= val;
   }
 
-  if (isTurbulent) {
+  if (isRANS) {
     for (auto ii = 0; ii < turbJacobian_.Size(); ii++) {
       turbJacobian_(ii, ii) *= val;
     }
   }
 }
 
-void fluxJacobian::AddOnDiagonal(const double &val, const bool &isTurbulent) {
+void fluxJacobian::AddOnDiagonal(const double &val, const bool &isRANS) {
   // val -- value to multiply along diagonal
-  // isTurbulent -- flag identifiying if simulation is turbulent
+  // isRANS -- flag identifiying if simulation is turbulent
 
   for (auto ii = 0; ii < flowJacobian_.Size(); ii++) {
     flowJacobian_(ii, ii) += val;
   }
 
-  if (isTurbulent) {
+  if (isRANS) {
     for (auto ii = 0; ii < turbJacobian_.Size(); ii++) {
       turbJacobian_(ii, ii) += val;
     }

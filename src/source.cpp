@@ -53,7 +53,8 @@ squareMatrix source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
                                  const vector3d<double> &tkeGrad,
                                  const vector3d<double> &omegaGrad,
                                  const sutherland &suth, const double &vol,
-                                 const double &mut, const double &f1) {
+                                 const double &mut, const double &f1,
+                                 const double &f2, const double &phi) {
   // turb -- turbulence model
   // state -- primative variables
   // velGrad -- velocity gradient
@@ -64,12 +65,14 @@ squareMatrix source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
   // vol -- cell volume
   // mut -- turbulent viscosity
   // f1 -- first blending coefficient
+  // f2 -- second blending coefficient
+  // phi -- factor to reduce tke destruction by for des
 
   // calculate turbulent source terms
   auto ksrc = 0.0;
   auto wsrc = 0.0;
   const auto srcJac = turb->CalcTurbSrc(state, velGrad, tkeGrad, omegaGrad,
-                                        suth, vol, mut, f1, ksrc, wsrc);
+                                        suth, vol, mut, f1, f2, phi, ksrc, wsrc);
 
   // assign turbulent source terms
   data_[5] = ksrc;

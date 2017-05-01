@@ -28,6 +28,7 @@ one block. */
 #include <array>   // array
 #include <string>  // string
 #include <iostream>  // ostream
+#include <memory>  // unique_ptr
 #include "mpi.h"  // parallelism
 #include "vector3d.hpp"
 #include "range.hpp"
@@ -38,9 +39,13 @@ using std::array;
 using std::string;
 using std::cout;
 using std::endl;
+using std::shared_ptr;
 
 // forward class declaration
 class plot3dBlock;
+class decomposition;
+class inputState;
+class input;
 
 class boundarySurface {
   string bcType_;    // boundary condition name for surface
@@ -63,8 +68,6 @@ class boundarySurface {
   boundarySurface(const boundarySurface&) = default;
   boundarySurface& operator=(const boundarySurface&) = default;
 
-  friend class boundaryConditions;
-
   // Member functions
   string BCType() const {return bcType_;}
   int IMin() const {return data_[0];}
@@ -83,7 +86,14 @@ class boundarySurface {
   int Max2() const;
   int Min1() const;
   int Min2() const;
-  int NumFaces() const;
+  int Ind3() const { return this->RangeDir3().Start(); }
+  int Min(const string &) const;
+  int Max(const string &) const;
+  int NumFaces() const { return this->NumI() * this->NumJ() * this->NumK(); }
+
+  int NumI() const { return this->RangeI().Size(); }
+  int NumJ() const { return this->RangeJ().Size(); }
+  int NumK() const { return this->RangeK().Size(); }
 
   range RangeI() const;
   range RangeJ() const;
@@ -94,18 +104,33 @@ class boundarySurface {
 
   int PartnerBlock() const;
   int PartnerSurface() const;
-  void UpdateTagForSplitJoin(const int&);
-  boundarySurface Split(const string&, const int&, const int&,
-                        const int&, bool&, int = 0);
-  bool SplitDirectionIsReversed(const string&, const int&) const;
+  void UpdateTagForSplitJoin(const int &);
+  boundarySurface DependentSplit(const string &, const int &, const int &, int,
+                                 int, bool &, bool &, const int &);
+  void Join(const boundarySurface &, const string &, bool &);
+  boundarySurface Split(const string &, const int &, bool &, bool &,
+                        const bool = true);
+  bool SplitDirectionIsReversed(const string &, const int &) const;
+  bool SplitCGridToHGrid(const string &, const int &, const int &,
+                         const int &) const;
+  bool IsConnection() const {
+    return bcType_ == "interblock" || bcType_ == "periodic";
+  }
+  void IncrementDirection(const string &, const int &);
+
+  void PackBoundarySurface(char*(&), const int&, int&) const;
+  void UnpackBoundarySurface(char*(&), const int&, int&);
+
+  bool operator==(const boundarySurface &) const;
+  bool operator!=(const boundarySurface &s) const { return !(*this == s); };
 
   // Destructor
   ~boundarySurface() noexcept {}
 };
 
-/* A class to store the necessary information for the boundary_ condition patches.
-   A patch is a 2D surface on a block_ boundary_ that is assigned the same
-   boundary_ condition. */
+/* A class to store the necessary information for the boundary condition patches.
+   A patch is a 2D surface on a block boundary that is assigned the same
+   boundary condition. */
 class patch {
   vector3d<double> origin_;      // coordinates of patch origin
   // Coordinates of direction 1 max, direction 2 zero
@@ -114,7 +139,7 @@ class patch {
   vector3d<double> corner2_;
   vector3d<double> corner12_;    // coordinates of direction 1/2 max
   // Array of booleans for 4 sides of patch (1 if borders another patch)
-  bool patchBorder_[4];
+  array<bool, 4> patchBorder_;
   int boundary_;                 // boundary number (1-6)
   int block_;                    // parent block number
   int d1Start_;                  // direction 1 start index
@@ -124,17 +149,19 @@ class patch {
   int constSurf_;                // index of direction 3
   int rank_;                     // rank of block that patch belongs to
   int localBlock_;               // position of block on processor
+  string bcName_;                // name of bc on patch
 
  public:
   // Constructor
   patch();
   patch(const int&, const int&, const int&, const int&, const int&, const int&,
         const int&, const int&, const plot3dBlock&, const int&, const int&,
-        const bool(&)[4]);
+        const array<bool, 4>&, const string&);
   patch(const boundarySurface &surf, const plot3dBlock &blk, const int &bNum,
-        const bool (&border)[4], int r = 0, int l = 0) :
+        const array<bool, 4> &border, int r = 0, int l = 0) :
       patch(surf.SurfaceType(), bNum, surf.IMin(), surf.IMax(), surf.JMin(),
-            surf.JMax(), surf.KMin(), surf.KMax(), blk, r, l, border) {}
+            surf.JMax(), surf.KMin(), surf.KMax(), blk, r, l, border,
+            surf.BCType()) {}
 
   // move constructor and assignment operator
   patch(patch&&) noexcept = default;
@@ -162,6 +189,11 @@ class patch {
   bool Dir1EndInterBorder() const {return patchBorder_[1];}
   bool Dir2StartInterBorder() const {return patchBorder_[2];}
   bool Dir2EndInterBorder() const {return patchBorder_[3];}
+  string BCType() const {return bcName_;}
+  void Transform(const shared_ptr<inputState> &);
+  void Translate(const vector3d<double> &);
+  void Rotate(const vector3d<double> &, const vector3d<double> &,
+              const double &);
 
   // Destructor
   ~patch() noexcept {}
@@ -206,6 +238,8 @@ class boundaryConditions {
   int GetSurfaceType(const int &a) const {return surfs_[a].SurfaceType();}
   boundarySurface GetSurface(const int &a) const {return surfs_[a];}
   int NumViscousFaces() const;
+  int NumViscousSurfaces() const;
+  bool IsConnection(const int &a) const {return surfs_[a].IsConnection();}
 
   int BlockDimI() const;
   int BlockDimJ() const;
@@ -225,8 +259,17 @@ class boundaryConditions {
   void ResizeVecs(const int&);
   void ResizeVecs(const int&, const int&, const int&);
 
-  string GetBCName(const int&, const int&, const int&, const int&) const;
-  int GetBCTag(const int&, const int&, const int&, const int&) const;
+  boundarySurface GetBCSurface(const int &, const int &, const int &,
+                               const int &) const;
+  string GetBCName(const int &ii, const int &jj, const int &kk,
+                   const int &surf) const {
+    return this->GetBCSurface(ii, jj, kk, surf).BCType();
+  }
+  bool BCIsConnection(const int &ii, const int &jj, const int &kk,
+                      const int &surf) const {
+    const auto name = this->GetBCName(ii, jj, kk, surf);
+    return name == "interblock" || name == "periodic";
+  }
 
   void AssignFromInput(const int&, const vector<string>&);
 
@@ -236,8 +279,9 @@ class boundaryConditions {
                       const plot3dBlock&, const int&, const string&,
                       const int&, const int&, const int&);
   void Join(const boundaryConditions&, const string&, vector<boundarySurface>&);
+  void Merge(const string &);
 
-  void BordersSurface(const int&, bool (&)[4]) const;
+  void BordersSurface(const int&, array<bool, 4>&) const;
 
   void PackBC(char*(&), const int&, int&) const;
   void UnpackBC(char*(&), const int&, int&);
@@ -246,38 +290,40 @@ class boundaryConditions {
   ~boundaryConditions() noexcept {}
 };
 
-/* A class to store the necessary information for the interblock boundary_ conditions.
-   The data_ is stored in pairs, where each pair is patch on a boundary_ that is point matched. */
-class interblock {
+/* A class to store the necessary information for the connection boundary conditions.
+   The data is stored in pairs, where each pair is patch on a boundary that is point matched. */
+class connection {
   int rank_[2];               // processor location of boundaries
-  int block_[2];              // block_ numbers (global)
-  int localBlock_[2];         // local (on processor) block_ numbers
+  int block_[2];              // block numbers (global)
+  int localBlock_[2];         // local (on processor) block numbers
   int boundary_[2];           // boundary numbers
   int d1Start_[2];            // first direction start numbers for surface
   int d1End_[2];              // first direction end numbers for surface
   int d2Start_[2];            // second direction start numbers for surface
   int d2End_[2];              // second direction end numbers for surface
   int constSurf_[2];          // index of direction 3
-  bool patchBorder_[8];  // borders another patch on sides of patch
+  array<bool, 8> patchBorder_;  // borders another patch on sides of patch
   // Defines how patches are oriented relative to one another (1-8)
   int orientation_;
+  bool isInterblock_;
 
  public:
   // Constructor
-  interblock() : rank_{0, 0}, block_{0, 0}, localBlock_{0, 0}, boundary_{0, 0},
-    d1Start_{0, 0}, d1End_{0, 0}, d2Start_{0, 0}, d2End_{0, 0},
-    constSurf_{0, 0}, patchBorder_{false, false, false, false, false,
-                            false, false, false}, orientation_(0) {}
+  connection() : rank_{0, 0}, block_{0, 0}, localBlock_{0, 0}, boundary_{0, 0},
+                 d1Start_{0, 0}, d1End_{0, 0}, d2Start_{0, 0}, d2End_{0, 0},
+                 constSurf_{0, 0}, patchBorder_{false, false, false, false, false,
+                                         false, false, false}, orientation_(0),
+                 isInterblock_(true) {}
 
-  interblock(const patch&, const patch&);
+  connection(const patch&, const patch&);
 
   // move constructor and assignment operator
-  interblock(interblock&&) noexcept = default;
-  interblock& operator=(interblock&&) noexcept = default;
+  connection(connection&&) noexcept = default;
+  connection& operator=(connection&&) noexcept = default;
 
   // copy constructor and assignment operator
-  interblock(const interblock&) = default;
-  interblock& operator=(const interblock&) = default;
+  connection(const connection&) = default;
+  connection& operator=(const connection&) = default;
 
   // Member functions
   int RankFirst() const {return rank_[0];}
@@ -331,6 +377,7 @@ class interblock {
   bool Dir2EndInterBorderSecond() const {return patchBorder_[7];}
 
   int Orientation() const {return orientation_;}
+  bool IsInterblock() const {return isInterblock_;}
 
   string Direction1First() const;
   string Direction2First() const;
@@ -344,7 +391,7 @@ class interblock {
   void SwapOrder();
   void AdjustForSlice(const bool&, const int&);
   bool TestPatchMatch(const patch&, const patch&);
-  void GetAddressesMPI(MPI_Aint (&)[11])const;
+  void GetAddressesMPI(MPI_Aint (&)[12])const;
 
   void FirstSliceIndices(int&, int&, int&, int&, int&, int&, const int&) const;
   void SecondSliceIndices(int&, int&, int&, int&, int&, int&, const int&) const;
@@ -354,88 +401,22 @@ class interblock {
   }
 
   // Destructor
-  ~interblock() noexcept {}
-};
-
-class decomposition {
-  // rank of each procBlock
-  // (vector size equals number of procBlocks after decomp)
-  vector<int> rank_;
-  // parent block_ of each procBlock
-  // (vector size equals number of procBlocks after decomp)
-  vector<int> parBlock_;
-  // local position of each procBlock
-  // (vector size equals number of procBlocks after decomp)
-  vector<int> localPos_;
-  // lower block_ of split (vector size equals number of splits)
-  vector<int> splitHistBlkLow_;
-  // upper block_ of split (vector size equals number of splits)
-  vector<int> splitHistBlkUp_;
-  // index of split (vector size equals number of splits)
-  vector<int> splitHistIndex_;
-  // direction of split (vector size equals number of splits)
-  vector<string> splitHistDir_;
-  int numProcs_;                     // number of processors
-
- public:
-  // Constructor
-  decomposition(const int&, const int&);
-  decomposition() : decomposition(1, 1) {}
-
-  // move constructor and assignment operator
-  decomposition(decomposition&&) noexcept = default;
-  decomposition& operator=(decomposition&&) noexcept = default;
-
-  // copy constructor and assignment operator
-  decomposition(const decomposition&) = default;
-  decomposition& operator=(const decomposition&) = default;
-
-  // Member functions
-  int Rank(const int &a) const {return rank_[a];}
-  int ParentBlock(const int &a) const {return parBlock_[a];}
-  int LocalPosition(const int &a) const {return localPos_[a];}
-  int NumProcs() const {return numProcs_;}
-  double IdealLoad(const vector<plot3dBlock>&) const;
-  double MaxLoad(const vector<plot3dBlock>&) const;
-  double MinLoad(const vector<plot3dBlock>&) const;
-  double ProcLoad(const vector<plot3dBlock>&, const int&) const;
-  double LoadRatio(const vector<plot3dBlock>&, const int&) const;
-  int MostOverloadedProc(const vector<plot3dBlock>&, double&) const;
-  int MostUnderloadedProc(const vector<plot3dBlock>&, double&) const;
-  int NumBlocksOnProc(const int&) const;
-  vector<int> NumBlocksOnAllProc() const;
-  void SendToProc(const int&, const int&, const int&);
-  void Split(const int&, const int&, const string&);
-  int SendWholeOrSplit(const vector<plot3dBlock>&, const int&,
-                       const int&, int&, string&) const;
-  int Size() const {return static_cast<int> (rank_.size());}
-
-  int NumSplits() const {return static_cast<int> (splitHistDir_.size());}
-  int SplitHistBlkLower(const int &a) const {return splitHistBlkLow_[a];}
-  int SplitHistBlkUpper(const int &a) const {return splitHistBlkUp_[a];}
-  int SplitHistIndex(const int &a) const {return splitHistIndex_[a];}
-  string SplitHistDir(const int &a) const {return splitHistDir_[a];}
-
-  void PrintDiagnostics(const vector<plot3dBlock>&) const;
-
-  // Destructor
-  ~decomposition() noexcept {}
+  ~connection() noexcept {}
 };
 
 
 // Function declarations
-vector<interblock> GetInterblockBCs(const vector<boundaryConditions>&,
+vector<connection> GetConnectionBCs(const vector<boundaryConditions>&,
                                     const vector<plot3dBlock>&,
-                                    const decomposition&);
+                                    const decomposition&, const input&);
 
 ostream & operator<< (ostream &os, const boundaryConditions&);
 ostream & operator<< (ostream &os, const boundarySurface&);
 ostream & operator<< (ostream &os, const patch&);
-ostream & operator<< (ostream &os, const decomposition&);
-ostream & operator<< (ostream &os, const interblock&);
+ostream & operator<< (ostream &os, const connection&);
 
 
 array<int, 3> GetSwapLoc(const int &, const int &, const int &, const int &,
-                         const interblock &, const int &, const bool &);
+                         const connection &, const int &, const bool &);
 
 #endif

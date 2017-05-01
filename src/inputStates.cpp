@@ -134,10 +134,30 @@ void viscousWall::Print(ostream &os) const {
   } else if (specifiedHeatFlux_) {
     os << "; heatFlux=" << this->HeatFlux();
   }
+  os << "; wallTreatment=" << wallTreatment_;
+  if (this->IsWallLaw()) {
+    os << "; vonKarmen=" << vonKarmen_ << "; wallConstant=" << wallConstant_;
+  }
   os << ")";
 }
 
 ostream &operator<<(ostream &os, const viscousWall &bc) {
+  bc.Print(os);
+  return os;
+}
+
+void periodic::Print(ostream &os) const {
+  os << "periodic(startTag=" << this->StartTag() << "; endTag=" << this->EndTag();
+  if (this->IsTranslation()) {
+    os << "; translation=[" << this->Translation() << "]";
+  } else if (this->IsRotation()) {
+    os << "; axis=[" << this->Axis() << "]; point=[" << this->Point()
+       << "]; rotation=" << this->Rotation();
+  }
+  os << ")";
+}
+
+ostream &operator<<(ostream &os, const periodic &bc) {
   bc.Print(os);
   return os;
 }
@@ -179,8 +199,8 @@ vector<string> Tokenize(string str, const string &delimiter,
   auto reachedMax = false;
   auto pos = str.find(delimiter);
   while (pos != string::npos && !reachedMax) {
-    auto token = str.substr(0, pos);
-    tokens.push_back(Trim(token));
+    auto token = Trim(str.substr(0, pos));
+    if (!token.empty()) {tokens.push_back(token);}
     // treat consecutive delimiters as single delimiter
     auto end = str.find_first_not_of(delimiter, pos);
     str.erase(0, end);
@@ -189,7 +209,8 @@ vector<string> Tokenize(string str, const string &delimiter,
     }
     pos = str.find(delimiter);
   }
-  tokens.push_back(Trim(str));
+  auto token = Trim(str);
+  if (!token.empty()) {tokens.push_back(token);}
   return tokens;
 }
 
@@ -295,6 +316,16 @@ icState::icState(string &str, const string name) {
   }
 }
 
+void icState::Nondimensionalize(const double &rRef, const double &tRef,
+                                const double &lRef, const double &aRef) {
+  if (!this->IsNondimensional()) {
+    velocity_ /= aRef;
+    density_ /= rRef;
+    pressure_ /= rRef * aRef * aRef;
+    this->SetNondimensional(true);
+  }
+}
+
 // construct stagnation inlet from string
 stagnationInlet::stagnationInlet(string &str) {
   const auto start = str.find("(") + 1;
@@ -334,7 +365,7 @@ stagnationInlet::stagnationInlet(string &str) {
       t0_ = stod(RemoveTrailing(param[1], ","));
       t0Count++;
     } else if (param[0] == "direction") {
-      direction_ = ReadVector(RemoveTrailing(param[1], ","));
+      direction_ = ReadVector(RemoveTrailing(param[1], ",")).Normalize();
       directionCount++;
     } else if (param[0] == "turbulenceIntensity") {
       this->SetSpecifiedTurbulence();
@@ -367,6 +398,17 @@ stagnationInlet::stagnationInlet(string &str) {
     cerr << "If either turbulenceIntensity or eddyViscosityRatio is specified "
          << "the other must be as well." << endl;
     exit(EXIT_FAILURE);
+  }
+}
+
+void stagnationInlet::Nondimensionalize(const double &rRef, const double &tRef,
+                                        const double &lRef,
+                                        const double &aRef) {
+  if (!this->IsNondimensional()) {
+    direction_.Normalize();
+    p0_ /= rRef * aRef * aRef;
+    t0_ /= tRef;
+    this->SetNondimensional(true);
   }
 }
 
@@ -417,6 +459,14 @@ pressureOutlet::pressureOutlet(string &str, const string name) {
     cerr << "ERROR. For " << name << " pressure and tag must be specified, and "
          << "only specified once." << endl;
     exit(EXIT_FAILURE);
+  }
+}
+
+void pressureOutlet::Nondimensionalize(const double &rRef, const double &tRef,
+                                       const double &lRef, const double &aRef) {
+  if (!this->IsNondimensional()) {
+    pressure_ /= rRef * aRef * aRef;
+    this->SetNondimensional(true);
   }
 }
 
@@ -491,6 +541,15 @@ subsonicInflow::subsonicInflow(string &str) {
   }
 }
 
+void subsonicInflow::Nondimensionalize(const double &rRef, const double &tRef,
+                                       const double &lRef, const double &aRef) {
+  if (!this->IsNondimensional()) {
+    velocity_ /= aRef;
+    density_ /= rRef;
+    this->SetNondimensional(true);
+  }
+}
+
 // construct viscousWall from string
 viscousWall::viscousWall(string &str) {
   const auto start = str.find("(") + 1;
@@ -513,6 +572,9 @@ viscousWall::viscousWall(string &str) {
   auto velocityCount = 0;
   auto temperatureCount = 0;
   auto heatFluxCount = 0;
+  auto wallTreatmentCount = 0;
+  auto vonKarmenCount = 0;
+  auto wallConstantCount = 0;
 
   for (auto &token : tokens) {
     auto param = Tokenize(token, "=");
@@ -532,6 +594,15 @@ viscousWall::viscousWall(string &str) {
       specifiedHeatFlux_ = true;
       heatFlux_ = stod(RemoveTrailing(param[1], ","));
       heatFluxCount++;
+    } else if (param[0] == "vonKarmen") {
+      vonKarmen_ = stod(RemoveTrailing(param[1], ","));
+      vonKarmenCount++;
+    } else if (param[0] == "wallConstant") {
+      wallConstant_ = stod(RemoveTrailing(param[1], ","));
+      wallConstantCount++;
+    } else if (param[0] == "wallTreatment") {
+      wallTreatment_ = RemoveTrailing(param[1], ",");
+      wallTreatmentCount++;
     } else if (param[0] == "tag") {
       this->SetTag(stoi(RemoveTrailing(param[1], ",")));
       tagCount++;
@@ -550,15 +621,144 @@ viscousWall::viscousWall(string &str) {
     exit(EXIT_FAILURE);
   }
   // optional variables
-  if (velocityCount > 1 || temperatureCount > 1 || heatFluxCount > 1) {
-    cerr << "ERROR. For viscousWall, velocity, heatFlux, and temperature can "
-         << "only be specified once." << endl;
+  if (velocityCount > 1 || temperatureCount > 1 || heatFluxCount > 1 ||
+      wallTreatmentCount > 1 || vonKarmenCount > 1 || wallConstantCount > 1) {
+    cerr << "ERROR. For viscousWall, velocity, heatFlux, temperature, "
+         << "wallTreatment, vonKarmen, and wallConstant can only be specified "
+         << "once." << endl;
     exit(EXIT_FAILURE);
   }
   if (specifiedHeatFlux_ && specifiedTemperature_) {
     cerr << "ERROR. For viscousWall can only specify temperature OR heatFlux."
          << endl;
     exit(EXIT_FAILURE);
+  }
+  if (wallTreatment_ != "lowRe" && wallTreatment_ != "wallLaw") {
+    cerr << "ERROR. wallTreatment " << wallTreatment_ << " is not recognized!"
+         << endl;
+    cerr << "Choose lowRe or wallLaw" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+void viscousWall::Nondimensionalize(const double &rRef, const double &tRef,
+                                    const double &lRef, const double &aRef) {
+  if (!this->IsNondimensional()) {
+    velocity_ /= aRef;
+    temperature_ /= tRef;
+    heatFlux_ /= pow(aRef / lRef, 3.0);
+    this->SetNondimensional(true);
+  }
+}
+
+// construct periodic from string
+periodic::periodic(string &str) {
+  const auto start = str.find("(") + 1;
+  const auto end = str.find(")") - 1;
+  const auto range = end - start + 1;  // +/-1 to ignore ()
+  auto state = str.substr(start, range);
+  const auto id = str.substr(0, start - 1);
+  if (id != "periodic") {
+    cerr << "ERROR. State condition specifier " << id << " is not recognized!"
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+  auto tokens = Tokenize(state, ";");
+
+  // erase portion used so multiple states in same string can easily be found
+  str.erase(0, end);
+
+  // parameter counters
+  auto startTagCount = 0;
+  auto endTagCount = 0;
+  auto translationCount = 0;
+  auto axisCount = 0;
+  auto pointCount = 0;
+  auto rotationCount = 0;
+  auto specifiedTranslation = false;
+  auto specifiedAxis = false;
+  auto specifiedPoint = false;
+  auto specifiedRotation = false;
+
+  for (auto &token : tokens) {
+    auto param = Tokenize(token, "=");
+    if (param.size() != 2) {
+      cerr << "ERROR. Problem with state condition parameter " << token << endl;
+      exit(EXIT_FAILURE);
+    }
+
+    if (param[0] == "translation") {
+      translation_ = ReadVector(RemoveTrailing(param[1], ","));
+      specifiedTranslation = true;
+      translationCount++;
+    } else if (param[0] == "axis") {
+      axis_ = ReadVector(RemoveTrailing(param[1], ",")).Normalize();
+      specifiedAxis = true;
+      axisCount++;
+    } else if (param[0] == "point") {
+      point_ = ReadVector(RemoveTrailing(param[1], ","));
+      specifiedPoint = true;
+      pointCount++;
+    } else if (param[0] == "rotation") {
+      rotation_ = stod(RemoveTrailing(param[1], ","));
+      specifiedRotation = true;
+      rotationCount++;
+    } else if (param[0] == "startTag") {
+      this->SetTag(stoi(RemoveTrailing(param[1], ",")));
+      startTagCount++;
+    } else if (param[0] == "endTag") {
+      endTag_ = stoi(RemoveTrailing(param[1], ","));
+      endTagCount++;
+    } else {
+      cerr << "ERROR. periodic specifier " << param[0]
+           << " is not recognized!" << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  // sanity checks
+  // required variables
+  if (startTagCount != 1 || endTagCount != 1) {
+    cerr << "ERROR. For periodic startTag and endTag must be specified, and "
+         << "only specified once." << endl;
+    exit(EXIT_FAILURE);
+  }
+  if (this->StartTag() == this->EndTag()) {
+    cerr << "ERROR. For periodic startTag and endTag must be unique." << endl;
+    exit(EXIT_FAILURE);
+  }
+  // optional variables
+  if (translationCount > 1 || axisCount > 1 || rotationCount > 1 ||
+      pointCount > 1) {
+    cerr << "ERROR. For periodic, translation, axis, rotation, and point can "
+         << "only be specified once." << endl;
+    exit(EXIT_FAILURE);
+  }
+  if (specifiedTranslation &&
+      (specifiedAxis || specifiedRotation || specifiedPoint)) {
+    cerr << "ERROR. For periodic can only specify translation OR rotation."
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+  if ((specifiedAxis && !(specifiedRotation && specifiedPoint)) ||
+      (specifiedPoint && !(specifiedRotation && specifiedAxis)) ||
+      (specifiedRotation && !(specifiedAxis && specifiedPoint))) {
+    cerr << "ERROR. For periodic rotation must specify axis, point, & rotation."
+         << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+void periodic::Nondimensionalize(const double &rRef, const double &tRef,
+                                 const double &lRef, const double &aRef) {
+  if (!this->IsNondimensional()) {
+    if (this->IsTranslation()) {
+      translation_ /= lRef;
+    } else {
+      axis_.Normalize();
+    }
+    point_ /= lRef;
+    this->SetNondimensional(true);
   }
 }
 
@@ -635,23 +835,25 @@ auto FindBCPosition(const string &str, const vector<string> &names,
   return pos;
 }
 
-void AddBCToList(const string &type, vector<unique_ptr<inputState>> &bcList,
+void AddBCToList(const string &type, vector<shared_ptr<inputState>> &bcList,
                  string &list) {
-  unique_ptr<inputState> bc(nullptr);
+  shared_ptr<inputState> bc(nullptr);
   if (type == "characteristic") {
-    bc = unique_ptr<inputState>{std::make_unique<characteristic>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<characteristic>(list)};
   } else if (type == "stagnationInlet") {
-    bc = unique_ptr<inputState>{std::make_unique<stagnationInlet>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<stagnationInlet>(list)};
   } else if (type == "pressureOutlet") {
-    bc = unique_ptr<inputState>{std::make_unique<pressureOutlet>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<pressureOutlet>(list)};
   } else if (type == "subsonicInflow") {
-    bc = unique_ptr<inputState>{std::make_unique<subsonicInflow>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<subsonicInflow>(list)};
   } else if (type == "subsonicOutflow") {
-    bc = unique_ptr<inputState>{std::make_unique<subsonicOutflow>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<subsonicOutflow>(list)};
   } else if (type == "supersonicInflow") {
-    bc = unique_ptr<inputState>{std::make_unique<supersonicInflow>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<supersonicInflow>(list)};
   } else if (type == "viscousWall") {
-    bc = unique_ptr<inputState>{std::make_unique<viscousWall>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<viscousWall>(list)};
+  } else if (type == "periodic") {
+    bc = shared_ptr<inputState>{std::make_shared<periodic>(list)};
   } else {
     cerr << "ERROR. BC state " << type << " is not recognized!" << endl;
     exit(EXIT_FAILURE);
@@ -669,10 +871,11 @@ void AddBCToList(const string &type, vector<unique_ptr<inputState>> &bcList,
 }
 
 // function to read boundary condition list from string
-vector<unique_ptr<inputState>> ReadBCList(ifstream &inFile, string &str) {
-  vector<unique_ptr<inputState>> bcList;
+vector<shared_ptr<inputState>> ReadBCList(ifstream &inFile, string &str) {
+  vector<shared_ptr<inputState>> bcList;
   vector<string> bcNames {"characteristic", "stagnationInlet", "pressureOutlet",
-        "subsonicInflow", "subsonicOutflow", "supersonicInflow", "viscousWall"};
+        "subsonicInflow", "subsonicOutflow", "supersonicInflow", "viscousWall",
+        "periodic"};
   auto openList = false;
   do {
     auto start = openList ? 0 : str.find("<");
@@ -729,8 +932,7 @@ vector<string> ReadStringList(ifstream &inFile, string &str) {
     openList = (end == string::npos) ? true : false;
 
     // test for argument on current line
-    // if < or > is alone on a line, should not look for icState
-    auto argPos = str.find_first_not_of(" \t,");
+    auto argPos = str.find_first_not_of(" \t\r\n,");
     if (argPos != string::npos) {  // there is an argument in current line
       string list;
       if (listOpened && openList) {  // list opened on current line, remains open

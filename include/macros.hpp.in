@@ -26,5 +26,8 @@
 #define MAJORVERSION @aither_VERSION_MAJOR@
 #define MINORVERSION @aither_VERSION_MINOR@
 #define PATCHNUMBER @aither_VERSION_PATCH@
+#ifdef _WIN32
+#define MPI_CXX_BOOL MPI_C_BOOL
+#endif
 
 #endif

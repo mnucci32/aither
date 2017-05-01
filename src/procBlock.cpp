@@ -33,6 +33,7 @@
 #include "fluxJacobian.hpp"
 #include "kdtree.hpp"
 #include "utility.hpp"
+#include "wallData.hpp"
 
 using std::cout;
 using std::endl;
@@ -45,11 +46,11 @@ using std::unique_ptr;
 using std::ifstream;
 
 // constructors for procBlock class
-procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
-                     const int &numBlk, const boundaryConditions &bound,
-                     const int &pos, const int &r, const int &lpos,
-                     const input &inp, const idealGas &eos,
-                     const sutherland &suth) {
+procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
+                     const boundaryConditions &bound, const int &pos,
+                     const int &r, const int &lpos, const input &inp,
+                     const idealGas &eos, const sutherland &suth,
+                     const unique_ptr<turbModel> &turb) {
   // blk -- plot3d block of which this procBlock is a subset of
   // numBlk -- the block number of blk (the parent block)
   // bound -- boundary conditions for block
@@ -59,6 +60,7 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
   // inp -- input variables
   // eos -- equation of state
   // suth -- sutherland's law for viscosity
+  // turb -- turbulence model
 
   numGhosts_ = inp.NumberGhostLayers();
   parBlock_ = numBlk;
@@ -68,10 +70,18 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
   localPos_ = lpos;
 
   bc_ = bound;
+  for (auto ii = 0; ii < bound.NumSurfaces(); ++ii) {
+    if (bound.GetBCTypes(ii) == "viscousWall") {
+      const auto surf = bound.GetSurface(ii);
+      const auto &bcData = inp.BCData(surf.Tag());
+      wallData_.push_back(wallData(surf, bcData));
+    }
+  }
 
   isViscous_ = inp.IsViscous();
   isTurbulent_ = inp.IsTurbulent();
-  storeTimeN_ = (inp.IsImplicit() || inp.TimeIntegration() == "rk4");
+  isRANS_ = inp.IsRANS();
+  storeTimeN_ = inp.NeedToStoreTimeN();
   isMultiLevelTime_ = inp.IsMultilevelInTime();
 
   // get initial condition state for parent block
@@ -84,7 +94,7 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
 
   // get nondimensional state for initialization
   primVars inputState;
-  inputState.NondimensionalInitialize(eos, aRef, inp, suth, parBlock_);
+  inputState.NondimensionalInitialize(eos, inp, suth, parBlock_, turb);
 
   // pad stored variable vectors with ghost cells
   state_ = PadWithGhosts(multiArray3d<primVars>(numI, numJ, numK, 0,
@@ -92,12 +102,12 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
   if (storeTimeN_) {
     consVarsN_ = {numI, numJ, numK, 0, genArray(0.0)};
   } else {
-    consVarsN_ = {1, 1, 1, 0};
+    consVarsN_ = {0, 0, 0, 0};
   }
   if (isMultiLevelTime_) {
     consVarsNm1_ = {numI, numJ, numK, 0, genArray(0.0)};
   } else {
-    consVarsNm1_ = {1, 1, 1, 0};
+    consVarsNm1_ = {0, 0, 0, 0};
   }
 
   vol_ = PadWithGhosts(blk.Volume(), numGhosts_);
@@ -109,9 +119,9 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
   fCenterJ_ = PadWithGhosts(blk.FaceCenterJ(), numGhosts_);
   fCenterK_ = PadWithGhosts(blk.FaceCenterK(), numGhosts_);
 
-  cellWidthI_ = {1, 1, 1, 0};
-  cellWidthJ_ = {1, 1, 1, 0};
-  cellWidthK_ = {1, 1, 1, 0};
+  cellWidthI_ = {numI, numJ, numK, numGhosts_};
+  cellWidthJ_ = {numI, numJ, numK, numGhosts_};
+  cellWidthK_ = {numI, numJ, numK, numGhosts_};
 
   wallDist_ = {numI, numJ, numK, numGhosts_, DEFAULTWALLDIST};
 
@@ -129,32 +139,36 @@ procBlock::procBlock(const double &aRef, const plot3dBlock &blk,
     inputViscosity = suth.Viscosity(inputTemperature);
     viscosity_ = {numI, numJ, numK, numGhosts_, inputViscosity};
   } else {
-    velocityGrad_ = {1, 1, 1, 0};
-    temperatureGrad_ = {1, 1, 1, 0};
-    viscosity_ = {1, 1, 1, 0};
+    velocityGrad_ = {0, 0, 0, 0};
+    temperatureGrad_ = {0, 0, 0, 0};
+    viscosity_ = {0, 0, 0, 0};
   }
 
   if (isTurbulent_) {
-    tkeGrad_ = {numI, numJ, numK, numGhosts_};
-    omegaGrad_ = {numI, numJ, numK, numGhosts_};
     eddyViscosity_ = {numI, numJ, numK, numGhosts_,
                       ic.EddyViscosityRatio() * inputViscosity};
+  } else {
+    eddyViscosity_ = {0, 0, 0, 0, 0.0};
+  }
+
+  if (isRANS_) {
+    tkeGrad_ = {numI, numJ, numK, numGhosts_};
+    omegaGrad_ = {numI, numJ, numK, numGhosts_};
     f1_ = {numI, numJ, numK, numGhosts_, 1.0};
     f2_ = {numI, numJ, numK, numGhosts_, 0.0};
   } else {
-    tkeGrad_ = {1, 1, 1, 0};
-    omegaGrad_ = {1, 1, 1, 0};
-    eddyViscosity_ = {1, 1, 1, 0, 0.0};
-    f1_ = {1, 1, 1, 0, 0.0};
-    f2_ = {1, 1, 1, 0, 0.0};
+    tkeGrad_ = {0, 0, 0, 0};
+    omegaGrad_ = {0, 0, 0, 0};
+    f1_ = {0, 0, 0, 0, 0.0};
+    f2_ = {0, 0, 0, 0, 0.0};
   }
 }
 
 // constructor -- allocate space for procBlock
 procBlock::procBlock(const int &ni, const int &nj, const int &nk,
                      const int &numG, const bool &isViscous,
-                     const bool &isTurbulent, const bool &storeTimeN,
-                     const bool &isMultiLevelInTime) {
+                     const bool &isTurbulent, const bool &isRANS,
+                     const bool &storeTimeN, const bool &isMultiLevelInTime) {
   // ni -- i-dimension (cell)
   // nj -- j-dimension (cell)
   // nk -- k-dimension (cell)
@@ -170,9 +184,11 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   localPos_ = 0;
 
   bc_ = {};
+  wallData_ = {};
 
   isViscous_ = isViscous;
   isTurbulent_ = isTurbulent;
+  isRANS_ = isRANS;
   storeTimeN_ = storeTimeN;
   isMultiLevelTime_ = isMultiLevelInTime;
 
@@ -181,12 +197,12 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   if (storeTimeN) {
     consVarsN_ = {ni, nj, nk, 0};
   } else {
-    consVarsN_ = {1, 1, 1, 0};
+    consVarsN_ = {0, 0, 0, 0};
   }
   if (isMultiLevelTime_) {
     consVarsNm1_ = {ni, nj, nk, 0};
   } else {
-    consVarsNm1_ = {1, 1, 1, 0};
+    consVarsNm1_ = {0, 0, 0, 0};
   }
   center_ = {ni, nj, nk, numGhosts_};
   fAreaI_ = {ni + 1, nj, nk, numGhosts_};
@@ -199,9 +215,9 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   vol_ = {ni, nj, nk, numGhosts_};
   wallDist_ = {ni, nj, nk, numGhosts_, DEFAULTWALLDIST};
 
-  cellWidthI_ = {1, 1, 1, 0};
-  cellWidthJ_ = {1, 1, 1, 0};
-  cellWidthK_ = {1, 1, 1, 0};
+  cellWidthI_ = {ni, nj, nk, numGhosts_};
+  cellWidthJ_ = {ni, nj, nk, numGhosts_};
+  cellWidthK_ = {ni, nj, nk, numGhosts_};
 
   specRadius_ = {ni, nj, nk, 0};
   dt_ = {ni, nj, nk, 0};
@@ -213,23 +229,27 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
     temperatureGrad_ = {ni, nj, nk, numGhosts_};
     viscosity_ = {ni, nj, nk, numGhosts_};
   } else {
-    velocityGrad_ = {1, 1, 1, 0};
-    temperatureGrad_ = {1, 1, 1, 0};
-    viscosity_ = {1, 1, 1, 0};
+    velocityGrad_ = {0, 0, 0, 0};
+    temperatureGrad_ = {0, 0, 0, 0};
+    viscosity_ = {0, 0, 0, 0};
   }
 
   if (isTurbulent_) {
+    eddyViscosity_ = {ni, nj, nk, numGhosts_};
+  } else {
+    eddyViscosity_ = {0, 0, 0, 0};
+  }
+
+  if (isRANS_) {
     tkeGrad_ = {ni, nj, nk, numGhosts_};
     omegaGrad_ = {ni, nj, nk, numGhosts_};
-    eddyViscosity_ = {ni, nj, nk, numGhosts_};
     f1_ = {ni, nj, nk, numGhosts_};
     f2_ = {ni, nj, nk, numGhosts_};
   } else {
-    tkeGrad_ = {1, 1, 1, 0};
-    omegaGrad_ = {1, 1, 1, 0};
-    eddyViscosity_ = {1, 1, 1, 0};
-    f1_ = {1, 1, 1, 0};
-    f2_ = {1, 1, 1, 0};
+    tkeGrad_ = {0, 0, 0, 0};
+    omegaGrad_ = {0, 0, 0, 0};
+    f1_ = {0, 0, 0, 0};
+    f2_ = {0, 0, 0, 0};
   }
 }
 
@@ -431,7 +451,7 @@ void procBlock::CalcInvFluxI(const idealGas &eqnState, const input &inp,
           const auto invSpecRad = state_(ii, jj, kk).InvCellSpectralRadius(
               fAreaI_(ii, jj, kk), fAreaI_(ii + 1, jj, kk), eqnState);
 
-          const auto turbInvSpecRad = isTurbulent_ ?
+          const auto turbInvSpecRad = isRANS_ ?
               turb->InviscidCellSpecRad(state_(ii, jj, kk), fAreaI_(ii, jj, kk),
                                         fAreaI_(ii + 1, jj, kk)): 0.0;
 
@@ -560,7 +580,7 @@ void procBlock::CalcInvFluxJ(const idealGas &eqnState, const input &inp,
           const auto invSpecRad = state_(ii, jj, kk).InvCellSpectralRadius(
               fAreaJ_(ii, jj, kk), fAreaJ_(ii, jj + 1, kk), eqnState);
 
-          const auto turbInvSpecRad = isTurbulent_ ?
+          const auto turbInvSpecRad = isRANS_ ?
               turb->InviscidCellSpecRad(state_(ii, jj, kk), fAreaJ_(ii, jj, kk),
                                         fAreaJ_(ii, jj + 1, kk)): 0.0;
 
@@ -691,7 +711,7 @@ void procBlock::CalcInvFluxK(const idealGas &eqnState, const input &inp,
           const auto invSpecRad = state_(ii, jj, kk).InvCellSpectralRadius(
               fAreaK_(ii, jj, kk), fAreaK_(ii, jj, kk + 1), eqnState);
 
-          const auto turbInvSpecRad = isTurbulent_ ?
+          const auto turbInvSpecRad = isRANS_ ?
               turb->InviscidCellSpecRad(state_(ii, jj, kk), fAreaK_(ii, jj, kk),
                                         fAreaK_(ii, jj, kk + 1)) : 0.0;
 
@@ -741,22 +761,21 @@ the time step is user specified assign that time step (after
 nondimensionalization) to dt variable. If time step is to be determined using CFL
 number, call function to do so.
 */
-void procBlock::CalcBlockTimeStep(const input &inputVars, const double &aRef) {
-  // inputVars -- all input variables
-  // aRef -- reference speed of sound (used for time non dimensionalization)
+void procBlock::CalcBlockTimeStep(const input &inp) {
+  // inp -- all input variables
 
   // loop over all physical cells - no ghost cells for dt variable
   for (auto kk = 0; kk < this->NumK(); kk++) {
     for (auto jj = 0; jj < this->NumJ(); jj++) {
       for (auto ii = 0; ii < this->NumI(); ii++) {
         // dt specified, use global time stepping
-        if (inputVars.Dt() > 0.0) {
+        if (inp.Dt() > 0.0) {
           // nondimensional time
-          dt_(ii, jj, kk) = inputVars.Dt() * aRef / inputVars.LRef();
+          dt_(ii, jj, kk) = inp.Dt() * inp.ARef() / inp.LRef();
 
         // cfl specified, use local time stepping
-        } else if (inputVars.CFL() > 0.0) {
-          this->CalcCellDt(ii, jj, kk, inputVars.CFL());
+        } else if (inp.CFL() > 0.0) {
+          this->CalcCellDt(ii, jj, kk, inp.CFL());
         } else {
           cerr << "ERROR: Neither dt or cfl was specified!" << endl;
           exit(EXIT_FAILURE);
@@ -771,14 +790,12 @@ explicit methods it calls the appropriate explicit method to update. For
 implicit methods it uses the correction du and calls the implicit updater.
 */
 void procBlock::UpdateBlock(const input &inputVars, const idealGas &eos,
-                            const double &aRef,
                             const sutherland &suth,
                             const multiArray3d<genArray> &du,
-                            const unique_ptr<turbModel> &turb,
-                            const int &rr, genArray &l2, resid &linf) {
+                            const unique_ptr<turbModel> &turb, const int &rr,
+                            genArray &l2, resid &linf) {
   // inputVars -- all input variables
   // eos -- equation of state
-  // aRef -- reference speed of sound (for nondimensionalization)
   // suth -- sutherland's law for viscosity
   // du -- updates to conservative variables (only used in implicit solver)
   // turb -- turbulence model
@@ -913,8 +930,10 @@ void procBlock::ResetResidWS() {
 void procBlock::ResetGradients() {
   velocityGrad_.Zero();
   temperatureGrad_.Zero();
-  tkeGrad_.Zero();
-  omegaGrad_.Zero();
+  if (isRANS_) {
+    tkeGrad_.Zero();
+    omegaGrad_.Zero();
+  }
 }
 
 // member function to reset the turbulence variables back to zero after an
@@ -922,8 +941,10 @@ void procBlock::ResetGradients() {
 // function calls.
 void procBlock::ResetTurbVars() {
   eddyViscosity_.Zero(0.0);
-  f1_.Zero(0.0);
-  f2_.Zero(0.0);
+  if (isRANS_) {
+    f1_.Zero(0.0);
+    f2_.Zero(0.0);
+  }
 }
 
 /* Member function to add the cell volume divided by the cell time step to the
@@ -953,37 +974,6 @@ The above equation shows that the time m minus time n term (FD(Un)) requires a
 (1+zeta)V/(t*theta) term multiplied by it. That is the purpose of this
 function.
 */
-// multiArray3d<genArray> procBlock::SolTimeMMinusN(
-//     const multiArray3d<genArray> &n, const idealGas &eos, const input &inp,
-//     const int &mm) const {
-//   // n -- solution for block at time n
-//   // eos -- equation of state
-//   // inp -- input variables
-//   // mm -- nonlinear iteration number
-
-//   // initialize a vector to hold the returned values to zero
-//   multiArray3d<genArray> mMinusN(n.NumI(), n.NumJ(), n.NumK(), 0);
-
-//   // if mm is 0, then solution at time m and solution at time n is the same
-//   if (mm != 0) {
-//     auto m = this->GetCopyConsVars(eos);
-
-//     // loop over all physical cells
-//     for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
-//       for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
-//         for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
-//           const auto diagVolTime = (vol_(ii, jj, kk) * (1.0 + inp.Zeta()))
-//               / (dt_(ii, jj, kk) * inp.Theta());
-//           mMinusN(ii, jj, kk) = diagVolTime * (m(ii, jj, kk) - n(ii, jj, kk));
-//         }
-//       }
-//     }
-//   }
-
-//   return mMinusN;
-// }
-
-
 double procBlock::SolDeltaNCoeff(const int &ii, const int &jj, const int &kk,
                                  const input &inp) const {
   return (vol_(ii, jj, kk) * (1.0 + inp.Zeta())) / (dt_(ii, jj, kk) * inp.Theta());
@@ -1002,64 +992,13 @@ double procBlock::SolDeltaNm1Coeff(const int &ii, const int &jj, const int &kk,
 
 genArray procBlock::SolDeltaNm1(const int &ii, const int &jj, const int &kk,
                                 const input &inp) const {
-  const auto coeff = this->SolDeltaNm1Coeff(ii, jj, kk, inp);
-  return coeff * (consVarsN_(ii, jj, kk) - consVarsNm1_(ii, jj, kk));
+  if (isMultiLevelTime_) {
+    const auto coeff = this->SolDeltaNm1Coeff(ii, jj, kk, inp);
+    return coeff * (consVarsN_(ii, jj, kk) - consVarsNm1_(ii, jj, kk));
+  } else {
+    return genArray(0.0);
+  }
 }
-
-/* Member function to calculate the delta n-1 term for the implicit bdf2 solver.
-
-dU/dt = V/t * [ ((1 + zeta) * FD - zeta * BD) / ((1 + theta) * FD )] * Un = -Rn
-
-The above equation shows the governing equations written in the Beam & Warming
-format for time integration. U is the vector of conserved variables
-where n represents the time step. Theta and zeta are Beam & Warming parameters,
-t is the time step, V is the cell volume, and R is the residual.
-FD and BD are the forward and backward difference operators respectively. These
-opererators operate in the time domain. For example FD(U) =
-Un+1 - Un and BD(U) = Un - Un-1. Solving the above equation for FD(Qn) we get
-the following:
-
-FD(Un) = (-t * Rn - t * theta * FD(Rn) + zeta * V * FD(Un-1)) / ((1 + zeta) * V)
-
-FD(Rn) requires us to know the residual at time n+1, but this is unknown. To
-bypass this difficulty we linearize the residual using a Taylor series
-expansion about time n. Rn+1 = Rn + J*FD(Un) where J is the flux jacobian dR/dU.
-Rearranging the above equation we get the following:
-
-[J + (1+zeta)*V/(t*theta)] * FD(Un) = -Rn/theta + zeta*V/(t*theta) * FD(Un-1)
-
-The above equation shows that the time n minus time n-1 term (FD(Un-1)) requires
-a zeta*V/(t*theta) term multiplied by it. That is the purpose of this
-function.
-
-This function is supposed to be run at the end of a time step when the data stored
-in *this has been updated to the next time step.
-*/
-// multiArray3d<genArray> procBlock::DeltaNMinusOne(
-//     const multiArray3d<genArray> &solTimeN, const idealGas &eqnState,
-//     const double &theta, const double &zeta) const {
-//   // solTimeN -- The solution at time n
-//   // eqnState -- equation of state
-//   // theta -- Beam & Warming coefficient theta for time integration
-//   // zeta -- Beam & Warming coefficient zeta for time integration
-
-//   // Solution at time n minus solution at time n-1
-//   multiArray3d<genArray> solDeltaNm1(this->NumI(), this->NumJ(), this->NumK(), 0);
-
-//   // loop over physical cells
-//   for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
-//     for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
-//       for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
-//         const auto diagVolTime = (vol_(ii, jj, kk) * zeta) /
-//             (dt_(ii, jj, kk) * theta);
-//         solDeltaNm1(ii, jj, kk) = diagVolTime *
-//             (state_(ii, jj, kk).ConsVars(eqnState) -
-//              solTimeN(ii, jj, kk));
-//       }
-//     }
-//   }
-//   return solDeltaNm1;
-// }
 
 void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
                                const input &inp) const {
@@ -1080,9 +1019,9 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
 
         // add volume and time term
         mainDiagonal(ii, jj, kk).MultiplyOnDiagonal(inp.MatrixRelaxation(),
-                                                    isTurbulent_);
-        mainDiagonal(ii, jj, kk).AddOnDiagonal(diagVolTime, isTurbulent_);
-        mainDiagonal(ii, jj, kk).Inverse(isTurbulent_);
+                                                    isRANS_);
+        mainDiagonal(ii, jj, kk).AddOnDiagonal(diagVolTime, isRANS_);
+        mainDiagonal(ii, jj, kk).Inverse(isRANS_);
       }
     }
   }
@@ -1247,7 +1186,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // if i lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii - 1, jj, kk) ||
-        bc_.GetBCName(ii, jj, kk, 1) == "interblock") {
+        bc_.BCIsConnection(ii, jj, kk, 1)) {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
 
@@ -1265,7 +1204,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // if j lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii, jj - 1, kk) ||
-        bc_.GetBCName(ii, jj, kk, 3) == "interblock") {
+        bc_.BCIsConnection(ii, jj, kk, 3)) {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
@@ -1283,7 +1222,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // if k lower diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii, jj, kk - 1) ||
-        bc_.GetBCName(ii, jj, kk, 5) == "interblock") {
+        bc_.BCIsConnection(ii, jj, kk, 5)) {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
 
@@ -1307,7 +1246,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       // if i upper cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii + 1, jj, kk) ||
-          bc_.GetBCName(ii + 1, jj, kk, 2) == "interblock") {
+          bc_.BCIsConnection(ii + 1, jj, kk, 2)) {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
 
@@ -1325,7 +1264,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       // if j upper cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii, jj + 1, kk) ||
-          bc_.GetBCName(ii, jj + 1, kk, 4) == "interblock") {
+          bc_.BCIsConnection(ii, jj + 1, kk, 4)) {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
 
@@ -1343,7 +1282,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       // if k lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii, jj, kk + 1) ||
-          bc_.GetBCName(ii, jj, kk + 1, 6) == "interblock") {
+          bc_.BCIsConnection(ii, jj, kk + 1, 6)) {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
 
@@ -1407,7 +1346,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
     // if i upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii + 1, jj, kk) ||
-        bc_.GetBCName(ii + 1, jj, kk, 2) == "interblock") {
+        bc_.BCIsConnection(ii + 1, jj, kk, 2)) {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
 
@@ -1425,7 +1364,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
     // if j upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii, jj + 1, kk) ||
-        bc_.GetBCName(ii, jj + 1, kk, 4) == "interblock") {
+        bc_.BCIsConnection(ii, jj + 1, kk, 4)) {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
 
@@ -1443,7 +1382,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
     // if k upper diagonal cell is in physical location there is a contribution
     // from it
     if (this->IsPhysical(ii, jj, kk + 1) ||
-        bc_.GetBCName(ii, jj, kk + 1, 6) == "interblock") {
+        bc_.BCIsConnection(ii, jj, kk + 1, 6)) {
       // calculate projected center to center distance along face area
       const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
 
@@ -1467,7 +1406,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       // if i lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii - 1, jj, kk) ||
-          bc_.GetBCName(ii, jj, kk, 1) == "interblock") {
+          bc_.BCIsConnection(ii, jj, kk, 1)) {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
 
@@ -1485,7 +1424,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       // if j lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii, jj - 1, kk) ||
-          bc_.GetBCName(ii, jj, kk, 3) == "interblock") {
+          bc_.BCIsConnection(ii, jj, kk, 3)) {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
@@ -1503,7 +1442,7 @@ double procBlock::LUSGS_Backward(const vector<vector3d<int>> &reorder,
       // if k lower cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii, jj, kk - 1) ||
-          bc_.GetBCName(ii, jj, kk, 5) == "interblock") {
+          bc_.BCIsConnection(ii, jj, kk, 5)) {
         // calculate projected center to center distance along face area
         const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
 
@@ -1572,7 +1511,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if i lower diagonal cell is in physical location there is a
         // contribution from it
         if (this->IsPhysical(ii - 1, jj, kk) ||
-            bc_.GetBCName(ii, jj, kk, 1) == "interblock") {
+            bc_.BCIsConnection(ii, jj, kk, 1)) {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii, jj, kk, "i");
 
@@ -1590,7 +1529,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if j lower diagonal cell is in physical location there is a
         // constribution from it
         if (this->IsPhysical(ii, jj - 1, kk) ||
-            bc_.GetBCName(ii, jj, kk, 3) == "interblock") {
+            bc_.BCIsConnection(ii, jj, kk, 3)) {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii, jj, kk, "j");
 
@@ -1608,7 +1547,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if k lower diagonal cell is in physical location there is a
         // contribution from it
         if (this->IsPhysical(ii, jj, kk - 1) ||
-            bc_.GetBCName(ii, jj, kk, 5) == "interblock") {
+            bc_.BCIsConnection(ii, jj, kk, 5)) {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii, jj, kk, "k");
 
@@ -1626,7 +1565,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if i upper diagonal cell is in physical location there is a
         // contribution from it
         if (this->IsPhysical(ii + 1, jj, kk) ||
-            bc_.GetBCName(ii + 1, jj, kk, 2) == "interblock") {
+            bc_.BCIsConnection(ii + 1, jj, kk, 2)) {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii + 1, jj, kk, "i");
 
@@ -1645,7 +1584,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if j upper diagonal cell is in physical location there is a
         // contribution from it
         if (this->IsPhysical(ii, jj + 1, kk) ||
-            bc_.GetBCName(ii, jj + 1, kk, 4) == "interblock") {
+            bc_.BCIsConnection(ii, jj + 1, kk, 4)) {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii, jj + 1, kk, "j");
 
@@ -1664,7 +1603,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
         // if k upper diagonal cell is in physical location there is a
         // contribution from it
         if (this->IsPhysical(ii, jj, kk + 1) ||
-            bc_.GetBCName(ii, jj, kk + 1, 6) == "interblock") {
+            bc_.BCIsConnection(ii, jj, kk + 1, 6)) {
           // calculate projected center to center distance
           const auto projDist = this->ProjC2CDist(ii, jj, kk + 1, "k");
 
@@ -1856,74 +1795,128 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
   for (auto kk = fAreaI_.PhysStartK(); kk < fAreaI_.PhysEndK(); kk++) {
     for (auto jj = fAreaI_.PhysStartJ(); jj < fAreaI_.PhysEndJ(); jj++) {
       for (auto ii = fAreaI_.PhysStartI(); ii < fAreaI_.PhysEndI(); ii++) {
-        primVars state;
-        auto wDist = 0.0;
-        auto mu = 0.0;
-
-        if (inp.ViscousFaceReconstruction() == "central") {
-          // get cell widths
-          const vector<double> cellWidth = {cellWidthI_(ii - 1, jj, kk),
-                                            cellWidthI_(ii, jj, kk)};
-
-          // Get state at face
-          state = FaceReconCentral(state_(ii - 1, jj, kk),
-                                   state_(ii, jj, kk), cellWidth);
-          state.LimitTurb(turb);
-
-          // Get wall distance at face
-          wDist = FaceReconCentral(wallDist_(ii - 1, jj, kk),
-                                   wallDist_(ii, jj, kk), cellWidth);
-
-          // Get viscosity at face
-          mu = FaceReconCentral(viscosity_(ii - 1, jj, kk),
-                                viscosity_(ii, jj, kk), cellWidth);
-
-        } else {  // use 4th order reconstruction
-          // get cell widths
-          const vector<double> cellWidth = {cellWidthI_(ii - 2, jj, kk),
-                                            cellWidthI_(ii - 1, jj, kk),
-                                            cellWidthI_(ii, jj, kk),
-                                            cellWidthI_(ii + 1, jj, kk)};
-
-          // Get state at face
-          state = FaceReconCentral4th(state_(ii - 2, jj, kk),
-                                      state_(ii - 1, jj, kk),
-                                      state_(ii, jj, kk),
-                                      state_(ii + 1, jj, kk), cellWidth);
-          state.LimitTurb(turb);
-
-          // Get wall distance at face
-          wDist = FaceReconCentral4th(wallDist_(ii - 2, jj, kk),
-                                      wallDist_(ii - 1, jj, kk),
-                                      wallDist_(ii, jj, kk),
-                                      wallDist_(ii + 1, jj, kk), cellWidth);
-
-          // Get viscosity at face
-          mu = FaceReconCentral4th(viscosity_(ii - 2, jj, kk),
-                                   viscosity_(ii - 1, jj, kk),
-                                   viscosity_(ii, jj, kk),
-                                   viscosity_(ii + 1, jj, kk), cellWidth);
-        }
-
         // calculate gradients
         tensor<double> velGrad;
         vector3d<double> tempGrad, tkeGrad, omegaGrad;
-        CalcGradsI(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
+        this->CalcGradsI(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
 
-        // calculate turbulent eddy viscosity and blending coefficients
+        // declare variables needed throughout function
+        primVars state;
         auto f1 = 0.0;
         auto f2 = 0.0;
+        auto mu = 0.0;
         auto mut = 0.0;
-        if (isTurbulent_) {
-          turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
-                                    wDist, suth, mut, f1, f2);
+        viscousFlux tempViscFlux;
+
+        // get surface info it at boundary
+        auto surfType = 0;
+        if (ii == fAreaI_.PhysStartI()) {
+          surfType = 1;
+        } else if (ii == fAreaI_.PhysEndI() - 1) {
+          surfType = 2;
+        }
+        const auto isBoundary = (surfType > 0) ? true : false;
+        auto isWallLawBoundary = false;
+        auto isLowReBoundary = false;
+        auto wallDataInd = 0;
+
+        if (isBoundary) {
+          // get boundary surface information
+          const auto surf = bc_.GetBCSurface(ii, jj, kk, surfType);
+          if (surf.BCType() == "viscousWall") {
+            wallDataInd = this->WallDataIndex(surf);
+            isWallLawBoundary =
+                wallData_[wallDataInd].IsWallLaw() &&
+                !wallData_[wallDataInd].SwitchToLowRe(ii, jj, kk);
+            isLowReBoundary = !isWallLawBoundary;
+          }
         }
 
-        // calculate viscous flux
-        const viscousFlux tempViscFlux(velGrad, suth, eqnState, tempGrad,
-                                       this->FAreaUnitI(ii, jj, kk),
-                                       tkeGrad, omegaGrad, turb, state, mu,
-                                       mut, f1);
+        if (isWallLawBoundary) {
+          // wall law wall boundary
+          f1 = 1.0;
+          f2 = 1.0;
+          mu = wallData_[wallDataInd].WallViscosity(ii, jj, kk) *
+               suth.InvNondimScaling();
+          mut = wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk) *
+                suth.InvNondimScaling();
+          state = wallData_[wallDataInd].WallState(ii, jj, kk, eqnState);
+          tempViscFlux.CalcWallLawFlux(
+              wallData_[wallDataInd].WallShearStress(ii, jj, kk),
+              wallData_[wallDataInd].WallHeatFlux(ii, jj, kk),
+              wallData_[wallDataInd].WallViscosity(ii, jj, kk),
+              wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk),
+              wallData_[wallDataInd].WallVelocity(),
+              this->FAreaUnitI(ii, jj, kk), tkeGrad, omegaGrad, turb);
+        } else {  // not boundary, or low Re wall boundary
+          auto wDist = 0.0;
+          if (inp.ViscousFaceReconstruction() == "central") {
+            // get cell widths
+            const vector<double> cellWidth = {cellWidthI_(ii - 1, jj, kk),
+                                              cellWidthI_(ii, jj, kk)};
+
+            // Get state at face
+            state = FaceReconCentral(state_(ii - 1, jj, kk), state_(ii, jj, kk),
+                                     cellWidth);
+            state.LimitTurb(turb);
+
+            // Get wall distance at face
+            wDist = FaceReconCentral(wallDist_(ii - 1, jj, kk),
+                                     wallDist_(ii, jj, kk), cellWidth);
+
+            // Get viscosity at face
+            mu = FaceReconCentral(viscosity_(ii - 1, jj, kk),
+                                  viscosity_(ii, jj, kk), cellWidth);
+
+          } else {  // use 4th order reconstruction
+            // get cell widths
+            const vector<double> cellWidth = {
+                cellWidthI_(ii - 2, jj, kk), cellWidthI_(ii - 1, jj, kk),
+                cellWidthI_(ii, jj, kk), cellWidthI_(ii + 1, jj, kk)};
+
+            // Get state at face
+            state = FaceReconCentral4th(
+                state_(ii - 2, jj, kk), state_(ii - 1, jj, kk),
+                state_(ii, jj, kk), state_(ii + 1, jj, kk), cellWidth);
+            state.LimitTurb(turb);
+
+            // Get wall distance at face
+            wDist = FaceReconCentral4th(
+                wallDist_(ii - 2, jj, kk), wallDist_(ii - 1, jj, kk),
+                wallDist_(ii, jj, kk), wallDist_(ii + 1, jj, kk), cellWidth);
+
+            // Get viscosity at face
+            mu = FaceReconCentral4th(
+                viscosity_(ii - 2, jj, kk), viscosity_(ii - 1, jj, kk),
+                viscosity_(ii, jj, kk), viscosity_(ii + 1, jj, kk), cellWidth);
+          }
+
+          // calculate turbulent eddy viscosity and blending coefficients
+          if (isTurbulent_) {
+            // calculate length scale
+            const auto lengthScale =
+                0.5 * (cellWidthI_(ii - 1, jj, kk) + cellWidthI_(ii, jj, kk));
+            turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
+                                      wDist, suth, lengthScale, mut, f1, f2);
+          }
+
+          if (isLowReBoundary) {
+            // calculate viscous flux
+            auto wVars = tempViscFlux.CalcWallFlux(
+                velGrad, suth, eqnState, tempGrad, this->FAreaUnitI(ii, jj, kk),
+                tkeGrad, omegaGrad, turb, state, mu, mut, f1);
+            auto y = (surfType == 1) ? wallDist_(ii, jj, kk)
+                                     : wallDist_(ii - 1, jj, kk);
+            wVars.yplus_ = y * wVars.frictionVelocity_ * wVars.density_ /
+                           (wVars.viscosity_ + wVars.turbEddyVisc_);
+            wallData_[wallDataInd](ii, jj, kk) = wVars;
+          } else {
+            // calculate viscous flux
+            tempViscFlux.CalcFlux(velGrad, suth, eqnState, tempGrad,
+                                  this->FAreaUnitI(ii, jj, kk), tkeGrad,
+                                  omegaGrad, turb, state, mu, mut, f1);
+          }
+        }
 
         // calculate projected center to center distance
         const auto c2cDist = this->ProjC2CDist(ii, jj, kk, "i");
@@ -1941,11 +1934,13 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           velocityGrad_(ii - 1, jj, kk) += sixth * velGrad;
           temperatureGrad_(ii - 1, jj, kk) += sixth * tempGrad;
           if (isTurbulent_) {
-            tkeGrad_(ii - 1, jj, kk) += sixth * tkeGrad;
-            omegaGrad_(ii - 1, jj, kk) += sixth * omegaGrad;
             eddyViscosity_(ii - 1, jj, kk) += sixth * mut;
-            f1_(ii - 1, jj, kk) += sixth * f1;
-            f2_(ii - 1, jj, kk) += sixth * f2;
+            if (isRANS_) {
+              tkeGrad_(ii - 1, jj, kk) += sixth * tkeGrad;
+              omegaGrad_(ii - 1, jj, kk) += sixth * omegaGrad;
+              f1_(ii - 1, jj, kk) += sixth * f1;
+              f2_(ii - 1, jj, kk) += sixth * f2;
+            }
           }
 
           // if using block matrix on main diagonal, accumulate flux jacobian
@@ -1968,11 +1963,13 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
           velocityGrad_(ii, jj, kk) += sixth * velGrad;
           temperatureGrad_(ii, jj, kk) += sixth * tempGrad;
           if (isTurbulent_) {
-            tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
-            omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
             eddyViscosity_(ii, jj, kk) += sixth * mut;
-            f1_(ii, jj, kk) += sixth * f1;
-            f2_(ii, jj, kk) += sixth * f2;
+            if (isRANS_) {
+              tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
+              omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
+              f1_(ii, jj, kk) += sixth * f1;
+              f2_(ii, jj, kk) += sixth * f2;
+            }
           }
 
           // calculate component of wave speed. This is done on a cell by cell
@@ -1982,7 +1979,7 @@ void procBlock::CalcViscFluxI(const sutherland &suth, const idealGas &eqnState,
                   fAreaI_(ii, jj, kk), fAreaI_(ii + 1, jj, kk), eqnState, suth,
                   vol_(ii, jj, kk), viscosity_(ii, jj, kk), mut, turb);
 
-          const auto turbViscSpecRad = isTurbulent_ ?
+          const auto turbViscSpecRad = isRANS_ ?
               turb->ViscCellSpecRad(state_(ii, jj, kk), fAreaI_(ii, jj, kk),
                                     fAreaI_(ii + 1, jj, kk),
                                     viscosity_(ii, jj, kk),
@@ -2102,74 +2099,128 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
   for (auto kk = fAreaJ_.PhysStartK(); kk < fAreaJ_.PhysEndK(); kk++) {
     for (auto jj = fAreaJ_.PhysStartJ(); jj < fAreaJ_.PhysEndJ(); jj++) {
       for (auto ii = fAreaJ_.PhysStartI(); ii < fAreaJ_.PhysEndI(); ii++) {
-        primVars state;
-        auto wDist = 0.0;
-        auto mu = 0.0;
-
-        if (inp.ViscousFaceReconstruction() == "central") {
-          // get cell widths
-          const vector<double> cellWidth = {cellWidthJ_(ii, jj - 1, kk),
-                                            cellWidthJ_(ii, jj, kk)};
-
-          // Get velocity at face
-          state = FaceReconCentral(state_(ii, jj - 1, kk),
-                                   state_(ii, jj, kk), cellWidth);
-          state.LimitTurb(turb);
-
-          // Get wall distance at face
-          wDist = FaceReconCentral(wallDist_(ii, jj - 1, kk),
-                                   wallDist_(ii, jj, kk), cellWidth);
-
-          // Get wall distance at face
-          mu = FaceReconCentral(viscosity_(ii, jj - 1, kk),
-                                viscosity_(ii, jj, kk), cellWidth);
-
-        } else {  // use 4th order reconstruction
-          // get cell widths
-          const vector<double> cellWidth = {cellWidthJ_(ii, jj - 2, kk),
-                                            cellWidthJ_(ii, jj - 1, kk),
-                                            cellWidthJ_(ii, jj, kk),
-                                            cellWidthJ_(ii, jj + 1, kk)};
-
-          // Get velocity at face
-          state = FaceReconCentral4th(state_(ii, jj - 2, kk),
-                                      state_(ii, jj - 1, kk),
-                                      state_(ii, jj, kk),
-                                      state_(ii, jj + 1, kk), cellWidth);
-          state.LimitTurb(turb);
-
-          // Get wall distance at face
-          wDist = FaceReconCentral4th(wallDist_(ii, jj - 2, kk),
-                                      wallDist_(ii, jj - 1, kk),
-                                      wallDist_(ii, jj, kk),
-                                      wallDist_(ii, jj + 1, kk), cellWidth);
-
-          // Get wall distance at face
-          mu = FaceReconCentral4th(viscosity_(ii, jj - 2, kk),
-                                   viscosity_(ii, jj - 1, kk),
-                                   viscosity_(ii, jj, kk),
-                                   viscosity_(ii, jj + 1, kk), cellWidth);
-        }
-
         // calculate gradients
         tensor<double> velGrad;
         vector3d<double> tempGrad, tkeGrad, omegaGrad;
-        CalcGradsJ(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
+        this->CalcGradsJ(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
 
-        // calculate turbulent eddy viscosity and blending coefficients
+        // declare variables needed throughout function
+        primVars state;
         auto f1 = 0.0;
         auto f2 = 0.0;
+        auto mu = 0.0;
         auto mut = 0.0;
-        if (isTurbulent_) {
-          turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
-                                    wDist, suth, mut, f1, f2);
+        viscousFlux tempViscFlux;
+
+        // get surface info if at boundary
+        auto surfType = 0;
+        if (jj == fAreaJ_.PhysStartJ()) {
+          surfType = 3;
+        } else if (jj == fAreaJ_.PhysEndJ() - 1) {
+          surfType = 4;
+        }
+        const auto isBoundary = (surfType > 0) ? true : false;
+        auto isWallLawBoundary = false;
+        auto isLowReBoundary = false;
+        auto wallDataInd = 0;
+
+        if (isBoundary) {
+          // get boundary surface information
+          const auto surf = bc_.GetBCSurface(ii, jj, kk, surfType);
+          if (surf.BCType() == "viscousWall") {
+            wallDataInd = this->WallDataIndex(surf);
+            isWallLawBoundary =
+                wallData_[wallDataInd].IsWallLaw() &&
+                !wallData_[wallDataInd].SwitchToLowRe(ii, jj, kk);
+            isLowReBoundary = !isWallLawBoundary;
+          }
         }
 
-        // calculate viscous flux
-        const viscousFlux tempViscFlux(velGrad, suth, eqnState, tempGrad,
-                                       this->FAreaUnitJ(ii, jj, kk),
-                                       tkeGrad, omegaGrad, turb, state, mu,
-                                       mut, f1);
+        if (isWallLawBoundary) {
+          // wall law wall boundary
+          f1 = 1.0;
+          f2 = 1.0;
+          mu = wallData_[wallDataInd].WallViscosity(ii, jj, kk) *
+               suth.InvNondimScaling();
+          mut = wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk) *
+                suth.InvNondimScaling();
+          state = wallData_[wallDataInd].WallState(ii, jj, kk, eqnState);
+          tempViscFlux.CalcWallLawFlux(
+              wallData_[wallDataInd].WallShearStress(ii, jj, kk),
+              wallData_[wallDataInd].WallHeatFlux(ii, jj, kk),
+              wallData_[wallDataInd].WallViscosity(ii, jj, kk),
+              wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk),
+              wallData_[wallDataInd].WallVelocity(),
+              this->FAreaUnitJ(ii, jj, kk), tkeGrad, omegaGrad, turb);
+        } else {  // not boundary, or low Re wall boundary
+          auto wDist = 0.0;
+          if (inp.ViscousFaceReconstruction() == "central") {
+            // get cell widths
+            const vector<double> cellWidth = {cellWidthJ_(ii, jj - 1, kk),
+                                              cellWidthJ_(ii, jj, kk)};
+
+            // Get velocity at face
+            state = FaceReconCentral(state_(ii, jj - 1, kk), state_(ii, jj, kk),
+                                     cellWidth);
+            state.LimitTurb(turb);
+
+            // Get wall distance at face
+            wDist = FaceReconCentral(wallDist_(ii, jj - 1, kk),
+                                     wallDist_(ii, jj, kk), cellWidth);
+
+            // Get wall distance at face
+            mu = FaceReconCentral(viscosity_(ii, jj - 1, kk),
+                                  viscosity_(ii, jj, kk), cellWidth);
+
+          } else {  // use 4th order reconstruction
+            // get cell widths
+            const vector<double> cellWidth = {
+                cellWidthJ_(ii, jj - 2, kk), cellWidthJ_(ii, jj - 1, kk),
+                cellWidthJ_(ii, jj, kk), cellWidthJ_(ii, jj + 1, kk)};
+
+            // Get velocity at face
+            state = FaceReconCentral4th(
+                state_(ii, jj - 2, kk), state_(ii, jj - 1, kk),
+                state_(ii, jj, kk), state_(ii, jj + 1, kk), cellWidth);
+            state.LimitTurb(turb);
+
+            // Get wall distance at face
+            wDist = FaceReconCentral4th(
+                wallDist_(ii, jj - 2, kk), wallDist_(ii, jj - 1, kk),
+                wallDist_(ii, jj, kk), wallDist_(ii, jj + 1, kk), cellWidth);
+
+            // Get wall distance at face
+            mu = FaceReconCentral4th(
+                viscosity_(ii, jj - 2, kk), viscosity_(ii, jj - 1, kk),
+                viscosity_(ii, jj, kk), viscosity_(ii, jj + 1, kk), cellWidth);
+          }
+
+          // calculate turbulent eddy viscosity and blending coefficients
+          if (isTurbulent_) {
+            // calculate length scale
+            const auto lengthScale =
+                0.5 * (cellWidthJ_(ii, jj - 1, kk) + cellWidthJ_(ii, jj, kk));
+            turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
+                                      wDist, suth, lengthScale, mut, f1, f2);
+          }
+
+          if (isLowReBoundary) {
+            // calculate viscous flux
+            auto wVars = tempViscFlux.CalcWallFlux(
+                velGrad, suth, eqnState, tempGrad, this->FAreaUnitJ(ii, jj, kk),
+                tkeGrad, omegaGrad, turb, state, mu, mut, f1);
+            auto y = (surfType == 3) ? wallDist_(ii, jj, kk)
+                                     : wallDist_(ii, jj - 1, kk);
+            wVars.yplus_ = y * wVars.frictionVelocity_ * wVars.density_ /
+                           (wVars.viscosity_ + wVars.turbEddyVisc_);
+            wallData_[wallDataInd](ii, jj, kk) = wVars;
+          } else {
+            // calculate viscous flux
+            tempViscFlux.CalcFlux(velGrad, suth, eqnState, tempGrad,
+                                  this->FAreaUnitJ(ii, jj, kk), tkeGrad,
+                                  omegaGrad, turb, state, mu, mut, f1);
+          }
+        }
 
         // calculate projected center to center distance
         const auto c2cDist = this->ProjC2CDist(ii, jj, kk, "j");
@@ -2188,11 +2239,13 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           velocityGrad_(ii, jj - 1, kk) += sixth * velGrad;
           temperatureGrad_(ii, jj - 1, kk) += sixth * tempGrad;
           if (isTurbulent_) {
-            tkeGrad_(ii, jj - 1, kk) += sixth * tkeGrad;
-            omegaGrad_(ii, jj - 1, kk) += sixth * omegaGrad;
             eddyViscosity_(ii, jj - 1, kk) += sixth * mut;
-            f1_(ii, jj - 1, kk) += sixth * f1;
-            f2_(ii, jj - 1, kk) += sixth * f2;
+            if (isRANS_) {
+              tkeGrad_(ii, jj - 1, kk) += sixth * tkeGrad;
+              omegaGrad_(ii, jj - 1, kk) += sixth * omegaGrad;
+              f1_(ii, jj - 1, kk) += sixth * f1;
+              f2_(ii, jj - 1, kk) += sixth * f2;
+            }
           }
 
           // if using block matrix on main diagonal, accumulate flux jacobian
@@ -2215,11 +2268,13 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
           velocityGrad_(ii, jj, kk) += sixth * velGrad;
           temperatureGrad_(ii, jj, kk) += sixth * tempGrad;
           if (isTurbulent_) {
-            tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
-            omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
             eddyViscosity_(ii, jj, kk) += sixth * mut;
-            f1_(ii, jj, kk) += sixth * f1;
-            f2_(ii, jj, kk) += sixth * f2;
+            if (isRANS_) {
+              tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
+              omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
+              f1_(ii, jj, kk) += sixth * f1;
+              f2_(ii, jj, kk) += sixth * f2;
+            }
           }
 
           // calculate component of wave speed. This is done on a cell by cell
@@ -2229,7 +2284,7 @@ void procBlock::CalcViscFluxJ(const sutherland &suth, const idealGas &eqnState,
                   fAreaJ_(ii, jj, kk), fAreaJ_(ii, jj + 1, kk), eqnState, suth,
                   vol_(ii, jj, kk), viscosity_(ii, jj, kk), mut, turb);
 
-          const auto turbViscSpecRad = isTurbulent_ ?
+          const auto turbViscSpecRad = isRANS_ ?
               turb->ViscCellSpecRad(state_(ii, jj, kk), fAreaJ_(ii, jj, kk),
                                     fAreaJ_(ii, jj + 1, kk),
                                     viscosity_(ii, jj, kk),
@@ -2349,74 +2404,128 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
   for (auto kk = fAreaK_.PhysStartK(); kk < fAreaK_.PhysEndK(); kk++) {
     for (auto jj = fAreaK_.PhysStartJ(); jj < fAreaK_.PhysEndJ(); jj++) {
       for (auto ii = fAreaK_.PhysStartI(); ii < fAreaK_.PhysEndI(); ii++) {
-        primVars state;
-        auto wDist = 0.0;
-        auto mu = 0.0;
-
-        if (inp.ViscousFaceReconstruction() == "central") {
-          // get cell widths
-          const vector<double> cellWidth = {cellWidthK_(ii, jj, kk - 1),
-                                            cellWidthK_(ii, jj, kk)};
-
-          // Get state at face
-          state = FaceReconCentral(state_(ii, jj, kk - 1),
-                                   state_(ii, jj, kk), cellWidth);
-          state.LimitTurb(turb);
-
-          // Get wall distance at face
-          wDist = FaceReconCentral(wallDist_(ii, jj, kk - 1),
-                                   wallDist_(ii, jj, kk), cellWidth);
-
-          // Get wall distance at face
-          mu = FaceReconCentral(viscosity_(ii, jj, kk - 1),
-                                viscosity_(ii, jj, kk), cellWidth);
-
-        } else {  // use 4th order reconstruction
-          // get cell widths
-          const vector<double> cellWidth = {cellWidthK_(ii, jj, kk - 2),
-                                            cellWidthK_(ii, jj, kk - 1),
-                                            cellWidthK_(ii, jj, kk),
-                                            cellWidthK_(ii, jj, kk + 1)};
-
-          // Get state at face
-          state = FaceReconCentral4th(state_(ii, jj, kk - 2),
-                                      state_(ii, jj, kk - 1),
-                                      state_(ii, jj, kk),
-                                      state_(ii, jj, kk + 1), cellWidth);
-          state.LimitTurb(turb);
-
-          // Get wall distance at face
-          wDist = FaceReconCentral4th(wallDist_(ii, jj, kk - 2),
-                                      wallDist_(ii, jj, kk - 1),
-                                      wallDist_(ii, jj, kk),
-                                      wallDist_(ii, jj, kk + 1), cellWidth);
-
-          // Get wall distance at face
-          mu = FaceReconCentral4th(viscosity_(ii, jj, kk - 2),
-                                   viscosity_(ii, jj, kk - 1),
-                                   viscosity_(ii, jj, kk),
-                                   viscosity_(ii, jj, kk + 1), cellWidth);
-        }
-
-        // calculate viscous flux
+        // calculate gradients
         tensor<double> velGrad;
         vector3d<double> tempGrad, tkeGrad, omegaGrad;
-        CalcGradsK(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
+        this->CalcGradsK(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
 
-        // calculate turbulent eddy viscosity and blending coefficients
+        // declare variables needed throughout function
+        primVars state;
         auto f1 = 0.0;
         auto f2 = 0.0;
+        auto mu = 0.0;
         auto mut = 0.0;
-        if (isTurbulent_) {
-          turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
-                                    wDist, suth, mut, f1, f2);
+        viscousFlux tempViscFlux;
+
+        // get surface info if at boundary
+        auto surfType = 0;
+        if (kk == fAreaK_.PhysStartK()) {
+          surfType = 5;
+        } else if (kk == fAreaK_.PhysEndK() - 1) {
+          surfType = 6;
+        }
+        const auto isBoundary = (surfType > 0) ? true : false;
+        auto isWallLawBoundary = false;
+        auto isLowReBoundary = false;
+        auto wallDataInd = 0;
+
+        if (isBoundary) {
+          // get boundary surface information
+          const auto surf = bc_.GetBCSurface(ii, jj, kk, surfType);
+          if (surf.BCType() == "viscousWall") {
+            wallDataInd = this->WallDataIndex(surf);
+            isWallLawBoundary =
+                wallData_[wallDataInd].IsWallLaw() &&
+                !wallData_[wallDataInd].SwitchToLowRe(ii, jj, kk);
+            isLowReBoundary = !isWallLawBoundary;
+          }
         }
 
-        // calculate viscous flux
-        const viscousFlux tempViscFlux(velGrad, suth, eqnState, tempGrad,
-                                       this->FAreaUnitK(ii, jj, kk),
-                                       tkeGrad, omegaGrad, turb, state, mu,
-                                       mut, f1);
+        if (isWallLawBoundary) {
+          // wall law wall boundary
+          f1 = 1.0;
+          f2 = 1.0;
+          mu = wallData_[wallDataInd].WallViscosity(ii, jj, kk) *
+               suth.InvNondimScaling();
+          mut = wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk) *
+                suth.InvNondimScaling();
+          state = wallData_[wallDataInd].WallState(ii, jj, kk, eqnState);
+          tempViscFlux.CalcWallLawFlux(
+              wallData_[wallDataInd].WallShearStress(ii, jj, kk),
+              wallData_[wallDataInd].WallHeatFlux(ii, jj, kk),
+              wallData_[wallDataInd].WallViscosity(ii, jj, kk),
+              wallData_[wallDataInd].WallEddyViscosity(ii, jj, kk),
+              wallData_[wallDataInd].WallVelocity(),
+              this->FAreaUnitK(ii, jj, kk), tkeGrad, omegaGrad, turb);
+        } else {  // not boundary, or low Re wall boundary
+          auto wDist = 0.0;
+          if (inp.ViscousFaceReconstruction() == "central") {
+            // get cell widths
+            const vector<double> cellWidth = {cellWidthK_(ii, jj, kk - 1),
+                                              cellWidthK_(ii, jj, kk)};
+
+            // Get state at face
+            state = FaceReconCentral(state_(ii, jj, kk - 1), state_(ii, jj, kk),
+                                     cellWidth);
+            state.LimitTurb(turb);
+
+            // Get wall distance at face
+            wDist = FaceReconCentral(wallDist_(ii, jj, kk - 1),
+                                     wallDist_(ii, jj, kk), cellWidth);
+
+            // Get wall distance at face
+            mu = FaceReconCentral(viscosity_(ii, jj, kk - 1),
+                                  viscosity_(ii, jj, kk), cellWidth);
+
+          } else {  // use 4th order reconstruction
+            // get cell widths
+            const vector<double> cellWidth = {
+                cellWidthK_(ii, jj, kk - 2), cellWidthK_(ii, jj, kk - 1),
+                cellWidthK_(ii, jj, kk), cellWidthK_(ii, jj, kk + 1)};
+
+            // Get state at face
+            state = FaceReconCentral4th(
+                state_(ii, jj, kk - 2), state_(ii, jj, kk - 1),
+                state_(ii, jj, kk), state_(ii, jj, kk + 1), cellWidth);
+            state.LimitTurb(turb);
+
+            // Get wall distance at face
+            wDist = FaceReconCentral4th(
+                wallDist_(ii, jj, kk - 2), wallDist_(ii, jj, kk - 1),
+                wallDist_(ii, jj, kk), wallDist_(ii, jj, kk + 1), cellWidth);
+
+            // Get wall distance at face
+            mu = FaceReconCentral4th(
+                viscosity_(ii, jj, kk - 2), viscosity_(ii, jj, kk - 1),
+                viscosity_(ii, jj, kk), viscosity_(ii, jj, kk + 1), cellWidth);
+          }
+
+          // calculate turbulent eddy viscosity and blending coefficients
+          if (isTurbulent_) {
+            // calculate length scale
+            const auto lengthScale =
+                0.5 * (cellWidthK_(ii, jj, kk - 1) + cellWidthK_(ii, jj, kk));
+            turb->EddyViscAndBlending(state, velGrad, tkeGrad, omegaGrad, mu,
+                                      wDist, suth, lengthScale, mut, f1, f2);
+          }
+
+          if (isLowReBoundary) {
+            // calculate viscous flux
+            auto wVars = tempViscFlux.CalcWallFlux(
+                velGrad, suth, eqnState, tempGrad, this->FAreaUnitK(ii, jj, kk),
+                tkeGrad, omegaGrad, turb, state, mu, mut, f1);
+            auto y = (surfType == 5) ? wallDist_(ii, jj, kk)
+                                     : wallDist_(ii, jj, kk - 1);
+            wVars.yplus_ = y * wVars.frictionVelocity_ * wVars.density_ /
+                           (wVars.viscosity_ + wVars.turbEddyVisc_);
+            wallData_[wallDataInd](ii, jj, kk) = wVars;
+          } else {
+            // calculate viscous flux
+            tempViscFlux.CalcFlux(velGrad, suth, eqnState, tempGrad,
+                                  this->FAreaUnitK(ii, jj, kk), tkeGrad,
+                                  omegaGrad, turb, state, mu, mut, f1);
+          }
+        }
 
         // calculate projected center to center distance
         const auto c2cDist = this->ProjC2CDist(ii, jj, kk, "k");
@@ -2435,11 +2544,13 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           velocityGrad_(ii, jj, kk - 1) += sixth * velGrad;
           temperatureGrad_(ii, jj, kk - 1) += sixth * tempGrad;
           if (isTurbulent_) {
-            tkeGrad_(ii, jj, kk - 1) += sixth * tkeGrad;
-            omegaGrad_(ii, jj, kk - 1) += sixth * omegaGrad;
             eddyViscosity_(ii, jj, kk - 1) += sixth * mut;
-            f1_(ii, jj, kk - 1) += sixth * f1;
-            f2_(ii, jj, kk - 1) += sixth * f2;
+            if (isRANS_) {
+              tkeGrad_(ii, jj, kk - 1) += sixth * tkeGrad;
+              omegaGrad_(ii, jj, kk - 1) += sixth * omegaGrad;
+              f1_(ii, jj, kk - 1) += sixth * f1;
+              f2_(ii, jj, kk - 1) += sixth * f2;
+            }
           }
 
           // if using block matrix on main diagonal, accumulate flux jacobian
@@ -2462,11 +2573,13 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
           velocityGrad_(ii, jj, kk) += sixth * velGrad;
           temperatureGrad_(ii, jj, kk) += sixth * tempGrad;
           if (isTurbulent_) {
-            tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
-            omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
             eddyViscosity_(ii, jj, kk) += sixth * mut;
-            f1_(ii, jj, kk) += sixth * f1;
-            f2_(ii, jj, kk) += sixth * f2;
+            if (isRANS_) {
+              tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
+              omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
+              f1_(ii, jj, kk) += sixth * f1;
+              f2_(ii, jj, kk) += sixth * f2;
+            }
           }
 
           // calculate component of wave speed. This is done on a cell by cell
@@ -2477,7 +2590,7 @@ void procBlock::CalcViscFluxK(const sutherland &suth, const idealGas &eqnState,
                   vol_(ii, jj, kk), viscosity_(ii, jj, kk),
                   mut, turb);
 
-          const auto turbViscSpecRad = isTurbulent_ ?
+          const auto turbViscSpecRad = isRANS_ ?
               turb->ViscCellSpecRad(state_(ii, jj, kk), fAreaK_(ii, jj, kk),
                                     fAreaK_(ii, jj, kk + 1),
                                     viscosity_(ii, jj, kk),
@@ -2569,7 +2682,7 @@ void procBlock::AssignGhostCellsGeom() {
       }
 
       // -----------------------------------------------------------------------
-      // only supply geometry values for non interblock BCs
+      // only supply geometry values for non interblock BCs (including periodic)
       // for interblock do nothing
       if (bc_.GetBCTypes(ii) != "interblock") {
         // assign volume for layer of ghost cells
@@ -2838,8 +2951,8 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
       const auto r3 = bc_.RangeDir3(ii);
 
       const auto dir = bc_.Direction3(ii);
-      const auto surfType = bc_.GetSurfaceType(ii);
-      const auto tag = bc_.GetTag(ii);
+      const auto surf = bc_.GetSurface(ii);
+      const auto surfType = surf.SurfaceType();
 
       auto gCell = 0, iCell = 0, aCell = 0;           // indices for cells
       auto bnd = 0;                                   // indices for faces
@@ -2862,9 +2975,9 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
       }
 
       // -----------------------------------------------------------------------
-      // only supply cell values for non interblock BCs
-      // for interblock do nothing
-      if (bc_.GetBCTypes(ii) != "interblock") {
+      // only supply cell values for non connection BCs
+      // for connection do nothing
+      if (!bc_.IsConnection(ii)) {
         // get boundary condtion type (no viscous walls in invicid BCs)
         auto bcName = bc_.GetBCTypes(ii);
         if (bcName == "viscousWall") {bcName = "slipWall";}
@@ -2885,9 +2998,9 @@ void procBlock::AssignInviscidGhostCells(const input &inp,
         const auto boundaryStates = (bcName == "slipWall") ?
             state_.Slice(dir, iCell, r1, r2) : state_.Slice(dir, aCell, r1, r2);
 
-        const auto ghostStates = GetGhostStates(boundaryStates, bcName,
-                                                faceAreas, wDist, surfType, inp,
-                                                tag, eos, suth, turb, layer);
+        const auto ghostStates =
+            this->GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
+                                 surf, inp, eos, suth, turb, layer);
 
         state_.Insert(dir, gCell, r1, r2, ghostStates);
       }
@@ -3002,21 +3115,12 @@ void procBlock::AssignInviscidGhostCellsEdge(
 
           // loop over edge
           for (auto d1 = 0; d1 <= max1; d1++) {
-            string bc_2 = "undefined";
-            string bc_3 = "undefined";
-            auto tag2 = 0, tag3 = 0;
+            boundarySurface bcSurf_2, bcSurf_3;
             vector3d<double> fArea2, fArea3;
             if (dir == "i") {
               // boundary conditions at corner
-              bc_2 = bc_.GetBCName(d1, cFaceD2_2, cFaceD2_3, surf2);
-              if (bc_2 == "viscousWall") {bc_2 = "slipWall";}
-
-              bc_3 = bc_.GetBCName(d1, cFaceD3_2, cFaceD3_3, surf3);
-              if (bc_3 == "viscousWall") {bc_3 = "slipWall";}
-
-              // get tags at corners
-              tag2 = bc_.GetBCTag(d1, cFaceD2_2, cFaceD2_3, surf2);
-              tag3 = bc_.GetBCTag(d1, cFaceD3_2, cFaceD3_3, surf3);
+              bcSurf_2 = bc_.GetBCSurface(d1, cFaceD2_2, cFaceD2_3, surf2);
+              bcSurf_3 = bc_.GetBCSurface(d1, cFaceD3_2, cFaceD3_3, surf3);
 
               // get face area
               fArea2 = fAreaJ_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
@@ -3024,15 +3128,8 @@ void procBlock::AssignInviscidGhostCellsEdge(
 
             } else if (dir == "j") {
               // boundary conditions at corner
-              bc_2 = bc_.GetBCName(cFaceD2_3, d1, cFaceD2_2, surf2);
-              if (bc_2 == "viscousWall") {bc_2 = "slipWall";}
-
-              bc_3 = bc_.GetBCName(cFaceD3_3, d1, cFaceD3_2, surf3);
-              if (bc_3 == "viscousWall") {bc_3 = "slipWall";}
-
-              // get tags at corners
-              tag2 = bc_.GetBCTag(cFaceD2_3, d1, cFaceD2_2, surf2);
-              tag3 = bc_.GetBCTag(cFaceD3_3, d1, cFaceD3_2, surf3);
+              bcSurf_2 = bc_.GetBCSurface(cFaceD2_3, d1, cFaceD2_2, surf2);
+              bcSurf_3 = bc_.GetBCSurface(cFaceD3_3, d1, cFaceD3_2, surf3);
 
               // get face area
               fArea2 = fAreaK_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
@@ -3040,24 +3137,29 @@ void procBlock::AssignInviscidGhostCellsEdge(
 
             } else {
               // boundary conditions at corner
-              bc_2 = bc_.GetBCName(cFaceD2_2, cFaceD2_3, d1, surf2);
-              if (bc_2 == "viscousWall") {bc_2 = "slipWall";}
-
-              bc_3 = bc_.GetBCName(cFaceD3_2, cFaceD3_3, d1, surf3);
-              if (bc_3 == "viscousWall") {bc_3 = "slipWall";}
-
-              // get tags at corners
-              tag2 = bc_.GetBCTag(cFaceD2_2, cFaceD2_3, d1, surf2);
-              tag3 = bc_.GetBCTag(cFaceD3_2, cFaceD3_3, d1, surf3);
+              bcSurf_2 = bc_.GetBCSurface(cFaceD2_2, cFaceD2_3, d1, surf2);
+              bcSurf_3 = bc_.GetBCSurface(cFaceD3_2, cFaceD3_3, d1, surf3);
 
               // get face area
               fArea2 = fAreaI_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
               fArea3 = fAreaJ_(dir, d1, gCellD2, cFaceD3_3).UnitVector();
             }
 
+            // get bc type and tag
+            auto bc_2 = bcSurf_2.BCType();
+            if (bc_2 == "viscousWall") {bc_2 = "slipWall";}
+
+            auto bc_3 = bcSurf_3.BCType();
+            if (bc_3 == "viscousWall") {bc_3 = "slipWall";}
+
+            const auto tag2 = bcSurf_2.Tag();
+            const auto tag3 = bcSurf_3.Tag();
+
             // get wall distance
             const auto wDist2 = wallDist_(dir, d1, cFaceD3_2, gCellD3);
             const auto wDist3 = wallDist_(dir, d1, gCellD2, cFaceD2_3);
+
+            wallVars wVars;  // not used, only for calling GetGhostState
 
             // assign states -------------------------------------------------
             // surface-2 is a wall, but surface-3 is not - extend wall bc
@@ -3065,13 +3167,13 @@ void procBlock::AssignInviscidGhostCellsEdge(
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, pCellD2, gCellD3).GetGhostState(
                       bc_2, fArea2, wDist2, surf2, inp, tag2, eos, suth, turb,
-                      layer2);
+                      wVars, layer2);
               // surface-3 is a wall, but surface-2 is not - extend wall bc
             } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, gCellD2, pCellD3).GetGhostState(
                       bc_3, fArea3, wDist3, surf3, inp, tag3, eos, suth, turb,
-                      layer3);
+                      wVars, layer3);
             } else {  // both surfaces or neither are walls - proceed as normal
               if (layer2 == layer3) {  // need to average
                 state_(dir, d1, gCellD2, gCellD3) = 0.5 *
@@ -3113,8 +3215,8 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
       const auto r3 = bc_.RangeDir3(ii);
 
       const auto dir = bc_.Direction3(ii);
-      const auto surfType = bc_.GetSurfaceType(ii);
-      const auto tag = bc_.GetTag(ii);
+      const auto surf = bc_.GetSurface(ii);
+      const auto surfType = surf.SurfaceType();
 
       auto gCell = 0, iCell = 0, aCell = 0;           // indices for cells
       auto bnd = 0;                                   // indices for faces
@@ -3155,9 +3257,9 @@ void procBlock::AssignViscousGhostCells(const input &inp, const idealGas &eos,
 
         // get interior boundary states and ghost states
         const auto boundaryStates = state_.Slice(dir, iCell, r1, r2);
-        const auto ghostStates = GetGhostStates(boundaryStates, bcName,
-                                                faceAreas, wDist, surfType, inp,
-                                                tag, eos, suth, turb, layer);
+        const auto ghostStates =
+            this->GetGhostStates(boundaryStates, bcName, faceAreas, wDist,
+                                 surf, inp, eos, suth, turb, layer);
 
         state_.Insert(dir, gCell, r1, r2, ghostStates);
       }
@@ -3275,18 +3377,12 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
 
           // loop over edge
           for (auto d1 = 0; d1 <= max1; d1++) {
-            string bc_2 = "undefined";
-            string bc_3 = "undefined";
-            auto tag2 = 0, tag3 = 0;
+            boundarySurface bcSurf_2, bcSurf_3;
             vector3d<double> fArea2, fArea3;
             if (dir == "i") {
               // boundary conditions at corner
-              bc_2 = bc_.GetBCName(d1, cFaceD2_2, cFaceD2_3, surf2);
-              bc_3 = bc_.GetBCName(d1, cFaceD3_2, cFaceD3_3, surf3);
-
-              // get tags at corner
-              tag2 = bc_.GetBCTag(d1, cFaceD2_2, cFaceD2_3, surf2);
-              tag3 = bc_.GetBCTag(d1, cFaceD3_2, cFaceD3_3, surf3);
+              bcSurf_2 = bc_.GetBCSurface(d1, cFaceD2_2, cFaceD2_3, surf2);
+              bcSurf_3 = bc_.GetBCSurface(d1, cFaceD3_2, cFaceD3_3, surf3);
 
               // get face area
               fArea2 = fAreaJ_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
@@ -3294,12 +3390,8 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
 
             } else if (dir == "j") {
               // boundary conditions at corner
-              bc_2 = bc_.GetBCName(cFaceD2_3, d1, cFaceD2_2, surf2);
-              bc_3 = bc_.GetBCName(cFaceD3_3, d1, cFaceD3_2, surf3);
-
-              // get tags at corner
-              tag2 = bc_.GetBCTag(cFaceD2_3, d1, cFaceD2_2, surf2);
-              tag3 = bc_.GetBCTag(cFaceD3_3, d1, cFaceD3_2, surf3);
+              bcSurf_2 = bc_.GetBCSurface(cFaceD2_3, d1, cFaceD2_2, surf2);
+              bcSurf_3 = bc_.GetBCSurface(cFaceD3_3, d1, cFaceD3_2, surf3);
 
               // get face area
               fArea2 = fAreaK_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
@@ -3307,22 +3399,26 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
 
             } else {
               // boundary conditions at corner
-              bc_2 = bc_.GetBCName(cFaceD2_2, cFaceD2_3, d1, surf2);
-              bc_3 = bc_.GetBCName(cFaceD3_2, cFaceD3_3, d1, surf3);
-
-              // get tags at corner
-              tag2 = bc_.GetBCTag(cFaceD2_2, cFaceD2_3, d1, surf2);
-              tag3 = bc_.GetBCTag(cFaceD3_2, cFaceD3_3, d1, surf3);
+              bcSurf_2 = bc_.GetBCSurface(cFaceD2_2, cFaceD2_3, d1, surf2);
+              bcSurf_3 = bc_.GetBCSurface(cFaceD3_2, cFaceD3_3, d1, surf3);
 
               // get face area
               fArea2 = fAreaI_(dir, d1, cFaceD2_2, gCellD3).UnitVector();
               fArea3 = fAreaJ_(dir, d1, gCellD2, cFaceD3_3).UnitVector();
             }
 
+            // get bc type and tag
+            const auto bc_2 = bcSurf_2.BCType();
+            const auto bc_3 = bcSurf_3.BCType();
+
+            const auto tag2 = bcSurf_2.Tag();
+            const auto tag3 = bcSurf_3.Tag();
+
             // get wall distance
             const auto wDist2 = wallDist_(dir, d1, cFaceD3_2, gCellD3);
             const auto wDist3 = wallDist_(dir, d1, gCellD2, cFaceD2_3);
 
+            wallVars wVars;  // not used, only for calling GetGhostState
 
             // assign states -------------------------------------------------
             // surface-2 is a wall, but surface-3 is not - extend wall bc
@@ -3330,13 +3426,13 @@ void procBlock::AssignViscousGhostCellsEdge(const input &inp,
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, pCellD2, gCellD3).GetGhostState(
                       bc_2, fArea2, wDist2, surf2, inp, tag2, eos, suth, turb,
-                      layer2);
+                      wVars, layer2);
               // surface-3 is a wall, but surface-2 is not - extend wall bc
             } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, gCellD2, pCellD3).GetGhostState(
                       bc_3, fArea3, wDist3, surf3, inp, tag3, eos, suth, turb,
-                      layer3);
+                      wVars, layer3);
               // both surfaces are walls - proceed as normal
             } else if (bc_2 == "viscousWall" && bc_3 == "viscousWall") {
               if (layer2 == layer3) {  // need to average
@@ -3486,8 +3582,66 @@ bool procBlock::AtEdgeInclusive(const int &ii, const int &jj, const int &kk,
   return atEdge;
 }
 
+// returns true if the given indices are for a regular ghost cell, and not an
+// edge ghost cell or physical cell. Also returns surface type of ghost cell
+bool procBlock::AtGhostNonEdge(const int &ii, const int &jj, const int &kk,
+                               string &dir, int &type) const {
+  // ii -- i index of location to test
+  // jj -- j index of location to test
+  // kk -- k index of location to test
+  // dir -- direction that edge runs in
 
-/* Function to swap ghost cells between two blocks at an interblock
+  auto atGhost = false;
+
+  // at il ghost cells - i in ghost cell range, j/k in physical cells
+  if (ii >= this->StartIG() && ii < this->StartI() &&
+      jj >= this->StartJG() && jj < this->EndJG() &&
+      kk >= this->StartKG() && kk < this->EndKG()) {
+    atGhost = true;
+    dir = "il";
+    type = 1;
+  // at jl - j in ghost cell range, i/k in physical cells
+  } else if (jj >= this->StartJG() && jj < this->StartJ() &&
+             ii >= this->StartIG() && ii < this->EndIG() &&
+             kk >= this->StartKG() && kk < this->EndKG()) {
+    atGhost = true;
+    dir = "jl";
+    type = 3;
+  // at kl - k in ghost cell range, i/j in physical cells
+  } else if (kk >= this->StartKG() && kk < this->StartK() &&
+             jj >= this->StartJG() && jj < this->EndJG() &&
+             ii >= this->StartIG() && ii < this->EndIG()) {
+    atGhost = true;
+    dir = "kl";
+    type = 5;
+  // at iu ghost cells - i in ghost cell range, j/k in physical cells
+  } else if (ii >= this->EndI() && ii < this->EndIG() &&
+             jj >= this->StartJG() && jj < this->EndJG() &&
+             kk >= this->StartKG() && kk < this->EndKG()) {
+    atGhost = true;
+    dir = "iu";
+    type = 2;
+  // at ju - j in ghost cell range, i/k in physical cells
+  } else if (jj >= this->EndJ() && jj < this->EndJG() &&
+             ii >= this->StartIG() && ii < this->EndIG() &&
+             kk >= this->StartKG() && kk < this->EndKG()) {
+    atGhost = true;
+    dir = "ju";
+    type = 4;
+  // at ku - k in ghost cell range, i/j in physical cells
+  } else if (kk >= this->EndK() && kk < this->EndKG() &&
+             jj >= this->StartJG() && jj < this->EndJG() &&
+             ii >= this->StartIG() && ii < this->EndIG()) {
+    atGhost = true;
+    dir = "ku";
+    type = 6;
+  }
+  
+  return atGhost;
+}
+
+
+/* Function to swap ghost cells between two blocks at an connection
 boundary. Slices are removed from the physical cells (extending into ghost cells
 at the edges) of one block and inserted into the ghost cells of its partner
 block. The reverse is also true. The slices are taken in the coordinate system
@@ -3503,34 +3657,44 @@ Ui-3/2   Ui-1/2   |    Uj+1/2    Uj+3/2  Ui-3/2    Ui-1/2  |    Uj+1/2    Uj+3/2
                   |                                        |
 
 The above diagram shows the resulting values after the ghost cell swap. The
-logic ensures that the ghost cells at the interblock boundary exactly match
+logic ensures that the ghost cells at the connection boundary exactly match
 their partner block as if there were no separation in the grid.
 */
-void procBlock::SwapStateSlice(const interblock &inter, procBlock &blk) {
-  // inter -- interblock boundary information
-  // blk -- second block involved in interblock boundary
+void procBlock::SwapStateSlice(const connection &inter, procBlock &blk) {
+  // inter -- connection boundary information
+  // blk -- second block involved in connection boundary
 
   state_.SwapSlice(inter, blk.state_);
 }
 
-void procBlock::SwapTurbSlice(const interblock &inter, procBlock &blk) {
-  // inter -- interblock boundary information
-  // blk -- second block involved in interblock boundary
+void procBlock::SwapTurbSlice(const connection &inter, procBlock &blk) {
+  // inter -- connection boundary information
+  // blk -- second block involved in connection boundary
 
-  eddyViscosity_.SwapSlice(inter, blk.eddyViscosity_);
   f1_.SwapSlice(inter, blk.f1_);
   f2_.SwapSlice(inter, blk.f2_);
 }
 
-void procBlock::SwapGradientSlice(const interblock &inter, procBlock &blk) {
-  // inter -- interblock boundary information
-  // blk -- second block involved in interblock boundary
+void procBlock::SwapWallDistSlice(const connection &inter, procBlock &blk) {
+  // inter -- connection boundary information
+  // blk -- second block involved in connection boundary
+
+  wallDist_.SwapSlice(inter, blk.wallDist_);
+}
+
+void procBlock::SwapEddyViscAndGradientSlice(const connection &inter,
+                                             procBlock &blk) {
+  // inter -- connection boundary information
+  // blk -- second block involved in connection boundary
 
   if (isViscous_) {
     velocityGrad_.SwapSlice(inter, blk.velocityGrad_);
     temperatureGrad_.SwapSlice(inter, blk.temperatureGrad_);
   }
   if (isTurbulent_) {
+    eddyViscosity_.SwapSlice(inter, blk.eddyViscosity_);
+  }
+  if (isRANS_) {
     tkeGrad_.SwapSlice(inter, blk.tkeGrad_);
     omegaGrad_.SwapSlice(inter, blk.omegaGrad_);
   }
@@ -3541,28 +3705,34 @@ void procBlock::SwapGradientSlice(const interblock &inter, procBlock &blk) {
 function, but is called when the neighboring procBlocks are on different
 processors.
 */
-void procBlock::SwapStateSliceMPI(const interblock &inter, const int &rank,
+void procBlock::SwapStateSliceMPI(const connection &inter, const int &rank,
                                   const MPI_Datatype &MPI_cellData) {
-  // inter -- interblock boundary information
+  // inter -- connection boundary information
   // rank -- processor rank
   // MPI_cellData -- MPI datatype for passing primVars, genArray
 
   state_.SwapSliceMPI(inter, rank, MPI_cellData);
 }
 
-void procBlock::SwapTurbSliceMPI(const interblock &inter, const int &rank) {
-  // inter -- interblock boundary information
+void procBlock::SwapTurbSliceMPI(const connection &inter, const int &rank) {
+  // inter -- connection boundary information
   // rank -- processor rank
 
-  eddyViscosity_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 1);
   f1_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 2);
   f2_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 3);
 }
 
-void procBlock::SwapGradientSliceMPI(const interblock &inter, const int &rank,
-                                     const MPI_Datatype &MPI_tensorDouble,
-                                     const MPI_Datatype &MPI_vec3d) {
-  // inter -- interblock boundary information
+void procBlock::SwapWallDistSliceMPI(const connection &inter, const int &rank) {
+  // inter -- connection boundary information
+  // rank -- processor rank
+
+  wallDist_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 1);
+}
+
+void procBlock::SwapEddyViscAndGradientSliceMPI(
+    const connection &inter, const int &rank,
+    const MPI_Datatype &MPI_tensorDouble, const MPI_Datatype &MPI_vec3d) {
+  // inter -- connection boundary information
   // rank -- processor rank
 
   if (isViscous_) {
@@ -3570,6 +3740,9 @@ void procBlock::SwapGradientSliceMPI(const interblock &inter, const int &rank,
     temperatureGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 2);
   }
   if (isTurbulent_) {
+    eddyViscosity_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 1);
+  }
+  if (isRANS_) {
     tkeGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 3);
     omegaGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 4);
   }
@@ -3577,11 +3750,11 @@ void procBlock::SwapGradientSliceMPI(const interblock &inter, const int &rank,
 
 
 /* Member function to overwrite a section of a procBlock's geometry with a
-geomSlice. The function uses the orientation supplied in the interblock to
+geomSlice. The function uses the orientation supplied in the connection to
 orient the geomSlice relative to the procBlock. It assumes that the procBlock
-is listed first, and the geomSlice second in the interblock data structure.
+is listed first, and the geomSlice second in the connection data structure.
 It returns a vector of 4 bools that are returned true if one of the 4 edges
-of the interblock need to be updated because they border an interblock,
+of the connection need to be updated because they border an connection,
 creating a possible "t" intersection.
      __________     _________
     |       |  |   |  |      |
@@ -3596,8 +3769,8 @@ creating a possible "t" intersection.
 
 The block configuration shown above shows a "t"intersection. If blocks 0/1 are
 swapped first, block 1 gets all of its ghost cells including the edge cells
-(marked X) from block 0, but block 0 knows that the interblock swapping with
-block 1 borders another interblock (the one swapping with block 2), so it does
+(marked X) from block 0, but block 0 knows that the connection swapping with
+block 1 borders another connection (the one swapping with block 2), so it does
 not take the edge ghost cells from block 1. This is because the ghost cells that
 the edge of block 1 would supply will be supplied by the swap with block 2. If
 next, blocks 1/2 swap, block 1 now has garbage in its edge ghost cells. This is
@@ -3614,13 +3787,13 @@ block 0 are not overwritten with the garbage ghost cells from block 2. The way
 this is enforced is the following. Initially all ghost cell volumes are
 initialized to 0. Therefore, if a cell from a geomSlice with a volume of 0 is
 trying to be inserted into the procBlock, this cell has not been given its proper
-boundary conditions and should be ignored. Subsequently, the interblock should be
+boundary conditions and should be ignored. Subsequently, the connection should be
 updated so that in the future this cell is not inserted.
 */
-vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
+vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, connection &inter,
                                      const int &d3) {
   // slice -- geomSlice to insert int procBlock
-  // inter -- interblock data structure describing the patches and their
+  // inter -- connection data structure describing the patches and their
   // orientation
   // d3 -- distance of direction normal to patch to insert
 
@@ -3637,7 +3810,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
     exit(EXIT_FAILURE);
   }
 
-  // adjust insertion indices if patch borders another interblock on the same
+  // adjust insertion indices if patch borders another connection on the same
   // surface of the block
   const auto adjS1 = (inter.Dir1StartInterBorderFirst()) ? numGhosts_ : 0;
   const auto adjE1 = (inter.Dir1EndInterBorderFirst()) ? numGhosts_ : 0;
@@ -3667,7 +3840,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
         // its ghost value yet (needed at "t" intersection)
         if (slice.Vol(indS[0], indS[1], indS[2]) == 0.0) {
           // find out if on edge, if so save edge
-          // at a block edge -- possible need to adjust interblock
+          // at a block edge -- possible need to adjust connection
           string edgeDir = "undefined";
           if (this->AtEdgeInclusive(indB[0], indB[1], indB[2], edgeDir)) {
             auto dir1 = 0;
@@ -3684,7 +3857,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
             }
 
             // find out edge direction
-            // edge direction matches interblock direction 1
+            // edge direction matches connection direction 1
             if (edgeDir == inter.Direction1First()) {
               // adjust edge on lower dir2 side
               if (indB[dir2] < inter.Dir2StartFirst() + numGhosts_) {
@@ -3692,7 +3865,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
               } else {  // adjust edge on upper dir2 side
                 adjEdge[3] = true;
               }
-            // edge direction matches interblock direction 2
+            // edge direction matches connection direction 2
             } else if (edgeDir == inter.Direction2First()) {
               // adjust edge on lower dir1 side
               if (indB[dir1] < inter.Dir1StartFirst() + numGhosts_) {
@@ -3702,7 +3875,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
               }
             } else {
               cerr << "ERROR: Error in procBlock::PutGeomSlice(). Ghost cell "
-                      "edge direction does not match interblock direction 1 or "
+                      "edge direction does not match connection direction 1 or "
                       "2." << endl;
               cerr << "Edge direction is " << edgeDir << ", direction 1 is "
                    << inter.Direction1First() << ", and direction 2 is "
@@ -4475,15 +4648,15 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, interblock &inter,
 }
 
 /* Member function to overwrite a section of a procBlock's states with a
-slice of states. The function uses the orientation supplied in the interblock to
+slice of states. The function uses the orientation supplied in the connection to
 orient the slice relative to the procBlock. It assumes that the procBlock
-is listed first, and the slice second in the interblock data structure.
+is listed first, and the slice second in the connection data structure.
 */
 void procBlock::PutStateSlice(const multiArray3d<primVars> &slice,
-                              const interblock &inter,
+                              const connection &inter,
                               const int &d3, const int &numG) {
   // slice -- slice to insert in procBlock
-  // inter -- interblock data structure defining the patches and their
+  // inter -- connection data structure defining the patches and their
   // orientation
   // d3 -- distance of direction normal to patch to insert
   // numG -- number of ghost cells
@@ -4495,10 +4668,12 @@ void procBlock::PutStateSlice(const multiArray3d<primVars> &slice,
  * processor. */
 void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
                                 const MPI_Datatype &MPI_vec3d,
-                                const MPI_Datatype &MPI_vec3dMag) const {
+                                const MPI_Datatype &MPI_vec3dMag,
+                                const MPI_Datatype &MPI_wallData) const {
   // MPI_cellData -- MPI data type for cell data
   // MPI_vec3d -- MPI data type for a vector3d
   // MPI_vec3dMag -- MPI data type for a unitVect3dMag
+  // MPI_vec3dMag -- MPI data type for a wallData
 
   // determine size of buffer to send
   auto sendBufSize = 0;
@@ -4507,7 +4682,7 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
   MPI_Pack_size(8, MPI_INT, MPI_COMM_WORLD,
                 &tempSize);  // add size for ints in class procBlock
   sendBufSize += tempSize;
-  MPI_Pack_size(4, MPI_CXX_BOOL, MPI_COMM_WORLD,
+  MPI_Pack_size(5, MPI_CXX_BOOL, MPI_COMM_WORLD,
                 &tempSize);  // add size for bools in class procBlock
   sendBufSize += tempSize;
   MPI_Pack_size(state_.Size(), MPI_cellData, MPI_COMM_WORLD,
@@ -4550,15 +4725,21 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
 
   auto stringSize = 0;
   for (auto jj = 0; jj < bc_.NumSurfaces(); jj++) {
-    MPI_Pack_size(
-        bc_.GetBCTypes(jj).size() + 1, MPI_CHAR, MPI_COMM_WORLD,
-        &tempSize);  // add size for bc_ types (+1 for c_str end character)
+    // add size for bc_ types (+1 for c_str end character)
+    MPI_Pack_size(bc_.GetBCTypes(jj).size() + 1, MPI_CHAR, MPI_COMM_WORLD,
+                  &tempSize);
     stringSize += tempSize;
   }
   sendBufSize += stringSize;
 
+  for (auto &wd : wallData_) {
+    wd.PackSize(sendBufSize, MPI_wallData);
+  }
+
   // allocate buffer to pack data into
-  auto *sendBuffer = new char[sendBufSize];
+  // use unique_ptr to manage memory; use underlying pointer with MPI calls
+  auto unqSendBuffer = unique_ptr<char>(new char[sendBufSize]);
+  auto *sendBuffer = unqSendBuffer.get();
 
   const auto numI = this->NumI();
   const auto numJ = this->NumJ();
@@ -4586,6 +4767,8 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
   MPI_Pack(&isViscous_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
   MPI_Pack(&isTurbulent_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&isRANS_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize, &position,
            MPI_COMM_WORLD);
   MPI_Pack(&storeTimeN_, 1, MPI_CXX_BOOL, sendBuffer, sendBufSize,
            &position, MPI_COMM_WORLD);
@@ -4617,30 +4800,39 @@ void procBlock::PackSendGeomMPI(const MPI_Datatype &MPI_cellData,
   // pack boundary condition data
   bc_.PackBC(sendBuffer, sendBufSize, position);
 
+  // pack wall data
+  for (auto &wd : wallData_) {
+    wd.PackWallData(sendBuffer, sendBufSize, position, MPI_wallData);
+  }
+
   // send buffer to appropriate processor
   MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, rank_, 2,
            MPI_COMM_WORLD);
-
-  delete[] sendBuffer;  // deallocate buffer
 }
 
 void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
                                   const MPI_Datatype &MPI_vec3d,
-                                  const MPI_Datatype &MPI_vec3dMag) {
+                                  const MPI_Datatype &MPI_vec3dMag,
+                                  const MPI_Datatype &MPI_wallData,
+                                  const input &inp) {
   // MPI_cellData -- MPI data type for cell data
   // MPI_vec3d -- MPI data type for a vector3d
   // MPI_vec3dMag -- MPI data type for a unitVect3dMag
+  // MPI_wallData --  MPI data type for a wallData
+  // input -- input variables
 
   MPI_Status status;  // allocate MPI_Status structure
 
   // probe message to get correct data size
   auto recvBufSize = 0;
   MPI_Probe(ROOTP, 2, MPI_COMM_WORLD, &status);
-  MPI_Get_count(&status, MPI_CHAR, &recvBufSize);  // use MPI_CHAR because
-                                                   // sending buffer was
-                                                   // allocated with chars
+  // use MPI_CHAR because sending buffer was allocated with chars
+  MPI_Get_count(&status, MPI_CHAR, &recvBufSize);
 
-  auto *recvBuffer = new char[recvBufSize];  // allocate buffer of correct size
+  // allocate buffer of correct size
+  // use unique_ptr to manage memory; use underlying pointer with MPI
+  auto unqRecvBuffer = unique_ptr<char>(new char[recvBufSize]);
+  auto *recvBuffer = unqRecvBuffer.get();
 
   // receive message from ROOT
   MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, ROOTP, 2, MPI_COMM_WORLD,
@@ -4670,6 +4862,8 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
   MPI_Unpack(recvBuffer, recvBufSize, &position, &isViscous_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
   MPI_Unpack(recvBuffer, recvBufSize, &position, &isTurbulent_, 1,
+             MPI_CXX_BOOL, MPI_COMM_WORLD);
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &isRANS_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
   MPI_Unpack(recvBuffer, recvBufSize, &position, &storeTimeN_, 1,
              MPI_CXX_BOOL, MPI_COMM_WORLD);
@@ -4702,13 +4896,13 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
              MPI_COMM_WORLD);  // unpack face area K
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fCenterI_)),
              fCenterI_.Size(), MPI_vec3d,
-             MPI_COMM_WORLD);  // unpack face center_ I
+             MPI_COMM_WORLD);  // unpack face center I
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fCenterJ_)),
              fCenterJ_.Size(), MPI_vec3d,
-             MPI_COMM_WORLD);  // unpack face center_ J
+             MPI_COMM_WORLD);  // unpack face center J
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(fCenterK_)),
              fCenterK_.Size(), MPI_vec3d,
-             MPI_COMM_WORLD);  // unpack face center_ K
+             MPI_COMM_WORLD);  // unpack face center K
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(vol_)),
              vol_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack volumes
@@ -4716,7 +4910,11 @@ void procBlock::RecvUnpackGeomMPI(const MPI_Datatype &MPI_cellData,
   // unpack boundary conditions
   bc_.UnpackBC(recvBuffer, recvBufSize, position);
 
-  delete[] recvBuffer;  // deallocate receiving buffer
+  // unpack wall data
+  wallData_.resize(bc_.NumViscousSurfaces());
+  for (auto &wd : wallData_) {
+    wd.UnpackWallData(recvBuffer, recvBufSize, position, MPI_wallData, inp);
+  }
 }
 
 /*Member function to zero and resize the vectors in a procBlock to their
@@ -4735,6 +4933,7 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
   if (isMultiLevelTime_) {
     consVarsNm1_.ClearResize(numI, numJ, numK, 0);
   }
+
   center_.ClearResize(numI, numJ, numK, numGhosts);
   vol_.ClearResize(numI, numJ, numK, numGhosts);
 
@@ -4746,6 +4945,10 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
 
   fCenterK_.ClearResize(numI, numJ, numK + 1, numGhosts);
   fAreaK_.ClearResize(numI, numJ, numK + 1, numGhosts);
+
+  cellWidthI_.ClearResize(numI, numJ, numK, numGhosts, 0.0);
+  cellWidthJ_.ClearResize(numI, numJ, numK, numGhosts, 0.0);
+  cellWidthK_.ClearResize(numI, numJ, numK, numGhosts, 0.0);
 
   wallDist_.ClearResize(numI, numJ, numK, numGhosts, DEFAULTWALLDIST);
 
@@ -4762,9 +4965,12 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
   }
 
   if (isTurbulent_) {
+    eddyViscosity_.ClearResize(numI, numJ, numK, numGhosts);
+  }
+
+  if (isRANS_) {
     tkeGrad_.ClearResize(numI, numJ, numK, numGhosts);
     omegaGrad_.ClearResize(numI, numJ, numK, numGhosts);
-    eddyViscosity_.ClearResize(numI, numJ, numK, numGhosts);
     f1_.ClearResize(numI, numJ, numK, numGhosts);
     f2_.ClearResize(numI, numJ, numK, numGhosts);
   }
@@ -4775,11 +4981,15 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
 void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
                                  const MPI_Datatype &MPI_uncoupledScalar,
                                  const MPI_Datatype &MPI_vec3d,
-                                 const MPI_Datatype &MPI_tensorDouble) {
+                                 const MPI_Datatype &MPI_tensorDouble,
+                                 const MPI_Datatype &MPI_wallData,
+                                 const input &inp) {
   // MPI_cellData -- MPI data type for cell data
   // MPI_uncoupledScalar -- MPI data type for uncoupledScalar
   // MPI_vec3d -- MPI data type for vector3d<double>
   // MPI_tensorDouble -- MPI data taype for tensor<double>
+  // MPI_wallData -- MPI data taype for wallData
+  // input -- input variables
 
   MPI_Status status;  // allocate MPI_Status structure
 
@@ -4791,8 +5001,10 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
   MPI_Get_count(&status, MPI_CHAR, &recvBufSize);  // use MPI_CHAR because
                                                    // sending buffer was
                                                    // allocated with chars
-
-  auto *recvBuffer = new char[recvBufSize];  // allocate buffer of correct size
+  // allocate buffer of correct size
+  // use unique_ptr to manage memory; use underlying pointer for MPI calls
+  auto unqRecvBuffer = unique_ptr<char>(new char[recvBufSize]);
+  auto *recvBuffer = unqRecvBuffer.get();
 
   // receive message from non-ROOT
   MPI_Recv(recvBuffer, recvBufSize, MPI_PACKED, rank_,
@@ -4814,6 +5026,15 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(dt_)),
              dt_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack time steps
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(cellWidthI_)),
+             cellWidthI_.Size(), MPI_DOUBLE,
+             MPI_COMM_WORLD);  // unpack cell width I
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(cellWidthJ_)),
+             cellWidthJ_.Size(), MPI_DOUBLE,
+             MPI_COMM_WORLD);  // unpack cell width J
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(cellWidthK_)),
+             cellWidthK_.Size(), MPI_DOUBLE,
+             MPI_COMM_WORLD);  // unpack cell width K                          
   MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(wallDist_)),
              wallDist_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack wall distance
@@ -4840,6 +5061,9 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
     MPI_Unpack(recvBuffer, recvBufSize, &position,
                &(*std::begin(eddyViscosity_)), eddyViscosity_.Size(),
                MPI_DOUBLE, MPI_COMM_WORLD);  // unpack eddy viscosity
+  }
+
+  if (isRANS_) {
     MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(f1_)),
                f1_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack blending variable f1
@@ -4854,7 +5078,11 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
                MPI_COMM_WORLD);  // unpack omega gradient
   }
 
-  delete[] recvBuffer;  // deallocate receiving buffer
+  // unpack wall data
+  wallData_.resize(bc_.NumViscousSurfaces());
+  for (auto &wd : wallData_) {
+    wd.UnpackWallData(recvBuffer, recvBufSize, position, MPI_wallData, inp);
+  }
 }
 
 /*Member function to pack and send procBlock state data to the ROOT proecessor.
@@ -4863,11 +5091,13 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
 void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
                                const MPI_Datatype &MPI_uncoupledScalar,
                                const MPI_Datatype &MPI_vec3d,
-                               const MPI_Datatype &MPI_tensorDouble) const {
+                               const MPI_Datatype &MPI_tensorDouble,
+                               const MPI_Datatype &MPI_wallData) const {
   // MPI_cellData -- MPI data type for cell data
   // MPI_uncoupledScalar -- MPI data type for uncoupledScalar
   // MPI_vec3d -- MPI data type for vector3d<double>
   // MPI_tensorDouble -- MPI data taype for tensor<double>
+  // MPI_wallData -- MPI data taype for wallData
 
   // determine size of buffer to send
   auto sendBufSize = 0;
@@ -4885,6 +5115,15 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
   sendBufSize += tempSize;
   MPI_Pack_size(dt_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                 &tempSize);  // add size for time steps
+  sendBufSize += tempSize;
+  MPI_Pack_size(cellWidthI_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
+                &tempSize);  // add size for cell width I
+  sendBufSize += tempSize;
+  MPI_Pack_size(cellWidthJ_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
+                &tempSize);  // add size for cell width J
+  sendBufSize += tempSize;
+  MPI_Pack_size(cellWidthK_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
+                &tempSize);  // add size for cell width K
   sendBufSize += tempSize;
   MPI_Pack_size(wallDist_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                 &tempSize);  // add size for wall distance
@@ -4912,6 +5151,9 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
     MPI_Pack_size(eddyViscosity_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                   &tempSize);  // add size for eddy viscosity
     sendBufSize += tempSize;
+  }
+
+  if (isRANS_) {
     MPI_Pack_size(f1_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                   &tempSize);  // add size for blending variable f1
     sendBufSize += tempSize;
@@ -4926,9 +5168,14 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
     sendBufSize += tempSize;
   }
 
+  for (auto &wd : wallData_) {
+    wd.PackSize(sendBufSize, MPI_wallData);
+  }
 
-  auto *sendBuffer = new char[sendBufSize];  // allocate buffer to pack data
-                                             // into
+  // allocate buffer to pack data into
+  // use unique_ptr to manage memory; use underlying pointer for MPI calls
+  auto unqSendBuffer = unique_ptr<char>(new char[sendBufSize]);
+  auto *sendBuffer = unqSendBuffer.get();
 
   // pack data to send into buffer
   auto position = 0;
@@ -4942,6 +5189,12 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(dt_)), dt_.Size(), MPI_DOUBLE, sendBuffer,
            sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(cellWidthI_)), cellWidthI_.Size(), MPI_DOUBLE,
+           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(cellWidthJ_)), cellWidthJ_.Size(), MPI_DOUBLE,
+           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(cellWidthK_)), cellWidthK_.Size(), MPI_DOUBLE,
+           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);           
   MPI_Pack(&(*std::begin(wallDist_)), wallDist_.Size(), MPI_DOUBLE,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   MPI_Pack(&(*std::begin(specRadius_)), specRadius_.Size(), MPI_uncoupledScalar,
@@ -4962,6 +5215,9 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
   if (isTurbulent_) {
     MPI_Pack(&(*std::begin(eddyViscosity_)), eddyViscosity_.Size(), MPI_DOUBLE,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  }
+
+  if (isRANS_) {
     MPI_Pack(&(*std::begin(f1_)), f1_.Size(), MPI_DOUBLE,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
     MPI_Pack(&(*std::begin(f2_)), f2_.Size(), MPI_DOUBLE,
@@ -4972,11 +5228,14 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
 
+  // pack wall data
+  for (auto &wd : wallData_) {
+    wd.PackWallData(sendBuffer, sendBufSize, position, MPI_wallData);
+  }
+
   // send buffer to appropriate processor
   MPI_Send(sendBuffer, sendBufSize, MPI_PACKED, ROOTP, globalPos_,
            MPI_COMM_WORLD);
-
-  delete[] sendBuffer;  // deallocate buffer
 }
 
 /* Member function to split a procBlock along a plane defined by a direction and
@@ -4989,10 +5248,11 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
   // ind -- index (face) to split at (w/o counting ghost cells)
   // num -- new block number
   // alteredSurf -- vector of surfaces whose partners will need to be altered
-  // after this split
+  //                after this split
 
   auto bound1 = bc_;
   auto bound2 = bound1.Split(dir, ind, parBlock_, num, alteredSurf);
+  auto wd2 = this->SplitWallData(dir, ind);
 
   auto numI1 = 0, numI2 = 0;
   auto numJ1 = 0, numJ2 = 0;
@@ -5025,9 +5285,9 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
   }
 
   procBlock blk1(numI1, numJ1, numK1, numGhosts_, isViscous_, isTurbulent_,
-                 storeTimeN_, isMultiLevelTime_);
+                 isRANS_, storeTimeN_, isMultiLevelTime_);
   procBlock blk2(numI2, numJ2, numK2, numGhosts_, isViscous_, isTurbulent_,
-                 storeTimeN_, isMultiLevelTime_);
+                 isRANS_, storeTimeN_, isMultiLevelTime_);
 
   blk1.parBlock_ = parBlock_;
   blk2.parBlock_ = parBlock_;
@@ -5040,6 +5300,12 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
   blk1.vol_.Fill(vol_.Slice(dir, {vol_.Start(dir), blk1.vol_.End(dir)}));
   blk1.center_.Fill(center_.Slice(dir, {center_.Start(dir),
             blk1.center_.End(dir)}));
+  blk1.cellWidthI_.Fill(cellWidthI_.Slice(dir, {cellWidthI_.Start(dir),
+            blk1.cellWidthI_.End(dir)}));
+  blk1.cellWidthJ_.Fill(cellWidthJ_.Slice(dir, {cellWidthJ_.Start(dir),
+            blk1.cellWidthJ_.End(dir)}));
+  blk1.cellWidthK_.Fill(cellWidthK_.Slice(dir, {cellWidthK_.Start(dir),
+            blk1.cellWidthK_.End(dir)}));                        
   blk1.wallDist_.Fill(wallDist_.Slice(dir, {wallDist_.Start(dir),
             blk1.wallDist_.End(dir)}));
   blk1.temperature_.Fill(temperature_.Slice(dir, {temperature_.Start(dir),
@@ -5052,6 +5318,8 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
     blk1.eddyViscosity_.Fill(
         eddyViscosity_.Slice(dir, {eddyViscosity_.Start(dir),
                 blk1.eddyViscosity_.End(dir)}));
+  }
+  if (isRANS_) {
     blk1.f1_.Fill(f1_.Slice(dir, {f1_.Start(dir), blk1.f1_.End(dir)}));
     blk1.f2_.Fill(f2_.Slice(dir, {f2_.Start(dir), blk1.f2_.End(dir)}));
   }
@@ -5069,7 +5337,7 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
         temperatureGrad_.Slice(dir, {temperatureGrad_.Start(dir),
                 blk1.temperatureGrad_.End(dir)}));
   }
-  if (isTurbulent_) {
+  if (isRANS_) {
     blk1.tkeGrad_.Fill(tkeGrad_.Slice(dir, {tkeGrad_.Start(dir),
               blk1.tkeGrad_.End(dir)}));
     blk1.omegaGrad_.Fill(omegaGrad_.Slice(dir, {omegaGrad_.Start(dir),
@@ -5097,6 +5365,9 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
   blk2.state_.Fill(state_.Slice(dir, {ind, state_.End(dir)}));
   blk2.vol_.Fill(vol_.Slice(dir, {ind, vol_.End(dir)}));
   blk2.center_.Fill(center_.Slice(dir, {ind, center_.End(dir)}));
+  blk2.cellWidthI_.Fill(cellWidthI_.Slice(dir, {ind, cellWidthI_.End(dir)}));
+  blk2.cellWidthJ_.Fill(cellWidthJ_.Slice(dir, {ind, cellWidthJ_.End(dir)}));
+  blk2.cellWidthK_.Fill(cellWidthK_.Slice(dir, {ind, cellWidthK_.End(dir)}));
   blk2.wallDist_.Fill(wallDist_.Slice(dir, {ind, wallDist_.End(dir)}));
   blk2.temperature_.Fill(temperature_.Slice(dir, {ind, temperature_.End(dir)}));
   if (isViscous_) {
@@ -5105,6 +5376,8 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
   if (isTurbulent_) {
     blk2.eddyViscosity_.Fill(eddyViscosity_.Slice(dir, {ind,
               eddyViscosity_.End(dir)}));
+  }
+  if (isRANS_) {
     blk2.f1_.Fill(f1_.Slice(dir, {ind, f1_.End(dir)}));
     blk2.f2_.Fill(f2_.Slice(dir, {ind, f2_.End(dir)}));
   }
@@ -5119,7 +5392,7 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
     blk2.temperatureGrad_.Fill(
         temperatureGrad_.Slice(dir, {ind, temperatureGrad_.End(dir)}));
   }
-  if (isTurbulent_) {
+  if (isRANS_) {
     blk2.tkeGrad_.Fill(tkeGrad_.Slice(dir, {ind, tkeGrad_.End(dir)}));
     blk2.omegaGrad_.Fill(omegaGrad_.Slice(dir, {ind, omegaGrad_.End(dir)}));
   }
@@ -5135,8 +5408,10 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
 
   // assign boundary conditions
   blk1.bc_ = bound1;
+  blk1.wallData_ = wallData_;
   (*this) = blk1;
   blk2.bc_ = bound2;
+  blk2.wallData_ = wd2;
   return blk2;
 }
 
@@ -5147,7 +5422,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
   // blk -- block to join with
   // dir -- plane to split along, either i, j, or k
   // alteredSurf -- vector of surfaces whose partners will need to be altered
-  // after this split
+  // after this join
 
   auto iTot = this->NumI();
   auto jTot = this->NumJ();
@@ -5175,10 +5450,12 @@ void procBlock::Join(const procBlock &blk, const string &dir,
   }
 
   procBlock newBlk(iTot, jTot, kTot, numGhosts_, isViscous_, isTurbulent_,
-                   storeTimeN_, isMultiLevelTime_);
+                   isRANS_, storeTimeN_, isMultiLevelTime_);
 
   newBlk.bc_ = bc_;
   newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
+  newBlk.wallData_ = wallData_;
+  newBlk.JoinWallData(blk.wallData_, dir);
 
   // assign variables from lower block -----------------------------
   // assign cell variables with ghost cells
@@ -5193,6 +5470,17 @@ void procBlock::Join(const procBlock &blk, const string &dir,
   newBlk.center_.Insert(dir, {center_.Start(dir), center_.PhysEnd(dir)},
                         center_.Slice(dir, {center_.Start(dir),
                                 center_.PhysEnd(dir)}));
+
+  newBlk.cellWidthI_.Insert(dir, {cellWidthI_.Start(dir), cellWidthI_.PhysEnd(dir)},
+                          cellWidthI_.Slice(dir, {cellWidthI_.Start(dir),
+                                  cellWidthI_.PhysEnd(dir)}));
+  newBlk.cellWidthJ_.Insert(dir, {cellWidthJ_.Start(dir), cellWidthJ_.PhysEnd(dir)},
+                          cellWidthJ_.Slice(dir, {cellWidthJ_.Start(dir),
+                                  cellWidthJ_.PhysEnd(dir)}));
+  newBlk.cellWidthK_.Insert(dir, {cellWidthK_.Start(dir), cellWidthK_.PhysEnd(dir)},
+                          cellWidthK_.Slice(dir, {cellWidthK_.Start(dir),
+                                  cellWidthK_.PhysEnd(dir)}));                                    
+
 
   newBlk.wallDist_.Insert(dir, {wallDist_.Start(dir), wallDist_.PhysEnd(dir)},
                           wallDist_.Slice(dir, {wallDist_.Start(dir),
@@ -5213,7 +5501,8 @@ void procBlock::Join(const procBlock &blk, const string &dir,
             eddyViscosity_.PhysEnd(dir)},
       eddyViscosity_.Slice(
           dir, {eddyViscosity_.Start(dir), eddyViscosity_.PhysEnd(dir)}));
-
+  }
+  if (isRANS_) {
     newBlk.f1_.Insert(dir, {f1_.Start(dir), f1_.PhysEnd(dir)},
                       f1_.Slice(dir, {f1_.Start(dir), f1_.PhysEnd(dir)}));
     newBlk.f2_.Insert(dir, {f2_.Start(dir), f2_.PhysEnd(dir)},
@@ -5243,7 +5532,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
       temperatureGrad_.Slice(dir, {temperatureGrad_.Start(dir),
               temperatureGrad_.PhysEnd(dir)}));
   }
-  if (isTurbulent_) {
+  if (isRANS_) {
     newBlk.tkeGrad_.Insert(dir, {tkeGrad_.Start(dir), tkeGrad_.PhysEnd(dir)},
                            tkeGrad_.Slice(dir, {tkeGrad_.Start(dir),
                                    tkeGrad_.PhysEnd(dir)}));
@@ -5292,6 +5581,19 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                         blk.center_.Slice(dir, {blk.center_.PhysStart(dir),
                                 blk.center_.End(dir)}));
 
+  newBlk.cellWidthI_.Insert(dir, {cellWidthI_.PhysEnd(dir),
+          newBlk.cellWidthI_.End(dir)},
+    blk.cellWidthI_.Slice(dir, {blk.cellWidthI_.PhysStart(dir),
+            blk.cellWidthI_.End(dir)}));
+  newBlk.cellWidthJ_.Insert(dir, {cellWidthJ_.PhysEnd(dir),
+          newBlk.cellWidthJ_.End(dir)},
+    blk.cellWidthJ_.Slice(dir, {blk.cellWidthJ_.PhysStart(dir),
+            blk.cellWidthJ_.End(dir)}));
+  newBlk.cellWidthK_.Insert(dir, {cellWidthK_.PhysEnd(dir),
+          newBlk.cellWidthK_.End(dir)},
+    blk.cellWidthK_.Slice(dir, {blk.cellWidthK_.PhysStart(dir),
+            blk.cellWidthK_.End(dir)}));
+
   newBlk.wallDist_.Insert(dir, {wallDist_.PhysEnd(dir),
           newBlk.wallDist_.End(dir)},
     blk.wallDist_.Slice(dir, {blk.wallDist_.PhysStart(dir),
@@ -5313,7 +5615,8 @@ void procBlock::Join(const procBlock &blk, const string &dir,
             newBlk.eddyViscosity_.End(dir)},
       blk.eddyViscosity_.Slice(dir, {blk.eddyViscosity_.PhysStart(dir),
               blk.eddyViscosity_.End(dir)}));
-
+  }
+  if (isRANS_) {
     newBlk.f1_.Insert(dir, {f1_.PhysEnd(dir), newBlk.f1_.End(dir)},
                       blk.f1_.Slice(dir, {blk.f1_.PhysStart(dir),
                               blk.f1_.End(dir)}));
@@ -5349,7 +5652,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
       blk.temperatureGrad_.Slice(dir, {blk.temperatureGrad_.PhysStart(dir),
               blk.temperatureGrad_.End(dir)}));
   }
-  if (isTurbulent_) {
+  if (isRANS_) {
     newBlk.tkeGrad_.Insert(dir, {tkeGrad_.PhysEnd(dir),
             newBlk.tkeGrad_.End(dir)},
       blk.tkeGrad_.Slice(dir, {blk.tkeGrad_.PhysStart(dir),
@@ -5474,7 +5777,7 @@ void procBlock::CalcGradsI(const int &ii, const int &jj, const int &kk,
                        temperature_(ii, jj, kk), tjl, tju,
                        tkl, tku, ail, aiu, ajl, aju, akl, aku, vol);
 
-  if (isTurbulent_) {
+  if (isRANS_) {
     // calculate average tke on j and k faces of alternate control volume
     const auto tkeju = 0.25 *
         (state_(ii - 1, jj, kk).Tke() + state_(ii, jj, kk).Tke() +
@@ -5596,7 +5899,7 @@ void procBlock::CalcGradsJ(const int &ii, const int &jj, const int &kk,
                        temperature_(ii, jj, kk), tkl, tku,
                        ail, aiu, ajl, aju, akl, aku, vol);
 
-  if (isTurbulent_) {
+  if (isRANS_) {
     // calculate average tke on i and k faces of alternate control volume
     const auto tkeiu = 0.25 *
         (state_(ii, jj - 1, kk).Tke() + state_(ii, jj, kk).Tke() +
@@ -5718,7 +6021,7 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
                        temperature_(ii, jj, kk), ail, aiu,
                        ajl, aju, akl, aku, vol);
 
-  if (isTurbulent_) {
+  if (isRANS_) {
     // calculate average tke on i and j faces of alternate control volume
     const auto tkeiu = 0.25 *
         (state_(ii, jj, kk - 1).Tke() + state_(ii, jj, kk).Tke() +
@@ -5776,6 +6079,7 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
     for (auto jj = 0; jj < this->NumJ(); jj++) {
       for (auto ii = 0; ii < this->NumI(); ii++) {
         // calculate turbulent source terms
+        const auto phi = turb->UsePhi() ? this->MaxCellWidth(ii, jj, kk) : 1.0;
         source src;
         const auto srcJac = src.CalcTurbSrc(turb, state_(ii, jj, kk),
                                             velocityGrad_(ii, jj, kk),
@@ -5784,7 +6088,8 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
                                             omegaGrad_(ii, jj, kk), suth,
                                             vol_(ii, jj, kk),
                                             eddyViscosity_(ii, jj, kk),
-                                            f1_(ii, jj, kk));
+                                            f1_(ii, jj, kk), f2_(ii, jj, kk),
+                                            phi);
 
         // add source terms to residual
         // subtract because residual is initially on opposite side of equation
@@ -5794,7 +6099,7 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
         // add source spectral radius for turbulence equations
         // subtract because residual is initially on opposite side of equation
         const auto turbSpecRad = turb->SrcSpecRad(state_(ii, jj, kk), suth,
-                                                  vol_(ii, jj, kk));
+                                                  vol_(ii, jj, kk), phi);
         specRadius_(ii, jj, kk).SubtractFromTurbVariable(turbSpecRad);
 
         // add contribution of source spectral radius to flux jacobian
@@ -5814,15 +6119,57 @@ void procBlock::CalcSrcTerms(const sutherland &suth,
 // all cell centers
 void procBlock::CalcWallDistance(const kdtree &tree) {
   vector3d<double> neighbor;
+  string surf = "none";
+  auto type = 0;
   // loop over cells, including ghosts
   for (auto kk = wallDist_.StartK(); kk < wallDist_.EndK(); kk++) {
     for (auto jj = wallDist_.StartJ(); jj < wallDist_.EndJ(); jj++) {
       for (auto ii = wallDist_.StartI(); ii < wallDist_.EndI(); ii++) {
-        // ghost cells should have negative wall distance so that wall distance
-        // at viscous face will be 0 during flux calculation
-        auto fac = this->IsPhysical(ii, jj, kk) ? 1.0 : -1.0;
-        wallDist_(ii, jj, kk) = fac *
-            tree.NearestNeighbor(center_(ii, jj, kk), neighbor);
+        // ghost cells across viscous boundaries should have negative wall
+        // distance so that wall distance at viscous face will be 0 during flux
+        // calculation
+        if (this->IsPhysical(ii, jj, kk)) {
+          wallDist_(ii, jj, kk) = tree.NearestNeighbor(center_(ii, jj, kk),
+                                                       neighbor);
+        } else if (this->AtGhostNonEdge(ii, jj, kk, surf, type)) {
+          if (type == 1) {
+            auto bcType = bc_.GetBCName(this->StartI(), jj, kk, type);
+            auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
+            wallDist_(ii, jj, kk) = fac *
+                tree.NearestNeighbor(center_(this->StartI(), jj, kk),
+                                     neighbor);
+          } else if (type == 2) {
+            auto bcType = bc_.GetBCName(this->EndI(), jj, kk, type);
+            auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
+            wallDist_(ii, jj, kk) = fac *
+                tree.NearestNeighbor(center_(this->EndI() - 1, jj, kk),
+                                     neighbor);
+          } else if (type == 3) {
+            auto bcType = bc_.GetBCName(ii, this->StartJ(), kk, type);
+            auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
+            wallDist_(ii, jj, kk) = fac *
+                tree.NearestNeighbor(center_(ii, this->StartJ(), kk),
+                                     neighbor);
+          } else if (type == 4) {
+            auto bcType = bc_.GetBCName(ii, this->EndJ(), kk, type);
+            auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
+            wallDist_(ii, jj, kk) = fac *
+                tree.NearestNeighbor(center_(ii, this->EndJ() - 1, kk),
+                                     neighbor);
+          } else if (type == 5) {
+            auto bcType = bc_.GetBCName(ii, jj, this->StartK(), type);
+            auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
+            wallDist_(ii, jj, kk) = fac *
+                tree.NearestNeighbor(center_(ii, jj, this->StartK()),
+                                     neighbor);
+          } else if (type == 6) {
+            auto bcType = bc_.GetBCName(ii, jj, this->EndK(), type);
+            auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
+            wallDist_(ii, jj, kk) = fac *
+                tree.NearestNeighbor(center_(ii, jj, this->EndK() - 1),
+                                     neighbor);
+          }
+        }
       }
     }
   }
@@ -5877,6 +6224,20 @@ multiArray3d<primVars> procBlock::SliceState(const int &is, const int &ie,
   return state_.Slice({is, ie}, {js, je}, {ks, ke});
 }
 
+// member function to get a slice of the face centers of the cells on a
+// boundary
+multiArray3d<vector3d<double>> procBlock::SliceBoundaryCenters(
+    const int &surfInd) const {
+  const auto surf = bc_.GetSurface(surfInd);
+  if (surf.SurfaceType() <= 2) {  // i-surface
+    return fCenterI_.Slice(surf.RangeI(), surf.RangeJ(), surf.RangeK());
+  } else if (surf.SurfaceType() <= 4) {  // j-surface
+    return fCenterJ_.Slice(surf.RangeI(), surf.RangeJ(), surf.RangeK());
+  } else {  // k-surface
+    return fCenterK_.Slice(surf.RangeI(), surf.RangeJ(), surf.RangeK());
+  }
+}
+
 void procBlock::UpdateAuxillaryVariables(const idealGas &eos,
                                          const sutherland &suth,
                                          const bool includeGhosts) {
@@ -5899,10 +6260,8 @@ void procBlock::UpdateUnlimTurbEddyVisc(const unique_ptr<turbModel> &turb,
                                         const bool &includeGhosts) {
   if (isTurbulent_) {
     for (auto kk = eddyViscosity_.StartK(); kk < eddyViscosity_.EndK(); kk++) {
-      for (auto jj = eddyViscosity_.StartJ(); jj < eddyViscosity_.EndJ();
-           jj++) {
-        for (auto ii = eddyViscosity_.StartI(); ii < eddyViscosity_.EndI();
-             ii++) {
+      for (auto jj = eddyViscosity_.StartJ(); jj < eddyViscosity_.EndJ(); jj++) {
+        for (auto ii = eddyViscosity_.StartI(); ii < eddyViscosity_.EndI(); ii++) {
           if (!this->AtCorner(ii, jj, kk) &&
               (includeGhosts || this->IsPhysical(ii, jj, kk))) {
             eddyViscosity_(ii, jj, kk) =
@@ -5912,6 +6271,64 @@ void procBlock::UpdateUnlimTurbEddyVisc(const unique_ptr<turbModel> &turb,
       }
     }
   }
+}
+
+multiArray3d<primVars> procBlock::GetGhostStates(
+    const multiArray3d<primVars> &bndStates, const string &bcName,
+    const multiArray3d<unitVec3dMag<double>> &faceAreas,
+    const multiArray3d<double> &wDist, const boundarySurface &surf,
+    const input &inp, const idealGas &eos, const sutherland &suth,
+    const unique_ptr<turbModel> &turb, const int layer) {
+  // bndStates -- states at cells adjacent to boundary
+  // bcName -- boundary condition type
+  // faceAreas -- face areas of boundary
+  // surf -- boundary surface
+  // inp -- input variables
+  // eos -- equation of state
+  // suth -- sutherland's law for viscosity
+  // turb -- turbulence model
+  // layer -- layer of ghost cell to return
+  //          (1 closest to boundary, or 2 farthest)
+
+  multiArray3d<primVars> ghostStates(
+      bndStates.NumINoGhosts(), bndStates.NumJNoGhosts(),
+      bndStates.NumKNoGhosts(), bndStates.GhostLayers());
+  for (auto kk = bndStates.StartK(); kk < bndStates.EndK(); kk++) {
+    for (auto jj = bndStates.StartJ(); jj < bndStates.EndJ(); jj++) {
+      for (auto ii = bndStates.StartI(); ii < bndStates.EndI(); ii++) {
+        const auto surfType = surf.SurfaceType();
+        const auto tag = surf.Tag();
+        wallVars wVars;
+        ghostStates(ii, jj, kk) =
+            bndStates(ii, jj, kk)
+                .GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),
+                               wDist(ii, jj, kk), surfType, inp, tag, eos, suth,
+                               turb, wVars, layer);
+        if (bcName == "viscousWall" && layer == 1) {
+          const auto ind = this->WallDataIndex(surf);
+          wallData_[ind](ii, jj, kk, true) = wVars;
+        }
+      }
+    }
+  }
+  return ghostStates;
+}
+
+int procBlock::WallDataIndex(const boundarySurface &surf) const {
+  auto ind = -1;
+  for (auto ii = 0U; ii < wallData_.size(); ++ii) {
+    if (surf == wallData_[ii].Surface()) {
+      ind = ii;
+      break;
+    }
+  }
+  if (ind < 0) {
+    cerr << "ERROR. Given boundary surface does not match any in wallData"
+         << endl;
+    cerr << "Given boundary surface is: " << endl << surf << endl;
+    exit(EXIT_FAILURE);
+  }
+  return ind;
 }
 
 // member function to calculate the center to center distance across a cell face
@@ -5979,6 +6396,10 @@ void procBlock::DumpToFile(const string &var, const string &fName) const {
     outFile << velocityGrad_ << endl;
   } else if (var == "temperatureGradient") {
     outFile << temperatureGrad_ << endl;
+  } else if (var == "viscosity") {
+    outFile << viscosity_ << endl;
+  } else if (var == "eddyViscosity") {
+    outFile << eddyViscosity_ << endl;
   } else {
     cerr << "ERROR: Error in procBlock::DumpToFile(). Variable " << var
          << " is not supported!" << endl;
@@ -5990,14 +6411,6 @@ void procBlock::DumpToFile(const string &var, const string &fName) const {
 }
 
 void procBlock::CalcCellWidths() {
-  // resize multiarrays
-  cellWidthI_.ClearResize(this->NumI(), this->NumJ(), this->NumK(),
-                          this->NumGhosts());
-  cellWidthJ_.ClearResize(this->NumI(), this->NumJ(), this->NumK(),
-                          this->NumGhosts());
-  cellWidthK_.ClearResize(this->NumI(), this->NumJ(), this->NumK(),
-                          this->NumGhosts());
-
   // loop over all cells
   for (auto kk = this->StartKG(); kk < this->EndKG(); ++kk) {
     for (auto jj = this->StartJG(); jj < this->EndJG(); ++jj) {
@@ -6014,101 +6427,59 @@ void procBlock::CalcCellWidths() {
 }
 
 
-void procBlock::ReadSolFromRestart(ifstream &resFile, const input &inp,
-                                const idealGas &eos, const sutherland &suth,
-                                const unique_ptr<turbModel> &turb,
-                                   const vector<string> &restartVars) {
-  // define reference speed of sound
-  const auto refSoS = inp.ARef(eos);
-
-  // read the primative variables
-    // read dimensional variables -- loop over physical cells
-    for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
-      for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
-        for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
-          genArray value;
-          // loop over the number of variables to read
-          for (auto &var : restartVars) {
-            if (var == "density") {
-              resFile.read(reinterpret_cast<char *>(&value[0]), sizeof(value[0]));
-              value[0] /= inp.RRef();
-            } else if (var == "vel_x") {
-              resFile.read(reinterpret_cast<char *>(&value[1]), sizeof(value[1]));
-              value[1] /= refSoS;
-            } else if (var == "vel_y") {
-              resFile.read(reinterpret_cast<char *>(&value[2]), sizeof(value[2]));
-              value[2] /= refSoS;
-            } else if (var == "vel_z") {
-              resFile.read(reinterpret_cast<char *>(&value[3]), sizeof(value[3]));
-              value[3] /= refSoS;
-            } else if (var == "pressure") {
-              resFile.read(reinterpret_cast<char *>(&value[4]), sizeof(value[4]));
-              value[4] /= inp.RRef() * refSoS * refSoS;
-            } else if (var == "tke") {
-              resFile.read(reinterpret_cast<char *>(&value[5]), sizeof(value[5]));
-              value[5] /= refSoS * refSoS;
-            } else if (var == "sdr") {
-              resFile.read(reinterpret_cast<char *>(&value[6]), sizeof(value[6]));
-              value[6] /= refSoS * refSoS * inp.RRef() / suth.MuRef();
-            } else {
-              cerr << "ERROR: Variable " << var
-                   << " to read from restart file is not defined!" << endl;
-              exit(EXIT_FAILURE);
-            }
-          }
-          state_(ii, jj, kk) = primVars(value, true, eos, turb);
-        }
-      }
-    }
-
-    // Update temperature and viscosity
-    this->UpdateAuxillaryVariables(eos, suth, false);
+void procBlock::GetStatesFromRestart(const multiArray3d<primVars> &restart) {
+  state_.Insert(restart.RangeI(), restart.RangeJ(), restart.RangeK(), restart);
 }
 
-void procBlock::ReadSolNm1FromRestart(ifstream &resFile, const input &inp,
-                                      const idealGas &eos, const sutherland &suth,
-                                      const unique_ptr<turbModel> &turb,
-                                      const vector<string> &restartVars) {
-  // define reference speed of sound
-  const auto refSoS = inp.ARef(eos);
+void procBlock::GetSolNm1FromRestart(const multiArray3d<genArray> &restart) {
+  consVarsNm1_ = restart;
+}
 
-  // data is conserved variables
-  // read dimensional variables -- loop over physical cells
-  for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
-    for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
-      for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
-        genArray value;
-        // loop over the number of variables to read
-        for (auto &var : restartVars) {
-          if (var == "density") {
-            resFile.read(reinterpret_cast<char *>(&value[0]), sizeof(value[0]));
-            value[0] /= inp.RRef();
-          } else if (var == "vel_x") {  // conserved var is rho-u
-            resFile.read(reinterpret_cast<char *>(&value[1]), sizeof(value[1]));
-            value[1] /= refSoS * inp.RRef();
-          } else if (var == "vel_y") {  // conserved var is rho-v
-            resFile.read(reinterpret_cast<char *>(&value[2]), sizeof(value[2]));
-            value[2] /= refSoS * inp.RRef();
-          } else if (var == "vel_z") {  // conserved var is rho-w
-            resFile.read(reinterpret_cast<char *>(&value[3]), sizeof(value[3]));
-            value[3] /= refSoS * inp.RRef();
-          } else if (var == "pressure") {  // conserved var is rho-E
-            resFile.read(reinterpret_cast<char *>(&value[4]), sizeof(value[4]));
-            value[4] /= inp.RRef() * refSoS * refSoS;
-          } else if (var == "tke") {  // conserved var is rho-tke
-            resFile.read(reinterpret_cast<char *>(&value[5]), sizeof(value[5]));
-            value[5] /= refSoS * refSoS * inp.RRef();
-          } else if (var == "sdr") {  // conserved var is rho-sdr
-            resFile.read(reinterpret_cast<char *>(&value[6]), sizeof(value[6]));
-            value[6] /= refSoS * refSoS * inp.RRef() *inp.RRef() / suth.MuRef();
-          } else {
-            cerr << "ERROR: Variable " << var
-                 << " to read from restart file is not defined!" << endl;
-            exit(EXIT_FAILURE);
-          }
-        }
-        consVarsNm1_(ii, jj, kk) = value;
+// split all wallData in procBlock
+// The calling instance keeps the lower wallData in the split, and the upper
+// wallData is returned
+vector<wallData> procBlock::SplitWallData(const string &dir, const int &ind) {
+  vector<wallData> upper;
+  vector<int> delLower;
+  auto count = 0;
+  for (auto &lower : wallData_) {
+    auto split = false, low = false;
+    auto up = lower.Split(dir, ind, split, low);
+    if (split) {  // surface split; upper and lower are valid
+      upper.push_back(up);
+    } else if (!low) {  // not split; valid surface is upper
+      upper.push_back(up);
+      delLower.push_back(count);  // need to remove b/c lower is invalid
+    }
+    count++;
+  }
+
+  // delete lower wall data not in lower split in reverse
+  for (auto ii = static_cast<int>(delLower.size()) - 1; ii >= 0; --ii) {
+    wallData_.erase(std::begin(wallData_) + delLower[ii]);
+  }
+
+  return upper;
+}
+
+// Join all wallData in procBlock if possible. 
+void procBlock::JoinWallData(const vector<wallData> &upper, const string &dir) {
+  vector<int> joinedData;
+  for (auto ll = 0U; ll < wallData_.size(); ++ll) {
+    for (auto uu = 0U; uu < upper.size(); ++uu) {
+      auto joined = false;
+      wallData_[ll].Join(upper[uu], dir, joined);
+      if (joined) {  // if joined, don't need to add upper data
+        joinedData.push_back(uu);
       }
+    }
+  }
+
+  // add in unjoined upper data
+  for (auto ii = 0; ii < static_cast<int>(upper.size()); ++ii) {
+    if (std::none_of(std::begin(joinedData), std::end(joinedData),
+                     [&ii](const int &val) { return ii == val; })) {
+      wallData_.push_back(upper[ii]);
     }
   }
 }

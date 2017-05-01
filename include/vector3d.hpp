@@ -60,6 +60,8 @@ class vector3d {
   T& operator[](const int &a) { return data_[a]; }
 
   bool operator==(const vector3d<T>&) const;
+  bool operator!=(const vector3d<T> &v1) const {return !(*this == v1);}
+  bool CompareWithTol(const vector3d<T> &v2, const double &tol = 1.0e-10) const;
 
   inline vector3d<T> & operator+=(const vector3d<T> &);
   inline vector3d<T> & operator-=(const vector3d<T> &);
@@ -138,6 +140,7 @@ class unitVec3dMag {
   // member functions
   // operator overloads
   bool operator==(const unitVec3dMag<T>&) const;
+  bool operator!=(const unitVec3dMag<T> &v1) const {return !(*this == v1);}
 
   inline unitVec3dMag<T> & operator+=(const unitVec3dMag<T> &);
   inline unitVec3dMag<T> & operator-=(const unitVec3dMag<T> &);
@@ -316,6 +319,18 @@ bool vector3d<T>::operator==(const vector3d<T>&v2) const {
   }
   return test;
 }
+
+template <typename T>
+bool vector3d<T>::CompareWithTol(const vector3d<T> &v2, const double &tol) const {
+  auto test = false;
+  auto diff = (*this) - v2;
+
+  if (fabs(diff[0]) < tol && fabs(diff[1]) < tol && fabs(diff[2]) < tol) {
+    test = true;
+  }
+  return test;
+}
+
 
 // Function to calculate the cross product of two vectors
 template <typename T>

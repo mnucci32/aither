@@ -26,6 +26,7 @@ matrix:
       env:
         - CXX_COMPILER=g++-5
         - C_COMPILER=gcc-5
+        - BUILD_TYPE=release
     - os: linux
       dist: trusty
       sudo: required
@@ -35,10 +36,11 @@ matrix:
           sources:
             - ubuntu-toolchain-r-test
           packages:
-            - g++-6 gcc-6 libstdc++-6-dev
+            - g++-6 gcc-6 libstdc++-6-dev lcov
       env:
         - CXX_COMPILER=g++-6
         - C_COMPILER=gcc-6
+        - BUILD_TYPE=debug
     - os: linux
       dist: trusty
       sudo: required
@@ -53,6 +55,7 @@ matrix:
       env:
         - CXX_COMPILER=clang++-3.8
         - C_COMPILER=clang-3.8
+        - BUILD_TYPE=release
     - os: osx
       osx_image: xcode8
       compiler: gcc
@@ -61,6 +64,7 @@ matrix:
         - C_COMPILER=gcc-6
         - HOMEBREW_CC=gcc-6
         - HOMEBREW_CXX=g++-6
+        - BUILD_TYPE=release
     - os: osx
       osx_image: xcode8
       compiler: clang
@@ -69,6 +73,7 @@ matrix:
         - C_COMPILER=clang
         - HOMEBREW_CC=clang
         - HOMEBREW_CXX=clang++
+        - BUILD_TYPE=release
 
 # upgrade packages
 before_install:
@@ -82,14 +87,27 @@ before_install:
 
 # install mpi
 install:
-  - bash travis/installMPI
+  - bash ci/travis/installMPI
+
+before_script:
+  - mkdir build
+  - cd build
+  - if [[ "$BUILD_TYPE" == "debug" ]]; then lcov --directory . --zerocounters; fi
+  - if [[ "$BUILD_TYPE" == "debug" ]]; then ln -s /usr/bin/gcov-6 gcov; fi
+  - if [[ "$BUILD_TYPE" == "debug" ]]; then export PATH=$PWD:$PATH; fi
+  - if [[ "$BUILD_TYPE" == "debug" ]]; then gcov --version; fi
 
 # build instructions
 script:
-  - mkdir build
-  - cd build
-  - cmake -G "Unix Makefiles" -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_C_COMPILER=$C_COMPILER -DMPI_DIR=$TRAVIS_BUILD_DIR/openmpi -DCMAKE_BUILD_TYPE=release -DCMAKE_INSTALL_PREFIX=install ..
+  - cmake -G "Unix Makefiles" -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_C_COMPILER=$C_COMPILER -DMPI_DIR=$TRAVIS_BUILD_DIR/openmpi -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX=install ..
   - make -j4
   - make install
   - cd ../testCases
   - python3 regressionTests.py --aitherPath=$TRAVIS_BUILD_DIR/build/install/bin/aither --operatingSystem=$TRAVIS_OS_NAME --mpirunPath=$TRAVIS_BUILD_DIR/openmpi/bin/mpirun
+  - cd $TRAVIS_BUILD_DIR/build
+
+after_success:
+  - if [[ "$BUILD_TYPE" == "debug" ]]; then lcov --directory . --capture --rc lcov_branch_coverage=1 --output-file coverage.info; fi
+  - if [[ "$BUILD_TYPE" == "debug" ]]; then lcov --remove coverage.info '/usr/*' '/Applications/*' '/Library/*' --rc lcov_branch_coverage=1 --output-file coverage.info; fi
+  - if [[ "$BUILD_TYPE" == "debug" ]]; then lcov --rc lcov_branch_coverage=1 --list coverage.info; fi
+  - if [[ "$BUILD_TYPE" == "debug" ]]; then bash <(curl -s https://codecov.io/bash) || echo "Codecov did not collect coverage reports"; fi

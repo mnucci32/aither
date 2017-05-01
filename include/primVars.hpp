@@ -51,6 +51,7 @@ using std::unique_ptr;
 // forward class declarations
 class input;
 class turbModel;
+struct wallVars;
 
 class primVars {
   double data_[NUMVARS];  // primative variables at cell center
@@ -65,7 +66,10 @@ class primVars {
       : primVars(a, b, c, d, e, 0.0, 0.0) {}
   primVars() : primVars(0.0, 0.0, 0.0, 0.0, 0.0) {}
   explicit primVars(const double &a) : primVars(a, a, a, a, a, a, a) {}
-  primVars(const double &r, const double &p, const vector3d<double> &v)
+  primVars(const double &r, const vector3d<double> &v, const double &p,
+           const double &k, const double &w)
+      : primVars(r, v.X(), v.Y(), v.Z(), p, k, w) {}
+  primVars(const double &r, const vector3d<double> &v, const double &p)
       : primVars(r, v.X(), v.Y(), v.Z(), p) {}
   primVars(const genArray &, const bool &, const idealGas &,
            const unique_ptr<turbModel> &);
@@ -87,8 +91,9 @@ class primVars {
   double Tke() const { return data_[5]; }
   double Omega() const { return data_[6]; }
 
-  void NondimensionalInitialize(const idealGas&, const double&, const input&,
-                                const sutherland&, const int&);
+  void NondimensionalInitialize(const idealGas &, const input &,
+                                const sutherland &, const int &,
+                                const unique_ptr<turbModel> &);
   bool IsZero() const;
   primVars Squared() const;
   primVars Abs() const;
@@ -106,7 +111,7 @@ class primVars {
 
   void ApplyFarfieldTurbBC(const vector3d<double> &, const double &,
                            const double &, const sutherland &,
-                           const idealGas &);
+                           const idealGas &, const unique_ptr<turbModel> &);
   void LimitTurb(const unique_ptr<turbModel> &);
 
   double InvCellSpectralRadius(const unitVec3dMag<double> &,
@@ -195,19 +200,14 @@ class primVars {
   primVars GetGhostState(const string &, const vector3d<double> &,
                          const double &, const int &, const input &,
                          const int &, const idealGas &, const sutherland &,
-                         const unique_ptr<turbModel> &, const int = 1) const;
+                         const unique_ptr<turbModel> &, wallVars &,
+                         const int = 1) const;
 
   // destructor
   ~primVars() noexcept {}
 };
 
 // function definitions
-multiArray3d<primVars> GetGhostStates(
-    const multiArray3d<primVars> &, const string &,
-    const multiArray3d<unitVec3dMag<double>> &, const multiArray3d<double> &,
-    const int &, const input &, const int &, const idealGas &, const sutherland &,
-    const unique_ptr<turbModel> &, const int = 1);
-
 // member function to calculate temperature from conserved variables and
 // equation of state
 double primVars::Temperature(const idealGas &eqnState) const {

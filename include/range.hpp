@@ -67,6 +67,11 @@ class range {
   void ShrinkStart() {start_--;}
   void ShrinkEnd() {end_--;}
 
+  // operator overload
+  bool operator==(const range &r2) const {
+    return (start_ == r2.start_ && end_ == r2.end_) ? true : false;
+  }
+
   // destructor
   ~range() noexcept {}
 };
