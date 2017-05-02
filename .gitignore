@@ -14,4 +14,7 @@ aither
 # ignore test cases
 testCases
 
+# ignore vscode files
+.vscode
+
 _site
