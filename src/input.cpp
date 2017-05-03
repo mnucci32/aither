@@ -85,6 +85,9 @@ input::input(const string &name, const string &resName) : simName_(name),
   inviscidFlux_ = "roe";  // default value is roe flux
   decompMethod_ = "cubic";  // default is cubic decomposition
   turbModel_ = "none";  // default turbulence model is none
+  thermodynamicModel_ = "caloricallyPerfect";  // default to cpg
+  equationOfState_ = "idealGas";  // default to ideal gas
+  transportModel_ = "sutherland";  // default to sutherland
   restartFrequency_ = 0;  // default to not write restarts
   iterationStart_ = 0;  // default to start from iteration zero
 
@@ -123,6 +126,9 @@ input::input(const string &name, const string &resName) : simName_(name),
            "inviscidFlux",
            "decompositionMethod",
            "turbulenceModel",
+           "thermodynamicModel",
+           "equationOfState",
+           "transportModel",
            "outputVariables",
            "wallOutputVariables",
            "initialConditions",
@@ -376,6 +382,21 @@ void input::ReadInput(const int &rank) {
           turbModel_ = tokens[1];
           if (rank == ROOTP) {
             cout << key << ": " << this->TurbulenceModel() << endl;
+          }
+        } else if (key == "thermodynamicModel") {
+          thermodynamicModel_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << ": " << this->ThermodynamicModel() << endl;
+          }
+        } else if (key == "equationOfState") {
+          equationOfState_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << ": " << this->EquationOfState() << endl;
+          }
+        } else if (key == "transportModel") {
+          transportModel_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << ": " << this->TransportModel() << endl;
           }
         } else if (key == "outputVariables") {
           // clear default variables from set

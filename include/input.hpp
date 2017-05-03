@@ -80,6 +80,9 @@ class input {
   string inviscidFlux_;  // scheme for inviscid flux calculation
   string decompMethod_;  // method of decomposition for parallel problems
   string turbModel_;  // turbulence model
+  string thermodynamicModel_;  // model for thermodynamics
+  string equationOfState_;  // model for equation of state
+  string transportModel_;  // model for viscous transport
   int restartFrequency_;  // how often to output restart data
   int iterationStart_;  // starting number for iterations
 
@@ -191,6 +194,9 @@ class input {
 
   string DecompMethod() const {return decompMethod_;}
   string TurbulenceModel() const {return turbModel_;}
+  string ThermodynamicModel() const {return thermodynamicModel_;}
+  string EquationOfState() const {return equationOfState_;}
+  string TransportModel() const {return transportModel_;}
 
   int NumVars() const {return vars_.size();}
   int NumVarsOutput() const {return outputVariables_.size();}
