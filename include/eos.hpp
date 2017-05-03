@@ -38,7 +38,42 @@ a temperature dependent viscosity for the Navier-Stokes equations. */
 using std::vector;
 using std::string;
 
-class idealGas {
+// abstract base class for equation of state
+class eos {
+
+ public:
+  // Constructor
+  eos() {}
+
+  // move constructor and assignment operator
+  eos(eos&&) noexcept = default;
+  eos& operator=(eos&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  eos(const eos&) = default;
+  eos& operator=(const eos&) = default;
+
+  // Member functions for abstract base class
+  virtual double PressFromEnergy(const double &rho, const double &energy,
+                                 const double &vel) const = 0;
+  virtual double PressureRT(const double &rho,
+                            const double &temperature) const = 0;
+  virtual double SpecEnergy(const double &pressure,
+                            const double &rho) const = 0;
+  virtual double Energy(const double &specEn, const double &vel) const = 0;
+  virtual double Enthalpy(const double &energy, const double &pressure,
+                          const double &rho) const = 0;
+  virtual double SoS(const double &pressure, const double &rho) const = 0;
+  virtual double Temperature(const double &pressure,
+                             const double &rho) const = 0;
+  virtual double DensityTP(const double &temp, const double &press) const = 0;
+
+  // Destructor
+  virtual ~eos() noexcept {}
+};
+
+
+class idealGas : public eos {
   const double gamma_;
   const double gasConst_;
 
@@ -56,35 +91,33 @@ class idealGas {
   idealGas& operator=(const idealGas&) = default;
 
   // Member functions
-  double Pressure(const double &rho, const double &specEn) const;
   double PressFromEnergy(const double &rho, const double &energy,
-                         const double &vel) const;
-  double PressureRT(const double &rho, const double &temperature) const;
-  double Density(const double &pressure, const double &specEn) const;
-  double SpecEnergy(const double &pressure, const double &rho) const;
-  double Energy(const double &specEn, const double &vel) const;
+                         const double &vel) const override;
+  double PressureRT(const double &rho, const double &temperature) const override;
+  double SpecEnergy(const double &pressure, const double &rho) const override;
+  double Energy(const double &specEn, const double &vel) const override;
   double Enthalpy(const double &energy, const double &pressure,
-                  const double &rho) const;
-  double SoS(const double &pressure, const double &rho) const;
+                  const double &rho) const override;
+  double SoS(const double &pressure, const double &rho) const override;
+  double Temperature(const double &pressure, const double &rho) const override;
+  // nondimensional version (R=1/gamma)
+  double DensityTP(const double &temp, const double &press) const override {
+    return press * gamma_ / temp;
+  }
+
   double Gamma() const {return gamma_;}
   double GasConst() const {return gasConst_;}
   double Prandtl() const {return (4.0 * gamma_) / (9.0 * gamma_ - 5.0);}
-  double Temperature(const double &pressure, const double &rho) const;
-
   double SpecificHeat() const {return 1.0 / (gamma_ - 1.0);}
   double Conductivity(const double &mu) const {
     return mu * this->SpecificHeat() / this->Prandtl();}
   double TurbConductivity(const double &eddyVisc, const double &prt) const {
     return eddyVisc * this->SpecificHeat() / prt;}
-  // nondimensional version (R=1/gamma)
-  double DensityTP(const double &temp, const double &press) const {
-    return press * gamma_ / temp;}
 
   // Destructor
   ~idealGas() noexcept {}
 };
 
-// Function declarations
 
 class sutherland {
   const double cOne_;

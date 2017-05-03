@@ -24,11 +24,7 @@ using std::cerr;
 
 // Member functions for idealGas class
 // These functions calculate values using the ideal gas equation of state
-// P = rho * R * T (for Navier-Stokes) or P = (g-1) * rho * e (for Euler)
-double idealGas::Pressure(const double &rho, const double &specEn) const {
-  return (gamma_ - 1.0) * rho * specEn;
-}
-
+// P = rho * R * T
 double idealGas::PressFromEnergy(const double &rho, const double &energy,
                                  const double &vel) const {
   return (gamma_ - 1.0) * rho * (energy - 0.5 * vel * vel);
@@ -37,11 +33,6 @@ double idealGas::PressFromEnergy(const double &rho, const double &energy,
 double idealGas::PressureRT(const double &rho,
                             const double &temperature) const {
   return temperature * rho / gamma_;
-}
-
-double idealGas::Density(const double &pressure,
-                         const double &specEn) const {
-  return pressure / ((gamma_ - 1.0) * specEn);
 }
 
 double idealGas::SpecEnergy(const double &pressure,
