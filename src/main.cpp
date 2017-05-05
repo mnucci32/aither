@@ -33,6 +33,7 @@
 #include "primVars.hpp"
 #include "eos.hpp"
 #include "transport.hpp"
+#include "thermodynamic.hpp"
 #include "boundaryConditions.hpp"
 #include "output.hpp"
 #include "genArray.hpp"
@@ -105,9 +106,10 @@ int main(int argc, char *argv[]) {
   // Parse input file
   inp.ReadInput(rank);
 
+  // Get thermodynamic model
+  const auto thermo = inp.AssignThermodynamicModel();
   // Get equation of state
-  const auto eqnState = inp.AssignEquationOfState();
-
+  const auto eqnState = inp.AssignEquationOfState(thermo);
   // Get transport model
   const auto trans = inp.AssignTransportModel(eqnState);
 
@@ -277,7 +279,7 @@ int main(int argc, char *argv[]) {
     WriteCellCenter(inp.GridName(), stateBlocks, decomp, inp);
 
     // Write out initial results
-    WriteFun(stateBlocks, eqnState, trans, inp.IterationStart(), decomp,
+    WriteFun(stateBlocks, eqnState, thermo, trans, inp.IterationStart(), decomp,
              inp, turb);
     WriteMeta(inp, inp.IterationStart());
   }
@@ -303,11 +305,11 @@ int main(int argc, char *argv[]) {
     // loop over nonlinear iterations
     for (auto mm = 0; mm < inp.NonlinearIterations(); mm++) {
       // Get boundary conditions for all blocks
-      GetBoundaryConditions(localStateBlocks, inp, eqnState, trans, turb,
-                            connections, rank, MPI_cellData);
+      GetBoundaryConditions(localStateBlocks, inp, eqnState, thermo, trans,
+                            turb, connections, rank, MPI_cellData);
 
       // Calculate residual (RHS)
-      CalcResidual(localStateBlocks, mainDiagonal, trans, eqnState, inp,
+      CalcResidual(localStateBlocks, mainDiagonal, trans, thermo, eqnState, inp,
                    turb, connections, rank, MPI_tensorDouble, MPI_vec3d);
 
       // Calculate time step
@@ -319,8 +321,8 @@ int main(int argc, char *argv[]) {
       auto matrixResid = 0.0;
       if (inp.IsImplicit()) {
         matrixResid = ImplicitUpdate(
-            localStateBlocks, mainDiagonal, inp, eqnState, trans, turb, mm,
-            residL2, residLinf, connections, rank, MPI_cellData);
+            localStateBlocks, mainDiagonal, inp, eqnState, thermo, trans, turb,
+            mm, residL2, residLinf, connections, rank, MPI_cellData);
       } else {  // explicit time integration
         ExplicitUpdate(localStateBlocks, inp, eqnState, trans, turb, mm, residL2,
                        residLinf);
@@ -364,8 +366,8 @@ int main(int argc, char *argv[]) {
         cout << "writing out function file at iteration "
              << nn + inp.IterationStart()<< endl;
         // Write out function file
-        WriteFun(stateBlocks, eqnState, trans, (nn + inp.IterationStart() + 1),
-                 decomp, inp, turb);
+        WriteFun(stateBlocks, eqnState, thermo, trans,
+                 (nn + inp.IterationStart() + 1), decomp, inp, turb);
         WriteMeta(inp, (nn + inp.IterationStart() + 1));
       }
       if (rank == ROOTP && inp.WriteRestart(nn)) {

@@ -29,6 +29,7 @@ using std::unique_ptr;
 // forward class declaration
 class eos;
 class transport;
+class thermodynamic;
 class turbModel;
 struct wallVars;
 
@@ -56,10 +57,11 @@ class wallLaw {
 
   // private member functions
   void UpdateConstants(const double &);
-  void UpdateGamma(const unique_ptr<eos> &);
+  void UpdateGamma(const unique_ptr<thermodynamic> &);
   void CalcYplusWhite();
   double CalcHeatFlux(const unique_ptr<eos> &) const;
   void SetWallVars(const double &, const unique_ptr<eos> &,
+                   const unique_ptr<thermodynamic> &,
                    const unique_ptr<transport> &);
   void EddyVisc(const unique_ptr<eos> &, const unique_ptr<transport> &);
   void CalcVelocities(const double &, const double &);
@@ -67,8 +69,10 @@ class wallLaw {
                     const unique_ptr<transport> &, double &, double &);
   double CalcYplusRoot(const double &) const;
   double ShearStressMag() const {return uStar_ * uStar_ * rhoW_;};
-  void CalcRecoveryFactor(const unique_ptr<eos> &);
-  double CalcWallTemperature(const unique_ptr<eos> &, const double &) const;
+  void CalcRecoveryFactor(const unique_ptr<thermodynamic> &);
+  double CalcWallTemperature(const unique_ptr<eos> &,
+                             const unique_ptr<thermodynamic> &,
+                             const double &) const;
 
  public:
   // constructor
@@ -106,14 +110,20 @@ class wallLaw {
   double VonKarmen() const { return vonKarmen_; }
   double WallConstant() const { return wallConst_; }
   wallVars AdiabaticBCs(const vector3d<double> &, const vector3d<double> &,
-                        const unique_ptr<eos> &, const unique_ptr<transport> &,
+                        const unique_ptr<eos> &,
+                        const unique_ptr<thermodynamic> &,
+                        const unique_ptr<transport> &,
                         const unique_ptr<turbModel> &, const bool &);
   wallVars HeatFluxBCs(const vector3d<double> &, const vector3d<double> &,
-                       const unique_ptr<eos> &, const unique_ptr<transport> &,
+                       const unique_ptr<eos> &,
+                       const unique_ptr<thermodynamic> &,
+                       const unique_ptr<transport> &,
                        const unique_ptr<turbModel> &, const double &,
                        const bool &);
   wallVars IsothermalBCs(const vector3d<double> &, const vector3d<double> &,
-                         const unique_ptr<eos> &, const unique_ptr<transport> &,
+                         const unique_ptr<eos> &,
+                         const unique_ptr<thermodynamic> &,
+                         const unique_ptr<transport> &,
                          const unique_ptr<turbModel> &, const double &,
                          const bool &);
 

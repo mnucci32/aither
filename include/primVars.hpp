@@ -33,8 +33,9 @@ supply a ghost state given a boundary condition and boundary cell.  */
 #include <string>                  // string
 #include <memory>                  // unique_ptr
 #include "vector3d.hpp"            // vector3d
-#include "eos.hpp"                 // unique_ptr<eos>
-#include "transport.hpp"           // unique_ptr<transport>
+#include "eos.hpp"                 // equation of state
+#include "transport.hpp"           // transport model
+#include "thermodynamic.hpp"       // thermodynamic model
 #include "multiArray3d.hpp"        // multiArray3d
 #include "genArray.hpp"            // genArray
 #include "macros.hpp"
@@ -104,7 +105,7 @@ class primVars {
   inline double Energy(const unique_ptr<eos> &) const;
   inline double Enthalpy(const unique_ptr<eos> &) const;
   inline double Temperature(const unique_ptr<eos> &) const;
-  inline double SoS(const unique_ptr<eos> &) const;
+  inline double SoS(const unique_ptr<thermodynamic> &) const;
 
   inline genArray ConsVars(const unique_ptr<eos> &) const;
   primVars UpdateWithConsVars(const unique_ptr<eos> &, const genArray &,
@@ -118,30 +119,30 @@ class primVars {
 
   double InvCellSpectralRadius(const unitVec3dMag<double> &,
                                const unitVec3dMag<double> &,
-                               const unique_ptr<eos> &) const;
+                               const unique_ptr<thermodynamic> &) const;
   double InvFaceSpectralRadius(const unitVec3dMag<double> &,
-                               const unique_ptr<eos> &) const;
+                               const unique_ptr<thermodynamic> &) const;
 
   double ViscCellSpectralRadius(const unitVec3dMag<double> &,
                                 const unitVec3dMag<double> &,
-                                const unique_ptr<eos> &,
+                                const unique_ptr<thermodynamic> &,
                                 const unique_ptr<transport> &, const double &,
                                 const double &, const double &,
                                 const unique_ptr<turbModel> &) const;
   double ViscFaceSpectralRadius(const unitVec3dMag<double> &,
-                                const unique_ptr<eos> &,
+                                const unique_ptr<thermodynamic> &,
                                 const unique_ptr<transport> &, const double &,
                                 const double &, const double &,
                                 const unique_ptr<turbModel> &) const;
 
   double CellSpectralRadius(const unitVec3dMag<double> &,
                             const unitVec3dMag<double> &,
-                            const unique_ptr<eos> &,
+                            const unique_ptr<thermodynamic> &,
                             const unique_ptr<transport> &, const double &,
                             const double &, const double &,
                             const unique_ptr<turbModel> &, const bool &) const;
   double FaceSpectralRadius(const unitVec3dMag<double> &,
-                            const unique_ptr<eos> &,
+                            const unique_ptr<thermodynamic> &,
                             const unique_ptr<transport> &, const double &,
                             const double &, const double &,
                             const unique_ptr<turbModel> &, const bool &) const;
@@ -205,6 +206,7 @@ class primVars {
   primVars GetGhostState(const string &, const vector3d<double> &,
                          const double &, const int &, const input &,
                          const int &, const unique_ptr<eos> &,
+                         const unique_ptr<thermodynamic> &,
                          const unique_ptr<transport> &,
                          const unique_ptr<turbModel> &, wallVars &,
                          const int = 1) const;
@@ -233,8 +235,8 @@ double primVars::Energy(const unique_ptr<eos> &eqnState) const {
 }
 
 // member function to calculate speed of sound from primative varialbes
-double primVars::SoS(const unique_ptr<eos> &eqnState) const {
-  return sqrt(eqnState->Gamma() * data_[4] / data_[0]);
+double primVars::SoS(const unique_ptr<thermodynamic> &thermo) const {
+  return sqrt(thermo->Gamma() * data_[4] / data_[0]);
 }
 
 // member function to calculate enthalpy from conserved variables and equation

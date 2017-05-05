@@ -34,6 +34,7 @@ using std::unique_ptr;
 class primVars;
 class eos;
 class transport;
+class thermodynamic;
 class turbModel;
 class squareMatrix;
 struct wallVars;
@@ -65,12 +66,13 @@ class viscousFlux {
   double MomO() const { return data_[5]; }
 
   void CalcFlux(const tensor<double> &, const unique_ptr<transport> &,
-                const unique_ptr<eos> &, const vector3d<double> &,
+                const unique_ptr<thermodynamic> &, const vector3d<double> &,
                 const vector3d<double> &, const vector3d<double> &,
                 const vector3d<double> &, const unique_ptr<turbModel> &,
                 const primVars &, const double &, const double &,
                 const double &);
   wallVars CalcWallFlux(const tensor<double> &, const unique_ptr<transport> &,
+                        const unique_ptr <thermodynamic> &,
                         const unique_ptr<eos> &, const vector3d<double> &,
                         const vector3d<double> &, const vector3d<double> &,
                         const vector3d<double> &, const unique_ptr<turbModel> &,

@@ -23,6 +23,7 @@
 #include <memory>
 #include "vector3d.hpp"
 #include "eos.hpp"
+#include "thermodynamic.hpp"
 
 using std::unique_ptr;
 
@@ -54,6 +55,10 @@ class transport {
   virtual double ConstS() const = 0;
   virtual double TRef() const = 0;
   virtual double MuRef() const = 0;
+  virtual double Conductivity(const double &,
+                              const unique_ptr<thermodynamic> &) const = 0;
+  virtual double TurbConductivity(const double &, const double &,
+                                  const unique_ptr<thermodynamic> &) const = 0;
 
   double ReRef() const {return reRef_;}
   double MRef() const {return mRef_;}
@@ -107,6 +112,15 @@ class sutherland : public transport {
   double ConstS() const override {return S_;}
   double TRef() const override {return tRef_;}
   double MuRef() const override {return muRef_;}
+  double Conductivity(const double &mu,
+                      const unique_ptr<thermodynamic> &thermo) const override {
+    return mu * thermo->SpecificHeat() / thermo->Prandtl();
+  }
+  double TurbConductivity(
+      const double &eddyVisc, const double &prt,
+      const unique_ptr<thermodynamic> &thermo) const override {
+    return eddyVisc * thermo->SpecificHeat() / prt;
+  }
 
   // Destructor
   ~sutherland() noexcept {}

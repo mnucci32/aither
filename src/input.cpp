@@ -30,6 +30,7 @@
 #include "inputStates.hpp"
 #include "eos.hpp"
 #include "transport.hpp"
+#include "thermodynamic.hpp"
 #include "macros.hpp"
 
 using std::cout;
@@ -669,11 +670,13 @@ unique_ptr<turbModel> input::AssignTurbulenceModel() const {
   return turb;
 }
 
-unique_ptr<eos> input::AssignEquationOfState() const {
+// member function to get equation of state
+unique_ptr<eos> input::AssignEquationOfState(
+    const unique_ptr<thermodynamic> &thermo) const {
   // define equation of state
   unique_ptr<eos> eqnState(nullptr);
   if (equationOfState_ == "idealGas") {
-    eqnState = unique_ptr<eos>{std::make_unique<idealGas>(gamma_, gasConst_)};
+    eqnState = unique_ptr<eos>{std::make_unique<idealGas>(thermo, tRef_)};
   } else {
     cerr << "ERROR: Error in input::AssignEquationOfState(). Equation of state "
          << equationOfState_ << " is not recognized!" << endl;
@@ -682,6 +685,7 @@ unique_ptr<eos> input::AssignEquationOfState() const {
   return eqnState;
 }
 
+// member function to get transport model
 unique_ptr<transport> input::AssignTransportModel(
     const unique_ptr<eos> &eqnState) const {
   // define equation of state
@@ -696,6 +700,22 @@ unique_ptr<transport> input::AssignTransportModel(
   }
   return trans;
 }
+
+// member function to get thermodynamic model
+unique_ptr<thermodynamic> input::AssignThermodynamicModel() const {
+  // define equation of state
+  unique_ptr<thermodynamic> thermo(nullptr);
+  if (thermodynamicModel_ == "caloricallyPerfect") {
+    thermo =
+        unique_ptr<thermodynamic>{std::make_unique<caloricallyPerfect>(gamma_)};
+  } else {
+    cerr << "ERROR: Error in input::AssignThermodynamicModel(). Thermodynamic "
+         << "model " << transportModel_ << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+  return thermo;
+}
+
 
 // member function to return the name of the simulation without the file
 // extension i.e. "myInput.inp" would return "myInput"

@@ -33,6 +33,7 @@ using std::unique_ptr;
 class primVars;
 class eos;
 class transport;
+class thermodynamic;
 class turbModel;
 class input;
 class genArray;
@@ -75,24 +76,28 @@ class fluxJacobian {
   void AddOnDiagonal(const double &, const bool &);
 
   void RusanovFluxJacobian(const primVars &, const unique_ptr<eos> &,
+                           const unique_ptr<thermodynamic> &,
                            const unitVec3dMag<double> &, const bool &,
                            const input &, const unique_ptr<turbModel> &);
   void InvFluxJacobian(const primVars &, const unique_ptr<eos> &,
+                       const unique_ptr<thermodynamic> &,
                        const unitVec3dMag<double> &, const input &,
                        const unique_ptr<turbModel> &);
   void ApproxRoeFluxJacobian(const primVars &, const primVars &,
                              const unique_ptr<eos> &,
+                             const unique_ptr<thermodynamic> &,
                              const unitVec3dMag<double> &, const bool &,
                              const input &, const unique_ptr<turbModel> &);
-  void DelPrimativeDelConservative(const primVars &, const unique_ptr<eos> &,
+  void DelPrimativeDelConservative(const primVars &,
+                                   const unique_ptr<thermodynamic> &,
                                    const input &);
 
-  void ApproxTSLJacobian(const primVars &, const double &, const double &,
-                         const double &, const unique_ptr<eos> &,
-                         const unique_ptr<transport> &,
-                         const unitVec3dMag<double> &, const double &,
-                         const unique_ptr<turbModel> &, const input &,
-                         const bool &, const tensor<double> &);
+  void ApproxTSLJacobian(
+      const primVars &, const double &, const double &, const double &,
+      const unique_ptr<eos> &, const unique_ptr<transport> &,
+      const unique_ptr<thermodynamic> &, const unitVec3dMag<double> &,
+      const double &, const unique_ptr<turbModel> &, const input &,
+      const bool &, const tensor<double> &);
 
   void Zero() {
     flowJacobian_.Zero();
@@ -241,6 +246,7 @@ genArray RusanovScalarOffDiagonal(const primVars &, const genArray &,
                                   const double &, const double &,
                                   const double &, const double &,
                                   const unique_ptr<eos> &,
+                                  const unique_ptr<thermodynamic> &,
                                   const unique_ptr<transport> &,
                                   const unique_ptr<turbModel> &,
                                   const bool &, const bool &);
@@ -249,6 +255,7 @@ genArray RusanovBlockOffDiagonal(const primVars &, const genArray &,
                                  const double &, const double &,
                                  const double &, const double &,
                                  const unique_ptr<eos> &,
+                                 const unique_ptr<thermodynamic> &,
                                  const unique_ptr<transport> &,
                                  const unique_ptr<turbModel> &,
                                  const input &, const bool &,
@@ -259,6 +266,7 @@ genArray RoeOffDiagonal(const primVars &, const primVars &,
                         const unitVec3dMag<double> &, const double &,
                         const double &, const double &,
                         const double &, const unique_ptr<eos> &,
+                        const unique_ptr<thermodynamic> &,
                         const unique_ptr<transport> &,
                         const unique_ptr<turbModel> &, const bool &,
                         const bool &, const bool &);
@@ -267,6 +275,7 @@ genArray OffDiagonal(const primVars &, const primVars &, const genArray &,
                      const unitVec3dMag<double> &, const double &,
                      const double &, const double &, const double &,
                      const tensor<double> &, const unique_ptr<eos> &,
+                     const unique_ptr<thermodynamic> &,
                      const unique_ptr<transport> &,
                      const unique_ptr<turbModel> &, const input &,
                      const bool &);

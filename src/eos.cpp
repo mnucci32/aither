@@ -27,17 +27,17 @@ using std::cerr;
 // P = rho * R * T
 double idealGas::PressFromEnergy(const double &rho, const double &energy,
                                  const double &vel) const {
-  return (gamma_ - 1.0) * rho * (energy - 0.5 * vel * vel);
+  return (gammaRef_ - 1.0) * rho * (energy - 0.5 * vel * vel);
 }
 
 double idealGas::PressureRT(const double &rho,
                             const double &temperature) const {
-  return temperature * rho / gamma_;
+  return temperature * rho / gammaRef_;
 }
 
 double idealGas::SpecEnergy(const double &pressure,
                             const double &rho) const {
-  return pressure / ((gamma_ - 1.0) * rho);
+  return pressure / ((gammaRef_ - 1.0) * rho);
 }
 
 double idealGas::Energy(const double &specEn, const double &vel) const {
@@ -50,11 +50,11 @@ double idealGas::Enthalpy(const double &energy, const double &pressure,
 }
 
 double idealGas::SoS(const double &pressure, const double &rho) const {
-  return sqrt(gamma_ * pressure / rho);
+  return sqrt(gammaRef_ * pressure / rho);
 }
 
 double idealGas::Temperature(const double &pressure,
                              const double &rho) const {
-  return pressure * gamma_ / rho;
+  return pressure * gammaRef_ / rho;
 }
 

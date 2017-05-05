@@ -49,6 +49,7 @@ class genArray;
 class decomposition;
 class eos;
 class transport;
+class thermodynamic;
 class resid;
 class input;
 class turbModel;
@@ -63,6 +64,7 @@ void WriteCellCenter(const string &, const vector<procBlock> &,
 void WriteWallFaceCenter(const string &, const vector<procBlock> &,
                          const double &);
 void WriteFun(const vector<procBlock> &, const unique_ptr<eos> &,
+              const unique_ptr<thermodynamic> &thermo,
               const unique_ptr<transport> &, const int &, const decomposition &,
               const input &, const unique_ptr<turbModel> &);
 void WriteWallFun(const vector<procBlock> &, const unique_ptr<eos> &,

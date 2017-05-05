@@ -35,6 +35,7 @@ using std::unique_ptr;
 
 // forward class declaration
 class eos;
+class thermodynamic;
 class primVars;
 class genArray;
 class squareMatrix;
@@ -118,11 +119,13 @@ class inviscidFlux {
 
 // function definitions
 // function to calculate Roe flux with entropy fix
-inviscidFlux RoeFlux(const primVars&, const primVars&, const unique_ptr<eos>&,
-                     const vector3d<double>&);
+inviscidFlux RoeFlux(const primVars &, const primVars &,
+                     const unique_ptr<eos> &, const unique_ptr<thermodynamic> &,
+                     const vector3d<double> &);
 inviscidFlux RusanovFlux(const primVars &, const primVars &,
-                         const unique_ptr<eos> &, const vector3d<double> &,
-                         const bool &);
+                         const unique_ptr<eos> &,
+                         const unique_ptr<thermodynamic> &,
+                         const vector3d<double> &, const bool &);
 
 // function to calculate Roe flux with entropy fix for implicit methods
 void ApproxRoeFluxJacobian(const primVars &, const primVars &,

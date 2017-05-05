@@ -37,6 +37,7 @@ using std::shared_ptr;
 class turbModel;
 class eos;
 class transport;
+class thermodynamic;
 
 class input {
   string simName_;  // simulation name
@@ -218,8 +219,10 @@ class input {
   string OrderOfAccuracy() const;
 
   unique_ptr<turbModel> AssignTurbulenceModel() const;
-  unique_ptr<eos> AssignEquationOfState() const;
+  unique_ptr<eos> AssignEquationOfState(
+      const unique_ptr<thermodynamic> &) const;
   unique_ptr<transport> AssignTransportModel(const unique_ptr<eos> &) const;
+  unique_ptr<thermodynamic> AssignThermodynamicModel() const;
 
   double ViscousCFLCoefficient() const;
 

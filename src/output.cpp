@@ -29,6 +29,7 @@
 #include "plot3d.hpp"    // plot3d
 #include "eos.hpp"
 #include "transport.hpp"
+#include "thermodynamic.hpp"
 #include "primVars.hpp"            // primVars
 #include "procBlock.hpp"           // procBlock
 #include "inviscidFlux.hpp"        // inviscidFlux
@@ -168,6 +169,7 @@ void WriteWallFaceCenter(const string &gridName, const vector<procBlock> &vars,
 //----------------------------------------------------------------------
 // function to write out variables in function file format
 void WriteFun(const vector<procBlock> &vars, const unique_ptr<eos> &eqnState,
+              const unique_ptr<thermodynamic> &thermo,
               const unique_ptr<transport> &trans, const int &solIter,
               const decomposition &decomp, const input &inp,
               const unique_ptr<turbModel> &turb) {
@@ -217,9 +219,9 @@ void WriteFun(const vector<procBlock> &vars, const unique_ptr<eos> &eqnState,
               value *= inp.RRef() * inp.ARef() * inp.ARef();
             } else if (var == "mach") {
               auto vel = blk.State(ii, jj, kk).Velocity();
-              value = vel.Mag() / blk.State(ii, jj, kk).SoS(eqnState);
+              value = vel.Mag() / blk.State(ii, jj, kk).SoS(thermo);
             } else if (var == "sos") {
-              value = blk.State(ii, jj, kk).SoS(eqnState);
+              value = blk.State(ii, jj, kk).SoS(thermo);
               value *= inp.ARef();
             } else if (var == "dt") {
               value = blk.Dt(ii, jj, kk);

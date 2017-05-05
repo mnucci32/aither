@@ -34,6 +34,7 @@ using std::unique_ptr;
 class procBlock;
 class eos;
 class transport;
+class thermodynamic;
 class input;
 class genArray;
 class turbModel;
@@ -68,6 +69,7 @@ void SwapGeomSlice(connection &, procBlock &, procBlock &);
 
 void GetBoundaryConditions(vector<procBlock> &, const input &,
                            const unique_ptr<eos> &,
+                           const unique_ptr<thermodynamic> &,
                            const unique_ptr<transport> &,
                            const unique_ptr<turbModel> &, vector<connection> &,
                            const int &, const MPI_Datatype &);
@@ -84,6 +86,7 @@ void ExplicitUpdate(vector<procBlock> &, const input &, const unique_ptr<eos> &,
                     resid &);
 double ImplicitUpdate(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
                       const input &, const unique_ptr<eos> &,
+                      const unique_ptr<thermodynamic> &,
                       const unique_ptr<transport> &,
                       const unique_ptr<turbModel> &, const int &, genArray &,
                       resid &, const vector<connection> &, const int &,
@@ -101,7 +104,8 @@ void SwapEddyViscAndGradients(vector<procBlock> &, const vector<connection> &,
                               const MPI_Datatype &, const int &);
 
 void CalcResidual(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
-                  const unique_ptr<transport> &, const unique_ptr<eos> &,
+                  const unique_ptr<transport> &,
+                  const unique_ptr<thermodynamic> &, const unique_ptr<eos> &,
                   const input &, const unique_ptr<turbModel> &,
                   const vector<connection> &, const int &, const MPI_Datatype &,
                   const MPI_Datatype &);

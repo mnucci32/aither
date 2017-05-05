@@ -18,13 +18,14 @@
 #include <string>
 #include <memory>
 #include "viscousFlux.hpp"
-#include "eos.hpp"         // equation of state
-#include "transport.hpp"   // transport model
-#include "primVars.hpp"    // primVars
-#include "turbulence.hpp"  // turbModel
-#include "matrix.hpp"      // squareMatrix
-#include "utility.hpp"     // TauNormal
-#include "wallData.hpp"    // wallVars
+#include "eos.hpp"            // equation of state
+#include "transport.hpp"      // transport model
+#include "thermodynamic.hpp"  // thermodynamic model
+#include "primVars.hpp"       // primVars
+#include "turbulence.hpp"     // turbModel
+#include "matrix.hpp"         // squareMatrix
+#include "utility.hpp"        // TauNormal
+#include "wallData.hpp"       // wallVars
 
 using std::cout;
 using std::endl;
@@ -57,14 +58,14 @@ viscosity, and velGrad is the velocity gradient tensor.
 */
 void viscousFlux::CalcFlux(
     const tensor<double> &velGrad, const unique_ptr<transport> &trans,
-    const unique_ptr<eos> &eqnState, const vector3d<double> &tGrad,
+    const unique_ptr<thermodynamic> &thermo, const vector3d<double> &tGrad,
     const vector3d<double> &normArea, const vector3d<double> &tkeGrad,
     const vector3d<double> &omegaGrad, const unique_ptr<turbModel> &turb,
     const primVars &state, const double &lamVisc, const double &turbVisc,
     const double &f1) {
   // velGrad -- velocity gradient tensor
   // trans -- viscous transport model
-  // eqnState -- equation of state
+  // thermo -- thermodynamic model
   // tGrad -- temperature gradient
   // normArea -- unit area vector of face
   // tkeGrad -- tke gradient
@@ -86,8 +87,8 @@ void viscousFlux::CalcFlux(
   data_[1] = tau.Y();
   data_[2] = tau.Z();
   data_[3] = tau.DotProd(state.Velocity()) +
-      (eqnState->Conductivity(mu) +
-       eqnState->TurbConductivity(mut, turb->TurbPrandtlNumber())) *
+      (trans->Conductivity(mu, thermo) +
+       trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), thermo)) *
       tGrad.DotProd(normArea);
 
   // turbulence viscous flux
@@ -105,13 +106,14 @@ void viscousFlux::CalcFlux(
 
 wallVars viscousFlux::CalcWallFlux(
     const tensor<double> &velGrad, const unique_ptr<transport> &trans,
-    const unique_ptr<eos> &eqnState, const vector3d<double> &tGrad,
-    const vector3d<double> &normArea, const vector3d<double> &tkeGrad,
-    const vector3d<double> &omegaGrad, const unique_ptr<turbModel> &turb,
-    const primVars &state, const double &lamVisc, const double &turbVisc,
-    const double &f1) {
+    const unique_ptr<thermodynamic> &thermo, const unique_ptr<eos> &eqnState,
+    const vector3d<double> &tGrad, const vector3d<double> &normArea,
+    const vector3d<double> &tkeGrad, const vector3d<double> &omegaGrad,
+    const unique_ptr<turbModel> &turb, const primVars &state,
+    const double &lamVisc, const double &turbVisc, const double &f1) {
   // velGrad -- velocity gradient tensor
   // trans -- viscous transport model
+  // thermo -- thermodynamic model
   // eqnState -- equation of state
   // tGrad -- temperature gradient
   // normArea -- unit area vector of face
@@ -134,10 +136,11 @@ wallVars viscousFlux::CalcWallFlux(
       TauNormal(velGrad, normArea, wVars.viscosity_, wVars.turbEddyVisc_, trans);
 
   // wall heat flux
-  wVars.heatFlux_ = (eqnState->Conductivity(wVars.viscosity_) +
-                     eqnState->TurbConductivity(wVars.turbEddyVisc_,
-                                               turb->TurbPrandtlNumber())) *
-                    tGrad.DotProd(normArea);
+  wVars.heatFlux_ =
+      (trans->Conductivity(wVars.viscosity_, thermo) +
+       trans->TurbConductivity(wVars.turbEddyVisc_, turb->TurbPrandtlNumber(),
+                               thermo)) *
+      tGrad.DotProd(normArea);
 
   data_[0] = wVars.shearStress_.X();
   data_[1] = wVars.shearStress_.Y();

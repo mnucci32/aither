@@ -24,6 +24,7 @@
 #include "procBlock.hpp"
 #include "eos.hpp"                 // equation of state
 #include "transport.hpp"           // transport model
+#include "thermodynamic.hpp"       // thermodynamic model
 #include "input.hpp"               // inputVars
 #include "genArray.hpp"
 #include "turbulence.hpp"
@@ -261,6 +262,7 @@ boundaries to pass the correct data between grid blocks.
 */
 void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
                            const unique_ptr<eos> &eqnState,
+                           const unique_ptr<thermodynamic> &thermo,
                            const unique_ptr<transport> &trans,
                            const unique_ptr<turbModel> &turb,
                            vector<connection> &connections, const int &rank,
@@ -268,6 +270,7 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
   // states -- vector of all procBlocks in the solution domain
   // inp -- all input variables
   // eqnState -- equation of state
+  // thermo -- thermodynamic model
   // trans -- viscous transport model
   // connections -- vector of connection boundary types
   // rank -- processor rank
@@ -275,7 +278,7 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
 
   // loop over all blocks and assign inviscid ghost cells
   for (auto &state : states) {
-    state.AssignInviscidGhostCells(inp, eqnState, trans, turb);
+    state.AssignInviscidGhostCells(inp, eqnState, thermo, trans, turb);
   }
 
   // loop over connections and swap ghost cells where needed
@@ -297,7 +300,7 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
 
   // loop over all blocks and get ghost cell edge data
   for (auto &state : states) {
-    state.AssignInviscidGhostCellsEdge(inp, eqnState, trans, turb);
+    state.AssignInviscidGhostCellsEdge(inp, eqnState, thermo, trans, turb);
   }
 }
 
@@ -400,6 +403,7 @@ void ExplicitUpdate(vector<procBlock> &blocks, const input &inp,
 double ImplicitUpdate(vector<procBlock> &blocks,
                       vector<multiArray3d<fluxJacobian>> &mainDiagonal,
                       const input &inp, const unique_ptr<eos> &eqnState,
+                      const unique_ptr<thermodynamic> &thermo,
                       const unique_ptr<transport> &trans,
                       const unique_ptr<turbModel> &turb, const int &mm,
                       genArray &residL2, resid &residLinf,
@@ -409,6 +413,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   // mainDiagonal -- main diagonal of A matrix for all blocks on processor
   // inp -- input variables
   // eqnState -- equation of state
+  // thermo -- thermodynamic model
   // trans -- viscous transport model
   // turb -- turbulence model
   // mm -- nonlinear iteration
@@ -447,8 +452,8 @@ double ImplicitUpdate(vector<procBlock> &blocks,
 
       // forward lu-sgs sweep
       for (auto bb = 0U; bb < blocks.size(); bb++) {
-        blocks[bb].LUSGS_Forward(reorder[bb], du[bb], eqnState, inp, trans,
-                                 turb, mainDiagonal[bb], ii);
+        blocks[bb].LUSGS_Forward(reorder[bb], du[bb], eqnState, inp, thermo,
+                                 trans, turb, mainDiagonal[bb], ii);
       }
 
       // swap updates for ghost cells
@@ -456,9 +461,9 @@ double ImplicitUpdate(vector<procBlock> &blocks,
 
       // backward lu-sgs sweep
       for (auto bb = 0U; bb < blocks.size(); bb++) {
-        matrixError +=
-            blocks[bb].LUSGS_Backward(reorder[bb], du[bb], eqnState, inp, trans,
-                                      turb, mainDiagonal[bb], ii);
+        matrixError += blocks[bb].LUSGS_Backward(reorder[bb], du[bb], eqnState,
+                                                 inp, thermo, trans, turb,
+                                                 mainDiagonal[bb], ii);
       }
     }
   } else if (inp.MatrixSolver() == "dplur" || inp.MatrixSolver() == "bdplur") {
@@ -468,8 +473,8 @@ double ImplicitUpdate(vector<procBlock> &blocks,
 
       for (auto bb = 0U; bb < blocks.size(); bb++) {
         // Calculate correction (du)
-        matrixError += blocks[bb].DPLUR(du[bb], eqnState, inp, trans, turb,
-                                        mainDiagonal[bb]);
+        matrixError += blocks[bb].DPLUR(du[bb], eqnState, inp, thermo, trans,
+                                        turb, mainDiagonal[bb]);
       }
     }
   } else {
@@ -613,6 +618,7 @@ void SwapWallDist(vector<procBlock> &states,
 void CalcResidual(vector<procBlock> &states,
                   vector<multiArray3d<fluxJacobian>> &mainDiagonal,
                   const unique_ptr<transport> &trans,
+                  const unique_ptr<thermodynamic> &thermo,
                   const unique_ptr<eos> &eqnState, const input &inp,
                   const unique_ptr<turbModel> &turb,
                   const vector<connection> &connections, const int &rank,
@@ -621,6 +627,7 @@ void CalcResidual(vector<procBlock> &states,
   // states -- vector of all procBlocks on processor
   // mainDiagonal -- main diagonal of A matrix for implicit solve
   // trans -- viscous transport model
+  // thermo -- thermodynamic model
   // eqnState -- equation of state
   // inp -- input variables
   // turb -- turbulence model
@@ -631,7 +638,7 @@ void CalcResidual(vector<procBlock> &states,
 
   for (auto bb = 0U; bb < states.size(); bb++) {
     // calculate residual
-    states[bb].CalcResidualNoSource(trans, eqnState, inp, turb,
+    states[bb].CalcResidualNoSource(trans, thermo, eqnState, inp, turb,
                                     mainDiagonal[bb]);
   }
   // swap mut & gradients calculated during residual calculation

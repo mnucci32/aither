@@ -20,6 +20,7 @@
 #include <algorithm>  // max
 #include "inviscidFlux.hpp"
 #include "eos.hpp"
+#include "thermodynamic.hpp"
 #include "primVars.hpp"
 #include "genArray.hpp"
 #include "matrix.hpp"
@@ -155,6 +156,7 @@ wave strength across the face.
 */
 inviscidFlux RoeFlux(const primVars &left, const primVars &right,
                      const unique_ptr<eos> &eqnState,
+                     const unique_ptr<thermodynamic> &thermo,
                      const vector3d<double> &areaNorm) {
   // left -- primative variables from left
   // right -- primative variables from right
@@ -169,7 +171,7 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   const auto hR = roe.Enthalpy(eqnState);
 
   // Roe averaged speed of sound
-  const auto aR = roe.SoS(eqnState);
+  const auto aR = roe.SoS(thermo);
 
   // Roe velocity dotted with normalized area vector
   const auto velRSum = roe.Velocity().DotProd(areaNorm);
@@ -273,22 +275,23 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   return leftFlux;
 }
 
-
 inviscidFlux RusanovFlux(const primVars &left, const primVars &right,
                          const unique_ptr<eos> &eqnState,
+                         const unique_ptr<thermodynamic> &thermo,
                          const vector3d<double> &areaNorm,
-			 const bool &positive) {
+                         const bool &positive) {
   // left -- primative variables from left
   // right -- primative variables from right
   // eqnState -- equation of state
+  // thermo -- thermodynamic model
   // areaNorm -- norm area vector of face
   // positive -- flag that is positive to add spectral radius
 
   // calculate maximum spectral radius
   const auto leftSpecRad = fabs(left.Velocity().DotProd(areaNorm))
-    + left.SoS(eqnState);
+    + left.SoS(thermo);
   const auto rightSpecRad = fabs(right.Velocity().DotProd(areaNorm))
-    + right.SoS(eqnState);
+    + right.SoS(thermo);
   const auto fac = positive ? -1.0 : 1.0;
   const auto specRad = fac * std::max(leftSpecRad, rightSpecRad);
 
