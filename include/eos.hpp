@@ -31,12 +31,7 @@ as well as the sutherland coefficients. It is used for calculating
 a temperature dependent viscosity for the Navier-Stokes equations. */
 
 #include <math.h>  // sqrt
-#include <vector>  // vector
-#include <string>  // string
 #include "vector3d.hpp"
-
-using std::vector;
-using std::string;
 
 // abstract base class for equation of state
 class eos {
@@ -67,6 +62,14 @@ class eos {
   virtual double Temperature(const double &pressure,
                              const double &rho) const = 0;
   virtual double DensityTP(const double &temp, const double &press) const = 0;
+
+  // delete this later once moved to thermo model
+  virtual double Gamma() const = 0;
+  virtual double GasConst() const = 0;
+  virtual double Prandtl() const = 0;
+  virtual double SpecificHeat() const = 0;
+  virtual double Conductivity(const double &) const = 0;
+  virtual double TurbConductivity(const double &, const double &) const = 0;
 
   // Destructor
   virtual ~eos() noexcept {}
@@ -105,77 +108,21 @@ class idealGas : public eos {
     return press * gamma_ / temp;
   }
 
-  double Gamma() const {return gamma_;}
-  double GasConst() const {return gasConst_;}
-  double Prandtl() const {return (4.0 * gamma_) / (9.0 * gamma_ - 5.0);}
-  double SpecificHeat() const {return 1.0 / (gamma_ - 1.0);}
-  double Conductivity(const double &mu) const {
-    return mu * this->SpecificHeat() / this->Prandtl();}
-  double TurbConductivity(const double &eddyVisc, const double &prt) const {
-    return eddyVisc * this->SpecificHeat() / prt;}
+  double Gamma() const override {return gamma_;}
+  double GasConst() const override {return gasConst_;}
+  double Prandtl() const override {return (4.0 * gamma_) / (9.0 * gamma_ - 5.0);}
+  double SpecificHeat() const override {return 1.0 / (gamma_ - 1.0);}
+  double Conductivity(const double &mu) const override {
+    return mu * this->SpecificHeat() / this->Prandtl();
+  }
+  double TurbConductivity(const double &eddyVisc,
+                          const double &prt) const override {
+    return eddyVisc * this->SpecificHeat() / prt;
+  }
 
   // Destructor
   ~idealGas() noexcept {}
 };
 
-
-class sutherland {
-  const double cOne_;
-  const double S_;
-  const double tRef_;
-  const double muRef_;
-  const double bulkVisc_;
-  const double reRef_;
-  const double mRef_;
-  const double scaling_;
-  const double invScaling_;
-
- public:
-  // Constructors
-  // Stoke's hypothesis -- bulk viscosity = 0
-  // Sutherland's Law -- mu = muref * (C1 * Tref^1.5) / (T + S_)
-  sutherland(const double &c, const double &s, const double &t,
-             const double &r, const double &p, const double &l,
-             const vector3d<double> &vel, const idealGas &eos) :
-      cOne_(c), S_(s), tRef_(t), muRef_(cOne_ * pow(tRef_, 1.5) / (tRef_ + S_)),
-      bulkVisc_(0.0), reRef_(r * vel.Mag() * l / muRef_),
-      mRef_(vel.Mag() / eos.SoS(p, r)), scaling_(mRef_ / reRef_),
-      invScaling_(reRef_ / mRef_) {}
-  sutherland(const double &t, const double &r, const double &l, const double &p,
-             const vector3d<double> &vel, const idealGas &eos) :
-      sutherland(1.458e-6, 110.4, t, r, p, l, vel, eos) {}
-
-  explicit sutherland(const double &t) : cOne_(1.458e-6), S_(110.4),
-                                         tRef_(t),
-                                         muRef_(cOne_ * pow(t, 1.5)/(t+S_)),
-                                         bulkVisc_(0.0), reRef_(0.0),
-                                         mRef_(0.0), scaling_(0.0),
-                                         invScaling_(0.0) {}
-  sutherland() : sutherland(288.15) {}
-
-  // move constructor and assignment operator
-  sutherland(sutherland&&) noexcept = default;
-  sutherland& operator=(sutherland&&) noexcept = default;
-
-  // copy constructor and assignment operator
-  sutherland(const sutherland&) = default;
-  sutherland& operator=(const sutherland&) = default;
-
-  // Member functions
-  double Viscosity(const double&) const;
-  double EffectiveViscosity(const double&) const;
-  double Lambda(const double&) const;
-  double ConstC1() const {return cOne_;}
-  double ConstS() const {return S_;}
-  double TRef() const {return tRef_;}
-  double MuRef() const {return muRef_;}
-  double ReRef() const {return reRef_;}
-  double MRef() const {return mRef_;}
-  double NondimScaling() const {return scaling_;}
-  double InvNondimScaling() const {return invScaling_;}
-
-  // Destructor
-  ~sutherland() noexcept {}
-};
 
 #endif

@@ -32,8 +32,8 @@ using std::unique_ptr;
 
 // forward class declarations
 class procBlock;
-class idealGas;
-class sutherland;
+class eos;
+class transport;
 class input;
 class genArray;
 class turbModel;
@@ -66,22 +66,25 @@ vector3d<double> ScalarGradGG(
 
 void SwapGeomSlice(connection &, procBlock &, procBlock &);
 
-void GetBoundaryConditions(vector<procBlock> &, const input &, const idealGas &,
-                           const sutherland &, const unique_ptr<turbModel> &,
-                           vector<connection> &, const int &,
-                           const MPI_Datatype &);
+void GetBoundaryConditions(vector<procBlock> &, const input &,
+                           const unique_ptr<eos> &,
+                           const unique_ptr<transport> &,
+                           const unique_ptr<turbModel> &, vector<connection> &,
+                           const int &, const MPI_Datatype &);
 
 vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &);
 void CalcWallDistance(vector<procBlock> &, const kdtree &);
 
-void AssignSolToTimeN(vector<procBlock> &, const idealGas &);
+void AssignSolToTimeN(vector<procBlock> &, const unique_ptr<eos> &);
 void AssignSolToTimeNm1(vector<procBlock> &);
 
-void ExplicitUpdate(vector<procBlock> &, const input &, const idealGas &,
-                    const sutherland &, const unique_ptr<turbModel> &,
-                    const int &, genArray &, resid &);
+void ExplicitUpdate(vector<procBlock> &, const input &, const unique_ptr<eos> &,
+                    const unique_ptr<transport> &,
+                    const unique_ptr<turbModel> &, const int &, genArray &,
+                    resid &);
 double ImplicitUpdate(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
-                      const input &, const idealGas &, const sutherland &,
+                      const input &, const unique_ptr<eos> &,
+                      const unique_ptr<transport> &,
                       const unique_ptr<turbModel> &, const int &, genArray &,
                       resid &, const vector<connection> &, const int &,
                       const MPI_Datatype &);
@@ -97,10 +100,9 @@ void SwapEddyViscAndGradients(vector<procBlock> &, const vector<connection> &,
                               const int &, const MPI_Datatype &,
                               const MPI_Datatype &, const int &);
 
-void CalcResidual(vector<procBlock> &,
-                  vector<multiArray3d<fluxJacobian>> &,
-                  const sutherland &, const idealGas &, const input &,
-                  const unique_ptr<turbModel> &,
+void CalcResidual(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
+                  const unique_ptr<transport> &, const unique_ptr<eos> &,
+                  const input &, const unique_ptr<turbModel> &,
                   const vector<connection> &, const int &, const MPI_Datatype &,
                   const MPI_Datatype &);
 
@@ -108,7 +110,7 @@ void CalcTimeStep(vector<procBlock> &, const input &);
 
 // void GetSolMMinusN(vector<multiArray3d<genArray>> &, const vector<procBlock> &,
 //                    const vector<multiArray3d<genArray>> &,
-//                    const idealGas &, const input &, const int &);
+//                    const unique_ptr<eos> &, const input &, const int &);
 
 // function to reorder block by hyperplanes
 vector<vector3d<int>> HyperplaneReorder(const int &, const int &, const int &);
@@ -117,9 +119,11 @@ void ResizeArrays(const vector<procBlock> &, const input &,
                   vector<multiArray3d<fluxJacobian>> &);
 
 vector3d<double> TauNormal(const tensor<double> &, const vector3d<double> &,
-                           const double &, const double &, const sutherland &);
+                           const double &, const double &,
+                           const unique_ptr<transport> &);
 vector3d<double> TauShear(const tensor<double> &, const vector3d<double> &,
-                          const double &, const double &, const sutherland &);
+                          const double &, const double &,
+                          const unique_ptr<transport> &);
 
 vector<double> LagrangeCoeff(const vector<double> &, const unsigned int &,
                              const int &, const int &);

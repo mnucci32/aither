@@ -38,7 +38,7 @@ using std::min;
 using std::unique_ptr;
 
 primVars::primVars(const genArray &a, const bool &prim,
-                   const idealGas &eqnState,
+                   const unique_ptr<eos> &eqnState,
                    const unique_ptr<turbModel> &turb) {
   // a -- array of conservative or primative variables
   // prim -- flag that is true if variable a is primative variables
@@ -56,7 +56,7 @@ primVars::primVars(const genArray &a, const bool &prim,
     data_[3] = a[3] / a[0];
     const auto energy = a[4] / a[0];
     data_[4] =
-        eqnState.PressFromEnergy(data_[0], energy, this->Velocity().Mag());
+        eqnState->PressFromEnergy(data_[0], energy, this->Velocity().Mag());
     data_[5] = a[5] / a[0];
     data_[6] = a[6] / a[0];
   }
@@ -66,9 +66,9 @@ primVars::primVars(const genArray &a, const bool &prim,
 }
 
 // member function to initialize a state with nondimensional values
-void primVars::NondimensionalInitialize(const idealGas &eos,
+void primVars::NondimensionalInitialize(const unique_ptr<eos> &eqnState,
                                         const input &inp,
-                                        const sutherland &suth,
+                                        const unique_ptr<transport> &trans,
                                         const int &parBlock,
                                         const unique_ptr<turbModel> &turb) {
   // get initial condition state for parent block
@@ -85,7 +85,7 @@ void primVars::NondimensionalInitialize(const idealGas &eos,
     // intensity and eddy viscosity ratio. This is the default for
     // STAR-CCM+
     this->ApplyFarfieldTurbBC(this->Velocity(), ic.TurbulenceIntensity(),
-                              ic.EddyViscosityRatio(), suth, eos, turb);
+                              ic.EddyViscosityRatio(), trans, eqnState, turb);
   } else {
     data_[5] = 0.0;
     data_[6] = 0.0;
@@ -357,8 +357,8 @@ primVars primVars::GetGhostState(const string &bcType,
                                  const vector3d<double> &areaVec,
                                  const double &wallDist, const int &surf,
                                  const input &inputVars, const int &tag,
-                                 const idealGas &eqnState,
-                                 const sutherland &suth,
+                                 const unique_ptr<eos> &eqnState,
+                                 const unique_ptr<transport> &trans,
                                  const unique_ptr<turbModel> &turb,
                                  wallVars &wVars, const int layer) const {
   // bcType -- type of boundary condition to supply ghost cell for
@@ -368,7 +368,7 @@ primVars primVars::GetGhostState(const string &bcType,
   // inputVar -- all input variables
   // tag -- boundary condition tag
   // eqnState -- equation of state
-  // suth -- sutherland model for viscosity
+  // trans -- unique_ptr<transport> model for viscosity
   // turb -- turbulence model
   // layer -- layer of ghost cell to return (first (closest) or second
   //          (farthest))
@@ -430,22 +430,22 @@ primVars primVars::GetGhostState(const string &bcType,
       if (bcData->IsWallLaw()) {
         wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
                    inputVars.IsRANS());
-        wVars = wl.IsothermalBCs(normArea, velWall, eqnState, suth, turb, tWall,
+        wVars = wl.IsothermalBCs(normArea, velWall, eqnState, trans, turb, tWall,
                                  isLower);
 
         if (wVars.SwitchToLowRe()) {
           const auto tGhost = 2.0 * tWall - this->Temperature(eqnState);
-          ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+          ghostState.data_[0] = eqnState->DensityTP(tGhost, ghostState.P());
         } else {
           // use wall law heat flux to get ghost cell density
           // need turbulent contribution because eddy viscosity is not 0 at wall
           const auto kappa =
-              eqnState.Conductivity(wVars.viscosity_) +
-              eqnState.TurbConductivity(wVars.turbEddyVisc_,
+              eqnState->Conductivity(wVars.viscosity_) +
+              eqnState->TurbConductivity(wVars.turbEddyVisc_,
                                         turb->TurbPrandtlNumber());
           // 2x wall distance as gradient length
           const auto tGhost = tWall - wVars.heatFlux_ / kappa * 2.0 * wallDist;
-          ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+          ghostState.data_[0] = eqnState->DensityTP(tGhost, ghostState.P());
         }
 
         if (inputVars.IsRANS() && !wVars.SwitchToLowRe()) {
@@ -458,7 +458,7 @@ primVars primVars::GetGhostState(const string &bcType,
         }
       } else {  // low-Re wall treatment
         const auto tGhost = 2.0 * tWall - this->Temperature(eqnState);
-        ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+        ghostState.data_[0] = eqnState->DensityTP(tGhost, ghostState.P());
       }
     } else if (bcData->IsConstantHeatFlux()) {  //-----------------------------
       // must nondimensionalize heat flux
@@ -466,23 +466,23 @@ primVars primVars::GetGhostState(const string &bcType,
       if (bcData->IsWallLaw()) {
         wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
                    inputVars.IsRANS());
-        wVars = wl.HeatFluxBCs(normArea, velWall, eqnState, suth, turb, qWall,
+        wVars = wl.HeatFluxBCs(normArea, velWall, eqnState, trans, turb, qWall,
                                isLower);
 
         if (wVars.SwitchToLowRe()) {
           // don't need turbulent contribution b/c eddy viscosity is 0 at wall
-          const auto mu = suth.EffectiveViscosity(this->Temperature(eqnState));
-          const auto kappa = eqnState.Conductivity(mu);
+          const auto mu = trans->EffectiveViscosity(this->Temperature(eqnState));
+          const auto kappa = eqnState->Conductivity(mu);
           // 2x wall distance as gradient length
           const auto tGhost =
               this->Temperature(eqnState) - qWall / kappa * 2.0 * wallDist;
-          ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+          ghostState.data_[0] = eqnState->DensityTP(tGhost, ghostState.P());
 
         } else {
           // use wall law wall temperature to get ghost cell density
           const auto tGhost =
               2.0 * wVars.temperature_ - this->Temperature(eqnState);
-          ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+          ghostState.data_[0] = eqnState->DensityTP(tGhost, ghostState.P());
         }
 
         if (inputVars.IsRANS() && !wVars.SwitchToLowRe()) {
@@ -495,12 +495,12 @@ primVars primVars::GetGhostState(const string &bcType,
         }
       } else {  // low-Re wall treatment
         // don't need turbulent contribution b/c eddy viscosity is 0 at wall
-        const auto mu = suth.EffectiveViscosity(this->Temperature(eqnState));
-        const auto kappa = eqnState.Conductivity(mu);
+        const auto mu = trans->EffectiveViscosity(this->Temperature(eqnState));
+        const auto kappa = eqnState->Conductivity(mu);
         // 2x wall distance as gradient length
         const auto tGhost =
             this->Temperature(eqnState) - qWall / kappa * 2.0 * wallDist;
-        ghostState.data_[0] = eqnState.DensityTP(tGhost, ghostState.P());
+        ghostState.data_[0] = eqnState->DensityTP(tGhost, ghostState.P());
         // numerical BCs for pressure, same as boundary state
       }
     } else {  // default is adiabatic -----------------------------------------
@@ -508,7 +508,7 @@ primVars primVars::GetGhostState(const string &bcType,
         wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
                    inputVars.IsRANS());
         wVars =
-            wl.AdiabaticBCs(normArea, velWall, eqnState, suth, turb, isLower);
+            wl.AdiabaticBCs(normArea, velWall, eqnState, trans, turb, isLower);
 
         if (inputVars.IsRANS() && !wVars.SwitchToLowRe()) {
           ghostState.data_[5] = 2.0 * wVars.tke_ - this->Tke();
@@ -531,9 +531,9 @@ primVars primVars::GetGhostState(const string &bcType,
       ghostState.data_[5] = -1.0 * this->Tke();
 
       const auto nuW =
-          suth.Viscosity(this->Temperature(eqnState)) / this->Rho();
-      const auto wWall = suth.NondimScaling() * suth.NondimScaling() * 60.0 *
-                         nuW / (wallDist * wallDist * turb->WallBeta());
+          trans->Viscosity(this->Temperature(eqnState)) / this->Rho();
+      const auto wWall = trans->NondimScaling() * trans->NondimScaling() *
+                         60.0 * nuW / (wallDist * wallDist * turb->WallBeta());
       ghostState.data_[6] = 2.0 * wWall - this->Omega();
 
       if (layer > 1) {
@@ -565,7 +565,7 @@ primVars primVars::GetGhostState(const string &bcType,
     if (inputVars.IsRANS()) {
       ghostState.ApplyFarfieldTurbBC(ghostVel,
                                      bcData->TurbulenceIntensity(),
-                                     bcData->EddyViscosityRatio(), suth,
+                                     bcData->EddyViscosityRatio(), trans,
                                      eqnState, turb);
     }
 
@@ -576,7 +576,7 @@ primVars primVars::GetGhostState(const string &bcType,
       if (inputVars.IsRANS()) {
         ghostState.ApplyFarfieldTurbBC(ghostVel,
                                        bcData->TurbulenceIntensity(),
-                                       bcData->EddyViscosityRatio(), suth,
+                                       bcData->EddyViscosityRatio(), trans,
                                        eqnState, turb);
       }
     }
@@ -613,7 +613,7 @@ primVars primVars::GetGhostState(const string &bcType,
 
     // internal variables
     const auto velIntNorm = this->Velocity().DotProd(normArea);
-    const auto SoSInt = eqnState.SoS(this->P(), this->Rho());
+    const auto SoSInt = eqnState->SoS(this->P(), this->Rho());
     const auto machInt = fabs(velIntNorm) / SoSInt;
 
     if (machInt >= 1.0 && velIntNorm < 0.0) {  // supersonic inflow
@@ -626,7 +626,7 @@ primVars primVars::GetGhostState(const string &bcType,
       if (inputVars.IsRANS()) {
         ghostState.ApplyFarfieldTurbBC(freeVel,
                                        bcData->TurbulenceIntensity(),
-                                       bcData->EddyViscosityRatio(), suth,
+                                       bcData->EddyViscosityRatio(), trans,
                                        eqnState, turb);
       }
 
@@ -659,7 +659,7 @@ primVars primVars::GetGhostState(const string &bcType,
       if (inputVars.IsRANS()) {
         ghostState.ApplyFarfieldTurbBC(freeVel,
                                        bcData->TurbulenceIntensity(),
-                                       bcData->EddyViscosityRatio(), suth,
+                                       bcData->EddyViscosityRatio(), trans,
                                        eqnState, turb);
       }
 
@@ -696,7 +696,7 @@ primVars primVars::GetGhostState(const string &bcType,
       if (inputVars.IsRANS()) {
         ghostState.ApplyFarfieldTurbBC(freeVel,
                                        bcData->TurbulenceIntensity(),
-                                       bcData->EddyViscosityRatio(), suth,
+                                       bcData->EddyViscosityRatio(), trans,
                                        eqnState, turb);
       }
     }
@@ -719,7 +719,7 @@ primVars primVars::GetGhostState(const string &bcType,
     // assign farfield conditions to turbulence variables
     if (inputVars.IsRANS()) {
       ghostState.ApplyFarfieldTurbBC(vel, bcData->TurbulenceIntensity(),
-                                     bcData->EddyViscosityRatio(), suth,
+                                     bcData->EddyViscosityRatio(), trans,
                                      eqnState, turb);
     }
 
@@ -741,7 +741,7 @@ primVars primVars::GetGhostState(const string &bcType,
   } else if (bcType == "stagnationInlet") {
     const auto & bcData = inputVars.BCData(tag);
 
-    const auto g = eqnState.Gamma() - 1.0;
+    const auto g = eqnState->Gamma() - 1.0;
     // calculate outgoing riemann invarient
     const auto rNeg = this->Velocity().DotProd(normArea) -
         2.0 * this->SoS(eqnState) / g;
@@ -757,10 +757,10 @@ primVars primVars::GetGhostState(const string &bcType,
                                stagSoSsq / (g * rNeg * rNeg) - 0.5 * g));
     const auto tb = bcData->StagnationTemperature() * (sosB * sosB / stagSoSsq);
     const auto pb = bcData->StagnationPressure() *
-                    pow(sosB * sosB / stagSoSsq, eqnState.Gamma() / g);
+                    pow(sosB * sosB / stagSoSsq, eqnState->Gamma() / g);
     const auto vbMag = sqrt(2.0 / g * (bcData->StagnationTemperature() - tb));
 
-    ghostState.data_[0] = eqnState.DensityTP(tb, pb);
+    ghostState.data_[0] = eqnState->DensityTP(tb, pb);
     ghostState.data_[1] = vbMag * bcData->Direction().X();
     ghostState.data_[2] = vbMag * bcData->Direction().Y();
     ghostState.data_[3] = vbMag * bcData->Direction().Z();
@@ -770,7 +770,7 @@ primVars primVars::GetGhostState(const string &bcType,
     if (inputVars.IsRANS()) {
       ghostState.ApplyFarfieldTurbBC(ghostState.Velocity(),
                                      bcData->TurbulenceIntensity(),
-                                     bcData->EddyViscosityRatio(), suth,
+                                     bcData->EddyViscosityRatio(), trans,
                                      eqnState, turb);
     }
 
@@ -781,7 +781,7 @@ primVars primVars::GetGhostState(const string &bcType,
       if (inputVars.IsRANS()) {
         ghostState.ApplyFarfieldTurbBC(ghostState.Velocity(),
                                        bcData->TurbulenceIntensity(),
-                                       bcData->EddyViscosityRatio(), suth,
+                                       bcData->EddyViscosityRatio(), trans,
                                        eqnState, turb);
       }
     }
@@ -837,7 +837,7 @@ primVars primVars::GetGhostState(const string &bcType,
 // member function to take in a genArray of updates to the conservative
 // variables, and update the primative variables with it.
 // this is used in the implicit solver
-primVars primVars::UpdateWithConsVars(const idealGas &eqnState,
+primVars primVars::UpdateWithConsVars(const unique_ptr<eos> &eqnState,
                                       const genArray &du,
                                       const unique_ptr<turbModel> &turb) const {
   // eqnState -- equation of state
@@ -867,19 +867,19 @@ bool primVars::IsZero() const {
 void primVars::ApplyFarfieldTurbBC(const vector3d<double> &vel,
                                    const double &turbInten,
                                    const double &viscRatio,
-                                   const sutherland &suth,
-                                   const idealGas &eqnState,
+                                   const unique_ptr<transport> &trans,
+                                   const unique_ptr<eos> &eqnState,
                                    const unique_ptr<turbModel> &turb) {
   // vel -- reference velocity (nondimensionalized)
   // turbInten -- turbulence intensity at farfield
   // viscRatio -- eddy viscosity ratio at farfield
-  // suth -- sutherland's law for viscosity
+  // trans -- viscous transport model
   // eqnState -- equation of state
   // turb --  turbulence model
 
   data_[5] = 1.5 * pow(turbInten * vel.Mag(), 2.0);
   data_[6] = data_[0] * data_[5] /
-      (viscRatio * suth.Viscosity(this->Temperature(eqnState)));
+      (viscRatio * trans->Viscosity(this->Temperature(eqnState)));
   this->LimitTurb(turb);
 }
 
@@ -900,7 +900,7 @@ cell velocity normal to that direction. SoS is the speed of sound at the cell
  */
 double primVars::InvCellSpectralRadius(const unitVec3dMag<double> &fAreaL,
                                        const unitVec3dMag<double> &fAreaR,
-                                       const idealGas &eqnState) const {
+                                       const unique_ptr<eos> &eqnState) const {
   // fAreaL -- face area of lower face in either i, j, or k direction
   // fAreaR -- face area of upper face in either i, j, or k direction
   // eqnState -- equation of state
@@ -917,7 +917,7 @@ double primVars::InvCellSpectralRadius(const unitVec3dMag<double> &fAreaL,
 }
 
 double primVars::InvFaceSpectralRadius(const unitVec3dMag<double> &fArea,
-                                       const idealGas &eqnState) const {
+                                       const unique_ptr<eos> &eqnState) const {
   // fArea -- face area
   // eqnState -- equation of state
 
@@ -939,14 +939,13 @@ comes from Blazek.
  */
 double primVars::ViscCellSpectralRadius(
     const unitVec3dMag<double> &fAreaL, const unitVec3dMag<double> &fAreaR,
-    const idealGas &eqnState, const sutherland &suth, const double &vol,
+    const unique_ptr<eos> &eqnState, const unique_ptr<transport> &trans, const double &vol,
     const double &mu, const double &mut,
     const unique_ptr<turbModel> &turb) const {
   // fAreaL -- face area of lower face in either i, j, or k direction
   // fAreaR -- face area of upper face in either i, j, or k direction
   // eqnState -- equation of state
-  // suth -- method to the temperature varying visosity and Prandtl number
-  //         (Sutherland's law)
+  // trans -- viscous transport model
   // vol -- cell volume
   // mu -- laminar viscosity
   // mut -- turbulent viscosity
@@ -955,34 +954,32 @@ double primVars::ViscCellSpectralRadius(
   // average area magnitude
   const auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
   const auto maxTerm = max(4.0 / (3.0 * this->Rho()),
-                           eqnState.Gamma() / this->Rho());
+                           eqnState->Gamma() / this->Rho());
   // viscous term
-  const auto viscTerm = suth.NondimScaling() *
-      (mu / eqnState.Prandtl() +  mut / turb->TurbPrandtlNumber());
+  const auto viscTerm = trans->NondimScaling() *
+      (mu / eqnState->Prandtl() +  mut / turb->TurbPrandtlNumber());
 
   // return viscous spectral radius
   return maxTerm * viscTerm * fMag * fMag / vol;
 }
 
 double primVars::ViscFaceSpectralRadius(
-    const unitVec3dMag<double> &fArea,
-    const idealGas &eqnState, const sutherland &suth, const double &dist,
-    const double &mu, const double &mut,
-    const unique_ptr<turbModel> &turb) const {
+    const unitVec3dMag<double> &fArea, const unique_ptr<eos> &eqnState,
+    const unique_ptr<transport> &trans, const double &dist, const double &mu,
+    const double &mut, const unique_ptr<turbModel> &turb) const {
   // fArea -- face area
   // eqnState -- equation of state
-  // suth -- method to the temperature varying visosity and Prandtl number
-  //         (Sutherland's law)
+  // trans -- viscous transport model
   // dist -- distacne from cell center to cell center
   // mu -- laminar viscosity
   // mut -- turbulent viscosity
   // turb -- turbulence model
 
   const auto maxTerm = max(4.0 / (3.0 * this->Rho()),
-                           eqnState.Gamma() / this->Rho());
+                           eqnState->Gamma() / this->Rho());
   // viscous term
-  const auto viscTerm = suth.NondimScaling() *
-      (mu / eqnState.Prandtl() +  mut / turb->TurbPrandtlNumber());
+  const auto viscTerm = trans->NondimScaling() *
+      (mu / eqnState->Prandtl() +  mut / turb->TurbPrandtlNumber());
 
   // return viscous spectral radius
   return fArea.Mag() / dist * maxTerm * viscTerm;
@@ -990,14 +987,13 @@ double primVars::ViscFaceSpectralRadius(
 
 double primVars::CellSpectralRadius(
     const unitVec3dMag<double> &fAreaL, const unitVec3dMag<double> &fAreaR,
-    const idealGas &eqnState, const sutherland &suth, const double &vol,
-    const double &mu, const double &mut, const unique_ptr<turbModel> &turb,
-    const bool &isViscous) const {
+    const unique_ptr<eos> &eqnState, const unique_ptr<transport> &trans,
+    const double &vol, const double &mu, const double &mut,
+    const unique_ptr<turbModel> &turb, const bool &isViscous) const {
   // fAreaL -- face area of lower face in either i, j, or k direction
   // fAreaR -- face area of upper face in either i, j, or k direction
   // eqnState -- equation of state
-  // suth -- method to the temperature varying visosity and Prandtl number
-  //         (Sutherland's law)
+  // trans -- viscous transport model
   // vol -- cell volume
   // mu -- laminar viscosity
   // mut -- turbulent viscosity
@@ -1009,19 +1005,21 @@ double primVars::CellSpectralRadius(
   if (isViscous) {
     // factor 2 2 because viscous spectral radius is not halved (Blazek 6.53)
     specRad += 2.0 * this->ViscCellSpectralRadius(fAreaL, fAreaR, eqnState,
-                                                  suth, vol, mu, mut, turb);
+                                                  trans, vol, mu, mut, turb);
   }
   return specRad;
 }
 
 double primVars::FaceSpectralRadius(const unitVec3dMag<double> &fArea,
-    const idealGas &eqnState, const sutherland &suth, const double &dist,
-    const double &mu, const double &mut, const unique_ptr<turbModel> &turb,
-    const bool &isViscous) const {
+                                    const unique_ptr<eos> &eqnState,
+                                    const unique_ptr<transport> &trans,
+                                    const double &dist, const double &mu,
+                                    const double &mut,
+                                    const unique_ptr<turbModel> &turb,
+                                    const bool &isViscous) const {
   // fAreaL -- face area
   // eqnState -- equation of state
-  // suth -- method to the temperature varying visosity and Prandtl number
-  //         (Sutherland's law)
+  // trans -- viscous transport model
   // dist -- distance from cell center to cell center
   // mu -- laminar viscosity
   // mut -- turbulent viscosity
@@ -1031,7 +1029,7 @@ double primVars::FaceSpectralRadius(const unitVec3dMag<double> &fArea,
   auto specRad = this->InvFaceSpectralRadius(fArea, eqnState);
 
   if (isViscous) {
-    specRad += this->ViscFaceSpectralRadius(fArea, eqnState, suth, dist, mu,
+    specRad += this->ViscFaceSpectralRadius(fArea, eqnState, trans, dist, mu,
                                             mut, turb);
   }
   return specRad;
@@ -1039,8 +1037,7 @@ double primVars::FaceSpectralRadius(const unitVec3dMag<double> &fArea,
 
 
 // function to calculate the Roe averaged state
-primVars RoeAveragedState(const primVars &left, const primVars &right,
-                          const idealGas &eos) {
+primVars RoeAveragedState(const primVars &left, const primVars &right) {
   // compute Rho averaged quantities
   // density ratio
   const auto denRatio = sqrt(right.Rho() / left.Rho());

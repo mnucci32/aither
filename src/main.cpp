@@ -32,6 +32,7 @@
 #include "procBlock.hpp"
 #include "primVars.hpp"
 #include "eos.hpp"
+#include "transport.hpp"
 #include "boundaryConditions.hpp"
 #include "output.hpp"
 #include "genArray.hpp"
@@ -105,14 +106,13 @@ int main(int argc, char *argv[]) {
   inp.ReadInput(rank);
 
   // Get equation of state
-  const idealGas eos(inp.Gamma(), inp.R());
+  const auto eqnState = inp.AssignEquationOfState();
 
-  // Initialize sutherland's law for viscosity
-  const sutherland suth(inp.TRef(), inp.RRef(), inp.LRef(), inp.PRef(),
-                        inp.VelRef(), eos);
+  // Get transport model
+  const auto trans = inp.AssignTransportModel(eqnState);
 
   // Nondimensionalize BC and IC state data
-  inp.NondimensionalizeStateData(eos);
+  inp.NondimensionalizeStateData(eqnState);
 
   // Get turbulence model
   const auto turb = inp.AssignTurbulenceModel();
@@ -156,12 +156,12 @@ int main(int argc, char *argv[]) {
     for (auto ll = 0U; ll < mesh.size(); ll++) {
       stateBlocks[ll] = procBlock(mesh[ll], decomp.ParentBlock(ll), bcs[ll], ll,
                                   decomp.Rank(ll), decomp.LocalPosition(ll),
-                                  inp, eos, suth, turb);
+                                  inp, eqnState, trans, turb);
       stateBlocks[ll].AssignGhostCellsGeom();
     }
     // if restart, get data from restart file
     if (inp.IsRestart()) {
-      ReadRestart(stateBlocks, restartFile, decomp, inp, eos, suth, turb,
+      ReadRestart(stateBlocks, restartFile, decomp, inp, eqnState, trans, turb,
                   residL2First, gridSizes);
     }
 
@@ -200,7 +200,7 @@ int main(int argc, char *argv[]) {
 
   // Update auxillary variables (temperature, viscosity, etc), cell widths
   for (auto &block : localStateBlocks) {
-    block.UpdateAuxillaryVariables(eos, suth, false);
+    block.UpdateAuxillaryVariables(eqnState, trans, false);
     block.CalcCellWidths();
   }
 
@@ -277,7 +277,7 @@ int main(int argc, char *argv[]) {
     WriteCellCenter(inp.GridName(), stateBlocks, decomp, inp);
 
     // Write out initial results
-    WriteFun(stateBlocks, eos, suth, inp.IterationStart(), decomp,
+    WriteFun(stateBlocks, eqnState, trans, inp.IterationStart(), decomp,
              inp, turb);
     WriteMeta(inp, inp.IterationStart());
   }
@@ -294,7 +294,7 @@ int main(int argc, char *argv[]) {
 
     // Store time-n solution, for time integration methods that require it
     if (inp.NeedToStoreTimeN()) {
-      AssignSolToTimeN(localStateBlocks, eos);
+      AssignSolToTimeN(localStateBlocks, eqnState);
       if (!inp.IsRestart() && inp.IsMultilevelInTime() && nn == 0) {
         AssignSolToTimeNm1(localStateBlocks);
       }
@@ -303,11 +303,11 @@ int main(int argc, char *argv[]) {
     // loop over nonlinear iterations
     for (auto mm = 0; mm < inp.NonlinearIterations(); mm++) {
       // Get boundary conditions for all blocks
-      GetBoundaryConditions(localStateBlocks, inp, eos, suth, turb,
+      GetBoundaryConditions(localStateBlocks, inp, eqnState, trans, turb,
                             connections, rank, MPI_cellData);
 
       // Calculate residual (RHS)
-      CalcResidual(localStateBlocks, mainDiagonal, suth, eos, inp,
+      CalcResidual(localStateBlocks, mainDiagonal, trans, eqnState, inp,
                    turb, connections, rank, MPI_tensorDouble, MPI_vec3d);
 
       // Calculate time step
@@ -318,11 +318,11 @@ int main(int argc, char *argv[]) {
       resid residLinf;  // linf residuals
       auto matrixResid = 0.0;
       if (inp.IsImplicit()) {
-        matrixResid = ImplicitUpdate(localStateBlocks, mainDiagonal, inp, eos,
-                                     suth, turb, mm, residL2, residLinf,
-                                     connections, rank, MPI_cellData);
+        matrixResid = ImplicitUpdate(
+            localStateBlocks, mainDiagonal, inp, eqnState, trans, turb, mm,
+            residL2, residLinf, connections, rank, MPI_cellData);
       } else {  // explicit time integration
-        ExplicitUpdate(localStateBlocks, inp, eos, suth, turb, mm, residL2,
+        ExplicitUpdate(localStateBlocks, inp, eqnState, trans, turb, mm, residL2,
                        residLinf);
       }
 
@@ -364,7 +364,7 @@ int main(int argc, char *argv[]) {
         cout << "writing out function file at iteration "
              << nn + inp.IterationStart()<< endl;
         // Write out function file
-        WriteFun(stateBlocks, eos, suth, (nn + inp.IterationStart() + 1),
+        WriteFun(stateBlocks, eqnState, trans, (nn + inp.IterationStart() + 1),
                  decomp, inp, turb);
         WriteMeta(inp, (nn + inp.IterationStart() + 1));
       }
@@ -372,8 +372,9 @@ int main(int argc, char *argv[]) {
         cout << "writing out restart file at iteration "
              << nn + inp.IterationStart()<< endl;
         // Write out restart file
-        WriteRestart(stateBlocks, eos, suth, (nn + inp.IterationStart() + 1),
-                     decomp, inp, residL2First);
+        WriteRestart(stateBlocks, eqnState, trans,
+                     (nn + inp.IterationStart() + 1), decomp, inp,
+                     residL2First);
       }
     }
   }  // loop for time step -----------------------------------------------------

@@ -64,7 +64,7 @@ constructors (primVars version and genArray version) can call this function
 to avoid code duplication.
 */
 void inviscidFlux::ConstructFromPrim(const primVars &state,
-                                     const idealGas &eqnState,
+                                     const unique_ptr<eos> &eqnState,
                                      const vector3d<double> &normArea) {
   // state -- primative variables
   // eqnState -- equation of state
@@ -83,7 +83,7 @@ void inviscidFlux::ConstructFromPrim(const primVars &state,
   data_[6] = state.Rho() * velNorm * state.Omega();
 }
 
-inviscidFlux::inviscidFlux(const primVars &state, const idealGas &eqnState,
+inviscidFlux::inviscidFlux(const primVars &state, const unique_ptr<eos> &eqnState,
                            const vector3d<double> &normArea) {
   // state -- primative variables
   // eqnState -- equation of state
@@ -94,7 +94,7 @@ inviscidFlux::inviscidFlux(const primVars &state, const idealGas &eqnState,
 
 // constructor -- initialize flux from state vector using conservative variables
 // flux is a 3D flux in the normal direction of the given face
-inviscidFlux::inviscidFlux(const genArray &cons, const idealGas &eqnState,
+inviscidFlux::inviscidFlux(const genArray &cons, const unique_ptr<eos> &eqnState,
                            const unique_ptr<turbModel> &turb,
                            const vector3d<double> &normArea) {
   // cons -- genArray of conserved variables
@@ -154,7 +154,7 @@ wave strength across the face.
 
 */
 inviscidFlux RoeFlux(const primVars &left, const primVars &right,
-                     const idealGas &eqnState,
+                     const unique_ptr<eos> &eqnState,
                      const vector3d<double> &areaNorm) {
   // left -- primative variables from left
   // right -- primative variables from right
@@ -163,7 +163,7 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
 
   // compute Rho averaged quantities
   // Roe averaged state
-  const auto roe = RoeAveragedState(left, right, eqnState);
+  const auto roe = RoeAveragedState(left, right);
 
   // Roe averaged total enthalpy
   const auto hR = roe.Enthalpy(eqnState);
@@ -275,7 +275,7 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
 
 
 inviscidFlux RusanovFlux(const primVars &left, const primVars &right,
-                         const idealGas &eqnState,
+                         const unique_ptr<eos> &eqnState,
                          const vector3d<double> &areaNorm,
 			 const bool &positive) {
   // left -- primative variables from left
@@ -339,7 +339,7 @@ genArray inviscidFlux::ConvertToGenArray() const {
 // convective flux
 genArray ConvectiveFluxUpdate(const primVars &state,
                               const primVars &stateUpdate,
-                              const idealGas &eqnState,
+                              const unique_ptr<eos> &eqnState,
                               const vector3d<double> &normArea) {
   // get inviscid flux of old state
   const inviscidFlux oldFlux(state, eqnState, normArea);

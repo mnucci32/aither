@@ -31,8 +31,8 @@ using std::unique_ptr;
 
 // forward class declarations
 class primVars;
-class idealGas;
-class sutherland;
+class eos;
+class transport;
 class turbModel;
 class input;
 class genArray;
@@ -74,23 +74,22 @@ class fluxJacobian {
   void MultiplyOnDiagonal(const double &, const bool &);
   void AddOnDiagonal(const double &, const bool &);
 
-  void RusanovFluxJacobian(const primVars &, const idealGas &,
-                           const unitVec3dMag<double> &,
-                           const bool &, const input &,
-                           const unique_ptr<turbModel> &);
-  void InvFluxJacobian(const primVars &, const idealGas &,
+  void RusanovFluxJacobian(const primVars &, const unique_ptr<eos> &,
+                           const unitVec3dMag<double> &, const bool &,
+                           const input &, const unique_ptr<turbModel> &);
+  void InvFluxJacobian(const primVars &, const unique_ptr<eos> &,
                        const unitVec3dMag<double> &, const input &,
                        const unique_ptr<turbModel> &);
   void ApproxRoeFluxJacobian(const primVars &, const primVars &,
-                             const idealGas &, const unitVec3dMag<double> &,
-                             const bool &, const input &,
-                             const unique_ptr<turbModel> &);
-  void DelPrimativeDelConservative(const primVars &, const idealGas &,
+                             const unique_ptr<eos> &,
+                             const unitVec3dMag<double> &, const bool &,
+                             const input &, const unique_ptr<turbModel> &);
+  void DelPrimativeDelConservative(const primVars &, const unique_ptr<eos> &,
                                    const input &);
 
   void ApproxTSLJacobian(const primVars &, const double &, const double &,
-                         const double &, const idealGas &,
-                         const sutherland &,
+                         const double &, const unique_ptr<eos> &,
+                         const unique_ptr<transport> &,
                          const unitVec3dMag<double> &, const double &,
                          const unique_ptr<turbModel> &, const input &,
                          const bool &, const tensor<double> &);
@@ -241,16 +240,16 @@ genArray RusanovScalarOffDiagonal(const primVars &, const genArray &,
                                   const unitVec3dMag<double> &,
                                   const double &, const double &,
                                   const double &, const double &,
-                                  const idealGas &,
-                                  const sutherland &,
+                                  const unique_ptr<eos> &,
+                                  const unique_ptr<transport> &,
                                   const unique_ptr<turbModel> &,
                                   const bool &, const bool &);
 genArray RusanovBlockOffDiagonal(const primVars &, const genArray &,
                                  const unitVec3dMag<double> &,
                                  const double &, const double &,
                                  const double &, const double &,
-                                 const idealGas &,
-                                 const sutherland &,
+                                 const unique_ptr<eos> &,
+                                 const unique_ptr<transport> &,
                                  const unique_ptr<turbModel> &,
                                  const input &, const bool &,
                                  const tensor<double> &);
@@ -259,17 +258,17 @@ genArray RoeOffDiagonal(const primVars &, const primVars &,
                         const genArray &,
                         const unitVec3dMag<double> &, const double &,
                         const double &, const double &,
-                        const double &, const idealGas &,
-                        const sutherland &,
+                        const double &, const unique_ptr<eos> &,
+                        const unique_ptr<transport> &,
                         const unique_ptr<turbModel> &, const bool &,
                         const bool &, const bool &);
 
 genArray OffDiagonal(const primVars &, const primVars &, const genArray &,
                      const unitVec3dMag<double> &, const double &,
                      const double &, const double &, const double &,
-                     const tensor<double> &, const idealGas &,
-                     const sutherland &, const unique_ptr<turbModel> &,
-                     const input &, const bool &);
-
+                     const tensor<double> &, const unique_ptr<eos> &,
+                     const unique_ptr<transport> &,
+                     const unique_ptr<turbModel> &, const input &,
+                     const bool &);
 
 #endif

@@ -58,24 +58,3 @@ double idealGas::Temperature(const double &pressure,
   return pressure * gamma_ / rho;
 }
 
-// Functions for sutherland class
-double sutherland::Viscosity(const double &t) const {
-  // Dimensionalize temperature
-  const auto temp = t * tRef_;
-
-  // Calculate viscosity
-  const auto mu = (cOne_ * pow(temp, 1.5)) / (temp + S_);
-
-  // Nondimensionalize viscosity
-  return (mu / muRef_);
-}
-
-double sutherland::EffectiveViscosity(const double &t) const {
-  // Get viscosity and scale
-  return this->Viscosity(t) * scaling_;
-}
-
-double sutherland::Lambda(const double &mu) const {
-  // Calculate lambda (2nd coeff of viscosity)
-  return bulkVisc_ - (2.0 / 3.0) * mu;
-}

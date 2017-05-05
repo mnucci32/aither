@@ -29,6 +29,7 @@
 #include "turbulence.hpp"
 #include "inputStates.hpp"
 #include "eos.hpp"
+#include "transport.hpp"
 #include "macros.hpp"
 
 using std::cout;
@@ -668,6 +669,34 @@ unique_ptr<turbModel> input::AssignTurbulenceModel() const {
   return turb;
 }
 
+unique_ptr<eos> input::AssignEquationOfState() const {
+  // define equation of state
+  unique_ptr<eos> eqnState(nullptr);
+  if (equationOfState_ == "idealGas") {
+    eqnState = unique_ptr<eos>{std::make_unique<idealGas>(gamma_, gasConst_)};
+  } else {
+    cerr << "ERROR: Error in input::AssignEquationOfState(). Equation of state "
+         << equationOfState_ << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+  return eqnState;
+}
+
+unique_ptr<transport> input::AssignTransportModel(
+    const unique_ptr<eos> &eqnState) const {
+  // define equation of state
+  unique_ptr<transport> trans(nullptr);
+  if (transportModel_ == "sutherland") {
+    trans = unique_ptr<transport>{std::make_unique<sutherland>(
+        tRef_, rRef_, lRef_, pRef_, vRef_, eqnState)};
+  } else {
+    cerr << "ERROR: Error in input::AssignTransportModel(). Transport model "
+         << transportModel_ << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+  return trans;
+}
+
 // member function to return the name of the simulation without the file
 // extension i.e. "myInput.inp" would return "myInput"
 string input::SimNameRoot() const {
@@ -840,8 +869,8 @@ const shared_ptr<inputState> & input::BCData(const int &tag) const {
   exit(EXIT_FAILURE);
 }
 
-void input::NondimensionalizeStateData(const idealGas &eos) {
-  aRef_ = eos.SoS(pRef_, rRef_);
+void input::NondimensionalizeStateData(const unique_ptr<eos> &eqnState) {
+  aRef_ = eqnState->SoS(pRef_, rRef_);
   for (auto &state : bcStates_) {
     state->Nondimensionalize(rRef_, tRef_, lRef_, aRef_);
   }

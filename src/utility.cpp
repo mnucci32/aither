@@ -22,7 +22,8 @@
 #include <numeric>
 #include "utility.hpp"
 #include "procBlock.hpp"
-#include "eos.hpp"                 // idealGas
+#include "eos.hpp"                 // equation of state
+#include "transport.hpp"           // transport model
 #include "input.hpp"               // inputVars
 #include "genArray.hpp"
 #include "turbulence.hpp"
@@ -259,21 +260,22 @@ calculation. This function operates on the entire grid and uses connection
 boundaries to pass the correct data between grid blocks.
 */
 void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
-                           const idealGas &eos, const sutherland &suth,
+                           const unique_ptr<eos> &eqnState,
+                           const unique_ptr<transport> &trans,
                            const unique_ptr<turbModel> &turb,
                            vector<connection> &connections, const int &rank,
                            const MPI_Datatype &MPI_cellData) {
   // states -- vector of all procBlocks in the solution domain
   // inp -- all input variables
-  // eos -- equation of state
-  // suth -- sutherland's law for viscosity
+  // eqnState -- equation of state
+  // trans -- viscous transport model
   // connections -- vector of connection boundary types
   // rank -- processor rank
   // MPI_cellData -- data type to pass primVars, genArray
 
   // loop over all blocks and assign inviscid ghost cells
   for (auto &state : states) {
-    state.AssignInviscidGhostCells(inp, eos, suth, turb);
+    state.AssignInviscidGhostCells(inp, eqnState, trans, turb);
   }
 
   // loop over connections and swap ghost cells where needed
@@ -295,7 +297,7 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
 
   // loop over all blocks and get ghost cell edge data
   for (auto &state : states) {
-    state.AssignInviscidGhostCellsEdge(inp, eos, suth, turb);
+    state.AssignInviscidGhostCellsEdge(inp, eqnState, trans, turb);
   }
 }
 
@@ -369,9 +371,10 @@ void CalcWallDistance(vector<procBlock> &localBlocks, const kdtree &tree) {
   }
 }
 
-void AssignSolToTimeN(vector<procBlock> &blocks, const idealGas &eos) {
+void AssignSolToTimeN(vector<procBlock> &blocks,
+                      const unique_ptr<eos> &eqnState) {
   for (auto &block : blocks) {
-    block.AssignSolToTimeN(eos);
+    block.AssignSolToTimeN(eqnState);
   }
 }
 
@@ -382,29 +385,31 @@ void AssignSolToTimeNm1(vector<procBlock> &blocks) {
 }
 
 void ExplicitUpdate(vector<procBlock> &blocks, const input &inp,
-                    const idealGas &eos, const sutherland &suth,
+                    const unique_ptr<eos> &eqnState,
+                    const unique_ptr<transport> &trans,
                     const unique_ptr<turbModel> &turb, const int &mm,
                     genArray &residL2, resid &residLinf) {
   // create dummy update (not used in explicit update)
   multiArray3d<genArray> du(1, 1, 1, 0);
   // loop over all blocks and update
   for (auto &block : blocks) {
-    block.UpdateBlock(inp, eos, suth, du, turb, mm, residL2, residLinf);
+    block.UpdateBlock(inp, eqnState, trans, du, turb, mm, residL2, residLinf);
   }
 }
 
 double ImplicitUpdate(vector<procBlock> &blocks,
                       vector<multiArray3d<fluxJacobian>> &mainDiagonal,
-                      const input &inp, const idealGas &eos,
-                      const sutherland &suth, const unique_ptr<turbModel> &turb,
-                      const int &mm, genArray &residL2, resid &residLinf,
+                      const input &inp, const unique_ptr<eos> &eqnState,
+                      const unique_ptr<transport> &trans,
+                      const unique_ptr<turbModel> &turb, const int &mm,
+                      genArray &residL2, resid &residLinf,
                       const vector<connection> &connections, const int &rank,
                       const MPI_Datatype &MPI_cellData) {
   // blocks -- vector of procBlocks on current processor
   // mainDiagonal -- main diagonal of A matrix for all blocks on processor
   // inp -- input variables
-  // eos -- equation of state
-  // suth -- sutherland's law for viscosity
+  // eqnState -- equation of state
+  // trans -- viscous transport model
   // turb -- turbulence model
   // mm -- nonlinear iteration
   // residL2 -- L2 residual
@@ -423,7 +428,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   // initialize matrix update
   vector<multiArray3d<genArray>> du(blocks.size());
   for (auto bb = 0U; bb < blocks.size(); bb++) {
-    du[bb] = blocks[bb].InitializeMatrixUpdate(inp, eos, mainDiagonal[bb]);
+    du[bb] = blocks[bb].InitializeMatrixUpdate(inp, eqnState, mainDiagonal[bb]);
   }
 
   // Solve Ax=b with supported solver
@@ -442,8 +447,8 @@ double ImplicitUpdate(vector<procBlock> &blocks,
 
       // forward lu-sgs sweep
       for (auto bb = 0U; bb < blocks.size(); bb++) {
-        blocks[bb].LUSGS_Forward(reorder[bb], du[bb], eos, inp, suth, turb,
-                                 mainDiagonal[bb], ii);
+        blocks[bb].LUSGS_Forward(reorder[bb], du[bb], eqnState, inp, trans,
+                                 turb, mainDiagonal[bb], ii);
       }
 
       // swap updates for ghost cells
@@ -451,9 +456,9 @@ double ImplicitUpdate(vector<procBlock> &blocks,
 
       // backward lu-sgs sweep
       for (auto bb = 0U; bb < blocks.size(); bb++) {
-        matrixError += blocks[bb].LUSGS_Backward(reorder[bb], du[bb], eos, inp,
-                                                 suth, turb, mainDiagonal[bb],
-                                                 ii);
+        matrixError +=
+            blocks[bb].LUSGS_Backward(reorder[bb], du[bb], eqnState, inp, trans,
+                                      turb, mainDiagonal[bb], ii);
       }
     }
   } else if (inp.MatrixSolver() == "dplur" || inp.MatrixSolver() == "bdplur") {
@@ -463,7 +468,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
 
       for (auto bb = 0U; bb < blocks.size(); bb++) {
         // Calculate correction (du)
-        matrixError += blocks[bb].DPLUR(du[bb], eos, inp, suth, turb,
+        matrixError += blocks[bb].DPLUR(du[bb], eqnState, inp, trans, turb,
                                         mainDiagonal[bb]);
       }
     }
@@ -477,7 +482,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   // Update blocks and reset main diagonal
   for (auto bb = 0U; bb < blocks.size(); bb++) {
     // Update solution
-    blocks[bb].UpdateBlock(inp, eos, suth, du[bb], turb, mm, residL2,
+    blocks[bb].UpdateBlock(inp, eqnState, trans, du[bb], turb, mm, residL2,
                            residLinf);
 
     // Assign time n to time n-1 at end of nonlinear iterations
@@ -607,15 +612,16 @@ void SwapWallDist(vector<procBlock> &states,
 
 void CalcResidual(vector<procBlock> &states,
                   vector<multiArray3d<fluxJacobian>> &mainDiagonal,
-                  const sutherland &suth, const idealGas &eos,
-                  const input &inp, const unique_ptr<turbModel> &turb,
+                  const unique_ptr<transport> &trans,
+                  const unique_ptr<eos> &eqnState, const input &inp,
+                  const unique_ptr<turbModel> &turb,
                   const vector<connection> &connections, const int &rank,
                   const MPI_Datatype &MPI_tensorDouble,
                   const MPI_Datatype &MPI_vec3d) {
   // states -- vector of all procBlocks on processor
   // mainDiagonal -- main diagonal of A matrix for implicit solve
-  // suth -- sutherland's law for viscosity
-  // eos -- equation of state
+  // trans -- viscous transport model
+  // eqnState -- equation of state
   // inp -- input variables
   // turb -- turbulence model
   // connections -- connection boundary conditions
@@ -625,7 +631,8 @@ void CalcResidual(vector<procBlock> &states,
 
   for (auto bb = 0U; bb < states.size(); bb++) {
     // calculate residual
-    states[bb].CalcResidualNoSource(suth, eos, inp, turb, mainDiagonal[bb]);
+    states[bb].CalcResidualNoSource(trans, eqnState, inp, turb,
+                                    mainDiagonal[bb]);
   }
   // swap mut & gradients calculated during residual calculation
   SwapEddyViscAndGradients(states, connections, rank, MPI_tensorDouble,
@@ -637,7 +644,7 @@ void CalcResidual(vector<procBlock> &states,
 
     for (auto bb = 0U; bb < states.size(); bb++) {
       // calculate source terms for residual
-      states[bb].CalcSrcTerms(suth, turb, inp, mainDiagonal[bb]);
+      states[bb].CalcSrcTerms(trans, turb, inp, mainDiagonal[bb]);
     }
   }
 }
@@ -698,12 +705,12 @@ void ResizeArrays(const vector<procBlock> &states, const input &inp,
   }
 }
 
-
 vector3d<double> TauNormal(const tensor<double> &velGrad,
                            const vector3d<double> &area, const double &mu,
-                           const double &mut, const sutherland &suth) {
+                           const double &mut,
+                           const unique_ptr<transport> &trans) {
   // get 2nd coefficient of viscosity assuming bulk viscosity is 0 (Stoke's)
-  const auto lambda = suth.Lambda(mu + mut);
+  const auto lambda = trans->Lambda(mu + mut);
 
   // wall shear stress
   return lambda * velGrad.Trace() * area + (mu + mut) *
@@ -712,8 +719,9 @@ vector3d<double> TauNormal(const tensor<double> &velGrad,
 
 vector3d<double> TauShear(const tensor<double> &velGrad,
                           const vector3d<double> &area, const double &mu,
-                          const double &mut, const sutherland &suth) {
-  auto tauN = TauNormal(velGrad, area, mu, mut, suth);
+                          const double &mut,
+                          const unique_ptr<transport> &trans) {
+  auto tauN = TauNormal(velGrad, area, mu, mut, trans);
   return tauN - tauN.DotProd(area) * area;
 }
 

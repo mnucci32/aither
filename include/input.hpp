@@ -35,7 +35,8 @@ using std::shared_ptr;
 
 // forward class declaration
 class turbModel;
-class idealGas;
+class eos;
+class transport;
 
 class input {
   string simName_;  // simulation name
@@ -129,7 +130,7 @@ class input {
   double TRef() const {return tRef_;}
   vector3d<double> VelRef() const {return vRef_;}
   double ARef() const {return aRef_;}
-  void NondimensionalizeStateData(const idealGas &);
+  void NondimensionalizeStateData(const unique_ptr<eos> &);
 
   double Gamma() const { return gamma_; }
   double R() const { return gasConst_; }
@@ -217,6 +218,8 @@ class input {
   string OrderOfAccuracy() const;
 
   unique_ptr<turbModel> AssignTurbulenceModel() const;
+  unique_ptr<eos> AssignEquationOfState() const;
+  unique_ptr<transport> AssignTransportModel(const unique_ptr<eos> &) const;
 
   double ViscousCFLCoefficient() const;
 

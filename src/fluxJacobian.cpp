@@ -26,6 +26,8 @@
 #include "genArray.hpp"      // genArray
 #include "inviscidFlux.hpp"  // ConvectiveFluxUpdate
 #include "utility.hpp"       // TauNormal
+#include "transport.hpp"     // transport model
+#include "eos.hpp"           // equation of state
 
 using std::cout;
 using std::endl;
@@ -98,20 +100,20 @@ In the above equations the dissipation term L is held constant during
 differentiation. A represents the convective flux jacobian matrix.
  */
 void fluxJacobian::RusanovFluxJacobian(const primVars &state,
-                                       const idealGas &eos,
+                                       const unique_ptr<eos> &eqnState,
                                        const unitVec3dMag<double> &area,
                                        const bool &positive,
                                        const input &inp,
                                        const unique_ptr<turbModel> &turb) {
   // state -- primative variables at face
-  // eos -- ideal gas equation of state
+  // eqnState -- equation of state
   // area -- face area vector
   // positive -- flag to determine whether to add or subtract dissipation
   // inp -- input variables
   // turb -- turbulence model
 
   // face inviscid spectral radius
-  const auto specRad = state.InvFaceSpectralRadius(area, eos);
+  const auto specRad = state.InvFaceSpectralRadius(area, eqnState);
 
   // form dissipation matrix based on spectral radius
   fluxJacobian dissipation(inp.NumFlowEquations(), inp.NumTurbEquations());
@@ -119,7 +121,7 @@ void fluxJacobian::RusanovFluxJacobian(const primVars &state,
   dissipation.flowJacobian_ *= specRad;
 
   // begin jacobian calculation
-  this->InvFluxJacobian(state, eos, area, inp, turb);
+  this->InvFluxJacobian(state, eqnState, area, inp, turb);
 
   // compute turbulent dissipation if necessary
   if (inp.IsRANS()) {
@@ -132,7 +134,7 @@ void fluxJacobian::RusanovFluxJacobian(const primVars &state,
 
 // function to calculate inviscid flux jacobian
 void fluxJacobian::InvFluxJacobian(const primVars &state,
-                                   const idealGas &eqnState,
+                                   const unique_ptr<eos> &eqnState,
                                    const unitVec3dMag<double> &area,
                                    const input &inp,
                                    const unique_ptr<turbModel> &turb) {
@@ -143,10 +145,10 @@ void fluxJacobian::InvFluxJacobian(const primVars &state,
   // turb -- turbulence model
 
   const auto velNorm = state.Velocity().DotProd(area.UnitVector());
-  const auto gammaMinusOne = eqnState.Gamma() - 1.0;
+  const auto gammaMinusOne = eqnState->Gamma() - 1.0;
   const auto phi = 0.5 * gammaMinusOne * state.Velocity().MagSq();
-  const auto a1 = eqnState.Gamma() * state.Energy(eqnState) - phi;
-  const auto a3 = eqnState.Gamma() - 2.0;
+  const auto a1 = eqnState->Gamma() * state.Energy(eqnState) - phi;
+  const auto a3 = eqnState->Gamma() - 2.0;
 
   // begin jacobian calculation
   flowJacobian_ = squareMatrix(inp.NumFlowEquations());
@@ -195,7 +197,7 @@ void fluxJacobian::InvFluxJacobian(const primVars &state,
   flowJacobian_(1, 4) = gammaMinusOne * area.UnitVector().X();
   flowJacobian_(2, 4) = gammaMinusOne * area.UnitVector().Y();
   flowJacobian_(3, 4) = gammaMinusOne * area.UnitVector().Z();
-  flowJacobian_(4, 4) = eqnState.Gamma() * velNorm;
+  flowJacobian_(4, 4) = eqnState->Gamma() * velNorm;
 
   // multiply by 0.5 b/c averaging with dissipation matrix
   flowJacobian_ *= 0.5 * area.Mag();
@@ -223,29 +225,29 @@ differentiation. A represents the convective flux jacobian matrix.
  */
 void fluxJacobian::ApproxRoeFluxJacobian(const primVars &left,
                                          const primVars &right,
-                                         const idealGas &eos,
+                                         const unique_ptr<eos> &eqnState,
                                          const unitVec3dMag<double> &area,
                                          const bool &positive,
                                          const input &inp,
                                          const unique_ptr<turbModel> &turb) {
   // left -- primative variables from left side
   // right -- primative variables from right side
-  // eos -- ideal gas equation of state
+  // eqnState -- ideal gas equation of state
   // area -- face area vector
   // positive -- flag to determine whether to add or subtract dissipation
   // inp -- input variables
   // turb -- turbulence model
   
   // compute Roe averaged state
-  const auto roeAvg = RoeAveragedState(left, right, eos);
+  const auto roeAvg = RoeAveragedState(left, right);
 
   // compute Roe matrix
   fluxJacobian roeMatrix;
-  roeMatrix.InvFluxJacobian(roeAvg, eos, area, inp, turb);
+  roeMatrix.InvFluxJacobian(roeAvg, eqnState, area, inp, turb);
 
   // compute convective flux jacobian
-  positive ? this->InvFluxJacobian(left, eos, area, inp, turb) :
-      this->InvFluxJacobian(right, eos, area, inp, turb);
+  positive ? this->InvFluxJacobian(left, eqnState, area, inp, turb) :
+      this->InvFluxJacobian(right, eqnState, area, inp, turb);
 
   positive ? (*this) += roeMatrix : (*this) -= roeMatrix;
 }
@@ -253,13 +255,13 @@ void fluxJacobian::ApproxRoeFluxJacobian(const primVars &left,
 // change of variable matrix going from primative to conservative variables
 // from Dwight
 void fluxJacobian::DelPrimativeDelConservative(const primVars &state,
-                                               const idealGas &eos,
+                                               const unique_ptr<eos> &eqnState,
                                                const input &inp) {
   // state -- primative variables
-  // eos -- equation of state
+  // eqnState -- equation of state
   // inp -- input variables
 
-  const auto gammaMinusOne = eos.Gamma() - 1.0;
+  const auto gammaMinusOne = eqnState->Gamma() - 1.0;
   const auto invRho = 1.0 / state.Rho();
 
   flowJacobian_ = squareMatrix(inp.NumFlowEquations());
@@ -300,8 +302,8 @@ void fluxJacobian::DelPrimativeDelConservative(const primVars &state,
 void fluxJacobian::ApproxTSLJacobian(const primVars &state,
                                      const double &lamVisc,
                                      const double &turbVisc, const double &f1,
-                                     const idealGas &eos,
-                                     const sutherland &suth,
+                                     const unique_ptr<eos> &eqnState,
+                                     const unique_ptr<transport> &trans,
                                      const unitVec3dMag<double> &area,
                                      const double &dist,
                                      const unique_ptr<turbModel> &turb,
@@ -309,7 +311,7 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
                                      const tensor<double> &vGrad) {
   // state -- primative variables
   // eos -- equation of state
-  // suth -- sutherland's law for viscosity
+  // trans -- viscous transport model
   // area -- face area vector
   // dist -- distance from cell center to cell center
   // turb --  turbulence model
@@ -320,20 +322,21 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
   flowJacobian_ = squareMatrix(inp.NumFlowEquations());
   turbJacobian_ = squareMatrix(inp.NumTurbEquations());
 
-  const auto mu = suth.NondimScaling() * lamVisc;
-  const auto mut = suth.NondimScaling() * turbVisc;
+  const auto mu = trans->NondimScaling() * lamVisc;
+  const auto mut = trans->NondimScaling() * turbVisc;
   const auto velNorm = state.Velocity().DotProd(area.UnitVector());
 
-  const auto tauNorm = TauNormal(vGrad, area.UnitVector(), mu, mut, suth);
+  const auto tauNorm = TauNormal(vGrad, area.UnitVector(), mu, mut, trans);
 
   auto fac = left ? -1.0 : 1.0;
 
   constexpr auto third = 1.0 / 3.0;
 
   // assign column 0
-  flowJacobian_(4, 0) = -(eos.Conductivity(mu) +
-                          eos.TurbConductivity(mut, turb->TurbPrandtlNumber()))
-      * state.Temperature(eos) / ((mu + mut) * state.Rho());
+  flowJacobian_(4, 0) =
+      -(eqnState->Conductivity(mu) +
+        eqnState->TurbConductivity(mut, turb->TurbPrandtlNumber())) *
+      state.Temperature(eqnState) / ((mu + mut) * state.Rho());
 
   // assign column 1
   flowJacobian_(1, 1) = third * area.UnitVector().X() * area.UnitVector().X()
@@ -360,19 +363,20 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
       third * area.UnitVector().Z() * velNorm + state.W();
 
   // assign column 4
-  flowJacobian_(4, 4) = (eos.Conductivity(mu) +
-                         eos.TurbConductivity(mut, turb->TurbPrandtlNumber()))
-      / ((mu + mut) * state.Rho());
+  flowJacobian_(4, 4) =
+      (eqnState->Conductivity(mu) +
+       eqnState->TurbConductivity(mut, turb->TurbPrandtlNumber())) /
+      ((mu + mut) * state.Rho());
 
   flowJacobian_ *= area.Mag() * (mu + mut) / dist;
 
   fluxJacobian prim2Cons;
-  prim2Cons.DelPrimativeDelConservative(state, eos, inp);
+  prim2Cons.DelPrimativeDelConservative(state, eqnState, inp);
   flowJacobian_ = flowJacobian_.MatMult(prim2Cons.flowJacobian_);
 
   // calculate turbulent jacobian if necessary
   if (inp.IsRANS()) {
-    turbJacobian_ = fac * turb->ViscousJacobian(state, area, lamVisc, suth,
+    turbJacobian_ = fac * turb->ViscousJacobian(state, area, lamVisc, trans,
                                                 dist, turbVisc, f1);
     // Don't need to multiply by prim2Cons b/c jacobian is already wrt
     // conservative variables
@@ -388,13 +392,12 @@ ostream &operator<<(ostream &os, const fluxJacobian &jacobian) {
   return os;
 }
 
-genArray RusanovScalarOffDiagonal(const primVars &state,
-                                  const genArray &update,
+genArray RusanovScalarOffDiagonal(const primVars &state, const genArray &update,
                                   const unitVec3dMag<double> &fArea,
-                                  const double &mu,
-                                  const double &mut, const double &f1,
-                                  const double &dist,
-                                  const idealGas &eos, const sutherland &suth,
+                                  const double &mu, const double &mut,
+                                  const double &f1, const double &dist,
+                                  const unique_ptr<eos> &eqnState,
+                                  const unique_ptr<transport> &trans,
                                   const unique_ptr<turbModel> &turb,
                                   const bool &isViscous, const bool &positive) {
   // state -- primative variables at off diagonal
@@ -405,44 +408,39 @@ genArray RusanovScalarOffDiagonal(const primVars &state,
   // f1 -- first blending coefficient
   // dist -- distance from cell center to cell center across face on diagonal
   // eos -- equation of state
-  // suth -- sutherland's law for viscosity
+  // trans -- viscous transport model
   // turb -- turbulence model
   // isViscous -- flag to determine if simulation is viscous
   // positive -- flag to determine whether to add or subtract dissipation
 
   // calculate updated state
-  const auto stateUpdate = state.UpdateWithConsVars(eos, update, turb);
+  const auto stateUpdate = state.UpdateWithConsVars(eqnState, update, turb);
 
   // calculate updated convective flux
   auto fluxChange = 0.5 * fArea.Mag() *
-      ConvectiveFluxUpdate(state, stateUpdate, eos, fArea.UnitVector());
+      ConvectiveFluxUpdate(state, stateUpdate, eqnState, fArea.UnitVector());
   // zero out turbulence quantities b/c spectral radius is like full jacobian
   fluxChange[5] = 0.0;
   fluxChange[6] = 0.0;
 
   // can't use stored cell spectral radius b/c it has contributions from i, j, k
-  const uncoupledScalar specRad(state.FaceSpectralRadius(fArea, eos,
-                                                         suth, dist, mu, mut,
-                                                         turb, isViscous),
-                                turb->FaceSpectralRadius(state, fArea, mu, suth,
-                                                         dist, mut, f1,
-                                                         positive));
+  const uncoupledScalar specRad(
+      state.FaceSpectralRadius(fArea, eqnState, trans, dist, mu, mut, turb,
+                               isViscous),
+      turb->FaceSpectralRadius(state, fArea, mu, trans, dist, mut, f1,
+                               positive));
 
   return positive ?
     fluxChange + specRad.ArrayMult(update) :
     fluxChange - specRad.ArrayMult(update);
 }
 
-genArray RusanovBlockOffDiagonal(const primVars &state,
-                                 const genArray &update,
-                                 const unitVec3dMag<double> &fArea,
-                                 const double &mu,
-                                 const double &mut, const double &f1,
-                                 const double &dist,
-                                 const idealGas &eos, const sutherland &suth,
-                                 const unique_ptr<turbModel> &turb,
-                                 const input &inp, const bool &positive,
-                                 const tensor<double> &vGrad) {
+genArray RusanovBlockOffDiagonal(
+    const primVars &state, const genArray &update,
+    const unitVec3dMag<double> &fArea, const double &mu, const double &mut,
+    const double &f1, const double &dist, const unique_ptr<eos> &eqnState,
+    const unique_ptr<transport> &trans, const unique_ptr<turbModel> &turb,
+    const input &inp, const bool &positive, const tensor<double> &vGrad) {
   // state -- primative variables at off diagonal
   // update -- conserved variable update at off diagonal
   // fArea -- face area vector on off diagonal boundary
@@ -451,7 +449,7 @@ genArray RusanovBlockOffDiagonal(const primVars &state,
   // f1 -- first blending coefficient
   // dist -- distance from cell center to cell center across face on diagonal
   // eos -- equation of state
-  // suth -- sutherland's law for viscosity
+  // trans -- viscous transport model
   // turb -- turbulence model
   // inp -- input variables
   // positive -- flag to determine whether to add or subtract dissipation
@@ -460,27 +458,26 @@ genArray RusanovBlockOffDiagonal(const primVars &state,
   fluxJacobian jacobian(inp.NumFlowEquations(), inp.NumTurbEquations());
 
   // calculate inviscid jacobian
-  jacobian.RusanovFluxJacobian(state, eos, fArea, positive, inp, turb);
+  jacobian.RusanovFluxJacobian(state, eqnState, fArea, positive, inp, turb);
 
   // add viscous contribution
   if (inp.IsViscous()) {
     fluxJacobian viscJac(inp.NumFlowEquations(), inp.NumTurbEquations());
-    viscJac.ApproxTSLJacobian(state, mu, mut, f1, eos, suth, fArea, dist, turb,
-                              inp, positive, vGrad);
+    viscJac.ApproxTSLJacobian(state, mu, mut, f1, eqnState, trans, fArea, dist,
+                              turb, inp, positive, vGrad);
     positive ? jacobian -= viscJac : jacobian += viscJac;
   }
   return jacobian.ArrayMult(update);
 }
 
-
 genArray OffDiagonal(const primVars &offDiag, const primVars &diag,
-                     const genArray &update,
-                     const unitVec3dMag<double> &fArea, const double &mu,
-                     const double &mut, const double &f1,
+                     const genArray &update, const unitVec3dMag<double> &fArea,
+                     const double &mu, const double &mut, const double &f1,
                      const double &dist, const tensor<double> &vGrad,
-                     const idealGas &eos, const sutherland &suth,
-                     const unique_ptr<turbModel> &turb,
-                     const input &inp, const bool &positive) {
+                     const unique_ptr<eos> &eqnState,
+                     const unique_ptr<transport> &trans,
+                     const unique_ptr<turbModel> &turb, const input &inp,
+                     const bool &positive) {
   // offDiag -- primative variables at off diagonal
   // diag -- primative variables at diagonal
   // update -- conserved variable update at off diagonal
@@ -491,7 +488,7 @@ genArray OffDiagonal(const primVars &offDiag, const primVars &diag,
   // dist -- distance from cell center to cell center across face on diagonal
   // vGrad -- velocity gradient
   // eos -- equation of state
-  // suth -- sutherland's law for viscosity
+  // trans -- viscous transport model
   // turb -- turbulence model
   // input -- input variables
   // positive -- flag to determine whether to add or subtract dissipation
@@ -501,17 +498,17 @@ genArray OffDiagonal(const primVars &offDiag, const primVars &diag,
   if (inp.InvFluxJac() == "rusanov") {
     if (inp.IsBlockMatrix()) {
       offDiagonal = RusanovBlockOffDiagonal(offDiag, update, fArea, mu, mut, f1,
-                                            dist, eos, suth, turb, inp,
+                                            dist, eqnState, trans, turb, inp,
                                             positive, vGrad);
     } else {
       offDiagonal = RusanovScalarOffDiagonal(offDiag, update, fArea, mu, mut,
-                                             f1, dist, eos, suth, turb,
+                                             f1, dist, eqnState, trans, turb,
                                              inp.IsViscous(), positive);
     }
   } else if (inp.InvFluxJac() == "approximateRoe") {
     // always use flux change off diagonal with roe method
     offDiagonal = RoeOffDiagonal(offDiag, diag, update, fArea, mu, mut,
-                                 f1, dist, eos, suth, turb,
+                                 f1, dist, eqnState, trans, turb,
                                  inp.IsViscous(), inp.IsRANS(),
                                  positive);
   } else {
@@ -529,8 +526,8 @@ genArray RoeOffDiagonal(const primVars &offDiag, const primVars &diag,
                         const unitVec3dMag<double> &fArea,
                         const double &mu, const double &mut,
                         const double &dist, const double &f1,
-                        const idealGas &eos,
-                        const sutherland &suth,
+                        const unique_ptr<eos> &eqnState,
+                        const unique_ptr<transport> &trans,
                         const unique_ptr<turbModel> &turb,
                         const bool &isViscous, const bool &isRANS,
                         const bool &positive) {
@@ -542,8 +539,8 @@ genArray RoeOffDiagonal(const primVars &offDiag, const primVars &diag,
   // mu -- laminar viscosity at off diagonal
   // mut -- turbulent viscosity at off diagonal
   // f1 -- first blending coefficient at off diagonal
-  // eos -- equation of state
-  // suth -- sutherland's law for viscosity
+  // eqnState -- equation of state
+  // trans -- viscous transport model
   // turb -- turbulence model
   // isViscous -- flag to determine if simulation is viscous
   // isRANS -- flag to determine if simulation is turbulent
@@ -555,14 +552,14 @@ genArray RoeOffDiagonal(const primVars &offDiag, const primVars &diag,
   const auto areaNorm = fArea.UnitVector();
 
   // calculate Roe flux with old variables
-  const auto oldFlux = RoeFlux(offDiag, diag, eos, areaNorm);
+  const auto oldFlux = RoeFlux(offDiag, diag, eqnState, areaNorm);
 
   // calculate updated Roe flux on off diagonal
-  const auto stateUpdate =  offDiag.UpdateWithConsVars(eos, update, turb);
+  const auto stateUpdate =  offDiag.UpdateWithConsVars(eqnState, update, turb);
 
   const auto newFlux = positive ?
-    RoeFlux(stateUpdate, diag, eos, areaNorm) :
-    RoeFlux(diag, stateUpdate, eos, areaNorm);
+    RoeFlux(stateUpdate, diag, eqnState, areaNorm) :
+    RoeFlux(diag, stateUpdate, eqnState, areaNorm);
 
   // don't need 0.5 factor on roe flux because RoeFlux function already does it
   const auto fluxChange = fArea.Mag() * (newFlux - oldFlux).ConvertToGenArray();
@@ -571,11 +568,11 @@ genArray RoeOffDiagonal(const primVars &offDiag, const primVars &diag,
   uncoupledScalar specRad(0.0, 0.0);
   if (isViscous) {
     specRad.AddToFlowVariable(
-        offDiag.ViscFaceSpectralRadius(fArea, eos, suth, dist, mu,
+        offDiag.ViscFaceSpectralRadius(fArea, eqnState, trans, dist, mu,
                                         mut, turb));
 
     if (isRANS) {
-      specRad.AddToTurbVariable(turb->ViscFaceSpecRad(offDiag, fArea, mu, suth,
+      specRad.AddToTurbVariable(turb->ViscFaceSpecRad(offDiag, fArea, mu, trans,
                                                       dist, mut, f1));
     }
   }
