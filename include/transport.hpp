@@ -22,22 +22,19 @@
 #include <math.h>  // sqrt
 #include <memory>
 #include "vector3d.hpp"
-#include "eos.hpp"
 #include "thermodynamic.hpp"
 
 using std::unique_ptr;
 
 // abstract base class for transport models
 class transport {
-  const double reRef_;
-  const double mRef_;
   const double scaling_;
   const double invScaling_;
 
  public:
   // Constructor
-  transport(const double &re, const double &m)
-      : reRef_(re), mRef_(m), scaling_(m / re), invScaling_(re / m) {}
+  transport(const double &rho, const double &l, const double &mu, const double &a)
+      : scaling_(mu / (rho * a * l)), invScaling_(rho * a * l / mu) {}
 
   // move constructor and assignment operator
   transport(transport&&) noexcept = default;
@@ -60,8 +57,6 @@ class transport {
   virtual double TurbConductivity(const double &, const double &,
                                   const unique_ptr<thermodynamic> &) const = 0;
 
-  double ReRef() const {return reRef_;}
-  double MRef() const {return mRef_;}
   double NondimScaling() const {return scaling_;}
   double InvNondimScaling() const {return invScaling_;}
 
@@ -83,18 +78,16 @@ class sutherland : public transport {
   // Stoke's hypothesis -- bulk viscosity = 0
   // Sutherland's Law -- mu = muref * (C1 * Tref^1.5) / (T + S_)
   sutherland(const double &c, const double &s, const double &t, const double &r,
-             const double &p, const double &l, const vector3d<double> &vel,
-             const unique_ptr<eos> &eqnState)
-      : transport(r * vel.Mag() * l / (c * pow(t, 1.5) / (t + s)),
-                  vel.Mag() / eqnState->SoS(p, r)),
+             const double &p, const double &l, const double &a)
+      : transport(r, l, c * pow(t, 1.5) / (t + s), a),
         cOne_(c),
         S_(s),
         tRef_(t),
         muRef_(cOne_ * pow(tRef_, 1.5) / (tRef_ + S_)),
         bulkVisc_(0.0) {}
   sutherland(const double &t, const double &r, const double &l, const double &p,
-             const vector3d<double> &vel, const unique_ptr<eos> &eqnState)
-      : sutherland(1.458e-6, 110.4, t, r, p, l, vel, eqnState) {}
+             const double &a)
+      : sutherland(1.458e-6, 110.4, t, r, p, l, a) {}
 
   // move constructor and assignment operator
   sutherland(sutherland&&) noexcept = default;

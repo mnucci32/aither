@@ -17,8 +17,6 @@ outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach>
 #reference conditions
 pressureRef: 101300.0
 densityRef: 1.2256
-temperatureRef: 288.0
-velocityRef: [238.0, 0.0, 0.0]
 
 initialConditions: <icState(tag=-1; pressure=101300; density=1.2256; velocity=[238, 0, 0])>
 

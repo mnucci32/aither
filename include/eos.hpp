@@ -54,6 +54,8 @@ class eos {
   virtual double SoS(const double &pressure, const double &rho) const = 0;
   virtual double Temperature(const double &pressure,
                              const double &rho) const = 0;
+  virtual double TemperatureDim(const double &pressure,
+                                const double &rho) const = 0;
   virtual double DensityTP(const double &temp, const double &press) const = 0;
 
   // Destructor
@@ -67,11 +69,12 @@ class eos {
 
 class idealGas : public eos {
   const double gammaRef_;
+  const double gasConst_;
 
  public:
   // Constructor
-  idealGas(const unique_ptr<thermodynamic> &thermo, const double &tRef)
-      : gammaRef_(thermo->Gamma()) {}
+  idealGas(const unique_ptr<thermodynamic> &thermo, const double &r)
+      : gammaRef_(thermo->Gamma()), gasConst_(r) {}
 
   // move constructor and assignment operator
   idealGas(idealGas&&) noexcept = default;
@@ -91,6 +94,8 @@ class idealGas : public eos {
                   const double &rho) const override;
   double SoS(const double &pressure, const double &rho) const override;
   double Temperature(const double &pressure, const double &rho) const override;
+  double TemperatureDim(const double &pressure,
+                        const double &rho) const override;
   // nondimensional version (R=1/gamma)
   double DensityTP(const double &temp, const double &press) const override {
     return press * gammaRef_ / temp;

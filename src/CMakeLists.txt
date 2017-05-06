@@ -29,6 +29,7 @@ set(sources
   main.cpp
   boundaryConditions.cpp
   eos.cpp
+  fluid.cpp
   fluxJacobian.cpp
   genArray.cpp
   input.cpp

@@ -58,3 +58,8 @@ double idealGas::Temperature(const double &pressure,
   return pressure * gammaRef_ / rho;
 }
 
+double idealGas::TemperatureDim(const double &pressure,
+                             const double &rho) const {
+  return pressure / (gasConst_ * rho);
+}
+

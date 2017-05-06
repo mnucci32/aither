@@ -49,7 +49,7 @@ class caloricallyPerfect : public thermodynamic {
 
  public:
   // Constructor
-  explicit caloricallyPerfect(const double &a) : gamma_(a) {}
+  explicit caloricallyPerfect(const double &n) : gamma_(1.0 / n + 1.0) {}
   caloricallyPerfect() : caloricallyPerfect(1.4) {}
 
   // move constructor and assignment operator

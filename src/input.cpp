@@ -31,6 +31,7 @@
 #include "eos.hpp"
 #include "transport.hpp"
 #include "thermodynamic.hpp"
+#include "fluid.hpp"
 #include "macros.hpp"
 
 using std::cout;
@@ -54,11 +55,10 @@ input::input(const string &name, const string &resName) : simName_(name),
   iterations_ = 1;
   pRef_ = -1.0;
   rRef_ = -1.0;
+  tRef_ = -1.0;
   lRef_ = 1.0;
   aRef_ = 0.0;
-  vRef_ = {1.0, 0.0, 0.0};
-  gamma_ = 1.4;
-  gasConst_ = 287.058;
+  fluids_ = vector<fluid>(1);
   bc_ = vector<boundaryConditions>(1);
   timeIntegration_ = "explicitEuler";
   cfl_ = -1.0;
@@ -69,7 +69,6 @@ input::input(const string &name, const string &resName) : simName_(name),
   limiter_ = "none";
   outputFrequency_ = 1;
   equationSet_ = "euler";
-  tRef_ = -1.0;
   matrixSolver_ = "lusgs";
   matrixSweeps_ = 1;
   matrixRelaxation_ = 1.0;  // default is symmetric Gauss-Seidel
@@ -105,9 +104,7 @@ input::input(const string &name, const string &resName) : simName_(name),
            "pressureRef",
            "densityRef",
            "lengthRef",
-           "velocityRef",
-           "gamma",
-           "gasConstant",
+           "fluids",
            "timeIntegration",
            "faceReconstruction",
            "viscousFaceReconstruction",
@@ -115,7 +112,6 @@ input::input(const string &name, const string &resName) : simName_(name),
            "outputFrequency",
            "restartFrequency",
            "equationSet",
-           "temperatureRef",
            "matrixSolver",
            "matrixSweeps",
            "matrixRelaxation",
@@ -224,20 +220,18 @@ void input::ReadInput(const int &rank) {
           if (rank == ROOTP) {
             cout << key << ": " << this->LRef() << endl;
           }
-        } else if (key == "velocityRef") {
-          vRef_ = ReadVector(tokens[1]);
+        } else if (key == "fluids") {
+          fluids_ = ReadFluidList(inFile, tokens[1]);
           if (rank == ROOTP) {
-            cout << key << ": [" << this->VelRef() << "]" << endl;
-          }
-        } else if (key == "gamma") {
-          gamma_ = stod(tokens[1]);  // double variable (stod)
-          if (rank == ROOTP) {
-            cout << key << ": " << this->Gamma() << endl;
-          }
-        } else if (key == "gasConstant") {
-          gasConst_ = stod(tokens[1]);  // double variable (stod)
-          if (rank == ROOTP) {
-            cout << key << ": " << this->R() << endl;
+            cout << key << ": <";
+            for (auto ii = 0U; ii < fluids_.size(); ++ii) {
+              cout << fluids_[ii];
+              if (ii == fluids_.size() - 1) {
+                cout << ">" << endl;
+              } else {
+                cout << "," << endl << "                    ";
+              }
+            }
           }
         } else if (key == "timeIntegration") {
           timeIntegration_ = tokens[1];
@@ -318,11 +312,6 @@ void input::ReadInput(const int &rank) {
           equationSet_ = tokens[1];
           if (rank == ROOTP) {
             cout << key << ": " << this->EquationSet() << endl;
-          }
-        } else if (key == "temperatureRef") {
-          tRef_ = stod(tokens[1]);  // double variable (stod)
-          if (rank == ROOTP) {
-            cout << key << ": " << this->TRef() << endl;
           }
         } else if (key == "matrixSolver") {
           matrixSolver_ = tokens[1];
@@ -672,27 +661,32 @@ unique_ptr<turbModel> input::AssignTurbulenceModel() const {
 
 // member function to get equation of state
 unique_ptr<eos> input::AssignEquationOfState(
-    const unique_ptr<thermodynamic> &thermo) const {
+    const unique_ptr<thermodynamic> &thermo) {
+  // get fluid
+  auto fl = this->Fluid();
   // define equation of state
   unique_ptr<eos> eqnState(nullptr);
   if (equationOfState_ == "idealGas") {
-    eqnState = unique_ptr<eos>{std::make_unique<idealGas>(thermo, tRef_)};
+    eqnState =
+        unique_ptr<eos>{std::make_unique<idealGas>(thermo, fl.GasConstant())};
   } else {
     cerr << "ERROR: Error in input::AssignEquationOfState(). Equation of state "
          << equationOfState_ << " is not recognized!" << endl;
     exit(EXIT_FAILURE);
   }
+  // use equation of state to assign additional reference values
+  aRef_ = eqnState->SoS(pRef_, rRef_);
+  tRef_ = eqnState->TemperatureDim(pRef_, rRef_);
   return eqnState;
 }
 
 // member function to get transport model
-unique_ptr<transport> input::AssignTransportModel(
-    const unique_ptr<eos> &eqnState) const {
+unique_ptr<transport> input::AssignTransportModel() const {
   // define equation of state
   unique_ptr<transport> trans(nullptr);
   if (transportModel_ == "sutherland") {
     trans = unique_ptr<transport>{std::make_unique<sutherland>(
-        tRef_, rRef_, lRef_, pRef_, vRef_, eqnState)};
+        tRef_, rRef_, lRef_, pRef_, aRef_)};
   } else {
     cerr << "ERROR: Error in input::AssignTransportModel(). Transport model "
          << transportModel_ << " is not recognized!" << endl;
@@ -703,11 +697,13 @@ unique_ptr<transport> input::AssignTransportModel(
 
 // member function to get thermodynamic model
 unique_ptr<thermodynamic> input::AssignThermodynamicModel() const {
+  // get fluid
+  auto fl = this->Fluid();
   // define equation of state
   unique_ptr<thermodynamic> thermo(nullptr);
   if (thermodynamicModel_ == "caloricallyPerfect") {
     thermo =
-        unique_ptr<thermodynamic>{std::make_unique<caloricallyPerfect>(gamma_)};
+        unique_ptr<thermodynamic>{std::make_unique<caloricallyPerfect>(fl.N())};
   } else {
     cerr << "ERROR: Error in input::AssignThermodynamicModel(). Thermodynamic "
          << "model " << transportModel_ << " is not recognized!" << endl;
@@ -890,11 +886,16 @@ const shared_ptr<inputState> & input::BCData(const int &tag) const {
 }
 
 void input::NondimensionalizeStateData(const unique_ptr<eos> &eqnState) {
-  aRef_ = eqnState->SoS(pRef_, rRef_);
   for (auto &state : bcStates_) {
     state->Nondimensionalize(rRef_, tRef_, lRef_, aRef_);
   }
   for (auto &ic : ics_) {
     ic.Nondimensionalize(rRef_, tRef_, lRef_, aRef_);
   }
+  for (auto &fl : fluids_) {
+    fl.Nondimensionalize(tRef_);
+  }
 }
+
+// default value is 0; code currently only supports single fluid flows
+fluid input::Fluid(const int ind) const { return fluids_[ind]; }

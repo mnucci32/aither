@@ -111,9 +111,9 @@ int main(int argc, char *argv[]) {
   // Get equation of state
   const auto eqnState = inp.AssignEquationOfState(thermo);
   // Get transport model
-  const auto trans = inp.AssignTransportModel(eqnState);
+  const auto trans = inp.AssignTransportModel();
 
-  // Nondimensionalize BC and IC state data
+  // Nondimensionalize BC, IC, & fluid property data
   inp.NondimensionalizeStateData(eqnState);
 
   // Get turbulence model

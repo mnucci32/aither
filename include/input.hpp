@@ -25,6 +25,7 @@
 #include "vector3d.hpp"
 #include "boundaryConditions.hpp"
 #include "inputStates.hpp"
+#include "fluid.hpp"
 #include "macros.hpp"
 
 using std::vector;
@@ -51,11 +52,10 @@ class input {
 
   double pRef_;  // reference pressure
   double rRef_;  // reference density
+  double tRef_;  // reference temperature
   double lRef_;  // reference length
   double aRef_;  // reference speed of sound
-  vector3d<double> vRef_;  // reference velocity
-  double gamma_;  // ratio of specific heats
-  double gasConst_;  // gas constant of fluid
+  vector<fluid> fluids_;  // fluids in simulation
   vector<boundaryConditions> bc_;  // vector of boundary conditions for each
                                   // block
   string timeIntegration_;  // time integration method
@@ -66,7 +66,6 @@ class input {
   string limiter_;  // limiter to use in higher order calculations
   int outputFrequency_;  // how often to output results
   string equationSet_;  // which set of equations to solver Euler/Navier-Stokes
-  double tRef_;  // reference temperature
   string matrixSolver_;  // matrix solver to solve Ax=b
   int matrixSweeps_;  // number of sweeps for matrix solver
   double matrixRelaxation_;  // relaxation parameter for matrix solver
@@ -129,12 +128,8 @@ class input {
   double RRef() const {return rRef_;}
   double LRef() const {return lRef_;}
   double TRef() const {return tRef_;}
-  vector3d<double> VelRef() const {return vRef_;}
   double ARef() const {return aRef_;}
   void NondimensionalizeStateData(const unique_ptr<eos> &);
-
-  double Gamma() const { return gamma_; }
-  double R() const { return gasConst_; }
 
   boundaryConditions BC(const int &ind) const { return bc_[ind]; }
   vector<boundaryConditions> AllBC() const { return bc_; }
@@ -219,9 +214,8 @@ class input {
   string OrderOfAccuracy() const;
 
   unique_ptr<turbModel> AssignTurbulenceModel() const;
-  unique_ptr<eos> AssignEquationOfState(
-      const unique_ptr<thermodynamic> &) const;
-  unique_ptr<transport> AssignTransportModel(const unique_ptr<eos> &) const;
+  unique_ptr<eos> AssignEquationOfState(const unique_ptr<thermodynamic> &);
+  unique_ptr<transport> AssignTransportModel() const;
   unique_ptr<thermodynamic> AssignThermodynamicModel() const;
 
   double ViscousCFLCoefficient() const;
@@ -230,6 +224,7 @@ class input {
 
   icState ICStateForBlock(const int &) const;
   const shared_ptr<inputState> & BCData(const int &) const;
+  fluid Fluid(const int = 0) const;
 
   bool IsWenoZ() const {return this->FaceReconstruction() == "wenoZ";}
 

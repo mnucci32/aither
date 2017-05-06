@@ -159,9 +159,9 @@ class regressionTest:
         # test residuals for pass/fail
         passed, resids = self.CompareResiduals(returnCode)
         if all(passed):
-            print("All tests for", self.caseName, "passed!")
+            print("All tests for", self.caseName, "PASSED!")
         else:
-            print("Tests for", self.caseName, "failed!")
+            print("Tests for", self.caseName, "FAILED!")
             print("Residuals should be:", self.GetResiduals())
             print("Residuals are:", resids)
 
@@ -314,9 +314,9 @@ def main():
     viscPlate.SetNumberOfProcessors(maxProcs)
     viscPlate.SetNumberOfIterations(numIterations)
     if (viscPlate.Processors() == 2):
-        viscPlate.SetResiduals([7.7265e-2, 2.4712e-1, 5.6413e-2, 1.0228, 7.9363e-2])
+        viscPlate.SetResiduals([7.7277e-2, 2.4713e-1, 5.6320e-2, 9.9946e-1, 7.9381e-2])
     else:
-        viscPlate.SetResiduals([7.6468e-2, 2.4713e-1, 4.0109e-2, 9.8730e-1, 7.9237e-2])
+        viscPlate.SetResiduals([7.6467e-2, 2.4714e-1, 4.0109e-2, 1.0511, 7.9240e-2])
     viscPlate.SetIgnoreIndices(3)
     viscPlate.SetMpirunPath(options.mpirunPath)
 
@@ -334,11 +334,11 @@ def main():
     turbPlate.SetNumberOfProcessors(maxProcs)
     turbPlate.SetNumberOfIterations(numIterations)
     if (turbPlate.Processors() == 2):
-        turbPlate.SetResiduals([4.1174e-2, 4.2731e-2, 1.0641, 8.3686e-2, 3.9585e-2,
-                                4.5098e-8, 1.1416e-5])
+        turbPlate.SetResiduals([4.1188e-2, 4.2732e-2, 8.5928e-1, 8.3640e-2, 3.9573e-2,
+                                4.5077e-8, 1.1449e-5])
     else:
-        turbPlate.SetResiduals([3.9338e-2, 4.2745e-2, 1.0167, 7.4604e-2, 3.8146e-2,
-                                4.7610e-8, 1.1583e-5])
+        turbPlate.SetResiduals([3.9406e-2, 4.2746e-2, 9.0413e-1, 7.4568e-2, 3.8139e-2,
+                                4.7590e-8, 1.1620e-5])
     turbPlate.SetIgnoreIndices(2)
     turbPlate.SetMpirunPath(options.mpirunPath)
 
@@ -356,10 +356,10 @@ def main():
     rae2822.SetNumberOfProcessors(maxProcs)
     rae2822.SetNumberOfIterations(numIterations)
     if (rae2822.Processors() == 2):
-        rae2822.SetResiduals([5.0196e-1, 1.2895, 4.6389e-1, 1.1253, 4.5099e-1,
+        rae2822.SetResiduals([5.0196e-1, 1.2895, 4.6389e-1, 9.4721e-1, 4.5099e-1,
                               1.1526e-7, 1.9755e-5])
     else:
-        rae2822.SetResiduals([5.0069e-1, 1.3219, 4.6502e-1, 9.1543e-1, 4.5357e-1,
+        rae2822.SetResiduals([5.0069e-1, 1.3219, 4.6502e-1, 7.2415e-1, 4.5357e-1,
                               1.1694e-7, 2.0139e-5])
     rae2822.SetIgnoreIndices(3)
     rae2822.SetMpirunPath(options.mpirunPath)
@@ -377,7 +377,7 @@ def main():
     couette.SetRunDirectory("couette")
     couette.SetNumberOfProcessors(1)
     couette.SetNumberOfIterations(numIterations)
-    couette.SetResiduals([1.1359e-1, 5.0726e-1, 7.3287e-2, 5.0139e-1, 2.2817e-1])
+    couette.SetResiduals([1.1343e-1, 5.0752e-1, 7.4086e-2, 4.9008e-1, 2.2789e-1])
     couette.SetIgnoreIndices(3)
     couette.SetMpirunPath(options.mpirunPath)
 
@@ -395,11 +395,11 @@ def main():
     wallLaw.SetNumberOfProcessors(maxProcs)
     wallLaw.SetNumberOfIterations(20)
     if (wallLaw.Processors() == 2):
-        wallLaw.SetResiduals([8.5709e-01, 1.2341e-01, 1.4102e-01, 9.2940e-01,
-                              8.6223e-01, 6.0548e-02, 6.7626e-05])
+        wallLaw.SetResiduals([8.1949e-01, 1.0542e-01, 1.3522e-01, 9.2939e-01,
+                              8.5213e-01, 6.0529e-02, 6.7596e-05])
     else:
-        wallLaw.SetResiduals([8.4993e-01, 1.2039e-01, 1.3807e-01, 9.2928e-01,
-                              8.5502e-01, 6.0546e-02, 6.7616e-05])
+        wallLaw.SetResiduals([8.1310e-01, 1.0392e-01, 1.3302e-01, 9.2927e-01,
+                              8.4532e-01, 6.0527e-02, 6.7585e-05])
     wallLaw.SetIgnoreIndices(1)
     wallLaw.SetMpirunPath(options.mpirunPath)
 
