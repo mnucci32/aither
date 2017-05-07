@@ -533,6 +533,7 @@ void input::ReadInput(const int &rank) {
   this->CheckOutputVariables();
   this->CheckWallOutputVariables();
   this->CheckTurbulenceModel();
+  this->CheckSpecies();
 
   if (rank == ROOTP) {
     cout << endl;
@@ -774,17 +775,32 @@ void input::CheckWallOutputVariables() {
   auto oVars = wallOutputVariables_;
   for (auto &var : oVars) {
     if (!this->IsViscous()) {  // can't have viscous variables output
-      if (var == "yplus" || var == "heatFlux") {
-        cerr << "WARNING: Wall variable " << var <<
-            " is not available for inviscid simulations." << endl;
+      if (var == "yplus" || var == "heatFlux" || var == "shearStress" ||
+          var == "frictionVelocity" || var == "viscosity") {
+        cerr << "WARNING: Wall variable " << var
+             << " is not available for inviscid simulations." << endl;
+        outputVariables_.erase(var);
+      }
+    }
+    if (!this->IsTurbulent()) {  // can't have turbulent variables output
+      if (var == "viscosityRatio") {
+        cerr << "WARNING: Wall variable " << var
+             << " is not available for laminar simulations." << endl;
+        outputVariables_.erase(var);
+      }
+    }
+    if (!this->IsRANS()) {  // can't have RANS variables output
+      if (var == "tke" || var == "sdr") {
+        cerr << "WARNING: Wall variable " << var
+             << " is not available for laminar simulations." << endl;
         outputVariables_.erase(var);
       }
     }
   }
 }
 
-
-// member function to check that turbulence model makes sense with equation set
+// member function to check that turbulence model makes sense with equation
+// set
 void input::CheckTurbulenceModel() const {
   if (this->IsTurbulent() && turbModel_ == "none") {
     cerr << "ERROR: If solving RANS or LES equations, must specify turbulence "
@@ -806,6 +822,44 @@ void input::CheckTurbulenceModel() const {
   }
 }
 
+// member function to check that all species specified are defined
+void input::CheckSpecies() const {
+  // check all species in ICs are defined
+  for (auto &ic : ics_) {
+    auto fracs = ic.MassFractions();  // get mass fractions for ICs
+    // loop over all species and find if that species has been defined
+    for (auto &species : fracs) {
+      auto name = species.first;
+      if (find_if(std::begin(fluids_), std::end(fluids_),
+                  [&name](const fluid &fl) { return fl.Name() == name; }) ==
+          std::end(fluids_)) {
+        cerr << "ERROR: Species " << name << " is not defined!" << endl;
+        exit(EXIT_FAILURE);
+      }
+    }
+  }
+
+  // check all species in BCs are defined
+  for (auto &bc : bcStates_) {
+    auto fracs = bc->MassFractions();  // get mass fractions for BCs
+    if (!fracs.empty()) {              // some BCs don't have mass fraction data
+      for (auto &species : fracs) {
+        auto name = species.first;
+        if (find_if(std::begin(fluids_), std::end(fluids_),
+                    [&name](const fluid &fl) { return fl.Name() == name; }) ==
+            std::end(fluids_)) {
+          cerr << "ERROR: Species " << name << " is not defined!" << endl;
+          exit(EXIT_FAILURE);
+        }
+      }
+    }
+  }
+
+  // check that there is at least one species defined
+  if (fluids_.size() < 1) {
+    cerr << "ERROR: At least one fluid species must be defined!" << endl;
+  }
+}
 
 // member function to calculate the coefficient used to scale the viscous
 // spectral radius in the time step calculation
