@@ -668,8 +668,9 @@ unique_ptr<eos> input::AssignEquationOfState(
   // define equation of state
   unique_ptr<eos> eqnState(nullptr);
   if (equationOfState_ == "idealGas") {
-    eqnState =
-        unique_ptr<eos>{std::make_unique<idealGas>(thermo, fl.GasConstant())};
+    // nondimensional temperature is 1.0 (tRef_ / tRef_)
+    eqnState = unique_ptr<eos>{
+        std::make_unique<idealGas>(thermo, fl.GasConstant(), 1.0)};
   } else {
     cerr << "ERROR: Error in input::AssignEquationOfState(). Equation of state "
          << equationOfState_ << " is not recognized!" << endl;
@@ -705,6 +706,9 @@ unique_ptr<thermodynamic> input::AssignThermodynamicModel() const {
   if (thermodynamicModel_ == "caloricallyPerfect") {
     thermo =
         unique_ptr<thermodynamic>{std::make_unique<caloricallyPerfect>(fl.N())};
+  } else if (thermodynamicModel_ == "thermallyPerfect") {
+    thermo = unique_ptr<thermodynamic>{std::make_unique<thermallyPerfect>(
+        fl.N(), fl.VibrationalTemperature())};
   } else {
     cerr << "ERROR: Error in input::AssignThermodynamicModel(). Thermodynamic "
          << "model " << transportModel_ << " is not recognized!" << endl;

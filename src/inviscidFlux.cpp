@@ -171,7 +171,7 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   const auto hR = roe.Enthalpy(eqnState);
 
   // Roe averaged speed of sound
-  const auto aR = roe.SoS(thermo);
+  const auto aR = roe.SoS(thermo, eqnState);
 
   // Roe velocity dotted with normalized area vector
   const auto velRSum = roe.Velocity().DotProd(areaNorm);
@@ -289,9 +289,9 @@ inviscidFlux RusanovFlux(const primVars &left, const primVars &right,
 
   // calculate maximum spectral radius
   const auto leftSpecRad = fabs(left.Velocity().DotProd(areaNorm))
-    + left.SoS(thermo);
+    + left.SoS(thermo, eqnState);
   const auto rightSpecRad = fabs(right.Velocity().DotProd(areaNorm))
-    + right.SoS(thermo);
+    + right.SoS(thermo, eqnState);
   const auto fac = positive ? -1.0 : 1.0;
   const auto specRad = fac * std::max(leftSpecRad, rightSpecRad);
 

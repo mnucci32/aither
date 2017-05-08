@@ -115,7 +115,7 @@ void fluxJacobian::RusanovFluxJacobian(const primVars &state,
   // turb -- turbulence model
 
   // face inviscid spectral radius
-  const auto specRad = state.InvFaceSpectralRadius(area, thermo);
+  const auto specRad = state.InvFaceSpectralRadius(area, thermo, eqnState);
 
   // form dissipation matrix based on spectral radius
   fluxJacobian dissipation(inp.NumFlowEquations(), inp.NumTurbEquations());
@@ -148,11 +148,12 @@ void fluxJacobian::InvFluxJacobian(const primVars &state,
   // inp -- input variables
   // turb -- turbulence model
 
+  const auto t = state.Temperature(eqnState);
   const auto velNorm = state.Velocity().DotProd(area.UnitVector());
-  const auto gammaMinusOne = thermo->Gamma() - 1.0;
+  const auto gammaMinusOne = thermo->Gamma(t) - 1.0;
   const auto phi = 0.5 * gammaMinusOne * state.Velocity().MagSq();
-  const auto a1 = thermo->Gamma() * state.Energy(eqnState) - phi;
-  const auto a3 = thermo->Gamma() - 2.0;
+  const auto a1 = thermo->Gamma(t) * state.Energy(eqnState) - phi;
+  const auto a3 = thermo->Gamma(t) - 2.0;
 
   // begin jacobian calculation
   flowJacobian_ = squareMatrix(inp.NumFlowEquations());
@@ -201,7 +202,7 @@ void fluxJacobian::InvFluxJacobian(const primVars &state,
   flowJacobian_(1, 4) = gammaMinusOne * area.UnitVector().X();
   flowJacobian_(2, 4) = gammaMinusOne * area.UnitVector().Y();
   flowJacobian_(3, 4) = gammaMinusOne * area.UnitVector().Z();
-  flowJacobian_(4, 4) = thermo->Gamma() * velNorm;
+  flowJacobian_(4, 4) = thermo->Gamma(t) * velNorm;
 
   // multiply by 0.5 b/c averaging with dissipation matrix
   flowJacobian_ *= 0.5 * area.Mag();
@@ -259,12 +260,13 @@ void fluxJacobian::ApproxRoeFluxJacobian(
 // from Dwight
 void fluxJacobian::DelPrimativeDelConservative(
     const primVars &state, const unique_ptr<thermodynamic> &thermo,
-    const input &inp) {
+    const unique_ptr<eos> &eqnState, const input &inp) {
   // state -- primative variables
   // thermo -- thermodynamic model
   // inp -- input variables
 
-  const auto gammaMinusOne = thermo->Gamma() - 1.0;
+  const auto t = state.Temperature(eqnState);
+  const auto gammaMinusOne = thermo->Gamma(t) - 1.0;
   const auto invRho = 1.0 / state.Rho();
 
   flowJacobian_ = squareMatrix(inp.NumFlowEquations());
@@ -326,6 +328,7 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
   flowJacobian_ = squareMatrix(inp.NumFlowEquations());
   turbJacobian_ = squareMatrix(inp.NumTurbEquations());
 
+  const auto t = state.Temperature(eqnState);
   const auto mu = trans->NondimScaling() * lamVisc;
   const auto mut = trans->NondimScaling() * turbVisc;
   const auto velNorm = state.Velocity().DotProd(area.UnitVector());
@@ -338,8 +341,8 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
 
   // assign column 0
   flowJacobian_(4, 0) =
-      -(trans->Conductivity(mu, thermo) +
-        trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), thermo)) *
+      -(trans->Conductivity(mu, t, thermo) +
+        trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo)) *
       state.Temperature(eqnState) / ((mu + mut) * state.Rho());
 
   // assign column 1
@@ -368,14 +371,14 @@ void fluxJacobian::ApproxTSLJacobian(const primVars &state,
 
   // assign column 4
   flowJacobian_(4, 4) =
-      (trans->Conductivity(mu, thermo) +
-       trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), thermo)) /
+      (trans->Conductivity(mu, t, thermo) +
+       trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo)) /
       ((mu + mut) * state.Rho());
 
   flowJacobian_ *= area.Mag() * (mu + mut) / dist;
 
   fluxJacobian prim2Cons;
-  prim2Cons.DelPrimativeDelConservative(state, thermo, inp);
+  prim2Cons.DelPrimativeDelConservative(state, thermo, eqnState, inp);
   flowJacobian_ = flowJacobian_.MatMult(prim2Cons.flowJacobian_);
 
   // calculate turbulent jacobian if necessary
@@ -431,8 +434,8 @@ genArray RusanovScalarOffDiagonal(const primVars &state, const genArray &update,
 
   // can't use stored cell spectral radius b/c it has contributions from i, j, k
   const uncoupledScalar specRad(
-      state.FaceSpectralRadius(fArea, thermo, trans, dist, mu, mut, turb,
-                               isViscous),
+      state.FaceSpectralRadius(fArea, thermo, eqnState, trans, dist, mu, mut,
+                               turb, isViscous),
       turb->FaceSpectralRadius(state, fArea, mu, trans, dist, mut, f1,
                                positive));
 
@@ -581,7 +584,7 @@ genArray RoeOffDiagonal(const primVars &offDiag, const primVars &diag,
   uncoupledScalar specRad(0.0, 0.0);
   if (isViscous) {
     specRad.AddToFlowVariable(
-        offDiag.ViscFaceSpectralRadius(fArea, thermo, trans, dist, mu,
+        offDiag.ViscFaceSpectralRadius(fArea, thermo, eqnState, trans, dist, mu,
                                         mut, turb));
 
     if (isRANS) {

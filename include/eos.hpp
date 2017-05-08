@@ -73,8 +73,9 @@ class idealGas : public eos {
 
  public:
   // Constructor
-  idealGas(const unique_ptr<thermodynamic> &thermo, const double &r)
-      : gammaRef_(thermo->Gamma()), gasConst_(r) {}
+  idealGas(const unique_ptr<thermodynamic> &thermo, const double &r,
+           const double &t)
+      : gammaRef_(thermo->Gamma(t)), gasConst_(r) {}
 
   // move constructor and assignment operator
   idealGas(idealGas&&) noexcept = default;

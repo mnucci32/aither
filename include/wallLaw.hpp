@@ -57,7 +57,7 @@ class wallLaw {
 
   // private member functions
   void UpdateConstants(const double &);
-  void UpdateGamma(const unique_ptr<thermodynamic> &);
+  void UpdateGamma(const unique_ptr<thermodynamic> &, const double &);
   void CalcYplusWhite();
   double CalcHeatFlux(const unique_ptr<eos> &) const;
   void SetWallVars(const double &, const unique_ptr<eos> &,
@@ -69,7 +69,7 @@ class wallLaw {
                     const unique_ptr<transport> &, double &, double &);
   double CalcYplusRoot(const double &) const;
   double ShearStressMag() const {return uStar_ * uStar_ * rhoW_;};
-  void CalcRecoveryFactor(const unique_ptr<thermodynamic> &);
+  void CalcRecoveryFactor(const unique_ptr<thermodynamic> &, const double &);
   double CalcWallTemperature(const unique_ptr<eos> &,
                              const unique_ptr<thermodynamic> &,
                              const double &) const;

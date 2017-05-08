@@ -35,15 +35,17 @@ class thermodynamic {
   thermodynamic& operator=(const thermodynamic&) = default;
 
   // Member functions for abstract base class
-  virtual double Gamma() const = 0;
-  virtual double Prandtl() const = 0;
-  virtual double SpecificHeat() const = 0;
+  virtual double Gamma(const double &t) const = 0;
+  virtual double Prandtl(const double &t) const = 0;
+  virtual double Cp(const double &t) const = 0;
+  virtual double Cv(const double &t) const = 0;
 
   // Destructor
   virtual ~thermodynamic() noexcept {}
 };
 
-
+// thermodynamic model for calorically perfect gas.
+// Cp and Cv are constants
 class caloricallyPerfect : public thermodynamic {
   const double gamma_;
 
@@ -61,13 +63,62 @@ class caloricallyPerfect : public thermodynamic {
   caloricallyPerfect& operator=(const caloricallyPerfect&) = default;
 
   // Member functions
-  double Gamma() const override {return gamma_;}
-  double Prandtl() const override {return (4.0 * gamma_) / (9.0 * gamma_ - 5.0);}
-  double SpecificHeat() const override {return 1.0 / (gamma_ - 1.0);}
+  double Gamma(const double &t) const override {return gamma_;}
+  double Prandtl(const double& t) const override {
+    return (4.0 * gamma_) / (9.0 * gamma_ - 5.0);
+  }
+  double Cp(const double& t) const override { return 1.0 / (gamma_ - 1.0); }
+  double Cv(const double& t) const override {
+    return 1.0 / (gamma_ * (gamma_ - 1.0));
+  }
 
   // Destructor
   ~caloricallyPerfect() noexcept {}
 };
 
+// thermodynamic model for thermally perfect gas
+// Cp and Cv are functions of T
+class thermallyPerfect : public thermodynamic {
+  const double n_;
+  const double vibTemp_;
+  const double nonDimR_;
+
+  // private member functions
+  double ThetaV(const double& t) const { return vibTemp_ / (2.0 * t); }
+
+ public:
+  // Constructor
+  thermallyPerfect(const double& n, const double& vt)
+      : n_(n), vibTemp_(vt), nonDimR_(1.0 / n + 1.0) {}
+  thermallyPerfect() : thermallyPerfect(1.4, 3000.0) {}
+
+  // move constructor and assignment operator
+  thermallyPerfect(thermallyPerfect&&) noexcept = default;
+  thermallyPerfect& operator=(thermallyPerfect&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  thermallyPerfect(const thermallyPerfect&) = default;
+  thermallyPerfect& operator=(const thermallyPerfect&) = default;
+
+  // Member functions
+  double Gamma(const double& t) const override {
+    return this->Cp(t) / this->Cv(t);
+  }
+  double Prandtl(const double& t) const override {
+    return (4.0 * this->Gamma(t)) / (9.0 * this->Gamma(t) - 5.0);
+  }
+  // DEBUG change these to use vibrational temperature -- is nonDimR correct?
+  double Cp(const double& t) const override {
+    const auto tv = this->ThetaV(t);
+    return nonDimR_ * ((n_ + 1.0) + pow(tv / sinh(tv), 2.0));
+  }
+  double Cv(const double& t) const override {
+    const auto tv = this->ThetaV(t);
+    return nonDimR_ * (n_ + pow(tv / sinh(tv), 2.0));
+  }
+
+  // Destructor
+  ~thermallyPerfect() noexcept {}
+};
 
 #endif

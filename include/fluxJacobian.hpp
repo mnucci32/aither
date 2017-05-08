@@ -90,7 +90,7 @@ class fluxJacobian {
                              const input &, const unique_ptr<turbModel> &);
   void DelPrimativeDelConservative(const primVars &,
                                    const unique_ptr<thermodynamic> &,
-                                   const input &);
+                                   const unique_ptr<eos> &, const input &);
 
   void ApproxTSLJacobian(
       const primVars &, const double &, const double &, const double &,

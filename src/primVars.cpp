@@ -440,10 +440,11 @@ primVars primVars::GetGhostState(const string &bcType,
         } else {
           // use wall law heat flux to get ghost cell density
           // need turbulent contribution because eddy viscosity is not 0 at wall
-          const auto kappa =
-              trans->Conductivity(wVars.viscosity_, thermo) +
-              trans->TurbConductivity(wVars.turbEddyVisc_,
-                                      turb->TurbPrandtlNumber(), thermo);
+          const auto kappa = trans->Conductivity(wVars.viscosity_,
+                                                 wVars.temperature_, thermo) +
+                             trans->TurbConductivity(
+                                 wVars.turbEddyVisc_, turb->TurbPrandtlNumber(),
+                                 wVars.temperature_, thermo);
           // 2x wall distance as gradient length
           const auto tGhost = tWall - wVars.heatFlux_ / kappa * 2.0 * wallDist;
           ghostState.data_[0] = eqnState->DensityTP(tGhost, ghostState.P());
@@ -472,8 +473,9 @@ primVars primVars::GetGhostState(const string &bcType,
 
         if (wVars.SwitchToLowRe()) {
           // don't need turbulent contribution b/c eddy viscosity is 0 at wall
-          const auto mu = trans->EffectiveViscosity(this->Temperature(eqnState));
-          const auto kappa = trans->Conductivity(mu, thermo);
+          const auto t = this->Temperature(eqnState);
+          const auto mu = trans->EffectiveViscosity(t);
+          const auto kappa = trans->Conductivity(mu, t, thermo);
           // 2x wall distance as gradient length
           const auto tGhost =
               this->Temperature(eqnState) - qWall / kappa * 2.0 * wallDist;
@@ -496,8 +498,9 @@ primVars primVars::GetGhostState(const string &bcType,
         }
       } else {  // low-Re wall treatment
         // don't need turbulent contribution b/c eddy viscosity is 0 at wall
-        const auto mu = trans->EffectiveViscosity(this->Temperature(eqnState));
-        const auto kappa = trans->Conductivity(mu, thermo);
+        const auto t = this->Temperature(eqnState);
+        const auto mu = trans->EffectiveViscosity(t);
+        const auto kappa = trans->Conductivity(mu, t, thermo);
         // 2x wall distance as gradient length
         const auto tGhost =
             this->Temperature(eqnState) - qWall / kappa * 2.0 * wallDist;
@@ -742,15 +745,16 @@ primVars primVars::GetGhostState(const string &bcType,
   } else if (bcType == "stagnationInlet") {
     const auto & bcData = inputVars.BCData(tag);
 
-    const auto g = thermo->Gamma() - 1.0;
+    const auto t = this->Temperature(eqnState);
+    const auto g = thermo->Gamma(t) - 1.0;
     // calculate outgoing riemann invarient
     const auto rNeg = this->Velocity().DotProd(normArea) -
-        2.0 * this->SoS(thermo) / g;
+        2.0 * this->SoS(thermo, eqnState) / g;
 
     // calculate SoS on boundary
     const auto cosTheta = -1.0 * this->Velocity().DotProd(normArea) /
         this->Velocity().Mag();
-    const auto stagSoSsq = pow(this->SoS(thermo), 2.0) +
+    const auto stagSoSsq = pow(this->SoS(thermo, eqnState), 2.0) +
         0.5 * g * this->Velocity().MagSq();
 
     const auto sosB = -1.0 * rNeg * g / (g * cosTheta * cosTheta + 2.0) *
@@ -758,7 +762,7 @@ primVars primVars::GetGhostState(const string &bcType,
                                stagSoSsq / (g * rNeg * rNeg) - 0.5 * g));
     const auto tb = bcData->StagnationTemperature() * (sosB * sosB / stagSoSsq);
     const auto pb = bcData->StagnationPressure() *
-                    pow(sosB * sosB / stagSoSsq, thermo->Gamma() / g);
+                    pow(sosB * sosB / stagSoSsq, thermo->Gamma(t) / g);
     const auto vbMag = sqrt(2.0 / g * (bcData->StagnationTemperature() - tb));
 
     ghostState.data_[0] = eqnState->DensityTP(tb, pb);
@@ -797,7 +801,7 @@ primVars primVars::GetGhostState(const string &bcType,
     // nondimensional pressure from input file
     const auto pb = bcData->Pressure();
 
-    const auto SoSInt = this->SoS(thermo);
+    const auto SoSInt = this->SoS(thermo, eqnState);
     const auto rhoSoSInt = this->Rho() * SoSInt;
 
     ghostState.data_[4] = pb;
@@ -899,12 +903,14 @@ In the above equation L is the spectral radius in either the i, j, or k
 direction. A1 and A2 are the two face areas in that direction. Vn is the
 cell velocity normal to that direction. SoS is the speed of sound at the cell
  */
-double primVars::InvCellSpectralRadius(
-    const unitVec3dMag<double> &fAreaL, const unitVec3dMag<double> &fAreaR,
-    const unique_ptr<thermodynamic> &thermo) const {
+double primVars::InvCellSpectralRadius(const unitVec3dMag<double> &fAreaL,
+                                       const unitVec3dMag<double> &fAreaR,
+                                       const unique_ptr<thermodynamic> &thermo,
+                                       const unique_ptr<eos> &eqnState) const {
   // fAreaL -- face area of lower face in either i, j, or k direction
   // fAreaR -- face area of upper face in either i, j, or k direction
   // thermo -- thermodynamic model
+  // eqnState -- equation of state
 
   // normalize face areas
   const auto normAvg = (0.5 * (fAreaL.UnitVector() +
@@ -913,18 +919,21 @@ double primVars::InvCellSpectralRadius(
   const auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
 
   // return spectral radius
-  return (fabs(this->Velocity().DotProd(normAvg)) + this->SoS(thermo)) * fMag;
+  return (fabs(this->Velocity().DotProd(normAvg)) +
+          this->SoS(thermo, eqnState)) *
+         fMag;
 }
 
-double primVars::InvFaceSpectralRadius(
-    const unitVec3dMag<double> &fArea,
-    const unique_ptr<thermodynamic> &thermo) const {
+double primVars::InvFaceSpectralRadius(const unitVec3dMag<double> &fArea,
+                                       const unique_ptr<thermodynamic> &thermo,
+                                       const unique_ptr<eos> &eqnState) const {
   // fArea -- face area
   // thermo -- thermodynamic model
+  // eqnState -- equation of state
 
   // return spectral radius
   return 0.5 * fArea.Mag() * (fabs(this->Velocity().DotProd(fArea.UnitVector()))
-                              + this->SoS(thermo));
+                              + this->SoS(thermo, eqnState));
 }
 
 /*Function to calculate the viscous spectral radius for one direction (i, j, or
@@ -940,12 +949,13 @@ comes from Blazek.
  */
 double primVars::ViscCellSpectralRadius(
     const unitVec3dMag<double> &fAreaL, const unitVec3dMag<double> &fAreaR,
-    const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
-    const double &vol, const double &mu, const double &mut,
-    const unique_ptr<turbModel> &turb) const {
+    const unique_ptr<thermodynamic> &thermo, const unique_ptr<eos> &eqnState,
+    const unique_ptr<transport> &trans, const double &vol, const double &mu,
+    const double &mut, const unique_ptr<turbModel> &turb) const {
   // fAreaL -- face area of lower face in either i, j, or k direction
   // fAreaR -- face area of upper face in either i, j, or k direction
   // thermo -- thermodynamic model
+  // eqnState -- equation of state
   // trans -- viscous transport model
   // vol -- cell volume
   // mu -- laminar viscosity
@@ -954,11 +964,12 @@ double primVars::ViscCellSpectralRadius(
 
   // average area magnitude
   const auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
-  const auto maxTerm = max(4.0 / (3.0 * this->Rho()),
-                           thermo->Gamma() / this->Rho());
+  const auto t = this->Temperature(eqnState);
+  const auto maxTerm =
+      max(4.0 / (3.0 * this->Rho()), thermo->Gamma(t) / this->Rho());
   // viscous term
   const auto viscTerm = trans->NondimScaling() *
-      (mu / thermo->Prandtl() +  mut / turb->TurbPrandtlNumber());
+      (mu / thermo->Prandtl(t) +  mut / turb->TurbPrandtlNumber());
 
   // return viscous spectral radius
   return maxTerm * viscTerm * fMag * fMag / vol;
@@ -966,21 +977,24 @@ double primVars::ViscCellSpectralRadius(
 
 double primVars::ViscFaceSpectralRadius(
     const unitVec3dMag<double> &fArea, const unique_ptr<thermodynamic> &thermo,
-    const unique_ptr<transport> &trans, const double &dist, const double &mu,
-    const double &mut, const unique_ptr<turbModel> &turb) const {
+    const unique_ptr<eos> &eqnState, const unique_ptr<transport> &trans,
+    const double &dist, const double &mu, const double &mut,
+    const unique_ptr<turbModel> &turb) const {
   // fArea -- face area
   // thermo -- thermodynamic model
+  // eqnState -- equation of state
   // trans -- viscous transport model
   // dist -- distacne from cell center to cell center
   // mu -- laminar viscosity
   // mut -- turbulent viscosity
   // turb -- turbulence model
 
-  const auto maxTerm = max(4.0 / (3.0 * this->Rho()),
-                           thermo->Gamma() / this->Rho());
+  const auto t = this->Temperature(eqnState);
+  const auto maxTerm =
+      max(4.0 / (3.0 * this->Rho()), thermo->Gamma(t) / this->Rho());
   // viscous term
   const auto viscTerm = trans->NondimScaling() *
-      (mu / thermo->Prandtl() +  mut / turb->TurbPrandtlNumber());
+      (mu / thermo->Prandtl(t) +  mut / turb->TurbPrandtlNumber());
 
   // return viscous spectral radius
   return fArea.Mag() / dist * maxTerm * viscTerm;
@@ -988,12 +1002,14 @@ double primVars::ViscFaceSpectralRadius(
 
 double primVars::CellSpectralRadius(
     const unitVec3dMag<double> &fAreaL, const unitVec3dMag<double> &fAreaR,
-    const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
-    const double &vol, const double &mu, const double &mut,
-    const unique_ptr<turbModel> &turb, const bool &isViscous) const {
+    const unique_ptr<thermodynamic> &thermo, const unique_ptr<eos> &eqnState,
+    const unique_ptr<transport> &trans, const double &vol, const double &mu,
+    const double &mut, const unique_ptr<turbModel> &turb,
+    const bool &isViscous) const {
   // fAreaL -- face area of lower face in either i, j, or k direction
   // fAreaR -- face area of upper face in either i, j, or k direction
   // thermo -- thermodynamic model
+  // eqnState -- equation of state
   // trans -- viscous transport model
   // vol -- cell volume
   // mu -- laminar viscosity
@@ -1001,18 +1017,20 @@ double primVars::CellSpectralRadius(
   // turb -- turbulence model
   // isViscous -- flag that is true if simulation is viscous
 
-  auto specRad = this->InvCellSpectralRadius(fAreaL, fAreaR, thermo);
+  auto specRad = this->InvCellSpectralRadius(fAreaL, fAreaR, thermo, eqnState);
 
   if (isViscous) {
     // factor 2 2 because viscous spectral radius is not halved (Blazek 6.53)
-    specRad += 2.0 * this->ViscCellSpectralRadius(fAreaL, fAreaR, thermo,
-                                                  trans, vol, mu, mut, turb);
+    specRad += 2.0 *
+               this->ViscCellSpectralRadius(fAreaL, fAreaR, thermo, eqnState,
+                                            trans, vol, mu, mut, turb);
   }
   return specRad;
 }
 
 double primVars::FaceSpectralRadius(const unitVec3dMag<double> &fArea,
                                     const unique_ptr<thermodynamic> &thermo,
+                                    const unique_ptr<eos> &eqnState,
                                     const unique_ptr<transport> &trans,
                                     const double &dist, const double &mu,
                                     const double &mut,
@@ -1020,6 +1038,7 @@ double primVars::FaceSpectralRadius(const unitVec3dMag<double> &fArea,
                                     const bool &isViscous) const {
   // fAreaL -- face area
   // thermo -- thermodynamic model
+  // eqnState -- equation of state
   // trans -- viscous transport model
   // dist -- distance from cell center to cell center
   // mu -- laminar viscosity
@@ -1027,11 +1046,11 @@ double primVars::FaceSpectralRadius(const unitVec3dMag<double> &fArea,
   // turb -- turbulence model
   // isViscous -- flag that is true if simulation is viscous
 
-  auto specRad = this->InvFaceSpectralRadius(fArea, thermo);
+  auto specRad = this->InvFaceSpectralRadius(fArea, thermo, eqnState);
 
   if (isViscous) {
-    specRad += this->ViscFaceSpectralRadius(fArea, thermo, trans, dist, mu,
-                                            mut, turb);
+    specRad += this->ViscFaceSpectralRadius(fArea, thermo, eqnState, trans,
+                                            dist, mu, mut, turb);
   }
   return specRad;
 }

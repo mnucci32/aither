@@ -48,11 +48,10 @@ wallVars wallLaw::AdiabaticBCs(const vector3d<double> &area,
   const auto velTanMag = velTan.Mag();
 
   // get wall temperature from crocco-busemann equation
-  this->CalcRecoveryFactor(thermo);
+  auto t = state_.Temperature(eqnState);
+  this->CalcRecoveryFactor(thermo, t);
   // this is correct form of crocco-busemann, typo in Nichols & Nelson (2004)
-  auto tW =
-      state_.Temperature(eqnState) +
-      0.5 * recoveryFactor_ * velTanMag * velTanMag / thermo->SpecificHeat();
+  auto tW = t + 0.5 * recoveryFactor_ * velTanMag * velTanMag / thermo->Cp(t);
   // set wall properties
   this->SetWallVars(tW, eqnState, thermo, trans);
 
@@ -60,7 +59,7 @@ wallVars wallLaw::AdiabaticBCs(const vector3d<double> &area,
     // calculate u* and u+ from y+
     this->CalcVelocities(yplus, velTanMag);
     // calculate constants
-    this->UpdateGamma(thermo);
+    this->UpdateGamma(thermo, tW);
     this->UpdateConstants(wVars.heatFlux_);
     // calculate y+ from White & Christoph
     this->CalcYplusWhite();
@@ -108,10 +107,10 @@ wallVars wallLaw::HeatFluxBCs(const vector3d<double> &area,
   const auto velTanMag = velTan.Mag();
 
   // get wall temperature from crocco-busemann equation
-  this->CalcRecoveryFactor(thermo);
+  wVars.temperature_ = state_.Temperature(eqnState);
+  this->CalcRecoveryFactor(thermo, wVars.temperature_);
   
   // set wall properties - guess wall temperature equals interior temperature
-  wVars.temperature_ = state_.Temperature(eqnState);
   this->SetWallVars(wVars.temperature_, eqnState, thermo, trans);
 
   auto func = [&](const double &yplus) {
@@ -121,7 +120,7 @@ wallVars wallLaw::HeatFluxBCs(const vector3d<double> &area,
     wVars.temperature_ =
         this->CalcWallTemperature(eqnState, thermo, wVars.heatFlux_);
     this->SetWallVars(wVars.temperature_, eqnState, thermo, trans);
-    this->UpdateGamma(thermo);
+    this->UpdateGamma(thermo, wVars.temperature_);
     this->UpdateConstants(wVars.heatFlux_);
     // calculate y+ from White & Christoph
     this->CalcYplusWhite();
@@ -168,14 +167,14 @@ wallVars wallLaw::IsothermalBCs(const vector3d<double> &area,
   const auto velTanMag = velTan.Mag();
 
   // get wall properties
-  this->CalcRecoveryFactor(thermo);
+  this->CalcRecoveryFactor(thermo, tW);
   this->SetWallVars(wVars.temperature_, eqnState, thermo, trans);
 
   auto func = [&](const double &yplus) {
     // calculate u* and u+ from y+
     this->CalcVelocities(yplus, velTanMag);
     // calculate wall heat flux from croco-busemann equation
-    this->UpdateGamma(thermo);
+    this->UpdateGamma(thermo, tW);
     wVars.heatFlux_ = this->CalcHeatFlux(eqnState);
     // calculate constants
     this->UpdateConstants(wVars.heatFlux_);
@@ -207,10 +206,10 @@ wallVars wallLaw::IsothermalBCs(const vector3d<double> &area,
   return wVars;
 }
 
-void wallLaw::UpdateGamma(const unique_ptr<thermodynamic> &thermo) {
+void wallLaw::UpdateGamma(const unique_ptr<thermodynamic> &thermo,
+                          const double &t) {
   // calculate constants
-  gamma_ = recoveryFactor_ * uStar_ * uStar_ /
-           (2.0 * thermo->SpecificHeat() * tW_);
+  gamma_ = recoveryFactor_ * uStar_ * uStar_ / (2.0 * thermo->Cp(t) * tW_);
 }
 
 void wallLaw::UpdateConstants(const double &heatFluxW) {
@@ -238,10 +237,10 @@ double wallLaw::CalcHeatFlux(const unique_ptr<eos> &eqnState) const {
 double wallLaw::CalcWallTemperature(const unique_ptr<eos> &eqnState,
                                     const unique_ptr<thermodynamic> &thermo,
                                     const double &heatFluxW) const {
-  return state_.Temperature(eqnState) +
+  const auto t = state_.Temperature(eqnState);
+  return t +
          recoveryFactor_ * uStar_ * uStar_ * uplus_ * uplus_ /
-             (2.0 * thermo->SpecificHeat() +
-              heatFluxW * muW_ / (rhoW_ * kW_ * uStar_));
+             (2.0 * thermo->Cp(t) + heatFluxW * muW_ / (rhoW_ * kW_ * uStar_));
 }
 
 void wallLaw::SetWallVars(const double &tW, const unique_ptr<eos> &eqnState,
@@ -252,7 +251,7 @@ void wallLaw::SetWallVars(const double &tW, const unique_ptr<eos> &eqnState,
 
   // get wall viscosity, conductivity from wall temperature
   muW_ = trans->EffectiveViscosity(tW_);
-  kW_ = trans->Conductivity(muW_, thermo);
+  kW_ = trans->Conductivity(muW_, tW_, thermo);
 }
 
 double wallLaw::CalcYplusRoot(const double &yplus) const {
@@ -295,6 +294,7 @@ void wallLaw::CalcTurbVars(const unique_ptr<turbModel> &turb,
   kWall = wWall * mutW_ / state_.Rho() * trans->InvNondimScaling();
 }
 
-void wallLaw::CalcRecoveryFactor(const unique_ptr<thermodynamic> &thermo) {
-  recoveryFactor_ = pow(thermo->Prandtl(), 1.0 / 3.0);
+void wallLaw::CalcRecoveryFactor(const unique_ptr<thermodynamic> &thermo,
+                                 const double &t) {
+  recoveryFactor_ = pow(thermo->Prandtl(t), 1.0 / 3.0);
 }

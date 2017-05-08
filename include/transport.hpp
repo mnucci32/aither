@@ -52,9 +52,9 @@ class transport {
   virtual double ConstS() const = 0;
   virtual double TRef() const = 0;
   virtual double MuRef() const = 0;
-  virtual double Conductivity(const double &,
+  virtual double Conductivity(const double &, const double &,
                               const unique_ptr<thermodynamic> &) const = 0;
-  virtual double TurbConductivity(const double &, const double &,
+  virtual double TurbConductivity(const double &, const double &, const double &,
                                   const unique_ptr<thermodynamic> &) const = 0;
 
   double NondimScaling() const {return scaling_;}
@@ -105,14 +105,14 @@ class sutherland : public transport {
   double ConstS() const override {return S_;}
   double TRef() const override {return tRef_;}
   double MuRef() const override {return muRef_;}
-  double Conductivity(const double &mu,
+  double Conductivity(const double &mu, const double &t,
                       const unique_ptr<thermodynamic> &thermo) const override {
-    return mu * thermo->SpecificHeat() / thermo->Prandtl();
+    return mu * thermo->Cp(t) / thermo->Prandtl(t);
   }
   double TurbConductivity(
-      const double &eddyVisc, const double &prt,
+      const double &eddyVisc, const double &prt, const double &t,
       const unique_ptr<thermodynamic> &thermo) const override {
-    return eddyVisc * thermo->SpecificHeat() / prt;
+    return eddyVisc * thermo->Cp(t) / prt;
   }
 
   // Destructor
