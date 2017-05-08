@@ -102,14 +102,19 @@ class primVars {
 
   inline vector3d<double> Velocity() const;
 
-  inline double Energy(const unique_ptr<eos> &) const;
-  inline double Enthalpy(const unique_ptr<eos> &) const;
+  inline double Energy(const unique_ptr<eos> &,
+                       const unique_ptr<thermodynamic> &) const;
+  inline double Enthalpy(const unique_ptr<eos> &,
+                         const unique_ptr<thermodynamic> &) const;
   inline double Temperature(const unique_ptr<eos> &) const;
   inline double SoS(const unique_ptr<thermodynamic> &,
                     const unique_ptr<eos> &) const;
 
-  inline genArray ConsVars(const unique_ptr<eos> &) const;
-  primVars UpdateWithConsVars(const unique_ptr<eos> &, const genArray &,
+  inline genArray ConsVars(const unique_ptr<eos> &,
+                           const unique_ptr<thermodynamic> &) const;
+  primVars UpdateWithConsVars(const unique_ptr<eos> &,
+                              const unique_ptr<thermodynamic> &,
+                              const genArray &,
                               const unique_ptr<turbModel> &) const;
 
   void ApplyFarfieldTurbBC(const vector3d<double> &, const double &,
@@ -236,8 +241,10 @@ vector3d<double> primVars::Velocity() const {
 }
 
 // member function to calculate total enthalpy from conserved variables
-double primVars::Energy(const unique_ptr<eos> &eqnState) const {
-  return eqnState->Energy(eqnState->SpecEnergy(data_[4], data_[0]),
+double primVars::Energy(const unique_ptr<eos> &eqnState,
+                        const unique_ptr<thermodynamic> &thermo) const {
+  const auto t = this->Temperature(eqnState);
+  return eqnState->Energy(eqnState->SpecEnergy(thermo, t),
                           (*this).Velocity().Mag());
 }
 
@@ -249,19 +256,18 @@ double primVars::SoS(const unique_ptr<thermodynamic> &thermo,
 
 // member function to calculate enthalpy from conserved variables and equation
 // of state
-double primVars::Enthalpy(const unique_ptr<eos> &eqnState) const {
-  return eqnState->Enthalpy((*this).Energy(eqnState), data_[4], data_[0]);
+double primVars::Enthalpy(const unique_ptr<eos> &eqnState,
+                          const unique_ptr<thermodynamic> &thermo) const {
+  return eqnState->Enthalpy((*this).Energy(eqnState, thermo), data_[4],
+                            data_[0]);
 }
 
 // member function to calculate conserved variables from primative variables
-genArray primVars::ConsVars(const unique_ptr<eos> &eqnState) const {
-  genArray cv(data_[0],
-              data_[0] * data_[1],
-              data_[0] * data_[2],
-              data_[0] * data_[3],
-              data_[0] * this->Energy(eqnState),
-              data_[0] * data_[5],
-              data_[0] * data_[6]);
+genArray primVars::ConsVars(const unique_ptr<eos> &eqnState,
+                            const unique_ptr<thermodynamic> &thermo) const {
+  genArray cv(data_[0], data_[0] * data_[1], data_[0] * data_[2],
+              data_[0] * data_[3], data_[0] * this->Energy(eqnState, thermo),
+              data_[0] * data_[5], data_[0] * data_[6]);
   return cv;
 }
 

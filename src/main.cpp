@@ -163,8 +163,8 @@ int main(int argc, char *argv[]) {
     }
     // if restart, get data from restart file
     if (inp.IsRestart()) {
-      ReadRestart(stateBlocks, restartFile, decomp, inp, eqnState, trans, turb,
-                  residL2First, gridSizes);
+      ReadRestart(stateBlocks, restartFile, decomp, inp, eqnState, thermo,
+                  trans, turb, residL2First, gridSizes);
     }
 
     // Swap geometry for connection BCs
@@ -296,7 +296,7 @@ int main(int argc, char *argv[]) {
 
     // Store time-n solution, for time integration methods that require it
     if (inp.NeedToStoreTimeN()) {
-      AssignSolToTimeN(localStateBlocks, eqnState);
+      AssignSolToTimeN(localStateBlocks, eqnState, thermo);
       if (!inp.IsRestart() && inp.IsMultilevelInTime() && nn == 0) {
         AssignSolToTimeNm1(localStateBlocks);
       }
@@ -324,8 +324,8 @@ int main(int argc, char *argv[]) {
             localStateBlocks, mainDiagonal, inp, eqnState, thermo, trans, turb,
             mm, residL2, residLinf, connections, rank, MPI_cellData);
       } else {  // explicit time integration
-        ExplicitUpdate(localStateBlocks, inp, eqnState, trans, turb, mm, residL2,
-                       residLinf);
+        ExplicitUpdate(localStateBlocks, inp, eqnState, thermo, trans, turb, mm,
+                       residL2, residLinf);
       }
 
       // ----------------------------------------------------------------------

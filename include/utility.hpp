@@ -77,10 +77,12 @@ void GetBoundaryConditions(vector<procBlock> &, const input &,
 vector<vector3d<double>> GetViscousFaceCenters(const vector<procBlock> &);
 void CalcWallDistance(vector<procBlock> &, const kdtree &);
 
-void AssignSolToTimeN(vector<procBlock> &, const unique_ptr<eos> &);
+void AssignSolToTimeN(vector<procBlock> &, const unique_ptr<eos> &,
+                      const unique_ptr<thermodynamic> &);
 void AssignSolToTimeNm1(vector<procBlock> &);
 
 void ExplicitUpdate(vector<procBlock> &, const input &, const unique_ptr<eos> &,
+                    const unique_ptr<thermodynamic> &,
                     const unique_ptr<transport> &,
                     const unique_ptr<turbModel> &, const int &, genArray &,
                     resid &);

@@ -152,7 +152,7 @@ void fluxJacobian::InvFluxJacobian(const primVars &state,
   const auto velNorm = state.Velocity().DotProd(area.UnitVector());
   const auto gammaMinusOne = thermo->Gamma(t) - 1.0;
   const auto phi = 0.5 * gammaMinusOne * state.Velocity().MagSq();
-  const auto a1 = thermo->Gamma(t) * state.Energy(eqnState) - phi;
+  const auto a1 = thermo->Gamma(t) * state.Energy(eqnState, thermo) - phi;
   const auto a3 = thermo->Gamma(t) - 2.0;
 
   // begin jacobian calculation
@@ -423,11 +423,13 @@ genArray RusanovScalarOffDiagonal(const primVars &state, const genArray &update,
   // positive -- flag to determine whether to add or subtract dissipation
 
   // calculate updated state
-  const auto stateUpdate = state.UpdateWithConsVars(eqnState, update, turb);
+  const auto stateUpdate =
+      state.UpdateWithConsVars(eqnState, thermo, update, turb);
 
   // calculate updated convective flux
-  auto fluxChange = 0.5 * fArea.Mag() *
-      ConvectiveFluxUpdate(state, stateUpdate, eqnState, fArea.UnitVector());
+  auto fluxChange =
+      0.5 * fArea.Mag() * ConvectiveFluxUpdate(state, stateUpdate, eqnState,
+                                               thermo, fArea.UnitVector());
   // zero out turbulence quantities b/c spectral radius is like full jacobian
   fluxChange[5] = 0.0;
   fluxChange[6] = 0.0;
@@ -571,7 +573,8 @@ genArray RoeOffDiagonal(const primVars &offDiag, const primVars &diag,
   const auto oldFlux = RoeFlux(offDiag, diag, eqnState, thermo, areaNorm);
 
   // calculate updated Roe flux on off diagonal
-  const auto stateUpdate =  offDiag.UpdateWithConsVars(eqnState, update, turb);
+  const auto stateUpdate =
+      offDiag.UpdateWithConsVars(eqnState, thermo, update, turb);
 
   const auto newFlux = positive ?
     RoeFlux(stateUpdate, diag, eqnState, thermo, areaNorm) :

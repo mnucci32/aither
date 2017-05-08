@@ -843,6 +843,7 @@ primVars primVars::GetGhostState(const string &bcType,
 // variables, and update the primative variables with it.
 // this is used in the implicit solver
 primVars primVars::UpdateWithConsVars(const unique_ptr<eos> &eqnState,
+                                      const unique_ptr<thermodynamic> &thermo,
                                       const genArray &du,
                                       const unique_ptr<turbModel> &turb) const {
   // eqnState -- equation of state
@@ -850,7 +851,7 @@ primVars primVars::UpdateWithConsVars(const unique_ptr<eos> &eqnState,
   // turb -- turbulence model
 
   // convert primative to conservative and update
-  const auto consUpdate = this->ConsVars(eqnState) + du;
+  const auto consUpdate = this->ConsVars(eqnState, thermo) + du;
 
   return primVars(consUpdate, false, eqnState, turb);
 }

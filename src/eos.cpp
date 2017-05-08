@@ -35,9 +35,9 @@ double idealGas::PressureRT(const double &rho,
   return temperature * rho / gammaRef_;
 }
 
-double idealGas::SpecEnergy(const double &pressure,
-                            const double &rho) const {
-  return pressure / ((gammaRef_ - 1.0) * rho);
+double idealGas::SpecEnergy(const unique_ptr<thermodynamic> &thermo,
+                            const double &t) const {
+  return thermo->Cv(t) * t;
 }
 
 double idealGas::Energy(const double &specEn, const double &vel) const {

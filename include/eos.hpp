@@ -46,8 +46,8 @@ class eos {
                                  const double &vel) const = 0;
   virtual double PressureRT(const double &rho,
                             const double &temperature) const = 0;
-  virtual double SpecEnergy(const double &pressure,
-                            const double &rho) const = 0;
+  virtual double SpecEnergy(const unique_ptr<thermodynamic> &thermo,
+                            const double &t) const = 0;
   virtual double Energy(const double &specEn, const double &vel) const = 0;
   virtual double Enthalpy(const double &energy, const double &pressure,
                           const double &rho) const = 0;
@@ -89,7 +89,8 @@ class idealGas : public eos {
   double PressFromEnergy(const double &rho, const double &energy,
                          const double &vel) const override;
   double PressureRT(const double &rho, const double &temperature) const override;
-  double SpecEnergy(const double &pressure, const double &rho) const override;
+  double SpecEnergy(const unique_ptr<thermodynamic> &thermo,
+                    const double &t) const override;
   double Energy(const double &specEn, const double &vel) const override;
   double Enthalpy(const double &energy, const double &pressure,
                   const double &rho) const override;

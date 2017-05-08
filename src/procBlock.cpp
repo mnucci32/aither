@@ -800,12 +800,14 @@ explicit methods it calls the appropriate explicit method to update. For
 implicit methods it uses the correction du and calls the implicit updater.
 */
 void procBlock::UpdateBlock(const input &inputVars, const unique_ptr<eos> &eos,
+                            const unique_ptr<thermodynamic> &thermo,
                             const unique_ptr<transport> &trans,
                             const multiArray3d<genArray> &du,
                             const unique_ptr<turbModel> &turb, const int &rr,
                             genArray &l2, resid &linf) {
   // inputVars -- all input variables
   // eos -- equation of state
+  // thermo -- thermodynamic model
   // trans -- viscous transport model
   // du -- updates to conservative variables (only used in implicit solver)
   // turb -- turbulence model
@@ -819,13 +821,14 @@ void procBlock::UpdateBlock(const input &inputVars, const unique_ptr<eos> &eos,
       for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
         // explicit euler time integration
         if (inputVars.TimeIntegration() == "explicitEuler") {
-          this->ExplicitEulerTimeAdvance(eos, turb, ii, jj, kk);
+          this->ExplicitEulerTimeAdvance(eos, thermo, turb, ii, jj, kk);
         // 4-stage runge-kutta method (explicit)
         } else if (inputVars.TimeIntegration() == "rk4") {
           // advance 1 RK stage
           this->RK4TimeAdvance(consVarsN_(ii, jj, kk), eos, turb, ii, jj, kk, rr);
         } else if (inputVars.IsImplicit()) {  // if implicit use update (du)
-          this->ImplicitTimeAdvance(du(ii, jj, kk), eos, turb, ii, jj, kk);
+          this->ImplicitTimeAdvance(du(ii, jj, kk), eos, thermo, turb, ii, jj,
+                                    kk);
         } else {
           cerr << "ERROR: Time integration scheme " <<
               inputVars.TimeIntegration() << " is not recognized!" << endl;
@@ -856,18 +859,19 @@ Un is the conserved variables at time n, Un+1 is the conserved variables at time
 n+1, dt_ is the cell's time step, V is the cell's volume, and R is the cell's
 residual.
  */
-void procBlock::ExplicitEulerTimeAdvance(const unique_ptr<eos> &eqnState,
-                                         const unique_ptr<turbModel> &turb,
-                                         const int &ii, const int &jj,
-                                         const int &kk) {
+void procBlock::ExplicitEulerTimeAdvance(
+    const unique_ptr<eos> &eqnState, const unique_ptr<thermodynamic> &thermo,
+    const unique_ptr<turbModel> &turb, const int &ii, const int &jj,
+    const int &kk) {
   // eqnState -- equation of state
+  // thermo -- thermodynamic model
   // turb -- turbulence model
   // ii -- i-location of cell
   // jj -- j-location of cell
   // kk -- k-location of cell
 
   // Get conserved variables for current state (time n)
-  auto consVars = state_(ii, jj, kk).ConsVars(eqnState);
+  auto consVars = state_(ii, jj, kk).ConsVars(eqnState, thermo);
   // calculate updated conserved variables
   consVars -= dt_(ii, jj, kk) / vol_(ii, jj, kk) * residual_(ii, jj, kk);
 
@@ -879,18 +883,21 @@ void procBlock::ExplicitEulerTimeAdvance(const unique_ptr<eos> &eqnState,
 // methods)
 void procBlock::ImplicitTimeAdvance(const genArray &du,
                                     const unique_ptr<eos> &eqnState,
+                                    const unique_ptr<thermodynamic> &thermo,
                                     const unique_ptr<turbModel> &turb,
                                     const int &ii, const int &jj,
                                     const int &kk) {
   // du -- update for a specific cell (to move from time n to n+1)
   // eqnState -- equation of state
+  // thermo -- thermodynamic model
   // turb -- turbulence model
   // ii -- i-location of cell
   // jj -- j-location of cell
   // kk -- k-location of cell
 
   // calculate updated state (primative variables)
-  state_(ii, jj, kk) = state_(ii, jj, kk).UpdateWithConsVars(eqnState, du, turb);
+  state_(ii, jj, kk) =
+      state_(ii, jj, kk).UpdateWithConsVars(eqnState, thermo, du, turb);
 }
 
 /*member function to advance the state_ vector to time n+1 using 4th order
@@ -990,9 +997,11 @@ double procBlock::SolDeltaNCoeff(const int &ii, const int &jj, const int &kk,
 }
 
 genArray procBlock::SolDeltaMmN(const int &ii, const int &jj, const int &kk,
-                                const input &inp, const unique_ptr<eos> &eos) const {
+                                const input &inp, const unique_ptr<eos> &eos,
+                                const unique_ptr<thermodynamic> &thermo) const {
   const auto coeff = this->SolDeltaNCoeff(ii, jj, kk, inp);
-  return coeff * (state_(ii, jj, kk).ConsVars(eos) - consVarsN_(ii, jj, kk));
+  return coeff *
+         (state_(ii, jj, kk).ConsVars(eos, thermo) - consVarsN_(ii, jj, kk));
 }
 
 double procBlock::SolDeltaNm1Coeff(const int &ii, const int &jj, const int &kk,
@@ -1038,13 +1047,14 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
 }
 
 // assign current solution held in state_ to time n solution held in consVarsN_
-void procBlock::AssignSolToTimeN(const unique_ptr<eos> &eos) {
+void procBlock::AssignSolToTimeN(const unique_ptr<eos> &eos,
+                                 const unique_ptr<thermodynamic> &thermo) {
   // loop over physical cells
   for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
     for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
       for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
         // convert state to conservative variables
-        consVarsN_(ii, jj, kk) = state_(ii, jj, kk).ConsVars(eos);
+        consVarsN_(ii, jj, kk) = state_(ii, jj, kk).ConsVars(eos, thermo);
       }
     }
   }
@@ -1309,7 +1319,8 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     }
     // -----------------------------------------------------------------------
     const auto solDeltaNm1 = this->SolDeltaNm1(ii, jj, kk, inp);
-    const auto solDeltaMmN = this->SolDeltaMmN(ii, jj, kk, inp, eqnState);
+    const auto solDeltaMmN =
+        this->SolDeltaMmN(ii, jj, kk, inp, eqnState, thermo);
 
     // calculate intermediate update
     // normal at lower boundaries needs to be reversed, so add instead
@@ -1468,7 +1479,8 @@ double procBlock::LUSGS_Backward(
     }
     // -----------------------------------------------------------------------
     const auto solDeltaNm1 = this->SolDeltaNm1(ii, jj, kk, inp);
-    const auto solDeltaMmN = this->SolDeltaMmN(ii, jj, kk, inp, eqnState);
+    const auto solDeltaMmN =
+        this->SolDeltaMmN(ii, jj, kk, inp, eqnState, thermo);
 
     // calculate update
     auto xold = x(ii, jj, kk);
@@ -1631,7 +1643,8 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
 
         // --------------------------------------------------------------
         const auto solDeltaNm1 = this->SolDeltaNm1(ii, jj, kk, inp);
-        const auto solDeltaMmN = this->SolDeltaMmN(ii, jj, kk, inp, eqnState);
+        const auto solDeltaMmN =
+            this->SolDeltaMmN(ii, jj, kk, inp, eqnState, thermo);
 
         // calculate update
         x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(
@@ -1649,9 +1662,12 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
 }
 
 multiArray3d<genArray> procBlock::InitializeMatrixUpdate(
-    const input &inp, const unique_ptr<eos> &eos,
-       const multiArray3d<fluxJacobian> &aInv) const {
+    const input &inp, const unique_ptr<eos> &eqnState,
+    const unique_ptr<thermodynamic> &thermo,
+    const multiArray3d<fluxJacobian> &aInv) const {
   // inp -- input variables
+  // eqnState -- equation of state
+  // thermo -- thermodynamic model
   // aInv -- inverse of main diagonal
 
   // allocate multiarray for update
@@ -1668,7 +1684,7 @@ multiArray3d<genArray> procBlock::InitializeMatrixUpdate(
           x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(
               -thetaInv * residual_(ii, jj, kk) -
               this->SolDeltaNm1(ii, jj, kk, inp) -
-              this->SolDeltaMmN(ii, jj, kk, inp, eos));
+              this->SolDeltaMmN(ii, jj, kk, inp, eqnState, thermo));
         }
       }
     }

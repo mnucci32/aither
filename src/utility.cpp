@@ -375,9 +375,10 @@ void CalcWallDistance(vector<procBlock> &localBlocks, const kdtree &tree) {
 }
 
 void AssignSolToTimeN(vector<procBlock> &blocks,
-                      const unique_ptr<eos> &eqnState) {
+                      const unique_ptr<eos> &eqnState,
+                      const unique_ptr<thermodynamic> &thermo) {
   for (auto &block : blocks) {
-    block.AssignSolToTimeN(eqnState);
+    block.AssignSolToTimeN(eqnState, thermo);
   }
 }
 
@@ -389,6 +390,7 @@ void AssignSolToTimeNm1(vector<procBlock> &blocks) {
 
 void ExplicitUpdate(vector<procBlock> &blocks, const input &inp,
                     const unique_ptr<eos> &eqnState,
+                    const unique_ptr<thermodynamic> &thermo,
                     const unique_ptr<transport> &trans,
                     const unique_ptr<turbModel> &turb, const int &mm,
                     genArray &residL2, resid &residLinf) {
@@ -396,7 +398,8 @@ void ExplicitUpdate(vector<procBlock> &blocks, const input &inp,
   multiArray3d<genArray> du(1, 1, 1, 0);
   // loop over all blocks and update
   for (auto &block : blocks) {
-    block.UpdateBlock(inp, eqnState, trans, du, turb, mm, residL2, residLinf);
+    block.UpdateBlock(inp, eqnState, thermo, trans, du, turb, mm, residL2,
+                      residLinf);
   }
 }
 
@@ -433,7 +436,8 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   // initialize matrix update
   vector<multiArray3d<genArray>> du(blocks.size());
   for (auto bb = 0U; bb < blocks.size(); bb++) {
-    du[bb] = blocks[bb].InitializeMatrixUpdate(inp, eqnState, mainDiagonal[bb]);
+    du[bb] = blocks[bb].InitializeMatrixUpdate(inp, eqnState, thermo,
+                                               mainDiagonal[bb]);
   }
 
   // Solve Ax=b with supported solver
@@ -487,8 +491,8 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   // Update blocks and reset main diagonal
   for (auto bb = 0U; bb < blocks.size(); bb++) {
     // Update solution
-    blocks[bb].UpdateBlock(inp, eqnState, trans, du[bb], turb, mm, residL2,
-                           residLinf);
+    blocks[bb].UpdateBlock(inp, eqnState, thermo, trans, du[bb], turb, mm,
+                           residL2, residLinf);
 
     // Assign time n to time n-1 at end of nonlinear iterations
     if (inp.IsMultilevelInTime() && mm == inp.NonlinearIterations() - 1) {

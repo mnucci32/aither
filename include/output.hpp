@@ -79,6 +79,7 @@ void WriteRestart(const vector<procBlock> &, const unique_ptr<eos> &,
                   const decomposition &, const input &, const genArray &);
 void ReadRestart(vector<procBlock> &, const string &, const decomposition &,
                  input &, const unique_ptr<eos> &,
+                 const unique_ptr<thermodynamic> &,
                  const unique_ptr<transport> &, const unique_ptr<turbModel> &,
                  genArray &, const vector<vector3d<int>> &);
 

@@ -66,6 +66,7 @@ to avoid code duplication.
 */
 void inviscidFlux::ConstructFromPrim(const primVars &state,
                                      const unique_ptr<eos> &eqnState,
+                                     const unique_ptr<thermodynamic> &thermo,
                                      const vector3d<double> &normArea) {
   // state -- primative variables
   // eqnState -- equation of state
@@ -78,24 +79,28 @@ void inviscidFlux::ConstructFromPrim(const primVars &state,
   data_[1] = state.Rho() * velNorm * vel.X() + state.P() * normArea.X();
   data_[2] = state.Rho() * velNorm * vel.Y() + state.P() * normArea.Y();
   data_[3] = state.Rho() * velNorm * vel.Z() + state.P() * normArea.Z();
-  data_[4] = state.Rho() * velNorm * state.Enthalpy(eqnState);
+  data_[4] = state.Rho() * velNorm * state.Enthalpy(eqnState, thermo);
 
   data_[5] = state.Rho() * velNorm * state.Tke();
   data_[6] = state.Rho() * velNorm * state.Omega();
 }
 
-inviscidFlux::inviscidFlux(const primVars &state, const unique_ptr<eos> &eqnState,
+inviscidFlux::inviscidFlux(const primVars &state,
+                           const unique_ptr<eos> &eqnState,
+                           const unique_ptr<thermodynamic> &thermo,
                            const vector3d<double> &normArea) {
   // state -- primative variables
   // eqnState -- equation of state
   // normArea -- unit area vector of face
 
-  this->ConstructFromPrim(state, eqnState, normArea);
+  this->ConstructFromPrim(state, eqnState, thermo, normArea);
 }
 
 // constructor -- initialize flux from state vector using conservative variables
 // flux is a 3D flux in the normal direction of the given face
-inviscidFlux::inviscidFlux(const genArray &cons, const unique_ptr<eos> &eqnState,
+inviscidFlux::inviscidFlux(const genArray &cons,
+                           const unique_ptr<eos> &eqnState,
+                           const unique_ptr<thermodynamic> &thermo,
                            const unique_ptr<turbModel> &turb,
                            const vector3d<double> &normArea) {
   // cons -- genArray of conserved variables
@@ -106,7 +111,7 @@ inviscidFlux::inviscidFlux(const genArray &cons, const unique_ptr<eos> &eqnState
   // convert conserved variables to primative variables
   const primVars state(cons, false, eqnState, turb);
 
-  this->ConstructFromPrim(state, eqnState, normArea);
+  this->ConstructFromPrim(state, eqnState, thermo, normArea);
 }
 
 /* Function to calculate inviscid flux using Roe's approximate Riemann solver.
@@ -168,7 +173,7 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   const auto roe = RoeAveragedState(left, right);
 
   // Roe averaged total enthalpy
-  const auto hR = roe.Enthalpy(eqnState);
+  const auto hR = roe.Enthalpy(eqnState, thermo);
 
   // Roe averaged speed of sound
   const auto aR = roe.SoS(thermo, eqnState);
@@ -266,8 +271,8 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   }
 
   // calculate left/right physical flux
-  inviscidFlux leftFlux(left, eqnState, areaNorm);
-  inviscidFlux rightFlux(right, eqnState, areaNorm);
+  inviscidFlux leftFlux(left, eqnState, thermo, areaNorm);
+  inviscidFlux rightFlux(right, eqnState, thermo, areaNorm);
 
   // calculate numerical Roe flux
   leftFlux.RoeFlux(rightFlux, dissipation);
@@ -296,8 +301,8 @@ inviscidFlux RusanovFlux(const primVars &left, const primVars &right,
   const auto specRad = fac * std::max(leftSpecRad, rightSpecRad);
 
   // calculate left/right physical flux
-  inviscidFlux leftFlux(left, eqnState, areaNorm);
-  inviscidFlux rightFlux(right, eqnState, areaNorm);
+  inviscidFlux leftFlux(left, eqnState, thermo, areaNorm);
+  inviscidFlux rightFlux(right, eqnState, thermo, areaNorm);
 
   return 0.5 * (leftFlux + rightFlux - specRad);
 }
@@ -343,12 +348,13 @@ genArray inviscidFlux::ConvertToGenArray() const {
 genArray ConvectiveFluxUpdate(const primVars &state,
                               const primVars &stateUpdate,
                               const unique_ptr<eos> &eqnState,
+                              const unique_ptr<thermodynamic> &thermo,
                               const vector3d<double> &normArea) {
   // get inviscid flux of old state
-  const inviscidFlux oldFlux(state, eqnState, normArea);
+  const inviscidFlux oldFlux(state, eqnState, thermo, normArea);
 
   // get updated inviscid flux
-  const inviscidFlux newFlux(stateUpdate, eqnState, normArea);
+  const inviscidFlux newFlux(stateUpdate, eqnState, thermo, normArea);
 
   // calculate difference in flux
   const auto dFlux = newFlux - oldFlux;

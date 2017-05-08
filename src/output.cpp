@@ -609,6 +609,7 @@ void WriteRestart(const vector<procBlock> &splitVars,
 void ReadRestart(vector<procBlock> &vars, const string &restartName,
                  const decomposition &decomp, input &inp,
                  const unique_ptr<eos> &eqnState,
+                 const unique_ptr<thermodynamic> &thermo,
                  const unique_ptr<transport> &trans,
                  const unique_ptr<turbModel> &turb, genArray &residL2First,
                  const vector<vector3d<int>> &gridSizes) {
@@ -718,7 +719,7 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
       cerr << "WARNING: Using multilevel time integration scheme, but only one "
            << "time level found in restart file" << endl;
       // assign solution at time n to n-1
-      AssignSolToTimeN(vars, eqnState);
+      AssignSolToTimeN(vars, eqnState, thermo);
       AssignSolToTimeNm1(vars);
     }
   }

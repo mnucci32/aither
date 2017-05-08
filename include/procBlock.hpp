@@ -141,9 +141,11 @@ class procBlock {
   void CalcCellDt(const int &, const int &, const int &, const double &);
 
   void ExplicitEulerTimeAdvance(const unique_ptr<eos> &,
+                                const unique_ptr<thermodynamic> &,
                                 const unique_ptr<turbModel> &, const int &,
                                 const int &, const int &);
   void ImplicitTimeAdvance(const genArray &, const unique_ptr<eos> &,
+                           const unique_ptr<thermodynamic> &,
                            const unique_ptr<turbModel> &, const int &,
                            const int &, const int &);
   void RK4TimeAdvance(const genArray &, const unique_ptr<eos> &,
@@ -250,14 +252,16 @@ class procBlock {
                                     const int &) const;
   multiArray3d<vector3d<double>> SliceBoundaryCenters(const int &) const;
 
-  void AssignSolToTimeN(const unique_ptr<eos> &);
+  void AssignSolToTimeN(const unique_ptr<eos> &,
+                        const unique_ptr<thermodynamic> &);
   void AssignSolToTimeNm1();
   double SolDeltaNCoeff(const int &, const int &, const int &,
                         const input &) const;
   double SolDeltaNm1Coeff(const int &, const int &, const int &,
                           const input &) const;
   genArray SolDeltaMmN(const int &, const int &, const int &, const input &,
-                       const unique_ptr<eos> &) const;
+                       const unique_ptr<eos> &,
+                       const unique_ptr<thermodynamic> &) const;
   genArray SolDeltaNm1(const int &, const int &, const int &,
                        const input &) const;
 
@@ -380,6 +384,7 @@ class procBlock {
 
   void CalcBlockTimeStep(const input &);
   void UpdateBlock(const input &, const unique_ptr<eos> &,
+                   const unique_ptr<thermodynamic> &,
                    const unique_ptr<transport> &,
                    const multiArray3d<genArray> &,
                    const unique_ptr<turbModel> &, const int &, genArray &,
@@ -448,6 +453,7 @@ class procBlock {
 
   multiArray3d<genArray> InitializeMatrixUpdate(
       const input &, const unique_ptr<eos> &eos,
+      const unique_ptr<thermodynamic> &,
       const multiArray3d<fluxJacobian> &) const;
   void LUSGS_Forward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
                      const unique_ptr<eos> &, const input &,
