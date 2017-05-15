@@ -24,9 +24,9 @@ restartFrequency: 1000
 
 
 # reference conditions
-pressureRef: 101325
-densityRef: 1.2256
-lengthRef: 1
+referenceTemperature: 288.15
+referenceDensity: 1.2256
+referenceLength: 1
 
 initialConditions: <icState(tag=-1; pressure=101325; density=1.2256; velocity=[0, 0, 75])>
 

@@ -20,8 +20,8 @@ outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach, tke, sdr, viscos
 fluids: <fluid(name=air; n=2.5; molarMass=0.02897)>
 
 #reference conditions
-pressureRef: 114426.9
-densityRef: 1.329
+referenceTemperature: 300.0
+referenceDensity: 1.329
 
 initialConditions: <icState(tag=-1; pressure=114426.9; density=1.329; velocity=[69.438, 0, 0])>
 

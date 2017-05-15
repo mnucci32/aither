@@ -102,7 +102,7 @@ input::input(const string &name, const string &resName) : simName_(name),
            "iterations",
            "referenceDensity",
            "referenceTemperature",
-           "lengthRef",
+           "referenceLength",
            "fluids",
            "timeIntegration",
            "faceReconstruction",
@@ -214,7 +214,7 @@ void input::ReadInput(const int &rank) {
           if (rank == ROOTP) {
             cout << key << ": " << this->TRef() << endl;
           }
-        } else if (key == "lengthRef") {
+        } else if (key == "referenceLength") {
           lRef_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
             cout << key << ": " << this->LRef() << endl;

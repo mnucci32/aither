@@ -212,7 +212,7 @@ def main():
     subCyl.SetRunDirectory("subsonicCylinder")
     subCyl.SetNumberOfProcessors(1)
     subCyl.SetNumberOfIterations(numIterations)
-    subCyl.SetResiduals([1.5394e-1, 1.4989e-1, 1.5909e-1, 8.1415e-1, 1.5295e-1])
+    subCyl.SetResiduals([1.5371e-1, 1.4991e-1, 1.5910e-1, 8.2250e-1, 1.5297e-1])
     subCyl.SetIgnoreIndices(3)
     subCyl.SetMpirunPath(options.mpirunPath)
 
@@ -229,10 +229,7 @@ def main():
     multiCyl.SetRunDirectory("multiblockCylinder")
     multiCyl.SetNumberOfProcessors(maxProcs)
     multiCyl.SetNumberOfIterations(numIterations)
-    if (multiCyl.Processors() == 2):
-        multiCyl.SetResiduals([2.3188e-1, 2.9621e-1, 4.5868e-1, 1.2813, 2.3009e-1])
-    else:
-        multiCyl.SetResiduals([2.3188e-1, 2.9621e-1, 4.5868e-1, 1.2813, 2.3009e-1])
+    multiCyl.SetResiduals([2.3188e-1, 2.9621e-1, 4.5868e-1, 1.0974, 2.3009e-1])
     multiCyl.SetIgnoreIndices(3)
     multiCyl.SetMpirunPath(options.mpirunPath)
 
@@ -279,7 +276,7 @@ def main():
     supWedge.SetRunDirectory("supersonicWedge")
     supWedge.SetNumberOfProcessors(1)
     supWedge.SetNumberOfIterations(numIterations)
-    supWedge.SetResiduals([4.1813e-1, 4.2549e-1, 3.6525e-1, 3.8013e-1, 4.0998e-1])
+    supWedge.SetResiduals([4.1813e-1, 4.2549e-1, 3.6525e-1, 3.9971e-1, 4.0998e-1])
     supWedge.SetIgnoreIndices(3)
     supWedge.SetMpirunPath(options.mpirunPath)
 
@@ -296,7 +293,7 @@ def main():
     transBump.SetRunDirectory("transonicBump")
     transBump.SetNumberOfProcessors(1)
     transBump.SetNumberOfIterations(numIterations)
-    transBump.SetResiduals([1.1839e-1, 6.8615e-2, 8.4925e-2, 1.0398, 9.9669e-2])
+    transBump.SetResiduals([1.1839e-1, 6.8615e-2, 8.4925e-2, 1.0000, 9.9669e-2])
     transBump.SetIgnoreIndices(3)
     transBump.SetMpirunPath(options.mpirunPath)
 
@@ -314,9 +311,9 @@ def main():
     viscPlate.SetNumberOfProcessors(maxProcs)
     viscPlate.SetNumberOfIterations(numIterations)
     if (viscPlate.Processors() == 2):
-        viscPlate.SetResiduals([7.7277e-2, 2.4713e-1, 5.6320e-2, 9.9946e-1, 7.9381e-2])
+        viscPlate.SetResiduals([7.7239e-2, 2.4713e-1, 5.6557e-2, 8.4112e-1, 7.9342e-2])
     else:
-        viscPlate.SetResiduals([7.6467e-2, 2.4714e-1, 4.0109e-2, 1.0511, 7.9240e-2])
+        viscPlate.SetResiduals([7.6467e-2, 2.4714e-1, 4.0109e-2, 8.3161e-1, 7.9240e-2])
     viscPlate.SetIgnoreIndices(3)
     viscPlate.SetMpirunPath(options.mpirunPath)
 
@@ -334,10 +331,10 @@ def main():
     turbPlate.SetNumberOfProcessors(maxProcs)
     turbPlate.SetNumberOfIterations(numIterations)
     if (turbPlate.Processors() == 2):
-        turbPlate.SetResiduals([4.1188e-2, 4.2732e-2, 8.5928e-1, 8.3640e-2, 3.9573e-2,
+        turbPlate.SetResiduals([4.1188e-2, 4.2732e-2, 8.6246e-1, 8.3640e-2, 3.9573e-2,
                                 4.5077e-8, 1.1449e-5])
     else:
-        turbPlate.SetResiduals([3.9406e-2, 4.2746e-2, 9.0413e-1, 7.4568e-2, 3.8139e-2,
+        turbPlate.SetResiduals([3.9406e-2, 4.2746e-2, 1.3742, 7.4568e-2, 3.8139e-2,
                                 4.7590e-8, 1.1620e-5])
     turbPlate.SetIgnoreIndices(2)
     turbPlate.SetMpirunPath(options.mpirunPath)
@@ -356,10 +353,10 @@ def main():
     rae2822.SetNumberOfProcessors(maxProcs)
     rae2822.SetNumberOfIterations(numIterations)
     if (rae2822.Processors() == 2):
-        rae2822.SetResiduals([5.0196e-1, 1.2895, 4.6389e-1, 9.4721e-1, 4.5099e-1,
+        rae2822.SetResiduals([5.0196e-1, 1.2895, 4.6389e-1, 9.8770e-1, 4.5099e-1,
                               1.1526e-7, 1.9755e-5])
     else:
-        rae2822.SetResiduals([5.0069e-1, 1.3219, 4.6502e-1, 7.2415e-1, 4.5357e-1,
+        rae2822.SetResiduals([5.0069e-1, 1.3219, 4.6502e-1, 1.0309, 4.5357e-1,
                               1.1694e-7, 2.0139e-5])
     rae2822.SetIgnoreIndices(3)
     rae2822.SetMpirunPath(options.mpirunPath)
@@ -377,7 +374,7 @@ def main():
     couette.SetRunDirectory("couette")
     couette.SetNumberOfProcessors(1)
     couette.SetNumberOfIterations(numIterations)
-    couette.SetResiduals([1.1343e-1, 5.0752e-1, 7.4086e-2, 4.9008e-1, 2.2789e-1])
+    couette.SetResiduals([1.1343e-1, 5.0725e-1, 7.4086e-2, 4.7218e-1, 2.2789e-1])
     couette.SetIgnoreIndices(3)
     couette.SetMpirunPath(options.mpirunPath)
 

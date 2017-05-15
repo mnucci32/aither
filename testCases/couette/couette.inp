@@ -16,8 +16,8 @@ outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach, velGrad_ux, velG
 restartFrequency: 10000
 
 #reference conditions
-pressureRef: 101300.0
-densityRef: 1.2256
+referenceTemperature: 288.0
+referenceDensity: 1.2256
 
 initialConditions: <icState(tag=-1; pressure=101300; density=1.2256; velocity=[75.4, 0, 0])>
 
