@@ -78,16 +78,15 @@ class sutherland : public transport {
   // Stoke's hypothesis -- bulk viscosity = 0
   // Sutherland's Law -- mu = muref * (C1 * Tref^1.5) / (T + S_)
   sutherland(const double &c, const double &s, const double &t, const double &r,
-             const double &p, const double &l, const double &a)
+             const double &l, const double &a)
       : transport(r, l, c * pow(t, 1.5) / (t + s), a),
         cOne_(c),
         S_(s),
         tRef_(t),
         muRef_(cOne_ * pow(tRef_, 1.5) / (tRef_ + S_)),
         bulkVisc_(0.0) {}
-  sutherland(const double &t, const double &r, const double &l, const double &p,
-             const double &a)
-      : sutherland(1.458e-6, 110.4, t, r, p, l, a) {}
+  sutherland(const double &t, const double &r, const double &l, const double &a)
+      : sutherland(1.458e-6, 110.4, t, r, l, a) {}
 
   // move constructor and assignment operator
   sutherland(sutherland&&) noexcept = default;

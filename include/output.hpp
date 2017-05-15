@@ -85,6 +85,7 @@ void ReadRestart(vector<procBlock> &, const string &, const decomposition &,
 
 multiArray3d<primVars> ReadSolFromRestart(ifstream &, const input &,
                                           const unique_ptr<eos> &,
+                                          const unique_ptr<thermodynamic> &,
                                           const unique_ptr<transport> &,
                                           const unique_ptr<turbModel> &,
                                           const vector<string> &, const int &,

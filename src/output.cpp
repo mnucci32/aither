@@ -686,7 +686,7 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
   cout << "Reading solution from time n..." << endl;
   vector<multiArray3d<primVars>> solN(numBlks);
   for (auto ii = 0U; ii < solN.size(); ++ii) {
-    solN[ii] = ReadSolFromRestart(fName, inp, eqnState, trans, turb,
+    solN[ii] = ReadSolFromRestart(fName, inp, eqnState, thermo, trans, turb,
                                   restartVars, gridSizes[ii].X(),
                                   gridSizes[ii].Y(), gridSizes[ii].Z());
   }
@@ -1104,12 +1104,11 @@ int SplitBlockNumber(const vector<procBlock> &vars, const decomposition &decomp,
   return ind;  // cell was in uppermost split for given parent block
 }
 
-
 multiArray3d<primVars> ReadSolFromRestart(
     ifstream &resFile, const input &inp, const unique_ptr<eos> &eqnState,
-    const unique_ptr<transport> &trans, const unique_ptr<turbModel> &turb,
-    const vector<string> &restartVars, const int &numI, const int &numJ,
-    const int &numK) {
+    const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
+    const unique_ptr<turbModel> &turb, const vector<string> &restartVars,
+    const int &numI, const int &numJ, const int &numK) {
   // intialize multiArray3d
   multiArray3d<primVars> sol(numI, numJ, numK, 0);
 
@@ -1148,7 +1147,7 @@ multiArray3d<primVars> ReadSolFromRestart(
             exit(EXIT_FAILURE);
           }
         }
-        sol(ii, jj, kk) = primVars(value, true, eqnState, turb);
+        sol(ii, jj, kk) = primVars(value, true, eqnState, thermo, turb);
       }
     }
   }

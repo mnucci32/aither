@@ -42,20 +42,21 @@ class eos {
   eos& operator=(const eos&) = default;
 
   // Member functions for abstract base class
-  virtual double PressFromEnergy(const double &rho, const double &energy,
+  virtual double PressFromEnergy(const unique_ptr<thermodynamic> &thermo,
+                                 const double &rho, const double &energy,
                                  const double &vel) const = 0;
   virtual double PressureRT(const double &rho,
                             const double &temperature) const = 0;
   virtual double SpecEnergy(const unique_ptr<thermodynamic> &thermo,
                             const double &t) const = 0;
   virtual double Energy(const double &specEn, const double &vel) const = 0;
-  virtual double Enthalpy(const double &energy, const double &pressure,
-                          const double &rho) const = 0;
+  virtual double Enthalpy(const unique_ptr<thermodynamic> &thermo,
+                          const double &t, const double &vel) const = 0;
   virtual double SoS(const double &pressure, const double &rho) const = 0;
   virtual double Temperature(const double &pressure,
                              const double &rho) const = 0;
-  virtual double TemperatureDim(const double &pressure,
-                                const double &rho) const = 0;
+  virtual double PressureDim(const double &rho,
+                             const double &temperature) const = 0;
   virtual double DensityTP(const double &temp, const double &press) const = 0;
 
   // Destructor
@@ -86,18 +87,20 @@ class idealGas : public eos {
   idealGas& operator=(const idealGas&) = default;
 
   // Member functions
-  double PressFromEnergy(const double &rho, const double &energy,
+  double PressFromEnergy(const unique_ptr<thermodynamic> &thermo,
+                         const double &rho, const double &energy,
                          const double &vel) const override;
-  double PressureRT(const double &rho, const double &temperature) const override;
+  double PressureRT(const double &rho,
+                    const double &temperature) const override;
   double SpecEnergy(const unique_ptr<thermodynamic> &thermo,
                     const double &t) const override;
   double Energy(const double &specEn, const double &vel) const override;
-  double Enthalpy(const double &energy, const double &pressure,
-                  const double &rho) const override;
+  double Enthalpy(const unique_ptr<thermodynamic> &thermo, const double &t,
+                  const double &vel) const override;
   double SoS(const double &pressure, const double &rho) const override;
   double Temperature(const double &pressure, const double &rho) const override;
-  double TemperatureDim(const double &pressure,
-                        const double &rho) const override;
+  double PressureDim(const double &rho,
+                     const double &temperature) const override;
   // nondimensional version (R=1/gamma)
   double DensityTP(const double &temp, const double &press) const override {
     return press * gammaRef_ / temp;

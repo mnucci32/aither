@@ -825,7 +825,8 @@ void procBlock::UpdateBlock(const input &inputVars, const unique_ptr<eos> &eos,
         // 4-stage runge-kutta method (explicit)
         } else if (inputVars.TimeIntegration() == "rk4") {
           // advance 1 RK stage
-          this->RK4TimeAdvance(consVarsN_(ii, jj, kk), eos, turb, ii, jj, kk, rr);
+          this->RK4TimeAdvance(consVarsN_(ii, jj, kk), eos, thermo, turb, ii,
+                               jj, kk, rr);
         } else if (inputVars.IsImplicit()) {  // if implicit use update (du)
           this->ImplicitTimeAdvance(du(ii, jj, kk), eos, thermo, turb, ii, jj,
                                     kk);
@@ -876,7 +877,7 @@ void procBlock::ExplicitEulerTimeAdvance(
   consVars -= dt_(ii, jj, kk) / vol_(ii, jj, kk) * residual_(ii, jj, kk);
 
   // calculate updated primative variables and update state
-  state_(ii, jj, kk) = primVars(consVars, false, eqnState, turb);
+  state_(ii, jj, kk) = primVars(consVars, false, eqnState, thermo, turb);
 }
 
 // member function to advance the state vector to time n+1 (for implicit
@@ -911,11 +912,13 @@ coefficient, and R is the cell's residual.
  */
 void procBlock::RK4TimeAdvance(const genArray &currState,
                                const unique_ptr<eos> &eqnState,
+                               const unique_ptr<thermodynamic> &thermo,
                                const unique_ptr<turbModel> &turb,
                                const int &ii, const int &jj, const int &kk,
                                const int &rk) {
   // currState -- current state (including steps within RK4) (primative)
   // eqnState -- equation of state
+  // thermo -- thermodynamic model
   // turb -- turbulence model
   // ii -- i-location of cell (including ghost cells)
   // jj -- j-location of cell (including ghost cells)
@@ -930,7 +933,7 @@ void procBlock::RK4TimeAdvance(const genArray &currState,
       alpha[rk] * residual_(ii, jj, kk);
 
   // calculate updated primative variables
-  state_(ii, jj, kk) = primVars(consVars, false, eqnState, turb);
+  state_(ii, jj, kk) = primVars(consVars, false, eqnState, thermo, turb);
 }
 
 // member function to reset the residual and wave speed back to zero after an

@@ -53,7 +53,6 @@ input::input(const string &name, const string &resName) : simName_(name),
   gName_ = "";
   dt_ = -1.0;
   iterations_ = 1;
-  pRef_ = -1.0;
   rRef_ = -1.0;
   tRef_ = -1.0;
   lRef_ = 1.0;
@@ -101,8 +100,8 @@ input::input(const string &name, const string &resName) : simName_(name),
   vars_ = {"gridName",
            "timeStep",
            "iterations",
-           "pressureRef",
-           "densityRef",
+           "referenceDensity",
+           "referenceTemperature",
            "lengthRef",
            "fluids",
            "timeIntegration",
@@ -205,15 +204,15 @@ void input::ReadInput(const int &rank) {
           if (rank == ROOTP) {
             cout << key << ": " << this->Iterations() << endl;
           }
-        } else if (key == "pressureRef") {
-          pRef_ = stod(tokens[1]);  // double variable (stod)
-          if (rank == ROOTP) {
-            cout << key << ": " << this->PRef() << endl;
-          }
-        } else if (key == "densityRef") {
+        } else if (key == "referenceDensity") {
           rRef_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
             cout << key << ": " << this->RRef() << endl;
+          }
+        } else if (key == "referenceTemperature") {
+          tRef_ = stod(tokens[1]);  // double variable (stod)
+          if (rank == ROOTP) {
+            cout << key << ": " << this->TRef() << endl;
           }
         } else if (key == "lengthRef") {
           lRef_ = stod(tokens[1]);  // double variable (stod)
@@ -677,8 +676,8 @@ unique_ptr<eos> input::AssignEquationOfState(
     exit(EXIT_FAILURE);
   }
   // use equation of state to assign additional reference values
-  aRef_ = eqnState->SoS(pRef_, rRef_);
-  tRef_ = eqnState->TemperatureDim(pRef_, rRef_);
+  const auto pRef = eqnState->PressureDim(rRef_, tRef_);
+  aRef_ = eqnState->SoS(pRef, rRef_);
   return eqnState;
 }
 
@@ -688,7 +687,7 @@ unique_ptr<transport> input::AssignTransportModel() const {
   unique_ptr<transport> trans(nullptr);
   if (transportModel_ == "sutherland") {
     trans = unique_ptr<transport>{std::make_unique<sutherland>(
-        tRef_, rRef_, lRef_, pRef_, aRef_)};
+        tRef_, rRef_, lRef_, aRef_)};
   } else {
     cerr << "ERROR: Error in input::AssignTransportModel(). Transport model "
          << transportModel_ << " is not recognized!" << endl;
@@ -711,7 +710,7 @@ unique_ptr<thermodynamic> input::AssignThermodynamicModel() const {
         fl.N(), fl.VibrationalTemperature())};
   } else {
     cerr << "ERROR: Error in input::AssignThermodynamicModel(). Thermodynamic "
-         << "model " << transportModel_ << " is not recognized!" << endl;
+         << "model " << thermodynamicModel_ << " is not recognized!" << endl;
     exit(EXIT_FAILURE);
   }
   return thermo;
@@ -950,6 +949,9 @@ void input::NondimensionalizeStateData(const unique_ptr<eos> &eqnState) {
   for (auto &ic : ics_) {
     ic.Nondimensionalize(rRef_, tRef_, lRef_, aRef_);
   }
+}
+
+void input::NondimensionalizeFluid() {
   for (auto &fl : fluids_) {
     fl.Nondimensionalize(tRef_);
   }

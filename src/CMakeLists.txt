@@ -46,6 +46,7 @@ set(sources
   resid.cpp
   slices.cpp
   source.cpp
+  thermodynamic.cpp
   transport.cpp
   turbulence.cpp
   uncoupledScalar.cpp

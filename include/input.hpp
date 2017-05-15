@@ -50,7 +50,6 @@ class input {
   // variable names that are regcognized by the input file parser
   set<string> vars_;
 
-  double pRef_;  // reference pressure
   double rRef_;  // reference density
   double tRef_;  // reference temperature
   double lRef_;  // reference length
@@ -125,12 +124,12 @@ class input {
   void SetIterationStart(const int &nn) {iterationStart_ = nn;}
   int IterationStart() const {return iterationStart_;}
 
-  double PRef() const {return pRef_;}
   double RRef() const {return rRef_;}
   double LRef() const {return lRef_;}
   double TRef() const {return tRef_;}
   double ARef() const {return aRef_;}
   void NondimensionalizeStateData(const unique_ptr<eos> &);
+  void NondimensionalizeFluid();
 
   boundaryConditions BC(const int &ind) const { return bc_[ind]; }
   vector<boundaryConditions> AllBC() const { return bc_; }

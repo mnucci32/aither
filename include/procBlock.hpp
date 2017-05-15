@@ -149,6 +149,7 @@ class procBlock {
                            const unique_ptr<turbModel> &, const int &,
                            const int &, const int &);
   void RK4TimeAdvance(const genArray &, const unique_ptr<eos> &,
+                      const unique_ptr<thermodynamic> &,
                       const unique_ptr<turbModel> &, const int &, const int &,
                       const int &, const int &);
 

@@ -109,7 +109,7 @@ inviscidFlux::inviscidFlux(const genArray &cons,
   // normArea -- unit area vector of face
 
   // convert conserved variables to primative variables
-  const primVars state(cons, false, eqnState, turb);
+  const primVars state(cons, false, eqnState, thermo, turb);
 
   this->ConstructFromPrim(state, eqnState, thermo, normArea);
 }

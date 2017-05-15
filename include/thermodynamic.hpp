@@ -18,6 +18,12 @@
 #define THERMOHEADERDEF
 
 // This header file contains the thermodynamic model classes
+#include <iostream>
+#include <cmath>
+
+using std::cout;
+using std::cerr;
+using std::endl;
 
 // abstract base class for thermodynamic model
 class thermodynamic {
@@ -39,6 +45,9 @@ class thermodynamic {
   virtual double Prandtl(const double &t) const = 0;
   virtual double Cp(const double &t) const = 0;
   virtual double Cv(const double &t) const = 0;
+  virtual double SpecEnergy(const double& t) const = 0;
+  virtual double SpecEnthalpy(const double& t) const = 0;
+  virtual double TemperatureFromSpecEnergy(const double& e) const = 0;
 
   // Destructor
   virtual ~thermodynamic() noexcept {}
@@ -72,6 +81,10 @@ class caloricallyPerfect : public thermodynamic {
     return 1.0 / (gamma_ * (gamma_ - 1.0));
   }
 
+  double SpecEnergy(const double& t) const override {return this->Cv(t) * t;}
+  double SpecEnthalpy(const double& t) const override {return this->Cp(t) * t;}
+  double TemperatureFromSpecEnergy(const double& e) const override;
+
   // Destructor
   ~caloricallyPerfect() noexcept {}
 };
@@ -89,8 +102,8 @@ class thermallyPerfect : public thermodynamic {
  public:
   // Constructor
   thermallyPerfect(const double& n, const double& vt)
-      : n_(n), vibTemp_(vt), nonDimR_(1.0 / n + 1.0) {}
-  thermallyPerfect() : thermallyPerfect(1.4, 3000.0) {}
+      : n_(n), vibTemp_(vt), nonDimR_(n / (n + 1.0)) {}
+  thermallyPerfect() : thermallyPerfect(1.4, 3056.0) {}
 
   // move constructor and assignment operator
   thermallyPerfect(thermallyPerfect&&) noexcept = default;
@@ -108,6 +121,7 @@ class thermallyPerfect : public thermodynamic {
     return (4.0 * this->Gamma(t)) / (9.0 * this->Gamma(t) - 5.0);
   }
   // DEBUG change these to use vibrational temperature -- is nonDimR correct?
+  // DEBUG -- Have Energy & Enthalpy functions that integrate Cp dt, Cv dt
   double Cp(const double& t) const override {
     const auto tv = this->ThetaV(t);
     return nonDimR_ * ((n_ + 1.0) + pow(tv / sinh(tv), 2.0));
@@ -116,6 +130,15 @@ class thermallyPerfect : public thermodynamic {
     const auto tv = this->ThetaV(t);
     return nonDimR_ * (n_ + pow(tv / sinh(tv), 2.0));
   }
+
+  double SpecEnergy(const double& t) const override {
+    return nonDimR_ * (n_ * t + vibTemp_ / (exp(vibTemp_ / t) - 1.0));
+  }
+  double SpecEnthalpy(const double& t) const override {
+    return nonDimR_ * ((n_ + 1) * t + vibTemp_ / (exp(vibTemp_ / t) - 1.0));
+  }
+  
+  double TemperatureFromSpecEnergy(const double& e) const override;
 
   // Destructor
   ~thermallyPerfect() noexcept {}

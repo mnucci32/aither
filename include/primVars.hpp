@@ -74,7 +74,7 @@ class primVars {
   primVars(const double &r, const vector3d<double> &v, const double &p)
       : primVars(r, v.X(), v.Y(), v.Z(), p) {}
   primVars(const genArray &, const bool &, const unique_ptr<eos> &,
-           const unique_ptr<turbModel> &);
+           const unique_ptr<thermodynamic> &, const unique_ptr<turbModel> &);
 
   // move constructor and assignment operator
   primVars(primVars&&) noexcept = default;
@@ -240,7 +240,7 @@ vector3d<double> primVars::Velocity() const {
   return vel;
 }
 
-// member function to calculate total enthalpy from conserved variables
+// member function to calculate total energy from conserved variables
 double primVars::Energy(const unique_ptr<eos> &eqnState,
                         const unique_ptr<thermodynamic> &thermo) const {
   const auto t = this->Temperature(eqnState);
@@ -258,8 +258,8 @@ double primVars::SoS(const unique_ptr<thermodynamic> &thermo,
 // of state
 double primVars::Enthalpy(const unique_ptr<eos> &eqnState,
                           const unique_ptr<thermodynamic> &thermo) const {
-  return eqnState->Enthalpy((*this).Energy(eqnState, thermo), data_[4],
-                            data_[0]);
+  const auto t = this->Temperature(eqnState);
+  return eqnState->Enthalpy(thermo, t, this->Velocity().Mag());
 }
 
 // member function to calculate conserved variables from primative variables

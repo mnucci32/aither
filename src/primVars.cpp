@@ -39,10 +39,12 @@ using std::unique_ptr;
 
 primVars::primVars(const genArray &a, const bool &prim,
                    const unique_ptr<eos> &eqnState,
+                   const unique_ptr<thermodynamic> &thermo,
                    const unique_ptr<turbModel> &turb) {
   // a -- array of conservative or primative variables
   // prim -- flag that is true if variable a is primative variables
   // eqnState -- equation of state
+  // thermo -- thermodynamic model
   // turb -- turbulence model
 
   if (prim) {  // genArray is primative variables
@@ -55,8 +57,8 @@ primVars::primVars(const genArray &a, const bool &prim,
     data_[2] = a[2] / a[0];
     data_[3] = a[3] / a[0];
     const auto energy = a[4] / a[0];
-    data_[4] =
-        eqnState->PressFromEnergy(data_[0], energy, this->Velocity().Mag());
+    data_[4] = eqnState->PressFromEnergy(thermo, data_[0], energy,
+                                         this->Velocity().Mag());
     data_[5] = a[5] / a[0];
     data_[6] = a[6] / a[0];
   }
@@ -853,7 +855,7 @@ primVars primVars::UpdateWithConsVars(const unique_ptr<eos> &eqnState,
   // convert primative to conservative and update
   const auto consUpdate = this->ConsVars(eqnState, thermo) + du;
 
-  return primVars(consUpdate, false, eqnState, turb);
+  return primVars(consUpdate, false, eqnState, thermo, turb);
 }
 
 bool primVars::IsZero() const {

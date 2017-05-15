@@ -106,6 +106,9 @@ int main(int argc, char *argv[]) {
   // Parse input file
   inp.ReadInput(rank);
 
+  // nondimensionalize fluid data
+  inp.NondimensionalizeFluid();
+
   // Get thermodynamic model
   const auto thermo = inp.AssignThermodynamicModel();
   // Get equation of state
@@ -113,7 +116,7 @@ int main(int argc, char *argv[]) {
   // Get transport model
   const auto trans = inp.AssignTransportModel();
 
-  // Nondimensionalize BC, IC, & fluid property data
+  // Nondimensionalize BC & IC data
   inp.NondimensionalizeStateData(eqnState);
 
   // Get turbulence model

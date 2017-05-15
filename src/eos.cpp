@@ -25,9 +25,12 @@ using std::cerr;
 // Member functions for idealGas class
 // These functions calculate values using the ideal gas equation of state
 // P = rho * R * T
-double idealGas::PressFromEnergy(const double &rho, const double &energy,
+double idealGas::PressFromEnergy(const unique_ptr<thermodynamic> &thermo,
+                                 const double &rho, const double &energy,
                                  const double &vel) const {
-  return (gammaRef_ - 1.0) * rho * (energy - 0.5 * vel * vel);
+  const auto specEnergy = energy - 0.5 * vel *vel;
+  const auto temperature = thermo->TemperatureFromSpecEnergy(specEnergy);
+  return this->PressureRT(rho, temperature);
 }
 
 double idealGas::PressureRT(const double &rho,
@@ -37,16 +40,16 @@ double idealGas::PressureRT(const double &rho,
 
 double idealGas::SpecEnergy(const unique_ptr<thermodynamic> &thermo,
                             const double &t) const {
-  return thermo->Cv(t) * t;
+  return thermo->SpecEnergy(t);
 }
 
 double idealGas::Energy(const double &specEn, const double &vel) const {
   return specEn + 0.5 * vel * vel;
 }
 
-double idealGas::Enthalpy(const double &energy, const double &pressure,
-                          const double &rho) const {
-  return energy + pressure / rho;
+double idealGas::Enthalpy(const unique_ptr<thermodynamic> &thermo,
+                          const double &t, const double &vel) const {
+  return thermo->SpecEnthalpy(t) + 0.5 * vel * vel;
 }
 
 double idealGas::SoS(const double &pressure, const double &rho) const {
@@ -58,8 +61,8 @@ double idealGas::Temperature(const double &pressure,
   return pressure * gammaRef_ / rho;
 }
 
-double idealGas::TemperatureDim(const double &pressure,
-                             const double &rho) const {
-  return pressure / (gasConst_ * rho);
+double idealGas::PressureDim(const double &rho,
+                             const double &temperature) const {
+  return rho * gasConst_ * temperature;
 }
 
