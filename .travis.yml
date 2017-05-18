@@ -60,10 +60,10 @@ matrix:
       osx_image: xcode8
       compiler: gcc
       env:
-        - CXX_COMPILER=g++-6
-        - C_COMPILER=gcc-6
-        - HOMEBREW_CC=gcc-6
-        - HOMEBREW_CXX=g++-6
+        - CXX_COMPILER=g++-7
+        - C_COMPILER=gcc-7
+        - HOMEBREW_CC=gcc-7
+        - HOMEBREW_CXX=g++-7
         - BUILD_TYPE=release
     - os: osx
       osx_image: xcode8
