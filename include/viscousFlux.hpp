@@ -19,15 +19,11 @@
 #define VISCFLUXHEADERDEF  // define the macro
 
 #include <iostream>        // cout
-#include <vector>          // vector
-#include <string>          // string
 #include <memory>          // unique_ptr
 #include "vector3d.hpp"    // vector3d
 #include "tensor.hpp"      // tensor
 #include "macros.hpp"
 
-using std::vector;
-using std::string;
 using std::cout;
 using std::endl;
 using std::cerr;
@@ -36,8 +32,9 @@ using std::unique_ptr;
 
 // forward class declarations
 class primVars;
-class idealGas;
-class sutherland;
+class eos;
+class transport;
+class thermodynamic;
 class turbModel;
 class squareMatrix;
 struct wallVars;
@@ -68,13 +65,16 @@ class viscousFlux {
   double MomK() const { return data_[4]; }
   double MomO() const { return data_[5]; }
 
-  void CalcFlux(const tensor<double> &, const sutherland &, const idealGas &,
+  void CalcFlux(const tensor<double> &, const unique_ptr<transport> &,
+                const unique_ptr<thermodynamic> &,
+                const unique_ptr<eos> &eqnState, const vector3d<double> &,
                 const vector3d<double> &, const vector3d<double> &,
-                const vector3d<double> &, const vector3d<double> &,
-                const unique_ptr<turbModel> &, const primVars &, const double &,
-                const double &, const double &);
-  wallVars CalcWallFlux(const tensor<double> &, const sutherland &,
-                        const idealGas &, const vector3d<double> &,
+                const vector3d<double> &, const unique_ptr<turbModel> &,
+                const primVars &, const double &, const double &,
+                const double &);
+  wallVars CalcWallFlux(const tensor<double> &, const unique_ptr<transport> &,
+                        const unique_ptr<thermodynamic> &,
+                        const unique_ptr<eos> &, const vector3d<double> &,
                         const vector3d<double> &, const vector3d<double> &,
                         const vector3d<double> &, const unique_ptr<turbModel> &,
                         const primVars &, const double &, const double &,
@@ -84,7 +84,7 @@ class viscousFlux {
                        const vector3d<double> &, const vector3d<double> &,
                        const vector3d<double> &, const unique_ptr<turbModel> &);
 
-  inline viscousFlux & operator+=(const viscousFlux &);
+  inline viscousFlux &operator+=(const viscousFlux &);
   inline viscousFlux & operator-=(const viscousFlux &);
   inline viscousFlux & operator*=(const viscousFlux &);
   inline viscousFlux & operator/=(const viscousFlux &);

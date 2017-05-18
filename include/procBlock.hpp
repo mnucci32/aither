@@ -46,8 +46,9 @@ using std::cerr;
 using std::unique_ptr;
 
 // forward class declarations
-class idealGas;
-class sutherland;
+class eos;
+class transport;
+class thermodynamic;
 class inviscidFlux;
 class viscousFlux;
 class input;
@@ -114,34 +115,41 @@ class procBlock {
   bool isMultiLevelTime_;
 
   // private member functions
-  void CalcInvFluxI(const idealGas &, const input &,
-                    const unique_ptr<turbModel> &,
+  void CalcInvFluxI(const unique_ptr<eos> &, const unique_ptr<thermodynamic> &,
+                    const input &, const unique_ptr<turbModel> &,
                     multiArray3d<fluxJacobian> &);
-  void CalcInvFluxJ(const idealGas &, const input &,
-                    const unique_ptr<turbModel> &,
+  void CalcInvFluxJ(const unique_ptr<eos> &, const unique_ptr<thermodynamic> &,
+                    const input &, const unique_ptr<turbModel> &,
                     multiArray3d<fluxJacobian> &);
-  void CalcInvFluxK(const idealGas &, const input &,
-                    const unique_ptr<turbModel> &,
+  void CalcInvFluxK(const unique_ptr<eos> &, const unique_ptr<thermodynamic> &,
+                    const input &, const unique_ptr<turbModel> &,
                     multiArray3d<fluxJacobian> &);
 
-  void CalcViscFluxI(const sutherland &, const idealGas &, const input &,
-                     const unique_ptr<turbModel> &,
+  void CalcViscFluxI(const unique_ptr<transport> &,
+                     const unique_ptr<thermodynamic> &, const unique_ptr<eos> &,
+                     const input &, const unique_ptr<turbModel> &,
                      multiArray3d<fluxJacobian> &);
-  void CalcViscFluxJ(const sutherland &, const idealGas &, const input &,
-                     const unique_ptr<turbModel> &,
+  void CalcViscFluxJ(const unique_ptr<transport> &,
+                     const unique_ptr<thermodynamic> &, const unique_ptr<eos> &,
+                     const input &, const unique_ptr<turbModel> &,
                      multiArray3d<fluxJacobian> &);
-  void CalcViscFluxK(const sutherland &, const idealGas &, const input &,
-                     const unique_ptr<turbModel> &,
+  void CalcViscFluxK(const unique_ptr<transport> &,
+                     const unique_ptr<thermodynamic> &, const unique_ptr<eos> &,
+                     const input &, const unique_ptr<turbModel> &,
                      multiArray3d<fluxJacobian> &);
 
   void CalcCellDt(const int &, const int &, const int &, const double &);
 
-  void ExplicitEulerTimeAdvance(const idealGas &, const unique_ptr<turbModel> &,
-                                const int &, const int &, const int &);
-  void ImplicitTimeAdvance(const genArray &, const idealGas &,
+  void ExplicitEulerTimeAdvance(const unique_ptr<eos> &,
+                                const unique_ptr<thermodynamic> &,
+                                const unique_ptr<turbModel> &, const int &,
+                                const int &, const int &);
+  void ImplicitTimeAdvance(const genArray &, const unique_ptr<eos> &,
+                           const unique_ptr<thermodynamic> &,
                            const unique_ptr<turbModel> &, const int &,
                            const int &, const int &);
-  void RK4TimeAdvance(const genArray &, const idealGas &,
+  void RK4TimeAdvance(const genArray &, const unique_ptr<eos> &,
+                      const unique_ptr<thermodynamic> &,
                       const unique_ptr<turbModel> &, const int &, const int &,
                       const int &, const int &);
 
@@ -162,7 +170,7 @@ class procBlock {
   // constructors
   procBlock(const plot3dBlock &, const int &, const boundaryConditions &,
             const int &, const int &, const int &, const input &,
-            const idealGas &, const sutherland &,
+            const unique_ptr<eos> &, const unique_ptr<transport> &,
             const unique_ptr<turbModel> &);
   procBlock(const int &, const int &, const int &, const int &, const bool &,
             const bool &, const bool &, const bool &, const bool &);
@@ -245,14 +253,16 @@ class procBlock {
                                     const int &) const;
   multiArray3d<vector3d<double>> SliceBoundaryCenters(const int &) const;
 
-  void AssignSolToTimeN(const idealGas &);
+  void AssignSolToTimeN(const unique_ptr<eos> &,
+                        const unique_ptr<thermodynamic> &);
   void AssignSolToTimeNm1();
   double SolDeltaNCoeff(const int &, const int &, const int &,
                         const input &) const;
   double SolDeltaNm1Coeff(const int &, const int &, const int &,
                           const input &) const;
   genArray SolDeltaMmN(const int &, const int &, const int &, const input &,
-                       const idealGas &) const;
+                       const unique_ptr<eos> &,
+                       const unique_ptr<thermodynamic> &) const;
   genArray SolDeltaNm1(const int &, const int &, const int &,
                        const input &) const;
 
@@ -374,17 +384,21 @@ class procBlock {
   }
 
   void CalcBlockTimeStep(const input &);
-  void UpdateBlock(const input &, const idealGas &, const sutherland &,
+  void UpdateBlock(const input &, const unique_ptr<eos> &,
+                   const unique_ptr<thermodynamic> &,
+                   const unique_ptr<transport> &,
                    const multiArray3d<genArray> &,
                    const unique_ptr<turbModel> &, const int &, genArray &,
                    resid &);
 
-  void CalcResidualNoSource(const sutherland &, const idealGas &,
-                            const input &,
+  void CalcResidualNoSource(const unique_ptr<transport> &,
+                            const unique_ptr<thermodynamic> &,
+                            const unique_ptr<eos> &, const input &,
                             const unique_ptr<turbModel> &,
                             multiArray3d<fluxJacobian> &);
-  void CalcSrcTerms(const sutherland &, const unique_ptr<turbModel> &,
-                    const input &, multiArray3d<fluxJacobian> &);
+  void CalcSrcTerms(const unique_ptr<transport> &,
+                    const unique_ptr<turbModel> &, const input &,
+                    multiArray3d<fluxJacobian> &);
 
   void ResetResidWS();
   void ResetGradients();
@@ -394,24 +408,29 @@ class procBlock {
   void AssignGhostCellsGeom();
   void AssignGhostCellsGeomEdge();
 
-  void AssignInviscidGhostCells(const input &, const idealGas &,
-                                const sutherland &,
+  void AssignInviscidGhostCells(const input &, const unique_ptr<eos> &,
+                                const unique_ptr<thermodynamic> &,
+                                const unique_ptr<transport> &,
                                 const unique_ptr<turbModel> &);
-  void AssignInviscidGhostCellsEdge(const input &, const idealGas &,
-                                    const sutherland &,
+  void AssignInviscidGhostCellsEdge(const input &, const unique_ptr<eos> &,
+                                    const unique_ptr<thermodynamic> &thermo,
+                                    const unique_ptr<transport> &,
                                     const unique_ptr<turbModel> &);
 
-  void AssignViscousGhostCells(const input &, const idealGas &,
-                               const sutherland &,
+  void AssignViscousGhostCells(const input &, const unique_ptr<eos> &,
+                               const unique_ptr<thermodynamic> &,
+                               const unique_ptr<transport> &,
                                const unique_ptr<turbModel> &);
-  void AssignViscousGhostCellsEdge(const input &, const idealGas &,
-                                   const sutherland &,
+  void AssignViscousGhostCellsEdge(const input &, const unique_ptr<eos> &,
+                                   const unique_ptr<thermodynamic> &,
+                                   const unique_ptr<transport> &,
                                    const unique_ptr<turbModel> &);
   multiArray3d<primVars> GetGhostStates(
       const multiArray3d<primVars> &, const string &,
       const multiArray3d<unitVec3dMag<double>> &, const multiArray3d<double> &,
-      const boundarySurface &, const input &, const idealGas &,
-      const sutherland &, const unique_ptr<turbModel> &, const int = 1);
+      const boundarySurface &, const input &, const unique_ptr<eos> &,
+      const unique_ptr<thermodynamic> &, const unique_ptr<transport> &,
+      const unique_ptr<turbModel> &, const int = 1);
 
   void CalcGradsI(const int &, const int &, const int &,
                   tensor<double> &, vector3d<double> &, vector3d<double> &,
@@ -426,27 +445,32 @@ class procBlock {
   void CalcWallDistance(const kdtree &);
 
   multiArray3d<genArray> DeltaNMinusOne(const multiArray3d<genArray> &,
-                                        const idealGas &, const double &,
+                                        const unique_ptr<eos> &, const double &,
                                         const double &) const;
   multiArray3d<genArray> SolTimeMMinusN(const multiArray3d<genArray> &,
-                                        const idealGas &, const input &,
+                                        const unique_ptr<eos> &, const input &,
                                         const int &) const;
   void InvertDiagonal(multiArray3d<fluxJacobian> &, const input &) const;
 
   multiArray3d<genArray> InitializeMatrixUpdate(
-      const input &, const idealGas &eos,
+      const input &, const unique_ptr<eos> &eos,
+      const unique_ptr<thermodynamic> &,
       const multiArray3d<fluxJacobian> &) const;
   void LUSGS_Forward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
-                     const idealGas &, const input &, const sutherland &,
+                     const unique_ptr<eos> &, const input &,
+                     const unique_ptr<thermodynamic> &,
+                     const unique_ptr<transport> &,
                      const unique_ptr<turbModel> &,
                      const multiArray3d<fluxJacobian> &, const int &) const;
   double LUSGS_Backward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
-                        const idealGas &, const input &, const sutherland &,
+                        const unique_ptr<eos> &, const input &,
+                        const unique_ptr<thermodynamic> &,
+                        const unique_ptr<transport> &,
                         const unique_ptr<turbModel> &,
                         const multiArray3d<fluxJacobian> &, const int &) const;
 
-  double DPLUR(multiArray3d<genArray> &,
-               const idealGas &, const input &, const sutherland &,
+  double DPLUR(multiArray3d<genArray> &, const unique_ptr<eos> &, const input &,
+               const unique_ptr<thermodynamic> &, const unique_ptr<transport> &,
                const unique_ptr<turbModel> &,
                const multiArray3d<fluxJacobian> &) const;
 
@@ -488,7 +512,8 @@ class procBlock {
                         const MPI_Datatype &, const MPI_Datatype &,
                         const MPI_Datatype &, const input &);
 
-  void UpdateAuxillaryVariables(const idealGas &, const sutherland &,
+  void UpdateAuxillaryVariables(const unique_ptr<eos> &,
+                                const unique_ptr<transport> &,
                                 const bool = true);
   void UpdateUnlimTurbEddyVisc(const unique_ptr<turbModel> &, const bool &);
 
@@ -542,8 +567,8 @@ class procBlock {
     return wallData_[ss].WallFrictionVelocity(ii, jj, kk);
   }
   double WallPressure(const int &ss, const int &ii, const int &jj,
-                      const int &kk, const idealGas &eos) const {
-    return wallData_[ss].WallPressure(ii, jj, kk, eos);
+                      const int &kk, const unique_ptr<eos> &eqnState) const {
+    return wallData_[ss].WallPressure(ii, jj, kk, eqnState);
   }
   double WallTke(const int &ss, const int &ii, const int &jj,
                  const int &kk) const {

@@ -18,18 +18,18 @@
 #include <string>
 #include <memory>
 #include "viscousFlux.hpp"
-#include "eos.hpp"         // idealGas
-#include "primVars.hpp"    // primVars
-#include "turbulence.hpp"  // turbModel
-#include "matrix.hpp"      // squareMatrix
-#include "utility.hpp"     // TauNormal
-#include "wallData.hpp"    // wallVars
+#include "eos.hpp"            // equation of state
+#include "transport.hpp"      // transport model
+#include "thermodynamic.hpp"  // thermodynamic model
+#include "primVars.hpp"       // primVars
+#include "turbulence.hpp"     // turbModel
+#include "matrix.hpp"         // squareMatrix
+#include "utility.hpp"        // TauNormal
+#include "wallData.hpp"       // wallVars
 
 using std::cout;
 using std::endl;
 using std::cerr;
-using std::vector;
-using std::string;
 using std::max;
 using std::unique_ptr;
 
@@ -56,17 +56,16 @@ In the above equation lambda is the bulk viscosity, velGradTrace is the trace of
 the velocity gradient, area is the normalized face area, mu is the dynamic
 viscosity, and velGrad is the velocity gradient tensor.
 */
-void viscousFlux::CalcFlux(const tensor<double> &velGrad,
-                           const sutherland &suth, const idealGas &eqnState,
-                           const vector3d<double> &tGrad,
-                           const vector3d<double> &normArea,
-                           const vector3d<double> &tkeGrad,
-                           const vector3d<double> &omegaGrad,
-                           const unique_ptr<turbModel> &turb,
-                           const primVars &state, const double &lamVisc,
-                           const double &turbVisc, const double &f1) {
+void viscousFlux::CalcFlux(
+    const tensor<double> &velGrad, const unique_ptr<transport> &trans,
+    const unique_ptr<thermodynamic> &thermo, const unique_ptr<eos> &eqnState,
+    const vector3d<double> &tGrad, const vector3d<double> &normArea,
+    const vector3d<double> &tkeGrad, const vector3d<double> &omegaGrad,
+    const unique_ptr<turbModel> &turb, const primVars &state,
+    const double &lamVisc, const double &turbVisc, const double &f1) {
   // velGrad -- velocity gradient tensor
-  // suth -- method to get viscosity (Sutherland's law)
+  // trans -- viscous transport model
+  // thermo -- thermodynamic model
   // eqnState -- equation of state
   // tGrad -- temperature gradient
   // normArea -- unit area vector of face
@@ -79,18 +78,20 @@ void viscousFlux::CalcFlux(const tensor<double> &velGrad,
   // f1 -- first blending coefficient
 
   // get viscosity with nondimensional normalization
-  const auto mu = suth.NondimScaling() * lamVisc;
-  const auto mut = suth.NondimScaling() * turbVisc;
+  const auto mu = trans->NondimScaling() * lamVisc;
+  const auto mut = trans->NondimScaling() * turbVisc;
 
   // wall shear stress
-  const auto tau = TauNormal(velGrad, normArea, mu, mut, suth);
+  const auto tau = TauNormal(velGrad, normArea, mu, mut, trans);
+
+  const auto t = state.Temperature(eqnState);
 
   data_[0] = tau.X();
   data_[1] = tau.Y();
   data_[2] = tau.Z();
   data_[3] = tau.DotProd(state.Velocity()) +
-      (eqnState.Conductivity(mu) +
-       eqnState.TurbConductivity(mut, turb->TurbPrandtlNumber())) *
+      (trans->Conductivity(mu, t, thermo) +
+       trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo)) *
       tGrad.DotProd(normArea);
 
   // turbulence viscous flux
@@ -101,20 +102,21 @@ void viscousFlux::CalcFlux(const tensor<double> &velGrad,
   // some turbulence models use the unlimited eddy viscosity for the
   // turbulence viscous flux instead of the limited eddy viscosity
   const auto mutt = turb->UseUnlimitedEddyVisc() ?
-      suth.NondimScaling() * turb->EddyViscNoLim(state) : mut;
+      trans->NondimScaling() * turb->EddyViscNoLim(state) : mut;
   data_[4] = (mu + tkeCoeff * mutt) * tkeGrad.DotProd(normArea);
   data_[5] = (mu + omgCoeff * mutt) * omegaGrad.DotProd(normArea);
 }
 
 wallVars viscousFlux::CalcWallFlux(
-    const tensor<double> &velGrad, const sutherland &suth,
-    const idealGas &eqnState, const vector3d<double> &tGrad,
-    const vector3d<double> &normArea, const vector3d<double> &tkeGrad,
-    const vector3d<double> &omegaGrad, const unique_ptr<turbModel> &turb,
-    const primVars &state, const double &lamVisc, const double &turbVisc,
-    const double &f1) {
+    const tensor<double> &velGrad, const unique_ptr<transport> &trans,
+    const unique_ptr<thermodynamic> &thermo, const unique_ptr<eos> &eqnState,
+    const vector3d<double> &tGrad, const vector3d<double> &normArea,
+    const vector3d<double> &tkeGrad, const vector3d<double> &omegaGrad,
+    const unique_ptr<turbModel> &turb, const primVars &state,
+    const double &lamVisc, const double &turbVisc, const double &f1) {
   // velGrad -- velocity gradient tensor
-  // suth -- method to get viscosity (Sutherland's law)
+  // trans -- viscous transport model
+  // thermo -- thermodynamic model
   // eqnState -- equation of state
   // tGrad -- temperature gradient
   // normArea -- unit area vector of face
@@ -129,18 +131,21 @@ wallVars viscousFlux::CalcWallFlux(
   wallVars wVars;
 
   // get viscosity with nondimensional normalization
-  wVars.viscosity_ = suth.NondimScaling() * lamVisc;
-  wVars.turbEddyVisc_ = suth.NondimScaling() * turbVisc;
+  wVars.viscosity_ = trans->NondimScaling() * lamVisc;
+  wVars.turbEddyVisc_ = trans->NondimScaling() * turbVisc;
 
   // wall shear stress
   wVars.shearStress_ =
-      TauNormal(velGrad, normArea, wVars.viscosity_, wVars.turbEddyVisc_, suth);
+      TauNormal(velGrad, normArea, wVars.viscosity_, wVars.turbEddyVisc_, trans);
+
+  const auto t = state.Temperature(eqnState);
 
   // wall heat flux
-  wVars.heatFlux_ = (eqnState.Conductivity(wVars.viscosity_) +
-                     eqnState.TurbConductivity(wVars.turbEddyVisc_,
-                                               turb->TurbPrandtlNumber())) *
-                    tGrad.DotProd(normArea);
+  wVars.heatFlux_ =
+      (trans->Conductivity(wVars.viscosity_, t, thermo) +
+       trans->TurbConductivity(wVars.turbEddyVisc_, turb->TurbPrandtlNumber(),
+                               t, thermo)) *
+      tGrad.DotProd(normArea);
 
   data_[0] = wVars.shearStress_.X();
   data_[1] = wVars.shearStress_.Y();
@@ -149,7 +154,7 @@ wallVars viscousFlux::CalcWallFlux(
 
   // calculate other wall data
   wVars.density_ = state.Rho();
-  wVars.temperature_ = state.Temperature(eqnState);
+  wVars.temperature_ = t;
   wVars.tke_ = state.Tke();
   wVars.sdr_ = state.Omega();
   wVars.frictionVelocity_ = sqrt(wVars.shearStress_.Mag() / wVars.density_);
@@ -161,8 +166,9 @@ wallVars viscousFlux::CalcWallFlux(
 
   // some turbulence models use the unlimited eddy viscosity for the
   // turbulence viscous flux instead of the limited eddy viscosity
-  const auto mutt = turb->UseUnlimitedEddyVisc() ?
-      suth.NondimScaling() * turb->EddyViscNoLim(state) : wVars.turbEddyVisc_;
+  const auto mutt = turb->UseUnlimitedEddyVisc()
+                        ? trans->NondimScaling() * turb->EddyViscNoLim(state)
+                        : wVars.turbEddyVisc_;
   data_[4] = (wVars.viscosity_ + tkeCoeff * mutt) * tkeGrad.DotProd(normArea);
   data_[5] = (wVars.viscosity_ + omgCoeff * mutt) * omegaGrad.DotProd(normArea);
 

@@ -29,6 +29,7 @@ set(sources
   main.cpp
   boundaryConditions.cpp
   eos.cpp
+  fluid.cpp
   fluxJacobian.cpp
   genArray.cpp
   input.cpp
@@ -45,6 +46,8 @@ set(sources
   resid.cpp
   slices.cpp
   source.cpp
+  thermodynamic.cpp
+  transport.cpp
   turbulence.cpp
   uncoupledScalar.cpp
   utility.cpp

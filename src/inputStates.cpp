@@ -17,6 +17,7 @@
 #include <iostream>     // cout
 #include <vector>
 #include <string>
+#include <map>
 #include "inputStates.hpp"
 
 using std::cout;
@@ -36,6 +37,19 @@ void icState::Print(ostream &os) const {
     os << "; turbulenceIntensity=" << this->TurbulenceIntensity()
        << "; eddyViscosityRatio=" << this->EddyViscosityRatio();
   }
+  if (this->SpecifiedMassFractions()) {
+    os << "; massFractions=[";
+    auto numSpecies = this->NumberSpecies();
+    auto count = 0;
+    for (auto &fracs : this->MassFractions()) {
+      os << fracs.first << "=" << fracs.second;
+      if (count < numSpecies - 1) {
+        os << ", ";
+      }
+      count++;
+    }
+    os << "]";
+  }
   os << ")";
 }
 
@@ -52,6 +66,19 @@ void characteristic::Print(ostream &os) const {
     os << "; turbulenceIntensity=" << this->TurbulenceIntensity()
        << "; eddyViscosityRatio=" << this->EddyViscosityRatio();
   }
+  if (this->SpecifiedMassFractions()) {
+    os << "; massFractions=[";
+    auto numSpecies = this->NumberSpecies();
+    auto count = 0;
+    for (auto &fracs : this->MassFractions()) {
+      os << fracs.first << "=" << fracs.second;
+      if (count < numSpecies - 1) {
+        os << ", ";
+      }
+      count++;
+    }
+    os << "]";
+  }
   os << ")";
 }
 ostream &operator<<(ostream &os, const characteristic &bc) {
@@ -66,6 +93,19 @@ void stagnationInlet::Print(ostream &os) const {
   if (this->SpecifiedTurbulence()) {
     os << "; turbulenceIntensity=" << this->TurbulenceIntensity()
        << "; eddyViscosityRatio=" << this->EddyViscosityRatio();
+  }
+  if (this->SpecifiedMassFractions()) {
+    os << "; massFractions=[";
+    auto numSpecies = this->NumberSpecies();
+    auto count = 0;
+    for (auto &fracs : this->MassFractions()) {
+      os << fracs.first << "=" << fracs.second;
+      if (count < numSpecies - 1) {
+        os << ", ";
+      }
+      count++;
+    }
+    os << "]";
   }
   os << ")";
 }
@@ -93,6 +133,19 @@ void supersonicInflow::Print(ostream &os) const {
     os << "; turbulenceIntensity=" << this->TurbulenceIntensity()
        << "; eddyViscosityRatio=" << this->EddyViscosityRatio();
   }
+  if (this->SpecifiedMassFractions()) {
+    os << "; massFractions=[";
+    auto numSpecies = this->NumberSpecies();
+    auto count = 0;
+    for (auto &fracs : this->MassFractions()) {
+      os << fracs.first << "=" << fracs.second;
+      if (count < numSpecies - 1) {
+        os << ", ";
+      }
+      count++;
+    }
+    os << "]";
+  }
   os << ")";
 }
 
@@ -117,6 +170,19 @@ void subsonicInflow::Print(ostream &os) const {
   if (this->SpecifiedTurbulence()) {
     os << "; turbulenceIntensity=" << this->TurbulenceIntensity()
        << "; eddyViscosityRatio=" << this->EddyViscosityRatio();
+  }
+  if (this->SpecifiedMassFractions()) {
+    os << "; massFractions=[";
+    auto numSpecies = this->NumberSpecies();
+    auto count = 0;
+    for (auto &fracs : massFractions_) {
+      os << fracs.first << "=" << fracs.second;
+      if (count < numSpecies - 1) {
+        os << ", ";
+      }
+      count++;
+    }
+    os << "]";
   }
   os << ")";
 }
@@ -190,10 +256,10 @@ string Trim(const string &s, const string &whitespace) {
 
 // function to tokenize a string based on a given character
 vector<string> Tokenize(string str, const string &delimiter,
-                        const unsigned int maxTokens) {
+                        const unsigned int maxSplits) {
   // str -- string to tokenize
   // delimiter -- string to use as delimiter
-  // maxTokens -- maximum number of tokens (if 0 (default), no max)
+  // maxSplits -- maximum number of times to split string (default 0, no max)
 
   vector<string> tokens;
   auto reachedMax = false;
@@ -204,11 +270,12 @@ vector<string> Tokenize(string str, const string &delimiter,
     // treat consecutive delimiters as single delimiter
     auto end = str.find_first_not_of(delimiter, pos);
     str.erase(0, end);
-    if (maxTokens > 0 && maxTokens == tokens.size() - 1) {
+    if (maxSplits > 0 && maxSplits == tokens.size()) {
       reachedMax = true;
     }
     pos = str.find(delimiter);
   }
+  // add in remainder if not empty
   auto token = Trim(str);
   if (!token.empty()) {tokens.push_back(token);}
   return tokens;
@@ -236,6 +303,45 @@ vector3d<double> ReadVector(const string &str) {
   return {stod(tokens[0]), stod(tokens[1]), stod(tokens[2])};
 }
 
+// function to read mass fraction data from string
+map<string, double> ReadMassFractions(const string &str) {
+  const auto start = str.find("[") + 1;
+  const auto end = str.find("]") - 1;
+  const auto range = end - start + 1;  // +/-1 to ignore []
+  auto sub = str.substr(start, range);
+  auto tokens = Tokenize(sub, ",");
+
+  // initialize map
+  map<string, double> fracs;
+  auto sum = 0.0;
+  for (auto &token : tokens) {
+    // tokenize each token into name / mass fraction pairs
+    auto species = Tokenize(token, "=");
+    if (species.size() != 2) {
+      cerr << "ERROR. Problem with reading mass fractions. Substring is " << sub
+           << endl;
+      exit(EXIT_FAILURE);
+    }
+    // insert species
+    fracs[species[0]] = stod(species[1]);
+    sum += stod(species[1]);
+  }
+
+  // check that values sum to 1
+  // floating point comparison can result in values not being equal, so don't
+  // throw error. Instead print warning and normalize.
+  if (sum != 1.0) {
+    cerr << "WARNING: Mass fractions should sum to 1.0, but they sum to " << sum
+         << endl;
+    cerr << "Normalizing mass fractions." << endl;
+    for (auto &frac : fracs) {
+      frac.second /= sum;
+    }
+  }
+
+  return fracs;
+}
+
 // construct initial condition from string
 icState::icState(string &str, const string name) {
   const auto start = str.find("(") + 1;
@@ -260,9 +366,10 @@ icState::icState(string &str, const string name) {
   auto velocityCount = 0;
   auto tiCount = 0;
   auto evrCount = 0;
+  auto mfCount = 0;
 
   for (auto &token : tokens) {
-    auto param = Tokenize(token, "=");
+    auto param = Tokenize(token, "=", 1);
     if (param.size() != 2) {
       cerr << "ERROR. Problem with " << name << " parameter " << token << endl;
       exit(EXIT_FAILURE);
@@ -284,6 +391,10 @@ icState::icState(string &str, const string name) {
     } else if (param[0] == "eddyViscosityRatio") {
       eddyViscRatio_ = stod(RemoveTrailing(param[1], ","));
       evrCount++;
+    } else if (param[0] == "massFractions") {
+      this->SetSpecifiedMassFractions();
+      massFractions_ = ReadMassFractions(RemoveTrailing(param[1], ","));
+      mfCount++;
     } else if (param[0] == "tag") {
       this->SetTag(stoi(RemoveTrailing(param[1], ",")));
       tagCount++;
@@ -302,9 +413,10 @@ icState::icState(string &str, const string name) {
     exit(EXIT_FAILURE);
   }
   // optional variables
-  if (tagCount > 1 || tiCount > 1 || evrCount > 1 || tiCount != evrCount) {
-    cerr << "ERROR. For " << name << ", turbulenceIntensity, and "
-         << "eddyViscosityRatio can only be specified once." << endl;
+  if (tagCount > 1 || tiCount > 1 || mfCount > 1 || evrCount > 1 ||
+      tiCount != evrCount) {
+    cerr << "ERROR. For " << name << ", tag, massFractions, turbulenceIntensity"
+         << ", and eddyViscosityRatio can only be specified once." << endl;
     cerr << "If either turbulenceIntensity or eddyViscosityRatio is specified "
          << "the other must be as well." << endl;
     exit(EXIT_FAILURE);
@@ -350,9 +462,10 @@ stagnationInlet::stagnationInlet(string &str) {
   auto directionCount = 0;
   auto tiCount = 0;
   auto evrCount = 0;
+  auto mfCount = 0;
 
   for (auto &token : tokens) {
-    auto param = Tokenize(token, "=");
+    auto param = Tokenize(token, "=", 1);
     if (param.size() != 2) {
       cerr << "ERROR. Problem with state condition parameter " << token << endl;
       exit(EXIT_FAILURE);
@@ -367,6 +480,10 @@ stagnationInlet::stagnationInlet(string &str) {
     } else if (param[0] == "direction") {
       direction_ = ReadVector(RemoveTrailing(param[1], ",")).Normalize();
       directionCount++;
+    } else if (param[0] == "massFractions") {
+      this->SetSpecifiedMassFractions();
+      massFractions_ = ReadMassFractions(RemoveTrailing(param[1], ","));
+      mfCount++;
     } else if (param[0] == "turbulenceIntensity") {
       this->SetSpecifiedTurbulence();
       turbIntensity_ = stod(RemoveTrailing(param[1], ","));
@@ -392,9 +509,9 @@ stagnationInlet::stagnationInlet(string &str) {
     exit(EXIT_FAILURE);
   }
   // optional variables
-  if (tiCount > 1 || evrCount > 1 || tiCount != evrCount) {
-    cerr << "ERROR. For stagnationInlet, turbulenceIntensity, and "
-         << "eddyViscosityRatio can only be specified once." << endl;
+  if (mfCount > 1 || tiCount > 1 || evrCount > 1 || tiCount != evrCount) {
+    cerr << "ERROR. For stagnationInlet, massFractions, turbulenceIntensity"
+         << ", and eddyViscosityRatio can only be specified once." << endl;
     cerr << "If either turbulenceIntensity or eddyViscosityRatio is specified "
          << "the other must be as well." << endl;
     exit(EXIT_FAILURE);
@@ -493,9 +610,10 @@ subsonicInflow::subsonicInflow(string &str) {
   auto velocityCount = 0;
   auto tiCount = 0;
   auto evrCount = 0;
+  auto mfCount = 0;
 
   for (auto &token : tokens) {
-    auto param = Tokenize(token, "=");
+    auto param = Tokenize(token, "=", 1);
     if (param.size() != 2) {
       cerr << "ERROR. Problem with state condition parameter " << token << endl;
       exit(EXIT_FAILURE);
@@ -507,6 +625,10 @@ subsonicInflow::subsonicInflow(string &str) {
     } else if (param[0] == "velocity") {
       velocity_ = ReadVector(RemoveTrailing(param[1], ","));
       velocityCount++;
+    } else if (param[0] == "massFractions") {
+      this->SetSpecifiedMassFractions();
+      massFractions_ = ReadMassFractions(RemoveTrailing(param[1], ","));
+      mfCount++;
     } else if (param[0] == "turbulenceIntensity") {
       this->SetSpecifiedTurbulence();
       turbIntensity_ = stod(RemoveTrailing(param[1], ","));
@@ -532,8 +654,8 @@ subsonicInflow::subsonicInflow(string &str) {
     exit(EXIT_FAILURE);
   }
   // optional variables
-  if (tiCount > 1 || evrCount > 1 || tiCount != evrCount) {
-    cerr << "ERROR. For subsonicInlet, turbulenceIntensity, and "
+  if (mfCount > 1 || tiCount > 1 || evrCount > 1 || tiCount != evrCount) {
+    cerr << "ERROR. For subsonicInlet, massFractions, turbulenceIntensity, and "
          << "eddyViscosityRatio can only be specified once." << endl;
     cerr << "If either turbulenceIntensity or eddyViscosityRatio is specified "
          << "the other must be as well." << endl;

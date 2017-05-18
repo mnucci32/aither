@@ -23,16 +23,12 @@
    The source class stores the source terms for the Euler and Navier-Stokes
    equations. */
 
-#include <vector>  // vector
-#include <string>  // string
 #include <iostream>
 #include <memory>
 #include "macros.hpp"
 #include "vector3d.hpp"
 #include "tensor.hpp"
 
-using std::vector;
-using std::string;
 using std::cout;
 using std::endl;
 using std::cerr;
@@ -42,7 +38,7 @@ using std::unique_ptr;
 // forward class declaration
 class primVars;
 class turbModel;
-class sutherland;
+class transport;
 class squareMatrix;
 
 class source {
@@ -72,8 +68,9 @@ class source {
   squareMatrix CalcTurbSrc(const unique_ptr<turbModel> &, const primVars &,
                            const tensor<double> &, const vector3d<double> &,
                            const vector3d<double> &, const vector3d<double> &,
-                           const sutherland &, const double &, const double &,
-                           const double &, const double &, const double &);
+                           const unique_ptr<transport> &, const double &,
+                           const double &, const double &, const double &,
+                           const double &);
 
   inline source & operator+=(const source &);
   inline source & operator-=(const source &);

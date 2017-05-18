@@ -15,13 +15,12 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
 #include <iostream>
-#include <vector>
-#include <string>
 #include <cmath>
 #include <memory>
 #include "source.hpp"
 #include "turbulence.hpp"
 #include "primVars.hpp"
+#include "transport.hpp"
 #include "vector3d.hpp"
 #include "tensor.hpp"
 #include "matrix.hpp"
@@ -29,8 +28,6 @@
 using std::cout;
 using std::endl;
 using std::cerr;
-using std::vector;
-using std::string;
 using std::unique_ptr;
 
 // operator overload for << - allows use of cout, cerr, etc.
@@ -46,22 +43,19 @@ ostream &operator<<(ostream &os, const source &src) {
 }
 
 // Member function to calculate the source terms for the turbulence equations
-squareMatrix source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
-                                 const primVars &state,
-                                 const tensor<double> &velGrad,
-                                 const vector3d<double> &tGrad,
-                                 const vector3d<double> &tkeGrad,
-                                 const vector3d<double> &omegaGrad,
-                                 const sutherland &suth, const double &vol,
-                                 const double &mut, const double &f1,
-                                 const double &f2, const double &phi) {
+squareMatrix source::CalcTurbSrc(
+    const unique_ptr<turbModel> &turb, const primVars &state,
+    const tensor<double> &velGrad, const vector3d<double> &tGrad,
+    const vector3d<double> &tkeGrad, const vector3d<double> &omegaGrad,
+    const unique_ptr<transport> &trans, const double &vol, const double &mut,
+    const double &f1, const double &f2, const double &phi) {
   // turb -- turbulence model
   // state -- primative variables
   // velGrad -- velocity gradient
   // tGrad -- temperature gradient
   // tkeGrad -- tke gradient
   // omegaGrad -- omega gradient
-  // suth -- sutherland's law for viscosity
+  // trans -- viscous transport model
   // vol -- cell volume
   // mut -- turbulent viscosity
   // f1 -- first blending coefficient
@@ -71,8 +65,9 @@ squareMatrix source::CalcTurbSrc(const unique_ptr<turbModel> &turb,
   // calculate turbulent source terms
   auto ksrc = 0.0;
   auto wsrc = 0.0;
-  const auto srcJac = turb->CalcTurbSrc(state, velGrad, tkeGrad, omegaGrad,
-                                        suth, vol, mut, f1, f2, phi, ksrc, wsrc);
+  const auto srcJac =
+      turb->CalcTurbSrc(state, velGrad, tkeGrad, omegaGrad, trans, vol, mut, f1,
+                        f2, phi, ksrc, wsrc);
 
   // assign turbulent source terms
   data_[5] = ksrc;

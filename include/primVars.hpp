@@ -33,7 +33,9 @@ supply a ghost state given a boundary condition and boundary cell.  */
 #include <string>                  // string
 #include <memory>                  // unique_ptr
 #include "vector3d.hpp"            // vector3d
-#include "eos.hpp"                 // idealGas, sutherland
+#include "eos.hpp"                 // equation of state
+#include "transport.hpp"           // transport model
+#include "thermodynamic.hpp"       // thermodynamic model
 #include "multiArray3d.hpp"        // multiArray3d
 #include "genArray.hpp"            // genArray
 #include "macros.hpp"
@@ -71,8 +73,8 @@ class primVars {
       : primVars(r, v.X(), v.Y(), v.Z(), p, k, w) {}
   primVars(const double &r, const vector3d<double> &v, const double &p)
       : primVars(r, v.X(), v.Y(), v.Z(), p) {}
-  primVars(const genArray &, const bool &, const idealGas &,
-           const unique_ptr<turbModel> &);
+  primVars(const genArray &, const bool &, const unique_ptr<eos> &,
+           const unique_ptr<thermodynamic> &, const unique_ptr<turbModel> &);
 
   // move constructor and assignment operator
   primVars(primVars&&) noexcept = default;
@@ -91,8 +93,8 @@ class primVars {
   double Tke() const { return data_[5]; }
   double Omega() const { return data_[6]; }
 
-  void NondimensionalInitialize(const idealGas &, const input &,
-                                const sutherland &, const int &,
+  void NondimensionalInitialize(const unique_ptr<eos> &, const input &,
+                                const unique_ptr<transport> &, const int &,
                                 const unique_ptr<turbModel> &);
   bool IsZero() const;
   primVars Squared() const;
@@ -100,46 +102,62 @@ class primVars {
 
   inline vector3d<double> Velocity() const;
 
-  inline double Energy(const idealGas &) const;
-  inline double Enthalpy(const idealGas &) const;
-  inline double Temperature(const idealGas &) const;
-  inline double SoS(const idealGas &) const;
+  inline double Energy(const unique_ptr<eos> &,
+                       const unique_ptr<thermodynamic> &) const;
+  inline double Enthalpy(const unique_ptr<eos> &,
+                         const unique_ptr<thermodynamic> &) const;
+  inline double Temperature(const unique_ptr<eos> &) const;
+  inline double SoS(const unique_ptr<thermodynamic> &,
+                    const unique_ptr<eos> &) const;
 
-  inline genArray ConsVars(const idealGas &) const;
-  primVars UpdateWithConsVars(const idealGas &, const genArray &,
+  inline genArray ConsVars(const unique_ptr<eos> &,
+                           const unique_ptr<thermodynamic> &) const;
+  primVars UpdateWithConsVars(const unique_ptr<eos> &,
+                              const unique_ptr<thermodynamic> &,
+                              const genArray &,
                               const unique_ptr<turbModel> &) const;
 
   void ApplyFarfieldTurbBC(const vector3d<double> &, const double &,
-                           const double &, const sutherland &,
-                           const idealGas &, const unique_ptr<turbModel> &);
+                           const double &, const unique_ptr<transport> &,
+                           const unique_ptr<eos> &,
+                           const unique_ptr<turbModel> &);
   void LimitTurb(const unique_ptr<turbModel> &);
 
   double InvCellSpectralRadius(const unitVec3dMag<double> &,
                                const unitVec3dMag<double> &,
-                               const idealGas &) const;
+                               const unique_ptr<thermodynamic> &,
+                               const unique_ptr<eos> &) const;
   double InvFaceSpectralRadius(const unitVec3dMag<double> &,
-                               const idealGas &) const;
+                               const unique_ptr<thermodynamic> &,
+                               const unique_ptr<eos> &) const;
 
   double ViscCellSpectralRadius(const unitVec3dMag<double> &,
-                                const unitVec3dMag<double> &, const idealGas &,
-                                const sutherland &, const double &,
+                                const unitVec3dMag<double> &,
+                                const unique_ptr<thermodynamic> &,
+                                const unique_ptr<eos> &,
+                                const unique_ptr<transport> &, const double &,
                                 const double &, const double &,
                                 const unique_ptr<turbModel> &) const;
   double ViscFaceSpectralRadius(const unitVec3dMag<double> &,
-                                const idealGas &,
-                                const sutherland &, const double &,
+                                const unique_ptr<thermodynamic> &,
+                                const unique_ptr<eos> &,
+                                const unique_ptr<transport> &, const double &,
                                 const double &, const double &,
                                 const unique_ptr<turbModel> &) const;
 
   double CellSpectralRadius(const unitVec3dMag<double> &,
-                            const unitVec3dMag<double> &, const idealGas &,
-                            const sutherland &, const double &, const double &,
-                            const double &, const unique_ptr<turbModel> &,
-                            const bool &) const;
-  double FaceSpectralRadius(const unitVec3dMag<double> &, const idealGas &,
-                            const sutherland &, const double &, const double &,
-                            const double &, const unique_ptr<turbModel> &,
-                            const bool &) const;
+                            const unitVec3dMag<double> &,
+                            const unique_ptr<thermodynamic> &,
+                            const unique_ptr<eos> &,
+                            const unique_ptr<transport> &, const double &,
+                            const double &, const double &,
+                            const unique_ptr<turbModel> &, const bool &) const;
+  double FaceSpectralRadius(const unitVec3dMag<double> &,
+                            const unique_ptr<thermodynamic> &,
+                            const unique_ptr<eos> &,
+                            const unique_ptr<transport> &, const double &,
+                            const double &, const double &,
+                            const unique_ptr<turbModel> &, const bool &) const;
 
   // operator overloads for addition and subtraction of states
   inline primVars & operator+=(const primVars &);
@@ -199,7 +217,9 @@ class primVars {
   // member function to return the state of the appropriate ghost cell
   primVars GetGhostState(const string &, const vector3d<double> &,
                          const double &, const int &, const input &,
-                         const int &, const idealGas &, const sutherland &,
+                         const int &, const unique_ptr<eos> &,
+                         const unique_ptr<thermodynamic> &,
+                         const unique_ptr<transport> &,
                          const unique_ptr<turbModel> &, wallVars &,
                          const int = 1) const;
 
@@ -210,8 +230,8 @@ class primVars {
 // function definitions
 // member function to calculate temperature from conserved variables and
 // equation of state
-double primVars::Temperature(const idealGas &eqnState) const {
-  return eqnState.Temperature(data_[4], data_[0]);
+double primVars::Temperature(const unique_ptr<eos> &eqnState) const {
+  return eqnState->Temperature(data_[4], data_[0]);
 }
 
 // member function to calculate velocity from conserved variables
@@ -220,32 +240,34 @@ vector3d<double> primVars::Velocity() const {
   return vel;
 }
 
-// member function to calculate total enthalpy from conserved variables
-double primVars::Energy(const idealGas &eqnState) const {
-  return eqnState.Energy(eqnState.SpecEnergy(data_[4], data_[0]),
-                            (*this).Velocity().Mag());
+// member function to calculate total energy from conserved variables
+double primVars::Energy(const unique_ptr<eos> &eqnState,
+                        const unique_ptr<thermodynamic> &thermo) const {
+  const auto t = this->Temperature(eqnState);
+  return eqnState->Energy(eqnState->SpecEnergy(thermo, t),
+                          (*this).Velocity().Mag());
 }
 
 // member function to calculate speed of sound from primative varialbes
-double primVars::SoS(const idealGas &eqnState) const {
-  return sqrt(eqnState.Gamma() * data_[4] / data_[0]);
+double primVars::SoS(const unique_ptr<thermodynamic> &thermo,
+                     const unique_ptr<eos> &eqnState) const {
+  return sqrt(thermo->Gamma(this->Temperature(eqnState)) * data_[4] / data_[0]);
 }
 
 // member function to calculate enthalpy from conserved variables and equation
 // of state
-double primVars::Enthalpy(const idealGas &eqnState) const {
-  return eqnState.Enthalpy((*this).Energy(eqnState), data_[4], data_[0]);
+double primVars::Enthalpy(const unique_ptr<eos> &eqnState,
+                          const unique_ptr<thermodynamic> &thermo) const {
+  const auto t = this->Temperature(eqnState);
+  return eqnState->Enthalpy(thermo, t, this->Velocity().Mag());
 }
 
 // member function to calculate conserved variables from primative variables
-genArray primVars::ConsVars(const idealGas &eqnState) const {
-  genArray cv(data_[0],
-              data_[0] * data_[1],
-              data_[0] * data_[2],
-              data_[0] * data_[3],
-              data_[0] * this->Energy(eqnState),
-              data_[0] * data_[5],
-              data_[0] * data_[6]);
+genArray primVars::ConsVars(const unique_ptr<eos> &eqnState,
+                            const unique_ptr<thermodynamic> &thermo) const {
+  genArray cv(data_[0], data_[0] * data_[1], data_[0] * data_[2],
+              data_[0] * data_[3], data_[0] * this->Energy(eqnState, thermo),
+              data_[0] * data_[5], data_[0] * data_[6]);
   return cv;
 }
 
@@ -354,6 +376,6 @@ inline const primVars operator/(const double &lhs, primVars rhs) {
 
 ostream &operator<<(ostream &os, const primVars &);
 
-primVars RoeAveragedState(const primVars&, const primVars&, const idealGas&);
+primVars RoeAveragedState(const primVars&, const primVars&);
 
 #endif

@@ -18,34 +18,65 @@
 #ifndef EOSHEADERDEF
 #define EOSHEADERDEF  // define the macro
 
-/* This header file contains the idealGas and sutherland classes. 
+// This header file contains the equation of state classes
 
-The ideal gas class stores the ratio of specific heats (gamma),
-and the gas constant R. It contains several member functions to calculate
-state variables using the equation of state
-P = rho * (gamma - 1) * specificEnergy for the euler equations and
-P = rho * R * temperature for the Navier-Stokes equations.
-
-The sutherland class stores a reference temperature and viscosity,
-as well as the sutherland coefficients. It is used for calculating
-a temperature dependent viscosity for the Navier-Stokes equations. */
-
-#include <math.h>  // sqrt
-#include <vector>  // vector
-#include <string>  // string
+#include <memory>
 #include "vector3d.hpp"
+#include "thermodynamic.hpp"
 
-using std::vector;
-using std::string;
+using std::unique_ptr;
 
-class idealGas {
-  const double gamma_;
+// abstract base class for equation of state
+class eos {
+
+ public:
+  // Constructor
+  eos() {}
+
+  // move constructor and assignment operator
+  eos(eos&&) noexcept = default;
+  eos& operator=(eos&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  eos(const eos&) = default;
+  eos& operator=(const eos&) = default;
+
+  // Member functions for abstract base class
+  virtual double PressFromEnergy(const unique_ptr<thermodynamic> &thermo,
+                                 const double &rho, const double &energy,
+                                 const double &vel) const = 0;
+  virtual double PressureRT(const double &rho,
+                            const double &temperature) const = 0;
+  virtual double SpecEnergy(const unique_ptr<thermodynamic> &thermo,
+                            const double &t) const = 0;
+  virtual double Energy(const double &specEn, const double &vel) const = 0;
+  virtual double Enthalpy(const unique_ptr<thermodynamic> &thermo,
+                          const double &t, const double &vel) const = 0;
+  virtual double SoS(const double &pressure, const double &rho) const = 0;
+  virtual double Temperature(const double &pressure,
+                             const double &rho) const = 0;
+  virtual double PressureDim(const double &rho,
+                             const double &temperature) const = 0;
+  virtual double DensityTP(const double &temp, const double &press) const = 0;
+
+  // Destructor
+  virtual ~eos() noexcept {}
+};
+
+
+// The idealGas class uses the ideal gas law to calculate state variables
+// The ideal gas equation of state is P = rho * R * T. In 
+// nondimensional from it is P = rho * T / gammaRef
+
+class idealGas : public eos {
+  const double gammaRef_;
   const double gasConst_;
 
  public:
   // Constructor
-  idealGas(const double &a, const double &b) : gamma_(a), gasConst_(b) {}
-  idealGas() : idealGas(1.4, 287.058) {}
+  idealGas(const unique_ptr<thermodynamic> &thermo, const double &r,
+           const double &t)
+      : gammaRef_(thermo->Gamma(t)), gasConst_(r) {}
 
   // move constructor and assignment operator
   idealGas(idealGas&&) noexcept = default;
@@ -56,93 +87,28 @@ class idealGas {
   idealGas& operator=(const idealGas&) = default;
 
   // Member functions
-  double Pressure(const double &rho, const double &specEn) const;
-  double PressFromEnergy(const double &rho, const double &energy,
-                         const double &vel) const;
-  double PressureRT(const double &rho, const double &temperature) const;
-  double Density(const double &pressure, const double &specEn) const;
-  double SpecEnergy(const double &pressure, const double &rho) const;
-  double Energy(const double &specEn, const double &vel) const;
-  double Enthalpy(const double &energy, const double &pressure,
-                  const double &rho) const;
-  double SoS(const double &pressure, const double &rho) const;
-  double Gamma() const {return gamma_;}
-  double GasConst() const {return gasConst_;}
-  double Prandtl() const {return (4.0 * gamma_) / (9.0 * gamma_ - 5.0);}
-  double Temperature(const double &pressure, const double &rho) const;
-
-  double SpecificHeat() const {return 1.0 / (gamma_ - 1.0);}
-  double Conductivity(const double &mu) const {
-    return mu * this->SpecificHeat() / this->Prandtl();}
-  double TurbConductivity(const double &eddyVisc, const double &prt) const {
-    return eddyVisc * this->SpecificHeat() / prt;}
+  double PressFromEnergy(const unique_ptr<thermodynamic> &thermo,
+                         const double &rho, const double &energy,
+                         const double &vel) const override;
+  double PressureRT(const double &rho,
+                    const double &temperature) const override;
+  double SpecEnergy(const unique_ptr<thermodynamic> &thermo,
+                    const double &t) const override;
+  double Energy(const double &specEn, const double &vel) const override;
+  double Enthalpy(const unique_ptr<thermodynamic> &thermo, const double &t,
+                  const double &vel) const override;
+  double SoS(const double &pressure, const double &rho) const override;
+  double Temperature(const double &pressure, const double &rho) const override;
+  double PressureDim(const double &rho,
+                     const double &temperature) const override;
   // nondimensional version (R=1/gamma)
-  double DensityTP(const double &temp, const double &press) const {
-    return press * gamma_ / temp;}
+  double DensityTP(const double &temp, const double &press) const override {
+    return press * gammaRef_ / temp;
+  }
 
   // Destructor
   ~idealGas() noexcept {}
 };
 
-// Function declarations
-
-class sutherland {
-  const double cOne_;
-  const double S_;
-  const double tRef_;
-  const double muRef_;
-  const double bulkVisc_;
-  const double reRef_;
-  const double mRef_;
-  const double scaling_;
-  const double invScaling_;
-
- public:
-  // Constructors
-  // Stoke's hypothesis -- bulk viscosity = 0
-  // Sutherland's Law -- mu = muref * (C1 * Tref^1.5) / (T + S_)
-  sutherland(const double &c, const double &s, const double &t,
-             const double &r, const double &p, const double &l,
-             const vector3d<double> &vel, const idealGas &eos) :
-      cOne_(c), S_(s), tRef_(t), muRef_(cOne_ * pow(tRef_, 1.5) / (tRef_ + S_)),
-      bulkVisc_(0.0), reRef_(r * vel.Mag() * l / muRef_),
-      mRef_(vel.Mag() / eos.SoS(p, r)), scaling_(mRef_ / reRef_),
-      invScaling_(reRef_ / mRef_) {}
-  sutherland(const double &t, const double &r, const double &l, const double &p,
-             const vector3d<double> &vel, const idealGas &eos) :
-      sutherland(1.458e-6, 110.4, t, r, p, l, vel, eos) {}
-
-  explicit sutherland(const double &t) : cOne_(1.458e-6), S_(110.4),
-                                         tRef_(t),
-                                         muRef_(cOne_ * pow(t, 1.5)/(t+S_)),
-                                         bulkVisc_(0.0), reRef_(0.0),
-                                         mRef_(0.0), scaling_(0.0),
-                                         invScaling_(0.0) {}
-  sutherland() : sutherland(288.15) {}
-
-  // move constructor and assignment operator
-  sutherland(sutherland&&) noexcept = default;
-  sutherland& operator=(sutherland&&) noexcept = default;
-
-  // copy constructor and assignment operator
-  sutherland(const sutherland&) = default;
-  sutherland& operator=(const sutherland&) = default;
-
-  // Member functions
-  double Viscosity(const double&) const;
-  double EffectiveViscosity(const double&) const;
-  double Lambda(const double&) const;
-  double ConstC1() const {return cOne_;}
-  double ConstS() const {return S_;}
-  double TRef() const {return tRef_;}
-  double MuRef() const {return muRef_;}
-  double ReRef() const {return reRef_;}
-  double MRef() const {return mRef_;}
-  double NondimScaling() const {return scaling_;}
-  double InvNondimScaling() const {return invScaling_;}
-
-  // Destructor
-  ~sutherland() noexcept {}
-};
 
 #endif

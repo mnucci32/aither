@@ -34,7 +34,8 @@ using std::ostream;
 using std::unique_ptr;
 
 // forward class declaration
-class idealGas;
+class eos;
+class thermodynamic;
 class primVars;
 class genArray;
 class squareMatrix;
@@ -48,15 +49,18 @@ class inviscidFlux {
   // rho dot velocity vector * enthalpy
 
   // private member functions
-  void ConstructFromPrim(const primVars&, const idealGas&,
-                         const vector3d<double>&);
+  void ConstructFromPrim(const primVars &, const unique_ptr<eos> &,
+                         const unique_ptr<thermodynamic> &,
+                         const vector3d<double> &);
 
  public:
   // constructors
   inviscidFlux() : data_{0.0} {}
-  inviscidFlux(const primVars&, const idealGas&, const vector3d<double>&);
-  inviscidFlux(const genArray&, const idealGas&, const unique_ptr<turbModel>&,
-               const vector3d<double>&);
+  inviscidFlux(const primVars &, const unique_ptr<eos> &,
+               const unique_ptr<thermodynamic> &, const vector3d<double> &);
+  inviscidFlux(const genArray &, const unique_ptr<eos> &,
+               const unique_ptr<thermodynamic> &,
+               const unique_ptr<turbModel> &, const vector3d<double> &);
 
   // move constructor and assignment operator
   inviscidFlux(inviscidFlux&&) noexcept = default;
@@ -117,18 +121,23 @@ class inviscidFlux {
 
 // function definitions
 // function to calculate Roe flux with entropy fix
-inviscidFlux RoeFlux(const primVars&, const primVars&, const idealGas&,
-                     const vector3d<double>&);
-inviscidFlux RusanovFlux(const primVars&, const primVars&, const idealGas&,
-                         const vector3d<double>&, const bool&);
+inviscidFlux RoeFlux(const primVars &, const primVars &,
+                     const unique_ptr<eos> &, const unique_ptr<thermodynamic> &,
+                     const vector3d<double> &);
+inviscidFlux RusanovFlux(const primVars &, const primVars &,
+                         const unique_ptr<eos> &,
+                         const unique_ptr<thermodynamic> &,
+                         const vector3d<double> &, const bool &);
 
 // function to calculate Roe flux with entropy fix for implicit methods
-void ApproxRoeFluxJacobian(const primVars&, const primVars&, const idealGas&,
-                           const vector3d<double>&, double&, squareMatrix&,
-                           squareMatrix&);
+void ApproxRoeFluxJacobian(const primVars &, const primVars &,
+                           const unique_ptr<eos> &, const vector3d<double> &,
+                           double &, squareMatrix &, squareMatrix &);
 
-genArray ConvectiveFluxUpdate(const primVars&, const primVars&, const idealGas&,
-                              const vector3d<double>&);
+genArray ConvectiveFluxUpdate(const primVars &, const primVars &,
+                              const unique_ptr<eos> &,
+                              const unique_ptr<thermodynamic> &,
+                              const vector3d<double> &);
 
 // operator overload for addition
 inviscidFlux & inviscidFlux::operator+=(const inviscidFlux &arr) {
