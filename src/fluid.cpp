@@ -148,4 +148,5 @@ ostream &operator<<(ostream &os, const fluid &fl) {
   os << "fluid(name=" << fl.Name() << "; n=" << fl.N()
      << "; molarMass=" << fl.MolarMass()
      << "; vibrationalTemperature=" << fl.VibrationalTemperature() << ")";
+  return os;
 }

@@ -84,9 +84,9 @@ class regressionTest:
 
     def GetTestCaseResiduals(self):
         fname = self.caseName + ".resid"
-        file = open(fname, "r")
+        rfile = open(fname, "r")
         lastLine = file.readlines()[-1]
-        file.close()
+        rfile.close()
         tokens = lastLine.split()
         resids = [float(ii) for ii in tokens[3:3+len(self.residuals)]]
         return resids
@@ -165,7 +165,7 @@ class regressionTest:
             print("Residuals should be:", self.GetResiduals())
             print("Residuals are:", resids)
 
-        print("Test Duration:",duration)
+        print("Test Duration:", duration)
         print("---------- End Test:", self.caseName, "----------")
         print("")
         print("")
