@@ -120,8 +120,6 @@ class thermallyPerfect : public thermodynamic {
   double Prandtl(const double& t) const override {
     return (4.0 * this->Gamma(t)) / (9.0 * this->Gamma(t) - 5.0);
   }
-  // DEBUG change these to use vibrational temperature -- is nonDimR correct?
-  // DEBUG -- Have Energy & Enthalpy functions that integrate Cp dt, Cv dt
   double Cp(const double& t) const override {
     const auto tv = this->ThetaV(t);
     return nonDimR_ * ((n_ + 1.0) + pow(tv / sinh(tv), 2.0));

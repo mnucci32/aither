@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
 
   // Enable exceptions so code won't run with NANs
 #ifdef __linux__
-  feenableexcept(FE_DIVBYZERO | FE_INVALID | FE_OVERFLOW);
+  feenableexcept(FE_DIVBYZERO | FE_INVALID);
 #elif __APPLE__
   _MM_SET_EXCEPTION_MASK(_MM_GET_EXCEPTION_MASK() & ~_MM_MASK_INVALID);
 #endif
