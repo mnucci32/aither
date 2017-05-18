@@ -217,7 +217,7 @@ def main():
     subCyl.SetMpirunPath(options.mpirunPath)
 
     # run regression case
-    passed = subCyl.RunCase()   
+    passed = subCyl.RunCase()
     totalPass = totalPass and all(passed)
 
     # ------------------------------------------------------------------
@@ -252,7 +252,7 @@ def main():
     shockTube.SetMpirunPath(options.mpirunPath)
 
     # run regression case
-    passed = shockTube.RunCase()   
+    passed = shockTube.RunCase()
     totalPass = totalPass and all(passed)
 
     # ------------------------------------------------------------------
@@ -264,7 +264,7 @@ def main():
     shockTubeRestart.SetRestartFile("shockTube_50.rst")
 
     # run regression case
-    passed = shockTubeRestart.RunCase()   
+    passed = shockTubeRestart.RunCase()
     totalPass = totalPass and all(passed)
 
     # ------------------------------------------------------------------
@@ -310,7 +310,7 @@ def main():
     viscPlate.SetRunDirectory("viscousFlatPlate")
     viscPlate.SetNumberOfProcessors(maxProcs)
     viscPlate.SetNumberOfIterations(numIterations)
-    if (viscPlate.Processors() == 2):
+    if viscPlate.Processors() == 2:
         viscPlate.SetResiduals([7.7239e-2, 2.4713e-1, 5.6557e-2, 8.4112e-1, 7.9342e-2])
     else:
         viscPlate.SetResiduals([7.6467e-2, 2.4714e-1, 4.0109e-2, 8.3161e-1, 7.9240e-2])
@@ -330,7 +330,7 @@ def main():
     turbPlate.SetRunDirectory("turbFlatPlate")
     turbPlate.SetNumberOfProcessors(maxProcs)
     turbPlate.SetNumberOfIterations(numIterations)
-    if (turbPlate.Processors() == 2):
+    if turbPlate.Processors() == 2:
         turbPlate.SetResiduals([4.1188e-2, 4.2732e-2, 8.6246e-1, 8.3640e-2, 3.9573e-2,
                                 4.5077e-8, 1.1449e-5])
     else:
@@ -352,7 +352,7 @@ def main():
     rae2822.SetRunDirectory("rae2822")
     rae2822.SetNumberOfProcessors(maxProcs)
     rae2822.SetNumberOfIterations(numIterations)
-    if (rae2822.Processors() == 2):
+    if rae2822.Processors() == 2:
         rae2822.SetResiduals([5.0196e-1, 1.2895, 4.6389e-1, 9.8770e-1, 4.5099e-1,
                               1.1526e-7, 1.9755e-5])
     else:
@@ -391,7 +391,7 @@ def main():
     wallLaw.SetRunDirectory("wallLaw")
     wallLaw.SetNumberOfProcessors(maxProcs)
     wallLaw.SetNumberOfIterations(20)
-    if (wallLaw.Processors() == 2):
+    if wallLaw.Processors() == 2:
         wallLaw.SetResiduals([8.1949e-01, 1.0542e-01, 1.3522e-01, 9.2939e-01,
                               8.5213e-01, 6.0529e-02, 6.7596e-05])
     else:
@@ -405,9 +405,31 @@ def main():
     totalPass = totalPass and all(passed)
 
     # ------------------------------------------------------------------
+    # thermally perfect gas
+    # turbulent, thermally perfect, supersonic
+    thermallyPerfect = regressionTest()
+    thermallyPerfect.SetRegressionCase("thermallyPerfect")
+    thermallyPerfect.SetAitherPath(options.aitherPath)
+    thermallyPerfect.SetRunDirectory("thermallyPerfect")
+    thermallyPerfect.SetNumberOfProcessors(maxProcs)
+    thermallyPerfect.SetNumberOfIterations(numIterations)
+    if thermallyPerfect.Processors() == 2:
+        thermallyPerfect.SetResiduals([2.4259e-1, 1.8515e-1, 1.5610e-1, 8.0065e-1,
+                                       2.6465e-1, 1.3216e-3, 2.4791e-3])
+    else:
+        thermallyPerfect.SetResiduals([2.5197e-1, 1.9322e-1, 1.5103e-1, 4.9640e-1,
+                                       2.7471e-1, 1.2259e-3, 2.7227e-3])
+    thermallyPerfect.SetIgnoreIndices(3)
+    thermallyPerfect.SetMpirunPath(options.mpirunPath)
+
+    # run regression case
+    passed = thermallyPerfect.RunCase()
+    totalPass = totalPass and all(passed)
+
+    # ------------------------------------------------------------------
     # regression test overall pass/fail
     # ------------------------------------------------------------------
-    if (totalPass):
+    if totalPass:
         print("All tests passed!")
         sys.exit(0)
     else:

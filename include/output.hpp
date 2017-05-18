@@ -70,7 +70,6 @@ void WriteFun(const vector<procBlock> &, const unique_ptr<eos> &,
 void WriteWallFun(const vector<procBlock> &, const unique_ptr<eos> &,
                   const unique_ptr<transport> &, const int &, const input &,
                   const unique_ptr<turbModel> &);
-void WriteRes(const input &, const int &);
 void WriteMeta(const input &, const int &);
 void WriteWallMeta(const input &, const int &);
 
