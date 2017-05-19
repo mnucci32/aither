@@ -97,36 +97,54 @@ boundarySurface boundaryConditions::GetBCSurface(const int &i, const int &j,
   // kk -- k coordinate
   // surf -- boundary condition surface type [1-6]
 
+  boundarySurface surface;
   auto iStart = 0;
   auto iEnd = 0;
 
-  // i-surfaces search between 0 and number of i-surfaces
   if (surf == 1 || surf == 2) {
+    // i-surfaces search between 0 and number of i-surfaces
     iStart = 0;
     iEnd = this->NumSurfI();
-    // j-surfaces search between end of i-surfaces and end of j-surfaces
+    // Determine which boundary condition should be applied
+    for (auto nn = iStart; nn < iEnd; nn++) {
+      // Determine which boundary given i, j, k coordinates apply to
+      if ((i >= this->GetIMin(nn) && i <= this->GetIMax(nn) &&
+           j >= this->GetJMin(nn) && j < this->GetJMax(nn) &&
+           k >= this->GetKMin(nn) && k < this->GetKMax(nn))) {
+        surface = this->GetSurface(nn);
+        break;
+      }
+    }
   } else if (surf == 3 || surf == 4) {
+    // j-surfaces search between end of i-surfaces and end of j-surfaces
     iStart = this->NumSurfI();
     iEnd = iStart + this->NumSurfJ();
-    // k-surfaces search between end of j-surfaces and end of k-surfaces
+    // Determine which boundary condition should be applied
+    for (auto nn = iStart; nn < iEnd; nn++) {
+      // Determine which boundary given i, j, k coordinates apply to
+      if ((i >= this->GetIMin(nn) && i < this->GetIMax(nn) &&
+           j >= this->GetJMin(nn) && j <= this->GetJMax(nn) &&
+           k >= this->GetKMin(nn) && k < this->GetKMax(nn))) {
+        surface = this->GetSurface(nn);
+        break;
+      }
+    }
   } else if (surf == 5 || surf == 6) {
+    // k-surfaces search between end of j-surfaces and end of k-surfaces
     iStart = this->NumSurfI() + this->NumSurfJ();
     iEnd = iStart + this->NumSurfK();
+    // Determine which boundary condition should be applied
+    for (auto nn = iStart; nn < iEnd; nn++) {
+      // Determine which boundary given i, j, k coordinates apply to
+      if ((i >= this->GetIMin(nn) && i < this->GetIMax(nn) &&
+           j >= this->GetJMin(nn) && j < this->GetJMax(nn) &&
+           k >= this->GetKMin(nn) && k <= this->GetKMax(nn))) {
+        surface = this->GetSurface(nn);
+        break;
+      }
+    }
   } else {
     cerr << "ERROR: Surface type " << surf << " is not recognized!" << endl;
-  }
-
-  boundarySurface surface;
-
-  // Determine which boundary condition should be applied
-  for (auto nn = iStart; nn < iEnd; nn++) {
-    // Determine which boundary given i, j, k coordinates apply to
-    if ((i >= this->GetIMin(nn) && i <= this->GetIMax(nn) &&
-         j >= this->GetJMin(nn) && j <= this->GetJMax(nn) &&
-         k >= this->GetKMin(nn) && k <= this->GetKMax(nn))) {
-      surface = this->GetSurface(nn);
-      break;
-    }
   }
 
   return surface;
