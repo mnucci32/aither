@@ -90,6 +90,7 @@ class inputState {
     return map<string, double>();
   }
   virtual int NumberSpecies() const { return 0; }
+  virtual string File() const { return "undefined"; }
   bool IsNondimensional() const { return nondimensional_; }
   void SetNondimensional(const bool &nd) {nondimensional_ = nd;}
 
@@ -105,8 +106,10 @@ class icState : public inputState {
   double turbIntensity_ = 0.01;       // default values
   double eddyViscRatio_ = 10.0;
   map<string, double> massFractions_ = {{"air", 1.0}};
+  string file_ = "undefined";
   bool specifiedTurbulence_ = false;
   bool specifiedMassFractions_ = false;
+  bool specifiedFile_ = false;
 
  public:
   // constructor
@@ -139,6 +142,9 @@ class icState : public inputState {
     return massFractions_.find(species)->second;
   }
   map<string, double> MassFractions() const override { return massFractions_; }
+  const bool SpecifiedFile() const { return specifiedFile_; }
+  void SetSpecifiedFile() { specifiedFile_ = true; }
+  string File() const override { return file_; }
 
   // Destructor
   virtual ~icState() noexcept {}
