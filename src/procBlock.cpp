@@ -6172,6 +6172,7 @@ void procBlock::CalcSrcTerms(const unique_ptr<transport> &trans,
 // all cell centers
 void procBlock::CalcWallDistance(const kdtree &tree) {
   vector3d<double> neighbor;
+  auto id = 0;
   string surf = "none";
   auto type = 0;
   // loop over cells, including ghosts
@@ -6183,44 +6184,44 @@ void procBlock::CalcWallDistance(const kdtree &tree) {
         // calculation
         if (this->IsPhysical(ii, jj, kk)) {
           wallDist_(ii, jj, kk) = tree.NearestNeighbor(center_(ii, jj, kk),
-                                                       neighbor);
+                                                       neighbor, id);
         } else if (this->AtGhostNonEdge(ii, jj, kk, surf, type)) {
           if (type == 1) {
             auto bcType = bc_.GetBCName(this->StartI(), jj, kk, type);
             auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
             wallDist_(ii, jj, kk) = fac *
                 tree.NearestNeighbor(center_(this->StartI(), jj, kk),
-                                     neighbor);
+                                     neighbor, id);
           } else if (type == 2) {
             auto bcType = bc_.GetBCName(this->EndI(), jj, kk, type);
             auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
             wallDist_(ii, jj, kk) = fac *
                 tree.NearestNeighbor(center_(this->EndI() - 1, jj, kk),
-                                     neighbor);
+                                     neighbor, id);
           } else if (type == 3) {
             auto bcType = bc_.GetBCName(ii, this->StartJ(), kk, type);
             auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
             wallDist_(ii, jj, kk) = fac *
                 tree.NearestNeighbor(center_(ii, this->StartJ(), kk),
-                                     neighbor);
+                                     neighbor, id);
           } else if (type == 4) {
             auto bcType = bc_.GetBCName(ii, this->EndJ(), kk, type);
             auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
             wallDist_(ii, jj, kk) = fac *
                 tree.NearestNeighbor(center_(ii, this->EndJ() - 1, kk),
-                                     neighbor);
+                                     neighbor, id);
           } else if (type == 5) {
             auto bcType = bc_.GetBCName(ii, jj, this->StartK(), type);
             auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
             wallDist_(ii, jj, kk) = fac *
                 tree.NearestNeighbor(center_(ii, jj, this->StartK()),
-                                     neighbor);
+                                     neighbor, id);
           } else if (type == 6) {
             auto bcType = bc_.GetBCName(ii, jj, this->EndK(), type);
             auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
             wallDist_(ii, jj, kk) = fac *
                 tree.NearestNeighbor(center_(ii, jj, this->EndK() - 1),
-                                     neighbor);
+                                     neighbor, id);
           }
         }
       }

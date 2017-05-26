@@ -154,6 +154,9 @@ primVars BetaIntegral(const primVars &, const primVars &, const double &,
 tensor<double> CalcVelGradTSL(const primVars&, const primVars&,
                               const vector3d<double>&, const double&);
 
+kdtree CalcTreeFromCloud(const string &, const input &, const transport &,
+                         vector<primVars> &);
+
 // ---------------------------------------------------------------------------
 // inline function definitions
 

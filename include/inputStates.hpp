@@ -91,11 +91,12 @@ class inputState {
   }
   virtual int NumberSpecies() const { return 0; }
   virtual string File() const { return "undefined"; }
+  virtual bool IsFromFile() const { return false; }
   bool IsNondimensional() const { return nondimensional_; }
   void SetNondimensional(const bool &nd) {nondimensional_ = nd;}
 
-    // destructor
-    virtual ~inputState() noexcept {}
+  // destructor
+  virtual ~inputState() noexcept {}
 };
 
 
@@ -145,6 +146,7 @@ class icState : public inputState {
   const bool SpecifiedFile() const { return specifiedFile_; }
   void SetSpecifiedFile() { specifiedFile_ = true; }
   string File() const override { return file_; }
+  bool IsFromFile() const override { return specifiedFile_; }
 
   // Destructor
   virtual ~icState() noexcept {}

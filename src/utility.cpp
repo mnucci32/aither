@@ -852,3 +852,71 @@ tensor<double> CalcVelGradTSL(const primVars &left, const primVars &right,
 
   return velGrad;
 }
+
+kdtree CalcTreeFromCloud(const string &fname, const input &inp,
+                         const transport &trans, vector<primVars> &states) {
+  // open file
+  ifstream inFile(fname, ios::in);
+  if (inFile.fail()) {
+    cerr << "ERROR: Error in CalcTreeFromCloud(). Input file " << fname
+         << " did not open correctly!" << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  vector<vector3d<double>> points;
+  vector<string> species;
+  auto count = 0;
+  string line = "";
+  while (getline(inFile, line)) {
+    // remove leading and trailing whitespace and ignore comments
+    line = Trim(line);
+    if (line.length() > 0) {  // only proceed if line has data
+      // split line at variable separator
+      auto tokens = Tokenize(line, " ");
+
+      if (count == 0) {  // first line has number of points
+        auto numPts = std::stoi(tokens[0]);
+        points.resize(numPts);
+        states.resize(numPts);
+      } else if (count == 1) {  // second line has species
+        species = tokens;
+        if (species.size() != 1 || species[0] != "air") {
+          cerr << "ERROR in CalcTreeFromCloud(), only single species currently "
+                  "supported"
+               << endl;
+          exit(EXIT_FAILURE);
+        }
+      } else if (tokens.size() != 9 + species.size()) {
+        cerr << "ERROR in CalcTreeFromCloud(). Expecting " << 9 + species.size()
+             << " data points on line " << count << " but only found "
+             << tokens.size() << endl;
+        exit(EXIT_FAILURE);
+      } else {
+        vector3d<double> point;
+        point[0] = std::stod(tokens[0]);
+        point[1] = std::stod(tokens[1]);
+        point[2] = std::stod(tokens[2]);
+        points[count] = point;
+        auto rho = std::stod(tokens[3]) / inp.RRef();
+        auto uVel = std::stod(tokens[4]) / inp.ARef();
+        auto vVel = std::stod(tokens[5]) / inp.ARef();
+        auto wVel = std::stod(tokens[6]) / inp.ARef();
+        auto pressure =
+            std::stod(tokens[7]) / (inp.RRef() * inp.ARef() * inp.ARef());
+        auto tke = std::stod(tokens[8]) / (inp.ARef() * inp.ARef());
+        auto omega = std::stod(tokens[9]) * trans.MuRef() /
+                     (inp.RRef() * inp.ARef() * inp.ARef());
+        vector<double> massFractions(species.size(), 0.0);
+        for (auto ii = 0; ii < massFractions.size(); ++ii) {
+          massFractions[ii] = std::stod(tokens[ii + 10]);
+        }
+        primVars state(rho, uVel, vVel, wVel, pressure, tke, omega);
+        states[count] = state;
+      }
+    }
+    count++;
+  }
+
+  // create kd tree
+  return kdtree(points);
+}
