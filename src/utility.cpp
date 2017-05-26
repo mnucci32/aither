@@ -853,8 +853,21 @@ tensor<double> CalcVelGradTSL(const primVars &left, const primVars &right,
   return velGrad;
 }
 
+// function to read in cloud of points from file and create a kdtree for 
+// nearest neighbor search. File format is space delimited as follows.
+//
+// numberOfPoints
+// species1 species2 ...
+// x y z rho u v w p tke omega mf1 mf2 ...
+// ...
+//
 kdtree CalcTreeFromCloud(const string &fname, const input &inp,
                          const transport &trans, vector<primVars> &states) {
+  // fname -- name of file to open
+  // inp -- input variables
+  // trans -- transport model
+  // states -- vector of states read from file
+  
   // open file
   ifstream inFile(fname, ios::in);
   if (inFile.fail()) {
@@ -880,7 +893,7 @@ kdtree CalcTreeFromCloud(const string &fname, const input &inp,
         states.resize(numPts);
       } else if (count == 1) {  // second line has species
         species = tokens;
-        if (species.size() != 1 || species[0] != "air") {
+        if (species.size() != 1) {
           cerr << "ERROR in CalcTreeFromCloud(), only single species currently "
                   "supported"
                << endl;
