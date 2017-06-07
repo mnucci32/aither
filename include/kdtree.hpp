@@ -78,7 +78,6 @@ class kdtree {
 
  public:
   // constructor
-  kdtree() {}
   explicit kdtree(const vector<vector3d<double>> &);
 
   // move constructor and assignment operator
