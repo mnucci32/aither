@@ -159,9 +159,10 @@ int main(int argc, char *argv[]) {
     // Initialize the whole mesh with ICs and assign ghost cells geometry
     stateBlocks.resize(mesh.size());
     for (auto ll = 0U; ll < mesh.size(); ll++) {
-      stateBlocks[ll] = procBlock(mesh[ll], decomp.ParentBlock(ll), bcs[ll], ll,
-                                  decomp.Rank(ll), decomp.LocalPosition(ll),
-                                  inp, eqnState, trans, turb);
+      stateBlocks[ll] =
+          procBlock(mesh[ll], decomp.ParentBlock(ll), bcs[ll], ll,
+                    decomp.Rank(ll), decomp.LocalPosition(ll), inp);
+      stateBlocks[ll].InitializeStates(inp, eqnState, trans, turb);
       stateBlocks[ll].AssignGhostCellsGeom();
     }
     // if restart, get data from restart file
