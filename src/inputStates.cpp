@@ -416,8 +416,8 @@ icState::icState(string &str, const string name) {
 
   // sanity checks
   // required variables
-  if (pressureCount != 1 || densityCount != 1 || velocityCount != 1 ||
-      fileCount == 1) {
+  if (!((pressureCount == 1 && densityCount == 1 && velocityCount == 1) ||
+        fileCount == 1)) {
     cerr << "ERROR. For " << name << " pressure, density, and "
          << "velocity must be specified, OR file must be specified." << endl;
     exit(EXIT_FAILURE);

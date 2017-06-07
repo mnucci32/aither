@@ -900,17 +900,17 @@ kdtree CalcTreeFromCloud(const string &fname, const input &inp,
                << endl;
           exit(EXIT_FAILURE);
         }
-      } else if (tokens.size() != 9 + species.size()) {
-        cerr << "ERROR in CalcTreeFromCloud(). Expecting " << 9 + species.size()
-             << " data points on line " << count << " but only found "
-             << tokens.size() << endl;
+      } else if (tokens.size() != 10 + species.size()) {
+        cerr << "ERROR in CalcTreeFromCloud(). Expecting "
+             << 10 + species.size() << " data points on line " << count
+             << " but only found " << tokens.size() << endl;
         exit(EXIT_FAILURE);
       } else {
         vector3d<double> point;
-        point[0] = std::stod(tokens[0]);
-        point[1] = std::stod(tokens[1]);
-        point[2] = std::stod(tokens[2]);
-        points[count] = point;
+        point[0] = std::stod(tokens[0]) / inp.LRef();
+        point[1] = std::stod(tokens[1]) / inp.LRef();
+        point[2] = std::stod(tokens[2]) / inp.LRef();
+        points[count - 2] = point;
         auto rho = std::stod(tokens[3]) / inp.RRef();
         auto uVel = std::stod(tokens[4]) / inp.ARef();
         auto vVel = std::stod(tokens[5]) / inp.ARef();
@@ -925,7 +925,7 @@ kdtree CalcTreeFromCloud(const string &fname, const input &inp,
           massFractions[ii] = std::stod(tokens[ii + 10]);
         }
         primVars state(rho, uVel, vVel, wVel, pressure, tke, omega);
-        states[count] = state;
+        states[count - 2] = state;
       }
     }
     count++;
