@@ -427,6 +427,23 @@ def main():
     totalPass = totalPass and all(passed)
 
     # ------------------------------------------------------------------
+    # uniform flow
+    # turbulent, all 8 block-to-block orientations
+    uniform = regressionTest()
+    uniform.SetRegressionCase("uniformFlow")
+    uniform.SetAitherPath(options.aitherPath)
+    uniform.SetRunDirectory("uniformFlow")
+    uniform.SetNumberOfProcessors(1)
+    uniform.SetNumberOfIterations(numIterations)
+    uniform.SetResiduals([6.6340e-03, 8.4829e-02, 4.5127e-03, 4.5027e-03,
+                          9.7437e-03, 1.6874e-12, 1.9622e-12])
+    uniform.SetMpirunPath(options.mpirunPath)
+
+    # run regression case
+    passed = uniform.RunCase()
+    totalPass = totalPass and all(passed)
+
+    # ------------------------------------------------------------------
     # regression test overall pass/fail
     # ------------------------------------------------------------------
     if totalPass:
