@@ -18,6 +18,7 @@
 #include <algorithm>    // nth_element
 #include <limits>       // numeric_limits
 #include <vector>       // vector
+#include <utility>      // pair
 #include "kdtree.hpp"
 
 using std::cout;
@@ -28,7 +29,10 @@ using std::cerr;
 kdtree::kdtree(const vector<vector3d<double>> &points) {
   // points -- all points to search through, stored in kdtree
 
-  nodes_ = points;
+  nodes_.resize(points.size());
+  for (auto ii = 0; ii < nodes_.size(); ++ii) {
+    nodes_[ii] = std::make_pair(points[ii], ii);
+  }
   right_ = vector<int>(points.size(), -1);
   this->BuildKdtree(0, nodes_.size(), 0);
 }
@@ -51,9 +55,9 @@ int kdtree::FindMedian(const int &start, const int &end,
   // use lambda function to compare vector3d based on given dimension
   std::nth_element(nodes_.begin() + start, nodes_.begin() + medPos,
                    nodes_.begin() + end,
-                   [&dim] (const vector3d<double> &p1,
-                           const vector3d<double> &p2)
-                   {return p1[dim] < p2[dim];});
+                   [&dim] (const pair<vector3d<double>, int> &p1,
+                           const pair<vector3d<double>, int> &p2)
+                   {return p1.first[dim] < p2.first[dim];});
 
   // return index of median
   return medPos;
@@ -81,18 +85,17 @@ void kdtree::BuildKdtree(const int &start, const int &end,
 
   // move median to first element
   std::swap(nodes_[start], nodes_[medInd]);
-  const auto median = nodes_[start][dim];
+  const auto median = nodes_[start].first[dim];
 
   // put all elements less than or equal to the median in
   // top portion of vector, and all other elements in bottom
   // portion. This is necessary because median calculation does
-  // not sort the data
-  // start is at median, so use next index down
+  // not sort the data start is at median, so use next index down
   const auto splitIndex = std::partition(nodes_.begin() + start + 1,
                                          nodes_.begin() + end,
                                          [&median, &dim]
-                                         (const vector3d<double> &p1)
-                                         {return p1[dim] <= median;});
+                                         (const pair<vector3d<double>, int> &p1)
+                                         {return p1.first[dim] <= median;});
 
   // record split index as index of right branch
   // std::partition returns iterator to 2nd partition which is right side
@@ -120,7 +123,7 @@ on that side must be recursively searched as well.
 void kdtree::NearestNeighbor(const int &start, const int &end,
                              const int &depth,
                              const vector3d<double> &pt,
-                             vector3d<double> &neighbor,
+                             pair<vector3d<double>, int> &neighbor,
                              double &minDist) const {
   // start -- starting index in nodes_ to do search on
   // end -- ending index in nodes_ to do search on
@@ -134,7 +137,7 @@ void kdtree::NearestNeighbor(const int &start, const int &end,
   // recursive base case - at leaf node do linear search
   if (numPts <= binSize_) {
     for (auto ii = start; ii < end; ii++) {
-      auto testDistance = pt.DistSq(nodes_[ii]);
+      auto testDistance = pt.DistSq(nodes_[ii].first);
       if (testDistance < minDist) {
         minDist = testDistance;
         neighbor = nodes_[ii];
@@ -147,21 +150,21 @@ void kdtree::NearestNeighbor(const int &start, const int &end,
   const auto dim = depth % dim_;
 
   // check to see if splitting node is closer than current closest
-  auto testDistance = pt.DistSq(nodes_[start]);
+  auto testDistance = pt.DistSq(nodes_[start].first);
   if (testDistance < minDist) {
     minDist = testDistance;
     neighbor = nodes_[start];
   }
 
   // determine if point is on left or right side of split
-  if (pt[dim] <= nodes_[start][dim]) {  // left side ---------------------
+  if (pt[dim] <= nodes_[start].first[dim]) {  // left side ---------------------
     // point is on left side, so recursively search left side first
     this->NearestNeighbor(start + 1, right_[start],
                           depth + 1, pt, neighbor, minDist);
 
     // if bounding sphere enters right partition, recursively
     // search this side of tree
-    if (this->SphereInside(pt, minDist, nodes_[start], dim)) {
+    if (this->SphereInside(pt, minDist, nodes_[start].first, dim)) {
       this->NearestNeighbor(right_[start], end,
                             depth + 1, pt, neighbor, minDist);
     }
@@ -173,7 +176,7 @@ void kdtree::NearestNeighbor(const int &start, const int &end,
 
     // if bounding sphere enters left partition, recursively
     // search this side of tree
-    if (this->SphereInside(pt, minDist, nodes_[start], dim)) {
+    if (this->SphereInside(pt, minDist, nodes_[start].first, dim)) {
       this->NearestNeighbor(start + 1, right_[start],
                             depth + 1, pt, neighbor, minDist);
     }
@@ -206,13 +209,16 @@ bool kdtree::SphereInside(const vector3d<double> &guess,
 
 // member function to perform a nearest neighbor search
 double kdtree::NearestNeighbor(const vector3d<double> &pt,
-                               vector3d<double> &neighbor) const {
+                               vector3d<double> &neighbor, int &id) const {
   // pt -- point to find nearest neighbor for
   // neighbor -- variable to output coordinates of nearest neighbor
 
   // start with large initial guess
   auto minDist = std::numeric_limits<double>::max();
-  this->NearestNeighbor(0, nodes_.size(), 0, pt, neighbor, minDist);
+  auto nearest = std::make_pair(neighbor, id);
+  this->NearestNeighbor(0, nodes_.size(), 0, pt, nearest, minDist);
+  neighbor = nearest.first;
+  id = nearest.second;
 
   // return distance, not distance squared
   return sqrt(minDist);

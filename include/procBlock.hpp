@@ -169,9 +169,7 @@ class procBlock {
  public:
   // constructors
   procBlock(const plot3dBlock &, const int &, const boundaryConditions &,
-            const int &, const int &, const int &, const input &,
-            const unique_ptr<eos> &, const unique_ptr<transport> &,
-            const unique_ptr<turbModel> &);
+            const int &, const int &, const int &, const input &);
   procBlock(const int &, const int &, const int &, const int &, const bool &,
             const bool &, const bool &, const bool &, const bool &);
   procBlock() : procBlock(1, 1, 1, 0, false, false, false, false, false) {}
@@ -404,6 +402,10 @@ class procBlock {
   void ResetGradients();
   void ResetTurbVars();
   void CleanResizeVecs(const int &, const int &, const int &, const int &);
+
+  void InitializeStates(const input &, const unique_ptr<eos> &,
+                        const unique_ptr<transport> &,
+                        const unique_ptr<turbModel> &);
 
   void AssignGhostCellsGeom();
   void AssignGhostCellsGeomEdge();

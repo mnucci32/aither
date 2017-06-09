@@ -34,6 +34,7 @@ large eddy simulations, the WALE subgrid scale model is available.
 * Add non-reflecting boundary conditions
 * Add additional inviscid flux option (AUSM)
 * Add multigrid scheme for improved convergence
+* Add multi-species flow capability
 
 ### Dependencies
 * MPI - OpenMPI, MPICH, & MS-MPI have been used

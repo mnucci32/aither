@@ -30,25 +30,29 @@ ostream &operator<<(ostream &os, const inputState &state) {
 }
 
 void icState::Print(ostream &os) const {
-  os << "icState(tag=" << this->Tag() << "; pressure=" << this->Pressure()
-     << "; density=" << this->Density() << "; velocity=[" << this->Velocity()
-     << "]";
-  if (this->SpecifiedTurbulence()) {
-    os << "; turbulenceIntensity=" << this->TurbulenceIntensity()
-       << "; eddyViscosityRatio=" << this->EddyViscosityRatio();
-  }
-  if (this->SpecifiedMassFractions()) {
-    os << "; massFractions=[";
-    auto numSpecies = this->NumberSpecies();
-    auto count = 0;
-    for (auto &fracs : this->MassFractions()) {
-      os << fracs.first << "=" << fracs.second;
-      if (count < numSpecies - 1) {
-        os << ", ";
-      }
-      count++;
+  os << "icState(tag=" << this->Tag();
+  if (this->SpecifiedFile()) {
+    os << "; file=" << this->File();
+  } else {
+    os << "; pressure=" << this->Pressure() << "; density=" << this->Density()
+       << "; velocity=[" << this->Velocity() << "]";
+    if (this->SpecifiedTurbulence()) {
+      os << "; turbulenceIntensity=" << this->TurbulenceIntensity()
+         << "; eddyViscosityRatio=" << this->EddyViscosityRatio();
     }
-    os << "]";
+    if (this->SpecifiedMassFractions()) {
+      os << "; massFractions=[";
+      auto numSpecies = this->NumberSpecies();
+      auto count = 0;
+      for (auto &fracs : this->MassFractions()) {
+        os << fracs.first << "=" << fracs.second;
+        if (count < numSpecies - 1) {
+          os << ", ";
+        }
+        count++;
+      }
+      os << "]";
+    }
   }
   os << ")";
 }
@@ -367,6 +371,7 @@ icState::icState(string &str, const string name) {
   auto tiCount = 0;
   auto evrCount = 0;
   auto mfCount = 0;
+  auto fileCount = 0;
 
   for (auto &token : tokens) {
     auto param = Tokenize(token, "=", 1);
@@ -395,6 +400,10 @@ icState::icState(string &str, const string name) {
       this->SetSpecifiedMassFractions();
       massFractions_ = ReadMassFractions(RemoveTrailing(param[1], ","));
       mfCount++;
+    } else if (param[0] == "file") {
+      this->SetSpecifiedFile();
+      file_ = RemoveTrailing(param[1], ",");
+      fileCount++;
     } else if (param[0] == "tag") {
       this->SetTag(stoi(RemoveTrailing(param[1], ",")));
       tagCount++;
@@ -407,16 +416,27 @@ icState::icState(string &str, const string name) {
 
   // sanity checks
   // required variables
-  if (pressureCount != 1 || densityCount != 1 || velocityCount != 1) {
+  if (!((pressureCount == 1 && densityCount == 1 && velocityCount == 1) ||
+        fileCount == 1)) {
     cerr << "ERROR. For " << name << " pressure, density, and "
-         << "velocity must be specified, and only specified once." << endl;
+         << "velocity must be specified, OR file must be specified." << endl;
+    exit(EXIT_FAILURE);
+  }
+  if (fileCount == 1 &&
+      (pressureCount == 1 || densityCount == 1 || velocityCount == 1 ||
+       mfCount == 1 || tiCount == 1 || evrCount == 1)) {
+    cerr << "ERROR. For " << name
+         << ", if file is specified, tag is the only other field allowed"
+         << endl;
     exit(EXIT_FAILURE);
   }
   // optional variables
   if (tagCount > 1 || tiCount > 1 || mfCount > 1 || evrCount > 1 ||
-      tiCount != evrCount) {
-    cerr << "ERROR. For " << name << ", tag, massFractions, turbulenceIntensity"
-         << ", and eddyViscosityRatio can only be specified once." << endl;
+      tiCount != evrCount || fileCount > 1 || pressureCount > 1 ||
+      densityCount > 1 || velocityCount > 1) {
+    cerr << "ERROR. For " << name << ", tag, pressure, density, velocity, "
+                                     "massFractions, turbulenceIntensity, "
+         << "eddyViscosityRatio, and file can only be specified once." << endl;
     cerr << "If either turbulenceIntensity or eddyViscosityRatio is specified "
          << "the other must be as well." << endl;
     exit(EXIT_FAILURE);

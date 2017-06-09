@@ -50,10 +50,7 @@ using std::ifstream;
 // constructors for procBlock class
 procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
                      const boundaryConditions &bound, const int &pos,
-                     const int &r, const int &lpos, const input &inp,
-                     const unique_ptr<eos> &eqnState,
-                     const unique_ptr<transport> &trans,
-                     const unique_ptr<turbModel> &turb) {
+                     const int &r, const int &lpos, const input &inp) {
   // blk -- plot3d block of which this procBlock is a subset of
   // numBlk -- the block number of blk (the parent block)
   // bound -- boundary conditions for block
@@ -61,9 +58,6 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   // r -- processor rank_ that procBlock should be on
   // lpos -- local position of block on processor
   // inp -- input variables
-  // eqnState -- equation of state
-  // trans -- viscous transport model
-  // turb -- turbulence model
 
   numGhosts_ = inp.NumberGhostLayers();
   parBlock_ = numBlk;
@@ -87,21 +81,14 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   storeTimeN_ = inp.NeedToStoreTimeN();
   isMultiLevelTime_ = inp.IsMultilevelInTime();
 
-  // get initial condition state for parent block
-  auto ic = inp.ICStateForBlock(parBlock_);
-
   // dimensions for multiArray3d located at cell centers
   const auto numI = blk.NumI() - 1;
   const auto numJ = blk.NumJ() - 1;
   const auto numK = blk.NumK() - 1;
 
-  // get nondimensional state for initialization
-  primVars inputState;
-  inputState.NondimensionalInitialize(eqnState, inp, trans, parBlock_, turb);
-
   // pad stored variable vectors with ghost cells
   state_ = PadWithGhosts(multiArray3d<primVars>(numI, numJ, numK, 0,
-                                                inputState), numGhosts_);
+                                                primVars(0.0)), numGhosts_);
   if (storeTimeN_) {
     consVarsN_ = {numI, numJ, numK, 0, genArray(0.0)};
   } else {
@@ -132,15 +119,12 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   dt_ = {numI, numJ, numK, 0};
   residual_ = {numI, numJ, numK, 0};
 
-  const auto inputTemperature = inputState.Temperature(eqnState);
-  temperature_ = {numI, numJ, numK, numGhosts_, inputTemperature};
+  temperature_ = {numI, numJ, numK, numGhosts_, 0.0};
 
-  auto inputViscosity = 0.0;
   if (isViscous_) {
     velocityGrad_ = {numI, numJ, numK, numGhosts_};
     temperatureGrad_ = {numI, numJ, numK, numGhosts_};
-    inputViscosity = trans->Viscosity(inputTemperature);
-    viscosity_ = {numI, numJ, numK, numGhosts_, inputViscosity};
+    viscosity_ = {numI, numJ, numK, numGhosts_, 0.0};
   } else {
     velocityGrad_ = {0, 0, 0, 0};
     temperatureGrad_ = {0, 0, 0, 0};
@@ -148,8 +132,7 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   }
 
   if (isTurbulent_) {
-    eddyViscosity_ = {numI, numJ, numK, numGhosts_,
-                      ic.EddyViscosityRatio() * inputViscosity};
+    eddyViscosity_ = {numI, numJ, numK, numGhosts_, 0.0};
   } else {
     eddyViscosity_ = {0, 0, 0, 0, 0.0};
   }
@@ -345,6 +328,77 @@ void procBlock::SubtractFromResidual(const source &src, const int &ii,
 
 //---------------------------------------------------------------------
 // function declarations
+
+void procBlock::InitializeStates(const input &inp,
+                                 const unique_ptr<eos> &eqnState,
+                                 const unique_ptr<transport> &trans,
+                                 const unique_ptr<turbModel> &turb) {
+  // inp -- input variables
+  // eqnState -- equation of state
+  // trans -- transport model
+  // turb -- turbulence model
+
+  // get initial condition state for parent block
+  auto ic = inp.ICStateForBlock(parBlock_);
+
+  if (ic.IsFromFile()) {
+    // create k-d tree from cloud of points
+    vector<primVars> cloudStates;
+    const auto tree = CalcTreeFromCloud(ic.File(), inp, trans, cloudStates);
+
+    auto maxDist = std::numeric_limits<double>::min();
+    vector3d<double> neighbor;
+    auto id = 0;
+    // loop over physical cells
+    for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
+      for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
+        for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
+          auto dist = tree.NearestNeighbor(center_(ii, jj, kk), neighbor, id);
+          maxDist = std::max(dist, maxDist);
+          state_(ii, jj, kk) = cloudStates[id];
+          temperature_(ii, jj, kk) = state_(ii, jj, kk).Temperature(eqnState);
+          if (inp.IsViscous()) {
+            viscosity_(ii, jj, kk) = trans->Viscosity(temperature_(ii, jj, kk));
+            if (inp.IsTurbulent()) {
+              eddyViscosity_(ii, jj, kk) =
+                  turb->EddyViscNoLim(state_(ii, jj, kk));
+            }
+          }
+        }
+      }
+    }
+
+    cout << "Initializing parent block " << parBlock_
+         << " with global position " << globalPos_ << endl;
+    cout << "Maximum distance from cell center to point cloud is " << maxDist
+         << endl;
+
+  } else {
+    // get nondimensional state for initialization
+    primVars inputState;
+    inputState.NondimensionalInitialize(eqnState, inp, trans, parBlock_, turb);
+
+    const auto numI = this->NumI();
+    const auto numJ = this->NumJ();
+    const auto numK = this->NumK();
+
+    // pad stored variable vectors with ghost cells
+    state_ = PadWithGhosts(
+        multiArray3d<primVars>(numI, numJ, numK, 0, inputState), numGhosts_);
+
+    const auto inputTemperature = inputState.Temperature(eqnState);
+    temperature_ = {numI, numJ, numK, numGhosts_, inputTemperature};
+
+    if (isViscous_) {
+      const auto inputViscosity = trans->Viscosity(inputTemperature);
+      viscosity_ = {numI, numJ, numK, numGhosts_, inputViscosity};
+      if (isTurbulent_) {
+        eddyViscosity_ = {numI, numJ, numK, numGhosts_,
+                          ic.EddyViscosityRatio() * inputViscosity};
+      }
+    }
+  }
+}
 
 /* Function to calculate the inviscid fluxes on the i-faces. All phyiscal
 (non-ghost) i-faces are looped over. The left and right states are
@@ -6172,6 +6226,7 @@ void procBlock::CalcSrcTerms(const unique_ptr<transport> &trans,
 // all cell centers
 void procBlock::CalcWallDistance(const kdtree &tree) {
   vector3d<double> neighbor;
+  auto id = 0;
   string surf = "none";
   auto type = 0;
   // loop over cells, including ghosts
@@ -6183,44 +6238,44 @@ void procBlock::CalcWallDistance(const kdtree &tree) {
         // calculation
         if (this->IsPhysical(ii, jj, kk)) {
           wallDist_(ii, jj, kk) = tree.NearestNeighbor(center_(ii, jj, kk),
-                                                       neighbor);
+                                                       neighbor, id);
         } else if (this->AtGhostNonEdge(ii, jj, kk, surf, type)) {
           if (type == 1) {
             auto bcType = bc_.GetBCName(this->StartI(), jj, kk, type);
             auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
             wallDist_(ii, jj, kk) = fac *
                 tree.NearestNeighbor(center_(this->StartI(), jj, kk),
-                                     neighbor);
+                                     neighbor, id);
           } else if (type == 2) {
             auto bcType = bc_.GetBCName(this->EndI(), jj, kk, type);
             auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
             wallDist_(ii, jj, kk) = fac *
                 tree.NearestNeighbor(center_(this->EndI() - 1, jj, kk),
-                                     neighbor);
+                                     neighbor, id);
           } else if (type == 3) {
             auto bcType = bc_.GetBCName(ii, this->StartJ(), kk, type);
             auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
             wallDist_(ii, jj, kk) = fac *
                 tree.NearestNeighbor(center_(ii, this->StartJ(), kk),
-                                     neighbor);
+                                     neighbor, id);
           } else if (type == 4) {
             auto bcType = bc_.GetBCName(ii, this->EndJ(), kk, type);
             auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
             wallDist_(ii, jj, kk) = fac *
                 tree.NearestNeighbor(center_(ii, this->EndJ() - 1, kk),
-                                     neighbor);
+                                     neighbor, id);
           } else if (type == 5) {
             auto bcType = bc_.GetBCName(ii, jj, this->StartK(), type);
             auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
             wallDist_(ii, jj, kk) = fac *
                 tree.NearestNeighbor(center_(ii, jj, this->StartK()),
-                                     neighbor);
+                                     neighbor, id);
           } else if (type == 6) {
             auto bcType = bc_.GetBCName(ii, jj, this->EndK(), type);
             auto fac = (bcType == "viscousWall") ? -1.0 : 1.0;
             wallDist_(ii, jj, kk) = fac *
                 tree.NearestNeighbor(center_(ii, jj, this->EndK() - 1),
-                                     neighbor);
+                                     neighbor, id);
           }
         }
       }

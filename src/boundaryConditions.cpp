@@ -538,13 +538,12 @@ Orientation 8:      |                  |         |                  |  D1/D2 rev
                    | -->D2                      | D2<--
 
 The above diagrams show how patch 2 would have to be moved to match up with
-patch 1.
-D1 and D2 are the local patch directions. They are cyclic, so on a constant
-i-patch,
-D1 is j, and D2 is k. On a constant j-patch, D1 is k, and D2 is i, etc. O is the
-origin which is always at the minimim of D1 and D2 on the patch. C1 is the corner
-where D1 is at a max, and D2 is zero. C2 is the corner where D2 is at a max, and
-D1 is zero. C12 is the corner where both D1 and D2 are at a max.*/
+patch 1. D1 and D2 are the local patch directions. They are cyclic, so on a 
+constant i-patch, D1 is j, and D2 is k. On a constant j-patch, D1 is k, and D2 
+is i, etc. O is the origin which is always at the minimim of D1 and D2 on the 
+patch. C1 is the corner where D1 is at a max, and D2 is zero. C2 is the corner 
+where D2 is at a max, and D1 is zero. C12 is the corner where both D1 and D2 
+are at a max.*/
 bool connection::TestPatchMatch(const patch &p1, const patch &p2) {
   // p1 -- first patch
   // p2 -- second patch
@@ -632,7 +631,7 @@ bool connection::TestPatchMatch(const patch &p1, const patch &p2) {
       }
     } else if (p1.Corner1().CompareWithTol(p2.Corner2())) {
       // Corner 2 must match corner 1 for match
-      if (p1.Corner2().CompareWithTol(p2.Corner2())) {
+      if (p1.Corner2().CompareWithTol(p2.Corner1())) {
         orientation_ = 8;
         match = true;
       } else {  // no match

@@ -20,10 +20,12 @@
 
 #include <vector>        // vector
 #include <string>        // string
+#include <utility>       // pair
 #include "vector3d.hpp"
 
 using std::vector;
 using std::string;
+using std::pair;
 
 /* This class implements a k-d tree for the purpose of efficiently performing
 a nearest neighbor search. The search is used to find the minimum distance of
@@ -60,7 +62,7 @@ branch is at index 3.
 */
 class kdtree {
   // all points to search through in k-d tree order
-  vector<vector3d<double>> nodes_;
+  vector<pair<vector3d<double>, int>> nodes_;
   vector<int> right_;           // right branch indices
   const int dim_ = 3;           // dimension of space to search
   const double binSize_ = 32;   // max number of points in a leaf node
@@ -69,7 +71,7 @@ class kdtree {
   int FindMedian(const int &, const int &, const int &);
   void BuildKdtree(const int &, const int &, const int &);
   void NearestNeighbor(const int &, const int &, const int &,
-                       const vector3d<double> &, vector3d<double> &,
+                       const vector3d<double> &, pair<vector3d<double>, int> &,
                        double &) const;
   bool SphereInside(const vector3d<double>&, const double &,
                     const vector3d<double>&, const int &) const;
@@ -87,8 +89,9 @@ class kdtree {
   kdtree& operator=(const kdtree&) = default;
 
   // member functions
-  double NearestNeighbor(const vector3d<double> &, vector3d<double> &) const;
-  int Size() const {return nodes_.size();}
+  double NearestNeighbor(const vector3d<double> &, vector3d<double> &,
+                         int &) const;
+  int Size() const { return nodes_.size(); }
 
   // destructor
   ~kdtree() noexcept {}
