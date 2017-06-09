@@ -196,6 +196,7 @@ def main():
         maxProcs = 1
 
     numIterations = 100
+    numIterationsShort = 20
     numIterationsRestart = 50
     totalPass = True
 
@@ -329,13 +330,13 @@ def main():
     turbPlate.SetAitherPath(options.aitherPath)
     turbPlate.SetRunDirectory("turbFlatPlate")
     turbPlate.SetNumberOfProcessors(maxProcs)
-    turbPlate.SetNumberOfIterations(numIterations)
+    turbPlate.SetNumberOfIterations(numIterationsShort)
     if turbPlate.Processors() == 2:
-        turbPlate.SetResiduals([4.1188e-2, 4.2732e-2, 8.6246e-1, 8.3640e-2, 3.9573e-2,
-                                4.5077e-8, 1.1449e-5])
+        turbPlate.SetResiduals([2.2326e-01, 2.9704e-01, 4.5442e-01, 2.4928e-01,
+                                2.1792e-01, 7.9769e-07, 2.3288e-04])
     else:
-        turbPlate.SetResiduals([3.9406e-2, 4.2746e-2, 1.3742, 7.4568e-2, 3.8139e-2,
-                                4.7590e-8, 1.1620e-5])
+        turbPlate.SetResiduals([2.1828e-01, 2.9702e-01, 4.5628e-01, 2.4928e-01,
+                                2.1361e-01, 7.9753e-07, 2.3287e-04])
     turbPlate.SetIgnoreIndices(2)
     turbPlate.SetMpirunPath(options.mpirunPath)
 
@@ -351,13 +352,13 @@ def main():
     rae2822.SetAitherPath(options.aitherPath)
     rae2822.SetRunDirectory("rae2822")
     rae2822.SetNumberOfProcessors(maxProcs)
-    rae2822.SetNumberOfIterations(numIterations)
+    rae2822.SetNumberOfIterations(numIterationsShort)
     if rae2822.Processors() == 2:
-        rae2822.SetResiduals([5.0196e-1, 1.2895, 4.6389e-1, 9.8770e-1, 4.5099e-1,
-                              1.1526e-7, 1.9755e-5])
+        rae2822.SetResiduals([5.5472e-01, 7.2623e-01, 5.0035e-01, 4.8794e-01,
+                              4.9827e-01, 2.4542e-05, 9.3450e-05])
     else:
-        rae2822.SetResiduals([5.0069e-1, 1.3219, 4.6502e-1, 1.0309, 4.5357e-1,
-                              1.1694e-7, 2.0139e-5])
+        rae2822.SetResiduals([5.5195e-01, 7.2220e-01, 5.0410e-01, 6.9139e-01,
+                              4.9487e-01, 2.4542e-05, 9.2871e-05])
     rae2822.SetIgnoreIndices(3)
     rae2822.SetMpirunPath(options.mpirunPath)
 
@@ -390,7 +391,7 @@ def main():
     wallLaw.SetAitherPath(options.aitherPath)
     wallLaw.SetRunDirectory("wallLaw")
     wallLaw.SetNumberOfProcessors(maxProcs)
-    wallLaw.SetNumberOfIterations(20)
+    wallLaw.SetNumberOfIterations(numIterationsShort)
     if wallLaw.Processors() == 2:
         wallLaw.SetResiduals([8.1949e-01, 1.0542e-01, 1.3522e-01, 9.2939e-01,
                               8.5213e-01, 6.0529e-02, 6.7596e-05])
@@ -412,13 +413,15 @@ def main():
     thermallyPerfect.SetAitherPath(options.aitherPath)
     thermallyPerfect.SetRunDirectory("thermallyPerfect")
     thermallyPerfect.SetNumberOfProcessors(maxProcs)
-    thermallyPerfect.SetNumberOfIterations(numIterations)
+    thermallyPerfect.SetNumberOfIterations(numIterationsShort)
     if thermallyPerfect.Processors() == 2:
-        thermallyPerfect.SetResiduals([2.4259e-1, 1.8515e-1, 1.5610e-1, 8.0065e-1,
-                                       2.6465e-1, 1.3216e-3, 2.4791e-3])
+        thermallyPerfect.SetResiduals([5.8862e-01, 3.8007e-01, 4.9681e-01,
+                                       8.4268e-03, 6.0802e-01, 3.5653e-02,
+                                       1.4414e-02])
     else:
-        thermallyPerfect.SetResiduals([2.5197e-1, 1.9322e-1, 1.5103e-1, 4.9640e-1,
-                                       2.7471e-1, 1.2259e-3, 2.7227e-3])
+        thermallyPerfect.SetResiduals([5.8862e-01, 3.8007e-01, 4.9681e-01,
+                                       1.9063e-03, 6.0803e-01, 3.5651e-02,
+                                       1.4414e-02])
     thermallyPerfect.SetIgnoreIndices(3)
     thermallyPerfect.SetMpirunPath(options.mpirunPath)
 
@@ -434,9 +437,9 @@ def main():
     uniform.SetAitherPath(options.aitherPath)
     uniform.SetRunDirectory("uniformFlow")
     uniform.SetNumberOfProcessors(1)
-    uniform.SetNumberOfIterations(numIterations)
-    uniform.SetResiduals([6.6340e-03, 8.4829e-02, 4.5127e-03, 4.5027e-03,
-                          9.7437e-03, 1.6874e-12, 1.9622e-12])
+    uniform.SetNumberOfIterations(numIterationsShort)
+    uniform.SetResiduals([8.0052e-02, 2.2630e-01, 4.9451e-02, 5.0763e-02,
+                          7.7069e-02, 1.7784e-07, 1.8688e-07])
     uniform.SetMpirunPath(options.mpirunPath)
 
     # run regression case
