@@ -30,9 +30,7 @@ referenceLength: 1
 fluids: <fluid(name=air; n=2.5; molarMass=0.02897)>
 thermodynamicModel: caloricallyPerfect
 
-initialConditions: <icState(tag=-1; pressure=101325; density=1.2256; 
-                            velocity=[100, 0, 0]; turbulenceIntensity=0.1;
-                            eddyViscosityRatio=10)>
+initialConditions: <icState(tag=-1; pressure=101325; density=1.2256; velocity=[100, 0, 0]; turbulenceIntensity=0.1; eddyViscosityRatio=10)>
 
 matrixSolver: lusgs
 matrixSweeps: 2
@@ -40,8 +38,7 @@ matrixRelaxation: 1
 
 turbulenceModel: sst2003
 
-boundaryStates: <characteristic(tag=2; density=1.2256; pressure=101325; 
-                                velocity=[100, 0, 0]; massFractions=[air=1.0])>
+boundaryStates: <characteristic(tag=2; density=1.2256; pressure=101325; velocity=[100, 0, 0]; massFractions=[air=1.0])>
 
 #-------------------------------------------------------------
 boundaryConditions: 10
