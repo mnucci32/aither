@@ -4501,7 +4501,7 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, connection &inter,
 
           //-----------------------------------------------------------------
           // patches are j/k, j to k, k to i, i to j
-          } else if (inter.Direction3First() > "j" &&
+          } else if (inter.Direction3First() == "j" &&
                      inter.Direction3Second() == "k") {
             // swap face data for direction 3
             fCenterJ_(indB[0], indB[1], indB[2]) =
@@ -4743,8 +4743,8 @@ vector<bool> procBlock::PutGeomSlice(const geomSlice &slice, connection &inter,
           } else {
             cerr << "ERROR: Error in procBlock::PutGeomSlice(). Unable to swap "
                     "face quantities because behavior for interface with "
-                    "boundary pair " << inter.BoundaryFirst() << ", "
-                 << inter.BoundarySecond() << " is not defined." << endl;
+                    "boundary pair " << inter.Direction3First() << ", "
+                 << inter.Direction3Second() << " is not defined." << endl;
             exit(EXIT_FAILURE);
           }
         }

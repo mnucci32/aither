@@ -19,7 +19,8 @@ referenceDensity: 1.2256
 
 initialConditions: <icState(tag=-1; pressure=101300; density=1.2256; velocity=[852.4, 0, 0])>
 
-boundaryStates: <supersonicInflow(tag=1; pressure=101300; density=1.2256; velocity=[852.4, 0, 0])>
+boundaryStates: <supersonicInflow(tag=1; pressure=101300; density=1.2256; 
+                                  velocity=[852.4, 0, 0]; massFractions=[air=1.0])>
 
 #---------------------------------------------------------------------------#
 #Boundary Conditions

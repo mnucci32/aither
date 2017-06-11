@@ -30,9 +30,10 @@ matrixRelaxation: 1.0
 
 turbulenceModel: kOmegaWilcox2006
 
-boundaryStates: <stagnationInlet(tag=1; p0=117662.9; t0=302.4; direction=[1, 0, 0]),
+boundaryStates: <stagnationInlet(tag=1; p0=117662.9; t0=302.4; 
+                                 direction=[1, 0, 0]; massFractions=[air=1.0]),
                  pressureOutlet(tag=2; pressure=114426.9),
-		 viscousWall(tag=3)>
+		             viscousWall(tag=3)>
 
 #---------------------------------------------------------------------------#
 #Boundary Conditions

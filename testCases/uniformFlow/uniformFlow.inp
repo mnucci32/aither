@@ -17,15 +17,22 @@ limiter: none
 iterations: 1000
 nonlinearIterations: 1
 outputFrequency: 100
-outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach, tke, sdr, viscosityRatio, temperature, viscosity, wallDistance, sos, turbulentViscosity>
+outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach, tke, sdr, 
+                  viscosityRatio, temperature, viscosity, wallDistance, sos, 
+                  turbulentViscosity>
 restartFrequency: 0
-
 
 # reference conditions
 referenceDensity: 1.2256
 referenceTemperature: 288
+referenceLength: 1
 
-initialConditions: <icState(tag=-1; pressure=101325; density=1.2256; velocity=[100, 0, 0])>
+fluids: <fluid(name=air; n=2.5; molarMass=0.02897)>
+thermodynamicModel: caloricallyPerfect
+
+initialConditions: <icState(tag=-1; pressure=101325; density=1.2256; 
+                            velocity=[100, 0, 0]; turbulenceIntensity=0.1;
+                            eddyViscosityRatio=10)>
 
 matrixSolver: lusgs
 matrixSweeps: 2
@@ -33,7 +40,8 @@ matrixRelaxation: 1
 
 turbulenceModel: sst2003
 
-boundaryStates: <characteristic(tag=2; density=1.2256; pressure=101325; velocity=[100, 0, 0])>
+boundaryStates: <characteristic(tag=2; density=1.2256; pressure=101325; 
+                                velocity=[100, 0, 0]; massFractions=[air=1.0])>
 
 #-------------------------------------------------------------
 boundaryConditions: 10
@@ -118,24 +126,24 @@ boundaryConditions: 10
 2 2 2
 # i-surfaces
   interblock              0    0    0    4    0    4  1006
-  interblock             10   10    0    4    0    4  1008
+  interblock             10   10    0    4    0    4  3008
 # j-surfaces
   slipWall                0   10    0    0    0    4     1
   slipWall                0   10    4    4    0    4     1
 # k-surfaces
   slipWall                0   10    0    4    0    0     1
   slipWall                0   10    0    4    4    4     1
-# Block 8 -- Dimensions: 11 x 5 x 5
+# Block 8 -- Dimensions: 5 x 11 x 5
 2 2 2
 # i-surfaces
-  interblock              0    0    0    4    0    4  2007
-  interblock             10   10    0    4    0    4  5009
+  slipWall                0    0    0   10    0    4     1
+  slipWall                4    4    0   10    0    4     1
 # j-surfaces
-  slipWall                0   10    0    0    0    4     1
-  slipWall                0   10    4    4    0    4     1
+  interblock              0    4    0    0    0    4  2007
+  interblock              0    4   10   10    0    4  5009
 # k-surfaces
-  slipWall                0   10    0    4    0    0     1
-  slipWall                0   10    0    4    4    4     1
+  slipWall                0    4    0   10    0    0     1
+  slipWall                0    4    0   10    4    4     1
 # Block 9 -- Dimensions: 5 x 5 x 11
 2 2 2
 # i-surfaces
@@ -145,5 +153,5 @@ boundaryConditions: 10
   slipWall                0    4    0    0    0   10     1
   slipWall                0    4    4    4    0   10     1
 # k-surfaces
-  interblock              0    4    0    4    0    0  2008
+  interblock              0    4    0    4    0    0  4008
   characteristic          0    4    0    4   10   10     2
