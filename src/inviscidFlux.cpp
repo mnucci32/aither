@@ -25,6 +25,7 @@
 #include "genArray.hpp"
 #include "matrix.hpp"
 #include "turbulence.hpp"
+#include "utility.hpp"
 
 using std::cout;
 using std::endl;
@@ -278,6 +279,88 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   leftFlux.RoeFlux(rightFlux, dissipation);
 
   return leftFlux;
+}
+
+inviscidFlux AUSMFlux(const primVars &left, const primVars &right,
+                     const unique_ptr<eos> &eqnState,
+                     const unique_ptr<thermodynamic> &thermo,
+                     const vector3d<double> &area) {
+  // left -- primative variables from left
+  // right -- primative variables from right
+  // eqnState -- equation of state
+  // area -- norm area vector of face
+
+  // calculate average stagnation enthalpy on face
+  const auto h0l = left.Enthalpy(eqnState, thermo);
+  const auto h0r = right.Enthalpy(eqnState, thermo);
+  const auto h0 = 0.5 * (h0l + h0r);
+
+  // calculate average speed of sound on face
+  const auto t =
+      0.5 * (left.Temperature(eqnState) + right.Temperature(eqnState));
+  const auto sos =
+      sqrt(2.0 * h0 * (thermo->Gamma(t) - 1.0) / (thermo->Gamma(t) + 1.0));
+
+  // calculate mach numbers
+  const auto ml = left.Velocity().Mag() / sos;
+  const auto mr = right.Velocity().Mag() / sos;
+
+  // calculate split mach number and pressure terms
+  const auto mPlusL =
+      fabs(ml) <= 1.0 ? 0.25 * pow(ml + 1.0, 2.0) : 0.5 * (ml + fabs(ml));
+  const auto mMinusR =
+      fabs(mr) <= 1.0 ? -0.25 * pow(mr - 1.0, 2.0) : 0.5 * (mr - fabs(mr));
+  const auto pPlus = fabs(ml) <= 1.0 ? 0.25 * pow(ml + 1.0, 2.0) * (2.0 - ml)
+                                     : 0.5 * (1.0 + Sign(ml));
+  const auto pMinus = fabs(mr) <= 1.0 ? 0.25 * pow(mr - 1.0, 2.0) * (2.0 + mr)
+                                      : 0.5 * (1.0 - Sign(mr));
+
+  // calculate pressure weighting terms
+  const auto ps = pPlus * left.P() + pMinus * right.P();
+  const auto w =
+      1.0 - pow(std::min(left.P() / right.P(), right.P() / left.P()), 3.0);
+  const auto fl = fabs(ml) < 1.0 ? left.P() / ps - 1.0 : 0.0;
+  const auto fr = fabs(mr) < 1.0 ? right.P() / ps - 1.0 : 0.0;
+
+  // calculate final split properties
+  const auto mavg = mPlusL + mMinusR;
+  const auto mPlusLBar = mavg >= 0.0
+                             ? mPlusL + mMinusR * ((1.0 - w) * (1.0 + fr) - fl)
+                             : mPlusL * w * (1.0 + fl);
+  const auto mMinusRBar =
+      mavg >= 0.0 ? mMinusR * w * (1.0 + fr)
+                  : mMinusR + mPlusL * ((1.0 - w) * (1.0 + fl) - fr);
+
+  inviscidFlux ausm;
+  ausm.AUSMFlux(left, right, area, sos, mPlusLBar, mMinusRBar, pPlus, pMinus,
+                h0l, h0r);
+  return ausm;
+}
+
+void inviscidFlux::AUSMFlux(const primVars &left, const primVars &right,
+                            const vector3d<double> &area, const double &sos,
+                            const double &mPlusLBar, const double &mMinusRBar,
+                            const double &pPlus, const double &pMinus,
+                            const double &enthalpyL, const double &enthalpyR) {
+  // calculate left flux
+  const auto vl = mPlusLBar * sos;
+  data_[0] = left.Rho() * vl;
+  data_[1] = left.Rho() * vl * left.U() + pPlus * left.P() * area.X();
+  data_[2] = left.Rho() * vl * left.V() + pPlus * left.P() * area.Y();
+  data_[3] = left.Rho() * vl * left.W() + pPlus * left.P() * area.Z();
+  data_[4] = left.Rho() * vl * enthalpyL;
+  data_[5] = left.Rho() * vl * left.Tke();
+  data_[6] = left.Rho() * vl * left.Omega();
+
+  // calculate right flux
+  const auto vr = mMinusRBar * sos;
+  data_[0] += right.Rho() * vr;
+  data_[1] += right.Rho() * vr * right.U() + pMinus * right.P() * area.X();
+  data_[2] += right.Rho() * vr * right.V() + pMinus * right.P() * area.Y();
+  data_[3] += right.Rho() * vr * right.W() + pMinus * right.P() * area.Z();
+  data_[4] += right.Rho() * vr * enthalpyR;
+  data_[5] += right.Rho() * vr * right.Tke();
+  data_[6] += right.Rho() * vr * right.Omega();
 }
 
 inviscidFlux RusanovFlux(const primVars &left, const primVars &right,
