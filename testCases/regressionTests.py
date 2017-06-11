@@ -438,8 +438,8 @@ def main():
     uniform.SetRunDirectory("uniformFlow")
     uniform.SetNumberOfProcessors(1)
     uniform.SetNumberOfIterations(numIterationsShort)
-    uniform.SetResiduals([8.0052e-02, 2.2630e-01, 4.9451e-02, 5.0763e-02,
-                          7.7069e-02, 1.7784e-07, 1.8688e-07])
+    uniform.SetResiduals([2.6167e-01, 3.2443e-01, 1.8594e-01, 1.8633e-01,
+                          2.5828e-01, 7.7757e-09, 2.4621e-09])
     uniform.SetMpirunPath(options.mpirunPath)
 
     # run regression case
