@@ -25,6 +25,7 @@
 #include "genArray.hpp"
 #include "matrix.hpp"
 #include "turbulence.hpp"
+#include "utility.hpp"
 
 using std::cout;
 using std::endl;
@@ -280,6 +281,132 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   return leftFlux;
 }
 
+/* Function to calculate the AUSMPW+ flux as described in "Accurate Compuations
+   of Hypersonic Flows Using AUSMPW+ Scheme and Shock-Aligned Grid Technique". 
+   by Kim, Kim, & Rho. AIAA 1998. Unlike the Roe scheme, this flux scheme is an
+   example of flux vector splitting instead of flux difference splitting. 
+   Although more dissipative, it has shown good performance in the high speed
+   regime where the Roe scheme can suffer from carbuncle problems. The flux is
+   split into the convective and pressure terms, which are then split based on
+   the mach number and pressure. The flux discretization is shown below.
+
+   F = M^+_l * c * F_cl + M^-_r * c * F_cr + P^+_l * P_l + P^-_r * P_r
+*/
+inviscidFlux AUSMFlux(const primVars &left, const primVars &right,
+                     const unique_ptr<eos> &eqnState,
+                     const unique_ptr<thermodynamic> &thermo,
+                     const vector3d<double> &area) {
+  // left -- primative variables from left
+  // right -- primative variables from right
+  // eqnState -- equation of state
+  // thermo -- thermodynamic model
+  // area -- norm area vector of face
+
+  // calculate average specific enthalpy on face
+  const auto tl = left.Temperature(eqnState);
+  const auto tr = right.Temperature(eqnState);
+  const auto hl = thermo->SpecEnthalpy(tl);
+  const auto hr = thermo->SpecEnthalpy(tr);
+  const auto h = 0.5 * (hl + hr);
+
+  // calculate c* from Kim, Kim, Rho 1998
+  const auto t = 0.5 * (tl + tr);
+  const auto sosStar =
+      sqrt(2.0 * h * (thermo->Gamma(t) - 1.0) / (thermo->Gamma(t) + 1.0));
+
+  // calculate left/right mach numbers
+  const auto vell = left.Velocity().DotProd(area);
+  const auto velr = right.Velocity().DotProd(area);
+  const auto ml = vell / sosStar;
+  const auto mr = velr / sosStar;
+
+  // calculate speed of sound on face c_1/2 from Kim, Kim, Rho 1998
+  const auto vel = 0.5 * (vell + velr);
+  auto sos = 0.0;
+  if (vel < 0.0) {
+    sos = sosStar * sosStar / std::max(vell, sosStar);
+  } else if (vel > 0.0) {
+    sos = sosStar * sosStar / std::max(velr, sosStar);
+  }
+
+  // calculate split mach number and pressure terms
+  const auto mPlusL =
+      fabs(ml) <= 1.0 ? 0.25 * pow(ml + 1.0, 2.0) : 0.5 * (ml + fabs(ml));
+  const auto mMinusR =
+      fabs(mr) <= 1.0 ? -0.25 * pow(mr - 1.0, 2.0) : 0.5 * (mr - fabs(mr));
+  const auto pPlus = fabs(ml) <= 1.0 ? 0.25 * pow(ml + 1.0, 2.0) * (2.0 - ml)
+                                     : 0.5 * (1.0 + Sign(ml));
+  const auto pMinus = fabs(mr) <= 1.0 ? 0.25 * pow(mr - 1.0, 2.0) * (2.0 + mr)
+                                      : 0.5 * (1.0 - Sign(mr));
+
+  // calculate pressure weighting terms
+  const auto ps = pPlus * left.P() + pMinus * right.P();
+  const auto w =
+      1.0 - pow(std::min(left.P() / right.P(), right.P() / left.P()), 3.0);
+  const auto fl = fabs(ml) < 1.0 ? left.P() / ps - 1.0 : 0.0;
+  const auto fr = fabs(mr) < 1.0 ? right.P() / ps - 1.0 : 0.0;
+
+  // calculate final split properties
+  const auto mavg = mPlusL + mMinusR;
+  const auto mPlusLBar = mavg >= 0.0
+                             ? mPlusL + mMinusR * ((1.0 - w) * (1.0 + fr) - fl)
+                             : mPlusL * w * (1.0 + fl);
+  const auto mMinusRBar =
+      mavg >= 0.0 ? mMinusR * w * (1.0 + fr)
+                  : mMinusR + mPlusL * ((1.0 - w) * (1.0 + fl) - fr);
+
+  inviscidFlux ausm;
+  ausm.AUSMFlux(left, right, eqnState, thermo, area, sos, mPlusLBar, mMinusRBar,
+                pPlus, pMinus);
+  return ausm;
+}
+
+void inviscidFlux::AUSMFlux(const primVars &left, const primVars &right,
+                            const unique_ptr<eos> &eqnState,
+                            const unique_ptr<thermodynamic> &thermo,
+                            const vector3d<double> &area,
+                            const double &sos, const double &mPlusLBar,
+                            const double &mMinusRBar, const double &pPlus,
+                            const double &pMinus) {
+  // calculate left flux
+  const auto vl = mPlusLBar * sos;
+  data_[0] = left.Rho() * vl;
+  data_[1] = left.Rho() * vl * left.U() + pPlus * left.P() * area.X();
+  data_[2] = left.Rho() * vl * left.V() + pPlus * left.P() * area.Y();
+  data_[3] = left.Rho() * vl * left.W() + pPlus * left.P() * area.Z();
+  data_[4] = left.Rho() * vl * left.Enthalpy(eqnState, thermo);
+  data_[5] = left.Rho() * vl * left.Tke();
+  data_[6] = left.Rho() * vl * left.Omega();
+
+  // calculate right flux (add contribution)
+  const auto vr = mMinusRBar * sos;
+  data_[0] += right.Rho() * vr;
+  data_[1] += right.Rho() * vr * right.U() + pMinus * right.P() * area.X();
+  data_[2] += right.Rho() * vr * right.V() + pMinus * right.P() * area.Y();
+  data_[3] += right.Rho() * vr * right.W() + pMinus * right.P() * area.Z();
+  data_[4] += right.Rho() * vr * right.Enthalpy(eqnState, thermo);
+  data_[5] += right.Rho() * vr * right.Tke();
+  data_[6] += right.Rho() * vr * right.Omega();
+}
+
+inviscidFlux InviscidFlux(const primVars &left, const primVars &right,
+                          const unique_ptr<eos> &eqnState,
+                          const unique_ptr<thermodynamic> &thermo,
+                          const vector3d<double> &area, const string &flux) {
+  inviscidFlux invFlux;
+  if (flux == "roe") {
+    invFlux = RoeFlux(left, right, eqnState, thermo, area);
+  } else if (flux == "ausm") {
+    invFlux = AUSMFlux(left, right, eqnState, thermo, area);
+  } else {
+    cerr << "ERROR: inviscid flux type " << flux << " is not recognized!"
+         << endl;
+    cerr << "Choose 'roe' or 'ausm'" << endl;
+    exit(EXIT_FAILURE);
+  }
+  return invFlux;
+}
+
 inviscidFlux RusanovFlux(const primVars &left, const primVars &right,
                          const unique_ptr<eos> &eqnState,
                          const unique_ptr<thermodynamic> &thermo,
@@ -293,10 +420,10 @@ inviscidFlux RusanovFlux(const primVars &left, const primVars &right,
   // positive -- flag that is positive to add spectral radius
 
   // calculate maximum spectral radius
-  const auto leftSpecRad = fabs(left.Velocity().DotProd(areaNorm))
-    + left.SoS(thermo, eqnState);
-  const auto rightSpecRad = fabs(right.Velocity().DotProd(areaNorm))
-    + right.SoS(thermo, eqnState);
+  const auto leftSpecRad =
+      fabs(left.Velocity().DotProd(areaNorm)) + left.SoS(thermo, eqnState);
+  const auto rightSpecRad =
+      fabs(right.Velocity().DotProd(areaNorm)) + right.SoS(thermo, eqnState);
   const auto fac = positive ? -1.0 : 1.0;
   const auto specRad = fac * std::max(leftSpecRad, rightSpecRad);
 

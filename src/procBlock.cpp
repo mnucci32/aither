@@ -477,10 +477,10 @@ void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
           }
         }
 
-        // calculate Roe flux at face
-        const inviscidFlux tempFlux = RoeFlux(faceStateLower, faceStateUpper,
-                                              eqnState, thermo,
-                                              this->FAreaUnitI(ii, jj, kk));
+        // calculate inviscid flux at face
+        const inviscidFlux tempFlux =
+            InviscidFlux(faceStateLower, faceStateUpper, eqnState, thermo,
+                         this->FAreaUnitI(ii, jj, kk), inp.InviscidFlux());
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell
@@ -610,10 +610,10 @@ void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
           }
         }
 
-        // calculate Roe flux at face
+        // calculate inviscid flux at face
         const inviscidFlux tempFlux =
-            RoeFlux(faceStateLower, faceStateUpper, eqnState, thermo,
-                    this->FAreaUnitJ(ii, jj, kk));
+            InviscidFlux(faceStateLower, faceStateUpper, eqnState, thermo,
+                         this->FAreaUnitJ(ii, jj, kk), inp.InviscidFlux());
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell
@@ -742,10 +742,10 @@ void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
           }
         }
 
-        // calculate Roe flux at face
+        // calculate inviscid flux at face
         const inviscidFlux tempFlux =
-            RoeFlux(faceStateLower, faceStateUpper, eqnState, thermo,
-                    this->FAreaUnitK(ii, jj, kk));
+            InviscidFlux(faceStateLower, faceStateUpper, eqnState, thermo,
+                         this->FAreaUnitK(ii, jj, kk), inp.InviscidFlux());
 
         // area vector points from left to right, so add to left cell, subtract
         // from right cell

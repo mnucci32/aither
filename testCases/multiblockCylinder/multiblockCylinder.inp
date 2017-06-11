@@ -8,8 +8,11 @@ timeIntegration: implicitEuler
 cflStart: 1.0
 cflStep: 1.0
 cflMax: 1000.0
+
+inviscidFlux: ausm
 faceReconstruction: thirdOrder
 limiter: none
+
 iterations: 5000 
 outputFrequency: 1000 
 outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach>
