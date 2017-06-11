@@ -223,14 +223,15 @@ def main():
 
     # ------------------------------------------------------------------
     # multi-block subsonic cylinder
-    # laminar, inviscid, lusgs, multi-block
+    # laminar, inviscid, lusgs, multi-block, ausmpw+
     multiCyl = regressionTest()
     multiCyl.SetRegressionCase("multiblockCylinder")
     multiCyl.SetAitherPath(options.aitherPath)
     multiCyl.SetRunDirectory("multiblockCylinder")
     multiCyl.SetNumberOfProcessors(maxProcs)
     multiCyl.SetNumberOfIterations(numIterations)
-    multiCyl.SetResiduals([2.3188e-1, 2.9621e-1, 4.5868e-1, 1.0974, 2.3009e-1])
+    multiCyl.SetResiduals([2.3117e-01, 2.5907e-01, 4.0735e-01, 1.0640e+00,
+                           2.2955e-01])
     multiCyl.SetIgnoreIndices(3)
     multiCyl.SetMpirunPath(options.mpirunPath)
 

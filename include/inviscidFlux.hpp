@@ -80,9 +80,10 @@ class inviscidFlux {
   double RhoVelO() const { return data_[6]; }
 
   void RoeFlux(const inviscidFlux&, const genArray&);
-  void AUSMFlux(const primVars &, const primVars &, const vector3d<double> &,
+  void AUSMFlux(const primVars &, const primVars &, const unique_ptr<eos> &,
+                const unique_ptr<thermodynamic> &, const vector3d<double> &,
                 const double &, const double &, const double &, const double &,
-                const double &, const double &, const double &);
+                const double &);
 
   inline inviscidFlux & operator+=(const inviscidFlux &);
   inline inviscidFlux & operator-=(const inviscidFlux &);
@@ -131,6 +132,10 @@ inviscidFlux AUSMFlux(const primVars &, const primVars &,
                       const unique_ptr<eos> &,
                       const unique_ptr<thermodynamic> &,
                       const vector3d<double> &);
+inviscidFlux InviscidFlux(const primVars &, const primVars &,
+                          const unique_ptr<eos> &,
+                          const unique_ptr<thermodynamic> &,
+                          const vector3d<double> &, const string &);
 inviscidFlux RusanovFlux(const primVars &, const primVars &,
                          const unique_ptr<eos> &,
                          const unique_ptr<thermodynamic> &,

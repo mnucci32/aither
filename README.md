@@ -32,7 +32,6 @@ large eddy simulations, the WALE subgrid scale model is available.
 
 ### To Do List
 * Add non-reflecting boundary conditions
-* Add additional inviscid flux option (AUSM)
 * Add multigrid scheme for improved convergence
 * Add multi-species flow capability
 
