@@ -47,8 +47,9 @@ using std::ostream;
 class procBlock;
 class genArray;
 class decomposition;
-class idealGas;
-class sutherland;
+class eos;
+class transport;
+class thermodynamic;
 class resid;
 class input;
 class turbModel;
@@ -62,34 +63,36 @@ void WriteCellCenter(const string &, const vector<procBlock> &,
                      const decomposition &, const input &);
 void WriteWallFaceCenter(const string &, const vector<procBlock> &,
                          const double &);
-void WriteFun(const vector<procBlock> &, const idealGas &,
-              const sutherland &, const int &, const decomposition &,
+void WriteFun(const vector<procBlock> &, const unique_ptr<eos> &,
+              const unique_ptr<thermodynamic> &thermo,
+              const unique_ptr<transport> &, const int &, const decomposition &,
               const input &, const unique_ptr<turbModel> &);
-void WriteWallFun(const vector<procBlock> &, const idealGas &,
-                  const sutherland &, const int &, const input &,
+void WriteWallFun(const vector<procBlock> &, const unique_ptr<eos> &,
+                  const unique_ptr<transport> &, const int &, const input &,
                   const unique_ptr<turbModel> &);
-void WriteRes(const input &, const int &);
 void WriteMeta(const input &, const int &);
 void WriteWallMeta(const input &, const int &);
 
-void WriteRestart(const vector<procBlock> &, const idealGas &,
-                  const sutherland &, const int &, const decomposition &,
-                  const input &, const genArray &);
+void WriteRestart(const vector<procBlock> &, const unique_ptr<eos> &,
+                  const unique_ptr<transport> &, const int &,
+                  const decomposition &, const input &, const genArray &);
 void ReadRestart(vector<procBlock> &, const string &, const decomposition &,
-                 input &, const idealGas &, const sutherland &,
-                 const unique_ptr<turbModel> &, genArray &,
-                 const vector<vector3d<int>> &);
+                 input &, const unique_ptr<eos> &,
+                 const unique_ptr<thermodynamic> &,
+                 const unique_ptr<transport> &, const unique_ptr<turbModel> &,
+                 genArray &, const vector<vector3d<int>> &);
 
 multiArray3d<primVars> ReadSolFromRestart(ifstream &, const input &,
-                                          const idealGas&, const sutherland &,
+                                          const unique_ptr<eos> &,
+                                          const unique_ptr<thermodynamic> &,
+                                          const unique_ptr<transport> &,
                                           const unique_ptr<turbModel> &,
                                           const vector<string> &, const int &,
                                           const int &, const int &);
-multiArray3d<genArray> ReadSolNm1FromRestart(ifstream &, const input &,
-                                             const idealGas&, const sutherland &,
-                                             const unique_ptr<turbModel> &,
-                                             const vector<string> &, const int &,
-                                             const int &, const int &);
+multiArray3d<genArray> ReadSolNm1FromRestart(
+    ifstream &, const input &, const unique_ptr<eos> &,
+    const unique_ptr<transport> &, const unique_ptr<turbModel> &,
+    const vector<string> &, const int &, const int &, const int &);
 
 void WriteResiduals(const input &, genArray &, const genArray &, const resid &,
                     const double &, const int &, const int &, ostream &);

@@ -1,0 +1,59 @@
+# grid name
+gridName: thermallyPerfect
+
+# solver parameters
+decompositionMethod: cubic
+equationSet: rans
+timeIntegration: implicitEuler
+cflStart: 10
+cflMax: 10
+
+#faceReconstruction: thirdOrder
+inviscidFlux: roe
+inviscidFluxJacobian: rusanov
+viscousFaceReconstruction: central
+limiter: minmod
+
+iterations: 5000
+outputFrequency: 1000
+outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach, temperature, viscosityRatio, wallDistance,
+                  tke, sdr, f1, f2, sos, turbulentViscosity, resid_mass, resid_mom_x, resid_mom_y, resid_mom_z,
+		  resid_energy, resid_tke, resid_sdr, tkeGrad_x, omegaGrad_x>
+restartFrequency: 1000
+
+
+# reference conditions
+referenceTemperature: 2000
+referenceDensity: 0.4
+lengthRef: 1
+
+fluids: <fluid(name=air; n=2.5; molarMass=0.02897)>
+thermodynamicModel: thermallyPerfect
+
+initialConditions: <icState(tag=-1; pressure=229600; density=0.4; velocity=[2689.3, 0, 0]; massFractions=[air=1.0])>
+
+
+matrixSolver: lusgs
+matrixSweeps: 1
+matrixRelaxation: 1.0
+
+turbulenceModel: sst2003
+
+boundaryStates: <supersonicInflow(tag=2; pressure=229600; density=0.4; velocity=[2689.3, 0, 0]),
+                 viscousWall(tag=6)>
+
+#-------------------------------------------------------------
+boundaryConditions: 1
+# Block 0 -- Dimensions: 121 x 151 x 2
+4 2 2
+# i-surfaces
+  slipWall                0    0    0  150    0    1     4
+  slipWall              120  120    0   30    0    1     5
+  viscousWall           120  120   30   70    0    1     6
+  viscousWall           120  120   70  150    0    1     6
+# j-surfaces
+  supersonicInflow        0  120    0    0    0    1     2
+  supersonicOutflow       0  120  150  150    0    1     3
+# k-surfaces
+  slipWall                0  120    0  150    0    0     1
+  slipWall                0  120    0  150    1    1     1

@@ -20,10 +20,12 @@
 #include <algorithm>  // max
 #include "inviscidFlux.hpp"
 #include "eos.hpp"
+#include "thermodynamic.hpp"
 #include "primVars.hpp"
 #include "genArray.hpp"
 #include "matrix.hpp"
 #include "turbulence.hpp"
+#include "utility.hpp"
 
 using std::cout;
 using std::endl;
@@ -64,7 +66,8 @@ constructors (primVars version and genArray version) can call this function
 to avoid code duplication.
 */
 void inviscidFlux::ConstructFromPrim(const primVars &state,
-                                     const idealGas &eqnState,
+                                     const unique_ptr<eos> &eqnState,
+                                     const unique_ptr<thermodynamic> &thermo,
                                      const vector3d<double> &normArea) {
   // state -- primative variables
   // eqnState -- equation of state
@@ -77,24 +80,28 @@ void inviscidFlux::ConstructFromPrim(const primVars &state,
   data_[1] = state.Rho() * velNorm * vel.X() + state.P() * normArea.X();
   data_[2] = state.Rho() * velNorm * vel.Y() + state.P() * normArea.Y();
   data_[3] = state.Rho() * velNorm * vel.Z() + state.P() * normArea.Z();
-  data_[4] = state.Rho() * velNorm * state.Enthalpy(eqnState);
+  data_[4] = state.Rho() * velNorm * state.Enthalpy(eqnState, thermo);
 
   data_[5] = state.Rho() * velNorm * state.Tke();
   data_[6] = state.Rho() * velNorm * state.Omega();
 }
 
-inviscidFlux::inviscidFlux(const primVars &state, const idealGas &eqnState,
+inviscidFlux::inviscidFlux(const primVars &state,
+                           const unique_ptr<eos> &eqnState,
+                           const unique_ptr<thermodynamic> &thermo,
                            const vector3d<double> &normArea) {
   // state -- primative variables
   // eqnState -- equation of state
   // normArea -- unit area vector of face
 
-  this->ConstructFromPrim(state, eqnState, normArea);
+  this->ConstructFromPrim(state, eqnState, thermo, normArea);
 }
 
 // constructor -- initialize flux from state vector using conservative variables
 // flux is a 3D flux in the normal direction of the given face
-inviscidFlux::inviscidFlux(const genArray &cons, const idealGas &eqnState,
+inviscidFlux::inviscidFlux(const genArray &cons,
+                           const unique_ptr<eos> &eqnState,
+                           const unique_ptr<thermodynamic> &thermo,
                            const unique_ptr<turbModel> &turb,
                            const vector3d<double> &normArea) {
   // cons -- genArray of conserved variables
@@ -103,9 +110,9 @@ inviscidFlux::inviscidFlux(const genArray &cons, const idealGas &eqnState,
   // normArea -- unit area vector of face
 
   // convert conserved variables to primative variables
-  const primVars state(cons, false, eqnState, turb);
+  const primVars state(cons, false, eqnState, thermo, turb);
 
-  this->ConstructFromPrim(state, eqnState, normArea);
+  this->ConstructFromPrim(state, eqnState, thermo, normArea);
 }
 
 /* Function to calculate inviscid flux using Roe's approximate Riemann solver.
@@ -154,7 +161,8 @@ wave strength across the face.
 
 */
 inviscidFlux RoeFlux(const primVars &left, const primVars &right,
-                     const idealGas &eqnState,
+                     const unique_ptr<eos> &eqnState,
+                     const unique_ptr<thermodynamic> &thermo,
                      const vector3d<double> &areaNorm) {
   // left -- primative variables from left
   // right -- primative variables from right
@@ -163,13 +171,13 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
 
   // compute Rho averaged quantities
   // Roe averaged state
-  const auto roe = RoeAveragedState(left, right, eqnState);
+  const auto roe = RoeAveragedState(left, right);
 
   // Roe averaged total enthalpy
-  const auto hR = roe.Enthalpy(eqnState);
+  const auto hR = roe.Enthalpy(eqnState, thermo);
 
   // Roe averaged speed of sound
-  const auto aR = roe.SoS(eqnState);
+  const auto aR = roe.SoS(thermo, eqnState);
 
   // Roe velocity dotted with normalized area vector
   const auto velRSum = roe.Velocity().DotProd(areaNorm);
@@ -264,8 +272,8 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   }
 
   // calculate left/right physical flux
-  inviscidFlux leftFlux(left, eqnState, areaNorm);
-  inviscidFlux rightFlux(right, eqnState, areaNorm);
+  inviscidFlux leftFlux(left, eqnState, thermo, areaNorm);
+  inviscidFlux rightFlux(right, eqnState, thermo, areaNorm);
 
   // calculate numerical Roe flux
   leftFlux.RoeFlux(rightFlux, dissipation);
@@ -273,28 +281,155 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
   return leftFlux;
 }
 
+/* Function to calculate the AUSMPW+ flux as described in "Accurate Compuations
+   of Hypersonic Flows Using AUSMPW+ Scheme and Shock-Aligned Grid Technique". 
+   by Kim, Kim, & Rho. AIAA 1998. Unlike the Roe scheme, this flux scheme is an
+   example of flux vector splitting instead of flux difference splitting. 
+   Although more dissipative, it has shown good performance in the high speed
+   regime where the Roe scheme can suffer from carbuncle problems. The flux is
+   split into the convective and pressure terms, which are then split based on
+   the mach number and pressure. The flux discretization is shown below.
 
-inviscidFlux RusanovFlux(const primVars &left, const primVars &right,
-                         const idealGas &eqnState,
-                         const vector3d<double> &areaNorm,
-			 const bool &positive) {
+   F = M^+_l * c * F_cl + M^-_r * c * F_cr + P^+_l * P_l + P^-_r * P_r
+*/
+inviscidFlux AUSMFlux(const primVars &left, const primVars &right,
+                     const unique_ptr<eos> &eqnState,
+                     const unique_ptr<thermodynamic> &thermo,
+                     const vector3d<double> &area) {
   // left -- primative variables from left
   // right -- primative variables from right
   // eqnState -- equation of state
+  // thermo -- thermodynamic model
+  // area -- norm area vector of face
+
+  // calculate average specific enthalpy on face
+  const auto tl = left.Temperature(eqnState);
+  const auto tr = right.Temperature(eqnState);
+  const auto hl = thermo->SpecEnthalpy(tl);
+  const auto hr = thermo->SpecEnthalpy(tr);
+  const auto h = 0.5 * (hl + hr);
+
+  // calculate c* from Kim, Kim, Rho 1998
+  const auto t = 0.5 * (tl + tr);
+  const auto sosStar =
+      sqrt(2.0 * h * (thermo->Gamma(t) - 1.0) / (thermo->Gamma(t) + 1.0));
+
+  // calculate left/right mach numbers
+  const auto vell = left.Velocity().DotProd(area);
+  const auto velr = right.Velocity().DotProd(area);
+  const auto ml = vell / sosStar;
+  const auto mr = velr / sosStar;
+
+  // calculate speed of sound on face c_1/2 from Kim, Kim, Rho 1998
+  const auto vel = 0.5 * (vell + velr);
+  auto sos = 0.0;
+  if (vel < 0.0) {
+    sos = sosStar * sosStar / std::max(vell, sosStar);
+  } else if (vel > 0.0) {
+    sos = sosStar * sosStar / std::max(velr, sosStar);
+  }
+
+  // calculate split mach number and pressure terms
+  const auto mPlusL =
+      fabs(ml) <= 1.0 ? 0.25 * pow(ml + 1.0, 2.0) : 0.5 * (ml + fabs(ml));
+  const auto mMinusR =
+      fabs(mr) <= 1.0 ? -0.25 * pow(mr - 1.0, 2.0) : 0.5 * (mr - fabs(mr));
+  const auto pPlus = fabs(ml) <= 1.0 ? 0.25 * pow(ml + 1.0, 2.0) * (2.0 - ml)
+                                     : 0.5 * (1.0 + Sign(ml));
+  const auto pMinus = fabs(mr) <= 1.0 ? 0.25 * pow(mr - 1.0, 2.0) * (2.0 + mr)
+                                      : 0.5 * (1.0 - Sign(mr));
+
+  // calculate pressure weighting terms
+  const auto ps = pPlus * left.P() + pMinus * right.P();
+  const auto w =
+      1.0 - pow(std::min(left.P() / right.P(), right.P() / left.P()), 3.0);
+  const auto fl = fabs(ml) < 1.0 ? left.P() / ps - 1.0 : 0.0;
+  const auto fr = fabs(mr) < 1.0 ? right.P() / ps - 1.0 : 0.0;
+
+  // calculate final split properties
+  const auto mavg = mPlusL + mMinusR;
+  const auto mPlusLBar = mavg >= 0.0
+                             ? mPlusL + mMinusR * ((1.0 - w) * (1.0 + fr) - fl)
+                             : mPlusL * w * (1.0 + fl);
+  const auto mMinusRBar =
+      mavg >= 0.0 ? mMinusR * w * (1.0 + fr)
+                  : mMinusR + mPlusL * ((1.0 - w) * (1.0 + fl) - fr);
+
+  inviscidFlux ausm;
+  ausm.AUSMFlux(left, right, eqnState, thermo, area, sos, mPlusLBar, mMinusRBar,
+                pPlus, pMinus);
+  return ausm;
+}
+
+void inviscidFlux::AUSMFlux(const primVars &left, const primVars &right,
+                            const unique_ptr<eos> &eqnState,
+                            const unique_ptr<thermodynamic> &thermo,
+                            const vector3d<double> &area,
+                            const double &sos, const double &mPlusLBar,
+                            const double &mMinusRBar, const double &pPlus,
+                            const double &pMinus) {
+  // calculate left flux
+  const auto vl = mPlusLBar * sos;
+  data_[0] = left.Rho() * vl;
+  data_[1] = left.Rho() * vl * left.U() + pPlus * left.P() * area.X();
+  data_[2] = left.Rho() * vl * left.V() + pPlus * left.P() * area.Y();
+  data_[3] = left.Rho() * vl * left.W() + pPlus * left.P() * area.Z();
+  data_[4] = left.Rho() * vl * left.Enthalpy(eqnState, thermo);
+  data_[5] = left.Rho() * vl * left.Tke();
+  data_[6] = left.Rho() * vl * left.Omega();
+
+  // calculate right flux (add contribution)
+  const auto vr = mMinusRBar * sos;
+  data_[0] += right.Rho() * vr;
+  data_[1] += right.Rho() * vr * right.U() + pMinus * right.P() * area.X();
+  data_[2] += right.Rho() * vr * right.V() + pMinus * right.P() * area.Y();
+  data_[3] += right.Rho() * vr * right.W() + pMinus * right.P() * area.Z();
+  data_[4] += right.Rho() * vr * right.Enthalpy(eqnState, thermo);
+  data_[5] += right.Rho() * vr * right.Tke();
+  data_[6] += right.Rho() * vr * right.Omega();
+}
+
+inviscidFlux InviscidFlux(const primVars &left, const primVars &right,
+                          const unique_ptr<eos> &eqnState,
+                          const unique_ptr<thermodynamic> &thermo,
+                          const vector3d<double> &area, const string &flux) {
+  inviscidFlux invFlux;
+  if (flux == "roe") {
+    invFlux = RoeFlux(left, right, eqnState, thermo, area);
+  } else if (flux == "ausm") {
+    invFlux = AUSMFlux(left, right, eqnState, thermo, area);
+  } else {
+    cerr << "ERROR: inviscid flux type " << flux << " is not recognized!"
+         << endl;
+    cerr << "Choose 'roe' or 'ausm'" << endl;
+    exit(EXIT_FAILURE);
+  }
+  return invFlux;
+}
+
+inviscidFlux RusanovFlux(const primVars &left, const primVars &right,
+                         const unique_ptr<eos> &eqnState,
+                         const unique_ptr<thermodynamic> &thermo,
+                         const vector3d<double> &areaNorm,
+                         const bool &positive) {
+  // left -- primative variables from left
+  // right -- primative variables from right
+  // eqnState -- equation of state
+  // thermo -- thermodynamic model
   // areaNorm -- norm area vector of face
   // positive -- flag that is positive to add spectral radius
 
   // calculate maximum spectral radius
-  const auto leftSpecRad = fabs(left.Velocity().DotProd(areaNorm))
-    + left.SoS(eqnState);
-  const auto rightSpecRad = fabs(right.Velocity().DotProd(areaNorm))
-    + right.SoS(eqnState);
+  const auto leftSpecRad =
+      fabs(left.Velocity().DotProd(areaNorm)) + left.SoS(thermo, eqnState);
+  const auto rightSpecRad =
+      fabs(right.Velocity().DotProd(areaNorm)) + right.SoS(thermo, eqnState);
   const auto fac = positive ? -1.0 : 1.0;
   const auto specRad = fac * std::max(leftSpecRad, rightSpecRad);
 
   // calculate left/right physical flux
-  inviscidFlux leftFlux(left, eqnState, areaNorm);
-  inviscidFlux rightFlux(right, eqnState, areaNorm);
+  inviscidFlux leftFlux(left, eqnState, thermo, areaNorm);
+  inviscidFlux rightFlux(right, eqnState, thermo, areaNorm);
 
   return 0.5 * (leftFlux + rightFlux - specRad);
 }
@@ -339,13 +474,14 @@ genArray inviscidFlux::ConvertToGenArray() const {
 // convective flux
 genArray ConvectiveFluxUpdate(const primVars &state,
                               const primVars &stateUpdate,
-                              const idealGas &eqnState,
+                              const unique_ptr<eos> &eqnState,
+                              const unique_ptr<thermodynamic> &thermo,
                               const vector3d<double> &normArea) {
   // get inviscid flux of old state
-  const inviscidFlux oldFlux(state, eqnState, normArea);
+  const inviscidFlux oldFlux(state, eqnState, thermo, normArea);
 
   // get updated inviscid flux
-  const inviscidFlux newFlux(stateUpdate, eqnState, normArea);
+  const inviscidFlux newFlux(stateUpdate, eqnState, thermo, normArea);
 
   // calculate difference in flux
   const auto dFlux = newFlux - oldFlux;

@@ -97,36 +97,54 @@ boundarySurface boundaryConditions::GetBCSurface(const int &i, const int &j,
   // kk -- k coordinate
   // surf -- boundary condition surface type [1-6]
 
+  boundarySurface surface;
   auto iStart = 0;
   auto iEnd = 0;
 
-  // i-surfaces search between 0 and number of i-surfaces
   if (surf == 1 || surf == 2) {
+    // i-surfaces search between 0 and number of i-surfaces
     iStart = 0;
     iEnd = this->NumSurfI();
-    // j-surfaces search between end of i-surfaces and end of j-surfaces
+    // Determine which boundary condition should be applied
+    for (auto nn = iStart; nn < iEnd; nn++) {
+      // Determine which boundary given i, j, k coordinates apply to
+      if ((i >= this->GetIMin(nn) && i <= this->GetIMax(nn) &&
+           j >= this->GetJMin(nn) && j < this->GetJMax(nn) &&
+           k >= this->GetKMin(nn) && k < this->GetKMax(nn))) {
+        surface = this->GetSurface(nn);
+        break;
+      }
+    }
   } else if (surf == 3 || surf == 4) {
+    // j-surfaces search between end of i-surfaces and end of j-surfaces
     iStart = this->NumSurfI();
     iEnd = iStart + this->NumSurfJ();
-    // k-surfaces search between end of j-surfaces and end of k-surfaces
+    // Determine which boundary condition should be applied
+    for (auto nn = iStart; nn < iEnd; nn++) {
+      // Determine which boundary given i, j, k coordinates apply to
+      if ((i >= this->GetIMin(nn) && i < this->GetIMax(nn) &&
+           j >= this->GetJMin(nn) && j <= this->GetJMax(nn) &&
+           k >= this->GetKMin(nn) && k < this->GetKMax(nn))) {
+        surface = this->GetSurface(nn);
+        break;
+      }
+    }
   } else if (surf == 5 || surf == 6) {
+    // k-surfaces search between end of j-surfaces and end of k-surfaces
     iStart = this->NumSurfI() + this->NumSurfJ();
     iEnd = iStart + this->NumSurfK();
+    // Determine which boundary condition should be applied
+    for (auto nn = iStart; nn < iEnd; nn++) {
+      // Determine which boundary given i, j, k coordinates apply to
+      if ((i >= this->GetIMin(nn) && i < this->GetIMax(nn) &&
+           j >= this->GetJMin(nn) && j < this->GetJMax(nn) &&
+           k >= this->GetKMin(nn) && k <= this->GetKMax(nn))) {
+        surface = this->GetSurface(nn);
+        break;
+      }
+    }
   } else {
     cerr << "ERROR: Surface type " << surf << " is not recognized!" << endl;
-  }
-
-  boundarySurface surface;
-
-  // Determine which boundary condition should be applied
-  for (auto nn = iStart; nn < iEnd; nn++) {
-    // Determine which boundary given i, j, k coordinates apply to
-    if ((i >= this->GetIMin(nn) && i <= this->GetIMax(nn) &&
-         j >= this->GetJMin(nn) && j <= this->GetJMax(nn) &&
-         k >= this->GetKMin(nn) && k <= this->GetKMax(nn))) {
-      surface = this->GetSurface(nn);
-      break;
-    }
   }
 
   return surface;
@@ -520,13 +538,12 @@ Orientation 8:      |                  |         |                  |  D1/D2 rev
                    | -->D2                      | D2<--
 
 The above diagrams show how patch 2 would have to be moved to match up with
-patch 1.
-D1 and D2 are the local patch directions. They are cyclic, so on a constant
-i-patch,
-D1 is j, and D2 is k. On a constant j-patch, D1 is k, and D2 is i, etc. O is the
-origin which is always at the minimim of D1 and D2 on the patch. C1 is the corner
-where D1 is at a max, and D2 is zero. C2 is the corner where D2 is at a max, and
-D1 is zero. C12 is the corner where both D1 and D2 are at a max.*/
+patch 1. D1 and D2 are the local patch directions. They are cyclic, so on a 
+constant i-patch, D1 is j, and D2 is k. On a constant j-patch, D1 is k, and D2 
+is i, etc. O is the origin which is always at the minimim of D1 and D2 on the 
+patch. C1 is the corner where D1 is at a max, and D2 is zero. C2 is the corner 
+where D2 is at a max, and D1 is zero. C12 is the corner where both D1 and D2 
+are at a max.*/
 bool connection::TestPatchMatch(const patch &p1, const patch &p2) {
   // p1 -- first patch
   // p2 -- second patch
@@ -614,7 +631,7 @@ bool connection::TestPatchMatch(const patch &p1, const patch &p2) {
       }
     } else if (p1.Corner1().CompareWithTol(p2.Corner2())) {
       // Corner 2 must match corner 1 for match
-      if (p1.Corner2().CompareWithTol(p2.Corner2())) {
+      if (p1.Corner2().CompareWithTol(p2.Corner1())) {
         orientation_ = 8;
         match = true;
       } else {  // no match

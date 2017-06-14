@@ -17,11 +17,11 @@ iterations: 25000
 outputFrequency: 1000
 outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach, tke, sdr, viscosityRatio, wallDistance>
 
+fluids: <fluid(name=air; n=2.5; molarMass=0.02897)>
+
 #reference conditions
-pressureRef: 114426.9
-densityRef: 1.329
-temperatureRef: 300.0
-velocityRef: [69.438, 0.0, 0.0]
+referenceTemperature: 300.0
+referenceDensity: 1.329
 
 initialConditions: <icState(tag=-1; pressure=114426.9; density=1.329; velocity=[69.438, 0, 0])>
 
@@ -30,9 +30,9 @@ matrixRelaxation: 1.0
 
 turbulenceModel: kOmegaWilcox2006
 
-boundaryStates: <stagnationInlet(tag=1; p0=117662.9; t0=302.4; direction=[1, 0, 0]),
+boundaryStates: <stagnationInlet(tag=1; p0=117662.9; t0=302.4; direction=[1, 0, 0]; massFractions=[air=1.0]),
                  pressureOutlet(tag=2; pressure=114426.9),
-		 viscousWall(tag=3)>
+		             viscousWall(tag=3)>
 
 #---------------------------------------------------------------------------#
 #Boundary Conditions

@@ -60,10 +60,10 @@ matrix:
       osx_image: xcode8
       compiler: gcc
       env:
-        - CXX_COMPILER=g++-6
-        - C_COMPILER=gcc-6
-        - HOMEBREW_CC=gcc-6
-        - HOMEBREW_CXX=g++-6
+        - CXX_COMPILER=g++-7
+        - C_COMPILER=gcc-7
+        - HOMEBREW_CC=gcc-7
+        - HOMEBREW_CXX=g++-7
         - BUILD_TYPE=release
     - os: osx
       osx_image: xcode8
@@ -100,7 +100,7 @@ before_script:
 # build instructions
 script:
   - cmake -G "Unix Makefiles" -DCMAKE_CXX_COMPILER=$CXX_COMPILER -DCMAKE_C_COMPILER=$C_COMPILER -DMPI_DIR=$TRAVIS_BUILD_DIR/openmpi -DCMAKE_BUILD_TYPE=$BUILD_TYPE -DCMAKE_INSTALL_PREFIX=install ..
-  - make -j4
+  - make -j2
   - make install
   - cd ../testCases
   - python3 regressionTests.py --aitherPath=$TRAVIS_BUILD_DIR/build/install/bin/aither --operatingSystem=$TRAVIS_OS_NAME --mpirunPath=$TRAVIS_BUILD_DIR/openmpi/bin/mpirun

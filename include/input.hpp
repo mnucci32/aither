@@ -25,6 +25,7 @@
 #include "vector3d.hpp"
 #include "boundaryConditions.hpp"
 #include "inputStates.hpp"
+#include "fluid.hpp"
 #include "macros.hpp"
 
 using std::vector;
@@ -35,7 +36,9 @@ using std::shared_ptr;
 
 // forward class declaration
 class turbModel;
-class idealGas;
+class eos;
+class transport;
+class thermodynamic;
 
 class input {
   string simName_;  // simulation name
@@ -47,13 +50,11 @@ class input {
   // variable names that are regcognized by the input file parser
   set<string> vars_;
 
-  double pRef_;  // reference pressure
   double rRef_;  // reference density
+  double tRef_;  // reference temperature
   double lRef_;  // reference length
   double aRef_;  // reference speed of sound
-  vector3d<double> vRef_;  // reference velocity
-  double gamma_;  // ratio of specific heats
-  double gasConst_;  // gas constant of fluid
+  vector<fluid> fluids_;  // fluids in simulation
   vector<boundaryConditions> bc_;  // vector of boundary conditions for each
                                   // block
   string timeIntegration_;  // time integration method
@@ -64,7 +65,6 @@ class input {
   string limiter_;  // limiter to use in higher order calculations
   int outputFrequency_;  // how often to output results
   string equationSet_;  // which set of equations to solver Euler/Navier-Stokes
-  double tRef_;  // reference temperature
   string matrixSolver_;  // matrix solver to solve Ax=b
   int matrixSweeps_;  // number of sweeps for matrix solver
   double matrixRelaxation_;  // relaxation parameter for matrix solver
@@ -80,6 +80,9 @@ class input {
   string inviscidFlux_;  // scheme for inviscid flux calculation
   string decompMethod_;  // method of decomposition for parallel problems
   string turbModel_;  // turbulence model
+  string thermodynamicModel_;  // model for thermodynamics
+  string equationOfState_;  // model for equation of state
+  string transportModel_;  // model for viscous transport
   int restartFrequency_;  // how often to output restart data
   int iterationStart_;  // starting number for iterations
 
@@ -94,6 +97,7 @@ class input {
   void CheckOutputVariables();
   void CheckWallOutputVariables();
   void CheckTurbulenceModel() const;
+  void CheckSpecies() const;
 
  public:
   // constructor
@@ -120,16 +124,12 @@ class input {
   void SetIterationStart(const int &nn) {iterationStart_ = nn;}
   int IterationStart() const {return iterationStart_;}
 
-  double PRef() const {return pRef_;}
   double RRef() const {return rRef_;}
   double LRef() const {return lRef_;}
   double TRef() const {return tRef_;}
-  vector3d<double> VelRef() const {return vRef_;}
   double ARef() const {return aRef_;}
-  void NondimensionalizeStateData(const idealGas &);
-
-  double Gamma() const { return gamma_; }
-  double R() const { return gasConst_; }
+  void NondimensionalizeStateData(const unique_ptr<eos> &);
+  void NondimensionalizeFluid();
 
   boundaryConditions BC(const int &ind) const { return bc_[ind]; }
   vector<boundaryConditions> AllBC() const { return bc_; }
@@ -191,6 +191,9 @@ class input {
 
   string DecompMethod() const {return decompMethod_;}
   string TurbulenceModel() const {return turbModel_;}
+  string ThermodynamicModel() const {return thermodynamicModel_;}
+  string EquationOfState() const {return equationOfState_;}
+  string TransportModel() const {return transportModel_;}
 
   int NumVars() const {return vars_.size();}
   int NumVarsOutput() const {return outputVariables_.size();}
@@ -211,6 +214,9 @@ class input {
   string OrderOfAccuracy() const;
 
   unique_ptr<turbModel> AssignTurbulenceModel() const;
+  unique_ptr<eos> AssignEquationOfState(const unique_ptr<thermodynamic> &);
+  unique_ptr<transport> AssignTransportModel() const;
+  unique_ptr<thermodynamic> AssignThermodynamicModel() const;
 
   double ViscousCFLCoefficient() const;
 
@@ -218,6 +224,7 @@ class input {
 
   icState ICStateForBlock(const int &) const;
   const shared_ptr<inputState> & BCData(const int &) const;
+  fluid Fluid(const int = 0) const;
 
   bool IsWenoZ() const {return this->FaceReconstruction() == "wenoZ";}
 

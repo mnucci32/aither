@@ -25,13 +25,14 @@ conditions and initial conditions.
 
 #include <string>
 #include <vector>
+#include <map>
 #include <fstream>
 #include <memory>
 #include "vector3d.hpp"
 
 using std::string;
 using std::vector;
-using std::string;
+using std::map;
 using std::ifstream;
 using std::shared_ptr;
 
@@ -84,11 +85,18 @@ class inputState {
   virtual bool IsWallLaw() const {return false;}
   virtual void Nondimensionalize(const double &rRef, const double &tRef,
                                  const double &lRef, const double &aRef) = 0;
+  virtual double MassFraction(const string &species) const { return 0.0; };
+  virtual map<string, double> MassFractions() const {
+    return map<string, double>();
+  }
+  virtual int NumberSpecies() const { return 0; }
+  virtual string File() const { return "undefined"; }
+  virtual bool IsFromFile() const { return false; }
   bool IsNondimensional() const { return nondimensional_; }
   void SetNondimensional(const bool &nd) {nondimensional_ = nd;}
 
-    // destructor
-    virtual ~inputState() noexcept {}
+  // destructor
+  virtual ~inputState() noexcept {}
 };
 
 
@@ -98,7 +106,11 @@ class icState : public inputState {
   double pressure_;
   double turbIntensity_ = 0.01;       // default values
   double eddyViscRatio_ = 10.0;
+  map<string, double> massFractions_ = {{"air", 1.0}};
+  string file_ = "undefined";
   bool specifiedTurbulence_ = false;
+  bool specifiedMassFractions_ = false;
+  bool specifiedFile_ = false;
 
  public:
   // constructor
@@ -121,9 +133,20 @@ class icState : public inputState {
   const double EddyViscosityRatio() const override {return eddyViscRatio_;}
   const bool SpecifiedTurbulence() const {return specifiedTurbulence_;}
   void SetSpecifiedTurbulence() {specifiedTurbulence_ = true;}
+  const bool SpecifiedMassFractions() const {return specifiedMassFractions_;}
+  void SetSpecifiedMassFractions() {specifiedMassFractions_ = true;}
+  int NumberSpecies() const override {return massFractions_.size();}
   void Print(ostream &os) const override;
   void Nondimensionalize(const double &rRef, const double &tRef,
                          const double &lRef, const double &aRef) override;
+  double MassFraction(const string &species) const override {
+    return massFractions_.find(species)->second;
+  }
+  map<string, double> MassFractions() const override { return massFractions_; }
+  const bool SpecifiedFile() const { return specifiedFile_; }
+  void SetSpecifiedFile() { specifiedFile_ = true; }
+  string File() const override { return file_; }
+  bool IsFromFile() const override { return specifiedFile_; }
 
   // Destructor
   virtual ~icState() noexcept {}
@@ -157,7 +180,9 @@ class stagnationInlet : public inputState {
   double t0_;
   double turbIntensity_ = 0.01;  // default values
   double eddyViscRatio_ = 10.0;
+  map<string, double> massFractions_ = {{"air", 1.0}};
   bool specifiedTurbulence_ = false;
+  bool specifiedMassFractions_ = false;
 
  public:
   // constructor
@@ -179,9 +204,16 @@ class stagnationInlet : public inputState {
   const double EddyViscosityRatio() const override {return eddyViscRatio_;}
   const bool SpecifiedTurbulence() const {return specifiedTurbulence_;}
   void SetSpecifiedTurbulence() {specifiedTurbulence_ = true;}
+  const bool SpecifiedMassFractions() const {return specifiedMassFractions_;}
+  void SetSpecifiedMassFractions() {specifiedMassFractions_ = true;}
+  int NumberSpecies() const override {return massFractions_.size();}
   void Print(ostream &os) const override;
   void Nondimensionalize(const double &rRef, const double &tRef,
                          const double &lRef, const double &aRef) override;
+  double MassFraction(const string &species) const override {
+    return massFractions_.find(species)->second;
+  }
+  map<string, double> MassFractions() const override { return massFractions_; }
 
   // Destructor
   ~stagnationInlet() noexcept {}
@@ -264,7 +296,9 @@ class subsonicInflow : public inputState {
   double density_;
   double turbIntensity_ = 0.01;  // default values
   double eddyViscRatio_ = 10.0;
+  map<string, double> massFractions_ = {{"air", 1.0}};
   bool specifiedTurbulence_ = false;
+  bool specifiedMassFractions_ = false;
 
  public:
   // constructor
@@ -285,9 +319,16 @@ class subsonicInflow : public inputState {
   const double EddyViscosityRatio() const override {return eddyViscRatio_;}
   const bool SpecifiedTurbulence() const {return specifiedTurbulence_;}
   void SetSpecifiedTurbulence() {specifiedTurbulence_ = true;}
+  const bool SpecifiedMassFractions() const {return specifiedMassFractions_;}
+  void SetSpecifiedMassFractions() {specifiedMassFractions_ = true;}
+  int NumberSpecies() const override {return massFractions_.size();}
   void Print(ostream &os) const override;
   void Nondimensionalize(const double &rRef, const double &tRef,
                          const double &lRef, const double &aRef) override;
+  double MassFraction(const string &species) const override {
+    return massFractions_.find(species)->second;
+  }
+  map<string, double> MassFractions() const override { return massFractions_; }
 
   // Destructor
   ~subsonicInflow() noexcept {}
@@ -401,6 +442,7 @@ ostream &operator<<(ostream &, const periodic &);
 vector<string> Tokenize(string, const string &, const unsigned int = 0);
 string Trim(const string &, const string & = " \t\r\n");
 vector3d<double> ReadVector(const string &);
+map<string, double> ReadMassFractions(const string &);
 vector<icState> ReadICList(ifstream &, string &);
 vector<string> ReadStringList(ifstream &, string &);
 vector<shared_ptr<inputState>> ReadBCList(ifstream &, string &);

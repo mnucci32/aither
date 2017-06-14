@@ -29,6 +29,9 @@
 #include "turbulence.hpp"
 #include "inputStates.hpp"
 #include "eos.hpp"
+#include "transport.hpp"
+#include "thermodynamic.hpp"
+#include "fluid.hpp"
 #include "macros.hpp"
 
 using std::cout;
@@ -50,13 +53,11 @@ input::input(const string &name, const string &resName) : simName_(name),
   gName_ = "";
   dt_ = -1.0;
   iterations_ = 1;
-  pRef_ = -1.0;
   rRef_ = -1.0;
+  tRef_ = -1.0;
   lRef_ = 1.0;
   aRef_ = 0.0;
-  vRef_ = {1.0, 0.0, 0.0};
-  gamma_ = 1.4;
-  gasConst_ = 287.058;
+  fluids_ = vector<fluid>(1);
   bc_ = vector<boundaryConditions>(1);
   timeIntegration_ = "explicitEuler";
   cfl_ = -1.0;
@@ -67,7 +68,6 @@ input::input(const string &name, const string &resName) : simName_(name),
   limiter_ = "none";
   outputFrequency_ = 1;
   equationSet_ = "euler";
-  tRef_ = -1.0;
   matrixSolver_ = "lusgs";
   matrixSweeps_ = 1;
   matrixRelaxation_ = 1.0;  // default is symmetric Gauss-Seidel
@@ -85,6 +85,9 @@ input::input(const string &name, const string &resName) : simName_(name),
   inviscidFlux_ = "roe";  // default value is roe flux
   decompMethod_ = "cubic";  // default is cubic decomposition
   turbModel_ = "none";  // default turbulence model is none
+  thermodynamicModel_ = "caloricallyPerfect";  // default to cpg
+  equationOfState_ = "idealGas";  // default to ideal gas
+  transportModel_ = "sutherland";  // default to sutherland
   restartFrequency_ = 0;  // default to not write restarts
   iterationStart_ = 0;  // default to start from iteration zero
 
@@ -97,12 +100,10 @@ input::input(const string &name, const string &resName) : simName_(name),
   vars_ = {"gridName",
            "timeStep",
            "iterations",
-           "pressureRef",
-           "densityRef",
-           "lengthRef",
-           "velocityRef",
-           "gamma",
-           "gasConstant",
+           "referenceDensity",
+           "referenceTemperature",
+           "referenceLength",
+           "fluids",
            "timeIntegration",
            "faceReconstruction",
            "viscousFaceReconstruction",
@@ -110,7 +111,6 @@ input::input(const string &name, const string &resName) : simName_(name),
            "outputFrequency",
            "restartFrequency",
            "equationSet",
-           "temperatureRef",
            "matrixSolver",
            "matrixSweeps",
            "matrixRelaxation",
@@ -123,6 +123,9 @@ input::input(const string &name, const string &resName) : simName_(name),
            "inviscidFlux",
            "decompositionMethod",
            "turbulenceModel",
+           "thermodynamicModel",
+           "equationOfState",
+           "transportModel",
            "outputVariables",
            "wallOutputVariables",
            "initialConditions",
@@ -201,35 +204,33 @@ void input::ReadInput(const int &rank) {
           if (rank == ROOTP) {
             cout << key << ": " << this->Iterations() << endl;
           }
-        } else if (key == "pressureRef") {
-          pRef_ = stod(tokens[1]);  // double variable (stod)
-          if (rank == ROOTP) {
-            cout << key << ": " << this->PRef() << endl;
-          }
-        } else if (key == "densityRef") {
+        } else if (key == "referenceDensity") {
           rRef_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
             cout << key << ": " << this->RRef() << endl;
           }
-        } else if (key == "lengthRef") {
+        } else if (key == "referenceTemperature") {
+          tRef_ = stod(tokens[1]);  // double variable (stod)
+          if (rank == ROOTP) {
+            cout << key << ": " << this->TRef() << endl;
+          }
+        } else if (key == "referenceLength") {
           lRef_ = stod(tokens[1]);  // double variable (stod)
           if (rank == ROOTP) {
             cout << key << ": " << this->LRef() << endl;
           }
-        } else if (key == "velocityRef") {
-          vRef_ = ReadVector(tokens[1]);
+        } else if (key == "fluids") {
+          fluids_ = ReadFluidList(inFile, tokens[1]);
           if (rank == ROOTP) {
-            cout << key << ": [" << this->VelRef() << "]" << endl;
-          }
-        } else if (key == "gamma") {
-          gamma_ = stod(tokens[1]);  // double variable (stod)
-          if (rank == ROOTP) {
-            cout << key << ": " << this->Gamma() << endl;
-          }
-        } else if (key == "gasConstant") {
-          gasConst_ = stod(tokens[1]);  // double variable (stod)
-          if (rank == ROOTP) {
-            cout << key << ": " << this->R() << endl;
+            cout << key << ": <";
+            for (auto ii = 0U; ii < fluids_.size(); ++ii) {
+              cout << fluids_[ii];
+              if (ii == fluids_.size() - 1) {
+                cout << ">" << endl;
+              } else {
+                cout << "," << endl << "                    ";
+              }
+            }
           }
         } else if (key == "timeIntegration") {
           timeIntegration_ = tokens[1];
@@ -311,11 +312,6 @@ void input::ReadInput(const int &rank) {
           if (rank == ROOTP) {
             cout << key << ": " << this->EquationSet() << endl;
           }
-        } else if (key == "temperatureRef") {
-          tRef_ = stod(tokens[1]);  // double variable (stod)
-          if (rank == ROOTP) {
-            cout << key << ": " << this->TRef() << endl;
-          }
         } else if (key == "matrixSolver") {
           matrixSolver_ = tokens[1];
           if (rank == ROOTP) {
@@ -376,6 +372,21 @@ void input::ReadInput(const int &rank) {
           turbModel_ = tokens[1];
           if (rank == ROOTP) {
             cout << key << ": " << this->TurbulenceModel() << endl;
+          }
+        } else if (key == "thermodynamicModel") {
+          thermodynamicModel_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << ": " << this->ThermodynamicModel() << endl;
+          }
+        } else if (key == "equationOfState") {
+          equationOfState_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << ": " << this->EquationOfState() << endl;
+          }
+        } else if (key == "transportModel") {
+          transportModel_ = tokens[1];
+          if (rank == ROOTP) {
+            cout << key << ": " << this->TransportModel() << endl;
           }
         } else if (key == "outputVariables") {
           // clear default variables from set
@@ -521,6 +532,7 @@ void input::ReadInput(const int &rank) {
   this->CheckOutputVariables();
   this->CheckWallOutputVariables();
   this->CheckTurbulenceModel();
+  this->CheckSpecies();
 
   if (rank == ROOTP) {
     cout << endl;
@@ -647,6 +659,64 @@ unique_ptr<turbModel> input::AssignTurbulenceModel() const {
   return turb;
 }
 
+// member function to get equation of state
+unique_ptr<eos> input::AssignEquationOfState(
+    const unique_ptr<thermodynamic> &thermo) {
+  // get fluid
+  auto fl = this->Fluid();
+  // define equation of state
+  unique_ptr<eos> eqnState(nullptr);
+  if (equationOfState_ == "idealGas") {
+    // nondimensional temperature is 1.0 (tRef_ / tRef_)
+    eqnState = unique_ptr<eos>{
+        std::make_unique<idealGas>(thermo, fl.GasConstant(), 1.0)};
+  } else {
+    cerr << "ERROR: Error in input::AssignEquationOfState(). Equation of state "
+         << equationOfState_ << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+  // use equation of state to assign additional reference values
+  const auto pRef = eqnState->PressureDim(rRef_, tRef_);
+  aRef_ = eqnState->SoS(pRef, rRef_);
+  return eqnState;
+}
+
+// member function to get transport model
+unique_ptr<transport> input::AssignTransportModel() const {
+  // define equation of state
+  unique_ptr<transport> trans(nullptr);
+  if (transportModel_ == "sutherland") {
+    trans = unique_ptr<transport>{std::make_unique<sutherland>(
+        tRef_, rRef_, lRef_, aRef_)};
+  } else {
+    cerr << "ERROR: Error in input::AssignTransportModel(). Transport model "
+         << transportModel_ << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+  return trans;
+}
+
+// member function to get thermodynamic model
+unique_ptr<thermodynamic> input::AssignThermodynamicModel() const {
+  // get fluid
+  auto fl = this->Fluid();
+  // define equation of state
+  unique_ptr<thermodynamic> thermo(nullptr);
+  if (thermodynamicModel_ == "caloricallyPerfect") {
+    thermo =
+        unique_ptr<thermodynamic>{std::make_unique<caloricallyPerfect>(fl.N())};
+  } else if (thermodynamicModel_ == "thermallyPerfect") {
+    thermo = unique_ptr<thermodynamic>{std::make_unique<thermallyPerfect>(
+        fl.N(), fl.VibrationalTemperature())};
+  } else {
+    cerr << "ERROR: Error in input::AssignThermodynamicModel(). Thermodynamic "
+         << "model " << thermodynamicModel_ << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+  return thermo;
+}
+
+
 // member function to return the name of the simulation without the file
 // extension i.e. "myInput.inp" would return "myInput"
 string input::SimNameRoot() const {
@@ -708,17 +778,32 @@ void input::CheckWallOutputVariables() {
   auto oVars = wallOutputVariables_;
   for (auto &var : oVars) {
     if (!this->IsViscous()) {  // can't have viscous variables output
-      if (var == "yplus" || var == "heatFlux") {
-        cerr << "WARNING: Wall variable " << var <<
-            " is not available for inviscid simulations." << endl;
+      if (var == "yplus" || var == "heatFlux" || var == "shearStress" ||
+          var == "frictionVelocity" || var == "viscosity") {
+        cerr << "WARNING: Wall variable " << var
+             << " is not available for inviscid simulations." << endl;
+        outputVariables_.erase(var);
+      }
+    }
+    if (!this->IsTurbulent()) {  // can't have turbulent variables output
+      if (var == "viscosityRatio") {
+        cerr << "WARNING: Wall variable " << var
+             << " is not available for laminar simulations." << endl;
+        outputVariables_.erase(var);
+      }
+    }
+    if (!this->IsRANS()) {  // can't have RANS variables output
+      if (var == "tke" || var == "sdr") {
+        cerr << "WARNING: Wall variable " << var
+             << " is not available for laminar simulations." << endl;
         outputVariables_.erase(var);
       }
     }
   }
 }
 
-
-// member function to check that turbulence model makes sense with equation set
+// member function to check that turbulence model makes sense with equation
+// set
 void input::CheckTurbulenceModel() const {
   if (this->IsTurbulent() && turbModel_ == "none") {
     cerr << "ERROR: If solving RANS or LES equations, must specify turbulence "
@@ -740,6 +825,44 @@ void input::CheckTurbulenceModel() const {
   }
 }
 
+// member function to check that all species specified are defined
+void input::CheckSpecies() const {
+  // check all species in ICs are defined
+  for (auto &ic : ics_) {
+    auto fracs = ic.MassFractions();  // get mass fractions for ICs
+    // loop over all species and find if that species has been defined
+    for (auto &species : fracs) {
+      auto name = species.first;
+      if (find_if(std::begin(fluids_), std::end(fluids_),
+                  [&name](const fluid &fl) { return fl.Name() == name; }) ==
+          std::end(fluids_)) {
+        cerr << "ERROR: Species " << name << " is not defined!" << endl;
+        exit(EXIT_FAILURE);
+      }
+    }
+  }
+
+  // check all species in BCs are defined
+  for (auto &bc : bcStates_) {
+    auto fracs = bc->MassFractions();  // get mass fractions for BCs
+    if (!fracs.empty()) {              // some BCs don't have mass fraction data
+      for (auto &species : fracs) {
+        auto name = species.first;
+        if (find_if(std::begin(fluids_), std::end(fluids_),
+                    [&name](const fluid &fl) { return fl.Name() == name; }) ==
+            std::end(fluids_)) {
+          cerr << "ERROR: Species " << name << " is not defined!" << endl;
+          exit(EXIT_FAILURE);
+        }
+      }
+    }
+  }
+
+  // check that there is at least one species defined
+  if (fluids_.size() < 1) {
+    cerr << "ERROR: At least one fluid species must be defined!" << endl;
+  }
+}
 
 // member function to calculate the coefficient used to scale the viscous
 // spectral radius in the time step calculation
@@ -819,8 +942,7 @@ const shared_ptr<inputState> & input::BCData(const int &tag) const {
   exit(EXIT_FAILURE);
 }
 
-void input::NondimensionalizeStateData(const idealGas &eos) {
-  aRef_ = eos.SoS(pRef_, rRef_);
+void input::NondimensionalizeStateData(const unique_ptr<eos> &eqnState) {
   for (auto &state : bcStates_) {
     state->Nondimensionalize(rRef_, tRef_, lRef_, aRef_);
   }
@@ -828,3 +950,12 @@ void input::NondimensionalizeStateData(const idealGas &eos) {
     ic.Nondimensionalize(rRef_, tRef_, lRef_, aRef_);
   }
 }
+
+void input::NondimensionalizeFluid() {
+  for (auto &fl : fluids_) {
+    fl.Nondimensionalize(tRef_);
+  }
+}
+
+// default value is 0; code currently only supports single fluid flows
+fluid input::Fluid(const int ind) const { return fluids_[ind]; }

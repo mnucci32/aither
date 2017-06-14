@@ -54,9 +54,9 @@ double wallData::WallEddyViscosity(const int &ii, const int &jj,
 }
 
 double wallData::WallPressure(const int &ii, const int &jj, const int &kk,
-                              const idealGas &eos) const {
-  return eos.PressureRT(this->WallDensity(ii, jj, kk),
-                        this->WallTemperature(ii, jj, kk));
+                              const unique_ptr<eos> &eqnState) const {
+  return eqnState->PressureRT(this->WallDensity(ii, jj, kk),
+                              this->WallTemperature(ii, jj, kk));
 }
 
 double wallData::WallViscosity(const int &ii, const int &jj,
@@ -184,9 +184,9 @@ void wallData::Join(const wallData &upper, const string &dir, bool &joined) {
 }
 
   primVars wallData::WallState(const int &ii, const int &jj, const int &kk,
-                     const idealGas &eos) const {
+                     const unique_ptr<eos> &eqnState) const {
     return primVars(this->WallDensity(ii, jj, kk), this->WallVelocity(),
-                    this->WallPressure(ii, jj, kk, eos),
+                    this->WallPressure(ii, jj, kk, eqnState),
                     this->WallTke(ii, jj, kk), this->WallSdr(ii, jj, kk));
   }
 

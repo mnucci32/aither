@@ -1,0 +1,154 @@
+# grid name
+gridName: uniformFlow
+
+# solver parameters
+decompositionMethod: cubic
+equationSet: rans
+timeIntegration: implicitEuler
+cflStart: 1000
+cflMax: 1000
+
+faceReconstruction: thirdOrder
+inviscidFlux: roe
+inviscidFluxJacobian: rusanov
+viscousFaceReconstruction: central
+limiter: none
+
+iterations: 1000
+nonlinearIterations: 1
+outputFrequency: 100
+outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach, tke, sdr, 
+                  viscosityRatio, temperature, viscosity, wallDistance, sos, 
+                  turbulentViscosity>
+restartFrequency: 0
+
+# reference conditions
+referenceDensity: 1.2256
+referenceTemperature: 288
+referenceLength: 1
+
+fluids: <fluid(name=air; n=2.5; molarMass=0.02897)>
+thermodynamicModel: caloricallyPerfect
+
+initialConditions: <icState(tag=-1; pressure=101325; density=1.2256; velocity=[100, 0, 0]; turbulenceIntensity=0.1; eddyViscosityRatio=10)>
+
+matrixSolver: lusgs
+matrixSweeps: 2
+matrixRelaxation: 1
+
+turbulenceModel: sst2003
+
+boundaryStates: <characteristic(tag=2; density=1.2256; pressure=101325; velocity=[100, 0, 0]; massFractions=[air=1.0])>
+
+#-------------------------------------------------------------
+boundaryConditions: 10
+# Block 0 -- Dimensions: 11 x 5 x 5
+2 2 2
+# i-surfaces
+  interblock             10   10    0    4    0    4  1001
+  characteristic          0    0    0    4    0    4     2
+# j-surfaces
+  slipWall                0   10    0    0    0    4     1
+  slipWall                0   10    4    4    0    4     1
+# k-surfaces
+  slipWall                0   10    0    4    0    0     1
+  slipWall                0   10    0    4    4    4     1
+# Block 1 -- Dimensions: 11 x 5 x 5
+2 2 2
+# i-surfaces
+  interblock              0    0    0    4    0    4  2000
+  interblock             10   10    0    4    0    4  2002
+# j-surfaces
+  slipWall                0   10    0    0    0    4     1
+  slipWall                0   10    4    4    0    4     1
+# k-surfaces
+  slipWall                0   10    0    4    0    0     1
+  slipWall                0   10    0    4    4    4     1
+# Block 2 -- Dimensions: 11 x 5 x 5
+2 2 2
+# i-surfaces
+  interblock             10   10    0    4    0    4  2001
+  interblock              0    0    0    4    0    4  1003
+# j-surfaces
+  slipWall                0   10    0    0    0    4     1
+  slipWall                0   10    4    4    0    4     1
+# k-surfaces
+  slipWall                0   10    0    4    0    0     1
+  slipWall                0   10    0    4    4    4     1
+# Block 3 -- Dimensions: 11 x 5 x 5
+2 2 2
+# i-surfaces
+  interblock              0    0    0    4    0    4  1002
+  interblock             10   10    0    4    0    4  1004
+# j-surfaces
+  slipWall                0   10    0    0    0    4     1
+  slipWall                0   10    4    4    0    4     1
+# k-surfaces
+  slipWall                0   10    0    4    0    0     1
+  slipWall                0   10    0    4    4    4     1
+# Block 4 -- Dimensions: 11 x 5 x 5
+2 2 2
+# i-surfaces
+  interblock              0    0    0    4    0    4  2003
+  interblock             10   10    0    4    0    4  1005
+# j-surfaces
+  slipWall                0   10    0    0    0    4     1
+  slipWall                0   10    4    4    0    4     1
+# k-surfaces
+  slipWall                0   10    0    4    0    0     1
+  slipWall                0   10    0    4    4    4     1
+# Block 5 -- Dimensions: 11 x 5 x 5
+2 2 2
+# i-surfaces
+  interblock              0    0    0    4    0    4  2004
+  interblock             10   10    0    4    0    4  2006
+# j-surfaces
+  slipWall                0   10    0    0    0    4     1
+  slipWall                0   10    4    4    0    4     1
+# k-surfaces
+  slipWall                0   10    0    4    0    0     1
+  slipWall                0   10    0    4    4    4     1
+# Block 6 -- Dimensions: 11 x 5 x 5
+2 2 2
+# i-surfaces
+  interblock             10   10    0    4    0    4  2005
+  interblock              0    0    0    4    0    4  1007
+# j-surfaces
+  slipWall                0   10    0    0    0    4     1
+  slipWall                0   10    4    4    0    4     1
+# k-surfaces
+  slipWall                0   10    0    4    0    0     1
+  slipWall                0   10    0    4    4    4     1
+# Block 7 -- Dimensions: 11 x 5 x 5
+2 2 2
+# i-surfaces
+  interblock              0    0    0    4    0    4  1006
+  interblock             10   10    0    4    0    4  3008
+# j-surfaces
+  slipWall                0   10    0    0    0    4     1
+  slipWall                0   10    4    4    0    4     1
+# k-surfaces
+  slipWall                0   10    0    4    0    0     1
+  slipWall                0   10    0    4    4    4     1
+# Block 8 -- Dimensions: 5 x 11 x 5
+2 2 2
+# i-surfaces
+  slipWall                0    0    0   10    0    4     1
+  slipWall                4    4    0   10    0    4     1
+# j-surfaces
+  interblock              0    4    0    0    0    4  2007
+  interblock              0    4   10   10    0    4  5009
+# k-surfaces
+  slipWall                0    4    0   10    0    0     1
+  slipWall                0    4    0   10    4    4     1
+# Block 9 -- Dimensions: 5 x 5 x 11
+2 2 2
+# i-surfaces
+  slipWall                0    0    0    4    0   10     1
+  slipWall                4    4    0    4    0   10     1
+# j-surfaces
+  slipWall                0    4    0    0    0   10     1
+  slipWall                0    4    4    4    0   10     1
+# k-surfaces
+  interblock              0    4    0    4    0    0  4008
+  characteristic          0    4    0    4   10   10     2
