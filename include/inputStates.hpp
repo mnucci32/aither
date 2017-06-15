@@ -92,6 +92,7 @@ class inputState {
   virtual int NumberSpecies() const { return 0; }
   virtual string File() const { return "undefined"; }
   virtual bool IsFromFile() const { return false; }
+  virtual bool IsNonreflecting() const { return false; }
   bool IsNondimensional() const { return nondimensional_; }
   void SetNondimensional(const bool &nd) {nondimensional_ = nd;}
 
@@ -222,6 +223,8 @@ class stagnationInlet : public inputState {
 
 class pressureOutlet : public inputState {
   double pressure_;
+  bool nonreflecting_;
+  bool specifiedReflecting_ = false;
 
  public:
   // constructor
@@ -237,6 +240,8 @@ class pressureOutlet : public inputState {
 
   // Member functions
   const double Pressure() const override {return pressure_;}
+  bool IsNonreflecting() const override { return nonreflecting_; }
+  bool SpecifiedReflecting() const { return specifiedReflecting_; }
   void Print(ostream &os) const override;
   void Nondimensionalize(const double &rRef, const double &tRef,
                          const double &lRef, const double &aRef) override;

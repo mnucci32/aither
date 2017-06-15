@@ -120,8 +120,12 @@ ostream &operator<<(ostream &os, const stagnationInlet &bc) {
 }
 
 void pressureOutlet::Print(ostream &os) const {
-  os << "pressureOutlet(tag=" << this->Tag() << "; pressure="
-     << this->Pressure() << ")";
+  os << "pressureOutlet(tag=" << this->Tag()
+     << "; pressure=" << this->Pressure();
+     if (this->SpecifiedReflecting()) {
+       os << "; nonreflecting=" << std::boolalpha << this->IsNonreflecting();
+     }
+     os << ")";
 }
 
 ostream &operator<<(ostream &os, const pressureOutlet &bc) {
@@ -569,6 +573,8 @@ pressureOutlet::pressureOutlet(string &str, const string name) {
   // parameter counters
   auto tagCount = 0;
   auto pressureCount = 0;
+  auto nonreflectingCount = 0;
+  specifiedReflecting_ = false;
 
   for (auto &token : tokens) {
     auto param = Tokenize(token, "=");
@@ -580,6 +586,11 @@ pressureOutlet::pressureOutlet(string &str, const string name) {
     if (param[0] == "pressure") {
       pressure_ = stod(RemoveTrailing(param[1], ","));
       pressureCount++;
+    } else if (param[0] == "nonreflecting") {
+      auto reflect = RemoveTrailing(param[1], ",");
+      nonreflecting_ = reflect == "true";
+      specifiedReflecting_ = true;
+      nonreflectingCount++;
     } else if (param[0] == "tag") {
       this->SetTag(stoi(RemoveTrailing(param[1], ",")));
       tagCount++;
@@ -595,6 +606,12 @@ pressureOutlet::pressureOutlet(string &str, const string name) {
   if (pressureCount != 1 || tagCount != 1) {
     cerr << "ERROR. For " << name << " pressure and tag must be specified, and "
          << "only specified once." << endl;
+    exit(EXIT_FAILURE);
+  }
+  // can only specify nonreflecting once
+  if (nonreflectingCount > 1) {
+    cerr << "ERROR. For " << name << " nonreflecting can only be specified once"
+         << endl;
     exit(EXIT_FAILURE);
   }
 }
