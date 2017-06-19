@@ -223,7 +223,7 @@ class stagnationInlet : public inputState {
 
 class pressureOutlet : public inputState {
   double pressure_;
-  bool nonreflecting_;
+  bool nonreflecting_ = false;
   bool specifiedReflecting_ = false;
 
  public:
