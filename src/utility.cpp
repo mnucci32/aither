@@ -921,7 +921,7 @@ kdtree CalcTreeFromCloud(const string &fname, const input &inp,
         auto omega = std::stod(tokens[9]) * trans->MuRef() /
                      (inp.RRef() * inp.ARef() * inp.ARef());
         vector<double> massFractions(species.size(), 0.0);
-        for (auto ii = 0; ii < massFractions.size(); ++ii) {
+        for (auto ii = 0U; ii < massFractions.size(); ++ii) {
           massFractions[ii] = std::stod(tokens[ii + 10]);
         }
         primVars state(rho, uVel, vVel, wVel, pressure, tke, omega);

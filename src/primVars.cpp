@@ -757,7 +757,12 @@ primVars primVars::GetGhostState(const string &bcType,
     ghostState.data_[3] = this->W() + normArea.Z() * deltaPressure / rhoSoSInt;
 
     if (bcData->IsNonreflecting()) {
-      ghostState.data_[4] = pb;  // DEBUG -- change this
+      const auto deltaVel = ghostState.Velocity().DotProd(normArea) -
+                            this->Velocity().DotProd(normArea);
+      const auto dt = 1.0;
+      const auto k = 0.5;
+      ghostState.data_[4] =
+          this->P() + rhoSoSInt * deltaVel + dt * k * deltaPressure;
     } else {
       ghostState.data_[4] = pb;
     }
