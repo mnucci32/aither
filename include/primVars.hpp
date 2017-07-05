@@ -216,8 +216,8 @@ class primVars {
 
   // member function to return the state of the appropriate ghost cell
   primVars GetGhostState(const string &, const vector3d<double> &,
-                         const double &, const int &, const input &,
-                         const int &, const unique_ptr<eos> &,
+                         const double &, const double &, const int &,
+                         const input &, const int &, const unique_ptr<eos> &,
                          const unique_ptr<thermodynamic> &,
                          const unique_ptr<transport> &,
                          const unique_ptr<turbModel> &, wallVars &,

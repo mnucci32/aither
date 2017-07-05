@@ -210,6 +210,10 @@ class input {
   bool IsRANS() const;
   bool IsLES() const;
   bool IsBlockMatrix() const;
+  bool IsTimeAccurate() const {
+    return timeIntegration_ == "bdf2" || timeIntegration_ == "rk4" ||
+           timeIntegration_ == "crankNicholson";
+  }
 
   string OrderOfAccuracy() const;
 

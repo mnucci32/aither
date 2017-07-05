@@ -428,11 +428,12 @@ class procBlock {
                                    const unique_ptr<transport> &,
                                    const unique_ptr<turbModel> &);
   multiArray3d<primVars> GetGhostStates(
-      const multiArray3d<primVars> &, const string &,
-      const multiArray3d<unitVec3dMag<double>> &, const multiArray3d<double> &,
-      const boundarySurface &, const input &, const unique_ptr<eos> &,
-      const unique_ptr<thermodynamic> &, const unique_ptr<transport> &,
-      const unique_ptr<turbModel> &, const int = 1);
+      const multiArray3d<primVars> &, const multiArray3d<double> &,
+      const string &, const multiArray3d<unitVec3dMag<double>> &,
+      const multiArray3d<double> &, const boundarySurface &, const input &,
+      const unique_ptr<eos> &, const unique_ptr<thermodynamic> &,
+      const unique_ptr<transport> &, const unique_ptr<turbModel> &,
+      const int = 1);
 
   void CalcGradsI(const int &, const int &, const int &,
                   tensor<double> &, vector3d<double> &, vector3d<double> &,

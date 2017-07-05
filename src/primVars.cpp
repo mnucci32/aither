@@ -355,19 +355,17 @@ Currently the following boundary conditions are supported: slipWall,
 viscousWall, characteristic, stagnationInlet, pressureOutlet, subsonicInflow,
 subsonicOutflow, supersonicInflow, supersonicOutflow
 */
-primVars primVars::GetGhostState(const string &bcType,
-                                 const vector3d<double> &areaVec,
-                                 const double &wallDist, const int &surf,
-                                 const input &inputVars, const int &tag,
-                                 const unique_ptr<eos> &eqnState,
-                                 const unique_ptr<thermodynamic> &thermo,
-                                 const unique_ptr<transport> &trans,
-                                 const unique_ptr<turbModel> &turb,
-                                 wallVars &wVars, const int layer) const {
+primVars primVars::GetGhostState(
+    const string &bcType, const vector3d<double> &areaVec,
+    const double &wallDist, const double &dt, const int &surf,
+    const input &inputVars, const int &tag, const unique_ptr<eos> &eqnState,
+    const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
+    const unique_ptr<turbModel> &turb, wallVars &wVars, const int layer) const {
   // bcType -- type of boundary condition to supply ghost cell for
   // areaVec -- unit area vector of boundary face
   // surf -- surface type [1-6]
   // wallDist -- distance from cell center to nearest wall boundary
+  // dt -- cell time step nearest to wall boundary
   // inputVar -- all input variables
   // tag -- boundary condition tag
   // eqnState -- equation of state
@@ -759,10 +757,13 @@ primVars primVars::GetGhostState(const string &bcType,
     if (bcData->IsNonreflecting()) {
       const auto deltaVel = ghostState.Velocity().DotProd(normArea) -
                             this->Velocity().DotProd(normArea);
-      const auto dt = 1.0;
-      const auto k = 0.5;
+      constexpr auto sigma = 0.25;
+      const auto mach = this->Velocity().DotProd(normArea) / SoSInt;
+      const auto length = 0.013 / inputVars.LRef();
+      const auto k = sigma * (1.0 - mach * mach) / (2.0 * this->Rho() * length);
+      // correct deltaVel, length
       ghostState.data_[4] =
-          this->P() + rhoSoSInt * deltaVel + dt * k * deltaPressure;
+          (this->P() - rhoSoSInt * deltaVel + dt * k * pb) / (1.0 + dt * k);
     } else {
       ghostState.data_[4] = pb;
     }

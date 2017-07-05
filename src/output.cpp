@@ -777,8 +777,23 @@ void WriteMeta(const input &inp, const int &iter) {
   metaFile << "\"auto-detect-format\" : true," << endl;
   metaFile << "\"format\" : \"binary\"," << endl;
   metaFile << "\"language\" : \"C\"," << endl;
-  metaFile << "\"filenames\" : [{ \"time\" : " << iter << ", \"xyz\" : \""
-           << gridName << "\", \"function\" : \"" << funName << "\" }]," << endl;
+  if (inp.IsTimeAccurate()) {
+    metaFile << "\"filenames\" : [";
+    for (auto nn = 0; nn <= iter; nn += inp.OutputFrequency()) {
+      const auto currFunName =
+          inp.SimNameRoot() + "_" + to_string(nn) + fEnd + ".fun";
+      metaFile << "{ \"time\" : " << nn * inp.Dt() << ", \"xyz\" : \""
+               << gridName << "\", \"function\" : \"" << currFunName << "\" }";
+      if (nn != iter) {
+        metaFile << ", " << endl;
+      }
+    }
+    metaFile << "]," << endl;
+  } else {
+    metaFile << "\"filenames\" : [{ \"time\" : " << iter << ", \"xyz\" : \""
+             << gridName << "\", \"function\" : \"" << funName << "\" }],"
+             << endl;
+  }
 
   // Write out scalar variables
   auto numVar = 0U;

@@ -3090,14 +3090,15 @@ void procBlock::AssignInviscidGhostCells(
         }
 
         const auto wDist = wallDist_.Slice(dir, aCell, r1, r2);
+        const auto dt = dt_.Slice(dir, aCell, r1, r2);
 
         // if slipWall reflect interior state instead of extrapolation
         const auto boundaryStates = (bcName == "slipWall") ?
             state_.Slice(dir, iCell, r1, r2) : state_.Slice(dir, aCell, r1, r2);
 
-        const auto ghostStates =
-            this->GetGhostStates(boundaryStates, bcName, faceAreas, wDist, surf,
-                                 inp, eqnState, thermo, trans, turb, layer);
+        const auto ghostStates = this->GetGhostStates(
+            boundaryStates, dt, bcName, faceAreas, wDist, surf, inp, eqnState,
+            thermo, trans, turb, layer);
 
         state_.Insert(dir, gCell, r1, r2, ghostStates);
       }
@@ -3258,6 +3259,11 @@ void procBlock::AssignInviscidGhostCellsEdge(
             const auto wDist2 = wallDist_(dir, d1, cFaceD3_2, gCellD3);
             const auto wDist3 = wallDist_(dir, d1, gCellD2, cFaceD2_3);
 
+            // get time step
+            const auto dt2 = dt_(dir, d1, cFaceD3_2, gCellD3);
+            const auto dt3 = dt_(dir, d1, gCellD2, cFaceD2_3);
+
+
             wallVars wVars;  // not used, only for calling GetGhostState
 
             // assign states -------------------------------------------------
@@ -3265,15 +3271,15 @@ void procBlock::AssignInviscidGhostCellsEdge(
             if (bc_2 == "slipWall" && bc_3 != "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, pCellD2, gCellD3)
-                      .GetGhostState(bc_2, fArea2, wDist2, surf2, inp, tag2,
-                                     eqnState, thermo, trans, turb, wVars,
+                      .GetGhostState(bc_2, fArea2, wDist2, dt2, surf2, inp,
+                                     tag2, eqnState, thermo, trans, turb, wVars,
                                      layer2);
               // surface-3 is a wall, but surface-2 is not - extend wall bc
             } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, gCellD2, pCellD3)
-                      .GetGhostState(bc_3, fArea3, wDist3, surf3, inp, tag3,
-                                     eqnState, thermo, trans, turb, wVars,
+                      .GetGhostState(bc_3, fArea3, wDist3, dt3, surf3, inp,
+                                     tag3, eqnState, thermo, trans, turb, wVars,
                                      layer3);
             } else {  // both surfaces or neither are walls - proceed as normal
               if (layer2 == layer3) {  // need to average
@@ -3358,12 +3364,13 @@ void procBlock::AssignViscousGhostCells(const input &inp,
         }
 
         const auto wDist = wallDist_.Slice(dir, aCell, r1, r2);
+        const auto dt = dt_.Slice(dir, aCell, r1, r2);
 
         // get interior boundary states and ghost states
         const auto boundaryStates = state_.Slice(dir, iCell, r1, r2);
-        const auto ghostStates =
-            this->GetGhostStates(boundaryStates, bcName, faceAreas, wDist, surf,
-                                 inp, eqnState, thermo, trans, turb, layer);
+        const auto ghostStates = this->GetGhostStates(
+            boundaryStates, dt, bcName, faceAreas, wDist, surf, inp, eqnState,
+            thermo, trans, turb, layer);
 
         state_.Insert(dir, gCell, r1, r2, ghostStates);
       }
@@ -3523,6 +3530,10 @@ void procBlock::AssignViscousGhostCellsEdge(
             const auto wDist2 = wallDist_(dir, d1, cFaceD3_2, gCellD3);
             const auto wDist3 = wallDist_(dir, d1, gCellD2, cFaceD2_3);
 
+            // get time step
+            const auto dt2 = dt_(dir, d1, cFaceD3_2, gCellD3);
+            const auto dt3 = dt_(dir, d1, gCellD2, cFaceD2_3);
+
             wallVars wVars;  // not used, only for calling GetGhostState
 
             // assign states -------------------------------------------------
@@ -3530,15 +3541,15 @@ void procBlock::AssignViscousGhostCellsEdge(
             if (bc_2 == "slipWall" && bc_3 != "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, pCellD2, gCellD3)
-                      .GetGhostState(bc_2, fArea2, wDist2, surf2, inp, tag2,
-                                     eqnState, thermo, trans, turb, wVars,
+                      .GetGhostState(bc_2, fArea2, wDist2, dt2, surf2, inp,
+                                     tag2, eqnState, thermo, trans, turb, wVars,
                                      layer2);
               // surface-3 is a wall, but surface-2 is not - extend wall bc
             } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, gCellD2, pCellD3)
-                      .GetGhostState(bc_3, fArea3, wDist3, surf3, inp, tag3,
-                                     eqnState, thermo, trans, turb, wVars,
+                      .GetGhostState(bc_3, fArea3, wDist3, dt3, surf3, inp,
+                                     tag3, eqnState, thermo, trans, turb, wVars,
                                      layer3);
               // both surfaces are walls - proceed as normal
             } else if (bc_2 == "viscousWall" && bc_3 == "viscousWall") {
@@ -6383,13 +6394,14 @@ void procBlock::UpdateUnlimTurbEddyVisc(const unique_ptr<turbModel> &turb,
 }
 
 multiArray3d<primVars> procBlock::GetGhostStates(
-    const multiArray3d<primVars> &bndStates, const string &bcName,
-    const multiArray3d<unitVec3dMag<double>> &faceAreas,
+    const multiArray3d<primVars> &bndStates, const multiArray3d<double> &dt,
+    const string &bcName, const multiArray3d<unitVec3dMag<double>> &faceAreas,
     const multiArray3d<double> &wDist, const boundarySurface &surf,
     const input &inp, const unique_ptr<eos> &eqnState,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
     const unique_ptr<turbModel> &turb, const int layer) {
   // bndStates -- states at cells adjacent to boundary
+  // dt -- time step at cells adjacent to boundary
   // bcName -- boundary condition type
   // faceAreas -- face areas of boundary
   // surf -- boundary surface
@@ -6413,8 +6425,9 @@ multiArray3d<primVars> procBlock::GetGhostStates(
         ghostStates(ii, jj, kk) =
             bndStates(ii, jj, kk)
                 .GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),
-                               wDist(ii, jj, kk), surfType, inp, tag, eqnState,
-                               thermo, trans, turb, wVars, layer);
+                               wDist(ii, jj, kk), dt(ii, jj, kk), surfType, inp,
+                               tag, eqnState, thermo, trans, turb, wVars,
+                               layer);
         if (bcName == "viscousWall" && layer == 1) {
           const auto ind = this->WallDataIndex(surf);
           wallData_[ind](ii, jj, kk, true) = wVars;
