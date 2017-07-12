@@ -637,6 +637,9 @@ primVars primVars::GetGhostState(
       exit(EXIT_FAILURE);
     }
 
+    // extrapolate from boundary to ghost cell
+    ghostState = 2.0 * ghostState - (*this);
+
     if (layer > 1) {  // extrapolate to get ghost state at deeper layers
       ghostState = layer * ghostState - (*this);
 
@@ -723,6 +726,9 @@ primVars primVars::GetGhostState(
                                      eqnState, turb);
     }
 
+    // extrapolate from boundary to ghost cell
+    ghostState = 2.0 * ghostState - (*this);
+
     if (layer > 1) {  // extrapolate to get ghost state at deeper layers
       ghostState = layer * ghostState - (*this);
 
@@ -755,20 +761,23 @@ primVars primVars::GetGhostState(
     ghostState.data_[3] = this->W() + normArea.Z() * deltaPressure / rhoSoSInt;
 
     if (bcData->IsNonreflecting()) {
-      const auto deltaVel = ghostState.Velocity().DotProd(normArea) -
-                            this->Velocity().DotProd(normArea);
+      const auto deltaVel = 0.0 * (ghostState.Velocity().DotProd(normArea) -
+                                   this->Velocity().DotProd(normArea));
       constexpr auto sigma = 0.25;
       const auto mach = this->Velocity().DotProd(normArea) / SoSInt;
       const auto length = 0.013 / inputVars.LRef();
-      const auto k = sigma * (1.0 - mach * mach) / (2.0 * this->Rho() * length);
+      const auto k = sigma * SoSInt * (1.0 - mach * mach) / length;
       // correct deltaVel, length
       ghostState.data_[4] =
-          (this->P() - rhoSoSInt * deltaVel + dt * k * pb) / (1.0 + dt * k);
+          (this->P() + rhoSoSInt * deltaVel + dt * k * pb) / (1.0 + dt * k);
     } else {
       ghostState.data_[4] = pb;
     }
 
     // numerical bcs for turbulence variables
+
+    // extrapolate from boundary to ghost cell
+    ghostState = 2.0 * ghostState - (*this);
 
     if (layer > 1) {  // extrapolate to get ghost state at deeper layers
       ghostState = layer * ghostState - (*this);
