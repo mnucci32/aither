@@ -753,16 +753,9 @@ primVars primVars::GetGhostState(
 
     const auto SoSInt = this->SoS(thermo, eqnState);
     const auto rhoSoSInt = this->Rho() * SoSInt;
-    const auto deltaPressure = this->P() - pb;
-
-    ghostState.data_[0] = this->Rho() - deltaPressure / (SoSInt * SoSInt);
-    ghostState.data_[1] = this->U() + normArea.X() * deltaPressure / rhoSoSInt;
-    ghostState.data_[2] = this->V() + normArea.Y() * deltaPressure / rhoSoSInt;
-    ghostState.data_[3] = this->W() + normArea.Z() * deltaPressure / rhoSoSInt;
-
+    
     if (bcData->IsNonreflecting()) {
-      const auto deltaVel = 0.0 * (ghostState.Velocity().DotProd(normArea) -
-                                   this->Velocity().DotProd(normArea));
+      const auto deltaVel = 0.0 * this->Velocity().DotProd(normArea);
       constexpr auto sigma = 0.25;
       const auto mach = this->Velocity().DotProd(normArea) / SoSInt;
       const auto length = 0.013 / inputVars.LRef();
@@ -773,6 +766,12 @@ primVars primVars::GetGhostState(
     } else {
       ghostState.data_[4] = pb;
     }
+
+    const auto deltaPressure = this->P() - ghostState.P();
+    ghostState.data_[0] = this->Rho() - deltaPressure / (SoSInt * SoSInt);
+    ghostState.data_[1] = this->U() + normArea.X() * deltaPressure / rhoSoSInt;
+    ghostState.data_[2] = this->V() + normArea.Y() * deltaPressure / rhoSoSInt;
+    ghostState.data_[3] = this->W() + normArea.Z() * deltaPressure / rhoSoSInt;
 
     // numerical bcs for turbulence variables
 

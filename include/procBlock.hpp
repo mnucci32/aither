@@ -40,9 +40,6 @@ using std::string;
 using std::ios;
 using std::ofstream;
 using std::ifstream;
-using std::cout;
-using std::endl;
-using std::cerr;
 using std::unique_ptr;
 
 // forward class declarations

@@ -344,7 +344,11 @@ void procBlock::InitializeStates(const input &inp,
   if (ic.IsFromFile()) {
     // create k-d tree from cloud of points
     vector<primVars> cloudStates;
-    const auto tree = CalcTreeFromCloud(ic.File(), inp, trans, cloudStates);
+    vector<string> species;
+    const auto tree =
+        CalcTreeFromCloud(ic.File(), inp, trans, cloudStates, species);
+    // check that species are defined
+    inp.CheckSpecies(species);
 
     auto maxDist = std::numeric_limits<double>::min();
     vector3d<double> neighbor;

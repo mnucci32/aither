@@ -229,6 +229,7 @@ class input {
   icState ICStateForBlock(const int &) const;
   const shared_ptr<inputState> & BCData(const int &) const;
   fluid Fluid(const int = 0) const;
+  void CheckSpecies(const vector<string> &) const;
 
   bool IsWenoZ() const {return this->FaceReconstruction() == "wenoZ";}
 

@@ -829,15 +829,17 @@ void input::CheckTurbulenceModel() const {
 void input::CheckSpecies() const {
   // check all species in ICs are defined
   for (auto &ic : ics_) {
-    auto fracs = ic.MassFractions();  // get mass fractions for ICs
-    // loop over all species and find if that species has been defined
-    for (auto &species : fracs) {
-      auto name = species.first;
-      if (find_if(std::begin(fluids_), std::end(fluids_),
-                  [&name](const fluid &fl) { return fl.Name() == name; }) ==
-          std::end(fluids_)) {
-        cerr << "ERROR: Species " << name << " is not defined!" << endl;
-        exit(EXIT_FAILURE);
+    if (!ic.IsFromFile()) {
+      auto fracs = ic.MassFractions();  // get mass fractions for ICs
+      // loop over all species and find if that species has been defined
+      for (auto &species : fracs) {
+        auto name = species.first;
+        if (find_if(std::begin(fluids_), std::end(fluids_),
+                    [&name](const fluid &fl) { return fl.Name() == name; }) ==
+            std::end(fluids_)) {
+          cerr << "ERROR: Species " << name << " is not defined!" << endl;
+          exit(EXIT_FAILURE);
+        }
       }
     }
   }
@@ -861,6 +863,25 @@ void input::CheckSpecies() const {
   // check that there is at least one species defined
   if (fluids_.size() < 1) {
     cerr << "ERROR: At least one fluid species must be defined!" << endl;
+  }
+}
+
+// member function to check that all species specified are defined
+// vector of species comes from prescribed ic file
+void input::CheckSpecies(const vector<string> &species) const {
+  for (auto &name : species) {
+    if (find_if(std::begin(fluids_), std::end(fluids_),
+                [&name](const fluid &fl) { return fl.Name() == name; }) ==
+        std::end(fluids_)) {
+      cerr << "ERROR: Species " << name << " is not defined!" << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  // check that there is at least one species from ic file
+  if (species.size() < 1) {
+    cerr << "ERROR: At least one fluid species must be defined in ic file!"
+         << endl;
   }
 }
 

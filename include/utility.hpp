@@ -155,7 +155,8 @@ tensor<double> CalcVelGradTSL(const primVars&, const primVars&,
                               const vector3d<double>&, const double&);
 
 kdtree CalcTreeFromCloud(const string &, const input &,
-                         const unique_ptr<transport> &, vector<primVars> &);
+                         const unique_ptr<transport> &, vector<primVars> &,
+                         vector<string> &);
 
 // ---------------------------------------------------------------------------
 // inline function definitions
