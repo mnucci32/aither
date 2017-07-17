@@ -965,7 +965,7 @@ void procBlock::ImplicitTimeAdvance(const genArray &du,
  Un+1 = Un - dt/V * alpha * R
 
 Un is the conserved variables at time n, Un+1 is the conserved variables at time
-n+1, dt_ is the cell's time step, V is the cell's volume, alpha is the runge-kutta
+n+1, dt is the cell's time step, V is the cell's volume, alpha is the runge-kutta
 coefficient, and R is the cell's residual.
  */
 void procBlock::RK4TimeAdvance(const genArray &currState,
@@ -1036,7 +1036,7 @@ where n represents the time step. Theta and zeta are Beam & Warming parameters,
 t is the time step, V is the cell volume, and R is the residual.
 FD and BD are the forward and backward difference operators respectively. These
 opererators operate in the time domain. For example FD(U) =
-Un+1 - Un and BD(U) = Un - Un-1. Solving the above equation for FD(Qn) we get
+Un+1 - Un and BD(U) = Un - Un-1. Solving the above equation for FD(Un) we get
 the following:
 
 FD(Un) = (-t * Rn - t * theta * FD(Rn) + zeta * V * FD(Un-1)) / ((1 + zeta) * V)
@@ -1089,8 +1089,7 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
   for (auto kk = 0; kk < this->NumK(); kk++) {
     for (auto jj = 0; jj < this->NumJ(); jj++) {
       for (auto ii = 0; ii < this->NumI(); ii++) {
-        auto diagVolTime = (vol_(ii, jj, kk) * (1.0 + inp.Zeta())) /
-            (dt_(ii, jj, kk) * inp.Theta());
+        auto diagVolTime = this->SolDeltaNCoeff(ii, jj, kk, inp);
         if (inp.DualTimeCFL() > 0.0) {  // use dual time stepping
           // equal to volume / tau
           diagVolTime += specRadius_(ii, jj, kk).Max() /
@@ -1361,7 +1360,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       }
 
       // -----------------------------------------------------------------------
-      // if k lower cell is in physical location there is a contribution
+      // if k upper cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii, jj, kk + 1) ||
           bc_.BCIsConnection(ii, jj, kk + 1, 6)) {
@@ -1387,7 +1386,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // normal at lower boundaries needs to be reversed, so add instead
     // of subtract L
     x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(-thetaInv *
-                                               residual_(ii, jj, kk) -
+                                               residual_(ii, jj, kk) +
                                                solDeltaNm1 - solDeltaMmN +
                                                L - U);
   }  // end forward sweep
@@ -1547,7 +1546,7 @@ double procBlock::LUSGS_Backward(
     auto xold = x(ii, jj, kk);
     if (sweep > 0 || inp.MatrixRequiresInitialization()) {
       x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(-thetaInv *
-                                                 residual_(ii, jj, kk) -
+                                                 residual_(ii, jj, kk) +
                                                  solDeltaNm1 - solDeltaMmN +
                                                  L - U);
     } else {
@@ -1709,7 +1708,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
 
         // calculate update
         x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(
-            -thetaInv * residual_(ii, jj, kk) - solDeltaNm1 - solDeltaMmN
+            -thetaInv * residual_(ii, jj, kk) + solDeltaNm1 - solDeltaMmN
             + offDiagonal);
 
         // calculate matrix error
