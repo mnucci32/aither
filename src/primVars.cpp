@@ -755,14 +755,17 @@ primVars primVars::GetGhostState(
     const auto rhoSoSInt = this->Rho() * SoSInt;
     
     if (bcData->IsNonreflecting()) {
-      const auto deltaVel = 0.0 * this->Velocity().DotProd(normArea);
+      const auto dp = this->P() - pb;
+      const auto velNew = this->Velocity() - normArea * dp / rhoSoSInt;
+      const auto deltaVel = (velNew - this->Velocity()).DotProd(normArea);
       constexpr auto sigma = 0.25;
       const auto mach = this->Velocity().DotProd(normArea) / SoSInt;
       const auto length = 0.013 / inputVars.LRef();
       const auto k = sigma * SoSInt * (1.0 - mach * mach) / length;
       // correct deltaVel, length
       ghostState.data_[4] =
-          (this->P() + rhoSoSInt * deltaVel + dt * k * pb) / (1.0 + dt * k);
+          (this->P() + rhoSoSInt * deltaVel + rhoSoSInt * dt * k * pb) /
+          (1.0 + rhoSoSInt * dt * k);
     } else {
       ghostState.data_[4] = pb;
     }
