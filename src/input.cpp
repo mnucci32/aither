@@ -763,8 +763,7 @@ void input::CheckOutputVariables() {
     }
 
     if (!this->IsViscous()) {  // can't have viscous variables output
-      if (var.find("velGrad_") != string::npos
-          || var.find("tempGrad_") != string::npos || var == "viscosity") {
+      if (var == "viscosity") {
         cerr << "WARNING: Variable " << var <<
             " is not available for inviscid simulations." << endl;
         outputVariables_.erase(var);

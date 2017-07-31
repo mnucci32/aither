@@ -295,6 +295,24 @@ void WriteFun(const vector<procBlock> &vars, const unique_ptr<eos> &eqnState,
             } else if (var == "tempGrad_z") {
               value = blk.TempGrad(ii, jj, kk).Z();
               value *= inp.TRef() / inp.LRef();
+            } else if (var == "densityGrad_x") {
+              value = blk.DensityGrad(ii, jj, kk).X();
+              value *= inp.RRef() / inp.LRef();
+            } else if (var == "densityGrad_y") {
+              value = blk.DensityGrad(ii, jj, kk).Y();
+              value *= inp.RRef() / inp.LRef();
+            } else if (var == "denistyGrad_z") {
+              value = blk.DensityGrad(ii, jj, kk).Z();
+              value *= inp.RRef() / inp.LRef();
+            } else if (var == "pressGrad_x") {
+              value = blk.PressureGrad(ii, jj, kk).X();
+              value *= inp.RRef() * inp.ARef() * inp.ARef() / inp.LRef();
+            } else if (var == "pressGrad_y") {
+              value = blk.PressureGrad(ii, jj, kk).Y();
+              value *= inp.RRef() * inp.ARef() * inp.ARef() / inp.LRef();
+            } else if (var == "pressGrad_z") {
+              value = blk.PressureGrad(ii, jj, kk).Z();
+              value *= inp.RRef() * inp.ARef() * inp.ARef() / inp.LRef();
             } else if (var == "tkeGrad_x") {
               value = blk.TkeGrad(ii, jj, kk).X();
               value *= inp.ARef() * inp.ARef() / inp.LRef();
