@@ -3238,7 +3238,7 @@ void procBlock::AssignInviscidGhostCellsEdge(
           const auto cFaceD3_3 = upper3 ? max3 : 0;
 
           // loop over edge
-          for (auto d1 = 0; d1 <= max1; d1++) {
+          for (auto d1 = 0; d1 < max1; d1++) {
             boundarySurface bcSurf_2, bcSurf_3;
             vector3d<double> fArea2, fArea3;
             if (dir == "i") {
@@ -3283,10 +3283,9 @@ void procBlock::AssignInviscidGhostCellsEdge(
             const auto wDist2 = wallDist_(dir, d1, cFaceD3_2, gCellD3);
             const auto wDist3 = wallDist_(dir, d1, gCellD2, cFaceD2_3);
 
-            // get time step
-            const auto dt2 = dt_(dir, d1, cFaceD3_2, gCellD3);
-            const auto dt3 = dt_(dir, d1, gCellD2, cFaceD2_3);
-
+            // get time step (no ghost cell)
+            // this isn't used in slipWall BC, so just use corner values
+            const auto dt = dt_(dir, d1, cFaceD3_2, cFaceD2_3);
 
             wallVars wVars;  // not used, only for calling GetGhostState
 
@@ -3295,14 +3294,14 @@ void procBlock::AssignInviscidGhostCellsEdge(
             if (bc_2 == "slipWall" && bc_3 != "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, pCellD2, gCellD3)
-                      .GetGhostState(bc_2, fArea2, wDist2, dt2, surf2, inp,
+                      .GetGhostState(bc_2, fArea2, wDist2, dt, surf2, inp,
                                      tag2, eqnState, thermo, trans, turb, wVars,
                                      layer2);
               // surface-3 is a wall, but surface-2 is not - extend wall bc
             } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, gCellD2, pCellD3)
-                      .GetGhostState(bc_3, fArea3, wDist3, dt3, surf3, inp,
+                      .GetGhostState(bc_3, fArea3, wDist3, dt, surf3, inp,
                                      tag3, eqnState, thermo, trans, turb, wVars,
                                      layer3);
             } else {  // both surfaces or neither are walls - proceed as normal
@@ -3512,7 +3511,7 @@ void procBlock::AssignViscousGhostCellsEdge(
           const auto cFaceD3_3 = upper3 ? max3 : 0;
 
           // loop over edge
-          for (auto d1 = 0; d1 <= max1; d1++) {
+          for (auto d1 = 0; d1 < max1; d1++) {
             boundarySurface bcSurf_2, bcSurf_3;
             vector3d<double> fArea2, fArea3;
             if (dir == "i") {
@@ -3554,9 +3553,9 @@ void procBlock::AssignViscousGhostCellsEdge(
             const auto wDist2 = wallDist_(dir, d1, cFaceD3_2, gCellD3);
             const auto wDist3 = wallDist_(dir, d1, gCellD2, cFaceD2_3);
 
-            // get time step
-            const auto dt2 = dt_(dir, d1, cFaceD3_2, gCellD3);
-            const auto dt3 = dt_(dir, d1, gCellD2, cFaceD2_3);
+            // get time step (no ghost cell)
+            // this isn't used in slipWall BC, so just use corner values
+            const auto dt = dt_(dir, d1, cFaceD3_2, cFaceD2_3);
 
             wallVars wVars;  // not used, only for calling GetGhostState
 
@@ -3565,14 +3564,14 @@ void procBlock::AssignViscousGhostCellsEdge(
             if (bc_2 == "slipWall" && bc_3 != "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, pCellD2, gCellD3)
-                      .GetGhostState(bc_2, fArea2, wDist2, dt2, surf2, inp,
+                      .GetGhostState(bc_2, fArea2, wDist2, dt, surf2, inp,
                                      tag2, eqnState, thermo, trans, turb, wVars,
                                      layer2);
               // surface-3 is a wall, but surface-2 is not - extend wall bc
             } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, gCellD2, pCellD3)
-                      .GetGhostState(bc_3, fArea3, wDist3, dt3, surf3, inp,
+                      .GetGhostState(bc_3, fArea3, wDist3, dt, surf3, inp,
                                      tag3, eqnState, thermo, trans, turb, wVars,
                                      layer3);
               // both surfaces are walls - proceed as normal
