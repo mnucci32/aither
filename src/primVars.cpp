@@ -588,11 +588,12 @@ primVars primVars::GetGhostState(
       // characteristic and freestream values for minus characteristic
       const auto rhoSoSInt = this->Rho() * SoSInt;
       const auto velDiff = freeState.Velocity() - this->Velocity();
-      const auto deltaPressure = freeState.P() - ghostState.P();
 
       // plus characteristic
       ghostState.data_[4] = 0.5 * (freeState.P() + this->P() -
                                    rhoSoSInt * normArea.DotProd(velDiff));
+      const auto deltaPressure = freeState.P() - ghostState.P();
+
       // minus characteristic
       ghostState.data_[0] = freeState.Rho() - deltaPressure / (SoSInt * SoSInt);
       ghostState.data_[1] =
