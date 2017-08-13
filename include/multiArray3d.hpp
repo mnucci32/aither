@@ -78,6 +78,7 @@ class multiArray3d {
 
   // member functions
   int Size() const {return data_.size();}
+  bool IsEmpty() const {return data_.empty();}
   int NumI() const {return numI_;}
   int NumJ() const {return numJ_;}
   int NumK() const {return numK_;}

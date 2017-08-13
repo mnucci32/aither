@@ -536,6 +536,7 @@ pressureOutlet::pressureOutlet(string &str, const string name) {
   auto tagCount = 0;
   auto pressureCount = 0;
   auto nonreflectingCount = 0;
+  nonreflecting_ = false;
   specifiedReflecting_ = false;
 
   for (auto &token : tokens) {
@@ -550,7 +551,7 @@ pressureOutlet::pressureOutlet(string &str, const string name) {
       pressureCount++;
     } else if (param[0] == "nonreflecting") {
       auto reflect = RemoveTrailing(param[1], ",");
-      nonreflecting_ = reflect == "true";
+      nonreflecting_ = (reflect == "true");
       specifiedReflecting_ = true;
       nonreflectingCount++;
     } else if (param[0] == "tag") {

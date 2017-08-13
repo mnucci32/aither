@@ -33,6 +33,7 @@ supply a ghost state given a boundary condition and boundary cell.  */
 #include <string>                  // string
 #include <memory>                  // unique_ptr
 #include "vector3d.hpp"            // vector3d
+#include "tensor.hpp"              // tensor
 #include "eos.hpp"                 // equation of state
 #include "transport.hpp"           // transport model
 #include "thermodynamic.hpp"       // thermodynamic model
@@ -216,12 +217,14 @@ class primVars {
 
   // member function to return the state of the appropriate ghost cell
   primVars GetGhostState(const string &, const vector3d<double> &,
-                         const double &, const double &, const int &,
-                         const input &, const int &, const unique_ptr<eos> &,
+                         const double &, const int &, const input &,
+                         const int &, const unique_ptr<eos> &,
                          const unique_ptr<thermodynamic> &,
                          const unique_ptr<transport> &,
-                         const unique_ptr<turbModel> &, wallVars &,
-                         const int = 1) const;
+                         const unique_ptr<turbModel> &, wallVars &, const int &,
+                         const double & = 0.0, const primVars & = {},
+                         const vector3d<double> & = {},
+                         const tensor<double> & = {}) const;
 
   // destructor
   ~primVars() noexcept {}

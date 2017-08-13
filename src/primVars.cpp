@@ -357,22 +357,26 @@ subsonicOutflow, supersonicInflow, supersonicOutflow
 */
 primVars primVars::GetGhostState(
     const string &bcType, const vector3d<double> &areaVec,
-    const double &wallDist, const double &dt, const int &surf,
-    const input &inputVars, const int &tag, const unique_ptr<eos> &eqnState,
+    const double &wallDist, const int &surf, const input &inputVars,
+    const int &tag, const unique_ptr<eos> &eqnState,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
-    const unique_ptr<turbModel> &turb, wallVars &wVars, const int layer) const {
+    const unique_ptr<turbModel> &turb, wallVars &wVars, const int &layer,
+    const double &dt, const primVars &stateN, const vector3d<double> &pressGrad,
+    const tensor<double> &velGrad) const {
   // bcType -- type of boundary condition to supply ghost cell for
   // areaVec -- unit area vector of boundary face
   // surf -- surface type [1-6]
   // wallDist -- distance from cell center to nearest wall boundary
-  // dt -- cell time step nearest to wall boundary
   // inputVar -- all input variables
   // tag -- boundary condition tag
   // eqnState -- equation of state
   // trans -- unique_ptr<transport> model for viscosity
   // turb -- turbulence model
-  // layer -- layer of ghost cell to return (first (closest) or second
-  //          (farthest))
+  // layer -- layer of ghost cell to return (1st (closest) or 2nd (farthest))
+  // dt -- cell time step nearest to wall boundary
+  // stateN -- solution at boundary adjacent cell at time n
+  // pressGrad -- pressure gradient in adjcent cell
+  // velGrad -- velocity gradient in adjacent cell
 
   // the instance of primVars being acted upon should be the interior cell
   // bordering the boundary
@@ -756,17 +760,39 @@ primVars primVars::GetGhostState(
     const auto rhoSoSInt = this->Rho() * SoSInt;
     
     if (bcData->IsNonreflecting()) {
-      const auto dp = this->P() - pb;
-      const auto velNew = this->Velocity() - normArea * dp / rhoSoSInt;
-      const auto deltaVel = (velNew - this->Velocity()).DotProd(normArea);
+      // const auto dp = this->P() - pb;
+      // const auto velNew = this->Velocity() + normArea * dp / rhoSoSInt;
+      const auto deltaVel =
+          (this->Velocity() - stateN.Velocity()).DotProd(normArea);
       constexpr auto sigma = 0.25;
-      const auto mach = this->Velocity().DotProd(normArea) / SoSInt;
+      const auto mach = this->Velocity().Mag() / SoSInt;
+
+
+
+      // DEBUG correct length, note use of mach
+
+
+
       const auto length = 0.013 / inputVars.LRef();
       const auto k = sigma * SoSInt * (1.0 - mach * mach) / length;
-      // correct deltaVel, length
+      const auto rhoSoSN = stateN.Rho() * stateN.SoS(thermo, eqnState);
+
+      // calculate transverse terms
+      const auto beta = mach;
+      const auto pGradT = pressGrad - pressGrad.DotProd(normArea) * normArea;
+      const auto velT =
+          stateN.Velocity() - stateN.Velocity().DotProd(normArea) * normArea;
+      const auto velGradT = velGrad.RemoveComponent(normArea);
+      const auto dVelN_dTrans = velGradT.LinearCombination(normArea);
+      const auto dVelT_dTrans = velGradT.Sum() - dVelN_dTrans.SumElem();
+      const auto gamma = thermo->Gamma(stateN.Temperature(eqnState));
+
+      const auto trans = -0.5 * (velT.DotProd(pGradT - rhoSoSN * dVelN_dTrans) +
+                                 gamma * stateN.P() * dVelT_dTrans);
+
       ghostState.data_[4] =
-          (this->P() + rhoSoSInt * deltaVel + rhoSoSInt * dt * k * pb) /
-          (1.0 + rhoSoSInt * dt * k);
+          (stateN.P() + rhoSoSN * deltaVel + dt * k * pb - dt * beta * trans) /
+          (1.0 + dt * k);
     } else {
       ghostState.data_[4] = pb;
     }
