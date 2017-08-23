@@ -362,7 +362,8 @@ primVars primVars::GetGhostState(
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
     const unique_ptr<turbModel> &turb, wallVars &wVars, const int &layer,
     const double &dt, const primVars &stateN, const vector3d<double> &pressGrad,
-    const tensor<double> &velGrad) const {
+    const tensor<double> &velGrad, const double &avgMach,
+    const double &maxMach) const {
   // bcType -- type of boundary condition to supply ghost cell for
   // areaVec -- unit area vector of boundary face
   // surf -- surface type [1-6]
@@ -377,6 +378,8 @@ primVars primVars::GetGhostState(
   // stateN -- solution at boundary adjacent cell at time n
   // pressGrad -- pressure gradient in adjcent cell
   // velGrad -- velocity gradient in adjacent cell
+  // avgMach -- average mach number on surface patch
+  // maxMach -- maximum mach number on surface patch
 
   // the instance of primVars being acted upon should be the interior cell
   // bordering the boundary
@@ -765,20 +768,17 @@ primVars primVars::GetGhostState(
       const auto deltaVel =
           (this->Velocity() - stateN.Velocity()).DotProd(normArea);
       constexpr auto sigma = 0.25;
-      const auto mach = this->Velocity().Mag() / SoSInt;
 
+      // DEBUG correct length
 
-
-      // DEBUG correct length, note use of mach
-
-
-
+      const auto rhoN = stateN.Rho();
+      const auto sosN = stateN.SoS(thermo, eqnState);
+      const auto rhoSoSN = rhoN * sosN;
       const auto length = 0.013 / inputVars.LRef();
-      const auto k = sigma * SoSInt * (1.0 - mach * mach) / length;
-      const auto rhoSoSN = stateN.Rho() * stateN.SoS(thermo, eqnState);
+      const auto k = sigma * sosN * (1.0 - maxMach * maxMach) / length;
 
       // calculate transverse terms
-      const auto beta = mach;
+      const auto beta = avgMach;
       const auto pGradT = pressGrad - pressGrad.DotProd(normArea) * normArea;
       const auto velT =
           stateN.Velocity() - stateN.Velocity().DotProd(normArea) * normArea;
@@ -804,6 +804,11 @@ primVars primVars::GetGhostState(
     ghostState.data_[3] = this->W() + normArea.Z() * deltaPressure / rhoSoSInt;
 
     // numerical bcs for turbulence variables
+
+    // check for inflow
+    if (ghostState.Velocity().DotProd(normArea) < 0.0) {
+      ghostState = *this;
+    }
 
     // extrapolate from boundary to ghost cell
     ghostState = 2.0 * ghostState - (*this);

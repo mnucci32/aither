@@ -6775,14 +6775,44 @@ multiArray3d<primVars> procBlock::GetGhostStates(
   // pGrad -- pressure gradient at adjacent cell
   // velGrad -- velocity gradient at adjacent cell
 
+  // get surface type and tag
+  const auto surfType = surf.SurfaceType();
+  const auto tag = surf.Tag();
+
+  // find average and max mach on boundary for nonreflecting pressure outlet
+  // only using data on local surface patch here, not bothering to make MPI
+  // calls to get data over global patch
+  auto avgMach = 0.0;
+  auto maxMach = -1.0 * std::numeric_limits<double>::max();
+  if (bcName == "pressureOutlet") {
+    const auto &bcData = inp.BCData(tag);
+    if (bcData->IsNonreflecting()) {
+      // face area vector (should always point out of domain)
+      // at lower surface normal should point out of domain for ghost cell calc
+      const auto isLower = surfType % 2 == 1;
+      for (auto kk = bndStates.StartK(); kk < bndStates.EndK(); kk++) {
+        for (auto jj = bndStates.StartJ(); jj < bndStates.EndJ(); jj++) {
+          for (auto ii = bndStates.StartI(); ii < bndStates.EndI(); ii++) {
+            const auto area = isLower
+                                  ? -1.0 * faceAreas(ii, jj, kk).UnitVector()
+                                  : faceAreas(ii, jj, kk).UnitVector();
+            auto mach = bndStates(ii, jj, kk).Velocity().DotProd(area) /
+                        bndStates(ii, jj, kk).SoS(thermo, eqnState);
+            maxMach = std::max(maxMach, mach);
+            avgMach += mach;
+          }
+        }
+      }
+      avgMach /= bndStates.Size();
+    }
+  }
+
   multiArray3d<primVars> ghostStates(
       bndStates.NumINoGhosts(), bndStates.NumJNoGhosts(),
       bndStates.NumKNoGhosts(), bndStates.GhostLayers());
   for (auto kk = bndStates.StartK(); kk < bndStates.EndK(); kk++) {
     for (auto jj = bndStates.StartJ(); jj < bndStates.EndJ(); jj++) {
       for (auto ii = bndStates.StartI(); ii < bndStates.EndI(); ii++) {
-        const auto surfType = surf.SurfaceType();
-        const auto tag = surf.Tag();
         wallVars wVars;
         if (dt.IsEmpty()) {
           ghostStates(ii, jj, kk) =
@@ -6799,7 +6829,7 @@ multiArray3d<primVars> procBlock::GetGhostStates(
                                  wDist(ii, jj, kk), surfType, inp, tag,
                                  eqnState, thermo, trans, turb, wVars, layer,
                                  dt(ii, jj, kk), stateN, pGrad(ii, jj, kk),
-                                 velGrad(ii, jj, kk));
+                                 velGrad(ii, jj, kk), avgMach, maxMach);
         }
         if (bcName == "viscousWall" && layer == 1) {
           const auto ind = this->WallDataIndex(surf);

@@ -224,7 +224,8 @@ class primVars {
                          const unique_ptr<turbModel> &, wallVars &, const int &,
                          const double & = 0.0, const primVars & = {},
                          const vector3d<double> & = {},
-                         const tensor<double> & = {}) const;
+                         const tensor<double> & = {}, const double & = 0.0,
+                         const double & = 0.0) const;
 
   // destructor
   ~primVars() noexcept {}
