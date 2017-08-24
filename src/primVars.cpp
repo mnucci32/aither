@@ -567,7 +567,7 @@ primVars primVars::GetGhostState(
 
     // internal variables
     const auto velIntNorm = this->Velocity().DotProd(normArea);
-    const auto SoSInt = eqnState->SoS(this->P(), this->Rho());
+    const auto SoSInt = this->SoS(thermo, eqnState);
     const auto machInt = fabs(velIntNorm) / SoSInt;
 
     if (machInt >= 1.0 && velIntNorm < 0.0) {  // supersonic inflow
@@ -763,18 +763,14 @@ primVars primVars::GetGhostState(
     const auto rhoSoSInt = this->Rho() * SoSInt;
     
     if (bcData->IsNonreflecting()) {
-      // const auto dp = this->P() - pb;
-      // const auto velNew = this->Velocity() + normArea * dp / rhoSoSInt;
+      // calculate LODI terms
       const auto deltaVel =
           (this->Velocity() - stateN.Velocity()).DotProd(normArea);
       constexpr auto sigma = 0.25;
-
-      // DEBUG correct length
-
       const auto rhoN = stateN.Rho();
       const auto sosN = stateN.SoS(thermo, eqnState);
       const auto rhoSoSN = rhoN * sosN;
-      const auto length = 0.013 / inputVars.LRef();
+      const auto length = bcData->LengthScale();
       const auto k = sigma * sosN * (1.0 - maxMach * maxMach) / length;
 
       // calculate transverse terms
@@ -805,8 +801,10 @@ primVars primVars::GetGhostState(
 
     // numerical bcs for turbulence variables
 
-    // check for inflow
-    if (ghostState.Velocity().DotProd(normArea) < 0.0) {
+    // check for supersonic flow
+    if (ghostState.Velocity().DotProd(normArea) /
+            ghostState.SoS(thermo, eqnState) >=
+        1.0) {
       ghostState = *this;
     }
 

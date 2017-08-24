@@ -93,6 +93,7 @@ class inputState {
   virtual string File() const { return "undefined"; }
   virtual bool IsFromFile() const { return false; }
   virtual bool IsNonreflecting() const { return false; }
+  virtual const double LengthScale() const { return 0.0; }
   bool IsNondimensional() const { return nondimensional_; }
   void SetNondimensional(const bool &nd) {nondimensional_ = nd;}
 
@@ -225,6 +226,7 @@ class pressureOutlet : public inputState {
   double pressure_;
   bool nonreflecting_ = false;
   bool specifiedReflecting_ = false;
+  double lengthScale_ = 0.0;
 
  public:
   // constructor
@@ -242,6 +244,7 @@ class pressureOutlet : public inputState {
   const double Pressure() const override {return pressure_;}
   bool IsNonreflecting() const override { return nonreflecting_; }
   bool SpecifiedReflecting() const { return specifiedReflecting_; }
+  const double LengthScale() const override { return lengthScale_; }
   void Print(ostream &os) const override;
   void Nondimensionalize(const double &rRef, const double &tRef,
                          const double &lRef, const double &aRef) override;

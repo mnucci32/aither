@@ -124,6 +124,7 @@ void pressureOutlet::Print(ostream &os) const {
      << "; pressure=" << this->Pressure();
      if (this->SpecifiedReflecting()) {
        os << "; nonreflecting=" << std::boolalpha << this->IsNonreflecting();
+       os << "; lengthScale=" << this->LengthScale();
      }
      os << ")";
 }
@@ -536,6 +537,7 @@ pressureOutlet::pressureOutlet(string &str, const string name) {
   auto tagCount = 0;
   auto pressureCount = 0;
   auto nonreflectingCount = 0;
+  auto lengthCount = 0;
   nonreflecting_ = false;
   specifiedReflecting_ = false;
 
@@ -557,6 +559,9 @@ pressureOutlet::pressureOutlet(string &str, const string name) {
     } else if (param[0] == "tag") {
       this->SetTag(stoi(RemoveTrailing(param[1], ",")));
       tagCount++;
+    } else if (param[0] == "lengthScale") {
+      lengthScale_ = stod(RemoveTrailing(param[1], ","));
+      lengthCount++;
     } else {
       cerr << "ERROR. " << name << " specifier " << param[0]
            << " is not recognized!" << endl;
@@ -571,10 +576,15 @@ pressureOutlet::pressureOutlet(string &str, const string name) {
          << "only specified once." << endl;
     exit(EXIT_FAILURE);
   }
-  // can only specify nonreflecting once
-  if (nonreflectingCount > 1) {
-    cerr << "ERROR. For " << name << " nonreflecting can only be specified once"
-         << endl;
+  // can only specify nonreflecting and length scale once
+  if (nonreflectingCount > 1 || lengthCount > 1) {
+    cerr << "ERROR. For " << name << " nonreflecting and/or lengthScale can "
+         << "only be specified once" << endl;
+    exit(EXIT_FAILURE);
+  }
+  if (nonreflecting_ && lengthCount != 1) {
+    cerr << "ERROR. For " << name << " lengthScale must be specified with "
+         << "nonreflecting" << endl;
     exit(EXIT_FAILURE);
   }
 }
@@ -583,6 +593,7 @@ void pressureOutlet::Nondimensionalize(const double &rRef, const double &tRef,
                                        const double &lRef, const double &aRef) {
   if (!this->IsNondimensional()) {
     pressure_ /= rRef * aRef * aRef;
+    lengthScale_ /= lRef;
     this->SetNondimensional(true);
   }
 }
