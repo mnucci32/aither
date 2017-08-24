@@ -14,18 +14,18 @@ inviscidFluxJacobian: rusanov
 viscousFaceReconstruction: central
 limiter: none
 
-iterations: 100
-nonlinearIterations: 5
-outputFrequency: 10
+iterations: 200
+nonlinearIterations: 10
+outputFrequency: 1
 outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach>
-restartFrequency: 1000
+restartFrequency: 100
 
 # reference conditions
-referenceDensity: 1.2256
+referenceDensity: 1.185
 referenceTemperature: 288
 referenceLength: 1
 
-fluids: <fluid(name=air; n=2.5; molarMass=0.02897)>
+fluids: <fluid(name=N2; n=2.5; molarMass=0.0280134)>
 thermodynamicModel: caloricallyPerfect
 
 initialConditions: <icState(tag=-1; file=vortex.dat)>
@@ -36,9 +36,9 @@ matrixRelaxation: 1
 
 turbulenceModel: none
 
-boundaryStates: <characteristic(tag=2; pressure=101325; density=1.2256; velocity=[100, 0, 0]),
+boundaryStates: <characteristic(tag=2; pressure=101300; density=1.185; velocity=[100, 0, 0]; massFractions=[N2=1.0]),
                  periodic(startTag=4; endTag=5; translation=[0, 0.013, 0]),
-                 pressureOutlet(tag=3; pressure=101325)>
+                 pressureOutlet(tag=3; pressure=101300; nonreflecting=true; lengthScale=0.013)>
 
 #-------------------------------------------------------------
 boundaryConditions: 1
