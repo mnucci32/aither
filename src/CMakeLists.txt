@@ -13,6 +13,7 @@ message (STATUS "Library path: ${CMAKE_LIBRARY_PATH}")
 message (STATUS "Prefix path: ${CMAKE_PREFIX_PATH}")
 message (STATUS "Module path: ${CMAKE_MODULE_PATH}")
 message (STATUS "Build type is: ${CMAKE_BUILD_TYPE}")
+message (STATUS "System name: ${CMAKE_SYSTEM_NAME}")
 
 # add include directories
 include_directories(${CMAKE_SOURCE_DIR}/include)
