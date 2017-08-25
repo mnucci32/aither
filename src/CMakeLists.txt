@@ -2,7 +2,7 @@ project (aither)
 
 # set version number
 set (aither_VERSION_MAJOR 0)
-set (aither_VERSION_MINOR 6)
+set (aither_VERSION_MINOR 8)
 set (aither_VERSION_PATCH 0)
 
 message (STATUS "Cmake version ${CMAKE_VERSION}")
@@ -78,28 +78,28 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 # set additional c++ flags for all build types
-if (${CMAKE_SYSTEM_NAME} MATCHES "WINDOWS")
+if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} /O2 /DNDEBUG")
 else()
    set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} -Wall -pedantic -march=native -O3 -DNDEBUG")
 endif()
 
 # release build type
-if (${CMAKE_SYSTEM_NAME} MATCHES "WINDOWS")
+if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
    set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${COMPILER_SPEC_FLAGS} /wd4710")
 else()
   set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} ${COMPILER_SPEC_FLAGS} -Wall -pedantic -march=native")
 endif()
 
 # debug build type
-if (${CMAKE_SYSTEM_NAME} MATCHES "WINDOWS")
+if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
    set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${COMPILER_SPEC_FLAGS} /Wall /Od /PROFILE")
 else()
    set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} ${COMPILER_SPEC_FLAGS} -Wall -pedantic -O0 -ggdb -pg --coverage")
 endif()
 
 # create profile build type
-if (${CMAKE_SYSTEM_NAME} MATCHES "WINDOWS")
+if (${CMAKE_SYSTEM_NAME} MATCHES "Windows")
    set (CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} /PROFILE")
 else()
    set (CMAKE_CXX_FLAGS_PROFILE "${CMAKE_CXX_FLAGS} ${COMPILER_SPEC_FLAGS} -pg")
