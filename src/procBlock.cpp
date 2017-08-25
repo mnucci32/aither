@@ -3116,7 +3116,9 @@ void procBlock::AssignInviscidGhostCells(
         const auto wDist = wallDist_.Slice(dir, aCell, r1, r2);
         const auto dt = dt_.Slice(dir, aCell, r1, r2);
         // get boundary state at time n
-        const auto consVarsN = consVarsN_.Slice(dir, aCell, r1, r2);
+        const auto consVarsN = consVarsN_.IsEmpty()
+                                   ? consVarsN_
+                                   : consVarsN_.Slice(dir, aCell, r1, r2);
         // get gradients at time n
         const auto pGrad = pressureGrad_.Slice(dir, aCell, r1, r2);
         const auto velGrad = velocityGrad_.Slice(dir, aCell, r1, r2);
@@ -6814,7 +6816,7 @@ multiArray3d<primVars> procBlock::GetGhostStates(
     for (auto jj = bndStates.StartJ(); jj < bndStates.EndJ(); jj++) {
       for (auto ii = bndStates.StartI(); ii < bndStates.EndI(); ii++) {
         wallVars wVars;
-        if (dt.IsEmpty()) {
+        if (consVarsN.IsEmpty()) {
           ghostStates(ii, jj, kk) =
               bndStates(ii, jj, kk)
                   .GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),

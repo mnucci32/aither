@@ -533,6 +533,7 @@ void input::ReadInput(const int &rank) {
   this->CheckWallOutputVariables();
   this->CheckTurbulenceModel();
   this->CheckSpecies();
+  this->CheckNonreflecting();
 
   if (rank == ROOTP) {
     cout << endl;
@@ -732,7 +733,7 @@ void input::CheckNonlinearIterations() {
     nonlinearIterations_ = 4;
   }
 
-  if (timeIntegration_ == "euler" && nonlinearIterations_ != 1) {
+  if (timeIntegration_ == "explicitEuler" && nonlinearIterations_ != 1) {
     cerr << "WARNING: For euler method, nonlinear iterations should be set to "
          << 1 << " changing value from " << nonlinearIterations_ << " to " << 1
          << endl;
@@ -862,6 +863,22 @@ void input::CheckSpecies() const {
   // check that there is at least one species defined
   if (fluids_.size() < 1) {
     cerr << "ERROR: At least one fluid species must be defined!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+// check that nonreflecting BCs aren't used with explicit euler because
+// solution at time N is not stored
+void input::CheckNonreflecting() const {
+  if (timeIntegration_ == "explicitEuler") {
+    for (auto &bc : bcStates_) {
+      if (bc->IsNonreflecting()) {
+        cerr << "ERROR: Nonreflecting BCs cannot be used with explicitEuler "
+                "time integration!"
+             << endl;
+        exit(EXIT_FAILURE);
+      }
+    }
   }
 }
 
@@ -881,6 +898,7 @@ void input::CheckSpecies(const vector<string> &species) const {
   if (species.size() < 1) {
     cerr << "ERROR: At least one fluid species must be defined in ic file!"
          << endl;
+    exit(EXIT_FAILURE);
   }
 }
 

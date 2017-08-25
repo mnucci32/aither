@@ -452,6 +452,23 @@ def main():
     totalPass = totalPass and all(passed)
 
     # ------------------------------------------------------------------
+    # convecting vortex
+    # initialization from file, nonreflecting boundary
+    vortex = regressionTest()
+    vortex.SetRegressionCase("convectingVortex")
+    vortex.SetAitherPath(options.aitherPath)
+    vortex.SetRunDirectory("convectingVortex")
+    vortex.SetNumberOfProcessors(1)
+    vortex.SetNumberOfIterations(numIterations)
+    vortex.SetResiduals(
+        [5.2322e+00, 6.3715e-01, 7.0927e-01, 1.1204e+00, 7.9481e-01])
+    vortex.SetMpirunPath(options.mpirunPath)
+
+    # run regression case
+    passed = vortex.RunCase()
+    totalPass = totalPass and all(passed)
+
+    # ------------------------------------------------------------------
     # regression test overall pass/fail
     # ------------------------------------------------------------------
     if totalPass:

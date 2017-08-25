@@ -98,6 +98,7 @@ class input {
   void CheckWallOutputVariables();
   void CheckTurbulenceModel() const;
   void CheckSpecies() const;
+  void CheckNonreflecting() const;
 
  public:
   // constructor
