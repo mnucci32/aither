@@ -533,6 +533,7 @@ void input::ReadInput(const int &rank) {
   this->CheckWallOutputVariables();
   this->CheckTurbulenceModel();
   this->CheckSpecies();
+  this->CheckNonreflecting();
 
   if (rank == ROOTP) {
     cout << endl;
@@ -732,7 +733,7 @@ void input::CheckNonlinearIterations() {
     nonlinearIterations_ = 4;
   }
 
-  if (timeIntegration_ == "euler" && nonlinearIterations_ != 1) {
+  if (timeIntegration_ == "explicitEuler" && nonlinearIterations_ != 1) {
     cerr << "WARNING: For euler method, nonlinear iterations should be set to "
          << 1 << " changing value from " << nonlinearIterations_ << " to " << 1
          << endl;
@@ -763,8 +764,7 @@ void input::CheckOutputVariables() {
     }
 
     if (!this->IsViscous()) {  // can't have viscous variables output
-      if (var.find("velGrad_") != string::npos
-          || var.find("tempGrad_") != string::npos || var == "viscosity") {
+      if (var == "viscosity") {
         cerr << "WARNING: Variable " << var <<
             " is not available for inviscid simulations." << endl;
         outputVariables_.erase(var);
@@ -829,15 +829,17 @@ void input::CheckTurbulenceModel() const {
 void input::CheckSpecies() const {
   // check all species in ICs are defined
   for (auto &ic : ics_) {
-    auto fracs = ic.MassFractions();  // get mass fractions for ICs
-    // loop over all species and find if that species has been defined
-    for (auto &species : fracs) {
-      auto name = species.first;
-      if (find_if(std::begin(fluids_), std::end(fluids_),
-                  [&name](const fluid &fl) { return fl.Name() == name; }) ==
-          std::end(fluids_)) {
-        cerr << "ERROR: Species " << name << " is not defined!" << endl;
-        exit(EXIT_FAILURE);
+    if (!ic.IsFromFile()) {
+      auto fracs = ic.MassFractions();  // get mass fractions for ICs
+      // loop over all species and find if that species has been defined
+      for (auto &species : fracs) {
+        auto name = species.first;
+        if (find_if(std::begin(fluids_), std::end(fluids_),
+                    [&name](const fluid &fl) { return fl.Name() == name; }) ==
+            std::end(fluids_)) {
+          cerr << "ERROR: Species " << name << " is not defined!" << endl;
+          exit(EXIT_FAILURE);
+        }
       }
     }
   }
@@ -861,6 +863,42 @@ void input::CheckSpecies() const {
   // check that there is at least one species defined
   if (fluids_.size() < 1) {
     cerr << "ERROR: At least one fluid species must be defined!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+// check that nonreflecting BCs aren't used with explicit euler because
+// solution at time N is not stored
+void input::CheckNonreflecting() const {
+  if (timeIntegration_ == "explicitEuler") {
+    for (auto &bc : bcStates_) {
+      if (bc->IsNonreflecting()) {
+        cerr << "ERROR: Nonreflecting BCs cannot be used with explicitEuler "
+                "time integration!"
+             << endl;
+        exit(EXIT_FAILURE);
+      }
+    }
+  }
+}
+
+// member function to check that all species specified are defined
+// vector of species comes from prescribed ic file
+void input::CheckSpecies(const vector<string> &species) const {
+  for (auto &name : species) {
+    if (find_if(std::begin(fluids_), std::end(fluids_),
+                [&name](const fluid &fl) { return fl.Name() == name; }) ==
+        std::end(fluids_)) {
+      cerr << "ERROR: Species " << name << " is not defined!" << endl;
+      exit(EXIT_FAILURE);
+    }
+  }
+
+  // check that there is at least one species from ic file
+  if (species.size() < 1) {
+    cerr << "ERROR: At least one fluid species must be defined in ic file!"
+         << endl;
+    exit(EXIT_FAILURE);
   }
 }
 

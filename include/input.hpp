@@ -98,6 +98,7 @@ class input {
   void CheckWallOutputVariables();
   void CheckTurbulenceModel() const;
   void CheckSpecies() const;
+  void CheckNonreflecting() const;
 
  public:
   // constructor
@@ -210,6 +211,10 @@ class input {
   bool IsRANS() const;
   bool IsLES() const;
   bool IsBlockMatrix() const;
+  bool IsTimeAccurate() const {
+    return timeIntegration_ == "bdf2" || timeIntegration_ == "rk4" ||
+           timeIntegration_ == "crankNicholson";
+  }
 
   string OrderOfAccuracy() const;
 
@@ -225,6 +230,7 @@ class input {
   icState ICStateForBlock(const int &) const;
   const shared_ptr<inputState> & BCData(const int &) const;
   fluid Fluid(const int = 0) const;
+  void CheckSpecies(const vector<string> &) const;
 
   bool IsWenoZ() const {return this->FaceReconstruction() == "wenoZ";}
 

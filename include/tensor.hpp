@@ -26,9 +26,10 @@
 // any files that depend on the header. Leaving the implementation in
 // streamlines the compiling process.
 
-#include <cmath>       // sqrt()
+#include <cmath>        // sqrt()
 #include <iostream>     // ostream
 #include <type_traits>  // is_arithmetic
+#include <numeric>      // accumulate
 #include "vector3d.hpp"
 
 #define TENSORSIZE 9
@@ -132,6 +133,10 @@ class tensor {
   T ZY() const { return data_[7]; }
   T ZZ() const { return data_[8]; }
 
+  vector3d<T> X() const { return {data_[0], data_[1], data_[2]}; }
+  vector3d<T> Y() const { return {data_[3], data_[4], data_[5]}; }
+  vector3d<T> Z() const { return {data_[6], data_[7], data_[8]}; }
+
   // math functions
   T Trace() const { return data_[0] + data_[4] + data_[8]; }
   tensor<T> Transpose() const;
@@ -142,7 +147,12 @@ class tensor {
   void Identity();
   void Zero();
   int Size() const {return 3;}
-  
+  tensor<T> RemoveComponent(const vector3d<T> &) const;
+  vector3d<T> LinearCombination(const vector3d<T> &) const;
+  T Sum() const {
+    return std::accumulate(std::begin(data_), std::end(data_), T(0));
+  }
+
   // destructor
   ~tensor() noexcept {}
 };
@@ -378,5 +388,26 @@ T tensor<T>::DoubleDot(const tensor<T> &temp) const {
       data_[8] * temp.data_[8];
 }
 
+// function to remove the components that are aligned with a given direction
+template <typename T>
+tensor<T> tensor<T>::RemoveComponent(const vector3d<T> &dir) const {
+  auto x = this->X();
+  x -= x.DotProd(dir) * dir;
+  auto y = this->Y();
+  y -= y.DotProd(dir) * dir;
+  auto z = this->Z();
+  z -= z.DotProd(dir) * dir;
+  return {x, y, z};
+}
+
+// function to scale the rows of the tensor by a scale factor and sum them
+// together
+template <typename T>
+vector3d<T> tensor<T>::LinearCombination(const vector3d<T> &vec) const {
+  auto comb = this->X() * vec.X();
+  comb += this->Y() * vec.Y();
+  comb += this->Z() * vec.Z();
+  return comb;
+}
 
 #endif

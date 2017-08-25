@@ -863,11 +863,12 @@ tensor<double> CalcVelGradTSL(const primVars &left, const primVars &right,
 //
 kdtree CalcTreeFromCloud(const string &fname, const input &inp,
                          const unique_ptr<transport> &trans,
-                         vector<primVars> &states) {
+                         vector<primVars> &states, vector<string> &species) {
   // fname -- name of file to open
   // inp -- input variables
   // trans -- transport model
   // states -- vector of states read from file
+  // species -- species present in file
 
   // open file
   ifstream inFile(fname, ios::in);
@@ -878,7 +879,6 @@ kdtree CalcTreeFromCloud(const string &fname, const input &inp,
   }
 
   vector<vector3d<double>> points;
-  vector<string> species;
   auto count = 0;
   string line = "";
   while (getline(inFile, line)) {
@@ -921,7 +921,7 @@ kdtree CalcTreeFromCloud(const string &fname, const input &inp,
         auto omega = std::stod(tokens[9]) * trans->MuRef() /
                      (inp.RRef() * inp.ARef() * inp.ARef());
         vector<double> massFractions(species.size(), 0.0);
-        for (auto ii = 0; ii < massFractions.size(); ++ii) {
+        for (auto ii = 0U; ii < massFractions.size(); ++ii) {
           massFractions[ii] = std::stod(tokens[ii + 10]);
         }
         primVars state(rho, uVel, vVel, wVel, pressure, tke, omega);

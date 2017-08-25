@@ -31,7 +31,6 @@ For detatched eddy simulations, the SST-DES turbulence model is available. For
 large eddy simulations, the WALE subgrid scale model is available.
 
 ### To Do List
-* Add non-reflecting boundary conditions
 * Add multigrid scheme for improved convergence
 * Add multi-species flow capability
 

@@ -1,0 +1,55 @@
+# grid name
+gridName: convectingVortex
+
+# solver parameters
+decompositionMethod: cubic
+equationSet: navierStokes
+timeIntegration: bdf2
+timeStep: 6.5e-07
+dualTimeCFL: 1000
+
+faceReconstruction: thirdOrder
+inviscidFlux: roe
+inviscidFluxJacobian: rusanov
+viscousFaceReconstruction: central
+limiter: none
+
+iterations: 200
+nonlinearIterations: 10
+outputFrequency: 1
+outputVariables: <density, vel_x, vel_y, vel_z, pressure, mach>
+restartFrequency: 100
+
+# reference conditions
+referenceDensity: 1.185
+referenceTemperature: 288
+referenceLength: 1
+
+fluids: <fluid(name=N2; n=2.5; molarMass=0.0280134)>
+thermodynamicModel: caloricallyPerfect
+
+initialConditions: <icState(tag=-1; file=vortex.dat)>
+
+matrixSolver: lusgs
+matrixSweeps: 1
+matrixRelaxation: 1
+
+turbulenceModel: none
+
+boundaryStates: <characteristic(tag=2; pressure=101300; density=1.185; velocity=[100, 0, 0]; massFractions=[N2=1.0]),
+                 periodic(startTag=4; endTag=5; translation=[0, 0.013, 0]),
+                 pressureOutlet(tag=3; pressure=101300; nonreflecting=true; lengthScale=0.013)>
+
+#-------------------------------------------------------------
+boundaryConditions: 1
+# Block 0 -- Dimensions: 40 x 40 x 2
+2 2 2
+# i-surfaces
+  periodic                0    0    0   39    0    1     5
+  periodic               39   39    0   39    0    1     4
+# j-surfaces
+  characteristic          0   39    0    0    0    1     2
+  pressureOutlet          0   39   39   39    0    1     3
+# k-surfaces
+  slipWall                0   39    0   39    0    0     1
+  slipWall                0   39    0   39    1    1     1

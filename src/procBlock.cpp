@@ -121,13 +121,15 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
 
   temperature_ = {numI, numJ, numK, numGhosts_, 0.0};
 
+  // gradients
+  velocityGrad_ = {numI, numJ, numK, numGhosts_};
+  temperatureGrad_ = {numI, numJ, numK, numGhosts_};
+  densityGrad_ = {numI, numJ, numK, numGhosts_};
+  pressureGrad_ = {numI, numJ, numK, numGhosts_};
+
   if (isViscous_) {
-    velocityGrad_ = {numI, numJ, numK, numGhosts_};
-    temperatureGrad_ = {numI, numJ, numK, numGhosts_};
     viscosity_ = {numI, numJ, numK, numGhosts_, 0.0};
   } else {
-    velocityGrad_ = {0, 0, 0, 0};
-    temperatureGrad_ = {0, 0, 0, 0};
     viscosity_ = {0, 0, 0, 0};
   }
 
@@ -210,13 +212,15 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
 
   temperature_ = {ni, nj, nk, numGhosts_};
 
+  // gradients
+  velocityGrad_ = {ni, nj, nk, numGhosts_};
+  temperatureGrad_ = {ni, nj, nk, numGhosts_};
+  densityGrad_ = {ni, nj, nk, numGhosts_};
+  pressureGrad_ = {ni, nj, nk, numGhosts_};
+
   if (isViscous_) {
-    velocityGrad_ = {ni, nj, nk, numGhosts_};
-    temperatureGrad_ = {ni, nj, nk, numGhosts_};
     viscosity_ = {ni, nj, nk, numGhosts_};
   } else {
-    velocityGrad_ = {0, 0, 0, 0};
-    temperatureGrad_ = {0, 0, 0, 0};
     viscosity_ = {0, 0, 0, 0};
   }
 
@@ -344,7 +348,11 @@ void procBlock::InitializeStates(const input &inp,
   if (ic.IsFromFile()) {
     // create k-d tree from cloud of points
     vector<primVars> cloudStates;
-    const auto tree = CalcTreeFromCloud(ic.File(), inp, trans, cloudStates);
+    vector<string> species;
+    const auto tree =
+        CalcTreeFromCloud(ic.File(), inp, trans, cloudStates, species);
+    // check that species are defined
+    inp.CheckSpecies(species);
 
     auto maxDist = std::numeric_limits<double>::min();
     vector3d<double> neighbor;
@@ -961,7 +969,7 @@ void procBlock::ImplicitTimeAdvance(const genArray &du,
  Un+1 = Un - dt/V * alpha * R
 
 Un is the conserved variables at time n, Un+1 is the conserved variables at time
-n+1, dt_ is the cell's time step, V is the cell's volume, alpha is the runge-kutta
+n+1, dt is the cell's time step, V is the cell's volume, alpha is the runge-kutta
 coefficient, and R is the cell's residual.
  */
 void procBlock::RK4TimeAdvance(const genArray &currState,
@@ -1004,6 +1012,8 @@ void procBlock::ResetResidWS() {
 void procBlock::ResetGradients() {
   velocityGrad_.Zero();
   temperatureGrad_.Zero();
+  densityGrad_.Zero();
+  pressureGrad_.Zero();
   if (isRANS_) {
     tkeGrad_.Zero();
     omegaGrad_.Zero();
@@ -1032,7 +1042,7 @@ where n represents the time step. Theta and zeta are Beam & Warming parameters,
 t is the time step, V is the cell volume, and R is the residual.
 FD and BD are the forward and backward difference operators respectively. These
 opererators operate in the time domain. For example FD(U) =
-Un+1 - Un and BD(U) = Un - Un-1. Solving the above equation for FD(Qn) we get
+Un+1 - Un and BD(U) = Un - Un-1. Solving the above equation for FD(Un) we get
 the following:
 
 FD(Un) = (-t * Rn - t * theta * FD(Rn) + zeta * V * FD(Un-1)) / ((1 + zeta) * V)
@@ -1085,8 +1095,7 @@ void procBlock::InvertDiagonal(multiArray3d<fluxJacobian> &mainDiagonal,
   for (auto kk = 0; kk < this->NumK(); kk++) {
     for (auto jj = 0; jj < this->NumJ(); jj++) {
       for (auto ii = 0; ii < this->NumI(); ii++) {
-        auto diagVolTime = (vol_(ii, jj, kk) * (1.0 + inp.Zeta())) /
-            (dt_(ii, jj, kk) * inp.Theta());
+        auto diagVolTime = this->SolDeltaNCoeff(ii, jj, kk, inp);
         if (inp.DualTimeCFL() > 0.0) {  // use dual time stepping
           // equal to volume / tau
           diagVolTime += specRadius_(ii, jj, kk).Max() /
@@ -1357,7 +1366,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
       }
 
       // -----------------------------------------------------------------------
-      // if k lower cell is in physical location there is a contribution
+      // if k upper cell is in physical location there is a contribution
       // from it
       if (this->IsPhysical(ii, jj, kk + 1) ||
           bc_.BCIsConnection(ii, jj, kk + 1, 6)) {
@@ -1383,7 +1392,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // normal at lower boundaries needs to be reversed, so add instead
     // of subtract L
     x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(-thetaInv *
-                                               residual_(ii, jj, kk) -
+                                               residual_(ii, jj, kk) +
                                                solDeltaNm1 - solDeltaMmN +
                                                L - U);
   }  // end forward sweep
@@ -1543,7 +1552,7 @@ double procBlock::LUSGS_Backward(
     auto xold = x(ii, jj, kk);
     if (sweep > 0 || inp.MatrixRequiresInitialization()) {
       x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(-thetaInv *
-                                                 residual_(ii, jj, kk) -
+                                                 residual_(ii, jj, kk) +
                                                  solDeltaNm1 - solDeltaMmN +
                                                  L - U);
     } else {
@@ -1705,7 +1714,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
 
         // calculate update
         x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(
-            -thetaInv * residual_(ii, jj, kk) - solDeltaNm1 - solDeltaMmN
+            -thetaInv * residual_(ii, jj, kk) + solDeltaNm1 - solDeltaMmN
             + offDiagonal);
 
         // calculate matrix error
@@ -1883,8 +1892,9 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
       for (auto ii = fAreaI_.PhysStartI(); ii < fAreaI_.PhysEndI(); ii++) {
         // calculate gradients
         tensor<double> velGrad;
-        vector3d<double> tempGrad, tkeGrad, omegaGrad;
-        this->CalcGradsI(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
+        vector3d<double> tempGrad, denGrad, pressGrad, tkeGrad, omegaGrad;
+        this->CalcGradsI(ii, jj, kk, velGrad, tempGrad, denGrad, pressGrad,
+                         tkeGrad, omegaGrad);
 
         // declare variables needed throughout function
         primVars state;
@@ -2020,6 +2030,8 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
           // store gradients
           velocityGrad_(ii - 1, jj, kk) += sixth * velGrad;
           temperatureGrad_(ii - 1, jj, kk) += sixth * tempGrad;
+          densityGrad_(ii - 1, jj, kk) += sixth * denGrad;
+          pressureGrad_(ii - 1, jj, kk) += sixth * pressGrad;
           if (isTurbulent_) {
             eddyViscosity_(ii - 1, jj, kk) += sixth * mut;
             if (isRANS_) {
@@ -2049,6 +2061,8 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
           // store gradients
           velocityGrad_(ii, jj, kk) += sixth * velGrad;
           temperatureGrad_(ii, jj, kk) += sixth * tempGrad;
+          densityGrad_(ii, jj, kk) += sixth * denGrad;
+          pressureGrad_(ii, jj, kk) += sixth * pressGrad;
           if (isTurbulent_) {
             eddyViscosity_(ii, jj, kk) += sixth * mut;
             if (isRANS_) {
@@ -2191,8 +2205,9 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
       for (auto ii = fAreaJ_.PhysStartI(); ii < fAreaJ_.PhysEndI(); ii++) {
         // calculate gradients
         tensor<double> velGrad;
-        vector3d<double> tempGrad, tkeGrad, omegaGrad;
-        this->CalcGradsJ(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
+        vector3d<double> tempGrad, denGrad, pressGrad, tkeGrad, omegaGrad;
+        this->CalcGradsJ(ii, jj, kk, velGrad, tempGrad, denGrad, pressGrad,
+                         tkeGrad, omegaGrad);
 
         // declare variables needed throughout function
         primVars state;
@@ -2329,6 +2344,8 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
           // store gradients
           velocityGrad_(ii, jj - 1, kk) += sixth * velGrad;
           temperatureGrad_(ii, jj - 1, kk) += sixth * tempGrad;
+          densityGrad_(ii, jj - 1, kk) += sixth * denGrad;
+          pressureGrad_(ii, jj - 1, kk) += sixth * pressGrad;
           if (isTurbulent_) {
             eddyViscosity_(ii, jj - 1, kk) += sixth * mut;
             if (isRANS_) {
@@ -2358,6 +2375,8 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
           // store gradients
           velocityGrad_(ii, jj, kk) += sixth * velGrad;
           temperatureGrad_(ii, jj, kk) += sixth * tempGrad;
+          densityGrad_(ii, jj, kk) += sixth * denGrad;
+          pressureGrad_(ii, jj, kk) += sixth * pressGrad;
           if (isTurbulent_) {
             eddyViscosity_(ii, jj, kk) += sixth * mut;
             if (isRANS_) {
@@ -2500,8 +2519,9 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
       for (auto ii = fAreaK_.PhysStartI(); ii < fAreaK_.PhysEndI(); ii++) {
         // calculate gradients
         tensor<double> velGrad;
-        vector3d<double> tempGrad, tkeGrad, omegaGrad;
-        this->CalcGradsK(ii, jj, kk, velGrad, tempGrad, tkeGrad, omegaGrad);
+        vector3d<double> tempGrad, denGrad, pressGrad, tkeGrad, omegaGrad;
+        this->CalcGradsK(ii, jj, kk, velGrad, tempGrad, denGrad, pressGrad,
+                         tkeGrad, omegaGrad);
 
         // declare variables needed throughout function
         primVars state;
@@ -2638,6 +2658,8 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
           // store gradients
           velocityGrad_(ii, jj, kk - 1) += sixth * velGrad;
           temperatureGrad_(ii, jj, kk - 1) += sixth * tempGrad;
+          densityGrad_(ii, jj, kk - 1) += sixth * denGrad;
+          pressureGrad_(ii, jj, kk - 1) += sixth * pressGrad;
           if (isTurbulent_) {
             eddyViscosity_(ii, jj, kk - 1) += sixth * mut;
             if (isRANS_) {
@@ -2667,6 +2689,8 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
           // store gradients
           velocityGrad_(ii, jj, kk) += sixth * velGrad;
           temperatureGrad_(ii, jj, kk) += sixth * tempGrad;
+          densityGrad_(ii, jj, kk) += sixth * denGrad;
+          pressureGrad_(ii, jj, kk) += sixth * pressGrad;
           if (isTurbulent_) {
             eddyViscosity_(ii, jj, kk) += sixth * mut;
             if (isRANS_) {
@@ -3090,14 +3114,22 @@ void procBlock::AssignInviscidGhostCells(
         }
 
         const auto wDist = wallDist_.Slice(dir, aCell, r1, r2);
+        const auto dt = dt_.Slice(dir, aCell, r1, r2);
+        // get boundary state at time n
+        const auto consVarsN = consVarsN_.IsEmpty()
+                                   ? consVarsN_
+                                   : consVarsN_.Slice(dir, aCell, r1, r2);
+        // get gradients at time n
+        const auto pGrad = pressureGrad_.Slice(dir, aCell, r1, r2);
+        const auto velGrad = velocityGrad_.Slice(dir, aCell, r1, r2);
 
         // if slipWall reflect interior state instead of extrapolation
         const auto boundaryStates = (bcName == "slipWall") ?
             state_.Slice(dir, iCell, r1, r2) : state_.Slice(dir, aCell, r1, r2);
 
-        const auto ghostStates =
-            this->GetGhostStates(boundaryStates, bcName, faceAreas, wDist, surf,
-                                 inp, eqnState, thermo, trans, turb, layer);
+        const auto ghostStates = this->GetGhostStates(
+            boundaryStates, bcName, faceAreas, wDist, surf, inp, eqnState,
+            thermo, trans, turb, layer, dt, consVarsN, pGrad, velGrad);
 
         state_.Insert(dir, gCell, r1, r2, ghostStates);
       }
@@ -3213,7 +3245,7 @@ void procBlock::AssignInviscidGhostCellsEdge(
           const auto cFaceD3_3 = upper3 ? max3 : 0;
 
           // loop over edge
-          for (auto d1 = 0; d1 <= max1; d1++) {
+          for (auto d1 = 0; d1 < max1; d1++) {
             boundarySurface bcSurf_2, bcSurf_3;
             vector3d<double> fArea2, fArea3;
             if (dir == "i") {
@@ -3265,15 +3297,15 @@ void procBlock::AssignInviscidGhostCellsEdge(
             if (bc_2 == "slipWall" && bc_3 != "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, pCellD2, gCellD3)
-                      .GetGhostState(bc_2, fArea2, wDist2, surf2, inp, tag2,
-                                     eqnState, thermo, trans, turb, wVars,
+                      .GetGhostState(bc_2, fArea2, wDist2, surf2, inp,
+                                     tag2, eqnState, thermo, trans, turb, wVars,
                                      layer2);
               // surface-3 is a wall, but surface-2 is not - extend wall bc
             } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, gCellD2, pCellD3)
-                      .GetGhostState(bc_3, fArea3, wDist3, surf3, inp, tag3,
-                                     eqnState, thermo, trans, turb, wVars,
+                      .GetGhostState(bc_3, fArea3, wDist3, surf3, inp,
+                                     tag3, eqnState, thermo, trans, turb, wVars,
                                      layer3);
             } else {  // both surfaces or neither are walls - proceed as normal
               if (layer2 == layer3) {  // need to average
@@ -3361,9 +3393,9 @@ void procBlock::AssignViscousGhostCells(const input &inp,
 
         // get interior boundary states and ghost states
         const auto boundaryStates = state_.Slice(dir, iCell, r1, r2);
-        const auto ghostStates =
-            this->GetGhostStates(boundaryStates, bcName, faceAreas, wDist, surf,
-                                 inp, eqnState, thermo, trans, turb, layer);
+        const auto ghostStates = this->GetGhostStates(
+            boundaryStates, bcName, faceAreas, wDist, surf, inp, eqnState,
+            thermo, trans, turb, layer);
 
         state_.Insert(dir, gCell, r1, r2, ghostStates);
       }
@@ -3481,7 +3513,7 @@ void procBlock::AssignViscousGhostCellsEdge(
           const auto cFaceD3_3 = upper3 ? max3 : 0;
 
           // loop over edge
-          for (auto d1 = 0; d1 <= max1; d1++) {
+          for (auto d1 = 0; d1 < max1; d1++) {
             boundarySurface bcSurf_2, bcSurf_3;
             vector3d<double> fArea2, fArea3;
             if (dir == "i") {
@@ -3530,15 +3562,15 @@ void procBlock::AssignViscousGhostCellsEdge(
             if (bc_2 == "slipWall" && bc_3 != "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, pCellD2, gCellD3)
-                      .GetGhostState(bc_2, fArea2, wDist2, surf2, inp, tag2,
-                                     eqnState, thermo, trans, turb, wVars,
+                      .GetGhostState(bc_2, fArea2, wDist2, surf2, inp,
+                                     tag2, eqnState, thermo, trans, turb, wVars,
                                      layer2);
               // surface-3 is a wall, but surface-2 is not - extend wall bc
             } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
                   state_(dir, d1, gCellD2, pCellD3)
-                      .GetGhostState(bc_3, fArea3, wDist3, surf3, inp, tag3,
-                                     eqnState, thermo, trans, turb, wVars,
+                      .GetGhostState(bc_3, fArea3, wDist3, surf3, inp,
+                                     tag3, eqnState, thermo, trans, turb, wVars,
                                      layer3);
               // both surfaces are walls - proceed as normal
             } else if (bc_2 == "viscousWall" && bc_3 == "viscousWall") {
@@ -3794,10 +3826,11 @@ void procBlock::SwapEddyViscAndGradientSlice(const connection &inter,
   // inter -- connection boundary information
   // blk -- second block involved in connection boundary
 
-  if (isViscous_) {
-    velocityGrad_.SwapSlice(inter, blk.velocityGrad_);
-    temperatureGrad_.SwapSlice(inter, blk.temperatureGrad_);
-  }
+  velocityGrad_.SwapSlice(inter, blk.velocityGrad_);
+  temperatureGrad_.SwapSlice(inter, blk.temperatureGrad_);
+  densityGrad_.SwapSlice(inter, blk.densityGrad_);
+  pressureGrad_.SwapSlice(inter, blk.pressureGrad_);
+
   if (isTurbulent_) {
     eddyViscosity_.SwapSlice(inter, blk.eddyViscosity_);
   }
@@ -3842,16 +3875,17 @@ void procBlock::SwapEddyViscAndGradientSliceMPI(
   // inter -- connection boundary information
   // rank -- processor rank
 
-  if (isViscous_) {
-    velocityGrad_.SwapSliceMPI(inter, rank, MPI_tensorDouble, 1);
-    temperatureGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 2);
-  }
+  velocityGrad_.SwapSliceMPI(inter, rank, MPI_tensorDouble, 1);
+  temperatureGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 2);
+  densityGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 3);
+  pressureGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 4);
+
   if (isTurbulent_) {
-    eddyViscosity_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 1);
+    eddyViscosity_.SwapSliceMPI(inter, rank, MPI_DOUBLE, 5);
   }
   if (isRANS_) {
-    tkeGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 3);
-    omegaGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 4);
+    tkeGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 6);
+    omegaGrad_.SwapSliceMPI(inter, rank, MPI_vec3d, 7);
   }
 }
 
@@ -5065,9 +5099,12 @@ void procBlock::CleanResizeVecs(const int &numI, const int &numJ,
 
   temperature_.ClearResize(numI, numJ, numK, numGhosts);
 
+  velocityGrad_.ClearResize(numI, numJ, numK, numGhosts);
+  temperatureGrad_.ClearResize(numI, numJ, numK, numGhosts);
+  densityGrad_.ClearResize(numI, numJ, numK, numGhosts);
+  pressureGrad_.ClearResize(numI, numJ, numK, numGhosts);
+
   if (isViscous_) {
-    velocityGrad_.ClearResize(numI, numJ, numK, numGhosts);
-    temperatureGrad_.ClearResize(numI, numJ, numK, numGhosts);
     viscosity_.ClearResize(numI, numJ, numK, numGhosts);
   }
 
@@ -5152,16 +5189,23 @@ void procBlock::RecvUnpackSolMPI(const MPI_Datatype &MPI_cellData,
              temperature_.Size(), MPI_DOUBLE,
              MPI_COMM_WORLD);  // unpack temperature
 
+  MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(velocityGrad_)),
+             velocityGrad_.Size(), MPI_tensorDouble,
+             MPI_COMM_WORLD);  // unpack velocity gradient
+  MPI_Unpack(recvBuffer, recvBufSize, &position,
+             &(*std::begin(temperatureGrad_)), temperatureGrad_.Size(),
+             MPI_vec3d, MPI_COMM_WORLD);  // unpack temperature gradient
+  MPI_Unpack(recvBuffer, recvBufSize, &position,
+             &(*std::begin(densityGrad_)), densityGrad_.Size(),
+             MPI_vec3d, MPI_COMM_WORLD);  // unpack density gradient
+  MPI_Unpack(recvBuffer, recvBufSize, &position,
+             &(*std::begin(pressureGrad_)), pressureGrad_.Size(),
+             MPI_vec3d, MPI_COMM_WORLD);  // unpack pressure gradient
+
   if (isViscous_) {
     MPI_Unpack(recvBuffer, recvBufSize, &position, &(*std::begin(viscosity_)),
                viscosity_.Size(), MPI_DOUBLE,
                MPI_COMM_WORLD);  // unpack viscosity
-    MPI_Unpack(recvBuffer, recvBufSize, &position,
-               &(*std::begin(velocityGrad_)), velocityGrad_.Size(),
-               MPI_tensorDouble, MPI_COMM_WORLD);  // unpack velocity gradient
-    MPI_Unpack(recvBuffer, recvBufSize, &position,
-               &(*std::begin(temperatureGrad_)), temperatureGrad_.Size(),
-               MPI_vec3d, MPI_COMM_WORLD);  // unpack temperature gradient
   }
 
   if (isTurbulent_) {
@@ -5242,15 +5286,22 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
                 &tempSize);  // add size for temperature
   sendBufSize += tempSize;
 
+  MPI_Pack_size(velocityGrad_.Size(), MPI_tensorDouble, MPI_COMM_WORLD,
+                &tempSize);  // add size for velocity gradient
+  sendBufSize += tempSize;
+  MPI_Pack_size(temperatureGrad_.Size(), MPI_vec3d, MPI_COMM_WORLD,
+                &tempSize);  // add size for temperature gradient
+  sendBufSize += tempSize;
+  MPI_Pack_size(densityGrad_.Size(), MPI_vec3d, MPI_COMM_WORLD,
+                &tempSize);  // add size for density gradient
+  sendBufSize += tempSize;
+  MPI_Pack_size(pressureGrad_.Size(), MPI_vec3d, MPI_COMM_WORLD,
+                &tempSize);  // add size for pressure gradient
+  sendBufSize += tempSize;
+
   if (isViscous_) {
     MPI_Pack_size(viscosity_.Size(), MPI_DOUBLE, MPI_COMM_WORLD,
                   &tempSize);  // add size for viscosity
-    sendBufSize += tempSize;
-    MPI_Pack_size(velocityGrad_.Size(), MPI_tensorDouble, MPI_COMM_WORLD,
-                  &tempSize);  // add size for velocity gradient
-    sendBufSize += tempSize;
-    MPI_Pack_size(temperatureGrad_.Size(), MPI_vec3d, MPI_COMM_WORLD,
-                  &tempSize);  // add size for temperature gradient
     sendBufSize += tempSize;
   }
 
@@ -5309,14 +5360,19 @@ void procBlock::PackSendSolMPI(const MPI_Datatype &MPI_cellData,
   MPI_Pack(&(*std::begin(temperature_)), temperature_.Size(), MPI_DOUBLE,
            sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
 
+  MPI_Pack(&(*std::begin(velocityGrad_)), velocityGrad_.Size(),
+           MPI_tensorDouble, sendBuffer, sendBufSize, &position,
+           MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(temperatureGrad_)), temperatureGrad_.Size(), MPI_vec3d,
+           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(densityGrad_)), densityGrad_.Size(), MPI_vec3d,
+           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(pressureGrad_)), pressureGrad_.Size(), MPI_vec3d,
+           sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
+
   if (isViscous_) {
     MPI_Pack(&(*std::begin(viscosity_)), viscosity_.Size(), MPI_DOUBLE,
              sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
-    MPI_Pack(&(*std::begin(velocityGrad_)), velocityGrad_.Size(),
-             MPI_tensorDouble, sendBuffer, sendBufSize, &position,
-             MPI_COMM_WORLD);
-    MPI_Pack(&(*std::begin(temperatureGrad_)), temperatureGrad_.Size(),
-             MPI_vec3d, sendBuffer, sendBufSize, &position, MPI_COMM_WORLD);
   }
 
   if (isTurbulent_) {
@@ -5437,13 +5493,15 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
   blk1.dt_.Fill(dt_.Slice(dir, {dt_.Start(dir), blk1.dt_.End(dir)}));
   blk1.residual_.Fill(residual_.Slice(dir, {residual_.Start(dir),
             blk1.residual_.End(dir)}));
-  if (isViscous_) {
-    blk1.velocityGrad_.Fill(velocityGrad_.Slice(dir, {velocityGrad_.Start(dir),
-              blk1.velocityGrad_.End(dir)}));
-    blk1.temperatureGrad_.Fill(
-        temperatureGrad_.Slice(dir, {temperatureGrad_.Start(dir),
-                blk1.temperatureGrad_.End(dir)}));
-  }
+  blk1.velocityGrad_.Fill(velocityGrad_.Slice(
+      dir, {velocityGrad_.Start(dir), blk1.velocityGrad_.End(dir)}));
+  blk1.temperatureGrad_.Fill(temperatureGrad_.Slice(
+      dir, {temperatureGrad_.Start(dir), blk1.temperatureGrad_.End(dir)}));
+  blk1.densityGrad_.Fill(densityGrad_.Slice(
+      dir, {densityGrad_.Start(dir), blk1.densityGrad_.End(dir)}));
+  blk1.pressureGrad_.Fill(pressureGrad_.Slice(
+      dir, {pressureGrad_.Start(dir), blk1.pressureGrad_.End(dir)}));
+
   if (isRANS_) {
     blk1.tkeGrad_.Fill(tkeGrad_.Slice(dir, {tkeGrad_.Start(dir),
               blk1.tkeGrad_.End(dir)}));
@@ -5493,12 +5551,15 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
   blk2.specRadius_.Fill(specRadius_.Slice(dir, {ind, specRadius_.End(dir)}));
   blk2.dt_.Fill(dt_.Slice(dir, {ind, dt_.End(dir)}));
   blk2.residual_.Fill(residual_.Slice(dir, {ind, residual_.End(dir)}));
-  if (isViscous_) {
-    blk2.velocityGrad_.Fill(velocityGrad_.Slice(dir, {ind,
-              velocityGrad_.End(dir)}));
-    blk2.temperatureGrad_.Fill(
-        temperatureGrad_.Slice(dir, {ind, temperatureGrad_.End(dir)}));
-  }
+  blk2.velocityGrad_.Fill(
+      velocityGrad_.Slice(dir, {ind, velocityGrad_.End(dir)}));
+  blk2.temperatureGrad_.Fill(
+      temperatureGrad_.Slice(dir, {ind, temperatureGrad_.End(dir)}));
+  blk2.densityGrad_.Fill(
+      densityGrad_.Slice(dir, {ind, densityGrad_.End(dir)}));
+  blk2.pressureGrad_.Fill(
+      pressureGrad_.Slice(dir, {ind, pressureGrad_.End(dir)}));
+
   if (isRANS_) {
     blk2.tkeGrad_.Fill(tkeGrad_.Slice(dir, {ind, tkeGrad_.End(dir)}));
     blk2.omegaGrad_.Fill(omegaGrad_.Slice(dir, {ind, omegaGrad_.End(dir)}));
@@ -5628,17 +5689,26 @@ void procBlock::Join(const procBlock &blk, const string &dir,
                           residual_.Slice(dir, {residual_.Start(dir),
                                   residual_.PhysEnd(dir)}));
 
-  if (isViscous_) {
-    newBlk.velocityGrad_.Insert(dir, {velocityGrad_.Start(dir),
-            velocityGrad_.PhysEnd(dir)},
-      velocityGrad_.Slice(dir, {velocityGrad_.Start(dir),
-              velocityGrad_.PhysEnd(dir)}));
+  newBlk.velocityGrad_.Insert(
+      dir, {velocityGrad_.Start(dir), velocityGrad_.PhysEnd(dir)},
+      velocityGrad_.Slice(
+          dir, {velocityGrad_.Start(dir), velocityGrad_.PhysEnd(dir)}));
 
-    newBlk.temperatureGrad_.Insert(dir, {temperatureGrad_.Start(dir),
-            temperatureGrad_.PhysEnd(dir)},
-      temperatureGrad_.Slice(dir, {temperatureGrad_.Start(dir),
-              temperatureGrad_.PhysEnd(dir)}));
-  }
+  newBlk.temperatureGrad_.Insert(
+      dir, {temperatureGrad_.Start(dir), temperatureGrad_.PhysEnd(dir)},
+      temperatureGrad_.Slice(
+          dir, {temperatureGrad_.Start(dir), temperatureGrad_.PhysEnd(dir)}));
+
+  newBlk.densityGrad_.Insert(
+      dir, {densityGrad_.Start(dir), densityGrad_.PhysEnd(dir)},
+      densityGrad_.Slice(
+          dir, {densityGrad_.Start(dir), densityGrad_.PhysEnd(dir)}));
+
+  newBlk.pressureGrad_.Insert(
+      dir, {pressureGrad_.Start(dir), pressureGrad_.PhysEnd(dir)},
+      pressureGrad_.Slice(
+          dir, {pressureGrad_.Start(dir), pressureGrad_.PhysEnd(dir)}));
+
   if (isRANS_) {
     newBlk.tkeGrad_.Insert(dir, {tkeGrad_.Start(dir), tkeGrad_.PhysEnd(dir)},
                            tkeGrad_.Slice(dir, {tkeGrad_.Start(dir),
@@ -5748,17 +5818,26 @@ void procBlock::Join(const procBlock &blk, const string &dir,
     blk.residual_.Slice(dir, {blk.residual_.PhysStart(dir),
             blk.residual_.End(dir)}));
 
-  if (isViscous_) {
-    newBlk.velocityGrad_.Insert(dir, {velocityGrad_.PhysEnd(dir),
-            newBlk.velocityGrad_.End(dir)},
-      blk.velocityGrad_.Slice(dir, {blk.velocityGrad_.PhysStart(dir),
-              blk.velocityGrad_.End(dir)}));
+  newBlk.velocityGrad_.Insert(
+      dir, {velocityGrad_.PhysEnd(dir), newBlk.velocityGrad_.End(dir)},
+      blk.velocityGrad_.Slice(
+          dir, {blk.velocityGrad_.PhysStart(dir), blk.velocityGrad_.End(dir)}));
 
-    newBlk.temperatureGrad_.Insert(dir, {temperatureGrad_.PhysEnd(dir),
-            newBlk.temperatureGrad_.End(dir)},
+  newBlk.temperatureGrad_.Insert(
+      dir, {temperatureGrad_.PhysEnd(dir), newBlk.temperatureGrad_.End(dir)},
       blk.temperatureGrad_.Slice(dir, {blk.temperatureGrad_.PhysStart(dir),
-              blk.temperatureGrad_.End(dir)}));
-  }
+                                       blk.temperatureGrad_.End(dir)}));
+
+  newBlk.densityGrad_.Insert(
+      dir, {densityGrad_.PhysEnd(dir), newBlk.densityGrad_.End(dir)},
+      blk.densityGrad_.Slice(dir, {blk.densityGrad_.PhysStart(dir),
+                                       blk.densityGrad_.End(dir)}));
+
+  newBlk.pressureGrad_.Insert(
+      dir, {pressureGrad_.PhysEnd(dir), newBlk.pressureGrad_.End(dir)},
+      blk.pressureGrad_.Slice(dir, {blk.pressureGrad_.PhysStart(dir),
+                                       blk.pressureGrad_.End(dir)}));
+
   if (isRANS_) {
     newBlk.tkeGrad_.Insert(dir, {tkeGrad_.PhysEnd(dir),
             newBlk.tkeGrad_.End(dir)},
@@ -5807,6 +5886,7 @@ void procBlock::Join(const procBlock &blk, const string &dir,
 
 void procBlock::CalcGradsI(const int &ii, const int &jj, const int &kk,
                            tensor<double> &velGrad, vector3d<double> &tGrad,
+                           vector3d<double> &dGrad, vector3d<double> &pGrad,
                            vector3d<double> &tkeGrad,
                            vector3d<double> &omegaGrad) const {
   // ii -- i-index for face (including ghosts)
@@ -5814,6 +5894,8 @@ void procBlock::CalcGradsI(const int &ii, const int &jj, const int &kk,
   // kk -- k-index for face (including ghosts)
   // velGrad -- tensor to store velocity gradient
   // tGrad -- vector3d to store temperature gradient
+  // dGrad -- vector3d to store density gradient
+  // pGrad -- vector3d to store pressure gradient
   // tkeGrad -- vector3d to store tke gradient
   // omegaGrad -- vector3d to store omega gradient
 
@@ -5859,6 +5941,54 @@ void procBlock::CalcGradsI(const int &ii, const int &jj, const int &kk,
   velGrad = VectorGradGG(state_(ii - 1, jj, kk).Velocity(),
                          state_(ii, jj, kk).Velocity(), vjl, vju, vkl, vku,
                          ail, aiu, ajl, aju, akl, aku, vol);
+
+  // calculate average density on j and k faces of alternate control volume
+  const auto dju = 0.25 * (state_(ii - 1, jj, kk).Rho() +
+                           state_(ii, jj, kk).Rho() +
+                           state_(ii, jj + 1, kk).Rho() +
+                           state_(ii - 1, jj + 1, kk).Rho());
+  const auto djl = 0.25 * (state_(ii - 1, jj, kk).Rho() +
+                           state_(ii, jj, kk).Rho() +
+                           state_(ii, jj - 1, kk).Rho() +
+                           state_(ii - 1, jj - 1, kk).Rho());
+
+  const auto dku = 0.25 * (state_(ii - 1, jj, kk).Rho() +
+                           state_(ii, jj, kk).Rho() +
+                           state_(ii, jj, kk + 1).Rho() +
+                           state_(ii - 1, jj, kk + 1).Rho());
+  const auto dkl = 0.25 * (state_(ii - 1, jj, kk).Rho() +
+                           state_(ii, jj, kk).Rho() +
+                           state_(ii, jj, kk - 1).Rho() +
+                           state_(ii - 1, jj, kk - 1).Rho());
+
+  // Get density gradient at face
+  dGrad = ScalarGradGG(state_(ii - 1, jj, kk).Rho(),
+                       state_(ii, jj, kk).Rho(), djl, dju,
+                       dkl, dku, ail, aiu, ajl, aju, akl, aku, vol);
+
+  // calculate average pressure on j and k faces of alternate control volume
+  const auto pju = 0.25 * (state_(ii - 1, jj, kk).P() +
+                           state_(ii, jj, kk).P() +
+                           state_(ii, jj + 1, kk).P() +
+                           state_(ii - 1, jj + 1, kk).P());
+  const auto pjl = 0.25 * (state_(ii - 1, jj, kk).P() +
+                           state_(ii, jj, kk).P() +
+                           state_(ii, jj - 1, kk).P() +
+                           state_(ii - 1, jj - 1, kk).P());
+
+  const auto pku = 0.25 * (state_(ii - 1, jj, kk).P() +
+                           state_(ii, jj, kk).P() +
+                           state_(ii, jj, kk + 1).P() +
+                           state_(ii - 1, jj, kk + 1).P());
+  const auto pkl = 0.25 * (state_(ii - 1, jj, kk).P() +
+                           state_(ii, jj, kk).P() +
+                           state_(ii, jj, kk - 1).P() +
+                           state_(ii - 1, jj, kk - 1).P());
+
+  // Get pressure gradient at face
+  pGrad = ScalarGradGG(state_(ii - 1, jj, kk).P(),
+                       state_(ii, jj, kk).P(), pjl, pju,
+                       pkl, pku, ail, aiu, ajl, aju, akl, aku, vol);
 
   // calculate average temperature on j and k faces of alternate control volume
   const auto tju = 0.25 * (temperature_(ii - 1, jj, kk) +
@@ -5929,6 +6059,7 @@ void procBlock::CalcGradsI(const int &ii, const int &jj, const int &kk,
 
 void procBlock::CalcGradsJ(const int &ii, const int &jj, const int &kk,
                            tensor<double> &velGrad, vector3d<double> &tGrad,
+                           vector3d<double> &dGrad, vector3d<double> &pGrad,
                            vector3d<double> &tkeGrad,
                            vector3d<double> &omegaGrad) const {
   // ii -- i-index for face (including ghosts)
@@ -5936,6 +6067,8 @@ void procBlock::CalcGradsJ(const int &ii, const int &jj, const int &kk,
   // kk -- k-index for face (including ghosts)
   // velGrad -- tensor to store velocity gradient
   // tGrad -- vector3d to store temperature gradient
+  // dGrad -- vector3d to store density gradient
+  // pGrad -- vector3d to store pressure gradient
   // tkeGrad -- vector3d to store tke gradient
   // omegaGrad -- vector3d to store omega gradient
 
@@ -5981,6 +6114,55 @@ void procBlock::CalcGradsJ(const int &ii, const int &jj, const int &kk,
   velGrad = VectorGradGG(vil, viu, state_(ii, jj - 1, kk).Velocity(),
                          state_(ii, jj, kk).Velocity(), vkl, vku, ail, aiu,
                          ajl, aju, akl, aku, vol);
+
+  // calculate average density on i and k faces of alternate control volume
+  const auto diu = 0.25 * (state_(ii, jj - 1, kk).Rho() +
+                           state_(ii, jj, kk).Rho() +
+                           state_(ii + 1, jj, kk).Rho() +
+                           state_(ii + 1, jj - 1, kk).Rho());
+  const auto dil = 0.25 * (state_(ii, jj - 1, kk).Rho() +
+                           state_(ii, jj, kk).Rho() +
+                           state_(ii - 1, jj, kk).Rho() +
+                           state_(ii - 1, jj - 1, kk).Rho());
+
+  const auto dku = 0.25 * (state_(ii, jj - 1, kk).Rho() +
+                           state_(ii, jj, kk).Rho() +
+                           state_(ii, jj, kk + 1).Rho() +
+                           state_(ii, jj - 1, kk + 1).Rho());
+  const auto dkl = 0.25 * (state_(ii, jj - 1, kk).Rho() +
+                           state_(ii, jj, kk).Rho() +
+                           state_(ii, jj, kk - 1).Rho() +
+                           state_(ii, jj - 1, kk - 1).Rho());
+
+  // Get density gradient at face
+  dGrad = ScalarGradGG(dil, diu, state_(ii, jj - 1, kk).Rho(),
+                       state_(ii, jj, kk).Rho(), dkl, dku,
+                       ail, aiu, ajl, aju, akl, aku, vol);
+
+  // calculate average pressure on i and k faces of alternate control volume
+  const auto piu = 0.25 * (state_(ii, jj - 1, kk).P() +
+                           state_(ii, jj, kk).P() +
+                           state_(ii + 1, jj, kk).P() +
+                           state_(ii + 1, jj - 1, kk).P());
+  const auto pil = 0.25 * (state_(ii, jj - 1, kk).P() +
+                           state_(ii, jj, kk).P() +
+                           state_(ii - 1, jj, kk).P() +
+                           state_(ii - 1, jj - 1, kk).P());
+
+  const auto pku = 0.25 * (state_(ii, jj - 1, kk).P() +
+                           state_(ii, jj, kk).P() +
+                           state_(ii, jj, kk + 1).P() +
+                           state_(ii, jj - 1, kk + 1).P());
+  const auto pkl = 0.25 * (state_(ii, jj - 1, kk).P() +
+                           state_(ii, jj, kk).P() +
+                           state_(ii, jj, kk - 1).P() +
+                           state_(ii, jj - 1, kk - 1).P());
+
+  // Get pressure gradient at face
+  pGrad = ScalarGradGG(pil, piu, state_(ii, jj - 1, kk).P(),
+                       state_(ii, jj, kk).P(), pkl, pku,
+                       ail, aiu, ajl, aju, akl, aku, vol);
+
 
   // calculate average temperature on i and k faces of alternate control volume
   const auto tiu = 0.25 * (temperature_(ii, jj - 1, kk) +
@@ -6051,6 +6233,7 @@ void procBlock::CalcGradsJ(const int &ii, const int &jj, const int &kk,
 
 void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
                            tensor<double> &velGrad, vector3d<double> &tGrad,
+                           vector3d<double> &dGrad, vector3d<double> &pGrad,
                            vector3d<double> &tkeGrad,
                            vector3d<double> &omegaGrad) const {
   // ii -- i-index for face (including ghosts)
@@ -6058,6 +6241,8 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
   // kk -- k-index for face (including ghosts)
   // velGrad -- tensor to store velocity gradient
   // tGrad -- vector3d to store temperature gradient
+  // dGrad -- vector3d to store density gradient
+  // pGrad -- vector3d to store pressure gradient
   // tkeGrad -- vector3d to store tke gradient
   // omegaGrad -- vector3d to store omega gradient
 
@@ -6103,6 +6288,55 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
   velGrad = VectorGradGG(vil, viu, vjl, vju, state_(ii, jj, kk - 1).Velocity(),
                          state_(ii, jj, kk).Velocity(), ail, aiu, ajl, aju,
                          akl, aku, vol);
+
+  // calculate average density on i and j faces of alternate control volume
+  const auto diu = 0.25 * (state_(ii, jj, kk - 1).Rho() +
+                           state_(ii, jj, kk).Rho() +
+                           state_(ii + 1, jj, kk).Rho() +
+                           state_(ii + 1, jj, kk - 1).Rho());
+  const auto dil = 0.25 * (state_(ii, jj, kk - 1).Rho() +
+                           state_(ii, jj, kk).Rho() +
+                           state_(ii - 1, jj, kk).Rho() +
+                           state_(ii - 1, jj, kk - 1).Rho());
+
+  const auto dju = 0.25 * (state_(ii, jj, kk - 1).Rho() +
+                           state_(ii, jj, kk).Rho() +
+                           state_(ii, jj + 1, kk).Rho() +
+                           state_(ii, jj + 1, kk - 1).Rho());
+  const auto djl = 0.25 * (state_(ii, jj, kk - 1).Rho() +
+                           state_(ii, jj, kk).Rho() +
+                           state_(ii, jj - 1, kk).Rho() +
+                           state_(ii, jj - 1, kk - 1).Rho());
+
+  // Get density gradient at face
+  dGrad = ScalarGradGG(dil, diu, djl, dju, state_(ii, jj, kk - 1).Rho(),
+                       state_(ii, jj, kk).Rho(), ail, aiu,
+                       ajl, aju, akl, aku, vol);
+
+  // calculate average pressure on i and j faces of alternate control volume
+  const auto piu = 0.25 * (state_(ii, jj, kk - 1).P() +
+                           state_(ii, jj, kk).P() +
+                           state_(ii + 1, jj, kk).P() +
+                           state_(ii + 1, jj, kk - 1).P());
+  const auto pil = 0.25 * (state_(ii, jj, kk - 1).P() +
+                           state_(ii, jj, kk).P() +
+                           state_(ii - 1, jj, kk).P() +
+                           state_(ii - 1, jj, kk - 1).P());
+
+  const auto pju = 0.25 * (state_(ii, jj, kk - 1).P() +
+                           state_(ii, jj, kk).P() +
+                           state_(ii, jj + 1, kk).P() +
+                           state_(ii, jj + 1, kk - 1).P());
+  const auto pjl = 0.25 * (state_(ii, jj, kk - 1).P() +
+                           state_(ii, jj, kk).P() +
+                           state_(ii, jj - 1, kk).P() +
+                           state_(ii, jj - 1, kk - 1).P());
+
+  // Get density gradient at face
+  pGrad = ScalarGradGG(pil, piu, pjl, pju, state_(ii, jj, kk - 1).P(),
+                       state_(ii, jj, kk).P(), ail, aiu,
+                       ajl, aju, akl, aku, vol);
+
 
   // calculate average temperature on i and j faces of alternate control volume
   const auto tiu = 0.25 * (temperature_(ii, jj, kk - 1) +
@@ -6168,6 +6402,138 @@ void procBlock::CalcGradsK(const int &ii, const int &jj, const int &kk,
     omegaGrad = ScalarGradGG(
         omgil, omgiu, omgjl, omgju, state_(ii, jj, kk - 1).Omega(),
         state_(ii, jj, kk).Omega(), ail, aiu, ajl, aju, akl, aku, vol);
+  }
+}
+
+void procBlock::CalcGradsI() {
+
+  constexpr auto sixth = 1.0 / 6.0;
+
+  // loop over all physical i-faces
+  for (auto kk = fAreaI_.PhysStartK(); kk < fAreaI_.PhysEndK(); kk++) {
+    for (auto jj = fAreaI_.PhysStartJ(); jj < fAreaI_.PhysEndJ(); jj++) {
+      for (auto ii = fAreaI_.PhysStartI(); ii < fAreaI_.PhysEndI(); ii++) {
+        // calculate gradients
+        tensor<double> velGrad;
+        vector3d<double> tempGrad, denGrad, pressGrad, tkeGrad, omegaGrad;
+        this->CalcGradsI(ii, jj, kk, velGrad, tempGrad, denGrad, pressGrad,
+                         tkeGrad, omegaGrad);
+
+        // at left boundary there is no left cell to add to
+        if (ii > fAreaI_.PhysStartI()) {
+          // store gradients
+          velocityGrad_(ii - 1, jj, kk) += sixth * velGrad;
+          temperatureGrad_(ii - 1, jj, kk) += sixth * tempGrad;
+          densityGrad_(ii - 1, jj, kk) += sixth * denGrad;
+          pressureGrad_(ii - 1, jj, kk) += sixth * pressGrad;
+          if (isRANS_) {
+            tkeGrad_(ii - 1, jj, kk) += sixth * tkeGrad;
+            omegaGrad_(ii - 1, jj, kk) += sixth * omegaGrad;
+          }
+        }
+
+        // at right boundary there is no right cell to add to
+        if (ii < fAreaI_.PhysEndI() - 1) {
+          // store gradients
+          velocityGrad_(ii, jj, kk) += sixth * velGrad;
+          temperatureGrad_(ii, jj, kk) += sixth * tempGrad;
+          densityGrad_(ii, jj, kk) += sixth * denGrad;
+          pressureGrad_(ii, jj, kk) += sixth * pressGrad;
+          if (isRANS_) {
+            tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
+            omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
+          }
+        }
+      }
+    }
+  }
+}
+
+void procBlock::CalcGradsJ() {
+
+  constexpr auto sixth = 1.0 / 6.0;
+
+  // loop over all physical j-faces
+  for (auto kk = fAreaJ_.PhysStartK(); kk < fAreaJ_.PhysEndK(); kk++) {
+    for (auto jj = fAreaJ_.PhysStartJ(); jj < fAreaJ_.PhysEndJ(); jj++) {
+      for (auto ii = fAreaJ_.PhysStartI(); ii < fAreaJ_.PhysEndI(); ii++) {
+        // calculate gradients
+        tensor<double> velGrad;
+        vector3d<double> tempGrad, denGrad, pressGrad, tkeGrad, omegaGrad;
+        this->CalcGradsJ(ii, jj, kk, velGrad, tempGrad, denGrad, pressGrad,
+                         tkeGrad, omegaGrad);
+
+        // at left boundary there is no left cell to add to
+        if (jj > fAreaJ_.PhysStartJ()) {
+          // store gradients
+          velocityGrad_(ii, jj - 1, kk) += sixth * velGrad;
+          temperatureGrad_(ii, jj - 1, kk) += sixth * tempGrad;
+          densityGrad_(ii, jj - 1, kk) += sixth * denGrad;
+          pressureGrad_(ii, jj - 1, kk) += sixth * pressGrad;
+          if (isRANS_) {
+            tkeGrad_(ii, jj - 1, kk) += sixth * tkeGrad;
+            omegaGrad_(ii, jj - 1, kk) += sixth * omegaGrad;
+          }
+        }
+
+        // at right boundary there is no right cell to add to
+        if (jj < fAreaJ_.PhysEndJ() - 1) {
+          // store gradients
+          velocityGrad_(ii, jj, kk) += sixth * velGrad;
+          temperatureGrad_(ii, jj, kk) += sixth * tempGrad;
+          densityGrad_(ii, jj, kk) += sixth * denGrad;
+          pressureGrad_(ii, jj, kk) += sixth * pressGrad;
+          if (isRANS_) {
+            tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
+            omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
+          }
+        }
+      }
+    }
+  }
+}
+
+void procBlock::CalcGradsK() {
+
+  constexpr auto sixth = 1.0 / 6.0;
+
+  // loop over all physical k-faces
+  for (auto kk = fAreaK_.PhysStartK(); kk < fAreaK_.PhysEndK(); kk++) {
+    for (auto jj = fAreaK_.PhysStartJ(); jj < fAreaK_.PhysEndJ(); jj++) {
+      for (auto ii = fAreaK_.PhysStartI(); ii < fAreaK_.PhysEndI(); ii++) {
+        // calculate gradients
+        tensor<double> velGrad;
+        vector3d<double> tempGrad, denGrad, pressGrad, tkeGrad, omegaGrad;
+        this->CalcGradsK(ii, jj, kk, velGrad, tempGrad, denGrad, pressGrad,
+                         tkeGrad, omegaGrad);
+
+        // at left boundary there is no left cell to add to
+        if (kk > fAreaK_.PhysStartK()) {
+          // store gradients
+          velocityGrad_(ii, jj, kk - 1) += sixth * velGrad;
+          temperatureGrad_(ii, jj, kk - 1) += sixth * tempGrad;
+          densityGrad_(ii, jj, kk - 1) += sixth * denGrad;
+          pressureGrad_(ii, jj, kk - 1) += sixth * pressGrad;
+          if (isRANS_) {
+            tkeGrad_(ii, jj, kk - 1) += sixth * tkeGrad;
+            omegaGrad_(ii, jj, kk - 1) += sixth * omegaGrad;
+          }
+        }
+
+        // at right boundary there is no right cell to add to
+        if (kk < fAreaK_.PhysEndK() - 1) {
+          // store gradients
+          velocityGrad_(ii, jj, kk) += sixth * velGrad;
+          temperatureGrad_(ii, jj, kk) += sixth * tempGrad;
+          densityGrad_(ii, jj, kk) += sixth * denGrad;
+          pressureGrad_(ii, jj, kk) += sixth * pressGrad;
+          if (isRANS_) {
+            tkeGrad_(ii, jj, kk) += sixth * tkeGrad;
+            omegaGrad_(ii, jj, kk) += sixth * omegaGrad;
+          }
+        }
+      }
+    }
   }
 }
 
@@ -6293,11 +6659,9 @@ void procBlock::CalcResidualNoSource(const unique_ptr<transport> &trans,
                                      multiArray3d<fluxJacobian> &mainDiagonal) {
   // Zero spectral radii, residuals, gradients, turbulence variables
   this->ResetResidWS();
-  if (isViscous_) {
-    this->ResetGradients();
-    if (isTurbulent_) {
-      this->ResetTurbVars();
-    }
+  this->ResetGradients();
+  if (isTurbulent_) {
+    this->ResetTurbVars();
   }
 
   // Calculate inviscid fluxes
@@ -6321,6 +6685,11 @@ void procBlock::CalcResidualNoSource(const unique_ptr<transport> &trans,
   } else {
     // Update temperature
     this->UpdateAuxillaryVariables(eos, trans);
+
+    // calculate gradients
+    this->CalcGradsI();
+    this->CalcGradsJ();
+    this->CalcGradsK();
   }
 }
 
@@ -6388,7 +6757,10 @@ multiArray3d<primVars> procBlock::GetGhostStates(
     const multiArray3d<double> &wDist, const boundarySurface &surf,
     const input &inp, const unique_ptr<eos> &eqnState,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
-    const unique_ptr<turbModel> &turb, const int layer) {
+    const unique_ptr<turbModel> &turb, const int &layer,
+    const multiArray3d<double> &dt, const multiArray3d<genArray> &consVarsN,
+    const multiArray3d<vector3d<double>> &pGrad,
+    const multiArray3d<tensor<double>> &velGrad) {
   // bndStates -- states at cells adjacent to boundary
   // bcName -- boundary condition type
   // faceAreas -- face areas of boundary
@@ -6400,6 +6772,42 @@ multiArray3d<primVars> procBlock::GetGhostStates(
   // turb -- turbulence model
   // layer -- layer of ghost cell to return
   //          (1 closest to boundary, or 2 farthest)
+  // dt -- time step at cells adjacent to boundary
+  // consVarsN -- conservative variables at time n
+  // pGrad -- pressure gradient at adjacent cell
+  // velGrad -- velocity gradient at adjacent cell
+
+  // get surface type and tag
+  const auto surfType = surf.SurfaceType();
+  const auto tag = surf.Tag();
+
+  // find average and max mach on boundary for nonreflecting pressure outlet
+  // only using data on local surface patch here, not bothering to make MPI
+  // calls to get data over global patch
+  auto avgMach = 0.0;
+  auto maxMach = -1.0 * std::numeric_limits<double>::max();
+  if (bcName == "pressureOutlet") {
+    const auto &bcData = inp.BCData(tag);
+    if (bcData->IsNonreflecting()) {
+      // face area vector (should always point out of domain)
+      // at lower surface normal should point out of domain for ghost cell calc
+      const auto isLower = surfType % 2 == 1;
+      for (auto kk = bndStates.StartK(); kk < bndStates.EndK(); kk++) {
+        for (auto jj = bndStates.StartJ(); jj < bndStates.EndJ(); jj++) {
+          for (auto ii = bndStates.StartI(); ii < bndStates.EndI(); ii++) {
+            const auto area = isLower
+                                  ? -1.0 * faceAreas(ii, jj, kk).UnitVector()
+                                  : faceAreas(ii, jj, kk).UnitVector();
+            auto mach = bndStates(ii, jj, kk).Velocity().DotProd(area) /
+                        bndStates(ii, jj, kk).SoS(thermo, eqnState);
+            maxMach = std::max(maxMach, mach);
+            avgMach += mach;
+          }
+        }
+      }
+      avgMach /= bndStates.Size();
+    }
+  }
 
   multiArray3d<primVars> ghostStates(
       bndStates.NumINoGhosts(), bndStates.NumJNoGhosts(),
@@ -6407,14 +6815,24 @@ multiArray3d<primVars> procBlock::GetGhostStates(
   for (auto kk = bndStates.StartK(); kk < bndStates.EndK(); kk++) {
     for (auto jj = bndStates.StartJ(); jj < bndStates.EndJ(); jj++) {
       for (auto ii = bndStates.StartI(); ii < bndStates.EndI(); ii++) {
-        const auto surfType = surf.SurfaceType();
-        const auto tag = surf.Tag();
         wallVars wVars;
-        ghostStates(ii, jj, kk) =
-            bndStates(ii, jj, kk)
-                .GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),
-                               wDist(ii, jj, kk), surfType, inp, tag, eqnState,
-                               thermo, trans, turb, wVars, layer);
+        if (consVarsN.IsEmpty()) {
+          ghostStates(ii, jj, kk) =
+              bndStates(ii, jj, kk)
+                  .GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),
+                                 wDist(ii, jj, kk), surfType, inp, tag,
+                                 eqnState, thermo, trans, turb, wVars, layer);
+        } else {  // using dt, state at time n, press grad, vel grad in BC
+          const auto stateN =
+              primVars(consVarsN(ii, jj, kk), false, eqnState, thermo, turb);
+          ghostStates(ii, jj, kk) =
+              bndStates(ii, jj, kk)
+                  .GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),
+                                 wDist(ii, jj, kk), surfType, inp, tag,
+                                 eqnState, thermo, trans, turb, wVars, layer,
+                                 dt(ii, jj, kk), stateN, pGrad(ii, jj, kk),
+                                 velGrad(ii, jj, kk), avgMach, maxMach);
+        }
         if (bcName == "viscousWall" && layer == 1) {
           const auto ind = this->WallDataIndex(surf);
           wallData_[ind](ii, jj, kk, true) = wVars;
@@ -6507,6 +6925,10 @@ void procBlock::DumpToFile(const string &var, const string &fName) const {
     outFile << velocityGrad_ << endl;
   } else if (var == "temperatureGradient") {
     outFile << temperatureGrad_ << endl;
+  } else if (var == "densityGradient") {
+    outFile << densityGrad_ << endl;
+  } else if (var == "pressureGradient") {
+    outFile << pressureGrad_ << endl;
   } else if (var == "viscosity") {
     outFile << viscosity_ << endl;
   } else if (var == "eddyViscosity") {

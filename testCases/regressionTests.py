@@ -213,7 +213,8 @@ def main():
     subCyl.SetRunDirectory("subsonicCylinder")
     subCyl.SetNumberOfProcessors(1)
     subCyl.SetNumberOfIterations(numIterations)
-    subCyl.SetResiduals([1.5371e-1, 1.4991e-1, 1.5910e-1, 8.2250e-1, 1.5297e-1])
+    subCyl.SetResiduals(
+        [1.8751e-01, 2.6727e-01, 3.1217e-01, 7.9662e-01, 1.8639e-01])
     subCyl.SetIgnoreIndices(3)
     subCyl.SetMpirunPath(options.mpirunPath)
 
@@ -230,8 +231,8 @@ def main():
     multiCyl.SetRunDirectory("multiblockCylinder")
     multiCyl.SetNumberOfProcessors(maxProcs)
     multiCyl.SetNumberOfIterations(numIterations)
-    multiCyl.SetResiduals([2.3117e-01, 2.5907e-01, 4.0735e-01, 1.0640e+00,
-                           2.2955e-01])
+    multiCyl.SetResiduals(
+        [2.0447e-01, 3.1371e-01, 4.5433e-01, 1.1121e+00, 1.9913e-01])
     multiCyl.SetIgnoreIndices(3)
     multiCyl.SetMpirunPath(options.mpirunPath)
 
@@ -248,7 +249,8 @@ def main():
     shockTube.SetRunDirectory("shockTube")
     shockTube.SetNumberOfProcessors(1)
     shockTube.SetNumberOfIterations(numIterations)
-    shockTube.SetResiduals([5.0503e-1, 4.4569e-1, 1.0e0, 1.0e0, 2.6181e-1])
+    shockTube.SetResiduals(
+        [4.8537e-01, 4.5855e-01, 1.0000e+00, 1.0000e+00, 2.6434e-01])
     shockTube.SetIgnoreIndices(2)
     shockTube.SetIgnoreIndices(3)
     shockTube.SetMpirunPath(options.mpirunPath)
@@ -295,7 +297,7 @@ def main():
     transBump.SetRunDirectory("transonicBump")
     transBump.SetNumberOfProcessors(1)
     transBump.SetNumberOfIterations(numIterations)
-    transBump.SetResiduals([1.1839e-1, 6.8615e-2, 8.4925e-2, 1.0000, 9.9669e-2])
+    transBump.SetResiduals([1.1901e-01, 7.0606e-02, 8.4288e-02, 1.0000e+00, 1.0032e-01])
     transBump.SetIgnoreIndices(3)
     transBump.SetMpirunPath(options.mpirunPath)
 
@@ -313,9 +315,11 @@ def main():
     viscPlate.SetNumberOfProcessors(maxProcs)
     viscPlate.SetNumberOfIterations(numIterations)
     if viscPlate.Processors() == 2:
-        viscPlate.SetResiduals([7.7239e-2, 2.4713e-1, 5.6557e-2, 8.4112e-1, 7.9342e-2])
+        viscPlate.SetResiduals(
+            [7.7045e-02, 2.4713e-01, 5.2495e-02, 7.6515e-02, 7.9490e-02])
     else:
-        viscPlate.SetResiduals([7.6467e-2, 2.4714e-1, 4.0109e-2, 8.3161e-1, 7.9240e-2])
+        viscPlate.SetResiduals(
+            [7.4953e-02, 2.4712e-01, 3.8996e-02, 7.6702e-02, 7.7682e-02])
     viscPlate.SetIgnoreIndices(3)
     viscPlate.SetMpirunPath(options.mpirunPath)
 
@@ -333,11 +337,11 @@ def main():
     turbPlate.SetNumberOfProcessors(maxProcs)
     turbPlate.SetNumberOfIterations(numIterationsShort)
     if turbPlate.Processors() == 2:
-        turbPlate.SetResiduals([2.2326e-01, 2.9704e-01, 4.5442e-01, 2.4928e-01,
-                                2.1792e-01, 7.9769e-07, 2.3288e-04])
+        turbPlate.SetResiduals(
+            [2.1926e-01, 2.9703e-01, 4.5465e-01, 2.6535e-01, 2.1447e-01, 1.0385e-05, 2.3290e-04])
     else:
-        turbPlate.SetResiduals([2.1828e-01, 2.9702e-01, 4.5628e-01, 2.4928e-01,
-                                2.1361e-01, 7.9753e-07, 2.3287e-04])
+        turbPlate.SetResiduals(
+            [2.1454e-01, 2.9702e-01, 4.5651e-01, 2.6560e-01, 2.1040e-01, 1.0381e-05, 2.3288e-04])
     turbPlate.SetIgnoreIndices(2)
     turbPlate.SetMpirunPath(options.mpirunPath)
 
@@ -355,11 +359,11 @@ def main():
     rae2822.SetNumberOfProcessors(maxProcs)
     rae2822.SetNumberOfIterations(numIterationsShort)
     if rae2822.Processors() == 2:
-        rae2822.SetResiduals([5.5472e-01, 7.2623e-01, 5.0035e-01, 4.8794e-01,
-                              4.9827e-01, 2.4542e-05, 9.3450e-05])
+        rae2822.SetResiduals([5.5477e-01, 7.2672e-01, 5.0037e-01,
+                              4.8794e-01, 4.9839e-01, 2.4542e-05, 9.3450e-05])
     else:
-        rae2822.SetResiduals([5.5195e-01, 7.2220e-01, 5.0410e-01, 6.9139e-01,
-                              4.9487e-01, 2.4542e-05, 9.2871e-05])
+        rae2822.SetResiduals([5.5200e-01, 7.2268e-01, 5.0411e-01,
+                              5.4354e-01, 4.9499e-01, 2.4542e-05, 9.2871e-05])
     rae2822.SetIgnoreIndices(3)
     rae2822.SetMpirunPath(options.mpirunPath)
 
@@ -376,7 +380,7 @@ def main():
     couette.SetRunDirectory("couette")
     couette.SetNumberOfProcessors(1)
     couette.SetNumberOfIterations(numIterations)
-    couette.SetResiduals([1.1343e-1, 5.0725e-1, 7.4086e-2, 4.7218e-1, 2.2789e-1])
+    couette.SetResiduals([1.1343e-1, 5.0725e-1, 7.4086e-2, 2.7960e-1, 2.2789e-1])
     couette.SetIgnoreIndices(3)
     couette.SetMpirunPath(options.mpirunPath)
 
@@ -394,11 +398,11 @@ def main():
     wallLaw.SetNumberOfProcessors(maxProcs)
     wallLaw.SetNumberOfIterations(numIterationsShort)
     if wallLaw.Processors() == 2:
-        wallLaw.SetResiduals([8.1949e-01, 1.0542e-01, 1.3522e-01, 9.2939e-01,
-                              8.5213e-01, 6.0529e-02, 6.7596e-05])
+        wallLaw.SetResiduals([4.3450e-01, 2.8995e-02, 6.1663e-02,
+                              9.2778e-01, 4.8751e-01, 6.0536e-02, 6.7489e-05])
     else:
-        wallLaw.SetResiduals([8.1310e-01, 1.0392e-01, 1.3302e-01, 9.2927e-01,
-                              8.4532e-01, 6.0527e-02, 6.7585e-05])
+        wallLaw.SetResiduals([4.2988e-01, 2.5184e-02, 6.0692e-02,
+                              9.2758e-01, 4.8210e-01, 6.0532e-02, 6.7492e-05])
     wallLaw.SetIgnoreIndices(1)
     wallLaw.SetMpirunPath(options.mpirunPath)
 
@@ -439,12 +443,29 @@ def main():
     uniform.SetRunDirectory("uniformFlow")
     uniform.SetNumberOfProcessors(1)
     uniform.SetNumberOfIterations(numIterationsShort)
-    uniform.SetResiduals([2.6167e-01, 3.2443e-01, 1.8594e-01, 1.8633e-01,
-                          2.5828e-01, 7.7757e-09, 2.4621e-09])
+    uniform.SetResiduals([2.0055e-01, 2.5064e-01, 1.3884e-01,
+                          1.3931e-01, 1.9895e-01, 5.8223e-09, 2.4515e-09])
     uniform.SetMpirunPath(options.mpirunPath)
 
     # run regression case
     passed = uniform.RunCase()
+    totalPass = totalPass and all(passed)
+
+    # ------------------------------------------------------------------
+    # convecting vortex
+    # initialization from file, nonreflecting boundary
+    vortex = regressionTest()
+    vortex.SetRegressionCase("convectingVortex")
+    vortex.SetAitherPath(options.aitherPath)
+    vortex.SetRunDirectory("convectingVortex")
+    vortex.SetNumberOfProcessors(1)
+    vortex.SetNumberOfIterations(numIterations)
+    vortex.SetResiduals(
+        [5.2322e+00, 6.3715e-01, 7.0927e-01, 1.1204e+00, 7.9481e-01])
+    vortex.SetMpirunPath(options.mpirunPath)
+
+    # run regression case
+    passed = vortex.RunCase()
     totalPass = totalPass and all(passed)
 
     # ------------------------------------------------------------------

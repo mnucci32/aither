@@ -92,6 +92,8 @@ class inputState {
   virtual int NumberSpecies() const { return 0; }
   virtual string File() const { return "undefined"; }
   virtual bool IsFromFile() const { return false; }
+  virtual bool IsNonreflecting() const { return false; }
+  virtual const double LengthScale() const { return 0.0; }
   bool IsNondimensional() const { return nondimensional_; }
   void SetNondimensional(const bool &nd) {nondimensional_ = nd;}
 
@@ -222,6 +224,9 @@ class stagnationInlet : public inputState {
 
 class pressureOutlet : public inputState {
   double pressure_;
+  bool nonreflecting_ = false;
+  bool specifiedReflecting_ = false;
+  double lengthScale_ = 0.0;
 
  public:
   // constructor
@@ -237,6 +242,9 @@ class pressureOutlet : public inputState {
 
   // Member functions
   const double Pressure() const override {return pressure_;}
+  bool IsNonreflecting() const override { return nonreflecting_; }
+  bool SpecifiedReflecting() const { return specifiedReflecting_; }
+  const double LengthScale() const override { return lengthScale_; }
   void Print(ostream &os) const override;
   void Nondimensionalize(const double &rRef, const double &tRef,
                          const double &lRef, const double &aRef) override;
@@ -265,73 +273,6 @@ class supersonicInflow : public icState {
 
   // Destructor
   ~supersonicInflow() noexcept {}
-};
-
-
-// data for subsonicOutflow bc is same is for pressureOutlet
-class subsonicOutflow : public pressureOutlet {
- public:
-  // constructor
-  explicit subsonicOutflow(string &str) :
-      pressureOutlet(str, "subsonicOutflow") {}
-
-  // move constructor and assignment operator
-  subsonicOutflow(subsonicOutflow&&) noexcept = default;
-  subsonicOutflow& operator=(subsonicOutflow&&) noexcept = default;
-
-  // copy constructor and assignment operator
-  subsonicOutflow(const subsonicOutflow&) = default;
-  subsonicOutflow& operator=(const subsonicOutflow&) = default;
-
-  // Member functions
-  void Print(ostream &os) const override;
-
-  // Destructor
-  ~subsonicOutflow() noexcept {}
-};
-
-
-class subsonicInflow : public inputState {
-  vector3d<double> velocity_;
-  double density_;
-  double turbIntensity_ = 0.01;  // default values
-  double eddyViscRatio_ = 10.0;
-  map<string, double> massFractions_ = {{"air", 1.0}};
-  bool specifiedTurbulence_ = false;
-  bool specifiedMassFractions_ = false;
-
- public:
-  // constructor
-  explicit subsonicInflow(string &str);
-
-  // move constructor and assignment operator
-  subsonicInflow(subsonicInflow&&) noexcept = default;
-  subsonicInflow& operator=(subsonicInflow&&) noexcept = default;
-
-  // copy constructor and assignment operator
-  subsonicInflow(const subsonicInflow&) = default;
-  subsonicInflow& operator=(const subsonicInflow&) = default;
-
-  // Member functions
-  const vector3d<double> Velocity() const override {return velocity_;}
-  const double Density() const override {return density_;}
-  const double TurbulenceIntensity() const override {return turbIntensity_;}
-  const double EddyViscosityRatio() const override {return eddyViscRatio_;}
-  const bool SpecifiedTurbulence() const {return specifiedTurbulence_;}
-  void SetSpecifiedTurbulence() {specifiedTurbulence_ = true;}
-  const bool SpecifiedMassFractions() const {return specifiedMassFractions_;}
-  void SetSpecifiedMassFractions() {specifiedMassFractions_ = true;}
-  int NumberSpecies() const override {return massFractions_.size();}
-  void Print(ostream &os) const override;
-  void Nondimensionalize(const double &rRef, const double &tRef,
-                         const double &lRef, const double &aRef) override;
-  double MassFraction(const string &species) const override {
-    return massFractions_.find(species)->second;
-  }
-  map<string, double> MassFractions() const override { return massFractions_; }
-
-  // Destructor
-  ~subsonicInflow() noexcept {}
 };
 
 
@@ -433,8 +374,6 @@ ostream &operator<<(ostream &, const characteristic &);
 ostream &operator<<(ostream &, const stagnationInlet &);
 ostream &operator<<(ostream &, const pressureOutlet &);
 ostream &operator<<(ostream &, const supersonicInflow &);
-ostream &operator<<(ostream &, const subsonicOutflow &);
-ostream &operator<<(ostream &, const subsonicInflow &);
 ostream &operator<<(ostream &, const viscousWall &);
 ostream &operator<<(ostream &, const periodic &);
 

@@ -40,9 +40,6 @@ using std::string;
 using std::ios;
 using std::ofstream;
 using std::ifstream;
-using std::cout;
-using std::endl;
-using std::cerr;
 using std::unique_ptr;
 
 // forward class declarations
@@ -88,6 +85,8 @@ class procBlock {
   // gradients
   multiArray3d<tensor<double>> velocityGrad_;
   multiArray3d<vector3d<double>> temperatureGrad_;
+  multiArray3d<vector3d<double>> densityGrad_;
+  multiArray3d<vector3d<double>> pressureGrad_;
   multiArray3d<vector3d<double>> tkeGrad_;
   multiArray3d<vector3d<double>> omegaGrad_;
 
@@ -165,6 +164,10 @@ class procBlock {
                             const int &);
   vector<wallData> SplitWallData(const string &, const int &);
   void JoinWallData(const vector<wallData> &, const string &);
+
+  void CalcGradsI();
+  void CalcGradsJ();
+  void CalcGradsK();
 
  public:
   // constructors
@@ -352,10 +355,18 @@ class procBlock {
   }
 
   tensor<double> VelGrad(const int &ii, const int &jj, const int &kk) const {
-    return isViscous_ ? velocityGrad_(ii, jj, kk) : tensor<double>(0.0);
+    return velocityGrad_(ii, jj, kk);
   }
   vector3d<double> TempGrad(const int &ii, const int &jj, const int &kk) const {
-    return isViscous_ ? temperatureGrad_(ii, jj, kk) : vector3d<double>();
+    return temperatureGrad_(ii, jj, kk);
+  }
+  vector3d<double> DensityGrad(const int &ii, const int &jj,
+                               const int &kk) const {
+    return densityGrad_(ii, jj, kk);
+  }
+  vector3d<double> PressureGrad(const int &ii, const int &jj,
+                                const int &kk) const {
+    return pressureGrad_(ii, jj, kk);
   }
   vector3d<double> TkeGrad(const int &ii, const int &jj, const int &kk) const {
     return isRANS_ ? tkeGrad_(ii, jj, kk) : vector3d<double>();
@@ -432,17 +443,20 @@ class procBlock {
       const multiArray3d<unitVec3dMag<double>> &, const multiArray3d<double> &,
       const boundarySurface &, const input &, const unique_ptr<eos> &,
       const unique_ptr<thermodynamic> &, const unique_ptr<transport> &,
-      const unique_ptr<turbModel> &, const int = 1);
+      const unique_ptr<turbModel> &, const int &,
+      const multiArray3d<double> & = {}, const multiArray3d<genArray> & = {},
+      const multiArray3d<vector3d<double>> & = {},
+      const multiArray3d<tensor<double>> & = {});
 
-  void CalcGradsI(const int &, const int &, const int &,
-                  tensor<double> &, vector3d<double> &, vector3d<double> &,
-                  vector3d<double> &) const;
-  void CalcGradsJ(const int &, const int &, const int &,
-                  tensor<double> &, vector3d<double> &, vector3d<double> &,
-                  vector3d<double> &) const;
-  void CalcGradsK(const int &, const int &, const int &,
-                  tensor<double> &, vector3d<double> &, vector3d<double> &,
-                  vector3d<double> &) const;
+  void CalcGradsI(const int &, const int &, const int &, tensor<double> &,
+                  vector3d<double> &, vector3d<double> &, vector3d<double> &,
+                  vector3d<double> &, vector3d<double> &) const;
+  void CalcGradsJ(const int &, const int &, const int &, tensor<double> &,
+                  vector3d<double> &, vector3d<double> &, vector3d<double> &,
+                  vector3d<double> &, vector3d<double> &) const;
+  void CalcGradsK(const int &, const int &, const int &, tensor<double> &,
+                  vector3d<double> &, vector3d<double> &, vector3d<double> &,
+                  vector3d<double> &, vector3d<double> &) const;
 
   void CalcWallDistance(const kdtree &);
 

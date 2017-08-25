@@ -120,8 +120,13 @@ ostream &operator<<(ostream &os, const stagnationInlet &bc) {
 }
 
 void pressureOutlet::Print(ostream &os) const {
-  os << "pressureOutlet(tag=" << this->Tag() << "; pressure="
-     << this->Pressure() << ")";
+  os << "pressureOutlet(tag=" << this->Tag()
+     << "; pressure=" << this->Pressure();
+     if (this->SpecifiedReflecting()) {
+       os << "; nonreflecting=" << std::boolalpha << this->IsNonreflecting();
+       os << "; lengthScale=" << this->LengthScale();
+     }
+     os << ")";
 }
 
 ostream &operator<<(ostream &os, const pressureOutlet &bc) {
@@ -154,44 +159,6 @@ void supersonicInflow::Print(ostream &os) const {
 }
 
 ostream &operator<<(ostream &os, const supersonicInflow &bc) {
-  bc.Print(os);
-  return os;
-}
-
-void subsonicOutflow::Print(ostream &os) const {
-  os << "subsonicOutflow(tag=" << this->Tag() << "; pressure="
-     << this->Pressure() << ")";
-}
-
-ostream &operator<<(ostream &os, const subsonicOutflow &bc) {
-  bc.Print(os);
-  return os;
-}
-
-void subsonicInflow::Print(ostream &os) const {
-  os << "subsonicInflow(tag=" << this->Tag() << "; density=" << this->Density()
-     << "; velocity=[" << this->Velocity() << "]";
-  if (this->SpecifiedTurbulence()) {
-    os << "; turbulenceIntensity=" << this->TurbulenceIntensity()
-       << "; eddyViscosityRatio=" << this->EddyViscosityRatio();
-  }
-  if (this->SpecifiedMassFractions()) {
-    os << "; massFractions=[";
-    auto numSpecies = this->NumberSpecies();
-    auto count = 0;
-    for (auto &fracs : massFractions_) {
-      os << fracs.first << "=" << fracs.second;
-      if (count < numSpecies - 1) {
-        os << ", ";
-      }
-      count++;
-    }
-    os << "]";
-  }
-  os << ")";
-}
-
-ostream &operator<<(ostream &os, const subsonicInflow &bc) {
   bc.Print(os);
   return os;
 }
@@ -569,6 +536,10 @@ pressureOutlet::pressureOutlet(string &str, const string name) {
   // parameter counters
   auto tagCount = 0;
   auto pressureCount = 0;
+  auto nonreflectingCount = 0;
+  auto lengthCount = 0;
+  nonreflecting_ = false;
+  specifiedReflecting_ = false;
 
   for (auto &token : tokens) {
     auto param = Tokenize(token, "=");
@@ -580,9 +551,17 @@ pressureOutlet::pressureOutlet(string &str, const string name) {
     if (param[0] == "pressure") {
       pressure_ = stod(RemoveTrailing(param[1], ","));
       pressureCount++;
+    } else if (param[0] == "nonreflecting") {
+      auto reflect = RemoveTrailing(param[1], ",");
+      nonreflecting_ = (reflect == "true");
+      specifiedReflecting_ = true;
+      nonreflectingCount++;
     } else if (param[0] == "tag") {
       this->SetTag(stoi(RemoveTrailing(param[1], ",")));
       tagCount++;
+    } else if (param[0] == "lengthScale") {
+      lengthScale_ = stod(RemoveTrailing(param[1], ","));
+      lengthCount++;
     } else {
       cerr << "ERROR. " << name << " specifier " << param[0]
            << " is not recognized!" << endl;
@@ -597,100 +576,28 @@ pressureOutlet::pressureOutlet(string &str, const string name) {
          << "only specified once." << endl;
     exit(EXIT_FAILURE);
   }
+  // can only specify nonreflecting and length scale once
+  if (nonreflectingCount > 1 || lengthCount > 1) {
+    cerr << "ERROR. For " << name << " nonreflecting and/or lengthScale can "
+         << "only be specified once" << endl;
+    exit(EXIT_FAILURE);
+  }
+  if (nonreflecting_ && lengthCount != 1) {
+    cerr << "ERROR. For " << name << " lengthScale must be specified with "
+         << "nonreflecting" << endl;
+    exit(EXIT_FAILURE);
+  }
 }
 
 void pressureOutlet::Nondimensionalize(const double &rRef, const double &tRef,
                                        const double &lRef, const double &aRef) {
   if (!this->IsNondimensional()) {
     pressure_ /= rRef * aRef * aRef;
+    lengthScale_ /= lRef;
     this->SetNondimensional(true);
   }
 }
 
-// construct subsonic inflow from string
-subsonicInflow::subsonicInflow(string &str) {
-  const auto start = str.find("(") + 1;
-  const auto end = str.find(")") - 1;
-  const auto range = end - start + 1;  // +/-1 to ignore ()
-  auto state = str.substr(start, range);
-  const auto id = str.substr(0, start - 1);
-  if (id != "subsonicInflow") {
-    cerr << "ERROR. State condition specifier " << id << " is not recognized!"
-         << endl;
-    exit(EXIT_FAILURE);
-  }
-  auto tokens = Tokenize(state, ";");
-
-  // erase portion used so multiple states in same string can easily be found
-  str.erase(0, end);
-
-  // parameter counters
-  auto tagCount = 0;
-  auto densityCount = 0;
-  auto velocityCount = 0;
-  auto tiCount = 0;
-  auto evrCount = 0;
-  auto mfCount = 0;
-
-  for (auto &token : tokens) {
-    auto param = Tokenize(token, "=", 1);
-    if (param.size() != 2) {
-      cerr << "ERROR. Problem with state condition parameter " << token << endl;
-      exit(EXIT_FAILURE);
-    }
-
-    if (param[0] == "density") {
-      density_ = stod(RemoveTrailing(param[1], ","));
-      densityCount++;
-    } else if (param[0] == "velocity") {
-      velocity_ = ReadVector(RemoveTrailing(param[1], ","));
-      velocityCount++;
-    } else if (param[0] == "massFractions") {
-      this->SetSpecifiedMassFractions();
-      massFractions_ = ReadMassFractions(RemoveTrailing(param[1], ","));
-      mfCount++;
-    } else if (param[0] == "turbulenceIntensity") {
-      this->SetSpecifiedTurbulence();
-      turbIntensity_ = stod(RemoveTrailing(param[1], ","));
-      tiCount++;
-    } else if (param[0] == "eddyViscosityRatio") {
-      eddyViscRatio_ = stod(RemoveTrailing(param[1], ","));
-      evrCount++;
-    } else if (param[0] == "tag") {
-      this->SetTag(stoi(RemoveTrailing(param[1], ",")));
-      tagCount++;
-    } else {
-      cerr << "ERROR. subsonicInlet specifier " << param[0]
-           << " is not recognized!" << endl;
-      exit(EXIT_FAILURE);
-    }
-  }
-
-  // sanity checks
-  // required variables
-  if (densityCount != 1 || velocityCount != 1 || tagCount != 1) {
-    cerr << "ERROR. For subsonicInlet density, tag, and velocity "
-         << "must be specified, and only specified once." << endl;
-    exit(EXIT_FAILURE);
-  }
-  // optional variables
-  if (mfCount > 1 || tiCount > 1 || evrCount > 1 || tiCount != evrCount) {
-    cerr << "ERROR. For subsonicInlet, massFractions, turbulenceIntensity, and "
-         << "eddyViscosityRatio can only be specified once." << endl;
-    cerr << "If either turbulenceIntensity or eddyViscosityRatio is specified "
-         << "the other must be as well." << endl;
-    exit(EXIT_FAILURE);
-  }
-}
-
-void subsonicInflow::Nondimensionalize(const double &rRef, const double &tRef,
-                                       const double &lRef, const double &aRef) {
-  if (!this->IsNondimensional()) {
-    velocity_ /= aRef;
-    density_ /= rRef;
-    this->SetNondimensional(true);
-  }
-}
 
 // construct viscousWall from string
 viscousWall::viscousWall(string &str) {
@@ -986,10 +893,6 @@ void AddBCToList(const string &type, vector<shared_ptr<inputState>> &bcList,
     bc = shared_ptr<inputState>{std::make_shared<stagnationInlet>(list)};
   } else if (type == "pressureOutlet") {
     bc = shared_ptr<inputState>{std::make_shared<pressureOutlet>(list)};
-  } else if (type == "subsonicInflow") {
-    bc = shared_ptr<inputState>{std::make_shared<subsonicInflow>(list)};
-  } else if (type == "subsonicOutflow") {
-    bc = shared_ptr<inputState>{std::make_shared<subsonicOutflow>(list)};
   } else if (type == "supersonicInflow") {
     bc = shared_ptr<inputState>{std::make_shared<supersonicInflow>(list)};
   } else if (type == "viscousWall") {
@@ -1015,9 +918,9 @@ void AddBCToList(const string &type, vector<shared_ptr<inputState>> &bcList,
 // function to read boundary condition list from string
 vector<shared_ptr<inputState>> ReadBCList(ifstream &inFile, string &str) {
   vector<shared_ptr<inputState>> bcList;
-  vector<string> bcNames {"characteristic", "stagnationInlet", "pressureOutlet",
-        "subsonicInflow", "subsonicOutflow", "supersonicInflow", "viscousWall",
-        "periodic"};
+  vector<string> bcNames{"characteristic", "stagnationInlet",
+                         "pressureOutlet", "supersonicInflow",
+                         "viscousWall",    "periodic"};
   auto openList = false;
   do {
     auto start = openList ? 0 : str.find("<");

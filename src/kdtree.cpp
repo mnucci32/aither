@@ -30,7 +30,7 @@ kdtree::kdtree(const vector<vector3d<double>> &points) {
   // points -- all points to search through, stored in kdtree
 
   nodes_.resize(points.size());
-  for (auto ii = 0; ii < nodes_.size(); ++ii) {
+  for (auto ii = 0U; ii < nodes_.size(); ++ii) {
     nodes_[ii] = std::make_pair(points[ii], ii);
   }
   right_ = vector<int>(points.size(), -1);
