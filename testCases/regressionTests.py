@@ -462,6 +462,7 @@ def main():
     vortex.SetNumberOfIterations(numIterations)
     vortex.SetResiduals(
         [5.2322e+00, 6.3715e-01, 7.0927e-01, 1.1204e+00, 7.9481e-01])
+    vortex.SetIgnoreIndices(3)
     vortex.SetMpirunPath(options.mpirunPath)
 
     # run regression case
