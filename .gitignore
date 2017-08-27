@@ -18,3 +18,7 @@ testCases
 .vscode
 
 _site
+
+# ignore gemfile
+Gemfile
+Gemfile.lock
