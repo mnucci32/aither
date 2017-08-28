@@ -660,6 +660,69 @@ primVars primVars::GetGhostState(
       }
     }
 
+  // inlet boundary condition
+  // -------------------------------------------------------------------------
+  } else if (bcType == "inlet") {
+    const auto & bcData = inputVars.BCData(tag);
+    // freestream variables
+    const auto freeVel = bcData->Velocity();
+    const primVars freeState(bcData->Density(), freeVel, bcData->Pressure());
+
+    // internal variables
+    const auto velIntNorm = this->Velocity().DotProd(normArea);
+    const auto SoSInt = this->SoS(thermo, eqnState);
+    const auto machInt = fabs(velIntNorm) / SoSInt;
+
+    if (machInt >= 1.0) {  // supersonic inflow
+      // -----------------------------------------------------
+      // characteristics all go into the domain, so use freestream values for
+      // both riemann invariants
+      ghostState = freeState;
+
+      // assign farfield conditions to turbulence variables
+      if (inputVars.IsRANS()) {
+        ghostState.ApplyFarfieldTurbBC(freeVel,
+                                       bcData->TurbulenceIntensity(),
+                                       bcData->EddyViscosityRatio(), trans,
+                                       eqnState, turb);
+      }
+    } else {  // subsonic inflow
+      // ----------------------------------------------
+      // characteristics go in both directions, use interior values for plus
+      // characteristic and freestream values for minus characteristic
+      const auto rhoSoSInt = this->Rho() * SoSInt;
+      const auto velDiff = freeState.Velocity() - this->Velocity();
+
+      // plus characteristic
+      ghostState.data_[4] = 0.5 * (freeState.P() + this->P() -
+                                   rhoSoSInt * normArea.DotProd(velDiff));
+      const auto deltaPressure = freeState.P() - ghostState.P();
+
+      // minus characteristic
+      ghostState.data_[0] = freeState.Rho() - deltaPressure / (SoSInt * SoSInt);
+      ghostState.data_[1] =
+          freeState.U() - normArea.X() * deltaPressure / rhoSoSInt;
+      ghostState.data_[2] =
+          freeState.V() - normArea.Y() * deltaPressure / rhoSoSInt;
+      ghostState.data_[3] =
+          freeState.W() - normArea.Z() * deltaPressure / rhoSoSInt;
+
+      // assign farfield conditions to turbulence variables
+      if (inputVars.IsRANS()) {
+        ghostState.ApplyFarfieldTurbBC(freeVel,
+                                       bcData->TurbulenceIntensity(),
+                                       bcData->EddyViscosityRatio(), trans,
+                                       eqnState, turb);
+      }
+    }
+
+    // extrapolate from boundary to ghost cell
+    ghostState = 2.0 * ghostState - (*this);
+
+    if (layer > 1) {  // extrapolate to get ghost state at deeper layers
+      ghostState = layer * ghostState - (*this);
+    }
+
   // supersonic inflow boundary condition
   // -------------------------------------------------------------------------
   // this boundary condition enforces the entire state as the specified

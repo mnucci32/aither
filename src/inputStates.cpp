@@ -90,6 +90,34 @@ ostream &operator<<(ostream &os, const characteristic &bc) {
   return os;
 }
 
+void inlet::Print(ostream &os) const {
+  os << "inlet(tag=" << this->Tag() << "; pressure=" << this->Pressure()
+     << "; density=" << this->Density() << "; velocity=[" << this->Velocity()
+     << "]";
+  if (this->SpecifiedTurbulence()) {
+    os << "; turbulenceIntensity=" << this->TurbulenceIntensity()
+       << "; eddyViscosityRatio=" << this->EddyViscosityRatio();
+  }
+  if (this->SpecifiedMassFractions()) {
+    os << "; massFractions=[";
+    auto numSpecies = this->NumberSpecies();
+    auto count = 0;
+    for (auto &fracs : this->MassFractions()) {
+      os << fracs.first << "=" << fracs.second;
+      if (count < numSpecies - 1) {
+        os << ", ";
+      }
+      count++;
+    }
+    os << "]";
+  }
+  os << ")";
+}
+ostream &operator<<(ostream &os, const inlet &bc) {
+  bc.Print(os);
+  return os;
+}
+
 void stagnationInlet::Print(ostream &os) const {
   os << "stagnationInlet(tag=" << this->Tag() << "; p0="
      << this->StagnationPressure() << "; t0=" << this->StagnationTemperature()
@@ -374,6 +402,8 @@ icState::icState(string &str, const string name) {
     } else if (param[0] == "tag") {
       this->SetTag(stoi(RemoveTrailing(param[1], ",")));
       tagCount++;
+    } else if (extraData_.find(param[0]) != extraData_.end()) {
+      this->AssignExtraData(param[0], param[1]);
     } else {
       cerr << "ERROR. " << name << " specifier " << param[0]
            << " is not recognized!" << endl;
@@ -413,6 +443,8 @@ icState::icState(string &str, const string name) {
     cerr << "ERROR. For " << name << ", tag must be specified." << endl;
     exit(EXIT_FAILURE);
   }
+
+  this->ExtraDataChecks();
 }
 
 void icState::Nondimensionalize(const double &rRef, const double &tRef,
@@ -421,7 +453,43 @@ void icState::Nondimensionalize(const double &rRef, const double &tRef,
     velocity_ /= aRef;
     density_ /= rRef;
     pressure_ /= rRef * aRef * aRef;
+    this->NondimensionalizeExtra(rRef, tRef, lRef, aRef);
     this->SetNondimensional(true);
+  }
+}
+
+void inlet::AssignExtraData(const string &s1, const string &s2) {
+  if (s1 == "nonreflecting") {
+    auto reflect = RemoveTrailing(s2, ",");
+    nonreflecting_ = (reflect == "true");
+    specifiedReflecting_ = true;
+    nonreflectingCount_++;
+  } else if (s1 == "lengthScale") {
+    lengthScale_ = stod(RemoveTrailing(s2, ","));
+    lengthCount_++;
+  } else {
+    cerr << "ERROR: parameter " << s1 << " with value " << s2
+         << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+void inlet::NondimensionalizeExtra(const double &rRef, const double &tRef,
+                                   const double &lRef, const double &aRef) {
+  lengthScale_ /= lRef;
+}
+
+void inlet::ExtraDataChecks() const {
+  // can only specify nonreflecting and length scale once
+  if (nonreflectingCount_ > 1 || lengthCount_ > 1) {
+    cerr << "ERROR. For inlet nonreflecting and/or lengthScale can "
+         << "only be specified once" << endl;
+    exit(EXIT_FAILURE);
+  }
+  if (nonreflecting_ && lengthCount_ != 1) {
+    cerr << "ERROR. For inlet lengthScale must be specified with "
+         << "nonreflecting" << endl;
+    exit(EXIT_FAILURE);
   }
 }
 
@@ -889,6 +957,8 @@ void AddBCToList(const string &type, vector<shared_ptr<inputState>> &bcList,
   shared_ptr<inputState> bc(nullptr);
   if (type == "characteristic") {
     bc = shared_ptr<inputState>{std::make_shared<characteristic>(list)};
+  } else if (type == "inlet") {
+    bc = shared_ptr<inputState>{std::make_shared<inlet>(list)};
   } else if (type == "stagnationInlet") {
     bc = shared_ptr<inputState>{std::make_shared<stagnationInlet>(list)};
   } else if (type == "pressureOutlet") {
@@ -918,7 +988,7 @@ void AddBCToList(const string &type, vector<shared_ptr<inputState>> &bcList,
 // function to read boundary condition list from string
 vector<shared_ptr<inputState>> ReadBCList(ifstream &inFile, string &str) {
   vector<shared_ptr<inputState>> bcList;
-  vector<string> bcNames{"characteristic", "stagnationInlet",
+  vector<string> bcNames{"characteristic", "inlet", "stagnationInlet",
                          "pressureOutlet", "supersonicInflow",
                          "viscousWall",    "periodic"};
   auto openList = false;

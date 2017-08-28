@@ -26,6 +26,7 @@ conditions and initial conditions.
 #include <string>
 #include <vector>
 #include <map>
+#include <set>
 #include <fstream>
 #include <memory>
 #include "vector3d.hpp"
@@ -33,6 +34,7 @@ conditions and initial conditions.
 using std::string;
 using std::vector;
 using std::map;
+using std::set;
 using std::ifstream;
 using std::shared_ptr;
 
@@ -113,6 +115,7 @@ class icState : public inputState {
   bool specifiedTurbulence_ = false;
   bool specifiedMassFractions_ = false;
   bool specifiedFile_ = false;
+  set<string> extraData_ = {};
 
  public:
   // constructor
@@ -141,6 +144,8 @@ class icState : public inputState {
   void Print(ostream &os) const override;
   void Nondimensionalize(const double &rRef, const double &tRef,
                          const double &lRef, const double &aRef) override;
+  virtual void NondimensionalizeExtra(const double &rRef, const double &tRef,
+                         const double &lRef, const double &aRef) {}
   double MassFraction(const string &species) const override {
     return massFractions_.find(species)->second;
   }
@@ -149,6 +154,8 @@ class icState : public inputState {
   void SetSpecifiedFile() { specifiedFile_ = true; }
   string File() const override { return file_; }
   bool IsFromFile() const override { return specifiedFile_; }
+  virtual void AssignExtraData(const string &s1, const string &s2) {}
+  virtual void ExtraDataChecks() const {}
 
   // Destructor
   virtual ~icState() noexcept {}
@@ -173,6 +180,41 @@ class characteristic : public icState {
 
   // Destructor
   ~characteristic() noexcept {}
+};
+
+// data for inlet bc is same is for initial conditions
+class inlet : public icState {
+  bool nonreflecting_ = false;
+  bool specifiedReflecting_ = false;
+  int nonreflectingCount_ = 0;
+  double lengthScale_ = 0.0;
+  int lengthCount_ = 0;
+  set<string> extraData_ = {"nonreflecting", "lengthScale"};
+
+ public:
+  // constructor
+  explicit inlet(string &str) : icState(str, "inlet") {}
+
+  // move constructor and assignment operator
+  inlet(inlet&&) noexcept = default;
+  inlet& operator=(inlet&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  inlet(const inlet&) = default;
+  inlet& operator=(const inlet&) = default;
+
+  // Member functions
+  void Print(ostream &os) const override;
+  bool IsNonreflecting() const override { return nonreflecting_; }
+  bool SpecifiedReflecting() const { return specifiedReflecting_; }
+  const double LengthScale() const override { return lengthScale_; }
+  void NondimensionalizeExtra(const double &rRef, const double &tRef,
+                              const double &lRef, const double &aRef) override;
+  void AssignExtraData(const string &s1, const string &s2) override;
+  void ExtraDataChecks() const override;
+
+  // Destructor
+  ~inlet() noexcept {}
 };
 
 
@@ -371,6 +413,7 @@ class periodic : public inputState {
 ostream &operator<<(ostream &, const inputState &);
 ostream &operator<<(ostream &, const icState &);
 ostream &operator<<(ostream &, const characteristic &);
+ostream &operator<<(ostream &, const inlet &);
 ostream &operator<<(ostream &, const stagnationInlet &);
 ostream &operator<<(ostream &, const pressureOutlet &);
 ostream &operator<<(ostream &, const supersonicInflow &);
