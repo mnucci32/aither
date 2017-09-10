@@ -98,6 +98,8 @@ class inputState {
   virtual const double LengthScale() const { return 0.0; }
   bool IsNondimensional() const { return nondimensional_; }
   void SetNondimensional(const bool &nd) {nondimensional_ = nd;}
+  virtual void Read(string &str) = 0;
+  virtual string Name() const { return "inputState"; }
 
   // destructor
   virtual ~inputState() noexcept {}
@@ -105,22 +107,21 @@ class inputState {
 
 
 class icState : public inputState {
-  vector3d<double> velocity_;
-  double density_;
-  double pressure_;
-  double turbIntensity_ = 0.01;       // default values
+  vector3d<double> velocity_ = {0.0, 0.0, 0.0};
+  double density_ = 0.0;
+  double pressure_ = 0.0;
+  double turbIntensity_ = 0.01;  // default values
   double eddyViscRatio_ = 10.0;
   map<string, double> massFractions_ = {{"air", 1.0}};
   string file_ = "undefined";
   bool specifiedTurbulence_ = false;
   bool specifiedMassFractions_ = false;
   bool specifiedFile_ = false;
-  set<string> extraData_ = {};
+  string name_ = "icState";
 
  public:
   // constructor
-  icState() : velocity_{0.0, 0.0, 0.0}, density_(0.0), pressure_(0.0) {}
-  explicit icState(string &str, const string name = "icState");
+  icState() : inputState() {}
 
   // move constructor and assignment operator
   icState(icState&&) noexcept = default;
@@ -131,7 +132,10 @@ class icState : public inputState {
   icState& operator=(const icState&) = default;
 
   // Member functions
-  const vector3d<double> Velocity() const override {return velocity_;}
+  void Read(string &str) override;
+  string Name() const override { return name_; }
+  void UpdateName(const string &n) { name_ = n; }
+  const vector3d<double> Velocity() const override { return velocity_; }
   const double Density() const override {return density_;}
   const double Pressure() const override {return pressure_;}
   const double TurbulenceIntensity() const override {return turbIntensity_;}
@@ -156,6 +160,7 @@ class icState : public inputState {
   bool IsFromFile() const override { return specifiedFile_; }
   virtual void AssignExtraData(const string &s1, const string &s2) {}
   virtual void ExtraDataChecks() const {}
+  virtual bool MatchesExtraData(const string &s1) const { return false; }
 
   // Destructor
   virtual ~icState() noexcept {}
@@ -165,7 +170,7 @@ class icState : public inputState {
 class characteristic : public icState {
  public:
   // constructor
-  explicit characteristic(string &str) : icState(str, "characteristic") {}
+  characteristic() : icState() { this->UpdateName("characteristic"); }
 
   // move constructor and assignment operator
   characteristic(characteristic&&) noexcept = default;
@@ -193,7 +198,7 @@ class inlet : public icState {
 
  public:
   // constructor
-  explicit inlet(string &str) : icState(str, "inlet") {}
+  inlet() : icState() { this->UpdateName("inlet"); }
 
   // move constructor and assignment operator
   inlet(inlet&&) noexcept = default;
@@ -212,6 +217,9 @@ class inlet : public icState {
                               const double &lRef, const double &aRef) override;
   void AssignExtraData(const string &s1, const string &s2) override;
   void ExtraDataChecks() const override;
+  bool MatchesExtraData(const string &s1) const override {
+    return extraData_.find(s1) != extraData_.end();
+  }
 
   // Destructor
   ~inlet() noexcept {}
@@ -219,18 +227,19 @@ class inlet : public icState {
 
 
 class stagnationInlet : public inputState {
-  vector3d<double> direction_;
-  double p0_;
-  double t0_;
+  vector3d<double> direction_ = {0.0, 0.0, 0.0};
+  double p0_ = 0.0;
+  double t0_ = 0.0;
   double turbIntensity_ = 0.01;  // default values
   double eddyViscRatio_ = 10.0;
   map<string, double> massFractions_ = {{"air", 1.0}};
   bool specifiedTurbulence_ = false;
   bool specifiedMassFractions_ = false;
+  string name_ = "stagnationInlet";
 
  public:
   // constructor
-  explicit stagnationInlet(string &str);
+  stagnationInlet() : inputState() {}
 
   // move constructor and assignment operator
   stagnationInlet(stagnationInlet&&) noexcept = default;
@@ -241,7 +250,9 @@ class stagnationInlet : public inputState {
   stagnationInlet& operator=(const stagnationInlet&) = default;
 
   // Member functions
-  const vector3d<double> Direction() const override {return direction_;}
+  void Read(string &str) override;
+  string Name() const override { return name_; }
+  const vector3d<double> Direction() const override { return direction_; }
   const double StagnationPressure() const override {return p0_;}
   const double StagnationTemperature() const override {return t0_;}
   const double TurbulenceIntensity() const override {return turbIntensity_;}
@@ -265,14 +276,15 @@ class stagnationInlet : public inputState {
 
 
 class pressureOutlet : public inputState {
-  double pressure_;
+  double pressure_ = 0.0;
   bool nonreflecting_ = false;
   bool specifiedReflecting_ = false;
   double lengthScale_ = 0.0;
+  string name_ = "pressureOutlet";
 
  public:
   // constructor
-  explicit pressureOutlet(string &str, const string name = "pressureOutlet");
+  pressureOutlet() : inputState() {}
 
   // move constructor and assignment operator
   pressureOutlet(pressureOutlet&&) noexcept = default;
@@ -283,6 +295,8 @@ class pressureOutlet : public inputState {
   pressureOutlet& operator=(const pressureOutlet&) = default;
 
   // Member functions
+  void Read(string &str) override;
+  string Name() const override { return name_; }
   const double Pressure() const override {return pressure_;}
   bool IsNonreflecting() const override { return nonreflecting_; }
   bool SpecifiedReflecting() const { return specifiedReflecting_; }
@@ -300,7 +314,7 @@ class pressureOutlet : public inputState {
 class supersonicInflow : public icState {
  public:
   // constructor
-  explicit supersonicInflow(string &str) : icState(str, "supersonicInflow") {}
+  supersonicInflow() : icState() { this->UpdateName("supersonicInflow"); }
 
   // move constructor and assignment operator
   supersonicInflow(supersonicInflow&&) noexcept = default;
@@ -328,10 +342,10 @@ class viscousWall : public inputState {
   string wallTreatment_ = "lowRe";
   bool specifiedTemperature_ = false;
   bool specifiedHeatFlux_ = false;
+  string name_ = "viscousWall";
 
  public:
   // constructor
-  explicit viscousWall(string &str);
   viscousWall() : inputState() {}
 
   // move constructor and assignment operator
@@ -343,7 +357,9 @@ class viscousWall : public inputState {
   viscousWall& operator=(const viscousWall&) = default;
 
   // Member functions
-  const vector3d<double> Velocity() const override {return velocity_;}
+  void Read(string &str) override;
+  string Name() const override { return name_; }
+  const vector3d<double> Velocity() const override { return velocity_; }
   const double Temperature() const override {return temperature_;}
   const double HeatFlux() const override {return heatFlux_;}
   const double VonKarmen() const override {return vonKarmen_;}
@@ -375,10 +391,11 @@ class periodic : public inputState {
   vector3d<double> point_ = {0.0, 0.0, 0.0};
   double rotation_ = 0.0;
   int endTag_ = -1;
+  string name_ = "periodic";
 
  public:
   // constructor
-  explicit periodic(string &str);
+  periodic() : inputState() {}
 
   // move constructor and assignment operator
   periodic(periodic&&) noexcept = default;
@@ -389,6 +406,8 @@ class periodic : public inputState {
   periodic& operator=(const periodic&) = default;
 
   // Member functions
+  void Read(string &str) override;
+  string Name() const override { return name_; }
   bool IsTranslation() const override {
     return translation_ != vector3d<double>(0.0, 0.0, 0.0);
   }

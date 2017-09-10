@@ -696,16 +696,54 @@ primVars primVars::GetGhostState(
       // plus characteristic
       ghostState.data_[4] = 0.5 * (freeState.P() + this->P() -
                                    rhoSoSInt * normArea.DotProd(velDiff));
-      const auto deltaPressure = freeState.P() - ghostState.P();
 
-      // minus characteristic
-      ghostState.data_[0] = freeState.Rho() - deltaPressure / (SoSInt * SoSInt);
-      ghostState.data_[1] =
-          freeState.U() - normArea.X() * deltaPressure / rhoSoSInt;
-      ghostState.data_[2] =
-          freeState.V() - normArea.Y() * deltaPressure / rhoSoSInt;
-      ghostState.data_[3] =
-          freeState.W() - normArea.Z() * deltaPressure / rhoSoSInt;
+      if (bcData->IsNonreflecting()) {
+        // minus characteristic
+        // calculate LODI terms
+        constexpr auto sigma = 0.25;
+        const auto rhoN = stateN.Rho();
+        const auto sosN = stateN.SoS(thermo, eqnState);
+        const auto rhoSoSN = rhoN * sosN;
+        const auto deltaPressure = ghostState.P() - stateN.P();
+        const auto length = bcData->LengthScale();
+        const auto alphaR = sigma / (sosN * length);
+
+        ghostState.data_[0] = (rhoN + dt * alphaR * freeState.Rho() +
+                               deltaPressure / (sosN * sosN)) /
+                              (1.0 + dt * alphaR);
+
+        const auto alpha = sigma * sosN / length;
+        const auto k = alpha * (1.0 - maxMach * maxMach);
+        auto velNNorm = stateN.Velocity().DotProd(normArea) * normArea;
+        auto velTargetNorm = freeState.Velocity().DotProd(normArea) * normArea;
+
+        auto velN =
+            (velNNorm + dt * k * velTargetNorm - deltaPressure / rhoSoSN) /
+            (1.0 + dt * k);
+
+        auto velNTan = stateN.Velocity() - velNNorm;
+        auto velTargetTan = freeState.Velocity() - velTargetNorm;
+
+        auto velT = (velNTan + dt * alpha * velTargetTan) / (1.0 + dt * alpha);
+
+        auto vel = velN + velT;
+        ghostState.data_[1] = vel.X();
+        ghostState.data_[2] = vel.Y();
+        ghostState.data_[3] = vel.Z();
+
+      } else {
+        const auto deltaPressure = freeState.P() - ghostState.P();
+
+        // minus characteristic
+        ghostState.data_[0] =
+            freeState.Rho() - deltaPressure / (SoSInt * SoSInt);
+        ghostState.data_[1] =
+            freeState.U() - normArea.X() * deltaPressure / rhoSoSInt;
+        ghostState.data_[2] =
+            freeState.V() - normArea.Y() * deltaPressure / rhoSoSInt;
+        ghostState.data_[3] =
+            freeState.W() - normArea.Z() * deltaPressure / rhoSoSInt;
+      }
 
       // assign farfield conditions to turbulence variables
       if (inputVars.IsRANS()) {

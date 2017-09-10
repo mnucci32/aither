@@ -342,13 +342,13 @@ map<string, double> ReadMassFractions(const string &str) {
 }
 
 // construct initial condition from string
-icState::icState(string &str, const string name) {
+void icState::Read(string &str) {
   const auto start = str.find("(") + 1;
   const auto end = str.find(")") - 1;
   const auto range = end - start + 1;  // +/-1 to ignore ()
   auto state = str.substr(start, range);
   const auto id = str.substr(0, start - 1);
-  if (id != name) {
+  if (id != name_) {
     cerr << "ERROR. State condition specifier " << id << " is not recognized!"
          << endl;
     exit(EXIT_FAILURE);
@@ -371,7 +371,7 @@ icState::icState(string &str, const string name) {
   for (auto &token : tokens) {
     auto param = Tokenize(token, "=", 1);
     if (param.size() != 2) {
-      cerr << "ERROR. Problem with " << name << " parameter " << token << endl;
+      cerr << "ERROR. Problem with " << name_ << " parameter " << token << endl;
       exit(EXIT_FAILURE);
     }
 
@@ -402,10 +402,10 @@ icState::icState(string &str, const string name) {
     } else if (param[0] == "tag") {
       this->SetTag(stoi(RemoveTrailing(param[1], ",")));
       tagCount++;
-    } else if (extraData_.find(param[0]) != extraData_.end()) {
+    } else if (this->MatchesExtraData(param[0])) {
       this->AssignExtraData(param[0], param[1]);
     } else {
-      cerr << "ERROR. " << name << " specifier " << param[0]
+      cerr << "ERROR. " << name_ << " specifier " << param[0]
            << " is not recognized!" << endl;
       exit(EXIT_FAILURE);
     }
@@ -415,14 +415,14 @@ icState::icState(string &str, const string name) {
   // required variables
   if (!((pressureCount == 1 && densityCount == 1 && velocityCount == 1) ||
         fileCount == 1)) {
-    cerr << "ERROR. For " << name << " pressure, density, and "
+    cerr << "ERROR. For " << name_ << " pressure, density, and "
          << "velocity must be specified, OR file must be specified." << endl;
     exit(EXIT_FAILURE);
   }
   if (fileCount == 1 &&
       (pressureCount == 1 || densityCount == 1 || velocityCount == 1 ||
        mfCount == 1 || tiCount == 1 || evrCount == 1)) {
-    cerr << "ERROR. For " << name
+    cerr << "ERROR. For " << name_
          << ", if file is specified, tag is the only other field allowed"
          << endl;
     exit(EXIT_FAILURE);
@@ -431,7 +431,7 @@ icState::icState(string &str, const string name) {
   if (tagCount > 1 || tiCount > 1 || mfCount > 1 || evrCount > 1 ||
       tiCount != evrCount || fileCount > 1 || pressureCount > 1 ||
       densityCount > 1 || velocityCount > 1) {
-    cerr << "ERROR. For " << name << ", tag, pressure, density, velocity, "
+    cerr << "ERROR. For " << name_ << ", tag, pressure, density, velocity, "
                                      "massFractions, turbulenceIntensity, "
          << "eddyViscosityRatio, and file can only be specified once." << endl;
     cerr << "If either turbulenceIntensity or eddyViscosityRatio is specified "
@@ -439,8 +439,8 @@ icState::icState(string &str, const string name) {
     exit(EXIT_FAILURE);
   }
 
-  if (name != "icState" && tagCount != 1) {
-    cerr << "ERROR. For " << name << ", tag must be specified." << endl;
+  if (name_ != "icState" && tagCount != 1) {
+    cerr << "ERROR. For " << name_ << ", tag must be specified." << endl;
     exit(EXIT_FAILURE);
   }
 
@@ -494,7 +494,7 @@ void inlet::ExtraDataChecks() const {
 }
 
 // construct stagnation inlet from string
-stagnationInlet::stagnationInlet(string &str) {
+void stagnationInlet::Read(string &str) {
   const auto start = str.find("(") + 1;
   const auto end = str.find(")") - 1;
   const auto range = end - start + 1;  // +/-1 to ignore ()
@@ -585,13 +585,13 @@ void stagnationInlet::Nondimensionalize(const double &rRef, const double &tRef,
 }
 
 // construct pressureOutlet from string
-pressureOutlet::pressureOutlet(string &str, const string name) {
+void pressureOutlet::Read(string &str) {
   const auto start = str.find("(") + 1;
   const auto end = str.find(")") - 1;
   const auto range = end - start + 1;  // +/-1 to ignore ()
   auto state = str.substr(start, range);
   const auto id = str.substr(0, start - 1);
-  if (id != name) {
+  if (id != name_) {
     cerr << "ERROR. State condition specifier " << id << " is not recognized!"
          << endl;
     exit(EXIT_FAILURE);
@@ -612,7 +612,7 @@ pressureOutlet::pressureOutlet(string &str, const string name) {
   for (auto &token : tokens) {
     auto param = Tokenize(token, "=");
     if (param.size() != 2) {
-      cerr << "ERROR. Problem with " << name << " parameter " << token << endl;
+      cerr << "ERROR. Problem with " << name_ << " parameter " << token << endl;
       exit(EXIT_FAILURE);
     }
 
@@ -631,7 +631,7 @@ pressureOutlet::pressureOutlet(string &str, const string name) {
       lengthScale_ = stod(RemoveTrailing(param[1], ","));
       lengthCount++;
     } else {
-      cerr << "ERROR. " << name << " specifier " << param[0]
+      cerr << "ERROR. " << name_ << " specifier " << param[0]
            << " is not recognized!" << endl;
       exit(EXIT_FAILURE);
     }
@@ -640,18 +640,18 @@ pressureOutlet::pressureOutlet(string &str, const string name) {
   // sanity checks
   // required variables
   if (pressureCount != 1 || tagCount != 1) {
-    cerr << "ERROR. For " << name << " pressure and tag must be specified, and "
+    cerr << "ERROR. For " << name_ << " pressure and tag must be specified, and "
          << "only specified once." << endl;
     exit(EXIT_FAILURE);
   }
   // can only specify nonreflecting and length scale once
   if (nonreflectingCount > 1 || lengthCount > 1) {
-    cerr << "ERROR. For " << name << " nonreflecting and/or lengthScale can "
+    cerr << "ERROR. For " << name_ << " nonreflecting and/or lengthScale can "
          << "only be specified once" << endl;
     exit(EXIT_FAILURE);
   }
   if (nonreflecting_ && lengthCount != 1) {
-    cerr << "ERROR. For " << name << " lengthScale must be specified with "
+    cerr << "ERROR. For " << name_ << " lengthScale must be specified with "
          << "nonreflecting" << endl;
     exit(EXIT_FAILURE);
   }
@@ -668,7 +668,7 @@ void pressureOutlet::Nondimensionalize(const double &rRef, const double &tRef,
 
 
 // construct viscousWall from string
-viscousWall::viscousWall(string &str) {
+void viscousWall::Read(string &str) {
   const auto start = str.find("(") + 1;
   const auto end = str.find(")") - 1;
   const auto range = end - start + 1;  // +/-1 to ignore ()
@@ -769,7 +769,7 @@ void viscousWall::Nondimensionalize(const double &rRef, const double &tRef,
 }
 
 // construct periodic from string
-periodic::periodic(string &str) {
+void periodic::Read(string &str) {
   const auto start = str.find("(") + 1;
   const auto end = str.find(")") - 1;
   const auto range = end - start + 1;  // +/-1 to ignore ()
@@ -915,14 +915,16 @@ vector<icState> ReadICList(ifstream &inFile, string &str) {
         list = str.substr(start, range);
       }
 
-      icState ic(list);
+      icState ic;
+      ic.Read(list);
       CheckICTags(icList, ic.Tag());
       icList.push_back(ic);
 
       auto nextState = list.find("icState");
       while (nextState != string::npos) {  // there are more states to read
         list.erase(0, nextState);  // remove commas separating states
-        ic = icState(list);
+        ic = icState();
+        ic.Read(list);
         CheckICTags(icList, ic.Tag());
         icList.push_back(ic);
         nextState = list.find("icState");
@@ -956,23 +958,25 @@ void AddBCToList(const string &type, vector<shared_ptr<inputState>> &bcList,
                  string &list) {
   shared_ptr<inputState> bc(nullptr);
   if (type == "characteristic") {
-    bc = shared_ptr<inputState>{std::make_shared<characteristic>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<characteristic>()};
   } else if (type == "inlet") {
-    bc = shared_ptr<inputState>{std::make_shared<inlet>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<inlet>()};
   } else if (type == "stagnationInlet") {
-    bc = shared_ptr<inputState>{std::make_shared<stagnationInlet>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<stagnationInlet>()};
   } else if (type == "pressureOutlet") {
-    bc = shared_ptr<inputState>{std::make_shared<pressureOutlet>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<pressureOutlet>()};
   } else if (type == "supersonicInflow") {
-    bc = shared_ptr<inputState>{std::make_shared<supersonicInflow>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<supersonicInflow>()};
   } else if (type == "viscousWall") {
-    bc = shared_ptr<inputState>{std::make_shared<viscousWall>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<viscousWall>()};
   } else if (type == "periodic") {
-    bc = shared_ptr<inputState>{std::make_shared<periodic>(list)};
+    bc = shared_ptr<inputState>{std::make_shared<periodic>()};
   } else {
     cerr << "ERROR. BC state " << type << " is not recognized!" << endl;
     exit(EXIT_FAILURE);
   }
+
+  bc->Read(list);
 
   // sanity check -- see if tag already exits
   for (auto &bcData : bcList) {

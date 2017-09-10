@@ -6786,7 +6786,7 @@ multiArray3d<primVars> procBlock::GetGhostStates(
   // calls to get data over global patch
   auto avgMach = 0.0;
   auto maxMach = -1.0 * std::numeric_limits<double>::max();
-  if (bcName == "pressureOutlet") {
+  if (bcName == "pressureOutlet" || bcName == "inlet") {
     const auto &bcData = inp.BCData(tag);
     if (bcData->IsNonreflecting()) {
       // face area vector (should always point out of domain)
