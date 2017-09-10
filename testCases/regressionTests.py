@@ -460,8 +460,7 @@ def main():
     vortex.SetRunDirectory("convectingVortex")
     vortex.SetNumberOfProcessors(1)
     vortex.SetNumberOfIterations(numIterations)
-    vortex.SetResiduals(
-        [5.2322e+00, 6.3715e-01, 7.0927e-01, 1.1204e+00, 7.9481e-01])
+    vortex.SetResiduals([5.2761, 0.63729, 0.70924, 1.0352, 0.79558])
     vortex.SetIgnoreIndices(3)
     vortex.SetMpirunPath(options.mpirunPath)
 

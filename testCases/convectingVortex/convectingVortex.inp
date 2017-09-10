@@ -36,7 +36,7 @@ matrixRelaxation: 1
 
 turbulenceModel: none
 
-boundaryStates: <characteristic(tag=2; pressure=101300; density=1.185; velocity=[100, 0, 0]; massFractions=[N2=1.0]),
+boundaryStates: <inlet(tag=2; pressure=101300; density=1.185; velocity=[100, 0, 0]; massFractions=[N2=1.0]; nonreflecting=true; lengthScale=0.013),
                  periodic(startTag=4; endTag=5; translation=[0, 0.013, 0]),
                  pressureOutlet(tag=3; pressure=101300; nonreflecting=true; lengthScale=0.013)>
 
@@ -48,7 +48,7 @@ boundaryConditions: 1
   periodic                0    0    0   39    0    1     5
   periodic               39   39    0   39    0    1     4
 # j-surfaces
-  characteristic          0   39    0    0    0    1     2
+  inlet                   0   39    0    0    0    1     2
   pressureOutlet          0   39   39   39    0    1     3
 # k-surfaces
   slipWall                0   39    0   39    0    0     1
