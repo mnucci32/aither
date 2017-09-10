@@ -714,19 +714,10 @@ primVars primVars::GetGhostState(
 
         const auto alpha = sigma * sosN / length;
         const auto k = alpha * (1.0 - maxMach * maxMach);
-        auto velNNorm = stateN.Velocity().DotProd(normArea) * normArea;
-        auto velTargetNorm = freeState.Velocity().DotProd(normArea) * normArea;
+        auto vel = (stateN.Velocity() + dt * k * freeState.Velocity() -
+                    normArea * deltaPressure / rhoSoSN) /
+                   (1.0 + dt * k);
 
-        auto velN =
-            (velNNorm + dt * k * velTargetNorm - deltaPressure / rhoSoSN) /
-            (1.0 + dt * k);
-
-        auto velNTan = stateN.Velocity() - velNNorm;
-        auto velTargetTan = freeState.Velocity() - velTargetNorm;
-
-        auto velT = (velNTan + dt * alpha * velTargetTan) / (1.0 + dt * alpha);
-
-        auto vel = velN + velT;
         ghostState.data_[1] = vel.X();
         ghostState.data_[2] = vel.Y();
         ghostState.data_[3] = vel.Z();
