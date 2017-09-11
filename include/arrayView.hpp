@@ -59,8 +59,10 @@ class arrayView {
   arrayView& operator=(arrayView&&) noexcept = default;
 
   // copy constructor and assignment operator
-  arrayView(const arrayView&) = default;
-  arrayView& operator=(const arrayView&) = default;
+  arrayView(const arrayView &) = default;
+  arrayView& operator=(const arrayView &assign) {
+    std::copy(begin_, end_, copy.begin_);
+  }
 
   // operator overloads
   const T & operator[](const int &r) const { return *(begin_ + r); }
