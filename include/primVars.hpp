@@ -86,13 +86,13 @@ class primVars {
   primVars& operator=(const primVars&) = default;
 
   // member functions
-  double Rho() const { return data_[0]; }
-  double U() const { return data_[1]; }
-  double V() const { return data_[2]; }
-  double W() const { return data_[3]; }
-  double P() const { return data_[4]; }
-  double Tke() const { return data_[5]; }
-  double Omega() const { return data_[6]; }
+  const double & Rho() const { return data_[0]; }
+  const double & U() const { return data_[1]; }
+  const double & V() const { return data_[2]; }
+  const double & W() const { return data_[3]; }
+  const double & P() const { return data_[4]; }
+  const double & Tke() const { return data_[5]; }
+  const double & Omega() const { return data_[6]; }
 
   void NondimensionalInitialize(const unique_ptr<eos> &, const input &,
                                 const unique_ptr<transport> &, const int &,

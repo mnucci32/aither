@@ -57,13 +57,13 @@ class source {
   source& operator=(const source&) = default;
 
   // member functions
-  double SrcMass() const { return data_[0]; }
-  double SrcMomX() const { return data_[1]; }
-  double SrcMomY() const { return data_[2]; }
-  double SrcMomZ() const { return data_[3]; }
-  double SrcEngy() const { return data_[4]; }
-  double SrcTke() const { return data_[5]; }
-  double SrcOmg() const { return data_[6]; }
+  const double & SrcMass() const { return data_[0]; }
+  const double & SrcMomX() const { return data_[1]; }
+  const double & SrcMomY() const { return data_[2]; }
+  const double & SrcMomZ() const { return data_[3]; }
+  const double & SrcEngy() const { return data_[4]; }
+  const double & SrcTke() const { return data_[5]; }
+  const double & SrcOmg() const { return data_[6]; }
 
   squareMatrix CalcTurbSrc(const unique_ptr<turbModel> &, const primVars &,
                            const tensor<double> &, const vector3d<double> &,

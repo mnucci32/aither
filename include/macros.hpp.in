@@ -30,4 +30,14 @@
 #define MPI_CXX_BOOL MPI_C_BOOL
 #endif
 
+#ifndef NDEBUG
+#  define MASSERT(expr, msg) \
+   AssertWithMessage(#expr, expr, __FILE__, __LINE__, msg)
+#else
+#  define MASSERT(expr, msg) ;
+#endif
+
+void AssertWithMessage(const char *exprStr, bool expr, const char *file, 
+                       int line, const char *msg);
+
 #endif

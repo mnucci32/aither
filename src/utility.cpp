@@ -33,6 +33,7 @@
 #include "kdtree.hpp"
 #include "resid.hpp"
 #include "primVars.hpp"
+#include "macros.hpp"
 
 using std::cout;
 using std::endl;
@@ -933,4 +934,14 @@ kdtree CalcTreeFromCloud(const string &fname, const input &inp,
 
   // create kd tree
   return kdtree(points);
+}
+
+void AssertWithMessage(const char *exprStr, bool expr, const char *file, 
+                       int line, const char *msg) {
+  if (!expr) {
+    cerr << "Assert failed: " << msg << endl;
+    cerr << "Condition: " << exprStr << endl;
+    cerr << "At: " << file << ":" << line << endl;
+    exit(EXIT_FAILURE);
+  }
 }

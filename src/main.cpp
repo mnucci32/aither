@@ -20,6 +20,9 @@
 #include <string>        // stl string
 #include <memory>        // unique_ptr
 
+// DEBUG
+#include "blkMultiArray3d.hpp"
+
 #ifdef __linux__
 #include <cfenv>         // exceptions
 #elif __APPLE__

@@ -87,15 +87,15 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   const auto numK = blk.NumK() - 1;
 
   // pad stored variable vectors with ghost cells
-  state_ = PadWithGhosts(multiArray3d<primVars>(numI, numJ, numK, 0,
+  state_ = PadWithGhosts(multiArray3d<primVars>(numI, numJ, numK, 0, 1,
                                                 primVars(0.0)), numGhosts_);
   if (storeTimeN_) {
-    consVarsN_ = {numI, numJ, numK, 0, genArray(0.0)};
+    consVarsN_ = {numI, numJ, numK, 0, 1, genArray(0.0)};
   } else {
     consVarsN_ = {0, 0, 0, 0};
   }
   if (isMultiLevelTime_) {
-    consVarsNm1_ = {numI, numJ, numK, 0, genArray(0.0)};
+    consVarsNm1_ = {numI, numJ, numK, 0, 1, genArray(0.0)};
   } else {
     consVarsNm1_ = {0, 0, 0, 0};
   }
@@ -113,13 +113,13 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   cellWidthJ_ = {numI, numJ, numK, numGhosts_};
   cellWidthK_ = {numI, numJ, numK, numGhosts_};
 
-  wallDist_ = {numI, numJ, numK, numGhosts_, DEFAULTWALLDIST};
+  wallDist_ = {numI, numJ, numK, numGhosts_, 1, DEFAULTWALLDIST};
 
   specRadius_ = {numI, numJ, numK, 0};
   dt_ = {numI, numJ, numK, 0};
   residual_ = {numI, numJ, numK, 0};
 
-  temperature_ = {numI, numJ, numK, numGhosts_, 0.0};
+  temperature_ = {numI, numJ, numK, numGhosts_, 1, 0.0};
 
   // gradients
   velocityGrad_ = {numI, numJ, numK, numGhosts_};
@@ -128,27 +128,27 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   pressureGrad_ = {numI, numJ, numK, numGhosts_};
 
   if (isViscous_) {
-    viscosity_ = {numI, numJ, numK, numGhosts_, 0.0};
+    viscosity_ = {numI, numJ, numK, numGhosts_, 1, 0.0};
   } else {
     viscosity_ = {0, 0, 0, 0};
   }
 
   if (isTurbulent_) {
-    eddyViscosity_ = {numI, numJ, numK, numGhosts_, 0.0};
+    eddyViscosity_ = {numI, numJ, numK, numGhosts_, 1, 0.0};
   } else {
-    eddyViscosity_ = {0, 0, 0, 0, 0.0};
+    eddyViscosity_ = {0, 0, 0, 0};
   }
 
   if (isRANS_) {
     tkeGrad_ = {numI, numJ, numK, numGhosts_};
     omegaGrad_ = {numI, numJ, numK, numGhosts_};
-    f1_ = {numI, numJ, numK, numGhosts_, 1.0};
-    f2_ = {numI, numJ, numK, numGhosts_, 0.0};
+    f1_ = {numI, numJ, numK, numGhosts_, 1, 1.0};
+    f2_ = {numI, numJ, numK, numGhosts_, 1, 0.0};
   } else {
     tkeGrad_ = {0, 0, 0, 0};
     omegaGrad_ = {0, 0, 0, 0};
-    f1_ = {0, 0, 0, 0, 0.0};
-    f2_ = {0, 0, 0, 0, 0.0};
+    f1_ = {0, 0, 0, 0};
+    f2_ = {0, 0, 0, 0};
   }
 }
 
@@ -201,7 +201,7 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   fCenterK_ = {ni, nj, nk + 1, numGhosts_};
   residual_ = {ni, nj, nk, 0};
   vol_ = {ni, nj, nk, numGhosts_};
-  wallDist_ = {ni, nj, nk, numGhosts_, DEFAULTWALLDIST};
+  wallDist_ = {ni, nj, nk, numGhosts_, 1, DEFAULTWALLDIST};
 
   cellWidthI_ = {ni, nj, nk, numGhosts_};
   cellWidthJ_ = {ni, nj, nk, numGhosts_};
@@ -392,16 +392,16 @@ void procBlock::InitializeStates(const input &inp,
 
     // pad stored variable vectors with ghost cells
     state_ = PadWithGhosts(
-        multiArray3d<primVars>(numI, numJ, numK, 0, inputState), numGhosts_);
+        multiArray3d<primVars>(numI, numJ, numK, 0, 1, inputState), numGhosts_);
 
     const auto inputTemperature = inputState.Temperature(eqnState);
-    temperature_ = {numI, numJ, numK, numGhosts_, inputTemperature};
+    temperature_ = {numI, numJ, numK, numGhosts_, 1, inputTemperature};
 
     if (isViscous_) {
       const auto inputViscosity = trans->Viscosity(inputTemperature);
-      viscosity_ = {numI, numJ, numK, numGhosts_, inputViscosity};
+      viscosity_ = {numI, numJ, numK, numGhosts_, 1, inputViscosity};
       if (isTurbulent_) {
-        eddyViscosity_ = {numI, numJ, numK, numGhosts_,
+        eddyViscosity_ = {numI, numJ, numK, numGhosts_, 1,
                           ic.EddyViscosityRatio() * inputViscosity};
       }
     }
@@ -1738,7 +1738,7 @@ multiArray3d<genArray> procBlock::InitializeMatrixUpdate(
 
   // allocate multiarray for update
   multiArray3d<genArray> x(this->NumI(), this->NumJ(), this->NumK(), numGhosts_,
-                           genArray(0.0));
+                           1, genArray(0.0));
 
   if (inp.MatrixRequiresInitialization()) {
     const auto thetaInv = 1.0 / inp.Theta();

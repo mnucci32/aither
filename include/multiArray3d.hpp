@@ -32,6 +32,7 @@
 #include "vector3d.hpp"
 #include "boundaryConditions.hpp"  // connection
 #include "range.hpp"  // range
+#include "macros.hpp"  // MASSERT
 
 using std::ostream;
 using std::endl;
@@ -48,6 +49,7 @@ class multiArray3d {
   int numJ_;
   int numK_;
   int numGhosts_;
+  int blkSize_;
 
   // private member functions
   int GetLoc1D(const int &ii, const int &jj, const int &kk) const {
@@ -58,15 +60,16 @@ class multiArray3d {
  public:
   // constructor
   multiArray3d(const int &ii, const int &jj, const int &kk, const int &ng,
-               const T &init) :
-      data_((ii + 2 * ng) * (jj + 2 * ng) * (kk + 2 * ng), init),
+               const int &bs, const T &init) :
+      data_(bs * (ii + 2 * ng) * (jj + 2 * ng) * (kk + 2 * ng)),
       numI_(ii + 2 * ng), numJ_(jj + 2 * ng), numK_(kk + 2 * ng),
-      numGhosts_(ng) {}
-  multiArray3d(const int &ii, const int &jj, const int &kk, const int &ng) :
-      data_((ii + 2 * ng) * (jj + 2 * ng) * (kk + 2 * ng)),
+      numGhosts_(ng), blkSize_(bs) {}
+  multiArray3d(const int &ii, const int &jj, const int &kk, const int &ng, 
+               const int &bs=1) :
+      data_(bs * (ii + 2 * ng) * (jj + 2 * ng) * (kk + 2 * ng)),
       numI_(ii + 2 * ng), numJ_(jj + 2 * ng), numK_(kk + 2 * ng),
-      numGhosts_(ng) {}
-  multiArray3d() : multiArray3d(0, 0, 0, 0) {}
+      numGhosts_(ng), blkSize_(bs) {}
+  multiArray3d() : multiArray3d(0, 0, 0, 0, 1) {}
 
   // move constructor and assignment operator
   multiArray3d(multiArray3d&&) noexcept = default;
@@ -78,6 +81,8 @@ class multiArray3d {
 
   // member functions
   int Size() const {return data_.size();}
+  int BlockSize() const { return blkSize_; }
+  int NumBlocks() const {return this->Size() / this->BlockSize();}
   bool IsEmpty() const {return data_.empty();}
   int NumI() const {return numI_;}
   int NumJ() const {return numJ_;}
@@ -146,8 +151,10 @@ class multiArray3d {
                     const int = 1);
   void SwapSlice(const connection &, multiArray3d<T> &);
 
-  void Zero(const T &);
-  void Zero();
+  void Zero(const T &z) { std::fill(this->begin(), this->end(), z); }
+  void Zero() {
+    std::for_each(this->begin(), this->end(), [](T &val) { val.Zero(); });
+  }
 
   multiArray3d<T> GrowI() const;
   multiArray3d<T> GrowJ() const;
@@ -160,24 +167,29 @@ class multiArray3d {
 
   // operator overloads
   T& operator()(const int &ii, const int &jj, const int &kk) {
+    MASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");  
     return data_[this->GetLoc1D(ii, jj, kk)];
   }
   const T& operator()(const int &ii, const int &jj, const int &kk) const {
+    MASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
     return data_[this->GetLoc1D(ii, jj, kk)];
   }
   T& operator()(const int &ind) {
+    MASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
     return data_[ind];
   }
   const T& operator()(const int &ind) const {
+    MASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
     return data_[ind];
   }
   T& operator()(const string &dir, const int &d1, const int &d2, const int &d3) {
+    MASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
     if (dir == "i") {  // direction 1 is i
-      return data_[this->GetLoc1D(d1, d2, d3)];
+      return (*this)(d1, d2, d3);
     } else if (dir == "j") {  // direction 1 is j
-      return data_[this->GetLoc1D(d3, d1, d2)];
+      return (*this)(d3, d1, d2);
     } else if (dir == "k") {  // direction 1 is k
-      return data_[this->GetLoc1D(d2, d3, d1)];
+      return (*this)(d2, d3, d1);
     } else {
       cerr << "ERROR: Direction " << dir << " is not recognized!" << endl;
       exit(EXIT_FAILURE);
@@ -185,12 +197,13 @@ class multiArray3d {
   }
   const T& operator()(const string &dir, const int &d1, const int &d2,
                       const int &d3) const {
+    MASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
     if (dir == "i") {  // direction 1 is i
-      return data_[this->GetLoc1D(d1, d2, d3)];
+      return (*this)(d1, d2, d3);
     } else if (dir == "j") {  // direction 1 is j
-      return data_[this->GetLoc1D(d3, d1, d2)];
+      return (*this)(d3, d1, d2);
     } else if (dir == "k") {  // direction 1 is k
-      return data_[this->GetLoc1D(d2, d3, d1)];
+      return (*this)(d2, d3, d1);
     } else {
       cerr << "ERROR: Direction " << dir << " is not recognized!" << endl;
       exit(EXIT_FAILURE);
@@ -288,11 +301,11 @@ class multiArray3d {
   }
 
   void ClearResize(const int &ii, const int &jj, const int &kk, const int &ng) {
-    *this = multiArray3d<T>(ii, jj, kk, ng);
+    *this = multiArray3d<T>(ii, jj, kk, ng, blkSize_);
   }
-  void ClearResize(const int &ii, const int &jj, const int &kk,
-                   const int &ng, const T &val) {
-    *this = multiArray3d<T>(ii, jj, kk, ng, val);
+  void ClearResize(const int &ii, const int &jj, const int &kk, const int &ng,
+                   const T &val) {
+    *this = multiArray3d<T>(ii, jj, kk, ng, blkSize_, val);
   }
 
   void SameSizeResize(const int &ii, const int &jj, const int &kk);
@@ -300,7 +313,7 @@ class multiArray3d {
                             const int &ng);
 
   // destructor
-  ~multiArray3d() noexcept {}
+  virtual ~multiArray3d() noexcept {}
 };
 
 // ---------------------------------------------------------------------------
@@ -369,7 +382,7 @@ int multiArray3d<T>::PhysEnd(const string &dir) const {
 
 template <typename T>
 T multiArray3d<T>::GetElem(const int &ii, const int &jj, const int &kk) const {
-  if (ii < this->EndI() && jj < this->EndJ() && kk < this->Endk() &&
+  if (ii < this->EndI() && jj < this->EndJ() && kk < this->EndK() &&
       ii >= this->StartI() && jj >= this->StartJ() && kk >= this->StartK()) {
     return data_[this->GetLoc1D(ii, jj, kk)];
   } else {
@@ -1011,24 +1024,6 @@ void multiArray3d<T>::SameSizeResizeGhosts(const int &ii, const int&jj,
   numGhosts_ = ng;
 }
 
-
-// member function to "zero out" the container with a supplied "zero"
-template <typename T>
-void multiArray3d<T>::Zero(const T &zero) {
-  for (auto &val : data_) {
-    val = zero;
-  }
-}
-
-// member function to "zero out" the container with an available "Zero" function
-template <typename T>
-void multiArray3d<T>::Zero() {
-  for (auto &val : data_) {
-    val.Zero();
-  }
-}
-
-
 // operation overload for << - allows use of cout, cerr, etc.
 template <typename T>
 ostream &operator<<(ostream &os, const multiArray3d<T> &arr) {
@@ -1106,9 +1101,8 @@ void multiArray3d<T>::PackSwapUnpackMPI(const connection &inter,
   // add size for states
   MPI_Pack_size(this->Size(), MPI_arrData, MPI_COMM_WORLD, &tempSize);
   bufSize += tempSize;
-  // add size for 4 ints for multiArray3d dims and num ghosts
-  MPI_Pack_size(4, MPI_INT, MPI_COMM_WORLD,
-                &tempSize);
+  // add size for 5 ints for multiArray3d dims and num ghosts
+  MPI_Pack_size(5, MPI_INT, MPI_COMM_WORLD, &tempSize);
   bufSize += tempSize;
 
   // allocate buffer to pack data into
@@ -1121,17 +1115,15 @@ void multiArray3d<T>::PackSwapUnpackMPI(const connection &inter,
   auto numJ = this->NumJ();
   auto numK = this->NumK();
   auto numGhosts = this->GhostLayers();
+  auto blkSize = this->BlockSize();
   auto position = 0;
-  MPI_Pack(&numI, 1, MPI_INT, buffer, bufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&numJ, 1, MPI_INT, buffer, bufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&numK, 1, MPI_INT, buffer, bufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&numGhosts, 1, MPI_INT, buffer, bufSize, &position,
-           MPI_COMM_WORLD);
-  MPI_Pack(&(*std::begin(data_)), this->Size(), MPI_arrData, buffer,
-           bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&numI, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&numJ, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&numK, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&numGhosts, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&blkSize, 1, MPI_INT, buffer, bufSize, &position, MPI_COMM_WORLD);
+  MPI_Pack(&(*std::begin(data_)), this->Size(), MPI_arrData, buffer, bufSize,
+           &position, MPI_COMM_WORLD);
 
   MPI_Status status;
   if (rank == inter.RankFirst()) {  // send/recv with second entry in connection
@@ -1144,14 +1136,13 @@ void multiArray3d<T>::PackSwapUnpackMPI(const connection &inter,
 
   // put slice back into multiArray3d
   position = 0;
-  MPI_Unpack(buffer, bufSize, &position, &numI, 1, MPI_INT,
-             MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &numJ, 1, MPI_INT,
-             MPI_COMM_WORLD);
-  MPI_Unpack(buffer, bufSize, &position, &numK, 1, MPI_INT,
-             MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &numI, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &numJ, 1, MPI_INT, MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &numK, 1, MPI_INT, MPI_COMM_WORLD);
   MPI_Unpack(buffer, bufSize, &position, &numGhosts, 1, MPI_INT,
              MPI_COMM_WORLD);
+  MPI_Unpack(buffer, bufSize, &position, &blkSize, 1, MPI_INT, MPI_COMM_WORLD);
+
   // resize slice
   this->SameSizeResize(numI, numJ, numK);
 

@@ -58,12 +58,12 @@ class viscousFlux {
   viscousFlux& operator=(const viscousFlux&) = default;
 
   // member functions
-  double MomX() const { return data_[0]; }
-  double MomY() const { return data_[1]; }
-  double MomZ() const { return data_[2]; }
-  double Engy() const { return data_[3]; }
-  double MomK() const { return data_[4]; }
-  double MomO() const { return data_[5]; }
+  const double & MomX() const { return data_[0]; }
+  const double & MomY() const { return data_[1]; }
+  const double & MomZ() const { return data_[2]; }
+  const double & Engy() const { return data_[3]; }
+  const double & MomK() const { return data_[4]; }
+  const double & MomO() const { return data_[5]; }
 
   void CalcFlux(const tensor<double> &, const unique_ptr<transport> &,
                 const unique_ptr<thermodynamic> &,

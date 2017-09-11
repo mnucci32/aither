@@ -71,13 +71,13 @@ class inviscidFlux {
   inviscidFlux& operator=(const inviscidFlux&) = default;
 
   // member functions
-  double RhoVel() const { return data_[0]; }
-  double RhoVelU() const { return data_[1]; }
-  double RhoVelV() const { return data_[2]; }
-  double RhoVelW() const { return data_[3]; }
-  double RhoVelH() const { return data_[4]; }
-  double RhoVelK() const { return data_[5]; }
-  double RhoVelO() const { return data_[6]; }
+  const double & RhoVel() const { return data_[0]; }
+  const double & RhoVelU() const { return data_[1]; }
+  const double & RhoVelV() const { return data_[2]; }
+  const double & RhoVelW() const { return data_[3]; }
+  const double & RhoVelH() const { return data_[4]; }
+  const double & RhoVelK() const { return data_[5]; }
+  const double & RhoVelO() const { return data_[6]; }
 
   void RoeFlux(const inviscidFlux&, const genArray&);
   void AUSMFlux(const primVars &, const primVars &, const unique_ptr<eos> &,
