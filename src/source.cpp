@@ -30,15 +30,11 @@ using std::endl;
 using std::cerr;
 using std::unique_ptr;
 
-// operator overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, const source &src) {
-  os << src.SrcMass() << endl;
-  os << src.SrcMomX() << endl;
-  os << src.SrcMomY() << endl;
-  os << src.SrcMomZ() << endl;
-  os << src.SrcEngy() << endl;
-  os << src.SrcTke() << endl;
-  os << src.SrcOmg() << endl;
+// operation overload for << - allows use of cout, cerr, etc.
+ostream &operator<<(ostream &os, const source &m) {
+  for (auto rr = 0; rr < m.Size(); rr++) {
+    os << m[rr] << endl;
+  }
   return os;
 }
 
@@ -63,15 +59,17 @@ squareMatrix source::CalcTurbSrc(
   // phi -- factor to reduce tke destruction by for des
 
   // calculate turbulent source terms
-  auto ksrc = 0.0;
-  auto wsrc = 0.0;
+  vector<double> turbSrc(this->NumTurbulence(), 0.0);
   const auto srcJac =
       turb->CalcTurbSrc(state, velGrad, tkeGrad, omegaGrad, trans, vol, mut, f1,
-                        f2, phi, ksrc, wsrc);
+                        f2, phi, turbSrc);
 
   // assign turbulent source terms
-  data_[5] = ksrc;
-  data_[6] = wsrc;
+  if (this->HasTurbulence()) {
+    for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
+      (*this)[this->TurbulenceIndex() + ii] = turbSrc[ii];
+    }
+  }
 
   // return source jacobian
   return srcJac;

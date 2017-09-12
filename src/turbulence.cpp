@@ -260,10 +260,11 @@ squareMatrix turbModel::CalcTurbSrc(
     const vector3d<double> &kGrad, const vector3d<double> &wGrad,
     const unique_ptr<transport> &trans, const double &vol,
     const double &turbVisc, const double &f1, const double &f2,
-    const double &width, double &ksrc, double &wsrc) const {
-  // set k and omega source terms to zero
-  ksrc = 0.0;
-  wsrc = 0.0;
+    const double &width, vector<double> &turbSrc) const {
+  // set source terms to zero
+  for (auto &val : turbSrc) {
+    val = 0.0;
+  }
 
   // return source jacobian spectral radius
   return this->TurbSrcJac(state, 0.0, trans, vol);
@@ -418,7 +419,7 @@ squareMatrix turbKWWilcox::CalcTurbSrc(const primVars &state,
                                        const double &vol,
                                        const double &mut, const double &f1,
                                        const double &f2, const double &width,
-                                       double &ksrc, double &wsrc) const {
+                                       vector<double> &turbSrc) const {
   // state -- primative variables
   // velGrad -- velocity gradient
   // kGrad -- tke gradient
@@ -427,8 +428,9 @@ squareMatrix turbKWWilcox::CalcTurbSrc(const primVars &state,
   // vol -- cell volume
   // mut -- turbulent viscosity
   // f1 -- first blending coefficient
-  // ksrc -- source term for tke equation
-  // wsrc -- source term for omega equation
+  // turbSrc -- source terms
+
+  MSG_ASSERT(turbSrc.size() == 2, "turbulence source vector is wrong size");
 
   // calculate tke destruction
   const auto tkeDest = trans->InvNondimScaling() * betaStar_ *
@@ -453,8 +455,8 @@ squareMatrix turbKWWilcox::CalcTurbSrc(const primVars &state,
       this->CrossDiffusion(state, kGrad, wGrad);
 
   // assign source term values
-  ksrc = tkeProd - tkeDest;
-  wsrc = omgProd - omgDest + omgCd;
+  turbSrc[0] = tkeProd - tkeDest;
+  turbSrc[1] = omgProd - omgDest + omgCd;
 
   // return source jacobian
   return this->TurbSrcJac(state, beta, trans, vol);
@@ -704,8 +706,8 @@ squareMatrix turbKWSst::CalcTurbSrc(
     const primVars &state, const tensor<double> &velGrad,
     const vector3d<double> &kGrad, const vector3d<double> &wGrad,
     const unique_ptr<transport> &trans, const double &vol, const double &mut,
-    const double &f1, const double &f2, const double &width, double &ksrc,
-    double &wsrc) const {
+    const double &f1, const double &f2, const double &width, 
+    vector<double> &turbSrc) const {
   // state -- primative variables
   // velGrad -- velocity gradient
   // kGrad -- tke gradient
@@ -714,8 +716,9 @@ squareMatrix turbKWSst::CalcTurbSrc(
   // vol -- cell volume
   // mut -- turbulent viscosity
   // f1 -- first blending coefficient
-  // ksrc -- source term for tke equation
-  // wsrc -- source term for omega equation
+  // turbSrc -- source terms
+
+  MSG_ASSERT(turbSrc.size() == 2, "turbulence source vector is wrong size");
 
   // calculate cross diffusion coefficient
   const auto cdkw = this->CDkw(state, kGrad, wGrad);
@@ -748,8 +751,8 @@ squareMatrix turbKWSst::CalcTurbSrc(
   const auto omgCd = trans->NondimScaling() * (1.0 - f1) * cdkw;
 
   // assign source term values
-  ksrc = tkeProd - tkeDest;
-  wsrc = omgProd - omgDest + omgCd;
+  turbSrc[0] = tkeProd - tkeDest;
+  turbSrc[1] = omgProd - omgDest + omgCd;
 
   // return spectral radius of source jacobian
   return this->TurbSrcJac(state, beta, trans, vol);
@@ -937,8 +940,8 @@ squareMatrix turbSstDes::CalcTurbSrc(
     const primVars &state, const tensor<double> &velGrad,
     const vector3d<double> &kGrad, const vector3d<double> &wGrad,
     const unique_ptr<transport> &trans, const double &vol, const double &mut,
-    const double &f1, const double &f2, const double &width, double &ksrc,
-    double &wsrc) const {
+    const double &f1, const double &f2, const double &width, 
+    vector<double> &turbSrc) const {
   // state -- primative variables
   // velGrad -- velocity gradient
   // kGrad -- tke gradient
@@ -947,8 +950,9 @@ squareMatrix turbSstDes::CalcTurbSrc(
   // vol -- cell volume
   // mut -- turbulent viscosity
   // f1 -- first blending coefficient
-  // ksrc -- source term for tke equation
-  // wsrc -- source term for omega equation
+  // turbSrc -- source terms
+
+  MSG_ASSERT(turbSrc.size() == 2, "turbulence source vector is wrong size");
 
   // calculate cross diffusion coefficient
   const auto cdkw = this->CDkw(state, kGrad, wGrad);
@@ -983,8 +987,8 @@ squareMatrix turbSstDes::CalcTurbSrc(
   const auto omgCd = trans->NondimScaling() * (1.0 - f1) * cdkw;
 
   // assign source term values
-  ksrc = tkeProd - tkeDest;
-  wsrc = omgProd - omgDest + omgCd;
+  turbSrc[0] = tkeProd - tkeDest;
+  turbSrc[1] = omgProd - omgDest + omgCd;
 
   // return spectral radius of source jacobian
   return this->TurbSrcJac(state, beta, trans, vol, phi);

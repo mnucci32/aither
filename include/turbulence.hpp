@@ -145,7 +145,7 @@ class turbModel {
                                    const double &vol,
                                    const double &mut, const double &f1,
                                    const double &f2, const double &width,
-                                   double &ksrc, double &wsrc) const;
+                                   vector<double> &turbSrc) const;
   virtual squareMatrix TurbSrcJac(const primVars &state,
                                   const double &beta,
                                   const unique_ptr<transport> &trans,
@@ -258,7 +258,7 @@ class turbKWWilcox : public turbModel {
                            const vector3d<double> &, const vector3d<double> &,
                            const unique_ptr<transport> &, const double &,
                            const double &, const double &, const double &,
-                           const double &, double &, double &) const override;
+                           const double &, vector<double> &) const override;
   double EddyVisc(const primVars&, const tensor<double> &,
                   const unique_ptr<transport> &, const double &,
                   const double &) const override;
@@ -359,8 +359,8 @@ class turbKWSst : public turbModel {
   virtual squareMatrix CalcTurbSrc(
       const primVars &, const tensor<double> &, const vector3d<double> &,
       const vector3d<double> &, const unique_ptr<transport> &, const double &,
-      const double &, const double &, const double &, const double &, double &,
-      double &) const override;
+      const double &, const double &, const double &, const double &, 
+      vector<double> &) const override;
   double EddyVisc(const primVars &, const tensor<double> &,
                   const unique_ptr<transport> &, const double &,
                   const double &) const override;
@@ -458,7 +458,7 @@ class turbSstDes : public turbKWSst {
                            const vector3d<double> &, const vector3d<double> &,
                            const unique_ptr<transport> &, const double &,
                            const double &, const double &, const double &,
-                           const double &, double &, double &) const override;
+                           const double &, vector<double> &) const override;
 
   double SrcSpecRad(const primVars &, const unique_ptr<transport> &,
                     const double &, const double &) const override;

@@ -47,6 +47,7 @@ class varArray {
   // member functions
   int Size() const { return data_.size(); }
   int NumSpecies() const { return momentumIndex_; }
+  int NumTurbulence() const { return this->Size() - turbulenceIndex_; }
   bool IsMultiSpecies() const { return this->NumSpecies() > 1; }
   bool HasTurbulenceData() const { return this->Size() != turbulenceIndex_; }
   int MomentumIndex() const { return momentumIndex_; }
@@ -308,13 +309,6 @@ class residual : public varArray {
 
   // member functions
   const double & MassN(const int &ii) const { return this->SpeciesN(ii); }
-  const double & MomentumX() const { return this->MomentumX(); }
-  const double & MomentumY() const { return this->MomentumY(); }
-  const double & MomentumZ() const { return this->MomentumZ(); }
-  const double & Energy() const { return this->Energy(); }
-  const double & TurbulenceN(const int &ii) const { 
-    return this->TurbulenceN(ii); 
-  }
 
   // move constructor and assignment operator
   residual(residual&&) noexcept = default;
@@ -331,25 +325,6 @@ class residual : public varArray {
 ostream &operator<<(ostream &os, const residual &);
 
 // --------------------------------------------------------------------------
-class source : public residual {
- public:
-  // constructor
-  source(const int &numEqns, const int &numSpecies)
-      : residual(numEqns, numSpecies) {}
-
-  // move constructor and assignment operator
-  source(source&&) noexcept = default;
-  source& operator=(source&&) noexcept = default;
-
-  // copy constructor and assignment operator
-  source(const source&) = default;
-  source& operator=(const source&) = default;
-
-  // destructor
-  ~source() noexcept {}
-};
-
-ostream &operator<<(ostream &os, const source &);
 
 // --------------------------------------------------------------------------
 class flux : public residual {
