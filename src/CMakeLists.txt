@@ -52,6 +52,7 @@ set(sources
   turbulence.cpp
   uncoupledScalar.cpp
   utility.cpp
+  varArray.cpp
   viscousFlux.cpp
   wallData.cpp
   wallLaw.cpp

@@ -22,6 +22,7 @@
 
 // DEBUG
 #include "blkMultiArray3d.hpp"
+#include "varArray.hpp"
 
 #ifdef __linux__
 #include <cfenv>         // exceptions
