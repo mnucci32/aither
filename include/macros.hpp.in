@@ -31,10 +31,10 @@
 #endif
 
 #ifndef NDEBUG
-#  define MASSERT(expr, msg) \
+#  define MSG_ASSERT(expr, msg) \
    AssertWithMessage(#expr, expr, __FILE__, __LINE__, msg)
 #else
-#  define MASSERT(expr, msg) ;
+#  define MSG_ASSERT(expr, msg) ;
 #endif
 
 void AssertWithMessage(const char *exprStr, bool expr, const char *file, 

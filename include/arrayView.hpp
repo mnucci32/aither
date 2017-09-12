@@ -23,6 +23,7 @@
 #include <numeric>
 #include <algorithm>
 #include <cmath>
+#include "macros.hpp"
 
 using std::ostream;
 using std::vector;
@@ -61,7 +62,7 @@ class arrayView {
   // copy constructor and assignment operator
   arrayView(const arrayView &) = default;
   arrayView& operator=(const arrayView &assign) {
-    std::copy(begin_, end_, copy.begin_);
+    std::copy(begin_, end_, assign.begin_);
   }
 
   // operator overloads
@@ -103,6 +104,7 @@ class arrayView {
 // operator overload for addition
 template <typename T>
 arrayView<T> & arrayView<T>::operator+=(const arrayView<T> &arr) {
+  MSG_ASSERT(this->Size() == arr.Size(), "arrayViews must be same size");
   for (auto rr = 0; rr < this->Size(); rr++) {
     (*this)[rr] += arr[rr];
   }
@@ -112,6 +114,7 @@ arrayView<T> & arrayView<T>::operator+=(const arrayView<T> &arr) {
 // operator overload for subtraction
 template <typename T>
 arrayView<T> & arrayView<T>::operator-=(const arrayView<T> &arr) {
+  MSG_ASSERT(this->Size() == arr.Size(), "arrayViews must be same size");
   for (auto rr = 0; rr < this->Size(); rr++) {
     (*this)[rr] -= arr[rr];
   }
@@ -121,6 +124,7 @@ arrayView<T> & arrayView<T>::operator-=(const arrayView<T> &arr) {
 // operator overload for elementwise multiplication
 template <typename T>
 arrayView<T> & arrayView<T>::operator*=(const arrayView<T> &arr) {
+  MSG_ASSERT(this->Size() == arr.Size(), "arrayViews must be same size");
   for (auto rr = 0; rr < this->Size(); rr++) {
     (*this)[rr] *= arr[rr];
   }
@@ -130,6 +134,7 @@ arrayView<T> & arrayView<T>::operator*=(const arrayView<T> &arr) {
 // operator overload for elementwise division
 template <typename T>
 arrayView<T> & arrayView<T>::operator/=(const arrayView<T> &arr) {
+  MSG_ASSERT(this->Size() == arr.Size(), "arrayViews must be same size");
   for (auto rr = 0; rr < this->Size(); rr++) {
     (*this)[rr] /= arr[rr];
   }

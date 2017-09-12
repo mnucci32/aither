@@ -32,7 +32,7 @@
 #include "vector3d.hpp"
 #include "boundaryConditions.hpp"  // connection
 #include "range.hpp"  // range
-#include "macros.hpp"  // MASSERT
+#include "macros.hpp"  // MSG_ASSERT
 
 using std::ostream;
 using std::endl;
@@ -167,23 +167,23 @@ class multiArray3d {
 
   // operator overloads
   T& operator()(const int &ii, const int &jj, const int &kk) {
-    MASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");  
+    MSG_ASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");  
     return data_[this->GetLoc1D(ii, jj, kk)];
   }
   const T& operator()(const int &ii, const int &jj, const int &kk) const {
-    MASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
+    MSG_ASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
     return data_[this->GetLoc1D(ii, jj, kk)];
   }
   T& operator()(const int &ind) {
-    MASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
+    MSG_ASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
     return data_[ind];
   }
   const T& operator()(const int &ind) const {
-    MASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
+    MSG_ASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
     return data_[ind];
   }
   T& operator()(const string &dir, const int &d1, const int &d2, const int &d3) {
-    MASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
+    MSG_ASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
     if (dir == "i") {  // direction 1 is i
       return (*this)(d1, d2, d3);
     } else if (dir == "j") {  // direction 1 is j
@@ -197,7 +197,7 @@ class multiArray3d {
   }
   const T& operator()(const string &dir, const int &d1, const int &d2,
                       const int &d3) const {
-    MASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
+    MSG_ASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
     if (dir == "i") {  // direction 1 is i
       return (*this)(d1, d2, d3);
     } else if (dir == "j") {  // direction 1 is j
