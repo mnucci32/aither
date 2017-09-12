@@ -23,7 +23,7 @@
 #include <iostream>      // cout
 #include <memory>        // unique_ptr
 #include "vector3d.hpp"  // vector3d
-#include "macros.hpp"
+#include "varArray.hpp"
 
 using std::vector;
 using std::string;
@@ -41,13 +41,7 @@ class genArray;
 class squareMatrix;
 class turbModel;
 
-class inviscidFlux {
-  double data_[NUMVARS];  // rho dot velocity vector
-  // rho dot velocity vector * u-velocity + pressure * i-dir-vector
-  // rho dot velocity vector * v-velocity + pressure * j-dir-vector
-  // rho dot velocity vector * w-velocity + pressure * k-dir-vector
-  // rho dot velocity vector * enthalpy
-
+class inviscidFlux : public residual {
   // private member functions
   void ConstructFromPrim(const primVars &, const unique_ptr<eos> &,
                          const unique_ptr<thermodynamic> &,
@@ -55,12 +49,23 @@ class inviscidFlux {
 
  public:
   // constructors
-  inviscidFlux() : data_{0.0} {}
-  inviscidFlux(const primVars &, const unique_ptr<eos> &,
-               const unique_ptr<thermodynamic> &, const vector3d<double> &);
-  inviscidFlux(const genArray &, const unique_ptr<eos> &,
-               const unique_ptr<thermodynamic> &,
-               const unique_ptr<turbModel> &, const vector3d<double> &);
+  inviscidFlux(const int &numEqns, const int &numSpecies)
+      : residual(numEqns, numSpecies) {}
+  inviscidFlux() : inviscidFlux(0, 0) {}
+  inviscidFlux(const primVars &state, const unique_ptr<eos> &eqnState,
+               const unique_ptr<thermodynamic> &thermo,
+               const vector3d<double> &area)
+      : inviscidFlux(state.NumEquations(), state.NumSpecies()) {
+    this->ConstructFromPrim(state, eqnState, thermo, area);
+  }
+  inviscidFlux(const genArray &cons, const unique_ptr<eos> &eqnState,
+               const unique_ptr<thermodynamic> &thermo,
+               const unique_ptr<turbModel> &turb, const vector3d<double> &area)
+      : inviscidFlux(cons.NumEquations(), cons.NumSpecies()) {
+    // convert conserved variables to primative variables
+    const primVars state(cons, false, eqnState, thermo, turb);
+    this->ConstructFromPrim(state, eqnState, thermo, area);
+  }
 
   // move constructor and assignment operator
   inviscidFlux(inviscidFlux&&) noexcept = default;
@@ -71,53 +76,11 @@ class inviscidFlux {
   inviscidFlux& operator=(const inviscidFlux&) = default;
 
   // member functions
-  const double & RhoVel() const { return data_[0]; }
-  const double & RhoVelU() const { return data_[1]; }
-  const double & RhoVelV() const { return data_[2]; }
-  const double & RhoVelW() const { return data_[3]; }
-  const double & RhoVelH() const { return data_[4]; }
-  const double & RhoVelK() const { return data_[5]; }
-  const double & RhoVelO() const { return data_[6]; }
-
   void RoeFlux(const inviscidFlux&, const genArray&);
   void AUSMFlux(const primVars &, const primVars &, const unique_ptr<eos> &,
                 const unique_ptr<thermodynamic> &, const vector3d<double> &,
                 const double &, const double &, const double &, const double &,
                 const double &);
-
-  inline inviscidFlux & operator+=(const inviscidFlux &);
-  inline inviscidFlux & operator-=(const inviscidFlux &);
-  inline inviscidFlux & operator*=(const inviscidFlux &);
-  inline inviscidFlux & operator/=(const inviscidFlux &);
-
-  inline inviscidFlux & operator+=(const double &);
-  inline inviscidFlux & operator-=(const double &);
-  inline inviscidFlux & operator*=(const double &);
-  inline inviscidFlux & operator/=(const double &);
-
-  inline inviscidFlux operator+(const double &s) const {
-    auto lhs = *this;
-    return lhs += s;
-  }
-  inline inviscidFlux operator-(const double &s) const {
-    auto lhs = *this;
-    return lhs -= s;
-  }
-  inline inviscidFlux operator*(const double &s) const {
-    auto lhs = *this;
-    return lhs *= s;
-  }
-  inline inviscidFlux operator/(const double &s) const {
-    auto lhs = *this;
-    return lhs /= s;
-  }
-
-  friend inline const inviscidFlux operator-(const double &lhs,
-                                             inviscidFlux rhs);
-  friend inline const inviscidFlux operator/(const double &lhs,
-                                             inviscidFlux rhs);
-
-  genArray ConvertToGenArray() const;
 
   // destructor
   ~inviscidFlux() noexcept {}
@@ -150,109 +113,6 @@ genArray ConvectiveFluxUpdate(const primVars &, const primVars &,
                               const unique_ptr<eos> &,
                               const unique_ptr<thermodynamic> &,
                               const vector3d<double> &);
-
-// operator overload for addition
-inviscidFlux & inviscidFlux::operator+=(const inviscidFlux &arr) {
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    data_[rr] += arr.data_[rr];
-  }
-  return *this;
-}
-
-// operator overload for subtraction with a scalar
-inviscidFlux & inviscidFlux::operator-=(const inviscidFlux &arr) {
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    data_[rr] -= arr.data_[rr];
-  }
-  return *this;
-}
-
-// operator overload for elementwise multiplication
-inviscidFlux & inviscidFlux::operator*=(const inviscidFlux &arr) {
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    data_[rr] *= arr.data_[rr];
-  }
-  return *this;
-}
-
-// operator overload for elementwise division
-inviscidFlux & inviscidFlux::operator/=(const inviscidFlux &arr) {
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    data_[rr] /= arr.data_[rr];
-  }
-  return *this;
-}
-
-inline const inviscidFlux operator+(inviscidFlux lhs, const inviscidFlux &rhs) {
-  return lhs += rhs;
-}
-
-inline const inviscidFlux operator-(inviscidFlux lhs, const inviscidFlux &rhs) {
-  return lhs -= rhs;
-}
-
-inline const inviscidFlux operator*(inviscidFlux lhs, const inviscidFlux &rhs) {
-  return lhs *= rhs;
-}
-
-inline const inviscidFlux operator/(inviscidFlux lhs, const inviscidFlux &rhs) {
-  return lhs /= rhs;
-}
-
-// operator overloads for double -------------------------------------
-// operator overload for addition
-inviscidFlux & inviscidFlux::operator+=(const double &scalar) {
-  for (auto &val : data_) {
-    val += scalar;
-  }
-  return *this;
-}
-
-// operator overload for subtraction with a scalar
-inviscidFlux & inviscidFlux::operator-=(const double &scalar) {
-  for (auto &val : data_) {
-    val -= scalar;
-  }
-  return *this;
-}
-
-// operator overload for elementwise multiplication
-inviscidFlux & inviscidFlux::operator*=(const double &scalar) {
-  for (auto &val : data_) {
-    val *= scalar;
-  }
-  return *this;
-}
-
-// operator overload for elementwise division
-inviscidFlux & inviscidFlux::operator/=(const double &scalar) {
-  for (auto &val : data_) {
-    val /= scalar;
-  }
-  return *this;
-}
-
-inline const inviscidFlux operator+(const double &lhs, inviscidFlux rhs) {
-  return rhs += lhs;
-}
-
-inline const inviscidFlux operator-(const double &lhs, inviscidFlux rhs) {
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    rhs.data_[rr] = lhs - rhs.data_[rr];
-  }
-  return rhs;
-}
-
-inline const inviscidFlux operator*(const double &lhs, inviscidFlux rhs) {
-  return rhs *= lhs;
-}
-
-inline const inviscidFlux operator/(const double &lhs, inviscidFlux rhs) {
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    rhs.data_[rr] = lhs / rhs.data_[rr];
-  }
-  return rhs;
-}
 
 ostream &operator<<(ostream &os, const inviscidFlux &);
 

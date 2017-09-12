@@ -50,7 +50,9 @@ class varArray {
   int NumTurbulence() const { return this->Size() - turbulenceIndex_; }
   bool IsMultiSpecies() const { return this->NumSpecies() > 1; }
   bool HasTurbulenceData() const { return this->Size() != turbulenceIndex_; }
-  int MomentumIndex() const { return momentumIndex_; }
+  int MomentumXIndex() const { return momentumIndex_; }
+  int MomentumYIndex() const { return momentumIndex_ + 1; }
+  int MomentumZIndex() const { return momentumIndex_ + 2; }
   int EnergyIndex() const { return energyIndex_; }
   int TurbulenceIndex() const { return turbulenceIndex_; }
 

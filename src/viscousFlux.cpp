@@ -86,25 +86,30 @@ void viscousFlux::CalcFlux(
 
   const auto t = state.Temperature(eqnState);
 
-  data_[0] = tau.X();
-  data_[1] = tau.Y();
-  data_[2] = tau.Z();
-  data_[3] = tau.DotProd(state.Velocity()) +
+  (*this)[this->MomentumXIndex()] = tau.X();
+  (*this)[this->MomentumYIndex()] = tau.Y();
+  (*this)[this->MomentumZIndex()] = tau.Z();
+  (*this)[this->EnergyIndex()] = tau.DotProd(state.Velocity()) +
       (trans->Conductivity(mu, t, thermo) +
        trans->TurbConductivity(mut, turb->TurbPrandtlNumber(), t, thermo)) *
       tGrad.DotProd(normArea);
 
   // turbulence viscous flux
-  // get molecular diffusion coefficients for turbulence equations
-  const auto tkeCoeff = turb->SigmaK(f1);
-  const auto omgCoeff = turb->SigmaW(f1);
+  if (this->HasTurbulenceData()) {
+    // get molecular diffusion coefficients for turbulence equations
+    const auto tkeCoeff = turb->SigmaK(f1);
+    const auto omgCoeff = turb->SigmaW(f1);
 
-  // some turbulence models use the unlimited eddy viscosity for the
-  // turbulence viscous flux instead of the limited eddy viscosity
-  const auto mutt = turb->UseUnlimitedEddyVisc() ?
-      trans->NondimScaling() * turb->EddyViscNoLim(state) : mut;
-  data_[4] = (mu + tkeCoeff * mutt) * tkeGrad.DotProd(normArea);
-  data_[5] = (mu + omgCoeff * mutt) * omegaGrad.DotProd(normArea);
+    // some turbulence models use the unlimited eddy viscosity for the
+    // turbulence viscous flux instead of the limited eddy viscosity
+    const auto mutt = turb->UseUnlimitedEddyVisc()
+                          ? trans->NondimScaling() * turb->EddyViscNoLim(state)
+                          : mut;
+    (*this)[this->TurbulenceIndex()] =
+        (mu + tkeCoeff * mutt) * tkeGrad.DotProd(normArea);
+    (*this)[this->TurbulenceIndex() + 1] =
+        (mu + omgCoeff * mutt) * omegaGrad.DotProd(normArea);
+  }
 }
 
 wallVars viscousFlux::CalcWallFlux(
@@ -147,10 +152,11 @@ wallVars viscousFlux::CalcWallFlux(
                                t, thermo)) *
       tGrad.DotProd(normArea);
 
-  data_[0] = wVars.shearStress_.X();
-  data_[1] = wVars.shearStress_.Y();
-  data_[2] = wVars.shearStress_.Z();
-  data_[3] = wVars.shearStress_.DotProd(state.Velocity()) + wVars.heatFlux_;
+  (*this)[this->MomentumXIndex()] = wVars.shearStress_.X();
+  (*this)[this->MomentumYIndex()] = wVars.shearStress_.Y();
+  (*this)[this->MomentumZIndex()] = wVars.shearStress_.Z();
+  (*this)[this->EnergyIndex()] =
+      wVars.shearStress_.DotProd(state.Velocity()) + wVars.heatFlux_;
 
   // calculate other wall data
   wVars.density_ = state.Rho();
@@ -160,17 +166,21 @@ wallVars viscousFlux::CalcWallFlux(
   wVars.frictionVelocity_ = sqrt(wVars.shearStress_.Mag() / wVars.density_);
 
   // turbulence viscous flux
-  // get molecular diffusion coefficients for turbulence equations
-  const auto tkeCoeff = turb->SigmaK(f1);
-  const auto omgCoeff = turb->SigmaW(f1);
+  if (this->HasTurbulenceData()) {
+    // get molecular diffusion coefficients for turbulence equations
+    const auto tkeCoeff = turb->SigmaK(f1);
+    const auto omgCoeff = turb->SigmaW(f1);
 
-  // some turbulence models use the unlimited eddy viscosity for the
-  // turbulence viscous flux instead of the limited eddy viscosity
-  const auto mutt = turb->UseUnlimitedEddyVisc()
-                        ? trans->NondimScaling() * turb->EddyViscNoLim(state)
-                        : wVars.turbEddyVisc_;
-  data_[4] = (wVars.viscosity_ + tkeCoeff * mutt) * tkeGrad.DotProd(normArea);
-  data_[5] = (wVars.viscosity_ + omgCoeff * mutt) * omegaGrad.DotProd(normArea);
+    // some turbulence models use the unlimited eddy viscosity for the
+    // turbulence viscous flux instead of the limited eddy viscosity
+    const auto mutt = turb->UseUnlimitedEddyVisc()
+                          ? trans->NondimScaling() * turb->EddyViscNoLim(state)
+                          : wVars.turbEddyVisc_;
+    (*this)[this->TurbulenceIndex()] =
+        (wVars.viscosity_ + tkeCoeff * mutt) * tkeGrad.DotProd(normArea);
+    (*this)[this->TurbulenceIndex() + 1] =
+        (wVars.viscosity_ + omgCoeff * mutt) * omegaGrad.DotProd(normArea);
+  }
 
   return wVars;
 }
@@ -189,34 +199,33 @@ void viscousFlux::CalcWallLawFlux(
   // omegaGrad -- omega gradient
   // turb -- turbulence model
 
-  data_[0] = tauWall.X();
-  data_[1] = tauWall.Y();
-  data_[2] = tauWall.Z();
-  data_[3] = tauWall.DotProd(velWall) + qWall;
+  (*this)[this->MomentumXIndex()] = tauWall.X();
+  (*this)[this->MomentumYIndex()] = tauWall.Y();
+  (*this)[this->MomentumZIndex()] = tauWall.Z();
+  (*this)[this->EnergyIndex()] = tauWall.DotProd(velWall) + qWall;
 
   // turbulence viscous flux
-  // get molecular diffusion coefficients for turbulence equations
-  const auto tkeCoeff = turb->WallSigmaK();
-  const auto omgCoeff = turb->WallSigmaW();
+  if (this->HasTurbulenceData()) {
+    // get molecular diffusion coefficients for turbulence equations
+    const auto tkeCoeff = turb->WallSigmaK();
+    const auto omgCoeff = turb->WallSigmaW();
 
-  // some turbulence models use the unlimited eddy viscosity for the
-  // turbulence viscous flux instead of the limited eddy viscosity
-  // for wall laws, eddy viscosity is prescribed
-  data_[4] = (muWall + tkeCoeff * mutWall) * tkeGrad.DotProd(normArea);
-  data_[5] = (muWall + omgCoeff * mutWall) * omegaGrad.DotProd(normArea);
+    // some turbulence models use the unlimited eddy viscosity for the
+    // turbulence viscous flux instead of the limited eddy viscosity
+    // for wall laws, eddy viscosity is prescribed
+    (*this)[this->TurbulenceIndex()] =
+        (muWall + tkeCoeff * mutWall) * tkeGrad.DotProd(normArea);
+    (*this)[this->TurbulenceIndex() + 1] =
+        (muWall + omgCoeff * mutWall) * omegaGrad.DotProd(normArea);
+  }
 }
-
 
 // non-member functions
 // ----------------------------------------------------------------------------
 // operator overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, viscousFlux &flux) {
-  os << "0.0" << endl;
-  os << flux.MomX() << endl;
-  os << flux.MomY() << endl;
-  os << flux.MomZ() << endl;
-  os << flux.Engy() << endl;
-  os << flux.MomK() << endl;
-  os << flux.MomO() << endl;
+  for (auto rr = 0; rr < flux.Size(); rr++) {
+    os << flux[rr] << endl;
+  }
   return os;
 }

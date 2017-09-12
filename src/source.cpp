@@ -65,10 +65,8 @@ squareMatrix source::CalcTurbSrc(
                         f2, phi, turbSrc);
 
   // assign turbulent source terms
-  if (this->HasTurbulence()) {
-    for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
-      (*this)[this->TurbulenceIndex() + ii] = turbSrc[ii];
-    }
+  for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
+    (*this)[this->TurbulenceIndex() + ii] = turbSrc[ii];
   }
 
   // return source jacobian
