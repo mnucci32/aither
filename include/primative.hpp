@@ -14,13 +14,12 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#ifndef PRIMVARSHEADERDEF  // only if the macro PRIMVARSHEADERDEF is not defined
-                           // execute these lines of code
-#define PRIMVARSHEADERDEF  // define the macro
+#ifndef PRIMATIVEHEADERDEF
+#define PRIMATIVEHEADERDEF
 
-/* This header contains the primVars class.
+/* This header contains the primative class.
 
-The primVars class stores the primative variables for the Euler and
+The primative class stores the primative variables for the Euler and
 Navier-Stokes equations [rho, u, v, w, P]. It contains several member functions
 to manipulate these primative varibles. It also contains member functions to
 extrapolate the primative variables from the cell center to the cell
@@ -38,8 +37,8 @@ supply a ghost state given a boundary condition and boundary cell.  */
 #include "transport.hpp"           // transport model
 #include "thermodynamic.hpp"       // thermodynamic model
 #include "multiArray3d.hpp"        // multiArray3d
-#include "genArray.hpp"            // genArray
-#include "macros.hpp"
+#include "varArray.hpp"
+#include "conserved.hpp"
 
 using std::vector;
 using std::string;
@@ -56,50 +55,42 @@ class input;
 class turbModel;
 struct wallVars;
 
-class primVars {
-  double data_[NUMVARS];  // primative variables at cell center
-
+class primative : public varArray {
  public:
   // constructors
-  primVars(const double &a, const double &b, const double &c, const double &d,
-           const double &e, const double &f, const double &g)
-      : data_{a, b, c, d, e, f, g} {}
-  primVars(const double &a, const double &b, const double &c, const double &d,
-           const double &e)
-      : primVars(a, b, c, d, e, 0.0, 0.0) {}
-  primVars() : primVars(0.0, 0.0, 0.0, 0.0, 0.0) {}
-  explicit primVars(const double &a) : primVars(a, a, a, a, a, a, a) {}
-  primVars(const double &r, const vector3d<double> &v, const double &p,
-           const double &k, const double &w)
-      : primVars(r, v.X(), v.Y(), v.Z(), p, k, w) {}
-  primVars(const double &r, const vector3d<double> &v, const double &p)
-      : primVars(r, v.X(), v.Y(), v.Z(), p) {}
-  primVars(const genArray &, const bool &, const unique_ptr<eos> &,
+  primative(const int &numEqns, const int &numSpecies)
+      : varArray(numEqns, numSpecies) {}
+
+  primative(const conserved &, const unique_ptr<eos> &,
            const unique_ptr<thermodynamic> &, const unique_ptr<turbModel> &);
 
   // move constructor and assignment operator
-  primVars(primVars&&) noexcept = default;
-  primVars& operator=(primVars&&) noexcept = default;
+  primative(primative&&) noexcept = default;
+  primative& operator=(primative&&) noexcept = default;
 
   // copy constructor and assignment operator
-  primVars(const primVars&) = default;
-  primVars& operator=(const primVars&) = default;
+  primative(const primative&) = default;
+  primative& operator=(const primative&) = default;
 
   // member functions
-  const double & Rho() const { return data_[0]; }
-  const double & U() const { return data_[1]; }
-  const double & V() const { return data_[2]; }
-  const double & W() const { return data_[3]; }
-  const double & P() const { return data_[4]; }
-  const double & Tke() const { return data_[5]; }
-  const double & Omega() const { return data_[6]; }
+  const double & RhoN(const int &ii) const { return this->SpeciesN(ii); }
+  double Rho() const { return this->SpeciesSum(); }
+  double MassFractionN(const int &ii) const {
+    return this->RhoN(ii) / this->Rho();
+  }
+  const double & U() const { return this->MomentumX(); }
+  const double & V() const { return this->MomentumY(); }
+  const double & W() const { return this->MomentumZ(); }
+  const double & P() const { return this->varArray::Energy(); }
+  const double & Tke() const { return this->TurbulenceN(0); }
+  const double & Omega() const { return this->TurbulenceN(1); }
+  const double & TurbN(const int &ii) const { return this->TurbulenceN(ii); }
 
   void NondimensionalInitialize(const unique_ptr<eos> &, const input &,
                                 const unique_ptr<transport> &, const int &,
                                 const unique_ptr<turbModel> &);
-  bool IsZero() const;
-  primVars Squared() const;
-  primVars Abs() const;
+
+  primative Abs() const;
 
   inline vector3d<double> Velocity() const;
 
@@ -111,12 +102,12 @@ class primVars {
   inline double SoS(const unique_ptr<thermodynamic> &,
                     const unique_ptr<eos> &) const;
 
-  inline genArray ConsVars(const unique_ptr<eos> &,
-                           const unique_ptr<thermodynamic> &) const;
-  primVars UpdateWithConsVars(const unique_ptr<eos> &,
-                              const unique_ptr<thermodynamic> &,
-                              const genArray &,
-                              const unique_ptr<turbModel> &) const;
+  inline conserved ConsVars(const unique_ptr<eos> &,
+                            const unique_ptr<thermodynamic> &) const;
+  primative UpdateWithConsVars(const unique_ptr<eos> &,
+                               const unique_ptr<thermodynamic> &,
+                               const conserved &,
+                               const unique_ptr<turbModel> &) const;
 
   void ApplyFarfieldTurbBC(const vector3d<double> &, const double &,
                            const double &, const unique_ptr<transport> &,
@@ -160,226 +151,102 @@ class primVars {
                             const double &, const double &,
                             const unique_ptr<turbModel> &, const bool &) const;
 
-  // operator overloads for addition and subtraction of states
-  inline primVars & operator+=(const primVars &);
-  inline primVars & operator-=(const primVars &);
-  inline primVars & operator*=(const primVars &);
-  inline primVars & operator/=(const primVars &);
-
-  inline primVars & operator+=(const double &);
-  inline primVars & operator-=(const double &);
-  inline primVars & operator*=(const double &);
-  inline primVars & operator/=(const double &);
-
-  inline primVars operator+(const double &s) const {
-    auto lhs = *this;
-    return lhs += s;
-  }
-  inline primVars operator-(const double &s) const {
-    auto lhs = *this;
-    return lhs -= s;
-  }
-  inline primVars operator*(const double &s) const {
-    auto lhs = *this;
-    return lhs *= s;
-  }
-  inline primVars operator/(const double &s) const {
-    auto lhs = *this;
-    return lhs /= s;
-  }
-
-  friend inline const primVars operator-(const double &lhs, primVars rhs);
-  friend inline const primVars operator/(const double &lhs, primVars rhs);
-
   // member function to calculate reconstruction of state variables from cell
   // center to cell face assuming value at cell center is constant over cell
   // volume; zeroth order reconstruction results in first order accuracy
-  primVars FaceReconConst() const { return *this; }
+  const primative &FaceReconConst() const { return *this; }
 
   // member function to calculate reconstruction of state variables from cell
   // center to cell face this function uses muscle extrapolation resulting in
   // higher order accuracy
-  primVars FaceReconMUSCL(const primVars &, const primVars &, const double &,
+  primative FaceReconMUSCL(const primative &, const primative &, const double &,
                           const string &, const double &,
                           const double &, const double &) const;
 
   // calculate face reconstruction using 5th order weno scheme
-  primVars FaceReconWENO(const primVars &, const primVars &, const primVars &,
-                         const primVars &, const double &, const double &,
+  primative FaceReconWENO(const primative &, const primative &, const primative &,
+                         const primative &, const double &, const double &,
                          const double &, const double &, const double &,
                          const bool &) const;
 
   // member function to calculate Van Albada limiter function
-  primVars LimiterVanAlbada(const primVars &) const;
-  primVars LimiterMinmod(const primVars &, const primVars &,
+  primative LimiterVanAlbada(const primative &) const;
+  primative LimiterMinmod(const primative &, const primative &,
                          const double &) const;
-  primVars LimiterNone() const;
+  primative LimiterNone() const;
 
   // member function to return the state of the appropriate ghost cell
-  primVars GetGhostState(const string &, const vector3d<double> &,
+  primative GetGhostState(const string &, const vector3d<double> &,
                          const double &, const int &, const input &,
                          const int &, const unique_ptr<eos> &,
                          const unique_ptr<thermodynamic> &,
                          const unique_ptr<transport> &,
                          const unique_ptr<turbModel> &, wallVars &, const int &,
-                         const double & = 0.0, const primVars & = {},
+                         const double & = 0.0, const primative & = {0, 0},
                          const vector3d<double> & = {},
                          const tensor<double> & = {}, const double & = 0.0,
                          const double & = 0.0) const;
 
   // destructor
-  ~primVars() noexcept {}
+  ~primative() noexcept {}
 };
 
 // function definitions
-// member function to calculate temperature from conserved variables and
+// member function to calculate temperature from primative variables and
 // equation of state
-double primVars::Temperature(const unique_ptr<eos> &eqnState) const {
-  return eqnState->Temperature(data_[4], data_[0]);
+double primative::Temperature(const unique_ptr<eos> &eqnState) const {
+  return eqnState->Temperature(this->P(), this->Rho());
 }
 
-// member function to calculate velocity from conserved variables
-vector3d<double> primVars::Velocity() const {
-  vector3d<double> vel(data_[1], data_[2], data_[3]);
+// member function to calculate velocity from primative variables
+vector3d<double> primative::Velocity() const {
+  vector3d<double> vel(this->U(), this->V(), this->W());
   return vel;
 }
 
-// member function to calculate total energy from conserved variables
-double primVars::Energy(const unique_ptr<eos> &eqnState,
+// member function to calculate total energy from primative variables
+double primative::Energy(const unique_ptr<eos> &eqnState,
                         const unique_ptr<thermodynamic> &thermo) const {
   const auto t = this->Temperature(eqnState);
   return eqnState->Energy(eqnState->SpecEnergy(thermo, t),
-                          (*this).Velocity().Mag());
+                          this->Velocity().Mag());
 }
 
-// member function to calculate speed of sound from primative varialbes
-double primVars::SoS(const unique_ptr<thermodynamic> &thermo,
+// member function to calculate speed of sound from primative variables
+double primative::SoS(const unique_ptr<thermodynamic> &thermo,
                      const unique_ptr<eos> &eqnState) const {
-  return sqrt(thermo->Gamma(this->Temperature(eqnState)) * data_[4] / data_[0]);
+  return sqrt(thermo->Gamma(this->Temperature(eqnState)) * this->P() /
+              this->Rho());
 }
 
 // member function to calculate enthalpy from conserved variables and equation
 // of state
-double primVars::Enthalpy(const unique_ptr<eos> &eqnState,
+double primative::Enthalpy(const unique_ptr<eos> &eqnState,
                           const unique_ptr<thermodynamic> &thermo) const {
   const auto t = this->Temperature(eqnState);
   return eqnState->Enthalpy(thermo, t, this->Velocity().Mag());
 }
 
 // member function to calculate conserved variables from primative variables
-genArray primVars::ConsVars(const unique_ptr<eos> &eqnState,
+conserved primative::ConsVars(const unique_ptr<eos> &eqnState,
                             const unique_ptr<thermodynamic> &thermo) const {
-  genArray cv(data_[0], data_[0] * data_[1], data_[0] * data_[2],
-              data_[0] * data_[3], data_[0] * this->Energy(eqnState, thermo),
-              data_[0] * data_[5], data_[0] * data_[6]);
+  conserved cv(this->Size(), this->NumSpecies());
+  for (auto ii = 0; ii < cv.NumSpecies(); ++ii) {
+    cv[ii] = (*this)[ii];
+  }
+  const auto rho = this->Rho();
+  cv[cv.MomentumXIndex()] = rho * this->U();
+  cv[cv.MomentumYIndex()] = rho * this->V();
+  cv[cv.MomentumZIndex()] = rho * this->W();
+  cv[cv.EnergyIndex()] = rho * this->Energy(eqnState, thermo);
+  for (auto ii = 0; ii < cv.NumTurbulence(); ++ii) {
+    cv[cv.TurbulenceIndex() + ii] = rho * this->TurbN(ii);
+  }
   return cv;
 }
 
-// operator overload for addition
-primVars & primVars::operator+=(const primVars &arr) {
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    data_[rr] += arr.data_[rr];
-  }
-  return *this;
-}
+ostream &operator<<(ostream &os, const primative &);
 
-// operator overload for subtraction with a scalar
-primVars & primVars::operator-=(const primVars &arr) {
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    data_[rr] -= arr.data_[rr];
-  }
-  return *this;
-}
-
-// operator overload for elementwise multiplication
-primVars & primVars::operator*=(const primVars &arr) {
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    data_[rr] *= arr.data_[rr];
-  }
-  return *this;
-}
-
-// operator overload for elementwise division
-primVars & primVars::operator/=(const primVars &arr) {
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    data_[rr] /= arr.data_[rr];
-  }
-  return *this;
-}
-
-inline const primVars operator+(primVars lhs, const primVars &rhs) {
-  return lhs += rhs;
-}
-
-inline const primVars operator-(primVars lhs, const primVars &rhs) {
-  return lhs -= rhs;
-}
-
-inline const primVars operator*(primVars lhs, const primVars &rhs) {
-  return lhs *= rhs;
-}
-
-inline const primVars operator/(primVars lhs, const primVars &rhs) {
-  return lhs /= rhs;
-}
-
-// operator overloads for double -------------------------------------
-// operator overload for addition
-primVars & primVars::operator+=(const double &scalar) {
-  for (auto &val : data_) {
-    val += scalar;
-  }
-  return *this;
-}
-
-// operator overload for subtraction with a scalar
-primVars & primVars::operator-=(const double &scalar) {
-  for (auto &val : data_) {
-    val -= scalar;
-  }
-  return *this;
-}
-
-// operator overload for elementwise multiplication
-primVars & primVars::operator*=(const double &scalar) {
-  for (auto &val : data_) {
-    val *= scalar;
-  }
-  return *this;
-}
-
-// operator overload for elementwise division
-primVars & primVars::operator/=(const double &scalar) {
-  for (auto &val : data_) {
-    val /= scalar;
-  }
-  return *this;
-}
-
-inline const primVars operator+(const double &lhs, primVars rhs) {
-  return rhs += lhs;
-}
-
-inline const primVars operator-(const double &lhs, primVars rhs) {
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    rhs.data_[rr] = lhs - rhs.data_[rr];
-  }
-  return rhs;
-}
-
-inline const primVars operator*(const double &lhs, primVars rhs) {
-  return rhs *= lhs;
-}
-
-inline const primVars operator/(const double &lhs, primVars rhs) {
-  for (auto rr = 0; rr < NUMVARS; rr++) {
-    rhs.data_[rr] = lhs / rhs.data_[rr];
-  }
-  return rhs;
-}
-
-ostream &operator<<(ostream &os, const primVars &);
-
-primVars RoeAveragedState(const primVars&, const primVars&);
+primative RoeAveragedState(const primative&, const primative&);
 
 #endif

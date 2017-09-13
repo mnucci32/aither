@@ -31,7 +31,7 @@ using std::ostream;
 using std::unique_ptr;
 
 // forward class declarations
-class primVars;
+class primative;
 class eos;
 class transport;
 class thermodynamic;
@@ -59,14 +59,14 @@ class viscousFlux : public residual {
                 const unique_ptr<eos> &eqnState, const vector3d<double> &,
                 const vector3d<double> &, const vector3d<double> &,
                 const vector3d<double> &, const unique_ptr<turbModel> &,
-                const primVars &, const double &, const double &,
+                const primative &, const double &, const double &,
                 const double &);
   wallVars CalcWallFlux(const tensor<double> &, const unique_ptr<transport> &,
                         const unique_ptr<thermodynamic> &,
                         const unique_ptr<eos> &, const vector3d<double> &,
                         const vector3d<double> &, const vector3d<double> &,
                         const vector3d<double> &, const unique_ptr<turbModel> &,
-                        const primVars &, const double &, const double &,
+                        const primative &, const double &, const double &,
                         const double &);
   void CalcWallLawFlux(const vector3d<double> &, const double &, const double &,
                        const double &, const vector3d<double> &,

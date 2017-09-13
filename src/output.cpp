@@ -30,7 +30,7 @@
 #include "eos.hpp"
 #include "transport.hpp"
 #include "thermodynamic.hpp"
-#include "primVars.hpp"            // primVars
+#include "primative.hpp"            // primative
 #include "procBlock.hpp"           // procBlock
 #include "inviscidFlux.hpp"        // inviscidFlux
 #include "input.hpp"               // inputVars
@@ -702,7 +702,7 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
 
   // loop over blocks and initialize
   cout << "Reading solution from time n..." << endl;
-  vector<multiArray3d<primVars>> solN(numBlks);
+  vector<multiArray3d<primative>> solN(numBlks);
   for (auto ii = 0U; ii < solN.size(); ++ii) {
     solN[ii] = ReadSolFromRestart(fName, inp, eqnState, thermo, trans, turb,
                                   restartVars, gridSizes[ii].X(),
@@ -1058,13 +1058,13 @@ int SplitBlockNumber(const vector<procBlock> &vars, const decomposition &decomp,
   return ind;  // cell was in uppermost split for given parent block
 }
 
-multiArray3d<primVars> ReadSolFromRestart(
+multiArray3d<primative> ReadSolFromRestart(
     ifstream &resFile, const input &inp, const unique_ptr<eos> &eqnState,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
     const unique_ptr<turbModel> &turb, const vector<string> &restartVars,
     const int &numI, const int &numJ, const int &numK) {
   // intialize multiArray3d
-  multiArray3d<primVars> sol(numI, numJ, numK, 0);
+  multiArray3d<primative> sol(numI, numJ, numK, 0);
 
   // read the primative variables
   // read dimensional variables -- loop over physical cells
@@ -1101,7 +1101,7 @@ multiArray3d<primVars> ReadSolFromRestart(
             exit(EXIT_FAILURE);
           }
         }
-        sol(ii, jj, kk) = primVars(value, true, eqnState, thermo, turb);
+        sol(ii, jj, kk) = primative(value, true, eqnState, thermo, turb);
       }
     }
   }

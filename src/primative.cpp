@@ -21,7 +21,7 @@
 #include <memory>
 #include <cmath>
 #include <algorithm>  // max
-#include "primVars.hpp"
+#include "primative.hpp"
 #include "input.hpp"               // input
 #include "turbulence.hpp"          // turbModel
 #include "utility.hpp"
@@ -37,30 +37,31 @@ using std::max;
 using std::min;
 using std::unique_ptr;
 
-primVars::primVars(const genArray &a, const bool &prim,
-                   const unique_ptr<eos> &eqnState,
-                   const unique_ptr<thermodynamic> &thermo,
-                   const unique_ptr<turbModel> &turb) {
-  // a -- array of conservative or primative variables
-  // prim -- flag that is true if variable a is primative variables
+primative::primative(const conserved &cons, const unique_ptr<eos> &eqnState,
+                     const unique_ptr<thermodynamic> &thermo,
+                     const unique_ptr<turbModel> &turb) {
+  // cons -- array of conserved variables
   // eqnState -- equation of state
   // thermo -- thermodynamic model
   // turb -- turbulence model
 
-  if (prim) {  // genArray is primative variables
-    for (auto ii = 0; ii < NUMVARS; ii++) {
-      data_[ii] = a[ii];
-    }
-  } else {  // genArray is conserved variables
-    data_[0] = a[0];
-    data_[1] = a[1] / a[0];
-    data_[2] = a[2] / a[0];
-    data_[3] = a[3] / a[0];
-    const auto energy = a[4] / a[0];
-    data_[4] = eqnState->PressFromEnergy(thermo, data_[0], energy,
-                                         this->Velocity().Mag());
-    data_[5] = a[5] / a[0];
-    data_[6] = a[6] / a[0];
+  *this = primative(cons.Size(), cons.NumSpecies());
+
+  for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
+    (*this)[ii] = cons.RhoN(ii);
+  }
+  
+  const auto rho = cons.Rho();
+  (*this)[this->MomentumXIndex()] = cons.RhoU() / rho;
+  (*this)[this->MomentumYIndex()] = cons.RhoV() / rho;
+  (*this)[this->MomentumZIndex()] = cons.RhoW() / rho;
+  
+  const auto energy = cons.RhoE() / rho;
+  (*this)[this->EnergyIndex()] =
+      eqnState->PressFromEnergy(thermo, rho, energy, this->Velocity().Mag());
+
+  for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
+    (*this)[this->TurbulenceIndex() + ii] = cons.RhoTurbN(ii) / rho;
   }
 
   // Adjust turbulence variables to be above minimum if necessary
@@ -68,41 +69,40 @@ primVars::primVars(const genArray &a, const bool &prim,
 }
 
 // member function to initialize a state with nondimensional values
-void primVars::NondimensionalInitialize(const unique_ptr<eos> &eqnState,
+void primative::NondimensionalInitialize(const unique_ptr<eos> &eqnState,
                                         const input &inp,
                                         const unique_ptr<transport> &trans,
                                         const int &parBlock,
                                         const unique_ptr<turbModel> &turb) {
   // get initial condition state for parent block
   auto ic = inp.ICStateForBlock(parBlock);
+  auto mf = ic.MassFractions();
 
-  data_[0] = ic.Density();
-  data_[1] = ic.Velocity().X();
-  data_[2] = ic.Velocity().Y();
-  data_[3] = ic.Velocity().Z();
-  data_[4] = ic.Pressure();
+  for (auto pi = this->begin(), auto mi = std::begin(mf);
+       ii < this->begin() + this->NumSpecies(); ++pi, ++mi) {
+    *pi = *mi * ic.Density();
+  }
+
+  (*this)[this->MomentumXIndex()] = ic.Velocity().X();
+  (*this)[this->MomentumYIndex()] = ic.Velocity().Y();
+  (*this)[this->MomentumZIndex()] = ic.Velocity().Z();
+
+  (*this)[this->EnergyIndex()] = ic.Pressure();
   
-  if (inp.IsRANS()) {
+  if (this->HasTurbulenceData()) {
     // Initialize turbulence quantities based off of specified turublence
     // intensity and eddy viscosity ratio. This is the default for
     // STAR-CCM+
     this->ApplyFarfieldTurbBC(this->Velocity(), ic.TurbulenceIntensity(),
                               ic.EddyViscosityRatio(), trans, eqnState, turb);
-  } else {
-    data_[5] = 0.0;
-    data_[6] = 0.0;
   }
 }
 
 // operator overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, const primVars &prim) {
-  os << prim.Rho() << endl;
-  os << prim.U() << endl;
-  os << prim.V() << endl;
-  os << prim.W() << endl;
-  os << prim.P() << endl;
-  os << prim.Tke() << endl;
-  os << prim.Omega() << endl;
+ostream &operator<<(ostream &os, const primative &prim) {
+  for (auto rr = 0; rr < prim.Size(); rr++) {
+    os << prim[rr] << endl;
+  }
   return os;
 }
 
@@ -173,8 +173,8 @@ R = ((Ui - Ui-1) / dP) / ((Ui+1 - Ui) / dM)
 Ui+1/2 = Ui + 0.25 * ((Ui - Ui-1) / dM) * ( (1-K) * L  + (1+K) * R * Linv )
 
 */
-primVars primVars::FaceReconMUSCL(const primVars &primUW2,
-                                  const primVars &primDW1, const double &kappa,
+primative primative::FaceReconMUSCL(const primative &primUW2,
+                                  const primative &primDW1, const double &kappa,
                                   const string &lim, const double &uw,
                                   const double &uw2, const double &dw) const {
   // primUW2 -- upwind cell furthest from the face at which the primative is
@@ -187,18 +187,18 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
   // uw2 -- length of furthest upwind cell
   // dw -- length of downwind cell
 
-  const auto primUW1 = *this;
+  const auto &primUW1 = *this;
 
   const auto dPlus = (uw + uw) / (uw + dw);
   const auto dMinus = (uw + uw) / (uw + uw2);
 
   // divided differences to base limiter on; eps must be listed to left of
-  // primVars
+  // primative
   const auto r = (EPS + (primDW1 - primUW1) * dPlus) /
       (EPS + (primUW1 - primUW2) * dMinus);
 
-  primVars limiter;
-  primVars invLimiter;
+  primative limiter(this->Size(), this->NumSpecies());
+  primative invLimiter(this->Size(), this->NumSpecies());
   if (lim == "none") {
     limiter = LimiterNone();
     invLimiter = limiter;
@@ -219,10 +219,10 @@ primVars primVars::FaceReconMUSCL(const primVars &primUW2,
 }
 
 // member function for higher order reconstruction via weno
-primVars primVars::FaceReconWENO(const primVars &upwind2,
-                                 const primVars &upwind3,
-                                 const primVars &downwind1,
-                                 const primVars &downwind2, const double &uw1,
+primative primative::FaceReconWENO(const primative &upwind2,
+                                 const primative &upwind3,
+                                 const primative &downwind1,
+                                 const primative &downwind2, const double &uw1,
                                  const double &uw2, const double &uw3,
                                  const double &dw1, const double &dw2,
                                  const bool &isWenoZ) const {
@@ -256,7 +256,9 @@ primVars primVars::FaceReconWENO(const primVars &upwind2,
   const auto beta2 = Beta2(uw1, dw1, dw2, (*this), downwind1, downwind2);
 
   // calculate nonlinear weights
-  primVars nlw0, nlw1, nlw2;
+  primative nlw0(this->Size(), this->NumSpecies());
+  primative nlw1(this->Size(), this->NumSpecies());
+  primative nlw2(this->Size(), this->NumSpecies());
   if (isWenoZ) {
     // using weno-z weights with q = 2
     const auto tau5 = (beta0 - beta2).Abs();
@@ -284,50 +286,43 @@ primVars primVars::FaceReconWENO(const primVars &upwind2,
 
 
 // member function to calculate minmod limiter
-primVars primVars::LimiterMinmod(const primVars &upwind,
-                                 const primVars &downwind,
-                                 const double &kap) const {
+primative primative::LimiterMinmod(const primative &upwind,
+                                   const primative &downwind,
+                                   const double &kap) const {
   // upwind -- upwind state (primative)
   // downwind -- downwind state (primative)
   // kap -- MUSCL parameter kappa
 
-  primVars limiter;
+  primative limiter(this->Size(), this->NumSpecies());
 
   // calculate minmod parameter beta
   const auto beta = (3.0 - kap) / (1.0 - kap);
 
   // calculate minmod limiter
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    auto sign = 0.0;
-    if (upwind.data_[ii] > 0.0) {
-      sign = 1.0;
-    } else if (upwind.data_[ii] < 0.0) {
-      sign = -1.0;
-    }
-    limiter.data_[ii] = sign *
-        max(0.0, min(fabs(upwind.data_[ii]),
-                     sign * downwind.data_[ii] * beta));
+  for (auto ii = 0; ii < limiter.Size(); ++ii) {
+    auto sign = Sign(upwind[ii]);
+    limiter[ii] =
+        sign * max(0.0, min(fabs(upwind[ii]), sign * downwind[ii] * beta));
   }
-
   return limiter;
 }
 
 // member function to calculate Van Albada limiter
-primVars primVars::LimiterVanAlbada(const primVars &r) const {
+primative primative::LimiterVanAlbada(const primative &r) const {
   // r -- ratio of divided differences
 
-  auto limiter = (r + r * r) / (1 + r * r);
+  auto limiter = (r + r * r) / (1.0 + r * r);
   // if value is negative, return zero
-  for (auto ii = 0; ii < NUMVARS; ii++) {
-    limiter.data_[ii] = max(0.0, limiter.data_[ii]);
+  for (auto ii = 0; ii < limiter.Size(); ++ii) {
+    limiter[ii] = max(0.0, limiter[ii]);
   }
   return limiter;
 }
 
 // member function to return no limiter
-primVars primVars::LimiterNone() const {
+primative primative::LimiterNone() const {
   // for no limiter return all 1s
-  primVars limiter(1.0);
+  primative limiter(this->Size(), this->NumSpecies(), 1.0);
   return limiter;
 }
 
@@ -355,13 +350,13 @@ Currently the following boundary conditions are supported: slipWall,
 viscousWall, characteristic, stagnationInlet, pressureOutlet, subsonicInflow,
 subsonicOutflow, supersonicInflow, supersonicOutflow
 */
-primVars primVars::GetGhostState(
+primative primative::GetGhostState(
     const string &bcType, const vector3d<double> &areaVec,
     const double &wallDist, const int &surf, const input &inputVars,
     const int &tag, const unique_ptr<eos> &eqnState,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
     const unique_ptr<turbModel> &turb, wallVars &wVars, const int &layer,
-    const double &dt, const primVars &stateN, const vector3d<double> &pressGrad,
+    const double &dt, const primative &stateN, const vector3d<double> &pressGrad,
     const tensor<double> &velGrad, const double &avgMach,
     const double &maxMach) const {
   // bcType -- type of boundary condition to supply ghost cell for
@@ -381,7 +376,7 @@ primVars primVars::GetGhostState(
   // avgMach -- average mach number on surface patch
   // maxMach -- maximum mach number on surface patch
 
-  // the instance of primVars being acted upon should be the interior cell
+  // the instance of primative being acted upon should be the interior cell
   // bordering the boundary
 
   // set ghost state equal to boundary state to start
@@ -406,9 +401,9 @@ primVars primVars::GetGhostState(
     // across the boundary face to get the velocity at the ghost cell center
     const auto ghostVel = stateVel - 2.0 * normArea * normVelCellCenter;
 
-    ghostState.data_[1] = ghostVel.X();
-    ghostState.data_[2] = ghostVel.Y();
-    ghostState.data_[3] = ghostVel.Z();
+    ghostState[ghostState.MomentumXIndex()] = ghostVel.X();
+    ghostState[ghostState.MomentumYIndex()] = ghostVel.Y();
+    ghostState[ghostState.MomentumZIndex()] = ghostVel.Z();
 
     // numerical BCs for rho and pressure, same as boundary state
     // numerical BCs for turbulence variables
@@ -427,9 +422,9 @@ primVars primVars::GetGhostState(
     // only true for low-Re wall treatment
     const auto velWall = bcData->Velocity();
     const auto ghostVel = 2.0 * velWall - this->Velocity();
-    ghostState.data_[1] = ghostVel.X();
-    ghostState.data_[2] = ghostVel.Y();
-    ghostState.data_[3] = ghostVel.Z();
+    ghostState[ghostState.MomentumXIndex()] = ghostVel.X();
+    ghostState[ghostState.MomentumYIndex()] = ghostVel.Y();
+    ghostState[ghostState.MomentumZIndex()] = ghostVel.Z();
 
     if (bcData->IsIsothermal()) {  //-----------------------------------------
       const auto tWall = bcData->Temperature();
@@ -443,7 +438,10 @@ primVars primVars::GetGhostState(
 
         if (wVars.SwitchToLowRe()) {
           const auto tGhost = 2.0 * tWall - this->Temperature(eqnState);
-          ghostState.data_[0] = eqnState->DensityTP(tGhost, ghostState.P());
+          const auto rho = eqnState->DensityTP(tGhost, ghostState.P());
+          for (auto ii = 0; ii < ghostState.NumSpecies(); ++ii) {
+            ghostState[ii] = rho * this->MassFraction(ii);
+          }
         } else {
           // use wall law heat flux to get ghost cell density
           // need turbulent contribution because eddy viscosity is not 0 at wall
@@ -454,20 +452,31 @@ primVars primVars::GetGhostState(
                                  wVars.temperature_, thermo);
           // 2x wall distance as gradient length
           const auto tGhost = tWall - wVars.heatFlux_ / kappa * 2.0 * wallDist;
-          ghostState.data_[0] = eqnState->DensityTP(tGhost, ghostState.P());
+          const auto rho = eqnState->DensityTP(tGhost, ghostState.P());
+          for (auto ii = 0; ii < ghostState.NumSpecies(); ++ii) {
+            ghostState[ii] = rho * this->MassFraction(ii);
+          }
         }
 
         if (inputVars.IsRANS() && !wVars.SwitchToLowRe()) {
-          ghostState.data_[5] = 2.0 * wVars.tke_ - this->Tke();
-          ghostState.data_[6] = 2.0 * wVars.sdr_ - this->Omega();
+          ghostState[ghostState.TurbulenceIndex()] =
+              2.0 * wVars.tke_ - this->Tke();
+          ghostState[ghostState.TurbulenceIndex() + 1] =
+              2.0 * wVars.sdr_ - this->Omega();
           if (layer > 1) {
-            ghostState.data_[5] = layer * ghostState.data_[5] - wVars.tke_;
-            ghostState.data_[6] = layer * ghostState.data_[6] - wVars.sdr_;
+            ghostState[ghostState.TurbulenceIndex()] =
+                layer * ghostState[ghostState.TurbulenceIndex()] - wVars.tke_;
+            ghostState[ghostState.TurbulenceIndex() + 1] =
+                layer * ghostState[ghostState.TurbulenceIndex() + 1] -
+                wVars.sdr_;
           }
         }
       } else {  // low-Re wall treatment
         const auto tGhost = 2.0 * tWall - this->Temperature(eqnState);
-        ghostState.data_[0] = eqnState->DensityTP(tGhost, ghostState.P());
+        const auto rho = eqnState->DensityTP(tGhost, ghostState.P());
+        for (auto ii = 0; ii < ghostState.NumSpecies(); ++ii) {
+          ghostState[ii] = rho * this->MassFraction(ii);
+        }
       }
     } else if (bcData->IsConstantHeatFlux()) {  //-----------------------------
       // must nondimensionalize heat flux
@@ -486,21 +495,31 @@ primVars primVars::GetGhostState(
           // 2x wall distance as gradient length
           const auto tGhost =
               this->Temperature(eqnState) - qWall / kappa * 2.0 * wallDist;
-          ghostState.data_[0] = eqnState->DensityTP(tGhost, ghostState.P());
-
+          const auto rho = eqnState->DensityTP(tGhost, ghostState.P());
+          for (auto ii = 0; ii < ghostState.NumSpecies(); ++ii) {
+            ghostState[ii] = rho * this->MassFraction(ii);
+          }
         } else {
           // use wall law wall temperature to get ghost cell density
           const auto tGhost =
               2.0 * wVars.temperature_ - this->Temperature(eqnState);
-          ghostState.data_[0] = eqnState->DensityTP(tGhost, ghostState.P());
+          const auto rho = eqnState->DensityTP(tGhost, ghostState.P());
+          for (auto ii = 0; ii < ghostState.NumSpecies(); ++ii) {
+            ghostState[ii] = rho * this->MassFraction(ii);
+          }
         }
 
         if (inputVars.IsRANS() && !wVars.SwitchToLowRe()) {
-          ghostState.data_[5] = 2.0 * wVars.tke_ - this->Tke();
-          ghostState.data_[6] = 2.0 * wVars.sdr_ - this->Omega();
+          ghostState[ghostState.TurbulenceIndex()] =
+              2.0 * wVars.tke_ - this->Tke();
+          ghostState[ghostState.TurbulenceIndex() + 1] =
+              2.0 * wVars.sdr_ - this->Omega();
           if (layer > 1) {
-            ghostState.data_[5] = layer * ghostState.data_[5] - wVars.tke_;
-            ghostState.data_[6] = layer * ghostState.data_[6] - wVars.sdr_;
+            ghostState[ghostState.TurbulenceIndex()] =
+                layer * ghostState[ghostState.TurbulenceIndex()] - wVars.tke_;
+            ghostState[ghostState.TurbulenceIndex() + 1] =
+                layer * ghostState[ghostState.TurbulenceIndex() + 1] -
+                wVars.sdr_;
           }
         }
       } else {  // low-Re wall treatment
@@ -511,7 +530,10 @@ primVars primVars::GetGhostState(
         // 2x wall distance as gradient length
         const auto tGhost =
             this->Temperature(eqnState) - qWall / kappa * 2.0 * wallDist;
-        ghostState.data_[0] = eqnState->DensityTP(tGhost, ghostState.P());
+        const auto rho = eqnState->DensityTP(tGhost, ghostState.P());
+        for (auto ii = 0; ii < ghostState.NumSpecies(); ++ii) {
+          ghostState[ii] = rho * this->MassFraction(ii);
+        }
         // numerical BCs for pressure, same as boundary state
       }
     } else {  // default is adiabatic -----------------------------------------
@@ -522,11 +544,16 @@ primVars primVars::GetGhostState(
                                 turb, isLower);
 
         if (inputVars.IsRANS() && !wVars.SwitchToLowRe()) {
-          ghostState.data_[5] = 2.0 * wVars.tke_ - this->Tke();
-          ghostState.data_[6] = 2.0 * wVars.sdr_ - this->Omega();
+          ghostState[ghostState.TurbulenceIndex()] =
+              2.0 * wVars.tke_ - this->Tke();
+          ghostState[ghostState.TurbulenceIndex() + 1] =
+              2.0 * wVars.sdr_ - this->Omega();
           if (layer > 1) {
-            ghostState.data_[5] = layer * ghostState.data_[5] - wVars.tke_;
-            ghostState.data_[6] = layer * ghostState.data_[6] - wVars.sdr_;
+            ghostState[ghostState.TurbulenceIndex()] =
+                layer * ghostState[ghostState.TurbulenceIndex()] - wVars.tke_;
+            ghostState[ghostState.TurbulenceIndex() + 1] =
+                layer * ghostState[ghostState.TurbulenceIndex() + 1] -
+                wVars.sdr_;
           }
         }
       }
@@ -539,31 +566,33 @@ primVars primVars::GetGhostState(
     if (inputVars.IsRANS() && (!bcData->IsWallLaw() || wVars.SwitchToLowRe())) {
       // tke at cell center is set to opposite of tke at boundary cell center
       // so that tke at face will be zero
-      ghostState.data_[5] = -1.0 * this->Tke();
+      ghostState[ghostState.TurbulenceIndex()] = -1.0 * this->Tke();
 
       const auto nuW =
           trans->Viscosity(this->Temperature(eqnState)) / this->Rho();
       const auto wWall = trans->NondimScaling() * trans->NondimScaling() *
                          60.0 * nuW / (wallDist * wallDist * turb->WallBeta());
-      ghostState.data_[6] = 2.0 * wWall - this->Omega();
+      ghostState[ghostState.TurbulenceIndex() + 1] =
+          2.0 * wWall - this->Omega();
 
       if (layer > 1) {
-        ghostState.data_[6] = layer * ghostState.data_[6] - wWall;
+        ghostState[ghostState.TurbulenceIndex() + 1] =
+            layer * ghostState[ghostState.TurbulenceIndex() + 1] - wWall;
       }
     }
 
-  // characteristic boundary condition
-  // -------------------------------------------------------------------------
-  // this is a characteristic based boundary condition which is appropriate for
-  // subsonic and supersonic flow. It automatically switches between inflow
-  // and outflow as needed. It also automatically determines the number of
-  // characteristics that need to be specified at the boundary (subsonic vs
-  // supersonic)
+    // characteristic boundary condition
+    // -------------------------------------------------------------------------
+    // this is a characteristic based boundary condition which is appropriate
+    // for subsonic and supersonic flow. It automatically switches between
+    // inflow and outflow as needed. It also automatically determines the number
+    // of characteristics that need to be specified at the boundary (subsonic vs
+    // supersonic)
   } else if (bcType == "characteristic") {
     const auto & bcData = inputVars.BCData(tag);
     // freestream variables
     const auto freeVel = bcData->Velocity();
-    const primVars freeState(bcData->Density(), freeVel, bcData->Pressure());
+    const primative freeState(bcData->Density(), freeVel, bcData->Pressure());
 
     // internal variables
     const auto velIntNorm = this->Velocity().DotProd(normArea);
@@ -597,17 +626,17 @@ primVars primVars::GetGhostState(
       const auto velDiff = freeState.Velocity() - this->Velocity();
 
       // plus characteristic
-      ghostState.data_[4] = 0.5 * (freeState.P() + this->P() -
+      ghostState[ghostState.EnergyIndex()] = 0.5 * (freeState.P() + this->P() -
                                    rhoSoSInt * normArea.DotProd(velDiff));
       const auto deltaPressure = freeState.P() - ghostState.P();
 
       // minus characteristic
       ghostState.data_[0] = freeState.Rho() - deltaPressure / (SoSInt * SoSInt);
-      ghostState.data_[1] =
+      ghostState[ghostState.MomentumXIndex()] =
           freeState.U() - normArea.X() * deltaPressure / rhoSoSInt;
-      ghostState.data_[2] =
+      ghostState[ghostState.MomentumYIndex()] =
           freeState.V() - normArea.Y() * deltaPressure / rhoSoSInt;
-      ghostState.data_[3] =
+      ghostState[ghostState.MomentumZIndex()] =
           freeState.W() - normArea.Z() * deltaPressure / rhoSoSInt;
 
       // assign farfield conditions to turbulence variables
@@ -627,13 +656,13 @@ primVars primVars::GetGhostState(
 
       // plus characteristic
       ghostState.data_[0] = this->Rho() - deltaPressure / (SoSInt * SoSInt);
-      ghostState.data_[1] =
+      ghostState[ghostState.MomentumXIndex()] =
           this->U() + normArea.X() * deltaPressure / rhoSoSInt;
-      ghostState.data_[2] =
+      ghostState[ghostState.MomentumYIndex()] =
           this->V() + normArea.Y() * deltaPressure / rhoSoSInt;
-      ghostState.data_[3] =
+      ghostState[ghostState.MomentumZIndex()] =
           this->W() + normArea.Z() * deltaPressure / rhoSoSInt;
-      ghostState.data_[4] = freeState.P();  // minus characteristic
+      ghostState[ghostState.EnergyIndex()] = freeState.P();  // minus characteristic
 
       // numerical bcs for turbulence variables
 
@@ -666,7 +695,7 @@ primVars primVars::GetGhostState(
     const auto & bcData = inputVars.BCData(tag);
     // freestream variables
     const auto freeVel = bcData->Velocity();
-    const primVars freeState(bcData->Density(), freeVel, bcData->Pressure());
+    const primative freeState(bcData->Density(), freeVel, bcData->Pressure());
 
     // internal variables
     const auto velIntNorm = this->Velocity().DotProd(normArea);
@@ -694,8 +723,9 @@ primVars primVars::GetGhostState(
       const auto velDiff = freeState.Velocity() - this->Velocity();
 
       // plus characteristic
-      ghostState.data_[4] = 0.5 * (freeState.P() + this->P() -
-                                   rhoSoSInt * normArea.DotProd(velDiff));
+      ghostState[ghostState.EnergyIndex()] =
+          0.5 *
+          (freeState.P() + this->P() - rhoSoSInt * normArea.DotProd(velDiff));
 
       if (bcData->IsNonreflecting()) {
         // minus characteristic
@@ -718,9 +748,9 @@ primVars primVars::GetGhostState(
                     normArea * deltaPressure / rhoSoSN) /
                    (1.0 + dt * k);
 
-        ghostState.data_[1] = vel.X();
-        ghostState.data_[2] = vel.Y();
-        ghostState.data_[3] = vel.Z();
+        ghostState[ghostState.MomentumXIndex()] = vel.X();
+        ghostState[ghostState.MomentumYIndex()] = vel.Y();
+        ghostState[ghostState.MomentumZIndex()] = vel.Z();
 
       } else {
         const auto deltaPressure = freeState.P() - ghostState.P();
@@ -728,11 +758,11 @@ primVars primVars::GetGhostState(
         // minus characteristic
         ghostState.data_[0] =
             freeState.Rho() - deltaPressure / (SoSInt * SoSInt);
-        ghostState.data_[1] =
+        ghostState[ghostState.MomentumXIndex()] =
             freeState.U() - normArea.X() * deltaPressure / rhoSoSInt;
-        ghostState.data_[2] =
+        ghostState[ghostState.MomentumYIndex()] =
             freeState.V() - normArea.Y() * deltaPressure / rhoSoSInt;
-        ghostState.data_[3] =
+        ghostState[ghostState.MomentumZIndex()] =
             freeState.W() - normArea.Z() * deltaPressure / rhoSoSInt;
       }
 
@@ -762,10 +792,10 @@ primVars primVars::GetGhostState(
     const auto vel = bcData->Velocity();
 
     ghostState.data_[0] = bcData->Density();
-    ghostState.data_[1] = vel.X();
-    ghostState.data_[2] = vel.Y();
-    ghostState.data_[3] = vel.Z();
-    ghostState.data_[4] = bcData->Pressure();
+    ghostState[ghostState.MomentumXIndex()] = vel.X();
+    ghostState[ghostState.MomentumYIndex()] = vel.Y();
+    ghostState[ghostState.MomentumZIndex()] = vel.Z();
+    ghostState[ghostState.EnergyIndex()] = bcData->Pressure();
 
     // assign farfield conditions to turbulence variables
     if (inputVars.IsRANS()) {
@@ -813,10 +843,10 @@ primVars primVars::GetGhostState(
     const auto vbMag = sqrt(2.0 / g * (bcData->StagnationTemperature() - tb));
 
     ghostState.data_[0] = eqnState->DensityTP(tb, pb);
-    ghostState.data_[1] = vbMag * bcData->Direction().X();
-    ghostState.data_[2] = vbMag * bcData->Direction().Y();
-    ghostState.data_[3] = vbMag * bcData->Direction().Z();
-    ghostState.data_[4] = pb;
+    ghostState[ghostState.MomentumXIndex()] = vbMag * bcData->Direction().X();
+    ghostState[ghostState.MomentumYIndex()] = vbMag * bcData->Direction().Y();
+    ghostState[ghostState.MomentumZIndex()] = vbMag * bcData->Direction().Z();
+    ghostState[ghostState.EnergyIndex()] = pb;
 
     // assign farfield conditions to turbulence variables
     if (inputVars.IsRANS()) {
@@ -878,18 +908,18 @@ primVars primVars::GetGhostState(
       const auto trans = -0.5 * (velT.DotProd(pGradT - rhoSoSN * dVelN_dTrans) +
                                  gamma * stateN.P() * dVelT_dTrans);
 
-      ghostState.data_[4] =
+      ghostState[ghostState.EnergyIndex()] =
           (stateN.P() + rhoSoSN * deltaVel + dt * k * pb - dt * beta * trans) /
           (1.0 + dt * k);
     } else {
-      ghostState.data_[4] = pb;
+      ghostState[ghostState.EnergyIndex()] = pb;
     }
 
     const auto deltaPressure = this->P() - ghostState.P();
     ghostState.data_[0] = this->Rho() - deltaPressure / (SoSInt * SoSInt);
-    ghostState.data_[1] = this->U() + normArea.X() * deltaPressure / rhoSoSInt;
-    ghostState.data_[2] = this->V() + normArea.Y() * deltaPressure / rhoSoSInt;
-    ghostState.data_[3] = this->W() + normArea.Z() * deltaPressure / rhoSoSInt;
+    ghostState[ghostState.MomentumXIndex()] = this->U() + normArea.X() * deltaPressure / rhoSoSInt;
+    ghostState[ghostState.MomentumYIndex()] = this->V() + normArea.Y() * deltaPressure / rhoSoSInt;
+    ghostState[ghostState.MomentumZIndex()] = this->W() + normArea.Z() * deltaPressure / rhoSoSInt;
 
     // numerical bcs for turbulence variables
 
@@ -917,7 +947,7 @@ primVars primVars::GetGhostState(
     // cell
 
   } else {
-    cerr << "ERROR: Error in primVars::GetGhostState ghost state for BC type "
+    cerr << "ERROR: Error in primative::GetGhostState ghost state for BC type "
          << bcType << " is not supported!" << endl;
     cerr << "surface is " << surf << " and layer is " << layer << endl;
     exit(EXIT_FAILURE);
@@ -929,35 +959,22 @@ primVars primVars::GetGhostState(
 // member function to take in a genArray of updates to the conservative
 // variables, and update the primative variables with it.
 // this is used in the implicit solver
-primVars primVars::UpdateWithConsVars(const unique_ptr<eos> &eqnState,
-                                      const unique_ptr<thermodynamic> &thermo,
-                                      const genArray &du,
-                                      const unique_ptr<turbModel> &turb) const {
+primative primative::UpdateWithConsVars(
+    const unique_ptr<eos> &eqnState, const unique_ptr<thermodynamic> &thermo,
+    const conserved &du, const unique_ptr<turbModel> &turb) const {
   // eqnState -- equation of state
   // du -- updates to conservative variables
   // turb -- turbulence model
 
   // convert primative to conservative and update
   const auto consUpdate = this->ConsVars(eqnState, thermo) + du;
-
-  return primVars(consUpdate, false, eqnState, thermo, turb);
-}
-
-bool primVars::IsZero() const {
-  auto nonzero = false;
-  for (auto &var : data_) {
-    if (var != 0.0) {
-      nonzero = true;
-      break;
-    }
-  }
-  return !nonzero;
+  return primative(consUpdate, eqnState, thermo, turb);
 }
 
 // member function to apply farfield turbulence boundary conditions
 // using the method in STAR-CCM+ involving turbulence intensity and
 // eddy viscosity ratio
-void primVars::ApplyFarfieldTurbBC(const vector3d<double> &vel,
+void primative::ApplyFarfieldTurbBC(const vector3d<double> &vel,
                                    const double &turbInten,
                                    const double &viscRatio,
                                    const unique_ptr<transport> &trans,
@@ -970,16 +987,18 @@ void primVars::ApplyFarfieldTurbBC(const vector3d<double> &vel,
   // eqnState -- equation of state
   // turb --  turbulence model
 
-  data_[5] = 1.5 * pow(turbInten * vel.Mag(), 2.0);
-  data_[6] = data_[0] * data_[5] /
+  (*this)[this->TurbulenceIndex()] = 1.5 * pow(turbInten * vel.Mag(), 2.0);
+  (*this)[this->TurbulenceIndex() + 1] = this->Rho() * this->Tke() /
       (viscRatio * trans->Viscosity(this->Temperature(eqnState)));
   this->LimitTurb(turb);
 }
 
-void primVars::LimitTurb(const unique_ptr<turbModel> &turb) {
+void primative::LimitTurb(const unique_ptr<turbModel> &turb) {
   // Adjust turbulence variables to be above minimum if necessary
-  data_[5] = max(data_[5], turb->TkeMin());
-  data_[6] = max(data_[6], turb->OmegaMin());
+  for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
+    (*this)[this->TurbulenceIndex() + ii] =
+        max((*this)[TurbulenceIndex() + ii], turb->TurbMinN(ii));
+  }
 }
 
 /*Function to return the inviscid spectral radius for one direction (i, j, or k)
@@ -991,7 +1010,7 @@ In the above equation L is the spectral radius in either the i, j, or k
 direction. A1 and A2 are the two face areas in that direction. Vn is the
 cell velocity normal to that direction. SoS is the speed of sound at the cell
  */
-double primVars::InvCellSpectralRadius(const unitVec3dMag<double> &fAreaL,
+double primative::InvCellSpectralRadius(const unitVec3dMag<double> &fAreaL,
                                        const unitVec3dMag<double> &fAreaR,
                                        const unique_ptr<thermodynamic> &thermo,
                                        const unique_ptr<eos> &eqnState) const {
@@ -1012,7 +1031,7 @@ double primVars::InvCellSpectralRadius(const unitVec3dMag<double> &fAreaL,
          fMag;
 }
 
-double primVars::InvFaceSpectralRadius(const unitVec3dMag<double> &fArea,
+double primative::InvFaceSpectralRadius(const unitVec3dMag<double> &fArea,
                                        const unique_ptr<thermodynamic> &thermo,
                                        const unique_ptr<eos> &eqnState) const {
   // fArea -- face area
@@ -1035,7 +1054,7 @@ and Pr is the Prandtl number (all at the cell center). A is the average face are
 of the given direction (i, j, k), and V is the cell volume. This implementation
 comes from Blazek.
  */
-double primVars::ViscCellSpectralRadius(
+double primative::ViscCellSpectralRadius(
     const unitVec3dMag<double> &fAreaL, const unitVec3dMag<double> &fAreaR,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<eos> &eqnState,
     const unique_ptr<transport> &trans, const double &vol, const double &mu,
@@ -1063,7 +1082,7 @@ double primVars::ViscCellSpectralRadius(
   return maxTerm * viscTerm * fMag * fMag / vol;
 }
 
-double primVars::ViscFaceSpectralRadius(
+double primative::ViscFaceSpectralRadius(
     const unitVec3dMag<double> &fArea, const unique_ptr<thermodynamic> &thermo,
     const unique_ptr<eos> &eqnState, const unique_ptr<transport> &trans,
     const double &dist, const double &mu, const double &mut,
@@ -1088,7 +1107,7 @@ double primVars::ViscFaceSpectralRadius(
   return fArea.Mag() / dist * maxTerm * viscTerm;
 }
 
-double primVars::CellSpectralRadius(
+double primative::CellSpectralRadius(
     const unitVec3dMag<double> &fAreaL, const unitVec3dMag<double> &fAreaR,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<eos> &eqnState,
     const unique_ptr<transport> &trans, const double &vol, const double &mu,
@@ -1116,7 +1135,7 @@ double primVars::CellSpectralRadius(
   return specRad;
 }
 
-double primVars::FaceSpectralRadius(const unitVec3dMag<double> &fArea,
+double primative::FaceSpectralRadius(const unitVec3dMag<double> &fArea,
                                     const unique_ptr<thermodynamic> &thermo,
                                     const unique_ptr<eos> &eqnState,
                                     const unique_ptr<transport> &trans,
@@ -1145,38 +1164,40 @@ double primVars::FaceSpectralRadius(const unitVec3dMag<double> &fArea,
 
 
 // function to calculate the Roe averaged state
-primVars RoeAveragedState(const primVars &left, const primVars &right) {
+primative RoeAveragedState(const primative &left, const primative &right) {
   // compute Rho averaged quantities
+  primative rhoState(left.Size(), left.NumSpecies());
   // density ratio
   const auto denRatio = sqrt(right.Rho() / left.Rho());
   // Roe averaged density
-  const auto rhoR = left.Rho() * denRatio;
+  for (auto ii = 0; ii < rhoState.NumSpecies(); ++ii) {
+    rhoState[ii] = left.RhoN(ii) * denRatio;
+  }
   // Roe averaged velocities - u, v, w
-  const auto uR = (left.U() + denRatio * right.U()) / (1.0 + denRatio);
-  const auto vR = (left.V() + denRatio * right.V()) / (1.0 + denRatio);
-  const auto wR = (left.W() + denRatio * right.W()) / (1.0 + denRatio);
+  rhoState[rhoState->MomentumXIndex()] =
+      (left.U() + denRatio * right.U()) / (1.0 + denRatio);
+  rhoState[rhoState->MomentumYIndex()] =
+      (left.V() + denRatio * right.V()) / (1.0 + denRatio);
+  rhoState[rhoState->MomentumZIndex()] =
+      (left.W() + denRatio * right.W()) / (1.0 + denRatio);
 
   // Roe averaged pressure
-  const auto pR = (left.P() + denRatio * right.P()) / (1.0 + denRatio);
+  rhoState[rhoState->EnergyIndex()] =
+      (left.P() + denRatio * right.P()) / (1.0 + denRatio);
 
-  // Roe averaged tke
-  const auto kR = (left.Tke() + denRatio * right.Tke()) / (1.0 + denRatio);
-  // Roe averaged specific dissipation (omega)
-  const auto omR = (left.Omega() + denRatio * right.Omega()) / (1.0 + denRatio);
+  // Roe averaged turbulence variables
+  for (auto ii = 0; ii < rhoState.NumTurbulence(); ++ii) {
+    rhoState[rhoState->TurbulenceIndex() + ii] =
+        (left.TurbN(ii) + denRatio * right.TurbN(ii)) / (1.0 + denRatio);
+  }
 
-  return primVars(rhoR, uR, vR, wR, pR, kR, omR);
-}
-
-// return element by element squared values
-primVars primVars::Squared() const {
-  return (*this) * (*this);
+  return rhoState;
 }
 
 // return element by element absolute value
-primVars primVars::Abs() const {
+primative primative::Abs() const {
   auto abs = *this;
-  for (auto &val : abs.data_) {
-    val = fabs(val);
-  }
+  std::transform(std::begin(*this), std::end(*this), std::begin(abs),
+                 [](const double &val) { return fabs(val); });
   return abs;
 }

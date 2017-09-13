@@ -28,7 +28,7 @@
 #include "vector3d.hpp"            // vector3d
 #include "multiArray3d.hpp"        // multiArray3d
 #include "tensor.hpp"              // tensor
-#include "primVars.hpp"            // primVars
+#include "primative.hpp"            // primative
 #include "genArray.hpp"            // genArray
 #include "boundaryConditions.hpp"  // connection, patch
 #include "macros.hpp"
@@ -58,7 +58,7 @@ class fluxJacobian;
 class kdtree;
 
 class procBlock {
-  multiArray3d<primVars> state_;  // primative variables at cell center
+  multiArray3d<primative> state_;  // primative variables at cell center
   multiArray3d<genArray> consVarsN_;  // conserved variables at time n
   multiArray3d<genArray> consVarsNm1_;  // conserved variables at time n-1
 
@@ -239,7 +239,7 @@ class procBlock {
 
   boundaryConditions BC() const {return bc_;}
 
-  primVars State(const int &ii, const int &jj, const int &kk) const {
+  primative State(const int &ii, const int &jj, const int &kk) const {
     return state_(ii, jj, kk);
   }
   genArray ConsVarsN(const int &ii, const int &jj, const int &kk) const {
@@ -249,7 +249,7 @@ class procBlock {
     return consVarsNm1_(ii, jj, kk);
   }
 
-  multiArray3d<primVars> SliceState(const int &, const int &, const int &,
+  multiArray3d<primative> SliceState(const int &, const int &, const int &,
                                     const int &, const int &,
                                     const int &) const;
   multiArray3d<vector3d<double>> SliceBoundaryCenters(const int &) const;
@@ -438,8 +438,8 @@ class procBlock {
                                    const unique_ptr<thermodynamic> &,
                                    const unique_ptr<transport> &,
                                    const unique_ptr<turbModel> &);
-  multiArray3d<primVars> GetGhostStates(
-      const multiArray3d<primVars> &, const string &,
+  multiArray3d<primative> GetGhostStates(
+      const multiArray3d<primative> &, const string &,
       const multiArray3d<unitVec3dMag<double>> &, const multiArray3d<double> &,
       const boundarySurface &, const input &, const unique_ptr<eos> &,
       const unique_ptr<thermodynamic> &, const unique_ptr<transport> &,
@@ -498,7 +498,7 @@ class procBlock {
                       int &) const;
 
   vector<bool> PutGeomSlice(const geomSlice &, connection &, const int &);
-  void PutStateSlice(const multiArray3d<primVars> &, const connection &,
+  void PutStateSlice(const multiArray3d<primative> &, const connection &,
                      const int &, const int &);
 
   procBlock Split(const string &, const int &, const int &,
@@ -538,7 +538,7 @@ class procBlock {
 
   void DumpToFile(const string &, const string &) const;
   void CalcCellWidths();
-  void GetStatesFromRestart(const multiArray3d<primVars> &);
+  void GetStatesFromRestart(const multiArray3d<primative> &);
   void GetSolNm1FromRestart(const multiArray3d<genArray> &);
 
   int WallDataIndex(const boundarySurface &) const;

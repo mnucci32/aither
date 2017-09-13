@@ -24,13 +24,15 @@
 #include "tensor.hpp"
 #include "uncoupledScalar.hpp"
 #include "matrix.hpp"
+#include "varArray.hpp"
 
 using std::vector;
 using std::ostream;
 using std::unique_ptr;
 
 // forward class declarations
-class primVars;
+class primative;
+class conserved;
 class eos;
 class transport;
 class thermodynamic;
@@ -75,25 +77,25 @@ class fluxJacobian {
   void MultiplyOnDiagonal(const double &, const bool &);
   void AddOnDiagonal(const double &, const bool &);
 
-  void RusanovFluxJacobian(const primVars &, const unique_ptr<eos> &,
+  void RusanovFluxJacobian(const primative &, const unique_ptr<eos> &,
                            const unique_ptr<thermodynamic> &,
                            const unitVec3dMag<double> &, const bool &,
                            const input &, const unique_ptr<turbModel> &);
-  void InvFluxJacobian(const primVars &, const unique_ptr<eos> &,
+  void InvFluxJacobian(const primative &, const unique_ptr<eos> &,
                        const unique_ptr<thermodynamic> &,
                        const unitVec3dMag<double> &, const input &,
                        const unique_ptr<turbModel> &);
-  void ApproxRoeFluxJacobian(const primVars &, const primVars &,
+  void ApproxRoeFluxJacobian(const primative &, const primative &,
                              const unique_ptr<eos> &,
                              const unique_ptr<thermodynamic> &,
                              const unitVec3dMag<double> &, const bool &,
                              const input &, const unique_ptr<turbModel> &);
-  void DelPrimativeDelConservative(const primVars &,
+  void DelPrimativeDelConservative(const primative &,
                                    const unique_ptr<thermodynamic> &,
                                    const unique_ptr<eos> &, const input &);
 
   void ApproxTSLJacobian(
-      const primVars &, const double &, const double &, const double &,
+      const primative &, const double &, const double &, const double &,
       const unique_ptr<eos> &, const unique_ptr<transport> &,
       const unique_ptr<thermodynamic> &, const unitVec3dMag<double> &,
       const double &, const unique_ptr<turbModel> &, const input &,
@@ -241,7 +243,7 @@ inline const fluxJacobian operator/(const double &lhs, fluxJacobian rhs) {
 
 ostream &operator<<(ostream &os, const fluxJacobian &jacobian);
 
-genArray RusanovScalarOffDiagonal(const primVars &, const genArray &,
+genArray RusanovScalarOffDiagonal(const primative &, const conserved &,
                                   const unitVec3dMag<double> &,
                                   const double &, const double &,
                                   const double &, const double &,
@@ -250,7 +252,7 @@ genArray RusanovScalarOffDiagonal(const primVars &, const genArray &,
                                   const unique_ptr<transport> &,
                                   const unique_ptr<turbModel> &,
                                   const bool &, const bool &);
-genArray RusanovBlockOffDiagonal(const primVars &, const genArray &,
+genArray RusanovBlockOffDiagonal(const primative &, const genArray &,
                                  const unitVec3dMag<double> &,
                                  const double &, const double &,
                                  const double &, const double &,
@@ -261,8 +263,8 @@ genArray RusanovBlockOffDiagonal(const primVars &, const genArray &,
                                  const input &, const bool &,
                                  const tensor<double> &);
 
-genArray RoeOffDiagonal(const primVars &, const primVars &,
-                        const genArray &,
+genArray RoeOffDiagonal(const primative &, const primative &,
+                        const conserved &,
                         const unitVec3dMag<double> &, const double &,
                         const double &, const double &,
                         const double &, const unique_ptr<eos> &,
@@ -271,7 +273,7 @@ genArray RoeOffDiagonal(const primVars &, const primVars &,
                         const unique_ptr<turbModel> &, const bool &,
                         const bool &, const bool &);
 
-genArray OffDiagonal(const primVars &, const primVars &, const genArray &,
+genArray OffDiagonal(const primative &, const primative &, const genArray &,
                      const unitVec3dMag<double> &, const double &,
                      const double &, const double &, const double &,
                      const tensor<double> &, const unique_ptr<eos> &,

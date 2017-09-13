@@ -22,7 +22,7 @@
 #include "fluxJacobian.hpp"
 #include "turbulence.hpp"     // turbModel
 #include "input.hpp"          // input
-#include "primVars.hpp"       // primVars
+#include "primative.hpp"       // primative
 #include "genArray.hpp"       // genArray
 #include "inviscidFlux.hpp"   // ConvectiveFluxUpdate
 #include "utility.hpp"        // TauNormal
@@ -100,7 +100,7 @@ jacobians.
 In the above equations the dissipation term L is held constant during
 differentiation. A represents the convective flux jacobian matrix.
  */
-void fluxJacobian::RusanovFluxJacobian(const primVars &state,
+void fluxJacobian::RusanovFluxJacobian(const primative &state,
                                        const unique_ptr<eos> &eqnState,
                                        const unique_ptr<thermodynamic> &thermo,
                                        const unitVec3dMag<double> &area,
@@ -135,7 +135,7 @@ void fluxJacobian::RusanovFluxJacobian(const primVars &state,
 }
 
 // function to calculate inviscid flux jacobian
-void fluxJacobian::InvFluxJacobian(const primVars &state,
+void fluxJacobian::InvFluxJacobian(const primative &state,
                                    const unique_ptr<eos> &eqnState,
                                    const unique_ptr<thermodynamic> &thermo,
                                    const unitVec3dMag<double> &area,
@@ -229,7 +229,7 @@ In the above equations the Roe matrix Aroe is held constant during
 differentiation. A represents the convective flux jacobian matrix.
  */
 void fluxJacobian::ApproxRoeFluxJacobian(
-    const primVars &left, const primVars &right,
+    const primative &left, const primative &right,
     const unique_ptr<eos> &eqnState, const unique_ptr<thermodynamic> &thermo,
     const unitVec3dMag<double> &area, const bool &positive, const input &inp,
     const unique_ptr<turbModel> &turb) {
@@ -259,7 +259,7 @@ void fluxJacobian::ApproxRoeFluxJacobian(
 // change of variable matrix going from primative to conservative variables
 // from Dwight
 void fluxJacobian::DelPrimativeDelConservative(
-    const primVars &state, const unique_ptr<thermodynamic> &thermo,
+    const primative &state, const unique_ptr<thermodynamic> &thermo,
     const unique_ptr<eos> &eqnState, const input &inp) {
   // state -- primative variables
   // thermo -- thermodynamic model
@@ -304,7 +304,7 @@ void fluxJacobian::DelPrimativeDelConservative(
 
 // approximate thin shear layer jacobian following implementation in Dwight.
 // does not use any gradients
-void fluxJacobian::ApproxTSLJacobian(const primVars &state,
+void fluxJacobian::ApproxTSLJacobian(const primative &state,
                                      const double &lamVisc,
                                      const double &turbVisc, const double &f1,
                                      const unique_ptr<eos> &eqnState,
@@ -399,7 +399,7 @@ ostream &operator<<(ostream &os, const fluxJacobian &jacobian) {
   return os;
 }
 
-genArray RusanovScalarOffDiagonal(const primVars &state, const genArray &update,
+genArray RusanovScalarOffDiagonal(const primative &state, const conserved &update,
                                   const unitVec3dMag<double> &fArea,
                                   const double &mu, const double &mut,
                                   const double &f1, const double &dist,
@@ -447,7 +447,7 @@ genArray RusanovScalarOffDiagonal(const primVars &state, const genArray &update,
 }
 
 genArray RusanovBlockOffDiagonal(
-    const primVars &state, const genArray &update,
+    const primative &state, const genArray &update,
     const unitVec3dMag<double> &fArea, const double &mu, const double &mut,
     const double &f1, const double &dist, const unique_ptr<eos> &eqnState,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
@@ -484,7 +484,7 @@ genArray RusanovBlockOffDiagonal(
   return jacobian.ArrayMult(update);
 }
 
-genArray OffDiagonal(const primVars &offDiag, const primVars &diag,
+genArray OffDiagonal(const primative &offDiag, const primative &diag,
                      const genArray &update, const unitVec3dMag<double> &fArea,
                      const double &mu, const double &mut, const double &f1,
                      const double &dist, const tensor<double> &vGrad,
@@ -537,8 +537,8 @@ genArray OffDiagonal(const primVars &offDiag, const primVars &diag,
 }
 
 
-genArray RoeOffDiagonal(const primVars &offDiag, const primVars &diag,
-                        const genArray &update,
+genArray RoeOffDiagonal(const primative &offDiag, const primative &diag,
+                        const conserved &update,
                         const unitVec3dMag<double> &fArea,
                         const double &mu, const double &mut,
                         const double &dist, const double &f1,

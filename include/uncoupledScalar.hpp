@@ -26,9 +26,6 @@ using std::endl;
 using std::cerr;
 using std::ostream;
 
-// forward class declarations
-class genArray;
-
 // This class holds variables that may be different for each set of
 // equations being solved. For example the spectral radii of the flow
 // equations and turbulence equations are different.
@@ -68,7 +65,8 @@ class uncoupledScalar {
     turbVar_ = 0.0;
   }
 
-  genArray ArrayMult(genArray) const;
+  template <typename T>
+  T ArrayMult(T) const;
 
   inline uncoupledScalar & operator+=(const uncoupledScalar &);
   inline uncoupledScalar & operator-=(const uncoupledScalar &);

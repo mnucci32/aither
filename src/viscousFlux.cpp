@@ -21,7 +21,7 @@
 #include "eos.hpp"            // equation of state
 #include "transport.hpp"      // transport model
 #include "thermodynamic.hpp"  // thermodynamic model
-#include "primVars.hpp"       // primVars
+#include "primative.hpp"       // primative
 #include "turbulence.hpp"     // turbModel
 #include "matrix.hpp"         // squareMatrix
 #include "utility.hpp"        // TauNormal
@@ -61,7 +61,7 @@ void viscousFlux::CalcFlux(
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<eos> &eqnState,
     const vector3d<double> &tGrad, const vector3d<double> &normArea,
     const vector3d<double> &tkeGrad, const vector3d<double> &omegaGrad,
-    const unique_ptr<turbModel> &turb, const primVars &state,
+    const unique_ptr<turbModel> &turb, const primative &state,
     const double &lamVisc, const double &turbVisc, const double &f1) {
   // velGrad -- velocity gradient tensor
   // trans -- viscous transport model
@@ -117,7 +117,7 @@ wallVars viscousFlux::CalcWallFlux(
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<eos> &eqnState,
     const vector3d<double> &tGrad, const vector3d<double> &normArea,
     const vector3d<double> &tkeGrad, const vector3d<double> &omegaGrad,
-    const unique_ptr<turbModel> &turb, const primVars &state,
+    const unique_ptr<turbModel> &turb, const primative &state,
     const double &lamVisc, const double &turbVisc, const double &f1) {
   // velGrad -- velocity gradient tensor
   // trans -- viscous transport model

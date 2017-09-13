@@ -21,6 +21,7 @@
 #include <vector>
 #include <numeric>
 #include <algorithm>
+#include <cmath>
 #include "macros.hpp"
 
 using std::ostream;
@@ -36,13 +37,16 @@ class varArray {
 
  public:
   // constructor
-  varArray(const int &numEqns, const int &numSpecies) : data_(numEqns, 0.0) {
+  varArray(const int &numEqns, const int &numSpecies, const double &val)
+      : data_(numEqns, val) {
     MSG_ASSERT(numEqns > numSpecies && numEqns >= 5,
                "number of equations should be greater than number of species");
     momentumIndex_ = numSpecies;
     energyIndex_ = momentumIndex_ + 3;
     turbulenceIndex_ = energyIndex_ + 1;
   }
+  varArray(const int &numEqns, const int &numSpecies)
+      : varArray(numEqns, numSpecies, 0.0) {}
 
   // member functions
   int Size() const { return data_.size(); }
@@ -55,6 +59,10 @@ class varArray {
   int MomentumZIndex() const { return momentumIndex_ + 2; }
   int EnergyIndex() const { return energyIndex_; }
   int TurbulenceIndex() const { return turbulenceIndex_; }
+  double SpeciesSum() const {
+    return std::accumulate(std::begin(data_),
+                           std::begin(data_) + this->NumSpecies(), 0.0);
+  }
 
   const double &SpeciesN(const int &ii) const {
     MSG_ASSERT(ii < momentumIndex_, "requesting species variable out of range");
@@ -78,6 +86,22 @@ class varArray {
     std::for_each(std::begin(data_), std::end(data_),
                   [](double &val) { val = sqrt(val); });
   }
+  bool IsZero() const {
+    std::all_of(std::begin(data_), std::end(data_),
+                [](const double &val) { return val == 0.0; });
+  }
+  varArray Squared() const {
+    auto sq = (*this);
+    sq *= sq;
+    return sq;
+  }
+
+  // provide begin and end so std::begin and std::end can be used
+  // use lower case to conform with std::begin, std::end
+  auto begin() noexcept {return data_.begin();}
+  const auto begin() const noexcept {return data_.begin();}
+  auto end() noexcept {return data_.end();}
+  const auto end() const noexcept {return data_.end();}
 
   // move constructor and assignment operator
   varArray(varArray&&) noexcept = default;
@@ -243,66 +267,6 @@ ostream &operator<<(ostream &os, const varArray &);
 // --------------------------------------------------------------------------
 // Derived wrapper classes for different variable types
 // --------------------------------------------------------------------------
-class primative : public varArray {
- public:
-  // constructor
-  primative(const int &numEqns, const int &numSpecies)
-      : varArray(numEqns, numSpecies) {}
-
-  // member functions
-  const double & RhoN(const int &ii) const { return this->SpeciesN(ii); }
-  const double & U() const { return this->MomentumX(); }
-  const double & V() const { return this->MomentumY(); }
-  const double & W() const { return this->MomentumZ(); }
-  const double & P() const { return this->Energy(); }
-  const double & Tke() const { return this->TurbulenceN(0); }
-  const double & Omega() const { return this->TurbulenceN(1); }
-
-  // move constructor and assignment operator
-  primative(primative&&) noexcept = default;
-  primative& operator=(primative&&) noexcept = default;
-
-  // copy constructor and assignment operator
-  primative(const primative&) = default;
-  primative& operator=(const primative&) = default;
-
-  // destructor
-  ~primative() noexcept {}
-};
-
-ostream &operator<<(ostream &os, const primative &);
-
-// --------------------------------------------------------------------------
-class conserved : public varArray {
- public:
-  // constructor
-  conserved(const int &numEqns, const int &numSpecies)
-      : varArray(numEqns, numSpecies) {}
-
-  // member functions
-  const double & RhoN(const int &ii) const { return this->SpeciesN(ii); }
-  const double & RhoU() const { return this->MomentumX(); }
-  const double & RhoV() const { return this->MomentumY(); }
-  const double & RhoW() const { return this->MomentumZ(); }
-  const double & RhoE() const { return this->Energy(); }
-  const double & RhoTke() const { return this->TurbulenceN(0); }
-  const double & RhoOmega() const { return this->TurbulenceN(1); }
-
-  // move constructor and assignment operator
-  conserved(conserved&&) noexcept = default;
-  conserved& operator=(conserved&&) noexcept = default;
-
-  // copy constructor and assignment operator
-  conserved(const conserved&) = default;
-  conserved& operator=(const conserved&) = default;
-
-  // destructor
-  ~conserved() noexcept {}
-};
-
-ostream &operator<<(ostream &os, const conserved &);
-
-// --------------------------------------------------------------------------
 class residual : public varArray {
  public:
   // constructor
@@ -325,29 +289,6 @@ class residual : public varArray {
 };
 
 ostream &operator<<(ostream &os, const residual &);
-
-// --------------------------------------------------------------------------
-
-// --------------------------------------------------------------------------
-class flux : public residual {
- public:
-  // constructor
-  flux(const int &numEqns, const int &numSpecies)
-      : residual(numEqns, numSpecies) {}
-
-  // move constructor and assignment operator
-  flux(flux&&) noexcept = default;
-  flux& operator=(flux&&) noexcept = default;
-
-  // copy constructor and assignment operator
-  flux(const flux&) = default;
-  flux& operator=(const flux&) = default;
-
-  // destructor
-  ~flux() noexcept {}
-};
-
-ostream &operator<<(ostream &os, const flux &);
 
 
 #endif

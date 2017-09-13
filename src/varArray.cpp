@@ -35,22 +35,6 @@ ostream &operator<<(ostream &os, const varArray &m) {
 }
 
 // operation overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, const primative &m) {
-  for (auto rr = 0; rr < m.Size(); rr++) {
-    os << m[rr] << endl;
-  }
-  return os;
-}
-
-// operation overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, const conserved &m) {
-  for (auto rr = 0; rr < m.Size(); rr++) {
-    os << m[rr] << endl;
-  }
-  return os;
-}
-
-// operation overload for << - allows use of cout, cerr, etc.
 ostream &operator<<(ostream &os, const residual &m) {
   for (auto rr = 0; rr < m.Size(); rr++) {
     os << m[rr] << endl;
@@ -58,11 +42,4 @@ ostream &operator<<(ostream &os, const residual &m) {
   return os;
 }
 
-// operation overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, const flux &m) {
-  for (auto rr = 0; rr < m.Size(); rr++) {
-    os << m[rr] << endl;
-  }
-  return os;
-}
 

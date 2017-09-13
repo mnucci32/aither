@@ -41,7 +41,7 @@ class turbModel;
 class fluxJacobian;
 class kdtree;
 class resid;
-class primVars;
+class primative;
 
 // function definitions
 template <typename T>
@@ -140,22 +140,22 @@ template <typename T>
 T Derivative2nd(const double &, const double &, const double &,
                 const T &, const T &, const T &);
 
-primVars Beta0(const double &, const double &, const double &,
-               const primVars &, const primVars &, const primVars &);
-primVars Beta1(const double &, const double &, const double &,
-               const primVars &, const primVars &, const primVars &);
-primVars Beta2(const double &, const double &, const double &,
-               const primVars &, const primVars &, const primVars &);
-primVars BetaIntegral(const primVars &, const primVars &, const double &,
+primative Beta0(const double &, const double &, const double &,
+               const primative &, const primative &, const primative &);
+primative Beta1(const double &, const double &, const double &,
+               const primative &, const primative &, const primative &);
+primative Beta2(const double &, const double &, const double &,
+               const primative &, const primative &, const primative &);
+primative BetaIntegral(const primative &, const primative &, const double &,
                       const double &);
-primVars BetaIntegral(const primVars &, const primVars &, const double &,
+primative BetaIntegral(const primative &, const primative &, const double &,
                       const double &, const double &);
 
-tensor<double> CalcVelGradTSL(const primVars&, const primVars&,
+tensor<double> CalcVelGradTSL(const primative&, const primative&,
                               const vector3d<double>&, const double&);
 
 kdtree CalcTreeFromCloud(const string &, const input &,
-                         const unique_ptr<transport> &, vector<primVars> &,
+                         const unique_ptr<transport> &, vector<primative> &,
                          vector<string> &);
 
 // ---------------------------------------------------------------------------

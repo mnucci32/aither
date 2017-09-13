@@ -29,6 +29,7 @@ configure_file (
 set(sources
   main.cpp
   boundaryConditions.cpp
+  conserved.cpp
   eos.cpp
   fluid.cpp
   fluxJacobian.cpp
@@ -41,7 +42,7 @@ set(sources
   output.cpp
   parallel.cpp
   plot3d.cpp
-  primVars.cpp
+  primative.cpp
   procBlock.cpp
   range.cpp
   resid.cpp

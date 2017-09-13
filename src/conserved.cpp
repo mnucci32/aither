@@ -14,31 +14,22 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#include "uncoupledScalar.hpp"
-#include "varArray.hpp"      // ArrayMult
+#include <iostream>  // cout
+#include "conserved.hpp"
 
 using std::cout;
 using std::endl;
 using std::cerr;
 
-// member functions
-// member function to multiply the scalars with a varArray
-template <typename T>
-T uncoupledScalar::ArrayMult(T arr) const {
-  for (auto ii = 0; ii < T.TurbulenceIndex(); ++ii) {
-    arr[ii] *= flowVar_;
-  }
-  for (auto ii = T.TurbulenceIndex(); ii < T.Size(); ++ii) {
-    arr[ii] *= turbVar_;
-  }
-  return arr;
-}
+// ------------------------------------------------------------------
+// functions for conserved class
 
-// non-member functions
-// ----------------------------------------------------------------------------
-// operator overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, uncoupledScalar &scalar) {
-  os << scalar.FlowVariable() << endl;
-  os << scalar.TurbVariable() << endl;
+// operation overload for << - allows use of cout, cerr, etc.
+ostream &operator<<(ostream &os, const conserved &m) {
+  for (auto rr = 0; rr < m.Size(); rr++) {
+    os << m[rr] << endl;
+  }
   return os;
 }
+
+

@@ -53,7 +53,7 @@ class thermodynamic;
 class resid;
 class input;
 class turbModel;
-class primVars;
+class primative;
 
 // function definitions
 template<typename T>
@@ -82,7 +82,7 @@ void ReadRestart(vector<procBlock> &, const string &, const decomposition &,
                  const unique_ptr<transport> &, const unique_ptr<turbModel> &,
                  genArray &, const vector<vector3d<int>> &);
 
-multiArray3d<primVars> ReadSolFromRestart(ifstream &, const input &,
+multiArray3d<primative> ReadSolFromRestart(ifstream &, const input &,
                                           const unique_ptr<eos> &,
                                           const unique_ptr<thermodynamic> &,
                                           const unique_ptr<transport> &,

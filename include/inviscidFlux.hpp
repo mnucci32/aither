@@ -36,14 +36,14 @@ using std::unique_ptr;
 // forward class declaration
 class eos;
 class thermodynamic;
-class primVars;
-class genArray;
+class primative;
+class conserved;
 class squareMatrix;
 class turbModel;
 
 class inviscidFlux : public residual {
   // private member functions
-  void ConstructFromPrim(const primVars &, const unique_ptr<eos> &,
+  void ConstructFromPrim(const primative &, const unique_ptr<eos> &,
                          const unique_ptr<thermodynamic> &,
                          const vector3d<double> &);
 
@@ -52,18 +52,18 @@ class inviscidFlux : public residual {
   inviscidFlux(const int &numEqns, const int &numSpecies)
       : residual(numEqns, numSpecies) {}
   inviscidFlux() : inviscidFlux(0, 0) {}
-  inviscidFlux(const primVars &state, const unique_ptr<eos> &eqnState,
+  inviscidFlux(const primative &state, const unique_ptr<eos> &eqnState,
                const unique_ptr<thermodynamic> &thermo,
                const vector3d<double> &area)
-      : inviscidFlux(state.NumEquations(), state.NumSpecies()) {
+      : inviscidFlux(state.Size(), state.NumSpecies()) {
     this->ConstructFromPrim(state, eqnState, thermo, area);
   }
-  inviscidFlux(const genArray &cons, const unique_ptr<eos> &eqnState,
+  inviscidFlux(const conserved &cons, const unique_ptr<eos> &eqnState,
                const unique_ptr<thermodynamic> &thermo,
                const unique_ptr<turbModel> &turb, const vector3d<double> &area)
-      : inviscidFlux(cons.NumEquations(), cons.NumSpecies()) {
+      : inviscidFlux(cons.Size(), cons.NumSpecies()) {
     // convert conserved variables to primative variables
-    const primVars state(cons, false, eqnState, thermo, turb);
+    const primative state(cons, eqnState, thermo, turb);
     this->ConstructFromPrim(state, eqnState, thermo, area);
   }
 
@@ -77,7 +77,7 @@ class inviscidFlux : public residual {
 
   // member functions
   void RoeFlux(const inviscidFlux&, const genArray&);
-  void AUSMFlux(const primVars &, const primVars &, const unique_ptr<eos> &,
+  void AUSMFlux(const primative &, const primative &, const unique_ptr<eos> &,
                 const unique_ptr<thermodynamic> &, const vector3d<double> &,
                 const double &, const double &, const double &, const double &,
                 const double &);
@@ -88,28 +88,28 @@ class inviscidFlux : public residual {
 
 // function definitions
 // function to calculate Roe flux with entropy fix
-inviscidFlux RoeFlux(const primVars &, const primVars &,
+inviscidFlux RoeFlux(const primative &, const primative &,
                      const unique_ptr<eos> &, const unique_ptr<thermodynamic> &,
                      const vector3d<double> &);
-inviscidFlux AUSMFlux(const primVars &, const primVars &,
+inviscidFlux AUSMFlux(const primative &, const primative &,
                       const unique_ptr<eos> &,
                       const unique_ptr<thermodynamic> &,
                       const vector3d<double> &);
-inviscidFlux InviscidFlux(const primVars &, const primVars &,
+inviscidFlux InviscidFlux(const primative &, const primative &,
                           const unique_ptr<eos> &,
                           const unique_ptr<thermodynamic> &,
                           const vector3d<double> &, const string &);
-inviscidFlux RusanovFlux(const primVars &, const primVars &,
+inviscidFlux RusanovFlux(const primative &, const primative &,
                          const unique_ptr<eos> &,
                          const unique_ptr<thermodynamic> &,
                          const vector3d<double> &, const bool &);
 
 // function to calculate Roe flux with entropy fix for implicit methods
-void ApproxRoeFluxJacobian(const primVars &, const primVars &,
+void ApproxRoeFluxJacobian(const primative &, const primative &,
                            const unique_ptr<eos> &, const vector3d<double> &,
                            double &, squareMatrix &, squareMatrix &);
 
-genArray ConvectiveFluxUpdate(const primVars &, const primVars &,
+genArray ConvectiveFluxUpdate(const primative &, const primative &,
                               const unique_ptr<eos> &,
                               const unique_ptr<thermodynamic> &,
                               const vector3d<double> &);

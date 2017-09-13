@@ -87,8 +87,8 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   const auto numK = blk.NumK() - 1;
 
   // pad stored variable vectors with ghost cells
-  state_ = PadWithGhosts(multiArray3d<primVars>(numI, numJ, numK, 0, 1,
-                                                primVars(0.0)), numGhosts_);
+  state_ = PadWithGhosts(multiArray3d<primative>(numI, numJ, numK, 0, 1,
+                                                primative(0.0)), numGhosts_);
   if (storeTimeN_) {
     consVarsN_ = {numI, numJ, numK, 0, 1, genArray(0.0)};
   } else {
@@ -347,7 +347,7 @@ void procBlock::InitializeStates(const input &inp,
 
   if (ic.IsFromFile()) {
     // create k-d tree from cloud of points
-    vector<primVars> cloudStates;
+    vector<primative> cloudStates;
     vector<string> species;
     const auto tree =
         CalcTreeFromCloud(ic.File(), inp, trans, cloudStates, species);
@@ -383,7 +383,7 @@ void procBlock::InitializeStates(const input &inp,
 
   } else {
     // get nondimensional state for initialization
-    primVars inputState;
+    primative inputState;
     inputState.NondimensionalInitialize(eqnState, inp, trans, parBlock_, turb);
 
     const auto numI = this->NumI();
@@ -392,7 +392,7 @@ void procBlock::InitializeStates(const input &inp,
 
     // pad stored variable vectors with ghost cells
     state_ = PadWithGhosts(
-        multiArray3d<primVars>(numI, numJ, numK, 0, 1, inputState), numGhosts_);
+        multiArray3d<primative>(numI, numJ, numK, 0, 1, inputState), numGhosts_);
 
     const auto inputTemperature = inputState.Temperature(eqnState);
     temperature_ = {numI, numJ, numK, numGhosts_, 1, inputTemperature};
@@ -450,7 +450,7 @@ void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
   for (auto kk = fAreaI_.PhysStartK(); kk < fAreaI_.PhysEndK(); kk++) {
     for (auto jj = fAreaI_.PhysStartJ(); jj < fAreaI_.PhysEndJ(); jj++) {
       for (auto ii = fAreaI_.PhysStartI(); ii < fAreaI_.PhysEndI(); ii++) {
-        primVars faceStateLower, faceStateUpper;
+        primative faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
@@ -583,7 +583,7 @@ void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
   for (auto kk = fAreaJ_.PhysStartK(); kk < fAreaJ_.PhysEndK(); kk++) {
     for (auto jj = fAreaJ_.PhysStartJ(); jj < fAreaJ_.PhysEndJ(); jj++) {
       for (auto ii = fAreaJ_.PhysStartI(); ii < fAreaJ_.PhysEndI(); ii++) {
-        primVars faceStateLower, faceStateUpper;
+        primative faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
@@ -715,7 +715,7 @@ void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
   for (auto kk = fAreaK_.PhysStartK(); kk < fAreaK_.PhysEndK(); kk++) {
     for (auto jj = fAreaK_.PhysStartJ(); jj < fAreaK_.PhysEndJ(); jj++) {
       for (auto ii = fAreaK_.PhysStartI(); ii < fAreaK_.PhysEndI(); ii++) {
-        primVars faceStateLower, faceStateUpper;
+        primative faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
@@ -939,7 +939,7 @@ void procBlock::ExplicitEulerTimeAdvance(
   consVars -= dt_(ii, jj, kk) / vol_(ii, jj, kk) * residual_(ii, jj, kk);
 
   // calculate updated primative variables and update state
-  state_(ii, jj, kk) = primVars(consVars, false, eqnState, thermo, turb);
+  state_(ii, jj, kk) = primative(consVars, false, eqnState, thermo, turb);
 }
 
 // member function to advance the state vector to time n+1 (for implicit
@@ -995,7 +995,7 @@ void procBlock::RK4TimeAdvance(const genArray &currState,
       alpha[rk] * residual_(ii, jj, kk);
 
   // calculate updated primative variables
-  state_(ii, jj, kk) = primVars(consVars, false, eqnState, thermo, turb);
+  state_(ii, jj, kk) = primative(consVars, false, eqnState, thermo, turb);
 }
 
 // member function to reset the residual and wave speed back to zero after an
@@ -1897,7 +1897,7 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
                          tkeGrad, omegaGrad);
 
         // declare variables needed throughout function
-        primVars state;
+        primative state;
         auto f1 = 0.0;
         auto f2 = 0.0;
         auto mu = 0.0;
@@ -2210,7 +2210,7 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
                          tkeGrad, omegaGrad);
 
         // declare variables needed throughout function
-        primVars state;
+        primative state;
         auto f1 = 0.0;
         auto f2 = 0.0;
         auto mu = 0.0;
@@ -2524,7 +2524,7 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
                          tkeGrad, omegaGrad);
 
         // declare variables needed throughout function
-        primVars state;
+        primative state;
         auto f1 = 0.0;
         auto f2 = 0.0;
         auto mu = 0.0;
@@ -3849,7 +3849,7 @@ void procBlock::SwapStateSliceMPI(const connection &inter, const int &rank,
                                   const MPI_Datatype &MPI_cellData) {
   // inter -- connection boundary information
   // rank -- processor rank
-  // MPI_cellData -- MPI datatype for passing primVars, genArray
+  // MPI_cellData -- MPI datatype for passing primative, genArray
 
   state_.SwapSliceMPI(inter, rank, MPI_cellData);
 }
@@ -4793,7 +4793,7 @@ slice of states. The function uses the orientation supplied in the connection to
 orient the slice relative to the procBlock. It assumes that the procBlock
 is listed first, and the slice second in the connection data structure.
 */
-void procBlock::PutStateSlice(const multiArray3d<primVars> &slice,
+void procBlock::PutStateSlice(const multiArray3d<primative> &slice,
                               const connection &inter,
                               const int &d3, const int &numG) {
   // slice -- slice to insert in procBlock
@@ -6695,7 +6695,7 @@ void procBlock::CalcResidualNoSource(const unique_ptr<transport> &trans,
 
 
 // member function to get a slice of the state variables
-multiArray3d<primVars> procBlock::SliceState(const int &is, const int &ie,
+multiArray3d<primative> procBlock::SliceState(const int &is, const int &ie,
                                              const int &js, const int &je,
                                              const int &ks,
                                              const int &ke) const {
@@ -6751,8 +6751,8 @@ void procBlock::UpdateUnlimTurbEddyVisc(const unique_ptr<turbModel> &turb,
   }
 }
 
-multiArray3d<primVars> procBlock::GetGhostStates(
-    const multiArray3d<primVars> &bndStates, const string &bcName,
+multiArray3d<primative> procBlock::GetGhostStates(
+    const multiArray3d<primative> &bndStates, const string &bcName,
     const multiArray3d<unitVec3dMag<double>> &faceAreas,
     const multiArray3d<double> &wDist, const boundarySurface &surf,
     const input &inp, const unique_ptr<eos> &eqnState,
@@ -6809,7 +6809,7 @@ multiArray3d<primVars> procBlock::GetGhostStates(
     }
   }
 
-  multiArray3d<primVars> ghostStates(
+  multiArray3d<primative> ghostStates(
       bndStates.NumINoGhosts(), bndStates.NumJNoGhosts(),
       bndStates.NumKNoGhosts(), bndStates.GhostLayers());
   for (auto kk = bndStates.StartK(); kk < bndStates.EndK(); kk++) {
@@ -6824,7 +6824,7 @@ multiArray3d<primVars> procBlock::GetGhostStates(
                                  eqnState, thermo, trans, turb, wVars, layer);
         } else {  // using dt, state at time n, press grad, vel grad in BC
           const auto stateN =
-              primVars(consVarsN(ii, jj, kk), false, eqnState, thermo, turb);
+              primative(consVarsN(ii, jj, kk), false, eqnState, thermo, turb);
           ghostStates(ii, jj, kk) =
               bndStates(ii, jj, kk)
                   .GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),
@@ -6960,7 +6960,7 @@ void procBlock::CalcCellWidths() {
 }
 
 
-void procBlock::GetStatesFromRestart(const multiArray3d<primVars> &restart) {
+void procBlock::GetStatesFromRestart(const multiArray3d<primative> &restart) {
   state_.Insert(restart.RangeI(), restart.RangeJ(), restart.RangeK(), restart);
 }
 

@@ -21,7 +21,7 @@
 #include "inviscidFlux.hpp"
 #include "eos.hpp"
 #include "thermodynamic.hpp"
-#include "primVars.hpp"
+#include "primative.hpp"
 #include "genArray.hpp"
 #include "matrix.hpp"
 #include "turbulence.hpp"
@@ -60,12 +60,12 @@ w -- specific turbulent dissipation
 Constructor is put in a private member function because identical code is
 used for constructing from primative variables and conservative variables
 once the conservative variables have been changed to primative variables.
-The C++11 way of delegating constructors is not used because the primVars
+The C++11 way of delegating constructors is not used because the primative
 class is not fully defined in the inviscidFlux.hpp header. This way both
-constructors (primVars version and genArray version) can call this function
+constructors (primative version and genArray version) can call this function
 to avoid code duplication.
 */
-void inviscidFlux::ConstructFromPrim(const primVars &state,
+void inviscidFlux::ConstructFromPrim(const primative &state,
                                      const unique_ptr<eos> &eqnState,
                                      const unique_ptr<thermodynamic> &thermo,
                                      const vector3d<double> &normArea) {
@@ -139,7 +139,7 @@ characteristic waves, L represents the wave speeds, and (Cr - Cl) represents the
 wave strength across the face.
 
 */
-inviscidFlux RoeFlux(const primVars &left, const primVars &right,
+inviscidFlux RoeFlux(const primative &left, const primative &right,
                      const unique_ptr<eos> &eqnState,
                      const unique_ptr<thermodynamic> &thermo,
                      const vector3d<double> &areaNorm) {
@@ -307,7 +307,7 @@ inviscidFlux RoeFlux(const primVars &left, const primVars &right,
 
    F = M^+_l * c * F_cl + M^-_r * c * F_cr + P^+_l * P_l + P^-_r * P_r
 */
-inviscidFlux AUSMFlux(const primVars &left, const primVars &right,
+inviscidFlux AUSMFlux(const primative &left, const primative &right,
                      const unique_ptr<eos> &eqnState,
                      const unique_ptr<thermodynamic> &thermo,
                      const vector3d<double> &area) {
@@ -376,7 +376,7 @@ inviscidFlux AUSMFlux(const primVars &left, const primVars &right,
   return ausm;
 }
 
-void inviscidFlux::AUSMFlux(const primVars &left, const primVars &right,
+void inviscidFlux::AUSMFlux(const primative &left, const primative &right,
                             const unique_ptr<eos> &eqnState,
                             const unique_ptr<thermodynamic> &thermo,
                             const vector3d<double> &area,
@@ -420,7 +420,7 @@ void inviscidFlux::AUSMFlux(const primVars &left, const primVars &right,
   }
 }
 
-inviscidFlux InviscidFlux(const primVars &left, const primVars &right,
+inviscidFlux InviscidFlux(const primative &left, const primative &right,
                           const unique_ptr<eos> &eqnState,
                           const unique_ptr<thermodynamic> &thermo,
                           const vector3d<double> &area, const string &flux) {
@@ -438,7 +438,7 @@ inviscidFlux InviscidFlux(const primVars &left, const primVars &right,
   return invFlux;
 }
 
-inviscidFlux RusanovFlux(const primVars &left, const primVars &right,
+inviscidFlux RusanovFlux(const primative &left, const primative &right,
                          const unique_ptr<eos> &eqnState,
                          const unique_ptr<thermodynamic> &thermo,
                          const vector3d<double> &areaNorm,
@@ -491,8 +491,8 @@ ostream &operator<<(ostream &os, const inviscidFlux &flux) {
 // function to take in the primative variables, equation of state, face area
 // vector, and conservative variable update and calculate the change in the
 // convective flux
-genArray ConvectiveFluxUpdate(const primVars &state,
-                              const primVars &stateUpdate,
+genArray ConvectiveFluxUpdate(const primative &state,
+                              const primative &stateUpdate,
                               const unique_ptr<eos> &eqnState,
                               const unique_ptr<thermodynamic> &thermo,
                               const vector3d<double> &normArea) {

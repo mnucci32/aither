@@ -22,7 +22,7 @@
 
 #include "vector3d.hpp"
 #include "tensor.hpp"
-#include "primVars.hpp"
+#include "primative.hpp"
 
 using std::unique_ptr;
 
@@ -38,7 +38,7 @@ class wallLaw {
   const double vonKarmen_;
   const double wallConst_;
   const double wallDist_;
-  const primVars state_;
+  const primative state_;
 
   double yplus0_;
   double beta_;
@@ -76,7 +76,7 @@ class wallLaw {
 
  public:
   // constructor
-  wallLaw(const double &k, const double &c, const primVars &s, const double &d,
+  wallLaw(const double &k, const double &c, const primative &s, const double &d,
           const bool &isRANS)
       : isRANS_(isRANS),
         vonKarmen_(k),
