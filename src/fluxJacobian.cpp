@@ -56,7 +56,7 @@ fluxJacobian::fluxJacobian(const int &flowSize, const int &turbSize) {
 
 // member functions
 // member function to multiply the flux jacobians with a varArray type
-template <typename T>
+template <typename T, typename TT>
 T fluxJacobian::ArrayMult(T arr) const {
   if (this->IsScalar()) {
     for (auto ii = 0; ii < arr.TurbulenceIndex(); ++ii) {

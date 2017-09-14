@@ -20,11 +20,15 @@
 
 #include <iostream>        // cout
 #include <algorithm>       // max
+#include <type_traits>
 
 using std::cout;
 using std::endl;
 using std::cerr;
 using std::ostream;
+
+// forward class declarations
+class varArray;
 
 // This class holds variables that may be different for each set of
 // equations being solved. For example the spectral radii of the flow
@@ -65,7 +69,8 @@ class uncoupledScalar {
     turbVar_ = 0.0;
   }
 
-  template <typename T>
+  template <typename T, 
+            typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
   T ArrayMult(T) const;
 
   inline uncoupledScalar & operator+=(const uncoupledScalar &);

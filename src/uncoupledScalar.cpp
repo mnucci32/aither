@@ -24,8 +24,7 @@ using std::cerr;
 
 // member functions
 // member function to multiply the scalars with a varArray
-template <typename T,
-          typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
+template <typename T, typename TT>
 T uncoupledScalar::ArrayMult(T arr) const {
   for (auto ii = 0; ii < T.TurbulenceIndex(); ++ii) {
     arr[ii] *= flowVar_;

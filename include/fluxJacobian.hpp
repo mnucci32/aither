@@ -20,6 +20,7 @@
 
 #include <vector>          // vector
 #include <memory>          // unique_ptr
+#include <type_traits>
 #include "vector3d.hpp"
 #include "tensor.hpp"
 #include "uncoupledScalar.hpp"
@@ -105,7 +106,8 @@ class fluxJacobian {
     turbJacobian_.Zero();
   }
 
-  template <typename T>
+  template <typename T, 
+            typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
   T ArrayMult(T) const;
   bool IsScalar() const;
   void Inverse(const bool &);
