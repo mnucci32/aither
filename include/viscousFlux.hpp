@@ -39,11 +39,11 @@ class turbModel;
 class squareMatrix;
 struct wallVars;
 
-class viscousFlux : public residual {
+class viscousFlux : public varArray {
  public:
   // constructors
   viscousFlux(const int &numEqns, const int &numSpecies)
-      : residual(numEqns, numSpecies) {}
+      : varArray(numEqns, numSpecies) {}
 
   // move constructor and assignment operator
   viscousFlux(viscousFlux&&) noexcept = default;

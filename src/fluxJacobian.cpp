@@ -22,13 +22,13 @@
 #include "fluxJacobian.hpp"
 #include "turbulence.hpp"     // turbModel
 #include "input.hpp"          // input
-#include "primative.hpp"       // primative
-#include "genArray.hpp"       // genArray
+#include "primative.hpp"      // primative
 #include "inviscidFlux.hpp"   // ConvectiveFluxUpdate
 #include "utility.hpp"        // TauNormal
 #include "transport.hpp"      // transport model
 #include "eos.hpp"            // equation of state
 #include "thermodynamic.hpp"  // thermodynamic model
+#include "conserved.hpp"      // conserved
 
 using std::cout;
 using std::endl;
@@ -55,17 +55,16 @@ fluxJacobian::fluxJacobian(const int &flowSize, const int &turbSize) {
 
 
 // member functions
-// member function to multiply the flux jacobians with a genArray
-genArray fluxJacobian::ArrayMult(genArray arr) const {
+// member function to multiply the flux jacobians with a varArray type
+template <typename T>
+T fluxJacobian::ArrayMult(T arr) const {
   if (this->IsScalar()) {
-    arr[0] *= flowJacobian_(0, 0);
-    arr[1] *= flowJacobian_(0, 0);
-    arr[2] *= flowJacobian_(0, 0);
-    arr[3] *= flowJacobian_(0, 0);
-    arr[4] *= flowJacobian_(0, 0);
-
-    arr[5] *= turbJacobian_(0, 0);
-    arr[6] *= turbJacobian_(0, 0);
+    for (auto ii = 0; ii < arr.TurbulenceIndex(); ++ii) {
+      arr[ii] *= flowJacobian_(0, 0);
+    }
+    for (auto ii = arr.TurbulenceIndex(); ii < arr.Size(); ++ii) {
+      arr[ii] *= turbJacobian_(0, 0);
+    }
   } else {
     arr = flowJacobian_.ArrayMult(arr);
     arr = turbJacobian_.ArrayMult(arr, flowJacobian_.Size());
@@ -399,7 +398,7 @@ ostream &operator<<(ostream &os, const fluxJacobian &jacobian) {
   return os;
 }
 
-genArray RusanovScalarOffDiagonal(const primative &state, const conserved &update,
+varArray RusanovScalarOffDiagonal(const primative &state, const conserved &update,
                                   const unitVec3dMag<double> &fArea,
                                   const double &mu, const double &mut,
                                   const double &f1, const double &dist,
@@ -446,8 +445,8 @@ genArray RusanovScalarOffDiagonal(const primative &state, const conserved &updat
     fluxChange - specRad.ArrayMult(update);
 }
 
-genArray RusanovBlockOffDiagonal(
-    const primative &state, const genArray &update,
+varArray RusanovBlockOffDiagonal(
+    const primative &state, const conserved &update,
     const unitVec3dMag<double> &fArea, const double &mu, const double &mut,
     const double &f1, const double &dist, const unique_ptr<eos> &eqnState,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
@@ -484,8 +483,8 @@ genArray RusanovBlockOffDiagonal(
   return jacobian.ArrayMult(update);
 }
 
-genArray OffDiagonal(const primative &offDiag, const primative &diag,
-                     const genArray &update, const unitVec3dMag<double> &fArea,
+varArray OffDiagonal(const primative &offDiag, const primative &diag,
+                     const conserved &update, const unitVec3dMag<double> &fArea,
                      const double &mu, const double &mut, const double &f1,
                      const double &dist, const tensor<double> &vGrad,
                      const unique_ptr<eos> &eqnState,
@@ -509,7 +508,7 @@ genArray OffDiagonal(const primative &offDiag, const primative &diag,
   // input -- input variables
   // positive -- flag to determine whether to add or subtract dissipation
 
-  genArray offDiagonal(0.0);
+  varArray offDiagonal(update.Size(), update.NumSpecies());
 
   if (inp.InvFluxJac() == "rusanov") {
     if (inp.IsBlockMatrix()) {
@@ -537,7 +536,7 @@ genArray OffDiagonal(const primative &offDiag, const primative &diag,
 }
 
 
-genArray RoeOffDiagonal(const primative &offDiag, const primative &diag,
+varArray RoeOffDiagonal(const primative &offDiag, const primative &diag,
                         const conserved &update,
                         const unitVec3dMag<double> &fArea,
                         const double &mu, const double &mut,
@@ -581,7 +580,7 @@ genArray RoeOffDiagonal(const primative &offDiag, const primative &diag,
     RoeFlux(diag, stateUpdate, eqnState, thermo, areaNorm);
 
   // don't need 0.5 factor on roe flux because RoeFlux function already does it
-  const auto fluxChange = fArea.Mag() * (newFlux - oldFlux).ConvertToGenArray();
+  const auto fluxChange = fArea.Mag() * (newFlux - oldFlux);
   
   // add contribution for viscous terms
   uncoupledScalar specRad(0.0, 0.0);

@@ -38,7 +38,6 @@ class transport;
 class thermodynamic;
 class turbModel;
 class input;
-class genArray;
 
 // This class holds the flux jacobians for the flow and turbulence equations.
 // In the LU-SGS method the jacobians are scalars.
@@ -106,7 +105,8 @@ class fluxJacobian {
     turbJacobian_.Zero();
   }
 
-  genArray ArrayMult(genArray) const;
+  template <typename T>
+  T ArrayMult(T) const;
   bool IsScalar() const;
   void Inverse(const bool &);
 
@@ -243,7 +243,7 @@ inline const fluxJacobian operator/(const double &lhs, fluxJacobian rhs) {
 
 ostream &operator<<(ostream &os, const fluxJacobian &jacobian);
 
-genArray RusanovScalarOffDiagonal(const primative &, const conserved &,
+varArray RusanovScalarOffDiagonal(const primative &, const conserved &,
                                   const unitVec3dMag<double> &,
                                   const double &, const double &,
                                   const double &, const double &,
@@ -252,7 +252,7 @@ genArray RusanovScalarOffDiagonal(const primative &, const conserved &,
                                   const unique_ptr<transport> &,
                                   const unique_ptr<turbModel> &,
                                   const bool &, const bool &);
-genArray RusanovBlockOffDiagonal(const primative &, const genArray &,
+varArray RusanovBlockOffDiagonal(const primative &, const conserved &,
                                  const unitVec3dMag<double> &,
                                  const double &, const double &,
                                  const double &, const double &,
@@ -263,7 +263,7 @@ genArray RusanovBlockOffDiagonal(const primative &, const genArray &,
                                  const input &, const bool &,
                                  const tensor<double> &);
 
-genArray RoeOffDiagonal(const primative &, const primative &,
+varArray RoeOffDiagonal(const primative &, const primative &,
                         const conserved &,
                         const unitVec3dMag<double> &, const double &,
                         const double &, const double &,
@@ -273,7 +273,7 @@ genArray RoeOffDiagonal(const primative &, const primative &,
                         const unique_ptr<turbModel> &, const bool &,
                         const bool &, const bool &);
 
-genArray OffDiagonal(const primative &, const primative &, const genArray &,
+varArray OffDiagonal(const primative &, const primative &, const conserved &,
                      const unitVec3dMag<double> &, const double &,
                      const double &, const double &, const double &,
                      const tensor<double> &, const unique_ptr<eos> &,

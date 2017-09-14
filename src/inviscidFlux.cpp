@@ -22,7 +22,6 @@
 #include "eos.hpp"
 #include "thermodynamic.hpp"
 #include "primative.hpp"
-#include "genArray.hpp"
 #include "matrix.hpp"
 #include "turbulence.hpp"
 #include "utility.hpp"
@@ -62,7 +61,7 @@ used for constructing from primative variables and conservative variables
 once the conservative variables have been changed to primative variables.
 The C++11 way of delegating constructors is not used because the primative
 class is not fully defined in the inviscidFlux.hpp header. This way both
-constructors (primative version and genArray version) can call this function
+constructors (primative version and conserved version) can call this function
 to avoid code duplication.
 */
 void inviscidFlux::ConstructFromPrim(const primative &state,
@@ -168,7 +167,7 @@ inviscidFlux RoeFlux(const primative &left, const primative &right,
   const auto normVelDiff = delta.Velocity().DotProd(areaNorm);
 
   // calculate wave strengths (Cr - Cl)
-  vector<double> waveStrenth(left.NumEquations() - 1);
+  vector<double> waveStrength(left.Size() - 1);
   waveStrength[0] =
       (delta.P() - roe.Rho() * aR * normVelDiff) / (2.0 * aR * aR);
   waveStrength[1] = delta.Rho() - delta.P() / (aR * aR);
@@ -182,7 +181,7 @@ inviscidFlux RoeFlux(const primative &left, const primative &right,
   }
 
   // calculate absolute value of wave speeds (L)
-  vector<double> waveSpeed(left.NumEquations() - 1);
+  vector<double> waveSpeed(left.Size() - 1);
   waveSpeed[0] = fabs(velRSum - aR);  // left moving acoustic wave speed
   waveSpeed[1] = fabs(velRSum);       // entropy wave speed
   waveSpeed[2] = fabs(velRSum + aR);  // right moving acoustic wave speed
@@ -206,7 +205,7 @@ inviscidFlux RoeFlux(const primative &left, const primative &right,
   
   // calculate right eigenvectors (T)
   // calculate eigenvector due to left acoustic wave
-  varArray lAcousticEigV(left.NumEquations(), left.NumSpecies());
+  varArray lAcousticEigV(left.Size(), left.NumSpecies());
   for (auto ii = 0; ii < lAcousticEigV.NumSpecies(); ++ii) {
     lAcousticEigV[ii] = 1.0;
   }
@@ -219,7 +218,7 @@ inviscidFlux RoeFlux(const primative &left, const primative &right,
   }
 
   // calculate eigenvector due to entropy wave
-  varArray entropyEigV(left.NumEquations(), left.NumSpecies());
+  varArray entropyEigV(left.Size(), left.NumSpecies());
   for (auto ii = 0; ii < entropyEigV.NumSpecies(); ++ii) {
     entropyEigV[ii] = 1.0;
   }
@@ -230,7 +229,7 @@ inviscidFlux RoeFlux(const primative &left, const primative &right,
   // turbulence values are zero
 
   // calculate eigenvector due to right acoustic wave
-  varArray rAcousticEigV(left.NumEquations(), left.NumSpecies());
+  varArray rAcousticEigV(left.Size(), left.NumSpecies());
   for (auto ii = 0; ii < rAcousticEigV.NumSpecies(); ++ii) {
     rAcousticEigV[ii] = 1.0;
   }
@@ -243,7 +242,7 @@ inviscidFlux RoeFlux(const primative &left, const primative &right,
   }
 
   // calculate eigenvector due to shear wave
-  varArray shearEigV(left.NumEquations(), left.NumSpecies());
+  varArray shearEigV(left.Size(), left.NumSpecies());
   for (auto ii = 0; ii < shearEigV.NumSpecies(); ++ii) {
     shearEigV[ii] = 0.0;
   }
@@ -258,19 +257,19 @@ inviscidFlux RoeFlux(const primative &left, const primative &right,
   // turbulence values are zero
 
   // calculate eigenvector due to turbulent equation 1
-  varArray tkeEigV(left.NumEquations(), left.NumSpecies());
+  varArray tkeEigV(left.Size(), left.NumSpecies());
   if (tkeEigV.HasTurbulenceData()) {
     tkeEigV[tkeEigV.TurbulenceIndex()] = 1.0;
   }
 
   // calculate eigenvector due to turbulent equation 2
-  varArray omgEigV(left.NumEquations(), left.NumSpecies());
+  varArray omgEigV(left.Size(), left.NumSpecies());
   if (omgEigV.HasTurbulenceData() && omgEigV.NumTurbulence() > 1) {
     omgEigV[omgEigV.TurbulenceIndex() + 1] = 1.0;
   }
 
   // calculate dissipation term ( eigenvector * wave speed * wave strength)
-  varArray dissipation(left.NumEquations(), left.NumSpecies());
+  varArray dissipation(left.Size(), left.NumSpecies());
   for (auto ii = 0; ii < dissipation.Size(); ii++) {
     // contribution from left acoustic wave
     // contribution from entropy wave
@@ -469,7 +468,7 @@ inviscidFlux RusanovFlux(const primative &left, const primative &right,
 /* Member function to calculate the Roe flux, given the left and right
  * convective fluxes as well as the dissipation term.
 */
-void inviscidFlux::RoeFlux(const inviscidFlux &right, const genArray &diss) {
+void inviscidFlux::RoeFlux(const inviscidFlux &right, const varArray &diss) {
   // right -- right convective flux
   // diss -- dissipation term
 
@@ -489,21 +488,18 @@ ostream &operator<<(ostream &os, const inviscidFlux &flux) {
 }
 
 // function to take in the primative variables, equation of state, face area
-// vector, and conservative variable update and calculate the change in the
+// vector, and primative variable update and calculate the change in the
 // convective flux
-genArray ConvectiveFluxUpdate(const primative &state,
-                              const primative &stateUpdate,
-                              const unique_ptr<eos> &eqnState,
-                              const unique_ptr<thermodynamic> &thermo,
-                              const vector3d<double> &normArea) {
+inviscidFlux ConvectiveFluxUpdate(const primative &state,
+                                  const primative &stateUpdate,
+                                  const unique_ptr<eos> &eqnState,
+                                  const unique_ptr<thermodynamic> &thermo,
+                                  const vector3d<double> &normArea) {
   // get inviscid flux of old state
   const inviscidFlux oldFlux(state, eqnState, thermo, normArea);
-
   // get updated inviscid flux
   const inviscidFlux newFlux(stateUpdate, eqnState, thermo, normArea);
 
   // calculate difference in flux
-  const auto dFlux = newFlux - oldFlux;
-
-  return dFlux.ConvertToGenArray();
+  return newFlux - oldFlux;
 }

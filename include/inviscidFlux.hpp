@@ -24,6 +24,7 @@
 #include <memory>        // unique_ptr
 #include "vector3d.hpp"  // vector3d
 #include "varArray.hpp"
+#include "primative.hpp"
 
 using std::vector;
 using std::string;
@@ -36,12 +37,11 @@ using std::unique_ptr;
 // forward class declaration
 class eos;
 class thermodynamic;
-class primative;
 class conserved;
 class squareMatrix;
 class turbModel;
 
-class inviscidFlux : public residual {
+class inviscidFlux : public varArray {
   // private member functions
   void ConstructFromPrim(const primative &, const unique_ptr<eos> &,
                          const unique_ptr<thermodynamic> &,
@@ -50,7 +50,7 @@ class inviscidFlux : public residual {
  public:
   // constructors
   inviscidFlux(const int &numEqns, const int &numSpecies)
-      : residual(numEqns, numSpecies) {}
+      : varArray(numEqns, numSpecies) {}
   inviscidFlux() : inviscidFlux(0, 0) {}
   inviscidFlux(const primative &state, const unique_ptr<eos> &eqnState,
                const unique_ptr<thermodynamic> &thermo,
@@ -76,7 +76,8 @@ class inviscidFlux : public residual {
   inviscidFlux& operator=(const inviscidFlux&) = default;
 
   // member functions
-  void RoeFlux(const inviscidFlux&, const genArray&);
+  const double & MassN(const int &ii) const { return this->SpeciesN(ii); }
+  void RoeFlux(const inviscidFlux&, const varArray&);
   void AUSMFlux(const primative &, const primative &, const unique_ptr<eos> &,
                 const unique_ptr<thermodynamic> &, const vector3d<double> &,
                 const double &, const double &, const double &, const double &,
@@ -109,10 +110,10 @@ void ApproxRoeFluxJacobian(const primative &, const primative &,
                            const unique_ptr<eos> &, const vector3d<double> &,
                            double &, squareMatrix &, squareMatrix &);
 
-genArray ConvectiveFluxUpdate(const primative &, const primative &,
-                              const unique_ptr<eos> &,
-                              const unique_ptr<thermodynamic> &,
-                              const vector3d<double> &);
+inviscidFlux ConvectiveFluxUpdate(const primative &, const primative &,
+                                  const unique_ptr<eos> &,
+                                  const unique_ptr<thermodynamic> &,
+                                  const vector3d<double> &);
 
 ostream &operator<<(ostream &os, const inviscidFlux &);
 

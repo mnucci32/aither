@@ -26,20 +26,3 @@ using std::cerr;
 // ------------------------------------------------------------------
 // functions for varArray class
 
-// operation overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, const varArray &m) {
-  for (auto rr = 0; rr < m.Size(); rr++) {
-    os << m[rr] << endl;
-  }
-  return os;
-}
-
-// operation overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, const residual &m) {
-  for (auto rr = 0; rr < m.Size(); rr++) {
-    os << m[rr] << endl;
-  }
-  return os;
-}
-
-

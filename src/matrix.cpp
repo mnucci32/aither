@@ -19,7 +19,7 @@
 #include <iostream>  // cout
 #include <algorithm>  // swap
 #include "matrix.hpp"
-#include "genArray.hpp"
+#include "varArray.hpp"
 
 using std::cout;
 using std::endl;
@@ -165,19 +165,20 @@ void squareMatrix::Identity() {
   }
 }
 
-// member function to do matrix/vector multplication
-genArray squareMatrix::ArrayMult(const genArray &vec, const int pos) const {
+// member function to do matrix/vector multplication with varArray type
+template <typename T>
+T squareMatrix::ArrayMult(const T &vec, const int pos) const {
   // vec -- vector to multiply with
 
   auto product = vec;
 
-  // zero out portion of genArray that will be written over
+  // zero out portion of array that will be written over
   if (pos == 0) {
-    for (auto ii = 0; ii < NUMFLOWVARS; ii++) {
+    for (auto ii = 0; ii < T.TurbulenceIndex(); ii++) {
       product[ii] = 0.0;
     }
   } else {
-    for (auto ii = pos; ii < NUMVARS; ii++) {
+    for (auto ii = pos; ii < T.Size(); ii++) {
       product[ii] = 0.0;
     }
   }

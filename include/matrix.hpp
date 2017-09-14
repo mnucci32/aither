@@ -25,9 +25,6 @@
 using std::ostream;
 using std::vector;
 
-// forward class declarations
-class genArray;
-
 // class to store a square matrix
 class squareMatrix {
   int size_;
@@ -61,7 +58,8 @@ class squareMatrix {
   void Zero();
   void Identity();
   squareMatrix MatMult(const squareMatrix &) const;
-  genArray ArrayMult(const genArray &, const int = 0) const;
+  template <typename T>
+  T ArrayMult(const T &, const int = 0) const;
   double MaxAbsValOnDiagonal() const;
 
   // operator overloads

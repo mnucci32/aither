@@ -22,6 +22,7 @@
 #include <numeric>
 #include <algorithm>
 #include <cmath>
+#include <type_traits>
 #include "macros.hpp"
 
 using std::ostream;
@@ -87,8 +88,8 @@ class varArray {
                   [](double &val) { val = sqrt(val); });
   }
   bool IsZero() const {
-    std::all_of(std::begin(data_), std::end(data_),
-                [](const double &val) { return val == 0.0; });
+    return std::all_of(std::begin(data_), std::end(data_),
+                       [](const double &val) { return val == 0.0; });
   }
   varArray Squared() const {
     auto sq = (*this);
@@ -191,19 +192,27 @@ varArray & varArray::operator/=(const T &arr) {
   return *this;
 }
 
-inline const varArray operator+(varArray lhs, const varArray &rhs) {
+template <typename T,
+          typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
+inline const T operator+(T lhs, const T &rhs) {
   return lhs += rhs;
 }
 
-inline const varArray operator-(varArray lhs, const varArray &rhs) {
+template <typename T,
+          typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
+inline const T operator-(T lhs, const T &rhs) {
   return lhs -= rhs;
 }
 
-inline const varArray operator*(varArray lhs, const varArray &rhs) {
+template <typename T,
+          typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
+inline const T operator*(T lhs, const T &rhs) {
   return lhs *= rhs;
 }
 
-inline const varArray operator/(varArray lhs, const varArray &rhs) {
+template <typename T,
+          typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
+inline const T operator/(T lhs, const T &rhs) {
   return lhs /= rhs;
 }
 
@@ -240,29 +249,44 @@ varArray & varArray::operator/=(const double &scalar) {
   return *this;
 }
 
-inline const varArray operator+(const double &lhs, varArray rhs) {
+template <typename T,
+          typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
+inline const T operator+(const double &lhs, T rhs) {
   return rhs += lhs;
 }
 
-inline const varArray operator-(const double &lhs, varArray rhs) {
+template <typename T,
+          typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
+inline const T operator-(const double &lhs, T rhs) {
   for (auto rr = 0; rr < rhs.Size(); rr++) {
     rhs[rr] = lhs - rhs[rr];
   }
   return rhs;
 }
 
-inline const varArray operator*(const double &lhs, varArray rhs) {
+template <typename T,
+          typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
+inline const T operator*(const double &lhs, T rhs) {
   return rhs *= lhs;
 }
 
-inline const varArray operator/(const double &lhs, varArray rhs) {
+template <typename T,
+          typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
+inline const T operator/(const double &lhs, T rhs) {
   for (auto rr = 0; rr < rhs.Size(); rr++) {
     rhs[rr] = lhs / rhs[rr];
   }
   return rhs;
 }
 
-ostream &operator<<(ostream &os, const varArray &);
+template <typename T,
+          typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
+ostream &operator<<(ostream &os, const T &m) {
+  for (auto rr = 0; rr < m.Size(); rr++) {
+    os << m[rr] << std::endl;
+  }
+  return os;
+}
 
 // --------------------------------------------------------------------------
 // Derived wrapper classes for different variable types
@@ -287,8 +311,6 @@ class residual : public varArray {
   // destructor
   virtual ~residual() noexcept {}
 };
-
-ostream &operator<<(ostream &os, const residual &);
 
 
 #endif

@@ -33,7 +33,6 @@ set(sources
   eos.cpp
   fluid.cpp
   fluxJacobian.cpp
-  genArray.cpp
   input.cpp
   inputStates.cpp
   inviscidFlux.cpp
