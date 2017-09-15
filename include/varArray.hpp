@@ -131,12 +131,7 @@ class varArray {
 
   inline varArray & operator+=(const double &);
   inline varArray & operator-=(const double &);
-  inline auto & operator*=(const double &scalar) {
-    for (auto &val : data_) {
-      val *= scalar;
-    }
-    return *this;
-  }
+  inline varArray & operator*=(const double &);
   inline varArray & operator/=(const double &);
 
   template <typename T, 
@@ -173,7 +168,7 @@ class varArray {
 template <typename T, typename TT>
 T & varArray::operator+=(const T &arr) {
   MSG_ASSERT(this->Size() == arr.Size(), "array types must be same size");
-  for (auto rr = 0; rr < this->Size(); rr++) {
+  for (auto rr = 0; rr < this->Size(); ++rr) {
     data_[rr] += arr[rr];
   }
   return *this;
@@ -183,7 +178,7 @@ T & varArray::operator+=(const T &arr) {
 template <typename T, typename TT>
 T & varArray::operator-=(const T &arr) {
   MSG_ASSERT(this->Size() == arr.Size(), "array types must be same size");
-  for (auto rr = 0; rr < this->Size(); rr++) {
+  for (auto rr = 0; rr < this->Size(); ++rr) {
     data_[rr] -= arr[rr];
   }
   return *this;
@@ -193,7 +188,7 @@ T & varArray::operator-=(const T &arr) {
 template <typename T, typename TT>
 T & varArray::operator*=(const T &arr) {
   MSG_ASSERT(this->Size() == arr.Size(), "array types must be same size");
-  for (auto rr = 0; rr < this->Size(); rr++) {
+  for (auto rr = 0; rr < this->Size(); ++rr) {
     data_[rr] *= arr[rr];
   }
   return *this;
@@ -203,7 +198,7 @@ T & varArray::operator*=(const T &arr) {
 template <typename T, typename TT>
 T & varArray::operator/=(const T &arr) {
   MSG_ASSERT(this->Size() == arr.Size(), "array types must be same size");
-  for (auto rr = 0; rr < this->Size(); rr++) {
+  for (auto rr = 0; rr < this->Size(); ++rr) {
     data_[rr] /= arr[rr];
   }
   return *this;
@@ -241,7 +236,7 @@ inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value &&
                                        !(std::is_base_of<T1, T2>::value ||
                                          std::is_base_of<T2, T1>::value), varArray>
 operator+(T1 lhs, const T2 &rhs) {
-  return lhs += rhs;
+  return lhs += dynamic_cast<const varArray &>(rhs);
 }
 
 // operator overload for same type subtraction
@@ -276,7 +271,7 @@ inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value &&
                                        !(std::is_base_of<T1, T2>::value ||
                                          std::is_base_of<T2, T1>::value), varArray>
 operator-(T1 lhs, const T2 &rhs) {
-  return lhs -= rhs;
+  return lhs -= dynamic_cast<const varArray &>(rhs);
 }
 
 
@@ -312,7 +307,7 @@ inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value &&
                                        !(std::is_base_of<T1, T2>::value ||
                                          std::is_base_of<T2, T1>::value), varArray>
 operator*(T1 lhs, const T2 &rhs) {
-  return lhs *= rhs;
+  return lhs *= dynamic_cast<const varArray &>(rhs);
 }
 
 // operator overload for same type division
@@ -347,7 +342,7 @@ inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value &&
                                        !(std::is_base_of<T1, T2>::value ||
                                          std::is_base_of<T2, T1>::value), varArray>
 operator/(T1 lhs, const T2 &rhs) {
-  return lhs /= rhs;
+  return lhs /= dynamic_cast<const varArray &>(rhs);
 }
 
 
@@ -369,12 +364,12 @@ varArray & varArray::operator-=(const double &scalar) {
 }
 
 // operator overload for elementwise multiplication
-//auto & varArray::operator*=(const double &scalar) {
-//  for (auto &val : data_) {
-//    val *= scalar;
-//  }
-//  return *this;
-//}
+varArray & varArray::operator*=(const double &scalar) {
+  for (auto &val : data_) {
+    val *= scalar;
+  }
+  return *this;
+}
 
 // operator overload for elementwise division
 varArray & varArray::operator/=(const double &scalar) {
@@ -387,8 +382,7 @@ varArray & varArray::operator/=(const double &scalar) {
 template <typename T,
           typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
 inline const T operator+(const double &lhs, T rhs) {
-  // return rhs += lhs;
-  for (auto rr = 0; rr < rhs.Size(); rr++) {
+  for (auto rr = 0; rr < rhs.Size(); ++rr) {
     rhs[rr] += lhs;
   }
   return rhs;
@@ -397,7 +391,7 @@ inline const T operator+(const double &lhs, T rhs) {
 template <typename T,
           typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
 inline const T operator-(const double &lhs, T rhs) {
-  for (auto rr = 0; rr < rhs.Size(); rr++) {
+  for (auto rr = 0; rr < rhs.Size(); ++rr) {
     rhs[rr] = lhs - rhs[rr];
   }
   return rhs;
@@ -406,8 +400,7 @@ inline const T operator-(const double &lhs, T rhs) {
 template <typename T,
           typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
 inline const T operator*(const double &lhs, T rhs) {
-  // return rhs *= lhs;
-  for (auto rr = 0; rr < rhs.Size(); rr++) {
+  for (auto rr = 0; rr < rhs.Size(); ++rr) {
     rhs[rr] *= lhs;
   }
   return rhs;
@@ -416,7 +409,7 @@ inline const T operator*(const double &lhs, T rhs) {
 template <typename T,
           typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
 inline const T operator/(const double &lhs, T rhs) {
-  for (auto rr = 0; rr < rhs.Size(); rr++) {
+  for (auto rr = 0; rr < rhs.Size(); ++rr) {
     rhs[rr] = lhs / rhs[rr];
   }
   return rhs;
@@ -425,7 +418,7 @@ inline const T operator/(const double &lhs, T rhs) {
 template <typename T,
           typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
 ostream &operator<<(ostream &os, const T &m) {
-  for (auto rr = 0; rr < m.Size(); rr++) {
+  for (auto rr = 0; rr < m.Size(); ++rr) {
     os << m[rr] << std::endl;
   }
   return os;
