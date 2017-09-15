@@ -36,12 +36,13 @@ class eos;
 class transport;
 class thermodynamic;
 class input;
-class genArray;
+class residual;
 class turbModel;
 class fluxJacobian;
 class kdtree;
 class resid;
 class primative;
+class varArray;
 
 // function definitions
 template <typename T>
@@ -84,17 +85,17 @@ void AssignSolToTimeNm1(vector<procBlock> &);
 void ExplicitUpdate(vector<procBlock> &, const input &, const unique_ptr<eos> &,
                     const unique_ptr<thermodynamic> &,
                     const unique_ptr<transport> &,
-                    const unique_ptr<turbModel> &, const int &, genArray &,
+                    const unique_ptr<turbModel> &, const int &, residual &,
                     resid &);
 double ImplicitUpdate(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
                       const input &, const unique_ptr<eos> &,
                       const unique_ptr<thermodynamic> &,
                       const unique_ptr<transport> &,
-                      const unique_ptr<turbModel> &, const int &, genArray &,
+                      const unique_ptr<turbModel> &, const int &, residual &,
                       resid &, const vector<connection> &, const int &,
                       const MPI_Datatype &);
 
-void SwapImplicitUpdate(vector<multiArray3d<genArray>> &,
+void SwapImplicitUpdate(vector<multiArray3d<varArray>> &,
                         const vector<connection> &, const int &,
                         const MPI_Datatype &, const int &);
 void SwapTurbVars(vector<procBlock> &, const vector<connection> &, const int &,
@@ -113,10 +114,6 @@ void CalcResidual(vector<procBlock> &, vector<multiArray3d<fluxJacobian>> &,
                   const MPI_Datatype &);
 
 void CalcTimeStep(vector<procBlock> &, const input &);
-
-// void GetSolMMinusN(vector<multiArray3d<genArray>> &, const vector<procBlock> &,
-//                    const vector<multiArray3d<genArray>> &,
-//                    const unique_ptr<eos> &, const input &, const int &);
 
 // function to reorder block by hyperplanes
 vector<vector3d<int>> HyperplaneReorder(const int &, const int &, const int &);

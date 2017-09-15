@@ -27,9 +27,10 @@
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"            // vector3d
 #include "multiArray3d.hpp"        // multiArray3d
+#include "blkMultiArray3d.hpp"     // blkMultiArray3d
 #include "tensor.hpp"              // tensor
-#include "primative.hpp"            // primative
-#include "genArray.hpp"            // genArray
+#include "primative.hpp"           // primative
+#include "varArray.hpp"            // varArray
 #include "boundaryConditions.hpp"  // connection, patch
 #include "macros.hpp"
 #include "uncoupledScalar.hpp"     // uncoupledScalar
@@ -58,11 +59,11 @@ class fluxJacobian;
 class kdtree;
 
 class procBlock {
-  multiArray3d<primative> state_;  // primative variables at cell center
-  multiArray3d<genArray> consVarsN_;  // conserved variables at time n
-  multiArray3d<genArray> consVarsNm1_;  // conserved variables at time n-1
+  blkMultiArray3d<double> state_;  // primative variables at cell center
+  blkMultiArray3d<double> consVarsN_;  // conserved variables at time n
+  blkMultiArray3d<double> consVarsNm1_;  // conserved variables at time n-1
 
-  multiArray3d<genArray> residual_;  // cell residual
+  blkMultiArray3d<double> residual_;  // cell residual
 
   multiArray3d<unitVec3dMag<double>> fAreaI_;  // face area vector for i-faces
   multiArray3d<unitVec3dMag<double>> fAreaJ_;  // face area vector for j-faces

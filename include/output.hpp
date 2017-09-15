@@ -45,7 +45,7 @@ using std::ostream;
 
 // forward class declarations
 class procBlock;
-class genArray;
+class conserved;
 class decomposition;
 class eos;
 class transport;
@@ -54,6 +54,7 @@ class resid;
 class input;
 class turbModel;
 class primative;
+class residual;
 
 // function definitions
 template<typename T>
@@ -75,12 +76,12 @@ void WriteWallMeta(const input &, const int &);
 
 void WriteRestart(const vector<procBlock> &, const unique_ptr<eos> &,
                   const unique_ptr<transport> &, const int &,
-                  const decomposition &, const input &, const genArray &);
+                  const decomposition &, const input &, const residual &);
 void ReadRestart(vector<procBlock> &, const string &, const decomposition &,
                  input &, const unique_ptr<eos> &,
                  const unique_ptr<thermodynamic> &,
                  const unique_ptr<transport> &, const unique_ptr<turbModel> &,
-                 genArray &, const vector<vector3d<int>> &);
+                 residual &, const vector<vector3d<int>> &);
 
 multiArray3d<primative> ReadSolFromRestart(ifstream &, const input &,
                                           const unique_ptr<eos> &,
@@ -89,14 +90,14 @@ multiArray3d<primative> ReadSolFromRestart(ifstream &, const input &,
                                           const unique_ptr<turbModel> &,
                                           const vector<string> &, const int &,
                                           const int &, const int &);
-multiArray3d<genArray> ReadSolNm1FromRestart(
+multiArray3d<conserved> ReadSolNm1FromRestart(
     ifstream &, const input &, const unique_ptr<eos> &,
     const unique_ptr<transport> &, const unique_ptr<turbModel> &,
     const vector<string> &, const int &, const int &, const int &);
 
-void WriteResiduals(const input &, genArray &, const genArray &, const resid &,
+void WriteResiduals(const input &, residual &, const residual &, const resid &,
                     const double &, const int &, const int &, ostream &);
-void PrintResiduals(const input &, genArray &, const genArray &, const resid &,
+void PrintResiduals(const input &, residual &, const residual &, const resid &,
                     const double &, const int &, const int &, ostream &);
 void PrintHeaders(const input &, ostream &);
 

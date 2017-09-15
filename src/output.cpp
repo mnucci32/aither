@@ -30,13 +30,14 @@
 #include "eos.hpp"
 #include "transport.hpp"
 #include "thermodynamic.hpp"
-#include "primative.hpp"            // primative
+#include "primative.hpp"           // primative
 #include "procBlock.hpp"           // procBlock
 #include "inviscidFlux.hpp"        // inviscidFlux
 #include "input.hpp"               // inputVars
 #include "parallel.hpp"            // decomposition
 #include "resid.hpp"               // resid
-#include "genArray.hpp"            // genArray
+#include "conserved.hpp"           // conserved
+#include "varArray.hpp"            // residual
 #include "utility.hpp"
 
 using std::cout;
@@ -490,7 +491,7 @@ void WriteRestart(const vector<procBlock> &splitVars,
                   const unique_ptr<eos> &eqnState,
                   const unique_ptr<transport> &trans, const int &solIter,
                   const decomposition &decomp, const input &inp,
-                  const genArray &residL2First) {
+                  const residual &residL2First) {
   // recombine blocks into original structure
   auto vars = Recombine(splitVars, decomp);
 
@@ -629,7 +630,7 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
                  const unique_ptr<eos> &eqnState,
                  const unique_ptr<thermodynamic> &thermo,
                  const unique_ptr<transport> &trans,
-                 const unique_ptr<turbModel> &turb, genArray &residL2First,
+                 const unique_ptr<turbModel> &turb, residual &residL2First,
                  const vector<vector3d<int>> &gridSizes) {
   // open binary restart file
   ifstream fName(restartName, ios::in | ios::binary);
@@ -719,7 +720,7 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
   if (inp.IsMultilevelInTime()) {
     if (numSols == 2) {
       cout << "Reading solution from time n-1..." << endl;
-      vector<multiArray3d<genArray>> solNm1(numBlks);
+      vector<multiArray3d<conserved>> solNm1(numBlks);
       for (auto ii = 0U; ii < solNm1.size(); ++ii) {
         solNm1[ii] = ReadSolNm1FromRestart(fName, inp, eqnState, trans, turb,
                                            restartVars, gridSizes[ii].X(),
@@ -881,8 +882,8 @@ void WriteWallMeta(const input &inp, const int &iter) {
 
 
 // function to write out residual information
-void WriteResiduals(const input &inp, genArray &residL2First,
-                    const genArray &residL2, const resid &residLinf,
+void WriteResiduals(const input &inp, residual &residL2First,
+                    const residual &residL2, const resid &residLinf,
                     const double &matrixResid, const int &nn, const int &mm,
                     ostream &resFile) {
   // if first iteration write headers to residual file
@@ -924,8 +925,8 @@ void PrintHeaders(const input &inp, ostream &os) {
 }
 
 // function to write out residual information
-void PrintResiduals(const input &inp, genArray &residL2First,
-                    const genArray &residL2, const resid &residLinf,
+void PrintResiduals(const input &inp, residual &residL2First,
+                    const residual &residL2, const resid &residLinf,
                     const double &matrixResid, const int &nn, const int &mm,
                     ostream &os) {
   // determine normalization
@@ -1063,88 +1064,108 @@ multiArray3d<primative> ReadSolFromRestart(
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
     const unique_ptr<turbModel> &turb, const vector<string> &restartVars,
     const int &numI, const int &numJ, const int &numK) {
+  // DEBUG -- restart currently only supporting single species
+  constexpr auto numSpecies = 1;
+
   // intialize multiArray3d
-  multiArray3d<primative> sol(numI, numJ, numK, 0);
+  multiArray3d<primative> sol(numI, numJ, numK, 0,
+                              {restartVars.size(), numSpecies});
 
   // read the primative variables
   // read dimensional variables -- loop over physical cells
   for (auto kk = sol.StartK(); kk < sol.EndK(); kk++) {
     for (auto jj = sol.StartJ(); jj < sol.EndJ(); jj++) {
       for (auto ii = sol.StartI(); ii < sol.EndI(); ii++) {
-        genArray value;
+        primative value(restartVars.size(), numSpecies);
         // loop over the number of variables to read
         for (auto &var : restartVars) {
           if (var == "density") {
             resFile.read(reinterpret_cast<char *>(&value[0]), sizeof(value[0]));
             value[0] /= inp.RRef();
           } else if (var == "vel_x") {
-            resFile.read(reinterpret_cast<char *>(&value[1]), sizeof(value[1]));
-            value[1] /= inp.ARef();
+            auto n = value.MomentumXIndex();
+            resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
+            value[n] /= inp.ARef();
           } else if (var == "vel_y") {
-            resFile.read(reinterpret_cast<char *>(&value[2]), sizeof(value[2]));
-            value[2] /= inp.ARef();
+            auto n = value.MomentumYIndex();
+            resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
+            value[n] /= inp.ARef();
           } else if (var == "vel_z") {
-            resFile.read(reinterpret_cast<char *>(&value[3]), sizeof(value[3]));
-            value[3] /= inp.ARef();
+            auto n = value.MomentumZIndex();
+            resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
+            value[n] /= inp.ARef();
           } else if (var == "pressure") {
-            resFile.read(reinterpret_cast<char *>(&value[4]), sizeof(value[4]));
-            value[4] /= inp.RRef() * inp.ARef() * inp.ARef();
+            auto n = value.EnergyIndex();
+            resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
+            value[n] /= inp.RRef() * inp.ARef() * inp.ARef();
           } else if (var == "tke") {
-            resFile.read(reinterpret_cast<char *>(&value[5]), sizeof(value[5]));
-            value[5] /= inp.ARef() * inp.ARef();
+            auto n = value.TurbulenceIndex();
+            resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
+            value[n] /= inp.ARef() * inp.ARef();
           } else if (var == "sdr") {
-            resFile.read(reinterpret_cast<char *>(&value[6]), sizeof(value[6]));
-            value[6] /= inp.ARef() * inp.ARef() * inp.RRef() / trans->MuRef();
+            auto n = value.TurbulenceIndex() + 1;
+            resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
+            value[n] /= inp.ARef() * inp.ARef() * inp.RRef() / trans->MuRef();
           } else {
             cerr << "ERROR: Variable " << var
                  << " to read from restart file is not defined!" << endl;
             exit(EXIT_FAILURE);
           }
         }
-        sol(ii, jj, kk) = primative(value, true, eqnState, thermo, turb);
+        sol(ii, jj, kk) = value;
       }
     }
   }
   return sol;
 }
 
-multiArray3d<genArray> ReadSolNm1FromRestart(
+multiArray3d<conserved> ReadSolNm1FromRestart(
     ifstream &resFile, const input &inp, const unique_ptr<eos> &eqnState,
     const unique_ptr<transport> &trans, const unique_ptr<turbModel> &turb,
     const vector<string> &restartVars, const int &numI, const int &numJ,
     const int &numK) {
+  // DEBUG -- restart currently only supporting single species
+  constexpr auto numSpecies = 1;
+
   // intialize multiArray3d
-  multiArray3d<genArray> sol(numI, numJ, numK, 0);
+  multiArray3d<conserved> sol(numI, numJ, numK, 0,
+                              {restartVars.size(), numSpecies});
 
   // data is conserved variables
   // read dimensional variables -- loop over physical cells
   for (auto kk = sol.StartK(); kk < sol.EndK(); kk++) {
     for (auto jj = sol.StartJ(); jj < sol.EndJ(); jj++) {
       for (auto ii = sol.StartI(); ii < sol.EndI(); ii++) {
-        genArray value;
+        conserved value(restartVars.size(), numSpecies);
         // loop over the number of variables to read
         for (auto &var : restartVars) {
           if (var == "density") {
             resFile.read(reinterpret_cast<char *>(&value[0]), sizeof(value[0]));
             value[0] /= inp.RRef();
           } else if (var == "vel_x") {  // conserved var is rho-u
-            resFile.read(reinterpret_cast<char *>(&value[1]), sizeof(value[1]));
-            value[1] /= inp.ARef() * inp.RRef();
+            auto n = value.MomentumXIndex();
+            resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
+            value[n] /= inp.ARef() * inp.RRef();
           } else if (var == "vel_y") {  // conserved var is rho-v
-            resFile.read(reinterpret_cast<char *>(&value[2]), sizeof(value[2]));
-            value[2] /= inp.ARef() * inp.RRef();
+            auto n = value.MomentumYIndex();
+            resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
+            value[n] /= inp.ARef() * inp.RRef();
           } else if (var == "vel_z") {  // conserved var is rho-w
-            resFile.read(reinterpret_cast<char *>(&value[3]), sizeof(value[3]));
-            value[3] /= inp.ARef() * inp.RRef();
+            auto n = value.MomentumZIndex();
+            resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
+            value[n] /= inp.ARef() * inp.RRef();
           } else if (var == "pressure") {  // conserved var is rho-E
-            resFile.read(reinterpret_cast<char *>(&value[4]), sizeof(value[4]));
-            value[4] /= inp.RRef() * inp.ARef() * inp.ARef();
+            auto n = value.EnergyIndex();
+            resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
+            value[n] /= inp.RRef() * inp.ARef() * inp.ARef();
           } else if (var == "tke") {  // conserved var is rho-tke
-            resFile.read(reinterpret_cast<char *>(&value[5]), sizeof(value[5]));
-            value[5] /= inp.ARef() * inp.ARef() * inp.RRef();
+            auto n = value.TurbulenceIndex();
+            resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
+            value[n] /= inp.ARef() * inp.ARef() * inp.RRef();
           } else if (var == "sdr") {  // conserved var is rho-sdr
-            resFile.read(reinterpret_cast<char *>(&value[6]), sizeof(value[6]));
-            value[6] /= inp.ARef() * inp.ARef() * inp.RRef() * inp.RRef() /
+            auto n = value.TurbulenceIndex() + 1;
+            resFile.read(reinterpret_cast<char *>(&value[n]), sizeof(value[n]));
+            value[n] /= inp.ARef() * inp.ARef() * inp.RRef() * inp.RRef() /
                         trans->MuRef();
           } else {
             cerr << "ERROR: Variable " << var

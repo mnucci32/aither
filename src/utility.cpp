@@ -26,7 +26,7 @@
 #include "transport.hpp"           // transport model
 #include "thermodynamic.hpp"       // thermodynamic model
 #include "input.hpp"               // inputVars
-#include "genArray.hpp"
+#include "varArray.hpp"
 #include "turbulence.hpp"
 #include "slices.hpp"
 #include "fluxJacobian.hpp"
@@ -275,7 +275,7 @@ void GetBoundaryConditions(vector<procBlock> &states, const input &inp,
   // trans -- viscous transport model
   // connections -- vector of connection boundary types
   // rank -- processor rank
-  // MPI_cellData -- data type to pass primative, genArray
+  // MPI_cellData -- data type to pass varArray
 
   // loop over all blocks and assign inviscid ghost cells
   for (auto &state : states) {
@@ -394,9 +394,9 @@ void ExplicitUpdate(vector<procBlock> &blocks, const input &inp,
                     const unique_ptr<thermodynamic> &thermo,
                     const unique_ptr<transport> &trans,
                     const unique_ptr<turbModel> &turb, const int &mm,
-                    genArray &residL2, resid &residLinf) {
+                    residual &residL2, resid &residLinf) {
   // create dummy update (not used in explicit update)
-  multiArray3d<genArray> du(1, 1, 1, 0);
+  multiArray3d<varArray> du(0, 0, 0);
   // loop over all blocks and update
   for (auto &block : blocks) {
     block.UpdateBlock(inp, eqnState, thermo, trans, du, turb, mm, residL2,
@@ -410,7 +410,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
                       const unique_ptr<thermodynamic> &thermo,
                       const unique_ptr<transport> &trans,
                       const unique_ptr<turbModel> &turb, const int &mm,
-                      genArray &residL2, resid &residLinf,
+                      residual &residL2, resid &residLinf,
                       const vector<connection> &connections, const int &rank,
                       const MPI_Datatype &MPI_cellData) {
   // blocks -- vector of procBlocks on current processor
@@ -435,7 +435,7 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   }
 
   // initialize matrix update
-  vector<multiArray3d<genArray>> du(blocks.size());
+  vector<multiArray3d<varArray>> du(blocks.size());
   for (auto bb = 0U; bb < blocks.size(); bb++) {
     du[bb] = blocks[bb].InitializeMatrixUpdate(inp, eqnState, thermo,
                                                mainDiagonal[bb]);
@@ -507,14 +507,14 @@ double ImplicitUpdate(vector<procBlock> &blocks,
   return matrixError;
 }
 
-void SwapImplicitUpdate(vector<multiArray3d<genArray>> &du,
+void SwapImplicitUpdate(vector<multiArray3d<varArray>> &du,
                         const vector<connection> &connections, const int &rank,
                         const MPI_Datatype &MPI_cellData,
                         const int &numGhosts) {
   // du -- implicit update in conservative variables
   // conn -- connection boundary conditions
   // rank -- processor rank
-  // MPI_cellData -- datatype to pass primative or genArray
+  // MPI_cellData -- datatype to pass varArray
   // numGhosts -- number of ghost cells
 
   // loop over all connections and swap connection updates when necessary

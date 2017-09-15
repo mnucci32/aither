@@ -48,6 +48,15 @@ class varArray {
   }
   varArray(const int &numEqns, const int &numSpecies)
       : varArray(numEqns, numSpecies, 0.0) {}
+  varArray() : varArray(0, 0) {}
+
+  // move constructor and assignment operator
+  varArray(varArray&&) noexcept = default;
+  varArray& operator=(varArray&&) noexcept = default;
+
+  // copy constructor and assignment operator
+  varArray(const varArray&) = default;
+  varArray& operator=(const varArray&) = default;
 
   // member functions
   int Size() const { return data_.size(); }
@@ -99,14 +108,6 @@ class varArray {
   const auto begin() const noexcept {return data_.begin();}
   auto end() noexcept {return data_.end();}
   const auto end() const noexcept {return data_.end();}
-
-  // move constructor and assignment operator
-  varArray(varArray&&) noexcept = default;
-  varArray& operator=(varArray&&) noexcept = default;
-
-  // copy constructor and assignment operator
-  varArray(const varArray&) = default;
-  varArray& operator=(const varArray&) = default;
 
   // operator overloads
   const double & operator[](const int &r) const { return data_[r]; }
@@ -538,9 +539,6 @@ class residual : public varArray {
   residual(const int &numEqns, const int &numSpecies)
       : varArray(numEqns, numSpecies) {}
 
-  // member functions
-  const double & MassN(const int &ii) const { return this->SpeciesN(ii); }
-
   // move constructor and assignment operator
   residual(residual&&) noexcept = default;
   residual& operator=(residual&&) noexcept = default;
@@ -548,6 +546,10 @@ class residual : public varArray {
   // copy constructor and assignment operator
   residual(const residual&) = default;
   residual& operator=(const residual&) = default;
+
+  // member functions
+  const double & MassN(const int &ii) const { return this->SpeciesN(ii); }
+  void GlobalReduceMPI(const int &);
 
   // destructor
   virtual ~residual() noexcept {}

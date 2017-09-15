@@ -20,10 +20,6 @@
 #include <string>        // stl string
 #include <memory>        // unique_ptr
 
-// DEBUG
-#include "blkMultiArray3d.hpp"
-#include "varArray.hpp"
-
 #ifdef __linux__
 #include <cfenv>         // exceptions
 #elif __APPLE__
@@ -40,7 +36,7 @@
 #include "thermodynamic.hpp"
 #include "boundaryConditions.hpp"
 #include "output.hpp"
-#include "genArray.hpp"
+#include "varArray.hpp"
 #include "parallel.hpp"
 #include "turbulence.hpp"
 #include "resid.hpp"
@@ -130,7 +126,8 @@ int main(int argc, char *argv[]) {
   vector<connection> connections;
   vector<procBlock> stateBlocks;
   vector<vector3d<double>> viscFaces;
-  genArray residL2First(0.0);  // l2 norm residuals to normalize by
+  // l2 norm residuals to normalize by
+  residual residL2First(inp.NumEquations(), inp.NumSpecies());
 
   if (rank == ROOTP) {
     cout << "Number of equations: " << inp.NumEquations() << endl << endl;
@@ -324,7 +321,8 @@ int main(int argc, char *argv[]) {
       CalcTimeStep(localStateBlocks, inp);
 
       // Initialize residual variables
-      genArray residL2(0.0);  // l2 norm residuals
+      // l2 norm residuals
+      residual residL2(inp.NumEquations(), inp.NumSpecies());
       resid residLinf;  // linf residuals
       auto matrixResid = 0.0;
       if (inp.IsImplicit()) {
@@ -338,7 +336,7 @@ int main(int argc, char *argv[]) {
 
       // ----------------------------------------------------------------------
       // Get residuals from all processors
-      residL2.GlobalReduceMPI(rank, inp.NumEquations());
+      residL2.GlobalReduceMPI(rank);
       residLinf.GlobalReduceMPI(rank, MPI_DOUBLE_5INT, MPI_MAX_LINF);
 
       // Get matrix residuals from all processors

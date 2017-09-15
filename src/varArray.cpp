@@ -18,6 +18,7 @@
 #include <iostream>  // cout
 #include <cmath>
 #include "varArray.hpp"
+#include "mpi.h"
 
 using std::cout;
 using std::endl;
@@ -30,4 +31,16 @@ varArray Squared() const {
   auto sq = (*this);
   sq *= sq;
   return sq;
+}
+
+// member function to sum the residuals from all processors
+void residual::GlobalReduceMPI(const int &rank) {
+  // Get residuals from all processors
+  if (rank == ROOTP) {
+    MPI_Reduce(MPI_IN_PLACE, &(*this)[0], this->Size(), MPI_DOUBLE, MPI_SUM,
+               ROOTP, MPI_COMM_WORLD);
+  } else {
+    MPI_Reduce((*this)[0], &(*this)[0], this->Size(), MPI_DOUBLE, MPI_SUM, ROOTP,
+               MPI_COMM_WORLD);
+  }
 }
