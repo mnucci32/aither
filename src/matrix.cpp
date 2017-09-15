@@ -166,7 +166,7 @@ void squareMatrix::Identity() {
 }
 
 // member function to do matrix/vector multplication with varArray type
-template <typename T>
+template <typename T, typename TT>
 T squareMatrix::ArrayMult(const T &vec, const int pos) const {
   // vec -- vector to multiply with
 
@@ -174,11 +174,11 @@ T squareMatrix::ArrayMult(const T &vec, const int pos) const {
 
   // zero out portion of array that will be written over
   if (pos == 0) {
-    for (auto ii = 0; ii < T.TurbulenceIndex(); ii++) {
+    for (auto ii = 0; ii < vec.TurbulenceIndex(); ii++) {
       product[ii] = 0.0;
     }
   } else {
-    for (auto ii = pos; ii < T.Size(); ii++) {
+    for (auto ii = pos; ii < vec.Size(); ii++) {
       product[ii] = 0.0;
     }
   }

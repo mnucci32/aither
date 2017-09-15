@@ -25,6 +25,9 @@
 using std::ostream;
 using std::vector;
 
+// forward class declaration
+class varArray;
+
 // class to store a square matrix
 class squareMatrix {
   int size_;
@@ -58,7 +61,8 @@ class squareMatrix {
   void Zero();
   void Identity();
   squareMatrix MatMult(const squareMatrix &) const;
-  template <typename T>
+  template <typename T,
+            typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
   T ArrayMult(const T &, const int = 0) const;
   double MaxAbsValOnDiagonal() const;
 

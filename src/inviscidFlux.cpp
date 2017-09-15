@@ -214,7 +214,7 @@ inviscidFlux RoeFlux(const primative &left, const primative &right,
   lAcousticEigV[lAcousticEigV.MomentumZIndex()] = roe.W() - aR * areaNorm.Z();
   lAcousticEigV[lAcousticEigV.EnergyIndex()] = hR - aR * velRSum;
   for (auto ii = 0; ii < lAcousticEigV.NumTurbulence(); ++ii) {
-    lAcousticEigV[lAcousticEigV.TurbulenceIndex() + ii] = state.TurbulenceN(ii);
+    lAcousticEigV[lAcousticEigV.TurbulenceIndex() + ii] = roe.TurbulenceN(ii);
   }
 
   // calculate eigenvector due to entropy wave
@@ -238,7 +238,7 @@ inviscidFlux RoeFlux(const primative &left, const primative &right,
   rAcousticEigV[rAcousticEigV.MomentumZIndex()] = roe.W() + aR * areaNorm.Z();
   rAcousticEigV[rAcousticEigV.EnergyIndex()] = hR + aR * velRSum;
   for (auto ii = 0; ii < rAcousticEigV.NumTurbulence(); ++ii) {
-    rAcousticEigV[rAcousticEigV.TurbulenceIndex() + ii] = state.TurbulenceN(ii);
+    rAcousticEigV[rAcousticEigV.TurbulenceIndex() + ii] = roe.TurbulenceN(ii);
   }
 
   // calculate eigenvector due to shear wave
@@ -369,7 +369,7 @@ inviscidFlux AUSMFlux(const primative &left, const primative &right,
       mavg >= 0.0 ? mMinusR * w * (1.0 + fr)
                   : mMinusR + mPlusL * ((1.0 - w) * (1.0 + fl) - fr);
 
-  inviscidFlux ausm(left.NumEquations(), left.NumSpecies());
+  inviscidFlux ausm(left.Size(), left.NumSpecies());
   ausm.AUSMFlux(left, right, eqnState, thermo, area, sos, mPlusLBar, mMinusRBar,
                 pPlus, pMinus);
   return ausm;
@@ -397,7 +397,7 @@ void inviscidFlux::AUSMFlux(const primative &left, const primative &right,
       left.Rho() * vl * left.Enthalpy(eqnState, thermo);
   for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
     (*this)[this->TurbulenceIndex() + ii] =
-        left.Rho() * vl * state.TurbulenceN(ii);
+        left.Rho() * vl * left.TurbulenceN(ii);
   }
 
   // calculate right flux (add contribution)
@@ -415,7 +415,7 @@ void inviscidFlux::AUSMFlux(const primative &left, const primative &right,
       right.Rho() * vr * right.Enthalpy(eqnState, thermo);
   for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
     (*this)[this->TurbulenceIndex() + ii] =
-        right.Rho() * vr * state.TurbulenceN(ii);
+        right.Rho() * vr * right.TurbulenceN(ii);
   }
 }
 

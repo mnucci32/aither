@@ -116,9 +116,10 @@ class varArray {
   virtual ~varArray() noexcept {}
 };
 
-// function declarations --------------------------------------
+// --------------------------------------------------------------------------
+// --------------------------------------------------------------------------
+// function declarations ----------------------------------------------------
 // operator overload for addition
-//template <typename T, typename TT>
 template <typename T,
           typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
 T & operator+=(T &lhs, const T &rhs) {
@@ -129,8 +130,36 @@ T & operator+=(T &lhs, const T &rhs) {
   return lhs;
 }
 
+// operator overload for different type addition - T1 is base of T2
+template <typename T1, typename T2>
+inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value && 
+                                       std::is_base_of<varArray, T2>::value &&
+                                       std::is_base_of<T1, T2>::value, T1>
+& operator+=(T1 &lhs, const T2 &rhs) {
+  return lhs += dynamic_cast<const T1 &>(rhs);
+}
+
+// operator overload for different type addition - T2 is base of T1
+template <typename T1, typename T2>
+inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value && 
+                                       std::is_base_of<varArray, T2>::value &&
+                                       std::is_base_of<T2, T1>::value, T2>
+& operator+=(T1 &lhs, const T2 &rhs) {
+  return dynamic_cast<T2 &>(lhs) += rhs;
+}
+
+// operator overload for different type addition - T2/T1 not base/derived
+template <typename T1, typename T2>
+inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value && 
+                                       std::is_base_of<varArray, T2>::value &&
+                                       !(std::is_base_of<T1, T2>::value ||
+                                         std::is_base_of<T2, T1>::value), varArray>
+& operator+=(T1 &lhs, const T2 &rhs) {
+  return dynamic_cast<varArray &>(lhs) += dynamic_cast<const varArray &>(rhs);
+}
+
+// --------------------------------------------------------------------------
 // operator overload for subtraction
-//template <typename T, typename TT>
 template <typename T,
           typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
 T & operator-=(T &lhs, const T &rhs) {
@@ -141,8 +170,36 @@ T & operator-=(T &lhs, const T &rhs) {
   return lhs;
 }
 
+// operator overload for different type subtraction - T1 is base of T2
+template <typename T1, typename T2>
+inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value && 
+                                       std::is_base_of<varArray, T2>::value &&
+                                       std::is_base_of<T1, T2>::value, T1>
+& operator-=(T1 &lhs, const T2 &rhs) {
+  return lhs -= dynamic_cast<const T1 &>(rhs);
+}
+
+// operator overload for different type subtraction - T2 is base of T1
+template <typename T1, typename T2>
+inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value && 
+                                       std::is_base_of<varArray, T2>::value &&
+                                       std::is_base_of<T2, T1>::value, T2>
+& operator-=(T1 &lhs, const T2 &rhs) {
+  return dynamic_cast<T2 &>(lhs) -= rhs;
+}
+
+// operator overload for different type subtraction - T2/T1 not base/derived
+template <typename T1, typename T2>
+inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value && 
+                                       std::is_base_of<varArray, T2>::value &&
+                                       !(std::is_base_of<T1, T2>::value ||
+                                         std::is_base_of<T2, T1>::value), varArray>
+& operator-=(T1 &lhs, const T2 &rhs) {
+  return dynamic_cast<varArray &>(lhs) -= dynamic_cast<const varArray &>(rhs);
+}
+
+// --------------------------------------------------------------------------
 // operator overload for elementwise multiplication
-//template <typename T, typename TT>
 template <typename T,
           typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
 T & operator*=(T &lhs, const T &rhs) {
@@ -153,8 +210,36 @@ T & operator*=(T &lhs, const T &rhs) {
   return lhs;
 }
 
+// operator overload for different type multiplication - T1 is base of T2
+template <typename T1, typename T2>
+inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value && 
+                                       std::is_base_of<varArray, T2>::value &&
+                                       std::is_base_of<T1, T2>::value, T1>
+& operator*=(T1 &lhs, const T2 &rhs) {
+  return lhs *= dynamic_cast<const T1 &>(rhs);
+}
+
+// operator overload for different type multiplication - T2 is base of T1
+template <typename T1, typename T2>
+inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value && 
+                                       std::is_base_of<varArray, T2>::value &&
+                                       std::is_base_of<T2, T1>::value, T2>
+& operator*=(T1 &lhs, const T2 &rhs) {
+  return dynamic_cast<T2 &>(lhs) *= rhs;
+}
+
+// operator overload for different type addition - T2/T1 not base/derived
+template <typename T1, typename T2>
+inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value && 
+                                       std::is_base_of<varArray, T2>::value &&
+                                       !(std::is_base_of<T1, T2>::value ||
+                                         std::is_base_of<T2, T1>::value), varArray>
+& operator*=(T1 &lhs, const T2 &rhs) {
+  return dynamic_cast<varArray &>(lhs) *= dynamic_cast<const varArray &>(rhs);
+}
+
+// --------------------------------------------------------------------------
 // operator overload for elementwise division
-//template <typename T, typename TT>
 template <typename T,
           typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
 T & operator/=(T &lhs, const T &rhs) {
@@ -165,6 +250,37 @@ T & operator/=(T &lhs, const T &rhs) {
   return lhs;
 }
 
+// operator overload for different type division - T1 is base of T2
+template <typename T1, typename T2>
+inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value && 
+                                       std::is_base_of<varArray, T2>::value &&
+                                       std::is_base_of<T1, T2>::value, T1>
+& operator/=(T1 &lhs, const T2 &rhs) {
+  return lhs /= dynamic_cast<const T1 &>(rhs);
+}
+
+// operator overload for different type division - T2 is base of T1
+template <typename T1, typename T2>
+inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value && 
+                                       std::is_base_of<varArray, T2>::value &&
+                                       std::is_base_of<T2, T1>::value, T2>
+& operator/=(T1 &lhs, const T2 &rhs) {
+  return dynamic_cast<T2 &>(lhs) /= rhs;
+}
+
+// operator overload for different type division - T2/T1 not base/derived
+template <typename T1, typename T2>
+inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value && 
+                                       std::is_base_of<varArray, T2>::value &&
+                                       !(std::is_base_of<T1, T2>::value ||
+                                         std::is_base_of<T2, T1>::value), varArray>
+& operator/=(T1 &lhs, const T2 &rhs) {
+  return dynamic_cast<varArray &>(lhs) /= dynamic_cast<const varArray &>(rhs);
+}
+
+// --------------------------------------------------------------------------
+// --------------------------------------------------------------------------
+// --------------------------------------------------------------------------
 // operator overload for same type addition
 template <typename T,
           typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
@@ -197,7 +313,7 @@ inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value &&
                                        !(std::is_base_of<T1, T2>::value ||
                                          std::is_base_of<T2, T1>::value), varArray>
 operator+(T1 lhs, const T2 &rhs) {
-  return lhs += dynamic_cast<const varArray &>(rhs);
+  return lhs += rhs;
 }
 
 // operator overload for same type subtraction
@@ -232,7 +348,7 @@ inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value &&
                                        !(std::is_base_of<T1, T2>::value ||
                                          std::is_base_of<T2, T1>::value), varArray>
 operator-(T1 lhs, const T2 &rhs) {
-  return lhs -= dynamic_cast<const varArray &>(rhs);
+  return lhs -= rhs;
 }
 
 
@@ -268,7 +384,7 @@ inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value &&
                                        !(std::is_base_of<T1, T2>::value ||
                                          std::is_base_of<T2, T1>::value), varArray>
 operator*(T1 lhs, const T2 &rhs) {
-  return lhs *= dynamic_cast<const varArray &>(rhs);
+  return lhs *= rhs;
 }
 
 // operator overload for same type division
@@ -303,11 +419,12 @@ inline const typename std::enable_if_t<std::is_base_of<varArray, T1>::value &&
                                        !(std::is_base_of<T1, T2>::value ||
                                          std::is_base_of<T2, T1>::value), varArray>
 operator/(T1 lhs, const T2 &rhs) {
-  return lhs /= dynamic_cast<const varArray &>(rhs);
+  return lhs /= rhs;
 }
 
-
-// operator overloads for double -------------------------------------
+// --------------------------------------------------------------------------
+// --------------------------------------------------------------------------
+// operator overloads for double --------------------------------------------
 // operator overload for addition
 template <typename T,
           typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
@@ -411,6 +528,7 @@ ostream &operator<<(ostream &os, const T &m) {
   return os;
 }
 
+// --------------------------------------------------------------------------
 // --------------------------------------------------------------------------
 // Derived wrapper classes for different variable types
 // --------------------------------------------------------------------------
