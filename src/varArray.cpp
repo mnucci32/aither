@@ -26,3 +26,8 @@ using std::cerr;
 // ------------------------------------------------------------------
 // functions for varArray class
 
+varArray Squared() const {
+  auto sq = (*this);
+  sq *= sq;
+  return sq;
+}
