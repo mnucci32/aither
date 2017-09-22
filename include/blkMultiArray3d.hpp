@@ -77,7 +77,7 @@ class blkMultiArray3d : public multiArray3d<double> {
 
   // member functions
   // operator overloads
-  arrayView<double> operator()(const int &ii, const int &jj, const int &kk) const {
+  arrayView<T, double> operator()(const int &ii, const int &jj, const int &kk) const {
     auto start = this->GetBlkLoc1D(ii, jj, kk);
     return {this->begin() + start, this->begin() + start + this->BlockSize(),
             numSpecies_};
@@ -96,7 +96,7 @@ class blkMultiArray3d : public multiArray3d<double> {
     return *ind;
   }
 
-  arrayView<double> operator()(const int &ind) const {
+  arrayView<T, double> operator()(const int &ind) const {
     auto start = ind * this->BlockSize();
     return {this->begin() + start, this->begin() + start + this->BlockSize(),
             numSpecies_};

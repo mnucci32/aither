@@ -3313,17 +3313,15 @@ void procBlock::AssignInviscidGhostCellsEdge(
             // surface-2 is a wall, but surface-3 is not - extend wall bc
             if (bc_2 == "slipWall" && bc_3 != "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
-                  state_(dir, d1, pCellD2, gCellD3)
-                      .GetGhostState(bc_2, fArea2, wDist2, surf2, inp,
-                                     tag2, eqnState, thermo, trans, turb, wVars,
-                                     layer2);
+                  GetGhostState(state_(dir, d1, pCellD2, gCellD3), bc_2, fArea2,
+                                wDist2, surf2, inp, tag2, eqnState, thermo,
+                                trans, turb, wVars, layer2);
               // surface-3 is a wall, but surface-2 is not - extend wall bc
             } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
-                  state_(dir, d1, gCellD2, pCellD3)
-                      .GetGhostState(bc_3, fArea3, wDist3, surf3, inp,
-                                     tag3, eqnState, thermo, trans, turb, wVars,
-                                     layer3);
+                  GetGhostState(state_(dir, d1, gCellD2, pCellD3), bc_3, fArea3,
+                                wDist3, surf3, inp, tag3, eqnState, thermo,
+                                trans, turb, wVars, layer3);
             } else {  // both surfaces or neither are walls - proceed as normal
               if (layer2 == layer3) {  // need to average
                 state_(dir, d1, gCellD2, gCellD3) = 0.5 *
@@ -3578,17 +3576,15 @@ void procBlock::AssignViscousGhostCellsEdge(
             // surface-2 is a wall, but surface-3 is not - extend wall bc
             if (bc_2 == "slipWall" && bc_3 != "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
-                  state_(dir, d1, pCellD2, gCellD3)
-                      .GetGhostState(bc_2, fArea2, wDist2, surf2, inp,
-                                     tag2, eqnState, thermo, trans, turb, wVars,
-                                     layer2);
+                  GetGhostState(state_(dir, d1, pCellD2, gCellD3), bc_2, fArea2,
+                                wDist2, surf2, inp, tag2, eqnState, thermo,
+                                trans, turb, wVars, layer2);
               // surface-3 is a wall, but surface-2 is not - extend wall bc
             } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
               state_(dir, d1, gCellD2, gCellD3) =
-                  state_(dir, d1, gCellD2, pCellD3)
-                      .GetGhostState(bc_3, fArea3, wDist3, surf3, inp,
-                                     tag3, eqnState, thermo, trans, turb, wVars,
-                                     layer3);
+                  GetGhostState(state_(dir, d1, gCellD2, pCellD3), bc_3, fArea3,
+                                wDist3, surf3, inp, tag3, eqnState, thermo,
+                                trans, turb, wVars, layer3);
               // both surfaces are walls - proceed as normal
             } else if (bc_2 == "viscousWall" && bc_3 == "viscousWall") {
               if (layer2 == layer3) {  // need to average
@@ -6834,21 +6830,18 @@ multiArray3d<primitive> procBlock::GetGhostStates(
       for (auto ii = bndStates.StartI(); ii < bndStates.EndI(); ii++) {
         wallVars wVars;
         if (consVarsN.IsEmpty()) {
-          ghostStates(ii, jj, kk) =
-              bndStates(ii, jj, kk)
-                  .GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),
-                                 wDist(ii, jj, kk), surfType, inp, tag,
-                                 eqnState, thermo, trans, turb, wVars, layer);
+          ghostStates(ii, jj, kk) = GetGhostState(
+              bndStates(ii, jj, kk), bcName, faceAreas(ii, jj, kk).UnitVector(),
+              wDist(ii, jj, kk), surfType, inp, tag, eqnState, thermo, trans,
+              turb, wVars, layer);
         } else {  // using dt, state at time n, press grad, vel grad in BC
           const auto stateN =
               primitive(consVarsN(ii, jj, kk), false, eqnState, thermo, turb);
-          ghostStates(ii, jj, kk) =
-              bndStates(ii, jj, kk)
-                  .GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),
-                                 wDist(ii, jj, kk), surfType, inp, tag,
-                                 eqnState, thermo, trans, turb, wVars, layer,
-                                 dt(ii, jj, kk), stateN, pGrad(ii, jj, kk),
-                                 velGrad(ii, jj, kk), avgMach, maxMach);
+          ghostStates(ii, jj, kk) = GetGhostState(
+              bndStates(ii, jj, kk), bcName, faceAreas(ii, jj, kk).UnitVector(),
+              wDist(ii, jj, kk), surfType, inp, tag, eqnState, thermo, trans,
+              turb, wVars, layer, dt(ii, jj, kk), stateN, pGrad(ii, jj, kk),
+              velGrad(ii, jj, kk), avgMach, maxMach);
         }
         if (bcName == "viscousWall" && layer == 1) {
           const auto ind = this->WallDataIndex(surf);

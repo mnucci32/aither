@@ -22,8 +22,10 @@
 #include <iterator>
 #include <numeric>
 #include <algorithm>
+#include <type_traits>
 #include <cmath>
 #include "macros.hpp"
+#include "varArray.hpp"
 
 using std::ostream;
 using std::vector;
@@ -33,21 +35,28 @@ using std::endl;
  * std::vector.
  */
 
-template <typename T>
-class arrayView {
-  static_assert(std::is_arithmetic<T>::value,
-                "arrayView<T> requires an arithmetic type!");
+// forward class declarations
+class primitive;
+class conserved;
+class residual;
 
-  typename vector<T>::iterator begin_;
-  typename vector<T>::iterator end_;
+template <typename T1, typename T2>
+class arrayView {
+  static_assert(std::is_base_of<varArray, T1>::value,
+                "arrayView<T1, T2> requires T1 to be varArray type!");
+  static_assert(std::is_arithmetic<T2>::value,
+                "arrayView<T1, T2> requires T2 to be an arithmetic type!");
+
+  typename vector<const T2>::iterator begin_;
+  typename vector<const T2>::iterator end_;
   int momentumIndex_;
   int energyIndex_;
   int turbulenceIndex_;
 
  public:
   // constructor
-  arrayView(const typename vector<T>::iterator &b,
-            const typename vector<T>::iterator &e, const int &numSpecies)
+  arrayView(const typename vector<const T2>::iterator &b,
+            const typename vector<const T2>::iterator &e, const int &numSpecies)
       : begin_(b),
         end_(e),
         momentumIndex_(numSpecies),
@@ -55,12 +64,10 @@ class arrayView {
         turbulenceIndex_(energyIndex_ + 1) {}
 
   // member functions
-  void Zero() { std::fill(begin_, end_, T(0)); }
-  T Sum() const { return std::accumulate(begin_, end_, T(0)); }
-  void SquareRoot() {
-    std::for_each(begin_, end_, [](T &val) { val = sqrt(val); });
-  }
+  T2 Sum() const { return std::accumulate(begin_, end_, T2(0)); }
   auto Size() const { return std::distance(begin_, end_); }
+  int NumSpecies() const { return momentumIndex_; }
+  T1 CopyData() const { return T1{begin_, end_, this->NumSpecies()}; }
 
   // move constructor and assignment operator
   arrayView(arrayView&&) noexcept = default;
@@ -73,33 +80,22 @@ class arrayView {
   }
 
   // operator overloads
-  const T & operator[](const int &r) const { return *(begin_ + r); }
-  T & operator[](const int &r) { return *(begin_ + r); }
+  const T2 & operator[](const int &r) const { return *(begin_ + r); }
 
-  inline arrayView & operator+=(const arrayView &);
-  inline arrayView & operator-=(const arrayView &);
-  inline arrayView & operator*=(const arrayView &);
-  inline arrayView & operator/=(const arrayView &);
-
-  inline arrayView & operator+=(const T &);
-  inline arrayView & operator-=(const T &);
-  inline arrayView & operator*=(const T &);
-  inline arrayView & operator/=(const T &);
-
-  inline arrayView operator+(const T &s) const {
-    auto lhs = *this;
+  inline T1 operator+(const T2 &s) const {
+    auto lhs = this->CopyData();
     return lhs += s;
   }
-  inline arrayView operator-(const T &s) const {
-    auto lhs = *this;
+  inline T1 operator-(const T2 &s) const {
+    auto lhs = this->CopyData();
     return lhs -= s;
   }
-  inline arrayView operator*(const T &s) const {
-    auto lhs = *this;
+  inline T1 operator*(const T2 &s) const {
+    auto lhs = this->CopyData();
     return lhs *= s;
   }
-  inline arrayView operator/(const T &s) const {
-    auto lhs = *this;
+  inline T1 operator/(const T2 &s) const {
+    auto lhs = this->CopyData();
     return lhs /= s;
   }
 
@@ -108,129 +104,71 @@ class arrayView {
 };
 
 // function declarations --------------------------------------
-// operator overload for addition
-template <typename T>
-arrayView<T> & arrayView<T>::operator+=(const arrayView<T> &arr) {
-  MSG_ASSERT(this->Size() == arr.Size(), "arrayViews must be same size");
-  for (auto rr = 0; rr < this->Size(); rr++) {
-    (*this)[rr] += arr[rr];
-  }
-  return *this;
+template <typename T1, typename T2>
+inline const T1 operator+(const arrayView<T1, T2> &lhs,
+                          const arrayView<T1, T2> &rhs) {
+  auto ll = lhs.CopyData();
+  return ll += rhs;
 }
 
-// operator overload for subtraction
-template <typename T>
-arrayView<T> & arrayView<T>::operator-=(const arrayView<T> &arr) {
-  MSG_ASSERT(this->Size() == arr.Size(), "arrayViews must be same size");
-  for (auto rr = 0; rr < this->Size(); rr++) {
-    (*this)[rr] -= arr[rr];
-  }
-  return *this;
+template <typename T1, typename T2>
+inline const T1 operator-(const arrayView<T1, T2> &lhs,
+                          const arrayView<T1, T2> &rhs) {
+  auto ll = lhs.CopyData();
+  return ll -= rhs;
 }
 
-// operator overload for elementwise multiplication
-template <typename T>
-arrayView<T> & arrayView<T>::operator*=(const arrayView<T> &arr) {
-  MSG_ASSERT(this->Size() == arr.Size(), "arrayViews must be same size");
-  for (auto rr = 0; rr < this->Size(); rr++) {
-    (*this)[rr] *= arr[rr];
-  }
-  return *this;
+template <typename T1, typename T2>
+inline const T1 operator*(const arrayView<T1, T2> &lhs,
+                          const arrayView<T1, T2> &rhs) {
+  auto ll = lhs.CopyData();
+  return ll *= rhs;
 }
 
-// operator overload for elementwise division
-template <typename T>
-arrayView<T> & arrayView<T>::operator/=(const arrayView<T> &arr) {
-  MSG_ASSERT(this->Size() == arr.Size(), "arrayViews must be same size");
-  for (auto rr = 0; rr < this->Size(); rr++) {
-    (*this)[rr] /= arr[rr];
-  }
-  return *this;
-}
-
-template <typename T>
-inline const arrayView<T> operator+(arrayView<T> lhs, const arrayView<T> &rhs) {
-  return lhs += rhs;
-}
-
-template <typename T>
-inline const arrayView<T> operator-(arrayView<T> lhs, const arrayView<T> &rhs) {
-  return lhs -= rhs;
-}
-
-template <typename T>
-inline const arrayView<T> operator*(arrayView<T> lhs, const arrayView<T> &rhs) {
-  return lhs *= rhs;
-}
-
-template <typename T>
-inline const arrayView<T> operator/(arrayView<T> lhs, const arrayView<T> &rhs) {
-  return lhs /= rhs;
+template <typename T1, typename T2>
+inline const T1 operator/(const arrayView<T1, T2> &lhs,
+                          const arrayView<T1, T2> &rhs) {
+  auto ll = lhs.CopyData();
+  return ll /= rhs;
 }
 
 // operator overloads for type T -------------------------------------
-// operator overload for addition
-template <typename T>
-arrayView<T> & arrayView<T>::operator+=(const T &scalar) {
-  std::for_each(begin_, end_, [&](T &val) { val += scalar; });
-  return *this;
+template <typename T1, typename T2>
+inline const T1 operator+(const T2 &lhs, const arrayView<T1, T2> &rhs) {
+  auto result = rhs.CopyData();
+  return result += lhs;
 }
 
-// operator overload for subtraction with a scalar
-template <typename T>
-arrayView<T> & arrayView<T>::operator-=(const T &scalar) {
-  std::for_each(begin_, end_, [&](T &val) { val -= scalar; });
-  return *this;
+template <typename T1, typename T2>
+inline const T1 operator-(const T2 &lhs, const arrayView<T1, T2> &rhs) {
+  auto result = rhs.CopyData();
+  return lhs - result;
 }
 
-// operator overload for elementwise multiplication
-template <typename T>
-arrayView<T> & arrayView<T>::operator*=(const T &scalar) {
-  std::for_each(begin_, end_, [&](T &val) { val *= scalar; });
-  return *this;
+template <typename T1, typename T2>
+inline const T1 operator*(const T2 &lhs, const arrayView<T1, T2> &rhs) {
+  auto result = rhs.CopyData();
+  return result *= lhs;
 }
 
-// operator overload for elementwise division
-template <typename T>
-arrayView<T> & arrayView<T>::operator/=(const T &scalar) {
-  std::for_each(begin_, end_, [&](T &val) { val /= scalar; });
-  return *this;
-}
-
-template <typename T>
-inline const arrayView<T> operator+(const T &lhs, arrayView<T> rhs) {
-  return rhs += lhs;
-}
-
-template <typename T>
-inline const arrayView<T> operator-(const T &lhs, arrayView<T> rhs) {
-  for (auto rr = 0; rr < rhs.Size(); rr++) {
-    rhs[rr] = lhs - rhs[rr];
-  }
-  return rhs;
-}
-
-template <typename T>
-inline const arrayView<T> operator*(const T &lhs, arrayView<T> rhs) {
-  return rhs *= lhs;
-}
-
-template <typename T>
-inline const arrayView<T> operator/(const T &lhs, arrayView<T> rhs) {
-  for (auto rr = 0; rr < rhs.Size(); rr++) {
-    rhs[rr] = lhs / rhs[rr];
-  }
-  return rhs;
+template <typename T1, typename T2>
+inline const T1 operator/(const T2 &lhs, const arrayView<T1, T2> &rhs) {
+  auto result = rhs.CopyData();
+  return lhs / rhs;
 }
 
 // operation overload for << - allows use of cout, cerr, etc.
-template <typename T>
-ostream &operator<<(ostream &os, const arrayView<T> &m) {
+template <typename T1, typename T2>
+ostream &operator<<(ostream &os, const arrayView<T1, T2> &m) {
   for (auto rr = 0; rr < m.Size(); rr++) {
     os << m[rr] << endl;
   }
   return os;
 }
 
+// using typedefs
+using primitiveView = arrayView<primitive, double>;
+using conservedView = arrayView<conserved, double>;
+using residualView = arrayView<residual, double>;
 
 #endif

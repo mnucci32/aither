@@ -31,6 +31,7 @@
 #include "tensor.hpp"              // tensor
 #include "primitive.hpp"           // primitive
 #include "varArray.hpp"            // varArray
+#include "arrayView.hpp"           // primitiveView
 #include "boundaryConditions.hpp"  // connection, patch
 #include "macros.hpp"
 #include "uncoupledScalar.hpp"     // uncoupledScalar
@@ -243,13 +244,13 @@ class procBlock {
 
   boundaryConditions BC() const {return bc_;}
 
-  primitive State(const int &ii, const int &jj, const int &kk) const {
+  primitiveView State(const int &ii, const int &jj, const int &kk) const {
     return state_(ii, jj, kk);
   }
-  conserved ConsVarsN(const int &ii, const int &jj, const int &kk) const {
+  conservedView ConsVarsN(const int &ii, const int &jj, const int &kk) const {
     return consVarsN_(ii, jj, kk);
   }
-  conserved ConsVarsNm1(const int &ii, const int &jj, const int &kk) const {
+  conservedView ConsVarsNm1(const int &ii, const int &jj, const int &kk) const {
     return consVarsNm1_(ii, jj, kk);
   }
 
@@ -350,7 +351,7 @@ class procBlock {
     return wallDist_(ii, jj, kk);
   }
 
-  residual Residual(const int &ii, const int &jj, const int &kk) const {
+  residualView Residual(const int &ii, const int &jj, const int &kk) const {
     return residual_(ii, jj, kk);
   }
   double Residual(const int &ii, const int &jj, const int &kk,

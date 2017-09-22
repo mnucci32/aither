@@ -14,8 +14,11 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
+#include <algorithm>
+#include <cmath>
 #include "limiter.hpp"
 #include "primitive.hpp"
+#include "utility.hpp"    // Sign
 
 
 // function to calculate minmod limiter
@@ -33,8 +36,8 @@ primitive LimiterMinmod(const primitive &upwind, const primitive &downwind,
   // calculate minmod limiter
   for (auto ii = 0; ii < limiter.Size(); ++ii) {
     auto sign = Sign(upwind[ii]);
-    limiter[ii] =
-        sign * max(0.0, min(fabs(upwind[ii]), sign * downwind[ii] * beta));
+    limiter[ii] = sign * std::max(0.0, std::min(fabs(upwind[ii]),
+                                                sign * downwind[ii] * beta));
   }
   return limiter;
 }
@@ -46,7 +49,7 @@ primitive LimiterVanAlbada(const primitive &r) {
   auto limiter = (r + r * r) / (1.0 + r * r);
   // if value is negative, return zero
   for (auto ii = 0; ii < limiter.Size(); ++ii) {
-    limiter[ii] = max(0.0, limiter[ii]);
+    limiter[ii] = std::max(0.0, limiter[ii]);
   }
   return limiter;
 }

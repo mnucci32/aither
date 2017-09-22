@@ -60,8 +60,10 @@ class primitive : public varArray {
   // constructors
   primitive(const int &numEqns, const int &numSpecies)
       : varArray(numEqns, numSpecies) {}
+  primitive(const int &numEqns, const int &numSpecies, const double &val)
+      : varArray(numEqns, numSpecies, val) {}
   primitive(const conserved &, const unique_ptr<eos> &,
-           const unique_ptr<thermodynamic> &, const unique_ptr<turbModel> &);
+            const unique_ptr<thermodynamic> &, const unique_ptr<turbModel> &);
   primitive(const vector<const double>::iterator &b,
             const vector<const double>::iterator &e, const int &numSpecies)
       : varArray(b, e, numSpecies) {}
@@ -131,16 +133,6 @@ class primitive : public varArray {
                            const unique_ptr<turbModel> &);
   void LimitTurb(const unique_ptr<turbModel> &);
 
-  // member function to return the state of the appropriate ghost cell
-  primitive GetGhostState(
-      const string &, const vector3d<double> &, const double &, const int &,
-      const input &, const int &, const unique_ptr<eos> &,
-      const unique_ptr<thermodynamic> &, const unique_ptr<transport> &,
-      const unique_ptr<turbModel> &, wallVars &, const int &,
-      const double & = 0.0, const primitive & = {0, 0},
-      const vector3d<double> & = {}, const tensor<double> & = {},
-      const double & = 0.0, const double & = 0.0) const;
-
   // destructor
   ~primitive() noexcept {}
 };
@@ -163,6 +155,18 @@ conserved primitive::ConsVars(const unique_ptr<eos> &eqnState,
   }
   return cv;
 }
+
+// function to return the state of the appropriate ghost cell
+primitive GetGhostState(const primitive &, const string &,
+                        const vector3d<double> &, const double &, const int &,
+                        const input &, const int &, const unique_ptr<eos> &,
+                        const unique_ptr<thermodynamic> &,
+                        const unique_ptr<transport> &,
+                        const unique_ptr<turbModel> &, wallVars &, const int &,
+                        const double & = 0.0, const primitive & = {0, 0},
+                        const vector3d<double> & = {},
+                        const tensor<double> & = {}, const double & = 0.0,
+                        const double & = 0.0);
 
 ostream &operator<<(ostream &os, const primitive &);
 
