@@ -30,7 +30,7 @@
 #include "vector3d.hpp"
 #include "input.hpp"
 #include "procBlock.hpp"
-#include "primative.hpp"
+#include "primitive.hpp"
 #include "eos.hpp"
 #include "transport.hpp"
 #include "thermodynamic.hpp"

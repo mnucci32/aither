@@ -21,6 +21,7 @@
 #include <vector>
 #include <numeric>
 #include <algorithm>
+#include <iterator>
 #include <cmath>
 #include <type_traits>
 #include "macros.hpp"
@@ -39,16 +40,25 @@ class varArray {
  public:
   // constructor
   varArray(const int &numEqns, const int &numSpecies, const double &val)
-      : data_(numEqns, val) {
+      : data_(numEqns, val),
+        momentumIndex_(numSpecies),
+        energyIndex_(momentumIndex_ + 3),
+        turbulenceIndex_(energyIndex_ + 1) {
     MSG_ASSERT(numEqns > numSpecies && numEqns >= 5,
                "number of equations should be greater than number of species");
-    momentumIndex_ = numSpecies;
-    energyIndex_ = momentumIndex_ + 3;
-    turbulenceIndex_ = energyIndex_ + 1;
   }
   varArray(const int &numEqns, const int &numSpecies)
       : varArray(numEqns, numSpecies, 0.0) {}
   varArray() : varArray(0, 0) {}
+  varArray(const vector<const double>::iterator &b, const vector<const double>::iterator &e,
+           const int &numSpecies)
+      : data_(b, e),
+        momentumIndex_(numSpecies),
+        energyIndex_(momentumIndex_ + 3),
+        turbulenceIndex_(energyIndex_ + 1) {
+    MSG_ASSERT(data_.size() > numSpecies && data.size() >= 5,
+               "number of equations should be greater than number of species");
+  }
 
   // move constructor and assignment operator
   varArray(varArray&&) noexcept = default;
@@ -81,7 +91,7 @@ class varArray {
   const double &MomentumX() const { return (*this)[momentumIndex_]; }
   const double &MomentumY() const { return (*this)[momentumIndex_ + 1]; }
   const double &MomentumZ() const { return (*this)[momentumIndex_ + 2]; }
-  const double &Energy() const { return (*this)[this->EnergyIndex()]; }
+  const double &Energy() const { return (*this)[energyIndex_]; }
   const double &TurbulenceN(const int &ii) const {
     MSG_ASSERT(tubulenceIndex_ + ii >= this->Size(),
                "requesting turbulence variable out of range");
@@ -538,6 +548,9 @@ class residual : public varArray {
   // constructor
   residual(const int &numEqns, const int &numSpecies)
       : varArray(numEqns, numSpecies) {}
+  residual(const vector<const double>::iterator &b, const vector<const double>::iterator &e,
+           const int &numSpecies)
+      : varArray(b, e, numSpecies) {}
 
   // move constructor and assignment operator
   residual(residual&&) noexcept = default;

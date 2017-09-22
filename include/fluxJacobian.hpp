@@ -32,7 +32,7 @@ using std::ostream;
 using std::unique_ptr;
 
 // forward class declarations
-class primative;
+class primitive;
 class conserved;
 class eos;
 class transport;
@@ -77,25 +77,25 @@ class fluxJacobian {
   void MultiplyOnDiagonal(const double &, const bool &);
   void AddOnDiagonal(const double &, const bool &);
 
-  void RusanovFluxJacobian(const primative &, const unique_ptr<eos> &,
+  void RusanovFluxJacobian(const primitive &, const unique_ptr<eos> &,
                            const unique_ptr<thermodynamic> &,
                            const unitVec3dMag<double> &, const bool &,
                            const input &, const unique_ptr<turbModel> &);
-  void InvFluxJacobian(const primative &, const unique_ptr<eos> &,
+  void InvFluxJacobian(const primitive &, const unique_ptr<eos> &,
                        const unique_ptr<thermodynamic> &,
                        const unitVec3dMag<double> &, const input &,
                        const unique_ptr<turbModel> &);
-  void ApproxRoeFluxJacobian(const primative &, const primative &,
+  void ApproxRoeFluxJacobian(const primitive &, const primitive &,
                              const unique_ptr<eos> &,
                              const unique_ptr<thermodynamic> &,
                              const unitVec3dMag<double> &, const bool &,
                              const input &, const unique_ptr<turbModel> &);
-  void DelPrimativeDelConservative(const primative &,
+  void DelprimitiveDelConservative(const primitive &,
                                    const unique_ptr<thermodynamic> &,
                                    const unique_ptr<eos> &, const input &);
 
   void ApproxTSLJacobian(
-      const primative &, const double &, const double &, const double &,
+      const primitive &, const double &, const double &, const double &,
       const unique_ptr<eos> &, const unique_ptr<transport> &,
       const unique_ptr<thermodynamic> &, const unitVec3dMag<double> &,
       const double &, const unique_ptr<turbModel> &, const input &,
@@ -245,7 +245,7 @@ inline const fluxJacobian operator/(const double &lhs, fluxJacobian rhs) {
 
 ostream &operator<<(ostream &os, const fluxJacobian &jacobian);
 
-varArray RusanovScalarOffDiagonal(const primative &, const conserved &,
+varArray RusanovScalarOffDiagonal(const primitive &, const conserved &,
                                   const unitVec3dMag<double> &,
                                   const double &, const double &,
                                   const double &, const double &,
@@ -254,7 +254,7 @@ varArray RusanovScalarOffDiagonal(const primative &, const conserved &,
                                   const unique_ptr<transport> &,
                                   const unique_ptr<turbModel> &,
                                   const bool &, const bool &);
-varArray RusanovBlockOffDiagonal(const primative &, const conserved &,
+varArray RusanovBlockOffDiagonal(const primitive &, const conserved &,
                                  const unitVec3dMag<double> &,
                                  const double &, const double &,
                                  const double &, const double &,
@@ -265,7 +265,7 @@ varArray RusanovBlockOffDiagonal(const primative &, const conserved &,
                                  const input &, const bool &,
                                  const tensor<double> &);
 
-varArray RoeOffDiagonal(const primative &, const primative &,
+varArray RoeOffDiagonal(const primitive &, const primitive &,
                         const conserved &,
                         const unitVec3dMag<double> &, const double &,
                         const double &, const double &,
@@ -275,7 +275,7 @@ varArray RoeOffDiagonal(const primative &, const primative &,
                         const unique_ptr<turbModel> &, const bool &,
                         const bool &, const bool &);
 
-varArray OffDiagonal(const primative &, const primative &, const conserved &,
+varArray OffDiagonal(const primitive &, const primitive &, const conserved &,
                      const unitVec3dMag<double> &, const double &,
                      const double &, const double &, const double &,
                      const tensor<double> &, const unique_ptr<eos> &,

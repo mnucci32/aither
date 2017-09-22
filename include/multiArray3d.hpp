@@ -28,6 +28,7 @@
 #include <vector>    // vector
 #include <string>    // string
 #include <memory>    // unique_ptr
+#include <type_traits>
 #include "mpi.h"
 #include "vector3d.hpp"
 #include "boundaryConditions.hpp"  // connection
@@ -51,17 +52,11 @@ class multiArray3d {
   int numGhosts_;
   int blkSize_;
 
-  // private member functions
-  int GetLoc1D(const int &ii, const int &jj, const int &kk) const {
-    return (ii + numGhosts_) + (jj + numGhosts_) * numI_ +
-        (kk + numGhosts_) * numI_ * numJ_;
-  }
-
  public:
   // constructor
   multiArray3d(const int &ii, const int &jj, const int &kk, const int &ng,
                const int &bs, const T &init) :
-      data_(bs * (ii + 2 * ng) * (jj + 2 * ng) * (kk + 2 * ng)),
+      data_(bs * (ii + 2 * ng) * (jj + 2 * ng) * (kk + 2 * ng), init),
       numI_(ii + 2 * ng), numJ_(jj + 2 * ng), numK_(kk + 2 * ng),
       numGhosts_(ng), blkSize_(bs) {}
   multiArray3d(const int &ii, const int &jj, const int &kk, const int &ng, 
@@ -99,6 +94,10 @@ class multiArray3d {
   int EndK() const {return numK_ - numGhosts_;}
   int Start(const string &) const;
   int End(const string &) const;
+  int GetLoc1D(const int &ii, const int &jj, const int &kk) const {
+    return (ii + numGhosts_) + (jj + numGhosts_) * numI_ +
+        (kk + numGhosts_) * numI_ * numJ_;
+  }
 
   int PhysStartI() const {return 0;}
   int PhysStartJ() const {return 0;}
@@ -126,14 +125,13 @@ class multiArray3d {
   auto end() noexcept {return data_.end();}
   const auto end() const noexcept {return data_.end();}
 
-  multiArray3d<T> Slice(const range &, const range &, const range &) const;
-  multiArray3d<T> Slice(const string &, const range &,
-                        const bool = false) const;
-  multiArray3d<T> Slice(const string &, int, int, const bool = false,
-                        const string = "cell", const bool = false,
-                        const bool = false) const;
-  multiArray3d<T> Slice(const string &, int, range, range,
-                        const string = "cell", const int = 0) const;
+  auto Slice(const range &, const range &, const range &) const;
+  auto Slice(const string &, const range &, const bool = false) const;
+  auto Slice(const string &, int, int, const bool = false,
+             const string = "cell", const bool = false,
+             const bool = false) const;
+  auto Slice(const string &, int, range, range, const string = "cell",
+             const int = 0) const;
 
   void Insert(const range &, const range &, const range &,
               const multiArray3d<T> &);
@@ -156,9 +154,9 @@ class multiArray3d {
     std::for_each(this->begin(), this->end(), [](T &val) { val.Zero(); });
   }
 
-  multiArray3d<T> GrowI() const;
-  multiArray3d<T> GrowJ() const;
-  multiArray3d<T> GrowK() const;
+  auto GrowI() const;
+  auto GrowJ() const;
+  auto GrowK() const;
 
   void PackSwapUnpackMPI(const connection &, const MPI_Datatype &, const int &,
                          const int = 1);
@@ -166,23 +164,28 @@ class multiArray3d {
   T GetElem(const int &ii, const int &jj, const int &kk) const;
 
   // operator overloads
-  T& operator()(const int &ii, const int &jj, const int &kk) {
-    MSG_ASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");  
+  T &operator()(const int &ii, const int &jj, const int &kk) {
+    MSG_ASSERT(this->BlockSize() == 1,
+               "shouldn't be used with blkMultiArray3d");
     return data_[this->GetLoc1D(ii, jj, kk)];
   }
-  const T& operator()(const int &ii, const int &jj, const int &kk) const {
-    MSG_ASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
+  const T &operator()(const int &ii, const int &jj, const int &kk) const {
+    MSG_ASSERT(this->BlockSize() == 1,
+               "shouldn't be used with blkMultiArray3d");
     return data_[this->GetLoc1D(ii, jj, kk)];
   }
-  T& operator()(const int &ind) {
-    MSG_ASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
+  T &operator()(const int &ind) {
+    MSG_ASSERT(this->BlockSize() == 1,
+               "shouldn't be used with blkMultiArray3d");
     return data_[ind];
   }
-  const T& operator()(const int &ind) const {
-    MSG_ASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
+  const T &operator()(const int &ind) const {
+    MSG_ASSERT(this->BlockSize() == 1,
+               "shouldn't be used with blkMultiArray3d");
     return data_[ind];
   }
-  T& operator()(const string &dir, const int &d1, const int &d2, const int &d3) {
+  T &operator()(const string &dir, const int &d1, const int &d2,
+                const int &d3) {
     MSG_ASSERT(this->BlockSize() == 1, "shouldn't be used with blkMultiArray3d");
     if (dir == "i") {  // direction 1 is i
       return (*this)(d1, d2, d3);
@@ -384,7 +387,7 @@ template <typename T>
 T multiArray3d<T>::GetElem(const int &ii, const int &jj, const int &kk) const {
   if (ii < this->EndI() && jj < this->EndJ() && kk < this->EndK() &&
       ii >= this->StartI() && jj >= this->StartJ() && kk >= this->StartK()) {
-    return data_[this->GetLoc1D(ii, jj, kk)];
+    return (*this)(ii, jj, kk);
   } else {
     cerr << "ERROR: Tried to access location outside of bounds of "
          << "multiArray3d" << endl;
@@ -553,8 +556,8 @@ inline const multiArray3d<T> operator/(const TT &lhs, multiArray3d<T> rhs) {
 // member function to return a slice of the array
 // this is the main slice function that all other overloaded slice functions call
 template <typename T>
-multiArray3d<T> multiArray3d<T>::Slice(const range &ir, const range &jr,
-                                       const range &kr) const {
+auto multiArray3d<T>::Slice(const range &ir, const range &jr,
+                            const range &kr) const {
   // ir -- i-index range to take slice [inclusive, exclusive)
   // jr -- j-index range to take slice [inclusive, exclusive)
   // kr -- k-index range to take slice [inclusive, exclusive)
@@ -572,7 +575,8 @@ multiArray3d<T> multiArray3d<T>::Slice(const range &ir, const range &jr,
   }
 
   // slices always have 0 ghost cells
-  multiArray3d<T> arr(ir.Size(), jr.Size(), kr.Size(), 0);
+  std::remove_reference_t<decltype(*this)> arr(ir.Size(), jr.Size(), kr.Size(),
+                                               0, blkSize_);
 
   // s is for index of sliced array, p is for index of parent array
   for (int ks = arr.StartK(), kp = kr.Start(); ks < arr.EndK(); ks++, kp++) {
@@ -591,9 +595,8 @@ multiArray3d<T> multiArray3d<T>::Slice(const range &ir, const range &jr,
 // dir is sliced over dirRange. It also has the ability to include or ignore
 // ghost cells in its planar slices
 template <typename T>
-multiArray3d<T> multiArray3d<T>::Slice(const string &dir,
-                                       const range &dirRange,
-                                       const bool physOnly) const {
+auto multiArray3d<T>::Slice(const string &dir, const range &dirRange,
+                            const bool physOnly) const {
   // dir -- direction of slice
   // dirRange -- range of slice in direction given
   // phsOnly -- flag to only include physical cells in the two directions that
@@ -627,10 +630,9 @@ multiArray3d<T> multiArray3d<T>::Slice(const string &dir,
 // member function to return a slice of the array
 // overload to slice line out of array
 template <typename T>
-multiArray3d<T> multiArray3d<T>::Slice(const string &dir, int d2Ind,
-                                       int d3Ind, const bool physOnly,
-                                       const string id, const bool upper2,
-                                       const bool upper3) const {
+auto multiArray3d<T>::Slice(const string &dir, int d2Ind, int d3Ind,
+                            const bool physOnly, const string id,
+                            const bool upper2, const bool upper3) const {
   // dir -- direction of line slice (direction 1)
   // d2Ind -- index of direction 2
   // d3Ind -- index of direction 3
@@ -689,9 +691,8 @@ multiArray3d<T> multiArray3d<T>::Slice(const string &dir, int d2Ind,
 // over a subset of direction 2 & 3. This is useful to slice out a plane that
 // borders a boundary condition patch.
 template <typename T>
-multiArray3d<T> multiArray3d<T>::Slice(const string &dir, int dirInd,
-                                       range dir1, range dir2,
-                                       const string id, const int type) const {
+auto multiArray3d<T>::Slice(const string &dir, int dirInd, range dir1,
+                            range dir2, const string id, const int type) const {
   // dir -- normal direction of planar slice
   // dirInd -- index in normal direction
   // dir1 -- range of direction 1 (direction 3 is normal to slice)
@@ -951,7 +952,7 @@ void multiArray3d<T>::Fill(const multiArray3d<T> &arr) {
 }
 
 template <typename T>
-multiArray3d<T> multiArray3d<T>::GrowI() const {
+auto multiArray3d<T>::GrowI() const {
   multiArray3d<T> arr(this->NumINoGhosts() + 1, this->NumJNoGhosts(),
                       this->NumKNoGhosts(), numGhosts_);
   for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
@@ -966,7 +967,7 @@ multiArray3d<T> multiArray3d<T>::GrowI() const {
 }
 
 template <typename T>
-multiArray3d<T> multiArray3d<T>::GrowJ() const {
+auto multiArray3d<T>::GrowJ() const {
   multiArray3d<T> arr(this->NumINoGhosts(), this->NumJNoGhosts() + 1,
                       this->NumKNoGhosts(), numGhosts_);
   for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
@@ -981,7 +982,7 @@ multiArray3d<T> multiArray3d<T>::GrowJ() const {
 }
 
 template <typename T>
-multiArray3d<T> multiArray3d<T>::GrowK() const {
+auto multiArray3d<T>::GrowK() const {
   multiArray3d<T> arr(this->NumINoGhosts(), this->NumJNoGhosts(),
                       this->NumKNoGhosts() + 1, numGhosts_);
   for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {

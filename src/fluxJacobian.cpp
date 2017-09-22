@@ -22,7 +22,7 @@
 #include "fluxJacobian.hpp"
 #include "turbulence.hpp"     // turbModel
 #include "input.hpp"          // input
-#include "primative.hpp"      // primative
+#include "primitive.hpp"      // primitive
 #include "inviscidFlux.hpp"   // ConvectiveFluxUpdate
 #include "utility.hpp"        // TauNormal
 #include "transport.hpp"      // transport model
@@ -99,13 +99,13 @@ jacobians.
 In the above equations the dissipation term L is held constant during
 differentiation. A represents the convective flux jacobian matrix.
  */
-void fluxJacobian::RusanovFluxJacobian(const primative &state,
+void fluxJacobian::RusanovFluxJacobian(const primitive &state,
                                        const unique_ptr<eos> &eqnState,
                                        const unique_ptr<thermodynamic> &thermo,
                                        const unitVec3dMag<double> &area,
                                        const bool &positive, const input &inp,
                                        const unique_ptr<turbModel> &turb) {
-  // state -- primative variables at face
+  // state -- primitive variables at face
   // eqnState -- equation of state
   // thermo -- thermodynamic model
   // area -- face area vector
@@ -134,13 +134,13 @@ void fluxJacobian::RusanovFluxJacobian(const primative &state,
 }
 
 // function to calculate inviscid flux jacobian
-void fluxJacobian::InvFluxJacobian(const primative &state,
+void fluxJacobian::InvFluxJacobian(const primitive &state,
                                    const unique_ptr<eos> &eqnState,
                                    const unique_ptr<thermodynamic> &thermo,
                                    const unitVec3dMag<double> &area,
                                    const input &inp,
                                    const unique_ptr<turbModel> &turb) {
-  // state -- primative variables at face
+  // state -- primitive variables at face
   // eqnState -- ideal gas equation of state
   // thermo -- thermodynamic model
   // area -- face area vector
@@ -228,12 +228,12 @@ In the above equations the Roe matrix Aroe is held constant during
 differentiation. A represents the convective flux jacobian matrix.
  */
 void fluxJacobian::ApproxRoeFluxJacobian(
-    const primative &left, const primative &right,
+    const primitive &left, const primitive &right,
     const unique_ptr<eos> &eqnState, const unique_ptr<thermodynamic> &thermo,
     const unitVec3dMag<double> &area, const bool &positive, const input &inp,
     const unique_ptr<turbModel> &turb) {
-  // left -- primative variables from left side
-  // right -- primative variables from right side
+  // left -- primitive variables from left side
+  // right -- primitive variables from right side
   // eqnState -- equation of state
   // thermo -- thermodynamic model
   // area -- face area vector
@@ -255,12 +255,12 @@ void fluxJacobian::ApproxRoeFluxJacobian(
   positive ? (*this) += roeMatrix : (*this) -= roeMatrix;
 }
 
-// change of variable matrix going from primative to conservative variables
+// change of variable matrix going from primitive to conservative variables
 // from Dwight
-void fluxJacobian::DelPrimativeDelConservative(
-    const primative &state, const unique_ptr<thermodynamic> &thermo,
+void fluxJacobian::DelprimitiveDelConservative(
+    const primitive &state, const unique_ptr<thermodynamic> &thermo,
     const unique_ptr<eos> &eqnState, const input &inp) {
-  // state -- primative variables
+  // state -- primitive variables
   // thermo -- thermodynamic model
   // inp -- input variables
 
@@ -303,7 +303,7 @@ void fluxJacobian::DelPrimativeDelConservative(
 
 // approximate thin shear layer jacobian following implementation in Dwight.
 // does not use any gradients
-void fluxJacobian::ApproxTSLJacobian(const primative &state,
+void fluxJacobian::ApproxTSLJacobian(const primitive &state,
                                      const double &lamVisc,
                                      const double &turbVisc, const double &f1,
                                      const unique_ptr<eos> &eqnState,
@@ -314,7 +314,7 @@ void fluxJacobian::ApproxTSLJacobian(const primative &state,
                                      const unique_ptr<turbModel> &turb,
                                      const input &inp, const bool &left,
                                      const tensor<double> &vGrad) {
-  // state -- primative variables
+  // state -- primitive variables
   // eos -- equation of state
   // trans -- viscous transport model
   // area -- face area vector
@@ -377,7 +377,7 @@ void fluxJacobian::ApproxTSLJacobian(const primative &state,
   flowJacobian_ *= area.Mag() * (mu + mut) / dist;
 
   fluxJacobian prim2Cons;
-  prim2Cons.DelPrimativeDelConservative(state, thermo, eqnState, inp);
+  prim2Cons.DelprimitiveDelConservative(state, thermo, eqnState, inp);
   flowJacobian_ = flowJacobian_.MatMult(prim2Cons.flowJacobian_);
 
   // calculate turbulent jacobian if necessary
@@ -398,7 +398,7 @@ ostream &operator<<(ostream &os, const fluxJacobian &jacobian) {
   return os;
 }
 
-varArray RusanovScalarOffDiagonal(const primative &state, const conserved &update,
+varArray RusanovScalarOffDiagonal(const primitive &state, const conserved &update,
                                   const unitVec3dMag<double> &fArea,
                                   const double &mu, const double &mut,
                                   const double &f1, const double &dist,
@@ -407,7 +407,7 @@ varArray RusanovScalarOffDiagonal(const primative &state, const conserved &updat
                                   const unique_ptr<transport> &trans,
                                   const unique_ptr<turbModel> &turb,
                                   const bool &isViscous, const bool &positive) {
-  // state -- primative variables at off diagonal
+  // state -- primitive variables at off diagonal
   // update -- conserved variable update at off diagonal
   // fArea -- face area vector on off diagonal boundary
   // mu -- laminar viscosity
@@ -446,13 +446,13 @@ varArray RusanovScalarOffDiagonal(const primative &state, const conserved &updat
 }
 
 varArray RusanovBlockOffDiagonal(
-    const primative &state, const conserved &update,
+    const primitive &state, const conserved &update,
     const unitVec3dMag<double> &fArea, const double &mu, const double &mut,
     const double &f1, const double &dist, const unique_ptr<eos> &eqnState,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
     const unique_ptr<turbModel> &turb, const input &inp, const bool &positive,
     const tensor<double> &vGrad) {
-  // state -- primative variables at off diagonal
+  // state -- primitive variables at off diagonal
   // update -- conserved variable update at off diagonal
   // fArea -- face area vector on off diagonal boundary
   // mu -- laminar viscosity
@@ -483,7 +483,7 @@ varArray RusanovBlockOffDiagonal(
   return jacobian.ArrayMult(update);
 }
 
-varArray OffDiagonal(const primative &offDiag, const primative &diag,
+varArray OffDiagonal(const primitive &offDiag, const primitive &diag,
                      const conserved &update, const unitVec3dMag<double> &fArea,
                      const double &mu, const double &mut, const double &f1,
                      const double &dist, const tensor<double> &vGrad,
@@ -492,8 +492,8 @@ varArray OffDiagonal(const primative &offDiag, const primative &diag,
                      const unique_ptr<transport> &trans,
                      const unique_ptr<turbModel> &turb, const input &inp,
                      const bool &positive) {
-  // offDiag -- primative variables at off diagonal
-  // diag -- primative variables at diagonal
+  // offDiag -- primitive variables at off diagonal
+  // diag -- primitive variables at diagonal
   // update -- conserved variable update at off diagonal
   // fArea -- face area vector on off diagonal boundary
   // mu -- laminar viscosity
@@ -536,7 +536,7 @@ varArray OffDiagonal(const primative &offDiag, const primative &diag,
 }
 
 
-varArray RoeOffDiagonal(const primative &offDiag, const primative &diag,
+varArray RoeOffDiagonal(const primitive &offDiag, const primitive &diag,
                         const conserved &update,
                         const unitVec3dMag<double> &fArea,
                         const double &mu, const double &mut,
@@ -547,8 +547,8 @@ varArray RoeOffDiagonal(const primative &offDiag, const primative &diag,
                         const unique_ptr<turbModel> &turb,
                         const bool &isViscous, const bool &isRANS,
                         const bool &positive) {
-  // offDiag -- primative variables at off diagonal
-  // diag -- primative variables at diagonal
+  // offDiag -- primitive variables at off diagonal
+  // diag -- primitive variables at diagonal
   // update -- conserved variable update at off diagonal
   // fArea -- face area vector on off diagonal boundary
   // dist -- distance from cell center to cell center

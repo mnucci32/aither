@@ -37,13 +37,15 @@ set(sources
   inputStates.cpp
   inviscidFlux.cpp
   kdtree.cpp
+  limiter.cpp
   matrix.cpp
   output.cpp
   parallel.cpp
   plot3d.cpp
-  primative.cpp
+  primitive.cpp
   procBlock.cpp
   range.cpp
+  reconstruction.cpp
   resid.cpp
   slices.cpp
   source.cpp

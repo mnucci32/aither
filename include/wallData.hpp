@@ -34,7 +34,7 @@ using std::shared_ptr;
 // forward declarations
 class input;
 class eos;
-class primative;
+class primitive;
 
 // structure to hold wall variables
 struct wallVars {
@@ -99,7 +99,7 @@ class wallData {
   double WallFrictionVelocity(const int &ii, const int &jj,
                               const int &kk) const;
   vector3d<double> WallVelocity() const {return bcData_->Velocity();}
-  primative WallState(const int &ii, const int &jj, const int &kk,
+  primitive WallState(const int &ii, const int &jj, const int &kk,
                      const unique_ptr<eos> &eqnState) const;
   int WallVarsSize() const { return data_.Size(); }
   void PackWallData(char *(&), const int &, int &, const MPI_Datatype &) const;

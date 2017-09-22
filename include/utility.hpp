@@ -41,7 +41,7 @@ class turbModel;
 class fluxJacobian;
 class kdtree;
 class resid;
-class primative;
+class primitive;
 class varArray;
 
 // function definitions
@@ -137,22 +137,22 @@ template <typename T>
 T Derivative2nd(const double &, const double &, const double &,
                 const T &, const T &, const T &);
 
-primative Beta0(const double &, const double &, const double &,
-               const primative &, const primative &, const primative &);
-primative Beta1(const double &, const double &, const double &,
-               const primative &, const primative &, const primative &);
-primative Beta2(const double &, const double &, const double &,
-               const primative &, const primative &, const primative &);
-primative BetaIntegral(const primative &, const primative &, const double &,
+primitive Beta0(const double &, const double &, const double &,
+               const primitive &, const primitive &, const primitive &);
+primitive Beta1(const double &, const double &, const double &,
+               const primitive &, const primitive &, const primitive &);
+primitive Beta2(const double &, const double &, const double &,
+               const primitive &, const primitive &, const primitive &);
+primitive BetaIntegral(const primitive &, const primitive &, const double &,
                       const double &);
-primative BetaIntegral(const primative &, const primative &, const double &,
+primitive BetaIntegral(const primitive &, const primitive &, const double &,
                       const double &, const double &);
 
-tensor<double> CalcVelGradTSL(const primative&, const primative&,
+tensor<double> CalcVelGradTSL(const primitive&, const primitive&,
                               const vector3d<double>&, const double&);
 
 kdtree CalcTreeFromCloud(const string &, const input &,
-                         const unique_ptr<transport> &, vector<primative> &,
+                         const unique_ptr<transport> &, vector<primitive> &,
                          vector<string> &);
 
 // ---------------------------------------------------------------------------

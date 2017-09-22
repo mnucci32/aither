@@ -32,7 +32,7 @@
 #include "fluxJacobian.hpp"
 #include "kdtree.hpp"
 #include "resid.hpp"
-#include "primative.hpp"
+#include "primitive.hpp"
 #include "macros.hpp"
 
 using std::cout;
@@ -789,37 +789,37 @@ double StencilWidth(const T &cellWidth, const int &start, const int &end) {
   return width;
 }
 
-primative BetaIntegral(const primative &deriv1, const primative &deriv2,
+primitive BetaIntegral(const primitive &deriv1, const primitive &deriv2,
                       const double &dx, const double &x) {
   return (deriv1.Squared() * x + deriv1 * deriv2 * x * x +
           deriv2.Squared() * pow(x, 3.0) / 3.0) * dx +
       deriv2.Squared() * x * pow(dx, 3.0);
 }
 
-primative BetaIntegral(const primative &deriv1, const primative &deriv2,
+primitive BetaIntegral(const primitive &deriv1, const primitive &deriv2,
                       const double &dx, const double &xl, const double &xh) {
   return BetaIntegral(deriv1, deriv2, dx, xh) -
       BetaIntegral(deriv1, deriv2, dx, xl);
 }
 
-primative Beta0(const double &x_0, const double &x_1, const double &x_2,
-               const primative &y_0, const primative &y_1, const primative &y_2) {
+primitive Beta0(const double &x_0, const double &x_1, const double &x_2,
+               const primitive &y_0, const primitive &y_1, const primitive &y_2) {
   const auto deriv2nd = Derivative2nd(x_0, x_1, x_2, y_0, y_1, y_2);
   const auto deriv1st = (y_2 - y_1) / (0.5 * (x_2 + x_1)) + 0.5 * x_2 * deriv2nd;
 
   return BetaIntegral(deriv1st, deriv2nd, x_2, -0.5 * x_2, 0.5 * x_2);
 }
 
-primative Beta1(const double &x_0, const double &x_1, const double &x_2,
-               const primative &y_0, const primative &y_1, const primative &y_2) {
+primitive Beta1(const double &x_0, const double &x_1, const double &x_2,
+               const primitive &y_0, const primitive &y_1, const primitive &y_2) {
   const auto deriv2nd = Derivative2nd(x_0, x_1, x_2, y_0, y_1, y_2);
   const auto deriv1st = (y_2 - y_1) / (0.5 * (x_2 + x_1)) - 0.5 * x_1 * deriv2nd;
 
   return BetaIntegral(deriv1st, deriv2nd, x_1, -0.5 * x_1, 0.5 * x_1);
 }
 
-primative Beta2(const double &x_0, const double &x_1, const double &x_2,
-               const primative &y_0, const primative &y_1, const primative &y_2) {
+primitive Beta2(const double &x_0, const double &x_1, const double &x_2,
+               const primitive &y_0, const primitive &y_1, const primitive &y_2) {
   const auto deriv2nd = Derivative2nd(x_0, x_1, x_2, y_0, y_1, y_2);
   const auto deriv1st = (y_1 - y_0) / (0.5 * (x_1 + x_0)) - 0.5 * x_0 * deriv2nd;
 
@@ -828,11 +828,11 @@ primative Beta2(const double &x_0, const double &x_1, const double &x_2,
 
 // function to calculate the velocity gradients at a cell face using the Thin
 // Shear Layer approximation
-tensor<double> CalcVelGradTSL(const primative &left, const primative &right,
+tensor<double> CalcVelGradTSL(const primitive &left, const primitive &right,
                               const vector3d<double> &normArea,
                               const double &dist) {
-  // left -- left state (primative)
-  // right -- right state (primative)
+  // left -- left state (primitive)
+  // right -- right state (primitive)
   // normArea -- unit area vector of face
   // dist -- distance between centroid of left cell and right cell
 
@@ -864,7 +864,7 @@ tensor<double> CalcVelGradTSL(const primative &left, const primative &right,
 //
 kdtree CalcTreeFromCloud(const string &fname, const input &inp,
                          const unique_ptr<transport> &trans,
-                         vector<primative> &states, vector<string> &species) {
+                         vector<primitive> &states, vector<string> &species) {
   // fname -- name of file to open
   // inp -- input variables
   // trans -- transport model
@@ -925,7 +925,7 @@ kdtree CalcTreeFromCloud(const string &fname, const input &inp,
         for (auto ii = 0U; ii < massFractions.size(); ++ii) {
           massFractions[ii] = std::stod(tokens[ii + 10]);
         }
-        primative state(rho, uVel, vVel, wVel, pressure, tke, omega);
+        primitive state(rho, uVel, vVel, wVel, pressure, tke, omega);
         states[count - 2] = state;
       }
     }

@@ -18,7 +18,7 @@
 #include "vector3d.hpp"
 #include "input.hpp"
 #include "eos.hpp"
-#include "primative.hpp"
+#include "primitive.hpp"
 
 // member functions
 vector3d<double> wallData::WallShearStress(const int &ii, const int &jj,
@@ -183,9 +183,9 @@ void wallData::Join(const wallData &upper, const string &dir, bool &joined) {
   }
 }
 
-  primative wallData::WallState(const int &ii, const int &jj, const int &kk,
+  primitive wallData::WallState(const int &ii, const int &jj, const int &kk,
                      const unique_ptr<eos> &eqnState) const {
-    return primative(this->WallDensity(ii, jj, kk), this->WallVelocity(),
+    return primitive(this->WallDensity(ii, jj, kk), this->WallVelocity(),
                     this->WallPressure(ii, jj, kk, eqnState),
                     this->WallTke(ii, jj, kk), this->WallSdr(ii, jj, kk));
   }

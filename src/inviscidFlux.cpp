@@ -21,7 +21,7 @@
 #include "inviscidFlux.hpp"
 #include "eos.hpp"
 #include "thermodynamic.hpp"
-#include "primative.hpp"
+#include "primitive.hpp"
 #include "matrix.hpp"
 #include "turbulence.hpp"
 #include "utility.hpp"
@@ -57,18 +57,18 @@ k -- turbulence kinetic energy
 w -- specific turbulent dissipation
 
 Constructor is put in a private member function because identical code is
-used for constructing from primative variables and conservative variables
-once the conservative variables have been changed to primative variables.
-The C++11 way of delegating constructors is not used because the primative
+used for constructing from primitive variables and conservative variables
+once the conservative variables have been changed to primitive variables.
+The C++11 way of delegating constructors is not used because the primitive
 class is not fully defined in the inviscidFlux.hpp header. This way both
-constructors (primative version and conserved version) can call this function
+constructors (primitive version and conserved version) can call this function
 to avoid code duplication.
 */
-void inviscidFlux::ConstructFromPrim(const primative &state,
+void inviscidFlux::ConstructFromPrim(const primitive &state,
                                      const unique_ptr<eos> &eqnState,
                                      const unique_ptr<thermodynamic> &thermo,
                                      const vector3d<double> &normArea) {
-  // state -- primative variables
+  // state -- primitive variables
   // eqnState -- equation of state
   // normArea -- unit area vector of face
 
@@ -94,7 +94,7 @@ void inviscidFlux::ConstructFromPrim(const primative &state,
 }
 
 /* Function to calculate inviscid flux using Roe's approximate Riemann solver.
-The function takes in the primative varibles constructed
+The function takes in the primitive varibles constructed
 from the left and right states, an equation of state, a face area vector, and
 outputs the inviscid flux as well as the maximum wave speed.
 The function uses Harten's entropy fix to correct wave speeds near 0 and near
@@ -138,12 +138,12 @@ characteristic waves, L represents the wave speeds, and (Cr - Cl) represents the
 wave strength across the face.
 
 */
-inviscidFlux RoeFlux(const primative &left, const primative &right,
+inviscidFlux RoeFlux(const primitive &left, const primitive &right,
                      const unique_ptr<eos> &eqnState,
                      const unique_ptr<thermodynamic> &thermo,
                      const vector3d<double> &areaNorm) {
-  // left -- primative variables from left
-  // right -- primative variables from right
+  // left -- primitive variables from left
+  // right -- primitive variables from right
   // eqnState -- equation of state
   // areaNorm -- norm area vector of face
 
@@ -306,12 +306,12 @@ inviscidFlux RoeFlux(const primative &left, const primative &right,
 
    F = M^+_l * c * F_cl + M^-_r * c * F_cr + P^+_l * P_l + P^-_r * P_r
 */
-inviscidFlux AUSMFlux(const primative &left, const primative &right,
+inviscidFlux AUSMFlux(const primitive &left, const primitive &right,
                      const unique_ptr<eos> &eqnState,
                      const unique_ptr<thermodynamic> &thermo,
                      const vector3d<double> &area) {
-  // left -- primative variables from left
-  // right -- primative variables from right
+  // left -- primitive variables from left
+  // right -- primitive variables from right
   // eqnState -- equation of state
   // thermo -- thermodynamic model
   // area -- norm area vector of face
@@ -375,7 +375,7 @@ inviscidFlux AUSMFlux(const primative &left, const primative &right,
   return ausm;
 }
 
-void inviscidFlux::AUSMFlux(const primative &left, const primative &right,
+void inviscidFlux::AUSMFlux(const primitive &left, const primitive &right,
                             const unique_ptr<eos> &eqnState,
                             const unique_ptr<thermodynamic> &thermo,
                             const vector3d<double> &area,
@@ -419,7 +419,7 @@ void inviscidFlux::AUSMFlux(const primative &left, const primative &right,
   }
 }
 
-inviscidFlux InviscidFlux(const primative &left, const primative &right,
+inviscidFlux InviscidFlux(const primitive &left, const primitive &right,
                           const unique_ptr<eos> &eqnState,
                           const unique_ptr<thermodynamic> &thermo,
                           const vector3d<double> &area, const string &flux) {
@@ -437,13 +437,13 @@ inviscidFlux InviscidFlux(const primative &left, const primative &right,
   return invFlux;
 }
 
-inviscidFlux RusanovFlux(const primative &left, const primative &right,
+inviscidFlux RusanovFlux(const primitive &left, const primitive &right,
                          const unique_ptr<eos> &eqnState,
                          const unique_ptr<thermodynamic> &thermo,
                          const vector3d<double> &areaNorm,
                          const bool &positive) {
-  // left -- primative variables from left
-  // right -- primative variables from right
+  // left -- primitive variables from left
+  // right -- primitive variables from right
   // eqnState -- equation of state
   // thermo -- thermodynamic model
   // areaNorm -- norm area vector of face
@@ -487,11 +487,11 @@ ostream &operator<<(ostream &os, const inviscidFlux &flux) {
   return os;
 }
 
-// function to take in the primative variables, equation of state, face area
-// vector, and primative variable update and calculate the change in the
+// function to take in the primitive variables, equation of state, face area
+// vector, and primitive variable update and calculate the change in the
 // convective flux
-inviscidFlux ConvectiveFluxUpdate(const primative &state,
-                                  const primative &stateUpdate,
+inviscidFlux ConvectiveFluxUpdate(const primitive &state,
+                                  const primitive &stateUpdate,
                                   const unique_ptr<eos> &eqnState,
                                   const unique_ptr<thermodynamic> &thermo,
                                   const vector3d<double> &normArea) {

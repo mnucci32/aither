@@ -19,7 +19,7 @@
 #include <memory>
 #include "source.hpp"
 #include "turbulence.hpp"
-#include "primative.hpp"
+#include "primitive.hpp"
 #include "transport.hpp"
 #include "vector3d.hpp"
 #include "tensor.hpp"
@@ -40,13 +40,13 @@ ostream &operator<<(ostream &os, const source &m) {
 
 // Member function to calculate the source terms for the turbulence equations
 squareMatrix source::CalcTurbSrc(
-    const unique_ptr<turbModel> &turb, const primative &state,
+    const unique_ptr<turbModel> &turb, const primitive &state,
     const tensor<double> &velGrad, const vector3d<double> &tGrad,
     const vector3d<double> &tkeGrad, const vector3d<double> &omegaGrad,
     const unique_ptr<transport> &trans, const double &vol, const double &mut,
     const double &f1, const double &f2, const double &phi) {
   // turb -- turbulence model
-  // state -- primative variables
+  // state -- primitive variables
   // velGrad -- velocity gradient
   // tGrad -- temperature gradient
   // tkeGrad -- tke gradient

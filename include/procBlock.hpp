@@ -29,7 +29,7 @@
 #include "multiArray3d.hpp"        // multiArray3d
 #include "blkMultiArray3d.hpp"     // blkMultiArray3d
 #include "tensor.hpp"              // tensor
-#include "primative.hpp"           // primative
+#include "primitive.hpp"           // primitive
 #include "varArray.hpp"            // varArray
 #include "boundaryConditions.hpp"  // connection, patch
 #include "macros.hpp"
@@ -57,13 +57,14 @@ class plot3dBlock;
 class resid;
 class fluxJacobian;
 class kdtree;
+class conserved;
 
 class procBlock {
-  blkMultiArray3d<double> state_;  // primative variables at cell center
-  blkMultiArray3d<double> consVarsN_;  // conserved variables at time n
-  blkMultiArray3d<double> consVarsNm1_;  // conserved variables at time n-1
+  blkMultiArray3d<primitive> state_;  // primitive variables at cell center
+  blkMultiArray3d<conserved> consVarsN_;  // conserved variables at time n
+  blkMultiArray3d<conserved> consVarsNm1_;  // conserved variables at time n-1
 
-  blkMultiArray3d<double> residual_;  // cell residual
+  blkMultiArray3d<residual> residual_;  // cell residual
 
   multiArray3d<unitVec3dMag<double>> fAreaI_;  // face area vector for i-faces
   multiArray3d<unitVec3dMag<double>> fAreaJ_;  // face area vector for j-faces
@@ -144,11 +145,11 @@ class procBlock {
                                 const unique_ptr<thermodynamic> &,
                                 const unique_ptr<turbModel> &, const int &,
                                 const int &, const int &);
-  void ImplicitTimeAdvance(const genArray &, const unique_ptr<eos> &,
+  void ImplicitTimeAdvance(const varArray &, const unique_ptr<eos> &,
                            const unique_ptr<thermodynamic> &,
                            const unique_ptr<turbModel> &, const int &,
                            const int &, const int &);
-  void RK4TimeAdvance(const genArray &, const unique_ptr<eos> &,
+  void RK4TimeAdvance(const conserved &, const unique_ptr<eos> &,
                       const unique_ptr<thermodynamic> &,
                       const unique_ptr<turbModel> &, const int &, const int &,
                       const int &, const int &);
@@ -174,9 +175,11 @@ class procBlock {
   // constructors
   procBlock(const plot3dBlock &, const int &, const boundaryConditions &,
             const int &, const int &, const int &, const input &);
-  procBlock(const int &, const int &, const int &, const int &, const bool &,
-            const bool &, const bool &, const bool &, const bool &);
-  procBlock() : procBlock(1, 1, 1, 0, false, false, false, false, false) {}
+  procBlock(const int &, const int &, const int &, const int &, const int &,
+            const int &, const bool &, const bool &, const bool &, const bool &,
+            const bool &);
+  procBlock()
+      : procBlock(0, 0, 0, 0, 0, 0, false, false, false, false, false) {}
 
   // move constructor and assignment operator
   procBlock(procBlock&&) noexcept = default;
@@ -240,17 +243,17 @@ class procBlock {
 
   boundaryConditions BC() const {return bc_;}
 
-  primative State(const int &ii, const int &jj, const int &kk) const {
+  primitive State(const int &ii, const int &jj, const int &kk) const {
     return state_(ii, jj, kk);
   }
-  genArray ConsVarsN(const int &ii, const int &jj, const int &kk) const {
+  conserved ConsVarsN(const int &ii, const int &jj, const int &kk) const {
     return consVarsN_(ii, jj, kk);
   }
-  genArray ConsVarsNm1(const int &ii, const int &jj, const int &kk) const {
+  conserved ConsVarsNm1(const int &ii, const int &jj, const int &kk) const {
     return consVarsNm1_(ii, jj, kk);
   }
 
-  multiArray3d<primative> SliceState(const int &, const int &, const int &,
+  multiArray3d<primitive> SliceState(const int &, const int &, const int &,
                                     const int &, const int &,
                                     const int &) const;
   multiArray3d<vector3d<double>> SliceBoundaryCenters(const int &) const;
@@ -262,10 +265,10 @@ class procBlock {
                         const input &) const;
   double SolDeltaNm1Coeff(const int &, const int &, const int &,
                           const input &) const;
-  genArray SolDeltaMmN(const int &, const int &, const int &, const input &,
+  varArray SolDeltaMmN(const int &, const int &, const int &, const input &,
                        const unique_ptr<eos> &,
                        const unique_ptr<thermodynamic> &) const;
-  genArray SolDeltaNm1(const int &, const int &, const int &,
+  varArray SolDeltaNm1(const int &, const int &, const int &,
                        const input &) const;
 
   double Vol(const int &ii, const int &jj, const int &kk) const {
@@ -347,7 +350,7 @@ class procBlock {
     return wallDist_(ii, jj, kk);
   }
 
-  genArray Residual(const int &ii, const int &jj, const int &kk) const {
+  residual Residual(const int &ii, const int &jj, const int &kk) const {
     return residual_(ii, jj, kk);
   }
   double Residual(const int &ii, const int &jj, const int &kk,
@@ -397,8 +400,8 @@ class procBlock {
   void UpdateBlock(const input &, const unique_ptr<eos> &,
                    const unique_ptr<thermodynamic> &,
                    const unique_ptr<transport> &,
-                   const multiArray3d<genArray> &,
-                   const unique_ptr<turbModel> &, const int &, genArray &,
+                   const multiArray3d<varArray> &,
+                   const unique_ptr<turbModel> &, const int &, residual &,
                    resid &);
 
   void CalcResidualNoSource(const unique_ptr<transport> &,
@@ -439,13 +442,13 @@ class procBlock {
                                    const unique_ptr<thermodynamic> &,
                                    const unique_ptr<transport> &,
                                    const unique_ptr<turbModel> &);
-  multiArray3d<primative> GetGhostStates(
-      const multiArray3d<primative> &, const string &,
+  multiArray3d<primitive> GetGhostStates(
+      const blkMultiArray3d<primitive> &, const string &,
       const multiArray3d<unitVec3dMag<double>> &, const multiArray3d<double> &,
       const boundarySurface &, const input &, const unique_ptr<eos> &,
       const unique_ptr<thermodynamic> &, const unique_ptr<transport> &,
       const unique_ptr<turbModel> &, const int &,
-      const multiArray3d<double> & = {}, const multiArray3d<genArray> & = {},
+      const multiArray3d<double> & = {}, const blkMultiArray3d<conserved> & = {},
       const multiArray3d<vector3d<double>> & = {},
       const multiArray3d<tensor<double>> & = {});
 
@@ -461,32 +464,26 @@ class procBlock {
 
   void CalcWallDistance(const kdtree &);
 
-  multiArray3d<genArray> DeltaNMinusOne(const multiArray3d<genArray> &,
-                                        const unique_ptr<eos> &, const double &,
-                                        const double &) const;
-  multiArray3d<genArray> SolTimeMMinusN(const multiArray3d<genArray> &,
-                                        const unique_ptr<eos> &, const input &,
-                                        const int &) const;
   void InvertDiagonal(multiArray3d<fluxJacobian> &, const input &) const;
 
-  multiArray3d<genArray> InitializeMatrixUpdate(
+  blkMultiArray3d<varArray> InitializeMatrixUpdate(
       const input &, const unique_ptr<eos> &eos,
       const unique_ptr<thermodynamic> &,
       const multiArray3d<fluxJacobian> &) const;
-  void LUSGS_Forward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
+  void LUSGS_Forward(const vector<vector3d<int>> &, blkMultiArray3d<varArray> &,
                      const unique_ptr<eos> &, const input &,
                      const unique_ptr<thermodynamic> &,
                      const unique_ptr<transport> &,
                      const unique_ptr<turbModel> &,
                      const multiArray3d<fluxJacobian> &, const int &) const;
-  double LUSGS_Backward(const vector<vector3d<int>> &, multiArray3d<genArray> &,
+  double LUSGS_Backward(const vector<vector3d<int>> &, blkMultiArray3d<varArray> &,
                         const unique_ptr<eos> &, const input &,
                         const unique_ptr<thermodynamic> &,
                         const unique_ptr<transport> &,
                         const unique_ptr<turbModel> &,
                         const multiArray3d<fluxJacobian> &, const int &) const;
 
-  double DPLUR(multiArray3d<genArray> &, const unique_ptr<eos> &, const input &,
+  double DPLUR(blkMultiArray3d<varArray> &, const unique_ptr<eos> &, const input &,
                const unique_ptr<thermodynamic> &, const unique_ptr<transport> &,
                const unique_ptr<turbModel> &,
                const multiArray3d<fluxJacobian> &) const;
@@ -499,7 +496,7 @@ class procBlock {
                       int &) const;
 
   vector<bool> PutGeomSlice(const geomSlice &, connection &, const int &);
-  void PutStateSlice(const multiArray3d<primative> &, const connection &,
+  void PutStateSlice(const multiArray3d<primitive> &, const connection &,
                      const int &, const int &);
 
   procBlock Split(const string &, const int &, const int &,
@@ -539,8 +536,8 @@ class procBlock {
 
   void DumpToFile(const string &, const string &) const;
   void CalcCellWidths();
-  void GetStatesFromRestart(const multiArray3d<primative> &);
-  void GetSolNm1FromRestart(const multiArray3d<genArray> &);
+  void GetStatesFromRestart(const blkMultiArray3d<primitive> &);
+  void GetSolNm1FromRestart(const blkMultiArray3d<conserved> &);
 
   int WallDataIndex(const boundarySurface &) const;
   int WallDataSize() const {return wallData_.size();}

@@ -30,7 +30,7 @@
 #include "eos.hpp"
 #include "transport.hpp"
 #include "thermodynamic.hpp"
-#include "primative.hpp"           // primative
+#include "primitive.hpp"           // primitive
 #include "procBlock.hpp"           // procBlock
 #include "inviscidFlux.hpp"        // inviscidFlux
 #include "input.hpp"               // inputVars
@@ -703,7 +703,7 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
 
   // loop over blocks and initialize
   cout << "Reading solution from time n..." << endl;
-  vector<multiArray3d<primative>> solN(numBlks);
+  vector<blkMultiArray3d<primitive>> solN(numBlks);
   for (auto ii = 0U; ii < solN.size(); ++ii) {
     solN[ii] = ReadSolFromRestart(fName, inp, eqnState, thermo, trans, turb,
                                   restartVars, gridSizes[ii].X(),
@@ -720,7 +720,7 @@ void ReadRestart(vector<procBlock> &vars, const string &restartName,
   if (inp.IsMultilevelInTime()) {
     if (numSols == 2) {
       cout << "Reading solution from time n-1..." << endl;
-      vector<multiArray3d<conserved>> solNm1(numBlks);
+      vector<blkMultiArray3d<conserved>> solNm1(numBlks);
       for (auto ii = 0U; ii < solNm1.size(); ++ii) {
         solNm1[ii] = ReadSolNm1FromRestart(fName, inp, eqnState, trans, turb,
                                            restartVars, gridSizes[ii].X(),
@@ -1059,7 +1059,7 @@ int SplitBlockNumber(const vector<procBlock> &vars, const decomposition &decomp,
   return ind;  // cell was in uppermost split for given parent block
 }
 
-multiArray3d<primative> ReadSolFromRestart(
+blkMultiArray3d<primitive> ReadSolFromRestart(
     ifstream &resFile, const input &inp, const unique_ptr<eos> &eqnState,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
     const unique_ptr<turbModel> &turb, const vector<string> &restartVars,
@@ -1068,15 +1068,15 @@ multiArray3d<primative> ReadSolFromRestart(
   constexpr auto numSpecies = 1;
 
   // intialize multiArray3d
-  multiArray3d<primative> sol(numI, numJ, numK, 0,
-                              {restartVars.size(), numSpecies});
+  blkMultiArray3d<primitive> sol(numI, numJ, numK, 0, restartVars.size(),
+                                 numSpecies);
 
-  // read the primative variables
+  // read the primitive variables
   // read dimensional variables -- loop over physical cells
   for (auto kk = sol.StartK(); kk < sol.EndK(); kk++) {
     for (auto jj = sol.StartJ(); jj < sol.EndJ(); jj++) {
       for (auto ii = sol.StartI(); ii < sol.EndI(); ii++) {
-        primative value(restartVars.size(), numSpecies);
+        primitive value(restartVars.size(), numSpecies);
         // loop over the number of variables to read
         for (auto &var : restartVars) {
           if (var == "density") {
@@ -1119,7 +1119,7 @@ multiArray3d<primative> ReadSolFromRestart(
   return sol;
 }
 
-multiArray3d<conserved> ReadSolNm1FromRestart(
+blkMultiArray3d<conserved> ReadSolNm1FromRestart(
     ifstream &resFile, const input &inp, const unique_ptr<eos> &eqnState,
     const unique_ptr<transport> &trans, const unique_ptr<turbModel> &turb,
     const vector<string> &restartVars, const int &numI, const int &numJ,
@@ -1128,8 +1128,8 @@ multiArray3d<conserved> ReadSolNm1FromRestart(
   constexpr auto numSpecies = 1;
 
   // intialize multiArray3d
-  multiArray3d<conserved> sol(numI, numJ, numK, 0,
-                              {restartVars.size(), numSpecies});
+  blkMultiArray3d<conserved> sol(numI, numJ, numK, 0, restartVars.size(),
+                                 numSpecies);
 
   // data is conserved variables
   // read dimensional variables -- loop over physical cells

@@ -26,7 +26,7 @@
 #include <string>                  // string
 #include "mpi.h"                   // parallelism
 #include "vector3d.hpp"
-#include "multiArray3d.hpp"
+#include "blkMultiArray3d.hpp"
 
 using std::vector;
 using std::string;
@@ -104,7 +104,7 @@ class decomposition {
   int SplitHistIndex(const int &a) const {return splitHistIndex_[a];}
   string SplitHistDir(const int &a) const {return splitHistDir_[a];}
   template <typename T>
-  void DecompArray(vector<multiArray3d<T>> &) const;
+  void DecompArray(vector<blkMultiArray3d<T>> &) const;
   void PrintDiagnostics(const vector<plot3dBlock>&) const;
 
   // Destructor
@@ -146,7 +146,7 @@ void BroadcastViscFaces(const MPI_Datatype&, vector<vector3d<double>> &);
 
 
 template <typename T>
-void decomposition::DecompArray(vector<multiArray3d<T>> &arr) const {
+void decomposition::DecompArray(vector<blkMultiArray3d<T>> &arr) const {
   // resize vector for split blocks
   arr.resize(this->NumBlocks());
 

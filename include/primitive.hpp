@@ -14,15 +14,15 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>. */
 
-#ifndef PRIMATIVEHEADERDEF
-#define PRIMATIVEHEADERDEF
+#ifndef PRIMITIVEHEADERDEF
+#define PRIMITIVEHEADERDEF
 
-/* This header contains the primative class.
+/* This header contains the primitive class.
 
-The primative class stores the primative variables for the Euler and
+The primitive class stores the primitive variables for the Euler and
 Navier-Stokes equations [rho, u, v, w, P]. It contains several member functions
-to manipulate these primative varibles. It also contains member functions to
-extrapolate the primative variables from the cell center to the cell
+to manipulate these primitive varibles. It also contains member functions to
+extrapolate the primitive variables from the cell center to the cell
 face using constant and MUSCL reconstruction. It is has a member function to
 supply a ghost state given a boundary condition and boundary cell.  */
 
@@ -55,22 +55,24 @@ class input;
 class turbModel;
 struct wallVars;
 
-class primative : public varArray {
+class primitive : public varArray {
  public:
   // constructors
-  primative(const int &numEqns, const int &numSpecies)
+  primitive(const int &numEqns, const int &numSpecies)
       : varArray(numEqns, numSpecies) {}
-
-  primative(const conserved &, const unique_ptr<eos> &,
+  primitive(const conserved &, const unique_ptr<eos> &,
            const unique_ptr<thermodynamic> &, const unique_ptr<turbModel> &);
+  primitive(const vector<const double>::iterator &b,
+            const vector<const double>::iterator &e, const int &numSpecies)
+      : varArray(b, e, numSpecies) {}
 
   // move constructor and assignment operator
-  primative(primative&&) noexcept = default;
-  primative& operator=(primative&&) noexcept = default;
+  primitive(primitive&&) noexcept = default;
+  primitive& operator=(primitive&&) noexcept = default;
 
   // copy constructor and assignment operator
-  primative(const primative&) = default;
-  primative& operator=(const primative&) = default;
+  primitive(const primitive&) = default;
+  primitive& operator=(const primitive&) = default;
 
   // member functions
   const double & RhoN(const int &ii) const { return this->SpeciesN(ii); }
@@ -90,21 +92,35 @@ class primative : public varArray {
                                 const unique_ptr<transport> &, const int &,
                                 const unique_ptr<turbModel> &);
 
-  primative Abs() const;
+  primitive Abs() const;
 
-  inline vector3d<double> Velocity() const;
+  vector3d<double> Velocity() const {
+    return {this->U(), this->V(), this->W()};
+  }
 
-  inline double Energy(const unique_ptr<eos> &,
-                       const unique_ptr<thermodynamic> &) const;
-  inline double Enthalpy(const unique_ptr<eos> &,
-                         const unique_ptr<thermodynamic> &) const;
-  inline double Temperature(const unique_ptr<eos> &) const;
-  inline double SoS(const unique_ptr<thermodynamic> &,
-                    const unique_ptr<eos> &) const;
+  double Energy(const unique_ptr<eos> &eqnState,
+                const unique_ptr<thermodynamic> &thermo) const {
+    const auto t = this->Temperature(eqnState);
+    return eqnState->Energy(eqnState->SpecEnergy(thermo, t),
+                            this->Velocity().Mag());
+  }
+  double Enthalpy(const unique_ptr<eos> &eqnState,
+                  const unique_ptr<thermodynamic> &thermo) const {
+    const auto t = this->Temperature(eqnState);
+    return eqnState->Enthalpy(thermo, t, this->Velocity().Mag());
+  }
+  double Temperature(const unique_ptr<eos> &eqnState) const {
+    return eqnState->Temperature(this->P(), this->Rho());
+  }
+  double SoS(const unique_ptr<thermodynamic> &thermo,
+                    const unique_ptr<eos> &eqnState) const {
+    return sqrt(thermo->Gamma(this->Temperature(eqnState)) * this->P() /
+                this->Rho());
+  }
 
   inline conserved ConsVars(const unique_ptr<eos> &,
                             const unique_ptr<thermodynamic> &) const;
-  primative UpdateWithConsVars(const unique_ptr<eos> &,
+  primitive UpdateWithConsVars(const unique_ptr<eos> &,
                                const unique_ptr<thermodynamic> &,
                                const conserved &,
                                const unique_ptr<turbModel> &) const;
@@ -151,84 +167,23 @@ class primative : public varArray {
                             const double &, const double &,
                             const unique_ptr<turbModel> &, const bool &) const;
 
-  // member function to calculate reconstruction of state variables from cell
-  // center to cell face assuming value at cell center is constant over cell
-  // volume; zeroth order reconstruction results in first order accuracy
-  const primative &FaceReconConst() const { return *this; }
-
-  // member function to calculate reconstruction of state variables from cell
-  // center to cell face this function uses muscle extrapolation resulting in
-  // higher order accuracy
-  primative FaceReconMUSCL(const primative &, const primative &, const double &,
-                          const string &, const double &,
-                          const double &, const double &) const;
-
-  // calculate face reconstruction using 5th order weno scheme
-  primative FaceReconWENO(const primative &, const primative &, const primative &,
-                         const primative &, const double &, const double &,
-                         const double &, const double &, const double &,
-                         const bool &) const;
-
-  // member function to calculate Van Albada limiter function
-  primative LimiterVanAlbada(const primative &) const;
-  primative LimiterMinmod(const primative &, const primative &,
-                         const double &) const;
-  primative LimiterNone() const;
-
   // member function to return the state of the appropriate ghost cell
-  primative GetGhostState(const string &, const vector3d<double> &,
-                         const double &, const int &, const input &,
-                         const int &, const unique_ptr<eos> &,
-                         const unique_ptr<thermodynamic> &,
-                         const unique_ptr<transport> &,
-                         const unique_ptr<turbModel> &, wallVars &, const int &,
-                         const double & = 0.0, const primative & = {0, 0},
-                         const vector3d<double> & = {},
-                         const tensor<double> & = {}, const double & = 0.0,
-                         const double & = 0.0) const;
+  primitive GetGhostState(
+      const string &, const vector3d<double> &, const double &, const int &,
+      const input &, const int &, const unique_ptr<eos> &,
+      const unique_ptr<thermodynamic> &, const unique_ptr<transport> &,
+      const unique_ptr<turbModel> &, wallVars &, const int &,
+      const double & = 0.0, const primitive & = {0, 0},
+      const vector3d<double> & = {}, const tensor<double> & = {},
+      const double & = 0.0, const double & = 0.0) const;
 
   // destructor
-  ~primative() noexcept {}
+  ~primitive() noexcept {}
 };
 
 // function definitions
-// member function to calculate temperature from primative variables and
-// equation of state
-double primative::Temperature(const unique_ptr<eos> &eqnState) const {
-  return eqnState->Temperature(this->P(), this->Rho());
-}
-
-// member function to calculate velocity from primative variables
-vector3d<double> primative::Velocity() const {
-  vector3d<double> vel(this->U(), this->V(), this->W());
-  return vel;
-}
-
-// member function to calculate total energy from primative variables
-double primative::Energy(const unique_ptr<eos> &eqnState,
-                        const unique_ptr<thermodynamic> &thermo) const {
-  const auto t = this->Temperature(eqnState);
-  return eqnState->Energy(eqnState->SpecEnergy(thermo, t),
-                          this->Velocity().Mag());
-}
-
-// member function to calculate speed of sound from primative variables
-double primative::SoS(const unique_ptr<thermodynamic> &thermo,
-                     const unique_ptr<eos> &eqnState) const {
-  return sqrt(thermo->Gamma(this->Temperature(eqnState)) * this->P() /
-              this->Rho());
-}
-
-// member function to calculate enthalpy from conserved variables and equation
-// of state
-double primative::Enthalpy(const unique_ptr<eos> &eqnState,
-                          const unique_ptr<thermodynamic> &thermo) const {
-  const auto t = this->Temperature(eqnState);
-  return eqnState->Enthalpy(thermo, t, this->Velocity().Mag());
-}
-
-// member function to calculate conserved variables from primative variables
-conserved primative::ConsVars(const unique_ptr<eos> &eqnState,
+// member function to calculate conserved variables from primitive variables
+conserved primitive::ConsVars(const unique_ptr<eos> &eqnState,
                             const unique_ptr<thermodynamic> &thermo) const {
   conserved cv(this->Size(), this->NumSpecies());
   for (auto ii = 0; ii < cv.NumSpecies(); ++ii) {
@@ -245,8 +200,8 @@ conserved primative::ConsVars(const unique_ptr<eos> &eqnState,
   return cv;
 }
 
-ostream &operator<<(ostream &os, const primative &);
+ostream &operator<<(ostream &os, const primitive &);
 
-primative RoeAveragedState(const primative&, const primative&);
+primitive RoeAveragedState(const primitive&, const primitive&);
 
 #endif

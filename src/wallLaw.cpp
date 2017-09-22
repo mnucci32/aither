@@ -18,7 +18,7 @@
 #include <iostream>   // cout
 #include <memory>
 #include "wallLaw.hpp"
-#include "primative.hpp"       // primative
+#include "primitive.hpp"       // primitive
 #include "eos.hpp"            // equation of state
 #include "transport.hpp"      // transport model
 #include "thermodynamic.hpp"  // thermodynamic model

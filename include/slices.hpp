@@ -25,7 +25,7 @@
 
 #include <iostream>
 #include "mpi.h"
-#include "primative.hpp"
+#include "primitive.hpp"
 #include "vector3d.hpp"
 #include "multiArray3d.hpp"
 

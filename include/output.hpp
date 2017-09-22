@@ -31,6 +31,7 @@ It also writes out a master file in Ensight format to name the Plot3D functions.
 #include <string>        // string
 #include <memory>        // unique_ptr
 #include "multiArray3d.hpp"
+#include "blkMultiArray3d.hpp"
 
 using std::vector;
 using std::string;
@@ -53,7 +54,7 @@ class thermodynamic;
 class resid;
 class input;
 class turbModel;
-class primative;
+class primitive;
 class residual;
 
 // function definitions
@@ -83,14 +84,12 @@ void ReadRestart(vector<procBlock> &, const string &, const decomposition &,
                  const unique_ptr<transport> &, const unique_ptr<turbModel> &,
                  residual &, const vector<vector3d<int>> &);
 
-multiArray3d<primative> ReadSolFromRestart(ifstream &, const input &,
-                                          const unique_ptr<eos> &,
-                                          const unique_ptr<thermodynamic> &,
-                                          const unique_ptr<transport> &,
-                                          const unique_ptr<turbModel> &,
-                                          const vector<string> &, const int &,
-                                          const int &, const int &);
-multiArray3d<conserved> ReadSolNm1FromRestart(
+blkMultiArray3d<primitive> ReadSolFromRestart(
+    ifstream &, const input &, const unique_ptr<eos> &,
+    const unique_ptr<thermodynamic> &, const unique_ptr<transport> &,
+    const unique_ptr<turbModel> &, const vector<string> &, const int &,
+    const int &, const int &);
+blkMultiArray3d<conserved> ReadSolNm1FromRestart(
     ifstream &, const input &, const unique_ptr<eos> &,
     const unique_ptr<transport> &, const unique_ptr<turbModel> &,
     const vector<string> &, const int &, const int &, const int &);

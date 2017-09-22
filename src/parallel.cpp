@@ -24,7 +24,7 @@
 #include "output.hpp"
 #include "vector3d.hpp"            // vector3d
 #include "plot3d.hpp"              // plot3d
-#include "primative.hpp"            // primative
+#include "primitive.hpp"            // primitive
 #include "procBlock.hpp"           // procBlock
 #include "boundaryConditions.hpp"  // connection
 #include "resid.hpp"               // resid
@@ -205,7 +205,7 @@ void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
                      MPI_Datatype &MPI_tensorDouble,
                      MPI_Datatype &MPI_wallData) {
   // MPI_vec3d -- output MPI_Datatype for a vector3d<double>
-  // MPI_cellData -- output MPI_Datatype for primative or genArray
+  // MPI_cellData -- output MPI_Datatype for primitive or genArray
   // MPI_procBlockInts -- output MPI_Datatype for 14 INTs (14 INTs in procBlock
   //                      class)
   // MPI_connection -- output MPI_Datatype to send connection class
@@ -235,7 +235,7 @@ void SetDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
   MPI_Type_contiguous(12, MPI_DOUBLE, &MPI_wallData);
   MPI_Type_commit(&MPI_wallData);
 
-  // create MPI datatype for states (primative), residuals (genArray), etc
+  // create MPI datatype for states (primitive), residuals (genArray), etc
   MPI_Type_contiguous(NUMVARS, MPI_DOUBLE, &MPI_cellData);
 
   // faster to just send the whole array
@@ -324,7 +324,7 @@ void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
                       MPI_Datatype &MPI_tensorDouble,
                       MPI_Datatype &MPI_wallData) {
   // MPI_vec3d -- MPI_Datatype for a vector3d<double>
-  // MPI_cellData -- MPI_Datatype for primative or genArray
+  // MPI_cellData -- MPI_Datatype for primitive or genArray
   // MPI_procBlockInts -- MPI_Datatype for 14 INTs (14 INTs in procBlock class)
   // MPI_connection -- MPI_Datatype to send connection class
   // MPI_DOUBLE_5INT -- MPI_Datatype for a double followed by 5 ints
@@ -339,7 +339,7 @@ void FreeDataTypesMPI(MPI_Datatype &MPI_vec3d, MPI_Datatype &MPI_cellData,
   // free unitVect3dMag<double> MPI datatype
   MPI_Type_free(&MPI_vec3dMag);
 
-  // free MPI datatype for states (primative), residuals (genArray), etc
+  // free MPI datatype for states (primitive), residuals (genArray), etc
   MPI_Type_free(&MPI_cellData);
 
   // free MPI datatype for uncoupledScalar
@@ -383,7 +383,7 @@ vector<procBlock> SendProcBlocks(const vector<procBlock> &blocks,
   //         receive
   // numProcBlock -- number of procBlocks that the processor should have. (All
   //                 processors may give different values).
-  // MPI_cellData -- MPI_Datatype used for primative and genArray transmission
+  // MPI_cellData -- MPI_Datatype used for primitive and genArray transmission
   // MPI_vec3d -- MPI_Datatype used for vector3d<double>  transmission
   // MPI_vec3dMag -- MPI_Datatype used for unitVec3dMag<double>  transmission
   // MPI_wallData -- MPI_Datatype used for wallData transmission
@@ -443,7 +443,7 @@ void GetProcBlocks(vector<procBlock> &blocks,
   // localBlocks -- procBlocks local to each processor. These are sent to ROOT
   // rank -- processor rank. Used to determine if process should send or
   //         receive
-  // MPI_cellData -- MPI_Datatype used for primative and genArray transmission
+  // MPI_cellData -- MPI_Datatype used for primitive and genArray transmission
   // MPI_uncoupledScalar -- MPI_Datatype used for uncoupledScalar transmission
   // MPI_vec3d -- MPI_Datatype used for vector3d<double> transmission
   // MPI_tensorDouble -- MPI_Datatype used for tensor<double> transmission

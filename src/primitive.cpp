@@ -21,7 +21,7 @@
 #include <memory>
 #include <cmath>
 #include <algorithm>  // max
-#include "primative.hpp"
+#include "primitive.hpp"
 #include "input.hpp"               // input
 #include "turbulence.hpp"          // turbModel
 #include "utility.hpp"
@@ -37,7 +37,7 @@ using std::max;
 using std::min;
 using std::unique_ptr;
 
-primative::primative(const conserved &cons, const unique_ptr<eos> &eqnState,
+primitive::primitive(const conserved &cons, const unique_ptr<eos> &eqnState,
                      const unique_ptr<thermodynamic> &thermo,
                      const unique_ptr<turbModel> &turb) {
   // cons -- array of conserved variables
@@ -45,7 +45,7 @@ primative::primative(const conserved &cons, const unique_ptr<eos> &eqnState,
   // thermo -- thermodynamic model
   // turb -- turbulence model
 
-  *this = primative(cons.Size(), cons.NumSpecies());
+  *this = primitive(cons.Size(), cons.NumSpecies());
 
   for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
     (*this)[ii] = cons.RhoN(ii);
@@ -69,7 +69,7 @@ primative::primative(const conserved &cons, const unique_ptr<eos> &eqnState,
 }
 
 // member function to initialize a state with nondimensional values
-void primative::NondimensionalInitialize(const unique_ptr<eos> &eqnState,
+void primitive::NondimensionalInitialize(const unique_ptr<eos> &eqnState,
                                         const input &inp,
                                         const unique_ptr<transport> &trans,
                                         const int &parBlock,
@@ -99,231 +99,11 @@ void primative::NondimensionalInitialize(const unique_ptr<eos> &eqnState,
 }
 
 // operator overload for << - allows use of cout, cerr, etc.
-ostream &operator<<(ostream &os, const primative &prim) {
+ostream &operator<<(ostream &os, const primitive &prim) {
   for (auto rr = 0; rr < prim.Size(); rr++) {
     os << prim[rr] << endl;
   }
   return os;
-}
-
-// member function to calculate reconstruction of primative variables from cell
-// center to cell face this function uses MUSCL extrapolation resulting in
-// higher order accuracy
-/*
-
-____________________|_____________________
-|         |       Ul|Ur        |         |
-|         |         |          |         |
-|   Ui-1  |   Ui    |   Ui+1   |   Ui+2  |
-|         |         |          |         |
-|         |         |          |         |
-|_________|_________|__________|_________|
-                    |
-     face to reconstruct state at
-<--UW2---><--UW1---><---DW---->
-
-The diagram above shows the stencil used to reconstruct the left and right
-states for a given face. For each reconstruction (right and left) only 3 points
-are needed, two upwind points and one downwind point. For the left
-reconstruction, Ui is the first upwind point, Ui-1 is the second upwind point,
-and Ui+1 is the downwind point. For the right reconstruction Ui+1 is the first
-upwind point, Ui+2 is the second upwind point, and Ui is the downwind point.
-
-For left reconstruction the MUSCL scheme goes as follows:
-Ui+1/2 = Ui + 0.25 * ( (1-K) * (Ui - Ui-1) + (1+K) * (Ui+1 - Ui) )
-
-The above equation assumes there is no limiter, and that the grid spacing is
-uniform. In the above equation K refers to the parameter kappa which can be
-varied to produce different reconstructions. Acceptable values of K are [-1,1]
-(inclusive)
-
-K = -1 -- fully upwind reconstruction - linear - results in 2nd order accuracy
-K = 0 -- fromm scheme - linear - results in 2nd order accuracy
-K = 0.5 -- QUICK scheme - parabolic - results in 2nd order accuracy
-K = 1 -- central scheme - linear - results in 2nd order accuracy but is unstable
-without dissipation added
-K = 1/3 -- third order - parabolic - results 2nd order accuracy with lowest
-error
-(all order of accuracy estimates assume constant fluxes on cell faces which
-limits order of accuracy to 2)
-
-With limiters the equation looks as follows:
-Ui+1/2 = Ui + 0.25 * (Ui - Ui-1) * ( (1-K) * L  + (1+K) * R * Linv )
-
-L represents the limiter function which ranges between 0 and 1. A value of 1
-implies there is no limiter and the full accuracy of the scheme is achieved. A
-value of 0 implies that the solution has been limited to first order accuracy.
-An in between value results in an order of accuracy between first and second.
-Linv is the inverse of the limiter.
-
-R represents the divided difference that the limiter is a function of.
-R = (Ui - Ui-1) / (Ui+1 - Ui)
-
-The MUSCL scheme can be extended to nonuniform grids by adding in terms
-representing the difference in size between the cells. In the above diagram the
-values UW2, UW1, and DW represent the length of the second upwind, first upwind,
-and downwind cells respectively. dP and dM represent the factors due to the
-change in cell size between the first upwind to downwind and first upwind to
-second upwind cells.
-
-dP = (UW1 + DW) / (2.0 * UW)
-dM = (UW + UW2) / (2.0 * UW)
-R = ((Ui - Ui-1) / dP) / ((Ui+1 - Ui) / dM)
-
-Ui+1/2 = Ui + 0.25 * ((Ui - Ui-1) / dM) * ( (1-K) * L  + (1+K) * R * Linv )
-
-*/
-primative primative::FaceReconMUSCL(const primative &primUW2,
-                                  const primative &primDW1, const double &kappa,
-                                  const string &lim, const double &uw,
-                                  const double &uw2, const double &dw) const {
-  // primUW2 -- upwind cell furthest from the face at which the primative is
-  //            being reconstructed.
-  // primUW1 -- upwind cell nearest to the face at which the primative is
-  //            being reconstructed.
-  // primDW1 -- downwind cell.
-  // kappa -- parameter that determines which scheme is implemented
-  // uw -- length of upwind cell
-  // uw2 -- length of furthest upwind cell
-  // dw -- length of downwind cell
-
-  const auto &primUW1 = *this;
-
-  const auto dPlus = (uw + uw) / (uw + dw);
-  const auto dMinus = (uw + uw) / (uw + uw2);
-
-  // divided differences to base limiter on; eps must be listed to left of
-  // primative
-  const auto r = (EPS + (primDW1 - primUW1) * dPlus) /
-      (EPS + (primUW1 - primUW2) * dMinus);
-
-  primative limiter(this->Size(), this->NumSpecies());
-  primative invLimiter(this->Size(), this->NumSpecies());
-  if (lim == "none") {
-    limiter = LimiterNone();
-    invLimiter = limiter;
-  } else if (lim == "vanAlbada") {
-    limiter = LimiterVanAlbada(r);
-    invLimiter = LimiterVanAlbada(1.0 / r);
-  } else if (lim == "minmod") {
-    limiter = LimiterMinmod(primUW1 - primUW2, primDW1 - primUW1, kappa);
-    invLimiter = limiter / r;
-  } else {
-    cerr << "ERROR: Limiter " << lim << " is not recognized!" << endl;
-    exit(EXIT_FAILURE);
-  }
-
-  // calculate reconstructed state at face using MUSCL method with limiter
-  return primUW1 + 0.25 * ((primUW1 - primUW2) * dMinus) *
-    ((1.0 - kappa) * limiter + (1.0 + kappa) * r * invLimiter);
-}
-
-// member function for higher order reconstruction via weno
-primative primative::FaceReconWENO(const primative &upwind2,
-                                 const primative &upwind3,
-                                 const primative &downwind1,
-                                 const primative &downwind2, const double &uw1,
-                                 const double &uw2, const double &uw3,
-                                 const double &dw1, const double &dw2,
-                                 const bool &isWenoZ) const {
-  // get candidate smaller stencils
-  const vector<double> cellWidth = {uw3, uw2, uw1, dw1, dw2};
-
-  constexpr auto degree = 2;
-  constexpr auto up1Loc = 2;
-  const auto coeffs0 = LagrangeCoeff(cellWidth, degree, 2, up1Loc);
-  const auto stencil0 = coeffs0[0] * upwind3 + coeffs0[1] * upwind2 +
-      coeffs0[2] * (*this);
-
-  const auto coeffs1 = LagrangeCoeff(cellWidth, degree, 1, up1Loc);
-  const auto stencil1 = coeffs1[0] * upwind2 + coeffs1[1] * (*this) +
-      coeffs1[2] * downwind1;
-
-  const auto coeffs2 = LagrangeCoeff(cellWidth, degree, 0, up1Loc);
-  const auto stencil2 = coeffs2[0] * (*this) + coeffs2[1] * downwind1 +
-      coeffs2[2] * downwind2;
-
-  // get coefficients for large stencil
-  const auto fullCoeffs = LagrangeCoeff(cellWidth, 4, 2, up1Loc);
-
-  // linear weights
-  const auto lw0 = fullCoeffs[0] / coeffs0[0];
-  const auto lw1 = fullCoeffs[4] / coeffs2[2];
-  const auto lw2 = 1.0 - lw0 - lw1;
-
-  const auto beta0 = Beta0(uw3, uw2, uw1, upwind3, upwind2, (*this));
-  const auto beta1 = Beta1(uw2, uw1, dw1, upwind2, (*this), downwind1);
-  const auto beta2 = Beta2(uw1, dw1, dw2, (*this), downwind1, downwind2);
-
-  // calculate nonlinear weights
-  primative nlw0(this->Size(), this->NumSpecies());
-  primative nlw1(this->Size(), this->NumSpecies());
-  primative nlw2(this->Size(), this->NumSpecies());
-  if (isWenoZ) {
-    // using weno-z weights with q = 2
-    const auto tau5 = (beta0 - beta2).Abs();
-    constexpr auto eps = 1.0e-40;
-    nlw0 = lw0 * (1.0 + (tau5 / (eps + beta0)).Squared());
-    nlw1 = lw1 * (1.0 + (tau5 / (eps + beta1)).Squared());
-    nlw2 = lw2 * (1.0 + (tau5 / (eps + beta2)).Squared());
-  } else {  // standard WENO
-    // calculate nonlinear weights
-    constexpr auto eps = 1.0e-6;
-    nlw0 = lw0 / (eps + beta0).Squared();
-    nlw1 = lw1 / (eps + beta1).Squared();
-    nlw2 = lw2 / (eps + beta2).Squared();
-  }
-
-  // normalize weights
-  const auto sum_nlw = nlw0 + nlw1 + nlw2;
-  nlw0 /= sum_nlw;
-  nlw1 /= sum_nlw;
-  nlw2 /= sum_nlw;
-
-  // return weighted contribution of each stencil
-  return nlw0 * stencil0 + nlw1 * stencil1 + nlw2 * stencil2;
-}
-
-
-// member function to calculate minmod limiter
-primative primative::LimiterMinmod(const primative &upwind,
-                                   const primative &downwind,
-                                   const double &kap) const {
-  // upwind -- upwind state (primative)
-  // downwind -- downwind state (primative)
-  // kap -- MUSCL parameter kappa
-
-  primative limiter(this->Size(), this->NumSpecies());
-
-  // calculate minmod parameter beta
-  const auto beta = (3.0 - kap) / (1.0 - kap);
-
-  // calculate minmod limiter
-  for (auto ii = 0; ii < limiter.Size(); ++ii) {
-    auto sign = Sign(upwind[ii]);
-    limiter[ii] =
-        sign * max(0.0, min(fabs(upwind[ii]), sign * downwind[ii] * beta));
-  }
-  return limiter;
-}
-
-// member function to calculate Van Albada limiter
-primative primative::LimiterVanAlbada(const primative &r) const {
-  // r -- ratio of divided differences
-
-  auto limiter = (r + r * r) / (1.0 + r * r);
-  // if value is negative, return zero
-  for (auto ii = 0; ii < limiter.Size(); ++ii) {
-    limiter[ii] = max(0.0, limiter[ii]);
-  }
-  return limiter;
-}
-
-// member function to return no limiter
-primative primative::LimiterNone() const {
-  // for no limiter return all 1s
-  primative limiter(this->Size(), this->NumSpecies(), 1.0);
-  return limiter;
 }
 
 // member function to return the state of the appropriate ghost cell
@@ -350,13 +130,13 @@ Currently the following boundary conditions are supported: slipWall,
 viscousWall, characteristic, stagnationInlet, pressureOutlet, subsonicInflow,
 subsonicOutflow, supersonicInflow, supersonicOutflow
 */
-primative primative::GetGhostState(
+primitive primitive::GetGhostState(
     const string &bcType, const vector3d<double> &areaVec,
     const double &wallDist, const int &surf, const input &inputVars,
     const int &tag, const unique_ptr<eos> &eqnState,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
     const unique_ptr<turbModel> &turb, wallVars &wVars, const int &layer,
-    const double &dt, const primative &stateN, const vector3d<double> &pressGrad,
+    const double &dt, const primitive &stateN, const vector3d<double> &pressGrad,
     const tensor<double> &velGrad, const double &avgMach,
     const double &maxMach) const {
   // bcType -- type of boundary condition to supply ghost cell for
@@ -376,7 +156,7 @@ primative primative::GetGhostState(
   // avgMach -- average mach number on surface patch
   // maxMach -- maximum mach number on surface patch
 
-  // the instance of primative being acted upon should be the interior cell
+  // the instance of primitive being acted upon should be the interior cell
   // bordering the boundary
 
   // set ghost state equal to boundary state to start
@@ -592,7 +372,7 @@ primative primative::GetGhostState(
     const auto & bcData = inputVars.BCData(tag);
     // freestream variables
     const auto freeVel = bcData->Velocity();
-    const primative freeState(bcData->Density(), freeVel, bcData->Pressure());
+    const primitive freeState(bcData->Density(), freeVel, bcData->Pressure());
 
     // internal variables
     const auto velIntNorm = this->Velocity().DotProd(normArea);
@@ -695,7 +475,7 @@ primative primative::GetGhostState(
     const auto & bcData = inputVars.BCData(tag);
     // freestream variables
     const auto freeVel = bcData->Velocity();
-    const primative freeState(bcData->Density(), freeVel, bcData->Pressure());
+    const primitive freeState(bcData->Density(), freeVel, bcData->Pressure());
 
     // internal variables
     const auto velIntNorm = this->Velocity().DotProd(normArea);
@@ -947,7 +727,7 @@ primative primative::GetGhostState(
     // cell
 
   } else {
-    cerr << "ERROR: Error in primative::GetGhostState ghost state for BC type "
+    cerr << "ERROR: Error in primitive::GetGhostState ghost state for BC type "
          << bcType << " is not supported!" << endl;
     cerr << "surface is " << surf << " and layer is " << layer << endl;
     exit(EXIT_FAILURE);
@@ -957,24 +737,24 @@ primative primative::GetGhostState(
 }
 
 // member function to take in a genArray of updates to the conservative
-// variables, and update the primative variables with it.
+// variables, and update the primitive variables with it.
 // this is used in the implicit solver
-primative primative::UpdateWithConsVars(
+primitive primitive::UpdateWithConsVars(
     const unique_ptr<eos> &eqnState, const unique_ptr<thermodynamic> &thermo,
     const conserved &du, const unique_ptr<turbModel> &turb) const {
   // eqnState -- equation of state
   // du -- updates to conservative variables
   // turb -- turbulence model
 
-  // convert primative to conservative and update
+  // convert primitive to conservative and update
   const auto consUpdate = this->ConsVars(eqnState, thermo) + du;
-  return primative(consUpdate, eqnState, thermo, turb);
+  return primitive(consUpdate, eqnState, thermo, turb);
 }
 
 // member function to apply farfield turbulence boundary conditions
 // using the method in STAR-CCM+ involving turbulence intensity and
 // eddy viscosity ratio
-void primative::ApplyFarfieldTurbBC(const vector3d<double> &vel,
+void primitive::ApplyFarfieldTurbBC(const vector3d<double> &vel,
                                    const double &turbInten,
                                    const double &viscRatio,
                                    const unique_ptr<transport> &trans,
@@ -993,7 +773,7 @@ void primative::ApplyFarfieldTurbBC(const vector3d<double> &vel,
   this->LimitTurb(turb);
 }
 
-void primative::LimitTurb(const unique_ptr<turbModel> &turb) {
+void primitive::LimitTurb(const unique_ptr<turbModel> &turb) {
   // Adjust turbulence variables to be above minimum if necessary
   for (auto ii = 0; ii < this->NumTurbulence(); ++ii) {
     (*this)[this->TurbulenceIndex() + ii] =
@@ -1010,7 +790,7 @@ In the above equation L is the spectral radius in either the i, j, or k
 direction. A1 and A2 are the two face areas in that direction. Vn is the
 cell velocity normal to that direction. SoS is the speed of sound at the cell
  */
-double primative::InvCellSpectralRadius(const unitVec3dMag<double> &fAreaL,
+double primitive::InvCellSpectralRadius(const unitVec3dMag<double> &fAreaL,
                                        const unitVec3dMag<double> &fAreaR,
                                        const unique_ptr<thermodynamic> &thermo,
                                        const unique_ptr<eos> &eqnState) const {
@@ -1031,7 +811,7 @@ double primative::InvCellSpectralRadius(const unitVec3dMag<double> &fAreaL,
          fMag;
 }
 
-double primative::InvFaceSpectralRadius(const unitVec3dMag<double> &fArea,
+double primitive::InvFaceSpectralRadius(const unitVec3dMag<double> &fArea,
                                        const unique_ptr<thermodynamic> &thermo,
                                        const unique_ptr<eos> &eqnState) const {
   // fArea -- face area
@@ -1054,7 +834,7 @@ and Pr is the Prandtl number (all at the cell center). A is the average face are
 of the given direction (i, j, k), and V is the cell volume. This implementation
 comes from Blazek.
  */
-double primative::ViscCellSpectralRadius(
+double primitive::ViscCellSpectralRadius(
     const unitVec3dMag<double> &fAreaL, const unitVec3dMag<double> &fAreaR,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<eos> &eqnState,
     const unique_ptr<transport> &trans, const double &vol, const double &mu,
@@ -1082,7 +862,7 @@ double primative::ViscCellSpectralRadius(
   return maxTerm * viscTerm * fMag * fMag / vol;
 }
 
-double primative::ViscFaceSpectralRadius(
+double primitive::ViscFaceSpectralRadius(
     const unitVec3dMag<double> &fArea, const unique_ptr<thermodynamic> &thermo,
     const unique_ptr<eos> &eqnState, const unique_ptr<transport> &trans,
     const double &dist, const double &mu, const double &mut,
@@ -1107,7 +887,7 @@ double primative::ViscFaceSpectralRadius(
   return fArea.Mag() / dist * maxTerm * viscTerm;
 }
 
-double primative::CellSpectralRadius(
+double primitive::CellSpectralRadius(
     const unitVec3dMag<double> &fAreaL, const unitVec3dMag<double> &fAreaR,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<eos> &eqnState,
     const unique_ptr<transport> &trans, const double &vol, const double &mu,
@@ -1135,7 +915,7 @@ double primative::CellSpectralRadius(
   return specRad;
 }
 
-double primative::FaceSpectralRadius(const unitVec3dMag<double> &fArea,
+double primitive::FaceSpectralRadius(const unitVec3dMag<double> &fArea,
                                     const unique_ptr<thermodynamic> &thermo,
                                     const unique_ptr<eos> &eqnState,
                                     const unique_ptr<transport> &trans,
@@ -1164,9 +944,9 @@ double primative::FaceSpectralRadius(const unitVec3dMag<double> &fArea,
 
 
 // function to calculate the Roe averaged state
-primative RoeAveragedState(const primative &left, const primative &right) {
+primitive RoeAveragedState(const primitive &left, const primitive &right) {
   // compute Rho averaged quantities
-  primative rhoState(left.Size(), left.NumSpecies());
+  primitive rhoState(left.Size(), left.NumSpecies());
   // density ratio
   const auto denRatio = sqrt(right.Rho() / left.Rho());
   // Roe averaged density
@@ -1195,7 +975,7 @@ primative RoeAveragedState(const primative &left, const primative &right) {
 }
 
 // return element by element absolute value
-primative primative::Abs() const {
+primitive primitive::Abs() const {
   auto abs = *this;
   std::transform(std::begin(*this), std::end(*this), std::begin(abs),
                  [](const double &val) { return fabs(val); });

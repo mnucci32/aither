@@ -9,7 +9,7 @@
 This code is for a 3D Navier-Stokes computational fluid dynamics solver. It is 
 a cell centered, structured solver, using multi-block structured grids in Plot3D 
 format. It uses explicit and implicit time integration methods. It uses MUSCL 
-extrapolation to reconstruct the primative variables from the cell centers to 
+extrapolation to reconstruct the primitive variables from the cell centers to 
 the cell faces for 2nd order accuracy. Higher order reconstruction is acheived 
 with a 5th order WENO reconstruction for the inviscid fluxes, and a 4th order 
 central reconstruction for the viscous fluxes. The code uses the Roe 

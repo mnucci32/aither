@@ -36,6 +36,7 @@
 #include "kdtree.hpp"
 #include "utility.hpp"
 #include "wallData.hpp"
+#include "reconstruction.hpp"
 
 using std::cout;
 using std::endl;
@@ -87,17 +88,21 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   const auto numK = blk.NumK() - 1;
 
   // pad stored variable vectors with ghost cells
-  state_ = PadWithGhosts(multiArray3d<primative>(numI, numJ, numK, 0, 1,
-                                                primative(0.0)), numGhosts_);
+  state_ = PadWithGhosts(
+      blkMultiArray3d<primitive>(numI, numJ, numK, 0, inp.NumEquations(),
+                                 inp.NumSpecies(), 0.0),
+      numGhosts_);
   if (storeTimeN_) {
-    consVarsN_ = {numI, numJ, numK, 0, 1, genArray(0.0)};
+    consVarsN_ = {numI, numJ, numK, 0, inp.NumEquations(), inp.NumSpecies(),
+                  0.0};
   } else {
-    consVarsN_ = {0, 0, 0, 0};
+    consVarsN_ = {};
   }
   if (isMultiLevelTime_) {
-    consVarsNm1_ = {numI, numJ, numK, 0, 1, genArray(0.0)};
+    consVarsNm1_ = {numI, numJ, numK, 0, inp.NumEquations(), inp.NumSpecies(),
+                    0.0};
   } else {
-    consVarsNm1_ = {0, 0, 0, 0};
+    consVarsNm1_ = {};
   }
 
   vol_ = PadWithGhosts(blk.Volume(), numGhosts_);
@@ -117,7 +122,7 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
 
   specRadius_ = {numI, numJ, numK, 0};
   dt_ = {numI, numJ, numK, 0};
-  residual_ = {numI, numJ, numK, 0};
+  residual_ = {numI, numJ, numK, 0, inp.NumEquations(), inp.NumSpecies(), 0.0};
 
   temperature_ = {numI, numJ, numK, numGhosts_, 1, 0.0};
 
@@ -130,13 +135,13 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
   if (isViscous_) {
     viscosity_ = {numI, numJ, numK, numGhosts_, 1, 0.0};
   } else {
-    viscosity_ = {0, 0, 0, 0};
+    viscosity_ = {};
   }
 
   if (isTurbulent_) {
     eddyViscosity_ = {numI, numJ, numK, numGhosts_, 1, 0.0};
   } else {
-    eddyViscosity_ = {0, 0, 0, 0};
+    eddyViscosity_ = {};
   }
 
   if (isRANS_) {
@@ -145,18 +150,19 @@ procBlock::procBlock(const plot3dBlock &blk, const int &numBlk,
     f1_ = {numI, numJ, numK, numGhosts_, 1, 1.0};
     f2_ = {numI, numJ, numK, numGhosts_, 1, 0.0};
   } else {
-    tkeGrad_ = {0, 0, 0, 0};
-    omegaGrad_ = {0, 0, 0, 0};
-    f1_ = {0, 0, 0, 0};
-    f2_ = {0, 0, 0, 0};
+    tkeGrad_ = {};
+    omegaGrad_ = {};
+    f1_ = {};
+    f2_ = {};
   }
 }
 
 // constructor -- allocate space for procBlock
 procBlock::procBlock(const int &ni, const int &nj, const int &nk,
-                     const int &numG, const bool &isViscous,
-                     const bool &isTurbulent, const bool &isRANS,
-                     const bool &storeTimeN, const bool &isMultiLevelInTime) {
+                     const int &numEqns, const int &numSpecies, const int &numG,
+                     const bool &isViscous, const bool &isTurbulent,
+                     const bool &isRANS, const bool &storeTimeN,
+                     const bool &isMultiLevelInTime) {
   // ni -- i-dimension (cell)
   // nj -- j-dimension (cell)
   // nk -- k-dimension (cell)
@@ -181,16 +187,16 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   isMultiLevelTime_ = isMultiLevelInTime;
 
   // pad stored variable vectors with ghost cells
-  state_ = {ni, nj, nk, numGhosts_};
+  state_ = {ni, nj, nk, numGhosts_, numEqns, numSpecies};
   if (storeTimeN) {
-    consVarsN_ = {ni, nj, nk, 0};
+    consVarsN_ = {ni, nj, nk, 0, numEqns, numSpecies};
   } else {
-    consVarsN_ = {0, 0, 0, 0};
+    consVarsN_ = {};
   }
   if (isMultiLevelTime_) {
-    consVarsNm1_ = {ni, nj, nk, 0};
+    consVarsNm1_ = {ni, nj, nk, 0, numEqns, numSpecies};
   } else {
-    consVarsNm1_ = {0, 0, 0, 0};
+    consVarsNm1_ = {};
   }
   center_ = {ni, nj, nk, numGhosts_};
   fAreaI_ = {ni + 1, nj, nk, numGhosts_};
@@ -199,7 +205,7 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   fCenterI_ = {ni + 1, nj, nk, numGhosts_};
   fCenterJ_ = {ni, nj + 1, nk, numGhosts_};
   fCenterK_ = {ni, nj, nk + 1, numGhosts_};
-  residual_ = {ni, nj, nk, 0};
+  residual_ = {ni, nj, nk, 0, numEqns, numSpecies};
   vol_ = {ni, nj, nk, numGhosts_};
   wallDist_ = {ni, nj, nk, numGhosts_, 1, DEFAULTWALLDIST};
 
@@ -221,13 +227,13 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   if (isViscous_) {
     viscosity_ = {ni, nj, nk, numGhosts_};
   } else {
-    viscosity_ = {0, 0, 0, 0};
+    viscosity_ = {};
   }
 
   if (isTurbulent_) {
     eddyViscosity_ = {ni, nj, nk, numGhosts_};
   } else {
-    eddyViscosity_ = {0, 0, 0, 0};
+    eddyViscosity_ = {};
   }
 
   if (isRANS_) {
@@ -236,10 +242,10 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
     f1_ = {ni, nj, nk, numGhosts_};
     f2_ = {ni, nj, nk, numGhosts_};
   } else {
-    tkeGrad_ = {0, 0, 0, 0};
-    omegaGrad_ = {0, 0, 0, 0};
-    f1_ = {0, 0, 0, 0};
-    f2_ = {0, 0, 0, 0};
+    tkeGrad_ = {};
+    omegaGrad_ = {};
+    f1_ = {};
+    f2_ = {};
   }
 }
 
@@ -347,7 +353,7 @@ void procBlock::InitializeStates(const input &inp,
 
   if (ic.IsFromFile()) {
     // create k-d tree from cloud of points
-    vector<primative> cloudStates;
+    vector<primitive> cloudStates;
     vector<string> species;
     const auto tree =
         CalcTreeFromCloud(ic.File(), inp, trans, cloudStates, species);
@@ -383,7 +389,7 @@ void procBlock::InitializeStates(const input &inp,
 
   } else {
     // get nondimensional state for initialization
-    primative inputState;
+    primitive inputState;
     inputState.NondimensionalInitialize(eqnState, inp, trans, parBlock_, turb);
 
     const auto numI = this->NumI();
@@ -392,7 +398,7 @@ void procBlock::InitializeStates(const input &inp,
 
     // pad stored variable vectors with ghost cells
     state_ = PadWithGhosts(
-        multiArray3d<primative>(numI, numJ, numK, 0, 1, inputState), numGhosts_);
+        multiArray3d<primitive>(numI, numJ, numK, 0, 1, inputState), numGhosts_);
 
     const auto inputTemperature = inputState.Temperature(eqnState);
     temperature_ = {numI, numJ, numK, numGhosts_, 1, inputTemperature};
@@ -450,38 +456,42 @@ void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
   for (auto kk = fAreaI_.PhysStartK(); kk < fAreaI_.PhysEndK(); kk++) {
     for (auto jj = fAreaI_.PhysStartJ(); jj < fAreaI_.PhysEndJ(); jj++) {
       for (auto ii = fAreaI_.PhysStartI(); ii < fAreaI_.PhysEndI(); ii++) {
-        primative faceStateLower, faceStateUpper;
+        primitive faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
-          faceStateLower = state_(ii - 1, jj, kk).FaceReconConst();
-          faceStateUpper = state_(ii, jj, kk).FaceReconConst();
+          faceStateLower = FaceReconConst(state_(ii - 1, jj, kk));
+          faceStateUpper = FaceReconConst(state_(ii, jj, kk));
         } else {  // second order accuracy
           if (inp.UsingMUSCLReconstruction()) {
-            faceStateLower = state_(ii - 1, jj, kk).FaceReconMUSCL(
-                state_(ii - 2, jj, kk), state_(ii, jj, kk),
-                inp.Kappa(), inp.Limiter(), cellWidthI_(ii - 1, jj, kk),
-                cellWidthI_(ii - 2, jj, kk), cellWidthI_(ii, jj, kk));
+            faceStateLower = FaceReconMUSCL(
+                state_(ii - 2, jj, kk), state_(ii - 1, jj, kk),
+                state_(ii, jj, kk), inp.Kappa(), inp.Limiter(),
+                cellWidthI_(ii - 2, jj, kk), cellWidthI_(ii - 1, jj, kk),
+                cellWidthI_(ii, jj, kk));
 
-            faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
-                state_(ii + 1, jj, kk), state_(ii - 1, jj, kk),
-                inp.Kappa(), inp.Limiter(), cellWidthI_(ii, jj, kk),
-                cellWidthI_(ii + 1, jj, kk), cellWidthI_(ii - 1, jj, kk));
+            faceStateUpper = FaceReconMUSCL(
+                state_(ii + 1, jj, kk), state_(ii, jj, kk),
+                state_(ii - 1, jj, kk), inp.Kappa(), inp.Limiter(),
+                cellWidthI_(ii + 1, jj, kk), cellWidthI_(ii, jj, kk),
+                cellWidthI_(ii - 1, jj, kk));
 
           } else {  // using higher order reconstruction (weno, wenoz)
-            faceStateLower = state_(ii - 1, jj, kk).FaceReconWENO(
-                state_(ii - 2, jj, kk), state_(ii - 3, jj, kk),
-                state_(ii, jj, kk), state_(ii + 1, jj, kk),
-                cellWidthI_(ii - 1, jj, kk), cellWidthI_(ii - 2, jj, kk),
-                cellWidthI_(ii - 3, jj, kk), cellWidthI_(ii, jj, kk),
-                cellWidthI_(ii + 1, jj, kk), inp.IsWenoZ());
-
-            faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
-                state_(ii + 1, jj, kk), state_(ii + 2, jj, kk),
-                state_(ii - 1, jj, kk), state_(ii - 2, jj, kk),
+            faceStateLower = FaceReconWENO(
+                state_(ii - 3, jj, kk), state_(ii - 2, jj, kk),
+                state_(ii - 1, jj, kk), state_(ii, jj, kk),
+                state_(ii + 1, jj, kk), cellWidthI_(ii - 3, jj, kk),
+                cellWidthI_(ii - 2, jj, kk), cellWidthI_(ii - 1, jj, kk),
                 cellWidthI_(ii, jj, kk), cellWidthI_(ii + 1, jj, kk),
-                cellWidthI_(ii + 2, jj, kk), cellWidthI_(ii - 1, jj, kk),
-                cellWidthI_(ii - 2, jj, kk), inp.IsWenoZ());
+                inp.IsWenoZ());
+
+            faceStateUpper = FaceReconWENO(
+                state_(ii + 2, jj, kk), state_(ii + 1, jj, kk),
+                state_(ii, jj, kk), state_(ii - 1, jj, kk),
+                state_(ii - 2, jj, kk), cellWidthI_(ii + 2, jj, kk),
+                cellWidthI_(ii + 1, jj, kk), cellWidthI_(ii, jj, kk),
+                cellWidthI_(ii - 1, jj, kk), cellWidthI_(ii - 2, jj, kk),
+                inp.IsWenoZ());
           }
         }
 
@@ -583,38 +593,42 @@ void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
   for (auto kk = fAreaJ_.PhysStartK(); kk < fAreaJ_.PhysEndK(); kk++) {
     for (auto jj = fAreaJ_.PhysStartJ(); jj < fAreaJ_.PhysEndJ(); jj++) {
       for (auto ii = fAreaJ_.PhysStartI(); ii < fAreaJ_.PhysEndI(); ii++) {
-        primative faceStateLower, faceStateUpper;
+        primitive faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
-          faceStateLower = state_(ii, jj - 1, kk).FaceReconConst();
-          faceStateUpper = state_(ii, jj, kk).FaceReconConst();
+          faceStateLower = FaceReconConst(state_(ii, jj - 1, kk));
+          faceStateUpper = FaceReconConst(state_(ii, jj, kk));
         } else {  // second order accuracy
           if (inp.UsingMUSCLReconstruction()) {
-            faceStateLower = state_(ii, jj - 1, kk).FaceReconMUSCL(
-                state_(ii, jj - 2, kk), state_(ii, jj, kk),
-                inp.Kappa(), inp.Limiter(), cellWidthJ_(ii, jj - 1, kk),
-                cellWidthJ_(ii, jj - 2, kk), cellWidthJ_(ii, jj, kk));
+            faceStateLower = FaceReconMUSCL(
+                state_(ii, jj - 2, kk), state_(ii, jj - 1, kk),
+                state_(ii, jj, kk), inp.Kappa(), inp.Limiter(),
+                cellWidthJ_(ii, jj - 2, kk), cellWidthJ_(ii, jj - 1, kk),
+                cellWidthJ_(ii, jj, kk));
 
-            faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
-              state_(ii, jj + 1, kk), state_(ii, jj - 1, kk),
-              inp.Kappa(), inp.Limiter(), cellWidthJ_(ii, jj, kk),
-              cellWidthJ_(ii, jj + 1, kk), cellWidthJ_(ii, jj - 1, kk));
+            faceStateUpper = FaceReconMUSCL(
+                state_(ii, jj + 1, kk), state_(ii, jj, kk),
+                state_(ii, jj - 1, kk), inp.Kappa(), inp.Limiter(),
+                cellWidthJ_(ii, jj + 1, kk), cellWidthJ_(ii, jj, kk),
+                cellWidthJ_(ii, jj - 1, kk));
 
           } else {  // using higher order reconstruction (weno, wenoz)
-            faceStateLower = state_(ii, jj - 1, kk).FaceReconWENO(
-                state_(ii, jj - 2, kk), state_(ii, jj - 3, kk),
-                state_(ii, jj, kk), state_(ii, jj + 1, kk),
-                cellWidthJ_(ii, jj - 1, kk), cellWidthJ_(ii, jj - 2, kk),
-                cellWidthJ_(ii, jj - 3, kk), cellWidthJ_(ii, jj, kk),
-                cellWidthJ_(ii, jj + 1, kk), inp.IsWenoZ());
-
-            faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
-                state_(ii, jj + 1, kk), state_(ii, jj + 2, kk),
-                state_(ii, jj - 1, kk), state_(ii, jj - 2, kk),
+            faceStateLower = FaceReconWENO(
+                state_(ii, jj - 3, kk), state_(ii, jj - 2, kk),
+                state_(ii, jj - 1, kk), state_(ii, jj, kk),
+                state_(ii, jj + 1, kk), cellWidthJ_(ii, jj - 3, kk),
+                cellWidthJ_(ii, jj - 2, kk), cellWidthJ_(ii, jj - 1, kk),
                 cellWidthJ_(ii, jj, kk), cellWidthJ_(ii, jj + 1, kk),
-                cellWidthJ_(ii, jj + 2, kk), cellWidthJ_(ii, jj - 1, kk),
-                cellWidthJ_(ii, jj - 2, kk), inp.IsWenoZ());
+                inp.IsWenoZ());
+
+            faceStateUpper = FaceReconWENO(
+                state_(ii, jj + 2, kk), state_(ii, jj + 1, kk),
+                state_(ii, jj, kk), state_(ii, jj - 1, kk),
+                state_(ii, jj - 2, kk), cellWidthJ_(ii, jj + 2, kk),
+                cellWidthJ_(ii, jj + 1, kk), cellWidthJ_(ii, jj, kk),
+                cellWidthJ_(ii, jj - 1, kk), cellWidthJ_(ii, jj - 2, kk),
+                inp.IsWenoZ());
           }
         }
 
@@ -715,38 +729,42 @@ void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
   for (auto kk = fAreaK_.PhysStartK(); kk < fAreaK_.PhysEndK(); kk++) {
     for (auto jj = fAreaK_.PhysStartJ(); jj < fAreaK_.PhysEndJ(); jj++) {
       for (auto ii = fAreaK_.PhysStartI(); ii < fAreaK_.PhysEndI(); ii++) {
-        primative faceStateLower, faceStateUpper;
+        primitive faceStateLower, faceStateUpper;
 
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
-          faceStateLower = state_(ii, jj, kk - 1).FaceReconConst();
-          faceStateUpper = state_(ii, jj, kk).FaceReconConst();
+          faceStateLower = FaceReconConst(state_(ii, jj, kk - 1));
+          faceStateUpper = FaceReconConst(state_(ii, jj, kk));
         } else {  // second order accuracy
           if (inp.UsingMUSCLReconstruction()) {
-            faceStateLower = state_(ii, jj, kk - 1).FaceReconMUSCL(
-                state_(ii, jj, kk - 2), state_(ii, jj, kk),
-                inp.Kappa(), inp.Limiter(), cellWidthK_(ii, jj, kk - 1),
-                cellWidthK_(ii, jj, kk - 2), cellWidthK_(ii, jj, kk));
+            faceStateLower = FaceReconMUSCL(
+                state_(ii, jj, kk - 2), state_(ii, jj, kk - 1),
+                state_(ii, jj, kk), inp.Kappa(), inp.Limiter(),
+                cellWidthK_(ii, jj, kk - 2), cellWidthK_(ii, jj, kk - 1),
+                cellWidthK_(ii, jj, kk));
 
-            faceStateUpper = state_(ii, jj, kk).FaceReconMUSCL(
-                state_(ii, jj, kk + 1), state_(ii, jj, kk - 1),
-                inp.Kappa(), inp.Limiter(), cellWidthK_(ii, jj, kk),
-                cellWidthK_(ii, jj, kk + 1), cellWidthK_(ii, jj, kk - 1));
+            faceStateUpper = FaceReconMUSCL(
+                state_(ii, jj, kk + 1), state_(ii, jj, kk),
+                state_(ii, jj, kk - 1), inp.Kappa(), inp.Limiter(),
+                cellWidthK_(ii, jj, kk + 1), cellWidthK_(ii, jj, kk),
+                cellWidthK_(ii, jj, kk - 1));
 
           } else {  // using higher order reconstruction (weno, wenoz)
-            faceStateLower = state_(ii, jj, kk - 1).FaceReconWENO(
-                state_(ii, jj, kk - 2), state_(ii, jj, kk - 3),
-                state_(ii, jj, kk), state_(ii, jj, kk + 1),
-                cellWidthK_(ii, jj, kk - 1), cellWidthK_(ii, jj, kk - 2),
-                cellWidthK_(ii, jj, kk - 3), cellWidthK_(ii, jj, kk),
-                cellWidthK_(ii, jj, kk + 1), inp.IsWenoZ());
-
-            faceStateUpper = state_(ii, jj, kk).FaceReconWENO(
-                state_(ii, jj, kk + 1), state_(ii, jj, kk + 2),
-                state_(ii, jj, kk - 1), state_(ii, jj, kk - 2),
+            faceStateLower = FaceReconWENO(
+                state_(ii, jj, kk - 3), state_(ii, jj, kk - 2),
+                state_(ii, jj, kk - 1), state_(ii, jj, kk),
+                state_(ii, jj, kk + 1), cellWidthK_(ii, jj, kk - 3),
+                cellWidthK_(ii, jj, kk - 2), cellWidthK_(ii, jj, kk - 1),
                 cellWidthK_(ii, jj, kk), cellWidthK_(ii, jj, kk + 1),
-                cellWidthK_(ii, jj, kk + 2), cellWidthK_(ii, jj, kk - 1),
-                cellWidthK_(ii, jj, kk - 2), inp.IsWenoZ());
+                inp.IsWenoZ());
+
+            faceStateUpper = FaceReconWENO(
+                state_(ii, jj, kk + 2), state_(ii, jj, kk + 1),
+                state_(ii, jj, kk), state_(ii, jj, kk - 1),
+                state_(ii, jj, kk - 2), cellWidthK_(ii, jj, kk + 2),
+                cellWidthK_(ii, jj, kk + 1), cellWidthK_(ii, jj, kk),
+                cellWidthK_(ii, jj, kk - 1), cellWidthK_(ii, jj, kk - 2),
+                inp.IsWenoZ());
           }
         }
 
@@ -864,9 +882,9 @@ implicit methods it uses the correction du and calls the implicit updater.
 void procBlock::UpdateBlock(const input &inputVars, const unique_ptr<eos> &eos,
                             const unique_ptr<thermodynamic> &thermo,
                             const unique_ptr<transport> &trans,
-                            const multiArray3d<genArray> &du,
+                            const multiArray3d<varArray> &du,
                             const unique_ptr<turbModel> &turb, const int &rr,
-                            genArray &l2, resid &linf) {
+                            residual &l2, resid &linf) {
   // inputVars -- all input variables
   // eos -- equation of state
   // thermo -- thermodynamic model
@@ -938,13 +956,13 @@ void procBlock::ExplicitEulerTimeAdvance(
   // calculate updated conserved variables
   consVars -= dt_(ii, jj, kk) / vol_(ii, jj, kk) * residual_(ii, jj, kk);
 
-  // calculate updated primative variables and update state
-  state_(ii, jj, kk) = primative(consVars, false, eqnState, thermo, turb);
+  // calculate updated primitive variables and update state
+  state_(ii, jj, kk) = primitive(consVars, false, eqnState, thermo, turb);
 }
 
 // member function to advance the state vector to time n+1 (for implicit
 // methods)
-void procBlock::ImplicitTimeAdvance(const genArray &du,
+void procBlock::ImplicitTimeAdvance(const varArray &du,
                                     const unique_ptr<eos> &eqnState,
                                     const unique_ptr<thermodynamic> &thermo,
                                     const unique_ptr<turbModel> &turb,
@@ -958,12 +976,12 @@ void procBlock::ImplicitTimeAdvance(const genArray &du,
   // jj -- j-location of cell
   // kk -- k-location of cell
 
-  // calculate updated state (primative variables)
+  // calculate updated state (primitive variables)
   state_(ii, jj, kk) =
       state_(ii, jj, kk).UpdateWithConsVars(eqnState, thermo, du, turb);
 }
 
-/*member function to advance the state_ vector to time n+1 using 4th order
+/* member function to advance the state vector to time n+1 using 4th order
 (minimum storage) Runge-Kutta method (2nd order accurate)
 
  Un+1 = Un - dt/V * alpha * R
@@ -972,13 +990,13 @@ Un is the conserved variables at time n, Un+1 is the conserved variables at time
 n+1, dt is the cell's time step, V is the cell's volume, alpha is the runge-kutta
 coefficient, and R is the cell's residual.
  */
-void procBlock::RK4TimeAdvance(const genArray &currState,
+void procBlock::RK4TimeAdvance(const conserved &currState,
                                const unique_ptr<eos> &eqnState,
                                const unique_ptr<thermodynamic> &thermo,
                                const unique_ptr<turbModel> &turb,
                                const int &ii, const int &jj, const int &kk,
                                const int &rk) {
-  // currState -- current state (including steps within RK4) (primative)
+  // currState -- current state (including steps within RK4)
   // eqnState -- equation of state
   // thermo -- thermodynamic model
   // turb -- turbulence model
@@ -994,8 +1012,8 @@ void procBlock::RK4TimeAdvance(const genArray &currState,
   auto consVars = currState - dt_(ii, jj, kk) / vol_(ii, jj, kk) *
       alpha[rk] * residual_(ii, jj, kk);
 
-  // calculate updated primative variables
-  state_(ii, jj, kk) = primative(consVars, false, eqnState, thermo, turb);
+  // calculate updated primitive variables
+  state_(ii, jj, kk) = primitive(consVars, eqnState, thermo, turb);
 }
 
 // member function to reset the residual and wave speed back to zero after an
@@ -1063,7 +1081,7 @@ double procBlock::SolDeltaNCoeff(const int &ii, const int &jj, const int &kk,
   return (vol_(ii, jj, kk) * (1.0 + inp.Zeta())) / (dt_(ii, jj, kk) * inp.Theta());
 }
 
-genArray procBlock::SolDeltaMmN(const int &ii, const int &jj, const int &kk,
+varArray procBlock::SolDeltaMmN(const int &ii, const int &jj, const int &kk,
                                 const input &inp, const unique_ptr<eos> &eos,
                                 const unique_ptr<thermodynamic> &thermo) const {
   const auto coeff = this->SolDeltaNCoeff(ii, jj, kk, inp);
@@ -1076,13 +1094,13 @@ double procBlock::SolDeltaNm1Coeff(const int &ii, const int &jj, const int &kk,
   return (vol_(ii, jj, kk) * inp.Zeta()) / (dt_(ii, jj, kk) * inp.Theta());
 }
 
-genArray procBlock::SolDeltaNm1(const int &ii, const int &jj, const int &kk,
+varArray procBlock::SolDeltaNm1(const int &ii, const int &jj, const int &kk,
                                 const input &inp) const {
   if (isMultiLevelTime_) {
     const auto coeff = this->SolDeltaNm1Coeff(ii, jj, kk, inp);
     return coeff * (consVarsN_(ii, jj, kk) - consVarsNm1_(ii, jj, kk));
   } else {
-    return genArray(0.0);
+    return varArray(inp.NumEquations(), inp.NumSpecies());
   }
 }
 
@@ -1239,7 +1257,7 @@ For viscous simulations, the viscous contribution to the spectral radius K is
 used, and everything else remains the same.
  */
 void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
-                              multiArray3d<genArray> &x,
+                              blkMultiArray3d<varArray> &x,
                               const unique_ptr<eos> &eqnState, const input &inp,
                               const unique_ptr<thermodynamic> &thermo,
                               const unique_ptr<transport> &trans,
@@ -1260,15 +1278,15 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
 
   //--------------------------------------------------------------------
   // forward sweep over all physical cells
-  for (auto nn = 0; nn < this->NumCells(); nn++) {
+  for (auto nn = 0; nn < this->NumCells(); ++nn) {
     // indices for variables without ghost cells
     const auto ii = reorder[nn].X();
     const auto jj = reorder[nn].Y();
     const auto kk = reorder[nn].Z();
 
     // initialize term for contribution from lower/upper triangular matrix
-    genArray L(0.0);
-    genArray U(0.0);
+    varArray L(inp.NumEquations(), inp.NumSpecies());
+    varArray U(inp.NumEquations(), inp.NumSpecies());
 
     // if i lower diagonal cell is in physical location there is a contribution
     // from it
@@ -1399,7 +1417,7 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
 }
 
 double procBlock::LUSGS_Backward(
-    const vector<vector3d<int>> &reorder, multiArray3d<genArray> &x,
+    const vector<vector3d<int>> &reorder, blkMultiArray3d<varArray> &x,
     const unique_ptr<eos> &eqnState, const input &inp,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
     const unique_ptr<turbModel> &turb, const multiArray3d<fluxJacobian> &aInv,
@@ -1416,7 +1434,7 @@ double procBlock::LUSGS_Backward(
 
   const auto thetaInv = 1.0 / inp.Theta();
 
-  genArray l2Error(0.0);
+  varArray l2Error(inp.NumEquations(), inp.NumSpecies());
 
   // backward sweep over all physical cells
   for (auto nn = this->NumCells() - 1; nn >= 0; nn--) {
@@ -1426,8 +1444,8 @@ double procBlock::LUSGS_Backward(
     const auto kk = reorder[nn].Z();
 
     // initialize term for contribution from upper/lower triangular matrix
-    genArray U(0.0);
-    genArray L(0.0);
+    varArray U(inp.NumEquations(), inp.NumSpecies());
+    varArray L(inp.NumEquations(), inp.NumSpecies());
 
     // -----------------------------------------------------------------------
     // if i upper diagonal cell is in physical location there is a contribution
@@ -1568,7 +1586,7 @@ double procBlock::LUSGS_Backward(
 
 /* Member function to calculate the implicit update via the DP-LUR method
  */
-double procBlock::DPLUR(multiArray3d<genArray> &x,
+double procBlock::DPLUR(blkMultiArray3d<varArray> &x,
                         const unique_ptr<eos> &eqnState, const input &inp,
                         const unique_ptr<thermodynamic> &thermo,
                         const unique_ptr<transport> &trans,
@@ -1585,7 +1603,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
   const auto thetaInv = 1.0 / inp.Theta();
 
   // initialize residuals
-  genArray l2Error(0.0);
+  varArray l2Error(inp.NumEquations(), inp.NumSpecies());
 
   // copy old update
   const auto xold = x;
@@ -1594,7 +1612,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
     for (auto jj = 0; jj < this->NumJ(); jj++) {
       for (auto ii = 0; ii < this->NumI(); ii++) {
         // calculate off diagonal terms - initialize to zero
-        genArray offDiagonal(0.0);
+        varArray offDiagonal(inp.NumEquations(), inp.NumSpecies());
 
         // -------------------------------------------------------------
         // if i lower diagonal cell is in physical location there is a
@@ -1727,7 +1745,7 @@ double procBlock::DPLUR(multiArray3d<genArray> &x,
   return l2Error.Sum();
 }
 
-multiArray3d<genArray> procBlock::InitializeMatrixUpdate(
+blkMultiArray3d<varArray> procBlock::InitializeMatrixUpdate(
     const input &inp, const unique_ptr<eos> &eqnState,
     const unique_ptr<thermodynamic> &thermo,
     const multiArray3d<fluxJacobian> &aInv) const {
@@ -1737,8 +1755,9 @@ multiArray3d<genArray> procBlock::InitializeMatrixUpdate(
   // aInv -- inverse of main diagonal
 
   // allocate multiarray for update
-  multiArray3d<genArray> x(this->NumI(), this->NumJ(), this->NumK(), numGhosts_,
-                           1, genArray(0.0));
+  blkMultiArray3d<varArray> x(this->NumI(), this->NumJ(), this->NumK(),
+                              numGhosts_, inp.NumEquations(), inp.NumSpecies(),
+                              0.0);
 
   if (inp.MatrixRequiresInitialization()) {
     const auto thetaInv = 1.0 / inp.Theta();
@@ -1897,7 +1916,7 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
                          tkeGrad, omegaGrad);
 
         // declare variables needed throughout function
-        primative state;
+        primitive state;
         auto f1 = 0.0;
         auto f2 = 0.0;
         auto mu = 0.0;
@@ -2210,7 +2229,7 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
                          tkeGrad, omegaGrad);
 
         // declare variables needed throughout function
-        primative state;
+        primitive state;
         auto f1 = 0.0;
         auto f2 = 0.0;
         auto mu = 0.0;
@@ -2524,7 +2543,7 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
                          tkeGrad, omegaGrad);
 
         // declare variables needed throughout function
-        primative state;
+        primitive state;
         auto f1 = 0.0;
         auto f2 = 0.0;
         auto mu = 0.0;
@@ -3849,7 +3868,7 @@ void procBlock::SwapStateSliceMPI(const connection &inter, const int &rank,
                                   const MPI_Datatype &MPI_cellData) {
   // inter -- connection boundary information
   // rank -- processor rank
-  // MPI_cellData -- MPI datatype for passing primative, genArray
+  // MPI_cellData -- MPI datatype for passing varArray types
 
   state_.SwapSliceMPI(inter, rank, MPI_cellData);
 }
@@ -4793,7 +4812,7 @@ slice of states. The function uses the orientation supplied in the connection to
 orient the slice relative to the procBlock. It assumes that the procBlock
 is listed first, and the slice second in the connection data structure.
 */
-void procBlock::PutStateSlice(const multiArray3d<primative> &slice,
+void procBlock::PutStateSlice(const multiArray3d<primitive> &slice,
                               const connection &inter,
                               const int &d3, const int &numG) {
   // slice -- slice to insert in procBlock
@@ -6695,7 +6714,7 @@ void procBlock::CalcResidualNoSource(const unique_ptr<transport> &trans,
 
 
 // member function to get a slice of the state variables
-multiArray3d<primative> procBlock::SliceState(const int &is, const int &ie,
+multiArray3d<primitive> procBlock::SliceState(const int &is, const int &ie,
                                              const int &js, const int &je,
                                              const int &ks,
                                              const int &ke) const {
@@ -6751,14 +6770,14 @@ void procBlock::UpdateUnlimTurbEddyVisc(const unique_ptr<turbModel> &turb,
   }
 }
 
-multiArray3d<primative> procBlock::GetGhostStates(
-    const multiArray3d<primative> &bndStates, const string &bcName,
+multiArray3d<primitive> procBlock::GetGhostStates(
+    const blkMultiArray3d<primitive> &bndStates, const string &bcName,
     const multiArray3d<unitVec3dMag<double>> &faceAreas,
     const multiArray3d<double> &wDist, const boundarySurface &surf,
     const input &inp, const unique_ptr<eos> &eqnState,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
     const unique_ptr<turbModel> &turb, const int &layer,
-    const multiArray3d<double> &dt, const multiArray3d<genArray> &consVarsN,
+    const multiArray3d<double> &dt, const blkMultiArray3d<conserved> &consVarsN,
     const multiArray3d<vector3d<double>> &pGrad,
     const multiArray3d<tensor<double>> &velGrad) {
   // bndStates -- states at cells adjacent to boundary
@@ -6809,7 +6828,7 @@ multiArray3d<primative> procBlock::GetGhostStates(
     }
   }
 
-  multiArray3d<primative> ghostStates(
+  multiArray3d<primitive> ghostStates(
       bndStates.NumINoGhosts(), bndStates.NumJNoGhosts(),
       bndStates.NumKNoGhosts(), bndStates.GhostLayers());
   for (auto kk = bndStates.StartK(); kk < bndStates.EndK(); kk++) {
@@ -6824,7 +6843,7 @@ multiArray3d<primative> procBlock::GetGhostStates(
                                  eqnState, thermo, trans, turb, wVars, layer);
         } else {  // using dt, state at time n, press grad, vel grad in BC
           const auto stateN =
-              primative(consVarsN(ii, jj, kk), false, eqnState, thermo, turb);
+              primitive(consVarsN(ii, jj, kk), false, eqnState, thermo, turb);
           ghostStates(ii, jj, kk) =
               bndStates(ii, jj, kk)
                   .GetGhostState(bcName, faceAreas(ii, jj, kk).UnitVector(),
@@ -6960,11 +6979,11 @@ void procBlock::CalcCellWidths() {
 }
 
 
-void procBlock::GetStatesFromRestart(const multiArray3d<primative> &restart) {
+void procBlock::GetStatesFromRestart(const multiArray3d<primitive> &restart) {
   state_.Insert(restart.RangeI(), restart.RangeJ(), restart.RangeK(), restart);
 }
 
-void procBlock::GetSolNm1FromRestart(const multiArray3d<genArray> &restart) {
+void procBlock::GetSolNm1FromRestart(const blkMultiArray3d<conserved> &restart) {
   consVarsNm1_ = restart;
 }
 

@@ -40,12 +40,19 @@ class arrayView {
 
   typename vector<T>::iterator begin_;
   typename vector<T>::iterator end_;
+  int momentumIndex_;
+  int energyIndex_;
+  int turbulenceIndex_;
 
  public:
   // constructor
   arrayView(const typename vector<T>::iterator &b,
-            const typename vector<T>::iterator &e)
-      : begin_(b), end_(e) {}
+            const typename vector<T>::iterator &e, const int &numSpecies)
+      : begin_(b),
+        end_(e),
+        momentumIndex_(numSpecies),
+        energyIndex_(momentumIndex_ + 3),
+        turbulenceIndex_(energyIndex_ + 1) {}
 
   // member functions
   void Zero() { std::fill(begin_, end_, T(0)); }
@@ -62,7 +69,7 @@ class arrayView {
   // copy constructor and assignment operator
   arrayView(const arrayView &) = default;
   arrayView& operator=(const arrayView &assign) {
-    std::copy(begin_, end_, assign.begin_);
+    std::copy(assign.begin_, assign.end_, begin_);
   }
 
   // operator overloads

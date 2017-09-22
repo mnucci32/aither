@@ -30,8 +30,9 @@
 #include "vector3d.hpp"
 #include "boundaryConditions.hpp"  // connection
 #include "range.hpp"  // range
-#include "arrayView.hpp"
 #include "multiArray3d.hpp"
+#include "varArray.hpp"
+#include "arrayView.hpp"
 
 using std::ostream;
 using std::endl;
@@ -42,7 +43,11 @@ using std::string;
 using std::unique_ptr;
 
 template <typename T>
-class blkMultiArray3d : public multiArray3d<T> {
+class blkMultiArray3d : public multiArray3d<double> {
+  static_assert(std::is_base_of<varArray, T>::value,
+                "blkMultiArray3d<T> requires a varArray based type!");
+
+  int numSpecies_;
 
   // private member functions
   int GetBlkLoc1D(const int &ii, const int &jj, const int &kk) const {
@@ -52,12 +57,15 @@ class blkMultiArray3d : public multiArray3d<T> {
  public:
   // constructor
   blkMultiArray3d(const int &ii, const int &jj, const int &kk, const int &ng,
-                  const int &bs, const T &init)
-      : multiArray3d<T>(ii, jj, kk, ng, bs, init) {}
+                  const int &bs, const int &ns, const double &init)
+      : multiArray3d<double>(ii, jj, kk, ng, bs, init), numSpecies_(ns) {}
+  blkMultiArray3d(const int &ii, const int &jj, const int &kk, const int &ng,
+                  const int &bs, const int &ns)
+      : multiArray3d<double>(ii, jj, kk, ng, bs), numSpecies_(ns) {}
   blkMultiArray3d(const int &ii, const int &jj, const int &kk, const int &ng,
                   const int &bs)
-      : multiArray3d<T>(ii, jj, kk, ng, bs) {}
-  blkMultiArray3d() : multiArray3d<T>() {}
+      : blkMultiArray3d(ii, jj, kk, ng, bs, 0) {}
+  blkMultiArray3d() : multiArray3d<double>(), numSpecies_(0) {}
 
   // move constructor and assignment operator
   blkMultiArray3d(blkMultiArray3d&&) noexcept = default;
@@ -68,54 +76,36 @@ class blkMultiArray3d : public multiArray3d<T> {
   blkMultiArray3d& operator=(const blkMultiArray3d&) = default;
 
   // member functions
-  arrayView<T> GetElem(const int &ii, const int &jj, const int &kk) const;
-
   // operator overloads
-  arrayView<T> &operator()(const int &ii, const int &jj, const int &kk) {
+  arrayView<double> operator()(const int &ii, const int &jj, const int &kk) const {
     auto start = this->GetBlkLoc1D(ii, jj, kk);
-    return {this->begin() + start, this->begin() + start + this->BlockSize()};
+    return {this->begin() + start, this->begin() + start + this->BlockSize(),
+            numSpecies_};
   }
-  const arrayView<T> &operator()(const int &ii, const int &jj,
-                                 const int &kk) const {
-    auto start = this->GetBlkLoc1D(ii, jj, kk);
-    return {this->begin() + start, this->begin() + start + this->BlockSize()};
+    
+  double &operator()(const int &ii, const int &jj, const int &kk,
+                const int &bb) {
+    MSG_ASSERT(bb <= this->BlockSize(), "accessing data out of block index");
+    auto ind = this->GetBlkLoc1D(ii, jj, kk) + bb;
+    return *ind;
+  }
+  const double &operator()(const int &ii, const int &jj, const int &kk,
+                      const int &bb) const {
+    MSG_ASSERT(bb <= this->BlockSize(), "accessing data out of block index");
+    auto ind = this->GetBlkLoc1D(ii, jj, kk) + bb;
+    return *ind;
   }
 
-  arrayView<T> &operator()(const int &ind) {
+  arrayView<double> operator()(const int &ind) const {
     auto start = ind * this->BlockSize();
-    return {this->begin() + start, this->begin() + start + this->BlockSize()};
+    return {this->begin() + start, this->begin() + start + this->BlockSize(),
+            numSpecies_};
   }
-  const arrayView<T> &operator()(const int &ind) const { 
-    auto start = ind * this->BlockSize();
-    return {this->begin() + start, this->begin() + start + this->BlockSize()};
-  }
-
-  arrayView<T> &operator()(const string &dir, const int &d1, const int &d2,
-                           const int &d3) {
-    if (dir == "i") {  // direction 1 is i
-      return (*this)(d1, d2, d3);
-    } else if (dir == "j") {  // direction 1 is j
-      return (*this)(d3, d1, d2);
-    } else if (dir == "k") {  // direction 1 is k
-      rreturn (*this)(d2, d3, d1);
-    } else {
-      cerr << "ERROR: Direction " << dir << " is not recognized!" << endl;
-      exit(EXIT_FAILURE);
-    }
-  }
-  const arrayView<T> &operator()(const string &dir, const int &d1,
-                                 const int &d2, const int &d3) const {
-    if (dir == "i") {  // direction 1 is i
-      return (*this)(d1, d2, d3);
-    } else if (dir == "j") {  // direction 1 is j
-      return (*this)(d3, d1, d2);
-    } else if (dir == "k") {  // direction 1 is k
-      return (*this)(d2, d3, d1);
-    } else {
-      cerr << "ERROR: Direction " << dir << " is not recognized!" << endl;
-      exit(EXIT_FAILURE);
-    }
-  }
+  //const T &operator()(const int &ind) const {
+  //  auto start = ind * this->BlockSize();
+  //  return {this->begin() + start, this->begin() + start + this->BlockSize(),
+  //          numSpecies_};
+  //}
 
   // destructor
   ~blkMultiArray3d() noexcept {}
@@ -124,27 +114,11 @@ class blkMultiArray3d : public multiArray3d<T> {
 // ---------------------------------------------------------------------------
 // member function definitions
 
-template <typename T>
-arrayView<T> blkMultiArray3d<T>::GetElem(const int &ii, const int &jj,
-                                         const int &kk) const {
-  if (ii < this->EndI() && jj < this->EndJ() && kk < this->Endk() &&
-      ii >= this->StartI() && jj >= this->StartJ() && kk >= this->StartK()) {
-    return (*this)(ii, jj, kk);
-  } else {
-    cerr << "ERROR: Tried to access location outside of bounds of "
-         << "multiArray3d" << endl;
-    cerr << "Tried to access " << ii << ", " << jj << ", " << kk << endl;
-    cerr << "Maximum locations are " << this->EndI() - 1 << ", "
-         << this->EndJ() - 1 << ", " << this->EndK() - 1 << endl;
-    exit(EXIT_FAILURE);
-  }
-}
-
 // operation overload for << - allows use of cout, cerr, etc.
 template <typename T>
 ostream &operator<<(ostream &os, const blkMultiArray3d<T> &arr) {
-  os << "Size: " << arr.NumI() << ", " << arr.NumJ() << ", "
-     << arr.NumK() << endl;
+  os << "Size: " << arr.NumI() << ", " << arr.NumJ() << ", " << arr.NumK()
+     << endl;
   os << "Number of ghost layers: " << arr.GhostLayers() << endl;
 
   for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
@@ -156,6 +130,5 @@ ostream &operator<<(ostream &os, const blkMultiArray3d<T> &arr) {
   }
   return os;
 }
-
 
 #endif
