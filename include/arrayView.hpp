@@ -24,12 +24,17 @@
 #include <algorithm>
 #include <type_traits>
 #include <cmath>
+#include <memory>
 #include "macros.hpp"
 #include "varArray.hpp"
+#include "vector3d.hpp"
+#include "thermodynamic.hpp"
+#include "eos.hpp"
 
 using std::ostream;
 using std::vector;
 using std::endl;
+using std::unique_ptr;
 
 /* class to store a view of an array. This is useful to slice out data from a
  * std::vector.
@@ -63,12 +68,6 @@ class arrayView {
         energyIndex_(momentumIndex_ + 3),
         turbulenceIndex_(energyIndex_ + 1) {}
 
-  // member functions
-  T2 Sum() const { return std::accumulate(begin_, end_, T2(0)); }
-  auto Size() const { return std::distance(begin_, end_); }
-  int NumSpecies() const { return momentumIndex_; }
-  T1 CopyData() const { return T1{begin_, end_, this->NumSpecies()}; }
-
   // move constructor and assignment operator
   arrayView(arrayView&&) noexcept = default;
   arrayView& operator=(arrayView&&) noexcept = default;
@@ -79,6 +78,107 @@ class arrayView {
     std::copy(assign.begin_, assign.end_, begin_);
   }
 
+  // member functions
+  T2 Sum() const { return std::accumulate(begin_, end_, T2(0)); }
+  T1 CopyData() const { return T1{begin_, end_, this->NumSpecies()}; }
+  auto Size() const { return std::distance(begin_, end_); }
+  int NumSpecies() const { return momentumIndex_; }
+  int NumTurbulence() const { return this->Size() - turbulenceIndex_; }
+  bool IsMultiSpecies() const { return this->NumSpecies() > 1; }
+  bool HasTurbulenceData() const { return this->Size() != turbulenceIndex_; }
+  int MomentumXIndex() const { return momentumIndex_; }
+  int MomentumYIndex() const { return momentumIndex_ + 1; }
+  int MomentumZIndex() const { return momentumIndex_ + 2; }
+  int EnergyIndex() const { return energyIndex_; }
+  int TurbulenceIndex() const { return turbulenceIndex_; }
+  T2 SpeciesSum() const {
+    return std::accumulate(begin_, end_ + this->NumSpecies(), T2(0));
+  }
+  const T2 &SpeciesN(const int &ii) const {
+    MSG_ASSERT(ii < momentumIndex_, "requesting species variable out of range");
+    return (*this)[ii];
+  }
+  const T2 &MomentumX() const { return (*this)[momentumIndex_]; }
+  const T2 &MomentumY() const { return (*this)[momentumIndex_ + 1]; }
+  const T2 &MomentumZ() const { return (*this)[momentumIndex_ + 2]; }
+  const T2 &Energy() const { return (*this)[energyIndex_]; }
+  const T2 &TurbulenceN(const int &ii) const {
+    MSG_ASSERT(tubulenceIndex_ + ii >= this->Size(),
+               "requesting turbulence variable out of range");
+    return (*this)[turbulenceIndex_ + ii];
+  }
+
+  // --------------------------------------------------------------------------
+  // getters for primitives ---------------------------------------------------
+  const T2 &RhoN(const int &ii) const { 
+    static_assert(std::is_same<primitive, T1>::value,
+                "getter only valid for primitive type!");
+    return this->SpeciesN(ii); 
+  }
+  T2 Rho() const { 
+    static_assert(std::is_same<primitive, T1>::value,
+                "getter only valid for primitive type!");
+    return this->SpeciesSum(); 
+  }
+  T2 MassFractionN(const int &ii) const { 
+    static_assert(std::is_same<primitive, T1>::value,
+                "getter only valid for primitive type!");
+    return this->RhoN(ii) / this->Rho(); 
+  }
+  const T2 &U() const { 
+    static_assert(std::is_same<primitive, T1>::value,
+                "getter only valid for primitive type!");
+    return this->MomentumX(); 
+  }
+  const T2 &V() const { 
+    static_assert(std::is_same<primitive, T1>::value,
+                "getter only valid for primitive type!");
+    return this->MomentumY(); 
+  }
+  const T2 &W() const { 
+    static_assert(std::is_same<primitive, T1>::value,
+                "getter only valid for primitive type!");
+    return this->MomentumZ(); 
+  }
+  const T2 &P() const { 
+    static_assert(std::is_same<primitive, T1>::value,
+                "getter only valid for primitive type!");
+    return this->Energy(); 
+  }
+  const T2 &Tke() const { 
+    static_assert(std::is_same<primitive, T1>::value,
+                "getter only valid for primitive type!");
+    return this->TurbulenceN(0); 
+  }
+  const T2 &Omega() const { 
+    static_assert(std::is_same<primitive, T1>::value,
+                "getter only valid for primitive type!");
+    return this->TurbulenceN(1); 
+  }
+  const T2 &TurbN(const int &ii) const { 
+    static_assert(std::is_same<primitive, T1>::value,
+                "getter only valid for primitive type!");
+    return this->TurbulenceN(ii); 
+  }
+  vector3d<T2> Velocity() const {
+    static_assert(std::is_same<primitive, T1>::value,
+                "getter only valid for primitive type!");
+    return {this->U(), this->V(), this->W()};
+  }
+  T2 SoS(const unique_ptr<thermodynamic> &thermo,
+         const unique_ptr<eos> &eqnState) const {
+    static_assert(std::is_same<primitive, T1>::value,
+                  "getter only valid for primitive type!");
+    return sqrt(thermo->Gamma(this->Temperature(eqnState)) * this->P() /
+                this->Rho());
+  }
+  T2 Temperature(const unique_ptr<eos> &eqnState) const {
+    static_assert(std::is_same<primitive, T1>::value,
+                  "getter only valid for primitive type!");
+    return eqnState->Temperature(this->P(), this->Rho());
+  }
+
+  // --------------------------------------------------------------------------
   // operator overloads
   const T2 & operator[](const int &r) const { return *(begin_ + r); }
 
