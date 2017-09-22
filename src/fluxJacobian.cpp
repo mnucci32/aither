@@ -29,6 +29,7 @@
 #include "eos.hpp"            // equation of state
 #include "thermodynamic.hpp"  // thermodynamic model
 #include "conserved.hpp"      // conserved
+#include "spectralRadius.hpp"
 
 using std::cout;
 using std::endl;
@@ -114,7 +115,7 @@ void fluxJacobian::RusanovFluxJacobian(const primitive &state,
   // turb -- turbulence model
 
   // face inviscid spectral radius
-  const auto specRad = state.InvFaceSpectralRadius(area, thermo, eqnState);
+  const auto specRad = InvFaceSpectralRadius(state, area, thermo, eqnState);
 
   // form dissipation matrix based on spectral radius
   fluxJacobian dissipation(inp.NumFlowEquations(), inp.NumTurbEquations());
@@ -435,8 +436,8 @@ varArray RusanovScalarOffDiagonal(const primitive &state, const conserved &updat
 
   // can't use stored cell spectral radius b/c it has contributions from i, j, k
   const uncoupledScalar specRad(
-      state.FaceSpectralRadius(fArea, thermo, eqnState, trans, dist, mu, mut,
-                               turb, isViscous),
+      FaceSpectralRadius(state, fArea, thermo, eqnState, trans, dist, mu, mut,
+                         turb, isViscous),
       turb->FaceSpectralRadius(state, fArea, mu, trans, dist, mut, f1,
                                positive));
 
@@ -585,9 +586,8 @@ varArray RoeOffDiagonal(const primitive &offDiag, const primitive &diag,
   // add contribution for viscous terms
   uncoupledScalar specRad(0.0, 0.0);
   if (isViscous) {
-    specRad.AddToFlowVariable(
-        offDiag.ViscFaceSpectralRadius(fArea, thermo, eqnState, trans, dist, mu,
-                                        mut, turb));
+    specRad.AddToFlowVariable(ViscFaceSpectralRadius(
+        offDiag, fArea, thermo, eqnState, trans, dist, mu, mut, turb));
 
     if (isRANS) {
       specRad.AddToTurbVariable(turb->ViscFaceSpecRad(offDiag, fArea, mu, trans,

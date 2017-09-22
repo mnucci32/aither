@@ -131,42 +131,6 @@ class primitive : public varArray {
                            const unique_ptr<turbModel> &);
   void LimitTurb(const unique_ptr<turbModel> &);
 
-  double InvCellSpectralRadius(const unitVec3dMag<double> &,
-                               const unitVec3dMag<double> &,
-                               const unique_ptr<thermodynamic> &,
-                               const unique_ptr<eos> &) const;
-  double InvFaceSpectralRadius(const unitVec3dMag<double> &,
-                               const unique_ptr<thermodynamic> &,
-                               const unique_ptr<eos> &) const;
-
-  double ViscCellSpectralRadius(const unitVec3dMag<double> &,
-                                const unitVec3dMag<double> &,
-                                const unique_ptr<thermodynamic> &,
-                                const unique_ptr<eos> &,
-                                const unique_ptr<transport> &, const double &,
-                                const double &, const double &,
-                                const unique_ptr<turbModel> &) const;
-  double ViscFaceSpectralRadius(const unitVec3dMag<double> &,
-                                const unique_ptr<thermodynamic> &,
-                                const unique_ptr<eos> &,
-                                const unique_ptr<transport> &, const double &,
-                                const double &, const double &,
-                                const unique_ptr<turbModel> &) const;
-
-  double CellSpectralRadius(const unitVec3dMag<double> &,
-                            const unitVec3dMag<double> &,
-                            const unique_ptr<thermodynamic> &,
-                            const unique_ptr<eos> &,
-                            const unique_ptr<transport> &, const double &,
-                            const double &, const double &,
-                            const unique_ptr<turbModel> &, const bool &) const;
-  double FaceSpectralRadius(const unitVec3dMag<double> &,
-                            const unique_ptr<thermodynamic> &,
-                            const unique_ptr<eos> &,
-                            const unique_ptr<transport> &, const double &,
-                            const double &, const double &,
-                            const unique_ptr<turbModel> &, const bool &) const;
-
   // member function to return the state of the appropriate ghost cell
   primitive GetGhostState(
       const string &, const vector3d<double> &, const double &, const int &,

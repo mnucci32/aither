@@ -37,6 +37,7 @@
 #include "utility.hpp"
 #include "wallData.hpp"
 #include "reconstruction.hpp"
+#include "spectralRadius.hpp"
 
 using std::cout;
 using std::endl;
@@ -525,8 +526,9 @@ void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-          const auto invSpecRad = state_(ii, jj, kk).InvCellSpectralRadius(
-              fAreaI_(ii, jj, kk), fAreaI_(ii + 1, jj, kk), thermo, eqnState);
+          const auto invSpecRad =
+              InvCellSpectralRadius(state_(ii, jj, kk), fAreaI_(ii, jj, kk),
+                                    fAreaI_(ii + 1, jj, kk), thermo, eqnState);
 
           const auto turbInvSpecRad = isRANS_ ?
               turb->InviscidCellSpecRad(state_(ii, jj, kk), fAreaI_(ii, jj, kk),
@@ -661,8 +663,9 @@ void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-          const auto invSpecRad = state_(ii, jj, kk).InvCellSpectralRadius(
-              fAreaJ_(ii, jj, kk), fAreaJ_(ii, jj + 1, kk), thermo, eqnState);
+          const auto invSpecRad =
+              InvCellSpectralRadius(state_(ii, jj, kk), fAreaJ_(ii, jj, kk),
+                                    fAreaJ_(ii, jj + 1, kk), thermo, eqnState);
 
           const auto turbInvSpecRad = isRANS_ ?
               turb->InviscidCellSpecRad(state_(ii, jj, kk), fAreaJ_(ii, jj, kk),
@@ -798,8 +801,9 @@ void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-          const auto invSpecRad = state_(ii, jj, kk).InvCellSpectralRadius(
-              fAreaK_(ii, jj, kk), fAreaK_(ii, jj, kk + 1), thermo, eqnState);
+          const auto invSpecRad =
+              InvCellSpectralRadius(state_(ii, jj, kk), fAreaK_(ii, jj, kk),
+                                    fAreaK_(ii, jj, kk + 1), thermo, eqnState);
 
           const auto turbInvSpecRad = isRANS_ ?
               turb->InviscidCellSpecRad(state_(ii, jj, kk), fAreaK_(ii, jj, kk),
@@ -2094,12 +2098,10 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-          const auto viscSpecRad =
-              state_(ii, jj, kk)
-                  .ViscCellSpectralRadius(fAreaI_(ii, jj, kk),
-                                          fAreaI_(ii + 1, jj, kk), thermo,
-                                          eqnState, trans, vol_(ii, jj, kk),
-                                          viscosity_(ii, jj, kk), mut, turb);
+          const auto viscSpecRad = ViscCellSpectralRadius(
+              state_(ii, jj, kk), fAreaI_(ii, jj, kk), fAreaI_(ii + 1, jj, kk),
+              thermo, eqnState, trans, vol_(ii, jj, kk), viscosity_(ii, jj, kk),
+              mut, turb);
 
           const auto turbViscSpecRad = isRANS_ ?
               turb->ViscCellSpecRad(state_(ii, jj, kk), fAreaI_(ii, jj, kk),
@@ -2408,12 +2410,10 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-          const auto viscSpecRad =
-              state_(ii, jj, kk)
-                  .ViscCellSpectralRadius(fAreaJ_(ii, jj, kk),
-                                          fAreaJ_(ii, jj + 1, kk), thermo,
-                                          eqnState, trans, vol_(ii, jj, kk),
-                                          viscosity_(ii, jj, kk), mut, turb);
+          const auto viscSpecRad = ViscCellSpectralRadius(
+              state_(ii, jj, kk), fAreaJ_(ii, jj, kk), fAreaJ_(ii, jj + 1, kk),
+              thermo, eqnState, trans, vol_(ii, jj, kk), viscosity_(ii, jj, kk),
+              mut, turb);
 
           const auto turbViscSpecRad = isRANS_ ?
               turb->ViscCellSpecRad(state_(ii, jj, kk), fAreaJ_(ii, jj, kk),
@@ -2722,12 +2722,10 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
-          const auto viscSpecRad =
-              state_(ii, jj, kk)
-                  .ViscCellSpectralRadius(fAreaK_(ii, jj, kk),
-                                          fAreaK_(ii, jj, kk + 1), thermo,
-                                          eqnState, trans, vol_(ii, jj, kk),
-                                          viscosity_(ii, jj, kk), mut, turb);
+          const auto viscSpecRad = ViscCellSpectralRadius(
+              state_(ii, jj, kk), fAreaK_(ii, jj, kk), fAreaK_(ii, jj, kk + 1),
+              thermo, eqnState, trans, vol_(ii, jj, kk), viscosity_(ii, jj, kk),
+              mut, turb);
 
           const auto turbViscSpecRad = isRANS_ ?
               turb->ViscCellSpecRad(state_(ii, jj, kk), fAreaK_(ii, jj, kk),
