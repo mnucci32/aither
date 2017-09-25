@@ -76,36 +76,40 @@ class blkMultiArray3d : public multiArray3d<double> {
   blkMultiArray3d& operator=(const blkMultiArray3d&) = default;
 
   // member functions
+  template <typename T2>
+  void InsertBlock(const int &ii, const int &jj, const int &kk, const T2 &arr) {
+    static_assert(std::is_same<T, T2>::value ||
+                      std::is_same<arrayView<T, double>, T2>::value,
+                  "blkMultiArray3d<T> requires a varArray based type!");
+    MSG_ASSERT(arr.Size() == this->BlockSize(), "block size must match");
+    auto start = this->GetBlkLoc1D(ii, jj, kk);
+    std::copy(arr.begin(), arr.end(), this->begin() + start);
+  }
+
   // operator overloads
   arrayView<T, double> operator()(const int &ii, const int &jj, const int &kk) const {
     auto start = this->GetBlkLoc1D(ii, jj, kk);
     return {this->begin() + start, this->begin() + start + this->BlockSize(),
             numSpecies_};
   }
-    
-  double &operator()(const int &ii, const int &jj, const int &kk,
-                const int &bb) {
-    MSG_ASSERT(bb <= this->BlockSize(), "accessing data out of block index");
-    auto ind = this->GetBlkLoc1D(ii, jj, kk) + bb;
-    return *ind;
-  }
-  const double &operator()(const int &ii, const int &jj, const int &kk,
-                      const int &bb) const {
-    MSG_ASSERT(bb <= this->BlockSize(), "accessing data out of block index");
-    auto ind = this->GetBlkLoc1D(ii, jj, kk) + bb;
-    return *ind;
-  }
-
   arrayView<T, double> operator()(const int &ind) const {
     auto start = ind * this->BlockSize();
     return {this->begin() + start, this->begin() + start + this->BlockSize(),
             numSpecies_};
   }
-  //const T &operator()(const int &ind) const {
-  //  auto start = ind * this->BlockSize();
-  //  return {this->begin() + start, this->begin() + start + this->BlockSize(),
-  //          numSpecies_};
-  //}
+
+  double &operator()(const int &ii, const int &jj, const int &kk,
+                     const int &bb) {
+    MSG_ASSERT(bb <= this->BlockSize(), "accessing data out of block index");
+    auto ind = this->GetBlkLoc1D(ii, jj, kk) + bb;
+    return *ind;
+  }
+  const double &operator()(const int &ii, const int &jj, const int &kk,
+                           const int &bb) const {
+    MSG_ASSERT(bb <= this->BlockSize(), "accessing data out of block index");
+    auto ind = this->GetBlkLoc1D(ii, jj, kk) + bb;
+    return *ind;
+  }
 
   // destructor
   ~blkMultiArray3d() noexcept {}

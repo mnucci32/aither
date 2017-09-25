@@ -74,14 +74,14 @@ class arrayView {
 
   // copy constructor and assignment operator
   arrayView(const arrayView &) = default;
-  arrayView& operator=(const arrayView &assign) {
-    std::copy(assign.begin_, assign.end_, begin_);
-  }
+  arrayView &operator=(const arrayView &) = default;
 
   // member functions
   T2 Sum() const { return std::accumulate(begin_, end_, T2(0)); }
   T1 CopyData() const { return T1{begin_, end_, this->NumSpecies()}; }
   auto Size() const { return std::distance(begin_, end_); }
+  auto begin() const { return begin_; }
+  auto end() const { return end_; }
   int NumSpecies() const { return momentumIndex_; }
   int NumTurbulence() const { return this->Size() - turbulenceIndex_; }
   bool IsMultiSpecies() const { return this->NumSpecies() > 1; }

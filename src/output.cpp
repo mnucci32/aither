@@ -1112,7 +1112,7 @@ blkMultiArray3d<primitive> ReadSolFromRestart(
             exit(EXIT_FAILURE);
           }
         }
-        sol(ii, jj, kk) = value;
+        sol.InsertBlock(ii, jj, kk, value);
       }
     }
   }
@@ -1173,7 +1173,7 @@ blkMultiArray3d<conserved> ReadSolNm1FromRestart(
             exit(EXIT_FAILURE);
           }
         }
-        sol(ii, jj, kk) = value;
+        sol.InsertBlock(ii, jj, kk, value);
       }
     }
   }
