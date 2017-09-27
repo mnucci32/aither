@@ -76,11 +76,13 @@ void primitive::NondimensionalInitialize(const unique_ptr<eos> &eqnState,
                                         const unique_ptr<turbModel> &turb) {
   // get initial condition state for parent block
   auto ic = inp.ICStateForBlock(parBlock);
-  auto mf = ic.MassFractions();
+  auto massFracs = ic.MassFractions();
 
-  for (auto pi = this->begin(), auto mi = std::begin(mf);
-       ii < this->begin() + this->NumSpecies(); ++pi, ++mi) {
-    *pi = *mi * ic.Density();
+  // DEBUG -- need to make sure species are going into correct index
+  auto ii = 0;
+  for (auto &mf : massFracs) {
+    (*this)[ii] = mf.second * ic.Density();
+    ii++;
   }
 
   (*this)[this->MomentumXIndex()] = ic.Velocity().X();
@@ -131,7 +133,7 @@ viscousWall, characteristic, stagnationInlet, pressureOutlet, subsonicInflow,
 subsonicOutflow, supersonicInflow, supersonicOutflow
 */
 primitive GetGhostState(
-    const primitive &interior const string &bcType,
+    const primitive &interior, const string &bcType,
     const vector3d<double> &areaVec, const double &wallDist, const int &surf,
     const input &inputVars, const int &tag, const unique_ptr<eos> &eqnState,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
@@ -175,12 +177,12 @@ primitive GetGhostState(
   if (bcType == "slipWall") {  // for slip wall state should be reflected across
                                // boundary face, density and pressure stay equal
                                // to the boundary cell
-    const auto stateVel = this->Velocity();
-    const auto normVelCellCenter = stateVel.DotProd(normArea);
+    const auto interiorVel = interior.Velocity();
+    const auto normVelCellCenter = interiorVel.DotProd(normArea);
 
     // for a slip wall the velocity of the boundary cell center is reflected
     // across the boundary face to get the velocity at the ghost cell center
-    const auto ghostVel = stateVel - 2.0 * normArea * normVelCellCenter;
+    const auto ghostVel = interiorVel - 2.0 * normArea * normVelCellCenter;
 
     ghost[ghost.MomentumXIndex()] = ghostVel.X();
     ghost[ghost.MomentumYIndex()] = ghostVel.Y();
@@ -202,7 +204,7 @@ primitive GetGhostState(
     // boundary cell center so that velocity at face will be zero
     // only true for low-Re wall treatment
     const auto velWall = bcData->Velocity();
-    const auto ghostVel = 2.0 * velWall - this->Velocity();
+    const auto ghostVel = 2.0 * velWall - interior.Velocity();
     ghost[ghost.MomentumXIndex()] = ghostVel.X();
     ghost[ghost.MomentumYIndex()] = ghostVel.Y();
     ghost[ghost.MomentumZIndex()] = ghostVel.Z();
@@ -212,16 +214,16 @@ primitive GetGhostState(
       // for wall law ghost velocity and turbulence variables calculated
       // simultaneously
       if (bcData->IsWallLaw()) {
-        wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
-                   inputVars.IsRANS());
+        wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), interior,
+                   wallDist, inputVars.IsRANS());
         wVars = wl.IsothermalBCs(normArea, velWall, eqnState, thermo, trans,
                                  turb, tWall, isLower);
 
         if (wVars.SwitchToLowRe()) {
-          const auto tGhost = 2.0 * tWall - this->Temperature(eqnState);
+          const auto tGhost = 2.0 * tWall - interior.Temperature(eqnState);
           const auto rho = eqnState->DensityTP(tGhost, ghost.P());
           for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
-            ghost[ii] = rho * this->MassFraction(ii);
+            ghost[ii] = rho * interior.MassFractionN(ii);
           }
         } else {
           // use wall law heat flux to get ghost cell density
@@ -235,13 +237,14 @@ primitive GetGhostState(
           const auto tGhost = tWall - wVars.heatFlux_ / kappa * 2.0 * wallDist;
           const auto rho = eqnState->DensityTP(tGhost, ghost.P());
           for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
-            ghost[ii] = rho * this->MassFraction(ii);
+            ghost[ii] = rho * interior.MassFractionN(ii);
           }
         }
 
         if (inputVars.IsRANS() && !wVars.SwitchToLowRe()) {
-          ghost[ghost.TurbulenceIndex()] = 2.0 * wVars.tke_ - this->Tke();
-          ghost[ghost.TurbulenceIndex() + 1] = 2.0 * wVars.sdr_ - this->Omega();
+          ghost[ghost.TurbulenceIndex()] = 2.0 * wVars.tke_ - interior.Tke();
+          ghost[ghost.TurbulenceIndex() + 1] =
+              2.0 * wVars.sdr_ - interior.Omega();
           if (layer > 1) {
             ghost[ghost.TurbulenceIndex()] =
                 layer * ghost[ghost.TurbulenceIndex()] - wVars.tke_;
@@ -250,46 +253,47 @@ primitive GetGhostState(
           }
         }
       } else {  // low-Re wall treatment
-        const auto tGhost = 2.0 * tWall - this->Temperature(eqnState);
+        const auto tGhost = 2.0 * tWall - interior.Temperature(eqnState);
         const auto rho = eqnState->DensityTP(tGhost, ghost.P());
         for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
-          ghost[ii] = rho * this->MassFraction(ii);
+          ghost[ii] = rho * interior.MassFractionN(ii);
         }
       }
     } else if (bcData->IsConstantHeatFlux()) {  //-----------------------------
       // must nondimensionalize heat flux
       const auto qWall = bcData->HeatFlux();
       if (bcData->IsWallLaw()) {
-        wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
-                   inputVars.IsRANS());
+        wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), interior,
+                   wallDist, inputVars.IsRANS());
         wVars = wl.HeatFluxBCs(normArea, velWall, eqnState, thermo, trans, turb,
                                qWall, isLower);
 
         if (wVars.SwitchToLowRe()) {
           // don't need turbulent contribution b/c eddy viscosity is 0 at wall
-          const auto t = this->Temperature(eqnState);
+          const auto t = interior.Temperature(eqnState);
           const auto mu = trans->EffectiveViscosity(t);
           const auto kappa = trans->Conductivity(mu, t, thermo);
           // 2x wall distance as gradient length
           const auto tGhost =
-              this->Temperature(eqnState) - qWall / kappa * 2.0 * wallDist;
+              interior.Temperature(eqnState) - qWall / kappa * 2.0 * wallDist;
           const auto rho = eqnState->DensityTP(tGhost, ghost.P());
           for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
-            ghost[ii] = rho * this->MassFraction(ii);
+            ghost[ii] = rho * interior.MassFractionN(ii);
           }
         } else {
           // use wall law wall temperature to get ghost cell density
           const auto tGhost =
-              2.0 * wVars.temperature_ - this->Temperature(eqnState);
+              2.0 * wVars.temperature_ - interior.Temperature(eqnState);
           const auto rho = eqnState->DensityTP(tGhost, ghost.P());
           for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
-            ghost[ii] = rho * this->MassFraction(ii);
+            ghost[ii] = rho * interior.MassFractionN(ii);
           }
         }
 
         if (inputVars.IsRANS() && !wVars.SwitchToLowRe()) {
-          ghost[ghost.TurbulenceIndex()] = 2.0 * wVars.tke_ - this->Tke();
-          ghost[ghost.TurbulenceIndex() + 1] = 2.0 * wVars.sdr_ - this->Omega();
+          ghost[ghost.TurbulenceIndex()] = 2.0 * wVars.tke_ - interior.Tke();
+          ghost[ghost.TurbulenceIndex() + 1] =
+              2.0 * wVars.sdr_ - interior.Omega();
           if (layer > 1) {
             ghost[ghost.TurbulenceIndex()] =
                 layer * ghost[ghost.TurbulenceIndex()] - wVars.tke_;
@@ -299,28 +303,29 @@ primitive GetGhostState(
         }
       } else {  // low-Re wall treatment
         // don't need turbulent contribution b/c eddy viscosity is 0 at wall
-        const auto t = this->Temperature(eqnState);
+        const auto t = interior.Temperature(eqnState);
         const auto mu = trans->EffectiveViscosity(t);
         const auto kappa = trans->Conductivity(mu, t, thermo);
         // 2x wall distance as gradient length
         const auto tGhost =
-            this->Temperature(eqnState) - qWall / kappa * 2.0 * wallDist;
+            interior.Temperature(eqnState) - qWall / kappa * 2.0 * wallDist;
         const auto rho = eqnState->DensityTP(tGhost, ghost.P());
         for (auto ii = 0; ii < ghost.NumSpecies(); ++ii) {
-          ghost[ii] = rho * this->MassFraction(ii);
+          ghost[ii] = rho * interior.MassFractionN(ii);
         }
         // numerical BCs for pressure, same as boundary state
       }
     } else {  // default is adiabatic -----------------------------------------
       if (bcData->IsWallLaw()) {
-        wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), *this, wallDist,
-                   inputVars.IsRANS());
+        wallLaw wl(bcData->VonKarmen(), bcData->WallConstant(), interior,
+                   wallDist, inputVars.IsRANS());
         wVars = wl.AdiabaticBCs(normArea, velWall, eqnState, thermo, trans,
                                 turb, isLower);
 
         if (inputVars.IsRANS() && !wVars.SwitchToLowRe()) {
-          ghost[ghost.TurbulenceIndex()] = 2.0 * wVars.tke_ - this->Tke();
-          ghost[ghost.TurbulenceIndex() + 1] = 2.0 * wVars.sdr_ - this->Omega();
+          ghost[ghost.TurbulenceIndex()] = 2.0 * wVars.tke_ - interior.Tke();
+          ghost[ghost.TurbulenceIndex() + 1] =
+              2.0 * wVars.sdr_ - interior.Omega();
           if (layer > 1) {
             ghost[ghost.TurbulenceIndex()] =
                 layer * ghost[ghost.TurbulenceIndex()] - wVars.tke_;
@@ -338,13 +343,13 @@ primitive GetGhostState(
     if (inputVars.IsRANS() && (!bcData->IsWallLaw() || wVars.SwitchToLowRe())) {
       // tke at cell center is set to opposite of tke at boundary cell center
       // so that tke at face will be zero
-      ghost[ghost.TurbulenceIndex()] = -1.0 * this->Tke();
+      ghost[ghost.TurbulenceIndex()] = -1.0 * interior.Tke();
 
       const auto nuW =
-          trans->Viscosity(this->Temperature(eqnState)) / this->Rho();
+          trans->Viscosity(interior.Temperature(eqnState)) / interior.Rho();
       const auto wWall = trans->NondimScaling() * trans->NondimScaling() *
                          60.0 * nuW / (wallDist * wallDist * turb->WallBeta());
-      ghost[ghost.TurbulenceIndex() + 1] = 2.0 * wWall - this->Omega();
+      ghost[ghost.TurbulenceIndex() + 1] = 2.0 * wWall - interior.Omega();
 
       if (layer > 1) {
         ghost[ghost.TurbulenceIndex() + 1] =
@@ -363,11 +368,16 @@ primitive GetGhostState(
     const auto &bcData = inputVars.BCData(tag);
     // freestream variables
     const auto freeVel = bcData->Velocity();
-    const primitive freeState(bcData->Density(), freeVel, bcData->Pressure());
-
+    primitive freeState(inputVars.NumEquations(), inputVars.NumSpecies());
+    freeState[0] = bcData->Density();  // need to fix for multispecies
+    freeState[freeState.MomentumXIndex()] = freeVel.X();
+    freeState[freeState.MomentumYIndex()] = freeVel.Y();
+    freeState[freeState.MomentumZIndex()] = freeVel.Z();
+    freeState[freeState.EnergyIndex()] = bcData->Pressure();
+    
     // internal variables
-    const auto velIntNorm = this->Velocity().DotProd(normArea);
-    const auto SoSInt = this->SoS(thermo, eqnState);
+    const auto velIntNorm = interior.Velocity().DotProd(normArea);
+    const auto SoSInt = interior.SoS(thermo, eqnState);
     const auto machInt = fabs(velIntNorm) / SoSInt;
 
     if (machInt >= 1.0 && velIntNorm < 0.0) {  // supersonic inflow
@@ -392,17 +402,17 @@ primitive GetGhostState(
       // ----------------------------------------------
       // characteristics go in both directions, use interior values for plus
       // characteristic and freestream values for minus characteristic
-      const auto rhoSoSInt = this->Rho() * SoSInt;
-      const auto velDiff = freeState.Velocity() - this->Velocity();
+      const auto rhoSoSInt = interior.Rho() * SoSInt;
+      const auto velDiff = freeState.Velocity() - interior.Velocity();
 
       // plus characteristic
       ghost[ghost.EnergyIndex()] =
-          0.5 *
-          (freeState.P() + this->P() - rhoSoSInt * normArea.DotProd(velDiff));
+          0.5 * (freeState.P() + interior.P() -
+                 rhoSoSInt * normArea.DotProd(velDiff));
       const auto deltaPressure = freeState.P() - ghost.P();
 
       // minus characteristic
-      ghost.data_[0] = freeState.Rho() - deltaPressure / (SoSInt * SoSInt);
+      ghost[0] = freeState.Rho() - deltaPressure / (SoSInt * SoSInt);
       ghost[ghost.MomentumXIndex()] =
           freeState.U() - normArea.X() * deltaPressure / rhoSoSInt;
       ghost[ghost.MomentumYIndex()] =
@@ -421,17 +431,17 @@ primitive GetGhostState(
       // ----------------------------------------------------------
       // characteristics go in both directions, use interior values for plus
       // characteristic and freestream values for minus characteristic
-      const auto rhoSoSInt = this->Rho() * SoSInt;
-      const auto deltaPressure = this->P() - freeState.P();
+      const auto rhoSoSInt = interior.Rho() * SoSInt;
+      const auto deltaPressure = interior.P() - freeState.P();
 
       // plus characteristic
-      ghost.data_[0] = this->Rho() - deltaPressure / (SoSInt * SoSInt);
+      ghost[0] = interior.Rho() - deltaPressure / (SoSInt * SoSInt);
       ghost[ghost.MomentumXIndex()] =
-          this->U() + normArea.X() * deltaPressure / rhoSoSInt;
+          interior.U() + normArea.X() * deltaPressure / rhoSoSInt;
       ghost[ghost.MomentumYIndex()] =
-          this->V() + normArea.Y() * deltaPressure / rhoSoSInt;
+          interior.V() + normArea.Y() * deltaPressure / rhoSoSInt;
       ghost[ghost.MomentumZIndex()] =
-          this->W() + normArea.Z() * deltaPressure / rhoSoSInt;
+          interior.W() + normArea.Z() * deltaPressure / rhoSoSInt;
       ghost[ghost.EnergyIndex()] = freeState.P();  // minus characteristic
 
       // numerical bcs for turbulence variables
@@ -464,11 +474,16 @@ primitive GetGhostState(
     const auto &bcData = inputVars.BCData(tag);
     // freestream variables
     const auto freeVel = bcData->Velocity();
-    const primitive freeState(bcData->Density(), freeVel, bcData->Pressure());
+    primitive freeState(inputVars.NumEquations(), inputVars.NumSpecies());
+    freeState[0] = bcData->Density();  // need to fix for multispecies
+    freeState[freeState.MomentumXIndex()] = freeVel.X();
+    freeState[freeState.MomentumYIndex()] = freeVel.Y();
+    freeState[freeState.MomentumZIndex()] = freeVel.Z();
+    freeState[freeState.EnergyIndex()] = bcData->Pressure();
 
     // internal variables
-    const auto velIntNorm = this->Velocity().DotProd(normArea);
-    const auto SoSInt = this->SoS(thermo, eqnState);
+    const auto velIntNorm = interior.Velocity().DotProd(normArea);
+    const auto SoSInt = interior.SoS(thermo, eqnState);
     const auto machInt = fabs(velIntNorm) / SoSInt;
 
     if (machInt >= 1.0) {  // supersonic inflow
@@ -487,13 +502,13 @@ primitive GetGhostState(
       // ----------------------------------------------
       // characteristics go in both directions, use interior values for plus
       // characteristic and freestream values for minus characteristic
-      const auto rhoSoSInt = this->Rho() * SoSInt;
-      const auto velDiff = freeState.Velocity() - this->Velocity();
+      const auto rhoSoSInt = interior.Rho() * SoSInt;
+      const auto velDiff = freeState.Velocity() - interior.Velocity();
 
       // plus characteristic
       ghost[ghost.EnergyIndex()] =
-          0.5 *
-          (freeState.P() + this->P() - rhoSoSInt * normArea.DotProd(velDiff));
+          0.5 * (freeState.P() + interior.P() -
+                 rhoSoSInt * normArea.DotProd(velDiff));
 
       if (bcData->IsNonreflecting()) {
         // minus characteristic
@@ -506,9 +521,9 @@ primitive GetGhostState(
         const auto length = bcData->LengthScale();
         const auto alphaR = sigma / (sosN * length);
 
-        ghost.data_[0] = (rhoN + dt * alphaR * freeState.Rho() +
-                          deltaPressure / (sosN * sosN)) /
-                         (1.0 + dt * alphaR);
+        ghost[0] = (rhoN + dt * alphaR * freeState.Rho() +
+                    deltaPressure / (sosN * sosN)) /
+                   (1.0 + dt * alphaR);
 
         const auto alpha = sigma * sosN / length;
         const auto k = alpha * (1.0 - maxMach * maxMach);
@@ -524,7 +539,7 @@ primitive GetGhostState(
         const auto deltaPressure = freeState.P() - ghost.P();
 
         // minus characteristic
-        ghost.data_[0] = freeState.Rho() - deltaPressure / (SoSInt * SoSInt);
+        ghost[0] = freeState.Rho() - deltaPressure / (SoSInt * SoSInt);
         ghost[ghost.MomentumXIndex()] =
             freeState.U() - normArea.X() * deltaPressure / rhoSoSInt;
         ghost[ghost.MomentumYIndex()] =
@@ -557,7 +572,7 @@ primitive GetGhostState(
     // physical boundary conditions - fix everything
     const auto vel = bcData->Velocity();
 
-    ghost.data_[0] = bcData->Density();
+    ghost[0] = bcData->Density();
     ghost[ghost.MomentumXIndex()] = vel.X();
     ghost[ghost.MomentumYIndex()] = vel.Y();
     ghost[ghost.MomentumZIndex()] = vel.Z();
@@ -588,17 +603,17 @@ primitive GetGhostState(
   } else if (bcType == "stagnationInlet") {
     const auto &bcData = inputVars.BCData(tag);
 
-    const auto t = this->Temperature(eqnState);
+    const auto t = interior.Temperature(eqnState);
     const auto g = thermo->Gamma(t) - 1.0;
     // calculate outgoing riemann invarient
-    const auto rNeg = this->Velocity().DotProd(normArea) -
-                      2.0 * this->SoS(thermo, eqnState) / g;
+    const auto rNeg = interior.Velocity().DotProd(normArea) -
+                      2.0 * interior.SoS(thermo, eqnState) / g;
 
     // calculate SoS on boundary
-    const auto cosTheta =
-        -1.0 * this->Velocity().DotProd(normArea) / this->Velocity().Mag();
-    const auto stagSoSsq = pow(this->SoS(thermo, eqnState), 2.0) +
-                           0.5 * g * this->Velocity().MagSq();
+    const auto cosTheta = -1.0 * interior.Velocity().DotProd(normArea) /
+                          interior.Velocity().Mag();
+    const auto stagSoSsq = pow(interior.SoS(thermo, eqnState), 2.0) +
+                           0.5 * g * interior.Velocity().MagSq();
 
     const auto sosB = -1.0 * rNeg * g / (g * cosTheta * cosTheta + 2.0) *
                       (1.0 + cosTheta * sqrt((g * cosTheta * cosTheta + 2.0) *
@@ -609,7 +624,7 @@ primitive GetGhostState(
                     pow(sosB * sosB / stagSoSsq, thermo->Gamma(t) / g);
     const auto vbMag = sqrt(2.0 / g * (bcData->StagnationTemperature() - tb));
 
-    ghost.data_[0] = eqnState->DensityTP(tb, pb);
+    ghost[0] = eqnState->DensityTP(tb, pb);
     ghost[ghost.MomentumXIndex()] = vbMag * bcData->Direction().X();
     ghost[ghost.MomentumYIndex()] = vbMag * bcData->Direction().Y();
     ghost[ghost.MomentumZIndex()] = vbMag * bcData->Direction().Z();
@@ -646,13 +661,13 @@ primitive GetGhostState(
     // nondimensional pressure from input file
     const auto pb = bcData->Pressure();
 
-    const auto SoSInt = this->SoS(thermo, eqnState);
-    const auto rhoSoSInt = this->Rho() * SoSInt;
+    const auto SoSInt = interior.SoS(thermo, eqnState);
+    const auto rhoSoSInt = interior.Rho() * SoSInt;
 
     if (bcData->IsNonreflecting()) {
       // calculate LODI terms
       const auto deltaVel =
-          (this->Velocity() - stateN.Velocity()).DotProd(normArea);
+          (interior.Velocity() - stateN.Velocity()).DotProd(normArea);
       constexpr auto sigma = 0.25;
       const auto rhoN = stateN.Rho();
       const auto sosN = stateN.SoS(thermo, eqnState);
@@ -680,21 +695,21 @@ primitive GetGhostState(
       ghost[ghost.EnergyIndex()] = pb;
     }
 
-    const auto deltaPressure = this->P() - ghost.P();
-    ghost.data_[0] = this->Rho() - deltaPressure / (SoSInt * SoSInt);
+    const auto deltaPressure = interior.P() - ghost.P();
+    ghost[0] = interior.Rho() - deltaPressure / (SoSInt * SoSInt);
     ghost[ghost.MomentumXIndex()] =
-        this->U() + normArea.X() * deltaPressure / rhoSoSInt;
+        interior.U() + normArea.X() * deltaPressure / rhoSoSInt;
     ghost[ghost.MomentumYIndex()] =
-        this->V() + normArea.Y() * deltaPressure / rhoSoSInt;
+        interior.V() + normArea.Y() * deltaPressure / rhoSoSInt;
     ghost[ghost.MomentumZIndex()] =
-        this->W() + normArea.Z() * deltaPressure / rhoSoSInt;
+        interior.W() + normArea.Z() * deltaPressure / rhoSoSInt;
 
     // numerical bcs for turbulence variables
 
     // check for supersonic flow
     if (ghost.Velocity().DotProd(normArea) / ghost.SoS(thermo, eqnState) >=
         1.0) {
-      ghost = *this;
+      ghost = interior;
     }
 
     // extrapolate from boundary to ghost cell
@@ -780,20 +795,20 @@ primitive RoeAveragedState(const primitive &left, const primitive &right) {
     rhoState[ii] = left.RhoN(ii) * denRatio;
   }
   // Roe averaged velocities - u, v, w
-  rhoState[rhoState->MomentumXIndex()] =
+  rhoState[rhoState.MomentumXIndex()] =
       (left.U() + denRatio * right.U()) / (1.0 + denRatio);
-  rhoState[rhoState->MomentumYIndex()] =
+  rhoState[rhoState.MomentumYIndex()] =
       (left.V() + denRatio * right.V()) / (1.0 + denRatio);
-  rhoState[rhoState->MomentumZIndex()] =
+  rhoState[rhoState.MomentumZIndex()] =
       (left.W() + denRatio * right.W()) / (1.0 + denRatio);
 
   // Roe averaged pressure
-  rhoState[rhoState->EnergyIndex()] =
+  rhoState[rhoState.EnergyIndex()] =
       (left.P() + denRatio * right.P()) / (1.0 + denRatio);
 
   // Roe averaged turbulence variables
   for (auto ii = 0; ii < rhoState.NumTurbulence(); ++ii) {
-    rhoState[rhoState->TurbulenceIndex() + ii] =
+    rhoState[rhoState.TurbulenceIndex() + ii] =
         (left.TurbN(ii) + denRatio * right.TurbN(ii)) / (1.0 + denRatio);
   }
 

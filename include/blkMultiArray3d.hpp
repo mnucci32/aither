@@ -45,7 +45,7 @@ using std::unique_ptr;
 template <typename T>
 class blkMultiArray3d : public multiArray3d<double> {
   static_assert(std::is_base_of<varArray, T>::value,
-                "blkMultiArray3d<T> requires a varArray based type!");
+                "blkMultiArray3d<T> requires a varArray based type");
 
   int numSpecies_;
 
@@ -85,6 +85,14 @@ class blkMultiArray3d : public multiArray3d<double> {
     auto start = this->GetBlkLoc1D(ii, jj, kk);
     std::copy(arr.begin(), arr.end(), this->begin() + start);
   }
+
+  auto Slice(const range &, const range &, const range &) const;
+  auto Slice(const string &, const range &, const bool = false) const;
+  auto Slice(const string &, int, int, const bool = false,
+             const string = "cell", const bool = false,
+             const bool = false) const;
+  auto Slice(const string &, int, range, range, const string = "cell",
+             const int = 0) const;
 
   // operator overloads
   arrayView<T, double> operator()(const int &ii, const int &jj, const int &kk) const {
@@ -134,5 +142,67 @@ ostream &operator<<(ostream &os, const blkMultiArray3d<T> &arr) {
   }
   return os;
 }
+
+// member function to return a slice of the array
+// this is the main slice function that all other overloaded slice functions call
+template <typename T>
+auto blkMultiArray3d<T>::Slice(const range &ir, const range &jr,
+                               const range &kr) const {
+  // ir -- i-index range to take slice [inclusive, exclusive)
+  // jr -- j-index range to take slice [inclusive, exclusive)
+  // kr -- k-index range to take slice [inclusive, exclusive)
+  return SliceArray((*this), ir, jr, kr);
+}
+
+// member function to return a slice of the array
+// Overload to slice only in one direction. Given a 3D array, this slice returns
+// a plane with normal direction dir, or a smaller 3D array where the direction
+// dir is sliced over dirRange. It also has the ability to include or ignore
+// ghost cells in its planar slices
+template <typename T>
+auto blkMultiArray3d<T>::Slice(const string &dir, const range &dirRange,
+                               const bool physOnly) const {
+  // dir -- direction of slice
+  // dirRange -- range of slice in direction given
+  // phsOnly -- flag to only include physical cells in the two directions that
+  //            are not specified as dir
+  return SliceArray((*this), dir, dirRange, physOnly);
+}
+
+// member function to return a slice of the array
+// overload to slice line out of array
+template <typename T>
+auto blkMultiArray3d<T>::Slice(const string &dir, int d2Ind, int d3Ind,
+                               const bool physOnly, const string id,
+                               const bool upper2, const bool upper3) const {
+  // dir -- direction of line slice (direction 1)
+  // d2Ind -- index of direction 2
+  // d3Ind -- index of direction 3
+  // physOnly -- flag to only include physical cells in line slice
+  // id -- type of multiArray3d being sliced: cell, i, j, or k
+  //       d2Ind and d3Ind are supplied as cell indices, but may need to be
+  //       altered if the array is storing i, j, or k face data
+  // upper2 -- flag to determine if direction 2 is at upper index
+  // upper3 -- flag to determine if direction 3 is at upper index
+  return SliceArray((*this), dir, d2Ind, d3Ind, physOnly, id, upper2, upper3);
+}
+
+// overload to slice plane out of array
+// Identical to previous slice overload, but more general in that in can slice
+// over a subset of direction 2 & 3. This is useful to slice out a plane that
+// borders a boundary condition patch.
+template <typename T>
+auto blkMultiArray3d<T>::Slice(const string &dir, int dirInd, range dir1,
+                               range dir2, const string id,
+                               const int type) const {
+  // dir -- normal direction of planar slice
+  // dirInd -- index in normal direction
+  // dir1 -- range of direction 1 (direction 3 is normal to slice)
+  // dir2 -- range of direction 2 (direction 3 is normal to slice)
+  // id -- id of array being sliced (i, j, k for faces, cell for cells)
+  // type -- surface type of dir
+  return SliceArray((*this), dir, dirInd, dir1, dir2, id, type);
+}
+
 
 #endif

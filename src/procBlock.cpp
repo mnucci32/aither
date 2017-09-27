@@ -1808,13 +1808,13 @@ accessing the padded vector of cells the same as for a plot3d block without ghos
 cells.
 */
 template <typename T>
-multiArray3d<T> PadWithGhosts(const multiArray3d<T> &var,
-                              const int &numGhosts) {
+T PadWithGhosts(const T &var, const int &numGhosts) {
   // var -- vector of variables to pad (no ghost cells included)
   // numGhosts -- number of layers of ghost cells to pad var with
+  // T should be multiArray3d or blkMultiArray3d type
 
   // initialize added array
-  multiArray3d<T> padBlk(var.NumI(), var.NumJ(), var.NumK(), numGhosts);
+  T padBlk(var.NumI(), var.NumJ(), var.NumK(), numGhosts, var.BlockSize());
 
   padBlk.Insert(var.RangeI(), var.RangeJ(), var.RangeK(), var);
   return padBlk;

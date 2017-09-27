@@ -163,6 +163,10 @@ class multiArray3d {
 
   T GetElem(const int &ii, const int &jj, const int &kk) const;
 
+  void InsertBlock(const int &ii, const int &jj, const int &kk, const T &val) {
+    (*this)(ii, jj, kk) = val;
+  }
+
   // operator overloads
   T &operator()(const int &ii, const int &jj, const int &kk) {
     MSG_ASSERT(this->BlockSize() == 1,
@@ -318,6 +322,190 @@ class multiArray3d {
   // destructor
   virtual ~multiArray3d() noexcept {}
 };
+
+// ---------------------------------------------------------------------------
+// non member functions
+// main slice function that all other overloaded slice functions call
+template <typename T>
+auto SliceArray(const T &parent, const range &ir, const range &jr,
+                const range &kr) {
+  // ir -- i-index range to take slice [inclusive, exclusive)
+  // jr -- j-index range to take slice [inclusive, exclusive)
+  // kr -- k-index range to take slice [inclusive, exclusive)
+  // T should be multiArray3d or blkMultiArray3d type
+
+  // check that slice bounds are within parent array and that end bounds are
+  // greater than or equal to start bounds
+  if (!ir.IsInside(parent.RangeI()) || !jr.IsInside(parent.RangeJ()) ||
+      !kr.IsInside(parent.RangeK()) || !ir.IsValid() || !jr.IsValid() ||
+      !kr.IsValid()) {
+    cerr << "ERROR: Error in SliceArray. Cannot take slice with "
+         << "boundaries " << ir << ", " << jr << ", " << kr << endl
+         << "from array with ranges " << parent.RangeI() << ", "
+         << parent.RangeJ() << ", " << parent.RangeK() << endl;
+    exit(EXIT_FAILURE);
+  }
+
+  // slices always have 0 ghost cells
+  T arr(ir.Size(), jr.Size(), kr.Size(), 0, parent.BlockSize());
+
+  // s is for index of sliced array, p is for index of parent array
+  for (int ks = arr.StartK(), kp = kr.Start(); ks < arr.EndK(); ks++, kp++) {
+    for (int js = arr.StartJ(), jp = jr.Start(); js < arr.EndJ(); js++, jp++) {
+      for (int is = arr.StartI(), ip = ir.Start(); is < arr.EndI(); is++, ip++) {
+        arr.InsertBlock(is, js, ks, parent(ip, jp, kp));
+      }
+    }
+  }
+  return arr;
+}
+
+// Overload to slice only in one direction. Given a 3D array, this slice returns
+// a plane with normal direction dir, or a smaller 3D array where the direction
+// dir is sliced over dirRange. It also has the ability to include or ignore
+// ghost cells in its planar slices
+template <typename T>
+auto SliceArray(const T &parent, const string &dir, const range &dirRange,
+                const bool physOnly) {
+  // dir -- direction of slice
+  // dirRange -- range of slice in direction given
+  // phsOnly -- flag to only include physical cells in the two directions that
+  //            are not specified as dir
+
+  if (dir == "i") {
+    if (physOnly) {
+      return parent.Slice(dirRange, parent.PhysRangeJ(), parent.PhysRangeK());
+    } else {
+      return parent.Slice(dirRange, parent.RangeJ(), parent.RangeK());
+    }
+  } else if (dir == "j") {
+    if (physOnly) {
+      return parent.Slice(parent.PhysRangeI(), dirRange, parent.PhysRangeK());
+    } else {
+      return parent.Slice(parent.RangeI(), dirRange, parent.RangeK());
+    }
+  } else if (dir == "k") {
+    if (physOnly) {
+      return parent.Slice(parent.PhysRangeI(), parent.PhysRangeJ(), dirRange);
+    } else {
+      return parent.Slice(parent.RangeI(), parent.RangeJ(), dirRange);
+    }
+  } else {
+    cerr << "ERROR: Error in multiArray3d::Slice, direction " << dir
+         << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+// function to return a slice of the array
+// overload to slice line out of array
+template <typename T>
+auto SliceArray(const T &parent, const string &dir, int d2Ind, int d3Ind,
+                const bool physOnly, const string id, const bool upper2,
+                const bool upper3) {
+  // dir -- direction of line slice (direction 1)
+  // d2Ind -- index of direction 2
+  // d3Ind -- index of direction 3
+  // physOnly -- flag to only include physical cells in line slice
+  // id -- type of multiArray3d being sliced: cell, i, j, or k
+  //       d2Ind and d3Ind are supplied as cell indices, but may need to be
+  //       altered if the array is storing i, j, or k face data
+  // upper2 -- flag to determine if direction 2 is at upper index
+  // upper3 -- flag to determine if direction 3 is at upper index
+
+  if (dir == "i") {  // d2 = j, d3 = k
+    if (upper2 && id == "j") {
+      d2Ind++;
+    } else if (upper3 && id == "k") {
+      d3Ind++;
+    }
+
+    if (physOnly) {
+      return parent.Slice(parent.PhysRangeI(), d2Ind, d3Ind);
+    } else {
+      return parent.Slice(parent.RangeI(), d2Ind, d3Ind);
+    }
+  } else if (dir == "j") {  // d2 = k, d3 = i
+    if (upper2 && id == "k") {
+      d2Ind++;
+    } else if (upper3 && id == "i") {
+      d3Ind++;
+    }
+
+    if (physOnly) {
+      return parent.Slice(d3Ind, parent.PhysRangeJ(), d2Ind);
+    } else {
+      return parent.Slice(d3Ind, parent.RangeJ(), d2Ind);
+    }
+  } else if (dir == "k") {  // d2 = i, d3 = j
+    if (upper2 && id == "i") {
+      d2Ind++;
+    } else if (upper3 && id == "j") {
+      d3Ind++;
+    }
+
+    if (physOnly) {
+      return parent.Slice(d2Ind, d3Ind, parent.PhysRangeK());
+    } else {
+      return parent.Slice(d2Ind, d3Ind, parent.RangeK());
+    }
+  } else {
+    cerr << "ERROR: Error in multiArray3d::Slice, direction " << dir
+         << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
+
+// overload to slice plane out of array
+// Identical to previous slice overload, but more general in that in can slice
+// over a subset of direction 2 & 3. This is useful to slice out a plane that
+// borders a boundary condition patch.
+template <typename T>
+auto SliceArray(const T &parent, const string &dir, int dirInd, range dir1,
+                range dir2, const string id, const int type) {
+  // dir -- normal direction of planar slice
+  // dirInd -- index in normal direction
+  // dir1 -- range of direction 1 (direction 3 is normal to slice)
+  // dir2 -- range of direction 2 (direction 3 is normal to slice)
+  // id -- id of array being sliced (i, j, k for faces, cell for cells)
+  // type -- surface type of dir
+
+  if (dir == "i") {  // d1 = j, d2 = k
+    if (type == 2 && id == "i") {  // upper i-surface & i face data
+      dirInd++;
+    }
+    if (id == "j") {
+      dir1.GrowEnd();
+    } else if (id == "k") {
+      dir2.GrowEnd();
+    }
+    return parent.Slice(dirInd, dir1, dir2);
+  } else if (dir == "j") {  // d1 = k, d2 = i
+    if (type == 4 && id == "j") {  // upper j-surface & j face data
+      dirInd++;
+    }
+    if (id == "k") {
+      dir1.GrowEnd();
+    } else if (id == "i") {
+      dir2.GrowEnd();
+    }
+    return parent.Slice(dir2, dirInd, dir1);
+  } else if (dir == "k") {  // d1 = i, d2 = j
+    if (type == 6 && id == "k") {  // upper k-surface & k face data
+      dirInd++;
+    }
+    if (id == "i") {
+      dir1.GrowEnd();
+    } else if (id == "j") {
+      dir2.GrowEnd();
+    }
+    return parent.Slice(dir1, dir2, dirInd);
+  } else {
+    cerr << "ERROR: Error in multiArray3d::Slice, direction " << dir
+         << " is not recognized!" << endl;
+    exit(EXIT_FAILURE);
+  }
+}
 
 // ---------------------------------------------------------------------------
 // member function definitions
@@ -561,32 +749,7 @@ auto multiArray3d<T>::Slice(const range &ir, const range &jr,
   // ir -- i-index range to take slice [inclusive, exclusive)
   // jr -- j-index range to take slice [inclusive, exclusive)
   // kr -- k-index range to take slice [inclusive, exclusive)
-
-  // check that slice bounds are within parent array and that end bounds are
-  // greater than or equal to start bounds
-  if (!ir.IsInside(this->RangeI()) || !jr.IsInside(this->RangeJ()) ||
-      !kr.IsInside(this->RangeK()) || !ir.IsValid() || !jr.IsValid() ||
-      !kr.IsValid()) {
-    cerr << "ERROR: Error in multiArray3d::Slice. Cannot take slice with "
-         << "boundaries " << ir << ", " << jr << ", " << kr << endl
-         << "from array with ranges " << this->RangeI() << ", "
-         << this->RangeJ() << ", " << this->RangeK() << endl;
-    exit(EXIT_FAILURE);
-  }
-
-  // slices always have 0 ghost cells
-  std::remove_reference_t<decltype(*this)> arr(ir.Size(), jr.Size(), kr.Size(),
-                                               0, blkSize_);
-
-  // s is for index of sliced array, p is for index of parent array
-  for (int ks = arr.StartK(), kp = kr.Start(); ks < arr.EndK(); ks++, kp++) {
-    for (int js = arr.StartJ(), jp = jr.Start(); js < arr.EndJ(); js++, jp++) {
-      for (int is = arr.StartI(), ip = ir.Start(); is < arr.EndI(); is++, ip++) {
-        arr(is, js, ks) = (*this)(ip, jp, kp);
-      }
-    }
-  }
-  return arr;
+  return SliceArray((*this), ir, jr, kr);
 }
 
 // member function to return a slice of the array
@@ -601,30 +764,7 @@ auto multiArray3d<T>::Slice(const string &dir, const range &dirRange,
   // dirRange -- range of slice in direction given
   // phsOnly -- flag to only include physical cells in the two directions that
   //            are not specified as dir
-
-  if (dir == "i") {
-    if (physOnly) {
-      return this->Slice(dirRange, this->PhysRangeJ(), this->PhysRangeK());
-    } else {
-      return this->Slice(dirRange, this->RangeJ(), this->RangeK());
-    }
-  } else if (dir == "j") {
-    if (physOnly) {
-      return this->Slice(this->PhysRangeI(), dirRange, this->PhysRangeK());
-    } else {
-      return this->Slice(this->RangeI(), dirRange, this->RangeK());
-    }
-  } else if (dir == "k") {
-    if (physOnly) {
-      return this->Slice(this->PhysRangeI(), this->PhysRangeJ(), dirRange);
-    } else {
-      return this->Slice(this->RangeI(), this->RangeJ(), dirRange);
-    }
-  } else {
-    cerr << "ERROR: Error in multiArray3d::Slice, direction " << dir
-         << " is not recognized!" << endl;
-    exit(EXIT_FAILURE);
-  }
+  return SliceArray((*this), dir, dirRange, physOnly);
 }
 
 // member function to return a slice of the array
@@ -642,48 +782,7 @@ auto multiArray3d<T>::Slice(const string &dir, int d2Ind, int d3Ind,
   //       altered if the array is storing i, j, or k face data
   // upper2 -- flag to determine if direction 2 is at upper index
   // upper3 -- flag to determine if direction 3 is at upper index
-
-  if (dir == "i") {  // d2 = j, d3 = k
-    if (upper2 && id == "j") {
-      d2Ind++;
-    } else if (upper3 && id == "k") {
-      d3Ind++;
-    }
-
-    if (physOnly) {
-      return this->Slice(this->PhysRangeI(), d2Ind, d3Ind);
-    } else {
-      return this->Slice(this->RangeI(), d2Ind, d3Ind);
-    }
-  } else if (dir == "j") {  // d2 = k, d3 = i
-    if (upper2 && id == "k") {
-      d2Ind++;
-    } else if (upper3 && id == "i") {
-      d3Ind++;
-    }
-
-    if (physOnly) {
-      return this->Slice(d3Ind, this->PhysRangeJ(), d2Ind);
-    } else {
-      return this->Slice(d3Ind, this->RangeJ(), d2Ind);
-    }
-  } else if (dir == "k") {  // d2 = i, d3 = j
-    if (upper2 && id == "i") {
-      d2Ind++;
-    } else if (upper3 && id == "j") {
-      d3Ind++;
-    }
-
-    if (physOnly) {
-      return this->Slice(d2Ind, d3Ind, this->PhysRangeK());
-    } else {
-      return this->Slice(d2Ind, d3Ind, this->RangeK());
-    }
-  } else {
-    cerr << "ERROR: Error in multiArray3d::Slice, direction " << dir
-         << " is not recognized!" << endl;
-    exit(EXIT_FAILURE);
-  }
+  return SliceArray((*this), dir, d2Ind, d3Ind, physOnly, id, upper2, upper3);
 }
 
 // overload to slice plane out of array
@@ -699,42 +798,7 @@ auto multiArray3d<T>::Slice(const string &dir, int dirInd, range dir1,
   // dir2 -- range of direction 2 (direction 3 is normal to slice)
   // id -- id of array being sliced (i, j, k for faces, cell for cells)
   // type -- surface type of dir
-
-  if (dir == "i") {  // d1 = j, d2 = k
-    if (type == 2 && id == "i") {  // upper i-surface & i face data
-      dirInd++;
-    }
-    if (id == "j") {
-      dir1.GrowEnd();
-    } else if (id == "k") {
-      dir2.GrowEnd();
-    }
-    return this->Slice(dirInd, dir1, dir2);
-  } else if (dir == "j") {  // d1 = k, d2 = i
-    if (type == 4 && id == "j") {  // upper j-surface & j face data
-      dirInd++;
-    }
-    if (id == "k") {
-      dir1.GrowEnd();
-    } else if (id == "i") {
-      dir2.GrowEnd();
-    }
-    return this->Slice(dir2, dirInd, dir1);
-  } else if (dir == "k") {  // d1 = i, d2 = j
-    if (type == 6 && id == "k") {  // upper k-surface & k face data
-      dirInd++;
-    }
-    if (id == "i") {
-      dir1.GrowEnd();
-    } else if (id == "j") {
-      dir2.GrowEnd();
-    }
-    return this->Slice(dir1, dir2, dirInd);
-  } else {
-    cerr << "ERROR: Error in multiArray3d::Slice, direction " << dir
-         << " is not recognized!" << endl;
-    exit(EXIT_FAILURE);
-  }
+  return SliceArray((*this), dir, dirInd, dir1, dir2, id, type);
 }
 
 // member function to insert an array into this one

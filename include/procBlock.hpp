@@ -61,9 +61,9 @@ class kdtree;
 class conserved;
 
 class procBlock {
-  blkMultiArray3d<primitive> state_;  // primitive variables at cell center
-  blkMultiArray3d<conserved> consVarsN_;  // conserved variables at time n
-  blkMultiArray3d<conserved> consVarsNm1_;  // conserved variables at time n-1
+  blkMultiArray3d<primitive> state_;  // primitive vars at cell center
+  blkMultiArray3d<conserved> consVarsN_;  // conserved vars at t=n
+  blkMultiArray3d<conserved> consVarsNm1_;  // conserved vars at t=n-1
 
   blkMultiArray3d<residual> residual_;  // cell residual
 
@@ -600,7 +600,7 @@ class procBlock {
 
 // function definitions
 template <typename T>
-multiArray3d<T> PadWithGhosts(const multiArray3d<T> &, const int &);
+T PadWithGhosts(const T &, const int &);
 
 
 #endif

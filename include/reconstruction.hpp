@@ -37,9 +37,9 @@ primitive FaceReconConst(const primitive &state) { return state; }
 // function to calculate reconstruction of state variables from cell
 // center to cell face this function uses muscle extrapolation resulting in
 // higher order accuracy
-primitive FaceReconMUSCL(const primitve &, const primitive &, const primitive &,
-                         const double &, const string &, const double &,
-                         const double &, const double &);
+primitive FaceReconMUSCL(const primitive &, const primitive &,
+                         const primitive &, const double &, const string &,
+                         const double &, const double &, const double &);
 
 // calculate face reconstruction using 5th order weno scheme
 primitive FaceReconWENO(const primitive &, const primitive &, const primitive &,
