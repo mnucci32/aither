@@ -27,6 +27,7 @@
 #include <algorithm>
 #include "vector3d.hpp"  // vector3d
 #include "tensor.hpp"  // tensor
+#include "arrayView.hpp"  // primitiveView
 
 using std::string;
 using std::unique_ptr;
@@ -56,6 +57,7 @@ class turbModel {
   string EddyViscMethod() const {return eddyViscMethod_;}
   tensor<double> MeanStrainRate(const tensor<double> &) const;
   virtual double EddyViscNoLim(const primitive &state) const;
+  virtual double EddyViscNoLim(const primitiveView &state) const;
   virtual double TurbPrandtlNumber() const {return 0.9;}
   virtual double TkeMin() const {return 1.0e-20;}
   virtual double OmegaMin() const {return 1.0e-20;}
@@ -194,6 +196,9 @@ class turbNone : public turbModel {
                            const double &length, double &mut, double &f1,
                            double &f2) const override {}
   double EddyViscNoLim(const primitive &state) const override { return 0.0; }
+  double EddyViscNoLim(const primitiveView &state) const override {
+    return 0.0;
+  }
   double InviscidCellSpecRad(
       const primitive &state, const unitVec3dMag<double> &fAreaL,
       const unitVec3dMag<double> &fAreaR) const override {
@@ -526,7 +531,7 @@ class turbWale : public turbModel {
 
 
 // function declarations
-
-
+template <typename T>
+double EddyViscUnlimited(const T &state);
 
 #endif

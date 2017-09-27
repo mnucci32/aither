@@ -57,6 +57,20 @@ class blkMultiArray3d : public multiArray3d<double> {
  public:
   // constructor
   blkMultiArray3d(const int &ii, const int &jj, const int &kk, const int &ng,
+                  const T &init)
+      : multiArray3d<double>(ii, jj, kk, ng, init.BlockSize()),
+        numSpecies_(init.NumSpecies()) {
+    for (auto kk = this->StartK(); kk < this->EndK(); kk++) {
+      for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
+        for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
+          for (auto bb = 0; bb < this->BlockSize(); ++bb) {
+            (*this)(ii, jj, kk, bb) = init[bb];
+          }
+        }
+      }
+    }
+  }
+  blkMultiArray3d(const int &ii, const int &jj, const int &kk, const int &ng,
                   const int &bs, const int &ns, const double &init)
       : multiArray3d<double>(ii, jj, kk, ng, bs, init), numSpecies_(ns) {}
   blkMultiArray3d(const int &ii, const int &jj, const int &kk, const int &ng,
@@ -68,12 +82,12 @@ class blkMultiArray3d : public multiArray3d<double> {
   blkMultiArray3d() : multiArray3d<double>(), numSpecies_(0) {}
 
   // move constructor and assignment operator
-  blkMultiArray3d(blkMultiArray3d&&) noexcept = default;
-  blkMultiArray3d& operator=(blkMultiArray3d&&) noexcept = default;
+  blkMultiArray3d(blkMultiArray3d &&) noexcept = default;
+  blkMultiArray3d &operator=(blkMultiArray3d &&) noexcept = default;
 
   // copy constructor and assignment operator
-  blkMultiArray3d(const blkMultiArray3d&) = default;
-  blkMultiArray3d& operator=(const blkMultiArray3d&) = default;
+  blkMultiArray3d(const blkMultiArray3d &) = default;
+  blkMultiArray3d &operator=(const blkMultiArray3d &) = default;
 
   // member functions
   template <typename T2>
@@ -95,7 +109,8 @@ class blkMultiArray3d : public multiArray3d<double> {
              const int = 0) const;
 
   // operator overloads
-  arrayView<T, double> operator()(const int &ii, const int &jj, const int &kk) const {
+  arrayView<T, double> operator()(const int &ii, const int &jj,
+                                  const int &kk) const {
     auto start = this->GetBlkLoc1D(ii, jj, kk);
     return {this->begin() + start, this->begin() + start + this->BlockSize(),
             numSpecies_};
@@ -133,9 +148,9 @@ ostream &operator<<(ostream &os, const blkMultiArray3d<T> &arr) {
      << endl;
   os << "Number of ghost layers: " << arr.GhostLayers() << endl;
 
-  for (auto kk = arr.StartK(); kk < arr.EndK(); kk++) {
-    for (auto jj = arr.StartJ(); jj < arr.EndJ(); jj++) {
-      for (auto ii = arr.StartI(); ii < arr.EndI(); ii++) {
+  for (auto kk = arr.StartK(); kk < arr.EndK(); ++kk) {
+    for (auto jj = arr.StartJ(); jj < arr.EndJ(); ++jj) {
+      for (auto ii = arr.StartI(); ii < arr.EndI(); ++ii) {
         os << ii << ", " << jj << ", " << kk << ": " << arr(ii, jj, kk) << endl;
       }
     }

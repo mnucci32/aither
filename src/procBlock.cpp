@@ -283,7 +283,7 @@ void procBlock::InitializeStates(const input &inp,
         for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
           auto dist = tree.NearestNeighbor(center_(ii, jj, kk), neighbor, id);
           maxDist = std::max(dist, maxDist);
-          state_(ii, jj, kk) = cloudStates[id];
+          state_.InsertBlock(ii, jj, kk, cloudStates[id]);
           temperature_(ii, jj, kk) = state_(ii, jj, kk).Temperature(eqnState);
           if (inp.IsViscous()) {
             viscosity_(ii, jj, kk) = trans->Viscosity(temperature_(ii, jj, kk));
@@ -303,7 +303,7 @@ void procBlock::InitializeStates(const input &inp,
 
   } else {
     // get nondimensional state for initialization
-    primitive inputState;
+    primitive inputState(inp.NumEquations(), inp.NumSpecies());
     inputState.NondimensionalInitialize(eqnState, inp, trans, parBlock_, turb);
 
     const auto numI = this->NumI();
@@ -312,7 +312,8 @@ void procBlock::InitializeStates(const input &inp,
 
     // pad stored variable vectors with ghost cells
     state_ = PadWithGhosts(
-        multiArray3d<primitive>(numI, numJ, numK, 0, 1, inputState), numGhosts_);
+        blkMultiArray3d<primitive>(numI, numJ, numK, 0, inputState),
+        numGhosts_);
 
     const auto inputTemperature = inputState.Temperature(eqnState);
     temperature_ = {numI, numJ, numK, numGhosts_, 1, inputTemperature};

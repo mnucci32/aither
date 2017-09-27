@@ -28,6 +28,14 @@ using std::cerr;
 using std::max;
 using std::min;
 
+// non member functions
+template <typename T>
+double EddyViscUnlimited(const T &state) {
+  // state -- primitive variables
+  return state.Rho() * state.Tke() / state.Omega();
+}
+
+
 // -------------------------------------------------------------------------
 // member functions for turbModel class, all turbulence models inherit from
 // this class
@@ -35,8 +43,10 @@ using std::min;
 // member function to return the eddy viscosity calculated without the stress
 // limiter
 double turbModel::EddyViscNoLim(const primitive &state) const {
-  // state -- primitive variables
-  return state.Rho() * state.Tke() / state.Omega();
+  return EddyViscUnlimited(state);
+}
+double turbModel::EddyViscNoLim(const primitiveView &state) const {
+  return EddyViscUnlimited(state);
 }
 
 // member function to return mean strain rate
