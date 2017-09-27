@@ -250,41 +250,6 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   }
 }
 
-// member function to add a member of the inviscid flux class to the residual
-void procBlock::AddToResidual(const inviscidFlux &flux, const int &ii,
-                              const int &jj, const int &kk) {
-  // flux -- inviscid flux to add to residual
-  // ii -- i-location of residual to add to
-  // jj -- j-location of residual to add to
-  // kk -- k-location of residual to add to
-
-  residual_(ii, jj, kk)[0] += flux.RhoVel();
-  residual_(ii, jj, kk)[1] += flux.RhoVelU();
-  residual_(ii, jj, kk)[2] += flux.RhoVelV();
-  residual_(ii, jj, kk)[3] += flux.RhoVelW();
-  residual_(ii, jj, kk)[4] += flux.RhoVelH();
-  residual_(ii, jj, kk)[5] += flux.RhoVelK();
-  residual_(ii, jj, kk)[6] += flux.RhoVelO();
-}
-
-// member function to subtract a member of the inviscid flux class from the
-// residual
-void procBlock::SubtractFromResidual(const inviscidFlux &flux, const int &ii,
-                                     const int &jj, const int &kk) {
-  // flux -- inviscid flux to add to residual
-  // ii -- i-location of residual to add to
-  // jj -- j-location of residual to add to
-  // kk -- k-location of residual to add to
-
-  residual_(ii, jj, kk)[0] -= flux.RhoVel();
-  residual_(ii, jj, kk)[1] -= flux.RhoVelU();
-  residual_(ii, jj, kk)[2] -= flux.RhoVelV();
-  residual_(ii, jj, kk)[3] -= flux.RhoVelW();
-  residual_(ii, jj, kk)[4] -= flux.RhoVelH();
-  residual_(ii, jj, kk)[5] -= flux.RhoVelK();
-  residual_(ii, jj, kk)[6] -= flux.RhoVelO();
-}
-
 // member function to add a member of the viscous flux class to the residual_
 void procBlock::AddToResidual(const viscousFlux &flux, const int &ii,
                               const int &jj, const int &kk) {
@@ -505,8 +470,7 @@ void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
         // from right cell
         // at left boundary there is no left cell to add to
         if (ii > fAreaI_.PhysStartI()) {
-          this->AddToResidual(tempFlux * this->FAreaMagI(ii, jj, kk),
-                              ii - 1, jj, kk);
+          residual_(ii - 1, jj, kk) += tempFlux * this->FAreaMagI(ii, jj, kk);
 
           // if using a block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
@@ -520,9 +484,7 @@ void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
 
         // at right boundary there is no right cell to add to
         if (ii < fAreaI_.PhysEndI() - 1) {
-          this->SubtractFromResidual(tempFlux *
-                                     this->FAreaMagI(ii, jj, kk),
-                                     ii, jj, kk);
+          residual_(ii, jj, kk) -= tempFlux * this->FAreaMagI(ii, jj, kk);
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
@@ -643,8 +605,7 @@ void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
         // from right cell
         // at left boundary no left cell to add to
         if (jj > fAreaJ_.PhysStartJ()) {
-          this->AddToResidual(tempFlux * this->FAreaMagJ(ii, jj, kk),
-                              ii, jj - 1, kk);
+          residual_(ii, jj - 1, kk) += tempFlux * this->FAreaMagJ(ii, jj, kk);
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
@@ -657,9 +618,7 @@ void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
         }
         // at right boundary no right cell to add to
         if (jj < fAreaJ_.PhysEndJ() - 1) {
-          this->SubtractFromResidual(tempFlux *
-                                     this->FAreaMagJ(ii, jj, kk),
-                                     ii, jj, kk);
+          residual_(ii, jj, kk) -= tempFlux * this->FAreaMagJ(ii, jj, kk);
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
@@ -780,9 +739,7 @@ void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
         // from right cell
         // at left boundary no left cell to add to
         if (kk > fAreaK_.PhysStartK()) {
-          this->AddToResidual(tempFlux *
-                              this->FAreaMagK(ii, jj, kk),
-                              ii, jj, kk - 1);
+          residual_(ii, jj, kk - 1) += tempFlux * this->FAreaMagK(ii, jj, kk);
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
@@ -795,9 +752,7 @@ void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
         }
         // at right boundary no right cell to add to
         if (kk < fAreaK_.PhysEndK() - 1) {
-          this->SubtractFromResidual(tempFlux *
-                                     this->FAreaMagK(ii, jj, kk),
-                                     ii, jj, kk);
+          residual_(ii, jj, kk) -= tempFlux * this->FAreaMagK(ii, jj, kk);
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces

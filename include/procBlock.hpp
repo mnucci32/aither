@@ -155,12 +155,8 @@ class procBlock {
                       const unique_ptr<turbModel> &, const int &, const int &,
                       const int &, const int &);
 
-  void AddToResidual(const inviscidFlux &, const int &, const int &,
-                     const int &);
   void AddToResidual(const viscousFlux &, const int &, const int &,
                      const int &);
-  void SubtractFromResidual(const inviscidFlux &, const int &, const int &,
-                            const int &);
   void SubtractFromResidual(const viscousFlux &, const int &, const int &,
                             const int &);
   void SubtractFromResidual(const source &, const int &, const int &,
