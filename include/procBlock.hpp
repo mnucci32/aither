@@ -155,12 +155,6 @@ class procBlock {
                       const unique_ptr<turbModel> &, const int &, const int &,
                       const int &, const int &);
 
-  void AddToResidual(const viscousFlux &, const int &, const int &,
-                     const int &);
-  void SubtractFromResidual(const viscousFlux &, const int &, const int &,
-                            const int &);
-  void SubtractFromResidual(const source &, const int &, const int &,
-                            const int &);
   vector<wallData> SplitWallData(const string &, const int &);
   void JoinWallData(const vector<wallData> &, const string &);
 

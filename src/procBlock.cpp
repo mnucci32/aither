@@ -250,58 +250,6 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
   }
 }
 
-// member function to add a member of the viscous flux class to the residual_
-void procBlock::AddToResidual(const viscousFlux &flux, const int &ii,
-                              const int &jj, const int &kk) {
-  // flux -- inviscid flux to add to residual
-  // ii -- location of residual_ to add to
-  // jj -- j-location of residual to add to
-  // kk -- k-location of residual to add to
-
-  residual_(ii, jj, kk)[1] += flux.MomX();
-  residual_(ii, jj, kk)[2] += flux.MomY();
-  residual_(ii, jj, kk)[3] += flux.MomZ();
-  residual_(ii, jj, kk)[4] += flux.Engy();
-  residual_(ii, jj, kk)[5] += flux.MomK();
-  residual_(ii, jj, kk)[6] += flux.MomO();
-}
-
-// member function to subtract a member of the viscous flux class from the
-// residual
-void procBlock::SubtractFromResidual(const viscousFlux &flux, const int &ii,
-                              const int &jj, const int &kk) {
-  // flux -- inviscid flux to add to residual_
-  // ii -- location of residual_ to add to
-  // jj -- j-location of residual to add to
-  // kk -- k-location of residual to add to
-
-  residual_(ii, jj, kk)[1] -= flux.MomX();
-  residual_(ii, jj, kk)[2] -= flux.MomY();
-  residual_(ii, jj, kk)[3] -= flux.MomZ();
-  residual_(ii, jj, kk)[4] -= flux.Engy();
-  residual_(ii, jj, kk)[5] -= flux.MomK();
-  residual_(ii, jj, kk)[6] -= flux.MomO();
-}
-
-
-// member function to subtract a member of the inviscid source class from the
-// residual
-void procBlock::SubtractFromResidual(const source &src, const int &ii,
-                              const int &jj, const int &kk) {
-  // src -- source to add to residual
-  // ii -- location of residual to add to
-  // jj -- j-location of residual to add to
-  // kk -- k-location of residual to add to
-
-  residual_(ii, jj, kk)[0] -= src.SrcMass();
-  residual_(ii, jj, kk)[1] -= src.SrcMomX();
-  residual_(ii, jj, kk)[2] -= src.SrcMomY();
-  residual_(ii, jj, kk)[3] -= src.SrcMomZ();
-  residual_(ii, jj, kk)[4] -= src.SrcEngy();
-  residual_(ii, jj, kk)[5] -= src.SrcTke();
-  residual_(ii, jj, kk)[6] -= src.SrcOmg();
-}
-
 //---------------------------------------------------------------------
 // function declarations
 
@@ -2001,9 +1949,8 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
         // fluxes, so sign is reversed
         // at left boundary there is no left cell to add to
         if (ii > fAreaI_.PhysStartI()) {
-          this->SubtractFromResidual(tempViscFlux *
-                                     this->FAreaMagI(ii, jj, kk),
-                                     ii - 1, jj, kk);
+          residual_(ii - 1, jj, kk) -=
+              tempViscFlux * this->FAreaMagI(ii, jj, kk);
 
           // store gradients
           velocityGrad_(ii - 1, jj, kk) += sixth * velGrad;
@@ -2032,9 +1979,7 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
         }
         // at right boundary there is no right cell to add to
         if (ii < fAreaI_.PhysEndI() - 1) {
-          this->AddToResidual(tempViscFlux *
-                              this->FAreaMagI(ii, jj, kk),
-                              ii, jj, kk);
+          residual_(ii, jj, kk) += tempViscFlux * this->FAreaMagI(ii, jj, kk);
 
           // store gradients
           velocityGrad_(ii, jj, kk) += sixth * velGrad;
@@ -2313,9 +2258,8 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
         // fluxes, so sign is reversed
         // at left boundary there is no left cell to add to
         if (jj > fAreaJ_.PhysStartJ()) {
-          this->SubtractFromResidual(tempViscFlux *
-                                     this->FAreaMagJ(ii, jj, kk),
-                                     ii, jj - 1, kk);
+          residual_(ii, jj - 1, kk) -=
+              tempViscFlux * this->FAreaMagJ(ii, jj, kk);
 
           // store gradients
           velocityGrad_(ii, jj - 1, kk) += sixth * velGrad;
@@ -2344,9 +2288,7 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
         }
         // at right boundary there is no right cell to add to
         if (jj < fAreaJ_.PhysEndJ() - 1) {
-          this->AddToResidual(tempViscFlux *
-                              this->FAreaMagJ(ii, jj, kk),
-                              ii, jj, kk);
+          residual_(ii, jj, kk) += tempViscFlux * this->FAreaMagJ(ii, jj, kk);
 
           // store gradients
           velocityGrad_(ii, jj, kk) += sixth * velGrad;
@@ -2625,9 +2567,8 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
         // fluxes, so sign is reversed
         // at left boundary there is no left cell to add to
         if (kk > fAreaK_.PhysStartK()) {
-          this->SubtractFromResidual(tempViscFlux *
-                                     this->FAreaMagK(ii, jj, kk),
-                                     ii, jj, kk - 1);
+          residual_(ii, jj, kk - 1) -=
+              tempViscFlux * this->FAreaMagK(ii, jj, kk);
 
           // store gradients
           velocityGrad_(ii, jj, kk - 1) += sixth * velGrad;
@@ -2656,9 +2597,7 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
         }
         // at right boundary there is no right cell to add to
         if (kk < fAreaK_.PhysEndK() - 1) {
-          this->AddToResidual(tempViscFlux *
-                              this->FAreaMagK(ii, jj, kk),
-                              ii, jj, kk);
+          residual_(ii, jj, kk) += tempViscFlux * this->FAreaMagK(ii, jj, kk);
 
           // store gradients
           velocityGrad_(ii, jj, kk) += sixth * velGrad;
@@ -6534,8 +6473,7 @@ void procBlock::CalcSrcTerms(const unique_ptr<transport> &trans,
 
         // add source terms to residual
         // subtract because residual is initially on opposite side of equation
-        this->SubtractFromResidual(src * vol_(ii, jj, kk),
-                                   ii, jj, kk);
+        residual_(ii, jj, kk) -= src * vol_(ii, jj, kk);
 
         // add source spectral radius for turbulence equations
         // subtract because residual is initially on opposite side of equation
