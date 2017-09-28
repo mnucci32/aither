@@ -154,7 +154,10 @@ class procBlock {
                       const unique_ptr<thermodynamic> &,
                       const unique_ptr<turbModel> &, const int &, const int &,
                       const int &, const int &);
-
+  template <typename T>
+  void AddToResidual(const int &, const int &, const int &, const T &);
+  template <typename T>
+  void SubtractFromResidual(const int &, const int &, const int &, const T &);
   vector<wallData> SplitWallData(const string &, const int &);
   void JoinWallData(const vector<wallData> &, const string &);
 

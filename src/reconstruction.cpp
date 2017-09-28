@@ -88,9 +88,10 @@ R = ((Ui - Ui-1) / dP) / ((Ui+1 - Ui) / dM)
 Ui+1/2 = Ui + 0.25 * ((Ui - Ui-1) / dM) * ( (1-K) * L  + (1+K) * R * Linv )
 
 */
-primitive FaceReconMUSCL(const primitive &upwind2, const primitive &upwind1,
-                         const primitive &downwind1, const double &kappa,
-                         const string &lim, const double &uw, const double &uw2,
+template <typename T>
+primitive FaceReconMUSCL(const T &upwind2, const T &upwind1, const T &downwind1,
+                         const double &kappa, const string &lim,
+                         const double &uw, const double &uw2,
                          const double &dw) {
   // upwind2 -- upwind cell furthest from the face at which the primitive is
   //            being reconstructed.
@@ -101,6 +102,10 @@ primitive FaceReconMUSCL(const primitive &upwind2, const primitive &upwind1,
   // uw -- length of upwind cell
   // uw2 -- length of furthest upwind cell
   // dw -- length of downwind cell
+
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "FaceReconMUSCL requires primitive or primativeView type");
 
   const auto dPlus = (uw + uw) / (uw + dw);
   const auto dMinus = (uw + uw) / (uw + uw2);
@@ -132,11 +137,17 @@ primitive FaceReconMUSCL(const primitive &upwind2, const primitive &upwind1,
 }
 
 // member function for higher order reconstruction via weno
-primitive FaceReconWENO(const primitive &upwind3, const primitive &upwind2,
-                        const primitive &upwind1, const primitive &downwind1,
-                        const primitive &downwind2, const double &uw3,
-                        const double &uw2, const double &uw1, const double &dw1,
-                        const double &dw2, const bool &isWenoZ) {
+template <typename T>
+primitive FaceReconWENO(const T &upwind3, const T &upwind2, const T &upwind1,
+                        const T &downwind1, const T &downwind2,
+                        const double &uw3, const double &uw2, const double &uw1,
+                        const double &dw1, const double &dw2,
+                        const bool &isWenoZ) {
+  // make sure template type is correct
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "FaceReconWENO requires primitive or primativeView type");
+
   // get candidate smaller stencils
   const vector<double> cellWidth = {uw3, uw2, uw1, dw1, dw2};
 

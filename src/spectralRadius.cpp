@@ -19,6 +19,7 @@
 #include <algorithm>  // max
 #include "spectralRadius.hpp"
 #include "primitive.hpp"
+#include "arrayView.hpp"
 #include "eos.hpp"
 #include "transport.hpp"
 #include "thermodynamic.hpp"
@@ -36,7 +37,8 @@ In the above equation L is the spectral radius in either the i, j, or k
 direction. A1 and A2 are the two face areas in that direction. Vn is the
 cell velocity normal to that direction. SoS is the speed of sound at the cell
  */
-double InvCellSpectralRadius(const primitive &state,
+template <typename T>
+double InvCellSpectralRadius(const T &state,
                              const unitVec3dMag<double> &fAreaL,
                              const unitVec3dMag<double> &fAreaR,
                              const unique_ptr<thermodynamic> &thermo,
@@ -46,6 +48,9 @@ double InvCellSpectralRadius(const primitive &state,
   // fAreaR -- face area of upper face in either i, j, or k direction
   // thermo -- thermodynamic model
   // eqnState -- equation of state
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
 
   // normalize face areas
   const auto normAvg = (0.5 * (fAreaL.UnitVector() +
@@ -59,7 +64,8 @@ double InvCellSpectralRadius(const primitive &state,
          fMag;
 }
 
-double InvFaceSpectralRadius(const primitive &state,
+template <typename T>
+double InvFaceSpectralRadius(const T &state,
                              const unitVec3dMag<double> &fArea,
                              const unique_ptr<thermodynamic> &thermo,
                              const unique_ptr<eos> &eqnState) {
@@ -67,6 +73,9 @@ double InvFaceSpectralRadius(const primitive &state,
   // fArea -- face area
   // thermo -- thermodynamic model
   // eqnState -- equation of state
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
 
   // return spectral radius
   return 0.5 * fArea.Mag() *
@@ -85,8 +94,9 @@ and Pr is the Prandtl number (all at the cell center). A is the average face are
 of the given direction (i, j, k), and V is the cell volume. This implementation
 comes from Blazek.
  */
+template <typename T>
 double ViscCellSpectralRadius(
-    const primitive &state, const unitVec3dMag<double> &fAreaL,
+    const T &state, const unitVec3dMag<double> &fAreaL,
     const unitVec3dMag<double> &fAreaR, const unique_ptr<thermodynamic> &thermo,
     const unique_ptr<eos> &eqnState, const unique_ptr<transport> &trans,
     const double &vol, const double &mu, const double &mut,
@@ -101,6 +111,9 @@ double ViscCellSpectralRadius(
   // mu -- laminar viscosity
   // mut -- turbulent viscosity
   // turb -- turbulence model
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
 
   // average area magnitude
   const auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
@@ -115,8 +128,9 @@ double ViscCellSpectralRadius(
   return maxTerm * viscTerm * fMag * fMag / vol;
 }
 
+template <typename T>
 double ViscFaceSpectralRadius(
-    const primitive &state, const unitVec3dMag<double> &fArea,
+    const T &state, const unitVec3dMag<double> &fArea,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<eos> &eqnState,
     const unique_ptr<transport> &trans, const double &dist, const double &mu,
     const double &mut, const unique_ptr<turbModel> &turb) {
@@ -129,6 +143,9 @@ double ViscFaceSpectralRadius(
   // mu -- laminar viscosity
   // mut -- turbulent viscosity
   // turb -- turbulence model
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
 
   const auto t = state.Temperature(eqnState);
   const auto maxTerm =
@@ -141,8 +158,9 @@ double ViscFaceSpectralRadius(
   return fArea.Mag() / dist * maxTerm * viscTerm;
 }
 
+template <typename T>
 double CellSpectralRadius(
-    const primitive &state, const unitVec3dMag<double> &fAreaL,
+    const T &state, const unitVec3dMag<double> &fAreaL,
     const unitVec3dMag<double> &fAreaR, const unique_ptr<thermodynamic> &thermo,
     const unique_ptr<eos> &eqnState, const unique_ptr<transport> &trans,
     const double &vol, const double &mu, const double &mut,
@@ -158,6 +176,9 @@ double CellSpectralRadius(
   // mut -- turbulent viscosity
   // turb -- turbulence model
   // isViscous -- flag that is true if simulation is viscous
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
 
   auto specRad = InvCellSpectralRadius(state, fAreaL, fAreaR, thermo, eqnState);
 
@@ -170,7 +191,8 @@ double CellSpectralRadius(
   return specRad;
 }
 
-double FaceSpectralRadius(const primitive &state,
+template <typename T>
+double FaceSpectralRadius(const T &state,
                           const unitVec3dMag<double> &fArea,
                           const unique_ptr<thermodynamic> &thermo,
                           const unique_ptr<eos> &eqnState,
@@ -188,6 +210,9 @@ double FaceSpectralRadius(const primitive &state,
   // mut -- turbulent viscosity
   // turb -- turbulence model
   // isViscous -- flag that is true if simulation is viscous
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
 
   auto specRad = InvFaceSpectralRadius(state, fArea, thermo, eqnState);
 

@@ -22,6 +22,7 @@
  */
 
 #include <string>                  // string
+#include "arrayView.hpp"
 
 using std::string;
 
@@ -33,18 +34,22 @@ class primitive;
 // center to cell face assuming value at cell center is constant over cell
 // volume; zeroth order reconstruction results in first order accuracy
 primitive FaceReconConst(const primitive &state) { return state; }
+primitive FaceReconConst(const primitiveView &state) {
+  return state.CopyData();
+}
 
 // function to calculate reconstruction of state variables from cell
 // center to cell face this function uses muscle extrapolation resulting in
 // higher order accuracy
-primitive FaceReconMUSCL(const primitive &, const primitive &,
-                         const primitive &, const double &, const string &,
-                         const double &, const double &, const double &);
+template <typename T>
+primitive FaceReconMUSCL(const T &, const T &, const T &, const double &,
+                         const string &, const double &, const double &,
+                         const double &);
 
 // calculate face reconstruction using 5th order weno scheme
-primitive FaceReconWENO(const primitive &, const primitive &, const primitive &,
-                        const primitive &, const primitive &, const double &,
+template <typename T>
+primitive FaceReconWENO(const T &, const T &, const T &, const T &, const T &,
                         const double &, const double &, const double &,
-                        const double &, const bool &);
+                        const double &, const double &, const bool &);
 
 #endif

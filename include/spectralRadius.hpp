@@ -31,38 +31,43 @@ using std::unique_ptr;
 class eos;
 class thermodynamic;
 class transport;
-class primitive;
 
-double InvCellSpectralRadius(const primitive &, const unitVec3dMag<double> &,
+template <typename T>
+double InvCellSpectralRadius(const T &, const unitVec3dMag<double> &,
                              const unitVec3dMag<double> &,
                              const unique_ptr<thermodynamic> &,
                              const unique_ptr<eos> &);
-double InvFaceSpectralRadius(const primitive &, const unitVec3dMag<double> &,
+template <typename T>
+double InvFaceSpectralRadius(const T &, const unitVec3dMag<double> &,
                              const unique_ptr<thermodynamic> &,
                              const unique_ptr<eos> &);
 
-double ViscCellSpectralRadius(const primitive &, const unitVec3dMag<double> &,
+template <typename T>
+double ViscCellSpectralRadius(const T &, const unitVec3dMag<double> &,
                               const unitVec3dMag<double> &,
                               const unique_ptr<thermodynamic> &,
                               const unique_ptr<eos> &,
                               const unique_ptr<transport> &, const double &,
                               const double &, const double &,
                               const unique_ptr<turbModel> &);
-double ViscFaceSpectralRadius(const primitive &, const unitVec3dMag<double> &,
+template <typename T>
+double ViscFaceSpectralRadius(const T &, const unitVec3dMag<double> &,
                               const unique_ptr<thermodynamic> &,
                               const unique_ptr<eos> &,
                               const unique_ptr<transport> &, const double &,
                               const double &, const double &,
                               const unique_ptr<turbModel> &);
 
-double CellSpectralRadius(const primitive &, const unitVec3dMag<double> &,
+template <typename T>
+double CellSpectralRadius(const T &, const unitVec3dMag<double> &,
                           const unitVec3dMag<double> &,
                           const unique_ptr<thermodynamic> &,
                           const unique_ptr<eos> &,
                           const unique_ptr<transport> &, const double &,
                           const double &, const double &,
                           const unique_ptr<turbModel> &, const bool &);
-double FaceSpectralRadius(const primitive &, const unitVec3dMag<double> &,
+template <typename T>
+double FaceSpectralRadius(const T &, const unitVec3dMag<double> &,
                           const unique_ptr<thermodynamic> &,
                           const unique_ptr<eos> &,
                           const unique_ptr<transport> &, const double &,

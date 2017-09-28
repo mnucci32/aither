@@ -253,6 +253,29 @@ procBlock::procBlock(const int &ni, const int &nj, const int &nk,
 //---------------------------------------------------------------------
 // function declarations
 
+template <typename T>
+void procBlock::AddToResidual(const int &ii, const int &jj, const int &kk,
+                              const T &arr) {
+  static_assert(std::is_base_of<varArray, T>::value, "T must be varArray type");
+  MSG_ASSERT(arr.BlockSize() == residual_.BlockSize(),
+             "array block size must match residual block size");
+  for (auto bb = 0; bb < residual_.BlockSize(); ++bb) {
+    residual_(ii, jj, kk, bb) += arr[bb];
+  }
+}
+
+template <typename T>
+void procBlock::SubtractFromResidual(const int &ii, const int &jj,
+                                     const int &kk, const T &arr) {
+  static_assert(std::is_base_of<varArray, T>::value, "T must be varArray type");
+  MSG_ASSERT(arr.BlockSize() == residual_.BlockSize(),
+             "array block size must match residual block size");
+  for (auto bb = 0; bb < residual_.BlockSize(); ++bb) {
+    residual_(ii, jj, kk, bb) -= arr[bb];
+  }
+}
+
+
 void procBlock::InitializeStates(const input &inp,
                                  const unique_ptr<eos> &eqnState,
                                  const unique_ptr<transport> &trans,
@@ -371,7 +394,8 @@ void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
   for (auto kk = fAreaI_.PhysStartK(); kk < fAreaI_.PhysEndK(); kk++) {
     for (auto jj = fAreaI_.PhysStartJ(); jj < fAreaI_.PhysEndJ(); jj++) {
       for (auto ii = fAreaI_.PhysStartI(); ii < fAreaI_.PhysEndI(); ii++) {
-        primitive faceStateLower, faceStateUpper;
+        primitive faceStateLower(inp.NumEquations(), inp.NumSpecies());
+        primitive faceStateUpper(inp.NumEquations(), inp.NumSpecies());
 
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
@@ -419,7 +443,8 @@ void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
         // from right cell
         // at left boundary there is no left cell to add to
         if (ii > fAreaI_.PhysStartI()) {
-          residual_(ii - 1, jj, kk) += tempFlux * this->FAreaMagI(ii, jj, kk);
+          this->AddToResidual(ii - 1, jj, kk,
+                              tempFlux * this->FAreaMagI(ii, jj, kk));
 
           // if using a block matrix on main diagonal, accumulate flux jacobian
           if (inp.IsBlockMatrix()) {
@@ -433,7 +458,8 @@ void procBlock::CalcInvFluxI(const unique_ptr<eos> &eqnState,
 
         // at right boundary there is no right cell to add to
         if (ii < fAreaI_.PhysEndI() - 1) {
-          residual_(ii, jj, kk) -= tempFlux * this->FAreaMagI(ii, jj, kk);
+          this->SubtractFromResidual(ii, jj, kk,
+                                     tempFlux * this->FAreaMagI(ii, jj, kk));
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
@@ -506,7 +532,8 @@ void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
   for (auto kk = fAreaJ_.PhysStartK(); kk < fAreaJ_.PhysEndK(); kk++) {
     for (auto jj = fAreaJ_.PhysStartJ(); jj < fAreaJ_.PhysEndJ(); jj++) {
       for (auto ii = fAreaJ_.PhysStartI(); ii < fAreaJ_.PhysEndI(); ii++) {
-        primitive faceStateLower, faceStateUpper;
+        primitive faceStateLower(inp.NumEquations(), inp.NumSpecies());
+        primitive faceStateUpper(inp.NumEquations(), inp.NumSpecies());
 
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
@@ -554,7 +581,8 @@ void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
         // from right cell
         // at left boundary no left cell to add to
         if (jj > fAreaJ_.PhysStartJ()) {
-          residual_(ii, jj - 1, kk) += tempFlux * this->FAreaMagJ(ii, jj, kk);
+          this->AddToResidual(ii, jj - 1, kk,
+                              tempFlux * this->FAreaMagJ(ii, jj, kk));
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
@@ -567,7 +595,8 @@ void procBlock::CalcInvFluxJ(const unique_ptr<eos> &eqnState,
         }
         // at right boundary no right cell to add to
         if (jj < fAreaJ_.PhysEndJ() - 1) {
-          residual_(ii, jj, kk) -= tempFlux * this->FAreaMagJ(ii, jj, kk);
+          this->SubtractFromResidual(ii, jj, kk,
+                                     tempFlux * this->FAreaMagJ(ii, jj, kk));
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
@@ -640,7 +669,8 @@ void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
   for (auto kk = fAreaK_.PhysStartK(); kk < fAreaK_.PhysEndK(); kk++) {
     for (auto jj = fAreaK_.PhysStartJ(); jj < fAreaK_.PhysEndJ(); jj++) {
       for (auto ii = fAreaK_.PhysStartI(); ii < fAreaK_.PhysEndI(); ii++) {
-        primitive faceStateLower, faceStateUpper;
+        primitive faceStateLower(inp.NumEquations(), inp.NumSpecies());
+        primitive faceStateUpper(inp.NumEquations(), inp.NumSpecies());
 
         // use constant reconstruction (first order)
         if (inp.OrderOfAccuracy() == "first") {
@@ -688,7 +718,8 @@ void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
         // from right cell
         // at left boundary no left cell to add to
         if (kk > fAreaK_.PhysStartK()) {
-          residual_(ii, jj, kk - 1) += tempFlux * this->FAreaMagK(ii, jj, kk);
+          this->AddToResidual(ii, jj, kk - 1,
+                              tempFlux * this->FAreaMagK(ii, jj, kk));
 
           // if using block matrix on main diagonal, calculate flux jacobian
           if (inp.IsBlockMatrix()) {
@@ -701,7 +732,8 @@ void procBlock::CalcInvFluxK(const unique_ptr<eos> &eqnState,
         }
         // at right boundary no right cell to add to
         if (kk < fAreaK_.PhysEndK() - 1) {
-          residual_(ii, jj, kk) -= tempFlux * this->FAreaMagK(ii, jj, kk);
+          this->SubtractFromResidual(ii, jj, kk,
+                                     tempFlux * this->FAreaMagK(ii, jj, kk));
 
           // calculate component of wave speed. This is done on a cell by cell
           // basis, so only at the upper faces
@@ -1824,12 +1856,12 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
                          tkeGrad, omegaGrad);
 
         // declare variables needed throughout function
-        primitive state;
+        primitive state(inp.NumEquations(), inp.NumSpecies());
         auto f1 = 0.0;
         auto f2 = 0.0;
         auto mu = 0.0;
         auto mut = 0.0;
-        viscousFlux tempViscFlux;
+        viscousFlux tempViscFlux(inp.NumEquations(), inp.NumSpecies());
 
         // get surface info it at boundary
         auto surfType = 0;
@@ -1950,8 +1982,8 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
         // fluxes, so sign is reversed
         // at left boundary there is no left cell to add to
         if (ii > fAreaI_.PhysStartI()) {
-          residual_(ii - 1, jj, kk) -=
-              tempViscFlux * this->FAreaMagI(ii, jj, kk);
+          this->SubtractFromResidual(
+              ii - 1, jj, kk, tempViscFlux * this->FAreaMagI(ii, jj, kk));
 
           // store gradients
           velocityGrad_(ii - 1, jj, kk) += sixth * velGrad;
@@ -1980,7 +2012,8 @@ void procBlock::CalcViscFluxI(const unique_ptr<transport> &trans,
         }
         // at right boundary there is no right cell to add to
         if (ii < fAreaI_.PhysEndI() - 1) {
-          residual_(ii, jj, kk) += tempViscFlux * this->FAreaMagI(ii, jj, kk);
+          this->AddToResidual(ii, jj, kk,
+                              tempViscFlux * this->FAreaMagI(ii, jj, kk));
 
           // store gradients
           velocityGrad_(ii, jj, kk) += sixth * velGrad;
@@ -2132,12 +2165,12 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
                          tkeGrad, omegaGrad);
 
         // declare variables needed throughout function
-        primitive state;
+        primitive state(inp.NumEquations(), inp.NumSpecies());
         auto f1 = 0.0;
         auto f2 = 0.0;
         auto mu = 0.0;
         auto mut = 0.0;
-        viscousFlux tempViscFlux;
+        viscousFlux tempViscFlux(inp.NumEquations(), inp.NumSpecies());
 
         // get surface info if at boundary
         auto surfType = 0;
@@ -2259,8 +2292,8 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
         // fluxes, so sign is reversed
         // at left boundary there is no left cell to add to
         if (jj > fAreaJ_.PhysStartJ()) {
-          residual_(ii, jj - 1, kk) -=
-              tempViscFlux * this->FAreaMagJ(ii, jj, kk);
+          this->SubtractFromResidual(
+              ii, jj - 1, kk, tempViscFlux * this->FAreaMagJ(ii, jj, kk));
 
           // store gradients
           velocityGrad_(ii, jj - 1, kk) += sixth * velGrad;
@@ -2289,7 +2322,8 @@ void procBlock::CalcViscFluxJ(const unique_ptr<transport> &trans,
         }
         // at right boundary there is no right cell to add to
         if (jj < fAreaJ_.PhysEndJ() - 1) {
-          residual_(ii, jj, kk) += tempViscFlux * this->FAreaMagJ(ii, jj, kk);
+          this->AddToResidual(ii, jj, kk,
+                              tempViscFlux * this->FAreaMagJ(ii, jj, kk));
 
           // store gradients
           velocityGrad_(ii, jj, kk) += sixth * velGrad;
@@ -2441,12 +2475,12 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
                          tkeGrad, omegaGrad);
 
         // declare variables needed throughout function
-        primitive state;
+        primitive state(inp.NumEquations(), inp.NumSpecies());
         auto f1 = 0.0;
         auto f2 = 0.0;
         auto mu = 0.0;
         auto mut = 0.0;
-        viscousFlux tempViscFlux;
+        viscousFlux tempViscFlux(inp.NumEquations(), inp.NumSpecies());
 
         // get surface info if at boundary
         auto surfType = 0;
@@ -2568,8 +2602,8 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
         // fluxes, so sign is reversed
         // at left boundary there is no left cell to add to
         if (kk > fAreaK_.PhysStartK()) {
-          residual_(ii, jj, kk - 1) -=
-              tempViscFlux * this->FAreaMagK(ii, jj, kk);
+          this->SubtractFromResidual(
+              ii, jj, kk - 1, tempViscFlux * this->FAreaMagK(ii, jj, kk));
 
           // store gradients
           velocityGrad_(ii, jj, kk - 1) += sixth * velGrad;
@@ -2598,7 +2632,8 @@ void procBlock::CalcViscFluxK(const unique_ptr<transport> &trans,
         }
         // at right boundary there is no right cell to add to
         if (kk < fAreaK_.PhysEndK() - 1) {
-          residual_(ii, jj, kk) += tempViscFlux * this->FAreaMagK(ii, jj, kk);
+          this->AddToResidual(ii, jj, kk,
+                              tempViscFlux * this->FAreaMagK(ii, jj, kk));
 
           // store gradients
           velocityGrad_(ii, jj, kk) += sixth * velGrad;
@@ -6474,7 +6509,7 @@ void procBlock::CalcSrcTerms(const unique_ptr<transport> &trans,
 
         // add source terms to residual
         // subtract because residual is initially on opposite side of equation
-        residual_(ii, jj, kk) -= src * vol_(ii, jj, kk);
+        this->SubtractFromResidual(ii, jj, kk, src * vol_(ii, jj, kk));
 
         // add source spectral radius for turbulence equations
         // subtract because residual is initially on opposite side of equation
