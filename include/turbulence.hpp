@@ -91,6 +91,9 @@ class turbModel {
   virtual double InviscidCellSpecRad(const primitive &state,
                                      const unitVec3dMag<double> &fAreaL,
                                      const unitVec3dMag<double> &fAreaR) const;
+  virtual double InviscidCellSpecRad(const primitiveView &state,
+                                     const unitVec3dMag<double> &fAreaL,
+                                     const unitVec3dMag<double> &fAreaR) const;
   virtual double InviscidFaceSpecRad(const primitive &state,
                                      const unitVec3dMag<double> &fArea,
                                      const bool &positive) const;
@@ -201,6 +204,11 @@ class turbNone : public turbModel {
   }
   double InviscidCellSpecRad(
       const primitive &state, const unitVec3dMag<double> &fAreaL,
+      const unitVec3dMag<double> &fAreaR) const override {
+    return 0.0;
+  }
+  double InviscidCellSpecRad(
+      const primitiveView &state, const unitVec3dMag<double> &fAreaL,
       const unitVec3dMag<double> &fAreaR) const override {
     return 0.0;
   }

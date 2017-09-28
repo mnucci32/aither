@@ -822,7 +822,7 @@ implicit methods it uses the correction du and calls the implicit updater.
 void procBlock::UpdateBlock(const input &inputVars, const unique_ptr<eos> &eos,
                             const unique_ptr<thermodynamic> &thermo,
                             const unique_ptr<transport> &trans,
-                            const multiArray3d<varArray> &du,
+                            const blkMultiArray3d<varArray> &du,
                             const unique_ptr<turbModel> &turb, const int &rr,
                             residual &l2, resid &linf) {
   // inputVars -- all input variables
@@ -897,7 +897,7 @@ void procBlock::ExplicitEulerTimeAdvance(
   consVars -= dt_(ii, jj, kk) / vol_(ii, jj, kk) * residual_(ii, jj, kk);
 
   // calculate updated primitive variables and update state
-  state_(ii, jj, kk) = primitive(consVars, false, eqnState, thermo, turb);
+  state_.InsertBlock(ii, jj, kk, primitive(consVars, eqnState, thermo, turb));
 }
 
 // member function to advance the state vector to time n+1 (for implicit
@@ -930,7 +930,8 @@ Un is the conserved variables at time n, Un+1 is the conserved variables at time
 n+1, dt is the cell's time step, V is the cell's volume, alpha is the runge-kutta
 coefficient, and R is the cell's residual.
  */
-void procBlock::RK4TimeAdvance(const conserved &currState,
+template <typename T>
+void procBlock::RK4TimeAdvance(const T &currState,
                                const unique_ptr<eos> &eqnState,
                                const unique_ptr<thermodynamic> &thermo,
                                const unique_ptr<turbModel> &turb,
@@ -944,6 +945,9 @@ void procBlock::RK4TimeAdvance(const conserved &currState,
   // jj -- j-location of cell (including ghost cells)
   // kk -- k-location of cell (including ghost cells)
   // rk -- runge-kutta step number
+  static_assert(std::is_same<conserved, T>::value ||
+                    std::is_same<conservedView, T>::value,
+                "T requires conserved or conservedView type");
 
   // runge-kutta step coefficients (low storage 4 step)
   const double alpha[4] = {0.25, 1.0 / 3.0, 0.5, 1.0};
@@ -953,7 +957,7 @@ void procBlock::RK4TimeAdvance(const conserved &currState,
       alpha[rk] * residual_(ii, jj, kk);
 
   // calculate updated primitive variables
-  state_(ii, jj, kk) = primitive(consVars, eqnState, thermo, turb);
+  state_.InsertBlock(ii, jj, kk, primitive(consVars, eqnState, thermo, turb));
 }
 
 // member function to reset the residual and wave speed back to zero after an

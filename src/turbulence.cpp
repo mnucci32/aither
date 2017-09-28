@@ -32,9 +32,32 @@ using std::min;
 template <typename T>
 double EddyViscUnlimited(const T &state) {
   // state -- primitive variables
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+
   return state.Rho() * state.Tke() / state.Omega();
 }
 
+// function to calculate inviscid spectral radius
+// df_dq = [vel (dot) area   0
+//                0          vel (dot) area]
+template <typename T>
+double InviscidCellSpectralRadius(const T &state,
+                                  const unitVec3dMag<double> &fAreaL,
+                                  const unitVec3dMag<double> &fAreaR) const {
+  // state -- primitive variables
+  // fAreaL -- face area for left face
+  // fAreaR -- face area for right face
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+
+  auto normAvg = (0.5 * (fAreaL.UnitVector() +
+                         fAreaR.UnitVector())).Normalize();
+  auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
+  return fabs(state.Velocity().DotProd(normAvg)) * fMag;
+}
 
 // -------------------------------------------------------------------------
 // member functions for turbModel class, all turbulence models inherit from
@@ -223,11 +246,15 @@ double turbModel::InviscidCellSpecRad(const primitive &state,
   // state -- primitive variables
   // fAreaL -- face area for left face
   // fAreaR -- face area for right face
-
-  auto normAvg = (0.5 * (fAreaL.UnitVector() +
-                         fAreaR.UnitVector())).Normalize();
-  auto fMag = 0.5 * (fAreaL.Mag() + fAreaR.Mag());
-  return fabs(state.Velocity().DotProd(normAvg)) * fMag;
+  return InviscidCellSpectralRadius(state, fAreaL, fAreaR);
+}
+double turbModel::InviscidCellSpecRad(const primitiveView &state,
+                                      const unitVec3dMag<double> &fAreaL,
+                                      const unitVec3dMag<double> &fAreaR) const {
+  // state -- primitive variables
+  // fAreaL -- face area for left face
+  // fAreaR -- face area for right face
+  return InviscidCellSpectralRadius(state, fAreaL, fAreaR);
 }
 
 double turbModel::InviscidFaceSpecRad(const primitive &state,

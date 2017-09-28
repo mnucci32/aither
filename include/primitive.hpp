@@ -124,7 +124,7 @@ class primitive : public varArray {
                             const unique_ptr<thermodynamic> &) const;
   primitive UpdateWithConsVars(const unique_ptr<eos> &,
                                const unique_ptr<thermodynamic> &,
-                               const conserved &,
+                               const varArrayView &,
                                const unique_ptr<turbModel> &) const;
 
   void ApplyFarfieldTurbBC(const vector3d<double> &, const double &,
@@ -137,23 +137,24 @@ class primitive : public varArray {
   ~primitive() noexcept {}
 };
 
-// function definitions
+// ---------------------------------------------------------------------------
+// non member functions
+// function to calculate conserved variables from primitive variables
+template <typename T>
+conserved PrimToCons(const T &state, const unique_ptr<eos> &eqnState,
+                     const unique_ptr<thermodynamic> &thermo);
+template <typename T>
+primitive UpdatePrimWithCons(const T &, const unique_ptr<eos> &,
+                             const unique_ptr<thermodynamic> &,
+                             const varArrayView &,
+                             const unique_ptr<turbModel> &);
+
+
+// ---------------------------------------------------------------------------
 // member function to calculate conserved variables from primitive variables
 conserved primitive::ConsVars(const unique_ptr<eos> &eqnState,
                             const unique_ptr<thermodynamic> &thermo) const {
-  conserved cv(this->Size(), this->NumSpecies());
-  for (auto ii = 0; ii < cv.NumSpecies(); ++ii) {
-    cv[ii] = (*this)[ii];
-  }
-  const auto rho = this->Rho();
-  cv[cv.MomentumXIndex()] = rho * this->U();
-  cv[cv.MomentumYIndex()] = rho * this->V();
-  cv[cv.MomentumZIndex()] = rho * this->W();
-  cv[cv.EnergyIndex()] = rho * this->Energy(eqnState, thermo);
-  for (auto ii = 0; ii < cv.NumTurbulence(); ++ii) {
-    cv[cv.TurbulenceIndex() + ii] = rho * this->TurbN(ii);
-  }
-  return cv;
+  return PrimToCons((*this), eqnState, thermo);
 }
 
 // function to return the state of the appropriate ghost cell

@@ -26,6 +26,7 @@
 #include "uncoupledScalar.hpp"
 #include "matrix.hpp"
 #include "varArray.hpp"
+#include "arrayView.hpp"
 
 using std::vector;
 using std::ostream;
@@ -245,41 +246,37 @@ inline const fluxJacobian operator/(const double &lhs, fluxJacobian rhs) {
 
 ostream &operator<<(ostream &os, const fluxJacobian &jacobian);
 
-varArray RusanovScalarOffDiagonal(const primitive &, const conserved &,
-                                  const unitVec3dMag<double> &,
+varArray RusanovScalarOffDiagonal(const primitiveView &, const varArrayView &,
+                                  const unitVec3dMag<double> &, const double &,
                                   const double &, const double &,
-                                  const double &, const double &,
-                                  const unique_ptr<eos> &,
+                                  const double &, const unique_ptr<eos> &,
                                   const unique_ptr<thermodynamic> &,
                                   const unique_ptr<transport> &,
-                                  const unique_ptr<turbModel> &,
-                                  const bool &, const bool &);
-varArray RusanovBlockOffDiagonal(const primitive &, const conserved &,
-                                 const unitVec3dMag<double> &,
-                                 const double &, const double &,
-                                 const double &, const double &,
+                                  const unique_ptr<turbModel> &, const bool &,
+                                  const bool &);
+varArray RusanovBlockOffDiagonal(const primitiveView &, const varArrayView &,
+                                 const unitVec3dMag<double> &, const double &,
+                                 const double &, const double &, const double &,
                                  const unique_ptr<eos> &,
                                  const unique_ptr<thermodynamic> &,
                                  const unique_ptr<transport> &,
-                                 const unique_ptr<turbModel> &,
-                                 const input &, const bool &,
-                                 const tensor<double> &);
+                                 const unique_ptr<turbModel> &, const input &,
+                                 const bool &, const tensor<double> &);
 
-varArray RoeOffDiagonal(const primitive &, const primitive &,
-                        const conserved &,
-                        const unitVec3dMag<double> &, const double &,
-                        const double &, const double &,
+varArray RoeOffDiagonal(const primitiveView &, const primitiveView &,
+                        const varArrayView &, const unitVec3dMag<double> &,
+                        const double &, const double &, const double &,
                         const double &, const unique_ptr<eos> &,
                         const unique_ptr<thermodynamic> &,
                         const unique_ptr<transport> &,
                         const unique_ptr<turbModel> &, const bool &,
                         const bool &, const bool &);
 
-varArray OffDiagonal(const primitive &, const primitive &, const conserved &,
-                     const unitVec3dMag<double> &, const double &,
+varArray OffDiagonal(const primitiveView &, const primitiveView &,
+                     const varArrayView &, const unitVec3dMag<double> &,
                      const double &, const double &, const double &,
-                     const tensor<double> &, const unique_ptr<eos> &,
-                     const unique_ptr<thermodynamic> &,
+                     const double &, const tensor<double> &,
+                     const unique_ptr<eos> &, const unique_ptr<thermodynamic> &,
                      const unique_ptr<transport> &,
                      const unique_ptr<turbModel> &, const input &,
                      const bool &);

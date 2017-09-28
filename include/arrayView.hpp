@@ -30,6 +30,7 @@
 #include "vector3d.hpp"
 #include "thermodynamic.hpp"
 #include "eos.hpp"
+#include "conserved.hpp"
 
 using std::ostream;
 using std::vector;
@@ -42,8 +43,8 @@ using std::unique_ptr;
 
 // forward class declarations
 class primitive;
-class conserved;
 class residual;
+class turbModel;
 
 template <typename T1, typename T2>
 class arrayView {
@@ -177,6 +178,20 @@ class arrayView {
                   "getter only valid for primitive type!");
     return eqnState->Temperature(this->P(), this->Rho());
   }
+  conserved ConsVars(const unique_ptr<eos> &eqnState, 
+                     const unique_ptr<thermodynamic> &thermo) const {
+    static_assert(std::is_same<primitive, T1>::value,
+                  "function only valid for primitive type!");
+    return PrimToCons((*this), eqnState, thermo);
+  }
+  T1 UpdateWithConsVars(const unique_ptr<eos> &eqnState,
+                        const unique_ptr<thermodynamic> &thermo,
+                        const arrayView<varArray, double> &du,
+                        const unique_ptr<turbModel> &turb) const {
+    static_assert(std::is_same<primitive, T1>::value,
+                  "function only valid for primitive type!");
+    return UpdatePrimWithCons((*this), eqnState, thermo, du, turb);
+  }
 
   // --------------------------------------------------------------------------
   // operator overloads
@@ -267,6 +282,7 @@ ostream &operator<<(ostream &os, const arrayView<T1, T2> &m) {
 }
 
 // using typedefs
+using varArrayView = arrayView<varArray, double>;
 using primitiveView = arrayView<primitive, double>;
 using conservedView = arrayView<conserved, double>;
 using residualView = arrayView<residual, double>;

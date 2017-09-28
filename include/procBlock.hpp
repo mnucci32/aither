@@ -150,7 +150,8 @@ class procBlock {
                            const unique_ptr<thermodynamic> &,
                            const unique_ptr<turbModel> &, const int &,
                            const int &, const int &);
-  void RK4TimeAdvance(const conserved &, const unique_ptr<eos> &,
+  template <typename T>
+  void RK4TimeAdvance(const T &, const unique_ptr<eos> &,
                       const unique_ptr<thermodynamic> &,
                       const unique_ptr<turbModel> &, const int &, const int &,
                       const int &, const int &);
@@ -394,7 +395,7 @@ class procBlock {
   void UpdateBlock(const input &, const unique_ptr<eos> &,
                    const unique_ptr<thermodynamic> &,
                    const unique_ptr<transport> &,
-                   const multiArray3d<varArray> &,
+                   const blkMultiArray3d<varArray> &,
                    const unique_ptr<turbModel> &, const int &, residual &,
                    resid &);
 

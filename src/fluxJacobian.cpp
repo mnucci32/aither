@@ -399,15 +399,13 @@ ostream &operator<<(ostream &os, const fluxJacobian &jacobian) {
   return os;
 }
 
-varArray RusanovScalarOffDiagonal(const primitive &state, const conserved &update,
-                                  const unitVec3dMag<double> &fArea,
-                                  const double &mu, const double &mut,
-                                  const double &f1, const double &dist,
-                                  const unique_ptr<eos> &eqnState,
-                                  const unique_ptr<thermodynamic> &thermo,
-                                  const unique_ptr<transport> &trans,
-                                  const unique_ptr<turbModel> &turb,
-                                  const bool &isViscous, const bool &positive) {
+varArray RusanovScalarOffDiagonal(
+    const primitiveView &state, const varArrayView &update,
+    const unitVec3dMag<double> &fArea, const double &mu, const double &mut,
+    const double &f1, const double &dist, const unique_ptr<eos> &eqnState,
+    const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
+    const unique_ptr<turbModel> &turb, const bool &isViscous,
+    const bool &positive) {
   // state -- primitive variables at off diagonal
   // update -- conserved variable update at off diagonal
   // fArea -- face area vector on off diagonal boundary
@@ -447,7 +445,7 @@ varArray RusanovScalarOffDiagonal(const primitive &state, const conserved &updat
 }
 
 varArray RusanovBlockOffDiagonal(
-    const primitive &state, const conserved &update,
+    const primitiveView &state, const varArrayView &update,
     const unitVec3dMag<double> &fArea, const double &mu, const double &mut,
     const double &f1, const double &dist, const unique_ptr<eos> &eqnState,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
@@ -484,15 +482,13 @@ varArray RusanovBlockOffDiagonal(
   return jacobian.ArrayMult(update);
 }
 
-varArray OffDiagonal(const primitive &offDiag, const primitive &diag,
-                     const conserved &update, const unitVec3dMag<double> &fArea,
-                     const double &mu, const double &mut, const double &f1,
-                     const double &dist, const tensor<double> &vGrad,
-                     const unique_ptr<eos> &eqnState,
-                     const unique_ptr<thermodynamic> &thermo,
-                     const unique_ptr<transport> &trans,
-                     const unique_ptr<turbModel> &turb, const input &inp,
-                     const bool &positive) {
+varArray OffDiagonal(
+    const primitiveView &offDiag, const primitiveView &diag,
+    const varArrayView &update, const unitVec3dMag<double> &fArea,
+    const double &mu, const double &mut, const double &f1, const double &dist,
+    const tensor<double> &vGrad, const unique_ptr<eos> &eqnState,
+    const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
+    const unique_ptr<turbModel> &turb, const input &inp, const bool &positive) {
   // offDiag -- primitive variables at off diagonal
   // diag -- primitive variables at diagonal
   // update -- conserved variable update at off diagonal
@@ -536,18 +532,13 @@ varArray OffDiagonal(const primitive &offDiag, const primitive &diag,
   return offDiagonal;
 }
 
-
-varArray RoeOffDiagonal(const primitive &offDiag, const primitive &diag,
-                        const conserved &update,
-                        const unitVec3dMag<double> &fArea,
-                        const double &mu, const double &mut,
-                        const double &dist, const double &f1,
-                        const unique_ptr<eos> &eqnState,
-                        const unique_ptr<thermodynamic> &thermo,
-                        const unique_ptr<transport> &trans,
-                        const unique_ptr<turbModel> &turb,
-                        const bool &isViscous, const bool &isRANS,
-                        const bool &positive) {
+varArray RoeOffDiagonal(
+    const primitiveView &offDiag, const primitiveView &diag,
+    const varArrayView &update, const unitVec3dMag<double> &fArea,
+    const double &mu, const double &mut, const double &dist, const double &f1,
+    const unique_ptr<eos> &eqnState, const unique_ptr<thermodynamic> &thermo,
+    const unique_ptr<transport> &trans, const unique_ptr<turbModel> &turb,
+    const bool &isViscous, const bool &isRANS, const bool &positive) {
   // offDiag -- primitive variables at off diagonal
   // diag -- primitive variables at diagonal
   // update -- conserved variable update at off diagonal

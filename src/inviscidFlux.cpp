@@ -490,11 +490,19 @@ ostream &operator<<(ostream &os, const inviscidFlux &flux) {
 // function to take in the primitive variables, equation of state, face area
 // vector, and primitive variable update and calculate the change in the
 // convective flux
-inviscidFlux ConvectiveFluxUpdate(const primitive &state,
-                                  const primitive &stateUpdate,
+template <typename T1, typename T2>
+inviscidFlux ConvectiveFluxUpdate(const T1 &state,
+                                  const T2 &stateUpdate,
                                   const unique_ptr<eos> &eqnState,
                                   const unique_ptr<thermodynamic> &thermo,
                                   const vector3d<double> &normArea) {
+  static_assert(std::is_same<primitive, T1>::value ||
+                    std::is_same<primitiveView, T1>::value,
+                "T1 requires primitive or primativeView type");
+  static_assert(std::is_same<primitive, T2>::value ||
+                    std::is_same<primitiveView, T2>::value,
+                "T2 requires primitive or primativeView type");
+
   // get inviscid flux of old state
   const inviscidFlux oldFlux(state, eqnState, thermo, normArea);
   // get updated inviscid flux
