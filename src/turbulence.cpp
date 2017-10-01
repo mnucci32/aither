@@ -45,7 +45,7 @@ double EddyViscUnlimited(const T &state) {
 template <typename T>
 double InviscidCellSpectralRadius(const T &state,
                                   const unitVec3dMag<double> &fAreaL,
-                                  const unitVec3dMag<double> &fAreaR) const {
+                                  const unitVec3dMag<double> &fAreaR) {
   // state -- primitive variables
   // fAreaL -- face area for left face
   // fAreaR -- face area for right face
@@ -146,8 +146,9 @@ double turbModel::CrossDiffusion(const primitive &state,
 }
 
 // member function to calculate the spectral radius of the turbulence equations
+template <typename T>
 double turbModel::CellSpectralRadius(
-    const primitive &state, const unitVec3dMag<double> &fAreaL,
+    const T &state, const unitVec3dMag<double> &fAreaL,
     const unitVec3dMag<double> &fAreaR, const double &mu,
     const unique_ptr<transport> &trans, const double &vol, const double &mut,
     const double &f1, const bool &addSrc) const {
@@ -161,6 +162,9 @@ double turbModel::CellSpectralRadius(
   // f1 -- first blending coefficient
   // addSrc -- flag to determine if source jacobian spectral radius should be
   //           included
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
 
   auto specRad = this->InviscidCellSpecRad(state, fAreaL, fAreaR);
   // factor of 2 because viscous spectral radius is not halved (Blazek 6.53)
@@ -174,8 +178,9 @@ double turbModel::CellSpectralRadius(
   return specRad;
 }
 
+template <typename T>
 double turbModel::FaceSpectralRadius(
-    const primitive &state, const unitVec3dMag<double> &fArea, const double &mu,
+    const T &state, const unitVec3dMag<double> &fArea, const double &mu,
     const unique_ptr<transport> &trans, const double &dist, const double &mut,
     const double &f1, const bool &positive) const {
   // state -- primitive variables
@@ -186,7 +191,10 @@ double turbModel::FaceSpectralRadius(
   // mut -- turbulent viscosity
   // f1 -- first blending coefficient
   // positive -- flag to add or subtract inviscid dissipation
-
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
+                
   auto specRad = this->InviscidFaceSpecRad(state, fArea, positive);
   specRad += this->ViscFaceSpecRad(state, fArea, mu, trans, dist, mut, f1);
   return specRad;

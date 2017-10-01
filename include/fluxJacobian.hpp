@@ -78,25 +78,25 @@ class fluxJacobian {
   void MultiplyOnDiagonal(const double &, const bool &);
   void AddOnDiagonal(const double &, const bool &);
 
-  void RusanovFluxJacobian(const primitive &, const unique_ptr<eos> &,
+  void RusanovFluxJacobian(const primitiveView &, const unique_ptr<eos> &,
                            const unique_ptr<thermodynamic> &,
                            const unitVec3dMag<double> &, const bool &,
                            const input &, const unique_ptr<turbModel> &);
-  void InvFluxJacobian(const primitive &, const unique_ptr<eos> &,
+  void InvFluxJacobian(const primitiveView &, const unique_ptr<eos> &,
                        const unique_ptr<thermodynamic> &,
                        const unitVec3dMag<double> &, const input &,
                        const unique_ptr<turbModel> &);
-  void ApproxRoeFluxJacobian(const primitive &, const primitive &,
+  void ApproxRoeFluxJacobian(const primitiveView &, const primitiveView &,
                              const unique_ptr<eos> &,
                              const unique_ptr<thermodynamic> &,
                              const unitVec3dMag<double> &, const bool &,
                              const input &, const unique_ptr<turbModel> &);
-  void DelprimitiveDelConservative(const primitive &,
+  void DelprimitiveDelConservative(const primitiveView &,
                                    const unique_ptr<thermodynamic> &,
                                    const unique_ptr<eos> &, const input &);
 
   void ApproxTSLJacobian(
-      const primitive &, const double &, const double &, const double &,
+      const primitiveView &, const double &, const double &, const double &,
       const unique_ptr<eos> &, const unique_ptr<transport> &,
       const unique_ptr<thermodynamic> &, const unitVec3dMag<double> &,
       const double &, const unique_ptr<turbModel> &, const input &,
@@ -110,6 +110,15 @@ class fluxJacobian {
   template <typename T, 
             typename = std::enable_if_t<std::is_base_of<varArray, T>::value>>
   T ArrayMult(T) const;
+  template <typename T,
+            typename = std::enable_if_t<std::is_same<varArrayView, T>::value ||
+                                        std::is_same<primitiveView, T>::value ||
+                                        std::is_same<conservedView, T>::value ||
+                                        std::is_same<residualView, T>::value>>
+  auto ArrayMult(const T &arrView) const{
+    auto arr = arrView.CopyData();
+    return this->ArrayMult(arr);
+  }
   bool IsScalar() const;
   void Inverse(const bool &);
 

@@ -100,7 +100,7 @@ jacobians.
 In the above equations the dissipation term L is held constant during
 differentiation. A represents the convective flux jacobian matrix.
  */
-void fluxJacobian::RusanovFluxJacobian(const primitive &state,
+void fluxJacobian::RusanovFluxJacobian(const primitiveView &state,
                                        const unique_ptr<eos> &eqnState,
                                        const unique_ptr<thermodynamic> &thermo,
                                        const unitVec3dMag<double> &area,
@@ -135,7 +135,7 @@ void fluxJacobian::RusanovFluxJacobian(const primitive &state,
 }
 
 // function to calculate inviscid flux jacobian
-void fluxJacobian::InvFluxJacobian(const primitive &state,
+void fluxJacobian::InvFluxJacobian(const primitiveView &state,
                                    const unique_ptr<eos> &eqnState,
                                    const unique_ptr<thermodynamic> &thermo,
                                    const unitVec3dMag<double> &area,
@@ -229,7 +229,7 @@ In the above equations the Roe matrix Aroe is held constant during
 differentiation. A represents the convective flux jacobian matrix.
  */
 void fluxJacobian::ApproxRoeFluxJacobian(
-    const primitive &left, const primitive &right,
+    const primitiveView &left, const primitiveView &right,
     const unique_ptr<eos> &eqnState, const unique_ptr<thermodynamic> &thermo,
     const unitVec3dMag<double> &area, const bool &positive, const input &inp,
     const unique_ptr<turbModel> &turb) {
@@ -259,7 +259,7 @@ void fluxJacobian::ApproxRoeFluxJacobian(
 // change of variable matrix going from primitive to conservative variables
 // from Dwight
 void fluxJacobian::DelprimitiveDelConservative(
-    const primitive &state, const unique_ptr<thermodynamic> &thermo,
+    const primitiveView &state, const unique_ptr<thermodynamic> &thermo,
     const unique_ptr<eos> &eqnState, const input &inp) {
   // state -- primitive variables
   // thermo -- thermodynamic model
@@ -304,17 +304,13 @@ void fluxJacobian::DelprimitiveDelConservative(
 
 // approximate thin shear layer jacobian following implementation in Dwight.
 // does not use any gradients
-void fluxJacobian::ApproxTSLJacobian(const primitive &state,
-                                     const double &lamVisc,
-                                     const double &turbVisc, const double &f1,
-                                     const unique_ptr<eos> &eqnState,
-                                     const unique_ptr<transport> &trans,
-                                     const unique_ptr<thermodynamic> &thermo,
-                                     const unitVec3dMag<double> &area,
-                                     const double &dist,
-                                     const unique_ptr<turbModel> &turb,
-                                     const input &inp, const bool &left,
-                                     const tensor<double> &vGrad) {
+void fluxJacobian::ApproxTSLJacobian(
+    const primitiveView &state, const double &lamVisc, const double &turbVisc,
+    const double &f1, const unique_ptr<eos> &eqnState,
+    const unique_ptr<transport> &trans, const unique_ptr<thermodynamic> &thermo,
+    const unitVec3dMag<double> &area, const double &dist,
+    const unique_ptr<turbModel> &turb, const input &inp, const bool &left,
+    const tensor<double> &vGrad) {
   // state -- primitive variables
   // eos -- equation of state
   // trans -- viscous transport model

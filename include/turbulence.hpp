@@ -134,27 +134,25 @@ class turbModel {
                         const vector3d<double> &kGrad,
                         const vector3d<double> &wGrad) const;
 
-  double CellSpectralRadius(const primitive &state,
-                            const unitVec3dMag<double> &fAreaL,
+  template <typename T>
+  double CellSpectralRadius(const T &state, const unitVec3dMag<double> &fAreaL,
                             const unitVec3dMag<double> &fAreaR,
                             const double &mu,
                             const unique_ptr<transport> &trans,
                             const double &vol, const double &mut,
                             const double &f1, const bool &addSrc) const;
-  double FaceSpectralRadius(const primitive &state,
-                            const unitVec3dMag<double> &fArea, const double &mu,
+  template <typename T>
+  double FaceSpectralRadius(const T &state, const unitVec3dMag<double> &fArea,
+                            const double &mu,
                             const unique_ptr<transport> &trans,
                             const double &dist, const double &mut,
                             const double &f1, const bool &positive) const;
-  virtual squareMatrix CalcTurbSrc(const primitive &state,
-                                   const tensor<double> &velGrad,
-                                   const vector3d<double> &kGrad,
-                                   const vector3d<double> &wGrad,
-                                   const unique_ptr<transport> &trans,
-                                   const double &vol,
-                                   const double &mut, const double &f1,
-                                   const double &f2, const double &width,
-                                   vector<double> &turbSrc) const;
+  virtual squareMatrix CalcTurbSrc(
+      const primitive &state, const tensor<double> &velGrad,
+      const vector3d<double> &kGrad, const vector3d<double> &wGrad,
+      const unique_ptr<transport> &trans, const double &vol, const double &mut,
+      const double &f1, const double &f2, const double &width,
+      vector<double> &turbSrc) const;
   virtual squareMatrix TurbSrcJac(const primitive &state,
                                   const double &beta,
                                   const unique_ptr<transport> &trans,
@@ -541,5 +539,10 @@ class turbWale : public turbModel {
 // function declarations
 template <typename T>
 double EddyViscUnlimited(const T &state);
+
+template <typename T>
+double InviscidCellSpectralRadius(const T &state,
+                                  const unitVec3dMag<double> &fAreaL,
+                                  const unitVec3dMag<double> &fAreaR);
 
 #endif
