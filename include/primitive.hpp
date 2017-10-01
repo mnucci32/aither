@@ -39,6 +39,7 @@ supply a ghost state given a boundary condition and boundary cell.  */
 #include "multiArray3d.hpp"        // multiArray3d
 #include "varArray.hpp"
 #include "conserved.hpp"
+#include "arrayView.hpp"
 
 using std::vector;
 using std::string;
@@ -158,9 +159,10 @@ conserved primitive::ConsVars(const unique_ptr<eos> &eqnState,
 }
 
 // function to return the state of the appropriate ghost cell
-primitive GetGhostState(const primitive &, const string &,
-                        const vector3d<double> &, const double &, const int &,
-                        const input &, const int &, const unique_ptr<eos> &,
+template <typename T>
+primitive GetGhostState(const T &, const string &, const vector3d<double> &,
+                        const double &, const int &, const input &, const int &,
+                        const unique_ptr<eos> &,
                         const unique_ptr<thermodynamic> &,
                         const unique_ptr<transport> &,
                         const unique_ptr<turbModel> &, wallVars &, const int &,
@@ -171,6 +173,7 @@ primitive GetGhostState(const primitive &, const string &,
 
 ostream &operator<<(ostream &os, const primitive &);
 
-primitive RoeAveragedState(const primitive&, const primitive&);
+template <typename T1, typename T2>
+primitive RoeAveragedState(const T1&, const T2&);
 
 #endif

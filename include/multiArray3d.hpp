@@ -133,14 +133,15 @@ class multiArray3d {
   auto Slice(const string &, int, range, range, const string = "cell",
              const int = 0) const;
 
-  void Insert(const range &, const range &, const range &,
-              const multiArray3d<T> &);
-  void Insert(const string &, const range &, const multiArray3d<T> &,
-              const bool = false);
-  void Insert(const string &, int, int, const multiArray3d<T> &,
-              const bool = false, const string = "cell", const bool = false,
-              const bool = false);
-  void Insert(const string &, int, range, range, const multiArray3d<T> &,
+  template <typename TT>
+  void Insert(const range &, const range &, const range &, const TT &);
+  template <typename TT>
+  void Insert(const string &, const range &, const TT &, const bool = false);
+  template <typename TT>
+  void Insert(const string &, int, int, const TT &, const bool = false,
+              const string = "cell", const bool = false, const bool = false);
+  template <typename TT>
+  void Insert(const string &, int, range, range, const TT &,
               const string = "cell", const int = 0);
 
   void Fill(const multiArray3d<T> &);
@@ -165,6 +166,10 @@ class multiArray3d {
 
   void InsertBlock(const int &ii, const int &jj, const int &kk, const T &val) {
     (*this)(ii, jj, kk) = val;
+  }
+  void InsertBlock(const string &dir, const int &d1, const int &d2,
+                   const int &d3, const T &val) {
+    (*this)(dir, d1, d2, d3) = val;
   }
 
   // operator overloads
@@ -805,8 +810,9 @@ auto multiArray3d<T>::Slice(const string &dir, int dirInd, range dir1,
 // this is the main insert funciton that all other overloaded insert functions
 // call
 template <typename T>
+template <typename TT>
 void multiArray3d<T>::Insert(const range &ir, const range &jr, const range &kr,
-                             const multiArray3d<T> &arr) {
+                             const TT &arr) {
   // ir -- i-index range to take slice [inclusive, exclusive)
   // jr -- j-index range to take slice [inclusive, exclusive)
   // kr -- k-index range to take slice [inclusive, exclusive)
@@ -832,7 +838,7 @@ void multiArray3d<T>::Insert(const range &ir, const range &jr, const range &kr,
   for (int ks = arr.StartK(), kp = kr.Start(); ks < arr.EndK(); ks++, kp++) {
     for (int js = arr.StartJ(), jp = jr.Start(); js < arr.EndJ(); js++, jp++) {
       for (int is = arr.StartI(), ip = ir.Start(); is < arr.EndI(); is++, ip++) {
-        (*this)(ip, jp, kp) = arr(is, js, ks);
+        this->InsertBlock(ip, jp, kp, arr(is, js, ks));
       }
     }
   }
@@ -843,9 +849,9 @@ void multiArray3d<T>::Insert(const range &ir, const range &jr, const range &kr,
 // dir is inserted over dirRange. It also has the ability to include or ignore
 // ghost cells in its planar inserts
 template <typename T>
+template <typename TT>
 void multiArray3d<T>::Insert(const string &dir, const range &dirRange,
-                             const multiArray3d<T> &arr,
-                             const bool physOnly) {
+                             const TT &arr, const bool physOnly) {
   // dir -- direction of slice to insert
   // dirRange -- range to insert slice into in direction given
   // arr -- array to insert
@@ -879,10 +885,11 @@ void multiArray3d<T>::Insert(const string &dir, const range &dirRange,
 
 // overload to insert line into array
 template <typename T>
+template <typename TT>
 void multiArray3d<T>::Insert(const string &dir, int d2Ind, int d3Ind,
-                             const multiArray3d<T> &arr,
-                             const bool physOnly, const string id,
-                             const bool upper2, const bool upper3) {
+                             const TT &arr, const bool physOnly,
+                             const string id, const bool upper2,
+                             const bool upper3) {
   // dir -- direction of line slice to insert (direction 1)
   // d2Ind -- index of direction 2 to insert into
   // d3Ind -- index of direction 3 to insert into
@@ -941,9 +948,10 @@ void multiArray3d<T>::Insert(const string &dir, int d2Ind, int d3Ind,
 // over a subset of direction 2 & 3. This is useful to insert into a plane that
 // borders a boundary condition patch.
 template <typename T>
+template <typename TT>
 void multiArray3d<T>::Insert(const string &dir, int dirInd, range dir1,
-                             range dir2, const multiArray3d<T> &arr,
-                             const string id, const int type) {
+                             range dir2, const TT &arr, const string id,
+                             const int type) {
   // dir -- normal direction of planar slice
   // dirInd -- index in normal direction
   // dir1 -- range of direction 1 (direction 3 is normal to slice)

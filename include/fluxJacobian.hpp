@@ -78,29 +78,33 @@ class fluxJacobian {
   void MultiplyOnDiagonal(const double &, const bool &);
   void AddOnDiagonal(const double &, const bool &);
 
-  void RusanovFluxJacobian(const primitiveView &, const unique_ptr<eos> &,
+  template <typename T>
+  void RusanovFluxJacobian(const T &, const unique_ptr<eos> &,
                            const unique_ptr<thermodynamic> &,
                            const unitVec3dMag<double> &, const bool &,
                            const input &, const unique_ptr<turbModel> &);
-  void InvFluxJacobian(const primitiveView &, const unique_ptr<eos> &,
+  template <typename T>
+  void InvFluxJacobian(const T &, const unique_ptr<eos> &,
                        const unique_ptr<thermodynamic> &,
                        const unitVec3dMag<double> &, const input &,
                        const unique_ptr<turbModel> &);
-  void ApproxRoeFluxJacobian(const primitiveView &, const primitiveView &,
-                             const unique_ptr<eos> &,
+  template <typename T1, typename T2>
+  void ApproxRoeFluxJacobian(const T1 &, const T2 &, const unique_ptr<eos> &,
                              const unique_ptr<thermodynamic> &,
                              const unitVec3dMag<double> &, const bool &,
                              const input &, const unique_ptr<turbModel> &);
-  void DelprimitiveDelConservative(const primitiveView &,
-                                   const unique_ptr<thermodynamic> &,
+  template <typename T>
+  void DelprimitiveDelConservative(const T &, const unique_ptr<thermodynamic> &,
                                    const unique_ptr<eos> &, const input &);
 
-  void ApproxTSLJacobian(
-      const primitiveView &, const double &, const double &, const double &,
-      const unique_ptr<eos> &, const unique_ptr<transport> &,
-      const unique_ptr<thermodynamic> &, const unitVec3dMag<double> &,
-      const double &, const unique_ptr<turbModel> &, const input &,
-      const bool &, const tensor<double> &);
+  template <typename T>
+  void ApproxTSLJacobian(const T &, const double &, const double &,
+                         const double &, const unique_ptr<eos> &,
+                         const unique_ptr<transport> &,
+                         const unique_ptr<thermodynamic> &,
+                         const unitVec3dMag<double> &, const double &,
+                         const unique_ptr<turbModel> &, const input &,
+                         const bool &, const tensor<double> &);
 
   void Zero() {
     flowJacobian_.Zero();

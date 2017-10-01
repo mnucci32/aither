@@ -138,7 +138,8 @@ characteristic waves, L represents the wave speeds, and (Cr - Cl) represents the
 wave strength across the face.
 
 */
-inviscidFlux RoeFlux(const primitive &left, const primitive &right,
+template <typename T1, typename T2>
+inviscidFlux RoeFlux(const T1 &left, const T2 &right,
                      const unique_ptr<eos> &eqnState,
                      const unique_ptr<thermodynamic> &thermo,
                      const vector3d<double> &areaNorm) {
@@ -146,6 +147,12 @@ inviscidFlux RoeFlux(const primitive &left, const primitive &right,
   // right -- primitive variables from right
   // eqnState -- equation of state
   // areaNorm -- norm area vector of face
+  static_assert(std::is_same<primitive, T1>::value ||
+                    std::is_same<primitiveView, T1>::value,
+                "T1 requires primitive or primativeView type");
+  static_assert(std::is_same<primitive, T2>::value ||
+                    std::is_same<primitiveView, T2>::value,
+                "T2 requires primitive or primativeView type");
 
   // compute Rho averaged quantities
   // Roe averaged state
@@ -306,7 +313,8 @@ inviscidFlux RoeFlux(const primitive &left, const primitive &right,
 
    F = M^+_l * c * F_cl + M^-_r * c * F_cr + P^+_l * P_l + P^-_r * P_r
 */
-inviscidFlux AUSMFlux(const primitive &left, const primitive &right,
+template <typename T1, typename T2>
+inviscidFlux AUSMFlux(const T1 &left, const T2 &right,
                      const unique_ptr<eos> &eqnState,
                      const unique_ptr<thermodynamic> &thermo,
                      const vector3d<double> &area) {
@@ -315,6 +323,12 @@ inviscidFlux AUSMFlux(const primitive &left, const primitive &right,
   // eqnState -- equation of state
   // thermo -- thermodynamic model
   // area -- norm area vector of face
+  static_assert(std::is_same<primitive, T1>::value ||
+                    std::is_same<primitiveView, T1>::value,
+                "T1 requires primitive or primativeView type");
+  static_assert(std::is_same<primitive, T2>::value ||
+                    std::is_same<primitiveView, T2>::value,
+                "T2 requires primitive or primativeView type");
 
   // calculate average specific enthalpy on face
   const auto tl = left.Temperature(eqnState);
@@ -375,13 +389,21 @@ inviscidFlux AUSMFlux(const primitive &left, const primitive &right,
   return ausm;
 }
 
-void inviscidFlux::AUSMFlux(const primitive &left, const primitive &right,
+template <typename T1, typename T2>
+void inviscidFlux::AUSMFlux(const T1 &left, const T2 &right,
                             const unique_ptr<eos> &eqnState,
                             const unique_ptr<thermodynamic> &thermo,
                             const vector3d<double> &area,
                             const double &sos, const double &mPlusLBar,
                             const double &mMinusRBar, const double &pPlus,
                             const double &pMinus) {
+  static_assert(std::is_same<primitive, T1>::value ||
+                    std::is_same<primitiveView, T1>::value,
+                "T1 requires primitive or primativeView type");
+  static_assert(std::is_same<primitive, T2>::value ||
+                    std::is_same<primitiveView, T2>::value,
+                "T2 requires primitive or primativeView type");
+
   // calculate left flux
   const auto vl = mPlusLBar * sos;
   for (auto ii = 0; ii < this->NumSpecies(); ++ii) {
@@ -419,10 +441,18 @@ void inviscidFlux::AUSMFlux(const primitive &left, const primitive &right,
   }
 }
 
-inviscidFlux InviscidFlux(const primitive &left, const primitive &right,
+template <typename T1, typename T2>
+inviscidFlux InviscidFlux(const T1 &left, const T2 &right,
                           const unique_ptr<eos> &eqnState,
                           const unique_ptr<thermodynamic> &thermo,
                           const vector3d<double> &area, const string &flux) {
+  static_assert(std::is_same<primitive, T1>::value ||
+                    std::is_same<primitiveView, T1>::value,
+                "T1 requires primitive or primativeView type");
+  static_assert(std::is_same<primitive, T2>::value ||
+                    std::is_same<primitiveView, T2>::value,
+                "T2 requires primitive or primativeView type");
+  
   inviscidFlux invFlux;
   if (flux == "roe") {
     invFlux = RoeFlux(left, right, eqnState, thermo, area);
@@ -437,7 +467,8 @@ inviscidFlux InviscidFlux(const primitive &left, const primitive &right,
   return invFlux;
 }
 
-inviscidFlux RusanovFlux(const primitive &left, const primitive &right,
+template <typename T1, typename T2>
+inviscidFlux RusanovFlux(const T1 &left, const T2 &right,
                          const unique_ptr<eos> &eqnState,
                          const unique_ptr<thermodynamic> &thermo,
                          const vector3d<double> &areaNorm,
@@ -448,6 +479,12 @@ inviscidFlux RusanovFlux(const primitive &left, const primitive &right,
   // thermo -- thermodynamic model
   // areaNorm -- norm area vector of face
   // positive -- flag that is positive to add spectral radius
+  static_assert(std::is_same<primitive, T1>::value ||
+                    std::is_same<primitiveView, T1>::value,
+                "T1 requires primitive or primativeView type");
+  static_assert(std::is_same<primitive, T2>::value ||
+                    std::is_same<primitiveView, T2>::value,
+                "T2 requires primitive or primativeView type");
 
   // calculate maximum spectral radius
   const auto leftSpecRad =

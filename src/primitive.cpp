@@ -182,8 +182,9 @@ Currently the following boundary conditions are supported: slipWall,
 viscousWall, characteristic, stagnationInlet, pressureOutlet, subsonicInflow,
 subsonicOutflow, supersonicInflow, supersonicOutflow
 */
+template <typename T>
 primitive GetGhostState(
-    const primitive &interior, const string &bcType,
+    const T &interior, const string &bcType,
     const vector3d<double> &areaVec, const double &wallDist, const int &surf,
     const input &inputVars, const int &tag, const unique_ptr<eos> &eqnState,
     const unique_ptr<thermodynamic> &thermo, const unique_ptr<transport> &trans,
@@ -208,12 +209,16 @@ primitive GetGhostState(
   // velGrad -- velocity gradient in adjacent cell
   // avgMach -- average mach number on surface patch
   // maxMach -- maximum mach number on surface patch
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
 
   // the instance of primitive being acted upon should be the interior cell
   // bordering the boundary
 
   // set ghost state equal to boundary state to start
-  auto ghost = interior;
+  auto ghost =
+      std::is_same<primitive, T>::value ? interior : interior.CopyData();
 
   // face area vector (should always point out of domain)
   // at lower surface normal should point out of domain for ghost cell calc
@@ -820,7 +825,15 @@ void primitive::LimitTurb(const unique_ptr<turbModel> &turb) {
 
 
 // function to calculate the Roe averaged state
-primitive RoeAveragedState(const primitive &left, const primitive &right) {
+template <typename T1, typename T2>
+primitive RoeAveragedState(const T1 &left, const T2 &right) {
+  static_assert(std::is_same<primitive, T1>::value ||
+                    std::is_same<primitiveView, T1>::value,
+                "T1 requires primitive or primativeView type");
+  static_assert(std::is_same<primitive, T2>::value ||
+                    std::is_same<primitiveView, T2>::value,
+                "T2 requires primitive or primativeView type");
+                
   // compute Rho averaged quantities
   primitive rhoState(left.Size(), left.NumSpecies());
   // density ratio

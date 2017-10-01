@@ -26,6 +26,7 @@
 #include <iostream>
 #include <memory>
 #include "varArray.hpp"
+#include "arrayView.hpp"
 #include "vector3d.hpp"
 #include "tensor.hpp"
 
@@ -36,7 +37,6 @@ using std::ostream;
 using std::unique_ptr;
 
 // forward class declaration
-class primitive;
 class turbModel;
 class transport;
 class squareMatrix;
@@ -56,7 +56,7 @@ class source : public residual {
   source& operator=(const source&) = default;
 
   // member functions
-  squareMatrix CalcTurbSrc(const unique_ptr<turbModel> &, const primitive &,
+  squareMatrix CalcTurbSrc(const unique_ptr<turbModel> &, const primitiveView &,
                            const tensor<double> &, const vector3d<double> &,
                            const vector3d<double> &, const vector3d<double> &,
                            const unique_ptr<transport> &, const double &,

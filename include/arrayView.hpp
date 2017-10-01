@@ -178,7 +178,22 @@ class arrayView {
                   "getter only valid for primitive type!");
     return eqnState->Temperature(this->P(), this->Rho());
   }
-  conserved ConsVars(const unique_ptr<eos> &eqnState, 
+  T2 Energy(const unique_ptr<eos> &eqnState,
+            const unique_ptr<thermodynamic> &thermo) const {
+    static_assert(std::is_same<primitive, T1>::value,
+                  "getter only valid for primitive type!");
+    const auto t = this->Temperature(eqnState);
+    return eqnState->Energy(eqnState->SpecEnergy(thermo, t),
+                            this->Velocity().Mag());
+  }
+  T2 Enthalpy(const unique_ptr<eos> &eqnState,
+              const unique_ptr<thermodynamic> &thermo) const {
+    static_assert(std::is_same<primitive, T1>::value,
+                  "getter only valid for primitive type!");
+    const auto t = this->Temperature(eqnState);
+    return eqnState->Enthalpy(thermo, t, this->Velocity().Mag());
+  }
+  conserved ConsVars(const unique_ptr<eos> &eqnState,
                      const unique_ptr<thermodynamic> &thermo) const {
     static_assert(std::is_same<primitive, T1>::value,
                   "function only valid for primitive type!");
@@ -272,6 +287,74 @@ inline const T1 operator/(const T2 &lhs, const arrayView<T1, T2> &rhs) {
   return lhs / rhs;
 }
 
+// operator overloads for varArray type T -------------------------------------
+template <typename T1, typename T2, typename T3>
+inline const typename std::enable_if_t<
+    std::is_base_of<varArray, T3>::value, T3>
+operator+(const T3 &lhs, const arrayView<T1, T2> &rhs) {
+  T3 result(rhs.begin(), rhs.end(), rhs.NumSpecies());
+  return result += lhs;
+}
+
+template <typename T1, typename T2, typename T3>
+inline const typename std::enable_if_t<
+    std::is_base_of<varArray, T3>::value, T3>
+operator-(const T3 &lhs, const arrayView<T1, T2> &rhs) {
+  T3 result(rhs.begin(), rhs.end(), rhs.NumSpecies());
+  return result -= lhs;
+}
+
+template <typename T1, typename T2, typename T3>
+inline const typename std::enable_if_t<
+    std::is_base_of<varArray, T3>::value, T3>
+operator*(const T3 &lhs, const arrayView<T1, T2> &rhs) {
+  T3 result(rhs.begin(), rhs.end(), rhs.NumSpecies());
+  return result *= lhs;
+}
+
+template <typename T1, typename T2, typename T3>
+inline const typename std::enable_if_t<
+    std::is_base_of<varArray, T3>::value, T3>
+operator/(const T3 &lhs, const arrayView<T1, T2> &rhs) {
+  T3 result(rhs.begin(), rhs.end(), rhs.NumSpecies());
+  return result /= lhs;
+}
+
+// ---------------------------------------------------------------------------
+template <typename T1, typename T2, typename T3>
+inline const typename std::enable_if_t<
+    std::is_base_of<varArray, T3>::value, T3>
+operator+(const arrayView<T1, T2> &lhs, const T3 &rhs) {
+  auto result = lhs.CopyData();
+  return result += lhs;
+}
+
+template <typename T1, typename T2, typename T3>
+inline const typename std::enable_if_t<
+    std::is_base_of<varArray, T3>::value, T3>
+operator-(const arrayView<T1, T2> &lhs, const T3 &rhs) {
+  auto result = lhs.CopyData();
+  return result -= rhs;
+}
+
+template <typename T1, typename T2, typename T3>
+inline const typename std::enable_if_t<
+    std::is_base_of<varArray, T3>::value, T3>
+operator*(const arrayView<T1, T2> &lhs, const T3 &rhs) {
+  auto result = lhs.CopyData();
+  return result *= rhs;
+}
+
+template <typename T1, typename T2, typename T3>
+inline const typename std::enable_if_t<
+    std::is_base_of<varArray, T3>::value, T3>
+operator/(const arrayView<T1, T2> &lhs, const T3 &rhs) {
+  auto result = lhs.CopyData();
+  return result /= rhs;
+}
+
+
+// ---------------------------------------------------------------------------
 // operation overload for << - allows use of cout, cerr, etc.
 template <typename T1, typename T2>
 ostream &operator<<(ostream &os, const arrayView<T1, T2> &m) {

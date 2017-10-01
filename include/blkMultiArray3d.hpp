@@ -100,6 +100,28 @@ class blkMultiArray3d : public multiArray3d<double> {
     std::copy(arr.begin(), arr.end(), this->begin() + start);
   }
 
+  template <typename T2>
+  void InsertBlock(const string &dir, const int &d1, const int &d2,
+                   const int &d3, const T2 &arr) {
+    static_assert(std::is_same<T, T2>::value ||
+                      std::is_same<arrayView<T, double>, T2>::value,
+                  "blkMultiArray3d<T> requires a varArray based type!");
+    MSG_ASSERT(arr.Size() == this->BlockSize(), "block size must match");
+
+    auto start = 0;
+    if (dir == "i") {  // direction 1 is i
+      start = this->GetBlkLoc1D(d1, d2, d3);
+    } else if (dir == "j") {  // direction 1 is j
+      start = this->GetBlkLoc1D(d3, d1, d2);
+    } else if (dir == "k") {  // direction 1 is k
+      start = this->GetBlkLoc1D(d2, d3, d1);
+    } else {
+      cerr << "ERROR: Direction " << dir << " is not recognized!" << endl;
+      exit(EXIT_FAILURE);
+    }
+    std::copy(arr.begin(), arr.end(), this->begin() + start);
+  }
+
   auto Slice(const range &, const range &, const range &) const;
   auto Slice(const string &, const range &, const bool = false) const;
   auto Slice(const string &, int, int, const bool = false,
@@ -120,7 +142,22 @@ class blkMultiArray3d : public multiArray3d<double> {
     return {this->begin() + start, this->begin() + start + this->BlockSize(),
             numSpecies_};
   }
-
+  arrayView<T, double> operator()(const string &dir, const int &d1,
+                                  const int &d2, const int &d3) const {
+    auto start = 0;
+    if (dir == "i") {  // direction 1 is i
+      start = this->GetBlkLoc1D(d1, d2, d3);
+    } else if (dir == "j") {  // direction 1 is j
+      start = this->GetBlkLoc1D(d3, d1, d2);
+    } else if (dir == "k") {  // direction 1 is k
+      start = this->GetBlkLoc1D(d2, d3, d1);
+    } else {
+      cerr << "ERROR: Direction " << dir << " is not recognized!" << endl;
+      exit(EXIT_FAILURE);
+    }
+    return {this->begin() + start, this->begin() + start + this->BlockSize(),
+            numSpecies_};
+  }
   double &operator()(const int &ii, const int &jj, const int &kk,
                      const int &bb) {
     MSG_ASSERT(bb <= this->BlockSize(), "accessing data out of block index");

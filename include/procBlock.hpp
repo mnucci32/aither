@@ -146,7 +146,7 @@ class procBlock {
                                 const unique_ptr<thermodynamic> &,
                                 const unique_ptr<turbModel> &, const int &,
                                 const int &, const int &);
-  void ImplicitTimeAdvance(const varArray &, const unique_ptr<eos> &,
+  void ImplicitTimeAdvance(const varArrayView &, const unique_ptr<eos> &,
                            const unique_ptr<thermodynamic> &,
                            const unique_ptr<turbModel> &, const int &,
                            const int &, const int &);
@@ -187,6 +187,8 @@ class procBlock {
   // member functions
   int NumCells() const { return residual_.Size(); }
   int NumCellsGhosts() const { return state_.Size(); }
+  int NumEquations() const { return residual_(0, 0, 0).Size(); }
+  int NumSpecies() const { return residual_(0, 0, 0).NumSpecies(); }
   int NumI() const { return residual_.NumI(); }
   int NumJ() const { return residual_.NumJ(); }
   int NumK() const { return residual_.NumK(); }
@@ -491,7 +493,7 @@ class procBlock {
                       int &) const;
 
   vector<bool> PutGeomSlice(const geomSlice &, connection &, const int &);
-  void PutStateSlice(const multiArray3d<primitive> &, const connection &,
+  void PutStateSlice(const blkMultiArray3d<primitive> &, const connection &,
                      const int &, const int &);
 
   procBlock Split(const string &, const int &, const int &,

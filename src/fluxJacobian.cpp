@@ -100,7 +100,8 @@ jacobians.
 In the above equations the dissipation term L is held constant during
 differentiation. A represents the convective flux jacobian matrix.
  */
-void fluxJacobian::RusanovFluxJacobian(const primitiveView &state,
+template <typename T>
+void fluxJacobian::RusanovFluxJacobian(const T &state,
                                        const unique_ptr<eos> &eqnState,
                                        const unique_ptr<thermodynamic> &thermo,
                                        const unitVec3dMag<double> &area,
@@ -113,6 +114,9 @@ void fluxJacobian::RusanovFluxJacobian(const primitiveView &state,
   // positive -- flag to determine whether to add or subtract dissipation
   // inp -- input variables
   // turb -- turbulence model
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
 
   // face inviscid spectral radius
   const auto specRad = InvFaceSpectralRadius(state, area, thermo, eqnState);
@@ -135,7 +139,8 @@ void fluxJacobian::RusanovFluxJacobian(const primitiveView &state,
 }
 
 // function to calculate inviscid flux jacobian
-void fluxJacobian::InvFluxJacobian(const primitiveView &state,
+template <typename T>
+void fluxJacobian::InvFluxJacobian(const T &state,
                                    const unique_ptr<eos> &eqnState,
                                    const unique_ptr<thermodynamic> &thermo,
                                    const unitVec3dMag<double> &area,
@@ -147,6 +152,9 @@ void fluxJacobian::InvFluxJacobian(const primitiveView &state,
   // area -- face area vector
   // inp -- input variables
   // turb -- turbulence model
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
 
   const auto t = state.Temperature(eqnState);
   const auto velNorm = state.Velocity().DotProd(area.UnitVector());
@@ -228,8 +236,9 @@ jacobians.
 In the above equations the Roe matrix Aroe is held constant during
 differentiation. A represents the convective flux jacobian matrix.
  */
+template <typename T1, typename T2>
 void fluxJacobian::ApproxRoeFluxJacobian(
-    const primitiveView &left, const primitiveView &right,
+    const T1 &left, const T2 &right,
     const unique_ptr<eos> &eqnState, const unique_ptr<thermodynamic> &thermo,
     const unitVec3dMag<double> &area, const bool &positive, const input &inp,
     const unique_ptr<turbModel> &turb) {
@@ -241,6 +250,12 @@ void fluxJacobian::ApproxRoeFluxJacobian(
   // positive -- flag to determine whether to add or subtract dissipation
   // inp -- input variables
   // turb -- turbulence model
+  static_assert(std::is_same<primitive, T1>::value ||
+                    std::is_same<primitiveView, T1>::value,
+                "T1 requires primitive or primativeView type");
+  static_assert(std::is_same<primitive, T2>::value ||
+                    std::is_same<primitiveView, T2>::value,
+                "T2 requires primitive or primativeView type");
 
   // compute Roe averaged state
   const auto roeAvg = RoeAveragedState(left, right);
@@ -258,12 +273,16 @@ void fluxJacobian::ApproxRoeFluxJacobian(
 
 // change of variable matrix going from primitive to conservative variables
 // from Dwight
+template <typename T>
 void fluxJacobian::DelprimitiveDelConservative(
-    const primitiveView &state, const unique_ptr<thermodynamic> &thermo,
+    const T &state, const unique_ptr<thermodynamic> &thermo,
     const unique_ptr<eos> &eqnState, const input &inp) {
   // state -- primitive variables
   // thermo -- thermodynamic model
   // inp -- input variables
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
 
   const auto t = state.Temperature(eqnState);
   const auto gammaMinusOne = thermo->Gamma(t) - 1.0;
@@ -304,8 +323,9 @@ void fluxJacobian::DelprimitiveDelConservative(
 
 // approximate thin shear layer jacobian following implementation in Dwight.
 // does not use any gradients
+template <typename T>
 void fluxJacobian::ApproxTSLJacobian(
-    const primitiveView &state, const double &lamVisc, const double &turbVisc,
+    const T &state, const double &lamVisc, const double &turbVisc,
     const double &f1, const unique_ptr<eos> &eqnState,
     const unique_ptr<transport> &trans, const unique_ptr<thermodynamic> &thermo,
     const unitVec3dMag<double> &area, const double &dist,
@@ -320,6 +340,9 @@ void fluxJacobian::ApproxTSLJacobian(
   // inp -- input variables
   // left -- flag that is negative if using left state
   // vGrad -- velocity gradient
+  static_assert(std::is_same<primitive, T>::value ||
+                    std::is_same<primitiveView, T>::value,
+                "T requires primitive or primativeView type");
 
   flowJacobian_ = squareMatrix(inp.NumFlowEquations());
   turbJacobian_ = squareMatrix(inp.NumTurbEquations());

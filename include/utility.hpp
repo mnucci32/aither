@@ -45,12 +45,6 @@ class primitive;
 class varArray;
 
 // function definitions
-template <typename T>
-inline T FaceReconCentral(const T &, const T &, const vector<double> &);
-template <typename T>
-inline T FaceReconCentral4th(const T &, const T &, const T &, const T&,
-                             const vector<double> &);
-
 tensor<double> VectorGradGG(const vector3d<double> &, const vector3d<double> &,
                             const vector3d<double> &, const vector3d<double> &,
                             const vector3d<double> &, const vector3d<double> &,
@@ -157,42 +151,6 @@ kdtree CalcTreeFromCloud(const string &, const input &,
 
 // ---------------------------------------------------------------------------
 // inline function definitions
-
-// function to reconstruct cell variables to the face using central
-// differences
-template <typename T>
-T FaceReconCentral(const T &varU, const T &varD,
-                   const vector<double> &cellWidth) {
-  // varU -- variable at the cell center of the upwind cell
-  // varD -- variable at the cell center of the downwind cell
-  // cellWidth -- width of cells in stencil
-
-  // get coefficients
-  const auto coeffs = LagrangeCoeff(cellWidth, 1, 0, 0);
-
-  // reconstruct with central difference
-  return coeffs[0] * varD + coeffs[1] * varU;
-}
-
-// function to reconstruct cell variables to the face using central
-// differences (4th order)
-template <typename T>
-T FaceReconCentral4th(const T &varU2, const T &varU1, const T &varD1,
-                      const T &varD2, const vector<double> &cellWidth) {
-  // varU2 -- variable at the cell center of the second upwind cell
-  // varU1 -- variable at the cell center of the first upwind cell
-  // varD1 -- variable at the cell center of the first downwind cell
-  // varD2 -- variable at the cell center of the second downwind cell
-  // cellWidth -- width of cells in stencil
-
-  // get coefficients
-  const auto coeffs = LagrangeCoeff(cellWidth, 3, 1, 1);
-
-  // reconstruct with central difference
-  return coeffs[0] * varU2 + coeffs[1] * varU1 + coeffs[2] * varD1 +
-      coeffs[3] * varD2;
-}
-
 template <typename T>
 T Derivative2nd(const double &x_0, const double &x_1, const double &x_2,
                 const T &y_0, const T &y_1, const T &y_2) {

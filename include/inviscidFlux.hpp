@@ -78,7 +78,8 @@ class inviscidFlux : public varArray {
   // member functions
   const double & MassN(const int &ii) const { return this->SpeciesN(ii); }
   void RoeFlux(const inviscidFlux&, const varArray&);
-  void AUSMFlux(const primitive &, const primitive &, const unique_ptr<eos> &,
+  template <typename T1, typename T2>
+  void AUSMFlux(const T1 &, const T2 &, const unique_ptr<eos> &,
                 const unique_ptr<thermodynamic> &, const vector3d<double> &,
                 const double &, const double &, const double &, const double &,
                 const double &);
@@ -89,24 +90,26 @@ class inviscidFlux : public varArray {
 
 // function definitions
 // function to calculate Roe flux with entropy fix
-inviscidFlux RoeFlux(const primitive &, const primitive &,
-                     const unique_ptr<eos> &, const unique_ptr<thermodynamic> &,
+template <typename T1, typename T2>
+inviscidFlux RoeFlux(const T1 &, const T2 &, const unique_ptr<eos> &,
+                     const unique_ptr<thermodynamic> &,
                      const vector3d<double> &);
-inviscidFlux AUSMFlux(const primitive &, const primitive &,
-                      const unique_ptr<eos> &,
+template <typename T1, typename T2>
+inviscidFlux AUSMFlux(const T1 &, const T2 &, const unique_ptr<eos> &,
                       const unique_ptr<thermodynamic> &,
                       const vector3d<double> &);
-inviscidFlux InviscidFlux(const primitive &, const primitive &,
-                          const unique_ptr<eos> &,
+template <typename T1, typename T2>
+inviscidFlux InviscidFlux(const T1 &, const T2 &, const unique_ptr<eos> &,
                           const unique_ptr<thermodynamic> &,
                           const vector3d<double> &, const string &);
-inviscidFlux RusanovFlux(const primitive &, const primitive &,
-                         const unique_ptr<eos> &,
+template <typename T1, typename T2>
+inviscidFlux RusanovFlux(const T1 &, const T2 &, const unique_ptr<eos> &,
                          const unique_ptr<thermodynamic> &,
                          const vector3d<double> &, const bool &);
 
 // function to calculate Roe flux with entropy fix for implicit methods
-void ApproxRoeFluxJacobian(const primitive &, const primitive &,
+template <typename T1, typename T2>
+void ApproxRoeFluxJacobian(const T1 &, const T2 &,
                            const unique_ptr<eos> &, const vector3d<double> &,
                            double &, squareMatrix &, squareMatrix &);
 

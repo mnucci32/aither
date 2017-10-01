@@ -902,7 +902,7 @@ void procBlock::ExplicitEulerTimeAdvance(
 
 // member function to advance the state vector to time n+1 (for implicit
 // methods)
-void procBlock::ImplicitTimeAdvance(const varArray &du,
+void procBlock::ImplicitTimeAdvance(const varArrayView &du,
                                     const unique_ptr<eos> &eqnState,
                                     const unique_ptr<thermodynamic> &thermo,
                                     const unique_ptr<turbModel> &turb,
@@ -917,8 +917,8 @@ void procBlock::ImplicitTimeAdvance(const varArray &du,
   // kk -- k-location of cell
 
   // calculate updated state (primitive variables)
-  state_(ii, jj, kk) =
-      state_(ii, jj, kk).UpdateWithConsVars(eqnState, thermo, du, turb);
+  state_.InsertBlock(ii, jj, kk,
+      state_(ii, jj, kk).UpdateWithConsVars(eqnState, thermo, du, turb));
 }
 
 /* member function to advance the state vector to time n+1 using 4th order
@@ -1082,7 +1082,8 @@ void procBlock::AssignSolToTimeN(const unique_ptr<eos> &eos,
     for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
       for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
         // convert state to conservative variables
-        consVarsN_(ii, jj, kk) = state_(ii, jj, kk).ConsVars(eos, thermo);
+        consVarsN_.InsertBlock(ii, jj, kk,
+                               state_(ii, jj, kk).ConsVars(eos, thermo));
       }
     }
   }
@@ -1353,10 +1354,10 @@ void procBlock::LUSGS_Forward(const vector<vector3d<int>> &reorder,
     // calculate intermediate update
     // normal at lower boundaries needs to be reversed, so add instead
     // of subtract L
-    x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(-thetaInv *
-                                               residual_(ii, jj, kk) +
-                                               solDeltaNm1 - solDeltaMmN +
-                                               L - U);
+    x.InsertBlock(ii, jj, kk,
+                  aInv(ii, jj, kk)
+                      .ArrayMult(-thetaInv * residual_(ii, jj, kk) +
+                                 solDeltaNm1 - solDeltaMmN + L - U));
   }  // end forward sweep
 }
 
@@ -1513,12 +1514,12 @@ double procBlock::LUSGS_Backward(
     // calculate update
     auto xold = x(ii, jj, kk);
     if (sweep > 0 || inp.MatrixRequiresInitialization()) {
-      x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(-thetaInv *
-                                                 residual_(ii, jj, kk) +
-                                                 solDeltaNm1 - solDeltaMmN +
-                                                 L - U);
+      x.InsertBlock(ii, jj, kk,
+                    aInv(ii, jj, kk)
+                        .ArrayMult(-thetaInv * residual_(ii, jj, kk) +
+                                   solDeltaNm1 - solDeltaMmN + L - U));
     } else {
-      x(ii, jj, kk) -= aInv(ii, jj, kk).ArrayMult(U);
+      x.InsertBlock(ii, jj, kk, x(ii, jj, kk) - aInv(ii, jj, kk).ArrayMult(U));
     }
     const auto error = x(ii, jj, kk) - xold;
     l2Error += error * error;
@@ -1675,9 +1676,10 @@ double procBlock::DPLUR(blkMultiArray3d<varArray> &x,
             this->SolDeltaMmN(ii, jj, kk, inp, eqnState, thermo);
 
         // calculate update
-        x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(
-            -thetaInv * residual_(ii, jj, kk) + solDeltaNm1 - solDeltaMmN
-            + offDiagonal);
+        x.InsertBlock(ii, jj, kk,
+                      aInv(ii, jj, kk)
+                          .ArrayMult(-thetaInv * residual_(ii, jj, kk) +
+                                     solDeltaNm1 - solDeltaMmN + offDiagonal));
 
         // calculate matrix error
         const auto error = x(ii, jj, kk) - xold(ii, jj, kk);
@@ -1710,10 +1712,12 @@ blkMultiArray3d<varArray> procBlock::InitializeMatrixUpdate(
       for (auto jj = this->StartJ(); jj < this->EndJ(); jj++) {
         for (auto ii = this->StartI(); ii < this->EndI(); ii++) {
           // calculate update
-          x(ii, jj, kk) = aInv(ii, jj, kk).ArrayMult(
-              -thetaInv * residual_(ii, jj, kk) -
-              this->SolDeltaNm1(ii, jj, kk, inp) -
-              this->SolDeltaMmN(ii, jj, kk, inp, eqnState, thermo));
+          x.InsertBlock(ii, jj, kk,
+                        aInv(ii, jj, kk)
+                            .ArrayMult(-thetaInv * residual_(ii, jj, kk) -
+                                       this->SolDeltaNm1(ii, jj, kk, inp) -
+                                       this->SolDeltaMmN(ii, jj, kk, inp,
+                                                         eqnState, thermo)));
         }
       }
     }
@@ -3246,25 +3250,29 @@ void procBlock::AssignInviscidGhostCellsEdge(
             // assign states -------------------------------------------------
             // surface-2 is a wall, but surface-3 is not - extend wall bc
             if (bc_2 == "slipWall" && bc_3 != "slipWall") {
-              state_(dir, d1, gCellD2, gCellD3) =
+              auto ghost =
                   GetGhostState(state_(dir, d1, pCellD2, gCellD3), bc_2, fArea2,
                                 wDist2, surf2, inp, tag2, eqnState, thermo,
                                 trans, turb, wVars, layer2);
+              state_.InsertBlock(dir, d1, gCellD2, gCellD3, ghost);
               // surface-3 is a wall, but surface-2 is not - extend wall bc
             } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
-              state_(dir, d1, gCellD2, gCellD3) =
+              auto ghost =
                   GetGhostState(state_(dir, d1, gCellD2, pCellD3), bc_3, fArea3,
                                 wDist3, surf3, inp, tag3, eqnState, thermo,
                                 trans, turb, wVars, layer3);
+              state_.InsertBlock(dir, d1, gCellD2, gCellD3, ghost);
             } else {  // both surfaces or neither are walls - proceed as normal
               if (layer2 == layer3) {  // need to average
-                state_(dir, d1, gCellD2, gCellD3) = 0.5 *
-                    (state_(dir, d1, pCellD2, gCellD3) +
-                     state_(dir, d1, gCellD2, pCellD3));
+                auto ghost = 0.5 * (state_(dir, d1, pCellD2, gCellD3) +
+                                    state_(dir, d1, gCellD2, pCellD3));
+                state_.InsertBlock(dir, d1, gCellD2, gCellD3, ghost);
               } else if (layer2 > layer3) {  // values come from direction 3
-                state_(dir, d1, gCellD2, gCellD3) = state_(dir, d1, gCellD2, pCellD3);
+                state_.InsertBlock(dir, d1, gCellD2, gCellD3,
+                                   state_(dir, d1, gCellD2, pCellD3));
               } else {  // values come from direction 2
-                state_(dir, d1, gCellD2, gCellD3) = state_(dir, d1, pCellD2, gCellD3);
+                state_.InsertBlock(dir, d1, gCellD2, gCellD3,
+                                   state_(dir, d1, pCellD2, gCellD3));
               }
             }
           }
@@ -3509,26 +3517,30 @@ void procBlock::AssignViscousGhostCellsEdge(
             // assign states -------------------------------------------------
             // surface-2 is a wall, but surface-3 is not - extend wall bc
             if (bc_2 == "slipWall" && bc_3 != "slipWall") {
-              state_(dir, d1, gCellD2, gCellD3) =
+              auto ghost =
                   GetGhostState(state_(dir, d1, pCellD2, gCellD3), bc_2, fArea2,
                                 wDist2, surf2, inp, tag2, eqnState, thermo,
                                 trans, turb, wVars, layer2);
+              state_.InsertBlock(dir, d1, gCellD2, gCellD3, ghost);
               // surface-3 is a wall, but surface-2 is not - extend wall bc
             } else if (bc_2 != "slipWall" && bc_3 == "slipWall") {
-              state_(dir, d1, gCellD2, gCellD3) =
+              auto ghost =
                   GetGhostState(state_(dir, d1, gCellD2, pCellD3), bc_3, fArea3,
                                 wDist3, surf3, inp, tag3, eqnState, thermo,
                                 trans, turb, wVars, layer3);
+              state_.InsertBlock(dir, d1, gCellD2, gCellD3, ghost);
               // both surfaces are walls - proceed as normal
             } else if (bc_2 == "viscousWall" && bc_3 == "viscousWall") {
               if (layer2 == layer3) {  // need to average
-                state_(dir, d1, gCellD2, gCellD3) = 0.5 *
-                    (state_(dir, d1, pCellD2, gCellD3) +
-                     state_(dir, d1, gCellD2, pCellD3));
+                auto ghost = 0.5 * (state_(dir, d1, pCellD2, gCellD3) +
+                                    state_(dir, d1, gCellD2, pCellD3));
+                state_.InsertBlock(dir, d1, gCellD2, gCellD3, ghost);
               } else if (layer2 > layer3) {  // values come from direction 3
-                state_(dir, d1, gCellD2, gCellD3) = state_(dir, d1, gCellD2, pCellD3);
+                state_.InsertBlock(dir, d1, gCellD2, gCellD3,
+                                   state_(dir, d1, gCellD2, pCellD3));
               } else {  // values come from direction 2
-                state_(dir, d1, gCellD2, gCellD3) = state_(dir, d1, pCellD2, gCellD3);
+                state_.InsertBlock(dir, d1, gCellD2, gCellD3,
+                                   state_(dir, d1, pCellD2, gCellD3));
               }
             }
             // if neither surfaces are walls, do nothing
@@ -4740,7 +4752,7 @@ slice of states. The function uses the orientation supplied in the connection to
 orient the slice relative to the procBlock. It assumes that the procBlock
 is listed first, and the slice second in the connection data structure.
 */
-void procBlock::PutStateSlice(const multiArray3d<primitive> &slice,
+void procBlock::PutStateSlice(const blkMultiArray3d<primitive> &slice,
                               const connection &inter,
                               const int &d3, const int &numG) {
   // slice -- slice to insert in procBlock
@@ -5394,10 +5406,12 @@ procBlock procBlock::Split(const string &dir, const int &ind, const int &num,
     exit(EXIT_FAILURE);
   }
 
-  procBlock blk1(numI1, numJ1, numK1, numGhosts_, isViscous_, isTurbulent_,
-                 isRANS_, storeTimeN_, isMultiLevelTime_);
-  procBlock blk2(numI2, numJ2, numK2, numGhosts_, isViscous_, isTurbulent_,
-                 isRANS_, storeTimeN_, isMultiLevelTime_);
+  procBlock blk1(numI1, numJ1, numK1, numGhosts_, this->NumEquations(),
+                 this->NumSpecies(), isViscous_, isTurbulent_, isRANS_,
+                 storeTimeN_, isMultiLevelTime_);
+  procBlock blk2(numI2, numJ2, numK2, numGhosts_, this->NumEquations(),
+                 this->NumSpecies(), isViscous_, isTurbulent_, isRANS_,
+                 storeTimeN_, isMultiLevelTime_);
 
   blk1.parBlock_ = parBlock_;
   blk2.parBlock_ = parBlock_;
@@ -5564,8 +5578,9 @@ void procBlock::Join(const procBlock &blk, const string &dir,
     exit(EXIT_FAILURE);
   }
 
-  procBlock newBlk(iTot, jTot, kTot, numGhosts_, isViscous_, isTurbulent_,
-                   isRANS_, storeTimeN_, isMultiLevelTime_);
+  procBlock newBlk(iTot, jTot, kTot, numGhosts_, this->NumEquations(),
+                   this->NumSpecies(), isViscous_, isTurbulent_, isRANS_,
+                   storeTimeN_, isMultiLevelTime_);
 
   newBlk.bc_ = bc_;
   newBlk.bc_.Join(blk.bc_, dir, alteredSurf);
@@ -6500,16 +6515,12 @@ void procBlock::CalcSrcTerms(const unique_ptr<transport> &trans,
       for (auto ii = 0; ii < this->NumI(); ii++) {
         // calculate turbulent source terms
         const auto phi = turb->UsePhi() ? this->MaxCellWidth(ii, jj, kk) : 1.0;
-        source src;
-        const auto srcJac = src.CalcTurbSrc(turb, state_(ii, jj, kk),
-                                            velocityGrad_(ii, jj, kk),
-                                            temperatureGrad_(ii, jj, kk),
-                                            tkeGrad_(ii, jj, kk),
-                                            omegaGrad_(ii, jj, kk), trans,
-                                            vol_(ii, jj, kk),
-                                            eddyViscosity_(ii, jj, kk),
-                                            f1_(ii, jj, kk), f2_(ii, jj, kk),
-                                            phi);
+        source src(this->NumEquations(), this->NumSpecies());
+        const auto srcJac = src.CalcTurbSrc(
+            turb, state_(ii, jj, kk), velocityGrad_(ii, jj, kk),
+            temperatureGrad_(ii, jj, kk), tkeGrad_(ii, jj, kk),
+            omegaGrad_(ii, jj, kk), trans, vol_(ii, jj, kk),
+            eddyViscosity_(ii, jj, kk), f1_(ii, jj, kk), f2_(ii, jj, kk), phi);
 
         // add source terms to residual
         // subtract because residual is initially on opposite side of equation
